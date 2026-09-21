@@ -198,6 +198,36 @@ let private mappedList (vm : VMState) (items : List<Dval>) : Dval =
   | Error() -> TypeChecker.DvalCreator.list vm.threadID VT.unknown items
 
 
+/// `mappedList`, when some of the mapped values are reads still in flight (the lambda called a
+/// read builtin and returned its promise): one promise for the whole list, landing when every
+/// element has. This is what makes `List.map HttpClient.get urls` fetch them all at once; the
+/// list is forced at its first use, and every read is by then in flight.
+let private mappedListOrPromise (vm : VMState) (items : List<Dval>) : Dval =
+  if
+    items
+    |> List.exists (fun dv ->
+      match dv with
+      | DPromise _ -> true
+      | _ -> false)
+  then
+    let tasks =
+      items
+      |> List.map (fun dv ->
+        match dv with
+        | DPromise p -> p.Task
+        | dv -> System.Threading.Tasks.Task.FromResult dv)
+      |> Array.ofList
+    let site = vm.callFrames[vm.currentFrameID].executionPoint
+    let combined =
+      task {
+        let! values = System.Threading.Tasks.Task.WhenAll tasks
+        return mappedList vm (List.ofArray values)
+      }
+    DPromise(Promise(combined, FQFnName.fqBuiltin "listMap" 0, site))
+  else
+    mappedList vm items
+
+
 /// A `filter` predicate returned something other than a bool.
 ///
 /// The same error the Dark version raised, since its body was `if f elem then ... else ...` and this
@@ -675,10 +705,14 @@ let fns () : List<BuiltInFn> =
           let mutable rest = items
           let mutable pending = ValueNone
 
+          // The deferred form: a lambda that calls a read hands its promise back rather than
+          // waiting, so every element's read is in flight before the next begins, and the list
+          // comes back as one promise (`mappedListOrPromise`).
           while ValueOption.isNone pending && not (List.isEmpty rest) do
             match rest with
             | elem :: tail ->
-              let call = Exe.executeApplicable1 state vm.activeAccess app elem
+              let call =
+                Exe.executeApplicable1Deferred state vm.activeAccess app elem
               match Ply.trySync call with
               | ValueSome(Ok mapped) ->
                 acc <- mapped :: acc
@@ -688,7 +722,7 @@ let fns () : List<BuiltInFn> =
             | [] -> ()
 
           match pending with
-          | ValueNone -> Ply(mappedList vm (List.rev acc))
+          | ValueNone -> Ply(mappedListOrPromise vm (List.rev acc))
           | ValueSome(struct (call, tail)) ->
             uply {
               let! first = call
@@ -700,13 +734,15 @@ let fns () : List<BuiltInFn> =
                 while not (List.isEmpty rest) do
                   match rest with
                   | elem :: elemTail ->
-                    match! Exe.executeApplicable1 state vm.activeAccess app elem with
+                    match!
+                      Exe.executeApplicable1Deferred state vm.activeAccess app elem
+                    with
                     | Ok stepped ->
                       acc <- stepped :: acc
                       rest <- elemTail
                     | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
                   | [] -> ()
-                return mappedList vm (List.rev acc)
+                return mappedListOrPromise vm (List.rev acc)
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

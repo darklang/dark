@@ -216,7 +216,17 @@ A `Request` is exact and already normalized by the checked host boundary. A
 The package and trace stores are host-owned wholes with no per-resource
 scoping: `package-read`, `package-write`, `trace-read` and `trace-write` are
 ambient effects, granted or denied as a whole like `stdout`. Datastores keep a
-per-table rule.
+per-table rule. `concurrency` (`Exec.spawn`) is ambient too, and allowed by
+the default instance policy: a spawned process runs under the spawner's own
+access and can do nothing the spawner could not, so the effect names only that
+something runs beside you.
+
+Read effects (`Effects.isRead`: file, env, db, package and trace reads, clock,
+random) also decide scheduling: a call whose effects are all reads may be
+handed back as a read in flight and forced at its first use, so several run at
+once (`docs/processes.md`, "Reads are concurrent"). `http` is not in that set,
+since one builtin carries every method; the HTTP client says per call when a
+GET is a read.
 
 Blob dereferencing is deliberately effect-free value materialization. An
 ephemeral blob carries its bytes; a persistent blob loads the same immutable

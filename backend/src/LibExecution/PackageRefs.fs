@@ -276,6 +276,7 @@ module Type =
       let summary = p [] "Summary"
       let executionPoint = p [] "ExecutionPoint"
       let detail = p [] "Detail"
+      let handle = p [] "Handle"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)

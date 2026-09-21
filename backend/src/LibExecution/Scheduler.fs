@@ -46,6 +46,8 @@ type Parked =
   | OnRareOpcode
   /// `Host.await`: one of these events.
   | OnEvent of HE.EventSpec list
+  /// `Exec.await`: another process finishing.
+  | OnProcess of ProcessId
 
 /// What a process was started on.
 type Entry =
@@ -105,6 +107,8 @@ type ProcessSummary =
     parent : Option<ProcessId>
     started : System.DateTime
     slices : int64
+    /// Reads the process handed back as promises that have not landed.
+    inflight : int
     /// The call stack at the moment of the snapshot, outermost first.
     frames : RT.CallStack
   }
@@ -162,6 +166,18 @@ type Scheduler(quantum : int64) =
   static let current = AsyncLocal<Option<Scheduler>>()
   static let currentProcess = AsyncLocal<Option<Process>>()
 
+  static let shared : Lazy<Scheduler> =
+    lazy
+      (let s = Scheduler(defaultQuantum)
+       let thread =
+         Thread(
+           (fun () -> s.RunUntilStopped()),
+           IsBackground = true,
+           Name = "dark-shared"
+         )
+       thread.Start()
+       s)
+
   /// The scheduler running on this thread (or the one this continuation descends from), if any.
   static member Current : Option<Scheduler> =
     // `AsyncLocal` hands back the default (null) where nothing was set; `None` is null too.
@@ -174,6 +190,15 @@ type Scheduler(quantum : int64) =
     match box currentProcess.Value with
     | null -> None
     | _ -> currentProcess.Value
+
+  /// The scheduler on this thread, or the process-wide one for a run nobody scheduled (a test's
+  /// `execute`, the LSP, an HTTP handler): its loop runs on a background thread of its own, and
+  /// `Exec.spawn` from such a run places its process on that scheduler's workers. Started on
+  /// first use.
+  static member CurrentOrShared : Scheduler =
+    match Scheduler.Current with
+    | Some s -> s
+    | None -> shared.Value
 
   member _.Quantum = quantum
 
@@ -256,6 +281,38 @@ type Scheduler(quantum : int64) =
       parent : Option<ProcessId>
     ) : Process =
     this.Workers.Spawn(exeState, instrs, entry, parent)
+
+  /// A new process that applies `applicable` to `arg` (`Exec.spawn f` runs `f ()`), starting from
+  /// `access` rather than the state's own: the spawner's, at the moment of the spawn, exactly as
+  /// a closure captures it. On a worker.
+  member this.SpawnApply
+    (
+      exeState : RT.ExecutionState,
+      applicable : RT.Applicable,
+      arg : RT.Dval,
+      parent : Option<ProcessId>,
+      access : Permissions.Access
+    ) : Process =
+    let entry =
+      match applicable with
+      | RT.AppNamedFn named -> EntryFunction named.name
+      | RT.AppLambda _ -> EntryExpr
+    let instrs = Execution.instructionsForApply applicable arg
+    let p =
+      this.SpawnOn({ exeState with access = access }, (None, instrs), entry, parent)
+    p
+
+  /// The process with this id, anywhere in the group.
+  member this.Find(pid : ProcessId) : Option<Process> =
+    match group with
+    | Some g -> g.All |> List.tryPick (fun s -> s.FindHere pid)
+    | None -> this.FindHere pid
+
+  /// `Find`, on this scheduler's own table.
+  member _.FindHere(pid : ProcessId) : Option<Process> =
+    match lock sync (fun () -> processes.TryGetValue pid) with
+    | true, p -> Some p
+    | false, _ -> None
 
   /// Spawn a call to a named function: the program `Execution.executeFunction` builds, as a process.
   member this.SpawnFunction
@@ -589,6 +646,7 @@ type Scheduler(quantum : int64) =
           parent = p.parent
           started = p.started
           slices = p.slices
+          inflight = Volatile.Read &p.vm.inflight
           frames =
             match p.status with
             | Done _

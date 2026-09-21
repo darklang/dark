@@ -99,6 +99,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "  sync.interval_seconds    - Sync check interval (default: 20)"
       "  sync.auto_start          - Auto-start sync service (default: true)"
       "  exec.workers             - Scheduler worker threads (default: one per core)"
+      "  exec.maxInflight         - Reads in flight at once before one waits (default: 256)"
       ""
       "Use 'config get <key>' to read a value"
       "Use 'config set <key> <value>' to set a value" ]
@@ -143,7 +144,8 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
     [ "sync.default_instance"
       "sync.interval_seconds"
       "sync.auto_start"
-      "exec.workers" ]
+      "exec.workers"
+      "exec.maxInflight" ]
 
   match args with
   | [] ->

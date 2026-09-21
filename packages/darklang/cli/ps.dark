@@ -34,6 +34,7 @@ let parkedText (branchId: Uuid) (parked: Stdlib.Exec.ParkedOn) : String =
   | Events specs ->
     let names = specs |> Stdlib.List.map eventSpecText |> Stdlib.String.join "; "
     $"[{names}]"
+  | Process id -> $"process {idPrefix id}"
 
 
 let statusText (branchId: Uuid) (status: Stdlib.Exec.Status) : String =
@@ -94,6 +95,10 @@ let printShow (branchId: Uuid) (prefix: String) : Unit =
       Stdlib.printLine $"  status:   {statusText branchId s.status}"
       Stdlib.printLine $"  started:  {Stdlib.DateTime.toString s.started}"
       Stdlib.printLine $"  slices:   {Stdlib.Int64.toString s.slices}"
+      if s.inflight > 0L then
+        Stdlib.printLine $"  reads in flight: {Stdlib.Int64.toString s.inflight}"
+      else
+        ()
       match s.parent with
       | Some id -> Stdlib.printLine $"  parent:   {Stdlib.Uuid.toString id}"
       | None -> ()

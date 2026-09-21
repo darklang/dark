@@ -393,6 +393,23 @@ let raiseFromApplied
   RT.raiseRTE callerVm.threadID rte
 
 
+/// `executeApplicable1` for a builtin that combines reads: the result may be a `DPromise` (a read
+/// still in flight) rather than being forced at the end of the run. The caller forces or combines
+/// it; a promise must never be stored, inspected or handed to another builtin as it is.
+let executeApplicable1Deferred
+  (exeState : RT.ExecutionState)
+  (access : LibExecution.Permissions.Access)
+  (applicable : RT.Applicable)
+  (arg : RT.Dval)
+  : Ply<RT.ExecutionResult> =
+  let vm = vmForApply 1
+  vm.returnsPromises <- true
+  let registers = vm.callFrames[vm.currentFrameID].registers
+  registers[1] <- RT.DApplicable applicable
+  registers[2] <- arg
+  runLoaded exeState access vm
+
+
 /// One argument, without the `NEList` holding it. See `executeApplicable2`.
 let executeApplicable1
   (exeState : RT.ExecutionState)
@@ -461,6 +478,19 @@ let instructionsForFunctionCall
 
   { registerCount = rc
     instructions = argInstrs @ [ fnInstr; applyInstr ]
+    resultIn = 0 }
+
+
+/// The program that applies `applicable` to `arg`: what `Exec.spawn f` runs, as `f ()`.
+let instructionsForApply
+  (applicable : RT.Applicable)
+  (arg : RT.Dval)
+  : RT.Instructions =
+  { registerCount = 3
+    instructions =
+      [ RT.LoadVal(1, RT.DApplicable applicable)
+        RT.LoadVal(2, arg)
+        RT.Apply(0, 1, [], NEList.singleton 2) ]
     resultIn = 0 }
 
 

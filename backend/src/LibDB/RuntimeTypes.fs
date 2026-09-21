@@ -156,6 +156,7 @@ module Blob =
       | RT.DBlob(RT.Persistent(hash, _)) -> Set.add hash acc
       | RT.DBlob(RT.Ephemeral _) -> acc
       | RT.DStream _
+      | RT.DPromise _
       | RT.DUnit
       | RT.DBool _
       | RT.DInt8 _

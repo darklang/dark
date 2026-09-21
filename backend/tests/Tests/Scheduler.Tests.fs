@@ -594,6 +594,284 @@ let private traceCarriesProcessAndSeq =
   }
 
 
+// -- Reads are concurrent --
+
+/// Poll until `cond`, or give up after five seconds.
+let private waitFor (what : string) (cond : unit -> bool) : unit =
+  let deadline = System.DateTime.UtcNow.AddSeconds 5.
+  while not (cond ()) && System.DateTime.UtcNow < deadline do
+    Thread.Sleep 5
+  if not (cond ()) then failtest $"gave up waiting for {what}"
+
+/// Poll the trace until it has said exactly `expected`, in that order, or give up. `Trace.take`
+/// empties the trace, so entries that arrive between polls are gathered rather than compared
+/// one poll at a time.
+let private waitForTrace (what : string) (expected : List<string>) : unit =
+  let mutable seen = []
+  let deadline = System.DateTime.UtcNow.AddSeconds 5.
+  while seen <> expected && System.DateTime.UtcNow < deadline do
+    seen <- seen @ Trace.take ()
+    if seen <> expected then Thread.Sleep 5
+  Expect.equal seen expected what
+
+
+let private readsRunAtOnce =
+  testTask "three reads under List.map are all in flight before anything waits" {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """let xs = Stdlib.List.map [ 1L; 2L; 3L ] (fun n -> Builtin.testRead n)
+let _ = Builtin.testTrace "mapped"
+let total = Stdlib.List.fold xs 0L (fun a b -> Stdlib.Int64.add a b)
+let _ = Builtin.testTrace "forced"
+total"""
+    let running = runOnThread s p
+    // The map returned and the next statement ran while all three reads were still waiting.
+    waitFor "the map to return" (fun () -> List.length (Gates.waiting ()) = 3)
+    waitFor "the process to park on the fold" (fun () ->
+      match p.status with
+      | Scheduler.Parked _ -> true
+      | _ -> false)
+    Expect.equal (Trace.take ()) [ "mapped" ] "the statement after the map ran"
+    Expect.equal (Gates.waiting ()) [ 1L; 2L; 3L ] "every read is in flight"
+    Gates.release 2L
+    Gates.release 3L
+    Gates.release 1L
+    let! result = running
+    Expect.equal (expectOk result "the program") (RT.DInt64 6L) "the sum"
+    Expect.equal (Trace.take ()) [ "forced" ] "the fold ran once the reads landed"
+  }
+
+
+let private writesKeepOrder =
+  testTask
+    "a read in flight does not hold up the writes after it, which stay in order" {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """let a = Builtin.testRead 11L
+let _ = Builtin.testTrace "w1"
+let b = Builtin.testRead 12L
+let _ = Builtin.testTrace "w2"
+Stdlib.Int64.add a b"""
+    let running = runOnThread s p
+    waitFor "both reads in flight" (fun () -> Gates.waiting () = [ 11L; 12L ])
+    waitForTrace
+      "both writes ran, in order, before either read landed"
+      [ "w1"; "w2" ]
+    Gates.release 12L
+    Gates.release 11L
+    let! result = running
+    Expect.equal (expectOk result "the program") (RT.DInt64 23L) "the sum"
+  }
+
+
+let private failedReadRaisesAtDemand =
+  testTask "a read that fails raises where it is forced, naming the read" {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """let a = Builtin.testFailingRead 21L
+let _ = Builtin.testTrace "after the call"
+Stdlib.Exec.demand a"""
+    let running = runOnThread s p
+    waitFor "the read in flight" (fun () -> Gates.waiting () = [ 21L ])
+    waitForTrace "the call itself did not raise" [ "after the call" ]
+    Gates.release 21L
+    let! result = running
+    match result with
+    | Error(RTE.UncaughtException(msg, _), stack) ->
+      Expect.stringContains msg "read 21 failed" "the read's own error"
+      Expect.isTrue
+        (stack
+         |> List.exists (fun ep ->
+           match ep with
+           | RT.Function(RT.FQFnName.Builtin b) -> b.name = "testFailingRead"
+           | _ -> false))
+        $"the stack names the read below the force site: {stack}"
+    | other -> failtest $"expected the read's failure, got {other}"
+  }
+
+
+let private denialRaisesAtTheCall =
+  testTask
+    "a read the policy denies raises at the call, before anything is in flight" {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false Map.empty
+    let denied =
+      LibExecution.Execution.restrictRun
+        LibExecution.Permissions.Policy.denyAll
+        state
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        denied
+        """let a = Builtin.testRead 31L
+let _ = Builtin.testTrace "after the call"
+a"""
+    let! result = runOnThread s p
+    match result with
+    | Error(RTE.UncaughtException(msg, _), _) ->
+      Expect.stringContains msg "permission denied" "the denial names itself"
+    | other -> failtest $"expected a denial, got {other}"
+    Expect.equal (Trace.take ()) [] "nothing after the call ran"
+    Expect.equal (Gates.waiting ()) [] "no read started"
+  }
+
+
+let private inflightBoundHolds =
+  testTask "past the in-flight bound a read is awaited in program order" {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let before = LibExecution.Interpreter.Promises.maxInflight
+    LibExecution.Interpreter.Promises.maxInflight <- 2
+    try
+      let! state = executionStateFor pmPT false Map.empty
+      let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+      let! (p : Scheduler.Process) =
+        spawn
+          s
+          state
+          """let xs = Stdlib.List.map [ 41L; 42L; 43L; 44L ] (fun n -> (let _ = Builtin.testTrace "start" in let r = Builtin.testRead n in let _ = Builtin.testTrace "end" in r))
+let _ = Builtin.testTrace "mapped"
+Stdlib.List.fold xs 0L (fun a b -> Stdlib.Int64.add a b)"""
+      let running = runOnThread s p
+      // Two in flight, and the third awaited before the fourth is even called.
+      waitFor "three reads started" (fun () -> Gates.waiting () = [ 41L; 42L; 43L ])
+      Thread.Sleep 50
+      Expect.equal
+        (Gates.waiting ())
+        [ 41L; 42L; 43L ]
+        "the fourth waits for the third"
+      // The first two lambdas ran to their end with the read still in flight (their `r` is a
+      // promise); the third is waiting inline, so its "end" has not come.
+      Expect.equal
+        (Trace.take ())
+        [ "start"; "end"; "start"; "end"; "start" ]
+        "the map has not returned"
+      Gates.release 43L
+      waitFor "the fourth read" (fun () -> List.contains 44L (Gates.waiting ()))
+      Gates.release 44L
+      waitForTrace "the map returned" [ "end"; "start"; "end"; "mapped" ]
+      Gates.release 41L
+      Gates.release 42L
+      let! result = running
+      Expect.equal (expectOk result "the program") (RT.DInt64 170L) "the sum"
+    finally
+      LibExecution.Interpreter.Promises.maxInflight <- before
+  }
+
+
+let private spawnAwaitSelect =
+  testTask "spawn runs on a worker; await and select collect it" {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false Map.empty
+    do!
+      withWorkers 2 (fun root ->
+        task {
+          let! (p : Scheduler.Process) =
+            spawn
+              root
+              state
+              """let slow = Stdlib.Exec.spawn (fun () -> (let _ = Builtin.testGateWait 51L in "slow"))
+let fast = Stdlib.Exec.spawn (fun () -> "fast")
+let (_, first) = Stdlib.Exec.select [ slow; fast ]
+let _ = Builtin.testTrace first
+Stdlib.Exec.await slow"""
+          let running = runOnThread root p
+          waitForTrace "select answered with the one that finished" [ "fast" ]
+          // The slow one is a process of its own, parked on the gate, on a worker.
+          let slowProc =
+            root.Snapshot()
+            |> List.tryFind (fun q ->
+              q.parent = Some p.id
+              && (match q.status with
+                  | Scheduler.Parked _ -> true
+                  | _ -> false))
+          Expect.isSome
+            slowProc
+            "the spawned process is parked in the group's table"
+          Gates.release 51L
+          let! result = running
+          Expect.equal
+            (expectOk result "the program")
+            (RT.DString "slow")
+            "await's answer"
+        })
+  }
+
+
+let private spawnedErrorReachesAwait =
+  testTask "a spawned process that fails raises at await, under the spawner's access" {
+    let! state = executionStateFor pmPT false Map.empty
+    let denied =
+      LibExecution.Execution.restrictRun
+        LibExecution.Permissions.Policy.denyAll
+        state
+    do!
+      withWorkers 2 (fun root ->
+        task {
+          // Denied for the clock, so the spawned read is denied too: the child inherits the
+          // spawner's access.
+          let! (p : Scheduler.Process) =
+            spawn
+              root
+              denied
+              """let h = Stdlib.Exec.spawn (fun () -> Builtin.testRead 61L)
+Stdlib.Exec.await h"""
+          let! result = runOnThread root p
+          match result with
+          | Error(RTE.UncaughtException(msg, _), _) ->
+            Expect.stringContains msg "permission denied" "the child's denial"
+          | other -> failtest $"expected the child's denial at await, got {other}"
+        })
+  }
+
+
+let private httpGetIsARead =
+  testTask "the HTTP client marks a GET or HEAD as a read, and nothing else" {
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+    let request : RT.BuiltInFn =
+      state.fns.builtIn[RT.FQFnName.builtin "httpClientRequest" 0]
+    let instrs : RT.Instructions =
+      { registerCount = 1; instructions = []; resultIn = 0 }
+    let vm = RT.VMState.create (None, instrs)
+    let hintFor (method : string) : bool =
+      vm.readHint <- false
+      // An unroutable URL: the body sets the hint before it does anything, and what the request
+      // then fails with is not the point.
+      let args =
+        [| RT.DString method
+           RT.DString "http://192.0.2.1/"
+           RT.DList(RT.ValueType.Unknown, [])
+           LibExecution.Blob.newEphemeral [||] |]
+      request.fn (struct (state, vm, [], args)) |> ignore<Ply<RT.Dval>>
+      vm.readHint
+    Expect.isTrue (hintFor "GET") "GET is a read"
+    Expect.isTrue (hintFor "head") "HEAD is a read, however spelled"
+    Expect.isFalse (hintFor "POST") "POST keeps its order"
+    Expect.isFalse (hintFor "DELETE") "DELETE keeps its order"
+  }
+
+
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
 let tests =
@@ -610,5 +888,13 @@ let tests =
         workersUseCores
         sharedStateAcrossWorkers
         psSeesTheWholeGroup
-        traceCarriesProcessAndSeq ]
+        traceCarriesProcessAndSeq
+        readsRunAtOnce
+        writesKeepOrder
+        failedReadRaisesAtDemand
+        denialRaisesAtTheCall
+        inflightBoundHolds
+        spawnAwaitSelect
+        spawnedErrorReachesAwait
+        httpGetIsARead ]
   )

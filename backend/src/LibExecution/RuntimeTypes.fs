@@ -718,6 +718,23 @@ type BlobRef =
   | Persistent of hash : string * length : int64
 
 
+/// Where a frame is executing: the entry, a function, or a lambda inside one. Declared before
+/// `Dval` because a `Promise` records the point it was made at.
+type ExecutionPoint =
+  /// User is executing some "arbitrary" expression, passed in by a user.
+  /// This should only be at the `entrypoint` of a CallStack.
+  ///
+  /// Executing some top-level handler,
+  /// such as a saved Script, an HTTP handler, or a Cron.
+  | Source
+
+  // Executing some function
+  | Function of FQFnName.FQFnName
+
+  /// Executing some lambda
+  | Lambda of parent : ExecutionPoint * lambdaExprId : id
+
+
 type Instruction =
   // == Simple register operations ==
   /// Push a value into a register
@@ -885,6 +902,7 @@ and [<CustomEquality; CustomComparison>] DictKey =
     | DBlob _ -> 24
     | DApplicable _ -> 25
     | DStream _ -> 26
+    | DPromise _ -> 27
 
   static member compare (a : Dval) (b : Dval) : int =
     DvalOrdering.compareForDictKey a b
@@ -935,10 +953,11 @@ and [<CustomEquality; CustomComparison>] DictKey =
       | Persistent(h, l) -> combine (hash h * 31 + hash l)
       | Ephemeral e -> combine (hash e.id)
     | DApplicable _
-    | DStream _ ->
+    | DStream _
+    | DPromise _ ->
       Exception.raiseInternal
-        "A lambda or stream reached a Dict key hash; it should have been rejected \
-         when the dict was built"
+        "A lambda, stream or promise reached a Dict key hash; it should have been \
+         rejected when the dict was built"
         []
 
   static member private hashList(xs : List<Dval>) : int =
@@ -1038,10 +1057,12 @@ and DvalOrdering private () =
       | DApplicable _, _
       | _, DApplicable _
       | DStream _, _
-      | _, DStream _ ->
+      | _, DStream _
+      | DPromise _, _
+      | _, DPromise _ ->
         Exception.raiseInternal
-          "A lambda or stream reached a Dict key comparison; it should have been \
-           rejected when the dict was built"
+          "A lambda, stream or promise reached a Dict key comparison; it should have \
+           been rejected when the dict was built"
           []
       | _ -> compare (DictKey.caseTag a) (DictKey.caseTag b)
 
@@ -1261,6 +1282,28 @@ and [<NoComparison>] Dval =
   /// the GC finalizer target so abandoned streams still release
   /// their IO source.
   | DStream of StreamImpl * disposed : bool ref * lockObj : obj
+
+  /// A read in flight. The interpreter hands one back instead of parking the process when a
+  /// builtin whose effects are all reads has to wait; it is forced (the process parks on it) at
+  /// the first instruction that inspects, stores or passes the value, at `demand`, and at the
+  /// end of the run. So one is only ever at the top level of a register, a frame's result or a
+  /// builtin's returned value, never inside a list, record, closure or dict, and no builtin body
+  /// ever receives one: they are forced before the call. `docs/processes.md`, "Reads are
+  /// concurrent".
+  | DPromise of Promise
+
+
+/// A read in flight (`DPromise`): the task the builtin returned, and where it was called from,
+/// for the error at the force point and for `ps`. A class, so it compares by reference.
+and Promise
+  (
+    task : System.Threading.Tasks.Task<Dval>,
+    fn : FQFnName.FQFnName,
+    site : ExecutionPoint
+  ) =
+  member _.Task = task
+  member _.Fn = fn
+  member _.Site = site
 
 
 /// Lazy sequence producer. [FromIO] is the leaf — a pull-based
@@ -1735,21 +1778,6 @@ let raiseUntargetedRTE (rte : RuntimeError.Error) : 'a =
 
 
 
-type ExecutionPoint =
-  /// User is executing some "arbitrary" expression, passed in by a user.
-  /// This should only be at the `entrypoint` of a CallStack.
-  ///
-  /// Executing some top-level handler,
-  /// such as a saved Script, an HTTP handler, or a Cron.
-  | Source
-
-  // Executing some function
-  | Function of FQFnName.FQFnName
-
-  /// Executing some lambda
-  | Lambda of parent : ExecutionPoint * lambdaExprId : id
-
-
 /// Not: in reverse order
 type CallStack = List<ExecutionPoint>
 
@@ -2052,11 +2080,17 @@ module Dval =
 
     | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
 
+    // Not known until the read lands: `Promise<t>` unifies with `t` by being unknown, which is
+    // the only way the runtime checker ever meets one (a package fn returning a read it did not
+    // inspect; every argument and every stored value is forced first).
+    | DPromise _ -> ValueType.Unknown
+
 
   let rec isUsableDictKey (dv : Dval) : bool =
     match dv with
     | DApplicable _
     | DStream _
+    | DPromise _
     | DDB _
     | DBlob _ -> false
 
@@ -2144,6 +2178,7 @@ module Dval =
           | DUuid _
           | DDB _
           | DStream _
+          | DPromise _
           | DBlob _ -> return dv
 
           | DList(vt, items) ->
@@ -2997,6 +3032,20 @@ type VMState =
     /// `List.map` is parked as a Ply, not preempted; see `docs/processes.md`).
     mutable budget : int64
 
+    /// Set by a builtin body to say this particular call is a read the interpreter may hand back
+    /// as a promise even though the builtin's declared effects are not all reads (an HTTP GET,
+    /// under a builtin that also does POST). Read and cleared by the interpreter right after the
+    /// body returns; one builtin is in flight per VM at a time, so a single slot suffices.
+    mutable readHint : bool
+
+    /// Reads this VM's calls handed back as promises that have not landed yet, for `ps`.
+    mutable inflight : int
+
+    /// The run may end with a read still in flight, handed back as the result. False for every
+    /// run that anyone looks at the result of; true only for a VM a promise-aware builtin borrows
+    /// (`List.map` collecting reads to combine), which forces or combines what it gets back.
+    mutable returnsPromises : bool
+
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
     /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
     /// continuation the builder makes for the loop body.
@@ -3080,6 +3129,9 @@ type VMState =
       frameToPush = ValueNone
       frameIdCounter = 0L
       budget = -1L
+      readHint = false
+      inflight = 0
+      returnsPromises = false
       nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
@@ -3154,6 +3206,9 @@ type VMState =
     vm.frameToPush <- ValueNone
     vm.frameIdCounter <- 0L
     vm.budget <- -1L
+    vm.readHint <- false
+    vm.inflight <- 0
+    vm.returnsPromises <- false
     vm.nestedCallStack <- []
     vm.finalResult <- ValueNone
     vm.matchBindings.Clear()

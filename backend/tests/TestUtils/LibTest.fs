@@ -54,6 +54,14 @@ module Gates =
 
   let release (n : int64) : unit = (gate n).TrySetResult() |> ignore<bool>
 
+  /// Gates something has waited on and nobody has released, in order.
+  let waiting () : List<int64> =
+    gates
+    |> Seq.filter (fun kv -> not kv.Value.Task.IsCompleted)
+    |> Seq.map (fun kv -> kv.Key)
+    |> List.ofSeq
+    |> List.sort
+
   let reset () : unit = gates.Clear()
 
 
@@ -85,6 +93,47 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    /// A read that has to wait: `Clock` is a read effect, and the gate is what it waits on. The
+    /// interpreter hands it back as a promise, and the test decides when it lands.
+    { name = fn "testRead" 0
+      typeParams = []
+      parameters = [ Param.make "gate" TInt64 "" ]
+      returnType = TInt64
+      description =
+        "A read in flight until the test releases its gate; answers the gate number."
+      fn =
+        (function
+        | _, _, _, [| DInt64 n |] ->
+          uply {
+            do! Gates.wait n
+            return DInt64 n
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ LibExecution.Effects.Effect.Clock ]
+      deprecated = NotDeprecated }
+
+    { name = fn "testFailingRead" 0
+      typeParams = []
+      parameters = [ Param.make "gate" TInt64 "" ]
+      returnType = TInt64
+      description = "A read that fails once the test releases its gate."
+      fn =
+        (function
+        | _, _, _, [| DInt64 n |] ->
+          uply {
+            do! Gates.wait n
+            return
+              RuntimeError.UncaughtException($"read {n} failed", [])
+              |> raiseUntargetedRTE
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ LibExecution.Effects.Effect.Clock ]
       deprecated = NotDeprecated }
 
     { name = fn "testTrace" 0

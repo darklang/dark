@@ -274,6 +274,14 @@ let fns () : List<BuiltInFn> =
           vm,
           _,
           [| DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef |] ->
+          // A GET or HEAD observes and changes nothing, so the interpreter may hand it back as a
+          // read in flight and run on (`docs/processes.md`, "Reads are concurrent"). `Http` is not
+          // a read effect, since this one builtin also does POST, which must keep its order; the
+          // method decides here, per call.
+          (match method.ToUpperInvariant() with
+           | "GET"
+           | "HEAD" -> vm.readHint <- true
+           | _ -> ())
           uply {
             let! reqBodyBytes = Blob.readBytes state bodyRef
             let headers =

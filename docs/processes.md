@@ -1,10 +1,11 @@
 # Processes and the scheduler
 
-Status: the baseline plus cores. A running computation is a value the runtime
-can step, park, resume and inspect; one thread runs many of them, and a group
-of worker threads (one per core) runs many more. Nothing user-visible changed
-except `dark ps` and `dark config set exec.workers`; the follow-ups at the end
-are where the rest goes.
+Status: the baseline, cores, and concurrent reads. A running computation is a
+value the runtime can step, park, resume and inspect; one thread runs many of
+them, and a group of worker threads (one per core) runs many more. Reads run
+concurrently on their own and writes keep their order; `Exec.spawn`/`await`
+run chosen work in the background. The follow-ups at the end are where the
+rest goes.
 
 The one-paragraph version: a process is a `VMState` plus the `ExecutionState`
 it runs under plus a status. A scheduler steps a process until it finishes,
@@ -193,6 +194,105 @@ One process's own:
 So `stateForProcess` is one record copy when tracing is on and the parent's
 state itself when it is off.
 
+## Reads are concurrent
+
+The user-facing rule, in one paragraph: a call whose effects are all reads
+(a file, env, db, package or trace read, the clock, random; an HTTP GET or
+HEAD) that has to wait does not stop your program. You get its result back at
+once, as a read still in flight, and the program runs on; the first thing
+that looks at the value waits for it. Every write (`print`, `File.write`, a
+POST, a db write) runs when it is reached, in program order. So
+
+```
+let pages = List.map HttpClient.get urls   // every GET is in flight, at once
+print "fetching"                           // a write: runs now
+let first = List.head pages                // looks at the list: waits for all
+File.write out first.body                  // in order
+```
+
+`Exec.demand x` forces a read now rather than at its first use; it is the
+identity function, since calling anything with the value is what forces it.
+`Exec.demandAll` is the same for a list.
+
+How it works (`Interpreter.Promises`, `RuntimeTypes.Promise`):
+
+- At the builtin call site, when the builtin's `Ply` is not finished and the
+  call is deferrable, the register gets a `DPromise` (the task, the builtin's
+  name and the frame's execution point) instead of the process parking. A
+  call is deferrable when `Effects.allReads fn.callEffects`, or when the body
+  set `vm.readHint` for this call. `Http` is not a read effect, because one
+  builtin carries every method; `httpClientRequest` sets the hint for GET and
+  HEAD, per call. A read that finishes synchronously (the clock, most file and
+  db reads in this runtime) is never a promise; only a real wait is.
+- A promise is only ever at the top level of a register, a frame's result, or
+  a builtin's returned value. Every instruction that inspects, stores or
+  passes a value forces it first: `Apply` forces the callee and every
+  argument (so no builtin body ever sees one, and `demand` is an identity
+  function), record, enum, list, tuple, dict and string construction force
+  their parts, a closure forces what it closes over, `if`, `||`, `&&`, match
+  and let patterns force what they look at, and the end of a run forces its
+  result. A bare `let x = ...` copies without looking, which is what keeps a
+  read in flight across the statements after it. Returning a promise from a
+  function is fine (a wrapper handing back its builtin's result); the return
+  type check lets it through, since the builtin's own return type was checked
+  when the value was made or is when it lands (`TypeChecker.tryUnifySync`,
+  `Dval.toValueType` says `Unknown`).
+- Forcing: the instruction does not run; `Promises.settle` replaces a landed
+  promise with its value and the instruction runs again at once, or, for one
+  still in flight, the frame stops with the counter on the instruction
+  (`FrameAwaitForce`) and the process parks on the task, exactly as it parks
+  on a builtin. Under a plain `execute` the task loop awaits it.
+- A read that failed raises at the force point, with the read's own error and
+  the frames it was called from added below the stack (`vm.nestedCallStack`),
+  so the report names both sites. A denial is raised at the call, before
+  anything is in flight: the ambient effect check runs before the body.
+- `List.map` is promise-aware (`Execution.executeApplicable1Deferred`): a
+  lambda that returns a read in flight hands it back rather than being forced
+  at the end of its run, and the map's result is one promise for the whole
+  list, landing when every element has. Everything else that applies a lambda
+  gets the lambda's result forced. So `List.map get urls` is where the reads
+  fan out; `List.filter get urls` would run them one by one.
+- The bound: at most `Promises.maxInflight` reads in flight per OS process
+  (`dark config set exec.maxInflight N`, `DARK_EXEC_MAX_INFLIGHT`, default
+  256). Past it a read is awaited in program order, so a map over a hundred
+  thousand urls does not open a hundred thousand sockets.
+- Tracing: the builtin's result is recorded when it lands (the recording is
+  inside the builtin's own `Ply`); the trace's `seq` is completion order. A
+  builtin that combined reads (`List.map`) records its value when the
+  combination lands. Under tracing an awaiting builtin's arguments are copied
+  before the wait, since the frame's argument buffer is reused once the frame
+  runs on.
+- Cost when nothing is in flight: one type test per operand on the
+  instructions above. The gate is unchanged. A first cut restructured
+  `finishBuiltin` around a `match` on the result and cost 200 bytes per
+  builtin call (the `uply` arm's closure was built on every call); the check
+  moved into `tryUnifySync` instead. Keep it there.
+
+Measured: three reads under `List.map` are all in flight before anything
+waits, and the statement after the map runs while they are; two reads in
+program order with a write between them: the write runs before either lands;
+a failed read raises at `demand` with "after the call" already run; the bound
+holds (`Scheduler.Tests.fs`, the reads group).
+
+## `Exec.spawn`, `await`, `select`
+
+`Exec.spawn f` starts `f ()` as a process of its own on a worker (the least
+loaded), under the access the caller had at the spawn, like a closure, and
+hands back a `Handle<'a>`; `Exec.await h` is the value it finished with, or
+its error raised again with the child's frames kept below the caller's;
+`Exec.select hs` is the first to finish with its value. `spawn` carries the
+`Concurrency` effect, ambient and allowed by the default instance policy: a
+spawned process can do nothing the spawner could not. An install whose policy
+was seeded before this effect existed needs `dark permissions allow
+concurrency` once. `List.parallelMap` is `spawn` per element then `await` in
+order, for work that computes; reads run concurrently under plain `List.map`
+already.
+
+From a run nobody scheduled (a test's `execute`, the LSP, an HTTP handler)
+`spawn` uses a process-wide scheduler with workers of its own
+(`Scheduler.CurrentOrShared`), started on first use, and `await` blocks that
+thread on the completion as any builtin wait would.
+
 ## Traces
 
 `trace_fn_calls` rows carry `process_id` and `seq` (`migrations/schema/
@@ -252,16 +352,14 @@ completes.
 
 Each of these is a follow-up in the scheduler plan, in this order:
 
-- Implicit concurrent reads, `demand`, `Exec.spawn` for users. Today nothing in
-  Dark can start a second process; two evals interleaving is shown by
-  `Scheduler.Tests.fs`, not by anything you can type.
 - Record/replay, resume after Ctrl-C, fork. The `traceId` link is not on the
   process yet; the `(process_id, seq)` it will replay from is.
+- `ps show` says how many reads a process has in flight, not which.
 - Removing host re-entry. `List.map f` still runs `f` in a nested VM on the
   .NET stack; a process parked inside it shows the frame that called the
   builtin, not `f`'s.
 - Ply out of the interpreter. Awaits are still Plys, parked on as tasks.
 - `Event.ExecDone` carries only the id; a Dark enum cannot hold an untyped
-  value, and nothing spawns from Dark yet.
+  value. `Exec.await` is how a value comes back.
 - `ps show` shows the call stack, not registers.
 - The reader thread has not been checked on Windows.

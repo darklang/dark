@@ -161,21 +161,21 @@ let private installStoreVersionSource () : unit =
       cmd.CommandText <- "PRAGMA data_version"
       cmd.ExecuteScalar() |> unbox<int64>))
 
-/// How many worker schedulers this run may start: `DARK_EXEC_WORKERS`, else the store's
-/// `exec.workers` (`dark config set exec.workers N`), else one per core. Never below one.
-let private workerCount () : int =
+/// A positive number from an environment variable, else from the store's config
+/// (`dark config set <key> N`), else `fallback`.
+let private positiveSetting (envVar : string) (key : string) (fallback : int) : int =
   let parse (s : string) =
     match System.Int32.TryParse s with
     | true, n when n >= 1 -> Some n
     | _ -> None
   let fromEnv =
-    match System.Environment.GetEnvironmentVariable "DARK_EXEC_WORKERS" with
+    match System.Environment.GetEnvironmentVariable envVar with
     | null
     | "" -> None
     | s -> parse s
   let fromConfig () =
     try
-      (LibDB.Config.get "exec.workers").Result |> Option.bind parse
+      (LibDB.Config.get key).Result |> Option.bind parse
     with _ ->
       None
   match fromEnv with
@@ -183,7 +183,20 @@ let private workerCount () : int =
   | None ->
     match fromConfig () with
     | Some n -> n
-    | None -> max 1 System.Environment.ProcessorCount
+    | None -> fallback
+
+/// How many worker schedulers this run may start: `DARK_EXEC_WORKERS`, else the store's
+/// `exec.workers`, else one per core. Never below one.
+let private workerCount () : int =
+  positiveSetting
+    "DARK_EXEC_WORKERS"
+    "exec.workers"
+    (max 1 System.Environment.ProcessorCount)
+
+/// How many reads may be in flight at once before one is awaited in program order:
+/// `DARK_EXEC_MAX_INFLIGHT`, else the store's `exec.maxInflight`, else 256.
+let private maxInflight () : int =
+  positiveSetting "DARK_EXEC_MAX_INFLIGHT" "exec.maxInflight" 256
 
 let execute
   (packageManager : RT.PackageManager)
@@ -235,6 +248,7 @@ let execute
     else
       installStoreVersionSource ()
       LibExecution.Scheduler.defaultWorkers <- workerCount ()
+      LibExecution.Interpreter.Promises.maxInflight <- maxInflight ()
       return LibExecution.Scheduler.executeFunction state fnName [] args
   }
 

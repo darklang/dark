@@ -348,7 +348,15 @@ def run_once(binary, argv, trace, telemetry, fixture="UNSET"):
         [binary] + argv, capture_output=True, text=True, env=env, cwd=ROOT
     )
     wall_ms = (time.perf_counter() - t0) * 1000.0
-    return wall_ms, proc.returncode, read_telemetry(tel_path) if telemetry else {}
+    # `dark run` exits 0 when the SCRIPT fails (a permission denial, a runtime error), and a failing
+    # run is fast, so it would pass as a good measurement. This cost an hour once: an older binary
+    # could not read a policy file a newer one had written, denied the workload's clock call on
+    # every run, and looked 4% faster for it.
+    rc = proc.returncode
+    if rc == 0 and ("Error when executing Script" in proc.stdout or "Script error:" in proc.stdout
+                    or "Error when executing Script" in proc.stderr):
+        rc = 1
+    return wall_ms, rc, read_telemetry(tel_path) if telemetry else {}
 
 
 def read_telemetry(path):

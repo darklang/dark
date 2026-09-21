@@ -1,6 +1,9 @@
 /// Interprets Dark instructions resulting in (tasks of) Dvals
 module LibExecution.Interpreter
 
+open System.Threading
+open System.Threading.Tasks
+
 open Prelude
 open RuntimeTypes
 module RTE = RuntimeError
@@ -883,10 +886,19 @@ let private traceBuiltinResult
   if not exeState.tracing.skipTracing then
     let source : Tracing.Source = (currentFrame.executionPoint, None)
     let fnRecord : Tracing.FunctionRecord = (source, FQFnName.Builtin fn.name)
-    exeState.tracing.storeFnResult
-      fnRecord
-      (NEList.ofListUnsafe "" [] (List.ofArray allArgs))
-      result
+    let args = NEList.ofListUnsafe "" [] (List.ofArray allArgs)
+    match result with
+    // A builtin that combined reads in flight into one (`List.map` over a read) has no value
+    // yet; the trace gets it when it lands, on whatever thread lands it. The hooks are locked.
+    | DPromise p ->
+      p.Task.ContinueWith(
+        (fun (t : Task<Dval>) ->
+          if t.IsCompletedSuccessfully then
+            exeState.tracing.storeFnResult fnRecord args t.Result),
+        TaskContinuationOptions.ExecuteSynchronously
+      )
+      |> ignore<Task>
+    | _ -> exeState.tracing.storeFnResult fnRecord args result
   result
 
 
@@ -996,6 +1008,8 @@ let private invokeBuiltin
   let bodyAllocBefore =
     if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
+  // Cleared before every body, so a hint is only ever the body's own (`Promises.deferrable`).
+  vm.readHint <- false
   // Every builtin's signature is async because some of them have to be -- HTTP, the package store,
   // anything touching disk. Most aren't: `Int64.add` computes and returns.
   let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
@@ -1007,6 +1021,11 @@ let private invokeBuiltin
   | ValueSome result ->
     finishBuiltin exeState vm currentFrame fn tst allArgs sw bodyAllocBefore result
   | ValueNone ->
+    // `allArgs` is the frame's reused argument buffer. A read handed back as a promise lets the
+    // frame run on and refill it before this completes, so the trace would record the wrong
+    // arguments; copy when they will be recorded.
+    let allArgs =
+      if exeState.tracing.skipTracing then allArgs else Array.copy allArgs
     uply {
       let! result = body
       return!
@@ -1935,6 +1954,79 @@ let inline private consumedByNextApply
       | _ -> false)
 
 
+/// Reads in flight, handed back as promises (`docs/processes.md`, "Reads are concurrent").
+///
+/// A builtin whose effects are all reads, or that set `vm.readHint`, and whose result is not ready
+/// when it returns, gives the calling frame a `DPromise` instead of parking the process. The
+/// process runs on; the first instruction that inspects, stores or passes the value forces it, and
+/// so does the end of the run. Writes are never deferred, so they keep program order.
+module Promises =
+  /// At most this many reads in flight per OS process; past it a read is awaited in program order,
+  /// so a map over a hundred thousand urls does not open a hundred thousand sockets.
+  /// `exec.maxInflight` in the store's config; `Cli.fs` reads it.
+  let mutable maxInflight = 256
+
+  let mutable private inflight = 0
+
+  /// Reads in flight across the OS process right now.
+  let inflightNow () : int = Volatile.Read &inflight
+
+  /// A promise for `call`, which has not finished, if there is room for one more. `ValueNone`
+  /// says await it in program order instead.
+  let tryMake
+    (vm : VMState)
+    (frame : CallFrame)
+    (fn : FQFnName.FQFnName)
+    (call : Ply<Dval>)
+    : Dval voption =
+    if Interlocked.Increment &inflight > maxInflight then
+      Interlocked.Decrement &inflight |> ignore<int>
+      ValueNone
+    else
+      Interlocked.Increment &vm.inflight |> ignore<int>
+      let task = Ply.toTask call
+      task.ContinueWith(
+        (fun (_ : Task<Dval>) ->
+          Interlocked.Decrement &inflight |> ignore<int>
+          Interlocked.Decrement &vm.inflight |> ignore<int>),
+        TaskContinuationOptions.ExecuteSynchronously
+      )
+      |> ignore<Task>
+      ValueSome(DPromise(Promise(task, fn, frame.executionPoint)))
+
+  /// Whether this call, whose result is not ready, may be handed back as a promise: its effects
+  /// are all reads, or its body said so for this call. Reads and clears the hint either way.
+  let deferrable (vm : VMState) (fn : BuiltInFn) : bool =
+    let hinted = vm.readHint
+    vm.readHint <- false
+    hinted || Effects.allReads fn.callEffects
+
+  /// Settle the promise in `reg`: a landed one is replaced by its value, so the instruction reads
+  /// a plain value on its next try, and null comes back; one still in flight comes back as its
+  /// task, for the caller to park on; a failed one raises here, at the force point, with the read
+  /// and where it was called from added below the stack.
+  let settle
+    (vm : VMState)
+    (registers : Dval[])
+    (reg : Register)
+    (p : Promise)
+    : Task<Dval> =
+    let t = p.Task
+    if t.IsCompletedSuccessfully then
+      registers[reg] <- t.Result
+      null
+    elif t.IsCompleted then
+      vm.nestedCallStack <- [ p.Site; Function p.Fn ]
+      match t.Exception with
+      | null -> raise (System.OperationCanceledException "a read was cancelled")
+      | agg ->
+        match agg.GetBaseException() with
+        | RuntimeErrorException(_, rte) -> raiseRTE vm.threadID rte
+        | ex -> raise ex
+    else
+      t
+
+
 /// What an `Apply` still needs, after everything that could be done synchronously has been.
 [<Struct>]
 type private ApplyOutcome =
@@ -1944,6 +2036,12 @@ type private ApplyOutcome =
   | AwaitBuiltin of bCall : Ply<Dval> * bReg : Register
   /// A package call that had to wait. Its outcome is a value for this register, or a frame to push.
   | AwaitPackage of pCall : Ply<PackageOutcome> * pReg : Register
+  /// An operand is a read still in flight. Park on it, write its value into this register, and
+  /// run the same instruction again.
+  | AwaitForce of fTask : Task<Dval> * fReg : Register
+  /// An operand was a read that has landed: its value is in the register now. Run the same
+  /// instruction again.
+  | ApplyRetry
 
   /// Spelled out rather than compared with `=`: a `Ply` doesn't support equality, so neither does this.
   member this.IsDone =
@@ -1962,7 +2060,7 @@ type private ApplyOutcome =
 /// `outcome` is a plain mutable local, not a captured one: there is no computation expression in this
 /// function, so it lives in a slot rather than a ref cell. Keeping it meant every existing branch could
 /// stay unit-typed, which made this a move rather than a rewrite.
-let private applyInstruction
+let private applyInstructionForced
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
@@ -2227,7 +2325,17 @@ let private applyInstruction
           // Usually already finished, in which case there's no bind to pay for.
           match Ply.trySync call with
           | ValueSome dv -> registers[putResultIn] <- dv
-          | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+          | ValueNone ->
+            // A read that has to wait becomes a promise and the frame runs on; anything else
+            // parks the process here, in program order.
+            if Promises.deferrable vm fn then
+              match
+                Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) call
+              with
+              | ValueSome promise -> registers[putResultIn] <- promise
+              | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+            else
+              outcome <- AwaitBuiltin(call, putResultIn)
           recordStage vm ApplyStage.BiTotal biTotalAlloc
 
       | FQFnName.Package pkg ->
@@ -2346,6 +2454,58 @@ let private applyInstruction
 
   recordStage vm ApplyStage.ApplyTotal applyTotalAlloc
   outcome
+
+
+/// The promise among an `Apply`'s operands, settled: `ApplyDone` when there is none.
+let inline private forceOperand
+  (vm : VMState)
+  (registers : Dval array)
+  (reg : Register)
+  : ApplyOutcome =
+  match registers[reg] with
+  | DPromise p ->
+    match Promises.settle vm registers reg p with
+    | null -> ApplyRetry
+    | t -> AwaitForce(t, reg)
+  | _ -> ApplyDone
+
+
+/// One `Apply`, once its operands are plain values. A read still in flight among them is settled
+/// first: every callee, builtin or not, gets values (`demand x` is an identity function, and this
+/// is how it forces). One type test per operand; the rest only runs when one is a promise.
+/// Inlined into the drain, so the scan costs no call of its own.
+let inline private applyInstruction
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (putResultIn : Register)
+  (thingToCallReg : Register)
+  (typeArgs : List<TypeReference>)
+  (newArgRegs : NEList<Register>)
+  : ApplyOutcome =
+  let mutable forcing = forceOperand vm registers thingToCallReg
+  if forcing.IsDone then forcing <- forceOperand vm registers newArgRegs.head
+  // `head` then `tail`, not `NEList.toList`, which would cons on every `Apply`.
+  let mutable rest = newArgRegs.tail
+  while forcing.IsDone && not (List.isEmpty rest) do
+    match rest with
+    | reg :: tail ->
+      forcing <- forceOperand vm registers reg
+      rest <- tail
+    | [] -> ()
+  if not forcing.IsDone then
+    forcing
+  else
+    applyInstructionForced
+      exeState
+      vm
+      currentFrame
+      registers
+      putResultIn
+      thingToCallReg
+      typeArgs
+      newArgRegs
 
 
 /// `TypeReference.toVT` over a list, without awaiting. `ValueNone` if any element needs the store.
@@ -2496,6 +2656,14 @@ let private runSyncInstructions
   // the instruction that has not run, and `runFrame` reports it as `FrameBudget`.
   let mutable budget = vm.budget
 
+  // An operand that is a read still in flight (`DPromise`): the instruction is not run, the
+  // promise is settled (`Promises.settle`), and the instruction is tried again, now (`retry` with
+  // no `force`) or once the read lands (`force` is its task; the drain stops with the counter on
+  // this instruction). Plain locals, never captured by a closure, so they cost nothing.
+  let mutable retry = false
+  let mutable force : Task<Dval> = null
+  let mutable forceReg = 0
+
   while running && budget <> 0L && counter < instrData.instructions.Length do
     budget <- budget - 1L
     let inst = instrData.instructions[counter]
@@ -2515,7 +2683,67 @@ let private runSyncInstructions
         else
           0L
 
-      let handled = tryBuildSync exeState vm currentFrame registers inst
+      // The fields it stores are forced first: a promise never enters a record or an enum. The
+      // lists are walked as they are; a `List.map` here would allocate on every record built.
+      (match inst with
+       | CreateRecord(_, _, _, fields) ->
+         let mutable rest = fields
+         while not retry && not (List.isEmpty rest) do
+           match rest with
+           | (_, reg) :: tail ->
+             (match registers[reg] with
+              | DPromise p ->
+                retry <- true
+                force <- Promises.settle vm registers reg p
+                forceReg <- reg
+              | _ -> ())
+             rest <- tail
+           | [] -> ()
+       | CloneRecordWithUpdates(_, original, updates) ->
+         (match registers[original] with
+          | DPromise p ->
+            retry <- true
+            force <- Promises.settle vm registers original p
+            forceReg <- original
+          | _ -> ())
+         let mutable rest = updates
+         while not retry && not (List.isEmpty rest) do
+           match rest with
+           | (_, reg) :: tail ->
+             (match registers[reg] with
+              | DPromise p ->
+                retry <- true
+                force <- Promises.settle vm registers reg p
+                forceReg <- reg
+              | _ -> ())
+             rest <- tail
+           | [] -> ()
+       | CreateEnum(_, _, _, _, fields) ->
+         let mutable rest = fields
+         while not retry && not (List.isEmpty rest) do
+           match rest with
+           | reg :: tail ->
+             (match registers[reg] with
+              | DPromise p ->
+                retry <- true
+                force <- Promises.settle vm registers reg p
+                forceReg <- reg
+              | _ -> ())
+             rest <- tail
+           | [] -> ()
+       | _ -> ())
+
+      let handled =
+        if retry then
+          if not (isNull force) then
+            pending <- AwaitForce(force, forceReg)
+            running <- false
+          // Landed, or parked: either way not this turn; a landed one runs again at once.
+          retry <- false
+          force <- null
+          false
+        else
+          tryBuildSync exeState vm currentFrame registers inst
 
       if vm.stats.enabled then
         let tag = Opcode.index inst
@@ -2529,7 +2757,8 @@ let private runSyncInstructions
           else
             vm.stats.syncMissByOpcode[tag] <- vm.stats.syncMissByOpcode[tag] + 1L
 
-      if handled then counter <- counter + 1 else running <- false
+      if handled then counter <- counter + 1
+      elif not retry then running <- false
 
     | LoadValue _ -> running <- false
 
@@ -2574,8 +2803,11 @@ let private runSyncInstructions
       | ApplyDone ->
         counter <- counter + 1
         if vm.frameToPush.IsSome then running <- false
+      // An operand was a read that landed; its value is in the register now. Same instruction
+      // again.
+      | ApplyRetry -> pending <- ApplyDone
       // Hand the wait back to the caller, with the counter still on this instruction. The caller
-      // steps past it once the result is in its register.
+      // steps past it once the result is in its register (a force: the caller runs it again).
       | _ -> running <- false
     | _ ->
       if vm.stats.enabled then
@@ -2610,10 +2842,18 @@ let private runSyncInstructions
           match registers[right] with
           | DBool true -> registers[createTo] <- DBool true
           | DBool false -> registers[createTo] <- DBool false
+          | DPromise p ->
+            retry <- true
+            force <- Promises.settle vm registers right p
+            forceReg <- right
           | r ->
             RTE.Bools.OrOnlySupportsBooleans(VT.bool, Dval.toValueType r)
             |> RTE.Bool
             |> raiseRTE vm.threadID
+        | DPromise p ->
+          retry <- true
+          force <- Promises.settle vm registers left p
+          forceReg <- left
         | l ->
           let r = registers[right]
           RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
@@ -2626,10 +2866,18 @@ let private runSyncInstructions
           match registers[right] with
           | DBool true -> registers[createTo] <- DBool true
           | DBool false -> registers[createTo] <- DBool false
+          | DPromise p ->
+            retry <- true
+            force <- Promises.settle vm registers right p
+            forceReg <- right
           | r ->
             RTE.Bools.AndOnlySupportsBooleans(VT.bool, Dval.toValueType r)
             |> RTE.Bool
             |> raiseRTE vm.threadID
+        | DPromise p ->
+          retry <- true
+          force <- Promises.settle vm registers left p
+          forceReg <- left
         | l ->
           let r = registers[right]
           RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
@@ -2640,17 +2888,27 @@ let private runSyncInstructions
       // == Working with Variables ==
       | CheckLetPatternAndExtractVars(valueReg, pat) ->
         let dv = registers[valueReg]
-        // Fast path for the common single-variable let binding
+        // Fast path for the common single-variable let binding. It copies the value without
+        // looking at it, so `let pages = ...` keeps a read in flight; every other pattern
+        // inspects the value and forces it.
         match pat with
         | LPVariable extractTo -> registers[extractTo] <- dv
-        | LPUnit ->
-          match dv with
-          | DUnit -> ()
-          | _ ->
-            raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
         | _ ->
-          if not (assignLetPattern registers pat dv) then
-            raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+          match dv with
+          | DPromise p ->
+            retry <- true
+            force <- Promises.settle vm registers valueReg p
+            forceReg <- valueReg
+          | _ ->
+            match pat with
+            | LPUnit ->
+              match dv with
+              | DUnit -> ()
+              | _ ->
+                raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+            | _ ->
+              if not (assignLetPattern registers pat dv) then
+                raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
       // TODO References to DBs should be resolved at parse-time, not
@@ -2668,20 +2926,30 @@ let private runSyncInstructions
       | CreateString(targetReg, segments) ->
         let sb = new System.Text.StringBuilder()
 
-        segments
-        |> List.iter (fun seg ->
-          match seg with
-          | Text s -> sb.Append s |> ignore<System.Text.StringBuilder>
-          | Interpolated reg ->
-            match registers[reg] with
-            | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
-            | dv ->
-              let vt = Dval.toValueType dv
-              raiseRTE
-                vm.threadID
-                (RTE.String(RTE.Strings.Error.NonStringInInterpolation(vt, dv))))
+        // A loop, not `List.iter` with a lambda: the lambda would capture the force locals
+        // above and turn them into heap cells.
+        let mutable rest = segments
+        while not retry && not (List.isEmpty rest) do
+          match rest with
+          | seg :: tail ->
+            (match seg with
+             | Text s -> sb.Append s |> ignore<System.Text.StringBuilder>
+             | Interpolated reg ->
+               match registers[reg] with
+               | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
+               | DPromise p ->
+                 retry <- true
+                 force <- Promises.settle vm registers reg p
+                 forceReg <- reg
+               | dv ->
+                 let vt = Dval.toValueType dv
+                 raiseRTE
+                   vm.threadID
+                   (RTE.String(RTE.Strings.Error.NonStringInInterpolation(vt, dv))))
+            rest <- tail
+          | [] -> ()
 
-        registers[targetReg] <- DString(sb.ToString())
+        if not retry then registers[targetReg] <- DString(sb.ToString())
 
 
       // == Flow Control ==
@@ -2691,6 +2959,10 @@ let private runSyncInstructions
         match registers[condReg] with
         | DBool false -> counter <- counter + jumpBy
         | DBool true -> ()
+        | DPromise p ->
+          retry <- true
+          force <- Promises.settle vm registers condReg p
+          forceReg <- condReg
         | dv ->
           raiseRTE
             vm.threadID
@@ -2702,39 +2974,107 @@ let private runSyncInstructions
         match pat with
         | MPVariable reg -> registers[reg] <- registers[valueReg]
         | _ ->
-          let buf = vm.matchBindings
-          buf.Clear()
-          if checkAndExtractMatchPattern buf pat registers[valueReg] then
-            // Written only now that the whole pattern has matched, so a pattern that failed partway
-            // leaves the frame untouched. An index loop, not `for x in buf`, which boxes the
-            // enumerator.
-            for i in 0 .. buf.Count - 1 do
-              let struct (reg, value) = buf[i]
-              registers[reg] <- value
-          else
-            counter <- counter + failJump
+          match registers[valueReg] with
+          | DPromise p ->
+            retry <- true
+            force <- Promises.settle vm registers valueReg p
+            forceReg <- valueReg
+          | _ ->
+            let buf = vm.matchBindings
+            buf.Clear()
+            if checkAndExtractMatchPattern buf pat registers[valueReg] then
+              // Written only now that the whole pattern has matched, so a pattern that failed
+              // partway leaves the frame untouched. An index loop, not `for x in buf`, which
+              // boxes the enumerator.
+              for i in 0 .. buf.Count - 1 do
+                let struct (reg, value) = buf[i]
+                registers[reg] <- value
+            else
+              counter <- counter + failJump
       | MatchUnmatched(valueReg) ->
-        let unmatchedValue = registers[valueReg]
-        raiseRTE vm.threadID (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
+        match registers[valueReg] with
+        | DPromise p ->
+          retry <- true
+          force <- Promises.settle vm registers valueReg p
+          forceReg <- valueReg
+        | unmatchedValue ->
+          raiseRTE vm.threadID (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
 
 
       // == Working with Collections ==
       | CreateList(listReg, itemsToAddRegs) ->
-        let itemsToAdd = readRegs registers itemsToAddRegs
-        registers[listReg] <-
-          TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
+        let mutable rest = itemsToAddRegs
+        while not retry && not (List.isEmpty rest) do
+          match rest with
+          | reg :: tail ->
+            (match registers[reg] with
+             | DPromise p ->
+               retry <- true
+               force <- Promises.settle vm registers reg p
+               forceReg <- reg
+             | _ -> ())
+            rest <- tail
+          | [] -> ()
+        if not retry then
+          let itemsToAdd = readRegs registers itemsToAddRegs
+          registers[listReg] <-
+            TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
       | CreateDict(dictReg, entries) ->
-        let entries =
-          entries
-          |> List.map (fun (keyReg, valueReg) ->
-            (registers[keyReg], registers[valueReg]))
-        registers[dictReg] <-
-          TypeChecker.DvalCreator.dict vm.threadID VT.unknown VT.unknown entries
+        let mutable rest = entries
+        while not retry && not (List.isEmpty rest) do
+          match rest with
+          | (keyReg, valueReg) :: tail ->
+            (match registers[keyReg] with
+             | DPromise p ->
+               retry <- true
+               force <- Promises.settle vm registers keyReg p
+               forceReg <- keyReg
+             | _ ->
+               match registers[valueReg] with
+               | DPromise p ->
+                 retry <- true
+                 force <- Promises.settle vm registers valueReg p
+                 forceReg <- valueReg
+               | _ -> ())
+            rest <- tail
+          | [] -> ()
+        if not retry then
+          let entries =
+            entries
+            |> List.map (fun (keyReg, valueReg) ->
+              (registers[keyReg], registers[valueReg]))
+          registers[dictReg] <-
+            TypeChecker.DvalCreator.dict vm.threadID VT.unknown VT.unknown entries
       | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
-        let first = registers[firstReg]
-        let second = registers[secondReg]
-        let theRest = readRegs registers theRestRegs
-        registers[tupleReg] <- DTuple(first, second, theRest)
+        (match registers[firstReg] with
+         | DPromise p ->
+           retry <- true
+           force <- Promises.settle vm registers firstReg p
+           forceReg <- firstReg
+         | _ ->
+           match registers[secondReg] with
+           | DPromise p ->
+             retry <- true
+             force <- Promises.settle vm registers secondReg p
+             forceReg <- secondReg
+           | _ -> ())
+        let mutable rest = theRestRegs
+        while not retry && not (List.isEmpty rest) do
+          match rest with
+          | reg :: tail ->
+            (match registers[reg] with
+             | DPromise p ->
+               retry <- true
+               force <- Promises.settle vm registers reg p
+               forceReg <- reg
+             | _ -> ())
+            rest <- tail
+          | [] -> ()
+        if not retry then
+          let first = registers[firstReg]
+          let second = registers[secondReg]
+          let theRest = readRegs registers theRestRegs
+          registers[tupleReg] <- DTuple(first, second, theRest)
 
 
       // == Working with Custom Data ==
@@ -2757,6 +3097,10 @@ let private runSyncInstructions
               RTE.Records.FieldAccessFieldNotFound fieldName
               |> RTE.Record
               |> raiseRTE vm.threadID
+        | DPromise p ->
+          retry <- true
+          force <- Promises.settle vm registers recordReg p
+          forceReg <- recordReg
         | dv ->
           RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
           |> RTE.Record
@@ -2765,19 +3109,33 @@ let private runSyncInstructions
 
       // -- Enums --
       | CreateLambda(lambdaReg, impl) ->
-        exeState.lambdaInstrCache[impl.exprId] <- impl
+        // What it closes over is forced: a closure holds values, never a read in flight.
+        let mutable rest = impl.registersToCloseOver
+        while not retry && not (List.isEmpty rest) do
+          match rest with
+          | (parentReg, _) :: tail ->
+            (match registers[parentReg] with
+             | DPromise p ->
+               retry <- true
+               force <- Promises.settle vm registers parentReg p
+               forceReg <- parentReg
+             | _ -> ())
+            rest <- tail
+          | [] -> ()
+        if not retry then
+          exeState.lambdaInstrCache[impl.exprId] <- impl
 
-        registers[lambdaReg] <-
-          { exprId = impl.exprId
-            closedRegisters =
-              impl.registersToCloseOver
-              |> List.map (fun (parentReg, childReg) ->
-                childReg, registers[parentReg])
-            typeSymbolTable = currentFrame.typeSymbolTable
-            access = currentFrame.access
-            argsSoFar = [] }
-          |> AppLambda
-          |> DApplicable
+          registers[lambdaReg] <-
+            { exprId = impl.exprId
+              closedRegisters =
+                impl.registersToCloseOver
+                |> List.map (fun (parentReg, childReg) ->
+                  childReg, registers[parentReg])
+              typeSymbolTable = currentFrame.typeSymbolTable
+              access = currentFrame.access
+              argsSoFar = [] }
+            |> AppLambda
+            |> DApplicable
 
 
 
@@ -2790,6 +3148,10 @@ let private runSyncInstructions
       | CheckIfFirstExprIsUnit reg ->
         match registers[reg] with
         | DUnit -> ()
+        | DPromise p ->
+          retry <- true
+          force <- Promises.settle vm registers reg p
+          forceReg <- reg
         | dval ->
           RTE.Statements.FirstExpressionMustBeUnit(
             ValueType.Known KTUnit,
@@ -2805,15 +3167,25 @@ let private runSyncInstructions
       | LoadValue _
       | Apply _ -> ()
 
-      if vm.stats.enabled then
-        let tag = Opcode.index inst
-        if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
-          let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
-          if delta > 0L then
-            vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
-          vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
+      if retry then
+        // The operand was a read in flight. Landed: the value is in the register, and the
+        // instruction runs again on the next turn. Not yet: stop with the counter on it. The
+        // flags are reset here, on the rare path, rather than on every instruction.
+        if not (isNull force) then
+          pending <- AwaitForce(force, forceReg)
+          running <- false
+        retry <- false
+        force <- null
+      else
+        if vm.stats.enabled then
+          let tag = Opcode.index inst
+          if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
+            let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
+            if delta > 0L then
+              vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
+            vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
 
-      counter <- counter + 1
+        counter <- counter + 1
 
   vm.budget <- budget
   struct (counter, pending)
@@ -2830,6 +3202,9 @@ type private FrameStep =
   | FrameAwaitBuiltin of fbCall : Ply<Dval> * fbReg : Register
   /// A package call that had to wait.
   | FrameAwaitPackage of fpCall : Ply<PackageOutcome> * fpReg : Register
+  /// An operand of the instruction under the counter is a read still in flight. Wait for it, write
+  /// its value into this register, and run the instruction; the counter does not move.
+  | FrameAwaitForce of ffTask : Task<Dval> * ffReg : Register
   /// The counter is sitting on one of the four opcodes the caller still runs itself.
   | FrameRareOpcode
   /// The VM's instruction budget ran out. Nothing is half-done: the counter sits on the instruction
@@ -2878,6 +3253,11 @@ let private runFrame
     | AwaitPackage(call, reg) ->
       step <- FrameAwaitPackage(call, reg)
       running <- false
+    | AwaitForce(task, reg) ->
+      step <- FrameAwaitForce(task, reg)
+      running <- false
+    // Never escapes `runSyncInstructions`, which runs the instruction again itself.
+    | ApplyRetry
     | ApplyDone ->
       if
         currentFrame.programCounter < instrData.instructions.Length
@@ -3211,6 +3591,11 @@ let private handleFrameStep
       | Completed dv -> registers[reg] <- dv
       // Pushed here rather than left in `vm.frameToPush`, which the next turn of this loop clears.
       | PushFrame frame -> pushFrame vm frame
+    | FrameAwaitForce(task, reg) ->
+      // The counter stays: the instruction runs again with the value. A failed read raises on the
+      // next try, through `Promises.settle`, so the failure is not read out here.
+      let! _ = Task.WhenAny task
+      if task.IsCompletedSuccessfully then registers[reg] <- task.Result
 
     match step with
     | FrameRareOpcode ->
@@ -3241,7 +3626,8 @@ let private handleFrameStep
     | FrameBlockEnded
     | FrameBudget
     | FrameAwaitBuiltin _
-    | FrameAwaitPackage _ -> ()
+    | FrameAwaitPackage _
+    | FrameAwaitForce _ -> ()
 
     // Only when the frame's block actually ended: either a frame was pushed or this one finished.
     // An await or a rare opcode leaves the frame part-run and comes round again, since the frame it
@@ -3264,7 +3650,20 @@ let private handleFrameStep
           // compilable. `checkFrameReturnType` answers synchronously in the ordinary case.
           do! checkFrameReturnType exeState vm currentFrame resultOfFrame
           returnFromFrame exeState vm currentFrame resultOfFrame
-        | ValueNone -> returnFromFrame exeState vm currentFrame resultOfFrame
+        | ValueNone ->
+          // The end of the run forces a read still in flight: nothing leaves as a promise, unless
+          // the borrower of this VM said it takes them.
+          match resultOfFrame with
+          | DPromise p when not vm.returnsPromises ->
+            let! _ = Task.WhenAny p.Task
+            match Promises.settle vm registers instrData.resultReg p with
+            | null ->
+              returnFromFrame exeState vm currentFrame registers[instrData.resultReg]
+            | _ ->
+              Exception.raiseInternal
+                "a read that was waited for is still in flight"
+                []
+          | _ -> returnFromFrame exeState vm currentFrame resultOfFrame
   }
 
 
@@ -3338,6 +3737,12 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
         | Completed dv -> registers[reg] <- dv
         | PushFrame frame -> pushFrame vm frame
       | ValueNone -> bail <- ValueSome(SyncBailStep step)
+    | FrameAwaitForce(task, reg) ->
+      // Landed between the check and here: the value goes in and the instruction runs again.
+      if task.IsCompletedSuccessfully then
+        registers[reg] <- task.Result
+      else
+        bail <- ValueSome(SyncBailStep step)
 
     if ValueOption.isNone bail && step.IsBlockEnded then
       match vm.frameToPush with
@@ -3356,7 +3761,19 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
             returnFromFrame exeState vm currentFrame resultOfFrame
           else
             bail <- ValueSome(SyncBailReturnCheck(check, resultOfFrame))
-        | ValueNone -> returnFromFrame exeState vm currentFrame resultOfFrame
+        | ValueNone ->
+          // The end of the run forces a read still in flight: nothing leaves as a promise, unless
+          // the borrower of this VM said it takes them. The frame stays; once the read lands the
+          // block ends again, with a value this time.
+          match resultOfFrame with
+          | DPromise p when not vm.returnsPromises ->
+            match Promises.settle vm registers instrData.resultReg p with
+            | null ->
+              returnFromFrame exeState vm currentFrame registers[instrData.resultReg]
+            | task ->
+              bail <-
+                ValueSome(SyncBailStep(FrameAwaitForce(task, instrData.resultReg)))
+          | _ -> returnFromFrame exeState vm currentFrame resultOfFrame
 
   match bail with
   | ValueSome outcome -> outcome
@@ -3462,6 +3879,21 @@ let stepScheduled (exeState : ExecutionState) (vm : VMState) : StepOutcome =
         | PartiallyApplied dv
         | Completed dv -> frame.registers[reg] <- dv
         | PushFrame newFrame -> pushFrame vm newFrame
+    )
+  | SyncBailStep(FrameAwaitForce(task, reg)) ->
+    // Parked on the read. The wait never faults: a read that failed stays a promise in the
+    // register, and the instruction's next try raises it through `Promises.settle`, at the force
+    // point and naming the read.
+    let frame = vm.callFrames[vm.currentFrameID]
+    let landed =
+      task.ContinueWith(
+        (fun (_ : Task<Dval>) -> ()),
+        TaskContinuationOptions.ExecuteSynchronously
+      )
+    StepAwait(
+      landed,
+      fun () ->
+        if task.IsCompletedSuccessfully then frame.registers[reg] <- task.Result
     )
   | SyncBailStep step ->
     // A rare opcode (the step is untouched, so `handleFrameStep` does the whole of it). It writes
