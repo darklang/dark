@@ -2182,7 +2182,8 @@ let private warningTests =
       }
 
       test "a check bound to a name nothing reads is a warning, by that name" {
-        let warnings = unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) result
+        let warnings =
+          unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) result
         Expect.equal
           (warnings |> List.map _.name)
           [ "first" ]
@@ -2257,11 +2258,17 @@ let private warningTests =
             NEList.singleton result
           )
         Expect.equal
-          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) (body "first"))
+          (unusedResultWarningsForLet
+            "test"
+            (PT.LPVariable(3UL, "first"))
+            (body "first"))
           [ { nodeId = 1UL; name = "first" } ]
           "reading the lambda parameter does not use the outer binding"
         Expect.equal
-          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) (body "other"))
+          (unusedResultWarningsForLet
+            "test"
+            (PT.LPVariable(3UL, "first"))
+            (body "other"))
           []
           "a closure can use the outer binding"
       }
@@ -2276,11 +2283,17 @@ let private warningTests =
                 rhs = PT.EVariable(14UL, "first") } ]
           )
         Expect.equal
-          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) (body "first"))
+          (unusedResultWarningsForLet
+            "test"
+            (PT.LPVariable(3UL, "first"))
+            (body "first"))
           [ { nodeId = 1UL; name = "first" } ]
           "a case's binding shadows the outer binding"
         Expect.equal
-          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) (body "other"))
+          (unusedResultWarningsForLet
+            "test"
+            (PT.LPVariable(3UL, "first"))
+            (body "other"))
           []
           "a case can use an unshadowed outer binding"
       }

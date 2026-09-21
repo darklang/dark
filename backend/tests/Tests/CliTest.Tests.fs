@@ -545,7 +545,9 @@ let testRunWarnings =
         Expect.stringContains out "Warnings:" out
         Expect.stringContains out "ignoredCheck" out
         Expect.equal
-          (System.Text.RegularExpressions.Regex.Matches(out, "UnusedTestResult").Count)
+          (System.Text.RegularExpressions.Regex
+            .Matches(out, "UnusedTestResult")
+            .Count)
           2
           $"both locations of the shared declaration warn: {out}"
 
