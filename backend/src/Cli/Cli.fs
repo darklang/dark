@@ -163,7 +163,22 @@ let private installStoreVersionSource () : unit =
 
 /// A positive number from an environment variable, else from the store's config
 /// (`dark config set <key> N`), else `fallback`.
-let private positiveSetting (envVar : string) (key : string) (fallback : int) : int =
+/// The store's `exec.*` settings, read in one query at startup (each `Config.get` is a round
+/// trip of about 8 KB, and the allocation gate counts startup). Empty when the store cannot
+/// answer.
+let private execSettings () : Map<string, string> =
+  try
+    (LibDB.Config.getMany [ "exec.workers"; "exec.maxInflight"; "exec.policy" ])
+      .Result
+  with _ ->
+    Map.empty
+
+let private positiveSetting
+  (settings : Map<string, string>)
+  (envVar : string)
+  (key : string)
+  (fallback : int)
+  : int =
   let parse (s : string) =
     match System.Int32.TryParse s with
     | true, n when n >= 1 -> Some n
@@ -173,44 +188,39 @@ let private positiveSetting (envVar : string) (key : string) (fallback : int) : 
     | null
     | "" -> None
     | s -> parse s
-  let fromConfig () =
-    try
-      (LibDB.Config.get key).Result |> Option.bind parse
-    with _ ->
-      None
   match fromEnv with
   | Some n -> n
   | None ->
-    match fromConfig () with
+    match Map.tryFind key settings |> Option.bind parse with
     | Some n -> n
     | None -> fallback
 
 /// How many worker schedulers this run may start: `DARK_EXEC_WORKERS`, else the store's
 /// `exec.workers`, else one per core. Never below one.
-let private workerCount () : int =
+let private workerCount (settings : Map<string, string>) : int =
   positiveSetting
+    settings
     "DARK_EXEC_WORKERS"
     "exec.workers"
     (max 1 System.Environment.ProcessorCount)
 
 /// How many reads may be in flight at once before one is awaited in program order:
 /// `DARK_EXEC_MAX_INFLIGHT`, else the store's `exec.maxInflight`, else 256.
-let private maxInflight () : int =
-  positiveSetting "DARK_EXEC_MAX_INFLIGHT" "exec.maxInflight" 256
+let private maxInflight (settings : Map<string, string>) : int =
+  positiveSetting settings "DARK_EXEC_MAX_INFLIGHT" "exec.maxInflight" 256
 
 /// The scheduling policy: `exec.policy` names a Dark function (`Darklang.Stdlib.Exec.Policy.
 /// youngestFirst`, say) that is asked which runnable process to step next whenever there is a
 /// choice; unset, the scheduler round-robins in F# and never asks. `DARK_EXEC_POLICY` overrides.
 /// A name that does not resolve is said and ignored, like a bad entry point.
-let private installPolicy (state : RT.ExecutionState) : unit =
+let private installPolicy
+  (settings : Map<string, string>)
+  (state : RT.ExecutionState)
+  : unit =
   let named =
     match System.Environment.GetEnvironmentVariable "DARK_EXEC_POLICY" with
     | null
-    | "" ->
-      try
-        (LibDB.Config.get "exec.policy").Result |> Option.defaultValue ""
-      with _ ->
-        ""
+    | "" -> Map.tryFind "exec.policy" settings |> Option.defaultValue ""
     | s -> s
   if named <> "" then
     match List.rev (named.Split('.') |> Array.toList) with
@@ -285,9 +295,10 @@ let execute
       return result
     else
       installStoreVersionSource ()
-      LibExecution.Scheduler.defaultWorkers <- workerCount ()
-      LibExecution.Interpreter.Promises.maxInflight <- maxInflight ()
-      installPolicy state
+      let settings = execSettings ()
+      LibExecution.Scheduler.defaultWorkers <- workerCount settings
+      LibExecution.Interpreter.Promises.maxInflight <- maxInflight settings
+      installPolicy settings state
       return LibExecution.Scheduler.executeFunction state fnName [] args
   }
 
