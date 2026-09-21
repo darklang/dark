@@ -968,6 +968,55 @@ let private errorInsideMapNamesTheLambda =
   }
 
 
+/// Two equal spinners on one scheduler: round robin lands the older first; a Dark policy
+/// (`Stdlib.Exec.Policy.youngestFirst`) asked between slices lands the younger first.
+let private darkPolicyOrders =
+  testTask "a Dark scheduling policy decides which runnable process is stepped" {
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false Map.empty
+    let spinner (tag : string) =
+      $"""(let spin (n: Int64) (acc: Int64) : Int64 =
+              if n == 0L then acc else spin (n - 1L) (acc + n)
+            let total = spin 100000L 0L
+            let _ = Builtin.testTrace "{tag}"
+            total)"""
+    let runBoth () =
+      task {
+        let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+        let! (older : Scheduler.Process) = spawn s state (spinner "older")
+        let! (younger : Scheduler.Process) = spawn s state (spinner "younger")
+        // Whichever finishes first ends the loop; a second run until the other one takes it
+        // the rest of the way (or returns at once, when it is done already).
+        let! result = runOnThread s older
+        expectOk result "the older spinner" |> ignore<RT.Dval>
+        let! result = runOnThread s younger
+        expectOk result "the younger spinner" |> ignore<RT.Dval>
+        return Trace.take ()
+      }
+    let! (plain : List<string>) = runBoth ()
+    Expect.equal plain [ "older"; "younger" ] "round robin: the older finishes first"
+    let location : PT.PackageLocation =
+      { owner = "Darklang"
+        modules = [ "Stdlib"; "Exec"; "Policy" ]
+        name = "youngestFirst" }
+    let! (found : Option<PT.FQFnName.Package>) = Ply.toTask (pmPT.findFn location)
+    let fn =
+      match found with
+      | Some p -> RT.FQFnName.Package(PT2RT.FQFnName.Package.toRT p)
+      | None -> failtest "Stdlib.Exec.Policy.youngestFirst is not in the store"
+    Scheduler.policy <-
+      Scheduler.Chooser(Builtins.Language.Libs.Exec.chooserFor state fn)
+    try
+      let! (chosen : List<string>) = runBoth ()
+      Expect.equal
+        chosen
+        [ "younger"; "older" ]
+        "youngestFirst: the younger runs to the end before the older gets a slice"
+    finally
+      Scheduler.policy <- Scheduler.RoundRobin
+  }
+
+
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
 let tests =
@@ -995,5 +1044,6 @@ let tests =
         httpGetIsARead
         parkedInsideMapShowsTheLambda
         budgetYieldInsideMap
-        errorInsideMapNamesTheLambda ]
+        errorInsideMapNamesTheLambda
+        darkPolicyOrders ]
   )

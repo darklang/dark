@@ -123,6 +123,20 @@ let defaultQuantum = 10_000L
 let mutable defaultWorkers : int = max 1 System.Environment.ProcessorCount
 
 
+/// Which runnable process a scheduler steps next.
+type Policy =
+  /// The one that has waited longest. The default, and what every scheduler runs unless told.
+  | RoundRobin
+  /// Ask: given the runnable processes, oldest first, the id of the one to step. An answer that
+  /// names none of them, or none at all, falls back to the oldest. `Cli.fs` installs one that
+  /// calls a Dark function (`exec.policy`); a test installs its own. Asked only when there is
+  /// a choice (two or more runnable), so an ordinary run never pays for it.
+  | Chooser of (list<ProcessSummary> -> Option<ProcessId>)
+
+/// The policy every scheduler consults. Process-wide, set by the host before it starts running.
+let mutable policy : Policy = RoundRobin
+
+
 /// The `ExecutionState` a process runs under: the spawner's, with the pieces that are one
 /// process's own replaced. Today that is the tracer (one call stack per process, and the process
 /// id on every event); the caches, the policy and the denial lists are shared, the last two under
@@ -567,9 +581,34 @@ type Scheduler(quantum : int64) =
       while not (finished ()) && not (Volatile.Read &stopping) do
         while queue.TryTake(&ev) do
           this.Dispatch ev
+        // A chooser is asked only when there is a choice, and outside the lock: it is Dark code
+        // that may well call `Exec.list`, which takes it. It sees copies, in queue order.
+        let asked =
+          match policy with
+          | RoundRobin -> None
+          | Chooser choose ->
+            let summaries =
+              lock sync (fun () ->
+                if runnable.Count > 1 then
+                  runnable |> Seq.map this.SummaryOf |> List.ofSeq
+                else
+                  [])
+            if summaries.IsEmpty then None else choose summaries
         let next =
           lock sync (fun () ->
-            if runnable.Count > 0 then Some(runnable.Dequeue()) else None)
+            match asked with
+            | Some id when runnable |> Seq.exists (fun p -> p.id = id) ->
+              // The pick leaves the queue; the rest keep their order.
+              let rest = List.ofSeq runnable
+              runnable.Clear()
+              let mutable chosen = None
+              for p in rest do
+                if p.id = id && chosen.IsNone then
+                  chosen <- Some p
+                else
+                  runnable.Enqueue p
+              chosen
+            | _ -> if runnable.Count = 0 then None else Some(runnable.Dequeue()))
         match next with
         | Some p -> this.Step p
         | None ->
@@ -633,30 +672,30 @@ type Scheduler(quantum : int64) =
     | Some g -> g.All |> List.collect (fun s -> s.SnapshotHere())
     | None -> this.SnapshotHere()
 
-  /// `Snapshot`, for this scheduler's own table. The frames are read off a VM another thread may
-  /// be stepping: `callStackFromVM` walks the parent chain, and a frame popped under it is caught
+  /// A copy of `p` for `ps` and the policy. The frames are read off a VM another thread may be
+  /// stepping: `callStackFromVM` walks the parent chain, and a frame popped under it is caught
   /// and read as no frames, never as a fault.
-  member _.SnapshotHere() : list<ProcessSummary> =
-    lock sync (fun () ->
-      processes.Values
-      |> Seq.map (fun p ->
-        { id = p.id
-          entry = p.entry
-          status = p.status
-          parent = p.parent
-          started = p.started
-          slices = p.slices
-          inflight = Volatile.Read &p.vm.inflight
-          frames =
-            match p.status with
-            | Done _
-            | Failed _ -> []
-            | _ ->
-              try
-                Execution.callStackFromVM p.vm
-              with _ ->
-                [] })
-      |> List.ofSeq)
+  member _.SummaryOf(p : Process) : ProcessSummary =
+    { id = p.id
+      entry = p.entry
+      status = p.status
+      parent = p.parent
+      started = p.started
+      slices = p.slices
+      inflight = Volatile.Read &p.vm.inflight
+      frames =
+        match p.status with
+        | Done _
+        | Failed _ -> []
+        | _ ->
+          try
+            Execution.callStackFromVM p.vm
+          with _ ->
+            [] }
+
+  /// `Snapshot`, for this scheduler's own table.
+  member this.SnapshotHere() : list<ProcessSummary> =
+    lock sync (fun () -> processes.Values |> Seq.map this.SummaryOf |> List.ofSeq)
 
 
 /// A root scheduler and its workers: N more schedulers, each looping on a thread of its own, so

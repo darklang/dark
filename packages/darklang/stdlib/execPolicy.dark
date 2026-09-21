@@ -1,0 +1,33 @@
+module Darklang.Stdlib.Exec.Policy
+
+/// Scheduling policies: which runnable process the scheduler steps next, decided
+/// in Dark.
+///
+/// A policy is a function from the runnable processes (oldest first, as
+/// `Exec.list` shows them) to the id of the one to step, or `None` for "no
+/// preference" (the oldest, as round robin would). The scheduler asks only when
+/// there is a choice, between slices, on its own thread, so a policy should be
+/// quick and should not wait. Point the scheduler at one with
+/// `dark config set exec.policy Darklang.Stdlib.Exec.Policy.youngestFirst` (or any
+/// function of that shape, yours included); unset, the scheduler round-robins in
+/// F# and never asks. An answer that names no runnable process counts as `None`
+/// for that turn.
+
+
+/// What the scheduler does on its own: the process that has waited longest.
+let roundRobin (runnable: List<Summary>) : Stdlib.Option.Option<Uuid> =
+  Stdlib.List.head runnable |> Stdlib.Option.map (fun p -> p.id)
+
+
+/// The process started most recently first: a stack, not a queue. Useful when the
+/// latest request matters most.
+let youngestFirst (runnable: List<Summary>) : Stdlib.Option.Option<Uuid> =
+  Stdlib.List.last runnable |> Stdlib.Option.map (fun p -> p.id)
+
+
+/// Whatever has used the fewest slices so far: new work before long-running work.
+let leastRunFirst (runnable: List<Summary>) : Stdlib.Option.Option<Uuid> =
+  runnable
+  |> Stdlib.List.sortBy (fun p -> p.slices)
+  |> Stdlib.List.head
+  |> Stdlib.Option.map (fun p -> p.id)

@@ -489,13 +489,44 @@ given that turn at once and whatever it waited for is abandoned. A running
 process finishes its slice first, so a short program that kills itself
 completes.
 
+## The scheduling policy, in Dark
+
+Which runnable process a scheduler steps next is round robin: the one that
+has waited longest. That is F#, and the default. A store can name a Dark
+function instead:
+
+    dark config set exec.policy Darklang.Stdlib.Exec.Policy.youngestFirst
+
+(`DARK_EXEC_POLICY` overrides for one run.) The function takes the runnable
+processes of the scheduler that is asking, as `List<Stdlib.Exec.Summary>`,
+oldest first, and answers `Option<Uuid>`: the one to step, or `None` for no
+preference. `Stdlib.Exec.Policy` ships `roundRobin`, `youngestFirst` and
+`leastRunFirst`; a policy of your own is any function of that shape.
+
+What holds it honest:
+
+- It is asked only when there is a choice, two or more runnable on the same
+  scheduler, between slices. One process at a time never pays for it, and
+  neither does a process alone on its worker.
+- It runs on the scheduler's own thread, outside the scheduler's lock, as an
+  unscheduled run of its own, untraced. It may call `Exec.list`. It should be
+  quick and should not wait: the whole scheduler waits with it.
+- An answer that names no runnable process, or a failure, counts as no
+  preference for that turn, and the first failure is said once on stderr. A
+  name that does not resolve is said at start and ignored.
+- The scheduler still owns the budget and the parking: a policy chooses among
+  the runnable, it cannot keep a process past its slice or wake a parked one.
+
+Each scheduler asks for itself; with workers, that is per core.
+
 ## Not here yet
 
 Follow-ups in the scheduler plan, in order, and the edges of what is here:
 
-- Host re-entry remains in `Stream.fs` and `HttpServer.fs` (above); then Ply
-  out of the interpreter, then a scheduling policy in Dark, are the next steps
-  (`notes/scheduler-and-live`).
+- Host re-entry remains in `Stream.fs` and `HttpServer.fs` (above). Ply out
+  of the interpreter waits on that (`notes/scheduler-and-live`).
+- A policy chooses which runnable process to step, not where a spawn lands:
+  `Exec.spawn` still goes to the least loaded worker, in F#.
 - A resume matches recorded processes to new ones by start order; a run that
   spawned may not line up. `resume` is the CLI's, since it runs the input
   through the CLI's own paths; `Exec.fork` from Dark exists.

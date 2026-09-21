@@ -81,7 +81,7 @@ let rec private executionPointToDT (ep : ExecutionPoint) : Dval =
   | Lambda(parent, exprId) ->
     case "Lambda" [ executionPointToDT parent; DInt64(int64 exprId) ]
 
-let private summaryToDT (p : Scheduler.ProcessSummary) : Dval =
+let summaryToDT (p : Scheduler.ProcessSummary) : Dval =
   recordOf
     PackageRefs.Type.Stdlib.Exec.summary
     [ "id", DUuid p.id
@@ -92,8 +92,7 @@ let private summaryToDT (p : Scheduler.ProcessSummary) : Dval =
       "slices", DInt64 p.slices
       "inflight", DInt64(int64 p.inflight) ]
 
-let private summaryType () =
-  KTCustomType(typ PackageRefs.Type.Stdlib.Exec.summary, [])
+let summaryType () = KTCustomType(typ PackageRefs.Type.Stdlib.Exec.summary, [])
 
 let private detailToDT (p : Scheduler.ProcessSummary) : Dval =
   let frames = p.frames |> List.map executionPointToDT
@@ -107,6 +106,48 @@ let private detailToDT (p : Scheduler.ProcessSummary) : Dval =
         ),
         frames
       ) ]
+
+/// A scheduling policy written in Dark, as the scheduler's `Chooser`: `fn` takes the runnable
+/// processes (`List<Stdlib.Exec.Summary>`, oldest first) and answers `Some id` to step next, or
+/// `None` for no preference. It runs on the scheduler's own thread, unscheduled, between slices,
+/// so it should be quick and should not wait; a failure or an answer of another shape counts as
+/// no preference for that turn, and the first failure is said once on stderr.
+let chooserFor
+  (state : ExecutionState)
+  (fn : FQFnName.FQFnName)
+  : List<Scheduler.ProcessSummary> -> Option<Scheduler.ProcessId> =
+  let mutable complained = false
+  // The policy's own calls are nobody's business: they are not in the trace of whatever runs.
+  let state = { state with tracing = LibExecution.Execution.noTracing }
+  fun runnable ->
+    let arg =
+      DList(ValueType.Known(summaryType ()), runnable |> List.map summaryToDT)
+    try
+      match
+        (LibExecution.Execution.executeFunction state fn [] (NEList.singleton arg))
+          .Result
+      with
+      | Ok(DEnum(_, _, _, "Some", [ DUuid id ])) -> Some id
+      | Ok(DEnum(_, _, _, "None", [])) -> None
+      | Ok other ->
+        if not complained then
+          complained <- true
+          System.Console.Error.WriteLine
+            $"exec.policy: the policy answered {other} rather than a process id; round robin for now"
+        None
+      | Error(rte, _) ->
+        if not complained then
+          complained <- true
+          System.Console.Error.WriteLine
+            $"exec.policy: the policy failed ({rte}); round robin for now"
+        None
+    with ex ->
+      if not complained then
+        complained <- true
+        System.Console.Error.WriteLine
+          $"exec.policy: the policy failed ({ex.Message}); round robin for now"
+      None
+
 
 /// The scheduler this call runs under, if any. Without one (a plain `execute`) the table is
 /// empty rather than an error: there are no processes to list.

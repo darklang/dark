@@ -198,6 +198,44 @@ let private workerCount () : int =
 let private maxInflight () : int =
   positiveSetting "DARK_EXEC_MAX_INFLIGHT" "exec.maxInflight" 256
 
+/// The scheduling policy: `exec.policy` names a Dark function (`Darklang.Stdlib.Exec.Policy.
+/// youngestFirst`, say) that is asked which runnable process to step next whenever there is a
+/// choice; unset, the scheduler round-robins in F# and never asks. `DARK_EXEC_POLICY` overrides.
+/// A name that does not resolve is said and ignored, like a bad entry point.
+let private installPolicy (state : RT.ExecutionState) : unit =
+  let named =
+    match System.Environment.GetEnvironmentVariable "DARK_EXEC_POLICY" with
+    | null
+    | "" ->
+      try
+        (LibDB.Config.get "exec.policy").Result |> Option.defaultValue ""
+      with _ ->
+        ""
+    | s -> s
+  if named <> "" then
+    match List.rev (named.Split('.') |> Array.toList) with
+    | name :: revRest ->
+      let owner, modules =
+        match List.rev revRest with
+        | o :: mods -> o, mods
+        | [] -> "Darklang", []
+      let location : PT.PackageLocation =
+        { owner = owner; modules = modules; name = name }
+      match (LibDB.PackageManager.pt.findFn location).Result with
+      | Some fqPkg ->
+        let fn =
+          RT.FQFnName.Package(
+            LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT fqPkg
+          )
+        LibExecution.Scheduler.policy <-
+          LibExecution.Scheduler.Chooser(
+            Builtins.Language.Libs.Exec.chooserFor state fn
+          )
+      | None ->
+        System.Console.Error.WriteLine
+          $"exec.policy '{named}' didn't resolve; scheduling round robin"
+    | [] -> ()
+
 let execute
   (packageManager : RT.PackageManager)
   (args : List<string>)
@@ -249,6 +287,7 @@ let execute
       installStoreVersionSource ()
       LibExecution.Scheduler.defaultWorkers <- workerCount ()
       LibExecution.Interpreter.Promises.maxInflight <- maxInflight ()
+      installPolicy state
       return LibExecution.Scheduler.executeFunction state fnName [] args
   }
 
