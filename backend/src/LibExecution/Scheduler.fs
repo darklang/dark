@@ -36,7 +36,10 @@ type ProcessId = HE.ProcessId
 
 /// What a parked process is waiting for. For `ps`; the mechanism is always a task.
 type Parked =
-  /// A builtin that had to wait (`sleep`, an HTTP call, a script `eval` runs, ...).
+  /// A host operation the interpreter is performing for a builtin (a file read, an HTTP
+  /// request, a process run): the one thing a process is most often waiting on.
+  | OnHost of HostTypes.Operation
+  /// A builtin that had to wait (`sleep`, a script `eval` runs, ...).
   | OnBuiltin of RT.FQFnName.Builtin
   /// A package function call that had to wait.
   | OnPackageFn of RT.FQFnName.Package
@@ -492,17 +495,21 @@ type Scheduler(quantum : int64) =
   /// is an `Apply` whose callee register still holds the callable; anything else is a rare opcode.
   member private _.Describe(p : Process) : Parked =
     try
-      let frame = p.vm.callFrames[p.vm.currentFrameID]
-      match frame.instrData.instructions[frame.programCounter] with
-      | RT.Apply(_, calleeReg, _, _) ->
-        match frame.registers[calleeReg] with
-        | RT.DApplicable(RT.AppNamedFn fn) ->
-          match fn.name with
-          | RT.FQFnName.Builtin b -> OnBuiltin b
-          | RT.FQFnName.Package h -> OnPackageFn h
-        | RT.DApplicable(RT.AppLambda _) -> OnLambda
+      let op = p.vm.hostInflight
+      if not (obj.ReferenceEquals(op, null)) then
+        OnHost op
+      else
+        let frame = p.vm.callFrames[p.vm.currentFrameID]
+        match frame.instrData.instructions[frame.programCounter] with
+        | RT.Apply(_, calleeReg, _, _) ->
+          match frame.registers[calleeReg] with
+          | RT.DApplicable(RT.AppNamedFn fn) ->
+            match fn.name with
+            | RT.FQFnName.Builtin b -> OnBuiltin b
+            | RT.FQFnName.Package h -> OnPackageFn h
+          | RT.DApplicable(RT.AppLambda _) -> OnLambda
+          | _ -> OnRareOpcode
         | _ -> OnRareOpcode
-      | _ -> OnRareOpcode
     with _ ->
       OnRareOpcode
 

@@ -18,6 +18,7 @@ module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
 module Scheduler = LibExecution.Scheduler
 module HE = LibExecution.HostEvents
+module HostTypes = LibExecution.HostTypes
 
 
 let private typ (name : unit -> string) : FQTypeName.FQTypeName =
@@ -43,6 +44,7 @@ let private eventSpecToDT (spec : HE.EventSpec) : Dval =
 let private parkedToDT (parked : Scheduler.Parked) : Dval =
   let case = enumOf PackageRefs.Type.Stdlib.Exec.parkedOn
   match parked with
+  | Scheduler.OnHost op -> case "Host" [ DString(HostTypes.describeOperation op) ]
   | Scheduler.OnBuiltin b -> case "Builtin" [ RT2DT.FQFnName.Builtin.toDT b ]
   | Scheduler.OnPackageFn h -> case "PackageFn" [ RT2DT.FQFnName.Package.toDT h ]
   | Scheduler.OnLambda -> case "Lambda" []

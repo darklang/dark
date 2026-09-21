@@ -12,7 +12,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module Host = LibExecution.Host
-module PermissionCheck = LibExecution.PermissionCheck
+module Interpreter = LibExecution.Interpreter
 open Builtin.Shortcuts
 
 
@@ -25,16 +25,14 @@ let fns () : List<BuiltInFn> =
         "Gets the value of the environment variable with the given <param varName> if it exists."
       fn =
         (function
-        | state, vm, _, [| DString varName |] ->
-          uply {
-            let op = Host.Operation.EnvGet varName
-            match! PermissionCheck.performHost state vm op with
+        | _, vm, _, [| DString varName |] ->
+          Interpreter.requestHost vm (Host.Operation.EnvGet varName) (fun outcome ->
+            match outcome with
             | Ok response ->
               match Host.expectEnvValue response with
-              | Some value -> return Dval.optionSome KTString (DString value)
-              | None -> return Dval.optionNone KTString
-            | Error _ -> return Dval.optionNone KTString
-          }
+              | Some value -> Ply(Dval.optionSome KTString (DString value))
+              | None -> Ply(Dval.optionNone KTString)
+            | Error _ -> Ply(Dval.optionNone KTString))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -50,16 +48,15 @@ let fns () : List<BuiltInFn> =
         "Returns a list of tuples containing all the environment variables and their values."
       fn =
         (function
-        | state, vm, _, [| DUnit |] ->
-          uply {
-            match! PermissionCheck.performHost state vm Host.Operation.EnvList with
+        | _, vm, _, [| DUnit |] ->
+          Interpreter.requestHost vm Host.Operation.EnvList (fun outcome ->
+            match outcome with
             | Ok response ->
-              return
-                Host.expectEnvEntries response
-                |> List.map (fun (k, v) -> (k, DString v))
-                |> Dval.stringDict KTString
-            | Error _ -> return Dval.stringDict KTString []
-          }
+              Host.expectEnvEntries response
+              |> List.map (fun (k, v) -> (k, DString v))
+              |> Dval.stringDict KTString
+              |> Ply
+            | Error _ -> Ply(Dval.stringDict KTString []))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

@@ -398,6 +398,14 @@ let private produce (make : unit -> Response) : Execute =
 let private attempt (call : unit -> Result<Response, int * string>) : Execute =
   fun () -> Task.FromResult(call () |> Result.mapError failureOfErrno)
 
+/// An execution that waits on another OS process (a run to completion, a
+/// round of input and output): on the pool, so the thread that asked, which
+/// is a scheduler's when a Dark process asked, is free to run its other
+/// processes meanwhile. A file or libc call is not moved: those finish in
+/// microseconds and the hop would cost more than the wait.
+let private blocking (call : unit -> Result<Response, int * string>) : Execute =
+  fun () -> Task.Run(fun () -> call () |> Result.mapError failureOfErrno)
+
 let private unitOk
   (result : Result<unit, int * string>)
   : Result<Response, int * string> =
@@ -778,7 +786,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       (attempt (fun () -> bindHttpServer port))
   | Operation.ProcessRun(program, args, timeoutMs) ->
     resolveProcess program args (fun program args ->
-      attempt (fun () -> HostProcess.run program args timeoutMs |> processOutcome))
+      blocking (fun () -> HostProcess.run program args timeoutMs |> processOutcome))
   | Operation.ProcessRunInteractive(program, args) ->
     resolveProcess program args (fun program args ->
       attempt (fun () ->
@@ -790,7 +798,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       produce (fun () -> Response.ProcessHandle(HostProcess.spawn program args)))
   | Operation.ProcessIO(handle, input) ->
     unchecked (
-      produce (fun () -> Response.ProcessOutcome(HostProcess.io handle input))
+      blocking (fun () -> Ok(Response.ProcessOutcome(HostProcess.io handle input)))
     )
   | Operation.ProcessTerminate handle ->
     unchecked (

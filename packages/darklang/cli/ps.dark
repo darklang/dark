@@ -27,6 +27,7 @@ let eventSpecText (spec: Stdlib.Host.EventSpec) : String =
 
 let parkedText (branchId: Uuid) (parked: Stdlib.Exec.ParkedOn) : String =
   match parked with
+  | Host op -> $"the host: {op}"
   | Builtin b -> PrettyPrinter.RuntimeTypes.FQFnName.builtIn b
   | PackageFn h -> PrettyPrinter.RuntimeTypes.FQFnName.package branchId h
   | Lambda -> "a lambda"

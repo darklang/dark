@@ -20,7 +20,10 @@ type Entry =
 
 /// What a parked process is waiting for.
 type ParkedOn =
-  /// A builtin that had to wait: `sleep`, an HTTP call, the script an `eval` runs.
+  /// A host operation being performed for a builtin: a file read, an HTTP request, a process
+  /// run. The text names the operation and its resource (`file-read /some/path`).
+  | Host of String
+  /// A builtin that had to wait: `sleep`, the script an `eval` runs.
   | Builtin of LanguageTools.RuntimeTypes.FQFnName.Builtin
   /// A package function call that had to wait.
   | PackageFn of LanguageTools.RuntimeTypes.FQFnName.Package

@@ -11,7 +11,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module Host = LibExecution.Host
-module PermissionCheck = LibExecution.PermissionCheck
+module Interpreter = LibExecution.Interpreter
 open Builtin.Shortcuts
 
 
@@ -23,17 +23,14 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current working directory"
       fn =
         (function
-        | state, vm, _, [| DUnit |] ->
-          uply {
-            let op = Host.Operation.DirectoryCurrent
-            match! PermissionCheck.performHost state vm op with
-            | Ok response -> return DString(Host.expectPath response)
+        | _, vm, _, [| DUnit |] ->
+          Interpreter.requestHost vm Host.Operation.DirectoryCurrent (fun outcome ->
+            match outcome with
+            | Ok response -> Ply(DString(Host.expectPath response))
             | Error failure ->
-              return
-                Exception.raiseInternal
-                  "reading the working directory failed"
-                  [ "message", failure.message ]
-          }
+              Exception.raiseInternal
+                "reading the working directory failed"
+                [ "message", failure.message ])
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -48,15 +45,14 @@ let fns () : List<BuiltInFn> =
       description = "Returns the directory at <param path>"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          uply {
-            let op = Host.Operation.DirectoryList(Host.expandHome path)
-            match! PermissionCheck.performHost state vm op with
+        | _, vm, _, [| DString path |] ->
+          let op = Host.Operation.DirectoryList(Host.expandHome path)
+          Interpreter.requestHost vm op (fun outcome ->
+            match outcome with
             | Ok response ->
               let entries = Host.expectEntries response
-              return DList(VT.string, List.map DString entries)
-            | Error _ -> return DList(VT.string, [])
-          }
+              Ply(DList(VT.string, List.map DString entries))
+            | Error _ -> Ply(DList(VT.string, [])))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -71,21 +67,17 @@ let fns () : List<BuiltInFn> =
       description = "Returns the full path to the currently running executable"
       fn =
         (function
-        | state, vm, _, [| DUnit |] ->
-          uply {
-            match!
-              PermissionCheck.performHost
-                state
-                vm
-                Host.Operation.CurrentExecutablePath
-            with
-            | Ok response -> return DString(Host.expectPath response)
-            | Error failure ->
-              return
+        | _, vm, _, [| DUnit |] ->
+          Interpreter.requestHost
+            vm
+            Host.Operation.CurrentExecutablePath
+            (fun outcome ->
+              match outcome with
+              | Ok response -> Ply(DString(Host.expectPath response))
+              | Error failure ->
                 Exception.raiseInternal
                   "current executable path failed"
-                  [ "message", failure.message ]
-          }
+                  [ "message", failure.message ])
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

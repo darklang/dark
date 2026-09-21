@@ -3080,6 +3080,19 @@ type VMState =
     /// nothing records.
     mutable pendingFinish : Dval -> unit
 
+    /// A builtin body naming a host operation for the interpreter to perform on its behalf
+    /// (`Interpreter.requestHost`): the operation, and what to do with its outcome. The body
+    /// returns a placeholder; the interpreter performs the operation through the checked host
+    /// boundary, under the body's access, and continues with `pendingHostNext`. Null
+    /// `pendingHostOp` means no request. Read and cleared right after the body returns (or
+    /// lands, or a continuation answers).
+    mutable pendingHostOp : HostTypes.Operation
+    mutable pendingHostNext :
+      Result<HostTypes.Response, HostTypes.Failure> -> Ply<Dval>
+    /// The host operation this VM is waiting on right now, for `ps`. Null when none. Written by
+    /// the interpreter around the wait and read best-effort from other threads.
+    mutable hostInflight : HostTypes.Operation
+
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
     /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
     /// continuation the builder makes for the loop body.
@@ -3169,6 +3182,9 @@ type VMState =
       inflight = 0
       pendingNext = Unchecked.defaultof<_>
       pendingFinish = Unchecked.defaultof<_>
+      pendingHostOp = Unchecked.defaultof<_>
+      pendingHostNext = Unchecked.defaultof<_>
+      hostInflight = Unchecked.defaultof<_>
       pendingApplicable = Unchecked.defaultof<_>
       pendingArg = DUnit
       pendingMoreArgs = []

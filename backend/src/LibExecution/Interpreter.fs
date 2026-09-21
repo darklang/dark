@@ -915,6 +915,53 @@ let private traceBuiltinResult
 let inline private requested (vm : VMState) : bool =
   not (obj.ReferenceEquals(vm.pendingNext, null))
 
+/// Whether a builtin body (or one of its continuations) just named a host operation.
+let inline private hostRequested (vm : VMState) : bool =
+  not (obj.ReferenceEquals(vm.pendingHostOp, null))
+
+/// For a builtin body: name a host operation and say what to do with its outcome, and return
+/// what this returns (a placeholder). The interpreter performs the operation through the
+/// checked host boundary (`PermissionCheck.performHostWithAccess`) under the body's access,
+/// from the loop rather than from inside the body: every host effect crosses that one line,
+/// `ps` can say which operation a process waits on, and the body is a value again. `next` may
+/// name another operation, or ask for an apply (`requestApply`); it is driven the same way.
+let requestHost
+  (vm : VMState)
+  (op : HostTypes.Operation)
+  (next : Result<HostTypes.Response, HostTypes.Failure> -> Ply<Dval>)
+  : Ply<Dval> =
+  vm.pendingHostOp <- op
+  vm.pendingHostNext <- next
+  Ply DUnit
+
+/// Perform the host operation a body or continuation named, and drive its continuation: a
+/// further operation is performed in turn; the answer is what the body would have returned.
+/// `out` is the placeholder when a request is pending, and is handed back untouched otherwise.
+let rec private performRequested
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (out : Ply<Dval>)
+  : Ply<Dval> =
+  if hostRequested vm then
+    let op = vm.pendingHostOp
+    let next = vm.pendingHostNext
+    vm.pendingHostOp <- Unchecked.defaultof<_>
+    vm.pendingHostNext <- Unchecked.defaultof<_>
+    let performed =
+      PermissionCheck.performHostWithAccess exeState vm vm.activeAccess op
+    match Ply.trySync performed with
+    | ValueSome outcome -> performRequested exeState vm (next outcome)
+    | ValueNone ->
+      vm.hostInflight <- op
+      uply {
+        let! outcome = performed
+        vm.hostInflight <- Unchecked.defaultof<_>
+        return! performRequested exeState vm (next outcome)
+      }
+  else
+    out
+
+
 /// For a builtin's continuation that has to look at the callable's result: `k` with the value,
 /// waiting for a read still in flight first (the interpreter parks the process on the wait and
 /// drives on when it lands). A continuation that only carries the result along (`List.map`) does
@@ -1090,6 +1137,9 @@ let private invokeBuiltin
     // Every builtin's signature is async because some of them have to be -- HTTP, the package store,
     // anything touching disk. Most aren't: `Int64.add` computes and returns.
     let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
+    // A body that named a host operation: performed here, its continuation driven; what comes
+    // back is the body's real result, waited for like any other.
+    let body = performRequested exeState vm body
 
     // `finishBuiltin` is top-level rather than a local closing over the eight values it needs, for the
     // same reason `completeBuiltin` is: the fallback arm below is a `uply`, so a local would be captured
@@ -1119,6 +1169,13 @@ let private invokeBuiltin
       let allArgs = if recording then Array.copy allArgs else allArgs
       uply {
         let! result = body
+        // A host operation named after the body's first wait (a request read, then a file):
+        // performed now, and its continuation's answer is the result.
+        let! result =
+          if hostRequested vm then
+            performRequested exeState vm (Ply result)
+          else
+            Ply result
         if requested vm then
           // A request after the body's first wait (a stream that pulled from the network, then
           // has its transform to apply). The call site has moved on; the landing site, where
@@ -2480,6 +2537,9 @@ and private drive
   (out : Ply<Dval>)
   (direct : bool)
   : ApplyOutcome =
+  // A continuation that named a host operation: performed, and what its continuation answers
+  // is driven in its place (rare: the ordinary answer is a value or an apply request).
+  let out = if hostRequested vm then performRequested exeState vm out else out
   match Ply.trySync out with
   | ValueSome dv ->
     if requested vm then

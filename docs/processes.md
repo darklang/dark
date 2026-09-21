@@ -8,8 +8,9 @@ their own and writes keep their order; `Exec.spawn`/`await` run chosen work
 in the background. A traced run is an execution: kept with the log of what it
 did to the world, suspended by Ctrl-C, resumed or forked by replaying that
 log. A lambda that `List.map` (and the other list builtins) applies is a
-frame on the process's own stack. The follow-ups at the end are where the
-rest goes.
+frame on the process's own stack. A builtin that needs the host (a file, the
+environment, a process, the network) names the operation and the loop
+performs it. The follow-ups at the end are where the rest goes.
 
 The one-paragraph version: a process is a `VMState` plus the `ExecutionState`
 it runs under plus a status. A scheduler steps a process until it finishes,
@@ -480,6 +481,42 @@ and the interrupted run's own ending leaves the suspend alone; a package edit
 between record and resume runs the new code (`v2:`) against the recorded
 uuid.
 
+## Host operations are requests: a builtin names, the loop performs
+
+A builtin that touches the OS used to call `PermissionCheck.performHost` from
+inside its `uply` body: the check, the wait and the result were all inside a
+builder the loop could only park on as an opaque task. It names the operation
+instead (`Interpreter.requestHost vm op next`, in `Builtins.Cli`: `File`,
+`Directory`, `Environment`, `Execution`, `Posix`):
+
+- The body puts the `Host.Operation` and a continuation on the VM
+  (`VMState.pendingHostOp`, `pendingHostNext`; no record, same as an apply
+  request) and returns a placeholder. Right after the body returns,
+  `invokeBuiltin` sees the request and performs it through the one checked
+  boundary (`PermissionCheck.performHostWithAccess`, under the body's access),
+  then hands the outcome to `next`; a continuation may name another operation,
+  or ask for an apply, and is driven the same way (`performRequested`). The
+  body itself is a value again: no builder, nothing awaited inside it.
+- A synchronous operation (every file, directory, environment and libc call:
+  microseconds, and a pool hop would cost more than the wait) completes on the
+  spot and nothing parks. One that waits (an HTTP request; a process run or a
+  round of process IO, which `Host.blocking` moves to the pool so a `sleep 10`
+  in one process does not stall a scheduler's others) parks the process as any
+  wait does, and the VM records the operation (`hostInflight`) so `ps` says
+  `the host: process-run /bin/bash` rather than the builtin's name.
+- A body that had to wait before it could name the operation (`File.write` of
+  a persisted blob reads the bytes from the store first) names it from the
+  continuation of that wait, and the landing performs it. Rare; the
+  ephemeral-blob case, which is nearly every write, names it at once.
+- Denials and rejections raise at the call as before: the check runs on the
+  loop's thread, before anything is performed, under the same access the body
+  ran with.
+
+The host boundary itself (`Host.perform`: resolve, check, execute, audit) did
+not move. What moved is who calls it: the loop, from one line, for every
+OS-facing builtin, which is the shape the Rust port wants (an operation is a
+value the host answers) and what lets `ps` name the wait.
+
 ## `Host.await`, the contract
 
 ```
@@ -569,12 +606,14 @@ Follow-ups in the scheduler plan, in order, and the edges of what is here:
   spawned may not line up. `resume` is the CLI's, since it runs the input
   through the CLI's own paths; `Exec.fork` from Dark exists.
 - `ps show` says how many reads a process has in flight, not which.
-- A builtin's wait is still a `Ply` the loop parks on as a task. The loop
-  itself is plain code (`executeSync`, `awaitOf`, `driveToEnd`); the `uply`s
-  left in `Interpreter.fs` are the slow paths (a type check that needs the
-  store, a builtin's result landing) and the builtin bodies are what they
-  were. Host operations as values the scheduler performs (`Host.perform`
-  called from the loop rather than from inside the body) is the next step.
+- A builtin's wait is still a `Ply` the loop parks on as a task, and a host
+  operation's answer comes back through that task rather than as an event on
+  the queue. The loop itself is plain code (`executeSync`, `awaitOf`,
+  `driveToEnd`); the `uply`s left in `Interpreter.fs` are the slow paths (a
+  type check that needs the store, a builtin's result landing). The HTTP
+  client and server still perform their operations from inside the body;
+  store-facing builtins (`DB`, the package manager, traces) await SQLite,
+  which is not a host operation and has no request form yet.
 - `Event.ExecDone` carries only the id; a Dark enum cannot hold an untyped
   value. `Exec.await` is how a value comes back.
 - `ps show` shows the call stack, not registers.

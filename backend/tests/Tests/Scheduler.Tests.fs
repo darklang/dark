@@ -1082,6 +1082,31 @@ let private darkPolicyOrders =
 
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
+let private parkedOnAHostOperation =
+  testTask "a process waiting on the host is parked on the operation, and resumes" {
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    // A process run the host performs for the builtin; a second's sleep is long enough to be
+    // seen parked and short enough for the test.
+    let! (p : Scheduler.Process) =
+      spawn s state """(Stdlib.Cli.execute "sleep 1").exitCode"""
+    let running = runOnThread s p
+    waitFor "the process to park on the host" (fun () ->
+      match p.status with
+      | Scheduler.Parked _ -> true
+      | _ -> false)
+    match p.status with
+    | Scheduler.Parked(Scheduler.OnHost(LibExecution.HostTypes.Operation.ProcessRun(_,
+                                                                                    args,
+                                                                                    _))) ->
+      Expect.equal (List.tryLast args) (Some "sleep 1") "parked on the run itself"
+    | other ->
+      failtest $"expected the process parked on the host operation, got {other}"
+    let! result = running
+    Expect.equal (expectOk result "the run") (RT.Dval.int 0I) "the run finished"
+  }
+
+
 let tests =
   testSequenced (
     testList
@@ -1110,5 +1135,6 @@ let tests =
         errorInsideMapNamesTheLambda
         parkedInsideStreamMapShowsTheLambda
         transformAfterTheSourceWaits
-        darkPolicyOrders ]
+        darkPolicyOrders
+        parkedOnAHostOperation ]
   )

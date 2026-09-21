@@ -11,7 +11,7 @@ module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module Blob = LibExecution.Blob
 module Host = LibExecution.Host
-module PermissionCheck = LibExecution.PermissionCheck
+module Interpreter = LibExecution.Interpreter
 module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
 open Builtin.Shortcuts
@@ -39,21 +39,17 @@ module FileError =
       | Host.FailureKind.Other -> "Other", [ DString failure.message ]
     DEnum(typeName, typeName, [], caseName, fields)
 
-/// Run one file operation and map its outcome to `Result<Unit, FileError>`.
-let private fileUnitOp
-  (state : ExecutionState)
-  (vm : VMState)
-  (op : Host.Operation)
-  : Ply<Dval> =
-  uply {
-    match! PermissionCheck.performHost state vm op with
+/// Name one file operation for the interpreter to perform, its outcome mapped to
+/// `Result<Unit, FileError>`.
+let private fileUnitOp (vm : VMState) (op : Host.Operation) : Ply<Dval> =
+  Interpreter.requestHost vm op (fun outcome ->
+    match outcome with
     | Ok response ->
       Host.expectUnit response
-      return Dval.resultOk KTUnit (FileError.knownType ()) DUnit
+      Ply(Dval.resultOk KTUnit (FileError.knownType ()) DUnit)
     | Error failure ->
       let error = FileError.fromFailure failure
-      return Dval.resultError KTUnit (FileError.knownType ()) error
-  }
+      Ply(Dval.resultError KTUnit (FileError.knownType ()) error))
 
 
 let fns () : List<BuiltInFn> =
@@ -67,14 +63,13 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTBlob (FileError.knownType ())
         let resultError = Dval.resultError KTBlob (FileError.knownType ())
         (function
-        | state, vm, _, [| DString path |] ->
-          uply {
-            let op = Host.Operation.FileRead(Host.expandHome path)
-            match! PermissionCheck.performHost state vm op with
+        | _, vm, _, [| DString path |] ->
+          let op = Host.Operation.FileRead(Host.expandHome path)
+          Interpreter.requestHost vm op (fun outcome ->
+            match outcome with
             | Ok response ->
-              return resultOk (Blob.newEphemeral (Host.expectBytes response))
-            | Error failure -> return resultError (FileError.fromFailure failure)
-          }
+              Ply(resultOk (Blob.newEphemeral (Host.expectBytes response)))
+            | Error failure -> Ply(resultError (FileError.fromFailure failure)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -91,11 +86,19 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DBlob ref; DString path |] ->
-          uply {
-            let! bytes = Blob.readBytes state ref
-            let op = Host.Operation.FileWrite(Host.expandHome path, bytes)
-            return! fileUnitOp state vm op
-          }
+          // The bytes are usually in hand (an ephemeral blob); a persisted one is read from the
+          // store first, and the operation is named after that wait, which the interpreter
+          // takes too.
+          let bytes = Blob.readBytes state ref
+          match Ply.trySync bytes with
+          | ValueSome bytes ->
+            fileUnitOp vm (Host.Operation.FileWrite(Host.expandHome path, bytes))
+          | ValueNone ->
+            uply {
+              let! bytes = bytes
+              return!
+                fileUnitOp vm (Host.Operation.FileWrite(Host.expandHome path, bytes))
+            }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -110,8 +113,8 @@ let fns () : List<BuiltInFn> =
       description = "Deletes the file specified by <param path>"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          fileUnitOp state vm (Host.Operation.FileDelete(Host.expandHome path))
+        | _, vm, _, [| DString path |] ->
+          fileUnitOp vm (Host.Operation.FileDelete(Host.expandHome path))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -127,9 +130,8 @@ let fns () : List<BuiltInFn> =
         "Appends the given <param content> to the file at the specified <param path>. If the file does not exist, a new file is created with the content. Returns a Result type indicating success or failure."
       fn =
         (function
-        | state, vm, _, [| DString path; DString content |] ->
+        | _, vm, _, [| DString path; DString content |] ->
           fileUnitOp
-            state
             vm
             (Host.Operation.FileAppendText(Host.expandHome path, content))
         | _ -> incorrectArgs ())
@@ -147,15 +149,14 @@ let fns () : List<BuiltInFn> =
         "Returns true if the file specified by <param path> is a directory, or false if it is a file or does not exist"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          uply {
-            let op = Host.Operation.FileStat(Host.expandHome path)
-            match! PermissionCheck.performHost state vm op with
+        | _, vm, _, [| DString path |] ->
+          let op = Host.Operation.FileStat(Host.expandHome path)
+          Interpreter.requestHost vm op (fun outcome ->
+            match outcome with
             | Ok response ->
               let (_exists, isDirectory) = Host.expectStat response
-              return DBool isDirectory
-            | Error _ -> return DBool false
-          }
+              Ply(DBool isDirectory)
+            | Error _ -> Ply(DBool false))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -171,15 +172,14 @@ let fns () : List<BuiltInFn> =
         "Returns true if a file or directory exists at the specified <param path>, or false otherwise"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          uply {
-            let op = Host.Operation.FileStat(Host.expandHome path)
-            match! PermissionCheck.performHost state vm op with
+        | _, vm, _, [| DString path |] ->
+          let op = Host.Operation.FileStat(Host.expandHome path)
+          Interpreter.requestHost vm op (fun outcome ->
+            match outcome with
             | Ok response ->
               let (exists, _isDirectory) = Host.expectStat response
-              return DBool exists
-            | Error _ -> return DBool false
-          }
+              Ply(DBool exists)
+            | Error _ -> Ply(DBool false))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
