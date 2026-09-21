@@ -915,7 +915,6 @@ let private traceBuiltinResult
 let inline private requested (vm : VMState) : bool =
   not (obj.ReferenceEquals(vm.pendingNext, null))
 
-
 /// For a builtin's continuation that has to look at the callable's result: `k` with the value,
 /// waiting for a read still in flight first (the interpreter parks the process on the wait and
 /// drives on when it lands). A continuation that only carries the result along (`List.map`) does
@@ -4031,173 +4030,137 @@ let private returnFromFrame
     ApplyDone
 
 
-let private handleFrameStep
+/// Run the rare opcode under the frame's counter (the four the drain does not run itself). It
+/// can await, so it is a task; it writes the VM as it completes, on whatever thread completes
+/// it, and the loop does not look at the VM until it is done.
+let private runRareStep
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
-  (registers : Dval array)
-  (instrData : InstrData)
-  (step : FrameStep)
   : System.Threading.Tasks.Task<unit> =
   task {
-    match step with
-    | FrameBlockEnded
-    | FrameRareOpcode -> ()
-    // Only a scheduled VM has a budget, and a scheduled VM is stepped by `stepScheduled`, which
-    // never comes here. Loud rather than an infinite loop: the budget would stay at zero and every
-    // turn of `executeInnerTask`'s loop would report it again.
-    | FrameBudget ->
-      Exception.raiseInternal
-        "budget bail outside the scheduler"
-        [ "vm", vm.threadID ]
-    | FrameAwaitBuiltin(call, reg) ->
-      let! dv = Ply.toTask call
-      // Nearly always a value into the register; a request made after the wait starts a chain,
-      // whose further waits are waited for in place.
-      let mutable outcome = landBuiltin exeState vm currentFrame reg dv
-      while (match outcome with
-             | AwaitContinuation _ -> true
-             | _ -> false) do
-        match outcome with
-        | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
-          let! dv2 = Ply.toTask ply2
-          outcome <-
-            drive exeState vm currentFrame reg2 pc2 next2 finish2 (Ply dv2) true
-        | _ -> ()
-    | FrameAwaitPackage(call, reg) ->
-      let! o = Ply.toTask call
-      currentFrame.programCounter <- currentFrame.programCounter + 1
-      match o with
-      | PartiallyApplied dv
-      | Completed dv -> registers[reg] <- dv
-      // Pushed here rather than left in `vm.frameToPush`, which the next turn of this loop clears.
-      | PushFrame frame -> pushFrame vm frame
-    | FrameAwaitForce(task, reg) ->
-      // The counter stays: the instruction runs again with the value. A failed read raises on the
-      // next try, through `Promises.settle`, so the failure is not read out here.
-      let! _ = Task.WhenAny task
-      if task.IsCompletedSuccessfully then registers[reg] <- task.Result
-    | FrameAwaitContinuation(ply, reg, pc, next, finish) ->
-      // The chain goes on from here: a value into the register, or the next frame pushed. A
-      // further wait is waited for in place.
-      let! dv = Ply.toTask ply
-      let mutable outcome =
-        drive exeState vm currentFrame reg pc next finish (Ply dv) true
-      while (match outcome with
-             | AwaitContinuation _ -> true
-             | _ -> false) do
-        match outcome with
-        | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
-          let! dv2 = Ply.toTask ply2
-          outcome <-
-            drive exeState vm currentFrame reg2 pc2 next2 finish2 (Ply dv2) true
-        | _ -> ()
+    let registers = currentFrame.registers
+    let instrData = currentFrame.instrData
+    if vm.stats.enabled then
+      vm.stats.instructionCount <- vm.stats.instructionCount + 1L
 
-    match step with
-    | FrameRareOpcode ->
-      if vm.stats.enabled then
-        vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+    let inst = instrData.instructions[currentFrame.programCounter]
+    let allocBefore =
+      if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
-      let inst = instrData.instructions[currentFrame.programCounter]
-      let allocBefore =
-        if vm.stats.enabled then
-          System.GC.GetAllocatedBytesForCurrentThread()
-        else
-          0L
+    do! runRareOpcode exeState vm currentFrame registers inst
 
-      do! runRareOpcode exeState vm currentFrame registers inst
+    if vm.stats.enabled then
+      let tag = Opcode.index inst
+      if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
+        // Clamped at zero: these arms await, and this counter is per-thread, so a resume on another
+        // thread makes the odd delta meaningless rather than merely noisy.
+        let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
+        if delta > 0L then
+          vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
+        vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
 
-      if vm.stats.enabled then
-        let tag = Opcode.index inst
-        if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
-          // Clamped at zero: these arms await, and this counter is per-thread, so a resume on another
-          // thread makes the odd delta meaningless rather than merely noisy.
-          let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
-          if delta > 0L then
-            vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
-          vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
-
-      currentFrame.programCounter <- currentFrame.programCounter + 1
-
-    | FrameBlockEnded
-    | FrameBudget
-    | FrameAwaitBuiltin _
-    | FrameAwaitPackage _
-    | FrameAwaitForce _
-    | FrameAwaitContinuation _ -> ()
-
-    // Only when the frame's block actually ended: either a frame was pushed or this one finished.
-    // An await or a rare opcode leaves the frame part-run and comes round again, since the frame it
-    // was running is still the current one.
-    if step.IsBlockEnded then
-      match vm.frameToPush with
-      | ValueSome newFrame ->
-        // Something in this eval just pushed a frame -- don't do the "normal" processing
-        vm.callFrames[newFrame.id] <- newFrame
-        vm.currentFrameID <- newFrame.id
-
-      | ValueNone ->
-        // We are at the end of the instructions of the current frame
-        // Either we're done with the whole eval, or we need to return a value to the parent frame
-        let resultOfFrame = registers[instrData.resultReg]
-
-        match currentFrame.parent with
-        | ValueSome _ ->
-          // A single `do!` at statement position, so the loop's state machine stays statically
-          // compilable. `checkFrameReturnType` answers synchronously in the ordinary case.
-          do! checkFrameReturnType exeState vm currentFrame resultOfFrame
-          // A continuation frame's chain may wait: waited for in place.
-          let mutable outcome =
-            returnFromFrame exeState vm currentFrame resultOfFrame
-          while (match outcome with
-                 | AwaitContinuation _ -> true
-                 | _ -> false) do
-            match outcome with
-            | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
-              let! dv2 = Ply.toTask ply2
-              let parent = vm.callFrames[vm.currentFrameID]
-              outcome <-
-                drive exeState vm parent reg2 pc2 next2 finish2 (Ply dv2) true
-            | _ -> ()
-        | ValueNone ->
-          // The end of the run forces a read still in flight: nothing leaves as a promise.
-          match resultOfFrame with
-          | DPromise p ->
-            let! _ = Task.WhenAny p.Task
-            match Promises.settle vm registers instrData.resultReg p with
-            | null ->
-              returnFromFrame exeState vm currentFrame registers[instrData.resultReg]
-              |> ignore<ApplyOutcome>
-            | _ ->
-              Exception.raiseInternal
-                "a read that was waited for is still in flight"
-                []
-          | _ ->
-            returnFromFrame exeState vm currentFrame resultOfFrame
-            |> ignore<ApplyOutcome>
+    currentFrame.programCounter <- currentFrame.programCounter + 1
   }
 
 
+/// Why one slice stopped. The scheduler's whole view of the interpreter, and the unscheduled
+/// driver's too: there is one loop (`executeSync`), and this is what it hands back.
+type StepOutcome =
+  /// The run finished with this value.
+  | StepDone of Dval
+  /// The budget ran out with work left. Step again when it is this process's turn.
+  | StepBudget
+  /// Something has to be waited for. When `wait` completes, run `resume` on the stepping thread,
+  /// then step again. `wait` is a builtin's or package call's result (the ordinary case: `resume`
+  /// writes it into the frame's register), or one of the rare opcodes and the deferred return-type
+  /// check, which advance the VM themselves as they complete (`resume` is then a no-op). Either
+  /// way nothing else touches the VM until `wait` is done and `resume` has run.
+  | StepAwait of wait : System.Threading.Tasks.Task * resume : (unit -> unit)
 
-/// The outermost interpreter loop.
+
+/// A step the loop could not finish synchronously, as what to wait for and what to do when it
+/// lands. The loop parks here; whoever drives it (the scheduler, or `driveToEnd` for an
+/// unscheduled run) waits and calls `resume` on its own thread.
 ///
-/// `task`, not Ply's `uply`. Ply is continuation-based and predates F# 6's resumable code, so a
-/// `uply` loop allocates on every iteration in proportion to the size of its body, bind or no bind;
-/// the same loop under `task` allocates nothing. This body is large and runs once per frame
-/// activation, so that difference dominated the interpreter's allocation.
-/// What the synchronous loop could not finish, and how the task loop should pick it up.
-[<Struct>]
-type private SyncOutcome =
-  /// The whole run finished without ever awaiting.
-  | SyncDone of result : Dval
-  /// A step whose await has not been started. `handleFrameStep` takes it from here.
-  | SyncBailStep of step : FrameStep
-  /// A return-type check already in flight; the frame returns once it completes.
-  | SyncBailReturnCheck of
-    check : System.Threading.Tasks.Task<unit> *
-    checkedResult : Dval
-  /// The instruction budget ran out. Only a scheduled VM ever reports this.
-  | SyncBailBudget
+/// The frame is the VM's current one, read here rather than handed in: a continuation that
+/// waits from a frame's return belongs to the parent, which is current once the frame has
+/// popped, and the frame the loop was stepping is back in the pool by then.
+let private awaitOf
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (step : FrameStep)
+  : StepOutcome =
+  let frame = vm.callFrames[vm.currentFrameID]
+  match step with
+  | FrameAwaitBuiltin(call, reg) ->
+    let running = Ply.toTask call
+    StepAwait(
+      running,
+      fun () ->
+        // A request made after the wait starts a chain (`landBuiltin`); a further wait from
+        // it is rare and waited for on the spot, as below.
+        let mutable outcome = landBuiltin exeState vm frame reg running.Result
+        while (match outcome with
+               | AwaitContinuation _ -> true
+               | _ -> false) do
+          match outcome with
+          | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+            let dv2 = (Ply.toTask ply2).Result
+            outcome <- drive exeState vm frame reg2 pc2 next2 finish2 (Ply dv2) true
+          | _ -> ()
+    )
+  | FrameAwaitPackage(call, reg) ->
+    let running = Ply.toTask call
+    StepAwait(
+      running,
+      fun () ->
+        frame.programCounter <- frame.programCounter + 1
+        match running.Result with
+        | PartiallyApplied dv
+        | Completed dv -> frame.registers[reg] <- dv
+        | PushFrame newFrame -> pushFrame vm newFrame
+    )
+  | FrameAwaitContinuation(ply, reg, pc, next, finish) ->
+    // Parked on a builtin's continuation (a callable it asked for has returned, and what the
+    // builtin does with that waits). Driven on when it lands; a further wait from `drive` is
+    // rare (a continuation that waits twice in a row) and is waited for on the spot.
+    let running = Ply.toTask ply
+    StepAwait(
+      running,
+      fun () ->
+        let mutable outcome =
+          drive exeState vm frame reg pc next finish (Ply running.Result) true
+        while (match outcome with
+               | AwaitContinuation _ -> true
+               | _ -> false) do
+          match outcome with
+          | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+            let dv2 = (Ply.toTask ply2).Result
+            outcome <- drive exeState vm frame reg2 pc2 next2 finish2 (Ply dv2) true
+          | _ -> ()
+    )
+  | FrameAwaitForce(task, reg) ->
+    // Parked on the read. The wait never faults: a read that failed stays a promise in the
+    // register, and the instruction's next try raises it through `Promises.settle`, at the force
+    // point and naming the read.
+    let landed =
+      task.ContinueWith(
+        (fun (_ : Task<Dval>) -> ()),
+        TaskContinuationOptions.ExecuteSynchronously
+      )
+    StepAwait(
+      landed,
+      fun () ->
+        if task.IsCompletedSuccessfully then frame.registers[reg] <- task.Result
+    )
+  | FrameRareOpcode ->
+    // Writes the VM as it completes, on whatever thread completes it; the process is parked
+    // meanwhile and nobody looks at the VM until `wait` is done.
+    StepAwait(runRareStep exeState vm frame, (fun () -> ()))
+  | FrameBudget -> StepBudget
+  | FrameBlockEnded ->
+    Exception.raiseInternal "a finished block is not a wait" [ "vm", vm.threadID ]
 
 
 /// The interpreter loop, for as long as nothing actually awaits.
@@ -4211,7 +4174,7 @@ type private SyncOutcome =
 /// all. So run the same loop with no builder for as long as that holds, and hand over the moment it
 /// stops. The two share `runFrame` and `returnFromFrame`, which is where the real work is; what is
 /// duplicated here is the dispatch around them.
-let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome =
+let private executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
   let mutable bail = ValueNone
 
   // `TryGetValue`, not `ContainsKey` and then the indexer: the key is a `uuid`, so that was two
@@ -4229,10 +4192,9 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
 
     match step with
     | FrameBlockEnded -> ()
-    | FrameBudget -> bail <- ValueSome SyncBailBudget
-    // Rare by construction, and running one can await, so it is handed over rather than tried. The
-    // step is untouched, so `handleFrameStep` does the whole of it.
-    | FrameRareOpcode -> bail <- ValueSome(SyncBailStep step)
+    | FrameBudget -> bail <- ValueSome StepBudget
+    // Rare by construction, and running one can await, so it is handed over rather than tried.
+    | FrameRareOpcode -> bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitBuiltin(call, reg) ->
       match Ply.trySync call with
       | ValueSome dv ->
@@ -4240,10 +4202,13 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
         | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
           bail <-
             ValueSome(
-              SyncBailStep(FrameAwaitContinuation(ply2, reg2, pc2, next2, finish2))
+              awaitOf
+                exeState
+                vm
+                (FrameAwaitContinuation(ply2, reg2, pc2, next2, finish2))
             )
         | _ -> ()
-      | ValueNone -> bail <- ValueSome(SyncBailStep step)
+      | ValueNone -> bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitPackage(call, reg) ->
       match Ply.trySync call with
       | ValueSome outcome ->
@@ -4252,13 +4217,13 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
         | PartiallyApplied dv
         | Completed dv -> registers[reg] <- dv
         | PushFrame frame -> pushFrame vm frame
-      | ValueNone -> bail <- ValueSome(SyncBailStep step)
+      | ValueNone -> bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitForce(task, reg) ->
       // Landed between the check and here: the value goes in and the instruction runs again.
       if task.IsCompletedSuccessfully then
         registers[reg] <- task.Result
       else
-        bail <- ValueSome(SyncBailStep step)
+        bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitContinuation(ply, reg, pc, next, finish) ->
       match Ply.trySync ply with
       | ValueSome dv ->
@@ -4266,10 +4231,13 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
         | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
           bail <-
             ValueSome(
-              SyncBailStep(FrameAwaitContinuation(ply2, reg2, pc2, next2, finish2))
+              awaitOf
+                exeState
+                vm
+                (FrameAwaitContinuation(ply2, reg2, pc2, next2, finish2))
             )
         | _ -> ()
-      | ValueNone -> bail <- ValueSome(SyncBailStep step)
+      | ValueNone -> bail <- ValueSome(awaitOf exeState vm step)
 
     if ValueOption.isNone bail && step.IsBlockEnded then
       match vm.frameToPush with
@@ -4289,11 +4257,26 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
             | AwaitContinuation(ply, reg, pc, next, finish) ->
               bail <-
                 ValueSome(
-                  SyncBailStep(FrameAwaitContinuation(ply, reg, pc, next, finish))
+                  awaitOf
+                    exeState
+                    vm
+                    (FrameAwaitContinuation(ply, reg, pc, next, finish))
                 )
             | _ -> ()
           else
-            bail <- ValueSome(SyncBailReturnCheck(check, resultOfFrame))
+            // Only a package fn frame checks its return type, and a package fn is never a
+            // continuation frame (a callable that is a named fn applies through its own path),
+            // so the return never has a chain to drive.
+            let frame = currentFrame
+            bail <-
+              ValueSome(
+                StepAwait(
+                  check,
+                  (fun () ->
+                    returnFromFrame exeState vm frame resultOfFrame
+                    |> ignore<ApplyOutcome>)
+                )
+              )
         | ValueNone ->
           // The end of the run forces a read still in flight: nothing leaves as a promise. The
           // frame stays; once the read lands the block ends again, with a value this time.
@@ -4305,7 +4288,9 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
               |> ignore<ApplyOutcome>
             | task ->
               bail <-
-                ValueSome(SyncBailStep(FrameAwaitForce(task, instrData.resultReg)))
+                ValueSome(
+                  awaitOf exeState vm (FrameAwaitForce(task, instrData.resultReg))
+                )
           | _ ->
             returnFromFrame exeState vm currentFrame resultOfFrame
             |> ignore<ApplyOutcome>
@@ -4314,79 +4299,8 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
   | ValueSome outcome -> outcome
   | ValueNone ->
     match vm.finalResult with
-    | ValueSome dv -> SyncDone dv
+    | ValueSome dv -> StepDone dv
     | ValueNone -> Exception.raiseInternal "No finalResult found" []
-
-
-let private executeInnerTask
-  (exeState : ExecutionState)
-  (vm : VMState)
-  (resumeFrom : SyncOutcome)
-  : System.Threading.Tasks.Task<Dval> =
-  task {
-    // No local `raiseRTE` alias: every continuation the builder makes for the loop body would
-    // capture it, so it's a field in each of them.
-
-    // Whatever `executeSync` could not finish, before the loop proper.
-    match resumeFrom with
-    | SyncDone _ -> ()
-    | SyncBailStep step ->
-      let frame = vm.callFrames[vm.currentFrameID]
-      do! handleFrameStep exeState vm frame frame.registers frame.instrData step
-    | SyncBailReturnCheck(check, checkedResult) ->
-      let frame = vm.callFrames[vm.currentFrameID]
-      do! check
-      // Only a package fn frame checks its return type, and a package fn is never a
-      // continuation frame (a callable that is a named fn applies through its own path), so
-      // this never has a chain to drive.
-      returnFromFrame exeState vm frame checkedResult |> ignore<ApplyOutcome>
-    | SyncBailBudget ->
-      Exception.raiseInternal
-        "budget bail outside the scheduler"
-        [ "vm", vm.threadID ]
-
-    // See `executeSync`: one lookup per turn, not two.
-    let mutable currentFrame = Unchecked.defaultof<CallFrame>
-
-    while vm.callFrames.TryGetValue(vm.currentFrameID, &currentFrame) do
-
-      let registers = currentFrame.registers
-
-
-      // Resolved once, when the frame was pushed. Looking it up here instead would mean a `let!` on
-      // every iteration of this loop, and in the Ply builder's dynamic path that allocates a
-      // continuation closure each time -- once per awaiting instruction, so tens of thousands of
-      // them across a script.
-      let instrData = currentFrame.instrData
-
-      vm.frameToPush <- ValueNone
-
-      // The whole of a frame's instruction stream runs in `runFrame`, outside this computation
-      // expression. It comes back only for an await, one of the four rare opcodes, a pushed frame or
-      // the end of the block, and this loop then comes round again for the rest -- so the builder
-      // makes a continuation per *interruption* rather than per iteration.
-      let step = runFrame exeState vm currentFrame registers instrData
-
-      do! handleFrameStep exeState vm currentFrame registers instrData step
-
-    // If we've reached the end of the instructions, return the result
-    match vm.finalResult with
-    | ValueSome dv -> return dv
-    | ValueNone -> return Exception.raiseInternal "No finalResult found" []
-  }
-
-/// Why one slice of a scheduled process stopped. The scheduler's whole view of the interpreter.
-type StepOutcome =
-  /// The root frame returned. The process is finished.
-  | StepDone of Dval
-  /// The budget ran out with work left. Step again when it is this process's turn.
-  | StepBudget
-  /// Something has to be waited for. When `wait` completes, run `resume` on the stepping thread,
-  /// then step again. `wait` is a builtin's or package call's result (the ordinary case: `resume`
-  /// writes it into the frame's register), or one of the rare opcodes and the deferred return-type
-  /// check, which advance the VM themselves as they complete (`resume` is then a no-op). Either
-  /// way nothing else touches the VM until `wait` is done and `resume` has run.
-  | StepAwait of wait : System.Threading.Tasks.Task * resume : (unit -> unit)
 
 
 /// Run `vm` until it finishes, awaits, or exhausts `vm.budget`. The scheduler's step.
@@ -4394,89 +4308,33 @@ type StepOutcome =
 /// `vm.budget` is the caller's: set it before every slice. The root frame's access must already be
 /// seeded (`seedRootAccess`), which `executeUnder` does for an unscheduled run.
 let stepScheduled (exeState : ExecutionState) (vm : VMState) : StepOutcome =
-  match executeSync exeState vm with
-  | SyncDone dv -> StepDone dv
-  | SyncBailBudget -> StepBudget
-  | SyncBailStep(FrameAwaitBuiltin(call, reg)) ->
-    let frame = vm.callFrames[vm.currentFrameID]
-    let running = Ply.toTask call
-    StepAwait(
-      running,
-      fun () ->
-        // A request made after the wait starts a chain (`landBuiltin`); a further wait from
-        // it is rare and waited for on the spot, as below.
-        let mutable outcome = landBuiltin exeState vm frame reg running.Result
-        while (match outcome with
-               | AwaitContinuation _ -> true
-               | _ -> false) do
-          match outcome with
-          | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
-            let dv2 = (Ply.toTask ply2).Result
-            outcome <- drive exeState vm frame reg2 pc2 next2 finish2 (Ply dv2) true
-          | _ -> ()
-    )
-  | SyncBailStep(FrameAwaitPackage(call, reg)) ->
-    let frame = vm.callFrames[vm.currentFrameID]
-    let running = Ply.toTask call
-    StepAwait(
-      running,
-      fun () ->
-        frame.programCounter <- frame.programCounter + 1
-        match running.Result with
-        | PartiallyApplied dv
-        | Completed dv -> frame.registers[reg] <- dv
-        | PushFrame newFrame -> pushFrame vm newFrame
-    )
-  | SyncBailStep(FrameAwaitContinuation(ply, reg, pc, next, finish)) ->
-    // Parked on a builtin's continuation (a callable it asked for has returned, and what the
-    // builtin does with that waits). Driven on when it lands; a further wait from `drive` is
-    // rare (a continuation that waits twice in a row) and is waited for on the spot.
-    let frame = vm.callFrames[vm.currentFrameID]
-    let running = Ply.toTask ply
-    StepAwait(
-      running,
-      fun () ->
-        let mutable outcome =
-          drive exeState vm frame reg pc next finish (Ply running.Result) true
-        while (match outcome with
-               | AwaitContinuation _ -> true
-               | _ -> false) do
-          match outcome with
-          | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
-            let dv2 = (Ply.toTask ply2).Result
-            outcome <- drive exeState vm frame reg2 pc2 next2 finish2 (Ply dv2) true
-          | _ -> ()
-    )
-  | SyncBailStep(FrameAwaitForce(task, reg)) ->
-    // Parked on the read. The wait never faults: a read that failed stays a promise in the
-    // register, and the instruction's next try raises it through `Promises.settle`, at the force
-    // point and naming the read.
-    let frame = vm.callFrames[vm.currentFrameID]
-    let landed =
-      task.ContinueWith(
-        (fun (_ : Task<Dval>) -> ()),
-        TaskContinuationOptions.ExecuteSynchronously
-      )
-    StepAwait(
-      landed,
-      fun () ->
-        if task.IsCompletedSuccessfully then frame.registers[reg] <- task.Result
-    )
-  | SyncBailStep step ->
-    // A rare opcode (the step is untouched, so `handleFrameStep` does the whole of it). It writes
-    // the VM as it completes, on whatever thread completes it; the process is parked meanwhile and
-    // the scheduler does not look at the VM until `wait` is done.
-    let frame = vm.callFrames[vm.currentFrameID]
-    let running =
-      handleFrameStep exeState vm frame frame.registers frame.instrData step
-    StepAwait(running, (fun () -> ()))
-  | SyncBailReturnCheck(check, checkedResult) ->
-    let frame = vm.callFrames[vm.currentFrameID]
-    StepAwait(
-      check,
-      (fun () ->
-        returnFromFrame exeState vm frame checkedResult |> ignore<ApplyOutcome>)
-    )
+  executeSync exeState vm
+
+
+/// An unscheduled run (a test's `execute`, the LSP, a host that runs a function itself): the
+/// same loop the scheduler steps, driven to the end here, each wait awaited in place. Nothing
+/// preempts it: its budget is negative, so `StepBudget` never comes.
+let private driveToEnd
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (first : StepOutcome)
+  : System.Threading.Tasks.Task<Dval> =
+  task {
+    let mutable outcome = first
+    let mutable result = ValueNone
+    while ValueOption.isNone result do
+      match outcome with
+      | StepDone dv -> result <- ValueSome dv
+      | StepBudget ->
+        Exception.raiseInternal
+          "budget bail outside the scheduler"
+          [ "vm", vm.threadID ]
+      | StepAwait(wait, resume) ->
+        do! wait
+        resume ()
+        outcome <- executeSync exeState vm
+    return result.Value
+  }
 
 
 /// Seed the root frame with the access the run starts under. `executeUnder`'s first two lines,
@@ -4504,16 +4362,15 @@ let executeUnder
   vm.callFrames[vm.currentFrameID].access <- access
   vm.activeAccess <- access
   match executeSync exeState vm with
-  | SyncDone dv -> Ply dv
+  | StepDone dv -> Ply dv
   | bailed ->
-
     // Unwrapped by hand rather than `uply { return! ... }`, which builds a state machine per call.
-    let running = executeInnerTask exeState vm bailed
+    let running = driveToEnd exeState vm bailed
     if running.IsCompletedSuccessfully then
       Ply running.Result
     else
-      // The task already started; awaiting `running` continues it. Calling `executeInner` here would
-      // start a second run of the same VM.
+      // The task already started; awaiting `running` continues it. Calling `driveToEnd` here
+      // would start a second run of the same VM.
       uply { return! running }
 
 /// Host-initiated: a run that begins from the state's own access.

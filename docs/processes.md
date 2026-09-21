@@ -50,14 +50,20 @@ view of the interpreter:
   counter sits on the instruction that has not run.
 - `StepAwait (wait, resume)`: something has to be waited for. `wait` is the
   builtin's or package call's task; `resume` writes its result into the frame's
-  register and is run on the scheduler thread when the process's turn comes.
-  For the rare opcodes and the deferred return-type check, `wait` is the
-  existing `handleFrameStep` task, which advances the VM itself as it completes,
-  and `resume` does nothing.
+  register (or, for a request made after the wait, pushes the callable's
+  frame) and is run on the scheduler thread when the process's turn comes.
+  For the rare opcodes and the deferred return-type check, `wait` is a task
+  that advances the VM itself as it completes, and `resume` does nothing.
 
-It reuses `executeSync` and `handleFrameStep` as they were; `execute` (tests,
-the LSP, the HTTP server's per-request handlers) is unchanged and never sees a
-budget bail.
+There is one loop. `executeSync` runs frames until something has to be waited
+for and answers a `StepOutcome`; `awaitOf` turns the wait into `(wait,
+resume)` at the bail site. `stepScheduled` is that loop; an unscheduled run
+(`execute`: tests, the LSP, a host running a function itself) is
+`driveToEnd`, fifteen lines that await each `wait` in place and step again.
+Its budget is negative, so it never sees `StepBudget`. The task-based second
+loop (`executeInnerTask`, with `handleFrameStep` re-deciding every wait) is
+gone: a wait is decided once, where it happens, and the scheduler and the
+plain run differ only in who waits.
 
 ## The budget
 
@@ -65,8 +71,8 @@ budget bail.
 at zero; `runFrame` reports that as `FrameBudget`. The default quantum is
 10,000 instructions (`Scheduler.defaultQuantum`), refilled before every slice.
 A negative budget means unlimited, which is what every VM nobody schedules runs
-with, including the VM a builtin borrows to apply a lambda: a process parked
-inside `List.map f` is parked as one Ply, not preempted inside `f`.
+with. (A callable a builtin applies runs as a frame of the same VM now, so it
+is preempted like anything else; the borrowed-VM case is gone.)
 
 Measured with `scripts/perf/bench ab` against the pre-change binary: within
 noise on `interp-arith`, `interp-list` and `eval-listheavy` (median paired
@@ -553,15 +559,22 @@ Each scheduler asks for itself; with workers, that is per core.
 
 Follow-ups in the scheduler plan, in order, and the edges of what is here:
 
-- Host re-entry remains in `HttpServer.fs` (above), live's file. Ply out of
-  the interpreter waits on that (`notes/scheduler-and-live`).
+- The HTTP server's per-request handler runs as a process (live's change);
+  `LiveValues.fs` still applies a callable through `executeApplicable`, on a
+  VM of its own, since it runs a function for inspection rather than as part
+  of a program.
 - A policy chooses which runnable process to step, not where a spawn lands:
   `Exec.spawn` still goes to the least loaded worker, in F#.
 - A resume matches recorded processes to new ones by start order; a run that
   spawned may not line up. `resume` is the CLI's, since it runs the input
   through the CLI's own paths; `Exec.fork` from Dark exists.
 - `ps show` says how many reads a process has in flight, not which.
-- Ply out of the interpreter. Awaits are still Plys, parked on as tasks.
+- A builtin's wait is still a `Ply` the loop parks on as a task. The loop
+  itself is plain code (`executeSync`, `awaitOf`, `driveToEnd`); the `uply`s
+  left in `Interpreter.fs` are the slow paths (a type check that needs the
+  store, a builtin's result landing) and the builtin bodies are what they
+  were. Host operations as values the scheduler performs (`Host.perform`
+  called from the loop rather than from inside the body) is the next step.
 - `Event.ExecDone` carries only the id; a Dark enum cannot hold an untyped
   value. `Exec.await` is how a value comes back.
 - `ps show` shows the call stack, not registers.
