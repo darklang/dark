@@ -15,7 +15,7 @@ let location (state: AppState) (name: String) : Stdlib.Result.Result<LanguageToo
   let absolute = if Stdlib.String.startsWith name "/" then name else "/" ++ name
   Packages.Location.parseRelativeTo state.packageData.currentLocation absolute
 
-/// Show an example Test.table call using the function's parameter names.
+/// Verify the target and show a Test.table row using its parameter names.
 let targetHint (state: AppState) (target: Stdlib.Option.Option<String>) : Stdlib.Result.Result<String, String> =
   match target with
   | None -> Stdlib.Result.Result.Ok "/// Replace the failing placeholder with a check.\n"
@@ -30,17 +30,14 @@ let targetHint (state: AppState) (target: Stdlib.Option.Option<String>) : Stdlib
         | None -> Stdlib.Result.Result.Error ($"Could not read function `{name}`.")
         | Some fn ->
           let parameters = fn.parameters |> Stdlib.List.map (fun param -> param.name)
-          // A row is the inputs, then the expected result. Several inputs are a tuple.
           let inputs =
             match parameters with
             | [ only ] -> only
             | several -> "(" ++ (Stdlib.String.join several ", ") ++ ")"
 
           let row = inputs ++ ", expected"
-          let targetName = Test.fullName loc
           Stdlib.Result.Result.Ok
-            ($"/// Tests {targetName}. Choose inputs and the expected result.\n"
-             ++ $"/// Replace the body with: Stdlib.Test.table {targetName} [ ({row}) ]\n")
+            ($"/// Try: Stdlib.Test.table {Test.fullName loc} [ ({row}) ]\n")
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let parsed = FlagParser.parse spec args

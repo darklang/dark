@@ -571,6 +571,8 @@ let help (_state: AppState) : String =
     "  test MyApp.Math.Tests.doubles  Run exactly this test"
     "  test create MyApp.Math.Tests.doubles --for MyApp.Math.double"
     "                            Create a failing test and open it in your editor"
+    "                            --for verifies the target and adds a table example"
+    "                            using its parameter names"
     "                            Use --no-editor to only create it"
     "                            `test new` remains an alias"
     "  test list MyApp.Math      Name them without running any"
@@ -581,6 +583,9 @@ let help (_state: AppState) : String =
     "instance's permissions allow. There is no timeout: a test that loops hangs the"
     "run (Ctrl+C). There is no isolation: a test that writes, writes to your real"
     "store, and one that syncs reaches your real relay."
+    ""
+    "--allow-harmful runs functions carrying a Harmful deprecation instead of"
+    "halting. It does not grant permissions or otherwise sandbox test effects."
     ""
     "Exit 0 when tests ran and all passed, 1 when any failed or errored, 2 for bad"
     "usage or when nothing was selected. An empty run is never a pass." ]

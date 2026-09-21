@@ -109,6 +109,7 @@ function; a check is one row of a table, or one eq or isTrue.
   test MyApp.Math.Tests.doubles     one test by its full name
   test list MyApp                   discover without executing
   test MyApp --filter doubles       match part of the full name
+  test MyApp --allow-harmful         run functions deprecated as Harmful
   --branch fix test MyApp           run the branch's version, draft included
 
 Without an active account, specify a module or test name. Bare `test` refuses
@@ -131,6 +132,10 @@ error or discovery problem; 2 means invalid arguments or no tests selected.
 Tests run sequentially with the instance's permissions, in this process.
 There is no timeout or isolation: writes affect the real store and a sync can
 reach the configured relay. Ctrl+C stops a hung run.
+
+`--allow-harmful` runs functions carrying a Harmful deprecation instead of
+halting. It does not grant permissions and does not make effects safer or more
+isolated.
 
 ## Helper reference
 
