@@ -222,7 +222,13 @@ The workbench's `Processes` pane (`P` from Apps) is the process table (`Stdlib.E
 as a tree, with the selected process's stack (`Stdlib.Exec.inspect`) beside it: live's
 first consumer of the scheduler's data. Every workbench, `dark apps view` and daemon is
 a process; a slow `render` budget-yields, and keys typed during it are read after it,
-not lost.
+not lost: the runtime reads them as one chunk (its paste path), and the host loop hands
+`update` one key event per character, each carrying its own `char` and the chunk's key
+and modifiers, unless an `Input` has focus, which wants the chunk whole.
+
+A save that puts a name back on a version it held before lands as a decision (a second
+`SetName` would be the op that already exists); `Live.touchedBy` counts it, the CLI says
+"Put ... back on an earlier version", and the dependents follow.
 
 ## Daemons
 

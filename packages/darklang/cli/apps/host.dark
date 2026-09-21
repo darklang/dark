@@ -397,9 +397,33 @@ let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
     let times = if repeatable then Stdlib.Int.min 64 (Stdlib.Int.max 1 read.repeat) else 1
     let k = press read
 
+    // Keys typed while a render ran arrive as one read whose text is all of them (the runtime's
+    // paste path). A focused Input wants the chunk whole; anyone else wants the keys one at a
+    // time, so `update` sees `+` three times rather than `+++` once. Each gets the read's key and
+    // modifiers and its own character; a view that tells keys apart reads `char`.
+    let presses =
+      let focusedOnInput =
+        match s.lastFrame with
+        | Some tree when s.focus != "" ->
+          match Stdlib.Cli.UI.Node.findFocused tree s.focus with
+          | Some(OnInput _) -> true
+          | _ -> false
+        | _ -> false
+
+      let chars = Stdlib.String.toList read.keyChar
+
+      if focusedOnInput || ((Stdlib.List.length chars) <= 1) then
+        [ k ]
+      else
+        chars
+        |> Stdlib.List.map (fun c ->
+          Stdlib.Cli.UI.Widget.press read.key read.modifiers (Stdlib.Option.Option.Some (Stdlib.String.fromChar c)))
+
     let after =
       Stdlib.List.range 1 times
-      |> Stdlib.List.fold s (fun acc _ -> if acc.exiting then acc else onKey acc k)
+      |> Stdlib.List.fold s (fun acc _ ->
+        presses
+        |> Stdlib.List.fold acc (fun acc2 kp -> if acc2.exiting then acc2 else onKey acc2 kp))
 
     present (render after)
   | _ -> s

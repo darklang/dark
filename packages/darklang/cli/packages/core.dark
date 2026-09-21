@@ -325,14 +325,25 @@ let saveAuthored
         (isUpdate && (Stdlib.Bool.not movedVersion))
         && (updateDocsThatChanged state.currentBranchId location kind boundHash ops)
 
+      // A body the name held BEFORE, not the one it holds now: the save put the name back on an
+      // earlier version (as a decision, since the SetName already exists). A change, and one a live
+      // host follows; not "unchanged".
+      let reverted =
+        isUpdate
+        && (Stdlib.Bool.not movedVersion)
+        && ((Stdlib.List.head previousHashes) != (Stdlib.Option.Option.Some boundHash))
+
       // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
       // it already had and carries no new text saved NOTHING, and re-running the same authoring
       // command does exactly that. Reporting it as an update is how a dropped edit stays hidden.
-      let landed = (Stdlib.Bool.not isUpdate) || docOnly || movedVersion
+      let landed = (Stdlib.Bool.not isUpdate) || docOnly || movedVersion || reverted
 
       Stdlib.printLine ""
 
-      if landed then
+      if reverted then
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.success $"✓ Put {kindWord} {fullPath} back on an earlier version")
+      else if landed then
         let action = if isUpdate then "Updated" else "Created"
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
@@ -353,9 +364,10 @@ let saveAuthored
       | None -> ()
 
       // Repoint dependents NOW, into the draft, so you can run them against this change before
-      // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing.
+      // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing. A
+      // revert repoints too: the dependents follow the name to the version it holds now.
       if isUpdate && (Stdlib.Bool.not docOnly) then
-        Propagate.repointNow state.currentBranchId location previousHashes hash kind
+        Propagate.repointNow state.currentBranchId location previousHashes boundHash kind
 
       // A fn's transitive permission requirements, named at the save so the author
       // learns what a caller must be allowed BEFORE anyone runs it and gets denied.

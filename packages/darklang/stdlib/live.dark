@@ -95,6 +95,16 @@ let touchedBy (op: LanguageTools.ProgramTypes.PackageOp) : Stdlib.Option.Option<
     // The kind is not on the op. A dependent of any kind at that name is a dependent, so walk all three.
     Stdlib.Option.Option.Some(
       Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Fn })
+  // A name put back on a version it held before: content-addressed, a second `SetName` would be the
+  // op that already exists, so the revert is a decision. It binds the name all the same.
+  | Decision(_id, location, _reason, Override target) ->
+    let kind =
+      match target with
+      | PackageType _ -> LanguageTools.ProgramTypes.ItemKind.Type
+      | PackageValue _ -> LanguageTools.ProgramTypes.ItemKind.Value
+      | PackageFn _ -> LanguageTools.ProgramTypes.ItemKind.Fn
+
+    Stdlib.Option.Option.Some(Touched { location = location; kind = kind })
   | _ -> Stdlib.Option.Option.None
 
 /// A change nobody can describe. Everything is affected.
