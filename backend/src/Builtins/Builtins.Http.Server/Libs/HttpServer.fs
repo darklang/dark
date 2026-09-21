@@ -207,25 +207,127 @@ let private logRequest
       "duration_ms", string durationMs ]
 
 
+// ───────── how a request finds its handler ─────────
+
+/// A server that follows edits keeps a Dark value between requests and asks Dark, per request, which
+/// handler to run. The DECISION is Dark's (`Stdlib.Live`: did the store move, is the newest version
+/// usable, else the last one that was); only the holding is here, because a Dark value cannot outlive
+/// the call that made it and requests are separate calls.
+///
+/// `step : 's -> ('s * Result<Request -> Response, String>)`. Two requests in flight at once may both
+/// run it against the same state and both write back; the step is idempotent (a poll and, at most, a
+/// check of one declaration), so the race costs a repeated check and never a wrong answer.
+type private LiveRouting =
+  {
+    step : Applicable
+    mutable state : Dval
+    /// The guest state built for the router hash last handed out. Rebuilt when the hash moves, since
+    /// the router is the approval root and the root is a hash.
+    mutable guest : Option<Hash * ExecutionState>
+    /// `serve --dev`: an open page reloads when the router it came from moves. `GET /__live` is an
+    /// event stream that says so, and every HTML response carries the six-line script that listens.
+    dev : bool
+  }
+
+type private Routing =
+  | Fixed of Applicable
+  | Live of LiveRouting
+
+/// The hash a named applicable calls, for the approval root. A lambda has none.
+let private rootOf (handler : Applicable) : List<Hash> =
+  match handler with
+  | AppNamedFn named ->
+    match named.name with
+    | FQFnName.Package hash -> [ hash ]
+    | FQFnName.Builtin _ -> []
+  | AppLambda _ -> []
+
+/// The guest state a handler runs under: the router is the approval root, the instance policy the
+/// ceiling, and the frame that called `serve` the outer bound.
+let private guestStateFor
+  (exeState : ExecutionState)
+  (invokerAccess : LibExecution.Permissions.Access)
+  (handler : Applicable)
+  : ExecutionState =
+  let guest =
+    LibDB.PolicyStore.guestState
+      exeState.accountID
+      LibExecution.Permissions.Policy.allowAll
+      []
+      (rootOf handler)
+      exeState
+  { guest with
+      access =
+        guest.access |> LibExecution.Permissions.Access.constrainBy invokerAccess }
+
+/// Which handler this request runs, and under what state. `Error` carries what Dark said when no
+/// version is usable, which becomes a 503 rather than a crash.
+let private resolveRouting
+  (serverState : ExecutionState)
+  (invokerAccess : LibExecution.Permissions.Access)
+  (routing : Routing)
+  : Task<Result<ExecutionState * Applicable, string>> =
+  task {
+    match routing with
+    | Fixed handler -> return Ok(serverState, handler)
+    | Live live ->
+      let! stepped =
+        Execution.executeApplicable
+          serverState
+          serverState.access
+          live.step
+          (NEList.singleton live.state)
+        |> Ply.toTask
+      match stepped with
+      | Ok(DTuple(next, DEnum(_, _, _, "Ok", [ DApplicable handler ]), [])) ->
+        live.state <- next
+        let root = rootOf handler
+        let guest =
+          match live.guest, root with
+          | Some(h, guest), [ hash ] when h = hash -> guest
+          | _, _ ->
+            let guest = guestStateFor serverState invokerAccess handler
+            live.guest <- (root |> List.tryHead |> Option.map (fun h -> (h, guest)))
+            guest
+        return Ok(guest, handler)
+      | Ok(DTuple(next, DEnum(_, _, _, "Error", [ DString msg ]), [])) ->
+        live.state <- next
+        return Error msg
+      | Ok other ->
+        return Error $"live routing step returned an unexpected shape: {other}"
+      | Error(rte, _) ->
+        let! errorStrResult = Execution.runtimeErrorToString serverState rte
+        let errorStr =
+          match errorStrResult with
+          | Ok(DString s) -> s
+          | Ok other -> string other
+          | Error _ -> string rte
+        return Error $"live routing step failed: {errorStr}"
+  }
+
+
+// ───────── per-request dispatch ─────────
 // ───────── per-request dispatch ─────────
 
+/// Run the handler for one request as a PROCESS of its own, on a worker (`docs/processes.md`,
+/// "Cores"): `ps` shows it with the server as its parent and its own frames, the budget can
+/// preempt it, a read in it stays a value in flight, and nothing re-enters the interpreter on the
+/// listener's thread. The server's own process holds its thread on the listener, which is why the
+/// handler cannot run there; a worker is where it goes. `Await` is the process's completion.
+///
+/// The state is the per-request one (its own tracer); the spawn keeps that and stamps the process
+/// id on it. The access is the guest's, narrowed by the frame that called `serve`, as before.
 let private executeHandler
   (exeState : ExecutionState)
   (handler : Applicable)
   (arg : Dval)
   : Task<Dval> =
   task {
-    // `executeApplicable` returns a `Ply` now, so that a lambda which does not await costs no
-    // builder; this caller is a `task`, so it needs the conversion.
-    // This detached handler has no invoking VM. Run it under the server's child
-    // state, which already includes the access of the frame that called `serve`.
-    let! result =
-      Execution.executeApplicable
-        exeState
-        exeState.access
-        handler
-        (NEList.singleton arg)
-      |> Ply.toTask
+    let scheduler = LibExecution.Scheduler.Scheduler.CurrentOrShared
+    let parent =
+      LibExecution.Scheduler.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
+    let p = scheduler.SpawnApply(exeState, handler, arg, parent, exeState.access)
+    let! result = scheduler.Await p
     match result with
     | Ok dval -> return dval
     | Error(rte, _callStack) ->
@@ -249,11 +351,98 @@ let private perRequestStateFor
   { exeState with tracing = tracer.executionTracing }
 
 
+// ───────── serve --dev: the page reloads when the router moves ─────────
+
+let private liveScript =
+  "<script>(function(){var s=new EventSource('/__live');s.onmessage=function(){location.reload()};s.onerror=function(){s.close();setTimeout(function(){location.reload()},1500)}})()</script>"
+
+/// The router hash a live routing currently hands out, if any.
+let private currentRouterHash
+  (serverState : ExecutionState)
+  (invokerAccess : LibExecution.Permissions.Access)
+  (routing : Routing)
+  : Task<Option<Hash>> =
+  task {
+    match! resolveRouting serverState invokerAccess routing with
+    | Ok(_, handler) -> return List.tryHead (rootOf handler)
+    | Error _ -> return None
+  }
+
+/// `GET /__live`: hold the connection, look at the router every half second, say `reload` once its
+/// hash is not the one this page was served from, and end. The page reconnects after reloading.
+/// A change nobody's page cares about costs one comparison per open tab per half second.
+let private serveLiveEvents
+  (serverState : ExecutionState)
+  (invokerAccess : LibExecution.Permissions.Access)
+  (routing : Routing)
+  (ctx : HttpListenerContext)
+  : Task<unit> =
+  task {
+    ctx.Response.StatusCode <- 200
+    ctx.Response.ContentType <- "text/event-stream"
+    ctx.Response.Headers.Add("Cache-Control", "no-cache")
+    ctx.Response.SendChunked <- true
+    let write (line : string) =
+      task {
+        let bytes = UTF8.toBytes line
+        do! ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length)
+        do! ctx.Response.OutputStream.FlushAsync()
+      }
+    let! startedOn = currentRouterHash serverState invokerAccess routing
+    do! write ": live\n\n"
+    let mutable waiting = true
+    let mutable ticks = 0
+    while waiting do
+      do! Task.Delay 500
+      ticks <- ticks + 1
+      let! now = currentRouterHash serverState invokerAccess routing
+      if now <> startedOn then
+        do! write "data: reload\n\n"
+        // An outcome, in the log, beside the request lines: the wait itself is not a request,
+        // and logged as one it read as a slow `GET /__live`.
+        print "[live] page told to reload"
+        waiting <- false
+      elif ticks % 30 = 0 then
+        // A comment every 15 s keeps proxies from closing an idle stream.
+        do! write ": still here\n\n"
+  }
+
+/// The listening script, appended to an HTML body under `--dev`. Only HTML: a JSON or image
+/// response must reach the client untouched.
+///
+/// A failure (5xx) that is not HTML is made into a page that carries it too: the handler that
+/// failed is exactly the one an edit is about to fix, and a tab stuck on a plain-text error
+/// with no listener would not see the fix.
+let private withLiveScript
+  (status : int)
+  (headers : List<string * string>)
+  (body : byte[])
+  : List<string * string> * byte[] =
+  let contentType =
+    headers
+    |> List.tryFind (fun (k, _) -> String.equalsCaseInsensitive k "Content-Type")
+    |> Option.map snd
+  match contentType with
+  | Some ct when ct.Contains "text/html" ->
+    headers, Array.append body (UTF8.toBytes liveScript)
+  | _ when status >= 500 ->
+    let text = System.Net.WebUtility.HtmlEncode(UTF8.ofBytesWithReplacement body)
+    let page =
+      $"<!doctype html><html><head><meta charset=\"utf-8\"><title>error</title></head><body><pre>{text}</pre>{liveScript}</body></html>"
+    let others =
+      headers
+      |> List.filter (fun (k, _) ->
+        not (String.equalsCaseInsensitive k "Content-Type"))
+    ("Content-Type", "text/html; charset=utf-8") :: others, UTF8.toBytes page
+  | _ -> headers, body
+
+
 /// Process a single request: parse → dispatch → write response. Errors
 /// surface as 500s; full detail goes to `logRequest` rather than the wire.
 let private handleRequest
   (exeState : ExecutionState)
-  (handler : Applicable)
+  (invokerAccess : LibExecution.Permissions.Access)
+  (routing : Routing)
   (maxBodyBytes : int64)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
@@ -264,77 +453,107 @@ let private handleRequest
     let started = if logRequests then Some System.DateTime.UtcNow else None
     // Ephemeral blobs carry their bytes inline (lifetime is GC), so there's no
     // shared blob store for concurrent requests to race over.
+    let dev =
+      match routing with
+      | Live live -> live.dev
+      | Fixed _ -> false
     try
       try
-        let! bodyResult = readRequestBodyWithLimit ctx.Request maxBodyBytes
-        match bodyResult with
-        | Error() ->
-          ctx.Response.StatusCode <- 413
-          let msg = UTF8.toBytes "413 Payload Too Large"
-          ctx.Response.ContentLength64 <- int64 msg.Length
-          do! ctx.Response.OutputStream.WriteAsync(msg, 0, msg.Length)
-        | Ok reqBody ->
-          let reqHeaders = extractHeaders ctx.Request
-          // `Url.ToString()` decodes and `queryParams` decodes again, so a `%26` in a value became
-          // a real `&` and split into a second parameter. `RawUrl` is path+query as sent; the
-          // absolute form is rebuilt around it.
-          let rawUrl =
-            match ctx.Request.RawUrl with
-            | null -> ctx.Request.Url.ToString()
-            | raw -> $"{ctx.Request.Url.Scheme}://{ctx.Request.Url.Authority}{raw}"
-          let url =
-            if canonicalizeFromForwardedProto then
-              canonicalizeUrlFromForwardedProto rawUrl reqHeaders
-            else
-              rawUrl
+        if dev && ctx.Request.Url.AbsolutePath = "/__live" then
+          do! serveLiveEvents exeState invokerAccess routing ctx
+        else
 
-          let requestDval = Http.Request.fromRequest url reqHeaders reqBody
+          let! bodyResult = readRequestBodyWithLimit ctx.Request maxBodyBytes
+          match bodyResult with
+          | Error() ->
+            ctx.Response.StatusCode <- 413
+            let msg = UTF8.toBytes "413 Payload Too Large"
+            ctx.Response.ContentLength64 <- int64 msg.Length
+            do! ctx.Response.OutputStream.WriteAsync(msg, 0, msg.Length)
+          | Ok reqBody ->
+            let reqHeaders = extractHeaders ctx.Request
+            // `Url.ToString()` decodes and `queryParams` decodes again, so a `%26` in a value became
+            // a real `&` and split into a second parameter. `RawUrl` is path+query as sent; the
+            // absolute form is rebuilt around it.
+            let rawUrl =
+              match ctx.Request.RawUrl with
+              | null -> ctx.Request.Url.ToString()
+              | raw -> $"{ctx.Request.Url.Scheme}://{ctx.Request.Url.Authority}{raw}"
+            let url =
+              if canonicalizeFromForwardedProto then
+                canonicalizeUrlFromForwardedProto rawUrl reqHeaders
+              else
+                rawUrl
 
-          // Per-request tracer — same shape as `eval`/`run` so HTTP traces
-          // appear alongside CLI traces with no consumer-side changes.
-          let traceID = AT.TraceID.create ()
-          let traceDesc =
-            try
-              $"{ctx.Request.HttpMethod} {ctx.Request.Url.PathAndQuery}"
-            with _ ->
-              "(http request)"
-          let tracer =
-            Tracing.createCliTracer traceID traceDesc "request" requestDval
-          let perRequestState = perRequestStateFor exeState tracer
+            let requestDval = Http.Request.fromRequest url reqHeaders reqBody
 
-          let! result = executeHandler perRequestState handler requestDval
-          let! response = Http.Response.toHttpResponse perRequestState result
-          do! tracer.storeTraceResults perRequestState |> Ply.toTask
+            // Per-request tracer — same shape as `eval`/`run` so HTTP traces
+            // appear alongside CLI traces with no consumer-side changes.
+            let traceID = AT.TraceID.create ()
+            let traceDesc =
+              try
+                $"{ctx.Request.HttpMethod} {ctx.Request.Url.PathAndQuery}"
+              with _ ->
+                "(http request)"
+            let tracer =
+              Tracing.createCliTracer traceID traceDesc "request" requestDval
 
-          let respHeaders =
-            maybeInjectStandardHeaders injectStandardHeaders response.headers
+            // Resolved per request, not per server: this is what makes an edit show up on the next
+            // request. For a fixed router it is a match on a constant.
+            let! resolved = resolveRouting exeState invokerAccess routing
+            let handlerState =
+              match resolved with
+              | Ok(handlerState, _) -> handlerState
+              | Error _ -> exeState
 
-          ctx.Response.StatusCode <- response.statusCode
-          for (key, value) in respHeaders do
-            ctx.Response.Headers.Add(key, value)
+            let! result =
+              match resolved with
+              | Ok(handlerState, handler) ->
+                executeHandler
+                  (perRequestStateFor handlerState tracer)
+                  handler
+                  requestDval
+              | Error msg ->
+                // No usable version: say so, keep listening. The diagnostic is on stdout already
+                // (Dark prints it when the verdict changes), so the wire gets a plain 503.
+                Telemetry.event "httpserver.unroutable" [ "reason", msg ]
+                Task.FromResult(DString $"Service Unavailable: {msg}")
+            let perRequestState = perRequestStateFor handlerState tracer
+            let! response = Http.Response.toHttpResponse perRequestState result
+            do! tracer.storeTraceResults perRequestState |> Ply.toTask
 
-          // Only when the client asked (`maybeCompress` has the ratios and floor).
-          // Never on a body the handler already encoded (double-wrap), and always
-          // with `Vary`, or a shared cache hands brotli to a client that didn't ask.
-          let alreadyEncoded =
-            respHeaders
-            |> List.exists (fun (k, _) ->
-              String.equalsCaseInsensitive k "Content-Encoding")
+            let respHeaders =
+              maybeInjectStandardHeaders injectStandardHeaders response.headers
 
-          let body, encoding =
-            if alreadyEncoded then
-              response.body, None
-            else
-              maybeCompress ctx.Request response.body
+            // Only when the client asked (`maybeCompress` has the ratios and floor).
+            // Never on a body the handler already encoded (double-wrap), and always
+            // with `Vary`, or a shared cache hands brotli to a client that didn't ask.
+            let alreadyEncoded =
+              respHeaders
+              |> List.exists (fun (k, _) ->
+                String.equalsCaseInsensitive k "Content-Encoding")
 
-          match encoding with
-          | Some enc ->
-            ctx.Response.Headers.Add("Content-Encoding", enc)
-            ctx.Response.Headers.Add("Vary", "Accept-Encoding")
-          | None -> ()
+            let respHeaders, body =
+              if dev && not alreadyEncoded then
+                withLiveScript response.statusCode respHeaders response.body
+              else
+                respHeaders, response.body
 
-          ctx.Response.ContentLength64 <- int64 body.Length
-          do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
+            ctx.Response.StatusCode <- response.statusCode
+            for (key, value) in respHeaders do
+              ctx.Response.Headers.Add(key, value)
+
+            let body, encoding =
+              if alreadyEncoded then body, None else maybeCompress ctx.Request body
+
+            match encoding with
+            | Some enc ->
+              ctx.Response.Headers.Add("Content-Encoding", enc)
+              ctx.Response.Headers.Add("Vary", "Accept-Encoding")
+            | None -> ()
+
+            ctx.Response.ContentLength64 <- int64 body.Length
+            do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
       with _ex ->
         // Don't leak ex.Message — can carry stack hints / sensitive
         // strings. Detail goes to `logRequest` (which sees the 500
@@ -346,12 +565,12 @@ let private handleRequest
         do! ctx.Response.OutputStream.WriteAsync(errorBytes, 0, errorBytes.Length)
     finally
       match started with
-      | Some started ->
+      | Some started when not (dev && ctx.Request.Url.AbsolutePath = "/__live") ->
         try
           logRequest ctx ctx.Response.StatusCode started
         with _ ->
           ()
-      | None -> ()
+      | _ -> ()
       try
         ctx.Response.OutputStream.Close()
         ctx.Response.Close()
@@ -371,11 +590,12 @@ let private handleRequest
 
 
 /// Serve requests off an already-bound listener, until cancelled.
-let runListener
+let private runListenerWith
   (exeState : ExecutionState)
+  (invokerAccess : LibExecution.Permissions.Access)
   (listener : HttpListener)
   (port : int64)
-  (handler : Applicable)
+  (routing : Routing)
   (maxBodyBytes : int64)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
@@ -410,7 +630,8 @@ let runListener
               do!
                 handleRequest
                   exeState
-                  handler
+                  invokerAccess
+                  routing
                   maxBodyBytes
                   injectStandardHeaders
                   canonicalizeFromForwardedProto
@@ -433,6 +654,207 @@ let runListener
     Telemetry.event "httpserver.shutdown" [ "port", string port ]
   }
 
+/// `runListenerWith` for one fixed handler, under the state as given. The tests' entry point.
+let runListener
+  (exeState : ExecutionState)
+  (listener : HttpListener)
+  (port : int64)
+  (handler : Applicable)
+  (maxBodyBytes : int64)
+  (injectStandardHeaders : bool)
+  (canonicalizeFromForwardedProto : bool)
+  (logRequests : bool)
+  (cancellationToken : CancellationToken)
+  : Task<unit> =
+  runListenerWith
+    exeState
+    exeState.access
+    listener
+    port
+    (Fixed handler)
+    maxBodyBytes
+    injectStandardHeaders
+    canonicalizeFromForwardedProto
+    logRequests
+    cancellationToken
+
+/// `runListenerWith` for a handler resolved per request by a Dark `step` (see `LiveRouting`),
+/// under the state as given. For the tests; the builtin builds its guest state first.
+let runListenerLive
+  (exeState : ExecutionState)
+  (listener : HttpListener)
+  (port : int64)
+  (init : Dval)
+  (step : Applicable)
+  (dev : bool)
+  (maxBodyBytes : int64)
+  (injectStandardHeaders : bool)
+  (canonicalizeFromForwardedProto : bool)
+  (logRequests : bool)
+  (cancellationToken : CancellationToken)
+  : Task<unit> =
+  runListenerWith
+    exeState
+    exeState.access
+    listener
+    port
+    (Live { step = step; state = init; guest = None; dev = dev })
+    maxBodyBytes
+    injectStandardHeaders
+    canonicalizeFromForwardedProto
+    logRequests
+    cancellationToken
+
+
+/// Bind, announce, serve until SIGINT. Shared by the fixed and the live builtin; the only thing
+/// they differ in is how a request finds its handler.
+let private serve
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (portArg : DarkInt)
+  (routing : Routing)
+  (approvalRoot : Applicable)
+  (maxBodyBytesArg : DarkInt)
+  (injectStandardHeaders : bool)
+  (canonicalizeFromForwardedProto : bool)
+  (logRequests : bool)
+  (onListening : Applicable)
+  : Ply<Dval> =
+  uply {
+    // The router and its callbacks are guest code, so use a guest
+    // state rather than the trusted CLI state. Use it for both the
+    // bind check and handler calls; the instance policy remains the
+    // hard maximum. A named package router is the approval root;
+    // lambda handlers have no package root of their own.
+    //
+    // `guestState` replaces access, so intersect the child with the
+    // invoking frame. Guest code can call `serve` directly; its ceiling,
+    // package approval and resource restrictions must reach the bind,
+    // logging and callback checks.
+    //
+    // A live server re-derives this per router hash (`resolveRouting`); the one built here is for
+    // the bind, the announce, and the routing step itself.
+    let invokerAccess = vm.activeAccess
+    let exeState = guestStateFor exeState invokerAccess approvalRoot
+    // maxBodyBytes is a comparison threshold; a negative limit would
+    // reject every request (treated as over-limit), so reject it. 0 is
+    // valid (allow no body).
+    let maxBodyBytes = intToInt64 vm maxBodyBytesArg
+    if maxBodyBytes < 0L then
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+    // A TCP port must be in [0, 65535]. intToInt64 alone would let
+    // larger-but-int64-sized values reach HttpListener.Start and throw a
+    // host exception, so validate the real port range up front.
+    let port = intToInt64 vm portArg
+    if port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort then
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+
+    // These ambient effects are performed on behalf of the child
+    // guest state, so check its access (already narrowed by the
+    // invoker's, above) rather than only the ordinary builtin gate,
+    // which from `dark serve` sees the broader outer VM. Clock and
+    // stdout are only used when request logging is enabled.
+    if logRequests then
+      LibExecution.PermissionCheck.requireBuiltinEffectsWithAccess
+        exeState
+        vm
+        exeState.access
+        (set [ Effect.Clock; Effect.Stdout ])
+        "httpServerServe"
+    use _serveSpan = Telemetry.span "httpserver.serve" [ "port", string port ]
+
+    // Bind through the checked host boundary using the guest access,
+    // so the instance policy applies instead of the trusted CLI's.
+    let! bound =
+      LibExecution.PermissionCheck.performHostWithAccess
+        exeState
+        vm
+        exeState.access
+        (LibExecution.Host.Operation.HttpServerBind(int port))
+    match bound with
+    | Error failure ->
+      return Dval.resultError KTUnit KTString (DString failure.message)
+    | Ok response ->
+      use listener =
+        response
+        |> LibExecution.Host.expectHttpServerHandle
+        |> LibExecution.Host.takeHttpServerListener
+      let! _ =
+        Execution.executeApplicable
+          exeState
+          exeState.access
+          onListening
+          (NEList.singleton DUnit)
+
+      // SIGINT → cancel; in-flight requests drain by virtue of being
+      // fire-and-forget Tasks.
+      let cts = new CancellationTokenSource()
+      let cancelHandler =
+        ConsoleCancelEventHandler(fun _ args ->
+          args.Cancel <- true
+          cts.Cancel())
+      Console.CancelKeyPress.AddHandler cancelHandler
+
+      let listenerTask =
+        runListenerWith
+          exeState
+          invokerAccess
+          listener
+          port
+          routing
+          maxBodyBytes
+          injectStandardHeaders
+          canonicalizeFromForwardedProto
+          logRequests
+          cts.Token
+
+      listenerTask.Wait()
+
+      Console.CancelKeyPress.RemoveHandler cancelHandler
+
+      return Dval.resultOk KTUnit KTString DUnit
+  }
+
+
+let private requestType =
+  TCustomType(
+    FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.Http.request ())
+    |> NR.ok,
+    []
+  )
+
+let private responseType =
+  TCustomType(
+    FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.Http.response ())
+    |> NR.ok,
+    []
+  )
+
+let private handlerType = TFn(NEList.singleton requestType, responseType)
+
+let private commonParams =
+  [ Param.make
+      "maxBodyBytes"
+      TInt
+      "Maximum request body size in bytes (over-limit → 413)"
+    Param.make
+      "injectStandardHeaders"
+      TBool
+      "If true, auto-add `Server: darklang` and HSTS to responses unless the handler set them"
+    Param.make
+      "canonicalizeFromForwardedProto"
+      TBool
+      "If true, rewrite request.url to https:// when X-Forwarded-Proto: https is present"
+    Param.make
+      "logRequests"
+      TBool
+      "If true, emit a per-request stdout line and Telemetry.event 'httpserver.request' with method/path/status/duration_ms"
+    Param.makeWithArgs
+      "onListening"
+      (TFn(NEList.singleton TUnit, TUnit))
+      "Fired once the port is bound — announce here, so a banner is never printed before it's true"
+      [ "unit" ] ]
+
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "httpServerServe" 0
@@ -441,47 +863,10 @@ let fns () : List<BuiltInFn> =
         [ Param.make "port" TInt "TCP port to listen on"
           Param.makeWithArgs
             "handler"
-            (TFn(
-              NEList.singleton (
-                TCustomType(
-                  FQTypeName.fqPackage (
-                    LibExecution.PackageRefs.Type.Stdlib.Http.request ()
-                  )
-                  |> NR.ok,
-                  []
-                )
-              ),
-              TCustomType(
-                FQTypeName.fqPackage (
-                  LibExecution.PackageRefs.Type.Stdlib.Http.response ()
-                )
-                |> NR.ok,
-                []
-              )
-            ))
+            handlerType
             "Handler function: request -> response"
-            [ "request" ]
-          Param.make
-            "maxBodyBytes"
-            TInt
-            "Maximum request body size in bytes (over-limit → 413)"
-          Param.make
-            "injectStandardHeaders"
-            TBool
-            "If true, auto-add `Server: darklang` and HSTS to responses unless the handler set them"
-          Param.make
-            "canonicalizeFromForwardedProto"
-            TBool
-            "If true, rewrite request.url to https:// when X-Forwarded-Proto: https is present"
-          Param.make
-            "logRequests"
-            TBool
-            "If true, emit a per-request stdout line and Telemetry.event 'httpserver.request' with method/path/status/duration_ms"
-          Param.makeWithArgs
-            "onListening"
-            (TFn(NEList.singleton TUnit, TUnit))
-            "Fired once the port is bound — announce here, so a banner is never printed before it's true"
-            [ "unit" ] ]
+            [ "request" ] ]
+        @ commonParams
       returnType = TypeReference.result TUnit TString
       description =
         "Start an HTTP server. Calls handler for each request. Runs onListening once the port is bound; "
@@ -498,121 +883,81 @@ let fns () : List<BuiltInFn> =
              DBool canonicalizeFromForwardedProto
              DBool logRequests
              DApplicable onListening |] ->
-          uply {
-            // The router and its callbacks are guest code, so use a guest
-            // state rather than the trusted CLI state. Use it for both the
-            // bind check and handler calls; the instance policy remains the
-            // hard maximum. A named package router is the approval root;
-            // lambda handlers have no package root of their own.
-            //
-            // `guestState` replaces access, so intersect the child with the
-            // invoking frame. Guest code can call `serve` directly; its ceiling,
-            // package approval and resource restrictions must reach the bind,
-            // logging and callback checks.
-            let ownFns =
-              match handler with
-              | AppNamedFn named ->
-                match named.name with
-                | FQFnName.Package hash -> [ hash ]
-                | FQFnName.Builtin _ -> []
-              | AppLambda _ -> []
-            let exeState =
-              let guest =
-                LibDB.PolicyStore.guestState
-                  exeState.accountID
-                  LibExecution.Permissions.Policy.allowAll
-                  []
-                  ownFns
-                  exeState
-              { guest with
-                  access =
-                    guest.access
-                    |> LibExecution.Permissions.Access.constrainBy vm.activeAccess }
-            // maxBodyBytes is a comparison threshold; a negative limit would
-            // reject every request (treated as over-limit), so reject it. 0 is
-            // valid (allow no body).
-            let maxBodyBytes = intToInt64 vm maxBodyBytesArg
-            if maxBodyBytes < 0L then
-              RuntimeError.Ints.OutOfRange
-              |> RuntimeError.Int
-              |> raiseRTE vm.threadID
-            // A TCP port must be in [0, 65535]. intToInt64 alone would let
-            // larger-but-int64-sized values reach HttpListener.Start and throw a
-            // host exception, so validate the real port range up front.
-            let port = intToInt64 vm portArg
-            if
-              port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort
-            then
-              RuntimeError.Ints.OutOfRange
-              |> RuntimeError.Int
-              |> raiseRTE vm.threadID
+          serve
+            exeState
+            vm
+            portArg
+            (Fixed handler)
+            handler
+            maxBodyBytesArg
+            injectStandardHeaders
+            canonicalizeFromForwardedProto
+            logRequests
+            onListening
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
+      deprecated = NotDeprecated }
 
-            // These ambient effects are performed on behalf of the child
-            // guest state, so check its access (already narrowed by the
-            // invoker's, above) rather than only the ordinary builtin gate,
-            // which from `dark serve` sees the broader outer VM. Clock and
-            // stdout are only used when request logging is enabled.
-            if logRequests then
-              LibExecution.PermissionCheck.requireBuiltinEffectsWithAccess
-                exeState
-                vm
-                exeState.access
-                (set [ Effect.Clock; Effect.Stdout ])
-                "httpServerServe"
-            use _serveSpan =
-              Telemetry.span "httpserver.serve" [ "port", string port ]
 
-            // Bind through the checked host boundary using the guest access,
-            // so the instance policy applies instead of the trusted CLI's.
-            let! bound =
-              LibExecution.PermissionCheck.performHostWithAccess
-                exeState
-                vm
-                exeState.access
-                (LibExecution.Host.Operation.HttpServerBind(int port))
-            match bound with
-            | Error failure ->
-              return Dval.resultError KTUnit KTString (DString failure.message)
-            | Ok response ->
-              use listener =
-                response
-                |> LibExecution.Host.expectHttpServerHandle
-                |> LibExecution.Host.takeHttpServerListener
-              let! _ =
-                Execution.executeApplicable
-                  exeState
-                  exeState.access
-                  onListening
-                  (NEList.singleton DUnit)
-
-              // SIGINT → cancel; in-flight requests drain by virtue of being
-              // fire-and-forget Tasks.
-              let cts = new CancellationTokenSource()
-              let cancelHandler =
-                ConsoleCancelEventHandler(fun _ args ->
-                  args.Cancel <- true
-                  cts.Cancel())
-              Console.CancelKeyPress.AddHandler cancelHandler
-
-              let listenerTask =
-                runListener
-                  exeState
-                  listener
-                  port
-                  handler
-                  maxBodyBytes
-                  injectStandardHeaders
-                  canonicalizeFromForwardedProto
-                  logRequests
-                  cts.Token
-
-              listenerTask.Wait()
-
-              Console.CancelKeyPress.RemoveHandler cancelHandler
-
-              return Dval.resultOk KTUnit KTString DUnit
-          }
-
+    // `httpServerServe` for a server that follows edits. The handler is not fixed at start: per request,
+    // Dark's `step` is run over a state the server keeps between requests, and answers with the handler
+    // to use this time (`Stdlib.Live` decides: the newest version of the router that passes its checks).
+    // The router's hash is the approval root, re-derived when it moves. See `LiveRouting`.
+    { name = fn "httpServerServeLive" 0
+      typeParams = []
+      parameters =
+        [ Param.make "port" TInt "TCP port to listen on"
+          Param.make "init" (TVariable "s") "The routing state to start from"
+          Param.makeWithArgs
+            "step"
+            (TFn(
+              NEList.singleton (TVariable "s"),
+              TTuple(TVariable "s", TypeReference.result handlerType TString, [])
+            ))
+            "Per request: the next routing state, and the handler for this request (or why there is none)"
+            [ "state" ]
+          Param.makeWithArgs
+            "first"
+            handlerType
+            "The handler as resolved at start, for the bind-time approval root"
+            [ "request" ]
+          Param.make
+            "dev"
+            TBool
+            "If true, serve `/__live` as an event stream and add a reload script to HTML responses, so an open page follows edits" ]
+        @ commonParams
+      returnType = TypeReference.result TUnit TString
+      description =
+        "Start an HTTP server whose handler is resolved per request by `step` over a state kept "
+        + "between requests. Otherwise as `httpServerServe`."
+      fn =
+        (function
+        | exeState,
+          vm,
+          _,
+          [| DInt portArg
+             init
+             DApplicable step
+             DApplicable first
+             DBool dev
+             DInt maxBodyBytesArg
+             DBool injectStandardHeaders
+             DBool canonicalizeFromForwardedProto
+             DBool logRequests
+             DApplicable onListening |] ->
+          serve
+            exeState
+            vm
+            portArg
+            (Live { step = step; state = init; guest = None; dev = dev })
+            first
+            maxBodyBytesArg
+            injectStandardHeaders
+            canonicalizeFromForwardedProto
+            logRequests
+            onListening
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

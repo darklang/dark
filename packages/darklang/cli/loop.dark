@@ -560,26 +560,40 @@ let runInteractiveLoop (state: AppState) : Int =
         Telemetry.logWithContext "render" tRender [("page", pageName renderedState.currentPage)]
         Telemetry.log "preInput" tLoopStart
 
-      // Read keystroke input
+      // Wait for a key, or for the package store to change under the page. The waiting is
+      // `Stdlib.Host.await`'s business (a shim today, the scheduler's queue later); this loop only
+      // says what it is waiting for.
       let tReadKey =
         if renderedState.telemetryEnabled then Telemetry.now () else 0
-      let keyInput = Stdlib.Cli.Stdin.readKey ()
 
-      // Process the key. A coalesced burst (a mouse wheel, or a held-down key) arrives as one read with a
-      // repeat count; applying it here means every page gets wheel-aware scrolling without knowing about it,
-      // and the burst costs one loop iteration instead of one per event.
-      let times = burstTimes keyInput
-      // Sampled BEFORE the fold, which is the work being measured. Sampling after it and passing that as
-      // the start instead times the preceding log call, and reports ~0 ms no matter how slow the fold is.
-      let tUpdate = if renderedState.telemetryEnabled then Telemetry.now () else 0
-      let newState = applyKeyRead renderedState keyInput times
+      let newState =
+        match Stdlib.Host.await [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ] with
+        | Key keyInput ->
+          // Process the key. A coalesced burst (a mouse wheel, or a held-down key) arrives as one read
+          // with a repeat count; applying it here means every page gets wheel-aware scrolling without
+          // knowing about it, and the burst costs one loop iteration instead of one per event.
+          let times = burstTimes keyInput
+          // Sampled BEFORE the fold, which is the work being measured. Sampling after it and passing
+          // that as the start instead times the preceding log call, and reports ~0 ms no matter how
+          // slow the fold is.
+          let tUpdate = if renderedState.telemetryEnabled then Telemetry.now () else 0
+          let newState = applyKeyRead renderedState keyInput times
 
-      if renderedState.telemetryEnabled then
-        Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
-        Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar), ("repeats", Stdlib.Int.toString times)]
-        let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
-        let interpStats = LanguageTools.InterpreterStats.get ()
-        Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs), ("interp", interpStats)]
+          if renderedState.telemetryEnabled then
+            Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
+            Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar), ("repeats", Stdlib.Int.toString times)]
+            let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
+            let interpStats = LanguageTools.InterpreterStats.get ()
+            Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs), ("interp", interpStats)]
+
+          newState
+        | StoreChanged change ->
+          // Only a full-screen page shows something the store can move; the prompt and the pickers
+          // read it on their next command.
+          match renderedState.currentPage with
+          | SubApp app -> { renderedState with currentPage = Page.SubApp(app.onStoreChanged change) }
+          | _ -> renderedState
+        | _ -> renderedState
 
       runInteractiveLoop {
         newState with

@@ -1,0 +1,107 @@
+/// The page renderer for a `Node` tree: the same view that paints a terminal pane writes a page.
+///
+/// Every node becomes one element with a `dark-` class, so a stylesheet can do what the terminal's
+/// SGR codes do. `Button` and `Input` become a form that posts the message as JSON to the page's own
+/// URL, which is what a `viewRoute` will read `update` from. Text is escaped, always: a view renders
+/// values it did not choose.
+module Darklang.Stdlib.Cli.UI.Html
+
+let className (style: Node.Style) : String =
+  match style with
+  | Bold -> "dark-bold"
+  | Dim -> "dark-dim"
+  | Italic -> "dark-italic"
+  | Underline -> "dark-underline"
+  | Success -> "dark-success"
+  | Error -> "dark-error"
+  | Warning -> "dark-warning"
+  | Info -> "dark-info"
+  | Muted -> "dark-muted"
+  | Highlight -> "dark-highlight"
+
+let severityClass (severity: Node.Severity) : String =
+  match severity with
+  | Info -> "dark-band dark-band-info"
+  | Warning -> "dark-band dark-band-warning"
+  | Error -> "dark-band dark-band-error"
+
+let escape (s: String) : String = Stdlib.Html.escapeHtml s
+
+/// <param node> as markup. <param toJson> says how a message posts: the `Button`'s payload, and the
+/// name an `Input` posts its text under.
+let render (node: Node.Node<'msg>) (toJson: 'msg -> String) : String =
+  match node with
+  | Empty -> ""
+  | Text s -> $"<span class=\"dark-text\">{escape s}</span>"
+  | Rows rows ->
+    let inner =
+      rows
+      |> Stdlib.List.map (fun r -> $"<div class=\"dark-row-text\">{escape (Tui.Text.stripSgr r)}</div>")
+      |> Stdlib.String.join ""
+
+    $"<pre class=\"dark-rows\">{inner}</pre>"
+  | Styled(style, child) ->
+    $"<span class=\"{className style}\">{render child toJson}</span>"
+  | Row children ->
+    let inner = children |> Stdlib.List.map (fun c -> render c toJson) |> Stdlib.String.join ""
+    $"<div class=\"dark-hstack\">{inner}</div>"
+  | Column children ->
+    let inner =
+      children
+      |> Stdlib.List.map (fun c -> $"<div class=\"dark-vstack-item\">{render c toJson}</div>")
+      |> Stdlib.String.join ""
+
+    $"<div class=\"dark-vstack\">{inner}</div>"
+  | Table(columns, rows) ->
+    let numeric = columns |> Stdlib.List.indexedMap (fun i _ -> Node.isNumericColumn rows i)
+    let cls (i: Int) : String =
+      if Stdlib.List.getAt numeric i == Stdlib.Option.Option.Some true then " class=\"dark-num\"" else ""
+
+    let head =
+      columns
+      |> Stdlib.List.indexedMap (fun i h -> $"<th{cls i}>{escape h}</th>")
+      |> Stdlib.String.join ""
+
+    let body =
+      rows
+      |> Stdlib.List.map (fun r ->
+        let cells =
+          r |> Stdlib.List.indexedMap (fun i c -> $"<td{cls i}>{escape c}</td>") |> Stdlib.String.join ""
+        $"<tr>{cells}</tr>")
+      |> Stdlib.String.join ""
+
+    $"<table class=\"dark-table\"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+  | ListOf children ->
+    let inner =
+      children
+      |> Stdlib.List.map (fun c -> $"<li>{render c toJson}</li>")
+      |> Stdlib.String.join ""
+
+    $"<ul class=\"dark-list\">{inner}</ul>"
+  | Input spec ->
+    $"<form class=\"dark-input\" method=\"post\"><input name=\"{escape spec.id}\" value=\"{escape spec.value}\" placeholder=\"{escape spec.placeholder}\" /></form>"
+  | Button(label, msg) ->
+    $"<form class=\"dark-button\" method=\"post\"><input type=\"hidden\" name=\"msg\" value=\"{escape (toJson msg)}\" /><button type=\"submit\">{escape label}</button></form>"
+  | Link(label, href) -> $"<a class=\"dark-link\" href=\"{escape href}\">{escape label}</a>"
+  | Region(_rows, _cols, inner) -> $"<div class=\"dark-region\">{render inner toJson}</div>"
+  | Band(severity, message) ->
+    $"<div class=\"{severityClass severity}\">{escape message}</div>"
+
+/// `render` for a view whose messages never post: buttons carry an empty payload.
+let renderStatic (node: Node.Node<'msg>) : String = render node (fun _ -> "")
+
+/// A whole page: the tree in a body, with the stylesheet that gives the classes a look.
+let page (title: String) (node: Node.Node<'msg>) (toJson: 'msg -> String) : String =
+  let css =
+    "body{font-family:ui-monospace,monospace;margin:1.5rem;background:#fff;color:#111}"
+    ++ ".dark-vstack-item{margin:.15rem 0}.dark-hstack{display:flex;gap:.5rem}"
+    ++ ".dark-bold{font-weight:bold}.dark-dim,.dark-muted{opacity:.6}.dark-italic{font-style:italic}"
+    ++ ".dark-underline{text-decoration:underline}.dark-success{color:#1a7f37}.dark-error{color:#b91c1c}"
+    ++ ".dark-warning{color:#b45309}.dark-info{color:#1d4ed8}.dark-highlight{background:#eee}"
+    ++ ".dark-table{border-collapse:collapse}.dark-table th,.dark-table td{text-align:left;padding:.1rem .8rem .1rem 0}"
+    ++ ".dark-table th{border-bottom:1px solid #999}.dark-table .dark-num{text-align:right}"
+    ++ ".dark-band{padding:.4rem .6rem;margin:.5rem 0;border-radius:3px}"
+    ++ ".dark-band-info{background:#dbeafe}.dark-band-warning{background:#fef3c7}.dark-band-error{background:#fee2e2}"
+    ++ ".dark-rows{margin:0}.dark-list{padding-left:1.2rem}"
+
+  $"<!doctype html><html><head><meta charset=\"utf-8\"><title>{escape title}</title><style>{css}</style></head><body>{render node toJson}</body></html>"

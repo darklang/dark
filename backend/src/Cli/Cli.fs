@@ -143,6 +143,86 @@ let private resolveEntryPoint () : RT.FQFnName.FQFnName =
       $"entry point lookup failed ({e.Message}); running the default CLI"
     defaultFn
 
+/// The store-change source for the scheduler's poll: `LibDB.Sqlite.DataVersion`, one held
+/// connection per store, since `PRAGMA data_version` answers per connection.
+let private installStoreVersionSource () : unit =
+  Builtins.Cli.Libs.Stdin.installStoreVersionSource LibDB.Sqlite.DataVersion.current
+
+/// A positive number from an environment variable, else from the store's config
+/// (`dark config set <key> N`), else `fallback`.
+let private positiveSetting (envVar : string) (key : string) (fallback : int) : int =
+  let parse (s : string) =
+    match System.Int32.TryParse s with
+    | true, n when n >= 1 -> Some n
+    | _ -> None
+  let fromEnv =
+    match System.Environment.GetEnvironmentVariable envVar with
+    | null
+    | "" -> None
+    | s -> parse s
+  let fromConfig () =
+    try
+      (LibDB.Config.get key).Result |> Option.bind parse
+    with _ ->
+      None
+  match fromEnv with
+  | Some n -> n
+  | None ->
+    match fromConfig () with
+    | Some n -> n
+    | None -> fallback
+
+/// How many worker schedulers this run may start: `DARK_EXEC_WORKERS`, else the store's
+/// `exec.workers`, else one per core. Never below one.
+let private workerCount () : int =
+  positiveSetting
+    "DARK_EXEC_WORKERS"
+    "exec.workers"
+    (max 1 System.Environment.ProcessorCount)
+
+/// How many reads may be in flight at once before one is awaited in program order:
+/// `DARK_EXEC_MAX_INFLIGHT`, else the store's `exec.maxInflight`, else 256.
+let private maxInflight () : int =
+  positiveSetting "DARK_EXEC_MAX_INFLIGHT" "exec.maxInflight" 256
+
+/// The scheduling policy: `exec.policy` names a Dark function (`Darklang.Stdlib.Exec.Policy.
+/// youngestFirst`, say) that is asked which runnable process to step next whenever there is a
+/// choice; unset, the scheduler round-robins in F# and never asks. `DARK_EXEC_POLICY` overrides.
+/// A name that does not resolve is said and ignored, like a bad entry point.
+let private installPolicy (state : RT.ExecutionState) : unit =
+  let named =
+    match System.Environment.GetEnvironmentVariable "DARK_EXEC_POLICY" with
+    | null
+    | "" ->
+      try
+        (LibDB.Config.get "exec.policy").Result |> Option.defaultValue ""
+      with _ ->
+        ""
+    | s -> s
+  if named <> "" then
+    match List.rev (named.Split('.') |> Array.toList) with
+    | name :: revRest ->
+      let owner, modules =
+        match List.rev revRest with
+        | o :: mods -> o, mods
+        | [] -> "Darklang", []
+      let location : PT.PackageLocation =
+        { owner = owner; modules = modules; name = name }
+      match (LibDB.PackageManager.pt.findFn location).Result with
+      | Some fqPkg ->
+        let fn =
+          RT.FQFnName.Package(
+            LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT fqPkg
+          )
+        LibExecution.Scheduler.policy <-
+          LibExecution.Scheduler.Chooser(
+            Builtins.Language.Libs.Exec.chooserFor state fn
+          )
+      | None ->
+        System.Console.Error.WriteLine
+          $"exec.policy '{named}' didn't resolve; scheduling round robin"
+    | [] -> ()
+
 let execute
   (packageManager : RT.PackageManager)
   (args : List<string>)
@@ -184,11 +264,44 @@ let execute
         resolveEntryPoint ()
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
-    let! result = Exe.executeFunction state fnName [] args
-    return result
+    // The CLI's top level is a process: the scheduler runs on this thread until it finishes,
+    // stepping whatever else gets spawned meanwhile (a script under `eval`, an `apps` daemon).
+    // `DARK_SCHEDULER=off` is the escape hatch back to a plain run while this beds in.
+    if System.Environment.GetEnvironmentVariable "DARK_SCHEDULER" = "off" then
+      let! result = Exe.executeFunction state fnName [] args
+      return result
+    else
+      installStoreVersionSource ()
+      LibExecution.Scheduler.defaultWorkers <- workerCount ()
+      LibExecution.Interpreter.Promises.maxInflight <- maxInflight ()
+      installPolicy state
+      return LibExecution.Scheduler.executeFunction state fnName [] args
   }
 
 let initSerializers () = ()
+
+/// Ctrl-C while a traced `run` or `eval` is in the foreground: store its log as it stands, mark
+/// the execution suspended, say how to take it up again, and leave. `dark exec resume <id>` then
+/// runs the same input, answering every call the log has instead of performing it, and goes
+/// live where the log ends. With nothing in the foreground (no traced run, or a TUI reading
+/// keys, which takes Ctrl-C as input and never gets here), the process just ends as it always
+/// did.
+let private installSuspendOnInterrupt () : unit =
+  System.Console.CancelKeyPress.Add(fun args ->
+    let suspended =
+      try
+        (LibDB.Executions.Foreground.suspend ()).Result
+      with _ ->
+        None
+    match suspended with
+    | Some id ->
+      args.Cancel <- true
+      let prefix = (string id).Substring(0, 8)
+      System.Console.Error.WriteLine ""
+      System.Console.Error.WriteLine
+        $"stopped; the run is kept. Take it up again with: dark exec resume {prefix}"
+      exit 130
+    | None -> ())
 
 /// Record host-operation decisions for troubleshooting and review in
 /// `rundir/logs/host-audit.jsonl`. Set `DARK_AUDIT=off` to skip this audit file.
@@ -271,6 +384,7 @@ let main (args : string[]) =
 
     // Record host-operation decisions at the boundary.
     installAuditLog ()
+    installSuspendOnInterrupt ()
 
 
     // Now safe to access LibConfig paths. Gated on DARK_TELEMETRY, the same switch the Dark side

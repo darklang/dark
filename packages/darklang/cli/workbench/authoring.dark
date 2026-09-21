@@ -104,6 +104,11 @@ let saveEditing (state: State) (es: EditingState) : Step =
               |> Stdlib.List.findFirst (fun pair -> let (_i, it) = pair in it.name == leaf)
               |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
               |> Stdlib.Option.withDefault 0
+            // `live.autopush`: the save is a commit and a push when the mode is on; its one line
+            // joins the footer. `Nothing` when the mode is off.
+            let pushed = Cli.Sync.Autopush.describe (Cli.Sync.Autopush.pushDraftOn state.branchId)
+            let pushedNote = if pushed == "" then "" else "; " ++ pushed
+
             Step.Continue
               { state with
                   editing = Stdlib.Option.Option.None
@@ -112,8 +117,8 @@ let saveEditing (state: State) (es: EditingState) : Step =
                   detailScroll = 0
                   message =
                     match Packages.AtRestCheck.summary report with
-                    | Some summary -> "saved " ++ leaf ++ " (" ++ summary ++ ")"
-                    | None -> "saved " ++ leaf }
+                    | Some summary -> "saved " ++ leaf ++ " (" ++ summary ++ ")" ++ pushedNote
+                    | None -> "saved " ++ leaf ++ pushedNote }
           | Error m -> keepErr ("save failed: " ++ m)
         | Error m -> keepErr m
       | None -> keepErr "could not parse"

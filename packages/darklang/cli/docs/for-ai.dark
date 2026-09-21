@@ -195,6 +195,14 @@ the unguarded HTTP transport it could reach is limited to the relay you
 configured, not whatever it asks for.
   (see: docs scm)
 
+## Live
+
+Running things follow your edits. `dark serve <router>` runs the newest version
+of the router that passes its checks on every request, and a broken save keeps
+the previous one serving (`--no-live` pins the version resolved at start).
+`Stdlib.Live` is the library: `poll` says what landed, `affects` whether it
+reaches an entry, `LastGood` which hash to run. Design and demos: `docs/live.md`.
+
 ## Name Resolution
 Names resolve relative to the current module, searching from
 most-specific to least-specific.

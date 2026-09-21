@@ -20,6 +20,39 @@ let daemonPort (slug: String) : Stdlib.Option.Option<Int> =
     | None -> Stdlib.Option.Option.None
     | Some tail -> Stdlib.Result.toOption (Stdlib.Int.parse (Stdlib.String.trim tail))
 
+/// The config key holding the entrypoint's hash as it was when the daemon started.
+let startedHashKey (slug: String) : String = "apps." ++ slug ++ ".startedHash"
+
+/// The hash a daemon's entrypoint resolves to now, "" when it does not.
+let entrypointHash (branchId: Uuid) (entrypoint: String) : String =
+  match Stdlib.Live.locationOfName entrypoint with
+  | None -> ""
+  | Some entry ->
+    match LanguageTools.PackageManager.Function.find branchId entry with
+    | Some hash -> LanguageTools.ProgramTypes.hashToString hash
+    | None -> ""
+
+/// Remember what version a daemon started on, so `dark apps` can say when it has moved.
+let recordStartedHash (branchId: Uuid) (app: Model.App) : Unit =
+  match app.target with
+  | Daemon entrypoint ->
+    let cfg = Config.readConfig ()
+    Config.writeConfig
+      (Stdlib.Dict.setOverridingDuplicates cfg (startedHashKey app.slug) (entrypointHash branchId entrypoint))
+  | _ -> ()
+
+/// "behind" when the entrypoint a running daemon started on is no longer the version at its name.
+/// A daemon on `Apps.Runner` follows its STEP between ticks and never needs this for the step; the
+/// entrypoint itself, and any daemon written as one long-running fn, needs `apps restart`.
+let behindSuffix (branchId: Uuid) (app: Model.App) : String =
+  match app.target with
+  | Daemon entrypoint ->
+    match Config.get (startedHashKey app.slug) with
+    | Some started when started != "" ->
+      if (entrypointHash branchId entrypoint) == started then "" else ", behind (`apps restart`)"
+    | _ -> ""
+  | _ -> ""
+
 /// The live state of a daemon, for listing: "running (pid N) :port" / "stale (pid N)" / "stopped".
 /// HTTP daemons append the port they actually bound to.
 let daemonState (slug: String) : String =
@@ -36,12 +69,15 @@ let daemonState (slug: String) : String =
   | None -> "stopped"
 
 /// One list row: pretty label · (slug) · [kind] · description — daemons append their live state.
-let row (app: Model.App) : String =
+let row (branchId: Uuid) (app: Model.App) : String =
   let tag = Model.kindTag app.target
   let extra =
     match app.target with
-    | Daemon _ -> "  " ++ Stdlib.Cli.UI.Colors.dimText ("· " ++ daemonState app.slug)
-    | Foreground _ -> ""
+    | Daemon _ ->
+      let running = Stdlib.String.startsWith (daemonState app.slug) "running"
+      let behind = if running then behindSuffix branchId app else ""
+      "  " ++ Stdlib.Cli.UI.Colors.dimText ("· " ++ (daemonState app.slug) ++ behind)
+    | _ -> ""
   $"  {app.name}  {Stdlib.Cli.UI.Colors.dimText ($"({app.slug})  [{tag}]")}  {Stdlib.Cli.UI.Colors.dimText app.description}{extra}"
 
 
@@ -57,6 +93,37 @@ let runApp (state: Cli.AppState) (slug: String) : Cli.AppState =
     | Daemon _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a daemon — start it with `apps start {slug}`")
       state
+
+/// `apps daemon-main <slug>` — the body of a daemon process: what `apps start` launches
+/// detached, and what a unit file supervises. A CLI verb rather than `eval '<entrypoint>
+/// "<slug>"'` because a command runs in the CLI's host state, and an `eval` guest does not
+/// get the host's capabilities: the sync daemon's transport was refused that way.
+let daemonMain (state: Cli.AppState) (slug: String) : Cli.AppState =
+  match Registry.findBySlug state.currentBranchId slug with
+  | None ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no app '{slug}' (see `apps list-available`)")
+    { state with exitCode = 1 }
+  | Some app ->
+    match app.target with
+    | Daemon entrypoint ->
+      if Stdlib.Bool.not (Model.isValidEntrypoint entrypoint) then
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.error $"'{slug}' has an entrypoint that isn't a plain function name")
+        { state with exitCode = 1 }
+      else
+        match Stdlib.Live.applicableByName state.currentBranchId entrypoint with
+        | Error e ->
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"{slug}: {e}")
+          { state with exitCode = 1 }
+        | Ok f ->
+          // Applied here, in this frame, not through `Live.apply`: that makes the fn the
+          // approval root of a guest run, and a guest has no host capabilities. The daemon
+          // body runs as the CLI's own code, which is what a registered daemon is.
+          let _ran = f slug
+          state
+    | _ ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"'{slug}' is not a daemon")
+      { state with exitCode = 1 }
 
 /// `apps start <slug>` — launch a daemon detached (verified) and report its pid.
 let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
@@ -79,17 +146,62 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
           (Stdlib.Cli.UI.Colors.error $"'{slug}' has an entrypoint that isn't a plain function name")
       else
 
-      let q = "\""
-      let expr = entrypoint ++ " " ++ q ++ slug ++ q
-
-      match Stdlib.Cli.Daemon.start slug expr with
+      match Stdlib.Cli.Daemon.startWith slug [ "apps", "daemon-main", slug ] with
       | Ok pid ->
+        recordStartedHash state.currentBranchId app
         Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {app.name} started (pid {Stdlib.Int.toString pid})")
       | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
     | Foreground _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a foreground app — run it with `apps run {slug}`")
 
   state
+
+/// `apps view <slug> [<name>]` — open one of an app's live views; it follows edits until Esc.
+///
+/// The slug may also be a MODULE path (`My.Dashboard`): a module with `init`, `update` and `render`
+/// is a view without anyone declaring an app for it, which is the shape a first edit-and-watch
+/// session wants.
+let viewApp
+  (state: Cli.AppState)
+  (slug: String)
+  (name: String)
+  (resume: Stdlib.Option.Option<String>)
+  : Cli.AppState =
+  match Registry.findBySlug state.currentBranchId slug with
+  | None when Stdlib.String.contains slug "." ->
+    let view =
+      Model.View
+        { name = slug
+          title = slug
+          init = slug ++ ".init"
+          update = slug ++ ".update"
+          render = slug ++ ".render" }
+
+    match Host.openView state.currentBranchId view resume with
+    | Ok _ -> state
+    | Error e ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+      { state with exitCode = 1 }
+  | None ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no app '{slug}' (see `apps list-available`)")
+    state
+  | Some app ->
+    match Model.viewNamed app.target name with
+    | None ->
+      match app.target with
+      | Views views ->
+        let names = views |> Stdlib.List.map (fun v -> v.name) |> Stdlib.String.join ", "
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"'{slug}' has no view '{name}' (it has: {names})")
+      | _ ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' has no live views -- `apps run {slug}` or `apps start {slug}`")
+
+      state
+    | Some view ->
+      match Host.openView state.currentBranchId view resume with
+      | Ok _ -> state
+      | Error e ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+        { state with exitCode = 1 }
 
 /// `apps inspect <slug>` — label, slug, target, installed?, and (daemons) status + recent logs.
 let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
@@ -113,6 +225,10 @@ let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
         Stdlib.printLine "  recent logs:"
         logs |> Stdlib.List.map (fun l -> "    " ++ l) |> Stdlib.printLines
     | Foreground _ -> ()
+    | Views views ->
+      views
+      |> Stdlib.List.iter (fun v ->
+        Stdlib.printLine $"  view:      {v.name}  ({v.render})")
 
   state
 
@@ -130,7 +246,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           "No apps installed. `apps list-available` shows the catalog; `apps add <slug>` adds one.")
     else
       Stdlib.printLine "Installed apps:"
-      apps |> Stdlib.List.map (fun a -> row a) |> Stdlib.printLines
+      apps |> Stdlib.List.map (fun a -> row state.currentBranchId a) |> Stdlib.printLines
 
     state
 
@@ -140,7 +256,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     |> Stdlib.List.map (fun a ->
       let installedTag =
         if Registry.isInstalled a.slug then Stdlib.Cli.UI.Colors.success "  ✓ installed" else ""
-      (row a) ++ installedTag)
+      (row state.currentBranchId a) ++ installedTag)
     |> Stdlib.printLines
 
     Stdlib.printLine ""
@@ -182,8 +298,28 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "run", slug ] -> runApp state slug
 
+  // No view named: the one `Live.show` points at, when something has pointed.
+  | [ "view" ] ->
+    match Stdlib.Live.shown () with
+    | Some loc -> viewApp state (Stdlib.Live.entryName loc) "" Stdlib.Option.Option.None
+    | None ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "apps view <slug> or <Module.Path>; nothing has called Live.show yet")
+      { state with exitCode = 1 }
+
+  | [ "view", slug ] -> viewApp state slug "" Stdlib.Option.Option.None
+  | [ "view", slug, "--resume", saved ] -> viewApp state slug "" (Stdlib.Option.Option.Some saved)
+  | [ "view", slug, name ] -> viewApp state slug name Stdlib.Option.Option.None
+  | [ "view", slug, name, "--resume", saved ] -> viewApp state slug name (Stdlib.Option.Option.Some saved)
+
   // `spawn` is an alias for `start` (the verb for bringing a daemon to life).
   | [ "start", slug ] | [ "spawn", slug ] -> startDaemon state slug
+  | [ "daemon-main", slug ] -> daemonMain state slug
+
+  // Stop, then start: for a daemon that is `behind` (its entrypoint moved under it) and for one
+  // written as a single long-running fn, which cannot follow an edit any other way.
+  | [ "restart", slug ] ->
+    let _ = Stdlib.Cli.Daemon.stop slug
+    startDaemon state slug
 
   | [ "stop", slug ] ->
     match Stdlib.Cli.Daemon.stop slug with
@@ -260,8 +396,8 @@ let complete
   : List<Cli.Completion.CompletionItem> =
   match args with
   | [] ->
-    [ "list", "list-available", "add", "remove", "run", "start", "spawn"
-      "stop", "status", "logs", "inspect", "enable", "disable" ]
+    [ "list", "list-available", "add", "remove", "run", "view", "start", "spawn"
+      "restart", "stop", "status", "logs", "inspect", "enable", "disable" ]
     |> Stdlib.List.map Cli.Completion.simple
   // Only load the catalog once a verb needs slug completions.
   | [ verb ] ->
@@ -273,7 +409,8 @@ let complete
       slugs (catalog |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Registry.isInstalled a.slug)))
     | "remove" -> slugs (Registry.installed state.currentBranchId)
     | "run" -> slugs (catalog |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Model.isDaemon a.target)))
-    | "start" | "spawn" | "stop" | "status" | "logs" | "enable" | "disable" -> slugs daemons
+    | "view" -> slugs (catalog |> Stdlib.List.filter (fun a -> Model.kindTag a.target == "views"))
+    | "start" | "spawn" | "restart" | "stop" | "status" | "logs" | "enable" | "disable" -> slugs daemons
     | "inspect" -> slugs catalog
     | _ -> []
   | _ -> []
@@ -302,8 +439,17 @@ let help (_state: Cli.AppState) : String =
   [ helpLine "apps run <slug>" "Run attached in your terminal" ] |> Stdlib.printLines
 
   Stdlib.printLine ""
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Live views")
+  [ helpLine "apps view <slug> [<name>]" "Open a view; it follows edits to its code until Esc"
+    helpLine "apps view <Module.Path>" "The same for any module with init, update and render"
+    helpLine "apps view" "The view `Stdlib.Live.show` last pointed at (an agent's channel)"
+    helpLine "  ... --resume <val>" "Start from a model saved with Ctrl-S (a `val` under .Sessions)" ]
+  |> Stdlib.printLines
+
+  Stdlib.printLine ""
   Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Daemons")
   [ helpLine "apps start <slug>" "Launch detached (alias: spawn)"
+    helpLine "apps restart <slug>" "Stop and start; for one `behind` an edit to its entrypoint"
     helpLine "apps stop <slug>" "Stop a running daemon"
     helpLine "apps status [slug]" "Running / stopped / stale (+ pid)"
     helpLine "apps logs <slug>" "Recent log lines"

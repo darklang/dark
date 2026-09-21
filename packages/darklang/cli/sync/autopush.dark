@@ -1,0 +1,125 @@
+/// `live.autopush`: every save becomes a commit and a push, so a host following this branch sees
+/// the edit a pull later.
+///
+/// Off by default; `dark config set live.autopush on` turns it on for this instance. When on, every
+/// authoring command that saved something commits the whole draft under a generated message
+/// (`auto: <n> ops, <first name>`) and pushes it to the remembered relay: main with `push`, a branch
+/// with `branch push`. Nothing runs in the background; this is the tail of the command that saved.
+///
+/// Type errors are committed, on purpose. The host on the other end keeps its last good version and
+/// says why in its log (`Stdlib.Live.LastGood`), which is the same answer you get locally, and a
+/// mode that silently held back your broken save would leave the host on code you have moved past
+/// without telling you. The ordinary `dark commit` still refuses them; this is the live lane.
+///
+/// `squash` for the trail of tiny commits this leaves is a later SCM verb.
+module Darklang.Cli.Sync.Autopush
+
+val configKey = "live.autopush"
+
+let enabled () : Bool =
+  (Config.get configKey) == (Stdlib.Option.Option.Some "on")
+
+/// The generated message: how many ops, and the first name the draft binds.
+let messageFor (branchId: Uuid) : String =
+  let ops = SCM.PackageOps.draftOpCountFor branchId
+
+  let first =
+    match SCM.PackageOps.draftBindingsFor branchId with
+    | b :: _ -> $", {SCM.Conflicts.fqn b.owner b.modules b.name}"
+    | [] -> ""
+
+  $"auto: {Stdlib.Int64.toString ops} ops{first}"
+
+/// Commit the draft as it stands, checks or no checks. The same rows `SCM.PackageOps.commitDraft`
+/// writes, without its refusals.
+let commitAsIs (branchId: Uuid) (author: String) : Stdlib.Result.Result<String, String> =
+  match SCM.PackageOps.draftOpCountFor branchId with
+  | 0L -> Stdlib.Result.Result.Error "nothing to commit"
+  | _ ->
+    let opIds = SCM.PackageOps.draftOpIdsFor branchId
+    let parent = SCM.PackageOps.parentCommitFor branchId
+    let hash = SCM.Commits.create (messageFor branchId) author opIds parent
+    let stamped = SCM.PackageOps.stampDraftFor branchId hash
+
+    if stamped == 0L then
+      let _ = SCM.Commits.delete hash
+      Stdlib.Result.Result.Error "nothing was committed"
+    else
+      Stdlib.Result.Result.Ok hash
+
+/// What one autopush did, for whoever saved: the CLI prints it, the workbench shows it in its
+/// footer, the LSP logs it. Nothing here writes to stdout except through `push`, which is captured.
+type Outcome =
+  /// The mode is off, or the draft is empty: nothing to say.
+  | Nothing
+  | Pushed of commit: String
+  | Failed of String
+
+/// Commit the draft and push it. The push verbs print their story; it is captured and folded into
+/// the outcome, since two of the three callers own a screen (the workbench) or a protocol channel
+/// (the LSP) where a stray line is corruption.
+let pushDraft (state: AppState) : Outcome =
+  if Stdlib.Bool.not (enabled ()) then
+    Outcome.Nothing
+  else
+    let branchId = state.currentBranchId
+
+    if (SCM.PackageOps.draftOpCountFor branchId) == 0L then
+      Outcome.Nothing
+    else
+      let author =
+        match SCM.PackageOps.identity () with
+        | "" -> state.accountName
+        | id -> id
+
+      match commitAsIs branchId author with
+      | Error e -> Outcome.Failed $"could not commit: {e}"
+      | Ok hash ->
+        let relay = SCM.PackageOps.relay ()
+
+        if relay == "" then
+          Outcome.Failed
+            $"committed {Stdlib.String.first hash 8} but there is no relay to push to -- `dark connect <url>`, or `dark config set live.autopush off`"
+        else
+          let (pushed, story) =
+            Cli.Workbench.captureOutputAnd (fun () ->
+              if SCM.Branch.isMain branchId then
+                Cli.Sync.executePush state relay
+              else
+                Cli.Branch.executePush state (Stdlib.Uuid.toString branchId) relay)
+
+          if Stdlib.String.contains story "Pushed" then
+            Outcome.Pushed hash
+          else
+            let last =
+              story
+              |> Stdlib.String.split "\n"
+              |> Stdlib.List.map (fun l -> Stdlib.String.trim (Stdlib.Cli.Tui.Text.stripSgr l))
+              |> Stdlib.List.filter (fun l -> l != "")
+              |> Stdlib.List.last
+              |> Stdlib.Option.withDefault "the push did not go through"
+
+            Outcome.Failed $"committed {Stdlib.String.first hash 8}; {last}"
+
+/// `pushDraft` for a caller with only a branch and no CLI state: the workbench and the LSP.
+let pushDraftOn (branchId: Uuid) : Outcome =
+  pushDraft { Cli.initState () with currentBranchId = branchId }
+
+/// One line for a footer or a log, "" for nothing.
+let describe (outcome: Outcome) : String =
+  match outcome with
+  | Nothing -> ""
+  | Pushed hash -> $"autopush: committed {Stdlib.String.first hash 8} and pushed"
+  | Failed why -> $"autopush: {why}"
+
+/// The tail of an authoring command: when the mode is on and something is in the draft, commit it
+/// and push. Says one line about what it did; a failure to push is reported and the commit stays.
+let afterAuthoring (state: AppState) : AppState =
+  let outcome = pushDraft state
+
+  match outcome with
+  | Nothing -> ()
+  | Pushed _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText (describe outcome))
+  | Failed _ -> Cli.printErr (describe outcome)
+
+  state

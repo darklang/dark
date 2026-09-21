@@ -36,8 +36,123 @@ let values : List<BuiltInValue> =
       body = DFloat(System.Double.NegativeInfinity)
       deprecated = NotDeprecated } ]
 
+/// Awaits a test can release by hand, so a scheduler test can decide the order things finish in.
+module Gates =
+  let private gates =
+    System.Collections.Concurrent.ConcurrentDictionary<int64, TaskCompletionSource<unit>>()
+
+  let private gate (n : int64) : TaskCompletionSource<unit> =
+    gates.GetOrAdd(
+      n,
+      fun _ ->
+        TaskCompletionSource<unit>(
+          TaskCreationOptions.RunContinuationsAsynchronously
+        )
+    )
+
+  let wait (n : int64) : Task<unit> = (gate n).Task
+
+  let release (n : int64) : unit = (gate n).TrySetResult() |> ignore<bool>
+
+  /// Gates something has waited on and nobody has released, in order.
+  let waiting () : List<int64> =
+    gates
+    |> Seq.filter (fun kv -> not kv.Value.Task.IsCompleted)
+    |> Seq.map (fun kv -> kv.Key)
+    |> List.ofSeq
+    |> List.sort
+
+  let reset () : unit = gates.Clear()
+
+
+/// What ran, in what order, across processes. Test-only.
+module Trace =
+  let private entries = System.Collections.Concurrent.ConcurrentQueue<string>()
+  let record (s : string) : unit = entries.Enqueue s
+  let take () : List<string> =
+    let all = List.ofSeq entries
+    entries.Clear()
+    all
+
+
 let fns () : List<BuiltInFn> =
-  [ { name = fn "testRuntimeError" 0
+  [ { name = fn "testGateWait" 0
+      typeParams = []
+      parameters = [ Param.make "gate" TInt64 "" ]
+      returnType = TUnit
+      description =
+        "Waits until the test releases this gate (`LibTest.Gates.release`)."
+      fn =
+        (function
+        | _, _, _, [| DInt64 n |] ->
+          uply {
+            do! Gates.wait n
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    /// A read that has to wait: `PackageRead` is an ambient read effect, and the gate is what it
+    /// waits on. The interpreter hands it back as a promise, and the test decides when it lands.
+    { name = fn "testRead" 0
+      typeParams = []
+      parameters = [ Param.make "gate" TInt64 "" ]
+      returnType = TInt64
+      description =
+        "A read in flight until the test releases its gate; answers the gate number."
+      fn =
+        (function
+        | _, _, _, [| DInt64 n |] ->
+          uply {
+            do! Gates.wait n
+            return DInt64 n
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "testFailingRead" 0
+      typeParams = []
+      parameters = [ Param.make "gate" TInt64 "" ]
+      returnType = TInt64
+      description = "A read that fails once the test releases its gate."
+      fn =
+        (function
+        | _, _, _, [| DInt64 n |] ->
+          uply {
+            do! Gates.wait n
+            return
+              RuntimeError.UncaughtException($"read {n} failed", [])
+              |> raiseUntargetedRTE
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "testTrace" 0
+      typeParams = []
+      parameters = [ Param.make "entry" TString "" ]
+      returnType = TUnit
+      description = "Records an entry the test reads back with `LibTest.Trace.take`."
+      fn =
+        (function
+        | _, _, _, [| DString s |] ->
+          Trace.record s
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "testRuntimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt64

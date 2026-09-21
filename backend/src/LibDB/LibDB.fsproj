@@ -55,6 +55,7 @@
 
     <!-- ex-LibCloud SQLite-bound modules /-->
     <Compile Include="Tracing.fs" />
+    <Compile Include="Executions.fs" />
     <Compile Include="UserDB.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

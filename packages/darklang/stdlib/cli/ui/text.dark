@@ -1,0 +1,65 @@
+/// The headless renderer: a `Node` as plain text, no terminal, no escape codes, no width but the
+/// tree's own. The third renderer beside `Node.toSpans` (terminal) and `Html.render` (page), for
+/// whatever reads a view rather than looks at it: an agent's tool loop, a test, a log.
+///
+/// Same conventions as the terminal, minus the colour: a table is its rows, a list marks items
+/// with `- `, an input and a button are boxed `[ ... ]`, a link shows its target, a band that is
+/// not merely informative starts with `! `, the glyph a breaking save prints.
+module Darklang.Stdlib.Cli.UI.Text
+
+/// The lines of <param node>, as wide as the node measures.
+let lines (node: Node.Node<'msg>) : List<String> =
+  match node with
+  | Empty -> []
+  | Text s -> [ s ]
+  | Rows rows -> rows
+  | Styled(_, inner) -> lines inner
+  | Band(severity, message) ->
+    match severity with
+    | Info -> [ message ]
+    | _ -> [ "! " ++ message ]
+  | Table(columns, rows) ->
+    // The terminal's rows, with the header's bold and the rule's dim taken off.
+    Node.tableRows columns rows |> Stdlib.List.map (fun r -> Tui.Text.stripSgr r)
+  | Input spec ->
+    let shown = if spec.value == "" then spec.placeholder else spec.value
+    [ $"[ {shown} ]" ]
+  | Button(label, _) -> [ $"[ {label} ]" ]
+  | Link(label, href) -> [ $"{label} <{href}>" ]
+  | Region(rows, cols, inner) ->
+    lines inner
+    |> Stdlib.List.take rows
+    |> Stdlib.List.map (fun l -> Stdlib.String.slice l 0 cols)
+  | Column children -> children |> Stdlib.List.map (fun c -> lines c) |> Stdlib.List.flatten
+  | ListOf children ->
+    children
+    |> Stdlib.List.map (fun c ->
+      lines c
+      |> Stdlib.List.indexedMap (fun i l -> if i == 0 then "- " ++ l else "  " ++ l))
+    |> Stdlib.List.flatten
+  | Row children ->
+    // Side by side at natural widths, one column of gap, as the terminal lays a row out.
+    let columns =
+      children
+      |> Stdlib.List.map (fun c ->
+        let (_, width) = Node.measure c
+        (width, lines c))
+
+    let height =
+      columns |> Stdlib.List.fold 0 (fun h col -> Stdlib.Int.max h (Stdlib.List.length (Stdlib.Tuple2.second col)))
+
+    if height == 0 then
+      []
+    else
+      Stdlib.List.range 0 (height - 1)
+      |> Stdlib.List.map (fun i ->
+        columns
+        |> Stdlib.List.map (fun col ->
+          let (width, ls) = col
+          Stdlib.String.padEndToWidth (Stdlib.List.getAt ls i |> Stdlib.Option.withDefault "") width)
+        |> Stdlib.String.join " "
+        |> Stdlib.String.trimEnd)
+
+
+/// <param node> as one string, a line per row.
+let render (node: Node.Node<'msg>) : String = Stdlib.String.join (lines node) "\n"

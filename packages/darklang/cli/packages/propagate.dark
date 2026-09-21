@@ -173,63 +173,93 @@ let fnSignatureEqual
 ///
 /// Quiet by design: one line, or nothing when nothing moved. A wall of per-edit consequences is the churn
 /// this design exists to remove.
+/// What a save's propagation did, for the save to say in its own words.
+type Followed =
+  { /// The dependents now on the new version, by name, in the order they were repointed.
+    names: List<String>
+    /// The ones that no longer type-check, with the first issue each, as `Live.issueText` puts it.
+    broken: List<(String * String)>
+    /// Propagation itself failed; the names above are empty.
+    failure: Stdlib.Option.Option<String> }
+
+let nothingFollowed () : Followed =
+  Followed { names = []; broken = []; failure = Stdlib.Option.Option.None }
+
+/// Repoint the dependents of <param location> at <param currentHash>, now, into the draft, and say
+/// what followed. The caller prints; a save is at most two lines and decides its own glyph from this.
 let repointNow
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (previousHashes: List<LanguageTools.ProgramTypes.Hash>)
   (currentHash: LanguageTools.ProgramTypes.Hash)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  : Unit =
+  : Followed =
   match previousHashes with
-  | [] -> () // brand new: nothing can be pointing at an older version of it
+  | [] -> nothingFollowed () // brand new: nothing can be pointing at an older version of it
   | _ ->
     match repointDependents branchId location itemKind previousHashes currentHash with
-    | Ok [] -> ()
+    | Ok [] -> nothingFollowed ()
     | Ok repoints ->
-      // Names when there are few (withholding two names just sends a person to another command),
-      // a count when there are many, and the way BACK in either case: this is the tool's most
-      // opaque moment, and "repointed" belonging to a command called `propagate` is not guessable.
-      let count = Stdlib.List.length repoints
+      let nameOf (r: LanguageTools.ProgramTypes.PropagateRepoint) : String =
+        let l = r.location
+        let mods = Stdlib.String.join l.modules "."
+        if mods == "" then $"{l.owner}.{l.name}" else $"{l.owner}.{mods}.{l.name}"
 
-      let names =
-        repoints
-        |> Stdlib.List.map (fun r ->
-          let l = r.location
-          let mods = Stdlib.String.join l.modules "."
-          if mods == "" then $"{l.owner}.{l.name}" else $"{l.owner}.{mods}.{l.name}")
-        |> Stdlib.List.unique
-
-      let line =
-        if count <= 5 then
-          $"""  {Cli.Text.plural count "dependent"} repointed: {Stdlib.String.join names ", "}"""
-        else
-          $"""  {Cli.Text.plural count "dependent"} repointed"""
-
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.hint line)
-      Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.hint
-          "  (`dark propagate pin <name>` undoes one and keeps it put)")
+      let names = repoints |> Stdlib.List.map nameOf |> Stdlib.List.unique
 
       // The one thing worth saying at the SAVE that nothing else says in the same breath: some of
       // what just followed you is now broken. The draft check already covers the items; this only
-      // counts the repointed ones among its failures -- branch-correct, unlike the old report.
-      let repointedHashes =
-        repoints |> Stdlib.List.map (fun r -> SCM.Draft.referenceHash r.toRef)
+      // takes the repointed ones among its failures -- branch-correct, unlike the old report.
+      let byHash =
+        repoints |> Stdlib.List.map (fun r -> (SCM.Draft.referenceHash r.toRef, nameOf r))
 
-      let failedRepointed =
+      let broken =
         (SCM.PackageOps.typeCheckDraft branchId).items
-        |> Stdlib.List.filter (fun ir ->
-          (match ir.verdict with
-           | Failed -> true
-           | _ -> false)
-          && Stdlib.List.``member`` repointedHashes (SCM.Draft.referenceHash ir.item))
-        |> Stdlib.List.length
+        |> Stdlib.List.filterMap (fun ir ->
+          let h = SCM.Draft.referenceHash ir.item
 
-      if failedRepointed > 0 then
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.error
-            $"""  note: {Cli.Text.plural failedRepointed "repointed dependent"} now fails typecheck -- `dark typecheck --failed` lists them""")
-    | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  propagation failed: {e}")
+          match ir.verdict with
+          | Failed ->
+            byHash
+            |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == h)
+            |> Stdlib.Option.map (fun pair ->
+              let issues = Stdlib.List.append ir.blockers ir.diagnostics
+
+              let text =
+                match issues with
+                | issue :: _ -> Stdlib.Live.issueText issue
+                | [] -> "it failed the type check"
+
+              (Stdlib.Tuple2.second pair, text))
+          | _ -> Stdlib.Option.Option.None)
+
+      Followed { names = names; broken = broken; failure = Stdlib.Option.Option.None }
+    | Error e -> Followed { names = []; broken = []; failure = Stdlib.Option.Option.Some e }
+
+/// The save's second line, if it has one: who follows, or who broke. Wrapped at 80, indented.
+let printFollowed (followed: Followed) : Unit =
+  match followed.failure with
+  | Some e -> Cli.Text.printWrapped Stdlib.Cli.UI.Colors.error "  " $"propagation failed: {e}"
+  | None ->
+    match followed.broken with
+    | [] ->
+      match followed.names with
+      | [] -> ()
+      | [ one ] -> Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"  {one} follows")
+      | names ->
+        let count = Stdlib.List.length names
+        let shown = names |> Stdlib.List.take 3 |> Stdlib.String.join ", "
+        let rest = if count > 3 then $" and {Stdlib.Int.toString (count - 3)} more" else ""
+        Cli.Text.printWrapped Stdlib.Cli.UI.Colors.hint "  " $"{Stdlib.Int.toString count} dependents follow: {shown}{rest}"
+    | broken ->
+      broken
+      |> Stdlib.List.iter (fun pair ->
+        let (name, why) = pair
+        let line = $"{name} no longer type-checks: {why}"
+        let withHint = line ++ "; `dark typecheck --failed` lists them"
+        // The way to the full list only when it fits; the diagnostic is the part that matters.
+        let text = if (Stdlib.String.length withHint) + 2 <= 80 then withHint else line
+        Cli.Text.printWrapped Stdlib.Cli.UI.Colors.error "  " text)
 
 
 /// THE call into propagation. Repoint everything that still references an older version of
@@ -261,4 +291,4 @@ let autoPropagateAfterUpdate
     getAllPreviousHashes branchId location itemKind
     |> Stdlib.List.filter (fun h -> h != currentHash)
 
-  repointNow branchId location previousHashes currentHash itemKind
+  printFollowed (repointNow branchId location previousHashes currentHash itemKind)

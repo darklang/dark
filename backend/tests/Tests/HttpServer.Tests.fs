@@ -43,7 +43,7 @@ type Test =
 
 
 // Bind test listeners through the production host boundary; test setup is trusted.
-let private bindListener (port : int) : Task<System.Net.HttpListener> =
+let bindListener (port : int) : Task<System.Net.HttpListener> =
   task {
     let access =
       LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
@@ -185,7 +185,7 @@ module ParseTest =
 /// Allocate a free TCP port on loopback. Brief race: another process could
 /// grab the port between Stop() and the listener using it, but in practice
 /// loopback ephemeral ports are fine for in-process tests.
-let private allocateFreePort () : int =
+let allocateFreePort () : int =
   let listener = new TcpListener(IPAddress.Loopback, 0)
   listener.Start()
   let port = (listener.LocalEndpoint :?> IPEndPoint).Port

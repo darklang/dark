@@ -1064,6 +1064,75 @@ module DictKeyOrdering =
         equalityIsNotTransitive ]
 
 
+/// Reload is name resolution, not code replacement (live programming's H2). The caches that key on
+/// a HASH keep answering after an edit, and they are right to: a hash's body never changes. The
+/// caches that key on a NAME are dropped (`LibDB.Caching.invalidateAll`), and the next lookup sees
+/// the new binding. So a fn reference held as a value keeps running the version it was made from,
+/// and a fresh lookup of the same name runs the new one.
+module Reload =
+  let private m = "InterpReload"
+  let private loc (name : string) : PT.PackageLocation =
+    { owner = "Darklang"; modules = [ m ]; name = name }
+
+  let private applicableFor (hash : PT.Hash) =
+    let (PT.Hash h) = hash
+    RT.AppNamedFn
+      { name = RT.FQFnName.fqPackage h
+        typeSymbolTable = RT.TST.empty
+        typeArgs = []
+        access = None
+        argsSoFar = [] }
+
+  let private call (state : RT.ExecutionState) (app : RT.Applicable) =
+    task {
+      match!
+        LibExecution.Execution.executeApplicable
+          state
+          state.access
+          app
+          (NEList.singleton RT.DUnit)
+        |> Ply.toTask
+      with
+      | Ok dv -> return dv
+      | Error(rte, _) -> return failtest $"the call raised: {rte}"
+    }
+
+  let heldReferencesKeepTheirHash =
+    testTask "a held fn reference keeps its version across an edit; a fresh lookup gets the new one" {
+      // Fresh bodies per run: the log is content-addressed, so a body it already holds is a
+      // re-binding of an old hash rather than the edit this test is about.
+      let one = int64 (System.Random.Shared.Next(1_000, 1_000_000_000))
+      let two = one + 1L
+      let! v1 = authorIntoMain $"module Darklang.{m}\n\nlet answer () : Int64 = {one}L"
+      let h1 = hashBoundTo v1 "answer"
+      let! state = executionStateFor pmPT false Map.empty
+      let held = applicableFor h1
+      let! before = call state held
+      Expect.equal before (RT.DInt64 one) "the first version answers"
+
+      let! v2 = authorIntoMain $"module Darklang.{m}\n\nlet answer () : Int64 = {two}L"
+      let h2 = hashBoundTo v2 "answer"
+      Expect.notEqual h1 h2 "the edit is a new hash"
+
+      // The write path dropped the name caches; a fresh lookup sees the new binding...
+      let! bound = pmPT.findFn (loc "answer") |> Ply.toTask
+      Expect.equal bound (Some h2) "the name now resolves to the new hash"
+      let! fresh = call state (applicableFor h2)
+      Expect.equal fresh (RT.DInt64 two) "and runs the new body"
+
+      // ...while the reference made before the edit, and the hash-keyed caches behind it, still
+      // run the old body. Nothing overwrote it.
+      let! after = call state held
+      Expect.equal after (RT.DInt64 one) "the held reference still answers as before"
+      let (PT.Hash h1s) = h1
+      Expect.isTrue
+        (state.packageFnCallCache.ContainsKey(RT.Hash h1s))
+        "the hash-keyed call cache kept the old version's entry"
+    }
+
+  let tests = testList "Reload" [ heldReferencesKeepTheirHash ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -1087,4 +1156,5 @@ let tests =
       Fns.tests
       Statement.tests
       SyncUnify.tests
-      DictKeyOrdering.tests ]
+      DictKeyOrdering.tests
+      Reload.tests ]

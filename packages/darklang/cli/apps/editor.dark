@@ -49,11 +49,13 @@ let refreshPresentation (state: State) : State =
         match app.target with
         | Daemon _ -> Command.daemonState app.slug
         | Foreground _ -> ""
+        | Views _ -> ""
       let recentLogs =
         if state.showDetail && idx == state.selected then
           match app.target with
           | Daemon _ -> Stdlib.Cli.Daemon.tailLog app.slug 5
           | Foreground _ -> []
+          | Views _ -> []
         else
           []
       AppPresentation {
@@ -100,6 +102,7 @@ let appRow (state: State) (width: Int) (idx: Int) (app: Model.App) : String =
   let runGlyph =
     match app.target with
     | Foreground _ -> " "
+    | Views _ -> " "
     | Daemon _ ->
       if isRunning then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "●"
       else if isStale then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "●"
@@ -308,6 +311,7 @@ let install (state: State) : State =
         | Ok _ -> { state with message = Stdlib.Cli.UI.Colors.success $"added {app.name} (run `{app.slug}` from the shell)" }
         | Error e -> { state with message = Stdlib.Cli.UI.Colors.error $"added {app.name}, but its shim failed: {e}" }
       | Daemon _ -> { state with message = Stdlib.Cli.UI.Colors.success $"added {app.name}" }
+      | Views _ -> { state with message = Stdlib.Cli.UI.Colors.success $"added {app.name} (open with `apps view {app.slug}`)" }
 
 /// `x` — uninstall the selected app (and remove its shim).
 let uninstall (state: State) : State =
@@ -328,9 +332,7 @@ let toggleDaemon (state: State) (app: Model.App) (entrypoint: String) : State =
     | Ok msg -> { state with message = Stdlib.Cli.UI.Colors.success msg }
     | Error e -> { state with message = Stdlib.Cli.UI.Colors.error e }
   else
-    let q = "\""
-    let expr = entrypoint ++ " " ++ q ++ app.slug ++ q
-    match Stdlib.Cli.Daemon.start app.slug expr with
+    match Stdlib.Cli.Daemon.startWith app.slug [ "apps", "daemon-main", app.slug ] with
     | Ok pid -> { state with message = Stdlib.Cli.UI.Colors.success $"started {app.name} (pid {Stdlib.Int.toString pid})" }
     | Error e -> { state with message = Stdlib.Cli.UI.Colors.error e }
 
@@ -341,6 +343,7 @@ let activate (state: State) : Action =
   | Some app ->
     match app.target with
     | Foreground command -> Action.LaunchFg command
+    | Views _ -> Action.LaunchFg $"apps view {app.slug}"
     | Daemon entrypoint ->
       Action.Continue
         (refreshPresentation (toggleDaemon state app entrypoint))

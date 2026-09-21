@@ -91,7 +91,12 @@ type Context =
     /// is the subject's own. A name inside the body resolves against its own
     /// candidates, where this location does not appear.
     preferredLocation:
-      Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> }
+      Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>
+
+    /// Live values: what a call produced the last time this code ran, keyed by the call's
+    /// expression id (as text), already rendered. A call with an entry prints with `// = <value>`
+    /// after it. Empty everywhere but the editor's panes.
+    liveValues: Dict<String, String> }
 
 module Context =
   let forBranch (branchId: Uuid) : Context =
@@ -100,7 +105,8 @@ module Context =
         currentModule = []
         currentFunction = Stdlib.Option.Option.None
         width = 80
-        preferredLocation = Stdlib.Option.Option.None }
+        preferredLocation = Stdlib.Option.Option.None
+        liveValues = Stdlib.Dict.empty }
 
   val forMain = forBranch Darklang.SCM.Branch.mainBranchId
 
@@ -115,7 +121,8 @@ module Context =
         currentModule = path
         currentFunction = Stdlib.Option.Option.None
         width = 80
-        preferredLocation = Stdlib.Option.Option.None }
+        preferredLocation = Stdlib.Option.Option.None
+        liveValues = Stdlib.Dict.empty }
 
   let toPickContext (ctx: Context) : LanguageTools.PackageManager.PickContext =
     LanguageTools.PackageManager.PickContext
@@ -831,11 +838,11 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   // every binding into two lines and a chain of four into eight.
   | ELet(_id, pattern, rhs, body) ->
     let binding =
-      Stdlib.Pretty.hang 2 (txt $"let {letPattern pattern} =") [ exprDoc ctx rhs ]
+      Stdlib.Pretty.hang 2 (txt $"let {letPattern pattern} =") [ lineDoc ctx rhs ]
 
     Stdlib.Pretty.concat
       binding
-      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (exprDoc ctx body))
+      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (lineDoc ctx body))
 
   // `| Some v -> Some(fn v)` on the arm's own line when it fits.
   | EMatch(_id, arg, cases) ->
@@ -852,7 +859,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
           if hasBareBitwiseOr case.rhs then
             parens (exprDoc ctx case.rhs)
           else
-            exprDoc ctx case.rhs
+            lineDoc ctx case.rhs
 
         Stdlib.Pretty.group (
           Stdlib.Pretty.concat
@@ -1036,14 +1043,41 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
   | EStatement(_id, first, next) ->
     Stdlib.Pretty.concat
-      (exprDoc ctx first)
-      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (exprDoc ctx next))
+      (lineDoc ctx first)
+      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (lineDoc ctx next))
 
   | e -> docOfText (exprString ctx e)
 
 
+/// An expression that ends its line: a `let`'s right-hand side, a block's last expression, a
+/// statement, a match arm's body. When the editor has a live value for the call there, it goes
+/// after the code as `// = value`. Only here: a value beside a call nested in an argument or an
+/// interpolated string would land in the middle of the code, and the comment would eat the rest
+/// of the line (`if c then f x // = 1 else g` loses its `else`). A call anywhere else is printed
+/// bare.
+let lineDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.Doc =
+  let doc = exprDoc ctx e
+
+  match e with
+  | EApply(id, _, _, _) ->
+    match Stdlib.Dict.get ctx.liveValues (Stdlib.Int64.toString id) with
+    | Some value ->
+      // Zero columns wide for layout (`Styled` measures only its middle), so the code breaks
+      // exactly as it does without the values, and the two prints line up line for line.
+      // The LSP relies on that to place its hints.
+      Stdlib.Pretty.concat doc (Stdlib.Pretty.styled $" // = {value}" "" "")
+    | None -> doc
+  | _ -> doc
+
+
 let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   Stdlib.Pretty.render ctx.width (exprDoc ctx e)
+
+
+/// `expr`, for a function's whole body: the body's last expression ends a line, so a live value
+/// for it is shown.
+let bodyExpr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
+  Stdlib.Pretty.render ctx.width (lineDoc ctx e)
 
 
 /// The original string-building printer, still handling every construct the Doc layer hasn't taken over.
@@ -1504,7 +1538,7 @@ let packageFn
         currentFunction = Stdlib.Option.Option.Some((namePart, argMap))
         width = Stdlib.Int.max 1 (ctx.width - 2) }
 
-  let bodyPart = expr contextWithFn p.body
+  let bodyPart = bodyExpr contextWithFn p.body
 
   let docComment = formatDocComment p.description
 

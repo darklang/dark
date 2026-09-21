@@ -4,6 +4,20 @@ module Darklang.Cli.Text
 
 // "1 value" / "2 values" — a count with its noun pluralized by the English rule in `Stdlib.String.pluralize`,
 // so no CLI message reads "1 value(s)". The linguistic rule lives in stdlib; this just pairs it with a count.
+/// <param text> as lines no wider than <param width>, broken at spaces, every line after the first
+/// carrying <param indent>. What every line a person reads at a save goes through: an 80-column
+/// terminal is the floor, and a wrapped line keeps its shape.
+let wrap (width: Int) (indent: String) (text: String) : List<String> =
+  let room = Stdlib.Int.max 20 (width - (Stdlib.String.length indent))
+
+  match Stdlib.Cli.Tui.Text.wrapAtWords text room with
+  | [] -> [ indent ++ text ]
+  | first :: rest -> Stdlib.List.append [ indent ++ first ] (rest |> Stdlib.List.map (fun l -> indent ++ l))
+
+/// Print <param text> wrapped at 80 columns, indented by <param indent>, in <param colour>.
+let printWrapped (colour: String -> String) (indent: String) (text: String) : Unit =
+  wrap 80 indent text |> Stdlib.List.iter (fun l -> Stdlib.printLine (colour l))
+
 let plural (n: Int) (noun: String) : String =
   if n == 1 then
     $"{Stdlib.Int.toString n} {noun}"

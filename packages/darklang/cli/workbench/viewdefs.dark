@@ -59,4 +59,13 @@ let extensionViews () : List<ViewDef> =
         loadItems = loadBuiltinItems
         render = renderBuiltins
         detail = builtinDetailLines
-        hints = builtinHints } ]
+        hints = builtinHints }
+    ViewDef
+      { id = "processes"
+        name = "Processes"
+        gateKey = ""
+        behavior = ViewBehavior.Split
+        loadItems = loadProcessItems
+        render = renderProcesses
+        detail = processDetailLines
+        hints = processHints } ]

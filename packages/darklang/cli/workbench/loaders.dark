@@ -585,6 +585,46 @@ let forceScmRefresh (state: State) : State =
 /// cache serves the pre-edit fn until the CLI restarts. That's above this fn.
 ///
 /// The `vMatter` test matches `detailLines`'.
+/// Live values for the selected fn (Matter view): its last recorded call, run again through the
+/// code as it is now, each call's value rendered for the printer to put beside it. Runs user code,
+/// so it happens here on the transition. Nothing recorded, or a run that fails, leaves the pane as
+/// it was: the source, with no values beside it.
+let refreshLiveValues (next: State) : State =
+  let values =
+    if next.activeView != vMatter then
+      Stdlib.Dict.empty
+    else
+      match Stdlib.List.getAt next.items next.selected with
+      | Some item when (Stdlib.Bool.not item.isModule) && (item.kind == "fn") ->
+        let entry =
+          LanguageTools.ProgramTypes.PackageLocation
+            { owner = Stdlib.List.head (modulePathOf next.location) |> Stdlib.Option.withDefault ""
+              modules = Stdlib.List.drop (modulePathOf next.location) 1
+              name = item.name }
+
+        match Stdlib.Live.Values.replay next.branchId entry with
+        | Some v ->
+          // One line each, and short: a value beside a call is a glance, and the pane's width
+          // is the code's. `dark traces view` has the whole value.
+          v.byExpr
+          |> Stdlib.Dict.map (fun _ dv ->
+            let text =
+              PrettyPrinter.RuntimeTypes.dvalWith
+                next.branchId
+                { PrettyPrinter.DisplayOptions.default with
+                    width = 60
+                    maxDepth = Stdlib.Option.Option.Some 2 }
+                dv
+
+            let oneLine =
+              text |> Stdlib.String.split "\n" |> Stdlib.List.map Stdlib.String.trim |> Stdlib.String.join " "
+
+            if (Stdlib.String.length oneLine) > 40 then (Stdlib.String.slice oneLine 0 37) ++ "..." else oneLine)
+        | None -> Stdlib.Dict.empty
+      | _ -> Stdlib.Dict.empty
+
+  { next with liveValues = values }
+
 let refreshPeek (next: State) : State =
   let peek =
     if (next.activeView != vMatter) || (next.matter.lens == Lens.ValuesOnly) then

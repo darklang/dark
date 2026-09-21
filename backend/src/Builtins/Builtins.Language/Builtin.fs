@@ -9,5 +9,6 @@ let builtins () =
     [ Libs.LanguageTools.builtins ()
       Libs.Parser.builtins ()
       Libs.Reflection.builtins ()
-      Libs.Instrumentation.builtins () ]
+      Libs.Instrumentation.builtins ()
+      Libs.Exec.builtins () ]
     fnRenames

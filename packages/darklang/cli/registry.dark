@@ -93,6 +93,8 @@ module Registry =
       ("sync", "Push then pull against a relay (`sync setup` to get started)", [], Cli.Setup.executeSyncCmd, Cli.Sync.help, Cli.Sync.complete)
       ("ops", "Read this instance's op log", [], Ops.execute, Ops.help, Ops.complete)
       ("apps", "List, install, and manage apps (daemons, foreground, UI)", [], Apps.Command.execute, Apps.Command.help, Apps.Command.complete)
+      ("ps", "What this instance is running right now", [], Cli.Ps.execute, Cli.Ps.help, Cli.Ps.complete)
+      ("exec", "The runs this instance has kept; resume or fork one", [], Cli.Exec.execute, Cli.Exec.help, Cli.Exec.complete)
       ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete)
       ("workbench", "Open the workbench -- a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], Workbench.execute, Workbench.help, Workbench.complete) ]
     |> Stdlib.List.map(
@@ -202,7 +204,7 @@ module Registry =
        [ "status", "commit", "commits", "show", "discard", "undo", "propagate", "conflicts", "constraints", "ack", "ops" ])
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
       ("Sync", [ "sync", "push", "pull", "connect", "review", "whoami", "identity", "backups" ])
-      ("Execution", [ "run-script", "eval", "scripts" ])
+      ("Execution", [ "run-script", "eval", "scripts", "ps", "exec" ])
       ("Installation", [ "install", "update", "uninstall", "version" ])
       ("AI", [ "agent" ])
       ("Security", [ "permissions" ])

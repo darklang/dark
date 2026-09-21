@@ -1,6 +1,7 @@
+/// Package statistics as a `Node` tree: one `render` for the gallery's preview, the one-shot
+/// `views package-stats` print, and a live pane.
 module Darklang.Cli.Apps.Views.PackageStats
 
-/// Demo data for package statistics
 type ModuleStats =
   { name: String
     fnCount: Int
@@ -8,6 +9,11 @@ type ModuleStats =
     valueCount: Int
     submodules: Int }
 
+type Model = { stats: List<ModuleStats> }
+
+type Msg = | Refresh
+
+/// Demo data. The real counts want `SCM.Deps`-shaped silo reads per owner; not yet.
 let demoStats () : List<ModuleStats> =
   [ ModuleStats { name = "Darklang.Stdlib"; fnCount = 247; typeCount = 42; valueCount = 18; submodules = 23 }
     ModuleStats { name = "Darklang.Cli"; fnCount = 89; typeCount = 31; valueCount = 12; submodules = 15 }
@@ -17,105 +23,53 @@ let demoStats () : List<ModuleStats> =
     ModuleStats { name = "Darklang.LLM"; fnCount = 22; typeCount = 11; valueCount = 6; submodules = 3 }
     ModuleStats { name = "Darklang.Test"; fnCount = 34; typeCount = 8; valueCount = 2; submodules = 5 } ]
 
+let init () : Model = Model { stats = demoStats () }
 
-let padRight (s: String) (width: Int) : String =
-  Stdlib.Cli.Tui.Text.fitToWidth s width
+let update (m: Model) (event: Host.Event<Msg>) : Model =
+  match event with
+  | Msg Refresh -> init ()
+  | Key _ -> m
 
-/// Exactly `width` terminal columns, right-aligned.
-let padLeft (s: String) (width: Int) : String =
-  Stdlib.String.padStartToWidth (Stdlib.Cli.Tui.Text.clipToWidth s width) width
+/// A proportion as a run of blocks, a cell in the table.
+let bar (value: Int) (maxVal: Int) (width: Int) : String =
+  let filled = if maxVal == 0 then 0 else Stdlib.Int.divide (value * width) maxVal
+  (Stdlib.String.repeat "█" filled) ++ (Stdlib.String.repeat "░" (width - filled))
 
-let bar (value: Int) (maxVal: Int) (width: Int) (color: String) : String =
-  let barLen =
-    if maxVal == 0 then 0
-    else Stdlib.Int.divide (value * width) maxVal
-  let filled = Stdlib.String.repeat "█" (barLen)
-  let empty = Stdlib.String.repeat "░" ((width - barLen))
-  (Darklang.Stdlib.Cli.UI.Colors.colorize color filled) ++ (Darklang.Stdlib.Cli.UI.Colors.dimText empty)
+let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
+  let stats = m.stats
+  let total (f: ModuleStats -> Int) : Int = stats |> Stdlib.List.fold 0 (fun acc s -> acc + (f s))
+  let maxFns = stats |> Stdlib.List.fold 0 (fun acc s -> Stdlib.Int.max acc s.fnCount)
 
+  let summary =
+    Stdlib.Cli.UI.Node.row
+      [ Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Success (Stdlib.Cli.UI.Node.text $" {Stdlib.Int.toString (total (fun s -> s.fnCount))} fns ")
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Info (Stdlib.Cli.UI.Node.text $" {Stdlib.Int.toString (total (fun s -> s.typeCount))} types ")
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Highlight (Stdlib.Cli.UI.Node.text $" {Stdlib.Int.toString (total (fun s -> s.valueCount))} values ")
+        Stdlib.Cli.UI.Node.dim $" {Stdlib.Int.toString (total (fun s -> s.submodules))} modules " ]
 
-/// Build the complete package-statistics dashboard without terminal I/O.
-let rowsAtSize
-  (size: Darklang.Stdlib.Cli.Tui.Size)
-  : List<String> =
-  let stats = demoStats ()
-  let termCols = Stdlib.Int.max 1 size.width
-
-  let totalFns = Stdlib.List.fold stats 0 (fun acc s -> acc + s.fnCount)
-  let totalTypes = Stdlib.List.fold stats 0 (fun acc s -> acc + s.typeCount)
-  let totalValues = Stdlib.List.fold stats 0 (fun acc s -> acc + s.valueCount)
-  let totalModules = Stdlib.List.fold stats 0 (fun acc s -> acc + s.submodules)
-
-  let summaryLine =
-    "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgGreen ++ Darklang.Stdlib.Cli.UI.Colors.black ++ Darklang.Stdlib.Cli.UI.Colors.bold) (" " ++ Stdlib.Int.toString totalFns ++ " fns ")
-    ++ "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgBlue ++ Darklang.Stdlib.Cli.UI.Colors.white ++ Darklang.Stdlib.Cli.UI.Colors.bold) (" " ++ Stdlib.Int.toString totalTypes ++ " types ")
-    ++ "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgMagenta ++ Darklang.Stdlib.Cli.UI.Colors.white ++ Darklang.Stdlib.Cli.UI.Colors.bold) (" " ++ Stdlib.Int.toString totalValues ++ " values ")
-    ++ "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.grayBg ++ Darklang.Stdlib.Cli.UI.Colors.white ++ Darklang.Stdlib.Cli.UI.Colors.bold) (" " ++ Stdlib.Int.toString totalModules ++ " modules ")
-  let divider =
-    Darklang.Stdlib.Cli.UI.Colors.dimText
-      (Stdlib.String.repeat "─" termCols)
-
-  let boldDim = Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.dim
-  let headerLine =
-    "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize boldDim (padRight "MODULE" 30)
-    ++ "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize boldDim (padLeft "FNS" 6)
-    ++ "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize boldDim (padLeft "TYPES" 6)
-    ++ "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize boldDim (padLeft "VALS" 6)
-    ++ "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize boldDim (padLeft "MODS" 6)
-    ++ "  "
-    ++ Darklang.Stdlib.Cli.UI.Colors.colorize boldDim "FUNCTIONS"
-  let maxFns =
-    stats
-    |> Stdlib.List.map (fun s -> s.fnCount)
-    |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
-
-  let moduleRows =
+  let rows =
     stats
     |> Stdlib.List.map (fun s ->
-      let total = s.fnCount + s.typeCount + s.valueCount
-      let nameStr =
-        if total > 100 then
-          Darklang.Stdlib.Cli.UI.Colors.boldText (padRight s.name 30)
-        else
-          padRight s.name 30
-      let fnStr = Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.green (padLeft (Stdlib.Int.toString s.fnCount) 6)
-      let typeStr = Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.blue (padLeft (Stdlib.Int.toString s.typeCount) 6)
-      let valStr = Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.magenta (padLeft (Stdlib.Int.toString s.valueCount) 6)
-      let modStr = Darklang.Stdlib.Cli.UI.Colors.dimText (padLeft (Stdlib.Int.toString s.submodules) 6)
-      let barStr = bar s.fnCount maxFns 20 Darklang.Stdlib.Cli.UI.Colors.green
+      [ s.name
+        Stdlib.Int.toString s.fnCount
+        Stdlib.Int.toString s.typeCount
+        Stdlib.Int.toString s.valueCount
+        Stdlib.Int.toString s.submodules
+        bar s.fnCount maxFns 20 ])
 
-      "  " ++ nameStr ++ "  " ++ fnStr ++ "  " ++ typeStr ++ "  " ++ valStr ++ "  " ++ modStr ++ "  " ++ barStr)
+  Stdlib.Cli.UI.Node.column
+    [ Stdlib.Cli.UI.Node.row
+        [ Stdlib.Cli.UI.Node.bold "Package Statistics"
+          Stdlib.Cli.UI.Node.dim $"{Stdlib.Int.toString (Stdlib.List.length stats)} top-level modules" ]
+      Stdlib.Cli.UI.Node.text ""
+      summary
+      Stdlib.Cli.UI.Node.text ""
+      Stdlib.Cli.UI.Node.table [ "MODULE", "FNS", "TYPES", "VALS", "MODS", "FUNCTIONS" ] rows
+      Stdlib.Cli.UI.Node.text ""
+      Stdlib.Cli.UI.Node.row
+        [ Stdlib.Cli.UI.Node.Node.Button("refresh", Msg.Refresh)
+          Stdlib.Cli.UI.Node.dim "Esc: quit" ] ]
 
-  let hints =
-    ("  "
-     ++ Darklang.Stdlib.Cli.UI.Colors.dimText "[q]" ++ " quit   "
-     ++ Darklang.Stdlib.Cli.UI.Colors.dimText "[s]" ++ " sort by column   "
-     ++ Darklang.Stdlib.Cli.UI.Colors.dimText "[/]" ++ " filter")
-
-  Stdlib.List.flatten [
-    [ ""
-      "  "
-      ++ Darklang.Stdlib.Cli.UI.Colors.boldText "Package Statistics"
-      ++ "  "
-      ++ Darklang.Stdlib.Cli.UI.Colors.dimText
-          ("—  "
-           ++ Stdlib.Int.toString (Stdlib.List.length stats)
-           ++ " top-level modules")
-      ""
-      summaryLine
-      ""
-      divider
-      headerLine
-      divider ]
-    moduleRows
-    [ divider, "", hints, "" ]
-  ]
+/// The gallery's rows: the tree, painted at the terminal's width.
+let rowsAtSize (size: Darklang.Stdlib.Cli.Tui.Size) : List<String> =
+  Stdlib.Cli.UI.Node.toLines (render (init ())) size.width

@@ -1,0 +1,176 @@
+/// `dark ps`: what is running in this instance right now.
+///
+/// The data is `Stdlib.Exec.list`/`inspect`/`kill`; this file only renders it. One scheduler
+/// per OS process, so this shows the processes of the `dark` you are in: from a shell that is
+/// the CLI itself plus whatever it spawned (each `eval` expression is one); from the workbench
+/// or a REPL it is everything that instance is running.
+module Darklang.Cli.Ps
+
+
+let idPrefix (id: Uuid) : String =
+  Stdlib.String.slice (Stdlib.Uuid.toString id) 0 8
+
+
+let entryText (branchId: Uuid) (entry: Stdlib.Exec.Entry) : String =
+  match entry with
+  | Function name -> PrettyPrinter.RuntimeTypes.fnName branchId name
+  | Expr -> "an eval expression"
+
+
+let eventSpecText (spec: Stdlib.Host.EventSpec) : String =
+  match spec with
+  | Key -> "a key"
+  | StoreChanged -> "a store change"
+  | Timer ms -> $"a timer ({Stdlib.Int64.toString ms} ms)"
+  | ExecDone id -> $"process {idPrefix id} to finish"
+
+
+let parkedText (branchId: Uuid) (parked: Stdlib.Exec.ParkedOn) : String =
+  match parked with
+  // The builtin's bare name: `Builtin.` says nothing a reader of this column needs.
+  | Builtin b -> b.name
+  | PackageFn h -> PrettyPrinter.RuntimeTypes.FQFnName.package branchId h
+  | Lambda -> "a lambda"
+  | RareOpcode -> "the store"
+  | Events specs -> specs |> Stdlib.List.map eventSpecText |> Stdlib.String.join " or "
+  | Process id -> $"process {idPrefix id}"
+
+
+let statusText (branchId: Uuid) (status: Stdlib.Exec.Status) : String =
+  match status with
+  | Runnable -> "running"
+  | Parked on ->
+    match on with
+    | Events _ -> $"waiting for {parkedText branchId on}"
+    | Process _ -> $"waiting for {parkedText branchId on}"
+    | _ -> $"waiting on {parkedText branchId on}"
+  | Done -> "finished"
+  | Failed rte ->
+    let message = PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId rte
+    $"failed: {message}"
+
+
+let row (branchId: Uuid) (p: Stdlib.Exec.Summary) : List<String> =
+  let parent =
+    match p.parent with
+    | Some id -> idPrefix id
+    | None -> ""
+  [ idPrefix p.id
+    entryText branchId p.entry
+    statusText branchId p.status
+    Stdlib.Int64.toString p.slices
+    parent ]
+
+
+let executionPointText (branchId: Uuid) (ep: Stdlib.Exec.ExecutionPoint) : String =
+  match ep with
+  | Source -> "(the entry point)"
+  | Function name -> PrettyPrinter.RuntimeTypes.fnName branchId name
+  | Lambda(parent, _exprId) -> $"a lambda in {executionPointText branchId parent}"
+
+
+/// The process whose id starts with `prefix`, when exactly one does.
+let find (prefix: String) : Stdlib.Result.Result<Stdlib.Exec.Summary, String> =
+  let matches =
+    Stdlib.Exec.list ()
+    |> Stdlib.List.filter (fun p -> Stdlib.String.startsWith (Stdlib.Uuid.toString p.id) prefix)
+  match matches with
+  | [ one ] -> Stdlib.Result.Result.Ok one
+  | [] -> Stdlib.Result.Result.Error $"no process whose id starts with {prefix}"
+  | _ -> Stdlib.Result.Result.Error $"more than one process starts with {prefix}; give more of the id"
+
+
+let printList (branchId: Uuid) : Unit =
+  let rows = Stdlib.Exec.list () |> Stdlib.List.map (fun p -> row branchId p)
+  Stdlib.Cli.UI.Table.print [ "id", "entry", "status", "turns", "parent" ] rows
+
+
+/// "0.3 s ago", "12 s ago", "4 min ago": how long a process has been running, at a glance.
+let startedAgo (started: DateTime) : String =
+  let ms = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) started
+
+  if ms < 10000 then
+    let tenths = Stdlib.Int.divide ms 100
+    $"{Stdlib.Int.toString (Stdlib.Int.divide tenths 10)}.{Stdlib.Int.toString (Stdlib.Int.``mod`` tenths 10)} s ago"
+  else if ms < 60000 then
+    $"{Stdlib.Int.toString (Stdlib.Int.divide ms 1000)} s ago"
+  else
+    $"{Stdlib.Int.toString (Stdlib.Int.divide ms 60000)} min ago"
+
+
+/// One process in full. The short id names it, as everywhere else; <param full> adds the whole uuid.
+let printShowWith (branchId: Uuid) (prefix: String) (full: Bool) : Unit =
+  match find prefix with
+  | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+  | Ok p ->
+    match Stdlib.Exec.inspect p.id with
+    | None -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"process {idPrefix p.id} is gone")
+    | Some detail ->
+      let s = detail.summary
+      let id = if full then Stdlib.Uuid.toString s.id else idPrefix s.id
+      Stdlib.printLine $"{id}  {entryText branchId s.entry}"
+      Stdlib.printLine $"  status   {statusText branchId s.status}"
+      Stdlib.printLine $"  started  {startedAgo s.started}"
+      Stdlib.printLine $"  turns    {Stdlib.Int64.toString s.slices}"
+      if s.inflight > 0L then
+        Stdlib.printLine $"  reads in flight  {Stdlib.Int64.toString s.inflight}"
+      else
+        ()
+      match s.parent with
+      | Some pid -> Stdlib.printLine $"  parent   {if full then Stdlib.Uuid.toString pid else idPrefix pid}"
+      | None -> ()
+      match detail.frames with
+      | [] -> ()
+      | frames ->
+        Stdlib.printLine "  call stack (outermost first):"
+        frames
+        |> Stdlib.List.iter (fun ep ->
+          Stdlib.printLine $"    {executionPointText branchId ep}")
+
+let printShow (branchId: Uuid) (prefix: String) : Unit = printShowWith branchId prefix false
+
+/// The table, then every process in full: `dark eval 'Darklang.Cli.Ps.printAll ()'` from inside an
+/// eval is the one line that shows a parent and its child with both stacks.
+let printAll () : Unit =
+  let branchId = SCM.PackageOps.currentBranch ()
+  printList branchId
+  Stdlib.Exec.list ()
+  |> Stdlib.List.iter (fun p ->
+    Stdlib.printLine ""
+    printShow branchId (idPrefix p.id))
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> printList state.currentBranchId
+  | [ "show", prefix ] -> printShow state.currentBranchId prefix
+  | [ "show", prefix, "--full" ] -> printShowWith state.currentBranchId prefix true
+  | [ "kill", prefix ] ->
+    match find prefix with
+    | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+    | Ok p ->
+      if Stdlib.Exec.kill p.id then
+        Stdlib.printLine $"asked process {idPrefix p.id} to stop; it ends at its next turn"
+      else
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"process {idPrefix p.id} is gone")
+  | _ -> Stdlib.printLine (help state)
+  state
+
+
+let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+  match args with
+  | [] -> [ "show", "kill" ] |> Stdlib.List.map Completion.simple
+  | _ -> []
+
+
+let help (_state: AppState) : String =
+  [ "Usage: ps"
+    "       ps show <id-prefix> [--full]"
+    "       ps kill <id-prefix>"
+    ""
+    "What this instance is running: every process its scheduler knows, oldest first."
+    "`show` adds the call stack; `kill` asks one to stop at its next turn."
+    ""
+    "A process is a wrapped VM the scheduler steps; the CLI's own run is one, and so is"
+    "each expression an `eval` runs. See docs/processes.md in the repo." ]
+  |> Stdlib.String.join "\n"

@@ -16,11 +16,35 @@ module PM = TestValues.PM
 open TestUtils.PTShortcuts
 
 
+/// Every call is followed by `TraceExpr(exprId, resultReg)`, the live-values hook
+/// (`docs/live.md`, "Live values"). The expectations below were written for the
+/// instruction stream without it and are about everything else, so it is dropped
+/// before comparing; `LiveValues.traceExprFollowsEveryCall` checks it on its own. A
+/// jump that spans a call counts the hook too, so those offsets are one more than
+/// the plain stream would have.
+let rec withoutTraceExpr (instrs : List<RT.Instruction>) : List<RT.Instruction> =
+  instrs
+  |> List.choose (fun i ->
+    match i with
+    | RT.TraceExpr _ -> None
+    | RT.CreateLambda(reg, lambda) ->
+      Some(
+        RT.CreateLambda(
+          reg,
+          { lambda with
+              instructions =
+                { lambda.instructions with
+                    instructions = withoutTraceExpr lambda.instructions.instructions } }
+        )
+      )
+    | i -> Some i)
+
 module Expr =
   let t name expr expected =
     testTask name {
       let actual = PT2RT.Expr.toRT Map.empty 0 None expr
-      let actual = (actual.registerCount, actual.instructions, actual.resultIn)
+      let actual =
+        (actual.registerCount, withoutTraceExpr actual.instructions, actual.resultIn)
       return Expect.equal actual expected ""
     }
 
@@ -364,10 +388,10 @@ module Expr =
            RT.CheckMatchPatternAndExtractVars(0, RT.MPInt64 1L, 3)
            RT.LoadVal(2, RT.DString "first branch")
            RT.CopyVal(1, 2)
-           RT.JumpBy 12
+           RT.JumpBy 14
 
            // second branch
-           RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable 2, 10)
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable 2, 12)
            RT.LoadVal(3, RT.DInt64 2L)
            RT.LoadVal(
              4,
@@ -520,7 +544,7 @@ module Expr =
                  (RT.MPTuple(RT.MPVariable 4, RT.MPInt64 2L, []))
                  [ RT.MPTuple(RT.MPInt64 2L, RT.MPVariable 4, []) ]
              )),
-             7
+             8
            )
            RT.LoadVal(5, RT.DInt64 1L)
            RT.LoadVal(
@@ -1687,7 +1711,8 @@ module PackageFn =
           permissionCeiling = None }
 
       let actual = PT2RT.PackageFn.toRT fn |> _.body
-      let actual = (actual.registerCount, actual.instructions, actual.resultIn)
+      let actual =
+        (actual.registerCount, withoutTraceExpr actual.instructions, actual.resultIn)
       return Expect.equal actual expected ""
     }
 
@@ -1731,4 +1756,36 @@ module PackageFn =
   let tests = testList "PackageFn" [ Basic.tests ]
 
 
-let tests = testList "ProgramTypesToRuntimeTypes" [ Expr.tests; PackageFn.tests ]
+module LiveValues =
+  /// The hook the live values ride on: right after a call's `Apply`, a `TraceExpr`
+  /// carrying the `EApply`'s own id and the register the result landed in.
+  let traceExprFollowsEveryCall =
+    testTask "every EApply is followed by TraceExpr with its id and result register" {
+      let expr = E.Fns.Builtin.fullyApplied
+      let exprId =
+        match expr with
+        | PT.EApply(id, _, _, _) -> id
+        | other -> failtest $"expected an EApply, got {other}"
+      let actual = PT2RT.Expr.toRT Map.empty 0 None expr
+      let hook =
+        actual.instructions
+        |> List.pairwise
+        |> List.tryPick (fun pair ->
+          match pair with
+          | RT.Apply(resultReg, _, _, _), RT.TraceExpr(id, reg) ->
+            Some(id, reg, resultReg)
+          | _ -> None)
+      match hook with
+      | Some(id, reg, resultReg) ->
+        Expect.equal id exprId "the hook names the EApply"
+        Expect.equal reg resultReg "and the register the call's result is in"
+      | None -> failtest "no TraceExpr followed the Apply"
+    }
+
+  let tests = testList "LiveValues" [ traceExprFollowsEveryCall ]
+
+
+let tests =
+  testList
+    "ProgramTypesToRuntimeTypes"
+    [ Expr.tests; PackageFn.tests; LiveValues.tests ]

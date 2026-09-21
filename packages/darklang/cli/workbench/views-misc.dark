@@ -225,3 +225,74 @@ let builtinDetailLines (state: State) : List<String> =
         Stdlib.Cli.UI.Colors.dimText ("builtin  ·  " ++ (Darklang.Cli.Builtins.purityTag fn.purity))
         ""
         fn.description ]
+
+
+// ── Processes: `dark ps` as a pane ──
+//
+// Live's first consumer of the scheduler's data: the process table (`Stdlib.Exec.list`) as a
+// `Node` tree, painted into the pane. One row per process; the selected row's call stack
+// (`Stdlib.Exec.inspect`) is the detail. Refreshed on every transition, like every other loader:
+// the table is what the scheduler holds at that moment.
+
+let loadProcessItems () : List<BodyItem> =
+  Stdlib.Exec.list ()
+  |> Stdlib.List.map (fun p ->
+    BodyItem
+      { name = Cli.Ps.idPrefix p.id
+        kind = "process"
+        isModule = false
+        desc = Cli.Ps.entryText SCM.Branch.mainBranchId p.entry })
+
+/// The table as a tree. `render` is pure over the state: the rows were read by the loader.
+let processTree (state: State) : Stdlib.Cli.UI.Node.Node<Unit> =
+  let branchId = state.branchId
+  let rows = Stdlib.Exec.list () |> Stdlib.List.map (fun p -> Cli.Ps.row branchId p)
+
+  if Stdlib.List.isEmpty rows then
+    Stdlib.Cli.UI.Node.dim "(no processes: the scheduler is not running this workbench)"
+  else
+    Stdlib.Cli.UI.Node.column
+      [ Stdlib.Cli.UI.Node.table [ "id", "entry", "status", "slices", "parent" ] rows
+        Stdlib.Cli.UI.Node.text ""
+        Stdlib.Cli.UI.Node.dim "the selected row's call stack is on the right; `dark ps show <id>` has all of it" ]
+
+/// The table on the left, the selected process's stack on the right.
+let renderProcesses (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
+  let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
+
+  paneSplit
+    region
+    60
+    state.focus
+    (paneTitle "Processes" (listTrailer state "process") listFocused)
+    (fun r ->
+      // The tree, with the selected row marked: the list pane IS the table, so the cursor has to
+      // be drawn on it rather than on a separate list of names.
+      let lines = Stdlib.Cli.UI.Node.toRows (processTree state) r.cols ""
+      let marked =
+        lines
+        |> Stdlib.List.indexedMap (fun i line ->
+          // Row 0 is the header, row 1 the rule; the processes start at row 2.
+          if i == state.selected + 2 then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.selection line
+          else line)
+      renderScrollableLines r 0 lines marked 0)
+    (paneTitle "Stack" [] detailFocused)
+    (fun r -> renderPreview state r)
+
+let processDetailLines (state: State) : List<String> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> []
+  | Some item ->
+    match Cli.Ps.find item.name with
+    | Error e -> [ e ]
+    | Ok p ->
+      match Stdlib.Exec.inspect p.id with
+      | None -> [ "gone" ]
+      | Some d ->
+        Stdlib.List.append
+          [ Cli.Ps.statusText state.branchId d.summary.status, "" ]
+          (d.frames |> Stdlib.List.map (fun ep -> Cli.Ps.executionPointText state.branchId ep))
+
+let processHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "select"), ("5", "back to Apps"), ("", "`dark ps kill <id>` stops one") ]

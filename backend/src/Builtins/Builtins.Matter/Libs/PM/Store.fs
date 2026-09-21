@@ -31,6 +31,13 @@ let private requireBundledCaller
     |> raiseUntargetedRTE
 
 
+/// The watch behind `Stdlib.Host.await` (see `hostWatchGet` below). One per process: one host
+/// loop runs per process today; a second loop in the same process would share its view of "what
+/// have I reported", which is what per-process state under the scheduler's cores step fixes.
+module HostWatch =
+  let mutable watch : Option<Dval> = None
+
+
 let fns () : List<BuiltInFn> =
   [
     // This instance's OWN package store path (data.db). The op-log builtins write ops here; the sync config
@@ -223,6 +230,86 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    // The store-change signal for a process that stays up (a TUI, `serve`, a daemon). See
+    // `LibDB.Sqlite.DataVersion`: a counter that moves when a commit lands through any other
+    // connection, so a host loop can ask "anything new?" for the cost of one pragma instead of
+    // re-reading the log. Comparable only with an earlier answer from the same process.
+    { name = fn "storeVersion" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TInt
+      description =
+        "The store's change counter as this process sees it: moves whenever a commit lands "
+        + "through another connection. Only \"same as before\" or \"moved\" means anything."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply { return Dval.int (bigint (LibDB.Sqlite.DataVersion.current ())) }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      // `PackageRead`, like every other question about the package store: `DbRead` is the scoped
+      // effect for a user table, and this names no table.
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    // The one slot `Stdlib.Host.await` keeps its `Stdlib.Live.Watch` in between calls: the runtime
+    // says the store MOVED (a counter, from a timer), and Dark says which ops landed by polling
+    // from where its last look left off. `await` takes no state, and a Dark value cannot outlive
+    // the call that made it, so the watch lives here. Nothing else may use this.
+    { name = fn "hostWatchGet" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TypeReference.option (TVariable "a")
+      description = "`Host.await`'s watch, if one has been stored."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            match HostWatch.watch with
+            | Some w ->
+              return
+                DEnum(
+                  Dval.optionType (),
+                  Dval.optionType (),
+                  [ ValueType.Unknown ],
+                  "Some",
+                  [ w ]
+                )
+            | None ->
+              return
+                DEnum(
+                  Dval.optionType (),
+                  Dval.optionType (),
+                  [ ValueType.Unknown ],
+                  "None",
+                  []
+                )
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+    { name = fn "hostWatchSet" 0
+      typeParams = []
+      parameters = [ Param.make "watch" (TVariable "a") "" ]
+      returnType = TUnit
+      description = "Store the watch for the next `Host.await`."
+      fn =
+        (function
+        | _, _, _, [| w |] ->
+          uply {
+            HostWatch.watch <- Some w
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated } ]
 
 

@@ -208,6 +208,9 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     // Streams are not persistable by design — lifetime is bounded by
     // the VM that produced them. Caller should drain to Blob first.
     raiseFormatError "Cannot serialize DStream — drain to a Blob first"
+  | DPromise _ ->
+    // Forced before any builtin and at the end of every run; nothing serializes one.
+    raiseFormatError "Cannot serialize a read still in flight"
   // Serialized as the decimal value (via DarkInt), so the wire format doesn't
   // depend on the Finite/Infinite representation.
   | DInt value ->

@@ -2,12 +2,27 @@
 /// an interactive tool you built, or a background daemon.
 module Darklang.Cli.Apps.Model
 
+/// A live view: three fns held by NAME and resolved as the store changes (`Stdlib.Live`), never as
+/// values. `init : Unit -> 'model`, `update : 'model -> Cli.Apps.Host.Event<'msg> -> 'model`,
+/// `render : 'model -> Stdlib.Cli.UI.Node.Node<'msg>`. The model stays in memory across an edit;
+/// `render` is a pure function of it.
+type View =
+  { /// What `dark apps view <slug> <name>` calls it.
+    name: String
+    /// The title bar.
+    title: String
+    init: String
+    update: String
+    render: String }
+
 /// How an app launches, and the reference it carries — one axis, no invalid states.
 type Target =
   /// a CLI command, dispatched in-process — `run` (attached)
   | Foreground of command: String
   /// a fully-qualified fn, `eval`'d detached — start / stop / status / logs
   | Daemon of entrypoint: String
+  /// live views, opened with `apps view <slug> [<name>]`; the first is the default
+  | Views of List<View>
 
 type App =
   { /// Pretty label for display, e.g. "Dark Packages HTTP Server".
@@ -53,20 +68,38 @@ let isValidEntrypointOf (target: Target) : Bool =
   match target with
   | Daemon entrypoint -> isValidEntrypoint entrypoint
   | Foreground _ -> true
+  | Views views ->
+    views
+    |> Stdlib.List.all (fun v ->
+      (isValidEntrypoint v.init) && (isValidEntrypoint v.update) && (isValidEntrypoint v.render))
 
 
 let kindTag (target: Target) : String =
   match target with
   | Foreground _ -> "foreground"
   | Daemon _ -> "daemon"
+  | Views _ -> "views"
 
 let isDaemon (target: Target) : Bool =
   match target with
   | Daemon _ -> true
   | Foreground _ -> false
+  | Views _ -> false
 
 /// The command name / fn the target carries (for display + the install shim).
 let reference (target: Target) : String =
   match target with
   | Foreground command -> command
   | Daemon entrypoint -> entrypoint
+  | Views views ->
+    views |> Stdlib.List.map (fun v -> v.render) |> Stdlib.String.join ", "
+
+/// The view called <param name> on this target, or the first when <param name> is "".
+let viewNamed (target: Target) (name: String) : Stdlib.Option.Option<View> =
+  match target with
+  | Views views ->
+    if name == "" then
+      Stdlib.List.head views
+    else
+      views |> Stdlib.List.findFirst (fun v -> v.name == name)
+  | _ -> Stdlib.Option.Option.None

@@ -265,7 +265,9 @@ let detailLines (state: State) : List<String> =
       // Wrapping in `renderScrollableLines` stays as the floor under a line no layout could shorten.
       let ctx =
         { PrettyPrinter.ProgramTypes.Context.forModule state.branchId modulePath with
-            width = previewInnerWidth state }
+            width = previewInnerWidth state
+            // The values beside the calls, from the last time this fn ran (`refreshLiveValues`).
+            liveValues = state.liveValues }
 
       let (src, accessReport) =
         match item.kind with

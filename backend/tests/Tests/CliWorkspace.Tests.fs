@@ -259,6 +259,1090 @@ let constraintsAndConflictsReportQuiet =
           "and resolve needs its three arguments"
     })
 
+// ─── live: running things follow your edits ──────────────────────────────
+
+// In this file rather than `HttpServer.Tests.fs` only because the CLI harness these need
+// compiles after it; the listener helpers are borrowed from there.
+
+module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module Execution = LibExecution.Execution
+open TestUtils.TestUtils
+open System.Threading
+open Prelude
+open Fumble
+open LibDB.Sqlite
+
+let private getText (port : int) : Task<int * string> =
+  task {
+    use client = new System.Net.Http.HttpClient()
+    let! response = client.GetAsync($"http://localhost:{port}/")
+    let! body = response.Content.ReadAsStringAsync()
+    return (int response.StatusCode, body)
+  }
+
+let private isNone (dv : RT.Dval) : bool =
+  match dv with
+  | RT.DEnum(_, _, _, "None", []) -> true
+  | _ -> false
+
+/// The Dark source for the test router's location.
+let private routerLocation =
+  "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\"; modules = [\"LiveHttp\"]; name = \"router\" }"
+
+/// The claim `dark serve` now makes: a saved edit is on the next request, a broken save is not.
+///
+/// In-process on purpose (`cliTest`): the listener and the author have to share one store, and the
+/// diagnostic the routing step prints has to be capturable. Authoring goes through the real `fn`
+/// command so propagation runs, which is what repoints the router at the edited callee.
+let private serveFollowsEdits =
+  cliTest "serve follows edits and keeps the last good version" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+
+      do! author "Tests.LiveHttp.page" "(): String = \"one\""
+      do!
+        author
+          "Tests.LiveHttp.router"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.LiveHttp.page ()) 200"
+
+      let! init =
+        evalUnder
+          state
+          $"Darklang.Stdlib.Live.Router.start Darklang.SCM.Branch.mainBranchId ({routerLocation})"
+      let! step = evalUnder state "Darklang.Stdlib.Live.Router.step"
+      let step =
+        match step with
+        | RT.DApplicable a -> a
+        | other -> failtest $"expected the step to be a fn, got {other}"
+
+      let port = Tests.HttpServer.allocateFreePort ()
+      let cts = new CancellationTokenSource()
+      let! listener = Tests.HttpServer.bindListener port
+
+      let listenerTask =
+        Builtins.Http.Server.Libs.HttpServer.runListenerLive
+          state
+          listener
+          (int64 port)
+          init
+          step
+          false
+          Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+          false
+          false
+          false
+          cts.Token
+
+      try
+        let! (status, body) = getText port
+        Expect.equal (status, body) (200, "one") "the version at start"
+
+        do! author "Tests.LiveHttp.page" "(): String = \"two\""
+        let! (_, body) = getText port
+        Expect.equal body "two" "an edit to a callee is on the next request"
+
+        // A body that does not match the declared return type: the save lands (WIP is yours to
+        // break), the router is repointed at it, and the check on what landed refuses it.
+        let! watch =
+          evalUnder
+            state
+            "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+        do! author "Tests.LiveHttp.page" "(): String = 3"
+        let! (status, body) = getText port
+        Expect.equal
+          (status, body)
+          (200, "two")
+          "a broken save keeps the last good version"
+
+        // The diagnostic the server printed went to its own thread's stdout, out of this flow's
+        // capture; ask the same question the routing step asked and check the words.
+        let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let change =
+          match polled with
+          | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ change ]), []) -> change
+          | other ->
+            failtest $"expected the broken save to be reported, got {other}"
+        let! routerLoc = evalUnder state routerLocation
+        let! why =
+          callByName
+            state
+            "Darklang.Stdlib.Live.diagnose"
+            [ RT.DUuid PT.BranchId.Main.Guid; change; routerLoc ]
+        let why =
+          match why with
+          | RT.DEnum(_, _, _, "Some", [ RT.DString s ]) -> s
+          | other -> failtest $"expected a diagnostic, got {other}"
+        Expect.stringContains
+          why
+          "still on the last good version"
+          "the diagnostic names what it kept"
+        Expect.stringContains why "expected String, got Int" "and says why"
+
+        do! author "Tests.LiveHttp.page" "(): String = \"three\""
+        let! (_, body) = getText port
+        Expect.equal body "three" "the fix is on the next request"
+
+        do!
+          author
+            "Tests.LiveHttp.router"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.LiveHttp.page ()) 201"
+        let! (status, _) = getText port
+        Expect.equal
+          status
+          201
+          "an edit to the router itself is on the next request"
+      finally
+        cts.Cancel()
+        try
+          listenerTask.Wait 2000 |> ignore<bool>
+        with _ ->
+          ()
+    })
+
+/// `poll` names what landed and `affects` walks to what depends on it, on one store.
+let private pollAndAffects =
+  cliTest "poll reports an edit and affects reaches its dependents" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+
+      do! author "Tests.LivePoll.leaf" "(): Int = 1"
+      do! author "Tests.LivePoll.branch" "(): Int = (Tests.LivePoll.leaf ()) + 1"
+      do! author "Tests.LivePoll.bystander" "(): Int = 7"
+
+      let loc (name : string) : Task<RT.Dval> =
+        evalUnder
+          state
+          $"Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"Tests\"; modules = [\"LivePoll\"]; name = \"{name}\" }}"
+
+      let! watch =
+        evalUnder
+          state
+          "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+
+      let! quiet = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+      let watch, change =
+        match quiet with
+        | RT.DTuple(w, c, []) -> w, c
+        | other -> failtest $"poll returned {other}"
+      Expect.isTrue (isNone change) "a fresh watch has nothing to report"
+
+      do! author "Tests.LivePoll.leaf" "(): Int = 2"
+
+      let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+      let change =
+        match polled with
+        | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ change ]), []) -> change
+        | other -> failtest $"expected the edit to be reported, got {other}"
+
+      let! touched = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
+      let names =
+        match touched with
+        | RT.DList(_, items) ->
+          items
+          |> List.map (fun d ->
+            match d with
+            | RT.DString s -> s
+            | other -> string other)
+        | other -> failtest $"touchedNames returned {other}"
+      Expect.contains names "Tests.LivePoll.leaf" "the edited name is reported"
+      Expect.isFalse
+        (List.contains "Tests.LivePoll.bystander" names)
+        "a name nothing touched is not"
+
+      let! branch = loc "branch"
+      let! bystander = loc "bystander"
+      let! affectsBranch =
+        callByName state "Darklang.Stdlib.Live.affects" [ change; branch ]
+      let! affectsBystander =
+        callByName state "Darklang.Stdlib.Live.affects" [ change; bystander ]
+      Expect.equal affectsBranch (RT.DBool true) "the dependent is affected"
+      Expect.equal affectsBystander (RT.DBool false) "the bystander is not"
+
+      // And the walk itself, from a change that names only the leaf: propagation had already
+      // repointed `branch`, so the poll above reports both; this is the transitive half on its own.
+      let! leaf = loc "leaf"
+      let! synthetic = callByName state "Darklang.Stdlib.Live.touchingOnly" [ leaf ]
+      let! reached =
+        callByName state "Darklang.Stdlib.Live.affects" [ synthetic; branch ]
+      Expect.equal
+        reached
+        (RT.DBool true)
+        "a dependent is reached through the edges"
+    })
+
+
+// ─── live: the tree and the host loop ────────────────────────────────────
+
+let private plainRows (dv : RT.Dval) : List<string> =
+  match dv with
+  | RT.DList(_, rows) ->
+    rows
+    |> List.map (fun r ->
+      match r with
+      | RT.DString s -> s
+      | other -> string other)
+  | other -> failtest $"expected rows, got {other}"
+
+/// The terminal and page renderers over one fixture tree, and a table at 0, 1 and many rows.
+let private treeRendersTheSameEverywhere =
+  cliTest "a Node tree paints to rows and writes as markup" (fun target ->
+    task {
+      let state = executionState target
+      let tree =
+        "Darklang.Stdlib.Cli.UI.Node.column [ Darklang.Stdlib.Cli.UI.Node.bold \"Stats\", Darklang.Stdlib.Cli.UI.Node.table [ \"module\", \"fns\" ] [ [ \"Stdlib\", \"247\" ], [ \"Cli\", \"89\" ] ], Darklang.Stdlib.Cli.UI.Node.band Darklang.Stdlib.Cli.UI.Node.Severity.Error \"boom\", Darklang.Stdlib.Cli.UI.Node.row [ Darklang.Stdlib.Cli.UI.Node.text \"a\", Darklang.Stdlib.Cli.UI.Node.Node.Button (\"go\", 1L) ] ]"
+      let region =
+        "Darklang.Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 10; cols = 40 }"
+
+      let! rows =
+        evalUnder
+          state
+          $"Darklang.Stdlib.Cli.UI.Canvas.compose 40 8 (Darklang.Stdlib.Cli.UI.Node.toSpans ({tree}) ({region}) \"go\") |> Darklang.Stdlib.List.map (fun r -> Darklang.Stdlib.String.trimEnd (Darklang.Stdlib.Cli.Tui.Text.stripSgr r))"
+      Expect.equal
+        (plainRows rows)
+        [ "Stats"
+          "module  fns"
+          "------  ---"
+          "Stdlib  247"
+          "Cli      89"
+          " boom"
+          "a [ go ]"
+          "" ]
+        "the terminal frame"
+
+      let! html =
+        evalUnder state $"Darklang.Stdlib.Cli.UI.Html.renderStatic ({tree})"
+      let html =
+        match html with
+        | RT.DString s -> s
+        | other -> failtest $"expected markup, got {other}"
+      Expect.stringContains
+        html
+        "<th>module</th><th class=\"dark-num\">fns</th>"
+        "the table's header, numeric column marked"
+      Expect.stringContains
+        html
+        "<td>Stdlib</td><td class=\"dark-num\">247</td>"
+        "a table row"
+      Expect.stringContains html "dark-band-error\">boom</div>" "the band"
+      Expect.stringContains html "<button type=\"submit\">go</button>" "the button"
+
+      let tableRows (rowsSource : string) =
+        evalUnder
+          state
+          $"Darklang.Stdlib.Cli.UI.Canvas.compose 20 5 (Darklang.Stdlib.Cli.UI.Node.toSpans (Darklang.Stdlib.Cli.UI.Node.table [ \"k\", \"v\" ] {rowsSource}) ({region}) \"\") |> Darklang.Stdlib.List.map (fun r -> Darklang.Stdlib.String.trimEnd (Darklang.Stdlib.Cli.Tui.Text.stripSgr r))"
+      let! none = tableRows "[]"
+      Expect.equal
+        (List.take 3 (plainRows none))
+        [ "k  v"; "-  -"; "" ]
+        "a table with no rows is a header and a rule"
+      let! one = tableRows "[ [ \"a\", \"1\" ] ]"
+      Expect.equal
+        (List.take 3 (plainRows one))
+        [ "k  v"; "-  -"; "a  1" ]
+        "one row"
+      let! many = tableRows "[ [ \"a\", \"1\" ], [ \"bb\", \"22\" ] ]"
+      Expect.equal
+        (List.take 4 (plainRows many))
+        [ "k    v"; "--  --"; "a    1"; "bb  22" ]
+        "widths follow the widest cell; numbers right-align"
+    })
+
+/// Demo 1, driven a turn at a time: a key reaches the view; an edit from elsewhere is on the next
+/// frame; a broken save keeps the frame and shows the diagnostic; the fix clears it. The model
+/// (what was typed) survives every swap.
+let private viewFollowsEdits =
+  cliTest
+    "a live view repaints on an edit and keeps the last good frame across a broken one"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        let run (name : string) (args : List<RT.Dval>) = callByName state name args
+
+        do! author "Tests.LiveView.init" "(): Int = 0"
+        do!
+          author
+            "Tests.LiveView.update"
+            "(m: Int) (e: Darklang.Cli.Apps.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+        do!
+          author
+            "Tests.LiveView.render"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version one\", Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ]"
+
+        let view =
+          "Darklang.Cli.Apps.Model.View { name = \"live\"; title = \"Live\"; init = \"Tests.LiveView.init\"; update = \"Tests.LiveView.update\"; render = \"Tests.LiveView.render\" }"
+        let! prepared =
+          evalUnder
+            state
+            $"Darklang.Cli.Apps.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
+        let session =
+          match prepared with
+          | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
+          | other -> failtest $"the view did not start: {other}"
+
+        let size = "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 8 }"
+        let! sizeDv = evalUnder state size
+        let rowsOf (s : RT.Dval) =
+          task {
+            let! rows = run "Darklang.Cli.Apps.Host.plainRows" [ s; sizeDv ]
+            return plainRows rows |> List.filter (fun r -> r <> "")
+          }
+        // The loop runs as a process; keys and store changes reach it through the scheduler's
+        // queue, as they do in the CLI.
+        let driver = loopDriver state
+        let pushKey = pushKey driver
+        let pushTick () = pushTick driver
+        let step (s : RT.Dval) = stepOn driver "Darklang.Cli.Apps.Host.step" [ s ]
+
+        let! first = rowsOf session
+        Expect.contains first "version one" "the first frame is the view's init"
+        Expect.contains first "keys: 0" "with the model at init"
+
+        // A key goes to the view's update.
+        do! pushKey "A" "a"
+        let! session = step session
+        let! afterKey = rowsOf session
+        Expect.contains afterKey "keys: 1" "a key reached update"
+
+        // Tab focuses the button, Enter presses it: the message reaches update.
+        do! pushKey "Tab" ""
+        let! session = step session
+        do! pushKey "Enter" ""
+        let! session = step session
+        let! afterPress = rowsOf session
+        Expect.contains afterPress "keys: 11" "the button's message reached update"
+
+        // An edit from elsewhere: the next turn with nothing typed sees it.
+        do!
+          author
+            "Tests.LiveView.render"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version two\", Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m) ]"
+        pushTick ()
+        let! session = step session
+        let! afterEdit = rowsOf session
+        Expect.contains afterEdit "version two" "the edit is on the next frame"
+        Expect.contains afterEdit "keys: 11" "and the model survived the swap"
+        Expect.contains
+          afterEdit
+          "changed: Tests.LiveView.render"
+          "the toast names what moved"
+
+        // A broken save: the frame stays, the diagnostic is under it.
+        do!
+          author
+            "Tests.LiveView.render"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text 3 ]"
+        pushTick ()
+        let! session = step session
+        let! afterBreak = rowsOf session
+        Expect.contains afterBreak "version two" "the last good frame is still up"
+        // The band wraps at the width and the rows are padded, so look at the words together.
+        let words (rows : List<string>) =
+          rows
+          |> String.concat " "
+          |> String.split " "
+          |> List.filter ((<>) "")
+          |> String.concat " "
+        Expect.stringContains
+          (words afterBreak)
+          "still on the last good version"
+          "with the diagnostic in a band"
+
+        // The fix clears the band.
+        do!
+          author
+            "Tests.LiveView.render"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version three\", Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m) ]"
+        pushTick ()
+        let! session = step session
+        let! afterFix = rowsOf session
+        Expect.contains afterFix "version three" "the fix is on the next frame"
+        Expect.isFalse
+          ((words afterFix).Contains "last good version")
+          "and the band is gone"
+
+        // Escape leaves.
+        do! pushKey "Escape" ""
+        let! session = step session
+        match session with
+        | RT.DRecord(_, _, _, fields) ->
+          Expect.equal
+            (Map.find "exiting" fields)
+            (Some(RT.DBool true))
+            "Escape ends the loop"
+        | other -> failtest $"expected a session, got {other}"
+      })
+
+
+/// `serve --branch`: the same as above, with the router and its callee authored on a branch.
+/// The branch's ops are inert (never `applied`), which is the case demo 2's `--branch` variant
+/// found the poll blind to.
+let private serveFollowsEditsOnABranch =
+  cliTest "serve --branch follows edits made on the branch" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+      let! _ = runCli target [ "branch"; "create"; "live-serve" ]
+      try
+        do! author "Tests.LiveBranchHttp.page" "(): String = \"one\""
+        do!
+          author
+            "Tests.LiveBranchHttp.router"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.LiveBranchHttp.page ()) 200"
+        let routerLoc =
+          "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\"; modules = [\"LiveBranchHttp\"]; name = \"router\" }"
+        let! init =
+          evalUnder
+            state
+            $"Darklang.Stdlib.Live.Router.start (Darklang.SCM.PackageOps.currentBranch ()) ({routerLoc})"
+        let! step = evalUnder state "Darklang.Stdlib.Live.Router.step"
+        let step =
+          match step with
+          | RT.DApplicable a -> a
+          | other -> failtest $"expected the step to be a fn, got {other}"
+        let port = Tests.HttpServer.allocateFreePort ()
+        let cts = new CancellationTokenSource()
+        let! listener = Tests.HttpServer.bindListener port
+        let listenerTask =
+          Builtins.Http.Server.Libs.HttpServer.runListenerLive
+            state
+            listener
+            (int64 port)
+            init
+            step
+            false
+            Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+            false
+            false
+            false
+            cts.Token
+        try
+          let! (status, body) = getText port
+          Expect.equal (status, body) (200, "one") "the version at start"
+
+          do! author "Tests.LiveBranchHttp.page" "(): String = \"two\""
+          let! (_, body) = getText port
+          Expect.equal body "two" "an edit on the branch is on the next request"
+
+          do! author "Tests.LiveBranchHttp.page" "(): String = 3"
+          let! (_, body) = getText port
+          Expect.equal
+            body
+            "two"
+            "a broken save on the branch keeps the last good version"
+
+          do! author "Tests.LiveBranchHttp.page" "(): String = \"three\""
+          let! (_, body) = getText port
+          Expect.equal body "three" "the fix is on the next request"
+        finally
+          cts.Cancel()
+          try
+            listenerTask.Wait 2000 |> ignore<bool>
+          with _ ->
+            ()
+      finally
+        (archiveBranches target [ "live-serve" ]).Wait()
+    })
+
+
+/// H5's second half: a model saved as a `val` comes back through `--resume`, and keeps the model
+/// the view had rather than its init.
+let private modelSavesAndResumes =
+  cliTest "a view's model saves as a val and resumes from it" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+
+      do! author "Tests.LiveSave.init" "(): Int = 0"
+      do!
+        author
+          "Tests.LiveSave.update"
+          "(m: Int) (e: Darklang.Cli.Apps.Host.Event<Int>): Int = match e with | Key _ -> m + 1 | Msg n -> m + n"
+      do!
+        author
+          "Tests.LiveSave.render"
+          "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m)"
+
+      let view =
+        "Darklang.Cli.Apps.Model.View { name = \"s\"; title = \"S\"; init = \"Tests.LiveSave.init\"; update = \"Tests.LiveSave.update\"; render = \"Tests.LiveSave.render\" }"
+
+      let! saved =
+        evalUnder
+          state
+          $"Darklang.Cli.Apps.Host.snapshot Darklang.SCM.Branch.mainBranchId ({view}) 5"
+      let name =
+        match saved with
+        | RT.DEnum(_, _, _, "Ok", [ RT.DString name ]) -> name
+        | other -> failtest $"the snapshot did not save: {other}"
+      Expect.stringStarts
+        name
+        "Tests.LiveSave.Sessions.s"
+        "it lands under the view's Sessions module"
+
+      let! resumed =
+        evalUnder
+          state
+          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"{name}\")"
+      let session =
+        match resumed with
+        | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
+        | other -> failtest $"the view did not resume: {other}"
+      let! sizeDv =
+        evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 6 }"
+      let! rows =
+        callByName state "Darklang.Cli.Apps.Host.plainRows" [ session; sizeDv ]
+      Expect.contains
+        (plainRows rows)
+        "keys: 5"
+        "the resumed session shows the saved model, not init"
+
+      let! missing =
+        evalUnder
+          state
+          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\")"
+      match missing with
+      | RT.DEnum(_, _, _, "Error", [ RT.DString why ]) ->
+        Expect.stringContains
+          why
+          "no value named"
+          "a missing snapshot is named, not a crash"
+      | other -> failtest $"expected an error for a missing snapshot, got {other}"
+    })
+
+
+/// The window a live host must never observe: an op is in the log but not yet folded into
+/// `locations`. Authoring inserts, folds, then marks applied in three steps; a poll that lands
+/// between the first and the last used to take the op, resolve the name to the previous hash,
+/// and never look again. Now the op is reported only once it is applied.
+let private pollIgnoresAnOpUntilItIsApplied =
+  cliTest
+    "a poll between an op's insert and its fold reports nothing; the poll after reports it"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        do! author "Tests.LiveFold.leaf" "(): Int = 1"
+
+        let! watch =
+          evalUnder
+            state
+            "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+        let! quiet = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let watch =
+          match quiet with
+          | RT.DTuple(w, RT.DEnum(_, _, _, "None", []), []) -> w
+          | other -> failtest $"a fresh watch reported something: {other}"
+
+        // Phase 1 of a save, by hand: the op rows land, unapplied. This is what a poll mid-fold sees.
+        // A fresh body per run: the log is content-addressed and the store outlives the run.
+        let body = System.Random.Shared.Next(1_000, 1_000_000_000)
+        let! ops =
+          parsePackageOps $"module Tests.LiveFold\n\nlet leaf () : Int = {body}"
+        let statements =
+          ops
+          |> List.map (fun op ->
+            let opId = LibDB.Inserts.computeOpHash op
+            let blob =
+              LibSerialization.Binary.Serialization.PT.PackageOp.serialize opId op
+            ("INSERT INTO package_ops (id, op_blob, applied, origin_ts) VALUES (@id, @op_blob, 0, @ts)",
+             [ [ "id", Sql.uuid opId
+                 "op_blob", Sql.bytes blob
+                 "ts", Sql.string (LibDB.Inserts.nextOriginTs ()) ] ]))
+        statements |> Sql.executeTransactionSync |> ignore<List<int>>
+
+        let! midFold = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let watch =
+          match midFold with
+          | RT.DTuple(w, RT.DEnum(_, _, _, "None", []), []) -> w
+          | other -> failtest $"an op that is not folded yet was reported: {other}"
+
+        // The fold, then the applied mark, as `insertAndApplyOps` does them.
+        do! LibDB.PackageOpPlayback.applyOpsFrom "op" ops
+        ops
+        |> List.map (fun op ->
+          ("UPDATE package_ops SET applied = 1 WHERE id = @id",
+           [ [ "id", Sql.uuid (LibDB.Inserts.computeOpHash op) ] ]))
+        |> Sql.executeTransactionSync
+        |> ignore<List<int>>
+
+        let! afterFold = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let change =
+          match afterFold with
+          | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ change ]), []) -> change
+          | other -> failtest $"the folded op was not reported: {other}"
+        let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
+        match names with
+        | RT.DList(_, items) ->
+          Expect.contains
+            (items |> List.map string)
+            (string (RT.DString "Tests.LiveFold.leaf"))
+            "the op is reported once it is folded, and the name resolves to it"
+        | other -> failtest $"touchedNames returned {other}"
+      })
+
+
+/// A branch's own ops are never `applied`: they are stored inert and tagged in one transaction,
+/// so the applied-only rule for main (above) must not hide them from a watch on the branch. It
+/// did: `serve --branch` never saw a save, and demo 2's `--branch` variant could not run.
+let private pollOnABranchSeesTheBranchsOwnSaves =
+  cliTest "a poll on a branch reports the branch's own saves" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+      let! _ = runCli target [ "branch"; "create"; "live-poll" ]
+      try
+        let! watch =
+          evalUnder
+            state
+            "Darklang.Stdlib.Live.watch (Darklang.SCM.PackageOps.currentBranch ())"
+        do! author "Tests.LiveBranchPoll.leaf" "(): Int = 1"
+        let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let change =
+          match polled with
+          | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ change ]), []) -> change
+          | other -> failtest $"the branch save was not reported: {other}"
+        let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
+        match names with
+        | RT.DList(_, items) ->
+          Expect.contains
+            (items |> List.map string)
+            (string (RT.DString "Tests.LiveBranchPoll.leaf"))
+            "the branch's save is reported by name"
+        | other -> failtest $"touchedNames returned {other}"
+      finally
+        (archiveBranches target [ "live-poll" ]).Wait()
+    })
+
+
+/// The callee-fix race: a callee is broken (its dependent has been repointed at it), then fixed,
+/// and the poll lands after the fix but before propagation repoints the dependent again. The
+/// dependent's newest version is still built against the broken callee; its own check passes;
+/// it must not be adopted.
+let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
+  cliTest
+    "a dependent still built against a broken callee is not adopted when the callee is fixed"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        let m = "LiveCallee"
+
+        do! author $"Tests.{m}.page" "(): String = \"one\""
+        do!
+          author
+            $"Tests.{m}.router"
+            $"(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.{m}.page ()) 200"
+
+        let routerLoc =
+          $"(Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"Tests\"; modules = [\"{m}\"]; name = \"router\" }})"
+        let! lg =
+          evalUnder
+            state
+            $"Darklang.Stdlib.Live.refresh Darklang.SCM.Branch.mainBranchId [] (Darklang.Stdlib.Live.start {routerLoc})"
+        let hashOf (lg : RT.Dval) =
+          match lg with
+          | RT.DRecord(_, _, _, fields) ->
+            Map.tryFind "hash" fields
+            |> Option.defaultWith (fun () -> failtest "a LastGood has a hash")
+          | other -> failtest $"expected a LastGood, got {other}"
+        let good = hashOf lg
+
+        // The break, through the CLI, so propagation repoints the router at the broken page.
+        let! watch =
+          evalUnder
+            state
+            "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+        do! author $"Tests.{m}.page" "(): String = 3"
+        let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let watch, change =
+          match polled with
+          | RT.DTuple(w, RT.DEnum(_, _, _, "Some", [ c ]), []) -> w, c
+          | other -> failtest $"the break was not reported: {other}"
+        let opsOf (change : RT.Dval) =
+          match change with
+          | RT.DRecord(_, _, _, fields) ->
+            Map.tryFind "ops" fields
+            |> Option.defaultWith (fun () -> failtest "a Change has ops")
+          | other -> failtest $"expected a Change, got {other}"
+        let! lg =
+          callByName
+            state
+            "Darklang.Stdlib.Live.refresh"
+            [ RT.DUuid PT.BranchId.Main.Guid; opsOf change; lg ]
+        Expect.equal
+          (hashOf lg)
+          good
+          "the break keeps the router on its last good version"
+
+        // The fix, WITHOUT propagation: the router's newest version still calls the broken page.
+        let body = System.Random.Shared.Next(1_000, 1_000_000_000)
+        let! _ =
+          authorIntoMain
+            $"module Tests.{m}\n\nlet page () : String = \"fixed {body}\""
+        let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let change =
+          match polled with
+          | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ c ]), []) -> c
+          | other -> failtest $"the fix was not reported: {other}"
+        let! lg =
+          callByName
+            state
+            "Darklang.Stdlib.Live.refresh"
+            [ RT.DUuid PT.BranchId.Main.Guid; opsOf change; lg ]
+        Expect.equal
+          (hashOf lg)
+          good
+          "the router's version built against the broken page is not adopted; the last good one stays"
+        let! why = callByName state "Darklang.Stdlib.Live.diagnostic" [ lg ]
+        match why with
+        | RT.DEnum(_, _, _, "Some", [ RT.DString s ]) ->
+          Expect.stringContains
+            s
+            "expected String, got Int"
+            "and the reason names the broken callee's error"
+        | other -> failtest $"expected a diagnostic, got {other}"
+      })
+
+/// Under `--dev`, a handler that fails at run time answers a page that carries the reload
+/// listener, so the tab recovers when the edit that fixes it lands.
+let private devErrorPageCarriesTheListener =
+  cliTest
+    "a serve --dev error page still carries the /__live listener"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        do!
+          author
+            "Tests.LiveDev.router"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Stdlib.Int.toString (Stdlib.Int.divide 1 0)) 200"
+        let routerLoc =
+          "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\"; modules = [\"LiveDev\"]; name = \"router\" }"
+        let! init =
+          evalUnder
+            state
+            $"Darklang.Stdlib.Live.Router.start Darklang.SCM.Branch.mainBranchId ({routerLoc})"
+        let! step = evalUnder state "Darklang.Stdlib.Live.Router.step"
+        let step =
+          match step with
+          | RT.DApplicable a -> a
+          | other -> failtest $"expected the step to be a fn, got {other}"
+        let port = Tests.HttpServer.allocateFreePort ()
+        let cts = new CancellationTokenSource()
+        let! listener = Tests.HttpServer.bindListener port
+        let listenerTask =
+          Builtins.Http.Server.Libs.HttpServer.runListenerLive
+            state
+            listener
+            (int64 port)
+            init
+            step
+            true
+            Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+            false
+            false
+            false
+            cts.Token
+        try
+          use client = new System.Net.Http.HttpClient()
+          let! response = client.GetAsync($"http://localhost:{port}/")
+          let! body = response.Content.ReadAsStringAsync()
+          Expect.equal (int response.StatusCode) 500 "the handler failed"
+          Expect.stringContains
+            (string response.Content.Headers.ContentType)
+            "text/html"
+            "the failure is a page"
+          Expect.stringContains body "/__live" "and the page carries the listener"
+          Expect.stringContains body "error" "with the error on it"
+        finally
+          cts.Cancel()
+          try
+            listenerTask.Wait 2000 |> ignore<bool>
+          with _ ->
+            ()
+      })
+
+/// The Dark source for an annotated print of a function: its live values, one per call at a
+/// line position, as `// = value` after the code.
+let private annotatedPrint (owner : string) (modul : string) (name : string) =
+  $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}"; modules = ["{modul}"]; name = "{name}" }}
+let bid = Darklang.SCM.Branch.mainBranchId
+let values =
+  match Darklang.Stdlib.Live.Values.replay bid loc with
+  | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map (fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval bid d)
+  | None -> Darklang.Stdlib.Dict.empty
+let base = Darklang.PrettyPrinter.ProgramTypes.Context.forModule bid ["{owner}", "{modul}"]
+let ctx = {{ base with liveValues = values }}
+match Darklang.LanguageTools.PackageManager.Function.find bid loc with
+| Some hash ->
+  match Darklang.LanguageTools.PackageManager.Function.get hash with
+  | Some fn -> Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn
+  | None -> "no fn"
+| None -> "no hash"
+"""
+
+/// Live values: a function's last recorded call, run again through the code as it is NOW, with
+/// the value of every call inside it put beside the code. The trace names the call by the
+/// function's dotted name; the current version's hash is what runs. So an edit to a callee shows
+/// up on the next replay without a new call being recorded.
+let private liveValuesReplayTheLastCall =
+  cliTestWithFreshTraces
+    "live values replay the last recorded call through the current code"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        do!
+          author
+            "Tests.LiveVals.double"
+            "(n: Int64): Int64 = Stdlib.Int64.multiply n 2L"
+        do!
+          author
+            "Tests.LiveVals.greet"
+            "(name: String): String =\n  let up = Stdlib.String.toUppercase name\n  let n = Tests.LiveVals.double 21L\n  $\"hi {up} {Stdlib.Int64.toString n}\""
+
+        // Nothing recorded yet: no values, and no error.
+        let! before = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
+        match before with
+        | RT.DString printed ->
+          Expect.isFalse
+            (printed.Contains "// =")
+            "no call recorded, so nothing beside the code"
+          Expect.stringContains printed "let greet" "the code itself still prints"
+        | other -> failtest $"expected the print, got {other}"
+
+        let! out = runCli target [ "eval"; "Tests.LiveVals.greet \"bob\"" ]
+        Expect.stringContains out "hi BOB 42" "the call ran"
+
+        let! after = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
+        match after with
+        | RT.DString printed ->
+          Expect.stringContains
+            printed
+            "Stdlib.String.toUppercase name // = \"BOB\""
+            "the recorded input flowed through the first call"
+          Expect.stringContains
+            printed
+            "double 21L // = 42"
+            "and the callee's result is beside its call"
+          Expect.isFalse
+            (printed.Contains "toString n // =")
+            "a call inside an interpolated string is left bare: a comment there would break the string"
+        | other -> failtest $"expected the print, got {other}"
+
+        // The LSP's hints: the same values, placed on the document's lines. The document is
+        // the module as the editor reads it (`fileSystem/read`), where the fns sit two columns
+        // in; `double` has a recorded call of its own, from the eval above.
+        let! hints =
+          evalUnder
+            state
+            """let bid = Darklang.SCM.Branch.mainBranchId
+let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
+let q = Darklang.LanguageTools.ProgramTypes.Search.SearchQuery { currentModule = ["Tests", "LiveVals"]; text = ""; searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants; entityTypes = []; exactMatch = false }
+let r = Darklang.LanguageTools.PackageManager.Search.search bid q
+let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; exprs = [] }
+let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
+r.fns
+|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
+|> Darklang.Stdlib.List.flatten
+|> Darklang.Stdlib.List.map (fun h -> (Darklang.Stdlib.UInt64.toString h.position.line) ++ ":" ++ (Darklang.Stdlib.UInt64.toString h.position.character) ++ " " ++ h.label)"""
+        let hints =
+          match hints with
+          | RT.DList(_, items) ->
+            items
+            |> List.map (fun i ->
+              match i with
+              | RT.DString s -> s
+              | other -> string other)
+            |> List.sort
+          | other -> failtest $"expected the hints, got {other}"
+        Expect.equal
+          hints
+          [ "2:30 = 42"; "5:43 = \"BOB\""; "6:31 = 42" ]
+          "one hint per call at a line position, at the end of the document's line"
+
+        // The callee changes; the replay runs the current code on the same recorded input.
+        do!
+          author
+            "Tests.LiveVals.double"
+            "(n: Int64): Int64 = Stdlib.Int64.multiply n 3L"
+        let! edited = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
+        match edited with
+        | RT.DString printed ->
+          Expect.stringContains
+            printed
+            "double 21L // = 63"
+            "the edit is in the values, with no new call"
+        | other -> failtest $"expected the print, got {other}"
+
+        // A version that fails at run time reports the failure and keeps what ran before it.
+        do!
+          author
+            "Tests.LiveVals.double"
+            "(n: Int64): Int64 = Stdlib.Int64.divide n 0L"
+        let! failed =
+          evalUnder
+            state
+            """match Darklang.Stdlib.Live.Values.replay Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = "Tests"; modules = ["LiveVals"]; name = "greet" }) with
+| Some v -> (Darklang.Stdlib.Option.isSome v.result, Darklang.Stdlib.Dict.size v.byExpr, v.problem)
+| None -> (false, 0, Darklang.Stdlib.Option.Option.Some "no trace")"""
+        match failed with
+        | RT.DTuple(RT.DBool hasResult,
+                    RT.DInt count,
+                    [ RT.DEnum(_, _, _, "Some", [ RT.DString problem ]) ]) ->
+          Expect.isFalse hasResult "no result: the run failed"
+          Expect.isGreaterThan
+            (RT.DarkInt.toBigInt count)
+            0I
+            "the values up to the failure are kept"
+          Expect.stringContains
+            problem
+            "divide by 0"
+            "and the problem is the runtime error"
+        | other -> failtest $"expected (false, n, Some problem), got {other}"
+      })
+
+
+/// The agent's side of the live loop, without the agent: `Live.observe` renders a view headless
+/// through `Ui.Text` (the third renderer), taking each fn at its newest version that passes its
+/// checks and, when that one raises, the picture from the version before it; `Live.show` names
+/// the view a host loop should be on, through the store so the host wakes for it.
+let private observeAndShow =
+  cliTest
+    "observe renders a view headless and show points a host at it"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        let viewLoc =
+          "(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\"; modules = []; name = \"LiveObs\" })"
+        let observe () =
+          evalUnder
+            state
+            $"""let o = Darklang.Stdlib.Live.observe Darklang.SCM.Branch.mainBranchId {viewLoc}
+(Darklang.Stdlib.Option.isSome o.report, o.rte, o.render)"""
+        let unpack (dv : RT.Dval) =
+          match dv with
+          | RT.DTuple(RT.DBool hasReport, rte, [ RT.DString render ]) ->
+            let rte =
+              match rte with
+              | RT.DEnum(_, _, _, "Some", [ RT.DString e ]) -> Some e
+              | _ -> None
+            (hasReport, rte, render)
+          | other -> failtest $"expected an observation, got {other}"
+
+        do! author "Tests.LiveObs.init" "(): Int64 = 3L"
+        do!
+          author
+            "Tests.LiveObs.update"
+            "(m: Int64) (e: Darklang.Cli.Apps.Host.Event<Int64>): Int64 = m"
+        do!
+          author
+            "Tests.LiveObs.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.bold \"Obs\", Stdlib.Cli.UI.Node.table [ \"k\", \"v\" ] [ [ \"count\", Stdlib.Int64.toString m ] ], Stdlib.Cli.UI.Node.row [ Stdlib.Cli.UI.Node.text \"a\", Stdlib.Cli.UI.Node.Node.Button(\"go\", 1L) ], Stdlib.Cli.UI.Node.band Stdlib.Cli.UI.Node.Severity.Error \"boom\" ]"
+
+        let! first = observe ()
+        let (hasReport, rte, render) = unpack first
+        Expect.isFalse hasReport "the newest version passes its checks"
+        Expect.equal rte None "and runs"
+        Expect.equal
+          render
+          "Obs\nk      v\n-----  -\ncount  3\na [ go ]\n! boom"
+          "the tree as plain text: table rows, a row side by side, a boxed button, a marked band"
+
+        // A save that fails its checks: the previous picture, with the report.
+        do!
+          author
+            "Tests.LiveObs.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text 3L"
+        let! broken = observe ()
+        let (hasReport, rte, render) = unpack broken
+        Expect.isTrue hasReport "the newest version's report is there"
+        Expect.equal rte None "nothing raised"
+        Expect.stringContains
+          render
+          "count  3"
+          "and the version before it is the picture"
+
+        // A save that raises: the previous picture, with the error.
+        do!
+          author
+            "Tests.LiveObs.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (Stdlib.Int64.toString (Stdlib.Int64.divide m 0L))"
+        let! raised = observe ()
+        let (hasReport, rte, render) = unpack raised
+        Expect.isFalse hasReport "this version passes its checks"
+        match rte with
+        | Some e ->
+          Expect.stringContains e "divide by 0" "the runtime error is reported"
+        | None -> failtest "expected the runtime error"
+        Expect.stringContains
+          render
+          "count  3"
+          "and the version before it is the picture"
+
+        // `show` names a view through the store; the host loop switches on its next turn.
+        do! author "Tests.LiveOther.init" "(): Int64 = 0L"
+        do!
+          author
+            "Tests.LiveOther.update"
+            "(m: Int64) (e: Darklang.Cli.Apps.Host.Event<Int64>): Int64 = m"
+        do!
+          author
+            "Tests.LiveOther.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text \"the other view\""
+        let view =
+          "Darklang.Cli.Apps.Model.View { name = \"Tests.LiveOther\"; title = \"O\"; init = \"Tests.LiveOther.init\"; update = \"Tests.LiveOther.update\"; render = \"Tests.LiveOther.render\" }"
+        let! prepared =
+          evalUnder
+            state
+            $"Darklang.Cli.Apps.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
+        let session =
+          match prepared with
+          | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
+          | other -> failtest $"the view did not prepare: {other}"
+        let driver = loopDriver state
+        let! sizeDv =
+          evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 8 }"
+        let rowsOf (s : RT.Dval) =
+          task {
+            let! rows =
+              callByName state "Darklang.Cli.Apps.Host.plainRows" [ s; sizeDv ]
+            return plainRows rows
+          }
+        let! before = rowsOf session
+        Expect.contains before "the other view" "the host is on the other view"
+
+        // Put the broken render back to a good one first, so the shown view has a frame.
+        do!
+          author
+            "Tests.LiveObs.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (\"count \" ++ Stdlib.Int64.toString m)"
+        let! _ = evalUnder state $"Darklang.Stdlib.Live.show {viewLoc}"
+        let! shown = evalUnder state "Darklang.Stdlib.Live.shown ()"
+        match shown with
+        | RT.DEnum(_, _, _, "Some", [ RT.DRecord(_, _, _, fields) ]) ->
+          Expect.equal
+            (Map.tryFind "name" fields)
+            (Some(RT.DString "LiveObs"))
+            "shown reads back"
+        | other -> failtest $"expected the shown view, got {other}"
+
+        pushTick driver
+        let! session = stepOn driver "Darklang.Cli.Apps.Host.step" [ session ]
+        let! after = rowsOf session
+        Expect.contains after "count 3" "the host switched to the shown view"
+        // The same wake carried the render's save, so the reload's toast wins over "showing".
+        Expect.stringContains
+          (String.concat " " after)
+          "Tests.LiveObs"
+          "and the frame names the view it moved to"
+      })
+
+
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
@@ -273,4 +1357,20 @@ let tests : List<Test> =
     dbAndTracesAnswer
     opsAndCommitsDescribeTheLog
     showTellsYouWhatACommitHolds
-    constraintsAndConflictsReportQuiet ]
+    constraintsAndConflictsReportQuiet
+    testSequenced (
+      testList
+        "live"
+        [ serveFollowsEdits
+          pollAndAffects
+          treeRendersTheSameEverywhere
+          viewFollowsEdits
+          modelSavesAndResumes
+          pollIgnoresAnOpUntilItIsApplied
+          pollOnABranchSeesTheBranchsOwnSaves
+          serveFollowsEditsOnABranch
+          aFixedCalleeIsNotAdoptedThroughItsBrokenDependent
+          devErrorPageCarriesTheListener
+          liveValuesReplayTheLastCall
+          observeAndShow ]
+    ) ]

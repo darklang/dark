@@ -45,7 +45,12 @@ type Component<'s> =
     /// `view` has to be a pure function of state for frame diffing to be sound, so anything that needs a
     /// DB read or runs user code is computed here and stashed on the state instead. `noRefresh` when
     /// there's nothing derived.
-    refresh: 's -> 's -> 's }
+    refresh: 's -> 's -> 's
+
+    /// The package store changed under the component: an edit from another process, a pull. Re-read
+    /// what the change touches and come back; `refresh` then runs as after any transition.
+    /// `ignoreStore` for a component that shows nothing from the store.
+    onStoreChanged: 's -> Stdlib.Live.Change -> 's }
 
 
 /// Lift rows into a full-screen view. For components that think in lines rather than regions.
@@ -70,20 +75,34 @@ let noSave (state: 's) : 's =
 let noRefresh (_previous: 's) (next: 's) : 's =
   next
 
+/// The `onStoreChanged` for a component that shows nothing from the store. Named for the same reason.
+let ignoreStore (state: 's) (_change: Stdlib.Live.Change) : 's =
+  state
+
 /// A component with something to persist but nothing derived.
 let simple
   (view: 's -> Stdlib.Cli.Tui.Size -> Stdlib.Cli.Tui.View)
   (onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s>)
   (save: 's -> 's)
   : Component<'s> =
-  Component { view = view; onKey = onKey; save = save; refresh = noRefresh }
+  Component
+    { view = view
+      onKey = onKey
+      save = save
+      refresh = noRefresh
+      onStoreChanged = ignoreStore }
 
 /// A component that persists nothing and derives nothing.
 let stateless
   (view: 's -> Stdlib.Cli.Tui.Size -> Stdlib.Cli.Tui.View)
   (onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s>)
   : Component<'s> =
-  Component { view = view; onKey = onKey; save = noSave; refresh = noRefresh }
+  Component
+    { view = view
+      onKey = onKey
+      save = noSave
+      refresh = noRefresh
+      onStoreChanged = ignoreStore }
 
 
 /// One retained session: where the component is, and what the terminal currently shows.
@@ -139,7 +158,9 @@ let toSubApp (c: Component<'s>) (session: Session<'s>) : Cli.SubApp =
           let terminal =
             Stdlib.Cli.Tui.TerminalSession.resumed (fun size -> c.view session.state size)
 
-          toSubApp c (Session { state = session.state; terminal = terminal }) }
+          toSubApp c (Session { state = session.state; terminal = terminal })
+      onStoreChanged =
+        fun change -> toSubApp c (present c session (c.onStoreChanged session.state change)) }
 
 
 /// Launch `c` (starting at `init`) as the CLI's current full-screen page.

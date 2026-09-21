@@ -763,6 +763,10 @@ module Dval =
     // asymmetry isn't documented in the public API. Document it or
     // add a "rehydrate as a no-op stub stream" path.
     | DStream(impl, _, _) -> streamStubDT impl
+    | DPromise _ ->
+      Exception.raiseInternal
+        "a read still in flight reached toDT; it should have been forced"
+        []
 
 
   let fromDT (d : Dval) : Dval =
@@ -949,6 +953,7 @@ module Instruction =
           NameResolutionError.toDT err ]
       | VarNotFound(t, name) -> "VarNotFound", [ reg t; DString name ]
       | CheckIfFirstExprIsUnit r -> "CheckIfFirstExprIsUnit", [ reg r ]
+      | TraceExpr(exprId, r) -> "TraceExpr", [ DUInt64 exprId; reg r ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   and instructionsToDT (i : Instructions) : Dval =

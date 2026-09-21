@@ -1006,7 +1006,7 @@ let private commitRefusesDefiniteTypeErrors =
           shows
             state
             [ "module"; "Tests.ArityGate"; file ]
-            "At-rest type check failed"
+            "Type check failed"
             "saving reports the error rather than hiding it"
 
         let! refused = runCli state [ "commit"; "should not land"; "-y" ]

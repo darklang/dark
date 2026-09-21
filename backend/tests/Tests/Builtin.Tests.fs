@@ -265,7 +265,14 @@ let private unusedAllowlist : Set<string> =
     [ // Test-harness escape hatch for the cases that expect an exception to
       // reach the reporter. The harness still reads the count it sets; the
       // testfile cases that set it are currently commented out.
-      "testSetExpectedExceptionCount" ]
+      "testSetExpectedExceptionCount"
+      // Scheduler test fixtures: their callers are the Dark programs embedded as strings in
+      // `Scheduler.Tests.fs`, which this scan of `.dark` files cannot see. A testfile cannot
+      // use them: a gate blocks until F# releases it.
+      "testGateWait"
+      "testTrace"
+      "testRead"
+      "testFailingRead" ]
 
 
 let everyBuiltinIsReferenced =

@@ -44,6 +44,22 @@ let getInt (key: String) (default_: Int) : Int =
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
+  // `exec.*` keys are read by the F# boot before any Dark runs (`exec.workers` sizes the
+  // scheduler's worker pool), so they live in the store's config like `entry_point`, not in
+  // the json file.
+  | ["get", key] when Stdlib.String.startsWith key "exec." ->
+    let value = Stdlib.LocalStore.configGet key
+    if value == "" then
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Configuration key not found: {key}")
+    else
+      Stdlib.printLine $"{key} = {value}"
+    state
+
+  | ["set", key, value] when Stdlib.String.startsWith key "exec." ->
+    let _ = Stdlib.LocalStore.configSet key value
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} = {value}")
+    state
+
   | ["get", key] ->
     let config = readConfig ()
     match Stdlib.Dict.get config key with
@@ -82,6 +98,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "  sync.default_instance    - Default instance for sync service"
       "  sync.interval_seconds    - Sync check interval (default: 20)"
       "  sync.auto_start          - Auto-start sync service (default: true)"
+      "  exec.workers             - Scheduler worker threads (default: one per core)"
+      "  exec.maxInflight         - Reads in flight at once before one waits (default: 256)"
+      "  exec.policy              - Dark fn picking the next process (default: round robin)"
       ""
       "Use 'config get <key>' to read a value"
       "Use 'config set <key> <value>' to set a value" ]
@@ -125,7 +144,10 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   let configKeys =
     [ "sync.default_instance"
       "sync.interval_seconds"
-      "sync.auto_start" ]
+      "sync.auto_start"
+      "exec.workers"
+      "exec.maxInflight"
+      "exec.policy" ]
 
   match args with
   | [] ->
