@@ -621,13 +621,21 @@ Follow-ups in the scheduler plan, in order, and the edges of what is here:
   waits for the store inside `uply`. `blobConcat` (a loop over blobs),
   `jsonParse` (types from the store) and the stream pull machine keep
   theirs. Measured on 60,000 blob calls: -2.4%, 8 of 8 pairs.
-- A builtin's wait is still a `Ply` the loop parks on as a task, and a host
-  operation's answer comes back through that task rather than as an event on
-  the queue. The loop itself is plain code (`executeSync`, `awaitOf`,
-  `driveToEnd`); the `uply`s left in `Interpreter.fs` are the slow paths (a
-  type check that needs the store, a builtin's result landing). Store-facing
-  builtins (`DB`, the package manager, traces) await SQLite, which is not a
-  host operation and has no request form yet.
+- A builtin's signature is still `Ply<Dval>`, and a wait is still a `Ply`
+  the loop parks on as a task; a host operation's answer comes back through
+  that task (the scheduler's `Completed` post is the event) rather than as a
+  `Response` event of its own. The loop itself is plain code (`executeSync`,
+  `awaitOf`, `driveToEnd`); the `uply`s left in `Interpreter.fs` are the
+  slow paths (a type check that needs the store, a builtin's result
+  landing). Store-facing builtins (`DB`, the package manager, traces,
+  executions, the CLI host's script runner) await SQLite through `LibDB`,
+  whose queries run on Microsoft.Data.Sqlite; it has no asynchronous I/O, so
+  they complete on the calling thread and the loop sees them as finished
+  values (`Ply.trySync`) rather than parking. A request form for them would
+  be a store-operation type over some sixty distinct queries, a design of
+  its own that buys the scheduler nothing while the store is in-process.
+  `sleep` parks on its timer task, not on a `Timer` event; same effect,
+  `ps` says `sleep`.
 - `Event.ExecDone` carries only the id; a Dark enum cannot hold an untyped
   value. `Exec.await` is how a value comes back.
 - `ps show` shows the call stack, not registers.
