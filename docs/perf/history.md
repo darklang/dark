@@ -7,6 +7,26 @@ NativeAOT, **4** is the current branch.
 
 ---
 
+## 2026-09-21: an HTTP request is a process
+
+The per-request handler is a spawned process on a worker (`Scheduler.SpawnApply`, `HttpServer.fs`)
+instead of `executeApplicable` on a pool thread. `scripts/perf/http --release`, same tree, before
+vs after, on the shared desktop:
+
+| route | before | after | delta |
+|---|---|---|---|
+| `/hello` | 43.53 KB | 45.41 KB | +1.9 KB (+4%) |
+| `/json` | 51.78 KB | 53.59 KB | +1.8 KB (+3.5%) |
+
+Throughput 4.5 to 5.0k req/s either way (noise on this box). The 1.8 KB is the spawn: the process
+record, its completion task and continuation, the wake post, the apply program. The first cut was
++32 KB: a fresh `VMState` per request (five dictionaries and an empty frame pool, so every frame
+push allocated again) and an `ExecDone` post to every worker's queue (one per core, fifty of them).
+Finished processes now hand their VM to the scheduler's pool (`VMState.reuseFor`, as
+`executeApplicable` did), and `ExecDone` goes to the schedulers with a subscriber for that process,
+registered at subscribe time. The process table keeps the last 64 finished processes rather than
+all of them, so a server does not grow without bound.
+
 ## This round: parameterised types
 
 The synchronous fast path from round 2 ran only for types with no type arguments, guarded by

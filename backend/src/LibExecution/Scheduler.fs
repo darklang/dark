@@ -152,6 +152,13 @@ let stateForProcess
 
 
 type Scheduler(quantum : int64) =
+  /// Who is waiting on `ExecDone` for which process, across every scheduler in the process:
+  /// registered at subscribe time, taken at finish. So a finish posts to the schedulers that
+  /// asked, not to every worker in the group: with one worker per core that was fifty queue
+  /// posts per finished process, most of a server's per-request cost.
+  static let execDoneWatchers =
+    System.Collections.Concurrent.ConcurrentDictionary<ProcessId, Scheduler list>()
+
   let queue = new HE.Queue()
   let processes = System.Collections.Generic.Dictionary<ProcessId, Process>()
   let runnable = System.Collections.Generic.Queue<Process>()
@@ -171,6 +178,14 @@ type Scheduler(quantum : int64) =
   let mutable thread = -1
   /// Set by `Stop`; the loop leaves at its next turn.
   let mutable stopping = false
+  /// VMs of processes that finished clean, for the next spawn to reuse (`VMState.reuseFor`): a
+  /// fresh VM is five dictionaries and an empty frame pool, and a server spawning a process per
+  /// request pays for every frame push again without this. Under `sync`; a handful is enough.
+  let spareVMs = System.Collections.Generic.Stack<RT.VMState>()
+  /// Finished processes, oldest first, so the table does not grow without bound: `ps` keeps the
+  /// last `keepFinished` for a person to look at, and a server's requests do not pile up in it.
+  let finished = System.Collections.Generic.Queue<ProcessId>()
+  let keepFinished = 64
   /// The group this scheduler belongs to, when it is a root with workers or a worker itself.
   /// `ps` and `kill` answer for the whole group.
   let mutable group : Option<Workers> = None
@@ -253,7 +268,18 @@ type Scheduler(quantum : int64) =
       entry : Entry,
       parent : Option<ProcessId>
     ) : Process =
-    let vm = RT.VMState.create instrs
+    let vm =
+      match
+        lock sync (fun () ->
+          if spareVMs.Count > 0 then ValueSome(spareVMs.Pop()) else ValueNone)
+      with
+      | ValueSome spare ->
+        let tlid, program = instrs
+        let instrData : RT.InstrData =
+          { instructions = List.toArray program.instructions
+            resultReg = program.resultIn }
+        RT.VMState.reuseFor (spare, tlid, instrData, program.registerCount)
+      | ValueNone -> RT.VMState.create instrs
     Interpreter.seedRootAccess exeState.access vm
     let id = System.Guid.NewGuid()
     let p =
@@ -382,7 +408,9 @@ type Scheduler(quantum : int64) =
           | HE.EventSpec.Timer ms ->
             let id = Interlocked.Increment &nextTimerId
             sub.timers <- (id, queue.ArmTimer(id, ms)) :: sub.timers
-          | HE.EventSpec.ExecDone _ -> ())
+          | HE.EventSpec.ExecDone pid ->
+            execDoneWatchers.AddOrUpdate(pid, [ this ], (fun _ ws -> this :: ws))
+            |> ignore<Scheduler list>)
     wake.Task
 
   /// Wake a subscription and drop it.
@@ -454,15 +482,23 @@ type Scheduler(quantum : int64) =
     Interlocked.Decrement &live |> ignore<int>
     // Does nothing in non-tests.
     p.exeState.test.postTestExecutionHook p.exeState.test
+    lock sync (fun () ->
+      // Only a VM that ran to completion has popped every frame, which is what `reuseFor` needs.
+      match result with
+      | Ok _ when spareVMs.Count < 8 -> spareVMs.Push p.vm
+      | _ -> ()
+      finished.Enqueue p.id
+      while finished.Count > keepFinished do
+        processes.Remove(finished.Dequeue()) |> ignore<bool>)
     match result with
     | Ok dv ->
-      // A Dark subscriber may be on any scheduler in the group.
-      let ev = HE.HostEvent.ExecDone(p.id, dv)
-      match group with
-      | Some g ->
-        for s in g.All do
+      // To the schedulers with a Dark subscriber waiting on this process, wherever they are.
+      match execDoneWatchers.TryRemove p.id with
+      | true, watchers ->
+        let ev = HE.HostEvent.ExecDone(p.id, dv)
+        for s in List.distinct watchers do
           s.Queue.Post ev
-      | None -> queue.Post ev
+      | false, _ -> ()
     | Error _ -> ()
     p.completion.TrySetResult result |> ignore<bool>
 
@@ -685,7 +721,11 @@ type Scheduler(quantum : int64) =
       parent = p.parent
       started = p.started
       slices = p.slices
-      inflight = Volatile.Read &p.vm.inflight
+      inflight =
+        (match p.status with
+         | Done _
+         | Failed _ -> 0
+         | _ -> Volatile.Read &p.vm.inflight)
       frames =
         match p.status with
         | Done _

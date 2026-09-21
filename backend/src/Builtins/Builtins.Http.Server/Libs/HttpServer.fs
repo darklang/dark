@@ -309,23 +309,25 @@ let private resolveRouting
 // ───────── per-request dispatch ─────────
 // ───────── per-request dispatch ─────────
 
+/// Run the handler for one request as a PROCESS of its own, on a worker (`docs/processes.md`,
+/// "Cores"): `ps` shows it with the server as its parent and its own frames, the budget can
+/// preempt it, a read in it stays a value in flight, and nothing re-enters the interpreter on the
+/// listener's thread. The server's own process holds its thread on the listener, which is why the
+/// handler cannot run there; a worker is where it goes. `Await` is the process's completion.
+///
+/// The state is the per-request one (its own tracer); the spawn keeps that and stamps the process
+/// id on it. The access is the guest's, narrowed by the frame that called `serve`, as before.
 let private executeHandler
   (exeState : ExecutionState)
   (handler : Applicable)
   (arg : Dval)
   : Task<Dval> =
   task {
-    // `executeApplicable` returns a `Ply` now, so that a lambda which does not await costs no
-    // builder; this caller is a `task`, so it needs the conversion.
-    // This detached handler has no invoking VM. Run it under the server's child
-    // state, which already includes the access of the frame that called `serve`.
-    let! result =
-      Execution.executeApplicable
-        exeState
-        exeState.access
-        handler
-        (NEList.singleton arg)
-      |> Ply.toTask
+    let scheduler = LibExecution.Scheduler.Scheduler.CurrentOrShared
+    let parent =
+      LibExecution.Scheduler.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
+    let p = scheduler.SpawnApply(exeState, handler, arg, parent, exeState.access)
+    let! result = scheduler.Await p
     match result with
     | Ok dval -> return dval
     | Error(rte, _callStack) ->
