@@ -303,8 +303,6 @@ let saveAuthored
 
     match SCM.PackageOps.addAuthored state.currentBranchId ops with
     | Ok report ->
-      AtRestCheck.printSaveReport state.currentBranchId report
-
       // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
       // stabilized inside the save, so the value in hand until now is a placeholder. Everything
       // below that names a version -- the permission summary, the doc-only note -- needs the
@@ -338,53 +336,57 @@ let saveAuthored
       // command does exactly that. Reporting it as an update is how a dropped edit stays hidden.
       let landed = (Stdlib.Bool.not isUpdate) || docOnly || movedVersion || reverted
 
-      Stdlib.printLine ""
+      // Repoint dependents NOW, into the draft, so you can run them against this change before
+      // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing. A
+      // revert repoints too: the dependents follow the name to the version it holds now. Done
+      // BEFORE anything prints: whether a dependent broke decides the first line's glyph.
+      let followed =
+        if isUpdate && (Stdlib.Bool.not docOnly) then
+          Propagate.repointNow state.currentBranchId location previousHashes boundHash kind
+        else
+          Propagate.nothingFollowed ()
+
+      // The save's own type check: an error in what was just written. Saved anyway (WIP is yours
+      // to break); `dark commit` is the gate. Said on the second line, with the issue itself.
+      let ownIssue =
+        match report.verdict with
+        | Failed -> Stdlib.Option.Option.Some(Stdlib.Live.reportText report)
+        | _ -> Stdlib.Option.Option.None
+
+      // A save is at most two lines. Line one: what happened, with a check when all is well and a
+      // `!` when something no longer type-checks. Line two: who follows, or what broke.
+      let broke = (Stdlib.Option.isSome ownIssue) || (Stdlib.Bool.not (Stdlib.List.isEmpty followed.broken))
+      let glyph =
+        if broke then Stdlib.Cli.UI.Colors.warning "!" else Stdlib.Cli.UI.Colors.success "✓"
 
       if reverted then
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.success $"✓ Put {kindWord} {fullPath} back to an earlier version")
+        Stdlib.printLine $"{glyph} Put {kindWord} {fullPath} back to an earlier version"
       else if landed then
         let action = if isUpdate then "Updated" else "Created"
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
+        Stdlib.printLine $"{glyph} {action} {kindWord} {fullPath}"
       else
         Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.hint $"= {kindWord} {fullPath} is unchanged; nothing was saved.")
+          (Stdlib.Cli.UI.Colors.hint $"= {kindWord} {fullPath} is unchanged; nothing was saved")
 
-      let _ =
-        if docOnly then
-          Stdlib.printLine
-            (Stdlib.Cli.UI.Colors.dimText
-              "  documentation only: the version is the same, so nothing that uses it changed.")
-        else
-          ()
+      match ownIssue with
+      | Some why ->
+        Cli.Text.printWrapped
+          Stdlib.Cli.UI.Colors.error
+          "  "
+          $"type error: {why}; saved as a draft, `dark commit` will refuse it"
+      | None -> ()
+
+      Propagate.printFollowed followed
 
       match peerHeadsUp with
       | Some line -> Stdlib.printLine line
       | None -> ()
 
-      // Repoint dependents NOW, into the draft, so you can run them against this change before
-      // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing. A
-      // revert repoints too: the dependents follow the name to the version it holds now.
-      if isUpdate && (Stdlib.Bool.not docOnly) then
-        Propagate.repointNow state.currentBranchId location previousHashes boundHash kind
-
-      // A fn's transitive permission requirements, named at the save so the author
-      // learns what a caller must be allowed BEFORE anyone runs it and gets denied.
-      match kind with
-      | Fn ->
-        Fn.printFunctionPermissionSummary
-          (LanguageTools.ProgramTypes.hashToString boundHash)
-      | _ -> ()
-
-      Stdlib.printLine ""
       // `live.autopush`: a save is a commit and a push when the mode is on. A no-op otherwise.
       Cli.Sync.Autopush.afterAuthoring state
 
     | Error msg ->
-      [ ""
-        (Stdlib.Cli.UI.Colors.error $"✗ Failed to add {kindWord}: {msg}")
-        "" ]
-      |> Stdlib.printLines
+      let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+      Cli.Text.printWrapped Stdlib.Cli.UI.Colors.error "" $"✗ Could not save {kindWord} {fullPath}: {msg}"
 
       failState

@@ -83,9 +83,9 @@ let resolveAll
 
 // --- rendering ---
 
-/// The band's rows at this width: at most three.
+/// The band's rows at this width: at most two.
 let bandRows (band: String) (width: Int) : Int =
-  Stdlib.Int.min 3 (Stdlib.List.length (Stdlib.Cli.Tui.Text.wrapAtWords band (Stdlib.Int.max 1 (width - 2))))
+  Stdlib.Int.min 2 (Stdlib.List.length (Stdlib.Cli.Tui.Text.wrapAtWords band (Stdlib.Int.max 1 (width - 2))))
 
 /// The whole screen for a session at a size. Pure: everything it needs is on the session.
 let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
@@ -382,11 +382,22 @@ let press (read: Stdlib.Cli.Stdin.KeyRead.KeyRead) : Stdlib.Cli.UI.Widget.KeyPre
     read.modifiers
     (if read.keyChar == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some read.keyChar)
 
-/// One turn: wait, then act. Split from `run` so a test can drive turns one at a time.
+/// How long a toast stays up when nothing else happens.
+val toastMs = 3000L
+
+/// One turn: wait, then act. Split from `run` so a test can drive turns one at a time. A toast
+/// on screen adds a timer to the wait; it clears when the timer fires or on the next key,
+/// whichever comes first.
 let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
-  match Stdlib.Host.await [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ] with
+  let specs =
+    match s.toast with
+    | Some _ -> [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer toastMs ]
+    | None -> [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ]
+
+  match Stdlib.Host.await specs with
   | StoreChanged change when affected s change -> present (render (reload s change))
   | StoreChanged _ -> s
+  | Timer -> present { s with toast = Stdlib.Option.Option.None }
   | Key read ->
     // A coalesced burst (a wheel, a held key) is one read with a repeat count; movement keys are
     // applied that many times, as the CLI's loop does, capped so a flood cannot spin the loop.
@@ -422,7 +433,7 @@ let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
 
     let after =
       Stdlib.List.range 1 times
-      |> Stdlib.List.fold s (fun acc _ ->
+      |> Stdlib.List.fold { s with toast = Stdlib.Option.Option.None } (fun acc _ ->
         presses
         |> Stdlib.List.fold acc (fun acc2 kp -> if acc2.exiting then acc2 else onKey acc2 kp))
 

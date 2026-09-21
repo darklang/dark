@@ -396,6 +396,9 @@ let private serveLiveEvents
       let! now = currentRouterHash serverState invokerAccess routing
       if now <> startedOn then
         do! write "data: reload\n\n"
+        // An outcome, in the log, beside the request lines: the wait itself is not a request,
+        // and logged as one it read as a slow `GET /__live`.
+        print "[live] page told to reload"
         waiting <- false
       elif ticks % 30 = 0 then
         // A comment every 15 s keeps proxies from closing an idle stream.
@@ -560,12 +563,12 @@ let private handleRequest
         do! ctx.Response.OutputStream.WriteAsync(errorBytes, 0, errorBytes.Length)
     finally
       match started with
-      | Some started ->
+      | Some started when not (dev && ctx.Request.Url.AbsolutePath = "/__live") ->
         try
           logRequest ctx ctx.Response.StatusCode started
         with _ ->
           ()
-      | None -> ()
+      | _ -> ()
       try
         ctx.Response.OutputStream.Close()
         ctx.Response.Close()

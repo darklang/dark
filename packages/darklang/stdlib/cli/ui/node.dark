@@ -270,8 +270,8 @@ let paint
     | Band(severity, message) ->
       let code = severityCode severity
       let lines = Tui.Text.wrapAtWords message (Stdlib.Int.max 1 (region.cols - 2))
-      // At most three rows: a band is a headline, not a page.
-      Stdlib.List.take lines 3
+      // At most two rows: a band is a headline, not a page.
+      Stdlib.List.take lines 2
       |> Stdlib.List.indexedMap (fun i line ->
         let padded = Stdlib.String.padEndToWidth (" " ++ line) region.cols
         Layout.at region i 0 (Colors.colorize code padded))

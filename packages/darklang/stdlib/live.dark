@@ -412,6 +412,50 @@ let locationOfName
     | [] -> Stdlib.Option.Option.None
   | [] -> Stdlib.Option.Option.None
 
+/// One type-check issue as a person reads it: what was wrong first, where at the end in
+/// parentheses. `expected String, got Int (argument 2)`; `expected String, got Int (return value)`.
+/// The checker's own text leads with the site ("In argument 2: expected ..."); every line a live
+/// host prints puts the site last, so the lines align on the part that matters.
+let issueText (issue: LanguageTools.AtRestTypeChecker.Issue) : String =
+  let site =
+    match issue.context with
+    | At site ->
+      match LanguageTools.AtRestTypeChecker.siteToString site with
+      | "the function's return value" -> "return value"
+      | "the lambda's return value" -> "the lambda's return value"
+      | "the value's body" -> "the value"
+      | "this expression" -> "expression"
+      | other -> other
+    | _ -> ""
+
+  let detail =
+    match (issue.expected, issue.actual) with
+    | (Some expected, Some actual) ->
+      Stdlib.Option.Option.Some
+        ("expected "
+         ++ (LanguageTools.AtRestTypeChecker.staticTypeToString expected)
+         ++ ", got "
+         ++ (LanguageTools.AtRestTypeChecker.staticTypeToString actual))
+    | _ -> Stdlib.Option.Option.None
+
+  match (detail, site) with
+  | (Some d, "") -> d
+  | (Some d, s) -> $"{d} ({s})"
+  | (None, _) -> LanguageTools.AtRestTypeChecker.issueToString issue
+
+/// The report's first issue as text, and how many more there are.
+let reportText (report: LanguageTools.AtRestTypeChecker.Report) : String =
+  let issues = Stdlib.List.append report.blockers report.diagnostics
+  let count = Stdlib.List.length issues
+
+  let first =
+    match issues with
+    | issue :: _ -> issueText issue
+    | [] -> "it failed the type check"
+
+  let more = if count > 1 then $" (and {Stdlib.Int.toString (count - 1)} more)" else ""
+  first ++ more
+
 /// One line for a band or a log: why the host is not on the newest version, if it is not.
 let diagnostic (lg: LastGood) : Stdlib.Option.Option<String> =
   match lg.problem with
@@ -419,18 +463,8 @@ let diagnostic (lg: LastGood) : Stdlib.Option.Option<String> =
   | None ->
     match lg.report with
     | Some report ->
-      let issues = Stdlib.List.append report.blockers report.diagnostics
-      let count = Stdlib.List.length issues
-
-      let first =
-        match issues with
-        | issue :: _ -> LanguageTools.AtRestTypeChecker.issueToString issue
-        | [] -> "it failed the type check"
-
-      let more = if count > 1 then $" (+{Stdlib.Int.toString (count - 1)} more)" else ""
-
       Stdlib.Option.Option.Some
-        $"{entryName lg.entry}: still on the last good version. The newest has a type error: {first}{more}"
+        $"{entryName lg.entry}: still on the last good version; the newest has a type error: {reportText report}"
     | None -> Stdlib.Option.Option.None
 
 
@@ -465,8 +499,8 @@ module Router =
 
         if after != before then
           match after with
-          | Some line -> Stdlib.printLine $"live: {line}"
-          | None -> Stdlib.printLine $"live: now serving the new version of {entryName lg.entry}"
+          | Some line -> Stdlib.printLine $"[live] {line}"
+          | None -> Stdlib.printLine $"[live] now serving the new version of {entryName lg.entry}"
         else
           ()
 

@@ -483,7 +483,9 @@ let executeUnset (state: AppState) (arg: String) : AppState =
 let help (_state: AppState) : String =
   [ ""
     "  Editing an item repoints everything above it, immediately, in"
-    "  your draft. These are the exceptions to that."
+    "  your draft: a save says `X follows` for each dependent that moved."
+    "  These are the exceptions to that. `dark propagate pin <name>` keeps"
+    "  one on the version it had, and undoes the repoint it just got."
     ""
     "  dark propagate                    the impact screen"
     "  dark propagate show <name>        what governs it"

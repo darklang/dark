@@ -27,9 +27,10 @@ let eventSpecText (spec: Stdlib.Host.EventSpec) : String =
 
 let parkedText (branchId: Uuid) (parked: Stdlib.Exec.ParkedOn) : String =
   match parked with
-  | Builtin b -> $"{PrettyPrinter.RuntimeTypes.FQFnName.builtIn b} to return"
-  | PackageFn h -> $"{PrettyPrinter.RuntimeTypes.FQFnName.package branchId h} to return"
-  | Lambda -> "a lambda to return"
+  // The builtin's bare name: `Builtin.` says nothing a reader of this column needs.
+  | Builtin b -> b.name
+  | PackageFn h -> PrettyPrinter.RuntimeTypes.FQFnName.package branchId h
+  | Lambda -> "a lambda"
   | RareOpcode -> "the store"
   | Events specs -> specs |> Stdlib.List.map eventSpecText |> Stdlib.String.join " or "
 
@@ -37,7 +38,10 @@ let parkedText (branchId: Uuid) (parked: Stdlib.Exec.ParkedOn) : String =
 let statusText (branchId: Uuid) (status: Stdlib.Exec.Status) : String =
   match status with
   | Runnable -> "running"
-  | Parked on -> $"waiting for {parkedText branchId on}"
+  | Parked on ->
+    match on with
+    | Events _ -> $"waiting for {parkedText branchId on}"
+    | _ -> $"waiting on {parkedText branchId on}"
   | Done -> "finished"
   | Failed rte ->
     let message = PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId rte
@@ -76,10 +80,24 @@ let find (prefix: String) : Stdlib.Result.Result<Stdlib.Exec.Summary, String> =
 
 let printList (branchId: Uuid) : Unit =
   let rows = Stdlib.Exec.list () |> Stdlib.List.map (fun p -> row branchId p)
-  Stdlib.Cli.UI.Table.print [ "id", "entry", "status", "slices", "parent" ] rows
+  Stdlib.Cli.UI.Table.print [ "id", "entry", "status", "turns", "parent" ] rows
 
 
-let printShow (branchId: Uuid) (prefix: String) : Unit =
+/// "0.3 s ago", "12 s ago", "4 min ago": how long a process has been running, at a glance.
+let startedAgo (started: DateTime) : String =
+  let ms = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) started
+
+  if ms < 10000 then
+    let tenths = Stdlib.Int.divide ms 100
+    $"{Stdlib.Int.toString (Stdlib.Int.divide tenths 10)}.{Stdlib.Int.toString (Stdlib.Int.``mod`` tenths 10)} s ago"
+  else if ms < 60000 then
+    $"{Stdlib.Int.toString (Stdlib.Int.divide ms 1000)} s ago"
+  else
+    $"{Stdlib.Int.toString (Stdlib.Int.divide ms 60000)} min ago"
+
+
+/// One process in full. The short id names it, as everywhere else; <param full> adds the whole uuid.
+let printShowWith (branchId: Uuid) (prefix: String) (full: Bool) : Unit =
   match find prefix with
   | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
   | Ok p ->
@@ -87,13 +105,13 @@ let printShow (branchId: Uuid) (prefix: String) : Unit =
     | None -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"process {idPrefix p.id} is gone")
     | Some detail ->
       let s = detail.summary
-      Stdlib.printLine $"{Stdlib.Uuid.toString s.id}"
-      Stdlib.printLine $"  entry:    {entryText branchId s.entry}"
-      Stdlib.printLine $"  status:   {statusText branchId s.status}"
-      Stdlib.printLine $"  started:  {Stdlib.DateTime.toString s.started}"
-      Stdlib.printLine $"  slices:   {Stdlib.Int64.toString s.slices}"
+      let id = if full then Stdlib.Uuid.toString s.id else idPrefix s.id
+      Stdlib.printLine $"{id}  {entryText branchId s.entry}"
+      Stdlib.printLine $"  status   {statusText branchId s.status}"
+      Stdlib.printLine $"  started  {startedAgo s.started}"
+      Stdlib.printLine $"  turns    {Stdlib.Int64.toString s.slices}"
       match s.parent with
-      | Some id -> Stdlib.printLine $"  parent:   {Stdlib.Uuid.toString id}"
+      | Some pid -> Stdlib.printLine $"  parent   {if full then Stdlib.Uuid.toString pid else idPrefix pid}"
       | None -> ()
       match detail.frames with
       | [] -> ()
@@ -103,11 +121,24 @@ let printShow (branchId: Uuid) (prefix: String) : Unit =
         |> Stdlib.List.iter (fun ep ->
           Stdlib.printLine $"    {executionPointText branchId ep}")
 
+let printShow (branchId: Uuid) (prefix: String) : Unit = printShowWith branchId prefix false
+
+/// The table, then every process in full: `dark eval 'Darklang.Cli.Ps.printAll ()'` from inside an
+/// eval is the one line that shows a parent and its child with both stacks.
+let printAll () : Unit =
+  let branchId = SCM.PackageOps.currentBranch ()
+  printList branchId
+  Stdlib.Exec.list ()
+  |> Stdlib.List.iter (fun p ->
+    Stdlib.printLine ""
+    printShow branchId (idPrefix p.id))
+
 
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] -> printList state.currentBranchId
   | [ "show", prefix ] -> printShow state.currentBranchId prefix
+  | [ "show", prefix, "--full" ] -> printShowWith state.currentBranchId prefix true
   | [ "kill", prefix ] ->
     match find prefix with
     | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
@@ -128,7 +159,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
 
 let help (_state: AppState) : String =
   [ "Usage: ps"
-    "       ps show <id-prefix>"
+    "       ps show <id-prefix> [--full]"
     "       ps kill <id-prefix>"
     ""
     "What this instance is running: every process its scheduler knows, oldest first."
