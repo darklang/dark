@@ -38,7 +38,7 @@ let refresh (previous: State) (next: State) : State =
   // SCM status FIRST: the tree's wip badges read it rather than doing their own draft query, so
   // refreshing them against last frame's status would draw a dot one keypress behind the truth.
   fixSelection (
-    refreshPeek (refreshBadges previous (refreshScmStatus previous next))
+    refreshLiveValues (refreshPeek (refreshBadges previous (refreshScmStatus previous next)))
   )
 
 let onKey
@@ -125,6 +125,7 @@ let initialState
         deprecatedNames = []
         scmStatus = emptyScmStatus ()
         renderPeek = ""
+        liveValues = Stdlib.Dict.empty
         branchId = branchId }
 
 

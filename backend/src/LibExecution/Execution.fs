@@ -14,6 +14,7 @@ let rec noTracing : RT.Tracing.Tracing =
   { storeFnResult = fun _ _ _ _ -> ()
     storeFrameEntry = fun _ _ _ -> ()
     storeLambdaResult = fun _ _ -> ()
+    storeExprResult = fun _ _ -> ()
     skipTracing = true
     traceEffects = false
     nextEffect = fun () -> -1L

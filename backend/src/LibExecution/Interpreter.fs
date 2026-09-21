@@ -3529,6 +3529,10 @@ let private runSyncInstructions
       | RaiseNRE(names, nre) ->
         raiseRTE vm.threadID (RTE.ParseTimeNameResolution(names, nre))
 
+      | TraceExpr(exprId, reg) ->
+        if not exeState.tracing.skipTracing then
+          exeState.tracing.storeExprResult exprId registers[reg]
+
       // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
       | CheckIfFirstExprIsUnit reg ->
         match registers[reg] with

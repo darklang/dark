@@ -953,6 +953,7 @@ module Instruction =
           NameResolutionError.toDT err ]
       | VarNotFound(t, name) -> "VarNotFound", [ reg t; DString name ]
       | CheckIfFirstExprIsUnit r -> "CheckIfFirstExprIsUnit", [ reg r ]
+      | TraceExpr(exprId, r) -> "TraceExpr", [ DUInt64 exprId; reg r ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   and instructionsToDT (i : Instructions) : Dval =

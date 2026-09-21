@@ -160,6 +160,7 @@ let opcode (i: LanguageTools.RuntimeTypes.Instruction) : String =
   | RaiseNRE(_, _) -> "RaiseNRE"
   | VarNotFound(_, _) -> "VarNotFound"
   | CheckIfFirstExprIsUnit _ -> "CheckIfFirstExprIsUnit"
+  | TraceExpr(_, _) -> "TraceExpr"
 
 
 /// Everything after the opcode. <param index> is the instruction's own position: jump offsets are stored
@@ -211,6 +212,7 @@ let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instru
   | RaiseNRE(names, _) -> Stdlib.String.join names "."
   | VarNotFound(t, name) -> $"{register t} <- ${name}"
   | CheckIfFirstExprIsUnit r -> register r
+  | TraceExpr(exprId, r) -> $"expr {Stdlib.UInt64.toString exprId} = {register r}"
 
 
 /// Every lambda defined inside these instructions, flattened, so a listing isn't a dead end at

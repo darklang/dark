@@ -961,6 +961,146 @@ let private devErrorPageCarriesTheListener =
             ()
       })
 
+/// The Dark source for an annotated print of a function: its live values, one per call at a
+/// line position, as `// = value` after the code.
+let private annotatedPrint (owner : string) (modul : string) (name : string) =
+  $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}"; modules = ["{modul}"]; name = "{name}" }}
+let bid = Darklang.SCM.Branch.mainBranchId
+let values =
+  match Darklang.Stdlib.Live.Values.replay bid loc with
+  | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map (fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval bid d)
+  | None -> Darklang.Stdlib.Dict.empty
+let base = Darklang.PrettyPrinter.ProgramTypes.Context.forModule bid ["{owner}", "{modul}"]
+let ctx = {{ base with liveValues = values }}
+match Darklang.LanguageTools.PackageManager.Function.find bid loc with
+| Some hash ->
+  match Darklang.LanguageTools.PackageManager.Function.get hash with
+  | Some fn -> Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn
+  | None -> "no fn"
+| None -> "no hash"
+"""
+
+/// Live values: a function's last recorded call, run again through the code as it is NOW, with
+/// the value of every call inside it put beside the code. The trace names the call by the
+/// function's dotted name; the current version's hash is what runs. So an edit to a callee shows
+/// up on the next replay without a new call being recorded.
+let private liveValuesReplayTheLastCall =
+  cliTestWithFreshTraces
+    "live values replay the last recorded call through the current code"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        do!
+          author
+            "Tests.LiveVals.double"
+            "(n: Int64): Int64 = Stdlib.Int64.multiply n 2L"
+        do!
+          author
+            "Tests.LiveVals.greet"
+            "(name: String): String =\n  let up = Stdlib.String.toUppercase name\n  let n = Tests.LiveVals.double 21L\n  $\"hi {up} {Stdlib.Int64.toString n}\""
+
+        // Nothing recorded yet: no values, and no error.
+        let! before = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
+        match before with
+        | RT.DString printed ->
+          Expect.isFalse
+            (printed.Contains "// =")
+            "no call recorded, so nothing beside the code"
+          Expect.stringContains printed "let greet" "the code itself still prints"
+        | other -> failtest $"expected the print, got {other}"
+
+        let! out = runCli target [ "eval"; "Tests.LiveVals.greet \"bob\"" ]
+        Expect.stringContains out "hi BOB 42" "the call ran"
+
+        let! after = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
+        match after with
+        | RT.DString printed ->
+          Expect.stringContains
+            printed
+            "Stdlib.String.toUppercase name // = \"BOB\""
+            "the recorded input flowed through the first call"
+          Expect.stringContains
+            printed
+            "double 21L // = 42"
+            "and the callee's result is beside its call"
+          Expect.isFalse
+            (printed.Contains "toString n // =")
+            "a call inside an interpolated string is left bare: a comment there would break the string"
+        | other -> failtest $"expected the print, got {other}"
+
+        // The LSP's hints: the same values, placed on the document's lines. The document is
+        // the module as the editor reads it (`fileSystem/read`), where the fns sit two columns
+        // in; `double` has a recorded call of its own, from the eval above.
+        let! hints =
+          evalUnder
+            state
+            """let bid = Darklang.SCM.Branch.mainBranchId
+let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
+let q = Darklang.LanguageTools.ProgramTypes.Search.SearchQuery { currentModule = ["Tests", "LiveVals"]; text = ""; searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants; entityTypes = []; exactMatch = false }
+let r = Darklang.LanguageTools.PackageManager.Search.search bid q
+let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; exprs = [] }
+let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
+r.fns
+|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
+|> Darklang.Stdlib.List.flatten
+|> Darklang.Stdlib.List.map (fun h -> (Darklang.Stdlib.UInt64.toString h.position.line) ++ ":" ++ (Darklang.Stdlib.UInt64.toString h.position.character) ++ " " ++ h.label)"""
+        let hints =
+          match hints with
+          | RT.DList(_, items) ->
+            items
+            |> List.map (fun i ->
+              match i with
+              | RT.DString s -> s
+              | other -> string other)
+            |> List.sort
+          | other -> failtest $"expected the hints, got {other}"
+        Expect.equal
+          hints
+          [ "2:30 = 42"; "5:43 = \"BOB\""; "6:31 = 42" ]
+          "one hint per call at a line position, at the end of the document's line"
+
+        // The callee changes; the replay runs the current code on the same recorded input.
+        do!
+          author
+            "Tests.LiveVals.double"
+            "(n: Int64): Int64 = Stdlib.Int64.multiply n 3L"
+        let! edited = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
+        match edited with
+        | RT.DString printed ->
+          Expect.stringContains
+            printed
+            "double 21L // = 63"
+            "the edit is in the values, with no new call"
+        | other -> failtest $"expected the print, got {other}"
+
+        // A version that fails at run time reports the failure and keeps what ran before it.
+        do!
+          author
+            "Tests.LiveVals.double"
+            "(n: Int64): Int64 = Stdlib.Int64.divide n 0L"
+        let! failed =
+          evalUnder
+            state
+            """match Darklang.Stdlib.Live.Values.replay Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = "Tests"; modules = ["LiveVals"]; name = "greet" }) with
+| Some v -> (Darklang.Stdlib.Option.isSome v.result, Darklang.Stdlib.Dict.size v.byExpr, v.problem)
+| None -> (false, 0, Darklang.Stdlib.Option.Option.Some "no trace")"""
+        match failed with
+        | RT.DTuple(RT.DBool hasResult,
+                    RT.DInt count,
+                    [ RT.DEnum(_, _, _, "Some", [ RT.DString problem ]) ]) ->
+          Expect.isFalse hasResult "no result: the run failed"
+          Expect.isGreaterThan
+            (RT.DarkInt.toBigInt count)
+            0I
+            "the values up to the failure are kept"
+          Expect.stringContains
+            problem
+            "divide by 0"
+            "and the problem is the runtime error"
+        | other -> failtest $"expected (false, n, Some problem), got {other}"
+      })
+
 
 let tests : List<Test> =
   [ versionAndStatusAnswer
@@ -987,5 +1127,6 @@ let tests : List<Test> =
           modelSavesAndResumes
           pollIgnoresAnOpUntilItIsApplied
           aFixedCalleeIsNotAdoptedThroughItsBrokenDependent
-          devErrorPageCarriesTheListener ]
+          devErrorPageCarriesTheListener
+          liveValuesReplayTheLastCall ]
     ) ]

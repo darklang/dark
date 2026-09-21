@@ -136,12 +136,15 @@ serving the new version of <entry>`), beside the `[HttpServer] ...` request line
 wire keeps getting the last good one. `--no-live` pins the
 version resolved at start.
 
-Under the scheduler `serve` is a process that holds its thread on the listener; each
-request runs on a thread-pool thread with no scheduler current, so the per-request
-`Router.step` keeps polling for itself rather than reading the scheduler's queue. (The
-rebase plan wanted that poll replaced by "the latest change the scheduler has seen";
-requests are not processes yet, so the poll stays until the re-entry-removal step makes
-them one.)
+Under the scheduler `serve` is a process that holds its thread on the listener, and
+each request is a process of its own (`Scheduler.SpawnApply` from the listener's
+thread, with the server's process as its parent, so `dark ps` inside a handler shows
+the request under the server). The per-request `Router.step` still polls for itself
+rather than reading the scheduler's queue: the store-change source posts to processes
+that are parked on `Host.await`, and a request process is never parked on it, so there
+is nothing for it to read. Making the poll an event would mean a builtin that hands a
+process the scheduler's latest store generation; the poll is one `PRAGMA data_version`
+on a held connection, so that trade is not worth its builtin yet.
 
 `serve --dev` adds the browser half: `GET /__live` is an event stream that holds the
 connection, compares the router's hash every half second to the one the page was served
@@ -263,6 +266,51 @@ fix follows. B pulls from a shell
 loop rather than the auto-sync daemon: in this container the daemon dies on its first
 tick because its `eval` guest is refused the relay transport (`httpGetUnsafeBytes is
 restricted to trusted first-party code`), a pre-existing gap outside this work.
+
+## Live values
+
+Beside each call in a function, the value it produced the last time the function ran.
+Not from the recording: from running the current code again on the recorded inputs. So an
+edit to a callee shows up in the caller's values without anyone calling it again, and a
+value beside a call is always the value of the code you are looking at.
+
+What the trace store keeps of a run, per function, is the arguments of each call
+(`trace_fn_calls`, keyed by the resolved dotted name, or the hash when the name did not
+resolve). `Stdlib.Live.Values.replay branchId location` takes the newest such row for the
+function at `location` (by its name, then by every hash it has had), runs the current
+version on those arguments, and returns `Values`: `result` (None when the run failed),
+`byExpr` (the value of every call, keyed by the id of the `EApply` that made it; calls
+inside callees are there too, under their own ids), and `problem` (the runtime error's
+text when there was one; the values up to it are still in `byExpr`). None means no call
+is recorded, which is not an error: there is nothing to show.
+
+The runtime side is one instruction: `PT2RT` emits `TraceExpr(exprId, reg)` after every
+call, and the interpreter hands the register's value to `tracing.storeExprResult`, which
+is a no-op everywhere except under the replay's tracer (and is skipped outright when
+`skipTracing` is set, so the normal path pays a branch and nothing else). The effects the
+replayed function makes are performed, not replayed from the log: a single call taken out
+of a run has no effect ordinals to line up with, so a function that reads the clock shows
+a fresh time. Do not replay a function whose effects you would not want to happen again.
+
+Where they show:
+
+- The printer. `PrettyPrinter.ProgramTypes.Context.liveValues` (expr id -> rendered
+  text) makes `packageFn` write `// = value` after a call that ends a line: a `let`'s
+  right-hand side, a statement, a match arm's body, the body's last expression. Not
+  inside an argument or an interpolated string, where a comment would break the code.
+  The annotation is zero columns wide for layout (a `Styled` with an empty middle), so
+  the code breaks exactly as it does without the values.
+- The workbench. The Matter view's detail pane refreshes the values whenever the
+  selected function changes (`refreshLiveValues`) and prints with them.
+- The LSP. `textDocument/inlayHint` answers one hint per annotated line, placed at the
+  end of the document's line with the same text (`LspServer.InlayHints`). A document
+  edited away from the printed form gets fewer hints, never a wrong one. After a
+  `fileSystem/write` lands ops, the server sends `workspace/inlayHint/refresh`.
+
+Recording is off by default (`DARK_CONFIG_TRACE_DETAIL=on` turns it on), so on a fresh
+store nothing has values until something has run with it on. The dev rebuild purges the
+draft store and keeps the traces, so after a build a re-authored function still has its
+last call's inputs, which is exactly the case the replay is for.
 
 ## The demos
 

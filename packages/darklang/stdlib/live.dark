@@ -545,3 +545,77 @@ let call (lg: LastGood) (arg: 'a) : Stdlib.Result.Result<'b, String> =
   match applicable lg with
   | Ok f -> apply f arg
   | Error e -> Stdlib.Result.Result.Error e
+
+
+// --- live values: the last recorded call, run again ---
+
+/// What the editor shows beside a function: the value every call inside it produced when the
+/// function ran on the inputs its last recorded call had (`docs/live.md`, "Live values").
+/// Data; the LSP and the workbench render it.
+module Values =
+  type Values =
+    { /// What the function returned, when the run finished.
+      result: Stdlib.Option.Option<LanguageTools.RuntimeTypes.Dval>
+      /// Each call's value, keyed by the id of the `EApply` expression that made it, as text.
+      /// Calls made inside callees are here too, under their own expressions' ids; a printer
+      /// looking up the ids of one function's body simply never meets them.
+      byExpr: Dict<String, LanguageTools.RuntimeTypes.Dval>
+      /// The run failed; the values up to that point are still above.
+      problem: Stdlib.Option.Option<String> }
+
+  /// How the trace store may name a call to <param entry>: by the dotted name (what it writes when
+  /// the name resolves), and by each version's hash (what it falls back to), newest first.
+  let versionsOf
+    (branchId: Uuid)
+    (entry: LanguageTools.ProgramTypes.PackageLocation)
+    : List<String> =
+    let current =
+      match LanguageTools.PackageManager.Function.find branchId entry with
+      | Some h -> [ LanguageTools.ProgramTypes.hashToString h ]
+      | None -> []
+
+    let earlier =
+      SCM.Propagation.everBoundHashes entry LanguageTools.ProgramTypes.ItemKind.Fn
+      |> Stdlib.List.map LanguageTools.ProgramTypes.hashToString
+
+    Stdlib.List.unique (Stdlib.List.flatten [ [ entryName entry ], current, earlier ])
+
+  /// The inputs of the last recorded call to any version of <param entry>, or `None` when no
+  /// trace holds one (nothing ran it while tracing was on).
+  let lastInputs
+    (branchId: Uuid)
+    (entry: LanguageTools.ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<List<'a>> =
+    Builtin.tracesLastInputs (versionsOf branchId entry)
+
+  /// Run the current version of <param entry> on <param inputs>, collecting every call's value.
+  let run
+    (branchId: Uuid)
+    (entry: LanguageTools.ProgramTypes.PackageLocation)
+    (inputs: List<'a>)
+    : Stdlib.Option.Option<Values> =
+    match LanguageTools.PackageManager.Function.find branchId entry with
+    | None -> Stdlib.Option.Option.None
+    | Some hash ->
+      let (result, values, problem) =
+        Builtin.liveReplay (LanguageTools.ProgramTypes.hashToString hash) inputs
+
+      let byExpr =
+        values
+        |> Stdlib.List.map (fun pair ->
+          let (id, v) = pair
+          (Stdlib.Int64.toString id, v))
+        |> Stdlib.Dict.fromListOverwritingDuplicates
+
+      Stdlib.Option.Option.Some(
+        Values { result = result; byExpr = byExpr; problem = problem })
+
+  /// The live values for <param entry>: its last recorded call, run again through the code as it
+  /// is now. `None` when nothing recorded a call, which is not an error: there is nothing to show.
+  let replay
+    (branchId: Uuid)
+    (entry: LanguageTools.ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<Values> =
+    match lastInputs branchId entry with
+    | None -> Stdlib.Option.Option.None
+    | Some inputs -> run branchId entry inputs

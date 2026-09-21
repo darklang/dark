@@ -451,4 +451,7 @@ module WriteFile =
             else
               Stdlib.Option.Option.None
 
+          // The live values may have moved with the code; the editor asks for them again.
+          if Stdlib.Bool.not (Stdlib.List.isEmpty allOps) then InlayHints.requestRefresh ()
+
           sendSuccessResponse state requestId allOps updatedContent

@@ -27,6 +27,9 @@ let handleInitializeRequest
                 )
 
               hoverProvider = Stdlib.Option.Option.Some true
+
+              // Live values beside the calls in a function (`InlayHints`).
+              inlayHintProvider = Stdlib.Option.Option.Some true
             } }
 
 

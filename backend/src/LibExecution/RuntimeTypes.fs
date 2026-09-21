@@ -851,6 +851,11 @@ type Instruction =
 
   | CheckIfFirstExprIsUnit of Register
 
+  /// Live values: hand the value now in `valueReg` to the tracer as the result of the source
+  /// expression `exprId` (an `EApply`), when the tracer wants expression results. Emitted after
+  /// every call; a no-op when tracing is off, so it costs a dispatch and nothing else.
+  | TraceExpr of exprId : id * valueReg : Register
+
 and Instructions =
   {
     /// How many registers are used in evaluating these instructions
@@ -2525,6 +2530,9 @@ module Tracing =
       storeFnResult : StoreFnResult
       storeFrameEntry : StoreFrameEntry
       storeLambdaResult : StoreLambdaResult
+      /// Live values: the result of the source expression with this id, as it was computed
+      /// (`TraceExpr`). Only when `skipTracing` is off; a replay for the editor collects these.
+      storeExprResult : id -> Dval -> unit
       /// When true, the interpreter skips the frame hooks (storeFrameEntry, storeLambdaResult,
       /// storeFnResult for package fns and pure builtins) and the pendingCallArgs bookkeeping,
       /// and takes its fast paths. Effectful builtin calls are still recorded when
@@ -2794,6 +2802,7 @@ module Opcode =
     | RaiseNRE _ -> 20
     | VarNotFound _ -> 21
     | CheckIfFirstExprIsUnit _ -> 22
+    | TraceExpr _ -> 23
 
 
 /// Every `InterpreterStats` created while telemetry is on, so the process can total them at exit. A VM is

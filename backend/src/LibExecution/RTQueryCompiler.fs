@@ -570,6 +570,7 @@ and executeInstruction
   | RT.RaiseNRE _ -> Error "Name resolution errors not supported in SQL queries"
   | RT.VarNotFound(_, varName) -> Error $"This variable is not defined: {varName}"
   | RT.CheckIfFirstExprIsUnit _ -> Ok state
+  | RT.TraceExpr _ -> Ok state
 
 
 /// Compile a lambda's instructions to SQL

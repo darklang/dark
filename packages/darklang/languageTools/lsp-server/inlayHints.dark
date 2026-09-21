@@ -1,0 +1,196 @@
+module Darklang.LanguageTools.LspServer.InlayHints
+
+/// Live values in the editor (`docs/live.md`, "Live values"): beside each call in a
+/// function, what it produced when the function last ran, computed by running the current
+/// code again on the last recorded call's inputs (`Stdlib.Live.Values.replay`).
+///
+/// Placing them: the printer annotates a call at a line position with `// = value`, and the
+/// annotation is zero columns wide for layout, so the annotated print and the plain print
+/// break identically. A line that differs between the two carries a value; its plain text,
+/// trimmed, is looked for in the document from the function's header on, and the hint goes
+/// at the end of that line. A document the person has edited away from the printed form
+/// simply gets fewer hints, never a wrong one.
+
+/// One value on one line, short enough to sit beside the code.
+let renderValue (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
+  let text =
+    PrettyPrinter.RuntimeTypes.dvalWith
+      branchId
+      { PrettyPrinter.DisplayOptions.default with
+          width = 60
+          maxDepth = Stdlib.Option.Option.Some 2 }
+      dv
+
+  let oneLine =
+    text
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.map Stdlib.String.trim
+    |> Stdlib.String.join " "
+
+  if (Stdlib.String.length oneLine) > 60 then
+    (Stdlib.String.slice oneLine 0 57) ++ "..."
+  else
+    oneLine
+
+
+/// The first line at or after <param from> whose text, trimmed, is <param wanted>.
+let findLine
+  (docLines: List<String>)
+  (from: Int)
+  (wanted: String)
+  : Stdlib.Option.Option<Int> =
+  docLines
+  |> Stdlib.List.indexedMap (fun i line -> (i, line))
+  |> Stdlib.List.findFirst (fun pair ->
+    let (i, line) = pair
+    i >= from && (Stdlib.String.trim line) == wanted)
+  |> Stdlib.Option.map (fun pair -> Stdlib.Tuple2.first pair)
+
+
+/// How many spaces a line starts with: the printer indents two per module level and
+/// narrows the width by the same, so the header's indent says what width it was printed at.
+let leadingSpaces (line: String) : Int =
+  (Stdlib.String.length line) - (Stdlib.String.length (Stdlib.String.trimStart line))
+
+
+/// The hints for one function of the document.
+let hintsFor
+  (branchId: Uuid)
+  (docLines: List<String>)
+  (item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+  : List<LanguageServerProtocol.InlayHint.InlayHint> =
+  let headerLine =
+    docLines
+    |> Stdlib.List.findFirstIndex (fun line ->
+      let t = Stdlib.String.trim line
+      (Stdlib.String.startsWith t $"let {item.location.name} ")
+      || (Stdlib.String.startsWith t $"let {item.location.name}("))
+
+  match headerLine with
+  | None -> []
+  | Some headerLine ->
+    match Stdlib.Live.Values.replay branchId item.location with
+    | None -> []
+    | Some values ->
+      let rendered =
+        values.byExpr |> Stdlib.Dict.map (fun _ dv -> renderValue branchId dv)
+
+      if Stdlib.Dict.isEmpty rendered then
+        []
+      else
+        let indent =
+          docLines
+          |> Stdlib.List.getAt headerLine
+          |> Stdlib.Option.map (fun l -> leadingSpaces l)
+          |> Stdlib.Option.withDefault 0
+
+        let base = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+        let ctx = { base with width = Stdlib.Int.max 1 (base.width - indent) }
+        let plain =
+          (PrettyPrinter.ProgramTypes.packageFn ctx item.entity)
+          |> Stdlib.String.split "\n"
+        let annotated =
+          (PrettyPrinter.ProgramTypes.packageFn { ctx with liveValues = rendered } item.entity)
+          |> Stdlib.String.split "\n"
+
+        Stdlib.List.zip plain annotated
+        |> Stdlib.Option.withDefault []
+        |> Stdlib.List.filterMap (fun pair ->
+          let (p, a) = pair
+
+          if p == a then
+            Stdlib.Option.Option.None
+          else
+            // `a` is `p` followed by ` // = value`; the hint carries `= value`.
+            let label = Stdlib.String.dropFirst a ((Stdlib.String.length p) + 4)
+
+            match findLine docLines headerLine (Stdlib.String.trim p) with
+            | None -> Stdlib.Option.Option.None
+            | Some line ->
+              let lineText =
+                docLines |> Stdlib.List.getAt line |> Stdlib.Option.withDefault ""
+
+              Stdlib.Option.Option.Some(
+                LanguageServerProtocol.InlayHint.InlayHint
+                  { position =
+                      LanguageServerProtocol.Position.Position
+                        { line = line |> Stdlib.Int.toUInt64 |> Stdlib.Option.withDefault 0UL
+                          character =
+                            (Stdlib.String.length lineText)
+                            |> Stdlib.Int.toUInt64
+                            |> Stdlib.Option.withDefault 0UL }
+                    label = label
+                    paddingLeft = true }))
+
+
+/// The functions a `darkfs:` document holds: the one it names, or every one under the
+/// module it names.
+let fnsIn
+  (branchId: Uuid)
+  (uri: String)
+  : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>> =
+  if Stdlib.Bool.not (Stdlib.String.startsWith uri "darkfs:/") then
+    []
+  else
+    let nameForLookup =
+      uri |> Stdlib.String.dropFirst 8 |> Stdlib.String.dropLast 5
+
+    if Stdlib.String.startsWith nameForLookup "script/" then
+      []
+    else
+      let location = ProgramTypes.parsePackageLocation nameForLookup
+
+      match LanguageTools.PackageManager.findAny branchId location with
+      | Some((hash, Fn)) ->
+        match LanguageTools.PackageManager.Function.get hash with
+        | Some fn ->
+          [ LanguageTools.ProgramTypes.LocatedItem { entity = fn; location = location } ]
+        | None -> []
+      | Some _ -> []
+      | None ->
+        let query =
+          LanguageTools.ProgramTypes.Search.SearchQuery
+            { currentModule = Stdlib.String.split nameForLookup "."
+              text = ""
+              searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+              entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn ]
+              exactMatch = false }
+
+        (LanguageTools.PackageManager.Search.search branchId query).fns
+
+
+let handleInlayHintRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  (params: LanguageServerProtocol.InlayHint.InlayHintRequest.InlayHintParams.InlayHintParams)
+  : LspState =
+  let uri = params.textDocument.uri
+
+  let hints =
+    match Stdlib.Dict.get state.documentsInScope uri with
+    | None -> []
+    | Some doc ->
+      let docLines = Stdlib.String.split doc.text "\n"
+
+      fnsIn state.currentBranchId uri
+      |> Stdlib.List.map (fun item -> hintsFor state.currentBranchId docLines item)
+      |> Stdlib.List.flatten
+
+  let response =
+    (hints |> Stdlib.List.map LanguageServerProtocol.InlayHint.toJson |> Json.Array)
+    |> (fun r -> JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Ask the client to fetch every document's hints again: a save landed, so the values a
+/// replay gives may have changed. A request, so it carries an id; the client's empty reply
+/// is ignored.
+let requestRefresh () : Unit =
+  (JsonRPC.Request.makeString
+    LanguageServerProtocol.InlayHint.InlayHintRefreshRequest.method
+    (Stdlib.Option.Option.Some(JsonRPC.RequestID.String "inlayHint/refresh"))
+    Stdlib.Option.Option.None)
+  |> logAndSendToClient

@@ -215,6 +215,10 @@ type State =
     /// renderer has to stay a pure function of state for frame diffing to be sound. Refreshed on transitions
     /// by `refreshPeek`.
     renderPeek: String
+    /// Live values for the selected fn: what each call in it produced the last time it ran, keyed
+    /// by the call's expression id, rendered. Runs user code, so it is refreshed on transitions
+    /// (`refreshLiveValues`) and read by the printer, never computed while drawing.
+    liveValues: Dict<String, String>
     /// The REPL view's own state. Everything in here belongs to that one view, so it lives in one field
     /// rather than as four more on the workbench: a view you can hand a record to is a view you could mount
     /// somewhere else, and the parent stops being the place every view keeps its things.

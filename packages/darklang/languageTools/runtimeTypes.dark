@@ -211,6 +211,8 @@ type Instruction =
   | RaiseNRE of names: List<String> * error: NameResolutionError
   | VarNotFound of targetRegIfDB: Register * name: String
   | CheckIfFirstExprIsUnit of reg: Register
+  /// The value in `valueReg` is the result of the source expression `exprId`, for live values.
+  | TraceExpr of exprId: UInt64 * valueReg: Register
 
 
 type Instructions =
