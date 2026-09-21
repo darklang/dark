@@ -1189,10 +1189,14 @@ let private unitTests =
         |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectDiagnostic Checker.MissingImpl
 
-        // A non-numeric operand is the same missing impl, by name.
-        oneArgFn PT.TString PT.TString (infix 198UL PT.ArithmeticPlus)
+        // A non-numeric operand is the same missing impl, by name (String has an
+        // Add, so `-` is the one it lacks).
+        oneArgFn PT.TString PT.TString (infix 198UL PT.ArithmeticMinus)
         |> CheckerApi.checkPackageFunction environment
         |> expectDiagnostic Checker.MissingImpl
+        oneArgFn PT.TString PT.TString (infix 199UL PT.ArithmeticPlus)
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
       }
 
       test "bitwise operators reject Float operands but take every integer" {

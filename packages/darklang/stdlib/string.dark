@@ -551,3 +551,8 @@ let charAt (str: String) (index: Int) : Option.Option<Char> =
 /// A String is already text
 impl ToString for String =
   let toString (s: String) : String = s
+
+
+/// `"a" + "b"` is `"ab"`, the same as `++`
+impl Add for String =
+  let add = Stdlib.String.append

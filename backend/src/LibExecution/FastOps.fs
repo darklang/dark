@@ -278,6 +278,11 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
   // which is the cost this table exists to avoid.
   if tag = add then
     match a with
+    // `"a" + "b"`: what `++` computes, `normalize` included
+    | DString x ->
+      (match b with
+       | DString y -> ValueSome(DString(String.normalize (x + y)))
+       | _ -> ValueNone)
     | DInt8 x ->
       (match b with
        | DInt8 y -> ValueSome(DInt8(x + y))

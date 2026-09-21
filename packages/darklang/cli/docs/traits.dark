@@ -56,8 +56,9 @@ them. A call picks the impl by the type of the value it is given.
   `a + b` is `Stdlib.Add.add a b`; `- * / % **` are Sub, Mul, Div, Mod, Pow; `-x`
   is Neg; the comparisons are `Stdlib.Ord`. Every builtin numeric type implements
   them, so `Vec + Vec` only needs `impl Add for Vec`, and `Stdlib.max`, `min` and
-  `clamp` work on anything with an `Ord`. `"a" + "b"` is a missing implementation,
-  not a numeric-type error. `++` and the bitwise operators are not traits.
+  `clamp` work on anything with an `Ord`. `"a" + "b"` is `"ab"` (String has an
+  `Add`; `++` still works); `"a" - "b"` is a missing implementation, not a
+  numeric-type error. `++` and the bitwise operators are not traits.
 
 ## Equality, rendering, identities
   `a == b` is `Stdlib.Eq.equals a b` (`!=` is its negation). Every value

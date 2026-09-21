@@ -18,8 +18,8 @@ let content () : String =
   Each operator is a trait method: `+` is `Stdlib.Add.add`, then Sub, Mul,
   Div, Mod, Pow, and `-x` is `Neg.negate`. Both operands must be the same
   type: `1 + 2`, `1.0 + 2.0` and `1y * 2y` all work; `1L + 2.0` is "Cannot
-  perform numeric operation on Int64 and Float"; `"a" + "b"` is a missing
-  implementation of Add. A type of your own joins with
+  perform numeric operation on Int64 and Float". `"a" + "b"` is `"ab"` (String
+  implements Add; `++` still works). A type of your own joins with
   `impl Add for Vec = ...` (`docs traits`).
   `/` is integer division on ints, float division on floats.
   `%` works on all numeric types (the modulus must be > 0).

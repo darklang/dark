@@ -25,7 +25,8 @@ Stdlib.Int64.add 5L 3L = 8L
 // dispatch so the message is the operator's, not the impl fn's
 5L + true = error="Cannot perform numeric operation on Int64 and Bool"
 1L + 2.0 = error="Cannot perform numeric operation on Int64 and Float"
-// A type with no impl of the operator's trait
+// String has an Add (the same as `++`) and nothing else
+"a" + "b" = "ab"
 "a" - "b" = error="No implementation of Darklang.Stdlib.Sub for String. Write `impl Sub for <type> = ...`, or see `dark impls Sub`"
 
 // Integer +,-,* overflow wraps around (two's complement)

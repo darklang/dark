@@ -79,7 +79,8 @@ module Multi =
   Multi.sum 1 2 3 = 6
   Multi.sum 1.5 2.5 3.0 = 7.0
   Multi.sum (Multi.Vec { dx = 1; dy = 1 }) (Multi.Vec { dx = 2; dy = 2 }) (Multi.Vec { dx = 3; dy = 3 }) = Multi.Vec { dx = 6; dy = 6 }
-  Multi.sum "a" "b" "c" = error "No implementation of Darklang.Stdlib.Add for String. Write `impl Add for <type> = ...`, or see `dark impls Add`"
+  Multi.sum "a" "b" "c" = "abc"
+  Multi.sum true false true = error "No implementation of Darklang.Stdlib.Add for Bool. Write `impl Add for <type> = ...`, or see `dark impls Add`"
 
   // Worth knowing: a trait declared here with the same shape as `Stdlib.Add`
   // IS `Stdlib.Add` (content addressing), so `impl Add for Int` next to it
