@@ -968,6 +968,69 @@ let private errorInsideMapNamesTheLambda =
   }
 
 
+/// A stream transform's callable runs as a frame of the pulling process, where `ps` sees it
+/// and a wait in it parks the process rather than the thread.
+let private parkedInsideStreamMapShowsTheLambda =
+  testTask "a process parked inside a stream transform shows the lambda's frame" {
+    Gates.reset ()
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """Stdlib.Stream.toList (Stdlib.Stream.map (Stdlib.Stream.fromList [ 1L; 2L ]) (fun x -> (let _ = Builtin.testGateWait 93L in Stdlib.Int64.add x 1L)))"""
+    let running = runOnThread s p
+    waitFor "the process to park inside the transform" (fun () ->
+      match p.status with
+      | Scheduler.Parked _ -> true
+      | _ -> false)
+    let frames =
+      s.Snapshot()
+      |> List.tryFind (fun q -> q.id = p.id)
+      |> Option.map (fun q -> q.frames)
+      |> Option.defaultValue []
+    Expect.isTrue
+      (frames
+       |> List.exists (fun ep ->
+         match ep with
+         | RT.Lambda _ -> true
+         | _ -> false))
+      $"the lambda's frame is on the stack: {frames}"
+    Gates.release 93L
+    let! result = running
+    Expect.equal
+      (expectOk result "the drain")
+      (RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 2L; RT.DInt64 3L ]))
+      "the drain finished after the lambda resumed"
+  }
+
+
+/// The source waits on the host before every element (a network stream's shape), so the
+/// transform is asked for after the pulling builtin's first wait: the frame is pushed from
+/// where the wait lands, in the scheduler's step and in a plain run.
+let private transformAfterTheSourceWaits =
+  testTask "a transform over a stream that waits on the host runs as a frame" {
+    let! state = executionStateFor pmPT false Map.empty
+    let code =
+      """Stdlib.Stream.toList (Stdlib.Stream.filter (Stdlib.Stream.map (Builtin.testSlowStream [ 1L; 2L; 3L; 4L ]) (fun x -> x * 10L)) (fun x -> x > 10L))"""
+    let expected =
+      RT.DList(
+        RT.ValueType.Known RT.KTInt64,
+        [ RT.DInt64 20L; RT.DInt64 30L; RT.DInt64 40L ]
+      )
+    // Scheduled: the wait parks the process; the landing pushes the lambda's frame.
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) = spawn s state code
+    let! result = runOnThread s p
+    Expect.equal (expectOk result "the scheduled drain") expected "scheduled"
+    // Unscheduled (a test's `execute`): the same landing in the task loop.
+    let! instrs = instrsFor code
+    let! plain = LibExecution.Execution.executeExpr state instrs
+    Expect.equal (expectOk plain "the plain drain") expected "unscheduled"
+  }
+
+
 /// Two equal spinners on one scheduler: round robin lands the older first; a Dark policy
 /// (`Stdlib.Exec.Policy.youngestFirst`) asked between slices lands the younger first.
 let private darkPolicyOrders =
@@ -1045,5 +1108,7 @@ let tests =
         parkedInsideMapShowsTheLambda
         budgetYieldInsideMap
         errorInsideMapNamesTheLambda
+        parkedInsideStreamMapShowsTheLambda
+        transformAfterTheSourceWaits
         darkPolicyOrders ]
   )

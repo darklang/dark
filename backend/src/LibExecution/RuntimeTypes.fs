@@ -1369,21 +1369,24 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// termination) are the only unbounded paths. Becomes load-bearing
   /// if anyone adds a "buffer N elements ahead" or "merge multiple
   /// streams" combinator.
-  /// Every closure that may run guest code takes the DRAINER's access: a
-  /// transform's callback is deferred work, and when it finally runs it runs
-  /// inside whatever function is pulling. The closure intersects that with the
-  /// access captured when the transform was built, so neither side widens the
-  /// other. Native IO sources ignore it.
+  ///
+  /// A node that runs Dark code (`Unfold`, `Mapped`, `Filtered`) holds the callable
+  /// itself, not a closure over it: the pull is a step machine (`Stream.pull`) that
+  /// hands the callable back to the builtin pulling, which asks the interpreter to
+  /// apply it as a frame of the pulling process (`Interpreter.requestApply`). So the
+  /// callback runs inside whoever is pulling, under that frame's access narrowed by
+  /// what the callable captured; the builder's own access is folded into the
+  /// callable when the transform is made. Native IO sources are plain closures.
   | FromIO of
-    next : (Permissions.Access -> Ply<Option<Dval>>) *
+    next : (unit -> Ply<Option<Dval>>) *
     elemType : ValueType *
     disposer : (unit -> unit) option *
     nextChunk : (int -> Ply<Option<byte[]>>) option
-  | Mapped of
-    src : StreamImpl *
-    fn : (Permissions.Access -> Dval -> Ply<Dval>) *
-    elemType : ValueType
-  | Filtered of src : StreamImpl * pred : (Permissions.Access -> Dval -> Ply<bool>)
+  /// A producer written in Dark: the step takes the state and answers
+  /// `Some (element, nextState)` or `None`.
+  | Unfold of step : Applicable * state : Dval ref * elemType : ValueType
+  | Mapped of src : StreamImpl * fn : Applicable * elemType : ValueType
+  | Filtered of src : StreamImpl * pred : Applicable
   | Take of src : StreamImpl * n : int64 * remaining : int64 ref
   | Concat of streams : StreamImpl list ref
 
@@ -1435,6 +1438,7 @@ module StreamImpl =
   let rec elemType (impl : StreamImpl) : ValueType =
     match impl with
     | FromIO(_, t, _, _) -> t
+    | Unfold(_, _, t) -> t
     | Mapped(_, _, t) -> t
     | Filtered(src, _) -> elemType src
     | Take(src, _, _) -> elemType src
@@ -3070,6 +3074,11 @@ type VMState =
     mutable pendingApplicable : Applicable
     mutable pendingArg : Dval
     mutable pendingMoreArgs : List<Dval>
+    /// For a request made after the builtin's body had already waited (a stream pulling from
+    /// the network, then applying its transform): what records the chain's final result in the
+    /// trace, left here by the body's completion for the landing site to pick up. Null when
+    /// nothing records.
+    mutable pendingFinish : Dval -> unit
 
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
     /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
@@ -3159,6 +3168,7 @@ type VMState =
       readHint = false
       inflight = 0
       pendingNext = Unchecked.defaultof<_>
+      pendingFinish = Unchecked.defaultof<_>
       pendingApplicable = Unchecked.defaultof<_>
       pendingArg = DUnit
       pendingMoreArgs = []

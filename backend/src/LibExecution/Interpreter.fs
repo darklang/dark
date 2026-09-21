@@ -1120,24 +1120,41 @@ let private invokeBuiltin
       let allArgs = if recording then Array.copy allArgs else allArgs
       uply {
         let! result = body
-        // A request has to come before the body's first wait: after it the call site has moved
-        // on and nothing would push the frame. Loud, rather than a placeholder in a register.
         if requested vm then
-          Exception.raiseInternal
-            "requestApply after the builtin's first await"
-            [ "builtin", fn.name.name ]
-        return!
-          finishBuiltin
-            exeState
-            vm
-            currentFrame
-            fn
-            tst
-            allArgs
-            ord
-            sw
-            bodyAllocBefore
-            result
+          // A request after the body's first wait (a stream that pulled from the network, then
+          // has its transform to apply). The call site has moved on; the landing site, where
+          // this result would have gone into the register, pushes the frame instead
+          // (`landBuiltin`), and what records the chain's result waits for it on the VM. A
+          // read can not do this: its wait would have been handed back as a promise, with the
+          // request inside it and nothing to see it.
+          if Effects.allReads fn.callEffects then
+            Exception.raiseInternal
+              "requestApply after the first await of a read"
+              [ "builtin", fn.name.name ]
+          let traced =
+            (ord >= 0L && exeState.tracing.traceEffects)
+            || not exeState.tracing.skipTracing
+          vm.pendingFinish <-
+            if traced then
+              fun dv ->
+                traceBuiltinResult exeState currentFrame fn ord allArgs dv
+                |> ignore<Dval>
+            else
+              Unchecked.defaultof<_>
+          return result
+        else
+          return!
+            finishBuiltin
+              exeState
+              vm
+              currentFrame
+              fn
+              tst
+              allArgs
+              ord
+              sw
+              bodyAllocBefore
+              result
       }
 
 
@@ -2474,6 +2491,27 @@ and private drive
       caller.programCounter <- pcAfter
       ApplyDone
   | ValueNone -> AwaitContinuation(out, reg, pcAfter, next, finish)
+
+
+/// A builtin's awaited result has landed: into its register, and the counter past the `Apply`.
+/// Unless the body asked for an apply after its wait (`invokeBuiltin`): then the value is a
+/// placeholder, the callable's frame goes on the stack instead, and the counter stays until
+/// the chain ends. The outcome is `ApplyDone`, or a chain waiting again.
+let private landBuiltin
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (frame : CallFrame)
+  (reg : Register)
+  (dv : Dval)
+  : ApplyOutcome =
+  if requested vm then
+    let finish = vm.pendingFinish
+    vm.pendingFinish <- Unchecked.defaultof<_>
+    beginRequest exeState vm frame reg (frame.programCounter + 1) finish true
+  else
+    frame.registers[reg] <- dv
+    frame.programCounter <- frame.programCounter + 1
+    ApplyDone
 
 
 /// What to do with the final result of a builtin's apply chain made at this call: record it in
@@ -4014,8 +4052,18 @@ let private handleFrameStep
         [ "vm", vm.threadID ]
     | FrameAwaitBuiltin(call, reg) ->
       let! dv = Ply.toTask call
-      registers[reg] <- dv
-      currentFrame.programCounter <- currentFrame.programCounter + 1
+      // Nearly always a value into the register; a request made after the wait starts a chain,
+      // whose further waits are waited for in place.
+      let mutable outcome = landBuiltin exeState vm currentFrame reg dv
+      while (match outcome with
+             | AwaitContinuation _ -> true
+             | _ -> false) do
+        match outcome with
+        | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+          let! dv2 = Ply.toTask ply2
+          outcome <-
+            drive exeState vm currentFrame reg2 pc2 next2 finish2 (Ply dv2) true
+        | _ -> ()
     | FrameAwaitPackage(call, reg) ->
       let! o = Ply.toTask call
       currentFrame.programCounter <- currentFrame.programCounter + 1
@@ -4188,8 +4236,13 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
     | FrameAwaitBuiltin(call, reg) ->
       match Ply.trySync call with
       | ValueSome dv ->
-        registers[reg] <- dv
-        currentFrame.programCounter <- currentFrame.programCounter + 1
+        match landBuiltin exeState vm currentFrame reg dv with
+        | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+          bail <-
+            ValueSome(
+              SyncBailStep(FrameAwaitContinuation(ply2, reg2, pc2, next2, finish2))
+            )
+        | _ -> ()
       | ValueNone -> bail <- ValueSome(SyncBailStep step)
     | FrameAwaitPackage(call, reg) ->
       match Ply.trySync call with
@@ -4350,8 +4403,17 @@ let stepScheduled (exeState : ExecutionState) (vm : VMState) : StepOutcome =
     StepAwait(
       running,
       fun () ->
-        frame.registers[reg] <- running.Result
-        frame.programCounter <- frame.programCounter + 1
+        // A request made after the wait starts a chain (`landBuiltin`); a further wait from
+        // it is rare and waited for on the spot, as below.
+        let mutable outcome = landBuiltin exeState vm frame reg running.Result
+        while (match outcome with
+               | AwaitContinuation _ -> true
+               | _ -> false) do
+          match outcome with
+          | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+            let dv2 = (Ply.toTask ply2).Result
+            outcome <- drive exeState vm frame reg2 pc2 next2 finish2 (Ply dv2) true
+          | _ -> ()
     )
   | SyncBailStep(FrameAwaitPackage(call, reg)) ->
     let frame = vm.callFrames[vm.currentFrameID]

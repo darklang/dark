@@ -81,6 +81,10 @@ SCENARIOS = {
     "interp-arith": ["run", "rundir/perf-workloads/arith.dark"],
     "eval-flatten": ["eval",
         "Stdlib.List.length (Stdlib.List.flatten (Stdlib.List.map (Stdlib.List.range 1 400) (fun x -> Stdlib.List.range 1 20)))"],
+    # A stream pipeline: every element crosses a map and a filter callable, so this is the cost
+    # of a transform per element (the callables run as frames of the pulling process).
+    "eval-stream": ["eval",
+        "Stdlib.List.length (Stdlib.Stream.toList (Stdlib.Stream.filter (Stdlib.Stream.map (Stdlib.Stream.fromList (Stdlib.List.range 1 3000)) (fun x -> x + 1)) (fun x -> x > 5)))"],
 }
 
 # Interpreter workloads, kept as source here rather than as .dark files in the tree: anything under

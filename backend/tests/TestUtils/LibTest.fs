@@ -116,6 +116,34 @@ let fns () : List<BuiltInFn> =
       callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
       deprecated = NotDeprecated }
 
+    /// A stream from the host that waits on every pull (the shape of a network stream): the
+    /// element comes on a later thread, after a real await, so a transform over it is the
+    /// "request after the builtin's first wait" case (`Interpreter.landBuiltin`).
+    { name = fn "testSlowStream" 0
+      typeParams = []
+      parameters = [ Param.make "items" (TList TInt64) "" ]
+      returnType = TStream TInt64
+      description = "The items as a stream, each pull waiting on the host first."
+      fn =
+        (function
+        | _, _, _, [| DList(_, items) |] ->
+          let remaining = ref items
+          let next () : Ply<Option<Dval>> =
+            uply {
+              do! Task.Delay 1
+              match remaining.Value with
+              | [] -> return None
+              | first :: rest ->
+                remaining.Value <- rest
+                return Some first
+            }
+          LibExecution.Stream.newFromIO (VT.known KTInt64) next None |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
     { name = fn "testFailingRead" 0
       typeParams = []
       parameters = [ Param.make "gate" TInt64 "" ]

@@ -57,15 +57,12 @@ let private streamImplOfList
   : RT.StreamImpl =
   // Bound once: `listPullFn` holds the cursor; do not recreate it per pull.
   let pull = listPullFn items
-  RT.FromIO((fun _drainer -> pull ()), elemType, None, None)
+  RT.FromIO(pull, elemType, None, None)
 
 let private wrap (impl : RT.StreamImpl) : RT.Dval = Stream.wrapImpl impl
 
 let private pull (s : RT.Dval) : Task<Option<RT.Dval>> =
-  Stream.readNext
-    (LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll)
-    s
-  |> Ply.toTask
+  Stream.readNext s |> Ply.toTask
 
 /// Drain a stream to a list. Pulls until None.
 let private drain (s : RT.Dval) : Task<List<RT.Dval>> =
@@ -73,12 +70,7 @@ let private drain (s : RT.Dval) : Task<List<RT.Dval>> =
     let acc = ResizeArray<RT.Dval>()
     let mutable keepGoing = true
     while keepGoing do
-      let! r =
-        Stream.readNext
-          (LibExecution.Permissions.Access.start
-            LibExecution.Permissions.Policy.allowAll)
-          s
-        |> Ply.toTask
+      let! r = Stream.readNext s |> Ply.toTask
       match r with
       | Some v -> acc.Add v
       | None -> keepGoing <- false
@@ -98,19 +90,22 @@ let private binaryRoundtrip
   let r = new System.IO.BinaryReader(new System.IO.MemoryStream(ms.ToArray()))
   read r
 
-let private intPredEven (dv : RT.Dval) : Ply<bool> =
-  uply {
-    match dv with
-    | RT.DInt64 i -> return i % 2L = 0L
-    | _ -> return false
+/// The transforms that run Dark code (`Mapped`, `Filtered`, `Unfold`) hold a Dark callable
+/// and are pulled from a Dark process, so their tests go through Dark: the expression is
+/// run by the interpreter and its answer compared.
+let private evalsTo
+  (code : string)
+  (expected : RT.Dval)
+  (what : string)
+  : Task<unit> =
+  task {
+    match! TestUtils.TestUtils.evalDarkExpr code with
+    | Ok dv -> Expect.equal dv expected what
+    | Error(rte, _) -> return failtest $"the Dark expression raised: {rte}"
   }
 
-let private intDouble (dv : RT.Dval) : Ply<RT.Dval> =
-  uply {
-    match dv with
-    | RT.DInt64 i -> return RT.DInt64(i * 2L)
-    | _ -> return RT.DInt64 0L
-  }
+let private int64List (items : List<int64>) : RT.Dval =
+  RT.DList(RT.ValueType.Known RT.KTInt64, items |> List.map RT.DInt64)
 
 
 // ─────────────────────────────────────────────────────────────────────
@@ -266,29 +261,29 @@ let streamCloseMarksDisposed =
 
 let mappedTransformsElements =
   testTask "stream: Mapped applies fn to each element in order" {
-    let src = streamImplOfList [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ] VT.int64
-    let s = wrap (RT.Mapped(src, (fun _drainer -> intDouble), VT.int64))
-    let! result = drain s
-    Expect.equal result [ RT.DInt64 2L; RT.DInt64 4L; RT.DInt64 6L ] "1,2,3 -> *2"
+    do!
+      evalsTo
+        "Stdlib.Stream.toList (Stdlib.Stream.map (Stdlib.Stream.fromList [1L, 2L, 3L]) (fun n -> n * 2L))"
+        (int64List [ 2L; 4L; 6L ])
+        "1,2,3 -> *2"
   }
 
 let filteredSkipsRejected =
   testTask "stream: Filtered skips elements whose predicate returns false" {
-    let src =
-      streamImplOfList
-        [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L; RT.DInt64 4L ]
-        VT.int64
-    let s = wrap (RT.Filtered(src, (fun _drainer -> intPredEven)))
-    let! result = drain s
-    Expect.equal result [ RT.DInt64 2L; RT.DInt64 4L ] "evens only"
+    do!
+      evalsTo
+        "Stdlib.Stream.toList (Stdlib.Stream.filter (Stdlib.Stream.fromList [1L, 2L, 3L, 4L]) (fun n -> n % 2L == 0L))"
+        (int64List [ 2L; 4L ])
+        "evens only"
   }
 
 let filteredAllRejected =
   testTask "stream: Filtered returns None when no element matches" {
-    let src = streamImplOfList [ RT.DInt64 1L; RT.DInt64 3L ] VT.int64
-    let s = wrap (RT.Filtered(src, (fun _drainer -> intPredEven)))
-    let! result = pull s
-    Expect.equal result None "all rejected = None"
+    do!
+      evalsTo
+        "Stdlib.Stream.next (Stdlib.Stream.filter (Stdlib.Stream.fromList [1L, 3L]) (fun n -> n % 2L == 0L))"
+        (Dval.optionNone RT.KTInt64)
+        "all rejected = None"
   }
 
 let takeCapsAtN =
@@ -341,42 +336,29 @@ let concatSpansMultipleStreams =
   }
 
 let composedTransformsAreLazy =
-  testTask "stream: map ∘ filter ∘ take over infinite source terminates" {
-    // Counter from 1 up; with filter (even), map (×2), take 3, expect
-    // [4, 8, 12]. Source pulled past 6 to find the third even, but not
-    // unboundedly — proves the pipeline is pull-driven.
-    let counter = ref 0L
-    let next () : Ply<Option<RT.Dval>> =
-      uply {
-        counter.Value <- counter.Value + 1L
-        return Some(RT.DInt64 counter.Value)
-      }
-    let pipeline =
-      RT.Take(
-        RT.Mapped(
-          RT.Filtered(
-            RT.FromIO((fun _drainer -> next ()), VT.int64, None, None),
-            (fun _drainer -> intPredEven)
-          ),
-          (fun _drainer -> intDouble),
-          VT.int64
-        ),
-        3L,
-        ref 3L
-      )
-    let! result = drain (wrap pipeline)
-    Expect.equal
-      result
-      [ RT.DInt64 4L; RT.DInt64 8L; RT.DInt64 12L ]
-      "2,4,6 -> *2 -> 4,8,12; take 3 stops before source diverges"
-    Expect.isLessThan counter.Value 100L "source not over-pulled"
+  testTask "stream: map, filter, take over an infinite unfold terminates" {
+    // A counter from 1 up (an `unfold` that never answers None); with filter (even), map
+    // (*2), take 3, expect [4, 8, 12]. The source is pulled past 6 to find the third even,
+    // but not unboundedly: the pipeline is pull-driven, or this never returns.
+    do!
+      evalsTo
+        "Stdlib.Stream.toList (Stdlib.Stream.take (Stdlib.Stream.map (Stdlib.Stream.filter (Stdlib.Stream.unfold 0L (fun n -> Stdlib.Option.Option.Some((n + 1L, n + 1L)))) (fun n -> n % 2L == 0L)) (fun n -> n * 2L)) 3)"
+        (int64List [ 4L; 8L; 12L ])
+        "2,4,6 -> *2 -> 4,8,12; take 3 stops before the source diverges"
   }
 
 let toValueTypeWalksTransforms =
   test "stream: Dval.toValueType returns the transform's element type" {
     let src = streamImplOfList [ RT.DInt64 1L ] VT.int64
-    let toString (_ : RT.Dval) : Ply<RT.Dval> = uply { return RT.DString "x" }
-    let s = wrap (RT.Mapped(src, (fun _drainer -> toString), VT.string))
+    // Never applied: only the node's element type is asked.
+    let toString =
+      RT.AppNamedFn
+        { name = RT.FQFnName.fqBuiltin "int64ToString" 0
+          typeSymbolTable = RT.TST.empty
+          typeArgs = []
+          access = None
+          argsSoFar = [] }
+    let s = wrap (RT.Mapped(src, toString, VT.string))
     Expect.equal
       (RT.Dval.toValueType s)
       (RT.ValueType.Known(RT.KTStream VT.string))
@@ -422,20 +404,8 @@ let gcFinalizesMidDrainStream =
       let disposer () = disposerRan.Value <- true
       let dv = Stream.newFromIO VT.int64 next (Some disposer)
       // Pull 2 of 3 elements, then return the weak ref.
-      let pulled1 =
-        (Stream.readNext
-          (LibExecution.Permissions.Access.start
-            LibExecution.Permissions.Policy.allowAll)
-          dv
-         |> Ply.toTask)
-          .Result
-      let pulled2 =
-        (Stream.readNext
-          (LibExecution.Permissions.Access.start
-            LibExecution.Permissions.Policy.allowAll)
-          dv
-         |> Ply.toTask)
-          .Result
+      let pulled1 = (Stream.readNext dv |> Ply.toTask).Result
+      let pulled2 = (Stream.readNext dv |> Ply.toTask).Result
       Expect.equal pulled1 (Some(RT.DInt64 1L)) "first pull"
       Expect.equal pulled2 (Some(RT.DInt64 2L)) "second pull"
       System.WeakReference<RT.Dval>(dv)
@@ -496,20 +466,8 @@ let chunkedDrainMatchesByteDrain =
     "chunked drain: readStreamChunk returns the same bytes readStreamNext would" {
     let buf = [| 0x01uy; 0x02uy; 0x03uy; 0x04uy; 0x05uy; 0x06uy; 0x07uy; 0x08uy |]
     let s = Stream.newChunked VT.uint8 (chunkPullFn [ buf ]) None
-    let! first =
-      Stream.readChunk
-        (LibExecution.Permissions.Access.start
-          LibExecution.Permissions.Policy.allowAll)
-        4096
-        s
-      |> Ply.toTask
-    let! second =
-      Stream.readChunk
-        (LibExecution.Permissions.Access.start
-          LibExecution.Permissions.Policy.allowAll)
-        4096
-        s
-      |> Ply.toTask
+    let! first = Stream.readChunk 4096 s |> Ply.toTask
+    let! second = Stream.readChunk 4096 s |> Ply.toTask
     Expect.equal first (Some buf) "first chunk comes through intact"
     Expect.equal second None "second call returns None on exhaustion"
   }
@@ -535,21 +493,9 @@ let chunkedDrainFallsBackToByteWise =
         VT.uint8
         (listPullFn [ RT.DUInt8 0xAAuy; RT.DUInt8 0xBBuy; RT.DUInt8 0xCCuy ])
         None
-    let! chunk =
-      Stream.readChunk
-        (LibExecution.Permissions.Access.start
-          LibExecution.Permissions.Policy.allowAll)
-        4096
-        s
-      |> Ply.toTask
+    let! chunk = Stream.readChunk 4096 s |> Ply.toTask
     Expect.equal chunk (Some [| 0xAAuy; 0xBBuy; 0xCCuy |]) "all bytes collected"
-    let! after =
-      Stream.readChunk
-        (LibExecution.Permissions.Access.start
-          LibExecution.Permissions.Policy.allowAll)
-        4096
-        s
-      |> Ply.toTask
+    let! after = Stream.readChunk 4096 s |> Ply.toTask
     Expect.equal after None "exhausted"
   }
 

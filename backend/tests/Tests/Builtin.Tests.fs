@@ -272,6 +272,7 @@ let private unusedAllowlist : Set<string> =
       "testGateWait"
       "testTrace"
       "testRead"
+      "testSlowStream"
       "testFailingRead" ]
 
 

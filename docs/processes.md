@@ -329,10 +329,15 @@ the .NET stack. The list builtins now ask instead (`Interpreter.requestApply`):
   read still in flight first, through the same wait. `List.map` and its kin
   carry the result along unlooked-at, so a read in a mapped lambda stays in
   flight and the list comes back as one promise, as before.
-- A request has to come before the body's first await: after it the call
-  site has moved on. The interpreter raises `requestApply after the builtin's
-  first await` rather than misplace a placeholder. A continuation may await
-  and then request; that is `drive`'s ordinary path.
+- A request is usually the body's first move, and the call site sees it.
+  A body that had to wait first (a stream pulling from the network, then
+  applying its transform) may still ask: its wait lands where its result
+  would have gone into the register, and that landing (`landBuiltin`, in
+  all three loops) pushes the frame instead and picks up what records the
+  chain's result from the VM (`pendingFinish`). Not for a read: its wait
+  would have been handed back as a promise with the request inside it, so
+  that raises `requestApply after the first await of a read`. A continuation
+  may await and then request; that is `drive`'s ordinary path.
 - The frame runs under the builtin's applying access narrowed by what the
   callable captured, exactly as `Apply` narrows a frame's. Errors inside the
   lambda propagate through the process's own frames, so the stack names the
@@ -342,13 +347,28 @@ Migrated: `List.map`, `indexedMap`, `map2shortest`, `fold`, `filter`,
 `filterMap`, `findFirst`, `any`, `sortBy` (`Builtins.Pure/Libs/List.fs`), each
 with one continuation over two mutable cells rather than a closure per
 element. `Dict`, `Option`, `Result` and `String` have no re-entry on this
-branch (they are Dark, or take no callable). Not migrated, and why:
+branch (they are Dark, or take no callable).
 
-- `Stream.fs` (`unfold`, `map`, `filter`): the callable runs at pull time,
-  inside the drain's Ply chain, after an await on the source, which is the
-  one place a request cannot come from; moving streams over means threading
-  the continuation through `StreamImpl` and `Dval`'s drain. Correct as it is,
-  opaque when parked.
+Streams (`Stream.unfold`, `map`, `filter`; `Builtins.Pure/Libs/Stream.fs`):
+a transform node holds its callable, not a closure over it (`StreamImpl.
+Unfold/Mapped/Filtered`), and a pull is a step machine (`Stream.pull`):
+`Pulled` an element, `Apply` this callable to this element and continue, or
+`Wait` on native IO and continue. The pulling builtin (`next`, `toList`,
+`toBlob`) drives it: an `Apply` is a `requestApply`, so the transform runs
+as a frame of the pulling process, its answer forced (`withValue`) and
+handed back to the pull; a `Wait` is waited for, and a request after it is
+the landing case above. The access re-intersection that used to happen on
+every pull happens once, when the transform is built: the builder's active
+access is folded into the callable (`narrowedBy`), and the frame push
+narrows the puller's access by it, as `Apply` narrows any frame's. So a
+narrow producer's transform stays narrow under a wide consumer, and the
+deferred-execution matrix in `PermissionsGate` still holds. F# code that
+owns a native stream (the HTTP client's body, tests) pulls with
+`Stream.readNext`, which drives `Wait` and raises on `Apply`: a stream that
+runs Dark code is pulled from a Dark process.
+
+Not migrated, and why:
+
 - `HttpServer.fs` (the per-request handler, `onListening`): the handler runs
   on a pool thread through `executeApplicable`. The plan's leaf makes it a
   spawned process on a worker (`Scheduler.SpawnApply` is there for it); left
@@ -366,6 +386,16 @@ lambda's frame in `ps` and resumes; a tight loop inside a mapped lambda is
 preempted and another process runs between the slices; an error inside a
 mapped lambda names the lambda's frame; all 6,734 testfile cases pass over
 the migrated builtins.
+
+Measured, the stream family: gate 9.5 MB, unchanged (the reference workload
+has no stream); `bench ab` before against after, eval-stream (3,000
+elements through a map and a filter) -1.8%, 14 of 15 pairs faster;
+interp-arith +0.5% (noise). Tests: a process parked inside a stream
+transform shows the lambda's frame in `ps` and resumes; a transform over a
+stream whose source waits on the host before every element (a test stream
+built like a network one) runs as a frame, scheduled and unscheduled; the
+stream testfiles and the SSE parser (an `unfold` whose step pulls bytes)
+pass unchanged.
 
 ## Traces
 
@@ -523,16 +553,14 @@ Each scheduler asks for itself; with workers, that is per core.
 
 Follow-ups in the scheduler plan, in order, and the edges of what is here:
 
-- Host re-entry remains in `Stream.fs` and `HttpServer.fs` (above). Ply out
-  of the interpreter waits on that (`notes/scheduler-and-live`).
+- Host re-entry remains in `HttpServer.fs` (above), live's file. Ply out of
+  the interpreter waits on that (`notes/scheduler-and-live`).
 - A policy chooses which runnable process to step, not where a spawn lands:
   `Exec.spawn` still goes to the least loaded worker, in F#.
 - A resume matches recorded processes to new ones by start order; a run that
   spawned may not line up. `resume` is the CLI's, since it runs the input
   through the CLI's own paths; `Exec.fork` from Dark exists.
 - `ps show` says how many reads a process has in flight, not which.
-- A process parked inside a stream transform's lambda shows the frame that
-  called the pulling builtin, not the lambda's (streams still re-enter).
 - Ply out of the interpreter. Awaits are still Plys, parked on as tasks.
 - `Event.ExecDone` carries only the id; a Dark enum cannot hold an untyped
   value. `Exec.await` is how a value comes back.
