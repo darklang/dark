@@ -267,50 +267,22 @@ let fns () : List<BuiltInFn> =
         + "value built so far"
       fn =
         (function
-        | state, vm, [], [| DList(_, items); init; DApplicable app |] ->
-          // Walked without a computation expression while the lambda answers synchronously, which is
-          // nearly always: an arithmetic body, a comparison, a push. A `uply` around the whole fold
-          // costs a state machine per *call*, and awaiting inside it costs one per *element*.
-          let mutable acc = init
-          let mutable rest = items
-          let mutable pending = ValueNone
-
-          while ValueOption.isNone pending && not (List.isEmpty rest) do
-            match rest with
-            | elem :: tail ->
-              let call = Exe.executeApplicable2 state vm.activeAccess app acc elem
-              match Ply.trySync call with
-              | ValueSome(Ok next) ->
-                acc <- next
-                rest <- tail
-              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
-              // Hand the unfinished call and what is left of the list to the awaiting path.
-              | ValueNone -> pending <- ValueSome(struct (call, tail))
-            | [] -> ()
-
-          match pending with
-          | ValueNone -> Ply acc
-          | ValueSome(struct (call, tail)) ->
-            uply {
-              let! first = call
-              match first with
-              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              | Ok next ->
-                let mutable acc = next
-                let mutable rest = tail
-                while not (List.isEmpty rest) do
-                  match rest with
-                  | elem :: elemTail ->
-                    match!
-                      Exe.executeApplicable2 state vm.activeAccess app acc elem
-                    with
-                    | Ok stepped ->
-                      acc <- stepped
-                      rest <- elemTail
-                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-                  | [] -> ()
-                return acc
-            }
+        | _, vm, [], [| DList(_, items); init; DApplicable app |] ->
+          // Each step is a frame on the caller's own stack (`Interpreter.requestApply`). The
+          // value built so far is forced before the next step (`withValue`): the lambda takes it
+          // as an argument.
+          match items with
+          | [] -> Ply init
+          | first :: tail ->
+            let mutable rest = tail
+            let rec next (stepped : Dval) : Ply<Dval> =
+              match rest with
+              | [] -> Ply stepped
+              | elem :: elemTail ->
+                rest <- elemTail
+                Interpreter.withValue vm stepped (fun acc ->
+                  Interpreter.requestApply vm app acc [ elem ] next)
+            Interpreter.requestApply vm app init [ first ] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -378,64 +350,26 @@ let fns () : List<BuiltInFn> =
         + "results"
       fn =
         (function
-        | state, vm, [], [| DList(_, items); DApplicable app |] ->
-          // The Dark version folded with `pushBack`, which copies the accumulator per element, so it
-          // was quadratic on top of the two lambda applications a fold costs. Built back to front
-          // and reversed once, as `listMap` does.
-          let mutable acc = []
-          let mutable rest = items
-          let mutable i = 0L
-          let mutable pending = ValueNone
-
-          while ValueOption.isNone pending && not (List.isEmpty rest) do
-            match rest with
-            | elem :: tail ->
-              let call =
-                Exe.executeApplicable2
-                  state
-                  vm.activeAccess
-                  app
-                  (Dval.int (bigint i))
-                  elem
-              match Ply.trySync call with
-              | ValueSome(Ok mapped) ->
-                acc <- mapped :: acc
-                rest <- tail
+        | _, vm, [], [| DList(_, items); DApplicable app |] ->
+          // Each application is a frame on the caller's own stack (`Interpreter.requestApply`).
+          // Built back to front and reversed once. A read a lambda hands back stays in flight and
+          // the list comes back as one promise (`mappedListOrPromise`).
+          match items with
+          | [] -> Ply(mappedList vm [])
+          | first :: tail ->
+            let mutable acc = []
+            let mutable rest = tail
+            let mutable i = 1L
+            let rec next (mapped : Dval) : Ply<Dval> =
+              acc <- mapped :: acc
+              match rest with
+              | [] -> Ply(mappedListOrPromise vm (List.rev acc))
+              | elem :: elemTail ->
+                rest <- elemTail
+                let index = Dval.int (bigint i)
                 i <- i + 1L
-              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
-              | ValueNone -> pending <- ValueSome(struct (call, tail, i + 1L))
-            | [] -> ()
-
-          match pending with
-          | ValueNone -> Ply(mappedList vm (List.rev acc))
-          | ValueSome(struct (call, tail, nextI)) ->
-            uply {
-              let! first = call
-              match first with
-              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              | Ok mapped ->
-                let mutable acc = mapped :: acc
-                let mutable rest = tail
-                let mutable i = nextI
-                while not (List.isEmpty rest) do
-                  match rest with
-                  | elem :: elemTail ->
-                    match!
-                      Exe.executeApplicable2
-                        state
-                        vm.activeAccess
-                        app
-                        (Dval.int (bigint i))
-                        elem
-                    with
-                    | Ok stepped ->
-                      acc <- stepped :: acc
-                      rest <- elemTail
-                      i <- i + 1L
-                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-                  | [] -> ()
-                return mappedList vm (List.rev acc)
-            }
+                Interpreter.requestApply vm app index [ elem ] next
+            Interpreter.requestApply vm app (Dval.int (bigint 0)) [ first ] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -453,51 +387,31 @@ let fns () : List<BuiltInFn> =
         "Returns a copy of <param list>, sorted by the value <param fn> returns for each element"
       fn =
         (function
-        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
+        | _, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Was two interpreted passes and a tuple per element around a native sort: one `map` to
           // build `(key, value)`, the sort, then a second `map` of `Tuple2.second`, which is why
           // `Tuple2.second` showed up in profiles of code that never mentions it. Only the key
-          // function needs interpreting.
+          // function needs interpreting, and each of its applications is a frame on the caller's
+          // own stack (`Interpreter.requestApply`); a key is looked at, so it is forced.
           //
           // The result keeps the source list's ValueType: sorting is a permutation, so the elements
           // are exactly the ones already merged into it. `listSort` does the same.
-          let mutable keyed = []
-          let mutable rest = items
-          let mutable pending = ValueNone
-
-          while ValueOption.isNone pending && not (List.isEmpty rest) do
-            match rest with
-            | elem :: tail ->
-              let call = Exe.executeApplicable1 state vm.activeAccess app elem
-              match Ply.trySync call with
-              | ValueSome(Ok key) ->
-                keyed <- struct (key, elem) :: keyed
-                rest <- tail
-              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
-              | ValueNone -> pending <- ValueSome(struct (call, elem, tail))
-            | [] -> ()
-
-          match pending with
-          | ValueNone -> Ply(sortedByKey vt (List.rev keyed))
-          | ValueSome(struct (call, elem, tail)) ->
-            uply {
-              let! first = call
-              match first with
-              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              | Ok key ->
-                let mutable keyed = struct (key, elem) :: keyed
-                let mutable rest = tail
-                while not (List.isEmpty rest) do
-                  match rest with
-                  | e :: elemTail ->
-                    match! Exe.executeApplicable1 state vm.activeAccess app e with
-                    | Ok k ->
-                      keyed <- struct (k, e) :: keyed
-                      rest <- elemTail
-                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-                  | [] -> ()
-                return sortedByKey vt (List.rev keyed)
-            }
+          match items with
+          | [] -> Ply(sortedByKey vt [])
+          | first :: tail ->
+            let mutable keyed = []
+            let mutable current = first
+            let mutable rest = tail
+            let rec next (key : Dval) : Ply<Dval> =
+              Interpreter.withValue vm key (fun key ->
+                keyed <- struct (key, current) :: keyed
+                match rest with
+                | [] -> Ply(sortedByKey vt (List.rev keyed))
+                | elem :: elemTail ->
+                  current <- elem
+                  rest <- elemTail
+                  Interpreter.requestApply vm app elem [] next)
+            Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -520,61 +434,30 @@ let fns () : List<BuiltInFn> =
         + "{{Some}} for and dropping the rest"
       fn =
         (function
-        | state, vm, [], [| DList(_, items); DApplicable app |] ->
+        | _, vm, [], [| DList(_, items); DApplicable app |] ->
           // The Dark version recursed a package call, an Option match and a `push` per element on
           // top of the lambda application, and it is used widely enough for that to show up in a
-          // profile of anything.
+          // profile of anything. Each application is a frame on the caller's own stack
+          // (`Interpreter.requestApply`); the Option is looked at, so it is forced.
           //
           // Built back to front and reversed once, as `listMap` does.
-          let mutable acc = []
-          let mutable rest = items
-          let mutable pending = ValueNone
-
-          while ValueOption.isNone pending && not (List.isEmpty rest) do
-            match rest with
-            | elem :: tail ->
-              let call = Exe.executeApplicable1 state vm.activeAccess app elem
-              match Ply.trySync call with
-              | ValueSome(Ok(DEnum(_, _, _, "Some", [ v ]))) ->
-                acc <- v :: acc
-                rest <- tail
-              | ValueSome(Ok(DEnum(_, _, _, "None", []))) -> rest <- tail
-              | ValueSome(Ok other) -> raiseRTE vm.threadID (notAnOption other)
-              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
-              | ValueNone -> pending <- ValueSome(struct (call, tail))
-            | [] -> ()
-
-          match pending with
-          | ValueNone -> Ply(mappedList vm (List.rev acc))
-          | ValueSome(struct (call, tail)) ->
-            uply {
-              let mutable acc = acc
-              let mutable rest = tail
-              let mutable first = ValueSome call
-              let mutable go = true
-
-              while go do
-                let! stepped =
-                  match first with
-                  | ValueSome c ->
-                    first <- ValueNone
-                    c
-                  | ValueNone ->
-                    match rest with
-                    | elem :: tl ->
-                      rest <- tl
-                      Exe.executeApplicable1 state vm.activeAccess app elem
-                    | [] -> Ply(Ok DUnit)
-
-                match stepped with
-                | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-                | Ok(DEnum(_, _, _, "Some", [ v ])) -> acc <- v :: acc
-                | Ok(DEnum(_, _, _, "None", [])) -> ()
-                | Ok DUnit -> go <- false
-                | Ok other -> return raiseRTE vm.threadID (notAnOption other)
-
-              return mappedList vm (List.rev acc)
-            }
+          match items with
+          | [] -> Ply(mappedList vm [])
+          | first :: tail ->
+            let mutable acc = []
+            let mutable rest = tail
+            let rec next (answer : Dval) : Ply<Dval> =
+              Interpreter.withValue vm answer (fun answer ->
+                match answer with
+                | DEnum(_, _, _, "Some", [ v ]) -> acc <- v :: acc
+                | DEnum(_, _, _, "None", []) -> ()
+                | other -> raiseRTE vm.threadID (notAnOption other)
+                match rest with
+                | [] -> Ply(mappedList vm (List.rev acc))
+                | elem :: elemTail ->
+                  rest <- elemTail
+                  Interpreter.requestApply vm app elem [] next)
+            Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -634,53 +517,26 @@ let fns () : List<BuiltInFn> =
         + "out"
       fn =
         (function
-        | state, vm, [], [| DList(_, listA); DList(_, listB); DApplicable app |] ->
+        | _, vm, [], [| DList(_, listA); DList(_, listB); DApplicable app |] ->
           // The Dark version recursed with `pushBack`, which copies the accumulator every element,
           // so it was quadratic on top of the package call and the two-argument lambda application.
-          // Built back to front and reversed once, as `listMap` and `listIndexedMap` do.
-          let mutable acc = []
-          let mutable restA = listA
-          let mutable restB = listB
-          let mutable pending = ValueNone
-
-          while ValueOption.isNone pending
-                && not (List.isEmpty restA)
-                && not (List.isEmpty restB) do
-            match restA, restB with
-            | a :: tailA, b :: tailB ->
-              let call = Exe.executeApplicable2 state vm.activeAccess app a b
-              match Ply.trySync call with
-              | ValueSome(Ok mapped) ->
-                acc <- mapped :: acc
-                restA <- tailA
-                restB <- tailB
-              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
-              | ValueNone -> pending <- ValueSome(struct (call, tailA, tailB))
-            | _ -> ()
-
-          match pending with
-          | ValueNone -> Ply(mappedList vm (List.rev acc))
-          | ValueSome(struct (call, tailA, tailB)) ->
-            uply {
-              let! first = call
-              match first with
-              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              | Ok mapped ->
-                let mutable acc = mapped :: acc
-                let mutable restA = tailA
-                let mutable restB = tailB
-                while not (List.isEmpty restA) && not (List.isEmpty restB) do
-                  match restA, restB with
-                  | a :: tA, b :: tB ->
-                    match! Exe.executeApplicable2 state vm.activeAccess app a b with
-                    | Ok stepped ->
-                      acc <- stepped :: acc
-                      restA <- tA
-                      restB <- tB
-                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-                  | _ -> ()
-                return mappedList vm (List.rev acc)
-            }
+          // Built back to front and reversed once, as `listMap` and `listIndexedMap` do; each
+          // application is a frame on the caller's own stack (`Interpreter.requestApply`).
+          match listA, listB with
+          | a :: tailA, b :: tailB ->
+            let mutable acc = []
+            let mutable restA = tailA
+            let mutable restB = tailB
+            let rec next (mapped : Dval) : Ply<Dval> =
+              acc <- mapped :: acc
+              match restA, restB with
+              | a :: tA, b :: tB ->
+                restA <- tA
+                restB <- tB
+                Interpreter.requestApply vm app a [ b ] next
+              | _ -> Ply(mappedListOrPromise vm (List.rev acc))
+            Interpreter.requestApply vm app a [ b ] next
+          | _ -> Ply(mappedList vm [])
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -698,52 +554,26 @@ let fns () : List<BuiltInFn> =
         "Calls <param fn> on every value in <param list>, returning a list of the results"
       fn =
         (function
-        | state, vm, [], [| DList(_, items); DApplicable app |] ->
-          // Built back to front and reversed once at the end, rather than appending, which would
-          // re-copy the accumulator per element.
-          let mutable acc = []
-          let mutable rest = items
-          let mutable pending = ValueNone
-
-          // The deferred form: a lambda that calls a read hands its promise back rather than
-          // waiting, so every element's read is in flight before the next begins, and the list
-          // comes back as one promise (`mappedListOrPromise`).
-          while ValueOption.isNone pending && not (List.isEmpty rest) do
-            match rest with
-            | elem :: tail ->
-              let call =
-                Exe.executeApplicable1Deferred state vm.activeAccess app elem
-              match Ply.trySync call with
-              | ValueSome(Ok mapped) ->
-                acc <- mapped :: acc
-                rest <- tail
-              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
-              | ValueNone -> pending <- ValueSome(struct (call, tail))
-            | [] -> ()
-
-          match pending with
-          | ValueNone -> Ply(mappedListOrPromise vm (List.rev acc))
-          | ValueSome(struct (call, tail)) ->
-            uply {
-              let! first = call
-              match first with
-              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              | Ok mapped ->
-                let mutable acc = mapped :: acc
-                let mutable rest = tail
-                while not (List.isEmpty rest) do
-                  match rest with
-                  | elem :: elemTail ->
-                    match!
-                      Exe.executeApplicable1Deferred state vm.activeAccess app elem
-                    with
-                    | Ok stepped ->
-                      acc <- stepped :: acc
-                      rest <- elemTail
-                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-                  | [] -> ()
-                return mappedListOrPromise vm (List.rev acc)
-            }
+        | _, vm, [], [| DList(_, items); DApplicable app |] ->
+          // Each application is a frame on the caller's own stack (`Interpreter.requestApply`),
+          // not a nested VM: `ps` sees the lambda, the budget can preempt it, and a read in it
+          // parks the process. Built back to front and reversed once at the end. A lambda that
+          // returns a read still in flight hands it back as it is, and the list comes back as one
+          // promise (`mappedListOrPromise`). One continuation for the whole list, over two
+          // mutable cells, rather than a closure per element.
+          match items with
+          | [] -> Ply(mappedList vm [])
+          | first :: tail ->
+            let mutable acc = []
+            let mutable rest = tail
+            let rec next (mapped : Dval) : Ply<Dval> =
+              acc <- mapped :: acc
+              match rest with
+              | [] -> Ply(mappedListOrPromise vm (List.rev acc))
+              | elem :: elemTail ->
+                rest <- elemTail
+                Interpreter.requestApply vm app elem [] next
+            Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -762,51 +592,29 @@ let fns () : List<BuiltInFn> =
         + "it returned true"
       fn =
         (function
-        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
+        | _, vm, [], [| DList(vt, items); DApplicable app |] ->
           // The result holds a subset of the values that came in, so it keeps their ValueType
-          // exactly. Nothing to merge, and nothing that can fail to.
-          let mutable acc = []
-          let mutable rest = items
-          let mutable pending = ValueNone
-
-          while ValueOption.isNone pending && not (List.isEmpty rest) do
-            match rest with
-            | elem :: tail ->
-              let call = Exe.executeApplicable1 state vm.activeAccess app elem
-              match Ply.trySync call with
-              | ValueSome(Ok(DBool keep)) ->
-                if keep then acc <- elem :: acc
-                rest <- tail
-              | ValueSome(Ok other) -> raiseRTE vm.threadID (predicateNotBool other)
-              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
-              | ValueNone -> pending <- ValueSome(struct (call, elem, tail))
-            | [] -> ()
-
-          match pending with
-          | ValueNone -> Ply(DList(vt, List.rev acc))
-          | ValueSome(struct (call, elem, tail)) ->
-            uply {
-              let! first = call
-              let mutable acc = acc
-              match first with
-              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              | Ok(DBool keep) ->
-                if keep then acc <- elem :: acc
-                let mutable rest = tail
-                while not (List.isEmpty rest) do
-                  match rest with
-                  | next :: elemTail ->
-                    match! Exe.executeApplicable1 state vm.activeAccess app next with
-                    | Ok(DBool keepNext) ->
-                      if keepNext then acc <- next :: acc
-                      rest <- elemTail
-                    | Ok other ->
-                      return raiseRTE vm.threadID (predicateNotBool other)
-                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-                  | [] -> ()
-                return DList(vt, List.rev acc)
-              | Ok other -> return raiseRTE vm.threadID (predicateNotBool other)
-            }
+          // exactly. Nothing to merge, and nothing that can fail to. Each application is a frame
+          // on the caller's own stack (`Interpreter.requestApply`); the answer is looked at, so
+          // it is forced.
+          match items with
+          | [] -> Ply(DList(vt, []))
+          | first :: tail ->
+            let mutable acc = []
+            let mutable current = first
+            let mutable rest = tail
+            let rec next (answer : Dval) : Ply<Dval> =
+              Interpreter.withValue vm answer (fun answer ->
+                match answer with
+                | DBool keep -> if keep then acc <- current :: acc
+                | other -> raiseRTE vm.threadID (predicateNotBool other)
+                match rest with
+                | [] -> Ply(DList(vt, List.rev acc))
+                | elem :: elemTail ->
+                  current <- elem
+                  rest <- elemTail
+                  Interpreter.requestApply vm app elem [] next)
+            Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -871,50 +679,25 @@ let fns () : List<BuiltInFn> =
         + "first one that does"
       fn =
         (function
-        | state, vm, [], [| DList(_, items); DApplicable app |] ->
-          let mutable found = false
-          let mutable rest = items
-          let mutable pending = ValueNone
-
-          while ValueOption.isNone pending && not found && not (List.isEmpty rest) do
-            match rest with
-            | elem :: tail ->
-              let call = Exe.executeApplicable1 state vm.activeAccess app elem
-              match Ply.trySync call with
-              | ValueSome(Ok(DBool true)) -> found <- true
-              | ValueSome(Ok(DBool false)) -> rest <- tail
-              | ValueSome(Ok other) -> raiseRTE vm.threadID (predicateNotBool other)
-              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
-              | ValueNone -> pending <- ValueSome(struct (call, tail))
-            | [] -> ()
-
-          match pending with
-          | ValueNone -> Ply(DBool found)
-          | ValueSome(struct (call, tail)) ->
-            uply {
-              let! first = call
-              match first with
-              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              | Ok other ->
-                match other with
-                | DBool true -> return DBool true
+        | _, vm, [], [| DList(_, items); DApplicable app |] ->
+          // Each application is a frame on the caller's own stack (`Interpreter.requestApply`);
+          // the answer is looked at, so it is forced.
+          match items with
+          | [] -> Ply(DBool false)
+          | first :: tail ->
+            let mutable rest = tail
+            let rec next (answer : Dval) : Ply<Dval> =
+              Interpreter.withValue vm answer (fun answer ->
+                match answer with
+                | DBool true -> Ply(DBool true)
                 | DBool false ->
-                  let mutable found = false
-                  let mutable rest = tail
-                  while not found && not (List.isEmpty rest) do
-                    match rest with
-                    | elem :: elemTail ->
-                      match!
-                        Exe.executeApplicable1 state vm.activeAccess app elem
-                      with
-                      | Ok(DBool true) -> found <- true
-                      | Ok(DBool false) -> rest <- elemTail
-                      | Ok bad -> return raiseRTE vm.threadID (predicateNotBool bad)
-                      | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-                    | [] -> ()
-                  return DBool found
-                | bad -> return raiseRTE vm.threadID (predicateNotBool bad)
-            }
+                  match rest with
+                  | [] -> Ply(DBool false)
+                  | elem :: elemTail ->
+                    rest <- elemTail
+                    Interpreter.requestApply vm app elem [] next
+                | other -> raiseRTE vm.threadID (predicateNotBool other))
+            Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -968,49 +751,28 @@ let fns () : List<BuiltInFn> =
         "Returns the first value in <param list> for which <param fn> returns true, stopping there"
       fn =
         (function
-        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
-          let mutable hit = None
-          let mutable rest = items
-          let mutable pending = ValueNone
-
-          while ValueOption.isNone pending
-                && Option.isNone hit
-                && not (List.isEmpty rest) do
-            match rest with
-            | elem :: tail ->
-              let call = Exe.executeApplicable1 state vm.activeAccess app elem
-              match Ply.trySync call with
-              | ValueSome(Ok(DBool true)) -> hit <- Some elem
-              | ValueSome(Ok(DBool false)) -> rest <- tail
-              | ValueSome(Ok other) -> raiseRTE vm.threadID (predicateNotBool other)
-              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
-              | ValueNone -> pending <- ValueSome(struct (call, elem, tail))
-            | [] -> ()
-
-          match pending with
-          | ValueNone -> Ply(TypeChecker.DvalCreator.option vm.threadID vt hit)
-          | ValueSome(struct (call, elem, tail)) ->
-            uply {
-              let! first = call
-              match first with
-              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              | Ok(DBool true) ->
-                return TypeChecker.DvalCreator.option vm.threadID vt (Some elem)
-              | Ok(DBool false) ->
-                let mutable hit = None
-                let mutable rest = tail
-                while Option.isNone hit && not (List.isEmpty rest) do
+        | _, vm, [], [| DList(vt, items); DApplicable app |] ->
+          // Each application is a frame on the caller's own stack (`Interpreter.requestApply`);
+          // the answer is looked at, so it is forced.
+          match items with
+          | [] -> Ply(TypeChecker.DvalCreator.option vm.threadID vt None)
+          | first :: tail ->
+            let mutable current = first
+            let mutable rest = tail
+            let rec next (answer : Dval) : Ply<Dval> =
+              Interpreter.withValue vm answer (fun answer ->
+                match answer with
+                | DBool true ->
+                  Ply(TypeChecker.DvalCreator.option vm.threadID vt (Some current))
+                | DBool false ->
                   match rest with
-                  | next :: elemTail ->
-                    match! Exe.executeApplicable1 state vm.activeAccess app next with
-                    | Ok(DBool true) -> hit <- Some next
-                    | Ok(DBool false) -> rest <- elemTail
-                    | Ok bad -> return raiseRTE vm.threadID (predicateNotBool bad)
-                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-                  | [] -> ()
-                return TypeChecker.DvalCreator.option vm.threadID vt hit
-              | Ok bad -> return raiseRTE vm.threadID (predicateNotBool bad)
-            }
+                  | [] -> Ply(TypeChecker.DvalCreator.option vm.threadID vt None)
+                  | elem :: elemTail ->
+                    current <- elem
+                    rest <- elemTail
+                    Interpreter.requestApply vm app elem [] next
+                | other -> raiseRTE vm.threadID (predicateNotBool other))
+            Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

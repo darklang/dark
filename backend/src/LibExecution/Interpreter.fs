@@ -641,6 +641,8 @@ let inline private takeFrame
     f.expectedReturnType <- expectedReturnType
     f.programCounter <- 0
     f.typeSymbolTable <- typeSymbolTable
+    f.continuation <- Unchecked.defaultof<_>
+    f.finish <- Unchecked.defaultof<_>
     f
   else
     { id = id
@@ -652,7 +654,9 @@ let inline private takeFrame
       programCounter = 0
       typeSymbolTable = typeSymbolTable
       registers = Array.zeroCreate registerCount
-      argBufs = Array.empty }
+      argBufs = Array.empty
+      continuation = Unchecked.defaultof<_>
+      finish = Unchecked.defaultof<_> }
 
 /// Hand a popped frame back. Registers are cleared here rather than at reuse, so a pooled frame that
 /// never gets reused isn't holding a call's worth of Dvals alive.
@@ -907,6 +911,46 @@ let private traceBuiltinResult
   result
 
 
+/// Whether a builtin body just asked for an apply.
+let inline private requested (vm : VMState) : bool =
+  not (obj.ReferenceEquals(vm.pendingNext, null))
+
+
+/// For a builtin's continuation that has to look at the callable's result: `k` with the value,
+/// waiting for a read still in flight first (the interpreter parks the process on the wait and
+/// drives on when it lands). A continuation that only carries the result along (`List.map`) does
+/// not need this and keeps the read in flight.
+let withValue (vm : VMState) (dv : Dval) (k : Dval -> Ply<Dval>) : Ply<Dval> =
+  match dv with
+  | DPromise p ->
+    uply {
+      // Landed one way or the other, without the await itself throwing, so the read's failure
+      // is raised here, naming the read below the stack, and `k`'s own failures are its own.
+      let! landed =
+        p.Task.ContinueWith(
+          (fun (t : Task<Dval>) ->
+            if t.IsCompletedSuccessfully then
+              Ok t.Result
+            else
+              match t.Exception with
+              | null ->
+                Error(
+                  System.OperationCanceledException "a read was cancelled" :> exn
+                )
+              | agg -> Error(agg.GetBaseException())),
+          TaskContinuationOptions.ExecuteSynchronously
+        )
+      match landed with
+      | Ok v -> return! k v
+      | Error ex ->
+        vm.nestedCallStack <- [ p.Site; Function p.Fn ]
+        match ex with
+        | RuntimeErrorException(_, rte) -> return raiseRTE vm.threadID rte
+        | ex -> return raise ex
+    }
+  | v -> k v
+
+
 /// Stats, the result type-check and the trace, once a builtin's body has produced a value. Runs
 /// whether or not the body had to wait.
 let private finishBuiltin
@@ -1053,17 +1097,22 @@ let private invokeBuiltin
     // and built on every call.
     match Ply.trySync body with
     | ValueSome result ->
-      finishBuiltin
-        exeState
-        vm
-        currentFrame
-        fn
-        tst
-        allArgs
-        ord
-        sw
-        bodyAllocBefore
-        result
+      // The body asked for an apply (`requestApply`): this is its placeholder, not its result.
+      // The result is checked where it is made and reaches the trace through the continuation.
+      if requested vm then
+        Ply result
+      else
+        finishBuiltin
+          exeState
+          vm
+          currentFrame
+          fn
+          tst
+          allArgs
+          ord
+          sw
+          bodyAllocBefore
+          result
     | ValueNone ->
       // `allArgs` is the frame's reused argument buffer. A read handed back as a promise lets the
       // frame run on and refill it before this completes, so the trace would record the wrong
@@ -1071,6 +1120,12 @@ let private invokeBuiltin
       let allArgs = if recording then Array.copy allArgs else allArgs
       uply {
         let! result = body
+        // A request has to come before the body's first wait: after it the call site has moved
+        // on and nothing would push the frame. Loud, rather than a placeholder in a register.
+        if requested vm then
+          Exception.raiseInternal
+            "requestApply after the builtin's first await"
+            [ "builtin", fn.name.name ]
         return!
           finishBuiltin
             exeState
@@ -2071,6 +2126,27 @@ module Promises =
       t
 
 
+/// Ask the interpreter to apply `applicable` to `args` in this VM, as a frame of its own, and to
+/// hand the result to `next`; `next` answers the builtin's result or asks again. For a builtin
+/// that takes a callable (`List.map`, `List.filter`, ...): the lambda then runs where `ps` can
+/// see it, the budget can preempt it and a read in it can park the process, instead of in a
+/// nested VM on the host stack (`Execution.executeApplicable`, the old way). Call it and return
+/// what it returns; the value it hands back is a placeholder the interpreter never uses.
+let requestApply
+  (vm : VMState)
+  (applicable : Applicable)
+  (arg : Dval)
+  (moreArgs : List<Dval>)
+  (next : Dval -> Ply<Dval>)
+  : Ply<Dval> =
+  vm.pendingApplicable <- applicable
+  vm.pendingArg <- arg
+  vm.pendingMoreArgs <- moreArgs
+  vm.pendingNext <- next
+  Ply DUnit
+
+
+
 /// What an `Apply` still needs, after everything that could be done synchronously has been.
 [<Struct>]
 type private ApplyOutcome =
@@ -2086,12 +2162,337 @@ type private ApplyOutcome =
   /// An operand was a read that has landed: its value is in the register now. Run the same
   /// instruction again.
   | ApplyRetry
+  /// A builtin's apply request is mid-chain and its continuation is waiting on something. When
+  /// `cPly` completes, `drive` it on: the value goes to the register at `cReg` (and the frame's
+  /// counter to `cPc`), or a further frame is pushed.
+  | AwaitContinuation of
+    cPly : Ply<Dval> *
+    cReg : Register *
+    cPc : int *
+    cNext : (Dval -> Ply<Dval>) *
+    cFinish : (Dval -> unit)
 
   /// Spelled out rather than compared with `=`: a `Ply` doesn't support equality, so neither does this.
   member this.IsDone =
     match this with
     | ApplyDone -> true
     | _ -> false
+
+
+/// Push the frame for applying `appLambda` to `allArgs` (a full application, checked by the
+/// caller), from `currentFrame`, with `access` (the applying frame's, narrowed by the lambda's
+/// capture). What the `Apply` instruction does for a lambda, and what a builtin's apply request
+/// does for one (`beginRequest`). Inlined: it is the whole cost of a lambda call.
+let inline private pushLambdaFrame
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (putResultIn : Register)
+  (appLambda : ApplicableLambda)
+  (foundLambda : LambdaImpl)
+  (exprId : id)
+  (allArgs : ArgSeq)
+  (access : Permissions.Access)
+  : CallFrame =
+  let lambdaFrameAlloc = allocNow vm
+  // Hoisted out of the record expression so each piece can be bracketed separately: as one
+  // expression, `lambda.frame` reports a single total with no way to attribute it.
+  let lambdaTstAlloc = allocNow vm
+  let lambdaTst =
+    if TST.isEmpty appLambda.typeSymbolTable then
+      currentFrame.typeSymbolTable
+    else if TST.isEmpty currentFrame.typeSymbolTable then
+      appLambda.typeSymbolTable
+    else
+      TST.mergeFavoringRight appLambda.typeSymbolTable currentFrame.typeSymbolTable
+  recordStage vm ApplyStage.LambdaTst lambdaTstAlloc
+
+  let lambdaEpAlloc = allocNow vm
+  let parentEp = currentFrame.executionPoint
+  // The `ExecutionPoint` a lambda body runs under is a pure function of (calling frame's
+  // execution point, lambda's expression id), and both repeat: a lambda in a loop is called
+  // from the same function over and over. Rebuilding it per call is nearly everything a lambda
+  // application allocates, so it is memoized.
+  //
+  // Keyed on the expression id, holding the parent it was derived from. A single last-value slot
+  // is not enough: `List.map` alternates between its own recursion and the caller's lambda, so
+  // two expression ids interleave and a one-entry cache misses every time. A memo that thrashes
+  // looks like a memo that does not help -- check the hit rate, not just the total.
+  let lambdaEp =
+    let mutable hit = Unchecked.defaultof<struct (ExecutionPoint * ExecutionPoint)>
+    if
+      vm.lambdaEpCache.TryGetValue(exprId, &hit)
+      && (let struct (cachedParent, _) = hit
+          System.Object.ReferenceEquals(cachedParent, parentEp))
+    then
+      let struct (_, ep) = hit
+      ep
+    else
+      let ep = Lambda(parentEp, exprId)
+      vm.lambdaEpCache[exprId] <- struct (parentEp, ep)
+      ep
+  recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
+
+  // Resolved here so the loop never has to look it up. Same shared InstrData the
+  // per-VM cache holds; this is a reference to it, not a copy.
+  let lambdaInstrData =
+    // `TryGetValue` rather than `Map.tryFind`, which allocates a `Some` on every hit.
+    let mutable hit = Unchecked.defaultof<InstrData>
+    if vm.lambdaInstrDataCache.TryGetValue(exprId, &hit) then
+      hit
+    else
+      let d : InstrData =
+        { instructions = List.toArray foundLambda.instructions.instructions
+          resultReg = foundLambda.instructions.resultIn }
+      vm.lambdaInstrDataCache[exprId] <- d
+      d
+
+  let newFrame =
+    takeFrame
+      vm
+      foundLambda.instructions.registerCount
+      (nextFrameId vm)
+      (ValueSome(
+        struct (vm.currentFrameID, putResultIn, currentFrame.programCounter + 1)
+      ))
+      lambdaEp
+      access
+      lambdaInstrData
+      ValueNone
+      lambdaTst
+
+  let lambdaRegsAlloc = allocNow vm
+  if vm.stats.enabled then
+    vm.stats.registersAllocated <-
+      vm.stats.registersAllocated + int64 foundLambda.instructions.registerCount
+  let r = newFrame.registers
+
+  // extract and copy over the args
+  bindLambdaParams
+    vm
+    r
+    (FreeTVars.patternsOfLambda exprId foundLambda.patterns)
+    allArgs
+
+  // copy over closed registers
+  assignRegisters r appLambda.closedRegisters
+
+  // Put the lambda itself in the self register so the body can
+  // call itself. If it already has no applied args, reuse it
+  // as-is.
+  match foundLambda.selfRegister with
+  | Some selfReg ->
+    r[selfReg] <-
+      if List.isEmpty appLambda.argsSoFar then
+        DApplicable(AppLambda appLambda)
+      else
+        DApplicable(AppLambda { appLambda with argsSoFar = [] })
+  | None -> ()
+  recordStage vm ApplyStage.LambdaRegisters lambdaRegsAlloc
+
+  recordStage vm ApplyStage.LambdaFrame lambdaFrameAlloc
+  if vm.stats.enabled then vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+  if not exeState.tracing.skipTracing then
+    exeState.tracing.storeFrameEntry
+      newFrame.id
+      newFrame.executionPoint
+      (ArgSeq.toList allArgs)
+  vm.frameToPush <- ValueSome newFrame
+  newFrame
+
+
+/// Make a freshly built frame the current one.
+let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
+  vm.callFrames[frame.id] <- frame
+  vm.currentFrameID <- frame.id
+
+
+/// Start a builtin's apply request (`requestApply`): push the callable's frame from `caller`,
+/// with `cont` to receive its result, and answer as the `Apply` instruction would. A builtin or
+/// package function passed as the callable is called through the ordinary paths and its result
+/// driven straight on. Mutually recursive with `drive`: a continuation may ask again.
+let rec private beginRequest
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (caller : CallFrame)
+  (reg : Register)
+  (pcAfter : int)
+  (finish : Dval -> unit)
+  (direct : bool)
+  : ApplyOutcome =
+  // Take the request off the VM before anything below could make another.
+  let applicable = vm.pendingApplicable
+  let arg = vm.pendingArg
+  let moreArgs = vm.pendingMoreArgs
+  let next = vm.pendingNext
+  vm.pendingNext <- Unchecked.defaultof<_>
+  vm.pendingApplicable <- Unchecked.defaultof<_>
+  vm.pendingArg <- DUnit
+  vm.pendingMoreArgs <- []
+  // The builtin was applied under `vm.activeAccess`; the callable narrows that by what it
+  // captured, exactly as `Apply` narrows the frame's.
+  let applying = vm.activeAccess
+  match applicable with
+  | AppLambda appLambda ->
+    let exprId = appLambda.exprId
+    let foundLambda =
+      let mutable cached = Unchecked.defaultof<_>
+      if exeState.lambdaInstrCache.TryGetValue(exprId, &cached) then
+        cached
+      else
+        Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
+    // One cons for the argument list; a partial application's own arguments go first.
+    let prior =
+      match appLambda.argsSoFar with
+      | [] -> arg :: moreArgs
+      | sofar -> sofar @ (arg :: moreArgs)
+    let allArgs =
+      ArgSeq.withPrior
+        prior
+        { Prior = []; Regs = caller.registers; Head = ValueNone; Tail = [] }
+    let argCount = ArgSeq.count allArgs
+    let paramCount = NEList.length foundLambda.patterns
+    let access = applying |> Permissions.Access.constrainBy appLambda.access
+    if argCount > paramCount then
+      RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
+      |> RTE.Apply
+      |> raiseRTE vm.threadID
+    elif argCount < paramCount then
+      // Not enough to run it: the result is the lambda with these arguments applied, as `Apply`
+      // answers (`List.map xs (fun x y -> x)` is a list of lambdas).
+      let partial =
+        { appLambda with argsSoFar = ArgSeq.toList allArgs; access = access }
+        |> AppLambda
+        |> DApplicable
+      drive exeState vm caller reg pcAfter next finish (next partial) direct
+    else
+      // `pushLambdaFrame` reads the caller's counter for the return point; the request may come
+      // mid-chain, from a `returnFromFrame`, where the counter already sits past the `Apply`.
+      let savedPc = caller.programCounter
+      caller.programCounter <- pcAfter - 1
+      let frame =
+        pushLambdaFrame
+          exeState
+          vm
+          caller
+          reg
+          appLambda
+          foundLambda
+          exprId
+          allArgs
+          access
+      caller.programCounter <- savedPc
+      frame.continuation <- next
+      frame.finish <- finish
+      // From an `Apply` in the drain, the frame waits in `frameToPush` for the drain to stop;
+      // from a frame return or a resumed wait, the loop is between frames and it goes on right
+      // away.
+      if direct then
+        vm.frameToPush <- ValueNone
+        pushFrame vm frame
+      ApplyDone
+  | AppNamedFn named ->
+    let tst =
+      if TST.isEmpty named.typeSymbolTable then
+        caller.typeSymbolTable
+      else
+        TST.mergeFavoringRight caller.typeSymbolTable named.typeSymbolTable
+    let access =
+      match named.access with
+      | Some captured -> applying |> Permissions.Access.constrainBy captured
+      | None -> applying
+    // The arguments ride as the applicable's own (`argsSoFar`), with no register arguments: the
+    // call paths rebuild their argument sequence from those two, so a list handed in as the
+    // sequence's prior would be dropped.
+    let named = { named with argsSoFar = named.argsSoFar @ (arg :: moreArgs) }
+    let ctx : ApplyContext =
+      { applicable = named
+        typeArgs = named.typeArgs
+        args = { Prior = []; Regs = caller.registers; Head = ValueNone; Tail = [] }
+        tst = tst
+        access = access
+        putResultIn = reg
+        returnPc = pcAfter }
+    match named.name with
+    | FQFnName.Builtin builtin ->
+      let mutable found = Unchecked.defaultof<BuiltInFn>
+      if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
+        RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
+      vm.activeAccess <- access
+      let call = callBuiltin exeState vm caller ctx found
+      // The callee may itself have asked for an apply; `drive` sees that first.
+      drive exeState vm caller reg pcAfter next finish (Ply.bind next call) direct
+    | FQFnName.Package pkg ->
+      let fetch = exeState.fns.package pkg
+      let fn =
+        match Ply.trySync fetch with
+        | ValueSome(Some fn) -> fn
+        | ValueSome None ->
+          RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+        | ValueNone ->
+          match (Ply.toTask fetch).Result with
+          | Some fn -> fn
+          | None -> RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+      let call = callPackage exeState vm caller ctx fn
+      // Nearly always synchronous; the await is a type argument that needs the store, and it
+      // is waited for here rather than parked on, since what comes back may be a frame to push.
+      let outcome =
+        match Ply.trySync call with
+        | ValueSome o -> o
+        | ValueNone -> (Ply.toTask call).Result
+      match outcome with
+      | PushFrame frame ->
+        frame.continuation <- next
+        frame.finish <- finish
+        if direct then pushFrame vm frame else vm.frameToPush <- ValueSome frame
+        ApplyDone
+      | PartiallyApplied dv
+      | Completed dv ->
+        drive exeState vm caller reg pcAfter next finish (next dv) direct
+
+/// Drive a continuation's answer: a further request pushes the next frame; a value ends the
+/// chain, into the register at `reg` with the frame's counter moved past the `Apply`; a wait is
+/// handed back for the loop to park on, and driven again when it lands.
+and private drive
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (caller : CallFrame)
+  (reg : Register)
+  (pcAfter : int)
+  (next : Dval -> Ply<Dval>)
+  (finish : Dval -> unit)
+  (out : Ply<Dval>)
+  (direct : bool)
+  : ApplyOutcome =
+  match Ply.trySync out with
+  | ValueSome dv ->
+    if requested vm then
+      beginRequest exeState vm caller reg pcAfter finish direct
+    else
+      if not (obj.ReferenceEquals(finish, null)) then finish dv
+      caller.registers[reg] <- dv
+      caller.programCounter <- pcAfter
+      ApplyDone
+  | ValueNone -> AwaitContinuation(out, reg, pcAfter, next, finish)
+
+
+/// What to do with the final result of a builtin's apply chain made at this call: record it in
+/// the trace, as `finishBuiltin` would have, since the builtin's own return handed back only a
+/// placeholder. Null when nothing records, so an untraced chain allocates nothing for it.
+let private finishFor
+  (exeState : ExecutionState)
+  (currentFrame : CallFrame)
+  (fn : BuiltInFn)
+  (args : ArgSeq)
+  (ord : int64)
+  : Dval -> unit =
+  let traced =
+    (ord >= 0L && exeState.tracing.traceEffects) || not exeState.tracing.skipTracing
+  if traced then
+    let args = Array.copy (ArgSeq.toArrayFor currentFrame args)
+    fun dv -> traceBuiltinResult exeState currentFrame fn ord args dv |> ignore<Dval>
+  else
+    Unchecked.defaultof<_>
 
 
 /// One `Apply` instruction, run without entering the interpreter's computation expression.
@@ -2174,114 +2575,17 @@ let private applyInstructionForced
       |> raiseRTE vm.threadID
 
     if argCount = paramCount then
-      let lambdaFrameAlloc = allocNow vm
-      // Hoisted out of the record expression so each piece can be bracketed separately: as one
-      // expression, `lambda.frame` reports a single total with no way to attribute it.
-      let lambdaTstAlloc = allocNow vm
-      let lambdaTst =
-        if TST.isEmpty appLambda.typeSymbolTable then
-          currentFrame.typeSymbolTable
-        else if TST.isEmpty currentFrame.typeSymbolTable then
-          appLambda.typeSymbolTable
-        else
-          TST.mergeFavoringRight
-            appLambda.typeSymbolTable
-            currentFrame.typeSymbolTable
-      recordStage vm ApplyStage.LambdaTst lambdaTstAlloc
-
-      let lambdaEpAlloc = allocNow vm
-      let parentEp = currentFrame.executionPoint
-      // The `ExecutionPoint` a lambda body runs under is a pure function of (calling frame's
-      // execution point, lambda's expression id), and both repeat: a lambda in a loop is called
-      // from the same function over and over. Rebuilding it per call is nearly everything a lambda
-      // application allocates, so it is memoized.
-      //
-      // Keyed on the expression id, holding the parent it was derived from. A single last-value slot
-      // is not enough: `List.map` alternates between its own recursion and the caller's lambda, so
-      // two expression ids interleave and a one-entry cache misses every time. A memo that thrashes
-      // looks like a memo that does not help -- check the hit rate, not just the total.
-      let lambdaEp =
-        let mutable hit =
-          Unchecked.defaultof<struct (ExecutionPoint * ExecutionPoint)>
-        if
-          vm.lambdaEpCache.TryGetValue(exprId, &hit)
-          && (let struct (cachedParent, _) = hit
-              System.Object.ReferenceEquals(cachedParent, parentEp))
-        then
-          let struct (_, ep) = hit
-          ep
-        else
-          let ep = Lambda(parentEp, exprId)
-          vm.lambdaEpCache[exprId] <- struct (parentEp, ep)
-          ep
-      recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
-
-      // Resolved here so the loop never has to look it up. Same shared InstrData the
-      // per-VM cache holds; this is a reference to it, not a copy.
-      let lambdaInstrData =
-        // `TryGetValue` rather than `Map.tryFind`, which allocates a `Some` on every hit.
-        let mutable hit = Unchecked.defaultof<InstrData>
-        if vm.lambdaInstrDataCache.TryGetValue(exprId, &hit) then
-          hit
-        else
-          let d : InstrData =
-            { instructions = List.toArray foundLambda.instructions.instructions
-              resultReg = foundLambda.instructions.resultIn }
-          vm.lambdaInstrDataCache[exprId] <- d
-          d
-
-      let newFrame =
-        takeFrame
-          vm
-          foundLambda.instructions.registerCount
-          (nextFrameId vm)
-          (ValueSome(
-            struct (vm.currentFrameID, putResultIn, currentFrame.programCounter + 1)
-          ))
-          lambdaEp
-          access
-          lambdaInstrData
-          ValueNone
-          lambdaTst
-
-      let lambdaRegsAlloc = allocNow vm
-      if vm.stats.enabled then
-        vm.stats.registersAllocated <-
-          vm.stats.registersAllocated + int64 foundLambda.instructions.registerCount
-      let r = newFrame.registers
-
-      // extract and copy over the args
-      bindLambdaParams
+      pushLambdaFrame
+        exeState
         vm
-        r
-        (FreeTVars.patternsOfLambda exprId foundLambda.patterns)
+        currentFrame
+        putResultIn
+        appLambda
+        foundLambda
+        exprId
         allArgs
-
-      // copy over closed registers
-      assignRegisters r appLambda.closedRegisters
-
-      // Put the lambda itself in the self register so the body can
-      // call itself. If it already has no applied args, reuse it
-      // as-is.
-      match foundLambda.selfRegister with
-      | Some selfReg ->
-        r[selfReg] <-
-          if List.isEmpty appLambda.argsSoFar then
-            DApplicable(AppLambda appLambda)
-          else
-            DApplicable(AppLambda { appLambda with argsSoFar = [] })
-      | None -> ()
-      recordStage vm ApplyStage.LambdaRegisters lambdaRegsAlloc
-
-      recordStage vm ApplyStage.LambdaFrame lambdaFrameAlloc
-      if vm.stats.enabled then
-        vm.stats.framePushCount <- vm.stats.framePushCount + 1L
-      if not exeState.tracing.skipTracing then
-        exeState.tracing.storeFrameEntry
-          newFrame.id
-          newFrame.executionPoint
-          (ArgSeq.toList allArgs)
-      vm.frameToPush <- ValueSome newFrame
+        access
+      |> ignore<CallFrame>
 
     else if argCount > paramCount then
       RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
@@ -2366,20 +2670,33 @@ let private applyInstructionForced
           // Builtins push no frame; their permission checks read this instead.
           vm.activeAccess <- access
           let call = callBuiltin exeState vm currentFrame ctx fn
-          // Usually already finished, in which case there's no bind to pay for.
-          match Ply.trySync call with
-          | ValueSome dv -> registers[putResultIn] <- dv
-          | ValueNone ->
-            // A read that has to wait becomes a promise and the frame runs on; anything else
-            // parks the process here, in program order.
-            if Promises.deferrable vm fn then
-              match
-                Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) call
-              with
-              | ValueSome promise -> registers[putResultIn] <- promise
-              | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
-            else
-              outcome <- AwaitBuiltin(call, putResultIn)
+          if requested vm then
+            // The builtin asked for a callable to be applied: its frame goes on this stack, and
+            // the builtin's real result comes through the continuation.
+            outcome <-
+              beginRequest
+                exeState
+                vm
+                currentFrame
+                putResultIn
+                (currentFrame.programCounter + 1)
+                (finishFor exeState currentFrame fn ctx.args -1L)
+                false
+          else
+            // Usually already finished, in which case there's no bind to pay for.
+            match Ply.trySync call with
+            | ValueSome dv -> registers[putResultIn] <- dv
+            | ValueNone ->
+              // A read that has to wait becomes a promise and the frame runs on; anything else
+              // parks the process here, in program order.
+              if Promises.deferrable vm fn then
+                match
+                  Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) call
+                with
+                | ValueSome promise -> registers[putResultIn] <- promise
+                | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+              else
+                outcome <- AwaitBuiltin(call, putResultIn)
           recordStage vm ApplyStage.BiTotal biTotalAlloc
 
       | FQFnName.Package pkg ->
@@ -2457,9 +2774,20 @@ let private applyInstructionForced
             vm.activeAccess <- entryAccess
             let call = callBuiltinResolved exeState vm currentFrame ctx biFn []
 
-            match Ply.trySync call with
-            | ValueSome dv -> registers[putResultIn] <- dv
-            | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+            if requested vm then
+              outcome <-
+                beginRequest
+                  exeState
+                  vm
+                  currentFrame
+                  putResultIn
+                  (currentFrame.programCounter + 1)
+                  (finishFor exeState currentFrame biFn ctx.args -1L)
+                  false
+            else
+              match Ply.trySync call with
+              | ValueSome dv -> registers[putResultIn] <- dv
+              | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
 
         | _ ->
 
@@ -2492,7 +2820,20 @@ let private applyInstructionForced
           // cheaper than the cell.
           match Ply.trySync call with
           | ValueSome(PartiallyApplied dv)
-          | ValueSome(Completed dv) -> registers[putResultIn] <- dv
+          | ValueSome(Completed dv) ->
+            if requested vm then
+              // The elided builtin behind this wrapper asked for an apply.
+              outcome <-
+                beginRequest
+                  exeState
+                  vm
+                  currentFrame
+                  putResultIn
+                  (currentFrame.programCounter + 1)
+                  Unchecked.defaultof<_>
+                  false
+            else
+              registers[putResultIn] <- dv
           | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
           | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
 
@@ -3249,6 +3590,13 @@ type private FrameStep =
   /// An operand of the instruction under the counter is a read still in flight. Wait for it, write
   /// its value into this register, and run the instruction; the counter does not move.
   | FrameAwaitForce of ffTask : Task<Dval> * ffReg : Register
+  /// A builtin's apply chain is waiting on its continuation. When it lands, `drive` it on.
+  | FrameAwaitContinuation of
+    fcPly : Ply<Dval> *
+    fcReg : Register *
+    fcPc : int *
+    fcNext : (Dval -> Ply<Dval>) *
+    fcFinish : (Dval -> unit)
   /// The counter is sitting on one of the four opcodes the caller still runs itself.
   | FrameRareOpcode
   /// The VM's instruction budget ran out. Nothing is half-done: the counter sits on the instruction
@@ -3300,6 +3648,9 @@ let private runFrame
     | AwaitForce(task, reg) ->
       step <- FrameAwaitForce(task, reg)
       running <- false
+    | AwaitContinuation(ply, reg, pc, next, finish) ->
+      step <- FrameAwaitContinuation(ply, reg, pc, next, finish)
+      running <- false
     // Never escapes `runSyncInstructions`, which runs the instruction again itself.
     | ApplyRetry
     | ApplyDone ->
@@ -3316,10 +3667,6 @@ let private runFrame
   step
 
 
-/// Make a freshly built frame the current one.
-let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
-  vm.callFrames[frame.id] <- frame
-  vm.currentFrameID <- frame.id
 
 
 /// A `Task<unit>` that is already finished, allocated once. `Task.CompletedTask` is the untyped
@@ -3553,7 +3900,7 @@ let private returnFromFrame
   (vm : VMState)
   (currentFrame : CallFrame)
   (resultOfFrame : Dval)
-  : unit =
+  : ApplyOutcome =
   match currentFrame.parent with
   | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
     // Record per-package-fn timing on frame return
@@ -3612,15 +3959,38 @@ let private returnFromFrame
           |> ignore<Task>
         | _ -> exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
       | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-    parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
-    parentFrame.programCounter <- pcOfParent
-    // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
-    // of its registers before the pop and is now in the parent's.
-    returnFrame vm currentFrame
-    recordStage vm ApplyStage.FramePop framePopAlloc
+    let next = currentFrame.continuation
+    if not (obj.ReferenceEquals(next, null)) then
+      // A frame a builtin asked for: its result goes to the builtin's continuation, and what
+      // that answers, or asks for next, is what reaches the parent. The frame is handed back
+      // first, since the continuation may push the next one.
+      let finish = currentFrame.finish
+      currentFrame.continuation <- Unchecked.defaultof<_>
+      currentFrame.finish <- Unchecked.defaultof<_>
+      returnFrame vm currentFrame
+      recordStage vm ApplyStage.FramePop framePopAlloc
+      drive
+        exeState
+        vm
+        parentFrame
+        regOfParentToPutResultInto
+        pcOfParent
+        next
+        finish
+        (next resultOfFrame)
+        true
+    else
+      parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
+      parentFrame.programCounter <- pcOfParent
+      // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
+      // of its registers before the pop and is now in the parent's.
+      returnFrame vm currentFrame
+      recordStage vm ApplyStage.FramePop framePopAlloc
+      ApplyDone
   | ValueNone ->
     vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
     vm.finalResult <- ValueSome resultOfFrame
+    ApplyDone
 
 
 let private handleFrameStep
@@ -3659,6 +4029,21 @@ let private handleFrameStep
       // next try, through `Promises.settle`, so the failure is not read out here.
       let! _ = Task.WhenAny task
       if task.IsCompletedSuccessfully then registers[reg] <- task.Result
+    | FrameAwaitContinuation(ply, reg, pc, next, finish) ->
+      // The chain goes on from here: a value into the register, or the next frame pushed. A
+      // further wait is waited for in place.
+      let! dv = Ply.toTask ply
+      let mutable outcome =
+        drive exeState vm currentFrame reg pc next finish (Ply dv) true
+      while (match outcome with
+             | AwaitContinuation _ -> true
+             | _ -> false) do
+        match outcome with
+        | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+          let! dv2 = Ply.toTask ply2
+          outcome <-
+            drive exeState vm currentFrame reg2 pc2 next2 finish2 (Ply dv2) true
+        | _ -> ()
 
     match step with
     | FrameRareOpcode ->
@@ -3690,7 +4075,8 @@ let private handleFrameStep
     | FrameBudget
     | FrameAwaitBuiltin _
     | FrameAwaitPackage _
-    | FrameAwaitForce _ -> ()
+    | FrameAwaitForce _
+    | FrameAwaitContinuation _ -> ()
 
     // Only when the frame's block actually ended: either a frame was pushed or this one finished.
     // An await or a rare opcode leaves the frame part-run and comes round again, since the frame it
@@ -3712,21 +4098,35 @@ let private handleFrameStep
           // A single `do!` at statement position, so the loop's state machine stays statically
           // compilable. `checkFrameReturnType` answers synchronously in the ordinary case.
           do! checkFrameReturnType exeState vm currentFrame resultOfFrame
-          returnFromFrame exeState vm currentFrame resultOfFrame
+          // A continuation frame's chain may wait: waited for in place.
+          let mutable outcome =
+            returnFromFrame exeState vm currentFrame resultOfFrame
+          while (match outcome with
+                 | AwaitContinuation _ -> true
+                 | _ -> false) do
+            match outcome with
+            | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+              let! dv2 = Ply.toTask ply2
+              let parent = vm.callFrames[vm.currentFrameID]
+              outcome <-
+                drive exeState vm parent reg2 pc2 next2 finish2 (Ply dv2) true
+            | _ -> ()
         | ValueNone ->
-          // The end of the run forces a read still in flight: nothing leaves as a promise, unless
-          // the borrower of this VM said it takes them.
+          // The end of the run forces a read still in flight: nothing leaves as a promise.
           match resultOfFrame with
-          | DPromise p when not vm.returnsPromises ->
+          | DPromise p ->
             let! _ = Task.WhenAny p.Task
             match Promises.settle vm registers instrData.resultReg p with
             | null ->
               returnFromFrame exeState vm currentFrame registers[instrData.resultReg]
+              |> ignore<ApplyOutcome>
             | _ ->
               Exception.raiseInternal
                 "a read that was waited for is still in flight"
                 []
-          | _ -> returnFromFrame exeState vm currentFrame resultOfFrame
+          | _ ->
+            returnFromFrame exeState vm currentFrame resultOfFrame
+            |> ignore<ApplyOutcome>
   }
 
 
@@ -3806,6 +4206,17 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
         registers[reg] <- task.Result
       else
         bail <- ValueSome(SyncBailStep step)
+    | FrameAwaitContinuation(ply, reg, pc, next, finish) ->
+      match Ply.trySync ply with
+      | ValueSome dv ->
+        match drive exeState vm currentFrame reg pc next finish (Ply dv) true with
+        | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+          bail <-
+            ValueSome(
+              SyncBailStep(FrameAwaitContinuation(ply2, reg2, pc2, next2, finish2))
+            )
+        | _ -> ()
+      | ValueNone -> bail <- ValueSome(SyncBailStep step)
 
     if ValueOption.isNone bail && step.IsBlockEnded then
       match vm.frameToPush with
@@ -3821,22 +4232,30 @@ let private executeSync (exeState : ExecutionState) (vm : VMState) : SyncOutcome
           // synchronously in the ordinary case: the awaiting one is a type that needs the store.
           let check = checkFrameReturnType exeState vm currentFrame resultOfFrame
           if check.IsCompletedSuccessfully then
-            returnFromFrame exeState vm currentFrame resultOfFrame
+            match returnFromFrame exeState vm currentFrame resultOfFrame with
+            | AwaitContinuation(ply, reg, pc, next, finish) ->
+              bail <-
+                ValueSome(
+                  SyncBailStep(FrameAwaitContinuation(ply, reg, pc, next, finish))
+                )
+            | _ -> ()
           else
             bail <- ValueSome(SyncBailReturnCheck(check, resultOfFrame))
         | ValueNone ->
-          // The end of the run forces a read still in flight: nothing leaves as a promise, unless
-          // the borrower of this VM said it takes them. The frame stays; once the read lands the
-          // block ends again, with a value this time.
+          // The end of the run forces a read still in flight: nothing leaves as a promise. The
+          // frame stays; once the read lands the block ends again, with a value this time.
           match resultOfFrame with
-          | DPromise p when not vm.returnsPromises ->
+          | DPromise p ->
             match Promises.settle vm registers instrData.resultReg p with
             | null ->
               returnFromFrame exeState vm currentFrame registers[instrData.resultReg]
+              |> ignore<ApplyOutcome>
             | task ->
               bail <-
                 ValueSome(SyncBailStep(FrameAwaitForce(task, instrData.resultReg)))
-          | _ -> returnFromFrame exeState vm currentFrame resultOfFrame
+          | _ ->
+            returnFromFrame exeState vm currentFrame resultOfFrame
+            |> ignore<ApplyOutcome>
 
   match bail with
   | ValueSome outcome -> outcome
@@ -3864,7 +4283,10 @@ let private executeInnerTask
     | SyncBailReturnCheck(check, checkedResult) ->
       let frame = vm.callFrames[vm.currentFrameID]
       do! check
-      returnFromFrame exeState vm frame checkedResult
+      // Only a package fn frame checks its return type, and a package fn is never a
+      // continuation frame (a callable that is a named fn applies through its own path), so
+      // this never has a chain to drive.
+      returnFromFrame exeState vm frame checkedResult |> ignore<ApplyOutcome>
     | SyncBailBudget ->
       Exception.raiseInternal
         "budget bail outside the scheduler"
@@ -3943,6 +4365,26 @@ let stepScheduled (exeState : ExecutionState) (vm : VMState) : StepOutcome =
         | Completed dv -> frame.registers[reg] <- dv
         | PushFrame newFrame -> pushFrame vm newFrame
     )
+  | SyncBailStep(FrameAwaitContinuation(ply, reg, pc, next, finish)) ->
+    // Parked on a builtin's continuation (a callable it asked for has returned, and what the
+    // builtin does with that waits). Driven on when it lands; a further wait from `drive` is
+    // rare (a continuation that waits twice in a row) and is waited for on the spot.
+    let frame = vm.callFrames[vm.currentFrameID]
+    let running = Ply.toTask ply
+    StepAwait(
+      running,
+      fun () ->
+        let mutable outcome =
+          drive exeState vm frame reg pc next finish (Ply running.Result) true
+        while (match outcome with
+               | AwaitContinuation _ -> true
+               | _ -> false) do
+          match outcome with
+          | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+            let dv2 = (Ply.toTask ply2).Result
+            outcome <- drive exeState vm frame reg2 pc2 next2 finish2 (Ply dv2) true
+          | _ -> ()
+    )
   | SyncBailStep(FrameAwaitForce(task, reg)) ->
     // Parked on the read. The wait never faults: a read that failed stays a promise in the
     // register, and the instruction's next try raises it through `Promises.settle`, at the force
@@ -3968,7 +4410,11 @@ let stepScheduled (exeState : ExecutionState) (vm : VMState) : StepOutcome =
     StepAwait(running, (fun () -> ()))
   | SyncBailReturnCheck(check, checkedResult) ->
     let frame = vm.callFrames[vm.currentFrameID]
-    StepAwait(check, (fun () -> returnFromFrame exeState vm frame checkedResult))
+    StepAwait(
+      check,
+      (fun () ->
+        returnFromFrame exeState vm frame checkedResult |> ignore<ApplyOutcome>)
+    )
 
 
 /// Seed the root frame with the access the run starts under. `executeUnder`'s first two lines,

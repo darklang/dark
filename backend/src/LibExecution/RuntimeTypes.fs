@@ -2645,6 +2645,15 @@ type CallFrame =
     mutable typeSymbolTable : TypeSymbolTable
 
     mutable registers : Registers
+
+    /// Set on a frame a builtin asked for (`Interpreter.requestApply`): when the frame returns,
+    /// its result goes to this rather than into the parent's register, and what this answers, or
+    /// asks for next, is what reaches the parent. Null for every ordinary frame. Two plain fields
+    /// rather than a record, so a chain of a thousand applications allocates nothing for them.
+    mutable continuation : Dval -> Ply<Dval>
+    /// With `continuation`: what to do with the builtin's final result once the chain ends (the
+    /// trace record, if any). Null when nothing.
+    mutable finish : Dval -> unit
   }
 
 /// Synchronous regions of the Apply path that the allocation counters attribute to.
@@ -3051,10 +3060,16 @@ type VMState =
     /// Reads this VM's calls handed back as promises that have not landed yet, for `ps`.
     mutable inflight : int
 
-    /// The run may end with a read still in flight, handed back as the result. False for every
-    /// run that anyone looks at the result of; true only for a VM a promise-aware builtin borrows
-    /// (`List.map` collecting reads to combine), which forces or combines what it gets back.
-    mutable returnsPromises : bool
+    /// A builtin body asking for a callable to be applied on its behalf, in this VM, as a frame
+    /// of its own (`Interpreter.requestApply`): the callable, its first argument and any more,
+    /// and what to call with the result. Read and cleared by the interpreter right after the
+    /// body returns, which then pushes the frame instead of using the body's result. Null
+    /// `pendingNext` means no request. Four slots rather than a record, so a chain of a thousand
+    /// applications allocates nothing for them; one builtin is in flight per VM at a time.
+    mutable pendingNext : Dval -> Ply<Dval>
+    mutable pendingApplicable : Applicable
+    mutable pendingArg : Dval
+    mutable pendingMoreArgs : List<Dval>
 
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
     /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
@@ -3122,7 +3137,9 @@ type VMState =
         registers = Array.zeroCreate instrs.registerCount
         argBufs = Array.empty
         typeSymbolTable = TST.empty
-        parent = ValueNone }
+        parent = ValueNone
+        continuation = Unchecked.defaultof<_>
+        finish = Unchecked.defaultof<_> }
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
@@ -3141,7 +3158,10 @@ type VMState =
       budget = -1L
       readHint = false
       inflight = 0
-      returnsPromises = false
+      pendingNext = Unchecked.defaultof<_>
+      pendingApplicable = Unchecked.defaultof<_>
+      pendingArg = DUnit
+      pendingMoreArgs = []
       nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
@@ -3190,6 +3210,8 @@ type VMState =
         frame.typeSymbolTable <- TST.empty
         frame.parent <- ValueNone
         frame.access <- Permissions.Access.denyAll
+        frame.continuation <- Unchecked.defaultof<_>
+        frame.finish <- Unchecked.defaultof<_>
         if frame.registers.Length < registerCount then
           frame.registers <- Array.zeroCreate registerCount
         else
@@ -3205,7 +3227,9 @@ type VMState =
           registers = Array.zeroCreate registerCount
           argBufs = Array.empty
           typeSymbolTable = TST.empty
-          parent = ValueNone }
+          parent = ValueNone
+          continuation = Unchecked.defaultof<_>
+          finish = Unchecked.defaultof<_> }
 
     vm.pooledRootFrame <- ValueSome rootCallFrame
     vm.callFrames.Clear()
@@ -3218,7 +3242,10 @@ type VMState =
     vm.budget <- -1L
     vm.readHint <- false
     vm.inflight <- 0
-    vm.returnsPromises <- false
+    vm.pendingNext <- Unchecked.defaultof<_>
+    vm.pendingApplicable <- Unchecked.defaultof<_>
+    vm.pendingArg <- DUnit
+    vm.pendingMoreArgs <- []
     vm.nestedCallStack <- []
     vm.finalResult <- ValueNone
     vm.matchBindings.Clear()

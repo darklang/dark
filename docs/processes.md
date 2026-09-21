@@ -1,13 +1,15 @@
 # Processes and the scheduler
 
-Status: the baseline, cores, concurrent reads, and executions. A running
-computation is a value the runtime can step, park, resume and inspect; one
-thread runs many of them, and a group of worker threads (one per core) runs
-many more. Reads run concurrently on their own and writes keep their order;
-`Exec.spawn`/`await` run chosen work in the background. A traced run is an
-execution: kept with the log of what it did to the world, suspended by
-Ctrl-C, resumed or forked by replaying that log. The follow-ups at the end
-are where the rest goes.
+Status: the baseline, cores, concurrent reads, executions, and the list
+builtins with no host re-entry. A running computation is a value the runtime
+can step, park, resume and inspect; one thread runs many of them, and a group
+of worker threads (one per core) runs many more. Reads run concurrently on
+their own and writes keep their order; `Exec.spawn`/`await` run chosen work
+in the background. A traced run is an execution: kept with the log of what it
+did to the world, suspended by Ctrl-C, resumed or forked by replaying that
+log. A lambda that `List.map` (and the other list builtins) applies is a
+frame on the process's own stack. The follow-ups at the end are where the
+rest goes.
 
 The one-paragraph version: a process is a `VMState` plus the `ExecutionState`
 it runs under plus a status. A scheduler steps a process until it finishes,
@@ -298,6 +300,73 @@ From a run nobody scheduled (a test's `execute`, the LSP, an HTTP handler)
 (`Scheduler.CurrentOrShared`), started on first use, and `await` blocks that
 thread on the completion as any builtin wait would.
 
+## No host re-entry: a builtin asks, the interpreter applies
+
+A builtin that takes a callable used to apply it by running a nested VM on the
+host stack (`Execution.executeApplicable`): the lambda's frames were invisible
+to `ps`, could not be preempted by the budget, and a read in the lambda held
+the .NET stack. The list builtins now ask instead (`Interpreter.requestApply`):
+
+- The builtin's body calls `requestApply vm applicable arg moreArgs next` and
+  returns what it returns (a placeholder). The interpreter, at the call site,
+  sees the request (`VMState.pendingNext` and the three slots beside it: no
+  record, so a chain of a thousand applications allocates nothing for them),
+  pushes the callable's frame in the same VM from the calling frame, with
+  `next` on it (`CallFrame.continuation`), and stops the drain as it would for
+  any pushed frame. A builtin or package function passed as the callable is
+  called through the ordinary paths and its result driven straight on; a
+  partial application answers the applied lambda, as `Apply` does.
+- When that frame returns, its result does not go into the caller's register:
+  `returnFromFrame` hands it to `next`, and `drive` looks at what `next`
+  answered. A further request (the next element) pushes the next frame at
+  once; a value ends the chain, into the register the `Apply` named, with the
+  frame's counter moved past it, and `finish` records the builtin's result in
+  the trace, since the builtin's own return was the placeholder; a wait (a
+  `next` that awaits) parks the process on it (`FrameAwaitContinuation`) and
+  drives on when it lands.
+- `Interpreter.withValue` is for a continuation that has to look at the
+  callable's result (a predicate, a key, a fold's accumulator): it waits for a
+  read still in flight first, through the same wait. `List.map` and its kin
+  carry the result along unlooked-at, so a read in a mapped lambda stays in
+  flight and the list comes back as one promise, as before.
+- A request has to come before the body's first await: after it the call
+  site has moved on. The interpreter raises `requestApply after the builtin's
+  first await` rather than misplace a placeholder. A continuation may await
+  and then request; that is `drive`'s ordinary path.
+- The frame runs under the builtin's applying access narrowed by what the
+  callable captured, exactly as `Apply` narrows a frame's. Errors inside the
+  lambda propagate through the process's own frames, so the stack names the
+  lambda without `nestedCallStack`.
+
+Migrated: `List.map`, `indexedMap`, `map2shortest`, `fold`, `filter`,
+`filterMap`, `findFirst`, `any`, `sortBy` (`Builtins.Pure/Libs/List.fs`), each
+with one continuation over two mutable cells rather than a closure per
+element. `Dict`, `Option`, `Result` and `String` have no re-entry on this
+branch (they are Dark, or take no callable). Not migrated, and why:
+
+- `Stream.fs` (`unfold`, `map`, `filter`): the callable runs at pull time,
+  inside the drain's Ply chain, after an await on the source, which is the
+  one place a request cannot come from; moving streams over means threading
+  the continuation through `StreamImpl` and `Dval`'s drain. Correct as it is,
+  opaque when parked.
+- `HttpServer.fs` (the per-request handler, `onListening`): the handler runs
+  on a pool thread through `executeApplicable`. The plan's leaf makes it a
+  spawned process on a worker (`Scheduler.SpawnApply` is there for it); left
+  for the live track, whose file it is, since it changes `serve`'s latency
+  shape and is measured by `scripts/perf/http`.
+
+Measured, the list family: gate 9.5 MB against 9.4 (exact totals 9,463,000
+against 9,428,440 bytes: +0.4%, inside the 0.8% noise band; the first cut,
+with a record per request and a closure per element, was 11.1 MB, +19%);
+`bench ab` before against after, interp-list -1.7% (13 of 15 pairs faster),
+eval-listheavy -0.1%, eval-map1000 -0.4%, interp-arith +1.5% (2 of 15;
+arith applies no lambda, so that is the bigger step structs or noise).
+Tests (`Scheduler.Tests.fs`): a process parked inside `List.map f` shows the
+lambda's frame in `ps` and resumes; a tight loop inside a mapped lambda is
+preempted and another process runs between the slices; an error inside a
+mapped lambda names the lambda's frame; all 6,734 testfile cases pass over
+the migrated builtins.
+
 ## Traces
 
 `trace_fn_calls` rows carry `process_id`, `seq` and `ord`
@@ -424,15 +493,15 @@ completes.
 
 Follow-ups in the scheduler plan, in order, and the edges of what is here:
 
-- Removing host re-entry, then Ply out of the interpreter, then a scheduling
-  policy in Dark, are the next steps (`notes/scheduler-and-live`).
+- Host re-entry remains in `Stream.fs` and `HttpServer.fs` (above); then Ply
+  out of the interpreter, then a scheduling policy in Dark, are the next steps
+  (`notes/scheduler-and-live`).
 - A resume matches recorded processes to new ones by start order; a run that
   spawned may not line up. `resume` is the CLI's, since it runs the input
   through the CLI's own paths; `Exec.fork` from Dark exists.
 - `ps show` says how many reads a process has in flight, not which.
-- Removing host re-entry. `List.map f` still runs `f` in a nested VM on the
-  .NET stack; a process parked inside it shows the frame that called the
-  builtin, not `f`'s.
+- A process parked inside a stream transform's lambda shows the frame that
+  called the pulling builtin, not the lambda's (streams still re-enter).
 - Ply out of the interpreter. Awaits are still Plys, parked on as tasks.
 - `Event.ExecDone` carries only the id; a Dark enum cannot hold an untyped
   value. `Exec.await` is how a value comes back.

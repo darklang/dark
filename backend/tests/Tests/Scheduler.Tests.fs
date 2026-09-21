@@ -872,6 +872,102 @@ let private httpGetIsARead =
   }
 
 
+// -- No host re-entry: a lambda a builtin applies is a frame on the process's own stack --
+
+let private parkedInsideMapShowsTheLambda =
+  testTask "a process parked inside List.map f shows f's frame, and resumes" {
+    Gates.reset ()
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """Stdlib.List.map [ 1L; 2L ] (fun x -> (let _ = Builtin.testGateWait 91L in Stdlib.Int64.add x 1L))"""
+    let running = runOnThread s p
+    waitFor "the process to park inside the lambda" (fun () ->
+      match p.status with
+      | Scheduler.Parked _ -> true
+      | _ -> false)
+    let frames =
+      s.Snapshot()
+      |> List.tryFind (fun q -> q.id = p.id)
+      |> Option.map (fun q -> q.frames)
+      |> Option.defaultValue []
+    Expect.isTrue
+      (frames
+       |> List.exists (fun ep ->
+         match ep with
+         | RT.Lambda _ -> true
+         | _ -> false))
+      $"the lambda's frame is on the stack: {frames}"
+    Gates.release 91L
+    let! result = running
+    Expect.equal
+      (expectOk result "the map")
+      (RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 2L; RT.DInt64 3L ]))
+      "the map finished after the lambda resumed"
+  }
+
+
+let private budgetYieldInsideMap =
+  testTask "a tight loop inside a mapped lambda is preempted and the map finishes" {
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (mapping : Scheduler.Process) =
+      spawn
+        s
+        state
+        """(let spin (n: Int64) (acc: Int64) : Int64 =
+              if n == 0L then acc else spin (n - 1L) (acc + n)
+            Stdlib.List.map [ 20000L; 30000L ] (fun n -> spin n 0L))"""
+    let! (other : Scheduler.Process) =
+      spawn
+        s
+        state
+        """Builtin.testTrace "other"
+"""
+    let! result = runOnThread s mapping
+    Expect.equal
+      (expectOk result "the map")
+      (RT.DList(
+        RT.ValueType.Known RT.KTInt64,
+        [ RT.DInt64 200010000L; RT.DInt64 450015000L ]
+      ))
+      "both spins summed"
+    Expect.isGreaterThan
+      mapping.slices
+      1L
+      "the loops inside the lambda were preempted"
+    let! _ = s.Await other
+    Expect.equal
+      (Trace.take ())
+      [ "other" ]
+      "the other process ran between the slices"
+  }
+
+
+let private errorInsideMapNamesTheLambda =
+  testTask "an error inside a mapped lambda reports the lambda's frame" {
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn s state """Stdlib.List.map [ 1L ] (fun x -> Stdlib.Int64.divide x 0L)"""
+    let! result = runOnThread s p
+    match result with
+    | Error(_, stack) ->
+      Expect.isTrue
+        (stack
+         |> List.exists (fun ep ->
+           match ep with
+           | RT.Lambda _ -> true
+           | _ -> false))
+        $"the stack names the lambda: {stack}"
+    | Ok v -> failtest $"expected the division to fail, got {v}"
+  }
+
+
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
 let tests =
@@ -896,5 +992,8 @@ let tests =
         inflightBoundHolds
         spawnAwaitSelect
         spawnedErrorReachesAwait
-        httpGetIsARead ]
+        httpGetIsARead
+        parkedInsideMapShowsTheLambda
+        budgetYieldInsideMap
+        errorInsideMapNamesTheLambda ]
   )
