@@ -11,6 +11,7 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Checker = LibExecution.AtRest.Types
 module CheckerApi = LibExecution.AtRestTypeChecker
 module Lint = LibExecution.AtRest.Lint
+module LocalBindingUsage = LibExecution.AtRest.LocalBindingUsage
 module PackageAnalysis = Builtins.Matter.Libs.PM.PackageAnalysis
 module AuthoringChecker = Builtins.Matter.Libs.PM.AtRestTypeChecker
 module HashStabilization = LibDB.HashStabilization
@@ -2160,20 +2161,179 @@ let private unusedResultWarningsForLet
     NEList.ofList
       (parameter "check" (customType checkType))
       [ parameter "result" (customType testT) ]
-  let verdict =
+  let functionUnderTest =
     fn parameters (customType testT) (PT.ELet(1UL, pattern, PT.EArg(2UL, 0), body))
-    |> CheckerApi.checkPackageFunction environment
+  let verdict = CheckerApi.checkPackageFunction environment functionUnderTest
+  let uses = LocalBindingUsage.analyzeFunction functionUnderTest
   match verdict with
   | Checker.Checked proof ->
-    Checker.Proof.bindingsOf proof
-    |> Lint.unusedResults (fun typ -> typ = Checker.TCustom(testT, []))
+    Lint.unusedResults
+      (fun typ -> typ = Checker.TCustom(testT, []))
+      uses
+      (Checker.Proof.bindingsOf proof)
   | other -> failtestf "a warning must not change the verdict, got %A" other
 
 let private warningTests =
   let result = PT.EArg(9UL, 1)
   testList
-    "unused results lint"
-    [ test "a check bound to a wildcard is a warning" {
+    "lint"
+    [ test "binding use resolves tuple members and shadowing by identity" {
+        let expression =
+          PT.ELet(
+            1UL,
+            PT.LPTuple(
+              2UL,
+              PT.LPVariable(3UL, "used"),
+              PT.LPVariable(4UL, "unused"),
+              []
+            ),
+            PT.ETuple(5UL, PT.EInt(6UL, 1I), PT.EInt(7UL, 2I), []),
+            PT.ELet(
+              8UL,
+              PT.LPVariable(9UL, "used"),
+              PT.EInt(10UL, 3I),
+              PT.EVariable(11UL, "used")
+            )
+          )
+        let unused =
+          expression |> LocalBindingUsage.analyzeExpression |> Lint.unusedBindings
+        Expect.equal
+          (unused |> List.map (fun binding -> binding.nodeId, binding.name))
+          [ Some 3UL, "used"; Some 4UL, "unused" ]
+          "the inner reference uses only the inner binding"
+      }
+
+      test "binding use covers lambda, pipe-lambda and match patterns" {
+        let expression =
+          PT.ETuple(
+            1UL,
+            PT.ELambda(
+              2UL,
+              NEList.ofList
+                (PT.LPVariable(3UL, "lambdaUsed"))
+                [ PT.LPVariable(4UL, "lambdaUnused") ],
+              PT.EVariable(5UL, "lambdaUsed")
+            ),
+            PT.EPipe(
+              6UL,
+              PT.EInt(7UL, 1I),
+              [ PT.EPipeLambda(
+                  8UL,
+                  NEList.ofList
+                    (PT.LPVariable(9UL, "pipeUsed"))
+                    [ PT.LPVariable(10UL, "pipeUnused") ],
+                  PT.EVariable(11UL, "pipeUsed")
+                ) ]
+            ),
+            [ PT.EMatch(
+                12UL,
+                PT.EInt(13UL, 1I),
+                [ { pat =
+                      PT.MPTuple(
+                        14UL,
+                        PT.MPVariable(15UL, "matchUsed"),
+                        PT.MPVariable(16UL, "matchUnused"),
+                        []
+                      )
+                    whenCondition = None
+                    rhs = PT.EVariable(17UL, "matchUsed") } ]
+              ) ]
+          )
+        let unused =
+          expression
+          |> LocalBindingUsage.analyzeExpression
+          |> Lint.unusedBindings
+          |> List.map _.name
+        Expect.equal
+          unused
+          [ "lambdaUnused"; "pipeUnused"; "matchUnused" ]
+          "every local binding form participates in the same analysis"
+      }
+
+      test "a recursive self-reference does not make an unreachable local used" {
+        let recursiveValue =
+          PT.ELambda(
+            3UL,
+            NEList.singleton (PT.LPVariable(4UL, "arg")),
+            PT.ETuple(5UL, PT.EVariable(6UL, "loop"), PT.EVariable(7UL, "arg"), [])
+          )
+        let expression body =
+          PT.ELet(1UL, PT.LPVariable(2UL, "loop"), recursiveValue, body)
+        Expect.equal
+          (expression (PT.EUnit 8UL)
+           |> LocalBindingUsage.analyzeExpression
+           |> Lint.unusedBindings
+           |> List.map _.name)
+          [ "loop" ]
+          "a local function needs a use outside its own definition"
+        Expect.isEmpty
+          (expression (PT.EVariable(9UL, "loop"))
+           |> LocalBindingUsage.analyzeExpression
+           |> Lint.unusedBindings)
+          "using the local function from its continuation counts"
+      }
+
+      test
+        "nested recursive lets preserve every enclosing self-reference suppression" {
+        let innerValue =
+          PT.ELambda(
+            7UL,
+            NEList.singleton (PT.LPVariable(8UL, "y")),
+            PT.ETuple(9UL, PT.EVariable(10UL, "outer"), PT.EVariable(11UL, "y"), [])
+          )
+        let outerValue =
+          PT.ELambda(
+            3UL,
+            NEList.singleton (PT.LPVariable(4UL, "x")),
+            PT.ELet(
+              5UL,
+              PT.LPVariable(6UL, "inner"),
+              innerValue,
+              PT.ETuple(
+                12UL,
+                PT.EVariable(13UL, "inner"),
+                PT.EVariable(14UL, "x"),
+                []
+              )
+            )
+          )
+        let expression =
+          PT.ELet(1UL, PT.LPVariable(2UL, "outer"), outerValue, PT.EUnit 15UL)
+        Expect.equal
+          (expression
+           |> LocalBindingUsage.analyzeExpression
+           |> Lint.unusedBindings
+           |> List.map _.name)
+          [ "outer" ]
+          "an inner recursive initializer must not turn the outer self-reference into an external use"
+      }
+
+      test "function parameters are tracked and underscore names opt out" {
+        let functionUnderTest =
+          fn
+            (NEList.ofList
+              (parameter "used" PT.TInt)
+              [ parameter "unused" PT.TInt
+                parameter "piped" PT.TInt
+                parameter "_intentional" PT.TInt ])
+            PT.TInt
+            (PT.ETuple(
+              1UL,
+              PT.EArg(2UL, 0),
+              PT.EPipe(3UL, PT.EInt(4UL, 1I), [ PT.EPipeVariable(5UL, "piped", []) ]),
+              []
+            ))
+        let unused =
+          functionUnderTest
+          |> LocalBindingUsage.analyzeFunction
+          |> Lint.unusedBindings
+        Expect.equal
+          (unused |> List.map (fun binding -> binding.kind, binding.name))
+          [ LocalBindingUsage.FunctionParameter, "unused" ]
+          "top-level parameters use their positional EArg references"
+      }
+
+      test "a check bound to a wildcard is a warning" {
         let warnings = unusedResultWarningsForLet "test" (PT.LPWildcard 3UL) result
         Expect.equal
           warnings
@@ -2188,6 +2348,20 @@ let private warningTests =
           (warnings |> List.map _.name)
           [ "first" ]
           "the name is what the author will look for"
+      }
+
+      test "an underscore-prefixed name suppresses only the general warning" {
+        let name = "_ignoredCheck"
+        let expression =
+          PT.ELet(1UL, PT.LPVariable(3UL, name), PT.EArg(2UL, 0), result)
+        Expect.isEmpty
+          (expression |> LocalBindingUsage.analyzeExpression |> Lint.unusedBindings)
+          "the underscore convention suppresses UnusedBinding"
+        Expect.equal
+          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, name)) result
+           |> List.map _.name)
+          [ name ]
+          "must-use results remain warnings because discarding one can make a test pass falsely"
       }
 
       test "a check that is read is not" {
@@ -2333,10 +2507,13 @@ let private warningTests =
               pattern = PT.LPVariable(3UL, "outer")
               typ = Checker.TInt
               body = body }
-          let found = Lint.unusedResults ((=) Checker.TInt) [ binding ]
+          let uses =
+            PT.ELet(1UL, binding.pattern, integer, body)
+            |> LocalBindingUsage.analyzeExpression
+          let found = Lint.unusedResults ((=) Checker.TInt) uses [ binding ]
           Expect.equal (not (List.isEmpty found)) expectedUnused label
           Expect.isEmpty
-            (Lint.unusedResults (fun _ -> false) [ binding ])
+            (Lint.unusedResults (fun _ -> false) uses [ binding ])
             "the caller can disable the rule entirely"
       }
 
@@ -2365,8 +2542,8 @@ let private warningTests =
             "tuple rest",
             PT.MPTuple(47UL, bind "a", bind "b", [ bind "outer" ]),
             true
-            "or-pattern, later alternative",
-            PT.MPOr(48UL, NEList.ofList (bind "other") [ bind "outer" ]),
+            "or-pattern",
+            PT.MPOr(48UL, NEList.ofList (bind "outer") [ bind "outer" ]),
             true ]
         for label, pattern, expectedUnused in cases do
           let binding : Checker.TypedBinding =
@@ -2374,7 +2551,10 @@ let private warningTests =
               pattern = PT.LPVariable(3UL, "outer")
               typ = Checker.TInt
               body = matched pattern }
-          let found = Lint.unusedResults ((=) Checker.TInt) [ binding ]
+          let uses =
+            PT.ELet(1UL, binding.pattern, integer, matched pattern)
+            |> LocalBindingUsage.analyzeExpression
+          let found = Lint.unusedResults ((=) Checker.TInt) uses [ binding ]
           Expect.equal (not (List.isEmpty found)) expectedUnused label
       }
 
@@ -2418,6 +2598,28 @@ let private warningTests =
           typeOnly
           checkedReport
           "type-only checking has the same verdict and issues"
+        let ordinaryUnused =
+          { oneArgFn
+              PT.TInt
+              PT.TUnit
+              (PT.ELet(
+                20UL,
+                PT.LPVariable(21UL, "ordinary"),
+                PT.EArg(22UL, 0),
+                PT.EUnit 23UL
+              )) with
+              hash = PT.Hash "ordinary-unused-binding" }
+        let ordinaryReport, ordinaryLint = report [ ordinaryUnused ]
+        Expect.equal
+          ordinaryReport.verdict
+          AuthoringChecker.Checked
+          "ordinary unused bindings are warnings"
+        Expect.equal
+          (ordinaryLint
+           |> List.collect snd
+           |> List.map (fun warning -> warning.code, warning.name))
+          [ PackageAnalysis.UnusedBinding, "ordinary" ]
+          "the package linter enables general binding-use analysis"
         let failedReport, failedLint = report [ invalid ]
         Expect.equal
           failedReport.verdict

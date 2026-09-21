@@ -389,10 +389,8 @@ module ExecutionError =
     | Unhandled of Unhandled
 
   /// Classify instance-policy denials for the allow-and-retry prompt.
-  /// Assumes the last recorded denial caused this error.
-  // CLEANUP: Give Test.apply and its error rendering a local denial collector.
-  // A caught denial currently misclassifies later errors, hiding their stacks
-  // or prompting for unrelated permissions. Regress denied print then None unwrap.
+  /// Helpers that catch runtime errors use a local denial collector, so a denial
+  /// left in this run-level collector belongs to the error escaping the run.
   let classify
     (denied : ResizeArray<RT.PermissionDenialRecord>)
     (rte : RT.RuntimeError.Error)

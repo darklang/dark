@@ -13,6 +13,7 @@ open LibExecution.Builtin.Shortcuts
 module TypeChecker = AtRestTypeChecker
 module Checker = LibExecution.AtRest.Types
 module Lint = LibExecution.AtRest.Lint
+module LocalBindingUsage = LibExecution.AtRest.LocalBindingUsage
 module Dval = LibExecution.Dval
 module NR = LibExecution.RuntimeTypes.NameResolution
 module PackageRefs = LibExecution.PackageRefs
@@ -22,30 +23,67 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 // -- Lint policy --
 //
-// One rule today. A second must-use type would be one more case in `requiresUse`, until
-// type declarations can carry the requirement themselves and this stops being a list here.
+// Must-use types remain a policy here until type declarations can carry that property.
+// Ordinary binding use is syntax-level and comes from `AtRest.Lint`.
 
-type WarningCode = | UnusedTestResult
+type WarningCode =
+  | UnusedBinding
+  | UnusedTestResult
 
 type Warning = { code : WarningCode; nodeId : Option<id>; name : string }
 
 type LintResults = List<PT.Reference * List<Warning>>
 
-let lint (results : List<Checker.ItemVerdict>) : LintResults =
+let lint
+  (ops : List<PT.PackageOp>)
+  (results : List<Checker.ItemVerdict>)
+  : LintResults =
   let testResultType = PT.FQTypeName.package (PackageRefs.Type.Stdlib.testT ())
   let requiresUse typ =
     match typ with
     | Checker.TCustom(name, []) -> name = testResultType
     | _ -> false
+  let bindingUses =
+    ops
+    |> List.choose (fun op ->
+      match op with
+      | PT.PackageOp.AddFn fn ->
+        Some(PT.Reference.PackageFn fn.hash, LocalBindingUsage.analyzeFunction fn)
+      | PT.PackageOp.AddValue value ->
+        Some(
+          PT.Reference.PackageValue value.hash,
+          LocalBindingUsage.analyzeExpression value.body
+        )
+      | _ -> None)
+    |> Map.ofList
   results
   |> List.choose (fun result ->
-    let warnings =
-      Lint.bindingsOf result.verdict
-      |> Lint.unusedResults requiresUse
+    let itemBindingUses =
+      Map.tryFind result.item bindingUses |> Option.defaultValue []
+    let unusedResults =
+      Lint.unusedResults
+        requiresUse
+        itemBindingUses
+        (Lint.bindingsOf result.verdict)
+    let ignoredResultWarnings =
+      unusedResults
       |> List.map (fun unused ->
         { code = UnusedTestResult
           nodeId = Some unused.nodeId
           name = unused.name })
+    let unusedBindingWarnings =
+      itemBindingUses
+      |> Lint.unusedBindings
+      // Prefer the more specific ignored-result diagnostic for the same let.
+      |> List.filter (fun binding ->
+        unusedResults
+        |> List.exists (fun unused ->
+          binding.introducingNodeId = Some unused.nodeId
+          && binding.name = unused.name)
+        |> not)
+      |> List.map (fun binding ->
+        { code = UnusedBinding; nodeId = binding.nodeId; name = binding.name })
+    let warnings = unusedBindingWarnings @ ignoredResultWarnings
     if List.isEmpty warnings then None else Some(result.item, warnings))
 
 
@@ -59,7 +97,7 @@ let analyzePackageOps
   uply {
     match! TypeChecker.inferPackageOps pm builtins ops with
     | Error report -> return report, []
-    | Ok results -> return TypeChecker.aggregate results, lint results
+    | Ok results -> return TypeChecker.aggregate results, lint ops results
   }
 
 /// Analyze every declaration the given package manager can see.
@@ -98,6 +136,7 @@ module private DarkTypes =
     let codeName = warningCodeName ()
     let caseName =
       match warning.code with
+      | UnusedBinding -> "UnusedBinding"
       | UnusedTestResult -> "UnusedTestResult"
     let typeName = warningName ()
     DRecord(

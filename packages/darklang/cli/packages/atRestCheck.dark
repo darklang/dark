@@ -74,13 +74,37 @@ let issueLines
     if count == 1 then line
     else line ++ " (" ++ Stdlib.Int.toString count ++ " occurrences)")
 
-let summary
+let saveSummary
   (report: LanguageTools.AtRestTypeChecker.Report)
+  (lint: LanguageTools.Lint.Results)
   : Stdlib.Option.Option<String> =
-  match report.verdict with
-  | Checked -> Stdlib.Option.Option.None
-  | Failed -> Stdlib.Option.Option.Some "static type errors detected"
-  | Incomplete -> Stdlib.Option.Option.Some "static check incomplete"
+  let typeSummary =
+    match report.verdict with
+    | Checked -> Stdlib.Option.Option.None
+    | Failed -> Stdlib.Option.Option.Some "static type errors detected"
+    | Incomplete -> Stdlib.Option.Option.Some "static check incomplete"
+  let warningSummary =
+    match LanguageTools.Lint.allWarnings lint with
+    | [] -> Stdlib.Option.Option.None
+    | warning :: rest ->
+      let first =
+        "[" ++ LanguageTools.Lint.codeToString warning.code ++ "] "
+        ++ LanguageTools.Lint.toString warning
+      if Stdlib.List.isEmpty rest then
+        Stdlib.Option.Option.Some first
+      else
+        Stdlib.Option.Option.Some(
+          first
+          ++ "; "
+          ++ Stdlib.Int.toString (Stdlib.List.length rest)
+          ++ " more warning(s)")
+  let summaries =
+    [ typeSummary, warningSummary ]
+    |> Stdlib.List.filterMap (fun summary -> summary)
+  if Stdlib.List.isEmpty summaries then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.Option.Option.Some(Stdlib.String.join summaries "; ")
 
 let warningLines (warnings: List<LanguageTools.Lint.Warning>) : List<String> =
   warnings

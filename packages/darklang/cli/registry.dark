@@ -495,6 +495,7 @@ module Registry =
       "traces clear"
       "conflicts"
       "edit"
+      "test create"
       "test new" ]
 
   /// Full-screen TUIs. Capturing one dumps its alternate-screen escapes into a pane, so the bar
@@ -513,7 +514,9 @@ module Registry =
         match Stdlib.List.head args with
         | Some first -> canonical ++ " " ++ first
         | None -> canonical
-      if withFirst == "test new" && Stdlib.List.member args "--no-editor" then
+      let createsTest =
+        withFirst == "test create" || withFirst == "test new"
+      if createsTest && Stdlib.List.member args "--no-editor" then
         false
       else
         (Stdlib.List.member promptsForInput canonical)

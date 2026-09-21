@@ -39,6 +39,12 @@ contribute to the enclosing function's result. Other types do not trigger this r
 A second must-use type would extend this policy and its warning code/message;
 type declarations could eventually carry the requirement themselves.
 
+The separate `UnusedBinding` warning covers ordinary unused local bindings and
+parameters. Prefixing a name with `_` suppresses only `UnusedBinding`; it does not
+suppress a must-use warning. In particular, `_ignoredCheck` still produces
+`UnusedTestResult`, because naming a discarded check must not turn a failing check
+into a passing test.
+
 Package analysis produces the type report and lint results from one inference pass.
 `packageAnalyzeOps` analyzes candidate declarations; `packageAnalyzeBranch` analyzes
 all declarations visible on a branch. A type-only caller takes the first half of the
@@ -91,10 +97,10 @@ mutate package state.
 
 Authoring warns; commit blocks.
 
-`SCM.PackageOps.addAuthored` (the `fn`, `type`, `val` and `module` commands, the
+`SCM.PackageOps.addAuthoredAnalyzed` (the `fn`, `type`, `val` and `module` commands, the
 Workbench save path, and the LSP filesystem provider) stabilizes hashes, stores the
 batch as WIP whatever the checker says, and returns the report for the surface to
-show. WIP is the author's to break, like a working tree.
+show together with its lint results. WIP is the author's to break, like a working tree.
 
 `SCM.PackageOps.commit` / `commitOpIds` re-check the committing ops as one batch and
 refuse a `Failed` verdict, so a definite type error never leaves a branch.

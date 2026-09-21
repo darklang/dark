@@ -20,7 +20,7 @@ There is nothing to register. Put tests beside your code or in a Tests module.
 
 Or start with a template:
 
-  test new MyApp.Math.Tests.doubles --for MyApp.Math.double
+  test create MyApp.Math.Tests.doubles --for MyApp.Math.double
 
 This creates an ordinary function with a failing TODO and opens $EDITOR when
 a terminal is available. --for reads the function's parameters and adds a

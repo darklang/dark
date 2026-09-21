@@ -37,7 +37,7 @@ type ParsedArgs =
     problem: Stdlib.Option.Option<String> }
 
 
-val usage = "Usage: test [list] [module|test] [--filter <text>] [--allow-harmful]\n       test new <name> [--for <function>] [--no-editor]"
+val usage = "Usage: test [list] [module|test] [--filter <text>] [--allow-harmful]\n       test create <name> [--for <function>] [--no-editor]"
 
 val argSpec =
   FlagParser.Spec
@@ -435,7 +435,7 @@ let executeRun (state: AppState) (args: List<String>) : AppState =
             "  let example () : Stdlib.Test.T ="
             "    (1 + 1) |> Stdlib.Test.eq 2"
             ""
-            "  Create one: test new MyApp.Math.Tests.example"
+            "  Create one: test create MyApp.Math.Tests.example"
             "  Learn more: docs testing" ]
 
         { state with exitCode = 2 }
@@ -525,6 +525,7 @@ let executeRun (state: AppState) (args: List<String>) : AppState =
 
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
+  | "create" :: rest
   | "new" :: rest -> New.execute state rest
   | _ -> executeRun state args
 
@@ -554,9 +555,10 @@ let help (_state: AppState) : String =
     "                            Without an active account, specify a module or test"
     "  test MyApp.Math           That module and everything under it"
     "  test MyApp.Math.Tests.doubles  Run exactly this test"
-    "  test new MyApp.Math.Tests.doubles --for MyApp.Math.double"
+    "  test create MyApp.Math.Tests.doubles --for MyApp.Math.double"
     "                            Create a failing test and open it in your editor"
     "                            Use --no-editor to only create it"
+    "                            `test new` remains an alias"
     "  test list MyApp.Math      Name them without running any"
     "  test MyApp --filter zero  Only names containing `zero`"
     "  --branch <name> test ...  That branch's tests, its draft included"
@@ -591,7 +593,7 @@ let completeSelection
     |> Stdlib.List.map Completion.simple
   else
     let commands =
-      if Stdlib.List.isEmpty prior then [ "list", "new" ] else []
+      if Stdlib.List.isEmpty prior then [ "list", "create" ] else []
     let scope =
       if Stdlib.String.endsWith partial "." then scopeOf partial
       else Stdlib.List.dropLast (scopeOf partial)
@@ -614,5 +616,6 @@ let completeSelection
 
 let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
   match args with
+  | "create" :: rest
   | "new" :: rest -> New.complete state rest
   | _ -> completeSelection state.currentBranchId args

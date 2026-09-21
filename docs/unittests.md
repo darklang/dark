@@ -75,7 +75,7 @@ let doubles () : Stdlib.Test.T =
 ```
 
 `dark test MyApp.Math` runs a module; `dark test MyApp.Math.doubles` runs one test.
-`dark test new MyApp.Math.Tests.doubles --for MyApp.Math.double` creates a failing
+`dark test create MyApp.Math.Tests.doubles --for MyApp.Math.double` creates a failing
 template and opens your editor when a terminal is available. Add `--no-editor`
 to create it without opening an editor. `dark docs testing` has the full guide.
 

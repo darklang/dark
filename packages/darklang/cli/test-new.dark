@@ -1,7 +1,7 @@
-/// `test new`: creates an ordinary function with a failing test placeholder.
+/// `test create`: creates an ordinary function with a failing test placeholder.
 module Darklang.Cli.Test.New
 
-val usage = "Usage: test new <name> [--for <function>] [--no-editor]"
+val usage = "Usage: test create <name> [--for <function>] [--no-editor]"
 
 val spec = FlagParser.Spec { flags = [ ("--no-editor", []) ]; valueFlags = [ ("--for", []) ] }
 

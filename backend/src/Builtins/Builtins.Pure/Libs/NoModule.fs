@@ -877,7 +877,15 @@ let fns () : List<BuiltInFn> =
             match args with
             | Error message -> return invalid message
             | Ok args ->
-              match! Exe.executeApplicable state vm.activeAccess app args with
+              // A callback error is converted to `ApplyProblem.Raised` below, so
+              // any permission denial that caused it was handled here too. Keep
+              // those records local: leaving them in the enclosing run's sink can
+              // make a later, unrelated error look like that caught denial.
+              let callbackState =
+                { state with deniedRequests = ResizeArray<PermissionDenialRecord>() }
+              match!
+                Exe.executeApplicable callbackState vm.activeAccess app args
+              with
               | Ok value ->
                 let resultName = Dval.resultType ()
                 let problemName =
@@ -894,9 +902,9 @@ let fns () : List<BuiltInFn> =
                     [ value ]
                   )
               | Error(rte, cs) ->
-                let! stack = Exe.callStackString state cs
+                let! stack = Exe.callStackString callbackState cs
                 // Resolve error names on the test's branch.
-                let! rendered = Exe.runtimeErrorToString state rte
+                let! rendered = Exe.runtimeErrorToString callbackState rte
                 let message =
                   match rendered with
                   | Ok(DString message) -> message

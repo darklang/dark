@@ -371,6 +371,54 @@ let approvedCallbacksRespectPermissions =
         do! discardAll state
       })
 
+
+let caughtCallbackDenialDoesNotClassifyLaterRaise =
+  cliTest
+    "test: a caught callback denial cannot reclassify a later unrelated raise"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          author
+            state
+            "Tests.DTCaughtDenial.raiseLater"
+            "(_ignored: Int) : Stdlib.Test.T = Stdlib.List.head [] |> Builtin.unwrap"
+        do!
+          author
+            state
+            "Tests.DTCaughtDenial.unrelated"
+            """() : Stdlib.Test.T =
+  Stdlib.Test.all
+    [ Stdlib.Test.table Stdlib.printLine [ ("caught denial", ()) ],
+      Tests.DTCaughtDenial.raiseLater 0 ]"""
+        let! (approval, approvalCode) =
+          ran state [ "permissions"; "approve"; "Tests.DTCaughtDenial.unrelated" ]
+        Expect.equal approvalCode 0L approval
+        let original = LibDB.PolicyStore.instancePolicy ()
+        try
+          let allow, deny = LibExecution.Permissions.Policy.rules original
+          LibDB.PolicyStore.setInstancePolicy (
+            LibExecution.Permissions.Policy.create
+              allow
+              (LibExecution.Permissions.Rule.Effect
+                LibExecution.Effects.Effect.Stdout
+               :: deny)
+          )
+          let! (out, code) = ran state [ "test"; "Tests.DTCaughtDenial.unrelated" ]
+          Expect.equal code 1L out
+          Expect.stringContains out "Cannot unwrap None" out
+          Expect.stringContains
+            out
+            "Package Function DTCaughtDenial.raiseLater"
+            "the unrelated error keeps its call stack"
+          Expect.isFalse
+            (out.Contains "permission denied")
+            "the caught callback denial must not classify the later raise"
+        finally
+          LibDB.PolicyStore.setInstancePolicy original
+        do! discardAll state
+      })
+
 let dictionaryErrorsSurviveReporting =
   cliTest
     "test: dictionary-bearing errors preserve surrounding checks and row details"
@@ -449,7 +497,7 @@ let emptyRowsFail =
 
 let createTest =
   cliTest
-    "test: new creates an editable failing test and refuses overwrites"
+    "test: create makes an editable failing test and refuses overwrites"
     (fun state ->
       task {
         do! start state
@@ -462,7 +510,7 @@ let createTest =
         let! (created, code) =
           ran
             state
-            [ "test"; "new"; name; "--for"; "Tests.DTNew.add"; "--no-editor" ]
+            [ "test"; "create"; name; "--for"; "Tests.DTNew.add"; "--no-editor" ]
         Expect.equal code 0L created
         let! (source, _) = ran state [ "view"; name; "--raw" ]
         // A row is the inputs, then the expected result. Several inputs are a tuple.
@@ -470,38 +518,40 @@ let createTest =
         let! (out, failed) = ran state [ "test"; name ]
         Expect.equal failed 1L out
         Expect.stringContains out "TODO: write this test" out
+        // `new` remains a compatibility alias for `create`.
         let! (collision, refused) = ran state [ "test"; "new"; name; "--no-editor" ]
         Expect.equal refused 2L collision
         Expect.stringContains collision "already exists" collision
         let! (after, _) = ran state [ "view"; name; "--raw" ]
         Expect.equal after source "collision preserves the original declaration"
         for args in
-          [ [ "new" ]
-            [ "new"; "Tests.DTNew.bad"; "--for" ]
-            [ "new"; "Tests.DTNew.bad"; "--for"; "Tests.No.such" ]
-            [ "new"; "Tests.DTNew.bad"; "--bogus" ] ] do
+          [ [ "create" ]
+            [ "create"; "Tests.DTNew.bad"; "--for" ]
+            [ "create"; "Tests.DTNew.bad"; "--for"; "Tests.No.such" ]
+            [ "create"; "Tests.DTNew.bad"; "--bogus" ] ] do
           let! (out, invalid) = ran state ("test" :: args)
           Expect.equal invalid 2L out
         do! discardAll state
       })
 
-let newTestTerminalHandoff =
+let createTestTerminalHandoff =
   cliTest
-    "test: workbench hands off the terminal only when new opens an editor"
+    "test: workbench hands off the terminal only when create opens an editor"
     (fun state ->
       task {
         let expression =
           """let commands = Darklang.Cli.Registry.allCommands ()
-[ ["new", "Tests.Example.check"],
-  ["new", "Tests.Example.check", "--for", "Stdlib.Bool.not"],
-  ["new", "Tests.Example.check", "--no-editor"],
+[ ["create", "Tests.Example.check"],
+  ["new", "Tests.Example.check"],
+  ["create", "Tests.Example.check", "--for", "Stdlib.Bool.not"],
+  ["create", "Tests.Example.check", "--no-editor"],
   ["new", "--no-editor", "Tests.Example.check"],
   ["Tests.Example"],
   ["list", "Tests.Example"] ]
 |> Stdlib.List.map (fun args -> Darklang.Cli.Registry.needsTerminal commands "test" args)"""
         let! (out, code) = ran state [ "eval"; expression ]
         Expect.equal code 0L out
-        Expect.equal out "[true, true, false, false, false, false]" out
+        Expect.equal out "[true, true, true, false, false, false, false]" out
       })
 
 let completionAndDocs =
@@ -516,9 +566,15 @@ let completionAndDocs =
         let! (out, code) = ran state [ "eval"; expression ]
         Expect.equal code 0L out
         Expect.stringContains out "Tests.DTComplete.one" out
+        let commandExpression =
+          """let values = Darklang.Cli.Test.completeSelection Darklang.SCM.Branch.mainBranchId [""] |> Stdlib.List.map (fun item -> item.value)
+[Stdlib.List.member values "create", Stdlib.List.member values "new"]"""
+        let! (commands, commandsCode) = ran state [ "eval"; commandExpression ]
+        Expect.equal commandsCode 0L commands
+        Expect.equal commands "[true, false]" commands
         let! (docs, docsCode) = ran state [ "docs"; "testing" ]
         Expect.equal docsCode 0L docs
-        Expect.stringContains docs "test new" docs
+        Expect.stringContains docs "test create" docs
         Expect.stringContains docs "Stdlib.Test.all" docs
         do! discardAll state
       })
@@ -574,6 +630,34 @@ let testRunWarnings =
       })
 
 
+let workbenchSaveReportsLint =
+  instanceTest "lint: a workbench save shows its warning" (fun state ->
+    task {
+      do! start state
+      let expression =
+        String.concat
+          "\n"
+          [ "let initial = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId Stdlib.Option.Option.None \"\" \"\" []"
+            "let editing ="
+            "  Darklang.Cli.Workbench.EditingState"
+            "    { kind = \"fn\""
+            "      nameStr = \"workbench lint fixture\""
+            "      targetModule = [ \"Tests\", \"DTWorkbenchLint\" ]"
+            "      buf = Stdlib.Cli.UI.Editor.fromText \"let unusedParameter (unused: Int) : Int = 1\""
+            "      err = \"\" }"
+            "match Darklang.Cli.Workbench.saveEditing initial editing with"
+            "| Continue saved -> saved.message"
+            "| Exit _ -> \"unexpected exit\""
+            "| Launch(_, _) -> \"unexpected launch\""
+            "| ToPrompt _ -> \"unexpected prompt\"" ]
+      let! (saved, code) = ran state [ "eval"; expression ]
+      Expect.equal code 0L saved
+      Expect.stringContains saved "UnusedBinding" saved
+      Expect.stringContains saved "unused" saved
+      do! discardAll state
+    })
+
+
 let lintReporting =
   instanceTest
     "lint: save, JSON, LSP and commit consume separate results"
@@ -582,10 +666,18 @@ let lintReporting =
         do! start state
         let name = "Tests.DTLint.check"
         let declaration =
-          "() : Stdlib.Test.T =\n  let ignoredCheck = Stdlib.Test.eq 1 2\n  Stdlib.Test.eq 1 1"
+          "() : Stdlib.Test.T =\n  let _ignoredCheck = Stdlib.Test.eq 1 2\n  Stdlib.Test.eq 1 1"
         let! (saved, saveCode) = ran state [ "fn"; "/" + name; declaration ]
         Expect.equal saveCode 0L saved
         Expect.stringContains saved "UnusedTestResult" saved
+        Expect.stringContains saved "_ignoredCheck" saved
+
+        let ordinaryName = "Tests.DTLint.unusedParameter"
+        let! (ordinarySaved, ordinarySaveCode) =
+          ran state [ "fn"; "/" + ordinaryName; "(unused: Int) : Int = 1" ]
+        Expect.equal ordinarySaveCode 0L ordinarySaved
+        Expect.stringContains ordinarySaved "UnusedBinding" ordinarySaved
+        Expect.stringContains ordinarySaved "unused" ordinarySaved
 
         let! (json, jsonCode) = ran state [ "typecheck"; "--json" ]
         Expect.equal jsonCode 0L json
@@ -596,6 +688,11 @@ let lintReporting =
         Expect.equal (item.GetProperty("verdict").GetString()) "checked" json
         Expect.equal (item.GetProperty("issues").GetArrayLength()) 0 json
         Expect.equal (item.GetProperty("warnings").GetArrayLength()) 1 json
+        let ordinaryItem =
+          document.RootElement.GetProperty("items").EnumerateArray()
+          |> Seq.find (fun item ->
+            item.GetProperty("name").GetString() = ordinaryName)
+        Expect.equal (ordinaryItem.GetProperty("warnings").GetArrayLength()) 1 json
 
         let lspExpression =
           """let (_report, lint) = Darklang.LanguageTools.PackageAnalysis.analyzeBranch Darklang.SCM.Branch.mainBranchId
@@ -644,11 +741,13 @@ let tests : List<Test> =
     exactSelectionAndProgress
     tableKeepsFailuresAndErrors
     approvedCallbacksRespectPermissions
+    caughtCallbackDenialDoesNotClassifyLaterRaise
     dictionaryErrorsSurviveReporting
     loggedOutRequiresScope
     emptyRowsFail
     createTest
-    newTestTerminalHandoff
+    createTestTerminalHandoff
     completionAndDocs
     testRunWarnings
+    workbenchSaveReportsLint
     lintReporting ]
