@@ -478,13 +478,17 @@ module Cli =
     IO.Directory.CreateDirectory(IO.Path.Combine(runDir, "logs"))
     |> ignore<IO.DirectoryInfo>
 
+  /// The CLI's platform set, with the browser's answers layered over it.
+  ///
+  /// `combine` rather than `PlatformSet.make` on purpose: the set refuses two platforms claiming
+  /// one name, and the browser's whole point is to claim `Terminal`'s names and win. That is a
+  /// deliberate shadowing of a linked platform, which nothing else in the tree does, and it is
+  /// confined to this one executable.
   let private builtinsLazy : Lazy<RT.Builtins> =
     lazy
       (LibExecution.Builtin.combine
-        [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
-          Builtins.CliHost.Builtin.builtins ()
-          Builtins.Cli.Builtin.builtins ()
-          // Last, so the browser's stdin/terminal answers win over Builtins.Cli's.
+        [ (Platforms.Sets.cli ()).builtins
+          // Last, so the browser's stdin/terminal answers win over `Terminal`'s.
           BrowserBuiltins.builtins () ]
         [])
 

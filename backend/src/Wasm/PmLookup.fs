@@ -1,6 +1,6 @@
 /// The package-location lookup builtins the pretty-printer uses to render
 /// record/enum type names (`pmGetLocationsBy*`). The CLI gets these from
-/// Builtins.Matter, which the browser can't link (SQLite/LibCloud); this
+/// Builtins.Store, which the browser can't link (SQLite/LibCloud); this
 /// mirrors that contract over the in-memory PM. The getter reads the live PM
 /// so REPL-declared types resolve too.
 module Darklang.Wasm.PmLookup

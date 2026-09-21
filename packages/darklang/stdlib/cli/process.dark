@@ -5,6 +5,10 @@ module Darklang.Stdlib.Cli.Process
 type ProcessHandle = Int
 
 /// Spawn a new process and return a handle for interaction
+///
+/// Runs THROUGH A SHELL (`$SHELL -c`, or `/bin/bash`), so shell metacharacters apply and a command
+/// built from untrusted input is a command injection. `Posix.spawnInteractive` takes a program and
+/// an argv and starts no shell.
 let spawn (command: String) : ProcessHandle =
   Builtin.cliSpawnProcess command
 

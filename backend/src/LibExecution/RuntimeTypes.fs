@@ -31,13 +31,20 @@ module Hash =
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let valueNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
+/// Validate a builtin's name and version.
+///
+/// The version check is written out rather than going through `assert_`, whose metadata argument is
+/// eager: `[ "version", version ]` builds a list, a tuple and a box on every call, including the
+/// overwhelming majority that pass. This runs once per builtin construction, for every builtin the
+/// binary ships, before a CLI command does anything.
 let assertBuiltin
   (name : string)
   (version : int)
   (nameValidator : string -> unit)
   : unit =
   nameValidator name
-  assert_ "version can't be negative" [ "version", version ] (version >= 0)
+  if version < 0 then
+    Exception.raiseInternal "version can't be negative" [ "version", version ]
 
 
 /// Fully-Qualified Type Name
@@ -94,7 +101,7 @@ module FQFnName =
     | Package of Package
 
   let assertBuiltinFnName (name : string) : unit =
-    assertRe $"Fn name must match" builtinNamePattern name
+    assertRe "Fn name must match" builtinNamePattern name
 
   let builtin (name : string) (version : int) : Builtin =
     assertBuiltin name version assertBuiltinFnName
@@ -1365,7 +1372,11 @@ and BuiltInParam =
     (typ : TypeReference)
     (description : string)
     : BuiltInParam =
-    assert_ "make called on TFn" [ "name", name ] (not (typ.isFn ()))
+    // Written out rather than `assert_`, whose metadata argument is eager: `[ "name", name ]`
+    // builds a list and a tuple on every call, and there are several parameters per builtin across
+    // the whole shipped set, all constructed before a CLI command does anything.
+    if typ.isFn () then
+      Exception.raiseInternal "make called on TFn" [ "name", name ]
     { name = name; typ = typ; description = description; blockArgs = [] }
 
   static member makeWithArgs
@@ -1374,7 +1385,8 @@ and BuiltInParam =
     (description : string)
     (blockArgs : List<string>)
     : BuiltInParam =
-    assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
+    if not (typ.isFn ()) then
+      Exception.raiseInternal "makeWithArgs not called on TFn" [ "name", name ]
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
 
@@ -1673,6 +1685,17 @@ module RuntimeError =
     | TypeNotFound of name : FQTypeName.FQTypeName
     | FnNotFound of name : FQFnName.FQFnName
     | ValueNotFound of name : FQValueName.FQValueName
+
+    /// A builtin this runtime HAS, in a platform this session has not activated.
+    ///
+    /// Distinct from `FnNotFound` on purpose, and the distinction is the whole point: a name that
+    /// does not resolve reads like a typo, and "you have not turned this on" is a different fact
+    /// with a different remedy. Carries the effects the platform reaches so the message can say
+    /// what activating it would cost, which is the question a person is actually being asked.
+    | BuiltinNotActive of
+      name : FQFnName.Builtin *
+      platform : string *
+      effects : List<string>
 
     /// Raised when calling a package fn whose hash is currently marked
     /// `Harmful` by a `Deprecate` op. Overridable via `ExecutionState.allowHarmful`
@@ -3204,6 +3227,41 @@ and Builtins =
     fns : Dictionary<FQFnName.Builtin, BuiltInFn> }
 
 
+/// A named, versioned bundle of builtins, plus what its builtins may do.
+///
+/// The TYPE lives here, beside the `Builtins` it wraps, so that `ExecutionState` can carry the
+/// platforms a runtime was composed from and a builtin can report them. Everything that OPERATES on
+/// platforms (composition, the collision check, the manifest fingerprint, the ownership queries) is
+/// `LibExecution.Platform`, which compiles later. That is the same split `Builtins` already has
+/// with `LibExecution.Builtin`, and it is why this is a bare record with no members.
+and Platform =
+  {
+    /// The qualifier a reference uses (`Files#fileRead`). Stable for the life of the platform;
+    /// renaming one is a new platform, not a new version.
+    name : string
+
+    /// Linear, forward-only: a binary refuses a version it does not know rather than guessing.
+    version : int
+
+    /// One line, for `dark platforms`.
+    description : string
+
+    /// What this platform contributes. The contribution, not the closure.
+    builtins : Builtins
+
+    /// Platform names whose BUILTINS this one's builtins cannot work without. See
+    /// `LibExecution.Platform` for why that reading is narrow on purpose.
+    requires : List<string>
+
+    /// Effects a builtin here can request from inside its own body, which its static `callEffects`
+    /// cannot express. Almost always empty; `Builtins.Data`'s sqlite builtins are why it exists.
+    dynamicEffects : Set<Effects.Effect>
+
+    /// Does this platform need a package or user store on disk?
+    requiresStore : bool
+  }
+
+
 
 
 
@@ -3245,6 +3303,41 @@ and ExecutionState =
     /// Shared across VMs for the same reason as `lambdaInstrCache`.
     packageFnCallCache :
       System.Collections.Concurrent.ConcurrentDictionary<FQFnName.Package, PackageFnCallData>
+
+    /// What a GUEST run is restricted to, if anything: its builtin set, and the platform behind
+    /// every builtin it does NOT get.
+    ///
+    /// On the guest rather than the process, and that placement is the whole lesson of building
+    /// this. Restricting the process starves the CLI itself: the host is a Dark program too, and it
+    /// reaches for `Terminal` to print your answer and `Instance` for the store path before your
+    /// code runs at all. A near-pure session is not a small process, it is a small GUEST inside a
+    /// capable host, which is exactly where the permission system already draws its line
+    /// (`PolicyStore.guestState`).
+    ///
+    /// A FUNCTION rather than a value, because the answer can change inside one process: a REPL
+    /// where you run `dark platforms activate Sqlite`, or a prompt that offers to switch a
+    /// platform on and retry, must build the next guest against the new floor and not the one
+    /// computed at startup. The host memoizes it on the activation, so the usual answer costs a
+    /// small file read and nothing else.
+    ///
+    /// `None` means guests get everything, which is every host today.
+    guestFloor : unit -> Option<Builtins * Dictionary<FQFnName.Builtin, Platform>>
+
+    /// Builtins the runtime links but this session has not activated, and the platform each
+    /// belongs to.
+    ///
+    /// Empty in every host that activates everything, which is all of them by default, so the
+    /// interpreter's hot path is untouched: a hit in `fns.builtIn` never consults this. It is read
+    /// only after a lookup MISS, to tell "no such builtin" apart from "not turned on".
+    inactiveBuiltins : Dictionary<FQFnName.Builtin, Platform>
+
+    /// The platforms this runtime was composed from, in catalog order.
+    ///
+    /// Empty when the host did not record them, which is not the same as "no platforms": every
+    /// runtime has builtins. `Execution.createState` takes a `Builtins`, so it cannot know; hosts
+    /// that compose from a `PlatformSet` set this, and `dark platforms` says so rather than
+    /// inventing an answer when it is empty.
+    platforms : List<Platform>
 
     /// Called to report exceptions
     reportException : ExceptionReporter

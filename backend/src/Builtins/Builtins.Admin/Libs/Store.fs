@@ -2,7 +2,7 @@
 /// These are facts about the local package STORE, used across the CLI (`dark version`, `dark ops`, config)
 /// and by sync — not sync's own machinery, so they live with the package manager, not under Sync/. (The
 /// wrappers live under `Darklang.SCM.Wire` on the Dark side; the F# home is here.)
-module Builtins.Matter.Libs.PM.Store
+module Builtins.Admin.Libs.Store
 
 open FSharp.Control.Tasks
 

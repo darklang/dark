@@ -80,6 +80,8 @@
          the few that need a tty or a process (Host/BrowserBuiltins.fs), layered last so they win. -->
     <ProjectReference Include="../Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
+    <!-- The catalog: `Platforms.Sets.cli ()` is the one list of what the CLI is made of. -->
+    <ProjectReference Include="../Platforms/Platforms.fsproj" />
   </ItemGroup>
 
 </Project>

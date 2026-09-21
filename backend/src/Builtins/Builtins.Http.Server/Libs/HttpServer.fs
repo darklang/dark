@@ -235,7 +235,30 @@ let private executeHandler
         | Ok(DString s) -> s
         | Ok other -> string other
         | Error _ -> string rte
-      return DString $"Handler error: {errorStr}"
+
+      // A RESPONSE, not a string. A handler that raised and a handler that returned the wrong
+      // type are different failures, and returning a string here made them look like the same
+      // one: the layer above sees a `String` where a `Response` was expected and reports a type
+      // mismatch, so the actual message ends up quoted inside a paragraph about what a `Response`
+      // should look like. The thing that went wrong is then the least prominent text on screen.
+      //
+      // Found by running a relay under a default policy, where every push answered with nine
+      // lines of type advice wrapped around "permission denied ... To allow: `permissions allow
+      // env read ...`", which was both the diagnosis and the fix.
+      let responseType =
+        FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.Http.response ())
+      let fields =
+        [ "statusCode", Dval.int (bigint 500)
+          "headers",
+          Dval.list
+            (KTTuple(
+              ValueType.Known KTString,
+              ValueType.Known KTString,
+              []
+            ))
+            [ DTuple(DString "Content-Type", DString "text/plain; charset=utf-8", []) ]
+          "body", LibExecution.Blob.newEphemeral (UTF8.toBytes $"Handler error: {errorStr}") ]
+      return DRecord(responseType, responseType, [], Map fields)
   }
 
 
@@ -434,6 +457,18 @@ let runListener
   }
 
 
+/// What `httpServerServe` can additionally request from inside its body, when request logging is
+/// on. `Builtins.Http.Server.Builtin.platform` unions this into the platform's surface, so an
+/// install-time review still says the server may print and read the clock.
+///
+/// The body asks for exactly THIS value rather than an equal-looking literal beside it. The
+/// comment here used to say "keep it equal to the set passed to `requireBuiltinEffectsWithAccess`",
+/// which is an invariant maintained by remembering. Drift would be silent and would go the wrong
+/// way: a body that starts requesting something new, with the platform's advertised surface
+/// unchanged, is a review that understates what the thing may do.
+let dynamicEffects : Set<Effect> = set [ Effect.Clock; Effect.Stdout ]
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "httpServerServe" 0
       typeParams = []
@@ -557,7 +592,7 @@ let fns () : List<BuiltInFn> =
                 exeState
                 vm
                 exeState.access
-                (set [ Effect.Clock; Effect.Stdout ])
+                dynamicEffects
                 "httpServerServe"
             use _serveSpan =
               Telemetry.span "httpserver.serve" [ "port", string port ]
@@ -616,7 +651,15 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.HttpServer; Effect.Stdout; Effect.Clock ]
+      // `HttpServer` only. Clock and stdout are used ONLY when `logRequests` is on, and the body
+      // already checks them there (`requireBuiltinEffectsWithAccess`, above) against the child
+      // guest's access rather than the outer CLI's. Declaring them here as well meant the
+      // interpreter's up-front gate demanded both on every `serve`, so an instance that denies
+      // stdout could not run a server that prints nothing. Same shape as `Libs.Sqlite`: what a call
+      // may do depends on its arguments, so the static declaration carries the unconditional part
+      // and the body decides the rest. `dynamicEffects` above keeps the platform's review surface
+      // honest about it.
+      callEffects = set [ Effect.HttpServer ]
       deprecated = NotDeprecated } ]
 
 

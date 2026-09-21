@@ -173,3 +173,5 @@ module Highlighting =
 
   // Unparseable source still renders, escaped, rather than rendering nothing.
   (Darklang.Matter.highlightHtml "«««") = "«««"
+
+

@@ -252,6 +252,22 @@ cost overstates by more than 2x.
 
 
 
+## Platforms, merged with main (2026-09-17): 9.7MB -> 9.0MB published
+
+- Both budgets re-pinned off a FRESHLY LOADED store, in a rundir made for the measurement
+  (`DARK_CONFIG_RUNDIR=rundir-fresh`, migrations then reload, nothing else ever run against it).
+  The working dev store read 10.2MB published for the same binary: three installed external
+  platforms, an activation file and a hundred test runs' worth of state, which is more than the
+  2.5% the playbook says a working store costs. The gate prints which store it measured; read it.
+- Same method, same day, main's own published binary on its own fresh store: 9.7MB, which is
+  exactly main's budget. The branch's binary on its fresh store: 9.0MB, so the platform work
+  allocates about 8% less than main under identical conditions. Debug 8.5MB against main's 9.3MB.
+- Where it comes from is the earlier rounds below: `Builtin.combine` going source to pre-sized
+  target with nothing in between, and the platform records not carrying anything only a test
+  consults. Nothing in this round was a perf change; the merge just made the comparison possible.
+- Trap this round: `scripts/perf/gate --update` writes whatever store it is pointed at. Pin from
+  the fresh one, or the budget records your dev store's clutter as the floor.
+
 ## 2026-08-27: both budgets re-baselined off multi-run minimums
 
 Moved here out of `scripts/perf/budget.json`, where it had grown into a paragraph inside a config file.

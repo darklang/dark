@@ -236,6 +236,47 @@ let escapedLambdaKeepsCeiling =
     expectDenied [ "function policy" ] actual
   }
 
+/// Reads the instance policy: `policy-read`, which a stock instance policy does not grant.
+let private policyReadBody =
+  eApply (eBuiltinFn "pmPolicyGetInstance" 0) [] [ eUnit () ]
+
+/// Under the stock instance policy, with the caller marked bundled or not.
+let private runUnderStockPolicy
+  (bundled : bool)
+  (pm : PT.PackageManager)
+  (hash : string)
+  : System.Threading.Tasks.Task<RT.ExecutionResult> =
+  runPackageFnWith
+    (fun state ->
+      { state with
+          isBundledPackageFn = fun _ -> bundled
+          access =
+            LibExecution.Permissions.Access.start
+              LibExecution.Permissions.Policy.defaultInstance })
+    pm
+    hash
+
+let bundledCallerReadsPolicyWithoutAGrant =
+  testTask "bundled code reads the instance policy under a stock policy" {
+    // The workbench and `dark permissions` show what the policy says. That used to ride on
+    // `Native`, which the gate waives for bundled callers; moving `Policy` off `Native` must not
+    // put the CLI's own listing behind `permissions allow policy-read`.
+    let hash = "permissions-policy-read-bundled"
+    let fn = ceilingFn hash None policyReadBody
+    let! actual = runUnderStockPolicy true (pmWith [ fn ]) hash
+    expectNotDenied actual
+  }
+
+let pulledPackageNeedsTheGrantToReadPolicy =
+  testTask "a package that is not bundled needs policy-read to read the policy" {
+    // The same builtin from a pulled package is checked like any other effect: the waiver is
+    // about who is asking, not about the builtin.
+    let hash = "permissions-policy-read-pulled"
+    let fn = ceilingFn hash None policyReadBody
+    let! actual = runUnderStockPolicy false (pmWith [ fn ]) hash
+    expectDenied [ "policy-read" ] actual
+  }
+
 // ── deferred-execution matrix ───────────────────────────────
 //
 // One rule for every value that runs later: it keeps the restrictions of
@@ -844,4 +885,6 @@ let tests =
       testList "deferred execution matrix" deferredExecutionMatrix
       guestCannotChangePolicies
       guestCannotApprovePackages
-      guestFileApiCannotReachPolicyStore ]
+      guestFileApiCannotReachPolicyStore
+      bundledCallerReadsPolicyWithoutAGrant
+      pulledPackageNeedsTheGrantToReadPolicy ]

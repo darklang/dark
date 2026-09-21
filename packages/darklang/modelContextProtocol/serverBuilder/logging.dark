@@ -1,7 +1,8 @@
 module Darklang.ModelContextProtocol.ServerBuilder
 // Logging functions
+/// The host's log directory, not a path relative to wherever the process happened to start.
 let getLogFilePath (serverName: String) : String =
-  $"rundir/logs/mcp-server-{serverName}.log"
+  $"{Stdlib.Cli.Log.directory ()}mcp-server-{serverName}.log"
 
 let logWithPath (logFilePath: String) (message: String) : Unit =
   let timestamp = (Stdlib.DateTime.now ()) |> Stdlib.DateTime.toString

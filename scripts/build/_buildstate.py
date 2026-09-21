@@ -113,34 +113,44 @@ def begin(actions, trigger, source, log=None):
   })
 
 
-def built_successfully(actions, failed_action=None, skipped=None):
+def built_successfully(actions, failed_action=None, skipped=None, redundant=None):
   """Did the build chain itself get all the way through?
 
   A different question from "did everything succeed": a shellcheck failure doesn't
   make the binaries any older, and shouldn't leave the tree looking permanently
   behind.
+
+  `redundant` is the other direction, and there are two kinds of skip now. A step
+  skipped because the chain broke means the build did NOT get all the way through. A
+  step skipped because running it would have changed nothing means it did: the package
+  reload is skipped exactly when the build can show it would have written the same
+  bytes. Counting the second as a failure would leave every such build looking behind
+  forever, which is the bug this parameter exists to prevent.
   """
-  skipped = skipped or []
+  skipped = set(skipped or []) - set(redundant or [])
   return bool(BUILD_ACTIONS.intersection(actions)
               and failed_action not in BUILD_ACTIONS
               and not BUILD_ACTIONS.intersection(skipped))
 
 
-def finish(ok, actions, failed_action=None, exit_code=None, skipped=None):
+def finish(ok, actions, failed_action=None, exit_code=None, skipped=None,
+           redundant=None):
   """Record how the build ended, keeping whatever begin() wrote."""
   state = read() or {}
   skipped = skipped or []
+  redundant = redundant or []
   finished = now()
   state.update({
     "status": OK if ok else FAILED,
     "finishedAt": finished,
     "actions": actions,
     "skipped": skipped,
+    "redundant": redundant,
     "failedAction": failed_action,
     "exitCode": exit_code if exit_code is not None else (0 if ok else 1),
   })
 
-  if built_successfully(actions, failed_action, skipped):
+  if built_successfully(actions, failed_action, skipped, redundant):
     state["lastSuccessStartedAt"] = state.get("startedAt")
     state["lastSuccessFinishedAt"] = finished
 

@@ -4,6 +4,9 @@ module Darklang.Stdlib.Uuid
 type ParseError = | BadFormat
 
 /// Generate a new <type Uuid> v4 according to RFC 4122
+///
+/// Its bits come from the platform's own generator rather than from the seeded one behind
+/// `Int64.random` and friends, so unlike those it is not guessable from a narrow seed.
 let generate () : Uuid = Builtin.uuidGenerate ()
 
 

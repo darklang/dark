@@ -163,6 +163,19 @@ let executePretty (state: AppState) : AppState =
         (Stdlib.Cli.UI.Colors.dimText
           $"  {lead} in the op log itself, so a reload replays them unchanged.")
 
+  // What your code starts with, reported the same way store health is: silent when everything is
+  // on, which is the default and almost always. A narrowed instance is a thing you will otherwise
+  // rediscover as a confusing "not active" error three commands later, and the line that would
+  // have told you is worth more than the line it costs.
+  match Platforms.activated () with
+  | None -> ()
+  | Some names ->
+    let n = Stdlib.List.length names
+
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        $"""{Cli.Text.plural n "platform"} active -> `dark platforms`""")
+
   state
 
 let execute (state: AppState) (args: List<String>) : AppState =

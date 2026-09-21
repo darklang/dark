@@ -1696,6 +1696,11 @@ module RuntimeError =
       | RuntimeError.TypeNotFound name -> "TypeNotFound", [ FQTypeName.toDT name ]
       | RuntimeError.ValueNotFound name -> "ValueNotFound", [ FQValueName.toDT name ]
       | RuntimeError.FnNotFound name -> "FnNotFound", [ FQFnName.toDT name ]
+      | RuntimeError.BuiltinNotActive(name, platform, effects) ->
+        "BuiltinNotActive",
+        [ FQFnName.Builtin.toDT name
+          DString platform
+          DList(VT.string, effects |> List.map DString) ]
       | RuntimeError.DeprecatedItemHalted target ->
         "DeprecatedItemHalted", [ Hash.toDT target ]
       | RuntimeError.WrongNumberOfTypeArgsForType(fn, expected, actual) ->
@@ -1764,6 +1769,12 @@ module RuntimeError =
       RuntimeError.ValueNotFound(FQValueName.fromDT name)
     | DEnum(_, _, [], "FnNotFound", [ name ]) ->
       RuntimeError.FnNotFound(FQFnName.fromDT name)
+    | DEnum(_, _, [], "BuiltinNotActive", [ name; platform; effects ]) ->
+      RuntimeError.BuiltinNotActive(
+        FQFnName.Builtin.fromDT name,
+        D.string platform,
+        D.list D.string effects
+      )
     | DEnum(_, _, [], "DeprecatedItemHalted", [ target ]) ->
       RuntimeError.DeprecatedItemHalted(Hash.fromDT target)
     | DEnum(_, _, [], "WrongNumberOfTypeArgsForType", [ fn; expected; actual ]) ->

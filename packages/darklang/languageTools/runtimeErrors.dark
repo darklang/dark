@@ -169,6 +169,14 @@ type Error =
 
   | TypeNotFound of name: FQTypeName.FQTypeName
   | FnNotFound of name: FQFnName.FQFnName
+
+  /// A builtin this runtime has, in a platform this session has not activated. Distinct from
+  /// FnNotFound because "you have not turned this on" is a different fact from "no such name", and
+  /// carries the platform's effects so the message can say what activating it would cost.
+  | BuiltinNotActive of
+    name: FQFnName.Builtin *
+    platform: String *
+    effects: List<String>
   | ValueNotFound of name: FQValueName.FQValueName
 
   /// Invoked a package fn whose content hash is marked `Harmful` via a

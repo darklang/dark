@@ -53,7 +53,8 @@ let count (table: DB<'a>) : Int = Builtin.dbCount table
 
 
 /// Returns a random key suitable for use as a DB key
-let generateKey () : String = Builtin.dbGenerateKey ()
+let generateKey () : String =
+  Stdlib.Uuid.generate () |> Stdlib.Uuid.toString
 
 
 /// Fetch all the keys of entries in <param table>.

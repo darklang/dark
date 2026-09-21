@@ -557,6 +557,7 @@ let sweepDeletesOrphansButKeepsReferenced =
 // — return false. Callers that want byte-equality across ephemerals
 // promote both sides first.
 
+
 let equalsEphemeralEphemeralSameUuid =
   test "blob equality: two refs to the same ephemeral UUID are equal" {
     let dv = Blob.newEphemeral [| 0x01uy; 0x02uy |]

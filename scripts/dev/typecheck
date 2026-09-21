@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Compile only the projects owning the files you name. Fast feedback, nothing runnable.
+#
+#   scripts/dev/typecheck backend/src/Builtins/Builtins.Admin/Libs/Store.fs
+#
+# ~10s for one platform, against ~34s for the whole solution. See `cmd_typecheck` in
+# scripts/build/_dev.py for why, and for why this does not move the build's last-success mark.
+#
+# Refuses while a test run is in flight, since it writes assemblies and would kill it. --force
+# overrides.
+
+# shellcheck source=scripts/dev/_help
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/_help"
+help_if_asked "$@"
+
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+exec python3.12 scripts/build/_dev.py typecheck "$@"

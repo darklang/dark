@@ -65,21 +65,7 @@ let fns () : List<BuiltInFn> =
       previewable = Impure
       callEffects = set [ Effect.EnvRead ]
       deprecated = NotDeprecated }
-
-
-    { name = fn "getBuildHash" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
-      description = "Returns the git hash of the current CLI build"
-      fn =
-        function
-        | _, _, [], [| DUnit |] -> uply { return DString LibConfig.Config.buildHash }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated } ]
+ ]
 
 
 let builtins () : Builtins = Builtin.make [] (fns ())

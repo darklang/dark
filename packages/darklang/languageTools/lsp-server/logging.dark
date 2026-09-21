@@ -1,11 +1,17 @@
 module Darklang.LanguageTools.LspServer
 
 
-val logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
+/// A function over the host's log directory, not a hardcoded path.
+///
+/// A `val` would freeze the path into the package database, and a hardcoded one points at the
+/// shared rundir even when the instance has its own. An instance with its own rundir has a policy
+/// drawn around that rundir, so writing outside it is refused, which stops the LSP starting under
+/// any policy that is not already permissive.
+let logFilePath () : String = (Stdlib.Cli.Log.directory ()) ++ "lsp-server.log"
 
 let log (input: String) : Unit =
   // returns Result -- ignored
-  let _logged = Stdlib.Cli.FileSystem.appendToFile logFilePath (input ++ "\n")
+  let _logged = Stdlib.Cli.FileSystem.appendToFile (logFilePath ()) (input ++ "\n")
 
   ()
 
