@@ -69,11 +69,19 @@ let eq (actual: 'a) (expected: 'a) : Stdlib.Test.T =
   if expected == actual || bothNaN () then
     Stdlib.Test.T.Pass 1
   else
+    let expectedText = Stdlib.toRepr expected
+    let actualText = Stdlib.toRepr actual
+    let message =
+      if expectedText == actualText then
+        "expected the values to be equal, but they render identically; "
+        ++ "this can happen when a nested NaN is compared with =="
+      else
+        "expected the values to be equal"
     Stdlib.Test.failed
       (Stdlib.Test.Failure
-          { message = "expected the values to be equal"
-            expected = Stdlib.Option.Option.Some(Stdlib.toRepr expected)
-            actual = Stdlib.Option.Option.Some(Stdlib.toRepr actual) })
+          { message = message
+            expected = Stdlib.Option.Option.Some expectedText
+            actual = Stdlib.Option.Option.Some actualText })
 
 
 /// A check that always fails, with <param message>

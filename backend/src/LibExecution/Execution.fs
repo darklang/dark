@@ -630,13 +630,14 @@ let callStackString
       | [] -> []
       | head :: tail -> groupConsecutive [] head 1 tail
 
-    let result =
-      groupedParts
-      |> List.fold
-        (fun acc part -> $"{acc}\n- {part}")
-        "Call stack (last call at bottom):"
-
-    return result
+    match groupedParts with
+    | [] -> return ""
+    | _ ->
+      return
+        groupedParts
+        |> List.fold
+          (fun acc part -> $"{acc}\n- {part}")
+          "Call stack (last call at bottom):"
   }
 
 

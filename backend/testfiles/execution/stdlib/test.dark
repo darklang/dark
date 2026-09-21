@@ -348,7 +348,8 @@ Stdlib.Test.eq
   Stdlib.Test.T.Fail(
     0,
     [ Stdlib.Test.Failure
-        { message = "expected the values to be equal"
+        { message =
+            "expected the values to be equal, but they render identically; this can happen when a nested NaN is compared with =="
           expected = Stdlib.Option.Option.Some "Ok(NaN)"
           actual = Stdlib.Option.Option.Some "Ok(NaN)" } ]
   )

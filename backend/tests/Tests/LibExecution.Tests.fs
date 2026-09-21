@@ -351,6 +351,15 @@ let errorRendering =
         match actual with
         | Ok(RT.DString actual) -> Expect.equal actual expected "the same message"
         | other -> failtest $"expected a String, got {other}"
+      }
+
+      testTask "an empty call stack renders as empty" {
+        let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+        let! actual = Exe.callStackString state [] |> Ply.toTask
+        Expect.equal
+          actual
+          ""
+          "callers can omit the stack section instead of printing a dangling header"
       } ]
 
 let tests = lazy (testList "LibExecution" [ fileTests (); errorRendering ])
