@@ -1,17 +1,21 @@
 # Processes and the scheduler
 
-Status: the baseline. A running computation is a value the runtime can step,
-park, resume and inspect, and one thread runs many of them. Nothing
-user-visible changed except `dark ps`; the follow-ups at the end are where
-the rest goes.
+Status: the baseline plus cores. A running computation is a value the runtime
+can step, park, resume and inspect; one thread runs many of them, and a group
+of worker threads (one per core) runs many more. Nothing user-visible changed
+except `dark ps` and `dark config set exec.workers`; the follow-ups at the end
+are where the rest goes.
 
 The one-paragraph version: a process is a `VMState` plus the `ExecutionState`
-it runs under plus a status. The scheduler steps a process until it finishes,
+it runs under plus a status. A scheduler steps a process until it finishes,
 has to wait for something, or spends its instruction budget. A waiting process
 is parked on the task it waits for; when that completes, an event lands on the
 scheduler's queue and the scheduler thread resumes the process. A preempted
 process goes to the back of the line. Keys, timers and store changes arrive on
-the same queue, so `readKey` parks instead of holding the thread.
+the same queue, so `readKey` parks instead of holding the thread. A scheduler
+is one thread; a process spawned on a worker scheduler runs on another core
+for its whole life, sharing nothing with its neighbours but the state's
+concurrent caches.
 
 ---
 
@@ -67,9 +71,10 @@ fallback (check on jumps and calls only) was not needed.
 
 ## The one rule
 
-Only the scheduler thread steps. Everything else (the reader thread, timer
-callbacks, the store poll, Ply continuations) only posts to the queue. `Step`
-checks the thread id and raises if it is ever wrong.
+Only a process's own scheduler thread steps it. Everything else (the reader
+thread, timer callbacks, the store poll, Ply continuations, other schedulers)
+only posts to the queue. `Step` checks the thread id and raises if it is ever
+wrong.
 
 The one exception is documented at `StepOutcome`: a rare opcode's deferred
 completion writes the VM it belongs to, on whatever thread completes it. The
@@ -78,28 +83,125 @@ has posted, so it is exclusive, not shared.
 
 ## The event queue and its sources
 
-`LibExecution/HostEvents.fs`. One `Queue` per scheduler:
+`LibExecution/HostEvents.fs`. One `Queue` per scheduler; one console and one
+store per OS process, so the reader thread and the store poll are
+process-wide (`HostEvents.Shared`) and deliver to whichever queue asked:
 
 - `Key of KeyRead`: from the stdin reader thread. It starts on the first
-  `Key` subscription and reads one key per request, so a run that never waits
-  on a key never touches the console, and nothing eats keys meant for a
-  `readLine` after a TUI has quit. Redirected stdin never starts it:
-  `readKey` answers Escape at once, as it always did.
+  `Key` subscription and reads one key per request, delivered to the queue
+  that requested it (requests from several schedulers are served oldest
+  first, one read in flight), so a run that never waits on a key never
+  touches the console, and nothing eats keys meant for a `readLine` after a
+  TUI has quit. Redirected stdin never starts it: `readKey` answers Escape at
+  once, as it always did.
 - `Timer id`: a one-shot `System.Threading.Timer` armed per `Timer ms` spec,
   disposed when something else satisfies the subscription; a late fire posts
   an id nobody wants and is dropped.
 - `StoreChanged change`: a 200 ms poll of `PRAGMA data_version` on a
-  connection of its own (the pragma answers per connection). `change` is
-  `Host.Change.Unknown` until the live track's `scmOpsSince` can say what
-  changed. Latched per process: a process that subscribes after a change it
-  has not been told about is woken at once, so a change during a render is
-  not lost.
+  connection of its own (the pragma answers per connection), posted to every
+  queue watching. `change` is `Host.Change.Unknown` until the live track's
+  `scmOpsSince` can say what changed. Latched per process: a process that
+  subscribes after a change it has not been told about is woken at once, so
+  a change during a render is not lost.
 - `Completed pid`: internal; the parked task finished.
-- `ExecDone (pid, dv)`: a process finished, for Dark subscribers.
+- `ExecDone (pid, dv)`: a process finished, for Dark subscribers. Posted to
+  every queue in the group, since the subscriber may be on another scheduler.
+- `Wake`: nothing to route; the loop, blocked with nothing runnable, looks
+  again (a spawn from another thread, a `Stop`).
 
 The sources `LibExecution` cannot provide itself (the console, the store) are
 installed by the host: `Stdin.fs` installs the key source, `Cli.fs` the store
 version.
+
+## Cores: workers
+
+A `Scheduler` is one loop on one thread. `Scheduler.Workers` is a group: the
+root plus N more schedulers, each looping on a background thread of its own
+(`dark-worker-<i>`), started the first time anything asks for them. N is
+`exec.workers` in the store's config (`dark config set exec.workers 4`), or
+`DARK_EXEC_WORKERS`, or one per core; `Cli.fs` reads it into
+`Scheduler.defaultWorkers` before the root starts.
+
+- `root.SpawnOn(...)` spawns on the least loaded worker (fewest runnable or
+  parked processes); the process runs there for its whole life. `Spawn`
+  keeps it on the calling scheduler.
+- `Await` is the process's completion task and works from anywhere. `ps` and
+  `kill` from any scheduler in the group see and reach every process in it.
+- Nothing in the CLI spawns on workers yet: every process today (the CLI's
+  root, each `eval` expression) is on the root. The implicit-reads step and
+  the Http server's handlers are what will use them. So a CLI run that never
+  spawns on a worker never starts the threads.
+- Measured on the shared desktop (a Threadripper 3960X), warm: four
+  CPU-bound processes on four workers finish in 0.59 to 0.65 of the
+  one-thread wall time published, 0.34 in Debug. Not the 1/4 an idle
+  machine would give a compute loop, and the scheduler is not why: four
+  plain `Interpreter.execute` calls on four threads, with or without a
+  shared state, scale the same, and so does a plain F# loop that only
+  allocates (546 ms alone, 871 ms four at once), while a loop that only
+  computes scales nearly perfectly. The interpreter allocates per value,
+  so the allocator's scaling is its ceiling; server GC and a larger gen0
+  budget did not move it. The allocation work in `docs/perf/roadmap.md` is
+  therefore also the multi-core work. The test bounds the ratio at 0.8.
+- A spawn onto a worker costs about 9 us in Debug (10,000 spawns of a
+  trivial program in 90 ms, including the placement scan and the `Wake`).
+
+## What a process shares and what it owns
+
+The audit of `ExecutionState`, field by field, for two processes on two
+threads under one state. The short answer: the interpreter already ran on
+many threads with one state (the Http server's handlers, the parallel test
+suite), and the caches were made concurrent for that (`fix-types-cache-race`,
+August 2026), so a process copies almost nothing.
+
+Shared by reference, safe as is:
+
+- `lambdaInstrCache`, `packageFnCallCache`: `ConcurrentDictionary`, keyed by
+  a lambda's expression id and a package fn's content hash, holding immutable
+  compiled data. Shared on purpose: a lambda created in one process is
+  callable from another (an `eval` expression's lambda from an HTTP handler,
+  say), which a copy-on-spawn would break. The one mutable inside,
+  `PackageFnCallData.policy`, is a memo of an immutable record whose owner is
+  compared by reference; two writers racing both write a correct answer.
+- `Types.find`'s declaration cache: a `ConditionalWeakTable` of
+  `ConcurrentDictionary`, per `Types` instance.
+- `builtins`, `types`, `fns`, `values`, `blobs`, `program`, `access`,
+  `packagePolicy`, `isBundledPackageFn`, `accountID`, `branchId`, the flags,
+  `reportException`, `notify`: immutable, or functions over the package
+  manager, whose own caches are content-keyed and concurrent.
+- The SQLite connection: not on the state at all; every statement takes a
+  pooled connection (`Pooling=true`), so there is nothing per thread to keep.
+
+Shared, and written under a lock:
+
+- `deniedRequests`, `permissionWarnings`: the host installs a list, runs the
+  script, reads the list. A child's denial has to land in the parent's list,
+  so they are shared and the two appends (`PermissionCheck.raiseDenial`,
+  `recordPermissionViolation`) lock. Denials are rare; the lock is never hot.
+- `test`: the test context's counters. Tests only; left as they are.
+
+One process's own:
+
+- `tracing`: the recorder keeps a call stack to pair frame entries with
+  exits, and one stack cannot hold two processes' frames. At spawn the
+  scheduler asks the parent's tracer for a per-process view
+  (`Tracing.forProcess pid`, `Scheduler.stateForProcess`): the same event
+  list, the process's own stack, and every event stamped with the process id
+  and a `seq` across the whole trace. `noTracing` answers itself, so an
+  untraced spawn copies nothing. See "Traces" below.
+- `VMState`: never shared; that was already the rule.
+
+So `stateForProcess` is one record copy when tracing is on and the parent's
+state itself when it is off.
+
+## Traces
+
+`trace_fn_calls` rows carry `process_id` and `seq` (`migrations/schema/
+08-traces.sql`; existing stores get the columns from `LibDB/Releases.fs`,
+with `''` and `0` for old rows). `seq` is assigned as calls complete, under
+the tracer's lock, across every process writing the trace: one process's rows
+in `seq` order are its log, all of them are the interleaving. `Tracing.FnCall`
+in Dark carries both (`processId : Option<Uuid>`, `seq`). A run nobody
+scheduled writes `''`. The executions step reads these back for replay.
 
 ## `Host.await`, the contract
 
@@ -133,11 +235,13 @@ need.
 ## `dark ps`
 
 `Stdlib.Exec.list/inspect/kill` over `Builtin.execList/execInspect/execKill`
-(`Builtins.Language/Libs/Exec.fs`), rendered by `cli/ps.dark`. Rows are copies
-taken on the scheduler thread; nothing hands Dark a reference into a running
-VM. One scheduler per OS process, so `dark ps` from a shell is the CLI alone;
-from inside an `eval` it is the CLI parked on `cliEvaluateExpression` plus the
-expression's process, with `ps show` giving both call stacks.
+(`Builtins.Language/Libs/Exec.fs`), rendered by `cli/ps.dark`. Rows are copies;
+nothing hands Dark a reference into a running VM. A process on a worker is
+snapshotted from another thread: its call stack is read best-effort (a frame
+popped under the read comes back as no frames, never a fault). One group per
+OS process, so `dark ps` from a shell is the CLI alone; from inside an `eval`
+it is the CLI parked on `cliEvaluateExpression` plus the expression's process,
+with `ps show` giving both call stacks.
 
 `ps kill` sets a flag the process sees at its next turn; a parked process is
 given that turn at once and whatever it waited for is abandoned. A running
@@ -151,9 +255,8 @@ Each of these is a follow-up in the scheduler plan, in this order:
 - Implicit concurrent reads, `demand`, `Exec.spawn` for users. Today nothing in
   Dark can start a second process; two evals interleaving is shown by
   `Scheduler.Tests.fs`, not by anything you can type.
-- Cores: per-process `ExecutionState` copies. One scheduler thread today.
 - Record/replay, resume after Ctrl-C, fork. The `traceId` link is not on the
-  process yet.
+  process yet; the `(process_id, seq)` it will replay from is.
 - Removing host re-entry. `List.map f` still runs `f` in a nested VM on the
   .NET stack; a process parked inside it shows the frame that called the
   builtin, not `f`'s.

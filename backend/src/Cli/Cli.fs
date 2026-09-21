@@ -161,6 +161,30 @@ let private installStoreVersionSource () : unit =
       cmd.CommandText <- "PRAGMA data_version"
       cmd.ExecuteScalar() |> unbox<int64>))
 
+/// How many worker schedulers this run may start: `DARK_EXEC_WORKERS`, else the store's
+/// `exec.workers` (`dark config set exec.workers N`), else one per core. Never below one.
+let private workerCount () : int =
+  let parse (s : string) =
+    match System.Int32.TryParse s with
+    | true, n when n >= 1 -> Some n
+    | _ -> None
+  let fromEnv =
+    match System.Environment.GetEnvironmentVariable "DARK_EXEC_WORKERS" with
+    | null
+    | "" -> None
+    | s -> parse s
+  let fromConfig () =
+    try
+      (LibDB.Config.get "exec.workers").Result |> Option.bind parse
+    with _ ->
+      None
+  match fromEnv with
+  | Some n -> n
+  | None ->
+    match fromConfig () with
+    | Some n -> n
+    | None -> max 1 System.Environment.ProcessorCount
+
 let execute
   (packageManager : RT.PackageManager)
   (args : List<string>)
@@ -210,6 +234,7 @@ let execute
       return result
     else
       installStoreVersionSource ()
+      LibExecution.Scheduler.defaultWorkers <- workerCount ()
       return LibExecution.Scheduler.executeFunction state fnName [] args
   }
 

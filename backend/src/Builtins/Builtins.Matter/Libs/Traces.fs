@@ -59,7 +59,7 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
     let! events =
       Sql.query
         "SELECT call_id, parent_call_id, kind, fn_hash, lambda_expr_id,
-                args, result, duration_ms
+                args, result, duration_ms, process_id, seq
          FROM trace_fn_calls
          WHERE trace_id = @traceId
          ORDER BY rowid"
@@ -72,7 +72,9 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
            lambdaExprId = read.stringOrNone "lambda_expr_id"
            argsBytes = read.bytes "args"
            resultBytes = read.bytes "result"
-           durationMs = read.int64 "duration_ms" |})
+           durationMs = read.int64 "duration_ms"
+           processId = read.string "process_id"
+           seq = read.int64 "seq" |})
 
     // Skip rows whose args / result fail to deserialize rather than
     // substitute a placeholder Dval — the downstream renderer expects
@@ -109,7 +111,13 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
                 "lambdaExprId", lambdaExprIdDval
                 "args", Dval.list dvalKT args
                 "result", result
-                "durationMs", Dval.int (bigint ev.durationMs) ]
+                "durationMs", Dval.int (bigint ev.durationMs)
+                "processId",
+                (match System.Guid.TryParse ev.processId with
+                 | true, g when g <> System.Guid.Empty ->
+                   Dval.optionSome KTUuid (DUuid g)
+                 | _ -> Dval.optionNone KTUuid)
+                "seq", DInt64 ev.seq ]
           Some(DRecord(typeName, typeName, [], fields))
         with ex ->
           print $"[tracing] dropping corrupt fn_call row: {ex.Message}"

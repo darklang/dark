@@ -205,14 +205,21 @@ let private fnNameToSimpleString (name : RT.FQFnName.FQFnName) : string =
 
 /// Completed call event ready to emit to trace_fn_calls.
 type CompletedEvent =
-  { callId : string
+  {
+    callId : string
     parentCallId : string option
     kind : string // "function" | "lambda" | "builtin"
     fnHash : string option // function/builtin only
     lambdaExprId : id option // lambda only
     args : List<RT.Dval>
     result : RT.Dval
-    durationMs : int64 } // 0 for builtins (no frame-entry hook); real ms for fn/lambda
+    durationMs : int64 // 0 for builtins (no frame-entry hook); real ms for fn/lambda
+    /// The process that made the call. `Guid.Empty` for a run nobody scheduled.
+    processId : System.Guid
+    /// Position in the whole trace, across processes: the order the calls completed in. Reading
+    /// one process's rows back in `seq` order is its log; reading them all is the interleaving.
+    seq : int64
+  }
 
 
 /// Partial event held on the writer's stack between storeFrameEntry and
@@ -262,22 +269,54 @@ module TraceLimits =
   let resetMaxEventsForTesting () : unit = maxEvents <- fromEnv ()
 
 
-/// Mutable per-trace tracer state. Captures every event in execution order
-/// and tracks the open call stack so children can find their parent.
+/// Mutable per-trace tracer state. Captures every event in completion order and keeps one open
+/// call stack per process, so children find their parent in their own process's stack.
+///
+/// One trace, many processes: a script's expressions and anything they spawn write here from
+/// whichever scheduler thread steps them, so every touch is under `sync`. Uncontended in the
+/// one-process case, which is nearly every run.
 type TracerState =
   {
     events : System.Collections.Generic.List<CompletedEvent>
-    stack : System.Collections.Generic.Stack<PartialEvent>
+    stacks :
+      System.Collections.Generic.Dictionary<System.Guid, System.Collections.Generic.Stack<PartialEvent>>
     /// Events past `TraceLimits.maxEvents`, counted so the trace can say it was truncated rather than
     /// quietly looking complete.
     mutable dropped : int
+    /// The next `seq`, handed out as events complete.
+    mutable nextSeq : int64
+    sync : obj
   }
 
 
 let private newState () : TracerState =
   { events = System.Collections.Generic.List<CompletedEvent>()
-    stack = System.Collections.Generic.Stack<PartialEvent>()
-    dropped = 0 }
+    stacks = System.Collections.Generic.Dictionary()
+    dropped = 0
+    nextSeq = 0L
+    sync = obj () }
+
+
+/// The open call stack of one process. Under `sync`.
+let private stackFor
+  (state : TracerState)
+  (pid : System.Guid)
+  : System.Collections.Generic.Stack<PartialEvent> =
+  match state.stacks.TryGetValue pid with
+  | true, stack -> stack
+  | false, _ ->
+    let stack = System.Collections.Generic.Stack<PartialEvent>()
+    state.stacks[pid] <- stack
+    stack
+
+
+/// Frames still open, over every process: the ancestors of whatever completes next, which is what
+/// `addEvent` reserves room for.
+let private openFrames (state : TracerState) : int =
+  let mutable n = 0
+  for stack in state.stacks.Values do
+    n <- n + stack.Count
+  n
 
 
 /// Retain an event unless we're at the cap, **reserving a slot for every frame still on the stack**.
@@ -296,18 +335,25 @@ let private newState () : TracerState =
 ///
 /// The *stack* is deliberately not capped: it's bounded by call depth rather than call count, and
 /// pushes/pops have to stay balanced or parent linkage breaks for the events we do keep.
+///
+/// Under `sync`; `seq` is assigned here, so the order of `seq` is the order of completion across
+/// every process writing the trace.
 let private addEvent (state : TracerState) (ev : CompletedEvent) : unit =
   if
     TraceLimits.maxEvents = 0
-    || state.events.Count + state.stack.Count < TraceLimits.maxEvents
+    || state.events.Count + openFrames state < TraceLimits.maxEvents
   then
-    state.events.Add ev
+    let seq = state.nextSeq
+    state.nextSeq <- seq + 1L
+    state.events.Add { ev with seq = seq }
   else
     state.dropped <- state.dropped + 1
 
 
-let private currentParentCallId (state : TracerState) : string option =
-  if state.stack.Count = 0 then None else Some(state.stack.Peek().callId)
+let private currentParentCallId
+  (stack : System.Collections.Generic.Stack<PartialEvent>)
+  : string option =
+  if stack.Count = 0 then None else Some(stack.Peek().callId)
 
 
 let private newCallId () : string = string (System.Guid.NewGuid())
@@ -323,7 +369,10 @@ let private ticksToMs (deltaTicks : int64) : int64 =
 /// Fired when a Function or Lambda frame is pushed. We assign this call
 /// its own call_id immediately so children entered before this call exits
 /// can record us as their parent_call_id.
-let private makeStoreFrameEntry (state : TracerState) : RT.Tracing.StoreFrameEntry =
+let private makeStoreFrameEntry
+  (state : TracerState)
+  (pid : System.Guid)
+  : RT.Tracing.StoreFrameEntry =
   fun _ ep args ->
     let fnHash, lambdaExprId =
       match ep with
@@ -333,69 +382,101 @@ let private makeStoreFrameEntry (state : TracerState) : RT.Tracing.StoreFrameEnt
         Exception.raiseInternal
           "Source ExecutionPoint cannot be pushed as a frame"
           []
-    let partial =
-      { callId = newCallId ()
-        parentCallId = currentParentCallId state
-        fnHash = fnHash
-        lambdaExprId = lambdaExprId
-        args = args
-        startedAtTicks = System.Diagnostics.Stopwatch.GetTimestamp() }
-    state.stack.Push(partial)
+    let startedAt = System.Diagnostics.Stopwatch.GetTimestamp()
+    lock state.sync (fun () ->
+      let stack = stackFor state pid
+      let partial =
+        { callId = newCallId ()
+          parentCallId = currentParentCallId stack
+          fnHash = fnHash
+          lambdaExprId = lambdaExprId
+          args = args
+          startedAtTicks = startedAt }
+      stack.Push(partial))
 
 
 /// Fired for both fn frame returns and synchronous builtin calls. We
 /// dispatch on the FQFnName: builtins emit a synchronous event with the
 /// current top of stack as parent; package fn returns pop the matching
 /// frame entry and finalize with the result.
-let private makeStoreFnResult (state : TracerState) : RT.Tracing.StoreFnResult =
+let private makeStoreFnResult
+  (state : TracerState)
+  (pid : System.Guid)
+  : RT.Tracing.StoreFnResult =
   fun (_, name) args result ->
     match name with
     | RT.FQFnName.Builtin _ ->
-      addEvent
-        state
-        { callId = newCallId ()
-          parentCallId = currentParentCallId state
-          kind = "builtin"
-          fnHash = Some(fnNameToSimpleString name)
-          lambdaExprId = None
-          args = NEList.toList args
-          result = result
-          // No frame-entry counterpart for builtins, so no real duration.
-          durationMs = 0L }
-    | RT.FQFnName.Package _ ->
-      if state.stack.Count > 0 then
-        let partial = state.stack.Pop()
-        let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
+      lock state.sync (fun () ->
         addEvent
           state
-          { callId = partial.callId
-            parentCallId = partial.parentCallId
-            kind = "function"
-            fnHash = partial.fnHash
+          { callId = newCallId ()
+            parentCallId = currentParentCallId (stackFor state pid)
+            kind = "builtin"
+            fnHash = Some(fnNameToSimpleString name)
             lambdaExprId = None
-            args = partial.args
+            args = NEList.toList args
             result = result
-            durationMs = ticksToMs (endedAt - partial.startedAtTicks) }
+            // No frame-entry counterpart for builtins, so no real duration.
+            durationMs = 0L
+            processId = pid
+            seq = 0L })
+    | RT.FQFnName.Package _ ->
+      let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
+      lock state.sync (fun () ->
+        let stack = stackFor state pid
+        if stack.Count > 0 then
+          let partial = stack.Pop()
+          addEvent
+            state
+            { callId = partial.callId
+              parentCallId = partial.parentCallId
+              kind = "function"
+              fnHash = partial.fnHash
+              lambdaExprId = None
+              args = partial.args
+              result = result
+              durationMs = ticksToMs (endedAt - partial.startedAtTicks)
+              processId = pid
+              seq = 0L })
 
 
 /// Fired when a Lambda frame returns. Pop the matching entry and finalize.
 let private makeStoreLambdaResult
   (state : TracerState)
+  (pid : System.Guid)
   : RT.Tracing.StoreLambdaResult =
   fun _ result ->
-    if state.stack.Count > 0 then
-      let partial = state.stack.Pop()
-      let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
-      addEvent
-        state
-        { callId = partial.callId
-          parentCallId = partial.parentCallId
-          kind = "lambda"
-          fnHash = None
-          lambdaExprId = partial.lambdaExprId
-          args = partial.args
-          result = result
-          durationMs = ticksToMs (endedAt - partial.startedAtTicks) }
+    let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
+    lock state.sync (fun () ->
+      let stack = stackFor state pid
+      if stack.Count > 0 then
+        let partial = stack.Pop()
+        addEvent
+          state
+          { callId = partial.callId
+            parentCallId = partial.parentCallId
+            kind = "lambda"
+            fnHash = None
+            lambdaExprId = partial.lambdaExprId
+            args = partial.args
+            result = result
+            durationMs = ticksToMs (endedAt - partial.startedAtTicks)
+            processId = pid
+            seq = 0L })
+
+
+/// The interpreter hooks for one process writing this trace. `forProcess` hands a spawned process
+/// its own; the hooks share the event list and get their own call stack.
+let rec private executionTracingFor
+  (state : TracerState)
+  (pid : System.Guid)
+  : RT.Tracing.Tracing =
+  { Exe.noTracing with
+      storeFrameEntry = makeStoreFrameEntry state pid
+      storeFnResult = makeStoreFnResult state pid
+      storeLambdaResult = makeStoreLambdaResult state pid
+      skipTracing = false
+      forProcess = executionTracingFor state }
 
 
 /// Store trace data to SQLite.
@@ -478,10 +559,10 @@ module TraceStorage =
         | _ ->
           [ "INSERT INTO trace_fn_calls
             (trace_id, call_id, parent_call_id, kind, fn_hash,
-             lambda_expr_id, args, result, duration_ms)
+             lambda_expr_id, args, result, duration_ms, process_id, seq)
            VALUES
             (@traceId, @callId, @parentCallId, @kind, @fnHash,
-             @lambdaExprId, @args, @result, @durationMs)",
+             @lambdaExprId, @args, @result, @durationMs, @processId, @seq)",
             events
             |> List.map (fun ev ->
               let argsBytes = serializeArgs ev.args
@@ -495,7 +576,13 @@ module TraceStorage =
                 (ev.lambdaExprId |> Option.map string |> Sql.stringOrNone)
                 "args", Sql.bytes argsBytes
                 "result", Sql.bytes resultBytes
-                "durationMs", Sql.int64 ev.durationMs ]) ]
+                "durationMs", Sql.int64 ev.durationMs
+                "processId",
+                (if ev.processId = System.Guid.Empty then
+                   Sql.string ""
+                 else
+                   Sql.string (string ev.processId))
+                "seq", Sql.int64 ev.seq ]) ]
 
       let _ = Sql.executeTransactionSync (baseStatements @ eventStmt)
       ()
@@ -593,7 +680,9 @@ let private storeTrace
                    lambdaExprId = None
                    args = []
                    result = RT.DUnit
-                   durationMs = 0L } ]
+                   durationMs = 0L
+                   processId = System.Guid.Empty
+                   seq = state.nextSeq } ]
            else
              Seq.toList state.events)
           exeState.accountID
@@ -617,12 +706,7 @@ let createSqliteTracer (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
 
   { enabled = true
     results = results
-    executionTracing =
-      { Exe.noTracing with
-          storeFrameEntry = makeStoreFrameEntry state
-          storeFnResult = makeStoreFnResult state
-          storeLambdaResult = makeStoreLambdaResult state
-          skipTracing = false }
+    executionTracing = executionTracingFor state System.Guid.Empty
     storeTraceInput =
       fun desc varname input ->
         let (kind, path, modifier) = desc
@@ -665,12 +749,7 @@ let createCliTracer
   else
     { enabled = true
       results = results
-      executionTracing =
-        { Exe.noTracing with
-            storeFrameEntry = makeStoreFrameEntry state
-            storeFnResult = makeStoreFnResult state
-            storeLambdaResult = makeStoreLambdaResult state
-            skipTracing = false }
+      executionTracing = executionTracingFor state System.Guid.Empty
       storeTraceInput = fun _ _ _ -> ()
       storeTraceResults =
         fun exeState ->

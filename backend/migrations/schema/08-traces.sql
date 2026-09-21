@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS trace_fn_calls (
   args BLOB NOT NULL,
   result BLOB NOT NULL,
   duration_ms INTEGER NOT NULL DEFAULT 0,
+  process_id TEXT NOT NULL DEFAULT '',         -- the process that made the call; '' when unscheduled
+  seq INTEGER NOT NULL DEFAULT 0,              -- completion order across the whole trace
   PRIMARY KEY (trace_id, call_id)
 );
 CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_trace_id ON trace_fn_calls(trace_id);

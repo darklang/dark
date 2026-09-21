@@ -1780,7 +1780,9 @@ let recordPermissionViolation
   (needed : string)
   : unit =
   let v = { resource = resource; needed = needed; via = via }
-  if not (sink.Contains v) then sink.Add v
+  // Processes on different scheduler threads share one sink (the host reads it after the run),
+  // so the append is locked. Denials are rare; the lock is never hot.
+  lock sink (fun () -> if not (sink.Contains v) then sink.Add v)
 
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
@@ -2493,6 +2495,12 @@ module Tracing =
       /// (storeFrameEntry, storeFnResult, storeLambdaResult) and the
       /// associated pendingCallArgs bookkeeping.
       skipTracing : bool
+      /// The same trace, seen from another process. A recorder keeps one call stack per
+      /// process and stamps every event with the process id and a sequence number across
+      /// the whole trace, so two processes stepping on two threads write one log whose
+      /// interleaving can be read back. The scheduler calls this at spawn; the hooks it
+      /// returns are the process's own. `noTracing` answers itself.
+      forProcess : System.Guid -> Tracing
     }
 
 

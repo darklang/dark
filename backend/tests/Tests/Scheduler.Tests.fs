@@ -6,6 +6,8 @@ open System.Threading.Tasks
 
 open Expecto
 open Prelude
+open Fumble
+open LibDB.Sqlite
 open TestUtils.TestUtils
 
 open TestUtils.PTShortcuts
@@ -370,6 +372,228 @@ let private editDoesNotReachAParkedProcess =
   }
 
 
+// -- Cores --
+
+/// A root scheduler with `n` workers, for the tests below; `Scheduler.defaultWorkers` is
+/// process-wide, so it is set and put back around each.
+let private withWorkers
+  (n : int)
+  (body : Scheduler.Scheduler -> Task<unit>)
+  : Task<unit> =
+  task {
+    let before = Scheduler.defaultWorkers
+    Scheduler.defaultWorkers <- n
+    let root = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    try
+      do! body root
+    finally
+      Scheduler.defaultWorkers <- before
+      root.Workers.Stop()
+  }
+
+/// A Dark loop that costs about as much as it says: `spin n` runs `n` iterations in this VM's
+/// frames (a nested self-recursive fn, so it budget-yields rather than re-entering).
+let private spinProgram (n : int64) : string =
+  $"""(let spin (n: Int64) (acc: Int64) : Int64 =
+        if n == 0L then acc else spin (n - 1L) (acc + n)
+      spin {n}L 0L)"""
+
+/// Spawn `count` copies of `code` with `spawn` and wait for all of them; the wall time.
+let private timeAll
+  (spawn : RT.Instructions -> Scheduler.Process)
+  (await : Scheduler.Process -> Task<RT.ExecutionResult>)
+  (instrs : RT.Instructions)
+  (count : int)
+  : Task<System.TimeSpan> =
+  task {
+    let watch = System.Diagnostics.Stopwatch.StartNew()
+    let procs = List.init count (fun _ -> spawn instrs)
+    for p in procs do
+      let! result = await p
+      expectOk result "a spinner" |> ignore<RT.Dval>
+    return watch.Elapsed
+  }
+
+
+let private workersUseCores =
+  testTask "four CPU-bound processes on four workers finish well ahead of one thread" {
+    let! state = executionStateFor pmPT false Map.empty
+    // About a second per spinner in Debug (measured: 300k iterations took 3.0 s).
+    let! instrs = instrsFor (spinProgram 80_000L)
+    do!
+      withWorkers 4 (fun root ->
+        task {
+          // Serial: all four on one worker, one thread.
+          let one : Scheduler.Scheduler = root.Workers.Members[0]
+          // Warm first: the JIT tiers the interpreter up during the first few hundred
+          // milliseconds, and a serial batch measured cold is slower for that reason alone.
+          let! _ =
+            timeAll
+              (fun i -> one.Spawn(state, (None, i), Scheduler.EntryExpr, None))
+              one.Await
+              instrs
+              2
+          let! serial =
+            timeAll
+              (fun i -> one.Spawn(state, (None, i), Scheduler.EntryExpr, None))
+              one.Await
+              instrs
+              4
+          // Parallel: placed across the four workers.
+          let! spread =
+            timeAll
+              (fun i -> root.SpawnOn(state, (None, i), Scheduler.EntryExpr, None))
+              root.Await
+              instrs
+              4
+          // Measured, published, warm: 0.59 to 0.65 (Debug: 0.34). Not the plan's 1/4: the
+          // interpreter allocates per value and this box's allocator gives four threads about
+          // 1.6x, which a plain F# allocation loop reproduces with no interpreter at all
+          // (`docs/processes.md`). The bound is loose because the box is shared; anything under
+          // 0.8 still takes more than one core.
+          Expect.isLessThan
+            spread.TotalMilliseconds
+            (serial.TotalMilliseconds * 0.8)
+            $"spread {spread.TotalMilliseconds:F0} ms vs serial {serial.TotalMilliseconds:F0} ms"
+          // Every worker took at least one of the four.
+          let placed =
+            root.Snapshot()
+            |> List.filter (fun p -> p.entry = Scheduler.EntryExpr)
+            |> List.length
+          Expect.equal placed 10 "all ten spinners are in the group's table"
+        })
+  }
+
+
+/// `fix-types-cache-race` again, as processes: many of them on the workers, one state, all
+/// resolving types, building records and enums, creating and applying lambdas at once. The
+/// caches on `ExecutionState` are shared by reference, so this is the test that they can be.
+let private sharedStateAcrossWorkers =
+  testTask
+    "sixteen processes on four workers share one state's caches without corruption" {
+    let! state = executionStateFor pmPT false Map.empty
+    let! instrs =
+      instrsFor
+        """(let step (i: Int64) : Int64 =
+              let r = Stdlib.Result.Result.Ok i
+              let o = Stdlib.Option.Option.Some (Stdlib.Int64.add i 1L)
+              let xs = Stdlib.List.map [ 1L; 2L; 3L ] (fun x -> Stdlib.Int64.multiply x i)
+              let sum = Stdlib.List.fold xs 0L (fun acc x -> Stdlib.Int64.add acc x)
+              match r, o with
+              | Ok a, Some b -> Stdlib.Int64.add (Stdlib.Int64.add a b) sum
+              | _, _ -> 0L
+            let loop (n: Int64) (acc: Int64) : Int64 =
+              if n == 0L then acc else loop (n - 1L) (acc + step n)
+            loop 2000L 0L)"""
+    do!
+      withWorkers 4 (fun root ->
+        task {
+          let procs =
+            List.init 16 (fun _ ->
+              root.SpawnOn(state, (None, instrs), Scheduler.EntryExpr, None))
+          for p in procs do
+            let! result = root.Await p
+            // step n = n + (n + 1) + 6n = 8n + 1, summed over 1..2000
+            Expect.equal
+              (expectOk result "a process")
+              (RT.DInt64(8L * 2001000L + 2000L))
+              "every process computed the same answer"
+        })
+  }
+
+
+let private psSeesTheWholeGroup =
+  testTask "ps and kill from the root see and reach a process on a worker" {
+    Gates.reset ()
+    let! state = executionStateFor pmPT false Map.empty
+    let! instrs = instrsFor "Builtin.testGateWait 80L"
+    do!
+      withWorkers 2 (fun root ->
+        task {
+          let stuck = root.SpawnOn(state, (None, instrs), Scheduler.EntryExpr, None)
+          let deadline = System.DateTime.UtcNow.AddSeconds 5.
+          while (match stuck.status with
+                 | Scheduler.Parked _ -> false
+                 | _ -> true)
+                && System.DateTime.UtcNow < deadline do
+            Thread.Sleep 5
+          let seen = root.Snapshot() |> List.tryFind (fun p -> p.id = stuck.id)
+          Expect.isSome seen "the root's snapshot lists the worker's process"
+          Expect.isTrue (root.Kill stuck.id) "kill found it through the group"
+          let! result = root.Await stuck
+          match result with
+          | Error(RTE.UncaughtException("cancelled", _), _) -> ()
+          | other -> failtest $"expected cancelled, got {other}"
+        })
+  }
+
+
+/// One trace, two processes on two threads: every row carries its process, and `seq` is one
+/// order across both.
+let private traceCarriesProcessAndSeq =
+  testTask
+    "a trace written by two processes on two workers keeps each one's calls apart" {
+    let! state = executionStateFor pmPT false Map.empty
+    let! instrs =
+      instrsFor
+        """(let twice (x: Int64) : Int64 = Stdlib.Int64.add x x
+            let loop (n: Int64) (acc: Int64) : Int64 =
+              if n == 0L then acc else loop (n - 1L) (acc + twice n)
+            loop 200L 0L)"""
+    LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+    try
+      let traceId = LibExecution.AnalysisTypes.TraceID.create ()
+      let tracer =
+        LibDB.Tracing.createCliTracer traceId "scheduler test" "expression" RT.DUnit
+      let traced : RT.ExecutionState =
+        { state with RT.ExecutionState.tracing = tracer.executionTracing }
+      do!
+        withWorkers 2 (fun root ->
+          task {
+            let a = root.SpawnOn(traced, (None, instrs), Scheduler.EntryExpr, None)
+            let b = root.SpawnOn(traced, (None, instrs), Scheduler.EntryExpr, None)
+            let! ra = root.Await a
+            let! rb = root.Await b
+            expectOk ra "a" |> ignore<RT.Dval>
+            expectOk rb "b" |> ignore<RT.Dval>
+            do! tracer.storeTraceResults traced |> Ply.toTask
+            let! rows =
+              Sql.query
+                "SELECT call_id, parent_call_id, process_id, seq
+                 FROM trace_fn_calls WHERE trace_id = @t ORDER BY seq"
+              |> Sql.parameters [ "t", Sql.string (string traceId) ]
+              |> Sql.executeAsync (fun read ->
+                read.string "call_id",
+                read.stringOrNone "parent_call_id",
+                read.string "process_id",
+                read.int64 "seq")
+            Expect.isGreaterThan (List.length rows) 10 "the trace has rows"
+            let pids = rows |> List.map (fun (_, _, pid, _) -> pid) |> List.distinct
+            Expect.equal
+              (List.sort pids)
+              (List.sort [ string a.id; string b.id ])
+              "every row belongs to one of the two processes"
+            Expect.equal
+              (rows |> List.map (fun (_, _, _, seq) -> seq))
+              (List.init (List.length rows) int64)
+              "seq is 0..n-1 across both"
+            // A call's parent is in the same process: the stacks never crossed.
+            let byId =
+              rows |> List.map (fun (id, _, pid, _) -> id, pid) |> Map.ofList
+            for (_, parent, pid, _) in rows do
+              match parent with
+              | Some parentId ->
+                Expect.equal
+                  (Map.tryFind parentId byId)
+                  (Some pid)
+                  "parent in the same process"
+              | None -> ()
+          })
+    finally
+      LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+  }
+
+
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
 let tests =
@@ -382,5 +606,9 @@ let tests =
         readKeyDoesNotBlock
         accessIsPerProcess
         killWakesAParkedProcess
-        editDoesNotReachAParkedProcess ]
+        editDoesNotReachAParkedProcess
+        workersUseCores
+        sharedStateAcrossWorkers
+        psSeesTheWholeGroup
+        traceCarriesProcessAndSeq ]
   )
