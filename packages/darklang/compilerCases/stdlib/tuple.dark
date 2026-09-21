@@ -1,0 +1,16 @@
+module Darklang.CompilerCases.Stdlib.Tuple2
+
+type Eight = { a: String; b: String; c: String; d: Int64; e: Int64; f: Int64; g: Int64; h: Int64 }
+type Nine = { a: String; b: String; c: String; d: Int64; e: Int64; f: Int64; g: Int64; h: Int64; i: Int64 }
+type Ten = { a: String; b: String; c: String; d: Int64; e: Int64; f: Int64; g: Int64; h: Int64; i: Int64; j: String }
+
+let eight () : Eight = Eight { a = "x"; b = "y"; c = "z"; d = 1L; e = 2L; f = 3L; g = 4L; h = 5L }
+let nine () : Nine = Nine { a = "x"; b = "y"; c = "z"; d = 1L; e = 2L; f = 3L; g = 4L; h = 5L; i = 6L }
+let ten () : Ten = Ten { a = "x"; b = "y"; c = "z"; d = 1L; e = 2L; f = 3L; g = 4L; h = 5L; i = 6L; j = "w" }
+
+// Darklang.Stdlib.Tuple2.first: first field of records of growing width
+let first_ofEight () : String = (eight ()).a
+let first_ofNine () : String = (nine ()).a
+let first_ofTen () : String = (ten ()).a
+let first_lastOfTen () : String = (ten ()).j
+let first_wholeNine () : Nine = nine ()

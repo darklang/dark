@@ -319,6 +319,47 @@ goes straight to `locations` answers about MAIN while you are standing on a bran
 plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
 op log directly.
 
+## The native compiler (gated)
+
+`backend/src/LibCompiler/` is a copy of pbiggar/darklang-compiler's `src/DarkCompiler/`,
+untracked, put there by `scripts/build/vendor-compiler` (`LibCompiler/vendor/README.md` has
+the rules; `vendor/VENDORED-FROM` names the commit). The compiler parses Dark source and has
+its own stdlib, so the integration is source-based: `Darklang.Compiler.Sweep` (Dark) pretty
+prints a fn's closure, `Builtins.Compiler` (F#, three thin builtins) hands the units to the
+compiler and runs the binary, and the result is compared with the interpreter as JSON. None
+of it is in the default build.
+
+    ./scripts/build/_dotnet-wrapper build --configuration Debug \
+        -p:DarkWithCompiler=true src/Cli/Cli.fsproj src/LocalExec/LocalExec.fsproj
+    scripts/dev/build                                    # puts the flag-off ones back
+    ./scripts/run-cli eval 'Darklang.Compiler.Sweep.info ()'   # "native compiler linked" if flag-on
+
+    scripts/compiler/report                  coverage + equivalence over every package fn,
+                                             into docs/compiler/coverage/ (hours; 3 workers,
+                                             6 GB each, keep it that way: the machine is shared)
+    scripts/compiler/report --only Darklang.Cli.Packages.Search   one module, seconds
+    scripts/compiler/upstream-tests          the compiler's own suite, in this container
+    scripts/build/vendor-compiler --worktree ~/code/compiler      pick up compiler edits
+
+Things that cost an evening each:
+
+- LocalExec must be built flag-on before `reload-packages`, or `Builtin.compilerCompile
+  not found` at load.
+- Never rebuild the flag-on Cli or reload packages while a sweep runs; the sweep
+  spawns a fresh process per chunk and the results become a mix.
+- The equivalence sweep RUNS package fns in the interpreter with synthesized arguments,
+  under `permissions allow all`. It runs from a throwaway cwd for a reason.
+- The compiler wants every name fully qualified (no module-relative names), `Option<t>`
+  spelled `Stdlib.Option.Option<t>`, `Dict<v>` not `Dict<k, v>`, and its stdlib is
+  `Stdlib.X` not `Darklang.Stdlib.X`. `Sweep.compilerSpelling` does those rewrites on the
+  printed source; anything else it rejects is a real gap and belongs in the report.
+- A content-addressed type listed under two names is one type here and would be two
+  there; the sweep defines it once and aliases the other names.
+- A compile that is slow: `DARK_COMPILER_VERBOSITY=2` on the flag-on CLI prints the
+  compiler's pass timings, `DARK_COMPILER_NO_INLINE=1` turns its inlining and
+  specializations off. The WIP.AI hangs are its `ANF_HigherOrderSpecialization` pass.
+  `Sweep.layout` shows what its lexer is handed when the problem is the front end.
+
 ## Gotchas
 
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.
