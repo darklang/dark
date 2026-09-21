@@ -1,0 +1,373 @@
+// Tests of Stdlib.Test itself: the result type, and every helper that builds one.
+
+// eq
+Stdlib.Test.eq 8 (4 * 2) = Stdlib.Test.T.Pass 1
+
+Stdlib.Test.eq "a" "a" = Stdlib.Test.T.Pass 1
+
+// actual comes first, then expected. A failure shows both as text
+Stdlib.Test.eq 6 8 =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "8"
+          actual = Stdlib.Option.Option.Some "6" } ]
+  )
+
+Stdlib.Test.eq [1, 3] [1, 2] =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "[1, 2]"
+          actual = Stdlib.Option.Option.Some "[1, 3]" } ]
+  )
+
+// fail
+Stdlib.Test.fail "never got here" =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "never got here"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None } ]
+  )
+
+// isTrue / isFalse
+Stdlib.Test.isTrue true = Stdlib.Test.T.Pass 1
+Stdlib.Test.isFalse false = Stdlib.Test.T.Pass 1
+
+Stdlib.Test.isTrue false =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "expected true"
+          expected = Stdlib.Option.Option.Some "true"
+          actual = Stdlib.Option.Option.Some "false" } ]
+  )
+
+Stdlib.Test.isFalse true =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "expected false"
+          expected = Stdlib.Option.Option.Some "false"
+          actual = Stdlib.Option.Option.Some "true" } ]
+  )
+
+// all: empty passes, all-pass passes
+Stdlib.Test.all [] = Stdlib.Test.T.Pass 0
+
+Stdlib.Test.all
+  [ Stdlib.Test.eq 1 1, Stdlib.Test.isTrue true ] =
+  Stdlib.Test.T.Pass 2
+
+// all: every failure is kept, in order. Passes only add to the count
+Stdlib.Test.all
+  [ Stdlib.Test.fail "first",
+    Stdlib.Test.eq 1 1,
+    Stdlib.Test.fail "second" ] =
+  Stdlib.Test.T.Fail(
+    1,
+    [ Stdlib.Test.Failure
+        { message = "first"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None },
+      Stdlib.Test.Failure
+        { message = "second"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None } ]
+  )
+
+// all nests
+Stdlib.Test.all
+  [ Stdlib.Test.all [ Stdlib.Test.fail "inner" ],
+    Stdlib.Test.fail "outer" ] =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "inner"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None },
+      Stdlib.Test.Failure
+        { message = "outer"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None } ]
+  )
+
+// withMessage: a pass is unchanged, a failure keeps its values
+(Stdlib.Test.eq 0 0) |> Stdlib.Test.withMessage "zero" =
+  Stdlib.Test.T.Pass 1
+
+(Stdlib.Test.eq 6 8) |> Stdlib.Test.withMessage "the total" =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "the total: expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "8"
+          actual = Stdlib.Option.Option.Some "6" } ]
+  )
+
+// withMessage reaches every failure inside an `all`
+(Stdlib.Test.all [ Stdlib.Test.fail "a", Stdlib.Test.fail "b" ])
+  |> Stdlib.Test.withMessage "row 3" =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "row 3: a"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None },
+      Stdlib.Test.Failure
+        { message = "row 3: b"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None } ]
+  )
+
+// eq at the end of a pipe: actual, then expected
+(4 * 2) |> Stdlib.Test.eq 8 = Stdlib.Test.T.Pass 1
+
+6 |> Stdlib.Test.eq 8 =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "8"
+          actual = Stdlib.Option.Option.Some "6" } ]
+  )
+
+// table: one function and (input, expected) rows. Every row runs, and a failing row
+// says which input it was
+Stdlib.Test.table (fun n -> n * 2) [ (0, 0), (4, 8), (-3, -6) ] =
+  Stdlib.Test.T.Pass 3
+
+Stdlib.Test.table (fun n -> n * 2) [] = Stdlib.Test.fail "No cases supplied"
+
+Stdlib.Test.table (fun n -> n + 2) [ (0, 0), (2, 4), (4, 8) ] =
+  Stdlib.Test.T.Fail(
+    1,
+    [ Stdlib.Test.Failure
+        { message = "case 1: for input 0: expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "0"
+          actual = Stdlib.Option.Option.Some "2" },
+      Stdlib.Test.Failure
+        { message = "case 3: for input 4: expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "8"
+          actual = Stdlib.Option.Option.Some "6" } ]
+  )
+
+// table, several arguments: the inputs are a tuple, then the expected result
+Stdlib.Test.table Stdlib.Bool.xor [ ((true, false), true), ((true, true), false) ] =
+  Stdlib.Test.T.Pass 2
+
+Stdlib.Test.table Stdlib.String.replaceAll [ (("aXa", "X", "-"), "a-a") ] =
+  Stdlib.Test.T.Pass 1
+
+Stdlib.Test.table (fun a b -> a - b) [ ((5, 2), 3), ((1, 2), 3) ] =
+  Stdlib.Test.T.Fail(
+    1,
+    [ Stdlib.Test.Failure
+        { message = "case 2: for input (1, 2): expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "3"
+          actual = Stdlib.Option.Option.Some "-1" } ]
+  )
+
+// a lambda with one parameter that is a tuple: the tuple is passed whole, not spread
+Stdlib.Test.table (fun pair -> Stdlib.Tuple2.first pair) [ ((1, 2), 1) ] =
+  Stdlib.Test.T.Pass 1
+
+// rows have a real type, so a row that is not a pair is an ordinary type error
+Stdlib.Test.table Stdlib.Bool.not [ true ] =
+  error="Darklang.Stdlib.Test.table's 2nd parameter `rows` expects List<(_ * _)>, but got List<Bool> ([true])"
+
+// the function decides how the inputs are used. Two parameters: the tuple is spread
+Stdlib.Test.table Stdlib.Int.add [ ((1, 2), 3) ] = Stdlib.Test.T.Pass 1
+
+// one parameter that is a tuple: the same row shape, but the tuple is passed whole
+Stdlib.Test.table Stdlib.Tuple2.first [ ((1, 2), 1) ] = Stdlib.Test.T.Pass 1
+
+// a partially applied function takes only the arguments it still needs
+Stdlib.Test.table (Stdlib.Int.add 10) [ (1, 11), (2, 12) ] = Stdlib.Test.T.Pass 2
+
+// inputs that do not fit the function are a failure that says why. (A list holds one
+// type, so rows of different widths cannot be mixed in one table.)
+Stdlib.Test.apply 42 () =
+  Stdlib.Result.Result.Error(Stdlib.Test.ApplyProblem.InvalidInputs "expected a function")
+
+// An invalid callback returns a failure, so other checks in the test still count.
+Stdlib.Test.all
+  [ Stdlib.Test.table 42 [ (1, 2) ], Stdlib.Test.eq 3 3 ] =
+  Stdlib.Test.T.Fail(
+    1,
+    [ Stdlib.Test.Failure
+        { message = "case 1: expected a function"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None } ]
+  )
+
+Stdlib.Test.table Stdlib.Int.add [ ((1, 2, 3), 6) ] =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message =
+            "case 1: the function takes 2 arguments, but the inputs are a tuple of 3"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None } ]
+  )
+
+Stdlib.Test.table Stdlib.Int.add [ (1, 3) ] =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message =
+            "case 1: the function takes 2 arguments, so the inputs must be a tuple of 2"
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None } ]
+  )
+
+// actualExpected: (actual, expected) rows, with the call written in each row
+Stdlib.Test.actualExpected [ (1 + 2, 3), (0 + 0, 0) ] = Stdlib.Test.T.Pass 2
+
+Stdlib.Test.actualExpected [] = Stdlib.Test.fail "No cases supplied"
+
+// every row runs, and a failing row says which row it was, counting from 1
+Stdlib.Test.actualExpected [ (1 - 2, 3), (2 + 2, 4), (5 - 1, 6) ] =
+  Stdlib.Test.T.Fail(
+    1,
+    [ Stdlib.Test.Failure
+        { message = "case 1: expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "3"
+          actual = Stdlib.Option.Option.Some "-1" },
+      Stdlib.Test.Failure
+        { message = "case 3: expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "6"
+          actual = Stdlib.Option.Option.Some "4" } ]
+  )
+
+// tableRaises catches the raise, so the other checks in the `all` still count
+Stdlib.Test.all
+  [ Stdlib.Test.tableRaises
+      Stdlib.Float.toInt
+      "Encountered out-of-range value for type of Int"
+      [ Stdlib.Float.infinity ],
+    Stdlib.Test.eq 2 1 ] =
+  Stdlib.Test.T.Fail(
+    1,
+    [ Stdlib.Test.Failure
+        { message = "expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "1"
+          actual = Stdlib.Option.Option.Some "2" } ]
+  )
+
+// tableRaises: one function, many inputs, no lambda
+Stdlib.Test.tableRaises
+  Stdlib.Float.toInt
+  "Encountered out-of-range value for type of Int"
+  [ Stdlib.Float.nan, Stdlib.Float.infinity ] = Stdlib.Test.T.Pass 2
+
+Stdlib.Test.tableRaises
+  Stdlib.Float.toInt
+  "Encountered out-of-range value for type of Int"
+  [] = Stdlib.Test.fail "No cases supplied"
+
+// every input runs, and an input that did not raise is reported by its position
+Stdlib.Test.tableRaises
+  Stdlib.Float.toInt
+  "Encountered out-of-range value for type of Int"
+  [ Stdlib.Float.nan, 1.5, Stdlib.Float.infinity ] =
+  Stdlib.Test.T.Fail(
+    2,
+    [ Stdlib.Test.Failure
+        { message = "case 2: for input 1.5: expected a raise, but it returned"
+          expected =
+            Stdlib.Option.Option.Some "Encountered out-of-range value for type of Int"
+          actual = Stdlib.Option.Option.Some "1" } ]
+  )
+
+// raising a different error is also a failure, and shows both messages
+Stdlib.Test.tableRaises Stdlib.Float.toInt "some other message" [ Stdlib.Float.nan ] =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "case 1: for input NaN: it raised, but not the expected error"
+          expected = Stdlib.Option.Option.Some "some other message"
+          actual =
+            Stdlib.Option.Option.Some "Encountered out-of-range value for type of Int" } ]
+  )
+
+// tableRaises and eachRaises are built on raisesWith. To test an expression instead of
+// one function call, give it a lambda, so the expression runs inside the helper
+Stdlib.Test.raisesWith
+  "Encountered out-of-range value for type of Int"
+  (fun () -> Stdlib.Float.toInt (0.0 / 0.0))
+  () = Stdlib.Test.T.Pass 1
+
+// eachRaises: a row is the function, then its input
+Stdlib.Test.eachRaises
+  "Encountered out-of-range value for type of Int"
+  [ (Stdlib.Float.ceiling, Stdlib.Float.nan),
+    (Stdlib.Float.floor, Stdlib.Float.negativeInfinity) ] = Stdlib.Test.T.Pass 2
+
+Stdlib.Test.eachRaises "anything" [] = Stdlib.Test.fail "No cases supplied"
+
+Stdlib.Test.eachRaises
+  "Encountered out-of-range value for type of Int"
+  [ (Stdlib.Float.ceiling, Stdlib.Float.nan), (Stdlib.Float.floor, 1.5) ] =
+  Stdlib.Test.T.Fail(
+    1,
+    [ Stdlib.Test.Failure
+        { message = "case 2: for input 1.5: expected a raise, but it returned"
+          expected =
+            Stdlib.Option.Option.Some "Encountered out-of-range value for type of Int"
+          actual = Stdlib.Option.Option.Some "1" } ]
+  )
+
+// tableRaises with several arguments: the inputs are a tuple, spread as in table
+Stdlib.Test.tableRaises Stdlib.Int.divide "Cannot divide by 0" [ (1, 0), (5, 0) ] =
+  Stdlib.Test.T.Pass 2
+
+Stdlib.Test.eachRaises
+  "Cannot divide by 0"
+  [ (Stdlib.Int.divide, (1, 0)), (Stdlib.Int.divide, (7, 0)) ] =
+  Stdlib.Test.T.Pass 2
+
+// In a test comparison NaN equals NaN, so a test can expect one. The `==` operator
+// follows IEEE, where NaN equals nothing.
+Stdlib.Test.eq Stdlib.Float.nan Stdlib.Float.nan = Stdlib.Test.T.Pass 1
+
+(Stdlib.Float.nan == Stdlib.Float.nan) = false
+
+Stdlib.Test.table Stdlib.Float.negate [ (Stdlib.Float.nan, Stdlib.Float.nan) ] =
+  Stdlib.Test.T.Pass 1
+
+// that only applies when the whole value is a NaN. A NaN inside an Ok is compared
+// with `==`
+Stdlib.Test.eq
+  (Stdlib.Result.Result.Ok Stdlib.Float.nan)
+  (Stdlib.Result.Result.Ok Stdlib.Float.nan) =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "Ok(NaN)"
+          actual = Stdlib.Option.Option.Some "Ok(NaN)" } ]
+  )
+
+// a NaN is not 1.5, and the String "NaN" is not a NaN
+Stdlib.Test.eq 1.5 Stdlib.Float.nan =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "NaN"
+          actual = Stdlib.Option.Option.Some "1.5" } ]
+  )
+
+Stdlib.Test.eq "NaN" "nan" =
+  Stdlib.Test.T.Fail(
+    0,
+    [ Stdlib.Test.Failure
+        { message = "expected the values to be equal"
+          expected = Stdlib.Option.Option.Some "\"nan\""
+          actual = Stdlib.Option.Option.Some "\"NaN\"" } ]
+  )

@@ -13,7 +13,7 @@ module P = LibExecution.Permissions
 module Calls = LibExecution.CallGraph
 module Requirements = LibExecution.CallGraph.Requirements
 
-type CallEffectsFor = string * int -> Option<Set<LibExecution.Effects.Effect>>
+type CallEffectsFor = Calls.BuiltinMetadataFor
 
 /// How a package fn is fetched by hash. A parameter (rather than the package
 /// DB directly) so review logic is testable against in-memory fns; production
@@ -23,7 +23,11 @@ type LoadFn = PT.Hash -> Ply<Option<PT.PackageFn.PackageFn>>
 /// Load every package function reachable from `root`, analyze each body once,
 /// and return the closure keyed by hash. Approval covers this whole closure so
 /// dependencies remain available when entered at runtime.
-let loadClosure (loadFn : LoadFn) (root : PT.Hash) : Ply<Requirements.Closure> =
+let loadClosure
+  (loadFn : LoadFn)
+  (callEffectsFor : CallEffectsFor)
+  (root : PT.Hash)
+  : Ply<Requirements.Closure> =
   uply {
     let loaded =
       System.Collections.Generic.Dictionary<PT.Hash, PT.PackageFn.PackageFn *
@@ -47,7 +51,11 @@ let loadClosure (loadFn : LoadFn) (root : PT.Hash) : Ply<Requirements.Closure> =
       }
 
     do! load root
-    return loaded |> Seq.map (fun (KeyValue(h, entry)) -> h, entry) |> Map.ofSeq
+    return
+      loaded
+      |> Seq.map (fun (KeyValue(h, entry)) -> h, entry)
+      |> Map.ofSeq
+      |> Requirements.withCallbackMetadata callEffectsFor
   }
 
 /// Analyze one immutable function using the explicit effect vocabulary.
@@ -58,7 +66,7 @@ let permissionRequirements
   : Ply<Requirements.Result> =
   uply {
     let root = PT.Hash hashStr
-    let! closure = loadClosure loadFn root
+    let! closure = loadClosure loadFn callEffectsFor root
     return Requirements.forFunction callEffectsFor closure root
   }
 
@@ -80,7 +88,7 @@ let analyzeClosure
   : Ply<Option<ClosureAnalysis>> =
   uply {
     let root = PT.Hash rootHash
-    let! closure = loadClosure loadFn root
+    let! closure = loadClosure loadFn callEffectsFor root
     match Map.tryFind root closure with
     | None -> return None
     | Some(rootFn, _) ->
@@ -132,7 +140,7 @@ let compareContracts
   : Ply<ContractComparison> =
   uply {
     let oldRoot = PT.Hash oldHash
-    let! oldClosure = loadClosure loadFn oldRoot
+    let! oldClosure = loadClosure loadFn callEffectsFor oldRoot
     match Map.tryFind oldRoot oldClosure with
     | None ->
       return

@@ -342,7 +342,8 @@ let emptyListingsAreStillArrays =
 
 /// `typecheck --json` is the at-rest audit, which is the one an agent reads before deciding a branch
 /// is safe to merge. Its five counters and its verdict are the whole contract; `items` carries the
-/// per-item rows, and stays an array when the audit found nothing to complain about.
+/// per-item rows, and stays an array when the audit found nothing to complain about. `warnings`
+/// is a count next to the verdict. It is not part of the verdict: warnings do not make a branch unsafe.
 let typecheckAnswersWithItsCounts =
   instanceTest "typecheck --json answers with the audit's counts" (fun state ->
     task {
@@ -352,7 +353,13 @@ let typecheckAnswersWithItsCounts =
         hasKeys
           state
           [ "typecheck"; "--json" ]
-          [ "verdict"; "checked"; "failed"; "incomplete"; "total"; "items" ]
+          [ "verdict"
+            "checked"
+            "failed"
+            "incomplete"
+            "total"
+            "warnings"
+            "items" ]
 
       let! root = parsed state [ "typecheck"; "--json" ]
 

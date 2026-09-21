@@ -50,10 +50,14 @@ let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
 /// `fileRead` reads files; anything else is unknown (incomplete).
 let private testEffects : PackagePermissions.CallEffectsFor =
   fun (name, _version) ->
-    match name with
-    | "timeNowMs" -> Some(Set.singleton Effect.Effect.Clock)
-    | "fileRead" -> Some(Set.singleton Effect.Effect.FileRead)
-    | _ -> None
+    let effects =
+      match name with
+      | "timeNowMs" -> Some(Set.singleton Effect.Effect.Clock)
+      | "fileRead" -> Some(Set.singleton Effect.Effect.FileRead)
+      | _ -> None
+    effects
+    |> Option.map (fun effects ->
+      { callEffects = effects; callbackParameters = Set.empty })
 
 let private callBuiltin (name : string) : PT.Expr =
   eApply (eBuiltinFn name 0) [] [ eUnit () ]

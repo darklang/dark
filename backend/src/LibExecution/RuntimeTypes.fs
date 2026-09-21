@@ -1355,10 +1355,14 @@ and DvalTask = Ply<Dval>
 and ThreadID = uuid
 
 and BuiltInParam =
-  { name : string
+  {
+    name : string
     typ : TypeReference
     blockArgs : List<string>
-    description : string }
+    /// The builtin may call this argument, even if its type is generic.
+    isCallback : bool
+    description : string
+  }
 
   static member make
     (name : string)
@@ -1366,7 +1370,22 @@ and BuiltInParam =
     (description : string)
     : BuiltInParam =
     assert_ "make called on TFn" [ "name", name ] (not (typ.isFn ()))
-    { name = name; typ = typ; description = description; blockArgs = [] }
+    { name = name
+      typ = typ
+      description = description
+      blockArgs = []
+      isCallback = false }
+
+  static member makeCallback
+    (name : string)
+    (typ : TypeReference)
+    (description : string)
+    : BuiltInParam =
+    { name = name
+      typ = typ
+      description = description
+      blockArgs = []
+      isCallback = true }
 
   static member makeWithArgs
     (name : string)
@@ -1375,7 +1394,11 @@ and BuiltInParam =
     (blockArgs : List<string>)
     : BuiltInParam =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
-    { name = name; typ = typ; description = description; blockArgs = blockArgs }
+    { name = name
+      typ = typ
+      description = description
+      blockArgs = blockArgs
+      isCallback = true }
 
 
 module StreamImpl =
@@ -2027,6 +2050,14 @@ module Dval =
       else
         KTCustomType(typeName, typeArgs) |> ValueType.Known
 
+    // TODO a function value has the type `Unknown`, and `Unknown` matches any type. So
+    // a function passed where another type is expected gets past the parameter check:
+    //   ./scripts/run-cli eval 'Stdlib.Float.toInt (fun x -> x)'
+    //   ./scripts/run-cli eval 'Stdlib.Float.toInt Stdlib.Int.add'
+    // Both reach the builtin and fail with an internal `IncorrectArgs` exception.
+    // `Stdlib.Float.toInt "x"` correctly reports "expects Float, but got String".
+    // Returning `KTFn` here, even with Unknown parameters and result, would make these
+    // type errors too.
     | DApplicable applicable ->
       match applicable with
       | AppLambda _lambda ->

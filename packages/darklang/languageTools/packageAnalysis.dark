@@ -1,0 +1,12 @@
+/// Type checking and package linting share inference, but return separate results.
+module Darklang.LanguageTools.PackageAnalysis
+
+let analyzePackageOps
+  (ops: List<ProgramTypes.PackageOp>)
+  : (AtRestTypeChecker.Report * Lint.Results) =
+  Builtin.packageAnalyzeOps ops
+
+let analyzeBranch
+  (branchId: Uuid)
+  : (AtRestTypeChecker.Report * Lint.Results) =
+  Builtin.packageAnalyzeBranch branchId

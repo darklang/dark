@@ -12,6 +12,7 @@
 
     <!-- PM -->
     <Compile Include="Libs/PM/AtRestTypeChecker.fs" />
+    <Compile Include="Libs/PM/PackageAnalysis.fs" />
     <Compile Include="Libs/PM/PackageOps.fs" />
     <Compile Include="Libs/PM/Packages.fs" />
     <Compile Include="Libs/PM/Seed.fs" />

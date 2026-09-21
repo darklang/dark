@@ -207,15 +207,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             state
           else
             // Stabilize and store the module as one mutually recursive batch.
-            match SCM.PackageOps.addAuthored branchId ops with
+            match SCM.PackageOps.addAuthoredAnalyzed branchId ops with
             | Error message ->
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.error $"Failed to define module: {message}")
               state
-            | Ok report ->
+            | Ok analysis ->
+              let (report, lint) = analysis
               // main's at-rest type check reports on every save; keep it ahead of propagation
               // so a type error is on screen before anything follows the change.
-              AtRestCheck.printSaveReport branchId report
+              AtRestCheck.printSaveReport branchId report lint
 
               updates
               |> Stdlib.List.iter (fun update ->

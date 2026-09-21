@@ -215,10 +215,35 @@ let itemDiagnostics
     |> Stdlib.List.flatten
   let error = LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Error
   let warning = LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
-  Stdlib.List.append
-    (severityOf error item.diagnostics)
-    (severityOf warning item.blockers)
+  Stdlib.List.flatten
+    [ severityOf error item.diagnostics
+      severityOf warning item.blockers ]
 
+
+let lintDiagnostic
+  (range: Parser.Range)
+  (warning: LanguageTools.Lint.Warning)
+  : LanguageServerProtocol.Diagnostic.Diagnostic =
+  createDiagnosticWithCode
+    LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
+    range
+    (LanguageTools.Lint.codeToString warning.code)
+    "darklang-lint"
+    (LanguageTools.Lint.toString warning)
+
+let lintDiagnostics
+  (fallback: Parser.Range)
+  (sources: List<ItemSource>)
+  (lint: LanguageTools.Lint.Results)
+  : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
+  lint
+  |> Stdlib.List.map (fun (item, issues) ->
+    sourcesForItem fallback sources item
+    |> Stdlib.List.map (fun range ->
+      issues
+      |> Stdlib.List.map (lintDiagnostic range))
+    |> Stdlib.List.flatten)
+  |> Stdlib.List.flatten
 
 let atRestDiagnostics
   (fallback: Parser.Range)
@@ -226,7 +251,7 @@ let atRestDiagnostics
   (program: Parser.CliScript.PTCliScriptModule)
   : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
   let (ops, sources) = packageOpsAndSources written program
-  let report = AtRestTypeChecker.checkPackageOps ops
+  let (report, lint) = PackageAnalysis.analyzePackageOps ops
   let itemResults =
     report.items
     |> Stdlib.List.map (itemDiagnostics fallback sources)
@@ -239,7 +264,8 @@ let atRestDiagnostics
            fallback)
     else
       []
-  Stdlib.List.append itemResults aggregateBlockers
+  let lintResults = lintDiagnostics fallback sources lint
+  Stdlib.List.flatten [ itemResults, aggregateBlockers, lintResults ]
 
 let gatherAndReportDiagnostics
   (requestUri: String)

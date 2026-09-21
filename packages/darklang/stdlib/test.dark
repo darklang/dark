@@ -1,0 +1,368 @@
+/// Helpers for writing tests. A test is a function that takes Unit and returns a
+/// <type T>. `dark test` finds tests by that signature.
+///
+///   let notFlips () : Stdlib.Test.T =
+///     Stdlib.Bool.not true |> Stdlib.Test.eq false
+///
+///   let not () : Stdlib.Test.T =
+///     Stdlib.Test.table Stdlib.Bool.not [ (true, false), (false, true) ]
+module Darklang.Stdlib.Test
+
+
+/// One check that failed. <field expected> and <field actual> are text, made with
+/// <fn Stdlib.toRepr> when the check failed.
+type Failure =
+  { message: String
+    expected: Stdlib.Option.Option<String>
+    actual: Stdlib.Option.Option<String> }
+
+/// One check that raised instead of finishing. <field message> says which check it
+/// was, and <field stack> is the Dark call stack.
+type Error =
+  { message: String
+    error: LanguageTools.RuntimeTypes.RuntimeError.Error
+    stack: String }
+
+/// Why <fn apply> could not return a result. <case InvalidInputs>: the inputs do not
+/// fit the function. <case Raised>: the call raised. It carries the error, its
+/// message and the Dark call stack.
+type ApplyProblem =
+  | InvalidInputs of String
+  | Raised of
+    error: LanguageTools.RuntimeTypes.RuntimeError.Error *
+    message: String *
+    stack: String
+
+
+/// The result of a test. Every case counts the checks that passed, so a report can
+/// say `37 passed (166 checks)`. One check is {{Pass 1}}. <fn all>, <fn table> and
+/// <fn actualExpected> add up the counts of their parts.
+type T =
+  /// Every check passed
+  | Pass of passed: Int
+  /// At least one check failed
+  | Fail of passed: Int * failures: List<Failure>
+  /// At least one check raised. Checks that failed are kept as well
+  | Errors of passed: Int * failures: List<Failure> * errors: List<Error>
+
+
+/// The result of one failed check
+let failed (failure: Stdlib.Test.Failure) : Stdlib.Test.T =
+  Stdlib.Test.T.Fail(0, [ failure ])
+
+
+/// Passes if <param actual> equals <param expected>. Works at the end of a pipe or
+/// as a plain call:
+///
+///   double 4 |> Stdlib.Test.eq 8
+///   Stdlib.Test.eq (double 4) 8
+///
+/// Floats are compared exactly. One exception: NaN equals NaN here, so a test can
+/// expect one. That only applies when the whole value is a NaN. A NaN inside a list,
+/// a tuple or an `Ok` is compared with `==`, where NaN equals nothing.
+let eq (actual: 'a) (expected: 'a) : Stdlib.Test.T =
+  // A Float NaN prints as `NaN`. The String "NaN" prints with quotes, so it is not
+  // mistaken for one. This only runs when `==` was false.
+  let bothNaN () : Bool =
+    Stdlib.toRepr actual == "NaN" && Stdlib.toRepr expected == "NaN"
+
+  if expected == actual || bothNaN () then
+    Stdlib.Test.T.Pass 1
+  else
+    Stdlib.Test.failed
+      (Stdlib.Test.Failure
+          { message = "expected the values to be equal"
+            expected = Stdlib.Option.Option.Some(Stdlib.toRepr expected)
+            actual = Stdlib.Option.Option.Some(Stdlib.toRepr actual) })
+
+
+/// A check that always fails, with <param message>
+let fail (message: String) : Stdlib.Test.T =
+  Stdlib.Test.failed
+    (Stdlib.Test.Failure
+        { message = message
+          expected = Stdlib.Option.Option.None
+          actual = Stdlib.Option.Option.None })
+
+
+/// Passes if <param value> is {{true}}
+let isTrue (value: Bool) : Stdlib.Test.T =
+  if value then
+    Stdlib.Test.T.Pass 1
+  else
+    Stdlib.Test.failed
+      (Stdlib.Test.Failure
+          { message = "expected true"
+            expected = Stdlib.Option.Option.Some "true"
+            actual = Stdlib.Option.Option.Some "false" })
+
+
+/// Passes if <param value> is {{false}}
+let isFalse (value: Bool) : Stdlib.Test.T =
+  if value then
+    Stdlib.Test.failed
+      (Stdlib.Test.Failure
+          { message = "expected false"
+            expected = Stdlib.Option.Option.Some "false"
+            actual = Stdlib.Option.Option.Some "true" })
+  else
+    Stdlib.Test.T.Pass 1
+
+
+/// Combines several checks into one result. Every failure is reported, not just the
+/// first. An empty list passes.
+///
+/// The checks are already evaluated when this is called, so if one of them raises,
+/// the whole test raises. <fn table> and <fn tableRaises> can catch a raise.
+let all (checks: List<Stdlib.Test.T>) : Stdlib.Test.T =
+  let passed =
+    checks
+    |> Stdlib.List.map (fun check ->
+      match check with
+      | Pass passed -> passed
+      | Fail(passed, _) -> passed
+      | Errors(passed, _, _) -> passed)
+    |> Stdlib.List.fold 0 (fun total passed -> total + passed)
+
+  let failures =
+    checks
+    |> Stdlib.List.map (fun check ->
+      match check with
+      | Pass _ -> []
+      | Fail(_, failures) -> failures
+      | Errors(_, failures, _) -> failures)
+    |> Stdlib.List.flatten
+
+  let errors =
+    checks
+    |> Stdlib.List.map (fun check ->
+      match check with
+      | Errors(_, _, errors) -> errors
+      | _ -> [])
+    |> Stdlib.List.flatten
+
+  if Stdlib.Bool.not (Stdlib.List.isEmpty errors) then
+    Stdlib.Test.T.Errors(passed, failures, errors)
+  else if Stdlib.List.isEmpty failures then
+    Stdlib.Test.T.Pass passed
+  else
+    Stdlib.Test.T.Fail(passed, failures)
+
+
+/// Puts <param message> in front of every failure and error in <param check>. A pass
+/// is unchanged.
+///
+///   total |> Stdlib.Test.eq 8 |> Stdlib.Test.withMessage "the total"
+let withMessage (check: Stdlib.Test.T) (message: String) : Stdlib.Test.T =
+  // Keep updates inline so the match pattern determines the record type.
+  match check with
+  | Pass passed -> Stdlib.Test.T.Pass passed
+  | Fail(passed, failures) ->
+    Stdlib.Test.T.Fail(
+      passed,
+      failures
+      |> Stdlib.List.map (fun failure ->
+        { failure with message = message ++ ": " ++ failure.message })
+    )
+  | Errors(passed, failures, errors) ->
+    Stdlib.Test.T.Errors(
+      passed,
+      failures
+      |> Stdlib.List.map (fun failure ->
+        { failure with message = message ++ ": " ++ failure.message }),
+      errors
+      |> Stdlib.List.map (fun error ->
+        { error with message = message ++ ": " ++ error.message })
+    )
+
+
+/// Calls <param fn> with <param inputs>. Returns what it returned, or why there is
+/// no result. It is a builtin because Dark code cannot do either of these:
+///
+/// 1. Catch a raise. Dark has no try/catch, and arguments are evaluated before a
+///    function is called, so {{check (toInt nan)}} raises before {{check}} runs.
+///    Here the function and its inputs are passed separately, and the call happens
+///    inside:
+///
+///      apply Stdlib.Float.toInt 1.5               // Ok 1
+///      apply Stdlib.Float.toInt Stdlib.Float.nan  // Error(Raised(...))
+///
+/// 2. Call a function with any number of parameters. The function decides: if it
+///    takes several, a tuple of inputs is spread across them. If it takes one, the
+///    inputs are passed as they are, even if they are a tuple:
+///
+///      apply Stdlib.Float.add (1.2, 1.3)     // add 1.2 1.3
+///      apply Stdlib.Tuple2.first (1, 2)      // first (1, 2)
+///
+/// Inputs that do not fit the function give {{Error(InvalidInputs why)}}.
+let apply
+  (fn: 'fn)
+  (inputs: 'inputs)
+  : Stdlib.Result.Result<'result, Stdlib.Test.ApplyProblem> =
+  Builtin.testApply fn inputs
+
+
+/// Passes if calling <param fn> with <param inputs> raises an error with exactly
+/// this <param message>. Fails if it returns, or raises something else.
+///
+/// To test an expression rather than one function call, wrap it in a lambda, so it
+/// runs inside this helper:
+///
+///   raisesWith
+///     "Cannot unwrap None"
+///     (fun () -> Stdlib.List.head [] |> Builtin.unwrap)
+///     ()
+///
+/// Most Dark code reports bad input as a Result or an Option. Test that with <fn
+/// eq>.
+let raisesWith (message: String) (fn: 'fn) (inputs: 'inputs) : Stdlib.Test.T =
+  match Stdlib.Test.apply fn inputs with
+  | Error problem ->
+    match problem with
+    | InvalidInputs why -> Stdlib.Test.fail why
+    | Raised(_error, actual, _stack) ->
+      if actual == message then
+        Stdlib.Test.T.Pass 1
+      else
+        Stdlib.Test.failed
+          (Stdlib.Test.Failure
+            { message = "it raised, but not the expected error"
+              expected = Stdlib.Option.Option.Some message
+              actual = Stdlib.Option.Option.Some actual })
+  | Ok value ->
+    Stdlib.Test.failed
+      (Stdlib.Test.Failure
+        { message = "expected a raise, but it returned"
+          expected = Stdlib.Option.Option.Some message
+          actual = Stdlib.Option.Option.Some(Stdlib.toRepr value) })
+
+
+/// Checks that one function raises <param message> for each of several inputs.
+/// Several arguments are written as a tuple, as in <fn table>.
+///
+///   tableRaises
+///     Stdlib.Float.toInt
+///     "Encountered out-of-range value for type of Int"
+///     [ Stdlib.Float.nan, Stdlib.Float.infinity ]
+///
+///   tableRaises Stdlib.Int.divide "Cannot divide by 0" [ (1, 0), (5, 0) ]
+///
+/// Every input runs. A failure says which input it was. An empty list fails.
+let tableRaises
+  (fn: 'fn)
+  (message: String)
+  (inputs: List<'inputs>)
+  : Stdlib.Test.T =
+  if Stdlib.List.isEmpty inputs then
+    Stdlib.Test.fail "No cases supplied"
+  else
+    inputs
+    |> Stdlib.List.indexedMap (fun index input ->
+      let context =
+        "case "
+        ++ (Stdlib.Int.toString (index + 1))
+        ++ ": for input "
+        ++ (Stdlib.toRepr input)
+
+      (Stdlib.Test.raisesWith message fn input)
+      |> Stdlib.Test.withMessage context)
+    |> Stdlib.Test.all
+
+
+/// Like <fn tableRaises>, for when each row calls a different function. A row is the
+/// function, then its inputs. Every row should raise <param message>.
+///
+///   eachRaises
+///     "Encountered out-of-range value for type of Int"
+///     [ (Stdlib.Float.ceiling, Stdlib.Float.nan),
+///       (Stdlib.Float.floor, Stdlib.Float.negativeInfinity) ]
+let eachRaises
+  (message: String)
+  (rows: List<('fn * 'inputs)>)
+  : Stdlib.Test.T =
+  if Stdlib.List.isEmpty rows then
+    Stdlib.Test.fail "No cases supplied"
+  else
+    rows
+    |> Stdlib.List.indexedMap (fun index row ->
+      let (fn, input) = row
+
+      let context =
+        "case "
+        ++ (Stdlib.Int.toString (index + 1))
+        ++ ": for input "
+        ++ (Stdlib.toRepr input)
+
+      (Stdlib.Test.raisesWith message fn input)
+      |> Stdlib.Test.withMessage context)
+    |> Stdlib.Test.all
+
+
+/// Checks one function against many inputs. A row is the inputs, then the expected
+/// result. Several inputs are written as a tuple:
+///
+///   table Stdlib.Bool.not [ (true, false), (false, true) ]
+///   table Stdlib.Bool.xor [ ((true, false), true), ((true, true), false) ]
+///
+/// Every row runs, even after one raises. A failure says which row and which inputs.
+/// An empty list fails.
+let table (fn: 'fn) (rows: List<('inputs * 'expected)>) : Stdlib.Test.T =
+  if Stdlib.List.isEmpty rows then
+    Stdlib.Test.fail "No cases supplied"
+  else
+    rows
+    |> Stdlib.List.indexedMap (fun index row ->
+      let (inputs, expected) = row
+      let context = "case " ++ (Stdlib.Int.toString (index + 1))
+
+      let raised
+        (error: LanguageTools.RuntimeTypes.RuntimeError.Error)
+        (stack: String)
+        : Stdlib.Test.T =
+        Stdlib.Test.T.Errors(
+          0,
+          [],
+          [ Stdlib.Test.Error
+              { message = context ++ ": for input " ++ (Stdlib.toRepr inputs)
+                error = error
+                stack = stack } ]
+        )
+
+      match Stdlib.Test.apply fn inputs with
+      | Ok actual ->
+        // Catch comparison errors per row so later rows still run.
+        match Stdlib.Test.apply (fun () -> Stdlib.Test.eq actual expected) () with
+        | Ok check ->
+          check
+          |> Stdlib.Test.withMessage
+               (context ++ ": for input " ++ (Stdlib.toRepr inputs))
+        | Error problem ->
+          match problem with
+          | InvalidInputs why -> (Stdlib.Test.fail why) |> Stdlib.Test.withMessage context
+          | Raised(error, _message, stack) -> raised error stack
+      | Error problem ->
+        match problem with
+        | InvalidInputs why -> (Stdlib.Test.fail why) |> Stdlib.Test.withMessage context
+        | Raised(error, _message, stack) -> raised error stack)
+    |> Stdlib.Test.all
+
+
+/// Checks many pairs. A row is {{(actual, expected)}}, the same order as <fn eq>.
+/// You write the call yourself, so it works for operators and for rows that call
+/// different functions:
+///
+///   actualExpected [ (9.0 / 2.0, 4.5), (1.0 / 0.0, Stdlib.Float.infinity) ]
+///
+/// The rows are already evaluated when this is called, so if one raises, the whole
+/// test raises. Use <fn table> if a row might raise. A failure says which row it
+/// was. An empty list fails.
+let actualExpected (rows: List<('a * 'a)>) : Stdlib.Test.T =
+  if Stdlib.List.isEmpty rows then
+    Stdlib.Test.fail "No cases supplied"
+  else
+    rows
+    |> Stdlib.List.indexedMap (fun index row ->
+      let (actual, expected) = row
+      (Stdlib.Test.eq actual expected)
+      |> Stdlib.Test.withMessage ("case " ++ (Stdlib.Int.toString (index + 1))))
+    |> Stdlib.Test.all

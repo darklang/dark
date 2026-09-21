@@ -97,26 +97,35 @@ let counts
 let printItem
   (branchId: Uuid)
   (outputFilter: OutputFilter)
+  (lint: LanguageTools.Lint.Results)
   (item: LanguageTools.AtRestTypeChecker.ItemReport)
   : Unit =
   let label = itemLabel branchId item.item
+  let warnings = LanguageTools.Lint.forItem lint item.item
+  let warned = Stdlib.Bool.not (Stdlib.List.isEmpty warnings)
   match item.verdict with
   | Checked ->
-    if outputFilter.showChecked then
+    // A checked item with a warning is always listed, whatever the filter.
+    if warned then
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"warning: {label}")
+      AtRestCheck.warningLines warnings |> Stdlib.printLines
+    else if outputFilter.showChecked then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"checked: {label}")
   | Failed ->
     if outputFilter.showFailed then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"failed: {label}")
-      Stdlib.List.append
-        (AtRestCheck.issueLines branchId item.diagnostics)
-        (AtRestCheck.issueLines branchId item.blockers)
+      Stdlib.List.flatten
+        [ AtRestCheck.issueLines branchId item.diagnostics
+          AtRestCheck.issueLines branchId item.blockers
+          AtRestCheck.warningLines warnings ]
       |> Stdlib.printLines
   | Incomplete ->
     if outputFilter.showIncomplete then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"incomplete: {label}")
-      Stdlib.List.append
-        (AtRestCheck.issueLines branchId item.diagnostics)
-        (AtRestCheck.issueLines branchId item.blockers)
+      Stdlib.List.flatten
+        [ AtRestCheck.issueLines branchId item.diagnostics
+          AtRestCheck.issueLines branchId item.blockers
+          AtRestCheck.warningLines warnings ]
       |> Stdlib.printLines
 
 // The --json rendering. The same data the human view renders, typed: `docs for-ai` promises every
@@ -126,6 +135,7 @@ let jsonReport
   (branchId: Uuid)
   (outputFilter: OutputFilter)
   (report: LanguageTools.AtRestTypeChecker.Report)
+  (lint: LanguageTools.Lint.Results)
   (totals: Counts)
   (total: Int)
   : String =
@@ -137,7 +147,9 @@ let jsonReport
 
   let wanted (item: LanguageTools.AtRestTypeChecker.ItemReport) : Bool =
     match item.verdict with
-    | Checked -> outputFilter.showChecked
+    | Checked ->
+      outputFilter.showChecked
+      || Stdlib.Bool.not (Stdlib.List.isEmpty (LanguageTools.Lint.forItem lint item.item))
     | Failed -> outputFilter.showFailed
     | Incomplete -> outputFilter.showIncomplete
 
@@ -152,10 +164,15 @@ let jsonReport
           (AtRestCheck.issueLines branchId item.blockers)
         |> Stdlib.List.map (fun l -> Stdlib.String.trim l)
 
+      let warnings =
+        AtRestCheck.warningLines (LanguageTools.Lint.forItem lint item.item)
+        |> Stdlib.List.map (fun l -> Stdlib.String.trim l)
+
       Stdlib.AltJson.Json.Object
         [ ("name", Stdlib.AltJson.Json.String(itemLabel branchId item.item))
           ("verdict", Stdlib.AltJson.Json.String(verdictWord item.verdict))
-          ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l))) ])
+          ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l)))
+          ("warnings", Stdlib.AltJson.Json.Array(warnings |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l))) ])
 
   Stdlib.AltJson.format (
     Stdlib.AltJson.Json.Object
@@ -164,6 +181,7 @@ let jsonReport
         ("failed", Stdlib.AltJson.Json.Integer(totals.failedCount))
         ("incomplete", Stdlib.AltJson.Json.Integer(totals.incompleteCount))
         ("total", Stdlib.AltJson.Json.Integer(total))
+        ("warnings", Stdlib.AltJson.Json.Integer(Stdlib.List.length (LanguageTools.Lint.allWarnings lint)))
         ("items", Stdlib.AltJson.Json.Array items) ]
   )
 
@@ -188,13 +206,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error usage)
     state
   else
-    let report = AtRestCheck.checkBranch state.currentBranchId
+    let (report, lint) = LanguageTools.PackageAnalysis.analyzeBranch state.currentBranchId
     let totals = counts report.items
     let total = Stdlib.List.length report.items
 
     if parsed.asJson then
       Stdlib.printLine
-        (jsonReport state.currentBranchId parsed.outputFilter report totals total)
+        (jsonReport state.currentBranchId parsed.outputFilter report lint totals total)
       state
     else
 
@@ -204,12 +222,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let totalCount = Stdlib.Int.toString total
 
     Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "At-rest package type audit")
+    let warningCount =
+      Stdlib.Int.toString (Stdlib.List.length (LanguageTools.Lint.allWarnings lint))
+
     Stdlib.printLine (
-      $"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}")
+      $"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}, warnings {warningCount}")
 
     report.items
     |> Stdlib.List.sortBy (fun item -> itemLabel state.currentBranchId item.item)
-    |> Stdlib.List.iter (printItem state.currentBranchId parsed.outputFilter)
+    |> Stdlib.List.iter (printItem state.currentBranchId parsed.outputFilter lint)
 
     if Stdlib.List.isEmpty report.items then
       match report.verdict with
@@ -237,6 +258,7 @@ let help (_state: Cli.AppState) : String =
     "  --json        The same report, typed, for an agent"
     ""
     "Without a filter, failed and incomplete declarations are listed."
+    "A declaration with a warning is always listed. Warnings never block a commit."
     "--failed and --incomplete may be combined; --all is mutually exclusive." ]
   |> Stdlib.String.join "\n"
 

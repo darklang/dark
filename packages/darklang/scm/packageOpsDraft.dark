@@ -444,7 +444,10 @@ let typeCheckOps
 
   match liveOps with
   | [] -> LanguageTools.AtRestTypeChecker.emptyReport ()
-  | live -> LanguageTools.AtRestTypeChecker.checkPackageOps live
+  | live ->
+    // Only the type report gates a draft; warnings are the caller's business.
+    let (report, _lint) = LanguageTools.PackageAnalysis.analyzePackageOps live
+    report
 
 
 let typeCheckDraft

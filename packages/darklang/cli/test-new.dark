@@ -1,0 +1,94 @@
+/// `test new`: creates an ordinary function with a failing test placeholder.
+module Darklang.Cli.Test.New
+
+val usage = "Usage: test new <name> [--for <function>] [--no-editor]"
+
+val spec = FlagParser.Spec { flags = [ ("--no-editor", []) ]; valueFlags = [ ("--for", []) ] }
+
+let problem (state: AppState) (message: String) : AppState =
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+  Stdlib.printLine usage
+  { state with exitCode = 2 }
+
+/// Fully qualified names work with or without a leading slash, as in `test`.
+let location (state: AppState) (name: String) : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
+  let absolute = if Stdlib.String.startsWith name "/" then name else "/" ++ name
+  Packages.Location.parseRelativeTo state.packageData.currentLocation absolute
+
+/// Show an example Test.table call using the function's parameter names.
+let targetHint (state: AppState) (target: Stdlib.Option.Option<String>) : Stdlib.Result.Result<String, String> =
+  match target with
+  | None -> Stdlib.Result.Result.Ok "/// Replace the failing placeholder with a check.\n"
+  | Some name ->
+    match location state name with
+    | Error message -> Stdlib.Result.Result.Error message
+    | Ok loc ->
+      match LanguageTools.PackageManager.Function.find state.currentBranchId loc with
+      | None -> Stdlib.Result.Result.Error ($"Function `{name}` was not found on this branch.")
+      | Some hash ->
+        match LanguageTools.PackageManager.Function.get hash with
+        | None -> Stdlib.Result.Result.Error ($"Could not read function `{name}`.")
+        | Some fn ->
+          let parameters = fn.parameters |> Stdlib.List.map (fun param -> param.name)
+          // A row is the inputs, then the expected result. Several inputs are a tuple.
+          let inputs =
+            match parameters with
+            | [ only ] -> only
+            | several -> "(" ++ (Stdlib.String.join several ", ") ++ ")"
+
+          let row = inputs ++ ", expected"
+          let targetName = Test.fullName loc
+          Stdlib.Result.Result.Ok
+            ($"/// Tests {targetName}. Choose inputs and the expected result.\n"
+             ++ $"/// Replace the body with: Stdlib.Test.table {targetName} [ ({row}) ]\n")
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  let parsed = FlagParser.parse spec args
+  if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.errors) then
+    problem state (FlagParser.parseErrorsMessage parsed.errors)
+  else
+    match parsed.positionals with
+    | [ name ] ->
+      match location state name with
+      | Error message -> problem state message
+      | Ok loc ->
+        match LanguageTools.PackageManager.findAny state.currentBranchId loc with
+        | Some _ -> problem state ($"`{name}` already exists. Use `edit {name}` to change it.")
+        | None ->
+          match targetHint state (FlagParser.getOption parsed "--for") with
+          | Error message -> problem state message
+          | Ok hint ->
+            let source = hint ++ $"let {loc.name} () : Stdlib.Test.T =\n  Stdlib.Test.fail \"TODO: write this test\""
+            let fullName = Test.fullName loc
+            let saved = Packages.Fn.createFnInline state.packageData.currentLocation ("/" ++ fullName) source state
+            if saved.exitCode != 0 then saved
+            else
+              Stdlib.printLines
+                [ $"Created {fullName} with a failing placeholder."
+                  $"Run: test {fullName}"
+                  $"Edit: edit {fullName}"
+                  "Guide: docs testing" ]
+              if FlagParser.hasFlag parsed "--no-editor" then saved
+              else
+                match Stdlib.Cli.Tui.TerminalSupport.current () with
+                | Available -> Packages.Edit.execute saved [ "/" ++ fullName ]
+                | Unavailable _ -> saved
+    | _ -> problem state "Choose one fully qualified test name, such as MyApp.Math.Tests.doubles."
+
+let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+  let partial = Stdlib.List.last args |> Stdlib.Option.withDefault ""
+  let prior = Stdlib.List.dropLast args
+  if (Stdlib.List.last prior) == Stdlib.Option.Option.Some "--for" then
+    let path = if Stdlib.String.startsWith partial "/" then partial else "/" ++ partial
+    Packages.Traversal.completePartialPath state.currentBranchId state.packageData.currentLocation path
+    |> Stdlib.List.map (fun item ->
+      let name =
+        Stdlib.String.split item.value "/"
+        |> Stdlib.List.filter (fun part -> part != "")
+        |> Stdlib.String.join "."
+      { item with value = name })
+  else if Stdlib.String.startsWith partial "-" || Stdlib.List.length args > 1 then
+    [ "--for", "--no-editor" ]
+    |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag partial)
+    |> Stdlib.List.map Completion.simple
+  else []

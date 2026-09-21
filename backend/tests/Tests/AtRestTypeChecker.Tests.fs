@@ -10,6 +10,8 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 // lives in AtRest.Types; the entry points that run it live in AtRestTypeChecker.
 module Checker = LibExecution.AtRest.Types
 module CheckerApi = LibExecution.AtRestTypeChecker
+module Lint = LibExecution.AtRest.Lint
+module PackageAnalysis = Builtins.Matter.Libs.PM.PackageAnalysis
 module AuthoringChecker = Builtins.Matter.Libs.PM.AtRestTypeChecker
 module HashStabilization = LibDB.HashStabilization
 module CheckerRefs = LibExecution.PackageRefs.Type.LanguageTools.AtRestTypeChecker
@@ -2138,11 +2140,283 @@ let private unitTests =
 // than the checker directly.
 
 
-/// The checker's vocabulary is mirrored in `LanguageTools.AtRestTypeChecker` so Dark
-/// can render it. The F# side of that mirror is compiler-checked (adding a case breaks
-/// the conversion match); the Dark side is not, and a case missing there fails at
-/// runtime, in the editor, on the day someone first hits it. These compare the case
-/// names directly, so the mirror can only drift with a failing test.
+/// Infer binding types, then run the lint with a caller-selected custom type.
+/// Neither inference nor lint needs the test library or its pinned hashes.
+let private unusedResultWarningsForLet
+  (checkType : string)
+  (pattern : PT.LetPattern)
+  (body : PT.Expr)
+  : List<Lint.UnusedResult> =
+  let testT, testDeclaration =
+    enumType "requires-use" (NEList.singleton (enumCase "Only" []))
+  let otherName, otherDeclaration =
+    enumType "not-a-test-result" (NEList.singleton (enumCase "Only" []))
+  let environment =
+    Checker.TypeEnvironment.empty
+    |> Checker.TypeEnvironment.addType testT testDeclaration
+    |> Checker.TypeEnvironment.addType otherName otherDeclaration
+  let checkType = if checkType = "test" then testT else otherName
+  let parameters =
+    NEList.ofList
+      (parameter "check" (customType checkType))
+      [ parameter "result" (customType testT) ]
+  let verdict =
+    fn parameters (customType testT) (PT.ELet(1UL, pattern, PT.EArg(2UL, 0), body))
+    |> CheckerApi.checkPackageFunction environment
+  match verdict with
+  | Checker.Checked proof ->
+    Checker.Proof.bindingsOf proof
+    |> Lint.unusedResults (fun typ -> typ = Checker.TCustom(testT, []))
+  | other -> failtestf "a warning must not change the verdict, got %A" other
+
+let private warningTests =
+  let result = PT.EArg(9UL, 1)
+  testList
+    "unused results lint"
+    [ test "a check bound to a wildcard is a warning" {
+        let warnings = unusedResultWarningsForLet "test" (PT.LPWildcard 3UL) result
+        Expect.equal
+          warnings
+          [ { nodeId = 1UL; name = "_" } ]
+          "this is the false pass: the check can fail and the test still passes"
+      }
+
+      test "a check bound to a name nothing reads is a warning, by that name" {
+        let warnings = unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) result
+        Expect.equal
+          (warnings |> List.map _.name)
+          [ "first" ]
+          "the name is what the author will look for"
+      }
+
+      test "a check that is read is not" {
+        let unrelated = PT.ELet(11UL, PT.LPWildcard 12UL, PT.EUnit 13UL, result)
+        let reads =
+          PT.ELet(
+            11UL,
+            PT.LPVariable(12UL, "again"),
+            PT.EVariable(13UL, "first"),
+            PT.EVariable(14UL, "again")
+          )
+        Expect.equal
+          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) reads)
+          []
+          "`first` is read, and `again` is returned"
+        Expect.equal
+          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) unrelated
+           |> List.map _.name)
+          [ "first" ]
+          "and a later unrelated let does not count as reading it"
+      }
+
+      test "types not selected by the caller are ignored" {
+        Expect.equal
+          (unusedResultWarningsForLet "other" (PT.LPWildcard 3UL) result)
+          []
+          "`let _ = sideEffect ()` is ordinary Dark"
+      }
+
+      test "a shadowing let does not count as using the outer binding" {
+        let body =
+          PT.ELet(
+            11UL,
+            PT.LPVariable(12UL, "first"),
+            result,
+            PT.EVariable(13UL, "first")
+          )
+        Expect.equal
+          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) body)
+          [ { nodeId = 1UL; name = "first" } ]
+          "only the unused outer binding is reported"
+      }
+
+      test "a rebinding initializer can still use the outer binding" {
+        let body =
+          PT.ELet(
+            11UL,
+            PT.LPVariable(12UL, "first"),
+            PT.EVariable(13UL, "first"),
+            PT.EVariable(14UL, "first")
+          )
+        Expect.equal
+          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) body)
+          []
+          "the initializer is outside the new binding's scope"
+      }
+
+      test "lambda parameters hide outer bindings, but captures use them" {
+        let body parameterName =
+          PT.EApply(
+            11UL,
+            PT.ELambda(
+              12UL,
+              NEList.singleton (PT.LPVariable(13UL, parameterName)),
+              PT.EVariable(14UL, "first")
+            ),
+            [],
+            NEList.singleton result
+          )
+        Expect.equal
+          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) (body "first"))
+          [ { nodeId = 1UL; name = "first" } ]
+          "reading the lambda parameter does not use the outer binding"
+        Expect.equal
+          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) (body "other"))
+          []
+          "a closure can use the outer binding"
+      }
+
+      test "match patterns hide outer bindings" {
+        let body name =
+          PT.EMatch(
+            11UL,
+            result,
+            [ { pat = PT.MPVariable(12UL, name)
+                whenCondition = None
+                rhs = PT.EVariable(14UL, "first") } ]
+          )
+        Expect.equal
+          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) (body "first"))
+          [ { nodeId = 1UL; name = "first" } ]
+          "a case's binding shadows the outer binding"
+        Expect.equal
+          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) (body "other"))
+          []
+          "a case can use an unshadowed outer binding"
+      }
+
+      test "lint handles guards, pipelines and dictionary keys for any chosen type" {
+        let variable = PT.EVariable(20UL, "outer")
+        let shadow = PT.LPVariable(21UL, "outer")
+        let another = PT.LPVariable(22UL, "another")
+        let integer = PT.EInt(23UL, 1I)
+        let guarded pattern =
+          PT.EMatch(
+            24UL,
+            integer,
+            [ { pat = pattern; whenCondition = Some variable; rhs = integer } ]
+          )
+        let piped pattern =
+          PT.EPipe(
+            25UL,
+            integer,
+            [ PT.EPipeLambda(26UL, NEList.singleton pattern, variable) ]
+          )
+        let cases =
+          [ "guard shadows", guarded (PT.MPVariable(27UL, "outer")), true
+            "guard captures", guarded (PT.MPVariable(27UL, "another")), false
+            "pipe lambda shadows", piped shadow, true
+            "pipe lambda captures", piped another, false
+            "pipe callee",
+            PT.EPipe(28UL, integer, [ PT.EPipeVariable(29UL, "outer", []) ]),
+            false
+            "dictionary key", PT.EDict(30UL, [ variable, integer ]), false
+            "tuple shadows",
+            PT.ELet(31UL, PT.LPTuple(32UL, shadow, another, []), integer, variable),
+            true ]
+        for label, body, expectedUnused in cases do
+          let binding : Checker.TypedBinding =
+            { nodeId = 1UL
+              pattern = PT.LPVariable(3UL, "outer")
+              typ = Checker.TInt
+              body = body }
+          let found = Lint.unusedResults ((=) Checker.TInt) [ binding ]
+          Expect.equal (not (List.isEmpty found)) expectedUnused label
+          Expect.isEmpty
+            (Lint.unusedResults (fun _ -> false) [ binding ])
+            "the caller can disable the rule entirely"
+      }
+
+      test "every match pattern shape that can bind is walked" {
+        let variable = PT.EVariable(40UL, "outer")
+        let integer = PT.EInt(41UL, 1I)
+        let bind name = PT.MPVariable(42UL, name)
+        let matched pattern =
+          PT.EMatch(
+            43UL,
+            integer,
+            [ { pat = pattern; whenCondition = None; rhs = variable } ]
+          )
+        // A shape that binds `outer` shadows it, so the rhs no longer reads it and the
+        // outer binding is unused. Each shape hides the binding where a walk that
+        // stops at the first sub-pattern would miss it.
+        let cases =
+          [ "enum field", PT.MPEnum(44UL, "Some", [ bind "outer" ]), true
+            "enum field binding another name",
+            PT.MPEnum(44UL, "Some", [ bind "other" ]),
+            false
+            "list, past the first element",
+            PT.MPList(45UL, [ bind "other"; bind "outer" ]),
+            true
+            "cons tail", PT.MPListCons(46UL, bind "other", bind "outer"), true
+            "tuple rest",
+            PT.MPTuple(47UL, bind "a", bind "b", [ bind "outer" ]),
+            true
+            "or-pattern, later alternative",
+            PT.MPOr(48UL, NEList.ofList (bind "other") [ bind "outer" ]),
+            true ]
+        for label, pattern, expectedUnused in cases do
+          let binding : Checker.TypedBinding =
+            { nodeId = 1UL
+              pattern = PT.LPVariable(3UL, "outer")
+              typ = Checker.TInt
+              body = matched pattern }
+          let found = Lint.unusedResults ((=) Checker.TInt) [ binding ]
+          Expect.equal (not (List.isEmpty found)) expectedUnused label
+      }
+
+      test "package analysis returns lint separately from type reports" {
+        let testT =
+          PT.FQTypeName.package (LibExecution.PackageRefs.Type.Stdlib.testT ())
+        let _, declaration =
+          enumType "result" (NEList.singleton (enumCase "Pass" []))
+        let resultType : PT.PackageType.PackageType =
+          { hash = testT; declaration = declaration; description = "" }
+        let body = PT.ELet(1UL, PT.LPWildcard 2UL, PT.EArg(3UL, 0), PT.EUnit 4UL)
+        let valid = oneArgFn (customType testT) PT.TUnit body
+        let invalid =
+          { valid with hash = PT.Hash "invalid-result-user"; returnType = PT.TInt }
+        let report functions =
+          PackageAnalysis.analyzePackageOps
+            PT.PackageManager.empty
+            (TestUtils.TestUtils.localBuiltIns TestUtils.TestUtils.pmPT)
+            (PT.PackageOp.AddType resultType :: List.map PT.PackageOp.AddFn functions)
+          |> _.Result
+        let checkedReport, checkedLint = report [ valid ]
+        Expect.equal
+          checkedReport.verdict
+          AuthoringChecker.Checked
+          "warnings do not fail checking"
+        Expect.equal
+          (checkedLint |> List.collect snd |> List.map _.code)
+          [ PackageAnalysis.UnusedTestResult ]
+          "the package linter enables the test-result rule"
+        Expect.equal
+          (checkedLint |> List.map fst)
+          [ PT.Reference.PackageFn valid.hash ]
+          "lint keeps the declaration identity without becoming part of its type report"
+        let typeOnly =
+          AuthoringChecker.checkPackageOps
+            PT.PackageManager.empty
+            (TestUtils.TestUtils.localBuiltIns TestUtils.TestUtils.pmPT)
+            [ PT.PackageOp.AddType resultType; PT.PackageOp.AddFn valid ]
+          |> _.Result
+        Expect.equal
+          typeOnly
+          checkedReport
+          "type-only checking has the same verdict and issues"
+        let failedReport, failedLint = report [ invalid ]
+        Expect.equal
+          failedReport.verdict
+          AuthoringChecker.Failed
+          "type errors still fail checking"
+        Expect.equal
+          (failedLint |> List.collect snd |> List.length)
+          1
+          "a failed item retains lint output too"
+      } ]
+
+/// Each subsystem's codes match its own Dark representation.
 let private mirrorTests =
   let fsharpCases (typ : System.Type) : Set<string> =
     Microsoft.FSharp.Reflection.FSharpType.GetUnionCases(typ)
@@ -2183,10 +2457,14 @@ let private mirrorTests =
     "dark mirror"
     [ mirrors
         "IssueCode"
-        (Set.union
-          (fsharpCases typeof<Checker.DiagnosticCode>)
-          (fsharpCases typeof<Checker.BlockerCode>))
+        (Set.unionMany
+          [ fsharpCases typeof<Checker.DiagnosticCode>
+            fsharpCases typeof<Checker.BlockerCode> ])
         CheckerRefs.issueCode
+      mirrors
+        "WarningCode"
+        (fsharpCases typeof<PackageAnalysis.WarningCode>)
+        LibExecution.PackageRefs.Type.LanguageTools.Lint.warningCode
       mirrors "Context" (fsharpCases typeof<Checker.Context>) CheckerRefs.context
       mirrors "Site" (fsharpCases typeof<Checker.Site>) CheckerRefs.site
       mirrors
@@ -2207,4 +2485,4 @@ let private mirrorTests =
         CheckerRefs.staticType ]
 
 
-let tests = testList "AtRestTypeChecker" [ unitTests; mirrorTests ]
+let tests = testList "AtRestTypeChecker" [ unitTests; warningTests; mirrorTests ]

@@ -19,8 +19,13 @@ type Analysis =
 /// Bump whenever completeness or reachability semantics change. Approval
 /// fingerprints include this so an analyzer fix cannot silently bless an old,
 /// narrower review.
-/// Version 3 traverses dictionary keys; skipping them hid calls from analysis.
-let analysisVersion = 3
+/// Version 4 follows builtin callback metadata through generic forwarding helpers.
+let analysisVersion = 4
+
+type BuiltinMetadata =
+  { callEffects : Set<LibExecution.Effects.Effect>; callbackParameters : Set<int> }
+
+type BuiltinMetadataFor = string * int -> Option<BuiltinMetadata>
 
 module private Analysis =
   let empty : Analysis = { names = []; complete = true; escapesOwnCallback = false }
@@ -140,6 +145,81 @@ module Requirements =
   /// from it is one that could not be loaded.
   type Closure = Map<PT.FQFnName.Package, PT.PackageFn.PackageFn * Analysis>
 
+  /// Follow callback parameters through generic wrappers until no positions change.
+  /// Unknown callback expressions make the analysis incomplete.
+  let withCallbackMetadata
+    (builtinMetadataFor : BuiltinMetadataFor)
+    (closure : Closure)
+    : Closure =
+    let mutable positions = closure |> Map.map (fun (fn, _) -> callbackParams fn)
+
+    let positionsFor (nr : PT.NameResolution<PT.FQFnName.FQFnName>) =
+      match nr.resolved with
+      | Ok { name = PT.FQFnName.Builtin b } ->
+        builtinMetadataFor (b.name, b.version)
+        |> Option.map _.callbackParameters
+        |> Option.defaultValue Set.empty
+      | Ok { name = PT.FQFnName.Package hash } ->
+        Map.tryFind hash positions |> Option.defaultValue Set.empty
+      | Error _ -> Set.empty
+
+    let inspect (fn : PT.PackageFn.PackageFn) : Set<int> * bool =
+      let mutable forwarded = Set.empty
+      let mutable unknown = false
+      let inspectCallback =
+        function
+        | Some(PT.EArg(_, index)) -> forwarded <- Set.add index forwarded
+        | Some(PT.EFnName _)
+        | Some(PT.ELambda _) -> () // Already covered by the expression traversal.
+        | _ -> unknown <- true
+      let inspectArgs callbacks args =
+        callbacks
+        |> Set.iter (fun index ->
+          // A partial application need not have supplied the callback yet.
+          if index < List.length args then inspectCallback (List.item index args))
+      let rec flatten target args =
+        match target with
+        | PT.EApply(_, inner, _, previous) ->
+          flatten inner (NEList.toList previous @ args)
+        | _ -> target, args
+      let rec walk expr =
+        match expr with
+        | PT.EApply(_, target, _, args) ->
+          match flatten target (NEList.toList args) with
+          | PT.EFnName(_, nr), args ->
+            inspectArgs (positionsFor nr) (List.map Some args)
+          | PT.ESelf _, args -> inspectArgs positions[fn.hash] (List.map Some args)
+          | _ -> () // Dynamic call targets are already incomplete in `analyze`.
+        | PT.EPipe(_, lhs, parts) ->
+          let mutable input = Some lhs
+          for part in parts do
+            match part with
+            | PT.EPipeFnCall(_, nr, _, args) ->
+              inspectArgs (positionsFor nr) (input :: List.map Some args)
+            | _ -> ()
+            // A later pipe stage receives a computed value, not the original lhs.
+            input <- None
+        | _ -> ()
+        Ast.subExprs expr |> List.iter walk
+      walk fn.body
+      forwarded, unknown
+
+    let mutable changed = true
+    while changed do
+      changed <- false
+      for KeyValue(hash, (fn, _)) in closure do
+        let inferred, _ = inspect fn
+        let combined = Set.union positions[hash] inferred
+        if combined <> positions[hash] then
+          positions <- Map.add hash combined positions
+          changed <- true
+
+    closure
+    |> Map.map (fun (fn, _) ->
+      let _, unknown = inspect fn
+      let calls = analyze positions[fn.hash] fn.body
+      fn, { calls with complete = calls.complete && not unknown })
+
   /// The requirements of `root`, walking `closure`. Because everything reachable
   /// from a member of a closure is reachable from its root, one loaded closure
   /// serves every member's analysis, and no body is analyzed again here.
@@ -147,7 +227,7 @@ module Requirements =
     // Keyed by full builtin identity (name, version): two versions of a builtin
     // can carry different effects, and collapsing them by name alone would let a
     // requirement display or upgrade comparison use the wrong effect set.
-    (callEffectsFor : string * int -> Option<Set<E.Effect>>)
+    (callEffectsFor : BuiltinMetadataFor)
     (closure : Closure)
     (root : PT.FQFnName.Package)
     : Result =
@@ -174,7 +254,8 @@ module Requirements =
               // URL), so approve-time review can show an exact rule instead
               // of the bare effect. See docs/permissions-todos.md.
               match callEffectsFor (builtin.name, builtin.version) with
-              | Some found -> requiredEffects <- Set.union requiredEffects found
+              | Some found ->
+                requiredEffects <- Set.union requiredEffects found.callEffects
               | None -> incomplete ()
             | PT.FQFnName.Package package -> visit package
 

@@ -39,10 +39,12 @@ let add
 ///
 /// Every authoring surface goes through here rather than calling `add`: the CLI's fn/type/value/module
 /// commands, the workbench, and the LSP's file provider.
-let addAuthored
+let addAuthoredAnalyzed
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  : Stdlib.Result.Result<
+      (LanguageTools.AtRestTypeChecker.Report * LanguageTools.Lint.Results),
+      String> =
   let duplicates = LanguageTools.PackageManager.duplicateDeclarations ops
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty duplicates) then
@@ -54,8 +56,16 @@ let addAuthored
     match add branchId stabilizedOps with
     | Ok _ ->
       Stdlib.Result.Result.Ok(
-        LanguageTools.AtRestTypeChecker.checkPackageOps stabilizedOps)
+        LanguageTools.PackageAnalysis.analyzePackageOps stabilizedOps)
     | Error message -> Stdlib.Result.Result.Error message
+
+/// Store declarations and return their type-checking report.
+let addAuthored
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  addAuthoredAnalyzed branchId ops
+  |> Stdlib.Result.map (fun (report, _lint) -> report)
 
 
 // the op-log DATA-ACCESS SILO
@@ -177,4 +187,3 @@ type BranchRefResult =
   | UnknownId of Uuid
   /// The prefix matched more than one branch.
   | Ambiguous
-

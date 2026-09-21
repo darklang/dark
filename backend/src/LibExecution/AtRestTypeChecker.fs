@@ -130,10 +130,16 @@ let private finish
     Map.empty
   |> Map.iter (fun origin _variables ->
     state.Block(AmbiguousType, origin, Ambiguous ItemType))
+  let bindings =
+    state.Bindings
+    |> Seq.map (fun binding ->
+      { binding with typ = applySubstitutions state binding.typ })
+    |> Seq.toList
   let report =
     { inferredType = Some inferredType
       diagnostics = List.ofSeq state.Diagnostics
       blockers = List.ofSeq state.Blockers
+      bindings = bindings
       dependencies = state.Dependencies }
   if List.exists diagnosticIsDefinite report.diagnostics then
     Failed report
@@ -145,6 +151,7 @@ let private finish
     Checked
       { inferredType = inferredType
         scheme = scheme
+        bindings = bindings
         dependencies = state.Dependencies }
 
 let checkExpression (environment : TypeEnvironment) (expr : Expr) : Verdict =

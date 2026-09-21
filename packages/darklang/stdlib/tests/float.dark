@@ -1,0 +1,311 @@
+/// Tests for `Stdlib.Float`; `dark test Darklang.Stdlib.Float` finds and runs these.
+module Darklang.Stdlib.Float.Tests
+
+let add () : Stdlib.Test.T =
+  Stdlib.Float.add 1.2 1.3 |> Stdlib.Test.eq 2.5
+
+let ceiling () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.ceiling
+    [ (1.3, 2)
+      (1.0000001, 2)
+      (-2147483647.8, -2147483647)
+      (2147483647.0, 2147483647)
+      (0000000.1, 1)
+      (0.0, 0)
+      (17.55042081, 18) ]
+
+let roundUp () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.roundUp
+    [ (1.3, 2)
+      (1.0000001, 2)
+      (-2147483647.8, -2147483647)
+      (2147483647.0, 2147483647)
+      (0000000.1, 1)
+      (0.0, 0) ]
+
+let floor () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.floor
+    [ (1.8, 1)
+      (-1.0000001, -2)
+      (-2147483647.8, -2147483648)
+      (2147483647.0, 2147483647)
+      (0000000.1, 0)
+      (0.0, 0) ]
+
+let roundDown () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.roundDown
+    [ (1.8, 1)
+      (-1.0000001, -2)
+      (-2147483647.8, -2147483648)
+      (2147483647.0, 2147483647)
+      (0000000.1, 0)
+      (0.0, 0) ]
+
+let round () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.round
+    [ (-2147483647.8, -2147483648), (0000000.1, 0), (2147483647.000009, 2147483647) ]
+
+let truncate () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.truncate
+    [ (-2367.9267, -2367)
+      (000000.9, 0)
+      (-000000.9, 0)
+      (0.0, 0)
+      (2147483647.000009, 2147483647) ]
+
+// NaN and the infinities cannot become an Int. That is a Dark error, not a host crash.
+let roundingRejectsNanAndInfinity () : Stdlib.Test.T =
+  Stdlib.Test.eachRaises
+    "Encountered out-of-range value for type of Int"
+    [ (Stdlib.Float.ceiling, Stdlib.Float.nan)
+      (Stdlib.Float.roundUp, Stdlib.Float.infinity)
+      (Stdlib.Float.floor, Stdlib.Float.negativeInfinity)
+      (Stdlib.Float.roundDown, Stdlib.Float.nan)
+      (Stdlib.Float.round, Stdlib.Float.infinity)
+      (Stdlib.Float.truncate, Stdlib.Float.nan)
+      (Stdlib.Float.roundTowardsZero, Stdlib.Float.negativeInfinity) ]
+
+let absoluteValue () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.absoluteValue
+    [ (Stdlib.Float.negativeInfinity, Stdlib.Float.infinity)
+      (Stdlib.Float.nan, Stdlib.Float.nan)
+      (-5.6, 5.6)
+      (-0.0, 0.0)
+      (-0.0, 0.0) ]
+
+let negate () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.negate
+    [ (Stdlib.Float.nan, Stdlib.Float.nan)
+      (Stdlib.Float.infinity, Stdlib.Float.negativeInfinity)
+      (-5.6, 5.6)
+      (5.6, -5.6)
+      (0.0, -0.0)
+      (-0.0, 0.0) ]
+
+// A row is (value, limitA, limitB), then the expected result.
+let clamp () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.clamp
+    [ ((Stdlib.Float.infinity, -1.0, 0.5), Stdlib.Result.Result.Ok 0.5)
+      ((Stdlib.Float.negativeInfinity, -1.0, 0.5), Stdlib.Result.Result.Ok -1.0)
+      ((0.5, Stdlib.Float.infinity, 1.0), Stdlib.Result.Result.Ok 1.0)
+      ((0.5, Stdlib.Float.negativeInfinity, 1.0), Stdlib.Result.Result.Ok 0.5)
+      ((0.5, Stdlib.Float.nan, 1.0),
+       Stdlib.Result.Result.Error "clamp requires arguments to be valid numbers")
+      ((-1.0, 0.5, Stdlib.Float.infinity), Stdlib.Result.Result.Ok 0.5)
+      ((-1.0, 0.5, Stdlib.Float.negativeInfinity), Stdlib.Result.Result.Ok -1.0)
+      ((0.5, 1.0, Stdlib.Float.nan),
+       Stdlib.Result.Result.Error "clamp requires arguments to be valid numbers")
+      ((-2.0, -5.0, 5.0), Stdlib.Result.Result.Ok -2.0)
+      ((-3.0, -2.0, 1.0), Stdlib.Result.Result.Ok -2.0)
+      ((-5.0, 1.0, 1.0), Stdlib.Result.Result.Ok 1.0)
+      ((1.0, 2.0, 1.0), Stdlib.Result.Result.Ok 1.0)
+      ((3.0, 0.0, 2.0), Stdlib.Result.Result.Ok 2.0) ]
+
+// clamping NaN gives NaN back, inside the Ok
+let clampOfNan () : Stdlib.Test.T =
+  Stdlib.Float.clamp Stdlib.Float.nan -1.0 1.0
+  |> Stdlib.Result.withDefault 0.0
+  |> Stdlib.Float.isNaN
+  |> Stdlib.Test.isTrue
+
+let divide () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.divide
+    [ ((9.0, 2.0), 4.5)
+      ((9.0, 0.0), Stdlib.Float.infinity)
+      ((9.0, -0.0), Stdlib.Float.negativeInfinity) ]
+
+// The `/` operator has no function name to give `table`, so this uses `actualExpected`.
+let divideOperator () : Stdlib.Test.T =
+  Stdlib.Test.actualExpected
+    [ (9.0 / 2.0, 4.5)
+      (17.0 / 3.3, 5.151515151515151)
+      (-8.74 / 5.351, -1.633339562698561)
+      (0.0 / 1.0, 0.0)
+      (1.0 / 0.0, Stdlib.Float.infinity) ]
+
+let greaterThanOrEqualTo () : Stdlib.Test.T =
+  Stdlib.Float.greaterThanOrEqualTo 0.1 0.1 |> Stdlib.Test.isTrue
+
+let greaterThan () : Stdlib.Test.T =
+  Stdlib.Float.greaterThan 0.2 0.1 |> Stdlib.Test.isTrue
+
+let lessThanOrEqualTo () : Stdlib.Test.T =
+  Stdlib.Float.lessThanOrEqualTo 0.1 0.1 |> Stdlib.Test.isTrue
+
+let lessThan () : Stdlib.Test.T =
+  Stdlib.Float.lessThan 0.2 0.1 |> Stdlib.Test.isFalse
+
+let max () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.max
+    [ ((Stdlib.Float.infinity, 1.0), Stdlib.Float.infinity)
+      ((Stdlib.Float.negativeInfinity, 1.0), 1.0)
+      ((-10.0, 1.0), 1.0)
+      ((10.0, Stdlib.Float.nan), Stdlib.Float.nan)
+      ((10.0, 1.0), 10.0)
+      ((0.0, 0.00), 0.0)
+      ((-2147483647.8, -00000000.000), 0.0)
+      ((2147483647.0, 00000000.000), 2147483647.0) ]
+
+let min () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.min
+    [ ((Stdlib.Float.infinity, 1.0), 1.0)
+      ((Stdlib.Float.negativeInfinity, 1.0), Stdlib.Float.negativeInfinity)
+      ((-10.0, 1.0), -10.0)
+      ((10.0, Stdlib.Float.nan), Stdlib.Float.nan)
+      ((10.0, 1.0), 1.0)
+      ((0.0, 0.00), 0.0)
+      ((-2147483647.8, -00000000.000), -2147483647.8)
+      ((2147483647.0, 00000000.000), 0.0) ]
+
+let multiply () : Stdlib.Test.T =
+  Stdlib.Float.multiply 26.0 0.5 |> Stdlib.Test.eq 13.0
+
+let parse () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.parse
+    [ ("1.5", Stdlib.Result.Result.Ok 1.5)
+      ("0.0", Stdlib.Result.Result.Ok 0.0)
+      ("-0.5", Stdlib.Result.Result.Ok -0.5)
+      ("+0.5", Stdlib.Result.Result.Ok 0.5)
+      (".5", Stdlib.Result.Result.Ok 0.5)
+      ("0.6999999999999999555910790149937383830547332763671875",
+       Stdlib.Result.Result.Ok 0.7)
+      ("-0.6999999999999999555910790149937383830547332763671875",
+       Stdlib.Result.Result.Ok -0.7)
+      ("0.7999999999", Stdlib.Result.Result.Ok 0.7999999999)
+      ("0.79999", Stdlib.Result.Result.Ok 0.79999)
+      ("-55555555555555555555555555555.5",
+       Stdlib.Result.Result.Ok -55555555555555555555555555555.5)
+      ("-141s", Stdlib.Result.Result.Error Stdlib.Float.ParseError.BadFormat)
+      ("", Stdlib.Result.Result.Error Stdlib.Float.ParseError.BadFormat)
+      ("-5.55555555556e+28",
+       Stdlib.Result.Result.Ok -55555555555600000000000000000.0)
+      ("-1.8E+308", Stdlib.Result.Result.Ok Stdlib.Float.negativeInfinity)
+      ("1.8E+308", Stdlib.Result.Result.Ok Stdlib.Float.infinity) ]
+
+let power () : Stdlib.Test.T =
+  Stdlib.Test.table Stdlib.Float.power [ ((4.0, -0.5), 0.5), ((4.0, 0.5), 2.0) ]
+
+let roundTowardsZero () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.roundTowardsZero
+    [ (-2367.9267, -2367)
+      (000000.9, 0)
+      (-000000.9, 0)
+      (0.0, 0)
+      (2147483647.000009, 2147483647) ]
+
+let sqrt () : Stdlib.Test.T =
+  Stdlib.Test.table Stdlib.Float.sqrt [ (25.0, 5.0), (0.0, 0.0) ]
+
+let subtract () : Stdlib.Test.T =
+  Stdlib.Float.subtract 1.0 0.2 |> Stdlib.Test.eq 0.8
+
+let sum () : Stdlib.Test.T =
+  Stdlib.Float.sum [ 1.0, 0.2 ] |> Stdlib.Test.eq 1.2
+
+let nanIsNotEqualToItself () : Stdlib.Test.T =
+  (Stdlib.Float.nan == Stdlib.Float.nan) |> Stdlib.Test.isFalse
+
+// The shortest decimal that parses back to the same Float, so a big value keeps every
+// digit it needs rather than being rounded to a fixed 12.
+let toString () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.toString
+    [ (1.5, "1.5")
+      (0.0, "0.0")
+      (-0.5, "-0.5")
+      (0.5, "0.5")
+      (-55555555555555555555555555555.5, "-5.555555555555555e+28") ]
+
+// toInt truncates toward zero.
+let toInt () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.toInt
+    [ (3.0, 3)
+      (0.0, 0)
+      (-0.0, 0)
+      (1.5, 1)
+      (1.9, 1)
+      (-1.5, -1)
+      (-1.9, -1)
+      (-3.0, -3)
+      (0.1, 0)
+      (2147483648.7, 2147483648)
+      (2.5, Stdlib.Float.roundTowardsZero 2.5)
+      (-2.5, Stdlib.Float.roundTowardsZero -2.5) ]
+
+// Truncation and floor differ for negative values.
+let truncationAndFloorDiffer () : Stdlib.Test.T =
+  Stdlib.Test.actualExpected
+    [ (Stdlib.Float.toInt -1.5, -1), (Stdlib.Float.floor -1.5, -2) ]
+
+// NaN and infinities cannot become Ints.
+let toIntRejectsNanAndInfinity () : Stdlib.Test.T =
+  Stdlib.Test.tableRaises
+    Stdlib.Float.toInt
+    "Encountered out-of-range value for type of Int"
+    [ Stdlib.Float.nan, Stdlib.Float.infinity, Stdlib.Float.negativeInfinity ]
+
+// IEEE 754 binary64 representations.
+let toBits () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.toBits
+    [ (0.0, 0)
+      (0.5, 4602678819172646912)
+      (1.0, 4607182418800017408)
+      (2.0, 4611686018427387904)
+      (Stdlib.Float.infinity, 9218868437227405312)
+      (-0.0, -9223372036854775808) ]
+
+// Bit equality distinguishes signed zero and is reflexive for a fixed NaN.
+let toBitsDistinguishesSignedZero () : Stdlib.Test.T =
+  Stdlib.Test.actualExpected
+    [ (Stdlib.Float.toBits -0.0 == Stdlib.Float.toBits 0.0, false)
+      (-0.0 == 0.0, true)
+      (Stdlib.Float.toBits Stdlib.Float.nan == Stdlib.Float.toBits Stdlib.Float.nan,
+       true) ]
+
+// the constants are what dividing by zero gives
+let constants () : Stdlib.Test.T =
+  Stdlib.Test.actualExpected
+    [ (1.0 / 0.0, Stdlib.Float.infinity)
+      (-1.0 / 0.0, Stdlib.Float.negativeInfinity)
+      (0.0 / 0.0, Stdlib.Float.nan) ]
+
+// beyond the largest and smallest finite Floats
+let infinitiesAreBeyondEveryFiniteFloat () : Stdlib.Test.T =
+  Stdlib.Test.actualExpected
+    [ (Stdlib.Float.greaterThan Stdlib.Float.infinity 1.7976931348623157e+308, true)
+      (Stdlib.Float.lessThan Stdlib.Float.negativeInfinity -1.7976931348623157e+308,
+       true) ]
+
+// what toString writes, parse reads back
+let toStringRoundTripsThroughParse () : Stdlib.Test.T =
+  Stdlib.Float.toString 1.5
+  |> Stdlib.Float.parse
+  |> Stdlib.Test.eq (Stdlib.Result.Result.Ok 1.5)
+
+// only NaN is NaN: the infinities and zero are ordinary values
+let isNaN () : Stdlib.Test.T =
+  Stdlib.Test.table
+    Stdlib.Float.isNaN
+    [ (Stdlib.Float.nan, true)
+      (0.0 / 0.0, true)
+      (Stdlib.Float.infinity, false)
+      (Stdlib.Float.negativeInfinity, false)
+      (0.0, false)
+      (-0.0, false)
+      (1.5, false) ]
