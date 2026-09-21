@@ -486,8 +486,9 @@ uuid.
 A builtin that touches the OS used to call `PermissionCheck.performHost` from
 inside its `uply` body: the check, the wait and the result were all inside a
 builder the loop could only park on as an opaque task. It names the operation
-instead (`Interpreter.requestHost vm op next`, in `Builtins.Cli`: `File`,
-`Directory`, `Environment`, `Execution`, `Posix`):
+instead (`Interpreter.requestHost vm op next`; in `Builtins.Cli`: `File`,
+`Directory`, `Environment`, `Execution`, `Posix`; in the HTTP client: the
+guest request and stream open, and the sync transport's GET and POST):
 
 - The body puts the `Host.Operation` and a continuation on the VM
   (`VMState.pendingHostOp`, `pendingHostNext`; no record, same as an apply
@@ -511,6 +512,14 @@ instead (`Interpreter.requestHost vm op next`, in `Builtins.Cli`: `File`,
 - Denials and rejections raise at the call as before: the check runs on the
   loop's thread, before anything is performed, under the same access the body
   ran with.
+
+Two OS-facing calls still perform from inside the body, on purpose.
+`httpGetUnsafeBytesStart` starts a sync GET and hands back a handle for
+`httpAwaitBytes` to collect: the point is not to wait, so it has no
+continuation to give the loop. The HTTP server's bind is performed under the
+child guest state's access, not the calling frame's, and `serve` then runs
+its listener in the same body; the bind is synchronous, so nothing parks
+there anyway.
 
 The host boundary itself (`Host.perform`: resolve, check, execute, audit) did
 not move. What moved is who calls it: the loop, from one line, for every
@@ -610,10 +619,9 @@ Follow-ups in the scheduler plan, in order, and the edges of what is here:
   operation's answer comes back through that task rather than as an event on
   the queue. The loop itself is plain code (`executeSync`, `awaitOf`,
   `driveToEnd`); the `uply`s left in `Interpreter.fs` are the slow paths (a
-  type check that needs the store, a builtin's result landing). The HTTP
-  client and server still perform their operations from inside the body;
-  store-facing builtins (`DB`, the package manager, traces) await SQLite,
-  which is not a host operation and has no request form yet.
+  type check that needs the store, a builtin's result landing). Store-facing
+  builtins (`DB`, the package manager, traces) await SQLite, which is not a
+  host operation and has no request form yet.
 - `Event.ExecDone` carries only the id; a Dark enum cannot hold an untyped
   value. `Exec.await` is how a value comes back.
 - `ps show` shows the call stack, not registers.
