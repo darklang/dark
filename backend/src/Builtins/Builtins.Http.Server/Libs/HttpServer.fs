@@ -404,15 +404,32 @@ let private serveLiveEvents
 
 /// The listening script, appended to an HTML body under `--dev`. Only HTML: a JSON or image
 /// response must reach the client untouched.
+///
+/// A failure (5xx) that is not HTML is made into a page that carries it too: the handler that
+/// failed is exactly the one an edit is about to fix, and a tab stuck on a plain-text error
+/// with no listener would not see the fix.
 let private withLiveScript
+  (status : int)
   (headers : List<string * string>)
   (body : byte[])
-  : byte[] =
-  let isHtml =
+  : List<string * string> * byte[] =
+  let contentType =
     headers
-    |> List.exists (fun (k, v) ->
-      String.equalsCaseInsensitive k "Content-Type" && v.Contains "text/html")
-  if isHtml then Array.append body (UTF8.toBytes liveScript) else body
+    |> List.tryFind (fun (k, _) -> String.equalsCaseInsensitive k "Content-Type")
+    |> Option.map snd
+  match contentType with
+  | Some ct when ct.Contains "text/html" ->
+    headers, Array.append body (UTF8.toBytes liveScript)
+  | _ when status >= 500 ->
+    let text = System.Net.WebUtility.HtmlEncode(UTF8.ofBytesWithReplacement body)
+    let page =
+      $"<!doctype html><html><head><meta charset=\"utf-8\"><title>error</title></head><body><pre>{text}</pre>{liveScript}</body></html>"
+    let others =
+      headers
+      |> List.filter (fun (k, _) ->
+        not (String.equalsCaseInsensitive k "Content-Type"))
+    ("Content-Type", "text/html; charset=utf-8") :: others, UTF8.toBytes page
+  | _ -> headers, body
 
 
 /// Process a single request: parse → dispatch → write response. Errors
@@ -503,10 +520,6 @@ let private handleRequest
             let respHeaders =
               maybeInjectStandardHeaders injectStandardHeaders response.headers
 
-            ctx.Response.StatusCode <- response.statusCode
-            for (key, value) in respHeaders do
-              ctx.Response.Headers.Add(key, value)
-
             // Only when the client asked (`maybeCompress` has the ratios and floor).
             // Never on a body the handler already encoded (double-wrap), and always
             // with `Vary`, or a shared cache hands brotli to a client that didn't ask.
@@ -515,11 +528,15 @@ let private handleRequest
               |> List.exists (fun (k, _) ->
                 String.equalsCaseInsensitive k "Content-Encoding")
 
-            let body =
+            let respHeaders, body =
               if dev && not alreadyEncoded then
-                withLiveScript respHeaders response.body
+                withLiveScript response.statusCode respHeaders response.body
               else
-                response.body
+                respHeaders, response.body
+
+            ctx.Response.StatusCode <- response.statusCode
+            for (key, value) in respHeaders do
+              ctx.Response.Headers.Add(key, value)
 
             let body, encoding =
               if alreadyEncoded then body, None else maybeCompress ctx.Request body

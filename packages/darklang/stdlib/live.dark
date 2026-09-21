@@ -260,16 +260,70 @@ let declarationsIn (ops: List<SCM.PackageOps.OpSummary>) : List<LanguageTools.Pr
     | Some(AddValue _) -> s.op
     | _ -> Stdlib.Option.Option.None)
 
+/// Never chase callees further than this. A version that calls more than this many things is
+/// checked as far as the walk got; the rest is what the runtime says on the first call.
+val calleesAtMost = 200
+
+/// Everything the version at <param hash> calls, transitively, as declarations for the checker:
+/// fns, values and types, by the hashes its edges name. What the at-rest check of one declaration
+/// does not cover: a callee whose BODY is broken passes the caller's check, since the caller only
+/// sees its signature.
+let calleeDeclarations
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  let declarationOf
+    (h: LanguageTools.ProgramTypes.Hash)
+    (kind: String)
+    : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
+    match kind with
+    | "fn" ->
+      LanguageTools.PackageManager.Function.get h
+      |> Stdlib.Option.map (fun f -> LanguageTools.ProgramTypes.PackageOp.AddFn f)
+    | "value" ->
+      LanguageTools.PackageManager.Value.get h
+      |> Stdlib.Option.map (fun v -> LanguageTools.ProgramTypes.PackageOp.AddValue v)
+    | "type" ->
+      LanguageTools.PackageManager.Type.get h
+      |> Stdlib.Option.map (fun t -> LanguageTools.ProgramTypes.PackageOp.AddType t)
+    | _ -> Stdlib.Option.Option.None
+
+  let walk
+    (frontier: List<(LanguageTools.ProgramTypes.Hash * String)>)
+    (seen: List<String>)
+    (found: List<LanguageTools.ProgramTypes.PackageOp>)
+    : List<LanguageTools.ProgramTypes.PackageOp> =
+    match frontier with
+    | [] -> found
+    | (h, kind) :: rest ->
+      let hs = LanguageTools.ProgramTypes.hashToString h
+
+      if (Stdlib.List.member seen hs) || ((Stdlib.List.length found) >= calleesAtMost) then
+        walk rest seen found
+      else
+        let found =
+          match declarationOf h kind with
+          | Some op -> Stdlib.List.push found op
+          | None -> found
+
+        // Only a fn's own edges lead further: a value's or a type's are in its declaration.
+        let next = if kind == "fn" then SCM.Deps.dependenciesOf h else []
+        walk (Stdlib.List.append rest next) (Stdlib.List.push seen hs) found
+
+  walk (SCM.Deps.dependenciesOf hash) [] []
+
 /// Look the name up again and decide what to run, given the ops that just <param landed> (`[]` when
 /// nothing is known to have, as at start).
 ///
 /// Checked at rest (`AtRestTypeChecker.checkPackageOps`, against the store's closure): the newest
-/// version at the name when it differs from the hash held, and every declaration in `landed`. The
-/// second half is what catches a broken CALLEE: propagation repoints the entry to the new callee, and
-/// the entry's own body still checks clean against the callee's unchanged signature, so checking the
-/// entry alone would adopt a version that fails on its first call. `Failed` on any of them keeps the
-/// previous hash and carries the report, so a broken save never blanks a screen or a site: the previous
-/// version is still in the store, and it still runs, on the callees it was built against.
+/// version at the name when it differs from the hash held, everything that version calls
+/// (`calleeDeclarations`), and every declaration in `landed`. The callees are what catch a broken
+/// CALLEE: the entry's own body checks clean against a callee's unchanged signature, so checking the
+/// entry alone adopts a version that fails on its first call. `landed` covers the callee that broke
+/// in this poll (propagation repoints the entry to it in the same batch); the walk covers the callee
+/// that broke in an earlier poll and is fixed now, when the poll lands before propagation has
+/// repointed the entry away from the broken one. `Failed` on any of them keeps the previous hash and
+/// carries the report, so a broken save never blanks a screen or a site: the previous version is
+/// still in the store, and it still runs, on the callees it was built against.
 let refresh
   (branchId: Uuid)
   (landed: List<SCM.PackageOps.OpSummary>)
@@ -294,7 +348,10 @@ let refresh
       | Some fn ->
         let candidates =
           if moved then
-            Stdlib.List.append [ LanguageTools.ProgramTypes.PackageOp.AddFn fn ] arrived
+            Stdlib.List.flatten
+              [ [ LanguageTools.ProgramTypes.PackageOp.AddFn fn ]
+                calleeDeclarations newest
+                arrived ]
           else
             arrived
 

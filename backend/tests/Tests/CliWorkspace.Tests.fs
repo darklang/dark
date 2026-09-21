@@ -813,6 +813,155 @@ let private pollIgnoresAnOpUntilItIsApplied =
       })
 
 
+/// The callee-fix race: a callee is broken (its dependent has been repointed at it), then fixed,
+/// and the poll lands after the fix but before propagation repoints the dependent again. The
+/// dependent's newest version is still built against the broken callee; its own check passes;
+/// it must not be adopted.
+let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
+  cliTest
+    "a dependent still built against a broken callee is not adopted when the callee is fixed"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        let m = "LiveCallee"
+
+        do! author $"Tests.{m}.page" "(): String = \"one\""
+        do!
+          author
+            $"Tests.{m}.router"
+            $"(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.{m}.page ()) 200"
+
+        let routerLoc =
+          $"(Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"Tests\"; modules = [\"{m}\"]; name = \"router\" }})"
+        let! lg =
+          evalUnder
+            state
+            $"Darklang.Stdlib.Live.refresh Darklang.SCM.Branch.mainBranchId [] (Darklang.Stdlib.Live.start {routerLoc})"
+        let hashOf (lg : RT.Dval) =
+          match lg with
+          | RT.DRecord(_, _, _, fields) ->
+            Map.tryFind "hash" fields
+            |> Option.defaultWith (fun () -> failtest "a LastGood has a hash")
+          | other -> failtest $"expected a LastGood, got {other}"
+        let good = hashOf lg
+
+        // The break, through the CLI, so propagation repoints the router at the broken page.
+        let! watch =
+          evalUnder
+            state
+            "Darklang.Stdlib.Live.watch Darklang.SCM.Branch.mainBranchId"
+        do! author $"Tests.{m}.page" "(): String = 3"
+        let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let watch, change =
+          match polled with
+          | RT.DTuple(w, RT.DEnum(_, _, _, "Some", [ c ]), []) -> w, c
+          | other -> failtest $"the break was not reported: {other}"
+        let opsOf (change : RT.Dval) =
+          match change with
+          | RT.DRecord(_, _, _, fields) ->
+            Map.tryFind "ops" fields
+            |> Option.defaultWith (fun () -> failtest "a Change has ops")
+          | other -> failtest $"expected a Change, got {other}"
+        let! lg =
+          callByName
+            state
+            "Darklang.Stdlib.Live.refresh"
+            [ RT.DUuid PT.BranchId.Main.Guid; opsOf change; lg ]
+        Expect.equal
+          (hashOf lg)
+          good
+          "the break keeps the router on its last good version"
+
+        // The fix, WITHOUT propagation: the router's newest version still calls the broken page.
+        let body = System.Random.Shared.Next(1_000, 1_000_000_000)
+        let! _ =
+          authorIntoMain
+            $"module Tests.{m}\n\nlet page () : String = \"fixed {body}\""
+        let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let change =
+          match polled with
+          | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ c ]), []) -> c
+          | other -> failtest $"the fix was not reported: {other}"
+        let! lg =
+          callByName
+            state
+            "Darklang.Stdlib.Live.refresh"
+            [ RT.DUuid PT.BranchId.Main.Guid; opsOf change; lg ]
+        Expect.equal
+          (hashOf lg)
+          good
+          "the router's version built against the broken page is not adopted; the last good one stays"
+        let! why = callByName state "Darklang.Stdlib.Live.diagnostic" [ lg ]
+        match why with
+        | RT.DEnum(_, _, _, "Some", [ RT.DString s ]) ->
+          Expect.stringContains
+            s
+            "expected String, got Int"
+            "and the reason names the broken callee's error"
+        | other -> failtest $"expected a diagnostic, got {other}"
+      })
+
+/// Under `--dev`, a handler that fails at run time answers a page that carries the reload
+/// listener, so the tab recovers when the edit that fixes it lands.
+let private devErrorPageCarriesTheListener =
+  cliTest
+    "a serve --dev error page still carries the /__live listener"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        do!
+          author
+            "Tests.LiveDev.router"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Stdlib.Int.toString (Stdlib.Int.divide 1 0)) 200"
+        let routerLoc =
+          "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\"; modules = [\"LiveDev\"]; name = \"router\" }"
+        let! init =
+          evalUnder
+            state
+            $"Darklang.Stdlib.Live.Router.start Darklang.SCM.Branch.mainBranchId ({routerLoc})"
+        let! step = evalUnder state "Darklang.Stdlib.Live.Router.step"
+        let step =
+          match step with
+          | RT.DApplicable a -> a
+          | other -> failtest $"expected the step to be a fn, got {other}"
+        let port = Tests.HttpServer.allocateFreePort ()
+        let cts = new CancellationTokenSource()
+        let! listener = Tests.HttpServer.bindListener port
+        let listenerTask =
+          Builtins.Http.Server.Libs.HttpServer.runListenerLive
+            state
+            listener
+            (int64 port)
+            init
+            step
+            true
+            Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+            false
+            false
+            false
+            cts.Token
+        try
+          use client = new System.Net.Http.HttpClient()
+          let! response = client.GetAsync($"http://localhost:{port}/")
+          let! body = response.Content.ReadAsStringAsync()
+          Expect.equal (int response.StatusCode) 500 "the handler failed"
+          Expect.stringContains
+            (string response.Content.Headers.ContentType)
+            "text/html"
+            "the failure is a page"
+          Expect.stringContains body "/__live" "and the page carries the listener"
+          Expect.stringContains body "error" "with the error on it"
+        finally
+          cts.Cancel()
+          try
+            listenerTask.Wait 2000 |> ignore<bool>
+          with _ ->
+            ()
+      })
+
+
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
@@ -836,5 +985,7 @@ let tests : List<Test> =
           treeRendersTheSameEverywhere
           viewFollowsEdits
           modelSavesAndResumes
-          pollIgnoresAnOpUntilItIsApplied ]
+          pollIgnoresAnOpUntilItIsApplied
+          aFixedCalleeIsNotAdoptedThroughItsBrokenDependent
+          devErrorPageCarriesTheListener ]
     ) ]
