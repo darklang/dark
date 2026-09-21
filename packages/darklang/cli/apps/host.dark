@@ -90,7 +90,7 @@ let bandRows (band: String) (width: Int) : Int =
 /// The whole screen for a session at a size. Pure: everything it needs is on the session.
 let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let frame =
-    Stdlib.Cli.UI.Chrome.frame s.view.title "LIVE" "esc quit · tab next field · enter press · pgup/pgdn scroll · ctrl-s save the model"
+    Stdlib.Cli.UI.Chrome.frame s.view.title "LIVE" "esc quit  |  tab next field  |  enter press  |  pgup/pgdn scroll  |  ctrl-s save the model"
 
   let frame =
     match s.toast with

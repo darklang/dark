@@ -49,7 +49,7 @@ let behindSuffix (branchId: Uuid) (app: Model.App) : String =
   | Daemon entrypoint ->
     match Config.get (startedHashKey app.slug) with
     | Some started when started != "" ->
-      if (entrypointHash branchId entrypoint) == started then "" else " · behind (`apps restart`)"
+      if (entrypointHash branchId entrypoint) == started then "" else ", behind (`apps restart`)"
     | _ -> ""
   | _ -> ""
 
