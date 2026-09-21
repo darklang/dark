@@ -30,8 +30,9 @@ let heartbeat (name: String) : Int =
   // The step is a NAME, and yours to point elsewhere (`apps.<name>.step`): a step under your own
   // owner is one you can edit while the daemon runs, which is what the runner is for.
   let step =
-    Config.get ("apps." ++ name ++ ".step")
-    |> Stdlib.Option.withDefault "Darklang.Cli.Apps.Examples.beat"
+    match Config.get ("apps." ++ name ++ ".step") with
+    | Some name when name != "" -> name
+    | _ -> "Darklang.Cli.Apps.Examples.beat"
 
   Runner.run name step 0 intervalMs
 

@@ -12,9 +12,34 @@ module Darklang.Stdlib.Cli.Daemon
 
 
 // ── pidfile + log location ──  ~/.darklang/run/<name>.{pid,log}
+
+/// Can this process make <param dir> and write in it? Probed with a real write: a directory
+/// another user owns (a `~/.darklang` a root process created first) exists and is not ours.
+let writableDir (dir: String) : Bool =
+  match Posix.mkdirRecursive dir with
+  | Error _ -> false
+  | Ok _ ->
+    match File.writeText (dir ++ "/.writable") "" with
+    | Ok _ -> true
+    | Error _ -> false
+
+/// Where pidfiles and logs go: `~/.darklang/run`, or when that cannot be written (owned by
+/// someone else, no home), the instance's rundir, then `/tmp`. The same answer for the launcher
+/// that reads a pidfile and the daemon that writes it, since both probe the same way.
 let runDir () : String =
   let home = Stdlib.Option.withDefault (Env.home ()) "/tmp"
-  home ++ "/.darklang/run"
+
+  let candidates =
+    Stdlib.List.flatten
+      [ [ home ++ "/.darklang/run" ]
+        (match Env.get "DARK_CONFIG_RUNDIR" with
+         | Some rundir -> [ rundir ++ "/run" ]
+         | None -> [])
+        [ "/tmp/darklang-run" ] ]
+
+  match Stdlib.List.findFirst candidates (fun d -> writableDir d) with
+  | Some dir -> dir
+  | None -> home ++ "/.darklang/run"
 
 let pidfilePath (name: String) : String =
   (runDir ()) ++ "/" ++ name ++ ".pid"
@@ -113,12 +138,23 @@ let launcher () : String =
 // from hangups, the launching `sh -c` returns immediately, and the child reparents to init. Output
 // appends to the daemon's logfile. The entrypoint must `claimPidfile name` first.
 let launchDetached (name: String) (expr: String) : Stdlib.Result.Result<Unit, String> =
+  launchDetachedWith name [ "eval", expr ]
+
+// The same, for a CLI COMMAND rather than an expression: `dark <args...>`. A command runs in the
+// CLI's own host state, which an `eval` guest does not get; a daemon that needs the host's
+// capabilities (the sync transport) is launched this way.
+let launchDetachedWith (name: String) (args: List<String>) : Stdlib.Result.Result<Unit, String> =
   // Create the run dir up front: the shell redirect below (and the pidfile) need it to exist, and
   // `claimPidfile` only mkdirs it from inside the child -- too late for this redirect on a fresh machine.
   let _ = Posix.mkdirRecursive (runDir ())
 
+  let quoted =
+    args
+    |> Stdlib.List.map (fun a -> "'" ++ (Stdlib.String.replaceAll a "'" "'\\''") ++ "'")
+    |> Stdlib.String.join " "
+
   let cmd =
-    $"nohup {launcher ()} eval '{expr}' >> {logPath name} 2>&1 &"
+    $"nohup {launcher ()} {quoted} >> {logPath name} 2>&1 &"
 
   match Process.exec "/bin/sh" [ "-c", cmd ] with
   | Ok _ -> Stdlib.Result.Result.Ok()
@@ -155,9 +191,13 @@ let waitUntilRunning
 // or an error if it never claimed its pidfile (instead of falsely reporting success the instant the
 // shell forks). Refuses if it's already running.
 let start (name: String) (expr: String) : Stdlib.Result.Result<Int, String> =
+  startWith name [ "eval", expr ]
+
+// `start`, for a CLI command (`dark <args...>`) rather than an expression.
+let startWith (name: String) (args: List<String>) : Stdlib.Result.Result<Int, String> =
   if isRunning name then
     Stdlib.Result.Result.Error $"{name} is already running (see `status`)"
   else
-    match launchDetached name expr with
+    match launchDetachedWith name args with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok _ -> waitUntilRunning name 20

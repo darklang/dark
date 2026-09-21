@@ -249,6 +249,11 @@ budget yield changes nothing for it. `dark apps` says `behind` when its entrypoi
 hash moved since it started, and `dark apps restart <slug>` is the answer. (The rebase
 plan expected `behind` and `restart` to go; they stay, for this reason.)
 
+A daemon's pidfile and log go under `~/.darklang/run`; when that cannot be written (a
+`~/.darklang` some other user created first, no home), `Stdlib.Cli.Daemon.runDir` falls
+back to the instance's rundir, then `/tmp/darklang-run`, probing with a real write so the
+launcher and the daemon agree on the answer.
+
 ## Prod follows a branch (demo 2)
 
 Host side: `dark --branch <b> serve <router>` and a pull loop (`dark apps enable sync`
@@ -258,14 +263,27 @@ live.autopush on`; every `fn`/`type`/`val`/`module` save then commits the draft 
 Type errors are committed on purpose: the host keeps its last good version and says why
 in its log, which is the same answer you get locally.
 
-`scripts/testing/_demo2-live.sh` walks it in the container on main: a relay, A with
-autopush, B pulling every two seconds and serving. Measured: A's save is B's page three
-seconds later; the broken save leaves B on the last good page with `[live] Demo.Site.router:
-still on the last good version; the newest has a type error: ...` in its serve log; the
-fix follows. B pulls from a shell
-loop rather than the auto-sync daemon: in this container the daemon dies on its first
-tick because its `eval` guest is refused the relay transport (`httpGetUnsafeBytes is
-restricted to trusted first-party code`), a pre-existing gap outside this work.
+`scripts/testing/_demo2-live.sh` walks it in the container: a relay, A with autopush, B on
+the auto-sync daemon (`apps start sync`, every two seconds) and `serve`. Measured: A's save
+is B's page two to five seconds later; the broken save leaves B on the last good page with
+`[live] Demo.Site.router: still on the last good version; the newest has a type error:
+...` in its serve log; the fix follows. `--branch` walks the branch variant: A authors on
+a branch `site` with autopush (each save is a `branch push`), B has `sync.branches all`
+and serves `--branch site`; same three beats, same timings.
+
+Three things had to move for that walk, all on the host side. A daemon is launched as
+`dark apps daemon-main <slug>` rather than `dark eval '<entrypoint> "<slug>"'`: an `eval`
+is a guest and a guest has no host capabilities, so the sync daemon was refused its own
+transport; a command runs in the CLI's state, and the entrypoint is applied in that frame
+(not through `Live.apply`, which would make it a guest root again). A branch's own ops are
+inert, `applied = 0` for good and tagged onto the branch in the transaction that stores
+them, so the applied-only rule the poll uses for main hid every branch op from a branch
+watch; a tagged op is complete once visible (`landedWhere`, `idsLandedSince`). And a
+long-lived process on a branch loaded its overlay once at boot: an op that lands from
+outside (the daemon's pull) now reaches it through the same invalidation a poll does
+(`LibDB.PackageManager`, the second `Caching.register`). Tests: `tests/CliWorkspace/live`,
+"a poll on a branch reports the branch's own saves" and "serve --branch follows edits made
+on the branch".
 
 ## The agent channel
 

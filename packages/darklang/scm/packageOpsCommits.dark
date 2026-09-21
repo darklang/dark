@@ -175,15 +175,26 @@ let summariesFor (branchId: Uuid) (limit: Int64) : List<OpSummary> =
 /// version, keep it, and never look again: the fold's own commit moves the store's counter, but the
 /// next poll would find no op it had not already reported. Reporting an op only once it is applied
 /// means a host that looks mid-fold sees nothing new, and the poll after the fold sees the op.
+///
+/// A BRANCH's own ops are the exception: they are stored inert (`applied = 0` is their steady
+/// state, since nothing folds them into main's `locations`) and tagged onto the branch in the same
+/// transaction, so there is no window, and a tagged op is complete the moment it is visible. A
+/// branch watch takes main's ops when applied and its chain's ops when tagged.
 let idsLandedSince (branchId: Uuid) (since: String) (andAtSince: Bool) : List<String> =
   let sinceParam = if SCM.Branch.isMain branchId then "@p0" else "@p2"
   let comparison = if andAtSince then ">=" else ">"
+
+  let complete =
+    if SCM.Branch.isMain branchId then
+      "applied = 1"
+    else
+      "(applied = 1 OR id IN (SELECT op_id FROM op_branches))"
 
   Stdlib.Sqlite.rowsP
     (localDb ())
     ("SELECT id FROM package_ops WHERE "
      ++ visibleWhere branchId
-     ++ $" AND applied = 1 AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid")
+     ++ $" AND {complete} AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid")
     (Stdlib.List.append (visibleParams branchId) [ since ])
     (fun row -> Stdlib.Sqlite.textField row "id")
 
@@ -232,10 +243,17 @@ let summariesByIds (ids: List<String>) : List<OpSummary> =
 /// When the newest APPLIED op in the log landed here (`created_at`), or "" for an empty log. Where a
 /// watcher starts from. Applied only, as `idsLandedSince`: an op inserted and not yet folded must not
 /// advance a watcher past itself.
+/// An op counts as landed once it is applied (main's ops) or tagged onto a branch (a branch's
+/// own ops are inert, `applied = 0` for good, and tagged in the same transaction they are stored
+/// in). The same rule `idsLandedSince` reports by; a frontier taken by a narrower rule sits behind
+/// every branch op, and a branch watch then re-reports its whole history on every poll.
+let landedWhere () : String =
+  "(applied = 1 OR id IN (SELECT op_id FROM op_branches))"
+
 let newestInsert () : String =
   Stdlib.Sqlite.queryOneP
     (localDb ())
-    "SELECT COALESCE(max(created_at), '') AS newest FROM package_ops WHERE applied = 1"
+    ("SELECT COALESCE(max(created_at), '') AS newest FROM package_ops WHERE " ++ (landedWhere ()))
     []
   |> Stdlib.Option.andThen (fun row -> Stdlib.Sqlite.textField row "newest")
   |> Stdlib.Option.withDefault ""
@@ -246,7 +264,7 @@ let newestInsert () : String =
 let idsInsertedAt (at: String) : List<String> =
   Stdlib.Sqlite.rowsP
     (localDb ())
-    "SELECT id FROM package_ops WHERE created_at = @p0 AND applied = 1"
+    ("SELECT id FROM package_ops WHERE created_at = @p0 AND " ++ (landedWhere ()))
     [ at ]
     (fun row -> Stdlib.Sqlite.textField row "id")
 

@@ -677,6 +677,77 @@ let private viewFollowsEdits =
       })
 
 
+/// `serve --branch`: the same as above, with the router and its callee authored on a branch.
+/// The branch's ops are inert (never `applied`), which is the case demo 2's `--branch` variant
+/// found the poll blind to.
+let private serveFollowsEditsOnABranch =
+  cliTest "serve --branch follows edits made on the branch" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+      let! _ = runCli target [ "branch"; "create"; "live-serve" ]
+      try
+        do! author "Tests.LiveBranchHttp.page" "(): String = \"one\""
+        do!
+          author
+            "Tests.LiveBranchHttp.router"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Tests.LiveBranchHttp.page ()) 200"
+        let routerLoc =
+          "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\"; modules = [\"LiveBranchHttp\"]; name = \"router\" }"
+        let! init =
+          evalUnder
+            state
+            $"Darklang.Stdlib.Live.Router.start (Darklang.SCM.PackageOps.currentBranch ()) ({routerLoc})"
+        let! step = evalUnder state "Darklang.Stdlib.Live.Router.step"
+        let step =
+          match step with
+          | RT.DApplicable a -> a
+          | other -> failtest $"expected the step to be a fn, got {other}"
+        let port = Tests.HttpServer.allocateFreePort ()
+        let cts = new CancellationTokenSource()
+        let! listener = Tests.HttpServer.bindListener port
+        let listenerTask =
+          Builtins.Http.Server.Libs.HttpServer.runListenerLive
+            state
+            listener
+            (int64 port)
+            init
+            step
+            false
+            Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+            false
+            false
+            false
+            cts.Token
+        try
+          let! (status, body) = getText port
+          Expect.equal (status, body) (200, "one") "the version at start"
+
+          do! author "Tests.LiveBranchHttp.page" "(): String = \"two\""
+          let! (_, body) = getText port
+          Expect.equal body "two" "an edit on the branch is on the next request"
+
+          do! author "Tests.LiveBranchHttp.page" "(): String = 3"
+          let! (_, body) = getText port
+          Expect.equal
+            body
+            "two"
+            "a broken save on the branch keeps the last good version"
+
+          do! author "Tests.LiveBranchHttp.page" "(): String = \"three\""
+          let! (_, body) = getText port
+          Expect.equal body "three" "the fix is on the next request"
+        finally
+          cts.Cancel()
+          try
+            listenerTask.Wait 2000 |> ignore<bool>
+          with _ ->
+            ()
+      finally
+        (archiveBranches target [ "live-serve" ]).Wait()
+    })
+
+
 /// H5's second half: a model saved as a `val` comes back through `--resume`, and keeps the model
 /// the view had rather than its init.
 let private modelSavesAndResumes =
@@ -811,6 +882,39 @@ let private pollIgnoresAnOpUntilItIsApplied =
             "the op is reported once it is folded, and the name resolves to it"
         | other -> failtest $"touchedNames returned {other}"
       })
+
+
+/// A branch's own ops are never `applied`: they are stored inert and tagged in one transaction,
+/// so the applied-only rule for main (above) must not hide them from a watch on the branch. It
+/// did: `serve --branch` never saw a save, and demo 2's `--branch` variant could not run.
+let private pollOnABranchSeesTheBranchsOwnSaves =
+  cliTest "a poll on a branch reports the branch's own saves" (fun target ->
+    task {
+      let state = executionState target
+      let author = author target
+      let! _ = runCli target [ "branch"; "create"; "live-poll" ]
+      try
+        let! watch =
+          evalUnder
+            state
+            "Darklang.Stdlib.Live.watch (Darklang.SCM.PackageOps.currentBranch ())"
+        do! author "Tests.LiveBranchPoll.leaf" "(): Int = 1"
+        let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+        let change =
+          match polled with
+          | RT.DTuple(_, RT.DEnum(_, _, _, "Some", [ change ]), []) -> change
+          | other -> failtest $"the branch save was not reported: {other}"
+        let! names = callByName state "Darklang.Stdlib.Live.touchedNames" [ change ]
+        match names with
+        | RT.DList(_, items) ->
+          Expect.contains
+            (items |> List.map string)
+            (string (RT.DString "Tests.LiveBranchPoll.leaf"))
+            "the branch's save is reported by name"
+        | other -> failtest $"touchedNames returned {other}"
+      finally
+        (archiveBranches target [ "live-poll" ]).Wait()
+    })
 
 
 /// The callee-fix race: a callee is broken (its dependent has been repointed at it), then fixed,
@@ -1263,6 +1367,8 @@ let tests : List<Test> =
           viewFollowsEdits
           modelSavesAndResumes
           pollIgnoresAnOpUntilItIsApplied
+          pollOnABranchSeesTheBranchsOwnSaves
+          serveFollowsEditsOnABranch
           aFixedCalleeIsNotAdoptedThroughItsBrokenDependent
           devErrorPageCarriesTheListener
           liveValuesReplayTheLastCall

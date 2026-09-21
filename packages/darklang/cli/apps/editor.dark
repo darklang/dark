@@ -332,9 +332,7 @@ let toggleDaemon (state: State) (app: Model.App) (entrypoint: String) : State =
     | Ok msg -> { state with message = Stdlib.Cli.UI.Colors.success msg }
     | Error e -> { state with message = Stdlib.Cli.UI.Colors.error e }
   else
-    let q = "\""
-    let expr = entrypoint ++ " " ++ q ++ app.slug ++ q
-    match Stdlib.Cli.Daemon.start app.slug expr with
+    match Stdlib.Cli.Daemon.startWith app.slug [ "apps", "daemon-main", app.slug ] with
     | Ok pid -> { state with message = Stdlib.Cli.UI.Colors.success $"started {app.name} (pid {Stdlib.Int.toString pid})" }
     | Error e -> { state with message = Stdlib.Cli.UI.Colors.error e }
 

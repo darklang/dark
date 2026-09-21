@@ -94,6 +94,37 @@ let runApp (state: Cli.AppState) (slug: String) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a daemon — start it with `apps start {slug}`")
       state
 
+/// `apps daemon-main <slug>` — the body of a daemon process: what `apps start` launches
+/// detached, and what a unit file supervises. A CLI verb rather than `eval '<entrypoint>
+/// "<slug>"'` because a command runs in the CLI's host state, and an `eval` guest does not
+/// get the host's capabilities: the sync daemon's transport was refused that way.
+let daemonMain (state: Cli.AppState) (slug: String) : Cli.AppState =
+  match Registry.findBySlug state.currentBranchId slug with
+  | None ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no app '{slug}' (see `apps list-available`)")
+    { state with exitCode = 1 }
+  | Some app ->
+    match app.target with
+    | Daemon entrypoint ->
+      if Stdlib.Bool.not (Model.isValidEntrypoint entrypoint) then
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.error $"'{slug}' has an entrypoint that isn't a plain function name")
+        { state with exitCode = 1 }
+      else
+        match Stdlib.Live.applicableByName state.currentBranchId entrypoint with
+        | Error e ->
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"{slug}: {e}")
+          { state with exitCode = 1 }
+        | Ok f ->
+          // Applied here, in this frame, not through `Live.apply`: that makes the fn the
+          // approval root of a guest run, and a guest has no host capabilities. The daemon
+          // body runs as the CLI's own code, which is what a registered daemon is.
+          let _ran = f slug
+          state
+    | _ ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"'{slug}' is not a daemon")
+      { state with exitCode = 1 }
+
 /// `apps start <slug>` — launch a daemon detached (verified) and report its pid.
 let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
   if Service.platform () == Service.Platform.Unsupported then
@@ -115,10 +146,7 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
           (Stdlib.Cli.UI.Colors.error $"'{slug}' has an entrypoint that isn't a plain function name")
       else
 
-      let q = "\""
-      let expr = entrypoint ++ " " ++ q ++ slug ++ q
-
-      match Stdlib.Cli.Daemon.start slug expr with
+      match Stdlib.Cli.Daemon.startWith slug [ "apps", "daemon-main", slug ] with
       | Ok pid ->
         recordStartedHash state.currentBranchId app
         Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {app.name} started (pid {Stdlib.Int.toString pid})")
@@ -285,6 +313,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   // `spawn` is an alias for `start` (the verb for bringing a daemon to life).
   | [ "start", slug ] | [ "spawn", slug ] -> startDaemon state slug
+  | [ "daemon-main", slug ] -> daemonMain state slug
 
   // Stop, then start: for a daemon that is `behind` (its entrypoint moved under it) and for one
   // written as a single long-running fn, which cannot follow an edit any other way.
