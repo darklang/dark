@@ -38,8 +38,6 @@ let content () : String =
   # a bound (`'a: Ord`) says what the type must implement; `docs traits`
 
 ## Traits
-  trait Show<'a> =
-    let show (value: 'a) : String
-  impl Show for Person =
-    let show (p: Person) : String = p.name
-  # `Show.show jo`, or `jo.show`; `docs traits`"""
+  impl ToString for Person =
+    let toString (p: Person) : String = p.name
+  # `jo.toString`, or `ToString.toString jo`; your own with `trait`; `docs traits`"""

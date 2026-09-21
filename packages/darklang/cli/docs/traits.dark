@@ -3,88 +3,99 @@ module Darklang.Cli.Docs.Traits
 let content () : String =
   """# Traits
 
-A trait names a set of fns over one open type. An impl says how one type does
-them. A call picks the impl by the type of the value it is given.
+A trait names one or more fns over one open type. An implementation says how one
+type does them. A call picks the implementation by the type of the value it is
+given. The stdlib traits are the operators (`+` is `Add`, `==` is `Eq`) and
+`ToString`, so every builtin type already has implementations; yours join with
+one `impl`.
 
-## Declare
-  trait Show<'a> =
-    let show (value: 'a) : String
+## Implement a trait that exists
+  type Point = { x: Int64; y: Int64 }
 
-  A trait is a package item like a type or a fn: `dark view Stdlib.Add` prints
-  it, `dark ls Stdlib` lists it under Traits. Two traits with the same methods
-  and shapes are the same trait, whatever they are named, so do not redeclare
-  `Add`, `Ord` and friends: they exist, and `impl Add for X` finds them.
+  impl ToString for Point =
+    let toString (p: Point) : String =
+      $"({Stdlib.Int64.toString p.x}, {Stdlib.Int64.toString p.y})"
 
-## Implement
-  impl Show for Point =
-    let show (p: Point) : String = $"({p.x}, {p.y})"
+  impl Add for Point =
+    let add (a: Point) (b: Point) : Point =
+      Point { x = a.x + b.x; y = a.y + b.y }
 
-  impl Show for Int64 =
-    let show = Stdlib.Int64.toString      # an existing fn, no wrapper made
+  let p = Point { x = 1L; y = 2L }
+  ToString.toString p          # "(1, 2)"
+  p.toString                   # the same call, receiver first
+  p + p                        # Point { x = 2L; y = 4L }
 
-  impl<'a: Show> Show for List<'a> =     # conditional: needs Show for the element
-    let show (xs: List<'a>) : String = ...
+  A member can name a fn that already exists instead of declaring one:
+    impl ToString for Int64 =
+      let toString = Stdlib.Int64.toString
 
-  The implementation is named <Module>.<Type>.<Trait> (`Acme.Point.Show`) and
-  its method fns live beneath it (`Acme.Point.Show.show`). `dark impls Show`
-  lists a trait's implementations; `dark ls Acme.Point` shows them under
-  Implementations.
+## Declare your own
+  trait Area<'a> =
+    let area (shape: 'a) : Float
 
-## Author from the shell
-  dark trait /Acme.Show 'let show (v: '"'"'a) : String'
-  dark impl /Acme 'Show for Point = let show (p: Point) : String = ...'
-  dark module Acme - <<EOF ... EOF            # several at once, with the type
+  impl Area for Circle =
+    let area (c: Circle) : Float = 3.14159 * c.r * c.r
 
-  Like `dark fn` and `dark type`: the path says where, the text is the
-  declaration without its keyword. An impl's path is the module it is written
-  in; the item lands at <Module>.<Type>.<Trait>.
+  impl<'a: Area> Area for List<'a> =     # conditional: needs Area for the element
+    let area (xs: List<'a>) : Float =
+      Stdlib.sum 0.0 (Stdlib.List.map xs (fun s -> Area.area s))
 
-## Call
-  Show.show p            # dispatch on p's type
-  p.show                 # same, when p has no field `show` (a field always wins)
-  a.add b                # a two-argument method as a receiver call
+  The first type parameter is the type an implementation is for. A method may
+  carry an effect row (`let fetch (u: 'a) :{Http} String`); every
+  implementation must fit under it.
 
 ## Bound a type parameter
-  let display<'a: Show> (v: 'a) : String = "value: " ++ Show.show v
-  let sum<'a: Add + Zero> ...            # several bounds join with +
+  let describe<'a: ToString> (v: 'a) : String = "value: " ++ v.toString
+  let biggest<'a: Ord + ToString> (xs: List<'a>) : String = ...
 
-  A bound is checked when the fn is ENTERED, against the caller's actual type,
-  not when the method is reached. The checker checks it statically too:
-  `MissingImpl`, `AmbiguousImpl`, `UnboundTypeParameter`.
+  `'a: ToString` means "any type with a ToString implementation". It is checked
+  when the fn is entered, against the caller's actual type, and statically by
+  the checker (`MissingImpl`, `AmbiguousImpl`, `UnboundTypeParameter`).
 
-## The operators are traits
-  `a + b` is `Stdlib.Add.add a b`; `- * / % **` are Sub, Mul, Div, Mod, Pow; `-x`
-  is Neg; the comparisons are `Stdlib.Ord`. Every builtin numeric type implements
-  them, so `Vec + Vec` only needs `impl Add for Vec`, and `Stdlib.max`, `min` and
-  `clamp` work on anything with an `Ord`. `"a" + "b"` is `"ab"` (String has an
-  `Add`; `++` still works); `"a" - "b"` is a missing implementation, not a
-  numeric-type error. `++` and the bitwise operators are not traits.
+## Where they live
+  A trait is a package item like a type or a fn: `Stdlib.ToString`. An
+  implementation is one too, named for the type and the trait under the
+  module it was written in: `impl ToString for Point` inside `Acme` is
+  `Acme.Point.ToString`, and its method fn is `Acme.Point.ToString.toString`.
 
-## Equality, rendering, identities
-  `a == b` is `Stdlib.Eq.equals a b` (`!=` is its negation). Every value
-  compares structurally unless its type implements `Eq`, so nothing changes
-  until you write `impl Eq for User = let equals (a: User) (b: User) : Bool =
-  a.id == b.id`; then `==` on two Users is yours. Builtin types are never
-  overridden, and `List.sort` and dict keys stay structural. Inside a list or
-  a record the walk is structural too: `[u1] == [u2]` does not consult `Eq`.
+    dark ls Acme               # Traits and Implementations sections
+    dark view Stdlib.ToString  # prints the trait back
+    dark view Acme.Point.ToString
+    dark impls ToString        # every implementation, as dispatch sees them
+    dark search Area --trait   # --impl for implementations
 
-  `ToString` is the trait behind every builtin type's `toString`: `(42L).toString`,
-  `p.toString` once `impl ToString for Point` exists, `Stdlib.toString v` for
-  any type with one. `Stdlib.toRepr` stays the structural debug form.
+  Author from the shell like `fn` and `type`; an impl's path is the module it
+  is written in:
+    dark trait Acme.Area "<'a> = let area (shape: 'a) : Float"
+    dark impl Acme "Area for Circle = let area (c: Circle) : Float = ..."
 
-  `Zero` and `One` are the identities: `Zero.zero<Int64> ()`, or from a bound
-  inside a generic fn. `Stdlib.sum seed xs` and `Stdlib.product seed xs` take
-  the seed as an argument so `[]` never has to ask which type it is.
+  A bare trait name (`Area`, `Add`) resolves from your module outward, then as
+  `Stdlib.<name>`; write the full path when two traits share a name.
 
-## Visibility
-  An implementation is a package item like any other: it is visible where its
-  name is bound (main, or your branch). Two visible implementations of one
-  trait for one type is an ambiguity: the call says so, and `dark constraints`
-  keeps it as a finding until you deprecate one (a deprecated implementation is
-  not dispatched to) or `ack` it.
+## The stdlib traits
+  Add Sub Mul Div Mod Pow Neg    the operators `+ - * / % **` and `-x`
+  Ord                            `< <= > >=`; also `Stdlib.max`, `min`, `clamp`
+  Eq                             `==` and `!=`; structural unless implemented
+  ToString                       `x.toString`, `Stdlib.toString x`
+  Zero, One                      `Zero.zero<Int64> ()`; `Stdlib.sum seed xs`,
+                                 `product seed xs` take a seed so `[]` never asks
+
+  Every builtin numeric type implements the operators; String implements Add
+  (`"a" + "b"`) and ToString. `==` compares every value structurally unless its
+  type implements `Eq`; builtin types are never overridden, and `List.sort`,
+  dict keys and the walk inside a container stay structural. `docs operators`
+  has the operator table.
+
+## Two implementations for one type
+  An implementation is visible where its name is bound (main, or your branch).
+  Two visible ones for one trait and type is an ambiguity: the call says so,
+  `dark constraints` keeps it as a finding, and deprecating one resolves it
+  (a deprecated implementation is not dispatched to). Two traits with the same
+  methods and shapes are one trait, whatever they are named.
 
 ## Errors
-  No implementation of Acme.Show for Float   # write `impl Show for Float = ...`
-  More than one implementation of ...        # `dark impls Show` lists them
-  Cannot tell the type ... dispatches on # the self argument's type is unknown;
-                                         # give an explicit type arg or a bound"""
+  No implementation of Stdlib.Add for Bool    # write `impl Add for Bool = ...`
+  More than one implementation of ...         # `dark impls <Trait>` lists them
+  Cannot tell which type to dispatch Zero.zero on   # no argument carries the
+                                              # type: `Zero.zero<Int64> ()`
+  Cannot perform numeric operation on Int64 and Float   # operands must match"""

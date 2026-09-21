@@ -5,9 +5,9 @@ let content () : String =
 
 ## Comparison
   == != < > <= >=
-  `==` is `Stdlib.Eq.equals` (`!=` its negation): structural on every type
-  unless the type implements `Eq` (`docs traits`). `< > <= >=` are the `Stdlib.Ord`
-  trait: every numeric type implements it, and so can yours (`docs traits`).
+  `==` and `!=` are `Stdlib.Eq`: structural on every type unless the type
+  implements `Eq`. `< > <= >=` are `Stdlib.Ord`: every numeric type implements
+  it, and so can yours. `docs traits` has how.
 
 ## Boolean
   && ||   and unary !x
@@ -15,12 +15,11 @@ let content () : String =
 
 ## Numeric (all int types + Float)
   + - * / % **   and unary -x
-  Each operator is a trait method: `+` is `Stdlib.Add.add`, then Sub, Mul,
-  Div, Mod, Pow, and `-x` is `Neg.negate`. Both operands must be the same
-  type: `1 + 2`, `1.0 + 2.0` and `1y * 2y` all work; `1L + 2.0` is "Cannot
-  perform numeric operation on Int64 and Float". `"a" + "b"` is `"ab"` (String
-  implements Add; `++` still works). A type of your own joins with
-  `impl Add for Vec = ...` (`docs traits`).
+  Each is a trait: `+` is `Stdlib.Add`, then Sub, Mul, Div, Mod, Pow, and `-x`
+  is `Neg`. Both operands must be the same type: `1 + 2`, `1.0 + 2.0` and
+  `1y * 2y` all work; `1L + 2.0` is "Cannot perform numeric operation on Int64
+  and Float". `"a" + "b"` is `"ab"` (String implements Add; `++` still works).
+  A type of your own joins with `impl Add for Vec = ...`.
   `/` is integer division on ints, float division on floats.
   `%` works on all numeric types (the modulus must be > 0).
   `**` (power) works on all integer types and Float (not Int128/UInt128,

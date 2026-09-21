@@ -149,7 +149,7 @@ let help (_state: AppState) : String =
     "Usage: ls [path] [--include-deprecated] [--versions]"
     "List contents of the current location or specified path with icons."
     ""
-    "Shows modules, types, values, and functions grouped by category."
+    "Shows modules, types, traits, values, functions and implementations, grouped by kind."
     "Deprecated items with no live callers are hidden by default; pass"
     "--include-deprecated to show them. Visible deprecated items are marked ⚠."
     ""

@@ -650,7 +650,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 let help (_state: AppState) : String =
   [
     "Usage: view [path] [--raw | --ast | --instructions]"
-    "View detailed information about functions, types, values, or modules."
+    "View a function, type, value, trait, implementation or module."
     ""
     "With path: View the specified item with syntax highlighting."
     "Without path: View current location."

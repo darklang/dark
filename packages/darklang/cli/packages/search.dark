@@ -557,6 +557,8 @@ let help (state: Cli.AppState) : String =
     "  --type                 Search only types"
     "  --fn                   Search only functions"
     "  --val                  Search only values"
+    "  --trait                Search only traits"
+    "  --impl                 Search only implementations of traits"
     "  --exact                Require exact match (default: fuzzy)"
     "  --shallow              Search only direct descendants (default: all descendants)"
     "  --with-docs            Also show doc comments"
