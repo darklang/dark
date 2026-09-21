@@ -615,6 +615,12 @@ Follow-ups in the scheduler plan, in order, and the edges of what is here:
   spawned may not line up. `resume` is the CLI's, since it runs the input
   through the CLI's own paths; `Exec.fork` from Dark exists.
 - `ps show` says how many reads a process has in flight, not which.
+- A pure builtin that reads a blob (`Blob`, `Base64`, `Crypto`, `String`
+  from bytes) answers without a builder when the blob is ephemeral
+  (`Blob.withBytes`), which it nearly always is; a persisted blob still
+  waits for the store inside `uply`. `blobConcat` (a loop over blobs),
+  `jsonParse` (types from the store) and the stream pull machine keep
+  theirs. Measured on 60,000 blob calls: -2.4%, 8 of 8 pairs.
 - A builtin's wait is still a `Ply` the loop parks on as a task, and a host
   operation's answer comes back through that task rather than as an event on
   the queue. The loop itself is plain code (`executeSync`, `awaitOf`,

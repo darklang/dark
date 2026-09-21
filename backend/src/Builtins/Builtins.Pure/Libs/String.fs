@@ -561,10 +561,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DBlob ref |] ->
-          uply {
-            let! bytes = Blob.readBytes state ref
-            return DString(System.Text.Encoding.UTF8.GetString bytes)
-          }
+          Blob.withBytes state ref (fun bytes ->
+            Ply(DString(System.Text.Encoding.UTF8.GetString bytes)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -603,14 +601,12 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DBlob ref |] ->
-          uply {
-            let! bytes = Blob.readBytes state ref
+          Blob.withBytes state ref (fun bytes ->
             try
               let str = UTF8Encoding(false, true).GetString bytes
-              return Dval.optionSome KTString (DString str)
+              Ply(Dval.optionSome KTString (DString str))
             with _e ->
-              return Dval.optionNone KTString
-          }
+              Ply(Dval.optionNone KTString))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

@@ -784,10 +784,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, [ _typeToSerializeAs ], [| arg |] ->
-          uply {
-            let response = writeJson (fun w -> serialize vm.threadID w arg)
-            return DString response
-          }
+          Ply(DString(writeJson (fun w -> serialize vm.threadID w arg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
