@@ -33,6 +33,7 @@ let parkedText (branchId: Uuid) (parked: Stdlib.Exec.ParkedOn) : String =
   | Lambda -> "a lambda"
   | RareOpcode -> "the store"
   | Events specs -> specs |> Stdlib.List.map eventSpecText |> Stdlib.String.join " or "
+  | Process id -> $"process {idPrefix id}"
 
 
 let statusText (branchId: Uuid) (status: Stdlib.Exec.Status) : String =
@@ -41,6 +42,7 @@ let statusText (branchId: Uuid) (status: Stdlib.Exec.Status) : String =
   | Parked on ->
     match on with
     | Events _ -> $"waiting for {parkedText branchId on}"
+    | Process _ -> $"waiting for {parkedText branchId on}"
     | _ -> $"waiting on {parkedText branchId on}"
   | Done -> "finished"
   | Failed rte ->
@@ -110,6 +112,10 @@ let printShowWith (branchId: Uuid) (prefix: String) (full: Bool) : Unit =
       Stdlib.printLine $"  status   {statusText branchId s.status}"
       Stdlib.printLine $"  started  {startedAgo s.started}"
       Stdlib.printLine $"  turns    {Stdlib.Int64.toString s.slices}"
+      if s.inflight > 0L then
+        Stdlib.printLine $"  reads in flight  {Stdlib.Int64.toString s.inflight}"
+      else
+        ()
       match s.parent with
       | Some pid -> Stdlib.printLine $"  parent   {if full then Stdlib.Uuid.toString pid else idPrefix pid}"
       | None -> ()

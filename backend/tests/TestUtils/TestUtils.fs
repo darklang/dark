@@ -347,7 +347,8 @@ module Expect =
     | DApplicable _
     | DDB _
     | DBlob _
-    | DStream _ -> true
+    | DStream _
+    | DPromise _ -> true
 
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DString str -> str.IsNormalized()
@@ -559,7 +560,8 @@ module Expect =
       | DApplicable _, _
       | DDB _, _
       | DBlob _, _
-      | DStream _, _ -> check path actual expected
+      | DStream _, _
+      | DPromise _, _ -> check path actual expected
 
 
     let dvalEquality (left : Dval) (right : Dval) : bool =
@@ -908,7 +910,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DApplicable _
     | DDB _
     | DBlob _
-    | DStream _ -> f dv
+    | DStream _
+    | DPromise _ -> f dv
     f dv
   visit dv
   state

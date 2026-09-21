@@ -222,7 +222,8 @@ module RoundTripExpect =
     | RT.DUuid _
     | RT.DDB _
     | RT.DBlob _
-    | RT.DStream _ -> []
+    | RT.DStream _
+    | RT.DPromise _ -> []
 
   /// Two parses of "the same" source describe the same program.
   let sourceFileEqual

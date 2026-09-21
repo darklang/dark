@@ -270,7 +270,9 @@ let private unusedAllowlist : Set<string> =
       // `Scheduler.Tests.fs`, which this scan of `.dark` files cannot see. A testfile cannot
       // use them: a gate blocks until F# releases it.
       "testGateWait"
-      "testTrace" ]
+      "testTrace"
+      "testRead"
+      "testFailingRead" ]
 
 
 let everyBuiltinIsReferenced =

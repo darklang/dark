@@ -1,0 +1,145 @@
+/// `dark exec`: the durable runs this instance has made, and resuming or forking one. What is
+/// running right now is `dark ps`; this is what ran, kept.
+module Darklang.Cli.Exec
+
+
+let idPrefix (id: Uuid) : String =
+  Stdlib.String.slice (Stdlib.Uuid.toString id) 0 8
+
+
+let statusText (status: Stdlib.Exec.Execution.Status) : String =
+  match status with
+  | Running -> "running"
+  | Done -> "done"
+  | Failed -> "failed"
+  | Suspended -> "suspended"
+
+
+/// The execution whose id starts with `prefix`, when exactly one does.
+let find (prefix: String) : Stdlib.Result.Result<Stdlib.Exec.Execution.Execution, String> =
+  let matches =
+    Stdlib.Exec.Execution.list 200L
+    |> Stdlib.List.filter (fun e -> Stdlib.String.startsWith (Stdlib.Uuid.toString e.id) prefix)
+  match matches with
+  | [ one ] -> Stdlib.Result.Result.Ok one
+  | [] -> Stdlib.Result.Result.Error $"no execution whose id starts with {prefix}"
+  | _ -> Stdlib.Result.Result.Error $"more than one execution starts with {prefix}; give more of the id"
+
+
+let oneLine (text: String) : String =
+  let flat = Stdlib.String.replaceAll text "\n" " "
+  if Stdlib.String.length flat > 40 then
+    (Stdlib.String.slice flat 0 37) ++ "..."
+  else
+    flat
+
+
+let row (e: Stdlib.Exec.Execution.Execution) : List<String> =
+  let parent =
+    match e.parent with
+    | Some((id, _at)) -> idPrefix id
+    | None -> ""
+  [ idPrefix e.id, statusText e.status, e.entry, oneLine e.input, parent ]
+
+
+let printList () : Unit =
+  let rows = Stdlib.Exec.Execution.list 50L |> Stdlib.List.map (fun e -> row e)
+  match rows with
+  | [] -> Stdlib.printLine "no executions yet (runs are kept when tracing is on)"
+  | _ -> Stdlib.Cli.UI.Table.print [ "id", "status", "entry", "input", "forked from" ] rows
+
+
+let printShow (prefix: String) : Unit =
+  match find prefix with
+  | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+  | Ok e ->
+    Stdlib.printLine (Stdlib.Uuid.toString e.id)
+    Stdlib.printLine $"  status:   {statusText e.status}"
+    Stdlib.printLine $"  entry:    {e.entry}"
+    Stdlib.printLine $"  input:    {oneLine e.input}"
+    Stdlib.printLine $"  trace:    {Stdlib.Uuid.toString e.traceId}"
+    Stdlib.printLine $"  started:  {e.created}"
+    match e.parent with
+    | Some((id, at)) ->
+      Stdlib.printLine $"  forked from {Stdlib.Uuid.toString id}, keeping its log before position {Stdlib.Int64.toString at}"
+    | None -> ()
+
+
+/// Run the execution's input again, replaying its log. `eval` and `run <file>` go through the
+/// paths they always do; the armed resume is what makes them replay.
+let resume (state: AppState) (prefix: String) : AppState =
+  match find prefix with
+  | Error e ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+    state
+  | Ok e ->
+    if Stdlib.Exec.Execution.armResume e.id then
+      Stdlib.printLine $"resuming {idPrefix e.id}: {oneLine e.input}"
+      if e.entry == "eval" then
+        match Eval.evaluate state e.input false with
+        | Ok(Some s) ->
+          Stdlib.printLine s
+          state
+        | Ok None -> state
+        | Error message ->
+          Stdlib.printLine $"Error: {message}"
+          { state with exitCode = 1 }
+      else
+        let filename =
+          if Stdlib.String.startsWith e.entry "run " then
+            Stdlib.String.dropFirst e.entry 4
+          else
+            e.entry
+        Run.runScript state filename e.input [] false false false [] 0
+    else
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"execution {idPrefix e.id} is gone")
+      state
+
+
+let fork (prefix: String) (at: Stdlib.Option.Option<Int64>) : Unit =
+  match find prefix with
+  | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
+  | Ok e ->
+    match Stdlib.Exec.Execution.fork e.id at with
+    | Ok child ->
+      Stdlib.printLine $"forked {idPrefix e.id} as {Stdlib.Uuid.toString child}"
+      Stdlib.printLine $"  resume it with: exec resume {idPrefix child}"
+    | Error msg -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [ "resume", prefix ] -> resume state prefix
+  | _ ->
+    match args with
+    | [] -> printList ()
+    | [ "list" ] -> printList ()
+    | [ "show", prefix ] -> printShow prefix
+    | [ "fork", prefix ] -> fork prefix Stdlib.Option.Option.None
+    | [ "fork", prefix, "--at", at ] ->
+      match Stdlib.Int64.parse at with
+      | Ok n -> fork prefix (Stdlib.Option.Option.Some n)
+      | Error _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"--at wants a number, not {at}")
+    | _ -> Stdlib.printLine (help state)
+    state
+
+
+let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
+  match args with
+  | [] -> [ "list", "show", "resume", "fork" ] |> Stdlib.List.map Completion.simple
+  | _ -> []
+
+
+let help (_state: AppState) : String =
+  [ "Usage: exec"
+    "       exec show <id-prefix>"
+    "       exec resume <id-prefix>"
+    "       exec fork <id-prefix> [--at <position>]"
+    ""
+    "The runs this instance has kept: every `eval` and `run` made while tracing was on"
+    "(DARK_CONFIG_TRACE_DETAIL=effects or on), with the log of what each did to the world."
+    "A run stopped with Ctrl-C is suspended; `resume` runs it again, answering every"
+    "call the log has instead of performing it, and goes live where the log ends."
+    "`fork` makes a new run that shares the log up to a position and diverges after."
+    "What is running right now is `ps`." ]
+  |> Stdlib.String.join "\n"

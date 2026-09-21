@@ -12,9 +12,15 @@
 /// belongs to, while that process is parked and nobody else looks at it) is documented at
 /// `Interpreter.StepOutcome`.
 ///
+/// Cores: a scheduler is one thread, and a `Workers` group is N of them (one per core by default),
+/// each with its own queue and loop. A process spawned on a worker runs there for its whole life;
+/// the only thing it shares with processes elsewhere is its `ExecutionState`, whose caches are
+/// concurrent and content-keyed and whose tracer is asked for a per-process view at spawn
+/// (`docs/processes.md`, "What a process shares and what it owns").
+///
 /// Not here yet, deliberately (`docs/processes.md` lists them with the follow-up that brings each):
 /// a process parked inside a higher-order builtin (`List.map f` where `f` awaits) is parked as one
-/// Ply and `ps` sees the outer frame only; no cores; no user-level `spawn`; no record/replay.
+/// Ply and `ps` sees the outer frame only; no user-level `spawn`; no record/replay.
 module LibExecution.Scheduler
 
 open System.Threading
@@ -40,6 +46,8 @@ type Parked =
   | OnRareOpcode
   /// `Host.await`: one of these events.
   | OnEvent of HE.EventSpec list
+  /// `Exec.await`: another process finishing.
+  | OnProcess of ProcessId
 
 /// What a process was started on.
 type Entry =
@@ -99,6 +107,8 @@ type ProcessSummary =
     parent : Option<ProcessId>
     started : System.DateTime
     slices : int64
+    /// Reads the process handed back as promises that have not landed.
+    inflight : int
     /// The call stack at the moment of the snapshot, outermost first.
     frames : RT.CallStack
   }
@@ -107,6 +117,38 @@ type ProcessSummary =
 /// Instructions a process may run per slice. The BEAM's reductions, sized so a tight loop yields
 /// several hundred times a second and an ordinary program almost never does.
 let defaultQuantum = 10_000L
+
+/// How many worker schedulers a group starts: one per core unless the host says otherwise
+/// (`exec.workers` in the store's config, or `DARK_EXEC_WORKERS`; `Cli.fs` reads both).
+let mutable defaultWorkers : int = max 1 System.Environment.ProcessorCount
+
+
+/// Which runnable process a scheduler steps next.
+type Policy =
+  /// The one that has waited longest. The default, and what every scheduler runs unless told.
+  | RoundRobin
+  /// Ask: given the runnable processes, oldest first, the id of the one to step. An answer that
+  /// names none of them, or none at all, falls back to the oldest. `Cli.fs` installs one that
+  /// calls a Dark function (`exec.policy`); a test installs its own. Asked only when there is
+  /// a choice (two or more runnable), so an ordinary run never pays for it.
+  | Chooser of (list<ProcessSummary> -> Option<ProcessId>)
+
+/// The policy every scheduler consults. Process-wide, set by the host before it starts running.
+let mutable policy : Policy = RoundRobin
+
+
+/// The `ExecutionState` a process runs under: the spawner's, with the pieces that are one
+/// process's own replaced. Today that is the tracer (one call stack per process, and the process
+/// id on every event); the caches, the policy and the denial lists are shared, the last two under
+/// a lock. A record copy, so a spawn costs one allocation here.
+let stateForProcess
+  (state : RT.ExecutionState)
+  (pid : ProcessId)
+  : RT.ExecutionState =
+  if state.tracing.skipTracing && not state.tracing.traceEffects then
+    state
+  else
+    { state with tracing = state.tracing.forProcess pid }
 
 
 type Scheduler(quantum : int64) =
@@ -127,9 +169,28 @@ type Scheduler(quantum : int64) =
   let mutable latestChange = RT.DUnit
   let mutable nextTimerId = 0L
   let mutable thread = -1
+  /// Set by `Stop`; the loop leaves at its next turn.
+  let mutable stopping = false
+  /// The group this scheduler belongs to, when it is a root with workers or a worker itself.
+  /// `ps` and `kill` answer for the whole group.
+  let mutable group : Option<Workers> = None
+  /// Live processes (runnable or parked), for placement.
+  let mutable live = 0
 
   static let current = AsyncLocal<Option<Scheduler>>()
   static let currentProcess = AsyncLocal<Option<Process>>()
+
+  static let shared : Lazy<Scheduler> =
+    lazy
+      (let s = Scheduler(defaultQuantum)
+       let thread =
+         Thread(
+           (fun () -> s.RunUntilStopped()),
+           IsBackground = true,
+           Name = "dark-shared"
+         )
+       thread.Start()
+       s)
 
   /// The scheduler running on this thread (or the one this continuation descends from), if any.
   static member Current : Option<Scheduler> =
@@ -144,13 +205,47 @@ type Scheduler(quantum : int64) =
     | null -> None
     | _ -> currentProcess.Value
 
+  /// The scheduler on this thread, or the process-wide one for a run nobody scheduled (a test's
+  /// `execute`, the LSP, an HTTP handler): its loop runs on a background thread of its own, and
+  /// `Exec.spawn` from such a run places its process on that scheduler's workers. Started on
+  /// first use.
+  static member CurrentOrShared : Scheduler =
+    match Scheduler.Current with
+    | Some s -> s
+    | None -> shared.Value
+
   member _.Quantum = quantum
 
   member _.Queue = queue
 
+  /// Runnable or parked processes on this scheduler right now.
+  member _.Live : int = Volatile.Read &live
+
+  /// The thread this scheduler's loop runs on, or -1 when it is not running.
+  member _.Thread : int = thread
+
+  member _.Group
+    with get () = group
+    and internal set (g : Option<Workers>) = group <- g
+
+  /// The workers this scheduler can hand processes to, started on first use with
+  /// `defaultWorkers` of them. A worker asked for its workers answers with its own group.
+  member this.Workers : Workers =
+    match group with
+    | Some g -> g
+    | None ->
+      lock sync (fun () ->
+        match group with
+        | Some g -> g
+        | None ->
+          let g = Workers(this, quantum, defaultWorkers)
+          g.Start()
+          g)
+
   // -- Spawning --
 
-  /// A new process that runs `instrs` under `exeState`, from its access. Runnable at once.
+  /// A new process that runs `instrs` under `exeState`, from its access. Runnable at once, on
+  /// this scheduler.
   member this.Spawn
     (
       exeState : RT.ExecutionState,
@@ -160,10 +255,11 @@ type Scheduler(quantum : int64) =
     ) : Process =
     let vm = RT.VMState.create instrs
     Interpreter.seedRootAccess exeState.access vm
+    let id = System.Guid.NewGuid()
     let p =
-      { id = System.Guid.NewGuid()
+      { id = id
         vm = vm
-        exeState = exeState
+        exeState = stateForProcess exeState id
         entry = entry
         parent = parent
         started = System.DateTime.UtcNow
@@ -181,11 +277,56 @@ type Scheduler(quantum : int64) =
     lock sync (fun () ->
       processes[p.id] <- p
       runnable.Enqueue p)
+    Interlocked.Increment &live |> ignore<int>
     // The loop blocks on the queue when nothing is runnable; a spawn from another thread (a
-    // test, an F# host) has to wake it. From the scheduler thread it is a harmless no-op.
+    // test, an F# host, a process on another scheduler) has to wake it. From the scheduler
+    // thread it is a harmless no-op.
     if Thread.CurrentThread.ManagedThreadId <> thread then
       queue.Post HE.HostEvent.Wake
     p
+
+  /// Spawn on a worker rather than here: the process runs on another core for its whole life.
+  /// The least loaded worker takes it. `Await` and `ps` work the same either way.
+  member this.SpawnOn
+    (
+      exeState : RT.ExecutionState,
+      instrs : Option<tlid> * RT.Instructions,
+      entry : Entry,
+      parent : Option<ProcessId>
+    ) : Process =
+    this.Workers.Spawn(exeState, instrs, entry, parent)
+
+  /// A new process that applies `applicable` to `arg` (`Exec.spawn f` runs `f ()`), starting from
+  /// `access` rather than the state's own: the spawner's, at the moment of the spawn, exactly as
+  /// a closure captures it. On a worker.
+  member this.SpawnApply
+    (
+      exeState : RT.ExecutionState,
+      applicable : RT.Applicable,
+      arg : RT.Dval,
+      parent : Option<ProcessId>,
+      access : Permissions.Access
+    ) : Process =
+    let entry =
+      match applicable with
+      | RT.AppNamedFn named -> EntryFunction named.name
+      | RT.AppLambda _ -> EntryExpr
+    let instrs = Execution.instructionsForApply applicable arg
+    let p =
+      this.SpawnOn({ exeState with access = access }, (None, instrs), entry, parent)
+    p
+
+  /// The process with this id, anywhere in the group.
+  member this.Find(pid : ProcessId) : Option<Process> =
+    match group with
+    | Some g -> g.All |> List.tryPick (fun s -> s.FindHere pid)
+    | None -> this.FindHere pid
+
+  /// `Find`, on this scheduler's own table.
+  member _.FindHere(pid : ProcessId) : Option<Process> =
+    match lock sync (fun () -> processes.TryGetValue pid) with
+    | true, p -> Some p
+    | false, _ -> None
 
   /// Spawn a call to a named function: the program `Execution.executeFunction` builds, as a process.
   member this.SpawnFunction
@@ -236,8 +377,8 @@ type Scheduler(quantum : int64) =
         subscriptions.Add sub
         for spec in specs do
           match spec with
-          | HE.EventSpec.Key -> queue.RequestKey()
-          | HE.EventSpec.StoreChanged -> queue.EnsureStorePoll 200
+          | HE.EventSpec.Key -> HE.Shared.requestKey queue
+          | HE.EventSpec.StoreChanged -> HE.Shared.watchStore queue 200
           | HE.EventSpec.Timer ms ->
             let id = Interlocked.Increment &nextTimerId
             sub.timers <- (id, queue.ArmTimer(id, ms)) :: sub.timers
@@ -255,7 +396,7 @@ type Scheduler(quantum : int64) =
   member private this.Dispatch(ev : HE.HostEvent) : unit =
     match ev with
     | HE.HostEvent.Completed pid ->
-      match processes.TryGetValue pid with
+      match lock sync (fun () -> processes.TryGetValue pid) with
       | true, p ->
         match p.status with
         | Parked _ ->
@@ -310,10 +451,18 @@ type Scheduler(quantum : int64) =
       | Error(rte, stack) -> Failed(rte, stack)
     p.pendingResume <- None
     p.parkedTask <- null
+    Interlocked.Decrement &live |> ignore<int>
     // Does nothing in non-tests.
     p.exeState.test.postTestExecutionHook p.exeState.test
     match result with
-    | Ok dv -> queue.Post(HE.HostEvent.ExecDone(p.id, dv))
+    | Ok dv ->
+      // A Dark subscriber may be on any scheduler in the group.
+      let ev = HE.HostEvent.ExecDone(p.id, dv)
+      match group with
+      | Some g ->
+        for s in g.All do
+          s.Queue.Post ev
+      | None -> queue.Post ev
     | Error _ -> ()
     p.completion.TrySetResult result |> ignore<bool>
 
@@ -425,36 +574,85 @@ type Scheduler(quantum : int64) =
       finally
         currentProcess.Value <- None
 
-  /// Run the scheduler on this thread until `until` is done. Round robin over the runnable
-  /// processes, draining the event queue between slices and blocking on it when nothing can run.
-  member this.RunUntil(until : Process) : RT.ExecutionResult =
+  /// The loop: round robin over the runnable processes, draining the event queue between slices
+  /// and blocking on it when nothing can run, until `finished ()` or `Stop`.
+  member private this.Run(finished : unit -> bool) : unit =
     thread <- Thread.CurrentThread.ManagedThreadId
     current.Value <- Some this
     try
       let mutable ev = Unchecked.defaultof<HE.HostEvent>
-      while not until.completion.Task.IsCompleted do
+      while not (finished ()) && not (Volatile.Read &stopping) do
         while queue.TryTake(&ev) do
           this.Dispatch ev
+        // A chooser is asked only when there is a choice, and outside the lock: it is Dark code
+        // that may well call `Exec.list`, which takes it. It sees copies, in queue order.
+        let asked =
+          match policy with
+          | RoundRobin -> None
+          | Chooser choose ->
+            let summaries =
+              lock sync (fun () ->
+                if runnable.Count > 1 then
+                  runnable |> Seq.map this.SummaryOf |> List.ofSeq
+                else
+                  [])
+            if summaries.IsEmpty then None else choose summaries
         let next =
           lock sync (fun () ->
-            if runnable.Count > 0 then Some(runnable.Dequeue()) else None)
+            match asked with
+            | Some id when runnable |> Seq.exists (fun p -> p.id = id) ->
+              // The pick leaves the queue; the rest keep their order.
+              let rest = List.ofSeq runnable
+              runnable.Clear()
+              let mutable chosen = None
+              for p in rest do
+                if p.id = id && chosen.IsNone then
+                  chosen <- Some p
+                else
+                  runnable.Enqueue p
+              chosen
+            | _ -> if runnable.Count = 0 then None else Some(runnable.Dequeue()))
         match next with
         | Some p -> this.Step p
         | None ->
-          if not until.completion.Task.IsCompleted then this.Dispatch(queue.Take())
-      until.completion.Task.Result
+          if not (finished ()) && not (Volatile.Read &stopping) then
+            this.Dispatch(queue.Take())
     finally
       current.Value <- None
       thread <- -1
+
+  /// Run the scheduler on this thread until `until` is done.
+  member this.RunUntil(until : Process) : RT.ExecutionResult =
+    this.Run(fun () -> until.completion.Task.IsCompleted)
+    until.completion.Task.Result
+
+  /// Run the scheduler on this thread until `Stop`. What a worker's thread does.
+  member this.RunUntilStopped() : unit = this.Run(fun () -> false)
+
+  /// Ask the loop to leave at its next turn, from any thread. Processes still on it stay where
+  /// they are; a group stops its workers only when the root is done.
+  member _.Stop() : unit =
+    Volatile.Write(&stopping, true)
+    HE.Shared.unwatchStore queue
+    queue.Post HE.HostEvent.Wake
+
+  member _.Stopping : bool = Volatile.Read &stopping
 
   // -- ps --
 
   /// Ask a process to stop. It finishes `Failed("stopped by ps kill")` at its next turn, which a parked
   /// process is given at once: whatever it was waiting for is abandoned (the task's late
   /// completion posts for a process that is no longer parked, and is dropped). A running
-  /// process finishes its slice first; one that completes within it completes.
+  /// process finishes its slice first; one that completes within it completes. Any scheduler in
+  /// the group finds it.
   member this.Kill(pid : ProcessId) : bool =
-    match processes.TryGetValue pid with
+    match group with
+    | Some g -> g.All |> List.exists (fun s -> s.KillHere pid)
+    | None -> this.KillHere pid
+
+  /// `Kill`, on this scheduler's own table.
+  member this.KillHere(pid : ProcessId) : bool =
+    match lock sync (fun () -> processes.TryGetValue pid) with
     | true, p ->
       p.cancelRequested <- true
       lock sync (fun () ->
@@ -471,27 +669,85 @@ type Scheduler(quantum : int64) =
       true
     | false, _ -> false
 
-  /// Every process this scheduler knows, as copies.
-  member _.Snapshot() : list<ProcessSummary> =
-    lock sync (fun () ->
-      processes.Values
-      |> Seq.map (fun p ->
-        { id = p.id
-          entry = p.entry
-          status = p.status
-          parent = p.parent
-          started = p.started
-          slices = p.slices
-          frames =
-            match p.status with
-            | Done _
-            | Failed _ -> []
-            | _ ->
-              try
-                Execution.callStackFromVM p.vm
-              with _ ->
-                [] })
-      |> List.ofSeq)
+  /// Every process the group knows, as copies.
+  member this.Snapshot() : list<ProcessSummary> =
+    match group with
+    | Some g -> g.All |> List.collect (fun s -> s.SnapshotHere())
+    | None -> this.SnapshotHere()
+
+  /// A copy of `p` for `ps` and the policy. The frames are read off a VM another thread may be
+  /// stepping: `callStackFromVM` walks the parent chain, and a frame popped under it is caught
+  /// and read as no frames, never as a fault.
+  member _.SummaryOf(p : Process) : ProcessSummary =
+    { id = p.id
+      entry = p.entry
+      status = p.status
+      parent = p.parent
+      started = p.started
+      slices = p.slices
+      inflight = Volatile.Read &p.vm.inflight
+      frames =
+        match p.status with
+        | Done _
+        | Failed _ -> []
+        | _ ->
+          try
+            Execution.callStackFromVM p.vm
+          with _ ->
+            [] }
+
+  /// `Snapshot`, for this scheduler's own table.
+  member this.SnapshotHere() : list<ProcessSummary> =
+    lock sync (fun () -> processes.Values |> Seq.map this.SummaryOf |> List.ofSeq)
+
+
+/// A root scheduler and its workers: N more schedulers, each looping on a thread of its own, so
+/// processes spawned on them run on N cores. Started lazily by the root's `Workers`; every one is
+/// a background thread, so a CLI that exits does not wait on them, and `Stop` ends them for a
+/// host that wants to (tests).
+and Workers(root : Scheduler, quantum : int64, count : int) =
+  let workers = List.init (max 1 count) (fun _ -> Scheduler(quantum))
+
+  /// Join the root and the workers into one group and start the worker threads. Once, by the
+  /// root's `Workers` property.
+  member this.Start() : unit =
+    root.Group <- Some this
+    workers
+    |> List.iteri (fun i w ->
+      w.Group <- Some this
+      let thread =
+        Thread(
+          (fun () -> w.RunUntilStopped()),
+          IsBackground = true,
+          Name = $"dark-worker-{i}"
+        )
+      thread.Start())
+
+  member _.Root : Scheduler = root
+
+  /// The workers, without the root.
+  member _.Members : Scheduler list = workers
+
+  /// Root first, then the workers.
+  member _.All : Scheduler list = root :: workers
+
+  member _.Count : int = List.length workers
+
+  /// Spawn on the least loaded worker.
+  member _.Spawn
+    (
+      exeState : RT.ExecutionState,
+      instrs : Option<tlid> * RT.Instructions,
+      entry : Entry,
+      parent : Option<ProcessId>
+    ) : Process =
+    let w = workers |> List.minBy (fun w -> w.Live)
+    w.Spawn(exeState, instrs, entry, parent)
+
+  /// End every worker's loop. Processes still on them are left as they are.
+  member _.Stop() : unit =
+    for w in workers do
+      w.Stop()
 
 
 /// Run a named function as the root process of a fresh scheduler on the calling thread, and return
