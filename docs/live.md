@@ -267,6 +267,16 @@ loop rather than the auto-sync daemon: in this container the daemon dies on its 
 tick because its `eval` guest is refused the relay transport (`httpGetUnsafeBytes is
 restricted to trusted first-party code`), a pre-existing gap outside this work.
 
+## The agent channel
+
+An agent authors through the same `addAuthored` a person's save goes through, on a branch you watch, so nothing in the loop above is agent-specific: the store-change event fires, `affects` picks the views it touched, a broken intermediate state (the agent's normal case) keeps the last good frame, `dark diff` on the branch is the review. Two things are for the agent's side, both in `Stdlib.Live` and neither needs the agent harness.
+
+`Live.show view` points every host loop on this instance at a view (a module with `init`, `update` and `render`, what `dark apps view <Module.Path>` takes): it writes `live.show` in the store's config (`config_v0`, never synced), which moves the store counter, so an open `dark apps view` wakes and switches on its next turn, and a bare `dark apps view` opens on it. The watch carries what `live.show` said at its last poll, so a poll that finds the counter moved and nothing landed can tell a show from a trace write and report only the show, as a change that touched nothing. A setting rather than an event on the queue, on purpose: an event reaches the loops that are running now, a setting also reaches the one you open next, and there is no session to scope it to until sessions persist.
+
+`Live.observe branchId view` is the view without a terminal: `{ report; render; rte }`. Each of `init` and `render` is taken at its newest version that passes its at-rest checks (the store's history is the memory, `versionsNewestFirst`; nothing is kept between calls), `init` runs for the model, `render` for the tree, and the tree goes through `Stdlib.Cli.UI.Text.render`, the third renderer beside the terminal and HTML: plain lines, a table as its rows, `- ` before list items, `[ go ]` for a button, `! boom` for a band that is not merely informative. `report` is the newest version's at-rest report when it failed and an older version is what rendered; `rte` is the runtime error when the newest passing version raised, with the version before it as the picture when one renders. So after each edit the agent reads the same two things you would see: the frame and what is wrong with the newest code.
+
+Plugging it into an agent's tool loop, when the harness lands: give the agent two tools, `observe(view)` that calls `Live.observe` on the agent's branch and returns the three fields, and `show(view)` that calls `Live.show`; have the harness call `observe` after every save it makes (the trace of that call is a recorded execution, so `Live.Values.replay` gives the agent per-expression values on top of the frame); and leave the human's `dark apps view` running on the same store, since `show` is how the agent points it. Test: `tests/CliWorkspace/live/observe renders a view headless and show points a host at it`.
+
 ## Live values
 
 Beside each call in a function, the value it produced the last time the function ran.

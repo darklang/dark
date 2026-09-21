@@ -51,11 +51,35 @@ type Watch =
     since: String
     /// The ids already reported at `since`, so a second's worth of ops is not reported twice. Only
     /// consulted while that second is still the current one; afterwards nothing new can land in it.
-    reported: List<String> }
+    reported: List<String>
+    /// What `live.show` named at the last poll, so a poll can tell a show from a trace write when
+    /// the store moved and no op landed.
+    shown: String }
 
 /// More ops than this in one poll, and the change is reported as unknown rather than described: a
 /// host would re-run everything anyway, and describing ten thousand ops to reach that answer is waste.
 val describeAtMost = 500L
+
+// --- what an agent points you at ---
+
+/// The instance setting that names the view a host loop should be showing. Written by `show`,
+/// read by the host on every store change. In the store (`config_v0`, never synced), not the
+/// json config beside it, because a store write is what wakes a host.
+val showKey = "live.show"
+
+/// Point every host loop on this instance at <param view>, a module with `init`, `update` and
+/// `render` (what `dark apps view <Module.Path>` takes). An agent calls it after authoring the
+/// thing it wants you to look at; a `dark apps view` that is open switches to it on its next
+/// turn, and one started later opens on it when it is given no view of its own.
+let show (view: LanguageTools.ProgramTypes.PackageLocation) : Unit =
+  Stdlib.LocalStore.configSet showKey (entryName view)
+
+/// The view `show` last named, if any.
+let shown () : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+  match Stdlib.LocalStore.configGet showKey with
+  | "" -> Stdlib.Option.Option.None
+  | name -> locationOfName name
+
 
 /// Where the log ends right now: the newest insert time, and the ids at it when that second may
 /// still be filling. A second that has passed can take nothing more, so nothing needs remembering
@@ -78,7 +102,8 @@ let watch (branchId: Uuid) : Watch =
     { branchId = branchId
       version = version ()
       since = since
-      reported = reported }
+      reported = reported
+      shown = Stdlib.LocalStore.configGet showKey }
 
 /// The name an op binds or unbinds, if it does one of those.
 let touchedBy (op: LanguageTools.ProgramTypes.PackageOp) : Stdlib.Option.Option<Touched> =
@@ -142,7 +167,15 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
     if Stdlib.List.isEmpty landed then
       let sincePassed = w.since != (SCM.PackageOps.storeNow ())
       let reported = if sincePassed then [] else w.reported
-      ({ w with version = now; reported = reported }, Stdlib.Option.Option.None)
+      let shownNow = Stdlib.LocalStore.configGet showKey
+      let next = { w with version = now; reported = reported; shown = shownNow }
+
+      // The store moved and no op landed: a config or trace write. Only a `show` is anyone's
+      // business, and it is reported as a change that touched nothing; the host reads `shown`.
+      if shownNow != w.shown then
+        (next, Stdlib.Option.Option.Some(Change { ops = []; touched = []; unknown = false }))
+      else
+        (next, Stdlib.Option.Option.None)
     else
       SCM.Draft.invalidateCaches ()
 
@@ -167,7 +200,8 @@ let poll (w: Watch) : (Watch * Stdlib.Option.Option<Change>) =
           { branchId = w.branchId
             version = now
             since = since
-            reported = reported }
+            reported = reported
+            shown = Stdlib.LocalStore.configGet showKey }
 
       (next, Stdlib.Option.Option.Some change)
 
@@ -545,6 +579,160 @@ let call (lg: LastGood) (arg: 'a) : Stdlib.Result.Result<'b, String> =
   match applicable lg with
   | Ok f -> apply f arg
   | Error e -> Stdlib.Result.Result.Error e
+
+
+// --- observing a view without a terminal ---
+
+/// What an agent (or a test) sees of a view: the picture and what is wrong with the newest code,
+/// without a terminal in the way.
+type Observation =
+  { /// The at-rest report of the newest version, when it failed its checks and an earlier
+    /// version is what rendered. `None` when the newest is what you are looking at.
+    report: Stdlib.Option.Option<LanguageTools.AtRestTypeChecker.Report>
+    /// The view as plain text (`Stdlib.Cli.UI.Text.render`), from the newest version whose
+    /// checks pass and whose `render` runs. Empty when no version got that far.
+    render: String
+    /// The runtime error of the newest version that passed its checks, when `init` or `render`
+    /// raised; an older version's picture is above it, if one rendered.
+    rte: Stdlib.Option.Option<String> }
+
+/// The versions bound at <param loc> on <param branchId>, newest first: what a host that had been
+/// watching all along would have as its last good candidates.
+let versionsNewestFirst
+  (branchId: Uuid)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : List<LanguageTools.ProgramTypes.Hash> =
+  let current =
+    match LanguageTools.PackageManager.Function.find branchId loc with
+    | Some h -> [ LanguageTools.ProgramTypes.hashToString h ]
+    | None -> []
+
+  // Deduplicated in order (`List.uniqueBy` sorts, and the order is the point).
+  Stdlib.List.append current (Stdlib.List.reverse (SCM.Propagation.authoringOrder loc))
+  |> Stdlib.List.fold [] (fun seen h -> if Stdlib.List.member seen h then seen else Stdlib.List.push seen h)
+  |> Stdlib.List.reverse
+  |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
+
+/// Whether <param hash> passes its at-rest checks with everything it calls. `None` when it does;
+/// the report when it does not.
+let atRestFailure
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Option.Option<LanguageTools.AtRestTypeChecker.Report> =
+  match LanguageTools.PackageManager.Function.get hash with
+  | None -> Stdlib.Option.Option.None
+  | Some fn ->
+    let report =
+      LanguageTools.AtRestTypeChecker.checkPackageOps
+        (Stdlib.List.append [ LanguageTools.ProgramTypes.PackageOp.AddFn fn ] (calleeDeclarations hash))
+
+    match report.verdict with
+    | Failed -> Stdlib.Option.Option.Some report
+    | _ -> Stdlib.Option.Option.None
+
+/// The view at <param view> (a module with `init` and `render`), rendered headless. Each of the
+/// two fns is taken at its newest version that passes its checks, as a host that had followed
+/// every edit would have it; when that version raises, the ones before it are tried for a
+/// picture, and the error is reported beside it. Nothing is kept between calls: the store's
+/// history is the memory.
+let observe (branchId: Uuid) (view: LanguageTools.ProgramTypes.PackageLocation) : Observation =
+  // "As it is now": the name-keyed caches may hold what a name meant before the last save.
+  // A host learns of a save through `poll`, which drops them; this is the same drop for a
+  // caller that did not wait for the event.
+  SCM.Draft.invalidateCaches ()
+
+  let inView (name: String) : LanguageTools.ProgramTypes.PackageLocation =
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = view.owner
+        modules = Stdlib.List.append view.modules [ view.name ]
+        name = name }
+
+  // The newest version's at-rest report, if it failed, and the versions that pass, newest first.
+  let survey
+    (loc: LanguageTools.ProgramTypes.PackageLocation)
+    : (Stdlib.Option.Option<LanguageTools.AtRestTypeChecker.Report> * List<LanguageTools.ProgramTypes.Hash>) =
+    let versions = versionsNewestFirst branchId loc
+    let checked = versions |> Stdlib.List.map (fun h -> (h, atRestFailure h))
+    let newestReport =
+      match checked with
+      | (_, Some report) :: _ -> Stdlib.Option.Option.Some report
+      | _ -> Stdlib.Option.Option.None
+    let passing =
+      checked
+      |> Stdlib.List.filterMap (fun pair ->
+        let (h, failure) = pair
+        match failure with
+        | None -> Stdlib.Option.Option.Some h
+        | Some _ -> Stdlib.Option.Option.None)
+    (newestReport, passing)
+
+  let callAt (hash: LanguageTools.ProgramTypes.Hash) (arg: 'a) : Stdlib.Result.Result<'b, String> =
+    call
+      (LastGood
+        { entry = view
+          hash = Stdlib.Option.Option.Some hash
+          report = Stdlib.Option.Option.None
+          problem = Stdlib.Option.Option.None })
+      arg
+
+  let (initReport, initVersions) = survey (inView "init")
+  let (renderReport, renderVersions) = survey (inView "render")
+  let report =
+    match renderReport with
+    | Some r -> Stdlib.Option.Option.Some r
+    | None -> initReport
+
+  // The model from the newest init that runs; its error if the newest one raised.
+  let (model, initRte) =
+    initVersions
+    |> Stdlib.List.fold (Stdlib.Option.Option.None, Stdlib.Option.Option.None) (fun acc h ->
+      let (found, firstRte) = acc
+      match found with
+      | Some _ -> acc
+      | None ->
+        match callAt h () with
+        | Ok m -> (Stdlib.Option.Option.Some m, firstRte)
+        | Error e ->
+          (Stdlib.Option.Option.None,
+           (match firstRte with
+            | Some _ -> firstRte
+            | None -> Stdlib.Option.Option.Some $"{entryName (inView "init")}: {e}")))
+
+  match model with
+  | None ->
+    let rte =
+      match initRte with
+      | Some e -> Stdlib.Option.Option.Some e
+      | None -> Stdlib.Option.Option.Some $"{entryName (inView "init")} has no version that type-checks"
+    Observation { report = report; render = ""; rte = rte }
+  | Some m ->
+    let (picture, renderRte) =
+      renderVersions
+      |> Stdlib.List.fold (Stdlib.Option.Option.None, Stdlib.Option.Option.None) (fun acc h ->
+        let (found, firstRte) = acc
+        match found with
+        | Some _ -> acc
+        | None ->
+          match callAt h m with
+          | Ok tree -> (Stdlib.Option.Option.Some(Stdlib.Cli.UI.Text.render tree), firstRte)
+          | Error e ->
+            (Stdlib.Option.Option.None,
+             (match firstRte with
+              | Some _ -> firstRte
+              | None -> Stdlib.Option.Option.Some $"{entryName (inView "render")}: {e}")))
+
+    let rte =
+      match renderRte with
+      | Some e -> Stdlib.Option.Option.Some e
+      | None ->
+        match (picture, renderVersions) with
+        | (None, []) ->
+          Stdlib.Option.Option.Some $"{entryName (inView "render")} has no version that type-checks"
+        | _ -> Stdlib.Option.Option.None
+
+    Observation
+      { report = report
+        render = Stdlib.Option.withDefault picture ""
+        rte = rte }
 
 
 // --- live values: the last recorded call, run again ---

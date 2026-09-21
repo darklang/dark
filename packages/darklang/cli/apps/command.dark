@@ -270,6 +270,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "run", slug ] -> runApp state slug
 
+  // No view named: the one `Live.show` points at, when something has pointed.
+  | [ "view" ] ->
+    match Stdlib.Live.shown () with
+    | Some loc -> viewApp state (Stdlib.Live.entryName loc) "" Stdlib.Option.Option.None
+    | None ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "apps view <slug> or <Module.Path>; nothing has called Live.show yet")
+      { state with exitCode = 1 }
+
   | [ "view", slug ] -> viewApp state slug "" Stdlib.Option.Option.None
   | [ "view", slug, "--resume", saved ] -> viewApp state slug "" (Stdlib.Option.Option.Some saved)
   | [ "view", slug, name ] -> viewApp state slug name Stdlib.Option.Option.None
@@ -405,6 +413,7 @@ let help (_state: Cli.AppState) : String =
   Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Live views")
   [ helpLine "apps view <slug> [<name>]" "Open a view; it follows edits to its code until Esc"
     helpLine "apps view <Module.Path>" "The same for any module with init, update and render"
+    helpLine "apps view" "The view `Stdlib.Live.show` last pointed at (an agent's channel)"
     helpLine "  ... --resume <val>" "Start from a model saved with Ctrl-S (a `val` under .Sessions)" ]
   |> Stdlib.printLines
 

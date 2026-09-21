@@ -56,7 +56,10 @@ let definitionFromArgs (args: List<String>) : String =
 
   match withoutSeparator with
   | [ "-" ] -> Stdlib.Cli.Stdin.readAll ()
-  | [ path ] when Stdlib.Cli.File.exists path ->
+  // A file, when the one argument could be one: a declaration has spaces, a path here does
+  // not, and asking the host about a declaration-shaped "path" that is longer than a file
+  // name may fails closed (the link check treats what it cannot inspect as a link).
+  | [ path ] when (if Stdlib.String.contains path " " then false else Stdlib.Cli.File.exists path) ->
     match Stdlib.Cli.File.readText path with
     | Ok source -> source
     | Error _ -> path

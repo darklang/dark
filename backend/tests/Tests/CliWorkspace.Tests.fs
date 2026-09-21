@@ -1102,6 +1102,143 @@ r.fns
       })
 
 
+/// The agent's side of the live loop, without the agent: `Live.observe` renders a view headless
+/// through `Ui.Text` (the third renderer), taking each fn at its newest version that passes its
+/// checks and, when that one raises, the picture from the version before it; `Live.show` names
+/// the view a host loop should be on, through the store so the host wakes for it.
+let private observeAndShow =
+  cliTest
+    "observe renders a view headless and show points a host at it"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        let viewLoc =
+          "(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\"; modules = []; name = \"LiveObs\" })"
+        let observe () =
+          evalUnder
+            state
+            $"""let o = Darklang.Stdlib.Live.observe Darklang.SCM.Branch.mainBranchId {viewLoc}
+(Darklang.Stdlib.Option.isSome o.report, o.rte, o.render)"""
+        let unpack (dv : RT.Dval) =
+          match dv with
+          | RT.DTuple(RT.DBool hasReport, rte, [ RT.DString render ]) ->
+            let rte =
+              match rte with
+              | RT.DEnum(_, _, _, "Some", [ RT.DString e ]) -> Some e
+              | _ -> None
+            (hasReport, rte, render)
+          | other -> failtest $"expected an observation, got {other}"
+
+        do! author "Tests.LiveObs.init" "(): Int64 = 3L"
+        do!
+          author
+            "Tests.LiveObs.update"
+            "(m: Int64) (e: Darklang.Cli.Apps.Host.Event<Int64>): Int64 = m"
+        do!
+          author
+            "Tests.LiveObs.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.bold \"Obs\", Stdlib.Cli.UI.Node.table [ \"k\", \"v\" ] [ [ \"count\", Stdlib.Int64.toString m ] ], Stdlib.Cli.UI.Node.row [ Stdlib.Cli.UI.Node.text \"a\", Stdlib.Cli.UI.Node.Node.Button(\"go\", 1L) ], Stdlib.Cli.UI.Node.band Stdlib.Cli.UI.Node.Severity.Error \"boom\" ]"
+
+        let! first = observe ()
+        let (hasReport, rte, render) = unpack first
+        Expect.isFalse hasReport "the newest version passes its checks"
+        Expect.equal rte None "and runs"
+        Expect.equal
+          render
+          "Obs\nk      v\n-----  -\ncount  3\na [ go ]\n! boom"
+          "the tree as plain text: table rows, a row side by side, a boxed button, a marked band"
+
+        // A save that fails its checks: the previous picture, with the report.
+        do!
+          author
+            "Tests.LiveObs.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text 3L"
+        let! broken = observe ()
+        let (hasReport, rte, render) = unpack broken
+        Expect.isTrue hasReport "the newest version's report is there"
+        Expect.equal rte None "nothing raised"
+        Expect.stringContains
+          render
+          "count  3"
+          "and the version before it is the picture"
+
+        // A save that raises: the previous picture, with the error.
+        do!
+          author
+            "Tests.LiveObs.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (Stdlib.Int64.toString (Stdlib.Int64.divide m 0L))"
+        let! raised = observe ()
+        let (hasReport, rte, render) = unpack raised
+        Expect.isFalse hasReport "this version passes its checks"
+        match rte with
+        | Some e ->
+          Expect.stringContains e "divide by 0" "the runtime error is reported"
+        | None -> failtest "expected the runtime error"
+        Expect.stringContains
+          render
+          "count  3"
+          "and the version before it is the picture"
+
+        // `show` names a view through the store; the host loop switches on its next turn.
+        do! author "Tests.LiveOther.init" "(): Int64 = 0L"
+        do!
+          author
+            "Tests.LiveOther.update"
+            "(m: Int64) (e: Darklang.Cli.Apps.Host.Event<Int64>): Int64 = m"
+        do!
+          author
+            "Tests.LiveOther.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text \"the other view\""
+        let view =
+          "Darklang.Cli.Apps.Model.View { name = \"Tests.LiveOther\"; title = \"O\"; init = \"Tests.LiveOther.init\"; update = \"Tests.LiveOther.update\"; render = \"Tests.LiveOther.render\" }"
+        let! prepared =
+          evalUnder
+            state
+            $"Darklang.Cli.Apps.Host.prepare Darklang.SCM.Branch.mainBranchId ({view})"
+        let session =
+          match prepared with
+          | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
+          | other -> failtest $"the view did not prepare: {other}"
+        let driver = loopDriver state
+        let! sizeDv =
+          evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40; height = 8 }"
+        let rowsOf (s : RT.Dval) =
+          task {
+            let! rows =
+              callByName state "Darklang.Cli.Apps.Host.plainRows" [ s; sizeDv ]
+            return plainRows rows
+          }
+        let! before = rowsOf session
+        Expect.contains before "the other view" "the host is on the other view"
+
+        // Put the broken render back to a good one first, so the shown view has a frame.
+        do!
+          author
+            "Tests.LiveObs.render"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (\"count \" ++ Stdlib.Int64.toString m)"
+        let! _ = evalUnder state $"Darklang.Stdlib.Live.show {viewLoc}"
+        let! shown = evalUnder state "Darklang.Stdlib.Live.shown ()"
+        match shown with
+        | RT.DEnum(_, _, _, "Some", [ RT.DRecord(_, _, _, fields) ]) ->
+          Expect.equal
+            (Map.tryFind "name" fields)
+            (Some(RT.DString "LiveObs"))
+            "shown reads back"
+        | other -> failtest $"expected the shown view, got {other}"
+
+        pushTick driver
+        let! session = stepOn driver "Darklang.Cli.Apps.Host.step" [ session ]
+        let! after = rowsOf session
+        Expect.contains after "count 3" "the host switched to the shown view"
+        // The same wake carried the render's save, so the reload's toast wins over "showing".
+        Expect.stringContains
+          (String.concat " " after)
+          "Tests.LiveObs"
+          "and the frame names the view it moved to"
+      })
+
+
 let tests : List<Test> =
   [ versionAndStatusAnswer
     configRoundTrips
@@ -1128,5 +1265,6 @@ let tests : List<Test> =
           pollIgnoresAnOpUntilItIsApplied
           aFixedCalleeIsNotAdoptedThroughItsBrokenDependent
           devErrorPageCarriesTheListener
-          liveValuesReplayTheLastCall ]
+          liveValuesReplayTheLastCall
+          observeAndShow ]
     ) ]
