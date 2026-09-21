@@ -278,6 +278,12 @@ module Type =
       let detail = p [] "Detail"
       let handle = p [] "Handle"
 
+      /// Durable runs (`dark exec list/show/resume/fork`).
+      module Execution =
+        let private p addl = p ("Execution" :: addl)
+        let status = p [] "Status"
+        let execution = p [] "Execution"
+
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
     let sign = p [] "Sign"

@@ -11,11 +11,13 @@ module RT2DT = RuntimeTypesToDarkTypes
 module Dval = LibExecution.Dval
 
 let rec noTracing : RT.Tracing.Tracing =
-  { loadFnResult = fun _ _ -> None
-    storeFnResult = fun _ _ _ -> ()
+  { storeFnResult = fun _ _ _ _ -> ()
     storeFrameEntry = fun _ _ _ -> ()
     storeLambdaResult = fun _ _ -> ()
     skipTracing = true
+    traceEffects = false
+    nextEffect = fun () -> -1L
+    replayEffect = fun _ -> ValueNone
     forProcess = fun _ -> noTracing }
 
 let noTestContext : RT.TestContext =

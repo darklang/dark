@@ -1,11 +1,13 @@
 # Processes and the scheduler
 
-Status: the baseline, cores, and concurrent reads. A running computation is a
-value the runtime can step, park, resume and inspect; one thread runs many of
-them, and a group of worker threads (one per core) runs many more. Reads run
-concurrently on their own and writes keep their order; `Exec.spawn`/`await`
-run chosen work in the background. The follow-ups at the end are where the
-rest goes.
+Status: the baseline, cores, concurrent reads, and executions. A running
+computation is a value the runtime can step, park, resume and inspect; one
+thread runs many of them, and a group of worker threads (one per core) runs
+many more. Reads run concurrently on their own and writes keep their order;
+`Exec.spawn`/`await` run chosen work in the background. A traced run is an
+execution: kept with the log of what it did to the world, suspended by
+Ctrl-C, resumed or forked by replaying that log. The follow-ups at the end
+are where the rest goes.
 
 The one-paragraph version: a process is a `VMState` plus the `ExecutionState`
 it runs under plus a status. A scheduler steps a process until it finishes,
@@ -197,8 +199,8 @@ state itself when it is off.
 ## Reads are concurrent
 
 The user-facing rule, in one paragraph: a call whose effects are all reads
-(a file, env, db, package or trace read, the clock, random; an HTTP GET or
-HEAD) that has to wait does not stop your program. You get its result back at
+(a file, env, db, package or trace read; an HTTP GET or HEAD) that has to
+wait does not stop your program. You get its result back at
 once, as a read still in flight, and the program runs on; the first thing
 that looks at the value waits for it. Every write (`print`, `File.write`, a
 POST, a db write) runs when it is reached, in program order. So
@@ -222,8 +224,11 @@ How it works (`Interpreter.Promises`, `RuntimeTypes.Promise`):
   call is deferrable when `Effects.allReads fn.callEffects`, or when the body
   set `vm.readHint` for this call. `Http` is not a read effect, because one
   builtin carries every method; `httpClientRequest` sets the hint for GET and
-  HEAD, per call. A read that finishes synchronously (the clock, most file and
-  db reads in this runtime) is never a promise; only a real wait is.
+  HEAD, per call. `Clock` and `Random` are not read effects either: reading
+  them never waits, and `sleep`, the one clock call that does, is a wait the
+  program means to take (it was deferred in a first cut, and `let _ = sleep`
+  then slept nobody). A read that finishes synchronously (most file and db
+  reads in this runtime) is never a promise; only a real wait is.
 - A promise is only ever at the top level of a register, a frame's result, or
   a builtin's returned value. Every instruction that inspects, stores or
   passes a value forces it first: `Apply` forces the callee and every
@@ -295,13 +300,80 @@ thread on the completion as any builtin wait would.
 
 ## Traces
 
-`trace_fn_calls` rows carry `process_id` and `seq` (`migrations/schema/
-08-traces.sql`; existing stores get the columns from `LibDB/Releases.fs`,
-with `''` and `0` for old rows). `seq` is assigned as calls complete, under
-the tracer's lock, across every process writing the trace: one process's rows
-in `seq` order are its log, all of them are the interleaving. `Tracing.FnCall`
-in Dark carries both (`processId : Option<Uuid>`, `seq`). A run nobody
-scheduled writes `''`. The executions step reads these back for replay.
+`trace_fn_calls` rows carry `process_id`, `seq` and `ord`
+(`migrations/schema/08-traces.sql`; existing stores get the columns from
+`LibDB/Releases.fs`, with `''`, `0` and `-1` for old rows). `seq` is assigned
+as calls complete, under the tracer's lock, across every process writing the
+trace: all the rows in `seq` order are the interleaving. `ord` is an effectful
+builtin call's ordinal among its process's effectful calls, taken when the
+call is made (`Tracing.nextEffect`), so a read that lands late keeps its
+place; one process's rows in `ord` order are its log, and what a replay keys
+on. `Tracing.FnCall` in Dark carries `processId : Option<Uuid>` and `seq`. A
+run nobody scheduled writes `''`.
+
+Trace detail has three levels (`DARK_CONFIG_TRACE_DETAIL`): `off`; `effects`,
+the classic rule (only builtin calls with non-empty `callEffects`, with their
+ordinals; no frames, no pure calls; the interpreter keeps its fast paths); and
+`on`, every call, frame and lambda, the tree `traces view` renders, which
+carries the effect log too. The default stays `off` until trace retention
+exists; `effects` is what makes a run resumable.
+
+## Executions
+
+A traced `eval` or `run` is an execution (`LibDB.Executions`, the
+`executions` table): its input (the expression or the script's source, the
+same the trace row stores), its trace, its status (`running`, `done`,
+`failed`, `suspended`), and, for a fork, the execution and the position it
+branched from. `dark exec` lists them; `exec show`, `exec resume`, `exec fork
+[--at <position>]`. `Stdlib.Exec.Execution` is the Dark side (`list`, `get`,
+`fork`, `armResume`).
+
+- Ctrl-C during a traced run: the CLI's handler stores the log as it stands,
+  marks the execution suspended, prints the resume command and leaves
+  (`Cli.fs`, `installSuspendOnInterrupt`; `Executions.Foreground`). A TUI
+  reading keys takes Ctrl-C as input and never gets here. A run the suspend
+  took out of the foreground stores nothing more if it goes on (a test's does;
+  the CLI's has exited).
+- `resume`: `armResume` then the same input through the ordinary `eval` or
+  `run` path; the script runner takes the armed resume in place of a fresh
+  tracer (`Tracing.createReplayTracer`). Every effectful call whose
+  `(process, ordinal)` the log has is answered from it, and not performed: a
+  replayed `printLine` prints nothing, since the world already saw it. The
+  first ordinal a process asks for that the log lacks ends that process's
+  replay for good, so nothing later in the log can be handed to it after a
+  live call; from there the run is live, still recording, and the stored
+  trace ends up as the replayed prefix plus what ran after. The recorded
+  process ids are the recorded run's; a resumed run's processes are matched
+  to them in the order they first appear in the log, which is the order a
+  script's expressions start in. Processes started with `Exec.spawn` may not
+  match up; a resume with those is best effort. A run nobody scheduled (a
+  plain `execute`, as in the test harness) records and replays under one
+  process id.
+- `fork`: a new execution with the same input, a new trace holding the
+  parent's rows with `seq` below the position (the whole log with no
+  `--at`), suspended; resume it and it diverges where the log ends. Cutting
+  by `seq` can leave a process's later ordinals without earlier ones, which
+  the rule above turns into "live from the first hole".
+- Replay after a package edit: the input is re-parsed, so names resolve to
+  the new code, and the effects come from the log: the new pure code runs
+  against the old I/O. Live's H9 (live values) can start from this.
+- The determinism audit (every pure builtin, run twice on the same inputs,
+  must agree): a scan of every builtin declared with no effects for the
+  nondeterministic APIs (guids, clocks, random, environment, hash codes,
+  unordered enumeration) finds three, all host facts read live and not
+  recorded, by design: `cliTerminalColorEnabled` (the terminal's colour
+  support), `interpreterStatsEnableDetailedTiming` and `interpreterStatsGet`
+  (dev instrumentation). A replay in another terminal renders for that
+  terminal. Dark's dict is an ordered map, so enumeration is deterministic.
+  `uuidGenerate` declares `Random` and is in the log.
+
+Tested (`CliExec.Tests.fs`): a run is kept and `resume` gives the same two
+uuids; a fork at position 1 keeps the first uuid and makes the second afresh,
+and `show` names its parent; a run suspended mid-way (its log has the first
+uuid only) resumes with that uuid answered from the log and the rest live,
+and the interrupted run's own ending leaves the suspend alone; a package edit
+between record and resume runs the new code (`v2:`) against the recorded
+uuid.
 
 ## `Host.await`, the contract
 
@@ -350,10 +422,13 @@ completes.
 
 ## Not here yet
 
-Each of these is a follow-up in the scheduler plan, in this order:
+Follow-ups in the scheduler plan, in order, and the edges of what is here:
 
-- Record/replay, resume after Ctrl-C, fork. The `traceId` link is not on the
-  process yet; the `(process_id, seq)` it will replay from is.
+- Removing host re-entry, then Ply out of the interpreter, then a scheduling
+  policy in Dark, are the next steps (`notes/scheduler-and-live`).
+- A resume matches recorded processes to new ones by start order; a run that
+  spawned may not line up. `resume` is the CLI's, since it runs the input
+  through the CLI's own paths; `Exec.fork` from Dark exists.
 - `ps show` says how many reads a process has in flight, not which.
 - Removing host re-entry. `List.map f` still runs `f` in a nested VM on the
   .NET stack; a process parked inside it shows the frame that called the

@@ -26,6 +26,8 @@ let builtins (pm : PT.PackageManager) : Builtins =
 
       // Traces (reader surface)
       Libs.Traces.builtins ()
+      // Executions: durable runs over the trace store
+      Libs.Executions.builtins ()
 
       // Accounts
       Libs.Account.builtins () ]

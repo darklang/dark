@@ -90,6 +90,10 @@ module TraceResults =
 module TraceDetail =
   type T =
     | Off
+    /// Only effectful builtin calls, with their ordinal: the log a run can be resumed or forked
+    /// from (`docs/processes.md`, "Executions"). Thin: nothing pure, no frames.
+    | Effects
+    /// Every call, frame and lambda: the tree `traces view` renders.
     | On
 
   // Default OFF: traces have no retention/GC (see TraceStorage.store) and a single row can reach ~1 GB (a
@@ -100,6 +104,7 @@ module TraceDetail =
   let private readEnv () : T =
     match System.Environment.GetEnvironmentVariable "DARK_CONFIG_TRACE_DETAIL" with
     | "on" -> On
+    | "effects" -> Effects
     | _ -> Off
 
   let mutable current : T = readEnv ()
@@ -217,8 +222,12 @@ type CompletedEvent =
     /// The process that made the call. `Guid.Empty` for a run nobody scheduled.
     processId : System.Guid
     /// Position in the whole trace, across processes: the order the calls completed in. Reading
-    /// one process's rows back in `seq` order is its log; reading them all is the interleaving.
+    /// them all in `seq` order is the interleaving.
     seq : int64
+    /// For an effectful builtin call, its ordinal among the process's effectful calls, taken when
+    /// the call was made; -1 for everything else. One process's rows in `ord` order are its log,
+    /// and what a replay keys on.
+    ord : int64
   }
 
 
@@ -285,6 +294,16 @@ type TracerState =
     mutable dropped : int
     /// The next `seq`, handed out as events complete.
     mutable nextSeq : int64
+    /// The next effectful-call ordinal per process, handed out as calls are made.
+    ordinals : System.Collections.Generic.Dictionary<System.Guid, int64 ref>
+    /// What a replay answers from: the recorded result of each effectful call, by process and
+    /// ordinal. Empty for a fresh run.
+    replay :
+      System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>
+    /// Processes whose replay has ended: the log had no answer for an ordinal they asked for,
+    /// so they are live from there and nothing later in the log may be handed to them (a fork
+    /// cut by position can leave a later ordinal without its earlier ones).
+    replayEnded : System.Collections.Generic.HashSet<System.Guid>
     sync : obj
   }
 
@@ -294,7 +313,22 @@ let private newState () : TracerState =
     stacks = System.Collections.Generic.Dictionary()
     dropped = 0
     nextSeq = 0L
+    ordinals = System.Collections.Generic.Dictionary()
+    replay = System.Collections.Generic.Dictionary()
+    replayEnded = System.Collections.Generic.HashSet()
     sync = obj () }
+
+
+/// The next ordinal for `pid`'s effectful calls. Under `sync`.
+let private nextOrdinal (state : TracerState) (pid : System.Guid) : int64 =
+  match state.ordinals.TryGetValue pid with
+  | true, r ->
+    let n = r.Value
+    r.Value <- n + 1L
+    n
+  | false, _ ->
+    state.ordinals[pid] <- ref 1L
+    0L
 
 
 /// The open call stack of one process. Under `sync`.
@@ -403,7 +437,7 @@ let private makeStoreFnResult
   (state : TracerState)
   (pid : System.Guid)
   : RT.Tracing.StoreFnResult =
-  fun (_, name) args result ->
+  fun (_, name) ord args result ->
     match name with
     | RT.FQFnName.Builtin _ ->
       lock state.sync (fun () ->
@@ -419,7 +453,8 @@ let private makeStoreFnResult
             // No frame-entry counterpart for builtins, so no real duration.
             durationMs = 0L
             processId = pid
-            seq = 0L })
+            seq = 0L
+            ord = ord })
     | RT.FQFnName.Package _ ->
       let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
       lock state.sync (fun () ->
@@ -437,7 +472,8 @@ let private makeStoreFnResult
               result = result
               durationMs = ticksToMs (endedAt - partial.startedAtTicks)
               processId = pid
-              seq = 0L })
+              seq = 0L
+              ord = -1L })
 
 
 /// Fired when a Lambda frame returns. Pop the matching entry and finalize.
@@ -462,21 +498,38 @@ let private makeStoreLambdaResult
             result = result
             durationMs = ticksToMs (endedAt - partial.startedAtTicks)
             processId = pid
-            seq = 0L })
+            seq = 0L
+            ord = -1L })
 
 
 /// The interpreter hooks for one process writing this trace. `forProcess` hands a spawned process
-/// its own; the hooks share the event list and get their own call stack.
+/// its own; the hooks share the event list and get their own call stack and ordinals. Under the
+/// `Effects` level only effectful builtin calls are recorded and the interpreter keeps its fast
+/// paths (`skipTracing`); under `On`, everything.
 let rec private executionTracingFor
   (state : TracerState)
+  (level : TraceDetail.T)
   (pid : System.Guid)
   : RT.Tracing.Tracing =
   { Exe.noTracing with
       storeFrameEntry = makeStoreFrameEntry state pid
       storeFnResult = makeStoreFnResult state pid
       storeLambdaResult = makeStoreLambdaResult state pid
-      skipTracing = false
-      forProcess = executionTracingFor state }
+      skipTracing = (level <> TraceDetail.On)
+      traceEffects = true
+      nextEffect = (fun () -> lock state.sync (fun () -> nextOrdinal state pid))
+      replayEffect =
+        (fun ord ->
+          lock state.sync (fun () ->
+            if state.replayEnded.Contains pid then
+              ValueNone
+            else
+              match state.replay.TryGetValue(struct (pid, ord)) with
+              | true, dv -> ValueSome dv
+              | false, _ ->
+                state.replayEnded.Add pid |> ignore<bool>
+                ValueNone))
+      forProcess = executionTracingFor state level }
 
 
 /// Store trace data to SQLite.
@@ -559,10 +612,10 @@ module TraceStorage =
         | _ ->
           [ "INSERT INTO trace_fn_calls
             (trace_id, call_id, parent_call_id, kind, fn_hash,
-             lambda_expr_id, args, result, duration_ms, process_id, seq)
+             lambda_expr_id, args, result, duration_ms, process_id, seq, ord)
            VALUES
             (@traceId, @callId, @parentCallId, @kind, @fnHash,
-             @lambdaExprId, @args, @result, @durationMs, @processId, @seq)",
+             @lambdaExprId, @args, @result, @durationMs, @processId, @seq, @ord)",
             events
             |> List.map (fun ev ->
               let argsBytes = serializeArgs ev.args
@@ -582,7 +635,8 @@ module TraceStorage =
                    Sql.string ""
                  else
                    Sql.string (string ev.processId))
-                "seq", Sql.int64 ev.seq ]) ]
+                "seq", Sql.int64 ev.seq
+                "ord", Sql.int64 ev.ord ]) ]
 
       let _ = Sql.executeTransactionSync (baseStatements @ eventStmt)
       ()
@@ -615,16 +669,16 @@ let prepareDvalForStorage
 let private prepareTraceForStorage
   (exeState : RT.ExecutionState)
   (inputDval : RT.Dval)
-  (state : TracerState)
+  (events : CompletedEvent[])
   : Ply.Ply<RT.Dval> =
   uply {
     let prep = prepareDvalForStorage exeState
     let! preparedInput = prep inputDval
-    for i in 0 .. state.events.Count - 1 do
-      let ev = state.events[i]
+    for i in 0 .. events.Length - 1 do
+      let ev = events[i]
       let! preparedArgs = ev.args |> Ply.List.mapSequentially prep
       let! preparedResult = prep ev.result
-      state.events[i] <- { ev with args = preparedArgs; result = preparedResult }
+      events[i] <- { ev with args = preparedArgs; result = preparedResult }
 
     return preparedInput
   }
@@ -654,12 +708,17 @@ let private storeTrace
 
       let traceIdStr = string traceID
       use _span = Telemetry.span "trace.store" [ "traceId", traceIdStr ]
-      if state.dropped > 0 then
+      // A copy taken under the lock: a run suspended by Ctrl-C stores while its processes may
+      // still be recording, and the copy is what gets prepared and written.
+      let struct (events, dropped, nextSeq) =
+        lock state.sync (fun () ->
+          struct (state.events.ToArray(), state.dropped, state.nextSeq))
+      if dropped > 0 then
         Telemetry.event
           "trace.truncated"
-          [ "kept", string state.events.Count; "dropped", string state.dropped ]
+          [ "kept", string events.Length; "dropped", string dropped ]
       try
-        let! preparedInput = prepareTraceForStorage exeState inputDval state
+        let! preparedInput = prepareTraceForStorage exeState inputDval events
         TraceStorage.store
           rootTLID
           traceID
@@ -669,26 +728,31 @@ let private storeTrace
           // A truncated trace carries a final marker row rather than just ending. Without it the trace
           // reads as complete, and "the call I'm looking for isn't here" is indistinguishable from "it
           // never happened" -- which is the one thing a debugging aid must never be ambiguous about.
-          (if state.dropped > 0 then
-             (Seq.toList state.events)
+          (if dropped > 0 then
+             (List.ofArray events)
              @ [ { callId = newCallId ()
                    parentCallId = None
                    kind = "truncated"
                    fnHash =
                      Some
-                       $"trace truncated: {state.dropped} further calls not recorded (cap {TraceLimits.maxEvents}, raise with DARK_CONFIG_TRACE_MAX_EVENTS)"
+                       $"trace truncated: {dropped} further calls not recorded (cap {TraceLimits.maxEvents}, raise with DARK_CONFIG_TRACE_MAX_EVENTS)"
                    lambdaExprId = None
                    args = []
                    result = RT.DUnit
                    durationMs = 0L
                    processId = System.Guid.Empty
-                   seq = state.nextSeq } ]
+                   seq = nextSeq
+                   ord = -1L } ]
            else
-             Seq.toList state.events)
+             List.ofArray events)
           exeState.accountID
       with ex ->
+        let inner =
+          match ex.InnerException with
+          | null -> ""
+          | e -> $" ({e.Message})"
         System.Console.Error.WriteLine
-          $"[tracing] Failed to store trace: {ex.Message}"
+          $"[tracing] Failed to store trace: {ex.Message}{inner}"
         Telemetry.event
           "trace.storeFailed"
           [ "traceId", traceIdStr
@@ -706,7 +770,8 @@ let createSqliteTracer (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
 
   { enabled = true
     results = results
-    executionTracing = executionTracingFor state System.Guid.Empty
+    executionTracing =
+      executionTracingFor state TraceDetail.current System.Guid.Empty
     storeTraceInput =
       fun desc varname input ->
         let (kind, path, modifier) = desc
@@ -749,11 +814,60 @@ let createCliTracer
   else
     { enabled = true
       results = results
-      executionTracing = executionTracingFor state System.Guid.Empty
+      executionTracing =
+        executionTracingFor state TraceDetail.current System.Guid.Empty
       storeTraceInput = fun _ _ _ -> ()
       storeTraceResults =
         fun exeState ->
           storeTrace 0UL traceID description inputVarName inputDval state exeState }
+
+
+/// A CLI tracer that replays a stored log: every effectful call whose `(process, ordinal)` the
+/// log has is answered from it rather than performed, and the run records as it goes, so the
+/// stored trace ends up as the replayed prefix plus whatever ran live after it.
+///
+/// The process ids in the log are the recorded run's; a resumed run's processes are new. A
+/// script's processes start in a fixed order (the expressions, one after another), and a process's
+/// first effectful call comes after its start, so the recorded processes are listed in the order
+/// they first appear in the log and each new process, as the interpreter meets it, is matched to
+/// the next one (`forProcess`). Anything past the recorded list replays nothing.
+let createReplayTracer
+  (traceID : AT.TraceID.T)
+  (description : string)
+  (inputVarName : string)
+  (inputDval : RT.Dval)
+  (log : List<System.Guid * int64 * RT.Dval>)
+  : T =
+  let results = TraceResults.empty ()
+  let state = newState ()
+  let mutable unmatched = log |> List.map (fun (pid, _, _) -> pid) |> List.distinct
+  // A run nobody scheduled recorded under `Guid.Empty`, and a resume nobody schedules asks
+  // under it too, through the root hooks below, so those rows answer directly as well as
+  // through the matching.
+  for (pid, ord, dv) in log do
+    if pid = System.Guid.Empty then
+      state.replay[struct (System.Guid.Empty, ord)] <- dv
+  let rec tracingFor (pid : System.Guid) : RT.Tracing.Tracing =
+    lock state.sync (fun () ->
+      match unmatched with
+      | recorded :: rest ->
+        unmatched <- rest
+        for (rpid, ord, dv) in log do
+          if rpid = recorded then state.replay[struct (pid, ord)] <- dv
+      | [] -> ())
+    { executionTracingFor state TraceDetail.current pid with
+        forProcess = tracingFor }
+  { enabled = true
+    results = results
+    // The root's own hooks (the CLI's process, which makes no effectful calls of its own in a
+    // script; the expressions are child processes and go through `forProcess`).
+    executionTracing =
+      { executionTracingFor state TraceDetail.current System.Guid.Empty with
+          forProcess = tracingFor }
+    storeTraceInput = fun _ _ _ -> ()
+    storeTraceResults =
+      fun exeState ->
+        storeTrace 0UL traceID description inputVarName inputDval state exeState }
 
 
 let createNonTracer (_traceID : AT.TraceID.T) : T =

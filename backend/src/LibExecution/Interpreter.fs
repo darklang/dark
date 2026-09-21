@@ -880,10 +880,15 @@ let private traceBuiltinResult
   (exeState : ExecutionState)
   (currentFrame : CallFrame)
   (fn : BuiltInFn)
+  (ord : int64)
   (allArgs : Dval[])
   (result : Dval)
   : Dval =
-  if not exeState.tracing.skipTracing then
+  // The classic rule: an effectful call (`ord >= 0`) is recorded whenever effects are traced; a
+  // pure one only under full tracing.
+  if
+    (ord >= 0L && exeState.tracing.traceEffects) || not exeState.tracing.skipTracing
+  then
     let source : Tracing.Source = (currentFrame.executionPoint, None)
     let fnRecord : Tracing.FunctionRecord = (source, FQFnName.Builtin fn.name)
     let args = NEList.ofListUnsafe "" [] (List.ofArray allArgs)
@@ -894,11 +899,11 @@ let private traceBuiltinResult
       p.Task.ContinueWith(
         (fun (t : Task<Dval>) ->
           if t.IsCompletedSuccessfully then
-            exeState.tracing.storeFnResult fnRecord args t.Result),
+            exeState.tracing.storeFnResult fnRecord ord args t.Result),
         TaskContinuationOptions.ExecuteSynchronously
       )
       |> ignore<Task>
-    | _ -> exeState.tracing.storeFnResult fnRecord args result
+    | _ -> exeState.tracing.storeFnResult fnRecord ord args result
   result
 
 
@@ -911,6 +916,7 @@ let private finishBuiltin
   (fn : BuiltInFn)
   (tst : TypeSymbolTable)
   (allArgs : Dval[])
+  (ord : int64)
   (sw : int64)
   (bodyAllocBefore : int64)
   (result : Dval)
@@ -937,7 +943,7 @@ let private finishBuiltin
   match TypeChecker.tryUnifySync tst fn.returnType result with
   | ValueSome _ ->
     recordStage vm ApplyStage.BiCheckResult biResAlloc
-    Ply(traceBuiltinResult exeState currentFrame fn allArgs result)
+    Ply(traceBuiltinResult exeState currentFrame fn ord allArgs result)
   | ValueNone ->
     // Closed here rather than after the await: a bracket spanning a bind measures whatever nested
     // execution resumes inside it, not this region. The async answer isn't counted, which is the
@@ -954,7 +960,7 @@ let private finishBuiltin
       with
       | Ok _ -> ()
       | Error rte -> raiseRTE vm.threadID rte
-      return traceBuiltinResult exeState currentFrame fn allArgs result
+      return traceBuiltinResult exeState currentFrame fn ord allArgs result
     }
 
 
@@ -1008,38 +1014,76 @@ let private invokeBuiltin
   let bodyAllocBefore =
     if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
-  // Cleared before every body, so a hint is only ever the body's own (`Promises.deferrable`).
-  vm.readHint <- false
-  // Every builtin's signature is async because some of them have to be -- HTTP, the package store,
-  // anything touching disk. Most aren't: `Int64.add` computes and returns.
-  let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
+  // An effectful call's place in the process's log, taken now rather than when it completes, so
+  // a read that lands late keeps it. -1 for a pure call, or when nothing records.
+  let recording = exeState.tracing.traceEffects || not exeState.tracing.skipTracing
+  let ord =
+    if recording && not (Set.isEmpty fn.callEffects) then
+      exeState.tracing.nextEffect ()
+    else
+      -1L
 
-  // `finishBuiltin` is top-level rather than a local closing over the eight values it needs, for the
-  // same reason `completeBuiltin` is: the fallback arm below is a `uply`, so a local would be captured
-  // and built on every call.
-  match Ply.trySync body with
+  // Replay: the log has this call's result, so the effect is not performed. The permission
+  // check above still ran; a replay has no more rights than the run it replays.
+  let replayed = if ord >= 0L then exeState.tracing.replayEffect ord else ValueNone
+
+  match replayed with
   | ValueSome result ->
-    finishBuiltin exeState vm currentFrame fn tst allArgs sw bodyAllocBefore result
+    finishBuiltin
+      exeState
+      vm
+      currentFrame
+      fn
+      tst
+      allArgs
+      ord
+      sw
+      bodyAllocBefore
+      result
   | ValueNone ->
-    // `allArgs` is the frame's reused argument buffer. A read handed back as a promise lets the
-    // frame run on and refill it before this completes, so the trace would record the wrong
-    // arguments; copy when they will be recorded.
-    let allArgs =
-      if exeState.tracing.skipTracing then allArgs else Array.copy allArgs
-    uply {
-      let! result = body
-      return!
-        finishBuiltin
-          exeState
-          vm
-          currentFrame
-          fn
-          tst
-          allArgs
-          sw
-          bodyAllocBefore
-          result
-    }
+
+    // Cleared before every body, so a hint is only ever the body's own (`Promises.deferrable`).
+    vm.readHint <- false
+    // Every builtin's signature is async because some of them have to be -- HTTP, the package store,
+    // anything touching disk. Most aren't: `Int64.add` computes and returns.
+    let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
+
+    // `finishBuiltin` is top-level rather than a local closing over the eight values it needs, for the
+    // same reason `completeBuiltin` is: the fallback arm below is a `uply`, so a local would be captured
+    // and built on every call.
+    match Ply.trySync body with
+    | ValueSome result ->
+      finishBuiltin
+        exeState
+        vm
+        currentFrame
+        fn
+        tst
+        allArgs
+        ord
+        sw
+        bodyAllocBefore
+        result
+    | ValueNone ->
+      // `allArgs` is the frame's reused argument buffer. A read handed back as a promise lets the
+      // frame run on and refill it before this completes, so the trace would record the wrong
+      // arguments; copy when they will be recorded.
+      let allArgs = if recording then Array.copy allArgs else allArgs
+      uply {
+        let! result = body
+        return!
+          finishBuiltin
+            exeState
+            vm
+            currentFrame
+            fn
+            tst
+            allArgs
+            ord
+            sw
+            bodyAllocBefore
+            result
+      }
 
 
 /// The access a partially applied fn reference leaves the `Apply` with: the
@@ -3540,14 +3584,33 @@ let private returnFromFrame
           vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
           let source : Tracing.Source = (parentFrame.executionPoint, None)
           let fnRecord : Tracing.FunctionRecord = (source, fnName)
-          exeState.tracing.storeFnResult
-            fnRecord
-            (NEList.ofListUnsafe "" [] args)
-            resultOfFrame
+          let args = NEList.ofListUnsafe "" [] args
+          match resultOfFrame with
+          // A function handing back a read still in flight (a wrapper around a read builtin):
+          // the trace gets its value when it lands.
+          | DPromise p ->
+            p.Task.ContinueWith(
+              (fun (t : Task<Dval>) ->
+                if t.IsCompletedSuccessfully then
+                  exeState.tracing.storeFnResult fnRecord -1L args t.Result),
+              TaskContinuationOptions.ExecuteSynchronously
+            )
+            |> ignore<Task>
+          | _ -> exeState.tracing.storeFnResult fnRecord -1L args resultOfFrame
         | _ -> ()
       | Lambda _ ->
         vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-        exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
+        let frameId = currentFrame.id
+        match resultOfFrame with
+        | DPromise p ->
+          p.Task.ContinueWith(
+            (fun (t : Task<Dval>) ->
+              if t.IsCompletedSuccessfully then
+                exeState.tracing.storeLambdaResult frameId t.Result),
+            TaskContinuationOptions.ExecuteSynchronously
+          )
+          |> ignore<Task>
+        | _ -> exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
       | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
     parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
     parentFrame.programCounter <- pcOfParent

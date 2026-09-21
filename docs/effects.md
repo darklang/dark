@@ -221,12 +221,14 @@ the default instance policy: a spawned process runs under the spawner's own
 access and can do nothing the spawner could not, so the effect names only that
 something runs beside you.
 
-Read effects (`Effects.isRead`: file, env, db, package and trace reads, clock,
-random) also decide scheduling: a call whose effects are all reads may be
-handed back as a read in flight and forced at its first use, so several run at
-once (`docs/processes.md`, "Reads are concurrent"). `http` is not in that set,
+Read effects (`Effects.isRead`: file, env, db, package and trace reads) also
+decide scheduling: a call whose effects are all reads may be handed back as a
+read in flight and forced at its first use, so several run at once
+(`docs/processes.md`, "Reads are concurrent"). `http` is not in that set,
 since one builtin carries every method; the HTTP client says per call when a
-GET is a read.
+GET is a read. `clock` and `random` are not either: reading them never waits,
+so there is nothing to overlap, and `sleep`, the one clock call that does
+wait, is a wait the program means to take.
 
 Blob dereferencing is deliberately effect-free value materialization. An
 ephemeral blob carries its bytes; a persistent blob loads the same immutable

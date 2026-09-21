@@ -131,7 +131,7 @@ let stateForProcess
   (state : RT.ExecutionState)
   (pid : ProcessId)
   : RT.ExecutionState =
-  if state.tracing.skipTracing then
+  if state.tracing.skipTracing && not state.tracing.traceEffects then
     state
   else
     { state with tracing = state.tracing.forProcess pid }

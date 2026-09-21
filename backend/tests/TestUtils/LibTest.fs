@@ -95,8 +95,8 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    /// A read that has to wait: `Clock` is a read effect, and the gate is what it waits on. The
-    /// interpreter hands it back as a promise, and the test decides when it lands.
+    /// A read that has to wait: `PackageRead` is an ambient read effect, and the gate is what it
+    /// waits on. The interpreter hands it back as a promise, and the test decides when it lands.
     { name = fn "testRead" 0
       typeParams = []
       parameters = [ Param.make "gate" TInt64 "" ]
@@ -113,7 +113,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ LibExecution.Effects.Effect.Clock ]
+      callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
       deprecated = NotDeprecated }
 
     { name = fn "testFailingRead" 0
@@ -133,7 +133,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ LibExecution.Effects.Effect.Clock ]
+      callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
       deprecated = NotDeprecated }
 
     { name = fn "testTrace" 0

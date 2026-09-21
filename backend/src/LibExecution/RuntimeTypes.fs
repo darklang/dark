@@ -2502,10 +2502,10 @@ module Tracing =
 
   type FunctionRecord = Source * FQFnName.FQFnName
 
-  type LoadFnResult =
-    FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
-
-  type StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
+  /// Fired when a builtin call, or a package fn frame, completes. `ord` is the call's ordinal
+  /// among the process's effectful builtin calls, handed out by `nextEffect` when the call was
+  /// made, and -1 for anything else (a pure builtin, a package fn). It is what a replay keys on.
+  type StoreFnResult = FunctionRecord -> int64 -> NEList<Dval> -> Dval -> unit
 
   /// Fired when a new call frame is pushed (Function or Lambda).
   /// Carries the frame's uuid, the executionPoint of the new frame, and
@@ -2522,14 +2522,24 @@ module Tracing =
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
     {
-      loadFnResult : LoadFnResult
       storeFnResult : StoreFnResult
       storeFrameEntry : StoreFrameEntry
       storeLambdaResult : StoreLambdaResult
-      /// When true, the interpreter skips firing all tracer hooks
-      /// (storeFrameEntry, storeFnResult, storeLambdaResult) and the
-      /// associated pendingCallArgs bookkeeping.
+      /// When true, the interpreter skips the frame hooks (storeFrameEntry, storeLambdaResult,
+      /// storeFnResult for package fns and pure builtins) and the pendingCallArgs bookkeeping,
+      /// and takes its fast paths. Effectful builtin calls are still recorded when
+      /// `traceEffects` is set: that log is small, and it is what a run resumes from.
       skipTracing : bool
+      /// Record every effectful builtin call (the classic rule: a call with non-empty
+      /// `callEffects`), with its ordinal, whatever `skipTracing` says about the rest.
+      traceEffects : bool
+      /// The ordinal for an effectful builtin call about to be made, per process: the first is 0.
+      /// Assigned at the call, not at completion, so a read that lands late keeps its place.
+      nextEffect : unit -> int64
+      /// Replay: the recorded result of the effectful call with this ordinal, if the log has
+      /// it; the interpreter then does not perform the call. `ValueNone` once the log runs out,
+      /// and the run goes live from there, still recording.
+      replayEffect : int64 -> Dval voption
       /// The same trace, seen from another process. A recorder keeps one call stack per
       /// process and stamps every event with the process id and a sequence number across
       /// the whole trace, so two processes stepping on two threads write one log whose

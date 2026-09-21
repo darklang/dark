@@ -94,17 +94,17 @@ let fromName (wanted : string) : Option<Effect> =
 
 /// A read effect observes the world without changing it, so calls whose effects are all reads
 /// may run concurrently and complete in any order; the interpreter hands such a call back as a
-/// promise when it has to wait (`docs/processes.md`, "Reads are concurrent"). `Clock` and
-/// `Random` are reads: nothing else observes them. `Http` is not one here, since one builtin
-/// carries every method; the HTTP client says per call (`VMState.readHint`) when a GET is a read.
-/// `Stdin` consumes input, so it is not one either.
+/// promise when it has to wait (`docs/processes.md`, "Reads are concurrent"). `Http` is not one
+/// here, since one builtin carries every method; the HTTP client says per call
+/// (`VMState.readHint`) when a GET is a read. `Stdin` consumes input, so it is not one either.
+/// `Clock` and `Random` are left out on purpose: reading the clock or a random number never
+/// waits, so nothing is gained, and the one `Clock` call that does wait, `sleep`, is a wait the
+/// program means to take, not a read to overlap.
 let isRead (effect : Effect) : bool =
   match effect with
   | Effect.FileRead
   | Effect.EnvRead
   | Effect.DbRead
-  | Effect.Clock
-  | Effect.Random
   | Effect.PackageRead
   | Effect.TraceRead -> true
   | Effect.Http
@@ -114,6 +114,8 @@ let isRead (effect : Effect) : bool =
   | Effect.DbWrite
   | Effect.Stdin
   | Effect.Stdout
+  | Effect.Clock
+  | Effect.Random
   | Effect.Process
   | Effect.PackageWrite
   | Effect.TraceWrite

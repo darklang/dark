@@ -1,0 +1,54 @@
+module Darklang.Stdlib.Exec.Execution
+
+/// A run as a durable thing: what was run, the trace that is its log of effectful calls, where
+/// it stands, and, for a fork, where it branched from. Resume and fork are record/replay: the
+/// same input runs again, every effectful call the log has is answered from it instead of being
+/// performed, and the run goes live once the log runs out (`docs/processes.md`, "Executions").
+/// Recorded whenever a run traces (`DARK_CONFIG_TRACE_DETAIL=effects` or `on`).
+
+type Status =
+  | Running
+  | Done
+  | Failed
+  /// Stopped by Ctrl-C, or a fork nobody has resumed yet. `resume` takes it from here.
+  | Suspended
+
+
+type Execution =
+  { id: Uuid
+    /// `eval`, or `run <file>`.
+    entry: String
+    /// The expression, or the script's source: what `resume` runs again.
+    input: String
+    /// The trace holding its log.
+    traceId: Uuid
+    status: Status
+    /// For a fork: the execution it branched from, and the position in that trace it kept the
+    /// log up to.
+    parent: Stdlib.Option.Option<(Uuid * Int64)>
+    created: String
+    updated: String }
+
+
+/// The most recent executions, newest first.
+let list (limit: Int64) : List<Execution> =
+  Builtin.executionList limit
+
+
+/// One execution, or `None` for an id nobody has.
+let get (id: Uuid) : Stdlib.Option.Option<Execution> =
+  Builtin.executionGet id
+
+
+/// A new execution branched from `id`: the same input, its log up to `at` (a position in the
+/// trace; the whole log when `None`), suspended, so `resume` takes it from there and it diverges
+/// after. Lineage shows in `dark exec show`.
+let fork (id: Uuid) (at: Stdlib.Option.Option<Int64>) : Stdlib.Result.Result<Uuid, String> =
+  Builtin.executionFork id at
+
+
+/// Arm a resume of `id`: the next `eval` or `run` this instance starts replays its log instead
+/// of performing the effects, then goes live. `dark exec resume` arms and then runs the
+/// execution's own input; that is the whole of a resume.
+let armResume (id: Uuid) : Bool =
+  Builtin.executionArmResume id

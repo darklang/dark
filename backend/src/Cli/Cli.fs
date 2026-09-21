@@ -254,6 +254,29 @@ let execute
 
 let initSerializers () = ()
 
+/// Ctrl-C while a traced `run` or `eval` is in the foreground: store its log as it stands, mark
+/// the execution suspended, say how to take it up again, and leave. `dark exec resume <id>` then
+/// runs the same input, answering every call the log has instead of performing it, and goes
+/// live where the log ends. With nothing in the foreground (no traced run, or a TUI reading
+/// keys, which takes Ctrl-C as input and never gets here), the process just ends as it always
+/// did.
+let private installSuspendOnInterrupt () : unit =
+  System.Console.CancelKeyPress.Add(fun args ->
+    let suspended =
+      try
+        (LibDB.Executions.Foreground.suspend ()).Result
+      with _ ->
+        None
+    match suspended with
+    | Some id ->
+      args.Cancel <- true
+      let prefix = (string id).Substring(0, 8)
+      System.Console.Error.WriteLine ""
+      System.Console.Error.WriteLine
+        $"stopped; the run is kept. Take it up again with: dark exec resume {prefix}"
+      exit 130
+    | None -> ())
+
 /// Record host-operation decisions for troubleshooting and review in
 /// `rundir/logs/host-audit.jsonl`. Set `DARK_AUDIT=off` to skip this audit file.
 let private installAuditLog () : unit =
@@ -335,6 +358,7 @@ let main (args : string[]) =
 
     // Record host-operation decisions at the boundary.
     installAuditLog ()
+    installSuspendOnInterrupt ()
 
 
     // Now safe to access LibConfig paths. Gated on DARK_TELEMETRY, the same switch the Dark side

@@ -94,6 +94,9 @@ let main (args : string array) : int =
         // terminal nobody types into; a pipe skips the prompt, so the omission is
         // invisible locally. `packages/darklang/cli/tracing.dark` has the detail.
         Tests.CliTraces.tests
+        // Executions: in-process CLI runs, so sequenced like CliTraces (the console capture
+        // is process-global), and after it, since it flips trace detail on.
+        testSequenced (testList "CliExec" Tests.CliExec.tests)
         // Instance-backed: their commands run as children with a store each, so unlike
         // the rest of the CLI suites these need no sequencing.
         testList "CliJson" Tests.CliJson.tests

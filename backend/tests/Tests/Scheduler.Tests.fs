@@ -829,7 +829,7 @@ let private spawnedErrorReachesAwait =
     do!
       withWorkers 2 (fun root ->
         task {
-          // Denied for the clock, so the spawned read is denied too: the child inherits the
+          // Denied for package reads, so the spawned read is denied too: the child inherits the
           // spawner's access.
           let! (p : Scheduler.Process) =
             spawn
