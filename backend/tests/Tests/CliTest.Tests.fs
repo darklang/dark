@@ -372,6 +372,38 @@ let approvedCallbacksRespectPermissions =
       })
 
 
+let testStdoutStaysBelowItsResultRow =
+  instanceTest "test: stdout is printed beneath an intact result row" (fun state ->
+    task {
+      do! start state
+      let name = "Tests.DTStdout.prints"
+      do!
+        author
+          state
+          name
+          "() : Stdlib.Test.T = Stdlib.Test.table Stdlib.printLine [ (\"callback output\", ()) ]"
+      let! (approval, approvalCode) =
+        ran state [ "permissions"; "approve"; name; "--yes" ]
+      Expect.equal approvalCode 0L approval
+      let! (out, code) = ran state [ "test"; name ]
+      Expect.equal code 0L out
+      Expect.isTrue (hasVerdict out "prints" "PASS") out
+      Expect.isTrue
+        (System.Text.RegularExpressions.Regex.IsMatch(
+          out,
+          @"(?m)^    callback output$"
+        ))
+        $"test output is indented beneath the completed row: {out}"
+      Expect.isFalse
+        (System.Text.RegularExpressions.Regex.IsMatch(
+          out,
+          @"(?m)^  prints\s+callback output"
+        ))
+        $"test output must not split the name from its verdict: {out}"
+      do! discardAll state
+    })
+
+
 let caughtCallbackDenialDoesNotClassifyLaterRaise =
   cliTest
     "test: a caught callback denial cannot reclassify a later unrelated raise"
@@ -741,6 +773,7 @@ let tests : List<Test> =
     exactSelectionAndProgress
     tableKeepsFailuresAndErrors
     approvedCallbacksRespectPermissions
+    testStdoutStaysBelowItsResultRow
     caughtCallbackDenialDoesNotClassifyLaterRaise
     dictionaryErrorsSurviveReporting
     loggedOutRequiresScope

@@ -401,30 +401,6 @@ let visibleViews (state: State) : List<Int> =
     i)
 
 
-/// Run `f` with anything it writes to stdout captured, and hand back both its value and that output. The
-/// single place `Builtin.stdoutCapture*` is used, so the many "run a command, show its output inside the
-/// frame" sites go through one wrapper instead of each touching the builtins directly.
-///
-/// Capturing is not optional in here. The workbench owns the whole screen, so a stray `printLine` from
-/// inside a command scrolls the alternate screen, and every frame after it lands that many rows off - which
-/// looks like two overlapping copies of the UI, not like a missing line. `cliEvaluateExpression` prints a
-/// three-line call-stack header on any runtime error, so this is reachable by typing a typo at the REPL.
-let captureOutputAnd (f: Unit -> 'a) : ('a * String) =
-  // `stdoutCaptureStart` returns false when a capture is ALREADY open, and deliberately changes nothing in
-  // that case - so we don't own the buffer and must not stop it. Calling stop regardless would hand the
-  // outer capture's collected output to the inner caller and clear the flag, so everything the outer one
-  // was collecting would print straight onto the alternate screen: exactly the corruption capturing exists
-  // to prevent. Nothing nests today, but this is a one-line guard against a hard-to-see failure.
-  let owned = Builtin.stdoutCaptureStart ()
-  let value = f ()
-  if owned then (value, Builtin.stdoutCaptureStop ()) else (value, "")
-
-/// `captureOutputAnd` when only the output matters (running a classic command for its printed result).
-let captureOutput (f: Unit -> 'a) : String =
-  let (_value, output) = captureOutputAnd f
-  output
-
-
 /// A throwaway classic-CLI AppState carrying just this workbench's identity (branch + account) for handing to
 /// the classic command Registry (executeCommand / getCompletions / getCompletionHint). Everything else is the
 /// init default; the workbench only ever needs those three fields to run a command on the right branch as you.

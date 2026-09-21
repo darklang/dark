@@ -176,7 +176,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
       let appState =
         classicState state
       let output =
-        captureOutput (fun () ->
+        Stdlib.Cli.Output.captureOutput (fun () ->
           Darklang.Cli.Registry.executeCommand "agent" appState (Stdlib.List.append [ "ask" ] words))
       let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
       Step.Continue
@@ -219,7 +219,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
       else
         let isKnown = Stdlib.List.member allNames cmd
         let output =
-          captureOutput (fun () ->
+          Stdlib.Cli.Output.captureOutput (fun () ->
             if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args
             else Darklang.Cli.Registry.executeCommand "eval" appState words)
         let body = if (Stdlib.String.trim output) == "" then "(no output)" else output

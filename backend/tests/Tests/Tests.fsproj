@@ -41,6 +41,7 @@
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Hashing.Tests.fs" />
     <Compile Include="Config.Tests.fs" />
+    <Compile Include="ConsoleCapture.Tests.fs" />
 
     <!-- cloud stuff /-->
     <Compile Include="HttpServer.Tests.fs" />

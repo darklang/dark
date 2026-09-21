@@ -595,7 +595,7 @@ let refreshPeek (next: State) : State =
         if (Stdlib.Bool.not item.isModule) && (item.kind == "fn") && (item.name == "render") then
           let fullpath =
             Stdlib.String.join (Stdlib.List.append (modulePathOf next.location) [ item.name ]) "."
-          captureOutput (fun () ->
+          Stdlib.Cli.Output.captureOutput (fun () ->
             Eval.evaluateRaw next.accountId next.branchId (fullpath ++ " ()") [] false)
         else
           ""

@@ -2,6 +2,12 @@ module NonBlockingConsole
 
 type BlockingCollection = System.Collections.Concurrent.BlockingCollection<string>
 
+/// One capture window. Mutable and shared by reference so that stopping it from a nested
+/// flow is visible to the flow that started it; see `captureWindow`.
+[<AllowNullLiteral>]
+type private CaptureWindow() =
+  member val Buffer : System.Text.StringBuilder = null with get, set
+
 type private Private() =
 
   // It seems like printing on the Console can cause a deadlock. I observed that all
@@ -41,8 +47,15 @@ type private Private() =
   // buffer still goes through `captureLock`.
   static let captureLock : obj = obj ()
 
-  static let captureBuffer =
-    new System.Threading.AsyncLocal<System.Text.StringBuilder>()
+  // The window is a mutable BOX in the AsyncLocal slot, and the buffer lives inside it.
+  // AsyncLocal propagates a value from a flow into the flows it starts, but a WRITE in a
+  // child is invisible to the parent. Holding the StringBuilder in the slot directly meant
+  // a `Stop` reached from a nested flow -- the test runner evaluates each test in one --
+  // cleared only the child's slot, so the flow that opened the window still saw it open and
+  // every later write landed in a buffer nobody would ever read. Clearing the box instead is
+  // visible to whoever started the window, because the reference in the slot never changes.
+  // `Start` still installs a FRESH box, so a window opened by a child stays the child's own.
+  static let captureWindow = new System.Threading.AsyncLocal<CaptureWindow>()
 
   // Use a lock so that wait() doesn't return until the thread has actually printed
   // (it would finish once it was removed from the queue)
@@ -98,11 +111,11 @@ type private Private() =
       // appended to a buffer nobody will read, or tear the StringBuilder.
       let captured =
         lock captureLock (fun () ->
-          let cb = captureBuffer.Value
-          if isNull cb then
+          let window = captureWindow.Value
+          if isNull window || isNull window.Buffer then
             false
           else
-            cb.Append(value) |> ignore
+            window.Buffer.Append(value) |> ignore
             true)
 
       if not captured then mQueue.Add(value)
@@ -112,17 +125,25 @@ type private Private() =
   /// refusing is better than silently discarding the outer capture's output.
   static member StartCapture() : bool =
     lock captureLock (fun () ->
-      if isNull captureBuffer.Value then
-        captureBuffer.Value <- System.Text.StringBuilder()
-        true
+      let existing = captureWindow.Value
+      if not (isNull existing) && not (isNull existing.Buffer) then
+        false
       else
-        false)
+        // A fresh box, so this window belongs to this flow and not to any parent.
+        captureWindow.Value <- CaptureWindow(Buffer = System.Text.StringBuilder())
+        true)
 
   static member StopCapture() : string =
     lock captureLock (fun () ->
-      let sb = captureBuffer.Value
-      captureBuffer.Value <- null
-      if isNull sb then "" else sb.ToString())
+      let window = captureWindow.Value
+      if isNull window || isNull window.Buffer then
+        ""
+      else
+        let captured = window.Buffer.ToString()
+        // Clear the box, not the slot: the flow that opened this window may be a parent
+        // whose slot this flow cannot write to.
+        window.Buffer <- null
+        captured)
 
 
 let wait () : unit = Private.wait ()

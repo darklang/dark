@@ -470,11 +470,25 @@ let executeRun (state: AppState) (args: List<String>) : AppState =
             else
               ()
 
-            Stdlib.print
-              ("  " ++ (Stdlib.String.padEndToWidth test.location.name width) ++ "  ")
+            let rowPrefix =
+              "  " ++ (Stdlib.String.padEndToWidth test.location.name width) ++ "  "
+            Stdlib.print rowPrefix
 
-            let result = run state parsed.allowHarmful test
+            // Keep the name visible while the test runs, but buffer anything the
+            // test prints so it cannot split the name from its verdict. Once the
+            // row is complete, show that output indented beneath it.
+            let (result, output) =
+              Stdlib.Cli.Output.captureOutputAnd (fun () ->
+                run state parsed.allowHarmful test)
             Stdlib.printLine (statusText result)
+
+            let output = Stdlib.String.trimEnd output
+            if output == "" then
+              ()
+            else
+              output
+              |> Stdlib.String.split "\n"
+              |> Stdlib.List.iter (fun line -> Stdlib.printLine ("    " ++ line))
 
             let warnings =
               LanguageTools.Lint.forItem

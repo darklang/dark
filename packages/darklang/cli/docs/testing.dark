@@ -117,11 +117,13 @@ to run rather than selecting other owners' tests.
 Tab completion offers modules, test names and flags. Tests are listed under their
 module, one line each: the name, then the verdict and how many checks it made. The
 name is printed before the test starts, so a test that hangs is a name with nothing
-after it. Whatever did not pass is named again at the end, in full, ready to paste
-into `test <name>`. PASS means its checks passed; FAIL means assertions failed; ERROR
-means execution could not finish normally. Table errors name their row and
-input, preserve other failures, and allow later rows to run. A test containing
-both failed and errored rows counts as one errored test.
+after it. Output written by a test is buffered until it finishes, then printed
+indented beneath its completed result row. Whatever did not pass is named again at
+the end, in full, ready to paste into `test <name>`. PASS means its checks passed;
+FAIL means assertions failed; ERROR means execution could not finish normally.
+Table errors name their row and input, preserve other failures, and allow later
+rows to run. A test containing both failed and errored rows counts as one errored
+test.
 
 Exit 0 means all selected tests passed (or a nonempty list); 1 means a failure,
 error or discovery problem; 2 means invalid arguments or no tests selected.

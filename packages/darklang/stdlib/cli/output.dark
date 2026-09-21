@@ -1,0 +1,17 @@
+/// Helpers for temporarily capturing CLI stdout while preserving a computation's
+/// return value. Capture belongs to the current execution flow; nested capture is
+/// deliberately left to the owner of the already-open buffer.
+module Darklang.Stdlib.Cli.Output
+
+/// Run `f` and return both its value and anything it wrote to stdout. If this
+/// flow is already being captured, leave that capture alone and return no local
+/// output.
+let captureOutputAnd (f: Unit -> 'a) : ('a * String) =
+  let owned = Builtin.stdoutCaptureStart ()
+  let value = f ()
+  if owned then (value, Builtin.stdoutCaptureStop ()) else (value, "")
+
+/// Run `f` and return only the stdout captured by this call.
+let captureOutput (f: Unit -> 'a) : String =
+  let (_value, output) = captureOutputAnd f
+  output
