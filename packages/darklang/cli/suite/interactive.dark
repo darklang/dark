@@ -1,6 +1,6 @@
 /// Driving a full-screen CLI from a test.
 ///
-/// Part of `Darklang.Cli.Tests`.
+/// Part of `Darklang.Cli.Suite`.
 ///
 /// A spawned child gets pipes, not a terminal: `HostProcess.spawn` redirects all three
 /// standard streams, so a `dark` started that way reports no tty and the workbench
@@ -10,7 +10,7 @@
 /// The whole interaction is one script and one child, rather than a session a test pokes
 /// at: `expect` is built for exactly this, and a scripted round trip costs one process
 /// instead of one per keystroke.
-module Darklang.Cli.Tests.Interactive
+module Darklang.Cli.Suite.Interactive
 
 /// One step of an interaction.
 type Step =

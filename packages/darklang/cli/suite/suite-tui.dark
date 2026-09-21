@@ -1,8 +1,8 @@
 /// The terminal UI layer: the span canvas, Unicode-aware text, inline frame diffing, and session
 /// lifecycle through the `Prepared` seam (so none of this needs a real terminal).
 ///
-/// Part of `Darklang.Cli.Tests`.
-module Darklang.Cli.Tests
+/// Part of `Darklang.Cli.Suite`.
+module Darklang.Cli.Suite
 
 // ── Workbench canvas (spans -> rows) ──
 

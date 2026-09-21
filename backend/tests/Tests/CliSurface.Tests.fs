@@ -303,7 +303,7 @@ let private workbenchNavigationRegressions =
   |> List.map (fun name ->
     cliTest $"workbench regression: {name}" (fun state ->
       task {
-        let! output = runCli state [ "eval"; $"Darklang.Cli.Tests.{name} ()" ]
+        let! output = runCli state [ "eval"; $"Darklang.Cli.Suite.{name} ()" ]
         Expect.stringContains output "TestResult.Pass" name
       }))
 

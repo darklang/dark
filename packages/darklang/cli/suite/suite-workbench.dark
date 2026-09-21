@@ -1,5 +1,5 @@
 /// Navigation regressions that need real key dispatch and populated views.
-module Darklang.Cli.Tests
+module Darklang.Cli.Suite
 
 let testWorkbenchHistoryRoundTrip () : TestResult =
   let base = workbenchState ()

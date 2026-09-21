@@ -1,7 +1,7 @@
 /// The test registry and runner.
 ///
-/// Part of `Darklang.Cli.Tests`.
-module Darklang.Cli.Tests
+/// Part of `Darklang.Cli.Suite`.
+module Darklang.Cli.Suite
 
 type TestFunction = Unit -> TestResult
 
