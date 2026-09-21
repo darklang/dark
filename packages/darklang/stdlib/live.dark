@@ -354,7 +354,7 @@ let refresh
         { lg with
             problem =
               Stdlib.Option.Option.Some
-                $"{entryName lg.entry} is bound to a hash the store does not hold" }
+                $"{entryName lg.entry} points at a version the store does not have" }
       | Some fn ->
         let candidates =
           if moved then
@@ -387,7 +387,7 @@ let applicable (lg: LastGood) : Stdlib.Result.Result<'a -> 'b, String> =
     match lg.problem with
     | Some problem -> Stdlib.Result.Result.Error problem
     | None ->
-      Stdlib.Result.Result.Error $"{entryName lg.entry} has no version that passes its checks"
+      Stdlib.Result.Result.Error $"{entryName lg.entry} has no version that type-checks"
 
 /// Resolve a dotted fn name to a callable, as it is bound right now. The startup check for a host
 /// that takes a name on the command line: a name that resolves to nothing is reported before
@@ -425,12 +425,12 @@ let diagnostic (lg: LastGood) : Stdlib.Option.Option<String> =
       let first =
         match issues with
         | issue :: _ -> LanguageTools.AtRestTypeChecker.issueToString issue
-        | [] -> "failed its at-rest check"
+        | [] -> "it failed the type check"
 
       let more = if count > 1 then $" (+{Stdlib.Int.toString (count - 1)} more)" else ""
 
       Stdlib.Option.Option.Some
-        $"{entryName lg.entry}: newest version not applied: {first}{more}"
+        $"{entryName lg.entry}: still on the last good version. The newest has a type error: {first}{more}"
     | None -> Stdlib.Option.Option.None
 
 
@@ -466,7 +466,7 @@ module Router =
         if after != before then
           match after with
           | Some line -> Stdlib.printLine $"live: {line}"
-          | None -> Stdlib.printLine $"live: {entryName lg.entry} updated"
+          | None -> Stdlib.printLine $"live: now serving the new version of {entryName lg.entry}"
         else
           ()
 

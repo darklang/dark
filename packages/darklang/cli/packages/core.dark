@@ -342,20 +342,20 @@ let saveAuthored
 
       if reverted then
         Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.success $"✓ Put {kindWord} {fullPath} back on an earlier version")
+          (Stdlib.Cli.UI.Colors.success $"✓ Put {kindWord} {fullPath} back to an earlier version")
       else if landed then
         let action = if isUpdate then "Updated" else "Created"
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.success $"✓ {action} {kindWord}: {fullPath}")
       else
         Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.hint $"= {kindWord} {fullPath} is unchanged: nothing saved.")
+          (Stdlib.Cli.UI.Colors.hint $"= {kindWord} {fullPath} is unchanged; nothing was saved.")
 
       let _ =
         if docOnly then
           Stdlib.printLine
             (Stdlib.Cli.UI.Colors.dimText
-              "  documentation only -- the version is unchanged, so nothing was repointed.")
+              "  documentation only: the version is the same, so nothing that uses it changed.")
         else
           ()
 

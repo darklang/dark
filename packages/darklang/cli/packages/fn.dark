@@ -48,11 +48,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 /// callbacks when the static walk cannot follow them), and where to inspect
 /// them.
 let printFunctionPermissionSummary (hash: String) : Unit =
-  let requirements = Permissions.Command.requirementDisplay hash
+  let requirements =
+    match Permissions.Command.requirementDisplay hash with
+    | "effect-free" -> "none"
+    | other -> other
+
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"  permissions it needs: {requirements}")
   Stdlib.printLine
-    (Stdlib.Cli.UI.Colors.hint $"  permission requirements: {requirements}")
-  Stdlib.printLine
-    (Stdlib.Cli.UI.Colors.hint $"  inspect: `permissions show {hash}`")
+    (Stdlib.Cli.UI.Colors.hint $"  (`permissions show {hash}` has the details)")
 
 
 let createFnInline

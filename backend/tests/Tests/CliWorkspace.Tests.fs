@@ -376,7 +376,7 @@ let private serveFollowsEdits =
           | other -> failtest $"expected a diagnostic, got {other}"
         Expect.stringContains
           why
-          "newest version not applied"
+          "still on the last good version"
           "the diagnostic names what it kept"
         Expect.stringContains why "expected String, got Int" "and says why"
 
@@ -627,7 +627,7 @@ let private viewFollowsEdits =
         Expect.contains afterEdit "keys: 11" "and the model survived the swap"
         Expect.contains
           afterEdit
-          "updated: Tests.LiveView.render"
+          "changed: Tests.LiveView.render"
           "the toast names what moved"
 
         // A broken save: the frame stays, the diagnostic is under it.
@@ -648,7 +648,7 @@ let private viewFollowsEdits =
           |> String.concat " "
         Expect.stringContains
           (words afterBreak)
-          "newest version not applied"
+          "still on the last good version"
           "with the diagnostic in a band"
 
         // The fix clears the band.
@@ -661,7 +661,7 @@ let private viewFollowsEdits =
         let! afterFix = rowsOf session
         Expect.contains afterFix "version three" "the fix is on the next frame"
         Expect.isFalse
-          ((words afterFix).Contains "not applied")
+          ((words afterFix).Contains "last good version")
           "and the band is gone"
 
         // Escape leaves.

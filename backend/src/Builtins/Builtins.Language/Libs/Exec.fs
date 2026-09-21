@@ -162,7 +162,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "id" TUuid "" ]
       returnType = TBool
       description =
-        "Ask a process to stop; it fails with 'cancelled' at its next turn. False for an id "
+        "Ask a process to stop; it fails with 'stopped by ps kill' at its next turn. False for an id "
         + "nobody has."
       fn =
         (function

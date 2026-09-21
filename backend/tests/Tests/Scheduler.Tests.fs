@@ -287,7 +287,7 @@ let private killWakesAParkedProcess =
       "kill found the process"
     let! result = running
     match result with
-    | Error(RTE.UncaughtException("cancelled", _), _) -> ()
+    | Error(RTE.UncaughtException("stopped by ps kill", _), _) -> ()
     | other -> failtest $"expected the stuck process to be cancelled, got {other}"
   }
 

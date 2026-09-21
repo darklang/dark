@@ -23,7 +23,7 @@ let loop
     match Stdlib.Live.call lg state with
     | Ok next -> next
     | Error rte ->
-      Stdlib.printLine $"{name}: step failed, state kept: {rte}"
+      Stdlib.printLine $"{name}: the step failed, so its state was kept: {rte}"
       state
 
   match Stdlib.Host.await [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ] with
@@ -36,7 +36,7 @@ let loop
     | Some why -> if after != before then Stdlib.printLine $"{name}: {why}" else ()
     | None ->
       if refreshed.hash != lg.hash then
-        Stdlib.printLine $"{name}: {Stdlib.Live.entryName lg.entry} updated"
+        Stdlib.printLine $"{name}: now running the new version of {Stdlib.Live.entryName lg.entry}"
       else
         ()
 

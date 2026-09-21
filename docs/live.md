@@ -130,8 +130,9 @@ cannot outlive the call that made it. Two requests in flight may both run the st
 it is idempotent (a poll and at most one check), so the race costs a repeated check.
 
 The router's hash is the approval root, so the guest state is re-derived when the hash
-moves. A newly broken version is said once on stdout (`live: <entry>: newest version
-not applied: <why>`); the wire keeps getting the last good one. `--no-live` pins the
+moves. A newly broken version is said once on stdout (`live: <entry>: still on the
+last good version. The newest has a type error: <why>`), and the fix too (`live: now
+serving the new version of <entry>`); the wire keeps getting the last good one. `--no-live` pins the
 version resolved at start.
 
 Under the scheduler `serve` is a process that holds its thread on the listener; each
@@ -255,7 +256,8 @@ in its log, which is the same answer you get locally.
 `scripts/testing/_demo2-live.sh` walks it in the container on main: a relay, A with
 autopush, B pulling every two seconds and serving. Measured: A's save is B's page three
 seconds later; the broken save leaves B on the last good page with `live: Demo.Site.router:
-newest version not applied: ...` in its serve log; the fix follows. B pulls from a shell
+still on the last good version. The newest has a type error: ...` in its serve log; the
+fix follows. B pulls from a shell
 loop rather than the auto-sync daemon: in this container the daemon dies on its first
 tick because its `eval` guest is refused the relay transport (`httpGetUnsafeBytes is
 restricted to trusted first-party code`), a pre-existing gap outside this work.

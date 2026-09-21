@@ -72,7 +72,7 @@ let inspect (id: Uuid) : Stdlib.Option.Option<Detail> =
   Builtin.execInspect id
 
 
-/// Ask a process to stop. It fails with "cancelled" at its next turn. False for an id nobody
+/// Ask a process to stop. It fails with "stopped by ps kill" at its next turn. False for an id nobody
 /// has.
 let kill (id: Uuid) : Bool =
   Builtin.execKill id

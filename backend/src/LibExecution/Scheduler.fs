@@ -367,7 +367,10 @@ type Scheduler(quantum : int64) =
     if p.cancelRequested then
       this.Finish(
         p,
-        Error(RTE.UncaughtException("cancelled", []), Execution.callStackFromVM p.vm)
+        Error(
+          RTE.UncaughtException("stopped by ps kill", []),
+          Execution.callStackFromVM p.vm
+        )
       )
     else
       currentProcess.Value <- Some p
@@ -446,7 +449,7 @@ type Scheduler(quantum : int64) =
 
   // -- ps --
 
-  /// Ask a process to stop. It finishes `Failed("cancelled")` at its next turn, which a parked
+  /// Ask a process to stop. It finishes `Failed("stopped by ps kill")` at its next turn, which a parked
   /// process is given at once: whatever it was waiting for is abandoned (the task's late
   /// completion posts for a process that is no longer parked, and is dropped). A running
   /// process finishes its slice first; one that completes within it completes.

@@ -90,7 +90,7 @@ let bandRows (band: String) (width: Int) : Int =
 /// The whole screen for a session at a size. Pure: everything it needs is on the session.
 let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let frame =
-    Stdlib.Cli.UI.Chrome.frame s.view.title "LIVE" "Esc: quit   Tab: focus   Enter: press   PgUp/PgDn: scroll   Ctrl-S: save"
+    Stdlib.Cli.UI.Chrome.frame s.view.title "LIVE" "esc quit · tab next field · enter press · pgup/pgdn scroll · ctrl-s save the model"
 
   let frame =
     match s.toast with
@@ -154,7 +154,7 @@ let render (s: Session<'model, 'msg>) : Session<'model, 'msg> =
     let why =
       match Stdlib.Live.diagnostic s.render with
       | Some d -> d
-      | None -> $"{s.view.render}: {rte}"
+      | None -> $"{s.view.render} failed: {rte}"
 
     { s with band = Stdlib.Option.Option.Some why }
 
@@ -207,7 +207,7 @@ let applyUpdate (s: Session<'model, 'msg>) (event: Event<'msg>) : Session<'model
   | Ok partial ->
     match Stdlib.Live.apply partial event with
     | Ok model -> { s with model = model; toast = Stdlib.Option.Option.None }
-    | Error rte -> { s with band = Stdlib.Option.Option.Some $"{s.view.update}: {rte}" }
+    | Error rte -> { s with band = Stdlib.Option.Option.Some $"{s.view.update} failed: {rte}" }
   | Error e -> { s with band = Stdlib.Option.Option.Some e }
 
 /// Move focus to the next (or previous) focusable node in the last frame.
@@ -240,8 +240,9 @@ let onKey (s: Session<'model, 'msg>) (k: Stdlib.Cli.UI.Widget.KeyPress) : Sessio
     { s with exiting = true }
   else if ctrlS then
     match snapshot s.branchId s.view s.model with
-    | Ok name -> { s with toast = Stdlib.Option.Option.Some $"saved: {name} (resume with --resume {name})" }
-    | Error why -> { s with toast = Stdlib.Option.Option.Some $"not saved: {why}" }
+    | Ok name ->
+      { s with toast = Stdlib.Option.Option.Some $"saved the model as {name}; open it again with --resume {name}" }
+    | Error why -> { s with toast = Stdlib.Option.Option.Some $"could not save the model: {why}" }
   else if k.key == Stdlib.Cli.Stdin.Key.Key.Tab then
     moveFocus s (Stdlib.Bool.not k.modifiers.shift)
   // Scrolling away drops the focus: the window follows the focused node, so keeping it would
@@ -288,7 +289,7 @@ let reload (s: Session<'model, 'msg>) (change: Stdlib.Live.Change) : Session<'mo
       init = Stdlib.Live.refresh s.branchId change.ops s.init
       update = Stdlib.Live.refresh s.branchId change.ops s.update
       render = Stdlib.Live.refresh s.branchId change.ops s.render
-      toast = Stdlib.Option.Option.Some $"updated: {names}" }
+      toast = Stdlib.Option.Option.Some $"changed: {names}" }
 
 
 // --- saving and resuming the model ---

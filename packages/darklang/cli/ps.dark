@@ -14,33 +14,31 @@ let idPrefix (id: Uuid) : String =
 let entryText (branchId: Uuid) (entry: Stdlib.Exec.Entry) : String =
   match entry with
   | Function name -> PrettyPrinter.RuntimeTypes.fnName branchId name
-  | Expr -> "expr"
+  | Expr -> "an eval expression"
 
 
 let eventSpecText (spec: Stdlib.Host.EventSpec) : String =
   match spec with
-  | Key -> "Key"
-  | StoreChanged -> "StoreChanged"
-  | Timer ms -> $"Timer {Stdlib.Int64.toString ms}ms"
-  | ExecDone id -> $"ExecDone {idPrefix id}"
+  | Key -> "a key"
+  | StoreChanged -> "a store change"
+  | Timer ms -> $"a timer ({Stdlib.Int64.toString ms} ms)"
+  | ExecDone id -> $"process {idPrefix id} to finish"
 
 
 let parkedText (branchId: Uuid) (parked: Stdlib.Exec.ParkedOn) : String =
   match parked with
-  | Builtin b -> PrettyPrinter.RuntimeTypes.FQFnName.builtIn b
-  | PackageFn h -> PrettyPrinter.RuntimeTypes.FQFnName.package branchId h
-  | Lambda -> "a lambda"
+  | Builtin b -> $"{PrettyPrinter.RuntimeTypes.FQFnName.builtIn b} to return"
+  | PackageFn h -> $"{PrettyPrinter.RuntimeTypes.FQFnName.package branchId h} to return"
+  | Lambda -> "a lambda to return"
   | RareOpcode -> "the store"
-  | Events specs ->
-    let names = specs |> Stdlib.List.map eventSpecText |> Stdlib.String.join "; "
-    $"[{names}]"
+  | Events specs -> specs |> Stdlib.List.map eventSpecText |> Stdlib.String.join " or "
 
 
 let statusText (branchId: Uuid) (status: Stdlib.Exec.Status) : String =
   match status with
-  | Runnable -> "runnable"
-  | Parked on -> $"parked on {parkedText branchId on}"
-  | Done -> "done"
+  | Runnable -> "running"
+  | Parked on -> $"waiting for {parkedText branchId on}"
+  | Done -> "finished"
   | Failed rte ->
     let message = PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId rte
     $"failed: {message}"
@@ -60,7 +58,7 @@ let row (branchId: Uuid) (p: Stdlib.Exec.Summary) : List<String> =
 
 let executionPointText (branchId: Uuid) (ep: Stdlib.Exec.ExecutionPoint) : String =
   match ep with
-  | Source -> "(entry)"
+  | Source -> "(the entry point)"
   | Function name -> PrettyPrinter.RuntimeTypes.fnName branchId name
   | Lambda(parent, _exprId) -> $"a lambda in {executionPointText branchId parent}"
 
@@ -100,7 +98,7 @@ let printShow (branchId: Uuid) (prefix: String) : Unit =
       match detail.frames with
       | [] -> ()
       | frames ->
-        Stdlib.printLine "  frames (outermost first):"
+        Stdlib.printLine "  call stack (outermost first):"
         frames
         |> Stdlib.List.iter (fun ep ->
           Stdlib.printLine $"    {executionPointText branchId ep}")
@@ -115,7 +113,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
     | Ok p ->
       if Stdlib.Exec.kill p.id then
-        Stdlib.printLine $"asked {idPrefix p.id} to stop"
+        Stdlib.printLine $"asked process {idPrefix p.id} to stop; it ends at its next turn"
       else
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"process {idPrefix p.id} is gone")
   | _ -> Stdlib.printLine (help state)
