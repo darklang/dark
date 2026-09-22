@@ -112,7 +112,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
                   selected = landed
                   detailScroll = 0
                   message =
-                    match Packages.AtRestCheck.saveSummary report lint with
+                    match Packages.AtRestCheck.summary report lint with
                     | Some summary -> "saved " ++ leaf ++ " (" ++ summary ++ ")"
                     | None -> "saved " ++ leaf }
           | Error m -> keepErr ("save failed: " ++ m)

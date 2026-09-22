@@ -908,9 +908,10 @@ let fns () : List<BuiltInFn> =
           )
         let okKT = KTCustomType(Dval.optionType (), [ VT.known KTString ])
         let resultOk = Dval.resultOk okKT errType
-        let failedWith (stack : Option<string>) (err : Dval) =
+        let resultError = Dval.resultError okKT errType
+        let errorWithStack (stack : Option<string>) (err : Dval) =
           let stack = stack |> Option.map DString |> Dval.option KTString
-          Dval.resultError okKT errType (DTuple(err, stack, []))
+          resultError (DTuple(err, stack, []))
         let okSome (s : string) = resultOk (Dval.optionSome KTString (DString s))
         let okNone () = resultOk (Dval.optionNone KTString)
         (function
@@ -937,84 +938,88 @@ let fns () : List<BuiltInFn> =
             let denied = ResizeArray<RT.PermissionDenialRecord>()
 
             return!
-              guestTry (failedWith None) (ExecutionError.classify denied) (fun () ->
-                uply {
-                  // Parsing can raise (e.g. deep VM failures); keep it inside
-                  // guestTry so its exceptions hit the Unhandled net. `eval` is
-                  // single-expression only; parse failures surface a precise
-                  // diagnostic (no fallback).
-                  let! parsedScript =
-                    parseGuest (parseCliExpr branchState expression) expression
+              guestTry
+                (errorWithStack None)
+                (ExecutionError.classify denied)
+                (fun () ->
+                  uply {
+                    // Parsing can raise (e.g. deep VM failures); keep it inside
+                    // guestTry so its exceptions hit the Unhandled net. `eval` is
+                    // single-expression only; parse failures surface a precise
+                    // diagnostic (no fallback).
+                    let! parsedScript =
+                      parseGuest (parseCliExpr branchState expression) expression
 
-                  let! dbs = loadDBs ()
+                    let! dbs = loadDBs ()
 
-                  match parsedScript with
-                  | Ok mod' ->
-                    // The expression runs under the host's configured
-                    // deny-by-default policy; missing or corrupt policy state
-                    // remains locked down.
-                    let hostState = exeState
-                    let exeState =
-                      PolicyStore.guestState
-                        accountID
-                        LibExecution.Permissions.Policy.allowAll
-                        []
-                        (ownFns mod')
-                        exeState
-                    let exeState = { exeState with deniedRequests = denied }
-                    match!
-                      execute exeState mod' [] dbs (EvalExpression expression)
-                    with
-                    | Ok result ->
-                      match result with
-                      | DUnit -> return okNone ()
-                      | DString s -> return okSome s
-                      | _ ->
-                        // Width and color are the caller's to decide: they are
-                        // facts about the process this output is headed for, and
-                        // asking here would mean reaching into another builtin's
-                        // terminal code. `Cli.Terminal` owns both and answers
-                        // them in Dark.
-                        let currentModule =
-                          currentModule
-                          |> List.choose (fun d ->
-                            match d with
-                            | DString s -> Some s
-                            | _ -> None)
-                        let! asString =
-                          Exe.dvalToReprForTerminal
-                            exeState
-                            (intToInt32 vm width)
-                            color
+                    match parsedScript with
+                    | Ok mod' ->
+                      // The expression runs under the host's configured
+                      // deny-by-default policy; missing or corrupt policy state
+                      // remains locked down.
+                      let hostState = exeState
+                      let exeState =
+                        PolicyStore.guestState
+                          accountID
+                          LibExecution.Permissions.Policy.allowAll
+                          []
+                          (ownFns mod')
+                          exeState
+                      let exeState = { exeState with deniedRequests = denied }
+                      match!
+                        execute exeState mod' [] dbs (EvalExpression expression)
+                      with
+                      | Ok result ->
+                        match result with
+                        | DUnit -> return okNone ()
+                        | DString s -> return okSome s
+                        | _ ->
+                          // Width and color are the caller's to decide: they are
+                          // facts about the process this output is headed for, and
+                          // asking here would mean reaching into another builtin's
+                          // terminal code. `Cli.Terminal` owns both and answers
+                          // them in Dark.
+                          let currentModule =
                             currentModule
-                            result
-                        return okSome asString
-                    | Error(e, callStack) ->
-                      let! csString = Exe.callStackString hostState callStack
-                      match ExecutionError.classify denied e with
-                      | ExecutionError.Denied d ->
-                        // The CLI may offer to allow and retry; the stack is printed
-                        // only if the denial stands.
-                        return
-                          failedWith
-                            None
-                            (ExecutionError.toDT (
-                              ExecutionError.Denied { d with callStack = csString }
-                            ))
-                      | other ->
-                        // Only when the stack names a function: see `hasReadableFrames`.
-                        let stack =
-                          if hasReadableFrames callStack && csString <> "" then
-                            Some csString
-                          else
-                            None
-                        return failedWith stack (ExecutionError.toDT other)
-                  | Error pe ->
-                    return
-                      failedWith
-                        None
-                        (ExecutionError.toDT (ExecutionError.Parse pe))
-                })
+                            |> List.choose (fun d ->
+                              match d with
+                              | DString s -> Some s
+                              | _ -> None)
+                          let! asString =
+                            Exe.dvalToReprForTerminal
+                              exeState
+                              (intToInt32 vm width)
+                              color
+                              currentModule
+                              result
+                          return okSome asString
+                      | Error(e, callStack) ->
+                        let! csString = Exe.callStackString hostState callStack
+                        match ExecutionError.classify denied e with
+                        | ExecutionError.Denied d ->
+                          // The CLI may offer to allow and retry; the stack is printed
+                          // only if the denial stands.
+                          return
+                            errorWithStack
+                              None
+                              (ExecutionError.toDT (
+                                ExecutionError.Denied
+                                  { d with callStack = csString }
+                              ))
+                        | other ->
+                          // Only when the stack names a function: see `hasReadableFrames`.
+                          let stack =
+                            if hasReadableFrames callStack && csString <> "" then
+                              Some csString
+                            else
+                              None
+                          return errorWithStack stack (ExecutionError.toDT other)
+                    | Error pe ->
+                      return
+                        errorWithStack
+                          None
+                          (ExecutionError.toDT (ExecutionError.Parse pe))
+                  })
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

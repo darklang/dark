@@ -194,7 +194,7 @@ completeness flag.
 
 Builtin parameters also declare whether they invoke callbacks. Function-typed
 parameters carry this metadata automatically; arbitrary-arity callbacks such as
-`testApply` use `Param.makeCallback`. Analysis follows those positions through
+`testCall` use `Param.makeCallback`. Analysis follows those positions through
 generic package wrappers to a fixed point. A wrapper's caller-supplied callback
 makes its own requirements incomplete, while a caller supplying a known function
 still contributes that function's effects. Unknown callback expressions remain

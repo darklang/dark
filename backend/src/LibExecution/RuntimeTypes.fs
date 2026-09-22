@@ -1359,7 +1359,8 @@ and BuiltInParam =
     name : string
     typ : TypeReference
     blockArgs : List<string>
-    /// The builtin may call this argument, even if its type is generic.
+    /// Tells permission analysis that the builtin may invoke this argument.
+    /// Needed when a generic type hides the callback, as in testCall.
     isCallback : bool
     description : string
   }

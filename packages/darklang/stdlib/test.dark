@@ -207,7 +207,7 @@ let apply
   (fn: 'fn)
   (inputs: 'inputs)
   : Stdlib.Result.Result<'result, Stdlib.Test.ApplyProblem> =
-  Builtin.testApply fn inputs
+  Builtin.testCall fn inputs
 
 
 /// Passes if calling <param fn> with <param inputs> raises an error with exactly

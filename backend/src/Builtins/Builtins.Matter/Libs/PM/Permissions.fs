@@ -36,12 +36,13 @@ let private accountIDOf (dval : Dval) : Option<System.Guid> =
   CommonToDT.Option.fromDT D.uuid dval
 
 /// The running host's approval-analysis metadata, read once per builtin call:
-/// `callEffectsFor` answers analysis by full builtin identity (name, version)
+/// `builtinMetadataFor` answers analysis by full builtin identity (name, version)
 /// so different-effect versions never collapse. `fingerprint` includes those
 /// effects, callback positions and the analyzer version, so a semantic change makes
 /// existing approvals stale. Deterministic across runs of the same binary.
 type private BuiltinEffects =
-  { callEffectsFor : PackagePermissions.CallEffectsFor; fingerprint : string }
+  { builtinMetadataFor : PackagePermissions.BuiltinMetadataFor
+    fingerprint : string }
 
 let private builtinEffects (state : ExecutionState) : BuiltinEffects =
   let sorted = state.fns.builtIn |> Dictionary.toSortedList
@@ -80,7 +81,7 @@ let private builtinEffects (state : ExecutionState) : BuiltinEffects =
     |> Array.take 8
     |> Array.map (fun b -> b.ToString("x2"))
     |> String.concat ""
-  { callEffectsFor = (fun key -> Map.tryFind key byIdentity)
+  { builtinMetadataFor = (fun key -> Map.tryFind key byIdentity)
     fingerprint = fingerprint }
 
 /// A policy builtin: impure, `Native`, never queryable. `impl` receives the
@@ -331,7 +332,7 @@ let fns : List<BuiltInFn> =
             match!
               PackagePermissions.approveVersionForName
                 LibDB.ProgramTypes.Fn.get
-                effects.callEffectsFor
+                effects.builtinMetadataFor
                 (accountIDOf accountIDDval)
                 location
                 hash
@@ -387,7 +388,7 @@ let fns : List<BuiltInFn> =
             let! result =
               PackagePermissions.permissionRequirements
                 LibDB.ProgramTypes.Fn.get
-                (builtinEffects state).callEffectsFor
+                (builtinEffects state).builtinMetadataFor
                 hashStr
             return
               DTuple(

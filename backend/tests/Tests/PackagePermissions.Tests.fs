@@ -49,7 +49,7 @@ let private closureOf (fns : List<PT.PackageFn.PackageFn>) =
 
 /// Builtin effects for the review tests: `timeNowMs` is clock-only and
 /// `fileRead` reads files; anything else is unknown (incomplete).
-let private testEffects : PackagePermissions.CallEffectsFor =
+let private testEffects : PackagePermissions.BuiltinMetadataFor =
   fun (name, _version) ->
     let known effects callbacks : LibExecution.CallGraph.BuiltinMetadata option =
       Some
@@ -62,7 +62,7 @@ let private testEffects : PackagePermissions.CallEffectsFor =
     // the builtin is unclassified and make the test incomplete for the wrong
     // reason.
     | "listMap" -> known [] [ 1 ]
-    | "testApply" -> known [] [ 0 ]
+    | "testCall" -> known [] [ 0 ]
     | _ -> None
 
 let private callBuiltin (name : string) : PT.Expr =
@@ -76,7 +76,7 @@ let genericBuiltinCallbacks =
             NEList.ofList
               { name = "fn"; typ = PT.TVariable "fn"; description = "" }
               [ { name = "input"; typ = PT.TVariable "input"; description = "" } ] }
-    let primitive = wrapper "z-apply" (eBuiltinFn "testApply" 0)
+    let primitive = wrapper "z-apply" (eBuiltinFn "testCall" 0)
     let forwarding = wrapper "a-forward" (ePackageFn "z-apply")
     let caller =
       unitFn
@@ -127,7 +127,7 @@ let callbackMetadataHandlesPipesAndUnknownValues =
         (eArg 0)
         [ PT.EPipeFnCall(
             gid (),
-            PT.NameResolution.ok (PT.FQFnName.fqBuiltIn "testApply" 0),
+            PT.NameResolution.ok (PT.FQFnName.fqBuiltIn "testCall" 0),
             [],
             [ eUnit () ]
           ) ]
@@ -137,7 +137,7 @@ let callbackMetadataHandlesPipesAndUnknownValues =
             NEList.singleton
               { name = "fn"; typ = PT.TVariable "fn"; description = "" } }
     for body in
-      [ pipe; eApply (eBuiltinFn "testApply" 0) [] [ eVar "callback"; eUnit () ] ] do
+      [ pipe; eApply (eBuiltinFn "testCall" 0) [] [ eVar "callback"; eUnit () ] ] do
       let fn = generic body
       let closure = closureOf [ fn ] |> Requirements.withCallbackMetadata testEffects
       let result = Requirements.forFunction testEffects closure fn.hash
@@ -146,7 +146,7 @@ let callbackMetadataHandlesPipesAndUnknownValues =
         "a piped parameter or an unknown local callback is not effect-free"
     let concrete =
       generic (
-        eApply (eBuiltinFn "testApply" 0) [] [ eBuiltinFn "timeNowMs" 0; eArg 0 ]
+        eApply (eBuiltinFn "testCall" 0) [] [ eBuiltinFn "timeNowMs" 0; eArg 0 ]
       )
     let closure =
       closureOf [ concrete ] |> Requirements.withCallbackMetadata testEffects

@@ -48,7 +48,7 @@ let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
 
 /// Builtin effects for the review tests: `timeNowMs` is clock-only and
 /// `fileRead` reads files; anything else is unknown (incomplete).
-let private testEffects : PackagePermissions.CallEffectsFor =
+let private testEffects : PackagePermissions.BuiltinMetadataFor =
   fun (name, _version) ->
     let effects =
       match name with

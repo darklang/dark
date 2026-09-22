@@ -2,11 +2,17 @@ module NonBlockingConsole
 
 type BlockingCollection = System.Collections.Concurrent.BlockingCollection<string>
 
-/// One capture window. Mutable and shared by reference so that stopping it from a nested
-/// flow is visible to the flow that started it; see `captureWindow`.
+/// Shared with child flows so disposal also closes their inherited buffer.
 [<AllowNullLiteral>]
-type private CaptureWindow() =
+type private CaptureWindow(parent : CaptureWindow) =
+  member _.Parent = parent
   member val Buffer : System.Text.StringBuilder = null with get, set
+
+/// A capture owned by one lexical scope. Disposing restores the previous output sink.
+type OutputCapture internal (read : unit -> string, close : unit -> unit) =
+  member _.Output = read ()
+  interface System.IDisposable with
+    member _.Dispose() = close ()
 
 type private Private() =
 
@@ -47,14 +53,9 @@ type private Private() =
   // buffer still goes through `captureLock`.
   static let captureLock : obj = obj ()
 
-  // The window is a mutable BOX in the AsyncLocal slot, and the buffer lives inside it.
-  // AsyncLocal propagates a value from a flow into the flows it starts, but a WRITE in a
-  // child is invisible to the parent. Holding the StringBuilder in the slot directly meant
-  // a `Stop` reached from a nested flow -- the test runner evaluates each test in one --
-  // cleared only the child's slot, so the flow that opened the window still saw it open and
-  // every later write landed in a buffer nobody would ever read. Clearing the box instead is
-  // visible to whoever started the window, because the reference in the slot never changes.
-  // `Start` still installs a FRESH box, so a window opened by a child stays the child's own.
+  // Continuations can retain an inner window after it is disposed: restoring an
+  // AsyncLocal changes only the disposing flow. Closed windows therefore retain
+  // their parent so those continuations can still reach the enclosing capture.
   static let captureWindow = new System.Threading.AsyncLocal<CaptureWindow>()
 
   // Use a lock so that wait() doesn't return until the thread has actually printed
@@ -107,12 +108,16 @@ type private Private() =
       | Some sink -> sink value
       | None -> System.Console.Write value
     else
-      // Take the capture decision and the append atomically, so a concurrent Stop can't leave a write
+      // Take the capture decision and the append atomically, so concurrent disposal cannot leave a write
       // appended to a buffer nobody will read, or tear the StringBuilder.
       let captured =
         lock captureLock (fun () ->
-          let window = captureWindow.Value
-          if isNull window || isNull window.Buffer then
+          let rec activeWindow (window : CaptureWindow) =
+            if isNull window then null
+            elif isNull window.Buffer then activeWindow window.Parent
+            else window
+          let window = activeWindow captureWindow.Value
+          if isNull window then
             false
           else
             window.Buffer.Append(value) |> ignore
@@ -120,30 +125,18 @@ type private Private() =
 
       if not captured then mQueue.Add(value)
 
-  /// Begin a capture window for THIS flow. Returns false if one was already open here, in which case
-  /// nothing changes: the caller must not assume it owns the buffer. Nesting isn't supported;
-  /// refusing is better than silently discarding the outer capture's output.
-  static member StartCapture() : bool =
+  static member CaptureOutput() : OutputCapture =
     lock captureLock (fun () ->
-      let existing = captureWindow.Value
-      if not (isNull existing) && not (isNull existing.Buffer) then
-        false
-      else
-        // A fresh box, so this window belongs to this flow and not to any parent.
-        captureWindow.Value <- CaptureWindow(Buffer = System.Text.StringBuilder())
-        true)
-
-  static member StopCapture() : string =
-    lock captureLock (fun () ->
-      let window = captureWindow.Value
-      if isNull window || isNull window.Buffer then
-        ""
-      else
-        let captured = window.Buffer.ToString()
-        // Clear the box, not the slot: the flow that opened this window may be a parent
-        // whose slot this flow cannot write to.
-        window.Buffer <- null
-        captured)
+      let previous = captureWindow.Value
+      let window = CaptureWindow(previous, Buffer = System.Text.StringBuilder())
+      captureWindow.Value <- window
+      new OutputCapture(
+        (fun () -> lock captureLock (fun () -> window.Buffer.ToString())),
+        (fun () ->
+          lock captureLock (fun () ->
+            window.Buffer <- null
+            captureWindow.Value <- previous))
+      ))
 
 
 let wait () : unit = Private.wait ()
@@ -152,12 +145,8 @@ let writeInline (value : string) : unit = Private.Write value
 
 let writeLine (value : string) : unit = Private.Write(value + "\n")
 
-/// Route subsequent `print`/`printLine` output into an in-memory buffer instead of the console.
-/// Returns false if a capture window was already open (the existing one is left untouched).
-let startCapture () : bool = Private.StartCapture()
-
-/// Stop capturing and return everything written since `startCapture`.
-let stopCapture () : string = Private.StopCapture()
-
 /// Browser host only: route every write to <param sink> instead of `System.Console`.
 let setBrowserSink (sink : string -> unit) : unit = Private.SetBrowserSink sink
+
+/// Capture output until disposed, then restore the enclosing capture, if any.
+let captureOutput () : OutputCapture = Private.CaptureOutput()

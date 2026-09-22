@@ -162,32 +162,25 @@ and private runCliInProcess
     // Drain prior work queued in NonBlockingConsole, so it stays out of our capture.
     NonBlockingConsole.wait ()
 
-    if not (NonBlockingConsole.startCapture ()) then
-      return Tests.failtestf "runCli: a capture was already open (nested runCli?)"
+    use capture = NonBlockingConsole.captureOutput ()
+    let execution = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
 
-    try
-      let execution = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
+    // Bounds the wait, not the work: the call is not cancellable and may continue
+    // after this scope closes, while the test fails with the command's name.
+    let! finished = Task.WhenAny(execution, Task.Delay runCliTimeout)
 
-      // Bounds the WAIT, not the work: the call is not cancellable, so it finishes into a
-      // buffer nobody reads while the test fails with the command's name.
-      let! finished = Task.WhenAny(execution, Task.Delay runCliTimeout)
+    if not (System.Object.ReferenceEquals(finished, execution :> Task)) then
+      return
+        Tests.failtestf
+          "runCli timed out after %A: dark %s"
+          runCliTimeout
+          (String.concat " " args)
 
-      if not (System.Object.ReferenceEquals(finished, execution :> Task)) then
-        return
-          Tests.failtestf
-            "runCli timed out after %A: dark %s"
-            runCliTimeout
-            (String.concat " " args)
-
-      let! result = execution
-      // `Stdlib.printLine` queues to a background thread; drain before
-      // reading the buffer or we capture nothing.
-      NonBlockingConsole.wait ()
-      match result with
-      | Ok _ -> return (NonBlockingConsole.stopCapture ()).Trim()
-      | Error(rte, _) -> return Tests.failtestf "runCli errored: %A" rte
-    finally
-      NonBlockingConsole.stopCapture () |> ignore<string>
+    let! result = execution
+    NonBlockingConsole.wait ()
+    match result with
+    | Ok _ -> return capture.Output.Trim()
+    | Error(rte, _) -> return Tests.failtestf "runCli errored: %A" rte
   }
 
 /// `runCli`, but a runtime error is a result rather than the end of the test.
@@ -341,21 +334,16 @@ and private runCliWithExitInProcess
       RT.FQFnName.fqPackage (LibExecution.PackageRefs.Fn.Cli.executeCliCommand ())
     NonBlockingConsole.wait ()
 
-    if not (NonBlockingConsole.startCapture ()) then
-      return Tests.failtestf "runCliWithExit: a capture was already open"
-
-    try
-      let! result = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
-      NonBlockingConsole.wait ()
-      let printed = (NonBlockingConsole.stopCapture ()).Trim()
-      match result with
-      | Ok(RT.DInt64 code) -> return (printed, code)
-      | Ok(RT.DInt code) -> return (printed, int64 (RT.DarkInt.toBigInt code))
-      | Ok other ->
-        return Tests.failtestf "executeCliCommand returned a non-int: %A" other
-      | Error(rte, _) -> return Tests.failtestf "runCliWithExit errored: %A" rte
-    finally
-      NonBlockingConsole.stopCapture () |> ignore<string>
+    use capture = NonBlockingConsole.captureOutput ()
+    let! result = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
+    NonBlockingConsole.wait ()
+    let printed = capture.Output.Trim()
+    match result with
+    | Ok(RT.DInt64 code) -> return (printed, code)
+    | Ok(RT.DInt code) -> return (printed, int64 (RT.DarkInt.toBigInt code))
+    | Ok other ->
+      return Tests.failtestf "executeCliCommand returned a non-int: %A" other
+    | Error(rte, _) -> return Tests.failtestf "runCliWithExit errored: %A" rte
   }
 
 /// swallowed. Not `Call-stack:`: `eval` prints that on a user error, which is a refusal, not a crash.

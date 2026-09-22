@@ -74,7 +74,7 @@ let issueLines
     if count == 1 then line
     else line ++ " (" ++ Stdlib.Int.toString count ++ " occurrences)")
 
-let saveSummary
+let summary
   (report: LanguageTools.AtRestTypeChecker.Report)
   (lint: LanguageTools.Lint.Results)
   : Stdlib.Option.Option<String> =

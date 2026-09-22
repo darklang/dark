@@ -227,7 +227,7 @@ module Requirements =
     // Keyed by full builtin identity (name, version): two versions of a builtin
     // can carry different effects, and collapsing them by name alone would let a
     // requirement display or upgrade comparison use the wrong effect set.
-    (callEffectsFor : BuiltinMetadataFor)
+    (builtinMetadataFor : BuiltinMetadataFor)
     (closure : Closure)
     (root : PT.FQFnName.Package)
     : Result =
@@ -253,7 +253,7 @@ module Requirements =
               // argument is a literal at the call site (a hardcoded path or
               // URL), so approve-time review can show an exact rule instead
               // of the bare effect. See docs/permissions-todos.md.
-              match callEffectsFor (builtin.name, builtin.version) with
+              match builtinMetadataFor (builtin.name, builtin.version) with
               | Some found ->
                 requiredEffects <- Set.union requiredEffects found.callEffects
               | None -> incomplete ()

@@ -71,33 +71,32 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "stdoutCaptureStart" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "A unit" ]
-      returnType = TBool
+    { name = fn "stdoutCapture" 0
+      typeParams = [ "a" ]
+      parameters =
+        [ Param.makeWithArgs
+            "f"
+            (TFn(NEList.singleton TUnit, TVariable "a"))
+            "The computation to capture."
+            [] ]
+      returnType = TTuple(TVariable "a", TString, [])
       description =
-        "Start capturing standard output into an in-memory buffer instead of printing it. Pair with <fn stdoutCaptureStop>. Used to run a command and show its output in-frame. Returns false if a capture was already open, in which case the existing one is left untouched and this call captured nothing."
+        "Run a computation and return its value and stdout. Restore the enclosing output sink even if the computation raises."
       fn =
         (function
-        | _, _, _, [| DUnit |] -> DBool(NonBlockingConsole.startCapture ()) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.Stdout ]
-      deprecated = NotDeprecated }
-
-
-    { name = fn "stdoutCaptureStop" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "A unit" ]
-      returnType = TString
-      description =
-        "Stop capturing standard output and return everything written since <fn stdoutCaptureStart>."
-      fn =
-        (function
-        | _, _, _, [| DUnit |] ->
-          let captured = NonBlockingConsole.stopCapture ()
-          Ply(DString captured)
+        | state, vm, _, [| DApplicable app |] ->
+          uply {
+            use capture = NonBlockingConsole.captureOutput ()
+            match!
+              Exe.executeApplicable
+                state
+                vm.activeAccess
+                app
+                (NEList.singleton DUnit)
+            with
+            | Ok value -> return DTuple(value, DString capture.Output, [])
+            | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

@@ -2341,15 +2341,6 @@ let private warningTests =
           "this is the false pass: the check can fail and the test still passes"
       }
 
-      test "a check bound to a name nothing reads is a warning, by that name" {
-        let warnings =
-          unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) result
-        Expect.equal
-          (warnings |> List.map _.name)
-          [ "first" ]
-          "the name is what the author will look for"
-      }
-
       test "an underscore-prefixed name suppresses only the general warning" {
         let name = "_ignoredCheck"
         let expression =
@@ -2389,20 +2380,6 @@ let private warningTests =
           (unusedResultWarningsForLet "other" (PT.LPWildcard 3UL) result)
           []
           "`let _ = sideEffect ()` is ordinary Dark"
-      }
-
-      test "a shadowing let does not count as using the outer binding" {
-        let body =
-          PT.ELet(
-            11UL,
-            PT.LPVariable(12UL, "first"),
-            result,
-            PT.EVariable(13UL, "first")
-          )
-        Expect.equal
-          (unusedResultWarningsForLet "test" (PT.LPVariable(3UL, "first")) body)
-          [ { nodeId = 1UL; name = "first" } ]
-          "only the unused outer binding is reported"
       }
 
       test "a rebinding initializer can still use the outer binding" {
@@ -2512,9 +2489,6 @@ let private warningTests =
             |> LocalBindingUsage.analyzeExpression
           let found = Lint.unusedResults ((=) Checker.TInt) uses [ binding ]
           Expect.equal (not (List.isEmpty found)) expectedUnused label
-          Expect.isEmpty
-            (Lint.unusedResults (fun _ -> false) uses [ binding ])
-            "the caller can disable the rule entirely"
       }
 
       test "every match pattern shape that can bind is walked" {

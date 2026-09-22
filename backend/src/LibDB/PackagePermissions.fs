@@ -13,7 +13,7 @@ module P = LibExecution.Permissions
 module Calls = LibExecution.CallGraph
 module Requirements = LibExecution.CallGraph.Requirements
 
-type CallEffectsFor = Calls.BuiltinMetadataFor
+type BuiltinMetadataFor = Calls.BuiltinMetadataFor
 
 /// How a package fn is fetched by hash. A parameter (rather than the package
 /// DB directly) so review logic is testable against in-memory fns; production
@@ -25,7 +25,7 @@ type LoadFn = PT.Hash -> Ply<Option<PT.PackageFn.PackageFn>>
 /// dependencies remain available when entered at runtime.
 let loadClosure
   (loadFn : LoadFn)
-  (callEffectsFor : CallEffectsFor)
+  (builtinMetadataFor : BuiltinMetadataFor)
   (root : PT.Hash)
   : Ply<Requirements.Closure> =
   uply {
@@ -55,19 +55,19 @@ let loadClosure
       loaded
       |> Seq.map (fun (KeyValue(h, entry)) -> h, entry)
       |> Map.ofSeq
-      |> Requirements.withCallbackMetadata callEffectsFor
+      |> Requirements.withCallbackMetadata builtinMetadataFor
   }
 
 /// Analyze one immutable function using the explicit effect vocabulary.
 let permissionRequirements
   (loadFn : LoadFn)
-  (callEffectsFor : CallEffectsFor)
+  (builtinMetadataFor : BuiltinMetadataFor)
   (hashStr : string)
   : Ply<Requirements.Result> =
   uply {
     let root = PT.Hash hashStr
-    let! closure = loadClosure loadFn callEffectsFor root
-    return Requirements.forFunction callEffectsFor closure root
+    let! closure = loadClosure loadFn builtinMetadataFor root
+    return Requirements.forFunction builtinMetadataFor closure root
   }
 
 /// One root's closure, analyzed: what an approval reviews.
@@ -83,12 +83,12 @@ type ClosureAnalysis =
 /// root itself does not exist.
 let analyzeClosure
   (loadFn : LoadFn)
-  (callEffectsFor : CallEffectsFor)
+  (builtinMetadataFor : BuiltinMetadataFor)
   (rootHash : string)
   : Ply<Option<ClosureAnalysis>> =
   uply {
     let root = PT.Hash rootHash
-    let! closure = loadClosure loadFn callEffectsFor root
+    let! closure = loadClosure loadFn builtinMetadataFor root
     match Map.tryFind root closure with
     | None -> return None
     | Some(rootFn, _) ->
@@ -96,8 +96,8 @@ let analyzeClosure
         closure
         |> Map.toList
         |> List.map (fun (PT.Hash hashStr as hash, _) ->
-          hashStr, Requirements.forFunction callEffectsFor closure hash)
-      let rootRequirements = Requirements.forFunction callEffectsFor closure root
+          hashStr, Requirements.forFunction builtinMetadataFor closure hash)
+      let rootRequirements = Requirements.forFunction builtinMetadataFor closure root
       return
         Some
           { root = rootFn; rootRequirements = rootRequirements; members = members }
@@ -134,13 +134,13 @@ let private describeEffects (effects : Set<LibExecution.Effects.Effect>) : strin
 /// are content-addressed, so this comparison is stable for the two hashes.
 let compareContracts
   (loadFn : LoadFn)
-  (callEffectsFor : CallEffectsFor)
+  (builtinMetadataFor : BuiltinMetadataFor)
   (oldHash : string)
   (candidate : ClosureAnalysis)
   : Ply<ContractComparison> =
   uply {
     let oldRoot = PT.Hash oldHash
-    let! oldClosure = loadClosure loadFn callEffectsFor oldRoot
+    let! oldClosure = loadClosure loadFn builtinMetadataFor oldRoot
     match Map.tryFind oldRoot oldClosure with
     | None ->
       return
@@ -148,7 +148,7 @@ let compareContracts
           [ $"the pinned version {oldHash} is no longer available for comparison" ]
     | Some(oldFn, _) ->
       let oldRequirements =
-        Requirements.forFunction callEffectsFor oldClosure oldRoot
+        Requirements.forFunction builtinMetadataFor oldClosure oldRoot
       let newRequirements = candidate.rootRequirements
       let differences = ResizeArray<string>()
       if signatureOf oldFn <> signatureOf candidate.root then
@@ -216,7 +216,7 @@ type Review =
 /// explicit rules must cover the root's required effects.
 let reviewVersion
   (loadFn : LoadFn)
-  (callEffectsFor : CallEffectsFor)
+  (builtinMetadataFor : BuiltinMetadataFor)
   (currentPin : Option<string>)
   (hash : string)
   (explicitPolicy : Option<P.Policy>)
@@ -224,7 +224,7 @@ let reviewVersion
   (acknowledgeContractChange : bool)
   : Ply<Result<Review, string>> =
   uply {
-    match! analyzeClosure loadFn callEffectsFor hash with
+    match! analyzeClosure loadFn builtinMetadataFor hash with
     | None -> return Error $"cannot approve unknown package-function hash: {hash}"
     | Some candidate ->
       // Check completeness for the approved root, not each dependency. A
@@ -258,7 +258,7 @@ let reviewVersion
         let! comparison =
           match currentPin with
           | Some existing when existing <> hash ->
-            compareContracts loadFn callEffectsFor existing candidate
+            compareContracts loadFn builtinMetadataFor existing candidate
           | _ -> Ply ContractComparison.Match
         match comparison with
         | ContractComparison.Changed differences when not acknowledgeContractChange ->
@@ -287,7 +287,7 @@ type ApprovalOutcome =
 /// Analysis and contract checks happen before storage installs the closure approval.
 let approveVersionForName
   (loadFn : LoadFn)
-  (callEffectsFor : CallEffectsFor)
+  (builtinMetadataFor : BuiltinMetadataFor)
   (accountID : Option<System.Guid>)
   (location : string)
   (hash : string)
@@ -301,7 +301,7 @@ let approveVersionForName
     match!
       reviewVersion
         loadFn
-        callEffectsFor
+        builtinMetadataFor
         current
         hash
         explicitPolicy
