@@ -4,6 +4,8 @@ module Darklang.Stdlib.AltJson
 type Json =
   | Null
   | Bool of Bool
+  // These were originally flattened as a single Number case, to match JSON spec
+  // CLEANUP there may be benefits to flattening back to a `Number of JsonNumber` case, where `JsonNumber = | Integer of Int | Float of Float`. Not sure if there's a benefit or not, but there was _some_ reason we kept it to the strict single Number case to start.
   | Integer of Int
   | Float of Float
   | String of String
