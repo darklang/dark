@@ -2002,6 +2002,9 @@ let collectExpressionHoverInfoAtPos
     else
       Stdlib.Option.Option.None
 
+  | EPropagate(_, operand, _) ->
+    collectExpressionHoverInfoAtPos ctx operand position
+
   | EStatement(r, first, next) ->
     // check if position is within the Statement range
     if CursorPosition.isLineNumberInRange position r then

@@ -422,6 +422,24 @@ module RuntimeError =
       | GotNone -> [ ES.String "Cannot unwrap None" ]
       | GotError err -> [ ES.String "Cannot unwrap Error: ", ES.FullValue err ]
       | NonOptionOrResult actual -> [ ES.String "Can only unwrap Options and Results, yet got ", ES.FullValue actual ]
+      | PropagationContainerMismatch actual ->
+        let (got, returns, convert) =
+          match actual with
+          | DEnum(_, _, _, caseName, _) ->
+            if caseName == "Some" || caseName == "None" then
+              ("an Option", "a Result", "Stdlib.Option.toResult")
+            else
+              ("a Result", "an Option", "Stdlib.Result.toOption")
+          | _ -> ("a value", "a different container", "a conversion")
+        [ ES.String $"`let!` got {got}, but the enclosing function or lambda returns {returns}; convert it first with {convert}: "
+          ES.FullValue actual ]
+      | PropagationOperandNotContainer actual ->
+        [ ES.String "`let!` needs an Option or Result, but got "
+          ES.InlineValue actual
+          ES.String " ("
+          ES.IndefiniteArticle
+          ES.TypeOfValue actual
+          ES.String ")" ]
       | MultipleArgs args ->
         [ ES.String "Unwrap expects a single argument, but got "
           ES.Int(Stdlib.List.length args) ]

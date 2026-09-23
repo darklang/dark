@@ -360,6 +360,7 @@ module private DarkTypes =
       | Checker.InvalidInfixOperand -> "InvalidInfixOperand"
       | Checker.DuplicateTypeParameter -> "DuplicateTypeParameter"
       | Checker.DuplicateTypeMember -> "DuplicateTypeMember"
+      | Checker.InvalidPropagation -> "InvalidPropagation"
       | Checker.UnsupportedDictKeyType -> "UnsupportedDictKeyType"
     enumValue (issueCodeName ()) caseName []
 
@@ -420,6 +421,7 @@ module private DarkTypes =
     match site with
     | Checker.LambdaReturnValue -> make "LambdaReturnValue" []
     | Checker.FunctionReturnValue -> make "FunctionReturnValue" []
+    | Checker.PropagatedError -> make "PropagatedError" []
     | Checker.ValueBody -> make "ValueBody" []
     | Checker.Expression -> make "Expression" []
     | Checker.StatementBeforeFinalExpression ->
@@ -522,6 +524,11 @@ module private DarkTypes =
     | Checker.RecordRequiredForUpdate -> make "RecordRequiredForUpdate" []
     | Checker.EnumRequiredForConstruction -> make "EnumRequiredForConstruction" []
     | Checker.EnumRequiredForPattern -> make "EnumRequiredForPattern" []
+    | Checker.PropagationReturnContainerMismatch ->
+      make "PropagationReturnContainerMismatch" []
+    | Checker.PropagationOutsideFunction -> make "PropagationOutsideFunction" []
+    | Checker.PropagationRequiresOptionOrResult ->
+      make "PropagationRequiresOptionOrResult" []
     | Checker.SelfOutsideFunction -> make "SelfOutsideFunction" []
     | Checker.OrPatternBindingsDiffer -> make "OrPatternBindingsDiffer" []
     | Checker.ExplicitTypeArgumentsOnNonNamedFunction ->

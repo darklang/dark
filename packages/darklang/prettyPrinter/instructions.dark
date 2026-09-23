@@ -145,6 +145,7 @@ let opcode (i: LanguageTools.RuntimeTypes.Instruction) : String =
   | CheckLetPatternAndExtractVars(_, _) -> "CheckLetPattern"
   | JumpByIfFalse(_, _) -> "JumpByIfFalse"
   | JumpBy _ -> "JumpBy"
+  | Propagate(_, _, _) -> "Propagate"
   | CheckMatchPatternAndExtractVars(_, _, _) -> "CheckMatchPattern"
   | MatchUnmatched _ -> "MatchUnmatched"
   | CreateTuple(_, _, _, _) -> "CreateTuple"
@@ -179,6 +180,8 @@ let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instru
   | JumpByIfFalse(n, c) ->
     let target = Stdlib.Int.toString (index + (Stdlib.Int.fromInt32 n) + 1)
     $"{register c} -> +{Stdlib.Int32.toString n} -> {target}"
+  | Propagate(target, source, _) ->
+    (register target) ++ " <- propagate " ++ (register source)
   | JumpBy n ->
     let target = Stdlib.Int.toString (index + (Stdlib.Int.fromInt32 n) + 1)
     $"+{Stdlib.Int32.toString n} -> {target}"

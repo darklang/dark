@@ -259,6 +259,7 @@ type Expr =
   | EValue of ID * NameResolution<FQValueName.FQValueName>
 
   // control flow
+  | EPropagate of ID * Expr
   | EIf of
     ID *
     cond: Expr *
@@ -311,6 +312,7 @@ module Expr =
     | EInfix(id, _, _, _)
     | ELambda(id, _, _)
     | ERecordFieldAccess(id, _, _)
+    | EPropagate(id, _)
     | EVariable(id, _)
     | EArg(id, _)
     | EValue(id, _)

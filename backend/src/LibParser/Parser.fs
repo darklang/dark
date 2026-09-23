@@ -1430,9 +1430,26 @@ and parseLetPattern (state : ParserState) (i : int) : WT.LetPattern * int =
 
 and parseLet (state : ParserState) (i : int) : WT.Expr * int =
   let keywordLet = rng state i
-  let (pat, j) = parseLetPattern state (i + 1)
+  // `let! pat = e` is a `let` whose value is `EPropagate(e)`. The `!` must touch
+  // the `let`: `let !x` is not this.
+  let bang =
+    if tok state (i + 1) = TNot && (rng state (i + 1)).start = keywordLet.end_ then
+      Some(rng state (i + 1))
+    else
+      None
+  let patStart = if bang.IsSome then i + 2 else i + 1
+  let (pat, j) = parseLetPattern state patStart
   match pat with
   | WT.LPVariable _ when tok state j = TLParen ->
+    if bang.IsSome then
+      errFull
+        state
+        DiagnosticCode.unexpected
+        (i + 1)
+        "`let!` binds a value; it can't define a function"
+        []
+        (Some "use `let` for a nested function")
+
     // nested function definition: `let f (x: T) (y) [: R] = body` — bind a lambda
     // to the name (params lowered to untyped lambda patterns, types discarded)
     let pats = System.Collections.Generic.List<WT.LetPattern>()
@@ -1510,6 +1527,10 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
     // binding (`let x =\n  doThing ()\n  result`) sequences instead of gluing
     // the following statement onto the first as an application argument.
     let (value, m) = parseBlock state k
+    let value =
+      match bang with
+      | Some bangR -> WT.EPropagate(span bangR (WT.exprRange value), value, bangR)
+      | None -> value
     // `in` is optional
     let m = if tok state m = TIn then m + 1 else m
     let (body, p) = parseBlock state m

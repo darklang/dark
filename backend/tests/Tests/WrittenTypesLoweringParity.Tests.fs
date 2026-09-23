@@ -69,6 +69,7 @@ let rec private kidsE (e : PT.Expr) : List<PT.Expr> =
     arg
     :: (cases |> List.collect (fun c -> Option.toList c.whenCondition @ [ c.rhs ]))
   | PT.ELet(_, _, v, b) -> [ v; b ]
+  | PT.EPropagate(_, operand) -> [ operand ]
   | PT.EStatement(_, a, b) -> [ a; b ]
   | PT.EList(_, es) -> es
   | PT.EDict(_, kvs) -> List.map snd kvs
@@ -234,6 +235,16 @@ let tests =
             |> List.mapi (fun i s -> (i, s))
             |> List.filter (fun (i, _) -> i % step = 0)
             |> List.map snd
+
+          let propagationSnippets =
+            [ "fun x ->\n  let! y = x\n  Ok y"
+              "fun x ->\n  let! (a, b) = x\n  Some (a + b)"
+              "fun x -> let! y = x in Ok (y + 1)" ]
+            |> List.map (fun source ->
+              match parseSingleExpr source with
+              | Some expr -> ("propagation", source, expr)
+              | None -> failtest $"Propagation fixture did not parse: {source}")
+          let sample = propagationSnippets @ sample
 
           let! (exeState : RT.ExecutionState) =
             executionStateFor pmPT false Map.empty

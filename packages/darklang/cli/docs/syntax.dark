@@ -23,6 +23,17 @@ return annotations:
   | Some v -> v
   | None -> 0
 
+## Result and Option: let!
+  let total (a: String) (b: String) : Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
+    let! x = Stdlib.Int.parse a
+    let! y = Stdlib.Int.parse b
+    Ok (x + y)
+
+`let! x = e` binds the Ok/Some value, or returns the Error/None from the nearest
+function or lambda. You still write Ok/Some on success. The function must return
+the same kind; Result error types must agree. Convert with Stdlib.Option.toResult
+when mixing. Fail on purpose with `let! _ = Error e`.
+
 ## Pipe (parens for complex LHS)
   (Stdlib.List.range 0 10) |> Stdlib.List.map fn
 

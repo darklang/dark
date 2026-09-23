@@ -29,6 +29,13 @@ type internal State(environment : TypeEnvironment) =
   let mutable taintedInferenceVariables : Set<int> = Set.empty
   let mutable pendingFieldAccesses : List<id * StaticType * string * StaticType> = []
 
+  let mutable pendingPropagations : List<id * StaticType * StaticType * StaticType> =
+    []
+
+  member _.PendingPropagations
+    with get () = pendingPropagations
+    and set value = pendingPropagations <- value
+
   member _.Environment = environment
   member _.Diagnostics = diagnostics
   member _.Blockers = blockers
@@ -699,10 +706,14 @@ let internal typeVariables
   List.zip names args |> Map.ofList
 
 type internal Env =
-  { locals : Map<string, TypeScheme>
+  {
+    locals : Map<string, TypeScheme>
     arguments : List<StaticType>
     self : Option<StaticType>
-    typeVariables : Map<string, StaticType> }
+    /// The enclosing function or lambda's return type, which `let!` returns into.
+    propagationReturn : Option<StaticType>
+    typeVariables : Map<string, StaticType>
+  }
 
 let rec internal inferenceVariables (typ : StaticType) : Set<int> =
   ensureStack ()
@@ -734,17 +745,56 @@ let private freeVariablesInEnv (state : State) (env : Env) : Set<int> =
   |> Seq.map (freeVariablesInScheme state)
   |> Set.unionMany
 
+
 let internal generalize (state : State) (env : Env) (typ : StaticType) : TypeScheme =
   let typ = applySubstitutions state typ
   let typeVariables = inferenceVariables typ
-  let quantified = Set.difference typeVariables (freeVariablesInEnv state env)
-  let capturedConstraints, remainingConstraints =
-    state.PendingFieldAccesses
-    |> List.partition (fun (_, recordType, _, resultType) ->
-      let constraintVariables =
+  // Until a propagation's container is known, keep its variables monomorphic.
+  // Quantifying them would give each use fresh copies, and the pending
+  // constraint on the originals could then never be solved. The same goes for
+  // anything tied to them through a deferred field access: in
+  // `fun row -> (let! v = row.item in v)` the record variable is linked to the
+  // `let!` only by
+  // `row.item`, and freshening it alone would leave that constraint on a
+  // record no use ever fills in.
+  let propagationVariables =
+    let seed =
+      state.PendingPropagations
+      |> List.collect (fun (_, operand, inner, returned) ->
+        [ operand; inner; returned ])
+      |> List.map (applySubstitutions state >> inferenceVariables)
+      |> Set.unionMany
+    let fieldLinks =
+      state.PendingFieldAccesses
+      |> List.map (fun (_, recordType, _, resultType) ->
         Set.union
           (applySubstitutions state recordType |> inferenceVariables)
-          (applySubstitutions state resultType |> inferenceVariables)
+          (applySubstitutions state resultType |> inferenceVariables))
+    let rec close (held : Set<int>) =
+      let grown =
+        fieldLinks
+        |> List.filter (fun linked -> not (Set.isEmpty (Set.intersect linked held)))
+        |> List.fold Set.union held
+      if grown = held then held else close grown
+    if Set.isEmpty seed then seed else close seed
+  let quantified =
+    Set.difference
+      typeVariables
+      (Set.union (freeVariablesInEnv state env) propagationVariables)
+  // Captured in substituted form: instantiation freshens only the quantified
+  // variables it can see, so a constraint still naming a variable that has since
+  // been solved (as `let!` solves a field's type to its container) would stay tied
+  // to the original helper instead of following each use.
+  let capturedConstraints, remainingConstraints =
+    state.PendingFieldAccesses
+    |> List.map (fun (nodeId, recordType, fieldName, resultType) ->
+      (nodeId,
+       applySubstitutions state recordType,
+       fieldName,
+       applySubstitutions state resultType))
+    |> List.partition (fun (_, recordType, _, resultType) ->
+      let constraintVariables =
+        Set.union (inferenceVariables recordType) (inferenceVariables resultType)
       not (Set.isEmpty constraintVariables)
       && Set.isSubset constraintVariables quantified)
   state.PendingFieldAccesses <- remainingConstraints
@@ -782,7 +832,11 @@ let internal instantiateScheme
 // --------------------
 
 let internal emptyEnv : Env =
-  { locals = Map.empty; arguments = []; self = None; typeVariables = Map.empty }
+  { locals = Map.empty
+    arguments = []
+    self = None
+    propagationReturn = None
+    typeVariables = Map.empty }
 
 let internal monomorphic (typ : StaticType) : TypeScheme =
   { quantified = Set.empty; typ = typ; fieldConstraints = [] }

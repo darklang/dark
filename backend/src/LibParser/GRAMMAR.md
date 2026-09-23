@@ -182,6 +182,7 @@ Expression forms include:
   have a real inferred/represented type
 - record updates `{ r with f = v }`
 - field access `x.f`
+- `let! pat = e` (sugar; see below)
 - lambdas `fun p1 p2 -> body`, including tuple patterns
 - `let pat = e`, with optional `in`, and tuple/wildcard/unit patterns
 - nested function lets, `let f (x: T) : R = …`
@@ -407,3 +408,14 @@ code/related is a pending Dark-side type change.
 `source ──Lexer──▶ tokens (+trivia) ──Parser──▶ WrittenTypes (range-complete)`
 
 The parser stops at WrittenTypes; lowering to ProgramTypes (`WT2PT`) is downstream.
+
+### `let!`
+
+`let! pat = e` is parser sugar, lowered straight into existing WrittenTypes like
+the nested-fn sugar: an `ELet` whose value is `EPropagate(e)`, with the `!`'s
+range as its symbol. The `!` must touch the `let`; `let !x` is a pattern error.
+`let! f (x) = …` is rejected: `let!` binds a value.
+
+`VALIDATION-PROPAGATION-CONTEXT` rejects `let!` outside a function or lambda,
+including a package value initializer. See
+[the spec](../../../docs/error-propagation.md) for semantics.

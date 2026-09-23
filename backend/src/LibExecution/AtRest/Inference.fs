@@ -87,6 +87,7 @@ let rec internal isNonExpansive (expr : Expr) : bool =
     isNonExpansive first && isNonExpansive second && List.forall isNonExpansive rest
   | ERecord(_, _, _, fields) -> fields |> List.forall (snd >> isNonExpansive)
   | EEnum(_, _, _, _, fields) -> List.forall isNonExpansive fields
+  | EPropagate _
   | EIf _
   | EPipe _
   | EMatch _
@@ -273,6 +274,124 @@ let private instantiateCustomType
       args |> List.iter (validateTypeClosure state nodeId)
       Some(packageName, args, declaration)
 
+/// Solve in both directions: a lambda's success return can determine its operand
+/// container even before its argument is known. Unresolved relations remain
+/// monomorphic so later uses can still constrain them.
+let internal resolvePropagationConstraints (state : State) (final : bool) : unit =
+  let optionName = FQTypeName.package (PackageRefs.Type.Stdlib.option ())
+  let resultName = FQTypeName.package (PackageRefs.Type.Stdlib.result ())
+  let rec solve () =
+    let before = state.Substitutions
+    let pending = state.PendingPropagations
+    state.PendingPropagations <- []
+    for nodeId, operand, inner, returned in pending do
+      let operand = normalizeAliases state (Some nodeId) Set.empty operand
+      let returned = normalizeAliases state (Some nodeId) Set.empty returned
+      // A custom type whose declaration is unavailable may be an alias of
+      // Option or Result. `normalizeAliases` has already blocked on it, so the
+      // verdict is Incomplete; a definite error that depends on what it is
+      // would wrongly make it Failed. Each error depends on one side only: an
+      // `Int` operand is wrong whatever an unavailable return type turns out
+      // to be, and a mismatch is only reported once the operand is known.
+      let unavailable typ =
+        match typ with
+        | TCustom(name, _) ->
+          name <> optionName
+          && name <> resultName
+          && not (Map.containsKey name state.Environment.types)
+        | _ -> false
+      let error context =
+        let dependsOn =
+          match context with
+          | PropagationRequiresOptionOrResult -> operand
+          | _ -> returned
+        if not (unavailable dependsOn) then
+          state.Error(InvalidPropagation, Some nodeId, None, None, context)
+      let constrain name operandArgs returnArgs =
+        unify
+          state
+          (Some nodeId)
+          FunctionReturnValue
+          operand
+          (TCustom(name, operandArgs))
+        unify
+          state
+          (Some nodeId)
+          FunctionReturnValue
+          returned
+          (TCustom(name, returnArgs))
+      match operand, returned with
+      | TCustom(name, [ value ]), _ when name = optionName ->
+        unify state (Some nodeId) FunctionReturnValue inner value
+        let returned = normalizeAliases state (Some nodeId) Set.empty returned
+        match returned with
+        | TCustom(other, [ _ ]) when other = optionName -> ()
+        | TInferenceVariable _ ->
+          unify
+            state
+            (Some nodeId)
+            FunctionReturnValue
+            returned
+            (TCustom(optionName, [ state.Fresh(Some nodeId) ]))
+        | _ -> error PropagationReturnContainerMismatch
+      | TCustom(name, [ value; err ]), _ when name = resultName ->
+        unify state (Some nodeId) FunctionReturnValue inner value
+        let returned = normalizeAliases state (Some nodeId) Set.empty returned
+        match returned with
+        | TCustom(other, [ _; returnedError ]) when other = resultName ->
+          unify state (Some nodeId) PropagatedError returnedError err
+        | TInferenceVariable _ ->
+          unify
+            state
+            (Some nodeId)
+            FunctionReturnValue
+            returned
+            (TCustom(resultName, [ state.Fresh(Some nodeId); err ]))
+        | _ -> error PropagationReturnContainerMismatch
+      | TInferenceVariable _, TCustom(name, [ success ]) when name = optionName ->
+        constrain optionName [ inner ] [ success ]
+      | TInferenceVariable _, TCustom(name, [ success; err ]) when name = resultName ->
+        constrain resultName [ inner; err ] [ success; err ]
+      | TInferenceVariable _, TInferenceVariable _ ->
+        state.PendingPropagations <-
+          (nodeId, operand, inner, returned) :: state.PendingPropagations
+      | TInferenceVariable _, _ -> error PropagationReturnContainerMismatch
+      | _ -> error PropagationRequiresOptionOrResult
+    if
+      not (List.isEmpty state.PendingPropagations) && before <> state.Substitutions
+    then
+      solve ()
+  if not (List.isEmpty state.PendingPropagations) then solve ()
+  if final then
+    for nodeId, _, _, _ in state.PendingPropagations do
+      state.Block(
+        UnsupportedConstruct,
+        Some nodeId,
+        PropagationRequiresOptionOrResult
+      )
+
+/// The bound value is typed at the `let!` itself when the operand is already
+/// known, so `let! n = x` then `n + 1` doesn't wait for the body's end. The
+/// container check waits, so a mismatch is reported as one, not as the body
+/// disagreeing with a container fixed too early.
+let internal addPropagation
+  (state : State)
+  (nodeId : id)
+  (operand : StaticType)
+  (inner : StaticType)
+  (returned : StaticType)
+  : unit =
+  let optionName = FQTypeName.package (PackageRefs.Type.Stdlib.option ())
+  let resultName = FQTypeName.package (PackageRefs.Type.Stdlib.result ())
+  match normalizeAliases state (Some nodeId) Set.empty operand with
+  | TCustom(name, [ value ]) when name = optionName ->
+    unify state (Some nodeId) FunctionReturnValue inner value
+  | TCustom(name, [ value; _ ]) when name = resultName ->
+    unify state (Some nodeId) FunctionReturnValue inner value
+  | _ -> ()
+  state.PendingPropagations <-
+    (nodeId, operand, inner, returned) :: state.PendingPropagations
+
 let rec internal checkExprWithContext
   (state : State)
   (env : Env)
@@ -288,8 +407,15 @@ let rec internal checkExprWithContext
     let bindings =
       List.zip (NEList.toList patterns) (NEList.toList parameters)
       |> List.collect (fun (pattern, typ) -> checkLetPattern state typ pattern)
-    let lambdaEnv = addBindings state (Some nodeId) env bindings
+    let lambdaEnv =
+      addBindings
+        state
+        (Some nodeId)
+        { env with propagationReturn = Some returnType }
+        bindings
     checkExprWithContext state lambdaEnv returnType body LambdaReturnValue
+    // The body may have fixed a container a `let!` had to leave open.
+    resolvePropagationConstraints state false
   | _ ->
     let actual = inferExpr state env expr
     unify state (Some(Expr.toID expr)) site expected actual
@@ -561,8 +687,16 @@ and internal inferPipePart
     let bindings =
       List.zip (NEList.toList patterns) (NEList.toList parameters)
       |> List.collect (fun (pattern, typ) -> checkLetPattern state typ pattern)
-    let bodyType =
-      inferExpr state (addBindings state (Some nodeId) env bindings) body
+    let returnType = state.Fresh(Some nodeId)
+    let lambdaEnv =
+      addBindings
+        state
+        (Some nodeId)
+        { env with propagationReturn = Some returnType }
+        bindings
+    let bodyType = inferExpr state lambdaEnv body
+    unify state (Some nodeId) LambdaReturnValue returnType bodyType
+    resolvePropagationConstraints state false
     match parameters.tail with
     | [] -> bodyType
     | next :: rest -> TFn(NEList.ofList next rest, bodyType)
@@ -739,6 +873,20 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
       | StringText _ -> ()
       | StringInterpolation expr -> checkExpr state env TString expr)
     TString
+  | EPropagate(nodeId, operand) ->
+    let operandType = inferExpr state env operand
+    let inner = state.Fresh(Some nodeId)
+    match env.propagationReturn with
+    | Some returned -> addPropagation state nodeId operandType inner returned
+    | None ->
+      state.Error(
+        InvalidPropagation,
+        Some nodeId,
+        None,
+        None,
+        PropagationOutsideFunction
+      )
+    inner
   | EIf(nodeId, condition, thenExpr, elseExpr) ->
     checkExpr state env TBool condition
     let thenType = inferExpr state env thenExpr
@@ -868,7 +1016,16 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     let bindings =
       List.zip (NEList.toList patterns) (NEList.toList parameters)
       |> List.collect (fun (pattern, typ) -> checkLetPattern state typ pattern)
-    let bodyType = inferExpr state (addBindings state None env bindings) body
+    let returnType = state.Fresh(Some nodeId)
+    let lambdaEnv =
+      addBindings
+        state
+        None
+        { env with propagationReturn = Some returnType }
+        bindings
+    let bodyType = inferExpr state lambdaEnv body
+    unify state (Some nodeId) LambdaReturnValue returnType bodyType
+    resolvePropagationConstraints state false
     TFn(parameters, bodyType)
   | EInfix(nodeId, infix, lhs, rhs) -> inferInfix state env nodeId infix lhs rhs
   | ERecord(nodeId, name, typeArgs, fields) ->

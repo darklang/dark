@@ -612,6 +612,18 @@ module TokenizeExpression =
       (TokenType.String, (0, 25), (0, 29))
       (TokenType.Symbol, (0, 29), (0, 30)) ]
 
+  // the `!` of `let!` is its own symbol (listed after the value; consumers sort)
+  ("fun x ->\n  let! y = x\n  y" |> tokenize) =
+    [ (TokenType.Keyword, (0, 0), (0, 3))
+      (TokenType.VariableName, (0, 4), (0, 5))
+      (TokenType.Symbol, (0, 6), (0, 8))
+      (TokenType.Keyword, (1, 2), (1, 5))
+      (TokenType.VariableName, (1, 7), (1, 8))
+      (TokenType.Symbol, (1, 9), (1, 10))
+      (TokenType.VariableName, (1, 11), (1, 12))
+      (TokenType.Symbol, (1, 5), (1, 6))
+      (TokenType.VariableName, (2, 2), (2, 3)) ]
+
   ("if true then true else false" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 2))
       (TokenType.Keyword, (0, 3), (0, 7))

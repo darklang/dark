@@ -360,6 +360,10 @@ type Expr =
 
 
   // -- Flow control --
+  /// `let!`'s value: extract success, or return the failure from the nearest
+  /// function or lambda.
+  | EPropagate of id * Expr
+
   /// `if cond then thenExpr else elseExpr`
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
 
@@ -578,6 +582,7 @@ module Expr =
     | EFloat(id, _, _, _)
     | EValue(id, _)
     | ELet(id, _, _, _)
+    | EPropagate(id, _)
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _)
     | ELambda(id, _, _)

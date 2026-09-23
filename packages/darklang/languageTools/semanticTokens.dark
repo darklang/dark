@@ -872,6 +872,9 @@ module Expr =
     | EVariable(range, _varName) -> [ makeToken range TokenType.VariableName ]
 
     // person.name
+    | EPropagate(_, operand, bang) ->
+      Stdlib.List.append (Expr.tokenize operand) [ makeToken bang TokenType.Symbol ]
+
     | ERecordFieldAccess(_range, expr, (r, fieldName), symbolDot) ->
       [ // person
         Expr.tokenize expr

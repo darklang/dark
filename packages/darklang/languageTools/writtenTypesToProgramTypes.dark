@@ -885,6 +885,10 @@ module Expr =
             | Ok _ -> (ProgramTypes.Expr.EFnName(gid (), asFn), [])
             | Error _ -> (ProgramTypes.Expr.EVariable(gid (), var), [])
 
+    | EPropagate(_, operand, _) ->
+      let (operand, unresolvedNames) = toPT ctx context operand
+      (ProgramTypes.Expr.EPropagate(gid (), operand), unresolvedNames)
+
     | ERecordFieldAccess(_, expr, (_, fieldName), _) ->
       let (expr, unresolvedNames) = toPT ctx context expr
 

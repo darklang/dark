@@ -1256,6 +1256,16 @@ let typeDeclarations =
 
 let exprs =
   [
+    // let!
+    t
+      "let! binding"
+      "fun x ->\n  let! y = x\n  Ok y"
+      "(fun x ->\n  let! y = x\n  Result.Ok(y))"
+      []
+      []
+      []
+      false
+
     // units
     t "unit literal" "()" "()" [] [] [] false
 

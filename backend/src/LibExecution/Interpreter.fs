@@ -2689,6 +2689,68 @@ let private runSyncInstructions
             vm.threadID
             (RTE.Bool(RTE.Bools.ConditionRequiresBool(Dval.toValueType dv, dv)))
 
+      // -- Propagation --
+      // Success is extracted; failure becomes this frame's result and ends it,
+      // so it leaves through the ordinary return path and its return-type check.
+      // No local closure here: capturing `counter` would make it a heap ref cell
+      // on every drain, `let!` or not.
+      | Propagate(target, source, returns) ->
+        let value = registers[source]
+        let failure =
+          match value with
+          | DEnum(_, typeName, typeArgs, caseName, fields) ->
+            let isResult =
+              typeName = FQTypeName.Package(Hash(PackageRefs.Type.Stdlib.result ()))
+            let isOption =
+              typeName = FQTypeName.Package(Hash(PackageRefs.Type.Stdlib.option ()))
+            // Checked on success too, so a mismatch fails whatever the value.
+            match returns with
+            | Some expected when (isResult || isOption) && expected <> typeName ->
+              raiseRTE
+                vm.threadID
+                (RTE.Unwrap(RTE.Unwraps.PropagationContainerMismatch value))
+            | _ -> ()
+            match caseName, fields with
+            | "Ok", [ inner ] when isResult ->
+              registers[target] <- inner
+              ValueNone
+            | "Some", [ inner ] when isOption ->
+              registers[target] <- inner
+              ValueNone
+            // The frame may return a different success type, so the operand's
+            // success type must not travel with the failure.
+            // The error type is the operand's own: re-deriving it from the
+            // payload can lose it (`Error []` would become `List<_>`).
+            | "Error", [ error ] when isResult ->
+              let errorType =
+                match typeArgs with
+                | [ _; ValueType.Known _ as known ] -> known
+                | _ -> Dval.toValueType error
+              ValueSome(
+                DEnum(
+                  typeName,
+                  typeName,
+                  [ ValueType.Unknown; errorType ],
+                  "Error",
+                  [ error ]
+                )
+              )
+            | "None", [] when isOption ->
+              ValueSome(DEnum(typeName, typeName, [ ValueType.Unknown ], "None", []))
+            | _ ->
+              raiseRTE
+                vm.threadID
+                (RTE.Unwrap(RTE.Unwraps.PropagationOperandNotContainer value))
+          | _ ->
+            raiseRTE
+              vm.threadID
+              (RTE.Unwrap(RTE.Unwraps.PropagationOperandNotContainer value))
+        match failure with
+        | ValueSome failure ->
+          registers[instrData.resultReg] <- failure
+          counter <- instrData.instructions.Length
+        | ValueNone -> ()
+
       // -- Match --
       | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
         // Fast path for common single-variable match

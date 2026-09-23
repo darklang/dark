@@ -82,6 +82,7 @@ type DiagnosticCode =
   | DuplicateTypeParameter
   | DuplicateTypeMember
   | UnsupportedDictKeyType
+  | InvalidPropagation
 
 type BlockerCode =
   | UnresolvedTypeName
@@ -104,6 +105,8 @@ type BlockerCode =
 type Site =
   | LambdaReturnValue
   | FunctionReturnValue
+  /// The error type a Result `let!` returns, against the enclosing return's.
+  | PropagatedError
   | ValueBody
   | Expression
   | StatementBeforeFinalExpression
@@ -198,6 +201,9 @@ type Context =
   | EnumRequiredForConstruction
   | EnumRequiredForPattern
   | SelfOutsideFunction
+  | PropagationOutsideFunction
+  | PropagationRequiresOptionOrResult
+  | PropagationReturnContainerMismatch
   | OrPatternBindingsDiffer
   | ExplicitTypeArgumentsOnNonNamedFunction
   | AliasCycleReferenced

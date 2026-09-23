@@ -823,6 +823,14 @@ module WrittenTypesToDarkTypes =
           |> List.map (fun (pr, pe) -> DTuple(rangeToDT pr, pipeExprToDT pe, []))
         )
       DEnum(t, t, [], "EPipe", [ rangeToDT r; exprToDT expr; pipeExprsDval ])
+    | WT.EPropagate(r, operand, bang) ->
+      DEnum(
+        t,
+        t,
+        [],
+        "EPropagate",
+        [ rangeToDT r; exprToDT operand; rangeToDT bang ]
+      )
     | WT.EStatement(r, first, next) ->
       DEnum(t, t, [], "EStatement", [ rangeToDT r; exprToDT first; exprToDT next ])
     | WT.EFnName(r, q) ->

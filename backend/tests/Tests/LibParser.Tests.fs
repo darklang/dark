@@ -1748,6 +1748,7 @@ let private rangeInvariantTests =
             | WT.EPipeEnum(_, _, _, fs, _) -> fs
             | WT.EPipeFnCall(_, _, _, args) -> args
             | WT.EPipeVariableOrFnCall _ -> []))
+    | WT.EPropagate(_, operand, _) -> [ operand ]
     | WT.EStatement(_, a, b) -> [ a; b ]
   let rec check (path : string) (violations : ResizeArray<string>) (e : WT.Expr) =
     let er = WT.exprRange e
@@ -1858,10 +1859,50 @@ let private internalUnitTests =
         let r = P.parse "type Y = List<Int64>"
         Expect.isEmpty r.diagnostics "clean parse after a broken generic parse") ]
 
+let private propagationTests =
+  testList
+    "let!"
+    [ testCase "let! records where its ! is" (fun _ ->
+        match lowerExpr "fun x ->\n  let! y = f x\n  y" with
+        | WT.ELambda(_,
+                     _,
+                     WT.ELet(_, _, WT.EPropagate(_, WT.EApply _, bang), _, _, _),
+                     _,
+                     _) -> expectColumns "the !" (5, 6) bang
+        | other -> failtestf "unexpected tree: %A" other)
+      testCase "let! is a let whose value propagates" (fun _ ->
+        match lowerExpr "fun x ->\n  let! y = x\n  y" with
+        | WT.ELambda(_,
+                     _,
+                     WT.ELet(_, WT.LPVariable _, WT.EPropagate _, _, _, _),
+                     _,
+                     _) -> ()
+        | other -> failtestf "unexpected tree: %A" other)
+      testCase "let! mistakes are reported" (fun _ ->
+        let diagnostics =
+          (P.parse "fun x ->\n  let! f (y: Int) = y\n  f x").diagnostics
+        Expect.isTrue
+          (diagnostics
+           |> List.exists (fun d -> d.message.Contains "can't define a function"))
+          $"{diagnostics}"
+        Expect.isNonEmpty
+          (P.parse "fun x ->\n  let !y = x\n  y").diagnostics
+          "let !y")
+      testCase "rejects let! outside a function or lambda" (fun _ ->
+        for source in
+          [ "let! x = Some 1\nx"
+            "val x =\n  let! y = Some 1\n  y"
+            "module M =\n  val x =\n    let! y = Some 1\n    y" ] do
+          Expect.isTrue
+            ((P.parse source).diagnostics
+             |> List.exists (fun d -> d.code = "VALIDATION-PROPAGATION-CONTEXT"))
+            source) ]
+
 let tests =
   testList
     "LibParser"
-    [ parserStructureTests
+    [ propagationTests
+      parserStructureTests
       internalUnitTests
       offsideTests
       typeTests

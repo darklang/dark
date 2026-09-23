@@ -105,3 +105,13 @@ module LambdaInRecordField =
   // check: can we apply a function from a record field directly?
   (let record = RecordWithFn { fn = fun x -> x + 1L }
    (record.fn 6L)) = 7L
+
+
+// A lambda captures every enclosing name its body uses, including a variable
+// it pipes into and a dict key.
+module LambdaCaptures =
+  let pipesIntoOuter (f: Int -> Int) : Int = (fun () -> 1 |> f) ()
+  pipesIntoOuter (fun x -> x + 1) = 2
+
+  let outerDictKey (key: String) : Dict<String, Int> = (fun () -> Dict { key: 1 }) ()
+  outerDictKey "k" = Dict { "k": 1 }

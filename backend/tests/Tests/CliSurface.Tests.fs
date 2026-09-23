@@ -857,9 +857,32 @@ let private viewHeadsWithTheNameYouAskedFor =
       })
 
 
+let private propagationErrorsAreReadable =
+  cliTest
+    "eval runs let! and reports a non-Option/Result operand readably"
+    (fun state ->
+      task {
+        let! rejected =
+          runCli state [ "eval"; "(fun value -> let! v = value in Some (v + 1)) 4" ]
+        Expect.stringContains
+          rejected
+          "`let!` needs an Option or Result"
+          "names the let!"
+        Expect.isFalse
+          (rejected.Contains "Encountered a Runtime Error")
+          "the error renderer itself succeeds"
+        let! accepted =
+          runCli
+            state
+            [ "eval"; "(fun value -> let! v = value in Some (v + 1)) (Some 4)" ]
+        Expect.stringContains accepted "Some(5)" "a valid let! still executes"
+      })
+
+
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
 let tests : List<Test> =
-  [ testHelpCommand
+  [ propagationErrorsAreReadable
+    testHelpCommand
     everyCommandAnswersHelp
     workbenchViewsRender
     showingACommitDoesNotFetchEveryOp

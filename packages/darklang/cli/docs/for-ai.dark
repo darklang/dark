@@ -82,6 +82,8 @@ never against what you typed.
 - Option/Result cases work bare: `Some x`, `None`, `Ok x`, `Error e`.
 - User enum construction uses `TypeName.Case`; match cases are bare.
 - Nested constructor patterns can use `Some (Ok x)`.
+- `let! x = parse s` binds Ok/Some or returns Error/None from the nearest
+  function or lambda. You still write Ok/Some on success.
 - A tuple payload needs double parentheses: `Some ((a, b))`.
 - A function may declare a permission ceiling as an effect row on the return
   colon: `let fetch (url: String) :{Http, Clock} String = ...`. It only

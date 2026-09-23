@@ -586,6 +586,14 @@ let execute
         |> RuntimeError.CLI
         |> raiseUntargetedRTE
     | exprs ->
+      // CLEANUP: scripts and `eval` run without the at-rest type checker, which
+      // package code gets on save and commit. The runtime still checks a declared
+      // fn's return, and `let!` checks its container wherever the code shows it,
+      // but a lambda ending in, say, `wrap n` goes unchecked: given `Error "x"`,
+      // `fun v -> (let! n = v in wrap n)` just returns it. Check `fns` and
+      // `exprs` here first, acting only on `Failed` verdicts (warn or refuse),
+      // never `Incomplete`: the checker can't yet prove some valid code. See
+      // docs/at-rest-type-checker.md, "Trust boundary and rollout".
       let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
 
       // Awaited in order, and the first error ends the script.

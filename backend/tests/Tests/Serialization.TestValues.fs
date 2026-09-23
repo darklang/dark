@@ -160,7 +160,17 @@ module RuntimeTypes =
         instructions =
           [ RT.LoadVal(0, RT.DUnit)
             RT.CreateString(1, [ RT.Text "hello" ])
-            RT.JumpBy 2 ]
+            RT.JumpBy 2
+            RT.Propagate(2, 0, None)
+            RT.Propagate(
+              2,
+              0,
+              Some(
+                RT.FQTypeName.Package(
+                  RT.Hash(LibExecution.PackageRefs.Type.Stdlib.option ())
+                )
+              )
+            ) ]
         resultIn = 1 } ]
 
   let packageFns : List<RT.PackageFn.PackageFn> =
@@ -297,7 +307,7 @@ module ProgramTypes =
 
   // Note: this is aimed to contain all cases of `Expr`
   let expr =
-    let e = EInt64(id, 5)
+    let e = EPropagate(id, EInt64(id, 5))
     ELet(
       id,
       LPTuple(

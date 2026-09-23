@@ -755,6 +755,14 @@ type Instruction =
   /// Go `n` instructions forward, unconditionally
   | JumpBy of instrsToJump : int
 
+  /// Extract success; failure ends this frame through its ordinary return path.
+  /// `returns` is the Option or Result type the frame returns, when its code shows
+  /// it; an operand of the other container is then refused on the spot.
+  | Propagate of
+    extractTo : Register *
+    valueReg : Register *
+    returns : Option<FQTypeName.FQTypeName>
+
 
   // -- Match --
   /// Check if the value in the noted register the noted pattern,
@@ -1629,6 +1637,11 @@ module RuntimeError =
       | GotError of err : Dval
       | NonOptionOrResult of actual : Dval
       | MultipleArgs of args : List<Dval>
+      /// `let!` of an Option where the frame returns a Result, or the reverse.
+      | PropagationContainerMismatch of actual : Dval
+      /// `let!` of something that is neither. Separate from `NonOptionOrResult`,
+      /// which is `Builtin.unwrap`'s, so the message can name the `let!`.
+      | PropagationOperandNotContainer of actual : Dval
 
   module Jsons =
     type Error =
@@ -2705,7 +2718,8 @@ module Opcode =
        "Apply"
        "RaiseNRE"
        "VarNotFound"
-       "CheckIfFirstExprIsUnit" |]
+       "CheckIfFirstExprIsUnit"
+       "Propagate" |]
 
   let index (i : Instruction) : int =
     match i with
@@ -2732,6 +2746,7 @@ module Opcode =
     | RaiseNRE _ -> 20
     | VarNotFound _ -> 21
     | CheckIfFirstExprIsUnit _ -> 22
+    | Propagate _ -> 23
 
 
 /// Every `InterpreterStats` created while telemetry is on, so the process can total them at exit. A VM is

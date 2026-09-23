@@ -235,6 +235,11 @@ module Instruction =
       w.Write 6uy
       w.Write(instrsToJump : int)
       w.Write(conditionReg : int)
+    | Propagate(target, source, returns) ->
+      w.Write 23uy
+      w.Write(target : int)
+      w.Write(source : int)
+      Option.write w FQTypeName.write returns
     | JumpBy instrsToJump ->
       w.Write 7uy
       w.Write(instrsToJump : int)
@@ -441,6 +446,10 @@ module Instruction =
     | 22uy ->
       let reg = r.ReadInt32()
       CheckIfFirstExprIsUnit(reg)
+    | 23uy ->
+      let target = r.ReadInt32()
+      let source = r.ReadInt32()
+      Propagate(target, source, Option.read r FQTypeName.read)
     | b -> raiseFormatError $"Invalid Instruction tag: {b}"
 
 

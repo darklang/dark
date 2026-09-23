@@ -332,6 +332,7 @@ type Expr =
     keywordLet: Range *
     symbolEquals: Range
 
+  | EPropagate of Range * Expr * symbolBang: Range
   | EVariable of Range * String
 
   | ERecordFieldAccess of
@@ -433,6 +434,7 @@ module Expr =
     | ERecordUpdate(range, _, _, _, _, _) -> range
     | EEnum(range, _, _, _, _) -> range
     | ELet(range, _, _, _, _, _) -> range
+    | EPropagate(range, _, _) -> range
     | EVariable(range, _) -> range
     | ERecordFieldAccess(range, _, _, _) -> range
     | EIf(range, _, _, _, _, _, _) -> range

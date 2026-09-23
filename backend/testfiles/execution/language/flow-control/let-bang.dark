@@ -1,0 +1,259 @@
+// `let! pat = e` binds the success of `e`, or returns its failure from the
+// nearest function or lambda through the ordinary return path.
+
+let next
+  (value: Stdlib.Result.Result<Int, String>)
+  : Stdlib.Result.Result<Int, String> =
+  let! number = value
+  Ok (number + 1)
+
+next (Ok 4) = Ok 5
+next (Error "missing") = Error "missing"
+
+// The failure doesn't keep the input's success type: it may differ.
+let stringify
+  (value: Stdlib.Result.Result<Int, String>)
+  : Stdlib.Result.Result<String, String> =
+  let! number = value
+  Ok (Stdlib.Int.toString number)
+
+stringify (Ok 4) = Ok "4"
+stringify (Error "missing") = Error "missing"
+
+let optionString (value: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<String> =
+  let! number = value
+  Some (Stdlib.Int.toString number)
+
+optionString (Some 4) = Some "4"
+optionString None = None
+
+let fromCall (input: String) : Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
+  let! number = Stdlib.Int.parse input
+  Ok (number + 1)
+
+fromCall "4" = Ok 5
+fromCall "invalid" = Error Stdlib.Int.ParseError.BadFormat
+
+// Later statements are skipped on failure.
+let bomb () : Int = Builtin.unwrap (Error "should not execute")
+
+let skipsTheRest (first: Stdlib.Result.Result<Int, String>) : Stdlib.Result.Result<Int, String> =
+  let! n = first
+  Ok (n + bomb ())
+
+skipsTheRest (Error "first") = Error "first"
+
+// Only a branch that runs can fail.
+let inBranch
+  (choose: Bool)
+  (value: Stdlib.Option.Option<Int>)
+  : Stdlib.Option.Option<Int> =
+  if choose then
+    let! n = value
+    Some n
+  else
+    Some 12
+
+inBranch false None = Some 12
+inBranch true None = None
+inBranch true (Some 3) = Some 3
+
+// A lambda is its own boundary, so the caller keeps going.
+let lambdaBoundary (value: Stdlib.Option.Option<Int>) : Int =
+  let inner =
+    fun () ->
+      let! v = value
+      Some (v + 1)
+  match inner () with
+  | None -> 99
+  | Some number -> number
+
+lambdaBoundary None = 99
+lambdaBoundary (Some 3) = 4
+
+let nestedBoundary (value: Stdlib.Result.Result<Int, String>) : Int =
+  let inner () : Stdlib.Result.Result<Int, String> =
+    let! v = value
+    Ok (v + 1)
+  match inner () with
+  | Error _ -> 99
+  | Ok number -> number
+
+nestedBoundary (Error "inner") = 99
+nestedBoundary (Ok 3) = 4
+
+// Nested containers unwrap one level per `let!`.
+let nested
+  (value: Stdlib.Result.Result<Stdlib.Result.Result<Int, String>, String>)
+  : Stdlib.Result.Result<Int, String> =
+  let! inner = value
+  let! n = inner
+  Ok (n + 1)
+
+nested (Ok (Ok 4)) = Ok 5
+nested (Ok (Error "inside")) = Error "inside"
+nested (Error "outside") = Error "outside"
+
+type Container = { item: Stdlib.Option.Option<Int> }
+
+let fields (value: Stdlib.Option.Option<Container>) : Stdlib.Option.Option<Int> =
+  let! container = value
+  let! item = container.item
+  Some item
+
+fields None = None
+fields (Some (Container { item = None })) = None
+fields (Some (Container { item = Some 4 })) = Some 4
+
+// A second `let!` passes the inner function's failure on to its caller.
+let chain
+  (value: Stdlib.Result.Result<Int, String>)
+  : Stdlib.Result.Result<Int, String> =
+  let! n = next value
+  Ok (n + 1)
+
+chain (Ok 4) = Ok 6
+chain (Error "missing") = Error "missing"
+
+// The value runs exactly once, and failure keeps completed effects.
+let counted
+  (value: Stdlib.Result.Result<Int, String>)
+  : Stdlib.Result.Result<Int, String> =
+  let! number = Builtin.testIncrementSideEffectCounter value
+  let _ = Builtin.testIncrementSideEffectCounter ()
+  Ok number
+
+(let outcome = counted (Ok 7)
+ (outcome, Builtin.testSideEffectCount ())) = (Ok 7, 2L)
+
+(let outcome = counted (Error "stop")
+ (outcome, Builtin.testSideEffectCount ())) = (Error "stop", 1L)
+
+// A function bound by `let!` can be applied, including a plain lambda.
+let increment (x: Int) : Int = x + 1
+
+let callable (value: Stdlib.Option.Option<Int -> Int>) : Stdlib.Option.Option<Int> =
+  let! f = value
+  Some (f 4)
+
+callable None = None
+callable (Some increment) = Some 5
+callable (Some (fun x -> x + 1)) = Some 5
+
+// Recursion, including through the cached function-apply path.
+let recursive
+  (count: Int)
+  (value: Stdlib.Option.Option<Int>)
+  : Stdlib.Option.Option<Int> =
+  if count == 0 then
+    let! v = value
+    Some v
+  else
+    let! below = recursive (count - 1) value
+    Some (below + 1)
+
+recursive 5 None = None
+recursive 5 (Some 0) = Some 5
+
+// Code called from a function using `let!` runs as it would anywhere else,
+// including Stdlib helpers that build their own callbacks.
+let firstTwo (value: Stdlib.Option.Option<List<Int>>) : Stdlib.Option.Option<Int> =
+  let! items = value
+  Stdlib.List.findFirstIndex items (fun x -> x == 2)
+
+firstTwo (Some [ 1, 2, 3 ]) = Some 1
+firstTwo None = None
+
+// Inside callbacks run by builtins.
+let addAll (xs: List<Stdlib.Option.Option<Int>>) : Stdlib.Option.Option<Int> =
+  Stdlib.List.fold xs (Some 0) (fun acc x ->
+    let! a = acc
+    let! b = x
+    Some (a + b))
+
+addAll [ Some 1, Some 2 ] = Some 3
+addAll [ Some 1, None, Some 2 ] = None
+
+// Through a type alias.
+type AliasR = Stdlib.Result.Result<Int, String>
+
+let viaAlias (v: AliasR) : Stdlib.Result.Result<Int, String> =
+  let! n = v
+  Ok (n + 1)
+
+viaAlias (Ok 1) = Ok 2
+viaAlias (Error "x") = Error "x"
+
+// Partial application.
+let two
+  (a: Stdlib.Option.Option<Int>)
+  (b: Stdlib.Option.Option<Int>)
+  : Stdlib.Option.Option<Int> =
+  let! x = a
+  let! y = b
+  Some (x + y)
+
+(let p = two (Some 1)
+ (p (Some 2), p None)) = (Some 3, None)
+
+// A declared return type makes `let!` refuse the other container on the spot,
+// whatever the value. (The at-rest checker rejects this code anyway.)
+let wrongKind (value: Stdlib.Result.Result<Int, String>) : Stdlib.Option.Option<Int> =
+  let! n = value
+  Some n
+
+wrongKind (Ok 1) = error="`let!` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Ok(1)"
+wrongKind (Error "x") = error="`let!` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Error(\"x\")"
+
+// So does a lambda whose ending shows its container.
+let someAfter (v: Stdlib.Result.Result<Int, String>) : Stdlib.Option.Option<Int> =
+  let f =
+    fun r ->
+      let! n = r
+      Some (n + 1)
+  f v
+
+someAfter (Ok 1) = error="`let!` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Ok(1)"
+
+// A nested lambda checks against its own ending, not its parent's.
+let innerOwn (r: Stdlib.Result.Result<Int, String>) : Stdlib.Option.Option<Stdlib.Result.Result<Int, String>> =
+  let f =
+    fun w ->
+      let! n = w
+      Ok (n + 1)
+  Some (f r)
+
+innerOwn (Error "e") = Some (Error "e")
+
+// An ending the compiler can't see through isn't checked: the value goes on.
+let wrap (x: Int) : Stdlib.Option.Option<Int> = Some x
+
+let unseen (v: Stdlib.Result.Result<Int, String>) : Stdlib.Result.Result<Int, String> =
+  let f =
+    fun r ->
+      let! n = r
+      wrap n
+  f v
+
+unseen (Error "x") = Error "x"
+
+// Not an Option or Result at all.
+let notContainer (v: Int) : Stdlib.Option.Option<Int> =
+  let f =
+    fun r ->
+      let! n = r
+      Some (n + 1)
+  f v
+
+notContainer 4 = error="`let!` needs an Option or Result, but got 4 (an Int)"
+
+
+// A propagated error keeps its own error type, even when the payload can't show
+// it (`[]`), so the return-type check still sees the mismatch.
+let emptyErrors
+  (v: Stdlib.Result.Result<Int, List<String>>)
+  : Stdlib.Result.Result<Int, List<Int>> =
+  let! n = v
+  Ok n
+
+emptyErrors (Stdlib.Result.Result<Int, List<String>>.Error []) = error="emptyErrors's return value expects Darklang.Stdlib.Result.Result<Int, List<Int>>, but got Darklang.Stdlib.Result.Result<_, List<String>> (Error(List<_> []))"

@@ -116,6 +116,267 @@ let private unitTests =
         |> expectChecked
       }
 
+      test "propagation checks container, error and enclosing return types" {
+        let resultName =
+          PT.FQTypeName.package (LibExecution.PackageRefs.Type.Stdlib.result ())
+        let optionName =
+          PT.FQTypeName.package (LibExecution.PackageRefs.Type.Stdlib.option ())
+        let result a e = PT.TCustomType(nr resultName, [ a; e ])
+        let option a = PT.TCustomType(nr optionName, [ a ])
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType
+            resultName
+            { typeParams = [ "a"; "e" ]
+              definition =
+                PT.TypeDeclaration.Enum(
+                  NEList.ofList
+                    (enumCase "Ok" [ PT.TVariable "a" ])
+                    [ enumCase "Error" [ PT.TVariable "e" ] ]
+                ) }
+          |> Checker.TypeEnvironment.addType
+            optionName
+            { typeParams = [ "a" ]
+              definition =
+                PT.TypeDeclaration.Enum(
+                  NEList.ofList
+                    (enumCase "Some" [ PT.TVariable "a" ])
+                    [ enumCase "None" [] ]
+                ) }
+        let body returnName =
+          PT.ELet(
+            900UL,
+            PT.LPWildcard 901UL,
+            PT.EPropagate(902UL, PT.EArg(903UL, 0)),
+            PT.EEnum(
+              904UL,
+              nr returnName,
+              [],
+              (if returnName = resultName then "Ok" else "Some"),
+              [ PT.EString(905UL, [ PT.StringText "success" ]) ]
+            )
+          )
+        let check input output returnName =
+          oneArgFn input output (body returnName)
+          |> CheckerApi.checkPackageFunction environment
+        check (result PT.TInt PT.TString) (result PT.TString PT.TString) resultName
+        |> expectChecked
+        check (option PT.TInt) (option PT.TString) optionName |> expectChecked
+        check (result PT.TInt PT.TString) (result PT.TString PT.TBool) resultName
+        |> expectDiagnostic Checker.TypeMismatch
+        check (result PT.TInt PT.TString) (option PT.TString) optionName
+        |> expectDiagnostic Checker.InvalidPropagation
+        check (option PT.TInt) (result PT.TString PT.TString) resultName
+        |> expectDiagnostic Checker.InvalidPropagation
+        check PT.TInt (result PT.TString PT.TString) resultName
+        |> expectDiagnostic Checker.InvalidPropagation
+        oneArgFn
+          (result PT.TInt PT.TString)
+          PT.TInt
+          (PT.EPropagate(906UL, PT.EArg(907UL, 0)))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.InvalidPropagation
+        // A plain success expression is not implicitly wrapped.
+        oneArgFn
+          (result PT.TInt PT.TString)
+          (result PT.TInt PT.TString)
+          (PT.EPropagate(908UL, PT.EArg(909UL, 0)))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.TypeMismatch
+        // The outer function may return an ordinary value: only the lambda propagates.
+        let lambda =
+          PT.ELambda(910UL, NEList.singleton (PT.LPUnit 911UL), body resultName)
+        let outer = PT.ELet(912UL, PT.LPWildcard 913UL, lambda, PT.EInt(914UL, 1I))
+        oneArgFn (result PT.TInt PT.TString) PT.TInt outer
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+        let badLambda =
+          PT.ELambda(
+            915UL,
+            NEList.singleton (PT.LPUnit 916UL),
+            PT.EPropagate(917UL, PT.EArg(918UL, 0))
+          )
+        let outer = PT.ELet(919UL, PT.LPWildcard 920UL, badLambda, body resultName)
+        oneArgFn (result PT.TInt PT.TString) (result PT.TString PT.TString) outer
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.InvalidPropagation
+        let aliasName = PT.FQTypeName.package "propagation-result-alias"
+        let aliases =
+          environment
+          |> Checker.TypeEnvironment.addType
+            aliasName
+            { typeParams = []
+              definition = PT.TypeDeclaration.Alias(result PT.TInt PT.TString) }
+        oneArgFn
+          (customType aliasName)
+          (result PT.TString PT.TString)
+          (body resultName)
+        |> CheckerApi.checkPackageFunction aliases
+        |> expectChecked
+        { oneArgFn
+            (result PT.TInt (PT.TVariable "e"))
+            (result PT.TString (PT.TVariable "e"))
+            (body resultName) with
+            typeParams = [ "e" ] }
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+        // The bound value is typed at the `let!`, so arithmetic on it in the
+        // rest of the body is not ambiguous.
+        oneArgFn
+          (option PT.TInt)
+          (option PT.TInt)
+          (PT.ELet(
+            923UL,
+            PT.LPVariable(924UL, "n"),
+            PT.EPropagate(925UL, PT.EArg(926UL, 0)),
+            PT.EEnum(
+              927UL,
+              nr optionName,
+              [],
+              "Some",
+              [ PT.EInfix(
+                  928UL,
+                  PT.InfixFnCall PT.ArithmeticPlus,
+                  PT.EVariable(929UL, "n"),
+                  PT.EVariable(930UL, "n")
+                ) ]
+            )
+          ))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+        // An error-type mismatch names `let!`, with the declared error as expected.
+        match
+          check (result PT.TInt PT.TBool) (result PT.TString PT.TString) resultName
+        with
+        | Checker.Failed report ->
+          Expect.isTrue
+            (report.diagnostics
+             |> List.exists (fun d ->
+               d.code = Checker.TypeMismatch
+               && d.context = Checker.At Checker.PropagatedError
+               && d.expected = Some Checker.TString
+               && d.actual = Some Checker.TBool))
+            $"expected a PropagatedError mismatch, got {report.diagnostics}"
+        | other -> failtestf "Expected Failed, got %A" other
+        // A generalized helper `fun row -> (let! v = row.item in Some v)`
+        // keeps its field constraint tied to each use: `let!` solves the field's
+        // type to its container before generalization, and the captured
+        // constraint must see it.
+        let record name payload =
+          let typeName = PT.FQTypeName.package name
+          typeName,
+          ({ typeParams = []
+             definition =
+               PT.TypeDeclaration.Record(
+                 NEList.singleton
+                   { name = "item"; typ = option payload; description = "" }
+               ) }
+          : PT.TypeDeclaration.T)
+        let intRow, intRowDeclaration = record "propagation-int-row" PT.TInt
+        let stringRow, stringRowDeclaration =
+          record "propagation-string-row" PT.TString
+        let rows =
+          environment
+          |> Checker.TypeEnvironment.addType intRow intRowDeclaration
+          |> Checker.TypeEnvironment.addType stringRow stringRowDeclaration
+        let withHelper body =
+          PT.ELet(
+            931UL,
+            PT.LPVariable(932UL, "get"),
+            PT.ELambda(
+              933UL,
+              NEList.singleton (PT.LPVariable(934UL, "row")),
+              PT.EEnum(
+                935UL,
+                nr optionName,
+                [],
+                "Some",
+                [ PT.EPropagate(
+                    936UL,
+                    PT.ERecordFieldAccess(937UL, PT.EVariable(938UL, "row"), "item")
+                  ) ]
+              )
+            ),
+            body
+          )
+        let get nodeId arg =
+          PT.EApply(
+            nodeId,
+            PT.EVariable(nodeId + 1UL, "get"),
+            [],
+            NEList.singleton (PT.EArg(nodeId + 2UL, arg))
+          )
+        oneArgFn (customType intRow) (option PT.TString) (withHelper (get 939UL 0))
+        |> CheckerApi.checkPackageFunction rows
+        |> expectDiagnostic Checker.TypeMismatch
+        oneArgFn (customType intRow) (option PT.TInt) (withHelper (get 942UL 0))
+        |> CheckerApi.checkPackageFunction rows
+        |> expectChecked
+        fn
+          (NEList.ofList
+            (parameter "a" (customType intRow))
+            [ parameter "b" (customType stringRow) ])
+          (option PT.TString)
+          (withHelper (PT.ELet(945UL, PT.LPWildcard 946UL, get 947UL 0, get 950UL 1)))
+        |> CheckerApi.checkPackageFunction rows
+        |> expectChecked
+        // An operand whose declaration is unavailable could be an alias of
+        // Option: that is a missing dependency, not a definite error.
+        oneArgFn
+          (customType (PT.FQTypeName.package "propagation-missing-alias"))
+          (option PT.TInt)
+          (PT.EEnum(
+            953UL,
+            nr optionName,
+            [],
+            "Some",
+            [ PT.EPropagate(954UL, PT.EArg(955UL, 0)) ]
+          ))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectBlocker Checker.MissingTypeDeclaration
+        // ...but an operand that is no container at all is wrong whatever the
+        // unavailable return type turns out to be.
+        oneArgFn
+          PT.TInt
+          (customType (PT.FQTypeName.package "propagation-missing-alias"))
+          (PT.EPropagate(956UL, PT.EArg(957UL, 0)))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectDiagnostic Checker.InvalidPropagation
+        // A bare `fun row -> (let! v = row.item in v)`: the record is tied to the
+        // `let!` only through the field access, and must stay tied to it for
+        // `get input`.
+        let nestedRow, nestedRowDeclaration =
+          record "propagation-nested-row" (option PT.TInt)
+        oneArgFn
+          (customType nestedRow)
+          (option PT.TInt)
+          (PT.ELet(
+            958UL,
+            PT.LPVariable(959UL, "get"),
+            PT.ELambda(
+              960UL,
+              NEList.singleton (PT.LPVariable(961UL, "row")),
+              PT.EPropagate(
+                962UL,
+                PT.ERecordFieldAccess(963UL, PT.EVariable(964UL, "row"), "item")
+              )
+            ),
+            get 965UL 0
+          ))
+        |> CheckerApi.checkPackageFunction (
+          environment
+          |> Checker.TypeEnvironment.addType nestedRow nestedRowDeclaration
+        )
+        |> expectChecked
+        let outside =
+          PT.EPropagate(
+            921UL,
+            PT.EEnum(922UL, nr optionName, [ PT.TInt ], "None", [])
+          )
+        CheckerApi.checkExpression environment outside
+        |> expectDiagnostic Checker.InvalidPropagation
+      }
+
       test "function parameters are available by their source names" {
         oneArgFn PT.TInt PT.TInt (PT.EVariable(45UL, "value"))
         |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty

@@ -36,6 +36,7 @@ let rec subExprs (expr : Expr) : List<Expr> =
       | StringText _ -> None
       | StringInterpolation e -> Some e)
 
+  | EPropagate(_, operand) -> [ operand ]
   | EIf(_, cond, thenExpr, elseExpr) -> cond :: thenExpr :: Option.toList elseExpr
   | EMatch(_, arg, cases) ->
     arg
@@ -107,7 +108,8 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
 
   | EList(_, exprs) -> exprs |> List.map r |> Set.unionMany
 
-  | EDict(_, pairs) -> pairs |> List.map (fun (_k, v) -> r v) |> Set.unionMany
+  | EDict(_, pairs) ->
+    pairs |> List.map (fun (k, v) -> Set.union (r k) (r v)) |> Set.unionMany
 
 
   // variables
@@ -164,6 +166,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
     Set.unionMany
       [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
 
+  | EPropagate(_, operand) -> r operand
   | EStatement(_, expr, next) -> Set.union (r expr) (r next)
   | ESelf _ -> Set.empty
 
@@ -175,7 +178,9 @@ and symbolsUsedInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
   | EPipeInfix(_, _, expr) -> r expr
   | EPipeFnCall(_, _, _, args) -> args |> List.map r |> Set.unionMany
   | EPipeEnum(_, _, _, fields) -> fields |> List.map r |> Set.unionMany
-  | EPipeVariable(_, _, args) -> args |> List.map r |> Set.unionMany
+  // the piped-into variable is itself a use, not just its arguments
+  | EPipeVariable(_, name, args) ->
+    args |> List.map r |> Set.unionMany |> Set.add name
 
 
 /// Finds unqualified names in an expr that resolved to package fns or values.
@@ -275,6 +280,7 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
     Set.unionMany
       [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
 
+  | EPropagate(_, operand) -> r operand
   | EStatement(_, expr, next) -> Set.union (r expr) (r next)
   | ESelf _ -> Set.empty
 

@@ -420,6 +420,76 @@ module MatchCase =
     }
 
 
+/// Which container a body returns, where its code says so, for `let!` to check
+/// against at runtime. A body whose tail builds `Some`/`None` returns an Option;
+/// `Ok`/`Error`, a Result. Anything else is unknown, and unknown is not checked.
+/// Never rejects a well-typed program: a body returning `Some` has an Option
+/// return type, so a Result operand of its `let!` is already a type error.
+module ReturnContainer =
+  let private option () =
+    PT.FQTypeName.Package(PT.Hash(PackageRefs.Type.Stdlib.option ()))
+  let private result () =
+    PT.FQTypeName.Package(PT.Hash(PackageRefs.Type.Stdlib.result ()))
+
+  let private ofTypeName
+    (name : PT.NameResolution<PT.FQTypeName.FQTypeName>)
+    : Option<PT.FQTypeName.FQTypeName> =
+    match name.resolved with
+    | Ok resolved when resolved.name = option () || resolved.name = result () ->
+      Some resolved.name
+    | _ -> None
+
+  /// From a declared return type, when it names Option or Result directly.
+  ///
+  /// An alias of one (`type MaybeInt = Option<Int>`) gives None: compiling has
+  /// no type declarations to expand it with, so the caller falls back to
+  /// `ofBody`: `: MaybeInt = … Some n` is still checked. Only a body that shows
+  /// nothing (one ending in `wrap n`) leaves its `let!`s unchecked, and then:
+  /// - a failure of the wrong kind becomes the return value, and the frame's
+  ///   return-type check, which does expand aliases, rejects it;
+  /// - a success of the wrong kind is bound and the call returns normally. Its
+  ///   value is well-typed; the code isn't, and fails only on the error path.
+  ///   The at-rest checker rejects it for package code.
+  /// Closing that means expanding the alias at runtime, on the `let!` path.
+  let ofType (typ : PT.TypeReference) : Option<PT.FQTypeName.FQTypeName> =
+    match typ with
+    | PT.TCustomType(name, _) -> ofTypeName name
+    | _ -> None
+
+  /// From the constructors in tail position. Branches that disagree give up
+  /// rather than pick one.
+  let rec ofBody (expr : PT.Expr) : Option<PT.FQTypeName.FQTypeName> =
+    let agreeing (branches : List<PT.Expr>) =
+      match branches |> List.choose ofBody |> List.distinct with
+      | [ container ] -> Some container
+      | _ -> None
+    match expr with
+    | PT.EEnum(_, name, _, _, _) -> ofTypeName name
+    | PT.ELet(_, _, _, body) -> ofBody body
+    | PT.EStatement(_, _, next) -> ofBody next
+    | PT.EIf(_, _, thenExpr, Some elseExpr) -> agreeing [ thenExpr; elseExpr ]
+    | PT.EMatch(_, _, cases) -> cases |> List.map _.rhs |> agreeing
+    | _ -> None
+
+  /// Stamp a body's own `let!`s. A nested lambda's are inside its `CreateLambda`,
+  /// so they keep what their own body says.
+  let stamp
+    (container : Option<PT.FQTypeName.FQTypeName>)
+    (instrs : RT.Instructions)
+    : RT.Instructions =
+    match container with
+    | None -> instrs
+    | Some container ->
+      let returns = Some(FQTypeName.toRT container)
+      { instrs with
+          instructions =
+            instrs.instructions
+            |> List.map (function
+              | RT.Propagate(target, source, _) ->
+                RT.Propagate(target, source, returns)
+              | instr -> instr) }
+
+
 module Expr =
   let rec toRT
     (symbols : Map<string, RT.Register>)
@@ -565,7 +635,8 @@ module Expr =
             patterns = rtPats |> NEList.ofListUnsafe "" []
             registersToCloseOver = registersToCloseOver
             selfRegister = selfRegister
-            instructions = bodyInstrs }
+            instructions =
+              ReturnContainer.stamp (ReturnContainer.ofBody body) bodyInstrs }
 
         { registerCount = rc + 1
           instructions = [ RT.CreateLambda(rc, impl) ]
@@ -747,6 +818,15 @@ module Expr =
       | None ->
         // No current function context - this should never happen
         Exception.raiseInternal "ESelf used outside function context" []
+
+    | PT.EPropagate(_, operand) ->
+      let value = toRT symbols rc currentFnName operand
+      let target = value.registerCount
+      { registerCount = target + 1
+        // What the frame returns is stamped on later, by its function or lambda.
+        instructions =
+          value.instructions @ [ RT.Propagate(target, value.resultIn, None) ]
+        resultIn = target }
 
     | PT.EIf(_id, cond, thenExpr, elseExpr) ->
       // We need a consistent result register,
@@ -1358,7 +1438,11 @@ module PackageFn =
             (0, Map.empty)
 
         let fnName = PT.FQFnName.Package f.hash
+        let container =
+          ReturnContainer.ofType f.returnType
+          |> Option.orElse (ReturnContainer.ofBody f.body)
         Expr.toRT symbols rcAfterParams (Some fnName) f.body
+        |> ReturnContainer.stamp container
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
       returnType = f.returnType |> TypeReference.toRT

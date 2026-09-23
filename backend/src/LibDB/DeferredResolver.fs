@@ -446,6 +446,9 @@ and private reResolveExpr
         | Error _ -> return PT.EValue(id, nr)
       | _ -> return PT.EValue(id, nr)
 
+    | PT.EPropagate(id, operand) ->
+      let! operand = reResolveExpr contextModules pm operand
+      return PT.EPropagate(id, operand)
     | PT.EStatement(id, first, next) ->
       let! first = reResolveExpr contextModules pm first
       let! next = reResolveExpr contextModules pm next

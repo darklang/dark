@@ -827,6 +827,15 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   let txt (s: String) : Stdlib.Pretty.Doc = Stdlib.Pretty.text s
 
   match e with
+  // A `let` whose value propagates is `let!`.
+  | ELet(_id, pattern, EPropagate(_, value), body) ->
+    let binding =
+      Stdlib.Pretty.hang 2 (txt $"let! {letPattern pattern} =") [ exprDoc ctx value ]
+
+    Stdlib.Pretty.concat
+      binding
+      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (exprDoc ctx body))
+
   // `let x = 1` on one line when it fits; the old printer always broke after the `=`, which turned
   // every binding into two lines and a chain of four into eight.
   | ELet(_id, pattern, rhs, body) ->
@@ -1126,6 +1135,11 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
 
   // declaring and accessing variables
+  // Only reachable for a propagation that isn't a `let`'s value, which the
+  // parser never makes (`let!` is the only syntax for it); printed as the
+  // equivalent `let!`.
+  | EPropagate(_id, operand) -> "(let! v = " ++ expr ctx operand ++ " in v)"
+
   | ERecordFieldAccess(_id, e, fieldName) ->
     let exprPart = expr ctx e
 
