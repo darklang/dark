@@ -319,6 +319,53 @@ goes straight to `locations` answers about MAIN while you are standing on a bran
 plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
 op log directly.
 
+## Traits
+
+A trait is a package item (`PT.Trait`: type params, bounds, method signatures with
+optional ceilings); an impl is a package item (`PT.Impl`: the trait, its type args,
+the self type, own params and bounds, methods as `(name, fn)` pairs). Two ops,
+`AddTrait` and `AddTraitImpl`; two tables, `package_traits` and `package_trait_impls(trait_hash)`;
+`FQTraitName` for references; binary format v3. The parser lowers `trait`/`impl` in
+`SourceFile.items` (F#) and `implWithOps` (Dark); both must agree on the impl's member
+path `<module>[.<Type>].<Trait>`, with the method fns as ordinary fns beneath it.
+Dispatch candidates come off the index (`PT2RT.ImplCandidate.ofPackageManager`),
+selection is `Traits.fs`, the checker validates traits and impls in `AtRestTypeChecker`
+(`ImplMethodSet`, `ImplMethodSignature`, `ImplExceedsCeiling`). The operators are the
+stdlib traits (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through
+`NumericTraits.fs`, whose hashes come from `PackageRefs.Trait`, so a new operator trait
+needs a ref and a regenerated `package-ref-hashes.txt`. `==` is `Eq.equals` with a
+structural fallback (`Interpreter.structuralEquals`; the selection memo holds `Hash ""`
+for "no implementation"), answered without dispatch for anything but a record or an
+enum; `!=` lowers to `boolNot (Eq.equals a b)`. `Zero.zero`/`One.one` dispatch from an
+explicit type arg or the caller's bound, so a call to the impl fn clears the trait's
+type args first.
+
+**Every switch over item kinds has five arms now.** Types, values, fns, traits, impls.
+A new listing, codec, or CLI command that handles three of them silently drops the
+other two; `ls`, `tree`, `search`, completion, the workbench, the relay browser and
+the LSP all had to learn them, and the names-only search builtins return six lists.
+
+**A bare trait name falls back to the stdlib.** `impl Add for Point` in any module
+means `Stdlib.Add` unless something closer is called Add (both resolvers,
+`resolveTraitName` and `TraitName.resolve`). Two same-shaped traits still hash the
+same; a trait and a same-shaped record do not.
+
+**An impl over fns that already exist is an alias block.** `impl Add for Int64 = let
+add = Stdlib.Int64.add` generates no fn; the impl names the existing one. The
+interpreter answers two operands of one builtin numeric type without dispatch
+(`FastOps.evalNumeric`), so those aliases are what the checker and `dark impls` see,
+not what runs.
+
+**An impl is a candidate only while a name binds it on the branch asked and it is not
+deprecated** (`ImplCandidate` liveness, then `Queries.getDeprecatedTraitImplHashes` in the
+store's candidate provider). Two live implementations of one trait for one type are the
+`ambiguous-implementation` finding in `dark constraints`; deprecating one is how it resolves. Dispatch is memoised on the package manager
+(`implSelectionMemo`, keyed by branch, trait, method and self type) under
+`LibDB.Caching.generation`, which every `invalidateAll` bumps; a side-loaded manager
+(`withExtraImpls`, `withExtras`) gets its own memo, and the script host's child state
+must take the grafted manager's `getTrait` too, or a script's own trait is "not in the
+package manager" at dispatch.
+
 ## Gotchas
 
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.

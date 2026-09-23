@@ -16,3 +16,7 @@ let xor (a: Bool) (b: Bool) : Bool = if a then Stdlib.Bool.not b else b
 
 /// Return {\"true\"} or {\"false\"}
 let toString (b: Bool) : String = if b then "true" else "false"
+
+
+impl ToString for Bool =
+  let toString = Stdlib.Bool.toString

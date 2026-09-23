@@ -1192,6 +1192,18 @@ let private tryFastOpOn
     | _ -> ValueNone
 
 
+/// The hash the selection memo holds for "no implementation, use the structural
+/// fallback": only `Eq.equals` ever stores it.
+let private structuralEqualsSentinel : FQFnName.Package = Hash ""
+
+/// `Eq.equals` for a type with no implementation, and for every builtin type: what
+/// the `equals` builtin does, incompatible types included.
+let private structuralEquals (threadID : ThreadID) (a : Dval) (b : Dval) : Dval =
+  let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
+  match ValueType.merge vtA vtB with
+  | Error _ -> RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE threadID
+  | Ok _ -> DBool(Dval.equals a b)
+
 /// The same operators as `tryFastOp`, reached straight from `Apply` before an `ApplyContext` exists.
 ///
 /// `tryFastOp` covers the ones that arrive through an elided package wrapper and have already had a
@@ -1213,6 +1225,36 @@ let private tryFastOpDirect
   else
     match applicable.name with
     | FQFnName.Builtin b -> tryFastOpOn threadID registers b argRegs
+    // `a + b` on two values of one builtin numeric type: the impl the dispatch would pick
+    // is the type's own wrapper over the same F# operator, so answer it here. An `Int` pair
+    // takes the same table the builtin used to; the rest take `evalNumeric`.
+    | FQFnName.TraitMethod(Hash traitHash, methodName) ->
+      match argRegs.tail with
+      | [ secondReg ] when FastOps.isEquals traitHash methodName ->
+        // A builtin type's equality is not overridable; only a record or an enum
+        // can carry an `Eq` implementation, so everything else is answered here.
+        match registers[argRegs.head] with
+        | DRecord _
+        | DEnum _ -> ValueNone
+        | a -> ValueSome(structuralEquals threadID a registers[secondReg])
+      | [ secondReg ] ->
+        match FastOps.traitTag traitHash methodName with
+        | ValueSome tag ->
+          // Nested, not `match a, b with`: the pair is an allocation per operator.
+          match registers[argRegs.head] with
+          | DInt x ->
+            match registers[secondReg] with
+            | DInt y -> FastOps.eval tag x y
+            | _ -> ValueNone
+          | a -> FastOps.evalNumeric tag a registers[secondReg]
+        | ValueNone -> ValueNone
+      | [] ->
+        // `-x` on a signed builtin numeric
+        match FastOps.traitTag traitHash methodName with
+        | ValueSome tag when tag = FastOps.negate ->
+          FastOps.evalNegate registers[argRegs.head]
+        | _ -> ValueNone
+      | _ -> ValueNone
     | _ -> ValueNone
 
 
@@ -1695,6 +1737,47 @@ let private completePackage
 
 
 /// Everything after the explicit type args are resolved. See `callPackage`.
+/// `'a: Show` on a fn, checked when the fn is entered with every argument in
+/// hand: each bound whose type param is bound to a Known type must have an impl
+/// visible on this branch. Checked at the boundary, like the parameter types, so
+/// `display 5` fails at that call and not somewhere inside `display`. A param
+/// still Unknown here (an empty list) is left for the method call to sort out.
+let private checkBoundsAtEntry
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (fn : PackageFn.PackageFn)
+  (tst : TypeSymbolTable)
+  : Ply<unit> =
+  fn.bounds
+  |> Ply.List.iterSequentially (fun b ->
+    uply {
+      match b.trait_.trait_.resolved, TST.tryFind b.param tst with
+      | Ok(FQTraitName.Package traitHash), ValueSome(ValueType.Known self) ->
+        let! candidates = exeState.fns.implCandidates exeState.branchId traitHash
+        match Traits.select candidates self with
+        | Traits.Selected _ -> return ()
+        | Traits.NoImpl ->
+          return
+            RTE.Trait(
+              RTE.Traits.MissingImpl(
+                FQTraitName.Package traitHash,
+                ValueType.Known self
+              )
+            )
+            |> raiseRTE vm.threadID
+        | Traits.Ambiguous cs ->
+          return
+            RTE.Trait(
+              RTE.Traits.DispatchAmbiguous(
+                FQTraitName.Package traitHash,
+                ValueType.Known self,
+                cs |> List.map (fun c -> c.source)
+              )
+            )
+            |> raiseRTE vm.threadID
+      | _ -> return ()
+    })
+
 let private callPackageViaFrame
   (exeState : ExecutionState)
   (vm : VMState)
@@ -1783,20 +1866,41 @@ let private callPackageViaFrame
 
   // Same as in `callBuiltinResolved`: two `isEmpty` checks, no pair.
   if List.isEmpty pkgRestPs || ArgSeq.isEmpty pkgRestArgs then
-    Ply(
-      completePackage
-        exeState
-        vm
-        currentFrame
-        ctx
-        fn
-        implicitTypeParams
-        newlyBound
-        allArgs
-        argCount
-        paramCount
-        tst
-    )
+    if List.isEmpty fn.bounds || argCount < paramCount then
+      Ply(
+        completePackage
+          exeState
+          vm
+          currentFrame
+          ctx
+          fn
+          implicitTypeParams
+          newlyBound
+          allArgs
+          argCount
+          paramCount
+          tst
+      )
+    else
+      // A bounded fn: the bounds are part of the declared parameter types, checked
+      // here at entry like the parameter types were just above (the D4 decision).
+      let tstAtEntry = tst
+      uply {
+        do! checkBoundsAtEntry exeState vm fn tstAtEntry
+        return
+          completePackage
+            exeState
+            vm
+            currentFrame
+            ctx
+            fn
+            implicitTypeParams
+            newlyBound
+            allArgs
+            argCount
+            paramCount
+            tstAtEntry
+      }
   else
     // Something in the remaining parameters needs the type store. Finish the check in a computation
     // expression and carry on from there -- still one implementation, just resumed asynchronously.
@@ -1823,6 +1927,8 @@ let private callPackageViaFrame
         }
       // The cold path materialises: it already awaits per parameter, so a list is not the cost.
       do! checkRest pkgNextI pkgRestPs (ArgSeq.toList pkgRestArgs)
+      if not (List.isEmpty fn.bounds) && argCount >= paramCount then
+        do! checkBoundsAtEntry exeState vm fn tstRest
       return
         completePackage
           exeState
@@ -1962,6 +2068,166 @@ type private ApplyOutcome =
 /// `outcome` is a plain mutable local, not a captured one: there is no computation expression in this
 /// function, so it lives in a slot rather than a ref cell. Keeping it meant every existing branch could
 /// stay unit-typed, which made this a move rather than a rewrite.
+
+// == Trait dispatch ==
+//
+// `Show.show x` names a trait's method, not a body. Finding the body is a lookup by
+// the SELF type, in this order: an explicit type arg (`Show.show<Point> x`), the
+// self-positioned argument's runtime type, and, for a method with no self argument
+// (`Default.default ()`), the caller's own bound on that trait read through its type
+// symbol table. Then the branch's impls of the trait are asked for the one whose
+// self head matches (`Traits.select`), and the method's fn hash comes straight off
+// the candidate: an impl is a record of named fns, indexed once, never evaluated
+// here.
+
+/// Which of a trait method's parameters is typed with the trait's self param, if any.
+let private traitSelfArgIndex
+  (trait_ : Trait.Trait)
+  (methodName : string)
+  : Option<int> =
+  let selfParam = trait_.typeParams.head
+  trait_.methods
+  |> NEList.toList
+  |> List.tryPick (fun m ->
+    if m.name = methodName then
+      m.parameters
+      |> NEList.toList
+      |> List.tryFindIndex (fun p ->
+        match p.typ with
+        | TVariable v -> v = selfParam
+        | _ -> false)
+    else
+      None)
+
+/// Which argument of a trait method is the self one, by (trait, method). A trait
+/// is its content hash, so this never goes stale; filled by `resolveTraitMethod`,
+/// read by the apply fast path.
+let private traitSelfIndexMemo
+  : System.Collections.Concurrent.ConcurrentDictionary<struct (Hash * string), int> =
+  System.Collections.Concurrent.ConcurrentDictionary()
+
+/// The fn hash that implements `traitHash.methodName` for this call, or the RTE
+/// saying why none could be picked. A selection made here is remembered on the
+/// package manager (`implSelectionMemo`) for the apply fast path.
+let private resolveTraitMethod
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (traitHash : FQTypeName.Package)
+  (methodName : string)
+  (typeArgs : List<TypeReference>)
+  (tst : TypeSymbolTable)
+  (args : List<Dval>)
+  (structuralFallback : bool)
+  : Ply<FQFnName.Package> =
+  uply {
+    let traitName = FQTraitName.Package traitHash
+    let! decl = exeState.traits.trait_ traitHash
+    let decl =
+      match decl with
+      | Some t -> t
+      | None -> RTE.Trait(RTE.Traits.TraitNotFound traitName) |> raiseRTE vm.threadID
+
+    // 1. explicit type args
+    let! explicitSelf =
+      match typeArgs with
+      | t :: _ ->
+        uply {
+          let! vt = TypeReference.toVT exeState.types tst t
+          return
+            match vt with
+            | ValueType.Known kt -> Some kt
+            | ValueType.Unknown -> None
+        }
+      | [] -> Ply None
+
+    // 2. the self-positioned argument
+    let argSelf =
+      match explicitSelf with
+      | Some _ -> explicitSelf
+      | None ->
+        match traitSelfArgIndex decl methodName with
+        | Some i ->
+          traitSelfIndexMemo[struct (traitHash, methodName)] <- i
+          if i < List.length args then
+            match Dval.toValueType (List.item i args) with
+            | ValueType.Known kt -> Some kt
+            | ValueType.Unknown -> None
+          else
+            None
+        | None -> None
+
+    // 3. the caller's bound on this trait, through its type symbol table
+    let! boundSelf =
+      match argSelf with
+      | Some _ -> Ply argSelf
+      | None ->
+        match currentFrame.executionPoint with
+        | Function(FQFnName.Package callerHash) ->
+          uply {
+            match! exeState.fns.package callerHash with
+            | Some caller ->
+              return
+                caller.bounds
+                |> List.tryPick (fun b ->
+                  match b.trait_.trait_.resolved with
+                  | Ok(FQTraitName.Package t) when t = traitHash ->
+                    match TST.tryFind b.param tst with
+                    | ValueSome(ValueType.Known kt) -> Some kt
+                    | _ -> None
+                  | _ -> None)
+            | None -> return None
+          }
+        | _ -> Ply None
+
+    let self =
+      match boundSelf with
+      | Some kt -> kt
+      | None ->
+        RTE.Trait(RTE.Traits.SelfTypeUnknown(traitName, methodName))
+        |> raiseRTE vm.threadID
+
+    // Read before the candidates, so a fold in between cannot stamp a stale
+    // selection with the new generation.
+    let generation = exeState.fns.implGeneration ()
+    let! candidates = exeState.fns.implCandidates exeState.branchId traitHash
+    match Traits.select candidates self with
+    | Traits.Selected c ->
+      match Map.tryFind methodName c.methods with
+      | Some fnHash ->
+        exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                               traitHash,
+                                               methodName,
+                                               self)] <- struct (generation, fnHash)
+        return fnHash
+      | None ->
+        return
+          RTE.Trait(RTE.Traits.NoSuchMethod(traitName, methodName))
+          |> raiseRTE vm.threadID
+    | Traits.NoImpl when structuralFallback ->
+      // `==` on a type with no `Eq`: structural, and remembered as such.
+      exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                             traitHash,
+                                             methodName,
+                                             self)] <-
+        struct (generation, structuralEqualsSentinel)
+      return structuralEqualsSentinel
+    | Traits.NoImpl ->
+      return
+        RTE.Trait(RTE.Traits.MissingImpl(traitName, ValueType.Known self))
+        |> raiseRTE vm.threadID
+    | Traits.Ambiguous cs ->
+      return
+        RTE.Trait(
+          RTE.Traits.DispatchAmbiguous(
+            traitName,
+            ValueType.Known self,
+            cs |> List.map (fun c -> c.source)
+          )
+        )
+        |> raiseRTE vm.threadID
+  }
+
 let private applyInstruction
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2210,6 +2476,174 @@ let private applyInstruction
       // and `callPackage` behind them: same five steps, different parameter and outcome types.
       // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
       match applicable.name with
+      | FQFnName.TraitMethod(traitHash, methodName) ->
+        // Pick the impl, then call its fn exactly as a direct call would: the impl
+        // fn is what runs, what traces record, and what carries the ceiling.
+        //
+        // An operator over two values of different types says so up front, as the
+        // builtin it replaced did ("Cannot perform numeric operation on Int64 and
+        // Float"), instead of dispatching on the left operand and failing inside the
+        // impl fn's parameter check. Matching pairs of a builtin numeric type never
+        // reach here (the fast path answers them), so this costs a dispatch only.
+        let (Hash traitHashStr) = traitHash
+        let isEquals = FastOps.isEquals traitHashStr methodName
+        (match FastOps.traitTag traitHashStr methodName with
+         | ValueSome _ when List.isEmpty applicable.argsSoFar && not isEquals ->
+           match newArgRegs.tail with
+           | [ secondReg ] ->
+             let left = Dval.toValueType registers[newArgRegs.head]
+             let right = Dval.toValueType registers[secondReg]
+             match left, right with
+             | ValueType.Known _, ValueType.Known _ when left <> right ->
+               RTE.NumericOperationOnIncompatibleTypes(left, right)
+               |> raiseRTE vm.threadID
+             | _ -> ()
+           | _ -> ()
+         | _ -> ())
+        // A self type seen before skips the pick: the selection is remembered on
+        // the package manager under the generation it was made in, and the self
+        // argument's position under the trait (content-addressed, so for good).
+        let remembered =
+          if not (List.isEmpty typeArgs) then
+            ValueNone
+          else
+            let mutable selfIndex = 0
+            if
+              not (
+                traitSelfIndexMemo.TryGetValue(
+                  struct (traitHash, methodName),
+                  &selfIndex
+                )
+              )
+            then
+              ValueNone
+            else
+              let soFar = List.length applicable.argsSoFar
+              let selfArg =
+                if selfIndex < soFar then
+                  ValueSome(List.item selfIndex applicable.argsSoFar)
+                else
+                  // No `NEList.toList`: the self arg is nearly always the first.
+                  let j = selfIndex - soFar
+                  if j = 0 then
+                    ValueSome registers[newArgRegs.head]
+                  elif j - 1 < List.length newArgRegs.tail then
+                    ValueSome registers[List.item (j - 1) newArgRegs.tail]
+                  else
+                    ValueNone
+              match selfArg with
+              | ValueNone -> ValueNone
+              | ValueSome dv ->
+                match Dval.toValueType dv with
+                | ValueType.Unknown -> ValueNone
+                | ValueType.Known self ->
+                  let mutable hit =
+                    Unchecked.defaultof<struct (int * FQFnName.Package)>
+                  if
+                    exeState.fns.implSelectionMemo.TryGetValue(
+                      struct (exeState.branchId, traitHash, methodName, self),
+                      &hit
+                    )
+                  then
+                    let struct (generation, implFn) = hit
+                    if generation = exeState.fns.implGeneration () then
+                      ValueSome implFn
+                    else
+                      ValueNone
+                  else
+                    ValueNone
+        if vm.stats.enabled then
+          vm.stats.traitDispatchCount <- vm.stats.traitDispatchCount + 1L
+          if remembered.IsNone then
+            vm.stats.traitDispatchMissCount <- vm.stats.traitDispatchMissCount + 1L
+        // `==` with no implementation for the type: structural, no call.
+        let structural () : Ply<PackageOutcome> =
+          match applicable.argsSoFar, newArgRegs.tail with
+          | [], [ secondReg ] ->
+            Ply(
+              Completed(
+                structuralEquals
+                  vm.threadID
+                  registers[newArgRegs.head]
+                  registers[secondReg]
+              )
+            )
+          | [ a ], [] ->
+            Ply(Completed(structuralEquals vm.threadID a registers[newArgRegs.head]))
+          | _ ->
+            // `Eq.equals` partially applied to nothing, or over-applied: let the
+            // ordinary arity errors speak.
+            Ply(
+              Completed(
+                structuralEquals
+                  vm.threadID
+                  registers[newArgRegs.head]
+                  registers[newArgRegs.head]
+              )
+            )
+        let call : Ply<PackageOutcome> =
+          match remembered with
+          | ValueSome implFn when isEquals && implFn = structuralEqualsSentinel ->
+            structural ()
+          | ValueSome implFn ->
+            let implCtx =
+              { ctx with
+                  // The type args named the TRAIT's params (the self type first); the impl fn
+                  // has its own, inferred from the arguments.
+                  typeArgs = []
+                  applicable =
+                    { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
+            match Ply.trySync (exeState.fns.package implFn) with
+            | ValueSome(Some fn) -> callPackage exeState vm currentFrame implCtx fn
+            | ValueSome None ->
+              RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+            | ValueNone ->
+              uply {
+                match! exeState.fns.package implFn with
+                | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
+                | None ->
+                  return
+                    RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+              }
+          | ValueNone ->
+            let allArgs =
+              applicable.argsSoFar
+              @ (newArgRegs |> NEList.toList |> List.map (fun r -> registers[r]))
+            uply {
+              let! implFn =
+                resolveTraitMethod
+                  exeState
+                  vm
+                  currentFrame
+                  traitHash
+                  methodName
+                  typeArgs
+                  tst
+                  allArgs
+                  isEquals
+              if isEquals && implFn = structuralEqualsSentinel then
+                return! structural ()
+              else
+                let implCtx =
+                  { ctx with
+                      // The type args named the TRAIT's params (the self type first); the
+                      // impl fn has its own, inferred from the arguments.
+                      typeArgs = []
+                      applicable =
+                        { applicable with
+                            name = FQFnName.Package implFn
+                            typeArgs = [] } }
+                match! exeState.fns.package implFn with
+                | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
+                | None ->
+                  return
+                    RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
+            }
+        match Ply.trySync call with
+        | ValueSome(PartiallyApplied dv)
+        | ValueSome(Completed dv) -> registers[putResultIn] <- dv
+        | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
+        | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
       | FQFnName.Builtin builtin ->
         let biTotalAlloc = allocNow vm
         let biLookupAlloc = allocNow vm
@@ -2525,6 +2959,26 @@ let private runSyncInstructions
       if handled then counter <- counter + 1 else running <- false
 
     | LoadValue _ -> running <- false
+
+    // A field that exists is read here; a miss (no such field, or not a record) leaves
+    // the drain so `runRareOpcode` can try it as a receiver call (`p.show`), which
+    // needs the impl index and may await.
+    | GetRecordField(targetReg, recordReg, fieldName) ->
+      if vm.stats.enabled then
+        vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+      if fieldName = "" then
+        RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE vm.threadID
+      let handled =
+        match registers[recordReg] with
+        | DRecord(_, _, _, fields) ->
+          let mutable value = Unchecked.defaultof<Dval>
+          if fields.TryGetValue(fieldName, &value) then
+            registers[targetReg] <- value
+            true
+          else
+            false
+        | _ -> false
+      if handled then counter <- counter + 1 else running <- false
 
     // `Apply` is all but a handful of the instructions that could stop this drain, and it almost
     // never has to wait. So it runs here rather than handing control to the computation expression,
@@ -2954,7 +3408,8 @@ let private checkFrameReturnType
       | ValueNone ->
         match fnName with
         | FQFnName.Builtin builtin -> exeState.fns.builtIn[builtin].returnType
-        | FQFnName.Package _ -> RTE.FnNotFound fnName |> raiseRTE vm.threadID
+        | FQFnName.Package _
+        | FQFnName.TraitMethod _ -> RTE.FnNotFound fnName |> raiseRTE vm.threadID
 
     let tst = currentFrame.typeSymbolTable
     // Every frame return checks its result, so the same sync-first treatment as the argument checks
@@ -2980,6 +3435,75 @@ let private checkFrameReturnType
 /// Its own `task` so the interpreter loop's state machine stays statically compilable: six binds
 /// nested two matches deep inside the loop stopped F#'s resumable code reducing it (FS3511), which
 /// downgrades the whole loop to the dynamic implementation.
+/// `p.show` where `p` has no field `show`: a receiver call. Exactly one visible
+/// impl (of any trait) with a method of that name for `p`'s type gives the
+/// method's fn with `p` as its first argument: the RESULT when that is the only
+/// argument (`p.show` is the whole call), else the partial application waiting for
+/// the rest (`a.add b`). None means the field access was simply wrong; several is
+/// an ambiguity the caller resolves by naming the trait (`Show.show p`).
+let private receiverMethod
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (receiver : Dval)
+  (methodName : string)
+  : Ply<Option<Dval>> =
+  uply {
+    match Dval.toValueType receiver with
+    | ValueType.Unknown -> return None
+    | ValueType.Known self ->
+      let! candidates =
+        exeState.fns.implCandidatesByMethod exeState.branchId methodName
+      match Traits.select candidates self with
+      | Traits.NoImpl -> return None
+      | Traits.Selected c ->
+        match Map.tryFind methodName c.methods with
+        | Some fnHash ->
+          let applicable =
+            AppNamedFn
+              { name = FQFnName.Package fnHash
+                typeSymbolTable = TST.empty
+                typeArgs = []
+                access = Some currentFrame.access
+                argsSoFar = [] }
+          match! exeState.fns.package fnHash with
+          | Some fn when NEList.length fn.parameters = 1 ->
+            match!
+              exeState.callApplicable
+                exeState
+                currentFrame.access
+                applicable
+                (NEList.singleton receiver)
+            with
+            | Ok result -> return Some result
+            | Error(rte, nested) ->
+              vm.nestedCallStack <- nested
+              return raiseRTE vm.threadID rte
+          | _ ->
+            return
+              Some(
+                DApplicable(
+                  AppNamedFn
+                    { name = FQFnName.Package fnHash
+                      typeSymbolTable = TST.empty
+                      typeArgs = []
+                      access = Some currentFrame.access
+                      argsSoFar = [ receiver ] }
+                )
+              )
+        | None -> return None
+      | Traits.Ambiguous cs ->
+        return
+          RTE.Trait(
+            RTE.Traits.MethodAmbiguous(
+              methodName,
+              ValueType.Known self,
+              cs |> List.map (fun c -> FQTraitName.Package c.trait_)
+            )
+          )
+          |> raiseRTE vm.threadID
+  }
+
 let private runRareOpcode
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2989,6 +3513,22 @@ let private runRareOpcode
   : System.Threading.Tasks.Task<unit> =
   task {
     match inst with
+    | GetRecordField(targetReg, recordReg, fieldName) ->
+      let receiver = registers[recordReg]
+      match!
+        Ply.toTask (receiverMethod exeState vm currentFrame receiver fieldName)
+      with
+      | Some applicable -> registers[targetReg] <- applicable
+      | None ->
+        match receiver with
+        | DRecord _ ->
+          RTE.Records.FieldAccessFieldNotFound fieldName
+          |> RTE.Record
+          |> raiseRTE vm.threadID
+        | dv ->
+          RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
+          |> RTE.Record
+          |> raiseRTE vm.threadID
     | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
       let fields =
         fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
@@ -3083,7 +3623,7 @@ let private runRareOpcode
           registers[createTo] <- Dval.captureValueAccess currentFrame.access v.body
         | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
     // `Apply` never arrives here: `runSyncInstructions` runs it, and `runFrame` only reports
-    // `FrameRareOpcode` for the four above. Loud rather than silent if that ever stops holding.
+    // `FrameRareOpcode` for the five above. Loud rather than silent if that ever stops holding.
     | Apply _ ->
       Exception.raiseInternal
         "Apply reached the interpreter's async instruction path"

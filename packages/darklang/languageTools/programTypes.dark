@@ -6,6 +6,11 @@ module FQTypeName =
   type Package = Hash
   type FQTypeName = Package of Package
 
+/// A trait, by content hash. A trait is its own item kind (`Trait.Trait`).
+module FQTraitName =
+  type Package = Hash
+  type FQTraitName = Package of Package
+
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
   type Package = Hash
@@ -21,6 +26,9 @@ module FQFnName =
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
+    /// A trait method: the trait and the method name (`Show.show`). Names a
+    /// dispatch, not a body; the impl is found from the self type.
+    | TraitMethod of trait_: FQTraitName.Package * method_: String
 
 
 type PackageLocation =
@@ -398,6 +406,17 @@ type LocatedItem<'entity> =
     location: PackageLocation }
 
 
+/// A trait named from a bound or an impl, plus type args for any non-self params.
+type TraitRef =
+  { trait_: NameResolution<FQTraitName.FQTraitName>
+    typeArgs: List<TypeReference> }
+
+/// `'a: Show` on a fn or type declaration
+type Bound =
+  { param: String
+    trait_: TraitRef }
+
+
 /// A stdlib-, user-, or package- defined type (an alias, record, or enum)
 module TypeDeclaration =
   type RecordField =
@@ -422,6 +441,8 @@ module TypeDeclaration =
 
   type TypeDeclaration =
     { typeParams: List<String>
+      /// `type Set<'a: Ord> = ...`
+      bounds: List<Bound>
       definition: Definition }
 
 
@@ -463,15 +484,60 @@ module PackageFn =
       ///
       /// Part of the content hash and of the upgrade contract, so changing the
       /// row is a new version that `permissions update` asks about.
-      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>> }
+      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>>
+      /// `'a: Show + Eq` on the type params; part of the content hash. Checked
+      /// at fn entry by the interpreter and statically by the at-rest checker.
+      bounds: List<Bound> }
+
+
+/// A trait: a set of fn signatures over one open type. Its own item kind.
+module Trait =
+  /// One method's signature; no body (the impls have those). The ceiling is the
+  /// most an impl of the method may do.
+  type Method =
+    { name: String
+      typeParams: List<String>
+      parameters: List<PackageFn.Parameter>
+      returnType: TypeReference
+      permissionCeiling: Option<List<LanguageTools.Permissions.Effect>>
+      description: String }
+
+  type Trait =
+    { hash: FQTraitName.Package
+      /// The first is the self type
+      typeParams: List<String>
+      /// Supertraits, as bounds on the params
+      bounds: List<Bound>
+      methods: List<Method>
+      description: String }
+
+
+/// An impl: how one type does a trait. Its own item kind, named at
+/// `<module>[.<Type>].<Trait>`, with its method fns as ordinary fns beneath it.
+module TraitImpl =
+  type TraitImpl =
+    { hash: Hash
+      trait_: NameResolution<FQTraitName.FQTraitName>
+      /// The trait's non-self type args
+      traitTypeArgs: List<TypeReference>
+      /// What the impl is for: `Point`, `Int64`, `List<'a>`
+      self: TypeReference
+      /// `impl<'a: Show> Show for List<'a>`: the impl's own params and bounds
+      typeParams: List<String>
+      bounds: List<Bound>
+      /// method name and the fn that implements it, in the trait's order
+      methods: List<String * NameResolution<FQFnName.FQFnName>>
+      description: String }
 
 
 
-/// The kind of package item (function, type, or value)
+/// The kind of package item (function, type, value, trait, or impl)
 type ItemKind =
   | Fn
   | Type
   | Value
+  | Trait
+  | TraitImpl
 
 /// A reference to a specific package item by content hash.
 /// Collapses (Hash * ItemKind) pairs into one shape; leaves room for future
@@ -480,6 +546,8 @@ type Reference =
   | PackageType of Hash
   | PackageValue of Hash
   | PackageFn of Hash
+  | PackageTrait of Hash
+  | PackageTraitImpl of Hash
 
 module Reference =
   let hash (r: Reference) : Hash =
@@ -487,18 +555,24 @@ module Reference =
     | PackageType h -> h
     | PackageValue h -> h
     | PackageFn h -> h
+    | PackageTrait h -> h
+    | PackageTraitImpl h -> h
 
   let kind (r: Reference) : ItemKind =
     match r with
     | PackageType _ -> ItemKind.Type
     | PackageValue _ -> ItemKind.Value
     | PackageFn _ -> ItemKind.Fn
+    | PackageTrait _ -> ItemKind.Trait
+    | PackageTraitImpl _ -> ItemKind.TraitImpl
 
   let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
     match k with
     | Type -> Reference.PackageType h
     | Value -> Reference.PackageValue h
     | Fn -> Reference.PackageFn h
+    | Trait -> Reference.PackageTrait h
+    | TraitImpl -> Reference.PackageTraitImpl h
 
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers decide how loud to be.
@@ -586,6 +660,8 @@ type PackageOp =
   | AddType of PackageType.PackageType
   | AddValue of PackageValue.PackageValue
   | AddFn of PackageFn.PackageFn
+  | AddTrait of Trait.Trait
+  | AddTraitImpl of TraitImpl.TraitImpl
   /// Bind a name (location) to a piece of content (target).
   ///
   /// `previous` is the hash this binding REPLACED, or None when the location was empty (or when whoever
@@ -642,6 +718,8 @@ module Search =
     | Module
     | Fn
     | Value
+    | Trait
+    | TraitImpl
 
   /// How deep to search in the module hierarchy
   type SearchDepth =
@@ -671,7 +749,9 @@ module Search =
     { submodules: List<List<String>> // [ [ "List"], ["String", "List"] ]
       types : List<LocatedItem<ProgramTypes.PackageType.PackageType>>
       values : List<LocatedItem<ProgramTypes.PackageValue.PackageValue>>
-      fns : List<LocatedItem<ProgramTypes.PackageFn.PackageFn>> }
+      fns : List<LocatedItem<ProgramTypes.PackageFn.PackageFn>>
+      traits : List<LocatedItem<ProgramTypes.Trait.Trait>>
+      impls : List<LocatedItem<ProgramTypes.TraitImpl.TraitImpl>> }
 
 
 
@@ -689,6 +769,7 @@ module PackageManager =
     { findType: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQTypeName.Package>
       findValue: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQValueName.Package>
       findFn: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQFnName.Package>
+      findTrait: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQTraitName.Package>
 
       getType:
         FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
@@ -696,6 +777,7 @@ module PackageManager =
         FQValueName.Package
           -> Stdlib.Option.Option<PackageValue.PackageValue>
       getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
+      getTrait: FQTraitName.Package -> Stdlib.Option.Option<Trait.Trait>
 
       search: (BranchID * Search.SearchQuery) -> Search.SearchResults }
 
@@ -741,6 +823,9 @@ module PackageManager =
             | Some f -> Stdlib.Option.Option.Some f.entity
             | None -> pm.getFn id
 
+        findTrait = pm.findTrait
+        getTrait = pm.getTrait
+
         search = pm.search }
 
 
@@ -768,6 +853,20 @@ module PackageManager =
       |> Stdlib.List.filterMap (fun op ->
         match op with
         | AddFn f -> Stdlib.Option.Option.Some((f.hash, f))
+        | _ -> Stdlib.Option.Option.None)
+
+    let traitsByID =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | AddTrait t -> Stdlib.Option.Option.Some((t.hash, t))
+        | _ -> Stdlib.Option.Option.None)
+
+    let traitLocationMap =
+      ops
+      |> Stdlib.List.filterMap (fun op ->
+        match op with
+        | SetName (loc, PackageTrait hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let typeLocationMap =
@@ -859,6 +958,28 @@ module PackageManager =
               Stdlib.Option.Option.Some f
             | None -> basePM.getFn id
 
+        findTrait =
+          fun (branchId, location) ->
+            match traitLocationMap
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (loc, _) = tuple
+                    loc == location) with
+            | Some tuple ->
+              let (_, id) = tuple
+              Stdlib.Option.Option.Some id
+            | None -> basePM.findTrait (branchId, location)
+
+        getTrait =
+          fun id ->
+            match traitsByID
+                  |> Stdlib.List.findFirst (fun tuple ->
+                    let (tid, _) = tuple
+                    tid == id) with
+            | Some tuple ->
+              let (_, t) = tuple
+              Stdlib.Option.Option.Some t
+            | None -> basePM.getTrait id
+
         search = basePM.search }
 
 
@@ -866,6 +987,8 @@ type Definitions =
   { types: List<PackageType.PackageType>
     values: List<PackageValue.PackageValue>
     fns: List<PackageFn.PackageFn>
+    traits: List<Trait.Trait>
+    impls: List<TraitImpl.TraitImpl>
     // TODO db and handlers
     exprs: List<Expr * List<String>> }
 
@@ -882,6 +1005,9 @@ module SourceFile =
     | Type of PackageType.PackageType
     | Value of PackageValue.PackageValue
     | Function of PackageFn.PackageFn
+    | Trait of Trait.Trait
+    /// The impl item; its method fns are separate `Function` declarations
+    | Impl of TraitImpl.TraitImpl
     // db and handlers
     | Module of Definitions // re-evaluate if this makes sense to be here
 

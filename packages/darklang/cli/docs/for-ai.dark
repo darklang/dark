@@ -236,10 +236,16 @@ Rules:
 - String concat: ++ (not @)
 - String interpolation: $"x = {expr}; total = {a ++ b}" -- does NOT auto-coerce
   non-strings; wrap with Stdlib.Int.toString / Stdlib.Float.toString
-- Numeric operators (+ - * / % ** < > <= >= and unary -) are polymorphic over
-  numeric types; operands must match (`1 + 2`, `1.0 + 2.0`). `/` is integer
-  division on ints; float division on floats. `**` is power. A bare `1` is an
-  arbitrary-precision `Int` and never overflows.
+- Operators are traits: `+ - * / % **` and `-x` are Add Sub Mul Div Mod Pow
+  Neg, `< <= > >=` are Ord, `==`/`!=` are Eq (structural unless implemented).
+  Operands must match (`1 + 2`, `1.0 + 2.0`; `1L + 2.0` is an error). `/` is
+  integer division on ints, float on floats; `**` is power; a bare `1` is an
+  arbitrary-precision `Int` and never overflows. `"a" + "b"` is `"ab"`.
+- Traits: `impl Add for Vec = let add (a: Vec) (b: Vec) : Vec = ...` gives Vec
+  a `+`; `impl ToString for Point = let toString (p: Point) : String = ...`
+  gives `p.toString`; your own with `trait Area<'a> = let area (s: 'a) : Float`.
+  A bound is `let f<'a: ToString> (v: 'a) = ...`. Author with `dark trait` /
+  `dark impl`; `dark impls <Trait>` lists implementations; `docs traits`.
 - Bitwise operators (& | ^ << >> and unary ~) work on every integer type, not
   Float; both operands (the shift count included) must be the same type.
 - `!x` is boolean not. Inside a `match`, `|` is the arm separator, so bitwise-or
@@ -263,7 +269,7 @@ If commands hang or fail silently, check logs:
   rundir/logs/           # other logs
 
 ## More
-  docs syntax | types | operators | errors | packages
+  docs syntax | types | traits | operators | errors | packages
   docs stdlib | cli | scm | deprecation
   docs signatures <module>
   help <command>"""

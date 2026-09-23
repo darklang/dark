@@ -142,16 +142,54 @@ their type variables. Two kinds of signature must not be trusted:
   `optOrRes -> 'a`) means the result is only known at runtime. The checker detects this
   from the signature and treats the builtin as unsupported rather than quantifying the
   variable. No builtin is recognized by name for this.
-- The operator builtins (`add`, `lessThan`, `equals`, `negate`, ...) declare
-  independent `'a`/`'b` parameters because the type language has no numeric constraint,
-  but raise at runtime on anything but values of the same numeric type. They are what
-  infix syntax lowers to (`PT.InfixFnName.toBuiltinName`; the parser lowers `-x` to
-  `negate`), so `a + b` and `Builtin.add a b` execute identically, and the checker
-  checks a by-name call with the operator's rule read from that same table rather than
-  with the declared signature. Operator domains follow the runtime operation, not one
-  universal numeric set: `power` excludes `Int128` and `UInt128` even though other
-  arithmetic supports them. Used as a value or partially applied there is no signature
-  to give them, and the use is `Incomplete`.
+- The polymorphic operator builtins (`add`, `lessThan`, `equals`, `negate`, ...)
+  declare independent `'a`/`'b` parameters because the type language has no numeric
+  constraint, but raise at runtime on anything but values of the same numeric type.
+  A by-name call (`Builtin.add a b`) is checked with the operator's numeric table
+  rather than the declared signature; used as a value or partially applied there is
+  no signature to give them, and the use is `Incomplete`.
+
+Infix syntax itself no longer lowers to those builtins. `a + b` is
+`Stdlib.Add.add a b` (`NumericTraits.ofInfix`; likewise `- * / % **` and the four
+comparisons), and `-x`, which the parser stores as `Builtin.negate x`, runs as
+`Stdlib.Neg.negate x` (`NumericTraits.ofNegate`). The checker treats each as a trait
+method call: the operands unify, and the operand type owes an `Add` (or `Neg`) impl.
+See below.
+
+## Traits
+
+A trait and an impl are their own package items (`PT.Trait`, `PT.TraitImpl`). The
+checker reads both straight off the PT (`ImplEntry.ofImpl`), the same way the
+runtime reads its dispatch candidates, and validates each item in the batch:
+`validateTrait`, and `validateImpl` for the method set (`ImplMethodSet`), each
+method fn unifying with the trait's signature at the self type
+(`ImplMethodSignature`), and the impl fn's effect ceiling fitting under the
+method's (`ImplExceedsCeiling`).
+
+- A `TraitMethod` call takes its signature from the trait's method, with the
+  trait's first type parameter as the self type (`traitMethodSignature`).
+- Instantiating a bounded fn signature (`bounds` on `FunctionSignature`) adds one
+  constraint per bound on the instantiated variable (`State.Constraints`); an infix
+  operator adds one for its trait on the operand type.
+- Constraints discharge at `finish`, after substitution. A concrete head needs exactly
+  one visible impl (`MissingImpl`, `AmbiguousImpl`; a blanket `impl<'a> T for 'a`
+  loses to a specific one). The item's own rigid type parameter needs the bound
+  declared on the item (`UnboundTypeParameter`). An inference variable still unbound
+  is a `ConstrainedType` blocker, not a diagnostic.
+- Receiver calls: `x.m` where `x`'s type is a record without field `m` falls back to
+  the one visible impl carrying a method `m` for `x`'s head type, typed with `x`
+  consumed; no such impl keeps `UnknownRecordField`.
+- Visibility is the environment's: `TypeEnvironment.impls` holds what the authoring
+  adapter loaded from the store for every type the batch or its closure names, plus
+  the operator traits always (`addVisibleImpls`). A trait needed only by a receiver
+  call is loaded by `implTraitsMissingDeclarations`.
+
+- A conditional impl owes its own bounds at the type it matched: discharging
+  `Show List<Option<Int>>` against `impl<'a: Show> Show for List<'a>` unifies the
+  impl's self with the concrete type and owes `Show Option<Int>`, round by round
+  until the type is exhausted (`dischargeConstraints`).
+- `==` records no constraint: `Eq` has a structural fallback, so every type is
+  comparable; the operand types still have to unify.
 
 ## Where this should live
 

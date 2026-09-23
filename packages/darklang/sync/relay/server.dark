@@ -160,6 +160,8 @@ let descriptionOf (kind: String) (hash: String) : String =
     match kind with
     | "fn" -> "package_functions"
     | "type" -> "package_types"
+    | "trait" -> "package_traits"
+    | "impl" -> "package_trait_impls"
     | _ -> "package_values"
 
   match

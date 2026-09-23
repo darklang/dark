@@ -54,6 +54,18 @@ type IssueCode =
   | DuplicateTypeParameter
   | DuplicateTypeMember
   | UnsupportedDictKeyType
+  /// A bound or trait method call at a concrete type with no impl visible for it
+  | MissingImpl
+  /// A bound at a type param of the enclosing fn that does not declare it
+  | UnboundTypeParameter
+  /// More than one impl fits
+  | AmbiguousImpl
+  /// An impl leaves out a trait method, or names one the trait lacks
+  | ImplMethodSet
+  /// An impl's method fn does not have the trait method's signature at the self type
+  | ImplMethodSignature
+  /// An impl's method fn may do more than the trait's method allows
+  | ImplExceedsCeiling
   | UnresolvedTypeName
   | UnresolvedFunctionName
   | UnresolvedValueName
@@ -70,10 +82,14 @@ type IssueCode =
 type NameRef =
   | Builtin of String * Int64
   | Package of LanguageTools.ProgramTypes.Hash
+  /// A trait method, by the trait type's hash and the method name
+  | TraitMethod of LanguageTools.ProgramTypes.Hash * String
 
 /// Where in the item the checker was working when it found something.
 type Site =
   | LambdaReturnValue
+  /// An impl's method fn against the trait method's signature at the self type
+  | ImplMethodSignatureSite
   | FunctionReturnValue
   | ValueBody
   | Expression
@@ -114,6 +130,8 @@ type AmbiguousSubject =
   | RecordType
   | EnumPatternType
   | ItemType
+  /// A bound whose type is still unknown at the end of the item
+  | ConstrainedType
 
 /// Why a builtin's declared signature is not something the checker can check against.
 type UntrustedBuiltin =
@@ -133,6 +151,9 @@ type Context =
   | At of Site
   | Unresolved of List<String>
   | TypeUnavailable of LanguageTools.ProgramTypes.Hash
+  | TraitUnavailable of LanguageTools.ProgramTypes.Hash
+  /// The trait method an impl gets wrong, and what is wrong with it
+  | ImplMethod of LanguageTools.ProgramTypes.Hash * String * String
   | FunctionUnavailable of NameRef
   | ValueUnavailable of NameRef
   | Identifier of String
@@ -140,6 +161,8 @@ type Context =
   | Duplicate of String * DuplicateSite
   | Ambiguous of AmbiguousSubject
   | Untrusted of NameRef * UntrustedBuiltin
+  /// The trait a bound or method call needed an impl of
+  | TraitNeeded of LanguageTools.ProgramTypes.Hash * Stdlib.Option.Option<String>
   | Arity of Int64 * Int64
   | NamedArity of String * Int64 * Int64
   | TypeArity of LanguageTools.ProgramTypes.Hash * Int64 * Int64
@@ -269,6 +292,12 @@ let issueCodeToString (code: IssueCode) : String =
   | DuplicateTypeParameter -> "DuplicateTypeParameter"
   | DuplicateTypeMember -> "DuplicateTypeMember"
   | UnsupportedDictKeyType -> "UnsupportedDictKeyType"
+  | MissingImpl -> "MissingImpl"
+  | UnboundTypeParameter -> "UnboundTypeParameter"
+  | AmbiguousImpl -> "AmbiguousImpl"
+  | ImplMethodSet -> "ImplMethodSet"
+  | ImplMethodSignature -> "ImplMethodSignature"
+  | ImplExceedsCeiling -> "ImplExceedsCeiling"
   | UnresolvedTypeName -> "UnresolvedTypeName"
   | UnresolvedFunctionName -> "UnresolvedFunctionName"
   | UnresolvedValueName -> "UnresolvedValueName"
@@ -298,11 +327,20 @@ let nameRefToStringWith
       let hex = LanguageTools.ProgramTypes.hashToString hash
       let short = Stdlib.String.slice hex 0 12
       $"#{short}"
+  | TraitMethod(traitHash, method) ->
+    let traitName =
+      match resolve traitHash with
+      | Some name -> name
+      | None ->
+        let hex = LanguageTools.ProgramTypes.hashToString traitHash
+        $"#{Stdlib.String.slice hex 0 12}"
+    $"{traitName}.{method}"
 
 
 let siteToString (site: Site) : String =
   match site with
   | LambdaReturnValue -> "the lambda's return value"
+  | ImplMethodSignatureSite -> "the implementation's method fn against the trait's signature"
   | FunctionReturnValue -> "the function's return value"
   | ValueBody -> "the value's body"
   | Expression -> "this expression"
@@ -346,6 +384,7 @@ let ambiguousSubjectToString (subject: AmbiguousSubject) : String =
   | RecordType -> "the record type"
   | EnumPatternType -> "which enum type contains this case"
   | ItemType -> "a complete type here"
+  | ConstrainedType -> "which type a bounded type parameter becomes"
 
 
 let untrustedBuiltinToString (reason: UntrustedBuiltin) : String =
@@ -392,6 +431,22 @@ let contextToStringWith
     | [] -> "The name is unresolved"
     | parts -> $"'{Stdlib.String.join parts "."}' is unresolved"
   | TypeUnavailable hash -> $"{typeName hash} is not available to the checker"
+  | TraitUnavailable hash -> $"the trait {typeName hash} is not available to the checker"
+  | ImplMethod(traitHash, method, detail) ->
+    let traitName =
+      match customTypeName traitHash with
+      | Some name -> name
+      | None -> $"#{Stdlib.String.slice (LanguageTools.ProgramTypes.hashToString traitHash) 0 12}"
+    match code with
+    | ImplMethodSet ->
+      match detail with
+      | "missing" -> $"The implementation does not provide `{method}`, which {traitName} declares"
+      | _ -> $"`{method}` is not a method of {traitName}"
+    | ImplMethodSignature ->
+      $"The fn given for `{method}` does not have {traitName}.{method}'s signature at this type ({detail})"
+    | ImplExceedsCeiling ->
+      $"The fn given for `{method}` may do more than {traitName}.{method} allows ({detail})"
+    | _ -> $"`{method}` of {traitName}: {detail}"
   | FunctionUnavailable fn ->
     $"The signature for {name fn} is not available to the checker"
   | ValueUnavailable value ->
@@ -472,6 +527,23 @@ let contextToStringWith
   | UnaryMinusOperandNotSignedNumeric ->
     "Unary minus requires a signed integer or Float operand"
   | CheckerUnavailable detail -> $"The at-rest checker could not run: {detail}"
+  | TraitNeeded(traitHash, method) ->
+    let traitName =
+      match customTypeName traitHash with
+      | Some name -> name
+      | None -> $"#{Stdlib.String.slice (LanguageTools.ProgramTypes.hashToString traitHash) 0 12}"
+    match code with
+    | MissingImpl ->
+      match method with
+      | Some m -> $"No implementation of {traitName} for this type, which `{traitName}.{m}` needs"
+      | None -> $"No implementation of {traitName} for this type, which the bound `{traitName}` needs"
+    | UnboundTypeParameter ->
+      $"This type parameter is used as a {traitName} but the function does not declare `: {traitName}` on it"
+    | AmbiguousImpl ->
+      match method with
+      | Some m -> $"More than one implementation offers `{m}` for this type; name the trait, as `{traitName}.{m} value`"
+      | None -> $"More than one implementation of {traitName} for this type is visible; `dark impls {traitName}` lists them"
+    | _ -> $"Needs an implementation of {traitName}"
 
 
 let contextToString (code: IssueCode) (context: Context) : String =

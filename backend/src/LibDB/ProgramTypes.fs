@@ -125,9 +125,37 @@ let private getItemLocationsEverNamed
 
 module Type =
   let find = findItem "type"
+
   let get = getItem "package_types" "hash" BS.PT.PackageType.deserialize
   let getLocations = getItemLocations "type"
   let getLocationsEverNamed = getItemLocationsEverNamed "type"
+
+
+module Trait =
+  let find = findItem "trait"
+  let get = getItem "package_traits" "hash" BS.PT.Trait.deserialize
+  let getLocations = getItemLocations "trait"
+  let getLocationsEverNamed = getItemLocationsEverNamed "trait"
+
+  /// Every live trait name's last segment, once; see `Type.names`.
+  let names () : Ply<HashSet<string>> =
+    use conn = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
+    conn.Open()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <-
+      "SELECT DISTINCT name FROM locations WHERE item_type = 'trait' AND unlisted_at IS NULL"
+    use reader = cmd.ExecuteReader()
+    let names = HashSet<string>()
+    while reader.Read() do
+      names.Add(reader.GetString 0) |> ignore<bool>
+    Ply names
+
+module TraitImpl =
+  let find = findItem "impl"
+  let get = getItem "package_trait_impls" "hash" BS.PT.TraitImpl.deserialize
+  let getLocations = getItemLocations "impl"
+  let getLocationsEverNamed = getItemLocationsEverNamed "impl"
+
 
 module Value =
   let find = findItem "value"
@@ -386,11 +414,33 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageValue.PackageValue>>> []
 
+    let! traits =
+      if isEntityRequested PT.Search.EntityType.Trait then
+        makeEntityQuery "trait" "package_traits" "hash" BS.PT.Trait.deserialize
+      else
+        Task.FromResult<List<PT.LocatedItem<PT.Trait.Trait>>> []
+
+    let! impls =
+      if isEntityRequested PT.Search.EntityType.TraitImpl then
+        makeEntityQuery
+          "impl"
+          "package_trait_impls"
+          "hash"
+          BS.PT.TraitImpl.deserialize
+      else
+        Task.FromResult<List<PT.LocatedItem<PT.TraitImpl.TraitImpl>>> []
+
     let! fns =
       if isEntityRequested PT.Search.EntityType.Fn then
         makeEntityQuery "fn" "package_functions" "hash" BS.PT.PackageFn.deserialize
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageFn.PackageFn>>> []
 
-    return { submodules = submodules; types = types; values = values; fns = fns }
+    return
+      { submodules = submodules
+        types = types
+        values = values
+        fns = fns
+        traits = traits
+        impls = impls }
   }

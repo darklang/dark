@@ -191,6 +191,31 @@ module TypeReference =
           return PT.TCustomType(resolved, typeArgs)
     }
 
+module Bound =
+  let toPT
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (b : WT.Bound)
+    : Ply<PT.Bound> =
+    uply {
+      let! resolved =
+        NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName b.trait_)
+      let! typeArgs =
+        Ply.List.mapSequentially
+          (TypeReference.toPT pm onMissing currentModule)
+          b.trait_.typeArgs
+      return { param = b.param; trait_ = { trait_ = resolved; typeArgs = typeArgs } }
+    }
+
+  let listToPT
+    pm
+    onMissing
+    currentModule
+    (bs : List<WT.Bound>)
+    : Ply<List<PT.Bound>> =
+    Ply.List.mapSequentially (toPT pm onMissing currentModule) bs
+
 module BinaryOperation =
   let toPT (binop : WT.BinaryOperation) : PT.BinaryOperation =
     match binop with
@@ -916,7 +941,8 @@ module TypeDeclaration =
     : Ply<PT.TypeDeclaration.T> =
     uply {
       let! def = Definition.toPT pm onMissing currentModule d.definition
-      return { typeParams = d.typeParams; definition = def }
+      let! bounds = Bound.listToPT pm onMissing currentModule d.bounds
+      return { typeParams = d.typeParams; bounds = bounds; definition = def }
     }
 
 
@@ -949,6 +975,117 @@ module PackageType =
       return
         { hash = Hash ""; description = pt.description; declaration = declaration }
     }
+
+module Trait =
+  module Name =
+    let toLocation (name : WT.PackageTrait.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+  let toPT
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (t : WT.PackageTrait.PackageTrait)
+    : Ply<PT.Trait.Trait> =
+    uply {
+      let! bounds = Bound.listToPT pm onMissing currentModule t.bounds
+      let! methods =
+        t.methods
+        |> Ply.List.mapSequentially (fun m ->
+          uply {
+            let! parameters =
+              Ply.NEList.mapSequentially
+                (fun (p : WT.PackageFn.Parameter) ->
+                  uply {
+                    let! typ = TypeReference.toPT pm onMissing currentModule p.typ
+                    return
+                      ({ name = p.name; typ = typ; description = p.description }
+                      : PT.PackageFn.Parameter)
+                  })
+                m.parameters
+            let! returnType =
+              TypeReference.toPT pm onMissing currentModule m.returnType
+            let permissionCeiling =
+              m.effects
+              |> Option.map (fun names ->
+                names
+                |> List.choose (fun name ->
+                  LibExecution.Effects.all
+                  |> List.tryFind (fun effect -> $"%A{effect}" = name))
+                |> Set.ofList)
+            return
+              ({ name = m.name
+                 typeParams = m.typeParams
+                 parameters = parameters
+                 returnType = returnType
+                 permissionCeiling = permissionCeiling
+                 description = m.description }
+              : PT.Trait.Method)
+          })
+      return
+        { hash = PT.Hash ""
+          typeParams = NEList.ofListWithDefault "a" t.typeParams
+          bounds = bounds
+          methods =
+            NEList.ofListWithDefault
+              ({ name = "_"
+                 typeParams = []
+                 parameters =
+                   NEList.singleton { name = "_"; typ = PT.TUnit; description = "" }
+                 returnType = PT.TUnit
+                 permissionCeiling = None
+                 description = "" }
+              : PT.Trait.Method)
+              methods
+          description = t.description }
+    }
+
+
+module TraitImpl =
+  module Name =
+    let toLocation (name : WT.PackageTraitImpl.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+  let toPT
+    (builtins : RT.Builtins)
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (i : WT.PackageTraitImpl.PackageTraitImpl)
+    : Ply<PT.TraitImpl.TraitImpl> =
+    uply {
+      let! trait_ =
+        NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName i.trait_)
+      let! traitTypeArgs =
+        Ply.List.mapSequentially
+          (TypeReference.toPT pm onMissing currentModule)
+          i.trait_.typeArgs
+      let! self = TypeReference.toPT pm onMissing currentModule i.forType
+      let! bounds = Bound.listToPT pm onMissing currentModule i.bounds
+      let! methods =
+        i.methods
+        |> Ply.List.mapSequentially (fun (name, target) ->
+          uply {
+            let! fn =
+              NR.resolveFnName
+                (BuiltinNames.fns builtins)
+                pm
+                onMissing
+                currentModule
+                target
+            return (name, fn)
+          })
+      return
+        { hash = PT.Hash ""
+          trait_ = trait_
+          traitTypeArgs = traitTypeArgs
+          self = self
+          typeParams = i.typeParams
+          bounds = bounds
+          methods = methods
+          description = i.description }
+    }
+
 
 module PackageValue =
   module Name =
@@ -1054,6 +1191,7 @@ module PackageFn =
         let withReturn = collectTVars fromParams returnType
         withReturn |> List.filter (fun n -> not (List.contains n explicitTypeParams))
       let allTypeParams = explicitTypeParams @ implicitTypeParams
+      let! bounds = Bound.listToPT pm onMissing currentModule fn.bounds
 
       return
         { hash = Hash ""
@@ -1062,6 +1200,7 @@ module PackageFn =
           description = fn.description
           body = body
           typeParams = allTypeParams
+          bounds = bounds
           permissionCeiling =
             // Names were validated by the parser; an unknown one already
             // produced a diagnostic, so it is simply not part of the ceiling.

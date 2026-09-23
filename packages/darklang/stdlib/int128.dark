@@ -184,3 +184,49 @@ let shiftLeft (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftLeft a b
 
 /// Bitwise right shift of an <type Int128> value
 let shiftRight (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftRight a b
+
+
+
+// The operator traits, over the fns above.
+
+impl Add for Int128 =
+  let add = Stdlib.Int128.add
+
+
+impl Sub for Int128 =
+  let subtract = Stdlib.Int128.subtract
+
+
+impl Mul for Int128 =
+  let multiply = Stdlib.Int128.multiply
+
+
+impl Div for Int128 =
+  let divide = Stdlib.Int128.divide
+
+
+impl Mod for Int128 =
+  let modulo = Stdlib.Int128.``mod``
+
+
+impl Neg for Int128 =
+  let negate = Stdlib.Int128.negate
+
+
+impl Ord for Int128 =
+  let lessThan = Stdlib.Int128.lessThan
+  let lessThanOrEqualTo = Stdlib.Int128.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int128.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int128.greaterThanOrEqualTo
+
+
+impl ToString for Int128 =
+  let toString = Stdlib.Int128.toString
+
+
+impl Zero for Int128 =
+  let zero () : Int128 = 0Q
+
+
+impl One for Int128 =
+  let one () : Int128 = 1Q

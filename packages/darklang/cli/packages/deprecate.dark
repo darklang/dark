@@ -71,6 +71,14 @@ let resolveTarget
         Stdlib.Option.Option.Some
           (LanguageTools.ProgramTypes.Reference.PackageValue h)
       | None -> Stdlib.Option.Option.None
+    | Trait ->
+      match LanguageTools.PackageManager.Trait.find branchId location with
+      | Some h -> Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageTrait h)
+      | None -> Stdlib.Option.Option.None
+    | TraitImpl ->
+      match LanguageTools.PackageManager.TraitImpl.find branchId location with
+      | Some h -> Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageTraitImpl h)
+      | None -> Stdlib.Option.Option.None
   | Error _ -> Stdlib.Option.Option.None
 
 
@@ -355,7 +363,7 @@ let undeprecateHelp (_state: Cli.AppState) : String =
 let help (_state: Cli.AppState) : String =
   [ "Mark a function, type, or value as deprecated."
     ""
-    "Usage: deprecate <fn|type|value> <name-or-hash> --kind <k> [options]"
+    "Usage: deprecate <fn|type|value|trait|impl> <name-or-hash> --kind <k> [options]"
     ""
     "Kinds:"
     "  superseded-by   new item exists -- use that instead (requires --replacement)"

@@ -10,6 +10,7 @@ open LibDB.Caching
 
 module PMPT = ProgramTypes
 module PMRT = RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
 /// Layer two lookups: ask <param overlay> first, and fall back to <param fallback> only
@@ -89,23 +90,7 @@ let invalidateHarmful () : unit = harmfulCache <- None
 Caching.register invalidateHarmful
 
 
-// TODO: bring back eager loading
-let rt : RT.PackageManager =
-  { getType = withCache PMRT.Type.get
-    getFn = withCache PMRT.Fn.get
-    getValue = withCache PMRT.Value.get
-    getBlob = PMRT.Blob.get
-    persistBlob = PMRT.Blob.insert
 
-    // A deprecation is a fact about a hash, and a hash means the same thing on every branch, so
-    // the set needs no branch key.
-    isHarmful = fun (RT.Hash h) -> Set.contains h (loadHarmful ())
-
-    init =
-      uply {
-        //eagerLoad
-        return ()
-      } }
 
 
 /// The PT PackageManager for MAIN: name resolution against `locations`, which by design holds only
@@ -168,13 +153,37 @@ let pt : PT.PackageManager =
   let findValueCached = withCache (fun location -> PMPT.Value.find location)
   let findFnCached = withCache (fun location -> PMPT.Fn.find location)
 
+  let findTraitCached =
+    Caching.withNegativeCache (fun location -> PMPT.Trait.find location)
+  let findImplCached = withCache (fun location -> PMPT.TraitImpl.find location)
+
+  // Not `withCache`: its key would be unit, which a dictionary cannot hold. Same
+  // lifetime as the others (dropped by `invalidateAll`).
+  let traitNamesCached =
+    let mutable cached : Option<HashSet<string>> = None
+    Caching.register (fun () -> cached <- None)
+    fun () ->
+      match cached with
+      | Some names -> Ply names
+      | None ->
+        uply {
+          let! names = PMPT.Trait.names ()
+          cached <- Some names
+          return names
+        }
+
   { findType = findTypeCached
     findValue = findValueCached
     findFn = findFnCached
+    findTrait = findTraitCached
+    findTraitImpl = findImplCached
+    traitNames = traitNamesCached
 
     getType = withCache PMPT.Type.get
     getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
+    getTrait = withCache PMPT.Trait.get
+    getTraitImpl = withCache PMPT.TraitImpl.get
 
     // A CLI script's declarations are never in the store, so without a fallback
     // they render as hashes. Only as a fallback, though: hashes are content
@@ -189,8 +198,15 @@ let pt : PT.PackageManager =
       storedOrEphemeral PMPT.Value.getLocations EphemeralPackages.valueLocations
     getFnLocations =
       storedOrEphemeral PMPT.Fn.getLocations EphemeralPackages.fnLocations
+    getTraitLocations =
+      storedOrEphemeral PMPT.Trait.getLocations EphemeralPackages.traitLocations
+    getTraitImplLocations =
+      storedOrEphemeral PMPT.TraitImpl.getLocations EphemeralPackages.implLocations
 
     search = fun query -> PMPT.search query
+
+    impls = Impls.impls
+    implsWithMethod = Impls.implsWithMethod
 
     init = uply { return () } }
 
@@ -257,16 +273,22 @@ let createInMemoryOver
   let typeLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
   let valueLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
   let fnLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
+  let traitLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
+  let implLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
   let unbind loc =
     typeLocs.Remove loc |> ignore<bool>
     valueLocs.Remove loc |> ignore<bool>
     fnLocs.Remove loc |> ignore<bool>
+    traitLocs.Remove loc |> ignore<bool>
+    implLocs.Remove loc |> ignore<bool>
   let bind loc target =
     unbind loc
     match target with
     | PT.PackageType h -> typeLocs[loc] <- h
     | PT.PackageValue h -> valueLocs[loc] <- h
     | PT.PackageFn h -> fnLocs[loc] <- h
+    | PT.PackageTrait h -> traitLocs[loc] <- h
+    | PT.PackageTraitImpl h -> implLocs[loc] <- h
 
   for op in ops do
     match op with
@@ -274,7 +296,9 @@ let createInMemoryOver
     | PT.PackageOp.Unbind(loc, _) -> unbind loc
     | PT.PackageOp.AddType _
     | PT.PackageOp.AddValue _
-    | PT.PackageOp.AddFn _ -> ()
+    | PT.PackageOp.AddFn _
+    | PT.PackageOp.AddTrait _
+    | PT.PackageOp.AddTraitImpl _ -> ()
 
     // None of these change what a name points at -- an ack or a policy records what a person decided ABOUT a
     // name, an UpdateDoc changes what a NAME says about itself (`LibDB.Docs` answers those), a
@@ -358,11 +382,35 @@ let createInMemoryOver
        | PT.PackageOp.SetName(_, PT.PackageValue h, _) -> Some h
        | _ -> None)
 
+  let traitMap =
+    pairItems
+      (function
+      | PT.PackageOp.AddTrait t -> Some t
+      | _ -> None)
+      (fun t -> t.hash)
+      (fun t h -> { t with hash = h })
+      (function
+       | PT.PackageOp.SetName(_, PT.PackageTrait h, _) -> Some h
+       | _ -> None)
+
+  let implMap =
+    pairItems
+      (function
+      | PT.PackageOp.AddTraitImpl i -> Some i
+      | _ -> None)
+      (fun i -> i.hash)
+      (fun i h -> { i with hash = h })
+      (function
+       | PT.PackageOp.SetName(_, PT.PackageTraitImpl h, _) -> Some h
+       | _ -> None)
+
   let toMap (d : System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>) =
     d |> Seq.map (fun (KeyValue(k, v)) -> (k, v)) |> Map.ofSeq
   let typeLocMap = toMap typeLocs
   let valueLocMap = toMap valueLocs
   let fnLocMap = toMap fnLocs
+  let traitLocMap = toMap traitLocs
+  let implLocMap = toMap implLocs
 
   // Reverse multi-maps (hash -> every location still bound to it).
   let invert
@@ -378,14 +426,29 @@ let createInMemoryOver
   let typeIdToLocs = invert typeLocMap
   let valueIdToLocs = invert valueLocMap
   let fnIdToLocs = invert fnLocMap
+  let traitIdToLocs = invert traitLocMap
+  let implIdToLocs = invert implLocMap
+
+  let ownTraitNames =
+    HashSet<string>(traitLocMap |> Map.toSeq |> Seq.map (fun (l, _) -> l.name))
+  let ownImpls = implMap |> Map.toList |> List.map snd
 
   { findType = fun loc -> Ply(Map.tryFind loc typeLocMap)
     findValue = fun loc -> Ply(Map.tryFind loc valueLocMap)
     findFn = fun loc -> Ply(Map.tryFind loc fnLocMap)
+    findTrait = fun loc -> Ply(Map.tryFind loc traitLocMap)
+    findTraitImpl = fun loc -> Ply(Map.tryFind loc implLocMap)
+    traitNames =
+      match below with
+      | None -> fun () -> Ply ownTraitNames
+      | Some below ->
+        PT.PackageManager.unionTraitNames ownTraitNames below.traitNames
 
     getType = fun id -> Ply(Map.tryFind id typeMap)
     getValue = fun id -> Ply(Map.tryFind id valueMap)
     getFn = fun id -> Ply(Map.tryFind id fnMap)
+    getTrait = fun id -> Ply(Map.tryFind id traitMap)
+    getTraitImpl = fun id -> Ply(Map.tryFind id implMap)
 
     getTypeLocations =
       fun id -> Ply(Map.tryFind id typeIdToLocs |> Option.defaultValue [])
@@ -393,6 +456,28 @@ let createInMemoryOver
       fun id -> Ply(Map.tryFind id valueIdToLocs |> Option.defaultValue [])
     getFnLocations =
       fun id -> Ply(Map.tryFind id fnIdToLocs |> Option.defaultValue [])
+    getTraitLocations =
+      fun id -> Ply(Map.tryFind id traitIdToLocs |> Option.defaultValue [])
+    getTraitImplLocations =
+      fun id -> Ply(Map.tryFind id implIdToLocs |> Option.defaultValue [])
+
+    // Small and in memory: a scan over the layer's own impls.
+    impls =
+      fun traitHash ->
+        Ply(
+          ownImpls
+          |> List.filter (fun i ->
+            match i.trait_.resolved with
+            | Ok { name = PT.FQTraitName.Package t } -> t = traitHash
+            | _ -> false)
+        )
+    implsWithMethod =
+      fun methodName ->
+        Ply(
+          ownImpls
+          |> List.filter (fun i ->
+            i.methods |> List.exists (fun (m, _) -> m = methodName))
+        )
 
     search =
       fun query ->
@@ -471,11 +556,21 @@ let createInMemoryOver
           match below with
           | Some b -> (fun (h : Hash) -> b.getFn h)
           | None -> none
+        let getTraitBelow =
+          match below with
+          | Some b -> (fun (h : Hash) -> b.getTrait h)
+          | None -> none
+        let getImplBelow =
+          match below with
+          | Some b -> (fun (h : Hash) -> b.getTraitImpl h)
+          | None -> none
 
         uply {
           let! typesWithLocs = liveAt typeLocMap typeMap getTypeBelow
           let! valuesWithLocs = liveAt valueLocMap valueMap getValueBelow
           let! fnsWithLocs = liveAt fnLocMap fnMap getFnBelow
+          let! traitsWithLocs = liveAt traitLocMap traitMap getTraitBelow
+          let! implsWithLocs = liveAt implLocMap implMap getImplBelow
 
           // Submodules = the direct child module (cm ++ next segment) of any overlay item strictly
           // below cm. Only surfaced when browsing (empty text): a text search returns items, not
@@ -484,6 +579,8 @@ let createInMemoryOver
             (typesWithLocs |> List.map (fun i -> i.location))
             @ (valuesWithLocs |> List.map (fun i -> i.location))
             @ (fnsWithLocs |> List.map (fun i -> i.location))
+            @ (traitsWithLocs |> List.map (fun i -> i.location))
+            @ (implsWithLocs |> List.map (fun i -> i.location))
           let submodules =
             if text <> "" then
               []
@@ -497,12 +594,21 @@ let createInMemoryOver
                   None)
               |> List.distinct
 
+          // Honour the kind filter the way the SQL search does, or `search x --fn` on a
+          // branch lists the branch's types next to main's fns.
+          let wanted kind (items : List<PT.LocatedItem<'item>>) =
+            if query.entityTypes.IsEmpty || List.contains kind query.entityTypes then
+              items |> List.filter (fun i -> itemMatches i.location)
+            else
+              []
+
           return
             { PT.Search.SearchResults.submodules = submodules
-              types = typesWithLocs |> List.filter (fun i -> itemMatches i.location)
-              values =
-                valuesWithLocs |> List.filter (fun i -> itemMatches i.location)
-              fns = fnsWithLocs |> List.filter (fun i -> itemMatches i.location) }
+              types = wanted PT.Search.EntityType.Type typesWithLocs
+              values = wanted PT.Search.EntityType.Value valuesWithLocs
+              fns = wanted PT.Search.EntityType.Fn fnsWithLocs
+              traits = wanted PT.Search.EntityType.Trait traitsWithLocs
+              impls = wanted PT.Search.EntityType.TraitImpl implsWithLocs }
         }
 
     init = uply { return () } }
@@ -521,15 +627,56 @@ let combine
   { findType = overlayFirst overlay.findType fallback.findType
     findValue = overlayFirst overlay.findValue fallback.findValue
     findFn = overlayFirst overlay.findFn fallback.findFn
+    findTrait = overlayFirst overlay.findTrait fallback.findTrait
+    findTraitImpl = overlayFirst overlay.findTraitImpl fallback.findTraitImpl
+    traitNames =
+      let mutable last : Option<HashSet<string> * HashSet<string> * HashSet<string>> =
+        None
+      fun () ->
+        uply {
+          let! o = overlay.traitNames ()
+          let! f = fallback.traitNames ()
+          match last with
+          | Some(o', f', u) when
+            obj.ReferenceEquals(o, o') && obj.ReferenceEquals(f, f')
+            ->
+            return u
+          | _ ->
+            let u = HashSet<string>(f)
+            u.UnionWith o
+            last <- Some(o, f, u)
+            return u
+        }
 
     getType = overlayFirst overlay.getType fallback.getType
     getValue = overlayFirst overlay.getValue fallback.getValue
     getFn = overlayFirst overlay.getFn fallback.getFn
+    getTrait = overlayFirst overlay.getTrait fallback.getTrait
+    getTraitImpl = overlayFirst overlay.getTraitImpl fallback.getTraitImpl
 
     getTypeLocations = concatLocs overlay.getTypeLocations fallback.getTypeLocations
     getValueLocations =
       concatLocs overlay.getValueLocations fallback.getValueLocations
     getFnLocations = concatLocs overlay.getFnLocations fallback.getFnLocations
+    getTraitLocations =
+      concatLocs overlay.getTraitLocations fallback.getTraitLocations
+    getTraitImplLocations =
+      concatLocs overlay.getTraitImplLocations fallback.getTraitImplLocations
+
+    impls =
+      fun traitHash ->
+        uply {
+          let! o = overlay.impls traitHash
+          let! f = fallback.impls traitHash
+          return o @ f
+        }
+    implsWithMethod =
+      fun methodName ->
+        uply {
+          let! o = overlay.implsWithMethod methodName
+          let! f = fallback.implsWithMethod methodName
+          return o @ f
+        }
 
     search =
       fun query ->
@@ -549,7 +696,10 @@ let combine
               types = dedup (List.append overlayResults.types fallbackResults.types)
               values =
                 dedup (List.append overlayResults.values fallbackResults.values)
-              fns = dedup (List.append overlayResults.fns fallbackResults.fns) }
+              fns = dedup (List.append overlayResults.fns fallbackResults.fns)
+              traits =
+                dedup (List.append overlayResults.traits fallbackResults.traits)
+              impls = dedup (List.append overlayResults.impls fallbackResults.impls) }
         }
 
     init =
@@ -597,9 +747,13 @@ let hide
         findType = find pm.findType
         findValue = find pm.findValue
         findFn = find pm.findFn
+        findTrait = find pm.findTrait
+        findTraitImpl = find pm.findTraitImpl
         getTypeLocations = locs pm.getTypeLocations
         getValueLocations = locs pm.getValueLocations
         getFnLocations = locs pm.getFnLocations
+        getTraitLocations = locs pm.getTraitLocations
+        getTraitImplLocations = locs pm.getTraitImplLocations
         search =
           fun query ->
             uply {
@@ -608,7 +762,9 @@ let hide
                 { r with
                     types = shown r.types
                     values = shown r.values
-                    fns = shown r.fns }
+                    fns = shown r.fns
+                    traits = shown r.traits
+                    impls = shown r.impls }
             } }
 
 /// `basePM` with `ops` overlaid on top: the branch overlay, and the parse-time PM for tests and
@@ -698,6 +854,81 @@ let ptForBranch (branchId : PT.BranchId) : PT.PackageManager =
       | ops -> withExtraOps pt ops
 
   withLocationDocs branchId base'
+
+// TODO: bring back eager loading
+let rt : RT.PackageManager =
+  { getType = withCache PMRT.Type.get
+    getFn = withCache PMRT.Fn.get
+    getValue = withCache PMRT.Value.get
+    getTrait =
+      withCache (fun (RT.Hash h) ->
+        PMPT.Trait.get (PT.Hash h) |> Ply.map (Option.map PT2RT.Trait.toRT))
+    getBlob = PMRT.Blob.get
+    persistBlob = PMRT.Blob.insert
+
+    // A deprecation is a fact about a hash, and a hash means the same thing on every branch, so
+    // the set needs no branch key.
+    isHarmful = fun (RT.Hash h) -> Set.contains h (loadHarmful ())
+
+    // Branch-scoped: the candidates are whatever the branch's PT pm can see and still
+    // names. Cached per (branch, trait) and dropped with the other caches on every fold.
+    // A deprecated implementation is not a candidate: deprecating one of two rivals is
+    // how the ambiguity finding says to pick a winner. Same cache lifetime as the
+    // candidates (a `Deprecate` op folds, which drops every cache).
+    implCandidates =
+      let cached =
+        Caching.withCache
+          (fun (branchId : PT.BranchId, traitHash : RT.FQTraitName.Package) ->
+            uply {
+              let! cs =
+                PT2RT.ImplCandidate.ofPackageManager
+                  (ptForBranch branchId)
+                  traitHash
+              let! deprecated = Queries.getDeprecatedTraitImplHashes ()
+              return
+                Some(
+                  cs
+                  |> List.filter (fun c ->
+                    let (RT.Hash h) = c.source in not (Set.contains h deprecated))
+                )
+            })
+      fun branchId traitHash ->
+        uply {
+          match! cached (branchId, traitHash) with
+          | Some cs -> return cs
+          | None -> return []
+        }
+    implCandidatesByMethod =
+      let cached =
+        Caching.withCache (fun (branchId : PT.BranchId, methodName : string) ->
+          uply {
+            let! cs =
+              PT2RT.ImplCandidate.ofPackageManagerByMethod
+                (ptForBranch branchId)
+                methodName
+            let! deprecated = Queries.getDeprecatedTraitImplHashes ()
+            return
+              Some(
+                cs
+                |> List.filter (fun c ->
+                  let (RT.Hash h) = c.source in not (Set.contains h deprecated))
+              )
+          })
+      fun branchId methodName ->
+        uply {
+          match! cached (branchId, methodName) with
+          | Some cs -> return cs
+          | None -> return []
+        }
+    implSelectionMemo = System.Collections.Concurrent.ConcurrentDictionary()
+    implGeneration = Caching.generation
+
+    init =
+      uply {
+        //eagerLoad
+        return ()
+      } }
+
 
 /// Where a branch binds <param hash>, for hash-to-NAME lookups.
 ///

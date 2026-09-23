@@ -65,6 +65,34 @@ module FQTypeName =
     | _ -> Exception.raiseInternal "Invalid FQTypeName" []
 
 
+module FQTraitName =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.RuntimeTypes.FQTraitName.fqTraitName ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+
+  module Package =
+    let toDT (Hash h : FQTraitName.Package) : Dval =
+      DEnum(hashTypeName (), hashTypeName (), [], "Hash", [ DString h ])
+
+    let fromDT (d : Dval) : FQTraitName.Package =
+      match d with
+      | DEnum(_, _, [], "Hash", [ DString h ]) -> Hash h
+      | _ -> Exception.raiseInternal "Invalid FQTraitName.Package" []
+
+  let toDT (u : FQTraitName.FQTraitName) : Dval =
+    let (caseName, fields) =
+      match u with
+      | FQTraitName.Package u -> "Package", [ Package.toDT u ]
+    DEnum(typeName (), typeName (), [], caseName, fields)
+
+  let fromDT (d : Dval) : FQTraitName.FQTraitName =
+    match d with
+    | DEnum(_, _, [], "Package", [ u ]) -> FQTraitName.Package(Package.fromDT u)
+    | _ -> Exception.raiseInternal "Invalid FQTraitName" []
+
+
 module FQValueName =
   let typeName () =
     FQTypeName.fqPackage (
@@ -148,12 +176,16 @@ module FQFnName =
       match u with
       | FQFnName.Builtin u -> "Builtin", [ Builtin.toDT u ]
       | FQFnName.Package u -> "Package", [ Package.toDT u ]
+      | FQFnName.TraitMethod(t, m) ->
+        "TraitMethod", [ FQTraitName.Package.toDT t; DString m ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : FQFnName.FQFnName =
     match d with
     | DEnum(_, _, [], "Builtin", [ u ]) -> FQFnName.Builtin(Builtin.fromDT u)
     | DEnum(_, _, [], "Package", [ u ]) -> FQFnName.Package(Package.fromDT u)
+    | DEnum(_, _, [], "TraitMethod", [ t; DString m ]) ->
+      FQFnName.TraitMethod(FQTraitName.Package.fromDT t, m)
     | _ -> Exception.raiseInternal "Invalid FQFnName" []
 
 
@@ -320,6 +352,31 @@ module TypeReference =
 
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
 
+
+
+module ImplCandidate =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.RuntimeTypes.implCandidate ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (c : ImplCandidate) : Dval =
+    let methods =
+      c.methods
+      |> Map.toList
+      |> List.map (fun (name, h) -> (name, Hash.toDT h))
+      |> LibExecution.Dval.stringDict (Hash.knownType ())
+    DRecord(
+      typeName (),
+      typeName (),
+      [],
+      Map
+        [ "trait_", FQTraitName.Package.toDT c.trait_
+          "self", TypeReference.toDT c.self
+          "methods", methods
+          "source", Hash.toDT c.source ]
+    )
 
 
 module LetPattern =
@@ -1640,6 +1697,69 @@ module RuntimeError =
         RuntimeError.Jsons.CannotSerializeValue(Dval.fromDT actualValue)
       | _ -> Exception.raiseInternal "Invalid Jsons.Error" []
 
+  module Traits =
+    let toDT (e : RuntimeError.Traits.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage (
+          PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.Traits.error ()
+        )
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Traits.MissingImpl(trait_, self) ->
+          "MissingImpl", [ FQTraitName.toDT trait_; ValueType.toDT self ]
+        | RuntimeError.Traits.DispatchAmbiguous(trait_, self, candidates) ->
+          "DispatchAmbiguous",
+          [ FQTraitName.toDT trait_
+            ValueType.toDT self
+            DList(VT.known (Hash.knownType ()), List.map Hash.toDT candidates) ]
+        | RuntimeError.Traits.MethodAmbiguous(method_, self, traits) ->
+          "MethodAmbiguous",
+          [ DString method_
+            ValueType.toDT self
+            DList(
+              VT.known (FQTraitName.knownType ()),
+              List.map FQTraitName.toDT traits
+            ) ]
+        | RuntimeError.Traits.SelfTypeUnknown(trait_, method_) ->
+          "SelfTypeUnknown", [ FQTraitName.toDT trait_; DString method_ ]
+        | RuntimeError.Traits.NoSuchMethod(trait_, method_) ->
+          "NoSuchMethod", [ FQTraitName.toDT trait_; DString method_ ]
+        | RuntimeError.Traits.TraitNotFound trait_ ->
+          "TraitNotFound", [ FQTraitName.toDT trait_ ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Traits.Error =
+      match d with
+      | DEnum(_, _, [], "MissingImpl", [ trait_; self ]) ->
+        RuntimeError.Traits.MissingImpl(
+          FQTraitName.fromDT trait_,
+          ValueType.fromDT self
+        )
+      | DEnum(_, _, [], "DispatchAmbiguous", [ trait_; self; candidates ]) ->
+        RuntimeError.Traits.DispatchAmbiguous(
+          FQTraitName.fromDT trait_,
+          ValueType.fromDT self,
+          D.list Hash.fromDT candidates
+        )
+      | DEnum(_, _, [], "MethodAmbiguous", [ method_; self; traits ]) ->
+        RuntimeError.Traits.MethodAmbiguous(
+          D.string method_,
+          ValueType.fromDT self,
+          D.list FQTraitName.fromDT traits
+        )
+      | DEnum(_, _, [], "SelfTypeUnknown", [ trait_; method_ ]) ->
+        RuntimeError.Traits.SelfTypeUnknown(
+          FQTraitName.fromDT trait_,
+          D.string method_
+        )
+      | DEnum(_, _, [], "NoSuchMethod", [ trait_; method_ ]) ->
+        RuntimeError.Traits.NoSuchMethod(FQTraitName.fromDT trait_, D.string method_)
+      | DEnum(_, _, [], "TraitNotFound", [ trait_ ]) ->
+        RuntimeError.Traits.TraitNotFound(FQTraitName.fromDT trait_)
+      | _ -> Exception.raiseInternal "Invalid Traits.Error" []
+
   module CLIs =
     let toDT (e : RuntimeError.CLIs.Error) : Dval =
       let typeName =
@@ -1707,6 +1827,7 @@ module RuntimeError =
       | RuntimeError.Statement e -> "Statement", [ Statements.toDT e ]
       | RuntimeError.Unwrap e -> "Unwrap", [ Unwraps.toDT e ]
       | RuntimeError.Json e -> "Json", [ Jsons.toDT e ]
+      | RuntimeError.Trait e -> "Trait", [ Traits.toDT e ]
       | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
       | RuntimeError.SqlCompiler errMsg -> "SqlCompiler", [ DString errMsg ]
       | RuntimeError.UncaughtException(msg, metadata) ->
@@ -1779,6 +1900,7 @@ module RuntimeError =
       RuntimeError.Statement(Statements.fromDT e)
     | DEnum(_, _, [], "Unwrap", [ e ]) -> RuntimeError.Unwrap(Unwraps.fromDT e)
     | DEnum(_, _, [], "Json", [ e ]) -> RuntimeError.Json(Jsons.fromDT e)
+    | DEnum(_, _, [], "Trait", [ e ]) -> RuntimeError.Trait(Traits.fromDT e)
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
     | DEnum(_, _, [], "SqlCompiler", [ DString errMsg ]) ->
       RuntimeError.SqlCompiler errMsg

@@ -33,4 +33,11 @@ let content () : String =
   Status.Inactive "reason"
 
 ## Generics
-  type Box<'a> = { value: 'a }"""
+  type Box<'a> = { value: 'a }
+  let first<'a: Stdlib.Ord> (a: 'a) (b: 'a) : 'a = if a < b then a else b
+  # a bound (`'a: Ord`) says what the type must implement; `docs traits`
+
+## Traits
+  impl ToString for Person =
+    let toString (p: Person) : String = p.name
+  # `jo.toString`, or `ToString.toString jo`; your own with `trait`; `docs traits`"""

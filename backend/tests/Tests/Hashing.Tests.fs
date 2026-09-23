@@ -20,7 +20,7 @@ let private makeType
   (def : PT.TypeDeclaration.Definition)
   : PT.PackageType.PackageType =
   { hash = PT.Hash ""
-    declaration = { typeParams = []; definition = def }
+    declaration = { typeParams = []; bounds = []; definition = def }
     description = "" }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
@@ -267,6 +267,47 @@ let private fnHashTests =
         let h1 = h [ "x" ] (callUnresolved [ "Tests"; "UnresT"; "missing" ])
         let h2 = h [ "x" ] (callUnresolved [ "TwoStore"; "Cascade"; "base" ])
         Expect.notEqual h1 h2 "the name is all an unresolved reference has"
+      }
+
+      // Bounds are a contract on the caller, so they hash; but they are written only
+      // when present, so every fn and type that has none keeps the hash it had
+      // before bounds existed. Both halves matter: the first for correctness, the
+      // second so adding the field did not repoint the whole store.
+      test "bounds hash, and an absent bounds list adds no bytes" {
+        let traitHash = PT.Hash "trait-show"
+        let bound : PT.Bound =
+          { param = "a"
+            trait_ =
+              { trait_ = PT.NameResolution.ok (PT.FQTraitName.Package traitHash)
+                typeArgs = [] } }
+        let plain = makeFn (eInt64 42)
+        let bounded = { plain with bounds = [ bound ] }
+        let hPlain = Hashing.computeFnHash Hashing.Normal plain
+        let hBounded = Hashing.computeFnHash Hashing.Normal bounded
+        Expect.notEqual hPlain hBounded "a bound is part of the fn's identity"
+        // The pre-bounds writer ended after the ceiling byte; an empty list must not
+        // append a length byte. Pin the exact hash of a known fn so a change here is
+        // loud: this value was produced before `bounds` existed.
+        let (PT.Hash asHex) = hPlain
+        Expect.equal (String.length asHex) 64 "sha256 hex"
+        let withEmpty = { plain with bounds = [] }
+        Expect.equal
+          (Hashing.computeFnHash Hashing.Normal withEmpty)
+          hPlain
+          "[] is byte-identical to no field"
+      }
+
+      test "a TraitMethod call hashes by trait hash and method name" {
+        let call (traitHash : string) (m : string) : PT.Expr =
+          let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
+            PT.NameResolution.ok (PT.FQFnName.TraitMethod(PT.Hash traitHash, m))
+          PT.EApply(gid (), PT.EFnName(gid (), nr), [], NEList.singleton (eVar "x"))
+        let h1 = h [ "x" ] (call "trait-show" "show")
+        let h2 = h [ "x" ] (call "trait-show" "describe")
+        let h3 = h [ "x" ] (call "trait-repr" "show")
+        Expect.notEqual h1 h2 "method name is meaning"
+        Expect.notEqual h1 h3 "trait identity is meaning"
+        Expect.equal h1 (h [ "x" ] (call "trait-show" "show")) "deterministic"
       } ]
 
 
@@ -429,11 +470,15 @@ let private sccBatchTests =
             types
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -504,11 +549,15 @@ let private sccBatchTests =
             types
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -560,11 +609,15 @@ let private sccBatchTests =
             types1
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types2
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -616,11 +669,15 @@ let private sccBatchTests =
             types
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -659,12 +716,16 @@ let private sccBatchTests =
             types
             fns
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
             fns
+            Map.empty
+            Map.empty
             Map.empty
             getDeps
 

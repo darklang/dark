@@ -119,7 +119,7 @@ let private getHashes () : Map<string, string> =
     hashGeneration <- hashGeneration + 1
     h
 
-let private currentGeneration () : int =
+let currentGeneration () : int =
   // Touch the cache first, so a lazy first load is reflected in the generation the caller records.
   getHashes () |> ignore<Map<string, string>>
   hashGeneration
@@ -196,6 +196,7 @@ module Type =
 
     let result = p [ "Result" ] "Result"
     let option = p [ "Option" ] "Option"
+
 
     let sqliteValue = p [ "Sqlite" ] "Value"
 
@@ -317,6 +318,7 @@ module Type =
       let qualifiedTypeIdentifier = p [] "QualifiedTypeIdentifier"
       let valueIdentifier = p [] "ValueIdentifier"
       let typeReferenceBuiltin = p [ "TypeReference" ] "Builtin"
+      let typeParamBound = p [] "TypeParamBound"
       let fnDeclaration = p [ "FnDeclaration" ] "FnDeclaration"
       let fnParameter = p [ "FnDeclaration" ] "Parameter"
       let fnNormalParameter = p [ "FnDeclaration" ] "NormalParameter"
@@ -325,6 +327,10 @@ module Type =
       let moduleDeclaration = p [ "ModuleDeclaration" ] "ModuleDeclaration"
       let moduleDeclarationDeclaration = p [ "ModuleDeclaration" ] "Declaration"
       let typeDeclaration = p [ "TypeDeclaration" ] "TypeDeclaration"
+      let traitDeclaration = p [ "TraitDeclaration" ] "TraitDeclaration"
+      let traitMethod = p [ "TraitDeclaration" ] "Method"
+      let implDeclaration = p [ "ImplDeclaration" ] "ImplDeclaration"
+      let implMember = p [ "ImplDeclaration" ] "Member"
       let typeDeclDefinition = p [ "TypeDeclaration" ] "Definition"
       let typeDeclRecordField = p [ "TypeDeclaration" ] "RecordField"
       let typeDeclEnumField = p [ "TypeDeclaration" ] "EnumField"
@@ -333,11 +339,16 @@ module Type =
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
       let hash = p [] "Hash"
+      let implCandidate = p [] "ImplCandidate"
 
       module FQTypeName =
         let private p addl = p ("FQTypeName" :: addl)
         let package = p [] "Package"
         let fqTypeName = p [] "FQTypeName"
+
+      module FQTraitName =
+        let private p addl = p ("FQTraitName" :: addl)
+        let fqTraitName = p [] "FQTraitName"
 
       module FQValueName =
         let private p addl = p ("FQValueName" :: addl)
@@ -395,6 +406,8 @@ module Type =
           let error = p [ "Unwraps" ] "Error"
         module Jsons =
           let error = p [ "Jsons" ] "Error"
+        module Traits =
+          let error = p [ "Traits" ] "Error"
         module CLIs =
           let error = p [ "CLIs" ] "Error"
 
@@ -412,6 +425,10 @@ module Type =
         let package = p [] "Package"
         let fqTypeName = p [] "FQTypeName"
 
+      module FQTraitName =
+        let private p addl = p ("FQTraitName" :: addl)
+        let fqTraitName = p [] "FQTraitName"
+
       module FQValueName =
         let private p addl = p ("FQValueName" :: addl)
         let builtin = p [] "Builtin"
@@ -423,6 +440,8 @@ module Type =
         let fqFnName = p [] "FQFnName"
 
       let typeReference = p [] "TypeReference"
+      let traitRef = p [] "TraitRef"
+      let bound = p [] "Bound"
       let letPattern = p [] "LetPattern"
       let matchPattern = p [] "MatchPattern"
       let matchCase = p [] "MatchCase"
@@ -447,6 +466,15 @@ module Type =
       module PackageType =
         let private p addl = p ("PackageType" :: addl)
         let packageType = p [] "PackageType"
+
+      module Trait =
+        let private p addl = p ("Trait" :: addl)
+        let method_ = p [] "Method"
+        let trait_ = p [] "Trait"
+
+      module TraitImpl =
+        let private p addl = p ("TraitImpl" :: addl)
+        let traitImpl = p [] "TraitImpl"
 
       module PackageValue =
         let private p addl = p ("PackageValue" :: addl)
@@ -512,6 +540,37 @@ module Type =
 
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats"
+
+
+/// Traits are their own item kind, so their refs are their own table.
+module Trait =
+  let mutable _lookup : Map<string list * string, string> = Map []
+
+  let private p modules name : (unit -> string) =
+    _lookup <- _lookup |> Map.add (modules, name) ""
+    makeRef
+      "trait"
+      (fun h -> _lookup <- _lookup |> Map.add (modules, name) h)
+      modules
+      name
+
+  module Stdlib =
+    let private p addl = p ("Stdlib" :: addl)
+
+    /// The traits the arithmetic and comparison operators lower to
+    /// (`NumericTraits.fs`, `FastOps.traitTag`).
+    module Traits =
+      let add = p [] "Add"
+      let sub = p [] "Sub"
+      let mul = p [] "Mul"
+      let div = p [] "Div"
+      let mod' = p [] "Mod"
+      let pow = p [] "Pow"
+      let neg = p [] "Neg"
+      let ord = p [] "Ord"
+      let eq = p [] "Eq"
+      let all () =
+        [ add (); sub (); mul (); div (); mod' (); pow (); neg (); ord (); eq () ]
 
 
 module Fn =

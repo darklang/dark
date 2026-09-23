@@ -262,8 +262,109 @@ let authoringIdenticalSourceReportsUnchanged =
       })
 
 
+/// Traits from the shell, end to end: `trait` and `impl` author items, a second
+/// implementation of the same trait for the same type is a standing finding and an
+/// error at the call, deprecating one resolves both, and rename/delete know the two
+/// kinds. One test rather than five because each step needs the store the previous one
+/// left, and every CLI test shares one store.
+let traitsAreAuthoredListedAndDisambiguated =
+  instanceTest
+    "trait and impl author items; two implementations are a finding until one is deprecated"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "type"; "Tests.Tr.Point"; "{ x: Int64\n  y: Int64 }" ]
+        do!
+          shows
+            state
+            [ "trait"; "Tests.Tr.Describe"; "<'a> = let describe (v: 'a) : String" ]
+            "Created trait: Tests.Tr.Describe"
+            "trait authors a trait item"
+        do!
+          shows
+            state
+            [ "impl"
+              "Tests.Tr"
+              "Describe for Point = let describe (p: Point) : String = \"tr\"" ]
+            "Created implementation: Tests.Tr.Point.Describe"
+            "impl authors an implementation at <module>.<Type>.<Trait>"
+        do!
+          evals
+            state
+            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })"
+            "tr"
+            "the implementation dispatches"
+        do!
+          shows
+            state
+            [ "impls"; "Tests.Tr.Describe" ]
+            "Tests.Tr.Point.Describe"
+            "impls lists it"
+
+        // A rival, from another module, for the same type.
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.TrOther"
+              "Tests.Tr.Describe for Tests.Tr.Point = let describe (p: Tests.Tr.Point) : String = \"other\"" ]
+        do!
+          shows
+            state
+            [ "eval"
+              "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })" ]
+            "More than one implementation of"
+            "a call cannot choose between two implementations"
+        do!
+          shows
+            state
+            [ "constraints"; "--kind"; "ambiguous-implementation" ]
+            "Tests.TrOther.Point.Describe"
+            "and constraints has it as a standing finding"
+
+        // Deprecating one takes it out of dispatch and clears the finding.
+        do!
+          run
+            state
+            [ "deprecate"
+              "impl"
+              "Tests.TrOther.Point.Describe"
+              "--kind"
+              "obsolete"
+              "-y" ]
+        do!
+          evals
+            state
+            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })"
+            "tr"
+            "the surviving implementation dispatches again"
+        do!
+          lacks
+            state
+            [ "constraints"; "--kind"; "ambiguous-implementation" ]
+            "Tests.TrOther.Point.Describe"
+            "and the finding is gone"
+
+        // The two kinds are ordinary items to rename and delete.
+        do!
+          shows
+            state
+            [ "rename"; "Tests.Tr.Describe"; "Tests.Tr.Show" ]
+            "renamed Tests.Tr.Describe -> Tests.Tr.Show"
+            "rename finds a trait"
+        do!
+          shows
+            state
+            [ "delete"; "Tests.Tr.Point.Describe"; "-y" ]
+            "Deprecated impl Tests.Tr.Point.Describe"
+            "delete infers the impl kind"
+        do! discardAll state
+      })
+
+
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
+    traitsAreAuthoredListedAndDisambiguated
     aParseErrorChangesNothing
     aNameThatDisagreesWithTheDeclarationIsRefused
     renameOntoALiveNameIsRefusedAndBothSurvive

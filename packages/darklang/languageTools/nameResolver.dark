@@ -230,6 +230,52 @@ module TypeName =
 
 
 
+module TraitName =
+  let tryResolve
+    (pm: ProgramTypes.PackageManager.PackageManager)
+    (branchId: ProgramTypes.BranchID)
+    (name: GenericName)
+    : Stdlib.Result.Result<(ProgramTypes.FQTraitName.FQTraitName *
+      Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
+    match name.modules with
+    | [] -> Stdlib.Result.Result.Error()
+    | owner :: modules ->
+      let location =
+        ProgramTypes.PackageLocation
+          { owner = owner
+            modules = modules
+            name = name.name }
+
+      match pm.findTrait (branchId, location) with
+      | Some hash ->
+        Stdlib.Result.Result.Ok
+          (((ProgramTypes.FQTraitName.FQTraitName.Package hash),
+            Stdlib.Option.Option.Some location))
+      | None -> Stdlib.Result.Result.Error()
+
+  /// Like a type name, then, for a bare name, as a stdlib trait: `impl Add for
+  /// Point` anywhere means `Stdlib.Add` unless something closer is called Add.
+  /// Same rule as the F# `resolveTraitName`.
+  let resolve
+    (ctx: NRContext)
+    (name: WrittenTypes.Name)
+    : ProgramTypes.NameResolution<ProgramTypes.FQTraitName.FQTraitName> =
+    match name with
+    | Unresolved(range, [ bare ]) ->
+      let direct = resolveGenericName ctx name TraitName.tryResolve
+      match direct.resolved with
+      | Error NotFound ->
+        let viaStdlib =
+          resolveGenericName
+            ctx
+            (WrittenTypes.Name.Unresolved(range, [ "Stdlib", bare ]))
+            TraitName.tryResolve
+        { viaStdlib with originalName = [ bare ] }
+      | _ -> direct
+    | _ -> resolveGenericName ctx name TraitName.tryResolve
+
+
+
 module ValueName =
   let builtinThingExists (name: String) : Bool =
     (Builtin.getAllBuiltinValues ())
@@ -317,8 +363,59 @@ module FnName =
         | None -> Stdlib.Result.Result.Error()
 
 
+  /// `Show.show`: the path's last module segment names a trait with a method
+  /// `show`; then the name is a trait method, dispatched at runtime.
+  /// Mirrors `resolveTraitMethod` in LibParser's NameResolver.fs.
+  let tryResolveTraitMethod
+    (ctx: NRContext)
+    (given: List<String>)
+    : Stdlib.Option.Option<ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>> =
+    let modules = Stdlib.List.dropLast given
+    match (Stdlib.List.last given, Stdlib.List.last modules) with
+    | (Some methodName, Some traitName) ->
+      let firstChar = Stdlib.String.slice traitName 0 1
+      if firstChar != Stdlib.String.toUppercase firstChar then
+        Stdlib.Option.Option.None
+      else
+        let traitNR =
+          TraitName.resolve
+            { ctx with onMissing = OnMissing.Allow }
+            (WrittenTypes.Name.Unresolved(
+              LanguageTools.Parser.Range
+                { start = LanguageTools.Parser.Point { row = 0; column = 0 }
+                  end_ = LanguageTools.Parser.Point { row = 0; column = 0 } },
+              modules))
+        match traitNR.resolved with
+        | Error _ -> Stdlib.Option.Option.None
+        | Ok resolved ->
+          match resolved.name with
+          | Package traitHash ->
+            match ctx.pm.getTrait traitHash with
+            | Some t ->
+              let isMethod =
+                t.methods |> Stdlib.List.findFirst (fun m -> m.name == methodName) |> Stdlib.Option.isSome
+              if isMethod then
+                Stdlib.Option.Option.Some(
+                  ProgramTypes.NameResolution
+                    { originalName = given
+                      resolved =
+                        Stdlib.Result.Result.Ok(
+                          ProgramTypes.ResolvedName
+                            { name = ProgramTypes.FQFnName.FQFnName.TraitMethod(traitHash, methodName)
+                              location = resolved.location }) })
+              else
+                Stdlib.Option.Option.None
+            | None -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
   let resolve
     (ctx: NRContext)
     (name: WrittenTypes.Name)
     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-    resolveGenericName ctx name FnName.tryResolve
+    // The trait method wins when the path names a trait (see the F# resolver for
+    // why: inside an impl's own module, `Show.show` must dispatch, not recurse).
+    match name with
+    | Unresolved(_range, given) ->
+      match tryResolveTraitMethod ctx given with
+      | Some nr -> nr
+      | None -> resolveGenericName ctx name FnName.tryResolve

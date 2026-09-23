@@ -216,7 +216,9 @@ let executeFiltered
         { submodules = unfiltered.submodules
           types = unfiltered.types |> Stdlib.List.filter (fun i -> hits i.location)
           values = unfiltered.values |> Stdlib.List.filter (fun i -> hits i.location)
-          fns = unfiltered.fns |> Stdlib.List.filter (fun i -> hits i.location) }
+          fns = unfiltered.fns |> Stdlib.List.filter (fun i -> hits i.location)
+          traits = unfiltered.traits |> Stdlib.List.filter (fun i -> hits i.location)
+          impls = unfiltered.impls |> Stdlib.List.filter (fun i -> hits i.location) }
 
   let fnsBy = groupByModule results.fns
   let typesBy =

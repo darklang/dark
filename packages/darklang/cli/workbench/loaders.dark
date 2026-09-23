@@ -9,6 +9,8 @@ let modulePathOf (location: Packages.PackageLocation) : List<String> =
   | Type t -> Stdlib.List.append [ t.owner ] t.modules
   | Value v -> Stdlib.List.append [ v.owner ] v.modules
   | Function f -> Stdlib.List.append [ f.owner ] f.modules
+  | Trait t -> Stdlib.List.append [ t.owner ] t.modules
+  | Impl i -> Stdlib.List.append [ i.owner ] i.modules
 
 /// A one-line, clipped rendering of a value's body for the row description:
 /// `"hello"`, `[1, 2, 3]`. First line only, and no more than `width`
@@ -93,7 +95,27 @@ let moduleRows
           kind = "fn"
           isModule = false
           desc = descOf signature })
-  Stdlib.List.flatten [ moduleItems, typeItems, valItems, fnItems ]
+  let traitItems =
+    results.traits
+    |> Stdlib.List.map (fun t ->
+      let shape (_u: Unit) : String =
+        "trait · " ++ (Stdlib.Int.toString (Stdlib.List.length t.entity.methods)) ++ " methods"
+      BodyItem
+        { name = t.location.name
+          kind = "trait"
+          isModule = false
+          desc = descOf shape })
+  let implItems =
+    results.impls
+    |> Stdlib.List.map (fun i ->
+      let shape (_u: Unit) : String =
+        "impl for " ++ (typeRef i.entity.self)
+      BodyItem
+        { name = i.location.name
+          kind = "impl"
+          isModule = false
+          desc = descOf shape })
+  Stdlib.List.flatten [ moduleItems, typeItems, traitItems, valItems, fnItems, implItems ]
 
 /// How many names the draft touches -- the same number the Changes list shows.
 ///
@@ -112,6 +134,8 @@ let changeIcon (kind: String) : String =
   if kind == "fn" then "ƒ"
   else if kind == "type" then "◇"
   else if kind == "value" then "▪"
+  else if kind == "trait" then "◇"
+  else if kind == "impl" then "◆"
   else if kind == "conflict" then "⚠"
   else if kind == "removed" then "✕"
   else "·"
@@ -390,6 +414,14 @@ let changesSourceText (branchId: Uuid) (row: Stdlib.Option.Option<BodyItem>) : S
         match results.values with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
         | [] -> "(not found)"
+      else if kind == "trait" then
+        match results.traits with
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageTrait ctx i.entity
+        | [] -> "(not found)"
+      else if kind == "impl" then
+        match results.impls with
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageImpl ctx i.entity
+        | [] -> "(not found)"
       else
         match results.fns with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
@@ -424,7 +456,9 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
   Stdlib.List.flatten
     [ r.types |> Stdlib.List.map (fun i -> hit "type" i.location)
       r.values |> Stdlib.List.map (fun i -> hit "val " i.location)
-      r.fns |> Stdlib.List.map (fun i -> hit "fn  " i.location) ]
+      r.fns |> Stdlib.List.map (fun i -> hit "fn  " i.location)
+      r.traits |> Stdlib.List.map (fun i -> hit "trait" i.location)
+      r.impls |> Stdlib.List.map (fun i -> hit "impl" i.location) ]
   |> Stdlib.List.sortBy rank
 
 /// Dependencies of the selected Tree leaf (what it uses), formatted for the reader. `d` shows this.
@@ -451,6 +485,10 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
       results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
     else if item.kind == "type" then
       results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Type))
+    else if item.kind == "trait" then
+      results.traits |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Trait))
+    else if item.kind == "impl" then
+      results.impls |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.TraitImpl))
     else
       results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
   match picked with

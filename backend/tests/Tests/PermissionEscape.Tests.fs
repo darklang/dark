@@ -233,7 +233,8 @@ let testUnapprovedPackageFnInValueBodyIsRefused =
         returnType = PT.TInt
         body = clockCall
         description = ""
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
     let! (_ : int64) =
       Inserts.insertAndApplyOpsAsWip
         [ PT.PackageOp.AddFn clockFn

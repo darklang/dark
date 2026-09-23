@@ -90,6 +90,8 @@ let itemKindOf
   match itemType with
   | "type" -> LanguageTools.ProgramTypes.ItemKind.Type
   | "value" -> LanguageTools.ProgramTypes.ItemKind.Value
+  | "trait" -> LanguageTools.ProgramTypes.ItemKind.Trait
+  | "impl" -> LanguageTools.ProgramTypes.ItemKind.TraitImpl
   | _ -> LanguageTools.ProgramTypes.ItemKind.Fn
 
 let locationOf

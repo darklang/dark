@@ -41,6 +41,12 @@ return annotations:
   ()     # value
   Unit   # type
 
+## Traits (docs traits)
+  trait Area<'a> = let area (s: 'a) : Float
+  impl Area for Circle = let area (c: Circle) : Float = ...
+  impl ToString for Point = let toString (p: Point) : String = ...
+  let f<'a: ToString> (v: 'a) : String = v.toString
+
 ## Printing multiple lines
   // When printing 3+ lines, prefer printLines over repeated printLine:
   [ "line 1"

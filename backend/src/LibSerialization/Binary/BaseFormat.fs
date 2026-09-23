@@ -7,8 +7,16 @@ open System
 /// the wild (pre-v1 stores were rebuilt from `.dark` source each build). Bump on every
 /// wire-layout change, keeping a readV1 beside the new writer: from here, stores
 /// cannot be rebuilt from text.
+/// v2 (traits, 2026-09): `bounds` on PackageFn and TypeDeclaration, `FQFnName.TraitMethod`
+/// tag 2. Readers dispatch on the blob version; v1 blobs read with `bounds = []`.
+/// v3 (traits, 2026-09): `Trait` and `TraitImpl` items, `AddTrait`/`AddTraitImpl` op tags 15
+/// and 16, `Reference` tags 3 and 4. Nothing existing changed layout; a v2 blob reads as is.
 [<Literal>]
-let CurrentVersion = 1u
+let CurrentVersion = 3u
+
+/// The oldest version this binary still reads.
+[<Literal>]
+let OldestReadableVersion = 1u
 
 /// Binary file header structure (8 bytes)
 type BinaryHeader =
@@ -43,8 +51,9 @@ module Varint =
 
 module Validation =
   let validateVersion (version : uint32) =
-    // Reject formats from other versions rather than guessing how to parse them.
-    if version <> CurrentVersion then
+    // Reject formats we cannot read rather than guessing how to parse them. Anything from
+    // OldestReadableVersion up to CurrentVersion has a reader.
+    if version < OldestReadableVersion || version > CurrentVersion then
       raise (BinaryFormatException(UnsupportedVersion version))
 
   let validateDataLength (expected : uint32) (actual : uint32) =

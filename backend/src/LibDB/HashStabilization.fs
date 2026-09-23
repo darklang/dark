@@ -22,7 +22,16 @@ open LibSerialization.Hashing
 type Input =
   { types : Map<string, PT.PackageType.PackageType * Hash * PT.PackageLocation>
     fns : Map<string, PT.PackageFn.PackageFn * Hash * PT.PackageLocation>
-    values : Map<string, PT.PackageValue.PackageValue * Hash * PT.PackageLocation> }
+    values : Map<string, PT.PackageValue.PackageValue * Hash * PT.PackageLocation>
+    traits : Map<string, PT.Trait.Trait * Hash * PT.PackageLocation>
+    impls : Map<string, PT.TraitImpl.TraitImpl * Hash * PT.PackageLocation> }
+
+let emptyInput : Input =
+  { types = Map.empty
+    fns = Map.empty
+    values = Map.empty
+    traits = Map.empty
+    impls = Map.empty }
 
 
 /// Result of `stabilize`. Callers apply `mapping` to item ASTs and stamp
@@ -48,6 +57,8 @@ let private iterItems
   input.types |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
   input.fns |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
   input.values |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
+  input.traits |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
+  input.impls |> Map.iter (fun fqn (_, h, loc) -> f fqn h loc)
 
 
 /// Extract deps for one item by FQN.
@@ -60,7 +71,13 @@ let private depsOfItem (input : Input) (fqn : string) : List<DE.Dependency> =
     | None ->
       match Map.tryFind fqn input.values with
       | Some(v, _, _) -> DE.extractFromValue v
-      | None -> []
+      | None ->
+        match Map.tryFind fqn input.traits with
+        | Some(t, _, _) -> DE.extractFromTrait t
+        | None ->
+          match Map.tryFind fqn input.impls with
+          | Some(i, _, _) -> DE.extractFromImpl i
+          | None -> []
 
 
 /// Project input into the shape `Hashing.computeHashesWithSCCs` expects.
@@ -80,7 +97,17 @@ let private toHashingMaps (input : Input) =
     |> Map.toSeq
     |> Seq.map (fun (fqn, (v, h, loc)) -> (fqn, (v, h, Some loc)))
     |> Map.ofSeq
-  types, fns, values
+  let traits =
+    input.traits
+    |> Map.toSeq
+    |> Seq.map (fun (fqn, (t, h, loc)) -> (fqn, (t, h, Some loc)))
+    |> Map.ofSeq
+  let impls =
+    input.impls
+    |> Map.toSeq
+    |> Seq.map (fun (fqn, (i, h, loc)) -> (fqn, (i, h, Some loc)))
+    |> Map.ofSeq
+  types, fns, values, traits, impls
 
 
 /// Run SCC-aware hashing over an interconnected batch.
@@ -92,7 +119,9 @@ let stabilize (seedMapping : AT.HashMapping) (input : Input) : Stabilization =
   let allFqns =
     [ yield! Map.keys input.types
       yield! Map.keys input.fns
-      yield! Map.keys input.values ]
+      yield! Map.keys input.values
+      yield! Map.keys input.traits
+      yield! Map.keys input.impls ]
     |> Set.ofList
 
   // Prefer location edges; they keep stale refs connected after hash changes.
@@ -122,12 +151,20 @@ let stabilize (seedMapping : AT.HashMapping) (input : Input) : Stabilization =
     |> List.collect resolveDep
     |> List.filter (fun fqn -> Set.contains fqn allFqns)
 
-  let typeMap, fnMap, valueMap = toHashingMaps input
+  let typeMap, fnMap, valueMap, traitMap, implMap = toHashingMaps input
 
   let seed : Canonical.Substitution =
     { byLocation = seedMapping.byLocation; byHash = seedMapping.byHash }
 
-  let fqnHashes = Hashing.computeHashesWithSCCs seed typeMap fnMap valueMap getDeps
+  let fqnHashes =
+    Hashing.computeHashesWithSCCs
+      seed
+      typeMap
+      fnMap
+      valueMap
+      traitMap
+      implMap
+      getDeps
 
   // Extend the caller seed with every batched item's final hash.
   let byLocation : Map<PT.PackageLocation, Hash> =
@@ -203,10 +240,14 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   let mutable typeMap = Map.empty
   let mutable fnMap = Map.empty
   let mutable valueMap = Map.empty
+  let mutable traitMap = Map.empty
+  let mutable implMap = Map.empty
 
   let mutable pendingType : Option<PT.PackageType.PackageType> = None
   let mutable pendingFn : Option<PT.PackageFn.PackageFn> = None
   let mutable pendingValue : Option<PT.PackageValue.PackageValue> = None
+  let mutable pendingTrait : Option<PT.Trait.Trait> = None
+  let mutable pendingImpl : Option<PT.TraitImpl.TraitImpl> = None
 
   for op in ops do
     match op with
@@ -231,10 +272,30 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
         valueMap <- Map.add (PackageLocation.toFQN loc) (v, hash, loc) valueMap
         pendingValue <- None
       | None -> ()
+    | PT.PackageOp.AddTrait t -> pendingTrait <- Some t
+    | PT.PackageOp.SetName(loc, PT.PackageTrait hash, _) ->
+      match pendingTrait with
+      | Some t ->
+        traitMap <- Map.add (PackageLocation.toFQN loc) (t, hash, loc) traitMap
+        pendingTrait <- None
+      | None -> ()
+    | PT.PackageOp.AddTraitImpl i -> pendingImpl <- Some i
+    | PT.PackageOp.SetName(loc, PT.PackageTraitImpl hash, _) ->
+      match pendingImpl with
+      | Some i ->
+        implMap <- Map.add (PackageLocation.toFQN loc) (i, hash, loc) implMap
+        pendingImpl <- None
+      | None -> ()
     | _ -> ()
 
   let s =
-    stabilize AT.emptyMapping { types = typeMap; fns = fnMap; values = valueMap }
+    stabilize
+      AT.emptyMapping
+      { types = typeMap
+        fns = fnMap
+        values = valueMap
+        traits = traitMap
+        impls = implMap }
 
   // Walk ops again, replacing SetName hashes with computed hashes and
   // transforming Add* bodies via the substitution. Setting `hash` on the
@@ -274,6 +335,26 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
         rest
         (PT.PackageOp.SetName(loc, PT.PackageValue newHash, previous)
          :: PT.PackageOp.AddValue transformed
+         :: acc)
+    | PT.PackageOp.AddTrait t :: PT.PackageOp.SetName(loc,
+                                                      PT.PackageTrait oldHash,
+                                                      previous) :: rest ->
+      let newHash = hashFor loc oldHash
+      let transformed = { AT.transformTrait s.mapping t with hash = newHash }
+      processOps
+        rest
+        (PT.PackageOp.SetName(loc, PT.PackageTrait newHash, previous)
+         :: PT.PackageOp.AddTrait transformed
+         :: acc)
+    | PT.PackageOp.AddTraitImpl i :: PT.PackageOp.SetName(loc,
+                                                          PT.PackageTraitImpl oldHash,
+                                                          previous) :: rest ->
+      let newHash = hashFor loc oldHash
+      let transformed = { AT.transformImpl s.mapping i with hash = newHash }
+      processOps
+        rest
+        (PT.PackageOp.SetName(loc, PT.PackageTraitImpl newHash, previous)
+         :: PT.PackageOp.AddTraitImpl transformed
          :: acc)
     | op :: rest -> processOps rest (op :: acc)
     | [] -> List.rev acc

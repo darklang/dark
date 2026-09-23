@@ -24,6 +24,17 @@ let noTestContext : RT.TestContext =
     expectedExceptionCount = 0
     postTestExecutionHook = fun _ -> () }
 
+/// `executeApplicable` is defined further down, after the VM pool it needs;
+/// `createState` reaches it through this cell, assigned once that definition exists.
+let mutable private callApplicableCell
+  : RT.ExecutionState
+      -> LibExecution.Permissions.Access
+      -> RT.Applicable
+      -> NEList<RT.Dval>
+      -> Ply<RT.ExecutionResult> =
+  fun _ _ _ _ ->
+    Exception.raiseInternal "callApplicable used before Execution initialised" []
+
 let createState
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
@@ -44,12 +55,17 @@ let createState
 
     builtins = builtins
     types = { package = pm.getType }
+    traits = { trait_ = pm.getTrait }
     values = { builtIn = builtins.values; package = pm.getValue }
     blobs = { get = pm.getBlob; persist = pm.persistBlob }
     fns =
       { builtIn = builtins.fns
         package = pm.getFn
-        isHarmful = fun pkg -> pm.isHarmful pkg }
+        isHarmful = fun pkg -> pm.isHarmful pkg
+        implCandidates = pm.implCandidates
+        implCandidatesByMethod = pm.implCandidatesByMethod
+        implSelectionMemo = pm.implSelectionMemo
+        implGeneration = pm.implGeneration }
 
     allowHarmful = false
 
@@ -72,6 +88,9 @@ let createState
     permissionWarnings = None
 
     deniedRequests = ResizeArray()
+
+    callApplicable =
+      fun st access applicable args -> callApplicableCell st access applicable args
 
     accountID = None
 
@@ -379,6 +398,9 @@ let executeApplicable
   runLoaded exeState access vm
 
 
+callApplicableCell <- executeApplicable
+
+
 /// Re-raise an error a lambda raised, keeping the frames it raised it in.
 ///
 /// A builtin applying a lambda gets `Error(rte, stack)` covering the borrowed VM;
@@ -597,6 +619,7 @@ let executionPointToString
       return $"Package Function {prettyName}"
     | RT.Function(RT.FQFnName.Builtin fnName) ->
       return $"Builtin Function {fnName.name}" // TODO actually fetch the fn, etc
+    | RT.Function(RT.FQFnName.TraitMethod(_, m)) -> return $"Trait Method {m}"
     | RT.Lambda(_parent, exprId) -> return ("Lambda " + string exprId)
   }
 

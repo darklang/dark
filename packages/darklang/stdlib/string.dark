@@ -552,3 +552,13 @@ let head (str: String) : Option.Option<Char> =
 /// byte), or {{None}} if <param index> is negative or past the end.
 let charAt (str: String) (index: Int) : Option.Option<Char> =
   str |> String.toList |> List.getAt index
+
+
+/// A String is already text
+impl ToString for String =
+  let toString (s: String) : String = s
+
+
+/// `"a" + "b"` is `"ab"`, the same as `++`
+impl Add for String =
+  let add = Stdlib.String.append

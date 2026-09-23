@@ -1,0 +1,84 @@
+module Darklang.Cli.Packages.Impls
+
+// `impls <Trait>`: every implementation of a trait bound on the current branch, as
+// dispatch sees them.
+//
+// Reads the same candidates the interpreter does (`Trait.impls`), so what this
+// lists is what a call can reach.
+
+let describeSelf (branchId: Uuid) (self: LanguageTools.RuntimeTypes.TypeReference) : String =
+  PrettyPrinter.RuntimeTypes.typeReference branchId self
+
+let traitHashAt
+  (branchId: Uuid)
+  (currentLocation: Packages.PackageLocation)
+  (traitPath: String)
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
+  match Traversal.traverse branchId currentLocation traitPath with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok(Trait loc) ->
+    match LanguageTools.PackageManager.Trait.find branchId loc with
+    | Some h -> Stdlib.Result.Result.Ok h
+    | None -> Stdlib.Result.Result.Error $"Trait not found: {traitPath}"
+  | Ok _ -> Stdlib.Result.Result.Error $"{traitPath} is not a trait."
+
+/// The trait as written, then under `Stdlib.` (the operator traits are what
+/// most people ask about, and `impls Add` should just work).
+let resolveTrait
+  (state: Cli.AppState)
+  (traitPath: String)
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
+  match traitHashAt state.currentBranchId state.packageData.currentLocation traitPath with
+  | Ok h -> Stdlib.Result.Result.Ok h
+  | Error msg ->
+    if Stdlib.String.startsWith traitPath "Stdlib." || Stdlib.String.startsWith traitPath "Darklang." then
+      Stdlib.Result.Result.Error msg
+    else
+      match traitHashAt state.currentBranchId state.packageData.currentLocation $"Stdlib.{traitPath}" with
+      | Ok h -> Stdlib.Result.Result.Ok h
+      | Error _ -> Stdlib.Result.Result.Error msg
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [ traitPath ] ->
+    match resolveTrait state traitPath with
+    | Error msg ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
+      state
+    | Ok traitHash ->
+      let candidates = LanguageTools.PackageManager.Trait.impls state.currentBranchId traitHash
+      if Stdlib.List.isEmpty candidates then
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"No implementations of {traitPath} on this branch")
+      else
+        candidates
+        |> Stdlib.List.iter (fun c ->
+          let locToString (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+            Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
+          let sourceName =
+            match LanguageTools.PackageManager.TraitImpl.locations state.currentBranchId c.source with
+            | loc :: _ -> locToString loc
+            | [] -> LanguageTools.ProgramTypes.hashToShort c.source
+          let methods =
+            c.methods |> Stdlib.Dict.keys |> Stdlib.String.join ", "
+          Stdlib.printLine
+            $"impl {traitPath} for {describeSelf state.currentBranchId c.self}    ({methods})  {Stdlib.Cli.UI.Colors.dimText sourceName}")
+      state
+  | _ ->
+    Stdlib.printLine "Usage: impls <trait-path>"
+    state
+
+
+let help (_state: Cli.AppState) : String =
+  [ "List the implementations of a trait that are bound on the current branch."
+    ""
+    "Usage: impls <trait-path>"
+    ""
+    "Each line is one implementation, the type it is for, its methods, and where it lives." ]
+  |> Stdlib.String.join "\n"
+
+
+let complete
+  (_state: Cli.AppState)
+  (_args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  []

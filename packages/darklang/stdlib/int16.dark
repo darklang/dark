@@ -221,3 +221,53 @@ let shiftLeft (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftLeft a b
 
 /// Bitwise right shift of an <type Int16> value
 let shiftRight (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftRight a b
+
+
+
+// The operator traits, over the fns above.
+
+impl Add for Int16 =
+  let add = Stdlib.Int16.add
+
+
+impl Sub for Int16 =
+  let subtract = Stdlib.Int16.subtract
+
+
+impl Mul for Int16 =
+  let multiply = Stdlib.Int16.multiply
+
+
+impl Div for Int16 =
+  let divide = Stdlib.Int16.divide
+
+
+impl Mod for Int16 =
+  let modulo = Stdlib.Int16.``mod``
+
+
+impl Pow for Int16 =
+  let power = Stdlib.Int16.power
+
+
+impl Neg for Int16 =
+  let negate = Stdlib.Int16.negate
+
+
+impl Ord for Int16 =
+  let lessThan = Stdlib.Int16.lessThan
+  let lessThanOrEqualTo = Stdlib.Int16.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int16.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int16.greaterThanOrEqualTo
+
+
+impl ToString for Int16 =
+  let toString = Stdlib.Int16.toString
+
+
+impl Zero for Int16 =
+  let zero () : Int16 = 0s
+
+
+impl One for Int16 =
+  let one () : Int16 = 1s

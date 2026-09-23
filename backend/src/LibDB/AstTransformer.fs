@@ -64,6 +64,34 @@ let private transformNameResolution
     | None -> nr
   | Error _ -> nr
 
+/// A fn name in an expression. A trait method names the trait, so its hash moves
+/// with the trait's; a package fn moves through the fn mapping.
+let private transformFnName
+  (mapping : HashMapping)
+  (nr : PT.NameResolution<PT.FQFnName.FQFnName>)
+  : PT.NameResolution<PT.FQFnName.FQFnName> =
+  match nr.resolved with
+  | Ok { name = PT.FQFnName.TraitMethod(traitHash, methodName); location = loc } ->
+    let asTrait : PT.NameResolution<PT.FQTraitName.FQTraitName> =
+      { originalName = nr.originalName
+        resolved = Ok { name = PT.FQTraitName.Package traitHash; location = loc } }
+    let moved =
+      transformNameResolution
+        mapping
+        asTrait
+        PT.FQTraitName.Package
+        PackageItem.traitPackageHash
+    match moved.resolved with
+    | Ok { name = PT.FQTraitName.Package newHash; location = newLoc } ->
+      { nr with
+          resolved =
+            Ok
+              { name = PT.FQFnName.TraitMethod(newHash, methodName)
+                location = newLoc } }
+    | Error _ -> nr
+  | _ ->
+    transformNameResolution mapping nr PT.FQFnName.Package PackageItem.fnPackageHash
+
 let rec private transformTypeRef
   (mapping : HashMapping)
   (typeRef : PT.TypeReference)
@@ -151,11 +179,7 @@ and private transformPipeExpr
   | PT.EPipeFnCall(id, nr, typeArgs, args) ->
     PT.EPipeFnCall(
       id,
-      transformNameResolution
-        mapping
-        nr
-        PT.FQFnName.Package
-        PackageItem.fnPackageHash,
+      transformFnName mapping nr,
       typeArgs |> List.map (transformTypeRef mapping),
       args |> List.map (transformExpr mapping)
     )
@@ -245,15 +269,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
       args |> NEList.map (transformExpr mapping)
     )
 
-  | PT.EFnName(id, nr) ->
-    PT.EFnName(
-      id,
-      transformNameResolution
-        mapping
-        nr
-        PT.FQFnName.Package
-        PackageItem.fnPackageHash
-    )
+  | PT.EFnName(id, nr) -> PT.EFnName(id, transformFnName mapping nr)
 
   | PT.ELambda(id, pats, body) -> PT.ELambda(id, pats, transformExpr mapping body)
 
@@ -308,6 +324,21 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EStatement(id, first, next) ->
     PT.EStatement(id, transformExpr mapping first, transformExpr mapping next)
 
+let private transformTraitRef
+  (mapping : HashMapping)
+  (t : PT.TraitRef)
+  : PT.TraitRef =
+  { trait_ =
+      transformNameResolution
+        mapping
+        t.trait_
+        PT.FQTraitName.Package
+        PackageItem.traitPackageHash
+    typeArgs = t.typeArgs |> List.map (transformTypeRef mapping) }
+
+let private transformBound (mapping : HashMapping) (b : PT.Bound) : PT.Bound =
+  { b with trait_ = transformTraitRef mapping b.trait_ }
+
 let transformFn
   (mapping : HashMapping)
   (fn : PT.PackageFn.PackageFn)
@@ -317,7 +348,8 @@ let transformFn
       parameters =
         fn.parameters
         |> NEList.map (fun p -> { p with typ = transformTypeRef mapping p.typ })
-      returnType = transformTypeRef mapping fn.returnType }
+      returnType = transformTypeRef mapping fn.returnType
+      bounds = fn.bounds |> List.map (transformBound mapping) }
 
 let transformValue
   (mapping : HashMapping)
@@ -355,4 +387,32 @@ let transformType
   { typ with
       declaration =
         { typ.declaration with
-            definition = transformTypeDefinition mapping typ.declaration.definition } }
+            definition = transformTypeDefinition mapping typ.declaration.definition
+            bounds = typ.declaration.bounds |> List.map (transformBound mapping) } }
+
+let transformTrait (mapping : HashMapping) (t : PT.Trait.Trait) : PT.Trait.Trait =
+  { t with
+      bounds = t.bounds |> List.map (transformBound mapping)
+      methods =
+        t.methods
+        |> NEList.map (fun m ->
+          { m with
+              parameters =
+                m.parameters
+                |> NEList.map (fun p ->
+                  { p with typ = transformTypeRef mapping p.typ })
+              returnType = transformTypeRef mapping m.returnType }) }
+
+let transformImpl
+  (mapping : HashMapping)
+  (i : PT.TraitImpl.TraitImpl)
+  : PT.TraitImpl.TraitImpl =
+  let traitRef =
+    transformTraitRef mapping { trait_ = i.trait_; typeArgs = i.traitTypeArgs }
+  { i with
+      trait_ = traitRef.trait_
+      traitTypeArgs = traitRef.typeArgs
+      self = transformTypeRef mapping i.self
+      bounds = i.bounds |> List.map (transformBound mapping)
+      methods =
+        i.methods |> List.map (fun (m, nr) -> (m, transformFnName mapping nr)) }

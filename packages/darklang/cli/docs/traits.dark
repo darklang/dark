@@ -1,0 +1,101 @@
+module Darklang.Cli.Docs.Traits
+
+let content () : String =
+  """# Traits
+
+A trait names one or more fns over one open type. An implementation says how one
+type does them. A call picks the implementation by the type of the value it is
+given. The stdlib traits are the operators (`+` is `Add`, `==` is `Eq`) and
+`ToString`, so every builtin type already has implementations; yours join with
+one `impl`.
+
+## Implement a trait that exists
+  type Point = { x: Int64; y: Int64 }
+
+  impl ToString for Point =
+    let toString (p: Point) : String =
+      $"({Stdlib.Int64.toString p.x}, {Stdlib.Int64.toString p.y})"
+
+  impl Add for Point =
+    let add (a: Point) (b: Point) : Point =
+      Point { x = a.x + b.x; y = a.y + b.y }
+
+  let p = Point { x = 1L; y = 2L }
+  ToString.toString p          # "(1, 2)"
+  p.toString                   # the same call, receiver first
+  p + p                        # Point { x = 2L; y = 4L }
+
+  A member can name a fn that already exists instead of declaring one:
+    impl ToString for Int64 =
+      let toString = Stdlib.Int64.toString
+
+## Declare your own
+  trait Area<'a> =
+    let area (shape: 'a) : Float
+
+  impl Area for Circle =
+    let area (c: Circle) : Float = 3.14159 * c.r * c.r
+
+  impl<'a: Area> Area for List<'a> =     # conditional: needs Area for the element
+    let area (xs: List<'a>) : Float =
+      Stdlib.sum 0.0 (Stdlib.List.map xs (fun s -> Area.area s))
+
+  The first type parameter is the type an implementation is for. A method may
+  carry an effect row (`let fetch (u: 'a) :{Http} String`); every
+  implementation must fit under it.
+
+## Bound a type parameter
+  let describe<'a: ToString> (v: 'a) : String = "value: " ++ v.toString
+  let biggest<'a: Ord + ToString> (xs: List<'a>) : String = ...
+
+  `'a: ToString` means "any type with a ToString implementation". It is checked
+  when the fn is entered, against the caller's actual type, and statically by
+  the checker (`MissingImpl`, `AmbiguousImpl`, `UnboundTypeParameter`).
+
+## Where they live
+  A trait is a package item like a type or a fn: `Stdlib.ToString`. An
+  implementation is one too, named for the type and the trait under the
+  module it was written in: `impl ToString for Point` inside `Acme` is
+  `Acme.Point.ToString`, and its method fn is `Acme.Point.ToString.toString`.
+
+    dark ls Acme               # Traits and Implementations sections
+    dark view Stdlib.ToString  # prints the trait back
+    dark view Acme.Point.ToString
+    dark impls ToString        # every implementation, as dispatch sees them
+    dark search Area --trait   # --impl for implementations
+
+  Author from the shell like `fn` and `type`; an impl's path is the module it
+  is written in:
+    dark trait Acme.Area "<'a> = let area (shape: 'a) : Float"
+    dark impl Acme "Area for Circle = let area (c: Circle) : Float = ..."
+
+  A bare trait name (`Area`, `Add`) resolves from your module outward, then as
+  `Stdlib.<name>`; write the full path when two traits share a name.
+
+## The stdlib traits
+  Add Sub Mul Div Mod Pow Neg    the operators `+ - * / % **` and `-x`
+  Ord                            `< <= > >=`; also `Stdlib.max`, `min`, `clamp`
+  Eq                             `==` and `!=`; structural unless implemented
+  ToString                       `x.toString`, `Stdlib.toString x`
+  Zero, One                      `Zero.zero<Int64> ()`; `Stdlib.sum seed xs`,
+                                 `product seed xs` take a seed so `[]` never asks
+
+  Every builtin numeric type implements the operators; String implements Add
+  (`"a" + "b"`) and ToString. `==` compares every value structurally unless its
+  type implements `Eq`; builtin types are never overridden, and `List.sort`,
+  dict keys and the walk inside a container stay structural. `docs operators`
+  has the operator table.
+
+## Two implementations for one type
+  An implementation is visible where its name is bound (main, or your branch).
+  Two visible ones for one trait and type is an ambiguity: the call says so,
+  `dark constraints` keeps it as a finding, and deprecating one resolves it
+  (a deprecated implementation is not dispatched to). Two traits with the same
+  methods and shapes are one trait, whatever they are named.
+
+## Errors
+  No implementation of Stdlib.Add for Bool    # write `impl Add for Bool = ...`
+  More than one implementation of ...         # `dark impls <Trait>` lists them
+  Cannot tell which type to dispatch Zero.zero on   # no argument carries the
+                                              # type: `Zero.zero<Int64> ()`
+  Cannot perform numeric operation on Int64 and Float   # operands must match"""

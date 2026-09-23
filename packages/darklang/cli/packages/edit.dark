@@ -38,6 +38,8 @@ let itemLocation
   | Type loc -> Stdlib.Option.Option.Some loc
   | Value loc -> Stdlib.Option.Option.Some loc
   | Function loc -> Stdlib.Option.Option.Some loc
+  | Trait loc -> Stdlib.Option.Option.Some loc
+  | Impl loc -> Stdlib.Option.Option.Some loc
 
 
 /// Hand the file to `dark module`, which validates and applies it.

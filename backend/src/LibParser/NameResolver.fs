@@ -193,6 +193,46 @@ let resolveTypeName
 
 
 
+/// A trait name, resolved like a type name (`namesToTry` from the current module),
+/// and then, for a bare name, as a stdlib trait: `impl Add for Point` in any module
+/// means `Stdlib.Add` unless something closer is called Add. The operator traits are
+/// the ones people write impls for, and `Stdlib.Add` in every user script would be
+/// noise. (The Dark resolver, `TraitName.resolve`, has the same rule.)
+let resolveTraitName
+  (packageManager : PT.PackageManager)
+  (onMissing : OnMissing)
+  (currentModule : List<string>)
+  (name : WT.Name)
+  : Ply<PT.NameResolution<PT.FQTraitName.FQTraitName>> =
+  let warning = "Builtin traits don't exist"
+  match name with
+  | WT.KnownBuiltin(_name, _version) -> Exception.raiseInternal warning []
+  | WT.Unresolved given ->
+    let parseTypeName name = parseTypeNameString name |> Result.map (fun n -> (n, 0))
+    let resolve onMissing given =
+      resolveGenericName
+        None
+        onMissing
+        currentModule
+        given
+        parseTypeName
+        packageManager.findTrait
+        PT.FQTraitName.FQTraitName.Package
+        (fun _ -> Exception.raiseInternal warning [])
+        (fun _ -> Exception.raiseInternal warning [])
+    uply {
+      match given with
+      | { head = bare; tail = [] } ->
+        match! resolve OnMissing.Allow given with
+        | { resolved = Error NRE.NotFound } ->
+          let! viaStdlib = resolve onMissing (NEList.ofList "Stdlib" [ bare ])
+          // Keep the name as written, so an error names what the author typed
+          return { viaStdlib with originalName = [ bare ] }
+        | direct -> return direct
+      | _ -> return! resolve onMissing given
+    }
+
+
 let resolveValueName
   (builtins : Set<RT.FQValueName.Builtin>)
   (packageManager : PT.PackageManager)
@@ -221,6 +261,53 @@ let resolveValueName
       (fun (n, v) -> { RT.FQValueName.Builtin.name = n; version = v })
 
 
+/// `Show.show`: the module path names a trait with a method `show`. Then the name is
+/// a trait method, dispatched at runtime. The trait resolves exactly like a type
+/// reference would (`namesToTry` from the current module), so `Stdlib.Show.show`,
+/// `Show.show` inside stdlib, and a user's own `Acme.Show.show` all work.
+let private resolveTraitMethod
+  (packageManager : PT.PackageManager)
+  (currentModule : List<string>)
+  (given : NEList<string>)
+  : Ply<Option<PT.NameResolution<PT.FQFnName.FQFnName>>> =
+  uply {
+    let (modules, methodName) = NEList.splitLast given
+    match List.tryLast modules with
+    | None -> return None
+    | Some traitName when not (System.Char.IsUpper traitName[0]) -> return None
+    | Some traitName ->
+      // One cached set answers "is any trait called that?" before the per-scope
+      // location lookups, which for `Stdlib.List.map` would all be misses.
+      let! traitNames = packageManager.traitNames ()
+      if not (traitNames.Contains traitName) then
+        return None
+      else
+
+        let traitGiven = NEList.ofListUnsafe "resolveTraitMethod" [] modules
+        let! traitNR =
+          resolveTraitName
+            packageManager
+            OnMissing.Allow
+            currentModule
+            (WT.Unresolved traitGiven)
+        match traitNR.resolved with
+        | Error _ -> return None
+        | Ok { name = PT.FQTraitName.Package traitHash; location = loc } ->
+          match! packageManager.getTrait traitHash with
+          | Some t when
+            t.methods |> NEList.toList |> List.exists (fun m -> m.name = methodName)
+            ->
+            return
+              Some
+                { originalName = NEList.toList given
+                  resolved =
+                    Ok
+                      { name = PT.FQFnName.TraitMethod(traitHash, methodName)
+                        location = loc } }
+          | _ -> return None
+  }
+
+
 let resolveFnName
   (builtinFns : Set<RT.FQFnName.Builtin>)
   (packageManager : PT.PackageManager)
@@ -236,13 +323,25 @@ let resolveFnName
       : PT.NameResolution<_>
     )
   | WT.Unresolved given ->
-    resolveGenericName
-      (Some builtinFns)
-      onMissing
-      currentModule
-      given
-      parseFnNameString
-      packageManager.findFn
-      PT.FQFnName.FQFnName.Package
-      (fun (n, v) -> PT.FQFnName.Builtin { name = n; version = v })
-      (fun (n, v) -> { RT.FQFnName.Builtin.name = n; version = v })
+    uply {
+      // The trait method wins when the path names a trait: inside `impl Show for
+      // List<'a>`, whose members live under `List.Show`, a bare `Show.show` would
+      // otherwise find the impl's own method (`...List.Show.show`) and recurse on
+      // the whole list instead of dispatching on the element. The impl's method
+      // is still reachable by its longer name (`List.Show.show`).
+      let! asTraitMethod = resolveTraitMethod packageManager currentModule given
+      match asTraitMethod with
+      | Some nr -> return nr
+      | None ->
+        return!
+          resolveGenericName
+            (Some builtinFns)
+            onMissing
+            currentModule
+            given
+            parseFnNameString
+            packageManager.findFn
+            PT.FQFnName.FQFnName.Package
+            (fun (n, v) -> PT.FQFnName.Builtin { name = n; version = v })
+            (fun (n, v) -> { RT.FQFnName.Builtin.name = n; version = v })
+    }

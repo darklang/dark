@@ -111,6 +111,10 @@ let fns () : List<BuiltInFn> =
           |> ignore<System.Text.StringBuilder>
           sb.Append($",\"framePushes\":{s.framePushCount}")
           |> ignore<System.Text.StringBuilder>
+          sb.Append($",\"traitDispatches\":{s.traitDispatchCount}")
+          |> ignore<System.Text.StringBuilder>
+          sb.Append($",\"traitDispatchMisses\":{s.traitDispatchMissCount}")
+          |> ignore<System.Text.StringBuilder>
           let dtStr = if s.detailedTiming then "true" else "false"
           sb.Append($",\"detailedTiming\":{dtStr}")
           |> ignore<System.Text.StringBuilder>

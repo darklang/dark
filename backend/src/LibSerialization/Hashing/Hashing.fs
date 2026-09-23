@@ -302,9 +302,15 @@ module Hashing =
     : Hash =
     hashWithWriter (fun w -> Canonical.writeValue mode w (normalizeValue v))
 
+  let computeTraitHash (mode : HashRefMode) (t : PT.Trait.Trait) : Hash =
+    hashWithWriter (fun w -> Canonical.writeTrait mode w t)
+
+  let computeImplHash (mode : HashRefMode) (i : PT.TraitImpl.TraitImpl) : Hash =
+    hashWithWriter (fun w -> Canonical.writeImpl mode w i)
+
 
   /// The id of the `Add*` op that adds content <param hash> of kind <param tag> (0 fn, 1 type,
-  /// 2 value). Computable from the hash alone, which is what lets a branch bundle find the Add for a
+  /// 2 value, 3 trait, 4 impl). Computable from the hash alone, which is what lets a branch bundle find the Add for a
   /// name it binds without decoding every op in the log.
   let contentOpHash (tag : byte) (Hash h : Hash) : Hash =
     hashWithWriter (fun w ->
@@ -329,6 +335,8 @@ module Hashing =
     | PT.PackageOp.AddFn f when f.hash <> Hash "" -> contentOpHash 0uy f.hash
     | PT.PackageOp.AddType t when t.hash <> Hash "" -> contentOpHash 1uy t.hash
     | PT.PackageOp.AddValue v when v.hash <> Hash "" -> contentOpHash 2uy v.hash
+    | PT.PackageOp.AddTrait t when t.hash <> Hash "" -> contentOpHash 3uy t.hash
+    | PT.PackageOp.AddTraitImpl i when i.hash <> Hash "" -> contentOpHash 4uy i.hash
     | _ ->
       hashWithWriter (fun w ->
         LibSerialization.Binary.Serializers.PT.PackageOp.write w op)
@@ -427,30 +435,40 @@ module Hashing =
       string *
       Hash *
       Option<PT.PackageLocation>
+    | TraitItem of PT.Trait.Trait * string * Hash * Option<PT.PackageLocation>
+    | ImplItem of PT.TraitImpl.TraitImpl * string * Hash * Option<PT.PackageLocation>
 
   let private getItemFQN (item : ItemInfo) : string =
     match item with
     | TypeItem(_, fqn, _, _) -> fqn
     | FnItem(_, fqn, _, _) -> fqn
     | ValueItem(_, fqn, _, _) -> fqn
+    | TraitItem(_, fqn, _, _) -> fqn
+    | ImplItem(_, fqn, _, _) -> fqn
 
   let private getItemOldHash (item : ItemInfo) : Hash =
     match item with
     | TypeItem(_, _, h, _) -> h
     | FnItem(_, _, h, _) -> h
     | ValueItem(_, _, h, _) -> h
+    | TraitItem(_, _, h, _) -> h
+    | ImplItem(_, _, h, _) -> h
 
   let private getItemLocation (item : ItemInfo) : Option<PT.PackageLocation> =
     match item with
     | TypeItem(_, _, _, loc) -> loc
     | FnItem(_, _, _, loc) -> loc
     | ValueItem(_, _, _, loc) -> loc
+    | TraitItem(_, _, _, loc) -> loc
+    | ImplItem(_, _, _, loc) -> loc
 
   let private computeItemHash (mode : HashRefMode) (item : ItemInfo) : Hash =
     match item with
     | TypeItem(t, _, _, _) -> computeTypeHash mode t
     | FnItem(fn, _, _, _) -> computeFnHash mode fn
     | ValueItem(v, _, _, _) -> computeValueHash mode v
+    | TraitItem(t, _, _, _) -> computeTraitHash mode t
+    | ImplItem(i, _, _, _) -> computeImplHash mode i
 
   let private serializeItemBytes
     (mode : Canonical.HashRefMode)
@@ -464,6 +482,8 @@ module Hashing =
     | TypeItem(t, _, _, _) -> Canonical.writeType mode w t
     | FnItem(fn, _, _, _) -> Canonical.writeFn mode w (normalizeFn fn)
     | ValueItem(v, _, _, _) -> Canonical.writeValue mode w (normalizeValue v)
+    | TraitItem(t, _, _, _) -> Canonical.writeTrait mode w t
+    | ImplItem(i, _, _, _) -> Canonical.writeImpl mode w i
     ms.ToArray()
 
 
@@ -484,6 +504,8 @@ module Hashing =
     (fns : Map<string, PT.PackageFn.PackageFn * Hash * Option<PT.PackageLocation>>)
     (values :
       Map<string, PT.PackageValue.PackageValue * Hash * Option<PT.PackageLocation>>)
+    (traits : Map<string, PT.Trait.Trait * Hash * Option<PT.PackageLocation>>)
+    (impls : Map<string, PT.TraitImpl.TraitImpl * Hash * Option<PT.PackageLocation>>)
     (getDeps : string -> List<string>)
     : Map<string, Hash> =
 
@@ -500,6 +522,12 @@ module Hashing =
       |> Map.fold (fun acc fqn (v, oldHash, loc) ->
         Map.add fqn (ValueItem(v, fqn, oldHash, loc)) acc)
       <| values
+      |> Map.fold (fun acc fqn (t, oldHash, loc) ->
+        Map.add fqn (TraitItem(t, fqn, oldHash, loc)) acc)
+      <| traits
+      |> Map.fold (fun acc fqn (i, oldHash, loc) ->
+        Map.add fqn (ImplItem(i, fqn, oldHash, loc)) acc)
+      <| impls
 
     let allIds = items |> Map.keys |> Seq.toList
 

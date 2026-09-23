@@ -177,6 +177,9 @@ module Requirements =
               | Some found -> requiredEffects <- Set.union requiredEffects found
               | None -> incomplete ()
             | PT.FQFnName.Package package -> visit package
+            // Which impl runs is decided at runtime from the self type, so the
+            // static call graph cannot follow it. Conservative: incomplete.
+            | PT.FQFnName.TraitMethod _ -> incomplete ()
 
     visit root
 

@@ -219,3 +219,53 @@ let shiftLeft (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftLeft a b
 
 /// Bitwise right shift of an <type Int32> value
 let shiftRight (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftRight a b
+
+
+
+// The operator traits, over the fns above.
+
+impl Add for Int32 =
+  let add = Stdlib.Int32.add
+
+
+impl Sub for Int32 =
+  let subtract = Stdlib.Int32.subtract
+
+
+impl Mul for Int32 =
+  let multiply = Stdlib.Int32.multiply
+
+
+impl Div for Int32 =
+  let divide = Stdlib.Int32.divide
+
+
+impl Mod for Int32 =
+  let modulo = Stdlib.Int32.``mod``
+
+
+impl Pow for Int32 =
+  let power = Stdlib.Int32.power
+
+
+impl Neg for Int32 =
+  let negate = Stdlib.Int32.negate
+
+
+impl Ord for Int32 =
+  let lessThan = Stdlib.Int32.lessThan
+  let lessThanOrEqualTo = Stdlib.Int32.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int32.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int32.greaterThanOrEqualTo
+
+
+impl ToString for Int32 =
+  let toString = Stdlib.Int32.toString
+
+
+impl Zero for Int32 =
+  let zero () : Int32 = 0l
+
+
+impl One for Int32 =
+  let one () : Int32 = 1l

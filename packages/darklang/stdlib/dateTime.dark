@@ -134,3 +134,7 @@ let millisecond (date: DateTime) : Int =
 /// Returns the difference of the two dates, in milliseconds
 let subtractMs (d1: DateTime) (d2: DateTime) : Int =
   Builtin.dateTimeSubtractMs d1 d2
+
+
+impl ToString for DateTime =
+  let toString = Stdlib.DateTime.toString

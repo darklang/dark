@@ -23,10 +23,16 @@ module Dependencies = LibDB.DependencyExtractor
 type private Closure =
   { types : Map<PT.Hash, PT.PackageType.PackageType>
     values : Map<PT.Hash, PT.PackageValue.PackageValue>
-    functions : Map<PT.Hash, PT.PackageFn.PackageFn> }
+    functions : Map<PT.Hash, PT.PackageFn.PackageFn>
+    traits : Map<PT.Hash, PT.Trait.Trait>
+    impls : Map<PT.Hash, PT.TraitImpl.TraitImpl> }
 
 let private emptyClosure : Closure =
-  { types = Map.empty; values = Map.empty; functions = Map.empty }
+  { types = Map.empty
+    values = Map.empty
+    functions = Map.empty
+    traits = Map.empty
+    impls = Map.empty }
 
 let private referenceOfDependency
   (dependency : Dependencies.Dependency)
@@ -49,6 +55,12 @@ let private candidateItems
       | PT.PackageOp.AddFn fn ->
         (PT.Reference.PackageFn fn.hash :: items,
          { closure with functions = Map.add fn.hash fn closure.functions })
+      | PT.PackageOp.AddTrait t ->
+        (PT.Reference.PackageTrait t.hash :: items,
+         { closure with traits = Map.add t.hash t closure.traits })
+      | PT.PackageOp.AddTraitImpl i ->
+        (PT.Reference.PackageTraitImpl i.hash :: items,
+         { closure with impls = Map.add i.hash i closure.impls })
       | PT.PackageOp.SetName _
       | PT.PackageOp.Unbind _
       | PT.PackageOp.Deprecate _
@@ -72,6 +84,14 @@ let private candidateDependencies (closure : Closure) : List<PT.Reference> =
       closure.functions.Values
       |> Seq.collect Dependencies.extractFromFn
       |> Seq.map referenceOfDependency
+      |> Seq.toList
+      closure.traits.Values
+      |> Seq.collect Dependencies.extractFromTrait
+      |> Seq.map referenceOfDependency
+      |> Seq.toList
+      closure.impls.Values
+      |> Seq.collect Dependencies.extractFromImpl
+      |> Seq.map referenceOfDependency
       |> Seq.toList ]
 
 let private loadDependencyClosure
@@ -86,7 +106,9 @@ let private loadDependencyClosure
       Set.unionMany
         [ candidates.types.Keys |> Seq.map PT.Reference.PackageType |> Set.ofSeq
           candidates.values.Keys |> Seq.map PT.Reference.PackageValue |> Set.ofSeq
-          candidates.functions.Keys |> Seq.map PT.Reference.PackageFn |> Set.ofSeq ]
+          candidates.functions.Keys |> Seq.map PT.Reference.PackageFn |> Set.ofSeq
+          candidates.traits.Keys |> Seq.map PT.Reference.PackageTrait |> Set.ofSeq
+          candidates.impls.Keys |> Seq.map PT.Reference.PackageTraitImpl |> Set.ofSeq ]
     let mutable pending = candidateDependencies candidates
     let mutable closure = emptyClosure
 
@@ -135,6 +157,24 @@ let private loadDependencyClosure
                 @ pending
               closure <-
                 { closure with functions = Map.add fn.hash fn closure.functions }
+          | PT.Reference.PackageTrait hash ->
+            let! item = pm.getTrait hash
+            match item with
+            | None -> ()
+            | Some t ->
+              pending <-
+                (t |> Dependencies.extractFromTrait |> List.map referenceOfDependency)
+                @ pending
+              closure <- { closure with traits = Map.add t.hash t closure.traits }
+          | PT.Reference.PackageTraitImpl hash ->
+            let! item = pm.getTraitImpl hash
+            match item with
+            | None -> ()
+            | Some i ->
+              pending <-
+                (i |> Dependencies.extractFromImpl |> List.map referenceOfDependency)
+                @ pending
+              closure <- { closure with impls = Map.add i.hash i closure.impls }
 
     return closure
   }
@@ -147,6 +187,16 @@ let private addTrustedDependencyDeclarations
     dependencies.types.Values
     |> Seq.fold
       (fun environment typ -> Checker.TypeEnvironment.addPackageType typ environment)
+      environment
+  let environment =
+    dependencies.traits.Values
+    |> Seq.fold
+      (fun environment t -> Checker.TypeEnvironment.addTrait t environment)
+      environment
+  let environment =
+    dependencies.impls.Values
+    |> Seq.fold
+      (fun environment i -> Checker.TypeEnvironment.addImpl i environment)
       environment
   dependencies.functions.Values
   |> Seq.fold
@@ -200,7 +250,8 @@ let private aggregate
   (batch : Checker.BatchResult)
   : CheckReport =
   let items =
-    List.concat [ batch.types; batch.values; batch.functions ]
+    List.concat
+      [ batch.types; batch.values; batch.functions; batch.traits; batch.impls ]
     |> List.filter (fun result -> Set.contains result.item candidateRefs)
     |> List.map itemReport
 
@@ -237,6 +288,13 @@ let checkPackageOps
         |> unavailableReport
     | Ok environment ->
       let environment = addTrustedDependencyDeclarations dependencies environment
+      // Every trait the batch or its closure mentions: its stored impls are what a
+      // bound or a method call in the batch can discharge with.
+      let! environment =
+        CheckerApi.addVisibleImpls
+          pm
+          (Seq.append candidates.traits.Keys dependencies.traits.Keys)
+          environment
       let values =
         Map.fold
           (fun values hash value -> Map.add hash value values)
@@ -248,6 +306,8 @@ let checkPackageOps
           (candidates.types.Values |> Seq.toList)
           (values.Values |> Seq.toList)
           (candidates.functions.Values |> Seq.toList)
+          (candidates.traits.Values |> Seq.toList)
+          (candidates.impls.Values |> Seq.toList)
       return aggregate (Set.ofList candidateRefs) batch
   }
 
@@ -268,7 +328,10 @@ let checkBranch (pm : PT.PackageManager) (builtins : Builtins) : Ply<CheckReport
       List.concat
         [ results.types |> List.map (fun item -> PT.PackageOp.AddType item.entity)
           results.values |> List.map (fun item -> PT.PackageOp.AddValue item.entity)
-          results.fns |> List.map (fun item -> PT.PackageOp.AddFn item.entity) ]
+          results.fns |> List.map (fun item -> PT.PackageOp.AddFn item.entity)
+          results.traits |> List.map (fun item -> PT.PackageOp.AddTrait item.entity)
+          results.impls
+          |> List.map (fun item -> PT.PackageOp.AddTraitImpl item.entity) ]
     return! checkPackageOps pm builtins ops
   }
 
@@ -360,6 +423,12 @@ module private DarkTypes =
       | Checker.InvalidInfixOperand -> "InvalidInfixOperand"
       | Checker.DuplicateTypeParameter -> "DuplicateTypeParameter"
       | Checker.DuplicateTypeMember -> "DuplicateTypeMember"
+      | Checker.MissingImpl -> "MissingImpl"
+      | Checker.UnboundTypeParameter -> "UnboundTypeParameter"
+      | Checker.AmbiguousImpl -> "AmbiguousImpl"
+      | Checker.ImplMethodSet -> "ImplMethodSet"
+      | Checker.ImplMethodSignature -> "ImplMethodSignature"
+      | Checker.ImplExceedsCeiling -> "ImplExceedsCeiling"
       | Checker.UnsupportedDictKeyType -> "UnsupportedDictKeyType"
     enumValue (issueCodeName ()) caseName []
 
@@ -399,6 +468,14 @@ module private DarkTypes =
       )
     | PT.FQFnName.Package hash ->
       DEnum(typeName, typeName, [], "Package", [ PT2DT.Hash.toDT hash ])
+    | PT.FQFnName.TraitMethod(traitHash, method_) ->
+      DEnum(
+        typeName,
+        typeName,
+        [],
+        "TraitMethod",
+        [ PT2DT.Hash.toDT traitHash; DString method_ ]
+      )
 
   let private valueNameToDT (name : PT.FQValueName.FQValueName) : Dval =
     let typeName = nameRefName ()
@@ -419,6 +496,7 @@ module private DarkTypes =
     let make caseName fields = DEnum(typeName, typeName, [], caseName, fields)
     match site with
     | Checker.LambdaReturnValue -> make "LambdaReturnValue" []
+    | Checker.ImplMethodSignatureSite -> make "ImplMethodSignatureSite" []
     | Checker.FunctionReturnValue -> make "FunctionReturnValue" []
     | Checker.ValueBody -> make "ValueBody" []
     | Checker.Expression -> make "Expression" []
@@ -465,6 +543,7 @@ module private DarkTypes =
     | Checker.RecordType -> make "RecordType"
     | Checker.EnumPatternType -> make "EnumPatternType"
     | Checker.ItemType -> make "ItemType"
+    | Checker.ConstrainedType -> make "ConstrainedType"
 
   let private untrustedBuiltinToDT (reason : Checker.UntrustedBuiltin) : Dval =
     let typeName = untrustedBuiltinName ()
@@ -489,6 +568,10 @@ module private DarkTypes =
     | Checker.At site -> make "At" [ siteToDT site ]
     | Checker.Unresolved attempted -> make "Unresolved" [ strings attempted ]
     | Checker.TypeUnavailable name -> make "TypeUnavailable" [ PT2DT.Hash.toDT name ]
+    | Checker.TraitUnavailable name ->
+      make "TraitUnavailable" [ PT2DT.Hash.toDT name ]
+    | Checker.ImplMethod(trait_, method_, detail) ->
+      make "ImplMethod" [ PT2DT.Hash.toDT trait_; DString method_; DString detail ]
     | Checker.FunctionUnavailable name ->
       make "FunctionUnavailable" [ fnNameToDT name ]
     | Checker.ValueUnavailable name -> make "ValueUnavailable" [ valueNameToDT name ]
@@ -530,6 +613,11 @@ module private DarkTypes =
     | Checker.DeclarationTooDeep -> make "DeclarationTooDeep" []
     | Checker.UnaryMinusOperandNotSignedNumeric ->
       make "UnaryMinusOperandNotSignedNumeric" []
+    | Checker.TraitNeeded(trait_, method_) ->
+      make
+        "TraitNeeded"
+        [ PT2DT.Hash.toDT trait_
+          method_ |> Option.map DString |> Dval.option KTString ]
     | Checker.CheckerUnavailable detail ->
       make "CheckerUnavailable" [ DString detail ]
 
@@ -597,7 +685,7 @@ module private DarkTypes =
     )
 
 
-let fns (pm : PT.PackageManager) : List<BuiltInFn> =
+let fns (_pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "atRestCheckPackageOps" 0
       typeParams = []
       parameters =
@@ -630,7 +718,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               else
                 let ops = decoded |> List.choose (fun value -> value)
                 let builtins = exeState.builtins
-                let! report = checkPackageOps pm builtins ops
+                // The branch the author is on, not this builtin set's pm (main's):
+                // impls bound on the branch are what the batch's calls dispatch to.
+                let branchPm = LibDB.PackageManager.ptForBranch exeState.branchId
+                let! report = checkPackageOps branchPm builtins ops
                 return DarkTypes.reportToDT report
             with ex ->
               return

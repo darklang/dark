@@ -13,7 +13,12 @@ module PackageRefs = LibExecution.PackageRefs
 /// Build the FQN key for a given item type and DB row.
 /// Format: "type/{modules}.{name}" or "fn/{modules}.{name}"
 let private buildKey (itemType : string) (modules : string) (name : string) =
-  let prefix = if itemType = "type" then "type" else "fn"
+  let prefix =
+    match itemType with
+    | "type" -> "type"
+    | "trait" -> "trait"
+    | "impl" -> "impl"
+    | _ -> "fn"
   if modules = "" then $"{prefix}/{name}" else $"{prefix}/{modules}.{name}"
 
 
@@ -65,6 +70,13 @@ let generate () : Ply<unit> =
         buildKey "fn" (String.concat "." modules) name)
       |> Set.ofList
 
+    let traitRefKeys =
+      PackageRefs.Trait._lookup
+      |> Map.toList
+      |> List.map (fun ((modules, name), _hash) ->
+        buildKey "trait" (String.concat "." modules) name)
+      |> Set.ofList
+
     // Union in whatever the existing file already knew. `_lookup` populates only as
     // each `PackageRefs` module initializes, so a process that regenerates before
     // touching them all (or an older binary predating a ref) would write a SHORTER
@@ -73,7 +85,8 @@ let generate () : Ply<unit> =
     let existingKeys =
       readExistingFile () |> Map.toList |> List.map fst |> Set.ofList
 
-    let allRefKeys = Set.unionMany [ typeRefKeys; fnRefKeys; existingKeys ]
+    let allRefKeys =
+      Set.unionMany [ typeRefKeys; fnRefKeys; traitRefKeys; existingKeys ]
 
     // Query all Darklang-owned locations from DB
     let! dbRows =

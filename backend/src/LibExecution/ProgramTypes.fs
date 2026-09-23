@@ -55,6 +55,17 @@ module FQTypeName =
   let fqPackage (h : string) : FQTypeName = Package(Hash h)
 
 
+/// A Fully-Qualified Trait Name. A trait is its own item kind (`Trait.Trait`),
+/// content-addressed like the others.
+module FQTraitName =
+  type Package = Hash
+
+  type FQTraitName = Package of Package
+
+  let package (h : string) : Package = Hash h
+
+  let fqPackage (h : string) : FQTraitName = Package(Hash h)
+
 
 /// A Fully-Qualified Value Name
 ///
@@ -101,6 +112,11 @@ module FQFnName =
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
+    /// A trait method, named by the trait and the method: `Show.show`. The impl
+    /// is found at runtime from the self argument's type (or the caller's type
+    /// args), so this names a dispatch, not a body. See `TraitMethod` in
+    /// RuntimeTypes for the lookup order.
+    | TraitMethod of trait_ : FQTraitName.Package * method_ : string
 
   let assertFnName (name : string) : unit =
     assertRe $"Fn name must match" fnNamePattern name
@@ -599,6 +615,18 @@ module Expr =
 
 
 
+/// A trait, referenced from a bound or an impl: the trait item plus any type args
+/// for its non-self params (`'a: Convert<Int>`).
+type TraitRef =
+  { trait_ : NameResolution<FQTraitName.FQTraitName>
+    typeArgs : List<TypeReference> }
+
+/// `'a: Show` on a fn or type declaration. Lives on the binder that introduced the
+/// type param, which is also what the runtime's TypeSymbolTable is keyed on;
+/// `TVariable` itself stays a bare name.
+type Bound = { param : string; trait_ : TraitRef }
+
+
 /// A type defined by a package
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
@@ -621,7 +649,14 @@ module TypeDeclaration =
 
   /// Combined the RHS definition, with the list of type parameters. Eg type
   /// MyType<'a> = List<'a>
-  type T = { typeParams : List<string>; definition : Definition }
+  type T =
+    {
+      typeParams : List<string>
+      /// `type Set<'a: Ord> = ...`. Stored from the start so the format does not
+      /// move twice; the checker reads it (the runtime does not, for types).
+      bounds : List<Bound>
+      definition : Definition
+    }
 
 
 
@@ -684,6 +719,62 @@ module PackageFn =
       /// Part of the content hash and of the upgrade contract, so changing the
       /// row is a new version that `permissions update` asks about.
       permissionCeiling : Option<Set<Effects.Effect>>
+
+      /// `'a: Show + Eq` on the declaration's type params. Part of the content
+      /// hash: a bound is a contract on the caller. Checked eagerly at fn entry by
+      /// the interpreter (like every other declared parameter type) and statically
+      /// by the at-rest checker.
+      bounds : List<Bound>
+    }
+
+
+/// A trait: a set of fn signatures over one open type. Its own item kind, stored
+/// and named like a type, referenced from bounds (`'a: Show`), impls and
+/// `TraitMethod` names.
+module Trait =
+  /// One method's signature. No body: the impls have those. The ceiling is the
+  /// most an impl of this method may do; an impl fn with a wider one fails the
+  /// at-rest check (`ImplExceedsCeiling`).
+  type Method =
+    { name : string
+      typeParams : List<string>
+      parameters : NEList<PackageFn.Parameter>
+      returnType : TypeReference
+      permissionCeiling : Option<Set<Effects.Effect>>
+      description : string }
+
+  type Trait =
+    {
+      hash : FQTraitName.Package
+      /// The first is the self type; the rest are the trait's other params
+      /// (`Convert<'a, 'b>`).
+      typeParams : NEList<string>
+      /// `trait Ord<'a: Eq> = ...`: supertraits, as bounds on the params.
+      bounds : List<Bound>
+      methods : NEList<Method>
+      description : string
+    }
+
+
+/// An impl: how one type does a trait. Its own item kind, named at
+/// `<module>[.<Type>].<Trait>` (the type segment is dropped when the module is
+/// already named for the type), with its method fns as ordinary fns beneath it.
+module TraitImpl =
+  type TraitImpl =
+    {
+      hash : Hash
+      trait_ : NameResolution<FQTraitName.FQTraitName>
+      /// The trait's non-self type args, when it has any
+      traitTypeArgs : List<TypeReference>
+      /// What the impl is for: `Point`, `Int64`, `List<'a>`
+      self : TypeReference
+      /// `impl<'a: Show> Show for List<'a>`: the impl's own params and their bounds
+      typeParams : List<string>
+      bounds : List<Bound>
+      /// method name -> the fn that implements it, in the trait's method order. A
+      /// name resolution like `EFnName`'s, so propagation can follow the fn.
+      methods : List<string * NameResolution<FQFnName.FQFnName>>
+      description : string
     }
 
 
@@ -705,6 +796,8 @@ type PackageOp =
   | AddType of typ : PackageType.PackageType
   | AddValue of value : PackageValue.PackageValue
   | AddFn of fn : PackageFn.PackageFn
+  | AddTrait of trait_ : Trait.Trait
+  | AddTraitImpl of impl : TraitImpl.TraitImpl
 
   // Location operations - bind a name to a piece of content.
   // Content is identified by a Reference (hash + kind); the location is a
@@ -843,11 +936,13 @@ type PackageOp =
 //   | ...IntroducedButNotReferenced of ...
 
 
-/// The kind of package item (function, type, or value)
+/// The kind of package item (function, type, value, trait, or impl)
 and ItemKind =
   | Fn
   | Type
   | Value
+  | Trait
+  | TraitImpl
 
   /// Convert from database string representation
   static member fromString(s : string) : ItemKind =
@@ -855,6 +950,8 @@ and ItemKind =
     | "fn" -> Fn
     | "type" -> Type
     | "value" -> Value
+    | "trait" -> Trait
+    | "impl" -> TraitImpl
     | _ -> Exception.raiseInternal $"Unknown item kind: {s}" []
 
   /// Convert to database string representation
@@ -865,6 +962,8 @@ and ItemKind =
     | Fn -> "fn"
     | Type -> "type"
     | Value -> "value"
+    | Trait -> "trait"
+    | TraitImpl -> "impl"
 
 
 /// A reference to a specific package item by content hash.
@@ -874,6 +973,8 @@ and Reference =
   | PackageType of Hash
   | PackageValue of Hash
   | PackageFn of Hash
+  | PackageTrait of Hash
+  | PackageTraitImpl of Hash
 
   /// Extract the ItemKind (display helper).
   member this.kind : ItemKind =
@@ -881,13 +982,17 @@ and Reference =
     | PackageType _ -> ItemKind.Type
     | PackageValue _ -> ItemKind.Value
     | PackageFn _ -> ItemKind.Fn
+    | PackageTrait _ -> ItemKind.Trait
+    | PackageTraitImpl _ -> ItemKind.TraitImpl
 
   /// Extract the content Hash.
   member this.hash : Hash =
     match this with
     | PackageType h
     | PackageValue h
-    | PackageFn h -> h
+    | PackageFn h
+    | PackageTrait h
+    | PackageTraitImpl h -> h
 
   /// Build a Reference from a hash + item kind (common SQL-boundary need).
   static member fromHashAndKind(h : Hash, k : ItemKind) : Reference =
@@ -895,6 +1000,8 @@ and Reference =
     | ItemKind.Type -> PackageType h
     | ItemKind.Value -> PackageValue h
     | ItemKind.Fn -> PackageFn h
+    | ItemKind.Trait -> PackageTrait h
+    | ItemKind.TraitImpl -> PackageTraitImpl h
 
 
 /// WHICH piece of prose an `UpdateDoc` sets: the declaration's own, or one named part of it.
@@ -1018,6 +1125,8 @@ module Search =
     | Module
     | Fn
     | Value
+    | Trait
+    | TraitImpl
 
   /// How deep to search in the module hierarchy
   type SearchDepth =
@@ -1047,7 +1156,9 @@ module Search =
     { submodules : List<List<string>> // [ [ "List"]; ["String"; "List"] ]
       types : List<LocatedItem<PackageType.PackageType>>
       values : List<LocatedItem<PackageValue.PackageValue>>
-      fns : List<LocatedItem<PackageFn.PackageFn>> }
+      fns : List<LocatedItem<PackageFn.PackageFn>>
+      traits : List<LocatedItem<Trait.Trait>>
+      impls : List<LocatedItem<TraitImpl.TraitImpl>> }
 
 /// Functionality written in Dark stored and managed outside of user space
 ///
@@ -1055,9 +1166,12 @@ module Search =
 /// but there's a chance of Local <-> Cloud not being fully in sync,
 /// for whatever reasons.
 type PackageManager =
-  { findType : PackageLocation -> Ply<Option<FQTypeName.Package>>
+  {
+    findType : PackageLocation -> Ply<Option<FQTypeName.Package>>
     findValue : PackageLocation -> Ply<Option<FQValueName.Package>>
     findFn : PackageLocation -> Ply<Option<FQFnName.Package>>
+    findTrait : PackageLocation -> Ply<Option<FQTraitName.Package>>
+    findTraitImpl : PackageLocation -> Ply<Option<Hash>>
 
     search : Search.SearchQuery -> Ply<Search.SearchResults>
 
@@ -1065,32 +1179,95 @@ type PackageManager =
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
     getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
+    getTrait : FQTraitName.Package -> Ply<Option<Trait.Trait>>
+    getTraitImpl : Hash -> Ply<Option<TraitImpl.TraitImpl>>
 
     // Reverse lookups — returns ALL locations for a hash
     getTypeLocations : FQTypeName.Package -> Ply<List<PackageLocation>>
     getValueLocations : FQValueName.Package -> Ply<List<PackageLocation>>
     getFnLocations : FQFnName.Package -> Ply<List<PackageLocation>>
+    getTraitLocations : FQTraitName.Package -> Ply<List<PackageLocation>>
+    getTraitImplLocations : Hash -> Ply<List<PackageLocation>>
 
-    init : Ply<unit> }
+    /// Every impl of a trait this manager holds. Not filtered for liveness; the RT
+    /// conversion checks each impl's location still binds it.
+    impls : FQTraitName.Package -> Ply<List<TraitImpl.TraitImpl>>
+
+    /// Every impl, of any trait, that has a method of this name. For receiver
+    /// calls (`p.show`).
+    implsWithMethod : string -> Ply<List<TraitImpl.TraitImpl>>
+
+    /// The last segment of every trait name this manager can answer for. A gate
+    /// in front of `findTrait`: the name resolver tries every qualified fn name as
+    /// `Trait.method` first, and this says in one cached set whether any trait is
+    /// called that, instead of one location query per scope.
+    traitNames : unit -> Ply<HashSet<string>>
+
+    init : Ply<unit>
+  }
 
 
   static member empty =
     { findType = fun _ -> Ply None
       findFn = fun _ -> Ply None
       findValue = fun _ -> Ply None
+      findTrait = fun _ -> Ply None
+      findTraitImpl = fun _ -> Ply None
 
-      search = fun _ -> Ply { submodules = []; types = []; values = []; fns = [] }
+      search =
+        fun _ ->
+          Ply
+            { submodules = []
+              types = []
+              values = []
+              fns = []
+              traits = []
+              impls = [] }
 
       getType = fun _ -> Ply None
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
+      getTrait = fun _ -> Ply None
+      getTraitImpl = fun _ -> Ply None
 
       getTypeLocations = fun _ -> Ply []
       getValueLocations = fun _ -> Ply []
       getFnLocations = fun _ -> Ply []
+      getTraitLocations = fun _ -> Ply []
+      getTraitImplLocations = fun _ -> Ply []
+
+      impls = fun _ -> Ply []
+      implsWithMethod = fun _ -> Ply []
+      traitNames = fun () -> Ply(HashSet())
 
       init = uply { return () } }
 
+
+  /// A layer's `traitNames`: its own names over the layer below's. The union is
+  /// kept while the set below is the same object (the store's is cached until a
+  /// fold), so a resolution pass pays for it once, not once per name. The sets
+  /// are never written after they are handed out.
+  static member unionTraitNames
+    (own : HashSet<string>)
+    (below : unit -> Ply<HashSet<string>>)
+    : unit -> Ply<HashSet<string>> =
+    let mutable last : Option<HashSet<string> * HashSet<string>> = None
+    fun () ->
+      uply {
+        let! belowNames = below ()
+        match last with
+        | Some(b, u) when obj.ReferenceEquals(b, belowNames) -> return u
+        | _ ->
+          let u =
+            if own.Count = 0 then
+              belowNames
+            else
+              let u = HashSet<string>(belowNames)
+              u.UnionWith own
+              u
+          last <- Some(belowNames, u)
+          return u
+      }
 
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
@@ -1098,104 +1275,132 @@ type PackageManager =
     (types : List<PackageType.PackageType * PackageLocation>)
     (values : List<PackageValue.PackageValue * PackageLocation>)
     (fns : List<PackageFn.PackageFn * PackageLocation>)
+    (traits : List<Trait.Trait * PackageLocation>)
+    (impls : List<TraitImpl.TraitImpl * PackageLocation>)
     (pm : PackageManager)
     : PackageManager =
 
-    let typeLocationToHash =
-      types |> List.map (fun (t, loc) -> loc, t.hash) |> Map.ofList
-    let typeHashToLocations =
-      types
+    let locationToHash
+      (items : List<'item * PackageLocation>)
+      (hashOf : 'item -> Hash)
+      =
+      items |> List.map (fun (i, loc) -> loc, hashOf i) |> Map.ofList
+    let hashToLocations
+      (items : List<'item * PackageLocation>)
+      (hashOf : 'item -> Hash)
+      =
+      items
       |> List.fold
-        (fun acc (t, loc) ->
-          let existing = Map.tryFind t.hash acc |> Option.defaultValue []
-          Map.add t.hash (existing @ [ loc ]) acc)
+        (fun acc (i, loc) ->
+          let existing = Map.tryFind (hashOf i) acc |> Option.defaultValue []
+          Map.add (hashOf i) (existing @ [ loc ]) acc)
         Map.empty
-    let typeHashToType = types |> List.map (fun (t, _) -> t.hash, t) |> Map.ofList
+    let hashToItem (items : List<'item * PackageLocation>) (hashOf : 'item -> Hash) =
+      items |> List.map (fun (i, _) -> hashOf i, i) |> Map.ofList
+
+    let typeLocationToHash =
+      locationToHash types (fun (t : PackageType.PackageType) -> t.hash)
+    let typeHashToLocations =
+      hashToLocations types (fun (t : PackageType.PackageType) -> t.hash)
+    let typeHashToType =
+      hashToItem types (fun (t : PackageType.PackageType) -> t.hash)
 
     let valueLocationToHash =
-      values |> List.map (fun (v, loc) -> loc, v.hash) |> Map.ofList
+      locationToHash values (fun (v : PackageValue.PackageValue) -> v.hash)
     let valueHashToLocations =
-      values
-      |> List.fold
-        (fun acc (v, loc) ->
-          let existing = Map.tryFind v.hash acc |> Option.defaultValue []
-          Map.add v.hash (existing @ [ loc ]) acc)
-        Map.empty
-    let valueHashToValue = values |> List.map (fun (v, _) -> v.hash, v) |> Map.ofList
+      hashToLocations values (fun (v : PackageValue.PackageValue) -> v.hash)
+    let valueHashToValue =
+      hashToItem values (fun (v : PackageValue.PackageValue) -> v.hash)
 
     let fnLocationToHash =
-      fns |> List.map (fun (f, loc) -> loc, f.hash) |> Map.ofList
+      locationToHash fns (fun (f : PackageFn.PackageFn) -> f.hash)
     let fnHashToLocations =
-      fns
-      |> List.fold
-        (fun acc (f, loc) ->
-          let existing = Map.tryFind f.hash acc |> Option.defaultValue []
-          Map.add f.hash (existing @ [ loc ]) acc)
-        Map.empty
-    let fnHashToFn = fns |> List.map (fun (f, _) -> f.hash, f) |> Map.ofList
+      hashToLocations fns (fun (f : PackageFn.PackageFn) -> f.hash)
+    let fnHashToFn = hashToItem fns (fun (f : PackageFn.PackageFn) -> f.hash)
 
-    { findType =
-        fun location ->
-          match Map.tryFind location typeLocationToHash with
-          | Some hash -> Ply(Some hash)
-          | None -> pm.findType location
+    let traitLocationToHash = locationToHash traits (fun (t : Trait.Trait) -> t.hash)
+    let traitHashToLocations =
+      hashToLocations traits (fun (t : Trait.Trait) -> t.hash)
+    let traitHashToTrait = hashToItem traits (fun (t : Trait.Trait) -> t.hash)
 
-      findValue =
-        fun location ->
-          match Map.tryFind location valueLocationToHash with
-          | Some hash -> Ply(Some hash)
-          | None -> pm.findValue location
+    let implLocationToHash =
+      locationToHash impls (fun (i : TraitImpl.TraitImpl) -> i.hash)
+    let implHashToLocations =
+      hashToLocations impls (fun (i : TraitImpl.TraitImpl) -> i.hash)
+    let implHashToImpl = hashToItem impls (fun (i : TraitImpl.TraitImpl) -> i.hash)
 
-      findFn =
-        fun location ->
-          match Map.tryFind location fnLocationToHash with
-          | Some hash -> Ply(Some hash)
-          | None -> pm.findFn location
+    let ownTraitNames =
+      HashSet<string>(traits |> List.map (fun (_, loc) -> loc.name))
+    let traitNames = PackageManager.unionTraitNames ownTraitNames pm.traitNames
+
+    let find
+      (own : Map<PackageLocation, Hash>)
+      (below : PackageLocation -> Ply<Option<Hash>>)
+      =
+      fun location ->
+        match Map.tryFind location own with
+        | Some hash -> Ply(Some hash)
+        | None -> below location
+    let get (own : Map<Hash, 'item>) (below : Hash -> Ply<Option<'item>>) =
+      fun hash ->
+        match Map.tryFind hash own with
+        | Some item -> Ply(Some item)
+        | None -> below hash
+    let locations
+      (own : Map<Hash, List<PackageLocation>>)
+      (below : Hash -> Ply<List<PackageLocation>>)
+      =
+      fun hash ->
+        uply {
+          let local = Map.tryFind hash own |> Option.defaultValue []
+          let! fallback = below hash
+          return local @ fallback
+        }
+
+    { findType = find typeLocationToHash pm.findType
+      findValue = find valueLocationToHash pm.findValue
+      findFn = find fnLocationToHash pm.findFn
+      findTrait = find traitLocationToHash pm.findTrait
+      findTraitImpl = find implLocationToHash pm.findTraitImpl
+      traitNames = traitNames
 
       search = fun query -> pm.search query
 
-      getType =
-        fun hash ->
-          match Map.tryFind hash typeHashToType with
-          | Some t -> Ply(Some t)
-          | None -> pm.getType hash
+      getType = get typeHashToType pm.getType
+      getValue = get valueHashToValue pm.getValue
+      getFn = get fnHashToFn pm.getFn
+      getTrait = get traitHashToTrait pm.getTrait
+      getTraitImpl = get implHashToImpl pm.getTraitImpl
 
-      getValue =
-        fun hash ->
-          match Map.tryFind hash valueHashToValue with
-          | Some v -> Ply(Some v)
-          | None -> pm.getValue hash
+      getTypeLocations = locations typeHashToLocations pm.getTypeLocations
+      getValueLocations = locations valueHashToLocations pm.getValueLocations
+      getFnLocations = locations fnHashToLocations pm.getFnLocations
+      getTraitLocations = locations traitHashToLocations pm.getTraitLocations
+      getTraitImplLocations = locations implHashToLocations pm.getTraitImplLocations
 
-      getFn =
-        fun hash ->
-          match Map.tryFind hash fnHashToFn with
-          | Some f -> Ply(Some f)
-          | None -> pm.getFn hash
-
-      getTypeLocations =
-        fun hash ->
+      impls =
+        fun traitHash ->
           uply {
-            let local =
-              Map.tryFind hash typeHashToLocations |> Option.defaultValue []
-            let! fallback = pm.getTypeLocations hash
-            return local @ fallback
+            let! below = pm.impls traitHash
+            let own =
+              impls
+              |> List.map fst
+              |> List.filter (fun i ->
+                match i.trait_.resolved with
+                | Ok { name = FQTraitName.Package t } -> t = traitHash
+                | _ -> false)
+            return own @ below
           }
-
-      getValueLocations =
-        fun hash ->
+      implsWithMethod =
+        fun methodName ->
           uply {
-            let local =
-              Map.tryFind hash valueHashToLocations |> Option.defaultValue []
-            let! fallback = pm.getValueLocations hash
-            return local @ fallback
-          }
-
-      getFnLocations =
-        fun hash ->
-          uply {
-            let local = Map.tryFind hash fnHashToLocations |> Option.defaultValue []
-            let! fallback = pm.getFnLocations hash
-            return local @ fallback
+            let! below = pm.implsWithMethod methodName
+            let own =
+              impls
+              |> List.map fst
+              |> List.filter (fun i ->
+                i.methods |> List.exists (fun (m, _) -> m = methodName))
+            return own @ below
           }
 
       init = pm.init }

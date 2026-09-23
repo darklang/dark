@@ -15,6 +15,10 @@ module FQTypeName =
   type Package = Hash
   type FQTypeName = Package of Package
 
+module FQTraitName =
+  type Package = Hash
+  type FQTraitName = Package of Package
+
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
   type Package = Hash
@@ -30,6 +34,9 @@ module FQFnName =
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
+    /// A trait method: the trait and the method name (`Show.show`). Names a
+    /// dispatch, not a body; the impl is found from the self type.
+    | TraitMethod of trait_: FQTraitName.Package * method_: String
 
 type NameResolutionError =
   | NotFound
@@ -241,6 +248,13 @@ type Applicable =
   | AppLambda of ApplicableLambda
   | AppNamedFn of ApplicableNamedFn
 
+
+/// One impl of a trait as dispatch sees it: what it is for, and the fn behind each method
+type ImplCandidate =
+  { trait_: FQTraitName.Package
+    self: TypeReference
+    methods: Dict<String, Hash>
+    source: Hash }
 
 type Dval =
   | DUnit

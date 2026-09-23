@@ -66,6 +66,16 @@ module FQTypeName =
     FQTypeName.Package h
 
 
+module FQTraitName =
+  let write (w : BinaryWriter) (n : FQTraitName.FQTraitName) : unit =
+    match n with
+    | FQTraitName.Package h -> Hash.write w h
+
+  let read (r : BinaryReader) : FQTraitName.FQTraitName =
+    let h = Hash.read r
+    FQTraitName.Package h
+
+
 module FQFnName =
   let write (w : BinaryWriter) (n : FQFnName.FQFnName) : unit =
     match n with
@@ -76,6 +86,10 @@ module FQFnName =
     | FQFnName.Package h ->
       w.Write 1uy
       Hash.write w h
+    | FQFnName.TraitMethod(t, m) ->
+      w.Write 2uy
+      Hash.write w t
+      String.write w m
 
   let read (r : BinaryReader) : FQFnName.FQFnName =
     match r.ReadByte() with
@@ -86,6 +100,10 @@ module FQFnName =
     | 1uy ->
       let h = Hash.read r
       FQFnName.Package h
+    | 2uy ->
+      let t = Hash.read r
+      let m = String.read r
+      FQFnName.TraitMethod(t, m)
     | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 
 

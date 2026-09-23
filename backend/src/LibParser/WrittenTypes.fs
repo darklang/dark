@@ -413,12 +413,22 @@ type FnParam =
     symbolRightParen : Range *
     description : string
 
+/// `'a: Show<Int>` in a type-param list. The trait is a type name: a bound says
+/// "a value of type `Show<'a>` must exist". Several bounds on one param are
+/// written `'a: Show + Eq` and stored as separate entries.
+type TypeParamBound =
+  { range : Range
+    param : string
+    trait_ : QualifiedTypeIdentifier
+    symbolColon : Range }
+
 /// `let name (p: T) … :{Effect, …} Ret = body`
 type FnDecl =
   {
     range : Range
     name : Identifier
     typeParams : List<string * Range> // `<'a, 'b>` (name tick-stripped, with range)
+    bounds : List<TypeParamBound>
     parameters : List<FnParam>
     /// An optional effect row after the return colon, such as
     /// `:{Http, Clock} Ret`, sets the function's permission ceiling. It limits
@@ -487,10 +497,60 @@ type TypeDecl =
   { range : Range
     name : Identifier
     typeParams : List<string * Range> // `<'a, 'b>` (name tick-stripped, with range)
+    bounds : List<TypeParamBound>
     definition : TypeDefinition
     keywordType : Range
     symbolEquals : Range
     description : string }
+
+/// One method signature inside a `trait` block: a fn header with no body
+/// (`let show (v: 'a) : String`). A body is parsed and kept so the diagnostic can
+/// point at it; default methods are not supported yet.
+type TraitMethodDecl =
+  { range : Range
+    name : Identifier
+    typeParams : List<string * Range>
+    bounds : List<TypeParamBound>
+    parameters : List<FnParam>
+    effects : Option<List<Identifier>>
+    returnType : TypeReference
+    body : Option<Expr>
+    keywordLet : Range
+    symbolColon : Range
+    description : string }
+
+/// `trait Name<'a> = <methods>`: a set of method signatures over one open type.
+/// Lowers to its own package item, `PT.Trait` (`packageTrait`, `WT2PT.Trait`).
+type TraitDecl =
+  { range : Range
+    name : Identifier
+    typeParams : List<string * Range>
+    bounds : List<TypeParamBound>
+    methods : List<TraitMethodDecl>
+    keywordTrait : Range
+    symbolEquals : Range
+    description : string }
+
+/// `impl[<'a: B>] Trait<Args> for Type = <fns>`: how one type does a trait.
+/// Lowers to its own package item, `PT.TraitImpl`, named `<module>[.<Type>].<Trait>`,
+/// with the block's method fns as ordinary fns beneath it and an alias member naming
+/// the fn it points at (`packageImpl`, `SourceFile.items`).
+type ImplDecl =
+  {
+    range : Range
+    typeParams : List<string * Range>
+    bounds : List<TypeParamBound>
+    trait_ : QualifiedTypeIdentifier
+    forType : TypeReference
+    methods : List<FnDecl>
+    /// `let add = Stdlib.Int64.add`: a method that is an existing fn, so the
+    /// impl names it instead of wrapping it.
+    aliases : List<ValueDecl>
+    keywordImpl : Range
+    keywordFor : Range
+    symbolEquals : Range
+    description : string
+  }
 
 /// A `module Name.Path` header.
 type ModuleDecl =
@@ -514,6 +574,8 @@ and Declaration =
   | DValue of ValueDecl
   | DModule of ModuleDecl
   | DType of TypeDecl
+  | DTrait of TraitDecl
+  | DImpl of ImplDecl
   /// A trailing expression inside a module body (`module M = … \n expr`).
   | DExpr of Expr
   /// `[<DB>] type Name = AliasedType` — a Test-only user DB.
@@ -603,6 +665,12 @@ let typeReferenceRange (t : TypeReference) : Range =
 // module-qualified package shapes the lowering consumes.
 // ============================================================================
 
+/// A bound in the normalized package IR: the param name and the trait as a type
+/// reference (`TCustom`), so lowering resolves it like any other custom type.
+type Bound = { param : string; trait_ : QualifiedTypeIdentifier }
+
+let boundNorm (b : TypeParamBound) : Bound = { param = b.param; trait_ = b.trait_ }
+
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
@@ -616,7 +684,8 @@ module TypeDeclaration =
     | Record of NEList<RecordField>
     | Enum of NEList<EnumCase>
 
-  type T = { typeParams : List<string>; definition : Definition }
+  type T =
+    { typeParams : List<string>; bounds : List<Bound>; definition : Definition }
 
 
 module PackageType =
@@ -640,10 +709,54 @@ module PackageFn =
       name : Name
       body : Expr
       typeParams : List<string>
+      bounds : List<Bound>
       parameters : NEList<Parameter>
       returnType : TypeReference
       /// The declared permission ceiling (effect case names); see `FnDecl`.
       effects : Option<List<string>>
+      description : string
+    }
+
+
+/// A trait in package form: its own item, like a type.
+module PackageTrait =
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  type Method =
+    { name : string
+      typeParams : List<string>
+      bounds : List<Bound>
+      parameters : NEList<PackageFn.Parameter>
+      returnType : TypeReference
+      effects : Option<List<string>>
+      description : string }
+
+  type PackageTrait =
+    { name : Name
+      typeParams : List<string>
+      bounds : List<Bound>
+      methods : List<Method>
+      description : string }
+
+
+/// A resolvable name, as the impl's method targets are written.
+type MethodTarget = Name
+
+/// An impl in package form: its own item at `<module>[.<Type>].<Trait>`, whose
+/// method fns are ordinary package fns beneath it.
+module PackageTraitImpl =
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  type PackageTraitImpl =
+    {
+      name : Name
+      trait_ : QualifiedTypeIdentifier
+      forType : TypeReference
+      typeParams : List<string>
+      bounds : List<Bound>
+      /// method name, and the fn that implements it as written: a method declared
+      /// in the block (resolved from the impl's own module) or an alias target.
+      methods : List<string * MethodTarget>
       description : string
     }
 
@@ -721,6 +834,7 @@ let packageFn
   { name = { owner = owner; modules = modules; name = fn.name.name }
     body = fn.body
     typeParams = fn.typeParams |> List.map fst
+    bounds = fn.bounds |> List.map boundNorm
     parameters = parameters
     returnType = fn.returnType
     effects = fn.effects |> Option.map (List.map (fun id -> id.name))
@@ -734,6 +848,7 @@ let packageType
   { name = { owner = owner; modules = modules; name = t.name.name }
     declaration =
       { typeParams = t.typeParams |> List.map fst
+        bounds = t.bounds |> List.map boundNorm
         definition = typeDefinitionNorm t.definition }
     description = t.description }
 
@@ -745,3 +860,134 @@ let packageValue
   { name = { owner = owner; modules = modules; name = v.name.name }
     description = v.description
     body = v.body }
+
+
+// --- traits and impls: the package forms ---
+//
+// A trait lowers to a `PackageTrait` (its own item); an impl to a `PackageTraitImpl`
+// at `<module>[.<Type>].<Trait>` plus one ordinary package fn per method declared in
+// the block. `SourceFile.items` yields them as items, and the two lowerings turn the
+// package forms into `PT.Trait` and `PT.TraitImpl`.
+
+/// The name a type reference dispatches on: the head of `List<'a>` is "List", of
+/// `Acme.Point` is "Point", of `Int64` is "Int64". Used to place an impl's members
+/// under `<module>.<TypeName>.<TraitName>`.
+let typeReferenceHeadName (t : TypeReference) : string =
+  match t with
+  | TUnit _ -> "Unit"
+  | TBool _ -> "Bool"
+  | TInt _ -> "Int"
+  | TInt8 _ -> "Int8"
+  | TUInt8 _ -> "UInt8"
+  | TInt16 _ -> "Int16"
+  | TUInt16 _ -> "UInt16"
+  | TInt32 _ -> "Int32"
+  | TUInt32 _ -> "UInt32"
+  | TInt64 _ -> "Int64"
+  | TUInt64 _ -> "UInt64"
+  | TInt128 _ -> "Int128"
+  | TUInt128 _ -> "UInt128"
+  | TFloat _ -> "Float"
+  | TChar _ -> "Char"
+  | TString _ -> "String"
+  | TDateTime _ -> "DateTime"
+  | TUuid _ -> "Uuid"
+  | TBlob _ -> "Blob"
+  | TList _ -> "List"
+  | TDict _ -> "Dict"
+  | TTuple _ -> "Tuple"
+  | TFn _ -> "Fn"
+  | TVariable(_, _, (_, name)) -> name
+  | TCustom qti -> qti.typ.name
+
+/// The impl's own module path: `<module>[.<Type>].<Trait>`, the type segment
+/// dropped when the module is already named for the type.
+let implMemberPath (currentPath : List<string>) (impl : ImplDecl) : List<string> =
+  let typeName = typeReferenceHeadName impl.forType
+  let withType =
+    match List.tryLast currentPath with
+    | Some last when last = typeName -> currentPath
+    | _ -> currentPath @ [ typeName ]
+  withType @ [ impl.trait_.typ.name ]
+
+let packageTrait
+  (owner : string)
+  (modules : List<string>)
+  (t : TraitDecl)
+  : PackageTrait.PackageTrait =
+  { name = { owner = owner; modules = modules; name = t.name.name }
+    typeParams = t.typeParams |> List.map fst
+    bounds = t.bounds |> List.map boundNorm
+    methods =
+      t.methods
+      |> List.map (fun m ->
+        { name = m.name.name
+          typeParams = m.typeParams |> List.map fst
+          bounds = m.bounds |> List.map boundNorm
+          parameters =
+            m.parameters
+            |> List.map fnParamNorm
+            |> NEList.ofListWithDefault (
+              { name = "_"; typ = TUnit synthRange; description = "" }
+              : PackageFn.Parameter
+            )
+          returnType = m.returnType
+          effects = m.effects |> Option.map (List.map (fun id -> id.name))
+          description = m.description })
+    description = t.description }
+
+/// The method fns an impl declares, as package fns under the impl's own path, with
+/// the impl's type params and bounds prepended (a conditional impl's methods are
+/// generic over the impl's params).
+let implMethodFns
+  (owner : string)
+  (memberPath : List<string>)
+  (impl : ImplDecl)
+  : List<PackageFn.PackageFn> =
+  impl.methods
+  |> List.map (fun m ->
+    packageFn
+      owner
+      memberPath
+      { m with
+          typeParams = impl.typeParams @ m.typeParams
+          bounds = impl.bounds @ m.bounds })
+
+/// The impl item itself. Its location is the member path: the module the method
+/// fns live in IS the impl's name.
+let packageImpl
+  (owner : string)
+  (memberPath : List<string>)
+  (impl : ImplDecl)
+  : PackageTraitImpl.PackageTraitImpl =
+  let location =
+    match List.rev memberPath with
+    | name :: revModules ->
+      ({ owner = owner; modules = List.rev revModules; name = name }
+      : PackageTraitImpl.Name)
+    | [] -> { owner = owner; modules = []; name = impl.trait_.typ.name }
+  let declared =
+    impl.methods
+    |> List.map (fun m -> (m.name.name, Unresolved(NEList.singleton m.name.name)))
+  let aliased =
+    impl.aliases
+    |> List.map (fun a ->
+      let target =
+        match a.body with
+        | EFnName(_, q) ->
+          Unresolved(
+            NEList.ofListUnsafe
+              "alias"
+              []
+              ((q.modules |> List.map (fun (m, _) -> m.name)) @ [ q.fn.name ])
+          )
+        | EVariable(_, n) -> Unresolved(NEList.singleton n)
+        | _ -> Unresolved(NEList.singleton a.name.name)
+      (a.name.name, target))
+  { name = location
+    trait_ = impl.trait_
+    forType = impl.forType
+    typeParams = impl.typeParams |> List.map fst
+    bounds = impl.bounds |> List.map boundNorm
+    methods = declared @ aliased
+    description = impl.description }

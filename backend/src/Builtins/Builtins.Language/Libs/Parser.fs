@@ -980,6 +980,22 @@ module WrittenTypesToDarkTypes =
   let private rangedNamesToDT (names : List<string * Tok.TokenRange>) : Dval =
     DList(rangedNamesVT (), names |> List.map (fun (name, r) -> rangedString r name))
 
+  let private boundToDT (b : WT.TypeParamBound) : Dval =
+    let t = tn WTRefs.typeParamBound
+    DRecord(
+      t,
+      t,
+      [],
+      Map
+        [ "range", rangeToDT b.range
+          "param", DString b.param
+          "trait_", qualifiedTypeIdentifierToDT b.trait_
+          "symbolColon", rangeToDT b.symbolColon ]
+    )
+
+  let private boundsToDT (bs : List<WT.TypeParamBound>) : Dval =
+    DList(VT.customType (tn WTRefs.typeParamBound) [], List.map boundToDT bs)
+
   let private fnDeclToDT (f : WT.FnDecl) : Dval =
     let t = tn WTRefs.fnDeclaration
     DRecord(
@@ -990,6 +1006,7 @@ module WrittenTypesToDarkTypes =
         [ "range", rangeToDT f.range
           "name", identifierToDT WTRefs.fnIdentifier f.name
           "typeParams", rangedNamesToDT f.typeParams
+          "bounds", boundsToDT f.bounds
           "parameters",
           DList(
             VT.customType (tn WTRefs.fnParameter) [],
@@ -1007,6 +1024,53 @@ module WrittenTypesToDarkTypes =
           "symbolEquals", rangeToDT f.symbolEquals ]
     )
 
+  let private traitMethodToDT (m : WT.TraitMethodDecl) : Dval =
+    let t = tn WTRefs.traitMethod
+    DRecord(
+      t,
+      t,
+      [],
+      Map
+        [ "range", rangeToDT m.range
+          "name", identifierToDT WTRefs.fnIdentifier m.name
+          "typeParams", rangedNamesToDT m.typeParams
+          "bounds", boundsToDT m.bounds
+          "parameters",
+          DList(
+            VT.customType (tn WTRefs.fnParameter) [],
+            List.map fnParamToDT m.parameters
+          )
+          "effects",
+          m.effects
+          |> Option.map (List.map (fun id -> id.name, id.range) >> rangedNamesToDT)
+          |> Dval.option (KTList(rangedNamesVT ()))
+          "returnType", typeReferenceToDT m.returnType
+          "description", DString m.description
+          "keywordLet", rangeToDT m.keywordLet
+          "symbolColon", rangeToDT m.symbolColon ]
+    )
+
+  let private traitDeclToDT (tr : WT.TraitDecl) : Dval =
+    let t = tn WTRefs.traitDeclaration
+    DRecord(
+      t,
+      t,
+      [],
+      Map
+        [ "range", rangeToDT tr.range
+          "name", identifierToDT WTRefs.typeIdentifier tr.name
+          "typeParams", rangedNamesToDT tr.typeParams
+          "bounds", boundsToDT tr.bounds
+          "methods",
+          DList(
+            VT.customType (tn WTRefs.traitMethod) [],
+            List.map traitMethodToDT tr.methods
+          )
+          "description", DString tr.description
+          "keywordTrait", rangeToDT tr.keywordTrait
+          "symbolEquals", rangeToDT tr.symbolEquals ]
+    )
+
   let private valueDeclToDT (v : WT.ValueDecl) : Dval =
     let t = tn WTRefs.valueDeclaration
     DRecord(
@@ -1020,6 +1084,32 @@ module WrittenTypesToDarkTypes =
           "description", DString v.description
           "keywordVal", rangeToDT v.keywordVal
           "symbolEquals", rangeToDT v.symbolEquals ]
+    )
+
+  let private implDeclToDT (impl : WT.ImplDecl) : Dval =
+    let t = tn WTRefs.implDeclaration
+    let memberT = tn WTRefs.implMember
+    let members =
+      (impl.methods
+       |> List.map (fun m -> DEnum(memberT, memberT, [], "Method", [ fnDeclToDT m ])))
+      @ (impl.aliases
+         |> List.map (fun a ->
+           DEnum(memberT, memberT, [], "Alias", [ valueDeclToDT a ])))
+    DRecord(
+      t,
+      t,
+      [],
+      Map
+        [ "range", rangeToDT impl.range
+          "typeParams", rangedNamesToDT impl.typeParams
+          "bounds", boundsToDT impl.bounds
+          "trait_", qualifiedTypeIdentifierToDT impl.trait_
+          "forType", typeReferenceToDT impl.forType
+          "members", DList(VT.customType memberT [], members)
+          "description", DString impl.description
+          "keywordImpl", rangeToDT impl.keywordImpl
+          "keywordFor", rangeToDT impl.keywordFor
+          "symbolEquals", rangeToDT impl.symbolEquals ]
     )
 
   let private recordFieldToDT (f : WT.RecordFieldSyntax) : Dval =
@@ -1115,6 +1205,7 @@ module WrittenTypesToDarkTypes =
         [ "range", rangeToDT td.range
           "name", identifierToDT WTRefs.typeIdentifier td.name
           "typeParams", rangedNamesToDT td.typeParams
+          "bounds", boundsToDT td.bounds
           "definition", definitionToDT td.definition
           "description", DString td.description
           "keywordType", rangeToDT td.keywordType
@@ -1123,9 +1214,10 @@ module WrittenTypesToDarkTypes =
 
   // A module's declarations serialize as `ModuleDeclaration.Declaration` (nested
   // modules become `SubModule`); mutually recursive with `moduleDeclToDT`.
-  let rec private moduleDeclToDT (m : WT.ModuleDecl) : Dval =
+  let rec private moduleDeclToDT (path : List<string>) (m : WT.ModuleDecl) : Dval =
     let t = tn WTRefs.moduleDeclaration
     let (nameRange, nameStr) = m.name
+    let innerPath = path @ WT.moduleNameParts m
     DRecord(
       t,
       t,
@@ -1136,7 +1228,7 @@ module WrittenTypesToDarkTypes =
           "declarations",
           DList(
             VT.customType (tn WTRefs.moduleDeclarationDeclaration) [],
-            m.declarations |> List.collect moduleItemsToDT
+            m.declarations |> List.collect (moduleItemsToDT innerPath)
           )
           "keywordModule", rangeToDT m.keywordModule ]
     )
@@ -1152,14 +1244,19 @@ module WrittenTypesToDarkTypes =
   /// an assignment until post-parse validation. So a typo of that shape in an ordinary file reaches
   /// here. Whole-document callers (the LSP, the highlighter) hit both; the authoring editor does not,
   /// because it strips the module line first.
-  and private moduleItemsToDT (d : WT.Declaration) : List<Dval> =
+  and private moduleItemsToDT
+    (path : List<string>)
+    (d : WT.Declaration)
+    : List<Dval> =
     let t = tn WTRefs.moduleDeclarationDeclaration
     let expr (e : WT.Expr) = DEnum(t, t, [], "Expr", [ exprToDT e ])
     match d with
     | WT.DFunction f -> [ DEnum(t, t, [], "Function", [ fnDeclToDT f ]) ]
     | WT.DValue v -> [ DEnum(t, t, [], "Value", [ valueDeclToDT v ]) ]
     | WT.DType td -> [ DEnum(t, t, [], "Type", [ typeDeclToDT td ]) ]
-    | WT.DModule m -> [ DEnum(t, t, [], "SubModule", [ moduleDeclToDT m ]) ]
+    | WT.DTrait tr -> [ DEnum(t, t, [], "Trait", [ traitDeclToDT tr ]) ]
+    | WT.DImpl impl -> [ DEnum(t, t, [], "Impl", [ implDeclToDT impl ]) ]
+    | WT.DModule m -> [ DEnum(t, t, [], "SubModule", [ moduleDeclToDT path m ]) ]
     | WT.DExpr e -> [ expr e ]
     // `[<DB>] type X = ...` is a type as far as anything reading this cares; the attribute sits outside the
     // declaration's range anyway.
@@ -1181,8 +1278,10 @@ module WrittenTypesToDarkTypes =
     match d with
     | WT.DFunction f -> Some(DEnum(t, t, [], "Function", [ fnDeclToDT f ]))
     | WT.DValue v -> Some(DEnum(t, t, [], "Value", [ valueDeclToDT v ]))
-    | WT.DModule m -> Some(DEnum(t, t, [], "Module", [ moduleDeclToDT m ]))
+    | WT.DModule m -> Some(DEnum(t, t, [], "Module", [ moduleDeclToDT [] m ]))
     | WT.DType td -> Some(DEnum(t, t, [], "Type", [ typeDeclToDT td ]))
+    | WT.DTrait tr -> Some(DEnum(t, t, [], "Trait", [ traitDeclToDT tr ]))
+    | WT.DImpl impl -> Some(DEnum(t, t, [], "Impl", [ implDeclToDT impl ]))
     | WT.DExpr _
     | WT.DTypeDB _
     | WT.DTest _ -> None

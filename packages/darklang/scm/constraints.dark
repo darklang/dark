@@ -39,11 +39,18 @@ type Kind =
   /// Only an override qualifies (see `SCM.PackageOps.supersededOverrides`).
   | DecisionSuperseded
 
+  /// Two visible implementations of one trait for one type. Legal to store (there is
+  /// no coherence rule, by design: D5), but every call that would dispatch between them
+  /// is an error until one is deprecated. Standing, like the others, because
+  /// the second implementation usually arrives by sync while nobody is looking.
+  | AmbiguousImplementation
+
 let kindToString (k: Kind) : String =
   match k with
   | StaleUsage -> "stale-usage"
   | KindChanged -> "kind-changed"
   | DecisionSuperseded -> "decision-superseded"
+  | AmbiguousImplementation -> "ambiguous-implementation"
 
 /// The other direction, for reading a kind back out of storage or a CLI argument.
 let kindFromString (s: String) : Stdlib.Option.Option<Kind> =
@@ -51,6 +58,7 @@ let kindFromString (s: String) : Stdlib.Option.Option<Kind> =
   | "stale-usage" -> Stdlib.Option.Option.Some(Kind.StaleUsage)
   | "kind-changed" -> Stdlib.Option.Option.Some(Kind.KindChanged)
   | "decision-superseded" -> Stdlib.Option.Option.Some(Kind.DecisionSuperseded)
+  | "ambiguous-implementation" -> Stdlib.Option.Option.Some(Kind.AmbiguousImplementation)
   | _ -> Stdlib.Option.Option.None
 
 /// The ways a finding of this kind can be RESOLVED, named, most-obvious first.
@@ -70,6 +78,10 @@ let resolutionsFor (k: Kind) : List<String> =
   // does one thing (repoint a usage), and offering a name here that it does not implement would run the
   // repoint instead. Ack it, or override again.
   | DecisionSuperseded -> []
+  // Nothing automatic: choosing which implementation survives is `deprecate` on one of them, its
+  // own verb with its own confirmation; a deprecated implementation is not a dispatch candidate.
+  // Ack it, or pick one.
+  | AmbiguousImplementation -> []
 
 /// Is <param choice> a resolution this kind offers?
 let offersResolution (k: Kind) (choice: String) : Bool =
@@ -88,6 +100,8 @@ let pinSuppresses (k: Kind) : Bool =
   // A pin says something about which VERSION a reference sits on. It says nothing about whether an
   // override you made was later undone, so it must not hide one.
   | DecisionSuperseded -> false
+  // Two implementations is not a version question either.
+  | AmbiguousImplementation -> false
 
 
 /// What VARIES between kinds of finding.
@@ -105,6 +119,10 @@ type FindingDetail =
     was: LanguageTools.ProgramTypes.PropagationPolicy *
     now: LanguageTools.ProgramTypes.PropagationPolicy *
     by: String
+
+  /// Two implementations of one trait for one type: the type, as printed, and the
+  /// other implementation (`usage` is this one, `dependency` the trait).
+  | Rivals of self: String * rival: LanguageTools.ProgramTypes.PackageLocation
 
 
 /// One finding: which kind it is, the usage it is about, the dependency involved, and whatever that kind
@@ -301,6 +319,69 @@ let detectSupersededPolicies () : Stdlib.Result.Result<List<Finding>, String> =
           detail = FindingDetail.PolicyReplaced(mine, now, by) }))
 
 
+/// Two visible implementations of one trait for one type, on <param branchId>.
+///
+/// Reads the same candidates dispatch reads (`Trait.impls`), grouped by the self type
+/// exactly as written: `Show for List<Int>` and `Show for List<'a>` are not rivals (the
+/// specific one wins at the call), two `Show for Point` are. One finding per pair, keyed
+/// on both names and the type, so an ack survives unrelated churn.
+///
+/// Every trait the branch can see, one candidate read each: a handful of traits, and
+/// the read is cached per (branch, trait), so `dark status` can afford it.
+let detectAmbiguousImplementations (branchId: Uuid) : List<Finding> =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Trait ]
+        exactMatch = false }
+
+  let traits = (LanguageTools.PackageManager.Search.search branchId query).traits
+
+  traits
+  |> Stdlib.List.map (fun t ->
+    // The self type as printed: a name resolution carries the name as WRITTEN
+    // (`Point` here, `Scratch.Shapes.Point` there) beside the hash it resolved to,
+    // so structural equality says two spellings of one type differ; the printer
+    // renders by the hash.
+    let candidates =
+      LanguageTools.PackageManager.Trait.impls branchId t.entity.hash
+      |> Stdlib.List.map (fun c ->
+        (c, PrettyPrinter.RuntimeTypes.typeReference branchId c.self))
+
+    // Pairs (i, j) with i before j and the same self type; each pair once.
+    candidates
+    |> Stdlib.List.indexedMap (fun i c -> (i, c))
+    |> Stdlib.List.map (fun (i, cPair) ->
+      let (c, selfStr) = cPair
+      candidates
+      |> Stdlib.List.indexedMap (fun j d -> (j, d))
+      |> Stdlib.List.filterMap (fun (j, dPair) ->
+        let (d, dSelf) = dPair
+        if j > i && dSelf == selfStr then
+          let locOf (h: LanguageTools.ProgramTypes.Hash) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+            LanguageTools.PackageManager.pickLocation
+              LanguageTools.PackageManager.PickContext.empty
+              (LanguageTools.PackageManager.TraitImpl.locations branchId h)
+          match locOf c.source, locOf d.source with
+          | Some mine, Some other ->
+            Stdlib.Option.Option.Some(
+              Finding
+                { kind = Kind.AmbiguousImplementation
+                  id = findingId mine t.location $"{selfStr}|{fqnOf other}"
+                  usage = mine
+                  usageKind = LanguageTools.ProgramTypes.ItemKind.TraitImpl
+                  dependency = t.location
+                  dependencyKind = LanguageTools.ProgramTypes.ItemKind.Trait
+                  detail = FindingDetail.Rivals(selfStr, other) })
+          | _, _ -> Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.None))
+    |> Stdlib.List.flatten)
+  |> Stdlib.List.flatten
+
+
 /// The same finding, for what the BRANCH binds.
 ///
 /// `detectOutdatedUsages` reads `locations`, which is main's, so an item bound on a branch is never a
@@ -383,7 +464,8 @@ let detectAll () : Detection =
           [ detectOutdatedUsages ()
             detectOutdatedUsagesOn (PackageOps.currentBranch ())
             decisions
-            policies ]
+            policies
+            detectAmbiguousImplementations (PackageOps.currentBranch ()) ]
       blocked = Stdlib.List.append decisionsBlocked policiesBlocked }
 
 
@@ -440,6 +522,7 @@ let ack
       | StaleUsage -> $"stale use of {fqnOf s.dependency}"
       | KindChanged -> $"{fqnOf s.dependency} is a different kind of item now"
       | DecisionSuperseded -> $"decision on {fqnOf s.usage} superseded"
+      | AmbiguousImplementation -> $"{fqnOf s.usage} is one of two implementations of {fqnOf s.dependency}"
 
   let op =
     LanguageTools.ProgramTypes.PackageOp.Decision(

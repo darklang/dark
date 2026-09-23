@@ -50,6 +50,8 @@ let line (f: SCM.Constraints.Finding) : String =
     let whose = if by == "" then "a later choice" else by
 
     $"  #{f.id}  {u}\n         you chose {policyName was} here; {whose} replaced it with {policyName now}"
+  | (AmbiguousImplementation, Rivals(self, rival)) ->
+    $"  #{f.id}  {u}\n         and {SCM.Constraints.fqnOf rival} both implement {d} for {self}; a call cannot choose. Deprecate one (`dark deprecate impl <name>`)"
   | (_, _) -> $"  #{f.id}  {u}"
 
 
@@ -72,6 +74,8 @@ let toJson (f: SCM.Constraints.Finding) : String =
       $"\"using\":{usingStr},\"current\":{curStr}"
     | PolicyReplaced(was, now, by) ->
       $"\"was\":{Cli.jsonStr (policyName was)},\"now\":{Cli.jsonStr (policyName now)},\"replacedBy\":{Cli.jsonStr by}"
+    | Rivals(self, rival) ->
+      $"\"self\":{Cli.jsonStr self},\"rival\":{Cli.jsonStr (SCM.Constraints.fqnOf rival)}"
 
   $"{{\"id\":{Cli.jsonStr f.id},\"kind\":{k},\"usage\":{u},\"usageKind\":{uk},\"dependency\":{d},\"dependencyKind\":{dk},{detail}}}"
 
@@ -100,13 +104,13 @@ let kindArgChecked (args: List<String>) : Stdlib.Result.Result<Unit, String> =
     match Stdlib.List.getAt args (i + 1) with
     | None ->
       Stdlib.Result.Result.Error
-        "--kind needs a value: stale-usage, kind-changed, or decision-superseded."
+        "--kind needs a value: stale-usage, kind-changed, decision-superseded, or ambiguous-implementation."
     | Some wanted ->
       match SCM.Constraints.kindFromString wanted with
       | Some _ -> Stdlib.Result.Result.Ok()
       | None ->
         Stdlib.Result.Result.Error
-          $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, or decision-superseded."
+          $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, decision-superseded, or ambiguous-implementation."
 
 
 let executeJson (state: AppState) (args: List<String>) : AppState =
@@ -391,6 +395,10 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
           // Nothing to cascade: the finding is that a CHOICE was replaced, and the versions already
           // agree. Acking it is the whole answer.
           ()
+        | Rivals(_, _) ->
+          // `resolutionsFor` offers nothing here, so this arm is not reached; picking a winner is
+          // `deprecate` or `unbind` on one implementation.
+          ()
         Cli.printOk
           $"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf f.usage}")
 
@@ -399,7 +407,7 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
 
 let help (_state: AppState) : String =
   [ ""
-    "  Checks you RUN, not warnings at commit. Three kinds today:"
+    "  Checks you RUN, not warnings at commit. Four kinds today:"
     ""
     "    stale-usage    a live item still uses a version that is not"
     "                   what the name means now. NORMAL in a distributed"
@@ -414,6 +422,10 @@ let help (_state: AppState) : String =
     "                   a conflict override of yours was undone by a"
     "                   later ordinary edit. Ack it, or override again"
     "                   with `dark conflicts override`."
+    "    ambiguous-implementation"
+    "                   two visible implementations of one trait for one"
+    "                   type, so a call cannot choose. Deprecate one"
+    "                   (`dark impls <Trait>` lists them), or ack it."
     ""
     "  dark constraints                     what's outstanding"
     "  dark constraints --kind <kind>       just one kind"

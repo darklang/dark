@@ -52,15 +52,19 @@ let listModule
     | Type t -> Stdlib.List.append [t.owner] t.modules
     | Value v -> Stdlib.List.append [v.owner] v.modules
     | Function f -> Stdlib.List.append [f.owner] f.modules
+    | Trait t -> Stdlib.List.append [t.owner] t.modules
+    | Impl i -> Stdlib.List.append [i.owner] i.modules
 
   // Names and hashes only: a listing shows a name and a deprecation mark, and materializing each item's
   // full definition to read those was most of the command's cost once startup got cheap.
-  let (allSubmodules, rawTypes, rawValues, rawFns) =
+  let (allSubmodules, rawTypes, rawValues, rawFns, rawTraits, rawImpls) =
     Query.allDirectDescendantNamesAndHashes branchId modulePath
   let depSets = Query.loadDeprecationSets branchId
   let types = Query.filterDeprecatedPairs rawTypes depSets includeDeprecated
   let values = Query.filterDeprecatedPairs rawValues depSets includeDeprecated
   let fns = Query.filterDeprecatedPairs rawFns depSets includeDeprecated
+  let traits = Query.filterDeprecatedPairs rawTraits depSets includeDeprecated
+  let impls = Query.filterDeprecatedPairs rawImpls depSets includeDeprecated
 
   let locationStr = Packages.formatLocation location
   Stdlib.printLine $"Contents of {locationStr}:"
@@ -89,8 +93,10 @@ let listModule
       Stdlib.printLine ""
 
   printSection "type" types
+  printSection "trait" traits
   printSection "value" values
   printSection "function" fns
+  printSection "impl" impls
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
@@ -116,7 +122,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | Module _ ->
         listModule branchId newLocation includeDeprecated showVersions
         state
-      | Type _ | Value _ | Function _ ->
+      | Type _ | Value _ | Function _ | Trait _ | Impl _ ->
         let locationStr = Packages.formatLocation newLocation
         Stdlib.printLine $"'{locationStr}' is not a module."
         Stdlib.printLine "Use 'view' to see details of types, values, or functions."
@@ -143,7 +149,7 @@ let help (_state: AppState) : String =
     "Usage: ls [path] [--include-deprecated] [--versions]"
     "List contents of the current location or specified path with icons."
     ""
-    "Shows modules, types, values, and functions grouped by category."
+    "Shows modules, types, traits, values, functions and implementations, grouped by kind."
     "Deprecated items with no live callers are hidden by default; pass"
     "--include-deprecated to show them. Visible deprecated items are marked ⚠."
     ""

@@ -405,6 +405,8 @@ let kindLabel (k: String) : String =
   match k with
   | "fn" -> "function"
   | "type" -> "type"
+  | "trait" -> "trait"
+  | "impl" -> "implementation"
   | _ -> "value"
 
 
@@ -513,8 +515,10 @@ let moduleHandlerFn (req: HttpRequest) : HttpResponse =
       ($"{crumbs name}<h1>{esc name}</h1><p class=\"lede\">{lede}</p>"
        ++ subBlock
        ++ (section "type" "Types")
+       ++ (section "trait" "Traits")
        ++ (section "fn" "Functions")
-       ++ (section "value" "Values"))
+       ++ (section "value" "Values")
+       ++ (section "impl" "Implementations"))
 
 
 /// One item: its source, what it needs, and who needs it.
@@ -564,6 +568,14 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
       | "type" ->
         (match LanguageTools.PackageManager.Type.get h with
          | Some t -> PrettyPrinter.ProgramTypes.packageType ctx t
+         | None -> "(not stored here)")
+      | "trait" ->
+        (match LanguageTools.PackageManager.Trait.get h with
+         | Some t -> PrettyPrinter.ProgramTypes.packageTrait ctx t
+         | None -> "(not stored here)")
+      | "impl" ->
+        (match LanguageTools.PackageManager.TraitImpl.get h with
+         | Some i -> PrettyPrinter.ProgramTypes.packageImpl ctx i
          | None -> "(not stored here)")
       | _ ->
         (match LanguageTools.PackageManager.Value.get h with

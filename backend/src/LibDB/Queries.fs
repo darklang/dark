@@ -743,6 +743,31 @@ let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
       return { allDeprecated = deprecated; hidden = mainSets.hidden }
   }
 
+/// The implementations currently deprecated, by hash. A deprecated implementation is
+/// not a dispatch candidate: deprecating one of two rivals is how the ambiguity
+/// finding says to resolve it, so it has to take the rival out of the running.
+let getDeprecatedTraitImplHashes () : Task<Set<string>> =
+  task {
+    let! rows =
+      Sql.query
+        """
+        SELECT DISTINCT d.item_hash
+        FROM deprecations d
+        WHERE d.item_kind = 'impl'
+          AND d.unlisted_at IS NULL
+          AND d.state = 'deprecated'
+          AND NOT EXISTS (
+            SELECT 1 FROM deprecations later
+            WHERE later.item_hash = d.item_hash
+              AND later.item_kind = d.item_kind
+              AND later.unlisted_at IS NULL
+              AND later.state <> 'deprecated'
+              AND COALESCE(later.origin_ts, '') > COALESCE(d.origin_ts, ''))
+        """
+      |> Sql.executeAsync (fun read -> read.string "item_hash")
+    return Set.ofList rows
+  }
+
 let getHarmfulFnHashes () : Task<Set<Hash>> =
   task {
     // F# decides whether the annotation is Harmful, which keeps the SQL schema simple.

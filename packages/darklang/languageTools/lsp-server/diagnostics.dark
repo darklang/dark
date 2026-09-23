@@ -107,6 +107,74 @@ let fnSources
           { hash = ProgramTypes.hashToString pt.hash
             range = WrittenTypes.Expr.range wt.body })
 
+let moduleTraits
+  (m: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+  : List<WrittenTypes.TraitDeclaration.TraitDeclaration> =
+  let direct =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | Trait t -> Stdlib.Option.Option.Some t
+      | _ -> Stdlib.Option.Option.None)
+  let nested =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | SubModule submodule -> Stdlib.Option.Option.Some(moduleTraits submodule)
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.flatten
+  Stdlib.List.append direct nested
+
+let moduleImpls
+  (m: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+  : List<WrittenTypes.ImplDeclaration.ImplDeclaration> =
+  let direct =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | Impl i -> Stdlib.Option.Option.Some i
+      | _ -> Stdlib.Option.Option.None)
+  let nested =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | SubModule submodule -> Stdlib.Option.Option.Some(moduleImpls submodule)
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.flatten
+  Stdlib.List.append direct nested
+
+let traitSources
+  (written: List<WrittenTypes.TraitDeclaration.TraitDeclaration>)
+  (program: List<ProgramTypes.Trait.Trait>)
+  : List<ItemSource> =
+  match written with
+  | [] -> []
+  | wt :: wtRest ->
+    match program with
+    | [] -> []
+    | pt :: ptRest ->
+      Stdlib.List.push
+        (traitSources wtRest ptRest)
+        (ItemSource
+          { hash = ProgramTypes.hashToString pt.hash
+            range = wt.range })
+
+let implSources
+  (written: List<WrittenTypes.ImplDeclaration.ImplDeclaration>)
+  (program: List<ProgramTypes.TraitImpl.TraitImpl>)
+  : List<ItemSource> =
+  match written with
+  | [] -> []
+  | wt :: wtRest ->
+    match program with
+    | [] -> []
+    | pt :: ptRest ->
+      Stdlib.List.push
+        (implSources wtRest ptRest)
+        (ItemSource
+          { hash = ProgramTypes.hashToString pt.hash
+            range = wt.range })
+
 let submoduleSources
   (written: List<WrittenTypes.ModuleDeclaration.ModuleDeclaration>)
   (program: List<ProgramTypes.Definitions>)
@@ -121,7 +189,9 @@ let submoduleSources
         Stdlib.List.flatten
           [ typeSources (moduleTypes wt) pt.types
             valueSources (moduleValues wt) pt.values
-            fnSources (moduleFns wt) pt.fns ]
+            fnSources (moduleFns wt) pt.fns
+            traitSources (moduleTraits wt) pt.traits
+            implSources (moduleImpls wt) pt.impls ]
       Stdlib.List.append current (submoduleSources wtRest ptRest)
 
 let packageOpsAndSources
@@ -136,6 +206,10 @@ let packageOpsAndSources
         |> Stdlib.List.map (fun value -> ProgramTypes.PackageOp.AddValue value)
         program.fns
         |> Stdlib.List.map (fun fn -> ProgramTypes.PackageOp.AddFn fn)
+        program.traits
+        |> Stdlib.List.map (fun t -> ProgramTypes.PackageOp.AddTrait t)
+        program.impls
+        |> Stdlib.List.map (fun i -> ProgramTypes.PackageOp.AddTraitImpl i)
         program.submodules
         |> Stdlib.List.map (fun definitions ->
           Stdlib.List.flatten
@@ -144,13 +218,19 @@ let packageOpsAndSources
               definitions.values
               |> Stdlib.List.map (fun value -> ProgramTypes.PackageOp.AddValue value)
               definitions.fns
-              |> Stdlib.List.map (fun fn -> ProgramTypes.PackageOp.AddFn fn) ])
+              |> Stdlib.List.map (fun fn -> ProgramTypes.PackageOp.AddFn fn)
+              definitions.traits
+              |> Stdlib.List.map (fun t -> ProgramTypes.PackageOp.AddTrait t)
+              definitions.impls
+              |> Stdlib.List.map (fun i -> ProgramTypes.PackageOp.AddTraitImpl i) ])
         |> Stdlib.List.flatten ]
   let sources =
     Stdlib.List.flatten
       [ typeSources written.types program.types
         valueSources written.values program.values
         fnSources written.fns program.fns
+        traitSources written.traits program.traits
+        implSources written.impls program.impls
         submoduleSources written.submodules program.submodules ]
   (ops, sources)
 

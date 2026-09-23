@@ -60,6 +60,12 @@ let hoverInfoForThingAtPosition
 
     createHoverInfo range description metadata
 
+  | TraitName traitName description ->
+    let metadata =
+      Stdlib.Option.Option.Some("Trait: " ++ traitName)
+
+    createHoverInfo range description metadata
+
   | PackageValue fqNameList value description ->
     let prettyVal = PrettyPrinter.ProgramTypes.packageValue ppCtx value
 
@@ -2018,6 +2024,101 @@ let collectExpressionHoverInfoAtPos
   | _ -> Stdlib.Option.Option.None
 
 
+/// Hover inside `trait Show<'a> = ...`: the keyword, the trait's name, or a
+/// method's name/parameter types.
+let collectTraitHoverInfoAtPos
+  (ctx: Context)
+  (t: WrittenTypes.TraitDeclaration.TraitDeclaration)
+  (position: LanguageServerProtocol.Position.Position)
+  : Stdlib.Option.Option<Info> =
+  match CursorPosition.checkIfPositionWithinRange position t.keywordTrait with
+  | Some r ->
+    (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.Keyword("trait")) r)
+    |> Stdlib.Option.Option.Some
+  | None ->
+    match CursorPosition.checkIfPositionWithinRange position t.name.range with
+    | Some r ->
+      let fqName =
+        (Stdlib.String.join ctx.currentModules ".")
+        |> (fun currentModules ->
+          if currentModules == "" then t.name.name
+          else currentModules ++ "." ++ t.name.name)
+      let description =
+        if t.description == "" then Stdlib.Option.Option.None
+        else Stdlib.Option.Option.Some t.description
+      (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.TraitName(fqName, description)) r)
+      |> Stdlib.Option.Option.Some
+    | None ->
+      t.methods
+      |> Stdlib.List.filterMap (fun m ->
+        match CursorPosition.checkIfPositionWithinRange position m.keywordLet with
+        | Some r ->
+          (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.Keyword("let")) r)
+          |> Stdlib.Option.Option.Some
+        | None ->
+          match CursorPosition.checkIfPositionWithinRange position m.name.range with
+          | Some r ->
+            let description =
+              if m.description == "" then Stdlib.Option.Option.None
+              else Stdlib.Option.Option.Some m.description
+            (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.FnName(m.name.name, description)) r)
+            |> Stdlib.Option.Option.Some
+          | None ->
+            let paramTypes =
+              m.parameters
+              |> Stdlib.List.filterMap (fun p ->
+                match p with
+                | Normal np -> collectTypeRefHoverInfoAtPos ctx np.typ position
+                | Unit _ -> Stdlib.Option.Option.None)
+            match paramTypes with
+            | info :: _ -> Stdlib.Option.Option.Some info
+            | [] -> collectTypeRefHoverInfoAtPos ctx m.returnType position)
+      |> Stdlib.List.head
+
+
+/// Hover inside `impl Show for Point = ...`: the keywords, or a member, which
+/// hovers like the fn or value it is, at the impl's member path.
+let collectImplHoverInfoAtPos
+  (ctx: Context)
+  (i: WrittenTypes.ImplDeclaration.ImplDeclaration)
+  (position: LanguageServerProtocol.Position.Position)
+  : Stdlib.Option.Option<Info> =
+  match CursorPosition.checkIfPositionWithinRange position i.keywordImpl with
+  | Some r ->
+    (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.Keyword("impl")) r)
+    |> Stdlib.Option.Option.Some
+  | None ->
+    match CursorPosition.checkIfPositionWithinRange position i.keywordFor with
+    | Some r ->
+      (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.Keyword("for")) r)
+      |> Stdlib.Option.Option.Some
+    | None ->
+      match collectTypeRefHoverInfoAtPos ctx i.forType position with
+      | Some info -> Stdlib.Option.Option.Some info
+      | None ->
+        let memberCtx =
+          Context
+            { branchId = ctx.branchId
+              pm = ctx.pm
+              owner = ctx.owner
+              currentModules =
+                WrittenTypesToProgramTypes.ImplDeclaration.memberPath ctx.currentModules i }
+        i.members
+        |> Stdlib.List.filterMap (fun m ->
+          match m with
+          | Method f ->
+            if CursorPosition.isLineNumberInRange position f.range then
+              collectFnHoverInfoAtPos memberCtx f position
+            else
+              Stdlib.Option.Option.None
+          | Alias a ->
+            if CursorPosition.isLineNumberInRange position a.range then
+              collectValueHoverInfoAtPos memberCtx a position
+            else
+              Stdlib.Option.Option.None)
+        |> Stdlib.List.head
+
+
 // ---------------------------
 // Source File Hover Info
 // ---------------------------
@@ -2050,6 +2151,18 @@ let collectModuleDeclHoverInfoAtPos
         // Check if position is within function range for early escape
         if CursorPosition.isLineNumberInRange position f.range then
           collectFnHoverInfoAtPos ctx f position
+        else
+          Stdlib.Option.Option.None
+
+      | Trait t ->
+        if CursorPosition.isLineNumberInRange position t.range then
+          collectTraitHoverInfoAtPos ctx t position
+        else
+          Stdlib.Option.Option.None
+
+      | Impl i ->
+        if CursorPosition.isLineNumberInRange position i.range then
+          collectImplHoverInfoAtPos ctx i position
         else
           Stdlib.Option.Option.None
 
@@ -2144,6 +2257,18 @@ let collectNodeHoverInfoAtPos
         // Check if position is within function range for early escape
         if CursorPosition.isLineNumberInRange position f.range then
           collectFnHoverInfoAtPos ctx f position
+        else
+          Stdlib.Option.Option.None
+
+      | Trait t ->
+        if CursorPosition.isLineNumberInRange position t.range then
+          collectTraitHoverInfoAtPos ctx t position
+        else
+          Stdlib.Option.Option.None
+
+      | Impl i ->
+        if CursorPosition.isLineNumberInRange position i.range then
+          collectImplHoverInfoAtPos ctx i position
         else
           Stdlib.Option.Option.None
 

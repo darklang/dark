@@ -514,7 +514,8 @@ let fns () : List<BuiltInFn> =
               | AppNamedFn named ->
                 match named.name with
                 | FQFnName.Package hash -> [ hash ]
-                | FQFnName.Builtin _ -> []
+                | FQFnName.Builtin _
+                | FQFnName.TraitMethod _ -> []
               | AppLambda _ -> []
             let exeState =
               let guest =

@@ -8,12 +8,16 @@ type PackageLocation =
   | Type of location: LanguageTools.ProgramTypes.PackageLocation
   | Value of location: LanguageTools.ProgramTypes.PackageLocation
   | Function of location: LanguageTools.ProgramTypes.PackageLocation
+  | Trait of location: LanguageTools.ProgramTypes.PackageLocation
+  | Impl of location: LanguageTools.ProgramTypes.PackageLocation
 
 type EntityType =
   | Module
   | Type
   | Function
   | Value
+  | Trait
+  | Impl
 
 type State =
   { currentLocation: PackageLocation
@@ -38,6 +42,10 @@ let formatLocation (location: PackageLocation) : String =
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (value)"
   | Function loc ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (fn)"
+  | Trait loc ->
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (trait)"
+  | Impl loc ->
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (impl)"
 
 
 /// The definition a person typed, from the arguments after the item's name.
@@ -154,6 +162,17 @@ let authoredDocs
       Stdlib.Option.Option.Some(
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ]
       )
+    | AddTrait t ->
+      Stdlib.Option.Option.Some(
+        Stdlib.List.push
+          (t.methods
+           |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
+          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)
+      )
+    | AddTraitImpl i ->
+      Stdlib.Option.Option.Some(
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ]
+      )
     | _ -> Stdlib.Option.Option.None)
   |> Stdlib.List.flatten
 
@@ -180,6 +199,19 @@ let currentDocs
       LanguageTools.PackageManager.Value.get hash
       |> Stdlib.Option.map (fun v ->
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ])
+      |> Stdlib.Option.withDefault []
+    | Trait ->
+      LanguageTools.PackageManager.Trait.get hash
+      |> Stdlib.Option.map (fun t ->
+        Stdlib.List.push
+          (t.methods
+           |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
+          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
+      |> Stdlib.Option.withDefault []
+    | TraitImpl ->
+      LanguageTools.PackageManager.TraitImpl.get hash
+      |> Stdlib.Option.map (fun i ->
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ])
       |> Stdlib.Option.withDefault []
 
   SCM.Docs.overlay branchId location declared

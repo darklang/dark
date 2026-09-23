@@ -125,6 +125,25 @@ let writeFQTypeName
       PTC.FQTypeName.Package.write w (resolveHash mode loc p)
 
 
+/// Write FQTraitName, resolving deps and checking SCC substitution. Its own tag space:
+/// a trait is not a type, so a trait hash and a type hash never substitute for each other.
+let writeFQTraitName
+  (mode : HashRefMode)
+  (w : BinaryWriter)
+  (loc : Option<PT.PackageLocation>)
+  (name : PT.FQTraitName.FQTraitName)
+  =
+  match name with
+  | PT.FQTraitName.Package p ->
+    match isSccRef mode loc p with
+    | Some fqn ->
+      w.Write(1uy) // SCC name-ref tag
+      Common.String.write w fqn
+    | None ->
+      w.Write(0uy)
+      PTC.FQTraitName.Package.write w (resolveHash mode loc p)
+
+
 /// Write FQFnName, resolving deps and checking SCC substitution
 let writeFQFnName
   (mode : HashRefMode)
@@ -144,6 +163,10 @@ let writeFQFnName
     | None ->
       w.Write(1uy)
       PTC.FQFnName.Package.write w (resolveHash mode loc p)
+  | PT.FQFnName.TraitMethod(t, m) ->
+    w.Write(3uy)
+    writeFQTraitName mode w loc (PT.FQTraitName.Package t)
+    Common.String.write w m
 
 
 /// Write FQValueName, resolving deps and checking SCC substitution
@@ -553,6 +576,20 @@ let writeEnumCase
   Common.String.write w c.name
   Common.List.write w (writeEnumField mode) c.fields
 
+/// Bounds are behaviour (a contract on the caller), so they hash. Written ONLY when
+/// present, and last, so every item that has none keeps the hash it had before bounds
+/// existed: adding the field must not repoint the world.
+let writeBounds (mode : HashRefMode) (w : BinaryWriter) (bounds : List<PT.Bound>) =
+  if not (List.isEmpty bounds) then
+    w.Write(0xB0uy) // bounds marker; nothing else follows an item body
+    Common.List.write
+      w
+      (fun w (b : PT.Bound) ->
+        Common.String.write w b.param
+        writeNameResolution (writeFQTraitName mode) w b.trait_.trait_
+        Common.List.write w (writeTypeReference mode) b.trait_.typeArgs)
+      bounds
+
 let writeTypeDeclaration
   (mode : HashRefMode)
   (w : BinaryWriter)
@@ -569,6 +606,7 @@ let writeTypeDeclaration
   | PT.TypeDeclaration.Enum cases ->
     w.Write(2uy)
     Common.NEList.write (writeEnumCase mode) w cases
+  writeBounds mode w d.bounds
 
 
 // =====================
@@ -600,6 +638,7 @@ let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn
   | Some effects ->
     w.Write(1uy)
     LibSerialization.Binary.Serializers.Effects.write w effects
+  writeBounds mode w fn.bounds
 
 /// Write a PackageValue's hash-relevant content: its body.
 let writeValue
@@ -609,3 +648,39 @@ let writeValue
   =
   w.Write(2uy) // tag: value
   writeExpr mode w v.body
+
+/// Write a Trait's hash-relevant content: its params, supertraits and method
+/// signatures (ceilings included, descriptions not). Its own tag, so a trait and a
+/// record type of the same shape never share a hash.
+let writeTrait (mode : HashRefMode) (w : BinaryWriter) (t : PT.Trait.Trait) =
+  w.Write(3uy) // tag: trait
+  Common.NEList.write Common.String.write w t.typeParams
+  Common.NEList.write
+    (fun w (m : PT.Trait.Method) ->
+      Common.String.write w m.name
+      Common.List.write w Common.String.write m.typeParams
+      Common.NEList.write (writeParameter mode) w m.parameters
+      writeTypeReference mode w m.returnType
+      match m.permissionCeiling with
+      | None -> w.Write(0uy)
+      | Some effects ->
+        w.Write(1uy)
+        LibSerialization.Binary.Serializers.Effects.write w effects)
+    w
+    t.methods
+  writeBounds mode w t.bounds
+
+/// Write an Impl's hash-relevant content: which trait, at what, with which fns.
+let writeImpl (mode : HashRefMode) (w : BinaryWriter) (i : PT.TraitImpl.TraitImpl) =
+  w.Write(4uy) // tag: impl
+  writeNameResolution (writeFQTraitName mode) w i.trait_
+  Common.List.write w (writeTypeReference mode) i.traitTypeArgs
+  writeTypeReference mode w i.self
+  Common.List.write w Common.String.write i.typeParams
+  Common.List.write
+    w
+    (fun w (m : string, nr : PT.NameResolution<PT.FQFnName.FQFnName>) ->
+      Common.String.write w m
+      writeNameResolution (writeFQFnName mode) w nr)
+    i.methods
+  writeBounds mode w i.bounds

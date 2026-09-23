@@ -235,6 +235,14 @@ let private extract (roots : List<Work>) : List<Dependency> =
 
       | PT.EFnName(_, nr) ->
         addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
+        // `Show.show` depends on the trait: editing the trait repoints every
+        // caller, which is what makes a changed method signature visible.
+        match nr.resolved with
+        | Ok { name = PT.FQFnName.TraitMethod(traitHash, _); location = loc } ->
+          dependencies <-
+            { hash = traitHash; itemKind = PT.ItemKind.Trait; location = loc }
+            :: dependencies
+        | _ -> ()
 
       | PT.ELambda(_, _, body) -> work.Push(Expr body)
 
@@ -272,6 +280,18 @@ let private extract (roots : List<Work>) : List<Dependency> =
 let extractFromExpr (expr : PT.Expr) : List<Dependency> = extract [ Expr expr ]
 
 
+/// A bound `'a: Show<X>` references the trait and its type args.
+let private traitRefDeps (t : PT.TraitRef) : List<Dependency> =
+  (extractFromNameResolution
+    t.trait_
+    PT.ItemKind.Trait
+    (fun (PT.FQTraitName.Package h) -> Some h))
+  @ extract (t.typeArgs |> List.map TypeRef)
+
+let private boundDeps (bounds : List<PT.Bound>) : List<Dependency> =
+  bounds |> List.collect (fun b -> traitRefDeps b.trait_)
+
+
 /// Extract all references from a function definition
 let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
   // Deduplicate references
@@ -282,6 +302,7 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
         |> List.map (fun parameter -> TypeRef parameter.typ))
     @ [ TypeRef fn.returnType ]
   )
+  @ boundDeps fn.bounds
   |> List.distinct
 
 
@@ -294,6 +315,7 @@ let extractFromFnSignature (fn : PT.PackageFn.PackageFn) : List<Dependency> =
      |> List.map (fun parameter -> TypeRef parameter.typ))
     @ [ TypeRef fn.returnType ]
   )
+  @ boundDeps fn.bounds
   |> List.distinct
 
 
@@ -315,4 +337,27 @@ let extractFromType (typ : PT.PackageType.PackageType) : List<Dependency> =
       |> List.collect (fun case ->
         case.fields |> List.map (fun field -> TypeRef field.typ))
 
-  extract roots |> List.distinct
+  extract roots @ boundDeps typ.declaration.bounds |> List.distinct
+
+
+/// A trait references the types in its method signatures and its supertraits.
+let extractFromTrait (t : PT.Trait.Trait) : List<Dependency> =
+  let roots =
+    t.methods
+    |> NEList.toList
+    |> List.collect (fun m ->
+      (m.parameters |> NEList.toList |> List.map (fun p -> TypeRef p.typ))
+      @ [ TypeRef m.returnType ])
+  extract roots @ boundDeps t.bounds |> List.distinct
+
+
+/// An impl references its trait (this edge is how a trait finds its impls), its self
+/// type, its method fns and its bounds.
+let extractFromImpl (i : PT.TraitImpl.TraitImpl) : List<Dependency> =
+  traitRefDeps { trait_ = i.trait_; typeArgs = i.traitTypeArgs }
+  @ extract [ TypeRef i.self ]
+  @ (i.methods
+     |> List.collect (fun (_, nr) ->
+       extractFromNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash))
+  @ boundDeps i.bounds
+  |> List.distinct

@@ -5,7 +5,9 @@ let content () : String =
 
 ## Comparison
   == != < > <= >=
-  (< > <= >= are polymorphic over numeric types — Int8..Int128, UInt*, Float)
+  `==` and `!=` are `Stdlib.Eq`: structural on every type unless the type
+  implements `Eq`. `< > <= >=` are `Stdlib.Ord`: every numeric type implements
+  it, and so can yours. `docs traits` has how.
 
 ## Boolean
   && ||   and unary !x
@@ -13,13 +15,18 @@ let content () : String =
 
 ## Numeric (all int types + Float)
   + - * / % **   and unary -x
-  Polymorphic at runtime: both operands must be the same numeric type.
-  `1 + 2`, `1.0 + 2.0`, and `1y * 2y` all work.
+  Each is a trait: `+` is `Stdlib.Add`, then Sub, Mul, Div, Mod, Pow, and `-x`
+  is `Neg`. Both operands must be the same type: `1 + 2`, `1.0 + 2.0` and
+  `1y * 2y` all work; `1L + 2.0` is "Cannot perform numeric operation on Int64
+  and Float". `"a" + "b"` is `"ab"` (String implements Add; `++` still works).
+  A type of your own joins with `impl Add for Vec = ...`.
   `/` is integer division on ints, float division on floats.
   `%` works on all numeric types (the modulus must be > 0).
-  `**` (power) works on all integer types and Float (not Int128/UInt128),
-  and nests right: `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
-  Unary `-x` negates signed ints and Float (not unsigned types).
+  `**` (power) works on all integer types and Float (not Int128/UInt128,
+  which have no Pow implementation), and nests right: `2 ** 3 ** 2` is
+  `2 ** (3 ** 2)`.
+  Unary `-x` negates signed ints and Float; an unsigned type has no Neg
+  implementation, and `-x` on one says so.
   Integer overflow (+ - * / ** and unary -) raises a runtime error.
   Float arithmetic follows IEEE (overflow -> infinity).
 

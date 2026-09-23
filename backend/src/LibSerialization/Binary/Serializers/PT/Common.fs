@@ -136,6 +136,23 @@ module FQTypeName =
     | b -> raiseFormatError $"Invalid FQTypeName tag: {b}"
 
 
+module FQTraitName =
+  module Package =
+    let write (w : BinaryWriter) (p : FQTraitName.Package) = Hash.write w p
+    let read (r : BinaryReader) : FQTraitName.Package = Hash.read r
+
+  let write (w : BinaryWriter) (name : FQTraitName.FQTraitName) =
+    match name with
+    | FQTraitName.Package p ->
+      w.Write(0uy)
+      Package.write w p
+
+  let read (r : BinaryReader) : FQTraitName.FQTraitName =
+    match r.ReadByte() with
+    | 0uy -> FQTraitName.Package(Package.read r)
+    | b -> raiseFormatError $"Invalid FQTraitName tag: {b}"
+
+
 module FQValueName =
   module Builtin =
     let write (w : BinaryWriter) (b : FQValueName.Builtin) =
@@ -194,11 +211,20 @@ module FQFnName =
     | FQFnName.Package p ->
       w.Write(1uy)
       Package.write w p
+    | FQFnName.TraitMethod(t, m) ->
+      // v2 only; a v1 blob never carries this tag.
+      w.Write(2uy)
+      FQTraitName.Package.write w t
+      String.write w m
 
   let read (r : BinaryReader) : FQFnName.FQFnName =
     match r.ReadByte() with
     | 0uy -> FQFnName.Builtin(Builtin.read r)
     | 1uy -> FQFnName.Package(Package.read r)
+    | 2uy ->
+      let t = FQTraitName.Package.read r
+      let m = String.read r
+      FQFnName.TraitMethod(t, m)
     | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 
 

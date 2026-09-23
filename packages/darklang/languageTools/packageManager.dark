@@ -121,6 +121,52 @@ module Type =
     | None -> Stdlib.Option.Option.None
 
 
+module Trait =
+  let find
+    (branchId: Uuid)
+    (location: ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<ProgramTypes.FQTraitName.Package> =
+    Builtin.pmFindTrait branchId location
+
+  let get
+    (hash: ProgramTypes.FQTraitName.Package)
+    : Stdlib.Option.Option<ProgramTypes.Trait.Trait> =
+    Builtin.pmGetTrait hash
+
+  /// Every name this trait is bound to on <param branchId>.
+  let locations
+    (branchId: Uuid)
+    (hash: ProgramTypes.FQTraitName.Package)
+    : List<ProgramTypes.PackageLocation> =
+    Builtin.pmGetLocationsByTrait branchId hash
+
+  /// The impls of a trait bound on <param branchId>: what `Trait.method x` can
+  /// dispatch to.
+  let impls
+    (branchId: Uuid)
+    (traitHash: ProgramTypes.FQTraitName.Package)
+    : List<RuntimeTypes.ImplCandidate> =
+    Builtin.pmImplCandidates branchId traitHash
+
+
+module TraitImpl =
+  let find
+    (branchId: Uuid)
+    (location: ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<ProgramTypes.Hash> =
+    Builtin.pmFindTraitImpl branchId location
+
+  let get (hash: ProgramTypes.Hash) : Stdlib.Option.Option<ProgramTypes.TraitImpl.TraitImpl> =
+    Builtin.pmGetTraitImpl hash
+
+  /// Every name this impl is bound to on <param branchId>.
+  let locations
+    (branchId: Uuid)
+    (hash: ProgramTypes.Hash)
+    : List<ProgramTypes.PackageLocation> =
+    Builtin.pmGetLocationsByTraitImpl branchId hash
+
+
 module Value =
   let find
     (branchId: Uuid)
@@ -207,7 +253,7 @@ let duplicateDeclarations
   Builtin.pmDuplicateDeclarations ops
 
 
-/// Find any item (type, fn, or value) at a location.
+/// Find any item (type, fn, value, trait or impl) at a location.
 /// Returns the hash and what kind of item it is.
 let findAny
   (branchId: Uuid)
@@ -224,7 +270,15 @@ let findAny
       match Value.find branchId location with
       | Some hash ->
         Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Value))
-      | None -> Stdlib.Option.Option.None
+      | None ->
+        match Trait.find branchId location with
+        | Some hash ->
+          Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Trait))
+        | None ->
+          match TraitImpl.find branchId location with
+          | Some hash ->
+            Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.TraitImpl))
+          | None -> Stdlib.Option.Option.None
 
 
 /// Whether <param owner> has any listed item at all.
@@ -246,10 +300,12 @@ module Search =
       { submodules = searchResults.submodules
         types = searchResults.types
         values = searchResults.values
-        fns = searchResults.fns }
+        fns = searchResults.fns
+        traits = searchResults.traits
+        impls = searchResults.impls }
 
 
-  /// Search returning only names: (direct submodules, types, values, fns).
+  /// Search returning only names: (direct submodules, types, values, fns, traits, impls).
   ///
   /// `search` converts every matched item's full definition, parameters and body AST included, into Dark
   /// values. Completion reads `.location.name` and throws the rest away, which is most of a millisecond
@@ -259,7 +315,7 @@ module Search =
   let searchNames
     (branchId: Uuid)
     (query: ProgramTypes.Search.SearchQuery)
-    : (List<String> * List<String> * List<String> * List<String>) =
+    : (List<String> * List<String> * List<String> * List<String> * List<String> * List<String>) =
     Builtin.pmSearchNames branchId query
 
 
@@ -269,6 +325,8 @@ module Search =
     (branchId: Uuid)
     (query: ProgramTypes.Search.SearchQuery)
     : (List<String> *
+       List<(String * ProgramTypes.Hash)> *
+       List<(String * ProgramTypes.Hash)> *
        List<(String * ProgramTypes.Hash)> *
        List<(String * ProgramTypes.Hash)> *
        List<(String * ProgramTypes.Hash)>) =
@@ -283,10 +341,13 @@ let pm () : ProgramTypes.PackageManager.PackageManager =
         fun (branchId, location) -> PackageManager.Value.find branchId location
       findFn =
         fun (branchId, location) -> PackageManager.Function.find branchId location
+      findTrait =
+        fun (branchId, location) -> PackageManager.Trait.find branchId location
 
       getFn = PackageManager.Function.get
       getValue = PackageManager.Value.get
       getType = PackageManager.Type.get
+      getTrait = PackageManager.Trait.get
 
       search =
         fun (branchId, query) -> PackageManager.Search.search branchId query }

@@ -440,6 +440,12 @@ let typeCheckOps
       | AddValue v ->
         let h = LanguageTools.ProgramTypes.hashToString v.hash
         (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+      | AddTrait t ->
+        let h = LanguageTools.ProgramTypes.hashToString t.hash
+        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+      | AddTraitImpl i ->
+        let h = LanguageTools.ProgramTypes.hashToString i.hash
+        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
       | _ -> true)
 
   match liveOps with
