@@ -125,7 +125,7 @@ let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =
   | ("notifications/cancel", None, Some(Object fields)) ->
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "requestId") with
       | Some ((_, String id)) -> IncomingMessage.CancelNotification (JsonRPC.RequestID.String id)
-      | Some ((_, Number id)) -> IncomingMessage.CancelNotification (JsonRPC.RequestID.Int (Stdlib.Int.fromFloat id))
+      | Some ((_, Integer id)) -> IncomingMessage.CancelNotification (JsonRPC.RequestID.Int id)
       | _ -> IncomingMessage.Other r
 
   // Roots

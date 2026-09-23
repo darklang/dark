@@ -1,6 +1,8 @@
 module Builtins.Pure.Libs.AltJson
 
 open System.Text.Json
+open System.Globalization
+open System.Numerics
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -16,7 +18,8 @@ module Json =
   type Json =
     | Null
     | Bool of bool
-    | Number of double
+    | Integer of BigInteger
+    | Float of double
     | String of string
     | Array of List<Json>
     | Object of List<string * Json>
@@ -29,7 +32,8 @@ module Json =
     match dv with
     | DEnum(_, _, [], "Null", []) -> Null
     | DEnum(_, _, [], "Bool", [ DBool b ]) -> Bool b
-    | DEnum(_, _, [], "Number", [ DFloat n ]) -> Number n
+    | DEnum(_, _, [], "Integer", [ DInt i ]) -> Integer(DarkInt.toBigInt i)
+    | DEnum(_, _, [], "Float", [ DFloat n ]) -> Float n
     | DEnum(_, _, [], "String", [ DString str ]) -> String str
 
     | DEnum(_, _, [], "Array", [ DList(_, items) ]) ->
@@ -52,7 +56,8 @@ module Json =
       match token with
       | Null -> "Null", []
       | Bool b -> "Bool", [ DBool b ]
-      | Number n -> "Number", [ DFloat n ]
+      | Integer i -> "Integer", [ Dval.int i ]
+      | Float n -> "Float", [ DFloat n ]
       | String str -> "String", [ DString str ]
 
       | Array items ->
@@ -103,7 +108,12 @@ module Parsing =
       | JsonValueKind.True -> Json.Bool true
       | JsonValueKind.False -> Json.Bool false
 
-      | JsonValueKind.Number -> j.GetDouble() |> Json.Number
+      | JsonValueKind.Number ->
+        let raw = j.GetRawText()
+        if raw.IndexOfAny([| '.'; 'e'; 'E' |]) < 0 then
+          Json.Integer(BigInteger.Parse(raw, CultureInfo.InvariantCulture))
+        else
+          Json.Float(j.GetDouble())
 
       | JsonValueKind.String -> j.GetString() |> Json.String
 
@@ -158,7 +168,8 @@ module Serialize =
     match jsonToken with
     | Json.Null -> w.WriteNullValue()
     | Json.Bool b -> w.WriteBooleanValue b
-    | Json.Number n -> w.WriteNumberValue n
+    | Json.Integer i -> w.WriteRawValue(i.ToString(CultureInfo.InvariantCulture))
+    | Json.Float n -> w.WriteNumberValue n
     | Json.String s -> w.WriteStringValue s
 
     | Json.Array l ->

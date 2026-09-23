@@ -194,18 +194,30 @@ let extractToolCalls (contentArray: List<Json>) : List<Provider.ToolCall> =
 
 
 /// Extract usage from Anthropic response (includes cache tokens)
-let extractUsage (fields: List<(String * Json)>) : Provider.Usage =
+let extractUsage
+  (fields: List<(String * Json)>)
+  : Stdlib.Result.Result<Provider.Usage, String> =
   let usageFields = Stdlib.AltJson.Helpers.getObject "usage" fields
-  let inputTokens = Stdlib.AltJson.Helpers.getInt "input_tokens" usageFields
-  let outputTokens = Stdlib.AltJson.Helpers.getInt "output_tokens" usageFields
-  let cacheCreationTokens = Stdlib.AltJson.Helpers.getInt "cache_creation_input_tokens" usageFields
-  let cacheReadTokens = Stdlib.AltJson.Helpers.getInt "cache_read_input_tokens" usageFields
+  let count (key: String) : Stdlib.Result.Result<Int, String> =
+    Stdlib.AltJson.Helpers.getIntOr key 0 usageFields
 
-  Provider.Usage
-    { inputTokens = inputTokens
-      outputTokens = outputTokens
-      cacheCreationTokens = cacheCreationTokens
-      cacheReadTokens = cacheReadTokens }
+  match
+    (count "input_tokens",
+     count "output_tokens",
+     count "cache_creation_input_tokens",
+     count "cache_read_input_tokens")
+  with
+  | (Ok input, Ok output, Ok cacheCreation, Ok cacheRead) ->
+    Stdlib.Result.Result.Ok(
+      Provider.Usage
+        { inputTokens = input
+          outputTokens = output
+          cacheCreationTokens = cacheCreation
+          cacheReadTokens = cacheRead })
+  | (Error e, _, _, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e, _, _) -> Stdlib.Result.Result.Error e
+  | (_, _, Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, _, _, Error e) -> Stdlib.Result.Result.Error e
 
 
 
@@ -270,7 +282,7 @@ let thinkingConfigToJson (config: Provider.ThinkingConfig) : Json =
   | Enabled budgetTokens ->
     Json.Object
       [ ("type", Json.String "enabled")
-        ("budget_tokens", Json.Number(Stdlib.Int.toFloat budgetTokens)) ]
+        ("budget_tokens", Json.Integer(budgetTokens)) ]
   | Adaptive ->
     Json.Object [ ("type", Json.String "adaptive") ]
 
@@ -285,7 +297,7 @@ let buildDomainConstraints
   : List<(String * Json)> =
   let withMaxUses =
     match maxUses with
-    | Some n -> Stdlib.List.append baseFields [ ("max_uses", Json.Number(Stdlib.Int.toFloat n)) ]
+    | Some n -> Stdlib.List.append baseFields [ ("max_uses", Json.Integer(n)) ]
     | None -> baseFields
 
   let withAllowed =
@@ -407,7 +419,7 @@ let buildExtendedRequest
   // Add temperature if present
   let withTemp =
     match req.temperature with
-    | Some t -> Stdlib.List.append withThinking [ ("temperature", Json.Number t) ]
+    | Some t -> Stdlib.List.append withThinking [ ("temperature", Json.Float t) ]
     | None -> withThinking
 
   Json.Object withTemp
@@ -507,14 +519,8 @@ let extractCitationsFromBlock (fields: List<(String * Json)>) : List<Provider.Ci
             url = Stdlib.AltJson.Helpers.getString "url" citFields
             title = Stdlib.AltJson.Helpers.getString "title" citFields
             citedText = Stdlib.AltJson.Helpers.getString "cited_text" citFields
-            startIndex =
-              let idx = Stdlib.AltJson.Helpers.getInt "start_index" citFields
-              if idx == 0 then Stdlib.Option.Option.None
-              else Stdlib.Option.Option.Some idx
-            endIndex =
-              let idx = Stdlib.AltJson.Helpers.getInt "end_index" citFields
-              if idx == 0 then Stdlib.Option.Option.None
-              else Stdlib.Option.Option.Some idx })
+            startIndex = Stdlib.AltJson.Helpers.getIntOption "start_index" citFields
+            endIndex = Stdlib.AltJson.Helpers.getIntOption "end_index" citFields })
     | _ -> Stdlib.Option.Option.None)
 
 
@@ -559,7 +565,7 @@ let parseExtendedResponse
       | None -> Provider.StopReason.EndTurn
 
     // Extract usage
-    let usage = extractUsage fields
+    let usageResult = extractUsage fields
 
     // Extract thinking
     let thinking = extractThinking contentArray
@@ -570,22 +576,26 @@ let parseExtendedResponse
     // Extract citations
     let citations = extractCitations contentArray
 
-    Stdlib.Result.Result.Ok(
-      Provider.ResponseExtended
-        { content = content
-          stopReason = stopReason
-          toolCalls = toolCalls
-          usage = usage
-          raw = json
-          thinking = thinking
-          webSearchResults = webSearchResults
-          citations = citations
-          // Anthropic doesn't have system fingerprint
-          systemFingerprint = Stdlib.Option.Option.None })
+    let responseResult =
+      Stdlib.Result.map usageResult (fun usage ->
+        Provider.ResponseExtended
+          { content = content
+            stopReason = stopReason
+            toolCalls = toolCalls
+            usage = usage
+            raw = json
+            thinking = thinking
+            webSearchResults = webSearchResults
+            citations = citations
+            // Anthropic doesn't have system fingerprint
+            systemFingerprint = Stdlib.Option.Option.None })
+
+    Stdlib.Result.mapError responseResult (fun e ->
+      Provider.ProviderError.InvalidResponseError e)
 
   | _ ->
     Stdlib.Result.Result.Error(
-      Provider.ProviderError.InvalidRequestError "Invalid JSON response")
+      Provider.ProviderError.InvalidResponseError "Invalid JSON response")
 
 
 
@@ -649,7 +659,7 @@ let sendExtendedRequest
         | Ok json -> parseExtendedResponse json
         | Error e ->
           Stdlib.Result.Result.Error(
-            Provider.ProviderError.InvalidRequestError(
+            Provider.ProviderError.InvalidResponseError(
               Stdlib.AltJson.ParseError.toString e)))
 
 

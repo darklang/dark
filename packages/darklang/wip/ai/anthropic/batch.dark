@@ -160,13 +160,27 @@ type BatchListResponse =
 // RESPONSE PARSING
 // ---------------------------------------------------------------------------
 
-let parseRequestCounts (fields: List<(String * Json)>) : BatchRequestCounts =
-  BatchRequestCounts
-    { processing = Stdlib.AltJson.Helpers.getInt "processing" fields
-      succeeded = Stdlib.AltJson.Helpers.getInt "succeeded" fields
-      errored = Stdlib.AltJson.Helpers.getInt "errored" fields
-      canceled = Stdlib.AltJson.Helpers.getInt "canceled" fields
-      expired = Stdlib.AltJson.Helpers.getInt "expired" fields }
+let parseRequestCounts
+  (fields: List<(String * Json)>)
+  : Stdlib.Result.Result<BatchRequestCounts, String> =
+  match (Stdlib.AltJson.Helpers.getIntOr "processing" 0 fields,
+         Stdlib.AltJson.Helpers.getIntOr "succeeded" 0 fields,
+         Stdlib.AltJson.Helpers.getIntOr "errored" 0 fields,
+         Stdlib.AltJson.Helpers.getIntOr "canceled" 0 fields,
+         Stdlib.AltJson.Helpers.getIntOr "expired" 0 fields) with
+  | (Ok processing, Ok succeeded, Ok errored, Ok canceled, Ok expired) ->
+    Stdlib.Result.Result.Ok(
+      BatchRequestCounts
+        { processing = processing
+          succeeded = succeeded
+          errored = errored
+          canceled = canceled
+          expired = expired })
+  | (Error e, _, _, _, _) -> Stdlib.Result.Result.Error e
+  | (_, Error e, _, _, _) -> Stdlib.Result.Result.Error e
+  | (_, _, Error e, _, _) -> Stdlib.Result.Result.Error e
+  | (_, _, _, Error e, _) -> Stdlib.Result.Result.Error e
+  | (_, _, _, _, Error e) -> Stdlib.Result.Result.Error e
 
 let parseMessageBatch (json: Json) : Stdlib.Result.Result<MessageBatch, String> =
   match json with
@@ -182,7 +196,7 @@ let parseMessageBatch (json: Json) : Stdlib.Result.Result<MessageBatch, String> 
 
     let requestCountsFields = Stdlib.AltJson.Helpers.getObject "request_counts" fields
 
-    Stdlib.Result.Result.Ok(
+    Stdlib.Result.map (parseRequestCounts requestCountsFields) (fun counts ->
       MessageBatch
         { id =
             match Stdlib.AltJson.Helpers.getString "id" fields with
@@ -193,7 +207,7 @@ let parseMessageBatch (json: Json) : Stdlib.Result.Result<MessageBatch, String> 
             | Some s -> s
             | None -> "message_batch"
           processing_status = status
-          request_counts = parseRequestCounts requestCountsFields
+          request_counts = counts
           ended_at = Stdlib.AltJson.Helpers.getString "ended_at" fields
           created_at =
             match Stdlib.AltJson.Helpers.getString "created_at" fields with

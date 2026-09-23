@@ -36,7 +36,7 @@ let branchToJson (b: SCM.Branches.BranchRow) (activeBranchId: Uuid) : Json =
       ("name",
        Json.String(if b.name == "" then Stdlib.Uuid.toString b.id else b.name))
       ("parentBranchId", idJson b.parent)
-      ("ops", Json.Number(Stdlib.Int64.toFloat b.ops))
+      ("ops", Json.Integer(Stdlib.Int.fromInt64 b.ops))
       ("merged", Json.Bool b.merged)
       ("isActive", Json.Bool(b.id == activeBranchId)) ]
 
@@ -113,7 +113,7 @@ let withBranch
 
 /// A list's length on the wire. JSON numbers are floats, so every count crossing here converts once.
 let countJson (xs: List<'a>) : Json =
-  Json.Number(Stdlib.Int.toFloat (Stdlib.List.length xs))
+  Json.Integer(Stdlib.List.length xs)
 
 
 /// `dark/getBranches` -- every active branch, with the active one flagged.
@@ -308,7 +308,7 @@ let handleMergeRequest
         requestID
         (Json.Object
           [ ("success", Json.Bool true)
-            ("merged", Json.Number(Stdlib.Int.toFloat outcome.merged))
+            ("merged", Json.Integer(outcome.merged))
             ("conflicts", countJson outcome.conflicts) ])
 
       notifyBranchChanged (activeBranch ()) (SCM.PackageOps.branchName (activeBranch ()))
@@ -476,14 +476,14 @@ let handleGetWipSummaryRequest
     requestID
     (Json.Object
       [ ("branch", Json.String(SCM.PackageOps.branchName (activeBranch ())))
-        ("opCount", Json.Number(Stdlib.Int64.toFloat p.ops))
+        ("opCount", Json.Integer(Stdlib.Int.fromInt64 p.ops))
         ("changed", items)
         // `authored` is what YOU did; `followed` is what propagation did behind you. `dark status`
         // leads with the same split.
-        ("authored", Json.Number(Stdlib.Int.toFloat (SCM.Draft.authoredCount p)))
-        ("followed", Json.Number(Stdlib.Int.toFloat (SCM.Draft.followedCount p)))
+        ("authored", Json.Integer(SCM.Draft.authoredCount p))
+        ("followed", Json.Integer(SCM.Draft.followedCount p))
         ("repoints", countJson p.repoints)
-        ("constraints", Json.Number(Stdlib.Int.toFloat p.constraints))
+        ("constraints", Json.Integer(p.constraints))
         ("conflicts", countJson p.conflicts) ])
 
   state

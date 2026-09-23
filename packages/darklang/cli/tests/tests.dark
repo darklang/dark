@@ -513,7 +513,7 @@ let testSearchMatchesModuleAndOperationName (): TestResult =
 let testSearchFindsNestedHelpersFromParentModule (): TestResult =
   let output = runWithCommand ["search", "AltJson.get", "--fn"]
 
-  if Stdlib.String.contains output "Darklang.Stdlib.AltJson.Helpers.getInt" then
+  if Stdlib.String.contains output "Darklang.Stdlib.AltJson.Helpers.getIntResult" then
     TestResult.Pass
   else
     TestResult.Fail

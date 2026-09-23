@@ -99,7 +99,7 @@ module Shared =
     (value: Stdlib.Option.Option<Float>)
     : List<(String * Json)> =
     match value with
-    | Some v -> Stdlib.List.append fields [ (key, Json.Number v) ]
+    | Some v -> Stdlib.List.append fields [ (key, Json.Float v) ]
     | None -> fields
 
   let appendBoolField
@@ -395,12 +395,10 @@ module Transcriptions =
           Stdlib.List.filterMap
             (Stdlib.AltJson.Helpers.getArray "bytes" logprobFields)
             (fun b ->
-              match b with
-              | Number n -> Stdlib.Option.Option.Some(Stdlib.Int.fromFloat n)
-              | _ -> Stdlib.Option.Option.None)
+              Stdlib.AltJson.toInt b)
 
         match (Stdlib.AltJson.Helpers.getString "token" logprobFields,
-               Stdlib.AltJson.Helpers.getNumber "logprob" logprobFields) with
+               Stdlib.AltJson.Helpers.getFloat "logprob" logprobFields) with
         | (Some token, Some logprob) ->
           Stdlib.Option.Option.Some(
             TranscriptionLogprob
@@ -428,8 +426,8 @@ module Transcriptions =
   let parseWord (item: Json) : Stdlib.Option.Option<TranscriptionWord> =
     match item with
     | Object fields ->
-      match (Stdlib.AltJson.Helpers.getNumber "start" fields,
-             Stdlib.AltJson.Helpers.getNumber "end" fields,
+      match (Stdlib.AltJson.Helpers.getFloat "start" fields,
+             Stdlib.AltJson.Helpers.getFloat "end" fields,
              Stdlib.AltJson.Helpers.getString "word" fields) with
       | (Some start, Some end_, Some word) ->
         Stdlib.Option.Option.Some(
@@ -447,12 +445,10 @@ module Transcriptions =
         Stdlib.List.filterMap
           (Stdlib.AltJson.Helpers.getArray "tokens" fields)
           (fun t ->
-            match t with
-            | Number n -> Stdlib.Option.Option.Some(Stdlib.Int.fromFloat n)
-            | _ -> Stdlib.Option.Option.None)
+            Stdlib.AltJson.toInt t)
 
-      match (Stdlib.AltJson.Helpers.getNumber "start" fields,
-             Stdlib.AltJson.Helpers.getNumber "end" fields,
+      match (Stdlib.AltJson.Helpers.getFloat "start" fields,
+             Stdlib.AltJson.Helpers.getFloat "end" fields,
              Stdlib.AltJson.Helpers.getString "text" fields) with
       | (Some start, Some end_, Some text) ->
         Stdlib.Option.Option.Some(
@@ -461,10 +457,10 @@ module Transcriptions =
               start = start
               end_ = end_
               text = text
-              avgLogprob = Stdlib.AltJson.Helpers.getNumber "avg_logprob" fields
-              compressionRatio = Stdlib.AltJson.Helpers.getNumber "compression_ratio" fields
-              noSpeechProb = Stdlib.AltJson.Helpers.getNumber "no_speech_prob" fields
-              temperature = Stdlib.AltJson.Helpers.getNumber "temperature" fields
+              avgLogprob = Stdlib.AltJson.Helpers.getFloat "avg_logprob" fields
+              compressionRatio = Stdlib.AltJson.Helpers.getFloat "compression_ratio" fields
+              noSpeechProb = Stdlib.AltJson.Helpers.getFloat "no_speech_prob" fields
+              temperature = Stdlib.AltJson.Helpers.getFloat "temperature" fields
               seek = Stdlib.AltJson.Helpers.getIntOption "seek" fields
               tokens = tokens })
       | _ -> Stdlib.Option.Option.None
@@ -476,8 +472,8 @@ module Transcriptions =
     match item with
     | Object fields ->
       match (Stdlib.AltJson.Helpers.getIntOption "id" fields,
-             Stdlib.AltJson.Helpers.getNumber "start" fields,
-             Stdlib.AltJson.Helpers.getNumber "end" fields,
+             Stdlib.AltJson.Helpers.getFloat "start" fields,
+             Stdlib.AltJson.Helpers.getFloat "end" fields,
              Stdlib.AltJson.Helpers.getString "speaker" fields,
              Stdlib.AltJson.Helpers.getString "text" fields,
              Stdlib.AltJson.Helpers.getString "type" fields) with
@@ -524,7 +520,7 @@ module Transcriptions =
           Stdlib.Result.Result.Ok(
             TranscriptionResponse.DiarizedResult(
               TranscriptionDiarized
-                { duration = Stdlib.AltJson.Helpers.getNumber "duration" fields
+                { duration = Stdlib.AltJson.Helpers.getFloat "duration" fields
                   task = Stdlib.AltJson.Helpers.getString "task" fields
                   text = text
                   segments = diarizedSegments
@@ -538,7 +534,7 @@ module Transcriptions =
           Stdlib.Result.Result.Ok(
             TranscriptionResponse.VerboseResult(
               TranscriptionVerbose
-                { duration = Stdlib.AltJson.Helpers.getNumber "duration" fields
+                { duration = Stdlib.AltJson.Helpers.getFloat "duration" fields
                   language = Stdlib.AltJson.Helpers.getString "language" fields
                   text = text
                   segments = segments
@@ -551,7 +547,7 @@ module Transcriptions =
               TranscriptionJson
                 { text = text
                   language = Stdlib.AltJson.Helpers.getString "language" fields
-                  duration = Stdlib.AltJson.Helpers.getNumber "duration" fields
+                  duration = Stdlib.AltJson.Helpers.getFloat "duration" fields
                   logprobs = logprobs
                   usage = usage }))
       | _ -> Stdlib.Result.Result.Error "Invalid response format"
@@ -744,8 +740,8 @@ module Translations =
             (fun item ->
               match item with
               | Object segmentFields ->
-                match (Stdlib.AltJson.Helpers.getNumber "start" segmentFields,
-                       Stdlib.AltJson.Helpers.getNumber "end" segmentFields,
+                match (Stdlib.AltJson.Helpers.getFloat "start" segmentFields,
+                       Stdlib.AltJson.Helpers.getFloat "end" segmentFields,
                        Stdlib.AltJson.Helpers.getString "text" segmentFields) with
                 | (Some start, Some end_, Some segText) ->
                   Stdlib.Option.Option.Some(
@@ -767,7 +763,7 @@ module Translations =
           Stdlib.Result.Result.Ok(
             TranslationResponse.VerboseResult(
               TranslationVerbose
-                { duration = Stdlib.AltJson.Helpers.getNumber "duration" fields
+                { duration = Stdlib.AltJson.Helpers.getFloat "duration" fields
                   language = Stdlib.AltJson.Helpers.getString "language" fields
                   text = text
                   segments = segments }))

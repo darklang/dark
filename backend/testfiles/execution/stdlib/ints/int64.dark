@@ -167,6 +167,25 @@ Stdlib.Int64.toFloat 2L = 2.0
 Stdlib.Int64.toFloat 955656L = 955656.0
 Stdlib.Int64.toFloat -10L = -10.0
 
+// fromFloat truncates toward zero, like Int.fromFloat; fromFloatRounded rounds
+Stdlib.Int64.fromFloat 3.9 = Stdlib.Option.Option.Some 3L
+Stdlib.Int64.fromFloat -3.9 = Stdlib.Option.Option.Some -3L
+Stdlib.Int64.fromFloat 1000000000000000000000000000000.0 = Stdlib.Option.Option.None
+Stdlib.Int64.fromFloat Builtin.testNan = Stdlib.Option.Option.None
+Stdlib.Int64.fromFloat Builtin.testInfinity = Stdlib.Option.Option.None
+Stdlib.Int64.fromFloat Builtin.testNegativeInfinity = Stdlib.Option.Option.None
+Stdlib.Int64.fromFloat -9223372036854775808.0 = Stdlib.Option.Option.Some -9223372036854775808L
+Stdlib.Int64.fromFloat 9223372036854775808.0 = Stdlib.Option.Option.None
+Stdlib.Int64.fromFloatRounded 3.9 = Stdlib.Option.Option.Some 4L
+Stdlib.Int64.fromFloatRounded -3.9 = Stdlib.Option.Option.Some -4L
+Stdlib.Int64.fromFloatRounded 1000000000000000000000000000000.0 = Stdlib.Option.Option.None
+Stdlib.Int64.fromFloatRounded Builtin.testNan = Stdlib.Option.Option.None
+Stdlib.Int64.fromFloatRounded Builtin.testInfinity = Stdlib.Option.Option.None
+Stdlib.Int64.fromFloatRounded Builtin.testNegativeInfinity = Stdlib.Option.Option.None
+Stdlib.Int64.fromFloatRounded 2.5 = Stdlib.Option.Option.Some 2L
+Stdlib.Int64.fromFloatRounded 3.5 = Stdlib.Option.Option.Some 4L
+Stdlib.Int64.fromFloatRounded -2.5 = Stdlib.Option.Option.Some -2L
+
 Stdlib.Int64.add 10L 9L = 19L
 Stdlib.Int64.add 88L 9L = 97L
 Stdlib.Int64.add -1L 2L = 1L

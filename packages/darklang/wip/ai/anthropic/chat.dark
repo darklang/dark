@@ -327,60 +327,54 @@ let parseResponse (json: Json) : Stdlib.Result.Result<Response.Response, String>
   | Object fields ->
     let usageFields = Stdlib.AltJson.Helpers.getObject "usage" fields
 
-    let cacheCreation =
-      Stdlib.AltJson.Helpers.getInt "cache_creation_input_tokens" usageFields
-    let cacheRead =
-      Stdlib.AltJson.Helpers.getInt "cache_read_input_tokens" usageFields
-
-    // Parse nested cache_creation object
     let cacheCreationObj = Stdlib.AltJson.Helpers.getObject "cache_creation" usageFields
-    let cacheCreationUsage =
-      let e5m =
-        Stdlib.AltJson.Helpers.getInt "ephemeral_5m_input_tokens" cacheCreationObj
-      let e1h =
-        Stdlib.AltJson.Helpers.getInt "ephemeral_1h_input_tokens" cacheCreationObj
-      if e5m == 0 && e1h == 0 then
-        Stdlib.Option.Option.None
-      else
-        Stdlib.Option.Option.Some(
-          Response.CacheCreationUsage
-            { ephemeral_5m_input_tokens =
-                if e5m == 0 then Stdlib.Option.Option.None
-                else Stdlib.Option.Option.Some e5m
-              ephemeral_1h_input_tokens =
-                if e1h == 0 then Stdlib.Option.Option.None
-                else Stdlib.Option.Option.Some e1h })
-
-    // Parse nested server_tool_use object
     let serverToolObj = Stdlib.AltJson.Helpers.getObject "server_tool_use" usageFields
-    let serverToolUsage =
-      let webSearchReqs =
-        Stdlib.AltJson.Helpers.getInt "web_search_requests" serverToolObj
-      if webSearchReqs == 0 then
-        Stdlib.Option.Option.None
-      else
-        Stdlib.Option.Option.Some(
-          Response.ServerToolUsage
-            { web_search_requests = Stdlib.Option.Option.Some webSearchReqs })
 
-    let usage =
-      Response.Usage
-        { input_tokens = Stdlib.AltJson.Helpers.getInt "input_tokens" usageFields
-          output_tokens = Stdlib.AltJson.Helpers.getInt "output_tokens" usageFields
-          cache_creation_input_tokens =
-            if cacheCreation == 0 then
-              Stdlib.Option.Option.None
-            else
-              Stdlib.Option.Option.Some cacheCreation
-          cache_read_input_tokens =
-            if cacheRead == 0 then
-              Stdlib.Option.Option.None
-            else
-              Stdlib.Option.Option.Some cacheRead
-          cache_creation = cacheCreationUsage
-          server_tool_use = serverToolUsage
-          service_tier = Stdlib.AltJson.Helpers.getString "service_tier" usageFields
-          inference_geo = Stdlib.AltJson.Helpers.getString "inference_geo" usageFields }
+    let requiredCounts =
+      Stdlib.Result.map2
+        (Stdlib.AltJson.Helpers.getIntOr "input_tokens" 0 usageFields)
+        (Stdlib.AltJson.Helpers.getIntOr "output_tokens" 0 usageFields)
+        (fun inputTokens outputTokens -> (inputTokens, outputTokens))
+
+    let optionalCounts =
+      Stdlib.Result.map5
+        (Stdlib.AltJson.Helpers.getIntOptionResult "cache_creation_input_tokens" usageFields)
+        (Stdlib.AltJson.Helpers.getIntOptionResult "cache_read_input_tokens" usageFields)
+        (Stdlib.AltJson.Helpers.getIntOptionResult "ephemeral_5m_input_tokens" cacheCreationObj)
+        (Stdlib.AltJson.Helpers.getIntOptionResult "ephemeral_1h_input_tokens" cacheCreationObj)
+        (Stdlib.AltJson.Helpers.getIntOptionResult "web_search_requests" serverToolObj)
+        (fun cacheCreation cacheRead e5m e1h webSearchReqs ->
+          (cacheCreation, cacheRead, e5m, e1h, webSearchReqs))
+
+    let usageResult =
+      Stdlib.Result.map2 requiredCounts optionalCounts
+        (fun (inputTokens, outputTokens) (cacheCreation, cacheRead, e5m, e1h, webSearchReqs) ->
+          let cacheCreationUsage =
+            match (e5m, e1h) with
+            | (None, None) -> Stdlib.Option.Option.None
+            | _ ->
+              Stdlib.Option.Option.Some(
+                Response.CacheCreationUsage
+                  { ephemeral_5m_input_tokens = e5m
+                    ephemeral_1h_input_tokens = e1h })
+
+          let serverToolUsage =
+            match webSearchReqs with
+            | None -> Stdlib.Option.Option.None
+            | Some count ->
+              Stdlib.Option.Option.Some(
+                Response.ServerToolUsage
+                  { web_search_requests = Stdlib.Option.Option.Some count })
+
+          Response.Usage
+            { input_tokens = inputTokens
+              output_tokens = outputTokens
+              cache_creation_input_tokens = cacheCreation
+              cache_read_input_tokens = cacheRead
+              cache_creation = cacheCreationUsage
+              server_tool_use = serverToolUsage
+              service_tier = Stdlib.AltJson.Helpers.getString "service_tier" usageFields
+              inference_geo = Stdlib.AltJson.Helpers.getString "inference_geo" usageFields })
 
     let contentArray = Stdlib.AltJson.Helpers.getArray "content" fields
     let contentBlocks = Stdlib.List.map contentArray (fun block -> parseContentBlock block)
@@ -398,7 +392,7 @@ let parseResponse (json: Json) : Stdlib.Result.Result<Response.Response, String>
         | None -> Content.Role.Assistant
       | None -> Content.Role.Assistant
 
-    Stdlib.Result.Result.Ok(
+    Stdlib.Result.map usageResult (fun usage ->
       Response.Response
         { id =
             match Stdlib.AltJson.Helpers.getString "id" fields with
@@ -698,8 +692,8 @@ module Request =
     |> Stdlib.AltJson.Builder.addOptionalJson "system" systemJson
     |> Stdlib.AltJson.Builder.addOptionalJson "tools" toolsJson
     |> Stdlib.AltJson.Builder.addOptionalJson "tool_choice" toolChoiceJson
-    |> Stdlib.AltJson.Builder.addOptionalNumber "temperature" req.temperature
-    |> Stdlib.AltJson.Builder.addOptionalNumber "top_p" req.topP
+    |> Stdlib.AltJson.Builder.addOptionalFloat "temperature" req.temperature
+    |> Stdlib.AltJson.Builder.addOptionalFloat "top_p" req.topP
     |> Stdlib.AltJson.Builder.addOptionalInt "top_k" req.topK
     |> Stdlib.AltJson.Builder.addOptionalJson "stop_sequences" stopSeqJson
     |> Stdlib.AltJson.Builder.addOptionalJson "thinking" thinkingJson
@@ -807,13 +801,15 @@ let parseTokenCountResponse
   : Stdlib.Result.Result<TokenCountResult, String> =
   match json with
   | Object fields ->
-    Stdlib.Result.Result.Ok(
-      TokenCountResult
-        { input_tokens = Stdlib.AltJson.Helpers.getInt "input_tokens" fields
-          cache_creation_input_tokens =
-            Stdlib.AltJson.Helpers.getInt "cache_creation_input_tokens" fields
-          cache_read_input_tokens =
-            Stdlib.AltJson.Helpers.getInt "cache_read_input_tokens" fields })
+    Stdlib.Result.map3
+      (Stdlib.AltJson.Helpers.getIntOr "input_tokens" 0 fields)
+      (Stdlib.AltJson.Helpers.getIntOr "cache_creation_input_tokens" 0 fields)
+      (Stdlib.AltJson.Helpers.getIntOr "cache_read_input_tokens" 0 fields)
+      (fun inputTokens cacheCreation cacheRead ->
+        TokenCountResult
+          { input_tokens = inputTokens
+            cache_creation_input_tokens = cacheCreation
+            cache_read_input_tokens = cacheRead })
   | _ -> Stdlib.Result.Result.Error "Invalid token count response format"
 
 /// Count tokens for a request without sending it

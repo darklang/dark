@@ -14,9 +14,9 @@ module TreeItemCollapsibleState =
 
   let toJson (state: TreeItemCollapsibleState) : Json =
     match state with
-    | None -> Json.Number 0.0
-    | Collapsed -> Json.Number 1.0
-    | Expanded -> Json.Number 2.0
+    | None -> Json.Integer 0
+    | Collapsed -> Json.Integer 1
+    | Expanded -> Json.Integer 2
 
 
 module TreeItemType =
@@ -37,8 +37,8 @@ module TreeItemCheckboxState =
 
   let toJson (state: TreeItemCheckboxState) : Json =
     match state with
-    | Unchecked -> Json.Number 0.0
-    | Checked -> Json.Number 1.0
+    | Unchecked -> Json.Integer 0
+    | Checked -> Json.Integer 1
 
 module TreeItemLabel =
   type TreeItemLabel =
@@ -53,8 +53,8 @@ module TreeItemLabel =
         ("highlights",
           h
           |> Stdlib.List.map (fun (s, e) ->
-            [ s |> Stdlib.Int.toFloat |> Json.Number
-              e |> Stdlib.Int.toFloat |> Json.Number ]
+            [ Json.Integer s
+              Json.Integer e ]
             |> Json.Array)
           |> Json.Array)) ]
     |> Stdlib.Option.values

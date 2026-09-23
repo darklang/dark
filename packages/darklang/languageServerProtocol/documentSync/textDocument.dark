@@ -18,17 +18,17 @@ module TextDocumentSyncKind =
 
   let toJson (kind: TextDocumentSyncKind) : Json =
     match kind with
-    | None -> Json.Number 0.0
-    | Full -> Json.Number 1.0
-    | Incremental -> Json.Number 2.0
+    | None -> Json.Integer 0
+    | Full -> Json.Integer 1
+    | Incremental -> Json.Integer 2
 
   let fromJson
     (json: Json)
     : Stdlib.Result.Result<TextDocumentSyncKind, Unit> =
     match json with
-    | Number 0.0 -> Stdlib.Result.Result.Ok TextDocumentSyncKind.None
-    | Number 1.0 -> Stdlib.Result.Result.Ok TextDocumentSyncKind.Full
-    | Number 2.0 -> Stdlib.Result.Result.Ok TextDocumentSyncKind.Incremental
+    | Integer 0 -> Stdlib.Result.Result.Ok TextDocumentSyncKind.None
+    | Integer 1 -> Stdlib.Result.Result.Ok TextDocumentSyncKind.Full
+    | Integer 2 -> Stdlib.Result.Result.Ok TextDocumentSyncKind.Incremental
     | _ -> Stdlib.Result.Result.Error()
 
 

@@ -21,7 +21,7 @@ type RequestID =
 let requestIdToJson (id: RequestID) : Json =
   match id with
   | Null -> Json.Null
-  | Int i -> Json.Number(Stdlib.Int.toFloat i)
+  | Int i -> Json.Integer(i)
   | String s -> Json.String s
 
 
@@ -95,8 +95,8 @@ module Request =
         (RequestID.String s)
         |> Stdlib.Option.Option.Some
         |> Stdlib.Result.Result.Ok
-      | Some((_, Number n)) ->
-        (Stdlib.Float.floor n)
+      | Some((_, Integer i)) ->
+        i
         |> RequestID.Int
         |> Stdlib.Option.Option.Some
         |> Stdlib.Result.Result.Ok
@@ -276,7 +276,7 @@ module Response =
       : Json =
       let errorDetailFeilds =
         [ Stdlib.Option.Option.Some(
-            ("code", Json.Number(Stdlib.Int.toFloat errorCode))
+            ("code", Json.Integer(errorCode))
           )
           Stdlib.Option.Option.Some(("message", Json.String errorMessage))
           (errorData |> Stdlib.Option.map (fun data -> ("data", data))) ]

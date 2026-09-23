@@ -224,7 +224,7 @@ let generateWithOptions
         ("prompt", Json.String options.prompt)
         ("size", Json.String options.size)
         ("quality", Json.String options.quality)
-        ("n", Json.Number(Stdlib.Int.toFloat options.n)) ]
+        ("n", Json.Integer(options.n)) ]
 
     // Add style for DALL-E 3
     let withStyle_ =
@@ -261,7 +261,7 @@ let generateWithOptions
       match options.outputCompression with
       | Some c ->
         if isGpt then
-          Stdlib.List.append withBackground_ [ ("output_compression", Json.Number(Stdlib.Int.toFloat c)) ]
+          Stdlib.List.append withBackground_ [ ("output_compression", Json.Integer(c)) ]
         else
           withBackground_
       | None -> withBackground_
@@ -425,7 +425,7 @@ let edit
         ("prompt", Json.String options.prompt)
         ("image", Json.String options.image)
         ("size", Json.String options.size)
-        ("n", Json.Number(Stdlib.Int.toFloat options.n)) ]
+        ("n", Json.Integer(options.n)) ]
 
     let withMask_ =
       match options.mask with
@@ -511,7 +511,7 @@ let createVariations
       [ ("image", Json.String options.image)
         ("model", Json.String options.model)
         ("size", Json.String options.size)
-        ("n", Json.Number(Stdlib.Int.toFloat options.n)) ]
+        ("n", Json.Integer(options.n)) ]
 
     let withUser_ =
       match options.user with

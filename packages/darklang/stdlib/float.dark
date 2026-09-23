@@ -147,6 +147,13 @@ let toString (a: Float) : String = Builtin.floatToString a
 let isNaN (f: Float) : Bool = Builtin.floatIsNaN f
 
 
+/// Returns {{true}} if <param f> is a finite number, and {{false}} for NaN
+/// and for positive or negative infinity
+let isFinite (f: Float) : Bool =
+  // NaN and ±infinity give NaN here, which equals nothing
+  (f - f) == 0.0
+
+
 /// Convert <param a> to an <type Int> by discarding its fractional part.
 /// Raises for NaN and infinities. Alias of <fn Float.roundTowardsZero>.
 let toInt (a: Float) : Int = Stdlib.Float.roundTowardsZero a

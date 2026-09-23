@@ -4,7 +4,10 @@ module Darklang.Stdlib.AltJson
 type Json =
   | Null
   | Bool of Bool
-  | Number of Float
+  // These were originally flattened as a single Number case, to match JSON spec
+  // CLEANUP there may be benefits to flattening back to a `Number of JsonNumber` case, where `JsonNumber = | Integer of Int | Float of Float`. Not sure if there's a benefit or not, but there was _some_ reason we kept it to the strict single Number case to start.
+  | Integer of Int
+  | Float of Float
   | String of String
   | Array of List<Json>
   | Object of List<(String * Json)>
@@ -22,6 +25,27 @@ let format (j: Json) : String = Builtin.altJsonFormat j
 
 let parse (jsonString: String) : Result.Result<Json, ParseError.ParseError> =
   Builtin.altJsonParse jsonString
+
+
+/// Reads an exact JSON integer. A Float value is never silently truncated or
+/// reinterpreted as an integer, even if its current value is whole.
+let toInt (j: Json) : Option.Option<Int> =
+  match j with
+  | Integer i -> Option.Option.Some i
+  | _ -> Option.Option.None
+
+
+/// Read a JSON number as Float only when the conversion is exact.
+let toFloat (j: Json) : Option.Option<Float> =
+  match j with
+  | Float n -> Option.Option.Some n
+  | Integer i ->
+    let n = Int.toFloat i
+    if Float.isFinite n && Int.fromFloat n == i then
+      Option.Option.Some n
+    else
+      Option.Option.None
+  | _ -> Option.Option.None
 
 
 // ---------------------------------------------------------------------------
@@ -73,19 +97,8 @@ module Helpers =
     | None -> Option.Option.None
 
 
-  /// Get an integer value from a JSON object's fields (returns 0 if not found)
-  let getInt (key: String) (fields: List<(String * Json)>) : Int =
-    let found = List.findFirst fields (fun (k, _) -> k == key)
-
-    match found with
-    | Some pair ->
-      match Tuple2.second pair with
-      | Number n -> Int.fromFloat n
-      | _ -> 0
-    | None -> 0
-
-
-  /// Get an optional integer value from a JSON object's fields
+  /// Get an integer value from a JSON object's fields. {{None}} if the key is
+  /// missing or its value isn't exactly an integer (see <fn toInt>).
   let getIntOption
     (key: String)
     (fields: List<(String * Json)>)
@@ -93,25 +106,66 @@ module Helpers =
     let found = List.findFirst fields (fun (k, _) -> k == key)
 
     match found with
-    | Some pair ->
-      match Tuple2.second pair with
-      | Number n -> Option.Option.Some(Int.fromFloat n)
-      | _ -> Option.Option.None
+    | Some pair -> toInt (Tuple2.second pair)
     | None -> Option.Option.None
 
 
-  /// Get a float number value from a JSON object's fields
-  let getNumber
+  /// Read an optional integer while distinguishing an absent or null field
+  /// from a present value that cannot be converted exactly.
+  let getIntOptionResult
+    (key: String)
+    (fields: List<(String * Json)>)
+    : Result.Result<Option.Option<Int>, String> =
+    match getValue key fields with
+    | None -> Result.Result.Ok Option.Option.None
+    | Some Null -> Result.Result.Ok Option.Option.None
+    | Some value ->
+      match toInt value with
+      | Some i -> Result.Result.Ok(Option.Option.Some i)
+      | None -> Result.Result.Error($"Invalid JSON integer field: {key}")
+
+
+  /// Get a required integer field. The error distinguishes a missing field
+  /// from a field whose value cannot be converted exactly.
+  let getIntResult
+    (key: String)
+    (fields: List<(String * Json)>)
+    : Result.Result<Int, String> =
+    match getValue key fields with
+    | None -> Result.Result.Error($"Missing JSON integer field: {key}")
+    | Some value ->
+      match toInt value with
+      | Some i -> Result.Result.Ok i
+      | None -> Result.Result.Error($"Invalid JSON integer field: {key}")
+
+
+  /// Get an integer field that may be left out. {{Ok}} <param default_> if the
+  /// key is missing or null, {{Error}} if it's present but isn't exactly an
+  /// integer (see <fn toInt>).
+  let getIntOr
+    (key: String)
+    (default_: Int)
+    (fields: List<(String * Json)>)
+    : Result.Result<Int, String> =
+    match getValue key fields with
+    | None -> Result.Result.Ok default_
+    | Some Null -> Result.Result.Ok default_
+    | Some value ->
+      match toInt value with
+      | Some i -> Result.Result.Ok i
+      | None -> Result.Result.Error($"Invalid JSON integer field: {key}")
+
+
+  /// Get a Float field. An integer is converted only if Float can hold it
+  /// exactly; use <fn getIntOption> for arbitrary-size integers.
+  let getFloat
     (key: String)
     (fields: List<(String * Json)>)
     : Option.Option<Float> =
     let found = List.findFirst fields (fun (k, _) -> k == key)
 
     match found with
-    | Some pair ->
-      match Tuple2.second pair with
-      | Number n -> Option.Option.Some n
-      | _ -> Option.Option.None
+    | Some pair -> toFloat (Tuple2.second pair)
     | None -> Option.Option.None
 
 
@@ -158,13 +212,13 @@ module Builder =
   let addString (fields: Fields) (key: String) (value: String) : Fields =
     List.append fields [ (key, Json.String value) ]
 
-  /// Add a required number field
-  let addNumber (fields: Fields) (key: String) (value: Float) : Fields =
-    List.append fields [ (key, Json.Number value) ]
+  /// Add a floating-point field
+  let addFloat (fields: Fields) (key: String) (value: Float) : Fields =
+    List.append fields [ (key, Json.Float value) ]
 
-  /// Add a required int field (converts to float for JSON)
+  /// Add an integer field without converting it to Float
   let addInt (fields: Fields) (key: String) (value: Int) : Fields =
-    List.append fields [ (key, Json.Number (Int.toFloat value)) ]
+    List.append fields [ (key, Json.Integer value) ]
 
   /// Add a required bool field
   let addBool (fields: Fields) (key: String) (value: Bool) : Fields =
@@ -188,24 +242,24 @@ module Builder =
     | Some v -> List.append fields [ (key, Json.String v) ]
     | None -> fields
 
-  /// Add an optional number field (only adds if Some)
-  let addOptionalNumber
+  /// Add an optional Float field (only adds if Some)
+  let addOptionalFloat
     (fields: Fields)
     (key: String)
     (value: Option.Option<Float>)
     : Fields =
     match value with
-    | Some v -> List.append fields [ (key, Json.Number v) ]
+    | Some v -> List.append fields [ (key, Json.Float v) ]
     | None -> fields
 
-  /// Add an optional int field (only adds if Some)
+  /// Add an optional integer field (only adds if Some)
   let addOptionalInt
     (fields: Fields)
     (key: String)
     (value: Option.Option<Int>)
     : Fields =
     match value with
-    | Some v -> List.append fields [ (key, Json.Number (Int.toFloat v)) ]
+    | Some v -> addInt fields key v
     | None -> fields
 
   /// Add an optional bool field (only adds if Some)
