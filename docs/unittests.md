@@ -66,5 +66,25 @@ and four clones' runs really did land in one.
 
 ## Dark tests
 
-`backend/testfiles/README.md` covers the `.dark` test files, which are a separate thing
-from the F# tests here.
+For application and standard-library tests, use ordinary Dark functions returning
+`Stdlib.Test.T`:
+
+```dark
+let doubles () : Stdlib.Test.T =
+  Stdlib.Test.table double [ (0, 0), (4, 8), (-3, -6) ]
+```
+
+`dark test MyApp.Math` runs a module; `dark test MyApp.Math.doubles` runs one test.
+`dark test create MyApp.Math.Tests.doubles --for MyApp.Math.double` creates a failing
+template and opens your editor when a terminal is available. Add `--no-editor`
+to create it without opening an editor. `dark docs testing` has the full guide.
+
+Checks return values: return each check or combine them with `Stdlib.Test.all`.
+Empty tables fail; table row errors retain the other failures and allow later
+rows to run.
+
+The CLI integration suite also runs every discovered test under `Darklang`, so
+adding a standard-library test requires no CI registration.
+
+`backend/testfiles/README.md` covers the separate execution testfile harness,
+which supports language/runtime checks such as expected interpreter errors.

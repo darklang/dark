@@ -49,19 +49,112 @@ let private closureOf (fns : List<PT.PackageFn.PackageFn>) =
 
 /// Builtin effects for the review tests: `timeNowMs` is clock-only and
 /// `fileRead` reads files; anything else is unknown (incomplete).
-let private testEffects : PackagePermissions.CallEffectsFor =
+let private testEffects : PackagePermissions.BuiltinMetadataFor =
   fun (name, _version) ->
+    let known effects callbacks : LibExecution.CallGraph.BuiltinMetadata option =
+      Some
+        { callEffects = Set.ofList effects
+          callbackParameters = Set.ofList callbacks }
     match name with
-    | "timeNowMs" -> Some(Set.singleton Effect.Effect.Clock)
-    | "fileRead" -> Some(Set.singleton Effect.Effect.FileRead)
+    | "timeNowMs" -> known [ Effect.Effect.Clock ] []
+    | "fileRead" -> known [ Effect.Effect.FileRead ] []
     // `listMap` is classified and has no host effects. `None` would mean that
     // the builtin is unclassified and make the test incomplete for the wrong
     // reason.
-    | "listMap" -> Some Set.empty
+    | "listMap" -> known [] [ 1 ]
+    | "testCall" -> known [] [ 0 ]
     | _ -> None
 
 let private callBuiltin (name : string) : PT.Expr =
   eApply (eBuiltinFn name 0) [] [ eUnit () ]
+
+let genericBuiltinCallbacks =
+  testTask "builtin callback metadata follows generic forwarding helpers" {
+    let wrapper hash target =
+      { unitFn hash (eApply target [] [ eArg 0; eArg 1 ]) with
+          parameters =
+            NEList.ofList
+              { name = "fn"; typ = PT.TVariable "fn"; description = "" }
+              [ { name = "input"; typ = PT.TVariable "input"; description = "" } ] }
+    let primitive = wrapper "z-apply" (eBuiltinFn "testCall" 0)
+    let forwarding = wrapper "a-forward" (ePackageFn "z-apply")
+    let caller =
+      unitFn
+        "caller"
+        (eApply (ePackageFn "a-forward") [] [ eBuiltinFn "timeNowMs" 0; eArg 0 ])
+    let fns =
+      [ primitive; forwarding; caller ]
+      |> List.map (fun fn -> fn.hash, fn)
+      |> Map.ofList
+    let load hash = Ply(Map.tryFind hash fns)
+    let! closure =
+      PackagePermissions.loadClosure load testEffects caller.hash |> Ply.toTask
+    for fn in [ primitive; forwarding ] do
+      let result = Requirements.forFunction testEffects closure fn.hash
+      Expect.isFalse
+        result.complete
+        "a generic forwarded callback is caller-supplied code"
+    let result = Requirements.forFunction testEffects closure caller.hash
+    Expect.isTrue result.complete "the concrete callback makes the caller knowable"
+    Expect.equal
+      result.requiredEffects
+      (Set.singleton Effect.Effect.Clock)
+      "include callback effects"
+    let! reviewed =
+      PackagePermissions.reviewVersion
+        load
+        testEffects
+        None
+        "caller"
+        None
+        false
+        false
+      |> Ply.toTask
+    match reviewed with
+    | Ok(PackagePermissions.Review.Approvable policies) ->
+      for hash in [ "z-apply"; "a-forward" ] do
+        Expect.equal
+          (Map.tryFind hash (Map.ofList policies))
+          (Some Permission.Policy.allowAll)
+          "the caller's policy, not an empty helper policy, bounds callbacks"
+    | other -> failtest $"expected an approvable concrete caller, got {other}"
+  }
+
+let callbackMetadataHandlesPipesAndUnknownValues =
+  test "callback metadata handles pipes and stays conservative for local values" {
+    let pipe =
+      ePipe
+        (eArg 0)
+        [ PT.EPipeFnCall(
+            gid (),
+            PT.NameResolution.ok (PT.FQFnName.fqBuiltIn "testCall" 0),
+            [],
+            [ eUnit () ]
+          ) ]
+    let generic body =
+      { unitFn "generic" body with
+          parameters =
+            NEList.singleton
+              { name = "fn"; typ = PT.TVariable "fn"; description = "" } }
+    for body in
+      [ pipe; eApply (eBuiltinFn "testCall" 0) [] [ eVar "callback"; eUnit () ] ] do
+      let fn = generic body
+      let closure = closureOf [ fn ] |> Requirements.withCallbackMetadata testEffects
+      let result = Requirements.forFunction testEffects closure fn.hash
+      Expect.isFalse
+        result.complete
+        "a piped parameter or an unknown local callback is not effect-free"
+    let concrete =
+      generic (
+        eApply (eBuiltinFn "testCall" 0) [] [ eBuiltinFn "timeNowMs" 0; eArg 0 ]
+      )
+    let closure =
+      closureOf [ concrete ] |> Requirements.withCallbackMetadata testEffects
+    let result = Requirements.forFunction testEffects closure concrete.hash
+    Expect.isTrue
+      result.complete
+      "a generic data argument is not mistaken for the callback"
+  }
 
 /// The review tests share one package universe: `v1` is the pinned version,
 /// `v2` an identical-contract re-release, `wider` adds a file read, and
@@ -348,7 +441,9 @@ let dictionaryKeysAreAnalyzed =
 let tests =
   testList
     "packagePermissions"
-    [ dictionaryKeysAreAnalyzed
+    [ genericBuiltinCallbacks
+      callbackMetadataHandlesPipesAndUnknownValues
+      dictionaryKeysAreAnalyzed
       missingCodeIsIncomplete
       deferredCodeRequirementsAreIncluded
       packageValuesMakeAnalysisIncomplete

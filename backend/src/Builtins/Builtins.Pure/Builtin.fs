@@ -9,6 +9,7 @@ let fnRenames : Builtin.FnRenames = []
 let builtins () : Builtins =
   Builtin.combine
     [ Libs.NoModule.builtins ()
+      Libs.Test.builtins ()
 
       Libs.Bool.builtins ()
 

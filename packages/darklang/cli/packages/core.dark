@@ -301,9 +301,10 @@ let saveAuthored
       if isUpdate then peerHeadsUpLine location
       else Stdlib.Option.Option.None
 
-    match SCM.PackageOps.addAuthored state.currentBranchId ops with
-    | Ok report ->
-      AtRestCheck.printSaveReport state.currentBranchId report
+    match SCM.PackageOps.addAuthoredAnalyzed state.currentBranchId ops with
+    | Ok analysis ->
+      let (report, lint) = analysis
+      AtRestCheck.printSaveReport state.currentBranchId report lint
 
       // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
       // stabilized inside the save, so the value in hand until now is a placeholder. Everything

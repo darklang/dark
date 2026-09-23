@@ -36,18 +36,28 @@ let private accountIDOf (dval : Dval) : Option<System.Guid> =
   CommonToDT.Option.fromDT D.uuid dval
 
 /// The running host's approval-analysis metadata, read once per builtin call:
-/// `callEffectsFor` answers analysis by full builtin identity (name, version)
+/// `builtinMetadataFor` answers analysis by full builtin identity (name, version)
 /// so different-effect versions never collapse. `fingerprint` includes those
-/// effects and the analyzer version, so either kind of semantic change makes
+/// effects, callback positions and the analyzer version, so a semantic change makes
 /// existing approvals stale. Deterministic across runs of the same binary.
 type private BuiltinEffects =
-  { callEffectsFor : PackagePermissions.CallEffectsFor; fingerprint : string }
+  { builtinMetadataFor : PackagePermissions.BuiltinMetadataFor
+    fingerprint : string }
 
 let private builtinEffects (state : ExecutionState) : BuiltinEffects =
   let sorted = state.fns.builtIn |> Dictionary.toSortedList
   let byIdentity =
     sorted
-    |> List.map (fun (k, b) -> (k.name, k.version), b.callEffects)
+    |> List.map (fun (k, b) ->
+      let metadata : LibExecution.CallGraph.BuiltinMetadata =
+        { callEffects = b.callEffects
+          callbackParameters =
+            b.parameters
+            |> List.indexed
+            |> List.choose (fun (index, p) ->
+              if p.isCallback then Some index else None)
+            |> Set.ofList }
+      (k.name, k.version), metadata)
     |> Map.ofList
   let lines =
     $"analysis={LibExecution.CallGraph.analysisVersion}"
@@ -59,14 +69,19 @@ let private builtinEffects (state : ExecutionState) : BuiltinEffects =
             |> List.map LibExecution.Effects.name
             |> List.sort
             |> String.concat ","
-          $"{k.name}@{k.version}={effects}"))
+          let callbacks =
+            byIdentity[(k.name, k.version)].callbackParameters
+            |> Set.toList
+            |> List.map string
+            |> String.concat ","
+          $"{k.name}@{k.version}={effects};callbacks={callbacks}"))
   use sha = System.Security.Cryptography.SHA256.Create()
   let fingerprint =
     sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(String.concat "\n" lines))
     |> Array.take 8
     |> Array.map (fun b -> b.ToString("x2"))
     |> String.concat ""
-  { callEffectsFor = (fun key -> Map.tryFind key byIdentity)
+  { builtinMetadataFor = (fun key -> Map.tryFind key byIdentity)
     fingerprint = fingerprint }
 
 /// A policy builtin: impure, `Native`, never queryable. `impl` receives the
@@ -317,7 +332,7 @@ let fns : List<BuiltInFn> =
             match!
               PackagePermissions.approveVersionForName
                 LibDB.ProgramTypes.Fn.get
-                effects.callEffectsFor
+                effects.builtinMetadataFor
                 (accountIDOf accountIDDval)
                 location
                 hash
@@ -373,7 +388,7 @@ let fns : List<BuiltInFn> =
             let! result =
               PackagePermissions.permissionRequirements
                 LibDB.ProgramTypes.Fn.get
-                (builtinEffects state).callEffectsFor
+                (builtinEffects state).builtinMetadataFor
                 hashStr
             return
               DTuple(

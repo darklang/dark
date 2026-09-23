@@ -3,7 +3,7 @@ module Darklang.SCM.PackageOps
 // Authoring is live-on-write: `add` appends ops that take effect the moment they fold. `add` and
 // `getRecent` are the substrate everything else here is built on.
 //
-// This file is the substrate: authoring (`add`, `addAuthored`), this instance's identity, and the
+// This file is the substrate: authoring (`add`, `addAuthoredAnalyzed`), this instance's identity, and the
 // relay it is pointed at. The rest of the module lives beside it, one file per subject:
 //
 //   packageOpsBindings   what an op says about a name, and what a name holds now
@@ -38,11 +38,14 @@ let add
 /// so its report describes the store rather than the request.
 ///
 /// Every authoring surface goes through here rather than calling `add`: the CLI's fn/type/value/module
-/// commands, the workbench, and the LSP's file provider.
-let addAuthored
+/// commands, the workbench, and the LSP's file provider. The full analysis pair is
+/// returned deliberately so no authoring surface can silently discard lint.
+let addAuthoredAnalyzed
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  : Stdlib.Result.Result<
+      (LanguageTools.AtRestTypeChecker.Report * LanguageTools.Lint.Results),
+      String> =
   let duplicates = LanguageTools.PackageManager.duplicateDeclarations ops
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty duplicates) then
@@ -54,9 +57,8 @@ let addAuthored
     match add branchId stabilizedOps with
     | Ok _ ->
       Stdlib.Result.Result.Ok(
-        LanguageTools.AtRestTypeChecker.checkPackageOps stabilizedOps)
+        LanguageTools.PackageAnalysis.analyzePackageOps stabilizedOps)
     | Error message -> Stdlib.Result.Result.Error message
-
 
 // the op-log DATA-ACCESS SILO
 // This module OWNS every SQL query against `package_ops`. Callers (the `dark ops` CLI, doctor, sync) go
@@ -177,4 +179,3 @@ type BranchRefResult =
   | UnknownId of Uuid
   /// The prefix matched more than one branch.
   | Ambiguous
-

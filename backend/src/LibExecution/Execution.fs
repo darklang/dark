@@ -630,13 +630,14 @@ let callStackString
       | [] -> []
       | head :: tail -> groupConsecutive [] head 1 tail
 
-    let result =
-      groupedParts
-      |> List.fold
-        (fun acc part -> $"{acc}\n- {part}")
-        "Call stack (last call at bottom):"
-
-    return result
+    match groupedParts with
+    | [] -> return ""
+    | _ ->
+      return
+        groupedParts
+        |> List.fold
+          (fun acc part -> $"{acc}\n- {part}")
+          "Call stack (last call at bottom):"
   }
 
 
@@ -664,7 +665,8 @@ let rec rteToString
         (NEList.ofList (RT.DUuid state.branchId.Guid) [ rteDval ])
 
     match rteMessage with
-    | Ok(RT.DString msg) -> return msg
+    // `toErrorMessage` returns `ErrorMessage.ErrorString msg`, not a bare String
+    | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString msg ])) -> return msg
     | Ok(other) -> return prettyPrintFallback "rteToString" other rteMessage
     | Error(rte, _cs) ->
       debuG "Error converting RTE to string" rte

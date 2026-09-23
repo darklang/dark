@@ -6,7 +6,6 @@ module Builtins.Matter.Libs.PM.AtRestTypeChecker
 
 open Prelude
 open LibExecution.RuntimeTypes
-open LibExecution.Builtin.Shortcuts
 
 // The checker's vocabulary (types, verdicts, diagnostic codes, the type environment)
 // lives in AtRest.Types; the entry points that run it live in AtRestTypeChecker.
@@ -195,14 +194,8 @@ let private itemReport (result : Checker.ItemVerdict) : ItemCheckReport =
       diagnostics = report.diagnostics
       blockers = report.blockers }
 
-let private aggregate
-  (candidateRefs : Set<PT.Reference>)
-  (batch : Checker.BatchResult)
-  : CheckReport =
-  let items =
-    List.concat [ batch.types; batch.values; batch.functions ]
-    |> List.filter (fun result -> Set.contains result.item candidateRefs)
-    |> List.map itemReport
+let internal aggregate (results : List<Checker.ItemVerdict>) : CheckReport =
+  let items = List.map itemReport results
 
   let diagnostics = items |> List.collect (fun item -> item.diagnostics)
   let blockers = items |> List.collect (fun item -> item.blockers)
@@ -218,11 +211,11 @@ let private aggregate
     diagnostics = diagnostics
     blockers = blockers }
 
-let checkPackageOps
+let internal inferPackageOps
   (pm : PT.PackageManager)
   (builtins : Builtins)
   (ops : List<PT.PackageOp>)
-  : Ply<CheckReport> =
+  : Ply<Result<List<Checker.ItemVerdict>, CheckReport>> =
   uply {
     let candidateRefs, candidates = candidateItems ops
     let! dependencies = loadDependencyClosure pm candidates
@@ -235,6 +228,7 @@ let checkPackageOps
         |> List.map (fun error -> $"Could not import builtin signature: {error}")
         |> String.concat "; "
         |> unavailableReport
+        |> Error
     | Ok environment ->
       let environment = addTrustedDependencyDeclarations dependencies environment
       let values =
@@ -248,32 +242,25 @@ let checkPackageOps
           (candidates.types.Values |> Seq.toList)
           (values.Values |> Seq.toList)
           (candidates.functions.Values |> Seq.toList)
-      return aggregate (Set.ofList candidateRefs) batch
+      let candidateRefs = Set.ofList candidateRefs
+      return
+        List.concat [ batch.types; batch.values; batch.functions ]
+        |> List.filter (fun result -> Set.contains result.item candidateRefs)
+        |> Ok
   }
 
-/// Check every declaration the given package manager can see.
-///
-/// No branch parameter: a branch is an overlay carried by the pm itself, so `pm` decides what the
-/// search below reaches.
-let checkBranch (pm : PT.PackageManager) (builtins : Builtins) : Ply<CheckReport> =
+let checkPackageOps
+  (pm : PT.PackageManager)
+  (builtins : Builtins)
+  (ops : List<PT.PackageOp>)
+  : Ply<CheckReport> =
   uply {
-    let query : PT.Search.SearchQuery =
-      { currentModule = []
-        text = ""
-        searchDepth = PT.Search.AllDescendants
-        entityTypes = []
-        exactMatch = false }
-    let! results = pm.search query
-    let ops =
-      List.concat
-        [ results.types |> List.map (fun item -> PT.PackageOp.AddType item.entity)
-          results.values |> List.map (fun item -> PT.PackageOp.AddValue item.entity)
-          results.fns |> List.map (fun item -> PT.PackageOp.AddFn item.entity) ]
-    return! checkPackageOps pm builtins ops
+    match! inferPackageOps pm builtins ops with
+    | Error report -> return report
+    | Ok results -> return aggregate results
   }
 
-
-module private DarkTypes =
+module internal DarkTypes =
   module Refs = PackageRefs.Type.LanguageTools.AtRestTypeChecker
 
   let staticTypeName () = FQTypeName.fqPackage (Refs.staticType ())
@@ -596,81 +583,4 @@ module private DarkTypes =
           "blockers", report.blockers |> List.map blockerToDT |> Dval.list issueType ]
     )
 
-
-let fns (pm : PT.PackageManager) : List<BuiltInFn> =
-  [ { name = fn "atRestCheckPackageOps" 0
-      typeParams = []
-      parameters =
-        [ Param.make
-            "ops"
-            (TList(
-              TCustomType(
-                NR.ok (
-                  FQTypeName.fqPackage (
-                    PackageRefs.Type.LanguageTools.ProgramTypes.packageOp ()
-                  )
-                ),
-                []
-              )
-            ))
-            "Candidate AddType, AddValue, and AddFn package operations" ]
-      returnType = TCustomType(NR.ok (DarkTypes.reportName ()), [])
-      description =
-        "Checks candidate package declarations against their transitive dependency closure without persisting them."
-      fn =
-        (function
-        | exeState, _, _, [| DList(_, ops) |] ->
-          uply {
-            try
-              let decoded = ops |> List.map PT2DT.PackageOp.fromDT
-              if decoded |> List.exists Option.isNone then
-                return
-                  unavailableReport "At-rest checker received an invalid package op"
-                  |> DarkTypes.reportToDT
-              else
-                let ops = decoded |> List.choose (fun value -> value)
-                let builtins = exeState.builtins
-                let! report = checkPackageOps pm builtins ops
-                return DarkTypes.reportToDT report
-            with ex ->
-              return
-                unavailableReport $"At-rest checker unavailable: {ex.Message}"
-                |> DarkTypes.reportToDT
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-    { name = fn "atRestCheckBranch" 0
-      typeParams = []
-      parameters = [ Param.make "branchId" TUuid "the branch a caller means" ]
-      returnType = TCustomType(NR.ok (DarkTypes.reportName ()), [])
-      description =
-        "Checks every visible package declaration on a branch without persisting anything."
-      fn =
-        (function
-        | exeState, _, _, [| DUuid branchId |] ->
-          uply {
-            try
-              // The branch's own overlay, not this builtin set's pm (which is main's): on a branch
-              // the check has to see the branch's declarations, or it type-checks main and calls
-              // it the branch.
-              let branchPm =
-                LibDB.PackageManager.ptForBranch (PT.BranchId.Id branchId)
-
-              let! report = checkBranch branchPm exeState.builtins
-              return DarkTypes.reportToDT report
-            with ex ->
-              return
-                unavailableReport $"At-rest branch check unavailable: {ex.Message}"
-                |> DarkTypes.reportToDT
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated } ]
-
-let builtins (pm : PT.PackageManager) = LibExecution.Builtin.make [] (fns pm)
+  let reportType () : TypeReference = TCustomType(NR.ok (reportName ()), [])

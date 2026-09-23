@@ -58,12 +58,6 @@ type internal TypeScheme =
     typ : StaticType
     fieldConstraints : List<id * StaticType * string * StaticType> }
 
-type Proof =
-  internal
-    { inferredType : StaticType
-      scheme : TypeScheme
-      dependencies : Set<Dependency> }
-
 type DiagnosticCode =
   | TypeMismatch
   | OccursCheckFailed
@@ -215,6 +209,18 @@ type Diagnostic =
     context : Context }
 
 type Blocker = { code : BlockerCode; nodeId : Option<id>; context : Context }
+
+/// The inferred type and lexical scope of a whole-value let binding.
+/// Consumers can inspect these facts without running inference again.
+type TypedBinding =
+  { nodeId : id; pattern : LetPattern; typ : StaticType; body : Expr }
+
+type Proof =
+  internal
+    { inferredType : StaticType
+      scheme : TypeScheme
+      bindings : List<TypedBinding>
+      dependencies : Set<Dependency> }
 
 type FunctionSignature =
   { typeParams : List<string>
@@ -455,6 +461,7 @@ type Report =
   { inferredType : Option<StaticType>
     diagnostics : List<Diagnostic>
     blockers : List<Blocker>
+    bindings : List<TypedBinding>
     dependencies : Set<Dependency> }
 
 type Verdict =
@@ -464,6 +471,7 @@ type Verdict =
 
 module Proof =
   let inferredType (proof : Proof) : StaticType = proof.inferredType
+  let bindingsOf (proof : Proof) : List<TypedBinding> = proof.bindings
   let dependencies (proof : Proof) : Set<Dependency> = proof.dependencies
 
 

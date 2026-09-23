@@ -877,6 +877,7 @@ let tests =
     "CliTraces"
     (Tests.CliSurface.tests
      @ Tests.CliScm.tests
+     @ Tests.CliTest.tests
      @ [ testVersionCommand
          testStatusCommand
          testRunCases

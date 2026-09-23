@@ -133,6 +133,9 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
           else
             let bad =
               (Stdlib.String.contains state.message "fail")
+              || (Stdlib.String.contains state.message "error")
+              || (Stdlib.String.contains state.message "warning")
+              || (Stdlib.String.contains state.message "incomplete")
               || (Stdlib.String.contains state.message "conflict")
               || (Stdlib.String.contains state.message "descend")
             (if bad then " ✗ " else " ✓ ") ++ state.message ++ " "

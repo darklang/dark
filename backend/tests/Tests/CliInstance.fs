@@ -10,7 +10,7 @@
 /// A command costs a process start rather than a dispatch, call it a third more, and in
 /// exchange the tests run as wide as everything else does.
 ///
-/// The Dark side of this is `Darklang.Cli.Tests.Instance`, same idea for tests written in
+/// The Dark side of this is `Darklang.Cli.Suite.Instance`, same idea for tests written in
 /// `.dark`. This one exists because Expecto is what runs tests in parallel.
 module Tests.CliInstance
 

@@ -22,6 +22,7 @@ open LibExecution.AtRest.Types
 type internal State(environment : TypeEnvironment) =
   let diagnostics = ResizeArray<Diagnostic>()
   let blockers = ResizeArray<Blocker>()
+  let bindings = ResizeArray<TypedBinding>()
   let mutable dependencies : Set<Dependency> = Set.empty
   let mutable nextVar = 0
   let mutable substitutions : Map<int, StaticType> = Map.empty
@@ -32,6 +33,7 @@ type internal State(environment : TypeEnvironment) =
   member _.Environment = environment
   member _.Diagnostics = diagnostics
   member _.Blockers = blockers
+  member _.Bindings = bindings
   member _.Dependencies = dependencies
   member _.PendingFieldAccesses
     with get () = pendingFieldAccesses
@@ -126,6 +128,7 @@ let internal guardingStack
       { inferredType = None
         diagnostics = []
         blockers = [ tooDeepBlocker nodeId ]
+        bindings = []
         dependencies = Set.empty }
 
 

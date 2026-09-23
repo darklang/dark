@@ -192,6 +192,15 @@ surfaced to *display* as "incomplete", not as effect-free and not by crashing
 the command: the requirements query returns the partial effects with a
 completeness flag.
 
+Builtin parameters also declare whether they invoke callbacks. Function-typed
+parameters carry this metadata automatically; arbitrary-arity callbacks such as
+`testCall` use `Param.makeCallback`. Analysis follows those positions through
+generic package wrappers to a fixed point. A wrapper's caller-supplied callback
+makes its own requirements incomplete, while a caller supplying a known function
+still contributes that function's effects. Unknown callback expressions remain
+incomplete. Callback positions and the analysis version are part of the approval
+fingerprint, so changes require existing approvals to be reviewed again.
+
 Approval fails closed on incompleteness by default. A human can pass an
 explicit acknowledgement (the CLI's `approve`/`update` show the incomplete
 warning and take the confirmation as that acknowledgement), and each

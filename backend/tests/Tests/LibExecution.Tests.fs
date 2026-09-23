@@ -329,4 +329,37 @@ let fileTests () : Test =
   |> Array.toList
   |> testList "All"
 
-let tests = lazy (testList "LibExecution" [ fileTests () ])
+/// The two F# helpers that turn a runtime error into its message. They call different
+/// Dark printers. The one `rteToString` calls returns a wrapped `ErrorString`. If the
+/// F# matches a bare String instead, every call ends in the "<pretty-print failed ...>"
+/// fallback.
+let errorRendering =
+  let outOfRange = RT.RuntimeError.Int RT.RuntimeError.Ints.OutOfRange
+  let expected = "Encountered out-of-range value for type of Int"
+  testList
+    "rendering a runtime error"
+    [ testTask "rteToString gives the message" {
+        let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+        let! actual =
+          Exe.rteToString RT2DT.RuntimeError.toDT state outOfRange |> Ply.toTask
+        Expect.equal actual expected "the message itself, not a fallback around it"
+      }
+
+      testTask "runtimeErrorToString gives the same one" {
+        let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+        let! actual = Exe.runtimeErrorToString state outOfRange
+        match actual with
+        | Ok(RT.DString actual) -> Expect.equal actual expected "the same message"
+        | other -> failtest $"expected a String, got {other}"
+      }
+
+      testTask "an empty call stack renders as empty" {
+        let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
+        let! actual = Exe.callStackString state [] |> Ply.toTask
+        Expect.equal
+          actual
+          ""
+          "callers can omit the stack section instead of printing a dangling header"
+      } ]
+
+let tests = lazy (testList "LibExecution" [ fileTests (); errorRendering ])

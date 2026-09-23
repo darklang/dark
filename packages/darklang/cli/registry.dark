@@ -33,6 +33,7 @@ module Registry =
       ("tree", "Display package hierarchy in tree format", [ "packages" ], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
       ("search", "Search modules, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
       ("typecheck", "Audit package declarations without changing them", [], Packages.Typecheck.execute, Packages.Typecheck.help, Packages.Typecheck.complete)
+      ("test", "Run the tests on this branch", [], Cli.Test.execute, Cli.Test.help, Cli.Test.complete)
       ("deps", "Show dependencies and dependents", [ "dependencies" ], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
       ("val", "Create a new value", [ "let" ], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
       ("fn", "Create a new function", [ "function" ], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
@@ -493,7 +494,9 @@ module Registry =
       "delete"
       "traces clear"
       "conflicts"
-      "edit" ]
+      "edit"
+      "test create"
+      "test new" ]
 
   /// Full-screen TUIs. Capturing one dumps its alternate-screen escapes into a pane, so the bar
   /// launches it as a page instead. Canonical names; aliases resolve before matching. `apps` is
@@ -511,8 +514,13 @@ module Registry =
         match Stdlib.List.head args with
         | Some first -> canonical ++ " " ++ first
         | None -> canonical
-      (Stdlib.List.member promptsForInput canonical)
-      || (Stdlib.List.member promptsForInput withFirst)
+      let createsTest =
+        withFirst == "test create" || withFirst == "test new"
+      if createsTest && Stdlib.List.member args "--no-editor" then
+        false
+      else
+        (Stdlib.List.member promptsForInput canonical)
+        || (Stdlib.List.member promptsForInput withFirst)
 
   /// Does this command line own the whole screen (a full-screen TUI)?
   let takesScreen (commands: List<CommandHandler>) (cmd: String) (args: List<String>) : Bool =

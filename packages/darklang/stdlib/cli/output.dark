@@ -1,0 +1,12 @@
+/// Helpers for capturing CLI stdout while preserving a computation's return value.
+module Darklang.Stdlib.Cli.Output
+
+/// Run `f` and return both its value and anything it wrote to stdout. Nested
+/// calls capture their own output. The enclosing output is restored even if `f` raises.
+let captureOutputAnd (f: Unit -> 'a) : ('a * String) =
+  Builtin.stdoutCapture f
+
+/// Run `f` and return only the stdout captured by this call.
+let captureOutput (f: Unit -> 'a) : String =
+  let (_value, output) = captureOutputAnd f
+  output

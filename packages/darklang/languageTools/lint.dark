@@ -1,0 +1,39 @@
+/// Package lint messages and their presentation, separate from type-checking verdicts.
+module Darklang.LanguageTools.Lint
+
+type WarningCode =
+  | UnusedBinding
+  | UnusedTestResult
+
+type Warning =
+  { code: WarningCode
+    nodeId: Stdlib.Option.Option<UInt64>
+    name: String }
+
+type Results = List<(ProgramTypes.Reference * List<Warning>)>
+
+let codeToString (code: WarningCode) : String =
+  match code with
+  | UnusedBinding -> "UnusedBinding"
+  | UnusedTestResult -> "UnusedTestResult"
+
+let toString (warning: Warning) : String =
+  match warning.code with
+  | UnusedBinding ->
+    $"The binding '{warning.name}' is never used. Prefix its name with '_' if this is intentional"
+  | UnusedTestResult ->
+    $"The check bound to '{warning.name}' is never used, so it cannot fail this test. "
+    ++ "Return it, or combine checks with Stdlib.Test.all"
+
+let forItem
+  (results: Results)
+  (item: ProgramTypes.Reference)
+  : List<Warning> =
+  results
+  |> Stdlib.List.filterMap (fun (reference, warnings) ->
+    if reference == item then Stdlib.Option.Option.Some warnings
+    else Stdlib.Option.Option.None)
+  |> Stdlib.List.flatten
+
+let allWarnings (results: Results) : List<Warning> =
+  results |> Stdlib.List.map (fun (_item, warnings) -> warnings) |> Stdlib.List.flatten

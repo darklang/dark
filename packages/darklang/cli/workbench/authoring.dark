@@ -94,8 +94,9 @@ let saveEditing (state: State) (es: EditingState) : Step =
             | _ -> Stdlib.Result.Result.Error "not a function definition"
         match opsResult with
         | Ok ops ->
-          match SCM.PackageOps.addAuthored state.branchId ops with
-          | Ok report ->
+          match SCM.PackageOps.addAuthoredAnalyzed state.branchId ops with
+          | Ok analysis ->
+            let (report, lint) = analysis
             // Land on what you just saved rather than index 0, which lost your place in the list.
             let reloaded = reloadItems state
             let landed =
@@ -111,7 +112,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
                   selected = landed
                   detailScroll = 0
                   message =
-                    match Packages.AtRestCheck.summary report with
+                    match Packages.AtRestCheck.summary report lint with
                     | Some summary -> "saved " ++ leaf ++ " (" ++ summary ++ ")"
                     | None -> "saved " ++ leaf }
           | Error m -> keepErr ("save failed: " ++ m)

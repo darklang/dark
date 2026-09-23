@@ -1,6 +1,6 @@
 /// A throwaway Darklang install: its own store, its own home, gone when the test ends.
 ///
-/// Part of `Darklang.Cli.Tests`.
+/// Part of `Darklang.Cli.Suite`.
 ///
 /// The CLI tests in this suite drive the shared dev store from the repo root, which is
 /// why they cannot run alongside each other, cannot assert on what a store contains
@@ -12,7 +12,7 @@
 /// It is also cheap. The store copy is tens of milliseconds and the process start is a
 /// couple of hundred, so a test that wants a clean slate can just have one rather than
 /// arranging to tolerate a dirty one.
-module Darklang.Cli.Tests.Instance
+module Darklang.Cli.Suite.Instance
 
 /// A running instance's identity: where it lives and what binary drives it.
 type T =
@@ -109,7 +109,7 @@ let run (i: T) (args: List<String>) : Stdlib.Result.Result<Stdlib.Cli.Process.Ou
 
 /// What a command printed: stdout, or stderr when stdout said nothing.
 ///
-/// Same rule as `Tests.callOutput`, because the reason is the same: a refused command
+/// Same rule as `Suite.callOutput`, because the reason is the same: a refused command
 /// exits nonzero and explains itself on stdout, so dropping stdout on a failure hides
 /// exactly the text a test wants to read.
 let output (i: T) (args: List<String>) : String =

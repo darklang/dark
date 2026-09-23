@@ -21,6 +21,40 @@ The checker has three outcomes:
   belong here. It contains no definite diagnostic and must never be treated as
   `Checked`.
 
+Lint results are returned alongside the type-checking report, keyed by declaration.
+Neither `Report` nor `ItemReport` contains warnings. The CLI and LSP combine the two
+outputs for display; commit and merge consume only the type report. Lint messages show
+on save, in `typecheck` (always listed, whatever the filter), beneath selected tests'
+results in `test`, and as LSP warnings. Test-run warnings do not change verdicts or
+exit codes; `test list` only lists names.
+
+Unused-result analysis applies to all analyzed Dark code, including helpers and
+package values; it is not restricted to test functions. Inference exposes typed
+bindings, and `AtRest.Lint.unusedResults` checks them using a caller-supplied predicate
+that selects which types must be used. The lint knows nothing about packages.
+`PM/PackageAnalysis.fs` supplies the policy: today it selects only `Stdlib.Test.T`,
+producing `UnusedTestResult` when a whole-value `let` binding is discarded with `_`
+or bound to a name that nothing reads. A failing check discarded this way cannot
+contribute to the enclosing function's result. Other types do not trigger this rule.
+A second must-use type would extend this policy and its warning code/message;
+type declarations could eventually carry the requirement themselves.
+
+The separate `UnusedBinding` warning covers ordinary unused local bindings and
+parameters. Prefixing a name with `_` suppresses only `UnusedBinding`; it does not
+suppress a must-use warning. In particular, `_ignoredCheck` still produces
+`UnusedTestResult`, because naming a discarded check must not turn a failing check
+into a passing test.
+
+Package analysis produces the type report and lint results from one inference pass.
+`packageAnalyzeOps` analyzes candidate declarations; `packageAnalyzeBranch` analyzes
+all declarations visible on a branch. A type-only caller takes the first half of the
+pair and drops the second. There is no separate type-only builtin: the separation
+from warnings is a property of `Report` itself, not of which entry point produced it.
+`LanguageTools.Lint` owns the Dark warning definitions and message text. The lint
+respects scopes introduced by lets, lambdas and match patterns, including guards and
+pipeline lambdas. It detects unused whole-value let bindings; it does not prove that a
+used value contributes to the final result.
+
 Checking is pure and deterministic for a given item and type environment. It does not
 evaluate user code, query mutable storage, format diagnostics for a particular UI, or
 mutate package state.
@@ -63,10 +97,10 @@ mutate package state.
 
 Authoring warns; commit blocks.
 
-`SCM.PackageOps.addAuthored` (the `fn`, `type`, `val` and `module` commands, the
+`SCM.PackageOps.addAuthoredAnalyzed` (the `fn`, `type`, `val` and `module` commands, the
 Workbench save path, and the LSP filesystem provider) stabilizes hashes, stores the
 batch as WIP whatever the checker says, and returns the report for the surface to
-show. WIP is the author's to break, like a working tree.
+show together with its lint results. WIP is the author's to break, like a working tree.
 
 `SCM.PackageOps.commit` / `commitOpIds` re-check the committing ops as one batch and
 refuse a `Failed` verdict, so a definite type error never leaves a branch.

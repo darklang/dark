@@ -79,6 +79,7 @@ let main (args : string array) : int =
         Tests.Purge.tests
         Tests.Hashing.tests
         Tests.Config.tests
+        Tests.ConsoleCapture.tests
 
         // serialization
         Tests.BinarySerialization.tests

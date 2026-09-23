@@ -790,6 +790,13 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
         selfType
       | _ -> inferExpr state env value
     let bindings = checkLetPattern state valueType pattern
+    match pattern with
+    | LPWildcard _
+    | LPVariable _ ->
+      state.Bindings.Add
+        { nodeId = nodeId; pattern = pattern; typ = valueType; body = body }
+    | LPTuple _
+    | LPUnit _ -> ()
     let bodyEnv =
       if isNonExpansive value then
         bindings

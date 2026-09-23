@@ -41,6 +41,7 @@
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Hashing.Tests.fs" />
     <Compile Include="Config.Tests.fs" />
+    <Compile Include="ConsoleCapture.Tests.fs" />
 
     <!-- cloud stuff /-->
     <Compile Include="HttpServer.Tests.fs" />
@@ -56,6 +57,7 @@
     <Compile Include="CliJson.Tests.fs" />
     <Compile Include="CliAuthoring.Tests.fs" />
     <Compile Include="CliSyncSurface.Tests.fs" />
+    <Compile Include="CliTest.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
     <Compile Include="CliScriptLowering.Tests.fs" />
     <Compile Include="DvalReprInternalQueryable.Tests.fs" />

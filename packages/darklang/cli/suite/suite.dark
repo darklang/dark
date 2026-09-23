@@ -1,7 +1,7 @@
 /// CLI tests: the command surface, driven by shelling out to the real binary.
 ///
-/// Split across files; the registry and runner are in tests-runner.dark.
-module Darklang.Cli.Tests
+/// Split across files; the registry and runner are in suite-runner.dark.
+module Darklang.Cli.Suite
 
 
 

@@ -180,15 +180,11 @@ type Report =
 
 /// The report for nothing: no items, so trivially Checked.
 let emptyReport () : Report =
-  Report { verdict = Verdict.Checked; items = []; diagnostics = []; blockers = [] }
-
-/// Check package operations before they are persisted or presented as diagnostics.
-///
-/// This is the single Dark-facing boundary for the runtime checker builtin.
-let checkPackageOps
-  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Report =
-  Builtin.atRestCheckPackageOps ops
+  Report
+    { verdict = Verdict.Checked
+      items = []
+      diagnostics = []
+      blockers = [] }
 
 let staticTypeToStringWith
   (customTypeName:

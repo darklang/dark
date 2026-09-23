@@ -115,6 +115,30 @@ The other trap: a filter that matches nothing used to be reported as `0 tests ru
 with exit 0. It fails now. `docs/unittests.md` has the rest, including what the three filter
 flags actually do and why they used to disagree with their own help text.
 
+### Tests written in Dark
+
+    ./scripts/run-cli test Darklang.Stdlib.Bool     run the tests under a module
+    ./scripts/run-cli test list Darklang            name them, run nothing
+    ./scripts/run-cli test Darklang.Stdlib.Bool.Tests.xor   one test by full name
+    ./scripts/run-cli test new MyApp.Math.Tests.doubles --for MyApp.Math.double --no-editor
+    ./scripts/run-cli docs testing                  authoring guide and helper reference
+
+A test is any package function that takes Unit and returns `Stdlib.Test.T`. That signature is
+the whole definition: no attribute, no registration, no op.
+
+    let xor () : Stdlib.Test.T =
+      Stdlib.Test.table Stdlib.Bool.xor [ ((true, false), true), ((true, true), false) ]
+
+`Stdlib.Test` is in `stdlib/test.dark` and the runner is `cli/test.dark`. Tests for
+`stdlib/x.dark` go in `stdlib/tests/x.dark`, in module `Darklang.Stdlib.X.Tests`; the module
+line names them, the path is only for people. `stdlib/tests/bool.dark` is the one to copy, and
+`docs testing` has every helper.
+
+A check is a value: return it, or combine several with `Stdlib.Test.all`. One that a `let`
+binds and nothing reads is a false pass, so the at-rest checker warns (`UnusedTestResult`) on
+save, in `typecheck` and in the LSP. Warnings never change a verdict, so they cannot block a
+commit.
+
 ### Sweeping the CLI after a change
 
 A Dark call site is not type-checked until it executes, so a rename or a type change across

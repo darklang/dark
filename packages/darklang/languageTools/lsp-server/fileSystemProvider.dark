@@ -395,12 +395,15 @@ module WriteFile =
 
         // Save as WIP; editor diagnostics report findings and `commit`
         // enforces them.
-        let addResult = SCM.PackageOps.addAuthored branchId allOps
+        // Diagnostics are published from the in-memory document by DocSync,
+        // including lint. Keep the full authoring result here as well so the
+        // persistence boundary never offers a lint-dropping API.
+        let addResult = SCM.PackageOps.addAuthoredAnalyzed branchId allOps
 
         match addResult with
         | Error err ->
           sendErrorResponse state requestId [ $"Failed to add package ops: {err}" ]
-        | Ok _report ->
+        | Ok (_report, _lint) ->
           // If ops were added, re-read the content from database to get the version with IDs
           let updatedContent =
             if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then

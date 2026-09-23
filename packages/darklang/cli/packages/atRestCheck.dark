@@ -1,9 +1,6 @@
 /// At-rest checker reporting for package commands.
 module Darklang.Cli.Packages.AtRestCheck
 
-let checkBranch (branchId: Uuid) : LanguageTools.AtRestTypeChecker.Report =
-  Builtin.atRestCheckBranch branchId
-
 let customTypeName
   (branchId: Uuid)
   (hash: LanguageTools.ProgramTypes.Hash)
@@ -79,18 +76,64 @@ let issueLines
 
 let summary
   (report: LanguageTools.AtRestTypeChecker.Report)
+  (lint: LanguageTools.Lint.Results)
   : Stdlib.Option.Option<String> =
-  match report.verdict with
-  | Checked -> Stdlib.Option.Option.None
-  | Failed -> Stdlib.Option.Option.Some "static type errors detected"
-  | Incomplete -> Stdlib.Option.Option.Some "static check incomplete"
+  let typeSummary =
+    match report.verdict with
+    | Checked -> Stdlib.Option.Option.None
+    | Failed -> Stdlib.Option.Option.Some "static type errors detected"
+    | Incomplete -> Stdlib.Option.Option.Some "static check incomplete"
+  let warningSummary =
+    match LanguageTools.Lint.allWarnings lint with
+    | [] -> Stdlib.Option.Option.None
+    | warning :: rest ->
+      let first =
+        "[" ++ LanguageTools.Lint.codeToString warning.code ++ "] "
+        ++ LanguageTools.Lint.toString warning
+      if Stdlib.List.isEmpty rest then
+        Stdlib.Option.Option.Some first
+      else
+        Stdlib.Option.Option.Some(
+          first
+          ++ "; "
+          ++ Stdlib.Int.toString (Stdlib.List.length rest)
+          ++ " more warning(s)")
+  let summaries =
+    [ typeSummary, warningSummary ]
+    |> Stdlib.List.filterMap (fun summary -> summary)
+  if Stdlib.List.isEmpty summaries then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.Option.Option.Some(Stdlib.String.join summaries "; ")
+
+let warningLines (warnings: List<LanguageTools.Lint.Warning>) : List<String> =
+  warnings
+  |> Stdlib.List.map (fun warning ->
+    "  - [" ++ LanguageTools.Lint.codeToString warning.code ++ "] "
+    ++ LanguageTools.Lint.toString warning)
+
+/// Print lint messages independently of the type-checking verdict.
+let printWarnings
+  (warnings: List<LanguageTools.Lint.Warning>)
+  : Unit =
+  if Stdlib.List.isEmpty warnings then
+    ()
+  else
+    Stdlib.List.append
+      [ ""
+        (Stdlib.Cli.UI.Colors.warning "Warnings (saved anyway):") ]
+      (warningLines warnings)
+    |> Stdlib.printLines
 
 /// Report a saved WIP batch. Findings do not stop the save; `commit` enforces
 /// definite errors.
 let printSaveReport
   (branchId: Uuid)
   (report: LanguageTools.AtRestTypeChecker.Report)
+  (lint: LanguageTools.Lint.Results)
   : Unit =
+  printWarnings (LanguageTools.Lint.allWarnings lint)
+
   match report.verdict with
   | Checked -> ()
   | Failed ->
