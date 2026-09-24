@@ -138,6 +138,13 @@ RUN goes in `notSweepable` there, with the reason; a name in that list that is n
 registered fails its own test, because an exclusion nobody revisits is how a sweep quietly
 stops covering the thing it was written for.
 
+### Processes and live programming
+
+`docs/processes.md` is the scheduler: what a process is, the loop, reads in flight, `Exec.spawn`,
+executions (resume, fork, export), `dark ps`. `docs/live.md` is live programming: the host loop,
+`serve` following edits, the `Node` tree, live values. `dark docs processes` and `dark docs live`
+are the short forms.
+
 ### Performance
 
 Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
@@ -179,6 +186,8 @@ Logs go to `rundir/logs/fsharp-tests.log`.
 
     backend/src/          # F# source
       LibExecution/       # execution engine
+        Scheduler.fs      #   processes, the loop that steps them, the workers
+        HostEvents.fs     #   the event queue and its sources (keys, timers, the store poll)
         Host/             #   the checked host boundary: the only code that may
                           #   touch the OS (enforced by tests/hostBoundary)
       LibParser/          # parser
@@ -188,12 +197,15 @@ Logs go to `rundir/logs/fsharp-tests.log`.
                           # Matter, Pure, Random, Time
     packages/darklang/    # .dark files
       cli/                # the CLI app: registry, loop, workbench, outliner, etc.
+        apps/host.dark    #   the live host loop: a view follows edits
+        ps.dark, exec.dark#   what is running; the runs kept (resume, fork, export)
       scm/                # SCM library (branches, merge, conflicts, propagation, packageOps)
       sync/               # sync, on top of SCM: wire codec, import planning, the hosted relay
       stdlib/             # standard library
         cli/stdin.dark    #   reads keys
         cli/tui/          #   paints: view types, frame diffing, terminal session
         cli/ui/           #   composes: widgets, layout, the palette
+        cli/ui/node.dark  #   the Node tree a live view returns, and its three renderers
     backend/migrations/   # schema/, the from-scratch shape; changes to an existing store go in
                           # LibDB/Releases.fs
     rundir/logs/          # log files
@@ -225,7 +237,19 @@ traces), `Language` (reflection, parser, language tools), `Http.Server`, `Http.C
 `Random`. Add the fn to the `fns` list in the relevant `Libs/<module>.fs`, save, wait for
 the rebuild.
 
-A builtin that touches a scoped OS resource goes through the host boundary, not directly to `System.IO`/`System.Net`: add an `Operation` in `HostTypes.fs`, implement its check and execution in `Host.fs`, and call `PermissionCheck.performHost state vm op`. If a resource cannot be scoped honestly, classify it as `Native`. `tests/hostBoundary` enforces this.
+A builtin that touches a scoped OS resource goes through the host boundary, not directly to
+`System.IO`/`System.Net`: add an `Operation` in `HostTypes.fs`, implement its check and
+execution in `Host.fs`, and in the builtin name it: `Interpreter.requestHost vm op (fun outcome
+-> ...)`. The loop performs it through the checked boundary and hands the outcome to your
+continuation; nothing is awaited inside the body, and `ps` can say what the process waits on.
+Do not call `PermissionCheck.performHost` from a builtin body. If a resource cannot be scoped
+honestly, classify it as `Native`. `tests/hostBoundary` enforces this.
+
+A builtin that takes a callable never runs it: `Interpreter.requestApply vm applicable arg
+moreArgs next` asks, and the interpreter pushes the callable's frame on the process's own
+stack (`withValue` when the continuation has to look at the answer). `Execution.executeApplicable`
+is for code that runs a function outside any program (`LiveValues.fs`, `Router.step`), not for
+builtins. `docs/processes.md`, "No host re-entry".
 
 Return structured Dark values (enums, records), not pre-rendered strings or string tags.
 Dark-side code formats for display. Don't build `"superseded-by:<hash>"` in F# for a Dark
@@ -318,6 +342,25 @@ a self-hosted relay's hosted ops go.
 goes straight to `locations` answers about MAIN while you are standing on a branch -- and it answers
 plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
 op log directly.
+
+## Changing the schema
+
+**A `migrations/schema/*.sql` file is frozen once it has merged to main.** Those files declare the shape
+a FRESH store is born with, and they are read by every store that has ever been made from them. Editing
+one after it has merged makes the same filename mean two different things depending on when you pulled.
+
+So:
+
+- A NEW TABLE goes in a NEW numbered file (`10-executions.sql`), never appended to a merged one.
+- A file that has not merged yet is still yours: edit it in place until the PR lands.
+- A NEW COLUMN on an already-merged table is the one exception, and it takes both halves:
+  - declare it in the file that declares the table, for fresh stores, with a comment saying why;
+  - carry it to existing stores with a step in `LibDB/Releases.fs`.
+  There is no third option: a schema file only ever runs `CREATE TABLE` / `CREATE INDEX` /
+  `INSERT OR IGNORE` statements (`Releases.applySchemaTables`), so a patch file cannot `ALTER`.
+
+Adding a file changes the schema hash, which drops and re-folds the projection tables. That is cheap and
+expected; canonical tables are never dropped, which is the reason a column needs the `Releases` step.
 
 ## Gotchas
 
@@ -497,9 +540,10 @@ to copy from.
 
 ## Interactive CLI testing
 
-**A key pressed while a frame is painting is lost.** In an `expect` script, wait a beat after the text you
-matched before sending the next key, or the key lands mid-render and is dropped. The symptom is not "that
-key did nothing", it's the NEXT assertion timing out, which reads as a broken view.
+**A key pressed while a frame is painting is lost under `expect`.** The runtime queues a key that arrives
+while nobody waits for the next `Key` subscriber, but the terminal `expect` drives does not: wait a beat
+after the text you matched before sending the next key, or the key lands mid-render and is dropped. The
+symptom is not "that key did nothing", it's the NEXT assertion timing out, which reads as a broken view.
 `fixtures/_workbench-scm.expect`
 has a `press` helper for this.
 

@@ -23,9 +23,8 @@ DARK_CONFIG_DEFAULT_LOGGER=console
 
 # Feature flag defaults
 DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT=sample-all
-# Traces have no retention or GC, so leaving this on grows data.db without bound.
-# Turn it on for the one command you want a trace from.
-DARK_CONFIG_TRACE_DETAIL=off
+# Unset, so dev sees the binary's default: `effects`, the resumable log, kept bounded by
+# retention (`trace.keep`, `trace.maxMb`). `on` records every call (what live values need).
 
 # Package source: "disk" (reload from .dark files) or "seed" (fetch from R2)
 # Default: disk (set to "seed" to use the seed-based flow)
