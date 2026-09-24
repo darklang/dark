@@ -297,7 +297,7 @@ let private testTracesHelp =
           "follow"
           "find"
           "hotspots"
-          "replay"
+          "rerun"
           "delete"
           "--json" ] do
         Expect.stringContains output term $"contains {term}"
@@ -308,7 +308,7 @@ let private testTracesTailShowsLastEval =
     task {
       let! _ = runCli state [ "eval"; "let x = 7L\nx" ]
       let! output = runCli state [ "traces"; "tail" ]
-      Expect.stringContains output "Handler: eval" "eval handler line"
+      Expect.stringContains output "Entry:  eval" "eval handler line"
       Expect.stringContains output "expression = \"let x = 7L" "recorded input"
     })
 
@@ -397,10 +397,10 @@ let private testTracesArgOrderingsWork =
     task {
       let! _ = runCli state [ "eval"; "1L + 1L" ]
       let! tailNFirst = runCli state [ "traces"; "tail"; "1"; "--route"; "eval" ]
-      Expect.stringContains tailNFirst "Trace:" "tail N --route"
+      Expect.stringContains tailNFirst "Run:" "tail N --route"
       let! tailRouteFirst =
         runCli state [ "traces"; "tail"; "--route"; "eval"; "1" ]
-      Expect.stringContains tailRouteFirst "Trace:" "tail --route N"
+      Expect.stringContains tailRouteFirst "Run:" "tail --route N"
       let! listJsonFn =
         runCli state [ "traces"; "list"; "--json"; "--fn"; "add"; "5" ]
       Expect.stringContains listJsonFn "[" "list --json --fn fn N"
@@ -544,20 +544,20 @@ let private testTracesDeleteGrammar =
 
 let private testTracesReplayReruns =
   cliTestWithFreshTraces
-    "traces replay <id> re-evaluates the recorded eval input"
+    "traces rerun <id> re-evaluates the recorded eval input"
     (fun state ->
       task {
         let! _ = runCli state [ "eval"; "1L + 2L" ]
         let! listJsonBefore = runCli state [ "traces"; "list"; "1"; "--json" ]
         let tid = parseTraceID listJsonBefore
-        let! out = runCli state [ "traces"; "replay"; tid ]
+        let! out = runCli state [ "traces"; "rerun"; tid ]
         Expect.stringContains out $"Replaying trace {tid}" "header line"
         Expect.stringContains out "3" "result printed"
-        Expect.stringContains out "Replay complete" "completion line"
+        Expect.stringContains out "Rerun complete" "completion line"
 
-        // The replay produces a fresh trace, so the count goes 1 -> 2.
+        // A rerun is a run of its own, so the count goes 1 -> 2.
         let! listJsonAfter = runCli state [ "traces"; "list"; "10"; "--json" ]
-        let traceCount = (listJsonAfter.Split("\"traceId\":\"")).Length - 1
+        let traceCount = (listJsonAfter.Split("\"id\":\"")).Length - 1
         Expect.equal
           traceCount
           2
@@ -663,7 +663,7 @@ let private testTracesTruncatedStillShowsRoot =
       withState (fun state ->
         task {
           // Set both here rather than relying on suite ordering, so this still means something alone.
-          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Values
           LibDB.Tracing.TraceLimits.useMaxEventsForTesting 20
           try
             let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]

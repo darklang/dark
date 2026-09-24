@@ -718,7 +718,8 @@ let private missingTargetsAreNamed =
 /// A doc that confidently describes a command that is not there is worse than no doc, and nothing
 /// else checks. Narrow by design: only the WORD after `dark`, which is what is verifiable
 /// mechanically. It cannot tell you the prose is wrong, only that the commands are real.
-let private docTopicsToCheck = [ "scm"; "for-ai"; "cli" ]
+let private docTopicsToCheck =
+  [ "scm"; "for-ai"; "cli"; "processes"; "live"; "http-server" ]
 
 let private documentedCommandsAreReal =
   cliTest "every command the docs mention exists" (fun state ->
