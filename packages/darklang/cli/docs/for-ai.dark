@@ -41,6 +41,7 @@ Save the module again to change it.
   status                                           # what changed
   commit "message" -y                              # record it
   run app.dark [args]                              # a file instead; `docs scripts`
+  generate <fn> <args> --into Owner.Module         # derive a module from a sample or spec (`docs generate`)
 
 `search` takes `--fn`, `--type`, `--val` or `--test` to narrow, and `--with-docs`
 for full comments. To find a function by what it takes and returns, search the
