@@ -333,14 +333,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Cli.TraceRuns.printCalls state.currentBranchId fnName
     state
   | [ "values", fnName ] ->
-    Cli.TraceRuns.printValues state.currentBranchId fnName Stdlib.Option.Option.None
-    state
-  | [ "values", fnName, call ] ->
-    Cli.TraceRuns.printValues
-      state.currentBranchId
-      fnName
-      (Stdlib.Option.Option.Some call)
-    state
+    Cli.TraceRuns.printValues state fnName Stdlib.Option.Option.None
+  | [ "values", fnName, run ] ->
+    Cli.TraceRuns.printValues state fnName (Stdlib.Option.Option.Some run)
   | [ "calls" ] | [ "values" ] ->
     let verb = Stdlib.Option.withDefault (Stdlib.List.head args) ""
     Cli.printErr $"traces {verb} needs a function name, like Darklang.Stdlib.List.map"
@@ -1335,8 +1330,8 @@ let help (_state: Cli.AppState) : String =
     "  fork <id-prefix> [--at <n>]   A new run from any position of an old one"
     "  pin <id-prefix>               Keep this run whatever retention says (`unpin` undoes it)"
     "  rerun <id-prefix>             Run the input again, performing every effect for real"
-    "  calls <fn>                    Every recorded call of one function, newest first"
-    "  values <fn> [<call>]          That function's code, with each call's value beside it"
+    "  calls <fn>                    The runs that went through one function, newest first"
+    "  values <fn> [<run>]           That function's code, with that run's values beside it"
     "  delete <trace-id>             Delete one trace (prefix OK)"
     "  delete --all                  Delete every stored trace"
     "  delete --keep <N>             Keep the N most-recent traces, drop the rest"

@@ -102,6 +102,9 @@ let private hashCoupledSurvivors =
     "package_caps" // ditto, keyed on the item's hash
     "schema_state_v0" // describes the SCHEMA, not the log
     "trace_fn_calls" // observations of past runs; deliberately outlive their code
+    // Same: a run is a trace, and `entry_hash` records which handler served a request as a
+    // fact about that run. A run whose handler is gone is history, not a stale claim.
+    "traces"
     "type_checked" ] // content-addressed cache: a clean result stays clean
 
 

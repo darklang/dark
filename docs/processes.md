@@ -626,6 +626,68 @@ own log, retention (the count cap sparing a suspended run, the byte cap
 sparing the newest, the newest of each entry surviving the count cap), the
 echo and the refusal.
 
+## A run's id
+
+A plain random UUID, and `dark traces` prints the shortest prefix that tells the listed runs
+apart (eight characters, unless a store made before this change has two that agree for longer).
+
+It used to be a ULID with an inverted millisecond timestamp in front, so that sorting ids
+lexicographically sorted traces newest-first. That was for Google Cloud Storage, which could
+only list keys in lexicographic order. SQLite sorts by a column, every listing orders by
+`timestamp` or `rowid`, and nothing reads a time out of an id -- while the cost was real, since
+an id is now something a person types (`traces resume`, `traces values`, `traces fork`): two
+runs made in the same millisecond agreed for a dozen characters, so short ids came back
+ambiguous.
+
+Not content-addressed, unlike an op id or a commit id, and deliberately. An id has to exist
+when the run STARTS, before there is a log to hash; and content-addressing pays when two
+parties independently produce the same thing, which is true of an edit and false of a run --
+two runs of the same input an hour apart are different events. Syncing runs needs the id to
+travel with the row, which it does, and a namespace two instances cannot collide in, which a
+random UUID gives.
+
+## Preview: looking at a run
+
+A resume takes a run forward. A PREVIEW looks at one, and the difference is the whole design:
+a preview never performs an effect.
+
+`dark traces values <fn> [<run>]` replays a recorded run with every effectful call answered
+from that run's log, collects the value of every expression on the way, and prints the
+function you asked about with `// = value` beside each call. `dark traces calls <fn>` is the
+list of runs to choose from.
+
+This is classic's Preview (`classic-dark/backend/src/LibExecution/Interpreter.fs`, the
+`realOrPreview = Preview` arms), with two things taken from it deliberately:
+
+- **An impure call is answered or nothing happens.** Classic returned `DIncomplete` for a call
+  the trace could not answer, and let it propagate; we have no such value, so the preview stops
+  there and the view says which call stopped it. Pure code runs for real in both, because it is
+  cheap and deterministic.
+- **The key is `(name, arguments)`, not a position.** A resume keys on `(process, ordinal)`,
+  which keeps order and tells two identical calls apart. A view cannot: add a call in the
+  middle and every ordinal after it shifts, so an ordinal-keyed view would go blank from there.
+  Classic keyed on `(fnname, id, hash)` for the same reason, and a name-and-arguments key still
+  answers every call you did not touch. Last write wins.
+
+The pieces:
+
+- `RT.Tracing.previewEffect`, consulted in `invokeBuiltin` before the ordinal replay. `None` on
+  an ordinary run, so the cost there is one null test and no allocation.
+- `Tracing.createPreviewTracer`: the lookup table, the value collector, and `forProcess`
+  returning another preview tracer -- the CLI spawns each expression as its own process, and
+  handing back the default there would hand back a tracer that performs effects.
+- `cliPreviewRun`: one builtin that loads the log, replays, and hands back the values. No armed
+  mode and no shared slot, so two previews at once cannot take each other's log.
+- Two ways in, because a run has two shapes. An `eval` or a `run <file>` replays its source. A
+  served request's input is a record, so the row carries `entry_hash`, the handler that served
+  it, and the preview applies that handler to the recorded request.
+- `trace_fns`: which functions a run went through, names only, written at every level above
+  `off`. Without it, "which runs went through this sub-router" is unanswerable at the shipped
+  level, where a package call is not recorded at all.
+
+What a preview does not do: it does not write, it is not a run, and it does not echo a logged
+print (that echo belongs to a resume, where somebody is taking the run forward).
+
 ## A run on another machine
 
 Not built, and deliberately not. `dark exec export`/`import` existed on this

@@ -16,7 +16,18 @@ state resets between calls; package changes persist.
   commit "message" -y                            # save them
   apps view stats                                 # a live view; edits repaint it
   ps                                              # what is running
-  exec resume <id>                                # pick a Ctrl-C'd run back up
+  traces                                          # what ran, and what it did
+  traces calls <fn>                               # the runs that went through a function
+  traces values <fn> [<run>]                      # that function's code, with a run's values
+  traces resume <id>                              # pick a Ctrl-C'd run back up
+
+The loop that is worth knowing, because it needs no print statements and no second
+run: every `eval`, `run` and served request is recorded, so after something has run
+once, `traces calls <fn>` lists the runs that went through it and `traces values <fn>`
+replays one and shows what every call in it evaluated to, through the code as it is
+NOW. Edit a callee and look again: the values move. Nothing is performed while you
+look -- the effects are answered from the log -- so it is safe on a function that
+writes.
 
 Batch search caps each result section at three items. Use `--fn`, `--type`, or
 `--val` to focus results; `--with-docs` shows full comments, `docs signatures

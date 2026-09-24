@@ -532,64 +532,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "tracesResolveID" 0
-      typeParams = []
-      parameters =
-        [ Param.make "input" TString "Full trace ID or unambiguous prefix" ]
-      returnType = TypeReference.result TString TString
-      description =
-        "Resolve a trace ID prefix to the full ID. `Ok fullID` when exactly one trace matches; `Error <message>` when zero (not-found) or multiple (ambiguous, lists candidates)."
-      fn =
-        let resultOk = Dval.resultOk KTString KTString
-        let resultError = Dval.resultError KTString KTString
-        (function
-        | _, _, _, [| DString input |] ->
-          uply {
-            // Up to 6 so we can distinguish "1 match" / "many matches"
-            // without fetching everything. The user-facing error caps the
-            // candidate list at 5 anyway.
-            //
-            // Escape `%` and `_` so a user-supplied prefix matches literal
-            // chars (consistent with tracesListByFn / tracesFind).
-            let escaped =
-              input
-              |> fun s -> s.Replace(@"\", @"\\")
-              |> fun s -> s.Replace("%", @"\%")
-              |> fun s -> s.Replace("_", @"\_")
-            let pattern = escaped + "%"
-            let! matches =
-              Sql.query
-                "SELECT id FROM traces
-                 WHERE id LIKE @pattern ESCAPE '\\'
-                 ORDER BY rowid DESC
-                 LIMIT 6"
-              |> Sql.parameters [ "pattern", Sql.string pattern ]
-              |> Sql.executeAsync (fun read -> read.string "id")
-
-            match matches with
-            | [] -> return resultError (DString $"Trace not found: {input}")
-            | [ fullID ] -> return resultOk (DString fullID)
-            | candidates ->
-              let shown = List.truncate 5 candidates
-              let suffix =
-                if List.length candidates > 5 then
-                  $"\n  - … (and {List.length candidates - 5} more)"
-                else
-                  ""
-              let body =
-                shown |> List.map (fun id -> $"  - {id}") |> String.concat "\n"
-              return
-                resultError (
-                  DString $"Ambiguous trace ID '{input}'. Matches:\n{body}{suffix}"
-                )
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.TraceRead ]
-      deprecated = NotDeprecated }
-
-
     { name = fn "tracesGetInput" 0
       typeParams = []
       parameters = [ Param.make "traceID" TString "The trace ID to get input from" ]
@@ -807,29 +749,37 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "tracesSetPinned" 0
+    { name = fn "tracesRunsCalling" 0
       typeParams = []
-      parameters = [ Param.make "traceID" TString ""; Param.make "pinned" TBool "" ]
-      returnType = TBool
+      parameters =
+        [ Param.make "fnName" TString "the function's dotted name"
+          Param.make "limit" TInt64 "" ]
+      returnType =
+        TList(TCustomType(NR.ok (FQTypeName.fqPackage (TracesRefs.trace ())), []))
       description =
-        "Pin a run so retention never drops it, or unpin it. False for an id nobody has."
+        "The runs that went through this function, newest first. Read from the names-only "
+        + "index every recorded run writes, so it answers at the shipped recording level."
       fn =
         (function
-        | _, _, _, [| DString traceID; DBool pinned |] ->
+        | _, _, _, [| DString fnName; DInt64 limit |] ->
           uply {
-            match System.Guid.TryParse traceID with
-            | false, _ -> return DBool false
-            | true, id ->
-              match! LibDB.Traces.get id with
-              | None -> return DBool false
-              | Some _ ->
-                LibDB.Traces.setPinned id pinned
-                return DBool true
+            let typeName = FQTypeName.fqPackage (TracesRefs.trace ())
+            let! rows =
+              Sql.query
+                $"SELECT {traceColumns}
+                  FROM traces t
+                  JOIN trace_fns f ON f.trace_id = t.id
+                  WHERE f.fn_name = @fn
+                  ORDER BY t.timestamp DESC, t.rowid DESC
+                  LIMIT @limit"
+              |> Sql.parameters [ "fn", Sql.string fnName; "limit", Sql.int64 limit ]
+              |> Sql.executeAsync traceRowToDT
+            return rows |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.TraceWrite ]
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated } ]
 
 

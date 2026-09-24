@@ -2575,8 +2575,24 @@ module Tracing =
       /// The ordinal for an effectful builtin call about to be made, per process: the first is 0.
       /// Assigned at the call, not at completion, so a read that lands late keeps its place.
       nextEffect : unit -> int64
+      /// Which package functions this run touched, by hash, taken at the frame push.
+      ///
+      /// Names only, no arguments and no results, so it costs a hash-set add per call and a
+      /// few hundred bytes per run. It is what answers "which runs went through this function"
+      /// at the shipped recording level, where a package call is otherwise not recorded at all.
+      noteFunction : Hash -> unit
       /// Replay: what to do with the effectful call about to be made at this ordinal.
       replayEffect : int64 -> ReplayStep
+      /// VIEWING a run rather than resuming it, which is classic's Preview: an effectful call
+      /// is answered by its name and arguments from the log, and one the log cannot answer is
+      /// NOT performed -- the run stops there instead. `None` when this is an ordinary run.
+      ///
+      /// Two keys for two jobs. A resume keys on `(process, ordinal)`, which keeps order and
+      /// tells two identical calls apart; a view keys on `(name, arguments)`, which survives
+      /// an edit that adds a call in the middle -- every call you did not touch still matches.
+      /// The arguments arrive as the array the interpreter already has, so an ordinary run
+      /// pays one null test here and allocates nothing.
+      previewEffect : Option<string -> Dval[] -> Option<Dval>>
       /// The same trace, seen from another process. A recorder keeps one call stack per
       /// process and stamps every event with the process id and a sequence number across
       /// the whole trace, so two processes stepping on two threads write one log whose

@@ -517,12 +517,19 @@ let childState
       blobs = { get = pm.getBlob; persist = pm.persistBlob } }
 
 
-let execute
+/// `execute`, with the tracer handed in rather than chosen here.
+///
+/// A preview supplies one (`cliPreviewRun`): it answers every effect from a recorded run's log,
+/// performs none, records nothing, and is not itself a run -- which is exactly what a supplied,
+/// disabled tracer gives, since `executionId` then stays `None` and the row, the foreground
+/// registration and the status updates are all skipped.
+let executeWith
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
   (dbs : Map<string, RT.DB.T>)
   (traceSource : CliTraceSource)
+  (suppliedTracer : Option<Tracing.T>)
   : Ply<RT.ExecutionResult> =
   uply {
     let (program : Program) = { dbs = dbs }
@@ -583,46 +590,50 @@ let execute
     // `priorStatus`: what the row said before a resume set it running, put back if the resume
     // is refused at a step it cannot reproduce.
     let tracer, executionId, priorStatus =
-      match LibDB.Traces.Replay.take () with
-      | Some resume ->
-        let e = resume.run
-        let tracer =
-          Tracing.createReplayTracer
-            (AT.TraceID.fromUUID e.id)
-            traceDesc
-            inputName
-            inputValue
-            resume.log
-        LibDB.Traces.setStatus e.id LibDB.Traces.Running
-        LibExecution.Interpreter.ReplayPolicy.recordedAt <-
-          (match
-            System.DateTime.TryParse(
-              resume.recordedAt,
-              null,
-              System.Globalization.DateTimeStyles.RoundtripKind
-            )
-           with
-           | true, t -> Some(t.ToUniversalTime())
-           | _ -> None)
-        tracer, Some e.id, Some e.status
+      match suppliedTracer with
+      | Some t -> t, None, None
       | None ->
-        let traceID = AT.TraceID.create ()
-        let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
-        if tracer.enabled then
-          // The row goes in now, at the run's start, so `dark traces` shows a run while it is
-          // still going and Ctrl-C has something to mark suspended. The recorder upserts the
-          // input and the calls onto this same row when the run ends.
-          let id = AT.TraceID.toUUID traceID
-          LibDB.Traces.create
-            id
-            traceDesc
-            inputName
-            inputValue
-            LibDB.Traces.Running
-            None
-          tracer, Some id, None
-        else
-          tracer, None, None
+
+        match LibDB.Traces.Replay.take () with
+        | Some resume ->
+          let e = resume.run
+          let tracer =
+            Tracing.createReplayTracer
+              (AT.TraceID.fromUUID e.id)
+              traceDesc
+              inputName
+              inputValue
+              resume.log
+          LibDB.Traces.setStatus e.id LibDB.Traces.Running
+          LibExecution.Interpreter.ReplayPolicy.recordedAt <-
+            (match
+              System.DateTime.TryParse(
+                resume.recordedAt,
+                null,
+                System.Globalization.DateTimeStyles.RoundtripKind
+              )
+             with
+             | true, t -> Some(t.ToUniversalTime())
+             | _ -> None)
+          tracer, Some e.id, Some e.status
+        | None ->
+          let traceID = AT.TraceID.create ()
+          let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
+          if tracer.enabled then
+            // The row goes in now, at the run's start, so `dark traces` shows a run while it is
+            // still going and Ctrl-C has something to mark suspended. The recorder upserts the
+            // input and the calls onto this same row when the run ends.
+            let id = AT.TraceID.toUUID traceID
+            LibDB.Traces.create
+              id
+              traceDesc
+              inputName
+              inputValue
+              LibDB.Traces.Running
+              None
+            tracer, Some id, None
+          else
+            tracer, None, None
 
     let state = childState parentState pm tracer.executionTracing program
 
@@ -704,6 +715,17 @@ let execute
                | Error _ -> LibDB.Traces.Failed))
       return result
   }
+
+/// The ordinary path: the tracer is chosen here, from whether a resume is armed and what the
+/// recording level says.
+let execute
+  (parentState : RT.ExecutionState)
+  (mod' : Utils.CliScript.PTCliScriptModule)
+  (args : List<Dval>)
+  (dbs : Map<string, RT.DB.T>)
+  (traceSource : CliTraceSource)
+  : Ply<RT.ExecutionResult> =
+  executeWith parentState mod' args dbs traceSource None
 
 /// Create a branch-specific execution state for parsing.
 ///
@@ -969,6 +991,149 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliPreviewRun" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "the branch to resolve names against"
+          Param.make "traceID" TString "the run to view" ]
+      returnType =
+        TTuple(
+          TList(TTuple(TInt64, TCustomType(NR.ok (RT2DT.Dval.typeName ()), []), [])),
+          TypeReference.option TString,
+          []
+        )
+      description =
+        "Replay a recorded run for VIEWING: every effectful call is answered from that run's "
+        + "log by name and arguments, none is performed, and every expression's value is "
+        + "collected. Returns those values, keyed by the source expression's id, and why it "
+        + "stopped early if it did. Nothing is recorded: a preview is not a run.\n\n"
+        + "This is classic's Preview. One call rather than an armed mode, so two of them at "
+        + "once cannot take each other's log."
+      fn =
+        (function
+        | exeState, _, _, [| DUuid branchId; DString traceID |] ->
+          uply {
+            let kt =
+              KTTuple(
+                ValueType.Known KTInt64,
+                ValueType.Known(RT2DT.Dval.knownType ()),
+                []
+              )
+            let noValues = Dval.list kt []
+            let answer (values : Dval) (problem : Option<string>) =
+              DTuple(
+                values,
+                (match problem with
+                 | Some p -> Dval.optionSome KTString (DString p)
+                 | None -> Dval.optionNone KTString),
+                []
+              )
+            match System.Guid.TryParse traceID with
+            | false, _ -> return answer noValues (Some "not an id")
+            | true, id ->
+              match! LibDB.Traces.get id with
+              | None -> return answer noValues (Some "no run has this id")
+              | Some run ->
+                // Only a run whose input is source can be replayed from the CLI. A served
+                // request is a run too, and re-running one needs the server's handler, which
+                // is the next piece of this.
+                match run.input with
+                | DString source ->
+                  let! log = LibDB.Traces.previewLog id
+                  let collected = ResizeArray<int64 * RT.Dval>()
+                  let tracer = Tracing.createPreviewTracer log collected
+                  let exeState = { exeState with branchId = PT.BranchId.Id branchId }
+                  let branchState = createBranchState exeState false
+                  let! parsed = parseCliExpr branchState source
+                  let values () =
+                    collected
+                    |> Seq.map (fun (id, dv) ->
+                      DTuple(DInt64 id, RT2DT.Dval.toDT dv, []))
+                    |> List.ofSeq
+                    |> Dval.list kt
+                  match parsed with
+                  | Error _ ->
+                    return answer noValues (Some "the run's input no longer parses")
+                  | Ok mod' ->
+                    let! dbs = loadDBs ()
+                    let previewState =
+                      PolicyStore.guestState
+                        exeState.accountID
+                        LibExecution.Permissions.Policy.allowAll
+                        []
+                        (ownFns mod')
+                        exeState
+                    try
+                      match!
+                        executeWith
+                          previewState
+                          mod'
+                          []
+                          dbs
+                          (EvalExpression source)
+                          (Some tracer)
+                      with
+                      | Ok _ -> return answer (values ()) None
+                      | Error(rte, _) ->
+                        let! message = Exe.runtimeErrorMessage previewState rte
+                        return answer (values ()) (Some message)
+                    with e ->
+                      return answer (values ()) (Some e.Message)
+                | requestDval ->
+                  // A served request: its input is a record, so there is no source to re-run.
+                  // The handler that served it was recorded on the row, so the preview applies
+                  // that to the request instead -- the same replay, a different way in.
+                  match run.entryHash with
+                  | None ->
+                    return
+                      answer
+                        noValues
+                        (Some
+                          "this run has no source to replay and no handler recorded against it")
+                  | Some hash ->
+                    let! log = LibDB.Traces.previewLog id
+                    let collected = ResizeArray<int64 * RT.Dval>()
+                    let tracer = Tracing.createPreviewTracer log collected
+                    let values () =
+                      collected
+                      |> Seq.map (fun (id, dv) ->
+                        DTuple(DInt64 id, RT2DT.Dval.toDT dv, []))
+                      |> List.ofSeq
+                      |> Dval.list kt
+                    let applicable =
+                      AppNamedFn
+                        { name = FQFnName.Package(Hash hash)
+                          typeSymbolTable = TST.empty
+                          typeArgs = []
+                          access = None
+                          argsSoFar = [] }
+                    let previewState =
+                      { PolicyStore.rootState exeState exeState.access [ Hash hash ] with
+                          tracing = tracer.executionTracing }
+                    try
+                      match!
+                        Exe.executeApplicable
+                          previewState
+                          previewState.access
+                          applicable
+                          (NEList.singleton requestDval)
+                      with
+                      | Ok _ -> return answer (values ()) None
+                      | Error(rte, _) ->
+                        let! message = Exe.runtimeErrorMessage previewState rte
+                        return answer (values ()) (Some message)
+                    with e ->
+                      return answer (values ()) (Some e.Message)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      // Reading a recorded run, and running pure code over it: the effects it would have made
+      // are answered from the log, never performed.
+      callEffects = set [ LibExecution.Effects.Effect.TraceRead ]
       deprecated = NotDeprecated }
 
 

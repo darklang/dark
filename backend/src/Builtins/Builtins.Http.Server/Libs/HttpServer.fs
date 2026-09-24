@@ -565,11 +565,21 @@ let private handleRequest
               | Direct response -> Task.FromResult response
             do! tracer.storeTraceResults perRequestState |> Ply.toTask
 
-            // A served request is a run like any other (`dark traces`), so it says how it went.
-            // The recorder's upsert wrote the row with `done`; a 5xx is the one case where the
-            // request is worth finding again, so it is marked failed.
-            if tracer.enabled && response.statusCode >= 500 then
-              LibDB.Traces.setStatus (AT.TraceID.toUUID traceID) LibDB.Traces.Failed
+            // A served request is a run like any other (`dark traces`), so it says how it went
+            // and what served it. The recorder's upsert wrote the row with `done`; a 5xx is the
+            // one case where the request is worth finding again, so it is marked failed. The
+            // handler's hash is what lets `traces values` replay the request against it: a
+            // request's input is a record, not source, so there is nothing else to re-run.
+            if tracer.enabled then
+              let runId = AT.TraceID.toUUID traceID
+              if response.statusCode >= 500 then
+                LibDB.Traces.setStatus runId LibDB.Traces.Failed
+              match resolved with
+              | Ok(_, handler) ->
+                match rootOf handler with
+                | [ Hash h ] -> LibDB.Traces.setEntryHash runId h
+                | _ -> ()
+              | Error _ -> ()
 
             let respHeaders =
               maybeInjectStandardHeaders injectStandardHeaders response.headers

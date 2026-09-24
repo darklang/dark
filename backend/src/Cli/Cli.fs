@@ -328,7 +328,7 @@ let private installSuspendOnInterrupt () : unit =
     match suspended with
     | Some id ->
       args.Cancel <- true
-      let prefix = (string id).Substring(0, 12)
+      let prefix = (string id).Substring(0, 8)
       System.Console.Error.WriteLine ""
       System.Console.Error.WriteLine
         $"stopped; the run is kept. Take it up again with: dark traces resume {prefix}"

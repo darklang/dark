@@ -340,6 +340,61 @@ let private routerLocation = locSource [ "LiveHttp" ] "router"
 /// In-process on purpose (`cliTest`): the listener and the author have to share one store, and the
 /// diagnostic the routing step prints has to be capturable. Authoring goes through the real `fn`
 /// command so propagation runs, which is what repoints the router at the edited callee.
+/// The case this was built for: a request comes in, and afterwards you can stare at the handler
+/// and see what that request did to every line of it.
+///
+/// A served request's input is a record, not source, so there is nothing to re-run the way an
+/// `eval` is re-run. The row carries the handler that served it, and the preview applies that
+/// to the recorded request with the same substitution.
+let private previewOfAServedRequest =
+  cliTest
+    "a served request can be viewed against the handler that served it"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Effects
+        try
+          do! author "Tests.PrevHttp.page" "(): String = \"hello\""
+          do!
+            author
+              "Tests.PrevHttp.router"
+              "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  let body = Tests.PrevHttp.page ()\n  Stdlib.Http.responseWithText body 200"
+
+          do!
+            withLiveServer
+              state
+              "Darklang.SCM.Branch.mainBranchId"
+              (locSource [ "PrevHttp" ] "router")
+              false
+              (fun port ->
+                task {
+                  let! (status, body) = getText port
+                  Expect.equal
+                    (status, body)
+                    (200, "hello")
+                    "the request was served"
+
+                  // The request is a run, and it knows what served it.
+                  let! listed =
+                    runCli target [ "traces"; "calls"; "Tests.PrevHttp.router" ]
+                  Expect.stringContains
+                    listed
+                    "GET /"
+                    "the request is listed under the handler"
+
+                  let! viewed =
+                    runCli target [ "traces"; "values"; "Tests.PrevHttp.router" ]
+                  Expect.stringContains
+                    viewed
+                    "page () // = \"hello\""
+                    "the handler's own call, with the value that request produced"
+                })
+        finally
+          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Values
+      })
+
+
 let private serveFollowsEdits =
   cliTest "serve follows edits and keeps the last good version" (fun target ->
     task {
@@ -1061,12 +1116,11 @@ match Darklang.LanguageTools.PackageManager.Function.find bid loc with
 /// the value of every call inside it put beside the code. The trace names the call by the
 /// function's dotted name; the current version's hash is what runs. So an edit to a callee shows
 /// up on the next replay without a new call being recorded.
-/// The call inbox, and pointing live values at a call other than the newest: classic's trace
-/// dots, for any function. `traces calls` lists them; `traces values <fn> <call>` renders the
-/// code with that call's values beside it.
-let private callInboxPicksWhichCallToShow =
+/// Pointing the preview at a run other than the newest: classic's trace dots, where clicking a
+/// different dot shows you that request's values.
+let private previewPicksWhichRunToShow =
   cliTestWithFreshTraces
-    "traces calls lists a function's calls, and traces values renders a chosen one"
+    "traces calls lists the runs, and traces values renders the one you pick"
     (fun target ->
       task {
         let author = author target
@@ -1079,23 +1133,21 @@ let private callInboxPicksWhichCallToShow =
         let! _ = runCli target [ "eval"; "Tests.Inbox.describe \"alice\"" ]
 
         let! listed = runCli target [ "traces"; "calls"; "Tests.Inbox.describe" ]
-        Expect.stringContains listed "call" "the inbox has a call column"
-        // Two calls, each on its own row, newest first.
         let rows =
           listed.Split('\n')
           |> Array.filter (fun l -> l.Contains "eval")
           |> Array.toList
-        Expect.equal (List.length rows) 2 "one row per recorded call"
+        Expect.equal (List.length rows) 2 "one row per run that went through it"
 
-        // The newest call by default.
+        // The newest run by default.
         let! newest = runCli target [ "traces"; "values"; "Tests.Inbox.describe" ]
-        Expect.stringContains newest "\"ALICE\"" "the newest call's value"
+        Expect.stringContains newest "\"ALICE\"" "the newest run's value"
 
-        // ... and an older one by its id, which is the whole point of the inbox.
+        // ... and an older one by its id, which is the whole point of the list.
         let older = (List.item 1 rows).Trim().Split(' ') |> Array.head
         let! chosen =
           runCli target [ "traces"; "values"; "Tests.Inbox.describe"; older ]
-        Expect.stringContains chosen "\"BOB\"" "the call that was asked for"
+        Expect.stringContains chosen "\"BOB\"" "the run that was asked for"
         Expect.isFalse (chosen.Contains "\"ALICE\"") "and not the newest one"
       })
 
@@ -1379,11 +1431,13 @@ let tests : List<Test> =
           modelSavesAndResumes
           pollIgnoresAnOpUntilItIsApplied
           pollOnABranchSeesTheBranchsOwnSaves
+          serveFollowsEdits
           serveFollowsEditsOnABranch
+          previewOfAServedRequest
           aFixedCalleeIsNotAdoptedThroughItsBrokenDependent
           devErrorPageCarriesTheListener
           devStreamReportsAnEditAfterTheServe
           liveValuesReplayTheLastCall
-          callInboxPicksWhichCallToShow
+          previewPicksWhichRunToShow
           observeAndShow ]
     ) ]

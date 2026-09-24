@@ -168,6 +168,56 @@ let private replayAfterAnEdit =
       })
 
 
+/// The call inbox and the preview, which are classic's trace dots and live values with our
+/// effect log underneath.
+///
+/// Both at the SHIPPED recording level, on purpose: the whole point is that a run recorded the
+/// cheap way is enough to look at. The values come from replaying the run with its effects
+/// answered from the log, so the print in the middle of the function must not print again.
+let private previewShowsValuesAndPerformsNothing =
+  cliTestWithFreshTraces
+    "traces calls finds the runs, and traces values replays one without performing its effects"
+    (fun state ->
+      task {
+        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Effects
+        try
+          do! start state
+          do!
+            fn
+              state
+              "Tests.Prev.greet"
+              "(name: String) : String =\n  let upper = Stdlib.String.toUppercase name\n  let shouted = Stdlib.String.append upper \"!\"\n  let _ = Stdlib.printLine shouted\n  shouted"
+          do! commit state "greet"
+          let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.greet" ]
+          let! ran = runCli state [ "eval"; "Tests.Prev.greet \"bob\"" ]
+          Expect.stringContains ran "BOB!" "the run printed for real"
+
+          // The index knows which runs went through the function, at this level, where the
+          // call itself is not recorded at all.
+          let! listed = runCli state [ "traces"; "calls"; "Tests.Prev.greet" ]
+          Expect.stringContains listed "eval" "the run that went through it"
+
+          let! viewed = runCli state [ "traces"; "values"; "Tests.Prev.greet" ]
+          Expect.stringContains
+            viewed
+            "toUppercase name // = \"BOB\""
+            "the recorded input flowed through the first call"
+          Expect.stringContains
+            viewed
+            "append upper \"!\" // = \"BOB!\""
+            "and through the second"
+          // The print is an effect: answered from the log, not performed, and not echoed
+          // either -- looking at code is silent.
+          let printed =
+            viewed.Split('\n')
+            |> Array.filter (fun l -> l.Trim() = "BOB!")
+            |> Array.length
+          Expect.equal printed 0 "the preview did not print"
+        finally
+          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Values
+      })
+
+
 let private retentionKeepsTheNewestAndTheSuspended =
   cliTestWithFreshTraces
     "retention drops the oldest runs past trace.keep but never a suspended one"
@@ -500,6 +550,7 @@ let tests =
     forkDivergesAfterThePosition
     suspendThenResume
     replayAfterAnEdit
+    previewShowsValuesAndPerformsNothing
     retentionKeepsTheNewestAndTheSuspended
     retentionKeepsTheNewestOfEachEntry
     byteCapSparesTheRunThatTrippedIt

@@ -314,6 +314,9 @@ type TracerState =
     /// ordinal. Empty for a fresh run.
     replay :
       System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Tracing.ReplayStep>
+    /// The package functions this run went through, by hash, for the `trace_fns` index. A
+    /// hash-set add per call, resolved to names once at store time.
+    fns : System.Collections.Generic.HashSet<RT.Hash>
     /// Processes whose replay has ended: the log had no answer for an ordinal they asked for,
     /// so they are live from there and nothing later in the log may be handed to them (a fork
     /// cut by position can leave a later ordinal without its earlier ones).
@@ -324,6 +327,7 @@ type TracerState =
 
 let private newState () : TracerState =
   { events = System.Collections.Generic.List<CompletedEvent>()
+    fns = System.Collections.Generic.HashSet<RT.Hash>()
     stacks = System.Collections.Generic.Dictionary()
     dropped = 0
     nextSeq = 0L
@@ -591,6 +595,8 @@ let rec private executionTracingFor
       storeFrameEntry = makeStoreFrameEntry state pid
       storeFnResult = makeStoreFnResult state pid
       storeLambdaResult = makeStoreLambdaResult state pid
+      noteFunction =
+        (fun hash -> lock state.sync (fun () -> state.fns.Add hash |> ignore<bool>))
       skipTracing = (level <> TraceDetail.Values)
       // `inputs` keeps the row and nothing under it.
       traceEffects = (level = TraceDetail.Effects || level = TraceDetail.Values)
@@ -650,6 +656,7 @@ module TraceRetention =
       let ps = ids |> List.map (fun id -> [ "id", Sql.string id ])
       Sql.executeTransactionSync
         [ "DELETE FROM trace_fn_calls WHERE trace_id = @id", ps
+          "DELETE FROM trace_fns WHERE trace_id = @id", ps
           "DELETE FROM traces WHERE id = @id", ps ]
       |> ignore<List<int>>
 
@@ -754,6 +761,7 @@ module TraceStorage =
     (inputVarName : string)
     (inputDval : RT.Dval)
     (events : List<CompletedEvent>)
+    (fns : List<RT.Hash>)
     (accountID : Option<System.Guid>)
     : unit =
     if TraceDetail.current = TraceDetail.Off then
@@ -839,7 +847,20 @@ module TraceStorage =
                 "seq", Sql.int64 ev.seq
                 "ord", Sql.int64 ev.ord ]) ]
 
-      let _ = Sql.executeTransactionSync (baseStatements @ eventStmt)
+      // Which functions the run went through, names only (`trace_fns`). `INSERT OR IGNORE`
+      // because a resume rewrites its trace in place and the pairs are the same.
+      let fnStmt =
+        match fns with
+        | [] -> []
+        | _ ->
+          [ "INSERT OR IGNORE INTO trace_fns (trace_id, fn_name) VALUES (@traceId, @fnName)",
+            fns
+            |> List.map (fun hash ->
+              [ "traceId", Sql.string traceIdStr
+                "fnName",
+                Sql.string (fnNameToSimpleString (RT.FQFnName.Package hash)) ]) ]
+
+      let _ = Sql.executeTransactionSync (baseStatements @ eventStmt @ fnStmt)
       TraceRetention.run () |> ignore<int>
 
 
@@ -911,9 +932,12 @@ let private storeTrace
       use _span = Telemetry.span "trace.store" [ "traceId", traceIdStr ]
       // A copy taken under the lock: a run suspended by Ctrl-C stores while its processes may
       // still be recording, and the copy is what gets prepared and written.
-      let struct (events, dropped, nextSeq) =
+      let struct (events, dropped, nextSeq, fns) =
         lock state.sync (fun () ->
-          struct (state.events.ToArray(), state.dropped, state.nextSeq))
+          struct (state.events.ToArray(),
+                  state.dropped,
+                  state.nextSeq,
+                  List.ofSeq state.fns))
       if dropped > 0 then
         Telemetry.event
           "trace.truncated"
@@ -946,6 +970,7 @@ let private storeTrace
                    ord = -1L } ]
            else
              List.ofArray events)
+          fns
           exeState.accountID
       with ex ->
         let inner =
@@ -1078,6 +1103,58 @@ let createReplayTracer
     storeTraceResults =
       fun exeState ->
         storeTrace 0UL traceID description inputVarName inputDval state exeState }
+
+
+/// A tracer for VIEWING a run: every effectful call is answered by its name and arguments from
+/// that run's log, none is performed, and every expression's value is collected on the way.
+/// Classic called this Preview. Nothing is written: a preview is not itself a run.
+///
+/// The key is `(name, arguments)` rather than the `(process, ordinal)` a resume uses, and for
+/// the reason classic had: a view has to survive the code having moved on. Add a call in the
+/// middle and every ordinal after it shifts, so an ordinal-keyed view would go blank from
+/// there; a name-and-arguments key still answers every call you did not touch. Last write wins,
+/// as classic's `DISTINCT ON ... ORDER BY timestamp DESC` did.
+///
+/// `collected` is where the values land, keyed by the source expression's id.
+let createPreviewTracer
+  (rows : List<string * byte[] * RT.Dval>)
+  (collected : System.Collections.Generic.List<int64 * RT.Dval>)
+  : T =
+  let answers = System.Collections.Generic.Dictionary<string, RT.Dval>()
+  for (name, argsBytes, result) in rows do
+    answers[name + "\u0000" + System.Convert.ToBase64String argsBytes] <- result
+
+  let lookup (name : string) (args : RT.Dval[]) : Option<RT.Dval> =
+    // The same shape the recorder wrote: one `DList` blob of the arguments.
+    let argsBytes =
+      BinarySer.RT.Dval.serialize
+        "trace_fn_calls.args"
+        (RT.DList(LibExecution.ValueType.unknownTODO, List.ofArray args))
+    match
+      answers.TryGetValue(name + "\u0000" + System.Convert.ToBase64String argsBytes)
+    with
+    | true, v -> Some v
+    | false, _ -> None
+
+  // Every process of the run previews, not just the first. The CLI spawns each expression as a
+  // process of its own, and the scheduler asks the tracer for that process's own hooks
+  // (`forProcess`); handing back the default there is handing back a tracer that performs
+  // effects for real, which is the one thing a preview must never do.
+  let rec previewTracing () : RT.Tracing.Tracing =
+    { Exe.noTracing with
+        skipTracing = false
+        traceEffects = false
+        storeExprResult = fun exprId dv -> collected.Add(int64 exprId, dv)
+        previewEffect = Some lookup
+        forProcess = fun _ -> previewTracing () }
+
+  // `enabled = false` is doing real work: it is what stops the host giving this run a row of
+  // its own, and what makes the store a no-op.
+  { enabled = false
+    results = TraceResults.empty ()
+    storeTraceInput = fun _ _ _ -> ()
+    storeTraceResults = fun _ -> uply { return () }
+    executionTracing = previewTracing () }
 
 
 let createNonTracer (_traceID : AT.TraceID.T) : T =

@@ -1211,15 +1211,43 @@ let private invokeBuiltin
 
   // Replay: the log has this call's result, so the effect is not performed. The permission
   // check above still ran; a replay has no more rights than the run it replays.
+  //
+  // A PREVIEW is the other one: viewing a run rather than resuming it. An effectful call is
+  // answered by its name and arguments, and one the log cannot answer is not performed at all
+  // -- looking at code must never touch the world. Classic called this Preview and returned
+  // `DIncomplete` for the miss; we have no such value, so the run stops and the view says which
+  // call stopped it.
+  let previewed =
+    match exeState.tracing.previewEffect with
+    | Some lookup when not (Set.isEmpty fn.callEffects) ->
+      match lookup fn.name.name allArgs with
+      | Some result -> ValueSome(Tracing.ReplayStep.Serve result)
+      | None ->
+        RTE.UncaughtException(
+          $"no recorded value for {fn.name.name} with these arguments, and a preview never "
+          + "performs an effect. Run it to record one.",
+          []
+        )
+        |> raiseRTE vm.threadID
+    | _ -> ValueNone
+
+  let fromPreview = ValueOption.isSome previewed
+
   let replayed =
-    if ord >= 0L then
-      exeState.tracing.replayEffect ord
-    else
-      Tracing.ReplayStep.PerformOnwards
+    match previewed with
+    | ValueSome p -> p
+    | ValueNone ->
+      if ord >= 0L then
+        exeState.tracing.replayEffect ord
+      else
+        Tracing.ReplayStep.PerformOnwards
 
   match replayed with
   | Tracing.ReplayStep.Serve result ->
-    ReplayPolicy.beforeServing vm fn ord allArgs
+    // Not for a preview: the echo of a logged print, the refusal at an unreproducible handle
+    // and the stale-file warning are all about a RESUME, where the person is taking a run
+    // forward. Looking at code should be silent and should never refuse.
+    if not fromPreview then ReplayPolicy.beforeServing vm fn ord allArgs
     finishBuiltin
       exeState
       vm
@@ -1958,6 +1986,10 @@ let private completePackage
     let pkgEp = FreeTVars.packageExecutionPoint fn.hash
     if not exeState.tracing.skipTracing then
       exeState.tracing.storeFrameEntry newFrameId pkgEp (ArgSeq.toList allArgs)
+    // Names only, and only when something is recording: this is what lets `traces calls <fn>`
+    // find the runs that went through a function at the shipped level, where the call itself
+    // is not recorded. Two boolean tests when nothing is recording.
+    if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
     // We already hold the fn here, so the loop needn't fetch it.
     let callData = packageFnCallData exeState fn
     if vm.stats.enabled then

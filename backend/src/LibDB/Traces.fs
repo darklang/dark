@@ -65,6 +65,9 @@ type Trace =
     parent : Option<System.Guid * int64>
     /// Retention never drops a pinned trace, whatever the caps say.
     pinned : bool
+    /// For a served request: the handler that served it. What a preview applies to the
+    /// recorded request, since a request's input is not source it can re-run.
+    entryHash : Option<string>
     created : string
     updated : string
   }
@@ -86,11 +89,12 @@ let private readRow (read : RowReader) : Trace =
       | Some p, Some seq -> Some(p, seq)
       | _ -> None
     pinned = read.int "pinned" = 1
+    entryHash = read.stringOrNone "entry_hash"
     created = read.string "timestamp"
     updated = read.string "updated" }
 
 let private columns =
-  "id, handler_desc, input_name, input_value, status, parent_id, parent_seq, pinned, timestamp, updated"
+  "id, handler_desc, input_name, input_value, status, parent_id, parent_seq, pinned, timestamp, updated, entry_hash"
 
 /// A run that has started, before the recorder has anything to say about it. `root_tlid` is 0
 /// on every path that reaches here; the recorder's upsert fills in the rest.
@@ -165,6 +169,12 @@ let list (limit : int) : Task<List<Trace>> =
     $"SELECT {columns} FROM traces ORDER BY timestamp DESC, rowid DESC LIMIT @limit"
   |> Sql.parameters [ "limit", Sql.int limit ]
   |> Sql.executeAsync readRow
+
+/// Which handler served a request, recorded once the response is known.
+let setEntryHash (id : System.Guid) (hash : string) : unit =
+  Sql.query "UPDATE traces SET entry_hash = @hash WHERE id = @id"
+  |> Sql.parameters [ "id", Sql.uuid id; "hash", Sql.string hash ]
+  |> Sql.executeStatementSync
 
 /// Pin a run, or unpin it: retention never drops a pinned one, whatever the caps say. For the
 /// failure you are chasing, or the request you are building against.
@@ -324,7 +334,39 @@ module Foreground =
     }
 
 
-/// A resume armed for the next run the CLI host starts: `dark exec resume <id>` arms it, then runs
+/// The recorded log of a run, as a preview answers from: the name of each effectful call, the
+/// arguments as they were stored, and the result. Keyed by name and arguments rather than by
+/// ordinal (`Tracing.createPreviewTracer` says why), so this is the whole of what a view needs.
+///
+/// No arming and no shared slot: a preview is one call that loads this, runs, and hands back
+/// what it collected. Two of them at once cannot take each other's log, which matters when the
+/// thing driving `dark` is an agent rather than a person at a prompt.
+let previewLog (id : System.Guid) : Task<List<string * byte[] * RT.Dval>> =
+  task {
+    let! rows =
+      Sql.query
+        "SELECT fn_hash, args, result FROM trace_fn_calls
+         WHERE trace_id = @t AND ord >= 0 ORDER BY seq"
+      |> Sql.parameters [ "t", Sql.uuid id ]
+      |> Sql.executeAsync (fun read ->
+        (read.stringOrNone "fn_hash" |> Option.defaultValue ""),
+        read.bytes "args",
+        read.bytes "result")
+    return
+      rows
+      |> List.choose (fun (name, args, resultBytes) ->
+        try
+          Some(
+            name,
+            args,
+            BinarySer.RT.Dval.deserialize "trace_fn_calls.result" resultBytes
+          )
+        with _ ->
+          None)
+  }
+
+
+/// A resume armed for the next run the CLI host starts/// A resume armed for the next run the CLI host starts: `dark exec resume <id>` arms it, then runs
 /// the execution's input through the ordinary `eval` or `run` path, and the host's script runner
 /// takes it in place of a fresh tracer (`Builtins.CliHost.Libs.Cli.execute`). One shot: taken by
 /// the next run, whichever it is, so the CLI arms and runs back to back.

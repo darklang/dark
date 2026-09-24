@@ -305,6 +305,10 @@ let steps : List<Step> =
               "CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON traces(timestamp)"
             |> Sql.executeStatementSync }
 
+    // Which handler served a request, so a recorded request can be replayed against it.
+    { name = "20260924_000009_traces_entry_hash"
+      run = fun () -> addColumnIfMissing "traces" "entry_hash" "TEXT" }
+
     // The `executions` table is gone: a trace IS a run, and its columns moved onto `traces`.
     // A store made while it existed still has it, empty and unread, so it goes here rather
     // than sitting in every `.schema` forever. Nothing reads it by the time this runs.

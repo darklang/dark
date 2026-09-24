@@ -13,6 +13,21 @@ module Darklang.Cli.TraceRuns
 let idPrefix (id: String) : String = Stdlib.String.slice id 0 12
 
 
+/// The shortest prefix that tells THESE ids apart, which is what a table should print.
+///
+/// A fixed width is wrong in both directions: a trace id carries its timestamp in front, so two
+/// runs made in the same millisecond agree for a dozen characters, while two made a day apart
+/// differ almost at once. Git shortens commit ids the same way, for the same reason.
+let idWidth (ids: List<String>) : Int =
+  let distinct (w: Int) : Bool =
+    let prefixes = ids |> Stdlib.List.map (fun id -> Stdlib.String.slice id 0 w)
+    (Stdlib.List.length (Stdlib.List.unique prefixes)) == (Stdlib.List.length ids)
+
+  match Stdlib.List.findFirst [ 12, 14, 16, 20, 24 ] (fun w -> distinct w) with
+  | Some w -> w
+  | None -> 36
+
+
 let statusText (status: Darklang.Tracing.Status) : String =
   match status with
   | Running -> "running"
@@ -47,17 +62,25 @@ let whenText (created: String) : String =
   | Error _ -> created
 
 
-let row (e: Darklang.Tracing.Trace) : List<String> =
+let row (width: Int) (e: Darklang.Tracing.Trace) : List<String> =
   let parent =
     match e.parent with
     | Some((id, _at)) -> idPrefix id
     | None -> ""
   let pin = if e.pinned then "yes" else ""
-  [ idPrefix e.id, statusText e.status, whenText e.created, e.entry, oneLine e.input, parent, pin ]
+  [ Stdlib.String.slice e.id 0 width,
+    statusText e.status,
+    whenText e.created,
+    e.entry,
+    oneLine e.input,
+    parent,
+    pin ]
 
 
 let printList () : Unit =
-  let rows = Darklang.Tracing.Store.list 50 |> Stdlib.List.map (fun e -> row e)
+  let runs = Darklang.Tracing.Store.list 50
+  let width = idWidth (runs |> Stdlib.List.map (fun e -> e.id))
+  let rows = runs |> Stdlib.List.map (fun e -> row width e)
   match rows with
   | [] ->
     Stdlib.printLine "no runs recorded yet: every `eval` and `run` makes one"
@@ -169,80 +192,105 @@ let pin (prefix: String) (pinned: Bool) : Unit =
       Cli.printErr $"no run has the id {e.id}"
 
 
-// ───────── the call inbox: one function's recorded calls, and its values ─────────
+// ───────── the call inbox: which runs went through a function, and its values ─────────
 //
 // Classic showed a handler's requests as dots down the left and, for the selected one, the
-// value of every expression beside the code. These two verbs are that, for any function:
-// `traces calls <fn>` is the dots, `traces values <fn> [<call>]` is the code with the values.
+// value of every expression beside the code. These two verbs are that, for any function.
 //
-// The values come from running the function again, on the arguments a recorded call was given,
-// through the code as it is NOW. That is the point (edit a callee, the values follow), and it
-// is also the caveat: the run performs its effects for real, because one call taken out of the
-// middle of a run cannot be lined up with that run's effect log. A function that writes, writes
-// again. `traces view` shows what a call actually did, without running anything.
+// `traces calls <fn>` is the dots: the runs that went through the function, from the names-only
+// index every recorded run writes.
+//
+// `traces values <fn> [<run>]` is the code with the values. It replays the whole run with every
+// effectful call answered from that run's log -- by name and arguments, classic's key -- and
+// performs none of them. Looking at code never touches the world. A call the log cannot answer
+// stops the preview and says which one it was, rather than going and doing it.
 
 
-/// "12 minutes ago  GET /orders  a1b2c3d4", one line per recorded call.
+/// "12 minutes ago  GET /orders  a1b2c3d4", one line per run that went through the function.
 let printCalls (branchId: Uuid) (fnName: String) : Unit =
-  let entry = LanguageTools.ProgramTypes.parsePackageLocation fnName
-  match Stdlib.Live.Values.calls branchId entry 25L with
+  match Darklang.Tracing.Store.runsCalling fnName 25L with
   | [] ->
-    Stdlib.printLine $"no recorded calls of {fnName}"
+    Stdlib.printLine $"no recorded run went through {fnName}"
     Stdlib.printLine
-      "  calls are recorded at DARK_CONFIG_TRACE_DETAIL=values; the default keeps only the impure ones"
-  | calls ->
+      (Stdlib.Cli.UI.Colors.dimText
+        "  runs are recorded by default; `dark traces` lists them")
+  | runs ->
+    let width = idWidth (runs |> Stdlib.List.map (fun r -> r.id))
     let rows =
-      calls
-      |> Stdlib.List.map (fun c ->
-        [ idPrefix c.callId, whenText c.created, c.entry, idPrefix c.traceId ])
-    Stdlib.Cli.UI.Table.print [ "call", "when", "run", "run id" ] rows
+      runs
+      |> Stdlib.List.map (fun r ->
+        [ Stdlib.String.slice r.id 0 width,
+          statusText r.status,
+          whenText r.created,
+          r.entry,
+          oneLine r.input ])
+    Stdlib.Cli.UI.Table.print [ "run", "status", "when", "entry", "input" ] rows
     Stdlib.printLine ""
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText
-        $"`dark traces values {fnName} <call>` shows the code with that call's values")
+        $"`dark traces values {fnName} <run>` shows the code with that run's values")
 
 
-/// The function's source, with `// = value` beside each call, for one recorded call of it.
+/// The function's source, with `// = value` beside each call, for one run.
 let printValues
-  (branchId: Uuid)
+  (state: AppState)
   (fnName: String)
-  (callPrefix: Stdlib.Option.Option<String>)
-  : Unit =
+  (runPrefix: Stdlib.Option.Option<String>)
+  : AppState =
+  let branchId = state.currentBranchId
   let entry = LanguageTools.ProgramTypes.parsePackageLocation fnName
+
   let chosen =
-    match callPrefix with
-    | None -> Stdlib.Live.Values.replay branchId entry
+    match runPrefix with
     | Some prefix ->
-      let matches =
-        Stdlib.Live.Values.calls branchId entry 200L
-        |> Stdlib.List.filter (fun c -> Stdlib.String.startsWith c.callId prefix)
-      match matches with
-      | [ one ] -> Stdlib.Live.Values.replayCall branchId entry one.callId
-      | [] -> Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.None
+      match find prefix with
+      | Ok r -> Stdlib.Option.Option.Some r
+      | Error e ->
+        Cli.printErr e
+        Stdlib.Option.Option.None
+    | None ->
+      match Darklang.Tracing.Store.runsCalling fnName 1L with
+      | [ newest ] -> Stdlib.Option.Option.Some newest
+      | _ ->
+        Stdlib.printLine $"no recorded run went through {fnName}"
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            "  run something that calls it, then look again")
+        Stdlib.Option.Option.None
 
   match chosen with
-  | None ->
-    Stdlib.printLine $"no recorded call of {fnName} to show"
-    Stdlib.printLine
-      "  `dark traces calls <fn>` lists them; they are recorded at DARK_CONFIG_TRACE_DETAIL=values"
-  | Some values ->
+  | None -> state
+  | Some run ->
+    // One call: it loads the run's log, replays the run with every effect answered from it and
+    // none performed, and hands back what every expression evaluated to.
+    let (collected, problem) = Darklang.Tracing.Store.previewRun branchId run.id
+
+    let values =
+      collected
+      |> Stdlib.List.map (fun pair ->
+        let (id, dv) = pair
+        (Stdlib.Int64.toString id, PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
+      |> Stdlib.Dict.fromListOverwritingDuplicates
+
     match LanguageTools.PackageManager.Function.find branchId entry with
-    | None -> Cli.printErr $"no function named {fnName}"
+    | None ->
+      Cli.printErr $"no function named {fnName}"
+      state
     | Some hash ->
       match LanguageTools.PackageManager.Function.get hash with
-      | None -> Cli.printErr $"no function named {fnName}"
+      | None ->
+        Cli.printErr $"no function named {fnName}"
+        state
       | Some fn ->
-        // One line each, and short: a value beside a call is a glance (the workbench's pane
-        // does the same).
-        let rendered =
-          values.byExpr
-          |> Stdlib.Dict.map (fun _ dv ->
-            PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv)
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            $"run {idPrefix run.id}  {run.entry}  {whenText run.created}")
         let ctx =
           { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
-              liveValues = rendered }
+              liveValues = values }
         Stdlib.printLine (PrettyPrinter.ProgramTypes.packageFn ctx fn)
-        match values.problem with
-        | Some p -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  {p}")
+        match problem with
+        | Some message ->
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  stopped: {message}")
         | None -> ()
+        state

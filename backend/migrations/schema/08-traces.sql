@@ -23,7 +23,9 @@ CREATE TABLE IF NOT EXISTS traces (
   parent_id TEXT,                              -- the run this was forked from, if any
   parent_seq INTEGER,                          -- ... and the `seq` it branched at
   pinned INTEGER NOT NULL DEFAULT 0,           -- retention never drops a pinned run
-  updated TEXT NOT NULL DEFAULT ''
+  updated TEXT NOT NULL DEFAULT '',
+  entry_hash TEXT                              -- for a served request: the handler that served
+                                               -- it, so the run can be previewed against it
 );
 -- The index on `status` is created by a step in `LibDB/Releases.fs`, not here: on an existing
 -- store the schema file runs BEFORE the steps, so an index naming a column the steps are about

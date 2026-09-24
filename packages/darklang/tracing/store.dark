@@ -59,13 +59,73 @@ let armResume (traceID: String) : Bool =
 
 
 /// Pin a run so retention never drops it, or unpin it. Returns whether a run had that id.
+///
+/// SQL here rather than in a builtin, the way the SCM silos own theirs: it is one UPDATE over a
+/// table this module owns, and nothing about it needs the runtime.
 let setPinned (traceID: String) (pinned: Bool) : Bool =
-  Builtin.tracesSetPinned traceID pinned
+  let db = Stdlib.LocalStore.path ()
+  let flag = if pinned then "1" else "0"
+  let updated =
+    Stdlib.Sqlite.mustExec
+      db
+      "UPDATE traces SET pinned = @pinned, updated = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+       WHERE id = @id"
+      [ flag, traceID ]
+  updated > 0
+
+
+/// The runs that went through <param fnName>, newest first. Answers at the shipped recording
+/// level: it reads the names-only index every recorded run writes, not the call rows.
+let runsCalling (fnName: String) (limit: Int64) : List<Trace> =
+  Builtin.tracesRunsCalling fnName limit
+
+
+/// Replay a recorded run for VIEWING: every effectful call answered from that run's log, none
+/// performed, and every expression's value collected. Hands back the values, by source
+/// expression id, and why it stopped early if it did.
+let previewRun
+  (branchId: Uuid)
+  (traceID: String)
+  : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> * Stdlib.Option.Option<String>) =
+  Builtin.cliPreviewRun branchId traceID
 
 
 /// Expand a trace-ID prefix to the full ID, or say why it can't be.
+///
+/// `%` and `_` are escaped so a prefix someone typed matches those characters rather than
+/// acting as wildcards. Six rows are enough to tell "one match" from "several" without reading
+/// the table; the message shows five.
 let resolveID (input: String) : Stdlib.Result.Result<String, String> =
-  Builtin.tracesResolveID input
+  let escaped =
+    input
+    |> (fun s -> Stdlib.String.replaceAll s "\\" "\\\\")
+    |> (fun s -> Stdlib.String.replaceAll s "%" "\\%")
+    |> (fun s -> Stdlib.String.replaceAll s "_" "\\_")
+
+  let matches =
+    Stdlib.Sqlite.column
+      (Stdlib.LocalStore.path ())
+      $"SELECT id FROM traces WHERE id LIKE '{escaped}%' ESCAPE '\\'
+        ORDER BY rowid DESC LIMIT 6"
+      "id"
+
+  match matches with
+  | [] -> Stdlib.Result.Result.Error $"Trace not found: {input}"
+  | [ fullID ] -> Stdlib.Result.Result.Ok fullID
+  | candidates ->
+    let shown = Stdlib.List.take candidates 5
+    let more = (Stdlib.List.length candidates) - 5
+    let suffix =
+      if more > 0 then
+        $"\n  - ... (and {Stdlib.Int.toString more} more)"
+      else
+        ""
+    let body =
+      shown
+      |> Stdlib.List.map (fun id -> $"  - {id}")
+      |> Stdlib.String.join "\n"
+    Stdlib.Result.Result.Error
+      $"Ambiguous trace ID '{input}'. Matches:\n{body}{suffix}"
 
 
 /// Per-fn totals over the last <param traceLimit> traces:

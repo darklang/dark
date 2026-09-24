@@ -364,9 +364,14 @@ Where they show:
   `fileSystem/write` lands ops, the server sends `workspace/inlayHint/refresh`.
 
 The inputs come from a run recorded at `DARK_CONFIG_TRACE_DETAIL=values` (every call, with
-its arguments). The default, `effects`, keeps the impure calls only, which is what `resume`
-needs and not what this needs; a function that has never been called with values recorded
-has none, and the gutter stays empty. The dev rebuild purges the draft store and keeps the
+its arguments): this path re-runs ONE function on the arguments a recorded call gave it, so it
+needs those arguments stored, and it performs that function's effects for real.
+
+`dark traces values` is the other way round and the better one: it replays the WHOLE run with
+every effect answered from the log, so it needs nothing beyond the shipped recording level and
+performs nothing (`docs/processes.md`, "Preview"). The workbench and the LSP still use the
+per-function path; moving them onto the preview is a follow-up, and it is what would let the
+gutter fill for a run recorded the cheap way. The dev rebuild purges the draft store and keeps the
 traces, so after a build a re-authored function still has its last call's inputs, which is
 exactly the case the replay is for.
 
