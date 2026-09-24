@@ -68,8 +68,8 @@ let setPinned (traceID: String) (pinned: Bool) : Bool =
   let updated =
     Stdlib.Sqlite.mustExec
       db
-      "UPDATE traces SET pinned = @pinned, updated = strftime('%Y-%m-%dT%H:%M:%fZ','now')
-       WHERE id = @id"
+      "UPDATE traces SET pinned = @p0, updated = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+       WHERE id = @p1"
       [ flag, traceID ]
   updated > 0
 

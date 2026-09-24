@@ -308,7 +308,7 @@ let private testTracesTailShowsLastEval =
     task {
       let! _ = runCli state [ "eval"; "let x = 7L\nx" ]
       let! output = runCli state [ "traces"; "tail" ]
-      Expect.stringContains output "Entry:  eval" "eval handler line"
+      Expect.stringContains output "entry     eval" "the entry line"
       Expect.stringContains output "expression = \"let x = 7L" "recorded input"
     })
 
@@ -330,8 +330,8 @@ let private testTracesStatsCounts =
       let! _ = runCli state [ "eval"; "2L" ]
       let! output = runCli state [ "traces"; "stats" ]
       Expect.stringContains output "total ms" "table header"
-      Expect.stringContains output "count" "count column"
-      Expect.stringContains output "│ eval" "eval row"
+      Expect.stringContains output "runs" "the count column"
+      Expect.stringContains output "eval" "the eval row"
     })
 
 let private testTracesFindByContent =
@@ -400,10 +400,10 @@ let private testTracesArgOrderingsWork =
     task {
       let! _ = runCli state [ "eval"; "1L + 1L" ]
       let! tailNFirst = runCli state [ "traces"; "tail"; "1"; "--route"; "eval" ]
-      Expect.stringContains tailNFirst "Run:" "tail N --route"
+      Expect.stringContains tailNFirst "status" "tail N --route"
       let! tailRouteFirst =
         runCli state [ "traces"; "tail"; "--route"; "eval"; "1" ]
-      Expect.stringContains tailRouteFirst "Run:" "tail --route N"
+      Expect.stringContains tailRouteFirst "status" "tail --route N"
       let! listJsonFn =
         runCli state [ "traces"; "list"; "--json"; "--fn"; "add"; "5" ]
       Expect.stringContains listJsonFn "[" "list --json --fn fn N"
@@ -600,6 +600,36 @@ let private testTracesPruneIdempotent =
           |> Array.length
         Expect.equal count 2 "repeated prunes converge on --keep"
       })
+
+/// `pin` and `unpin` go through Dark's own SQL (`Darklang.Tracing.Store.setPinned`), and a
+/// parameter that does not bind is a RUNTIME failure there, not a load one: the command dies
+/// with SQLite's "Must add values for the following parameters". Nothing else in the suite runs
+/// either verb, so this is the test that keeps that path honest.
+let private testTracesPinRoundTrip =
+  cliTestWithFreshTraces
+    "traces pin / unpin round-trips through the store"
+    (fun state ->
+      task {
+        let! _ = runCli state [ "eval"; "1L + 2L" ]
+        let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
+        let tid = parseTraceID listJson
+        let short = tid.Substring(0, 8)
+
+        let! pinned = runCli state [ "traces"; "pin"; short ]
+        Expect.stringContains pinned $"pinned {short}" "pin says so"
+        let! shown = runCli state [ "traces"; "show"; short ]
+        Expect.stringContains shown "pinned" "and `show` carries it"
+
+        let! unpinned = runCli state [ "traces"; "unpin"; short ]
+        Expect.stringContains unpinned $"unpinned {short}" "unpin says so"
+
+        let! missing = runCli state [ "traces"; "pin"; "zzzzzzzz" ]
+        Expect.stringContains
+          missing
+          "no run whose id starts with zzzzzzzz"
+          "an id nothing matches is refused by name"
+      })
+
 
 let private testTracesLargeTraceListSurvives =
   cliTestWithFreshTraces
@@ -907,6 +937,7 @@ let tests =
          testTracesPruneKeep
          testTracesReplayReruns
          testTracesPruneIdempotent
+         testTracesPinRoundTrip
          testTracesLargeTraceListSurvives
          testTracesViewToleratesCorruptedRow
          testTracesRejectsNegativeLimit

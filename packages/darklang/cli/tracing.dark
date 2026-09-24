@@ -757,26 +757,29 @@ let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
       Stdlib.printLine
         $"per entry, over the last {Stdlib.Int.toString limit} runs:"
       Stdlib.printLine ""
-      Stdlib.printLine "  total ms │   max ms │ count │ handler"
-      Stdlib.printLine "  ─────────┼──────────┼───────┼─────────────────────────"
-      Stdlib.List.iter rows (fun row ->
-        let (handler, count, total, max) = row
-        let totalStr = padNum total 9
-        let maxStr = padNum max 8
-        let countStr = padNum count 5
-        Stdlib.printLine $"  {totalStr} │ {maxStr} │ {countStr} │ {handler}")
+      // The same table widget every other listing uses, so the columns line up with them and
+      // a wide entry does not push the numbers off the screen.
+      Stdlib.Cli.UI.Table.print
+        [ "entry", "runs", "total ms", "max ms" ]
+        (rows
+         |> Stdlib.List.map (fun row ->
+           let (entry, count, total, max) = row
+           [ Cli.Text.oneLineAt 40 entry,
+             Stdlib.Int.toString count,
+             Stdlib.Int.toString total,
+             Stdlib.Int.toString max ]))
       Stdlib.printLine ""
-      // The route-drill hint only makes sense if there are HTTP
-      // handlers in the result; eval/run-only stores get no help
-      // from `--route`. HTTP handler descriptions look like
-      // `<METHOD> <path>` so a `/` is a reliable shibboleth.
+      // The route hint only makes sense with served requests in the result; an eval-only store
+      // gets no help from `--route`. A served entry is `<METHOD> <path>`, so a `/` is the tell.
       let hasHttp =
         rows
         |> Stdlib.List.any (fun row ->
-          let (handler, _, _, _) = row
-          Stdlib.String.contains handler "/")
+          let (entry, _, _, _) = row
+          Stdlib.String.contains entry "/")
       if hasHttp then
-        Stdlib.printLine "Use 'traces list --route <substring>' to drill into a route."
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            "  dark traces list --route <path>   only the requests matching it")
       state
 
 
@@ -1099,15 +1102,16 @@ let executeView
   | Some trace ->
     let input = formatInputs state.currentBranchId trace.inputs
     let fnCalls = formatFnCalls opts state.currentBranchId trace.functionCalls
-    [ $"Run:    {trace.trace.id}"
-      $"Entry:  {trace.trace.entry}"
-      $"Status: {Cli.TraceRuns.statusText trace.trace.status}"
-      $"Time:   {trace.trace.created}"
+    // The same shape `traces show` prints, so the two verbs read as two views of one row.
+    [ trace.trace.id
+      $"  status    {Cli.TraceRuns.statusText trace.trace.status}"
+      $"  entry     {trace.trace.entry}"
+      $"  started   {Cli.TraceRuns.whenText trace.trace.created} ({trace.trace.created})"
       ""
-      "Input:"
+      "  input"
       input
       ""
-      "Function calls:"
+      "  calls"
       fnCalls ]
     |> Stdlib.printLines
     state

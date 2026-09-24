@@ -113,7 +113,7 @@ let printShow (prefix: String) : Unit =
     match e.parent with
     | Some((id, at)) ->
       Stdlib.printLine
-        $"  forked from {id}, keeping its log before position {Stdlib.Int64.toString at}"
+        $"  forked    from {Cli.Text.shortIdText id}, keeping its log before position {Stdlib.Int64.toString at}"
     | None -> ()
     printLog e.id
 
