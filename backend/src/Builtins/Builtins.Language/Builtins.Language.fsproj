@@ -17,6 +17,7 @@
     <Compile Include="Libs/Parser.fs" />
     <Compile Include="Libs/Reflection.fs" />
     <Compile Include="Libs/Instrumentation.fs" />
+    <Compile Include="Libs/Exec.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <Import Project="..\..\..\.paket\Paket.Restore.targets" />

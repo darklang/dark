@@ -12,7 +12,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module Host = LibExecution.Host
-module PermissionCheck = LibExecution.PermissionCheck
+module Interpreter = LibExecution.Interpreter
 module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
 open Builtin.Shortcuts
@@ -65,18 +65,16 @@ let fns () : List<BuiltInFn> =
       returnType = TCustomType(NR.ok (executionOutcomeTypeName ()), [])
       fn =
         function
-        | state, vm, _, [| DString command |] ->
-          uply {
-            let cmdName, cmdArgs = Host.prepareShellCommand command
-            let op = Host.Operation.ProcessRun(cmdName, cmdArgs, None)
-            match! PermissionCheck.performHost state vm op with
-            | Ok response -> return outcomeOf response
+        | _, vm, _, [| DString command |] ->
+          let cmdName, cmdArgs = Host.prepareShellCommand command
+          let op = Host.Operation.ProcessRun(cmdName, cmdArgs, None)
+          Interpreter.requestHost vm op (fun outcome ->
+            match outcome with
+            | Ok response -> Ply(outcomeOf response)
             | Error failure ->
-              return
-                Exception.raiseInternal
-                  "process execution failed"
-                  [ "message", failure.message ]
-          }
+              Exception.raiseInternal
+                "process execution failed"
+                [ "message", failure.message ])
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -122,19 +120,17 @@ let fns () : List<BuiltInFn> =
       returnType = TInt
       fn =
         function
-        | state, vm, _, [| DString command |] ->
-          uply {
-            let cmdName, cmdArgs = Host.prepareShellCommand command
-            let op = Host.Operation.ProcessSpawn(cmdName, cmdArgs)
-            match! PermissionCheck.performHost state vm op with
+        | _, vm, _, [| DString command |] ->
+          let cmdName, cmdArgs = Host.prepareShellCommand command
+          let op = Host.Operation.ProcessSpawn(cmdName, cmdArgs)
+          Interpreter.requestHost vm op (fun outcome ->
+            match outcome with
             | Ok response ->
-              return Dval.int (bigint (Host.expectProcessHandle response))
+              Ply(Dval.int (bigint (Host.expectProcessHandle response)))
             | Error failure ->
-              return
-                Exception.raiseInternal
-                  "process spawn failed"
-                  [ "message", failure.message ]
-          }
+              Exception.raiseInternal
+                "process spawn failed"
+                [ "message", failure.message ])
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -154,14 +150,13 @@ let fns () : List<BuiltInFn> =
         TCustomType(NR.ok typeName, [])
       fn =
         function
-        | state, vm, _, [| DInt processIdArg; DString input |] ->
-          uply {
-            let processId = intToInt64 vm processIdArg
-            let op = Host.Operation.ProcessIO(processId, input)
-            match! PermissionCheck.performHost state vm op with
-            | Ok response -> return outcomeOf response
-            | Error failure -> return createExecutionOutcome -1 "" failure.message
-          }
+        | _, vm, _, [| DInt processIdArg; DString input |] ->
+          let processId = intToInt64 vm processIdArg
+          let op = Host.Operation.ProcessIO(processId, input)
+          Interpreter.requestHost vm op (fun outcome ->
+            match outcome with
+            | Ok response -> Ply(outcomeOf response)
+            | Error failure -> Ply(createExecutionOutcome -1 "" failure.message))
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -181,14 +176,13 @@ let fns () : List<BuiltInFn> =
         TCustomType(NR.ok typeName, [])
       fn =
         function
-        | state, vm, _, [| DInt processIdArg |] ->
-          uply {
-            let processId = intToInt64 vm processIdArg
-            let op = Host.Operation.ProcessTerminate processId
-            match! PermissionCheck.performHost state vm op with
-            | Ok response -> return outcomeOf response
-            | Error failure -> return createExecutionOutcome -1 "" failure.message
-          }
+        | _, vm, _, [| DInt processIdArg |] ->
+          let processId = intToInt64 vm processIdArg
+          let op = Host.Operation.ProcessTerminate processId
+          Interpreter.requestHost vm op (fun outcome ->
+            match outcome with
+            | Ok response -> Ply(outcomeOf response)
+            | Error failure -> Ply(createExecutionOutcome -1 "" failure.message))
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure

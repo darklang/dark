@@ -763,6 +763,10 @@ module Dval =
     // asymmetry isn't documented in the public API. Document it or
     // add a "rehydrate as a no-op stub stream" path.
     | DStream(impl, _, _) -> streamStubDT impl
+    | DPromise _ ->
+      Exception.raiseInternal
+        "a read still in flight reached toDT; it should have been forced"
+        []
 
 
   let fromDT (d : Dval) : Dval =

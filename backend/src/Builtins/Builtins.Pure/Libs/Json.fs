@@ -153,7 +153,9 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   | DDB _
   | DApplicable _
   | DBlob _
-  | DStream _ -> (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID
+  | DStream _
+  | DPromise _ ->
+    (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID
 
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -782,10 +784,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, [ _typeToSerializeAs ], [| arg |] ->
-          uply {
-            let response = writeJson (fun w -> serialize vm.threadID w arg)
-            return DString response
-          }
+          Ply(DString(writeJson (fun w -> serialize vm.threadID w arg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

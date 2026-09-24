@@ -23,7 +23,7 @@ open LibExecution.Builtin.Shortcuts
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Blob = LibExecution.Blob
-module Exe = LibExecution.Execution
+module Interpreter = LibExecution.Interpreter
 module Permissions = LibExecution.Permissions
 module Stream = LibExecution.Stream
 
@@ -60,6 +60,46 @@ let private resolveElemKT
     | ValueType.Known kt -> return kt
     | ValueType.Unknown -> return KTUnit
   }
+
+
+/// A transform's callable, with the access of the frame building the transform folded in.
+/// The callable runs later, as a frame of whoever pulls, under that frame's access narrowed by
+/// what the callable captured (`Interpreter.requestApply`); folding the builder's in keeps a
+/// narrow producer's transform narrow when a wider consumer drains it, and it is done once,
+/// here, rather than on every pull.
+let private narrowedBy
+  (access : Permissions.Access)
+  (app : Applicable)
+  : Applicable =
+  match app with
+  | AppLambda l ->
+    AppLambda { l with access = l.access |> Permissions.Access.constrainBy access }
+  | AppNamedFn n ->
+    let captured =
+      match n.access with
+      | Some a -> a |> Permissions.Access.constrainBy access
+      | None -> access
+    AppNamedFn { n with access = Some captured }
+
+
+/// Drive a pull to its end from a builtin: a callable the stream hands back is applied as a
+/// frame of this process, its answer forced (a read still in flight is waited for) and handed
+/// back to the pull; native IO is waited for. `k` gets the pulled element.
+let rec private drivePull
+  (vm : VMState)
+  (k : Option<Dval> -> Ply<Dval>)
+  (step : Stream.PullStep)
+  : Ply<Dval> =
+  match step with
+  | Stream.Pulled r -> k r
+  | Stream.Apply(app, arg, next) ->
+    Interpreter.requestApply vm app arg [] (fun dv ->
+      Interpreter.withValue vm dv (fun v -> drivePull vm k (next v)))
+  | Stream.Wait ply ->
+    uply {
+      let! landed = ply
+      return! drivePull vm k landed
+    }
 
 
 let fns () : List<BuiltInFn> =
@@ -124,35 +164,10 @@ let fns () : List<BuiltInFn> =
         | state, vm, [ _; outputType ], [| initialState; DApplicable app |] ->
           uply {
             let! elemType = resolveElemVT state outputType
-            let currentState = ref initialState
-            // Read now, not in `next`: the step runs on later pulls, by which
-            // time `vm.activeAccess` is whatever the VM is doing then. The
-            // access that bounds the step is the one this frame held when it
-            // handed the step over.
-            let access = vm.activeAccess
-            // ...and intersected with the DRAINER's on every pull: the step is
-            // deferred work that runs inside whoever is pulling.
-            let next (drainer : Permissions.Access) : Ply<Option<Dval>> =
-              uply {
-                let! result =
-                  Exe.executeApplicable
-                    state
-                    (access |> Permissions.Access.constrainBy drainer)
-                    app
-                    (NEList.singleton currentState.Value)
-                match result with
-                | Ok(DEnum(_, _, _, "Some", [ DTuple(elem, newState, []) ])) ->
-                  currentState.Value <- newState
-                  return Some elem
-                | Ok(DEnum(_, _, _, "None", _)) -> return None
-                | Ok other ->
-                  return
-                    Exception.raiseInternal
-                      "streamUnfold step must return Option<(a, s)>"
-                      [ "got", other ]
-                | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              }
-            return Stream.newFromGuestStep elemType next
+            // The step runs on later pulls, as a frame of whoever is pulling; the access this
+            // frame holds now is folded into it (`narrowedBy`).
+            let step = narrowedBy vm.activeAccess app
+            return Stream.wrapImpl (Unfold(step, ref initialState, elemType))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -170,11 +185,17 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [ elemType ], [| s |] ->
-          uply {
-            let! nextResult = Stream.readNext vm.activeAccess s
-            let! elemKT = resolveElemKT state elemType
-            return Dval.option elemKT nextResult
-          }
+          // The element type first: it can wait (a package type), and a request has to be the
+          // body's first move or come after the pull's own wait, never after this one.
+          match Ply.trySync (resolveElemKT state elemType) with
+          | ValueSome elemKT ->
+            drivePull vm (fun r -> Ply(Dval.option elemKT r)) (Stream.pullNext s)
+          | ValueNone ->
+            uply {
+              let! elemKT = resolveElemKT state elemType
+              return!
+                drivePull vm (fun r -> Ply(Dval.option elemKT r)) (Stream.pullNext s)
+            }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -190,25 +211,25 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [ elemType ], [| s |] ->
-          uply {
-            let collected = ResizeArray<Dval>()
-            let mutable keepGoing = true
-            while keepGoing do
-              let! result = Stream.readNext vm.activeAccess s
-              match result with
-              | Some item -> collected.Add item
-              | None -> keepGoing <- false
-            // Prefer the first drained element's actual ValueType — it
-            // captures the lambda's real return type even when the
-            // wrapper couldn't tell us via a `'b` bind. Fall back to
-            // the declared type-arg for empty results.
-            let! elemVT =
-              if collected.Count > 0 then
-                Ply(Dval.toValueType collected[0])
-              else
-                resolveElemVT state elemType
-            return DList(elemVT, List.ofSeq collected)
-          }
+          let collected = ResizeArray<Dval>()
+          // Prefer the first drained element's actual ValueType: it captures the lambda's
+          // real return type even when the wrapper couldn't tell us via a `'b` bind. Fall
+          // back to the declared type-arg for empty results.
+          let finish () : Ply<Dval> =
+            if collected.Count > 0 then
+              Ply(DList(Dval.toValueType collected[0], List.ofSeq collected))
+            else
+              uply {
+                let! elemVT = resolveElemVT state elemType
+                return DList(elemVT, [])
+              }
+          let rec onPulled (r : Option<Dval>) : Ply<Dval> =
+            match r with
+            | Some item ->
+              collected.Add item
+              drivePull vm onPulled (Stream.pullNext s)
+            | None -> finish ()
+          drivePull vm onPulled (Stream.pullNext s)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -224,23 +245,37 @@ let fns () : List<BuiltInFn> =
         "Drains a byte stream into a single ephemeral Blob, consuming <param stream>."
       fn =
         (function
-        | _, vm, _, [| s |] ->
+        | _, _, _, [| DStream(FromIO(_, _, _, Some _), _, _) as s |] ->
           uply {
-            // Drain via `readStreamChunk` so IO-backed byte streams
-            // (HttpClient.stream) hand back a whole buffer per pull
-            // instead of boxing one DUInt8 per byte. Falls back to
-            // byte-wise pulls for streams without a `nextChunk`
-            // (Mapped/Filtered/Take/Concat transforms, in-memory
-            // fromList streams).
+            // An IO-backed byte stream (HttpClient.stream) hands back a whole buffer per
+            // pull instead of boxing one DUInt8 per byte.
             use collected = new System.IO.MemoryStream()
             let mutable keepGoing = true
             while keepGoing do
-              let! chunk = Stream.readChunk vm.activeAccess (64 * 1024) s
+              let! chunk = Stream.readChunk (64 * 1024) s
               match chunk with
               | Some buf -> collected.Write(buf, 0, buf.Length)
               | None -> keepGoing <- false
             return Blob.newEphemeral (collected.ToArray())
           }
+        | _, vm, _, [| DStream _ as s |] ->
+          // Anything else (a transform chain, an in-memory stream) is pulled a byte at a time;
+          // a transform's callable runs as a frame of this process.
+          let collected = new System.IO.MemoryStream()
+          let rec onPulled (r : Option<Dval>) : Ply<Dval> =
+            match r with
+            | Some(DUInt8 b) ->
+              collected.WriteByte b
+              drivePull vm onPulled (Stream.pullNext s)
+            | Some _ ->
+              Exception.raiseInternal
+                "streamToBlob: expected Stream<UInt8> element"
+                []
+            | None ->
+              let bytes = collected.ToArray()
+              collected.Dispose()
+              Ply(Blob.newEphemeral bytes)
+          drivePull vm onPulled (Stream.pullNext s)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -303,22 +338,10 @@ let fns () : List<BuiltInFn> =
         | state, vm, [ _; outputType ], [| DStream(src, _, _); DApplicable app |] ->
           uply {
             let! elemType = resolveElemVT state outputType
-            // Capture the builder's access now; when drained, intersect it
-            // with the drainer's access.
-            let access = vm.activeAccess
-            let apply (drainer : Permissions.Access) (dv : Dval) : Ply<Dval> =
-              uply {
-                let! result =
-                  Exe.executeApplicable
-                    state
-                    (access |> Permissions.Access.constrainBy drainer)
-                    app
-                    (NEList.singleton dv)
-                match result with
-                | Ok v -> return v
-                | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-              }
-            return Stream.wrapImpl (Mapped(src, apply, elemType))
+            // The callable runs as a frame of whoever drains; this frame's access is folded
+            // into it now (`narrowedBy`).
+            return
+              Stream.wrapImpl (Mapped(src, narrowedBy vm.activeAccess app, elemType))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -343,27 +366,9 @@ let fns () : List<BuiltInFn> =
         + "result is drained, skipping rejected elements without buffering."
       fn =
         (function
-        | state, vm, _, [| DStream(src, _, _); DApplicable app |] ->
-          // Snapshotted for the same reason as `streamMap`.
-          let access = vm.activeAccess
-          let pred (drainer : Permissions.Access) (dv : Dval) : Ply<bool> =
-            uply {
-              let! result =
-                Exe.executeApplicable
-                  state
-                  (access |> Permissions.Access.constrainBy drainer)
-                  app
-                  (NEList.singleton dv)
-              match result with
-              | Ok(DBool b) -> return b
-              | Ok other ->
-                return
-                  Exception.raiseInternal
-                    "stream filter predicate returned non-Bool"
-                    [ "got", other ]
-              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
-            }
-          Stream.wrapImpl (Filtered(src, pred)) |> Ply
+        | _, vm, _, [| DStream(src, _, _); DApplicable app |] ->
+          // As `streamMap`.
+          Stream.wrapImpl (Filtered(src, narrowedBy vm.activeAccess app)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure

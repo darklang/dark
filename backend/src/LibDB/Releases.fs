@@ -245,6 +245,27 @@ let steps : List<Step> =
               print
                 $"  release: added `removed` to {List.length rows} stored conflict(s)" }
 
+    // A trace is written by every process that ran under it, from whichever scheduler thread stepped
+    // each; `process_id` says which, and `seq` is the completion order across all of them. Old rows
+    // get '' and 0: one process, order unknown, which is what they were.
+    { name = "20260921_000001_trace_fn_calls_process_id"
+      run =
+        fun () ->
+          addColumnIfMissing "trace_fn_calls" "process_id" "TEXT NOT NULL DEFAULT ''" }
+
+    { name = "20260921_000002_trace_fn_calls_seq"
+      run =
+        fun () ->
+          addColumnIfMissing "trace_fn_calls" "seq" "INTEGER NOT NULL DEFAULT 0" }
+
+    // An effectful call's ordinal in its process, what a replay keys on. Old rows get -1: not
+    // replayable, which they are not. The `executions` table itself is wholly new and comes
+    // across as a table.
+    { name = "20260921_000003_trace_fn_calls_ord"
+      run =
+        fun () ->
+          addColumnIfMissing "trace_fn_calls" "ord" "INTEGER NOT NULL DEFAULT -1" }
+
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]
 

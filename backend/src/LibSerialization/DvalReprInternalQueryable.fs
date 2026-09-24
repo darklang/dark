@@ -193,6 +193,11 @@ let rec private toJsonV0
         "DStream is not persistable — drain to a Blob before storing"
         [ "value", dv ]
 
+    | DPromise _ ->
+      Exception.raiseInternal
+        "a read still in flight reached storage; it should have been forced"
+        [ "value", dv ]
+
     // Not supported
     | DApplicable _
     | DDB _ -> Exception.raiseInternal "Not supported in queryable" [ "value", dv ]
@@ -473,4 +478,5 @@ module Test =
     // Maybe never support
     | DApplicable _
     | DDB _
-    | DStream _ -> false
+    | DStream _
+    | DPromise _ -> false

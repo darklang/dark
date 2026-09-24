@@ -10,12 +10,15 @@ module RTE = RT.RuntimeError
 module RT2DT = RuntimeTypesToDarkTypes
 module Dval = LibExecution.Dval
 
-let noTracing : RT.Tracing.Tracing =
-  { loadFnResult = fun _ _ -> None
-    storeFnResult = fun _ _ _ -> ()
+let rec noTracing : RT.Tracing.Tracing =
+  { storeFnResult = fun _ _ _ _ -> ()
     storeFrameEntry = fun _ _ _ -> ()
     storeLambdaResult = fun _ _ -> ()
-    skipTracing = true }
+    skipTracing = true
+    traceEffects = false
+    nextEffect = fun () -> -1L
+    replayEffect = fun _ -> ValueNone
+    forProcess = fun _ -> noTracing }
 
 let noTestContext : RT.TestContext =
   { sideEffectCount = 0
@@ -427,12 +430,13 @@ let executeApplicable2
   runLoaded exeState access vm
 
 
-let executeFunction
-  (exeState : RT.ExecutionState)
+/// The program that calls `name` with `args`: load each argument, load the function, apply.
+/// `executeFunction` runs it; `Scheduler.SpawnFunction` makes a process of it.
+let instructionsForFunctionCall
   (name : RT.FQFnName.FQFnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
-  : Task<RT.ExecutionResult> =
+  : RT.Instructions =
   let resultReg, rc = 0, 1
 
   let argInstrs, argRegs, rc =
@@ -457,11 +461,31 @@ let executeFunction
   let applyInstr =
     RT.Apply(resultReg, fnReg, typeArgs, argRegs |> NEList.ofListUnsafe "" [])
 
-  let instrs : RT.Instructions =
-    { registerCount = rc
-      instructions = argInstrs @ [ fnInstr; applyInstr ]
-      resultIn = 0 }
-  executeExpr exeState instrs
+  { registerCount = rc
+    instructions = argInstrs @ [ fnInstr; applyInstr ]
+    resultIn = 0 }
+
+
+/// The program that applies `applicable` to `arg`: what `Exec.spawn f` runs, as `f ()`.
+let instructionsForApply
+  (applicable : RT.Applicable)
+  (arg : RT.Dval)
+  : RT.Instructions =
+  { registerCount = 3
+    instructions =
+      [ RT.LoadVal(1, RT.DApplicable applicable)
+        RT.LoadVal(2, arg)
+        RT.Apply(0, 1, [], NEList.singleton 2) ]
+    resultIn = 0 }
+
+
+let executeFunction
+  (exeState : RT.ExecutionState)
+  (name : RT.FQFnName.FQFnName)
+  (typeArgs : List<RT.TypeReference>)
+  (args : NEList<RT.Dval>)
+  : Task<RT.ExecutionResult> =
+  executeExpr exeState (instructionsForFunctionCall name typeArgs args)
 
 
 let runtimeErrorToString

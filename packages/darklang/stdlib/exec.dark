@@ -1,0 +1,121 @@
+module Darklang.Stdlib.Exec
+
+/// Processes: running things beside each other, and the process table `dark ps` renders.
+///
+/// Reads run concurrently on their own: a call whose effects are all reads (`HttpClient.get`,
+/// a file or db read) hands back its result while the read is still in flight, and your code
+/// waits for it only at the first place it looks at the value. `List.map HttpClient.get urls`
+/// fetches them all at once; `print` and every write run in program order. `demand` forces
+/// early. `spawn`/`await` are for work you choose to run in the background, on another core
+/// when one is free (`docs/processes.md`).
+///
+/// Every process is a wrapped VM the scheduler steps; the table's rows are copies taken on
+/// the scheduler thread, never references into a running VM.
+
+/// What a process was started on.
+type Entry =
+  | Function of LanguageTools.RuntimeTypes.FQFnName.FQFnName
+  | Expr
+
+
+/// What a parked process is waiting for.
+type ParkedOn =
+  /// A host operation being performed for a builtin: a file read, an HTTP request, a process
+  /// run. The text names the operation and its resource (`file-read /some/path`).
+  | Host of String
+  /// A builtin that had to wait: `sleep`, the script an `eval` runs.
+  | Builtin of LanguageTools.RuntimeTypes.FQFnName.Builtin
+  /// A package function call that had to wait.
+  | PackageFn of LanguageTools.RuntimeTypes.FQFnName.Package
+  /// A lambda application that had to wait.
+  | Lambda
+  /// The interpreter waiting on the store for a type or value.
+  | RareOpcode
+  /// `Host.await`: one of these.
+  | Events of List<Stdlib.Host.EventSpec>
+  /// `Exec.await`: this process finishing.
+  | Process of Uuid
+
+
+type Status =
+  | Runnable
+  | Parked of ParkedOn
+  | Done
+  | Failed of LanguageTools.RuntimeTypes.RuntimeError.Error
+
+
+type Summary =
+  { id: Uuid
+    entry: Entry
+    status: Status
+    /// The process that spawned this one, if any (an `eval` expression's is the CLI's).
+    parent: Stdlib.Option.Option<Uuid>
+    started: DateTime
+    /// How many slices of the instruction budget it has used.
+    slices: Int64
+    /// Reads it started that have not landed yet.
+    inflight: Int64 }
+
+
+/// One activation on a process's stack.
+type ExecutionPoint =
+  | Source
+  | Function of LanguageTools.RuntimeTypes.FQFnName.FQFnName
+  | Lambda of parent: ExecutionPoint * exprId: Int64
+
+
+type Detail =
+  { summary: Summary
+    /// The call stack at the moment of the snapshot, outermost first. A process parked
+    /// inside a higher-order builtin (`List.map f` where `f` waits) shows the frame that
+    /// called the builtin; the lambda's own frames are in a nested VM until the
+    /// re-entry-removal follow-up.
+    frames: List<ExecutionPoint> }
+
+
+/// Every process this instance's scheduler knows, finished ones included.
+let list () : List<Summary> =
+  Builtin.execList ()
+
+
+/// One process in detail, or `None` for an id nobody has.
+let inspect (id: Uuid) : Stdlib.Option.Option<Detail> =
+  Builtin.execInspect id
+
+
+/// Ask a process to stop. It fails with "cancelled" at its next turn. False for an id nobody
+/// has.
+let kill (id: Uuid) : Bool =
+  Builtin.execKill id
+
+
+/// A process started with `spawn`. `'a` is what `await` gives back for it.
+type Handle<'a> = { id: Uuid }
+
+
+/// Start `f ()` as a process of its own, beside this one, on another core when one is free.
+/// It runs under the access the caller has here, like a closure. `await` collects it.
+let spawn (f: Unit -> 'a) : Handle<'a> =
+  Builtin.execSpawn f
+
+
+/// What the process behind `handle` finished with, waiting for it if it has not. An error it
+/// failed with is raised here.
+let await (handle: Handle<'a>) : 'a =
+  Builtin.execAwait handle
+
+
+/// The first of `handles` to finish, with its value. Waits when none has.
+let select (handles: List<Handle<'a>>) : (Handle<'a> * 'a) =
+  Builtin.execSelect handles
+
+
+/// Force a read still in flight now, rather than at its first use. `demand x` is `x`: calling
+/// anything with a value waits for it, and this is the smallest thing to call.
+let demand (x: 'a) : 'a =
+  x
+
+
+/// `demand` for a list of reads.
+let demandAll (xs: List<'a>) : List<'a> =
+  xs

@@ -718,6 +718,23 @@ type BlobRef =
   | Persistent of hash : string * length : int64
 
 
+/// Where a frame is executing: the entry, a function, or a lambda inside one. Declared before
+/// `Dval` because a `Promise` records the point it was made at.
+type ExecutionPoint =
+  /// User is executing some "arbitrary" expression, passed in by a user.
+  /// This should only be at the `entrypoint` of a CallStack.
+  ///
+  /// Executing some top-level handler,
+  /// such as a saved Script, an HTTP handler, or a Cron.
+  | Source
+
+  // Executing some function
+  | Function of FQFnName.FQFnName
+
+  /// Executing some lambda
+  | Lambda of parent : ExecutionPoint * lambdaExprId : id
+
+
 type Instruction =
   // == Simple register operations ==
   /// Push a value into a register
@@ -885,6 +902,7 @@ and [<CustomEquality; CustomComparison>] DictKey =
     | DBlob _ -> 24
     | DApplicable _ -> 25
     | DStream _ -> 26
+    | DPromise _ -> 27
 
   static member compare (a : Dval) (b : Dval) : int =
     DvalOrdering.compareForDictKey a b
@@ -935,10 +953,11 @@ and [<CustomEquality; CustomComparison>] DictKey =
       | Persistent(h, l) -> combine (hash h * 31 + hash l)
       | Ephemeral e -> combine (hash e.id)
     | DApplicable _
-    | DStream _ ->
+    | DStream _
+    | DPromise _ ->
       Exception.raiseInternal
-        "A lambda or stream reached a Dict key hash; it should have been rejected \
-         when the dict was built"
+        "A lambda, stream or promise reached a Dict key hash; it should have been \
+         rejected when the dict was built"
         []
 
   static member private hashList(xs : List<Dval>) : int =
@@ -1038,10 +1057,12 @@ and DvalOrdering private () =
       | DApplicable _, _
       | _, DApplicable _
       | DStream _, _
-      | _, DStream _ ->
+      | _, DStream _
+      | DPromise _, _
+      | _, DPromise _ ->
         Exception.raiseInternal
-          "A lambda or stream reached a Dict key comparison; it should have been \
-           rejected when the dict was built"
+          "A lambda, stream or promise reached a Dict key comparison; it should have \
+           been rejected when the dict was built"
           []
       | _ -> compare (DictKey.caseTag a) (DictKey.caseTag b)
 
@@ -1262,6 +1283,28 @@ and [<NoComparison>] Dval =
   /// their IO source.
   | DStream of StreamImpl * disposed : bool ref * lockObj : obj
 
+  /// A read in flight. The interpreter hands one back instead of parking the process when a
+  /// builtin whose effects are all reads has to wait; it is forced (the process parks on it) at
+  /// the first instruction that inspects, stores or passes the value, at `demand`, and at the
+  /// end of the run. So one is only ever at the top level of a register, a frame's result or a
+  /// builtin's returned value, never inside a list, record, closure or dict, and no builtin body
+  /// ever receives one: they are forced before the call. `docs/processes.md`, "Reads are
+  /// concurrent".
+  | DPromise of Promise
+
+
+/// A read in flight (`DPromise`): the task the builtin returned, and where it was called from,
+/// for the error at the force point and for `ps`. A class, so it compares by reference.
+and Promise
+  (
+    task : System.Threading.Tasks.Task<Dval>,
+    fn : FQFnName.FQFnName,
+    site : ExecutionPoint
+  ) =
+  member _.Task = task
+  member _.Fn = fn
+  member _.Site = site
+
 
 /// Lazy sequence producer. [FromIO] is the leaf — a pull-based
 /// producer. Mapped / Filtered / Take / Concat wrap other StreamImpls
@@ -1326,21 +1369,24 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// termination) are the only unbounded paths. Becomes load-bearing
   /// if anyone adds a "buffer N elements ahead" or "merge multiple
   /// streams" combinator.
-  /// Every closure that may run guest code takes the DRAINER's access: a
-  /// transform's callback is deferred work, and when it finally runs it runs
-  /// inside whatever function is pulling. The closure intersects that with the
-  /// access captured when the transform was built, so neither side widens the
-  /// other. Native IO sources ignore it.
+  ///
+  /// A node that runs Dark code (`Unfold`, `Mapped`, `Filtered`) holds the callable
+  /// itself, not a closure over it: the pull is a step machine (`Stream.pull`) that
+  /// hands the callable back to the builtin pulling, which asks the interpreter to
+  /// apply it as a frame of the pulling process (`Interpreter.requestApply`). So the
+  /// callback runs inside whoever is pulling, under that frame's access narrowed by
+  /// what the callable captured; the builder's own access is folded into the
+  /// callable when the transform is made. Native IO sources are plain closures.
   | FromIO of
-    next : (Permissions.Access -> Ply<Option<Dval>>) *
+    next : (unit -> Ply<Option<Dval>>) *
     elemType : ValueType *
     disposer : (unit -> unit) option *
     nextChunk : (int -> Ply<Option<byte[]>>) option
-  | Mapped of
-    src : StreamImpl *
-    fn : (Permissions.Access -> Dval -> Ply<Dval>) *
-    elemType : ValueType
-  | Filtered of src : StreamImpl * pred : (Permissions.Access -> Dval -> Ply<bool>)
+  /// A producer written in Dark: the step takes the state and answers
+  /// `Some (element, nextState)` or `None`.
+  | Unfold of step : Applicable * state : Dval ref * elemType : ValueType
+  | Mapped of src : StreamImpl * fn : Applicable * elemType : ValueType
+  | Filtered of src : StreamImpl * pred : Applicable
   | Take of src : StreamImpl * n : int64 * remaining : int64 ref
   | Concat of streams : StreamImpl list ref
 
@@ -1392,6 +1438,7 @@ module StreamImpl =
   let rec elemType (impl : StreamImpl) : ValueType =
     match impl with
     | FromIO(_, t, _, _) -> t
+    | Unfold(_, _, t) -> t
     | Mapped(_, _, t) -> t
     | Filtered(src, _) -> elemType src
     | Take(src, _, _) -> elemType src
@@ -1735,21 +1782,6 @@ let raiseUntargetedRTE (rte : RuntimeError.Error) : 'a =
 
 
 
-type ExecutionPoint =
-  /// User is executing some "arbitrary" expression, passed in by a user.
-  /// This should only be at the `entrypoint` of a CallStack.
-  ///
-  /// Executing some top-level handler,
-  /// such as a saved Script, an HTTP handler, or a Cron.
-  | Source
-
-  // Executing some function
-  | Function of FQFnName.FQFnName
-
-  /// Executing some lambda
-  | Lambda of parent : ExecutionPoint * lambdaExprId : id
-
-
 /// Not: in reverse order
 type CallStack = List<ExecutionPoint>
 
@@ -1780,7 +1812,9 @@ let recordPermissionViolation
   (needed : string)
   : unit =
   let v = { resource = resource; needed = needed; via = via }
-  if not (sink.Contains v) then sink.Add v
+  // Processes on different scheduler threads share one sink (the host reads it after the run),
+  // so the append is locked. Denials are rare; the lock is never hot.
+  lock sink (fun () -> if not (sink.Contains v) then sink.Add v)
 
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
@@ -2050,11 +2084,17 @@ module Dval =
 
     | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
 
+    // Not known until the read lands: `Promise<t>` unifies with `t` by being unknown, which is
+    // the only way the runtime checker ever meets one (a package fn returning a read it did not
+    // inspect; every argument and every stored value is forced first).
+    | DPromise _ -> ValueType.Unknown
+
 
   let rec isUsableDictKey (dv : Dval) : bool =
     match dv with
     | DApplicable _
     | DStream _
+    | DPromise _
     | DDB _
     | DBlob _ -> false
 
@@ -2142,6 +2182,7 @@ module Dval =
           | DUuid _
           | DDB _
           | DStream _
+          | DPromise _
           | DBlob _ -> return dv
 
           | DList(vt, items) ->
@@ -2465,10 +2506,10 @@ module Tracing =
 
   type FunctionRecord = Source * FQFnName.FQFnName
 
-  type LoadFnResult =
-    FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
-
-  type StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
+  /// Fired when a builtin call, or a package fn frame, completes. `ord` is the call's ordinal
+  /// among the process's effectful builtin calls, handed out by `nextEffect` when the call was
+  /// made, and -1 for anything else (a pure builtin, a package fn). It is what a replay keys on.
+  type StoreFnResult = FunctionRecord -> int64 -> NEList<Dval> -> Dval -> unit
 
   /// Fired when a new call frame is pushed (Function or Lambda).
   /// Carries the frame's uuid, the executionPoint of the new frame, and
@@ -2485,14 +2526,30 @@ module Tracing =
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
     {
-      loadFnResult : LoadFnResult
       storeFnResult : StoreFnResult
       storeFrameEntry : StoreFrameEntry
       storeLambdaResult : StoreLambdaResult
-      /// When true, the interpreter skips firing all tracer hooks
-      /// (storeFrameEntry, storeFnResult, storeLambdaResult) and the
-      /// associated pendingCallArgs bookkeeping.
+      /// When true, the interpreter skips the frame hooks (storeFrameEntry, storeLambdaResult,
+      /// storeFnResult for package fns and pure builtins) and the pendingCallArgs bookkeeping,
+      /// and takes its fast paths. Effectful builtin calls are still recorded when
+      /// `traceEffects` is set: that log is small, and it is what a run resumes from.
       skipTracing : bool
+      /// Record every effectful builtin call (the classic rule: a call with non-empty
+      /// `callEffects`), with its ordinal, whatever `skipTracing` says about the rest.
+      traceEffects : bool
+      /// The ordinal for an effectful builtin call about to be made, per process: the first is 0.
+      /// Assigned at the call, not at completion, so a read that lands late keeps its place.
+      nextEffect : unit -> int64
+      /// Replay: the recorded result of the effectful call with this ordinal, if the log has
+      /// it; the interpreter then does not perform the call. `ValueNone` once the log runs out,
+      /// and the run goes live from there, still recording.
+      replayEffect : int64 -> Dval voption
+      /// The same trace, seen from another process. A recorder keeps one call stack per
+      /// process and stamps every event with the process id and a sequence number across
+      /// the whole trace, so two processes stepping on two threads write one log whose
+      /// interleaving can be read back. The scheduler calls this at spawn; the hooks it
+      /// returns are the process's own. `noTracing` answers itself.
+      forProcess : System.Guid -> Tracing
     }
 
 
@@ -2592,6 +2649,15 @@ type CallFrame =
     mutable typeSymbolTable : TypeSymbolTable
 
     mutable registers : Registers
+
+    /// Set on a frame a builtin asked for (`Interpreter.requestApply`): when the frame returns,
+    /// its result goes to this rather than into the parent's register, and what this answers, or
+    /// asks for next, is what reaches the parent. Null for every ordinary frame. Two plain fields
+    /// rather than a record, so a chain of a thousand applications allocates nothing for them.
+    mutable continuation : Dval -> Ply<Dval>
+    /// With `continuation`: what to do with the builtin's final result once the chain ends (the
+    /// trace record, if any). Null when nothing.
+    mutable finish : Dval -> unit
   }
 
 /// Synchronous regions of the Apply path that the allocation counters attribute to.
@@ -2980,6 +3046,53 @@ type VMState =
     /// from `callFrames` and fails the parent lookup on return.
     mutable frameIdCounter : int64
 
+    /// Instructions this VM may still run before the scheduler takes the thread back.
+    ///
+    /// `runSyncInstructions` counts it down and stops at zero, which `runFrame` reports as
+    /// `FrameBudget`; `Scheduler.step` refills it before every slice. Negative means unlimited, which
+    /// is what every VM that is not a scheduled process runs with: `execute` never sees a budget bail,
+    /// and a VM a builtin borrows to apply a lambda counts against nothing (a process parked inside
+    /// `List.map` is parked as a Ply, not preempted; see `docs/processes.md`).
+    mutable budget : int64
+
+    /// Set by a builtin body to say this particular call is a read the interpreter may hand back
+    /// as a promise even though the builtin's declared effects are not all reads (an HTTP GET,
+    /// under a builtin that also does POST). Read and cleared by the interpreter right after the
+    /// body returns; one builtin is in flight per VM at a time, so a single slot suffices.
+    mutable readHint : bool
+
+    /// Reads this VM's calls handed back as promises that have not landed yet, for `ps`.
+    mutable inflight : int
+
+    /// A builtin body asking for a callable to be applied on its behalf, in this VM, as a frame
+    /// of its own (`Interpreter.requestApply`): the callable, its first argument and any more,
+    /// and what to call with the result. Read and cleared by the interpreter right after the
+    /// body returns, which then pushes the frame instead of using the body's result. Null
+    /// `pendingNext` means no request. Four slots rather than a record, so a chain of a thousand
+    /// applications allocates nothing for them; one builtin is in flight per VM at a time.
+    mutable pendingNext : Dval -> Ply<Dval>
+    mutable pendingApplicable : Applicable
+    mutable pendingArg : Dval
+    mutable pendingMoreArgs : List<Dval>
+    /// For a request made after the builtin's body had already waited (a stream pulling from
+    /// the network, then applying its transform): what records the chain's final result in the
+    /// trace, left here by the body's completion for the landing site to pick up. Null when
+    /// nothing records.
+    mutable pendingFinish : Dval -> unit
+
+    /// A builtin body naming a host operation for the interpreter to perform on its behalf
+    /// (`Interpreter.requestHost`): the operation, and what to do with its outcome. The body
+    /// returns a placeholder; the interpreter performs the operation through the checked host
+    /// boundary, under the body's access, and continues with `pendingHostNext`. Null
+    /// `pendingHostOp` means no request. Read and cleared right after the body returns (or
+    /// lands, or a continuation answers).
+    mutable pendingHostOp : HostTypes.Operation
+    mutable pendingHostNext :
+      Result<HostTypes.Response, HostTypes.Failure> -> Ply<Dval>
+    /// The host operation this VM is waiting on right now, for `ps`. Null when none. Written by
+    /// the interpreter around the wait and read best-effort from other threads.
+    mutable hostInflight : HostTypes.Operation
+
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
     /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
     /// continuation the builder makes for the loop body.
@@ -3046,7 +3159,9 @@ type VMState =
         registers = Array.zeroCreate instrs.registerCount
         argBufs = Array.empty
         typeSymbolTable = TST.empty
-        parent = ValueNone }
+        parent = ValueNone
+        continuation = Unchecked.defaultof<_>
+        finish = Unchecked.defaultof<_> }
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
@@ -3062,6 +3177,17 @@ type VMState =
       stats = InterpreterStats.create ()
       frameToPush = ValueNone
       frameIdCounter = 0L
+      budget = -1L
+      readHint = false
+      inflight = 0
+      pendingNext = Unchecked.defaultof<_>
+      pendingFinish = Unchecked.defaultof<_>
+      pendingHostOp = Unchecked.defaultof<_>
+      pendingHostNext = Unchecked.defaultof<_>
+      hostInflight = Unchecked.defaultof<_>
+      pendingApplicable = Unchecked.defaultof<_>
+      pendingArg = DUnit
+      pendingMoreArgs = []
       nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
@@ -3110,6 +3236,8 @@ type VMState =
         frame.typeSymbolTable <- TST.empty
         frame.parent <- ValueNone
         frame.access <- Permissions.Access.denyAll
+        frame.continuation <- Unchecked.defaultof<_>
+        frame.finish <- Unchecked.defaultof<_>
         if frame.registers.Length < registerCount then
           frame.registers <- Array.zeroCreate registerCount
         else
@@ -3125,7 +3253,9 @@ type VMState =
           registers = Array.zeroCreate registerCount
           argBufs = Array.empty
           typeSymbolTable = TST.empty
-          parent = ValueNone }
+          parent = ValueNone
+          continuation = Unchecked.defaultof<_>
+          finish = Unchecked.defaultof<_> }
 
     vm.pooledRootFrame <- ValueSome rootCallFrame
     vm.callFrames.Clear()
@@ -3135,6 +3265,13 @@ type VMState =
     vm.rootInstrData <- struct (tlid, instrData)
     vm.frameToPush <- ValueNone
     vm.frameIdCounter <- 0L
+    vm.budget <- -1L
+    vm.readHint <- false
+    vm.inflight <- 0
+    vm.pendingNext <- Unchecked.defaultof<_>
+    vm.pendingApplicable <- Unchecked.defaultof<_>
+    vm.pendingArg <- DUnit
+    vm.pendingMoreArgs <- []
     vm.nestedCallStack <- []
     vm.finalResult <- ValueNone
     vm.matchBindings.Clear()

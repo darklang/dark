@@ -658,6 +658,7 @@ let compileLambda
         | RT.DTuple _ -> "Tuple"
         | RT.DRecord _ -> "Record"
         | RT.DEnum _ -> "Enum"
+        | RT.DPromise _ -> "Promise"
         | RT.DApplicable _ -> "Function"
         | RT.DDB _ -> "DB"
         | RT.DBlob _ -> "Blob"

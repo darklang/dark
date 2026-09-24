@@ -31,6 +31,7 @@
     <Compile Include="PT2RT.Tests.fs" />
     <Compile Include="PermissionsGate.Tests.fs" />
     <Compile Include="Interpreter.Tests.fs" />
+    <Compile Include="Scheduler.Tests.fs" />
     <Compile Include="Builtin.Tests.fs" />
     <Compile Include="HostBoundary.Tests.fs" />
     <Compile Include="AnalysisTypes.Tests.fs" />
@@ -57,6 +58,7 @@
     <Compile Include="CliAuthoring.Tests.fs" />
     <Compile Include="CliSyncSurface.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
+    <Compile Include="CliExec.Tests.fs" />
     <Compile Include="CliScriptLowering.Tests.fs" />
     <Compile Include="DvalReprInternalQueryable.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />

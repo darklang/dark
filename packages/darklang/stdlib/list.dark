@@ -371,6 +371,15 @@ let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
   Builtin.listMap list fn
 
 
+/// <fn map>, with every call of <param fn> as a process of its own, spread across the cores,
+/// and the results in order. For work that computes; reads run concurrently under plain
+/// <fn map> already (<fn Stdlib.Exec.spawn>).
+let parallelMap (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
+  list
+  |> Stdlib.List.map (fun x -> Stdlib.Exec.spawn (fun () -> fn x))
+  |> Stdlib.List.map (fun handle -> Stdlib.Exec.await handle)
+
+
 /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
 /// returning a list of the results of those calls.
 /// Consider <fn map> if you don't need the index.

@@ -21,6 +21,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Exe = LibExecution.Execution
+module Scheduler = LibExecution.Scheduler
 module PackageRefs = LibExecution.PackageRefs
 module Json = Builtins.Pure.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
@@ -574,10 +575,40 @@ let execute
       |> PackageManager.withExtras (branchTypes @ types) values (branchFns @ fns)
 
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
-    let traceID = AT.TraceID.create ()
-    let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
+
+    // A run is an execution: a durable row beside its trace, so it can be listed, suspended by
+    // Ctrl-C, resumed and forked (`LibDB.Executions`). A resume armed by `dark exec resume` takes
+    // the recorded run's trace and replays its log; anything else records afresh. Without a
+    // recording tracer (trace detail off) there is no log, so no row either.
+    let tracer, executionId =
+      match LibDB.Executions.Replay.take () with
+      | Some resume ->
+        let e = resume.execution
+        let tracer =
+          Tracing.createReplayTracer
+            e.traceId
+            traceDesc
+            inputName
+            inputValue
+            resume.log
+        LibDB.Executions.setStatus e.id LibDB.Executions.Running
+        tracer, Some e.id
+      | None ->
+        let traceID = AT.TraceID.create ()
+        let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
+        if tracer.enabled then
+          let id = System.Guid.NewGuid()
+          LibDB.Executions.create id traceDesc inputName inputValue traceID None
+          tracer, Some id
+        else
+          tracer, None
 
     let state = childState parentState pm tracer.executionTracing program
+
+    executionId
+    |> Option.iter (fun id ->
+      LibDB.Executions.Foreground.set
+        { id = id; flush = fun () -> tracer.storeTraceResults state |> Ply.toTask })
 
     match mod'.exprs with
     | [] ->
@@ -588,20 +619,55 @@ let execute
     | exprs ->
       let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
 
+      // Under the scheduler each expression is its own process, spawned from the CLI's
+      // process and awaited: it budget-yields, `ps` lists it, and a `readKey` in it parks
+      // instead of holding the thread. Without one (tests, the LSP) it runs inline as before.
+      let runOne (instr : RT.Instructions) : Ply<RT.ExecutionResult> =
+        match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
+        | Some s, Some parent ->
+          let child =
+            s.Spawn(state, (None, instr), Scheduler.EntryExpr, Some parent.id)
+          uply { return! s.Await child }
+        | _ -> uply { return! Exe.executeExpr state instr }
+
       // Awaited in order, and the first error ends the script.
       let rec runInOrder (instrs : List<RT.Instructions>) : Ply<RT.ExecutionResult> =
         uply {
           match instrs with
           | [] -> return Ok DUnit
-          | [ last ] -> return! Exe.executeExpr state last
+          | [ last ] -> return! runOne last
           | instr :: rest ->
-            match! Exe.executeExpr state instr with
+            match! runOne instr with
             | Error _ as failed -> return failed
             | Ok _ -> return! runInOrder rest
         }
 
-      let! result = runInOrder exprInstrs
-      do! tracer.storeTraceResults state
+      let! result =
+        uply {
+          try
+            return! runInOrder exprInstrs
+          with ex ->
+            executionId
+            |> Option.iter (fun id ->
+              if LibDB.Executions.Foreground.clear id then
+                LibDB.Executions.setStatus id LibDB.Executions.Failed)
+            return raise ex
+        }
+      // A run a suspend took out of the foreground stores nothing more: the log and the row are
+      // what the suspend left, for `resume`.
+      let stillOurs =
+        match executionId with
+        | Some id -> LibDB.Executions.Foreground.clear id
+        | None -> true
+      if stillOurs then
+        do! tracer.storeTraceResults state
+        executionId
+        |> Option.iter (fun id ->
+          LibDB.Executions.setStatus
+            id
+            (match result with
+             | Ok _ -> LibDB.Executions.Done
+             | Error _ -> LibDB.Executions.Failed))
       return result
   }
 

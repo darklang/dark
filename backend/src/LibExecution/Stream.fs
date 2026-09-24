@@ -25,6 +25,7 @@ let rec disposeImpl (impl : StreamImpl) : unit =
     with _ ->
       ()
   | FromIO(_, _, None, _) -> ()
+  | Unfold _ -> ()
   | Mapped(src, _, _) -> disposeImpl src
   | Filtered(src, _) -> disposeImpl src
   | Take(src, _, _) -> disposeImpl src
@@ -76,7 +77,7 @@ let newFromIO
   (next : unit -> Ply.Ply<Option<Dval>>)
   (disposer : (unit -> unit) option)
   : Dval =
-  wrapImpl (FromIO((fun _drainer -> next ()), elemType, disposer, None))
+  wrapImpl (FromIO(next, elemType, disposer, None))
 
 
 /// Mint a DStream<UInt8> that can be drained bulk-wise via
@@ -119,153 +120,180 @@ let newChunked
         carryPos.Value <- carryPos.Value + 1
         return Some(DUInt8 b)
     }
-  wrapImpl (FromIO((fun _drainer -> next ()), elemType, disposer, Some nextChunk))
+  wrapImpl (FromIO(next, elemType, disposer, Some nextChunk))
 
 
-/// An in-process producer whose step runs guest code: the step receives the
-/// drainer's access on every pull (see `StreamImpl`).
-let newFromGuestStep
-  (elemType : ValueType)
-  (next : Permissions.Access -> Ply.Ply<Option<Dval>>)
-  : Dval =
-  wrapImpl (FromIO(next, elemType, None, None))
+/// One pull through a stream, as far as it can go without the puller: what the puller has
+/// to do next. A node that runs Dark code (`Unfold`, `Mapped`, `Filtered`) cannot run it
+/// here; it hands the callable back, and the builtin pulling asks the interpreter to apply
+/// it as a frame of the pulling process (`Interpreter.requestApply`), then continues the
+/// pull with the answer. Native IO that has to wait is handed back as a wait for the same
+/// reason: the puller decides how to wait.
+type PullStep =
+  /// This pull is done: the element, or `None` for exhausted.
+  | Pulled of Option<Dval>
+  /// Apply the callable to the argument, then continue with what it answered (a value, not a
+  /// read still in flight: the puller forces it first).
+  | Apply of applicable : Applicable * arg : Dval * next : (Dval -> PullStep)
+  /// Native IO under way; continue with what it lands.
+  | Wait of Ply.Ply<PullStep>
 
+/// Continue a step with what to do once its pull is done.
+let rec private andThen (step : PullStep) (k : Option<Dval> -> PullStep) : PullStep =
+  match step with
+  | Pulled r -> k r
+  | Apply(app, arg, next) -> Apply(app, arg, (fun dv -> andThen (next dv) k))
+  | Wait ply ->
+    Wait(
+      uply {
+        let! landed = ply
+        return andThen landed k
+      }
+    )
 
-/// Pull one element through a [StreamImpl]. Separate from [readNext]
-/// so the recursion can walk transform nodes
-/// (Mapped/Filtered/Take/Concat) without re-entering the root's
-/// disposed flag — nested transforms share the wrapping DStream's
-/// lifecycle.
-/// `drainer` is the access of the function pulling right now; every guest
-/// closure met on the way down receives it.
-let rec private pullImpl
-  (drainer : Permissions.Access)
-  (impl : StreamImpl)
-  : Ply.Ply<Option<Dval>> =
-  uply {
-    match impl with
-    | FromIO(next, _elemType, _disposer, _nextChunk) -> return! next drainer
+/// Pull one element through a [StreamImpl] tree, as a step.
+///
+/// A `Filtered` node's rejections and a `Concat` node's exhausted heads recurse here, but not
+/// on the F# stack for long: a rejection goes back to the puller as an `Apply` and comes back
+/// through the continuation, so each turn starts fresh.
+let rec pull (impl : StreamImpl) : PullStep =
+  match impl with
+  | FromIO(next, _elemType, _disposer, _nextChunk) ->
+    let p = next ()
+    match Ply.trySync p with
+    | ValueSome r -> Pulled r
+    | ValueNone ->
+      Wait(
+        uply {
+          let! r = p
+          return Pulled r
+        }
+      )
 
-    | Mapped(src, fn, _elemType) ->
-      let! upstream = pullImpl drainer src
+  | Unfold(step, state, _elemType) ->
+    Apply(
+      step,
+      state.Value,
+      fun result ->
+        match result with
+        | DEnum(_, _, _, "Some", [ DTuple(elem, newState, []) ]) ->
+          state.Value <- newState
+          Pulled(Some elem)
+        | DEnum(_, _, _, "None", _) -> Pulled None
+        | other ->
+          Exception.raiseInternal
+            "streamUnfold step must return Option<(a, s)>"
+            [ "got", other ]
+    )
+
+  | Mapped(src, fn, _elemType) ->
+    andThen (pull src) (fun upstream ->
       match upstream with
-      | None -> return None
+      | None -> Pulled None
+      | Some v -> Apply(fn, v, (fun mapped -> Pulled(Some mapped))))
+
+  | Filtered(src, pred) ->
+    andThen (pull src) (fun upstream ->
+      match upstream with
+      | None -> Pulled None
       | Some v ->
-        let! mapped = fn drainer v
-        return Some mapped
+        Apply(
+          pred,
+          v,
+          fun answer ->
+            match answer with
+            | DBool true -> Pulled(Some v)
+            | DBool false -> pull impl
+            | other ->
+              Exception.raiseInternal
+                "stream filter predicate returned non-Bool"
+                [ "got", other ]
+        ))
 
-    | Filtered(src, pred) ->
-      // Pull from source until the predicate accepts or the source
-      // runs dry. Written as a mutable loop rather than tail recursion
-      // so a long rejection run doesn't blow the Ply chain.
-      let mutable result : Option<Dval> = None
-      let mutable keepGoing = true
-      while keepGoing do
-        let! upstream = pullImpl drainer src
-        match upstream with
-        | None -> keepGoing <- false
-        | Some v ->
-          let! matches = pred drainer v
-          if matches then
-            result <- Some v
-            keepGoing <- false
-      return result
-
-    | Take(src, _n, remaining) ->
-      if remaining.Value <= 0L then
-        return None
-      else
-        let! upstream = pullImpl drainer src
+  | Take(src, _n, remaining) ->
+    if remaining.Value <= 0L then
+      Pulled None
+    else
+      andThen (pull src) (fun upstream ->
         match upstream with
         | Some _ ->
           remaining.Value <- remaining.Value - 1L
-          return upstream
+          Pulled upstream
         | None ->
           // Source dried up before the limit; clamp so future pulls
           // stay at zero and short-circuit without touching source.
           remaining.Value <- 0L
-          return None
+          Pulled None)
 
-    | Concat streams ->
-      // Pull from the head stream; when it's exhausted, drop it and
-      // try the next. Mutating the ref means future pulls don't
-      // re-enter a drained stream.
-      let mutable result : Option<Dval> = None
-      let mutable keepGoing = true
-      while keepGoing do
-        match streams.Value with
-        | [] -> keepGoing <- false
-        | head :: tail ->
-          let! pulled = pullImpl drainer head
-          match pulled with
-          | Some _ ->
-            result <- pulled
-            keepGoing <- false
-          | None -> streams.Value <- tail
-      return result
-  }
+  | Concat streams ->
+    // Pull from the head stream; when it's exhausted, drop it and
+    // try the next. Mutating the ref means future pulls don't
+    // re-enter a drained stream.
+    match streams.Value with
+    | [] -> Pulled None
+    | head :: tail ->
+      andThen (pull head) (fun pulled ->
+        match pulled with
+        | Some _ -> Pulled pulled
+        | None ->
+          streams.Value <- tail
+          pull impl)
 
 
-/// Pull the next element from a stream. Returns [None] when the
-/// stream is exhausted; subsequent calls after exhaustion return
-/// [None] (single-consumer — once drained, stays drained).
-///
-/// No thread-affine lock: `pullImpl` awaits inside `fn v` / `pred v`
-/// (via `Exe.executeApplicable`) and Ply continuations can resume on
-/// a different thread, which makes `Monitor.Exit` throw
-/// `SynchronizationLockException`. We rely on the single-threaded
-/// Dark VM model for ordering instead — concurrent consumers of the
-/// same stream have undefined output but never crash.
-///
-/// TODO LATENT BUG: the single-consumer invariant is unenforced.
-/// `disposed` only short-circuits AFTER drain; two callers entering
-/// `readNext` concurrently on the same DStream interleave silently.
-/// Cheap fix: a semaphore-with-permit-1 + raise on contention.
-/// Proper fix: a Ply-aware lock that survives continuation awaits —
-/// that's a Ply-internals refactor. Nothing in the codebase shares a
-/// DStream across consumers today, but the type system doesn't
-/// prevent it.
-///
-/// TODO per-element Ply continuation cost: every `next` allocates a
-/// state machine. A 1000-element pipeline with three transforms is
-/// ~3000 allocations. The chunked `nextChunk` fast path covers byte
-/// streams; element-wise streams pay full cost. Real fix is replacing
-/// Ply with something cheaper — either a custom `Future<'a>` struct
-/// or a CPS interpreter with a fiber scheduler.
-/// `drainer`: the access of the function pulling (a builtin's `vm.activeAccess`).
-let readNext (drainer : Permissions.Access) (dv : Dval) : Ply.Ply<Option<Dval>> =
-  uply {
-    match dv with
-    | DStream(impl, disposed, _lockObj) ->
-      if disposed.Value then
-        return None
-      else
-        let! result = pullImpl drainer impl
+/// Pull the next element from a stream, as a step. `None` when the stream is exhausted, and
+/// from then on (single-consumer: once drained, stays drained); the first `None` runs the
+/// disposers.
+let pullNext (dv : Dval) : PullStep =
+  match dv with
+  | DStream(impl, disposed, _lockObj) ->
+    if disposed.Value then
+      Pulled None
+    else
+      andThen (pull impl) (fun result ->
         match result with
-        | Some _ -> return result
+        | Some _ -> Pulled result
         | None ->
           disposed.Value <- true
           disposeImpl impl
-          return None
-    | _ -> return Exception.raiseInternal "readNext: expected DStream" []
-  }
+          Pulled None)
+  | _ -> Exception.raiseInternal "pullNext: expected DStream" []
+
+
+/// A pull driven to its end here, for F# callers with no process to run Dark code in (tests,
+/// the benchmark scenarios, the HTTP client's own byte streams). Loud on a node that needs Dark
+/// code: that stream has to be pulled from a Dark process, through the stream builtins.
+let rec private runNative (step : PullStep) : Ply.Ply<Option<Dval>> =
+  match step with
+  | Pulled r -> Ply r
+  | Wait ply ->
+    uply {
+      let! landed = ply
+      return! runNative landed
+    }
+  | Apply _ ->
+    Exception.raiseInternal
+      "this stream runs Dark code and has to be pulled from a Dark process"
+      []
+
+
+/// Pull the next element from a stream that runs no Dark code. Returns [None] when the
+/// stream is exhausted; subsequent calls after exhaustion return [None]. The stream
+/// builtins drive [pullNext] themselves; this is for F# code that owns a native stream.
+let readNext (dv : Dval) : Ply.Ply<Option<Dval>> = runNative (pullNext dv)
 
 
 /// Pull up to `maxBytes` bytes from a byte stream as one chunk.
 /// Returns [None] when exhausted; subsequent calls stay [None].
 /// Prefers a FromIO's own `nextChunk` when present; falls back to
 /// byte-wise pulls for streams that were built via [newFromIO] or
-/// that walk transform nodes (Mapped/Filtered/Take/Concat) where a
-/// chunk semantic isn't well-defined.
+/// that walk transform nodes (Take/Concat) where a chunk semantic
+/// isn't well-defined. Like [readNext], for streams that run no Dark
+/// code; `streamToBlob` drives the transform case itself.
 ///
 /// Used by `streamToBlob` and SSE byte accumulators to amortise the
 /// Ply-continuation cost across whole chunks rather than paying it
 /// per byte.
-let readChunk
-  (drainer : Permissions.Access)
-  (maxBytes : int)
-  (dv : Dval)
-  : Ply.Ply<Option<byte[]>> =
+let readChunk (maxBytes : int) (dv : Dval) : Ply.Ply<Option<byte[]>> =
   uply {
     match dv with
     | DStream(impl, disposed, _) ->
@@ -283,14 +311,14 @@ let readChunk
             return None
         | _ ->
           // Fallback: pull byte-by-byte. Only pays off vs per-byte
-          // `readNext` if the caller really wants bulk bytes —
+          // `readNext` if the caller really wants bulk bytes --
           // transform chains lose the chunk optimisation but still
           // drain correctly.
           use collected = new System.IO.MemoryStream()
           let mutable keepGoing = true
           let mutable bytesSoFar = 0
           while keepGoing && bytesSoFar < maxBytes do
-            let! pulled = pullImpl drainer impl
+            let! pulled = runNative (pull impl)
             match pulled with
             | Some(DUInt8 b) ->
               collected.WriteByte b

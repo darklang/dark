@@ -20,7 +20,7 @@ open Builtin.Shortcuts
 module HostLibc = LibExecution.HostLibc
 module HostTypes = LibExecution.HostTypes
 module Host = LibExecution.Host
-module PermissionCheck = LibExecution.PermissionCheck
+module Interpreter = LibExecution.Interpreter
 
 let private posixErrorTypeName () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Posix.error ())
@@ -42,44 +42,42 @@ let private dPosixError (failure : Host.Failure) : Dval =
         "message", DString failure.message ]
   )
 
-/// Map one host outcome to `Result<kt, PosixError>`; `ok` shapes the success.
+/// Name one host operation for the interpreter to perform, its outcome mapped to
+/// `Result<kt, PosixError>`; `ok` shapes the success.
 let private asResult
   (kt : KnownType)
-  (outcome : Ply<Result<Host.Response, Host.Failure>>)
+  (vm : VMState)
+  (op : Host.Operation)
   (ok : Host.Response -> Dval)
   : Ply<Dval> =
-  uply {
-    match! outcome with
-    | Ok response -> return Dval.resultOk kt (posixErrorKT ()) (ok response)
-    | Error e -> return Dval.resultError kt (posixErrorKT ()) (dPosixError e)
-  }
+  Interpreter.requestHost vm op (fun outcome ->
+    match outcome with
+    | Ok response -> Ply(Dval.resultOk kt (posixErrorKT ()) (ok response))
+    | Error e -> Ply(Dval.resultError kt (posixErrorKT ()) (dPosixError e)))
 
 /// Run one posix operation through the checked host boundary and map it to
 /// `Result<kt, PosixError>`.
 let private posixResult
   (kt : KnownType)
-  (state : ExecutionState)
   (vm : VMState)
   (op : HostTypes.PosixOp)
   (ok : Host.Response -> Dval)
   : Ply<Dval> =
-  asResult kt (PermissionCheck.performHost state vm (Host.Operation.Posix op)) ok
+  asResult kt vm (Host.Operation.Posix op) ok
 
 /// Run one posix lookup whose failure is simply absence: `Option<String>`.
 let private posixOption
-  (state : ExecutionState)
   (vm : VMState)
   (op : HostTypes.PosixOp)
   (text : Host.Response -> Option<string>)
   : Ply<Dval> =
-  uply {
-    match! PermissionCheck.performHost state vm (Host.Operation.Posix op) with
+  Interpreter.requestHost vm (Host.Operation.Posix op) (fun outcome ->
+    match outcome with
     | Ok response ->
       match text response with
-      | Some v -> return Dval.optionSome KTString (DString v)
-      | None -> return Dval.optionNone KTString
-    | Error _ -> return Dval.optionNone KTString
-  }
+      | Some v -> Ply(Dval.optionSome KTString (DString v))
+      | None -> Ply(Dval.optionNone KTString)
+    | Error _ -> Ply(Dval.optionNone KTString))
 
 let private unitOk (_ : Host.Response) : Dval = DUnit
 
@@ -111,8 +109,8 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current working directory via libc getcwd()"
       fn =
         (function
-        | state, vm, _, [| DUnit |] ->
-          posixResult KTString state vm HostTypes.PosixOp.Getcwd pathOk
+        | _, vm, _, [| DUnit |] ->
+          posixResult KTString vm HostTypes.PosixOp.Getcwd pathOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -127,8 +125,8 @@ let fns () : List<BuiltInFn> =
       description = "Changes the current working directory via libc chdir()"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          posixResult KTUnit state vm (HostTypes.PosixOp.Chdir path) unitOk
+        | _, vm, _, [| DString path |] ->
+          posixResult KTUnit vm (HostTypes.PosixOp.Chdir path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -145,8 +143,8 @@ let fns () : List<BuiltInFn> =
       description = "Sets an environment variable via libc setenv()"
       fn =
         (function
-        | state, vm, _, [| DString name; DString value |] ->
-          posixResult KTUnit state vm (HostTypes.PosixOp.Setenv(name, value)) unitOk
+        | _, vm, _, [| DString name; DString value |] ->
+          posixResult KTUnit vm (HostTypes.PosixOp.Setenv(name, value)) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -161,8 +159,8 @@ let fns () : List<BuiltInFn> =
       description = "Removes an environment variable via libc unsetenv()"
       fn =
         (function
-        | state, vm, _, [| DString name |] ->
-          posixResult KTUnit state vm (HostTypes.PosixOp.Unsetenv name) unitOk
+        | _, vm, _, [| DString name |] ->
+          posixResult KTUnit vm (HostTypes.PosixOp.Unsetenv name) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -179,9 +177,9 @@ let fns () : List<BuiltInFn> =
       description = "Creates a directory via libc mkdir()"
       fn =
         (function
-        | state, vm, _, [| DString path; DInt mode |] ->
+        | _, vm, _, [| DString path; DInt mode |] ->
           let op = HostTypes.PosixOp.Mkdir(path, intToInt32 vm mode)
-          posixResult KTUnit state vm op unitOk
+          posixResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -196,8 +194,8 @@ let fns () : List<BuiltInFn> =
       description = "Removes an empty directory via libc rmdir()"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          posixResult KTUnit state vm (HostTypes.PosixOp.Rmdir path) unitOk
+        | _, vm, _, [| DString path |] ->
+          posixResult KTUnit vm (HostTypes.PosixOp.Rmdir path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -212,8 +210,8 @@ let fns () : List<BuiltInFn> =
       description = "Removes a file via libc unlink()"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          posixResult KTUnit state vm (HostTypes.PosixOp.Unlink path) unitOk
+        | _, vm, _, [| DString path |] ->
+          posixResult KTUnit vm (HostTypes.PosixOp.Unlink path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -230,9 +228,9 @@ let fns () : List<BuiltInFn> =
       description = "Renames/moves a file or directory via libc rename()"
       fn =
         (function
-        | state, vm, _, [| DString oldpath; DString newpath |] ->
+        | _, vm, _, [| DString oldpath; DString newpath |] ->
           let op = HostTypes.PosixOp.Rename(oldpath, newpath)
-          posixResult KTUnit state vm op unitOk
+          posixResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -249,9 +247,9 @@ let fns () : List<BuiltInFn> =
       description = "Changes file permissions via libc chmod()"
       fn =
         (function
-        | state, vm, _, [| DString path; DInt mode |] ->
+        | _, vm, _, [| DString path; DInt mode |] ->
           let op = HostTypes.PosixOp.Chmod(path, intToInt32 vm mode)
-          posixResult KTUnit state vm op unitOk
+          posixResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -266,8 +264,8 @@ let fns () : List<BuiltInFn> =
       description = "Updates atime and mtime to now via libc utimes(path, NULL)"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          posixResult KTUnit state vm (HostTypes.PosixOp.UtimesNow path) unitOk
+        | _, vm, _, [| DString path |] ->
+          posixResult KTUnit vm (HostTypes.PosixOp.UtimesNow path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -284,12 +282,12 @@ let fns () : List<BuiltInFn> =
       description = "Creates a symbolic link via libc symlink()"
       fn =
         (function
-        | state, vm, _, [| DString target; DString linkpath |] ->
+        | _, vm, _, [| DString target; DString linkpath |] ->
           // The target is data stored in the link, not a path opened by this
           // operation; the boundary checks a write at linkpath. Any later
           // access to the link is rejected if it leaves the authorized tree.
           let op = HostTypes.PosixOp.Symlink(target, linkpath)
-          posixResult KTUnit state vm op unitOk
+          posixResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -304,8 +302,8 @@ let fns () : List<BuiltInFn> =
       description = "Reads the target of a symbolic link via libc readlink()"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          posixResult KTString state vm (HostTypes.PosixOp.Readlink path) pathOk
+        | _, vm, _, [| DString path |] ->
+          posixResult KTString vm (HostTypes.PosixOp.Readlink path) pathOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -326,10 +324,9 @@ let fns () : List<BuiltInFn> =
         "Creates a unique temp file via libc mkstemp(). Returns (fd, path)."
       fn =
         (function
-        | state, vm, _, [| DString prefix |] ->
+        | _, vm, _, [| DString prefix |] ->
           posixResult
             (KTTuple(VT.int, VT.string, []))
-            state
             vm
             (HostTypes.PosixOp.Mkstemp prefix)
             (fun response ->
@@ -354,8 +351,8 @@ let fns () : List<BuiltInFn> =
         "Creates a unique temp directory via libc mkdtemp(). Returns the path."
       fn =
         (function
-        | state, vm, _, [| DString prefix |] ->
-          posixResult KTString state vm (HostTypes.PosixOp.Mkdtemp prefix) pathOk
+        | _, vm, _, [| DString prefix |] ->
+          posixResult KTString vm (HostTypes.PosixOp.Mkdtemp prefix) pathOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -371,10 +368,9 @@ let fns () : List<BuiltInFn> =
         "Lists entries in a directory via libc opendir/readdir/closedir. Excludes '.' and '..'."
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
+        | _, vm, _, [| DString path |] ->
           posixResult
             (KTList(ValueType.Known KTString))
-            state
             vm
             (HostTypes.PosixOp.ListDir path)
             (fun response ->
@@ -394,8 +390,8 @@ let fns () : List<BuiltInFn> =
       description = "Gets an environment variable via libc getenv()"
       fn =
         (function
-        | state, vm, _, [| DString name |] ->
-          posixOption state vm (HostTypes.PosixOp.Getenv name) Host.expectEnvValue
+        | _, vm, _, [| DString name |] ->
+          posixOption vm (HostTypes.PosixOp.Getenv name) Host.expectEnvValue
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -420,7 +416,7 @@ let fns () : List<BuiltInFn> =
         "Spawns a child process, waits for it to finish, returns (exitCode, stdout, stderr)."
       fn =
         (function
-        | state, vm, _, [| DString program; DList(_, args); timeout |] ->
+        | _, vm, _, [| DString program; DList(_, args); timeout |] ->
           let argStrs =
             args
             |> List.map (fun d ->
@@ -433,10 +429,7 @@ let fns () : List<BuiltInFn> =
             | DEnum(_, _, _, "None", []) -> None
             | _ -> incorrectArgs ()
           let op = Host.Operation.ProcessRun(program, argStrs, timeoutMs)
-          asResult
-            processOutcomeKT
-            (PermissionCheck.performHost state vm op)
-            processOutcomeOk
+          asResult processOutcomeKT vm op processOutcomeOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -456,7 +449,7 @@ let fns () : List<BuiltInFn> =
         + "their output would leave them painting into a pipe."
       fn =
         (function
-        | state, vm, _, [| DString program; DList(_, args) |] ->
+        | _, vm, _, [| DString program; DList(_, args) |] ->
           let argStrs =
             args
             |> List.map (fun d ->
@@ -464,7 +457,7 @@ let fns () : List<BuiltInFn> =
               | DString s -> s
               | _ -> incorrectArgs ())
           let op = Host.Operation.ProcessRunInteractive(program, argStrs)
-          asResult KTInt (PermissionCheck.performHost state vm op) (fun response ->
+          asResult KTInt vm op (fun response ->
             let (exitCode, _, _) = Host.expectProcessOutcome response
             Dval.int (bigint exitCode))
         | _ -> incorrectArgs ())
@@ -486,9 +479,9 @@ let fns () : List<BuiltInFn> =
       description = "Sends a signal to a process."
       fn =
         (function
-        | state, vm, _, [| DInt pid; DInt signal |] ->
+        | _, vm, _, [| DInt pid; DInt signal |] ->
           let op = HostTypes.PosixOp.Kill(intToInt32 vm pid, intToInt32 vm signal)
-          posixResult KTUnit state vm op unitOk
+          posixResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -506,9 +499,9 @@ let fns () : List<BuiltInFn> =
         "Reads up to count bytes from a file descriptor into an ephemeral Blob."
       fn =
         (function
-        | state, vm, _, [| DInt fd; DInt count |] ->
+        | _, vm, _, [| DInt fd; DInt count |] ->
           let op = HostTypes.PosixOp.FdRead(intToInt32 vm fd, intToInt32 vm count)
-          posixResult KTBlob state vm op (fun response ->
+          posixResult KTBlob vm op (fun response ->
             Blob.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -531,14 +524,14 @@ let fns () : List<BuiltInFn> =
         "Seeks to a new position in an open file and returns the resulting byte offset."
       fn =
         (function
-        | state, vm, _, [| DInt fd; DInt offset; DInt whence |] ->
+        | _, vm, _, [| DInt fd; DInt offset; DInt whence |] ->
           let op =
             HostTypes.PosixOp.FdSeek(
               intToInt32 vm fd,
               intToInt64 vm offset,
               intToInt32 vm whence
             )
-          posixResult KTInt state vm op (fun response ->
+          posixResult KTInt vm op (fun response ->
             Dval.int (bigint (Host.expectOffset response)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -557,13 +550,20 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DInt fd; DBlob ref |] ->
-          uply {
-            let! bytes = Blob.readBytes state ref
+          // The bytes are usually in hand (an ephemeral blob); a persisted one is read from the
+          // store first, and the operation is named after that wait.
+          let written (bytes : byte[]) : Ply<Dval> =
             let op = HostTypes.PosixOp.FdWrite(intToInt32 vm fd, bytes)
-            return!
-              posixResult KTInt state vm op (fun response ->
-                Dval.int (bigint (Host.expectWritten response)))
-          }
+            posixResult KTInt vm op (fun response ->
+              Dval.int (bigint (Host.expectWritten response)))
+          let bytes = Blob.readBytes state ref
+          match Ply.trySync bytes with
+          | ValueSome bytes -> written bytes
+          | ValueNone ->
+            uply {
+              let! bytes = bytes
+              return! written bytes
+            }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -578,9 +578,9 @@ let fns () : List<BuiltInFn> =
       description = "Closes a file descriptor."
       fn =
         (function
-        | state, vm, _, [| DInt fd |] ->
+        | _, vm, _, [| DInt fd |] ->
           let op = HostTypes.PosixOp.FdClose(intToInt32 vm fd)
-          posixResult KTUnit state vm op unitOk
+          posixResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -598,10 +598,10 @@ let fns () : List<BuiltInFn> =
       description = "Opens a file via libc open(). Returns a file descriptor."
       fn =
         (function
-        | state, vm, _, [| DString path; DInt flags; DInt mode |] ->
+        | _, vm, _, [| DString path; DInt flags; DInt mode |] ->
           let op =
             HostTypes.PosixOp.Open(path, intToInt32 vm flags, intToInt32 vm mode)
-          posixResult KTInt state vm op (fun response ->
+          posixResult KTInt vm op (fun response ->
             Dval.int (bigint (Host.expectFd response)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -649,10 +649,9 @@ let fns () : List<BuiltInFn> =
       description = "Stats a file via libc stat(). Returns (mode, size, mtimeSec)."
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
+        | _, vm, _, [| DString path |] ->
           posixResult
             (KTTuple(VT.int, VT.int, [ VT.int ]))
-            state
             vm
             (HostTypes.PosixOp.Stat path)
             (fun response ->
@@ -735,9 +734,9 @@ let fns () : List<BuiltInFn> =
         "Returns the login name of the current user via getuid() + getpwuid()"
       fn =
         (function
-        | state, vm, _, [| DUnit |] ->
+        | _, vm, _, [| DUnit |] ->
           let op = HostTypes.PosixOp.UserName(uint32 (HostLibc.getuid ()))
-          posixOption state vm op Host.expectOptionalText
+          posixOption vm op Host.expectOptionalText
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -768,8 +767,8 @@ let fns () : List<BuiltInFn> =
         "Returns the home directory of the current user via getpwuid(getuid())"
       fn =
         (function
-        | state, vm, _, [| DUnit |] ->
-          posixOption state vm HostTypes.PosixOp.HomeDir Host.expectOptionalText
+        | _, vm, _, [| DUnit |] ->
+          posixOption vm HostTypes.PosixOp.HomeDir Host.expectOptionalText
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -806,10 +805,10 @@ let fns () : List<BuiltInFn> =
       description = "Locks or unlocks a file via libc flock()"
       fn =
         (function
-        | state, vm, _, [| DInt fd; DBool exclusive |] ->
+        | _, vm, _, [| DInt fd; DBool exclusive |] ->
           let lockOp = if exclusive then HostLibc.LOCK_EX else HostLibc.LOCK_UN
           let op = HostTypes.PosixOp.Flock(intToInt32 vm fd, lockOp)
-          posixResult KTUnit state vm op unitOk
+          posixResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -824,8 +823,8 @@ let fns () : List<BuiltInFn> =
       description = "Returns the owner username of a file via stat() + getpwuid()"
       fn =
         (function
-        | state, vm, _, [| DString path |] ->
-          posixResult KTString state vm (HostTypes.PosixOp.FileOwner path) (fun r ->
+        | _, vm, _, [| DString path |] ->
+          posixResult KTString vm (HostTypes.PosixOp.FileOwner path) (fun r ->
             DString(Host.expectText r))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

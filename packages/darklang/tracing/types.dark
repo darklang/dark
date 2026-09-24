@@ -33,7 +33,13 @@ type FnCall =
     args: List<LanguageTools.RuntimeTypes.Dval>
     result: LanguageTools.RuntimeTypes.Dval
     /// Frame-entry-to-exit duration in ms. Builtins always 0 (no entry hook).
-    durationMs: Int }
+    durationMs: Int
+    /// The process that made the call. `None` for a run nobody scheduled, and for rows written
+    /// before processes existed.
+    processId: Stdlib.Option.Option<Uuid>
+    /// Where this call completed in the whole trace, across processes. One process's rows in
+    /// `seq` order are its log; all of them are the interleaving.
+    seq: Int64 }
 
 
 /// Full trace payload — summary fields plus the input/fn-call lists.

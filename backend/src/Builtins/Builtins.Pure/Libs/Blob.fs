@@ -25,10 +25,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DBlob ref |] ->
-          uply {
-            let! bs = Blob.readBytes state ref
-            return Dval.int (bigint bs.Length)
-          }
+          Blob.withBytes state ref (fun bs -> Ply(Dval.int (bigint bs.Length)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -64,14 +61,12 @@ let fns () : List<BuiltInFn> =
         let err r = Dval.resultError KTString KTString r
         (function
         | state, _, _, [| DBlob ref |] ->
-          uply {
-            let! bs = Blob.readBytes state ref
+          Blob.withBytes state ref (fun bs ->
             try
               let s = (new System.Text.UTF8Encoding(false, true)).GetString(bs)
-              return ok (DString s)
+              Ply(ok (DString s))
             with e ->
-              return err (DString($"Invalid UTF-8: {e.Message}"))
-          }
+              Ply(err (DString($"Invalid UTF-8: {e.Message}"))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -90,10 +85,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DBlob ref |] ->
-          uply {
-            let! bs = Blob.readBytes state ref
-            return DString(System.Convert.ToHexString(bs))
-          }
+          Blob.withBytes state ref (fun bs ->
+            Ply(DString(System.Convert.ToHexString(bs))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -133,10 +126,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DBlob ref |] ->
-          uply {
-            let! bs = Blob.readBytes state ref
-            return DString(System.Convert.ToBase64String(bs))
-          }
+          Blob.withBytes state ref (fun bs ->
+            Ply(DString(System.Convert.ToBase64String(bs))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -221,8 +212,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DBlob ref; DInt startD; DInt lenD |] ->
-          uply {
-            let! bs = Blob.readBytes state ref
+          Blob.withBytes state ref (fun bs ->
             let len = bigint bs.Length
             let safeStart = max (bigint 0) (min (DarkInt.toBigInt startD) len)
             let safeLen =
@@ -230,8 +220,7 @@ let fns () : List<BuiltInFn> =
             let slice = Array.zeroCreate<byte> (int safeLen)
             if safeLen > bigint 0 then
               System.Array.Copy(bs, int safeStart, slice, 0, int safeLen)
-            return Blob.newEphemeral slice
-          }
+            Ply(Blob.newEphemeral slice))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -248,10 +237,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DBlob ref |] ->
-          uply {
-            let! bs = Blob.readBytes state ref
-            return Dval.byteArrayToDvalList bs
-          }
+          Blob.withBytes state ref (fun bs -> Ply(Dval.byteArrayToDvalList bs))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
