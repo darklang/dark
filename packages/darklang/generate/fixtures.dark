@@ -1,0 +1,178 @@
+module Darklang.Generate.Fixtures
+
+// An example value for a type, for tests and mocks: `Fixtures.forType<Acme.Core.Order> ()`
+// writes `exampleOrder () : Order` with a plausible value in every field, and an
+// example for every package type it reaches through its fields, so the whole thing
+// constructs. Strings carry their field name (`"customer"`), numbers are 1 and 1.5,
+// bools true, options `Some`, lists one element long, enums their first case. Edit the
+// values after generating, or edit the type and let the fixtures regenerate.
+
+
+/// The expression for an example of <param t>. Package types are built by calling
+/// their own `example<Name> ()`, which <fn forType> also emits.
+let exampleExpr
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  (hint: String)
+  : String =
+  match t with
+  | TString -> Generate.Source.stringLiteral hint
+  | TInt -> "1"
+  | TInt64 -> "1L"
+  | TInt8 -> "1y"
+  | TUInt8 -> "1uy"
+  | TInt16 -> "1s"
+  | TUInt16 -> "1us"
+  | TInt32 -> "1l"
+  | TUInt32 -> "1ul"
+  | TUInt64 -> "1UL"
+  | TInt128 -> "1Q"
+  | TUInt128 -> "1Z"
+  | TFloat -> "1.5"
+  | TBool -> "true"
+  | TUnit -> "()"
+  | TChar -> "'a'"
+  | TUuid -> "Stdlib.Uuid.generate ()"
+  | TDateTime -> "Stdlib.DateTime.now ()"
+  | TBlob -> "Stdlib.Blob.empty"
+  | TList inner -> "[ " ++ (exampleExpr ctx inner hint) ++ " ]"
+  | TDict inner -> "Stdlib.Dict.singleton \"key\" (" ++ (exampleExpr ctx inner hint) ++ ")"
+  | TTuple(a, b, rest) ->
+    let parts =
+      (Stdlib.List.flatten [ [ a, b ], rest ])
+      |> Stdlib.List.map (fun x -> exampleExpr ctx x hint)
+    "(" ++ (Stdlib.String.join parts ", ") ++ ")"
+  | TCustomType(nr, args) ->
+    let name = PrettyPrinter.ProgramTypes.typeReference ctx t
+    if Stdlib.String.startsWith name "Option<" then
+      match args with
+      | [ inner ] -> "Stdlib.Option.Option.Some(" ++ (exampleExpr ctx inner hint) ++ ")"
+      | _ -> "Stdlib.Option.Option.None"
+    else if Stdlib.String.startsWith name "Result<" then
+      match args with
+      | [ ok, _ ] -> "Stdlib.Result.Result.Ok(" ++ (exampleExpr ctx ok hint) ++ ")"
+      | _ -> "Stdlib.Result.Result.Ok ()"
+    else
+      match nr.resolved with
+      | Ok resolved ->
+        match resolved.name with
+        | Package hash ->
+          let short = PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition ctx hash
+          $"example{short} ()"
+      | Error _ -> "()"
+  | _ -> "()"
+
+
+/// The package types reachable from <param t>, by hash, for the transitive walk.
+/// `Option` and `Result` are built inline by <fn exampleExpr>, so only their type
+/// arguments are walked.
+let referencedTypes
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  : List<LanguageTools.ProgramTypes.Hash> =
+  match t with
+  | TList inner -> referencedTypes ctx inner
+  | TDict inner -> referencedTypes ctx inner
+  | TTuple(a, b, rest) ->
+    (Stdlib.List.flatten [ [ a, b ], rest ])
+    |> Stdlib.List.map (fun x -> referencedTypes ctx x)
+    |> Stdlib.List.flatten
+  | TCustomType(nr, args) ->
+    let name = PrettyPrinter.ProgramTypes.typeReference ctx t
+    let inline = (Stdlib.String.startsWith name "Option<") || (Stdlib.String.startsWith name "Result<")
+    let own =
+      if inline then
+        []
+      else
+        match nr.resolved with
+        | Ok resolved ->
+          match resolved.name with
+          | Package hash -> [ hash ]
+        | Error _ -> []
+    Stdlib.List.append
+      own
+      (args |> Stdlib.List.map (fun x -> referencedTypes ctx x) |> Stdlib.List.flatten)
+  | _ -> []
+
+
+/// The `example<Name> ()` fn for one declaration.
+let exampleSource
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (typ: LanguageTools.ProgramTypes.PackageType.PackageType)
+  : Stdlib.Option.Option<String> =
+  let name = PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition ctx typ.hash
+  let fullName = PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference ctx typ.hash
+  let body =
+    match typ.declaration.definition with
+    | Record fields ->
+      let assignments =
+        fields
+        |> Stdlib.List.map (fun f ->
+          let example = exampleExpr ctx f.typ f.name
+          $"{f.name} = {example}")
+        |> Stdlib.String.join "; "
+      Stdlib.Option.Option.Some $"{fullName} {{ {assignments} }}"
+    | Enum cases ->
+      match cases with
+      | [] -> Stdlib.Option.Option.None
+      | first :: _ ->
+        match first.fields with
+        | [] -> Stdlib.Option.Option.Some $"{fullName}.{first.name}"
+        | fs ->
+          let args =
+            fs
+            |> Stdlib.List.map (fun f -> "(" ++ (exampleExpr ctx f.typ first.name) ++ ")")
+            |> Stdlib.String.join " "
+          Stdlib.Option.Option.Some $"{fullName}.{first.name} {args}"
+    | Alias _ -> Stdlib.Option.Option.None
+
+  body
+  |> Stdlib.Option.map (fun b ->
+    Stdlib.String.join
+      [ $"/// An example {name}, for tests and mocks. Edit the values as you need.",
+        $"let example{name} () : {fullName} =",
+        $"  {b}" ]
+      "\n")
+
+
+/// `example<Name> ()` for <typeParam a> and for every package type its fields reach.
+let forType<'a> () : Generate.Run =
+  match LanguageTools.PackageManager.Type.declarationOf<'a> () with
+  | None ->
+    Generate.failed
+      [ "Fixtures.forType takes a package type as its type argument; a builtin type, a "
+        ++ "type variable or a list has no declaration to build an example from" ]
+  | Some root ->
+    let branchId = SCM.Branches.current ()
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId []
+
+    // Breadth-first over referenced package types, each visited once. Bounded by
+    // the number of types in the store, so a fold over a generous count is enough.
+    let fieldsOf (typ: LanguageTools.ProgramTypes.PackageType.PackageType) : List<LanguageTools.ProgramTypes.TypeReference> =
+      match typ.declaration.definition with
+      | Record fields -> fields |> Stdlib.List.map (fun f -> f.typ)
+      | Enum cases -> cases |> Stdlib.List.map (fun c -> c.fields |> Stdlib.List.map (fun f -> f.typ)) |> Stdlib.List.flatten
+      | Alias t -> [ t ]
+
+    let step (state: (List<LanguageTools.ProgramTypes.PackageType.PackageType> * List<LanguageTools.ProgramTypes.PackageType.PackageType>)) : (List<LanguageTools.ProgramTypes.PackageType.PackageType> * List<LanguageTools.ProgramTypes.PackageType.PackageType>) =
+      let (seen, frontier) = state
+      match frontier with
+      | [] -> (seen, [])
+      | typ :: rest ->
+        let seenHashes = seen |> Stdlib.List.map (fun t -> LanguageTools.ProgramTypes.hashToString t.hash)
+        let next =
+          (fieldsOf typ)
+          |> Stdlib.List.map (fun t -> referencedTypes ctx t)
+          |> Stdlib.List.flatten
+          |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.member seenHashes (LanguageTools.ProgramTypes.hashToString h)))
+          |> Stdlib.List.filterMap (fun h -> LanguageTools.PackageManager.Type.get h)
+        (Stdlib.List.pushBack seen typ, Stdlib.List.append rest next)
+
+    let (visited, _) =
+      (Stdlib.List.range 0 200)
+      |> Stdlib.List.fold ([], [ root ]) (fun state _ -> step state)
+
+    let examples = visited |> Stdlib.List.filterMap (fun t -> exampleSource ctx t)
+    match examples with
+    | [] -> Generate.failed [ "nothing to build an example from" ]
+    | _ -> Generate.ofSource (Generate.Source.module_ examples)
