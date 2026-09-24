@@ -277,14 +277,14 @@ let tableSource (t: Table) : List<String> =
 /// Row types for every table in <param dump>, a SQL schema as `sqlite3 x.db .schema`
 /// prints it.
 let schemaTypes (dump: Blob) : Generate.Run =
-  match Generate.text dump with
+  match Generate.text "dump" dump with
   | Error e -> Generate.failed [ e ]
   | Ok text ->
       match tablesOf text with
       | [] ->
         Generate.failed
-          [ "no CREATE TABLE statements found; `sqlite3 app.db .schema > schema.sql` "
-            ++ "produces the input this reads" ]
+          [ "the dump has no CREATE TABLE statements; "
+            ++ "`sqlite3 app.db .schema > schema.sql` writes the form this reads" ]
       | tables ->
         Generate.ofSource
           (Generate.Source.module_ (tables |> Stdlib.List.map tableSource |> Stdlib.List.flatten))

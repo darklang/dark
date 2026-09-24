@@ -109,7 +109,8 @@ let exampleSource
         fields
         |> Stdlib.List.map (fun f ->
           let example = exampleExpr ctx f.typ f.name
-          $"{f.name} = {example}")
+          let printed = PrettyPrinter.formatFieldName f.name
+          $"{printed} = {example}")
         |> Stdlib.String.join "; "
       Stdlib.Option.Option.Some $"{fullName} {{ {assignments} }}"
     | Enum cases ->
@@ -140,8 +141,7 @@ let forType<'a> () : Generate.Run =
   match LanguageTools.PackageManager.Type.declarationOf<'a> () with
   | None ->
     Generate.failed
-      [ "Fixtures.forType takes a package type as its type argument; a builtin type, a "
-        ++ "type variable or a list has no declaration to build an example from" ]
+      [ Generate.notAPackageType ]
   | Some root ->
     let branchId = SCM.Branches.current ()
     let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId []

@@ -161,7 +161,7 @@ let definitionRecords
 /// Types for <param schema>, a JSON Schema document: its definitions as records, the
 /// root as a record named <param name> when the root is an object.
 let types (name: String) (schema: Blob) : Generate.Run =
-  match Generate.jsonObject schema with
+  match Generate.jsonObject "schema" schema with
   | Error e -> Generate.failed [ e ]
   | Ok doc ->
     let rootName = Generate.Source.typeName name
@@ -170,7 +170,7 @@ let types (name: String) (schema: Blob) : Generate.Run =
     match Stdlib.List.append defs root with
     | [] ->
       Generate.failed
-        [ "the schema has no object properties and no definitions; nothing to "
+        [ "the schema has no properties and no definitions; there is nothing to "
           ++ "make a type from" ]
     | records ->
       let parseFn =

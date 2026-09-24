@@ -17,15 +17,20 @@ type Shape =
   | Float
   | String
   | Bool
-  /// Only ever `null`; alone it is `AltJson.Json`, beside another shape it makes
-  /// that one optional.
+  /// Only ever `null`: beside another shape it makes that one optional, alone it is a
+  /// field whose type the sample never showed.
   | Null
   | List of Shape
   /// Fields in the order the sample first showed them.
   | Record of List<(String * Shape)>
   | Optional of Shape
-  /// Two shapes that do not unify, or nothing to go on.
+  /// Nothing to go on: an empty array's elements, a field no sample carried a value for.
+  /// Unifies AWAY, since anything known is better information.
   | Any
+  /// Samples disagree: a number here, a string there. Absorbing, unlike `Any`: a third
+  /// sample agreeing with one side does not settle it, and a fold that let it be
+  /// overwritten answered differently depending on the order the files were read in.
+  | Conflict
 
 
 /// The shape of one JSON value. A number is `Int` when whole; `unify` widens.
@@ -61,6 +66,8 @@ let unify (a: Shape) (b: Shape) : Shape =
   | (Optional x, Optional y) -> makeOptional (unify x y)
   | (Optional x, y) -> makeOptional (unify x y)
   | (x, Optional y) -> makeOptional (unify x y)
+  | (Conflict, _) -> Shape.Conflict
+  | (_, Conflict) -> Shape.Conflict
   | (Any, other) -> other
   | (other, Any) -> other
   | (Int, Int) -> Shape.Int
@@ -71,7 +78,7 @@ let unify (a: Shape) (b: Shape) : Shape =
   | (Bool, Bool) -> Shape.Bool
   | (List x, List y) -> Shape.List (unify x y)
   | (Record fa, Record fb) -> Shape.Record (unifyFields fa fb)
-  | _ -> Shape.Any
+  | _ -> Shape.Conflict
 
 
 /// `Optional` never nests: an optional optional is just optional. A null made
@@ -124,6 +131,7 @@ let toModel (parent: String) (shape: Shape) : (Generate.Model.Shape * List<Gener
   // Only ever null: nothing is known about what it holds when it is not.
   | Null -> (Generate.Model.Shape.Optional Generate.Model.Shape.Any, [])
   | Any -> (Generate.Model.Shape.Any, [])
+  | Conflict -> (Generate.Model.Shape.Any, [])
   | Optional inner ->
     let (m, records) = toModel parent inner
     (Generate.Model.Shape.Optional m, records)
@@ -151,6 +159,9 @@ let toModel (parent: String) (shape: Shape) : (Generate.Model.Shape * List<Gener
         let (m, fieldRecords) = toModel (name ++ Generate.Source.typeName key) fieldShape
         let note =
           match fieldShape with
+          | Conflict ->
+            Stdlib.Option.Option.Some
+              "the samples disagree about this field; String is a guess"
           | Any -> Stdlib.Option.Option.Some "the sample did not pin this down"
           | Null -> Stdlib.Option.Option.Some "only ever null in the sample"
           | Optional Any -> Stdlib.Option.Option.Some "null or absent in the sample"
@@ -167,13 +178,13 @@ let toModel (parent: String) (shape: Shape) : (Generate.Model.Shape * List<Gener
 
 /// The shape of one JSON document's bytes, or why there is none.
 let shapeOfDocument (sample: Blob) : Stdlib.Result.Result<Shape, String> =
-  match Generate.text sample with
+  match Generate.text "sample" sample with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok t ->
     match Stdlib.AltJson.parse t with
     | Error e ->
-      Stdlib.Result.Result.Error
-        ("the sample did not parse as JSON: " ++ (Stdlib.AltJson.ParseError.toString e))
+      let why = Stdlib.AltJson.ParseError.toString e
+      Stdlib.Result.Result.Error $"the sample did not parse as JSON: {why}"
     | Ok json -> Stdlib.Result.Result.Ok(shapeOf json)
 
 
@@ -207,12 +218,12 @@ let fromSample (name: String) (sample: Blob) : Generate.Run =
 /// line the samples are a directory; every file in it is a sample.
 let fromSamples (name: String) (samples: List<Blob>) : Generate.Run =
   match samples with
-  | [] -> Generate.failed [ "no samples: the directory was empty" ]
+  | [] -> Generate.failed [ "the sample directory is empty; every file in it is read as one sample" ]
   | _ ->
     match samples |> Stdlib.List.map shapeOfDocument |> Stdlib.Result.collect with
     | Error e -> Generate.failed [ e ]
     | Ok shapes ->
       match shapes with
-      | [] -> Generate.failed [ "no samples" ]
+      | [] -> Generate.failed [ "the sample directory is empty" ]
       | first :: rest ->
         moduleFor name (rest |> Stdlib.List.fold first (fun acc s -> unify acc s))

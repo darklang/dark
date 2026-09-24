@@ -121,25 +121,13 @@ let functionOf
 
 /// `<source>.d.ts` for the module at <param source> (owner first): its types and fns.
 let toTypeScript (source: String) : Generate.Run =
-  let branchId = SCM.Branches.current ()
-  let segments = Stdlib.String.split source "."
-  match segments with
-  | [] -> Generate.failed [ "toTypeScript needs a module path, like Acme.Core" ]
-  | [ _ ] -> Generate.failed [ $"{source} is an owner, not a module; name a module under it" ]
-  | _ ->
-    let query =
-      LanguageTools.ProgramTypes.Search.SearchQuery
-        { currentModule = segments
-          text = ""
-          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-          entityTypes = []
-          exactMatch = false }
-    let results = LanguageTools.PackageManager.Search.search branchId query
-    let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId segments
+  match Generate.moduleItems source with
+  | Error e -> Generate.failed [ e ]
+  | Ok((ctx, results)) ->
     let types = results.types |> Stdlib.List.map (fun t -> declarationOf ctx t.entity)
     let fns = results.fns |> Stdlib.List.map (fun f -> functionOf ctx f.entity)
     match Stdlib.List.append types fns with
-    | [] -> Generate.failed [ $"nothing directly in {source}; is the path spelled owner first?" ]
+    | [] -> Generate.failed [ Generate.nothingIn source ]
     | declarations ->
       let header = $"// Generated from the Dark module {source}. Do not edit; regenerate."
       let text = (Stdlib.String.join (Stdlib.List.push declarations header) "\n\n") ++ "\n"
