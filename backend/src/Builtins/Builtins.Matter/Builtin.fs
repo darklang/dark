@@ -23,6 +23,9 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PM.Store.builtins ()
       Libs.PM.Scm.builtins ()
 
+      // Blobs that live in the package store
+      Libs.Blobs.builtins ()
+
       // Traces (reader surface)
       Libs.Traces.builtins () ]
     fnRenames
