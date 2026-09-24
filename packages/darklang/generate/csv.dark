@@ -81,19 +81,27 @@ let typeText (column: Column) : String =
 /// The expression that converts one cell (bound to `cell`) into the column's type,
 /// as a `Result<T, String>`.
 let convertExpr (column: Column) (header: String) : String =
+  // The header is the sample's text, so it goes through `stringLiteral`: a column called
+  // `he"llo` spliced raw closes the literal early and the module does not parse.
+  let says (what: String) : String =
+    Generate.Source.stringLiteral $"{header}: expected {what}, got "
+
   match column with
   | String -> "Stdlib.Result.Result.Ok cell"
   | Int ->
-    $"(Stdlib.Int.parse cell) |> Stdlib.Result.mapError (fun _ -> \"{header}: not a whole number: \" ++ cell)"
+    let message = says "a whole number"
+    $"(Stdlib.Int.parse cell) |> Stdlib.Result.mapError (fun _ -> {message} ++ cell)"
   | Float ->
-    $"(Stdlib.Float.parse cell) |> Stdlib.Result.mapError (fun _ -> \"{header}: not a number: \" ++ cell)"
+    let message = says "a number"
+    $"(Stdlib.Float.parse cell) |> Stdlib.Result.mapError (fun _ -> {message} ++ cell)"
   | Bool ->
-    $"(match Stdlib.String.toLowercase cell with | \"true\" -> Stdlib.Result.Result.Ok true | \"false\" -> Stdlib.Result.Result.Ok false | _ -> Stdlib.Result.Result.Error (\"{header}: not true or false: \" ++ cell))"
+    let message = says "true or false"
+    $"(match Stdlib.String.toLowercase cell with | \"true\" -> Stdlib.Result.Result.Ok true | \"false\" -> Stdlib.Result.Result.Ok false | _ -> Stdlib.Result.Result.Error ({message} ++ cell))"
 
 
 /// A row type named <param name> from <param sample>, plus `fromFields` and `parse`.
 let fromSample (name: String) (sample: Blob) : Generate.Run =
-  match Generate.text sample with
+  match Generate.text "sample" sample with
   | Error e -> Generate.failed [ e ]
   | Ok text ->
       let lines =
@@ -102,7 +110,7 @@ let fromSample (name: String) (sample: Blob) : Generate.Run =
         |> Stdlib.List.filter (fun l -> l != "")
       match lines with
       | [] -> Generate.failed [ "the sample has no header row" ]
-      | [ _ ] -> Generate.failed [ "the sample has a header row and no data rows" ]
+      | [ _ ] -> Generate.failed [ "the sample has a header row and no data rows; the column types come from the data" ]
       | header :: rows ->
         let headers = cellsOf header
         let width = Stdlib.List.length headers
@@ -157,8 +165,11 @@ let fromSample (name: String) (sample: Blob) : Generate.Run =
             |> Stdlib.String.join "\n  "
 
           let names = columns |> Stdlib.List.map (fun (_, field, _, _) -> field)
+          // Folded from the inside out, so the LAST name wrapped is the outermost match
+          // and would be the one reported. Reversed here, which is what makes the first
+          // failing column the one named, as the doc comment below promises.
           let assemble =
-            names
+            (Stdlib.List.reverse names)
             |> Stdlib.List.fold
               ($"Stdlib.Result.Result.Ok({typeName} {{ "
                ++ (names |> Stdlib.List.map (fun n -> $"{n} = {n}") |> Stdlib.String.join "; ")

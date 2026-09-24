@@ -48,8 +48,7 @@ let forType<'a> () : Generate.Run =
   match LanguageTools.PackageManager.Type.declarationOf<'a> () with
   | None ->
     Generate.failed
-      [ "Derive.forType takes a package type as its type argument; a builtin type, a "
-        ++ "type variable or a list has nothing to derive from" ]
+      [ Generate.notAPackageType ]
   | Some typ ->
     let branchId = SCM.Branches.current ()
     let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId []
@@ -61,8 +60,10 @@ let forType<'a> () : Generate.Run =
       let shown =
         fields
         |> Stdlib.List.map (fun f ->
-          let rendered = showExpr ctx f.typ ("value." ++ f.name)
-          $"\"{f.name} = \" ++ ({rendered})")
+          let printed = PrettyPrinter.formatFieldName f.name
+          let rendered = showExpr ctx f.typ $"value.{printed}"
+          let label = Generate.Source.stringLiteral $"{f.name} = "
+          $"{label} ++ ({rendered})")
         |> Stdlib.String.join " ++ \"; \" ++ "
       let show =
         Stdlib.String.join
@@ -73,7 +74,9 @@ let forType<'a> () : Generate.Run =
 
       let compared =
         fields
-        |> Stdlib.List.map (fun f -> $"(a.{f.name} == b.{f.name})")
+        |> Stdlib.List.map (fun f ->
+          let printed = PrettyPrinter.formatFieldName f.name
+          $"(a.{printed} == b.{printed})")
         |> Stdlib.String.join " && "
       let equals =
         Stdlib.String.join
@@ -86,10 +89,15 @@ let forType<'a> () : Generate.Run =
         fields
         |> Stdlib.List.map (fun f ->
           let fieldType = PrettyPrinter.ProgramTypes.typeReference ctx f.typ
+          // The field as the printer writes it (``type`` is a legal field name and not a
+          // legal identifier), and a plain identifier for the parameter carrying its new
+          // value.
+          let printed = PrettyPrinter.formatFieldName f.name
+          let param = Generate.Source.identifier f.name
           Stdlib.String.join
             [ $"/// <param value> with `{f.name}` replaced.",
-              $"let with{Generate.Source.typeName f.name} (value: {fullName}) ({f.name}: {fieldType}) : {fullName} =",
-              $"  {{ value with {f.name} = {f.name} }}" ]
+              $"let with{Generate.Source.typeName f.name} (value: {fullName}) ({param}: {fieldType}) : {fullName} =",
+              $"  {{ value with {printed} = {param} }}" ]
             "\n")
 
       Generate.ofSource
