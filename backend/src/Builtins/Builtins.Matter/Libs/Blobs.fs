@@ -35,14 +35,12 @@ let fns () : List<BuiltInFn> =
             match ref with
             | Persistent(hash, _) -> return DString hash
             | Ephemeral _ ->
-              let! promoted = Bytes.promote state.blobs.persist (DBytes ref)
-              match promoted with
-              | DBytes(Persistent(hash, _)) -> return DString hash
+              // The leaf handler, not the whole-graph rewriter: this IS the leaf, and
+              // going through `promote` meant matching a shape it can only return.
+              match! Bytes.promoteEphemeralLeaf state.blobs.persist (DBytes ref) with
+              | Some(DBytes(Persistent(hash, _))) -> return DString hash
               | _ ->
-                return
-                  Exception.raiseInternal
-                    "blob promotion did not yield a persistent ref"
-                    []
+                return Exception.raiseInternal "an ephemeral blob did not promote" []
           }
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -78,9 +76,12 @@ let fns () : List<BuiltInFn> =
       //
       // Dereferencing a blob is value materialisation, not an effect: the pure blob
       // builtins read persistent bytes the same way with no call effect (see
-      // docs/effects.md on the local-storage boundary). What makes this one live
-      // here rather than in `Builtins.Pure` is only that it starts from a hash, and
-      // a generator whose input is a stored blob has to count as effect-free.
+      // docs/effects.md on the local-storage boundary). The difference worth stating,
+      // because it is the one this argument has to cover: those builtins only ever see
+      // a ref they were handed, while this one starts from a hash the program supplies,
+      // so it can in principle name a blob the caller was never given. Guessing a
+      // SHA-256 is infeasible, which is why the answer is "effect-free" rather than
+      // "unreachable", and why it is a CLEANUP rather than settled.
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
 

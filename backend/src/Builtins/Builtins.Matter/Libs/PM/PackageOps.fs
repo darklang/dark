@@ -149,6 +149,19 @@ let evaluateLandedValues (exeState : ExecutionState) : Ply<unit> =
     return ()
   }
 
+/// The ops a Dark caller handed over, or a reason. Unlike ops off the wire, these were
+/// built in this process a moment ago, so one that will not decode is a bug here rather
+/// than a peer on a newer build: inserting the rest and reporting success would stage
+/// less than the caller produced and call it done.
+let private decodeOps (ops : List<Dval>) : Result<List<PT.PackageOp>, string> =
+  let decoded = ops |> List.choose PT2DT.PackageOp.fromDT
+  let asked = List.length ops
+  let read = List.length decoded
+  if read = asked then
+    Ok decoded
+  else
+    Error $"{asked - read} of {asked} ops could not be read back; none were added"
+
 let private addOpsFn
   (name : string)
   (description : string)
@@ -175,12 +188,14 @@ let private addOpsFn
       | exeState, _, _, [| DUuid branchId; DList(_vtTODO, Items(ops)) |] ->
         uply {
           try
-            let ops = ops |> List.choose PT2DT.PackageOp.fromDT
-            match!
-              authorOpsWith insert exeState pm (PT.BranchId.Id branchId) ops
-            with
-            | Ok n -> return resultOk (Dval.dint64 (int64 n))
+            match decodeOps ops with
             | Error message -> return resultError (Dval.string message)
+            | Ok ops ->
+              match!
+                authorOpsWith insert exeState pm (PT.BranchId.Id branchId) ops
+              with
+              | Ok n -> return resultOk (Dval.dint64 (int64 n))
+              | Error message -> return resultError (Dval.string message)
           with ex ->
             return resultError (Dval.string ex.Message)
         }
