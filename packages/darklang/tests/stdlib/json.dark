@@ -2833,6 +2833,23 @@ module UserDefinedRecords =
           "Can't parse JSON `\"B\"` as type `Darklang.Stdlib.Option.Option<String>` at path: `root.Nickname.Some`"))
 
 
+    test noneFieldIsLeftOut =
+      Stdlib.Json.serialize<Profile>(
+        Profile
+          { Name = "Bob", Nickname = Option.Some("B"), Age = Option.None })
+      |> Stdlib.Test.equal("{\"Name\":\"Bob\",\"Nickname\":\"B\"}")
+
+
+    // known-lossy: one layer of Option is all JSON carries
+    test nestedNoneIsNull =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Option<Option<Int64>>>(Option.Some(Option.None))
+          |> Stdlib.Test.equal("null")
+
+          Stdlib.Json.parse<Option<Option<Int64>>>("null")
+          |> Stdlib.Test.equal(Result.Ok(Option.None)) ])
+
+
     test otherMissingFieldsStillFail =
       Stdlib.Json.parse<Profile>("""{ "Nickname": { "None": [] } }""")
       |> err
