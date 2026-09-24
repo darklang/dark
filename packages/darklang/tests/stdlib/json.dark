@@ -2248,11 +2248,11 @@ module Tuples =
 
         Stdlib.Json.serialize<(Person * Option<Int64>)>(
           (Person { Name = "Alice", Age = 42 }, Option.Some(1)))
-        |> Stdlib.Test.equal("[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]")
+        |> Stdlib.Test.equal("[{\"Age\":42,\"Name\":\"Alice\"},1]")
 
         Stdlib.Json.serialize<(Option<Int64> * Result<Int64, String>)>(
           (Option.Some(1), Result.Ok(2)))
-        |> Stdlib.Test.equal("[{\"Some\":[1]},{\"Ok\":[2]}]")
+        |> Stdlib.Test.equal("[1,{\"Ok\":[2]}]")
 
         Stdlib.Json.serialize<(Char * Bool)>(('a', true))
         |> Stdlib.Test.equal("[\"a\",true]")
@@ -2363,27 +2363,43 @@ module Tuples =
               "Can't parse JSON `\"two\"` as type `List<String>` at path: `root[0][0][1]`"))
 
           Stdlib.Json.parse<(Person * Option<Int64>)>(
-            "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[\"one\"]}]")
+            "[{\"Age\":42,\"Name\":\"Alice\"},\"one\"]")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
-              "Can't parse JSON `\"one\"` as type `Int64` at path: `root[1].Some[0]`")) ])
+              "Can't parse JSON `\"one\"` as type `Int64` at path: `root[1]`")) ])
 
 
 module Option =
-  // TODO: more...
+  // the bare value or null, as other systems write it
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Option<Int64>>(Option.None)
-        |> Stdlib.Test.equal("{\"None\":[]}")
+        |> Stdlib.Test.equal("null")
 
         Stdlib.Json.serialize<Option<Int64>>(Option.Some(1))
-        |> Stdlib.Test.equal("{\"Some\":[1]}") ])
+        |> Stdlib.Test.equal("1")
+
+        Stdlib.Json.serialize<Option<String>>(Option.Some("a"))
+        |> Stdlib.Test.equal("\"a\"")
+
+        Stdlib.Json.serialize<List<Option<Int64>>>(
+          [ Option.Some(1), Option.None ])
+        |> Stdlib.Test.equal("[1,null]") ])
 
 
   test parse =
     Stdlib.Test.all(
-      [ Stdlib.Json.parse<Option<Int64>>("{\"None\":[]}")
+      [ Stdlib.Json.parse<Option<Int64>>("null")
+        |> Stdlib.Test.equal(Result.Ok(Option.None))
+
+        Stdlib.Json.parse<Option<Int64>>("1")
+        |> Stdlib.Test.equal(Result.Ok(Option.Some(1)))
+
+        Stdlib.Json.parse<List<Option<Int64>>>("[1,null]")
+        |> Stdlib.Test.equal(Result.Ok([ Option.Some(1), Option.None ]))
+
+        Stdlib.Json.parse<Option<Int64>>("{\"None\":[]}")
         |> Stdlib.Test.equal(Result.Ok(Option.None))
 
         Stdlib.Json.parse<Option<Int64>>("{\"Some\":[1]}")
@@ -2391,27 +2407,13 @@ module Option =
 
 
   module Errors =
-    // Option parsing intentionally requires the explicit enum representation.
     test parseErrors =
       Stdlib.Test.all(
-        [ // TODO: these might make good candidates for more ergonmic parsing
-          Stdlib.Json.parse<Option<Int64>>("null")
+        [ Stdlib.Json.parse<Option<List<String>>>("[1,2,3]")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
-              "Can't parse JSON `null` as type `Darklang.Stdlib.Option.Option<Int64>` at path: `root`"))
-
-          Stdlib.Json.parse<Option<Int64>>("1")
-          |> err
-          |> Stdlib.Test.equal(
-            Result.Error(
-              "Can't parse JSON `1` as type `Darklang.Stdlib.Option.Option<Int64>` at path: `root`"))
-
-          Stdlib.Json.parse<Option<List<String>>>("[1,2,3]")
-          |> err
-          |> Stdlib.Test.equal(
-            Result.Error(
-              "Can't parse JSON `[1,2,3]` as type `Darklang.Stdlib.Option.Option<List<String>>` at path: `root`"))
+              "Can't parse JSON `1` as type `String` at path: `root[0]`"))
 
           // a case's fields must be an array
           Stdlib.Json.parse<Option<String>>("{\"Some\":\"x\"}")
@@ -2452,7 +2454,7 @@ module Result =
             [ (Stdlib.Dict.singleton("a", "b"), Option.Some(1))
               (Stdlib.Dict.singleton("c", "d"), Option.None) ]))
         |> Stdlib.Test.equal(
-          "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}")
+          "{\"Ok\":[[[{\"a\":\"b\"},1],[{\"c\":\"d\"},null]]]}")
 
         Stdlib.Json.serialize<Result<Result<Int64, String>, String>>(
           Result.Ok(Result.Ok(1)))
@@ -2465,8 +2467,7 @@ module Result =
         Stdlib.Json.serialize<
           Result<Result<Option<Result<Int64, String>>, String>, String>>(
           Result.Ok(Result.Ok(Option.Some(Result.Ok(1)))))
-        |> Stdlib.Test.equal(
-          "{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}") ])
+        |> Stdlib.Test.equal("{\"Ok\":[{\"Ok\":[{\"Ok\":[1]}]}]}") ])
 
 
   test parse =
@@ -2935,7 +2936,7 @@ module Package =
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Option<Int64>>(Option.None)
-        |> Stdlib.Test.equal("{\"None\":[]}")
+        |> Stdlib.Test.equal("null")
 
         Stdlib.Json.serialize<Result<Int64, String>>(Result.Ok(1))
         |> Stdlib.Test.equal("{\"Ok\":[1]}")
