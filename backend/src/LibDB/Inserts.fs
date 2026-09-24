@@ -481,6 +481,7 @@ let insertAndApplyOps (ops : List<PT.PackageOp>) : Task<int64> =
 
 let private insertCheckedOps
   (reservedOwnersAllowed : bool)
+  (source : string)
   (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
   : Task<Result<int64, string>> =
@@ -500,7 +501,7 @@ let private insertCheckedOps
       match! ReferenceNamesContent.validate ops with
       | Some reason -> return Error reason
       | None ->
-        let! count = authorOn branch "op" ops
+        let! count = authorOn branch source ops
         return Ok count
   }
 
@@ -508,13 +509,18 @@ let private insertCheckedOps
 /// `Darklang` bindings and unstabilized hashes before insertion; trusted seeding does not come through
 /// here.
 let insertUntrustedOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) =
-  insertCheckedOps false branch ops
+  insertCheckedOps false "op" branch ops
+
+/// `insertUntrustedOps` for ops a generator produced while following an edit: their bindings are
+/// marked propagation, as a repoint's are, so `status` and `commit` list them as followed.
+let insertRegeneratedOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) =
+  insertCheckedOps false "propagation" branch ops
 
 /// `insertUntrustedOps` that lets `Darklang` names change, for `LocalExec apply-package-edits`
 /// alone: the dev build landing edits to `packages/`, the source a reload loads them from. No
 /// `dark` process can reach it.
 let insertBundledOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) =
-  insertCheckedOps true branch ops
+  insertCheckedOps true "op" branch ops
 
 
 /// Replace the ops <param ops0> of main's draft with <param ops>, but only if the draft still holds

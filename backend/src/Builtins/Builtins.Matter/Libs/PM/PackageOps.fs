@@ -150,13 +150,15 @@ let evaluateLandedValues (exeState : ExecutionState) : Ply<unit> =
   }
 
 let private addOpsFn
+  (name : string)
+  (description : string)
   (insert :
     PT.BranchId
       -> List<PT.PackageOp>
       -> System.Threading.Tasks.Task<Result<int64, string>>)
   (pm : PT.PackageManager)
   : BuiltInFn =
-  { name = fn "scmAddOps" 0
+  { name = fn name 0
     typeParams = []
     parameters =
       [ Param.make
@@ -165,9 +167,7 @@ let private addOpsFn
           "the branch these ops land on (main is `SCM.Branch.mainBranchId`). Passed rather than ambient so a caller can author onto a branch it isn't sitting on -- which is what sync does"
         Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
     returnType = TypeReference.result TInt64 TString
-    description =
-      "Add package ops to <param branchId>, uncommitted. Returns the "
-      + "number inserted; duplicates are skipped, since an op's id is its content."
+    description = description
     fn =
       let resultOk = Dval.resultOk KTInt64 KTString
       let resultError = Dval.resultError KTInt64 KTString
@@ -191,8 +191,12 @@ let private addOpsFn
 
 /// `scmAddOps` as `LocalExec apply-package-edits` installs it, letting `Darklang` names change
 /// (`LibDB.Inserts.insertBundledOps`). Nothing else installs it.
+let private addOpsDescription =
+  "Add package ops to <param branchId>, uncommitted. Returns the "
+  + "number inserted; duplicates are skipped, since an op's id is its content."
+
 let bundledAddOps (pm : PT.PackageManager) : BuiltInFn =
-  addOpsFn LibDB.Inserts.insertBundledOps pm
+  addOpsFn "scmAddOps" addOpsDescription LibDB.Inserts.insertBundledOps pm
 
 
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
@@ -249,7 +253,18 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    addOpsFn LibDB.Inserts.insertUntrustedOps pm
+    addOpsFn "scmAddOps" addOpsDescription LibDB.Inserts.insertUntrustedOps pm
+
+    // `scmAddOps` for ops a GENERATOR produced while following an edit. Their bindings are
+    // marked 'propagation', as a repoint's are, so `status` and `commit` list them as
+    // "followed" rather than as something the person typed, and a pin un-stages them the
+    // way it un-stages a repoint.
+    addOpsFn
+      "scmAddRegeneratedOps"
+      ("Add package ops a generator produced while following an edit to <param branchId>, "
+       + "uncommitted, with their bindings marked as propagation. Returns the number inserted.")
+      LibDB.Inserts.insertRegeneratedOps
+      pm
 
 
     // Which branch is THIS process on. Set by `--branch <id>` or the persistent
