@@ -17,8 +17,7 @@ let mirror<'a> () : Generate.Run =
   match LanguageTools.PackageManager.Type.declarationOf<'a> () with
   | None ->
     Generate.failed
-      [ "mirror takes a package type as its type argument; a builtin type, a type "
-        ++ "variable or a list has no declaration to copy" ]
+      [ Generate.notAPackageType ]
   | Some typ ->
     // Printed with no module context, so every reference inside the declaration is
     // fully qualified and resolves the same from wherever the output lands.
@@ -35,26 +34,14 @@ let mirror<'a> () : Generate.Run =
 /// The module is named by path, not by type argument, so this generator does NOT
 /// repoint when the source changes: re-run it by name. Submodules are not copied.
 let mirrorModule (source: String) : Generate.Run =
-  let branchId = SCM.Branches.current ()
-  let segments = Stdlib.String.split source "."
-  match segments with
-  | [] -> Generate.failed [ "mirrorModule needs a module path, like Acme.Core" ]
-  | [ _ ] -> Generate.failed [ $"{source} is an owner, not a module; name a module under it" ]
-  | _ ->
-    let query =
-      LanguageTools.ProgramTypes.Search.SearchQuery
-        { currentModule = segments
-          text = ""
-          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-          entityTypes = []
-          exactMatch = false }
-    let results = LanguageTools.PackageManager.Search.search branchId query
-    // Names inside the copy refer to each other bare; the printer spells a sibling
-    // that way when the context IS the source module.
-    let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId segments
+  // Names inside the copy refer to each other bare, which is what the context from
+  // `moduleItems` spells: it IS the source module.
+  match Generate.moduleItems source with
+  | Error e -> Generate.failed [ e ]
+  | Ok((ctx, results)) ->
     let types = results.types |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx t.entity)
     let values = results.values |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue ctx v.entity)
     let fns = results.fns |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn ctx f.entity)
     match Stdlib.List.flatten [ types, values, fns ] with
-    | [] -> Generate.failed [ $"nothing directly in {source}; is the path spelled owner first?" ]
+    | [] -> Generate.failed [ Generate.nothingIn source ]
     | declarations -> Generate.ofSource (Generate.Source.module_ declarations)

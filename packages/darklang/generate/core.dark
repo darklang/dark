@@ -64,29 +64,79 @@ let input (hash: String) : Blob =
 
 
 /// The text of a blob input, or why there is none. Every generator that reads a file
-/// starts here, so the wording of "empty" and "not text" is the same everywhere.
-let text (input: Blob) : Stdlib.Result.Result<String, String> =
+/// starts here, so "empty" and "not text" are worded the same everywhere.
+///
+/// <param noun> is what the generator's own messages call this input, which is the name
+/// of the flag that carried it (`sample`, `schema`, `dump`, `spec`). Without it one run
+/// says "the input is empty" and the next line says "the sample has no header row", two
+/// nouns for one file.
+let text (noun: String) (input: Blob) : Stdlib.Result.Result<String, String> =
   if Stdlib.Blob.length input == 0 then
-    Stdlib.Result.Result.Error "the input is empty (a missing file reads as empty)"
+    Stdlib.Result.Result.Error $"the {noun} is empty; a missing file reads as empty"
   else
     match Stdlib.Blob.toString input with
     | Ok t -> Stdlib.Result.Result.Ok t
-    | Error _ -> Stdlib.Result.Result.Error "the input is not UTF-8 text"
+    | Error _ -> Stdlib.Result.Result.Error $"the {noun} is not UTF-8 text"
 
 
 /// The JSON object at the top of a blob input, for the generators that read one.
 let jsonObject
+  (noun: String)
   (input: Blob)
   : Stdlib.Result.Result<List<(String * Stdlib.AltJson.Json)>, String> =
-  match text input with
+  match text noun input with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok t ->
     match Stdlib.AltJson.parse t with
     | Error e ->
-      Stdlib.Result.Result.Error
-        ("the input did not parse as JSON: " ++ (Stdlib.AltJson.ParseError.toString e))
+      let why = Stdlib.AltJson.ParseError.toString e
+      Stdlib.Result.Result.Error $"the {noun} did not parse as JSON: {why}"
     | Ok(Object fields) -> Stdlib.Result.Result.Ok fields
-    | Ok _ -> Stdlib.Result.Result.Error "the input's top level is not an object"
+    | Ok _ -> Stdlib.Result.Result.Error $"the {noun}'s top level is not an object"
+
+
+/// The items directly inside a module, with the printer context that spells a sibling
+/// bare. Two generators read a module this way (the mirror and the TypeScript one), and
+/// they refuse the same things in the same words.
+///
+/// `String.split` never gives back an empty list, so there is no "no path at all" case:
+/// one segment is an owner, and anything longer is a module path.
+let moduleItems
+  (source: String)
+  : Stdlib.Result.Result<(PrettyPrinter.ProgramTypes.Context *
+    LanguageTools.ProgramTypes.Search.SearchResults), String> =
+  let branchId = SCM.Branches.current ()
+  let segments = Stdlib.String.split source "."
+
+  match segments with
+  | [ _ ] ->
+    Stdlib.Result.Result.Error
+      $"{source} is an owner, not a module; name a module under it, like Acme.Core"
+  | _ ->
+    let query =
+      LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = segments
+          text = ""
+          searchDepth =
+            LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+          entityTypes = []
+          exactMatch = false }
+
+    let results = LanguageTools.PackageManager.Search.search branchId query
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId segments
+    Stdlib.Result.Result.Ok((ctx, results))
+
+
+/// Why a generator that reads a type cannot read this one. Three of them refuse it, and
+/// the type argument is the same thing in all three.
+val notAPackageType =
+  "the type argument is not a package type; a builtin type, a type variable and a list "
+  ++ "have no declaration to read"
+
+
+/// Nothing was found directly in a module the person named.
+let nothingIn (source: String) : String =
+  $"there is nothing directly in {source}; the path is spelled owner first, like Acme.Core"
 
 
 /// Text emission helpers. Every generator writes source through these so that the
@@ -94,15 +144,22 @@ let jsonObject
 /// and so that names are legal before the parser sees them.
 module Source =
 
-  /// A field or fn name the parser accepts: lower-case first character, then
-  /// letters, digits and underscore. Anything else is dropped; an empty or
-  /// digit-leading result gets a leading underscore.
+  /// A name the parser accepts anywhere an identifier goes (a fn, a parameter, a local):
+  /// lower-case first character, then ASCII letters, digits and underscore. Anything
+  /// else is dropped; an empty or digit-leading result gets a leading underscore, and a
+  /// keyword gets a trailing one.
+  ///
+  /// ASCII rather than `Char.isAlphanumeric`, which is unicode-aware by design: `café`
+  /// survives that filter and then fails to parse as a bare identifier.
+  ///
+  /// This is NOT for a record field whose name has to match a wire key. That is
+  /// `fieldName`, which keeps the key and backticks it.
   let identifier (raw: String) : String =
     let kept =
       raw
       |> Stdlib.String.toList
       |> Stdlib.List.filter (fun c ->
-        (Stdlib.Char.isAlphanumeric c) || (c == '_'))
+        (Stdlib.Char.isASCIILetter c) || (Stdlib.Char.isDigit c) || (c == '_'))
       |> Stdlib.String.fromList
 
     let lowered =
@@ -115,15 +172,22 @@ module Source =
           (Stdlib.Char.toLowercase first |> Stdlib.Char.toString)
           ++ (Stdlib.String.fromList rest)
 
-    lowered
+    // `type`, `let`, `match` and friends look like identifiers and are not. The printer
+    // decides what needs quoting, so asking it is the same list the lexer uses.
+    if (PrettyPrinter.formatFieldName lowered) == lowered then
+      lowered
+    else
+      lowered ++ "_"
 
 
-  /// A type name the parser accepts: upper-case first character, letters and digits.
+  /// A type name the parser accepts: upper-case first character, then ASCII letters and
+  /// digits. ASCII for the reason `identifier` says.
   let typeName (raw: String) : String =
     let kept =
       raw
       |> Stdlib.String.toList
-      |> Stdlib.List.filter (fun c -> Stdlib.Char.isAlphanumeric c)
+      |> Stdlib.List.filter (fun c ->
+        (Stdlib.Char.isASCIILetter c) || (Stdlib.Char.isDigit c))
       |> Stdlib.String.fromList
 
     match Stdlib.String.toList kept with
@@ -141,6 +205,15 @@ module Source =
     "\"" ++ (PrettyPrinter.escapeSpecialCharacters text) ++ "\""
 
 
+  /// A field name Dark accepts for the key the DATA uses, backticked when the key is
+  /// not a bare identifier (``user-id``, ``type``). The two have to be the same string:
+  /// `Stdlib.Json` matches a record field against the JSON key by name, so a field
+  /// renamed to look tidy reads as absent, which for an `Option` field is silently
+  /// `None`. The pretty printer prints declarations, literals and field access this
+  /// way, so generated source that uses it stays round-trippable.
+  let fieldName (key: String) : String = PrettyPrinter.formatFieldName key
+
+
   /// One record field line, with a doc comment when there is something to say.
   let field
     (name: String)
@@ -153,18 +226,16 @@ module Source =
 
 
   /// A record type declaration over already-rendered field lines.
+  ///
+  /// No fields is not a record the parser accepts ("a record type needs at least one
+  /// field"), and an object with no keys is a dict anyway, so it becomes one. Callers
+  /// that can see an empty object coming say `Dict` themselves; this is the net.
   let recordType (name: String) (fields: List<String>) : String =
     match fields with
-    | [] -> $"type {name} = {{ }}"
+    | [] -> $"type {name} = Dict<String, String>"
     | _ ->
       let body = Stdlib.String.join fields "\n    "
       $"type {name} =\n  {{ {body} }}"
-
-
-  /// An enum type declaration over already-rendered case lines (`| Name of T`).
-  let enumType (name: String) (cases: List<String>) : String =
-    let body = Stdlib.String.join cases "\n  "
-    $"type {name} =\n  {body}"
 
 
   /// A fn declaration.
@@ -186,9 +257,9 @@ module Source =
 /// What a generator has learned about the data's shape, and the type it becomes.
 /// Shared by the JSON, JSON Schema, OpenAPI and CSV generators.
 ///
-/// Its records are read and written with `Stdlib.Json` directly: since `Option` became
-/// bare-or-null there, a generated record round-trips real-world JSON with nothing of
-/// its own.
+/// Its records are read and written with `Stdlib.Json` directly, with no codec of their
+/// own: an absent or null key is `None` there and a `None` field is left out. That holds
+/// only while a field's name IS its key, which is what `Source.fieldName` is for.
 module Model =
 
   type Shape =
@@ -196,7 +267,10 @@ module Model =
     | Float
     | String
     | Bool
-    /// Not pinned down: kept as raw `AltJson.Json`.
+    /// Not pinned down by the input: `String`, and the field carries a note saying so.
+    /// It has to be a type `Stdlib.Json.parse` can read, which rules out a JSON-value
+    /// union: a document that puts something else there fails with the field named,
+    /// which is the honest outcome for a guess.
     | Any
     | List of Shape
     | Optional of Shape
@@ -205,9 +279,9 @@ module Model =
 
 
   type Field =
-    { /// The Dark field name, legal for the parser.
+    { /// An identifier for the field, for a generator that builds expressions from it.
       name: String
-      /// The key as the data spells it, when that is not a legal Dark field name.
+      /// The key as the data spells it, which is what the declaration carries.
       key: String
       shape: Shape
       note: Stdlib.Option.Option<String> }
@@ -222,7 +296,7 @@ module Model =
     | Float -> "Float"
     | String -> "String"
     | Bool -> "Bool"
-    | Any -> "Stdlib.AltJson.Json"
+    | Any -> "String"
     | List inner -> $"List<{typeText inner}>"
     | Optional inner -> $"Stdlib.Option.Option<{typeText inner}>"
     | Named name -> name
@@ -232,12 +306,7 @@ module Model =
     let fields =
       r.fields
       |> Stdlib.List.map (fun f ->
-        let note =
-          if (f.name != f.key) && (Stdlib.Option.isNone f.note) then
-            Stdlib.Option.Option.Some $"key \"{f.key}\" in the data"
-          else
-            f.note
-        Source.field f.name (typeText f.shape) note)
+        Source.field (Source.fieldName f.key) (typeText f.shape) f.note)
     Source.recordType r.name fields
 
 

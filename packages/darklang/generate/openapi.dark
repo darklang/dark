@@ -252,13 +252,13 @@ let parsed
        * List<(String * Generate.Model.Shape)>
        * List<Generate.Model.Record>),
       String> =
-  match Generate.jsonObject spec with
+  match Generate.jsonObject "spec" spec with
   | Error e ->
     Stdlib.Result.Result.Error
       (e ++ ". A YAML document has to be converted first (`yq -o json openapi.yaml`)")
   | Ok doc ->
     if Stdlib.List.isEmpty (obj "paths" doc) then
-      Stdlib.Result.Result.Error "the document has no `paths`; is it an OpenAPI document?"
+      Stdlib.Result.Result.Error "the spec has no `paths`, so it is not an OpenAPI document"
     else
       // Object schemas become records; anything else (`Pets = array of Pet`) is an
       // alias, used as its underlying shape wherever it is referenced, since Dark has
