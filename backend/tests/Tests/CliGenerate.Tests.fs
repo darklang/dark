@@ -241,7 +241,7 @@ let generateRefusesWhatIsNotAGenerator =
         generateRefuses
           state
           $"Darklang.Stdlib.Option.Option"
-          "no function named"
+          "no generator named"
           "a type is not something to run"
       do! generateRefuses state $"" "which generator" "no name is a usage error"
     })
@@ -274,7 +274,7 @@ let generateRefusesAMissingFileBeforeWritingAnything =
           generateRefuses
             state
             $"Json.fromSample Order x --into Tests.Gen.Missing"
-            "by name, not by position"
+            "takes its arguments by name"
             "positional arguments are refused"
         do!
           refuses
@@ -636,7 +636,7 @@ let csvFromSample =
         evals
           state
           "Tests.Gen.Csv.fromFields [ \"x\", \"cy\", \"50\", \"true\", \"\" ]"
-          "not a whole number"
+          "expected a whole number"
           "a cell that does not convert names its column"
     })
 
