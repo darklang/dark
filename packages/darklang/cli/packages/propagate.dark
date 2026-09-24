@@ -181,6 +181,10 @@ let repointNow(
             currentHash) with
     | Ok([]) -> nothingFollowed()
     | Ok(repoints) ->
+      // A repointed saved generator is a generator whose input moved: re-run it, so its
+      // outputs follow the edit the way a caller follows a callee. Staging its outputs
+      // comes back through here for THEIR dependents, which is the cascade.
+      Generate.regenerateRepointed(branchId, repoints)
       let nameOf(r: LanguageTools.ProgramTypes.PropagateRepoint): String =
         let l = r.location
         let mods = Stdlib.String.join(l.modules, ".")
