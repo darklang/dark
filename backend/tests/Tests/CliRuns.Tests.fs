@@ -85,7 +85,11 @@ let private forkDivergesAfterThePosition =
           (Some(parent.id, 1L))
           "and knows where it came from"
         let! shown = runCli state [ "exec"; "show"; prefixOf child ]
-        Expect.stringContains shown "forked from" "show says so"
+        Expect.stringContains shown "forked" "show says so"
+        Expect.stringContains
+          shown
+          ((string parent.id).Substring(0, 8))
+          "and names the run it came from"
         let! resumed = runCli state [ "exec"; "resume"; prefixOf child ]
         let last = resumed.Split('\n') |> Array.last
         match words first, words last with
