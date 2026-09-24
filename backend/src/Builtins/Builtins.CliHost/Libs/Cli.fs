@@ -21,6 +21,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Exe = LibExecution.Execution
+module Scheduler = LibExecution.Scheduler
 module PackageRefs = LibExecution.PackageRefs
 module Json = Builtins.Pure.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
@@ -574,10 +575,61 @@ let execute
       |> PackageManager.withExtras (branchTypes @ types) values (branchFns @ fns)
 
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
-    let traceID = AT.TraceID.create ()
-    let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
+
+    // A run IS a trace: one durable row, so it can be listed, suspended by Ctrl-C, resumed and
+    // forked (`LibDB.Traces`). A resume armed by `dark traces resume` replays that run's log;
+    // anything else records afresh. Without a recording tracer (recording off) there is no log,
+    // so no row either.
+    // `priorStatus`: what the row said before a resume set it running, put back if the resume
+    // is refused at a step it cannot reproduce.
+    let tracer, executionId, priorStatus =
+      match LibDB.Traces.Replay.take () with
+      | Some resume ->
+        let e = resume.run
+        let tracer =
+          Tracing.createReplayTracer
+            (AT.TraceID.fromUUID e.id)
+            traceDesc
+            inputName
+            inputValue
+            resume.log
+        LibDB.Traces.setStatus e.id LibDB.Traces.Running
+        LibExecution.Interpreter.ReplayPolicy.recordedAt <-
+          (match
+            System.DateTime.TryParse(
+              resume.recordedAt,
+              null,
+              System.Globalization.DateTimeStyles.RoundtripKind
+            )
+           with
+           | true, t -> Some(t.ToUniversalTime())
+           | _ -> None)
+        tracer, Some e.id, Some e.status
+      | None ->
+        let traceID = AT.TraceID.create ()
+        let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
+        if tracer.enabled then
+          // The row goes in now, at the run's start, so `dark traces` shows a run while it is
+          // still going and Ctrl-C has something to mark suspended. The recorder upserts the
+          // input and the calls onto this same row when the run ends.
+          let id = AT.TraceID.toUUID traceID
+          LibDB.Traces.create
+            id
+            traceDesc
+            inputName
+            inputValue
+            LibDB.Traces.Running
+            None
+          tracer, Some id, None
+        else
+          tracer, None, None
 
     let state = childState parentState pm tracer.executionTracing program
+
+    executionId
+    |> Option.iter (fun id ->
+      LibDB.Traces.Foreground.set
+        { id = id; flush = fun () -> tracer.storeTraceResults state |> Ply.toTask })
 
     match mod'.exprs with
     | [] ->
@@ -588,20 +640,68 @@ let execute
     | exprs ->
       let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
 
+      // Under the scheduler each expression is its own process, spawned from the CLI's
+      // process and awaited: it budget-yields, `ps` lists it, and a `readKey` in it parks
+      // instead of holding the thread. Without one (tests, the LSP) it runs inline.
+      let runOne (instr : RT.Instructions) : Ply<RT.ExecutionResult> =
+        match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
+        | Some s, Some parent ->
+          let child =
+            s.Spawn(state, (None, instr), Scheduler.EntryExpr, Some parent.id)
+          uply { return! s.Await child }
+        | _ -> uply { return! Exe.executeExpr state instr }
+
       // Awaited in order, and the first error ends the script.
       let rec runInOrder (instrs : List<RT.Instructions>) : Ply<RT.ExecutionResult> =
         uply {
           match instrs with
           | [] -> return Ok DUnit
-          | [ last ] -> return! Exe.executeExpr state last
+          | [ last ] -> return! runOne last
           | instr :: rest ->
-            match! Exe.executeExpr state instr with
+            match! runOne instr with
             | Error _ as failed -> return failed
             | Ok _ -> return! runInOrder rest
         }
 
-      let! result = runInOrder exprInstrs
-      do! tracer.storeTraceResults state
+      let! result =
+        uply {
+          try
+            return! runInOrder exprInstrs
+          with ex ->
+            executionId
+            |> Option.iter (fun id ->
+              if LibDB.Traces.Foreground.clear id then
+                let status =
+                  match
+                    LibExecution.Interpreter.ReplayPolicy.takeRefusal (),
+                    priorStatus
+                  with
+                  | Some _, Some prior -> prior
+                  | _ -> LibDB.Traces.Failed
+                LibDB.Traces.setStatus id status)
+            return raise ex
+        }
+      // A run a suspend took out of the foreground stores nothing more: the log and the row are
+      // what the suspend left, for `resume`. A resume refused at a step it cannot reproduce is
+      // left as it was too, log and status: storing would write the replayed prefix over the
+      // whole log.
+      let stillOurs =
+        match executionId with
+        | Some id -> LibDB.Traces.Foreground.clear id
+        | None -> true
+      let refused = LibExecution.Interpreter.ReplayPolicy.takeRefusal ()
+      if stillOurs then
+        match refused, executionId, priorStatus with
+        | Some _, Some id, Some prior -> LibDB.Traces.setStatus id prior
+        | _ ->
+          do! tracer.storeTraceResults state
+          executionId
+          |> Option.iter (fun id ->
+            LibDB.Traces.setStatus
+              id
+              (match result with
+               | Ok _ -> LibDB.Traces.Done
+               | Error _ -> LibDB.Traces.Failed))
       return result
   }
 

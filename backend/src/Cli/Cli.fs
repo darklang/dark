@@ -110,38 +110,103 @@ let state (packageManager : RT.PackageManager) =
 
 
 
+/// A dotted package name (`Darklang.Stdlib.Exec.Policy.roundRobin`) as the function it names,
+/// or `None` when nothing in the store has it. Owner `Darklang` when the name has no owner.
+let private resolvePackageFn (dotted : string) : Option<RT.FQFnName.FQFnName> =
+  match List.rev (dotted.Split('.') |> Array.toList) with
+  | name :: revRest ->
+    let owner, modules =
+      match List.rev revRest with
+      | o :: mods -> o, mods
+      | [] -> "Darklang", []
+    let location : PT.PackageLocation =
+      { owner = owner; modules = modules; name = name }
+    (LibDB.PackageManager.pt.findFn location).Result
+    |> Option.map (fun fqPkg ->
+      RT.FQFnName.Package(
+        LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT fqPkg
+      ))
+  | [] -> None
+
 /// The CLI entry point is a stored, per-install pointer: `config_v0` key `entry_point`, a package
 /// location like `Darklang.Cli.executeCliCommand`, defaulting to the shipped CLI. Stored as a NAME
 /// (resolved to a hash here) so it follows the latest content. Any miss falls back to the default.
-let private resolveEntryPoint () : RT.FQFnName.FQFnName =
+let private resolveEntryPoint
+  (settings : Map<string, string>)
+  : RT.FQFnName.FQFnName =
   let defaultFn = RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
   try
-    match (LibDB.Config.get "entry_point").Result with
+    match Map.tryFind "entry_point" settings with
     | None
     | Some "" -> defaultFn
     | Some loc ->
-      match List.rev (loc.Split('.') |> Array.toList) with
-      | name :: revRest ->
-        let owner, modules =
-          match List.rev revRest with
-          | o :: mods -> o, mods
-          | [] -> "Darklang", []
-        let location : PT.PackageLocation =
-          { owner = owner; modules = modules; name = name }
-        match (LibDB.PackageManager.pt.findFn location).Result with
-        | Some fqPkg ->
-          RT.FQFnName.Package(
-            LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT fqPkg
-          )
-        | None ->
-          System.Console.Error.WriteLine
-            $"entry point '{loc}' didn't resolve; running the default CLI"
-          defaultFn
-      | [] -> defaultFn
+      match resolvePackageFn loc with
+      | Some fn -> fn
+      | None ->
+        System.Console.Error.WriteLine
+          $"entry point '{loc}' didn't resolve; running the default CLI"
+        defaultFn
   with e ->
     System.Console.Error.WriteLine
       $"entry point lookup failed ({e.Message}); running the default CLI"
     defaultFn
+
+/// The store-change source for the scheduler's poll: `LibDB.Sqlite.DataVersion`, one held
+/// connection per store, since `PRAGMA data_version` answers per connection.
+let private installStoreVersionSource () : unit =
+  LibExecution.HostEvents.sources.storeVersion <-
+    Some LibDB.Sqlite.DataVersion.current
+
+/// The store's startup settings, read in one query (each `Config.get` is a round trip of about
+/// 8 KB, and the allocation gate counts startup): the entry point, the `exec.*` knobs and the
+/// `trace.*` caps. Empty when the store cannot answer. All are `dark config set`; no environment
+/// variable shadows any of them.
+let private startupSettings () : Map<string, string> =
+  try
+    (LibDB.Config.getMany
+      [ "entry_point"
+        "exec.workers"
+        "exec.policy"
+        "exec.maxInstructions"
+        "exec.maxBytes"
+        "trace.keep"
+        "trace.maxMb" ])
+      .Result
+  with _ ->
+    Map.empty
+
+/// How many worker schedulers this run may start: the store's `exec.workers`, else one per
+/// core. Never below one.
+let private workerCount (settings : Map<string, string>) : int =
+  match Map.tryFind "exec.workers" settings with
+  | Some s ->
+    match System.Int32.TryParse s with
+    | true, n when n >= 1 -> n
+    | _ -> max 1 System.Environment.ProcessorCount
+  | None -> max 1 System.Environment.ProcessorCount
+
+/// The scheduling policy, an expert setting: `exec.policy` names a Dark function
+/// (`Darklang.Stdlib.Exec.Policy.youngestFirst`, say) that is asked which runnable process to
+/// step next whenever there is a choice; unset, the scheduler round-robins in F# and never
+/// asks. A name that does not resolve is said and ignored, like a bad entry point.
+let private installPolicy
+  (settings : Map<string, string>)
+  (state : RT.ExecutionState)
+  : unit =
+  let named = Map.tryFind "exec.policy" settings |> Option.defaultValue ""
+  if named <> "" then
+    match resolvePackageFn named with
+    | Some fn ->
+      LibExecution.Scheduler.policy <-
+        LibExecution.Scheduler.Chooser(
+          Builtins.Language.Libs.Exec.chooserFor state fn
+        )
+    | None ->
+      System.Console.Error.WriteLine(
+        Builtins.Language.Libs.Exec.policyComplaint
+          named
+          "did not resolve to a function"
+      )
 
 let execute
   (packageManager : RT.PackageManager)
@@ -175,20 +240,100 @@ let execute
     let safeMode = List.contains "--safe" args
     // Boot-level; strip it so it doesn't reach the entry-point fn as a command arg.
     let args = args |> List.filter (fun a -> a <> "--safe")
+    let settings = startupSettings ()
     let fnName =
       if safeMode then
         System.Console.Error.WriteLine
           "running in --safe mode: the shipped default CLI"
         RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
       else
-        resolveEntryPoint ()
+        resolveEntryPoint settings
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
-    let! result = Exe.executeFunction state fnName [] args
-    return result
+    // The CLI's top level is a process: the scheduler runs on this thread until it finishes,
+    // stepping whatever else gets spawned meanwhile (a script under `eval`, an `apps` daemon).
+    // `DARK_SCHEDULER=off` is a bisect switch back to a plain run, for finding out whether an
+    // oddity is the scheduler's; not a setting, not documented for users.
+    if System.Environment.GetEnvironmentVariable "DARK_SCHEDULER" = "off" then
+      let! result = Exe.executeFunction state fnName [] args
+      return result
+    else
+      installStoreVersionSource ()
+      LibExecution.Scheduler.defaultWorkers <- workerCount settings
+      let cap (key : string) : int64 =
+        match Map.tryFind key settings with
+        | Some v ->
+          match System.Int64.TryParse v with
+          | true, n when n >= 0L -> n
+          | _ -> 0L
+        | None -> 0L
+      LibExecution.Scheduler.maxInstructions <- cap "exec.maxInstructions"
+      LibExecution.Scheduler.maxBytes <- cap "exec.maxBytes"
+      LibDB.Tracing.TraceRetention.configure
+        (Map.tryFind "trace.keep" settings)
+        (Map.tryFind "trace.maxMb" settings)
+      installPolicy settings state
+      return LibExecution.Scheduler.executeFunction state fnName [] args
   }
 
 let initSerializers () = ()
+
+/// Ctrl-C while a traced `run` or `eval` is in the foreground: stop what it spawned, store its
+/// log as it stands, mark the run suspended, say how to take it up again, and leave.
+/// `dark traces resume <id>` then runs the same input, answering every call the log has instead
+/// of performing it, and goes live where the log ends. With nothing in the foreground (no
+/// traced run, or a TUI reading keys, which takes Ctrl-C as input and never gets here), the
+/// process just ends as it always did.
+///
+/// The children go first, and politely. A process cancelled this way finishes what it already
+/// handed the host -- the write in flight lands -- and then stops at its next turn, which is
+/// what `Exec.cancel` means everywhere else. Without this, Ctrl-C flushed the log while
+/// children were mid-call and then killed them by process exit, so the log ended at an
+/// arbitrary point and a resume re-did work that had half happened. A quarter of a second is
+/// the whole budget: this is an interrupt, and the person is waiting.
+let private stopChildrenPolitely () : unit =
+  try
+    let sched = LibExecution.Scheduler.Scheduler.CurrentOrShared
+    let live =
+      sched.Snapshot()
+      |> List.filter (fun p ->
+        match p.status with
+        | LibExecution.Scheduler.Runnable
+        | LibExecution.Scheduler.Parked _ -> true
+        | _ -> false)
+    for p in live do
+      sched.Cancel p.id |> ignore<bool>
+    if not (List.isEmpty live) then
+      let deadline = System.DateTime.UtcNow.AddMilliseconds 250.0
+      let stillGoing () =
+        sched.Snapshot()
+        |> List.exists (fun p ->
+          match p.status with
+          | LibExecution.Scheduler.Runnable
+          | LibExecution.Scheduler.Parked _ -> true
+          | _ -> false)
+      while System.DateTime.UtcNow < deadline && stillGoing () do
+        System.Threading.Thread.Sleep 10
+  with _ ->
+    ()
+
+let private installSuspendOnInterrupt () : unit =
+  System.Console.CancelKeyPress.Add(fun args ->
+    let suspended =
+      try
+        stopChildrenPolitely ()
+        (LibDB.Traces.Foreground.suspend ()).Result
+      with _ ->
+        None
+    match suspended with
+    | Some id ->
+      args.Cancel <- true
+      let prefix = (string id).Substring(0, 12)
+      System.Console.Error.WriteLine ""
+      System.Console.Error.WriteLine
+        $"stopped; the run is kept. Take it up again with: dark traces resume {prefix}"
+      exit 130
+    | None -> ())
 
 /// Record host-operation decisions for troubleshooting and review in
 /// `rundir/logs/host-audit.jsonl`. Set `DARK_AUDIT=off` to skip this audit file.
@@ -219,6 +364,34 @@ let private installAuditLog () : unit =
         lock lockObj (fun () -> System.IO.File.AppendAllText(logPath, line + "\n"))
       with _ ->
         ())
+
+/// The title a system monitor shows (`setProcessTitle`): `dark` plus the command, plus the one
+/// argument that tells commands of the same kind apart (a daemon's slug, a served port), within
+/// the kernel's 15 bytes. Global flags (`--branch <b>`, `--safe`) are skipped.
+let private processTitle (args : string list) : string =
+  let rec drop (args : string list) =
+    match args with
+    | "--branch" :: _ :: rest -> drop rest
+    | flag :: rest when flag.StartsWith "--" -> drop rest
+    | _ -> args
+  let portOf (rest : string list) =
+    let rec go (xs : string list) =
+      match xs with
+      | "--port" :: p :: _ -> Some p
+      | _ :: xs -> go xs
+      | [] -> None
+    go rest
+  match drop args with
+  | [] -> "dark"
+  | "apps" :: "daemon-main" :: slug :: _ -> $"dark {slug}"
+  | "apps" :: sub :: slug :: _ when sub = "start" || sub = "view" || sub = "run" ->
+    $"dark {slug}"
+  | "serve" :: rest ->
+    match portOf rest with
+    | Some p -> $"dark serve :{p}"
+    | None -> "dark serve"
+  | "run" :: path :: _ -> $"dark {System.IO.Path.GetFileNameWithoutExtension path}"
+  | cmd :: _ -> $"dark {cmd}"
 
 [<EntryPoint>]
 let main (args : string[]) =
@@ -271,6 +444,10 @@ let main (args : string[]) =
 
     // Record host-operation decisions at the boundary.
     installAuditLog ()
+    installSuspendOnInterrupt ()
+    let title = processTitle (List.ofArray args)
+    LibExecution.HostProcess.setProcessTitle title
+    let commandLine = "dark " + String.concat " " args
 
 
     // Now safe to access LibConfig paths. Gated on DARK_TELEMETRY, the same switch the Dark side
@@ -500,6 +677,18 @@ let main (args : string[]) =
     LibDB.PackageManager.selectBranch (
       branchId |> Option.defaultValue PT.BranchId.Main
     )
+
+    // Listed for `dark ps` from any shell, once the branch is known; the file goes when this
+    // process does. The branch is its name where one was given, else the stored id, else main.
+    LibExecution.HostRegistry.setDirectory LibConfig.Config.runDir
+    LibExecution.HostRegistry.register
+      title
+      commandLine
+      (match flagName, envName, branchId with
+       | Some name, _, _
+       | None, Some name, _ -> name
+       | None, None, Some id -> string id
+       | None, None, None -> "")
 
     let result =
       Telemetry.time "cli.execute" [] (fun () ->
