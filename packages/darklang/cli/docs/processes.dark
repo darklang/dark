@@ -48,10 +48,12 @@ run. In a system monitor a Dark process shows as what it runs: `dark serve
 Every `eval` and `run` is recorded (only its effects: what it read, wrote,
 sent and got back), so Ctrl-C does not lose it.
 
-  exec                       the runs kept here, newest first
-  exec resume <id>           carry on where it stopped: the log answers what
-                             already happened, then the run goes live
-  exec fork <id> [--at <n>]  a new run from any point of an old one
+  traces                        the runs kept here, newest first
+  traces show <id>              one run: what it ran, where it stands, its log
+  traces resume <id>            carry on where it stopped: the log answers what
+                                already happened, then the run goes live
+  traces fork <id> [--at <n>]   a new run from any point of an old one
+  traces pin <id>               keep it, whatever else is dropped to make room
 
 A resume echoes what the old run printed (dimmed), stops if the log holds
 something it cannot have again (an OS subprocess, an open stream), and warns

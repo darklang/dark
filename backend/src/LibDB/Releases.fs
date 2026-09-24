@@ -259,17 +259,14 @@ let steps : List<Step> =
           addColumnIfMissing "trace_fn_calls" "seq" "INTEGER NOT NULL DEFAULT 0" }
 
     // An effectful call's ordinal in its process, what a replay keys on. Old rows get -1: not
-    // replayable, which they are not. The `executions` table itself is wholly new and comes
-    // across as a table.
+    // replayable, which they are not.
     { name = "20260921_000003_trace_fn_calls_ord"
       run =
         fun () ->
           addColumnIfMissing "trace_fn_calls" "ord" "INTEGER NOT NULL DEFAULT -1" }
 
-    // A trace IS a run: these five carry what a second table, `executions`, used to hold. A store
-    // made while that table existed keeps it; nothing reads it, and `traces delete --all` is the
-    // way to be rid of the rows. Runs recorded before this step have `status = 'done'`, which is
-    // what a row written by the old recorder meant.
+    // A trace IS a run, so these five carry where a run stands as well as what it did. A row
+    // already in the store was written by a finished run, which is what `DEFAULT 'done'` says.
     { name = "20260924_000001_traces_status"
       run =
         fun () -> addColumnIfMissing "traces" "status" "TEXT NOT NULL DEFAULT 'done'" }
@@ -288,31 +285,13 @@ let steps : List<Step> =
       run =
         fun () -> addColumnIfMissing "traces" "updated" "TEXT NOT NULL DEFAULT ''" }
 
-    { name = "20260924_000006_traces_status_index"
-      run =
-        fun () ->
-          if tableExists "traces" then
-            Sql.query
-              "CREATE INDEX IF NOT EXISTS idx_traces_status ON traces(status)"
-            |> Sql.executeStatementSync }
-
-    // Every listing, and retention's scan, order by `timestamp DESC`; nothing indexed it.
-    { name = "20260924_000007_traces_timestamp_index"
-      run =
-        fun () ->
-          if tableExists "traces" then
-            Sql.query
-              "CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON traces(timestamp)"
-            |> Sql.executeStatementSync }
-
     // Which handler served a request, so a recorded request can be replayed against it.
-    { name = "20260924_000009_traces_entry_hash"
+    { name = "20260924_000006_traces_entry_hash"
       run = fun () -> addColumnIfMissing "traces" "entry_hash" "TEXT" }
 
-    // The `executions` table is gone: a trace IS a run, and its columns moved onto `traces`.
-    // A store made while it existed still has it, empty and unread, so it goes here rather
-    // than sitting in every `.schema` forever. Nothing reads it by the time this runs.
-    { name = "20260924_000008_drop_executions"
+    // A trace IS a run, so the second table is gone. A store that has one keeps it empty and
+    // unread otherwise, sitting in every `.schema` forever.
+    { name = "20260924_000007_drop_executions"
       run =
         fun () ->
           if tableExists "executions" then

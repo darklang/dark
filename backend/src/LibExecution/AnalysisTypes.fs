@@ -15,17 +15,17 @@ type HashVersion = int
 type FnName = string
 type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval
 
-/// A trace id is a plain random UUID.
+/// A trace id is a plain random UUID. Nothing reads order or time out of it: every listing
+/// orders by `timestamp` (indexed) or `rowid`.
 ///
-/// It used to carry an inverted millisecond timestamp in its first six bytes, so that sorting
-/// ids lexicographically sorted traces newest-first. That was for Google Cloud Storage, which
-/// could only list keys in lexicographic order; the store is SQLite now and every listing
-/// orders by `timestamp` (indexed) or `rowid`, so nothing reads order out of the id.
+/// Random matters because a trace id is a thing a PERSON types -- `traces resume`, `traces
+/// values` and `traces fork` all take one -- and the CLI takes the shortest prefix that is
+/// unique. Anything with structure in front (a timestamp, say) makes two runs from the same
+/// moment agree for a dozen characters and every short id ambiguous. Random gives eight good
+/// characters, the way a process id already does.
 ///
-/// What the old shape cost, once a trace id became a thing a PERSON types -- `traces resume`,
-/// `traces values`, `traces fork` all take one -- is that two runs made in the same
-/// millisecond agreed for a dozen characters, so short ids came back ambiguous. Random gives
-/// eight characters that are as good as unique, the way a process id already is.
+/// If traces ever sync between instances, this is the thing to revisit: a content hash would
+/// make two instances that recorded the same run agree on its id.
 module TraceID =
   [<Struct>]
   type T =

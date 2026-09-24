@@ -521,22 +521,25 @@ let private psListsTheTree =
         // The harness runs commands unscheduled, so the table is empty here; the shape is
         // what this pins. The tree itself is `Scheduler.Tests`' and the demo's.
         let! out = runCli state [ "ps" ]
-        Expect.stringContains out "this dark (pid" "the local table is captioned"
+        Expect.stringContains
+          out
+          "this instance (pid"
+          "the local table is captioned"
         // The columns are as wide as their widest cell (and the header is bold), so it is
         // matched word by word.
         let plain =
           System.Text.RegularExpressions.Regex.Replace(out, "\u001b\\[[0-9;]*m", "")
         let header = plain.Split('\n') |> Array.find (fun l -> l.StartsWith "id ")
-        for column in [ "entry"; "status"; "instructions"; "parent" ] do
+        for column in [ "what it runs"; "status"; "steps" ] do
           Expect.stringContains header column "with its columns"
-        // This dark first: it is the one the reader is standing in. The machine table is only
-        // there when another `dark` is running, so this is conditional.
-        let elsewhere = plain.IndexOf "elsewhere on this machine"
-        if elsewhere >= 0 then
-          Expect.isLessThan
-            (plain.IndexOf "this dark (pid")
-            elsewhere
-            "this instance's table comes before the machine's"
+        // This instance first: it is the one the reader is standing in. Both sections always
+        // print, `(none)` and all, so an empty one reads as an answer.
+        let elsewhere = plain.IndexOf "other Dark processes on this machine"
+        Expect.isGreaterThan elsewhere 0 "the machine's table is always there"
+        Expect.isLessThan
+          (plain.IndexOf "this instance (pid")
+          elsewhere
+          "this instance's table comes before the machine's"
         let! missing = runCli state [ "ps"; "show"; "nope" ]
         Expect.stringContains
           missing

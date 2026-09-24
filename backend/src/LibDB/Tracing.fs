@@ -1,4 +1,4 @@
-/// Tracing for real execution
+/// The recorder: what the interpreter calls as a run goes, and what is written at the end.
 module LibDB.Tracing
 
 open Fumble
@@ -12,76 +12,6 @@ module Exe = LibExecution.Execution
 module Blob = LibExecution.Blob
 module RTToDT = LibExecution.RuntimeTypesToDarkTypes
 module BinarySer = LibSerialization.Binary.Serialization
-
-/// Tracing can go overboard, so use a per-handler feature flag to control it. If
-/// sampling is disabled for a scope, no traces will be recorded to be saved to the
-/// DBs, but tlids will still be recorded as they are needed by APIs.
-module TraceSamplingRule =
-  type T =
-    | SampleNone
-    | SampleAll
-    /// Sample one every `n`
-    | SampleOneIn of n : int
-    | SampleAllWithTelemetry
-
-  let parseRule (ruleString : string) : Result<T, string> =
-    match ruleString with
-    | "sample-none" -> Ok SampleNone
-    | "sample-all" -> Ok SampleAll
-    | "sample-all-with-telemetry" -> Ok SampleAllWithTelemetry
-    | _ ->
-      try
-        let prefix = "sample-one-in-"
-        if String.startsWith prefix ruleString then
-          let number = ruleString |> String.dropLeft (String.length prefix) |> int
-          Ok(SampleOneIn number)
-        else
-          Error "Invalid sample"
-      with _ ->
-        Error "Exception thrown"
-
-  /// Get the trace sampling rule for a handler. Always returns SampleAll now that
-  /// LaunchDarkly has been removed.
-  let ruleForHandler (_tlid : tlid) : T = SampleAll
-
-
-
-/// Simplified version of the TraceSamplingRule. Resolves the one-in-x option into
-/// DoTrace or DontTrace
-module TracingConfig =
-  type T =
-    | DoTrace
-    | DontTrace
-    | TraceWithTelemetry
-
-  let fromRule (rule : TraceSamplingRule.T) (traceID : AT.TraceID.T) : T =
-    match rule with
-    | TraceSamplingRule.SampleAll -> DoTrace
-    | TraceSamplingRule.SampleNone -> DontTrace
-    | TraceSamplingRule.SampleAllWithTelemetry -> TraceWithTelemetry
-    | TraceSamplingRule.SampleOneIn freq ->
-      // Use the traceID as an existing source of entropy.
-      let random =
-        (AT.TraceID.toUUID traceID).ToByteArray() |> System.BitConverter.ToInt64
-      if random % (int64 freq) = 0L then DoTrace else DontTrace
-
-  let forHandler (tlid : tlid) (traceID : AT.TraceID.T) : T =
-    let samplingRule = TraceSamplingRule.ruleForHandler tlid
-    fromRule samplingRule traceID
-
-  let shouldTrace (config : T) =
-    match config with
-    | DoTrace
-    | TraceWithTelemetry -> true
-    | DontTrace -> false
-
-
-
-module TraceResults =
-  type T = { tlids : HashSet.HashSet<tlid> }
-
-  let empty () : T = { tlids = HashSet.empty () }
-
 
 /// How much a run records, as one ladder: each level is the one before it plus more.
 ///
@@ -117,8 +47,8 @@ module TraceDetail =
     | "off" -> Off
     | "inputs" -> Inputs
     | "values" -> Values
-    // `on` was the old spelling of "record everything", and before that of "record at all".
-    // It means the default now, which is what somebody who wrote it wanted either way.
+    // Anything else, including `on` and a typo, gets the default rather than silently
+    // recording nothing.
     | _ -> Effects
 
   let mutable current : T = readEnv ()
@@ -128,29 +58,19 @@ module TraceDetail =
 
 
 
-/// Collections of functions and values used during a single execution
+/// One run's recorder: the hooks the interpreter calls, and the write at the end.
 type T =
   {
-    /// Store the tracing input (varname + dval) for a handler execution
-    /// (kind, path, modifier) triple — was `PT.Handler.HandlerDesc`
-    /// before Handler was deleted. Trace recorders synthesize a triple
-    /// for each request (e.g. ("HTTP", "/foo", "GET")) so traces.list
-    /// has something to show in the handler column.
-    storeTraceInput : (string * string * string) -> string -> RT.Dval -> unit
-
-    /// Store the trace results calculated over the execution, if enabled.
-    /// Takes the live ExecutionState so ephemeral blob refs (which die
-    /// when the request scope pops) can be promoted to persistent ones
-    /// before serialization. Without that, traces would record blob refs
-    /// pointing at gone bytes and `traces view` / `gen-test` couldn't
-    /// reconstruct request/response bodies.
-    storeTraceResults : RT.ExecutionState -> Ply.Ply<unit>
-
-    /// The functions to run tracing during execution
+    /// The interpreter hooks for this run.
     executionTracing : RT.Tracing.Tracing
 
-    /// Results of the execution
-    results : TraceResults.T
+    /// Write what was collected. Takes the live `ExecutionState` because an ephemeral blob ref
+    /// dies when the request scope pops, so the bytes are promoted to persistent ones before
+    /// they are serialized; without that a trace records refs to bytes that are gone and
+    /// `traces show` cannot reconstruct a request body.
+    storeTraceResults : RT.ExecutionState -> Ply.Ply<unit>
+
+    /// Whether this run gets a row of its own. A preview does not: looking at a run is not a run.
     enabled : bool
   }
 
@@ -616,13 +536,14 @@ let rec private executionTracingFor
 
 
 /// Keeps the trace tables bounded: after a store, the oldest traces past the caps go, except
-/// one a suspended or pinned run needs (its log is what `resume` replays) and the newest run
-/// of each entry, which the count cap alone never drops. `trace.keep` is
+/// one a RUNNING, suspended or pinned run needs (its log is what `resume` replays, and a
+/// running one is still being written) and the newest run of each entry, which the count cap
+/// alone never drops. `trace.keep` is
 /// how many traces to keep (200 unset; a served request is one), `trace.maxMb` how many
 /// megabytes of args and results (256 unset); 0 disables a cap. Both are store config keys the
 /// host reads at startup (`configure`). A pass runs at most every ten seconds, since a `serve`
 /// stores a trace per request. The manual `traces prune|delete|clear` go through here too, so
-/// an execution row never outlives its trace.
+/// a run and its log go together, always.
 module TraceRetention =
   open LibDB.Sqlite
 
@@ -661,8 +582,8 @@ module TraceRetention =
       |> ignore<List<int>>
 
   /// Drop the oldest traces past `keepTraces` and `bytes` (`None`: no cap on that axis), never
-  /// one a suspended or pinned run needs, never the newest over the byte cap alone, and never the
-  /// newest run of an entry over the COUNT cap alone. Returns how many went.
+  /// one a running, suspended or pinned run needs, never the newest over the byte cap alone, and
+  /// never the newest run of an entry over the COUNT cap alone. Returns how many went.
   ///
   /// The last of those is the floor classic had as "the last 10 traces per route": without it,
   /// a `serve` under load writes a trace per request and evicts the `eval` you were working on
@@ -680,7 +601,7 @@ module TraceRetention =
         "SELECT t.id AS id,
                 COALESCE((SELECT SUM(LENGTH(c.args) + LENGTH(c.result))
                           FROM trace_fn_calls c WHERE c.trace_id = t.id), 0) AS bytes,
-                (t.status = 'suspended' OR t.pinned = 1) AS needed,
+                (t.status IN ('running', 'suspended') OR t.pinned = 1) AS needed,
                 ROW_NUMBER() OVER (
                   PARTITION BY CASE
                                  WHEN INSTR(t.handler_desc, '?') > 0
@@ -697,13 +618,18 @@ module TraceRetention =
       |> fun t -> t.Result
     // Walk newest to oldest, keeping until a cap is hit; everything older goes. The newest
     // stays even over the byte cap alone, so a run's own trace survives its own store.
+    //
+    // A run that cannot be dropped counts toward the COUNT cap -- `trace.keep` is a promise
+    // about how many runs are here -- but not toward the BYTE cap. Counting its bytes would
+    // let a handful of big pinned runs fill `trace.maxMb` on their own and evict every
+    // ordinary run behind them, forever, which is the opposite of what pinning one asks for.
     let mutable seenCount = 0L
     let mutable seenBytes = 0L
     let doomed =
       rows
       |> List.filter (fun (_, bytes', needed, newestOfEntry) ->
         seenCount <- seenCount + 1L
-        seenBytes <- seenBytes + bytes'
+        if not needed then seenBytes <- seenBytes + bytes'
         let overCount =
           match keepTraces with
           | Some n -> seenCount > n && not newestOfEntry
@@ -755,7 +681,6 @@ module TraceStorage =
     BinarySer.RT.Dval.serialize id dv
 
   let store
-    (rootTLID : tlid)
     (traceID : AT.TraceID.T)
     (handlerDesc : string)
     (inputVarName : string)
@@ -803,7 +728,7 @@ module TraceStorage =
            account_id = excluded.account_id,
            updated = excluded.updated",
           [ [ "id", Sql.string traceIdStr
-              "rootTlid", Sql.int64 (int64 rootTLID)
+              "rootTlid", Sql.int64 0L
               "handlerDesc", Sql.string handlerDesc
               "timestamp", Sql.string timestamp
               "inputName", Sql.string inputVarName
@@ -911,7 +836,6 @@ let private prepareTraceForStorage
 /// stubs DStream values and promotes ephemeral blob bytes so the
 /// trace survives the producing VM.
 let private storeTrace
-  (rootTLID : tlid)
   (traceID : AT.TraceID.T)
   (handlerDesc : string)
   (inputVarName : string)
@@ -945,7 +869,6 @@ let private storeTrace
       try
         let! preparedInput = prepareTraceForStorage exeState inputDval events
         TraceStorage.store
-          rootTLID
           traceID
           handlerDesc
           inputVarName
@@ -987,42 +910,12 @@ let private storeTrace
   }
 
 
-let createSqliteTracer (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
-  let results = TraceResults.empty ()
-  let state = newState ()
-  let mutable storedInputVarName = ""
-  let mutable storedInputDval : RT.Dval = RT.DUnit
-  let mutable handlerDesc = ""
-
-  { enabled = true
-    results = results
-    executionTracing =
-      executionTracingFor state TraceDetail.current System.Guid.Empty
-    storeTraceInput =
-      fun desc varname input ->
-        let (kind, path, modifier) = desc
-        handlerDesc <- $"{kind} {path} {modifier}"
-        storedInputVarName <- varname
-        storedInputDval <- input
-    storeTraceResults =
-      fun exeState ->
-        storeTrace
-          rootTLID
-          traceID
-          handlerDesc
-          storedInputVarName
-          storedInputDval
-          state
-          exeState }
-
-
 let createCliTracer
   (traceID : AT.TraceID.T)
   (description : string)
   (inputVarName : string)
   (inputDval : RT.Dval)
   : T =
-  let results = TraceResults.empty ()
   let state = newState ()
 
   // With detail off, collect nothing. `storeTrace` refuses to write in that case, so installing the
@@ -1033,19 +926,15 @@ let createCliTracer
   // bookkeeping (`pendingCallArgs`) rather than just calling no-op hooks.
   if TraceDetail.current = TraceDetail.Off then
     { enabled = false
-      results = results
       executionTracing = Exe.noTracing
-      storeTraceInput = fun _ _ _ -> ()
       storeTraceResults = fun _ -> uply { return () } }
   else
     { enabled = true
-      results = results
       executionTracing =
         executionTracingFor state TraceDetail.current System.Guid.Empty
-      storeTraceInput = fun _ _ _ -> ()
       storeTraceResults =
         fun exeState ->
-          storeTrace 0UL traceID description inputVarName inputDval state exeState }
+          storeTrace traceID description inputVarName inputDval state exeState }
 
 
 /// A CLI tracer that replays a stored log: every effectful call whose `(process, ordinal)` the
@@ -1064,7 +953,6 @@ let createReplayTracer
   (inputDval : RT.Dval)
   (log : List<System.Guid * int64 * RT.Tracing.ReplayStep>)
   : T =
-  let results = TraceResults.empty ()
   let state = newState ()
   // The recorded processes, in the order they first appear in the log. `Guid.Empty` is NOT one
   // of them: those rows are the unscheduled root's, seeded below and answered through the root
@@ -1093,16 +981,14 @@ let createReplayTracer
     { executionTracingFor state TraceDetail.current pid with
         forProcess = tracingFor }
   { enabled = true
-    results = results
     // The root's own hooks (the CLI's process, which makes no effectful calls of its own in a
     // script; the expressions are child processes and go through `forProcess`).
     executionTracing =
       { executionTracingFor state TraceDetail.current System.Guid.Empty with
           forProcess = tracingFor }
-    storeTraceInput = fun _ _ _ -> ()
     storeTraceResults =
       fun exeState ->
-        storeTrace 0UL traceID description inputVarName inputDval state exeState }
+        storeTrace traceID description inputVarName inputDval state exeState }
 
 
 /// A tracer for VIEWING a run: every effectful call is answered by its name and arguments from
@@ -1124,17 +1010,26 @@ let createPreviewTracer
   for (name, argsBytes, result) in rows do
     answers[name + "\u0000" + System.Convert.ToBase64String argsBytes] <- result
 
-  let lookup (name : string) (args : RT.Dval[]) : Option<RT.Dval> =
-    // The same shape the recorder wrote: one `DList` blob of the arguments.
-    let argsBytes =
-      BinarySer.RT.Dval.serialize
-        "trace_fn_calls.args"
-        (RT.DList(LibExecution.ValueType.unknownTODO, List.ofArray args))
-    match
-      answers.TryGetValue(name + "\u0000" + System.Convert.ToBase64String argsBytes)
-    with
-    | true, v -> Some v
-    | false, _ -> None
+  let lookup (name : string) (args : RT.Dval[]) : RT.Tracing.ReplayStep voption =
+    if Set.contains name Redact.performAgain then
+      // Serving these is what `performAgain` exists to prevent: a spawn's recorded result is a
+      // handle to a process that no longer exists, so serving it makes the next `await` fail.
+      // They are made again instead. A spawned child inherits this tracer, so it previews too
+      // and nothing it does reaches the world either.
+      ValueSome RT.Tracing.ReplayStep.PerformOnce
+    else
+      // The same shape the recorder wrote: one `DList` blob of the arguments.
+      let argsBytes =
+        BinarySer.RT.Dval.serialize
+          "trace_fn_calls.args"
+          (RT.DList(LibExecution.ValueType.unknownTODO, List.ofArray args))
+      match
+        answers.TryGetValue(
+          name + "\u0000" + System.Convert.ToBase64String argsBytes
+        )
+      with
+      | true, v -> ValueSome(RT.Tracing.ReplayStep.Serve v)
+      | false, _ -> ValueNone
 
   // Every process of the run previews, not just the first. The CLI spawns each expression as a
   // process of its own, and the scheduler asks the tracer for that process's own hooks
@@ -1151,33 +1046,5 @@ let createPreviewTracer
   // `enabled = false` is doing real work: it is what stops the host giving this run a row of
   // its own, and what makes the store a no-op.
   { enabled = false
-    results = TraceResults.empty ()
-    storeTraceInput = fun _ _ _ -> ()
     storeTraceResults = fun _ -> uply { return () }
     executionTracing = previewTracing () }
-
-
-let createNonTracer (_traceID : AT.TraceID.T) : T =
-  let results = TraceResults.empty ()
-  { enabled = false
-    results = results
-    executionTracing = LibExecution.Execution.noTracing
-    storeTraceResults = fun _ -> uply { return () }
-    storeTraceInput = fun _ _ _ -> () }
-
-
-let create (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
-  // Trace detail OFF must mean FULLY off — not just "don't write the trace rows". The sqlite tracer captures
-  // call events during execution and, at store time, `prepareDvalForStorage` PROMOTES their ephemeral blobs into
-  // package_blobs (so a trace survives its VM) BEFORE `TraceStorage.store`'s off-check runs. So gating only the
-  // store still leaves that blob-promotion firing on every `serve` request — which, for the sync endpoints
-  // (responses = whole op/blob batches), grew package_blobs unboundedly even with trace storage "off". Returning
-  // the non-tracer here makes Off a true no-op: no capture, no promote, no store.
-  if TraceDetail.current = TraceDetail.Off then
-    createNonTracer traceID
-  else
-    let config = TracingConfig.forHandler rootTLID traceID
-    match config with
-    | TracingConfig.DoTrace
-    | TracingConfig.TraceWithTelemetry -> createSqliteTracer rootTLID traceID
-    | TracingConfig.DontTrace -> createNonTracer traceID

@@ -5,25 +5,16 @@
 module Darklang.Cli.TraceRuns
 
 
-/// The first twelve characters of a run's id: enough to name one, and enough to be unique.
-///
-/// Twelve, not the eight a process id gets: a trace id is a ULID with its timestamp inverted
-/// into the front, so two runs made in the same second share their first eight characters and
-/// every prefix lookup would come back ambiguous.
-let idPrefix (id: String) : String = Stdlib.String.slice id 0 12
-
-
 /// The shortest prefix that tells THESE ids apart, which is what a table should print.
 ///
-/// A fixed width is wrong in both directions: a trace id carries its timestamp in front, so two
-/// runs made in the same millisecond agree for a dozen characters, while two made a day apart
-/// differ almost at once. Git shortens commit ids the same way, for the same reason.
+/// Eight is almost always enough, and a table that prints more than it needs to spends the
+/// width on nothing. Git shortens commit ids the same way, for the same reason.
 let idWidth (ids: List<String>) : Int =
   let distinct (w: Int) : Bool =
     let prefixes = ids |> Stdlib.List.map (fun id -> Stdlib.String.slice id 0 w)
     (Stdlib.List.length (Stdlib.List.unique prefixes)) == (Stdlib.List.length ids)
 
-  match Stdlib.List.findFirst [ 12, 14, 16, 20, 24 ] (fun w -> distinct w) with
+  match Stdlib.List.findFirst [ 8, 12, 16, 24 ] (fun w -> distinct w) with
   | Some w -> w
   | None -> 36
 
@@ -46,9 +37,6 @@ let find (prefix: String) : Stdlib.Result.Result<Darklang.Tracing.Trace, String>
     | None -> Stdlib.Result.Result.Error $"no run has the id {id}"
 
 
-let oneLine (text: String) : String = Cli.Text.oneLine text
-
-
 /// "22 minutes ago", from the stamp the store keeps (ISO with fractional seconds, which the
 /// parser does not take: the fraction is cut).
 let whenText (created: String) : String =
@@ -56,55 +44,50 @@ let whenText (created: String) : String =
     match Stdlib.String.split created "." with
     | [ s ] -> s
     | s :: _ -> s ++ "Z"
-    | [] -> created
   match Stdlib.DateTime.parse whole with
   | Ok t -> Cli.RelativeTime.ago t
   | Error _ -> created
 
 
+/// One row of the run table. Deliberately narrow: `Table.print` pads to the widest cell and
+/// does not wrap, so a column that is usually empty costs every row its width. The fork lineage
+/// and the full input are in `traces show`.
 let row (width: Int) (e: Darklang.Tracing.Trace) : List<String> =
-  let parent =
-    match e.parent with
-    | Some((id, _at)) -> idPrefix id
-    | None -> ""
-  let pin = if e.pinned then "yes" else ""
   [ Stdlib.String.slice e.id 0 width,
     statusText e.status,
     whenText e.created,
-    e.entry,
-    oneLine e.input,
-    parent,
-    pin ]
+    Cli.Text.oneLineAt 22 e.entry,
+    Cli.Text.oneLineAt 18 e.input,
+    (if e.pinned then "*" else "") ]
 
 
-let printList () : Unit =
-  let runs = Darklang.Tracing.Store.list 50
+/// Any list of runs, as a table. The ONE renderer: `dark traces`, `traces list --fn`,
+/// `traces find` and `traces calls` all come through here, so none of them can drift into
+/// showing a different set of columns for the same rows.
+let printTable (runs: List<Darklang.Tracing.Trace>) : Unit =
   let width = idWidth (runs |> Stdlib.List.map (fun e -> e.id))
-  let rows = runs |> Stdlib.List.map (fun e -> row width e)
-  match rows with
-  | [] ->
-    Stdlib.printLine "no runs recorded yet: every `eval` and `run` makes one"
-    Darklang.Cli.Tracing.printEmptyStateHint ()
-  | _ ->
-    Stdlib.Cli.UI.Table.print
-      [ "id", "status", "when", "entry", "input", "forked from", "pinned" ]
-      rows
+  Stdlib.Cli.UI.Table.print
+    [ "id", "status", "when", "what ran", "input", "pin" ]
+    (runs |> Stdlib.List.map (fun e -> row width e))
+
 
 
 /// The effect log, one line per logged call: its position (what `fork --at` takes), the process
 /// it ran in, and the call. Capped; the whole trace is `dark traces view`.
 let printLog (id: String) : Unit =
   match Darklang.Tracing.Store.view id with
-  | None -> Stdlib.printLine "  log       gone (the run was deleted)"
+  | None ->
+    Stdlib.printLine "  log       not kept (dropped to make room, or recording was off)"
   | Some data ->
     let logged = data.functionCalls |> Stdlib.List.filter (fun c -> c.ord >= 0L)
     let count = Stdlib.List.length logged
     Stdlib.printLine $"  log       {Stdlib.Int.toString count} calls with effects"
+    Stdlib.printLine "    pos  process   call"
     Stdlib.List.take logged 40
     |> Stdlib.List.iter (fun c ->
       let process =
         match c.processId with
-        | Some pid -> idPrefix (Stdlib.Uuid.toString pid)
+        | Some pid -> Cli.Text.shortId pid
         | None -> "-"
       let seq = Stdlib.String.padStartToWidth (Stdlib.Int64.toString c.seq) 5
       Stdlib.printLine $"    {seq}  {process}  {c.fnName}")
@@ -121,10 +104,10 @@ let printShow (prefix: String) : Unit =
     Stdlib.printLine e.id
     Stdlib.printLine $"  status    {statusText e.status}"
     Stdlib.printLine $"  entry     {e.entry}"
-    Stdlib.printLine $"  input     {oneLine e.input}"
+    Stdlib.printLine $"  input     {Cli.Text.oneLine e.input}"
     Stdlib.printLine $"  started   {whenText e.created} ({e.created})"
     if e.pinned then
-      Stdlib.printLine "  pinned    yes (retention will not drop it)"
+      Stdlib.printLine "  pinned    kept, whatever else is dropped to make room"
     else
       ()
     match e.parent with
@@ -144,7 +127,7 @@ let resume (state: AppState) (prefix: String) : AppState =
     state
   | Ok e ->
     if Darklang.Tracing.Store.armResume e.id then
-      Stdlib.printLine $"resuming {idPrefix e.id}: {oneLine e.input}"
+      Stdlib.printLine $"resuming {Cli.Text.shortIdText e.id}: {Cli.Text.oneLine e.input}"
       // An entry is `eval` or `run <file>`, as the host records them; a served request is a run
       // too, but re-running one needs the server, so it is refused here rather than guessed at.
       if e.entry == "eval" then
@@ -161,11 +144,13 @@ let resume (state: AppState) (prefix: String) : AppState =
         Run.runScript state filename e.input [] false false false [] 0
       else
         Cli.printErr
-          $"run {idPrefix e.id} was started by `{e.entry}`, which resume does not know"
-        state
+          $"{Cli.Text.shortIdText e.id} was a served request ({e.entry}); resume only re-runs `eval` and"
+        Stdlib.printLine
+          $"  `run <file>`. `dark traces values <fn> {Cli.Text.shortIdText e.id}` shows what it did."
+        { state with exitCode = 1 }
     else
-      Cli.printErr $"no run has the id {e.id}"
-      state
+      Cli.printErr $"{Cli.Text.shortIdText e.id} is gone: it was deleted while this command ran"
+      { state with exitCode = 1 }
 
 
 let fork (prefix: String) (at: Stdlib.Option.Option<Int64>) : Unit =
@@ -174,8 +159,8 @@ let fork (prefix: String) (at: Stdlib.Option.Option<Int64>) : Unit =
   | Ok e ->
     match Darklang.Tracing.Store.fork e.id at with
     | Ok child ->
-      Stdlib.printLine $"forked {idPrefix e.id} as {child}"
-      Stdlib.printLine $"  resume it with: dark traces resume {idPrefix child}"
+      Stdlib.printLine $"forked {Cli.Text.shortIdText e.id} as {Cli.Text.shortIdText child}"
+      Stdlib.printLine $"  resume it with: dark traces resume {Cli.Text.shortIdText child}"
     | Error msg -> Cli.printErr msg
 
 
@@ -185,11 +170,12 @@ let pin (prefix: String) (pinned: Bool) : Unit =
   | Ok e ->
     if Darklang.Tracing.Store.setPinned e.id pinned then
       if pinned then
-        Stdlib.printLine $"pinned {idPrefix e.id}: retention will keep it until you unpin it"
+        Stdlib.printLine
+          $"pinned {Cli.Text.shortIdText e.id} -- it will not be dropped to make room"
       else
-        Stdlib.printLine $"unpinned {idPrefix e.id}"
+        Stdlib.printLine $"unpinned {Cli.Text.shortIdText e.id}"
     else
-      Cli.printErr $"no run has the id {e.id}"
+      Cli.printErr $"{Cli.Text.shortIdText e.id} is gone: it was deleted while this command ran"
 
 
 // ───────── the call inbox: which runs went through a function, and its values ─────────
@@ -207,28 +193,21 @@ let pin (prefix: String) (pinned: Bool) : Unit =
 
 
 /// "12 minutes ago  GET /orders  a1b2c3d4", one line per run that went through the function.
-let printCalls (branchId: Uuid) (fnName: String) : Unit =
+/// The branch is not a parameter: the index records the name a run went through, so a run
+/// recorded against another branch's version of the function is still a run that went through
+/// this name. `values` resolves the CODE on the branch you are standing on.
+let printCalls (fnName: String) : Unit =
   match Darklang.Tracing.Store.runsCalling fnName 25L with
   | [] ->
     Stdlib.printLine $"no recorded run went through {fnName}"
     Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.dimText
-        "  runs are recorded by default; `dark traces` lists them")
+      (Stdlib.Cli.UI.Colors.dimText "  run something that calls it, then look again")
   | runs ->
-    let width = idWidth (runs |> Stdlib.List.map (fun r -> r.id))
-    let rows =
-      runs
-      |> Stdlib.List.map (fun r ->
-        [ Stdlib.String.slice r.id 0 width,
-          statusText r.status,
-          whenText r.created,
-          r.entry,
-          oneLine r.input ])
-    Stdlib.Cli.UI.Table.print [ "run", "status", "when", "entry", "input" ] rows
+    printTable runs
     Stdlib.printLine ""
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText
-        $"`dark traces values {fnName} <run>` shows the code with that run's values")
+        "  dark traces values <fn> <run>  the code, with that run's values beside it")
 
 
 /// The function's source, with `// = value` beside each call, for one run.
@@ -261,36 +240,40 @@ let printValues
   match chosen with
   | None -> state
   | Some run ->
-    // One call: it loads the run's log, replays the run with every effect answered from it and
-    // none performed, and hands back what every expression evaluated to.
-    let (collected, problem) = Darklang.Tracing.Store.previewRun branchId run.id
-
-    let values =
-      collected
-      |> Stdlib.List.map (fun pair ->
-        let (id, dv) = pair
-        (Stdlib.Int64.toString id, PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
-      |> Stdlib.Dict.fromListOverwritingDuplicates
-
+    // The function is looked up BEFORE the run is replayed: a replay is the whole cost of this
+    // command, and a typo should not pay it.
     match LanguageTools.PackageManager.Function.find branchId entry with
     | None ->
-      Cli.printErr $"no function named {fnName}"
-      state
+      Cli.printErr $"no function named {fnName} on this branch"
+      { state with exitCode = 1 }
     | Some hash ->
       match LanguageTools.PackageManager.Function.get hash with
       | None ->
-        Cli.printErr $"no function named {fnName}"
-        state
+        Cli.printErr
+          $"{fnName} resolves to a version this store cannot load; the store is damaged"
+        { state with exitCode = 1 }
       | Some fn ->
+        // One call: it loads the run's log, replays the run with every effect answered from it
+        // and none performed, and hands back what every expression evaluated to.
+        let (collected, problem) = Darklang.Tracing.Store.previewRun branchId run.id
+
+        let values =
+          collected
+          |> Stdlib.List.map (fun pair ->
+            let (id, dv) = pair
+            (Stdlib.Int64.toString id, PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
+          |> Stdlib.Dict.fromListOverwritingDuplicates
+
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.dimText
-            $"run {idPrefix run.id}  {run.entry}  {whenText run.created}")
+            $"run {Cli.Text.shortIdText run.id}  {run.entry}  {whenText run.created}")
         let ctx =
           { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
               liveValues = values }
         Stdlib.printLine (PrettyPrinter.ProgramTypes.packageFn ctx fn)
         match problem with
         | Some message ->
-          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  stopped: {message}")
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.error $"  the preview stopped here: {message}")
         | None -> ()
         state

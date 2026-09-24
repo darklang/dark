@@ -18,17 +18,33 @@ let printWrapped (colour: String -> String) (indent: String) (text: String) : Un
   wrap 80 indent text |> Stdlib.List.iter (fun l -> Stdlib.printLine (colour l))
 
 /// The first eight characters of an id: how every table and message names a process, a run or
-/// a commit.
-let shortId (id: Uuid) : String =
-  Stdlib.String.slice (Stdlib.Uuid.toString id) 0 8
+/// a commit. Eight is enough to be unique in practice and short enough to read in a column.
+let shortIdText (id: String) : String = Stdlib.String.slice id 0 8
 
-/// <param text> on one line, at most 40 characters: for a table cell that must not break the row.
-let oneLine (text: String) : String =
+/// <fn shortIdText> for an id that is already a `Uuid`.
+let shortId (id: Uuid) : String = shortIdText (Stdlib.Uuid.toString id)
+
+/// <param text> on one line, at most <param width> characters: for a table cell that must not
+/// break the row. `Table.print` pads to the widest cell and never wraps, so a cell that is
+/// allowed to be long costs every row below it.
+let oneLineAt (width: Int) (text: String) : String =
   let flat = Stdlib.String.replaceAll text "\n" " "
-  if Stdlib.String.length flat > 40 then
-    (Stdlib.String.slice flat 0 37) ++ "..."
+  if Stdlib.String.length flat > width then
+    (Stdlib.String.slice flat 0 (width - 3)) ++ "..."
   else
     flat
+
+/// <fn oneLineAt> at 40 characters.
+let oneLine (text: String) : String = oneLineAt 40 text
+
+/// "9,999", "48k", "3.2M": a count at a glance, for a column where the exact number is not the
+/// point and the magnitude is.
+let count (n: Int64) : String =
+  if n < 10000L then Stdlib.Int64.toString n
+  else if n < 1000000L then $"{Stdlib.Int64.toString (Stdlib.Int64.divide n 1000L)}k"
+  else
+    let tenths = Stdlib.Int64.divide n 100000L
+    $"{Stdlib.Int64.toString (Stdlib.Int64.divide tenths 10L)}.{Stdlib.Int64.toString (Stdlib.Int64.``mod`` tenths 10L)}M"
 
 /// "812 B", "34 KB", "2.1 MB": bytes at a glance.
 let bytes (n: Int) : String =

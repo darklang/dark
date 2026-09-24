@@ -110,22 +110,21 @@ let resolveID (input: String) : Stdlib.Result.Result<String, String> =
       "id"
 
   match matches with
-  | [] -> Stdlib.Result.Result.Error $"Trace not found: {input}"
+  | [] ->
+    Stdlib.Result.Result.Error
+      $"no run whose id starts with {input} -- `dark traces` lists them"
   | [ fullID ] -> Stdlib.Result.Result.Ok fullID
   | candidates ->
+    // Six were asked for, so a sixth means "at least one more", not "one more".
     let shown = Stdlib.List.take candidates 5
-    let more = (Stdlib.List.length candidates) - 5
     let suffix =
-      if more > 0 then
-        $"\n  - ... (and {Stdlib.Int.toString more} more)"
-      else
-        ""
+      if (Stdlib.List.length candidates) > 5 then "\n  and more" else ""
     let body =
       shown
-      |> Stdlib.List.map (fun id -> $"  - {id}")
+      |> Stdlib.List.map (fun id -> $"  {Stdlib.String.slice id 0 12}")
       |> Stdlib.String.join "\n"
     Stdlib.Result.Result.Error
-      $"Ambiguous trace ID '{input}'. Matches:\n{body}{suffix}"
+      $"more than one run starts with {input}; give more of the id:\n{body}{suffix}"
 
 
 /// Per-fn totals over the last <param traceLimit> traces:

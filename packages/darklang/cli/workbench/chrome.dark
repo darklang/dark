@@ -38,18 +38,14 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
   else if state.activeView == vApps then
     splitListPreview state region "" "app" "Detail" (Stdlib.Cli.UI.Colors.dimText "no apps registered")
   else if state.activeView == vTraces then
-    // Sample rows must SAY so in the title, not only in the detail pane: the first sample is the
-    // REPL's own "try:" example, which someone who just ran it will believe tracing recorded.
-    let sample =
-      if state.items |> Stdlib.List.any (fun it -> it.kind == "trace-sample") then "(sample)" else ""
-    let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
-    let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
-    splitListPreviewTitled
+    splitListPreview
       state
       region
-      (paneTitle "" (Stdlib.List.append (listTrailer state "run") [ sample ]) listFocused)
-      (paneTitle "Detail" [] detailFocused)
-      (Stdlib.Cli.UI.Colors.dimText "no traces yet - eval or run an app to record")
+      ""
+      "run"
+      "Detail"
+      (Stdlib.Cli.UI.Colors.dimText
+        "nothing has run yet -- every `dark eval`, `dark run` and served request is kept here")
   else if state.activeView == vDocs then
     splitListPreview state region "" "topic" "Topic" (Stdlib.Cli.UI.Colors.dimText "(no topics)")
   else

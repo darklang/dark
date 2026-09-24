@@ -7,9 +7,8 @@
 /// display.
 ///
 /// A trace IS a run: one row, with what was run, where it stands, and
-/// what it did. There used to be a second noun, an "execution", holding
-/// the status and the fork lineage; a served HTTP request got a trace and
-/// no execution, so the same request could be looked at but not resumed.
+/// what it did. So anything that was recorded can also be resumed, forked
+/// and previewed, a served HTTP request included.
 module Darklang.Tracing
 
 
@@ -48,7 +47,7 @@ type InputVar =
     value: LanguageTools.RuntimeTypes.Dval }
 
 
-/// One recorded function-call event during trace execution.
+/// One call a run made, as it was recorded.
 type FnCall =
   { callId: String
     parentCallId: Stdlib.Option.Option<String>

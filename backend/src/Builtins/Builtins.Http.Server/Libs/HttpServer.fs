@@ -499,6 +499,10 @@ let private handleRequest
       | Live live -> live.dev
       | Fixed _ -> false
     let isLiveStream = dev && ctx.Request.Url.AbsolutePath = "/__live"
+    // Set once this request has a recorder, so the 500 handler below can still write what was
+    // recorded before things went wrong. A request that crashed the server is the one you most
+    // want to find in `dark traces`, and it is the one that never reached the store.
+    let mutable recording : Option<AT.TraceID.T * Tracing.T * ExecutionState> = None
     try
       try
         if isLiveStream then
@@ -548,6 +552,7 @@ let private handleRequest
               | Ok(handlerState, _) -> handlerState
               | Error _ -> exeState
             let perRequestState = perRequestStateFor handlerState tracer
+            recording <- Some(traceID, tracer, perRequestState)
 
             let! outcome =
               match resolved with
@@ -630,6 +635,16 @@ let private handleRequest
         let errorBytes = UTF8.toBytes "Internal server error"
         ctx.Response.ContentLength64 <- int64 errorBytes.Length
         do! ctx.Response.OutputStream.WriteAsync(errorBytes, 0, errorBytes.Length)
+        match recording with
+        | Some(traceID, tracer, perRequestState) when tracer.enabled ->
+          // Best-effort, and swallowed: the client already has its 500, and failing to record
+          // a failure must not turn into a second one.
+          try
+            do! tracer.storeTraceResults perRequestState |> Ply.toTask
+            LibDB.Traces.setStatus (AT.TraceID.toUUID traceID) LibDB.Traces.Failed
+          with _ ->
+            ()
+        | _ -> ()
     finally
       match started with
       | Some started when not isLiveStream ->

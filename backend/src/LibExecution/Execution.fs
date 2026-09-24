@@ -194,11 +194,10 @@ let executeToplevel
 /// A VM's interpreter loop is single-threaded, so a thread-static store needs no synchronisation
 /// and no node (a `ConcurrentBag` would allocate one per add).
 ///
-/// The pool was sized for `List.map` traffic, which no longer comes through here: a builtin
-/// applying a callable asks the interpreter for a frame in the SAME VM (`Interpreter.requestApply`).
-/// What is left is the handful of callers that apply a callable from outside a run -- the HTTP
-/// server's handler, live values, the package manager -- so the stack is deeper than it needs to
-/// be rather than hot.
+/// What borrows from it is the handful of callers that apply a callable from OUTSIDE a run --
+/// the HTTP server's handler, live values, the package manager. A builtin applying a callable
+/// does not: it asks the interpreter for a frame in the same VM (`Interpreter.requestApply`).
+/// So the pool is deeper than it needs to be rather than hot.
 type private VMSlot() =
   static let capacity = 8
 

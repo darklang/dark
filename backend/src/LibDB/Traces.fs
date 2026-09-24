@@ -5,11 +5,6 @@
 /// that drops it. A run that is still going has a row with `status = running`; the recorder
 /// upserts the input and the calls onto that same row when the run ends.
 ///
-/// There used to be two tables and two nouns, `executions` beside `traces`, differing mostly in
-/// which half of a run they held: the trace had the input and the calls, the execution had the
-/// status and the fork lineage, and a served HTTP request got a trace and no execution, so the
-/// same request could be viewed but not resumed. One row, one noun (`docs/processes.md`).
-///
 /// Resume and fork are record/replay: a resumed run re-runs the same input with a tracer that
 /// answers every effectful call from the log by `(process, ordinal)` instead of performing it, and
 /// goes live when the log runs out (`Tracing.createReplayTracer`). The log is thin because of the
@@ -49,7 +44,7 @@ module Status =
     | "done" -> Done
     | "failed" -> Failed
     | "suspended" -> Suspended
-    | other -> Exception.raiseInternal "unknown execution status" [ "status", other ]
+    | other -> Exception.raiseInternal "unknown run status" [ "status", other ]
 
 type Trace =
   {
@@ -104,12 +99,7 @@ let private insertSql =
      status, parent_id, parent_seq, pinned, updated)
    VALUES
     (@id, 0, @desc, @created, @inputName, @input, NULL,
-     @status, @parentId, @parentSeq, 0, @updated)
-   ON CONFLICT(id) DO UPDATE SET
-     status = excluded.status,
-     parent_id = excluded.parent_id,
-     parent_seq = excluded.parent_seq,
-     updated = excluded.updated"
+     @status, @parentId, @parentSeq, 0, @updated)"
 
 let private insertParams
   (id : System.Guid)
@@ -176,16 +166,6 @@ let setEntryHash (id : System.Guid) (hash : string) : unit =
   |> Sql.parameters [ "id", Sql.uuid id; "hash", Sql.string hash ]
   |> Sql.executeStatementSync
 
-/// Pin a run, or unpin it: retention never drops a pinned one, whatever the caps say. For the
-/// failure you are chasing, or the request you are building against.
-let setPinned (id : System.Guid) (pinned : bool) : unit =
-  Sql.query "UPDATE traces SET pinned = @pinned, updated = @updated WHERE id = @id"
-  |> Sql.parameters
-    [ "id", Sql.uuid id
-      "pinned", Sql.int (if pinned then 1 else 0)
-      "updated", Sql.string (now ()) ]
-  |> Sql.executeStatementSync
-
 /// When the log a run replays was recorded: its own start, or for a fork, the start of the run
 /// at the root of its lineage, since a fork's log is a copy of that run's.
 let recordedAt (e : Trace) : Task<string> =
@@ -240,7 +220,15 @@ let log
                 BinarySer.RT.Dval.deserialize "trace_fn_calls.result" bytes
               )
             )
-          with _ ->
+          with e ->
+            // Dropping the row quietly is what makes this dangerous: the ordinal then has no
+            // answer, which ends the replay for that process and takes the rest of the log
+            // with it, so the run goes live and performs the remaining effects for real. Say
+            // it once, with the position, rather than leaving that a mystery.
+            System.Console.Error.WriteLine(
+              $"[traces] step {ord} of this run could not be read back ({e.Message}); "
+              + "the resume goes live from there"
+            )
             None)
   }
 
@@ -265,28 +253,40 @@ let fork
             "SELECT COALESCE(MAX(seq), -1) + 1 AS n FROM trace_fn_calls WHERE trace_id = @t"
           |> Sql.parameters [ "t", Sql.uuid id ]
           |> Sql.executeRowAsync (fun read -> read.int64 "n")
-      Sql.executeTransactionSync
-        [ "INSERT INTO traces
-            (id, root_tlid, handler_desc, timestamp, input_name, input_value, account_id,
-             status, parent_id, parent_seq, pinned, updated)
-           SELECT @child, root_tlid, handler_desc, @stamp, input_name, input_value, account_id,
-                  'suspended', @parent, @cutoff, 0, @stamp
-           FROM traces WHERE id = @parent",
-          [ [ "child", Sql.uuid childId
-              "parent", Sql.uuid id
-              "cutoff", Sql.int64 cutoff
-              "stamp", Sql.string (now ()) ] ]
-          "INSERT INTO trace_fn_calls
-            (trace_id, call_id, parent_call_id, kind, fn_hash, lambda_expr_id, args, result,
-             duration_ms, process_id, seq, ord)
-           SELECT @child, call_id, parent_call_id, kind, fn_hash, lambda_expr_id, args, result,
-                  duration_ms, process_id, seq, ord
-           FROM trace_fn_calls WHERE trace_id = @parent AND seq < @cutoff",
-          [ [ "child", Sql.uuid childId
-              "parent", Sql.uuid id
-              "cutoff", Sql.int64 cutoff ] ] ]
-      |> ignore<List<int>>
-      return Ok childId
+      // `entry_hash` comes across too: for a served request it is the only thing that says
+      // what to replay against, so a fork without it is a run nothing can look at.
+      let counts =
+        Sql.executeTransactionSync
+          [ "INSERT INTO traces
+              (id, root_tlid, handler_desc, timestamp, input_name, input_value, account_id,
+               status, parent_id, parent_seq, pinned, updated, entry_hash)
+             SELECT @child, root_tlid, handler_desc, @stamp, input_name, input_value,
+                    account_id, 'suspended', @parent, @cutoff, 0, @stamp, entry_hash
+             FROM traces WHERE id = @parent",
+            [ [ "child", Sql.uuid childId
+                "parent", Sql.uuid id
+                "cutoff", Sql.int64 cutoff
+                "stamp", Sql.string (now ()) ] ]
+            "INSERT INTO trace_fn_calls
+              (trace_id, call_id, parent_call_id, kind, fn_hash, lambda_expr_id, args, result,
+               duration_ms, process_id, seq, ord)
+             SELECT @child, call_id, parent_call_id, kind, fn_hash, lambda_expr_id, args,
+                    result, duration_ms, process_id, seq, ord
+             FROM trace_fn_calls WHERE trace_id = @parent AND seq < @cutoff",
+            [ [ "child", Sql.uuid childId
+                "parent", Sql.uuid id
+                "cutoff", Sql.int64 cutoff ] ]
+            // The child answers `traces calls <fn>` for the same functions the parent did.
+            "INSERT OR IGNORE INTO trace_fns (trace_id, fn_name)
+             SELECT @child, fn_name FROM trace_fns WHERE trace_id = @parent",
+            [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ] ]
+      // `INSERT ... SELECT` inserts nothing when the parent has gone -- retention runs every
+      // ten seconds -- and reporting a child that does not exist sends the person to a resume
+      // that cannot find it.
+      match counts with
+      | rowsInserted :: _ when rowsInserted = 0 ->
+        return Error "the run was deleted while it was being forked"
+      | _ -> return Ok childId
   }
 
 
@@ -319,7 +319,7 @@ module Foreground =
       | _ -> false)
 
   /// Suspend the foreground run, if there is one: its log so far is stored and it is marked
-  /// suspended, so `dark exec resume <id>` can take it from there. Answers the id.
+  /// suspended, so `dark traces resume <id>` can take it from there. Answers the id.
   let suspend () : Task<Option<System.Guid>> =
     task {
       match lock sync (fun () -> current) with
@@ -366,8 +366,8 @@ let previewLog (id : System.Guid) : Task<List<string * byte[] * RT.Dval>> =
   }
 
 
-/// A resume armed for the next run the CLI host starts/// A resume armed for the next run the CLI host starts: `dark exec resume <id>` arms it, then runs
-/// the execution's input through the ordinary `eval` or `run` path, and the host's script runner
+/// A resume armed for the next run the CLI host starts. `dark traces resume <id>` arms it, then
+/// runs that run's input through the ordinary `eval` or `run` path, and the host's script runner
 /// takes it in place of a fresh tracer (`Builtins.CliHost.Libs.Cli.execute`). One shot: taken by
 /// the next run, whichever it is, so the CLI arms and runs back to back.
 module Replay =

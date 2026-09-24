@@ -317,10 +317,10 @@ let private testTracesDeleteEmpties =
     task {
       let! _ = runCli state [ "eval"; "1L + 2L" ]
       let! pre = runCli state [ "traces"; "list" ]
-      Expect.isFalse (pre.Contains "No traces") "list non-empty pre-delete"
+      Expect.stringContains pre "eval" "list non-empty pre-delete"
       let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
       let! post = runCli state [ "traces"; "list" ]
-      Expect.stringContains post "No traces" "list empty post-delete"
+      Expect.stringContains post "nothing has run yet" "list empty post-delete"
     })
 
 let private testTracesStatsCounts =
@@ -340,7 +340,7 @@ let private testTracesFindByContent =
       let! _ = runCli state [ "eval"; "\"unique-token-xyz12345\"" ]
       let! _ = runCli state [ "eval"; "1L + 1L" ]
       let! output = runCli state [ "traces"; "find"; "unique-token-xyz12345" ]
-      Expect.stringContains output "Traces matching" "find banner"
+      Expect.stringContains output "what ran" "the run table's header"
       Expect.stringContains output "eval" "eval handler"
     })
 
@@ -354,7 +354,10 @@ let private testTracesDeleteSingle =
       let latestTid = parseTraceID latestJson
 
       let! delOut = runCli state [ "traces"; "delete"; latestTid; "--yes" ]
-      Expect.stringContains delOut "Deleted trace" "delete confirm"
+      Expect.stringContains
+        delOut
+        $"deleted {latestTid.Substring(0, 8)}"
+        "delete confirm"
 
       let! listAfter = runCli state [ "traces"; "list" ]
       Expect.isFalse
@@ -373,11 +376,11 @@ let private testTracesPruneKeep =
       let latestTid = parseTraceID latestJson
 
       let! pruneOut = runCli state [ "traces"; "delete"; "--keep"; "1"; "--yes" ]
-      Expect.stringContains pruneOut "Pruned 2 trace" "prune confirm"
+      Expect.stringContains pruneOut "deleted 2 runs" "prune confirm"
 
       let! listOut = runCli state [ "traces"; "list" ]
-      Expect.stringContains listOut "Recent traces (last 20):" "list banner"
-      Expect.stringContains listOut latestTid "latest trace kept"
+      Expect.stringContains listOut "what ran" "the run table's header"
+      Expect.stringContains listOut (latestTid.Substring(0, 8)) "latest trace kept"
     })
 
 let private testTracesRejectsNegativeLimit =
@@ -389,7 +392,7 @@ let private testTracesRejectsNegativeLimit =
           [ "traces"; "hotspots"; "-1" ]
           [ "traces"; "find"; "foo"; "-1" ] ] do
         let! out = runCli state argv
-        Expect.stringContains out "Limit must be ≥ 1" $"{argv} rejected"
+        Expect.stringContains out "has to be 1 or more" $"{argv} rejected"
     })
 
 let private testTracesArgOrderingsWork =
@@ -411,11 +414,11 @@ let private testTracesFindEscapesLikeWildcards =
     task {
       let! _ = runCli state [ "eval"; "1L + 1L" ]
       let! pctOut = runCli state [ "traces"; "find"; "%" ]
-      Expect.stringContains pctOut "No traces match '%'." "literal %"
+      Expect.stringContains pctOut "no kept run matches %" "literal %"
       let! zPctOut = runCli state [ "traces"; "find"; "z%" ]
-      Expect.stringContains zPctOut "No traces match 'z%'." "literal z%"
+      Expect.stringContains zPctOut "no kept run matches z%" "literal z%"
       let! zUscOut = runCli state [ "traces"; "find"; "z_" ]
-      Expect.stringContains zUscOut "No traces match 'z_'." "literal z_"
+      Expect.stringContains zUscOut "no kept run matches z_" "literal z_"
     })
 
 let private testTracesRouteEmptyRejection =
@@ -423,11 +426,13 @@ let private testTracesRouteEmptyRejection =
     task {
       let! _ = runCli state [ "eval"; "1L + 1L" ]
       let cases =
-        [ [ "traces"; "tail"; "--route"; "" ], "--route pattern must not be empty"
+        [ [ "traces"; "tail"; "--route"; "" ],
+          "--route takes part of a path or a method"
           [ "traces"; "tail"; "--route"; "   " ],
-          "--route pattern must not be empty"
-          [ "traces"; "list"; "--route"; "" ], "--route pattern must not be empty"
-          [ "traces"; "list"; "--fn"; "   " ], "--fn pattern must not be empty" ]
+          "--route takes part of a path or a method"
+          [ "traces"; "list"; "--route"; "" ],
+          "--route takes part of a path or a method"
+          [ "traces"; "list"; "--fn"; "   " ], "--fn takes a function name" ]
       for (argv, expected) in cases do
         let! out = runCli state argv
         Expect.stringContains out expected $"{argv} rejected"
@@ -458,7 +463,7 @@ let private testTracesStatsHintHiddenForEvalOnly =
         let! _ = runCli state [ "eval"; "1L + 1L" ]
         let! _ = runCli state [ "eval"; "2L + 2L" ]
         let! statsOut = runCli state [ "traces"; "stats" ]
-        Expect.stringContains statsOut "Per-handler stats" "table"
+        Expect.stringContains statsOut "per entry, over the last" "table"
         Expect.stringContains statsOut "eval" "eval row"
         Expect.isFalse
           (statsOut.Contains "drill into a route")
@@ -469,14 +474,14 @@ let private testTracesUnknownSubcommandSurfaced =
   cliTest "unknown traces subcommand prints clear error" (fun state ->
     task {
       let! typoOut = runCli state [ "traces"; "nonsense" ]
-      Expect.stringContains typoOut "Unknown subcommand: nonsense" "typo flagged"
+      Expect.stringContains typoOut "unknown subcommand: nonsense" "typo flagged"
       let! typoTwoOut = runCli state [ "traces"; "lst" ]
-      Expect.stringContains typoTwoOut "Unknown subcommand: lst" "lst flagged"
+      Expect.stringContains typoTwoOut "unknown subcommand: lst" "lst flagged"
 
       let! bareOut = runCli state [ "traces" ]
-      Expect.isFalse (bareOut.Contains "Unknown subcommand") "bare not flagged"
+      Expect.isFalse (bareOut.Contains "unknown subcommand") "bare not flagged"
       let! helpOut = runCli state [ "traces"; "help" ]
-      Expect.isFalse (helpOut.Contains "Unknown subcommand") "help not flagged"
+      Expect.isFalse (helpOut.Contains "unknown subcommand") "help not flagged"
     })
 
 let private testTracesFiltersAreCaseInsensitive =
@@ -487,7 +492,7 @@ let private testTracesFiltersAreCaseInsensitive =
       Expect.stringContains listLower "eval" "lower matches"
       let! listUpper = runCli state [ "traces"; "list"; "--route"; "EVAL" ]
       Expect.stringContains listUpper "eval" "upper matches"
-      Expect.isFalse (listUpper.Contains "No traces found") "upper still finds"
+      Expect.isFalse (listUpper.Contains "no kept run") "upper still finds"
       let! listMixed = runCli state [ "traces"; "list"; "--route"; "Eval" ]
       Expect.stringContains listMixed "eval" "mixed matches"
     })
@@ -496,11 +501,12 @@ let private testTracesRejectsEmptyPattern =
   cliTest "find / list --fn / list --route reject empty pattern" (fun state ->
     task {
       let cases =
-        [ [ "traces"; "find"; "" ], "find pattern must not be empty"
-          [ "traces"; "find"; ""; "--view" ], "find pattern must not be empty"
-          [ "traces"; "find"; ""; "--json" ], "find pattern must not be empty"
-          [ "traces"; "list"; "--fn"; "" ], "--fn pattern must not be empty"
-          [ "traces"; "list"; "--route"; "" ], "--route pattern must not be empty" ]
+        [ [ "traces"; "find"; "" ], "find takes something to look for"
+          [ "traces"; "find"; ""; "--view" ], "find takes something to look for"
+          [ "traces"; "find"; ""; "--json" ], "find takes something to look for"
+          [ "traces"; "list"; "--fn"; "" ], "--fn takes a function name"
+          [ "traces"; "list"; "--route"; "" ],
+          "--route takes part of a path or a method" ]
       for (argv, expected) in cases do
         let! out = runCli state argv
         Expect.stringContains out expected $"{argv} rejected"
@@ -514,9 +520,12 @@ let private testTracesViewRejectsNegativeSubOptions =
       let tid = parseTraceID listJson
 
       let! depthOut = runCli state [ "traces"; "view"; tid; "--depth"; "-1" ]
-      Expect.stringContains depthOut "--depth must be ≥ 0" "depth -1"
+      Expect.stringContains depthOut "--depth is a number of levels" "depth -1"
       let! slowOut = runCli state [ "traces"; "view"; tid; "--slow-ms"; "-1" ]
-      Expect.stringContains slowOut "--slow-ms must be ≥ 0" "slow-ms -1"
+      Expect.stringContains
+        slowOut
+        "--slow-ms is a number of milliseconds"
+        "slow-ms -1"
     })
 
 let private testTracesDeleteGrammar =
@@ -536,8 +545,8 @@ let private testTracesDeleteGrammar =
         let! _ = runCli state [ "eval"; "4L + 4L" ]
         let! pruneOne = runCli state [ "traces"; "delete"; "--keep"; "1"; "--yes" ]
 
-        Expect.stringContains clearOne "Cleared 1 trace." "singular"
-        Expect.stringContains clearTwo "Cleared 2 traces." "plural"
+        Expect.stringContains clearOne "cleared 1 run" "singular"
+        Expect.stringContains clearTwo "cleared 2 runs" "plural"
         Expect.stringContains pruneNone "none kept" "prune --keep 0"
         Expect.stringContains pruneOne "kept the most-recent" "prune --keep 1"
       })
@@ -551,9 +560,9 @@ let private testTracesReplayReruns =
         let! listJsonBefore = runCli state [ "traces"; "list"; "1"; "--json" ]
         let tid = parseTraceID listJsonBefore
         let! out = runCli state [ "traces"; "rerun"; tid ]
-        Expect.stringContains out $"Replaying trace {tid}" "header line"
+        Expect.stringContains out $"rerunning {tid.Substring(0, 8)}" "header line"
         Expect.stringContains out "3" "result printed"
-        Expect.stringContains out "Rerun complete" "completion line"
+        Expect.stringContains out "rerun complete" "completion line"
 
         // A rerun is a run of its own, so the count goes 1 -> 2.
         let! listJsonAfter = runCli state [ "traces"; "list"; "10"; "--json" ]
@@ -580,15 +589,14 @@ let private testTracesPruneIdempotent =
         let! _ = runCli state [ "traces"; "delete"; "--keep"; "2"; "--yes" ]
         let! _ = runCli state [ "traces"; "delete"; "--keep"; "2"; "--yes" ]
 
+        // The table shortens ids, so count the rows rather than the uuids: every run row
+        // starts with a hex id prefix and carries the entry it ran.
         let! listOut = runCli state [ "traces"; "list" ]
-        // Lines look like "  <timestamp>  <uuid>  <handler>".
-        let uuidPattern =
-          System.Text.RegularExpressions.Regex(
-            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-          )
+        let rowPattern =
+          System.Text.RegularExpressions.Regex("^[0-9a-f]{8}\\S*\\s+done\\s")
         let count =
           listOut.Split('\n')
-          |> Array.filter (fun l -> uuidPattern.IsMatch l)
+          |> Array.filter (fun l -> rowPattern.IsMatch l)
           |> Array.length
         Expect.equal count 2 "repeated prunes converge on --keep"
       })
@@ -603,10 +611,10 @@ let private testTracesLargeTraceListSurvives =
           let! _ = runCli state [ "eval"; "1L + 2L" ]
           ()
         let! listOut = runCli state [ "traces"; "list"; "20" ]
-        Expect.stringContains listOut "Recent traces" "list returns the banner"
+        Expect.stringContains listOut "what ran" "list returns the run table"
         let! findOut = runCli state [ "traces"; "find"; "3" ]
         // 50 evals of `1L + 2L` all produce DInt64 3.
-        Expect.stringContains findOut "Traces matching" "find returns banner"
+        Expect.stringContains findOut "what ran" "find returns the run table"
       })
 
 let private testTracesViewToleratesCorruptedRow =
@@ -647,7 +655,7 @@ let private testTracesRejectsFlagAsTraceId =
       let cmds = [ [ "traces"; "delete"; "--fake-arg" ] ]
       for argv in cmds do
         let! out = runCli state argv
-        Expect.stringContains out "Unknown flag: --fake-arg" $"{argv} rejected"
+        Expect.stringContains out "unknown flag: --fake-arg" $"{argv} rejected"
     })
 
 /// A trace that hits the event cap must still be a walkable tree.

@@ -40,7 +40,11 @@ let private statusToDT (status : string) : Dval =
     | "running" -> "Running"
     | "failed" -> "Failed"
     | "suspended" -> "Suspended"
-    | _ -> "Done"
+    | "done" -> "Done"
+    | other ->
+      // `LibDB.Traces.Status.parse` raises on an unknown status; reading it as a finished run
+      // here would be the two halves of one column disagreeing.
+      Exception.raiseInternal "unknown run status" [ "status", other ]
   DEnum(tn, tn, [], case, [])
 
 /// A run's input as one line of text: the expression or the script's source as it was written.
@@ -131,13 +135,10 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
            seq = read.int64 "seq"
            ord = read.int64 "ord" |})
 
-    // Skip rows whose args / result fail to deserialize rather than
-    // substitute a placeholder Dval — the downstream renderer expects
-    // each FnCall record's `args` / `result` to be the canonical Dval
-    // custom type, and a stand-in DString fails the type check at
-    // apply time. One bad row used to abort the whole tracesView /
-    // call-tree render via an unhandled raise; now we log + drop the
-    // row so the rest of the trace still renders.
+    // A row whose args / result will not deserialize is logged and dropped, not stood in for:
+    // the renderer wants each `FnCall`'s `args` / `result` as the canonical Dval custom type,
+    // so a placeholder `DString` fails the type check at apply time instead. Dropping keeps
+    // the rest of the trace readable; a raise here would lose all of it.
     let enriched =
       events
       |> List.choose (fun ev ->
@@ -446,7 +447,9 @@ let fns () : List<BuiltInFn> =
           Param.make "limit" TInt "Max number of traces to return" ]
       returnType = TList(TCustomType(NR.ok (traceTypeName ()), []))
       description =
-        "List runs whose recorded input or any fn-call args/result contains the substring (case-sensitive). Match is on the developer-repr form of each Dval."
+        "List runs whose recorded input or any logged call's args/result contains the substring "
+        + "(case-sensitive), matched against the developer-repr form of each Dval. Searches the "
+        + "newest 2000 runs and stops at `limit` matches."
       fn =
         (function
         | exeState, vm, _, [| DString pattern; DInt limitArg |] ->
@@ -454,12 +457,11 @@ let fns () : List<BuiltInFn> =
           uply {
             let typeName = traceTypeName ()
 
-            // Walk traces newest-first; for each, deserialize the
-            // input + every fn_call's args/result and check the repr
-            // for the pattern. Stop once we've collected `limit`
-            // matches. Bounded by `limit` rather than walking the
-            // whole table — common case is the user wants the most
-            // recent N matches.
+            // Newest-first, deserializing each run's input and then, only if that misses, its
+            // calls; stop at `limit` matches. Bounded at both ends on purpose: the scan window
+            // keeps a store with retention turned off from loading every input blob it has, and
+            // `limit` keeps the deserializing short. A match older than the window is not found,
+            // which is what the description says.
             let containsPattern (dv : Dval) : Ply<bool> =
               uply {
                 let! repr = Execution.dvalToRepr exeState dv
@@ -468,7 +470,8 @@ let fns () : List<BuiltInFn> =
 
             let! traces =
               Sql.query
-                $"SELECT {traceColumns} FROM traces ORDER BY timestamp DESC, rowid DESC"
+                $"SELECT {traceColumns} FROM traces
+                  ORDER BY timestamp DESC, rowid DESC LIMIT 2000"
               |> Sql.executeAsync (fun read ->
                 {| id = read.string "id"
                    row = traceRowToDT read
@@ -521,9 +524,9 @@ let fns () : List<BuiltInFn> =
                     return found
                   }
 
-              if matchesViaCalls then hits <- hits @ [ t.row ]
+              if matchesViaCalls then hits <- t.row :: hits
 
-            return hits |> Dval.list (KTCustomType(typeName, []))
+            return hits |> List.rev |> Dval.list (KTCustomType(typeName, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -610,6 +613,7 @@ let fns () : List<BuiltInFn> =
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
             Sql.executeTransactionSync
               [ ("DELETE FROM trace_fn_calls", [ [] ])
+                ("DELETE FROM trace_fns", [ [] ])
                 ("DELETE FROM traces", [ [] ]) ]
             |> ignore<List<int>>
             return Dval.int (bigint count)

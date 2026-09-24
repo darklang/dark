@@ -956,8 +956,16 @@ let rec private performRequested
     | ValueNone ->
       vm.hostInflight <- op
       uply {
-        let! outcome = performed
-        vm.hostInflight <- Unchecked.defaultof<_>
+        // Cleared on the way out however it goes. A denied or rejected operation raises from
+        // inside `performed`, and a VM that goes on claiming to be inside a host call mislabels
+        // every later park in `ps`.
+        let! outcome =
+          uply {
+            try
+              return! performed
+            finally
+              vm.hostInflight <- Unchecked.defaultof<_>
+          }
         return! performRequested exeState vm (next outcome)
       }
   else
@@ -1221,11 +1229,12 @@ let private invokeBuiltin
     match exeState.tracing.previewEffect with
     | Some lookup when not (Set.isEmpty fn.callEffects) ->
       match lookup fn.name.name allArgs with
-      | Some result -> ValueSome(Tracing.ReplayStep.Serve result)
-      | None ->
+      | ValueSome step -> ValueSome step
+      | ValueNone ->
         RTE.UncaughtException(
-          $"no recorded value for {fn.name.name} with these arguments, and a preview never "
-          + "performs an effect. Run it to record one.",
+          $"{fn.name.name} was not called with these arguments in this run, so there is no "
+          + "recorded value for it. Looking at code never performs an effect; run it to record "
+          + "one.",
           []
         )
         |> raiseRTE vm.threadID

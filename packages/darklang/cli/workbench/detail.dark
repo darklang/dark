@@ -368,28 +368,53 @@ let appDetail (state: State) : String =
     ++ "(each runs the matching `apps` subcommand in-frame - output opens in the reader)"
   | None -> "(no app selected)"
 
-/// The selected trace's detail. Placeholder - the walkable trace tree + live values come later.
+/// The selected run: where it stands, what it was given, and what it did to the world. The same
+/// answer `dark traces show <id>` gives, because it is the same row.
 let traceDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
+  | None ->
+    Stdlib.Cli.UI.Colors.dimText
+      "nothing has run yet -- every `dark eval`, `dark run` and served request is kept here"
   | Some item ->
-    // The list is real whenever anything has been recorded (see `loadTraceBodyItems`); only the fallback
-    // rows are invented. Saying "mock data" over a run that genuinely happened undersells what works.
-    let provenance =
-      if item.kind == "trace-sample" then
-        Stdlib.Cli.UI.Colors.dimText "(mock data) - nothing recorded in this environment yet"
-      else
-        Stdlib.Cli.UI.Colors.dimText "this run is real; what it recorded is not stored yet"
-    (Stdlib.Cli.UI.Colors.boldText item.name)
-    ++ "\n\n"
-    ++ provenance
-    ++ "\n\n"
-    ++ "A real trace carries the inputs, the return value, and the value\n"
-    ++ "that flowed through every sub-expression. From here you'll:\n\n"
-    ++ "  r  replay this run\n"
-    ++ "  t  turn it into a test\n"
-    ++ "  j  jump to the source of a value\n"
-    ++ "  ⏎  walk the trace tree"
-  | None -> "(no trace recorded yet - eval something or run an app)"
+    match Cli.TraceRuns.find item.name with
+    | Error e -> Stdlib.Cli.UI.Colors.dimText e
+    | Ok run ->
+      let lineage =
+        match run.parent with
+        | Some((parent, at)) ->
+          [ $"forked from {Cli.Text.shortIdText parent} at position {Stdlib.Int64.toString at}" ]
+        | None -> []
+      let pinned =
+        if run.pinned then [ "pinned: kept, whatever else is dropped to make room" ] else []
+      let calls =
+        match Darklang.Tracing.Store.view run.id with
+        | None -> [ "log: not kept (dropped to make room, or recording was off)" ]
+        | Some data ->
+          let logged = data.functionCalls |> Stdlib.List.filter (fun c -> c.ord >= 0L)
+          match logged with
+          | [] -> [ "log: this run touched nothing outside itself" ]
+          | _ ->
+            Stdlib.List.append
+              [ $"log: {Cli.Text.plural (Stdlib.List.length logged) "call"} with effects" ]
+              (Stdlib.List.take logged 12
+               |> Stdlib.List.map (fun c ->
+                 $"  {Stdlib.Int64.toString c.seq}  {c.fnName}"))
+      let header =
+        [ Stdlib.Cli.UI.Colors.boldText run.entry
+          ""
+          $"id      {run.id}"
+          $"status  {Cli.TraceRuns.statusText run.status}"
+          $"input   {Cli.Text.oneLineAt 60 run.input}"
+          $"started {Cli.TraceRuns.whenText run.created}" ]
+      let footer =
+        [ ""
+          Stdlib.Cli.UI.Colors.dimText $"dark traces resume {Cli.Text.shortIdText run.id}"
+          Stdlib.Cli.UI.Colors.dimText $"dark traces fork {Cli.Text.shortIdText run.id} --at <n>"
+          Stdlib.Cli.UI.Colors.dimText "dark traces values <fn> -- the code with this run's values beside it" ]
+      [ header, lineage, pinned, [ "" ], calls, footer ]
+      |> Stdlib.List.flatten
+      |> Stdlib.String.join "\n"
+
 
 /// The item page's first line: the kind with its glyph, the short content
 /// hash, and a deprecation mark only when it is deprecated. Nothing that is

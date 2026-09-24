@@ -17,7 +17,6 @@ DARK_CONFIG_ENV_DISPLAY_NAME=circleci
 DARK_CONFIG_DEFAULT_LOGGER=console
 
 # Feature flag defaults
-DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT=sample-all
 # The recording ladder is off | inputs | effects | values; `effects` ships. CI runs at `values`
 # so the paths that only exist there -- the call tree, live values -- are exercised.
 DARK_CONFIG_TRACE_DETAIL=values

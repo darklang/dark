@@ -241,7 +241,7 @@ let loadProcessItems () : List<BodyItem> =
   Cli.Ps.treeRowsWithIds (SCM.PackageOps.currentBranch ()) (Stdlib.Exec.list ())
   |> Stdlib.List.map (fun (id, cells) ->
     BodyItem
-      { name = Cli.Ps.idPrefix id
+      { name = Cli.Text.shortId id
         kind = "process"
         isModule = false
         desc = Stdlib.String.join cells "\t" })
@@ -253,8 +253,8 @@ let processTree (state: State) : Stdlib.Cli.UI.Node.Node<Unit> =
   if Stdlib.List.isEmpty rows then
     Stdlib.Cli.UI.Node.dim "(no processes: the scheduler is not running this workbench)"
   else
-    // The machine's other Dark processes go under this instance's table, so the cursor's row
-    // arithmetic above (row = selected + 2) stays true.
+    // The machine's other Dark processes go UNDER this instance's table, so the cursor
+    // arithmetic in `renderProcesses` (row = selected + 2) stays true.
     let others =
       match Cli.Ps.machineRows () with
       | [] -> []
@@ -284,13 +284,20 @@ let renderProcesses (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<
       // The tree, with the selected row marked: the list pane IS the table, so the cursor has to
       // be drawn on it rather than on a separate list of names.
       let lines = Stdlib.Cli.UI.Node.toRows (processTree state) r.cols ""
+      // Row 0 is the header, row 1 the rule; the processes start at row 2.
+      let cursorRow = state.selected + 2
       let marked =
         lines
         |> Stdlib.List.indexedMap (fun i line ->
-          // Row 0 is the header, row 1 the rule; the processes start at row 2.
-          if i == state.selected + 2 then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.selection line
-          else line)
-      renderScrollableLines r 0 lines marked 0)
+          if i == cursorRow then
+            Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.selection line
+          else
+            line)
+      // Enough scroll to keep the cursor on screen. Without it, selecting past the pane's
+      // height moves a cursor nobody can see.
+      let visible = Stdlib.Int.max 1 (r.rows - 1)
+      let scroll = Stdlib.Int.max 0 ((cursorRow + 1) - visible)
+      renderScrollableLines r 0 lines marked scroll)
     (paneTitle "Stack" [] detailFocused)
     (fun r -> renderPreview state r)
 

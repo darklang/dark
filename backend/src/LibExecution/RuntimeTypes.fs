@@ -2590,9 +2590,15 @@ module Tracing =
       /// Two keys for two jobs. A resume keys on `(process, ordinal)`, which keeps order and
       /// tells two identical calls apart; a view keys on `(name, arguments)`, which survives
       /// an edit that adds a call in the middle -- every call you did not touch still matches.
+      /// `ValueNone` means the log cannot answer it, and the preview stops there. A `Serve`
+      /// hands back what was recorded; `PerformOnce` is for the handful of calls that must be
+      /// made again rather than served -- a spawn, whose recorded result is a handle to a
+      /// process that no longer exists, and an environment read, whose result was never stored.
+      /// Those perform under the preview's own tracer, so a spawned child previews too.
+      ///
       /// The arguments arrive as the array the interpreter already has, so an ordinary run
       /// pays one null test here and allocates nothing.
-      previewEffect : Option<string -> Dval[] -> Option<Dval>>
+      previewEffect : Option<string -> Dval[] -> ReplayStep voption>
       /// The same trace, seen from another process. A recorder keeps one call stack per
       /// process and stamps every event with the process id and a sequence number across
       /// the whole trace, so two processes stepping on two threads write one log whose

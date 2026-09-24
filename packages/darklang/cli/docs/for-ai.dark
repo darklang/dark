@@ -222,8 +222,8 @@ workbench and the LSP show `// = value` beside calls from the last recorded run.
 
 Every run is a process: reads run at once with no code change, writes keep
 order, `await x` waits here; `Exec.spawn`/`await`/`cancel` when you want control;
-`ps` shows what is running on the machine, `exec resume <id>` picks a Ctrl-C'd run
-back up, `exec fork` branches one. `docs processes` and `docs live` have the
+`ps` shows what is running on the machine, `traces resume <id>` picks a Ctrl-C'd
+run back up, `traces fork` branches one. `docs processes` and `docs live` have the
 short versions; `docs/processes.md` and `docs/live.md` in the repo have the design.
 
 ## Name Resolution

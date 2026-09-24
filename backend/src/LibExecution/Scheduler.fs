@@ -466,6 +466,23 @@ type Scheduler(quantum : int64) =
       TaskCompletionSource<HE.HostEvent>(
         TaskCreationOptions.RunContinuationsAsynchronously
       )
+    // Asked BEFORE this scheduler's lock is taken. `Find` walks the group and takes every
+    // other scheduler's lock, so asking it from inside ours is a lock-order inversion: two
+    // workers each awaiting a process on the other deadlock, and both worker loops are gone
+    // with no diagnostic. A process that finishes between this and the subscription is
+    // covered by the watcher being registered first.
+    let alreadyOver =
+      specs
+      |> List.choose (fun spec ->
+        match spec with
+        | HE.EventSpec.ExecDone pid ->
+          match this.Find pid with
+          | Some { status = Done _ }
+          | Some { status = Failed _ }
+          | None -> Some pid
+          | Some _ -> None
+        | _ -> None)
+      |> Set.ofList
     lock sync (fun () ->
       let wantsKey = List.contains HE.EventSpec.Key specs
       let wantsStore = List.contains HE.EventSpec.StoreChanged specs
@@ -491,13 +508,10 @@ type Scheduler(quantum : int64) =
           | HE.EventSpec.ExecDone pid ->
             execDoneWatchers.AddOrUpdate(pid, [ this ], (fun _ ws -> this :: ws))
             |> ignore<Scheduler list>
-            // Already over (or forgotten): nothing will post, so answer now. Registered
-            // first, so a finish racing this sees the watcher either way.
-            match this.Find pid with
-            | Some { status = Done _ }
-            | Some { status = Failed _ }
-            | None -> this.Satisfy(sub, HE.HostEvent.ExecDone pid)
-            | Some _ -> ())
+            // Already over (or forgotten): nothing will post, so answer now. The watcher is
+            // registered first, so a finish racing this sees it either way.
+            if Set.contains pid alreadyOver then
+              this.Satisfy(sub, HE.HostEvent.ExecDone pid))
     wake.Task
 
   /// Wake a subscription and drop it.
@@ -595,7 +609,12 @@ type Scheduler(quantum : int64) =
     match p.parent with
     | Some par ->
       match childCounts.AddOrUpdate(par, 0, (fun _ n -> n - 1)) with
-      | n when n <= 0 -> childCounts.TryRemove par |> ignore<bool * int>
+      // Removed only if it is STILL zero: a bare `TryRemove` takes whatever the value is now,
+      // so a parent that spawned again between the decrement and the remove loses its entry,
+      // and its new child then outlives it -- the one thing this table exists to prevent.
+      | n when n <= 0 ->
+        childCounts.TryRemove(System.Collections.Generic.KeyValuePair(par, 0))
+        |> ignore<bool>
       | _ -> ()
     | None -> ()
     // Its children go with it, wherever in the group they run, unless spawned detached: a

@@ -142,8 +142,17 @@ module Topics =
 
       DocTopic
         { name = "processes"
-          description = "Things run at once, pause, resume: await, Exec, ps, exec resume"
-          aliases = [ "ps", "exec", "await", "async", "concurrency", "spawn", "resume", "scheduler" ]
+          description =
+            "Things run at once, pause, resume: await, Exec, ps, traces resume"
+          aliases =
+            [ "ps"
+              "traces"
+              "await"
+              "async"
+              "concurrency"
+              "spawn"
+              "resume"
+              "scheduler" ]
           context = "general"
           content = Docs.Processes.content
           subtopics = [] }
