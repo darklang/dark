@@ -141,6 +141,22 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "processes"
+          description = "Things run at once, pause, resume: await, Exec, ps, exec resume"
+          aliases = [ "ps", "exec", "await", "async", "concurrency", "spawn", "resume", "scheduler" ]
+          context = "general"
+          content = Docs.Processes.content
+          subtopics = [] }
+
+      DocTopic
+        { name = "live"
+          description = "Running things follow your edits: live views, a live serve, live values"
+          aliases = [ "views", "live-values", "autopush" ]
+          context = "general"
+          content = Docs.Live.content
+          subtopics = [] }
+
+      DocTopic
         { name = "packages"
           description = "Package system"
           aliases = []

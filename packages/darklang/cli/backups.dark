@@ -32,12 +32,7 @@ let list () : List<String> =
 
 let sizeOf (name: String) : String =
   match Stdlib.Cli.File.size $"{backupDir ()}/{name}" with
-  | Ok bytes ->
-    // Anything under a megabyte said "0 MB", which reads as an empty file.
-    if bytes < 1048576 then
-      $"{Stdlib.Int.toString (bytes / 1024)} KB"
-    else
-      $"{Stdlib.Int.toString (bytes / 1048576)} MB"
+  | Ok bytes -> Cli.Text.bytes bytes
   | Error _ -> "?"
 
 /// `dark backups`

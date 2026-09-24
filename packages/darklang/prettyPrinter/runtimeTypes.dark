@@ -819,6 +819,30 @@ let dvalWith
   Stdlib.Pretty.render opts.width (Dval.toDoc branchId opts 0 dv)
 
 
+/// One value on one line, at most <param maxChars> of it: what a gutter, an inlay hint or a
+/// table cell shows beside the code. Rendered narrow and shallow, then flattened.
+let dvalOneLine
+    (branchId: Uuid)
+    (maxChars: Int)
+    (dv: LanguageTools.RuntimeTypes.Dval)
+  : String =
+  let text =
+    dvalWith
+      branchId
+      { PrettyPrinter.DisplayOptions.default with
+          width = 60
+          maxDepth = Stdlib.Option.Option.Some 2 }
+      dv
+
+  let oneLine =
+    text |> Stdlib.String.split "\n" |> Stdlib.List.map Stdlib.String.trim |> Stdlib.String.join " "
+
+  if (Stdlib.String.length oneLine) > maxChars then
+    (Stdlib.String.slice oneLine 0 (maxChars - 3)) ++ "..."
+  else
+    oneLine
+
+
 /// Render a value with the default options.
 ///
 /// Kept at this exact signature because `Execution.fs` reaches it through `PackageRefs`, which is how

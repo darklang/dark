@@ -42,8 +42,52 @@ let getInt (key: String) (default_: Int) : Int =
   | None -> default_
 
 
+/// The keys the F# boot reads before any Dark runs (`exec.workers` sizes the scheduler's
+/// worker pool, `trace.keep` the retention), so they live in the store's config like
+/// `entry_point`, not in the json file.
+let isStoreKey (key: String) : Bool =
+  (Stdlib.String.startsWith key "exec.")
+  || (Stdlib.String.startsWith key "http.")
+  || (Stdlib.String.startsWith key "trace.")
+
+/// What a value must look like, or `None` for anything goes: the boot falls back silently on a
+/// value it cannot read, so the refusal has to happen here.
+let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
+  let numeric =
+    [ "exec.workers"
+      "exec.maxInstructions"
+      "exec.maxBytes"
+      "http.requestTimeoutMs"
+      "trace.keep"
+      "trace.maxMb" ]
+  if Stdlib.List.``member`` numeric key then
+    match Stdlib.Int.parse value with
+    | Ok n when n >= 0 -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.Some $"{key} takes a whole number (0 = none), not {value}"
+  else if key == "live.autopush" then
+    if (value == "on") || (value == "off") then Stdlib.Option.Option.None
+    else Stdlib.Option.Option.Some "live.autopush is on or off"
+  else
+    Stdlib.Option.Option.None
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
+  | ["get", key] when isStoreKey key ->
+    let value = Stdlib.LocalStore.configGet key
+    if value == "" then
+      Stdlib.printLine $"{key} is not set (the default applies; `config list` has it)"
+    else
+      Stdlib.printLine $"{key} = {value}"
+    state
+
+  | ["set", key, value] when isStoreKey key ->
+    match checkValue key value with
+    | Some problem -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error problem)
+    | None ->
+      let _ = Stdlib.LocalStore.configSet key value
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} = {value}")
+    state
+
   | ["get", key] ->
     let config = readConfig ()
     match Stdlib.Dict.get config key with
@@ -54,6 +98,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | None ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Configuration key not found: {key}")
       state
+
+  | ["set", key, value] when Stdlib.Option.isSome (checkValue key value) ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Stdlib.Option.withDefault (checkValue key value) ""))
+    state
 
   | ["set", key, value] ->
     let config = readConfig ()
@@ -82,6 +130,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "  sync.default_instance    - Default instance for sync service"
       "  sync.interval_seconds    - Sync check interval (default: 20)"
       "  sync.auto_start          - Auto-start sync service (default: true)"
+      "  live.autopush            - Every save commits and pushes to the relay (on/off; default: off)"
+      "  exec.workers             - Scheduler worker threads (default: one per core)"
+      "  exec.policy              - Expert: a Dark fn picking the next process (default: round robin)"
+      "  exec.maxInstructions     - Expert: stop a process past this many instructions (default: none)"
+      "  exec.maxBytes            - Expert: stop a process past this many bytes allocated (default: none)"
+      "  http.requestTimeoutMs    - serve cancels a handler past this and answers 504 (default: 30000; 0 = none)"
+      "  trace.keep               - How many traces to keep (a served request is one; default: 200; 0 = all)"
+      "  trace.maxMb              - How many MB of logged args and results to keep (default: 256; 0 = all)"
       ""
       "Use 'config get <key>' to read a value"
       "Use 'config set <key> <value>' to set a value" ]
@@ -125,7 +181,15 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   let configKeys =
     [ "sync.default_instance"
       "sync.interval_seconds"
-      "sync.auto_start" ]
+      "sync.auto_start"
+      "live.autopush"
+      "exec.workers"
+      "exec.policy"
+      "exec.maxInstructions"
+      "exec.maxBytes"
+      "trace.keep"
+      "trace.maxMb"
+      "http.requestTimeoutMs" ]
 
   match args with
   | [] ->

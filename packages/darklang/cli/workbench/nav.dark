@@ -354,6 +354,7 @@ let launchOrStartApp (state: State) : Step =
   | Some app ->
     match app.target with
     | Foreground cmd -> Step.Launch(state, cmd)
+    | Views _ -> Step.Launch(state, $"apps view {app.slug}")
     | Daemon _ -> runAppsSubcommand state "start"
 
 /// Jump from a search result to its home in the Tree: open the containing module, select the leaf, close the

@@ -51,6 +51,8 @@ type Effect =
   | PackageWrite
   | TraceRead
   | TraceWrite
+  /// Starting a process beside this one (`Exec.spawn`); it runs under the spawner's access.
+  | Concurrency
   | Native
 
 type Rule =
@@ -111,6 +113,7 @@ val effectCases =
     (Permissions.Effect.PackageWrite, "PackageWrite", "package-write")
     (Permissions.Effect.TraceRead, "TraceRead", "trace-read")
     (Permissions.Effect.TraceWrite, "TraceWrite", "trace-write")
+    (Permissions.Effect.Concurrency, "Concurrency", "concurrency")
     (Permissions.Effect.Native, "Native", "native") ]
 
 /// The `effectCases` row an effect is in. Every effect has one, so the

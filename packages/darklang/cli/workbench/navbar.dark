@@ -60,10 +60,11 @@ val workspaces =
     // Its own row, not a leaf of Code: you reach for it from anywhere, so it gets a number key.
     Workspace { name = "REPL"; dest = mkDest vScratch 0; covers = [] }
     // Run starts work; Traces shows its results.
+    // Processes: what the scheduler is running right now; `P` from Apps.
     Workspace
       { name = "Apps"
         dest = mkDest vApps 0
-        covers = [ extViewIndex "crons", extViewIndex "calendar" ] }
+        covers = [ extViewIndex "crons", extViewIndex "calendar", extViewIndex "processes" ] }
     Workspace
       { name = "Traces"
         dest = mkDest vTraces 0

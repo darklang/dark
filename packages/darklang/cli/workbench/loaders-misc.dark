@@ -414,7 +414,7 @@ let loadTraceBodyItems () : List<BodyItem> =
   let real =
     Darklang.Tracing.Store.list 30
     |> Stdlib.List.map (fun t ->
-      BodyItem { name = t.handler; kind = "trace"; isModule = false; desc = t.timestamp })
+      BodyItem { name = t.entry; kind = "trace"; isModule = false; desc = t.created })
   if Stdlib.Bool.not (Stdlib.List.isEmpty real) then
     real
   else

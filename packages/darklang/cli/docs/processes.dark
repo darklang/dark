@@ -1,0 +1,81 @@
+module Darklang.Cli.Docs.Processes
+
+let content () : String =
+  """# Processes: things run at once, pause, and resume
+
+Every run is a process the runtime owns: it can run beside others, be paused,
+looked at, stopped, and picked up again later. You mostly meet this without
+writing anything.
+
+## Concurrency, without writing anything
+
+Reads run at the same time. Writes keep program order. `await x` waits for a
+value here instead of wherever it is first used.
+
+  let pages = Stdlib.List.map urls (fun u -> Stdlib.HttpClient.get u [])  // all in flight
+  Stdlib.printLine "fetching"                                             // a write: now, in order
+  let count = Stdlib.List.length pages                                    // looks: waits for all
+
+A read is a call whose effects are all reads (a file, env, db or package
+read, an HTTP GET or HEAD). Anything else runs in order.
+
+## When you want control
+
+  let h = Stdlib.Exec.spawn (fun () -> Stdlib.Cli.File.writeText log "done")  // in the background
+  Stdlib.Exec.await h                                    // wait for it
+  Stdlib.Exec.awaitWithin 500L h                         // ... or give up after 500 ms: None
+  Stdlib.Exec.select [ h1; h2 ]                          // the first to finish
+  Stdlib.Exec.cancel h                                   // stop it, and its children
+  Stdlib.List.parallelMap items fib                      // CPU-bound work across the cores
+
+A process spawned this way dies with its parent unless `Exec.spawnDetached`.
+Spawning is the `concurrency` effect; a policy can forbid it.
+
+## See what is running
+
+  ps                     every Dark process on this machine, then this one's own tree
+  ps --watch             the same, repainting; up/down, c cancel, k kill, esc
+  ps show <id> [--full]  one process: status, instructions, memory, call stack
+  ps cancel <id> | <pid> stop it politely (what it has on the host finishes first)
+  ps kill <id> | <pid>   stop it now (for a process stuck in a call that never returns)
+
+A tight loop cannot freeze a TUI or a server: it gets a turn, then others
+run. In a system monitor a Dark process shows as what it runs: `dark serve
+:9090`, `dark eval`, `dark <daemon>`.
+
+## Pick a run back up
+
+Every `eval` and `run` is recorded (only its effects: what it read, wrote,
+sent and got back), so Ctrl-C does not lose it.
+
+  exec                       the runs kept here, newest first
+  exec resume <id>           carry on where it stopped: the log answers what
+                             already happened, then the run goes live
+  exec fork <id> [--at <n>]  a new run from any point of an old one
+
+A resume echoes what the old run printed (dimmed), stops if the log holds
+something it cannot have again (an OS subprocess, an open stream), and warns
+when a file it read has changed since. The oldest are dropped once there are
+more than `trace.keep` traces (a served request is one) or `trace.maxMb` of
+log; a suspended run's never.
+
+What the log holds: what each effect was given and returned. Secret request
+headers (`authorization`, `cookie`, `set-cookie`, `x-api-key`) are stored as
+`[redacted]`, and an environment read's value is not stored at all (a resume
+reads the environment again). Everything else is in the clear: a key file a run
+read, a response body, what it printed. `DARK_CONFIG_TRACE_DETAIL=off` records
+nothing, and `=values` records every call rather than only the impure ones,
+which is what live values replay through and what fills a disk. The ladder is
+off | inputs | effects | values; `effects` is the default.
+
+## Knobs, all optional
+
+  config set exec.workers <n>          worker threads (default: one per core)
+  config set http.requestTimeoutMs <n> a server cancels a handler past this: 504 (30 s)
+  config set trace.keep <n>            traces kept (200); trace.maxMb, MB of log kept (256)
+  config set exec.maxInstructions <n>  expert: stop a process past this many instructions
+  config set exec.maxBytes <n>         expert: ... or this many bytes allocated
+
+The design is `docs/processes.md` in the repository; the live half of the
+story is `docs live`.
+"""

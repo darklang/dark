@@ -4,7 +4,7 @@
 module Darklang.Cli.Tracing
 
 
-type TraceSummary = Darklang.Tracing.TraceSummary
+type TraceSummary = Darklang.Tracing.Trace
 type InputVar = Darklang.Tracing.InputVar
 type FnCall = Darklang.Tracing.FnCall
 type TraceData = Darklang.Tracing.TraceData
@@ -19,7 +19,7 @@ let emptyStateHint () : String =
   if Darklang.Tracing.Store.enabled () then
     "(Traces are recorded by `darklang eval`, `darklang run`, or HTTP handlers under `darklang serve`.)"
   else
-    "(Recording is OFF, so this is empty whatever ran. For one command: DARK_CONFIG_TRACE_DETAIL=on darklang ...)"
+    "(Recording is off: DARK_CONFIG_TRACE_DETAIL=off. Unset it and runs are recorded again.)"
 
 
 /// Print the empty-result explanation, dimmed.
@@ -194,7 +194,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       a != "--yes" && a != "-y" && a != "--json" && a != "--view")
   match args with
   | [] ->
-    Stdlib.printLine (help state)
+    Cli.TraceRuns.printList ()
     state
 
   | [ "list" ] ->
@@ -307,7 +307,51 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
       state
 
-  | [ "replay", traceID ] ->
+  // The run verbs (`cli/traceRuns.dark`). `resume` replays the log; `rerun` performs
+  // everything again, which is why they are two words.
+  | [ "show", prefix ] ->
+    Cli.TraceRuns.printShow prefix
+    state
+  | [ "resume", prefix ] -> Cli.TraceRuns.resume state prefix
+  | [ "fork", prefix ] ->
+    Cli.TraceRuns.fork prefix Stdlib.Option.Option.None
+    state
+  | [ "fork", prefix, "--at", at ] ->
+    match Stdlib.Int64.parse at with
+    | Ok n -> Cli.TraceRuns.fork prefix (Stdlib.Option.Option.Some n)
+    | Error _ ->
+      Cli.printErr $"--at wants a position from `traces show`, not {at}"
+    state
+  | [ "pin", prefix ] ->
+    Cli.TraceRuns.pin prefix true
+    state
+  | [ "unpin", prefix ] ->
+    Cli.TraceRuns.pin prefix false
+    state
+  // The call inbox: one function's recorded calls, and the code with that call's values.
+  | [ "calls", fnName ] ->
+    Cli.TraceRuns.printCalls state.currentBranchId fnName
+    state
+  | [ "values", fnName ] ->
+    Cli.TraceRuns.printValues state.currentBranchId fnName Stdlib.Option.Option.None
+    state
+  | [ "values", fnName, call ] ->
+    Cli.TraceRuns.printValues
+      state.currentBranchId
+      fnName
+      (Stdlib.Option.Option.Some call)
+    state
+  | [ "calls" ] | [ "values" ] ->
+    let verb = Stdlib.Option.withDefault (Stdlib.List.head args) ""
+    Cli.printErr $"traces {verb} needs a function name, like Darklang.Stdlib.List.map"
+    state
+
+  | [ "show" ] | [ "resume" ] | [ "fork" ] | [ "pin" ] | [ "unpin" ] ->
+    let verb = Stdlib.Option.withDefault (Stdlib.List.head args) ""
+    Cli.printErr $"traces {verb} needs an id prefix -- `dark traces` lists them"
+    state
+
+  | [ "rerun", traceID ] ->
     match resolveTraceID traceID with
     | Some full -> executeReplay state full
     | None -> state
@@ -375,8 +419,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "view" ] ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces view <trace-id> [flags]")
     state
-  | [ "replay" ] ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces replay <trace-id>")
+  | [ "rerun" ] ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces rerun <trace-id>")
     state
   | [ "delete" ] ->
     Stdlib.printLine
@@ -396,10 +440,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       (Stdlib.Cli.UI.Colors.error "Usage: traces follow [--route <substring>] [--json]")
     state
 
-  // Catch malformed arity-1 invocations (e.g. `traces replay <id> --fake-arg`)
+  // Catch malformed arity-1 invocations (e.g. `traces rerun <id> --fake-arg`)
   // that the strict-length arms above missed.
-  | "replay" :: _ ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces replay <trace-id>")
+  | "rerun" :: _ ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces rerun <trace-id>")
     state
   | "delete" :: _ ->
     Stdlib.printLine
@@ -435,7 +479,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // look like it succeeded silently.
     let knownSubcommands =
       [ "help", "list", "view", "tail", "follow", "find", "hotspots"
-        "stats", "replay", "delete" ]
+        "stats", "rerun", "delete" ]
     let isKnownHead =
       match args with
       | head :: _ ->
@@ -656,9 +700,9 @@ let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
       printEmptyStateHint ()
       state
     | row :: _ ->
-      Stdlib.printLine $"Latest trace matching '{pattern}': {row.traceId}"
+      Stdlib.printLine $"Latest trace matching '{pattern}': {row.id}"
       Stdlib.printLine ""
-      executeView state row.traceId defaultViewOptions
+      executeView state row.id defaultViewOptions
 
 
 /// `traces tail [N] [--route <substring>]` — open the Nth-most-recent
@@ -697,7 +741,7 @@ let executeTail
         allRows
         |> Stdlib.List.filter (fun row ->
           Stdlib.String.contains
-            (Stdlib.String.toUppercase row.handler) routeUpper)
+            (Stdlib.String.toUppercase row.entry) routeUpper)
       | None -> allRows
 
     // Drop the first (n-1) — the Nth-most-recent is what's left at head.
@@ -717,7 +761,7 @@ let executeTail
           $"No {nStr}{ordinalSuffix n}-most-recent trace{suffix}."
       Stdlib.printLine msg
       state
-    | row :: _ -> executeView state row.traceId defaultViewOptions
+    | row :: _ -> executeView state row.id defaultViewOptions
 
 
 /// `traces stats` — per-handler aggregate over the last N traces:
@@ -798,7 +842,7 @@ let followLoop
   let rows = Darklang.Tracing.Store.list 50
 
   let candidates =
-    rows |> Stdlib.List.takeWhile (fun row -> row.traceId != lastSeen)
+    rows |> Stdlib.List.takeWhile (fun row -> row.id != lastSeen)
 
   let filtered =
     match routeFilter with
@@ -806,7 +850,7 @@ let followLoop
       let rUpper = Stdlib.String.toUppercase r
       candidates
       |> Stdlib.List.filter (fun row ->
-        Stdlib.String.contains (Stdlib.String.toUppercase row.handler) rUpper)
+        Stdlib.String.contains (Stdlib.String.toUppercase row.entry) rUpper)
     | None -> candidates
 
   let chronological = filtered |> Stdlib.List.reverse
@@ -815,12 +859,12 @@ let followLoop
     if jsonMode then
       Stdlib.printLine (Stdlib.Json.serialize<TraceSummary> row)
     else
-      Stdlib.printLine $"  {row.timestamp}  {row.traceId}  {row.handler}")
+      Stdlib.printLine $"  {row.created}  {row.id}  {row.entry}")
 
   let newLastSeen =
     match rows with
     | [] -> lastSeen
-    | row :: _ -> row.traceId
+    | row :: _ -> row.id
 
   Stdlib.Cli.Posix.sleep 500.0
   followLoop routeFilter newLastSeen jsonMode
@@ -859,7 +903,7 @@ let executeFollow
   let initialSeen =
     match initialRows with
     | [] -> ""
-    | row :: _ -> row.traceId
+    | row :: _ -> row.id
 
   followLoop routeFilter initialSeen jsonMode
   state
@@ -891,7 +935,7 @@ let executeListByRoute
       allRows
       |> Stdlib.List.filter (fun row ->
         Stdlib.String.contains
-          (Stdlib.String.toUppercase row.handler) routeUpper)
+          (Stdlib.String.toUppercase row.entry) routeUpper)
       |> Stdlib.List.take limit
 
     if jsonMode then
@@ -916,7 +960,7 @@ let executeListByRoute
 
 let printTraceRows (rows: List<TraceSummary>) : Unit =
   Stdlib.List.iter rows (fun row ->
-    Stdlib.printLine $"  {row.timestamp}  {row.traceId}  {row.handler}")
+    Stdlib.printLine $"  {row.created}  {row.id}  {row.entry}")
 
 
 let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
@@ -1079,9 +1123,10 @@ let executeView
   | Some trace ->
     let input = formatInputs state.currentBranchId trace.inputs
     let fnCalls = formatFnCalls opts state.currentBranchId trace.functionCalls
-    [ $"Trace: {trace.traceId}"
-      $"Handler: {trace.handler}"
-      $"Time: {trace.timestamp}"
+    [ $"Run:    {trace.trace.id}"
+      $"Entry:  {trace.trace.entry}"
+      $"Status: {Cli.TraceRuns.statusText trace.trace.status}"
+      $"Time:   {trace.trace.created}"
       ""
       "Input:"
       input
@@ -1092,10 +1137,11 @@ let executeView
     state
 
 
-/// `traces replay <id>` — re-evaluate a trace's recorded eval/run input.
+/// `traces rerun <id>` — re-evaluate a run's recorded eval/run input, performing every effect
+/// again. `traces resume` is the other one: it answers the effects from the log.
 /// HTTP traces (input is a Request record, not a string) aren't supported;
 /// the row's input is fetched via `tracesGetInput` which returns None for
-/// non-string inputs. Each replay creates a fresh trace.
+/// non-string inputs. Each rerun is recorded as a run of its own.
 let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
   match Darklang.Tracing.Store.getInput traceID with
   | None ->
@@ -1115,7 +1161,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
       | Some output -> Stdlib.printLine output
       | None -> ()
       Stdlib.printLine ""
-      Stdlib.printLine "Replay complete. A new trace was created for this execution."
+      Stdlib.printLine "Rerun complete. It was recorded as a run of its own."
       state
     | Error err ->
       let pretty = Cli.ExecutionError.toString state.currentBranchId err
@@ -1174,7 +1220,7 @@ let executeClearBefore
 
 
 /// `traces delete <id>` — remove one trace and its fn_calls. ID accepts
-/// the same prefix-resolution as view/replay.
+/// the same prefix-resolution as view/rerun.
 let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
   let deleted = Darklang.Tracing.Store.delete traceID
   match deleted with
@@ -1221,7 +1267,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
       Completion.simple "stats"
       Completion.simple "find"
       Completion.simple "hotspots"
-      Completion.simple "replay"
+      Completion.simple "rerun"
       Completion.simple "delete"
       Completion.simple "help" ]
   | [ "list" ] ->
@@ -1283,13 +1329,20 @@ let help (_state: Cli.AppState) : String =
     "  find <pattern> --json [limit] Same data as JSON for piping"
     "  hotspots [trace-limit]        Per-fn timing aggregated across last N traces (default 100; top 50 fns by total ms)"
     "  hotspots --json [trace-limit] Same data as JSON for piping"
-    "  replay <trace-id>             Re-evaluate the trace's recorded eval/run input under current code"
+    "  show <id-prefix>              One run: what it was, where it stands, its effect log"
+    "  resume <id-prefix>            Carry on where it stopped: the log answers what already"
+    "                                happened, then the run goes live"
+    "  fork <id-prefix> [--at <n>]   A new run from any position of an old one"
+    "  pin <id-prefix>               Keep this run whatever retention says (`unpin` undoes it)"
+    "  rerun <id-prefix>             Run the input again, performing every effect for real"
+    "  calls <fn>                    Every recorded call of one function, newest first"
+    "  values <fn> [<call>]          That function's code, with each call's value beside it"
     "  delete <trace-id>             Delete one trace (prefix OK)"
     "  delete --all                  Delete every stored trace"
     "  delete --keep <N>             Keep the N most-recent traces, drop the rest"
     "  delete --before <duration>    Delete traces older than <duration> (s/m/h/d)"
     ""
-    "Trace IDs accept any unambiguous prefix -- `view fe62`, `replay fe6219e9-4705`, etc."
+    "Trace IDs accept any unambiguous prefix -- `view fe62`, `resume fe6219e9-4705`, etc."
     ""
     "View flags (combinable):"
     "  -d, --depth <n>           Cap tree depth at <n> levels"
@@ -1305,9 +1358,12 @@ let help (_state: Cli.AppState) : String =
     "Traces are recorded when code executes via eval, run, or HTTP handlers."
     "Each trace captures inputs, function calls with arguments, and results."
     ""
-    "Recording is OFF by default, because traces have no retention yet and a busy"
-    "process can fill a disk with them. Turn it on for the command you want:"
-    "  DARK_CONFIG_TRACE_DETAIL=on darklang <command>"
+    "Recording is on by default, and records the impure calls only: the log a run is resumed"
+    "or forked from. Secret headers and environment values are kept out of it"
+    "(`dark docs processes`); everything else an effect saw is in it. The oldest are dropped"
+    "once there are more than `trace.keep`"
+    "traces or `trace.maxMb` of log (config). To record every call and frame as well, which is"
+    "what live values replay through: DARK_CONFIG_TRACE_DETAIL=values darklang ..."
     ""
     "Examples:"
     "  traces list                          - Show last 20 traces"
@@ -1330,7 +1386,8 @@ let help (_state: Cli.AppState) : String =
     "  traces view <trace-id> --exclude listAppend  - Hide noisy intermediate calls"
     "  traces view <trace-id> --slow              - Only calls ≥10ms"
     "  traces view <trace-id> --slow-ms 100       - Only calls ≥100ms"
-    "  traces replay <trace-id>             - Re-run the recorded eval/run input under current code"
+    "  traces rerun <trace-id>              - Run the input again, performing every effect"
+    "  traces resume <id-prefix>            - Carry on where it stopped, replaying the log"
     "  traces delete fe62                   - Delete one trace by prefix"
     "  traces delete --keep 50              - Keep latest 50, drop the rest"
     "  traces delete --before 1h            - Drop traces older than 1 hour"
@@ -1338,5 +1395,5 @@ let help (_state: Cli.AppState) : String =
     ""
     "Workflow for debugging the last request:"
     "  traces tail                          - what just ran (call tree)"
-    "  traces replay <id>                   - re-run under current code" ]
+    "  traces resume <id>                   - carry on where it stopped" ]
   |> Stdlib.String.join "\n"

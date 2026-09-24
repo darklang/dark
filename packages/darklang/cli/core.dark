@@ -32,7 +32,10 @@ type SubApp =
     /// The returned SubApp must hold a freshly started terminal session: the retained one is stale, because
     /// whatever ran on top tore the surface down when it stopped. Diffing against that stale view would
     /// paint garbage, so resuming repaints from scratch.
-    onResume: Unit -> SubApp }
+    onResume: Unit -> SubApp
+    /// The package store changed under the page (an edit from another process, a pull). The page
+    /// re-reads what it shows, or ignores it, and presents.
+    onStoreChanged: Stdlib.Live.Change -> SubApp }
 
 type Page =
   | MainPrompt

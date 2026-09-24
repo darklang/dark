@@ -30,12 +30,12 @@ let unitPath (slug: String) : String =
   | Mac -> (home ()) ++ "/Library/LaunchAgents/com.darklang." ++ slug ++ ".plist"
   | Unsupported -> ""
 
-/// The foreground command the OS service supervises — the daemon entrypoint, `eval`'d by the running exe.
+/// The foreground command the OS service supervises: `dark apps daemon-main <slug>`, the same
+/// body `apps start` launches (a command, not an `eval`, so the daemon has the host's state).
 let daemonCommand (app: Model.App) : String =
   match app.target with
-  | Daemon entrypoint ->
-    (Stdlib.Cli.Daemon.launcher ()) ++ " eval '" ++ entrypoint ++ " \"" ++ app.slug ++ "\"'"
-  | Foreground _ -> ""
+  | Daemon _ -> (Stdlib.Cli.Daemon.launcher ()) ++ " apps daemon-main " ++ app.slug
+  | _ -> ""
 
 /// Can this string go into a unit file or a plist without changing its structure?
 ///

@@ -1,0 +1,56 @@
+/// A live view of the package store: what `dark apps view stats` opens, and demo 1's subject.
+///
+/// Three fns by name (`init`, `update`, `render`), a model that is a value, a tree that is data.
+/// Edit `render` while the view is open and it repaints; break it and the last frame stays with the
+/// diagnostic under it. `render` reads nothing: the counts are read in `init` and on `Refresh`.
+module Darklang.Cli.Apps.Views.Stats
+
+type Model =
+  { ops: Int64
+    draft: Int64
+    commits: Int64
+    presses: Int
+    note: String }
+
+type Msg =
+  | Refresh
+  | Noted of String
+
+/// Read through the op-log silo, never `locations` directly: that table is main-only.
+let init () : Model =
+  let branch = SCM.PackageOps.currentBranch ()
+
+  Model
+    { ops = SCM.PackageOps.countFor branch
+      draft = SCM.PackageOps.draftOpCountFor branch
+      commits = SCM.PackageOps.commitCountOnBranch branch
+      presses = 0
+      note = "" }
+
+let update (m: Model) (event: Host.Event<Msg>) : Model =
+  match event with
+  | Msg Refresh -> { init () with presses = m.presses; note = m.note }
+  | Msg(Noted text) -> { m with note = text }
+  | Key _ -> { m with presses = m.presses + 1 }
+
+let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
+  Stdlib.Cli.UI.Node.column
+    [ Stdlib.Cli.UI.Node.bold "This branch"
+      Stdlib.Cli.UI.Node.text ""
+      Stdlib.Cli.UI.Node.table
+        [ "what", "count" ]
+        [ [ "ops it sees", Stdlib.Int64.toString m.ops ]
+          [ "in the draft", Stdlib.Int64.toString m.draft ]
+          [ "commits", Stdlib.Int64.toString m.commits ] ]
+      Stdlib.Cli.UI.Node.text ""
+      Stdlib.Cli.UI.Node.row
+        [ Stdlib.Cli.UI.Node.Node.Button("refresh", Msg.Refresh)
+          Stdlib.Cli.UI.Node.Node.Input(
+            Stdlib.Cli.UI.Node.InputSpec
+              { id = "note"
+                value = m.note
+                placeholder = "a note"
+                edited = fun text -> Msg.Noted text }
+          ) ]
+      Stdlib.Cli.UI.Node.text ""
+      Stdlib.Cli.UI.Node.dim $"{Stdlib.Int.toString m.presses} keys so far" ]

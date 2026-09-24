@@ -67,7 +67,7 @@ and it uses your change.
 That default is right far more often than it's wrong. When it's wrong:
 
   propagate                  the impact screen: what moved, toggle any of it
-  propagate pin <name>       stop it following, AND undo the repoint it got
+  propagate pin <name>       keep it on the version it had (undoes the repoint a save gave it)
   propagate follow <name>    follow again, AND catch up on what it missed
   propagate show <name>      what governs it, and what it's behind on
   propagate unset <name>     forget the choice entirely

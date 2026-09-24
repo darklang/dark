@@ -1,0 +1,142 @@
+module Darklang.Stdlib.Exec
+
+/// Processes: running things beside each other, and the process table `dark ps` renders.
+///
+/// Reads run concurrently on their own: a call whose effects are all reads (`HttpClient.get`,
+/// a file or db read) hands back its result while the read is still in flight, and your code
+/// waits for it only at the first place it looks at the value. `List.map urls (fun u ->
+/// HttpClient.get u [])` fetches them all at once; `print` and every write run in program
+/// order. `Stdlib.await x` forces early. `spawn`/`await` are for work you choose to run in the
+/// background, on another core
+/// when one is free (`docs/processes.md`).
+///
+/// Every process is a wrapped VM the scheduler steps; the table's rows are copies taken on
+/// the scheduler thread, never references into a running VM.
+
+/// What a process was started on.
+type Entry =
+  | Function of LanguageTools.RuntimeTypes.FQFnName.FQFnName
+  | Expr
+
+
+/// What a parked process is waiting for.
+type ParkedOn =
+  /// A host operation being performed for a builtin: a file read, an HTTP request, a process
+  /// run. The text names the operation and its resource (`file-read /some/path`).
+  | Host of String
+  /// A builtin that had to wait: `sleep`, the script an `eval` runs.
+  | Builtin of LanguageTools.RuntimeTypes.FQFnName.Builtin
+  /// A package function call that had to wait.
+  | PackageFn of LanguageTools.RuntimeTypes.FQFnName.Package
+  /// A lambda application that had to wait.
+  | Lambda
+  /// The interpreter waiting on the store for a type or value.
+  | RareOpcode
+  /// `Host.await`: one of these.
+  | Events of List<Stdlib.Host.EventSpec>
+  /// `Exec.await`: this process finishing.
+  | Process of Uuid
+
+
+type Status =
+  | Runnable
+  | Parked of ParkedOn
+  | Done
+  | Failed of LanguageTools.RuntimeTypes.RuntimeError.Error
+
+
+type Summary =
+  { id: Uuid
+    entry: Entry
+    status: Status
+    /// The process that spawned this one, if any (an `eval` expression's is the CLI's).
+    parent: Stdlib.Option.Option<Uuid>
+    started: DateTime
+    /// How many instructions it has run.
+    instructionsTaken: Int64
+    /// Bytes it has allocated.
+    allocated: Int64
+    /// Reads it started that have not landed yet.
+    inflight: Int64 }
+
+
+/// One activation on a process's stack.
+type ExecutionPoint =
+  | Source
+  | Function of LanguageTools.RuntimeTypes.FQFnName.FQFnName
+  | Lambda of parent: ExecutionPoint * exprId: Int64
+
+
+type Detail =
+  { summary: Summary
+    /// The call stack at the moment of the snapshot, outermost first.
+    frames: List<ExecutionPoint> }
+
+
+/// Every process this instance's scheduler knows, finished ones included.
+let list () : List<Summary> =
+  Builtin.execList ()
+
+
+/// One Dark process on this machine, from the registry every CLI writes at startup: what `dark ps`
+/// shows across processes, as against `list`, which is this process's own table.
+type MachineProcess =
+  { pid: Int64
+    /// What a system monitor shows: `dark serve :9090`, `dark sync`, `dark eval`.
+    title: String
+    command: String
+    branch: String
+    started: DateTime }
+
+
+/// Every Dark process on this machine still running, oldest first.
+let machineList () : List<MachineProcess> =
+  Builtin.execMachineList ()
+
+
+/// One process in detail, or `None` for an id nobody has.
+let inspect (id: Uuid) : Stdlib.Option.Option<Detail> =
+  Builtin.execInspect id
+
+
+/// A process started with `spawn`. `'a` is what `await` gives back for it.
+type Handle<'a> = { id: Uuid }
+
+
+/// Start `f ()` as a process of its own, beside this one, on another core when one is free.
+/// It runs under the access the caller has here, like a closure. `await` collects it. It
+/// stops when this process finishes, if it has not finished first; `spawnDetached` for one
+/// that should outlive its parent.
+let spawn (f: Unit -> 'a) : Handle<'a> =
+  Builtin.execSpawn f
+
+
+/// `spawn`, for a process that keeps running after the one that started it has finished (a
+/// background writer, a watcher). `cancel` still stops it.
+let spawnDetached (f: Unit -> 'a) : Handle<'a> =
+  Builtin.execSpawnDetached f
+
+
+/// What the process behind `handle` finished with, waiting for it if it has not. An error it
+/// failed with is raised here. (For a value that is a read still in flight, `Stdlib.await`.)
+let await (handle: Handle<'a>) : 'a =
+  Builtin.execAwait handle
+
+
+/// `await`, giving up after `ms` milliseconds: `None` then, and the process keeps running
+/// (`cancel` it if that is not wanted).
+let awaitWithin (ms: Int64) (handle: Handle<'a>) : Stdlib.Option.Option<'a> =
+  Builtin.execAwaitWithin ms handle
+
+
+/// The first of `handles` to finish, with its value. Waits when none has.
+let select (handles: List<Handle<'a>>) : (Handle<'a> * 'a) =
+  Builtin.execSelect handles
+
+
+/// Ask the process behind `handle` to stop, and everything it spawned that is not detached.
+/// It ends at its next turn: whatever it is doing on the host right now (a write, a request)
+/// completes first, and an `await` on it raises "cancelled". False for a handle nobody has.
+/// (`dark ps kill` is the escape hatch that does not wait for the host.)
+let cancel (handle: Handle<'a>) : Bool =
+  Builtin.execCancel handle
