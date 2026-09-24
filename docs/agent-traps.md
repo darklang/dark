@@ -594,6 +594,13 @@ other instance: a confident zero. So when a search or any wide tuple grows, swee
 the destructures, and treat a zero from a guarded path as unexplained until you have seen the guard
 not fire.
 
+**A `DEnum` carries TWO type names, and the first can be an alias.** `DEnum(sourceTypeName,
+resolvedTypeName, ...)`: the first is the name the program wrote, the second is what it resolved
+to after aliases. A value built through an alias (`type Option<'t> = Stdlib.Option.Option<'t>`)
+puts the ALIAS in the first slot, so F# that asks "is this an Option?" by comparing the first name
+answers no. Compare the second. It reproduces only where an alias is in play, so `eval` with a
+fully qualified name says the code is fine while a test that declares the alias says it is not.
+
 ## Permissions
 
 **Permissions are runtime authorization, not OS isolation.** Host effects cross
