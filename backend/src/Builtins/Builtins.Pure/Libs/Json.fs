@@ -208,7 +208,8 @@ let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
   // Enums and Records
   //
   // `Option` is written the way other systems write it: `Some v` is `v`, `None` is `null`,
-  // and a `None` record field is left out.
+  // and a `None` record field is left out. One layer is all this carries: `Some None`,
+  // `Some ()` and `None` are all `null`, and parse back as `None`.
   | DEnum(_, _, _, "Some", [ inner ]) when isOptionEnum dv -> r inner
   | DEnum(_, _, _, "None", []) when isOptionEnum dv -> w.WriteNullValue()
 
