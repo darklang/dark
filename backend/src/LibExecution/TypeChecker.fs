@@ -625,114 +625,121 @@ let tryUnifySync
   (expected : TypeReference)
   (actual : Dval)
   : TypeSymbolTable voption =
-  match expected with
-  // A record or enum of exactly the declared type, with no type arguments. This is what a program
-  // that models anything passes around all day, and until now every one of them fell through to the
-  // async unifier purely to ask `Types.find` whether the declared type was an alias.
-  //
-  // It can't be. An alias's *name* is the alias, but a value built through it carries the underlying
-  // type's name, so if the two names are equal the declared type resolved to itself -- and names are
-  // content hashes, so that means it is the type, not an alias to something else.
-  //
-  // Type arguments are excluded rather than compared: with them the answer depends on unifying each
-  // one, which is what the async path is for.
-  | TCustomType({ resolved = Ok declared }, declaredArgs) ->
-    match actual with
-    | DRecord(_, actualName, actualArgs, _) when actualName = declared ->
-      unifyTypeArgsSync tst declaredArgs actualArgs
-    | DEnum(_, actualName, actualArgs, _, _) when actualName = declared ->
-      unifyTypeArgsSync tst declaredArgs actualArgs
-    | _ -> ValueNone
-
-  // A primitive expected type, answered here rather than through `unwrapAliasSync` and
-  // `unifyDvalSync`. Neither can do anything for a type with no variables in it: a primitive is
-  // never an alias, and there is nothing to bind, so the symbol table comes back untouched. Every
-  // builtin call makes this check on every argument and on its result, which ablation puts at a
-  // sizable fraction of what the call costs.
-  //
-  // Nested matches, not `match expected, actual with`: the tuple form allocates the pair.
-  | TUnit ->
-    (match actual with
-     | DUnit -> ValueSome tst
-     | _ -> ValueNone)
-  | TBool ->
-    (match actual with
-     | DBool _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TInt ->
-    (match actual with
-     | DInt _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TInt8 ->
-    (match actual with
-     | DInt8 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TUInt8 ->
-    (match actual with
-     | DUInt8 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TInt16 ->
-    (match actual with
-     | DInt16 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TUInt16 ->
-    (match actual with
-     | DUInt16 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TInt32 ->
-    (match actual with
-     | DInt32 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TUInt32 ->
-    (match actual with
-     | DUInt32 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TInt64 ->
-    (match actual with
-     | DInt64 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TUInt64 ->
-    (match actual with
-     | DUInt64 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TInt128 ->
-    (match actual with
-     | DInt128 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TUInt128 ->
-    (match actual with
-     | DUInt128 _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TFloat ->
-    (match actual with
-     | DFloat _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TChar ->
-    (match actual with
-     | DChar _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TString ->
-    (match actual with
-     | DString _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TUuid ->
-    (match actual with
-     | DUuid _ -> ValueSome tst
-     | _ -> ValueNone)
-  | TDateTime ->
-    (match actual with
-     | DDateTime _ -> ValueSome tst
-     | _ -> ValueNone)
-
+  match actual with
+  // A read still in flight unifies with anything, by being unknown: `Promise<t>` is `t`. Only a
+  // result ever arrives here as one (a wrapper handing back a builtin's result unlooked-at; a
+  // builtin that combined reads into one); arguments and stored values are forced first. The
+  // value was checked against the builtin's own return type when made, or is when it lands.
+  | DPromise _ -> ValueSome tst
   | _ ->
+    match expected with
+    // A record or enum of exactly the declared type, with no type arguments. This is what a program
+    // that models anything passes around all day, and until now every one of them fell through to the
+    // async unifier purely to ask `Types.find` whether the declared type was an alias.
+    //
+    // It can't be. An alias's *name* is the alias, but a value built through it carries the underlying
+    // type's name, so if the two names are equal the declared type resolved to itself -- and names are
+    // content hashes, so that means it is the type, not an alias to something else.
+    //
+    // Type arguments are excluded rather than compared: with them the answer depends on unifying each
+    // one, which is what the async path is for.
+    | TCustomType({ resolved = Ok declared }, declaredArgs) ->
+      match actual with
+      | DRecord(_, actualName, actualArgs, _) when actualName = declared ->
+        unifyTypeArgsSync tst declaredArgs actualArgs
+      | DEnum(_, actualName, actualArgs, _, _) when actualName = declared ->
+        unifyTypeArgsSync tst declaredArgs actualArgs
+      | _ -> ValueNone
 
-    match unwrapAliasSync expected with
-    | ValueNone -> ValueNone
-    | ValueSome expected ->
-      match unifyDvalSync tst expected actual with
-      | Unified updatedTst -> ValueSome updatedTst
-      | Mismatched
-      | Undecided -> ValueNone
+    // A primitive expected type, answered here rather than through `unwrapAliasSync` and
+    // `unifyDvalSync`. Neither can do anything for a type with no variables in it: a primitive is
+    // never an alias, and there is nothing to bind, so the symbol table comes back untouched. Every
+    // builtin call makes this check on every argument and on its result, which ablation puts at a
+    // sizable fraction of what the call costs.
+    //
+    // Nested matches, not `match expected, actual with`: the tuple form allocates the pair.
+    | TUnit ->
+      (match actual with
+       | DUnit -> ValueSome tst
+       | _ -> ValueNone)
+    | TBool ->
+      (match actual with
+       | DBool _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TInt ->
+      (match actual with
+       | DInt _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TInt8 ->
+      (match actual with
+       | DInt8 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TUInt8 ->
+      (match actual with
+       | DUInt8 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TInt16 ->
+      (match actual with
+       | DInt16 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TUInt16 ->
+      (match actual with
+       | DUInt16 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TInt32 ->
+      (match actual with
+       | DInt32 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TUInt32 ->
+      (match actual with
+       | DUInt32 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TInt64 ->
+      (match actual with
+       | DInt64 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TUInt64 ->
+      (match actual with
+       | DUInt64 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TInt128 ->
+      (match actual with
+       | DInt128 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TUInt128 ->
+      (match actual with
+       | DUInt128 _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TFloat ->
+      (match actual with
+       | DFloat _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TChar ->
+      (match actual with
+       | DChar _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TString ->
+      (match actual with
+       | DString _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TUuid ->
+      (match actual with
+       | DUuid _ -> ValueSome tst
+       | _ -> ValueNone)
+    | TDateTime ->
+      (match actual with
+       | DDateTime _ -> ValueSome tst
+       | _ -> ValueNone)
+
+    | _ ->
+
+      match unwrapAliasSync expected with
+      | ValueNone -> ValueNone
+      | ValueSome expected ->
+        match unifyDvalSync tst expected actual with
+        | Unified updatedTst -> ValueSome updatedTst
+        | Mismatched
+        | Undecided -> ValueNone
 
 
 let checkFnParam

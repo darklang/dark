@@ -998,7 +998,7 @@ module Expr =
         resultIn = rc }
 
 
-    | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
+    | PT.EApply(id, thingToApplyExpr, typeArgs, args) ->
       // process the arguments first, so we know how many registers we need
       let (rcAfterArgs, argInstrs, argRegs) =
         args
@@ -1022,8 +1022,14 @@ module Expr =
           NEList.ofListUnsafe "" [] argRegs
         )
 
+      // The call's value, for a tracer that collects expression results (live values). Emitted
+      // for calls only: they are what a reader wants to see the value of, and one per call is
+      // one extra dispatch, no allocation, when nothing is tracing.
+      let traceInstr = RT.TraceExpr(id, putResultIn)
+
       { registerCount = thingToApply.registerCount + 1
-        instructions = argInstrs @ thingToApply.instructions @ [ callInstr ]
+        instructions =
+          argInstrs @ thingToApply.instructions @ [ callInstr; traceInstr ]
         resultIn = putResultIn }
 
 

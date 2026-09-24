@@ -260,6 +260,24 @@ module Type =
         let key = p [ "Key" ] "Key"
         let keyRead = p [ "KeyRead" ] "KeyRead"
 
+    /// The scheduler's event contract (`docs/processes.md`).
+    module Host =
+      let private p addl = p ("Host" :: addl)
+      let eventSpec = p [] "EventSpec"
+      let rawEvent = p [] "RawEvent"
+
+    /// The process table (`dark ps`).
+    module Exec =
+      let private p addl = p ("Exec" :: addl)
+      let entry = p [] "Entry"
+      let parkedOn = p [] "ParkedOn"
+      let status = p [] "Status"
+      let summary = p [] "Summary"
+      let executionPoint = p [] "ExecutionPoint"
+      let detail = p [] "Detail"
+      let handle = p [] "Handle"
+      let machineProcess = p [] "MachineProcess"
+
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
     let sign = p [] "Sign"
@@ -499,7 +517,11 @@ module Type =
         let errorMessage = p [] "ErrorMessage"
 
   module Tracing =
-    let traceSummary = p [ "Tracing" ] "TraceSummary"
+    /// A trace IS a run: the row `dark traces list/show/resume/fork` works on.
+    let trace = p [ "Tracing" ] "Trace"
+    /// One recorded call of one function, across runs: the inbox `dark traces calls` renders.
+    let call = p [ "Tracing" ] "Call"
+    let status = p [ "Tracing" ] "Status"
     let inputVar = p [ "Tracing" ] "InputVar"
     let fnCall = p [ "Tracing" ] "FnCall"
     let traceData = p [ "Tracing" ] "TraceData"
@@ -532,6 +554,7 @@ module Fn =
     let private p addl = p ("Stdlib" :: addl)
 
     module HttpClient =
+      let read = p [ "HttpClient" ] "read"
       let request = p [ "HttpClient" ] "request"
       let stream = p [ "HttpClient" ] "stream"
 

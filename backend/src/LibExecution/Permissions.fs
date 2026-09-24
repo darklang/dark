@@ -59,6 +59,8 @@ type Request =
   /// per-resource scoping, so these are ambient effects like `Stdout`.
   | Package of access : AccessKind
   | Trace of access : AccessKind
+  /// Spawning a process, `Exec.spawn`. Ambient, like `Stdout`.
+  | Concurrency
   | Native of operation : string
 
 module Request =
@@ -89,6 +91,7 @@ module Request =
     | Request.Package AccessKind.Write -> Effect.Effect.PackageWrite
     | Request.Trace AccessKind.Read -> Effect.Effect.TraceRead
     | Request.Trace AccessKind.Write -> Effect.Effect.TraceWrite
+    | Request.Concurrency -> Effect.Effect.Concurrency
     | Request.Native _ -> Effect.Effect.Native
 
   /// Return the narrow `permissions allow <rule>` text that covers this
@@ -122,6 +125,7 @@ module Request =
     | Request.Package AccessKind.Write -> Some "package-write"
     | Request.Trace AccessKind.Read -> Some "trace-read"
     | Request.Trace AccessKind.Write -> Some "trace-write"
+    | Request.Concurrency -> Some "concurrency"
     | Request.Native _ -> None
 
   let httpServer (port : int) : Result<Request, string> =
@@ -217,6 +221,7 @@ module Request =
     | Effect.Effect.PackageWrite -> Request.Package AccessKind.Write
     | Effect.Effect.TraceRead -> Request.Trace AccessKind.Read
     | Effect.Effect.TraceWrite -> Request.Trace AccessKind.Write
+    | Effect.Effect.Concurrency -> Request.Concurrency
     | Effect.Effect.Native -> Request.Native builtinName
     | scoped ->
       Exception.raiseInternal
@@ -417,8 +422,10 @@ module Policy =
       (Some Set.empty)
 
   /// Default instance policy: package/local-store access, clock, randomness,
-  /// and terminal I/O are allowed; filesystem, network, processes, native,
-  /// and environment access require an explicit grant.
+  /// terminal I/O and spawning are allowed; filesystem, network, processes,
+  /// native, and environment access require an explicit grant. Spawning is
+  /// allowed because a spawned process runs under the spawner's own access
+  /// and can do nothing the spawner could not.
   let defaultInstance : Policy =
     allowEffects (
       Set.ofList
@@ -430,7 +437,8 @@ module Policy =
           Effect.Effect.Clock
           Effect.Effect.Random
           Effect.Effect.Stdout
-          Effect.Effect.Stdin ]
+          Effect.Effect.Stdin
+          Effect.Effect.Concurrency ]
     )
 
   /// True for the canonical allow-all policy. It changes no decision, so

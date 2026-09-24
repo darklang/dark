@@ -180,6 +180,9 @@ let rec isPersistable (dv : Dval) : bool =
   // of surfacing a deep-stack raise.
   | DStream _ -> false
   | DBlob(Ephemeral _) -> false
+  // Never reaches storage: forced before any builtin, and `val`s are evaluated in a plain run
+  // that forces at its end. Refused rather than raised on, in case one ever does.
+  | DPromise _ -> false
 
   | DUnit
   | DBool _
@@ -231,6 +234,7 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
   match dv with
   | DStream _ ->
     Some "stream values can't be stored in a `val` — drain to a Blob or List first"
+  | DPromise _ -> Some "a read still in flight can't be stored in a `val`"
   | DBlob(Ephemeral _) ->
     Some
       "ephemeral blob can't be stored in a `val` — promote to persistent (serialize) first"
@@ -394,6 +398,10 @@ let rec equals (a : Dval) (b : Dval) : bool =
     // is fundamentally impossible under the single-consumer rule.
     System.Object.ReferenceEquals(lockA, lockB)
 
+  // The interpreter forces a promise before anything compares it; two that meet here anyway are
+  // the same read or not.
+  | DPromise a, DPromise b -> System.Object.ReferenceEquals(a, b)
+
   // exhaustiveness — type mismatches return false; caller VT-merges
   // up front to convert to a clean RTE.
   | DUnit, _
@@ -422,4 +430,5 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DApplicable _, _
   | DDB _, _
   | DBlob _, _
-  | DStream _, _ -> false
+  | DStream _, _
+  | DPromise _, _ -> false

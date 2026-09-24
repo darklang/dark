@@ -10,12 +10,16 @@ module RTE = RT.RuntimeError
 module RT2DT = RuntimeTypesToDarkTypes
 module Dval = LibExecution.Dval
 
-let noTracing : RT.Tracing.Tracing =
-  { loadFnResult = fun _ _ -> None
-    storeFnResult = fun _ _ _ -> ()
+let rec noTracing : RT.Tracing.Tracing =
+  { storeFnResult = fun _ _ _ _ -> ()
     storeFrameEntry = fun _ _ _ -> ()
     storeLambdaResult = fun _ _ -> ()
-    skipTracing = true }
+    storeExprResult = fun _ _ -> ()
+    skipTracing = true
+    traceEffects = false
+    nextEffect = fun () -> -1L
+    replayEffect = fun _ -> RT.Tracing.ReplayStep.PerformOnwards
+    forProcess = fun _ -> noTracing }
 
 let noTestContext : RT.TestContext =
   { sideEffectCount = 0
@@ -185,13 +189,14 @@ let executeToplevel
 
 /// Spare VMs per thread, for `executeApplicable` to borrow.
 ///
-/// A `ConcurrentBag` allocates a node per add, and this runs once per lambda application. A VM's
-/// interpreter loop is single-threaded, so a thread-static store needs no synchronisation and no node.
+/// A VM's interpreter loop is single-threaded, so a thread-static store needs no synchronisation
+/// and no node (a `ConcurrentBag` would allocate one per add).
 ///
-/// A stack, not a single slot: nested application is the common case (`map` whose
-/// lambda calls `findFirst`), and a single slot forced every inner application to
-/// build a fresh `VMState`. Eight deep covers real nesting; past that it falls back
-/// to building one.
+/// The pool was sized for `List.map` traffic, which no longer comes through here: a builtin
+/// applying a callable asks the interpreter for a frame in the SAME VM (`Interpreter.requestApply`).
+/// What is left is the handful of callers that apply a callable from outside a run -- the HTTP
+/// server's handler, live values, the package manager -- so the stack is deeper than it needs to
+/// be rather than hot.
 type private VMSlot() =
   static let capacity = 8
 
@@ -379,60 +384,13 @@ let executeApplicable
   runLoaded exeState access vm
 
 
-/// Re-raise an error a lambda raised, keeping the frames it raised it in.
-///
-/// A builtin applying a lambda gets `Error(rte, stack)` covering the borrowed VM;
-/// raising the error alone drops those frames, so the report never names the lambda.
-let raiseFromApplied
-  (callerVm : RT.VMState)
-  (rte : RTE.Error)
-  (nested : RT.CallStack)
-  : 'a =
-  callerVm.nestedCallStack <- nested
-  RT.raiseRTE callerVm.threadID rte
-
-
-/// One argument, without the `NEList` holding it. See `executeApplicable2`.
-let executeApplicable1
-  (exeState : RT.ExecutionState)
-  (access : LibExecution.Permissions.Access)
-  (applicable : RT.Applicable)
-  (arg : RT.Dval)
-  : Ply<RT.ExecutionResult> =
-  let vm = vmForApply 1
-  let registers = vm.callFrames[vm.currentFrameID].registers
-  registers[1] <- RT.DApplicable applicable
-  registers[2] <- arg
-  runLoaded exeState access vm
-
-
-/// Two arguments, without the `NEList` holding them.
-///
-/// `executeApplicable` is the general form and the one to reach for. This exists because a builtin
-/// folding a list applies a two-argument lambda once per element, and building an `NEList` for each
-/// costs a cons and a record per element -- together the largest allocation on that path after the
-/// interpreter's own.
-let executeApplicable2
-  (exeState : RT.ExecutionState)
-  (access : LibExecution.Permissions.Access)
-  (applicable : RT.Applicable)
-  (arg1 : RT.Dval)
-  (arg2 : RT.Dval)
-  : Ply<RT.ExecutionResult> =
-  let vm = vmForApply 2
-  let registers = vm.callFrames[vm.currentFrameID].registers
-  registers[1] <- RT.DApplicable applicable
-  registers[2] <- arg1
-  registers[3] <- arg2
-  runLoaded exeState access vm
-
-
-let executeFunction
-  (exeState : RT.ExecutionState)
+/// The program that calls `name` with `args`: load each argument, load the function, apply.
+/// `executeFunction` runs it; `Scheduler.SpawnFunction` makes a process of it.
+let instructionsForFunctionCall
   (name : RT.FQFnName.FQFnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
-  : Task<RT.ExecutionResult> =
+  : RT.Instructions =
   let resultReg, rc = 0, 1
 
   let argInstrs, argRegs, rc =
@@ -457,11 +415,31 @@ let executeFunction
   let applyInstr =
     RT.Apply(resultReg, fnReg, typeArgs, argRegs |> NEList.ofListUnsafe "" [])
 
-  let instrs : RT.Instructions =
-    { registerCount = rc
-      instructions = argInstrs @ [ fnInstr; applyInstr ]
-      resultIn = 0 }
-  executeExpr exeState instrs
+  { registerCount = rc
+    instructions = argInstrs @ [ fnInstr; applyInstr ]
+    resultIn = 0 }
+
+
+/// The program that applies `applicable` to `arg`: what `Exec.spawn f` runs, as `f ()`.
+let instructionsForApply
+  (applicable : RT.Applicable)
+  (arg : RT.Dval)
+  : RT.Instructions =
+  { registerCount = 3
+    instructions =
+      [ RT.LoadVal(1, RT.DApplicable applicable)
+        RT.LoadVal(2, arg)
+        RT.Apply(0, 1, [], NEList.singleton 2) ]
+    resultIn = 0 }
+
+
+let executeFunction
+  (exeState : RT.ExecutionState)
+  (name : RT.FQFnName.FQFnName)
+  (typeArgs : List<RT.TypeReference>)
+  (args : NEList<RT.Dval>)
+  : Task<RT.ExecutionResult> =
+  executeExpr exeState (instructionsForFunctionCall name typeArgs args)
 
 
 let runtimeErrorToString
@@ -476,6 +454,19 @@ let runtimeErrorToString
     let args =
       NEList.ofList (RT.DUuid state.branchId.Guid) [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
+  }
+
+/// `runtimeErrorToString` as a string: the rendering, or the raw error when the printer
+/// itself fails.
+let runtimeErrorMessage
+  (state : RT.ExecutionState)
+  (rte : RT.RuntimeError.Error)
+  : Task<string> =
+  task {
+    match! runtimeErrorToString state rte with
+    | Ok(RT.DString s) -> return s
+    | Ok other -> return string other
+    | Error _ -> return string rte
   }
 
 /// Fallback for when a pretty printer call fails: the error it raised, then the raw value.
