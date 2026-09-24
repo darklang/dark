@@ -605,3 +605,24 @@ let guestState
   |> Execution.setInstancePolicy instance
   |> Execution.restrictRun runPolicy
   |> Execution.setPackagePolicies lookup
+
+/// The hash a named applicable calls, for the approval root. A lambda or a builtin has none.
+let rootOf (applicable : RT.Applicable) : List<RT.Hash> =
+  match applicable with
+  | RT.AppNamedFn { name = RT.FQFnName.Package hash } -> [ hash ]
+  | _ -> []
+
+/// The state a package function runs under when it is the approval root of its own run (a
+/// handler a server calls, a view a host runs, a function the editor re-runs for live values):
+/// the instance policy is the ceiling and `invokerAccess` the outer bound. With no root (a
+/// lambda) the state is the caller's.
+let rootState
+  (state : RT.ExecutionState)
+  (invokerAccess : P.Access)
+  (roots : List<RT.Hash>)
+  : RT.ExecutionState =
+  match roots with
+  | [] -> state
+  | _ ->
+    let guest = guestState state.accountID P.Policy.allowAll [] roots state
+    { guest with access = guest.access |> P.Access.constrainBy invokerAccess }

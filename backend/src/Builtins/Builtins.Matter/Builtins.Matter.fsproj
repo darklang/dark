@@ -20,6 +20,7 @@
 
     <!-- Tracing (reader) -->
     <Compile Include="Libs/Traces.fs" />
+    <Compile Include="Libs/LiveValues.fs" />
 
     <!-- Accounts -->
     <Compile Include="Libs/Account.fs" />

@@ -14,22 +14,22 @@ let enabled () : Bool =
 
 
 /// The most recent <param limit> traces, newest first.
-let list (limit: Int) : List<TraceSummary> =
+let list (limit: Int) : List<Trace> =
   Builtin.tracesList limit
 
 
 /// The most recent <param limit> traces that called <param fnName>.
-let listByFn (fnName: String) (limit: Int) : List<TraceSummary> =
+let listByFn (fnName: String) (limit: Int) : List<Trace> =
   Builtin.tracesListByFn fnName limit
 
 
 /// The most recent <param limit> traces whose inputs, args or results
 /// contain <param pattern>.
-let find (pattern: String) (limit: Int) : List<TraceSummary> =
+let find (pattern: String) (limit: Int) : List<Trace> =
   Builtin.tracesFind pattern limit
 
 
-/// Full payload for one trace: summary, inputs and fn calls.
+/// Full payload for one run: its row, its inputs and its calls.
 let view (traceID: String) : Stdlib.Option.Option<TraceData> =
   Builtin.tracesView traceID
 
@@ -38,6 +38,29 @@ let view (traceID: String) : Stdlib.Option.Option<TraceData> =
 /// is missing or its input isn't a string (e.g. an HTTP Request record).
 let getInput (traceID: String) : Stdlib.Option.Option<String> =
   Builtin.tracesGetInput traceID
+
+
+/// One run by id, if it is still here.
+let get (traceID: String) : Stdlib.Option.Option<Trace> =
+  Builtin.tracesGet traceID
+
+
+/// A new run branched from <param traceID>, keeping its log up to <param at> (a position from
+/// `traces show`; the whole log when {{None}}), suspended, so `resume` takes it from there.
+let fork (traceID: String) (at: Stdlib.Option.Option<Int64>) : Stdlib.Result.Result<String, String> =
+  Builtin.tracesFork traceID at
+
+
+/// Arm a resume of <param traceID>: the next `eval` or `run` this instance starts replays its
+/// log instead of performing the effects, then goes live. `dark traces resume` arms and then
+/// runs the run's own input; that is the whole of a resume.
+let armResume (traceID: String) : Bool =
+  Builtin.tracesArmResume traceID
+
+
+/// Pin a run so retention never drops it, or unpin it. Returns whether a run had that id.
+let setPinned (traceID: String) (pinned: Bool) : Bool =
+  Builtin.tracesSetPinned traceID pinned
 
 
 /// Expand a trace-ID prefix to the full ID, or say why it can't be.

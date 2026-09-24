@@ -2,17 +2,42 @@
 /// and any consumer (CLI surface, dashboards, third-party tooling).
 ///
 /// These types describe what's stored in `traces` / `trace_fn_calls`
-/// after `LibDB.Tracing.createCliTracer` records an execution. The
-/// traces* builtins return them; the CLI's `traces` command formats
-/// them for display.
+/// after `LibDB.Tracing.createCliTracer` records a run. The traces*
+/// builtins return them; the CLI's `traces` command formats them for
+/// display.
+///
+/// A trace IS a run: one row, with what was run, where it stands, and
+/// what it did. There used to be a second noun, an "execution", holding
+/// the status and the fork lineage; a served HTTP request got a trace and
+/// no execution, so the same request could be looked at but not resumed.
 module Darklang.Tracing
 
 
-/// Top-level trace row — one per recorded execution.
-type TraceSummary =
-  { traceId: String
-    handler: String
-    timestamp: String }
+/// Where a run stands.
+type Status =
+  | Running
+  | Done
+  | Failed
+  /// Stopped by Ctrl-C, or a fork nobody has resumed yet. `resume` takes it from here.
+  | Suspended
+
+
+/// A run: one row of `traces`.
+type Trace =
+  { id: String
+    /// `eval`, `run <file>`, or `GET /path`: what was run.
+    entry: String
+    /// The expression or the script's source, for the ones `resume` can run again; the
+    /// printed form of the request for a served one.
+    input: String
+    status: Status
+    /// For a fork: the run it branched from, and the position in that log it kept.
+    parent: Stdlib.Option.Option<(String * Int64)>
+    /// Retention never drops a pinned run, whatever the caps say.
+    pinned: Bool
+    /// When the run started.
+    created: String
+    updated: String }
 
 
 /// One named input to a handler invocation. For HTTP handlers the
@@ -33,13 +58,34 @@ type FnCall =
     args: List<LanguageTools.RuntimeTypes.Dval>
     result: LanguageTools.RuntimeTypes.Dval
     /// Frame-entry-to-exit duration in ms. Builtins always 0 (no entry hook).
-    durationMs: Int }
+    durationMs: Int
+    /// The process that made the call. `None` for a run nobody scheduled, and for rows written
+    /// before processes existed.
+    processId: Stdlib.Option.Option<Uuid>
+    /// Where this call completed in the whole trace, across processes. One process's rows in
+    /// `seq` order are its log; all of them are the interleaving.
+    seq: Int64
+    /// This call's place in its process's effect log, what a resume keys on; -1 for a call
+    /// that is not in the log (a pure call under full tracing, or a row from before ordinals).
+    ord: Int64 }
 
 
-/// Full trace payload — summary fields plus the input/fn-call lists.
+/// One recorded call of one function, in some run. The inbox behind `dark traces calls`: the
+/// same idea as classic's trace dots, for any function rather than only a handler.
+type Call =
+  { callId: String
+    /// The run it was made in.
+    traceId: String
+    /// What that run was: `eval`, `run <file>`, `GET /path`.
+    entry: String
+    /// When the run started.
+    created: String
+    /// Where the call sits in the run's effect log, or -1 for a call with no effects.
+    ord: Int64 }
+
+
+/// A run and everything recorded under it.
 type TraceData =
-  { traceId: String
-    handler: String
-    timestamp: String
+  { trace: Trace
     inputs: List<InputVar>
     functionCalls: List<FnCall> }

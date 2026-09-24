@@ -245,6 +245,75 @@ let steps : List<Step> =
               print
                 $"  release: added `removed` to {List.length rows} stored conflict(s)" }
 
+    // A trace is written by every process that ran under it, from whichever scheduler thread stepped
+    // each; `process_id` says which, and `seq` is the completion order across all of them. Old rows
+    // get '' and 0: one process, order unknown, which is what they were.
+    { name = "20260921_000001_trace_fn_calls_process_id"
+      run =
+        fun () ->
+          addColumnIfMissing "trace_fn_calls" "process_id" "TEXT NOT NULL DEFAULT ''" }
+
+    { name = "20260921_000002_trace_fn_calls_seq"
+      run =
+        fun () ->
+          addColumnIfMissing "trace_fn_calls" "seq" "INTEGER NOT NULL DEFAULT 0" }
+
+    // An effectful call's ordinal in its process, what a replay keys on. Old rows get -1: not
+    // replayable, which they are not. The `executions` table itself is wholly new and comes
+    // across as a table.
+    { name = "20260921_000003_trace_fn_calls_ord"
+      run =
+        fun () ->
+          addColumnIfMissing "trace_fn_calls" "ord" "INTEGER NOT NULL DEFAULT -1" }
+
+    // A trace IS a run: these five carry what a second table, `executions`, used to hold. A store
+    // made while that table existed keeps it; nothing reads it, and `traces delete --all` is the
+    // way to be rid of the rows. Runs recorded before this step have `status = 'done'`, which is
+    // what a row written by the old recorder meant.
+    { name = "20260924_000001_traces_status"
+      run =
+        fun () -> addColumnIfMissing "traces" "status" "TEXT NOT NULL DEFAULT 'done'" }
+
+    { name = "20260924_000002_traces_parent_id"
+      run = fun () -> addColumnIfMissing "traces" "parent_id" "TEXT" }
+
+    { name = "20260924_000003_traces_parent_seq"
+      run = fun () -> addColumnIfMissing "traces" "parent_seq" "INTEGER" }
+
+    { name = "20260924_000004_traces_pinned"
+      run =
+        fun () -> addColumnIfMissing "traces" "pinned" "INTEGER NOT NULL DEFAULT 0" }
+
+    { name = "20260924_000005_traces_updated"
+      run =
+        fun () -> addColumnIfMissing "traces" "updated" "TEXT NOT NULL DEFAULT ''" }
+
+    { name = "20260924_000006_traces_status_index"
+      run =
+        fun () ->
+          if tableExists "traces" then
+            Sql.query
+              "CREATE INDEX IF NOT EXISTS idx_traces_status ON traces(status)"
+            |> Sql.executeStatementSync }
+
+    // Every listing, and retention's scan, order by `timestamp DESC`; nothing indexed it.
+    { name = "20260924_000007_traces_timestamp_index"
+      run =
+        fun () ->
+          if tableExists "traces" then
+            Sql.query
+              "CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON traces(timestamp)"
+            |> Sql.executeStatementSync }
+
+    // The `executions` table is gone: a trace IS a run, and its columns moved onto `traces`.
+    // A store made while it existed still has it, empty and unread, so it goes here rather
+    // than sitting in every `.schema` forever. Nothing reads it by the time this runs.
+    { name = "20260924_000008_drop_executions"
+      run =
+        fun () ->
+          if tableExists "executions" then
+            Sql.query "DROP TABLE executions" |> Sql.executeStatementSync }
+
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]
 
