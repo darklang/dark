@@ -445,6 +445,7 @@ let insertAndApplyOps (ops : List<PT.PackageOp>) : int64 =
 
 let private insertCheckedOps
   (reservedOwnersAllowed : bool)
+  (source : string)
   (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
   : Result<int64, string> =
@@ -463,20 +464,25 @@ let private insertCheckedOps
     match ReferenceNamesContent.validate ops with
     | Some reason -> Error reason
     | None ->
-      let count = authorOn branch "op" ops
+      let count = authorOn branch source ops
       Ok count
 
 /// Safely insert package operations submitted by RUNNING Dark code. On main, rejects protected
 /// `Darklang` bindings and unstabilized hashes before insertion; trusted seeding does not come through
 /// here.
 let insertUntrustedOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) =
-  insertCheckedOps false branch ops
+  insertCheckedOps false "op" branch ops
+
+/// `insertUntrustedOps` for ops a generator produced while following an edit: their bindings are
+/// marked propagation, as a repoint's are, so `status` and `commit` list them as followed.
+let insertRegeneratedOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) =
+  insertCheckedOps false "propagation" branch ops
 
 /// `insertUntrustedOps` that lets `Darklang` names change, for `LocalExec apply-package-edits`
 /// alone: the dev build landing edits to `packages/`, the source a reload loads them from. No
 /// `dark` process can reach it.
 let insertBundledOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) =
-  insertCheckedOps true branch ops
+  insertCheckedOps true "op" branch ops
 
 
 /// <param ops>, with each `Add*` of <param ops0> that they leave out but still bind put back just
