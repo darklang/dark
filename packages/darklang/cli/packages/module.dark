@@ -268,6 +268,177 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
               failed(state)
 
 
+/// Who is staging: a person (or a command they ran), or a generator re-running because an
+/// input it reads was edited. The ops are the same; the bindings are marked differently.
+type StagedBy =
+  | Author
+  | Regeneration
+
+
+/// Why a source text could not be staged. Parse errors keep their diagnostics so the
+/// caller can print them the way every other authoring command does; everything else is
+/// one line of prose.
+type StageError =
+  | ParseErrors(List<(LanguageTools.Parser.Range * String)>)
+  | Message(String)
+
+
+/// What staging did to one name.
+type Outcome =
+  /// Nothing was bound here before.
+  | New
+  /// The name was bound to different content.
+  | Updated
+  /// The name already held exactly this content.
+  | Unchanged
+
+
+/// What staging a source text did.
+type Staged =
+  { /// Every name the batch bound, as the ops recorded it (not as the source asked).
+    definedNames: List<String>
+    /// Declarations the source asked for that no op bound.
+    missing: List<String>
+    /// Per bound name, in source order, what happened to it. A generator re-run reads
+    /// this to say `+`, `~` or `=` per output, and to know when there was nothing to do.
+    outcomes: List<(String * Outcome)>
+    report: LanguageTools.AtRestTypeChecker.Report }
+
+
+/// What each `SetName` in <param ops> will do, read BEFORE the ops are stored, while the
+/// live binding still says what was there. <param ops> must be stabilized.
+let outcomesOf(
+  branchId: Uuid,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : List<(String * Outcome)> =
+  ops
+  |> Stdlib.List.filterMap(fun op ->
+    match op with
+    | SetName(location, target, _) ->
+      let outcome =
+        match LanguageTools.PackageManager.findAny(branchId, location) with
+        | None -> Outcome.New
+        | Some((hash, _)) ->
+          if LanguageTools.ProgramTypes.hashToString(hash) == SCM.Draft.referenceHash(target) then
+            Outcome.Unchanged
+          else
+            Outcome.Updated
+
+      Option.Some((location.name, outcome))
+    | _ -> Option.None)
+
+
+/// <fn define> for a caller that wants what happened rather than printed lines: `generate`
+/// stages what a generator emitted through here, so generated code is authored like typed
+/// code. Unresolved names count as failure; nothing is stored when they are present.
+let stageSource(
+  branchId: Uuid,
+  currentLocation: PackageLocation,
+  modulePath: String,
+  source: String,
+  by: StagedBy)
+  : Result<Staged, StageError> =
+  match LanguageTools.Parser.Parse.packageToWrittenTypes(source) with
+  | Error(diagnostics) -> Result.Error(StageError.ParseErrors(diagnostics))
+  | Ok(SourceFile(sourceFile)) ->
+    let moduleDecls =
+      sourceFile.declarations |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
+
+    let declarations = collectDecls([], moduleDecls)
+    let duplicateNames = duplicateDeclarationNames(declarations)
+    if Stdlib.List.isEmpty(declarations) then
+      Result.Error(StageError.Message("Package source contains no declarations"))
+    else if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicateNames)) then
+      Result.Error(
+        StageError.Message(
+          "Package source contains duplicate declaration names: "
+          + Stdlib.String.join(duplicateNames, ", ")))
+    else
+      match Location.parseRelativeTo(currentLocation, modulePath + ".__module__") with
+      | Error(message) -> Result.Error(StageError.Message($"Invalid module location: {message}"))
+      | Ok(baseLocation) ->
+        let rootModule =
+          LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration
+            { range = sourceFile.range
+              name = (sourceFile.range, "__module__")
+              declarations = moduleDecls
+              keywordModule = sourceFile.range }
+
+        let ctx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = LanguageTools.PackageManager.pm()
+              branchId = branchId
+              owner = baseLocation.owner
+              currentModule = baseLocation.modules }
+
+        let (ops, unresolvedNames) = LanguageTools.Parser.Parse.moduleToPackageOps(ctx, rootModule)
+        let updates = Propagate.updatedItems(branchId, ops)
+        let outcomes =
+          outcomesOf(
+            branchId,
+            ops
+            |> LanguageTools.PackageManager.resolveTraitCalls
+            |> LanguageTools.PackageManager.stabilizeHashes)
+
+        let home = Stdlib.List.prepend(baseLocation.modules, baseLocation.owner)
+        if Errors.reportUnresolvedNames(branchId, home, unresolvedNames) then
+          Result.Error(StageError.Message("unresolved names; nothing was defined"))
+        else
+          let stored =
+            match by with
+            | Author -> SCM.PackageOps.addAuthored(branchId, ops)
+            | Regeneration -> SCM.PackageOps.addRegenerated(branchId, ops)
+
+          match stored with
+          | Error(message) ->
+            Result.Error(StageError.Message($"Failed to define module: {message}"))
+          | Ok(report) ->
+            AtRestCheck.printSaveReport(branchId, report)
+
+            // Only what moved propagates. A name re-bound to the content it already held (a
+            // generator re-run that came out the same) has no dependents to repoint, and
+            // skipping it is what lets a regeneration cascade settle.
+            let unchangedNames =
+              outcomes
+              |> Stdlib.List.filterMap(fun((name, outcome)) ->
+                match outcome with
+                | Unchanged -> Option.Some(name)
+                | _ -> Option.None)
+
+            let moved =
+              updates
+              |> Stdlib.List.filter(fun update ->
+                Stdlib.Bool.not(Stdlib.List.contains(unchangedNames, update.location.name)))
+
+            let followed = Propagate.repointSaved(branchId, moved, Propagate.FollowerCheck.Check)
+            Propagate.printFollowed(followed)
+            let definedNames =
+              ops
+              |> Stdlib.List.filterMap(fun op ->
+                match op with
+                | SetName(location, _, _) -> Option.Some(location.name)
+                | _ -> Option.None)
+
+            let missing =
+              declarations
+              |> Stdlib.List.filterMap(fun d -> declarationName(Stdlib.Tuple2.second(d)))
+              |> Stdlib.List.filter(fun n ->
+                let leaf =
+                  Stdlib.String.split(n, ".")
+                  |> Stdlib.List.last
+                  |> Stdlib.Option.withDefault(n)
+
+                Stdlib.Bool.not(Stdlib.List.contains(definedNames, leaf)))
+
+            Result.Ok(
+              Staged
+                { definedNames = definedNames
+                  missing = missing
+                  outcomes = outcomes
+                  report = report })
+
+
 let execute(state: AppState, args: List<String>): AppState =
   let input =
     match args with

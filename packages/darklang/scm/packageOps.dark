@@ -39,6 +39,26 @@ let addAuthored(
   branchId: Uuid,
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  authorWith(branchId, ops, add)
+
+
+/// <fn addAuthored> for ops a GENERATOR produced while following an edit. The same checks
+/// and the same stabilisation; the difference is that the bindings land marked as
+/// propagation, so `status` and `commit` list them as "followed" rather than as something
+/// the person typed, and a pin un-stages them the way it un-stages a repoint.
+let addRegenerated(
+  branchId: Uuid,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  authorWith(branchId, ops, fun(branchId, ops) ->
+    Builtin.scmAddRegeneratedOps(branchId, Lineage.recordPrevious(branchId, ops)))
+
+
+let authorWith(
+  branchId: Uuid,
+  ops: List<LanguageTools.ProgramTypes.PackageOp>,
+  store: (Uuid, List<LanguageTools.ProgramTypes.PackageOp>) -> Result<Int64, String>)
+  : Result<LanguageTools.AtRestTypeChecker.Report, String> =
   let duplicates = LanguageTools.PackageManager.duplicateDeclarations(ops)
   if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicates)) then
     Result.Error("Declared more than once: " + Stdlib.String.join(duplicates, ", "))
@@ -48,7 +68,7 @@ let addAuthored(
       |> LanguageTools.PackageManager.resolveTraitCalls
       |> LanguageTools.PackageManager.stabilizeHashes
 
-    let added = add(branchId, stabilizedOps)
+    let added = store(branchId, stabilizedOps)
 
     // A value is evaluated after its ops are stored, so a value that fails has already landed. Take
     // its binding back out, or "Could not save" is untrue: the value sits in the draft, and every
