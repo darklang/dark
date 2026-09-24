@@ -20,7 +20,7 @@ Library generators, by what they read:
 
   From a file (stored once as a blob, named by hash in the saved fn):
   Json.fromSample --name Order --sample order.json        records that parse the sample,
-                                                          with decoders, encoders, `parse`
+                                                          plus `parse`
   Json.fromSamples --name Order --samples dir/            the same over every file in a
                                                           directory, shapes unified
   JsonSchema.types --name Ticket --schema schema.json     records for the root and $defs
@@ -129,24 +129,29 @@ has to allow the network.
 ## Hand edits
 
 Editing a generated type by hand is an ordinary edit. Running the generator again
-rebinds the name to the generator's output; the hand-edited version is still in
-the store, and `undo <name>` brings it back. Nothing is lost, and nothing is
-detected either: v1 does not record which names a generator produced.
+rebinds the name to the generator's output; the hand-edited version is still in the
+store, and `undo <name>` brings it back. So nothing is lost, and nothing is flagged
+either: which names a generator produced is not recorded, so a hand edit and a
+regeneration do not meet as a conflict.
 
 ## Effects
 
-A generator may read the package store and nothing else. It runs at authoring
-time and its output is stored, so a live read of a file or the network would make
-the saved fn a lie about where the output came from; the store is the program
-itself, and a generator over package inputs (a mirror, a derive) has to read it.
-`generate` refuses a fn whose requirements name any other effect, and the run
-executes under the guest policy, where an undeclared effect is denied at the call.
-Fetch first, save the result as a file, and generate from the file.
+A generator is a package fn, and the effects system treats it like one: what it
+may do is what the instance policy allows, denied at the call. There is no
+generator-shaped exception.
+
+`generate` does print the effects a generator's call graph declares before it runs
+one, because a generator reaching for the network or the filesystem at authoring
+time is usually a surprise: its output is stored, so a live read makes the saved fn
+a weaker claim about where the output came from. It is a hint, not a refusal.
+
+Reading the package store is the effect most generators need, and a mirror or a
+derive is nothing without it.
 
 ## Writing one
 
 A generator is a fn returning `Darklang.Generate.Run`. Build the source with
-`Darklang.Generate.Source` (`recordType`, `enumType`, `fn`, `module_`,
+`Darklang.Generate.Source` (`recordType`, `fn`, `module_`, `fieldName`,
 `identifier`, `typeName`) so names are legal and layout is stable, and return
 `Darklang.Generate.ofSource text`. Report a problem with
 `Darklang.Generate.failed [ "why" ]`; the CLI prints the reasons and stages nothing.

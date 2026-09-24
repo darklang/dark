@@ -27,6 +27,15 @@ val switchFlags = [ "print", "dry-run", "refresh" ]
 val commandFlags = [ "into", "fetch", "out" ]
 
 
+/// What one of the command's own flags takes, for the message when it is given nothing.
+let flagTakes (flag: String) : String =
+  match flag with
+  | "into" -> "a module path"
+  | "fetch" -> "a url"
+  | "out" -> "a directory"
+  | _ -> "a value"
+
+
 let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
   // The fold carries the flag waiting for its value, "" when none is.
   args
@@ -39,8 +48,22 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
         let withNamed (key: String) (value: String) : Options =
           { opts with named = Stdlib.List.pushBack opts.named (key, value) }
 
+        // A flag given twice kept the first value and dropped the second without a
+        // word, which is the wrong half to keep silently either way.
+        let alreadyGiven (key: String) : Bool =
+          opts.named |> Stdlib.List.any (fun (k, _) -> k == key)
+
         if waiting != "" then
-          Stdlib.Result.Result.Ok((withNamed waiting arg, ""))
+          // A flag as the value means the previous flag was given nothing. Taking it
+          // silently would blame whichever flag got eaten.
+          if Stdlib.String.startsWith arg "--" then
+            let takes = flagTakes waiting
+            Stdlib.Result.Result.Error
+              $"--{waiting} needs {takes}, and {arg} is another flag"
+          else if alreadyGiven waiting then
+            Stdlib.Result.Result.Error $"--{waiting} was given twice"
+          else
+            Stdlib.Result.Result.Ok((withNamed waiting arg, ""))
         else if Stdlib.String.startsWith arg "--" then
           let flag = Stdlib.String.dropFirst arg 2
           if Stdlib.List.member switchFlags flag then
@@ -52,7 +75,10 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
             | Some at ->
               let key = Stdlib.String.slice flag 0 at
               let value = Stdlib.String.dropFirst flag (at + 1)
-              Stdlib.Result.Result.Ok((withNamed key value, ""))
+              if alreadyGiven key then
+                Stdlib.Result.Result.Error $"--{key} was given twice"
+              else
+                Stdlib.Result.Result.Ok((withNamed key value, ""))
             | None -> Stdlib.Result.Result.Ok((opts, flag))
         else
           Stdlib.Result.Result.Ok(
@@ -62,12 +88,7 @@ let parseOptions (args: List<String>) : Stdlib.Result.Result<Options, String> =
     | Error e -> Stdlib.Result.Result.Error e
     | Ok((opts, "")) -> Stdlib.Result.Result.Ok opts
     | Ok((_, waiting)) ->
-      let takes =
-        match waiting with
-        | "into" -> "a module path"
-        | "fetch" -> "a URL"
-        | "out" -> "a directory"
-        | _ -> "a value"
+      let takes = flagTakes waiting
       Stdlib.Result.Result.Error $"--{waiting} needs {takes}")
 
 
@@ -92,6 +113,13 @@ let generatorArgs (opts: Options) : List<(String * String)> =
 /// URL at the keyboard, and the API they are generating a client for is as likely to
 /// be on their LAN or tailnet as on the internet, which the guarded client refuses.
 /// First-party only, like every use of that transport.
+/// `  stored ./order.json as blob 7f3a1c9e (412 B)`: the one line for a blob that just
+/// landed in the store, whoever put it there.
+let printStoredBlob (verb: String) (what: String) (hash: String) (size: Int) : Unit =
+  Cli.printHint
+    $"  {verb} {what} as blob {Stdlib.String.slice hash 0 8} ({Stdlib.Int.toString size} B)"
+
+
 let fetchToBlob (url: String) : Stdlib.Result.Result<String, String> =
   match Cli.Sync.relayGet url with
   | Error e ->
@@ -102,10 +130,7 @@ let fetchToBlob (url: String) : Stdlib.Result.Result<String, String> =
        ++ "'` and run again.")
   | Ok body ->
     let hash = Stdlib.Blob.persist body
-    let size = Stdlib.Blob.length body
-    Cli.printHint
-      ($"  fetched {url} as blob {Stdlib.String.slice hash 0 8} "
-       ++ $"({Stdlib.Int.toString size} B)")
+    printStoredBlob "fetched" url hash (Stdlib.Blob.length body)
     Stdlib.Result.Result.Ok hash
 
 
@@ -136,6 +161,22 @@ let runTypeHash
 /// one unit) and a `Generate.Run` return type. A library generator with a type
 /// parameter and a unit parameter (`mirror<'a> ()`) is not one: it still needs its
 /// type argument.
+let returnsRun
+  (branchId: Uuid)
+  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : Bool =
+  match (fn.returnType, runTypeHash branchId) with
+  | (TCustomType(nr, _), Some runHash) ->
+    match nr.resolved with
+    | Ok resolved ->
+      match resolved.name with
+      | Package hash ->
+        (LanguageTools.ProgramTypes.hashToString hash)
+        == (LanguageTools.ProgramTypes.hashToString runHash)
+    | Error _ -> false
+  | _ -> false
+
+
 let isSavedGenerator
   (branchId: Uuid)
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
@@ -149,19 +190,7 @@ let isSavedGenerator
       | _ -> false
     | _ -> false
 
-  let returnsRun =
-    match (fn.returnType, runTypeHash branchId) with
-    | (TCustomType(nr, _), Some runHash) ->
-      match nr.resolved with
-      | Ok resolved ->
-        match resolved.name with
-        | Package hash ->
-          (LanguageTools.ProgramTypes.hashToString hash)
-          == (LanguageTools.ProgramTypes.hashToString runHash)
-      | Error _ -> false
-    | _ -> false
-
-  (Stdlib.List.isEmpty fn.typeParams) && noParams && returnsRun
+  (Stdlib.List.isEmpty fn.typeParams) && noParams && (returnsRun branchId fn)
 
 
 /// The fully qualified spelling of a location, as source would write it.
@@ -171,6 +200,17 @@ let fullName (location: LanguageTools.ProgramTypes.PackageLocation) : String =
     $"{location.owner}.{location.name}"
   else
     $"{location.owner}.{mods}.{location.name}"
+
+
+/// A library generator's name as a person writes it: `Json.fromSample`, not
+/// `Darklang.Generate.Json.fromSample`. Anything outside `Darklang.Generate` is
+/// already spelled the way they typed it.
+let shortName (location: LanguageTools.ProgramTypes.PackageLocation) : String =
+  let full = fullName location
+  if Stdlib.String.startsWith full "Darklang.Generate." then
+    Stdlib.String.dropFirst full 18
+  else
+    full
 
 
 /// The module path of a location, as `--into` and `dark module` spell it.
@@ -205,11 +245,7 @@ let argumentSource
       | Error err -> Stdlib.Result.Result.Error $"could not read {arg}: {err.message}"
       | Ok bytes ->
         let hash = Stdlib.Blob.persist bytes
-        let size = Stdlib.Blob.length bytes
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.hint
-            $"  stored {arg} as blob {Stdlib.String.slice hash 0 8} "
-            ++ $"({Stdlib.Int.toString size} B)")
+        printStoredBlob "stored" arg hash (Stdlib.Blob.length bytes)
         Stdlib.Result.Result.Ok $"(Darklang.Generate.input \"{hash}\")"
   | TList TBlob ->
     // A directory: every file in it, stored as a blob, in name order so the saved
@@ -238,9 +274,8 @@ let argumentSource
         | Error e -> Stdlib.Result.Result.Error e
         | Ok [] -> Stdlib.Result.Result.Error $"{arg} has no files in it"
         | Ok inputs ->
-          Stdlib.printLine
-            (Stdlib.Cli.UI.Colors.hint
-              $"  stored {Stdlib.Int.toString (Stdlib.List.length inputs)} files from {arg} as blobs")
+          let count = Cli.Text.plural (Stdlib.List.length inputs) "file"
+          Cli.printHint $"  stored {count} from {arg} as blobs"
           Stdlib.Result.Result.Ok("[ " ++ (Stdlib.String.join inputs ", ") ++ " ]")
   | TInt ->
     match Stdlib.Int.parse arg with
@@ -388,8 +423,8 @@ let refreshSaved
               Stdlib.Result.Result.Ok()
 
 
-/// What a run would do, for `--print` and `--dry-run`: the source it would stage, and
-/// the files it would write.
+/// What a run WOULD do, for `--dry-run`: the source it would stage and the files it
+/// would write, each under a line saying where it was going.
 let printRun (run: Darklang.Generate.Run) (target: String) : Unit =
   if run.source == "" then
     ()
@@ -400,6 +435,21 @@ let printRun (run: Darklang.Generate.Run) (target: String) : Unit =
   run.artifacts
   |> Stdlib.List.iter (fun (path, text) ->
     Cli.printHint $"  would write {path}:"
+    Stdlib.printLine text)
+
+
+/// A run's output and nothing else, for `--print`, so it pipes into a file or a diff.
+/// A file's path rides above it as a comment, which is a comment in every language a
+/// generator writes.
+let printOutput (run: Darklang.Generate.Run) : Unit =
+  if run.source == "" then
+    ()
+  else
+    Stdlib.printLine run.source
+
+  run.artifacts
+  |> Stdlib.List.iter (fun (path, text) ->
+    Stdlib.printLine $"// {path}"
     Stdlib.printLine text)
 
 
@@ -419,7 +469,7 @@ let stageRun
       run.source
   with
   | Error(ParseErrors diagnostics) ->
-    Cli.printErr "the generator's output did not parse:"
+    Cli.printErr "the generated source did not parse:"
     let _ = Packages.Errors.reportParseErrors diagnostics
     { state with exitCode = 1 }
   | Error(Message message) ->
@@ -459,8 +509,8 @@ let writeArtifacts
     let full = if Stdlib.String.endsWith dir "/" then dir ++ path else dir ++ "/" ++ path
     match Stdlib.Cli.File.writeText full text with
     | Ok _ ->
-      Cli.printHint
-        $"  wrote {full} ({Stdlib.Int.toString (Stdlib.String.length text)} chars)"
+      let size = Stdlib.String.length text
+      Cli.printHint $"  wrote {full} ({Stdlib.Int.toString size} B)"
       Stdlib.Result.Result.Ok()
     | Error err -> Stdlib.Result.Result.Error $"could not write {full}: {err.message}")
   |> Stdlib.Result.collect
@@ -489,7 +539,10 @@ let runSaved
         | Some path -> path
         | None -> if run.into == "" then modulePathOf generator else run.into
 
-      if (hasSwitch opts "print") || (hasSwitch opts "dry-run") then
+      if hasSwitch opts "print" then
+        printOutput run
+        state
+      else if hasSwitch opts "dry-run" then
         printRun run target
         state
       else
@@ -500,8 +553,8 @@ let runSaved
           | ([], _) -> Stdlib.Result.Result.Ok()
           | (_, None) ->
             Stdlib.Result.Result.Error
-              ($"{fullName generator} produces files; say where with `--out <dir>` "
-               ++ "(or `--print` to see them)")
+              ($"{fullName generator} writes files, and no `--out` was given. "
+               ++ "`--out <dir>` says where they go, or `--print` shows them.")
           | (artifacts, Some dir) -> writeArtifacts dir artifacts
 
         match files with
@@ -592,17 +645,25 @@ let runLibrary
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   (args: List<String>)
   : Cli.AppState =
+  // Refused here rather than after the saved fn is written: a fn that returns something
+  // else would be staged into the module, as an at-rest type error, by a command that
+  // then reports it. The name resolved, so it is worth saying what it is instead.
   let intoProblem =
-    match (flagValue opts "into") with
-    | None ->
+    if Stdlib.Bool.not (returnsRun state.currentBranchId fn) then
+      let name = shortName library
       Stdlib.Option.Option.Some
-        "a library generator needs `--into Owner.Module` to say where its output goes"
-    | Some path ->
-      if Stdlib.List.length (Stdlib.String.split path ".") < 2 then
+        $"{name} is not a generator: it returns something other than Generate.Run"
+    else
+      match (flagValue opts "into") with
+      | None ->
         Stdlib.Option.Option.Some
-          $"`--into {path}` needs an owner and a module, like `--into Acme.Orders`"
-      else
-        Stdlib.Option.Option.None
+          "a library generator needs `--into Owner.Module` to say where its output goes"
+      | Some path ->
+        if Stdlib.List.length (Stdlib.String.split path ".") < 2 then
+          Stdlib.Option.Option.Some
+            $"`--into {path}` needs an owner and a module, like `--into Acme.Orders`"
+        else
+          Stdlib.Option.Option.None
 
   // Type parameters come first on the command line, then the value parameters that
   // take an argument. A `Unit` parameter takes none and renders as `()`; with
@@ -667,21 +728,22 @@ let runLibrary
     let expectedText = Stdlib.String.join expected ", "
     if Stdlib.Bool.not (Stdlib.List.isEmpty args) then
       let got = Stdlib.String.join args " "
-      Cli.printErr
-        ($"{fullName library} takes its arguments by name, not by position: "
-         ++ $"{expectedText}. Got: {got}")
+      let name = shortName library
+      Cli.printErr $"{name} takes its arguments by name: {expectedText}"
+      Cli.printHint $"  nothing takes {got} on its own."
       { state with exitCode = 1 }
     else if Stdlib.Bool.not (Stdlib.List.isEmpty unknown) then
       let unknownText = Stdlib.String.join unknown ", "
-      Cli.printErr
-        $"{fullName library} has no parameter for {unknownText}; it takes {expectedText}"
+      let name = shortName library
+      Cli.printErr $"{name} has no {unknownText}"
+      Cli.printHint $"  it takes {expectedText}."
       { state with exitCode = 1 }
     else if Stdlib.Bool.not (Stdlib.List.isEmpty missing) then
       let missingText = Stdlib.String.join missing ", "
       let usage = Stdlib.String.join missing " "
-      Cli.printErr
-        ($"{fullName library} needs {missingText}: "
-         ++ $"generate {fullName library} {usage} --into {modulePath}")
+      let name = shortName library
+      Cli.printErr $"{name} needs {missingText}"
+      Cli.printHint $"  generate {name} {usage} --into {modulePath}"
       { state with exitCode = 1 }
     else
       let typeArgs = typeFlags |> Stdlib.List.filterMap lookup
@@ -782,7 +844,10 @@ let runLibrary
             { state with exitCode = 1 }
           | Ok run ->
             if Stdlib.List.isEmpty run.errors then
-              printRun run modulePath
+              if hasSwitch opts "dry-run" then
+                printRun run modulePath
+              else
+                printOutput run
               state
             else
               Cli.printErr "nothing to stage:"
@@ -849,8 +914,8 @@ let findFn
   | Some pair -> Stdlib.Result.Result.Ok pair
   | None ->
     Stdlib.Result.Result.Error
-      ($"no function named {name} (nor under Darklang or Darklang.Generate). "
-       ++ "`docs generate` lists the library generators.")
+      ($"no generator named {name}. `docs generate` lists the library ones; a saved "
+       ++ "generator is a fn in one of your own modules.")
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -921,7 +986,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             else
               runSaved state opts location
           else if (hasSwitch opts "refresh") then
-            Cli.printErr "--refresh takes a saved generator, not a library fn"
+            Cli.printErr "--refresh only applies to a saved generator"
             { state with exitCode = 1 }
           else
             runLibrary state opts location fn rest
@@ -934,33 +999,31 @@ let help (_state: Cli.AppState) : String =
     "                [--fetch <url>] [--out <dir>] [--dry-run]"
     "       generate <savedGenerator> [--refresh] [--print | --dry-run]"
     ""
-    "The first form writes a saved generator into the module: a zero-arg fn whose"
+    "The first form writes a saved generator into the module (a zero-arg fn whose"
     "body is the call you gave, with any file argument stored as a blob and named"
-    "by hash. Then it runs it. Arguments are named after the library fn's"
-    "parameters (`--name`, `--sample`); a type parameter is `--type`; a missing one"
-    "is named back. The second form re-runs a saved generator. Both"
-    "stage the output through the same path as `module`, so the at-rest check"
-    "reports on it and `status` counts it."
+    "by hash) and runs it. The second form runs one again. Both stage the output"
+    "through the same path as `module`, so the at-rest check reports on it and"
+    "`status` counts it."
     ""
-    "Running the first form again with a changed file rewrites the saved"
-    "generator and re-runs it; with nothing changed it says so and stages"
-    "nothing. When an input is a package item and it is edited, the saved"
-    "generator repoints like any dependent and re-runs in your draft as part of"
-    "propagation; `propagate pin` stops that."
+    "Arguments are named after the library fn's parameters (`--name`, `--sample`),"
+    "a type parameter is `--type`, and a missing one is named back with what it"
+    "takes. Your own generator gets the same treatment."
     ""
-    "`--fetch <url>` takes the document from the network instead of a file and"
-    "records the URL on the saved fn; `--refresh` fetches it again and re-runs"
-    "only if it moved."
+    "Run the first form again with a changed file and it rewrites the saved"
+    "generator and re-runs it; with nothing changed it stages nothing and says so."
+    "When the input is a package item, editing that item repoints the saved"
+    "generator like any dependent and re-runs it in your draft as part of"
+    "propagation. `propagate pin` stops that."
     ""
-    "A generator may read the package store and nothing else: no files, no"
-    "network. Fetch what you need first (or use --fetch), and generate from the"
-    "stored document."
+    "Flags: `--fetch <url>` takes the document from the network instead of a file"
+    "and records the url on the saved fn; `--refresh` fetches it again and re-runs"
+    "only if it moved; `--out <dir>` is where a generator that writes files puts"
+    "them; `--dry-run` and `--print` look without staging."
     ""
     "Library generators: Json.fromSample, Json.fromSamples, JsonSchema.types,"
-    "Csv.fromSample, Sql.schemaTypes, OpenApi.client, OpenApi.server,"
-    "Dark.mirror, Dark.mirrorModule, Derive.forType, Fixtures.forType,"
-    "TypeScript.toTypeScript. `--out <dir>` for one that writes files. See"
-    "`docs generate`."
+    "Csv.fromSample, Sql.schemaTypes, OpenApi.client, OpenApi.server, Dark.mirror,"
+    "Dark.mirrorModule, Derive.forType, Fixtures.forType, TypeScript.toTypeScript."
+    "`docs generate` has them with examples."
     ""
     "Examples:"
     "  generate Json.fromSample --name Order --sample ./order.json --into Acme.Orders"
