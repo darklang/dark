@@ -113,6 +113,8 @@ type AmbiguousSubject =
   | UnaryMinusOperand
   | RecordType
   | EnumPatternType
+  | DictKeyType
+  | CalleeType
   | ItemType
 
 /// Why a builtin's declared signature is not something the checker can check against.
@@ -178,17 +180,70 @@ type Report =
     diagnostics: List<Issue>
     blockers: List<Issue> }
 
+/// Why a guarded piece of the check has no answer: the checker itself failed.
+type CheckFailure =
+  /// Nesting deep enough to exhaust the native stack.
+  | TooDeep
+  /// Any other runtime error, rendered.
+  | Failed of message: String
+
 /// The report for nothing: no items, so trivially Checked.
 let emptyReport () : Report =
   Report { verdict = Verdict.Checked; items = []; diagnostics = []; blockers = [] }
 
 /// Check package operations before they are persisted or presented as diagnostics.
 ///
-/// This is the single Dark-facing boundary for the runtime checker builtin.
+/// The checker is `AtRestTypeChecker.Run` and the modules beside it. Should the checker
+/// itself fail, the answer is an Incomplete report saying so, never an error: see
+/// `guarded`.
 let checkPackageOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Report =
-  Builtin.atRestCheckPackageOps ops
+  guarded Run.checkPackageOps ops
+
+/// Check every declaration visible on a branch, as `checkPackageOps` does.
+let checkBranch (branchId: Uuid) : Report = guarded Run.checkBranch branchId
+
+/// Run a check, turning a failure of the checker itself into an Incomplete report
+/// that says so. Authoring and commit act on the report, and a defect in the checker
+/// must not make either unavailable.
+///
+/// This is the outer guard, for what the whole batch shares, like loading its
+/// environment. Each item is guarded on its own too (`guard`, in `Run` and `Items`),
+/// so one item the checker cannot walk does not lose the others' findings.
+let guarded (check: 'a -> Report) (input: 'a) : Report =
+  match guard check input with
+  | Ok report -> report
+  | Error failure ->
+    let blocker = failureIssue Stdlib.Option.Option.None failure
+
+    Report
+      { verdict = Verdict.Incomplete
+        items = []
+        diagnostics = []
+        blockers = [ blocker ] }
+
+/// Run `check`, handing back a failure of the checker itself as a value: Dark code
+/// cannot catch its own runtime error.
+let guard (check: 'a -> 'b) (input: 'a) : Stdlib.Result.Result<'b, CheckFailure> =
+  Builtin.atRestCheckGuarded check input
+
+/// The blocker for a check that failed: the item was not checked.
+let failureIssue
+  (nodeId: Stdlib.Option.Option<UInt64>)
+  (failure: CheckFailure)
+  : Issue =
+  let context =
+    match failure with
+    | TooDeep -> Context.DeclarationTooDeep
+    | Failed message -> Context.CheckerUnavailable message
+
+  Issue
+    { code = IssueCode.UnsupportedConstruct
+      nodeId = nodeId
+      expected = Stdlib.Option.Option.None
+      actual = Stdlib.Option.Option.None
+      context = context }
 
 let staticTypeToStringWith
   (customTypeName:
@@ -345,6 +400,8 @@ let ambiguousSubjectToString (subject: AmbiguousSubject) : String =
   | UnaryMinusOperand -> "the operand type of unary minus"
   | RecordType -> "the record type"
   | EnumPatternType -> "which enum type contains this case"
+  | DictKeyType -> "the key type of this Dict"
+  | CalleeType -> "the type of the function called here"
   | ItemType -> "a complete type here"
 
 

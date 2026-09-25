@@ -27,37 +27,109 @@ mutate package state.
 
 ## Architecture
 
-1. `StaticType` is the checker's internal type language. It separates inference
-   variables from rigid declared type parameters.
-2. `TypeEnvironment` is an immutable snapshot of type declarations and callable/value
-   signatures. Storage and builtin adapters construct it outside the checker.
-3. Conversion validates resolved names and declared type-variable scope. A recursive
-   closure pass then validates custom-type presence and arity through every component
-   a type can reach. Separate guards reject transparent alias cycles while allowing
-   nominally recursive records and enums.
-4. Unification applies substitutions, performs an occurs check, and treats custom
-   types nominally. Aliases are expanded through `TypeEnvironment`, with cycle
-   detection.
-5. Bidirectional expression checking uses expected types where available and
-   inference elsewhere. Immutable local and package values are generalized under a
-   value restriction, and each reference receives a fresh instantiation. Deferred
-   record-field constraints allow inferred local helpers to be checked at their call
-   sites. Pattern checking both validates shape and extends the local environment,
-   including recovery bindings after an invalid pattern, so one error does not create
-   scope-error cascades. Inference variables confined to discarded intermediates or
-   unused generic fields are erased at the item boundary; those in the observable
-   result type, pending constraints, or provisional diagnostics remain blockers.
-6. A package-batch layer predeclares signatures, validates declarations, then checks
-   bodies. This permits mutually recursive functions without coupling checking to op
-   replay or database order.
-7. The authoring adapter walks resolved content hashes to load only the candidate's
-   transitive dependency closure. Existing functions contribute signatures, not
-   executable bodies. Serialized-input conversion probes the remaining call stack and
-   dependency discovery uses an explicit work list, so pathologically deep input
-   becomes a catchable `Incomplete` result instead of a process stack overflow.
-8. Reports retain one verdict per content-addressed package reference as well as an
-   aggregate verdict, so batch callers can map findings back to every location of an
-   item without coupling the checker to mutable package names.
+The checker is Darklang, in `packages/darklang/languageTools/atRestTypeChecker/`, behind
+`LanguageTools.AtRestTypeChecker.checkPackageOps` and `checkBranch`. Authoring, commit,
+propagation, the LSP and `typecheck` all go through those two. It works in three steps,
+one module each:
+
+1. `Generate` turns an item's syntax into `Constraint`s: one rule per construct, no
+   lookups, no state. Unknowns are named after the node that introduced them
+   (`Of(nodeId, Element)`), so no counter is threaded through it. Two nodes sharing an
+   id only add equalities, which can make an item fail but never pass.
+2. `Solve` works through the constraints in order against an `Environment`, keeping a
+   substitution. Order carries the bidirectional part: a callee's type is known before
+   its arguments are checked, so a lambda argument knows its parameter types. A
+   constraint about something not yet known (whose field is this, which enum has this
+   case, is this operand numeric) waits and is retried as the rest of the body fixes
+   types; whatever is still waiting at the end is a blocker, never a pass. Immutable
+   local and package values are generalized under a value restriction; waiting
+   constraints and exhaustiveness checks about generalized unknowns travel with the
+   scheme and are re-checked for each instance. An unknown that a waiting constraint
+   ties to one still in scope is not generalized, since that constraint stays behind
+   and a fresh instance would escape it. A `TError` type stands for "already reported"
+   or "cannot be known": it unifies with everything, so one mistake is reported once,
+   and an alias that cannot be expanded (a cycle, or a declaration that is not
+   available) becomes one, with its blocker, rather than a mismatch the checker has no
+   evidence for. Function types keep their arity, as the runtime's own check of a
+   function against a declared type does, so a call whose callee is not known yet
+   waits to learn it rather than guess a shape: `fun g -> g 1 2` may be given a
+   two-parameter function or one that returns a function. A waiting call still
+   says its callee contains what it is applied to and what it gives, so calls that
+   would make a function contain itself, directly (`fun x -> x x`) or through
+   another waiting call (`fun f g -> (f g, g f)`), are reported when they start to
+   wait. Calls sharing an unknown callee unify their common argument prefixes and,
+   for equal argument counts, their results. A longer call applies the shorter
+   call's result to its remaining arguments, without fixing the callee's arity.
+   Waiting constraints are retried while any are resolved, any argument is consumed,
+   or any unknown is decided. Residual applications go through the same checks.
+   Deferred reads and updates of the same field, unwraps of the same subject, and
+   patterns for the same enum case also reconcile their types before generalization.
+   Every waiting application enters that same reconciliation path. Requirements for
+   records, enums, numbers and functions are disjoint; their intersections are checked
+   even when the subject is unknown. Unwraps contribute structural containment edges
+   alongside applications, and an enum pattern can resolve their Option/Result choice.
+   Dictionary-key requirements follow observed fields, enum payloads and unwrap results,
+   including through nested containers and aliases; phantom arguments remain exempt.
+   This reachability walk has its own visited set, since nominal recursive fields are
+   legal even though structural cycles such as `x = Option<x>` are not.
+   Their original source sites remain queued for checking once the declaration is
+   known; repeated settlement does not duplicate a relational diagnostic.
+   Field access, record update and enum patterns on a type known not to be custom
+   (`Int`, a list, a function) are definite errors; on an unknown or a type
+   parameter they stay open. These diagnostics carry explicit certainty, so an
+   unknown list element type does not downgrade an invalid field access to ambiguity.
+3. `Items` decides each verdict under the soundness contract above. Unknowns confined to
+   discarded intermediates are erased; those in the item's type or needed to decide
+   a diagnostic remain, as blockers or as provisional (not definite) diagnostics.
+
+Around them:
+
+- `Types` holds what needs no solver: conversion from `TypeReference`, alias expansion,
+  Dict-key usability, and well-formedness. Work that depends only on a declaration or
+  a signature is done once per batch and cached in the `Environment`: each
+  declaration's own problems and references, each one's closure of problems (computed
+  over strongly connected components, so it is linear in the declaration graph), alias
+  cycles (one pass over the alias graph), and each called function's signature,
+  converted and checked once and instantiated per call.
+- `Coverage` proves match exhaustiveness and renders a witness for the message.
+- `Environment` builds what an item is checked against: builtin signatures, taken from
+  the runtime lazily as items call them, and the dependency closure, loaded by content
+  hash through the package manager. Existing functions contribute signatures, not
+  bodies. A builtin a declaration calls contributes the types its signature names.
+  Each dependency's retrieval and reference walk share one guard, so a failed load
+  leaves that dependency unavailable without dropping the rest of the queue.
+- `Run` checks a batch: types and function signatures are declared first, so order and
+  mutual recursion do not matter; values are checked in dependency order, and values in
+  a cycle stay `Incomplete`. Reports keep one verdict per content-addressed item.
+
+Dark code cannot catch its own runtime error, so the checker runs its pieces through
+`AtRestTypeChecker.guard` (`Builtin.atRestCheckGuarded`), which hands back a failure of
+the checker itself as a `CheckFailure` value: `TooDeep` for input nested deeply enough to
+exhaust the native stack (recursion through builtin callbacks, see
+`Execution.runLoaded`, or AST conversion, see `ProgramTypesToDarkTypes`), `Failed` for
+anything else. AST conversions probe the stack in both directions, including when a
+stored dependency is converted into Dark values. Each item is guarded on its own, from
+walking its body for references to checking it, and a failure there makes that item
+`Incomplete` with a `DeclarationTooDeep` or `CheckerUnavailable` blocker while the rest of
+the batch is still checked, so one deep declaration cannot hide another's definite
+error. Both entry points are guarded as a whole as well, for what the batch shares, like
+loading its environment or querying the branch catalog. Branch checking asks for names
+and hashes first, then guards each candidate's retrieval and conversion separately.
+Shared declaration closures deduplicate findings with guarded equality, not the native
+structural hashing in `List.unique`. If comparing findings exceeds the depth limit,
+deduplication keeps the original findings instead of failing the shared environment.
+The checker therefore preserves other items' results when an item's analysis or
+conversion exceeds the supported depth. A catalog or other shared-infrastructure
+failure still produces a whole-batch `Incomplete` report.
+
+The `Invariants` module in
+`backend/testfiles/execution/stdlib/language-tools/atRestTypeChecker.dark` exercises
+these boundaries together: incompatible operation pairs in both orders, delayed
+subject equality, valid overlaps, dictionary-key reachability, structural cycles,
+deep duplicate findings, and mixed successful/failed/missing candidate loads. The
+native `DeepValues` and `DeepProgramTypes` tests cover comparison, type merging, and
+the outbound AST converters on a small stack. These complement the individual syntax
+and inference rules elsewhere in the checker test file.
 
 ## Trust boundary and rollout
 
@@ -94,7 +166,7 @@ on the current branch in one batch, printing aggregate counts and listing non-ch
 items by location. `--all`, `--failed` and `--incomplete` filter the detail. It adds no
 package operations and mutates no branch state.
 
-The gate is deliberately outside F# storage (`Builtin.scmAddOps`,
+The gate is deliberately outside storage (`Builtin.scmAddOps`,
 `LibDB.Inserts`, the `SCM.Commits` commit path) and outside merge, rebase and sync,
 which move already-committed content. Package synchronization, historical op replay,
 propagation, and other storage callers never see it and must not reject data based on
@@ -124,14 +196,21 @@ deeply nested.
 ## Coverage policy
 
 All `ProgramTypes.Expr`, let-pattern, match-pattern, pipe, type-reference, record, and
-enum cases must be matched exhaustively in code. A newly added AST case therefore
-breaks compilation until its checking rule is chosen. Rules that cannot yet prove a
-construct add a blocker and return an inference variable; they never silently accept
-the construct.
+enum cases are matched exhaustively in the checker, with no wildcard arm standing in for
+a case. Darklang does not check exhaustiveness at compile time, so a newly added AST case
+is not a build error: until its rule is written, meeting it is a "No matching case"
+runtime error inside the checker, which the guard turns into an `Incomplete` report.
+That is safe, since nothing unproven is ever `Checked`, but it is silent until someone
+meets the case; add the rule, and a case for it in the checker's tests, in the same
+change as the new syntax. Rules that cannot yet prove a construct add a blocker and
+return an unknown; they never silently accept it.
 
 Match exhaustiveness uses a constructor-matrix proof for unit, boolean, tuple, and enum
 types, including nested and correlated patterns. Lists prove the common empty/cons
-split. Infinite literal domains and guarded-only coverage remain conservative: when
+split. A column's constructors are expanded only when its patterns name every one of
+them, and otherwise only the rows that match anything decide; expanding regardless
+does not terminate on a recursive type, where a wildcard specialized to `Node of Tree`
+is the same row again. Infinite literal domains and guarded-only coverage remain conservative: when
 complete coverage cannot be proved, the expression is `Incomplete`.
 
 Builtin signatures are part of the trust boundary. Concrete runtime results use their
@@ -153,17 +232,27 @@ their type variables. Two kinds of signature must not be trusted:
   arithmetic supports them. Used as a value or partially applied there is no signature
   to give them, and the use is `Incomplete`.
 
-## Where this should live
+## Why Darklang
 
-The checker is F# for throughput: it runs on every save, on every commit, and over the
-whole corpus for `typecheck` and batch validation. That is an argument from the shape
-of the work, not a measurement.
+The checker was F# until it was rewritten in Darklang, and the reason was not tidiness.
+With an F# module behind a builtin, the set of checks is fixed. The goal is that people
+can choose which at-rest checks apply to their packages and write their own, which needs
+the checks to be ordinary Darklang code.
 
-It should eventually be Darklang, and the reason is not tidiness. Today the set of
-checks is fixed, and "our way is the way". The goal is that people can choose which
-at-rest checks apply to their packages and write their own. That needs the checks to be
-ordinary Darklang code, not an F# module with a builtin in front of it. There is a
-`CLEANUP` marker on the module saying so.
+The rewrite was held to the F# checker over the whole package tree before it replaced
+it: on about 6,600 items they disagreed on 11, all in the Darklang checker's favour (9
+items F# left `Incomplete` for ambiguity that waiting resolves, and 2 failing under both
+where it also reported problems inside fields F# had stopped checking). It never passed
+an item F# failed or failed one F# passed.
+
+The price is throughput. Over the whole branch the F# checker took about 10s; the
+Darklang one takes about 45s. A save or a commit checks one declaration and its
+dependencies, which takes a few milliseconds to a few hundred. The time is spread
+thinly, at roughly 1,500 interpreted calls per function checked, so it tracks the
+interpreter's speed. Two things got it here and are worth keeping: work that depends
+only on a signature or a declaration is done once per batch, not per call site or per
+item; and the modules name types in full rather than through `type X = ...` aliases,
+which miss the interpreter's fast argument check (see `model.dark`).
 
 ## Non-goals
 
@@ -178,16 +267,18 @@ ordinary Darklang code, not an F# module with a builtin in front of it. There is
 
 ## Verification
 
-    ./scripts/run-backend-tests --filter tests/AtRestTypeChecker
+    ./scripts/run-backend-tests --filter tests/LibExecution/All/testfiles/execution/stdlib/language-tools/atRestTypeChecker
     ./scripts/run-cli typecheck
 
-The test group has two parts. The `checker` unit tests build type environments by hand
-and cover inference, mismatch diagnostics, patterns, enum and record validation,
-aliases, missing dependencies, package-value ordering, the real builtin signatures, and
-dependency-closure loading. The `authoring` test runs the real CLI against an isolated
-seeded store and checks the rollout policy end to end: a definite failure is saved as
-WIP but refused at commit, a checked declaration saves silently, and an incomplete one
-saves with its warnings.
+`backend/testfiles/execution/stdlib/language-tools/atRestTypeChecker.dark` pins the
+checker down rule by rule, with every issue code covered. Cases are written as source
+where the parser can say them (declarations in one snippet can refer to each other,
+through `LanguageTools.Parser.Parse.packageSourceToOps`) and hand-built where it cannot:
+unresolved names, missing hashes, or-alternatives that bind different names. Deep input
+is tested through the guarded entry point: it either checks or comes back `Incomplete`
+as too deep to walk, and never takes the process down. The rollout policy is tested end
+to end against the real CLI in `CliScm.Tests.fs`: a definite failure is saved as WIP but
+refused at commit, and `--allow-type-errors` takes it.
 
 A full-corpus `typecheck` run is also a rollout gate, and a failure count alone is not
 evidence that blocking is safe. Classify representative findings against the source

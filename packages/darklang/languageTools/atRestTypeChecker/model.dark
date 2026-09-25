@@ -1,0 +1,252 @@
+/// The vocabulary of the at-rest type checker written in Darklang.
+///
+/// The checker works in three steps, one module each:
+///
+///   Generate  reads an item's syntax and says what must hold, as `Constraint`s.
+///             It never looks anything up and never solves anything, so it is
+///             one match per syntax case and reads like the typing rules.
+///   Solve     works through those constraints in order against an
+///             `Environment`, keeping a substitution, and records `Finding`s.
+///   Items     decides each item's verdict from what is left over.
+///
+/// The modules name types in full (`Model.Ty`, `LanguageTools.ProgramTypes.Hash`)
+/// rather than through `type Ty = ...` aliases. A parameter declared through an alias
+/// misses the interpreter's fast argument check, which compares a value's type name
+/// with the declared one, and costs about twice as much per call; the checker makes
+/// millions of them.
+///
+/// Findings come out as `LanguageTools.AtRestTypeChecker.Report`, the vocabulary every
+/// surface that shows them (the CLI, commit, the LSP) already speaks.
+module Darklang.LanguageTools.AtRestTypeChecker.Model
+
+/// What an unknown type stands for, relative to the node that introduced it.
+type Role =
+  /// The node's own type: an application's result, a match's result, the type a
+  /// pattern is matched against.
+  | Result
+  /// The i-th parameter of a lambda, argument of an application, field of a
+  /// constructor, or part of a tuple pattern.
+  | Part of Int
+  /// A lambda's return type.
+  | Return
+  /// A list's element type, or a list pattern's.
+  | Element
+  | DictKey
+  | DictValue
+  /// The type a named function is instantiated at, where the node's own type is
+  /// already the call's result.
+  | Callee
+
+/// An unknown type.
+///
+/// Most are named after the syntax node that introduced them. That is what lets
+/// generation be a plain function of the syntax, with no counter threaded through
+/// it: the element type of list node 17 is `Of(17, Element)` however often it is
+/// asked for. Node ids are random 64-bit values minted by the parser, and two nodes
+/// sharing one only adds equalities, which can make an item fail but never pass.
+type Var =
+  | Of of Int64 * Role
+  /// Made by the solver, when it instantiates a scheme or a signature.
+  | Fresh of Int
+
+/// The checker's own type language. `TRigid` is a declared type parameter, which
+/// only ever equals itself; `TVar` is an unknown the solver may fill in.
+type Ty =
+  | TUnit
+  | TBool
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
+  | TInt64
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TInt
+  | TFloat
+  | TChar
+  | TString
+  | TUuid
+  | TDateTime
+  | TBlob
+  | TStream of Ty
+  | TList of Ty
+  | TTuple of Ty * Ty * List<Ty>
+  | TDict of Ty * Ty
+  | TCustom of LanguageTools.ProgramTypes.Hash * List<Ty>
+  | TFn of List<Ty> * Ty
+  | TDB of Ty
+  | TRigid of String
+  | TVar of Var
+  /// Stands in for a type the checker could not determine because of a problem it
+  /// has already reported. It is compatible with everything and never produces a
+  /// diagnostic of its own, so one mistake is reported once rather than at every
+  /// place its consequences reach.
+  | TError
+
+/// Something the checker found. Its code distinguishes diagnostics from blockers
+/// (`Types.isBlocker`); a diagnostic may still depend on unresolved types.
+type Finding =
+  { code: IssueCode
+    at: Stdlib.Option.Option<Int64>
+    expected: Stdlib.Option.Option<Ty>
+    actual: Stdlib.Option.Option<Ty>
+    /// The error holds regardless of unknowns in the displayed types.
+    definite: Bool
+    context: Context }
+
+/// How a local name is known.
+type Binder =
+  /// One type, shared by every use.
+  | Mono of Ty
+  /// Generalized where it was bound, at this pattern node. Every use gets its own
+  /// instance of the scheme the solver recorded there.
+  | Poly of Int64
+
+/// What must hold. Generation produces these in the order they should be solved,
+/// and the order is doing real work: a function's type is known before its
+/// arguments are checked against it, so an argument that is a lambda already knows
+/// its parameter types.
+type Constraint =
+  /// Solve these in order.
+  | All of List<Constraint>
+  /// `actual` must be `expected`. `site` is where, for the message.
+  | Equal of at: Int64 * site: Site * expected: Ty * actual: Ty
+  /// A problem generation could see on its own, like a variable nobody bound.
+  | Report of Finding
+  /// `target` is an instance of the named function's signature.
+  | UseFunction of
+    at: Int64 *
+    name: LanguageTools.ProgramTypes.FQFnName.FQFnName *
+    typeArgs: List<Ty> *
+    target: Ty
+  /// `target` is an instance of the named value's type.
+  | UseValue of
+    at: Int64 *
+    name: LanguageTools.ProgramTypes.FQValueName.FQValueName *
+    target: Ty
+  /// `target` is a fresh instance of the scheme generalized at `binder`.
+  | UseLocal of at: Int64 * binder: Int64 * target: Ty
+  /// Apply `callee` to arguments of these types, one at a time, giving `result`.
+  | Apply of at: Int64 * callee: Ty * args: List<(Ty * Site)> * result: Ty
+  /// `result` is the record type named, and each field is its declared type.
+  | NewRecord of
+    at: Int64 *
+    typeName: LanguageTools.ProgramTypes.Hash *
+    typeArgs: List<Ty> *
+    fields: List<(String * Ty)> *
+    result: Ty
+  /// `result` is the enum type named, and each field is its case's field type.
+  | NewEnum of
+    at: Int64 *
+    typeName: LanguageTools.ProgramTypes.Hash *
+    typeArgs: List<Ty> *
+    caseName: String *
+    fields: List<(Ty * Site)> *
+    result: Ty
+  /// `record` has a field of this name, of type `result`. Waits for `record`.
+  | GetField of at: Int64 * record: Ty * field: String * result: Ty
+  /// `record` has these fields, of these types. Waits for `record`.
+  | UpdateRecord of at: Int64 * record: Ty * fields: List<(String * Ty)>
+  /// `scrutinee` is an enum with this case, whose fields have these types. Waits for
+  /// `scrutinee`.
+  | EnumPattern of at: Int64 * scrutinee: Ty * caseName: String * fields: List<Ty>
+  /// `operand` is a type this operator accepts. Waits for `operand`.
+  | Operand of
+    at: Int64 *
+    operation: LanguageTools.ProgramTypes.InfixFnName *
+    operand: Ty *
+    subject: AmbiguousSubject
+  /// `operand` is a signed number. Waits for `operand`.
+  | Negate of at: Int64 * operand: Ty
+  /// `key` can be a Dict key: nothing unorderable is reachable from it. Waits for
+  /// `key`, which a Dict literal learns only from its entries.
+  | DictKey of at: Int64 * key: Ty
+  /// `result` is what `arg`, an Option or a Result, holds. Waits for `arg`.
+  | Unwrap of
+    at: Int64 *
+    fn: LanguageTools.ProgramTypes.FQFnName.FQFnName *
+    arg: Ty *
+    result: Ty
+  /// Generalize `typ` over what nothing in `scope` mentions, and record the scheme
+  /// for `binder`.
+  | Generalize of binder: Int64 * typ: Ty * scope: List<Binder>
+  /// The cases cover every value of `scrutinee`. Checked last, when as much as
+  /// possible is known, and only if the patterns themselves were sound.
+  | Covers of
+    at: Int64 *
+    scrutinee: Ty *
+    cases: List<LanguageTools.ProgramTypes.MatchCase> *
+    patternIds: List<Int64>
+  /// Every type `typ` reaches is declared, used at the right arity, and usable where
+  /// it appears (a Dict key must be orderable).
+  | WellFormed of at: Stdlib.Option.Option<Int64> * typ: Ty
+
+/// A generalized type, and what must still hold of each instance of it.
+type Scheme =
+  { quantified: List<Var>
+    typ: Ty
+    constraints: List<Constraint> }
+
+/// What the checker can do with a call to a named function.
+type Callable =
+  | Declared of Template
+  /// A builtin whose declared signature is not the truth, and why.
+  | Untrusted of UntrustedBuiltin
+  | Unavailable
+
+/// A signature in the checker's own types. Converted once per batch and instantiated
+/// at each use, by substituting for its type parameters, which appear as `TRigid`.
+type Template =
+  { typeParams: List<String>
+    parameters: List<Ty>
+    returnType: Ty
+    needsTypeArgs: Bool
+    /// What is wrong with the signature itself: its conversion, and anything its
+    /// types reach that is not well formed. Found with no node; each use reports them
+    /// at itself.
+    problems: List<Finding> }
+
+/// A callable's declared signature.
+type Signature =
+  { typeParams: List<String>
+    parameters: List<LanguageTools.ProgramTypes.TypeReference>
+    returnType: LanguageTools.ProgramTypes.TypeReference
+    /// Some type parameter appears only in the result, so no argument can say what
+    /// it is and a call has to (`jsonParse<'a>`).
+    needsTypeArgs: Bool }
+
+/// What a declaration says about itself, worked out once per batch rather than once
+/// per item that reaches it: the problems in its own fields, and the declarations
+/// they name. Whether a type is well formed is then a walk over these.
+type DeclarationFacts =
+  { /// Found with no node; each use reports them at itself.
+    problems: List<Finding>
+    references: List<LanguageTools.ProgramTypes.Hash> }
+
+
+/// Everything an item may refer to. Built once, outside the checker, and only read.
+type Environment =
+  { types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration>
+    /// Package functions' signatures.
+    functions: Dict<LanguageTools.ProgramTypes.FQFnName.FQFnName, Signature>
+    /// Builtins, as the runtime describes them. A builtin becomes a `Callable` only
+    /// when something calls it, since most items call few of the hundreds there are.
+    builtinFunctions: Dict<LanguageTools.ProgramTypes.FQFnName.FQFnName, LanguageTools.BuiltinFunction>
+    builtinValues: Dict<LanguageTools.ProgramTypes.FQValueName.FQValueName, LanguageTools.BuiltinValue>
+    /// Package values checked so far, by the scheme each was inferred at.
+    values: Dict<LanguageTools.ProgramTypes.Hash, Scheme>
+    /// Facts about the declarations in `types`, where they have been worked out.
+    facts: Dict<LanguageTools.ProgramTypes.Hash, DeclarationFacts>
+    /// Callables worked out so far in this batch. Filled in as items use them, so a
+    /// signature is converted and checked once however many calls there are.
+    callables: Dict<LanguageTools.ProgramTypes.FQFnName.FQFnName, Callable>
+    /// The problems in each declaration and everything it reaches, worked out the
+    /// first time an item reaches it. Found with no node; each use reports them at
+    /// itself.
+    closures: Dict<LanguageTools.ProgramTypes.Hash, List<Finding>>
+    /// `Stdlib.Option.Option` and `Stdlib.Result.Result`, which `unwrap` knows.
+    optionType: LanguageTools.ProgramTypes.Hash
+    resultType: LanguageTools.ProgramTypes.Hash }

@@ -414,6 +414,31 @@ that needs an EOF, and an agent harness hands you a socket that never gives one,
 hang the call well past its timeout. If you pipe real input and it gets dropped, `DARK_STDIN=1`
 forces it through.
 
+**A parameter declared through a type alias costs about twice as much per call.** The
+interpreter checks each argument against its declared type, and its fast path compares the
+value's type name with the declared one; `type Ty = Model.Ty` never matches, so every call
+through it takes the async path via `unwrapAlias`. Harmless in most code; in a hot recursive
+helper it doubled the cost. Name the type in full there (`Model.Ty`); the at-rest checker's
+modules do, and say why.
+
+**Recursion through a builtin callback uses the native stack.** A Dark frame lives on the heap,
+so plain recursion goes hundreds of thousands deep. But `Stdlib.List.map xs (fun x -> recurse x)`
+starts a nested interpreter run per level, on the native stack, and runs out after a few hundred
+levels. `Execution.runLoaded` probes for it, so this is a runtime error ("Out of stack: ...")
+rather than a dead process, but a deep walk that must not fail should recurse directly (a
+`match list with | x :: rest -> ...` helper) or use a work list. `==` and sorting also recurse
+natively, through a value as deep as it is nested; `Dval.equals`, `DvalOrdering.compare` and
+`ValueType.merge` (which `==` calls first, on the values' types) probe too, so comparing a value
+nested a few thousand deep is the same runtime error. Test a new probe published: Release frames
+are smaller, so a walk that a Debug run never reached can be the one that overflows. And test it
+from F# on a thread with a small stack (`Interpreter.Tests.fs`, `DeepValues`), not from a testfile:
+a value deep enough to overflow a normal stack is hundreds of thousands deep, and two of those in
+the parallel suite thrashed the GC and starved every other test. That reads as a hang somewhere
+else entirely -- a different test "stuck" each run -- and passes whenever run alone. Any new F# walk
+over a Dval or a ProgramTypes value needs the same probe: a native stack overflow cannot be
+caught, and it ends the process (the CLI, or the LSP server) without a word. The F# parser does
+not probe yet: source nested a few thousand deep still kills it.
+
 **`let f () = <a literal>` rebuilds it on every call.** A nullary function whose body is a constant is
 not a constant; `val` is evaluated once. If the body doesn't depend on anything, make it a `val`.
 

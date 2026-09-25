@@ -28,6 +28,9 @@ type BuiltinFunctionPurity =
 type BuiltinFunction =
   { name: RuntimeTypes.FQFnName.Builtin
     description: String
+    /// The type parameters the builtin declares. Older builtins leave some of
+    /// theirs undeclared and only use them in `parameters` and `returnType`.
+    typeParams: List<String>
     parameters: List<BuiltinFunctionParameter>
     returnType: RuntimeTypes.TypeReference
     purity: BuiltinFunctionPurity }
@@ -42,3 +45,7 @@ type BuiltinValue =
   { name: RuntimeTypes.FQValueName.Builtin
     description: String
     ``type``: RuntimeTypes.TypeReference }
+
+/// Every builtin value this runtime has. Built fresh on each call.
+let allBuiltinValues () : List<BuiltinValue> =
+  Builtin.getAllBuiltinValues ()

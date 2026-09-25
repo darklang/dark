@@ -205,7 +205,7 @@ let upsert (bindings: List<Binding>) (b: Binding) : List<Binding> =
 ///
 /// `branchId` is the branch to resolve type names against.
 let captureValue (branchId: Uuid) (v: 'a) : String =
-  match LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr branchId (Builtin.reflect v) with
+  match LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr branchId (LanguageTools.RuntimeTypes.reflect v) with
   | Ok e ->
     "ok:"
     ++ (PrettyPrinter.ProgramTypes.expr

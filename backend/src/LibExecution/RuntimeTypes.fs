@@ -988,14 +988,23 @@ and DvalOrdering private () =
     | DDateTime x, DDateTime y -> compare x y
     | DUuid x, DUuid y -> compare x y
 
-    | DList(_, x), DList(_, y) -> DvalOrdering.compareList mode x y
+    // Each case below recurses into what it holds, on the native stack, as deep as
+    // the value is nested. A native stack overflow ends the process, so probe first:
+    // this throws an ordinary exception while there is room, which reaches the
+    // program as a runtime error. See `Dval.equals`.
+    | DList(_, x), DList(_, y) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
+      DvalOrdering.compareList mode x y
     | DTuple(x1, x2, xs), DTuple(y1, y2, ys) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       DvalOrdering.compareList mode (x1 :: x2 :: xs) (y1 :: y2 :: ys)
 
     | DDict(_, _, x), DDict(_, _, y) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       DvalOrdering.compareEntries mode (Map.toList x) (Map.toList y)
 
     | DRecord(_, x, _, xFields), DRecord(_, y, _, yFields) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       let c = compare x y
       if c <> 0 then
         c
@@ -1006,6 +1015,7 @@ and DvalOrdering private () =
           (Map.toList yFields |> List.map (fun (k, v) -> DictKey(DString k), v))
 
     | DEnum(_, xType, _, xCase, xFields), DEnum(_, yType, _, yCase, yFields) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       let c = compare xType yType
       if c <> 0 then
         c

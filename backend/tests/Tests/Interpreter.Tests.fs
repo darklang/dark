@@ -1064,6 +1064,66 @@ module DictKeyOrdering =
         equalityIsNotTransitive ]
 
 
+/// Comparing a value recurses on the native stack as deep as the value is nested, and a
+/// native stack overflow cannot be caught: it ends the process. `Dval.equals`,
+/// `DvalOrdering.compare` and `ValueType.merge` probe first, so a value too deep to
+/// compare is an ordinary exception, which a program sees as a runtime error.
+///
+/// Run on a thread with a small stack, so a modest depth is sure to exceed it: cheap, and
+/// the same on any machine. (Doing this from a testfile took a value 200,000 deep, which
+/// starved the rest of the parallel suite.) Without the probes this does not fail, it
+/// takes the test process down, which is loud enough.
+module DeepValues =
+  let private depth = 20_000
+
+  /// A list nested `depth` deep, typed all the way down, so comparing it also merges a
+  /// type nested as deep.
+  let private deepList () : RT.Dval =
+    let rec build (n : int) (value : RT.Dval) (typ : RT.ValueType) : RT.Dval =
+      if n = 0 then value else build (n - 1) (RT.DList(typ, [ value ])) (VT.list typ)
+
+    build depth (RT.DInt64 1L) (VT.known RT.KTInt64)
+
+  let private onSmallStack (f : unit -> unit) : Option<exn> =
+    let mutable thrown = None
+    let thread =
+      System.Threading.Thread(
+        (fun () ->
+          try
+            f ()
+          with ex ->
+            thrown <- Some ex),
+        256 * 1024
+      )
+    thread.Start()
+    thread.Join()
+    thrown
+
+  let private refusesToOverflow (name : string) (f : RT.Dval -> RT.Dval -> unit) =
+    test name {
+      let a = deepList ()
+      let b = deepList ()
+
+      match onSmallStack (fun () -> f a b) with
+      | Some(:? System.InsufficientExecutionStackException) -> ()
+      | Some ex ->
+        failtest $"expected the stack probe to fire, got {ex.GetType().Name}"
+      | None ->
+        failtest "expected the stack probe to fire, but the comparison finished"
+    }
+
+  let tests =
+    testList
+      "DeepValues"
+      [ refusesToOverflow "equals" (fun a b -> Dval.equals a b |> ignore<bool>)
+        refusesToOverflow "compareForSort" (fun a b ->
+          RT.DvalOrdering.compareForSort a b |> ignore<int>)
+        refusesToOverflow "ValueType.merge" (fun a b ->
+          match a, b with
+          | RT.DList(ta, _), RT.DList(tb, _) ->
+            VT.merge ta tb |> ignore<Result<RT.ValueType, unit>>
+          | _ -> failtest "expected lists") ]
+
 let tests =
   testList
     "Interpreter"
@@ -1087,4 +1147,5 @@ let tests =
       Fns.tests
       Statement.tests
       SyncUnify.tests
-      DictKeyOrdering.tests ]
+      DictKeyOrdering.tests
+      DeepValues.tests ]

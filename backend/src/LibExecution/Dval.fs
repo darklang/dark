@@ -272,6 +272,11 @@ let dlistToByteArray (dvalList : List<Dval>) : byte[] =
   |> Array.ofList
 
 
+/// Throw an ordinary exception rather than overflow the native stack; see `equals`.
+let inline private deeper () : unit =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
+
+
 /// Structural equality. Walks two Dvals in parallel and returns
 /// true iff every reachable leaf compares equal. Type errors
 /// (callers passing structurally-incompatible Dvals) return false
@@ -292,6 +297,12 @@ let dlistToByteArray (dvalList : List<Dval>) : byte[] =
 /// handle → true (preserves reflexivity). Different handles → false;
 /// cross-handle equality would require draining, which violates
 /// single-consumer semantics.
+///
+/// The cases that hold other values recurse into them on the native stack, as deep
+/// as the value is nested, and a native stack overflow ends the process. They probe
+/// first, which throws an ordinary exception while there is still room, and that
+/// reaches the program as a runtime error (see `Execution.runLoaded`). Leaves do
+/// not probe: they are most comparisons, and cannot recurse.
 let rec equals (a : Dval) (b : Dval) : bool =
   let r = equals
 
@@ -322,14 +333,19 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUuid a, DUuid b -> a = b
 
   | DList(typA, a), DList(typB, b) ->
+    deeper ()
+
     Result.isOk (ValueType.merge typA typB)
     && a.Length = b.Length
     && List.forall2 r a b
 
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
+    deeper ()
     a3.Length = b3.Length && r a1 b1 && r a2 b2 && List.forall2 r a3 b3
 
   | DDict(keyTypeA, valueTypeA, a), DDict(keyTypeB, valueTypeB, b) ->
+    deeper ()
+
     Result.isOk (ValueType.merge keyTypeA keyTypeB)
     && Result.isOk (ValueType.merge valueTypeA valueTypeB)
     && Map.count a = Map.count b
@@ -342,6 +358,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
   | DRecord(_, typeNameA, typeArgsA, fieldsA),
     DRecord(_, typeNameB, typeArgsB, fieldsB) ->
+    deeper ()
+
     typeNameA = typeNameB
     && typeArgsA.Length = typeArgsB.Length
     && List.forall2
@@ -358,6 +376,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
   | DEnum(_, typeNameA, typeArgsA, caseNameA, fieldsA),
     DEnum(_, typeNameB, typeArgsB, caseNameB, fieldsB) ->
+    deeper ()
+
     typeNameA = typeNameB
     && typeArgsA.Length = typeArgsB.Length
     && List.forall2

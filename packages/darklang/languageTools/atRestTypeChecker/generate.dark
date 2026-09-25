@@ -1,0 +1,1304 @@
+/// From syntax to constraints.
+///
+/// One rule per syntax case, and nothing else: no lookups, no solving, no state.
+/// Each rule says what type a node has and what must hold for it to have it, in
+/// terms of its children. What a name means, whether a record has a field, whether
+/// a match is exhaustive, all of that is left to the solver as a constraint.
+///
+/// Two shapes:
+///   infer  "what is this node's type?"          -> (Ty, Constraint)
+///   check  "this node must have this type"      -> Constraint
+///
+/// `check` exists for lambdas: checked against an expected function type, their
+/// parameters are known before the body is looked at, which is what lets
+/// `Stdlib.List.map xs (fun x -> x.name)` know what `x` is. Everything else is
+/// inferred, then compared.
+///
+/// Constraints come out in the order they should be solved. Where a node's shape
+/// constrains its children (a call, a constructor), that comes first, so a child's
+/// mismatch is reported at the child, against what the parent needed.
+module Darklang.LanguageTools.AtRestTypeChecker.Generate
+
+/// What is in scope at a node.
+type Scope =
+  { locals: Dict<String, Model.Binder>
+    /// A package function's parameters, by position (`EArg`).
+    arguments: List<Model.Ty>
+    /// The function being checked, for `ESelf`.
+    self: Stdlib.Option.Option<Model.Ty>
+    /// Declared type parameters, for type arguments written in the body.
+    typeVariables: Dict<String, Model.Ty> }
+
+let emptyScope () : Scope =
+  Scope
+    { locals = Dict {}
+      arguments = []
+      self = Stdlib.Option.Option.None
+      typeVariables = Dict {} }
+
+
+// --------------------
+// Small pieces
+// --------------------
+
+let var (id: Int64) (role: Model.Role) : Model.Ty = Model.Ty.TVar(Model.Var.Of(id, role))
+
+/// The node's own type.
+let resultOf (id: Int64) : Model.Ty = var id Model.Role.Result
+
+let part (id: Int64) (index: Int) : Model.Ty = var id (Model.Role.Part index)
+
+let nothing () : Model.Constraint = Model.Constraint.All []
+
+let all (constraints: List<Model.Constraint>) : Model.Constraint =
+  Model.Constraint.All constraints
+
+let report (finding: Model.Finding) : Model.Constraint = Model.Constraint.Report finding
+
+let reports (findings: List<Model.Finding>) : Model.Constraint =
+  all (Stdlib.List.map findings (fun f -> report f))
+
+let equal (id: Int64) (site: Site) (expected: Model.Ty) (actual: Model.Ty) : Model.Constraint =
+  Model.Constraint.Equal(id, site, expected, actual)
+
+let at (id: Int64) : Stdlib.Option.Option<Int64> = Stdlib.Option.Option.Some id
+
+let noType () : Stdlib.Option.Option<Model.Ty> = Stdlib.Option.Option.None
+
+/// The names that occur more than once.
+let duplicates (names: List<String>) : List<String> =
+  let counts =
+    Stdlib.List.fold names Dict {} (fun counts name ->
+      let n = Stdlib.Option.withDefault (Stdlib.Dict.get counts name) 0
+      Stdlib.Dict.setOverridingDuplicates counts name (n + 1))
+
+  names
+  |> Stdlib.List.unique
+  |> Stdlib.List.filter (fun name ->
+    (Stdlib.Option.withDefault (Stdlib.Dict.get counts name) 0) > 1)
+
+/// A name a pattern binds twice is an error.
+let duplicateBindings
+  (reportAt: Stdlib.Option.Option<Int64>)
+  (bindings: List<(String * Model.Ty * Int64)>)
+  : Model.Constraint =
+  let names =
+    bindings
+    |> Stdlib.List.map (fun (name, _, _) -> name)
+    |> Stdlib.List.filter (fun name -> name != "_")
+
+  (duplicates names)
+  |> Stdlib.List.map (fun name ->
+    report (
+      Types.error
+        IssueCode.DuplicatePatternBinding
+        reportAt
+        (noType ())
+        (noType ())
+        (Context.Duplicate(name, DuplicateSite.InPattern))
+    ))
+  |> all
+
+/// Add pattern bindings to scope, one type each.
+let bind
+  (scope: Scope)
+  (reportAt: Stdlib.Option.Option<Int64>)
+  (bindings: List<(String * Model.Ty * Int64)>)
+  : (Scope * Model.Constraint) =
+  let locals =
+    Stdlib.List.fold bindings scope.locals (fun locals (name, t, _) ->
+      if name == "_" then
+        locals
+      else
+        Stdlib.Dict.setOverridingDuplicates locals name (Model.Binder.Mono t))
+
+  ({ scope with locals = locals }, duplicateBindings reportAt bindings)
+
+/// Add let bindings that the solver will generalize, each under its pattern node.
+let bindGeneralized
+  (scope: Scope)
+  (reportAt: Stdlib.Option.Option<Int64>)
+  (bindings: List<(String * Model.Ty * Int64)>)
+  : (Scope * Model.Constraint) =
+  let locals =
+    Stdlib.List.fold bindings scope.locals (fun locals (name, _, key) ->
+      if name == "_" then
+        locals
+      else
+        Stdlib.Dict.setOverridingDuplicates locals name (Model.Binder.Poly key))
+
+  ({ scope with locals = locals }, duplicateBindings reportAt bindings)
+
+
+// --------------------
+// Names the checker treats specially
+// --------------------
+
+let resolvedFn
+  (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQFnName.FQFnName>)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.FQFnName.FQFnName> =
+  match name.resolved with
+  | Ok resolved -> Stdlib.Option.Option.Some resolved.name
+  | Error _ -> Stdlib.Option.Option.None
+
+/// The name of a version-0 builtin, which is how the special ones are known.
+let builtinName (fn: LanguageTools.ProgramTypes.FQFnName.FQFnName) : String =
+  match fn with
+  | Builtin b -> if b.version == 0l then b.name else ""
+  | Package _ -> ""
+
+/// The infix operator a builtin implements. Infix syntax lowers to these, and their
+/// declared signatures (independent `'a` and `'b`) overstate what they accept, so a
+/// call to one is checked by the operator's rule instead. Mirrors
+/// `PT.InfixFnName.toBuiltinName`.
+let operatorOf
+  (name: String)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.InfixFnName> =
+  match name with
+  | "add" -> Some LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus
+  | "subtract" -> Some LanguageTools.ProgramTypes.InfixFnName.ArithmeticMinus
+  | "multiply" -> Some LanguageTools.ProgramTypes.InfixFnName.ArithmeticMultiply
+  | "divide" -> Some LanguageTools.ProgramTypes.InfixFnName.ArithmeticDivide
+  | "modulo" -> Some LanguageTools.ProgramTypes.InfixFnName.ArithmeticModulo
+  | "power" -> Some LanguageTools.ProgramTypes.InfixFnName.ArithmeticPower
+  | "bitwiseAnd" -> Some LanguageTools.ProgramTypes.InfixFnName.BitwiseAnd
+  | "bitwiseOr" -> Some LanguageTools.ProgramTypes.InfixFnName.BitwiseOr
+  | "bitwiseXor" -> Some LanguageTools.ProgramTypes.InfixFnName.BitwiseXor
+  | "shiftLeft" -> Some LanguageTools.ProgramTypes.InfixFnName.ShiftLeft
+  | "shiftRight" -> Some LanguageTools.ProgramTypes.InfixFnName.ShiftRight
+  | "greaterThan" ->
+    Some LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThan
+  | "greaterThanOrEqualTo" ->
+    Some LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual
+  | "lessThan" -> Some LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThan
+  | "lessThanOrEqualTo" ->
+    Some LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
+  | "stringAppend" -> Some LanguageTools.ProgramTypes.InfixFnName.StringConcat
+  | "equals" -> Some LanguageTools.ProgramTypes.InfixFnName.ComparisonEquals
+  | "notEquals" -> Some LanguageTools.ProgramTypes.InfixFnName.ComparisonNotEquals
+  | _ -> None
+
+/// An operator builtin, or `negate`: neither has a signature worth giving it when it
+/// is used as a value rather than applied.
+let isOperatorLike (fn: LanguageTools.ProgramTypes.FQFnName.FQFnName) : Bool =
+  let name = builtinName fn
+  name == "negate" || Stdlib.Option.isSome (operatorOf name)
+
+let isComparison (operation: LanguageTools.ProgramTypes.InfixFnName) : Bool =
+  match operation with
+  | ComparisonGreaterThan
+  | ComparisonGreaterThanOrEqual
+  | ComparisonLessThan
+  | ComparisonLessThanOrEqual
+  | ComparisonEquals
+  | ComparisonNotEquals -> true
+  | ArithmeticPlus
+  | ArithmeticMinus
+  | ArithmeticMultiply
+  | ArithmeticDivide
+  | ArithmeticModulo
+  | ArithmeticPower
+  | BitwiseAnd
+  | BitwiseOr
+  | BitwiseXor
+  | ShiftLeft
+  | ShiftRight
+  | StringConcat -> false
+
+/// Whether evaluating `expr` can do no more than build a value, so its type may be
+/// generalized (the value restriction).
+let isNonExpansive (expr: LanguageTools.ProgramTypes.Expr) : Bool =
+  match expr with
+  | EUnit _ -> true
+  | EBool(_, _) -> true
+  | EInt8(_, _) -> true
+  | EUInt8(_, _) -> true
+  | EInt16(_, _) -> true
+  | EUInt16(_, _) -> true
+  | EInt32(_, _) -> true
+  | EUInt32(_, _) -> true
+  | EInt64(_, _) -> true
+  | EUInt64(_, _) -> true
+  | EInt128(_, _) -> true
+  | EUInt128(_, _) -> true
+  | EInt(_, _) -> true
+  | EFloat(_, _, _, _) -> true
+  | EChar(_, _) -> true
+  | EFnName(_, _) -> true
+  | EValue(_, _) -> true
+  | EArg(_, _) -> true
+  | EVariable(_, _) -> true
+  | ESelf _ -> true
+  | ELambda(_, _, _) -> true
+  | EString(_, segments) ->
+    Stdlib.List.all segments (fun segment ->
+      match segment with
+      | StringText _ -> true
+      | StringInterpolation e -> isNonExpansive e)
+  | EList(_, elements) -> Stdlib.List.all elements (fun e -> isNonExpansive e)
+  | EDict(_, entries) -> Stdlib.List.all entries (fun (_, v) -> isNonExpansive v)
+  | ETuple(_, first, second, rest) ->
+    isNonExpansive first
+    && isNonExpansive second
+    && Stdlib.List.all rest (fun e -> isNonExpansive e)
+  | ERecord(_, _, _, fields) ->
+    Stdlib.List.all fields (fun (_, v) -> isNonExpansive v)
+  | EEnum(_, _, _, _, fields) -> Stdlib.List.all fields (fun e -> isNonExpansive e)
+  | EIf(_, _, _, _) -> false
+  | EPipe(_, _, _) -> false
+  | EMatch(_, _, _) -> false
+  | ELet(_, _, _, _) -> false
+  | EApply(_, _, _, _) -> false
+  | EInfix(_, _, _, _) -> false
+  | ERecordFieldAccess(_, _, _) -> false
+  | ERecordUpdate(_, _, _) -> false
+  | EStatement(_, _, _) -> false
+
+
+// --------------------
+// Patterns
+// --------------------
+
+let lambdaParameters
+  (id: Int64)
+  (patterns: List<LanguageTools.ProgramTypes.LetPattern>)
+  : List<Model.Ty> =
+  Stdlib.List.indexedMap patterns (fun i _ -> part id i)
+
+/// What a let or lambda pattern binds, matched against `expected`.
+let letPattern
+  (expected: Model.Ty)
+  (pattern: LanguageTools.ProgramTypes.LetPattern)
+  : (List<(String * Model.Ty * Int64)> * Model.Constraint) =
+  match pattern with
+  | LPVariable(id, name) -> ([ (name, expected, id) ], nothing ())
+  | LPWildcard _ -> ([], nothing ())
+  | LPUnit id -> ([], equal id Site.UnitLetPattern Model.Ty.TUnit expected)
+  | LPTuple(id, first, second, rest) ->
+    let patterns = Stdlib.List.append [ first, second ] rest
+    let parts = Stdlib.List.indexedMap patterns (fun i _ -> part id i)
+    let tuple = Model.Ty.TTuple(part id 0, part id 1, Stdlib.List.drop parts 2)
+    let (bindings, constraints) = letPatterns parts patterns
+    (bindings, all [ equal id Site.TupleLetPattern tuple expected, constraints ])
+
+let letPatterns
+  (types: List<Model.Ty>)
+  (patterns: List<LanguageTools.ProgramTypes.LetPattern>)
+  : (List<(String * Model.Ty * Int64)> * Model.Constraint) =
+  let results =
+    (Stdlib.List.zipShortest types patterns)
+    |> Stdlib.List.map (fun (t, p) -> letPattern t p)
+
+  (Stdlib.List.flatten (Stdlib.List.map results (fun (b, _) -> b)),
+   all (Stdlib.List.map results (fun (_, c) -> c)))
+
+/// What a match pattern binds, matched against `expected`.
+let matchPattern
+  (expected: Model.Ty)
+  (pattern: LanguageTools.ProgramTypes.MatchPattern)
+  : (List<(String * Model.Ty * Int64)> * Model.Constraint) =
+  let literal (id: Int64) (t: Model.Ty) : (List<(String * Model.Ty * Int64)> * Model.Constraint) =
+    ([], equal id Site.MatchPattern expected t)
+
+  match pattern with
+  | MPUnit id -> literal id Model.Ty.TUnit
+  | MPBool(id, _) -> literal id Model.Ty.TBool
+  | MPInt8(id, _) -> literal id Model.Ty.TInt8
+  | MPUInt8(id, _) -> literal id Model.Ty.TUInt8
+  | MPInt16(id, _) -> literal id Model.Ty.TInt16
+  | MPUInt16(id, _) -> literal id Model.Ty.TUInt16
+  | MPInt32(id, _) -> literal id Model.Ty.TInt32
+  | MPUInt32(id, _) -> literal id Model.Ty.TUInt32
+  | MPInt64(id, _) -> literal id Model.Ty.TInt64
+  | MPUInt64(id, _) -> literal id Model.Ty.TUInt64
+  | MPInt128(id, _) -> literal id Model.Ty.TInt128
+  | MPUInt128(id, _) -> literal id Model.Ty.TUInt128
+  | MPInt(id, _) -> literal id Model.Ty.TInt
+  | MPFloat(id, _, _, _) -> literal id Model.Ty.TFloat
+  | MPChar(id, _) -> literal id Model.Ty.TChar
+  | MPString(id, _) -> literal id Model.Ty.TString
+  | MPVariable(id, name) ->
+    if name == "_" then ([], nothing ()) else ([ (name, expected, id) ], nothing ())
+  | MPList(id, patterns) ->
+    let element = var id Model.Role.Element
+    let (bindings, constraints) = matchPatternsAgainst element patterns
+    (bindings,
+     all
+       [ equal id Site.ListPattern (Model.Ty.TList element) expected
+         constraints ])
+  | MPListCons(id, head, tail) ->
+    let element = var id Model.Role.Element
+    let (headBindings, headConstraints) = matchPattern element head
+    let (tailBindings, tailConstraints) = matchPattern (Model.Ty.TList element) tail
+    (Stdlib.List.append headBindings tailBindings,
+     all
+       [ equal id Site.ListConsPattern (Model.Ty.TList element) expected
+         headConstraints
+         tailConstraints ])
+  | MPTuple(id, first, second, rest) ->
+    let patterns = Stdlib.List.append [ first, second ] rest
+    let parts = Stdlib.List.indexedMap patterns (fun i _ -> part id i)
+    let tuple = Model.Ty.TTuple(part id 0, part id 1, Stdlib.List.drop parts 2)
+    let (bindings, constraints) = matchPatterns parts patterns
+    (bindings, all [ equal id Site.TupleMatchPattern tuple expected, constraints ])
+  | MPEnum(id, caseName, fieldPatterns) ->
+    let fields = Stdlib.List.indexedMap fieldPatterns (fun i _ -> part id i)
+    let (bindings, constraints) = matchPatterns fields fieldPatterns
+    (bindings,
+     all
+       [ Model.Constraint.EnumPattern(id, expected, caseName, fields)
+         constraints ])
+  | MPOr(id, alternatives) -> orPattern id expected alternatives
+
+let matchPatterns
+  (types: List<Model.Ty>)
+  (patterns: List<LanguageTools.ProgramTypes.MatchPattern>)
+  : (List<(String * Model.Ty * Int64)> * Model.Constraint) =
+  let results =
+    (Stdlib.List.zipShortest types patterns)
+    |> Stdlib.List.map (fun (t, p) -> matchPattern t p)
+
+  (Stdlib.List.flatten (Stdlib.List.map results (fun (b, _) -> b)),
+   all (Stdlib.List.map results (fun (_, c) -> c)))
+
+let matchPatternsAgainst
+  (expected: Model.Ty)
+  (patterns: List<LanguageTools.ProgramTypes.MatchPattern>)
+  : (List<(String * Model.Ty * Int64)> * Model.Constraint) =
+  matchPatterns (Stdlib.List.map patterns (fun _ -> expected)) patterns
+
+/// Every alternative binds the same names at the same types; the first
+/// alternative's bindings stand for all of them.
+let orPattern
+  (id: Int64)
+  (expected: Model.Ty)
+  (alternatives: List<LanguageTools.ProgramTypes.MatchPattern>)
+  : (List<(String * Model.Ty * Int64)> * Model.Constraint) =
+  let results = Stdlib.List.map alternatives (fun p -> matchPattern expected p)
+
+  let names (bindings: List<(String * Model.Ty * Int64)>) : List<String> =
+    bindings
+    |> Stdlib.List.map (fun (name, _, _) -> name)
+    |> Stdlib.List.filter (fun name -> name != "_")
+
+  // Reported per alternative, before the alternatives are compared by name, which
+  // would otherwise hide a name bound twice within one alternative.
+  let duplicateProblems =
+    results
+    |> Stdlib.List.map (fun (bindings, _) ->
+      (duplicates (names bindings))
+      |> Stdlib.List.map (fun name ->
+        report (
+          Types.error
+            IssueCode.DuplicatePatternBinding
+            (at id)
+            (noType ())
+            (noType ())
+            (Context.Duplicate(name, DuplicateSite.InPattern))
+        )))
+    |> Stdlib.List.flatten
+
+  match results with
+  | [] -> ([], nothing ())
+  | (firstBindings, firstConstraints) :: rest ->
+    let firstNames = Stdlib.List.sort (Stdlib.List.unique (names firstBindings))
+
+    let agreement =
+      rest
+      |> Stdlib.List.map (fun (bindings, _) ->
+        let mismatch =
+          let theseNames = Stdlib.List.sort (Stdlib.List.unique (names bindings))
+
+          if theseNames == firstNames then
+            []
+          else
+            [ report (
+                Types.error
+                  IssueCode.InvalidPattern
+                  (at id)
+                  (noType ())
+                  (noType ())
+                  Context.OrPatternBindingsDiffer
+              ) ]
+
+        let sameTypes =
+          bindings
+          |> Stdlib.List.filterMap (fun (name, t, _) ->
+            (Stdlib.List.findFirst firstBindings (fun (n, _, _) -> n == name))
+            |> Stdlib.Option.map (fun (_, firstType, _) ->
+              equal id Site.OrPatternBinding firstType t))
+
+        Stdlib.List.append mismatch sameTypes)
+      |> Stdlib.List.flatten
+
+    let constraints =
+      Stdlib.List.flatten
+        [ [ firstConstraints ]
+          Stdlib.List.map rest (fun (_, c) -> c)
+          duplicateProblems
+          agreement ]
+
+    (firstBindings, all constraints)
+
+/// Every node id in a pattern, for telling whether anything went wrong in it.
+let patternIds (pattern: LanguageTools.ProgramTypes.MatchPattern) : List<Int64> =
+  match pattern with
+  | MPUnit id -> [ id ]
+  | MPBool(id, _) -> [ id ]
+  | MPInt8(id, _) -> [ id ]
+  | MPUInt8(id, _) -> [ id ]
+  | MPInt16(id, _) -> [ id ]
+  | MPUInt16(id, _) -> [ id ]
+  | MPInt32(id, _) -> [ id ]
+  | MPUInt32(id, _) -> [ id ]
+  | MPInt64(id, _) -> [ id ]
+  | MPUInt64(id, _) -> [ id ]
+  | MPInt128(id, _) -> [ id ]
+  | MPUInt128(id, _) -> [ id ]
+  | MPInt(id, _) -> [ id ]
+  | MPFloat(id, _, _, _) -> [ id ]
+  | MPChar(id, _) -> [ id ]
+  | MPString(id, _) -> [ id ]
+  | MPVariable(id, _) -> [ id ]
+  | MPList(id, patterns) ->
+    Stdlib.List.push (Stdlib.List.flatten (Stdlib.List.map patterns patternIds)) id
+  | MPListCons(id, head, tail) ->
+    Stdlib.List.push (Stdlib.List.append (patternIds head) (patternIds tail)) id
+  | MPTuple(id, first, second, rest) ->
+    Stdlib.List.push
+      (Stdlib.List.flatten
+        (Stdlib.List.map (Stdlib.List.append [ first, second ] rest) patternIds))
+      id
+  | MPEnum(id, _, fields) ->
+    Stdlib.List.push (Stdlib.List.flatten (Stdlib.List.map fields patternIds)) id
+  | MPOr(id, alternatives) ->
+    Stdlib.List.push
+      (Stdlib.List.flatten (Stdlib.List.map alternatives patternIds))
+      id
+
+
+// --------------------
+// Expressions
+// --------------------
+
+/// What must hold for `expr` to have type `expected`.
+let check (scope: Scope) (expected: Model.Ty) (site: Site) (expr: LanguageTools.ProgramTypes.Expr) : Model.Constraint =
+  match expr with
+  | ELambda(id, patterns, body) ->
+    let parameters = lambdaParameters id patterns
+    let ret = var id Model.Role.Return
+    let (bindings, patternConstraints) = letPatterns parameters patterns
+    let (bodyScope, bindProblems) = bind scope (at id) bindings
+
+    all
+      [ equal id site expected (Model.Ty.TFn(parameters, ret))
+        patternConstraints
+        bindProblems
+        check bodyScope ret Site.LambdaReturnValue body ]
+  | _ ->
+    let (actual, constraints) = infer scope expr
+    all
+      [ constraints
+        equal (LanguageTools.ProgramTypes.Expr.toID expr) site expected actual ]
+
+/// The type of `expr`, and what must hold for it to have that type.
+///
+/// One rule per case, each in its own function below. The arms are in rough order
+/// of how often each construct occurs, since a match tries them in turn.
+let infer (scope: Scope) (expr: LanguageTools.ProgramTypes.Expr) : (Model.Ty * Model.Constraint) =
+  match expr with
+  | EVariable(id, name) -> inferVariable scope id name
+  | EApply(id, callee, typeArgs, args) -> inferApply scope id callee typeArgs args
+  | EArg(id, index) -> inferArg scope id index
+  | EFnName(id, name) -> useFunction scope id name [] (resultOf id)
+  | EString(_, segments) -> inferString scope segments
+  | ELet(id, pattern, value, body) -> inferLet scope id pattern value body
+  | EPipe(_, lhs, parts) -> inferPipe scope lhs parts
+  | ERecordFieldAccess(id, record, field) -> inferFieldAccess scope id record field
+  | EMatch(id, arg, cases) -> inferMatch scope id arg cases
+  | EInt64(_, _) -> (Model.Ty.TInt64, nothing ())
+  | EInt(_, _) -> (Model.Ty.TInt, nothing ())
+  | EList(id, elements) -> inferList scope id elements
+  | EIf(id, condition, thenExpr, elseExpr) ->
+    inferIf scope id condition thenExpr elseExpr
+  | EEnum(id, typeName, typeArgs, caseName, fields) ->
+    inferEnum scope id typeName typeArgs caseName fields
+  | ERecord(id, typeName, typeArgs, fields) ->
+    inferRecord scope id typeName typeArgs fields
+  | ELambda(id, patterns, body) -> inferLambda scope id patterns body
+  | EInfix(id, infix, lhs, rhs) -> inferInfix scope id infix lhs rhs
+  | ETuple(_, first, second, rest) -> inferTuple scope first second rest
+  | EStatement(_, first, next) -> inferStatement scope first next
+  | EBool(_, _) -> (Model.Ty.TBool, nothing ())
+  | EUnit _ -> (Model.Ty.TUnit, nothing ())
+  | EValue(id, name) -> inferValue id name
+  | ERecordUpdate(id, record, updates) -> inferRecordUpdate scope id record updates
+  | EDict(id, entries) -> inferDict scope id entries
+  | EChar(_, _) -> (Model.Ty.TChar, nothing ())
+  | EFloat(_, _, _, _) -> (Model.Ty.TFloat, nothing ())
+  | ESelf id -> inferSelf scope id
+  | EInt8(_, _) -> (Model.Ty.TInt8, nothing ())
+  | EUInt8(_, _) -> (Model.Ty.TUInt8, nothing ())
+  | EInt16(_, _) -> (Model.Ty.TInt16, nothing ())
+  | EUInt16(_, _) -> (Model.Ty.TUInt16, nothing ())
+  | EInt32(_, _) -> (Model.Ty.TInt32, nothing ())
+  | EUInt32(_, _) -> (Model.Ty.TUInt32, nothing ())
+  | EUInt64(_, _) -> (Model.Ty.TUInt64, nothing ())
+  | EInt128(_, _) -> (Model.Ty.TInt128, nothing ())
+  | EUInt128(_, _) -> (Model.Ty.TUInt128, nothing ())
+
+let inferVariable (scope: Scope) (id: Int64) (name: String) : (Model.Ty * Model.Constraint) =
+  match Stdlib.Dict.get scope.locals name with
+  | Some binder ->
+    match binder with
+    | Mono t -> (t, nothing ())
+    | Poly key -> (resultOf id, Model.Constraint.UseLocal(id, key, resultOf id))
+  | None ->
+    (Model.Ty.TError,
+     report (
+       Types.error
+         IssueCode.UnknownVariable
+         (at id)
+         (noType ())
+         (noType ())
+         (Context.Identifier name)
+     ))
+
+let inferArg (scope: Scope) (id: Int64) (index: Int) : (Model.Ty * Model.Constraint) =
+  match Stdlib.List.getAt scope.arguments index with
+  | Some t -> (t, nothing ())
+  | None ->
+    (Model.Ty.TError,
+     report (
+       Types.error
+         IssueCode.InvalidArgumentIndex
+         (at id)
+         (noType ())
+         (noType ())
+         (Context.ArgumentIndex(Types.int64 index))
+     ))
+
+let inferApply
+  (scope: Scope)
+  (id: Int64)
+  (callee: LanguageTools.ProgramTypes.Expr)
+  (typeArgs: List<LanguageTools.ProgramTypes.TypeReference>)
+  (args: List<LanguageTools.ProgramTypes.Expr>)
+  : (Model.Ty * Model.Constraint) =
+  match specialApplication scope id callee typeArgs args with
+  | Some special -> special
+  | None ->
+    let (calleeType, calleeConstraints) =
+      match callee with
+      | EFnName(nameId, name) ->
+        useFunction scope nameId name typeArgs (resultOf nameId)
+      | _ ->
+        let (t, constraints) = infer scope callee
+
+        if Stdlib.List.isEmpty typeArgs then
+          (t, constraints)
+        else
+          (t,
+           all
+             [ report (
+                 Types.blocker
+                   IssueCode.UnsupportedConstruct
+                   (at id)
+                   Context.ExplicitTypeArgumentsOnNonNamedFunction
+               )
+               constraints ])
+
+    let (resultType, applyConstraints) = apply scope id calleeType [] args
+    (resultType, all [ calleeConstraints, applyConstraints ])
+
+let inferString
+  (scope: Scope)
+  (segments: List<LanguageTools.ProgramTypes.StringSegment>)
+  : (Model.Ty * Model.Constraint) =
+  let constraints =
+    Stdlib.List.map segments (fun segment ->
+      match segment with
+      | StringText _ -> nothing ()
+      | StringInterpolation e -> check scope Model.Ty.TString Site.Expression e)
+
+  (Model.Ty.TString, all constraints)
+
+/// A binding whose value cannot do more than build a value is generalized, so each
+/// use gets its own instance; any other is one type for every use.
+let inferLet
+  (scope: Scope)
+  (id: Int64)
+  (pattern: LanguageTools.ProgramTypes.LetPattern)
+  (value: LanguageTools.ProgramTypes.Expr)
+  (body: LanguageTools.ProgramTypes.Expr)
+  : (Model.Ty * Model.Constraint) =
+  let (valueType, valueConstraints) = inferLetValue scope pattern value
+  let (bindings, patternConstraints) = letPattern valueType pattern
+
+  if isNonExpansive value then
+    let inScope = Stdlib.Dict.values scope.locals
+
+    let generalize =
+      Stdlib.List.map bindings (fun (name, t, key) ->
+        if name == "_" then
+          nothing ()
+        else
+          Model.Constraint.Generalize(key, t, inScope))
+
+    let (bodyScope, bindProblems) = bindGeneralized scope (at id) bindings
+    let (bodyType, bodyConstraints) = infer bodyScope body
+
+    (bodyType,
+     all
+       [ valueConstraints
+         patternConstraints
+         bindProblems
+         all generalize
+         bodyConstraints ])
+  else
+    let (bodyScope, bindProblems) = bind scope (at id) bindings
+    let (bodyType, bodyConstraints) = infer bodyScope body
+
+    (bodyType,
+     all [ valueConstraints, patternConstraints, bindProblems, bodyConstraints ])
+
+let inferPipe
+  (scope: Scope)
+  (lhs: LanguageTools.ProgramTypes.Expr)
+  (parts: List<LanguageTools.ProgramTypes.PipeExpr>)
+  : (Model.Ty * Model.Constraint) =
+  let (lhsType, lhsConstraints) = infer scope lhs
+
+  let (resultType, reversed) =
+    Stdlib.List.fold parts (lhsType, [ lhsConstraints ]) (fun (input, acc) p ->
+      let (output, constraints) = inferPipePart scope input p
+      (output, Stdlib.List.push acc constraints))
+
+  (resultType, all (Stdlib.List.reverse reversed))
+
+let inferFieldAccess
+  (scope: Scope)
+  (id: Int64)
+  (record: LanguageTools.ProgramTypes.Expr)
+  (field: String)
+  : (Model.Ty * Model.Constraint) =
+  let (recordType, recordConstraints) = infer scope record
+
+  (resultOf id,
+   all
+     [ recordConstraints
+       Model.Constraint.GetField(id, recordType, field, resultOf id) ])
+
+let inferMatch
+  (scope: Scope)
+  (id: Int64)
+  (arg: LanguageTools.ProgramTypes.Expr)
+  (cases: List<LanguageTools.ProgramTypes.MatchCase>)
+  : (Model.Ty * Model.Constraint) =
+  let (argType, argConstraints) = infer scope arg
+  let resultType = resultOf id
+
+  let caseConstraints =
+    Stdlib.List.map cases (fun case ->
+      let (bindings, patternConstraints) = matchPattern argType case.pat
+      let (caseScope, bindProblems) = bind scope (at id) bindings
+
+      let guard =
+        match case.whenCondition with
+        | Some condition -> check caseScope Model.Ty.TBool Site.Expression condition
+        | None -> nothing ()
+
+      all
+        [ patternConstraints
+          bindProblems
+          guard
+          check caseScope resultType Site.Expression case.rhs ])
+
+  let ids =
+    Stdlib.List.flatten (Stdlib.List.map cases (fun case -> patternIds case.pat))
+
+  (resultType,
+   all
+     [ argConstraints
+       all caseConstraints
+       Model.Constraint.Covers(id, argType, cases, ids) ])
+
+let inferList (scope: Scope) (id: Int64) (elements: List<LanguageTools.ProgramTypes.Expr>) : (Model.Ty * Model.Constraint) =
+  let element = var id Model.Role.Element
+  (Model.Ty.TList element,
+   all (Stdlib.List.map elements (fun e -> check scope element Site.Expression e)))
+
+let inferIf
+  (scope: Scope)
+  (id: Int64)
+  (condition: LanguageTools.ProgramTypes.Expr)
+  (thenExpr: LanguageTools.ProgramTypes.Expr)
+  (elseExpr: Stdlib.Option.Option<LanguageTools.ProgramTypes.Expr>)
+  : (Model.Ty * Model.Constraint) =
+  let conditionConstraints = check scope Model.Ty.TBool Site.Expression condition
+  let (thenType, thenConstraints) = infer scope thenExpr
+
+  match elseExpr with
+  | Some elseExpr ->
+    (thenType,
+     all
+       [ conditionConstraints
+         thenConstraints
+         check scope thenType Site.Expression elseExpr ])
+  | None ->
+    (Model.Ty.TUnit,
+     all
+       [ conditionConstraints
+         thenConstraints
+         equal id Site.IfWithoutElse Model.Ty.TUnit thenType ])
+
+let inferEnum
+  (scope: Scope)
+  (id: Int64)
+  (typeName: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+  (typeArgs: List<LanguageTools.ProgramTypes.TypeReference>)
+  (caseName: String)
+  (fields: List<LanguageTools.ProgramTypes.Expr>)
+  : (Model.Ty * Model.Constraint) =
+  let fieldChecks =
+    Stdlib.List.indexedMap fields (fun i value ->
+      check scope (part id i) Site.Expression value)
+
+  match Types.resolvedType typeName with
+  | None -> (Model.Ty.TError, all [ unresolvedType id typeName, all fieldChecks ])
+  | Some hash ->
+    let (typeArgTypes, problems) =
+      Types.fromReferences scope.typeVariables (at id) typeArgs
+
+    let slots =
+      Stdlib.List.indexedMap fields (fun i _ -> (part id i, Site.Expression))
+
+    (resultOf id,
+     all
+       [ reports problems
+         Model.Constraint.NewEnum(
+           id,
+           hash,
+           typeArgTypes,
+           caseName,
+           slots,
+           resultOf id
+         )
+         all fieldChecks ])
+
+let inferRecord
+  (scope: Scope)
+  (id: Int64)
+  (typeName: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+  (typeArgs: List<LanguageTools.ProgramTypes.TypeReference>)
+  (fields: List<(String * LanguageTools.ProgramTypes.Expr)>)
+  : (Model.Ty * Model.Constraint) =
+  let fieldChecks =
+    Stdlib.List.indexedMap fields (fun i (_, value) ->
+      check scope (part id i) Site.Expression value)
+
+  match Types.resolvedType typeName with
+  | None -> (Model.Ty.TError, all [ unresolvedType id typeName, all fieldChecks ])
+  | Some hash ->
+    let (typeArgTypes, problems) =
+      Types.fromReferences scope.typeVariables (at id) typeArgs
+
+    let slots = Stdlib.List.indexedMap fields (fun i (name, _) -> (name, part id i))
+
+    (resultOf id,
+     all
+       [ reports problems
+         Model.Constraint.NewRecord(id, hash, typeArgTypes, slots, resultOf id)
+         all fieldChecks ])
+
+let unresolvedType
+  (id: Int64)
+  (typeName: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+  : Model.Constraint =
+  report (
+    Types.blocker
+      IssueCode.UnresolvedTypeName
+      (at id)
+      (Context.Unresolved typeName.originalName)
+  )
+
+let inferLambda
+  (scope: Scope)
+  (id: Int64)
+  (patterns: List<LanguageTools.ProgramTypes.LetPattern>)
+  (body: LanguageTools.ProgramTypes.Expr)
+  : (Model.Ty * Model.Constraint) =
+  let parameters = lambdaParameters id patterns
+  let (bindings, patternConstraints) = letPatterns parameters patterns
+  let (bodyScope, bindProblems) = bind scope Stdlib.Option.Option.None bindings
+  let (bodyType, bodyConstraints) = infer bodyScope body
+
+  (Model.Ty.TFn(parameters, bodyType),
+   all [ patternConstraints, bindProblems, bodyConstraints ])
+
+let inferTuple
+  (scope: Scope)
+  (first: LanguageTools.ProgramTypes.Expr)
+  (second: LanguageTools.ProgramTypes.Expr)
+  (rest: List<LanguageTools.ProgramTypes.Expr>)
+  : (Model.Ty * Model.Constraint) =
+  let (firstType, firstConstraints) = infer scope first
+  let (secondType, secondConstraints) = infer scope second
+  let restResults = Stdlib.List.map rest (fun e -> infer scope e)
+
+  (Model.Ty.TTuple(
+    firstType,
+    secondType,
+    Stdlib.List.map restResults (fun (t, _) -> t)
+   ),
+   all
+     (Stdlib.List.append
+       [ firstConstraints, secondConstraints ]
+       (Stdlib.List.map restResults (fun (_, c) -> c))))
+
+let inferStatement (scope: Scope) (first: LanguageTools.ProgramTypes.Expr) (next: LanguageTools.ProgramTypes.Expr) : (Model.Ty * Model.Constraint) =
+  let firstConstraints =
+    check scope Model.Ty.TUnit Site.StatementBeforeFinalExpression first
+  let (nextType, nextConstraints) = infer scope next
+  (nextType, all [ firstConstraints, nextConstraints ])
+
+let inferValue
+  (id: Int64)
+  (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQValueName.FQValueName>)
+  : (Model.Ty * Model.Constraint) =
+  match name.resolved with
+  | Ok resolved ->
+    (resultOf id, Model.Constraint.UseValue(id, resolved.name, resultOf id))
+  | Error _ ->
+    (Model.Ty.TError,
+     report (
+       Types.blocker
+         IssueCode.UnresolvedValueName
+         (at id)
+         (Context.Unresolved name.originalName)
+     ))
+
+let inferRecordUpdate
+  (scope: Scope)
+  (id: Int64)
+  (record: LanguageTools.ProgramTypes.Expr)
+  (updates: List<(String * LanguageTools.ProgramTypes.Expr)>)
+  : (Model.Ty * Model.Constraint) =
+  let (recordType, recordConstraints) = infer scope record
+
+  let problems =
+    (duplicates (Stdlib.List.map updates (fun (name, _) -> name)))
+    |> Stdlib.List.map (fun name ->
+      report (
+        Types.error
+          IssueCode.DuplicateRecordField
+          (at id)
+          (noType ())
+          (Stdlib.Option.Option.Some recordType)
+          (Context.Duplicate(name, DuplicateSite.InRecordUpdate))
+      ))
+
+  let slots = Stdlib.List.indexedMap updates (fun i (name, _) -> (name, part id i))
+
+  let valueChecks =
+    Stdlib.List.indexedMap updates (fun i (_, value) ->
+      check scope (part id i) Site.Expression value)
+
+  (recordType,
+   all
+     [ recordConstraints
+       all problems
+       Model.Constraint.UpdateRecord(id, recordType, slots)
+       all valueChecks ])
+
+let inferDict
+  (scope: Scope)
+  (id: Int64)
+  (entries: List<(LanguageTools.ProgramTypes.Expr * LanguageTools.ProgramTypes.Expr)>)
+  : (Model.Ty * Model.Constraint) =
+  let key = var id Model.Role.DictKey
+  let value = var id Model.Role.DictValue
+
+  (Model.Ty.TDict(key, value),
+   all
+     [ all
+         (Stdlib.List.map entries (fun (k, _) -> check scope key Site.Expression k))
+       all
+         (Stdlib.List.map entries (fun (_, v) ->
+           check scope value Site.Expression v))
+       Model.Constraint.DictKey(id, key) ])
+
+let inferSelf (scope: Scope) (id: Int64) : (Model.Ty * Model.Constraint) =
+  match scope.self with
+  | Some t -> (t, nothing ())
+  | None ->
+    (Model.Ty.TError,
+     report (
+       Types.error
+         IssueCode.UnknownVariable
+         (at id)
+         (noType ())
+         (noType ())
+         Context.SelfOutsideFunction
+     ))
+
+/// A let's value. A lambda bound to a fresh name may call itself by that name, so
+/// it is checked with the name already bound, at the shape the lambda will have.
+let inferLetValue
+  (scope: Scope)
+  (pattern: LanguageTools.ProgramTypes.LetPattern)
+  (value: LanguageTools.ProgramTypes.Expr)
+  : (Model.Ty * Model.Constraint) =
+  match pattern with
+  | LPVariable(_, name) ->
+    match value with
+    | ELambda(lambdaId, patterns, _) ->
+      if name == "" || name == "_" || Stdlib.Dict.``member`` scope.locals name then
+        infer scope value
+      else
+        let self =
+          Model.Ty.TFn(
+            lambdaParameters lambdaId patterns,
+            var lambdaId Model.Role.Return
+          )
+
+        let recursiveScope =
+          { scope with
+              locals =
+                Stdlib.Dict.setOverridingDuplicates
+                  scope.locals
+                  name
+                  (Model.Binder.Mono self) }
+
+        (self, check recursiveScope self Site.Expression value)
+    | _ -> infer scope value
+  | _ -> infer scope value
+
+/// `unwrap`, `negate` and the operator builtins, applied to exactly the arguments
+/// their rule is for. Their declared signatures are not the truth, so they are
+/// checked by what they actually do.
+let specialApplication
+  (scope: Scope)
+  (id: Int64)
+  (callee: LanguageTools.ProgramTypes.Expr)
+  (typeArgs: List<LanguageTools.ProgramTypes.TypeReference>)
+  (args: List<LanguageTools.ProgramTypes.Expr>)
+  : Stdlib.Option.Option<(Model.Ty * Model.Constraint)> =
+  match callee with
+  | EFnName(_, name) ->
+    match resolvedFn name with
+    | Some fn ->
+      if Stdlib.List.isEmpty typeArgs then
+        let builtin = builtinName fn
+
+        match args with
+        | [ arg ] ->
+          if builtin == "unwrap" then
+            let (argType, argConstraints) = infer scope arg
+            Stdlib.Option.Option.Some(
+              (resultOf id,
+               all
+                 [ argConstraints
+                   Model.Constraint.Unwrap(id, fn, argType, resultOf id) ])
+            )
+          else if builtin == "negate" then
+            let (argType, argConstraints) = infer scope arg
+            Stdlib.Option.Option.Some(
+              (argType, all [ argConstraints, Model.Constraint.Negate(id, argType) ])
+            )
+          else
+            Stdlib.Option.Option.None
+        | [ lhs, rhs ] ->
+          match operatorOf builtin with
+          | Some operation ->
+            Stdlib.Option.Option.Some(
+              inferInfix
+                scope
+                id
+                (LanguageTools.ProgramTypes.Infix.InfixFnCall operation)
+                lhs
+                rhs
+            )
+          | None -> Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+/// A named function, instantiated at `target`.
+let useFunction
+  (scope: Scope)
+  (id: Int64)
+  (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQFnName.FQFnName>)
+  (typeArgs: List<LanguageTools.ProgramTypes.TypeReference>)
+  (target: Model.Ty)
+  : (Model.Ty * Model.Constraint) =
+  match resolvedFn name with
+  | None ->
+    (Model.Ty.TError,
+     report (
+       Types.blocker
+         IssueCode.UnresolvedFunctionName
+         (at id)
+         (Context.Unresolved name.originalName)
+     ))
+  | Some fn ->
+    if isOperatorLike fn then
+      // Applied to all its arguments it is checked by the operator's rule; as a
+      // value there is no honest signature to give it.
+      (Model.Ty.TError,
+       report (
+         Types.blocker
+           IssueCode.UnsupportedConstruct
+           (at id)
+           (Context.Untrusted(
+             Types.fnNameRef fn,
+             UntrustedBuiltin.OperatorNotFullyApplied
+           ))
+       ))
+    else
+      let (typeArgTypes, problems) =
+        Types.fromReferences scope.typeVariables (at id) typeArgs
+
+      (target,
+       all
+         [ reports problems
+           Model.Constraint.UseFunction(id, fn, typeArgTypes, target) ])
+
+/// Apply `callee` to `known` argument types, then to `args`. Each argument is
+/// checked against the parameter type the solver finds for it.
+let apply
+  (scope: Scope)
+  (id: Int64)
+  (callee: Model.Ty)
+  (known: List<(Model.Ty * Site)>)
+  (args: List<LanguageTools.ProgramTypes.Expr>)
+  : (Model.Ty * Model.Constraint) =
+  let offset = Stdlib.List.length known
+
+  let slots =
+    Stdlib.List.indexedMap args (fun i _ ->
+      (part id (i + offset), Site.FunctionArgument(Types.int64 (i + offset))))
+
+  let argChecks =
+    (Stdlib.List.zipShortest slots args)
+    |> Stdlib.List.map (fun ((slot, site), arg) -> check scope slot site arg)
+
+  (resultOf id,
+   all
+     [ Model.Constraint.Apply(
+         id,
+         callee,
+         Stdlib.List.append known slots,
+         resultOf id
+       )
+       all argChecks ])
+
+let inferInfix
+  (scope: Scope)
+  (id: Int64)
+  (infix: LanguageTools.ProgramTypes.Infix)
+  (lhs: LanguageTools.ProgramTypes.Expr)
+  (rhs: LanguageTools.ProgramTypes.Expr)
+  : (Model.Ty * Model.Constraint) =
+  match infix with
+  | BinOp _ ->
+    (Model.Ty.TBool,
+     all
+       [ check scope Model.Ty.TBool Site.Expression lhs
+         check scope Model.Ty.TBool Site.Expression rhs ])
+  | InfixFnCall operation ->
+    match operation with
+    | StringConcat ->
+      (Model.Ty.TString,
+       all
+         [ check scope Model.Ty.TString Site.Expression lhs
+           check scope Model.Ty.TString Site.Expression rhs ])
+    | ComparisonEquals ->
+      let (lhsType, lhsConstraints) = infer scope lhs
+      (Model.Ty.TBool,
+       all [ lhsConstraints, check scope lhsType Site.Expression rhs ])
+    | ComparisonNotEquals ->
+      let (lhsType, lhsConstraints) = infer scope lhs
+      (Model.Ty.TBool,
+       all [ lhsConstraints, check scope lhsType Site.Expression rhs ])
+    | _ ->
+      let (lhsType, lhsConstraints) = infer scope lhs
+      let resultType = if isComparison operation then Model.Ty.TBool else lhsType
+
+      (resultType,
+       all
+         [ lhsConstraints
+           check scope lhsType Site.Expression rhs
+           Model.Constraint.Operand(
+             id,
+             operation,
+             lhsType,
+             AmbiguousSubject.NumericOperand
+           ) ])
+
+/// One step of a pipeline, given the type flowing into it.
+let inferPipePart
+  (scope: Scope)
+  (input: Model.Ty)
+  (pipePart: LanguageTools.ProgramTypes.PipeExpr)
+  : (Model.Ty * Model.Constraint) =
+  match pipePart with
+  | EPipeLambda(id, patterns, body) ->
+    let parameters = lambdaParameters id patterns
+    let (bindings, patternConstraints) = letPatterns parameters patterns
+    let (bodyScope, bindProblems) = bind scope (at id) bindings
+    let (bodyType, bodyConstraints) = infer bodyScope body
+
+    let inputConstraint =
+      match parameters with
+      | first :: _ -> equal id Site.PipelineInput first input
+      | [] -> nothing ()
+
+    let resultType =
+      match parameters with
+      | [ _ ] -> bodyType
+      | [] -> bodyType
+      | _ :: rest -> Model.Ty.TFn(rest, bodyType)
+
+    (resultType,
+     all [ inputConstraint, patternConstraints, bindProblems, bodyConstraints ])
+
+  | EPipeInfix(id, infix, rhs) ->
+    let (rhsType, rhsConstraints) = infer scope rhs
+
+    match infix with
+    | BinOp _ ->
+      (Model.Ty.TBool,
+       all
+         [ rhsConstraints
+           equal id Site.PipelineBooleanOperator Model.Ty.TBool input
+           equal id Site.PipelineBooleanOperator Model.Ty.TBool rhsType ])
+    | InfixFnCall operation ->
+      match operation with
+      | StringConcat ->
+        (Model.Ty.TString,
+         all
+           [ rhsConstraints
+             equal id Site.PipelineStringConcatenation Model.Ty.TString input
+             equal id Site.PipelineStringConcatenation Model.Ty.TString rhsType ])
+      | ComparisonEquals ->
+        (Model.Ty.TBool,
+         all [ rhsConstraints, equal id Site.PipelineComparison input rhsType ])
+      | ComparisonNotEquals ->
+        (Model.Ty.TBool,
+         all [ rhsConstraints, equal id Site.PipelineComparison input rhsType ])
+      | _ ->
+        let resultType = if isComparison operation then Model.Ty.TBool else input
+
+        (resultType,
+         all
+           [ rhsConstraints
+             equal id Site.PipelineNumericOperator input rhsType
+             Model.Constraint.Operand(
+               id,
+               operation,
+               input,
+               AmbiguousSubject.PipelineNumericOperand
+             ) ])
+
+  | EPipeFnCall(id, name, typeArgs, args) ->
+    let special =
+      match resolvedFn name with
+      | Some fn ->
+        if Stdlib.List.isEmpty typeArgs then
+          let builtin = builtinName fn
+
+          match args with
+          | [] ->
+            if builtin == "unwrap" then
+              Stdlib.Option.Option.Some(
+                (resultOf id, Model.Constraint.Unwrap(id, fn, input, resultOf id))
+              )
+            else if builtin == "negate" then
+              Stdlib.Option.Option.Some((input, Model.Constraint.Negate(id, input)))
+            else
+              Stdlib.Option.Option.None
+          | [ rhs ] ->
+            match operatorOf builtin with
+            | Some operation ->
+              Stdlib.Option.Option.Some(
+                inferPipePart
+                  scope
+                  input
+                  (LanguageTools.ProgramTypes.PipeExpr.EPipeInfix(
+                    id,
+                    LanguageTools.ProgramTypes.Infix.InfixFnCall operation,
+                    rhs
+                  ))
+              )
+            | None -> Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+
+    match special with
+    | Some result -> result
+    | None ->
+      let (fnType, fnConstraints) =
+        useFunction scope id name typeArgs (var id Model.Role.Callee)
+
+      let (resultType, applyConstraints) =
+        apply scope id fnType [ (input, Site.PipelineFunction) ] args
+
+      (resultType, all [ fnConstraints, applyConstraints ])
+
+  | EPipeEnum(id, typeName, caseName, fields) ->
+    let fieldChecks =
+      Stdlib.List.indexedMap fields (fun i value ->
+        check scope (part id (i + 1)) Site.Expression value)
+
+    match Types.resolvedType typeName with
+    | None ->
+      (Model.Ty.TError,
+       all
+         [ report (
+             Types.blocker
+               IssueCode.UnresolvedTypeName
+               (at id)
+               (Context.Unresolved typeName.originalName)
+           )
+           all fieldChecks ])
+    | Some hash ->
+      let slots =
+        Stdlib.List.push
+          (Stdlib.List.indexedMap fields (fun i _ ->
+            (part id (i + 1), Site.Expression)))
+          (input, Site.PipelineEnumInput)
+
+      (resultOf id,
+       all
+         [ Model.Constraint.NewEnum(id, hash, [], caseName, slots, resultOf id)
+           all fieldChecks ])
+
+  | EPipeVariable(id, name, args) ->
+    match Stdlib.Dict.get scope.locals name with
+    | Some binder ->
+      let (fnType, fnConstraints) =
+        match binder with
+        | Mono t -> (t, nothing ())
+        | Poly key ->
+          let callee = var id Model.Role.Callee
+          (callee, Model.Constraint.UseLocal(id, key, callee))
+
+      let (resultType, applyConstraints) =
+        apply scope id fnType [ (input, Site.PipelineVariable) ] args
+
+      (resultType, all [ fnConstraints, applyConstraints ])
+    | None ->
+      (Model.Ty.TError,
+       report (
+         Types.error
+           IssueCode.UnknownVariable
+           (at id)
+           (noType ())
+           (noType ())
+           (Context.Identifier name)
+       ))

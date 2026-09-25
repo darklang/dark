@@ -294,3 +294,7 @@ type BuiltInParam =
     typ: TypeReference
     blockArgs: List<String>
     description: String }
+
+
+/// The runtime's own view of a value, including the type it was built as.
+let reflect (value: 'a) : Dval = Builtin.reflect value

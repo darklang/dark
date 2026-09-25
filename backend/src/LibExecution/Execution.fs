@@ -135,6 +135,21 @@ let callStackFromVM (vm : RT.VMState) : RT.CallStack =
   callStackForFrame vm vm.currentFrameID [] @ vm.nestedCallStack
 
 
+/// What a program sees when it would exhaust the native stack: recursion through builtin
+/// callbacks (see `runLoaded`), or comparing or sorting a value nested too deeply (see
+/// `Dval.equals`). A plain message rather than a runtime-error case of its own; callers
+/// that need to tell it apart, like the at-rest checker's guard, compare against this.
+let outOfStackMessage =
+  "Out of stack: went too deep, recursing through builtin callbacks "
+  + "(List.map and the like) or comparing a deeply nested value"
+
+/// Whether `ex` is a stack probe firing (`EnsureSufficientExecutionStack`), perhaps
+/// wrapped by whatever it fired inside, like a sort's comparer.
+let rec private isOutOfStack (ex : exn) : bool =
+  match ex with
+  | :? System.InsufficientExecutionStackException -> true
+  | _ -> not (isNull ex.InnerException) && isOutOfStack ex.InnerException
+
 let execute
   (exeState : RT.ExecutionState)
   (instrs : Option<tlid> * RT.Instructions)
@@ -156,6 +171,9 @@ let execute
       | RT.RuntimeErrorException(_threadID, rte) ->
         let callStack = callStackFromVM vm
         return Error(rte, callStack)
+      | ex when isOutOfStack ex ->
+        return
+          Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
       | ex ->
         let metadata : Metadata =
           Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
@@ -321,6 +339,13 @@ let private runLoaded
   // allocate on every application, including the common synchronous success that
   // calls none of them.
   try
+    // A Dark frame lives on the heap, but a builtin applying a callback starts a nested
+    // run here, on the native stack. Recursion that passes through one at every level
+    // (`List.map xs (fun x -> recurse x)`) grows the native stack by a run per level,
+    // and a native stack overflow cannot be caught: it ends the process. The probe
+    // throws an ordinary exception while there is still room, which the `with` below
+    // turns into a runtime error the program's callers see like any other.
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let running = Interpreter.executeUnder exeState access vm
 
     match Ply.trySync running with
@@ -340,6 +365,9 @@ let private runLoaded
           with
           | RT.RuntimeErrorException(_threadID, rte) ->
             return Error(rte, callStackFromVM vm)
+          | ex when isOutOfStack ex ->
+            return
+              Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
           | ex -> return! uncaught exeState vm ex
         finally
           exeState.test.postTestExecutionHook exeState.test
@@ -348,6 +376,10 @@ let private runLoaded
   | RT.RuntimeErrorException(_threadID, rte) ->
     exeState.test.postTestExecutionHook exeState.test
     Ply(Error(rte, callStackFromVM vm))
+  // The program went too deep, which is not a fault in the runtime: no exception report.
+  | ex when isOutOfStack ex ->
+    exeState.test.postTestExecutionHook exeState.test
+    Ply(Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm))
   | ex ->
     uply {
       try

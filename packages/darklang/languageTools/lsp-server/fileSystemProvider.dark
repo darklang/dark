@@ -115,19 +115,6 @@ module ReadFile =
 
 
 module WriteFile =
-  // Lift a top-level SourceFileDeclaration into the nested Declaration type, so one
-  // recursion handles both levels (they share Type/Function/Value; only the nested-module
-  // case name differs — Module vs SubModule).
-  let sfDeclToModuleDecl
-    (d: LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration)
-    : LanguageTools.WrittenTypes.ModuleDeclaration.Declaration =
-    match d with
-    | Type t -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Type t
-    | Function f -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Function f
-    | Value v -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Value v
-    | Module m -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.SubModule m
-
-
   // Remove the prefix from a module path if it matches
   let stripModulePrefix
     (prefix: List<String>)
@@ -349,7 +336,7 @@ module WriteFile =
         | Some(SourceFile sourceFile) ->
           WriteFile.collectDecls
             []
-            (sourceFile.declarations |> Stdlib.List.map WriteFile.sfDeclToModuleDecl)
+            (sourceFile.declarations |> Stdlib.List.map Parser.Parse.toModuleDeclaration)
         | None -> []
 
       // Reject duplicate names before stabilization collapses their identities.

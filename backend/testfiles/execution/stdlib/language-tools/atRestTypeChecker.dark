@@ -1,0 +1,1653 @@
+// The at-rest type checker (`LanguageTools.AtRestTypeChecker.checkPackageOps`), rule by
+// rule.
+//
+// Two harnesses:
+//
+//   check src name    Lower `src` as one module, so its declarations can use each other,
+//                     check it, and answer `verdict:codes` for declaration `name`. Codes
+//                     are unique and sorted.
+//   hand types fn     For what the parser cannot produce (or-alternatives binding different
+//                     names, unresolved names, missing hashes): check a hand-built function
+//                     against hand-built declarations.
+//
+// `typecheck` runs the same checker over the whole package tree; this file is where each
+// rule is pinned down on its own.
+
+
+// ---------------------------------------------------------------------------------------
+// Harness
+// ---------------------------------------------------------------------------------------
+
+let verdictWord (v: Darklang.LanguageTools.AtRestTypeChecker.Verdict) : String =
+  match v with
+  | Checked -> "checked"
+  | Failed -> "failed"
+  | Incomplete -> "incomplete"
+
+let codesOf (issues: List<Darklang.LanguageTools.AtRestTypeChecker.Issue>) : String =
+  issues
+  |> Stdlib.List.map (fun i -> Darklang.LanguageTools.AtRestTypeChecker.issueCodeToString i.code)
+  |> Stdlib.List.unique
+  |> Stdlib.List.sort
+  |> Stdlib.String.join ","
+
+let summary (report: Darklang.LanguageTools.AtRestTypeChecker.Report) : String =
+  (verdictWord report.verdict)
+  ++ ":"
+  ++ (codesOf (Stdlib.List.append report.diagnostics report.blockers))
+
+let src (lines: List<String>) : String = Stdlib.String.join lines "\n"
+
+let lower
+  (source: String)
+  : Stdlib.Result.Result<List<Darklang.LanguageTools.ProgramTypes.PackageOp>, String> =
+  Darklang.LanguageTools.Parser.Parse.packageSourceToOps
+    Darklang.SCM.Branch.mainBranchId
+    "Tests"
+    [ "AtRest" ]
+    source
+
+let itemNamed
+  (ops: List<Darklang.LanguageTools.ProgramTypes.PackageOp>)
+  (name: String)
+  : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Reference> =
+  ops
+  |> Stdlib.List.filterMap (fun op ->
+    match op with
+    | SetName(location, target, _) ->
+      if location.name == name then Stdlib.Option.Option.Some target
+      else Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.head
+
+let itemSummary
+  (report: Darklang.LanguageTools.AtRestTypeChecker.Report)
+  (item: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Reference>)
+  : String =
+  match item with
+  | None -> "no such declaration"
+  | Some target ->
+    match Stdlib.List.findFirst report.items (fun i -> i.item == target) with
+    | Some i ->
+      (verdictWord i.verdict)
+      ++ ":"
+      ++ (codesOf (Stdlib.List.append i.diagnostics i.blockers))
+    | None -> "no report for the declaration"
+
+/// Lower `source` as one module and check it; the answer for declaration `name`.
+let check (source: String) (name: String) : String =
+  match lower source with
+  | Error e -> e
+  | Ok ops ->
+    itemSummary
+      (Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops)
+      (itemNamed ops name)
+
+/// The rendered issues for one declaration, `Code: message`.
+let issues (source: String) (name: String) : List<String> =
+  match lower source with
+  | Error e -> [ e ]
+  | Ok ops ->
+    let report = Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops
+
+    match itemNamed ops name with
+    | None -> [ "no such declaration" ]
+    | Some target ->
+      match Stdlib.List.findFirst report.items (fun i -> i.item == target) with
+      | Some i ->
+        (Stdlib.List.append i.diagnostics i.blockers)
+        |> Stdlib.List.map (fun issue ->
+          (Darklang.LanguageTools.AtRestTypeChecker.issueCodeToString issue.code)
+          ++ ": "
+          ++ (Darklang.LanguageTools.AtRestTypeChecker.issueToString issue))
+      | None -> [ "no report for the declaration" ]
+
+// ---- hand-built declarations -----------------------------------------------------------
+
+let hash (text: String) : Darklang.LanguageTools.ProgramTypes.Hash =
+  Darklang.LanguageTools.ProgramTypes.Hash.Hash text
+
+let resolved (name: 'a) : Darklang.LanguageTools.ProgramTypes.NameResolution<'a> =
+  Darklang.LanguageTools.ProgramTypes.NameResolution
+    { originalName = []
+      resolved =
+        Stdlib.Result.Result.Ok(
+          Darklang.LanguageTools.ProgramTypes.ResolvedName
+            { name = name; location = Stdlib.Option.Option.None }
+        ) }
+
+let unresolved (parts: List<String>) : Darklang.LanguageTools.ProgramTypes.NameResolution<'a> =
+  Darklang.LanguageTools.ProgramTypes.NameResolution
+    { originalName = parts
+      resolved =
+        Stdlib.Result.Result.Error
+          Darklang.LanguageTools.ProgramTypes.NameResolutionError.NotFound }
+
+let custom
+  (name: String)
+  (args: List<Darklang.LanguageTools.ProgramTypes.TypeReference>)
+  : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+    resolved (Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package(hash name)),
+    args
+  )
+
+let fnNamed
+  (name: String)
+  (typeParams: List<String>)
+  (parameters: List<(String * Darklang.LanguageTools.ProgramTypes.TypeReference)>)
+  (returnType: Darklang.LanguageTools.ProgramTypes.TypeReference)
+  (body: Darklang.LanguageTools.ProgramTypes.Expr)
+  : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+  Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+    { hash = hash name
+      body = body
+      typeParams = typeParams
+      parameters =
+        Stdlib.List.map parameters (fun (n, t) ->
+          Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+            { name = n; typ = t; description = "" })
+      returnType = returnType
+      description = ""
+      permissionCeiling = Stdlib.Option.Option.None }
+
+let oneArg
+  (parameterType: Darklang.LanguageTools.ProgramTypes.TypeReference)
+  (returnType: Darklang.LanguageTools.ProgramTypes.TypeReference)
+  (body: Darklang.LanguageTools.ProgramTypes.Expr)
+  : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+  fnNamed "function-under-test" [] [ ("value", parameterType) ] returnType body
+
+let declared
+  (name: String)
+  (typeParams: List<String>)
+  (definition: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition)
+  : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+  Darklang.LanguageTools.ProgramTypes.PackageType.PackageType
+    { hash = hash name
+      declaration =
+        Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+          { typeParams = typeParams; definition = definition }
+      description = "" }
+
+let recordOf
+  (fields: List<(String * Darklang.LanguageTools.ProgramTypes.TypeReference)>)
+  : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition =
+  Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record(
+    Stdlib.List.map fields (fun (n, t) ->
+      Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField
+        { name = n; typ = t; description = "" })
+  )
+
+let environmentWith
+  (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
+  : Darklang.LanguageTools.AtRestTypeChecker.Model.Environment =
+  let env =
+    Stdlib.List.fold
+      types
+      (Darklang.LanguageTools.AtRestTypeChecker.Environment.builtins ())
+      (fun env t -> Darklang.LanguageTools.AtRestTypeChecker.Items.addType env t)
+  Darklang.LanguageTools.AtRestTypeChecker.Types.withFacts env
+
+let outcomeSummary (outcome: Darklang.LanguageTools.AtRestTypeChecker.Items.Outcome) : String =
+  (verdictWord outcome.verdict)
+  ++ ":"
+  ++ (codesOf (Stdlib.List.append outcome.diagnostics outcome.blockers))
+
+/// Check `fn` against `types`, which are the environment it sees, not candidates.
+let hand
+  (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
+  (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : String =
+  let (outcome, _) =
+    Darklang.LanguageTools.AtRestTypeChecker.Items.checkFunction (environmentWith types) fn
+  outcomeSummary outcome
+
+let handOutcome
+  (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
+  (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : Darklang.LanguageTools.AtRestTypeChecker.Items.Outcome =
+  let (outcome, _) =
+    Darklang.LanguageTools.AtRestTypeChecker.Items.checkFunction (environmentWith types) fn
+  outcome
+
+/// Check hand-built declarations as candidates, through the same guarded entry point
+/// saving and committing use.
+let guardedOps
+  (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
+  (fns: List<Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+  : String =
+  let ops =
+    Stdlib.List.append
+      (Stdlib.List.map types (fun t -> Darklang.LanguageTools.ProgramTypes.PackageOp.AddType t))
+      (Stdlib.List.map fns (fun f -> Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn f))
+  summary (Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops)
+
+/// Check a batch of values, in the order given.
+let handValues
+  (values: List<Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue>)
+  : List<String> =
+  (Darklang.LanguageTools.AtRestTypeChecker.Items.checkBatch (environmentWith []) [] values [])
+  |> Stdlib.List.map (fun (_, outcome) -> outcomeSummary outcome)
+
+let valueNamed
+  (name: String)
+  (body: Darklang.LanguageTools.ProgramTypes.Expr)
+  : Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue =
+  Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue
+    { hash = hash name; body = body; description = "" }
+
+let useValue (id: Int64) (name: String) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EValue(
+    id,
+    resolved (Darklang.LanguageTools.ProgramTypes.FQValueName.FQValueName.Package(hash name))
+  )
+
+let arg (id: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EArg(id, 0)
+
+let unitExpr (id: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EUnit id
+
+let intExpr (id: Int64) (n: Int) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EInt(id, n)
+
+let tInt () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+
+let tUnit () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
+
+let tList
+  (inner: Darklang.LanguageTools.ProgramTypes.TypeReference)
+  : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Darklang.LanguageTools.ProgramTypes.TypeReference.TList inner
+
+let nestedListType (depth: Int) : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Stdlib.List.fold (Stdlib.List.range 1 depth) (tInt ()) (fun t _ -> tList t)
+
+/// A tuple type nested `depth` deep, which the checker walks through `List.map`.
+let nestedTupleType (depth: Int) : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Stdlib.List.fold (Stdlib.List.range 1 depth) (tInt ()) (fun t _ ->
+    Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(tInt (), t, []))
+
+let nestedListExpr (depth: Int) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Stdlib.List.fold (Stdlib.List.range 1 depth) (intExpr 1L 0) (fun e i ->
+    Darklang.LanguageTools.ProgramTypes.Expr.EList(Builtin.unwrap (Stdlib.Int.toInt64 (i + 1)), [ e ]))
+
+
+// ---------------------------------------------------------------------------------------
+// Bodies, returns and arguments
+// ---------------------------------------------------------------------------------------
+
+module Basics =
+  (check "let f (value: Int) : Int = value" "f") = "checked:"
+
+  (check "let f (value: Int) : String = value" "f") = "failed:TypeMismatch"
+
+  (check "let f (x: Int) : String = x |> Stdlib.Int.toString" "f") = "checked:"
+
+  (check "let f (x: Int) : Int = Stdlib.String.length x" "f") = "failed:TypeMismatch"
+
+  // A function's own parameter types, by name.
+  (check "let f (value: Int) (other: String) : String = other" "f") = "checked:"
+
+  // Applying something that is not a function.
+  (check "let f (x: Int) : Int = x 1" "f") = "failed:NotCallable"
+
+  // Builtins are checked against their signatures, which have no bodies to follow.
+  (check "let f (u: Unit) : Int64 = Builtin.int64Add 1L 2L" "f") = "checked:"
+
+  // An argument index past the function's parameters: only serialized input can say it.
+  (hand
+    []
+    (oneArg
+      (tInt ())
+      (tInt ())
+      (Darklang.LanguageTools.ProgramTypes.Expr.EArg(2L, 5)))) = "failed:InvalidArgumentIndex"
+
+
+// ---------------------------------------------------------------------------------------
+// Records and enums
+// ---------------------------------------------------------------------------------------
+
+module Constructors =
+  val pair = "type Pair = | None | Some of (Int * String)"
+
+  // A tuple is one field; two fields is a count mismatch.
+  (check
+    (src [ pair, "let f (u: Unit) : Pair = Pair.Some(1, \"url\")" ])
+    "f") = "failed:EnumFieldCountMismatch"
+
+  (check
+    (src [ pair, "let f (u: Unit) : Pair = Pair.Some((1, \"url\"))" ])
+    "f") = "checked:"
+
+  (check
+    (src
+      [ "type Target = | Only"
+        "type Aliased = Target"
+        "let f (u: Unit) : Aliased = Aliased.Only" ])
+    "f") = "checked:"
+
+  (check "let f (x: Int) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.Nope x" "f") = "failed:UnknownEnumCase"
+
+  (check
+    (src [ "type R = { a: Int; b: Int }", "let f (u: Unit) : R = R { a = 1 }" ])
+    "f") = "failed:MissingRecordField"
+
+  (check
+    (src [ "type R = { a: Int }", "let f (u: Unit) : R = R { a = 1; nope = 2 }" ])
+    "f") = "failed:UnknownRecordField"
+
+  (check
+    (src [ "type R = { a: Int }", "let f (u: Unit) : R = R { a = 1; a = 2 }" ])
+    "f") = "failed:DuplicateRecordField"
+
+  (check
+    (src [ "type R = { a: Int }", "let f (r: R) : Int = r.nope" ])
+    "f") = "failed:UnknownRecordField"
+
+  (check
+    (src [ "type R = { a: Int }", "let f (r: R) : R = { r with a = \"x\" }" ])
+    "f") = "failed:TypeMismatch"
+
+  // Type arguments written on a construction resolve the enclosing function's own.
+  (check
+    (src
+      [ "type Box<'item> = | Box of 'item"
+        "let f (x: 'a) : Box<'a> = Box<'a>.Box x" ])
+    "f") = "checked:"
+
+
+// ---------------------------------------------------------------------------------------
+// Declarations
+// ---------------------------------------------------------------------------------------
+
+module Declarations =
+  (check "type T = { field: Int; field: String }" "T") = "failed:DuplicateTypeMember"
+
+  (check "type E = | A | A" "E") = "failed:DuplicateTypeMember"
+
+  (check "let f<'a, 'a> (x: 'a) : 'a = x" "f") = "failed:DuplicateTypeParameter"
+
+  // An alias that expands into itself with a bigger argument is reported once, not
+  // expanded without end.
+  (check
+    (src [ "type A<'a> = A<List<'a>>", "let f (x: A<Int>) : Int = x" ])
+    "f") = "incomplete:AliasCycle"
+
+  // ...nor one that comes back to itself through an alias handing back its argument.
+  (check
+    (src
+      [ "type Identity<'a> = 'a"
+        "type Loop = Identity<Loop>"
+        "let f (x: Loop) : Int = x" ])
+    "f") = "incomplete:AliasCycle"
+
+  // An alias handed back its own argument is no cycle, however often it nests.
+  (check
+    (src [ "type Identity<'a> = 'a", "let f (x: Identity<Identity<Int>>) : Int = x" ])
+    "f") = "checked:"
+
+  (check
+    (src [ "type Identity<'a> = 'a", "let f (x: Identity<Identity<Int>>) : String = x" ])
+    "f") = "failed:TypeMismatch"
+
+  // Forwarding through another alias does not turn finite nested arguments into
+  // a definition cycle. The expanded result still participates in unification.
+  (check
+    (src
+      [ "type Identity<'a> = 'a"
+        "type Forward<'a> = Identity<'a>"
+        "let f (x: Forward<Forward<Int>>) : Int = x" ])
+    "f") = "checked:"
+
+  (check
+    (src
+      [ "type Identity<'a> = 'a"
+        "type Forward<'a> = Identity<'a>"
+        "let f (x: Forward<Forward<Int>>) : String = x" ])
+    "f") = "failed:TypeMismatch"
+
+  (check
+    (src
+      [ "type Identity<'a> = 'a"
+        "type Forward<'a> = Identity<'a>"
+        "type Loop = Forward<Loop>"
+        "let f (x: Loop) : Int = x" ])
+    "f") = "incomplete:AliasCycle"
+
+  // A declaration that is not available could be an alias for anything, so using
+  // it where an Int is expected is no evidence of a mismatch.
+  (hand [] (oneArg (custom "not-available" []) (tInt ()) (arg 1L))) = "incomplete:MissingTypeDeclaration"
+
+  // A type variable the function does not declare: the parser always declares them.
+  (hand
+    []
+    (fnNamed
+      "undeclared-variable"
+      []
+      [ ("x", Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "b") ]
+      (tUnit ())
+      (unitExpr 1L))) = "incomplete:UnknownDeclaredTypeVariable"
+
+  (check
+    (src [ "type AliasA = AliasB", "type AliasB = AliasA", "let f (x: AliasA) : AliasA = x" ])
+    "f") = "incomplete:AliasCycle"
+
+  (check (src [ "type Rec = List<Rec>", "let f (x: Rec) : Unit = ()" ]) "f") = "incomplete:AliasCycle"
+
+  (check
+    (src [ "type Rows<'a> = List<'a>", "let f (x: Rows<Rows<Int>>) : Unit = ()" ])
+    "f") = "checked:"
+
+  (check
+    (src [ "type Node = { children: List<Node> }", "let f (x: Node) : Unit = ()" ])
+    "f") = "checked:"
+
+  val pair = "type Pair<'a, 'b> = { first: 'a; second: 'b }"
+
+  (check (src [ pair, "let f (x: (Int * List<Pair<String>>)) : Unit = ()" ]) "f") = "failed:TypeMismatch"
+
+  (check (src [ pair, "let f (x: (Int * List<Pair<String, Bool>>)) : Unit = ()" ]) "f") = "checked:"
+
+  // Field access through a type used at the wrong arity fails, rather than crashing on
+  // the substitution, and the arity error is the one thing reported: not also an
+  // ambiguity about the field's record.
+  (check (src [ pair, "let f (x: Pair<Int>) : Int = x.first" ]) "f") = "failed:TypeMismatch"
+
+  // A type nothing declares, nested deep in a signature or behind an alias.
+  (hand
+    []
+    (oneArg
+      (tList
+        (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+          Darklang.LanguageTools.ProgramTypes.TypeReference.TString,
+          custom "nowhere" []
+        )))
+      (tUnit ())
+      (unitExpr 1L))) = "incomplete:MissingTypeDeclaration"
+
+  (hand
+    [ declared
+        "alias-to-nowhere"
+        []
+        (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
+          tList (custom "nowhere" [])
+        )) ]
+    (oneArg (custom "alias-to-nowhere" []) (tUnit ()) (unitExpr 1L))) = "incomplete:MissingTypeDeclaration"
+
+  // A declaration the item only depends on is still walked: its missing field type
+  // blocks the item.
+  (hand
+    [ declared "box-with-missing-field" [] (recordOf [ ("hidden", custom "nowhere" []) ]) ]
+    (oneArg (custom "box-with-missing-field" []) (tUnit ()) (unitExpr 1L))) = "incomplete:MissingTypeDeclaration"
+
+
+// ---------------------------------------------------------------------------------------
+// Dict keys
+// ---------------------------------------------------------------------------------------
+
+module DictKeys =
+  let key (declarations: List<String>) (keyType: String) : String =
+    check
+      (src (Stdlib.List.append declarations [ $"let f (x: Dict<{keyType}, String>) : Unit = ()" ]))
+      "f"
+
+  val rejected = "failed:UnsupportedDictKeyType"
+  val accepted = "checked:"
+
+  (key [] "Int -> Int") = rejected
+  (key [] "Blob") = rejected
+  // `Stream` has no source spelling of its own.
+  (hand
+    []
+    (oneArg
+      (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TStream(tInt ()),
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+      ))
+      (tUnit ())
+      (unitExpr 1L))) = "failed:UnsupportedDictKeyType"
+
+  (hand
+    []
+    (oneArg
+      (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TDB(tInt ()),
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+      ))
+      (tUnit ())
+      (unitExpr 1L))) = "failed:UnsupportedDictKeyType"
+  (key [] "(String * (Int -> Int))") = rejected
+  (key [] "(Int * String)") = accepted
+  (key [] "'k") = accepted
+
+  (key [ "type Handler = { name: String; run: Int -> Int }" ] "Handler") = rejected
+  (key [ "type Plain = { x: Int }" ] "Plain") = accepted
+  (key [ "type Node = { kids: List<Node> }" ] "Node") = accepted
+
+  // A type argument matters only if it can end up holding a value.
+  (key [ "type Box<'a> = { v: 'a }" ] "Box<Int -> Int>") = rejected
+  (key [ "type Box<'a> = { v: 'a }" ] "Box<Box<Int -> Int>>") = rejected
+  (key [ "type Box<'a> = { v: 'a }" ] "Box<Box<Int>>") = accepted
+  (key [ "type Identity<'a> = 'a" ] "Identity<Identity<Int -> Int>>") = rejected
+  (key [ "type Phantom<'a> = { x: String }" ] "Phantom<Int -> Int>") = accepted
+  (key
+    [ "type Box<'a> = { v: 'a }", "type Phantom<'a> = { x: String }" ]
+    "Box<Box<Phantom<Int -> Int>>>") = accepted
+  (key [] "((Int -> Int) * 'a)") = rejected
+
+  (key
+    [ "type Inner<'a> = { v: 'a; run: Int -> Int }", "type Outer = { i: Inner<Int> }" ]
+    "Outer") = rejected
+
+  (key
+    [ "type Phantom<'a> = { x: String }", "type Holder = { p: Phantom<Int -> Int> }" ]
+    "Holder") = accepted
+
+  (key
+    [ "type Phantom<'a> = { x: String }", "type Wrapper<'a> = { p: Phantom<'a> }" ]
+    "Wrapper<Int -> Int>") = accepted
+
+
+// ---------------------------------------------------------------------------------------
+// Operators
+// ---------------------------------------------------------------------------------------
+
+module Operators =
+  (check "let f (x: String) : String = x + x" "f") = "failed:InvalidInfixOperand"
+
+  // `**` has no 128-bit form.
+  (check "let f (value: Int128) : Int128 = value ** value" "f") = "failed:InvalidInfixOperand"
+
+  (check "let f (value: UInt128) : UInt128 = value ** value" "f") = "failed:InvalidInfixOperand"
+
+  (check "let f (value: Int128) : Int128 = value + value" "f") = "checked:"
+  (check "let f (value: UInt128) : UInt128 = value * value" "f") = "checked:"
+
+  // Bitwise operators take every integer type, the 128-bit ones included, and no Float.
+  (check "let f (value: Float) : Float = value & value" "f") = "failed:InvalidInfixOperand"
+
+  (check "let f (value: Float) : Float = value << value" "f") = "failed:InvalidInfixOperand"
+
+  (check "let f (value: Int128) : Int128 = value ^ value" "f") = "checked:"
+  (check "let f (value: Int64) : Int64 = value >> value" "f") = "checked:"
+
+  // Operator builtins called by name are checked as the operator, not by their loose
+  // signatures.
+  (check "let f (u: Unit) : Bool = Builtin.lessThan 1 \"x\"" "f") = "failed:TypeMismatch"
+
+  (check "let f (u: Unit) : Int = Builtin.add 1 2" "f") = "checked:"
+
+  (check "let f (u: Unit) : String = Builtin.add 1 2" "f") = "failed:TypeMismatch"
+
+  (check "let f (u: Unit) : Bool = Builtin.greaterThan \"x\" \"x\"" "f") = "failed:InvalidInfixOperand"
+
+  (check "let f (u: Unit) : Bool = Builtin.equals \"x\" \"x\"" "f") = "checked:"
+
+  // As a value or partially applied there is no honest signature to give it.
+  (check "let f (u: Unit) : Int -> Int = Builtin.add 1" "f") = "incomplete:UnsupportedConstruct"
+
+  // In a pipe the input is the left operand, and the same domains apply.
+  (check "let f (value: Int) : Int = value |> Builtin.subtract 1" "f") = "checked:"
+
+  (check "let f (value: UInt128) : UInt128 = value |> Builtin.power value" "f") = "failed:InvalidInfixOperand"
+
+  (check "let f (value: UInt128) : UInt128 = Builtin.power value value" "f") = "failed:InvalidInfixOperand"
+
+  // Unary minus is negation: signed numbers only.
+  (check "let f (value: Int) : Int = -value" "f") = "checked:"
+  (check "let f (value: Float) : Float = -value" "f") = "checked:"
+  (check "let f (value: Int) : String = -value" "f") = "failed:TypeMismatch"
+
+  (check "let f (value: UInt8) : UInt8 = -value" "f") = "failed:InvalidInfixOperand"
+
+  (check "let f (value: String) : String = -value" "f") = "failed:InvalidInfixOperand"
+
+
+// ---------------------------------------------------------------------------------------
+// Builtins whose signatures are not the whole truth
+// ---------------------------------------------------------------------------------------
+
+module Builtins =
+  // `unwrap` gives what an Option or a Result holds; of anything else, nothing is known.
+  (check "let f (x: Stdlib.Option.Option<Int>) : Int = Builtin.unwrap x" "f") = "checked:"
+
+  (check "let f (u: Unit) : Int = Builtin.unwrap 1" "f") = "incomplete:UnsupportedConstruct"
+
+  // A result type only a type argument can fix: the call has to give it.
+  (check "let f (u: Unit) : Int = Builtin.jsonParse \"1\"" "f") = "incomplete:UnsupportedConstruct"
+
+  // Given, it checks. The `ParseError` in `jsonParse`'s signature is loaded like any
+  // other dependency: the checker follows the builtins a declaration calls, not only its
+  // package references.
+  (check
+    (src
+      [ "let f (u: Unit) : Int ="
+        "  match Builtin.jsonParse<Int> \"1\" with"
+        "  | Ok x -> x"
+        "  | Error _ -> 0" ])
+    "f") = "checked:"
+
+  // The same for `Option`, reached only through `listGetAt`'s signature.
+  (check
+    (src
+      [ "let f (x: List<Int>) : Int ="
+        "  match Builtin.listGetAt x 0 with"
+        "  | Some y -> y"
+        "  | None -> 0" ])
+    "f") = "checked:"
+
+  // A result type variable no parameter constrains, and none declared: its real result
+  // type is only known at runtime.
+  (check
+    "let f (b: Uuid) : Int = match Builtin.applicableByName b \"x\" with | Ok _ -> 1 | Error _ -> 0"
+    "f") = "incomplete:UnsupportedConstruct"
+
+  // A builtin nothing has heard of.
+  (hand
+    []
+    (oneArg
+      (tUnit ())
+      (tInt ())
+      (Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+        10L,
+        Darklang.LanguageTools.ProgramTypes.Expr.EFnName(
+          11L,
+          resolved (
+            Darklang.LanguageTools.ProgramTypes.FQFnName.FQFnName.Builtin(
+              Darklang.LanguageTools.ProgramTypes.FQFnName.Builtin
+                { name = "missing"; version = 0l }
+            )
+          )
+        ),
+        [],
+        [ intExpr 12L 1 ]
+      )))) = "incomplete:MissingFunctionSignature"
+
+  // Explicit type arguments: the right number, resolving the function's own parameters.
+  (check
+    (src [ "let same (x: 'a) : 'a = x", "let f (u: Unit) : Int = same<Int> 1" ])
+    "f") = "checked:"
+
+  (check
+    (src [ "let same (x: 'a) : 'a = x", "let f (x: 'b) : 'b = same<'b> x" ])
+    "f") = "checked:"
+
+  (check "let f (u: Unit) : Int = Stdlib.List.length<Int, Int, Int> []" "f") = "failed:ExplicitTypeArgumentCountMismatch"
+
+
+// ---------------------------------------------------------------------------------------
+// Names nothing resolved
+// ---------------------------------------------------------------------------------------
+
+module Unresolved =
+  (hand
+    []
+    (oneArg
+      (tUnit ())
+      (tInt ())
+      (Darklang.LanguageTools.ProgramTypes.Expr.EValue(1L, unresolved [ "Missing", "value" ])))) = "incomplete:UnresolvedValueName"
+
+  (hand
+    []
+    (oneArg
+      (tUnit ())
+      (tInt ())
+      (Darklang.LanguageTools.ProgramTypes.Expr.EFnName(1L, unresolved [ "Missing", "fn" ])))) = "incomplete:UnresolvedFunctionName"
+
+  (hand
+    []
+    (oneArg
+      (Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+        unresolved [ "Missing", "Type" ],
+        []
+      ))
+      (tUnit ())
+      (unitExpr 1L))) = "incomplete:UnresolvedTypeName"
+
+  // A package value nobody has: no type to check against.
+  (hand [] (oneArg (tUnit ()) (tInt ()) (useValue 1L "no-such-value"))) = "incomplete:MissingValueSignature"
+
+  // An unresolved scrutinee is reported once, not again as every pattern's ambiguity.
+  (hand
+    []
+    (oneArg
+      (tUnit ())
+      (tInt ())
+      (Darklang.LanguageTools.ProgramTypes.Expr.EMatch(
+        170L,
+        Darklang.LanguageTools.ProgramTypes.Expr.EValue(171L, unresolved [ "Missing", "value" ]),
+        [ Darklang.LanguageTools.ProgramTypes.MatchCase
+            { pat =
+                Darklang.LanguageTools.ProgramTypes.MatchPattern.MPEnum(
+                  172L,
+                  "Some",
+                  [ Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(173L, "value") ]
+                )
+              whenCondition = Stdlib.Option.Option.None
+              rhs = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(174L, "value") } ]
+      )))) = "incomplete:UnresolvedValueName"
+
+
+// ---------------------------------------------------------------------------------------
+// Patterns and exhaustiveness
+// ---------------------------------------------------------------------------------------
+
+module Patterns =
+  (check
+    "let f (value: Bool) : String = match value with | true -> \"yes\" | false -> \"no\""
+    "f") = "checked:"
+
+  (check
+    "let f (value: (Int * String)) : Int = match value with | (_, _) -> 1"
+    "f") = "checked:"
+
+  (check
+    (src
+      [ "let f (value: List<String>) : Int ="
+        "  match value with"
+        "  | [] -> 0"
+        "  | [ _ ] -> 1"
+        "  | _ :: _ :: _ -> 2" ])
+    "f") = "checked:"
+
+  (check
+    (src
+      [ "let f (value: (List<String> * List<String>)) : Int ="
+        "  match value with"
+        "  | ([], []) -> 0"
+        "  | (_ :: _, []) -> 1"
+        "  | ([], _ :: _) -> 2"
+        "  | (_ :: _, _ :: _) -> 3" ])
+    "f") = "checked:"
+
+  (check
+    "let f (value: (Bool * Bool)) : Int = match value with | (true, _) -> 1 | (false, _) -> 0"
+    "f") = "checked:"
+
+  let nested () : String =
+    src
+      [ "type Inner = | SourceFile of String"
+        "type Outer = | Nothing | Something of Inner"
+        "let f (value: Outer) : Int ="
+        "  match value with"
+        "  | Nothing -> 0"
+        "  | Something(SourceFile _) -> 1" ]
+
+  (check (nested ()) "f") = "checked:"
+
+  let restrictive () : String =
+    src
+      [ "type E = | A of Bool | B"
+        "let f (value: E) : Int ="
+        "  match value with"
+        "  | A true -> 1"
+        "  | B -> 2" ]
+
+  // A case whose field is restricted does not cover the case; the message names what
+  // is missing.
+  (check (restrictive ()) "f") = "incomplete:NonExhaustiveMatch"
+
+  (issues (restrictive ()) "f") = [ "NonExhaustiveMatch: Match is not exhaustive; an uncovered pattern is A(false)" ]
+
+  (check
+    "let f (x: Stdlib.Option.Option<Int>) : Int = match x with | Some y -> y"
+    "f") = "incomplete:NonExhaustiveMatch"
+
+  // A recursive case nothing covers is missing, not expanded forever.
+  let tree (cases: List<String>) : String =
+    src
+      (Stdlib.List.append
+        [ "type Tree = | Node of Tree | Leaf", "let f (t: Tree) : Int =", "  match t with" ]
+        cases)
+
+  (check (tree [ "  | Leaf -> 0" ]) "f") = "incomplete:NonExhaustiveMatch"
+
+  (issues (tree [ "  | Leaf -> 0" ]) "f") = [ "NonExhaustiveMatch: Match is not exhaustive; an uncovered pattern is Node(…)" ]
+
+  (check (tree [ "  | Leaf -> 0", "  | Node Leaf -> 1" ]) "f") = "incomplete:NonExhaustiveMatch"
+
+  (check (tree [ "  | Leaf -> 0", "  | Node _ -> 1" ]) "f") = "checked:"
+
+  // ...and a column of wildcards over a recursive type is not expanded forever
+  // while another column decides.
+  let treeAndBool (cases: List<String>) : String =
+    src
+      (Stdlib.List.append
+        [ "type Tree = | Node of Tree | Leaf"
+          "let f (x: (Tree * Bool)) : Int ="
+          "  match x with" ]
+        cases)
+
+  (check (treeAndBool [ "  | (_, true) -> 1" ]) "f") = "incomplete:NonExhaustiveMatch"
+
+  (check
+    (treeAndBool [ "  | (_, true) -> 1", "  | (Leaf, false) -> 2", "  | (Node _, false) -> 3" ])
+    "f") = "checked:"
+
+  // A guard may fail, so a guarded case covers nothing.
+  (check
+    "let f (x: Bool) : Int = match x with | true -> 1 | false when 1 == 1 -> 0"
+    "f") = "incomplete:NonExhaustiveMatch"
+
+  // A type known not to be a record or an enum is no subject for a field, an update
+  // or an enum pattern. A type parameter might be, once a caller says what it is.
+  (check "let f (x: Int) : Int = x.field" "f") = "failed:TypeMismatch"
+  (check "let f (x: Int) : Int = { x with field = 1 }" "f") = "failed:TypeMismatch"
+
+  // Unknown element types do not make a known non-record/non-enum uncertain.
+  (check
+    (src [ "let f (u: Unit) : Int =", "  let xs = []", "  xs.field" ])
+    "f") = "failed:TypeMismatch"
+  (check
+    (src [ "let f (u: Unit) : Unit =", "  let xs = []", "  let _ = { xs with field = 1 }", "  ()" ])
+    "f") = "failed:TypeMismatch"
+  (check
+    (src [ "let f (u: Unit) : Int =", "  let xs = []", "  match xs with | Missing -> 1 | _ -> 2" ])
+    "f") = "failed:InvalidPattern"
+  (check "let f (x: Int) : Int = match x with | Some y -> y | _ -> 0" "f") = "failed:InvalidPattern"
+  (check "let f<'a> (x: 'a) : Int = x.field" "f") = "incomplete:AmbiguousType"
+
+  // An enum pattern needs an enum.
+  (check
+    (src [ "type R = { a: Int }", "let f (r: R) : Int = match r with | Foo -> 1" ])
+    "f") = "failed:InvalidPattern"
+
+  // A wrong case keeps what its pattern binds in scope, and does not go on to claim the
+  // match is not exhaustive.
+  (check
+    (src
+      [ "type Only = | Valid"
+        "let f (value: Only) : Int = match value with | Missing x -> x" ])
+    "f") = "failed:UnknownEnumCase"
+
+  // A name bound twice within one or-alternative, which only serialized input can say.
+  (hand
+    []
+    (oneArg
+      (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(tInt (), tInt (), []))
+      (tInt ())
+      (Darklang.LanguageTools.ProgramTypes.Expr.EMatch(
+        47L,
+        arg 48L,
+        [ Darklang.LanguageTools.ProgramTypes.MatchCase
+            { pat =
+                Darklang.LanguageTools.ProgramTypes.MatchPattern.MPOr(
+                  49L,
+                  [ Darklang.LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                      50L,
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(51L, "x"),
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(52L, "x"),
+                      []
+                    )
+                    Darklang.LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                      60L,
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(61L, "x"),
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(62L, "x"),
+                      []
+                    ) ]
+                )
+              whenCondition = Stdlib.Option.Option.None
+              rhs = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(70L, "x") } ]
+      )))) = "failed:DuplicatePatternBinding"
+
+  // Or-alternatives that bind different names, which the parser also refuses.
+  (hand
+    []
+    (oneArg
+      (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(tInt (), tInt (), []))
+      (tInt ())
+      (Darklang.LanguageTools.ProgramTypes.Expr.EMatch(
+        47L,
+        arg 48L,
+        [ Darklang.LanguageTools.ProgramTypes.MatchCase
+            { pat =
+                Darklang.LanguageTools.ProgramTypes.MatchPattern.MPOr(
+                  49L,
+                  [ Darklang.LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                      50L,
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(51L, "x"),
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(52L, "_"),
+                      []
+                    )
+                    Darklang.LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                      60L,
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(61L, "_"),
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(62L, "y"),
+                      []
+                    ) ]
+                )
+              whenCondition = Stdlib.Option.Option.None
+              rhs = intExpr 70L 1 } ]
+      )))) = "failed:InvalidPattern"
+
+
+// ---------------------------------------------------------------------------------------
+// Unknowns, ambiguity and cascades
+// ---------------------------------------------------------------------------------------
+
+module Ambiguity =
+  // An unknown confined to a discarded value does not matter.
+  (check (src [ "let f (u: Unit) : Int =", "  let _ = []", "  1" ]) "f") = "checked:"
+
+  // Nor does it hide a definite error elsewhere.
+  (check (src [ "let f (u: Unit) : Int =", "  let _ = []", "  \"wrong\"" ]) "f") = "failed:TypeMismatch"
+
+  // A mismatch against something unknown is not definite.
+  (check "let f (u: Unit) : Blob = []" "f") = "incomplete:AmbiguousType,TypeMismatch"
+
+  // A definite error is not hidden by an unrelated blocker.
+  (check "let f (value: Bool) : String = match value with | true -> 1" "f") = "failed:NonExhaustiveMatch,TypeMismatch"
+
+  // A field of something whose type is never fixed.
+  (check (src [ "let f (u: Unit) : Unit =", "  let _ = (fun record -> record.path)", "  ()" ]) "f") = "incomplete:AmbiguousType"
+
+  // Only what is observed has to be known: `path` is, `value` never is.
+  let found () : String =
+    src
+      [ "type FoundValue<'a> = { path: String; value: 'a }"
+        "let source (u: Unit) : FoundValue<'a> = source u"
+        "let f (u: Unit) : String ="
+        "  let discovered = source ()"
+        "  discovered.path"
+        "val unfixed = source ()" ]
+
+  (check (found ()) "f") = "checked:"
+  (check (found ()) "unfixed") = "incomplete:AmbiguousType"
+
+  // The ambiguity is reported at the node that introduced the unknown.
+  (let outcome =
+    handOutcome
+      []
+      (oneArg
+        (tUnit ())
+        (tUnit ())
+        (Darklang.LanguageTools.ProgramTypes.Expr.ELet(
+          1L,
+          Darklang.LanguageTools.ProgramTypes.LetPattern.LPWildcard 2L,
+          Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+            3L,
+            Darklang.LanguageTools.ProgramTypes.Expr.ELambda(
+              4L,
+              [ Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(5L, "x") ],
+              Darklang.LanguageTools.ProgramTypes.Expr.EVariable(6L, "x")
+            ),
+            [],
+            [ Darklang.LanguageTools.ProgramTypes.Expr.EList(100L, []) ]
+          ),
+          Darklang.LanguageTools.ProgramTypes.Expr.EUnit 7L
+        )))
+   outcomeSummary outcome) = "checked:"
+
+  (let outcome =
+    handOutcome
+      []
+      (oneArg
+        (tUnit ())
+        (tList (tInt ()))
+        (Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+          3L,
+          Darklang.LanguageTools.ProgramTypes.Expr.EVariable(4L, "value"),
+          [],
+          [ Darklang.LanguageTools.ProgramTypes.Expr.EList(100L, []) ]
+        )))
+   Stdlib.List.map outcome.diagnostics (fun i -> i.nodeId)) = [ Stdlib.Option.Option.Some 3UL ]
+
+  // Binding an unknown to a type that contains it.
+  (check (src [ "let f (u: Unit) : Int =", "  let g = (fun y -> y y)", "  1" ]) "f") = "incomplete:AmbiguousType,OccursCheckFailed"
+
+
+// ---------------------------------------------------------------------------------------
+// Let, lambdas and generalization
+// ---------------------------------------------------------------------------------------
+
+module Lets =
+  // A let-bound lambda is generalized: each use gets its own instance.
+  (check
+    (src [ "let f (u: Unit) : (Int * String) =", "  let identity = (fun x -> x)", "  (identity 1, identity \"ok\")" ])
+    "f") = "checked:"
+
+  // A nested function can call itself, at its own arity.
+  (check
+    (src
+      [ "let f (value: Int) : Int ="
+        "  let loop (n: Int) (step: Int) : Int = if n == 0 then 0 else loop (n - step) step"
+        "  loop value 1" ])
+    "f") = "checked:"
+
+  // ...and the self-call is checked against the lambda's own type.
+  (check
+    (src
+      [ "let f (value: Int) : Int ="
+        "  let loop (n: Int) : Int = loop \"wrong\""
+        "  loop value" ])
+    "f") = "failed:TypeMismatch"
+
+  // With an outer `f` in scope, a new lambda named `f` captures it rather than itself.
+  (check
+    (src
+      [ "let g (value: Int) : Int ="
+        "  let f = 1"
+        "  let f = (fun x -> f + x)"
+        "  f value" ])
+    "g") = "checked:"
+
+  // A field of a lambda's parameter, known only once the lambda is used.
+  val counted = "type Counted = { count: Int }"
+
+  (check
+    (src
+      [ counted
+        "let f (value: Counted) : Int ="
+        "  let getCount = (fun record -> record.count)"
+        "  getCount value" ])
+    "f") = "checked:"
+
+  // ...and a helper used on two record types, each through its own instance.
+  (check
+    (src
+      [ "type RowInt = { value: Int }"
+        "type RowString = { value: String }"
+        "let f (a: RowInt) (b: RowString) : (Int * String) ="
+        "  let getValue = (fun record -> record.value)"
+        "  (getValue a, getValue b)" ])
+    "f") = "checked:"
+
+  // Which enum a lambda parameter's patterns belong to is settled by the lambda's use,
+  // not decided (and found ambiguous) at the match.
+  (check
+    (src
+      [ "let f (xs: List<Stdlib.Option.Option<Int>>) : List<Int> ="
+        "  let get = (fun o -> match o with | Some x -> x | None -> 0)"
+        "  Stdlib.List.map xs get" ])
+    "f") = "checked:"
+
+  // A helper is not generalized over what a pending constraint ties to the enclosing
+  // scope: `g`'s argument is `x.field`'s, whatever `x` turns out to be, so passing
+  // it a String is wrong however the lines are ordered.
+  let boxed (lines: List<String>) : String =
+    src
+      (Stdlib.List.flatten
+        [ [ "type Box = { field: Int -> Int }"
+            "let requireBox (b: Box) : Unit = ()"
+            "let f (u: Unit) : Unit ="
+            "  let outer = fun x ->" ]
+          lines
+          [ "    ()", "  outer (Box { field = (fun y -> y) })" ] ])
+
+  (check
+    (boxed
+      [ "    let g = fun y -> x.field y"
+        "    let _ = requireBox x"
+        "    let _ = g \"wrong\"" ])
+    "f") = "failed:TypeMismatch"
+
+  (check
+    (boxed
+      [ "    let _ = requireBox x"
+        "    let g = fun y -> x.field y"
+        "    let _ = g \"wrong\"" ])
+    "f") = "failed:TypeMismatch"
+
+  (check
+    (boxed
+      [ "    let g = fun y -> x.field y", "    let _ = requireBox x", "    let _ = g 1" ])
+    "f") = "checked:"
+
+  // Something called with two arguments may take both at once, as a two-parameter
+  // function does, or take one and return a function: which, it waits to learn.
+  let invoked (callee: String) (declarations: List<String>) : String =
+    src
+      (Stdlib.List.append
+        declarations
+        [ "let f (u: Unit) : Int ="
+          "  let invoke = fun g -> g 1 2"
+          $"  invoke {callee}" ])
+
+  (check (invoked "add" [ "let add (a: Int) (b: Int) : Int = a + b" ]) "f") = "checked:"
+  (check (invoked "(fun a b -> a + b)" []) "f") = "checked:"
+  (check (invoked "add" [ "let add (a: Int) (b: String) : Int = a" ]) "f") = "failed:TypeMismatch"
+  (check (invoked "inc" [ "let inc (a: Int) : Int = a" ]) "f") = "failed:NotCallable"
+
+  (check
+    (invoked "adder" [ "let adder (a: Int) : Int -> Int = fun b -> a + b" ])
+    "f") = "checked:"
+
+  // ...but a function type keeps its arity, as the runtime's check of a function
+  // against a declared type does: `(Int, Int) -> Int` is not `Int -> (Int -> Int)`.
+  (check
+    (src
+      [ "let add (a: Int) (b: Int) : Int = a + b"
+        "let takes (f: Int -> (Int -> Int)) : Int = 1"
+        "let f (u: Unit) : Int = takes add" ])
+    "f") = "failed:TypeMismatch"
+
+  (check
+    (src
+      [ "type Tag<'a> = { value: Unit }"
+        "let f (x: Tag<Int -> Int -> Int>) : Tag<Int -> (Int -> Int)> = x" ])
+    "f") = "failed:TypeMismatch"
+
+  // A type that occurs in itself only through an alias that drops it is no cycle.
+  (check
+    (src
+      [ "type Identity<'a> = 'a"
+        "let identity<'a> (x: 'a) : Identity<'a> = x"
+        "val f = fun x -> if true then x else identity x" ])
+    "f") = "checked:"
+
+  (check "val f = fun x -> x x" "f") = "failed:OccursCheckFailed"
+
+  // ...nor through another unknown function: `f` would contain `g`, which would
+  // contain `f`. Two unknowns called independently, or one on the other's result,
+  // are fine.
+  (check "val f = fun a b -> (a b, b a)" "f") = "failed:OccursCheckFailed"
+  (check "val f = fun a b -> (a 1, b 2)" "f") = "checked:"
+  (check "val f = fun a b -> a (b 1)" "f") = "checked:"
+
+  // Calls share a monomorphic callee even while its arity is unknown. Reconcile
+  // both argument types and results before capturing constraints in a scheme.
+  (check "val f = fun g -> (g 1, g true)" "f") = "failed:TypeMismatch"
+  (check "val f = fun g -> (g 1, g 2)" "f") = "checked:"
+  // A generalized subject must satisfy all operation kinds, in either order.
+  (check "val f = fun x -> (x.field, x 1)" "f") = "failed:TypeMismatch"
+  (check "val f = fun x -> (x 1, x.field)" "f") = "failed:TypeMismatch"
+  (check "val f = fun x -> (x 1, Dict { x: 1 })" "f") = "failed:UnsupportedDictKeyType"
+  (check "val f = fun x -> (Dict { x: 1 }, x 1)" "f") = "failed:UnsupportedDictKeyType"
+  (check "val f = fun g -> (g 1 + 1, if g 2 then 1 else 0)" "f") = "failed:TypeMismatch"
+
+  // Other deferred uses also constrain one subject, even before its declaration
+  // is known. Accesses, updates, unwraps and enum fields must agree before a
+  // generalized scheme can carry them away.
+  (check "val f = fun r -> (r.field + 1, if r.field then 1 else 0)" "f") = "failed:TypeMismatch"
+  (check "val f = fun r -> (r.field + 1, r.field + 2)" "f") = "checked:"
+  (check "val f = fun r -> (r.first + 1, if r.second then 1 else 0)" "f") = "checked:"
+  (check "val f = fun r -> ({ r with field = 1 }, { r with field = true })" "f") = "failed:TypeMismatch"
+  (check "val f = fun r -> (r.field + 1, { r with field = true })" "f") = "failed:TypeMismatch"
+  // The update fixes the field to Bool before the numeric operation is checked.
+  (check "val f = fun r -> ({ r with field = true }, r.field + 1)" "f") = "failed:InvalidInfixOperand,TypeMismatch"
+  (check "val f = fun r -> (r.field + 1, { r with field = 2 })" "f") = "checked:"
+  (check "val f = fun x -> (Builtin.unwrap x + 1, if Builtin.unwrap x then 1 else 0)" "f") = "failed:TypeMismatch"
+  (check "val f = fun x -> (Builtin.unwrap x + 1, Builtin.unwrap x + 2)" "f") = "checked:"
+  (check
+    (src
+      [ "val f = fun x ->"
+        "  let first = match x with | Some y -> y + 1 | _ -> 0"
+        "  let second = match x with | Some y -> if y then 1 else 0 | _ -> 0"
+        "  (first, second)" ])
+    "f") = "failed:TypeMismatch"
+  (check "val f = fun x -> match x with | C a -> 1 | C(a, b) -> 2 | _ -> 0" "f") = "failed:EnumFieldCountMismatch"
+
+  // The subjects may only become the same later in the body, after the field
+  // constraints were first queued.
+  (check
+    (src
+      [ "val f = fun a b ->"
+        "  let first = a.field + 1"
+        "  let second = if b.field then 1 else 0"
+        "  let _ = if true then a else b"
+        "  (first, second)" ])
+    "f") = "failed:TypeMismatch"
+
+  // Reconciliation preserves both sites for checking against a later declaration.
+  (Stdlib.List.length
+    (issues
+      (src
+        [ "type R = { value: Int }"
+          "let f (u: Unit) : Unit ="
+          "  let get = fun r -> (r.missing, r.missing)"
+          "  let _ = get (R { value = 1 })"
+          "  ()" ])
+      "f")) = 2
+
+  // Different argument counts relate the longer call to the shorter result,
+  // without guessing whether g has one or two parameters.
+  (check "val f = fun g -> (g 1, g 1 2)" "f") = "checked:"
+  (check "val f = fun g -> (g 1 2, g 1)" "f") = "checked:"
+  (check "val f = fun g -> (g 1 + 1, g 1 2)" "f") = "failed:NotCallable"
+  (check
+    (src
+      [ "let add (a: Int) (b: Int) : Int = a + b"
+        "let f (u: Unit) : Int ="
+        "  let calls = fun g -> (g 1, g 1 2)"
+        "  let (partial, full) = calls add"
+        "  partial full" ])
+    "f") = "checked:"
+  (check
+    (src
+      [ "let curried (a: Int) : Int -> Int = fun b -> a + b"
+        "let f (u: Unit) : Int ="
+        "  let calls = fun g -> (g 1, g 1 2)"
+        "  let (partial, full) = calls curried"
+        "  partial full" ])
+    "f") = "checked:"
+
+  // Consuming an already-known argument changes the deferred constraint graph
+  // even without adding a substitution or reducing the constraint count.
+  (check
+    (src
+      [ "let takes<'a> (g: Int -> 'a) : Unit = ()"
+        "val f = fun a g ->"
+        "  let first = a g"
+        "  let second = g 1 a"
+        "  let _ = takes g"
+        "  (first, second)" ])
+    "f") = "failed:OccursCheckFailed"
+
+  (check
+    (src
+      [ "let takes<'a> (g: Int -> 'a) : Unit = ()"
+        "val f = fun a g ->"
+        "  let first = g 1 a"
+        "  let second = a g"
+        "  let _ = takes g"
+        "  (first, second)" ])
+    "f") = "failed:OccursCheckFailed"
+
+  // A Dict literal's keys must be usable as keys, though the Dict is never named
+  // in a signature, and whether they are may only show where a helper is used.
+  (check
+    (src [ "let f (u: Unit) : Unit =", "  let bad = Dict { (fun () -> ()): 1 }", "  ()" ])
+    "f") = "failed:UnsupportedDictKeyType"
+
+  let single (key: String) : String =
+    src
+      [ "let f (u: Unit) : Int ="
+        "  let single = fun k -> Dict { k: 1 }"
+        $"  let _ = single {key}"
+        "  1" ]
+
+  (check (single "\"a\"") "f") = "checked:"
+
+  // A function is no key whatever it takes, so an unknown parameter does not make
+  // the error provisional.
+  (check
+    (src [ "let f (u: Unit) : Unit =", "  let bad = Dict { (fun x -> x): 1 }", "  ()" ])
+    "f") = "failed:UnsupportedDictKeyType"
+  (check (single "(fun () -> ())") "f") = "failed:UnsupportedDictKeyType"
+
+  // A name bound twice by one let, which only serialized input can say, is an error
+  // whether or not the binding is generalized.
+  let bindsTwice
+    (value: Darklang.LanguageTools.ProgramTypes.Expr)
+    : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    oneArg
+      (tInt ())
+      (tInt ())
+      (Darklang.LanguageTools.ProgramTypes.Expr.ELet(
+        80L,
+        Darklang.LanguageTools.ProgramTypes.LetPattern.LPTuple(
+          81L,
+          Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(82L, "x"),
+          Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(83L, "x"),
+          []
+        ),
+        value,
+        Darklang.LanguageTools.ProgramTypes.Expr.EVariable(84L, "x")
+      ))
+
+  // Generalized: a tuple of arguments only builds a value.
+  (hand
+    []
+    (bindsTwice
+      (Darklang.LanguageTools.ProgramTypes.Expr.ETuple(85L, arg 86L, arg 87L, [])))) = "failed:DuplicatePatternBinding"
+
+  // Not generalized: an `if` may do more.
+  (hand
+    []
+    (bindsTwice
+      (Darklang.LanguageTools.ProgramTypes.Expr.EIf(
+        88L,
+        Darklang.LanguageTools.ProgramTypes.Expr.EBool(89L, true),
+        Darklang.LanguageTools.ProgramTypes.Expr.ETuple(85L, arg 86L, arg 87L, []),
+        Stdlib.Option.Option.Some(
+          Darklang.LanguageTools.ProgramTypes.Expr.ETuple(90L, arg 91L, arg 92L, [])
+        )
+      )))) = "failed:DuplicatePatternBinding"
+
+
+// ---------------------------------------------------------------------------------------
+// Package values
+// ---------------------------------------------------------------------------------------
+
+module Values =
+  // A value is checked after the values it uses, whatever order they come in.
+  (handValues
+    [ valueNamed "first-value" (useValue 24L "second-value")
+      valueNamed
+        "second-value"
+        (Darklang.LanguageTools.ProgramTypes.Expr.EString(
+          25L,
+          [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText "ready" ]
+        )) ]) = [ "checked:", "checked:" ]
+
+  // Values in a cycle have no type to start from.
+  (handValues
+    [ valueNamed "recursive-first" (useValue 26L "recursive-second")
+      valueNamed "recursive-second" (useValue 27L "recursive-first") ]) = [ "incomplete:MissingValueSignature"
+                                                                             "incomplete:MissingValueSignature" ]
+
+  // An immutable value is generalized: one empty list, used at two types.
+  let empties () : String =
+    src
+      [ "val empty = []"
+        "let ints (u: Unit) : List<Int> = empty"
+        "let strings (u: Unit) : List<String> = empty" ]
+
+  (check (empties ()) "empty") = "checked:"
+  (check (empties ()) "ints") = "checked:"
+  (check (empties ()) "strings") = "checked:"
+
+
+// ---------------------------------------------------------------------------------------
+// Batches, dependencies and size
+// ---------------------------------------------------------------------------------------
+
+module Batches =
+  // Each candidate has its own verdict; one failure does not fail its neighbours.
+  let pair () : String =
+    src [ "let valid (x: Int) : Int = x", "let invalid (x: Int) : String = x" ]
+
+  (check (pair ()) "valid") = "checked:"
+  (check (pair ()) "invalid") = "failed:TypeMismatch"
+
+  // A dependency from the store contributes its signature and the types it names.
+  (check
+    "let f (x: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<Int> = Stdlib.Option.map x (fun y -> y + 1)"
+    "f") = "checked:"
+
+  // Deep input either checks or comes back Incomplete as too deep to walk; it never
+  // takes the process down, and is never a definite failure. How deep is deep depends on
+  // the path: a type is walked by direct recursion and has no practical limit, while
+  // nesting that the checker walks through a builtin callback (`List.map` over a list's
+  // elements) runs out of native stack after a few hundred levels.
+  (guardedOps [] [ oneArg (nestedListType 5000) (tUnit ()) (unitExpr 1L) ]) = "checked:"
+
+  (guardedOps [] [ oneArg (tUnit ()) (nestedListType 200) (nestedListExpr 200) ]) = "checked:"
+
+  (guardedOps [] [ oneArg (tUnit ()) (nestedListType 5000) (nestedListExpr 5000) ]) = "incomplete:UnsupportedConstruct"
+
+  // An item too deep to walk is reported on its own; the rest of the batch is still
+  // checked, and a definite error beside it still fails the batch.
+  (guardedOps
+    []
+    [ oneArg (tUnit ()) (nestedListType 5000) (nestedListExpr 5000)
+      fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:TypeMismatch,UnsupportedConstruct"
+
+  // The same for a signature or a type declaration too deep to walk: a declaration
+  // beside it is still checked, and what uses it is Incomplete.
+  (guardedOps
+    []
+    [ fnNamed "deep-signature" [] [ ("value", nestedTupleType 3000) ] (tInt ()) (intExpr 5L 1)
+      fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:TypeMismatch,UnsupportedConstruct"
+
+  (guardedOps
+    [ declared "deep-declaration" [] (recordOf [ ("field", nestedTupleType 3000) ]) ]
+    [ fnNamed "uses-deep" [] [ ("value", custom "deep-declaration" []) ] (tInt ()) (intExpr 6L 1)
+      fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:MissingTypeDeclaration,TypeMismatch,UnsupportedConstruct"
+
+  // ...and for a declaration whose facts cannot be worked out: a Dict key whose type
+  // reaches down a long chain of declarations, each shallow on its own.
+  (let chain =
+    Stdlib.List.map (Stdlib.List.range 0 1999) (fun i ->
+      let field =
+        if i == 1999 then tInt ()
+        else custom $"link-{Stdlib.Int.toString (i + 1)}" []
+      declared $"link-{Stdlib.Int.toString i}" [] (recordOf [ ("next", field) ]))
+   let holder =
+     declared
+       "holder"
+       []
+       (recordOf
+         [ ("d",
+            Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+              custom "link-0" [],
+              tInt ()
+            )) ])
+   guardedOps
+     (Stdlib.List.push chain holder)
+     [ fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:TypeMismatch,UnsupportedConstruct"
+
+  (handValues
+    [ valueNamed "deep-value" (nestedListExpr 5000)
+      valueNamed "shallow-value" (intExpr 3L 1)
+      valueNamed "uses-deep-value" (useValue 4L "deep-value") ]) = [ "incomplete:UnsupportedConstruct"
+                                                                      "checked:"
+                                                                      "incomplete:MissingValueSignature" ]
+
+  (let chain =
+    Stdlib.List.map (Stdlib.List.range 0 99) (fun i ->
+      let target =
+        if i == 99 then tInt ()
+        else tList (custom $"alias-{Stdlib.Int.toString (i + 1)}" [])
+      declared
+        $"alias-{Stdlib.Int.toString i}"
+        []
+        (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias target))
+   guardedOps chain [ oneArg (custom "alias-0" []) (tUnit ()) (unitExpr 1L) ]) = "checked:"
+
+  (let chain =
+    Stdlib.List.map (Stdlib.List.range 0 4999) (fun i ->
+      let target =
+        if i == 4999 then tInt ()
+        else tList (custom $"alias-{Stdlib.Int.toString (i + 1)}" [])
+      declared
+        $"alias-{Stdlib.Int.toString i}"
+        []
+        (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias target))
+   let answer = guardedOps chain [ oneArg (custom "alias-0" []) (tUnit ()) (unitExpr 1L) ]
+   answer == "checked:" || answer == "incomplete:UnsupportedConstruct") = true
+
+  // Many items in one batch.
+  (let payload =
+    declared
+      "batch-payload"
+      []
+      (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum(
+        [ Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase
+            { name = "Payload"; fields = []; description = "" } ]
+      ))
+   let fns =
+     Stdlib.List.map (Stdlib.List.range 1 300) (fun i ->
+       fnNamed
+         $"batch-{Stdlib.Int.toString i}"
+         []
+         [ ("payload", custom "batch-payload" []) ]
+         (custom "batch-payload" [])
+         (arg (Builtin.unwrap (Stdlib.Int.toInt64 i))))
+   let results =
+     Darklang.LanguageTools.AtRestTypeChecker.Items.checkBatch (environmentWith []) [ payload ] [] fns
+   Stdlib.List.length (Stdlib.List.filter results (fun (_, o) -> o.verdict == Darklang.LanguageTools.AtRestTypeChecker.Verdict.Checked))) = 301
+
+
+// ---------------------------------------------------------------------------------------
+// Failure of the checker itself
+// ---------------------------------------------------------------------------------------
+
+module Guarded =
+  // The loader itself (including retrieval/conversion) runs inside the guard.
+  // A failed dependency must not lose already loaded items or the queue after it.
+  let loadDependency
+    (closure: Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure)
+    (reference: Darklang.LanguageTools.ProgramTypes.Reference)
+    : (List<Darklang.LanguageTools.ProgramTypes.Reference> * Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure) =
+    match reference with
+    | PackageType h ->
+      if h == hash "broken" then
+        Builtin.unwrap Stdlib.Option.Option.None
+      else
+        let name = if h == hash "first" then "first" else "last"
+        let typ = declared name [] (recordOf [ ("value", tInt ()) ])
+        let refs =
+          if name == "first" then
+            [ Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "broken")
+              reference ]
+          else
+            []
+        (refs,
+         { closure with
+             types = Stdlib.Dict.setOverridingDuplicates closure.types h typ })
+    | _ -> ([], closure)
+
+  let loaded () : Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure =
+    Darklang.LanguageTools.AtRestTypeChecker.Environment.loadFrom
+      loadDependency
+      Dict {}
+      [ Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "first")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "last") ]
+      (Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure
+        { types = Dict {}; values = Dict {}; fns = Dict {} })
+
+  (let closure = loaded ()
+   Stdlib.Dict.size closure.types) = 2
+
+  (let closure = loaded ()
+   let env = environmentWith (Stdlib.Dict.values closure.types)
+   let results =
+     Darklang.LanguageTools.AtRestTypeChecker.Items.checkBatch
+       env
+       []
+       []
+       [ fnNamed "uses-unavailable" [] [ ("x", custom "broken" []) ] (tUnit ()) (unitExpr 1L)
+         fnNamed "wrong-return" [] [ ("x", tInt ()) ] (tUnit ()) (arg 2L) ]
+   Stdlib.List.map results (fun (_, outcome) -> outcomeSummary outcome)) =
+    [ "incomplete:MissingTypeDeclaration", "failed:TypeMismatch" ]
+
+  // A checker that fails answers Incomplete, saying why, rather than failing whatever
+  // asked: saving and committing act on the answer.
+  (summary (
+    Darklang.LanguageTools.AtRestTypeChecker.guarded
+      (fun _ -> Builtin.unwrap Stdlib.Option.Option.None)
+      []
+  )) = "incomplete:UnsupportedConstruct"
+
+
+// ---------------------------------------------------------------------------------------
+// Invariants across constraint kinds and failure boundaries
+// ---------------------------------------------------------------------------------------
+
+module Invariants =
+  // Every pair of disjoint subject shapes, in both orders. Numeric operations
+  // leave x unknown here; a literal operand would resolve it before deferral.
+  val shapePairs =
+    [ ("x.field", "x 1")
+      ("{ x with field = 1 }", "x 1")
+      ("x.field", "x + x")
+      ("x.field", "-x")
+      ("x.field", "(match x with | C y -> y | _ -> 0)")
+      ("x.field", "Builtin.unwrap x")
+      ("x 1", "x + x")
+      ("x 1", "-x")
+      ("x 1", "(match x with | C y -> y | _ -> 0)")
+      ("x 1", "Builtin.unwrap x")
+      ("x + x", "(match x with | C y -> y | _ -> 0)")
+      ("-x", "Builtin.unwrap x") ]
+
+  (Stdlib.List.all shapePairs (fun (first, second) ->
+    check $"val f = fun x -> ({first}, {second})" "f" == "failed:TypeMismatch"
+    && check $"val f = fun x -> ({second}, {first})" "f" == "failed:TypeMismatch")) = true
+
+  // Subject equality may arrive after both requirements have been queued.
+  (check
+    (src [ "val f = fun x y ->"
+           "  let a = x.field"
+           "  let b = y 1"
+           "  let _ = if true then x else y"
+           "  (a, b)" ]) "f") = "failed:TypeMismatch"
+
+  // Valid overlaps remain generalizable, including numeric-domain intersections.
+  (check "val f = fun x -> (x + x, -x, x & x)" "f") = "checked:"
+  (check "val f = fun x -> (x.field, { x with field = 1 })" "f") = "checked:"
+  (check "val f = fun x -> (x.field, Dict { x: 1 })" "f") = "checked:"
+
+  // Orderability follows observed members, nested keys, and aliases. A phantom
+  // argument does not become orderable merely because its container is a key.
+  val badKeys =
+    [ "(x 1, Dict { [x]: 1 })"
+      "(x.field 1, Dict { x: 1 })"
+      "(Dict { x: 1 }, x.field 1)"
+      "({ x with field = (fun y -> y) }, Dict { x: 1 })"
+      "((Builtin.unwrap x) 1, Dict { x: 1 })"
+      "((match x with | C y -> y 1 | _ -> 0), Dict { x: 1 })"
+      "(x.field.next 1, Dict { x: 1 })" ]
+  (Stdlib.List.map badKeys (fun body ->
+    check $"val f = fun x -> {body}" "f")) =
+    [ "failed:UnsupportedDictKeyType", "failed:UnsupportedDictKeyType"
+      "failed:UnsupportedDictKeyType", "failed:UnsupportedDictKeyType"
+      "failed:UnsupportedDictKeyType", "failed:UnsupportedDictKeyType"
+      "failed:UnsupportedDictKeyType" ]
+
+  (check
+    (src [ "type Phantom<'a> = { value: Int }"
+           "let tag<'a> (x: 'a) : Phantom<'a> = Phantom { value = 1 }"
+           "val f = fun x -> (x 1, Dict { tag x: 1 })" ]) "f") = "checked:"
+  (check
+    (src [ "type Identity<'a> = 'a"
+           "let wrap<'a> (x: 'a) : Identity<'a> = x"
+           "val f = fun x -> (x 1, Dict { wrap x: 1 })" ]) "f") = "failed:UnsupportedDictKeyType"
+  (check "val f = fun x -> (if true then x else x.next, Dict { x: 1 })" "f") = "checked:"
+
+  // An unwrap and a pattern describe the same payload. The pattern also fixes
+  // which of Option/Result is possible, without guessing at an arbitrary enum.
+  (check "val f = fun x -> (Builtin.unwrap x + 1, match x with | Some y -> if y then 1 else 0 | _ -> 0)" "f") = "failed:TypeMismatch"
+  (check "val f = fun x -> ((match x with | Ok y -> if y then 1 else 0 | _ -> 0), Builtin.unwrap x + 1)" "f") = "failed:TypeMismatch"
+  (check "val f = fun x -> (Builtin.unwrap x + 1, match x with | Some y -> y + 1 | _ -> 0)" "f") = "checked:"
+  (check "val f = fun x -> (Builtin.unwrap x + 1, match x with | Error y -> if y then 1 else 0 | _ -> 0)" "f") = "checked:"
+  (check "val f = fun x -> (Builtin.unwrap x, match x with | C y -> y | _ -> 0)" "f") = "failed:UnknownEnumCase"
+
+  // Shared environment deduplication must not use unguarded native hashing of
+  // deep diagnostic types, nor hide a shallow error elsewhere in the batch.
+  (let bad = custom "arity-one" [ nestedListType 5000, tInt () ]
+   let env =
+     environmentWith
+       [ declared "arity-one" [ "a" ] (recordOf [ ("value", tInt ()) ])
+         declared "duplicates" [] (recordOf [ ("first", bad), ("second", bad) ]) ]
+   let results =
+     Darklang.LanguageTools.AtRestTypeChecker.Items.checkBatch env [] []
+       [ fnNamed "wrong-return" [] [ ("x", tInt ()) ] (tUnit ()) (arg 2L) ]
+   Stdlib.List.map results (fun (_, outcome) -> outcomeSummary outcome)) = [ "failed:TypeMismatch" ]
+
+  // One failed load of any candidate kind, a missing item, and duplicate names
+  // must leave the other verdicts intact. This is the loader used by checkBranch.
+  let loadCandidate
+    (reference: Darklang.LanguageTools.ProgramTypes.Reference)
+    : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.PackageOp> =
+    match reference with
+    | PackageType h -> Builtin.unwrap Stdlib.Option.Option.None
+    | PackageValue h -> Stdlib.Option.Option.None
+    | PackageFn h ->
+      if h == hash "broken" then Builtin.unwrap Stdlib.Option.Option.None
+      else
+        let fn =
+          if h == hash "good" then
+            fnNamed "good" [] [ ("x", tInt ()) ] (tInt ()) (arg 2L)
+          else
+            fnNamed "bad" [] [ ("x", tInt ()) ] (tUnit ()) (arg 2L)
+        Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn fn)
+
+  let branchReport () : Darklang.LanguageTools.AtRestTypeChecker.Report =
+    Darklang.LanguageTools.AtRestTypeChecker.Run.checkReferences loadCandidate
+      [ Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "broken-type")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageValue(hash "missing-value")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "broken")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "good")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "good")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "bad") ]
+
+  (summary (branchReport ())) = "failed:TypeMismatch,UnsupportedConstruct"
+  (Stdlib.List.length (branchReport ()).items) = 5
+  (itemSummary (branchReport ()) (Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "good")))) = "checked:"
+
+  // Structural containment includes unwraps as well as function applications;
+  // nominal record fields may recurse, but Option<'a> cannot equal 'a.
+  (check "val f = fun x -> if true then x else Builtin.unwrap x" "f") = "failed:OccursCheckFailed"
+  (check "val f = fun x y -> (x y, if true then x else Builtin.unwrap y)" "f") = "failed:OccursCheckFailed"
+  (check "val f = fun x y -> ((if true then x else Builtin.unwrap y), x y)" "f") = "failed:OccursCheckFailed"
+
+  (DictKeys.key [ "type Node<'a> = { value: 'a; kids: List<Node<'a>> }" ] "Node<Int>") = "checked:"
+  (DictKeys.key [ "type Node<'a> = { value: 'a; kids: List<Node<'a>> }" ] "Node<Int -> Int>") = "failed:UnsupportedDictKeyType"
+  (DictKeys.key [ "type A = { next: List<B> }", "type B = { previous: List<A> }" ] "A") = "checked:"
+  (DictKeys.key [ "type A = { next: List<B> }", "type B = { previous: List<A>; run: Int -> Int }" ] "A") = "failed:UnsupportedDictKeyType"
