@@ -96,7 +96,9 @@ let private finish
   (nodeId : Option<id>)
   (scheme : TypeScheme)
   : Verdict =
+  resolveUnwrapConstraints state false
   resolvePendingFieldAccesses state
+  resolveUnwrapConstraints state true
   let scheme = { scheme with typ = applySubstitutions state scheme.typ }
   let inferredType = displayType scheme
   // Only inference variables observable in the item's type or diagnostics weaken
@@ -201,6 +203,7 @@ let checkPackageFunction
           |> Map.ofList
         arguments = NEList.toList parameters
         self = Some selfType
+        unwrapReturn = Some returnType
         typeVariables = rigidVars }
     checkExprWithContext state env returnType fn.body FunctionReturnValue
     finish state (Some(Expr.toID fn.body)) (monomorphic selfType))

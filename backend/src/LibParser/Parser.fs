@@ -148,6 +148,7 @@ let private isIntLit (t : Token) : bool =
   | TAnd
   | TOr
   | TNot
+  | TQuestion
   | TPipe
   | TDotDotDot
   | TPercent
@@ -846,7 +847,17 @@ and parsePipe (state : ParserState) (i : int) : WT.Expr * int =
         (match toPipeExpr rhs with
          | Some seg -> pipeExprs.Add(pipeR, seg)
          | None ->
-           err state DiagnosticCode.pipeSegment (k + 1) "unsupported pipe segment") // → diagnostic
+           match rhs with
+           | WT.EUnwrap _ ->
+             errFull
+               state
+               DiagnosticCode.pipeSegment
+               (k + 1)
+               "'?' cannot end a pipe segment"
+               []
+               (Some "wrap the whole pipeline: `(value |> transform)?`")
+           | _ ->
+             err state DiagnosticCode.pipeSegment (k + 1) "unsupported pipe segment") // → diagnostic
         if k2 > k then k <- k2 else k <- k + 1
     let endR = if k > 0 then rng state (k - 1) else rng state j
     (WT.EPipe(span (WT.exprRange expr) endR, expr, List.ofSeq pipeExprs), k)
@@ -1702,6 +1713,7 @@ and parseApp (state : ParserState) (i : int) : WT.Expr * int =
     | WT.EVariable _
     | WT.EFnName _
     | WT.EApply _
+    | WT.EUnwrap _
     | WT.ERecordFieldAccess _
     | WT.ELambda _ -> true
     | WT.EEnum(_, _, _, [], _) -> true
@@ -1736,11 +1748,29 @@ and parseApp (state : ParserState) (i : int) : WT.Expr * int =
 
 and parseAtom (state : ParserState) (i : int) : WT.Expr * int =
   let (baseE, j) = parsePrimary state i
-  parsePostfix state baseE j
+  // A bare lambda's body runs to its end, so a postfix left over there is one
+  // the body refused (`fun v -> Ok (x)?`), not one meant for the whole lambda.
+  if tok state i = TFun then (baseE, j) else parsePostfix state baseE j
 
-// postfix `.field` record access (left-assoc, chains)
+// Postfix field access and unwrap (left-associative).
 and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
   match tok state i, tok state (i + 1) with
+  | TQuestion, _ ->
+    let question = rng state i
+    // `?` means nothing else, so a spaced one is still meant as postfix: say
+    // exactly that, and recover as if it were adjacent.
+    if (rng state (i - 1)).end_ <> question.start then
+      errFull
+        state
+        DiagnosticCode.unexpected
+        i
+        "'?' must come directly after its operand, with no space"
+        []
+        (Some "write `value?`, or `(f x)?` for a call")
+    parsePostfix
+      state
+      (WT.EUnwrap(span (WT.exprRange e) question, e, question))
+      (i + 1)
   | TDot, TIdent field ->
     let dotR = rng state i
     let fieldR = rng state (i + 1)
@@ -2196,6 +2226,26 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
         DiagnosticCode.expected
         i
         "'::' is a pattern; to build a list in an expression use `Stdlib.List.push` or a literal"
+    elif tok state i = TQuestion then
+      // Adjacent, it followed something `?` can't attach to, such as a
+      // constructor's argument list: `Ok (x)?`. Saying "no space" there is wrong.
+      let spaced = i = 0 || (rng state (i - 1)).end_ <> (rng state i).start
+      if spaced then
+        errFull
+          state
+          DiagnosticCode.unexpected
+          i
+          "'?' must come directly after its operand, with no space"
+          []
+          (Some "write `value?`, or `(f x)?` for a call")
+      else
+        errFull
+          state
+          DiagnosticCode.unexpected
+          i
+          "'?' can't follow this expression directly"
+          []
+          (Some "wrap what you want to unwrap in parentheses: `(expr)?`")
     else
       errExpected state i "an expression"
     // recovery: an explicit error-hole node; leave closing/separating/decl-start
@@ -2534,13 +2584,15 @@ and parseTypeRef (state : ParserState) (i : int) : WT.TypeReference * int =
 // `A -> B -> C` (right-nested): arguments = [(A,->),(B,->)], ret = C
 and parseFnType (state : ParserState) (i : int) : WT.TypeReference * int =
   let (first, j) = parseTupleType state i
-  if tok state j <> TArrow then
+  // A pending > closes the enclosing generic before an outer arrow can bind,
+  // just as it does for tuples: List<List<A>> -> B is not List<List<A> -> B>.
+  if tok state j <> TArrow || state.pendingGt > 0 then
     (first, j)
   else
     let args = System.Collections.Generic.List<WT.TypeReference * TokenRange>()
     let mutable cur = first
     let mutable k = j
-    while tok state k = TArrow do
+    while tok state k = TArrow && state.pendingGt = 0 do
       args.Add(cur, rng state k)
       let (next, k2) = parseTupleType state (k + 1)
       cur <- next

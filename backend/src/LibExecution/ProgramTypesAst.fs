@@ -36,6 +36,7 @@ let rec subExprs (expr : Expr) : List<Expr> =
       | StringText _ -> None
       | StringInterpolation e -> Some e)
 
+  | EUnwrap(_, operand) -> [ operand ]
   | EIf(_, cond, thenExpr, elseExpr) -> cond :: thenExpr :: Option.toList elseExpr
   | EMatch(_, arg, cases) ->
     arg
@@ -164,6 +165,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
     Set.unionMany
       [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
 
+  | EUnwrap(_, operand) -> r operand
   | EStatement(_, expr, next) -> Set.union (r expr) (r next)
   | ESelf _ -> Set.empty
 
@@ -275,6 +277,7 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
     Set.unionMany
       [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
 
+  | EUnwrap(_, operand) -> r operand
   | EStatement(_, expr, next) -> Set.union (r expr) (r next)
   | ESelf _ -> Set.empty
 

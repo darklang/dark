@@ -136,6 +136,7 @@ let rec private inExpr (expr : PT.Expr) : List<string> =
 
   | PT.EValue(_, name) -> fromNR name
 
+  | PT.EUnwrap(_, operand) -> inExpr operand
   | PT.EStatement(_, first, next) -> inExpr first @ inExpr next
 
 and private inStringSegment (seg : PT.StringSegment) : List<string> =

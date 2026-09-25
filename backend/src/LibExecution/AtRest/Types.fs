@@ -82,6 +82,7 @@ type DiagnosticCode =
   | DuplicateTypeParameter
   | DuplicateTypeMember
   | UnsupportedDictKeyType
+  | InvalidUnwrap
 
 type BlockerCode =
   | UnresolvedTypeName
@@ -104,6 +105,8 @@ type BlockerCode =
 type Site =
   | LambdaReturnValue
   | FunctionReturnValue
+  /// The error type a Result `?` returns, against the enclosing return's.
+  | UnwrappedError
   | ValueBody
   | Expression
   | StatementBeforeFinalExpression
@@ -198,6 +201,9 @@ type Context =
   | EnumRequiredForConstruction
   | EnumRequiredForPattern
   | SelfOutsideFunction
+  | UnwrapOutsideFunction
+  | UnwrapRequiresOptionOrResult
+  | UnwrapReturnContainerMismatch
   | OrPatternBindingsDiffer
   | ExplicitTypeArgumentsOnNonNamedFunction
   | AliasCycleReferenced

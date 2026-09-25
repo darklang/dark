@@ -111,6 +111,14 @@ four of them on states you didn't ask for, each producing failures that look rea
 
 ### In case of error
 
+If a reload reports "A hardened package ref moved", check which type changed.
+Adding postfix `?` changes `ProgramTypes.PackageOp` because it contains expressions.
+Existing clones with the old pin need one reload with the override:
+
+```bash
+DARK_REPIN_HARDENED=1 ./scripts/build/reload-packages
+```
+
 If the build fails:
 
 - `scripts/dev/status` says which step failed; `rundir/logs/build.log` has the output.

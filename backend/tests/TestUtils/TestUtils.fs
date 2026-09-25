@@ -807,6 +807,9 @@ module Expect =
           pats
           pats'
 
+      | EUnwrap(_, operand), EUnwrap(_, operand') ->
+        eq ("operand" :: path) operand operand'
+
       | EStatement(_, f, n), EStatement(_, f', n') ->
         eq ("first" :: path) f f'
         eq ("next" :: path) n n'
@@ -857,6 +860,7 @@ module Expect =
       | EInfix _, _
       | EPipe _, _
       | EMatch _, _
+      | EUnwrap _, _
       | EStatement _, _
       | ESelf _, _ -> check path actual expected
 

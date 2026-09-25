@@ -585,6 +585,10 @@ module Expr =
       w.Write 31uy
       w.Write id
       NameResolution.write FQFnName.write w nameRes
+    | EUnwrap(id, operand) ->
+      w.Write 36uy
+      w.Write id
+      write w operand
     | EStatement(id, first, next) ->
       w.Write 32uy
       w.Write id
@@ -779,4 +783,7 @@ module Expr =
       let id = r.ReadUInt64()
       let value = String.read r |> System.Numerics.BigInteger.Parse
       EInt(id, value)
+    | 36uy ->
+      let id = r.ReadUInt64()
+      EUnwrap(id, read r)
     | b -> raiseFormatError $"Invalid Expr tag: {b}"

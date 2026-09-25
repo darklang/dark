@@ -467,6 +467,7 @@ let tokenize
       ";", TSemicolon
       ".", TDot
       "=", TEquals
+      "?", TQuestion
       "!", TNot
       "<", TLt
       ">", TGt

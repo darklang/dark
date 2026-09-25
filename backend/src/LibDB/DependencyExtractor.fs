@@ -202,6 +202,8 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.EString(_, segments) ->
         segments |> List.rev |> List.iter (StringSegment >> work.Push)
 
+      | PT.EUnwrap(_, operand) -> work.Push(Expr operand)
+
       | PT.EIf(_, condition, thenExpr, elseExpr) ->
         elseExpr |> Option.iter (Expr >> work.Push)
         work.Push(Expr thenExpr)
