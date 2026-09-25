@@ -232,7 +232,7 @@ module TypeName =
 
 module ValueName =
   let builtinThingExists (name: String) : Bool =
-    (Builtin.getAllBuiltinValues ())
+    (LanguageTools.allBuiltinValues ())
     // `f.name` is an FQValueName.Builtin record, not a String — compare its
     // name field (comparing the record itself crashes with a mixed-type
     // equality error at resolution time)

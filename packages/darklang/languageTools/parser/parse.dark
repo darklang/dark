@@ -103,3 +103,88 @@ let parsePTSourceFileWithOps
 
     (sourceFile, ops) |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Parse package source: declaration scope at the root, validated as package input.
+/// The tree, or the syntax diagnostics.
+let packageToWrittenTypes
+  (source: String)
+  : Stdlib.Result.Result<WrittenTypes.ParsedFile, List<(Parser.Range * String)>> =
+  Builtin.parserParsePackageToWrittenTypes source
+
+
+/// A top-level declaration as a module's declaration, so one recursion handles both
+/// levels (they share Type, Function and Value; only the nested-module case differs).
+let toModuleDeclaration
+  (declaration: WrittenTypes.SourceFile.SourceFileDeclaration)
+  : WrittenTypes.ModuleDeclaration.Declaration =
+  match declaration with
+  | Type typ -> WrittenTypes.ModuleDeclaration.Declaration.Type typ
+  | Function fn -> WrittenTypes.ModuleDeclaration.Declaration.Function fn
+  | Value value -> WrittenTypes.ModuleDeclaration.Declaration.Value value
+  | Module modul -> WrittenTypes.ModuleDeclaration.Declaration.SubModule modul
+
+
+/// The package ops a module declares, as `module` authors them: its declarations
+/// resolve one another as well as what <param ctx> can see, and their hashes are
+/// stabilized as one batch, so mutually recursive declarations agree. Nothing is stored.
+let moduleOps
+  (ctx: NameResolver.NRContext)
+  (rootModule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+  : (List<ProgramTypes.PackageOp> * List<WrittenTypes.UnresolvedName>) =
+  // Provisional ops use unique location hashes, so every declaration can resolve
+  // every other without touching the store.
+  let (_, provisionalOps, _) =
+    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper ctx rootModule
+
+  let pm = ProgramTypes.PackageManager.withExtraOps ctx.pm provisionalOps
+
+  let (_, ops, unresolvedNames) =
+    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
+      { ctx with pm = pm }
+      rootModule
+
+  (PackageManager.stabilizeHashes ops, unresolvedNames)
+
+
+/// The package ops <param source> declares, placed in <param modules> under
+/// <param owner> and resolved against <param branchId>, as `module` would author them.
+/// For tools and tests that need a batch of declarations that refer to each other.
+/// An error for a syntax error or a name nothing resolves.
+let packageSourceToOps
+  (branchId: Uuid)
+  (owner: String)
+  (modules: List<String>)
+  (source: String)
+  : Stdlib.Result.Result<List<ProgramTypes.PackageOp>, String> =
+  match packageToWrittenTypes source with
+  | Error diagnostics ->
+    let messages = Stdlib.List.map diagnostics (fun (_, message) -> message)
+    Stdlib.Result.Result.Error(Stdlib.String.join messages "; ")
+  | Ok(SourceFile sourceFile) ->
+    let rootModule =
+      WrittenTypes.ModuleDeclaration.ModuleDeclaration
+        { range = sourceFile.range
+          name = (sourceFile.range, "__module__")
+          declarations =
+            Stdlib.List.map sourceFile.declarations (fun d -> toModuleDeclaration d)
+          keywordModule = sourceFile.range }
+
+    let ctx =
+      NameResolver.NRContext
+        { onMissing = NameResolver.OnMissing.Allow
+          pm = PackageManager.pm ()
+          branchId = branchId
+          owner = owner
+          currentModule = modules }
+
+    let (ops, unresolved) = moduleOps ctx rootModule
+
+    if Stdlib.List.isEmpty unresolved then
+      Stdlib.Result.Result.Ok ops
+    else
+      let names =
+        unresolved
+        |> Stdlib.List.map (fun (_, parts, _) -> Stdlib.String.join parts ".")
+        |> Stdlib.List.unique
+      Stdlib.Result.Result.Error("unresolved: " ++ Stdlib.String.join names ", ")

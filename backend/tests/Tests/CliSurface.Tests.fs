@@ -21,6 +21,59 @@ open TestUtils.TestUtils
 
 open Tests.CliTestHarness
 
+let private reusesCompiledFunctions =
+  cliTest "the CLI harness reuses compiled package functions" (fun target ->
+    task {
+      let state = executionState target
+      let hash = RT.Hash(LibExecution.PackageRefs.Fn.Cli.executeCliCommand ())
+      let! first = state.fns.package hash |> Ply.toTask
+      let! second = state.fns.package hash |> Ply.toTask
+      match first, second with
+      | Some first, Some second ->
+        Expect.isTrue
+          (System.Object.ReferenceEquals(first, second))
+          "fetching a function again must reuse its compiled instructions"
+      | _ -> Tests.failtest "the CLI entry point must be available"
+    })
+
+let private timeoutBoundsSynchronousWork =
+  testTask "the CLI timeout bounds work before its first await" {
+    let release =
+      TaskCompletionSource<unit>(TaskCreationOptions.RunContinuationsAsynchronously)
+    let stopped =
+      TaskCompletionSource<unit>(TaskCreationOptions.RunContinuationsAsynchronously)
+    try
+      let! result =
+        runWithTimeout (System.TimeSpan.FromMilliseconds 100.0) (fun () ->
+          try
+            // A bounded wait keeps a broken timeout from hanging this regression.
+            release.Task.Wait(System.TimeSpan.FromSeconds 5.0) |> ignore<bool>
+            Task.FromResult 42
+          finally
+            stopped.SetResult())
+      Expect.isNone result "the deadline wins while the synchronous work is blocked"
+    finally
+      release.SetResult()
+    do! stopped.Task.WaitAsync(System.TimeSpan.FromSeconds 5.0)
+  }
+
+let private timeoutPreservesCapture =
+  testTask "the CLI timeout preserves results and captured output" {
+    Expect.isTrue (NonBlockingConsole.startCapture ()) "capture starts"
+    try
+      let! result =
+        runWithTimeout (System.TimeSpan.FromSeconds 5.0) (fun () ->
+          print "captured by the caller"
+          Task.FromResult 42)
+      Expect.equal result (Some 42) "the result crosses the worker boundary"
+      Expect.equal
+        ((NonBlockingConsole.stopCapture ()).Trim())
+        "captured by the caller"
+        "the worker inherits the caller's output capture"
+    finally
+      NonBlockingConsole.stopCapture () |> ignore<string>
+  }
+
 let private testHelpCommand =
   cliTest "help command" (fun state ->
     task {
@@ -514,9 +567,8 @@ let private everyExclusionIsReal =
 /// help, print a result, or refuse.
 ///
 /// Safe to run here BECAUSE the harness is not a terminal: anything that would go interactive asks
-/// `TerminalSupport.current ()` first and gets `Unavailable`. Note the limit, though: `runCli` has no
-/// timeout, so a command that truly blocks forever hangs the RUN rather than failing it. If a second
-/// interactive command turns up, this wants a bound rather than a comment.
+/// `TerminalSupport.current ()` first and gets `Unavailable`. The harness stops the suite
+/// with the command's name if a command exceeds its deadline.
 let everyCommandAnswersWhenBare =
   cliTest
     "no registered command goes silent or hangs when run with no arguments"
@@ -859,7 +911,10 @@ let private viewHeadsWithTheNameYouAskedFor =
 
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
 let tests : List<Test> =
-  [ testHelpCommand
+  [ reusesCompiledFunctions
+    timeoutBoundsSynchronousWork
+    timeoutPreservesCapture
+    testHelpCommand
     everyCommandAnswersHelp
     workbenchViewsRender
     showingACommitDoesNotFetchEveryOp

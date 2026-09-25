@@ -2,7 +2,7 @@
 module Darklang.Cli.Packages.AtRestCheck
 
 let checkBranch (branchId: Uuid) : LanguageTools.AtRestTypeChecker.Report =
-  Builtin.atRestCheckBranch branchId
+  LanguageTools.AtRestTypeChecker.checkBranch branchId
 
 let customTypeName
   (branchId: Uuid)

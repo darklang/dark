@@ -1,0 +1,451 @@
+/// Building the `Environment` an item is checked against: the builtins' signatures,
+/// and the declarations the item depends on, loaded by content hash.
+///
+/// Loading is the only part of the checker that reads storage, and it reads only
+/// immutable content (a hash names the same declaration forever), so the checker
+/// proper stays a function of its input.
+module Darklang.LanguageTools.AtRestTypeChecker.Environment
+
+// --------------------
+// Builtins
+// --------------------
+
+/// The package type a value was built as.
+let typeHashOf (value: 'a) : LanguageTools.ProgramTypes.Hash =
+  match LanguageTools.RuntimeTypes.reflect value with
+  | DEnum(Package hash, _, _, _, _) -> hash
+  | DRecord(Package hash, _, _, _) -> hash
+  | _ -> LanguageTools.ProgramTypes.Hash.Hash ""
+
+let fromRuntime (typ: LanguageTools.RuntimeTypes.TypeReference) : LanguageTools.ProgramTypes.TypeReference =
+  match typ with
+  | TUnit -> LanguageTools.ProgramTypes.TypeReference.TUnit
+  | TBool -> LanguageTools.ProgramTypes.TypeReference.TBool
+  | TInt8 -> LanguageTools.ProgramTypes.TypeReference.TInt8
+  | TUInt8 -> LanguageTools.ProgramTypes.TypeReference.TUInt8
+  | TInt16 -> LanguageTools.ProgramTypes.TypeReference.TInt16
+  | TUInt16 -> LanguageTools.ProgramTypes.TypeReference.TUInt16
+  | TInt32 -> LanguageTools.ProgramTypes.TypeReference.TInt32
+  | TUInt32 -> LanguageTools.ProgramTypes.TypeReference.TUInt32
+  | TInt64 -> LanguageTools.ProgramTypes.TypeReference.TInt64
+  | TUInt64 -> LanguageTools.ProgramTypes.TypeReference.TUInt64
+  | TInt128 -> LanguageTools.ProgramTypes.TypeReference.TInt128
+  | TUInt128 -> LanguageTools.ProgramTypes.TypeReference.TUInt128
+  | TInt -> LanguageTools.ProgramTypes.TypeReference.TInt
+  | TFloat -> LanguageTools.ProgramTypes.TypeReference.TFloat
+  | TChar -> LanguageTools.ProgramTypes.TypeReference.TChar
+  | TString -> LanguageTools.ProgramTypes.TypeReference.TString
+  | TUuid -> LanguageTools.ProgramTypes.TypeReference.TUuid
+  | TDateTime -> LanguageTools.ProgramTypes.TypeReference.TDateTime
+  | TBlob -> LanguageTools.ProgramTypes.TypeReference.TBlob
+  | TStream inner -> LanguageTools.ProgramTypes.TypeReference.TStream(fromRuntime inner)
+  | TList inner -> LanguageTools.ProgramTypes.TypeReference.TList(fromRuntime inner)
+  | TDB inner -> LanguageTools.ProgramTypes.TypeReference.TDB(fromRuntime inner)
+  | TTuple(first, second, rest) ->
+    LanguageTools.ProgramTypes.TypeReference.TTuple(
+      fromRuntime first,
+      fromRuntime second,
+      Stdlib.List.map rest (fun t -> fromRuntime t)
+    )
+  | TDict(key, value) -> LanguageTools.ProgramTypes.TypeReference.TDict(fromRuntime key, fromRuntime value)
+  | TFn(parameters, ret) ->
+    LanguageTools.ProgramTypes.TypeReference.TFn(
+      Stdlib.List.map parameters (fun t -> fromRuntime t),
+      fromRuntime ret
+    )
+  | TVariable name -> LanguageTools.ProgramTypes.TypeReference.TVariable name
+  | TCustomType(name, args) ->
+    let resolved =
+      match name.resolved with
+      | Ok(Package hash) ->
+        Stdlib.Result.Result.Ok(
+          LanguageTools.ProgramTypes.ResolvedName
+            { name = LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package hash
+              location = Stdlib.Option.Option.None }
+        )
+      | Error NotFound ->
+        Stdlib.Result.Result.Error
+          LanguageTools.ProgramTypes.NameResolutionError.NotFound
+      | Error InvalidName ->
+        Stdlib.Result.Result.Error
+          LanguageTools.ProgramTypes.NameResolutionError.InvalidName
+
+    LanguageTools.ProgramTypes.TypeReference.TCustomType(
+      LanguageTools.ProgramTypes.NameResolution
+        { originalName = name.originalName; resolved = resolved },
+      Stdlib.List.map args (fun t -> fromRuntime t)
+    )
+
+/// The type variables a runtime type mentions.
+let runtimeVariables (typ: LanguageTools.RuntimeTypes.TypeReference) : List<String> =
+  match typ with
+  | TVariable name -> [ name ]
+  | TStream inner -> runtimeVariables inner
+  | TList inner -> runtimeVariables inner
+  | TDB inner -> runtimeVariables inner
+  | TDict(key, value) ->
+    Stdlib.List.append (runtimeVariables key) (runtimeVariables value)
+  | TTuple(first, second, rest) ->
+    Stdlib.List.flatten
+      (Stdlib.List.map (Stdlib.List.append [ first, second ] rest) runtimeVariables)
+  | TFn(parameters, ret) ->
+    Stdlib.List.flatten
+      (Stdlib.List.map (Stdlib.List.push parameters ret) runtimeVariables)
+  | TCustomType(_, args) ->
+    Stdlib.List.flatten (Stdlib.List.map args runtimeVariables)
+  | _ -> []
+
+/// Convert a signature once: its type parameters stand for themselves until a use
+/// substitutes them, and its problems are found now and reported at each use.
+let template
+  (env: Model.Environment)
+  (signature: Model.Signature)
+  : (Model.Callable * Model.Environment) =
+  let none = Stdlib.Option.Option.None
+  let mapping = Types.rigid signature.typeParams
+  let (parameters, found) = Types.fromReferencesInto mapping none [] signature.parameters
+  let (ret, found) = Types.fromReferenceInto mapping none found signature.returnType
+  let (found, env) = Types.wellFormed env none found (Model.Ty.TFn(parameters, ret))
+
+  (Model.Callable.Declared(
+    Model.Template
+      { typeParams = signature.typeParams
+        parameters = parameters
+        returnType = ret
+        needsTypeArgs = signature.needsTypeArgs
+        problems = Stdlib.List.reverse found }
+   ),
+   env)
+
+/// What a call to this builtin can be checked against. A result type variable no
+/// parameter constrains means the result is only known at runtime: declared, a
+/// call must say what it is (`jsonParse<'a>`); undeclared, the builtin cannot be
+/// checked against at all, since quantifying it would accept every caller.
+let builtinCallable
+  (env: Model.Environment)
+  (fn: LanguageTools.BuiltinFunction)
+  : (Model.Callable * Model.Environment) =
+  let parameterTypes = Stdlib.List.map fn.parameters (fun p -> p.``type``)
+
+  let parameterVariables =
+    Stdlib.List.flatten (Stdlib.List.map parameterTypes runtimeVariables)
+
+  let returnVariables = runtimeVariables fn.returnType
+
+  let resultOnly =
+    Stdlib.List.filter returnVariables (fun v ->
+      Stdlib.Bool.not (Stdlib.List.``member`` parameterVariables v))
+
+  let resultOnlyDeclared =
+    Stdlib.List.all resultOnly (fun v -> Stdlib.List.``member`` fn.typeParams v)
+
+  if Stdlib.List.isEmpty parameterTypes then
+    (Model.Callable.Unavailable, env)
+  else if resultOnlyDeclared then
+    // Older builtins predate declared type parameters: quantify what they use.
+    let undeclared =
+      (Stdlib.List.append parameterVariables returnVariables)
+      |> Stdlib.List.unique
+      |> Stdlib.List.filter (fun v ->
+        Stdlib.Bool.not (Stdlib.List.``member`` fn.typeParams v))
+
+    template
+      env
+      (Model.Signature
+        { typeParams = Stdlib.List.append fn.typeParams undeclared
+          parameters = Stdlib.List.map parameterTypes (fun t -> fromRuntime t)
+          returnType = fromRuntime fn.returnType
+          needsTypeArgs = Stdlib.Bool.not (Stdlib.List.isEmpty resultOnly) })
+  else
+    (Model.Callable.Untrusted UntrustedBuiltin.ResultTypeUnconstrained, env)
+
+/// What a call to `fn` can be checked against.
+let callable
+  (env: Model.Environment)
+  (fn: LanguageTools.ProgramTypes.FQFnName.FQFnName)
+  : (Model.Callable * Model.Environment) =
+  match fn with
+  | Package _ ->
+    match Stdlib.Dict.get env.functions fn with
+    | Some signature -> template env signature
+    | None -> (Model.Callable.Unavailable, env)
+  | Builtin _ ->
+    match Stdlib.Dict.get env.builtinFunctions fn with
+    | Some builtin -> builtinCallable env builtin
+    | None -> (Model.Callable.Unavailable, env)
+
+/// The declared type of a builtin value.
+let builtinValueType
+  (env: Model.Environment)
+  (name: LanguageTools.ProgramTypes.FQValueName.FQValueName)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.TypeReference> =
+  (Stdlib.Dict.get env.builtinValues name)
+  |> Stdlib.Option.map (fun value -> fromRuntime value.``type``)
+
+/// Every builtin, and nothing from the package tree.
+let builtins () : Model.Environment =
+  let functions =
+    Stdlib.List.fold (LanguageTools.allBuiltinFns ()) Dict {} (fun found fn ->
+      Stdlib.Dict.setOverridingDuplicates
+        found
+        (LanguageTools.ProgramTypes.FQFnName.FQFnName.Builtin fn.name)
+        fn)
+
+  let values =
+    Stdlib.List.fold (LanguageTools.allBuiltinValues ()) Dict {} (fun found v ->
+      Stdlib.Dict.setOverridingDuplicates
+        found
+        (LanguageTools.ProgramTypes.FQValueName.FQValueName.Builtin v.name)
+        v)
+
+  Model.Environment
+    { types = Dict {}
+      functions = Dict {}
+      builtinFunctions = functions
+      builtinValues = values
+      values = Dict {}
+      facts = Dict {}
+      callables = Dict {}
+      closures = Dict {}
+      optionType = typeHashOf Stdlib.Option.Option.None
+      resultType = typeHashOf (Stdlib.Result.Result.Ok ()) }
+
+
+// --------------------
+// What an item refers to
+// --------------------
+
+let typeName
+  (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
+  : List<LanguageTools.ProgramTypes.Reference> =
+  match Types.resolvedType name with
+  | Some hash -> [ LanguageTools.ProgramTypes.Reference.PackageType hash ]
+  | None -> []
+
+/// What a call names: a package function, or for a builtin the types its signature
+/// mentions, which have to be loaded like any other.
+let fnName
+  (env: Model.Environment)
+  (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQFnName.FQFnName>)
+  : List<LanguageTools.ProgramTypes.Reference> =
+  match name.resolved with
+  | Ok resolved ->
+    match resolved.name with
+    | Package hash -> [ LanguageTools.ProgramTypes.Reference.PackageFn hash ]
+    | Builtin builtinName ->
+      if builtinName.name == "unwrap" then
+        // Its polymorphic builtin signature does not name these, but its typing
+        // rule does. Load them before reconciling unwraps with enum patterns.
+        [ LanguageTools.ProgramTypes.Reference.PackageType env.optionType
+          LanguageTools.ProgramTypes.Reference.PackageType env.resultType ]
+      else
+        match Stdlib.Dict.get env.builtinFunctions resolved.name with
+        | Some builtin ->
+          (Stdlib.List.push (Stdlib.List.map builtin.parameters (fun p -> p.``type``)) builtin.returnType)
+          |> Stdlib.List.map (fun t -> fromRuntime t)
+          |> typesRefs
+        | None -> []
+  | Error _ -> []
+
+/// What a value names: a package value, or for a builtin the types its type
+/// mentions.
+let valueName
+  (env: Model.Environment)
+  (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQValueName.FQValueName>)
+  : List<LanguageTools.ProgramTypes.Reference> =
+  match name.resolved with
+  | Ok resolved ->
+    match resolved.name with
+    | Package hash -> [ LanguageTools.ProgramTypes.Reference.PackageValue hash ]
+    | Builtin _ ->
+      match builtinValueType env resolved.name with
+      | Some typ -> typeRefs typ
+      | None -> []
+  | Error _ -> []
+
+let typeRefs (typ: LanguageTools.ProgramTypes.TypeReference) : List<LanguageTools.ProgramTypes.Reference> =
+  match typ with
+  | TStream inner -> typeRefs inner
+  | TList inner -> typeRefs inner
+  | TDB inner -> typeRefs inner
+  | TDict(key, value) -> Stdlib.List.append (typeRefs key) (typeRefs value)
+  | TTuple(first, second, rest) ->
+    Stdlib.List.flatten
+      (Stdlib.List.map (Stdlib.List.append [ first, second ] rest) typeRefs)
+  | TFn(parameters, ret) ->
+    Stdlib.List.flatten (Stdlib.List.map (Stdlib.List.push parameters ret) typeRefs)
+  | TCustomType(name, args) ->
+    Stdlib.List.append
+      (typeName name)
+      (Stdlib.List.flatten (Stdlib.List.map args typeRefs))
+  | _ -> []
+
+let typesRefs (typs: List<LanguageTools.ProgramTypes.TypeReference>) : List<LanguageTools.ProgramTypes.Reference> =
+  Stdlib.List.flatten (Stdlib.List.map typs typeRefs)
+
+let declarationRefs
+  (decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  : List<LanguageTools.ProgramTypes.Reference> =
+  typesRefs (Types.declarationFieldTypes decl)
+
+let exprRefs
+  (env: Model.Environment)
+  (expr: LanguageTools.ProgramTypes.Expr)
+  : List<LanguageTools.ProgramTypes.Reference> =
+  let many (exprs: List<LanguageTools.ProgramTypes.Expr>) : List<LanguageTools.ProgramTypes.Reference> =
+    Stdlib.List.flatten (Stdlib.List.map exprs (fun e -> exprRefs env e))
+
+  match expr with
+  | EString(_, segments) ->
+    segments
+    |> Stdlib.List.map (fun segment ->
+      match segment with
+      | StringText _ -> []
+      | StringInterpolation e -> exprRefs env e)
+    |> Stdlib.List.flatten
+  | EList(_, elements) -> many elements
+  | EDict(_, entries) ->
+    Stdlib.List.flatten (Stdlib.List.map entries (fun (k, v) -> many [ k, v ]))
+  | ETuple(_, first, second, rest) ->
+    many (Stdlib.List.append [ first, second ] rest)
+  | ERecord(_, name, typeArgs, fields) ->
+    Stdlib.List.flatten
+      [ typeName name
+        typesRefs typeArgs
+        many (Stdlib.List.map fields (fun (_, v) -> v)) ]
+  | EEnum(_, name, typeArgs, _, fields) ->
+    Stdlib.List.flatten [ typeName name, typesRefs typeArgs, many fields ]
+  | ELet(_, _, value, body) -> many [ value, body ]
+  | ERecordFieldAccess(_, record, _) -> exprRefs env record
+  | EValue(_, name) -> valueName env name
+  | EIf(_, condition, thenExpr, elseExpr) ->
+    many
+      (Stdlib.List.append [ condition, thenExpr ] (Stdlib.Option.toList elseExpr))
+  | EMatch(_, arg, cases) ->
+    Stdlib.List.append
+      (exprRefs env arg)
+      (cases
+       |> Stdlib.List.map (fun case ->
+         many
+           (Stdlib.List.append
+             (Stdlib.Option.toList case.whenCondition)
+             [ case.rhs ]))
+       |> Stdlib.List.flatten)
+  | EPipe(_, lhs, parts) ->
+    Stdlib.List.append
+      (exprRefs env lhs)
+      (Stdlib.List.flatten (Stdlib.List.map parts (fun p -> pipeRefs env p)))
+  | EInfix(_, _, lhs, rhs) -> many [ lhs, rhs ]
+  | ELambda(_, _, body) -> exprRefs env body
+  | EApply(_, callee, typeArgs, args) ->
+    Stdlib.List.flatten [ exprRefs env callee, typesRefs typeArgs, many args ]
+  | EFnName(_, name) -> fnName env name
+  | ERecordUpdate(_, record, updates) ->
+    Stdlib.List.append
+      (exprRefs env record)
+      (many (Stdlib.List.map updates (fun (_, v) -> v)))
+  | EStatement(_, first, next) -> many [ first, next ]
+  | _ -> []
+
+let pipeRefs
+  (env: Model.Environment)
+  (pipePart: LanguageTools.ProgramTypes.PipeExpr)
+  : List<LanguageTools.ProgramTypes.Reference> =
+  let many (exprs: List<LanguageTools.ProgramTypes.Expr>) : List<LanguageTools.ProgramTypes.Reference> =
+    Stdlib.List.flatten (Stdlib.List.map exprs (fun e -> exprRefs env e))
+
+  match pipePart with
+  | EPipeVariable(_, _, args) -> many args
+  | EPipeLambda(_, _, body) -> exprRefs env body
+  | EPipeInfix(_, _, rhs) -> exprRefs env rhs
+  | EPipeFnCall(_, name, typeArgs, args) ->
+    Stdlib.List.flatten [ fnName env name, typesRefs typeArgs, many args ]
+  | EPipeEnum(_, name, _, fields) -> Stdlib.List.append (typeName name) (many fields)
+
+let signatureRefs (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn) : List<LanguageTools.ProgramTypes.Reference> =
+  typesRefs
+    (Stdlib.List.push (Stdlib.List.map fn.parameters (fun p -> p.typ)) fn.returnType)
+
+
+// --------------------
+// The dependency closure
+// --------------------
+
+/// What a batch needs from storage, loaded so far.
+type Closure =
+  { types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageType.PackageType>
+    values: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageValue.PackageValue>
+    fns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn> }
+
+/// Load what the candidates refer to, and what that refers to, by hash. A function
+/// that already exists contributes its signature, not its body, so only the types
+/// its signature mentions are followed.
+let loadClosure
+  (env: Model.Environment)
+  (candidateRefs: List<LanguageTools.ProgramTypes.Reference>)
+  (pending: List<LanguageTools.ProgramTypes.Reference>)
+  : Closure =
+  let seen =
+    Stdlib.List.fold candidateRefs Dict {} (fun seen r ->
+      Stdlib.Dict.setOverridingDuplicates seen r true)
+
+  loadFrom
+    (loadOne env)
+    seen
+    pending
+    (Closure { types = Dict {}; values = Dict {}; fns = Dict {} })
+
+let loadFrom
+  (load: Closure -> LanguageTools.ProgramTypes.Reference -> (List<LanguageTools.ProgramTypes.Reference> * Closure))
+  (seen: Dict<LanguageTools.ProgramTypes.Reference, Bool>)
+  (pending: List<LanguageTools.ProgramTypes.Reference>)
+  (closure: Closure)
+  : Closure =
+  match pending with
+  | [] -> closure
+  | next :: rest ->
+    if Stdlib.Dict.``member`` seen next then
+      loadFrom load seen rest closure
+    else
+      let seen = Stdlib.Dict.setOverridingDuplicates seen next true
+
+      // Retrieval converts the stored AST to Dark values, and that conversion
+      // can fail before there is an item to walk. Guard both steps together;
+      // a failed dependency is unavailable to its users, not to the whole batch.
+      match guard (fun reference -> load closure reference) next with
+      | Ok((refs, loaded)) ->
+        loadFrom load seen (Stdlib.List.append refs rest) loaded
+      | Error _ -> loadFrom load seen rest closure
+
+/// Fetch and walk one dependency. Called inside `loadFrom`'s guard so even a
+/// failure in the F# conversion leaves the rest of the dependency queue intact.
+let loadOne
+  (env: Model.Environment)
+  (closure: Closure)
+  (reference: LanguageTools.ProgramTypes.Reference)
+  : (List<LanguageTools.ProgramTypes.Reference> * Closure) =
+  match reference with
+  | PackageType hash ->
+    match LanguageTools.PackageManager.Type.get hash with
+    | Some t ->
+      let refs = declarationRefs t.declaration
+      (refs,
+       { closure with
+           types = Stdlib.Dict.setOverridingDuplicates closure.types hash t })
+    | None -> ([], closure)
+  | PackageValue hash ->
+    match LanguageTools.PackageManager.Value.get hash with
+    | Some v ->
+      let refs = exprRefs env v.body
+      (refs,
+       { closure with
+           values = Stdlib.Dict.setOverridingDuplicates closure.values hash v })
+    | None -> ([], closure)
+  | PackageFn hash ->
+    match LanguageTools.PackageManager.Function.get hash with
+    | Some fn ->
+      let refs = signatureRefs fn
+      (refs,
+       { closure with
+           fns = Stdlib.Dict.setOverridingDuplicates closure.fns hash fn })
+    | None -> ([], closure)

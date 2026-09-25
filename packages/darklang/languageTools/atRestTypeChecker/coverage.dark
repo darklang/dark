@@ -1,0 +1,325 @@
+/// Whether a match's patterns cover every value of its scrutinee's type, and if
+/// not, an example of one they miss.
+///
+/// The usual constructor matrix: a type with finitely many constructors (unit,
+/// Bool, a list's empty and cons cases, a tuple, an enum's cases) is covered when
+/// each constructor is, and anything else only by a pattern that matches
+/// everything. Guarded cases never count, since their guard may fail.
+module Darklang.LanguageTools.AtRestTypeChecker.Coverage
+
+type Constructor =
+  | UnitCase
+  | BoolCase of Bool
+  | EmptyList
+  | ConsList
+  | TupleOf of Int
+  | EnumCase of String
+
+/// A value no pattern matches, for the message.
+type Missing =
+  | Anything
+  | Built of Constructor * List<Missing>
+
+let replicate (n: Int) (x: 'a) : List<'a> =
+  Stdlib.List.map (Stdlib.List.range 1 n) (fun _ -> x)
+
+let render (missing: Missing) : String =
+  match missing with
+  | Anything -> "…"
+  | Built(constructor, fields) ->
+    let joined () : String =
+      Stdlib.String.join (Stdlib.List.map fields (fun f -> render f)) ", "
+
+    match constructor with
+    | UnitCase -> "()"
+    | BoolCase value -> if value then "true" else "false"
+    | EmptyList -> "[]"
+    | ConsList ->
+      match fields with
+      | [ Anything, Anything ] -> "a non-empty list"
+      | [ head, tail ] -> $"a list matching {render head} :: {render tail}"
+      | _ -> joined ()
+    | TupleOf _ -> "(" ++ joined () ++ ")"
+    | EnumCase name ->
+      if Stdlib.List.isEmpty fields then name else name ++ "(" ++ joined () ++ ")"
+
+/// An or-pattern's alternatives, flattened.
+let alternatives (pattern: LanguageTools.ProgramTypes.MatchPattern) : List<LanguageTools.ProgramTypes.MatchPattern> =
+  match pattern with
+  | MPOr(_, options) -> Stdlib.List.flatten (Stdlib.List.map options alternatives)
+  | _ -> [ pattern ]
+
+let isIrrefutable (pattern: LanguageTools.ProgramTypes.MatchPattern) : Bool =
+  match pattern with
+  | MPVariable(_, _) -> true
+  | MPTuple(_, first, second, rest) ->
+    isIrrefutable first
+    && isIrrefutable second
+    && Stdlib.List.all rest (fun p -> isIrrefutable p)
+  | MPOr(_, options) -> Stdlib.List.any options (fun p -> isIrrefutable p)
+  | _ -> false
+
+/// The constructors of `ty` with their field types, if there are finitely many.
+let constructors
+  (env: Model.Environment)
+  (subst: Dict<Model.Var, Model.Ty>)
+  (ty: Model.Ty)
+  : Stdlib.Option.Option<List<(Constructor * List<Model.Ty>)>> =
+  let (expanded, _) = Types.expand env subst Stdlib.Option.Option.None ty
+
+  match expanded with
+  | TUnit -> Stdlib.Option.Option.Some [ (Constructor.UnitCase, []) ]
+  | TBool ->
+    Stdlib.Option.Option.Some
+      [ (Constructor.BoolCase false, []), (Constructor.BoolCase true, []) ]
+  | TList element ->
+    Stdlib.Option.Option.Some
+      [ (Constructor.EmptyList, [])
+        (Constructor.ConsList, [ element, Model.Ty.TList element ]) ]
+  | TTuple(first, second, rest) ->
+    let fields = Stdlib.List.append [ first, second ] rest
+    Stdlib.Option.Option.Some
+      [ (Constructor.TupleOf(Stdlib.List.length fields), fields) ]
+  | TCustom(name, args) ->
+    match Types.declaration env name with
+    | Some decl ->
+      match decl.definition with
+      | Enum cases ->
+        Stdlib.Option.Option.Some(
+          Stdlib.List.map cases (fun case ->
+            let fields =
+              Stdlib.List.map case.fields (fun field ->
+                let (t, _) =
+                  Types.fieldType
+                    Stdlib.Option.Option.None
+                    decl.typeParams
+                    args
+                    field.typ
+                t)
+            (Constructor.EnumCase case.name, fields))
+        )
+      | _ -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+/// The fields of `pattern` as `constructor`'s, one row per way it matches, or none
+/// if it cannot match that constructor.
+let specialize
+  (constructor: Constructor)
+  (fieldCount: Int)
+  (pattern: LanguageTools.ProgramTypes.MatchPattern)
+  : List<List<LanguageTools.ProgramTypes.MatchPattern>> =
+  match pattern with
+  | MPVariable(id, _) ->
+    let wildcard = LanguageTools.ProgramTypes.MatchPattern.MPVariable(id, "_")
+    [ replicate fieldCount wildcard ]
+  | MPOr(_, options) ->
+    Stdlib.List.flatten
+      (Stdlib.List.map options (fun p -> specialize constructor fieldCount p))
+  | MPUnit _ ->
+    match constructor with
+    | UnitCase -> [ [] ]
+    | _ -> []
+  | MPBool(_, value) ->
+    match constructor with
+    | BoolCase expected -> if value == expected then [ [] ] else []
+    | _ -> []
+  | MPList(id, patterns) ->
+    match (constructor, patterns) with
+    | (EmptyList, []) -> [ [] ]
+    | (ConsList, head :: tail) ->
+      [ [ head, LanguageTools.ProgramTypes.MatchPattern.MPList(id, tail) ] ]
+    | _ -> []
+  | MPListCons(_, head, tail) ->
+    match constructor with
+    | ConsList -> [ [ head, tail ] ]
+    | _ -> []
+  | MPTuple(_, first, second, rest) ->
+    match constructor with
+    | TupleOf n ->
+      if n == 2 + Stdlib.List.length rest then
+        [ Stdlib.List.append [ first, second ] rest ]
+      else
+        []
+    | _ -> []
+  | MPEnum(_, caseName, fields) ->
+    match constructor with
+    | EnumCase name ->
+      if name == caseName && Stdlib.List.length fields == fieldCount then
+        [ fields ]
+      else
+        []
+    | _ -> []
+  | _ -> []
+
+let specializeRows
+  (constructor: Constructor)
+  (fieldCount: Int)
+  (rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>)
+  : List<List<LanguageTools.ProgramTypes.MatchPattern>> =
+  rows
+  |> Stdlib.List.map (fun row ->
+    match row with
+    | [] -> []
+    | pattern :: rest ->
+      Stdlib.List.map (specialize constructor fieldCount pattern) (fun fields ->
+        Stdlib.List.append fields rest))
+  |> Stdlib.List.flatten
+
+/// The rows whose first pattern matches anything, without that pattern.
+let catchAllRows (rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>) : List<List<LanguageTools.ProgramTypes.MatchPattern>> =
+  rows
+  |> Stdlib.List.map (fun row ->
+    match row with
+    | [] -> []
+    | pattern :: rest ->
+      (alternatives pattern)
+      |> Stdlib.List.filterMap (fun p ->
+        if isIrrefutable p then Stdlib.Option.Option.Some rest
+        else Stdlib.Option.Option.None))
+  |> Stdlib.List.flatten
+
+/// Whether `pattern` names `constructor` itself, rather than matching anything.
+let names
+  (constructor: Constructor)
+  (fieldCount: Int)
+  (pattern: LanguageTools.ProgramTypes.MatchPattern)
+  : Bool =
+  Stdlib.List.any (alternatives pattern) (fun p ->
+    match p with
+    | MPVariable(_, _) -> false
+    | _ ->
+      Stdlib.Bool.not (Stdlib.List.isEmpty (specialize constructor fieldCount p)))
+
+/// Whether every constructor is named at the head of some row.
+let headsCover
+  (cases: List<(Constructor * List<Model.Ty>)>)
+  (rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>)
+  : Bool =
+  Stdlib.List.all cases (fun (constructor, fieldTypes) ->
+    let fieldCount = Stdlib.List.length fieldTypes
+
+    Stdlib.List.any rows (fun row ->
+      match row with
+      | head :: _ -> names constructor fieldCount head
+      | [] -> false))
+
+/// Constructors are expanded only when the rows name every one of them. When some
+/// constructor is not named, only the rows that match anything can cover it, so
+/// they decide. Expanding regardless would not terminate on a recursive type: a
+/// row of wildcards specialized to `Node of Tree` is the same row again. This way
+/// every step either removes a column or takes a constructor off some pattern.
+let isExhaustive
+  (env: Model.Environment)
+  (subst: Dict<Model.Var, Model.Ty>)
+  (types: List<Model.Ty>)
+  (rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>)
+  : Bool =
+  match types with
+  | [] -> Stdlib.Bool.not (Stdlib.List.isEmpty rows)
+  | ty :: rest ->
+    // The rows that match anything, if they cover the other columns, cover this
+    // one too. Cheap, and usually enough, so tried first; it also removes a
+    // column, so the walk still ends.
+    if isExhaustive env subst rest (catchAllRows rows) then
+      true
+    else
+      isExhaustiveByConstructors env subst ty rest rows
+
+/// The rest of `isExhaustive`, once the rows that match anything are not enough.
+let isExhaustiveByConstructors
+  (env: Model.Environment)
+  (subst: Dict<Model.Var, Model.Ty>)
+  (ty: Model.Ty)
+  (rest: List<Model.Ty>)
+  (rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>)
+  : Bool =
+  let expandable =
+    match constructors env subst ty with
+    | Some cases ->
+      if headsCover cases rows then Stdlib.Option.Option.Some cases
+      else Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
+  match expandable with
+  | Some cases ->
+    Stdlib.List.all cases (fun (constructor, fieldTypes) ->
+      isExhaustive
+        env
+        subst
+        (Stdlib.List.append fieldTypes rest)
+        (specializeRows constructor (Stdlib.List.length fieldTypes) rows))
+  // Some constructor is named by no row, so only the rows that match anything
+  // could cover it, and they were just found not to.
+  | None -> false
+
+/// A value the rows miss. Bounded in depth: it is only for the message, and a
+/// recursive type would otherwise let it grow without end.
+let findUncovered
+  (env: Model.Environment)
+  (subst: Dict<Model.Var, Model.Ty>)
+  (depth: Int)
+  (types: List<Model.Ty>)
+  (rows: List<List<LanguageTools.ProgramTypes.MatchPattern>>)
+  : Stdlib.Option.Option<List<Missing>> =
+  if depth == 0 then
+    Stdlib.Option.Option.None
+  else
+    match types with
+    | [] ->
+      if Stdlib.List.isEmpty rows then Stdlib.Option.Option.Some []
+      else Stdlib.Option.Option.None
+    | ty :: rest ->
+      match constructors env subst ty with
+      | Some cases ->
+        Stdlib.List.fold cases None (fun found (constructor, fieldTypes) ->
+          match found with
+          | Some _ -> found
+          | None ->
+            let fieldCount = Stdlib.List.length fieldTypes
+            let specialized = specializeRows constructor fieldCount rows
+
+            if Stdlib.List.isEmpty specialized then
+              Stdlib.Option.Option.Some(
+                Stdlib.List.push
+                  (replicate (Stdlib.List.length rest) Missing.Anything)
+                  (Missing.Built(constructor, replicate fieldCount Missing.Anything))
+              )
+            else
+              (findUncovered
+                env
+                subst
+                (depth - 1)
+                (Stdlib.List.append fieldTypes rest)
+                specialized)
+              |> Stdlib.Option.map (fun missing ->
+                let fields = Stdlib.List.take missing fieldCount
+                let remaining = Stdlib.List.drop missing fieldCount
+                Stdlib.List.push remaining (Missing.Built(constructor, fields))))
+      | None ->
+        (findUncovered env subst (depth - 1) rest (catchAllRows rows))
+        |> Stdlib.Option.map (fun missing ->
+          Stdlib.List.push missing Missing.Anything)
+
+/// `None` if the cases cover `scrutinee`; otherwise an example they miss, where one
+/// can be found.
+let uncovered
+  (env: Model.Environment)
+  (subst: Dict<Model.Var, Model.Ty>)
+  (scrutinee: Model.Ty)
+  (cases: List<LanguageTools.ProgramTypes.MatchCase>)
+  : Stdlib.Option.Option<Missing> =
+  let patterns =
+    cases
+    |> Stdlib.List.filter (fun case -> Stdlib.Option.isNone case.whenCondition)
+    |> Stdlib.List.map (fun case -> alternatives case.pat)
+    |> Stdlib.List.flatten
+
+  let rows = Stdlib.List.map patterns (fun p -> [ p ])
+
+  if isExhaustive env subst [ scrutinee ] rows then
+    Stdlib.Option.Option.None
+  else
+    match findUncovered env subst 8 [ scrutinee ] rows with
+    | Some(first :: _) -> Stdlib.Option.Option.Some first
+    | _ -> Stdlib.Option.Option.Some Missing.Anything

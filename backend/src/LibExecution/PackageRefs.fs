@@ -477,18 +477,7 @@ module Type =
 
     module AtRestTypeChecker =
       let private p addl = p ("AtRestTypeChecker" :: addl)
-      let staticType = p [] "StaticType"
-      let verdict = p [] "Verdict"
-      let issueCode = p [] "IssueCode"
-      let nameRef = p [] "NameRef"
-      let site = p [] "Site"
-      let duplicateSite = p [] "DuplicateSite"
-      let ambiguousSubject = p [] "AmbiguousSubject"
-      let untrustedBuiltin = p [] "UntrustedBuiltin"
-      let context = p [] "Context"
-      let issue = p [] "Issue"
-      let itemReport = p [] "ItemReport"
-      let report = p [] "Report"
+      let checkFailure = p [] "CheckFailure"
 
   module PrettyPrinter =
     let private p addl = p ("PrettyPrinter" :: addl)

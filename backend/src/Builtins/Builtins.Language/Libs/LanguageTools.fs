@@ -47,7 +47,7 @@ let fns () : List<BuiltInFn> =
               let fields =
                 [ "name", RT2DT.FQValueName.Builtin.toDT name
                   "description", DString data.description
-                  "returnType", RT2DT.TypeReference.toDT data.typ ]
+                  "type", RT2DT.TypeReference.toDT data.typ ]
 
               DRecord(builtinValue (), builtinValue (), [], Map fields))
 
@@ -84,6 +84,8 @@ let fns () : List<BuiltInFn> =
               let fields =
                 [ "name", RT2DT.FQFnName.Builtin.toDT name
                   "description", DString data.description
+                  "typeParams",
+                  data.typeParams |> List.map DString |> Dval.list KTString
                   "parameters", parameters
                   "returnType", RT2DT.TypeReference.toDT data.returnType
                   "purity", purityToDT data.previewable ]

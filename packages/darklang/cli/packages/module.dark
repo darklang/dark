@@ -7,19 +7,6 @@ type UpdatedItem =
     kind: LanguageTools.ProgramTypes.ItemKind }
 
 
-let sfDeclToModuleDecl
-  (decl: LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration)
-  : LanguageTools.WrittenTypes.ModuleDeclaration.Declaration =
-  match decl with
-  | Type typ -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Type typ
-  | Function fn ->
-    LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Function fn
-  | Value value ->
-    LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Value value
-  | Module modul ->
-    LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.SubModule modul
-
-
 let collectDecls
   (modules: List<String>)
   (decls: List<LanguageTools.WrittenTypes.ModuleDeclaration.Declaration>)
@@ -129,7 +116,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // Package input is declaration scope at its root. In particular, `val x`
     // declares a package value while `let x` is diagnosed directly instead of
     // being consumed as a script binding and failing later at EOF.
-    match Builtin.parserParsePackageToWrittenTypes source with
+    match LanguageTools.Parser.Parse.packageToWrittenTypes source with
     | Error diagnostics ->
       let _ = Errors.reportParseErrors diagnostics
       // Nothing was saved: an agent's authoring loop branches on the exit.
@@ -138,7 +125,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       let declarations =
         let moduleDecls =
           sourceFile.declarations
-          |> Stdlib.List.map sfDeclToModuleDecl
+          |> Stdlib.List.map LanguageTools.Parser.Parse.toModuleDeclaration
         collectDecls [] moduleDecls
       let duplicateNames = duplicateDeclarationNames declarations
 
@@ -173,7 +160,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 name = (sourceFile.range, "__module__")
                 declarations =
                   sourceFile.declarations
-                  |> Stdlib.List.map sfDeclToModuleDecl
+                  |> Stdlib.List.map LanguageTools.Parser.Parse.toModuleDeclaration
                 keywordModule = sourceFile.range }
           let ctx =
             LanguageTools.NameResolver.NRContext
@@ -183,24 +170,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 owner = baseLocation.owner
                 currentModule = baseLocation.modules }
 
-          // The provisional ops use unique location hashes, allowing all
-          // declarations to resolve each other without touching the DB.
-          let (_, provisionalOps, _) =
-            LanguageTools.WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
-              ctx
-              rootModule
-          let pm =
-            LanguageTools.ProgramTypes.PackageManager.withExtraOps
-              basePm
-              provisionalOps
-          let (_, ops, unresolvedNames) =
-            LanguageTools.WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
-              { ctx with pm = pm }
-              rootModule
-
-          // Resolve the placeholders as one graph so mutually recursive
-          // declarations receive consistent content-addressed hashes.
-          let ops = LanguageTools.PackageManager.stabilizeHashes ops
+          let (ops, unresolvedNames) =
+            LanguageTools.Parser.Parse.moduleOps ctx rootModule
           let updates = updatedItems branchId ops
 
           if Errors.reportUnresolvedNames branchId unresolvedNames then

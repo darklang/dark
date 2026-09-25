@@ -61,6 +61,11 @@ let rec private mergeKnownTypes
   if System.Object.ReferenceEquals(left, right) then
     Ok left
   else
+    // What is left is mostly compound types, which recurse on the native stack as deep as
+    // the type is nested, and an overflow there ends the process. Probing throws an
+    // ordinary exception while there is room, which reaches the program as a runtime
+    // error. See `Dval.equals`.
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 
     match left, right with
     | KTUnit, KTUnit -> KTUnit |> Ok

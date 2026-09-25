@@ -10,12 +10,12 @@ module D = LibExecution.DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 module Effects2DT = LibExecution.EffectsToDarkTypes
 
-/// Probe for remaining stack before recursing into persisted input: fromDT depth is a
+/// Probe before recursively converting an AST in either direction. Its depth is a
 /// property of what was written, and a real .NET stack overflow is uncatchable and
 /// kills the process. `EnsureSufficientExecutionStack` throws an ordinary exception
 /// while there is headroom, which the surrounding error boundary reports against the
-/// offending item. `AtRestTypeChecker.ensureStack` is the same technique, and does
-/// catch it.
+/// offending item. `Execution.runLoaded` is the same technique, for recursion through
+/// builtin callbacks.
 let private ensureSufficientExecutionStack () : unit =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 
@@ -295,6 +295,7 @@ module TypeReference =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (t : PT.TypeReference) : Dval =
+    ensureSufficientExecutionStack ()
     let (caseName, fields) =
       match t with
       | PT.TVariable name -> "TVariable", [ DString name ]
@@ -395,6 +396,7 @@ module LetPattern =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (p : PT.LetPattern) : Dval =
+    ensureSufficientExecutionStack ()
     let (caseName, fields) =
       match p with
       | PT.LPVariable(id, name) -> "LPVariable", [ DInt64(int64 id); DString name ]
@@ -434,6 +436,7 @@ module MatchPattern =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (p : PT.MatchPattern) : Dval =
+    ensureSufficientExecutionStack ()
     let (caseName, fields) =
       match p with
       | PT.MPVariable(id, name) -> "MPVariable", [ DInt64(int64 id); DString name ]
@@ -682,7 +685,7 @@ module PipeExpr =
           args
           |> NEList.toList
           |> List.map LetPattern.toDT
-          |> Dval.list (KTTuple(VT.int64, VT.string, []))
+          |> Dval.list (LetPattern.knownType ())
         "EPipeLambda", [ DInt64(int64 id); variables; exprToDT body ]
 
       | PT.EPipeInfix(id, infix, expr) ->
@@ -766,6 +769,7 @@ module Expr =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (e : PT.Expr) : Dval =
+    ensureSufficientExecutionStack ()
     let (caseName, fields) =
       match e with
       | PT.EUnit id -> "EUnit", [ DInt64(int64 id) ]
@@ -907,7 +911,7 @@ module Expr =
       | PT.ELambda(id, pats, body) ->
         let variables =
           DList(
-            VT.tuple VT.int64 VT.string [],
+            VT.known (LetPattern.knownType ()),
             pats |> NEList.toList |> List.map LetPattern.toDT
           )
         "ELambda", [ DInt64(int64 id); variables; toDT body ]

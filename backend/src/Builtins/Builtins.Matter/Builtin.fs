@@ -18,7 +18,7 @@ let builtins (pm : PT.PackageManager) : Builtins =
 
       // PM (package manager: packages, branches, ops)
       Libs.PM.Packages.builtins pm
-      Libs.PM.AtRestTypeChecker.builtins pm
+      Libs.PM.AtRestTypeChecker.builtins
       Libs.PM.PackageOps.builtins pm
       Libs.PM.Seed.builtins
       Libs.PM.Permissions.builtins

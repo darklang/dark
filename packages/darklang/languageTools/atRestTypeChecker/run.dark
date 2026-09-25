@@ -1,0 +1,233 @@
+/// Entry points: check candidate package ops, or everything visible on a branch, and
+/// answer with a `Report`.
+module Darklang.LanguageTools.AtRestTypeChecker.Run
+
+/// The declarations among some ops, one per hash.
+type Candidates =
+  { types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageType.PackageType>
+    values: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageValue.PackageValue>
+    fns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn> }
+
+let candidatesOf (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Candidates =
+  Stdlib.List.fold
+    ops
+    (Candidates { types = Dict {}; values = Dict {}; fns = Dict {} })
+    (fun found op ->
+      match op with
+      | AddType t ->
+        { found with
+            types = Stdlib.Dict.setOverridingDuplicates found.types t.hash t }
+      | AddValue v ->
+        { found with
+            values = Stdlib.Dict.setOverridingDuplicates found.values v.hash v }
+      | AddFn fn ->
+        { found with fns = Stdlib.Dict.setOverridingDuplicates found.fns fn.hash fn }
+      | _ -> found)
+
+let aggregate
+  (candidates: List<LanguageTools.ProgramTypes.Reference>)
+  (results: List<(LanguageTools.ProgramTypes.Reference * Items.Outcome)>)
+  : Report =
+  let isCandidate =
+    Stdlib.List.fold candidates Dict {} (fun found item ->
+      Stdlib.Dict.setOverridingDuplicates found item true)
+
+  let items =
+    results
+    |> Stdlib.List.filter (fun (item, _) -> Stdlib.Dict.``member`` isCandidate item)
+    |> Stdlib.List.map (fun (item, outcome) ->
+      ItemReport
+        { item = item
+          verdict = outcome.verdict
+          diagnostics = outcome.diagnostics
+          blockers = outcome.blockers })
+
+  reportItems items
+
+let reportItems (items: List<ItemReport>) : Report =
+  let has (verdict: Verdict) : Bool =
+    Stdlib.List.any items (fun item -> item.verdict == verdict)
+
+  let verdict =
+    if has Verdict.Failed then Verdict.Failed
+    else if has Verdict.Incomplete then Verdict.Incomplete
+    else Verdict.Checked
+
+  Report
+    { verdict = verdict
+      items = items
+      diagnostics =
+        Stdlib.List.flatten (Stdlib.List.map items (fun i -> i.diagnostics))
+      blockers = Stdlib.List.flatten (Stdlib.List.map items (fun i -> i.blockers)) }
+
+/// Walk each of `items` for what it references, each under its own guard. The
+/// items that could be walked, everything they reference, and an Incomplete
+/// outcome for each that could not.
+let walkEach
+  (items: List<'a>)
+  (referenceTo: 'a -> LanguageTools.ProgramTypes.Reference)
+  (at: 'a -> Stdlib.Option.Option<Int64>)
+  (walk: 'a -> List<LanguageTools.ProgramTypes.Reference>)
+  : (List<'a> * List<LanguageTools.ProgramTypes.Reference> * List<(LanguageTools.ProgramTypes.Reference * Items.Outcome)>) =
+  let (walked, refs, failures) =
+    Stdlib.List.fold items ([], [], []) (fun (walked, refs, failures) item ->
+      match guard walk item with
+      | Ok found ->
+        (Stdlib.List.push walked item, Stdlib.List.push refs found, failures)
+      | Error failure ->
+        let outcome = Items.unchecked (at item) failure
+
+        (walked,
+         refs,
+         Stdlib.List.push failures (referenceTo item, outcome)))
+
+  (Stdlib.List.reverse walked,
+   Stdlib.List.flatten (Stdlib.List.reverse refs),
+   Stdlib.List.reverse failures)
+
+/// Check candidate declarations against their transitive dependency closure,
+/// without persisting anything.
+let checkPackageOps (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Report =
+  let candidates = candidatesOf ops
+  let types = Stdlib.Dict.values candidates.types
+  let values = Stdlib.Dict.values candidates.values
+  let fns = Stdlib.Dict.values candidates.fns
+
+  let candidateRefs =
+    Stdlib.List.flatten
+      [ Stdlib.List.map types (fun t -> LanguageTools.ProgramTypes.Reference.PackageType t.hash)
+        Stdlib.List.map values (fun v -> LanguageTools.ProgramTypes.Reference.PackageValue v.hash)
+        Stdlib.List.map fns (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash) ]
+
+  let builtins = Environment.builtins ()
+
+  // A type or function whose own declared types are too deep to walk is left out
+  // of the batch, and reported on its own: what uses it is then Incomplete, as it
+  // is for any declaration that is not available, and the rest is still checked.
+  let (types, typeRefs, typeFailures) =
+    walkEach
+      types
+      (fun t -> LanguageTools.ProgramTypes.Reference.PackageType t.hash)
+      (fun t -> Stdlib.Option.Option.None)
+      (fun t -> Environment.declarationRefs t.declaration)
+
+  let (fns, signatureRefs, signatureFailures) =
+    walkEach
+      fns
+      (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
+      (fun fn -> Items.bodyAt fn.body)
+      (fun fn -> Environment.signatureRefs fn)
+
+  // A body too deep to walk stays in the batch, since a function's signature is
+  // what its callers are checked against, but its answer is the failure.
+  let (_, valueBodyRefs, valueBodyFailures) =
+    walkEach
+      values
+      (fun v -> LanguageTools.ProgramTypes.Reference.PackageValue v.hash)
+      (fun v -> Items.bodyAt v.body)
+      (fun v -> Environment.exprRefs builtins v.body)
+
+  let (_, fnBodyRefs, fnBodyFailures) =
+    walkEach
+      fns
+      (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
+      (fun fn -> Items.bodyAt fn.body)
+      (fun fn -> Environment.exprRefs builtins fn.body)
+
+  let unwalked =
+    Stdlib.List.fold
+      (Stdlib.List.append valueBodyFailures fnBodyFailures)
+      Dict {}
+      (fun found (item, outcome) ->
+        Stdlib.Dict.setOverridingDuplicates found item outcome)
+
+  let referenced =
+    Stdlib.List.flatten [ typeRefs, signatureRefs, valueBodyRefs, fnBodyRefs ]
+
+  let closure = Environment.loadClosure builtins candidateRefs referenced
+
+  let env =
+    Stdlib.List.fold
+      (Stdlib.Dict.values closure.fns)
+      (Stdlib.List.fold
+        (Stdlib.Dict.values closure.types)
+        builtins
+        (fun env t -> Items.addType env t))
+      (fun env fn -> Items.addFunctionSignature env fn)
+
+  // Values the candidates use are inferred again, in the same batch: a value's type
+  // is its body's.
+  let batchValues = Stdlib.List.append (Stdlib.Dict.values closure.values) values
+
+  let checked =
+    (Items.checkBatch env types batchValues fns)
+    |> Stdlib.List.map (fun (item, outcome) ->
+      match Stdlib.Dict.get unwalked item with
+      | Some failed -> (item, failed)
+      | None -> (item, outcome))
+
+  let results =
+    Stdlib.List.flatten [ checked, typeFailures, signatureFailures ]
+
+  aggregate candidateRefs results
+
+/// Loading a branch candidate includes converting its AST into Dark values. Keep
+/// that operation inside the item's guard, before building the checking batch.
+let loadCandidate
+  (reference: LanguageTools.ProgramTypes.Reference)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
+  match reference with
+  | PackageType hash ->
+    (LanguageTools.PackageManager.Type.get hash)
+    |> Stdlib.Option.map (fun t -> LanguageTools.ProgramTypes.PackageOp.AddType t)
+  | PackageValue hash ->
+    (LanguageTools.PackageManager.Value.get hash)
+    |> Stdlib.Option.map (fun v -> LanguageTools.ProgramTypes.PackageOp.AddValue v)
+  | PackageFn hash ->
+    (LanguageTools.PackageManager.Function.get hash)
+    |> Stdlib.Option.map (fun fn -> LanguageTools.ProgramTypes.PackageOp.AddFn fn)
+
+let checkReferences
+  (load: LanguageTools.ProgramTypes.Reference -> Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp>)
+  (references: List<LanguageTools.ProgramTypes.Reference>)
+  : Report =
+  let (ops, failures) =
+    Stdlib.List.fold (Stdlib.List.unique references) ([], []) (fun (ops, failures) reference ->
+      let loaded =
+        match guard load reference with
+        | Ok(Some op) -> Stdlib.Result.Result.Ok op
+        | Ok None -> Stdlib.Result.Result.Error(CheckFailure.Failed "Declaration unavailable while loading branch candidates")
+        | Error failure -> Stdlib.Result.Result.Error failure
+      match loaded with
+      | Ok op -> (Stdlib.List.push ops op, failures)
+      | Error failure ->
+        let outcome = Items.unchecked Stdlib.Option.Option.None failure
+        let item =
+          ItemReport
+            { item = reference
+              verdict = outcome.verdict
+              diagnostics = outcome.diagnostics
+              blockers = outcome.blockers }
+        (ops, Stdlib.List.push failures item))
+  let checked = checkPackageOps (Stdlib.List.reverse ops)
+  reportItems (Stdlib.List.append checked.items (Stdlib.List.reverse failures))
+
+/// Check every declaration visible on a branch. Enumerate identities first: the
+/// full search converts every AST together, outside the per-item load guards.
+let checkBranch (branchId: Uuid) : Report =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  let (_, types, values, fns) =
+    LanguageTools.PackageManager.Search.searchNamesAndHashes branchId query
+  let references =
+    Stdlib.List.flatten
+      [ Stdlib.List.map types (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageType hash)
+        Stdlib.List.map values (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageValue hash)
+        Stdlib.List.map fns (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageFn hash) ]
+  checkReferences loadCandidate references
