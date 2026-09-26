@@ -1,0 +1,30 @@
+module Darklang.Stdlib.AltJson.Encode
+
+// The other direction: Dark values into an `AltJson.Json` tree as other systems
+// read it. `None` is left out of an object (see `object`), a bare value is written
+// as itself.
+
+let int (n: Int) : Json = Json.Number(Int.toFloat n)
+let float (f: Float) : Json = Json.Number f
+let string (s: String) : Json = Json.String s
+let bool (b: Bool) : Json = Json.Bool b
+let any (j: Json) : Json = j
+let list (item: 'a -> Json) (items: List<'a>) : Json =
+  Json.Array(items |> List.map item)
+
+/// `None` encodes as `Null`, which `object` then drops.
+let optional (item: 'a -> Json) (value: Option.Option<'a>) : Json =
+  match value with
+  | Some v -> item v
+  | None -> Json.Null
+
+/// An object without its null-valued fields, so an absent `Option` is absent.
+let object (fields: List<(String * Json)>) : Json =
+  Json.Object(
+    fields
+    |> List.filter (fun (_, v) ->
+      match v with
+      | Null -> false
+      | _ -> true))
+
+let toText (json: Json) : String = AltJson.format json

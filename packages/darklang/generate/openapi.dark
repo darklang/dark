@@ -1,0 +1,466 @@
+module Darklang.Generate.OpenApi
+
+// An HTTP client from an OpenAPI 3.x document (JSON).
+//
+// One record type per named schema under `components.schemas`, a `Client` record
+// (base URL and headers), an `ApiError` enum, and one fn per operation that builds
+// the URL, makes the request through `Stdlib.HttpClient`, and parses a 2xx body into
+// the response type. Path and query parameters are `String`; a request body is the
+// named schema type, encoded with its generated `encode<T>`. What the document says
+// that this cannot express (`oneOf`, `allOf`, an inline enum, a schema with no type)
+// becomes `Stdlib.AltJson.Json` with a doc comment saying so, rather than a guess.
+//
+// YAML documents are out of scope; convert to JSON first. The output is
+// deterministic: schemas in document order, operations in path order, fields in
+// property order.
+
+
+/// The document is walked as `AltJson`; these three are the whole vocabulary, short
+/// because they appear on nearly every line.
+let obj (key: String) (fields: List<(String * Stdlib.AltJson.Json)>) : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.AltJson.Helpers.getObject key fields
+
+let str (key: String) (fields: List<(String * Stdlib.AltJson.Json)>) : Stdlib.Option.Option<String> =
+  Stdlib.AltJson.Helpers.getString key fields
+
+let arr (key: String) (fields: List<(String * Stdlib.AltJson.Json)>) : List<Stdlib.AltJson.Json> =
+  Stdlib.AltJson.Helpers.getArray key fields
+
+
+/// One operation, as a fn over the client.
+type Operation =
+  { method: String
+    path: String
+    name: String
+    pathParams: List<String>
+    queryParams: List<String>
+    /// The request body's shape, resolved through the aliases (a schema that is not
+    /// an object, like `Pets = array of Pet`, is used as its underlying shape).
+    body: Stdlib.Option.Option<Generate.Model.Shape>
+    response: Stdlib.Option.Option<Generate.Model.Shape>
+    summary: String }
+
+
+let operationsOf
+  (aliases: List<(String * Generate.Model.Shape)>)
+  (doc: List<(String * Stdlib.AltJson.Json)>)
+  : List<Operation> =
+  obj "paths" doc
+  |> Stdlib.List.map (fun (path, methodsJson) ->
+    let methods =
+      match methodsJson with
+      | Object fs -> fs
+      | _ -> []
+    methods
+    |> Stdlib.List.filterMap (fun (method, opJson) ->
+      let op =
+        match opJson with
+        | Object fs -> fs
+        | _ -> []
+      let isMethod =
+        Stdlib.List.member [ "get", "post", "put", "patch", "delete" ] method
+      if Stdlib.Bool.not isMethod then
+        Stdlib.Option.Option.None
+      else
+        let fallbackName =
+          method
+          ++ (path
+              |> Stdlib.String.split "/"
+              |> Stdlib.List.map (fun seg ->
+                seg
+                |> Stdlib.String.replaceAll "{" ""
+                |> Stdlib.String.replaceAll "}" ""
+                |> Generate.Source.typeName)
+              |> Stdlib.String.join "")
+        let name =
+          Generate.Source.identifier
+            ((str "operationId" op) |> Stdlib.Option.withDefault fallbackName)
+        let params_ =
+          arr "parameters" op
+          |> Stdlib.List.filterMap (fun p ->
+            match p with
+            | Object fs ->
+              match
+                (str "name" fs,
+                 str "in" fs)
+              with
+              | (Some n, Some place) -> Stdlib.Option.Option.Some((n, place))
+              | _ -> Stdlib.Option.Option.None
+            | _ -> Stdlib.Option.Option.None)
+        let inPlace (place: String) : List<String> =
+          params_
+          |> Stdlib.List.filterMap (fun (n, w) ->
+            if w == place then Stdlib.Option.Option.Some n else Stdlib.Option.Option.None)
+        // The shape a `schema` names: an inline schema by its shape (nested records
+        // are dropped here; operations are expected to use named schemas), a `$ref`
+        // by name, unless the name is an alias for a plain shape.
+        let shapeIn
+          (schema: List<(String * Stdlib.AltJson.Json)>)
+          : Stdlib.Option.Option<Generate.Model.Shape> =
+          if Stdlib.List.isEmpty schema then
+            Stdlib.Option.Option.None
+          else
+            let (shape, _, _) = Generate.JsonSchema.schemaShape "Inline" schema
+            match shape with
+            | Named n ->
+              match aliases |> Stdlib.List.findFirst (fun (a, _) -> a == n) with
+              | Some pair ->
+                let (_, aliased) = pair
+                Stdlib.Option.Option.Some aliased
+              | None -> Stdlib.Option.Option.Some shape
+            | other -> Stdlib.Option.Option.Some other
+        let jsonSchemaOf
+          (content: List<(String * Stdlib.AltJson.Json)>)
+          : List<(String * Stdlib.AltJson.Json)> =
+          obj "schema" (obj "application/json" content)
+        let body = shapeIn (jsonSchemaOf (obj "content" (obj "requestBody" op)))
+        let responses = obj "responses" op
+        let okResponse =
+          [ "200", "201", "default" ]
+          |> Stdlib.List.filterMap (fun code ->
+            match obj code responses with
+            | [] -> Stdlib.Option.Option.None
+            | r -> Stdlib.Option.Option.Some r)
+          |> Stdlib.List.head
+          |> Stdlib.Option.withDefault []
+        let response = shapeIn (jsonSchemaOf (obj "content" okResponse))
+        Stdlib.Option.Option.Some(
+          Operation
+            { method = Stdlib.String.toUppercase method
+              path = path
+              name = name
+              pathParams = inPlace "path"
+              queryParams = inPlace "query"
+              body = body
+              response = response
+              summary = (str "summary" op) |> Stdlib.Option.withDefault "" })))
+  |> Stdlib.List.flatten
+
+
+/// The fn for one operation, as source.
+let operationSource (op: Operation) : String =
+  let stringParam (p: String) : String = $"({Generate.Source.identifier p}: String)"
+  let bodyParam =
+    match op.body with
+    | Some shape -> [ $"(body: {Generate.Model.typeText shape})" ]
+    | None -> []
+  let params_ =
+    Stdlib.List.flatten
+      [ [ "(client: Client)" ],
+        op.pathParams |> Stdlib.List.map stringParam,
+        op.queryParams |> Stdlib.List.map stringParam,
+        bodyParam ]
+    |> Stdlib.String.join " "
+
+  // The path with each `{param}` spliced in, as a `++` chain of literal segments and
+  // parameter names.
+  let pathExpr =
+    (Stdlib.String.split op.path "{")
+    |> Stdlib.List.indexedMap (fun i piece ->
+      if i == 0 then
+        [ $"\"{piece}\"" ]
+      else
+        match Stdlib.String.split piece "}" with
+        | [ param, rest ] ->
+          [ Generate.Source.identifier param, $"\"{rest}\"" ]
+        | _ -> [ $"\"{piece}\"" ])
+    |> Stdlib.List.flatten
+    |> Stdlib.List.filter (fun piece -> piece != "\"\"")
+    |> Stdlib.String.join " ++ "
+
+  let queryExpr =
+    match op.queryParams with
+    | [] -> ""
+    | qs ->
+      let pairs =
+        qs
+        |> Stdlib.List.map (fun q ->
+          $"\"{q}=\" ++ {Generate.Source.identifier q}")
+        |> Stdlib.String.join ", "
+      $" ++ \"?\" ++ (Stdlib.String.join [ {pairs} ] \"&\")"
+
+  let bodyExpr =
+    match op.body with
+    | Some shape ->
+      $"(Stdlib.Blob.fromString (Stdlib.AltJson.Encode.toText ({Generate.Model.encoder shape} body)))"
+    | None -> "Stdlib.Blob.empty"
+
+  let (returnType, decode) =
+    match op.response with
+    | Some shape ->
+      (Generate.Model.typeText shape,
+       Stdlib.String.join
+         [ "match Stdlib.Blob.toString response.body with",
+           "      | Error _ -> Stdlib.Result.Result.Error ApiError.NotText",
+           "      | Ok text ->",
+           $"        match Stdlib.AltJson.Decode.parse {Generate.Model.decoder shape} text with",
+           "        | Ok value -> Stdlib.Result.Result.Ok value",
+           "        | Error e -> Stdlib.Result.Result.Error(ApiError.Decode e)" ]
+         "\n")
+    | None -> ("Unit", "Stdlib.Result.Result.Ok ()")
+
+  let doc =
+    if op.summary == "" then
+      $"{op.method} {op.path}"
+    else
+      $"{op.summary} ({op.method} {op.path})"
+
+  Stdlib.String.join
+    [ $"/// {doc}",
+      $"let {op.name} {params_} : Stdlib.Result.Result<{returnType}, ApiError> =",
+      $"  let url = client.baseUrl ++ {pathExpr}{queryExpr}",
+      $"  match Stdlib.HttpClient.request \"{op.method}\" url client.headers {bodyExpr} with",
+      "  | Error e ->",
+      "    Stdlib.Result.Result.Error(ApiError.Transport(Stdlib.HttpClient.toString e))",
+      "  | Ok response ->",
+      "    if (response.statusCode >= 200) && (response.statusCode < 300) then",
+      $"      {decode}",
+      "    else",
+      "      Stdlib.Result.Result.Error(ApiError.Status response.statusCode)" ]
+    "\n"
+
+
+/// The fixed part of every client: where to send requests, and what can go wrong.
+let preamble () : List<String> =
+  [ Stdlib.String.join
+      [ "/// Where requests go. `headers` is sent with every request (an auth header,",
+        "/// say); `Stdlib.HttpClient.bearerToken` makes one.",
+        "type Client =",
+        "  { baseUrl: String",
+        "    headers: List<(String * String)> }" ]
+      "\n"
+    Stdlib.String.join
+      [ "type ApiError =",
+        "  /// The request did not complete.",
+        "  | Transport of String",
+        "  /// The server answered outside 2xx.",
+        "  | Status of Int",
+        "  /// A 2xx body that was not text.",
+        "  | NotText",
+        "  /// A 2xx body that did not parse as the response type; says which field.",
+        "  | Decode of String" ]
+      "\n" ]
+
+
+/// The document as `AltJson` fields, its aliases (non-object schemas, by name, as
+/// shapes) and its records, or why the bytes are not an OpenAPI document.
+let parsed
+  (spec: Blob)
+  : Stdlib.Result.Result<
+      (List<(String * Stdlib.AltJson.Json)>
+       * List<(String * Generate.Model.Shape)>
+       * List<Generate.Model.Record>),
+      String> =
+  if Stdlib.Blob.length spec == 0 then
+    Stdlib.Result.Result.Error "the document is empty (a missing input reads as empty)"
+  else
+    match Stdlib.Blob.toString spec with
+    | Error _ -> Stdlib.Result.Result.Error "the document is not UTF-8 text"
+    | Ok text ->
+      match Stdlib.AltJson.parse text with
+      | Error _ ->
+        Stdlib.Result.Result.Error
+          ("the document did not parse as JSON. A YAML document has to be converted "
+           ++ "first (`yq -o json openapi.yaml > openapi.json`)")
+      | Ok(Object doc) ->
+        if Stdlib.List.isEmpty (obj "paths" doc) then
+          Stdlib.Result.Result.Error "the document has no `paths`; is it an OpenAPI document?"
+        else
+          // Object schemas become records; anything else (`Pets = array of Pet`) is
+          // an alias, used as its underlying shape wherever it is referenced, since
+          // Dark has no alias syntax and a wrapper record would not match the wire.
+          let named =
+            obj "schemas" (obj "components" doc)
+            |> Stdlib.List.map (fun (name, schemaJson) ->
+              let schema =
+                match schemaJson with
+                | Object fs -> fs
+                | _ -> []
+              (Generate.Source.typeName name, schema))
+          let aliases =
+            named
+            |> Stdlib.List.filterMap (fun (typeName, schema) ->
+              if Stdlib.List.isEmpty (obj "properties" schema) then
+                let (shape, _, _) = Generate.JsonSchema.schemaShape typeName schema
+                Stdlib.Option.Option.Some((typeName, shape))
+              else
+                Stdlib.Option.Option.None)
+          let records =
+            named
+            |> Stdlib.List.filterMap (fun (typeName, schema) ->
+              if Stdlib.List.isEmpty (obj "properties" schema) then
+                Stdlib.Option.Option.None
+              else
+                Stdlib.Option.Option.Some(Generate.JsonSchema.recordOf typeName schema))
+            |> Stdlib.List.flatten
+          Stdlib.Result.Result.Ok((doc, aliases, records))
+      | Ok _ -> Stdlib.Result.Result.Error "the document's top level is not an object"
+
+
+/// A client for the API described by <param spec>, an OpenAPI 3.x document as JSON.
+let client (spec: Blob) : Generate.Run =
+  match parsed spec with
+  | Error e -> Generate.failed [ e ]
+  | Ok parts ->
+    let (doc, aliases, records) = parts
+    let schemas = Generate.Model.declarations records
+    let operations = operationsOf aliases doc |> Stdlib.List.map operationSource
+    Generate.ofSource
+      (Generate.Source.module_
+        (Stdlib.List.flatten [ preamble (), schemas, operations ]))
+
+
+// ── the server side ────────────────────────────────────────────────────────────────
+//
+// `OpenApi.server` is the other half of `client`: the same schema records and codecs,
+// a `Handlers` record with one function per operation, a `notImplemented` value of it
+// answering 501 everywhere, and `router`, which turns a `Handlers` into the request
+// handler `Stdlib.HttpServer.routeRequest` takes: it matches the route, pulls path and
+// query parameters, decodes a JSON body, calls the handler, and encodes the result.
+//
+// The person writes their implementations as a record update over `notImplemented`
+// and never edits generated code, so regenerating from a changed document touches
+// nothing of theirs:
+//
+//   let handlers () : Acme.Api.Handlers =
+//     { Acme.Api.notImplemented () with listPets = fun limit -> ... }
+//   let serve (req: Stdlib.Http.Request) : Stdlib.Http.Response = Acme.Api.router (handlers ()) req
+//   dark serve Acme.Api.serve
+
+
+/// `Handlers`, `notImplemented`, and `router` for the operations.
+let serverSource (ops: List<Operation>) : List<String> =
+  let failure =
+    Stdlib.String.join
+      [ "/// A handler's refusal: the status to answer with, and a message for the body.",
+        "type Failure = { status: Int; message: String }" ]
+      "\n"
+
+  let handlerType (op: Operation) : String =
+    let params_ =
+      Stdlib.List.flatten
+        [ op.pathParams |> Stdlib.List.map (fun _ -> "String"),
+          op.queryParams |> Stdlib.List.map (fun _ -> "Stdlib.Option.Option<String>"),
+          (match op.body with
+           | Some shape -> [ Generate.Model.typeText shape ]
+           | None -> []) ]
+    let ret =
+      match op.response with
+      | Some shape -> Generate.Model.typeText shape
+      | None -> "Unit"
+    let arrows = Stdlib.List.pushBack params_ $"Stdlib.Result.Result<{ret}, Failure>"
+    match params_ with
+    | [] -> $"Unit -> Stdlib.Result.Result<{ret}, Failure>"
+    | _ -> Stdlib.String.join arrows " -> "
+
+  let handlers =
+    Stdlib.String.join
+      [ "/// One function per operation. Path parameters come first, then query",
+        "/// parameters (None when absent), then the decoded body if the operation has one.",
+        "type Handlers =",
+        "  { "
+        ++ (ops
+            |> Stdlib.List.map (fun op -> $"{op.name}: {handlerType op}")
+            |> Stdlib.String.join "\n    ")
+        ++ " }" ]
+      "\n"
+
+  let notImplemented =
+    let arity (op: Operation) : Int =
+      (Stdlib.List.length op.pathParams)
+      + (Stdlib.List.length op.queryParams)
+      + (match op.body with
+         | Some _ -> 1
+         | None -> 0)
+    Stdlib.String.join
+      [ "/// Every operation answering 501. Start from this and replace what you implement:",
+        "/// `{ notImplemented () with listPets = fun limit -> ... }`. A fn, not a val,",
+        "/// because a val cannot hold lambdas.",
+        "let notImplemented () : Handlers =",
+        "  Handlers",
+        "    { "
+        ++ (ops
+            |> Stdlib.List.map (fun op ->
+              let n = arity op
+              let binders =
+                if n == 0 then "_" else Stdlib.String.join ((Stdlib.List.range 1 n) |> Stdlib.List.map (fun _ -> "_")) " "
+              $"{op.name} = (fun {binders} -> Stdlib.Result.Result.Error(Failure {{ status = 501; message = \"{op.name} is not implemented\" }}))")
+            |> Stdlib.String.join "\n      ")
+        ++ " }" ]
+      "\n"
+
+  let route (op: Operation) : String =
+    // OpenAPI `{petId}` is `:petId` to the router.
+    let pattern =
+      op.pathParams
+      |> Stdlib.List.fold op.path (fun acc p ->
+        Stdlib.String.replaceAll acc ("{" ++ p ++ "}") (":" ++ p))
+    let pathArgs =
+      op.pathParams
+      |> Stdlib.List.map (fun p ->
+        $"((Stdlib.HttpServer.getPathParam req \"{pattern}\" \"{p}\") |> Stdlib.Option.withDefault \"\")")
+    let queryArgs =
+      op.queryParams
+      |> Stdlib.List.map (fun q -> $"(Stdlib.Dict.get query \"{q}\")")
+    let call (bodyArg: List<String>) : String =
+      let args = Stdlib.List.flatten [ pathArgs, queryArgs, bodyArg ]
+      match args with
+      | [] -> $"handlers.{op.name} ()"
+      | _ -> $"handlers.{op.name} " ++ (Stdlib.String.join args " ")
+    let respond =
+      match op.response with
+      | Some shape ->
+        $"Stdlib.Http.responseWithJson (Stdlib.AltJson.Encode.toText ({Generate.Model.encoder shape} value)) 200"
+      | None -> "Stdlib.Http.response Stdlib.Blob.empty 204"
+    let onResult (callExpr: String) : String =
+      Stdlib.String.join
+        [ $"match {callExpr} with",
+          $"          | Ok value -> {respond}",
+          "          | Error f -> Stdlib.Http.responseWithJson (Stdlib.AltJson.Encode.toText (Stdlib.AltJson.Encode.object [ (\"message\", Stdlib.AltJson.Encode.string f.message) ])) f.status" ]
+        "\n"
+    let body =
+      match op.body with
+      | Some shape ->
+        Stdlib.String.join
+          [ "match Stdlib.Blob.toString req.body with",
+            "        | Error _ -> Stdlib.Http.badRequest \"the body is not text\"",
+            "        | Ok text ->",
+            $"          match Stdlib.AltJson.Decode.parse {Generate.Model.decoder shape} text with",
+            "          | Error e -> Stdlib.Http.badRequest e",
+            "          | Ok body ->",
+            "          " ++ (onResult (call [ "body" ])) ]
+          "\n"
+      | None -> onResult (call [])
+    Stdlib.String.join
+      [ $"      Stdlib.HttpServer.Handler",
+        $"        {{ route = \"{pattern}\"",
+        $"          method = \"{op.method}\"",
+        "          handler =",
+        "            (fun req ->",
+        "              let query = Stdlib.Http.parseQueryString req.url",
+        "              " ++ body ++ ") }" ]
+      "\n"
+
+  let router =
+    Stdlib.String.join
+      [ "/// The request handler for `Stdlib.HttpServer.serve`, over your handlers.",
+        "let router (handlers: Handlers) : Stdlib.Http.Request -> Stdlib.Http.Response =",
+        "  let routes =",
+        "    [ " ++ (Stdlib.String.join (ops |> Stdlib.List.map route) ",\n") ++ " ]",
+        "  fun req -> Stdlib.HttpServer.routeRequest routes req" ]
+      "\n"
+
+  [ failure, handlers, notImplemented, router ]
+
+
+/// The server side of the API described by <param spec>: schema records with codecs,
+/// `Handlers`, `notImplemented`, and `router`.
+let server (spec: Blob) : Generate.Run =
+  match parsed spec with
+  | Error e -> Generate.failed [ e ]
+  | Ok parts ->
+    let (doc, aliases, records) = parts
+    let schemas = Generate.Model.declarations records
+    let ops = operationsOf aliases doc
+    Generate.ofSource
+      (Generate.Source.module_ (Stdlib.List.append schemas (serverSource ops)))

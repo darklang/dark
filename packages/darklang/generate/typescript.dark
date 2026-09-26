@@ -1,0 +1,146 @@
+module Darklang.Generate.TypeScript
+
+// TypeScript declarations for a Dark module, as a file: `Dark.toTypeScript "Acme.Core"`
+// yields `Acme.Core.d.ts` with an `interface` per record, a union per enum in the
+// shape `Json.serialize` writes (`{ "Circle": [1.5] } | { "Dot": [] }`), and a
+// `declare function` per fn, so an editor extension or a TypeScript caller has the
+// module's shapes without reading Dark. Output is a file (`dark generate ... --out
+// <dir>`), not package items, because a `.d.ts` is not something the store holds.
+//
+// Types: Int/Int64/Float and the sized ints are `number`; String, Uuid, DateTime and
+// Char are `string`; Bool `boolean`; Blob `Uint8Array`; Unit `void`; List<T> `T[]`;
+// Dict<T> `Record<string, T>`; Option<T> `T | null`; Result<T, E> `{ Ok: [T] } | { Error: [E] }`;
+// tuples are tuples; a type variable is itself; another package type is its name.
+
+
+let tsType
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  : String =
+  match t with
+  | TString -> "string"
+  | TChar -> "string"
+  | TUuid -> "string"
+  | TDateTime -> "string"
+  | TInt -> "number"
+  | TInt64 -> "number"
+  | TUInt64 -> "number"
+  | TInt8 -> "number"
+  | TUInt8 -> "number"
+  | TInt16 -> "number"
+  | TUInt16 -> "number"
+  | TInt32 -> "number"
+  | TUInt32 -> "number"
+  | TInt128 -> "number"
+  | TUInt128 -> "number"
+  | TFloat -> "number"
+  | TBool -> "boolean"
+  | TUnit -> "void"
+  | TBlob -> "Uint8Array"
+  | TVariable name -> Generate.Source.typeName name
+  | TList inner -> (tsType ctx inner) ++ "[]"
+  | TDict inner -> "Record<string, " ++ (tsType ctx inner) ++ ">"
+  | TTuple(a, b, rest) ->
+    let parts = (Stdlib.List.flatten [ [ a, b ], rest ]) |> Stdlib.List.map (fun x -> tsType ctx x)
+    "[" ++ (Stdlib.String.join parts ", ") ++ "]"
+  | TFn(args, ret) ->
+    let params_ =
+      args |> Stdlib.List.indexedMap (fun i a -> $"arg{Stdlib.Int.toString i}: {tsType ctx a}")
+    "(" ++ (Stdlib.String.join params_ ", ") ++ ") => " ++ (tsType ctx ret)
+  | TCustomType(nr, args) ->
+    let name = PrettyPrinter.ProgramTypes.typeReference ctx t
+    if Stdlib.String.startsWith name "Option<" then
+      match args with
+      | [ inner ] -> (tsType ctx inner) ++ " | null"
+      | _ -> "unknown"
+    else if Stdlib.String.startsWith name "Result<" then
+      match args with
+      | [ ok, err ] -> "{ Ok: [" ++ (tsType ctx ok) ++ "] } | { Error: [" ++ (tsType ctx err) ++ "] }"
+      | _ -> "unknown"
+    else
+      match nr.resolved with
+      | Ok resolved ->
+        match resolved.name with
+        | Package hash ->
+          let short = PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition ctx hash
+          match args with
+          | [] -> short
+          | _ -> short ++ "<" ++ (Stdlib.String.join (args |> Stdlib.List.map (fun x -> tsType ctx x)) ", ") ++ ">"
+      | Error _ -> "unknown"
+  | _ -> "unknown"
+
+
+let typeParams (params_: List<String>) : String =
+  match params_ with
+  | [] -> ""
+  | ps -> "<" ++ (Stdlib.String.join (ps |> Stdlib.List.map Generate.Source.typeName) ", ") ++ ">"
+
+
+let declarationOf
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (typ: LanguageTools.ProgramTypes.PackageType.PackageType)
+  : String =
+  let name = PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition ctx typ.hash
+  let generics = typeParams typ.declaration.typeParams
+  let doc = if typ.description == "" then "" else $"/** {typ.description} */\n"
+  match typ.declaration.definition with
+  | Record fields ->
+    let lines =
+      fields
+      |> Stdlib.List.map (fun f ->
+        let optional =
+          match f.typ with
+          | TCustomType(_, [ _ ]) -> Stdlib.String.startsWith (PrettyPrinter.ProgramTypes.typeReference ctx f.typ) "Option<"
+          | _ -> false
+        let mark = if optional then "?" else ""
+        $"  {f.name}{mark}: {tsType ctx f.typ};")
+    $"{doc}export interface {name}{generics} {{\n{Stdlib.String.join lines "\n"}\n}}"
+  | Enum cases ->
+    let arms =
+      cases
+      |> Stdlib.List.map (fun c ->
+        let fields = c.fields |> Stdlib.List.map (fun f -> tsType ctx f.typ)
+        "{ " ++ c.name ++ ": [" ++ (Stdlib.String.join fields ", ") ++ "] }")
+    $"{doc}export type {name}{generics} =\n  | {Stdlib.String.join arms "\n  | "};"
+  | Alias t -> $"{doc}export type {name}{generics} = {tsType ctx t};"
+
+
+let functionOf
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : String =
+  let name = PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition ctx fn.hash
+  let generics = typeParams fn.typeParams
+  let params_ =
+    fn.parameters
+    |> Stdlib.List.map (fun p -> $"{Generate.Source.identifier p.name}: {tsType ctx p.typ}")
+    |> Stdlib.String.join ", "
+  let doc = if fn.description == "" then "" else $"/** {fn.description} */\n"
+  $"{doc}export declare function {name}{generics}({params_}): {tsType ctx fn.returnType};"
+
+
+/// `<source>.d.ts` for the module at <param source> (owner first): its types and fns.
+let toTypeScript (source: String) : Generate.Run =
+  let branchId = SCM.Branches.current ()
+  let segments = Stdlib.String.split source "."
+  match segments with
+  | [] -> Generate.failed [ "toTypeScript needs a module path, like Acme.Core" ]
+  | [ _ ] -> Generate.failed [ $"{source} is an owner, not a module; name a module under it" ]
+  | _ ->
+    let query =
+      LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = segments
+          text = ""
+          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+          entityTypes = []
+          exactMatch = false }
+    let results = LanguageTools.PackageManager.Search.search branchId query
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId segments
+    let types = results.types |> Stdlib.List.map (fun t -> declarationOf ctx t.entity)
+    let fns = results.fns |> Stdlib.List.map (fun f -> functionOf ctx f.entity)
+    match Stdlib.List.append types fns with
+    | [] -> Generate.failed [ $"nothing directly in {source}; is the path spelled owner first?" ]
+    | declarations ->
+      let header = $"// Generated from the Dark module {source}. Do not edit; regenerate."
+      let text = (Stdlib.String.join (Stdlib.List.push declarations header) "\n\n") ++ "\n"
+      Generate.ofArtifacts [ (source ++ ".d.ts", text) ]

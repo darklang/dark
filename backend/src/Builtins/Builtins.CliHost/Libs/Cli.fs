@@ -28,6 +28,7 @@ module D = LibExecution.DvalDecoder
 module Utils = Builtins.CliHost.Utils
 module Toplevels = LibCloud.Toplevels
 module Tracing = LibDB.Tracing
+module TypeChecker = LibExecution.TypeChecker
 module P = LibParser.Parser
 module WT = LibParser.WrittenTypes
 module WT2PT = LibParser.WrittenTypesToProgramTypes
@@ -658,6 +659,81 @@ let private printCallStack
   }
 
 
+/// Evaluate one expression as a guest, on a branch, and hand back the VALUE.
+///
+/// The shared half of `cliEvaluateExpression` (which renders the value for a
+/// terminal) and `cliEvaluateToValue` (which returns it as is, for a caller that
+/// wants a typed result rather than text). Parsing happens inside `guestTry` so a
+/// deep VM failure hits the same net; the expression runs under the host's
+/// configured deny-by-default policy, and a denial is reported with its call stack
+/// so the CLI can offer to allow and retry.
+let private evaluateGuest
+  (exeState : RT.ExecutionState)
+  (accountID : Option<System.Guid>)
+  (branchId : PT.BranchId)
+  (expression : string)
+  (allowHarmful : bool)
+  (asOwn : List<RT.Hash>)
+  (resultError : Dval -> Dval)
+  (onValue : RT.ExecutionState -> Dval -> Ply<Dval>)
+  : Ply<Dval> =
+  uply {
+    let exeState = { exeState with accountID = accountID; branchId = branchId }
+    // Branch-specific state for parsing, under the host's access — see
+    // the note in `cliParseAndExecuteScript`.
+    let branchState = createBranchState exeState allowHarmful
+    let denied = ResizeArray<RT.PermissionDenialRecord>()
+
+    return!
+      guestTry resultError (ExecutionError.classify denied) (fun () ->
+        uply {
+          // `eval` is single-expression only; parse failures surface a precise
+          // diagnostic (no fallback).
+          let! parsedScript =
+            parseGuest (parseCliExpr branchState expression) expression
+
+          let! dbs = loadDBs ()
+
+          match parsedScript with
+          | Ok mod' ->
+            // The expression runs under the host's configured
+            // deny-by-default policy; missing or corrupt policy state
+            // remains locked down.
+            let hostState = exeState
+            let exeState =
+              PolicyStore.guestState
+                accountID
+                LibExecution.Permissions.Policy.allowAll
+                []
+                (ownFns mod' @ asOwn)
+                exeState
+            let exeState = { exeState with deniedRequests = denied }
+            match! execute exeState mod' [] dbs (EvalExpression expression) with
+            | Ok result -> return! onValue exeState result
+            | Error(e, callStack) ->
+              let! csString = Exe.callStackString hostState callStack
+              match ExecutionError.classify denied e with
+              | ExecutionError.Denied d ->
+                // The CLI may offer to allow and retry; the stack is printed
+                // only if the denial stands.
+                return
+                  resultError (
+                    ExecutionError.toDT (
+                      ExecutionError.Denied { d with callStack = csString }
+                    )
+                  )
+              | other ->
+                // Only when the stack names a function: see `hasReadableFrames`.
+                if hasReadableFrames callStack && csString <> "" then
+                  print
+                    $"Error when executing expression. Call-stack:\n{csString}\n"
+                return resultError (ExecutionError.toDT other)
+          | Error pe ->
+            return resultError (ExecutionError.toDT (ExecutionError.Parse pe))
+        })
+  }
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
@@ -916,100 +992,114 @@ let fns () : List<BuiltInFn> =
              DInt width
              DBool color
              DBool allowHarmful |] ->
-          uply {
-            // Attribute the run to the calling account so the trace
-            // insert can stamp `traces.account_id`.
-            let accountID = C2DT.Option.fromDT D.uuid accountIDDval
-            let branchId = PT.BranchId.Id branchId
-            let exeState =
-              { exeState with accountID = accountID; branchId = branchId }
-            // Branch-specific state for parsing, under the host's access — see
-            // the note in `cliParseAndExecuteScript`.
-            let branchState = createBranchState exeState allowHarmful
-            let denied = ResizeArray<RT.PermissionDenialRecord>()
-
-            return!
-              guestTry resultError (ExecutionError.classify denied) (fun () ->
-                uply {
-                  // Parsing can raise (e.g. deep VM failures); keep it inside
-                  // guestTry so its exceptions hit the Unhandled net. `eval` is
-                  // single-expression only; parse failures surface a precise
-                  // diagnostic (no fallback).
-                  let! parsedScript =
-                    parseGuest (parseCliExpr branchState expression) expression
-
-                  let! dbs = loadDBs ()
-
-                  match parsedScript with
-                  | Ok mod' ->
-                    // The expression runs under the host's configured
-                    // deny-by-default policy; missing or corrupt policy state
-                    // remains locked down.
-                    let hostState = exeState
-                    let exeState =
-                      PolicyStore.guestState
-                        accountID
-                        LibExecution.Permissions.Policy.allowAll
-                        []
-                        (ownFns mod')
-                        exeState
-                    let exeState = { exeState with deniedRequests = denied }
-                    match!
-                      execute exeState mod' [] dbs (EvalExpression expression)
-                    with
-                    | Ok result ->
-                      match result with
-                      | DUnit -> return okNone ()
-                      | DString s -> return okSome s
-                      | _ ->
-                        // Width and color are the caller's to decide: they are
-                        // facts about the process this output is headed for, and
-                        // asking here would mean reaching into another builtin's
-                        // terminal code. `Cli.Terminal` owns both and answers
-                        // them in Dark.
-                        let currentModule =
-                          currentModule
-                          |> List.choose (fun d ->
-                            match d with
-                            | DString s -> Some s
-                            | _ -> None)
-                        let! asString =
-                          Exe.dvalToReprForTerminal
-                            exeState
-                            (intToInt32 vm width)
-                            color
-                            currentModule
-                            result
-                        return okSome asString
-                    | Error(e, callStack) ->
-                      let! csString = Exe.callStackString hostState callStack
-                      match ExecutionError.classify denied e with
-                      | ExecutionError.Denied d ->
-                        // The CLI may offer to allow and retry; the stack is printed
-                        // only if the denial stands.
-                        return
-                          resultError (
-                            ExecutionError.toDT (
-                              ExecutionError.Denied { d with callStack = csString }
-                            )
-                          )
-                      | other ->
-                        // Only when the stack names a function: see `hasReadableFrames`.
-                        if hasReadableFrames callStack && csString <> "" then
-                          print
-                            $"Error when executing expression. Call-stack:\n{csString}\n"
-                        return resultError (ExecutionError.toDT other)
-                  | Error pe ->
-                    return
-                      resultError (ExecutionError.toDT (ExecutionError.Parse pe))
-                })
-          }
+          // Attribute the run to the calling account so the trace
+          // insert can stamp `traces.account_id`.
+          let accountID = C2DT.Option.fromDT D.uuid accountIDDval
+          let branchId = PT.BranchId.Id branchId
+          evaluateGuest
+            exeState
+            accountID
+            branchId
+            expression
+            allowHarmful
+            []
+            resultError
+            (fun exeState result ->
+              uply {
+                match result with
+                | DUnit -> return okNone ()
+                | DString s -> return okSome s
+                | _ ->
+                  // Width and color are the caller's to decide: they are
+                  // facts about the process this output is headed for, and
+                  // asking here would mean reaching into another builtin's
+                  // terminal code. `Cli.Terminal` owns both and answers
+                  // them in Dark.
+                  let currentModule =
+                    currentModule
+                    |> List.choose (fun d ->
+                      match d with
+                      | DString s -> Some s
+                      | _ -> None)
+                  let! asString =
+                    Exe.dvalToReprForTerminal
+                      exeState
+                      (intToInt32 vm width)
+                      color
+                      currentModule
+                      result
+                  return okSome asString
+              })
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.Native ]
       deprecated = NotDeprecated }
 
+
+    // The same evaluation, handing the value back untouched. For a caller that wants
+    // a typed result out of `eval` rather than text: `dark generate` runs a saved
+    // generator and reads its `Generate.Run`; the propagation cascade re-runs one.
+    // The type argument is the caller's claim about the result; the runtime check on
+    // the way out is what holds it to that.
+    { name = fn "cliEvaluateToValue" 0
+      typeParams = [ "a" ]
+      parameters =
+        [ Param.make "accountID" (TypeReference.option TUuid) ""
+          Param.make "branchId" TUuid "the branch to resolve names against"
+          Param.make "expression" TString ""
+          Param.make
+            "allowHarmful"
+            TBool
+            "Opt out of Harmful-deprecation halting (see docs/deprecation)"
+          Param.make
+            "asOwn"
+            (TList TString)
+            "Package fn hashes to run as if they were the expression's own code: the consumer's package approvals are not consulted for them, the instance policy still bounds them. `generate` names the saved generator it is about to run, having checked its requirements statically." ]
+      returnType = TypeReference.result (TVariable "a") (ExecutionError.typeRef ())
+      description =
+        "Evaluates a Dark expression on a branch and returns its value, typed as "
+        + "<typeParam a>. Errors are the same structured ExecutionError `eval` reports."
+      fn =
+        let errType = KTCustomType(ExecutionError.fqTypeName (), []) |> VT.known
+        (function
+        | exeState,
+          vm,
+          [ _resultType ],
+          [| accountIDDval
+             DUuid branchId
+             DString expression
+             DBool allowHarmful
+             DList(_, asOwn) |] ->
+          let accountID = C2DT.Option.fromDT D.uuid accountIDDval
+          let branchId = PT.BranchId.Id branchId
+          let threadID = vm.threadID
+          let asOwn =
+            asOwn
+            |> List.choose (fun d ->
+              match d with
+              | DString h -> Some(RT.Hash h)
+              | _ -> None)
+          // The ok side's value type is the caller's `'a`; as `Json.parse` does, it is
+          // left unknown here and the runtime check holds the result to it.
+          let okType = VT.unknownTODO
+          let resultError (e : Dval) =
+            TypeChecker.DvalCreator.Result.error threadID okType errType e
+          evaluateGuest
+            exeState
+            accountID
+            branchId
+            expression
+            allowHarmful
+            asOwn
+            resultError
+            (fun _ result ->
+              Ply(TypeChecker.DvalCreator.Result.ok threadID okType errType result))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Native ]
+      deprecated = NotDeprecated }
 
     ]
 

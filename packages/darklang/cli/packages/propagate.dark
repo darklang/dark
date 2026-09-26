@@ -229,6 +229,11 @@ let repointNow
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.error
             $"""  note: {Cli.Text.plural failedRepointed "repointed dependent"} now fails typecheck -- `dark typecheck --failed` lists them""")
+
+      // A repointed saved generator is a generator whose input moved: re-run it, so its
+      // outputs follow the edit the way a caller follows a callee. Staging its outputs
+      // comes back through here for THEIR dependents, which is the cascade.
+      Cli.Generate.regenerateRepointed branchId repoints
     | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  propagation failed: {e}")
 
 

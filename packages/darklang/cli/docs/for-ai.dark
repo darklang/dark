@@ -10,6 +10,7 @@ state resets between calls; package changes persist.
 
   search --batch "List.map" "Json.serialize" --fn # related searches
   module /Darklang.Example -                     # declarations from stdin
+  generate <fn> <args> --into Owner.Module       # derive a module from a sample or spec (`docs generate`)
   eval Darklang.Example.main "arg"               # test an expression
   typecheck                                       # audit declarations on the branch
   status                                          # inspect changes

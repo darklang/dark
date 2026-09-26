@@ -1,0 +1,144 @@
+module Darklang.Generate.Derive
+
+// Functions a type earns by its shape: `show<Name>`, `equals<Name>`, and a setter per
+// record field. `Derive.forType<Acme.Core.Money> ()` names the type as a type
+// argument, so the type is a dependency of the saved generator and the derived fns
+// regenerate when the type is edited.
+//
+// These are plain fns today. When traits land, `show` and `equals` are the bodies an
+// `impl Show for Money` and `impl Eq for Money` would carry, and the point of
+// generating them now is that they already exist per type, in the shape traits will
+// want, without anyone writing them by hand.
+
+
+/// The expression rendering a value of <param t> (bound to <param v>) as a String.
+let showExpr
+  (ctx: PrettyPrinter.ProgramTypes.Context)
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  (v: String)
+  : String =
+  let quote = Generate.Source.stringLiteral "\""
+  match t with
+  | TString -> quote ++ " ++ " ++ v ++ " ++ " ++ quote
+  | TInt -> $"Stdlib.Int.toString {v}"
+  | TInt64 -> $"Stdlib.Int64.toString {v}"
+  | TFloat -> $"Stdlib.Float.toString {v}"
+  | TBool -> $"Stdlib.Bool.toString {v}"
+  | TUuid -> $"Stdlib.Uuid.toString {v}"
+  | TUnit -> "\"()\""
+  | TList inner ->
+    let item = showExpr ctx inner "x"
+    "\"[\" ++ (Stdlib.String.join (" ++ v ++ " |> Stdlib.List.map (fun x -> " ++ item ++ ")) \", \") ++ \"]\""
+  | TCustomType(nr, args) ->
+    let name = PrettyPrinter.ProgramTypes.typeReference ctx t
+    if Stdlib.String.startsWith name "Option<" then
+      match args with
+      | [ inner ] ->
+        let item = showExpr ctx inner "x"
+        "(match " ++ v ++ " with | Some x -> \"Some \" ++ (" ++ item ++ ") | None -> \"None\")"
+      | _ -> $"Stdlib.toRepr {v}"
+    else
+      $"Stdlib.toRepr {v}"
+  | _ -> $"Stdlib.toRepr {v}"
+
+
+/// The expression comparing two values of <param t> (bound to <param a> and <param b>).
+let equalsExpr
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  (a: String)
+  (b: String)
+  : String =
+  $"{a} == {b}"
+
+
+/// `show<Name>`, `equals<Name>` and the setters for the record or enum behind
+/// <typeParam a>.
+let forType<'a> () : Generate.Run =
+  match LanguageTools.PackageManager.Type.declarationOf<'a> () with
+  | None ->
+    Generate.failed
+      [ "Derive.forType takes a package type as its type argument; a builtin type, a "
+        ++ "type variable or a list has nothing to derive from" ]
+  | Some typ ->
+    let branchId = SCM.Branches.current ()
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId []
+    let name = PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition ctx typ.hash
+    let fullName = PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference ctx typ.hash
+
+    match typ.declaration.definition with
+    | Record fields ->
+      let shown =
+        fields
+        |> Stdlib.List.map (fun f ->
+          let rendered = showExpr ctx f.typ ("value." ++ f.name)
+          $"\"{f.name} = \" ++ ({rendered})")
+        |> Stdlib.String.join " ++ \"; \" ++ "
+      let show =
+        Stdlib.String.join
+          [ $"/// A readable rendering of a {name}, one field per `name = value`.",
+            $"let show{name} (value: {fullName}) : String =",
+            $"  \"{name} {{ \" ++ {shown} ++ \" }}\"" ]
+          "\n"
+
+      let compared =
+        fields
+        |> Stdlib.List.map (fun f ->
+          let compared = equalsExpr f.typ ("a." ++ f.name) ("b." ++ f.name)
+          $"({compared})")
+        |> Stdlib.String.join " && "
+      let equals =
+        Stdlib.String.join
+          [ $"/// Field-wise equality for {name}.",
+            $"let equals{name} (a: {fullName}) (b: {fullName}) : Bool =",
+            $"  {compared}" ]
+          "\n"
+
+      let setters =
+        fields
+        |> Stdlib.List.map (fun f ->
+          let fieldType = PrettyPrinter.ProgramTypes.typeReference ctx f.typ
+          Stdlib.String.join
+            [ $"/// <param value> with `{f.name}` replaced.",
+              $"let with{Generate.Source.typeName f.name} (value: {fullName}) ({f.name}: {fieldType}) : {fullName} =",
+              $"  {{ value with {f.name} = {f.name} }}" ]
+            "\n")
+
+      Generate.ofSource
+        (Generate.Source.module_ (Stdlib.List.flatten [ [ show, equals ], setters ]))
+
+    | Enum cases ->
+      let arms =
+        cases
+        |> Stdlib.List.map (fun c ->
+          match c.fields with
+          | [] -> $"  | {c.name} -> \"{c.name}\""
+          | fs ->
+            let binders =
+              fs |> Stdlib.List.indexedMap (fun i _ -> $"f{Stdlib.Int.toString i}")
+            let parts =
+              (Stdlib.List.zip fs binders)
+              |> Stdlib.Option.withDefault []
+              |> Stdlib.List.map (fun (f, b) ->
+                let rendered = showExpr ctx f.typ b
+                $"({rendered})")
+              |> Stdlib.String.join " ++ \", \" ++ "
+            let bound = Stdlib.String.join binders ", "
+            $"  | {c.name}({bound}) -> \"{c.name}(\" ++ {parts} ++ \")\"")
+        |> Stdlib.String.join "\n"
+      let show =
+        Stdlib.String.join
+          [ $"/// A readable rendering of a {name}: the case, and its fields.",
+            $"let show{name} (value: {fullName}) : String =",
+            "  match value with",
+            arms ]
+          "\n"
+      let equals =
+        Stdlib.String.join
+          [ $"/// Structural equality for {name}.",
+            $"let equals{name} (a: {fullName}) (b: {fullName}) : Bool =",
+            "  a == b" ]
+          "\n"
+      Generate.ofSource (Generate.Source.module_ [ show, equals ])
+
+    | Alias _ ->
+      Generate.failed [ $"{name} is an alias; derive from the type it names instead" ]

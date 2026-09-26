@@ -1,0 +1,160 @@
+module Darklang.Cli.Docs.Generate
+
+let content () : String =
+  """# Generators
+
+A generator is a fn that writes Dark. It returns `Generate.Run`, a module's worth
+of source text, and `dark generate` stages that source the way `module` stages a
+file you typed: parsed, resolved, hashed, type-checked at rest, propagated. What a
+generator makes is a type or a fn like any other. Nothing is "generated" as a kind.
+
+  generate <libraryFn> --<param> <value>... --into Owner.Module   write a saved generator, run it
+  generate <savedGenerator>                             re-run one
+  ... --fetch <url>                                     take the document from a URL, not a file
+  generate <savedGenerator> --refresh                   re-fetch its URL; re-run only if it moved
+  ... --out <dir>                                       where a generator's files go (a .d.ts)
+  ... --dry-run                                         show what would be written, stage nothing
+  ... --print                                           print the source a saved generator produces
+
+Library generators, by what they read:
+
+  From a file (stored once as a blob, named by hash in the saved fn):
+  Json.fromSample --name Order --sample order.json        records that parse the sample,
+                                                          with decoders, encoders, `parse`
+  Json.fromSamples --name Order --samples dir/            the same over every file in a
+                                                          directory, shapes unified
+  JsonSchema.types --name Ticket --schema schema.json     records for the root and $defs
+  Csv.fromSample --name Person --sample rows.csv          a row type from the header and
+                                                          columns, `fromFields`, `parse`
+  Sql.schemaTypes --dump schema.sql                       a record per CREATE TABLE
+                                                          (sqlite3 .schema), `<x>FromRow`,
+                                                          `all<Table>`
+  OpenApi.client --spec openapi.json                      a typed HTTP client (or
+                                                          --fetch <url> instead of --spec)
+  OpenApi.server --spec openapi.json                      `Handlers`, `notImplemented`,
+                                                          `router` for `Stdlib.HttpServer`
+  GraphQL.client --schema schema.graphql                  records, one fn per root field
+
+  From a package type (a type argument, so the type is a dependency and edits
+  regenerate):
+  Dark.mirror --type Acme.Core.Money                      the same declaration elsewhere
+  Derive.forType --type Acme.Core.Money                   show<T>, equals<T>, with<Field>
+  Fixtures.forType --type Acme.Core.Order                 example<T> (), transitively
+
+  From a module (by path; re-run by name):
+  Dark.mirrorModule --source Acme.Core                    every item copied, references
+                                                          rewritten to the copies
+  TypeScript.toTypeScript --source Acme.Core --out ts/    a .d.ts file
+
+Every argument is named after the library fn's parameter (`Json.fromSample (name:
+String) (sample: Blob)` takes `--name` and `--sample`); a type parameter is `--type`.
+A missing one is named back with what it takes. Your own generator gets the same
+treatment: its parameter names are its flags.
+
+Generated records read and write JSON as other systems do: a missing or null key is
+None, and None is left out. That is `decode<T>` and `encode<T>` over
+`Stdlib.AltJson.Decode` / `Encode`; `Stdlib.Json.parse` reads Dark's own encoding of
+Option and is not what a generated `parse` uses.
+
+Short names resolve: `Json.fromSample` finds `Darklang.Generate.Json.fromSample`.
+
+## The saved generator
+
+The library form is sugar. It writes ONE fn into the target module, whose body is
+the call you made, and runs it:
+
+  $ dark generate Json.fromSample --name Order --sample ./order.json --into Acme.Orders
+    stored ./order.json as blob 7f3a1c9e (412 B)
+    wrote Acme.Orders.orderGenerator
+    ran Acme.Orders.orderGenerator into Acme.Orders:
+      + Order
+      + OrderLine
+      + parse
+
+  $ dark view Acme.Orders.orderGenerator
+    let orderGenerator () : Darklang.Generate.Run =
+      Darklang.Generate.Json.fromSample "Order" (Darklang.Generate.input "7f3a1c9e...")
+
+That fn is the whole recipe. A file argument was stored once as a content-addressed
+blob and is named by hash, so the saved fn is pure: same body, same output, on any
+machine that has the blob. `view` shows it, `edit` edits it, `deps` lists what it
+reads, `status` and `commit` count it and its outputs as ordinary changes.
+
+## Running it again
+
+  $ dark generate Acme.Orders.orderGenerator
+    ran Acme.Orders.orderGenerator into Acme.Orders:
+      = Order  unchanged
+      = OrderLine  unchanged
+      = parse  unchanged
+    nothing to do: every output already holds this content
+
+`=` means the output hashed to what the name already holds, so no op was recorded.
+That is what content addressing buys: a regenerated module only moves the names
+whose content moved, and only their dependents follow.
+
+A file on disk is not watched. To take a changed sample, run the SAME library
+command again: it stores the new blob, rewrites the saved generator (`updated`),
+and re-runs it. Only what changed is `~`.
+
+An input that is a package item is a dependency like any other:
+
+  $ dark generate Dark.mirror --type Acme.Core.Money --into Acme.Test
+    wrote Acme.Test.moneyGenerator          # its body: mirror<Acme.Core.Money> ()
+    ran Acme.Test.moneyGenerator into Acme.Test:
+      + Money                               # same hash as Acme.Core.Money
+  $ dark type Acme.Core.Money = { ... one more field ... }
+    1 dependent repointed: Acme.Test.moneyGenerator
+    regenerated by Acme.Test.moneyGenerator: Money
+
+Edit the input and the saved generator repoints and re-runs in your draft as part
+of propagation, and its outputs' dependents follow in turn. `propagate pin
+<generator>` stops that, like any pin; `follow` catches it up and re-runs; `undo`
+on the input brings the outputs back down with it. A merge or rebase repoints in
+the SCM layer without re-running; the next edit, or `generate <name>`, catches up.
+
+A document from the network is a two-step, and the generator itself stays pure:
+
+  $ dark generate OpenApi.client --fetch https://api.x.com/openapi.json --into Acme.X
+    fetched https://api.x.com/openapi.json as blob 8bc31ceb (2362 B)
+    wrote Acme.X.xGenerator                 # doc comment: fetched from <url>
+    ...
+  $ dark generate Acme.X.xGenerator --refresh
+    fetched ... as blob 8bc31ceb
+    unchanged since it was last fetched
+
+Only what the document changed moves on a refresh. The fetch goes through the
+sync transport, so an API on your LAN or tailnet works; the instance policy still
+has to allow the network.
+
+## Hand edits
+
+Editing a generated type by hand is an ordinary edit. Running the generator again
+rebinds the name to the generator's output; the hand-edited version is still in
+the store, and `undo <name>` brings it back. Nothing is lost, and nothing is
+detected either: v1 does not record which names a generator produced.
+
+## Effects
+
+A generator may read the package store and nothing else. It runs at authoring
+time and its output is stored, so a live read of a file or the network would make
+the saved fn a lie about where the output came from; the store is the program
+itself, and a generator over package inputs (a mirror, a derive) has to read it.
+`generate` refuses a fn whose requirements name any other effect, and the run
+executes under the guest policy, where an undeclared effect is denied at the call.
+Fetch first, save the result as a file, and generate from the file.
+
+## Writing one
+
+A generator is a fn returning `Darklang.Generate.Run`. Build the source with
+`Darklang.Generate.Source` (`recordType`, `enumType`, `fn`, `module_`,
+`identifier`, `typeName`) so names are legal and layout is stable, and return
+`Darklang.Generate.ofSource text`. Report a problem with
+`Darklang.Generate.failed [ "why" ]`; the CLI prints the reasons and stages nothing.
+Keep output deterministic (sort what has no order): same inputs, same text, same
+hashes, so a re-run is a no-op.
+
+A generator that reads a type takes it as a type argument
+(`mirror<'a> ()` reads `PackageManager.Type.declarationOf<'a> ()`), which is what
+makes the type a dependency of the saved fn.
+"""

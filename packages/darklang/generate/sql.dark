@@ -1,0 +1,293 @@
+module Darklang.Generate.Sql
+
+// Row types from a SQL schema dump (SQLite dialect; `sqlite3 app.db .schema > schema.sql`).
+//
+// One record per `CREATE TABLE`, named after the table in the singular, with a field
+// per column typed by SQLite's affinity rules: INT* is `Int64`, REAL/FLOAT/DOUBLE and
+// NUMERIC/DECIMAL are `Float`, TEXT/CHAR/CLOB/DATE/TIME are `String`, BLOB (or no type)
+// is `Blob`, BOOL* is `Bool`. A column without `NOT NULL` or `PRIMARY KEY` is an
+// `Option`. Each record comes with `fromRow`, reading a `Stdlib.Sqlite` row and naming
+// the first column that does not fit, and `selectAll`, which reads a whole table.
+//
+// The parser reads the dump as text: it finds each `CREATE TABLE`, takes the balanced
+// parenthesis after the name, splits on top-level commas, and skips table constraints
+// (`PRIMARY KEY (...)`, `FOREIGN KEY`, `UNIQUE`, `CHECK`, `CONSTRAINT`). Views,
+// indexes and triggers are ignored. The dump is a file, so the generator stays pure;
+// there is no live connection to the database here.
+
+
+type ColumnType =
+  | Int64
+  | Float
+  | String
+  | Blob
+  | Bool
+
+
+type Column =
+  { name: String
+    typ: ColumnType
+    required: Bool }
+
+
+type Table = { name: String; columns: List<Column> }
+
+
+let stripQuotes (s: String) : String =
+  let t = Stdlib.String.trim s
+  let unwrap (x: String) (open_: String) (close: String) : String =
+    if (Stdlib.String.startsWith x open_) && (Stdlib.String.endsWith x close) && ((Stdlib.String.length x) >= 2) then
+      Stdlib.String.slice x 1 ((Stdlib.String.length x) - 1)
+    else
+      x
+  t |> unwrap "\"" "\"" |> unwrap "`" "`" |> unwrap "[" "]" |> unwrap "'" "'"
+
+
+/// The first token and the rest: up to whitespace, or, for a quoted name (`"display
+/// name"`, `[display name]`, a backtick), up to the closing quote inclusive.
+let nextToken (s: String) : (String * String) =
+  let trimmed = Stdlib.String.trim s
+  let chars = Stdlib.String.toList trimmed
+  let closing =
+    match chars with
+    | '"' :: _ -> Stdlib.Option.Option.Some '"'
+    | '`' :: _ -> Stdlib.Option.Option.Some '`'
+    | '[' :: _ -> Stdlib.Option.Option.Some ']'
+    | _ -> Stdlib.Option.Option.None
+  let token =
+    match closing with
+    | Some q ->
+      let inner = (Stdlib.List.drop chars 1) |> Stdlib.List.takeWhile (fun c -> c != q)
+      Stdlib.String.fromList (Stdlib.List.flatten [ [ Stdlib.List.head chars |> Stdlib.Option.withDefault q ], inner, [ q ] ])
+    | None ->
+      chars
+      |> Stdlib.List.takeWhile (fun c -> Stdlib.Bool.not (Stdlib.Char.isWhitespace c))
+      |> Stdlib.String.fromList
+  (token, Stdlib.String.dropFirst trimmed (Stdlib.String.length token))
+
+
+/// Split on commas that are not inside parentheses.
+let splitTopLevel (s: String) : List<String> =
+  let (parts, current, _) =
+    (Stdlib.String.toList s)
+    |> Stdlib.List.fold ([], [], 0) (fun (parts, current, depth) c ->
+      if c == '(' then
+        (parts, Stdlib.List.pushBack current c, depth + 1)
+      else if c == ')' then
+        (parts, Stdlib.List.pushBack current c, depth - 1)
+      else if (c == ',') && (depth == 0) then
+        (Stdlib.List.pushBack parts (Stdlib.String.fromList current), [], depth)
+      else
+        (parts, Stdlib.List.pushBack current c, depth))
+  Stdlib.List.pushBack parts (Stdlib.String.fromList current)
+  |> Stdlib.List.map Stdlib.String.trim
+  |> Stdlib.List.filter (fun p -> p != "")
+
+
+/// The text between the first `(` and its matching `)`, and the text before it.
+let balanced (s: String) : Stdlib.Option.Option<(String * String)> =
+  match Stdlib.String.indexOf s "(" with
+  | None -> Stdlib.Option.Option.None
+  | Some start ->
+    let before = Stdlib.String.slice s 0 start
+    let after = Stdlib.String.dropFirst s (start + 1)
+    let (_, body, found) =
+      (Stdlib.String.toList after)
+      |> Stdlib.List.fold (1, [], false) (fun (depth, acc, done_) c ->
+        if done_ then
+          (depth, acc, true)
+        else if c == '(' then
+          (depth + 1, Stdlib.List.pushBack acc c, false)
+        else if c == ')' then
+          if depth == 1 then (0, acc, true) else (depth - 1, Stdlib.List.pushBack acc c, false)
+        else
+          (depth, Stdlib.List.pushBack acc c, false))
+    if found then
+      Stdlib.Option.Option.Some((before, Stdlib.String.fromList body))
+    else
+      Stdlib.Option.Option.None
+
+
+let columnType (declared: String) : ColumnType =
+  let t = Stdlib.String.toUppercase declared
+  if Stdlib.String.contains t "INT" then ColumnType.Int64
+  else if Stdlib.String.contains t "BOOL" then ColumnType.Bool
+  else if (Stdlib.String.contains t "CHAR") || (Stdlib.String.contains t "CLOB") || (Stdlib.String.contains t "TEXT") then ColumnType.String
+  else if (Stdlib.String.contains t "DATE") || (Stdlib.String.contains t "TIME") then ColumnType.String
+  else if (Stdlib.String.contains t "REAL") || (Stdlib.String.contains t "FLOA") || (Stdlib.String.contains t "DOUB") then ColumnType.Float
+  else if (Stdlib.String.contains t "NUM") || (Stdlib.String.contains t "DEC") then ColumnType.Float
+  else if t == "" then ColumnType.Blob
+  else if Stdlib.String.contains t "BLOB" then ColumnType.Blob
+  else ColumnType.String
+
+
+let isTableConstraint (definition: String) : Bool =
+  let lower = Stdlib.String.toLowercase (Stdlib.String.trim definition)
+  [ "primary key", "foreign key", "unique", "check", "constraint" ]
+  |> Stdlib.List.any (fun k -> Stdlib.String.startsWith lower k)
+
+
+let parseColumn (definition: String) : Stdlib.Option.Option<Column> =
+  if isTableConstraint definition then
+    Stdlib.Option.Option.None
+  else
+    let (rawName, rest) = nextToken definition
+    let (rawType, constraints) = nextToken rest
+    let declaredType =
+      // `VARCHAR(255)`: the affinity is in the word, not the size.
+      (Stdlib.String.split rawType "(") |> Stdlib.List.head |> Stdlib.Option.withDefault rawType
+    let lower = Stdlib.String.toLowercase (rawType ++ " " ++ constraints)
+    let required =
+      (Stdlib.String.contains lower "not null") || (Stdlib.String.contains lower "primary key")
+    Stdlib.Option.Option.Some(
+      Column
+        { name = stripQuotes rawName
+          typ = columnType declaredType
+          required = required })
+
+
+/// Every `CREATE TABLE` in <param dump>, in order.
+let tablesOf (dump: String) : List<Table> =
+  let lower = Stdlib.String.toLowercase dump
+  let marker = "create table"
+
+  // Every position where `create table` begins; each is walked independently.
+  let positions =
+    (Stdlib.String.toList lower)
+    |> Stdlib.List.indexedMap (fun i _ -> i)
+    |> Stdlib.List.filter (fun i ->
+      Stdlib.String.startsWith (Stdlib.String.dropFirst lower i) marker)
+
+  positions
+  |> Stdlib.List.filterMap (fun at ->
+    let after = Stdlib.String.dropFirst dump (at + (Stdlib.String.length marker))
+    match balanced after with
+    | None -> Stdlib.Option.Option.None
+    | Some pair ->
+      let (head, body) = pair
+      let headLower = Stdlib.String.toLowercase head
+      let nameText =
+        match Stdlib.String.indexOf headLower "if not exists" with
+        | Some i -> Stdlib.String.dropFirst head (i + 13)
+        | None -> head
+      let name = stripQuotes nameText
+      let columns = (splitTopLevel body) |> Stdlib.List.filterMap parseColumn
+      if (name == "") || (Stdlib.List.isEmpty columns) then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some(Table { name = name; columns = columns }))
+
+
+let typeText (c: Column) : String =
+  let base =
+    match c.typ with
+    | Int64 -> "Int64"
+    | Float -> "Float"
+    | String -> "String"
+    | Blob -> "Blob"
+    | Bool -> "Bool"
+  if c.required then base else $"Stdlib.Option.Option<{base}>"
+
+
+/// The expression reading column <param c> out of `row`, as a `Result<T, String>`.
+let readExpr (c: Column) : String =
+  let (pattern, convert, expected) =
+    match c.typ with
+    | Int64 -> ("Int v", "v", "an integer")
+    | Float -> ("Real v", "v", "a real")
+    | String -> ("Text v", "v", "text")
+    | Blob -> ("Bytes v", "v", "bytes")
+    | Bool -> ("Int v", "v != 0L", "0 or 1")
+  let nullComplaint = Generate.Source.stringLiteral (c.name ++ ": null")
+  let onNull =
+    if c.required then
+      $"Stdlib.Result.Result.Error {nullComplaint}"
+    else
+      "Stdlib.Result.Result.Ok Stdlib.Option.Option.None"
+  let onValue = if c.required then convert else $"Stdlib.Option.Option.Some({convert})"
+  let col = Generate.Source.stringLiteral c.name
+  let typeComplaint = Generate.Source.stringLiteral (c.name ++ ": expected " ++ expected)
+  Stdlib.String.join
+    [ $"match Stdlib.Dict.get row {col} with",
+      $"    | Some({pattern}) -> Stdlib.Result.Result.Ok({onValue})",
+      $"    | Some Null -> {onNull}",
+      $"    | None -> {onNull}",
+      $"    | Some _ -> Stdlib.Result.Result.Error {typeComplaint}" ]
+    "\n"
+
+
+/// The singular of a table name, for the record: `users` -> `User`.
+let recordName (table: String) : String =
+  let t = Generate.Source.typeName table
+  if (Stdlib.String.endsWith t "ies") && ((Stdlib.String.length t) > 3) then
+    (Stdlib.String.dropLast t 3) ++ "y"
+  else if (Stdlib.String.endsWith t "s") && (Stdlib.Bool.not (Stdlib.String.endsWith t "ss")) && ((Stdlib.String.length t) > 2) then
+    Stdlib.String.dropLast t 1
+  else
+    t
+
+
+let tableSource (t: Table) : List<String> =
+  let name = recordName t.name
+  let fields =
+    t.columns
+    |> Stdlib.List.map (fun c ->
+      let field = Generate.Source.identifier c.name
+      let note =
+        if field != c.name then Stdlib.Option.Option.Some $"column \"{c.name}\"" else Stdlib.Option.Option.None
+      Generate.Source.field field (typeText c) note)
+
+  let bindings =
+    t.columns
+    |> Stdlib.List.map (fun c ->
+      $"let {Generate.Source.identifier c.name} =\n    {readExpr c}")
+    |> Stdlib.String.join "\n  "
+
+  let names = t.columns |> Stdlib.List.map (fun c -> Generate.Source.identifier c.name)
+  let assemble =
+    names
+    |> Stdlib.List.reverse
+    |> Stdlib.List.fold
+      ($"Stdlib.Result.Result.Ok({name} {{ "
+       ++ (names |> Stdlib.List.map (fun n -> $"{n} = {n}") |> Stdlib.String.join "; ")
+       ++ " })")
+      (fun inner n ->
+        $"match {n} with\n  | Error e -> Stdlib.Result.Result.Error e\n  | Ok {n} ->\n  {inner}")
+
+  let fromRow =
+    Stdlib.String.join
+      [ $"/// One row of `{t.name}` as a {name}; the first column that does not fit names itself.",
+        $"let {Generate.Source.identifier name}FromRow (row: Dict<String, Stdlib.Sqlite.Value>) : Stdlib.Result.Result<{name}, String> =",
+        $"  {bindings}",
+        $"  {assemble}" ]
+      "\n"
+
+  let selectSql = Generate.Source.stringLiteral ("SELECT * FROM " ++ t.name)
+  let selectAll =
+    Stdlib.String.join
+      [ $"/// Every row of `{t.name}` in the database at <param dbPath>.",
+        $"let all{Generate.Source.typeName t.name} (dbPath: String) : Stdlib.Result.Result<List<Stdlib.Result.Result<{name}, String>>, String> =",
+        $"  (Stdlib.Sqlite.query dbPath {selectSql})",
+        $"  |> Stdlib.Result.map (fun rows -> rows |> Stdlib.List.map {Generate.Source.identifier name}FromRow)" ]
+      "\n"
+
+  [ Generate.Source.recordType name fields, fromRow, selectAll ]
+
+
+/// Row types for every table in <param dump>, a SQL schema as `sqlite3 x.db .schema`
+/// prints it.
+let schemaTypes (dump: Blob) : Generate.Run =
+  if Stdlib.Blob.length dump == 0 then
+    Generate.failed [ "the schema dump is empty (a missing input reads as empty)" ]
+  else
+    match Stdlib.Blob.toString dump with
+    | Error _ -> Generate.failed [ "the schema dump is not UTF-8 text" ]
+    | Ok text ->
+      match tablesOf text with
+      | [] ->
+        Generate.failed
+          [ "no CREATE TABLE statements found; `sqlite3 app.db .schema > schema.sql` "
+            ++ "produces the input this reads" ]
+      | tables ->
+        Generate.ofSource
+          (Generate.Source.module_ (tables |> Stdlib.List.map tableSource |> Stdlib.List.flatten))

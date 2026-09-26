@@ -1,0 +1,204 @@
+module Darklang.Generate.Csv
+
+// A row type from a CSV sample.
+//
+// The header row names the fields; the data rows say what each column holds: `Int`
+// when every value is a whole number, `Float` when every value is numeric, `Bool`
+// when every value is true or false, `String` otherwise. A column with an empty cell
+// somewhere is an `Option`. Alongside the type come `fromFields`, which turns one
+// row's cells into the record (reporting the column that would not convert), and
+// `parse`, which splits a whole document into rows.
+//
+// The splitter is the simple one: a cell is what sits between commas, and a cell
+// wrapped in double quotes has them removed. Commas inside quotes are not handled;
+// the doc comment on `parse` says so. Column order is the header's order.
+
+
+/// What a column holds, once every row has been seen.
+type Column =
+  | Int
+  | Float
+  | Bool
+  | String
+
+
+let cellsOf (line: String) : List<String> =
+  (Stdlib.String.split line ",")
+  |> Stdlib.List.map (fun cell ->
+    let trimmed = Stdlib.String.trim cell
+    if
+      (Stdlib.String.startsWith trimmed "\"")
+      && (Stdlib.String.endsWith trimmed "\"")
+      && ((Stdlib.String.length trimmed) >= 2)
+    then
+      Stdlib.String.slice trimmed 1 ((Stdlib.String.length trimmed) - 1)
+    else
+      trimmed)
+
+
+let isInt (cell: String) : Bool =
+  match Stdlib.Int.parse cell with
+  | Ok _ -> true
+  | Error _ -> false
+
+let isFloat (cell: String) : Bool =
+  match Stdlib.Float.parse cell with
+  | Ok _ -> true
+  | Error _ -> isInt cell
+
+let isBool (cell: String) : Bool =
+  let lower = Stdlib.String.toLowercase cell
+  (lower == "true") || (lower == "false")
+
+
+/// The narrowest column type every non-empty cell fits, and whether any cell was
+/// empty.
+let columnOf (cells: List<String>) : (Column * Bool) =
+  let present = cells |> Stdlib.List.filter (fun c -> c != "")
+  let anyEmpty = (Stdlib.List.length present) < (Stdlib.List.length cells)
+  let column =
+    if Stdlib.List.isEmpty present then
+      Column.String
+    else if Stdlib.List.all present isInt then
+      Column.Int
+    else if Stdlib.List.all present isFloat then
+      Column.Float
+    else if Stdlib.List.all present isBool then
+      Column.Bool
+    else
+      Column.String
+  (column, anyEmpty)
+
+
+let typeText (column: Column) : String =
+  match column with
+  | Int -> "Int"
+  | Float -> "Float"
+  | Bool -> "Bool"
+  | String -> "String"
+
+
+/// The expression that converts one cell (bound to `cell`) into the column's type,
+/// as a `Result<T, String>`.
+let convertExpr (column: Column) (header: String) : String =
+  match column with
+  | String -> "Stdlib.Result.Result.Ok cell"
+  | Int ->
+    $"(Stdlib.Int.parse cell) |> Stdlib.Result.mapError (fun _ -> \"{header}: not a whole number: \" ++ cell)"
+  | Float ->
+    $"(Stdlib.Float.parse cell) |> Stdlib.Result.mapError (fun _ -> \"{header}: not a number: \" ++ cell)"
+  | Bool ->
+    $"(match Stdlib.String.toLowercase cell with | \"true\" -> Stdlib.Result.Result.Ok true | \"false\" -> Stdlib.Result.Result.Ok false | _ -> Stdlib.Result.Result.Error (\"{header}: not true or false: \" ++ cell))"
+
+
+/// A row type named <param name> from <param sample>, plus `fromFields` and `parse`.
+let fromSample (name: String) (sample: Blob) : Generate.Run =
+  if Stdlib.Blob.length sample == 0 then
+    Generate.failed [ "the sample is empty (a missing input reads as empty)" ]
+  else
+    match Stdlib.Blob.toString sample with
+    | Error _ -> Generate.failed [ "the sample is not UTF-8 text" ]
+    | Ok text ->
+      let lines =
+        (Stdlib.String.splitOnNewline text)
+        |> Stdlib.List.map Stdlib.String.trim
+        |> Stdlib.List.filter (fun l -> l != "")
+      match lines with
+      | [] -> Generate.failed [ "the sample has no header row" ]
+      | [ _ ] -> Generate.failed [ "the sample has a header row and no data rows" ]
+      | header :: rows ->
+        let headers = cellsOf header
+        let width = Stdlib.List.length headers
+        let table = rows |> Stdlib.List.map cellsOf
+        let ragged =
+          table |> Stdlib.List.filter (fun r -> (Stdlib.List.length r) != width)
+        if Stdlib.Bool.not (Stdlib.List.isEmpty ragged) then
+          Generate.failed
+            [ $"{Stdlib.Int.toString (Stdlib.List.length ragged)} row(s) do not have "
+              ++ $"{Stdlib.Int.toString width} cells like the header; a comma inside "
+              ++ "a quoted cell is the usual cause, and this splitter does not handle it" ]
+        else
+          let typeName = Generate.Source.typeName name
+          let columns =
+            headers
+            |> Stdlib.List.indexedMap (fun i h ->
+              let cells =
+                table
+                |> Stdlib.List.filterMap (fun r -> Stdlib.List.getAt r i)
+              let (column, optional) = columnOf cells
+              (h, Generate.Source.identifier h, column, optional))
+
+          let fields =
+            columns
+            |> Stdlib.List.map (fun (h, field, column, optional) ->
+              let t = typeText column
+              let t = if optional then $"Stdlib.Option.Option<{t}>" else t
+              let note =
+                if field != h then
+                  Stdlib.Option.Option.Some $"column \"{h}\""
+                else
+                  Stdlib.Option.Option.None
+              Generate.Source.field field t note)
+
+          // fromFields: one `let` per column, each a Result, threaded with match.
+          // Written as nested matches rather than a chain so the generated code
+          // reads like something a person would write.
+          let bindings =
+            columns
+            |> Stdlib.List.indexedMap (fun i (h, field, column, optional) ->
+              let getCell =
+                $"(Stdlib.List.getAt fields {Stdlib.Int.toString i}) |> Stdlib.Option.withDefault \"\""
+              if optional then
+                ($"let {field} =\n"
+                 ++ $"    let cell = {getCell}\n"
+                 ++ "    if cell == \"\" then Stdlib.Result.Result.Ok Stdlib.Option.Option.None\n"
+                 ++ $"    else ({convertExpr column h}) |> Stdlib.Result.map (fun v -> Stdlib.Option.Option.Some v)")
+              else
+                ($"let {field} =\n"
+                 ++ $"    let cell = {getCell}\n"
+                 ++ $"    {convertExpr column h}"))
+            |> Stdlib.String.join "\n  "
+
+          let names = columns |> Stdlib.List.map (fun (_, field, _, _) -> field)
+          let assemble =
+            names
+            |> Stdlib.List.fold
+              ($"Stdlib.Result.Result.Ok({typeName} {{ "
+               ++ (names |> Stdlib.List.map (fun n -> $"{n} = {n}") |> Stdlib.String.join "; ")
+               ++ " })")
+              (fun inner n ->
+                $"match {n} with\n  | Error e -> Stdlib.Result.Result.Error e\n  | Ok {n} ->\n  {inner}")
+
+          let fromFields =
+            Stdlib.String.join
+              [ "/// One row's cells, in header order, as the record; the first column that",
+                "/// does not convert names itself in the Error.",
+                $"let fromFields (fields: List<String>) : Stdlib.Result.Result<{typeName}, String> =",
+                $"  {bindings}",
+                $"  {assemble}" ]
+              "\n"
+
+          let parse =
+            Stdlib.String.join
+              [ "/// Every data row of a CSV document (the first line is the header). Cells are",
+                "/// split on commas; a comma inside a quoted cell is not handled.",
+                $"let parse (csv: String) : List<Stdlib.Result.Result<{typeName}, String>> =",
+                "  (Stdlib.String.splitOnNewline csv)",
+                "  |> Stdlib.List.map Stdlib.String.trim",
+                "  |> Stdlib.List.filter (fun line -> line != \"\")",
+                "  |> Stdlib.List.drop 1",
+                "  |> Stdlib.List.map (fun line ->",
+                "    let cells =",
+                "      (Stdlib.String.split line \",\")",
+                "      |> Stdlib.List.map (fun cell ->",
+                "        let trimmed = Stdlib.String.trim cell",
+                "        if (Stdlib.String.startsWith trimmed \"\\\"\") && (Stdlib.String.endsWith trimmed \"\\\"\") && ((Stdlib.String.length trimmed) >= 2) then",
+                "          Stdlib.String.slice trimmed 1 ((Stdlib.String.length trimmed) - 1)",
+                "        else",
+                "          trimmed)",
+                "    fromFields cells)" ]
+              "\n"
+
+          Generate.ofSource
+            (Generate.Source.module_
+              [ Generate.Source.recordType typeName fields, fromFields, parse ])

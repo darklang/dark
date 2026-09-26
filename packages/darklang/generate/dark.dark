@@ -1,0 +1,64 @@
+module Darklang.Generate.Dark
+
+// Dark from Dark: the same types under another name.
+//
+// `mirror<Acme.Core.Money> ()` produces `type Money = ...` with the source type's
+// declaration, printed as source so it stages like anything typed. The output's
+// content is identical to the input's, so it hashes identically: a mirror is a
+// second NAME for the same item, which is the point (a fixture module, a copy under
+// another owner). Because the generator names the type as a type argument, the type
+// is a dependency of the saved fn: edit the source and the mirror repoints and
+// re-runs.
+//
+// References inside the declaration to other types still point at the source's
+// neighbours, not at mirrors of them. Mirroring a whole module with its internal
+// references rewritten is a later step.
+
+
+/// The declaration of <typeParam a> as source, named as the source names it, or an
+/// error when <typeParam a> is not a package type.
+let mirror<'a> () : Generate.Run =
+  match LanguageTools.PackageManager.Type.declarationOf<'a> () with
+  | None ->
+    Generate.failed
+      [ "mirror takes a package type as its type argument; a builtin type, a type "
+        ++ "variable or a list has no declaration to copy" ]
+  | Some typ ->
+    // Printed with no module context, so every reference inside the declaration is
+    // fully qualified and resolves the same from wherever the output lands.
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule (SCM.Branches.current ()) []
+    Generate.ofSource (PrettyPrinter.ProgramTypes.packageType ctx typ)
+
+
+/// Every item directly in the module at <param source> (owner first), as source for
+/// wherever `--into` says: types, values and fns, printed with the source module as the context
+/// so that references between them come out as bare names and resolve to the copies
+/// when the batch is staged. References to anything outside the module stay fully
+/// qualified and keep pointing at the originals.
+///
+/// The module is named by path, not by type argument, so this generator does NOT
+/// repoint when the source changes: re-run it by name. Submodules are not copied.
+let mirrorModule (source: String) : Generate.Run =
+  let branchId = SCM.Branches.current ()
+  let segments = Stdlib.String.split source "."
+  match segments with
+  | [] -> Generate.failed [ "mirrorModule needs a module path, like Acme.Core" ]
+  | [ _ ] -> Generate.failed [ $"{source} is an owner, not a module; name a module under it" ]
+  | _ ->
+    let query =
+      LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = segments
+          text = ""
+          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+          entityTypes = []
+          exactMatch = false }
+    let results = LanguageTools.PackageManager.Search.search branchId query
+    // Names inside the copy refer to each other bare; the printer spells a sibling
+    // that way when the context IS the source module.
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId segments
+    let types = results.types |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx t.entity)
+    let values = results.values |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue ctx v.entity)
+    let fns = results.fns |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn ctx f.entity)
+    match Stdlib.List.flatten [ types, values, fns ] with
+    | [] -> Generate.failed [ $"nothing directly in {source}; is the path spelled owner first?" ]
+    | declarations -> Generate.ofSource (Generate.Source.module_ declarations)

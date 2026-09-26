@@ -51,6 +51,166 @@ let private opRecords (records : List<Dval>) : List<string * string * string> =
 
 
 // TODO: review/reconsider the accessibility of these fns
+/// Add package ops to a branch, uncommitted, marking their bindings as <param source>:
+/// `"op"` for what a person authored, `"propagation"` for what followed an edit. One body
+/// for both builtins below, because the branch-versus-main split, the value evaluation
+/// and the draft refresh are the same either way and must not drift.
+let private addOps
+  (pm : PT.PackageManager)
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (source : string)
+  (branchId : PT.BranchId)
+  (ops : List<PT.PackageOp>)
+  : Ply<Dval> =
+  let resultOk = Dval.resultOk KTInt KTString
+  let resultError = Dval.resultError KTInt KTString
+  uply {
+    try
+      // Branch: the edit lands on the BRANCH, stored effective=0 and tagged, never folded into
+      // main. Hashes stabilize exactly as the main path does, or a merged value's
+      // `package_values` (keyed by AddValue) and `locations` (keyed by SetName) disagree and the
+      // value cannot be found.
+      if not branchId.IsMain then
+        // Refuse, rather than write: a merged or archived branch must not be REVIVED by an
+        // edit landing on it. A workbench still holding the id after a merge in another shell
+        // would otherwise put its next edit on a branch nothing will ever merge again.
+        match! LibDB.Branches.isFinished branchId with
+        | true ->
+          return
+            resultError (
+              Dval.string
+                $"branch {branchId} has been merged or archived; `dark switch <name>` starts a new one"
+            )
+        | false ->
+
+          do! LibDB.Branches.registerIfNew branchId "" PT.BranchId.Main
+
+          let stabilized = LibDB.HashStabilization.computeRealHashes ops
+          let! stabilized = LibDB.Branches.restateReverts branchId stabilized
+          let! n = LibDB.Branches.storeDeltaOpsFrom source branchId stabilized
+          // The parent's current hash per name touched, so a later merge can tell whether the
+          // parent moved the same name.
+          let! parentId = LibDB.Branches.parentOf branchId
+          do! LibDB.Branches.recordNameBases branchId parentId stabilized
+          // Content (Add*, never SetName) folds into the shared content tables; the NAME layer is
+          // what a branch keeps to itself. Needed so an expression-valued branch value has an
+          // rt_dval to eval, and so propagation can see the branch item's dependency edges.
+          let contentOps =
+            stabilized
+            |> List.filter (fun op ->
+              match op with
+              | PT.PackageOp.AddValue _
+              | PT.PackageOp.AddFn _
+              | PT.PackageOp.AddType _ -> true
+              | _ -> false)
+          if not (List.isEmpty contentOps) then
+            do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
+            let builtins : Builtins =
+              { values = exeState.values.builtIn
+                fns = exeState.fns.builtIn }
+            // A branch's own bodies, arriving from guest code: same bound as the
+            // main-branch path below.
+            let! _ =
+              LibDB.Seed.evaluateAllValues
+                (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
+                  exeState.accountID
+                  vm.activeAccess)
+                builtins
+                LibDB.PackageManager.rt
+            ()
+          // Move the overlay only for the branch this process is on; writing to another branch
+          // must not change what this caller resolves against. Other branches are memoized, so
+          // forget them rather than leave a stale answer.
+          if LibDB.PackageManager.currentBranchId () = branchId then
+            let! all = LibDB.Branches.loadDeltaOps branchId
+            LibDB.PackageManager.setBranchOverlay all
+          else
+            LibDB.PackageManager.forgetBranch branchId
+          return resultOk (Dval.int (bigint (int n)))
+
+      else
+        // Stabilize before inserting. Raw ops carry provisional hashes, so their SetName
+        // targets would too, and the only thing that repairs those is `WipRefresh.refresh`
+        // rewriting the ENTIRE log.
+        let stabilizedOps = LibDB.HashStabilization.computeRealHashes ops
+
+        // These package changes came from running Dark code, so they land uncommitted AND
+        // through the guarded path: reserved bundled names and placeholder hashes are
+        // rejected here. `commit` is a separate step.
+        match! LibDB.Inserts.insertUntrustedOpsFrom source stabilizedOps with
+        | Error reason -> return resultError (Dval.string reason)
+        | Ok insertedCount ->
+
+          // Refresh the EXISTING draft: re-resolve names and recompute SCC-aware hashes now
+          // that new items exist. This is the forward-ref case: an earlier draft item that
+          // references THIS newly-authored one.
+          let! _refreshed = LibDB.WipRefresh.refresh pm
+
+          // Evaluate values whose runtime form is still missing.
+          // New values start with NULL `rt_dval`; doing this now lets
+          // later operations use them without restarting the CLI.
+          // These bodies just arrived from guest code, so evaluating
+          // them is bounded by the instance policy and by this caller's
+          // access — otherwise `val x = <denied effect>` performs the
+          // effect that `eval <denied effect>` refuses.
+          let! evaluated =
+            LibDB.Seed.evaluateAllValues
+              (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
+                exeState.accountID
+                vm.activeAccess)
+              exeState.builtins
+              LibDB.PackageManager.rt
+
+          // Report only failures from this call; evaluation also sweeps
+          // unrelated pending values. Match locations as well as hashes,
+          // because refresh may resolve a name and recompute its hash
+          // while its location remains stable.
+          let addedValueHashes =
+            ops
+            |> List.choose (fun op ->
+              match op with
+              | PT.PackageOp.AddValue value -> Some value.hash
+              | _ -> None)
+            |> Set.ofList
+
+          let addedValueLocations =
+            ops
+            |> List.choose (fun op ->
+              match op with
+              | PT.PackageOp.SetName(location, PT.PackageValue _, _) ->
+                Some(LibDB.PackageLocation.toFQN location)
+              | _ -> None)
+            |> Set.ofList
+
+          let ownFailures =
+            match evaluated with
+            | Ok() -> []
+            | Error errors ->
+              errors
+              |> List.filter (fun e ->
+                let byHash =
+                  match e.hash with
+                  | Some hash -> Set.contains hash addedValueHashes
+                  | None -> false
+                byHash || Set.contains e.location addedValueLocations)
+
+          match ownFailures with
+          | [] -> return resultOk (Dval.int (bigint insertedCount))
+          | failures ->
+            return
+              resultError (
+                Dval.string (
+                  failures
+                  |> List.map LibDB.Seed.ValueEvaluationError.toString
+                  |> String.concat "\n"
+                )
+              )
+    with ex ->
+      return resultError (Dval.string ex.Message)
+  }
+
+
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "pmStabilizeHashes" 0
       typeParams = []
@@ -148,158 +308,35 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Add package ops to <param branchId>, uncommitted. Returns the "
         + "number inserted; duplicates are skipped, since an op's id is its content."
       fn =
-        let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
         (function
         | exeState, vm, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
-          uply {
-            try
-              let ops = ops |> List.choose PT2DT.PackageOp.fromDT
+          let ops = ops |> List.choose PT2DT.PackageOp.fromDT
+          addOps pm exeState vm "op" (PT.BranchId.Id branchId) ops
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageWrite ]
+      deprecated = NotDeprecated }
 
-              let branchId = PT.BranchId.Id branchId
 
-              // Branch: the edit lands on the BRANCH, stored effective=0 and tagged, never folded into
-              // main. Hashes stabilize exactly as the main path does, or a merged value's
-              // `package_values` (keyed by AddValue) and `locations` (keyed by SetName) disagree and the
-              // value cannot be found.
-              if not branchId.IsMain then
-                // Refuse, rather than write: a merged or archived branch must not be REVIVED by an
-                // edit landing on it. A workbench still holding the id after a merge in another shell
-                // would otherwise put its next edit on a branch nothing will ever merge again.
-                match! LibDB.Branches.isFinished branchId with
-                | true ->
-                  return
-                    resultError (
-                      Dval.string
-                        $"branch {branchId} has been merged or archived; `dark switch <name>` starts a new one"
-                    )
-                | false ->
-
-                  do! LibDB.Branches.registerIfNew branchId "" PT.BranchId.Main
-
-                  let stabilized = LibDB.HashStabilization.computeRealHashes ops
-                  let! stabilized = LibDB.Branches.restateReverts branchId stabilized
-                  let! n = LibDB.Branches.storeDeltaOps branchId stabilized
-                  // The parent's current hash per name touched, so a later merge can tell whether the
-                  // parent moved the same name.
-                  let! parentId = LibDB.Branches.parentOf branchId
-                  do! LibDB.Branches.recordNameBases branchId parentId stabilized
-                  // Content (Add*, never SetName) folds into the shared content tables; the NAME layer is
-                  // what a branch keeps to itself. Needed so an expression-valued branch value has an
-                  // rt_dval to eval, and so propagation can see the branch item's dependency edges.
-                  let contentOps =
-                    stabilized
-                    |> List.filter (fun op ->
-                      match op with
-                      | PT.PackageOp.AddValue _
-                      | PT.PackageOp.AddFn _
-                      | PT.PackageOp.AddType _ -> true
-                      | _ -> false)
-                  if not (List.isEmpty contentOps) then
-                    do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
-                    let builtins : Builtins =
-                      { values = exeState.values.builtIn
-                        fns = exeState.fns.builtIn }
-                    // A branch's own bodies, arriving from guest code: same bound as the
-                    // main-branch path below.
-                    let! _ =
-                      LibDB.Seed.evaluateAllValues
-                        (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
-                          exeState.accountID
-                          vm.activeAccess)
-                        builtins
-                        LibDB.PackageManager.rt
-                    ()
-                  // Move the overlay only for the branch this process is on; writing to another branch
-                  // must not change what this caller resolves against. Other branches are memoized, so
-                  // forget them rather than leave a stale answer.
-                  if LibDB.PackageManager.currentBranchId () = branchId then
-                    let! all = LibDB.Branches.loadDeltaOps branchId
-                    LibDB.PackageManager.setBranchOverlay all
-                  else
-                    LibDB.PackageManager.forgetBranch branchId
-                  return resultOk (Dval.int (bigint (int n)))
-
-              else
-                // Stabilize before inserting. Raw ops carry provisional hashes, so their SetName
-                // targets would too, and the only thing that repairs those is `WipRefresh.refresh`
-                // rewriting the ENTIRE log.
-                let stabilizedOps = LibDB.HashStabilization.computeRealHashes ops
-
-                // These package changes came from running Dark code, so they land uncommitted AND
-                // through the guarded path: reserved bundled names and placeholder hashes are
-                // rejected here. `commit` is a separate step.
-                match! LibDB.Inserts.insertUntrustedOps stabilizedOps with
-                | Error reason -> return resultError (Dval.string reason)
-                | Ok insertedCount ->
-
-                  // Refresh the EXISTING draft: re-resolve names and recompute SCC-aware hashes now
-                  // that new items exist. This is the forward-ref case: an earlier draft item that
-                  // references THIS newly-authored one.
-                  let! _refreshed = LibDB.WipRefresh.refresh pm
-
-                  // Evaluate values whose runtime form is still missing.
-                  // New values start with NULL `rt_dval`; doing this now lets
-                  // later operations use them without restarting the CLI.
-                  // These bodies just arrived from guest code, so evaluating
-                  // them is bounded by the instance policy and by this caller's
-                  // access — otherwise `val x = <denied effect>` performs the
-                  // effect that `eval <denied effect>` refuses.
-                  let! evaluated =
-                    LibDB.Seed.evaluateAllValues
-                      (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
-                        exeState.accountID
-                        vm.activeAccess)
-                      exeState.builtins
-                      LibDB.PackageManager.rt
-
-                  // Report only failures from this call; evaluation also sweeps
-                  // unrelated pending values. Match locations as well as hashes,
-                  // because refresh may resolve a name and recompute its hash
-                  // while its location remains stable.
-                  let addedValueHashes =
-                    ops
-                    |> List.choose (fun op ->
-                      match op with
-                      | PT.PackageOp.AddValue value -> Some value.hash
-                      | _ -> None)
-                    |> Set.ofList
-
-                  let addedValueLocations =
-                    ops
-                    |> List.choose (fun op ->
-                      match op with
-                      | PT.PackageOp.SetName(location, PT.PackageValue _, _) ->
-                        Some(LibDB.PackageLocation.toFQN location)
-                      | _ -> None)
-                    |> Set.ofList
-
-                  let ownFailures =
-                    match evaluated with
-                    | Ok() -> []
-                    | Error errors ->
-                      errors
-                      |> List.filter (fun e ->
-                        let byHash =
-                          match e.hash with
-                          | Some hash -> Set.contains hash addedValueHashes
-                          | None -> false
-                        byHash || Set.contains e.location addedValueLocations)
-
-                  match ownFailures with
-                  | [] -> return resultOk (Dval.int (bigint insertedCount))
-                  | failures ->
-                    return
-                      resultError (
-                        Dval.string (
-                          failures
-                          |> List.map LibDB.Seed.ValueEvaluationError.toString
-                          |> String.concat "\n"
-                        )
-                      )
-            with ex ->
-              return resultError (Dval.string ex.Message)
-          }
+    // `scmAddOps` for ops a GENERATOR produced while following an edit. Their bindings are
+    // marked 'propagation', as a repoint's are, so `status` and `commit` list them as
+    // "followed" rather than as something the person typed, and a pin un-stages them the
+    // way it un-stages a repoint.
+    { name = fn "scmAddRegeneratedOps" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "the branch these ops land on"
+          Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
+      returnType = TypeReference.result TInt TString
+      description =
+        "Add package ops a generator produced while following an edit to <param branchId>, "
+        + "uncommitted, with their bindings marked as propagation. Returns the number inserted."
+      fn =
+        (function
+        | exeState, vm, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
+          let ops = ops |> List.choose PT2DT.PackageOp.fromDT
+          addOps pm exeState vm "propagation" (PT.BranchId.Id branchId) ops
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
