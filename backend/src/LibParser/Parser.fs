@@ -1748,8 +1748,9 @@ and parseApp (state : ParserState) (i : int) : WT.Expr * int =
 
 and parseAtom (state : ParserState) (i : int) : WT.Expr * int =
   let (baseE, j) = parsePrimary state i
-  // A bare lambda's body runs to its end, so a postfix left over there is one
-  // the body refused (`fun v -> Ok (x)?`), not one meant for the whole lambda.
+  // Any postfix after an unparenthesized lambda belongs to its body.
+  // If the body couldn't parse it, leave it for an error rather than attaching
+  // it to the lambda itself (for example, `fun v -> Ok (x)?`).
   if tok state i = TFun then (baseE, j) else parsePostfix state baseE j
 
 // Postfix field access and unwrap (left-associative).
@@ -1757,8 +1758,8 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
   match tok state i, tok state (i + 1) with
   | TQuestion, _ ->
     let question = rng state i
-    // `?` means nothing else, so a spaced one is still meant as postfix: say
-    // exactly that, and recover as if it were adjacent.
+    // Report the unwanted whitespace, then continue parsing as if `?`
+    // were adjacent to its operand.
     if (rng state (i - 1)).end_ <> question.start then
       errFull
         state
@@ -2227,8 +2228,8 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
         i
         "'::' is a pattern; to build a list in an expression use `Stdlib.List.push` or a literal"
     elif tok state i = TQuestion then
-      // Adjacent, it followed something `?` can't attach to, such as a
-      // constructor's argument list: `Ok (x)?`. Saying "no space" there is wrong.
+      // In `Ok (x)?`, there is no whitespace before `?`, but it cannot attach
+      // here. Suggest parentheses around the expression instead.
       let spaced = i = 0 || (rng state (i - 1)).end_ <> (rng state i).start
       if spaced then
         errFull
@@ -2584,8 +2585,8 @@ and parseTypeRef (state : ParserState) (i : int) : WT.TypeReference * int =
 // `A -> B -> C` (right-nested): arguments = [(A,->),(B,->)], ret = C
 and parseFnType (state : ParserState) (i : int) : WT.TypeReference * int =
   let (first, j) = parseTupleType state i
-  // A pending > closes the enclosing generic before an outer arrow can bind,
-  // just as it does for tuples: List<List<A>> -> B is not List<List<A> -> B>.
+  // A remaining `>` from a split `>>` must close the outer generic first.
+  // In `List<List<A>> -> B`, the arrow belongs outside both Lists.
   if tok state j <> TArrow || state.pendingGt > 0 then
     (first, j)
   else

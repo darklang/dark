@@ -28,17 +28,15 @@ return annotations:
     let number = (Stdlib.Int.parse input)?
     Ok (number + 1)
 
-`value?` extracts Ok/Some; Error/None returns from the nearest function or
-lambda immediately. Still write Ok/Some on success. The function must return
-the same container kind; Result error types must agree. Convert explicitly
-with Option.toResult when mixing kinds. `?` cannot appear outside a function.
-It touches only its adjacent operand: `f x?` means `f (x?)`, so use `(f x)?`
-for a call or `(value |> transform)?` for a pipeline.
+`value?` extracts the value from Ok/Some, or immediately returns Error/None
+from the function or lambda containing it. Write Ok/Some for the success result.
+Unwrapping an Option requires an Option return; unwrapping a Result requires a
+Result return with the same error type. The success types may differ.
 
-The operand runs once. A failure skips the rest of that function invocation;
-completed effects are not undone. The extracted type may differ from the
-function's success type: Result<Int, String>? can be used in a function returning
-Result<Bool, String>. SQL queries do not support `?`.
+Write `?` directly after its operand. `f x?` means `f (x?)`; use `(f x)?`
+or `(value |> transform)?` to unwrap a whole call or pipeline.
+The operand runs once; an early return skips remaining work without undoing
+completed effects. `?` requires a function or lambda and is unsupported in SQL queries.
 
 ## Pipe (parens for complex LHS)
   (Stdlib.List.range 0 10) |> Stdlib.List.map fn

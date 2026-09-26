@@ -586,8 +586,6 @@ let execute
         |> RuntimeError.CLI
         |> raiseUntargetedRTE
     | exprs ->
-      // Scripts and eval bypass the at-rest type checker.
-      // See docs/at-rest-type-checker.md, "Trust boundary and rollout".
       let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
 
       // Awaited in order, and the first error ends the script.

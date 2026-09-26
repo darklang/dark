@@ -524,9 +524,9 @@ module private DarkTypes =
     | Checker.RecordRequiredForUpdate -> make "RecordRequiredForUpdate" []
     | Checker.EnumRequiredForConstruction -> make "EnumRequiredForConstruction" []
     | Checker.EnumRequiredForPattern -> make "EnumRequiredForPattern" []
-    | Checker.UnwrapReturnContainerMismatch ->
-      make "UnwrapReturnContainerMismatch" []
-    | Checker.UnwrapOutsideFunction -> make "UnwrapOutsideFunction" []
+    | Checker.UnwrapRequiresMatchingReturnType ->
+      make "UnwrapRequiresMatchingReturnType" []
+    | Checker.UnwrapRequiresFunction -> make "UnwrapRequiresFunction" []
     | Checker.UnwrapRequiresOptionOrResult -> make "UnwrapRequiresOptionOrResult" []
     | Checker.SelfOutsideFunction -> make "SelfOutsideFunction" []
     | Checker.OrPatternBindingsDiffer -> make "OrPatternBindingsDiffer" []

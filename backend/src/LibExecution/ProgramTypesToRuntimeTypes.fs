@@ -420,15 +420,12 @@ module MatchCase =
     }
 
 
-/// Add a runtime return-type check to `?` when the enclosing function or lambda
-/// is known to return Option or Result. For example, in `fun x -> Some x?`,
-/// `?` must reject a Result operand, even if it is Ok.
+/// Determine whether `?` must unwrap Option or Result, using the containing
+/// function's return annotation or the function/lambda's final expressions.
+/// For example, `fun x -> Some x?` requires x to be an Option.
 ///
-/// Look for a direct return-type annotation, then for constructors in the
-/// body's final expressions. This is a limited check for code that runs without
-/// static checking (such as eval); the at-rest checker enforces the full rules.
-/// If neither identifies Option or Result, `?` still unwraps and returns failures,
-/// but does not check whether the operand uses the expected Option or Result type.
+/// When neither identifies the expected type, omit this runtime check.
+/// The at-rest type checker checks the full types, including Result error types.
 module UnwrapReturnCheck =
   let private optionTypeName () =
     PT.FQTypeName.Package(PT.Hash(PackageRefs.Type.Stdlib.option ()))
@@ -453,11 +450,10 @@ module UnwrapReturnCheck =
     | PT.TCustomType(name, _) -> optionOrResultType name
     | _ -> None
 
-  /// Inspect the expressions that produce the body's final value:
-  /// Some/None identify Option; Ok/Error identify Result. Follow let bodies,
-  /// final statements, and if/match branches, but do not follow function calls.
-  /// Ignore branches whose return type is unknown. If the recognized branches
-  /// include both Option and Result, or none are recognized, return None.
+  /// Look for Option or Result constructors in the body's final expressions,
+  /// following let bodies, final statements, and if/match branches, but not calls.
+  /// Ignore unrecognized branches. Return None if no type is recognized or
+  /// both Option and Result are found.
   let rec fromBody (expr : PT.Expr) : Option<PT.FQTypeName.FQTypeName> =
     let fromBranches (branches : List<PT.Expr>) =
       match branches |> List.choose fromBody |> List.distinct with

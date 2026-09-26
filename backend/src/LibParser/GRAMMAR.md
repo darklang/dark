@@ -412,12 +412,11 @@ The parser stops at WrittenTypes; lowering to ProgramTypes (`WT2PT`) is downstre
 
 ### Unwrap
 
-Postfix `?` must be adjacent to its operand and shares field-access precedence.
-Both associate left to right: `x?.field?` and `nested??` are valid. Application
-binds less tightly: `f x?` is `f (x?)`; `(f x)?` unwraps the call's result.
-Whitespace before `?` and prefix `?` are syntax errors. Use parentheses around
-whole applications and pipelines. `VALIDATION-UNWRAP-CONTEXT` rejects `?`
-outside a function/lambda, including a package value initializer.
+Write `?` directly after its operand, inside a function or lambda.
+Field access and `?` group left to right: `x?.field?` unwraps `x`, reads `field`,
+then unwraps that field; `nested??` unwraps twice.
+`f x?` means `f (x?)`. Use `(f x)?` or `(value |> transform)?` to unwrap
+the result of a whole call or pipeline.
 
 See the [CLI syntax documentation](../../../packages/darklang/cli/docs/syntax.dark)
 for return types, function boundaries, and evaluation behavior.

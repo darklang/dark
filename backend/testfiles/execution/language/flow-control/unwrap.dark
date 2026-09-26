@@ -1,4 +1,4 @@
-// A failed ? returns through the nearest function's ordinary return path.
+// `?` extracts Ok or returns Error from the current function.
 let next
   (value: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<Int, String> =
@@ -8,7 +8,7 @@ let next
 next (Ok 4) = Ok 5
 next (Error "missing") = Error "missing"
 
-// Unwrapped failures must not retain the input's phantom success type.
+// Returning Error or None must allow the function to use a different success type.
 let stringify
   (value: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<String, String> =
@@ -66,7 +66,7 @@ inGuard None = None
 inGuard (Some false) = Some 2
 inGuard (Some true) = Some 1
 
-// A lambda returns its own failure, so the caller can keep going.
+// `?` returns None from the lambda; its caller can handle None and continue.
 let lambdaBoundary (value: Stdlib.Option.Option<Int>) : Int =
   let inner = fun () -> Some (value? + 1)
   match inner () with
@@ -112,7 +112,7 @@ fields None = None
 fields (Some (Container { item = None })) = None
 fields (Some (Container { item = Some 4 })) = Some 4
 
-// A second ? explicitly unwraps the inner function's failure to its caller.
+// The caller uses its own `?` to return an Error received from next.
 let chain
   (value: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<Int, String> =
@@ -121,7 +121,7 @@ let chain
 chain (Ok 4) = Ok 6
 chain (Error "missing") = Error "missing"
 
-// The operand runs exactly once, and failure preserves completed effects.
+// Evaluate the operand once. Error skips later effects without undoing earlier ones.
 let counted
   (value: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<Int, String> =
@@ -135,7 +135,7 @@ let counted
 (let outcome = counted (Error "stop")
  (outcome, Builtin.testSideEffectCount ())) = (Error "stop", 1L)
 
-// A first-class function obtained by unwrap can still be applied.
+// A function extracted by `?` can be called immediately.
 let increment (x: Int) : Int = x + 1
 
 let callable (value: Stdlib.Option.Option<Int -> Int>) : Stdlib.Option.Option<Int> =
@@ -144,10 +144,10 @@ let callable (value: Stdlib.Option.Option<Int -> Int>) : Stdlib.Option.Option<In
 callable None = None
 callable (Some increment) = Some 5
 
-// A plain lambda is an ordinary callback.
+// The extracted function can also be a lambda.
 callable (Some (fun x -> x + 1)) = Some 5
 
-// Operands evaluated after the success return value's earlier fields still stop it.
+// None in the first tuple element skips the second element and returns None.
 let tupleOrder
   (value: Stdlib.Option.Option<Int>)
   : Stdlib.Option.Option<(Int * Int)> =
@@ -163,7 +163,7 @@ let interpolation
 interpolation None = None
 interpolation (Some "hello") = Some "value: hello"
 
-// Unwrap is recursive-call safe, including the cached function-apply path.
+// Recursive calls propagate None and extract Some, including when calls are cached.
 let recursive
   (count: Int)
   (value: Stdlib.Option.Option<Int>)
@@ -176,8 +176,7 @@ let recursive
 recursive 5 None = None
 recursive 5 (Some 0) = Some 5
 
-// Code called from a function using ? runs exactly as it would anywhere else,
-// including Stdlib helpers that build their own callbacks.
+// After a successful `?`, a library call and its callback still run normally.
 let firstTwo (value: Stdlib.Option.Option<List<Int>>) : Stdlib.Option.Option<Int> =
   let items = value?
   Stdlib.List.findFirstIndex items (fun x -> x == 2)
@@ -185,9 +184,8 @@ let firstTwo (value: Stdlib.Option.Option<List<Int>>) : Stdlib.Option.Option<Int
 firstTwo (Some [1, 2, 3]) = Some 1
 firstTwo None = None
 
-// The at-rest checker rejects a mismatched container. If such code runs
-// anyway, the declared return type makes `?` refuse the operand on the spot,
-// whatever its value.
+// This function declares an Option return but unwraps a Result.
+// If run without static checking, `?` rejects both Ok and Error at runtime.
 let wrongKind
   (value: Stdlib.Result.Result<Int, String>)
   : Stdlib.Option.Option<Int> =
@@ -196,9 +194,7 @@ let wrongKind
 wrongKind (Ok 1) = error="`?` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Ok(1)"
 wrongKind (Error "x") = error="`?` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Error(\"x\")"
 
-// -- Positions and callers --
-
-// lambdas run by builtins
+// `?` returns from each callback invocation, allowing the list operation to continue.
 (Stdlib.List.map [Some 1, None, Some 3] (fun x ->
   Some (x? + 1))) = [Some 2, None, Some 4]
 Stdlib.List.filterMap [Some 1, None, Some 3] (fun x -> Some (x? * 10)) = [10, 30]
@@ -206,7 +202,7 @@ Stdlib.List.fold [Some 1, Some 2] (Some 0) (fun acc x -> Some (acc? + x?)) = Som
 (Stdlib.List.fold [Some 1, None, Some 2] (Some 0) (fun acc x ->
   Some (acc? + x?))) = None
 
-// ? inside a match arm inside a lambda
+// Error in a match arm returns from the callback.
 Stdlib.List.map [Ok 1, Error "e"] (fun r ->
   match 1 with
   | 1 -> Ok (r? + 1)
@@ -241,7 +237,7 @@ let viaAlias (v: AliasR) : Stdlib.Result.Result<Int, String> = Ok (v? + 1)
 viaAlias (Ok 1) = Ok 2
 viaAlias (Error "x") = Error "x"
 
-// the unwrapped Error mixes with ordinary values of the declared type
+// A returned Error works alongside other Results with the function's success type.
 let str
   (v: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<String, String> =
@@ -250,7 +246,7 @@ let str
 Stdlib.Result.map (str (Error "a")) (fun s -> s ++ "!") = Error "a"
 Stdlib.Result.withDefault (str (Error "a")) "d" = "d"
 
-// partial application
+// `?` still works when the function receives its arguments in separate calls.
 let two
   (a: Stdlib.Option.Option<Int>)
   (b: Stdlib.Option.Option<Int>)
@@ -259,14 +255,14 @@ let two
 (let p = two (Some 1)
  (p (Some 2), p None)) = (Some 3, None)
 
-// function value obtained by ?, applied
+// Parentheses around `v?` also allow the extracted function to be called.
 let getFn
   (v: Stdlib.Option.Option<Int -> Int>)
   : Stdlib.Option.Option<Int> =
   Some ((v?) 4)
 getFn (Some (fun x -> x * 2)) = Some 8
 
-// scrutinee and condition
+// None returns before the match or if can choose a branch.
 let scrut (v: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<String> =
   match v? with
   | 1 -> Some "one"
@@ -278,7 +274,7 @@ let cond (v: Stdlib.Option.Option<Bool>) : Stdlib.Option.Option<Int> =
   if v? then Some 1 else Some 0
 cond None = None
 
-// discarded result / unit statement
+// Some () allows the next statement to run; None returns immediately.
 let stmt (v: Stdlib.Option.Option<Unit>) : Stdlib.Option.Option<Int> =
   v?
   Some 1
@@ -289,24 +285,23 @@ let pipeParen (s: String) : Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
   Ok ((s |> Stdlib.Int.parse)? * 2)
 pipeParen "4" = Ok 8
 
-// inner lambda failure does not leak to the outer function
+// The outer function can discard the lambda's None result and return Some 7.
 let innerOnly (v: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<Int> =
   let f = fun () -> Some (v? + 1)
   let _ = f ()
   Some 7
 innerOnly None = Some 7
 
-// ? on the result of a recursive self call in tail position
+// None from the base case propagates through every recursive call.
 let countdown (n: Int) : Stdlib.Option.Option<Int> =
   if n == 0 then None else Some ((countdown (n - 1))? + 1)
 countdown 3 = None
 
-// non-Option/Result operand at runtime
+// `?` rejects an Int operand at runtime.
 (fun v -> Some (v? + 1)) 4 = error="`?` needs an Option or Result, but got 4 (an Int)"
 
-// -- Container checks --
-// Where a lambda's tail shows the container it returns, `?` refuses the other
-// kind on the spot, on success as well as failure.
+// Final Some/None or Ok/Error expressions identify the lambda's return type.
+// `?` then rejects Result operands for Option returns, and vice versa.
 (fun v -> Some (v? + 1)) (Error "x") = error="`?` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Error(\"x\")"
 (fun v -> Some (v? + 1)) (Ok 1) = error="`?` got a Result, but the enclosing function or lambda returns an Option; convert it first with Stdlib.Result.toOption: Ok(1)"
 (fun v -> Ok (v? + 1)) None = error="`?` got an Option, but the enclosing function or lambda returns a Result; convert it first with Stdlib.Option.toResult: None"
@@ -315,11 +310,12 @@ countdown 3 = None
   match v with
   | _ -> Ok v?) (Some 1) = error="`?` got an Option, but the enclosing function or lambda returns a Result; convert it first with Stdlib.Option.toResult: Some(1)"
 
-// A nested lambda checks against its own tail, not its parent's.
+// The inner lambda returns Result, even though the outer lambda returns Option.
 (fun r ->
   let f = fun w -> Ok (w? + 1)
   Some (f r)) (Error "e") = Some (Error "e")
 
-// A tail the compiler can't see through is not checked: the value goes on.
+// The compiler does not follow wrap to discover its Option return type.
+// Without static checking, the lambda can therefore return Error from `?`.
 let wrap (x: Int) : Stdlib.Option.Option<Int> = Some x
 (fun v -> wrap v?) (Error "x") = Error "x"

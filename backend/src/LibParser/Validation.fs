@@ -24,7 +24,7 @@ type IssueCode =
   | EmptyMatch
   | AnonymousRecord
   | EmptyRecordUpdate
-  | UnwrapOutsideFunction
+  | UnwrapRequiresFunction
   | PackageExpression
   | TestAssertion
   | DBMode
@@ -41,7 +41,7 @@ module IssueCode =
     | EmptyLambda -> "VALIDATION-LAMBDA"
     | EmptyMatch -> "VALIDATION-MATCH"
     | AnonymousRecord -> "VALIDATION-ANONYMOUS-RECORD"
-    | UnwrapOutsideFunction -> "VALIDATION-UNWRAP-CONTEXT"
+    | UnwrapRequiresFunction -> "VALIDATION-UNWRAP-CONTEXT"
     | EmptyRecordUpdate -> "VALIDATION-RECORD-UPDATE"
     | PackageExpression -> "VALIDATION-PACKAGE-EXPR"
     | TestAssertion -> "VALIDATION-TEST-ASSERTION"
@@ -274,7 +274,7 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
       else
         [ issue
             range
-            UnwrapOutsideFunction
+            UnwrapRequiresFunction
             "Postfix ? requires an enclosing function or lambda" ]
     contextIssues @ recurse operand
   | WT.ERecordFieldAccess(_, record, _, _) -> recurse record

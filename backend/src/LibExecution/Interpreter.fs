@@ -2689,11 +2689,10 @@ let private runSyncInstructions
             vm.threadID
             (RTE.Bool(RTE.Bools.ConditionRequiresBool(Dval.toValueType dv, dv)))
 
-      // -- Unwrap --
-      // Success is extracted; failure becomes this frame's result and ends it,
-      // so it leaves through the ordinary return path and its return-type check.
-      // No local closure here: capturing `counter` would make it a heap ref cell
-      // on every drain, `?` or not.
+      // Extract Ok/Some. For Error/None, set this call's return value and skip
+      // its remaining instructions. Normal return-type checks still apply.
+      // Keep counter updates outside local functions: capturing it would allocate
+      // on every run of this instruction loop, even when no `?` is executed.
       | Unwrap(target, source, returns) ->
         let value = registers[source]
         let failure =

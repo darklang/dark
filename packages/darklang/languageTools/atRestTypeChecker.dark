@@ -154,9 +154,9 @@ type Context =
   | EnumRequiredForConstruction
   | EnumRequiredForPattern
   | SelfOutsideFunction
-  | UnwrapOutsideFunction
+  | UnwrapRequiresFunction
   | UnwrapRequiresOptionOrResult
-  | UnwrapReturnContainerMismatch
+  | UnwrapRequiresMatchingReturnType
   | OrPatternBindingsDiffer
   | ExplicitTypeArgumentsOnNonNamedFunction
   | AliasCycleReferenced
@@ -467,10 +467,10 @@ let contextToStringWith
   | RecordRequiredForUpdate -> "Record update requires a record"
   | EnumRequiredForConstruction -> "Enum construction requires an enum type"
   | EnumRequiredForPattern -> "An enum pattern requires an enum type"
-  | UnwrapReturnContainerMismatch ->
+  | UnwrapRequiresMatchingReturnType ->
     "Postfix ? requires the enclosing function to return the same Result or "
     ++ "Option kind"
-  | UnwrapOutsideFunction -> "Postfix ? requires an enclosing function or lambda"
+  | UnwrapRequiresFunction -> "Postfix ? requires an enclosing function or lambda"
   | UnwrapRequiresOptionOrResult -> "Postfix ? requires a Result or Option operand"
   | SelfOutsideFunction -> "Self is only available while checking a function"
   | OrPatternBindingsDiffer ->

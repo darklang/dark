@@ -274,9 +274,11 @@ let private instantiateCustomType
       args |> List.iter (validateTypeClosure state nodeId)
       Some(packageName, args, declaration)
 
-/// Solve in both directions: a lambda's success return can determine its operand
-/// container even before its argument is known. Unresolved relations remain
-/// monomorphic so later uses can still constrain them.
+/// Use the operand's type or the return type of the function/lambda containing
+/// `?` to determine whether it unwraps Option or Result. For example,
+/// `fun x -> Some (x? + 1)` tells us that x must be an Option.
+/// When both types are unknown, defer the check and keep their type variables
+/// shared so later uses can resolve them.
 let internal resolveUnwrapConstraints (state : State) (final : bool) : unit =
   let optionName = FQTypeName.package (PackageRefs.Type.Stdlib.option ())
   let resultName = FQTypeName.package (PackageRefs.Type.Stdlib.result ())
@@ -295,12 +297,11 @@ let internal resolveUnwrapConstraints (state : State) (final : bool) : unit =
           (Some nodeId)
           Set.empty
           constraint_.enclosingReturnType
-      // A custom type whose declaration is unavailable may be an alias of
-      // Option or Result. `normalizeAliases` has already blocked on it, so the
-      // verdict is Incomplete; a definite error that depends on what it is
-      // would wrongly make it Failed. Each error depends on one side only: an
-      // `Int` operand is wrong whatever an unavailable return type turns out
-      // to be, and a mismatch is only reported once the operand is known.
+      // A missing type declaration might define an alias for Option or Result.
+      // normalizeAliases already reports that missing information. Don't report
+      // a type error that requires knowing the missing definition.
+      // Still report errors we can prove: an Int operand is invalid even when
+      // the function's return type is unknown.
       let unavailable typ =
         match typ with
         | TCustom(name, _) ->
@@ -341,7 +342,7 @@ let internal resolveUnwrapConstraints (state : State) (final : bool) : unit =
             FunctionReturnValue
             returned
             (TCustom(optionName, [ state.Fresh(Some nodeId) ]))
-        | _ -> error UnwrapReturnContainerMismatch
+        | _ -> error UnwrapRequiresMatchingReturnType
       | TCustom(name, [ value; err ]), _ when name = resultName ->
         unify state (Some nodeId) FunctionReturnValue inner value
         let returned = normalizeAliases state (Some nodeId) Set.empty returned
@@ -355,7 +356,7 @@ let internal resolveUnwrapConstraints (state : State) (final : bool) : unit =
             FunctionReturnValue
             returned
             (TCustom(resultName, [ state.Fresh(Some nodeId); err ]))
-        | _ -> error UnwrapReturnContainerMismatch
+        | _ -> error UnwrapRequiresMatchingReturnType
       | TInferenceVariable _, TCustom(name, [ success ]) when name = optionName ->
         constrain optionName [ inner ] [ success ]
       | TInferenceVariable _, TCustom(name, [ success; err ]) when name = resultName ->
@@ -364,7 +365,7 @@ let internal resolveUnwrapConstraints (state : State) (final : bool) : unit =
         state.PendingUnwrapConstraints <-
           { constraint_ with operandType = operand; enclosingReturnType = returned }
           :: state.PendingUnwrapConstraints
-      | TInferenceVariable _, _ -> error UnwrapReturnContainerMismatch
+      | TInferenceVariable _, _ -> error UnwrapRequiresMatchingReturnType
       | _ -> error UnwrapRequiresOptionOrResult
     if
       not (List.isEmpty state.PendingUnwrapConstraints)
@@ -380,10 +381,10 @@ let internal resolveUnwrapConstraints (state : State) (final : bool) : unit =
         UnwrapRequiresOptionOrResult
       )
 
-/// The extracted value is typed at the `?` itself when the operand is already
-/// known, so `let n = x?` then `n + 1` doesn't wait for the body's end. The
-/// container check waits, so a mismatch is reported as one, not as the body
-/// disagreeing with a container fixed too early.
+/// If the operand is already known to be Option<T> or Result<T, E>,
+/// give the extracted value type T immediately so later expressions can use it.
+/// Defer checking the function's return type until its body has been checked,
+/// so a mismatch is reported at `?` rather than at the final expression.
 let internal addUnwrap
   (state : State)
   (nodeId : id)
@@ -893,7 +894,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     match env.unwrapReturn with
     | Some returned -> addUnwrap state nodeId operandType inner returned
     | None ->
-      state.Error(InvalidUnwrap, Some nodeId, None, None, UnwrapOutsideFunction)
+      state.Error(InvalidUnwrap, Some nodeId, None, None, UnwrapRequiresFunction)
     inner
   | EIf(nodeId, condition, thenExpr, elseExpr) ->
     checkExpr state env TBool condition
@@ -1024,6 +1025,8 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     let bindings =
       List.zip (NEList.toList patterns) (NEList.toList parameters)
       |> List.collect (fun (pattern, typ) -> checkLetPattern state typ pattern)
+    // Give this lambda its own return type so `?` checks against it,
+    // not the outer function's. The body will determine the actual type.
     let returnType = state.Fresh(Some nodeId)
     let lambdaEnv =
       addBindings state None { env with unwrapReturn = Some returnType } bindings

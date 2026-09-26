@@ -19,7 +19,9 @@ open LibExecution.AtRest.Types
 // Checker state
 // --------------------
 
-/// A deferred check relating a `?` operand to its enclosing function's return type.
+/// Types needed to check a `?` expression once inference has enough information.
+/// The operand and the return type of the function or lambda containing it must
+/// both be Option or both be Result; for Result, their error types must also match.
 type internal UnwrapConstraint =
   { expressionId : id
     operandType : StaticType
@@ -755,13 +757,10 @@ let private freeVariablesInEnv (state : State) (env : Env) : Set<int> =
 let internal generalize (state : State) (env : Env) (typ : StaticType) : TypeScheme =
   let typ = applySubstitutions state typ
   let typeVariables = inferenceVariables typ
-  // Until an unwrap's container is known, keep its variables monomorphic.
-  // Quantifying them would give each use fresh copies, and the pending
-  // constraint on the originals could then never be solved. The same goes for
-  // anything tied to them through a deferred field access: in
-  // `fun row -> row.item?` the record variable is linked to the `?` only by
-  // `row.item`, and freshening it alone would leave that constraint on a
-  // record no use ever fills in.
+  // Keep type variables used by unresolved `?` checks shared across calls.
+  // Giving each call fresh variables would disconnect it from the pending check.
+  // Include variables connected through record fields: in `fun row -> row.item?`,
+  // a later call must tell us both the row type and the type of row.item.
   let unwrapVariables =
     let seed =
       state.PendingUnwrapConstraints
@@ -788,10 +787,9 @@ let internal generalize (state : State) (env : Env) (typ : StaticType) : TypeSch
     Set.difference
       typeVariables
       (Set.union (freeVariablesInEnv state env) unwrapVariables)
-  // Captured in substituted form: instantiation freshens only the quantified
-  // variables it can see, so a constraint still naming a variable that has since
-  // been solved (as `?` solves a field's type to its container) would stay tied
-  // to the original helper instead of following each use.
+  // Apply known type substitutions before saving field constraints.
+  // This lets each call give fresh copies to the variables being generalized,
+  // instead of retaining references to variables that were already resolved.
   let capturedConstraints, remainingConstraints =
     state.PendingFieldAccesses
     |> List.map (fun (nodeId, recordType, fieldName, resultType) ->

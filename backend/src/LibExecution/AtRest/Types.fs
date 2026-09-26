@@ -105,7 +105,8 @@ type BlockerCode =
 type Site =
   | LambdaReturnValue
   | FunctionReturnValue
-  /// The error type a Result `?` returns, against the enclosing return's.
+  /// Checks that the error type of a Result used with `?` matches the error
+  /// type returned by the function or lambda containing it.
   | UnwrappedError
   | ValueBody
   | Expression
@@ -201,9 +202,9 @@ type Context =
   | EnumRequiredForConstruction
   | EnumRequiredForPattern
   | SelfOutsideFunction
-  | UnwrapOutsideFunction
+  | UnwrapRequiresFunction
   | UnwrapRequiresOptionOrResult
-  | UnwrapReturnContainerMismatch
+  | UnwrapRequiresMatchingReturnType
   | OrPatternBindingsDiffer
   | ExplicitTypeArgumentsOnNonNamedFunction
   | AliasCycleReferenced

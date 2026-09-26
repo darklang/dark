@@ -755,9 +755,9 @@ type Instruction =
   /// Go `n` instructions forward, unconditionally
   | JumpBy of instrsToJump : int
 
-  /// Extract success; failure ends this frame through its ordinary return path.
-  /// `returns` is the Option or Result type the frame returns, when its code shows
-  /// it; an operand of the other container is then refused on the spot.
+  /// Extract the value from Ok/Some, or return Error/None from the current call.
+  /// When `returns` specifies Option or Result, reject operands of the other
+  /// type, even on success.
   | Unwrap of
     extractTo : Register *
     valueReg : Register *
@@ -1637,10 +1637,10 @@ module RuntimeError =
       | GotError of err : Dval
       | NonOptionOrResult of actual : Dval
       | MultipleArgs of args : List<Dval>
-      /// `?` on an Option where the frame returns a Result, or the reverse.
+      /// `?` received an Option but the function or lambda returns Result, or vice versa.
       | UnwrapContainerMismatch of actual : Dval
-      /// `?` on something that is neither. Separate from `NonOptionOrResult`,
-      /// which is `Builtin.unwrap`'s, so the message can name the `?`.
+      /// `?` received a value that is neither Option nor Result.
+      /// Separate from Builtin.unwrap's error so the message identifies `?`.
       | UnwrapOperandNotContainer of actual : Dval
 
   module Jsons =
