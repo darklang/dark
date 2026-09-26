@@ -54,6 +54,7 @@ type IssueCode =
   | DuplicateTypeParameter
   | DuplicateTypeMember
   | UnsupportedDictKeyType
+  | InvalidUnwrap
   | UnresolvedTypeName
   | UnresolvedFunctionName
   | UnresolvedValueName
@@ -75,6 +76,7 @@ type NameRef =
 type Site =
   | LambdaReturnValue
   | FunctionReturnValue
+  | UnwrappedError
   | ValueBody
   | Expression
   | StatementBeforeFinalExpression
@@ -152,6 +154,9 @@ type Context =
   | EnumRequiredForConstruction
   | EnumRequiredForPattern
   | SelfOutsideFunction
+  | UnwrapRequiresFunction
+  | UnwrapRequiresOptionOrResult
+  | UnwrapRequiresMatchingReturnType
   | OrPatternBindingsDiffer
   | ExplicitTypeArgumentsOnNonNamedFunction
   | AliasCycleReferenced
@@ -268,6 +273,7 @@ let issueCodeToString (code: IssueCode) : String =
   | InvalidInfixOperand -> "InvalidInfixOperand"
   | DuplicateTypeParameter -> "DuplicateTypeParameter"
   | DuplicateTypeMember -> "DuplicateTypeMember"
+  | InvalidUnwrap -> "InvalidUnwrap"
   | UnsupportedDictKeyType -> "UnsupportedDictKeyType"
   | UnresolvedTypeName -> "UnresolvedTypeName"
   | UnresolvedFunctionName -> "UnresolvedFunctionName"
@@ -304,6 +310,7 @@ let siteToString (site: Site) : String =
   match site with
   | LambdaReturnValue -> "the lambda's return value"
   | FunctionReturnValue -> "the function's return value"
+  | UnwrappedError -> "the error returned by ?"
   | ValueBody -> "the value's body"
   | Expression -> "this expression"
   | StatementBeforeFinalExpression -> "the statement before the final expression"
@@ -460,6 +467,11 @@ let contextToStringWith
   | RecordRequiredForUpdate -> "Record update requires a record"
   | EnumRequiredForConstruction -> "Enum construction requires an enum type"
   | EnumRequiredForPattern -> "An enum pattern requires an enum type"
+  | UnwrapRequiresMatchingReturnType ->
+    "Postfix ? requires the enclosing function to return the same Result or "
+    ++ "Option kind"
+  | UnwrapRequiresFunction -> "Postfix ? requires an enclosing function or lambda"
+  | UnwrapRequiresOptionOrResult -> "Postfix ? requires a Result or Option operand"
   | SelfOutsideFunction -> "Self is only available while checking a function"
   | OrPatternBindingsDiffer ->
     "Every branch of an or-pattern must bind the same names"

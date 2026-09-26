@@ -1213,6 +1213,33 @@ let private typeTests =
         match parsedType "List<List<Int64>>" with
         | WT.TList(_, _, _, WT.TList(_, _, _, WT.TInt64 _, _), _) -> ()
         | o -> failtest $"{o}")
+      testCase "nested generic argument closes before a function arrow" (fun _ ->
+        let source = "List<List<Int64>> -> String"
+        Expect.isEmpty
+          (P.parse $"type X = {source}").diagnostics
+          "valid function type"
+        match parsedType source with
+        | WT.TFn(_,
+                 [ (WT.TList(_, _, _, WT.TList(_, _, _, WT.TInt64 _, _), _), _) ],
+                 WT.TString _) -> ()
+        | other -> failtestf "outer arrow was absorbed by the generic: %A" other)
+      testCase "generic function result closes before an outer arrow" (fun _ ->
+        let source = "List<Int64 -> List<String>> -> Bool"
+        Expect.isEmpty
+          (P.parse $"type X = {source}").diagnostics
+          "valid nested function type"
+        match parsedType source with
+        | WT.TFn(_,
+                 [ (WT.TList(_,
+                             _,
+                             _,
+                             WT.TFn(_,
+                                    [ (WT.TInt64 _, _) ],
+                                    WT.TList(_, _, _, WT.TString _, _)),
+                             _),
+                    _) ],
+                 WT.TBool _) -> ()
+        | other -> failtestf "inner function swallowed the outer arrow: %A" other)
       testCase "nested generics in a tuple (>> must not swallow the *)" (fun _ ->
         // regression: `List<List<A>> * List<List<B>>` mis-parsed as `List<List<A> * …>`
         let inner (isExpected : WT.TypeReference -> bool) =
@@ -1748,6 +1775,7 @@ let private rangeInvariantTests =
             | WT.EPipeEnum(_, _, _, fs, _) -> fs
             | WT.EPipeFnCall(_, _, _, args) -> args
             | WT.EPipeVariableOrFnCall _ -> []))
+    | WT.EUnwrap(_, operand, _) -> [ operand ]
     | WT.EStatement(_, a, b) -> [ a; b ]
   let rec check (path : string) (violations : ResizeArray<string>) (e : WT.Expr) =
     let er = WT.exprRange e
@@ -1858,10 +1886,86 @@ let private internalUnitTests =
         let r = P.parse "type Y = List<Int64>"
         Expect.isEmpty r.diagnostics "clean parse after a broken generic parse") ]
 
+let private unwrapTests =
+  testList
+    "unwrap"
+    [ testCase "call parentheses and operator range" (fun _ ->
+        let parsed = P.parse "fun x -> (f x)?"
+        Expect.isEmpty parsed.diagnostics "valid unwrap in lambda"
+        match lowerExpr "fun x -> (f x)?" with
+        | WT.ELambda(_, _, WT.EUnwrap(_, WT.EApply _, question), _, _) ->
+          expectColumns "question mark" (14, 15) question
+        | other -> failtestf "unexpected tree: %A" other)
+      testCase "postfix binds before application" (fun _ ->
+        match lowerExpr "fun x -> f x?" with
+        | WT.ELambda(_, _, WT.EApply(_, _, _, [ WT.EUnwrap _ ]), _, _) -> ()
+        | other -> failtestf "unexpected tree: %A" other)
+      testCase "field access and repeated unwrap associate left" (fun _ ->
+        let parsed = P.parse "fun x -> x?.field??"
+        Expect.isEmpty parsed.diagnostics "valid chain"
+        match lowerExpr "fun x -> x?.field??" with
+        | WT.ELambda(_,
+                     _,
+                     WT.EUnwrap(_,
+                                WT.EUnwrap(_,
+                                           WT.ERecordFieldAccess(_,
+                                                                 WT.EUnwrap _,
+                                                                 _,
+                                                                 _),
+                                           _),
+                                _),
+                     _,
+                     _) -> ()
+        | other -> failtestf "unexpected tree: %A" other)
+      testCase "rejects unwrap outside a function" (fun _ ->
+        for source in
+          [ "x?"; "val x = (Some 1)?"; "module M =\n  val x = (Some 1)?" ] do
+          let parsed = P.parse source
+          Expect.isTrue
+            (parsed.diagnostics
+             |> List.exists (fun d -> d.code = "VALIDATION-UNWRAP-CONTEXT"))
+            source)
+      testCase "rejects whitespace and prefix spellings" (fun _ ->
+        for source in [ "fun x -> x ?"; "fun x -> ?x"; "fun x -> ?" ] do
+          Expect.isNonEmpty (P.parse source).diagnostics source)
+      testCase "a spaced ? says so, wherever it lands" (fun _ ->
+        for source in
+          [ "fun x -> x ?"
+            "fun x -> Some (x ?)"
+            "fun x -> Some (x) ?"
+            "fun x ->\n  let n = x ?\n  n" ] do
+          Expect.isTrue
+            ((P.parse source).diagnostics
+             |> List.exists (fun d ->
+               d.message.Contains "directly after its operand"))
+            source)
+      testCase "an adjacent ? that can't attach doesn't blame whitespace" (fun _ ->
+        let diagnostics = (P.parse "fun v -> Ok (f v?)?").diagnostics
+        Expect.isTrue
+          (diagnostics
+           |> List.exists (fun d ->
+             d.message.Contains "can't follow this expression"))
+          $"{diagnostics}"
+        Expect.isFalse
+          (diagnostics |> List.exists (fun d -> d.message.Contains "no space"))
+          $"{diagnostics}")
+      testCase "a ? at the end of a pipe segment points at the parens" (fun _ ->
+        let parsed = P.parse "fun s -> s |> Stdlib.Int.parse?"
+        Expect.isTrue
+          (parsed.diagnostics
+           |> List.exists (fun d ->
+             d.hint = Some "wrap the whole pipeline: `(value |> transform)?`"))
+          $"{parsed.diagnostics}")
+      testCase "a lambda in a package value provides a boundary" (fun _ ->
+        Expect.isEmpty
+          (P.parse "val f = fun x -> Some x?").diagnostics
+          "lambda boundary") ]
+
 let tests =
   testList
     "LibParser"
-    [ parserStructureTests
+    [ unwrapTests
+      parserStructureTests
       internalUnitTests
       offsideTests
       typeTests

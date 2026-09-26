@@ -502,6 +502,9 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
   | PT.EFnName(_id, nameRes) ->
     w.Write 31uy
     writeNameResolution (writeFQFnName mode) w nameRes
+  | PT.EUnwrap(_id, operand) ->
+    w.Write 36uy
+    writeExpr mode w operand
   | PT.EStatement(_id, first, next) ->
     w.Write 32uy
     writeExpr mode w first

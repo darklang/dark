@@ -920,6 +920,13 @@ module Instruction =
       | CheckLetPatternAndExtractVars(v, p) ->
         "CheckLetPatternAndExtractVars", [ reg v; LetPattern.toDT p ]
       | JumpByIfFalse(n, c) -> "JumpByIfFalse", [ DInt32 n; reg c ]
+      | Unwrap(target, source, returns) ->
+        "Unwrap",
+        [ reg target
+          reg source
+          returns
+          |> Option.map FQTypeName.toDT
+          |> Dval.option (FQTypeName.knownType ()) ]
       | JumpBy n -> "JumpBy", [ DInt32 n ]
       | CheckMatchPatternAndExtractVars(v, p, fail) ->
         "CheckMatchPatternAndExtractVars",
@@ -1599,6 +1606,10 @@ module RuntimeError =
         | RuntimeError.Unwraps.GotError err -> "GotError", [ Dval.toDT err ]
         | RuntimeError.Unwraps.NonOptionOrResult actual ->
           "NonOptionOrResult", [ Dval.toDT actual ]
+        | RuntimeError.Unwraps.UnwrapContainerMismatch actual ->
+          "UnwrapContainerMismatch", [ Dval.toDT actual ]
+        | RuntimeError.Unwraps.UnwrapOperandNotContainer actual ->
+          "UnwrapOperandNotContainer", [ Dval.toDT actual ]
         | RuntimeError.Unwraps.MultipleArgs args ->
           "MultipleArgs",
           [ DList(VT.known (Dval.knownType ()), List.map Dval.toDT args) ]
@@ -1612,6 +1623,10 @@ module RuntimeError =
         RuntimeError.Unwraps.GotError(Dval.fromDT err)
       | DEnum(_, _, [], "NonOptionOrResult", [ actual ]) ->
         RuntimeError.Unwraps.NonOptionOrResult(Dval.fromDT actual)
+      | DEnum(_, _, [], "UnwrapContainerMismatch", [ actual ]) ->
+        RuntimeError.Unwraps.UnwrapContainerMismatch(Dval.fromDT actual)
+      | DEnum(_, _, [], "UnwrapOperandNotContainer", [ actual ]) ->
+        RuntimeError.Unwraps.UnwrapOperandNotContainer(Dval.fromDT actual)
       | DEnum(_, _, [], "MultipleArgs", [ args ]) ->
         args |> D.list Dval.fromDT |> RuntimeError.Unwraps.MultipleArgs
       | _ -> Exception.raiseInternal "Invalid Unwraps.Error" []

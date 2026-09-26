@@ -11,6 +11,12 @@ let content () : String =
   && ||   and unary !x
   `!x` is Stdlib.Bool.not; `!x && y` is `(!x) && y`.
 
+## Unwrap
+  value?   (call arg)?
+  Extract Ok/Some, or return Error/None from the nearest function/lambda.
+  Success must still be wrapped in Ok/Some; error types must agree.
+  No whitespace before ?. `f x?` means `f (x?)`.
+
 ## Numeric (all int types + Float)
   + - * / % **   and unary -x
   Polymorphic at runtime: both operands must be the same numeric type.
@@ -60,6 +66,7 @@ let content () : String =
     + - ++
     * / %
     **
-    f a b           (application, tightest)
+    f a b           (application)
+    x.field  x?     (postfix, tightest)
   Note the bitwise levels bind TIGHTER than the comparisons, as in Python:
   `a & b == c` is `(a & b) == c`."""

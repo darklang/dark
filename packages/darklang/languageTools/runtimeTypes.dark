@@ -170,6 +170,10 @@ type Instruction =
   | CheckLetPatternAndExtractVars of valueReg: Register * pat: LetPattern
   | JumpByIfFalse of instrsToJump: Int32 * conditionReg: Register
   | JumpBy of instrsToJump: Int32
+  | Unwrap of
+    extractTo: Register *
+    valueReg: Register *
+    returns: Stdlib.Option.Option<FQTypeName.FQTypeName>
   | CheckMatchPatternAndExtractVars of
     valueReg: Register *
     pat: MatchPattern *

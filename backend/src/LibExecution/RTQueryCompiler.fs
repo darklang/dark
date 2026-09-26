@@ -469,6 +469,7 @@ and executeInstruction
   | RT.JumpByIfFalse _ -> Ok state
 
   // Instructions we can't handle
+  | RT.Unwrap _ -> Error "Unwrap is not supported in SQL queries"
   | RT.CreateLambda _ -> Error "Nested lambdas not supported in SQL queries"
   | RT.CreateList(createTo, itemRegs) ->
     // Allow list creation when all items are literals (for partial evaluation)

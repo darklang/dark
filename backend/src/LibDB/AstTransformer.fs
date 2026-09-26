@@ -305,6 +305,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
         PackageItem.valuePackageHash
     )
 
+  | PT.EUnwrap(id, operand) -> PT.EUnwrap(id, transformExpr mapping operand)
   | PT.EStatement(id, first, next) ->
     PT.EStatement(id, transformExpr mapping first, transformExpr mapping next)
 

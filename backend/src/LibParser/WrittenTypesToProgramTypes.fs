@@ -586,6 +586,11 @@ module Expr =
         let (newContext, ptPat) = LetPattern.toPT context pat
         let! body = toPT newContext body
         return PT.ELet(id, ptPat, rhs, body)
+      | WT.EUnwrap(_, operand, _) ->
+        let id = gid ()
+        let! operand = toPT context operand
+        return PT.EUnwrap(id, operand)
+
       | WT.EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
         let id = gid ()
         let! cond = toPT context cond
