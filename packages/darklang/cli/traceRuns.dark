@@ -72,42 +72,51 @@ let printTable (runs: List<Darklang.Tracing.Trace>) : Unit =
 
 
 
-/// The effect log, one line per logged call: its position (what `fork --at` takes), the process
-/// it ran in, and the call. Capped; the whole trace is `dark traces view`.
-let printLog (id: String) : Unit =
-  match Darklang.Tracing.Store.view id with
-  | None ->
-    Stdlib.printLine "  log       not kept (dropped to make room, or recording was off)"
-  | Some data ->
-    let logged = data.functionCalls |> Stdlib.List.filter (fun c -> c.ord >= 0L)
-    let count = Stdlib.List.length logged
-    if count == 0 then
-      // No rows means either a run that touched nothing or one recorded at `io`. The row does
-      // not say which, and it makes no difference to what you can do next: a resume with
-      // nothing to replay simply runs the input again.
-      Stdlib.printLine "  log       no impure calls recorded"
-    else
-      Stdlib.printLine
-        $"  log       {Cli.Text.plural count "call"} with effects"
-      Stdlib.printLine "    pos  process   call"
-    Stdlib.List.take logged 40
-    |> Stdlib.List.iter (fun c ->
-      let process =
-        match c.processId with
-        | Some pid -> Cli.Text.shortId pid
-        | None -> "-"
-      let seq = Stdlib.String.padStartToWidth (Stdlib.Int64.toString c.seq) 5
-      Stdlib.printLine $"    {seq}  {process}  {c.fnName}")
-    if count > 40 then
-      Stdlib.printLine $"    ... {Stdlib.Int.toString (count - 40)} more"
-    else
-      ()
+/// Where a fork branched from: the run, and the position in its log the fork kept.
+type ForkJson =
+  { run: String
+    at: Int64 }
+
+
+/// A run as `--json` hands it over.
+///
+/// Every recorded value is a STRING here, rendered the way the terminal renders it. The stored
+/// form is a typed Dval, and serializing that gives `{"Some":[{"DInt64":[42]}]}` -- faithful,
+/// and not what the program said. Whoever reads this wants `42`, and a value they can paste
+/// back into Dark. The type is also flat, so `.answered` does not mean reaching through an
+/// option-of-a-union.
+type RunJson =
+  { id: String
+    /// `eval`, `run <file>`, `GET /path`.
+    entry: String
+    input: String
+    /// What the run answered. Absent while it is still going, and for one that failed.
+    answered: Stdlib.Option.Option<String>
+    status: String
+    pinned: Bool
+    /// Wall clock for the whole run. Absent for one still going.
+    durationMs: Stdlib.Option.Option<Int64>
+    forkedFrom: Stdlib.Option.Option<ForkJson>
+    created: String
+    updated: String }
+
+
+/// One recorded call, as `--json` hands it over. Same rule about values as `RunJson`.
+type CallJson =
+  { /// Where the call sits in the run's log: what `fork --at` takes.
+    pos: Int64
+    fn: String
+    args: List<String>
+    result: String
+    durationMs: Int
+    /// The process that made the call, for a run that spawned any.
+    process: Stdlib.Option.Option<String> }
 
 
 /// What `traces show --json` hands back: the run, and the impure calls it logged.
-type RunJson =
-  { run: Darklang.Tracing.Trace
-    calls: List<Darklang.Tracing.FnCall> }
+type RunWithCallsJson =
+  { run: RunJson
+    calls: List<CallJson> }
 
 
 /// What `traces values --json` hands back: which run was read, and what each expression in the
@@ -115,12 +124,58 @@ type RunJson =
 type ValuesJson =
   { run: String
     fn: String
-    values: Dict<String, LanguageTools.RuntimeTypes.Dval>
+    values: Dict<String, String>
     problem: Stdlib.Option.Option<String> }
 
 
+/// A run, for `--json`. The ONE converter: `list`, `find`, `calls`, `follow` and `show` all come
+/// through here, so no two of them can hand back a run with different fields in it.
+let runJson (branchId: Uuid) (run: Darklang.Tracing.Trace) : RunJson =
+  RunJson
+    { id = run.id
+      entry = run.entry
+      input = run.input
+      answered =
+        run.result
+        |> Stdlib.Option.map (fun dv -> Darklang.Tracing.Format.compactDval branchId dv)
+      status = statusText run.status
+      pinned = run.pinned
+      durationMs =
+        if run.durationMs > 0L then
+          Stdlib.Option.Option.Some run.durationMs
+        else
+          Stdlib.Option.Option.None
+      forkedFrom =
+        run.parent
+        |> Stdlib.Option.map (fun p ->
+          let (id, at) = p
+          ForkJson { run = id; at = at })
+      created = run.created
+      updated = run.updated }
+
+
+/// One logged call, for `--json`.
+let callJson (branchId: Uuid) (call: Darklang.Tracing.FnCall) : CallJson =
+  CallJson
+    { pos = call.seq
+      fn = call.fnName
+      args =
+        call.args
+        |> Stdlib.List.map (fun a -> Darklang.Tracing.Format.compactDval branchId a)
+      result = Darklang.Tracing.Format.compactDval branchId call.result
+      durationMs = call.durationMs
+      process = call.processId |> Stdlib.Option.map (fun p -> Stdlib.Uuid.toString p) }
+
+
+/// A list of runs, as JSON. Every listing verb prints through this.
+let printRunsJson (branchId: Uuid) (runs: List<Darklang.Tracing.Trace>) : Unit =
+  Stdlib.printLine
+    (Stdlib.Json.serialize<List<RunJson>>
+      (runs |> Stdlib.List.map (fun r -> runJson branchId r)))
+
+
 /// One run and its log, as JSON.
-let printShowJson (prefix: String) : Bool =
+let printShowJson (branchId: Uuid) (prefix: String) : Bool =
   match find prefix with
   | Error e ->
     Cli.printErr e
@@ -128,39 +183,14 @@ let printShowJson (prefix: String) : Bool =
   | Ok run ->
     let calls =
       match Darklang.Tracing.Store.view run.id with
-      | Some data -> data.functionCalls |> Stdlib.List.filter (fun c -> c.ord >= 0L)
+      | Some data ->
+        data.functionCalls
+        |> Stdlib.List.filter (fun c -> c.ord >= 0L)
+        |> Stdlib.List.map (fun c -> callJson branchId c)
       | None -> []
     Stdlib.printLine
-      (Stdlib.Json.serialize<RunJson> (RunJson { run = run; calls = calls }))
-    true
-
-
-let printShow (branchId: Uuid) (prefix: String) : Bool =
-  match find prefix with
-  | Error e ->
-    Cli.printErr e
-    false
-  | Ok e ->
-    Stdlib.printLine e.id
-    Stdlib.printLine $"  status    {statusText e.status}"
-    Stdlib.printLine $"  entry     {e.entry}"
-    Stdlib.printLine $"  input     {Cli.Text.oneLine e.input}"
-    match e.result with
-    | Some r ->
-      Stdlib.printLine
-        $"  answered  {PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 r}"
-    | None -> ()
-    Stdlib.printLine $"  started   {whenText e.created} ({e.created})"
-    if e.pinned then
-      Stdlib.printLine "  pinned    kept, whatever else is dropped to make room"
-    else
-      ()
-    match e.parent with
-    | Some((id, at)) ->
-      Stdlib.printLine
-        $"  forked    from {Cli.Text.shortIdText id}, keeping its log before position {Stdlib.Int64.toString at}"
-    | None -> ()
-    printLog e.id
+      (Stdlib.Json.serialize<RunWithCallsJson>
+        (RunWithCallsJson { run = runJson branchId run; calls = calls }))
     true
 
 
@@ -295,7 +325,7 @@ let printValuesJson
       collected
       |> Stdlib.List.map (fun pair ->
         let (id, dv) = pair
-        (Stdlib.Int64.toString id, dv))
+        (Stdlib.Int64.toString id, Darklang.Tracing.Format.compactDval branchId dv))
       |> Stdlib.Dict.fromListOverwritingDuplicates
     Stdlib.printLine
       (Stdlib.Json.serialize<ValuesJson>

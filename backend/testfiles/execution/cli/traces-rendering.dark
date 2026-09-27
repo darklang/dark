@@ -1,8 +1,9 @@
-// How a run and its log are turned into text, and what the recording level does.
+// How a run and its log are turned into text.
 //
-// All of this is Dark, so it is tested in Dark. What needs a real recorded run -- that the rungs
-// store what they say, that a duration lands, that `--json` has the right shape -- is in
-// `Tests/CliTraces.Tests.fs`, where a CLI harness exists.
+// All of this is Dark, so it is tested in Dark. What needs a real recorded run -- that recording
+// on stores what it says, that a duration lands, that `--json` has the right shape, that the
+// setting has two doors onto one key -- is in `Tests/CliTraces.Tests.fs`, where a CLI harness
+// exists.
 
 module IdWidth =
   // The shortest prefix that tells THESE ids apart. Eight unless two of them collide, which is
@@ -101,6 +102,61 @@ module TheLog =
         filter = Stdlib.Option.Option.Some "nope" }) = "  (no logged call matches the active filters)"
 
 
+module TheLogIsCut =
+  // `show` merged `view` into itself, so it prints the whole log rather than a name-only
+  // summary. A served request can log thousands of calls, so the default is a screenful, and
+  // the last line says how to get the rest -- which is the part worth asserting, since a cut
+  // list that does not say it was cut reads as a complete one.
+  //
+  // Every call here is the same call: what is under test is how many lines come out, not what
+  // is on them.
+  val one =
+    Darklang.Tracing.FnCall
+      { callId = "c"
+        fnName = "printLine"
+        args = []
+        result = Darklang.LanguageTools.RuntimeTypes.Dval.DUnit
+        durationMs = 0
+        processId = Stdlib.Option.Option.None
+        seq = 0L
+        ord = 0L }
+
+  let logOf (count: Int) (opts: Darklang.Cli.Tracing.ViewOptions) : Int =
+    Stdlib.List.length
+      (Stdlib.String.split
+        (Darklang.Cli.Tracing.formatFnCalls
+          opts
+          Darklang.SCM.Branch.mainBranchId
+          (Stdlib.List.map (Stdlib.List.range 1 count) (fun _ -> one)))
+        "\n")
+
+  let textOf (count: Int) (opts: Darklang.Cli.Tracing.ViewOptions) : String =
+    Darklang.Cli.Tracing.formatFnCalls
+      opts
+      Darklang.SCM.Branch.mainBranchId
+      (Stdlib.List.map (Stdlib.List.range 1 count) (fun _ -> one))
+
+  // Forty fit.
+  (logOf 40 Darklang.Cli.Tracing.defaultViewOptions) = 40
+
+  // Forty-one are cut to forty, and the forty-first line is the count of what was left out.
+  (logOf 41 Darklang.Cli.Tracing.defaultViewOptions) = 41
+
+  (Stdlib.String.contains
+    (textOf 41 Darklang.Cli.Tracing.defaultViewOptions)
+    "... 1 more") = true
+
+  // And it says what to type for the rest.
+  (Stdlib.String.contains
+    (textOf 41 Darklang.Cli.Tracing.defaultViewOptions)
+    "--all") = true
+
+  // `--all` prints every one.
+  (logOf 41 { Darklang.Cli.Tracing.defaultViewOptions with all = true }) = 41
+
+  (logOf 100 { Darklang.Cli.Tracing.defaultViewOptions with all = true }) = 100
+
+
 module ViewFlags =
   // The flags that only meant something for a tree of every call are refused by name, so a
   // script that still passes one is told what changed instead of quietly getting everything.
@@ -119,6 +175,15 @@ module ViewFlags =
    with
    | Error e -> Stdlib.String.contains e "every logged call is an impure builtin"
    | Ok _ -> false) = true
+
+  // `--all` turns the cut off.
+  (match
+    Darklang.Cli.Tracing.parseViewOptions
+      Darklang.Cli.Tracing.defaultViewOptions
+      [ "--all" ]
+   with
+   | Ok opts -> opts.all
+   | Error _ -> false) = true
 
   // The ones that still mean something still work.
   (match
