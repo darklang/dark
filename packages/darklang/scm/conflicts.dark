@@ -122,9 +122,13 @@ let stringGt (a: String) (b: String) : Bool =
 
 // the auto-resolution rule (must mirror the fold exactly)
 
-/// Does the INCOMING binding beat the LOCAL one?
+/// Does the thing stamped <param aTs> and hashed <param aHash> beat the one stamped <param bTs>?
 ///
-/// THIS RULE EXISTS TWICE. `LibDB.Lww.isStale` decides the same question during the fold (the fold reaches
+/// The rule itself, over stamps and hashes alone, so everything that has to agree can ask it:
+/// bindings of one name (`incomingWins`, below) and two implementations of one trait for one type
+/// (`SCM.Constraints`, which reports the pair the runtime already picked between).
+///
+/// THIS RULE EXISTS TWICE. `LibExecution.Lww.isStale` decides the same question during the fold (the fold reaches
 /// it through `PackageOpPlayback.applySetNameFrom`), and the two must agree or a recorded conflict names a
 /// winner the fold did not pick. Change one, change both.
 /// Both say: later stamp wins, an exact tie goes to the higher hash (portable, so every instance
@@ -132,13 +136,17 @@ let stringGt (a: String) (b: String) : Bool =
 ///
 /// No equal-hash case here: `detect` returns None when the hashes match. The F# side needs that case,
 /// since the fold sees every op.
-let incomingWins (incoming: Binding) (local: Binding) : Bool =
-  if local.originTs == "" then
+let beats (aTs: String) (aHash: String) (bTs: String) (bHash: String) : Bool =
+  if bTs == "" then
     true
-  else if incoming.originTs == local.originTs then
-    stringGt incoming.hash local.hash
+  else if aTs == bTs then
+    stringGt aHash bHash
   else
-    stringGt incoming.originTs local.originTs
+    stringGt aTs bTs
+
+/// Does the INCOMING binding beat the LOCAL one? The rule above, at a binding.
+let incomingWins (incoming: Binding) (local: Binding) : Bool =
+  beats incoming.originTs incoming.hash local.originTs local.hash
 
 /// Why the auto-resolution picked what it did.
 let resolutionReason (incoming: Binding) (local: Binding) : String =
@@ -156,7 +164,7 @@ let conflictId
   (hashes: List<String>)
   : String =
   let sorted = Stdlib.List.sort hashes
-  let material = $"{owner}/{modules}/{name}|" ++ (Stdlib.String.join sorted ",")
+  let material = $"{owner}/{modules}/{name}|" + (Stdlib.String.join sorted ",")
   let digest = Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob material))
   Stdlib.String.toLowercase (Stdlib.String.first digest 8)
 
@@ -424,8 +432,8 @@ let localBindingsFor (names: List<String>) : List<Binding> =
                 previous
          FROM locations
          WHERE unlisted_at IS NULL AND name IN ("
-        ++ (inPlaceholders chunk)
-        ++ ")"
+        + (inPlaceholders chunk)
+        + ")"
 
       Stdlib.Sqlite.rowsP (localDb ()) sql chunk bindingFromRow)
     |> Stdlib.List.flatten

@@ -31,7 +31,7 @@ let draftParams (branchId: Uuid) : List<String> =
 let draftOpCountFor (branchId: Uuid) : Int64 =
   Stdlib.Sqlite.scalarIntP
     (localDb ())
-    ("SELECT count(*) AS n FROM package_ops p WHERE " ++ draftWhere branchId)
+    ("SELECT count(*) AS n FROM package_ops p WHERE " + draftWhere branchId)
     (draftParams branchId)
     "n"
   |> Stdlib.Option.withDefault 0L
@@ -65,7 +65,7 @@ let authoredDraftOpCountFor (branchId: Uuid) : Int64 =
 let draftOpIdsFor (branchId: Uuid) : List<String> =
   Stdlib.Sqlite.columnP
     (localDb ())
-    ("SELECT p.id FROM package_ops p WHERE " ++ draftWhere branchId ++ " ORDER BY p.id")
+    ("SELECT p.id FROM package_ops p WHERE " + draftWhere branchId + " ORDER BY p.id")
     (draftParams branchId)
     "id"
 
@@ -86,8 +86,8 @@ let draftOpRowsFor (branchId: Uuid) : List<Dict<String, Stdlib.Sqlite.Value>> =
   Stdlib.Sqlite.rowsOrEmptyP
     (localDb ())
     ("SELECT p.id, p.op_blob, p.origin_ts AS ts FROM package_ops p WHERE "
-     ++ draftWhere branchId
-     ++ " ORDER BY p.origin_ts, p.rowid")
+     + draftWhere branchId
+     + " ORDER BY p.origin_ts, p.rowid")
     (draftParams branchId)
 
 
@@ -196,7 +196,7 @@ let draftEntries () : List<DraftEntry> = draftEntriesFor (currentBranch ())
 /// The per-location key the two decision folds below group on. A string built here rather than through
 /// `Constraints.fqnOf`: this silo owns the op log and must not depend on the one that reports findings.
 let decisionKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-  loc.owner ++ "|" ++ (Stdlib.String.join loc.modules ".") ++ "|" ++ loc.name
+  loc.owner + "|" + (Stdlib.String.join loc.modules ".") + "|" + loc.name
 
 
 /// Where a propagation choice of YOURS was replaced by one that arrived from somebody else.
@@ -440,6 +440,12 @@ let typeCheckOps
       | AddValue v ->
         let h = LanguageTools.ProgramTypes.hashToString v.hash
         (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+      | AddTrait t ->
+        let h = LanguageTools.ProgramTypes.hashToString t.hash
+        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+      | AddTraitImpl i ->
+        let h = LanguageTools.ProgramTypes.hashToString i.hash
+        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
       | _ -> true)
 
   match liveOps with
@@ -472,8 +478,8 @@ let stampDraftFor (branchId: Uuid) (commitHash: String) : Int64 =
   let _ =
     Stdlib.Sqlite.mustExec
       (localDb ())
-      ("UPDATE package_ops SET commit_hash = " ++ hashSlot ++ " WHERE id IN
-          (SELECT p.id FROM package_ops p WHERE " ++ draftWhere branchId ++ ")")
+      ("UPDATE package_ops SET commit_hash = " + hashSlot + " WHERE id IN
+          (SELECT p.id FROM package_ops p WHERE " + draftWhere branchId + ")")
       (Stdlib.List.append params [ commitHash ])
 
   n
@@ -525,8 +531,8 @@ let stampDraftOpsFor
 
     Stdlib.Sqlite.mustExecBatch
       (localDb ())
-      [ ("UPDATE package_ops SET commit_hash = " ++ hashSlot ++ " WHERE id = " ++ idSlot
-         ++ " AND id IN (SELECT p.id FROM package_ops p WHERE " ++ where ++ ")",
+      [ ("UPDATE package_ops SET commit_hash = " + hashSlot + " WHERE id = " + idSlot
+         + " AND id IN (SELECT p.id FROM package_ops p WHERE " + where + ")",
          rows) ]
     // Per-row counts are `Int`; this reports `Int64`. `toInt64` is an Option because an Int is
     // unbounded, which an affected-row count is not, so `0L` stands in for the impossible case.

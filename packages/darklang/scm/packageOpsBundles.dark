@@ -145,7 +145,7 @@ let branchField (branchId: Uuid) (col: String) (dflt: String) : String =
   match
     Stdlib.Sqlite.queryP
       (localDb ())
-      ("SELECT " ++ col ++ " AS v FROM branches WHERE id = @p0")
+      ("SELECT " + col + " AS v FROM branches WHERE id = @p0")
       [ Stdlib.Uuid.toString branchId ]
   with
   | Ok rows ->

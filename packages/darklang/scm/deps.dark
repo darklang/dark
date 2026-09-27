@@ -14,6 +14,8 @@ let kindOf (s: String) : LanguageTools.ProgramTypes.ItemKind =
   match s with
   | "type" -> LanguageTools.ProgramTypes.ItemKind.Type
   | "value" -> LanguageTools.ProgramTypes.ItemKind.Value
+  | "trait" -> LanguageTools.ProgramTypes.ItemKind.Trait
+  | "impl" -> LanguageTools.ProgramTypes.ItemKind.TraitImpl
   | _ -> LanguageTools.ProgramTypes.ItemKind.Fn
 
 let kindString (k: LanguageTools.ProgramTypes.ItemKind) : String =
@@ -21,6 +23,8 @@ let kindString (k: LanguageTools.ProgramTypes.ItemKind) : String =
   | Type -> "type"
   | Value -> "value"
   | Fn -> "fn"
+  | Trait -> "trait"
+  | TraitImpl -> "impl"
 
 let locationOf
   (owner: String)

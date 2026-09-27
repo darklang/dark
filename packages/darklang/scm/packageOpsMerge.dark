@@ -28,6 +28,8 @@ let applyResolution
     match c.itemType with
     | "type" -> LanguageTools.ProgramTypes.Reference.PackageType h
     | "value" -> LanguageTools.ProgramTypes.Reference.PackageValue h
+    | "trait" -> LanguageTools.ProgramTypes.Reference.PackageTrait h
+    | "impl" -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl h
     | _ -> LanguageTools.ProgramTypes.Reference.PackageFn h
 
   add
@@ -138,7 +140,7 @@ let commitDraft
 
     Stdlib.Result.Result.Error(
       $"the at-rest type check found {Stdlib.Int.toString count} definite error(s); "
-      ++ "`dark constraints` and `dark typecheck` show them")
+      + "`dark constraints` and `dark typecheck` show them")
   | Checked
   | Incomplete ->
 
@@ -347,7 +349,7 @@ let rebaseMessage (parentId: Uuid) (rebased: Branches.Rebased) : String =
   | [] ->
     $"already current with \"{parentName}\" -- nothing to reconcile; merge is ready"
   | parts ->
-    $"rebased onto \"{parentName}\". " ++ (Stdlib.String.join parts "\n")
+    $"rebased onto \"{parentName}\". " + (Stdlib.String.join parts "\n")
 
 
 /// Rebase a branch: accept the parent's current state as the new base; reports the names the parent changed
@@ -405,7 +407,7 @@ let branchList (includeMerged: Bool) : String =
           (Stdlib.List.take lines cap)
           [ $"+ {Stdlib.Int.toString more} more -- `dark branches --all` lists every branch." ]
 
-    (Stdlib.String.join shown "\n") ++ footer
+    (Stdlib.String.join shown "\n") + footer
 
 
 /// Present everything a branch changes vs its parent (+ new, ~ changed) -- the review-before-merge diff.

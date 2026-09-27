@@ -20,12 +20,18 @@ let private clearActions = ConcurrentBag<unit -> unit>()
 /// the process.
 let register (clear : unit -> unit) : unit = clearActions.Add clear
 
+/// Bumped by every `invalidateAll`, so a memo held outside these caches (the
+/// interpreter's impl selections) can tell that the store moved under it.
+let mutable private generationCounter = 0
+let generation () : int = generationCounter
+
 /// Drop every cache. Called whenever ops fold or `locations` is written directly.
 ///
 /// Blunt on purpose. These caches all derive from the same tables, an author touches an
 /// unpredictable set of names (propagation repoints things you didn't name), and re-reading
 /// a row from SQLite is cheap next to answering with a stale version.
 let invalidateAll () : unit =
+  System.Threading.Interlocked.Increment(&generationCounter) |> ignore<int>
   for clear in clearActions do
     clear ()
 
@@ -48,5 +54,26 @@ let withCache (f : 'key -> Ply<Option<'value>>) =
         match result with
         | Some _ -> cache.TryAdd(key, result) |> ignore<bool>
         | None -> ()
+        return result
+      }
+
+
+/// `withCache` that also remembers a miss, for a lookup where the miss is the common
+/// case: since every qualified fn name is first tried as a trait method, the type
+/// lookup behind it misses far more often than it hits, and each miss is a query.
+/// Safe for the same reason the positive entries are: every fold and every direct
+/// write to `locations` calls `invalidateAll`, which drops this too.
+let withNegativeCache (f : 'key -> Ply<Option<'value>>) =
+  let cache = ConcurrentDictionary<'key, Option<'value>>()
+  clearActions.Add(fun () -> cache.Clear())
+
+  fun (key : 'key) ->
+    let mutable cached = Unchecked.defaultof<Option<'value>>
+    if cache.TryGetValue(key, &cached) then
+      Ply cached
+    else
+      uply {
+        let! result = f key
+        cache.TryAdd(key, result) |> ignore<bool>
         return result
       }

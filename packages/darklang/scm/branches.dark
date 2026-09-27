@@ -365,16 +365,16 @@ let touchedNames (branchId: Uuid) : List<String> =
 /// (owner, dotted-modules, name), and this is that triple flattened so a Dict can hold it. The separator
 /// is a newline because none of the three parts can contain one.
 let nameKey (owner: String) (modules: String) (name: String) : String =
-  owner ++ "\n" ++ modules ++ "\n" ++ name
+  owner + "\n" + modules + "\n" + name
 
 
 /// How a conflicted name is SPOKEN: "owner.Module.name", or "owner.name" for a top-level item. Mirrors the
 /// detector's fqn format, because `resolve <name>` has to accept what a conflict listing prints.
 let fqnOf (owner: String) (modules: String) (name: String) : String =
   if modules == "" then
-    owner ++ "." ++ name
+    owner + "." + name
   else
-    owner ++ "." ++ modules ++ "." ++ name
+    owner + "." + modules + "." + name
 
 
 /// A branch's recorded bases: the parent's hash per name AT THE FORK, which is what a later comparison is

@@ -34,8 +34,10 @@ let add
 ///
 /// Ordered deliberately. Duplicate names are checked FIRST, because `stabilizeHashes` keys by name: a
 /// batch declaring one name twice would store one body under the other's hash, and whichever landed
-/// second would silently become the first. Then the at-rest check runs over what was actually stored,
-/// so its report describes the store rather than the request.
+/// second would silently become the first. Then each trait-method call is resolved to an
+/// implementation and that choice is written onto the call, BEFORE hashing, because it is part of
+/// what the item is. Then the at-rest check runs over what was actually stored, so its report
+/// describes the store rather than the request.
 ///
 /// Every authoring surface goes through here rather than calling `add`: the CLI's fn/type/value/module
 /// commands, the workbench, and the LSP's file provider.
@@ -47,9 +49,12 @@ let addAuthored
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty duplicates) then
     Stdlib.Result.Result.Error(
-      "Declared more than once: " ++ (Stdlib.String.join duplicates ", "))
+      "Declared more than once: " + (Stdlib.String.join duplicates ", "))
   else
-    let stabilizedOps = LanguageTools.PackageManager.stabilizeHashes ops
+    let stabilizedOps =
+      ops
+      |> LanguageTools.PackageManager.resolveTraitCalls
+      |> LanguageTools.PackageManager.stabilizeHashes
 
     match add branchId stabilizedOps with
     | Ok _ ->

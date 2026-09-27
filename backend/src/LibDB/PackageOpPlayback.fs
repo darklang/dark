@@ -20,6 +20,7 @@ open LibExecution.ProgramTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module Lww = LibExecution.Lww
 module BS = LibSerialization.Binary.Serialization
 module DE = LibDB.DependencyExtractor
 open LibSerialization.Hashing
@@ -259,6 +260,81 @@ let private applyAddValue
     do! updateDependencies ctx hashStr refs
   }
 
+/// Apply a single AddTrait op to the package_traits table.
+let private applyAddTrait
+  (ctx : Ctx)
+  (mayRewriteExisting : bool)
+  (t : PT.Trait.Trait)
+  : Task<unit> =
+  task {
+    let hash =
+      match t.hash with
+      | Hash "" -> Hashing.computeTraitHash Hashing.Normal t
+      | h -> h
+    let t = { t with hash = hash }
+    let (Hash hashStr) = hash
+
+    do!
+      upsertContentAddressed
+        ctx
+        "trait"
+        "package_traits"
+        hash
+        [ "pt_def", box (BS.PT.Trait.serialize hashStr t)
+          "description", box t.description ]
+        []
+        mayRewriteExisting
+        (Hashing.computeTraitHash Hashing.Normal t)
+        (fun bytes ->
+          BS.PT.Trait.deserialize hash bytes
+          |> Hashing.computeTraitHash Hashing.Normal)
+
+    do! updateDependencies ctx hashStr (DE.extractFromTrait t)
+  }
+
+/// Apply a single AddTraitImpl op to the package_trait_impls table.
+///
+/// `originTs` is the op's own stamp, kept on the row because selection needs to order two impls of
+/// one trait for one type the same way on every instance (`LibExecution.Lww`). Empty when the op has
+/// no stamp: then the impls have no order and a call that finds both says so.
+let private applyAddImpl
+  (ctx : Ctx)
+  (mayRewriteExisting : bool)
+  (originTs : string)
+  (i : PT.TraitImpl.TraitImpl)
+  : Task<unit> =
+  task {
+    let hash =
+      match i.hash with
+      | Hash "" -> Hashing.computeImplHash Hashing.Normal i
+      | h -> h
+    let i = { i with hash = hash }
+    let (Hash hashStr) = hash
+    let traitHash =
+      match i.trait_.resolved with
+      | Ok { name = PT.FQTraitName.Package(Hash t) } -> t
+      | Error _ -> ""
+
+    do!
+      upsertContentAddressed
+        ctx
+        "impl"
+        "package_trait_impls"
+        hash
+        [ "pt_def", box (BS.PT.TraitImpl.serialize hashStr i)
+          "trait_hash", box traitHash
+          "description", box i.description
+          "origin_ts", box originTs ]
+        []
+        mayRewriteExisting
+        (Hashing.computeImplHash Hashing.Normal i)
+        (fun bytes ->
+          BS.PT.TraitImpl.deserialize hash bytes
+          |> Hashing.computeImplHash Hashing.Normal)
+
+    do! updateDependencies ctx hashStr (DE.extractFromImpl i)
+  }
+
 /// Apply a single AddFn op to the package_functions table.
 let private applyAddFn
   (ctx : Ctx)
@@ -368,7 +444,7 @@ let private applySetNameFrom
     let isStale =
       match curBinding, thisTs with
       // Different hash, both stamped: the LWW rule (incl. the portable higher-hash
-      // tie-break) lives in `LibDB.Lww`, shared with `SCM.Conflicts.incomingWins`;
+      // tie-break) lives in `LibExecution.Lww`, shared with `SCM.Conflicts.incomingWins`;
       // `Tests.Lww` asserts they agree.
       | Some(curHash, Some curTs), Some t when curHash <> itemHashStr ->
         Lww.isStale t itemHashStr curTs curHash
@@ -874,6 +950,11 @@ let private applyOp
     | PT.PackageOp.AddType typ -> do! applyAddType ctx mayRewriteExisting typ
     | PT.PackageOp.AddValue value -> do! applyAddValue ctx mayRewriteExisting value
     | PT.PackageOp.AddFn fn -> do! applyAddFn ctx mayRewriteExisting fn
+    | PT.PackageOp.AddTrait t -> do! applyAddTrait ctx mayRewriteExisting t
+    | PT.PackageOp.AddTraitImpl i ->
+      // The op's own time, so two rival impls order the same way wherever they land.
+      let! ts = originTsOf ctx (Hashing.computeOpRowId op)
+      do! applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" ts) i
     | PT.PackageOp.SetName(loc, target, _) ->
       do! applySetNameFrom ctx source op target.hash loc target.kind
     | PT.PackageOp.Unbind(loc, previous) -> do! applyUnbind ctx op loc previous
@@ -1023,6 +1104,12 @@ let recordDependenciesOnly (ops : List<PT.PackageOp>) : Task<unit> =
         | PT.PackageOp.AddValue v when v.hash <> Hash "" ->
           let (Hash h) = v.hash
           Some(h, DE.extractFromValue v)
+        | PT.PackageOp.AddTrait t when t.hash <> Hash "" ->
+          let (Hash h) = t.hash
+          Some(h, DE.extractFromTrait t)
+        | PT.PackageOp.AddTraitImpl i when i.hash <> Hash "" ->
+          let (Hash h) = i.hash
+          Some(h, DE.extractFromImpl i)
         | _ -> None)
 
     if not (List.isEmpty adds) then
