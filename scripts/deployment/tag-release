@@ -11,16 +11,20 @@ if [ "${CIRCLE_PROJECT_USERNAME:-}" != "darklang" ]; then
   exit 0
 fi
 
+# Over https: the repo is public, and the CI image has no ssh client for the
+# checkout's git@ remote.
+repo=https://github.com/darklang/dark.git
+
 # Only the newest commit on main gets a release; an older pipeline finishing
 # late would otherwise publish over it. The newer commit's pipeline tags it,
 # or, if that one goes red, the next green one does.
-main=$(git ls-remote origin refs/heads/main | cut -f1)
+main=$(git ls-remote "$repo" refs/heads/main | cut -f1)
 if [ "$main" != "$CIRCLE_SHA1" ]; then
   echo "main has moved on to $main; its own pipeline will tag it."
   exit 0
 fi
 
-git fetch --quiet --force --tags origin
+git fetch --quiet --force --tags "$repo"
 
 # Tagged by hand already, or this is a rerun.
 existing=$(git tag --points-at "$CIRCLE_SHA1" 'v*')
