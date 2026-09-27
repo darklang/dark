@@ -106,9 +106,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Adds two numbers of the same numeric type. Fixed-width integer "
-        + "overflow wraps around; the arbitrary-precision Int grows instead of "
-        + "overflowing; float arithmetic follows IEEE (overflow to infinity)."
+        "Adds two values of the same type. Strings concatenate. For numbers: fixed-width "
+        + "integer overflow wraps around, the arbitrary-precision Int grows instead of "
+        + "overflowing, and float arithmetic follows IEEE (overflow to infinity)."
       fn =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a + b))
@@ -123,6 +123,11 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a + b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.add a b))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a + b))
+        // `+` concatenates Strings (`impl Add for String`), and this builtin is what `+`
+        // lowers to while the package refs are not generated yet, which is how the stdlib's
+        // own string concatenation loads on a fresh tree.
+        | _, _, _, [| DString a; DString b |] ->
+          Ply(DString(String.normalize (a + b)))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       // CLEANUP: SQL pushdown for fixed-width integer arithmetic does not match
