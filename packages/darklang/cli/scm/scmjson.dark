@@ -215,7 +215,7 @@ let changedItem
 /// Right-pad to <param width> so a column of names lines up under each other.
 let pad (s: String) (width: Int) : String =
   let n = Stdlib.String.length s
-  if n >= width then s else s ++ (Stdlib.String.repeat " " (width - n))
+  if n >= width then s else s + (Stdlib.String.repeat " " (width - n))
 
 /// The human words for a `change` value, so the pretty view reads as prose while the JSON stays a token.
 let changeNote (change: String) : String =

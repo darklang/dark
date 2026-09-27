@@ -10,7 +10,7 @@
 module Darklang.PrettyPrinter.RuntimeTypes.Instructions
 
 let register (r: LanguageTools.RuntimeTypes.Register) : String =
-  "r" ++ (Stdlib.Int32.toString r)
+  "r" + (Stdlib.Int32.toString r)
 
 let registers (rs: List<LanguageTools.RuntimeTypes.Register>) : String =
   (Stdlib.List.map rs (fun r -> register r)) |> Stdlib.String.join ", "
@@ -91,7 +91,7 @@ let matchPattern (pat: LanguageTools.RuntimeTypes.MatchPattern) : String =
 
 let segment (branchId: Uuid) (s: LanguageTools.RuntimeTypes.StringSegment) : String =
   match s with
-  | Text t -> "\"" ++ (Stdlib.String.replaceAll t "\n" "\\n") ++ "\""
+  | Text t -> "\"" + (Stdlib.String.replaceAll t "\n" "\\n") + "\""
   | Interpolated r -> register r
 
 
@@ -102,12 +102,12 @@ let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
     if (Stdlib.String.length s) <= 40 then
       s
     else
-      (Stdlib.String.slice s 0 37) ++ "..."
+      (Stdlib.String.slice s 0 37) + "..."
 
   match dv with
   | DUnit -> "unit"
   | DBool b -> Stdlib.Bool.toString b
-  | DString s -> "\"" ++ (clip (Stdlib.String.replaceAll s "\n" "\\n")) ++ "\""
+  | DString s -> "\"" + (clip (Stdlib.String.replaceAll s "\n" "\\n")) + "\""
   | DChar c -> $"'{Stdlib.Char.toString c}'"
   | DInt64 i -> Stdlib.Int64.toString i
   | DInt i -> Stdlib.Int.toString i
@@ -129,7 +129,7 @@ let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
       $"{t}.{caseName} ({n})"
   | DApplicable app ->
     match app with
-    | AppNamedFn fn -> "&" ++ (PrettyPrinter.RuntimeTypes.fnName branchId fn.name)
+    | AppNamedFn fn -> "&" + (PrettyPrinter.RuntimeTypes.fnName branchId fn.name)
     | AppLambda l -> $"&lambda#{Stdlib.UInt64.toString l.exprId}"
   | other -> PrettyPrinter.RuntimeTypes.dval branchId other
 
@@ -244,4 +244,4 @@ let listing (branchId: Uuid) (instrs: LanguageTools.RuntimeTypes.Instructions) :
       $"{idx}  {op} {operands branchId index i}")
     |> Stdlib.String.join "\n"
 
-  (header instrs) ++ "\n" ++ body
+  (header instrs) + "\n" + body

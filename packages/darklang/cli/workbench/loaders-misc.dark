@@ -7,7 +7,7 @@ let loadAiThreadItems () : List<BodyItem> =
   Darklang.Cli.Apps.Views.AiChats.demoThreads ()
   |> Stdlib.List.map (fun t ->
     BodyItem
-      { name = "[" ++ (Stdlib.String.toUppercase t.status) ++ "]  " ++ t.topic ++ "   " ++ t.branch
+      { name = "[" + (Stdlib.String.toUppercase t.status) + "]  " + t.topic + "   " + t.branch
         kind = t.status
         isModule = false; desc = "" })
 
@@ -15,13 +15,13 @@ let loadAiThreadItems () : List<BodyItem> =
 let aiThreadDetail (selected: Int) : String =
   match Stdlib.List.getAt (Darklang.Cli.Apps.Views.AiChats.demoThreads ()) selected with
   | Some t ->
-    "topic:   " ++ t.topic ++ "\n"
-    ++ "status:  " ++ t.status ++ "\n"
-    ++ "branch:  " ++ t.branch ++ "\n"
-    ++ "cost:    " ++ t.cost ++ "   tokens: " ++ t.tokens ++ "   time: " ++ t.time ++ "\n\n"
-    ++ t.detail
-    ++ "\n\n"
-    ++ "(demo data · press a to ask the agent a new prompt)"
+    "topic:   " + t.topic + "\n"
+    + "status:  " + t.status + "\n"
+    + "branch:  " + t.branch + "\n"
+    + "cost:    " + t.cost + "   tokens: " + t.tokens + "   time: " + t.time + "\n\n"
+    + t.detail
+    + "\n\n"
+    + "(demo data · press a to ask the agent a new prompt)"
   | None -> "(no thread selected)"
 
 /// A preview library of reusable prompts (the AI · Prompts subsection).
@@ -45,12 +45,12 @@ let promptDetail (selected: Int) : String =
   | Some p ->
     let (name, desc) = p
     (Stdlib.Cli.UI.Colors.boldText name)
-    ++ "\n\n"
-    ++ desc
-    ++ "\n\n"
-    ++ "⏎ use (fills the ask bar)  ·  e edit  ·  n new"
-    ++ "\n\n"
-    ++ (Stdlib.Cli.UI.Colors.dimText "(mock data)")
+    + "\n\n"
+    + desc
+    + "\n\n"
+    + "⏎ use (fills the ask bar)  ·  e edit  ·  n new"
+    + "\n\n"
+    + (Stdlib.Cli.UI.Colors.dimText "(mock data)")
   | None -> "(no prompt selected)"
 
 /// All package values for Tree's flat values-only lens.
@@ -75,7 +75,7 @@ let thingDetail (state: State) : String =
   | Some item ->
     let parts = Stdlib.String.split item.name "."
     let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault item.name
-    let mods = Stdlib.List.take parts (Stdlib.Int.max 0 ((Stdlib.List.length parts) - 1))
+    let mods = Stdlib.List.take parts (Stdlib.max 0 ((Stdlib.List.length parts) - 1))
     let results = Packages.Query.searchExactMatch state.branchId mods leaf
     match results.values with
     | i :: _ ->
@@ -100,7 +100,7 @@ let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
     Stdlib.List.filter
       [ (if id == currentBranchId then "current" else "")
         (if SCM.PackageOps.draftOpCountFor id > 0L then "draft" else "")
-        (if ahead > 0L then (Stdlib.Int64.toString ahead) ++ " ops ahead" else "")
+        (if ahead > 0L then (Stdlib.Int64.toString ahead) + " ops ahead" else "")
         last ]
       (fun part -> part != "")
     |> Stdlib.String.join " · "
@@ -110,7 +110,7 @@ let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
   let onMain = Darklang.SCM.Branch.isMain currentBranchId
   let mainRow =
     BodyItem
-      { name = (branchMarker onMain) ++ Darklang.SCM.Branch.mainBranchName
+      { name = (branchMarker onMain) + Darklang.SCM.Branch.mainBranchName
         kind = "branch"
         isModule = false
         desc = describe Darklang.SCM.Branch.mainBranchId 0L }
@@ -119,7 +119,7 @@ let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
     |> Stdlib.List.map (fun b ->
       let tag = if b.merged then "   (merged)" else ""
       BodyItem
-        { name = (branchMarker (b.id == currentBranchId)) ++ b.name ++ tag
+        { name = (branchMarker (b.id == currentBranchId)) + b.name + tag
           kind = "branch"
           isModule = false
           desc = describe b.id b.ops })
@@ -130,7 +130,7 @@ let branchListText (currentBranchId: Uuid) : String =
   let rows =
     loadBranchItems currentBranchId
     |> Stdlib.List.map (fun it ->
-      "  " ++ (Stdlib.String.padEndToWidth it.name 30) ++ (Stdlib.Cli.UI.Colors.dimText it.desc))
+      "  " + (Stdlib.String.padEndToWidth it.name 30) + (Stdlib.Cli.UI.Colors.dimText it.desc))
   Stdlib.String.join
     (Stdlib.List.flatten [ [ Stdlib.Cli.UI.Colors.boldText "Branches", "" ], rows ])
     "\n"
@@ -248,13 +248,13 @@ let loadSyncItemsWith (peers: Stdlib.Option.Option<List<BodyItem>>) : List<BodyI
       let unpushed = facts.mainUnpushed
       let waiting =
         if unpushed == 0L then "no main ops waiting to push"
-        else (Stdlib.Int64.toString unpushed) ++ " op(s) to push"
+        else (Stdlib.Int64.toString unpushed) + " op(s) to push"
       let cursor = SCM.Wire.pullCursor relay
       let pulled =
-        if cursor == 0L then "nothing pulled yet" else "pulled up to op " ++ (Stdlib.Int64.toString cursor)
+        if cursor == 0L then "nothing pulled yet" else "pulled up to op " + (Stdlib.Int64.toString cursor)
       [ row "identity" identity
-        row "relay" (relay ++ " · " ++ secret)
-        row "standing" (waiting ++ " · " ++ pulled)
+        row "relay" (relay + " · " + secret)
+        row "standing" (waiting + " · " + pulled)
         row "scope" (if scopeAll then "every branch (sync.branches = all)" else "main only · `:config set sync.branches all` for every branch")
         row "daemon" "`:apps status sync` · `:apps enable sync` syncs every 30s" ]
 
@@ -270,19 +270,19 @@ let loadSyncItemsWith (peers: Stdlib.Option.Option<List<BodyItem>>) : List<BodyI
       let open_ = SCM.Branch.list () |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
       let mainRow =
         row
-          ((branchMarker (SCM.Branch.isMain current)) ++ SCM.Branch.mainBranchName)
+          ((branchMarker (SCM.Branch.isMain current)) + SCM.Branch.mainBranchName)
           (syncBranchStanding facts SCM.Branch.mainBranchName true)
       let waiting =
         open_
         |> Stdlib.List.filter (fun b -> (branchUnpushed facts b.name false) > 0L)
         |> Stdlib.List.map (fun b ->
-          row ((branchMarker (b.id == current)) ++ b.name) (syncBranchStanding facts b.name false))
+          row ((branchMarker (b.id == current)) + b.name) (syncBranchStanding facts b.name false))
       let rest = (Stdlib.List.length open_) - (Stdlib.List.length waiting)
       let restRow =
         if rest == 0 then []
         else
           let noun = if Stdlib.List.isEmpty waiting then "branch" else "other branch"
-          [ row "" ((plural rest noun) ++ " with nothing to push") ]
+          [ row "" ((plural rest noun) + " with nothing to push") ]
       Stdlib.List.flatten [ [ mainRow ], waiting, restRow ]
 
   let peerRows =
@@ -295,7 +295,7 @@ let loadSyncItemsWith (peers: Stdlib.Option.Option<List<BodyItem>>) : List<BodyI
   let activity =
     let entries = Darklang.Cli.Sync.recentActivity ()
     if Stdlib.List.isEmpty entries then [ row "" "nothing yet · s syncs now" ]
-    else entries |> Stdlib.List.map (fun e -> row (agoText e.at) (e.verb ++ " " ++ e.detail))
+    else entries |> Stdlib.List.map (fun e -> row (agoText e.at) (e.verb + " " + e.detail))
 
   Stdlib.List.flatten
     [ section "this machine" machine
@@ -321,7 +321,7 @@ let syncPeerItems () : List<BodyItem> =
     [ row "" "connect a relay to see who else syncs with it" ]
   else
     match Darklang.Cli.Sync.relayGetAuthed relay "/branch/owners" with
-    | Error e -> [ row "relay" ("unreachable: " ++ e) ]
+    | Error e -> [ row "relay" ("unreachable: " + e) ]
     | Ok body ->
       let knownIds = SCM.Branch.list () |> Stdlib.List.map (fun b -> Stdlib.Uuid.toString b.id)
       let entries =
@@ -341,8 +341,8 @@ let syncPeerItems () : List<BodyItem> =
             theirs |> Stdlib.List.filter (fun pair -> let (_o, b) = pair in Stdlib.Bool.not (Stdlib.List.member knownIds b))
             |> Stdlib.List.length
           let fact =
-            (plural (Stdlib.List.length theirs) "branch") ++ " on the relay"
-            ++ (if notPulled == 0 then "" else " · " ++ (Stdlib.Int.toString notPulled) ++ " not pulled · `:branch pull --from " ++ owner ++ "`")
+            (plural (Stdlib.List.length theirs) "branch") + " on the relay"
+            + (if notPulled == 0 then "" else " · " + (Stdlib.Int.toString notPulled) + " not pulled · `:branch pull --from " + owner + "`")
           row owner fact)
 
 let loadErrorItems () : List<BodyItem> =
@@ -351,7 +351,7 @@ let loadErrorItems () : List<BodyItem> =
     |> Stdlib.List.map (fun c ->
       let location = SCM.Conflicts.fqn c.owner c.modules c.name
       BodyItem
-        { name = "⚠ conflict    " ++ location ++ "  ·  " ++ c.status
+        { name = "⚠ conflict    " + location + "  ·  " + c.status
           kind = "error"
           isModule = false
           desc = "" })
@@ -375,14 +375,14 @@ let errorDetail (state: State) : String =
       else
         Stdlib.Cli.UI.Colors.dimText "this is a real recorded conflict. The rest of an Errors view aggregates:"
     (Stdlib.Cli.UI.Colors.boldText item.name)
-    ++ "\n\n"
-    ++ provenance
-    ++ "\n"
-    ++ (Stdlib.Cli.UI.Colors.dimText "pass but shouldn't, HTTP 5xx on tracked endpoints, unresolved conflicts,")
-    ++ "\n"
-    ++ (Stdlib.Cli.UI.Colors.dimText "deprecations still in use, and perf regressions.")
-    ++ "\n\n"
-    ++ "⏎ open the source / trace     f filter by kind"
+    + "\n\n"
+    + provenance
+    + "\n"
+    + (Stdlib.Cli.UI.Colors.dimText "pass but shouldn't, HTTP 5xx on tracked endpoints, unresolved conflicts,")
+    + "\n"
+    + (Stdlib.Cli.UI.Colors.dimText "deprecations still in use, and perf regressions.")
+    + "\n\n"
+    + "⏎ open the source / trace     f filter by kind"
   | None -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ all clear - no errors"
 
 /// The Crons view - scheduled jobs on this instance (mock until a Darklang.Cron value type + engine exist;
@@ -397,15 +397,15 @@ let cronDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
     (Stdlib.Cli.UI.Colors.boldText item.name)
-    ++ "\n\n"
-    ++ "schedule : daily at 02:00  (EveryDay)\n"
-    ++ "handler  : Stachu.Backups.nightly  @9fa3…\n"
-    ++ "last run : 2026-07-24 02:00  ok  1.2s\n"
-    ++ "next run : 2026-07-25 02:00  (in 9h)\n"
-    ++ "state    : enabled · runs 41 · fails 0 · ● this instance\n\n"
-    ++ (Stdlib.Cli.UI.Colors.dimText "(mock data)")
-    ++ "\n\n"
-    ++ "r run-now   p pause/resume   t traces   e edit"
+    + "\n\n"
+    + "schedule : daily at 02:00  (EveryDay)\n"
+    + "handler  : Stachu.Backups.nightly  @9fa3…\n"
+    + "last run : 2026-07-24 02:00  ok  1.2s\n"
+    + "next run : 2026-07-25 02:00  (in 9h)\n"
+    + "state    : enabled · runs 41 · fails 0 · ● this instance\n\n"
+    + (Stdlib.Cli.UI.Colors.dimText "(mock data)")
+    + "\n\n"
+    + "r run-now   p pause/resume   t traces   e edit"
   | None -> Stdlib.Cli.UI.Colors.dimText "no crons yet - declare a Darklang.Cron value"
 
 /// Recent execution traces (for the Traces view). Real traces if any are recorded; otherwise a labeled
@@ -432,7 +432,7 @@ let loadAppItems (branchId: Uuid) : List<BodyItem> =
   Darklang.Cli.Apps.Registry.available ()
   |> Stdlib.List.map (fun a ->
     let mark = if Stdlib.List.member slugs a.slug then "● " else "○ "
-    BodyItem { name = mark ++ a.name; kind = "app"; isModule = false; desc = a.description })
+    BodyItem { name = mark + a.name; kind = "app"; isModule = false; desc = a.description })
 
 /// The body items for a given view. Home lists the branch's state (see
 /// `loadHomeItems`); Matter the packages (with a Values lens); Changes this

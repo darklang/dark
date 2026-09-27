@@ -9,6 +9,8 @@ let modulePathOf (location: Packages.PackageLocation) : List<String> =
   | Type t -> Stdlib.List.append [ t.owner ] t.modules
   | Value v -> Stdlib.List.append [ v.owner ] v.modules
   | Function f -> Stdlib.List.append [ f.owner ] f.modules
+  | Trait t -> Stdlib.List.append [ t.owner ] t.modules
+  | Impl i -> Stdlib.List.append [ i.owner ] i.modules
 
 /// A one-line, clipped rendering of a value's body for the row description:
 /// `"hello"`, `[1, 2, 3]`. First line only, and no more than `width`
@@ -17,7 +19,7 @@ let valueDesc (ctx: PrettyPrinter.ProgramTypes.Context) (body: LanguageTools.Pro
   let printed = PrettyPrinter.ProgramTypes.expr ctx body
   let firstLine = Stdlib.String.split printed "\n" |> Stdlib.List.head |> Stdlib.Option.withDefault printed
   let clipped =
-    if Stdlib.String.length firstLine > width then (Stdlib.String.slice firstLine 0 (width - 1)) ++ "…"
+    if Stdlib.String.length firstLine > width then (Stdlib.String.slice firstLine 0 (width - 1)) + "…"
     else firstLine
   clipped
 
@@ -59,8 +61,8 @@ let moduleRows
     |> Stdlib.List.map (fun t ->
       let shape (_u: Unit) : String =
         match t.entity.declaration.definition with
-        | Record fields -> "record · " ++ (Stdlib.Int.toString (Stdlib.List.length fields)) ++ " fields"
-        | Enum cases -> "enum · " ++ (Stdlib.Int.toString (Stdlib.List.length cases)) ++ " cases"
+        | Record fields -> "record · " + (Stdlib.Int.toString (Stdlib.List.length fields)) + " fields"
+        | Enum cases -> "enum · " + (Stdlib.Int.toString (Stdlib.List.length cases)) + " cases"
         | Alias tr -> typeRef tr
       BodyItem
         { name = t.location.name
@@ -83,17 +85,37 @@ let moduleRows
         let args =
           if Stdlib.List.isEmpty params then "()"
           else Stdlib.String.join params " -> "
-        let sig_ = args ++ " -> " ++ (typeRef f.entity.returnType)
+        let sig_ = args + " -> " + (typeRef f.entity.returnType)
         let effects =
           Permissions.Command.requirementDisplay
             (LanguageTools.ProgramTypes.hashToString f.entity.hash)
-        sig_ ++ "  [" ++ effects ++ "]"
+        sig_ + "  [" + effects + "]"
       BodyItem
         { name = f.location.name
           kind = "fn"
           isModule = false
           desc = descOf signature })
-  Stdlib.List.flatten [ moduleItems, typeItems, valItems, fnItems ]
+  let traitItems =
+    results.traits
+    |> Stdlib.List.map (fun t ->
+      let shape (_u: Unit) : String =
+        "trait · " + (Stdlib.Int.toString (Stdlib.List.length t.entity.methods)) + " methods"
+      BodyItem
+        { name = t.location.name
+          kind = "trait"
+          isModule = false
+          desc = descOf shape })
+  let implItems =
+    results.impls
+    |> Stdlib.List.map (fun i ->
+      let shape (_u: Unit) : String =
+        "impl for " + (typeRef i.entity.self)
+      BodyItem
+        { name = i.location.name
+          kind = "impl"
+          isModule = false
+          desc = descOf shape })
+  Stdlib.List.flatten [ moduleItems, typeItems, traitItems, valItems, fnItems, implItems ]
 
 /// How many names the draft touches -- the same number the Changes list shows.
 ///
@@ -112,6 +134,8 @@ let changeIcon (kind: String) : String =
   if kind == "fn" then "ƒ"
   else if kind == "type" then "◇"
   else if kind == "value" then "▪"
+  else if kind == "trait" then "◇"
+  else if kind == "impl" then "◆"
   else if kind == "conflict" then "⚠"
   else if kind == "removed" then "✕"
   else "·"
@@ -122,9 +146,9 @@ let diffStat (lines: List<Stdlib.Diff.DiffLine>) : String =
   let removed = lines |> Stdlib.List.filter (fun l -> match l with | Removed _ -> true | _ -> false) |> Stdlib.List.length
   if (added == 0) && (removed == 0) then ""
   else
-    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+" ++ (Stdlib.Int.toString added)))
-    ++ " "
-    ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("-" ++ (Stdlib.Int.toString removed)))
+    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+" + (Stdlib.Int.toString added)))
+    + " "
+    + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("-" + (Stdlib.Int.toString removed)))
 
 /// Feeds the Changes view and Matter's Changed lens -- one list, two angles. The
 /// lens shows the draft as your code filtered to what moved, with the real tree
@@ -150,7 +174,7 @@ let loadChangedItems (branchId: Uuid) : List<BodyItem> =
         { name = SCM.Conflicts.fqn c.owner c.modules c.name
           kind = "conflict"
           isModule = false
-          desc = (paint Stdlib.Cli.UI.Colors.pink "conflict") ++ (dim (" · " ++ c.itemType ++ " · needs a decision")) })
+          desc = (paint Stdlib.Cli.UI.Colors.pink "conflict") + (dim (" · " + c.itemType + " · needs a decision")) })
   // The branch ASKED about, not the process overlay: a caller that just switched hands the new id
   // before the overlay follows, and an ignored parameter here answered for the old branch.
   let changed =
@@ -170,7 +194,7 @@ let loadChangedItems (branchId: Uuid) : List<BodyItem> =
         { name = fqn
           kind = b.itemType
           isModule = false
-          desc = change ++ (if stat == "" then "" else "  " ++ stat) })
+          desc = change + (if stat == "" then "" else "  " + stat) })
   let removed =
     (SCM.Draft.read ()).removed
     |> Stdlib.List.map (fun fqn ->
@@ -194,8 +218,8 @@ let commitListText () : String =
       // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
       let short = Stdlib.String.first c.hash 8
       let ops = Stdlib.Int64.toString c.ops
-      "  " ++ (Stdlib.Cli.UI.Colors.dimText short) ++ "  " ++ c.message
-      ++ (Stdlib.Cli.UI.Colors.dimText ("  " ++ c.author ++ " · " ++ ops ++ (if ops == "1" then " op" else " ops"))))
+      "  " + (Stdlib.Cli.UI.Colors.dimText short) + "  " + c.message
+      + (Stdlib.Cli.UI.Colors.dimText ("  " + c.author + " · " + ops + (if ops == "1" then " op" else " ops"))))
   Stdlib.String.join
     (Stdlib.List.flatten [ [ Stdlib.Cli.UI.Colors.boldText "Recent commits, all branches", "" ], rows ])
     "\n"
@@ -213,14 +237,14 @@ let commitOpsText (branchId: Uuid) (selected: Int) : String =
     let shown = SCM.PackageOps.opsInCommitLimited hashStr 20L
     let opLines =
       shown
-      |> Stdlib.List.map (fun op -> "  " ++ (PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op))
+      |> Stdlib.List.map (fun op -> "  " + (PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op))
       |> Stdlib.String.join "\n"
     let more =
       if opCount > 20 then
-        "\n\n  … and " ++ (Stdlib.Int.toString (opCount - 20)) ++ " more ops"
+        "\n\n  … and " + (Stdlib.Int.toString (opCount - 20)) + " more ops"
       else
         ""
-    c.message ++ "  (" ++ (Stdlib.Int.toString opCount) ++ " ops)\n\n" ++ opLines ++ more
+    c.message + "  (" + (Stdlib.Int.toString opCount) + " ops)\n\n" + opLines + more
 
 /// Render diff lines as syntax-highlighted code with a faint wash behind what
 /// changed: green behind added lines, red behind removed, nothing behind
@@ -258,14 +282,14 @@ let renderDiffLines (lines: List<Stdlib.Diff.DiffLine>) (state: State) : List<St
   // Pad to the preview pane's width, no further: `wrapRow` folds anything
   // wider than `innerWidth - 2`, so a fixed 160 turned one short line into
   // several rows of blank wash on a narrow pane.
-  let fillWidth = Stdlib.Int.max 1 ((previewInnerWidth state) - 2)
+  let fillWidth = Stdlib.max 1 ((previewInnerWidth state) - 2)
   let wash (bg: String) (gutter: String) (code: String) : String =
     // Re-assert the background after every reset in the line - the gutter's
     // own and the highlighter's.
-    let washed = Stdlib.String.replaceAll (gutter ++ code) Stdlib.Cli.UI.Colors.reset (Stdlib.Cli.UI.Colors.reset ++ bg)
-    let visible = Stdlib.Cli.Tui.Text.styledWidth (gutter ++ code)
-    let pad = Stdlib.String.repeat " " (Stdlib.Int.max 0 (fillWidth - visible))
-    bg ++ washed ++ pad ++ Stdlib.Cli.UI.Colors.reset
+    let washed = Stdlib.String.replaceAll (gutter + code) Stdlib.Cli.UI.Colors.reset (Stdlib.Cli.UI.Colors.reset + bg)
+    let visible = Stdlib.Cli.Tui.Text.styledWidth (gutter + code)
+    let pad = Stdlib.String.repeat " " (Stdlib.max 0 (fillWidth - visible))
+    bg + washed + pad + Stdlib.Cli.UI.Colors.reset
   // Walk the diff, consuming from each side as its lines come up: (oldIdx,
   // newIdx, rendered so far).
   let (_o, _n, out) =
@@ -275,13 +299,13 @@ let renderDiffLines (lines: List<Stdlib.Diff.DiffLine>) (state: State) : List<St
       match dl with
       | Same _ ->
         let code = Stdlib.List.getAt newSide n |> Stdlib.Option.withDefault (textOf dl)
-        (o + 1, n + 1, Stdlib.List.append done_ [ "  " ++ code ])
+        (o + 1, n + 1, Stdlib.List.append done_ [ "  " + code ])
       | Added _ ->
         let code = Stdlib.List.getAt newSide n |> Stdlib.Option.withDefault (textOf dl)
-        (o, n + 1, Stdlib.List.append done_ [ wash Stdlib.Cli.UI.Colors.faintGreenBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.green ++ Stdlib.Cli.UI.Colors.bold) "+ ") code ])
+        (o, n + 1, Stdlib.List.append done_ [ wash Stdlib.Cli.UI.Colors.faintGreenBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.green + Stdlib.Cli.UI.Colors.bold) "+ ") code ])
       | Removed _ ->
         let code = Stdlib.List.getAt oldSide o |> Stdlib.Option.withDefault (textOf dl)
-        (o + 1, n, Stdlib.List.append done_ [ wash Stdlib.Cli.UI.Colors.faintRedBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.red ++ Stdlib.Cli.UI.Colors.bold) "- ") code ]))
+        (o + 1, n, Stdlib.List.append done_ [ wash Stdlib.Cli.UI.Colors.faintRedBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.red + Stdlib.Cli.UI.Colors.bold) "- ") code ]))
   out
 
 /// A real old-vs-new SOURCE diff for one draft item.
@@ -335,9 +359,9 @@ let wipDiffText (state: State) : String =
     sourceDiffFor state.branchId item.name
     |> Stdlib.List.map (fun dl ->
       match dl with
-      | Same s -> Stdlib.Cli.UI.Colors.dimText ("  " ++ s)
-      | Added s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+ " ++ s)
-      | Removed s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("- " ++ s))
+      | Same s -> Stdlib.Cli.UI.Colors.dimText ("  " + s)
+      | Added s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+ " + s)
+      | Removed s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("- " + s))
     |> Stdlib.String.join "\n"
 
 /// The Changes preview for the selected draft item: what changed, then -- for a fn -- what running it
@@ -351,7 +375,7 @@ let changedItemDetail (state: State) : List<String> =
     // The row's name is the full path (owner.Module.leaf).
     let parts = Stdlib.String.split item.name "."
     let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault item.name
-    let mods = Stdlib.List.take parts (Stdlib.Int.max 0 ((Stdlib.List.length parts) - 1))
+    let mods = Stdlib.List.take parts (Stdlib.max 0 ((Stdlib.List.length parts) - 1))
     let diff = Stdlib.String.split (wipDiffText state) "\n"
     let access =
       if item.kind == "fn" then
@@ -378,7 +402,7 @@ let changesSourceText (branchId: Uuid) (row: Stdlib.Option.Option<BodyItem>) : S
     // `name` is the full path (owner.Module.leaf) - split into the module path + leaf for the lookup.
     let parts = Stdlib.String.split name "."
     let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault name
-    let mods = Stdlib.List.take parts (Stdlib.Int.max 0 ((Stdlib.List.length parts) - 1))
+    let mods = Stdlib.List.take parts (Stdlib.max 0 ((Stdlib.List.length parts) - 1))
     let results = Packages.Query.searchExactMatch branchId mods leaf
     let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
     let src =
@@ -390,11 +414,19 @@ let changesSourceText (branchId: Uuid) (row: Stdlib.Option.Option<BodyItem>) : S
         match results.values with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
         | [] -> "(not found)"
+      else if kind == "trait" then
+        match results.traits with
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageTrait ctx i.entity
+        | [] -> "(not found)"
+      else if kind == "impl" then
+        match results.impls with
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageImpl ctx i.entity
+        | [] -> "(not found)"
       else
         match results.fns with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
         | [] -> "(not found)"
-    name ++ "  (" ++ kind ++ ", uncommitted)\n\n" ++ src
+    name + "  (" + kind + ", uncommitted)\n\n" + src
 
 /// Run a package search across the whole tree and return jumpable hits (each carries its module path + leaf so
 /// Enter can navigate there). The `/` global action opens these in the search-results mode.
@@ -410,7 +442,7 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
   let hit (tag: String) (location: LanguageTools.ProgramTypes.PackageLocation) : SearchHit =
     let modules = Stdlib.List.append [ location.owner ] location.modules
     let full = Stdlib.String.join (Stdlib.List.append modules [ location.name ]) "."
-    SearchHit { modules = modules; name = location.name; kind = tag; display = "  " ++ tag ++ "  " ++ full }
+    SearchHit { modules = modules; name = location.name; kind = tag; display = "  " + tag + "  " + full }
   // Rank by how well the LEAF NAME matches, because the search also matches descriptions and those hits
   // otherwise interleave alphabetically with the real ones: searching `toUppercase` put
   // `Stdlib.String.toUppercase` sixth, behind `Stdlib.Blob.fromHex`, which matched on its description.
@@ -424,7 +456,9 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
   Stdlib.List.flatten
     [ r.types |> Stdlib.List.map (fun i -> hit "type" i.location)
       r.values |> Stdlib.List.map (fun i -> hit "val " i.location)
-      r.fns |> Stdlib.List.map (fun i -> hit "fn  " i.location) ]
+      r.fns |> Stdlib.List.map (fun i -> hit "fn  " i.location)
+      r.traits |> Stdlib.List.map (fun i -> hit "trait" i.location)
+      r.impls |> Stdlib.List.map (fun i -> hit "impl" i.location) ]
   |> Stdlib.List.sortBy rank
 
 /// Dependencies of the selected Tree leaf (what it uses), formatted for the reader. `d` shows this.
@@ -451,6 +485,10 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
       results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
     else if item.kind == "type" then
       results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Type))
+    else if item.kind == "trait" then
+      results.traits |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Trait))
+    else if item.kind == "impl" then
+      results.impls |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.TraitImpl))
     else
       results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
   match picked with
@@ -466,7 +504,7 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
             state.branchId
             (modulePathOf state.location)
             (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
-        deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " ++ (Darklang.Cli.Deps.getName namesDict th))
+        deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " + (Darklang.Cli.Deps.getName namesDict th))
     // Dependents - what uses this item.
     // The same Dark-side query `dark deps` uses, so the pane and the command cannot disagree.
     let dependents = SCM.Deps.dependentsOf [ (loc, kind) ]
@@ -478,7 +516,7 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
         dependents
         |> Stdlib.List.map (fun t ->
           let (_h, sLoc, _rt) = t
-          "  " ++ (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn here sLoc))
+          "  " + (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn here sLoc))
     // Capped: `List.map` has hundreds of dependents, and a page is for reading, not scrolling to
     // the end of. The command prints them all.
     let fqn = Stdlib.String.join (Stdlib.List.append modulePath [ leaf ]) "."
@@ -488,11 +526,11 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
       else
         Stdlib.List.append
           (Stdlib.List.take lines referenceCap)
-          [ Stdlib.Cli.UI.Colors.dimText ("  + " ++ (Stdlib.Int.toString (n - referenceCap)) ++ " more · :deps " ++ fqn ++ " lists them all") ]
+          [ Stdlib.Cli.UI.Colors.dimText ("  + " + (Stdlib.Int.toString (n - referenceCap)) + " more · :deps " + fqn + " lists them all") ]
     // No item name here: `inspectPageLines` composes this under a page already headed by that
     // item's source, so including it printed the name twice on one screen.
     let heading (label: String) (n: Int) : String =
-      (sectionHeading label) ++ (Stdlib.Cli.UI.Colors.dimText (" · " ++ (Stdlib.Int.toString n)))
+      (sectionHeading label) + (Stdlib.Cli.UI.Colors.dimText (" · " + (Stdlib.Int.toString n)))
     Stdlib.String.join
       (Stdlib.List.flatten
         [ [ heading "uses" (Stdlib.List.length deps) ]
@@ -596,7 +634,7 @@ let refreshPeek (next: State) : State =
           let fullpath =
             Stdlib.String.join (Stdlib.List.append (modulePathOf next.location) [ item.name ]) "."
           captureOutput (fun () ->
-            Eval.evaluateRaw next.accountId next.branchId (fullpath ++ " ()") [] false)
+            Eval.evaluateRaw next.accountId next.branchId (fullpath + " ()") [] false)
         else
           ""
       | None -> ""

@@ -26,7 +26,7 @@ let clip (s: String) : String =
   if (Stdlib.String.length s) <= 48 then
     s
   else
-    (Stdlib.String.slice s 0 45) ++ "..."
+    (Stdlib.String.slice s 0 45) + "..."
 
 
 let letPattern (pat: LanguageTools.ProgramTypes.LetPattern) : String =
@@ -62,7 +62,7 @@ let matchPattern (pat: LanguageTools.ProgramTypes.MatchPattern) : String =
     let s = PrettyPrinter.sign sign
     $"{s}{whole}.{part}"
   | MPChar(_, c) -> $"'{c}'"
-  | MPString(_, s) -> "\"" ++ (clip s) ++ "\""
+  | MPString(_, s) -> "\"" + (clip s) + "\""
   | MPList(_, items) ->
     let parts =
       (Stdlib.List.map items (fun p -> matchPattern p)) |> Stdlib.String.join ", "
@@ -140,7 +140,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
       segments
       |> Stdlib.List.map (fun seg ->
         match seg with
-        | StringText t -> [ line (depth + 1) "Text" ("\"" ++ (clip t) ++ "\"") ]
+        | StringText t -> [ line (depth + 1) "Text" ("\"" + (clip t) + "\"") ]
         | StringInterpolation e ->
           Stdlib.List.append
             [ line (depth + 1) "Interpolation" "" ]
@@ -197,7 +197,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
       (Stdlib.List.map pats (fun p -> letPattern p)) |> Stdlib.String.join " "
     Stdlib.List.append (here "Lambda" ps) (child body)
 
-  | EInfix(_, op, lhs, rhs) ->
+  | EInfix(_, op, lhs, rhs, _) ->
     let opStr = PrettyPrinter.ProgramTypes.infix op
     Stdlib.List.flatten [ here "Infix" opStr, child lhs, child rhs ]
 
@@ -247,7 +247,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
           (expr ctx (depth + 2) value))
       |> Stdlib.List.flatten
     Stdlib.List.append
-      (here "Record" (n ++ (typeArgsSuffix ctx typeArgs)))
+      (here "Record" (n + (typeArgsSuffix ctx typeArgs)))
       fieldLines
 
   | ERecordUpdate(_, record, updates) ->
@@ -296,7 +296,7 @@ let pipeExpr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (p: Language
       (Stdlib.List.map args (fun a -> expr ctx (depth + 1) a))
       |> Stdlib.List.flatten
     Stdlib.List.append
-      [ line depth "PipeFnCall" (n ++ (typeArgsSuffix ctx typeArgs)) ]
+      [ line depth "PipeFnCall" (n + (typeArgsSuffix ctx typeArgs)) ]
       argLines
 
   | EPipeEnum(_, typeName, caseName, fields) ->
@@ -325,7 +325,7 @@ let signature
     if Stdlib.List.isEmpty fn.typeParams then
       ""
     else
-      "<" ++ (fn.typeParams |> Stdlib.List.map (fun p -> "'" ++ p) |> Stdlib.String.join ", ") ++ ">"
+      "<" + (fn.typeParams |> Stdlib.List.map (fun p -> "'" + p) |> Stdlib.String.join ", ") + ">"
 
   let parameters =
     fn.parameters

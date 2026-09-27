@@ -133,25 +133,25 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
     let fieldAccessors =
       fieldNames
       |> Stdlib.List.map (fun f ->
-        "(Stdlib.toRepr value." ++ f ++ ")")
-      |> Stdlib.String.join " ++ \"|||\" ++ "
+        "(Stdlib.toRepr value." + f + ")")
+      |> Stdlib.String.join " + \"|||\" + "
 
     let rowExpr =
       if Stdlib.List.isEmpty fieldNames then
-        "key ++ \"|||\" ++ (Stdlib.toRepr value)"
+        "key + \"|||\" + (Stdlib.toRepr value)"
       else
-        "key ++ \"|||\" ++ " ++ fieldAccessors
+        "key + \"|||\" + " + fieldAccessors
 
     let nl = "\n"
     let expr =
       "let entries = Stdlib.Dict.toList (Stdlib.DB.getAllWithKeys "
-      ++ dbName
-      ++ ")"
-      ++ nl ++ "Stdlib.List.map entries (fun entry ->"
-      ++ nl ++ "  let key = Stdlib.Tuple2.first entry"
-      ++ nl ++ "  let value = Stdlib.Tuple2.second entry"
-      ++ nl ++ "  " ++ rowExpr ++ ")"
-      ++ nl ++ "|> Stdlib.String.join \"<<<ROW>>>\""
+      + dbName
+      + ")"
+      + nl + "Stdlib.List.map entries (fun entry ->"
+      + nl + "  let key = Stdlib.Tuple2.first entry"
+      + nl + "  let value = Stdlib.Tuple2.second entry"
+      + nl + "  " + rowExpr + ")"
+      + nl + "|> Stdlib.String.join \"<<<ROW>>>\""
 
     match Eval.evaluateRaw state.accountID state.currentBranchId expr [] false with
     | Ok resultOpt ->

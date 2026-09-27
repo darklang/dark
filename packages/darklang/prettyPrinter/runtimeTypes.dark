@@ -163,6 +163,35 @@ let typeName
   | Package p -> FQTypeName.package branchId p
 
 
+/// A trait's full name, by the name its hash is bound to on the branch.
+let traitName
+    (branchId: Uuid)
+    (t: LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
+  : String =
+  match t with
+  | Package hash ->
+    resolvePackageHash
+      LanguageTools.PackageManager.PickContext.empty
+      (LanguageTools.PackageManager.Trait.locations branchId (ptHash hash))
+      hash
+
+/// Just the trait's own name.
+let shortTraitName
+    (branchId: Uuid)
+    (t: LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
+  : String =
+  match t with
+  | Package hash ->
+    let locations = Darklang.LanguageTools.PackageManager.Trait.locations branchId (ptHash hash)
+    match
+      Darklang.LanguageTools.PackageManager.pickLocation
+        LanguageTools.PackageManager.PickContext.empty
+        locations
+    with
+    | Some l -> l.name
+    | None -> Darklang.LanguageTools.RuntimeTypes.hashToString hash
+
+
 /// Just the type's own name, without the module path that leads to it.
 ///
 /// For error messages, where the surrounding sentence already says what kind of thing is being talked
@@ -239,6 +268,19 @@ let fnName
   match t with
   | Builtin b -> FQFnName.builtIn b
   | Package p -> FQFnName.package branchId p
+  // A trait's hash is not a type's, so it needs the trait's own locations: without this a trait
+  // method prints as a 64-character hash, which it did in arity errors and partial applications.
+  | TraitMethod tm ->
+    let traitHash = tm.trait_
+    let method = tm.method_
+
+    let traitName =
+      resolvePackageHash
+        LanguageTools.PackageManager.PickContext.empty
+        (LanguageTools.PackageManager.Trait.locations branchId (ptHash traitHash))
+        traitHash
+
+    $"{traitName}.{method}"
 
 
 
@@ -279,7 +321,7 @@ let typeReference
     (Stdlib.List.append [ first, second ] theRest)
     |> Stdlib.List.map (fun item -> typeReference branchId item)
     |> Stdlib.String.join " * "
-    |> fun parts -> "(" ++ parts ++ ")"
+    |> fun parts -> "(" + parts + ")"
 
   | TList inner -> $"List<{typeReference branchId inner}>"
 
@@ -315,14 +357,14 @@ let typeReference
       args
       |> Stdlib.List.map (fun arg -> typeReference branchId arg)
       |> Stdlib.String.join ", "
-      |> fun parts -> "(" ++ parts ++ ")"
+      |> fun parts -> "(" + parts + ")"
 
     $"{argPart} -> {typeReference branchId ret}"
 
 
   | TDB inner -> $"DB<{typeReference branchId inner}>"
 
-  | TVariable varName -> "'" ++ varName
+  | TVariable varName -> "'" + varName
 
 
 let knownType
@@ -381,9 +423,9 @@ let knownType
         args
         |> Stdlib.List.map (fun t -> valueType branchId t)
         |> Stdlib.String.join ", "
-        |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+        |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
-    (typeName branchId name) ++ typeArgsPortion
+    (typeName branchId name) + typeArgsPortion
 
   | KTDB typ -> $"Datastore<{valueType branchId typ}>"
 
@@ -487,7 +529,7 @@ let declaredKnownType
         |> Stdlib.List.indexedMap (fun i arg ->
           declaredValueType branchId (nth dTypeArgs i) arg)
         |> Stdlib.String.join ", "
-        |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+        |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
     let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId (ptHash hash)
 
@@ -498,7 +540,7 @@ let declaredKnownType
         dName.originalName
         hash
 
-    namePart ++ typeArgsPortion
+    namePart + typeArgsPortion
 
   | _, _ -> knownType branchId kt
 
@@ -550,7 +592,7 @@ module Dval =
       types
       |> Stdlib.List.map (fun item -> valueTypeName branchId item)
       |> Stdlib.String.join " * "
-      |> fun parts -> "(" ++ parts ++ ")"
+      |> fun parts -> "(" + parts + ")"
     | DList (vt, _) -> $"List<{valueType branchId vt}>"
     | DDict(kt, vt, _) ->
       let k = valueType branchId kt
@@ -565,7 +607,7 @@ module Dval =
           |> Stdlib.List.map (fun t -> valueType branchId t)
           |> Stdlib.String.join ", "
           |> fun parts -> $"<{parts}>"
-      (RuntimeTypes.typeName branchId typeName) ++ typeArgsPart
+      (RuntimeTypes.typeName branchId typeName) + typeArgsPart
     | DEnum (_, typeName, typeArgs, _, _) ->
       let typeArgsPart =
         match typeArgs with
@@ -575,7 +617,7 @@ module Dval =
           |> Stdlib.List.map (fun t -> valueType branchId t)
           |> Stdlib.String.join ", "
           |> fun parts -> $"<{parts}>"
-      (RuntimeTypes.typeName branchId typeName) ++ typeArgsPart
+      (RuntimeTypes.typeName branchId typeName) + typeArgsPart
     | DDB _ -> "Datastore"
     | DApplicable (AppNamedFn _) -> "Function"
     | DApplicable (AppLambda _) -> "Lambda"
@@ -766,7 +808,7 @@ module Dval =
         if caseNameStandsAlone branchId opts.currentModule typeName then
           ""
         else
-          (typeNameWith branchId opts typeName) ++ typeArgsPart ++ "."
+          (typeNameWith branchId opts typeName) + typeArgsPart + "."
 
       match fields with
       | [] -> txt $"{prefix}{caseName}"
@@ -788,7 +830,7 @@ module Dval =
             args
             |> Stdlib.List.map (fun t -> valueType branchId t)
             |> Stdlib.String.join ", "
-            |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+            |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
       let parts =
         o

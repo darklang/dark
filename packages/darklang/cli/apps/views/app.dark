@@ -21,8 +21,8 @@ let listLabels (state: State) : List<String> =
   state.views
   |> Stdlib.List.map (fun entry ->
     (Stdlib.Cli.UI.Colors.boldText entry.name)
-    ++ "   "
-    ++ (Stdlib.Cli.UI.Colors.dimText entry.description))
+    + "   "
+    + (Stdlib.Cli.UI.Colors.dimText entry.description))
 
 let listPicker (state: State) (selected: Int) : Stdlib.Cli.UI.Picker.State =
   Stdlib.Cli.UI.Picker.moveTo (Stdlib.Cli.UI.Picker.make (listLabels state)) selected
@@ -92,7 +92,7 @@ let handleKey
       Action.Continue
         ({ state with screen = Screen.ViewList newIndex })
     | DownArrow ->
-      let maxIndex = Stdlib.Int.max 0 (viewCount - 1)
+      let maxIndex = Stdlib.max 0 (viewCount - 1)
       let newIndex =
         if selected < maxIndex then selected + 1 else selected
       Action.Continue
@@ -163,9 +163,9 @@ let execute
     |> Stdlib.List.iter (fun entry ->
       Stdlib.printLine
         ("  "
-         ++ Darklang.Stdlib.Cli.UI.Colors.boldText (slug entry)
-         ++ "  "
-         ++ Darklang.Stdlib.Cli.UI.Colors.dimText entry.description))
+         + Darklang.Stdlib.Cli.UI.Colors.boldText (slug entry)
+         + "  "
+         + Darklang.Stdlib.Cli.UI.Colors.dimText entry.description))
     Stdlib.printLine ""
     cliState
 
@@ -184,7 +184,7 @@ let execute
     | None ->
       Stdlib.printLine
         (Darklang.Stdlib.Cli.UI.Colors.error
-          ("Unknown view: " ++ viewName))
+          ("Unknown view: " + viewName))
       Stdlib.printLine
         "Use 'views list' to see available views."
       cliState

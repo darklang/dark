@@ -47,7 +47,7 @@ let switchWorkbenchBranch (state: State) (id: Uuid) (name: String) : State =
     if moved.activeView == vHome then
       items |> Stdlib.List.findFirstIndex (fun it ->
         (it.kind == "home-branch")
-        && (it.name == ((branchMarker true) ++ name)))
+        && (it.name == ((branchMarker true) + name)))
       |> Stdlib.Option.withDefault 0
     else
       match Stdlib.List.getAt state.items state.selected with
@@ -59,7 +59,7 @@ let switchWorkbenchBranch (state: State) (id: Uuid) (name: String) : State =
   forceScmRefresh
     (focusContent (fixSelection
       { moved with items = items; selected = selected
-                   message = "switched to " ++ name }))
+                   message = "switched to " + name }))
 
 let handleBranchPickerKey
   (state: State)
@@ -73,8 +73,8 @@ let handleBranchPickerKey
     Step.Continue { state with overlay = Overlay.Branches next }
   let move (delta: Int) : Step =
     let selected =
-      Stdlib.Int.max 0
-        (Stdlib.Int.min (picker.selected + delta) ((Stdlib.List.length choices) - 1))
+      Stdlib.max 0
+        (Stdlib.min (picker.selected + delta) ((Stdlib.List.length choices) - 1))
     keep { picker with selected = selected }
   match key with
   | Escape -> Step.Continue { state with overlay = Overlay.NoOverlay }
@@ -106,8 +106,8 @@ let renderBranchPicker
   (screen: Stdlib.Cli.UI.Layout.Region)
   : List<Stdlib.Cli.UI.Layout.Span> =
   let choices = matchingBranches picker
-  let w = Stdlib.Int.min 72 (Stdlib.Int.max 1 (screen.cols - 2))
-  let h = Stdlib.Int.min 18 (Stdlib.Int.max 5 (screen.rows - 2))
+  let w = Stdlib.min 72 (Stdlib.max 1 (screen.cols - 2))
+  let h = Stdlib.min 18 (Stdlib.max 5 (screen.rows - 2))
   let region =
     Stdlib.Cli.UI.Layout.Region
       { top = screen.top + (Stdlib.Int.divide (screen.rows - h) 2)
@@ -119,17 +119,17 @@ let renderBranchPicker
         let list =
           Stdlib.Cli.UI.Layout.Region
             { top = inner.top + 2; left = inner.left
-              rows = Stdlib.Int.max 0 (inner.rows - 3); cols = inner.cols }
+              rows = Stdlib.max 0 (inner.rows - 3); cols = inner.cols }
         let lines =
           choices |> Stdlib.List.indexedMap (fun i b ->
-            let label = (branchMarker (b.id == state.branchId)) ++ b.name
-            let detail = if b.detail == "" then "" else "  · " ++ b.detail
-            if i == picker.selected then selectionRow list.cols (label ++ detail)
-            else "  " ++ label ++ (Stdlib.Cli.UI.Colors.dimText detail))
+            let label = (branchMarker (b.id == state.branchId)) + b.name
+            let detail = if b.detail == "" then "" else "  · " + b.detail
+            if i == picker.selected then selectionRow list.cols (label + detail)
+            else "  " + label + (Stdlib.Cli.UI.Colors.dimText detail))
         Stdlib.List.flatten
           [ Stdlib.Cli.UI.Layout.at inner 0 1
-              ("filter: " ++ (Stdlib.Cli.UI.TextField.renderInline picker.field
-                (Stdlib.Int.max 1 (inner.cols - 10))))
+              ("filter: " + (Stdlib.Cli.UI.TextField.renderInline picker.field
+                (Stdlib.max 1 (inner.cols - 10))))
             (if Stdlib.List.isEmpty choices then
                Stdlib.Cli.UI.Layout.at list 0 1 "No matching branches"
              else Stdlib.Cli.UI.ListView.render list lines picker.selected)

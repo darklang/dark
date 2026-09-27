@@ -413,7 +413,7 @@ let executePull (state: AppState) (url: String) : AppState =
               | Some h -> SCM.Wire.rememberHead url h
               | None -> ()
 
-          let total = outcome.imported + (Stdlib.Int.max 0 laterPages)
+          let total = outcome.imported + (Stdlib.max 0 laterPages)
 
           Cli.printOk
             $"Pulled {Stdlib.Int.toString total} new op(s) from {url} as \"{id}\"."

@@ -115,7 +115,7 @@ let firstDivergence (a: String) (b: String) : Int =
   |> Stdlib.List.findFirstIndex (fun pair ->
     let (ca, cb) = pair
     ca != cb)
-  |> Stdlib.Option.withDefault (Stdlib.Int.min (Stdlib.List.length la) (Stdlib.List.length lb))
+  |> Stdlib.Option.withDefault (Stdlib.min (Stdlib.List.length la) (Stdlib.List.length lb))
 
 /// Whose version a candidate is, in the words all three views use.
 ///
@@ -226,7 +226,7 @@ let executeList (state: AppState) : AppState =
           Stdlib.List.getAt flats i |> Stdlib.Option.withDefault "(nothing to show)"
 
         let windowed =
-          if windowStart == 0 then flat else "..." ++ (Stdlib.String.dropFirst flat windowStart)
+          if windowStart == 0 then flat else "..." + (Stdlib.String.dropFirst flat windowStart)
 
         let suffixed =
           if textsEqual then

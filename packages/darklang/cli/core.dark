@@ -278,7 +278,7 @@ module ExecutionError =
 
 module View =
   let formatError (message: String) : String =
-    Stdlib.Cli.UI.Colors.error ("Error: " ++ message)
+    Stdlib.Cli.UI.Colors.error ("Error: " + message)
 
   let formatSuccess (message: String) : String =
     Stdlib.Cli.UI.Colors.success message

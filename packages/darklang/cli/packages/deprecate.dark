@@ -71,7 +71,94 @@ let resolveTarget
         Stdlib.Option.Option.Some
           (LanguageTools.ProgramTypes.Reference.PackageValue h)
       | None -> Stdlib.Option.Option.None
+    | Trait ->
+      match LanguageTools.PackageManager.Trait.find branchId location with
+      | Some h -> Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageTrait h)
+      | None -> Stdlib.Option.Option.None
+    | TraitImpl ->
+      match LanguageTools.PackageManager.TraitImpl.find branchId location with
+      | Some h -> Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageTraitImpl h)
+      | None -> Stdlib.Option.Option.None
   | Error _ -> Stdlib.Option.Option.None
+
+
+/// What `deprecate` is being pointed at: the kind, its word (for the messages), the name as typed,
+/// and the item it resolved to.
+type Target =
+  { itemKind: LanguageTools.ProgramTypes.ItemKind
+    itemTypeStr: String
+    target: String
+    targetRef: LanguageTools.ProgramTypes.Reference }
+
+
+val allItemKinds =
+  [ (LanguageTools.ProgramTypes.ItemKind.Fn, "fn")
+    (LanguageTools.ProgramTypes.ItemKind.Type, "type")
+    (LanguageTools.ProgramTypes.ItemKind.Value, "value")
+    (LanguageTools.ProgramTypes.ItemKind.Trait, "trait")
+    (LanguageTools.ProgramTypes.ItemKind.TraitImpl, "impl") ]
+
+
+/// The kind and the target, whether or not the kind was typed.
+///
+/// `deprecate fn Acme.Foo` and `deprecate Acme.Foo` both work. You know the name; being made to name
+/// its kind as well is a question a tool asks because the question is easy to implement, and `delete`
+/// and `undeprecate` already infer it. `locations` does not stop one name holding two kinds, so a name
+/// that resolves twice is refused rather than guessed at, and the explicit form is how you say which.
+let resolveKindAndTarget
+  (branchId: Uuid)
+  (currentLoc: Packages.PackageLocation)
+  (first: String)
+  (second: Stdlib.Option.Option<String>)
+  : Stdlib.Result.Result<Target, String> =
+  match (Propagate.itemKindFromString first), second with
+  | (Some itemKind, Some target) ->
+    match resolveTarget branchId currentLoc itemKind target with
+    | Some targetRef ->
+      Stdlib.Result.Result.Ok(
+        Target
+          { itemKind = itemKind
+            itemTypeStr = first
+            target = target
+            targetRef = targetRef })
+    | None -> Stdlib.Result.Result.Error $"Could not resolve {first} {target}"
+
+  // A kind word and nothing after it: say that, rather than looking for an item called `fn`.
+  | (Some _, None) ->
+    Stdlib.Result.Result.Error
+      $"Missing target (location or hash) after '{first}'"
+
+  | (None, Some extra) ->
+    Stdlib.Result.Result.Error
+      ($"'{first}' is not a valid item kind, and '{extra}' follows it. "
+       + "Expected `deprecate <fn|type|value|trait|impl> <name>`, or just `deprecate <name>`.")
+
+  | (None, None) ->
+    let found =
+      allItemKinds
+      |> Stdlib.List.filterMap (fun pair ->
+        let (k, word) = pair
+
+        match resolveTarget branchId currentLoc k first with
+        | Some targetRef ->
+          Stdlib.Option.Option.Some(
+            Target
+              { itemKind = k
+                itemTypeStr = word
+                target = first
+                targetRef = targetRef })
+        | None -> Stdlib.Option.Option.None)
+
+    match found with
+    | [ one ] -> Stdlib.Result.Result.Ok one
+    | [] -> Stdlib.Result.Result.Error $"Could not resolve {first}"
+    | several ->
+      let kinds =
+        several |> Stdlib.List.map (fun t -> t.itemTypeStr) |> Stdlib.String.join ", "
+
+      Stdlib.Result.Result.Error
+        ($"{first} names more than one kind of item ({kinds}). "
+         + $"Say which: `dark deprecate <{kinds |> Stdlib.String.replaceAll ", " "|"}> {first}`")
 
 
 let parseKind
@@ -117,51 +204,34 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let parsed = parseArgs args
   let branchId = state.currentBranchId
 
-  match (parsed.itemType, parsed.target, parsed.kind) with
+  match (parsed.itemType, parsed.kind) with
   | _ when Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
     Stdlib.printLine (help state)
     state
 
-  | (None, _, _) ->
+  | (None, _) ->
     Stdlib.printLine (help state)
     state
 
-  // The first positional is the KIND, so a lone dotted name lands here. Reporting
-  // only the missing target sends you looking for an argument you already gave.
-  | (Some itemType, None, _) ->
-    match Propagate.itemKindFromString itemType with
-    | Some _ ->
-      Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.error
-          $"Error: Missing target (location or hash) after '{itemType}'")
-    | None ->
-      Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.error
-          ($"Error: '{itemType}' is not a valid item kind. "
-           ++ "Expected fn, type, or value."))
-
-    state
-
-  | (_, _, None) ->
+  | (_, None) ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
         "Error: Missing --kind. Use: superseded-by, harmful, or obsolete")
     state
 
-  | (Some itemTypeStr, Some target, Some kindStr) ->
-    match Propagate.itemKindFromString itemTypeStr with
-    | None ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: Invalid item type '{itemTypeStr}'")
-      Stdlib.printLine "Must be one of: fn, type, value"
+  | (Some first, Some kindStr) ->
+    let currentLoc = state.packageData.currentLocation
+
+    match resolveKindAndTarget branchId currentLoc first parsed.target with
+    | Error msg ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
       state
-    | Some itemKind ->
-      let currentLoc = state.packageData.currentLocation
-      match resolveTarget branchId currentLoc itemKind target with
-      | None ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}")
-        state
-      | Some targetRef ->
+    | Ok found ->
+      let itemKind = found.itemKind
+      let itemTypeStr = found.itemTypeStr
+      let target = found.target
+      let targetRef = found.targetRef
         // --replacement has three outcomes we care about:
         //   - absent: None (only valid for non-superseded-by kinds)
         //   - given and resolves: Some ref
@@ -179,9 +249,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               // lands here looking exactly like a typo. It is not the same mistake and should not read
               // like one: say which kind it actually is, and why that cannot be a replacement.
               let otherKind =
-                [ (LanguageTools.ProgramTypes.ItemKind.Fn, "fn")
-                  (LanguageTools.ProgramTypes.ItemKind.Type, "type")
-                  (LanguageTools.ProgramTypes.ItemKind.Value, "value") ]
+                allItemKinds
                 |> Stdlib.List.filter (fun pair ->
                   let (k, _) = pair
                   (k != itemKind)
@@ -295,7 +363,7 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
     Stdlib.printLine "usage: dark undeprecate <name>   (also `dark restore <name>`)"
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.hint
-        "  puts a deprecated fn, type or value back on the shelf. `dark ls --include-deprecated` finds them.")
+        "  puts a deprecated fn, type, value, trait or impl back on the shelf. `dark ls --include-deprecated` finds them.")
     state
   | [] ->
     Stdlib.printLine
@@ -303,18 +371,18 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
         "usage: dark undeprecate <name>   (also `dark restore <name>`)")
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.hint
-        "  puts a deprecated fn, type or value back on the shelf. `dark ls --include-deprecated` finds them.")
+        "  puts a deprecated fn, type, value, trait or impl back on the shelf. `dark ls --include-deprecated` finds them.")
     state
   | [ target ] ->
     let currentLoc = state.packageData.currentLocation
 
-    // Try each kind rather than making the caller say which. A name holds ONE item, so at most one of
-    // these resolves.
+    // Try each kind rather than making the caller say which. `locations` does not stop one name
+    // holding two kinds, so more than one can resolve, and then the name alone is not an answer.
     let resolved =
-      [ LanguageTools.ProgramTypes.ItemKind.Fn
-        LanguageTools.ProgramTypes.ItemKind.Type
-        LanguageTools.ProgramTypes.ItemKind.Value ]
-      |> Stdlib.List.filterMap (fun k -> resolveTarget branchId currentLoc k target)
+      allItemKinds
+      |> Stdlib.List.filterMap (fun pair ->
+        let (k, _) = pair
+        resolveTarget branchId currentLoc k target)
 
     match resolved with
     | [] ->
@@ -323,7 +391,14 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
         (Stdlib.Cli.UI.Colors.hint "  deprecated items are hidden; `dark ls --include-deprecated` shows them.")
 
       state
-    | targetRef :: _ ->
+    | _ :: _ :: _ ->
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error $"{target} names more than one kind of item")
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.hint "  say which: `dark deprecate <fn|type|value|trait|impl> <name>`")
+
+      state
+    | [ targetRef ] ->
       let op = LanguageTools.ProgramTypes.PackageOp.Undeprecate targetRef
 
       match SCM.PackageOps.add branchId [ op ] with
@@ -353,9 +428,12 @@ let undeprecateHelp (_state: Cli.AppState) : String =
   |> Stdlib.String.join "\n"
 
 let help (_state: Cli.AppState) : String =
-  [ "Mark a function, type, or value as deprecated."
+  [ "Mark a function, type, value, trait or implementation as deprecated."
     ""
-    "Usage: deprecate <fn|type|value> <name-or-hash> --kind <k> [options]"
+    "Usage: deprecate [<fn|type|value|trait|impl>] <name-or-hash> --kind <k> [options]"
+    ""
+    "  The kind is optional: `deprecate Acme.Point.Show --kind obsolete` infers it. Name it"
+    "  when one name holds two kinds, which is the only case inference refuses."
     ""
     "Kinds:"
     "  superseded-by   new item exists -- use that instead (requires --replacement)"
@@ -379,6 +457,8 @@ let help (_state: Cli.AppState) : String =
     ""
     "  deprecate fn Darklang.Legacy.oldThing --kind obsolete --yes"
     ""
+    "  deprecate Darklang.Legacy.oldThing --kind obsolete --yes"
+    ""
     "Related:"
     "  delete -- sugar for `deprecate --kind obsolete` with dependents gate"
     "  undeprecate <name> -- put a deprecated item back on the shelf" ]
@@ -390,5 +470,6 @@ let complete
   (args: List<String>)
   : List<Cli.Completion.CompletionItem> =
   match args with
-  | [] -> ["fn", "type", "value"] |> Stdlib.List.map Cli.Completion.simple
+  | [] ->
+    ["fn", "type", "value", "trait", "impl"] |> Stdlib.List.map Cli.Completion.simple
   | _ -> []

@@ -432,7 +432,7 @@ let renameRows
     state.documents
     |> Stdlib.List.map (fun d ->
       if d.id == docId then
-        Stdlib.Cli.UI.TextField.renderInline field (Stdlib.Int.max 8 (region.cols - 4))
+        Stdlib.Cli.UI.TextField.renderInline field (Stdlib.max 8 (region.cols - 4))
       else
         docLabel d)
 
@@ -452,7 +452,7 @@ let exportPathRows
         region
         3
         2
-        (Stdlib.Cli.UI.TextField.renderInline field (Stdlib.Int.max 8 (region.cols - 4))) ]
+        (Stdlib.Cli.UI.TextField.renderInline field (Stdlib.max 8 (region.cols - 4))) ]
 
 /// Title, badge and hints for the screen in front.
 let chromeFor (state: State) : Stdlib.Cli.UI.Chrome.Frame =

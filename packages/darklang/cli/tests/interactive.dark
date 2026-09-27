@@ -30,7 +30,7 @@ let escape (s: String) : String =
 /// script is mostly braces and quotes, and both are interpolation syntax here.
 let quoted (s: String) : String =
   let q = "\""
-  q ++ (escape s) ++ q
+  q + (escape s) + q
 
 
 let stepLine (step: Step) : String =
@@ -38,20 +38,20 @@ let stepLine (step: Step) : String =
   | Await text ->
     // A timeout has to say WHAT it was waiting for, or a failure here reads as "the screen
     // was wrong" with no screen attached.
-    let complaint = quoted ("\nTIMED OUT waiting for: " ++ text)
+    let complaint = quoted ("\nTIMED OUT waiting for: " + text)
 
     "expect { "
-    ++ (quoted text)
-    ++ " {} timeout { puts "
-    ++ complaint
-    ++ "; exit 2 } }"
+    + (quoted text)
+    + " {} timeout { puts "
+    + complaint
+    + "; exit 2 } }"
 
   | Send keys ->
     // A key pressed while a frame is still painting is dropped, and the symptom is the
     // NEXT `Await` timing out rather than "the key did nothing". An `Await` before each
     // `Send` is the real fix and is how these should be written; the fifth of a second
     // covers the gap between the marker appearing and the frame finishing.
-    "sleep 0.2\nsend -- " ++ (quoted keys)
+    "sleep 0.2\nsend -- " + (quoted keys)
 
 
 /// Whether this machine can run these tests. The dev container and CI both have expect;

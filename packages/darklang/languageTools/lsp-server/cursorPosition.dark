@@ -8,6 +8,7 @@ type ThingAtPosition =
     fqName: String *
     description: Stdlib.Option.Option<String>
   | FnName of String * description: Stdlib.Option.Option<String>
+  | TraitName of String * description: Stdlib.Option.Option<String>
   | PackageValue of
     fqName: List<String> *
     value: ProgramTypes.PackageValue.PackageValue *

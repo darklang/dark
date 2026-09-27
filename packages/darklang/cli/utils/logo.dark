@@ -57,7 +57,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
         paddedLine
       else
         // Add color to non-empty lines
-        color ++ paddedLine ++ Stdlib.Cli.UI.Colors.reset)
+        color + paddedLine + Stdlib.Cli.UI.Colors.reset)
 
   let logoHeight = Stdlib.List.length paddedLogoLines
   let textHeight = Stdlib.List.length textLines
@@ -105,7 +105,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   match Stdlib.List.zip finalLogoLines finalTextLines with
   | Some zipped ->
     zipped
-    |> Stdlib.List.map (fun (logoLine, textLine) -> logoLine ++ spacing ++ textLine)
+    |> Stdlib.List.map (fun (logoLine, textLine) -> logoLine + spacing + textLine)
     |> Stdlib.String.join "\n"
   | None ->
     // This should never happen since we ensured both lists are the same length

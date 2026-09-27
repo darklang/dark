@@ -112,6 +112,8 @@ type private Classified =
   { fns : List<WT.PackageFn.PackageFn>
     types : List<WT.PackageType.PackageType>
     values : List<WT.PackageValue.PackageValue>
+    traits : List<WT.PackageTrait.PackageTrait>
+    impls : List<WT.PackageTraitImpl.PackageTraitImpl>
     exprs : List<WT.Expr>
     errors : List<string> }
 
@@ -129,6 +131,13 @@ let private classify (sf : WT.SourceFile) : Classified =
       | WTSourceFile.Value(path, v) ->
         { acc with values = acc.values @ [ WT.packageValue replOwner path v ] }
       | WTSourceFile.Expr(_, e) -> { acc with exprs = acc.exprs @ [ e ] }
+      | WTSourceFile.Trait(path, t) ->
+        { acc with traits = acc.traits @ [ WT.packageTrait replOwner path t ] }
+      // An impl's path is a MEMBER path (`<module>[.<Type>].<Trait>`), which the parser has
+      // already built, so the owner goes in front of it and the rest is kept as given.
+      | WTSourceFile.Impl(memberPath, impl) ->
+        { acc with
+            impls = acc.impls @ [ WT.packageImpl replOwner memberPath impl ] }
       | WTSourceFile.TypeDB _ ->
         { acc with
             errors =
@@ -137,7 +146,13 @@ let private classify (sf : WT.SourceFile) : Classified =
         { acc with
             errors =
               acc.errors @ [ "test assertions are not supported in the REPL" ] })
-    { fns = []; types = []; values = []; exprs = []; errors = [] }
+    { fns = []
+      types = []
+      values = []
+      traits = []
+      impls = []
+      exprs = []
+      errors = [] }
 
 let private lowerOnce
   (pmX : PT.PackageManager)
@@ -170,6 +185,20 @@ let private lowerOnce
           NR.OnMissing.Allow
           (WT2PT.PackageValue.Name.toModules value.name)
           value)
+    let! traits =
+      c.traits
+      |> Ply.List.mapSequentially (fun t ->
+        WT2PT.Trait.toPT pmX NR.OnMissing.Allow (t.name.owner :: t.name.modules) t)
+    let! impls =
+      c.impls
+      |> Ply.List.mapSequentially (fun i ->
+        // A method target resolves from the impl's own module: its member path.
+        WT2PT.TraitImpl.toPT
+          builtins
+          pmX
+          NR.OnMissing.Allow
+          (i.name.owner :: i.name.modules @ [ i.name.name ])
+          i)
     return
       [ for (wtType, ptType) in List.zip c.types types do
           yield PT.PackageOp.AddType ptType
@@ -184,7 +213,18 @@ let private lowerOnce
         for (wtFn, ptFn) in List.zip c.fns fns do
           yield PT.PackageOp.AddFn ptFn
           let loc = WT2PT.PackageFn.Name.toLocation wtFn.name
-          yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc), None) ]
+          yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc), None)
+
+        for (wtTrait, ptTrait) in List.zip c.traits traits do
+          yield PT.PackageOp.AddTrait ptTrait
+          let loc = WT2PT.Trait.Name.toLocation wtTrait.name
+          yield PT.PackageOp.SetName(loc, PT.PackageTrait(nameBasedHash loc), None)
+
+        for (wtImpl, ptImpl) in List.zip c.impls impls do
+          yield PT.PackageOp.AddTraitImpl ptImpl
+          let loc = WT2PT.TraitImpl.Name.toLocation wtImpl.name
+          yield
+            PT.PackageOp.SetName(loc, PT.PackageTraitImpl(nameBasedHash loc), None) ]
   }
 
 /// Two lowering passes, like the package loader's convergence loop: pass 1

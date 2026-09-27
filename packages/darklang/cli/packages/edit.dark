@@ -26,7 +26,7 @@ let editorCommand () : String =
 /// The `/Owner.Mod` form `dark module` takes, built from the item's own location.
 let moduleArgFor (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
   let parts = Stdlib.List.append [ loc.owner ] loc.modules
-  "/" ++ (Stdlib.String.join parts ".")
+  "/" + (Stdlib.String.join parts ".")
 
 
 /// The PT location inside whatever the traversal resolved, or None for a module.
@@ -38,6 +38,8 @@ let itemLocation
   | Type loc -> Stdlib.Option.Option.Some loc
   | Value loc -> Stdlib.Option.Option.Some loc
   | Function loc -> Stdlib.Option.Option.Some loc
+  | Trait loc -> Stdlib.Option.Option.Some loc
+  | Impl loc -> Stdlib.Option.Option.Some loc
 
 
 /// Hand the file to `dark module`, which validates and applies it.

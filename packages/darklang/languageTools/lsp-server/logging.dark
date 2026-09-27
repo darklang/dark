@@ -5,7 +5,7 @@ val logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
 
 let log (input: String) : Unit =
   // returns Result -- ignored
-  let _logged = Stdlib.Cli.FileSystem.appendToFile logFilePath (input ++ "\n")
+  let _logged = Stdlib.Cli.FileSystem.appendToFile logFilePath (input + "\n")
 
   ()
 

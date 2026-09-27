@@ -49,7 +49,7 @@ let stdlibSuggestion
       match LanguageTools.PackageManager.findAny branchId location with
       | Some _ ->
         Stdlib.Option.Option.Some
-          ("Stdlib." ++ (Stdlib.String.join originalName "."))
+          ("Stdlib." + (Stdlib.String.join originalName "."))
       | None -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None
 
@@ -133,7 +133,7 @@ let reportUnresolvedNames
         let suggested = sourceNameWithoutInternalPrefix originalName
         let message =
           ($"  - Invalid name: {nameStr} (line {lineNum}, column {colNum}). "
-           ++ $"`PACKAGE.` is internal notation; write `{suggested}`.")
+           + $"`PACKAGE.` is internal notation; write `{suggested}`.")
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
       else
         let message =

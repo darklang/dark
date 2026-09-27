@@ -1,0 +1,141 @@
+module Darklang.Cli.Docs.Traits
+
+let content () : String =
+  """# Traits
+
+A trait names one or more fns over one open type. An implementation says how one
+type does them. A call picks the implementation by the type of the value it is
+given. Every operator is a trait (`+` is `Add`, `<` is `Compare`, `==` is `Equal`), as
+is `toString`, so every builtin type already has implementations; yours join
+with one `impl`.
+
+## Implement a trait that exists
+  type Point = { x: Int64; y: Int64 }
+
+  impl ToString for Point =
+    let toString (p: Point) : String =
+      $"({Stdlib.Int64.toString p.x}, {Stdlib.Int64.toString p.y})"
+
+  impl Add for Point =
+    let add (a: Point) (b: Point) : Point =
+      Point { x = a.x + b.x; y = a.y + b.y }
+
+  let p = Point { x = 1L; y = 2L }
+  ToString.toString p          // "(1, 2)"
+  p.toString                   // the same call, receiver first
+  p + p                        // Point { x = 2L; y = 4L }
+
+  A member can name a fn that already exists instead of declaring one:
+    impl ToString for Point =
+      let toString = Acme.pointToText
+
+## Declare your own
+  trait Area<'a> =
+    let area (shape: 'a) : Float
+
+  impl Area for Circle =
+    let area (c: Circle) : Float = 3.14159 * c.r * c.r
+
+  impl<'a: Area> Area for List<'a> =     // conditional: needs Area for the element
+    let area (xs: List<'a>) : Float =
+      Stdlib.sum 0.0 (Stdlib.List.map xs (fun s -> Area.area s))
+
+  The first type parameter is the type an implementation is for. A method can
+  cap what an implementation may do (`let fetch (u: 'a) :{Http} String` is Http and
+  nothing else); `docs permissions` has the effect names.
+
+## Bound a type parameter
+  let describe<'a: ToString> (v: 'a) : String = "value: " + v.toString
+  let biggest<'a: Compare + ToString> (xs: List<'a>) : String = ...
+
+  `'a: ToString` means "any type with a ToString implementation". It is checked
+  when the fn is entered, against the caller's actual type, and statically by
+  the checker (`MissingImpl`, `UnboundTypeParameter`).
+
+## Where they live
+  A trait is a package item like a type or a fn: `Stdlib.ToString`. An
+  implementation is one too, named for the type and the trait under the
+  module it was written in: `impl ToString for Point` inside `Acme` is
+  `Acme.Point.ToString`, and its method fn is `Acme.Point.ToString.toString`.
+
+    dark ls Acme               // Traits and Implementations sections
+    dark view Stdlib.ToString  // prints the trait back
+    dark view Acme.Point.ToString
+    dark impls ToString        // every implementation a call can reach
+    dark search Area --trait   // --impl for implementations
+
+  Author from the shell like `fn` and `type`; an impl's path is the module it
+  is written in:
+    dark trait Acme.Area "<'a> = let area (shape: 'a) : Float"
+    dark impl Acme "Area for Circle = let area (c: Circle) : Float = ..."
+
+  A bare trait name (`Area`, `Add`) resolves from your module outward, then as
+  `Stdlib.<name>`; write the full path when two traits share a name.
+
+## The stdlib traits
+  Add Subtract Multiply Divide Modulo Power Negate    the operators `+ - * / % **` and `-x`
+  BitwiseAnd BitwiseOr BitwiseXor BitwiseNot     `& | ^` and `~x`
+  ShiftLeft ShiftRight                        `<<` and `>>`
+  Compare                            `< <= > >=`; also `Stdlib.max`, `min`, `clamp`
+  Equal                             `==` and `!=`; structural unless implemented
+  ToString                       `x.toString`, `Stdlib.toString x`
+  Zero, One                      `Zero.zero<Int64> ()`; `Stdlib.sum seed xs` and
+                                 `product seed xs` take a seed, so summing an
+                                 empty list has an answer
+
+  Every builtin numeric type implements the arithmetic, comparison and bitwise
+  operators; String implements Add (`"a" + "b"`) and Compare, so `"a" < "b"` works;
+  Char and DateTime implement Compare too.
+
+  Two things worth knowing. An implementation of your own for a builtin numeric
+  type -- `impl Add for Int64` -- is stored and never called: two operands of one
+  builtin numeric type are added directly. And `==` compares every value
+  structurally unless its type implements `Equal`, which no builtin type does. A
+  container asks its elements, so `[ p ] == [ q ]` runs `impl Equal for Point`;
+  `List.member`, `List.unique`, `List.sort` and dict keys do not, and stay
+  structural whatever you implement. `docs operators` has the operator table.
+
+## Which implementation a call runs
+  It is decided when you SAVE, not when the call runs. The checker knows the type
+  the call is on, so the implementation is chosen then and stored with the call:
+  the code goes on doing what it did when you wrote it, and an implementation
+  written later does not change it underneath you. It reaches you the way any
+  other update does, through `dark propagate` (and `pin` refuses it), because a
+  stored call depends on that implementation's fn like any other call.
+
+  Operators are trait methods, so `v1 + v2` is stored the same way.
+
+  Two cases are not decided at save time, and resolve at run time as before:
+    - inside a bounded fn (`let display<'a: Show> (v: 'a) = Show.show v`), where
+      the implementation depends on the type the caller passes. Deciding that
+      when you save is compiler work nobody has done yet.
+    - an operator inside a pipeline (`x |> (+) y`).
+
+## Two implementations for one type
+  A call finds an implementation anywhere on the branch, whatever module it was
+  written in: modules do not open, and where an implementation lives is only its
+  name. Two implementations for one trait and type is allowed, and the call runs
+  the one written later, by the same rule that settles two people writing to one
+  name, so every machine runs the same one. The pair shows up as a
+  `rival-implementations` finding in `dark constraints`: ack it, or deprecate one
+  to settle it, since a deprecated implementation is never called. `dark impls
+  <Trait>` marks the one that is not used. The only case that errors is two
+  implementations a script created in memory, where nothing says which came
+  later.
+
+  Two traits with the same methods and shapes are one trait, whatever they are
+  named.
+
+## Errors, as they read
+  Bool has no implementation of Stdlib.Add. Write `impl Add for Bool = ...`, or
+  run `dark impls Add` to see which types do
+
+  2 implementations of Stdlib.Show for Int64 exist, and there is no record of
+  which came first, so none is used
+      only for implementations a script made in memory
+
+  Zero.zero has no argument to read a type from, so it cannot tell which type
+  you mean. Name it: `Zero.zero<Int64> ...`
+
+  Cannot perform numeric operation on Int64 and Float
+      both operands of an operator must be the same type"""

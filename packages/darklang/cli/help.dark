@@ -38,12 +38,12 @@ let help (_state: AppState) : String =
 
   [
     swatches
-    (Stdlib.Cli.UI.Colors.info "Usage: " ++ Stdlib.Cli.UI.Colors.command "help [command]")
+    (Stdlib.Cli.UI.Colors.info "Usage: " + Stdlib.Cli.UI.Colors.command "help [command]")
     "Show general help or help for a specific command."
     ""
     (Stdlib.Cli.UI.Colors.info "Examples:")
-    ("  " ++ Stdlib.Cli.UI.Colors.command "help" ++ "        - Show all available commands")
-    ("  " ++ Stdlib.Cli.UI.Colors.command "help quit" ++ "   - Show help for the quit command")
+    ("  " + Stdlib.Cli.UI.Colors.command "help" + "        - Show all available commands")
+    ("  " + Stdlib.Cli.UI.Colors.command "help quit" + "   - Show help for the quit command")
   ]
   |> Stdlib.String.join "\n"
 

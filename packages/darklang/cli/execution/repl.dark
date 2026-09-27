@@ -70,7 +70,7 @@ let splitStatements (text: String) : List<String> =
         // A blank line closes whatever was open.
         if current == "" then (acc, "") else (Stdlib.List.pushBack acc current, "")
       else if (isContinuation line) && (current != "") then
-        (acc, current ++ "\n" ++ line)
+        (acc, current + "\n" + line)
       else if current == "" then
         (acc, line)
       else
@@ -165,11 +165,11 @@ let bindingChain (bindings: List<Binding>) : String =
     ""
   else
     let lines = bindings |> Stdlib.List.map (fun b -> $"let {b.name} = {b.source}")
-    (Stdlib.String.join lines "\n") ++ "\n"
+    (Stdlib.String.join lines "\n") + "\n"
 
 /// An expression with the session's bindings in scope.
 let withBindings (bindings: List<Binding>) (expr: String) : String =
-  (bindingChain bindings) ++ expr
+  (bindingChain bindings) + expr
 
 /// Add or replace a binding.
 ///
@@ -208,10 +208,10 @@ let captureValue (branchId: Uuid) (v: 'a) : String =
   match LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr branchId (Builtin.reflect v) with
   | Ok e ->
     "ok:"
-    ++ (PrettyPrinter.ProgramTypes.expr
+    + (PrettyPrinter.ProgramTypes.expr
           (PrettyPrinter.ProgramTypes.Context.forBranch branchId)
           e)
-  | Error reason -> "err:" ++ reason
+  | Error reason -> "err:" + reason
 
 /// The expression to evaluate for `let <name> = <rhs>`: bind it, then hand the value to `captureValue` so the
 /// session can hold the value. The binding is in scope for its own capture, which is what makes the captured

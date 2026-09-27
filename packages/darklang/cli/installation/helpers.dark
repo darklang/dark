@@ -6,7 +6,7 @@ module Darklang.Cli.Installation.Helpers
 /// the sync wire stamps it, and both mean the same thing by it.
 let buildHash () : String = Builtin.getBuildHash ()
 
-let cliVersion () : String = "alpha-" ++ (buildHash ())
+let cliVersion () : String = "alpha-" + (buildHash ())
 
 /// The local version plus a check against the latest published release.
 ///
@@ -18,11 +18,11 @@ let versionInfoWithUpdateCheck () : String =
   match GitHub.Releases.getLatestReleaseBuildHash () with
   | Ok latestVersion ->
     if currentVersion == latestVersion then
-      "Darklang CLI " ++ currentVersion ++ " (up to date)"
+      "Darklang CLI " + currentVersion + " (up to date)"
     else
-      "Darklang CLI " ++ currentVersion ++ " (latest: " ++ latestVersion ++ " - update available!)"
+      "Darklang CLI " + currentVersion + " (latest: " + latestVersion + " - update available!)"
   | Error _ ->
-    "Darklang CLI " ++ currentVersion ++ " (unable to check for updates)"
+    "Darklang CLI " + currentVersion + " (unable to check for updates)"
 
 /// CLEANUP alias for `versionInfoWithUpdateCheck`, kept because `install-status` and the old_notes
 /// command still call it. Fold them over and delete this.

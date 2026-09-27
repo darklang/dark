@@ -25,8 +25,8 @@ let paletteRow (region: Stdlib.Cli.UI.Layout.Region) (row: Int) : List<Stdlib.Cl
   Stdlib.Cli.UI.Layout.at region row 0 swatch
 
 let rowsAtSize (size: Stdlib.Cli.Tui.Size) : List<String> =
-  let width = Stdlib.Int.max 40 size.width
-  let height = Stdlib.Int.max 24 size.height
+  let width = Stdlib.max 40 size.width
+  let height = Stdlib.max 24 size.height
 
   let screen =
     Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = height; cols = width }

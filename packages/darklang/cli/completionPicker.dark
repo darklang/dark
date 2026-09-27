@@ -41,7 +41,7 @@ let create (promptText: String) (items: List<Completion.CompletionItem>) : State
     else
       let completedArgs = Stdlib.List.dropLast parsed.args
       let parts = Stdlib.List.append [parsed.commandName] completedArgs
-      (Stdlib.String.join parts " ") ++ " "
+      (Stdlib.String.join parts " ") + " "
 
   State
     { items = items
@@ -61,21 +61,21 @@ let layoutAtSize
   (size: Stdlib.Cli.Tui.Size)
   : Layout =
   let itemCount = Stdlib.List.length state.items
-  let availableRows = Stdlib.Int.max minimumHeight size.height
+  let availableRows = Stdlib.max minimumHeight size.height
   let helpRowHeight = 1
   let withoutIndicator =
-    Stdlib.Int.max 1 (availableRows - helpRowHeight)
+    Stdlib.max 1 (availableRows - helpRowHeight)
   let initialCapacity =
-    Stdlib.Int.min maxVisibleItems withoutIndicator
+    Stdlib.min maxVisibleItems withoutIndicator
   let showScrollIndicator =
     itemCount > initialCapacity && availableRows >= 3
   let indicatorHeight = if showScrollIndicator then 1 else 0
 
   Layout {
     itemCapacity =
-      Stdlib.Int.max
+      Stdlib.max
         1
-        (Stdlib.Int.min
+        (Stdlib.min
           maxVisibleItems
           (availableRows - helpRowHeight - indicatorHeight))
     showScrollIndicator = showScrollIndicator
@@ -91,7 +91,7 @@ let visibleCapacity
 
 let effectiveOffset (state: State) (capacity: Int) : Int =
   let itemCount = Stdlib.List.length state.items
-  let maxOffset = Stdlib.Int.max 0 (itemCount - capacity)
+  let maxOffset = Stdlib.max 0 (itemCount - capacity)
   let desired =
     if state.selectedIndex < state.scrollOffset then
       state.selectedIndex
@@ -100,7 +100,7 @@ let effectiveOffset (state: State) (capacity: Int) : Int =
     else
       state.scrollOffset
 
-  Stdlib.Int.min maxOffset (Stdlib.Int.max 0 desired)
+  Stdlib.min maxOffset (Stdlib.max 0 desired)
 
 
 /// Build the complete inline completion region without terminal I/O.
@@ -108,12 +108,12 @@ let viewAtSize
   (state: State)
   (size: Stdlib.Cli.Tui.Size)
   : Stdlib.Cli.Tui.View =
-  let width = Stdlib.Int.max 1 size.width
+  let width = Stdlib.max 1 size.width
   let layout = layoutAtSize state size
   let capacity = layout.itemCapacity
   let offset = effectiveOffset state capacity
   let itemCount = Stdlib.List.length state.items
-  let visibleCount = Stdlib.Int.min capacity itemCount
+  let visibleCount = Stdlib.min capacity itemCount
 
   let visibleItems =
     state.items
@@ -223,7 +223,7 @@ let handleKeyAtSize
 
 /// Build the completed command text from selection
 let buildCompletedCommand (state: State) (selection: String) : String =
-  state.commandPrefix ++ selection
+  state.commandPrefix + selection
 
 
 /// An active completion picker and its terminal presentation state.

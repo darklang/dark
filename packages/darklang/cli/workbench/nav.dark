@@ -61,8 +61,8 @@ let moveToPoint (state: State) (point: ReturnPoint) (recordHistory: Bool) : Stat
             [ (ws, dest) ] }
   let items = reloadItems restored
   let selected =
-    Stdlib.Int.max 0
-      (Stdlib.Int.min point.selected ((Stdlib.List.length items) - 1))
+    Stdlib.max 0
+      (Stdlib.min point.selected ((Stdlib.List.length items) - 1))
   focusContent (fixSelection { restored with items = items; selected = selected })
 
 /// What esc will return to, for the footer: the module you were in, or the
@@ -146,7 +146,7 @@ let selectableRow (items: List<BodyItem>) (from: Int) (dir: Int) : Int =
   if forward >= 0 then forward
   else
     let back = scan from (0 - dir)
-    if back >= 0 then back else Stdlib.Int.max 0 (Stdlib.Int.min from (n - 1))
+    if back >= 0 then back else Stdlib.max 0 (Stdlib.min from (n - 1))
 
 /// Keep a sectioned list's cursor off its headers. Run on every transition
 /// (see `refresh`), so a reload that lands the cursor on a header - a commit
@@ -161,9 +161,9 @@ let fixSelection (state: State) : State =
 /// Up: scroll the inspector when it's focused, else move the list selection up.
 let navUp (state: State) : Step =
   if (isDocument state) || (state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second) then
-    Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - 1) }
+    Step.Continue { state with detailScroll = Stdlib.max 0 (state.detailScroll - 1) }
   else
-    let target = Stdlib.Int.max 0 (state.selected - 1)
+    let target = Stdlib.max 0 (state.selected - 1)
     // Section headers aren't rows: step over them (and stay put if there's
     // nothing above).
     let landed =
@@ -178,11 +178,11 @@ let navDown (state: State) : Step =
   if (isDocument state) || (state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second) then
     // Screen rows, not logical lines: a long line wraps to several, and bounding on the unwrapped count
     // stops the scroll before its tail is reachable.
-    let maxScroll = Stdlib.Int.max 0 ((previewRowCount state) - 1)
-    Step.Continue { state with detailScroll = Stdlib.Int.min maxScroll (state.detailScroll + 1) }
+    let maxScroll = Stdlib.max 0 ((previewRowCount state) - 1)
+    Step.Continue { state with detailScroll = Stdlib.min maxScroll (state.detailScroll + 1) }
   else
     let maxIdx = (Stdlib.List.length state.items) - 1
-    let target = Stdlib.Int.min maxIdx (state.selected + 1)
+    let target = Stdlib.min maxIdx (state.selected + 1)
     let landed =
       if isSectioned state then
         let s = selectableRow state.items target 1
@@ -197,9 +197,9 @@ let navTop (state: State) : Step =
 
 let navBottom (state: State) : Step =
   if isDocument state then
-    Step.Continue { state with detailScroll = Stdlib.Int.max 0 ((previewRowCount state) - 1) }
+    Step.Continue { state with detailScroll = Stdlib.max 0 ((previewRowCount state) - 1) }
   else
-  let maxIdx = Stdlib.Int.max 0 ((Stdlib.List.length state.items) - 1)
+  let maxIdx = Stdlib.max 0 ((Stdlib.List.length state.items) - 1)
   Step.Continue { state with selected = maxIdx; detailScroll = 0 }
 
 /// Page through a document using the same wrapped-row bounds as its renderer.
@@ -207,9 +207,9 @@ let documentPage (state: State) (direction: Int) : Step =
   if Stdlib.Bool.not (isDocument state) then Step.Continue state
   else
     let (_w, h) = Terminal.getSize ()
-    let page = Stdlib.Int.max 1 (h - 5)
-    let last = Stdlib.Int.max 0 ((previewRowCount state) - 1)
-    let scroll = Stdlib.Int.max 0 (Stdlib.Int.min last (state.detailScroll + direction * page))
+    let page = Stdlib.max 1 (h - 5)
+    let last = Stdlib.max 0 ((previewRowCount state) - 1)
+    let scroll = Stdlib.max 0 (Stdlib.min last (state.detailScroll + direction * page))
     Step.Continue { state with detailScroll = scroll }
 
 /// Open the full-screen reader on `content`. `isCode` toggles syntax highlighting (true for source, false for
@@ -243,12 +243,12 @@ let resolveConflict (state: State) (which: String) : Step =
         let _ = SCM.Conflicts.setStatus c.id "acked" ""
         Stdlib.Result.Result.Ok()
 
-    let label = if which == "ok" then "acknowledged" else "kept " ++ which
+    let label = if which == "ok" then "acknowledged" else "kept " + which
 
     let message =
       match outcome with
-      | Ok _ -> "resolved: " ++ label
-      | Error e -> "resolve failed: " ++ e
+      | Ok _ -> "resolved: " + label
+      | Error e -> "resolve failed: " + e
 
     // Forced: an ack writes no op, so the comparison in `refreshScmStatus` would carry the old
     // "N need you" forward over a conflict you just answered.
@@ -282,9 +282,9 @@ let toggleInstall (state: State) : Step =
     let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
     let (newSlugs, msg) =
       if Stdlib.List.member slugs app.slug then
-        (slugs |> Stdlib.List.filter (fun s -> s != app.slug), "uninstalled " ++ app.slug)
+        (slugs |> Stdlib.List.filter (fun s -> s != app.slug), "uninstalled " + app.slug)
       else
-        (Stdlib.List.append slugs [ app.slug ], "installed " ++ app.slug)
+        (Stdlib.List.append slugs [ app.slug ], "installed " + app.slug)
     let _ = Darklang.Cli.Apps.Registry.saveInstalled newSlugs
     Step.Continue
       { state with
@@ -380,4 +380,4 @@ let jumpToHit (state: State) (hit: SearchHit) : Step =
         items = items
         selected = idx
         search = emptySearch ()
-        message = "jumped to " ++ hit.name }
+        message = "jumped to " + hit.name }

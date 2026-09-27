@@ -13,7 +13,7 @@ let httpDaemon
   (router: Stdlib.Http.Request -> Stdlib.Http.Response)
   : Unit =
   let _claimed = Stdlib.Cli.Daemon.claimPidfile name
-  let port = Config.getInt ("apps." ++ name ++ ".port") defaultPort
+  let port = Config.getInt ("apps." + name + ".port") defaultPort
 
   let announce () : Unit =
     Stdlib.printLine
@@ -58,7 +58,7 @@ let syncTick (name: String) (intervalMs: Int) (state: Cli.AppState) (remaining: 
 /// mid-edit is safe -- the two-machine runs drove live authoring under this exact loop. Interval:
 /// `apps.sync.intervalMs` in cli-config.json, default 30000.
 let syncDaemon (name: String) : Int =
-  let intervalMs = Config.getInt ("apps." ++ name ++ ".intervalMs") 30000
+  let intervalMs = Config.getInt ("apps." + name + ".intervalMs") 30000
 
   let _logged =
     match Stdlib.Cli.Daemon.claimPidfile name with

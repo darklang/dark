@@ -573,9 +573,9 @@ let executeHotspotsJson
       |> Stdlib.List.map (fun row ->
         let (name, count, total, max) = row
         $"{{\"name\":\"{jsonEscape name}\""
-        ++ $",\"count\":{Stdlib.Int.toString count}"
-        ++ $",\"totalMs\":{Stdlib.Int.toString total}"
-        ++ $",\"maxMs\":{Stdlib.Int.toString max}}}")
+        + $",\"count\":{Stdlib.Int.toString count}"
+        + $",\"totalMs\":{Stdlib.Int.toString total}"
+        + $",\"maxMs\":{Stdlib.Int.toString max}}}")
       |> Stdlib.String.join ","
     Stdlib.printLine $"[{body}]"
     state
@@ -777,9 +777,9 @@ let executeStatsJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
       |> Stdlib.List.map (fun row ->
         let (handler, count, total, max) = row
         $"{{\"handler\":\"{jsonEscape handler}\""
-        ++ $",\"count\":{Stdlib.Int.toString count}"
-        ++ $",\"totalMs\":{Stdlib.Int.toString total}"
-        ++ $",\"maxMs\":{Stdlib.Int.toString max}}}")
+        + $",\"count\":{Stdlib.Int.toString count}"
+        + $",\"totalMs\":{Stdlib.Int.toString total}"
+        + $",\"maxMs\":{Stdlib.Int.toString max}}}")
       |> Stdlib.String.join ","
     Stdlib.printLine $"[{body}]"
     state

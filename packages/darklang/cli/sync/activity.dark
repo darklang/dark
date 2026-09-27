@@ -27,7 +27,7 @@ let recordActivity (verb: String) (detail: String) : Unit =
   // anything) has both flattened to spaces rather than splitting the log where it should not.
   let flat (s: String) : String =
     Stdlib.String.replaceAll (Stdlib.String.replaceAll s "\n" " ") "\t" " "
-  let line = stamp ++ "\t" ++ (flat verb) ++ "\t" ++ (flat detail)
+  let line = stamp + "\t" + (flat verb) + "\t" + (flat detail)
   let kept = Stdlib.List.take (Stdlib.List.push (activityLines ()) line) activityCap
   Stdlib.LocalStore.configSet activityKey (Stdlib.String.join kept "\n")
 

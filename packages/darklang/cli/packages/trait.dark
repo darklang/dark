@@ -1,0 +1,156 @@
+module Darklang.Cli.Packages.TraitCommand
+
+// `trait <location> <type params and methods>`: author one trait, the way `fn`
+// authors one function. The fragment is everything after the name
+// (`<'a> = let show (v: 'a) : String`); a complete `trait Name<'a> = ...`
+// declaration is accepted too, doc comment included.
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] ->
+    Stdlib.printLine (help state)
+    state
+
+  | location :: definitionParts ->
+    let inlineDefinition = Packages.definitionFromArgs definitionParts
+
+    if Stdlib.String.isEmpty inlineDefinition then
+      [
+        (Stdlib.Cli.UI.Colors.error "Error: Trait definition required")
+        ""
+        "Pass the definition inline, a file that holds it, or `-` to read from stdin:"
+        "  trait <location> <type params and methods>"
+        "  trait <location> <source-file>"
+        "  trait <location> -    (read from stdin)"
+        ""
+        "Examples:"
+        "  trait Show \"<'a> = let show (v: 'a) : String\""
+        ""
+        "  # Several methods via stdin (run from shell, not the REPL):"
+        "  ./scripts/run-cli trait Shape - <<'EOF'"
+        "  trait Shape<'a> ="
+        "    let area (s: 'a) : Float"
+        "    let name (s: 'a) : String"
+        "  EOF"
+        ""
+      ] |> Stdlib.printLines
+
+      state
+    else
+      createTraitInline
+        state.packageData.currentLocation
+        location
+        inlineDefinition
+        state
+
+
+let createTraitInline
+  (currentLocation: Packages.PackageLocation)
+  (locationStr: String)
+  (definition: String)
+  (state: Cli.AppState)
+  : Cli.AppState =
+  match Location.parseRelativeTo currentLocation locationStr with
+  | Ok location ->
+    let trimmedDefinition = Stdlib.String.trim definition
+    let fullSource =
+      if
+        Stdlib.String.startsWith trimmedDefinition "trait "
+        || Stdlib.String.startsWith trimmedDefinition "///"
+      then
+        definition
+      else
+        $"trait {location.name}{definition}"
+
+    match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
+    | Some(SourceFile sourceFile) ->
+      // The parser may recover a tree after errors; do not save it.
+      let hasParseError =
+        Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
+      let parsed =
+        if hasParseError then
+          Stdlib.Option.Option.None
+        else
+          match sourceFile.declarations with
+          | [ Trait t ] -> Stdlib.Option.Option.Some t
+          | _ -> Stdlib.Option.Option.None
+
+      match parsed with
+      | Some t when t.name.name != location.name ->
+        let actual = t.name.name
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.error
+            $"Trait name `{actual}` does not match target `{location.name}`")
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.hint
+            $"Rename it to `trait {location.name}<...> = ...`, or change the target.")
+        { state with exitCode = 1 }
+
+      | Some t ->
+        let failState = { state with exitCode = 1 }
+
+        Packages.saveAuthored
+          state
+          location
+          LanguageTools.ProgramTypes.ItemKind.Trait
+          "trait"
+          failState
+          (fun ctx ->
+            let (packageTrait, ops, unresolvedNames) =
+              LanguageTools.WrittenTypesToProgramTypes.traitWithOps ctx t
+            (ops, packageTrait.hash, unresolvedNames))
+
+      | _ ->
+        if hasParseError then
+          { state with exitCode = 1 }
+        else
+          [
+            (Stdlib.Cli.UI.Colors.error "Expected exactly one trait declaration")
+            ""
+            "Example:"
+            "  trait Show \"<'a> = let show (v: 'a) : String\""
+            ""
+          ] |> Stdlib.printLines
+          { state with exitCode = 1 }
+    | None ->
+      [
+        (Stdlib.Cli.UI.Colors.error "Failed to parse trait definition")
+        ""
+        "Example:"
+        "  trait Show \"<'a> = let show (v: 'a) : String\""
+        ""
+      ] |> Stdlib.printLines
+      { state with exitCode = 1 }
+  | Error msg ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid location: {msg}")
+    { state with exitCode = 1 }
+
+
+let help (_state: Cli.AppState) : String =
+  [
+    "Create or update a trait"
+    ""
+    "Usage: trait <location> <type params and methods>"
+    "       trait <location> <source-file>"
+    "       trait <location> -"
+    ""
+    "A trait names a set of fns over one open type; the first type parameter is"
+    "the type an implementation is for. Implement it with `impl`, list the"
+    "implementations with `impls <trait>`, and see `docs traits`."
+    ""
+    "Examples:"
+    "  trait Show \"<'a> = let show (v: 'a) : String\""
+    "  trait /Acme.Shape \"<'a> = let area (s: 'a) : Float\""
+    ""
+    "  # Several methods via stdin (run from shell, not the REPL):"
+    "  ./scripts/run-cli trait Shape - <<'EOF'"
+    "  /// What a shape can do"
+    "  trait Shape<'a> ="
+    "    let area (s: 'a) : Float"
+    "    let name (s: 'a) : String"
+    "  EOF"
+    ""
+  ] |> Stdlib.String.join "\n"
+
+
+let complete (_state: Cli.AppState) (_args: List<String>) : List<Cli.Completion.CompletionItem> = []

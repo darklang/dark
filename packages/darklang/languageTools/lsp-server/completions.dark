@@ -73,6 +73,8 @@ let createCompletions
   let keywords =
     [ "module"
       "type"
+      "trait"
+      "impl"
       "val"
       "let"
       "if"

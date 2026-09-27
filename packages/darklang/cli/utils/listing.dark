@@ -58,8 +58,8 @@ let cut
         else
           (taken, spent))
 
-    let total = items |> Stdlib.List.map count |> Stdlib.Int.sum
-    let kept = shown |> Stdlib.List.map count |> Stdlib.Int.sum
+    let total = Stdlib.sum 0 (items |> Stdlib.List.map count)
+    let kept = Stdlib.sum 0 (shown |> Stdlib.List.map count)
 
     (shown, total - kept)
 

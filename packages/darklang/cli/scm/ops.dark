@@ -31,7 +31,7 @@ let describe (branchId: Uuid) (width: Int) (s: SCM.PackageOps.OpSummary) : Strin
     if Stdlib.String.displayWidth firstLine <= width then
       firstLine
     else
-      (Stdlib.String.slice firstLine 0 (width - 1)) ++ "..."
+      (Stdlib.String.slice firstLine 0 (width - 1)) + "..."
 
 /// One display row for an op summary: [short-or-full id; what it does; when].
 let summaryRow

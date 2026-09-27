@@ -83,8 +83,8 @@ let cursorNode (state: State) : Stdlib.Option.Option<VisibleNode> =
 /// Put the cursor on a row number, clamped to the list.
 let cursorToIndex (state: State) (index: Int) : State =
   let rows = visible state
-  let last = Stdlib.Int.max 0 ((Stdlib.List.length rows) - 1)
-  let wanted = Stdlib.Int.max 0 (Stdlib.Int.min last index)
+  let last = Stdlib.max 0 ((Stdlib.List.length rows) - 1)
+  let wanted = Stdlib.max 0 (Stdlib.min last index)
 
   match Stdlib.List.getAt rows wanted with
   | Some vn -> { state with cursorId = vn.id }
@@ -200,7 +200,7 @@ let deleteSubtree (state: State) (id: Int) : State =
   let index = cursorIndex state
   let base_ = remember state
   let after = { base_ with outline = removeSubtree base_.outline id }
-  cursorToIndex after (Stdlib.Int.min index ((Stdlib.List.length (visible after)) - 1))
+  cursorToIndex after (Stdlib.min index ((Stdlib.List.length (visible after)) - 1))
 
 let indent (state: State) : State =
   match cursorNode state with
@@ -270,14 +270,14 @@ let moveWithin (state: State) (offset: Int) : State =
 /// is and again to put it somewhere else.
 let moveBy (state: State) (delta: Int) : State =
   let rows = visible state
-  let last = Stdlib.Int.max 0 ((Stdlib.List.length rows) - 1)
+  let last = Stdlib.max 0 ((Stdlib.List.length rows) - 1)
 
   let current =
     rows
     |> Stdlib.List.findFirstIndex (fun vn -> vn.id == state.cursorId)
     |> Stdlib.Option.withDefault 0
 
-  let wanted = Stdlib.Int.max 0 (Stdlib.Int.min last (current + delta))
+  let wanted = Stdlib.max 0 (Stdlib.min last (current + delta))
 
   match Stdlib.List.getAt rows wanted with
   | Some vn -> { state with cursorId = vn.id }
@@ -576,25 +576,25 @@ let rowsForNode (state: State) (vn: VisibleNode) (cols: Int) : List<String> =
   let prefix = prefixFor vn isCursor
   let prefixWidth = Stdlib.String.length prefix
   // One column is left for the scrollbar, which sits in the last one.
-  let room = Stdlib.Int.max 8 (cols - prefixWidth - 1)
+  let room = Stdlib.max 8 (cols - prefixWidth - 1)
 
   match state.editing with
   | Some field ->
     if isCursor then
       // The line being typed doesn't wrap: the field scrolls sideways instead, which is what keeps the
       // caret on screen and in one place.
-      [ prefix ++ (Stdlib.Cli.UI.TextField.renderInline field room) ]
+      [ prefix + (Stdlib.Cli.UI.TextField.renderInline field room) ]
     else
-      [ (colouredPrefix vn) ++ vn.text ]
+      [ (colouredPrefix vn) + vn.text ]
   | None ->
-    let full = vn.text ++ (hiddenSuffix vn)
+    let full = vn.text + (hiddenSuffix vn)
     let chunks = Stdlib.Cli.Tui.Text.wrapAtWords full room
     let continuation = Stdlib.String.repeat " " prefixWidth
 
     if isCursor then
       chunks
       |> Stdlib.List.indexedMap (fun i chunk ->
-        let line = if i == 0 then prefix ++ chunk else continuation ++ chunk
+        let line = if i == 0 then prefix + chunk else continuation + chunk
         Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.selection line)
     else
       let body =
@@ -604,7 +604,7 @@ let rowsForNode (state: State) (vn: VisibleNode) (cols: Int) : List<String> =
 
       chunks
       |> Stdlib.List.indexedMap (fun i chunk ->
-        if i == 0 then (colouredPrefix vn) ++ (body chunk) else continuation ++ (body chunk))
+        if i == 0 then (colouredPrefix vn) + (body chunk) else continuation + (body chunk))
 
 /// Screen rows for the whole visible outline, each tagged with the line it belongs to.
 let displayRows (state: State) (cols: Int) : List<(Int * String)> =
@@ -615,15 +615,15 @@ let displayRows (state: State) (cols: Int) : List<(Int * String)> =
 
 /// Slide the window as little as possible to keep `row` on screen.
 let scrollFor (state: State) (height: Int) (total: Int) (row: Int) : Int =
-  let rows = Stdlib.Int.max 1 height
-  let last = Stdlib.Int.max 0 (total - rows)
+  let rows = Stdlib.max 1 height
+  let last = Stdlib.max 0 (total - rows)
 
   let wanted =
     if row < state.scroll then row
     else if row >= (state.scroll + rows) then row - rows + 1
     else state.scroll
 
-  Stdlib.Int.max 0 (Stdlib.Int.min last wanted)
+  Stdlib.max 0 (Stdlib.min last wanted)
 
 let emptyMessage (state: State) : String =
   if state.filter == "" then
@@ -665,7 +665,7 @@ let view
     let thumb =
       if total > region.rows then
         let position =
-          Stdlib.Int.divide (cursorRow * (region.rows - 1)) (Stdlib.Int.max 1 (total - 1))
+          Stdlib.Int.divide (cursorRow * (region.rows - 1)) (Stdlib.max 1 (total - 1))
 
         Stdlib.Cli.UI.Layout.at
           region

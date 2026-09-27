@@ -8,10 +8,10 @@ module Darklang.Cli.Workbench
 let ago (d: DateTime) : String =
   let secs = Stdlib.DateTime.subtract (Stdlib.DateTime.now ()) d
   if secs < 60 then "just now"
-  else if secs < 3600 then (Stdlib.Int.toString (Stdlib.Int.divide secs 60)) ++ "m ago"
-  else if secs < 86400 then (Stdlib.Int.toString (Stdlib.Int.divide secs 3600)) ++ "h ago"
+  else if secs < 3600 then (Stdlib.Int.toString (Stdlib.Int.divide secs 60)) + "m ago"
+  else if secs < 86400 then (Stdlib.Int.toString (Stdlib.Int.divide secs 3600)) + "h ago"
   else if secs < 172800 then "yesterday"
-  else (Stdlib.Int.toString (Stdlib.Int.divide secs 86400)) ++ " days ago"
+  else (Stdlib.Int.toString (Stdlib.Int.divide secs 86400)) + " days ago"
 
 /// Is this row a section header - a label the cursor skips over? Home is the
 /// view that has them (`ViewBehavior.SectionedList`).
@@ -48,7 +48,7 @@ let loadHomeItems (branchId: Uuid) : List<BodyItem> =
     let changed = Stdlib.List.length draft.bindings
     let last =
       match Stdlib.List.head (SCM.PackageOps.commitsOnBranch branchId 1L) with
-      | Some c -> "last commit " ++ (agoText c.originTs)
+      | Some c -> "last commit " + (agoText c.originTs)
       | None -> "no commits yet"
     let desc =
       Stdlib.List.filter
@@ -57,7 +57,7 @@ let loadHomeItems (branchId: Uuid) : List<BodyItem> =
           last ]
         (fun part -> part != "")
       |> Stdlib.String.join " · "
-    [ row ((branchMarker true) ++ (SCM.PackageOps.branchName branchId)) "home-here" desc ]
+    [ row ((branchMarker true) + (SCM.PackageOps.branchName branchId)) "home-here" desc ]
   let attention =
     Stdlib.List.flatten
       [ if conflictCount == 0 then []
@@ -72,13 +72,13 @@ let loadHomeItems (branchId: Uuid) : List<BodyItem> =
       SCM.Commits.recent 30L
       |> Stdlib.List.take homeCommitCap
       |> Stdlib.List.map (fun c ->
-        row c.message "home-commit" (c.author ++ " · " ++ (agoText c.originTs)))
+        row c.message "home-commit" (c.author + " · " + (agoText c.originTs)))
     let total = SCM.Commits.count ()
     let hiddenCommits = (Stdlib.Int.fromInt64 total) - homeCommitCap
     let more =
       if hiddenCommits <= 0 then []
       else
-        [ row ("+ " ++ (plural hiddenCommits "more commit")) "home-more-commits"
+        [ row ("+ " + (plural hiddenCommits "more commit")) "home-more-commits"
             "⏎ list them" ]
     // Hide the section only when the whole store has no commits.
     Stdlib.List.append commits more
@@ -105,7 +105,7 @@ let loadHomeItems (branchId: Uuid) : List<BodyItem> =
           last ]
         (fun part -> part != "")
       |> Stdlib.String.join " · "
-    row ((branchMarker current) ++ name) "home-branch" desc
+    row ((branchMarker current) + name) "home-branch" desc
   let branches =
     Stdlib.List.push
       (Stdlib.List.take ordered homeBranchCap |> Stdlib.List.map (fun b -> branchRow b.id b.name))
@@ -115,7 +115,7 @@ let loadHomeItems (branchId: Uuid) : List<BodyItem> =
     if hidden <= 0 then []
     else
       let label = if hidden == 1 then " more branch" else " more branches"
-      [ row ("+ " ++ (Stdlib.Int.toString hidden) ++ label)
+      [ row ("+ " + (Stdlib.Int.toString hidden) + label)
           "home-more" "⏎ choose a branch" ]
   let section (label: String) (rows: List<BodyItem>) : List<BodyItem> =
     if Stdlib.List.isEmpty rows then []

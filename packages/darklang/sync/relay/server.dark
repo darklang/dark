@@ -160,6 +160,8 @@ let descriptionOf (kind: String) (hash: String) : String =
     match kind with
     | "fn" -> "package_functions"
     | "type" -> "package_types"
+    | "trait" -> "package_traits"
+    | "impl" -> "package_trait_impls"
     | _ -> "package_values"
 
   match
@@ -236,7 +238,7 @@ let dependentsOf (hash: String) : List<(String * String)> =
        WHERE d.depends_on_hash = @p0 AND l.unlisted_at IS NULL
        ORDER BY o, m, n
        LIMIT "
-       ++ Stdlib.Int64.toString dependentsFetchLimit)
+       + Stdlib.Int64.toString dependentsFetchLimit)
       [ hash ]
       pathAndKind
 
@@ -286,7 +288,7 @@ let searchItems (q: String) : List<(String * String * String)> =
        END,
        LENGTH(l.owner || l.modules || l.name), o, m, n
      LIMIT "
-     ++ Stdlib.Int64.toString searchFetchLimit)
+     + Stdlib.Int64.toString searchFetchLimit)
     [ $"%{q}%", q ]
     pathAndKind
 
@@ -304,9 +306,9 @@ let ownersHandlerFn (_req: HttpRequest) : HttpResponse =
   page
     "Publishers"
     ("<h1>Publishers</h1><p class=\"lede\">Who owns the packages this relay serves. Code pushed here by "
-     ++ "other machines is held and handed back on request, but it is not folded into what the relay runs, "
-     ++ "so it does not appear here. <a href=\"/stats\">Why</a>.</p>"
-     ++ $"<div class=\"grid\">{rows}</div>")
+     + "other machines is held and handed back on request, but it is not folded into what the relay runs, "
+     + "so it does not appear here. <a href=\"/stats\">Why</a>.</p>"
+     + $"<div class=\"grid\">{rows}</div>")
 
 
 /// What the relay holds, in numbers. Aggregates only -- a visitor learns the shape of the store without
@@ -330,21 +332,21 @@ let statsHandlerFn (_req: HttpRequest) : HttpResponse =
   page
     "What this relay holds"
     ("<h1>What this relay holds</h1>"
-     ++ "<p class=\"lede\">Every op ever pushed here is kept. Nothing is overwritten, so the op count only goes up.</p>"
-     ++ $"<div class=\"stat\">{opsStat}{fnStat}{typeStat}{valueStat}{edgeStat}</div>"
-     ++ "<h2>Two numbers, two different things</h2>"
-     ++ "<p class=\"lede\">The op count is everything anyone has ever pushed here. The function, type and "
-     ++ "value counts are smaller and mean something else: they are what this relay itself RUNS and can "
-     ++ "therefore show you source for.</p>"
-     ++ "<p class=\"lede\">A relay stores what you push without folding it into its own package set. That "
-     ++ "is deliberate, and it is the whole reason a relay is safe to point a machine at: pushing code here "
-     ++ "cannot change what this server runs, so nobody can push a new version of the relay to the relay. "
-     ++ "The cost is that hosted code is held, served back to whoever pulls it, and not browsable on these "
-     ++ "pages. What you can browse here is the package set this build ships with.</p>"
-     ++ "<h2>What an op is</h2>"
-     ++ "<p class=\"lede\">One recorded change: publishing a function, moving a name, deprecating "
-     ++ "something. Every version of everything is still here, which is why the op count runs so far ahead "
-     ++ "of the item count. That is the point of the store, not an accident of it.</p>")
+     + "<p class=\"lede\">Every op ever pushed here is kept. Nothing is overwritten, so the op count only goes up.</p>"
+     + $"<div class=\"stat\">{opsStat}{fnStat}{typeStat}{valueStat}{edgeStat}</div>"
+     + "<h2>Two numbers, two different things</h2>"
+     + "<p class=\"lede\">The op count is everything anyone has ever pushed here. The function, type and "
+     + "value counts are smaller and mean something else: they are what this relay itself RUNS and can "
+     + "therefore show you source for.</p>"
+     + "<p class=\"lede\">A relay stores what you push without folding it into its own package set. That "
+     + "is deliberate, and it is the whole reason a relay is safe to point a machine at: pushing code here "
+     + "cannot change what this server runs, so nobody can push a new version of the relay to the relay. "
+     + "The cost is that hosted code is held, served back to whoever pulls it, and not browsable on these "
+     + "pages. What you can browse here is the package set this build ships with.</p>"
+     + "<h2>What an op is</h2>"
+     + "<p class=\"lede\">One recorded change: publishing a function, moving a name, deprecating "
+     + "something. Every version of everything is still here, which is why the op count runs so far ahead "
+     + "of the item count. That is the point of the store, not an accident of it.</p>")
 
 
 /// The relay's own surface: pages to read, and the sync endpoints a CLI talks to.

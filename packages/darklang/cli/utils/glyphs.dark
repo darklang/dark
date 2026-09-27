@@ -21,6 +21,12 @@ val type_ = "#"
 /// A value, and the fallback for anything unrecognised.
 val value = "•"
 
+/// A trait.
+val trait_ = "◇"
+
+/// An impl.
+val impl_ = "◆"
+
 
 /// The glyph for a kind name, padded to two terminal columns so names line up.
 ///
@@ -36,6 +42,8 @@ let forKind (kind: String) : String =
     | "type" -> Glyphs.type_
     | "val" -> Glyphs.value
     | "value" -> Glyphs.value
+    | "trait" -> Glyphs.trait_
+    | "impl" -> Glyphs.impl_
     | _ -> Glyphs.value
 
   Stdlib.Cli.Tui.Text.fitToWidth glyph 2
@@ -52,6 +60,8 @@ let sectionHeader (kind: String) : String =
     | "type" -> "Types"
     | "val" -> "Values"
     | "value" -> "Values"
+    | "trait" -> "Traits"
+    | "impl" -> "Implementations"
     | other -> other
 
   $"{Glyphs.forKind kind} {label}:"

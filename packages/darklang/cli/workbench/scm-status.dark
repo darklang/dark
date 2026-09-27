@@ -45,9 +45,9 @@ let syncPushSummary (facts: SyncFacts) : String =
   else
     let branches = Stdlib.List.length facts.branchesUnpushed
     if facts.mainUnpushed > 0L then
-      "↑ " ++ (Stdlib.Int64.toString facts.mainUnpushed) ++ " main ops to push"
-      ++ (if branches == 0 then "" else " · " ++ (plural branches "branch"))
-    else if branches > 0 then "↑ " ++ (plural branches "branch") ++ " to push"
+      "↑ " + (Stdlib.Int64.toString facts.mainUnpushed) + " main ops to push"
+      + (if branches == 0 then "" else " · " + (plural branches "branch"))
+    else if branches > 0 then "↑ " + (plural branches "branch") + " to push"
     else "nothing to push"
 
 let syncBranchStanding (facts: SyncFacts) (name: String) (isMain: Bool) : String =
@@ -55,7 +55,7 @@ let syncBranchStanding (facts: SyncFacts) (name: String) (isMain: Bool) : String
   else
     let count = branchUnpushed facts name isMain
     if count == 0L then "no ops waiting to push"
-    else (Stdlib.Int64.toString count) ++ " op(s) not on the relay"
+    else (Stdlib.Int64.toString count) + " op(s) not on the relay"
 
 /// What every workbench surface needs to know about SCM, read once.
 type ScmStatus =
