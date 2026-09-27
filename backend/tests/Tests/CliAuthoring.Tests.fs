@@ -262,8 +262,221 @@ let authoringIdenticalSourceReportsUnchanged =
       })
 
 
+/// Traits from the shell, end to end: `trait` and `impl` author items, a second
+/// implementation of the same trait for the same type is a standing finding and an
+/// error at the call, deprecating one resolves both, and rename/delete know the two
+/// kinds. One test rather than five because each step needs the store the previous one
+/// left, and every CLI test shares one store.
+let traitsAreAuthoredListedAndDisambiguated =
+  instanceTest
+    "trait and impl author items; two implementations are a finding until one is deprecated"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "type"; "Tests.Tr.Point"; "{ x: Int64\n  y: Int64 }" ]
+        do!
+          shows
+            state
+            [ "trait"
+              "Tests.Tr.Describe"
+              "<'a> =\n  let describe (v: 'a) : String\n  let short (v: 'a) : String" ]
+            "Created trait: Tests.Tr.Describe"
+            "trait authors a trait item"
+        do!
+          shows
+            state
+            [ "impl"
+              "Tests.Tr"
+              "Describe for Point =\n  let describe (p: Point) : String = \"alpha\"\n  let short (p: Point) : String = \"t\"" ]
+            "Created implementation: Tests.Tr.Point.Describe"
+            "impl authors an implementation at <module>.<Type>.<Trait>"
+        do!
+          evals
+            state
+            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })"
+            "alpha"
+            "the implementation dispatches"
+        do!
+          shows
+            state
+            [ "impls"; "Tests.Tr.Describe" ]
+            "Tests.Tr.Point.Describe"
+            "impls lists it"
+        do!
+          shows
+            state
+            [ "impls"; "Tests.Tr.Describe"; "--json" ]
+            "\"status\":\"active\""
+            "impls --json says what a call would see for each implementation"
+
+        // The method fns are authored by the same batch as the implementation that names them,
+        // so the name resolver cannot see them yet. Left unbound, the at-rest check reported
+        // `UnresolvedFunctionName` on every correct implementation anyone wrote at the CLI.
+        do! run state [ "type"; "Tests.Tr.Other"; "{ n: Int64 }" ]
+        do!
+          lacks
+            state
+            [ "impl"
+              "Tests.Tr"
+              "Describe for Other =\n  let describe (o: Other) : String = \"other\"\n  let short (o: Other) : String = \"o\"" ]
+            "Unresolved"
+            "a correct implementation authored at the CLI reports nothing"
+        do!
+          evals
+            state
+            "Tests.Tr.Describe.describe (Tests.Tr.Other { n = 1L })"
+            "other"
+            "and it dispatches"
+
+        // A saved caller stores the implementation it resolved to, so it keeps running that
+        // one however the store moves afterwards. This is the whole point of the pin, and the
+        // rival below is what would otherwise change it underneath.
+        do!
+          run
+            state
+            [ "fn"
+              "Tests.Tr.callsIt"
+              "() : String = Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })" ]
+        do!
+          evals
+            state
+            "Tests.Tr.callsIt ()"
+            "alpha"
+            "the saved caller runs what it resolved to"
+        do!
+          shows
+            state
+            [ "deps"; "uses"; "Tests.Tr.callsIt" ]
+            "Tests.Tr.Point.Describe.describe"
+            "and depends on that implementation's fn, like any other call"
+
+        // A rival, from another module, for the same type.
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.TrOther"
+              "Tests.Tr.Describe for Tests.Tr.Point =\n  let describe (p: Tests.Tr.Point) : String = \"beta\"\n  let short (p: Tests.Tr.Point) : String = \"o\"" ]
+        do!
+          evals
+            state
+            "Tests.Tr.callsIt ()"
+            "alpha"
+            "the saved caller is untouched by an implementation written after it"
+        // The call does not stop: the rival was written later, so it is the one that runs.
+        do!
+          evals
+            state
+            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })"
+            "beta"
+            "the newer implementation runs"
+        do!
+          shows
+            state
+            [ "constraints"; "--kind"; "rival-implementations" ]
+            "Tests.TrOther.Point.Describe"
+            "and constraints records the pair"
+        do!
+          shows
+            state
+            [ "constraints"; "--kind"; "rival-implementations" ]
+            "Calls run Tests.TrOther.Point.Describe, the later of the two"
+            "naming the one that runs"
+
+        // Editing the implementation's OTHER method leaves this caller alone. This is why the
+        // call pins the method's fn rather than the implementation item: an unrelated edit to
+        // the same implementation is not a change to what this call does.
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.Tr"
+              "Describe for Point =\n  let describe (p: Point) : String = \"alpha\"\n  let short (p: Point) : String = \"edited\"" ]
+        do!
+          evals
+            state
+            "Tests.Tr.callsIt ()"
+            "alpha"
+            "an edit to another method of the implementation does not reach this call"
+
+        // An edit to the implementation this caller DOES use is an ordinary update: the caller
+        // stays on what it resolved to, and `constraints` offers the new version.
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.Tr"
+              "Describe for Point =\n  let describe (p: Point) : String = \"gamma\"\n  let short (p: Point) : String = \"t\"" ]
+        do!
+          evals
+            state
+            "Tests.Tr.callsIt ()"
+            "alpha"
+            "the caller stays on the version it was written against"
+        do!
+          shows
+            state
+            [ "constraints" ]
+            "Tests.Tr.callsIt"
+            "and the newer implementation shows up as an outdated usage"
+        // ...which `follow` catches up, which is the whole point of pinning to a fn: a newer
+        // implementation is offered through the machinery that already exists, not forced.
+        do!
+          run
+            state
+            [ "propagate"; "follow"; "Tests.Tr.callsIt"; "catch up on the impl" ]
+        do!
+          evals
+            state
+            "Tests.Tr.callsIt ()"
+            "gamma"
+            "and following moves the caller onto the newer implementation"
+
+        // Deprecating the one that RUNS leaves the other, which then runs.
+        do!
+          run
+            state
+            [ "deprecate"
+              "impl"
+              "Tests.TrOther.Point.Describe"
+              "--kind"
+              "obsolete"
+              "-y" ]
+        do!
+          evals
+            state
+            "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })"
+            // The surviving implementation was edited above, so a fresh call runs its current
+            // version. Only a SAVED caller stays on what it resolved to.
+            "gamma"
+            "the surviving implementation dispatches again"
+        do!
+          lacks
+            state
+            [ "constraints"; "--kind"; "rival-implementations" ]
+            "Tests.TrOther.Point.Describe"
+            "and the finding is gone"
+
+        // The two kinds are ordinary items to rename and delete.
+        do!
+          shows
+            state
+            [ "rename"; "Tests.Tr.Describe"; "Tests.Tr.Show" ]
+            "renamed Tests.Tr.Describe -> Tests.Tr.Show"
+            "rename finds a trait"
+        do!
+          shows
+            state
+            [ "delete"; "Tests.Tr.Point.Describe"; "-y" ]
+            "Deprecated impl Tests.Tr.Point.Describe"
+            "delete infers the impl kind"
+        do! discardAll state
+      })
+
+
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
+    traitsAreAuthoredListedAndDisambiguated
     aParseErrorChangesNothing
     aNameThatDisagreesWithTheDeclarationIsRefused
     renameOntoALiveNameIsRefusedAndBothSurvive

@@ -88,7 +88,7 @@ let eEnum
 
 
 let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
-  EInfix(gid (), op, left, right)
+  EInfix(gid (), op, left, right, None)
 
 let eBuiltinValue (name : string) (version : int) : Expr =
   EValue(gid (), NameResolution.ok (FQValueName.fqBuiltIn name version))

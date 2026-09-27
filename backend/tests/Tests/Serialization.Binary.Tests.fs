@@ -72,6 +72,20 @@ module PT =
         |> BS.PT.PackageValue.deserialize c.hash)
       Values.ProgramTypes.packageValues
 
+  let traitTests =
+    Roundtripping.testRoundtripMany
+      "traits"
+      (fun (t : PT.Trait.Trait) ->
+        t |> BS.PT.Trait.serialize t.hash |> BS.PT.Trait.deserialize t.hash)
+      Values.ProgramTypes.traits
+
+  let implTests =
+    Roundtripping.testRoundtripMany
+      "impls"
+      (fun (i : PT.TraitImpl.TraitImpl) ->
+        i |> BS.PT.TraitImpl.serialize i.hash |> BS.PT.TraitImpl.deserialize i.hash)
+      Values.ProgramTypes.impls
+
   /// Every `PackageOp` case, through the writer and back.
   ///
   /// The op format is what two machines must agree on byte for byte. Storing an op and reading it
@@ -94,13 +108,87 @@ module PT =
         tl |> BS.PT.Toplevel.serialize tlid |> BS.PT.Toplevel.deserialize tlid)
       Values.ProgramTypes.toplevels
 
+  /// A v1 blob has no `bounds` list after the ceiling. A reader handed a v1 header must stop
+  /// there and answer `bounds = []`, or every fn stored before bounds existed becomes unreadable.
+  /// Built by writing the current format, dropping the trailing empty-list byte, and rewriting
+  /// the header version and length -- which is only a faithful v1 blob because this fn's body
+  /// contains nothing whose encoding has changed since (no operator, no trait method).
+  let v1PackageFnStillReads =
+    test "a format-v1 PackageFn blob (no bounds) still reads" {
+      let fn =
+        { Values.ProgramTypes.packageFn with body = PT.EInt64(1UL, 5L); bounds = [] }
+      let v2 = BS.PT.PackageFn.serialize fn.hash fn
+      // header: version (4) + length (4); payload follows. An empty List writes one
+      // varint length byte (0), and bounds is the last field.
+      let payloadLen = System.BitConverter.ToUInt32(v2, 4)
+      Expect.equal (int payloadLen) (v2.Length - 8) "header length matches"
+      Expect.equal v2[v2.Length - 1] 0uy "the trailing byte is the empty bounds list"
+      let v1 = Array.sub v2 0 (v2.Length - 1)
+      System.BitConverter.GetBytes(1u).CopyTo(v1, 0)
+      System.BitConverter.GetBytes(payloadLen - 1u).CopyTo(v1, 4)
+      let back = BS.PT.PackageFn.deserialize fn.hash v1
+      Expect.equal back fn "reads as the same fn, with bounds = []"
+    }
+
+  /// The real compatibility case, which the test above cannot cover: a v2 blob has no
+  /// implementation byte after an operator's operands, and no implementation byte after a trait
+  /// method's name. A reader that takes them anyway consumes the NEXT expression's tag and
+  /// misparses the rest of the body, so every fn stored before this branch that contains a `+`
+  /// would break. The blob here is written by hand, exactly as the v2 writer would have.
+  let v2ExpressionsStillRead =
+    test "a format-v2 blob with an operator and a trait method still reads" {
+      let write (f : System.IO.BinaryWriter -> unit) : byte[] =
+        use stream = new System.IO.MemoryStream()
+        use w = new System.IO.BinaryWriter(stream)
+        f w
+        w.Flush()
+        stream.ToArray()
+
+      // `1L + 2L` as v2 wrote it: EInfix (tag 29), the infix, then both operands, and stop.
+      let payload =
+        write (fun w ->
+          w.Write 29uy
+          w.Write 1UL
+          w.Write 0uy // Infix.InfixFnCall
+          w.Write 0uy // InfixFnName.ArithmeticPlus
+          w.Write 0uy // EInt64
+          w.Write 2UL
+          w.Write 1L
+          w.Write 0uy // EInt64
+          w.Write 3UL
+          w.Write 2L)
+
+      use stream = new System.IO.MemoryStream(payload)
+      use reader = new System.IO.BinaryReader(stream)
+      let back = LibSerialization.Binary.Serializers.PT.Expr.Expr.read 2u reader
+
+      match back with
+      | PT.EInfix(_,
+                  PT.InfixFnCall PT.ArithmeticPlus,
+                  PT.EInt64(_, 1L),
+                  PT.EInt64(_, 2L),
+                  None) -> ()
+      | other -> failtest $"a v2 `1L + 2L` read as {other}"
+    }
+
+  let unknownVersionRejected =
+    test "a format version newer than this build is rejected, not guessed at" {
+      let fn = Values.ProgramTypes.packageFn
+      let blob = BS.PT.PackageFn.serialize fn.hash fn
+      System.BitConverter.GetBytes(99u).CopyTo(blob, 0)
+      Expect.throws
+        (fun () ->
+          BS.PT.PackageFn.deserialize fn.hash blob |> ignore<PT.PackageFn.PackageFn>)
+        "version 99 has no reader"
+    }
+
   let legacyRecoveryHoleTagRejected =
     test "legacy ProgramTypes recovery-hole tag is rejected" {
       use stream = new System.IO.MemoryStream([| 36uy |])
       use reader = new System.IO.BinaryReader(stream)
       Expect.throws
         (fun () ->
-          LibSerialization.Binary.Serializers.PT.Expr.Expr.read reader
+          LibSerialization.Binary.Serializers.PT.Expr.Expr.read 3u reader
           |> ignore<LibExecution.ProgramTypes.Expr>)
         "WrittenTypes recovery holes must not be deserialized as ProgramTypes"
     }
@@ -335,9 +423,14 @@ let tests =
           PT.packageTypeTests
           PT.packageValTests
           PT.packageFnTests
+          PT.traitTests
+          PT.implTests
           PT.toplevelTests
           PT.packageOpTests
-          PT.legacyRecoveryHoleTagRejected ]
+          PT.legacyRecoveryHoleTagRejected
+          PT.v1PackageFnStillReads
+          PT.v2ExpressionsStillRead
+          PT.unknownVersionRejected ]
 
       testList
         "RT Roundtrip Tests"

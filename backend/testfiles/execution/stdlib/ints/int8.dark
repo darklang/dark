@@ -2,29 +2,13 @@ Stdlib.Int8.absoluteValue -5y = 5y
 Stdlib.Int8.absoluteValue 5y = 5y
 
 Stdlib.Int8.absoluteValue -128y = -128y
-Stdlib.Int8.max 5y 6y = 6y
-Stdlib.Int8.max 10y 1y = 10y
-Stdlib.Int8.max -5y 6y = 6y
-Stdlib.Int8.max 127y -128y = 127y
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max 127y -128y = 127y
 
-Stdlib.Int8.min 5y 6y = 5y
-Stdlib.Int8.min 50y -10y = -10y
-Stdlib.Int8.min -5y 6y = -5y
-Stdlib.Int8.min 127y -128y = -128y
+Stdlib.min 127y -128y = -128y
 
-
-Stdlib.Int8.clamp -5y -2y 5y = -2y
-Stdlib.Int8.clamp -3y -2y 1y = -2y
-Stdlib.Int8.clamp -5y 1y 1y = 1y
-Stdlib.Int8.clamp 1y 2y 1y = 1y
-Stdlib.Int8.clamp 3y 0y 2y = 2y
-Stdlib.Int8.clamp -100y 0y 0y = 0y
-Stdlib.Int8.clamp 100y 0y 0y = 0y
-Stdlib.Int8.clamp -100y 0y -1y = -1y
-Stdlib.Int8.clamp 100y 0y -1y = 0y
-Stdlib.Int8.clamp -100y -1y 0y = -1y
-Stdlib.Int8.clamp -100y 1y 0y = 0y
-Stdlib.Int8.clamp 100y 1y 0y = 1y
+Stdlib.clamp -100y 0y -1y = -1y
 
 Stdlib.Int8.negate -5y = 5y
 Stdlib.Int8.negate 5y = -5y
@@ -150,11 +134,9 @@ Stdlib.Int8.mod 5y -5y = error="Cannot evaluate modulus against a negative numbe
  |> Stdlib.List.map (fun x -> Stdlib.Int8.random 0y 1y)
  |> Stdlib.List.unique) = [ 0y, 1y ]
 
-
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.Int8.random 0y 2y)
  |> Stdlib.List.unique) = [ 0y, 1y, 2y ]
-
 
 // ok
 Stdlib.Int8.parse "0" = Stdlib.Result.Result.Ok(0y)
@@ -188,7 +170,6 @@ Stdlib.Int8.parse "" = Stdlib.Result.Result.Error Stdlib.Int8.ParseError.BadForm
 Stdlib.Int8.parse "1I" = Stdlib.Result.Result.Error Stdlib.Int8.ParseError.BadFormat
 Stdlib.Int8.parse "one" = Stdlib.Result.Result.Error Stdlib.Int8.ParseError.BadFormat
 Stdlib.Int8.parse "XIV" = Stdlib.Result.Result.Error Stdlib.Int8.ParseError.BadFormat
-
 
 Stdlib.Int8.fromUInt8 0uy = Stdlib.Option.Option.Some 0y
 Stdlib.Int8.fromUInt8 1uy = Stdlib.Option.Option.Some 1y

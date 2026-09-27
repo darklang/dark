@@ -308,59 +308,58 @@ module Equals =
     (() != 0.0) = error="Cannot perform equality check on Unit and Float"
     // CLEANUP follow up here when DB references are fully resolved at parse-time
   // Other ways to call it
-  Stdlib.equals 1Q 1Q = true
+  1Q == 1Q = true
   (==) 1Q 1Q = true
   1Q == 1Q = true
 
-  Stdlib.equals 1Z 1Z = true
+  1Z == 1Z = true
   (==) 1Z 1Z = true
   1Z == 1Z = true
 
-  Stdlib.equals 1L 1L = true
+  1L == 1L = true
   (==) 1L 1L = true
   1L == 1L = true
 
-  Stdlib.equals 1l 1l = true
+  1l == 1l = true
   (==) 1l 1l = true
   1l == 1l = true
 
-  Stdlib.equals 1ul 1ul = true
+  1ul == 1ul = true
   (==) 1ul 1ul = true
   1ul == 1ul = true
 
-  Stdlib.equals 1s 1s = true
+  1s == 1s = true
   (==) 1s 1s = true
   1s == 1s = true
 
-  Stdlib.equals 1us 1us = true
+  1us == 1us = true
   (==) 1us 1us = true
   1us == 1us = true
 
-  Stdlib.equals 1y 1y = true
+  1y == 1y = true
   (==) 1y 1y = true
   1y == 1y = true
 
-  Stdlib.equals 1uy 1uy = true
+  1uy == 1uy = true
   (==) 1uy 1uy = true
   1uy == 1uy = true
 
 
 module NotEquals =
-  Stdlib.notEquals 1Q 1Q = false
-  Stdlib.notEquals 1Z 1Z = false
-  Stdlib.notEquals 1L 1L = false
-  Stdlib.notEquals 1l 1l = false
-  Stdlib.notEquals 1ul 1ul = false
-  Stdlib.notEquals 1s 1s = false
-  Stdlib.notEquals 1us 1us = false
-  Stdlib.notEquals 1y 1y = false
-  Stdlib.notEquals 1uy 1uy = false
-  Stdlib.notEquals "abc" "abc" = false
-  Stdlib.notEquals "abd" "abc" = true
+  1Q != 1Q = false
+  1Z != 1Z = false
+  1L != 1L = false
+  1l != 1l = false
+  1ul != 1ul = false
+  1s != 1s = false
+  1us != 1us = false
+  1y != 1y = false
+  1uy != 1uy = false
+  "abc" != "abc" = false
+  "abd" != "abc" = true
 
-  Stdlib.notEquals
-    (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
-    (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
+  (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+  != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
   (!=) 1Q 1Q = false
   (!=) 1Z 1Z = false

@@ -84,7 +84,8 @@ let testPackageFn
         (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
         parameters
     returnType = returnType
-    permissionCeiling = None }
+    permissionCeiling = None
+    bounds = [] }
 
 
 
@@ -727,7 +728,7 @@ module Expect =
         check path whole whole'
         check path part part'
 
-      | EInfix(_, op, l, r), EInfix(_, op', l', r') ->
+      | EInfix(_, op, l, r, _), EInfix(_, op', l', r', _) ->
         check path op op'
         eq ("lhs" :: path) l l'
         eq ("rhs" :: path) r r'

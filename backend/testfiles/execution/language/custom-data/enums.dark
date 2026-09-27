@@ -87,9 +87,9 @@ module MixedCases =
      EnumOfMixedCases.Z("testZ", 2L) ]
   |> Stdlib.List.map (fun v ->
     match v with
-    | X s -> "X " ++ s
-    | Z(s, _i) -> "Z " ++ s
-    | Y y -> "Y " ++ (Stdlib.Int64.toString y)
+    | X s -> "X " + s
+    | Z(s, _i) -> "Z " + s
+    | Y y -> "Y " + (Stdlib.Int64.toString y)
     | W -> "a simple W")) = [ "a simple W", "X testX", "Y 5", "Z testZ" ]
 
 

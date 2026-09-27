@@ -116,7 +116,6 @@ let private infixDispatched : Set<string> =
       "lessThan"
       "lessThanOrEqualTo"
       "negate"
-      "stringAppend"
       "equals"
       "notEquals" ]
 

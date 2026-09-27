@@ -14,6 +14,6 @@ module MissingFile =
   // A missing file is `NotFound`, not `Other`: on Linux the open fails inside
   // libc, and the errno has to survive the trip through the host boundary.
   (let missing =
-     (Stdlib.Cli.File.createTemp () |> Builtin.unwrap) ++ "-does-not-exist"
+     (Stdlib.Cli.File.createTemp () |> Builtin.unwrap) + "-does-not-exist"
    Stdlib.Cli.FileSystem.readFile missing) = Stdlib.Result.Result.Error
     Stdlib.Cli.FileSystem.FileError.NotFound

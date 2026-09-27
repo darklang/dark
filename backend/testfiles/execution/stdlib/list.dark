@@ -135,7 +135,7 @@ module Flatten =
 module Fold =
   Stdlib.List.fold [] [] (fun accum curr -> 5L) = []
 
-  Stdlib.List.fold [ "a", "b", "c", "d" ] "x" (fun accum curr -> accum ++ curr) = "xabcd"
+  Stdlib.List.fold [ "a", "b", "c", "d" ] "x" (fun accum curr -> accum + curr) = "xabcd"
 
   Stdlib.List.fold [ 1L, 2L, 3L, 4L, 5L ] [] (fun accum curr ->
     Stdlib.List.pushBack accum (curr + 1L)) = [ 2L, 3L, 4L, 5L, 6L ]

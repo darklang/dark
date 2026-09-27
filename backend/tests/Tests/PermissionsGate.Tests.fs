@@ -124,7 +124,8 @@ let private ceilingFn
     returnType = PT.TInt
     body = body
     description = ""
-    permissionCeiling = ceiling }
+    permissionCeiling = ceiling
+    bounds = [] }
 
 let private clockBody = eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ]
 
@@ -602,7 +603,8 @@ let private genericMapWrapper
     returnType = PT.TList b
     body = eApply (eBuiltinFn "listMap" 0) [] [ eVar "list"; eVar "fn" ]
     description = ""
-    permissionCeiling = ceiling }
+    permissionCeiling = ceiling
+    bounds = [] }
 
 /// `wrapper [()] <the produced lambda>`
 let private viaWrapper (wrapperHash : string) (producerHash : string) : PT.Expr =

@@ -2,33 +2,16 @@ Stdlib.Int128.absoluteValue -5Q = 5Q
 Stdlib.Int128.absoluteValue 5Q = 5Q
 
 Stdlib.Int128.absoluteValue -170141183460469231731687303715884105728Q = -170141183460469231731687303715884105728Q
-Stdlib.Int128.max 5Q 6Q = 6Q
-Stdlib.Int128.max 10Q 1Q = 10Q
-Stdlib.Int128.max -5Q 6Q = 6Q
 
-Stdlib.Int128.max 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
   170141183460469231731687303715884105727Q
 
-Stdlib.Int128.min 5Q 6Q = 5Q
-Stdlib.Int128.min 50Q -10Q = -10Q
-Stdlib.Int128.min -5Q 6Q = -5Q
-
-Stdlib.Int128.min 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
+Stdlib.min 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
   -170141183460469231731687303715884105728Q
 
-
-Stdlib.Int128.clamp -5Q -2Q 5Q = -2Q
-Stdlib.Int128.clamp -3Q -2Q 1Q = -2Q
-Stdlib.Int128.clamp -5Q 1Q 1Q = 1Q
-Stdlib.Int128.clamp 1Q 2Q 1Q = 1Q
-Stdlib.Int128.clamp 3Q 0Q 2Q = 2Q
-Stdlib.Int128.clamp -100Q 0Q 0Q = 0Q
-Stdlib.Int128.clamp 100Q 0Q 0Q = 0Q
-Stdlib.Int128.clamp -100Q 0Q -1Q = -1Q
-Stdlib.Int128.clamp 100Q 0Q -1Q = 0Q
-Stdlib.Int128.clamp -100Q -1Q 0Q = -1Q
-Stdlib.Int128.clamp -100Q 1Q 0Q = 0Q
-Stdlib.Int128.clamp 100Q 1Q 0Q = 1Q
+Stdlib.clamp -100Q 0Q -1Q = -1Q
 
 Stdlib.Int128.negate -5Q = 5Q
 Stdlib.Int128.negate 5Q = -5Q

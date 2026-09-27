@@ -37,7 +37,7 @@ module FilterMap =
       if value == "y" then
         Stdlib.Option.Option.None
       else
-        Stdlib.Option.Option.Some(key ++ value))
+        Stdlib.Option.Option.Some(key + value))
   ) = (Dict { "c": "cz"; "a": "ax" })
 
   // CLEANUP figure out why this isn't failing on the `false` not being an option
@@ -46,7 +46,7 @@ module FilterMap =
   //     if value == "y" then
   //       false
   //     else
-  //       Stdlib.Option.Option.Some(key ++ value))
+  //       Stdlib.Option.Option.Some(key + value))
   // ) = error="Darklang.Stdlib.Option.map's 1st argument (`option`) should be a Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
 module Filter =
   (Stdlib.Dict.filter
@@ -106,7 +106,7 @@ module Map =
 
   (Stdlib.Dict.map
     (Dict { "key1": "val1"; "key2": "val2" })
-    (fun k x -> k ++ x)
+    (fun k x -> k + x)
   ) = (Dict { "key2": "key2val2"; "key1": "key1val1" })
 
   (Stdlib.Dict.map

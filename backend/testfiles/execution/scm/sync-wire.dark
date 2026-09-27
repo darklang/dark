@@ -142,7 +142,7 @@ module BothWritersAgree =
 // above compares empty pages, so a writer that mangled `blobHex` or dropped `author` passed it.
 module BothWritersAgreeOnOps =
   /// A commit two of the three ops belong to where they were "authored"; the third was never committed.
-  let commitHash () : String = "c0ffee01" ++ (Stdlib.String.first (Stdlib.Uuid.toString (Stdlib.Uuid.generate ())) 8)
+  let commitHash () : String = "c0ffee01" + (Stdlib.String.first (Stdlib.Uuid.toString (Stdlib.Uuid.generate ())) 8)
 
   let op (n: Int64) (commit: String) : Darklang.SCM.Wire.SyncOp =
     Darklang.SCM.Wire.SyncOp

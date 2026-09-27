@@ -76,7 +76,7 @@ let rec private kidsE (e : PT.Expr) : List<PT.Expr> =
   | PT.ETuple(_, a, b, rest) -> a :: b :: rest
   | PT.EApply(_, f, _, args) -> f :: NEList.toList args
   | PT.ELambda(_, _, body) -> [ body ]
-  | PT.EInfix(_, _, l, r) -> [ l; r ]
+  | PT.EInfix(_, _, l, r, _) -> [ l; r ]
   | PT.ERecord(_, _, _, fields) -> List.map snd fields
   | PT.ERecordFieldAccess(_, r, _) -> [ r ]
   | PT.ERecordUpdate(_, r, ups) -> r :: (NEList.toList ups |> List.map snd)
@@ -91,6 +91,8 @@ let private fqFnStr (nr : PT.NameResolution<PT.FQFnName.FQFnName>) : string =
       match r.name with
       | PT.FQFnName.Builtin b -> $"Builtin({b.name},v{b.version})"
       | PT.FQFnName.Package(PT.Hash h) -> $"Pkg({h.Substring(0, 12)}…)"
+      | PT.FQFnName.TraitMethod { trait_ = PT.Hash t; method_ = m; implFn = _ } ->
+        $"Trait({t.Substring(0, 12)}…).{m}"
     $"{orig}=Ok {n} loc=%A{r.location}"
   | Error e -> $"{orig}=Error %A{e}"
 
