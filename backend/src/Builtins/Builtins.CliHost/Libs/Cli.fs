@@ -706,7 +706,7 @@ let executeWith
         | Some _, Some id, Some prior -> LibDB.Traces.setStatus id prior
         | _ ->
           do! tracer.storeTraceResults state
-          // What it answered, beside what it was given: the two halves the `io` rung is named
+          // What it answered, beside what it was given: the two halves a run's row is
           // for. A run that failed has no answer to record. Prepared first, like everything
           // else stored: a script can hand back an ephemeral blob.
           match executionId, result with

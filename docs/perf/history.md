@@ -349,10 +349,11 @@ Same call, same store (11,989 ops): a 2000-op export page took >600s with tracin
 with it off; the full main export 5.6s off, never finishing on. The raw SQL is 0.014s either way.
 There is nothing to fix in push.
 
-The trap, so nobody re-files it: `config/dev` says `DARK_CONFIG_TRACE_DETAIL=off`, but a container
-created before that change has `on` baked into its environment (recreate, not restart, to fix), and
-`run-in-docker` forwards host `DARK_*` vars -- so two terminals can measure the same binary two
-orders of magnitude apart. Trust the live process, not the file.
+The trap, so nobody re-files it: a container carries whatever `config/dev` said when it was
+CREATED, and `config/dev` has said both things -- `off` while traces had no retention, `on` since
+they do (recreate, not restart, to pick up a change). `run-in-docker` also forwards host `DARK_*`
+vars, so two terminals can measure the same binary two orders of magnitude apart. Trust the live
+process, not the file, and pass `--no-trace` when the number has to be about the interpreter.
 
 The real problem underneath: tracing has no GC. One night of ordinary work left 15.8 GB in
 `trace_fn_calls` (164 traces, ~96 MB each; the store hit 17 GB and the relay was OOM-killed --

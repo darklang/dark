@@ -13,64 +13,79 @@ module Blob = LibExecution.Blob
 module RTToDT = LibExecution.RuntimeTypesToDarkTypes
 module BinarySer = LibSerialization.Binary.Serialization
 
-/// How much a run records. Three rungs, each the one before it plus more:
+/// Whether a run is recorded at all. Two settings, `off` and `on`:
 ///
-///   off        nothing at all.
-///   io         the run, what it was given, and what it answered. One row, no call log.
-///              Enough to list a run, see what it was asked to do and what came back, and
-///              start it again from the top. Not enough to resume it.
-///   complete   ... and every impure call, in order, with its arguments, its result and how
-///              long it took. This is what a resume answers from, what a fork branches, and
-///              what `dark traces values` reads to put a run's values beside your code. The
-///              default, and the whole job.
+///   off   nothing is stored. Nothing to list, resume, fork or read values from.
+///   on    the run -- what it was, what it answered, where it stands -- and every impure
+///         call in order, with its arguments, its result and how long it took. That log is
+///         what a resume answers from, what a fork branches, and what `dark traces values`
+///         reads to put a run's values beside your code.
 ///
-/// `DARK_CONFIG_TRACE_DETAIL` names one of the three, and `--trace <level>` sets it for one
-/// run. `complete` ships as the default because the impure-only log is thin -- a few KB for ten
-/// thousand calls -- and because everything a person does with a recorded run needs it.
+/// Off is the default, so nothing is recorded until someone asks for it. Three ways to ask,
+/// narrowest first:
 ///
-/// What is deliberately NOT a rung: the pure calls. Recording every frame and lambda as well
-/// cost 300x the bytes (0.59 MB against 0.002 MB for the same ten thousand calls) and bought
-/// one thing, a call tree for profiling. Classic had no rung below that and reached 10 TB with
-/// 99.7% of it traces. Live programming does not need it: the preview re-runs the pure code
-/// against the recorded impure answers, so a pure value is recomputed rather than stored.
+///   `dark --trace <command>`     this one command (and `--no-trace` for the opposite)
+///   `trace.record` in config     this instance, until changed (`dark traces record on`)
+///   `DARK_CONFIG_TRACE_DETAIL`   every run under this environment: our dev containers and CI
+///
+/// A stored setting beats the environment, because the environment here is a container-wide
+/// default and the stored one is a decision somebody made in this store.
+///
+/// What is NOT stored, at any setting: the pure calls. The preview re-runs pure code against
+/// the recorded impure answers, so a pure value is recomputed rather than kept. Storing them
+/// as well cost 300x the bytes (0.59 MB against 0.002 MB for the same ten thousand calls) and
+/// bought only a call tree for profiling, which is worth its own feature rather than a third
+/// setting here.
 module TraceDetail =
   type T =
     | Off
-    /// The row, its input and its result. No calls.
-    | Io
-    /// ... and the impure calls (non-empty `callEffects`), each with its ordinal and its
+    /// The run and its impure calls (non-empty `callEffects`), each with its ordinal and its
     /// duration: what a resume serves from and what a preview answers from
     /// (`docs/processes.md`).
-    | Complete
+    | On
 
-  let private readEnv () : T =
-    match System.Environment.GetEnvironmentVariable "DARK_CONFIG_TRACE_DETAIL" with
-    | "off" -> Off
-    | "io" -> Io
-    // Anything else, including a typo and the older spellings, gets the default rather than
-    // silently recording less than the person asked for.
-    | _ -> Complete
-
-  /// The name `--trace` and the env var take, and what `traces show` prints back.
-  let name (level : T) : string =
-    match level with
-    | Off -> "off"
-    | Io -> "io"
-    | Complete -> "complete"
-
-  /// `Some` for a name on the ladder, `None` for anything else, so a caller can refuse a typo
-  /// rather than quietly recording something else.
+  /// `Some` for `on` or `off`, `None` for anything else, so a caller can refuse a typo rather
+  /// than quietly recording something the person did not ask for.
   let parse (s : string) : Option<T> =
     match s with
     | "off" -> Some Off
-    | "io" -> Some Io
-    | "complete" -> Some Complete
+    | "on" -> Some On
     | _ -> None
+
+  /// What `traces record` prints back, and what the setting is spelled as everywhere.
+  let name (level : T) : string =
+    match level with
+    | Off -> "off"
+    | On -> "on"
+
+  let private readEnv () : T =
+    match System.Environment.GetEnvironmentVariable "DARK_CONFIG_TRACE_DETAIL" with
+    | null
+    | "" -> Off
+    | s ->
+      // A typo records nothing rather than something, matching the default: recording is
+      // opt-in, so an unreadable opt-in has not happened.
+      parse s |> Option.defaultValue Off
 
   let mutable current : T = readEnv ()
 
-  /// Set the level for THIS PROCESS: `--trace <level>` at startup, `dark traces record
-  /// <level>` inside a session, or a test pinning it. Nothing persistent, nothing shared.
+  /// Set once `--trace` / `--no-trace` has spoken for this run, so the stored setting read at
+  /// startup does not then overwrite it.
+  let mutable private pinnedForRun = false
+
+  /// `--trace` / `--no-trace`: this run only, whatever is stored or in the environment.
+  let setForRun (level : T) : unit =
+    current <- level
+    pinnedForRun <- true
+
+  /// The store's `trace.record` as the host read it at startup. Unset or unreadable leaves the
+  /// environment's answer standing; `--trace` on the command line beats both.
+  let configure (stored : Option<string>) : unit =
+    if not pinnedForRun then
+      stored |> Option.bind parse |> Option.iter (fun level -> current <- level)
+
+  /// Test seam, and how a session applies a setting it has just stored without waiting for the
+  /// next command. Nothing persistent.
   let setForTesting (level : T) : unit = current <- level
 
 
@@ -244,6 +259,11 @@ type TracerState =
     /// so they are live from there and nothing later in the log may be handed to them (a fork
     /// cut by position can leave a later ordinal without its earlier ones).
     replayEnded : System.Collections.Generic.HashSet<System.Guid>
+    /// Wall clock for the whole run, started when the tracer was made. What `traces show` prints
+    /// as `took`, and the only honest source for it: the row's `timestamp` and `updated` are
+    /// both the store instant for a served request, and on a resumed run they span however long
+    /// it sat suspended. A resumed run's clock is its own, replay included.
+    elapsed : System.Diagnostics.Stopwatch
     sync : obj
   }
 
@@ -256,6 +276,7 @@ let private newState () : TracerState =
     ordinals = System.Collections.Generic.Dictionary()
     replay = System.Collections.Generic.Dictionary()
     replayEnded = System.Collections.Generic.HashSet()
+    elapsed = System.Diagnostics.Stopwatch.StartNew()
     sync = obj () }
 
 
@@ -362,12 +383,12 @@ let private makeStoreFnResult
 /// The interpreter hooks for one process writing this trace. `forProcess` hands a spawned process
 /// its own; they share the event list and get their own ordinals.
 ///
-/// `skipTracing` stays TRUE whatever the rung, which is what keeps the interpreter's fast paths
-/// and its per-frame bookkeeping out of a recorded run: nothing about frames is recorded, because
-/// a pure value is recomputed by a replay rather than stored.
+/// `skipTracing` stays TRUE even while recording, which is what keeps the interpreter's fast
+/// paths and its per-frame bookkeeping out of a recorded run: nothing about frames is recorded,
+/// because a pure value is recomputed by a replay rather than stored. Only reached with
+/// recording on, so there is no level to branch on.
 let rec private executionTracingFor
   (state : TracerState)
-  (level : TraceDetail.T)
   (pid : System.Guid)
   : RT.Tracing.Tracing =
   { Exe.noTracing with
@@ -375,8 +396,7 @@ let rec private executionTracingFor
       noteFunction =
         (fun hash -> lock state.sync (fun () -> state.fns.Add hash |> ignore<bool>))
       skipTracing = true
-      // `io` keeps the row, its input and its result, and nothing under them.
-      traceEffects = (level = TraceDetail.Complete)
+      traceEffects = true
       nextEffect = (fun () -> lock state.sync (fun () -> nextOrdinal state pid))
       replayEffect =
         (fun ord ->
@@ -389,7 +409,7 @@ let rec private executionTracingFor
               | false, _ ->
                 state.replayEnded.Add pid |> ignore<bool>
                 RT.Tracing.ReplayStep.PerformOnwards))
-      forProcess = executionTracingFor state level }
+      forProcess = executionTracingFor state }
 
 
 /// Keeps the trace tables bounded: after a store, the oldest traces past the caps go, except
@@ -545,6 +565,8 @@ module TraceStorage =
     (events : List<CompletedEvent>)
     (fns : List<RT.Hash>)
     (accountID : Option<System.Guid>)
+    /// Wall clock for the whole run, from the tracer's own stopwatch.
+    (durationMs : int64)
     : unit =
     if TraceDetail.current = TraceDetail.Off then
       ()
@@ -573,24 +595,24 @@ module TraceStorage =
       let baseStatements =
         [ "INSERT INTO traces
           (id, root_tlid, handler_desc, timestamp,
-           input_name, input_value, account_id, status, updated)
+           input_name, input_value, account_id, status, updated, duration_ms)
          VALUES
-          (@id, @rootTlid, @handlerDesc, @timestamp,
-           @inputName, @inputValue, @accountId, 'done', @timestamp)
+          (@id, 0, @handlerDesc, @timestamp,
+           @inputName, @inputValue, @accountId, 'done', @timestamp, @durationMs)
          ON CONFLICT(id) DO UPDATE SET
-           root_tlid = excluded.root_tlid,
            handler_desc = excluded.handler_desc,
            input_name = excluded.input_name,
            input_value = excluded.input_value,
            account_id = excluded.account_id,
-           updated = excluded.updated",
+           updated = excluded.updated,
+           duration_ms = excluded.duration_ms",
           [ [ "id", Sql.string traceIdStr
-              "rootTlid", Sql.int64 0L
               "handlerDesc", Sql.string handlerDesc
               "timestamp", Sql.string timestamp
               "inputName", Sql.string inputVarName
               "inputValue", Sql.bytes inputBytes
-              "accountId", accountIDSql ] ]
+              "accountId", accountIDSql
+              "durationMs", Sql.int64 durationMs ] ]
 
           "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ] ]
 
@@ -747,6 +769,7 @@ let private storeTrace
              List.ofArray events)
           fns
           exeState.accountID
+          state.elapsed.ElapsedMilliseconds
       with ex ->
         let inner =
           match ex.InnerException with
@@ -782,8 +805,7 @@ let createCliTracer
       storeTraceResults = fun _ -> uply { return () } }
   else
     { enabled = true
-      executionTracing =
-        executionTracingFor state TraceDetail.current System.Guid.Empty
+      executionTracing = executionTracingFor state System.Guid.Empty
       storeTraceResults =
         fun exeState ->
           storeTrace traceID description inputVarName inputDval state exeState }
@@ -830,14 +852,12 @@ let createReplayTracer
         for (rpid, ord, answer) in log do
           if rpid = recorded then state.replay[struct (pid, ord)] <- answer
       | [] -> ())
-    { executionTracingFor state TraceDetail.current pid with
-        forProcess = tracingFor }
+    { executionTracingFor state pid with forProcess = tracingFor }
   { enabled = true
     // The root's own hooks (the CLI's process, which makes no effectful calls of its own in a
     // script; the expressions are child processes and go through `forProcess`).
     executionTracing =
-      { executionTracingFor state TraceDetail.current System.Guid.Empty with
-          forProcess = tracingFor }
+      { executionTracingFor state System.Guid.Empty with forProcess = tracingFor }
     storeTraceResults =
       fun exeState ->
         storeTrace traceID description inputVarName inputDval state exeState }

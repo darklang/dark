@@ -170,7 +170,8 @@ let private startupSettings () : Map<string, string> =
         "exec.maxInstructions"
         "exec.maxBytes"
         "trace.keep"
-        "trace.maxMb" ])
+        "trace.maxMb"
+        "trace.record" ])
       .Result
   with _ ->
     Map.empty
@@ -272,6 +273,7 @@ let execute
       LibDB.Tracing.TraceRetention.configure
         (Map.tryFind "trace.keep" settings)
         (Map.tryFind "trace.maxMb" settings)
+      LibDB.Tracing.TraceDetail.configure (Map.tryFind "trace.record" settings)
       installPolicy settings state
       return LibExecution.Scheduler.executeFunction state fnName [] args
   }
@@ -625,38 +627,46 @@ let main (args : string[]) =
       exit 1
     | _ -> ()
 
-    // `--trace <level>` / `--trace=<level>`: how much THIS run records, overriding
-    // `DARK_CONFIG_TRACE_DETAIL` and touching nothing persistent. Same two spellings and the
-    // same "a missing value is an error" rule as `--branch`, for the same reason: a
-    // fall-through would record something the person did not ask for.
-    let traceFlag =
+    // `--trace` / `--no-trace`: whether THIS run is recorded, whatever the store and the
+    // environment say, and touching nothing persistent. Recording is a yes or no, so these are
+    // bare flags rather than `--trace <value>`; a value is refused by name, because
+    // `--trace on run thing.dark` would otherwise try to run a command called `on`.
+    let valueAfterTrace =
       args
       |> Array.mapi (fun i a -> (i, a))
       |> Array.tryPick (fun (i, a) ->
-        if a = "--trace" then
-          if i + 1 < args.Length && not (args[i + 1].StartsWith "-") then
-            Some(Ok(args[i + 1]), i, 2)
-          else
-            Some(Error(), i, 1)
-        elif a.StartsWith "--trace=" then
-          let v = a.Substring "--trace=".Length
-          if v <> "" then Some(Ok v, i, 1) else Some(Error(), i, 1)
+        if a.StartsWith "--trace=" then
+          Some(a.Substring "--trace=".Length)
+        elif a = "--trace" && i + 1 < args.Length then
+          match args[i + 1] with
+          | "on"
+          | "off"
+          | "io"
+          | "complete"
+          | "all"
+          | "none" -> Some args[i + 1]
+          | _ -> None
         else
           None)
 
-    match traceFlag with
-    | Some(Error(), _, _) ->
+    match valueAfterTrace with
+    | Some v ->
       System.Console.Error.WriteLine
-        "--trace needs a level: off, io or complete (`dark --trace io run thing.dark`)"
+        $"--trace takes no value ('{v}'). Recording is on or off: `dark --trace <command>`"
+      System.Console.Error.WriteLine
+        "records this one, `dark --no-trace <command>` does not, and `dark traces record on`"
+      System.Console.Error.WriteLine "changes the setting itself."
       exit 1
-    | Some(Ok name, _, _) ->
-      match LibDB.Tracing.TraceDetail.parse name with
-      | Some level -> LibDB.Tracing.TraceDetail.setForTesting level
-      | None ->
-        System.Console.Error.WriteLine
-          $"'{name}' is not a recording level; the ladder is off, io, complete"
-        exit 1
     | None -> ()
+
+    if Array.contains "--trace" args && Array.contains "--no-trace" args then
+      System.Console.Error.WriteLine
+        "--trace and --no-trace ask for opposite things; pick one"
+      exit 1
+    elif Array.contains "--trace" args then
+      LibDB.Tracing.TraceDetail.setForRun LibDB.Tracing.TraceDetail.On
+    elif Array.contains "--no-trace" args then
+      LibDB.Tracing.TraceDetail.setForRun LibDB.Tracing.TraceDetail.Off
 
     // Which branch this process runs on: `--branch`, then `DARK_BRANCH`, then the stored
     // `current_branch`. The order lives in `LibDB.BranchSelection`, where it has a test; this is where
@@ -698,25 +708,18 @@ let main (args : string[]) =
             $"current branch '{label}' is gone (archived or merged); now on main")
         selection.branchId
 
-    // Strip each flag (and its value, for the space form) so neither reaches the entry-point
-    // fn as a positional argument. Highest index first, so removing one does not move the other.
+    // Strip the boot flags so none of them reaches the entry-point fn as a positional
+    // argument. `--branch` takes a value in its space form, so it goes by index and width;
+    // the recording flags are bare and go by name.
     let args =
-      let strip (args : string[]) (found : (_ * int * int) option) =
-        match found with
+      let withoutBranch =
+        match branchFlag with
         | Some(_, i, width) ->
           Array.append
             (Array.sub args 0 i)
             (Array.sub args (i + width) (args.Length - i - width))
         | None -> args
-      let first, second =
-        match branchFlag, traceFlag with
-        | Some(_, bi, _), Some(_, ti, _) when ti > bi ->
-          (traceFlag |> Option.map (fun (a, b, c) -> (box a, b, c))),
-          (branchFlag |> Option.map (fun (a, b, c) -> (box a, b, c)))
-        | _ ->
-          (branchFlag |> Option.map (fun (a, b, c) -> (box a, b, c))),
-          (traceFlag |> Option.map (fun (a, b, c) -> (box a, b, c)))
-      strip (strip args first) second
+      withoutBranch |> Array.filter (fun a -> a <> "--trace" && a <> "--no-trace")
 
     LibDB.PackageManager.selectBranch (
       branchId |> Option.defaultValue PT.BranchId.Main

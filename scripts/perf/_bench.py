@@ -6,9 +6,9 @@ bitten this project:
 
   - The store drifts. Traces and ops accumulate run over run, so the same command gets slower for reasons
     that have nothing to do with the code. Every run here starts from a byte-identical fixture.
-  - DARK_CONFIG_TRACE_DETAIL is the recording ladder, off | io | complete
-    (`effects` by default, `values` in CI), and a
-    trace per run lands in every number. Pinned explicitly here, and reported.
+  - DARK_CONFIG_TRACE_DETAIL turns recording on or off (`off` by default, `on` in our dev
+    containers and in CI), and a trace per run lands in every number. Pinned explicitly here,
+    and reported.
   - The box is shared. Four dark containers have been live at once on this machine, and the historical
     cli.execute spread is 5x on runs doing identical work. A datapoint taken while a neighbour compiles is
     noise wearing a number's clothes, so we refuse to record one.

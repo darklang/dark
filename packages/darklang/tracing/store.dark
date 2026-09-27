@@ -7,21 +7,27 @@
 module Darklang.Tracing.Store
 
 
-/// How much this process records: "off", "io" or "complete".
-let recordLevel () : String =
-  Builtin.tracesRecordLevel ()
-
-
-/// Set how much THIS PROCESS records, for the rest of its life. False for a name that is not on
-/// the ladder. Nothing persistent: another `dark` is unaffected, and so is the store.
-let setRecordLevel (level: String) : Bool =
-  Builtin.tracesSetRecordLevel level
-
-
-/// Is anything being recorded? Worth asking before reporting an empty result: with recording
+/// Is this run being recorded? Worth asking before reporting an empty result: with recording
 /// off, every query returns empty whatever ran.
 let enabled () : Bool =
-  (recordLevel ()) != "off"
+  Builtin.tracesRecording ()
+
+
+/// The lasting setting: `trace.record` in this instance's store config, which the boot reads.
+/// `None` when nothing is stored, in which case the environment or the default decides.
+let storedSetting () : Stdlib.Option.Option<Bool> =
+  match Stdlib.LocalStore.configGet "trace.record" with
+  | "on" -> Stdlib.Option.Option.Some true
+  | "off" -> Stdlib.Option.Option.Some false
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Turn recording on or off for this instance: the stored setting, plus this process, so a
+/// session that is already open does not have to be restarted. `dark config set trace.record`
+/// is the same setting by the other door, and takes effect on the next command.
+let setRecording (on: Bool) : Unit =
+  let _ = Stdlib.LocalStore.configSet "trace.record" (if on then "on" else "off")
+  Builtin.tracesApplyRecording on
 
 
 /// The most recent <param limit> traces, newest first.

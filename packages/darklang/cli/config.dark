@@ -67,6 +67,9 @@ let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
   else if key == "live.autopush" then
     if (value == "on") || (value == "off") then Stdlib.Option.Option.None
     else Stdlib.Option.Option.Some "live.autopush is on or off"
+  else if key == "trace.record" then
+    if (value == "on") || (value == "off") then Stdlib.Option.Option.None
+    else Stdlib.Option.Option.Some "trace.record is on or off"
   else
     Stdlib.Option.Option.None
 
@@ -136,6 +139,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "  exec.maxInstructions     - Expert: stop a process past this many instructions (default: none)"
       "  exec.maxBytes            - Expert: stop a process past this many bytes allocated (default: none)"
       "  http.requestTimeoutMs    - serve cancels a handler past this and answers 504 (default: 30000; 0 = none)"
+      "  trace.record             - Keep a record of every run (on/off; default: off)"
       "  trace.keep               - How many traces to keep (a served request is one; default: 200; 0 = all)"
       "  trace.maxMb              - How many MB of logged args and results to keep (default: 256; 0 = all)"
       ""
@@ -187,6 +191,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
       "exec.policy"
       "exec.maxInstructions"
       "exec.maxBytes"
+      "trace.record"
       "trace.keep"
       "trace.maxMb"
       "http.requestTimeoutMs" ]

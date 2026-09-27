@@ -30,9 +30,29 @@ let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
 
 
 /// The columns of a run, as the Dark `Tracing.Trace` wants them.
-let private traceColumns =
-  "id, handler_desc, input_name, input_value, status, parent_id, parent_seq, pinned, "
-  + "timestamp, updated, result_value"
+/// The columns `traceRowToDT` reads, qualified by the table or the alias they come from.
+///
+/// Qualified rather than bare because `traces` and `trace_fn_calls` both have a `duration_ms` now
+/// -- one is the whole run, the other one call -- and a bare column list in a join between them is
+/// ambiguous. SQLite says so at run time, in a query no F# compiler looks at, which is a whole
+/// test run to find out.
+let private traceColumnsOf (prefix : string) : string =
+  [ "id"
+    "handler_desc"
+    "input_name"
+    "input_value"
+    "status"
+    "parent_id"
+    "parent_seq"
+    "pinned"
+    "timestamp"
+    "updated"
+    "result_value"
+    "duration_ms" ]
+  |> List.map (fun c -> $"{prefix}.{c}")
+  |> String.concat ", "
+
+let private traceColumns = traceColumnsOf "traces"
 
 let private statusToDT (status : string) : Dval =
   let tn = statusTypeName ()
@@ -50,7 +70,7 @@ let private statusToDT (status : string) : Dval =
 
 /// A run's input as one line of text: the expression or the script's source as it was written.
 /// A served request is a record, not a string; it is named rather than dumped, since the whole
-/// thing is one `traces view` away and a table cell is 40 characters.
+/// thing is one `traces show` away and a table cell is 40 characters.
 /// A recorded dval as one line, for a table cell or a summary line. Shared by the input and
 /// the result, because the two want the same treatment.
 let private oneLineDval (label : string) (bytes : byte[]) : string =
@@ -98,7 +118,10 @@ let private traceRowToDT (read : RowReader) : Dval =
         "parent", parent
         "pinned", DBool(read.int "pinned" = 1)
         "created", DString(read.string "timestamp")
-        "updated", DString(read.string "updated") ]
+        "updated", DString(read.string "updated")
+        // Wall clock for the whole run. Dark decides how to say it; a `0` means a run that is
+        // still going, or one recorded before the column existed.
+        "durationMs", DInt64(read.int64 "duration_ms") ]
   )
 
 /// Read a binary-serialized dval back into a darklang-typed Dval (the
@@ -192,20 +215,18 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "tracesRecordLevel" 0
+  [ { name = fn "tracesRecording" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
+      returnType = TBool
       description =
-        "How much this process is recording: \"off\", \"io\" or \"complete\". Worth asking "
-        + "before reporting an empty result, since with recording off every query comes back "
-        + "empty whatever ran."
+        "Whether this run is being recorded. Worth asking before reporting an empty result, "
+        + "since with recording off every query comes back empty whatever ran."
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          LibDB.Tracing.TraceDetail.current
-          |> LibDB.Tracing.TraceDetail.name
-          |> DString
+          (LibDB.Tracing.TraceDetail.current <> LibDB.Tracing.TraceDetail.Off)
+          |> DBool
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -213,23 +234,25 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    { name = fn "tracesSetRecordLevel" 0
+    { name = fn "tracesApplyRecording" 0
       typeParams = []
-      parameters = [ Param.make "level" TString "off, io or complete" ]
-      returnType = TBool
+      parameters = [ Param.make "on" TBool "" ]
+      returnType = TUnit
       description =
-        "Set how much THIS PROCESS records, for the rest of its life: an interactive session, "
-        + "one `dark <command>`, or one test case. False for a name that is not on the ladder, "
-        + "so a typo is refused rather than quietly recording something else. Does not touch "
-        + "the store or any other process."
+        "Make THIS process record, or stop recording, without waiting for the next command. "
+        + "The lasting setting is `trace.record` in the store's config, which the caller writes "
+        + "first; this is only how a session already running picks it up. Touches nothing "
+        + "persistent and no other process."
       fn =
         (function
-        | _, _, _, [| DString level |] ->
-          match LibDB.Tracing.TraceDetail.parse level with
-          | Some parsed ->
-            LibDB.Tracing.TraceDetail.setForTesting parsed
-            Ply(DBool true)
-          | None -> Ply(DBool false)
+        | _, _, _, [| DBool on |] ->
+          LibDB.Tracing.TraceDetail.setForTesting (
+            if on then
+              LibDB.Tracing.TraceDetail.On
+            else
+              LibDB.Tracing.TraceDetail.Off
+          )
+          Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -335,9 +358,10 @@ let fns () : List<BuiltInFn> =
               |> fun s -> s.Replace("%", @"\%")
               |> fun s -> s.Replace("_", @"\_")
             let pattern = $"%%{escaped}%%"
+            let cols = traceColumnsOf "t"
             let! rows =
               Sql.query
-                $"SELECT DISTINCT {traceColumns}
+                $"SELECT DISTINCT {cols}
                   FROM traces t
                   JOIN trace_fn_calls c ON t.id = c.trace_id
                   WHERE c.fn_hash LIKE @pattern ESCAPE '\\'
@@ -807,9 +831,10 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString fnName; DInt64 limit |] ->
           uply {
             let typeName = FQTypeName.fqPackage (TracesRefs.trace ())
+            let cols = traceColumnsOf "t"
             let! rows =
               Sql.query
-                $"SELECT {traceColumns}
+                $"SELECT {cols}
                   FROM traces t
                   JOIN trace_fns f ON f.trace_id = t.id
                   WHERE f.fn_name = @fn
