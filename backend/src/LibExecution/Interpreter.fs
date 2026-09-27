@@ -1241,7 +1241,7 @@ let private invokeBuiltin
       -1L
 
   // Wall clock for the log, and only for a call that will actually be recorded. At the shipped
-  // rung that is the effectful calls, about one in a hundred of a real program's builtin calls,
+  // the effectful calls, about one in a hundred of a real program's builtin calls,
   // so an ordinary call pays a comparison rather than a clock read.
   let traceSw =
     if recordsCall exeState.tracing ord then
@@ -3276,6 +3276,72 @@ let private tryBuildSync
       [ "opcode", Opcode.index inst ]
 
 
+/// The drain's one way to park on a read still in flight: settle the promise, remember which
+/// register held it, and ask for the instruction to be run again -- now if the read had already
+/// landed, or once it lands.
+///
+/// `inline`, with the drain's three locals passed by reference, because that is what keeps them
+/// LOCALS. A plain function taking them would need a closure over the drain's frame, and the
+/// drain runs on every instruction of every program. Twenty-two opcodes did this by hand, three
+/// lines each, inside a `| DPromise p ->` arm.
+let inline private parkOnRead
+  (vm : VMState)
+  (registers : Dval array)
+  (reg : Register)
+  (p : Promise)
+  (retry : bool byref)
+  (force : Task<Dval> byref)
+  (forceReg : int byref)
+  : unit =
+  retry <- true
+  force <- Promises.settle vm registers reg p
+  forceReg <- reg
+
+
+/// `parkOnRead` over a list of registers, stopping at the first one in flight: what the opcodes
+/// that build a record, an enum or a record update do with their fields.
+///
+/// The list is walked as it is. A `List.map` to get at the registers would allocate on every
+/// record built, which is why there are two of these rather than one over a projection.
+let inline private parkOnFirstRead
+  (vm : VMState)
+  (registers : Dval array)
+  (regs : List<Register>)
+  (retry : bool byref)
+  (force : Task<Dval> byref)
+  (forceReg : int byref)
+  : unit =
+  let mutable rest = regs
+  while not retry && not (List.isEmpty rest) do
+    match rest with
+    | reg :: tail ->
+      (match registers[reg] with
+       | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
+       | _ -> ())
+      rest <- tail
+    | [] -> ()
+
+
+/// `parkOnFirstRead` for the named fields of a record or a record update.
+let inline private parkOnFirstNamedRead
+  (vm : VMState)
+  (registers : Dval array)
+  (fields : List<string * Register>)
+  (retry : bool byref)
+  (force : Task<Dval> byref)
+  (forceReg : int byref)
+  : unit =
+  let mutable rest = fields
+  while not retry && not (List.isEmpty rest) do
+    match rest with
+    | (_, reg) :: tail ->
+      (match registers[reg] with
+       | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
+       | _ -> ())
+      rest <- tail
+    | [] -> ()
+
+
 /// Run consecutive instructions that need no `await`, without entering the interpreter's computation
 /// expression at all. Returns the counter where it stopped: past the end of the block, or at one of the
 /// five opcodes that must be handled on the async path.
@@ -3340,29 +3406,20 @@ let private runSyncInstructions
            match rest with
            | (_, reg) :: tail ->
              (match registers[reg] with
-              | DPromise p ->
-                retry <- true
-                force <- Promises.settle vm registers reg p
-                forceReg <- reg
+              | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
               | _ -> ())
              rest <- tail
            | [] -> ()
        | CloneRecordWithUpdates(_, original, updates) ->
          (match registers[original] with
-          | DPromise p ->
-            retry <- true
-            force <- Promises.settle vm registers original p
-            forceReg <- original
+          | DPromise p -> parkOnRead vm registers original p &retry &force &forceReg
           | _ -> ())
          let mutable rest = updates
          while not retry && not (List.isEmpty rest) do
            match rest with
            | (_, reg) :: tail ->
              (match registers[reg] with
-              | DPromise p ->
-                retry <- true
-                force <- Promises.settle vm registers reg p
-                forceReg <- reg
+              | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
               | _ -> ())
              rest <- tail
            | [] -> ()
@@ -3372,10 +3429,7 @@ let private runSyncInstructions
            match rest with
            | reg :: tail ->
              (match registers[reg] with
-              | DPromise p ->
-                retry <- true
-                force <- Promises.settle vm registers reg p
-                forceReg <- reg
+              | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
               | _ -> ())
              rest <- tail
            | [] -> ()
@@ -3492,18 +3546,12 @@ let private runSyncInstructions
           match registers[right] with
           | DBool true -> registers[createTo] <- DBool true
           | DBool false -> registers[createTo] <- DBool false
-          | DPromise p ->
-            retry <- true
-            force <- Promises.settle vm registers right p
-            forceReg <- right
+          | DPromise p -> parkOnRead vm registers right p &retry &force &forceReg
           | r ->
             RTE.Bools.OrOnlySupportsBooleans(VT.bool, Dval.toValueType r)
             |> RTE.Bool
             |> raiseRTE vm.threadID
-        | DPromise p ->
-          retry <- true
-          force <- Promises.settle vm registers left p
-          forceReg <- left
+        | DPromise p -> parkOnRead vm registers left p &retry &force &forceReg
         | l ->
           let r = registers[right]
           RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
@@ -3516,18 +3564,12 @@ let private runSyncInstructions
           match registers[right] with
           | DBool true -> registers[createTo] <- DBool true
           | DBool false -> registers[createTo] <- DBool false
-          | DPromise p ->
-            retry <- true
-            force <- Promises.settle vm registers right p
-            forceReg <- right
+          | DPromise p -> parkOnRead vm registers right p &retry &force &forceReg
           | r ->
             RTE.Bools.AndOnlySupportsBooleans(VT.bool, Dval.toValueType r)
             |> RTE.Bool
             |> raiseRTE vm.threadID
-        | DPromise p ->
-          retry <- true
-          force <- Promises.settle vm registers left p
-          forceReg <- left
+        | DPromise p -> parkOnRead vm registers left p &retry &force &forceReg
         | l ->
           let r = registers[right]
           RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
@@ -3545,10 +3587,7 @@ let private runSyncInstructions
         | LPVariable extractTo -> registers[extractTo] <- dv
         | _ ->
           match dv with
-          | DPromise p ->
-            retry <- true
-            force <- Promises.settle vm registers valueReg p
-            forceReg <- valueReg
+          | DPromise p -> parkOnRead vm registers valueReg p &retry &force &forceReg
           | _ ->
             match pat with
             | LPUnit ->
@@ -3587,10 +3626,7 @@ let private runSyncInstructions
              | Interpolated reg ->
                match registers[reg] with
                | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
-               | DPromise p ->
-                 retry <- true
-                 force <- Promises.settle vm registers reg p
-                 forceReg <- reg
+               | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
                | dv ->
                  let vt = Dval.toValueType dv
                  raiseRTE
@@ -3609,10 +3645,7 @@ let private runSyncInstructions
         match registers[condReg] with
         | DBool false -> counter <- counter + jumpBy
         | DBool true -> ()
-        | DPromise p ->
-          retry <- true
-          force <- Promises.settle vm registers condReg p
-          forceReg <- condReg
+        | DPromise p -> parkOnRead vm registers condReg p &retry &force &forceReg
         | dv ->
           raiseRTE
             vm.threadID
@@ -3680,10 +3713,7 @@ let private runSyncInstructions
         | MPVariable reg -> registers[reg] <- registers[valueReg]
         | _ ->
           match registers[valueReg] with
-          | DPromise p ->
-            retry <- true
-            force <- Promises.settle vm registers valueReg p
-            forceReg <- valueReg
+          | DPromise p -> parkOnRead vm registers valueReg p &retry &force &forceReg
           | _ ->
             let buf = vm.matchBindings
             buf.Clear()
@@ -3698,10 +3728,7 @@ let private runSyncInstructions
               counter <- counter + failJump
       | MatchUnmatched(valueReg) ->
         match registers[valueReg] with
-        | DPromise p ->
-          retry <- true
-          force <- Promises.settle vm registers valueReg p
-          forceReg <- valueReg
+        | DPromise p -> parkOnRead vm registers valueReg p &retry &force &forceReg
         | unmatchedValue ->
           raiseRTE vm.threadID (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
 
@@ -3713,10 +3740,7 @@ let private runSyncInstructions
           match rest with
           | reg :: tail ->
             (match registers[reg] with
-             | DPromise p ->
-               retry <- true
-               force <- Promises.settle vm registers reg p
-               forceReg <- reg
+             | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
              | _ -> ())
             rest <- tail
           | [] -> ()
@@ -3730,16 +3754,11 @@ let private runSyncInstructions
           match rest with
           | (keyReg, valueReg) :: tail ->
             (match registers[keyReg] with
-             | DPromise p ->
-               retry <- true
-               force <- Promises.settle vm registers keyReg p
-               forceReg <- keyReg
+             | DPromise p -> parkOnRead vm registers keyReg p &retry &force &forceReg
              | _ ->
                match registers[valueReg] with
                | DPromise p ->
-                 retry <- true
-                 force <- Promises.settle vm registers valueReg p
-                 forceReg <- valueReg
+                 parkOnRead vm registers valueReg p &retry &force &forceReg
                | _ -> ())
             rest <- tail
           | [] -> ()
@@ -3752,26 +3771,18 @@ let private runSyncInstructions
             TypeChecker.DvalCreator.dict vm.threadID VT.unknown VT.unknown entries
       | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
         (match registers[firstReg] with
-         | DPromise p ->
-           retry <- true
-           force <- Promises.settle vm registers firstReg p
-           forceReg <- firstReg
+         | DPromise p -> parkOnRead vm registers firstReg p &retry &force &forceReg
          | _ ->
            match registers[secondReg] with
            | DPromise p ->
-             retry <- true
-             force <- Promises.settle vm registers secondReg p
-             forceReg <- secondReg
+             parkOnRead vm registers secondReg p &retry &force &forceReg
            | _ -> ())
         let mutable rest = theRestRegs
         while not retry && not (List.isEmpty rest) do
           match rest with
           | reg :: tail ->
             (match registers[reg] with
-             | DPromise p ->
-               retry <- true
-               force <- Promises.settle vm registers reg p
-               forceReg <- reg
+             | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
              | _ -> ())
             rest <- tail
           | [] -> ()
@@ -3817,10 +3828,7 @@ let private runSyncInstructions
             |> raiseRTE vm.threadID
         // A field access on a read still in flight settles it first: the field belongs to the
         // value, and the value has not landed.
-        | DPromise p ->
-          retry <- true
-          force <- Promises.settle vm registers recordReg p
-          forceReg <- recordReg
+        | DPromise p -> parkOnRead vm registers recordReg p &retry &force &forceReg
         | dv ->
           RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
           |> RTE.Record
@@ -3836,9 +3844,7 @@ let private runSyncInstructions
           | (parentReg, _) :: tail ->
             (match registers[parentReg] with
              | DPromise p ->
-               retry <- true
-               force <- Promises.settle vm registers parentReg p
-               forceReg <- parentReg
+               parkOnRead vm registers parentReg p &retry &force &forceReg
              | _ -> ())
             rest <- tail
           | [] -> ()
@@ -3872,10 +3878,7 @@ let private runSyncInstructions
       | CheckIfFirstExprIsUnit reg ->
         match registers[reg] with
         | DUnit -> ()
-        | DPromise p ->
-          retry <- true
-          force <- Promises.settle vm registers reg p
-          forceReg <- reg
+        | DPromise p -> parkOnRead vm registers reg p &retry &force &forceReg
         | dval ->
           RTE.Statements.FirstExpressionMustBeUnit(
             ValueType.Known KTUnit,
