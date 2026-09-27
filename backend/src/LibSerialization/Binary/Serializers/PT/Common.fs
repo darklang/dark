@@ -136,6 +136,23 @@ module FQTypeName =
     | b -> raiseFormatError $"Invalid FQTypeName tag: {b}"
 
 
+module FQTraitName =
+  module Package =
+    let write (w : BinaryWriter) (p : FQTraitName.Package) = Hash.write w p
+    let read (r : BinaryReader) : FQTraitName.Package = Hash.read r
+
+  let write (w : BinaryWriter) (name : FQTraitName.FQTraitName) =
+    match name with
+    | FQTraitName.Package p ->
+      w.Write(0uy)
+      Package.write w p
+
+  let read (r : BinaryReader) : FQTraitName.FQTraitName =
+    match r.ReadByte() with
+    | 0uy -> FQTraitName.Package(Package.read r)
+    | b -> raiseFormatError $"Invalid FQTraitName tag: {b}"
+
+
 module FQValueName =
   module Builtin =
     let write (w : BinaryWriter) (b : FQValueName.Builtin) =
@@ -194,11 +211,37 @@ module FQFnName =
     | FQFnName.Package p ->
       w.Write(1uy)
       Package.write w p
+    | FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn } ->
+      // v2 only; a v1 blob never carries this tag. The implementation the save chose rides
+      // along as an option: v3 and later.
+      w.Write(2uy)
+      FQTraitName.Package.write w t
+      String.write w m
+      Option.write
+        w
+        (fun w (r : ResolvedName<FQFnName.Package>) ->
+          Package.write w r.name
+          Option.write w PackageLocation.write r.location)
+        implFn
 
-  let read (r : BinaryReader) : FQFnName.FQFnName =
+  let read (version : uint32) (r : BinaryReader) : FQFnName.FQFnName =
     match r.ReadByte() with
     | 0uy -> FQFnName.Builtin(Builtin.read r)
     | 1uy -> FQFnName.Package(Package.read r)
+    | 2uy ->
+      let t = FQTraitName.Package.read r
+      let m = String.read r
+      // v3 and later carry the implementation the save resolved the call to; a v2 blob wrote the
+      // trait and the method and stopped.
+      let implFn =
+        if version >= 3u then
+          Option.read r (fun r ->
+            let name = Package.read r
+            let location = Option.read r PackageLocation.read
+            { name = name; location = location })
+        else
+          None
+      FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn }
     | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 
 

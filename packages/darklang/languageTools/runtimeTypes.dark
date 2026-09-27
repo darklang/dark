@@ -15,6 +15,10 @@ module FQTypeName =
   type Package = Hash
   type FQTypeName = Package of Package
 
+module FQTraitName =
+  type Package = Hash
+  type FQTraitName = Package of Package
+
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
   type Package = Hash
@@ -27,9 +31,20 @@ module FQFnName =
   type Builtin = { name: String; version: Int32 }
   type Package = Hash
 
+  /// A trait method: the trait, the method name (`Show.show`), and the fn the
+  /// implementation chosen when this was SAVED names for that method, if one was
+  /// chosen. With it, that fn is what runs, and a newer implementation reaches
+  /// this call through propagation like any other update. Without it (a call in a
+  /// polymorphic fn), the implementation is found from the self type at run time.
+  type TraitMethod =
+    { trait_: FQTraitName.Package
+      method_: String
+      implFn: Stdlib.Option.Option<Package> }
+
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
+    | TraitMethod of TraitMethod
 
 type NameResolutionError =
   | NotFound
@@ -245,6 +260,17 @@ type Applicable =
   | AppLambda of ApplicableLambda
   | AppNamedFn of ApplicableNamedFn
 
+
+/// One impl of a trait as dispatch sees it: what it is for, and the fn behind each method
+type ImplCandidate =
+  { trait_: FQTraitName.Package
+    self: TypeReference
+    methods: Dict<String, Hash>
+    source: Hash
+    /// When the op that added this implementation was written. Two implementations of
+    /// one trait for one type are ordered by it: the newer one runs. Empty for an
+    /// implementation that never came from an op, and then neither one wins.
+    stamp: String }
 
 type Dval =
   | DUnit

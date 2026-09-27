@@ -14,8 +14,8 @@ let write (w : BinaryWriter) (v : PackageValue.PackageValue) : unit =
   LibSerialization.Binary.Serializers.PT.Expr.Expr.write w v.body
   String.write w v.description
 
-let read (r : BinaryReader) : PackageValue.PackageValue =
+let read (version : uint32) (r : BinaryReader) : PackageValue.PackageValue =
   let hash = Hash.read r
-  let body = LibSerialization.Binary.Serializers.PT.Expr.Expr.read r
+  let body = LibSerialization.Binary.Serializers.PT.Expr.Expr.read version r
   let description = String.read r
   { hash = hash; body = body; description = description }
