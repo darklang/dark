@@ -9,4 +9,4 @@ let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
 let t0 = Darklang.Cli.Telemetry.now ()
 let result = repeat 200 50 0
 let t1 = Darklang.Cli.Telemetry.now ()
-Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " stats=" ++ (Darklang.LanguageTools.InterpreterStats.get ()))
+Stdlib.printLine ("elapsed_ms=" + (Stdlib.Int.toString (t1 - t0)) + " stats=" + (Darklang.LanguageTools.InterpreterStats.get ()))

@@ -105,7 +105,7 @@ let _reset = Builtin.interpreterStatsReset ()
 let t0 = Builtin.timeNowMs ()
 let result = repeat 200 50 0
 let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " stats=" ++ (Builtin.interpreterStatsGet ()))
+Stdlib.printLine ("elapsed_ms=" + (Stdlib.Int.toString (t1 - t0)) + " stats=" + (Builtin.interpreterStatsGet ()))
 """,
     # Arithmetic: builtin-call heavy, deep recursion. A deliberately different shape from `steady`, since
     # the two disagree substantially on per-Apply cost.
@@ -126,7 +126,7 @@ let _reset = Builtin.interpreterStatsReset ()
 let t0 = Builtin.timeNowMs ()
 let result = hot 4000 0
 let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " stats=" ++ (Builtin.interpreterStatsGet ()))
+Stdlib.printLine ("elapsed_ms=" + (Stdlib.Int.toString (t1 - t0)) + " stats=" + (Builtin.interpreterStatsGet ()))
 """,
 }
 
@@ -150,7 +150,7 @@ let _warm = l3 2 0
 let t0 = Builtin.timeNowMs ()
 let r = l3 16 0
 let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " leafCalls=" ++ (Stdlib.Int.toString r))
+Stdlib.printLine ("elapsed_ms=" + (Stdlib.Int.toString (t1 - t0)) + " leafCalls=" + (Stdlib.Int.toString r))
 """
 
 WORKLOADS["depth-deep"] = """
@@ -165,7 +165,7 @@ let _warm = chain 32 0
 let t0 = Builtin.timeNowMs ()
 let r = chain 4096 0
 let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " leafCalls=" ++ (Stdlib.Int.toString r))
+Stdlib.printLine ("elapsed_ms=" + (Stdlib.Int.toString (t1 - t0)) + " leafCalls=" + (Stdlib.Int.toString r))
 """
 
 SCENARIOS["depth-shallow"] = ["run", "rundir/perf-workloads/depth-shallow.dark"]

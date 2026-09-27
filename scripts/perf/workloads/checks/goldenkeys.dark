@@ -28,7 +28,7 @@ let render (label: String) (s: Darklang.Cli.Workbench.State) : Unit =
 
   v.rows
   |> Stdlib.List.indexedMap (fun i row ->
-    Stdlib.printLine (label ++ " " ++ (Stdlib.Int.toString i) ++ "|" ++ row))
+    Stdlib.printLine (label + " " + (Stdlib.Int.toString i) + "|" + row))
   |> Stdlib.List.length
   |> Stdlib.Int.toString
   |> (fun _ -> ())

@@ -50,12 +50,12 @@ let best (body: Int -> Int) : Int =
   let a = timeOf body
   let b = timeOf body
   let c = timeOf body
-  Stdlib.Int.min a (Stdlib.Int.min b c)
+  Stdlib.min a (Stdlib.min b c)
 
 /// ns per element, from the difference between two sizes.
 let perElement (label: String) (small: Int) (large: Int) (n: Int) : Unit =
   let ns = Stdlib.Int.divide ((large - small) * 1000000) (iterations * n)
-  Stdlib.printLine (label ++ "  " ++ (Stdlib.Int.toString ns) ++ " ns")
+  Stdlib.printLine (label + "  " + (Stdlib.Int.toString ns) + " ns")
 
 // `let`, not `val`: a `val` whose body is not a literal silently evaluates to unit.
 // See the CLEANUP in ProgramTypesToRuntimeTypes.fs, `PackageValue.evalConstantExpr`.

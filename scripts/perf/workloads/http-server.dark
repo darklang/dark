@@ -61,7 +61,7 @@ let main () : Int64 =
   with
   | Ok _ -> 0L
   | Error e ->
-    Stdlib.printLine ("serve failed: " ++ e)
+    Stdlib.printLine ("serve failed: " + e)
     1L
 
 main ()

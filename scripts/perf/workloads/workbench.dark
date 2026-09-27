@@ -29,8 +29,8 @@ let timeView
   let t1 = Darklang.Cli.Telemetry.now ()
 
   Stdlib.printLine
-    ("view " ++ (Stdlib.Int.toString idx) ++ ": "
-     ++ (Stdlib.Int.toString (Stdlib.Int.divide (t1 - t0) 3)) ++ " ms/render")
+    ("view " + (Stdlib.Int.toString idx) + ": "
+     + (Stdlib.Int.toString (Stdlib.Int.divide (t1 - t0) 3)) + " ms/render")
 
 let base =
   Darklang.Cli.Workbench.initialState

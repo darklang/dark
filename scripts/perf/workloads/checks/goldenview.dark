@@ -31,12 +31,12 @@ let dump (size: Stdlib.Cli.Tui.Size) : Unit =
     |> Stdlib.List.indexedMap (fun i r ->
       Stdlib.printLine
         ((Stdlib.Int.toString size.width)
-         ++ "x"
-         ++ (Stdlib.Int.toString size.height)
-         ++ " "
-         ++ (Stdlib.Int.toString i)
-         ++ "|"
-         ++ r))
+         + "x"
+         + (Stdlib.Int.toString size.height)
+         + " "
+         + (Stdlib.Int.toString i)
+         + "|"
+         + r))
   ()
 
 let _rendered = sizes |> Stdlib.List.map (fun s -> dump s)
