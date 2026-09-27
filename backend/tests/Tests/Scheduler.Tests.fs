@@ -558,11 +558,14 @@ let private traceCarriesProcessAndSeq =
     let! state = executionStateFor pmPT false Map.empty
     let! instrs =
       instrsFor
-        """(let twice (x: Int64) : Int64 = Stdlib.Int64.add x x
-            let loop (n: Int64) (acc: Int64) : Int64 =
-              if n == 0L then acc else loop (n - 1L) (acc + twice n)
-            loop 200L 0L)"""
-    LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Values
+        // Impure on purpose: only impure calls are recorded, so a pure loop would write a
+        // trace with no rows in it and prove nothing about which process wrote what.
+        """(let shout (n: Int64) : Unit = Stdlib.printLine (Stdlib.Int64.toString n)
+            let loop (n: Int64) : Unit =
+              if n == 0L then () else (shout n
+                                       loop (n - 1L))
+            loop 20L)"""
+    LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Complete
     try
       let traceId = LibExecution.AnalysisTypes.TraceID.create ()
       let tracer =
@@ -581,35 +584,32 @@ let private traceCarriesProcessAndSeq =
             do! tracer.storeTraceResults traced |> Ply.toTask
             let! rows =
               Sql.query
-                "SELECT call_id, parent_call_id, process_id, seq
-                 FROM trace_fn_calls WHERE trace_id = @t ORDER BY seq"
+                "SELECT process_id, seq, ord FROM trace_fn_calls
+                 WHERE trace_id = @t ORDER BY seq"
               |> Sql.parameters [ "t", Sql.string (string traceId) ]
               |> Sql.executeAsync (fun read ->
-                read.string "call_id",
-                read.stringOrNone "parent_call_id",
-                read.string "process_id",
-                read.int64 "seq")
+                read.string "process_id", read.int64 "seq", read.int64 "ord")
             Expect.isGreaterThan (List.length rows) 10 "the trace has rows"
-            let pids = rows |> List.map (fun (_, _, pid, _) -> pid) |> List.distinct
+            let pids = rows |> List.map (fun (pid, _, _) -> pid) |> List.distinct
             Expect.equal
               (List.sort pids)
               (List.sort [ string a.id; string b.id ])
               "every row belongs to one of the two processes"
             Expect.equal
-              (rows |> List.map (fun (_, _, _, seq) -> seq))
+              (rows |> List.map (fun (_, seq, _) -> seq))
               (List.init (List.length rows) int64)
               "seq is 0..n-1 across both"
-            // A call's parent is in the same process: the stacks never crossed.
-            let byId =
-              rows |> List.map (fun (id, _, pid, _) -> id, pid) |> Map.ofList
-            for (_, parent, pid, _) in rows do
-              match parent with
-              | Some parentId ->
-                Expect.equal
-                  (Map.tryFind parentId byId)
-                  (Some pid)
-                  "parent in the same process"
-              | None -> ()
+            // `seq` interleaves the two processes; `ord` is each process's own log, so within
+            // one process it must count 0, 1, 2... with no gaps and no sharing.
+            for pid in pids do
+              let ords =
+                rows
+                |> List.filter (fun (p, _, _) -> p = pid)
+                |> List.map (fun (_, _, ord) -> ord)
+              Expect.equal
+                ords
+                (List.init (List.length ords) int64)
+                "each process's ordinals count from zero, on their own"
           })
     finally
       LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off

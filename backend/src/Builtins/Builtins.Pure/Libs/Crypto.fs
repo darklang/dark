@@ -98,7 +98,7 @@ let fns () : List<BuiltInFn> =
             Ply(Blob.newEphemeral (MD5.HashData(System.ReadOnlySpan data))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      previewable = ImpurePreviewable
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -118,7 +118,7 @@ let fns () : List<BuiltInFn> =
               Ply(Blob.newEphemeral (hmac.ComputeHash(data)))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      previewable = ImpurePreviewable
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -138,7 +138,7 @@ let fns () : List<BuiltInFn> =
               Ply(Blob.newEphemeral (hmac.ComputeHash(data)))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      previewable = ImpurePreviewable
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
 

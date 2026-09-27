@@ -81,8 +81,15 @@ let printLog (id: String) : Unit =
   | Some data ->
     let logged = data.functionCalls |> Stdlib.List.filter (fun c -> c.ord >= 0L)
     let count = Stdlib.List.length logged
-    Stdlib.printLine $"  log       {Stdlib.Int.toString count} calls with effects"
-    Stdlib.printLine "    pos  process   call"
+    if count == 0 then
+      // No rows means either a run that touched nothing or one recorded at `io`. The row does
+      // not say which, and it makes no difference to what you can do next: a resume with
+      // nothing to replay simply runs the input again.
+      Stdlib.printLine "  log       no impure calls recorded"
+    else
+      Stdlib.printLine
+        $"  log       {Cli.Text.plural count "call"} with effects"
+      Stdlib.printLine "    pos  process   call"
     Stdlib.List.take logged 40
     |> Stdlib.List.iter (fun c ->
       let process =
@@ -97,7 +104,35 @@ let printLog (id: String) : Unit =
       ()
 
 
-let printShow (prefix: String) : Unit =
+/// What `traces show --json` hands back: the run, and the impure calls it logged.
+type RunJson =
+  { run: Darklang.Tracing.Trace
+    calls: List<Darklang.Tracing.FnCall> }
+
+
+/// What `traces values --json` hands back: which run was read, and what each expression in the
+/// code evaluated to, keyed by the expression's id. `problem` is set when the replay stopped.
+type ValuesJson =
+  { run: String
+    fn: String
+    values: Dict<String, LanguageTools.RuntimeTypes.Dval>
+    problem: Stdlib.Option.Option<String> }
+
+
+/// One run and its log, as JSON.
+let printShowJson (prefix: String) : Unit =
+  match find prefix with
+  | Error e -> Cli.printErr e
+  | Ok run ->
+    let calls =
+      match Darklang.Tracing.Store.view run.id with
+      | Some data -> data.functionCalls |> Stdlib.List.filter (fun c -> c.ord >= 0L)
+      | None -> []
+    Stdlib.printLine
+      (Stdlib.Json.serialize<RunJson> (RunJson { run = run; calls = calls }))
+
+
+let printShow (branchId: Uuid) (prefix: String) : Unit =
   match find prefix with
   | Error e -> Cli.printErr e
   | Ok e ->
@@ -105,6 +140,11 @@ let printShow (prefix: String) : Unit =
     Stdlib.printLine $"  status    {statusText e.status}"
     Stdlib.printLine $"  entry     {e.entry}"
     Stdlib.printLine $"  input     {Cli.Text.oneLine e.input}"
+    match e.result with
+    | Some r ->
+      Stdlib.printLine
+        $"  answered  {PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 r}"
+    | None -> ()
     Stdlib.printLine $"  started   {whenText e.created} ({e.created})"
     if e.pinned then
       Stdlib.printLine "  pinned    kept, whatever else is dropped to make room"
@@ -208,6 +248,38 @@ let printCalls (fnName: String) : Unit =
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText
         "  dark traces values <fn> <run>  the code, with that run's values beside it")
+
+
+/// The values `traces values` would print beside the code, as JSON: the ids and the values,
+/// with no source. What an agent wants, since it can read the code already.
+let printValuesJson
+  (branchId: Uuid)
+  (fnName: String)
+  (runPrefix: Stdlib.Option.Option<String>)
+  : Unit =
+  let chosen =
+    match runPrefix with
+    | Some prefix -> find prefix
+    | None ->
+      match Darklang.Tracing.Store.runsCalling fnName 1L with
+      | [ newest ] -> Stdlib.Result.Result.Ok newest
+      | _ ->
+        Stdlib.Result.Result.Error $"no recorded run went through {fnName}"
+
+  match chosen with
+  | Error e -> Cli.printErr e
+  | Ok run ->
+    let (collected, problem) = Darklang.Tracing.Store.previewRun branchId run.id
+    let values =
+      collected
+      |> Stdlib.List.map (fun pair ->
+        let (id, dv) = pair
+        (Stdlib.Int64.toString id, dv))
+      |> Stdlib.Dict.fromListOverwritingDuplicates
+    Stdlib.printLine
+      (Stdlib.Json.serialize<ValuesJson>
+        (ValuesJson
+          { run = run.id; fn = fnName; values = values; problem = problem }))
 
 
 /// The function's source, with `// = value` beside each call, for one run.

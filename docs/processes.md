@@ -4,11 +4,11 @@ A running computation is a value the runtime can step, park, resume and
 inspect; one thread runs many of them, and a group of worker threads (one per
 core) runs many more. Reads run concurrently on their own and writes keep
 their order; `Exec.spawn`/`await` run chosen work in the background. A run is
-an execution: kept with the log of what it did to the world, suspended by
-Ctrl-C, resumed or forked by replaying that log, moved to another machine as
-a file. A lambda a builtin applies is a frame on the process's own stack; a
-builtin that needs the host names the operation and the loop performs it.
-`dark docs processes` is the short, user-facing version of this document.
+a TRACE: one row, kept with the log of what it did to the world, suspended by
+Ctrl-C, resumed or forked by replaying that log, and read back beside the code
+that made it. A lambda a builtin applies is a frame on the process's own
+stack; a builtin that needs the host names the operation and the loop performs
+it. `dark docs processes` is the short, user-facing version of this document.
 
 In one paragraph: a process is a `VMState` plus the `ExecutionState` it runs
 under plus a status. A scheduler steps a process until it finishes, has to
@@ -23,13 +23,83 @@ state's concurrent caches.
 
 ---
 
+## The three shapes that changed
+
+Everything below rests on three additions to `LibExecution/RuntimeTypes.fs`, and they are worth
+reading first because every later section assumes them.
+
+**A VM carries a budget and what it is waiting on.**
+
+```fsharp
+ type VMState =
+   { ...
++    /// Instructions left in this slice. -1 when nothing is scheduling this VM,
++    /// and -1 never reaches zero, so an unscheduled run is never preempted.
++    mutable budget : int64
++    /// Reads handed out as promises and not settled yet.
++    mutable pendingReads : ResizeArray<Promise>
++    /// The host operation this VM is waiting on, so `ps` can name the wait.
++    mutable hostInflight : Operation option }
+```
+
+**A value can be a read that has not landed.**
+
+```fsharp
+ type Dval =
+   | DInt64 of int64
+   ...
++  | DPromise of Promise
+
++and Promise =
++  { /// The read itself. Settling waits on this.
++    Task : Task<Dval>
++    /// The frame that made it, and the builtin that made it: what a failure is
++    /// reported against, at the point someone looks at the value.
++    frame : CallFrame
++    fn : FQFnName }
+```
+
+A `DPromise` only ever sits at the top of a register, as a frame's result, or as a builtin's
+return value, so no builtin body is ever handed one. Forcing one is `forceOperand`, and every
+opcode that needs a real value goes through it.
+
+**The tracer answers a third question.** It already said "record this call" and "what is this
+call's ordinal"; it now also answers "what should this effectful call DO":
+
+```fsharp
+ type Tracing =
+   { ...
++    /// A resume: the log's answer for this call, by (process, ordinal).
++    replayEffect : int64 -> ReplayStep
++    /// A preview: the log's answer by (name, arguments), or `ValueNone` when the log
++    /// cannot answer, in which case the preview stops rather than performing anything.
++    previewEffect : Option<string -> Dval[] -> ReplayStep voption>
++    /// Which package functions a run went through, names only, for `traces calls`.
++    noteFunction : Hash -> unit }
+
++and ReplayStep =
++  /// Hand back the recorded value.
++  | Serve of Dval
++  /// Perform this one for real and go on replaying: a spawn, whose recorded
++  /// result names a process that no longer exists, or an environment read,
++  /// whose result was never stored.
++  | PerformOnce
++  /// The log has run out; this call and everything after it is live.
++  | PerformOnwards
+```
+
+`previewEffect` is `None` on an ordinary run, so the cost on the hot path is one null test and
+no allocation.
+
+---
+
 ## What a process is
 
 `LibExecution/Scheduler.fs`:
 
 - `Process`: `vm`, `exeState`, `entry` (the function it was spawned on, or
   `EntryExpr`), `parent`, `started`, `status`, `instructionsTaken` (what its
-  slices have spent of the budget, the `instructions` column in `ps`), `slices` (how many times the
+  slices have spent of the budget, the `steps` column in `ps`), `slices` (how many times the
   budget was refilled), the completion F# callers await, and the park state.
 - `Status`: `Runnable | Parked of Parked | Done of Dval | Failed of rte * stack`.
 - `Parked`: what a parked process waits for, for `ps`. `OnHost op` (a host
@@ -501,27 +571,39 @@ place; one process's rows in `ord` order are its log, and what a replay keys
 on. `Tracing.FnCall` in Dark carries `processId : Option<Uuid>` and `seq`. A
 run nobody scheduled writes `''`.
 
-How much is recorded is one ladder, `DARK_CONFIG_TRACE_DETAIL`, each rung the
-one before it plus more (`TraceDetail.Off | Inputs | Effects | Values`):
+How much is recorded is one ladder, `DARK_CONFIG_TRACE_DETAIL` for a session
+and `--trace <level>` for one run, each rung the one before it plus more
+(`TraceDetail.Off | Io | Complete`):
 
 - `off`: nothing.
-- `inputs`: the run and what it was given, one row, no calls. Classic's "input
-  value". Enough to list a run, see what it was asked to do, and run it again
-  from the top; not enough to resume it.
-- `effects` (the default): and every impure call, builtins with non-empty
-  `callEffects`, each with its ordinal, no frames, no pure calls, the
-  interpreter keeping its fast paths. That is the classic rule for what an
-  effect is, and the smallest log a run can be resumed or forked from.
-- `values`: and every other call, frame and lambda. The tree `traces view`
-  renders, and what live values replay through.
+- `io`: the run, what it was given, and what it answered. One row, no calls.
+  Enough to list a run, see what it was asked to do and what came back, and
+  start it again from the top; not enough to resume it, because a resume needs
+  the answers.
+- `complete` (the default): and every impure call, in order -- builtins with a
+  non-empty `callEffects` -- each with its arguments, its result, its ordinal
+  and how long it took. That is the classic rule for what an effect is, and
+  the smallest log a run can be resumed, forked or previewed from.
 
-`effects` is thin enough to leave on because retention keeps the tables
+**The pure calls are deliberately not a rung.** Recording every frame and
+lambda as well costs 300x the bytes (0.59 MB against 0.002 MB for the same ten
+thousand calls) and buys one thing: a call tree for profiling. A night of ordinary work at that rung left 15.8 GB in
+`trace_fn_calls`, and classic, which had no rung below it, reached 10 TB with
+99.7% of it traces. Nothing a person does with a recorded run needs it. The
+preview (`traces values`) re-runs the pure code against the recorded impure
+answers, so a pure value is recomputed rather than stored -- which is also why
+it follows an edit to a pure function, and a stored value would not.
+
+What that buys back, beyond the disk: the interpreter keeps its fast paths and
+its per-frame bookkeeping stays off in a recorded run, because nothing about a
+frame is recorded (`skipTracing` is always true for the recorder). A trace is
+a SEQUENCE of impure calls, not a tree of frames, so `parent_call_id`,
+`lambda_expr_id` and `kind` are written flat.
+
+`complete` is thin enough to leave on because retention keeps the tables
 bounded: after a store, the oldest traces past `trace.keep` (200 unset) or
-`trace.maxMb` (256 unset) of logged args and results go, except one a
-suspended or pinned run needs, and the newest run for each entry. `values` is
-the rung that grows without bound: a night of ordinary work at that level left
-15.8 GB in `trace_fn_calls`, and classic, which had no other level, reached
-10 TB with 99.7% of it traces.
+`trace.maxMb` (256 unset) of logged args and results go, except one a running,
+suspended or pinned run needs, and the newest run for each entry.
 
 Two secrets are taken out of a row before it is written (`Tracing.Redact`),
 and nothing else is. A request header named `authorization`, `cookie`,
@@ -536,10 +618,8 @@ the machine resuming it, which is also the honest answer on another machine.
 
 Everything else the effects were given and returned is in the log as it is: a
 key file's bytes a run read, a response body, what a run printed. A secret you
-do not want on disk is one to keep out of an effect, or run with
-`DARK_CONFIG_TRACE_DETAIL=off`. At `values` every call and its values are
-recorded, wrappers included, so the redaction above covers the shipped rung
-and not that one; `values` is for live values in development.
+do not want on disk is one to keep out of an effect, or run with `--trace off`.
+Redaction covers every rung, because there is no rung above the impure calls.
 
 ## A trace is a run
 
@@ -549,15 +629,6 @@ One row (`LibDB.Traces`, the `traces` table): what was run (`eval`,
 position it branched from. Its calls are `trace_fn_calls` under the same id.
 `dark traces` lists them; `traces show|resume|fork|pin|rerun|view|delete`.
 `Darklang.Tracing.Store` is the Dark side.
-
-There were two nouns until 2026-09-24: an `executions` row beside a `traces`
-row, holding different halves of the same run. The split was an accident of
-how each got built, and it showed: a served HTTP request wrote a trace and no
-execution, so the same request could be viewed and not resumed; `exec list`
-and `traces list` listed the same runs off two tables with two orderings and
-two id resolvers; and `exec resume` (replay the log) sat beside `traces
-replay` (perform everything again) under one word. One row, one noun, and
-`rerun` is the second verb's name now.
 
 - Ctrl-C during a traced run: the CLI's handler cancels what the run spawned
   and gives it a quarter of a second to land (`Cli.fs`,
@@ -629,15 +700,13 @@ echo and the refusal.
 ## A run's id
 
 A plain random UUID, and `dark traces` prints the shortest prefix that tells the listed runs
-apart (eight characters, unless a store made before this change has two that agree for longer).
+apart: eight characters, unless two of the listed ids collide there.
 
-It used to be a ULID with an inverted millisecond timestamp in front, so that sorting ids
-lexicographically sorted traces newest-first. That was for Google Cloud Storage, which could
-only list keys in lexicographic order. SQLite sorts by a column, every listing orders by
-`timestamp` or `rowid`, and nothing reads a time out of an id -- while the cost was real, since
-an id is now something a person types (`traces resume`, `traces values`, `traces fork`): two
-runs made in the same millisecond agreed for a dozen characters, so short ids came back
-ambiguous.
+Random, with no structure in front, because an id is something a person TYPES -- `traces
+resume`, `traces values`, `traces fork` all take one -- and a short prefix has to be unique.
+Anything ordered in front (a timestamp, say) makes two runs from the same moment agree for a
+dozen characters and every short id ambiguous. Nothing needs order out of the id: SQLite sorts
+by a column, and every listing orders by `timestamp` or `rowid`.
 
 Not content-addressed, unlike an op id or a commit id, and deliberately. An id has to exist
 when the run STARTS, before there is a log to hash; and content-addressing pays when two
@@ -681,23 +750,27 @@ The pieces:
 - Two ways in, because a run has two shapes. An `eval` or a `run <file>` replays its source. A
   served request's input is a record, so the row carries `entry_hash`, the handler that served
   it, and the preview applies that handler to the recorded request.
-- `trace_fns`: which functions a run went through, names only, written at every level above
-  `off`. Without it, "which runs went through this sub-router" is unanswerable at the shipped
-  level, where a package call is not recorded at all.
+- `trace_fns`: which functions a run went through, names only, written at `complete` (the rung
+  that records calls at all). Without it, "which runs went through this sub-router" is
+  unanswerable, because a package call is never recorded.
 
 What a preview does not do: it does not write, it is not a run, and it does not echo a logged
 print (that echo belongs to a resume, where somebody is taking the run forward).
 
+**Everything that shows a value beside code comes through here.** `dark traces values`, the
+workbench's gutter and the LSP's inlay hints all call `Live.Values.replay`, which is the
+preview with the newest run that went through the function. There is no second mechanism; the
+one that used to re-run a single function on its recorded arguments, and perform its effects
+for real, is deleted (`docs/live.md`, "Live values").
+
 ## A run on another machine
 
-Not built, and deliberately not. `dark exec export`/`import` existed on this
-branch as a text bundle of the three rows; they came out again, because a
-half-answer to "move a run" is worse than none: the bundle carried no code, no
-blobs and no argv, so it worked for the runs whose log was self-contained and
-quietly went live early for the rest. The real version is part of
-synchronising runs (a `/exec` route on the relay, or the sync transport
-carrying rows), and it should arrive with the rest of that design rather than
-ahead of it.
+Not built, and deliberately not. A half-answer to "move a run" is worse than
+none: a text bundle of the rows carries no code, no blobs and no argv, so it
+moves the runs whose log happens to be self-contained and quietly goes live
+early for the rest. The real version is part of synchronising runs (a route on
+the relay, or the sync transport carrying rows), and it should arrive with the
+rest of that design rather than ahead of it.
 ## `dark ps`
 
 `Stdlib.Exec.list/inspect/cancel` over `Builtin.execList/execInspect/execCancel`
@@ -845,7 +918,7 @@ What is deliberately not here, and where the seams are:
 - `ps show` says how many reads a process has in flight, not which, and shows
   the call stack, not registers.
 - A builtin's signature is still `Ply<Dval>`. Store-facing builtins (`DB`,
-  the package manager, traces, executions, the CLI host's script runner)
+  the package manager, traces, the CLI host's script runner)
   await SQLite through `LibDB`, which has no asynchronous I/O, so they
   complete on the calling thread and the loop sees finished values rather
   than parking; a request form for them would be a store-operation type over
@@ -1098,7 +1171,7 @@ and `docs/live.md`.
 | H6 | broken edit: keep the last good hash, error in a band; same for RTEs |
 | H7 | `serve` resolves the router per request; SSE browser refresh only if time |
 | H8 | prod host follows a chosen branch (`dark --branch <name> serve ...`, which exists); new auto-commit-and-push mode |
-| H9 | live values from traces: after record/replay lands (the executions step), not on the demo path |
+| H9 | live values from traces: after record/replay lands, not on the demo path |
 | H10 | agent channel: untouched until the agent harness merges |
 | reframe | target is two demos, phases disposable; `Node` tree and remote move into the first stretch |
 
@@ -1117,7 +1190,7 @@ Scheduler:
 | S10 | live and scheduler in parallel, two clones, merge at the end |
 | naming | the durable record/replay thing is an `Execution`; Dark module `Stdlib.Exec` (`spawn`, `await`, `select`, `demand`); CLI `dark exec list/show/resume/fork` for durable ones, `dark ps` for what is running now; `Process` stays an F#-internal name; `Stdlib.Cli.Process` (OS subprocess) untouched |
 | S4 verbs | three verbs: `demand x` forces a not-ready value; `Exec.spawn f` starts an explicit execution and returns a handle; `Exec.await h` waits on the handle |
-| follow-up order | cores, implicit reads, executions, re-entry removal, Ply out, policy. Cores first (Stachu, 2026-09-19: "do the full thing, don't half-ass it"): the cache surgery before the visible reads win. Executions before re-entry removal because their replay tests then guard the rewrites |
+| follow-up order | cores, implicit reads, record/replay, re-entry removal, Ply out, policy. Cores first (Stachu, 2026-09-19: "do the full thing, don't half-ass it"): the cache surgery before the visible reads win. Record/replay before re-entry removal because its replay tests then guard the rewrites |
 | syntax (2026-09-21) | the force word is `await` (`demand` renamed); one Dark stop verb `Exec.cancel h` (children die with their parent unless detached), the CLI keeps `dark ps cancel` (polite, cleanup) and `dark ps kill` (escape hatch for a process stuck in a native call); `List.parallelMap` stays; two CLI nouns stay (`dark ps` = running now, `dark exec` = suspended runs); the `concurrency` permission stays a real effect. Trims: `DARK_EXEC_WORKERS` gone, `exec.workers` defaults to the cores, `exec.maxInflight` a fixed default, `DARK_SCHEDULER=off` and `exec.policy` out of user docs, the HTTP read hint goes with Http-as-read, `Ps.printAll` goes with the live process view |
 | one branch (2026-09-21) | one branch `scheduler-and-live`, one PR "Scheduler and live programming", one clone; the two tracks' commits stay grouped; live never rebases onto scheduler changes, it merges them and walks the seam list |
 | replay (2026-09-21) | all three recommendations of `replay-effects-2026-09-21.md`: dimmed echo of the old run's output on resume; refuse to resume past an unreproducible effect (open stream, live subprocess, undeclared native call) with a message naming the step; warn on a file read whose file changed since the log |
@@ -1183,14 +1256,13 @@ are in `docs/processes.md` and `docs/live.md` in the tree.
   and values on/off, which is the same thing said in fewer words; the cap is two config keys, `trace.keep` (200 traces) and `trace.maxMb` (256 MB
   of args and results), enforced at store time, a suspended execution's trace exempt; a
   pass costs one count per store and scans byte weights only past fifty traces, at most
-  every ten seconds. Cost of the default on a trivial `eval`, Debug: about +40 ms (the
-  trace and execution rows are separate write transactions); to be measured published.
-  Secrets in the log stay an open question; the docs say what is in the clear.
+  every ten seconds. Secrets in the log stay an open question; the docs say what is in
+  the clear.
 - Suspended runs across machines (2026-09-21, coordinator, REVERSED 2026-09-24): a text
-  bundle of the three rows, `dark exec export/import`, was built and then removed again
-  (Stachu's call). It carried no code, no blobs and no argv, so it moved the runs whose
-  log happened to be self-contained and quietly went live early for the rest. Moving a
-  run belongs with synchronising runs properly, and should arrive with that design.
+  bundle of the rows was built and then removed again (Stachu's call). It carried no
+  code, no blobs and no argv, so it moved the runs whose log happened to be
+  self-contained and quietly went live early for the rest. Moving a run belongs with
+  synchronising runs properly, and should arrive with that design.
 - Per-process caps (2026-09-21, coordinator): `exec.maxTurns` and `exec.maxBytes` as
   expert config keys, unset = no cap, checked before each slice; bytes are
   `GC.GetAllocatedBytesForCurrentThread` around the slice on the scheduler's own thread,

@@ -706,13 +706,16 @@ let executeWith
         | Some _, Some id, Some prior -> LibDB.Traces.setStatus id prior
         | _ ->
           do! tracer.storeTraceResults state
-          executionId
-          |> Option.iter (fun id ->
-            LibDB.Traces.setStatus
-              id
-              (match result with
-               | Ok _ -> LibDB.Traces.Done
-               | Error _ -> LibDB.Traces.Failed))
+          // What it answered, beside what it was given: the two halves the `io` rung is named
+          // for. A run that failed has no answer to record. Prepared first, like everything
+          // else stored: a script can hand back an ephemeral blob.
+          match executionId, result with
+          | Some id, Ok dv ->
+            let! prepared = Tracing.prepareDvalForStorage state dv
+            LibDB.Traces.setResult id prepared
+            LibDB.Traces.setStatus id LibDB.Traces.Done
+          | Some id, Error _ -> LibDB.Traces.setStatus id LibDB.Traces.Failed
+          | None, _ -> ()
       return result
   }
 

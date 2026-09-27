@@ -10,25 +10,11 @@ CREATE TABLE IF NOT EXISTS traces (
   id TEXT PRIMARY KEY,
   root_tlid INTEGER NOT NULL,
   handler_desc TEXT NOT NULL,
-  timestamp TEXT NOT NULL,                     -- when the run STARTED
+  timestamp TEXT NOT NULL,
   input_name TEXT NOT NULL,
   input_value BLOB NOT NULL,
-  account_id TEXT REFERENCES accounts_v0(id),  -- NULL for unattributed (anonymous) runs
-  -- A trace IS a run (`LibDB/Traces.fs`, `docs/processes.md`), so these five carry where the run
-  -- stands as well as what it did. They are declared in an already-merged file because a new
-  -- COLUMN has nowhere else to go: a schema file only ever runs CREATE statements, and a fresh
-  -- store is born from this declaration. Existing stores get them from steps in
-  -- `LibDB/Releases.fs`. A new TABLE would go in a new file (`AGENTS.md`).
-  status TEXT NOT NULL DEFAULT 'done',         -- running | done | failed | suspended
-  parent_id TEXT,                              -- the run this was forked from, if any
-  parent_seq INTEGER,                          -- ... and the `seq` it branched at
-  pinned INTEGER NOT NULL DEFAULT 0,           -- retention never drops a pinned run
-  updated TEXT NOT NULL DEFAULT '',
-  entry_hash TEXT                              -- for a served request: the handler that served
-                                               -- it, so the run can be previewed against it
+  account_id TEXT REFERENCES accounts_v0(id)  -- NULL for unattributed (anonymous) runs
 );
--- The indexes are at the bottom of this file with the rest: `Releases` runs every CREATE INDEX
--- in a third pass, after the steps that add these columns to an existing store.
 
 
 -- Every fn call AND every lambda invocation gets one row, linked via parent_call_id (NULL for
@@ -48,20 +34,7 @@ CREATE TABLE IF NOT EXISTS trace_fn_calls (
   args BLOB NOT NULL,
   result BLOB NOT NULL,
   duration_ms INTEGER NOT NULL DEFAULT 0,
-  -- A new COLUMN on a table that has already merged has nowhere else to go: a schema file only ever
-  -- runs CREATE statements, so a patch file cannot ALTER, and a fresh store is born from this
-  -- declaration. Existing stores get the same columns from a step in `LibDB/Releases.fs`. A new
-  -- TABLE is different and goes in a new file (`10-trace-fns.sql`).
-  process_id TEXT NOT NULL DEFAULT '',         -- the process that made the call; '' when unscheduled
-  seq INTEGER NOT NULL DEFAULT 0,              -- completion order across the whole trace
-  ord INTEGER NOT NULL DEFAULT -1,             -- an effectful builtin call's ordinal in its process, taken
-                                               -- at the call; -1 otherwise. A replay keys on (process_id, ord)
   PRIMARY KEY (trace_id, call_id)
 );
 CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_trace_id ON trace_fn_calls(trace_id);
 CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_fn_hash  ON trace_fn_calls(fn_hash);
-
--- Every listing and retention's scan order by `timestamp DESC`; `status` is how the CLI finds
--- the runs that can be resumed.
-CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON traces(timestamp);
-CREATE INDEX IF NOT EXISTS idx_traces_status    ON traces(status);

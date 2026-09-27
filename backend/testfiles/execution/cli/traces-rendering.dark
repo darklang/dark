@@ -1,0 +1,162 @@
+// How a run and its log are turned into text, and what the recording level does.
+//
+// All of this is Dark, so it is tested in Dark. What needs a real recorded run -- that the rungs
+// store what they say, that a duration lands, that `--json` has the right shape -- is in
+// `Tests/CliTraces.Tests.fs`, where a CLI harness exists.
+
+module IdWidth =
+  // The shortest prefix that tells THESE ids apart. Eight unless two of them collide, which is
+  // what makes a table narrow without ever being ambiguous.
+  (Darklang.Cli.TraceRuns.idWidth
+    [ "aaaaaaaa1111", "bbbbbbbb2222" ]) = 8
+
+  (Darklang.Cli.TraceRuns.idWidth
+    [ "aaaaaaaa1111", "aaaaaaaa2222" ]) = 12
+
+  (Darklang.Cli.TraceRuns.idWidth
+    [ "aaaaaaaaaaaa1111", "aaaaaaaaaaaa2222" ]) = 16
+
+  // One id is unique by definition, and none is not a question.
+  (Darklang.Cli.TraceRuns.idWidth [ "aaaaaaaaaaaaaaaa" ]) = 8
+  (Darklang.Cli.TraceRuns.idWidth []) = 8
+
+  // Ids that agree past every width in the ladder fall back to the whole uuid.
+  (Darklang.Cli.TraceRuns.idWidth
+    [ "aaaaaaaaaaaaaaaaaaaaaaaaa1", "aaaaaaaaaaaaaaaaaaaaaaaaa2" ]) = 36
+
+
+module Status =
+  (Darklang.Cli.TraceRuns.statusText Darklang.Tracing.Status.Running) = "running"
+  (Darklang.Cli.TraceRuns.statusText Darklang.Tracing.Status.Done) = "done"
+  (Darklang.Cli.TraceRuns.statusText Darklang.Tracing.Status.Failed) = "failed"
+  (Darklang.Cli.TraceRuns.statusText Darklang.Tracing.Status.Suspended) = "suspended"
+
+
+module ShortId =
+  (Darklang.Cli.Text.shortIdText "5db5d5be-ebc1-445c-b989-cb964b48e26d") = "5db5d5be"
+  // Shorter than eight is all of it, rather than a raise.
+  (Darklang.Cli.Text.shortIdText "abc") = "abc"
+
+
+module OneLine =
+  // A table cell must not break the row, so a long value is cut with an ellipsis and a newline
+  // becomes a space.
+  (Darklang.Cli.Text.oneLineAt 10 "short") = "short"
+  (Darklang.Cli.Text.oneLineAt 10 "0123456789abc") = "0123456..."
+  (Darklang.Cli.Text.oneLineAt 20 "two\nlines") = "two lines"
+
+
+module Plural =
+  (Darklang.Cli.Text.plural 1 "call") = "1 call"
+  (Darklang.Cli.Text.plural 2 "call") = "2 calls"
+  (Darklang.Cli.Text.plural 0 "call") = "0 calls"
+
+
+module TheLog =
+  // A logged call, with everything the renderer reads.
+  let call (name: String) (ms: Int) (seq: Int64) : Darklang.Tracing.FnCall =
+    Darklang.Tracing.FnCall
+      { callId = $"call-{name}"
+        fnName = name
+        args = []
+        result = Darklang.LanguageTools.RuntimeTypes.Dval.DUnit
+        durationMs = ms
+        processId = Stdlib.Option.Option.None
+        seq = seq
+        ord = seq }
+
+  let render (opts: Darklang.Cli.Tracing.ViewOptions) : String =
+    Darklang.Cli.Tracing.formatFnCalls
+      opts
+      Darklang.SCM.Branch.mainBranchId
+      [ call "httpClientGet" 120 0L, call "printLine" 0 1L ]
+
+  // A run that did nothing outside itself says so, rather than printing an empty block.
+  (Darklang.Cli.Tracing.formatFnCalls
+    Darklang.Cli.Tracing.defaultViewOptions
+    Darklang.SCM.Branch.mainBranchId
+    []) = "  (this run touched nothing outside itself)"
+
+  // The log is a sequence: one line per call, in the order they completed, with the position
+  // `fork --at` takes and the time it took.
+  (render Darklang.Cli.Tracing.defaultViewOptions) = "      0  httpClientGet() -> ()  (120ms)\n      1  printLine() -> ()"
+
+  // `--filter` and `--exclude` narrow the list by name, case-insensitively.
+  (render
+    { Darklang.Cli.Tracing.defaultViewOptions with
+        filter = Stdlib.Option.Option.Some "httpclient" }) = "      0  httpClientGet() -> ()  (120ms)"
+
+  (render
+    { Darklang.Cli.Tracing.defaultViewOptions with
+        exclude = Stdlib.Option.Option.Some "PRINT" }) = "      0  httpClientGet() -> ()  (120ms)"
+
+  // `--slow` is only meaningful because impure calls carry a real duration now.
+  (render
+    { Darklang.Cli.Tracing.defaultViewOptions with
+        slowThresholdMs = Stdlib.Option.Option.Some 100 }) = "      0  httpClientGet() -> ()  (120ms)"
+
+  // A filter that matches nothing says THAT, rather than looking like a run that did nothing.
+  (render
+    { Darklang.Cli.Tracing.defaultViewOptions with
+        filter = Stdlib.Option.Option.Some "nope" }) = "  (no logged call matches the active filters)"
+
+
+module ViewFlags =
+  // The flags that only meant something for a tree of every call are refused by name, so a
+  // script that still passes one is told what changed instead of quietly getting everything.
+  (match
+    Darklang.Cli.Tracing.parseViewOptions
+      Darklang.Cli.Tracing.defaultViewOptions
+      [ "--depth", "3" ]
+   with
+   | Error e -> Stdlib.String.contains e "--depth is gone"
+   | Ok _ -> false) = true
+
+  (match
+    Darklang.Cli.Tracing.parseViewOptions
+      Darklang.Cli.Tracing.defaultViewOptions
+      [ "--no-builtins" ]
+   with
+   | Error e -> Stdlib.String.contains e "every logged call is an impure builtin"
+   | Ok _ -> false) = true
+
+  // The ones that still mean something still work.
+  (match
+    Darklang.Cli.Tracing.parseViewOptions
+      Darklang.Cli.Tracing.defaultViewOptions
+      [ "--slow-ms", "50" ]
+   with
+   | Ok opts -> opts.slowThresholdMs
+   | Error _ -> Stdlib.Option.Option.None) = Stdlib.Option.Option.Some 50
+
+
+module WatchCursor =
+  // Where the cursor lands after the panel reloads. A new run arrives at the TOP, so following
+  // the INDEX would move you onto a different run while you were reading it.
+  val ids = [ "newest", "middle", "oldest" ]
+
+  // Following a run: the cursor goes to wherever that run is now.
+  (Darklang.Cli.TraceWatch.pickCursor
+    ids
+    0
+    (Stdlib.Option.Option.Some "oldest")) = 2
+
+  // A run that arrived at the top pushes the one being read down, and the cursor goes with it.
+  (Darklang.Cli.TraceWatch.pickCursor
+    [ "brand-new", "newest", "middle", "oldest" ]
+    0
+    (Stdlib.Option.Option.Some "newest")) = 1
+
+  // The run being read is gone (retention dropped it): keep the position, clamped.
+  (Darklang.Cli.TraceWatch.pickCursor
+    ids
+    2
+    (Stdlib.Option.Option.Some "vanished")) = 2
+
+  // Not following anything -- a key press -- is a plain clamp.
+  (Darklang.Cli.TraceWatch.pickCursor ids 1 Stdlib.Option.Option.None) = 1
+  (Darklang.Cli.TraceWatch.pickCursor ids 9 Stdlib.Option.Option.None) = 2
+  (Darklang.Cli.TraceWatch.pickCursor ids -3 Stdlib.Option.Option.None) = 0
+
+  // No runs at all: there is nowhere to be but zero.
+  (Darklang.Cli.TraceWatch.pickCursor [] 4 Stdlib.Option.Option.None) = 0

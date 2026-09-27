@@ -18,9 +18,9 @@
 /// concurrent and content-keyed and whose tracer is asked for a per-process view at spawn
 /// (`docs/processes.md`, "What a process shares and what it owns").
 ///
-/// The one edge (`docs/processes.md`, "Edges"): a callable the HTTP server's handler path or
-/// `LiveValues` runs still gets a VM of its own through `Execution.executeApplicable`, outside
-/// any process.
+/// The one edge (`docs/processes.md`, "Edges"): a callable the HTTP server's handler path or a
+/// preview runs still gets a VM of its own through `Execution.executeApplicable`, outside any
+/// process.
 module LibExecution.Scheduler
 
 open System.Threading

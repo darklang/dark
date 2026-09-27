@@ -226,6 +226,42 @@ order, `await x` waits here; `Exec.spawn`/`await`/`cancel` when you want control
 run back up, `traces fork` branches one. `docs processes` and `docs live` have the
 short versions; `docs/processes.md` and `docs/live.md` in the repo have the design.
 
+## Looking at what your code did
+
+**You do not need any of this for something small.** Write it, run it, read the
+output. Every command below costs a step, and a step you did not need is slower
+than the print statement you were going to write anyway.
+
+Reach for it when the thing you are building is slow to run, or involved enough
+that you cannot hold what it did in your head: a handler with several calls in
+it, something that talks to an API, anything you have run more than twice.
+
+The loop, then:
+
+  dark run thing.dark              every run is kept, with what it did
+  dark traces                      the runs, newest first
+  dark traces values <fn>          that function's code, with the values from
+                                   the newest run that went through it
+
+`traces values` is the one that replaces a print statement. It replays the run
+with every impure call answered from what was recorded, so nothing is performed
+a second time -- no second charge, no second write -- and the pure code is
+recomputed, so the values are the values of the code as it is NOW. Edit a
+callee, run it again, and the numbers move without re-running the world.
+
+When a run stopped partway, `traces resume <id>` carries on from where it got
+to rather than starting over, and `traces fork <id> --at <n>` runs a different
+tail from the same recorded beginning: three variations cost one real run.
+
+Every one of these takes `--json`, and so does `ps`. Use it: the tables are
+laid out for a person and their columns will change.
+
+Exit codes are the other thing you can branch on without reading English.
+`eval` and `run` exit 0 when the code ran and gave an answer, and non-zero
+when it raised, when the script was not there, or when the script itself
+ended non-zero. A permission refusal is non-zero too. The reason is still
+English on stderr; the code is the part to test.
+
 ## Name Resolution
 Names resolve relative to the current module, searching from
 most-specific to least-specific.

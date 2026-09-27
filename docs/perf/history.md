@@ -36,7 +36,7 @@ interleaved pairs, median paired difference) and `scripts/perf/gate`. Kept here 
 ## 2026-09-22: the budget again, after the review pass
 
 9.82 MB to 9.90 MB, measured the same way (the CI-built binary, a reloaded store, three runs).
-The 0.08 MB is startup again: a larger package set (`processes`/`executions` and their help, the
+The 0.08 MB is startup again: a larger package set (`ps`/`traces` and their help, the
 redaction table, one more field on a view) and the config read that now also carries the two
 trace keys. Nothing per step, per spawn or per event moved.
 

@@ -60,6 +60,10 @@ type Trace =
     parent : Option<System.Guid * int64>
     /// Retention never drops a pinned trace, whatever the caps say.
     pinned : bool
+    /// What the run answered, once it has. `None` while it is still going, for a run that
+    /// failed, and for a run recorded before this column existed. The other half of what the
+    /// `io` rung is named for.
+    result : Option<RT.Dval>
     /// For a served request: the handler that served it. What a preview applies to the
     /// recorded request, since a request's input is not source it can re-run.
     entryHash : Option<string>
@@ -84,12 +88,16 @@ let private readRow (read : RowReader) : Trace =
       | Some p, Some seq -> Some(p, seq)
       | _ -> None
     pinned = read.int "pinned" = 1
+    result =
+      read.bytesOrNone "result_value"
+      |> Option.map (BinarySer.RT.Dval.deserialize "traces.result_value")
     entryHash = read.stringOrNone "entry_hash"
     created = read.string "timestamp"
     updated = read.string "updated" }
 
 let private columns =
-  "id, handler_desc, input_name, input_value, status, parent_id, parent_seq, pinned, timestamp, updated, entry_hash"
+  "id, handler_desc, input_name, input_value, status, parent_id, parent_seq, pinned, "
+  + "timestamp, updated, entry_hash, result_value"
 
 /// A run that has started, before the recorder has anything to say about it. `root_tlid` is 0
 /// on every path that reaches here; the recorder's upsert fills in the rest.
@@ -161,6 +169,16 @@ let list (limit : int) : Task<List<Trace>> =
   |> Sql.executeAsync readRow
 
 /// Which handler served a request, recorded once the response is known.
+/// What the run answered. Written once, when the run ends well; a run that failed or was
+/// suspended leaves it alone, because there is no answer to record.
+let setResult (id : System.Guid) (result : RT.Dval) : unit =
+  let bytes = BinarySer.RT.Dval.serialize "traces.result_value" result
+  Sql.query
+    "UPDATE traces SET result_value = @result, updated = @updated WHERE id = @id"
+  |> Sql.parameters
+    [ "id", Sql.uuid id; "result", Sql.bytes bytes; "updated", Sql.string (now ()) ]
+  |> Sql.executeStatementSync
+
 let setEntryHash (id : System.Guid) (hash : string) : unit =
   Sql.query "UPDATE traces SET entry_hash = @hash WHERE id = @id"
   |> Sql.parameters [ "id", Sql.uuid id; "hash", Sql.string hash ]

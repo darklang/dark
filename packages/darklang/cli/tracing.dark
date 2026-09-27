@@ -39,14 +39,10 @@ let printRecordingOffHint () : Unit =
         "  recording is off, so nothing is kept to search: DARK_CONFIG_TRACE_DETAIL=effects")
 
 
-/// Filters applied when rendering a trace tree. Each filter hides matching
-/// nodes but recurses into their children at the SAME indent level so the
-/// surrounding structure stays intact.
+/// What to leave out when printing a run's log. The log is a SEQUENCE of impure calls, in the
+/// order they completed, so a filter narrows the list and never changes its shape.
 type ViewOptions =
-  { maxDepth: Stdlib.Option.Option<Int>
-    hideBuiltins: Bool
-    hideStdlib: Bool
-    filter: Stdlib.Option.Option<String>
+  { filter: Stdlib.Option.Option<String>
     /// Inverse of `filter` — hide calls whose name contains this pattern.
     /// Children still recurse so the surrounding structure stays intact.
     exclude: Stdlib.Option.Option<String>
@@ -56,10 +52,7 @@ type ViewOptions =
 
 val defaultViewOptions =
   ViewOptions
-    { maxDepth = Stdlib.Option.Option.None
-      hideBuiltins = false
-      hideStdlib = false
-      filter = Stdlib.Option.Option.None
+    { filter = Stdlib.Option.Option.None
       exclude = Stdlib.Option.Option.None
       slowThresholdMs = Stdlib.Option.Option.None }
 
@@ -121,21 +114,18 @@ let parseViewOptions
   : Stdlib.Result.Result<ViewOptions, String> =
   match args with
   | [] -> Stdlib.Result.Result.Ok opts
-  | "--depth" :: n :: rest
-  | "-d" :: n :: rest ->
-    match Stdlib.Int.parse n with
-    | Ok depth ->
-      if depth < 0 then
-        Stdlib.Result.Result.Error $"--depth is a number of levels, so it cannot be negative (got {n})"
-      else
-        parseViewOptions
-          { opts with maxDepth = Stdlib.Option.Option.Some depth }
-          rest
-    | Error _ -> Stdlib.Result.Result.Error (parsePositionalErr n "depth")
-  | "--no-builtins" :: rest ->
-    parseViewOptions { opts with hideBuiltins = true } rest
-  | "--no-stdlib" :: rest ->
-    parseViewOptions { opts with hideStdlib = true } rest
+  // `--depth`, `--no-builtins` and `--no-stdlib` were about a tree of every call. The log is a
+  // sequence of impure calls now, so they have nothing to do; refused by name rather than
+  // accepted and ignored, which is the failure mode that wastes an afternoon.
+  | "--depth" :: _
+  | "-d" :: _ ->
+    Stdlib.Result.Result.Error
+      "--depth is gone: a run's log is a list of its impure calls, with no tree to cap"
+  | "--no-builtins" :: _
+  | "--no-stdlib" :: _ ->
+    Stdlib.Result.Result.Error
+      ("--no-builtins and --no-stdlib are gone: every logged call is an impure builtin, so "
+       ++ "hiding them hides the log. `--filter` and `--exclude` narrow it by name")
   | "--filter" :: pattern :: rest ->
     if Stdlib.String.startsWith pattern "-" then
       Stdlib.Result.Result.Error $"unknown flag: {pattern}"
@@ -173,9 +163,6 @@ let parseViewOptions
   // Recognized value-taking flag with no value left — distinguish from the
   // catch-all `unknown :: _` so the user gets "missing value" not the
   // misleading "unknown flag".
-  | [ "--depth" ]
-  | [ "-d" ] ->
-    Stdlib.Result.Result.Error "--depth requires a value (e.g. `--depth 3`)"
   | [ "--filter" ] ->
     Stdlib.Result.Result.Error "--filter requires a pattern (e.g. `--filter List.map`)"
   | [ "--exclude" ] ->
@@ -321,8 +308,56 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   // The run verbs (`cli/traceRuns.dark`). `resume` replays the log; `rerun` performs
   // everything again, which is why they are two words.
+  // How much this process records, for the rest of its life. An interactive session is one
+  // process, so this is what "turn tracing on for everything I do from here" means; `dark
+  // --trace <level> <cmd>` is the same thing for a single command.
+  | [ "record" ] ->
+    let level = Darklang.Tracing.Store.recordLevel ()
+    Stdlib.printLine $"recording: {level}"
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.dimText
+        "  dark traces record off | io | complete   change it for this session")
+    state
+  | [ "record", level ] ->
+    if Darklang.Tracing.Store.setRecordLevel level then
+      // The level belongs to this OS process, which is the point inside an interactive session
+      // and useless from a shell, where the process exits on the next line. Say so rather than
+      // report a change that will not outlive the command.
+      if state.nonInteractive then
+        Cli.printErr
+          ("`traces record` sets the level for the session it is typed in, and this process "
+           ++ "is about to exit")
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            $"  for one command:  dark --trace {level} <command>")
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            ("  for a session:    start `dark` with no arguments, then `traces record "
+             ++ $"{level}`"))
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            $"  for everything:   DARK_CONFIG_TRACE_DETAIL={level}")
+        { state with exitCode = 1 }
+      else
+        Stdlib.printLine $"recording: {level}"
+        if level == "off" then
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.dimText
+              ("  nothing from here on is kept, so `resume`, `fork` and `values` will have "
+               ++ "nothing to work with"))
+        else
+          ()
+        state
+    else
+      Cli.printErr
+        $"'{level}' is not a recording level; the ladder is off, io, complete"
+      { state with exitCode = 1 }
+
   | [ "show", prefix ] ->
-    Cli.TraceRuns.printShow prefix
+    if wantsJson then
+      Cli.TraceRuns.printShowJson prefix
+    else
+      Cli.TraceRuns.printShow state.currentBranchId prefix
     state
   | [ "resume", prefix ] -> Cli.TraceRuns.resume state prefix
   | [ "fork", prefix ] ->
@@ -342,12 +377,50 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
   // The call inbox: one function's recorded calls, and the code with that call's values.
   | [ "calls", fnName ] ->
-    Cli.TraceRuns.printCalls fnName
+    if wantsJson then
+      Stdlib.printLine
+        (Stdlib.Json.serialize<List<Darklang.Tracing.Trace>>
+          (Darklang.Tracing.Store.runsCalling fnName 25L))
+    else
+      Cli.TraceRuns.printCalls fnName
+    state
+  // The watching form of the same thing: the runs to pick from, and the code repainting as you
+  // move between them or save an edit.
+  | [ "values", fnName, "--watch" ] ->
+    Stdlib.LocalStore.configSet Cli.TraceWatch.fnKey fnName
+    let view =
+      Apps.Model.View
+        { name = "traces-values"
+          title = $"values: {fnName}"
+          init = "Darklang.Cli.TraceWatch.init"
+          update = "Darklang.Cli.TraceWatch.update"
+          render = "Darklang.Cli.TraceWatch.render"
+          every = Stdlib.Option.Option.Some 500L
+          keys =
+            Stdlib.Option.Option.Some
+              "up/down pick a run  |  esc quit  (nothing here performs an effect)" }
+    match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None with
+    | Ok _ -> ()
+    | Error e -> Cli.printErr e
     state
   | [ "values", fnName ] ->
-    Cli.TraceRuns.printValues state fnName Stdlib.Option.Option.None
+    if wantsJson then
+      Cli.TraceRuns.printValuesJson
+        state.currentBranchId
+        fnName
+        Stdlib.Option.Option.None
+      state
+    else
+      Cli.TraceRuns.printValues state fnName Stdlib.Option.Option.None
   | [ "values", fnName, run ] ->
-    Cli.TraceRuns.printValues state fnName (Stdlib.Option.Option.Some run)
+    if wantsJson then
+      Cli.TraceRuns.printValuesJson
+        state.currentBranchId
+        fnName
+        (Stdlib.Option.Option.Some run)
+      state
+    else
+      Cli.TraceRuns.printValues state fnName (Stdlib.Option.Option.Some run)
   | [ "calls" ] | [ "values" ] ->
     let verb = Stdlib.Option.withDefault (Stdlib.List.head args) ""
     Cli.printErr $"traces {verb} needs a function name, like Darklang.Stdlib.List.map"
@@ -487,7 +560,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let knownSubcommands =
       [ "help", "list", "view", "tail", "follow", "find", "hotspots"
         "stats", "rerun", "delete", "show", "resume", "fork", "pin", "unpin", "calls",
-        "values" ]
+        "values", "record" ]
     let isKnownHead =
       match args with
       | head :: _ ->
@@ -959,133 +1032,59 @@ let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String 
   Darklang.Tracing.Format.compactDval branchId dv
 
 
-/// Decide whether to render a given call line. Hidden lines still recurse
-/// into children — the children appear at the parent's depth so the
-/// surrounding structure stays intact.
-let isVisible (opts: ViewOptions) (call: FnCall) (ancestorMatched: Bool) : Bool =
-  let stdlibInternal =
-    opts.hideStdlib
-    && Stdlib.String.startsWith call.fnName "Stdlib."
-    && call.parentCallId != Stdlib.Option.Option.None
-  let builtinHidden = opts.hideBuiltins && call.kind == "builtin"
+/// Whether one logged call survives the filters. `--filter` and `--exclude` match
+/// case-insensitively, the way `list --fn` and `find` do.
+let isVisible (opts: ViewOptions) (call: FnCall) : Bool =
   let belowSlowThreshold =
     match opts.slowThresholdMs with
     | Some thr -> call.durationMs < thr
     | None -> false
-  // --filter / --exclude match case-insensitively, parallel to the
-  // SQL `LIKE` semantics of `list --fn` / `find`.
   let fnNameUpper = Stdlib.String.toUppercase call.fnName
   let excluded =
     match opts.exclude with
     | Some pat ->
       Stdlib.String.contains fnNameUpper (Stdlib.String.toUppercase pat)
     | None -> false
-  if stdlibInternal || builtinHidden || belowSlowThreshold || excluded then
+  if belowSlowThreshold || excluded then
     false
   else
     match opts.filter with
     | None -> true
-    | Some pat ->
-      ancestorMatched
-        || Stdlib.String.contains fnNameUpper (Stdlib.String.toUppercase pat)
+    | Some pat -> Stdlib.String.contains fnNameUpper (Stdlib.String.toUppercase pat)
 
 
-/// Render one call and (recursively) its children. Lifted out of
-/// formatFnCalls because Darklang doesn't allow nested let-recs.
-let renderCall
-  (opts: ViewOptions)
-  (branchId: Uuid)
-  (childrenMap: Dict<String, List<FnCall>>)
-  (call: FnCall)
-  (depth: Int)
-  (ancestorMatched: Bool)
-  : List<String> =
-  let depthExceeded =
-    match opts.maxDepth with
-    | Some max -> depth >= max
-    | None -> false
-  if depthExceeded then
-    []
-  else
-    let visible = isVisible opts call ancestorMatched
-    let matchedHere =
-      match opts.filter with
-      | Some pat -> ancestorMatched || Stdlib.String.contains call.fnName pat
-      | None -> true
-    let children =
-      match Stdlib.Dict.get childrenMap call.callId with
-      | Some xs -> xs
-      | None -> []
-    // When this call is hidden we keep child indent at our level so the
-    // tree doesn't develop ghost gaps where the hidden line would have been.
-    let childDepth = if visible then depth + 1 else depth
-    let childrenRendered =
-      children
-      |> Stdlib.List.map (fun c ->
-        renderCall opts branchId childrenMap c childDepth matchedHere)
-      |> Stdlib.List.flatten
-    if visible then
-      let indent = Stdlib.String.repeat "  " (depth + 1)
-      let resultRepr = compactDval branchId call.result
-      let durationSuffix =
-        if call.durationMs > 0 then
-          $"  ({Stdlib.Int.toString call.durationMs}ms)"
-        else
-          ""
-      let header =
-        match call.args with
-        | [] -> $"{indent}{call.fnName} → {resultRepr}{durationSuffix}"
-        | _ ->
-          let argsRepr =
-            call.args
-            |> Stdlib.List.map (fun arg -> compactDval branchId arg)
-            |> Stdlib.String.join ", "
-          $"{indent}{call.fnName}({argsRepr}) → {resultRepr}{durationSuffix}"
-      Stdlib.List.append [ header ] childrenRendered
-    else
-      childrenRendered
-
-
+/// A run's log, one line per impure call, in the order they completed. There is no tree: only
+/// impure calls are recorded, so this is the sequence of things the run did to the world.
 let formatFnCalls
   (opts: ViewOptions)
   (branchId: Uuid)
   (fnCalls: List<FnCall>)
   : String =
   match fnCalls with
-  | [] -> "  (none)"
+  | [] -> "  (this run touched nothing outside itself)"
   | _ ->
-    // Build (roots, parent_call_id -> children) by folding the flat list.
-    // Roots are events whose parentCallId is None (top-level user calls).
-    let buildResult =
+    let lines =
       fnCalls
-      |> Stdlib.List.fold
-        ([], Stdlib.Dict.empty)
-        (fun acc call ->
-          let (roots, dict) = acc
-          match call.parentCallId with
-          | None -> (Stdlib.List.append roots [ call ], dict)
-          | Some pid ->
-            let existing =
-              match Stdlib.Dict.get dict pid with
-              | Some xs -> xs
-              | None -> []
-            let updated = Stdlib.List.append existing [ call ]
-            (roots, Stdlib.Dict.setOverridingDuplicates dict pid updated))
-    let (roots, childrenMap) = buildResult
-
-    let rendered =
-      roots
-      |> Stdlib.List.map (fun r ->
-        renderCall opts branchId childrenMap r 0 false)
-      |> Stdlib.List.flatten
-    match rendered with
-    | [] ->
-      // The empty case can happen for several reasons; help the user
-      // figure out which by surfacing the most-likely cause first.
-      match opts.maxDepth with
-      | Some 0 -> "  (depth limit 0 -- no calls shown)"
-      | _ -> "  (no calls match the active filters)"
-    | _ -> Stdlib.String.join rendered "\n"
+      |> Stdlib.List.filter (fun call -> isVisible opts call)
+      |> Stdlib.List.map (fun call ->
+        let pos = Stdlib.String.padStartToWidth (Stdlib.Int64.toString call.seq) 5
+        let resultRepr = compactDval branchId call.result
+        let took =
+          if call.durationMs > 0 then
+            $"  ({Stdlib.Int.toString call.durationMs}ms)"
+          else
+            ""
+        let argsRepr =
+          match call.args with
+          | [] -> ""
+          | _ ->
+            call.args
+            |> Stdlib.List.map (fun arg -> compactDval branchId arg)
+            |> Stdlib.String.join ", "
+        $"  {pos}  {call.fnName}({argsRepr}) -> {resultRepr}{took}")
+    match lines with
+    | [] -> "  (no logged call matches the active filters)"
+    | _ -> Stdlib.String.join lines "\n"
 
 
 let executeView
@@ -1312,6 +1311,8 @@ let help (_state: Cli.AppState) : String =
     "  calls <fn>                    the runs that went through one function, newest first"
     "  values <fn> [<run>]           that function's code, with that run's values beside it."
     "                                Answers every effect from the log and performs none"
+    "  values <fn> --watch           the same, as a panel: up/down pick a run, and it"
+    "                                repaints as runs arrive and as you edit the code"
     ""
     "Look around"
     "  list [n] [--json]             the runs, newest first"
@@ -1323,26 +1324,36 @@ let help (_state: Cli.AppState) : String =
     "  follow [--route <s>]          print runs as they arrive"
     "  stats [n] | hotspots [n]      runs per entry; time per function across recent runs"
     ""
+    "Record more, or less"
+    "  record                        what this session is recording"
+    "  record off | io | complete    change it, for this session only"
+    ""
     "Throw some away"
     "  delete <run>                  one run"
     "  delete --all | --keep <n> | --before <duration>   (duration: 30s, 10m, 2h, 7d)"
     ""
     "A <run> is any unambiguous prefix of its id: `show fe62`, `resume fe6219e9-4705`."
-    "`--json` works on list, find, stats, hotspots and follow, for piping into jq."
+    "`--json` works on every verb that prints something: list, show, calls, values, find,"
+    "stats, hotspots and follow. `dark ps --json` too."
     ""
     "Flags for `view` and `tail`, combinable:"
-    "  -d, --depth <n>               cap the tree at <n> levels"
-    "  --no-builtins | --no-stdlib   hide builtin calls; hide stdlib below the entry point"
-    "  --filter <pattern>            only calls matching it (and their children)"
-    "  --exclude <pattern>           hide calls matching it (children stay, at the parent's"
-    "                                indent)"
-    "  --slow | --slow-ms <n>        only calls over 10ms, or over <n>ms"
+    "  --filter <pattern>            only logged calls whose name matches it"
+    "  --exclude <pattern>           the ones whose name does not"
+    "  --slow | --slow-ms <n>        only calls that took over 10ms, or over <n>ms"
     ""
     "What is recorded, and for how long"
-    "  The default is the impure calls only -- what a run read, wrote, sent and got back --"
-    "  which is the log a resume and a fork replay. Secret headers and environment values"
-    "  are kept out of it (`dark docs processes`); everything else an effect saw is in it."
+    "  Every impure call a run made -- what it read, wrote, sent and got back, with how long"
+    "  each took -- plus the run's own input and answer. That log is what a resume replays, what"
+    "  a fork branches, and what puts a run's values beside your code. Pure calls are not"
+    "  recorded: a replay recomputes them, which is why the log is a few KB and not a few MB."
+    "  Secret headers and environment values are kept out of it (`dark docs processes`);"
+    "  everything else an effect saw is in it."
     "  The oldest go once there are more than `trace.keep` runs or `trace.maxMb` of log,"
     "  except a pinned one, a suspended one, and the newest of each entry."
-    "  DARK_CONFIG_TRACE_DETAIL is the ladder: off | inputs | effects | values." ]
+    ""
+    "  The ladder is off | io | complete, and `complete` is the default."
+    "    off        record nothing"
+    "    io         the run, its input and its answer; no call log, so no resume"
+    "    complete   ... and every impure call. Everything above needs this"
+    "  DARK_CONFIG_TRACE_DETAIL sets it for a session, `--trace <level>` for one run." ]
   |> Stdlib.String.join "\n"

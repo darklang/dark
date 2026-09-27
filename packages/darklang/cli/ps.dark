@@ -15,6 +15,12 @@
 module Darklang.Cli.Ps
 
 
+/// What `ps --json` hands back: the same two groups the two tables print.
+type PsSnapshot =
+  { thisInstance: List<Stdlib.Exec.Summary>
+    machine: List<Stdlib.Exec.MachineProcess> }
+
+
 let entryText (branchId: Uuid) (entry: Stdlib.Exec.Entry) : String =
   match entry with
   | Function name -> PrettyPrinter.RuntimeTypes.fnName branchId name
@@ -249,9 +255,28 @@ let stop (target: String) (hard: Bool) : String =
   | Ok pid -> signalMachine pid hard
   | Error _ -> stopLocal target hard
 
+/// Everything `ps` knows, as JSON, for something that is not a person: this instance's
+/// processes and the machine's other Dark processes, in the same two groups the tables print.
+let printJson () : Unit =
+  let processes = Stdlib.Exec.list ()
+  // Self is filtered out, the same way the table does it: the process answering the question is
+  // not news, and the two renderings must not disagree about what is running.
+  let me = Stdlib.Cli.Sys.currentPid ()
+  let machine =
+    Stdlib.Exec.machineList ()
+    |> Stdlib.List.filter (fun m -> (Stdlib.Int.fromInt64 m.pid) != me)
+  Stdlib.printLine
+    (Stdlib.Json.serialize<PsSnapshot>
+      (PsSnapshot { thisInstance = processes; machine = machine }))
+
+
 let execute (state: AppState) (args: List<String>) : AppState =
+  // `--json` on anything `ps` prints: the flag is pulled out first so it can sit anywhere.
+  let wantsJson = Stdlib.List.member args "--json"
+  let args = args |> Stdlib.List.filter (fun a -> a != "--json")
+
   match args with
-  | [] -> printList state.currentBranchId
+  | [] -> if wantsJson then printJson () else printList state.currentBranchId
   | [ "--watch" ] ->
     let view =
       Apps.Model.View
@@ -266,7 +291,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None with
     | Ok _ -> ()
     | Error e -> Cli.printErr e
-  | [ "show", prefix ] -> printShow state.currentBranchId prefix
+  | [ "show", prefix ] ->
+    if wantsJson then
+      match find prefix with
+      | Error e -> Cli.printErr e
+      | Ok p ->
+        match Stdlib.Exec.inspect p.id with
+        | None -> Cli.printErr $"process {Cli.Text.shortId p.id} finished while you were asking"
+        | Some d -> Stdlib.printLine (Stdlib.Json.serialize<Stdlib.Exec.Detail> d)
+    else
+      printShow state.currentBranchId prefix
   | [ "show", prefix, "--full" ] -> printShowWith state.currentBranchId prefix true
   | [ "cancel", target ] -> Stdlib.printLine (stop target false)
   | [ "kill", target ] -> Stdlib.printLine (stop target true)
@@ -291,6 +325,7 @@ let help (_state: AppState) : String =
   [ "Usage: ps                what is running: this instance's processes as a tree,"
     "                         then the other Dark processes on this machine"
     "       ps --watch         the same, repainting; up/down move, c cancel, k kill, esc quit"
+    "       ps --json          the same two groups as JSON, for something that is not a person"
     "       ps show <id>       one process: status, steps, memory, call stack"
     "                          (`--full` for the whole id)"
     "       ps cancel <id>     stop it as soon as the work it is doing finishes"

@@ -13,47 +13,64 @@ module Blob = LibExecution.Blob
 module RTToDT = LibExecution.RuntimeTypesToDarkTypes
 module BinarySer = LibSerialization.Binary.Serialization
 
-/// How much a run records, as one ladder: each level is the one before it plus more.
+/// How much a run records. Three rungs, each the one before it plus more:
 ///
-///   off       nothing at all.
-///   inputs    the run and what it was given: one row, no call log. Classic's "input value",
-///             and enough to list a run, see what it was asked to do, and run it again from
-///             the top.
-///   effects   ... and every impure call, with its arguments and its result, in order. This
-///             is what a resume answers from, and what a fork branches. The default.
-///   values    ... and every other call, frame and lambda. What inline live values replay
-///             through, and the one that fills a disk: a night of ordinary work at this level
-///             left 15.8 GB in `trace_fn_calls`, and classic, which had no other level,
-///             reached 10 TB with 99.7% of it traces. A development setting.
+///   off        nothing at all.
+///   io         the run, what it was given, and what it answered. One row, no call log.
+///              Enough to list a run, see what it was asked to do and what came back, and
+///              start it again from the top. Not enough to resume it.
+///   complete   ... and every impure call, in order, with its arguments, its result and how
+///              long it took. This is what a resume answers from, what a fork branches, and
+///              what `dark traces values` reads to put a run's values beside your code. The
+///              default, and the whole job.
 ///
-/// `DARK_CONFIG_TRACE_DETAIL` names one of the four. The default is `effects`, because the
-/// impure-only log is thin and makes every run resumable, and `TraceRetention` keeps the
-/// tables bounded.
+/// `DARK_CONFIG_TRACE_DETAIL` names one of the three, and `--trace <level>` sets it for one
+/// run. `complete` ships as the default because the impure-only log is thin -- a few KB for ten
+/// thousand calls -- and because everything a person does with a recorded run needs it.
 ///
-/// Orthogonal to TraceSamplingRule, which decides whether to trace this run at all.
+/// What is deliberately NOT a rung: the pure calls. Recording every frame and lambda as well
+/// cost 300x the bytes (0.59 MB against 0.002 MB for the same ten thousand calls) and bought
+/// one thing, a call tree for profiling. Classic had no rung below that and reached 10 TB with
+/// 99.7% of it traces. Live programming does not need it: the preview re-runs the pure code
+/// against the recorded impure answers, so a pure value is recomputed rather than stored.
 module TraceDetail =
   type T =
     | Off
-    /// The row and its input. No calls.
-    | Inputs
-    /// ... and the impure calls (non-empty `callEffects`), each with its ordinal: what a
-    /// resume serves from (`docs/processes.md`).
-    | Effects
-    /// ... and every other call, frame and lambda (`docs/live.md`, "Live values").
-    | Values
+    /// The row, its input and its result. No calls.
+    | Io
+    /// ... and the impure calls (non-empty `callEffects`), each with its ordinal and its
+    /// duration: what a resume serves from and what a preview answers from
+    /// (`docs/processes.md`).
+    | Complete
 
   let private readEnv () : T =
     match System.Environment.GetEnvironmentVariable "DARK_CONFIG_TRACE_DETAIL" with
     | "off" -> Off
-    | "inputs" -> Inputs
-    | "values" -> Values
-    // Anything else, including `on` and a typo, gets the default rather than silently
-    // recording nothing.
-    | _ -> Effects
+    | "io" -> Io
+    // Anything else, including a typo and the older spellings, gets the default rather than
+    // silently recording less than the person asked for.
+    | _ -> Complete
+
+  /// The name `--trace` and the env var take, and what `traces show` prints back.
+  let name (level : T) : string =
+    match level with
+    | Off -> "off"
+    | Io -> "io"
+    | Complete -> "complete"
+
+  /// `Some` for a name on the ladder, `None` for anything else, so a caller can refuse a typo
+  /// rather than quietly recording something else.
+  let parse (s : string) : Option<T> =
+    match s with
+    | "off" -> Some Off
+    | "io" -> Some Io
+    | "complete" -> Some Complete
+    | _ -> None
 
   let mutable current : T = readEnv ()
 
-  /// Test seam: tests can pin the level without rebuilding config.
+  /// Set the level for THIS PROCESS: `--trace <level>` at startup, `dark traces record
+  /// <level>` inside a session, or a test pinning it. Nothing persistent, nothing shared.
   let setForTesting (level : T) : unit = current <- level
 
 
@@ -142,41 +159,29 @@ let private fnNameToSimpleString (name : RT.FQFnName.FQFnName) : string =
   | RT.FQFnName.Package(RT.Hash h) -> FnNameCache.resolve h
 
 
-/// Completed call event ready to emit to trace_fn_calls.
+/// One recorded call, ready to write to `trace_fn_calls`.
+///
+/// Only impure calls are recorded, so every one of these is a builtin, there is no nesting to
+/// record, and the row's `parent_call_id`, `lambda_expr_id` and `kind` columns are written flat
+/// (`TraceStorage.store`). The log is a SEQUENCE, not a tree, and that is the whole shape.
 type CompletedEvent =
   {
     callId : string
-    parentCallId : string option
-    kind : string // "function" | "lambda" | "builtin"
-    fnHash : string option // function/builtin only
-    lambdaExprId : id option // lambda only
+    /// The builtin's name, as the reader renders it.
+    fnName : string
     args : List<RT.Dval>
     result : RT.Dval
-    durationMs : int64 // 0 for builtins (no frame-entry hook); real ms for fn/lambda
+    /// Wall clock for the call. For a read in flight it is measured at the landing, so an HTTP
+    /// call carries its round trip.
+    durationMs : int64
     /// The process that made the call. `Guid.Empty` for a run nobody scheduled.
     processId : System.Guid
     /// Position in the whole trace, across processes: the order the calls completed in. Reading
     /// them all in `seq` order is the interleaving.
     seq : int64
-    /// For an effectful builtin call, its ordinal among the process's effectful calls, taken when
-    /// the call was made; -1 for everything else. One process's rows in `ord` order are its log,
-    /// and what a replay keys on.
+    /// The call's ordinal among its process's effectful calls, taken when the call was made.
+    /// One process's rows in `ord` order are its log, and what a replay keys on.
     ord : int64
-  }
-
-
-/// Partial event held on the writer's stack between storeFrameEntry and
-/// the matching storeFnResult / storeLambdaResult. The kind isn't stored —
-/// the finalizer (storeFnResult vs storeLambdaResult) already knows it.
-type PartialEvent =
-  {
-    callId : string
-    parentCallId : string option
-    fnHash : string option
-    lambdaExprId : id option
-    args : List<RT.Dval>
-    /// Stopwatch ticks at frame-entry. Subtract at exit and convert to ms.
-    startedAtTicks : int64
   }
 
 
@@ -221,8 +226,6 @@ module TraceLimits =
 type TracerState =
   {
     events : System.Collections.Generic.List<CompletedEvent>
-    stacks :
-      System.Collections.Generic.Dictionary<System.Guid, System.Collections.Generic.Stack<PartialEvent>>
     /// Events past `TraceLimits.maxEvents`, counted so the trace can say it was truncated rather than
     /// quietly looking complete.
     mutable dropped : int
@@ -248,7 +251,6 @@ type TracerState =
 let private newState () : TracerState =
   { events = System.Collections.Generic.List<CompletedEvent>()
     fns = System.Collections.Generic.HashSet<RT.Hash>()
-    stacks = System.Collections.Generic.Dictionary()
     dropped = 0
     nextSeq = 0L
     ordinals = System.Collections.Generic.Dictionary()
@@ -269,52 +271,10 @@ let private nextOrdinal (state : TracerState) (pid : System.Guid) : int64 =
     0L
 
 
-/// The open call stack of one process. Under `sync`.
-let private stackFor
-  (state : TracerState)
-  (pid : System.Guid)
-  : System.Collections.Generic.Stack<PartialEvent> =
-  match state.stacks.TryGetValue pid with
-  | true, stack -> stack
-  | false, _ ->
-    let stack = System.Collections.Generic.Stack<PartialEvent>()
-    state.stacks[pid] <- stack
-    stack
-
-
-/// Frames still open, over every process: the ancestors of whatever completes next, which is what
-/// `addEvent` reserves room for.
-let private openFrames (state : TracerState) : int =
-  let mutable n = 0
-  for stack in state.stacks.Values do
-    n <- n + stack.Count
-  n
-
-
-/// Retain an event unless we're at the cap, **reserving a slot for every frame still on the stack**.
-///
-/// That reservation is the whole trick, and without it the cap is worse than useless. Events are appended
-/// on *completion*, so they arrive in post-order: leaves first, the entry frame last. A naive "keep the
-/// first N" therefore keeps only the deepest calls and drops every one of their ancestors, including the
-/// single root. `formatFnCalls` renders by walking down from roots, so the result is a trace where every
-/// retained event is an orphan nothing walks to, and the viewer shows the truncation marker and nothing
-/// else.
-///
-/// Reserving `stack.Count` fixes it, because the frames on the stack are exactly the ancestors of whatever
-/// is completing now. Each pop both frees a reservation and consumes it, so `events.Count + stack.Count`
-/// never exceeds the cap and every ancestor of a retained event is itself retained. What gets dropped is
-/// deep siblings, which is what you want: the tree stays walkable and loses breadth, not its spine.
-///
-/// The *stack* is deliberately not capped: it's bounded by call depth rather than call count, and
-/// pushes/pops have to stay balanced or parent linkage breaks for the events we do keep.
-///
-/// Under `sync`; `seq` is assigned here, so the order of `seq` is the order of completion across
-/// every process writing the trace.
+/// Keep an event unless we are at the cap. Under `sync`; `seq` is assigned here, so the order of
+/// `seq` is the order of completion across every process writing this trace.
 let private addEvent (state : TracerState) (ev : CompletedEvent) : unit =
-  if
-    TraceLimits.maxEvents = 0
-    || state.events.Count + openFrames state < TraceLimits.maxEvents
-  then
+  if TraceLimits.maxEvents = 0 || state.events.Count < TraceLimits.maxEvents then
     let seq = state.nextSeq
     state.nextSeq <- seq + 1L
     state.events.Add { ev with seq = seq }
@@ -322,62 +282,9 @@ let private addEvent (state : TracerState) (ev : CompletedEvent) : unit =
     state.dropped <- state.dropped + 1
 
 
-let private currentParentCallId
-  (stack : System.Collections.Generic.Stack<PartialEvent>)
-  : string option =
-  if stack.Count = 0 then None else Some(stack.Peek().callId)
-
-
 let private newCallId () : string = string (System.Guid.NewGuid())
 
 
-/// Convert a Stopwatch-tick delta to milliseconds, clamping at zero so a
-/// monotonic-clock blip can't surface as a negative duration.
-let private ticksToMs (deltaTicks : int64) : int64 =
-  let ms = deltaTicks * 1000L / System.Diagnostics.Stopwatch.Frequency
-  if ms < 0L then 0L else ms
-
-
-/// Fired when a Function or Lambda frame is pushed. We assign this call
-/// its own call_id immediately so children entered before this call exits
-/// can record us as their parent_call_id.
-let private makeStoreFrameEntry
-  (state : TracerState)
-  (pid : System.Guid)
-  : RT.Tracing.StoreFrameEntry =
-  fun _ ep args ->
-    let fnHash, lambdaExprId =
-      match ep with
-      | RT.Function name -> Some(fnNameToSimpleString name), None
-      | RT.Lambda(_, exprId) -> None, Some exprId
-      | RT.Source ->
-        Exception.raiseInternal
-          "Source ExecutionPoint cannot be pushed as a frame"
-          []
-    let startedAt = System.Diagnostics.Stopwatch.GetTimestamp()
-    lock state.sync (fun () ->
-      let stack = stackFor state pid
-      let partial =
-        { callId = newCallId ()
-          parentCallId = currentParentCallId stack
-          fnHash = fnHash
-          lambdaExprId = lambdaExprId
-          args = args
-          startedAtTicks = startedAt }
-      stack.Push(partial))
-
-
-/// Secrets out of the log (`docs/processes.md`, "Traces").
-///
-/// The log holds every effectful call's arguments and results, and tracing is on by default, so
-/// a token in a header or an environment variable would sit in `data.db` in the clear. Two
-/// things are taken out before a row is written, and nothing else is: a request header whose
-/// name is in `secretHeaders`, and the value an environment read answered. Arguments can be
-/// redacted freely, since a replay serves results, not arguments. An environment read's secret
-/// IS its result, so the result is not stored and the replay performs that read again for real
-/// (`PerformOnce`, decided by the builtin's name in the row) rather than serving a
-/// value it does not have. File contents and response bodies are stored as they are: a secret
-/// file read into a run is in the log, which `dark docs processes` says.
 module Redact =
   let secretHeaders : Set<string> =
     Set.ofList
@@ -429,97 +336,47 @@ module Redact =
     if Set.contains builtin secretResults then RT.DUnit else result
 
 
-/// Fired for both fn frame returns and synchronous builtin calls. We
-/// dispatch on the FQFnName: builtins emit a synchronous event with the
-/// current top of stack as parent; package fn returns pop the matching
-/// frame entry and finalize with the result.
+/// Fired when a call completes. Only impure calls reach here -- the interpreter decides, by
+/// `ord >= 0` (`Interpreter.recordsCall`) -- so a package frame's return is never recorded and
+/// the `ord = -1` case is ignored.
 let private makeStoreFnResult
   (state : TracerState)
   (pid : System.Guid)
   : RT.Tracing.StoreFnResult =
-  fun (_, name) ord args result ->
-    match name with
-    | RT.FQFnName.Builtin _ ->
+  fun (_, name) meta args result ->
+    if meta.ord >= 0L then
+      let simpleName = fnNameToSimpleString name
       lock state.sync (fun () ->
         addEvent
           state
           { callId = newCallId ()
-            parentCallId = currentParentCallId (stackFor state pid)
-            kind = "builtin"
-            fnHash = Some(fnNameToSimpleString name)
-            lambdaExprId = None
-            args = Redact.args (fnNameToSimpleString name) (NEList.toList args)
-            result = Redact.result (fnNameToSimpleString name) result
-            // No frame-entry counterpart for builtins, so no real duration.
-            durationMs = 0L
+            fnName = simpleName
+            args = Redact.args simpleName (NEList.toList args)
+            result = Redact.result simpleName result
+            durationMs = meta.durationMs
             processId = pid
             seq = 0L
-            ord = ord })
-    | RT.FQFnName.Package _ ->
-      let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
-      lock state.sync (fun () ->
-        let stack = stackFor state pid
-        if stack.Count > 0 then
-          let partial = stack.Pop()
-          addEvent
-            state
-            { callId = partial.callId
-              parentCallId = partial.parentCallId
-              kind = "function"
-              fnHash = partial.fnHash
-              lambdaExprId = None
-              args = partial.args
-              result = result
-              durationMs = ticksToMs (endedAt - partial.startedAtTicks)
-              processId = pid
-              seq = 0L
-              ord = -1L })
-
-
-/// Fired when a Lambda frame returns. Pop the matching entry and finalize.
-let private makeStoreLambdaResult
-  (state : TracerState)
-  (pid : System.Guid)
-  : RT.Tracing.StoreLambdaResult =
-  fun _ result ->
-    let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
-    lock state.sync (fun () ->
-      let stack = stackFor state pid
-      if stack.Count > 0 then
-        let partial = stack.Pop()
-        addEvent
-          state
-          { callId = partial.callId
-            parentCallId = partial.parentCallId
-            kind = "lambda"
-            fnHash = None
-            lambdaExprId = partial.lambdaExprId
-            args = partial.args
-            result = result
-            durationMs = ticksToMs (endedAt - partial.startedAtTicks)
-            processId = pid
-            seq = 0L
-            ord = -1L })
+            ord = meta.ord })
 
 
 /// The interpreter hooks for one process writing this trace. `forProcess` hands a spawned process
-/// its own; the hooks share the event list and get their own call stack and ordinals. Under the
-/// `Effects` level only effectful builtin calls are recorded and the interpreter keeps its fast
-/// paths (`skipTracing`); under `On`, everything.
+/// its own; they share the event list and get their own ordinals.
+///
+/// `skipTracing` stays TRUE whatever the rung, which is what keeps the interpreter's fast paths
+/// and its per-frame bookkeeping out of a recorded run: nothing about frames is recorded, because
+/// a pure value is recomputed by a replay rather than stored.
 let rec private executionTracingFor
   (state : TracerState)
   (level : TraceDetail.T)
   (pid : System.Guid)
   : RT.Tracing.Tracing =
   { Exe.noTracing with
-      storeFrameEntry = makeStoreFrameEntry state pid
       storeFnResult = makeStoreFnResult state pid
-      storeLambdaResult = makeStoreLambdaResult state pid
       noteFunction =
         (fun hash -> lock state.sync (fun () -> state.fns.Add hash |> ignore<bool>))
-      skipTracing = (level <> TraceDetail.Values)
-      // `inputs` keeps the row and nothing under it.
-      traceEffects = (level = TraceDetail.Effects || level = TraceDetail.Values)
+      skipTracing = true
+      // `io` keeps the row, its input and its result, and nothing under them.
+      traceEffects = (level = TraceDetail.Complete)
       nextEffect = (fun () -> lock state.sync (fun () -> nextOrdinal state pid))
       replayEffect =
         (fun ord ->
@@ -744,23 +601,22 @@ module TraceStorage =
         match events with
         | [] -> []
         | _ ->
+          // `parent_call_id` and `lambda_expr_id` are always NULL and `kind` always 'builtin':
+          // the log is a sequence of impure calls, not a tree of frames. The columns stay
+          // because `08-traces.sql` has merged and is frozen.
           [ "INSERT INTO trace_fn_calls
             (trace_id, call_id, parent_call_id, kind, fn_hash,
              lambda_expr_id, args, result, duration_ms, process_id, seq, ord)
            VALUES
-            (@traceId, @callId, @parentCallId, @kind, @fnHash,
-             @lambdaExprId, @args, @result, @durationMs, @processId, @seq, @ord)",
+            (@traceId, @callId, NULL, 'builtin', @fnHash,
+             NULL, @args, @result, @durationMs, @processId, @seq, @ord)",
             events
             |> List.map (fun ev ->
               let argsBytes = serializeArgs ev.args
               let resultBytes = serializeDval "trace_fn_calls.result" ev.result
               [ "traceId", Sql.string traceIdStr
                 "callId", Sql.string ev.callId
-                "parentCallId", Sql.stringOrNone ev.parentCallId
-                "kind", Sql.string ev.kind
-                "fnHash", Sql.stringOrNone ev.fnHash
-                "lambdaExprId",
-                (ev.lambdaExprId |> Option.map string |> Sql.stringOrNone)
+                "fnHash", Sql.string ev.fnName
                 "args", Sql.bytes argsBytes
                 "result", Sql.bytes resultBytes
                 "durationMs", Sql.int64 ev.durationMs
@@ -879,12 +735,8 @@ let private storeTrace
           (if dropped > 0 then
              (List.ofArray events)
              @ [ { callId = newCallId ()
-                   parentCallId = None
-                   kind = "truncated"
-                   fnHash =
-                     Some
-                       $"trace truncated: {dropped} further calls not recorded (cap {TraceLimits.maxEvents}, raise with DARK_CONFIG_TRACE_MAX_EVENTS)"
-                   lambdaExprId = None
+                   fnName =
+                     $"trace truncated: {dropped} further calls not recorded (cap {TraceLimits.maxEvents}, raise with DARK_CONFIG_TRACE_MAX_EVENTS)"
                    args = []
                    result = RT.DUnit
                    durationMs = 0L

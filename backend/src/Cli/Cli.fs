@@ -371,7 +371,8 @@ let private installAuditLog () : unit =
 let private processTitle (args : string list) : string =
   let rec drop (args : string list) =
     match args with
-    | "--branch" :: _ :: rest -> drop rest
+    | "--branch" :: _ :: rest
+    | "--trace" :: _ :: rest -> drop rest
     | flag :: rest when flag.StartsWith "--" -> drop rest
     | _ -> args
   let portOf (rest : string list) =
@@ -624,6 +625,39 @@ let main (args : string[]) =
       exit 1
     | _ -> ()
 
+    // `--trace <level>` / `--trace=<level>`: how much THIS run records, overriding
+    // `DARK_CONFIG_TRACE_DETAIL` and touching nothing persistent. Same two spellings and the
+    // same "a missing value is an error" rule as `--branch`, for the same reason: a
+    // fall-through would record something the person did not ask for.
+    let traceFlag =
+      args
+      |> Array.mapi (fun i a -> (i, a))
+      |> Array.tryPick (fun (i, a) ->
+        if a = "--trace" then
+          if i + 1 < args.Length && not (args[i + 1].StartsWith "-") then
+            Some(Ok(args[i + 1]), i, 2)
+          else
+            Some(Error(), i, 1)
+        elif a.StartsWith "--trace=" then
+          let v = a.Substring "--trace=".Length
+          if v <> "" then Some(Ok v, i, 1) else Some(Error(), i, 1)
+        else
+          None)
+
+    match traceFlag with
+    | Some(Error(), _, _) ->
+      System.Console.Error.WriteLine
+        "--trace needs a level: off, io or complete (`dark --trace io run thing.dark`)"
+      exit 1
+    | Some(Ok name, _, _) ->
+      match LibDB.Tracing.TraceDetail.parse name with
+      | Some level -> LibDB.Tracing.TraceDetail.setForTesting level
+      | None ->
+        System.Console.Error.WriteLine
+          $"'{name}' is not a recording level; the ladder is off, io, complete"
+        exit 1
+    | None -> ()
+
     // Which branch this process runs on: `--branch`, then `DARK_BRANCH`, then the stored
     // `current_branch`. The order lives in `LibDB.BranchSelection`, where it has a test; this is where
     // the outcome gets SAID. A name we don't have is created and announced, because a typo would
@@ -664,15 +698,25 @@ let main (args : string[]) =
             $"current branch '{label}' is gone (archived or merged); now on main")
         selection.branchId
 
-    // Strip the flag (and its value, for the space form) so it never reaches the
-    // entry-point fn as a positional argument.
+    // Strip each flag (and its value, for the space form) so neither reaches the entry-point
+    // fn as a positional argument. Highest index first, so removing one does not move the other.
     let args =
-      match branchFlag with
-      | Some(_, i, width) ->
-        Array.append
-          (Array.sub args 0 i)
-          (Array.sub args (i + width) (args.Length - i - width))
-      | None -> args
+      let strip (args : string[]) (found : (_ * int * int) option) =
+        match found with
+        | Some(_, i, width) ->
+          Array.append
+            (Array.sub args 0 i)
+            (Array.sub args (i + width) (args.Length - i - width))
+        | None -> args
+      let first, second =
+        match branchFlag, traceFlag with
+        | Some(_, bi, _), Some(_, ti, _) when ti > bi ->
+          (traceFlag |> Option.map (fun (a, b, c) -> (box a, b, c))),
+          (branchFlag |> Option.map (fun (a, b, c) -> (box a, b, c)))
+        | _ ->
+          (branchFlag |> Option.map (fun (a, b, c) -> (box a, b, c))),
+          (traceFlag |> Option.map (fun (a, b, c) -> (box a, b, c)))
+      strip (strip args first) second
 
     LibDB.PackageManager.selectBranch (
       branchId |> Option.defaultValue PT.BranchId.Main

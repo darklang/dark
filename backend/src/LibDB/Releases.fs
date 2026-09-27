@@ -289,13 +289,10 @@ let steps : List<Step> =
     { name = "20260924_000006_traces_entry_hash"
       run = fun () -> addColumnIfMissing "traces" "entry_hash" "TEXT" }
 
-    // A trace IS a run, so the second table is gone. A store that has one keeps it empty and
-    // unread otherwise, sitting in every `.schema` forever.
-    { name = "20260924_000007_drop_executions"
-      run =
-        fun () ->
-          if tableExists "executions" then
-            Sql.query "DROP TABLE executions" |> Sql.executeStatementSync }
+    // What the run answered. The `io` rung is named for the input AND the output of the thing
+    // that ran, and nothing stored the output.
+    { name = "20260926_000001_traces_result_value"
+      run = fun () -> addColumnIfMissing "traces" "result_value" "BLOB" }
 
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]

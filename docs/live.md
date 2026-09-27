@@ -330,23 +330,24 @@ Not from the recording: from running the current code again on the recorded inpu
 edit to a callee shows up in the caller's values without anyone calling it again, and a
 value beside a call is always the value of the code you are looking at.
 
-What the trace store keeps of a run, per function, is the arguments of each call
-(`trace_fn_calls`, keyed by the resolved dotted name, or the hash when the name did not
-resolve). `Stdlib.Live.Values.replay branchId location` takes the newest such row for the
-function at `location` (by its name, then by every hash it has had), runs the current
-version on those arguments, and returns `Values`: `result` (None when the run failed),
-`byExpr` (the value of every call, keyed by the id of the `EApply` that made it; calls
-inside callees are there too, under their own ids), and `problem` (the runtime error's
-text when there was one; the values up to it are still in `byExpr`). None means no call
-is recorded, which is not an error: there is nothing to show.
+`Stdlib.Live.Values.replay branchId location` is the whole of it. It finds the newest recorded
+run that went through the function (`trace_fns`, the names-only index), replays THAT WHOLE RUN
+with every impure call answered from its own log and none performed, and returns `Values`:
+`byExpr`, the value of every call keyed by the id of the `EApply` that made it -- calls inside
+callees too, under their own ids -- and `problem`, the reason the replay stopped early if it did,
+with the values up to that point still in `byExpr`. `None` means no recorded run went through
+the function, which is not an error: there is nothing to show yet.
+
+Two consequences worth stating, because they are the point. Because the whole run is replayed
+rather than one function called, **nothing is performed**: a handler that charges a card does not
+charge it again while you look at it. And because the pure code is recomputed rather than read
+back, **the values follow an edit**: change a callee, look again, and the numbers move.
 
 The runtime side is one instruction: `PT2RT` emits `TraceExpr(exprId, reg)` after every
 call, and the interpreter hands the register's value to `tracing.storeExprResult`, which
-is a no-op everywhere except under the replay's tracer (and is skipped outright when
-`skipTracing` is set, so the normal path pays a branch and nothing else). The effects the
-replayed function makes are performed, not replayed from the log: a single call taken out
-of a run has no effect ordinals to line up with, so a function that reads the clock shows
-a fresh time. Do not replay a function whose effects you would not want to happen again.
+is a no-op everywhere except under a preview's tracer (and is skipped outright when
+`skipTracing` is set, so the normal path pays a branch and nothing else). The RECORDER never
+sets it: a recorded run stores no per-expression values, because the replay recomputes them.
 
 Where they show:
 
@@ -357,23 +358,20 @@ Where they show:
   The annotation is zero columns wide for layout (a `Styled` with an empty middle), so
   the code breaks exactly as it does without the values.
 - The workbench. The Matter view's detail pane refreshes the values whenever the
-  selected function changes (`refreshLiveValues`) and prints with them.
+  selected function changes (`refreshLiveValues`) and prints with them. `dark traces values
+  <fn> --watch` is the same thing as a panel of its own, with the runs to pick from and
+  up/down to move between them (`cli/traceWatch.dark`).
 - The LSP. `textDocument/inlayHint` answers one hint per annotated line, placed at the
   end of the document's line with the same text (`LspServer.InlayHints`). A document
   edited away from the printed form gets fewer hints, never a wrong one. After a
   `fileSystem/write` lands ops, the server sends `workspace/inlayHint/refresh`.
 
-The inputs come from a run recorded at `DARK_CONFIG_TRACE_DETAIL=values` (every call, with
-its arguments): this path re-runs ONE function on the arguments a recorded call gave it, so it
-needs those arguments stored, and it performs that function's effects for real.
+All four go through `Live.Values.replay`, so none of them can drift into showing something the
+others do not, and any recorded run will do: there is no recording rung to turn on first.
 
-`dark traces values` is the other way round and the better one: it replays the WHOLE run with
-every effect answered from the log, so it needs nothing beyond the shipped recording level and
-performs nothing (`docs/processes.md`, "Preview"). The workbench and the LSP still use the
-per-function path; moving them onto the preview is a follow-up, and it is what would let the
-gutter fill for a run recorded the cheap way. The dev rebuild purges the draft store and keeps the
-traces, so after a build a re-authored function still has its last call's inputs, which is
-exactly the case the replay is for.
+The cost to know about: a hint request replays once per function in the document that has a
+recorded run, and there is no cache shared between them. A big file with many recorded functions
+pays many replays. Each performs nothing, so it is CPU and not risk.
 
 ## The demos
 

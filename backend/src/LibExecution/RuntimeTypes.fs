@@ -2449,28 +2449,18 @@ module DB =
 // A bunch of tangled things we need to `and` together
 // ------------
 
-/// <summary>
-/// Used to mark whether a function can be run on the client rather than backend.
-/// </summary>
-/// <remarks>
-/// The runtime needs to know whether to save a function's results when it
-/// runs. Pure functions that can be run on the client do not need to have
-/// their results saved.
-/// In addition, some functions can be run without side-effects; to give
-/// the user a good experience, we can run them as soon as they are added.
-/// this includes DateTime.now and Int.random.
-/// </remarks>
+/// Whether a builtin always answers the same way, for a reader who wants to know.
+///
+/// This is a LABEL, not a decision: nothing in the runtime branches on it. What decides
+/// anything is `callEffects`, a set that is empty for a pure call, and it decides everything --
+/// the permission gate, the call-graph analysis, the pure-builtin fast path, and whether a
+/// preview answers a call from the log or performs it. `callEffects` composes and this does not,
+/// so where the two could disagree, `callEffects` is the one that is true.
 type Previewable =
-  /// The same inputs will always yield the same outputs,
-  /// so we don't need to save results. e.g. `DateTime.addSeconds`
+  /// The same inputs always yield the same outputs. e.g. `DateTime.addSeconds`
   | Pure
 
-  /// Output may vary with the same inputs, though we can safely preview.
-  /// e.g. `DateTime.now`. We should save the results.
-  | ImpurePreviewable
-
-  /// Can only be run on the server. e.g. `DB.update`
-  /// We should save the results.
+  /// May answer differently each time, or touch the world. e.g. `DateTime.now`, `DB.update`
   | Impure
 
 
@@ -2530,7 +2520,22 @@ module Tracing =
   /// Fired when a builtin call, or a package fn frame, completes. `ord` is the call's ordinal
   /// among the process's effectful builtin calls, handed out by `nextEffect` when the call was
   /// made, and -1 for anything else (a pure builtin, a package fn). It is what a replay keys on.
-  type StoreFnResult = FunctionRecord -> int64 -> NEList<Dval> -> Dval -> unit
+  /// What a recorded call carries besides its arguments and its result.
+  ///
+  /// A struct, and passed by value: this is on the path of every builtin call, so a record here
+  /// would be an allocation per call for two numbers.
+  [<Struct>]
+  type CallMeta =
+    {
+      /// The call's place in its process's log of effectful calls, taken when the call was made
+      /// so a read that lands late keeps its position. -1 for a call with no effects.
+      ord : int64
+      /// Wall clock for the call, in milliseconds. For a read in flight this is measured at the
+      /// landing, so it is the real round trip rather than the time to hand back a promise.
+      durationMs : int64
+    }
+
+  type StoreFnResult = FunctionRecord -> CallMeta -> NEList<Dval> -> Dval -> unit
 
   /// Fired when a new call frame is pushed (Function or Lambda).
   /// Carries the frame's uuid, the executionPoint of the new frame, and
@@ -3108,8 +3113,8 @@ type VMState =
     ///
     /// `runSyncInstructions` counts it down and stops at zero, which `runFrame` reports as
     /// `FrameBudget`; `Scheduler.Step` refills it before every slice. Negative means unlimited,
-    /// which is what a VM nobody schedules runs with (`execute`, and the VMs `LiveValues.fs` and
-    /// the HTTP server's handler path build for a callable of their own).
+    /// which is what a VM nobody schedules runs with (`execute`, and the VM the HTTP server's
+    /// handler path builds for a callable of its own).
     mutable budget : int64
 
     /// Reads this VM's calls handed back as promises that have not landed yet, for `ps`.

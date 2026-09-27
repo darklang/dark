@@ -22,9 +22,9 @@ DARK_CONFIG_ENV_DISPLAY_NAME=dev
 DARK_CONFIG_DEFAULT_LOGGER=console
 
 # Feature flag defaults
-# DARK_CONFIG_TRACE_DETAIL is unset, so dev sees the binary's default: `effects`, the
-# resumable log, kept bounded by retention (`trace.keep`, `trace.maxMb`). `values` records
-# every call, which is what inline live values replay through and what fills a disk.
+# DARK_CONFIG_TRACE_DETAIL is unset, so dev sees the binary's default: `complete`, the
+# resumable log, kept bounded by retention (`trace.keep`, `trace.maxMb`). The ladder is
+# off | io | complete; `--trace <level>` sets it for one run.
 
 # Package source: "disk" (reload from .dark files) or "seed" (fetch from R2)
 # Default: disk (set to "seed" to use the seed-based flow)

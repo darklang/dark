@@ -29,6 +29,9 @@ type Trace =
     /// The expression or the script's source, for the ones `resume` can run again; the
     /// printed form of the request for a served one.
     input: String
+    /// What the run answered, once it has. `None` while it is still going, and for a run that
+    /// failed: there is no answer to show.
+    result: Stdlib.Option.Option<LanguageTools.RuntimeTypes.Dval>
     status: Status
     /// For a fork: the run it branched from, and the position in that log it kept.
     parent: Stdlib.Option.Option<(String * Int64)>
@@ -50,13 +53,11 @@ type InputVar =
 /// One call a run made, as it was recorded.
 type FnCall =
   { callId: String
-    parentCallId: Stdlib.Option.Option<String>
-    kind: String  // "function" | "lambda" | "builtin"
     fnName: String
-    lambdaExprId: Stdlib.Option.Option<String>
     args: List<LanguageTools.RuntimeTypes.Dval>
     result: LanguageTools.RuntimeTypes.Dval
-    /// Frame-entry-to-exit duration in ms. Builtins always 0 (no entry hook).
+    /// Wall clock for the call. For a read in flight it is measured at the landing, so an HTTP
+    /// call carries its round trip rather than the time to hand back a promise.
     durationMs: Int
     /// The process that made the call. `None` for a run nobody scheduled, and for rows written
     /// before processes existed.

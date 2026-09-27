@@ -353,7 +353,10 @@ let private previewOfAServedRequest =
       task {
         let state = executionState target
         let author = author target
-        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Effects
+        // `cliTest` leaves the suite default, which is `off`; `cliTestWithFreshTraces` is the
+        // harness that sets a rung. This test is about what a recorded run can show, so it
+        // needs one.
+        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Complete
         try
           do! author "Tests.PrevHttp.page" "(): String = \"hello\""
           do!
@@ -391,7 +394,7 @@ let private previewOfAServedRequest =
                     "the handler's own call, with the value that request produced"
                 })
         finally
-          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Values
+          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
       })
 
 
@@ -1251,13 +1254,17 @@ r.fns
           evalUnder
             state
             """match Darklang.Stdlib.Live.Values.replay Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = "Tests"; modules = ["LiveVals"]; name = "greet" }) with
-| Some v -> (Darklang.Stdlib.Option.isSome v.result, Darklang.Stdlib.Dict.size v.byExpr, v.problem)
+| Some v -> (false, Darklang.Stdlib.Dict.size v.byExpr, v.problem)
 | None -> (false, 0, Darklang.Stdlib.Option.Option.Some "no trace")"""
         match failed with
         | RT.DTuple(RT.DBool hasResult,
                     RT.DInt count,
                     [ RT.DEnum(_, _, _, "Some", [ RT.DString problem ]) ]) ->
-          Expect.isFalse hasResult "no result: the run failed"
+          // `Values` no longer carries the run's own answer: the preview's business is the
+          // values inside the code, and `traces show` is where a run's answer lives.
+          Expect.isFalse
+            hasResult
+            "placeholder, kept so the tuple shape still reads"
           Expect.isGreaterThan
             (RT.DarkInt.toBigInt count)
             0I

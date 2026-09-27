@@ -31,7 +31,8 @@ let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
 
 /// The columns of a run, as the Dark `Tracing.Trace` wants them.
 let private traceColumns =
-  "id, handler_desc, input_name, input_value, status, parent_id, parent_seq, pinned, timestamp, updated"
+  "id, handler_desc, input_name, input_value, status, parent_id, parent_seq, pinned, "
+  + "timestamp, updated, result_value"
 
 let private statusToDT (status : string) : Dval =
   let tn = statusTypeName ()
@@ -50,8 +51,10 @@ let private statusToDT (status : string) : Dval =
 /// A run's input as one line of text: the expression or the script's source as it was written.
 /// A served request is a record, not a string; it is named rather than dumped, since the whole
 /// thing is one `traces view` away and a table cell is 40 characters.
-let private inputText (bytes : byte[]) : string =
-  match BinarySer.RT.Dval.deserialize "traces.input_value" bytes with
+/// A recorded dval as one line, for a table cell or a summary line. Shared by the input and
+/// the result, because the two want the same treatment.
+let private oneLineDval (label : string) (bytes : byte[]) : string =
+  match BinarySer.RT.Dval.deserialize label bytes with
   | DString s -> s
   | DRecord(_, _, _, fields) ->
     let field name =
@@ -78,7 +81,19 @@ let private traceRowToDT (read : RowReader) : Dval =
     Map
       [ "id", DString(read.string "id")
         "entry", DString(read.string "handler_desc")
-        "input", DString(inputText (read.bytes "input_value"))
+        "input", DString(oneLineDval "traces.input_value" (read.bytes "input_value"))
+        // The value itself, not a rendering of it: Dark formats it, the way it formats a
+        // recorded call's result.
+        "result",
+        (let kt = KTCustomType(dvalTypeName (), [])
+         match read.bytesOrNone "result_value" with
+         | Some bytes ->
+           Dval.optionSome
+             kt
+             (bytes
+              |> BinarySer.RT.Dval.deserialize "traces.result_value"
+              |> RT2DT.Dval.toDT)
+         | None -> Dval.optionNone kt)
         "status", statusToDT (read.string "status")
         "parent", parent
         "pinned", DBool(read.int "pinned" = 1)
@@ -150,21 +165,10 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
             | _, None -> "(unknown)"
           let args = parseArgsBytes ev.argsBytes
           let result = parseDvalBytes ev.resultBytes
-          let parentCallIdDval =
-            match ev.parentCallId with
-            | Some p -> Dval.optionSome KTString (DString p)
-            | None -> Dval.optionNone KTString
-          let lambdaExprIdDval =
-            match ev.lambdaExprId with
-            | Some i -> Dval.optionSome KTString (DString i)
-            | None -> Dval.optionNone KTString
           let fields =
             Map
               [ "callId", DString ev.callId
-                "parentCallId", parentCallIdDval
-                "kind", DString ev.kind
                 "fnName", DString displayName
-                "lambdaExprId", lambdaExprIdDval
                 "args", Dval.list dvalKT args
                 "result", result
                 "durationMs", Dval.int (bigint ev.durationMs)
@@ -188,20 +192,44 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "tracesEnabled" 0
+  [ { name = fn "tracesRecordLevel" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TBool
+      returnType = TString
       description =
-        "Whether traces are being recorded. False means every trace query will "
-        + "come back empty no matter what ran, so callers can say so instead of "
-        + "showing an empty list and letting you conclude nothing happened."
+        "How much this process is recording: \"off\", \"io\" or \"complete\". Worth asking "
+        + "before reporting an empty result, since with recording off every query comes back "
+        + "empty whatever ran."
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          LibDB.Tracing.TraceDetail.current <> LibDB.Tracing.TraceDetail.Off
-          |> DBool
+          LibDB.Tracing.TraceDetail.current
+          |> LibDB.Tracing.TraceDetail.name
+          |> DString
           |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "tracesSetRecordLevel" 0
+      typeParams = []
+      parameters = [ Param.make "level" TString "off, io or complete" ]
+      returnType = TBool
+      description =
+        "Set how much THIS PROCESS records, for the rest of its life: an interactive session, "
+        + "one `dark <command>`, or one test case. False for a name that is not on the ladder, "
+        + "so a typo is refused rather than quietly recording something else. Does not touch "
+        + "the store or any other process."
+      fn =
+        (function
+        | _, _, _, [| DString level |] ->
+          match LibDB.Tracing.TraceDetail.parse level with
+          | Some parsed ->
+            LibDB.Tracing.TraceDetail.setForTesting parsed
+            Ply(DBool true)
+          | None -> Ply(DBool false)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -475,7 +503,8 @@ let fns () : List<BuiltInFn> =
               |> Sql.executeAsync (fun read ->
                 {| id = read.string "id"
                    row = traceRowToDT read
-                   inputBytes = read.bytes "input_value" |})
+                   inputBytes = read.bytes "input_value"
+                   resultBytes = read.bytesOrNone "result_value" |})
 
             let mutable hits : List<Dval> = []
             let mutable cursor = 0
@@ -486,7 +515,17 @@ let fns () : List<BuiltInFn> =
 
               let inputDval =
                 BinarySer.RT.Dval.deserialize "traces.input_value" t.inputBytes
-              let! inputMatches = containsPattern inputDval
+              let! inputHit = containsPattern inputDval
+              // What the run answered counts as the run's own text too: a pure computation
+              // logs no calls, so its result is the only place its value appears.
+              let! resultHit =
+                match t.resultBytes with
+                | Some bytes ->
+                  containsPattern (
+                    BinarySer.RT.Dval.deserialize "traces.result_value" bytes
+                  )
+                | None -> uply { return false }
+              let inputMatches = inputHit || resultHit
 
               let! matchesViaCalls =
                 if inputMatches then

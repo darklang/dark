@@ -1,0 +1,182 @@
+/// `dark traces values <fn> --watch`: a function's code with a recorded run's values beside it,
+/// and the runs to pick from, repainting as new ones arrive.
+///
+/// This is Dark Classic's trace-driven development, whole: the dots down the left are the runs,
+/// the code on the right carries `// = value` at every call, up and down move between runs, and
+/// the panel follows both a new run and an edit to the code. `dark traces values <fn>` is the
+/// one-shot print of the same thing.
+///
+/// Nothing here performs an effect. Each repaint replays the selected run with every impure call
+/// answered from that run's own log (`Darklang.Tracing.Store.previewRun`), so a handler that
+/// charges a card does not charge it again while you look at it. That property is why this can be
+/// left open beside an editor.
+module Darklang.Cli.TraceWatch
+
+
+/// The config key the command hands the function name over on.
+///
+/// A view's `init` is called with no arguments (`Apps.Host.start`), so a view that is ABOUT
+/// something has to be told what. `Live.show` does the same with the same mechanism.
+val fnKey = "traces.watch.fn"
+
+
+type Model =
+  { branchId: Uuid
+    /// The function being watched, as the trace index names it.
+    fn: String
+    /// The runs that went through it, newest first.
+    runs: List<Darklang.Tracing.Trace>
+    cursor: Int
+    /// The selected run's code, already annotated. Recomputed on a move, a tick and an edit,
+    /// because all three can change it: a different run, a new run, different code.
+    source: List<String>
+    /// Set when the replay stopped before the end, with the call that stopped it.
+    problem: Stdlib.Option.Option<String> }
+
+
+type Msg = | Refresh
+
+
+/// The function's source with the selected run's values in it, as lines.
+///
+/// Returns the reason in place of the source when there is nothing to show, so the panel always
+/// has something true in it rather than going blank.
+let annotate
+  (branchId: Uuid)
+  (fn: String)
+  (run: Stdlib.Option.Option<Darklang.Tracing.Trace>)
+  : (List<String> * Stdlib.Option.Option<String>) =
+  match run with
+  | None ->
+    ([ $"no recorded run went through {fn} yet"
+       "run something that calls it and this fills in" ],
+     Stdlib.Option.Option.None)
+  | Some r ->
+    let entry = LanguageTools.ProgramTypes.parsePackageLocation fn
+
+    match LanguageTools.PackageManager.Function.find branchId entry with
+    | None -> ([ $"no function named {fn} on this branch" ], Stdlib.Option.Option.None)
+    | Some hash ->
+      match LanguageTools.PackageManager.Function.get hash with
+      | None ->
+        ([ $"{fn} resolves to a version this store cannot load" ],
+         Stdlib.Option.Option.None)
+      | Some fnDef ->
+        let (collected, problem) = Darklang.Tracing.Store.previewRun branchId r.id
+
+        let values =
+          collected
+          |> Stdlib.List.map (fun pair ->
+            let (id, dv) = pair
+            (Stdlib.Int64.toString id,
+             PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
+          |> Stdlib.Dict.fromListOverwritingDuplicates
+
+        let ctx =
+          { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
+              liveValues = values }
+
+        ((PrettyPrinter.ProgramTypes.packageFn ctx fnDef) |> Stdlib.String.split "\n",
+         problem)
+
+
+/// Where the cursor lands after a reload, given the ids now on screen, where it was, and the run
+/// it was reading.
+///
+/// Its own function because it is the part with a rule rather than a mechanism, and the rule is
+/// easy to get wrong: a new run arrives at the TOP, so holding the INDEX would quietly move you
+/// onto a different run while you were reading it.
+let pickCursor
+  (ids: List<String>)
+  (cursor: Int)
+  (keep: Stdlib.Option.Option<String>)
+  : Int =
+  let found =
+    match keep with
+    | Some id -> Stdlib.List.findFirstIndex ids (fun i -> i == id)
+    | None -> Stdlib.Option.Option.None
+
+  match found with
+  | Some i -> i
+  | None -> Stdlib.Int.max 0 (Stdlib.Int.min cursor ((Stdlib.List.length ids) - 1))
+
+
+/// Reload the runs and re-annotate. One function for every reason the panel changes, so a move
+/// and a tick cannot drift apart in what they show.
+///
+let reload
+  (branchId: Uuid)
+  (fn: String)
+  (cursor: Int)
+  (keep: Stdlib.Option.Option<String>)
+  : Model =
+  let runs = Darklang.Tracing.Store.runsCalling fn 25L
+  let cursor = pickCursor (runs |> Stdlib.List.map (fun r -> r.id)) cursor keep
+  let (source, problem) = annotate branchId fn (Stdlib.List.getAt runs cursor)
+
+  Model
+    { branchId = branchId
+      fn = fn
+      runs = runs
+      cursor = cursor
+      source = source
+      problem = problem }
+
+
+let init () : Model =
+  let branchId = SCM.PackageOps.currentBranch ()
+
+  let fn = Stdlib.LocalStore.configGet fnKey
+
+  reload branchId fn 0 Stdlib.Option.Option.None
+
+
+let update (m: Model) (event: Apps.Host.Event<Msg>) : Model =
+  match event with
+  // A tick reloads BOTH halves: a new run may have arrived, and the code may have been saved
+  // since the last paint. That is the whole live-programming property, and it costs one replay.
+  | Tick
+  | Msg Refresh ->
+    // Stay on the run being read, not on its position in a list that grows from the top.
+    let here =
+      m.runs |> Stdlib.List.getAt m.cursor |> Stdlib.Option.map (fun r -> r.id)
+    reload m.branchId m.fn m.cursor here
+  | Key k ->
+    match k.key with
+    | UpArrow -> reload m.branchId m.fn (m.cursor - 1) Stdlib.Option.Option.None
+    | DownArrow -> reload m.branchId m.fn (m.cursor + 1) Stdlib.Option.Option.None
+    | _ -> m
+
+
+let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
+  let runLines =
+    m.runs
+    |> Stdlib.List.indexedMap (fun i r ->
+      let mark = if i == m.cursor then "> " else "  "
+      let id = Cli.Text.shortIdText r.id
+      let ago = Stdlib.String.padEndToWidth (Cli.TraceRuns.whenText r.created) 16
+      let status = Stdlib.String.padEndToWidth (Cli.TraceRuns.statusText r.status) 10
+      $"{mark}{id}  {status}{ago}{Cli.Text.oneLineAt 40 r.input}")
+
+  let runs =
+    match runLines with
+    | [] -> Stdlib.Cli.UI.Node.dim "  (no runs yet)"
+    | _ -> Stdlib.Cli.UI.Node.Node.Rows runLines
+
+  let problem =
+    match m.problem with
+    | Some why ->
+      [ Stdlib.Cli.UI.Node.band
+          Stdlib.Cli.UI.Node.Severity.Warning
+          $"the replay stopped here: {why}" ]
+    | None -> []
+
+  Stdlib.Cli.UI.Node.column
+    (Stdlib.List.flatten
+      [ [ Stdlib.Cli.UI.Node.bold m.fn
+          Stdlib.Cli.UI.Node.dim
+            $"  {Cli.Text.plural (Stdlib.List.length m.runs) "run"}, newest first"
+          runs
+          Stdlib.Cli.UI.Node.text ""
+          Stdlib.Cli.UI.Node.Node.Rows m.source ]
+        problem ])

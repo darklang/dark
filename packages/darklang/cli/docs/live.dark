@@ -51,8 +51,8 @@ with its error, one stopped from `ps` answers 503.
 
 The workbench and the LSP show `// = value` beside the calls in a function:
 its last recorded run, replayed through the code as it is now. Edit a callee,
-the values follow, no new call needed. The run has to have been recorded with `DARK_CONFIG_TRACE_DETAIL=values`,
-which records every call; the default, `effects`, keeps the impure ones only.
+the values follow, no new call needed. Any recorded run will do: the default
+rung, `complete`, keeps every impure call, and the pure ones are recomputed.
 
 ## What a save prints
 

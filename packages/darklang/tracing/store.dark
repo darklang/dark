@@ -7,10 +7,21 @@
 module Darklang.Tracing.Store
 
 
-/// Is trace recording on for this process? Worth asking before reporting an
-/// empty result: with recording off, every query returns empty whatever ran.
+/// How much this process records: "off", "io" or "complete".
+let recordLevel () : String =
+  Builtin.tracesRecordLevel ()
+
+
+/// Set how much THIS PROCESS records, for the rest of its life. False for a name that is not on
+/// the ladder. Nothing persistent: another `dark` is unaffected, and so is the store.
+let setRecordLevel (level: String) : Bool =
+  Builtin.tracesSetRecordLevel level
+
+
+/// Is anything being recorded? Worth asking before reporting an empty result: with recording
+/// off, every query returns empty whatever ran.
 let enabled () : Bool =
-  Builtin.tracesEnabled ()
+  (recordLevel ()) != "off"
 
 
 /// The most recent <param limit> traces, newest first.

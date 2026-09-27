@@ -79,7 +79,7 @@ module Registry =
       ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
       ("outliner", "Interactive tree outliner", [ "tree-exp" ], Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
       ("export-seed", "Export minimal seed.db from current database", [], ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
-      ("traces", "The runs this instance has kept: what ran, what it did, and resuming one", [ "trace", "exec", "executions", "runs" ], Tracing.execute, Tracing.help, Tracing.complete)
+      ("traces", "The runs this instance has kept: what ran, what it did, and resuming one", [ "trace", "exec", "runs" ], Tracing.execute, Tracing.help, Tracing.complete)
       ("review", "Stage someone else's ops for op-level approval", [], Cli.Sync.executeReviewCmd, Cli.Sync.helpReview, Cli.Sync.complete)
       ("conflicts", "Review what a merge, rebase or sync auto-resolved", [], Conflicts.execute, Conflicts.help, Conflicts.complete)
       ("views", "Browse and preview CLI views", [], Apps.Views.App.execute, Apps.Views.App.help, Apps.Views.App.complete)

@@ -891,6 +891,7 @@ let private traceBuiltinResult
   (currentFrame : CallFrame)
   (fn : BuiltInFn)
   (ord : int64)
+  (traceSw : int64)
   (allArgs : Dval[])
   (result : Dval)
   : Dval =
@@ -898,18 +899,37 @@ let private traceBuiltinResult
     let source : Tracing.Source = (currentFrame.executionPoint, None)
     let fnRecord : Tracing.FunctionRecord = (source, FQFnName.Builtin fn.name)
     let args = NEList.ofListUnsafe "" [] (List.ofArray allArgs)
+    let elapsedMs (from : int64) : int64 =
+      if from = 0L then
+        0L
+      else
+        let ms =
+          (System.Diagnostics.Stopwatch.GetTimestamp() - from) * 1000L
+          / System.Diagnostics.Stopwatch.Frequency
+        if ms < 0L then 0L else ms
     match result with
     // A builtin that combined reads in flight into one (`List.map` over a read) has no value
     // yet; the trace gets it when it lands, on whatever thread lands it. The hooks are locked.
+    // The clock is read at the landing too, so the duration is the round trip and not the
+    // microsecond it took to hand back a promise -- which is the whole point for an HTTP call.
     | DPromise p ->
       p.Task.ContinueWith(
         (fun (t : Task<Dval>) ->
           if t.IsCompletedSuccessfully then
-            exeState.tracing.storeFnResult fnRecord ord args t.Result),
+            exeState.tracing.storeFnResult
+              fnRecord
+              { ord = ord; durationMs = elapsedMs traceSw }
+              args
+              t.Result),
         TaskContinuationOptions.ExecuteSynchronously
       )
       |> ignore<Task>
-    | _ -> exeState.tracing.storeFnResult fnRecord ord args result
+    | _ ->
+      exeState.tracing.storeFnResult
+        fnRecord
+        { ord = ord; durationMs = elapsedMs traceSw }
+        args
+        result
   result
 
 
@@ -1016,6 +1036,7 @@ let private finishBuiltin
   (tst : TypeSymbolTable)
   (allArgs : Dval[])
   (ord : int64)
+  (traceSw : int64)
   (sw : int64)
   (bodyAllocBefore : int64)
   (result : Dval)
@@ -1042,7 +1063,7 @@ let private finishBuiltin
   match TypeChecker.tryUnifySync tst fn.returnType result with
   | ValueSome _ ->
     recordStage vm ApplyStage.BiCheckResult biResAlloc
-    Ply(traceBuiltinResult exeState currentFrame fn ord allArgs result)
+    Ply(traceBuiltinResult exeState currentFrame fn ord traceSw allArgs result)
   | ValueNone ->
     // Closed here rather than after the await: a bracket spanning a bind measures whatever nested
     // execution resumes inside it, not this region. The async answer isn't counted, which is the
@@ -1059,7 +1080,7 @@ let private finishBuiltin
       with
       | Ok _ -> ()
       | Error rte -> raiseRTE vm.threadID rte
-      return traceBuiltinResult exeState currentFrame fn ord allArgs result
+      return traceBuiltinResult exeState currentFrame fn ord traceSw allArgs result
     }
 
 
@@ -1149,11 +1170,13 @@ let private finishFor
   (currentFrame : CallFrame)
   (fn : BuiltInFn)
   (ord : int64)
+  (traceSw : int64)
   (allArgs : Dval[])
   : Dval -> unit =
   if recordsCall exeState.tracing ord then
     let args = Array.copy allArgs
-    fun dv -> traceBuiltinResult exeState currentFrame fn ord args dv |> ignore<Dval>
+    fun dv ->
+      traceBuiltinResult exeState currentFrame fn ord traceSw args dv |> ignore<Dval>
   else
     Unchecked.defaultof<_>
 
@@ -1217,6 +1240,15 @@ let private invokeBuiltin
     else
       -1L
 
+  // Wall clock for the log, and only for a call that will actually be recorded. At the shipped
+  // rung that is the effectful calls, about one in a hundred of a real program's builtin calls,
+  // so an ordinary call pays a comparison rather than a clock read.
+  let traceSw =
+    if recordsCall exeState.tracing ord then
+      System.Diagnostics.Stopwatch.GetTimestamp()
+    else
+      0L
+
   // Replay: the log has this call's result, so the effect is not performed. The permission
   // check above still ran; a replay has no more rights than the run it replays.
   //
@@ -1265,6 +1297,7 @@ let private invokeBuiltin
       tst
       allArgs
       ord
+      traceSw
       sw
       bodyAllocBefore
       result
@@ -1289,7 +1322,7 @@ let private invokeBuiltin
       // The body asked for an apply (`requestApply`): this is its placeholder, not its result.
       // The result is checked where it is made and reaches the trace through the continuation.
       if requested vm then
-        vm.pendingFinish <- finishFor exeState currentFrame fn ord allArgs
+        vm.pendingFinish <- finishFor exeState currentFrame fn ord traceSw allArgs
         Ply result
       else
         finishBuiltin
@@ -1300,6 +1333,7 @@ let private invokeBuiltin
           tst
           allArgs
           ord
+          traceSw
           sw
           bodyAllocBefore
           result
@@ -1328,7 +1362,7 @@ let private invokeBuiltin
             Exception.raiseInternal
               "requestApply after the first await of a read"
               [ "builtin", fn.name.name ]
-          vm.pendingFinish <- finishFor exeState currentFrame fn ord allArgs
+          vm.pendingFinish <- finishFor exeState currentFrame fn ord traceSw allArgs
           return result
         else
           return!
@@ -1340,6 +1374,7 @@ let private invokeBuiltin
               tst
               allArgs
               ord
+              traceSw
               sw
               bodyAllocBefore
               result
@@ -4246,11 +4281,20 @@ let private returnFromFrame
             p.Task.ContinueWith(
               (fun (t : Task<Dval>) ->
                 if t.IsCompletedSuccessfully then
-                  exeState.tracing.storeFnResult fnRecord -1L args t.Result),
+                  exeState.tracing.storeFnResult
+                    fnRecord
+                    { ord = -1L; durationMs = 0L }
+                    args
+                    t.Result),
               TaskContinuationOptions.ExecuteSynchronously
             )
             |> ignore<Task>
-          | _ -> exeState.tracing.storeFnResult fnRecord -1L args resultOfFrame
+          | _ ->
+            exeState.tracing.storeFnResult
+              fnRecord
+              { ord = -1L; durationMs = 0L }
+              args
+              resultOfFrame
         | _ -> ()
       | Lambda _ ->
         vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>

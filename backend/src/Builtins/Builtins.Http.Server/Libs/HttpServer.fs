@@ -577,6 +577,16 @@ let private handleRequest
             // request's input is a record, not source, so there is nothing else to re-run.
             if tracer.enabled then
               let runId = AT.TraceID.toUUID traceID
+              // What the handler answered, for the same reason an `eval`'s result is recorded.
+              // Through `prepareDvalForStorage` first: a response body is an EPHEMERAL blob,
+              // whose bytes die with the request scope, so storing the ref as it stands leaves
+              // a row pointing at nothing.
+              match outcome with
+              | Value dv ->
+                let! prepared =
+                  Tracing.prepareDvalForStorage perRequestState dv |> Ply.toTask
+                LibDB.Traces.setResult runId prepared
+              | Direct _ -> ()
               if response.statusCode >= 500 then
                 LibDB.Traces.setStatus runId LibDB.Traces.Failed
               match resolved with
