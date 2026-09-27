@@ -107,7 +107,8 @@ Loosest to tightest; one table (`infixBindingPower`) drives the parser.
 | 9 | `+ - ++` | left | `++` is string concat |
 | 10 | `* / %` | left | |
 | 11 | `**` | right | exponentiation (`2**3**2 = 2**(3**2)`) |
-| 12 | application `f a b` | left | tightest |
+| 12 | application `f a b` | left | |
+| 13 | field access `x.field`, unwrap `x?` | left | tightest |
 
 The bitwise levels follow Python's order rather than C's: they bind *tighter*
 than the comparisons, so `a & b == c` is `(a & b) == c`.
@@ -182,6 +183,7 @@ Expression forms include:
   have a real inferred/represented type
 - record updates `{ r with f = v }`
 - field access `x.f`
+- postfix unwrap `x?` or `(f x)?`, inside functions/lambdas only
 - lambdas `fun p1 p2 -> body`, including tuple patterns
 - `let pat = e`, with optional `in`, and tuple/wildcard/unit patterns
 - nested function lets, `let f (x: T) : R = …`
@@ -407,3 +409,14 @@ code/related is a pending Dark-side type change.
 `source ──Lexer──▶ tokens (+trivia) ──Parser──▶ WrittenTypes (range-complete)`
 
 The parser stops at WrittenTypes; lowering to ProgramTypes (`WT2PT`) is downstream.
+
+### Unwrap
+
+Write `?` directly after its operand, inside a function or lambda.
+Field access and `?` group left to right: `x?.field?` unwraps `x`, reads `field`,
+then unwraps that field; `nested??` unwraps twice.
+`f x?` means `f (x?)`. Use `(f x)?` or `(value |> transform)?` to unwrap
+the result of a whole call or pipeline.
+
+See the [CLI syntax documentation](../../../packages/darklang/cli/docs/syntax.dark)
+for return types, function boundaries, and evaluation behavior.

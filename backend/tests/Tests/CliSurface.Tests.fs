@@ -857,9 +857,27 @@ let private viewHeadsWithTheNameYouAskedFor =
       })
 
 
+let private unwrapErrorsAreReadable =
+  cliTest
+    "eval runs unwrap and reports a non-Option/Result operand readably"
+    (fun state ->
+      task {
+        let! rejected =
+          runCli state [ "eval"; "(fun value -> Some (value? + 1)) 4" ]
+        Expect.stringContains rejected "`?` needs an Option or Result" "names the ?"
+        Expect.isFalse
+          (rejected.Contains "Encountered a Runtime Error")
+          "the error renderer itself succeeds"
+        let! accepted =
+          runCli state [ "eval"; "(fun value -> Some (value? + 1)) (Some 4)" ]
+        Expect.stringContains accepted "Some(5)" "valid unwrap still executes"
+      })
+
+
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
 let tests : List<Test> =
-  [ testHelpCommand
+  [ unwrapErrorsAreReadable
+    testHelpCommand
     everyCommandAnswersHelp
     workbenchViewsRender
     showingACommitDoesNotFetchEveryOp

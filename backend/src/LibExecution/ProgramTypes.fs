@@ -360,6 +360,11 @@ type Expr =
 
 
   // -- Flow control --
+  /// For a `Result<A,B>` or an `Option<A>`,
+  /// - if the value is `Result.OK` or `Option.Some`, return the contained value
+  /// - otherwise, return failure from the nearest fn/lambda.
+  | EUnwrap of id * Expr
+
   /// `if cond then thenExpr else elseExpr`
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
 
@@ -578,6 +583,7 @@ module Expr =
     | EFloat(id, _, _, _)
     | EValue(id, _)
     | ELet(id, _, _, _)
+    | EUnwrap(id, _)
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _)
     | ELambda(id, _, _)

@@ -420,6 +420,71 @@ module MatchCase =
     }
 
 
+/// Determine whether `?` must unwrap Option or Result, using the containing
+/// function's return annotation or the function/lambda's final expressions.
+/// For example, `fun x -> Some x?` requires x to be an Option.
+///
+/// When neither identifies the expected type, omit this runtime check.
+/// The at-rest type checker checks the full types, including Result error types.
+module UnwrapReturnCheck =
+  let private optionTypeName () =
+    PT.FQTypeName.Package(PT.Hash(PackageRefs.Type.Stdlib.option ()))
+  let private resultTypeName () =
+    PT.FQTypeName.Package(PT.Hash(PackageRefs.Type.Stdlib.result ()))
+
+  let private optionOrResultType
+    (name : PT.NameResolution<PT.FQTypeName.FQTypeName>)
+    : Option<PT.FQTypeName.FQTypeName> =
+    match name.resolved with
+    | Ok resolved when
+      resolved.name = optionTypeName () || resolved.name = resultTypeName ()
+      ->
+      Some resolved.name
+    | _ -> None
+
+  /// Recognize a return annotation that directly names Option or Result.
+  /// Aliases return None: this compiler has no type declarations to expand them.
+  /// The caller then tries fromBody. Ordinary function return checks still apply.
+  let fromReturnType (typ : PT.TypeReference) : Option<PT.FQTypeName.FQTypeName> =
+    match typ with
+    | PT.TCustomType(name, _) -> optionOrResultType name
+    | _ -> None
+
+  /// Look for Option or Result constructors in the body's final expressions,
+  /// following let bodies, final statements, and if/match branches, but not calls.
+  /// Ignore unrecognized branches. Return None if no type is recognized or
+  /// both Option and Result are found.
+  let rec fromBody (expr : PT.Expr) : Option<PT.FQTypeName.FQTypeName> =
+    let fromBranches (branches : List<PT.Expr>) =
+      match branches |> List.choose fromBody |> List.distinct with
+      | [ expectedReturnType ] -> Some expectedReturnType
+      | _ -> None
+    match expr with
+    | PT.EEnum(_, name, _, _, _) -> optionOrResultType name
+    | PT.ELet(_, _, _, body) -> fromBody body
+    | PT.EStatement(_, _, next) -> fromBody next
+    | PT.EIf(_, _, thenExpr, Some elseExpr) -> fromBranches [ thenExpr; elseExpr ]
+    | PT.EMatch(_, _, cases) -> cases |> List.map _.rhs |> fromBranches
+    | _ -> None
+
+  /// Attach the expected Option or Result type to each Unwrap in this frame.
+  /// Do not descend into CreateLambda: each lambda gets its own return-type check.
+  let applyToInstructions
+    (expectedReturnType : Option<PT.FQTypeName.FQTypeName>)
+    (instrs : RT.Instructions)
+    : RT.Instructions =
+    match expectedReturnType with
+    | None -> instrs
+    | Some expectedReturnType ->
+      let returns = Some(FQTypeName.toRT expectedReturnType)
+      { instrs with
+          instructions =
+            instrs.instructions
+            |> List.map (function
+              | RT.Unwrap(target, source, _) -> RT.Unwrap(target, source, returns)
+              | instr -> instr) }
+
+
 module Expr =
   let rec toRT
     (symbols : Map<string, RT.Register>)
@@ -565,7 +630,10 @@ module Expr =
             patterns = rtPats |> NEList.ofListUnsafe "" []
             registersToCloseOver = registersToCloseOver
             selfRegister = selfRegister
-            instructions = bodyInstrs }
+            instructions =
+              UnwrapReturnCheck.applyToInstructions
+                (UnwrapReturnCheck.fromBody body)
+                bodyInstrs }
 
         { registerCount = rc + 1
           instructions = [ RT.CreateLambda(rc, impl) ]
@@ -747,6 +815,15 @@ module Expr =
       | None ->
         // No current function context - this should never happen
         Exception.raiseInternal "ESelf used outside function context" []
+
+    | PT.EUnwrap(_, operand) ->
+      let value = toRT symbols rc currentFnName operand
+      let target = value.registerCount
+      { registerCount = target + 1
+        // UnwrapReturnCheck adds the expected Option or Result type after compilation.
+        instructions =
+          value.instructions @ [ RT.Unwrap(target, value.resultIn, None) ]
+        resultIn = target }
 
     | PT.EIf(_id, cond, thenExpr, elseExpr) ->
       // We need a consistent result register,
@@ -1358,7 +1435,11 @@ module PackageFn =
             (0, Map.empty)
 
         let fnName = PT.FQFnName.Package f.hash
+        let expectedReturnType =
+          UnwrapReturnCheck.fromReturnType f.returnType
+          |> Option.orElse (UnwrapReturnCheck.fromBody f.body)
         Expr.toRT symbols rcAfterParams (Some fnName) f.body
+        |> UnwrapReturnCheck.applyToInstructions expectedReturnType
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
       returnType = f.returnType |> TypeReference.toRT

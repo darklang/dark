@@ -24,6 +24,7 @@ type IssueCode =
   | EmptyMatch
   | AnonymousRecord
   | EmptyRecordUpdate
+  | UnwrapRequiresFunction
   | PackageExpression
   | TestAssertion
   | DBMode
@@ -40,6 +41,7 @@ module IssueCode =
     | EmptyLambda -> "VALIDATION-LAMBDA"
     | EmptyMatch -> "VALIDATION-MATCH"
     | AnonymousRecord -> "VALIDATION-ANONYMOUS-RECORD"
+    | UnwrapRequiresFunction -> "VALIDATION-UNWRAP-CONTEXT"
     | EmptyRecordUpdate -> "VALIDATION-RECORD-UPDATE"
     | PackageExpression -> "VALIDATION-PACKAGE-EXPR"
     | TestAssertion -> "VALIDATION-TEST-ASSERTION"
@@ -200,8 +202,8 @@ let rec private structuralPatternIssues (pattern : WT.MatchPattern) : List<Issue
 let private patternIssues (pattern : WT.MatchPattern) : List<Issue> =
   duplicatePatternIssues pattern @ structuralPatternIssues pattern
 
-let rec private exprIssues (expr : WT.Expr) : List<Issue> =
-  let recurse = exprIssues
+let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue> =
+  let recurse = exprIssues insideFunction
   match expr with
   | WT.EError range ->
     [ issue range RecoveryHole "A recovered expression cannot be lowered" ]
@@ -211,7 +213,9 @@ let rec private exprIssues (expr : WT.Expr) : List<Issue> =
         [ issue range EmptyLambda "A lambda must have at least one parameter" ]
       else
         []
-    required @ duplicateIssues (patterns |> List.collect letBindings) @ recurse body
+    required
+    @ duplicateIssues (patterns |> List.collect letBindings)
+    @ exprIssues true body
   | WT.ELet(_, pattern, value, body, _, _) ->
     duplicateIssues (letBindings pattern) @ recurse value @ recurse body
   | WT.EMatch(range, value, cases, _, _) ->
@@ -263,6 +267,16 @@ let rec private exprIssues (expr : WT.Expr) : List<Issue> =
     recurse condition
     @ recurse thenExpr
     @ (elseExpr |> Option.map recurse |> Option.defaultValue [])
+  | WT.EUnwrap(range, operand, _) ->
+    let contextIssues =
+      if insideFunction then
+        []
+      else
+        [ issue
+            range
+            UnwrapRequiresFunction
+            "Postfix ? requires an enclosing function or lambda" ]
+    contextIssues @ recurse operand
   | WT.ERecordFieldAccess(_, record, _, _) -> recurse record
   | WT.EDict(_, entries, _, _, _) ->
     entries |> List.collect (fun (_, key, _, value) -> recurse key @ recurse value)
@@ -278,7 +292,7 @@ let rec private exprIssues (expr : WT.Expr) : List<Issue> =
             []
         required
         @ duplicateIssues (patterns |> List.collect letBindings)
-        @ recurse body
+        @ exprIssues true body
       | WT.EPipeInfix(_, _, value) -> recurse value
       | WT.EPipeFnCall(_, _, _, args) -> args |> List.collect recurse
       | WT.EPipeEnum(_, _, _, fields, _) -> fields |> List.collect recurse
@@ -313,11 +327,11 @@ let rec private declarationStructureIssues
         | WT.FPNormal(_, name, _, _, _, _, _) -> Some(name.name, name.range)
         | WT.FPUnit _ -> None)
     )
-    @ exprIssues fn.body
-  | WT.DValue value -> exprIssues value.body
+    @ exprIssues true fn.body
+  | WT.DValue value -> exprIssues false value.body
   | WT.DType _ -> []
   | WT.DModule modul -> modul.declarations |> List.collect declarationStructureIssues
-  | WT.DExpr expr -> exprIssues expr
+  | WT.DExpr expr -> exprIssues false expr
   | WT.DTypeDB typ ->
     match typ.definition with
     | WT.TDAlias _ -> []
@@ -325,15 +339,15 @@ let rec private declarationStructureIssues
   | WT.DTest test ->
     let expectedIssues =
       match test.expected with
-      | WT.TEExpr expr -> exprIssues expr
+      | WT.TEExpr expr -> exprIssues false expr
       | WT.TEError _
       | WT.TESqlError _ -> []
-    exprIssues test.actual @ expectedIssues
+    exprIssues false test.actual @ expectedIssues
 
 /// Check mode-independent invariants required by WrittenTypes lowering.
 let validateStructure (sourceFile : WT.SourceFile) : List<Issue> =
   (sourceFile.declarations |> List.collect declarationStructureIssues)
-  @ (sourceFile.exprsToEval |> List.collect exprIssues)
+  @ (sourceFile.exprsToEval |> List.collect (exprIssues false))
 
 let rec private declarationPurposeIssues
   (mode : Mode)

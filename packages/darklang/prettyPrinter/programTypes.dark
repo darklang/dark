@@ -1126,12 +1126,20 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
 
   // declaring and accessing variables
+  | EUnwrap(_id, operand) ->
+    let inner = expr ctx operand
+    match operand with
+    | EVariable(_, _) | EArg(_, _) | ERecordFieldAccess(_, _, _)
+    | EUnwrap(_, _) -> inner ++ "?"
+    | _ -> "(" ++ inner ++ ")?"
+
   | ERecordFieldAccess(_id, e, fieldName) ->
     let exprPart = expr ctx e
 
     // TODO: only sometimes need to wrap exprPart in parens
     match e with
     | EVariable(_, _)
+    | EUnwrap(_, _)
     | ERecordFieldAccess(_, _, _) ->
       $"{exprPart}.{PrettyPrinter.formatFieldName fieldName}"
     | _ -> $"({exprPart}).{PrettyPrinter.formatFieldName fieldName}"

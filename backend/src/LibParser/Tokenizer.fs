@@ -69,6 +69,7 @@ type Token =
   | TGte // >=
   | TAnd // &&
   | TOr // ||
+  | TQuestion // ? (postfix unwrap)
   | TNot // !
   | TPipe // |> (pipe operator)
   | TDotDotDot // ... (rest pattern in lists)

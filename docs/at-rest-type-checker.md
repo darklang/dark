@@ -63,6 +63,13 @@ mutate package state.
 
 Authoring warns; commit blocks.
 
+Scripts and `eval` bypass static checking. For postfix `?`, a direct return
+annotation or final Option/Result constructor enables a runtime check for mixing
+Option and Result. That check does not expand aliases or follow helper calls;
+when neither identifies the expected type, `?` extracts success or returns failure
+without checking for that mismatch. Declared functions still check their final
+return value, including aliases; lambdas have no declared return-type check.
+
 `SCM.PackageOps.addAuthored` (the `fn`, `type`, `val` and `module` commands, the
 Workbench save path, and the LSP filesystem provider) stabilizes hashes, stores the
 batch as WIP whatever the checker says, and returns the report for the surface to

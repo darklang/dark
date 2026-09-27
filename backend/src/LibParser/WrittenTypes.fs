@@ -285,6 +285,7 @@ and Expr =
     contents : List<StringSegment> *
     symbolOpenQuote : Range *
     symbolCloseQuote : Range
+  | EUnwrap of Range * Expr * symbolQuestion : Range
   | EVariable of Range * string
   | EFnName of Range * QualifiedFnIdentifier
   | EInfix of Range * op : (Range * Infix) * left : Expr * right : Expr
@@ -550,6 +551,7 @@ let exprRange (e : Expr) : Range =
   | EFnName(r, _)
   | EInfix(r, _, _, _)
   | ELet(r, _, _, _, _, _)
+  | EUnwrap(r, _, _)
   | EApply(r, _, _, _)
   | EList(r, _, _, _)
   | ETuple(r, _, _, _, _, _, _)

@@ -135,6 +135,8 @@ module Unwraps =
     | GotNone
     | GotError of err: Dval
     | NonOptionOrResult of actual: Dval
+    | UnwrapContainerMismatch of actual: Dval
+    | UnwrapOperandNotContainer of actual: Dval
     | MultipleArgs of args: List<Dval>
 
 module Jsons =

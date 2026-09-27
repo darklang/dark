@@ -1255,7 +1255,25 @@ let typeDeclarations =
   |> testList "type declarations"
 
 let exprs =
-  [
+  [ t "unwrap of variable" "fun x -> Ok x?" "(fun x -> Result.Ok(x?))" [] [] [] false
+    t
+      "unwrap of application"
+      "fun x -> Ok ((f x)?)"
+      "(fun x -> Result.Ok((f x)?))"
+      []
+      []
+      []
+      false
+    t
+      "unwrap chain"
+      "fun x -> Some x?.field?"
+      "(fun x -> Option.Some(x?.field?))"
+      []
+      []
+      []
+      false
+    t "nested unwrap" "fun x -> Ok x??" "(fun x -> Result.Ok(x??))" [] [] [] false
+
     // units
     t "unit literal" "()" "()" [] [] [] false
 

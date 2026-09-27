@@ -612,6 +612,17 @@ module TokenizeExpression =
       (TokenType.String, (0, 25), (0, 29))
       (TokenType.Symbol, (0, 29), (0, 30)) ]
 
+  // each postfix `?` is its own symbol, in order with the field access
+  ("fun x -> x??.a" |> tokenize) =
+    [ (TokenType.Keyword, (0, 0), (0, 3))
+      (TokenType.VariableName, (0, 4), (0, 5))
+      (TokenType.Symbol, (0, 6), (0, 8))
+      (TokenType.VariableName, (0, 9), (0, 10))
+      (TokenType.Symbol, (0, 10), (0, 11))
+      (TokenType.Symbol, (0, 11), (0, 12))
+      (TokenType.Symbol, (0, 12), (0, 13))
+      (TokenType.Property, (0, 13), (0, 14)) ]
+
   ("if true then true else false" |> tokenize) =
     [ (TokenType.Keyword, (0, 0), (0, 2))
       (TokenType.Keyword, (0, 3), (0, 7))

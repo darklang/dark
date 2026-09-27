@@ -79,6 +79,9 @@ never against what you typed.
 - Bare integers are arbitrary-precision `Int`; numeric operands must have one type.
 - Local values use `let max = 6` without annotations; package values use `val`.
 - Record construction is `State { count = 0 }`; update is `{ state with count = 1 }`.
+- `(call arg)?` extracts Ok/Some or immediately returns Error/None from the
+  nearest function/lambda. Return Result/Option and still write Ok/Some on
+  success; Result error types must agree. `f x?` means `f (x?)`.
 - Option/Result cases work bare: `Some x`, `None`, `Ok x`, `Error e`.
 - User enum construction uses `TypeName.Case`; match cases are bare.
 - Nested constructor patterns can use `Some (Ok x)`.

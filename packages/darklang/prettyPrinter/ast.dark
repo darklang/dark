@@ -204,6 +204,9 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
   | ERecordFieldAccess(_, record, fieldName) ->
     Stdlib.List.append (here "RecordFieldAccess" $".{fieldName}") (child record)
 
+  | EUnwrap(_, operand) ->
+    Stdlib.List.append (here "Unwrap" "?") (child operand)
+
   | EStatement(_, first, next) ->
     Stdlib.List.flatten [ here "Statement" "", child first, child next ]
 

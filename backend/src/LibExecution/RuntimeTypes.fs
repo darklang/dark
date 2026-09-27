@@ -755,6 +755,14 @@ type Instruction =
   /// Go `n` instructions forward, unconditionally
   | JumpBy of instrsToJump : int
 
+  /// Extract the value from Ok/Some, or return Error/None from the current call.
+  /// When `returns` specifies Option or Result, reject operands of the other
+  /// type, even on success.
+  | Unwrap of
+    extractTo : Register *
+    valueReg : Register *
+    returns : Option<FQTypeName.FQTypeName>
+
 
   // -- Match --
   /// Check if the value in the noted register the noted pattern,
@@ -1629,6 +1637,11 @@ module RuntimeError =
       | GotError of err : Dval
       | NonOptionOrResult of actual : Dval
       | MultipleArgs of args : List<Dval>
+      /// `?` received an Option but the function or lambda returns Result, or vice versa.
+      | UnwrapContainerMismatch of actual : Dval
+      /// `?` received a value that is neither Option nor Result.
+      /// Separate from Builtin.unwrap's error so the message identifies `?`.
+      | UnwrapOperandNotContainer of actual : Dval
 
   module Jsons =
     type Error =
@@ -2705,7 +2718,8 @@ module Opcode =
        "Apply"
        "RaiseNRE"
        "VarNotFound"
-       "CheckIfFirstExprIsUnit" |]
+       "CheckIfFirstExprIsUnit"
+       "Unwrap" |]
 
   let index (i : Instruction) : int =
     match i with
@@ -2732,6 +2746,7 @@ module Opcode =
     | RaiseNRE _ -> 20
     | VarNotFound _ -> 21
     | CheckIfFirstExprIsUnit _ -> 22
+    | Unwrap _ -> 23
 
 
 /// Every `InterpreterStats` created while telemetry is on, so the process can total them at exit. A VM is
