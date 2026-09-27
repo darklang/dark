@@ -367,7 +367,7 @@ Where they show:
   `fileSystem/write` lands ops, the server sends `workspace/inlayHint/refresh`.
 
 All four go through `Live.Values.replay`, so none of them can drift into showing something the
-others do not, and any recorded run will do: there is no recording rung to turn on first.
+others do not, and any recorded run will do: there is no second setting to turn on first.
 
 The cost to know about: a hint request replays once per function in the document that has a
 recorded run, and there is no cache shared between them. A big file with many recorded functions

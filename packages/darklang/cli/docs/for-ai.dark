@@ -22,7 +22,8 @@ state resets between calls; package changes persist.
   traces resume <id>                              # pick a Ctrl-C'd run back up
 
 The loop that is worth knowing, because it needs no print statements and no second
-run: every `eval`, `run` and served request is recorded, so after something has run
+run: with `dark traces record on`, every `eval`, `run` and served request is kept, so
+after something has run
 once, `traces calls <fn>` lists the runs that went through it and `traces values <fn>`
 replays one and shows what every call in it evaluated to, through the code as it is
 NOW. Edit a callee and look again: the values move. Nothing is performed while you
@@ -238,7 +239,8 @@ it, something that talks to an API, anything you have run more than twice.
 
 The loop, then:
 
-  dark run thing.dark              every run is kept, with what it did
+  dark traces record on            keep a record of every run (off by default)
+  dark run thing.dark              ... so this run is kept, with what it did
   dark traces                      the runs, newest first
   dark traces values <fn>          that function's code, with the values from
                                    the newest run that went through it

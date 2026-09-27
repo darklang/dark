@@ -65,13 +65,16 @@ What the log holds: what each effect was given and returned. Secret request
 headers (`authorization`, `cookie`, `set-cookie`, `x-api-key`) are stored as
 `[redacted]`, and an environment read's value is not stored at all (a resume
 reads the environment again). Everything else is in the clear: a key file a run
-read, a response body, what it printed. `DARK_CONFIG_TRACE_DETAIL=off` records
-nothing, and `=io` keeps the run, its input and its answer without the call
-log. The ladder is off | io | complete, and `complete` is the default. Per run,
-`--trace <level>` sets it without touching the environment.
+read, a response body, what it printed.
+
+Nothing is recorded until you ask for it. Three ways: `dark traces record on`
+for this instance, `config set trace.record on` for the same setting by the
+other door, and `dark --trace <command>` for one command (`--no-trace` for the
+opposite).
 
 ## Knobs, all optional
 
+  config set trace.record on|off       keep a record of every run (default: off)
   config set exec.workers <n>          worker threads (default: one per core)
   config set http.requestTimeoutMs <n> a server cancels a handler past this: 504 (30 s)
   config set trace.keep <n>            traces kept (200); trace.maxMb, MB of log kept (256)

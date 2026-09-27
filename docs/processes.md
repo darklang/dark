@@ -571,28 +571,37 @@ place; one process's rows in `ord` order are its log, and what a replay keys
 on. `Tracing.FnCall` in Dark carries `processId : Option<Uuid>` and `seq`. A
 run nobody scheduled writes `''`.
 
-How much is recorded is one ladder, `DARK_CONFIG_TRACE_DETAIL` for a session
-and `--trace <level>` for one run, each rung the one before it plus more
-(`TraceDetail.Off | Io | Complete`):
+Recording is on or off, and off is what a shipped binary does until somebody
+asks (`TraceDetail.Off | On`). On, a run keeps its own row -- what it was, what
+it was given, what it answered, how long it took -- plus every impure call in
+order, builtins with a non-empty `callEffects`, each with its arguments, its
+result, its ordinal and its duration. That is the classic rule for what an
+effect is, and it is the smallest log a run can be resumed, forked or
+previewed from, so there is no middle setting to pick: anything less than the
+log is a row you can read and nothing you can do.
 
-- `off`: nothing.
-- `io`: the run, what it was given, and what it answered. One row, no calls.
-  Enough to list a run, see what it was asked to do and what came back, and
-  start it again from the top; not enough to resume it, because a resume needs
-  the answers.
-- `complete` (the default): and every impure call, in order -- builtins with a
-  non-empty `callEffects` -- each with its arguments, its result, its ordinal
-  and how long it took. That is the classic rule for what an effect is, and
-  the smallest log a run can be resumed, forked or previewed from.
+Three ways to ask for it, narrowest first, and each is the one that beats the
+one after it:
 
-**The pure calls are deliberately not a rung.** Recording every frame and
+- `dark --trace <command>`, or `--no-trace`, for one command.
+- `trace.record` in the store's config, written by `dark traces record on` or
+  `dark config set trace.record on`, for this instance until changed. The host
+  reads it at startup (`TraceDetail.configure`).
+- `DARK_CONFIG_TRACE_DETAIL=on` for a whole environment. Our dev containers
+  and CI set it, so a clone records and a gate can assert on what a command
+  did. A stored setting beats it, because the environment is a container-wide
+  default and the stored one is a decision somebody made in this store.
+
+**Pure calls are not stored, at any setting.** Recording every frame and
 lambda as well costs 300x the bytes (0.59 MB against 0.002 MB for the same ten
-thousand calls) and buys one thing: a call tree for profiling. A night of ordinary work at that rung left 15.8 GB in
-`trace_fn_calls`, and classic, which had no rung below it, reached 10 TB with
-99.7% of it traces. Nothing a person does with a recorded run needs it. The
-preview (`traces values`) re-runs the pure code against the recorded impure
-answers, so a pure value is recomputed rather than stored -- which is also why
-it follows an edit to a pure function, and a stored value would not.
+thousand calls) and buys one thing: a call tree for profiling. A night of
+ordinary work with that on left 15.8 GB in `trace_fn_calls`. Nothing a person
+does with a recorded run needs it: the preview (`traces values`) re-runs the
+pure code against the recorded impure answers, so a pure value is recomputed
+rather than stored -- which is also why it follows an edit to a pure function,
+and a stored value would not. Storing them for profiling is worth its own
+feature, with its own switch and its own retention, rather than a third
+setting here.
 
 What that buys back, beyond the disk: the interpreter keeps its fast paths and
 its per-frame bookkeeping stays off in a recorded run, because nothing about a
@@ -600,7 +609,7 @@ frame is recorded (`skipTracing` is always true for the recorder). A trace is
 a SEQUENCE of impure calls, not a tree of frames, so `parent_call_id`,
 `lambda_expr_id` and `kind` are written flat.
 
-`complete` is thin enough to leave on because retention keeps the tables
+The log is thin enough to leave on because retention keeps the tables
 bounded: after a store, the oldest traces past `trace.keep` (200 unset) or
 `trace.maxMb` (256 unset) of logged args and results go, except one a running,
 suspended or pinned run needs, and the newest run for each entry.
@@ -618,8 +627,9 @@ the machine resuming it, which is also the honest answer on another machine.
 
 Everything else the effects were given and returned is in the log as it is: a
 key file's bytes a run read, a response body, what a run printed. A secret you
-do not want on disk is one to keep out of an effect, or run with `--trace off`.
-Redaction covers every rung, because there is no rung above the impure calls.
+do not want on disk is one to keep out of an effect, or run with `--no-trace`.
+Redaction covers everything stored, because the impure calls are everything
+stored.
 
 ## A trace is a run
 
@@ -750,8 +760,7 @@ The pieces:
 - Two ways in, because a run has two shapes. An `eval` or a `run <file>` replays its source. A
   served request's input is a record, so the row carries `entry_hash`, the handler that served
   it, and the preview applies that handler to the recorded request.
-- `trace_fns`: which functions a run went through, names only, written at `complete` (the rung
-  that records calls at all). Without it, "which runs went through this sub-router" is
+- `trace_fns`: which functions a run went through, names only, written while recording. Without it, "which runs went through this sub-router" is
   unanswerable, because a package call is never recorded.
 
 What a preview does not do: it does not write, it is not a run, and it does not echo a logged
@@ -1077,8 +1086,8 @@ rest of this file is what the system does; this section is how to move around in
   `rundir/perf-plyout/` and `rundir/perf-followups/` (not in git).
 - A workload of your own: a `.dark` file in `rundir/perf-workloads/` in the shape of
   `arith.dark` (warm, `Builtin.interpreterStatsReset`, time with `Builtin.timeNowMs`,
-  print `elapsed_ms=`), run by hand with `DARK_CONFIG_TRACE_DETAIL=off
-  scripts/run-in-docker /home/dark/app/rundir/perf/bin/<name>/Cli run
+  print `elapsed_ms=`), run by hand with `scripts/run-in-docker
+  /home/dark/app/rundir/perf/bin/<name>/Cli --no-trace run
   rundir/perf-workloads/<file>.dark`, interleaved A/B in a shell loop. That is how the
   blob number was taken (`blobcalls.dark` is there).
 - The gate: `scripts/perf/gate` prints MB; the exact bytes are the `totalAllocatedBytes`

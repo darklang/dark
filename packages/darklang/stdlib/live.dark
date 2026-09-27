@@ -741,7 +741,8 @@ module Values =
   /// nothing to show yet.
   ///
   /// One mechanism, not two. This used to re-run the ONE function on the arguments a recorded
-  /// call gave it, which needed those arguments stored (a rung that no longer exists) and
+  /// call gave it, which needed those arguments stored (a recording level that no longer
+  /// exists) and
   /// performed that function's effects for real -- so opening a file in an editor could charge a
   /// card. Replaying the whole run answers every effect from the log instead, and because the
   /// pure code is recomputed, the values follow an edit to a callee.
