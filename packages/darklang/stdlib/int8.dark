@@ -106,44 +106,6 @@ let sqrt (a: Int8) : Float = Builtin.int8Sqrt a
 let toFloat (a: Int8) : Float = Builtin.int8ToFloat a
 
 
-/// Returns the sum of all the ints in the list
-let sum (lst: List<Int8>) : Int8 =
-  Stdlib.List.fold lst 0y (fun acc x -> add acc x)
-
-
-/// Returns the higher of <param a> and <param b>
-let max (a: Int8) (b: Int8) : Int8 =
-  if (Stdlib.Int8.greaterThan a b) then a else b
-
-
-/// Returns the lower of <param a> and <param b>
-let min (a: Int8) (b: Int8) : Int8 =
-  if (Stdlib.Int8.lessThan a b) then a else b
-
-
-/// If <param value> is within the range given by <param limitA> and <param
-/// limitB>, returns <param value>.
-/// If <param value> is outside the range, returns <param limitA> or <param
-/// limitB>, whichever is closer to <param value>.
-/// <param limitA> and <param limitB> can be provided in any order.
-let clamp (value: Int8) (limitA: Int8) (limitB: Int8) : Int8 =
-  let min =
-    if (Stdlib.Int8.lessThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  let max =
-    if (Stdlib.Int8.greaterThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  if (Stdlib.Int8.lessThan value min) then min
-  else if (Stdlib.Int8.greaterThan value max) then max
-  else value
-
-
 /// Parses a <type String> into an <type Int8>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
@@ -219,3 +181,76 @@ let shiftLeft (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftLeft a b
 
 /// Bitwise right shift of an <type Int8> value
 let shiftRight (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftRight a b
+
+
+// The operator traits, over the fns above.
+
+impl Add for Int8 =
+  let add = Stdlib.Int8.add
+
+
+impl Subtract for Int8 =
+  let subtract = Stdlib.Int8.subtract
+
+
+impl Multiply for Int8 =
+  let multiply = Stdlib.Int8.multiply
+
+
+impl Divide for Int8 =
+  let divide = Stdlib.Int8.divide
+
+
+impl Modulo for Int8 =
+  let modulo = Stdlib.Int8.``mod``
+
+
+impl Power for Int8 =
+  let power = Stdlib.Int8.power
+
+
+impl Negate for Int8 =
+  let negate = Stdlib.Int8.negate
+
+
+impl Compare for Int8 =
+  let lessThan = Stdlib.Int8.lessThan
+  let lessThanOrEqualTo = Stdlib.Int8.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int8.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int8.greaterThanOrEqualTo
+
+
+impl ToString for Int8 =
+  let toString = Stdlib.Int8.toString
+
+
+impl Zero for Int8 =
+  let zero () : Int8 = 0y
+
+
+impl One for Int8 =
+  let one () : Int8 = 1y
+
+
+impl BitwiseAnd for Int8 =
+  let bitwiseAnd = Stdlib.Int8.bitwiseAnd
+
+
+impl BitwiseOr for Int8 =
+  let bitwiseOr = Stdlib.Int8.bitwiseOr
+
+
+impl BitwiseXor for Int8 =
+  let bitwiseXor = Stdlib.Int8.bitwiseXor
+
+
+impl BitwiseNot for Int8 =
+  let bitwiseNot = Stdlib.Int8.bitwiseNot
+
+
+impl ShiftLeft for Int8 =
+  let shiftLeft = Stdlib.Int8.shiftLeft
+
+
+impl ShiftRight for Int8 =
+  let shiftRight = Stdlib.Int8.shiftRight

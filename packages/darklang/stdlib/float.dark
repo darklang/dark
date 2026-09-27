@@ -48,11 +48,6 @@ let absoluteValue (a: Float) : Float =
 let negate (a: Float) : Float = Stdlib.Float.multiply a -1.0
 
 
-/// Returns the sum of all the floats in the list
-let sum (a: List<Float>) : Float =
-  Stdlib.List.fold a 0.0 (fun acc next -> Stdlib.Float.add acc next)
-
-
 /// Get the square root of a float
 let sqrt (a: Float) : Float = Builtin.floatSqrt a
 
@@ -78,6 +73,11 @@ let power (``base``: Float) (exponent: Float) : Float =
 let divide (a: Float) (b: Float) : Float = Builtin.floatDivide a b
 
 
+/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+/// The modulus <param b> must be greater than 0.
+let ``mod`` (a: Float) (b: Float) : Float = Builtin.modulo a b
+
+
 /// Returns true if a is greater than b
 let greaterThan (a: Float) (b: Float) : Bool = Builtin.floatGreaterThan a b
 
@@ -95,29 +95,23 @@ let lessThanOrEqualTo (a: Float) (b: Float) : Bool =
   Builtin.floatLessThanOrEqualTo a b
 
 
-/// Returns the lesser of <type Float> <param a> and <type Float> <param b>
-let min (a: Float) (b: Float) : Float =
-  if (Stdlib.Float.lessThan a b) then a else b
-
-
-/// Returns the greater of <type Float> <param a> and <type Float> <param b>
-let max (a: Float) (b: Float) : Float =
-  if (Stdlib.Float.greaterThan a b) then a else b
-
-
 /// If <param value> is within the range given by <param limitA> and <param
 /// limitB>, returns <param value>.
 /// If <param value> is outside the range, returns <param limitA> or <param
 /// limitB>, whichever is closer to <param value>.
 /// Returns <param value> wrapped in a {{Result}}.
 /// <param limitA> and <param limitB> can be provided in any order.
-let clamp
+///
+/// The difference from <fn clamp>, which works on any type that compares: this one refuses a
+/// NaN limit rather than answering. The generic cannot, since NaN is a Float's business and
+/// NaN compares false against everything, so there it comes back unclamped.
+let clampRefusingNaN
   (value: Float)
   (limitA: Float)
   (limitB: Float)
   : Stdlib.Result.Result<Float, String> =
   if Stdlib.Float.isNaN limitA || Stdlib.Float.isNaN limitB then
-    Stdlib.Result.Result.Error "clamp requires arguments to be valid numbers"
+    Stdlib.Result.Result.Error "clampRefusingNaN requires limits that are numbers"
   else
     let (lower, upper) =
       if Stdlib.Float.lessThan limitA limitB then
@@ -161,3 +155,52 @@ let toInt (a: Float) : Int = Stdlib.Float.roundTowardsZero a
 
 /// Return <param a>'s IEEE 754 binary64 bits as a signed 64-bit value.
 let toBits (a: Float) : Int = Builtin.floatToBits a
+
+
+// The operator traits, over the fns above.
+
+impl Add for Float =
+  let add = Stdlib.Float.add
+
+
+impl Subtract for Float =
+  let subtract = Stdlib.Float.subtract
+
+
+impl Multiply for Float =
+  let multiply = Stdlib.Float.multiply
+
+
+impl Divide for Float =
+  let divide = Stdlib.Float.divide
+
+
+impl Modulo for Float =
+  let modulo = Stdlib.Float.``mod``
+
+
+impl Power for Float =
+  let power = Stdlib.Float.power
+
+
+impl Negate for Float =
+  let negate = Stdlib.Float.negate
+
+
+impl Compare for Float =
+  let lessThan = Stdlib.Float.lessThan
+  let lessThanOrEqualTo = Stdlib.Float.lessThanOrEqualTo
+  let greaterThan = Stdlib.Float.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Float.greaterThanOrEqualTo
+
+
+impl ToString for Float =
+  let toString = Stdlib.Float.toString
+
+
+impl Zero for Float =
+  let zero () : Float = 0.0
+
+
+impl One for Float =
+  let one () : Float = 1.0

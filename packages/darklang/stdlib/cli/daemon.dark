@@ -14,14 +14,14 @@ module Darklang.Stdlib.Cli.Daemon
 // ── pidfile + log location ──  ~/.darklang/run/<name>.{pid,log}
 let runDir () : String =
   let home = Stdlib.Option.withDefault (Env.home ()) "/tmp"
-  home ++ "/.darklang/run"
+  home + "/.darklang/run"
 
 let pidfilePath (name: String) : String =
-  (runDir ()) ++ "/" ++ name ++ ".pid"
+  (runDir ()) + "/" + name + ".pid"
 
 // A detached daemon has no terminal, so its output + startup errors append here; `tailLog` reads it.
 let logPath (name: String) : String =
-  (runDir ()) ++ "/" ++ name ++ ".log"
+  (runDir ()) + "/" + name + ".log"
 
 // The daemon's last `n` log lines (newest at the bottom); empty if it never logged.
 let tailLog (name: String) (n: Int) : List<String> =

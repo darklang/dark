@@ -106,44 +106,6 @@ let sqrt (a: Int16) : Float = Builtin.int16Sqrt a
 let toFloat (a: Int16) : Float = Builtin.int16ToFloat a
 
 
-/// Returns the sum of all the ints in the list
-let sum (lst: List<Int16>) : Int16 =
-  Stdlib.List.fold lst 0s (fun acc x -> add acc x)
-
-
-/// Returns the higher of <param a> and <param b>
-let max (a: Int16) (b: Int16) : Int16 =
-  if (Stdlib.Int16.greaterThan a b) then a else b
-
-
-/// Returns the lower of <param a> and <param b>
-let min (a: Int16) (b: Int16) : Int16 =
-  if (Stdlib.Int16.lessThan a b) then a else b
-
-
-/// If <param value> is within the range given by <param limitA> and <param
-/// limitB>, returns <param value>.
-/// If <param value> is outside the range, returns <param limitA> or <param
-/// limitB>, whichever is closer to <param value>.
-/// <param limitA> and <param limitB> can be provided in any order.
-let clamp (value: Int16) (limitA: Int16) (limitB: Int16) : Int16 =
-  let min =
-    if (Stdlib.Int16.lessThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  let max =
-    if (Stdlib.Int16.greaterThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  if (Stdlib.Int16.lessThan value min) then min
-  else if (Stdlib.Int16.greaterThan value max) then max
-  else value
-
-
 /// Parses a <type String> into an <type Int16>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
@@ -221,3 +183,76 @@ let shiftLeft (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftLeft a b
 
 /// Bitwise right shift of an <type Int16> value
 let shiftRight (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftRight a b
+
+
+// The operator traits, over the fns above.
+
+impl Add for Int16 =
+  let add = Stdlib.Int16.add
+
+
+impl Subtract for Int16 =
+  let subtract = Stdlib.Int16.subtract
+
+
+impl Multiply for Int16 =
+  let multiply = Stdlib.Int16.multiply
+
+
+impl Divide for Int16 =
+  let divide = Stdlib.Int16.divide
+
+
+impl Modulo for Int16 =
+  let modulo = Stdlib.Int16.``mod``
+
+
+impl Power for Int16 =
+  let power = Stdlib.Int16.power
+
+
+impl Negate for Int16 =
+  let negate = Stdlib.Int16.negate
+
+
+impl Compare for Int16 =
+  let lessThan = Stdlib.Int16.lessThan
+  let lessThanOrEqualTo = Stdlib.Int16.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int16.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int16.greaterThanOrEqualTo
+
+
+impl ToString for Int16 =
+  let toString = Stdlib.Int16.toString
+
+
+impl Zero for Int16 =
+  let zero () : Int16 = 0s
+
+
+impl One for Int16 =
+  let one () : Int16 = 1s
+
+
+impl BitwiseAnd for Int16 =
+  let bitwiseAnd = Stdlib.Int16.bitwiseAnd
+
+
+impl BitwiseOr for Int16 =
+  let bitwiseOr = Stdlib.Int16.bitwiseOr
+
+
+impl BitwiseXor for Int16 =
+  let bitwiseXor = Stdlib.Int16.bitwiseXor
+
+
+impl BitwiseNot for Int16 =
+  let bitwiseNot = Stdlib.Int16.bitwiseNot
+
+
+impl ShiftLeft for Int16 =
+  let shiftLeft = Stdlib.Int16.shiftLeft
+
+
+impl ShiftRight for Int16 =
+  let shiftRight = Stdlib.Int16.shiftRight

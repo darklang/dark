@@ -182,7 +182,7 @@ let nodeToString (node: Node) : String =
 
         let endTag = $"</{tag.name}>"
 
-        startTag ++ childHtml ++ endTag
+        startTag + childHtml + endTag
 
 
 /// Creates an HTML comment node.
@@ -461,4 +461,4 @@ let dialog (attrs: Attributes) (c: List<Node>) : Node =
 let document (nodes: List<Node>) : String =
   let htmlDocHeader = "<!DOCTYPE html>"
   let theRest = nodes |> List.map (fun n -> nodeToString n) |> String.join ""
-  htmlDocHeader ++ theRest
+  htmlDocHeader + theRest

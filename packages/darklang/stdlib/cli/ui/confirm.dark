@@ -43,8 +43,8 @@ let onKey (state: State) (kp: Widget.KeyPress) : Widget.Outcome<State, Msg> =
 
 /// Centre a box `rows` x `cols` inside `region`.
 let centred (region: Layout.Region) (rows: Int) (cols: Int) : Layout.Region =
-  let w = Stdlib.Int.min region.cols cols
-  let h = Stdlib.Int.min region.rows rows
+  let w = Stdlib.min region.cols cols
+  let h = Stdlib.min region.rows rows
 
   Layout.Region
     { top = region.top + (Stdlib.Int.divide (region.rows - h) 2)
@@ -55,9 +55,9 @@ let centred (region: Layout.Region) (rows: Int) (cols: Int) : Layout.Region =
 let view (state: State) (region: Layout.Region) : List<Layout.Span> =
   let hasDetail = state.detail != ""
   let width =
-    Stdlib.Int.max
+    Stdlib.max
       32
-      (4 + (Stdlib.Int.max
+      (4 + (Stdlib.max
               (Stdlib.String.displayWidth state.question)
               (Stdlib.String.displayWidth state.detail)))
 

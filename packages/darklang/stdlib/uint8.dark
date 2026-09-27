@@ -70,44 +70,6 @@ let sqrt (a: UInt8) : Float = Builtin.uint8Sqrt a
 let toFloat (a: UInt8) : Float = Builtin.uint8ToFloat a
 
 
-/// Returns the sum of all the ints in the list
-let sum (lst: List<UInt8>) : UInt8 =
-  Stdlib.List.fold lst 0uy (fun acc x -> Stdlib.UInt8.add acc x)
-
-
-/// Returns the higher of <param a> and <param b>
-let max (a: UInt8) (b: UInt8) : UInt8 =
-  if (Stdlib.UInt8.greaterThan a b) then a else b
-
-
-/// Returns the lower of <param a> and <param b>
-let min (a: UInt8) (b: UInt8) : UInt8 =
-  if (Stdlib.UInt8.lessThan a b) then a else b
-
-
-/// If <param value> is within the range given by <param limitA> and <param
-/// limitB>, returns <param value>.
-/// If <param value> is outside the range, returns <param limitA> or <param
-/// limitB>, whichever is closer to <param value>.
-/// <param limitA> and <param limitB> can be provided in any order.
-let clamp (value: UInt8) (limitA: UInt8) (limitB: UInt8) : UInt8 =
-  let min =
-    if (Stdlib.UInt8.lessThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  let max =
-    if (Stdlib.UInt8.greaterThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  if (Stdlib.UInt8.lessThan value min) then min
-  else if (Stdlib.UInt8.greaterThan value max) then max
-  else value
-
-
 /// Parses a <type String> into a <type UInt8>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
@@ -186,3 +148,72 @@ let shiftLeft (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8ShiftLeft a b
 
 /// Bitwise right shift of a <type UInt8> value
 let shiftRight (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8ShiftRight a b
+
+
+// The operator traits, over the fns above.
+
+impl Add for UInt8 =
+  let add = Stdlib.UInt8.add
+
+
+impl Subtract for UInt8 =
+  let subtract = Stdlib.UInt8.subtract
+
+
+impl Multiply for UInt8 =
+  let multiply = Stdlib.UInt8.multiply
+
+
+impl Divide for UInt8 =
+  let divide = Stdlib.UInt8.divide
+
+
+impl Modulo for UInt8 =
+  let modulo = Stdlib.UInt8.``mod``
+
+
+impl Power for UInt8 =
+  let power = Stdlib.UInt8.power
+
+
+impl Compare for UInt8 =
+  let lessThan = Stdlib.UInt8.lessThan
+  let lessThanOrEqualTo = Stdlib.UInt8.lessThanOrEqualTo
+  let greaterThan = Stdlib.UInt8.greaterThan
+  let greaterThanOrEqualTo = Stdlib.UInt8.greaterThanOrEqualTo
+
+
+impl ToString for UInt8 =
+  let toString = Stdlib.UInt8.toString
+
+
+impl Zero for UInt8 =
+  let zero () : UInt8 = 0uy
+
+
+impl One for UInt8 =
+  let one () : UInt8 = 1uy
+
+
+impl BitwiseAnd for UInt8 =
+  let bitwiseAnd = Stdlib.UInt8.bitwiseAnd
+
+
+impl BitwiseOr for UInt8 =
+  let bitwiseOr = Stdlib.UInt8.bitwiseOr
+
+
+impl BitwiseXor for UInt8 =
+  let bitwiseXor = Stdlib.UInt8.bitwiseXor
+
+
+impl BitwiseNot for UInt8 =
+  let bitwiseNot = Stdlib.UInt8.bitwiseNot
+
+
+impl ShiftLeft for UInt8 =
+  let shiftLeft = Stdlib.UInt8.shiftLeft
+
+
+impl ShiftRight for UInt8 =
+  let shiftRight = Stdlib.UInt8.shiftRight

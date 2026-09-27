@@ -39,8 +39,8 @@ let render
   if tooNarrow then
     // Collapse: show only the focused pane, full region, with a which-of-two hint in the title.
     let (title, renderFn) =
-      if secondFocused then (titleSecond ++ " ‹2/2›", renderSecond)
-      else (titleFirst ++ " ‹1/2›", renderFirst)
+      if secondFocused then (titleSecond + " ‹2/2›", renderSecond)
+      else (titleFirst + " ‹1/2›", renderFirst)
     Box.panel region title (focused != Focus.Neither) renderFn
   else
     match orientation with

@@ -70,44 +70,6 @@ let sqrt (a: UInt16) : Float = Builtin.uint16Sqrt a
 let toFloat (a: UInt16) : Float = Builtin.uint16ToFloat a
 
 
-/// Returns the sum of all the ints in the list
-let sum (lst: List<UInt16>) : UInt16 =
-  Stdlib.List.fold lst 0us (fun acc x -> Stdlib.UInt16.add acc x)
-
-
-/// Returns the higher of <param a> and <param b>
-let max (a: UInt16) (b: UInt16) : UInt16 =
-  if (Stdlib.UInt16.greaterThan a b) then a else b
-
-
-/// Returns the lower of <param a> and <param b>
-let min (a: UInt16) (b: UInt16) : UInt16 =
-  if (Stdlib.UInt16.lessThan a b) then a else b
-
-
-/// If <param value> is within the range given by <param limitA> and <param
-/// limitB>, returns <param value>.
-/// If <param value> is outside the range, returns <param limitA> or <param
-/// limitB>, whichever is closer to <param value>.
-/// <param limitA> and <param limitB> can be provided in any order.
-let clamp (value: UInt16) (limitA: UInt16) (limitB: UInt16) : UInt16 =
-  let min =
-    if (Stdlib.UInt16.lessThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  let max =
-    if (Stdlib.UInt16.greaterThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  if (Stdlib.UInt16.lessThan value min) then min
-  else if (Stdlib.UInt16.greaterThan value max) then max
-  else value
-
-
 /// Parses a <type String> into a <type UInt16>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
@@ -188,3 +150,72 @@ let shiftLeft (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16ShiftLeft a b
 
 /// Bitwise right shift of a <type UInt16> value
 let shiftRight (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16ShiftRight a b
+
+
+// The operator traits, over the fns above.
+
+impl Add for UInt16 =
+  let add = Stdlib.UInt16.add
+
+
+impl Subtract for UInt16 =
+  let subtract = Stdlib.UInt16.subtract
+
+
+impl Multiply for UInt16 =
+  let multiply = Stdlib.UInt16.multiply
+
+
+impl Divide for UInt16 =
+  let divide = Stdlib.UInt16.divide
+
+
+impl Modulo for UInt16 =
+  let modulo = Stdlib.UInt16.``mod``
+
+
+impl Power for UInt16 =
+  let power = Stdlib.UInt16.power
+
+
+impl Compare for UInt16 =
+  let lessThan = Stdlib.UInt16.lessThan
+  let lessThanOrEqualTo = Stdlib.UInt16.lessThanOrEqualTo
+  let greaterThan = Stdlib.UInt16.greaterThan
+  let greaterThanOrEqualTo = Stdlib.UInt16.greaterThanOrEqualTo
+
+
+impl ToString for UInt16 =
+  let toString = Stdlib.UInt16.toString
+
+
+impl Zero for UInt16 =
+  let zero () : UInt16 = 0us
+
+
+impl One for UInt16 =
+  let one () : UInt16 = 1us
+
+
+impl BitwiseAnd for UInt16 =
+  let bitwiseAnd = Stdlib.UInt16.bitwiseAnd
+
+
+impl BitwiseOr for UInt16 =
+  let bitwiseOr = Stdlib.UInt16.bitwiseOr
+
+
+impl BitwiseXor for UInt16 =
+  let bitwiseXor = Stdlib.UInt16.bitwiseXor
+
+
+impl BitwiseNot for UInt16 =
+  let bitwiseNot = Stdlib.UInt16.bitwiseNot
+
+
+impl ShiftLeft for UInt16 =
+  let shiftLeft = Stdlib.UInt16.shiftLeft
+
+
+impl ShiftRight for UInt16 =
+  let shiftRight = Stdlib.UInt16.shiftRight

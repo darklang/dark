@@ -45,7 +45,7 @@ let clipMarked (text: String) (maxWidth: Int) : String =
   else if maxWidth <= 1 then
     clipToWidth text maxWidth
   else
-    (clipToWidth text (maxWidth - 1)) ++ "…"
+    (clipToWidth text (maxWidth - 1)) + "…"
 
 
 /// Break a row at the column, restating styling that spans the wrap. To break at spaces where it
@@ -63,7 +63,7 @@ let positionAfter (text: String) (maxWidth: Int) : (Int * Int) =
 /// Clip, but skip the work for a row already plain and within bounds. That is the common case, and
 /// it costs one measurement.
 let normalizeToWidth (text: String) (maxWidth: Int) : String =
-  let width = Stdlib.Int.max 0 maxWidth
+  let width = Stdlib.max 0 maxWidth
   let (measuredWidth, containsControl) = inspect text
 
   if Stdlib.Bool.not containsControl && measuredWidth <= width then
@@ -75,8 +75,8 @@ let normalizeToWidth (text: String) (maxWidth: Int) : String =
 /// Pad or clip text to exactly the requested terminal-column width.
 let fitToWidth (text: String) (targetWidth: Int) : String =
   let clipped = clipToWidth text targetWidth
-  let padding = Stdlib.Int.max 0 (targetWidth - (styledWidth clipped))
-  clipped ++ Stdlib.String.repeat " " padding
+  let padding = Stdlib.max 0 (targetWidth - (styledWidth clipped))
+  clipped + Stdlib.String.repeat " " padding
 
 
 // --- Word wrapping ---
@@ -89,7 +89,7 @@ let splitLongWord (word: String) (width: Int) : List<String> =
     let head = clipToWidth word width
     let taken = Stdlib.String.length head
     // A wide glyph can make `clipToWidth` take fewer characters than columns; never take none.
-    let step = Stdlib.Int.max 1 taken
+    let step = Stdlib.max 1 taken
     Stdlib.List.push (splitLongWord (Stdlib.String.dropFirst word step) width) head
 
 
@@ -100,7 +100,7 @@ let addWord
   (word: String)
   (width: Int)
   : (List<String> * String) =
-  let candidate = if current == "" then word else current ++ " " ++ word
+  let candidate = if current == "" then word else current + " " + word
 
   if (Stdlib.String.displayWidth candidate) <= width then
     (lines, candidate)
@@ -117,7 +117,7 @@ let addWord
 /// Break plain text at spaces where it can and inside a word where it must.
 /// Styling isn't handled: wrap first, colour after.
 let wrapAtWords (text: String) (width: Int) : List<String> =
-  let w = Stdlib.Int.max 1 width
+  let w = Stdlib.max 1 width
 
   if text == "" then
     [ "" ]

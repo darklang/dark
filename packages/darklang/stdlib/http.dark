@@ -87,7 +87,7 @@ let urlDecode (s: String) : String =
         Stdlib.List.append
           (Stdlib.List.append acc (Stdlib.Blob.toList b))
           (Stdlib.String.toBytes (Stdlib.String.dropFirst piece 2))
-      | Error _ -> Stdlib.List.append acc (Stdlib.String.toBytes ("%" ++ piece)))
+      | Error _ -> Stdlib.List.append acc (Stdlib.String.toBytes ("%" + piece)))
     |> Stdlib.String.fromBytesWithReplacement
 
 
@@ -318,10 +318,10 @@ type Cookie =
 //         ("HttpOnly", cookie.httpOnly |> Stdlib.Bool.toString)
 //         ("SameSite", cookie.sameSite) ]
 //       |> Stdlib.List.filterMap (fun (k, v) -> if v == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(k, v))
-//       |> Stdlib.List.map (fun (k, v) -> k ++ "=" ++ v)
+//       |> Stdlib.List.map (fun (k, v) -> k + "=" + v)
 //       |> Stdlib.String.join "; "
 
 //     if cookie == "" then
 //       Error "Cookie must have at least one parameter"
 //     else
-//       Ok("Set-Cookie", name ++ "=" ++ value ++ "; " ++ cookie)
+//       Ok("Set-Cookie", name + "=" + value + "; " + cookie)

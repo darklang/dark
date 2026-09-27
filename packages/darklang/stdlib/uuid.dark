@@ -14,3 +14,7 @@ let parse (uuid: String) : Stdlib.Result.Result<Uuid, Stdlib.Uuid.ParseError> =
 
 /// Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
 let toString (uuid: Uuid) : String = Builtin.uuidToString uuid
+
+
+impl ToString for Uuid =
+  let toString = Stdlib.Uuid.toString

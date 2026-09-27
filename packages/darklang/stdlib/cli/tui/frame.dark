@@ -121,8 +121,8 @@ let renderCursor (cursor: Tui.Cursor) : String =
   match cursor with
   | Hidden -> ""
   | Visible(row, column) ->
-    let terminalRow = Stdlib.Int.toString (Stdlib.Int.max 0 row + 1)
-    let terminalColumn = Stdlib.Int.toString (Stdlib.Int.max 0 column + 1)
+    let terminalRow = Stdlib.Int.toString (Stdlib.max 0 row + 1)
+    let terminalColumn = Stdlib.Int.toString (Stdlib.max 0 column + 1)
     $"\u001b[{terminalRow};{terminalColumn}H\u001b[?25h"
 
 
@@ -155,7 +155,7 @@ let renderAtWidth
       |> Stdlib.List.map (renderRowChangeAtWidth width)
       |> Stdlib.String.join ""
 
-    "\u001b[?25l" ++ rows ++ renderCursor next.cursor
+    "\u001b[?25l" + rows + renderCursor next.cursor
 
 
 /// Produce a complete repaint while clearing rows removed from the prior view.
@@ -174,4 +174,4 @@ let renderFullAtWidth
     |> Stdlib.List.map (renderRowChangeAtWidth width)
     |> Stdlib.String.join ""
 
-  "\u001b[?25l" ++ rows ++ renderCursor next.cursor
+  "\u001b[?25l" + rows + renderCursor next.cursor

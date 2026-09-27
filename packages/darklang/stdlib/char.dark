@@ -91,3 +91,15 @@ let fromCodepoint (codepoint: Int) : Stdlib.Option.Option<Char> =
 /// Return the codepoint when <param c> contains exactly one Unicode scalar.
 /// This is the inverse of <fn Char.fromCodepoint>.
 let toCodepoint (c: Char) : Stdlib.Option.Option<Int> = Builtin.charToCodepoint c
+
+
+impl ToString for Char =
+  let toString = Stdlib.Char.toString
+
+
+/// `a < b` on Chars: ordinal, the rule the four comparisons above already use.
+impl Compare for Char =
+  let lessThan = Stdlib.Char.isLessThan
+  let lessThanOrEqualTo = Stdlib.Char.isLessThanOrEqualTo
+  let greaterThan = Stdlib.Char.isGreaterThan
+  let greaterThanOrEqualTo = Stdlib.Char.isGreaterThanOrEqualTo

@@ -15,10 +15,10 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
         rows
         |> Stdlib.List.fold 0 (fun mx row ->
           match Stdlib.List.getAt row i with
-          | Some cell -> Stdlib.Int.max mx (Stdlib.String.displayWidth cell)
+          | Some cell -> Stdlib.max mx (Stdlib.String.displayWidth cell)
           | None -> mx)
 
-      Stdlib.Int.max headerLen maxCellLen)
+      Stdlib.max headerLen maxCellLen)
 
   // Print header row
   let headerLine =
