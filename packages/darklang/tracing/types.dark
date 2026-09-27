@@ -37,6 +37,10 @@ type Trace =
     parent: Stdlib.Option.Option<(String * Int64)>
     /// Retention never drops a pinned run, whatever the caps say.
     pinned: Bool
+    /// Wall clock for the whole run, measured by the recorder. `0` for a run still going, and
+    /// for one recorded before this was kept. Not `updated - created`: those are the same
+    /// instant for a served request, and a resumed run's pair spans the suspension.
+    durationMs: Int64
     /// When the run started.
     created: String
     updated: String }

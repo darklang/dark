@@ -61,9 +61,12 @@ type Trace =
     /// Retention never drops a pinned trace, whatever the caps say.
     pinned : bool
     /// What the run answered, once it has. `None` while it is still going, for a run that
-    /// failed, and for a run recorded before this column existed. The other half of what the
-    /// `io` rung is named for.
+    /// failed, and for a run recorded before this column existed.
     result : Option<RT.Dval>
+    /// Wall clock for the whole run, from the recorder's own stopwatch. 0 for a run still going,
+    /// and for one recorded before this column existed. NOT `updated - timestamp`: those are the
+    /// same instant for a served request, and on a resumed run they span the suspension.
+    durationMs : int64
     /// For a served request: the handler that served it. What a preview applies to the
     /// recorded request, since a request's input is not source it can re-run.
     entryHash : Option<string>
@@ -91,13 +94,14 @@ let private readRow (read : RowReader) : Trace =
     result =
       read.bytesOrNone "result_value"
       |> Option.map (BinarySer.RT.Dval.deserialize "traces.result_value")
+    durationMs = read.int64 "duration_ms"
     entryHash = read.stringOrNone "entry_hash"
     created = read.string "timestamp"
     updated = read.string "updated" }
 
 let private columns =
   "id, handler_desc, input_name, input_value, status, parent_id, parent_seq, pinned, "
-  + "timestamp, updated, entry_hash, result_value"
+  + "timestamp, updated, entry_hash, result_value, duration_ms"
 
 /// A run that has started, before the recorder has anything to say about it. `root_tlid` is 0
 /// on every path that reaches here; the recorder's upsert fills in the rest.

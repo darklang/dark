@@ -5,10 +5,29 @@
 -- CAN live here is a new table and any index, so both are here.
 
 --------------------
+-- Two things `08-traces.sql` says that are no longer true
+--------------------
+
+-- It is frozen, so this is where they get corrected rather than there.
+--
+-- `traces.root_tlid` is `NOT NULL` and every writer puts 0 in it. In classic it named the
+-- handler whose trace this was; here a run is not always a handler invocation, and the question
+-- it answered ("which handler served this?") is answered by `entry_hash`, which this PR adds.
+-- Nothing reads it, there is no index on it, and a frozen `CREATE TABLE` cannot lose a column,
+-- so it stays as a 4-byte-per-row fossil. Do not add a reader.
+--
+-- `trace_fn_calls`'s comment says every fn call and every lambda gets a row, that `kind`
+-- discriminates function / lambda / builtin, and that builtins stay at `duration_ms = 0`. All
+-- three are now wrong: only the impure calls are recorded, so `kind` is always 'builtin',
+-- `parent_call_id` and `lambda_expr_id` are always NULL, and a builtin carries a real duration
+-- (measured at the landing, for a read in flight). The columns stay for the same reason.
+
+
+--------------------
 -- Which functions a run went through: names only
 --------------------
 
--- The shipped recording level keeps only the impure calls, so nothing in `trace_fn_calls` says
+-- Recording keeps only the impure calls, so nothing in `trace_fn_calls` says
 -- that a run passed through `MyApp.Orders.route`. This is what `dark traces calls <fn>` reads:
 -- one row per (run, function), no arguments, no results, a few hundred bytes for a normal run.
 CREATE TABLE IF NOT EXISTS trace_fns (

@@ -289,10 +289,15 @@ let steps : List<Step> =
     { name = "20260924_000006_traces_entry_hash"
       run = fun () -> addColumnIfMissing "traces" "entry_hash" "TEXT" }
 
-    // What the run answered. The `io` rung is named for the input AND the output of the thing
-    // that ran, and nothing stored the output.
+    // What the run answered: the other half of what its row records, and what `traces show`
+    // ends with. Nothing stored the output before this.
     { name = "20260926_000001_traces_result_value"
       run = fun () -> addColumnIfMissing "traces" "result_value" "BLOB" }
+
+    { name = "20260927_000001_traces_duration_ms"
+      run =
+        fun () ->
+          addColumnIfMissing "traces" "duration_ms" "INTEGER NOT NULL DEFAULT 0" }
 
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]
