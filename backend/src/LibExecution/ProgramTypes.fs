@@ -360,7 +360,9 @@ type Expr =
 
 
   // -- Flow control --
-  /// Extract success, or return failure from the nearest function/lambda.
+  /// For a `Result<A,B>` or an `Option<A>`,
+  /// - if the value is `Result.OK` or `Option.Some`, return the contained value
+  /// - otherwise, return failure from the nearest fn/lambda.
   | EUnwrap of id * Expr
 
   /// `if cond then thenExpr else elseExpr`
