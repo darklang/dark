@@ -28,6 +28,20 @@ type internal State(environment : TypeEnvironment) =
   let mutable inferenceVariableOrigins : Map<int, Option<id>> = Map.empty
   let mutable taintedInferenceVariables : Set<int> = Set.empty
   let mutable pendingFieldAccesses : List<id * StaticType * string * StaticType> = []
+  // `'a: Trait` owed at a type, from a bounded fn's instantiation or a
+  // `Trait.method` call; discharged once the item's substitutions are known.
+  let mutable constraints
+    : List<Option<id> * FQTraitName.Package * StaticType * Option<string>> =
+    []
+  // The bounds the item being checked declares on its own (rigid) type params.
+  let mutable declaredBounds : List<Bound> = []
+  // Which implementations a trait-method call could be, once the self type is known: the node
+  // the call's name is at, the method, and every implementation that applies. The SAVE turns
+  // this into the one implementation stored with the call, which is why it is a list here and
+  // not a choice: ordering two implementations of one type is the store's question (which op is
+  // newer), not the checker's.
+  let resolutions =
+    System.Collections.Generic.Dictionary<id, struct (string * List<Hash>)>()
 
   let mutable pendingUnwrapConstraints : List<UnwrapConstraint> = []
 
@@ -36,6 +50,34 @@ type internal State(environment : TypeEnvironment) =
     and set value = pendingUnwrapConstraints <- value
 
   member _.Environment = environment
+  member _.Constraints
+    with get () = constraints
+    and set value = constraints <- value
+  member _.DeclaredBounds
+    with get () = declaredBounds
+    and set value = declaredBounds <- value
+  member _.AddConstraint
+    (
+      nodeId : Option<id>,
+      trait_ : FQTraitName.Package,
+      typ : StaticType,
+      method_ : Option<string>
+    ) : unit =
+    constraints <- (nodeId, trait_, typ, method_) :: constraints
+  /// The implementations that apply to the call at <param nodeId>, for the save to choose from.
+  member _.RecordResolution
+    (
+      nodeId : Option<id>,
+      method_ : string,
+      impls : List<Hash>
+    ) : unit =
+    match nodeId with
+    | Some nodeId when not (List.isEmpty impls) ->
+      resolutions[nodeId] <- struct (method_, impls)
+    | _ -> ()
+
+  member _.Resolutions = resolutions
+
   member _.Diagnostics = diagnostics
   member _.Blockers = blockers
   member _.Dependencies = dependencies
