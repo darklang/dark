@@ -273,7 +273,14 @@ let dlistToByteArray (dvalList : List<Dval>) : byte[] =
 
 
 /// Structural equality. Walks two Dvals in parallel and returns
-/// true iff every reachable leaf compares equal. Type errors
+/// true iff every reachable leaf compares equal.
+///
+/// This is the answer for a value that implements no `Equal` and holds
+/// nothing that does. `==` reaches it through
+/// `Interpreter.deepEqualsTop`, which consults the implementation of
+/// every type inside the value first and comes here when there is
+/// none; `List.member`, `List.unique`, `List.sort` and dict keys call
+/// it (or `DvalOrdering`) directly and are structural always. Type errors
 /// (callers passing structurally-incompatible Dvals) return false
 /// rather than raising — the caller's responsibility to type-check
 /// up front via VT.merge.
