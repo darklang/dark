@@ -139,7 +139,7 @@ let custom
   : Model =
   Model
     { id = modelId
-      name = "Custom: " ++ modelId
+      name = "Custom: " + modelId
       providerId = providerId
       contextTokens = contextTokens
       outputTokens = contextTokens / 4 }

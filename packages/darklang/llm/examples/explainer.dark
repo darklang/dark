@@ -47,5 +47,5 @@ let explainShowReasoning (concept: String) : String =
       match result.thinking with
       | Some t -> $"## Reasoning\n\n{t}\n\n---\n\n"
       | None -> ""
-    thinking ++ result.response
+    thinking + result.response
   | Error e -> $"Error: {e}"

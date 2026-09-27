@@ -78,7 +78,7 @@ let contentPartToJson (part: ContentPart) : Json =
            [ ("url", Json.String url)
              ("detail", Json.String(imageDetailToString detail)) ]) ]
   | ImageBase64(mediaType, data, detail) ->
-    let dataUrl = "data:" ++ mediaType ++ ";base64," ++ data
+    let dataUrl = "data:" + mediaType + ";base64," + data
     Json.Object
       [ ("type", Json.String "image_url")
         ("image_url",

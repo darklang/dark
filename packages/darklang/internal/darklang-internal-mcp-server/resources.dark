@@ -41,7 +41,7 @@ let packages () : ModelContextProtocol.ServerBuilder.Resource =
         LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId query
       let formattedPackages =
         results.submodules
-        |> Stdlib.List.map (fun path -> "## " ++ (Stdlib.String.join path "."))
+        |> Stdlib.List.map (fun path -> "## " + (Stdlib.String.join path "."))
         |> Stdlib.String.join "\n"
       $"# Available Darklang Packages\n\n{formattedPackages}"
   }

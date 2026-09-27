@@ -319,6 +319,84 @@ goes straight to `locations` answers about MAIN while you are standing on a bran
 plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
 op log directly.
 
+## Traits
+
+A trait is a package item (`PT.Trait`: type params, bounds, method signatures with
+optional ceilings); an impl is a package item (`PT.TraitImpl`: the trait, its type args,
+the self type, own params and bounds, methods as `(name, fn)` pairs). Two ops,
+`AddTrait` and `AddTraitImpl`; two tables, `package_traits` and `package_trait_impls(trait_hash)`;
+`FQTraitName` for references; binary format v3. The parser lowers `trait`/`impl` in
+`SourceFile.items` (F#) and `implWithOps` (Dark); both must agree on the impl's member
+path `<module>[.<Type>].<Trait>`, with the method fns as ordinary fns beneath it.
+Dispatch candidates come off the index (`PT2RT.ImplCandidate.ofPackageManager`),
+selection is `Traits.fs`, the checker validates traits and impls in `AtRestTypeChecker`
+(`ImplMethodSet`, `ImplMethodSignature`, `ImplExceedsCeiling`). The operators are the
+stdlib traits (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through
+`NumericTraits.fs`, whose hashes come from `PackageRefs.Trait`, so a new operator trait
+needs a ref and a regenerated `package-ref-hashes.txt`. `==` is `Equal.equals` with a
+structural fallback (`Interpreter.structuralEquals`; the selection memo holds `Hash ""`
+for "no implementation"), answered without dispatch for anything but a record, an enum
+or a container holding one. A container consults its elements' `Equal`
+(`Interpreter.deepEquals`), and whether a type needs that walk at all is memoised per
+type, so a `List<Int64>` costs what it always did; `List.member`, `List.unique`,
+`List.sort` and dict keys are structural always, and dict keys have to be, since F#
+hashes them inside its own `Map`. `!=` lowers to `boolNot (Equal.equals a b)`. `Zero.zero`/`One.one` dispatch from an
+explicit type arg or the caller's bound, so a call to the impl fn clears the trait's
+type args first.
+
+**A trait call stores the implementation it resolved to.** `FQFnName.TraitMethod` carries
+`implFn`, the fn the chosen implementation names for that method, as a located reference;
+`EInfix` carries the same for an operator. It is written by `resolveTraitCalls`
+(`Builtins.Matter/Libs/PM/AtRestTypeChecker.fs`), which runs inside `addAuthored` BEFORE
+`stabilizeHashes`, since the choice is part of what the item is: the at-rest checker says which
+implementations apply at each call node (`Proof.resolutions`, keyed by the node the name is at),
+and the store says which is newer. It is hashed with the item and becomes an ordinary fn
+dependency edge, so propagation, `pin` and `follow` treat a newer implementation like any other
+update. `None` where the self type is not knowable at save time (a call inside a bounded generic,
+an operator in a pipeline); those resolve at run time, which is what the selection
+path in `Interpreter.fs` is for.
+
+**Nothing loaded from disk records its implementation choice.** `resolveTraitCalls` is
+reached only from `addAuthored`, so `dark fn`/`impl`/`module` and the editor fill `implFn`
+in, while `LocalExec.reloadPackages` inserts its ops directly. Those calls are still
+ordinary hash references (name resolution runs at parse, so the TRAIT is a hash either
+way); what they lack is the third field, so every operator and trait method in `packages/`
+and in `seed.db` selects an implementation at RUN time in every clone. Two consequences: a
+dispatch-cost measurement taken against the shipped tree is measuring the unselected path,
+and "a saved call goes on meaning what it meant" is today a property of interactively
+authored items only.
+
+**Every switch over item kinds has five arms.** Types, values, fns, traits, impls.
+A new listing, codec, or CLI command that handles three of them silently drops the
+other two; `ls`, `tree`, `search`, completion, the workbench, the relay browser and
+the LSP all had to learn them, and the names-only search builtins return six lists.
+
+**A bare trait name falls back to the stdlib.** `impl Add for Point` in any module
+means `Stdlib.Add` unless something closer is called Add (both resolvers,
+`resolveTraitName` and `TraitName.resolve`). Two same-shaped traits still hash the
+same; a trait and a same-shaped record do not.
+
+**An impl over fns that already exist is an alias block.** `impl Add for Int64 = let
+add = Stdlib.Int64.add` generates no fn; the impl names the existing one. The
+interpreter answers two operands of one builtin numeric type without dispatch
+(`FastOps.evalNumeric`), so those aliases are what the checker and `dark impls` see,
+not what runs.
+
+**An impl is a candidate only while a name binds it on the branch asked and it is not
+deprecated** (`ImplCandidate` liveness, then `Queries.getDeprecatedTraitImplHashes` in the
+store's candidate provider). Two live implementations of one trait for one type do not error:
+the one whose `AddTraitImpl` op is newer runs. The stamp rides on `package_trait_impls.origin_ts`,
+the candidate carries it, and `Traits.select` asks `LibExecution.Lww` -- the same rule the op-fold
+uses for two bindings of one name, so this must not grow a second copy. The pair is the
+`rival-implementations` finding in `dark constraints` (Dark computes the same winner through
+`SCM.Conflicts.beats`), and deprecating one settles it. A call errors only when NO rival carries a
+stamp, which means nothing came from an op. Dispatch is memoised on the package manager
+(`implSelectionMemo`, keyed by branch, trait, method and self type) under
+`LibDB.Caching.generation`, which every `invalidateAll` bumps; a side-loaded manager
+(`withExtraImpls`, `withExtras`) gets its own memo, and the script host's child state
+must take the grafted manager's `getTrait` too, or a script's own trait is "not in the
+package manager" at dispatch.
+
 ## Gotchas
 
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.

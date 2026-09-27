@@ -58,7 +58,7 @@ let formatDirectoryEntries (entries: List<String>) : String =
         | None -> entryPath
 
       if Stdlib.Cli.FileSystem.isDirectory entryPath then
-        name ++ "/"
+        name + "/"
       else
         name)
 
@@ -82,7 +82,7 @@ val maxSearchFiles = 200
 
 let filePathToDisplayPath (fullPath: String) : String =
   let cwd = Stdlib.Cli.FileSystem.currentDirectory ()
-  let cwdPrefix = cwd ++ "/"
+  let cwdPrefix = cwd + "/"
   if Stdlib.String.startsWith fullPath cwdPrefix then
     Stdlib.String.dropFirst fullPath (Stdlib.String.length cwdPrefix)
   else if fullPath == cwd then
@@ -153,9 +153,9 @@ let renderSearchResult (state: SearchState) : String =
   else
     let baseText = Stdlib.String.join state.matches "\n"
     if state.hitResultLimit then
-      baseText ++ "\n\n(Stopped after 50 matches)"
+      baseText + "\n\n(Stopped after 50 matches)"
     else if state.hitFileLimit then
-      baseText ++ "\n\n(Stopped after scanning 200 files)"
+      baseText + "\n\n(Stopped after scanning 200 files)"
     else
       baseText
 

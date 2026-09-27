@@ -13,13 +13,13 @@ type Json = Stdlib.AltJson.Json
 val batchEndpoint = "https://api.anthropic.com/v1/messages/batches"
 
 let batchEndpointWithId (batchId: String) : String =
-  batchEndpoint ++ "/" ++ batchId
+  batchEndpoint + "/" + batchId
 
 let batchCancelEndpoint (batchId: String) : String =
-  (batchEndpointWithId batchId) ++ "/cancel"
+  (batchEndpointWithId batchId) + "/cancel"
 
 let batchResultsEndpoint (batchId: String) : String =
-  (batchEndpointWithId batchId) ++ "/results"
+  (batchEndpointWithId batchId) + "/results"
 
 
 // ---------------------------------------------------------------------------
@@ -403,10 +403,10 @@ let listBatches
         Stdlib.List.map queryParams (fun pair ->
           let key = Stdlib.Tuple2.first pair
           let value = Stdlib.Tuple2.second pair
-          key ++ "=" ++ value)
-      "?" ++ (Stdlib.String.join pairs "&")
+          key + "=" + value)
+      "?" + (Stdlib.String.join pairs "&")
 
-  let response = Stdlib.HttpClient.get (batchEndpoint ++ queryString) headers
+  let response = Stdlib.HttpClient.get (batchEndpoint + queryString) headers
   handleListResponse response
 
 /// Cancel a message batch that is currently processing

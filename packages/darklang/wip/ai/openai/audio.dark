@@ -26,13 +26,13 @@ module Transport =
     (path: String)
     (json: Json)
     : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
-    let url = Config.baseUrl ++ path
+    let url = Config.baseUrl + path
     let headers = withContentType "application/json" (authHeaders apiKey)
     let body = Stdlib.String.toBlob (Stdlib.AltJson.format json)
 
     match Stdlib.HttpClient.post url headers body with
     | Ok response -> Stdlib.Result.Result.Ok response
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
 
   let postBytes
     (apiKey: String)
@@ -40,34 +40,34 @@ module Transport =
     (contentType: String)
     (body: Blob)
     : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
-    let url = Config.baseUrl ++ path
+    let url = Config.baseUrl + path
     let headers = withContentType contentType (authHeaders apiKey)
 
     match Stdlib.HttpClient.post url headers body with
     | Ok response -> Stdlib.Result.Result.Ok response
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
 
   let get
     (apiKey: String)
     (path: String)
     : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
-    let url = Config.baseUrl ++ path
+    let url = Config.baseUrl + path
     let headers = authHeaders apiKey
 
     match Stdlib.HttpClient.get url headers with
     | Ok response -> Stdlib.Result.Result.Ok response
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
 
   let delete
     (apiKey: String)
     (path: String)
     : Stdlib.Result.Result<Stdlib.HttpClient.Response, String> =
-    let url = Config.baseUrl ++ path
+    let url = Config.baseUrl + path
     let headers = authHeaders apiKey
 
     match Stdlib.HttpClient.request "DELETE" url headers Stdlib.Blob.empty with
     | Ok response -> Stdlib.Result.Result.Ok response
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
 
   let mapStatusError (response: Stdlib.HttpClient.Response) : Stdlib.Option.Option<String> =
     match response.statusCode with
@@ -76,7 +76,7 @@ module Transport =
     | 429 -> Stdlib.Option.Option.Some "Rate limit exceeded"
     | _ ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
-      Stdlib.Option.Option.Some("API error: " ++ bodyStr)
+      Stdlib.Option.Option.Some("API error: " + bodyStr)
 
 
 module Shared =
@@ -118,13 +118,13 @@ module Shared =
     : Blob =
     let header =
       "--"
-      ++ boundary
-      ++ "\r\n"
-      ++ "Content-Disposition: form-data; name=\""
-      ++ name
-      ++ "\"\r\n\r\n"
-      ++ value
-      ++ "\r\n"
+      + boundary
+      + "\r\n"
+      + "Content-Disposition: form-data; name=\""
+      + name
+      + "\"\r\n\r\n"
+      + value
+      + "\r\n"
 
     Stdlib.String.toBlob header
 
@@ -137,16 +137,16 @@ module Shared =
     : Blob =
     let header =
       "--"
-      ++ boundary
-      ++ "\r\n"
-      ++ "Content-Disposition: form-data; name=\""
-      ++ name
-      ++ "\"; filename=\""
-      ++ fileName
-      ++ "\"\r\n"
-      ++ "Content-Type: "
-      ++ contentType
-      ++ "\r\n\r\n"
+      + boundary
+      + "\r\n"
+      + "Content-Disposition: form-data; name=\""
+      + name
+      + "\"; filename=\""
+      + fileName
+      + "\"\r\n"
+      + "Content-Type: "
+      + contentType
+      + "\r\n\r\n"
 
     Stdlib.Blob.concat
       [ Stdlib.String.toBlob header
@@ -175,7 +175,7 @@ module Shared =
     (fileDataBase64: String)
     : Stdlib.Result.Result<MultipartRequest, String> =
     match Stdlib.Base64.decode fileDataBase64 with
-    | Error e -> Stdlib.Result.Result.Error("Invalid base64 audio data: " ++ e)
+    | Error e -> Stdlib.Result.Result.Error("Invalid base64 audio data: " + e)
     | Ok fileBytes ->
       let boundary = "darklang-openai-audio-boundary"
 
@@ -196,7 +196,7 @@ module Shared =
       let filePartBlob =
         filePart boundary fileFieldName fileName (guessMimeType fileName) fileBytes
 
-      let closing = Stdlib.String.toBlob ("--" ++ boundary ++ "--\r\n")
+      let closing = Stdlib.String.toBlob ("--" + boundary + "--\r\n")
 
       let body =
         Stdlib.Blob.concat
@@ -206,7 +206,7 @@ module Shared =
 
       Stdlib.Result.Result.Ok(
         MultipartRequest
-          { contentType = "multipart/form-data; boundary=" ++ boundary
+          { contentType = "multipart/form-data; boundary=" + boundary
             body = body })
 
 
@@ -1151,7 +1151,7 @@ module VoiceConsents =
     if apiKey == "" then
       Stdlib.Result.Result.Error "API key cannot be empty"
     else
-      match Transport.get apiKey ("/audio/voice_consents/" ++ consentId) with
+      match Transport.get apiKey ("/audio/voice_consents/" + consentId) with
       | Error e -> Stdlib.Result.Result.Error e
       | Ok response ->
         match Transport.mapStatusError response with
@@ -1173,7 +1173,7 @@ module VoiceConsents =
     if apiKey == "" then
       Stdlib.Result.Result.Error "API key cannot be empty"
     else
-      match Transport.delete apiKey ("/audio/voice_consents/" ++ consentId) with
+      match Transport.delete apiKey ("/audio/voice_consents/" + consentId) with
       | Error e -> Stdlib.Result.Result.Error e
       | Ok response ->
         match Transport.mapStatusError response with

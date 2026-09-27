@@ -74,7 +74,7 @@ type Error =
 let toString (e: Error) : String =
   match e with
   | RequestFailed re ->
-    "HTTP request failed: " ++ Stdlib.HttpClient.toString re
+    "HTTP request failed: " + Stdlib.HttpClient.toString re
   | DiscordError(code, body) ->
     $"Discord returned {Stdlib.Int.toString code}: {body}"
 

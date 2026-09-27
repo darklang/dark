@@ -9,10 +9,10 @@ let sendNotification (message: String) (title: String) : String =
       let headers = [ ("Content-Type", "application/x-www-form-urlencoded") ]
 
       let formData =
-        "token=" ++ appToken ++
-        "&user=" ++ userKey ++
-        "&message=" ++ message ++
-        (if title == "" then "" else "&title=" ++ title)
+        "token=" + appToken +
+        "&user=" + userKey +
+        "&message=" + message +
+        (if title == "" then "" else "&title=" + title)
 
       let body = Darklang.Stdlib.String.toBlob formData
 
@@ -21,9 +21,9 @@ let sendNotification (message: String) (title: String) : String =
         if response.statusCode == 200 then
           "Pushover notification sent successfully"
         else
-          "Failed to send Pushover notification. Status: " ++ (Darklang.Stdlib.Int.toString response.statusCode)
+          "Failed to send Pushover notification. Status: " + (Darklang.Stdlib.Int.toString response.statusCode)
       | Error err ->
-        "Error sending Pushover notification: " ++ (Darklang.Stdlib.HttpClient.toString err))
+        "Error sending Pushover notification: " + (Darklang.Stdlib.HttpClient.toString err))
     | None ->
       "PUSHOVER_APP_TOKEN environment variable not set. Please set your Pushover application token.")
   | None ->

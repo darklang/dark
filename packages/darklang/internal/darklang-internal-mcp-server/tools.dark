@@ -45,9 +45,9 @@ let searchFunctions () : ModelContextProtocol.ServerBuilder.Tool =
                   [ [ fn.location.owner ], fn.location.modules, [ fn.location.name ] ])
                 "."
             if fn.entity.description == "" then
-              "- " ++ full
+              "- " + full
             else
-              "- " ++ full ++ ": " ++ fn.entity.description)
+              "- " + full + ": " + fn.entity.description)
           |> Stdlib.String.join "\n"
         $"Found {resultCount} functions:\n{formattedResults}"
   }
@@ -89,7 +89,7 @@ let listPackages () : ModelContextProtocol.ServerBuilder.Tool =
       let packageCount = (Stdlib.List.length results.submodules) |> Stdlib.Int.toString
       let formattedPackages =
         results.submodules
-        |> Stdlib.List.map (fun path -> "- " ++ (Stdlib.String.join path "."))
+        |> Stdlib.List.map (fun path -> "- " + (Stdlib.String.join path "."))
         |> Stdlib.String.join "\n"
       $"Found {packageCount} modules:\n{formattedPackages}"
   }

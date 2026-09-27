@@ -131,7 +131,7 @@ let parseLines (lines: List<String>) (nodes: List<Node>) (depth: Int) : List<Nod
   | line :: rest ->
     match classify line with
     | Skip -> parseLines rest nodes depth
-    | Close -> parseLines rest nodes (Stdlib.Int.max 0 (depth - 1))
+    | Close -> parseLines rest nodes (Stdlib.max 0 (depth - 1))
     | Leaf text ->
       parseLines rest (attachAt nodes depth (Node { text = text; children = [] })) depth
     | Open text ->

@@ -86,7 +86,7 @@ let executeTool
     | Ok output -> (output, false)
     | Error err -> (ToolOutput.Text err, true)
   | None ->
-    (ToolOutput.Text("Tool not found: " ++ name), true)
+    (ToolOutput.Text("Tool not found: " + name), true)
 
 
 /// Process tool calls from a response and return results
@@ -198,7 +198,7 @@ let runExtendedLoop
     // Accumulate extended data
     let accumulatedThinking =
       match (state.thinking, response.thinking) with
-      | (Some p, Some c) -> Stdlib.Option.Option.Some(p ++ "\n\n---\n\n" ++ c)
+      | (Some p, Some c) -> Stdlib.Option.Option.Some(p + "\n\n---\n\n" + c)
       | (Some p, None) -> Stdlib.Option.Option.Some p
       | (None, Some c) -> Stdlib.Option.Option.Some c
       | (None, None) -> Stdlib.Option.Option.None

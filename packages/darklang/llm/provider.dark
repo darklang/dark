@@ -271,7 +271,7 @@ module StopReason =
     | MaxTokens -> "max_tokens"
     | StopSequence -> "stop_sequence"
     | ContentFiltered -> "content_filtered"
-    | Error msg -> "error: " ++ msg
+    | Error msg -> "error: " + msg
 
   /// Check if this is a terminal state (no more turns needed)
   let isTerminal (r: StopReason) : Bool =
@@ -338,14 +338,14 @@ type ProviderError =
 module ProviderError =
   let toString (e: ProviderError) : String =
     match e with
-    | AuthenticationError msg -> "Authentication error: " ++ msg
-    | RateLimitError msg -> "Rate limit exceeded: " ++ msg
-    | InvalidRequestError msg -> "Invalid request: " ++ msg
-    | InvalidResponseError msg -> "Invalid response: " ++ msg
-    | ServerError msg -> "Server error: " ++ msg
-    | NetworkError msg -> "Network error: " ++ msg
-    | ContentFilterError msg -> "Content filtered: " ++ msg
-    | Unknown msg -> "Unknown error: " ++ msg
+    | AuthenticationError msg -> "Authentication error: " + msg
+    | RateLimitError msg -> "Rate limit exceeded: " + msg
+    | InvalidRequestError msg -> "Invalid request: " + msg
+    | InvalidResponseError msg -> "Invalid response: " + msg
+    | ServerError msg -> "Server error: " + msg
+    | NetworkError msg -> "Network error: " + msg
+    | ContentFilterError msg -> "Content filtered: " + msg
+    | Unknown msg -> "Unknown error: " + msg
 
   /// Check if the error is retryable
   let isRetryable (e: ProviderError) : Bool =

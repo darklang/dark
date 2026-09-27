@@ -1,7 +1,7 @@
 module Feriel.ModelContextProtocol.PushNotification.Tools.Ntfy
 
 let sendNotification (topic: String) (message: String) (title: String) : String =
-  let url = "https://ntfy.sh/" ++ topic
+  let url = "https://ntfy.sh/" + topic
   let headers =
     if title == "" then
       []
@@ -13,11 +13,11 @@ let sendNotification (topic: String) (message: String) (title: String) : String 
   match Darklang.Stdlib.HttpClient.post url headers body with
   | Ok response ->
     if response.statusCode == 200 then
-      "Notification sent successfully to topic: " ++ topic
+      "Notification sent successfully to topic: " + topic
     else
-      "Failed to send notification. Status: " ++ (Darklang.Stdlib.Int.toString response.statusCode)
+      "Failed to send notification. Status: " + (Darklang.Stdlib.Int.toString response.statusCode)
   | Error err ->
-    "Error sending notification: " ++ (Darklang.Stdlib.HttpClient.toString err)
+    "Error sending notification: " + (Darklang.Stdlib.HttpClient.toString err)
 
 let ntfyTool () : Darklang.ModelContextProtocol.ServerBuilder.Tool =
   Darklang.ModelContextProtocol.ServerBuilder.Tool {

@@ -1004,7 +1004,7 @@ module PromptCachingTests =
     | Some apiKey ->
       // Create a large system prompt that will be cached (must be > 1024 tokens for caching)
       let largeSystemPrompt =
-        "You are a helpful assistant. " ++
+        "You are a helpful assistant. " +
         (Stdlib.String.repeat "This is filler text to make the prompt large enough for caching. " 200)
 
       let cachedBlock =
