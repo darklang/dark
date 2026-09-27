@@ -1292,6 +1292,8 @@ module RuntimeError =
           "FieldAccessFieldNotFound", [ DString fieldName ]
         | RuntimeError.Records.FieldAccessNotRecord actualType ->
           "FieldAccessNotRecord", [ ValueType.toDT actualType ]
+        | RuntimeError.Records.FieldAccessTupleIndexOutOfRange(fieldName, length) ->
+          "FieldAccessTupleIndexOutOfRange", [ DString fieldName; dintOfInt length ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1346,6 +1348,11 @@ module RuntimeError =
         RuntimeError.Records.FieldAccessFieldNotFound(D.string fieldName)
       | DEnum(_, _, [], "FieldAccessNotRecord", [ actualType ]) ->
         RuntimeError.Records.FieldAccessNotRecord(ValueType.fromDT actualType)
+      | DEnum(_, _, [], "FieldAccessTupleIndexOutOfRange", [ fieldName; length ]) ->
+        RuntimeError.Records.FieldAccessTupleIndexOutOfRange(
+          D.string fieldName,
+          D.int length
+        )
       | _ -> Exception.raiseInternal "Invalid Records.Error" []
 
   module Enums =

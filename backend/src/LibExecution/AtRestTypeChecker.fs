@@ -29,51 +29,35 @@ open LibExecution.AtRest.Inference
 // Public checking API
 // --------------------
 
+/// In `t.1.2`, resolving `.2` requires the type from `.1`.
+/// Retry deferred accesses until no progress is possible, then report ambiguity.
 let private resolvePendingFieldAccesses (state : State) : unit =
-  for nodeId, recordType, fieldName, resultType in state.PendingFieldAccesses do
-    let recordType = normalizeAliases state (Some nodeId) Set.empty recordType
-    match declarationForCustom state (Some nodeId) recordType with
-    | Some(_, typeArgs, declaration) ->
-      match declaration.definition with
-      | TypeDeclaration.Record fields ->
-        match
-          fields
-          |> NEList.toList
-          |> List.tryFind (fun field -> field.name = fieldName)
-        with
-        | Some field ->
-          let fieldType =
-            declarationFieldType
-              state
-              (Some nodeId)
-              declaration.typeParams
-              typeArgs
-              field.typ
-          unify state (Some nodeId) RecordFieldAccess fieldType resultType
-        | None ->
-          state.Error(
-            UnknownRecordField,
-            Some nodeId,
-            None,
-            Some recordType,
-            Identifier fieldName
-          )
-      | TypeDeclaration.Enum _
-      | TypeDeclaration.Alias _ ->
-        state.Error(
-          TypeMismatch,
-          Some nodeId,
-          None,
-          Some recordType,
-          RecordRequiredForFieldAccess
-        )
-    | None ->
-      if not (containsTaintedInferenceVariable state recordType) then
-        state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
+  // Return false only when the input type is still unknown.
+  let resolve (nodeId, recordType, fieldName, resultType) : bool =
+    match normalizeAliases state (Some nodeId) Set.empty recordType with
+    | TInferenceVariable _ -> false
+    | subjectType ->
+      let fieldType = resolveFieldAccess state nodeId subjectType fieldName
+      unify state (Some nodeId) RecordFieldAccess fieldType resultType
+      true
+
+  let rec loop pending =
+    let remaining = pending |> List.filter (resolve >> not)
+    if List.length remaining < List.length pending then
+      loop remaining
+    else
+      for nodeId, recordType, _, _ in remaining do
+        if not (containsTaintedInferenceVariable state recordType) then
+          state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
+
+  // Try inner accesses first to resolve most chains in one pass.
+  loop (List.rev state.PendingFieldAccesses)
 
 let private displayType (scheme : TypeScheme) : StaticType =
+  // name only what the type shows; a variable quantified because a field
+  // constraint reaches it would otherwise leave gaps (`t1 -> t3`)
   let names =
-    scheme.quantified
+    Set.intersect scheme.quantified (inferenceVariables scheme.typ)
     |> Set.toList
     |> List.mapi (fun index var -> var, TRigidVariable $"t{index + 1}")
     |> Map.ofList

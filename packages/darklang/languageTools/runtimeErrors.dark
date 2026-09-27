@@ -112,6 +112,8 @@ module Records =
     | FieldAccessEmptyFieldName
     | FieldAccessFieldNotFound of fieldName: String
     | FieldAccessNotRecord of actualType: ValueType
+    /// Invalid or out-of-range tuple index, such as `t.0` or `t.x`.
+    | FieldAccessTupleIndexOutOfRange of fieldName: String * tupleLength: Int
 
 module Applications =
   type Error =

@@ -236,6 +236,8 @@ Rules:
   double quotes; "a" is not 'a')
 - Tuples destructure inline in `let` and in lambda params:
   `let (a, b) = pair`, `fun (name, done) -> ...`
+- Tuple elements by position, counting from 1: `pair.1`, `triple.3`,
+  `nested.1.2`. `.0` and past-the-end are errors.
 - String concat: ++ (not @)
 - String interpolation: $"x = {expr}; total = {a ++ b}" -- does NOT auto-coerce
   non-strings; wrap with Stdlib.Int.toString / Stdlib.Float.toString

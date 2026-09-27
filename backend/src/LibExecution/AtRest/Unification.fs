@@ -19,15 +19,6 @@ open LibExecution.AtRest.Types
 // Checker state
 // --------------------
 
-/// Types needed to check a `?` expression once inference has enough information.
-/// The operand and the return type of the function or lambda containing it must
-/// both be Option or both be Result; for Result, their error types must also match.
-type internal UnwrapConstraint =
-  { expressionId : id
-    operandType : StaticType
-    unwrappedType : StaticType
-    enclosingReturnType : StaticType }
-
 type internal State(environment : TypeEnvironment) =
   let diagnostics = ResizeArray<Diagnostic>()
   let blockers = ResizeArray<Blocker>()
@@ -756,54 +747,63 @@ let private freeVariablesInEnv (state : State) (env : Env) : Set<int> =
 
 let internal generalize (state : State) (env : Env) (typ : StaticType) : TypeScheme =
   let typ = applySubstitutions state typ
-  let typeVariables = inferenceVariables typ
-  // Keep type variables used by unresolved `?` checks shared across calls.
-  // Giving each call fresh variables would disconnect it from the pending check.
-  // Include variables connected through record fields: in `fun row -> row.item?`,
-  // a later call must tell us both the row type and the type of row.item.
-  let unwrapVariables =
-    let seed =
-      state.PendingUnwrapConstraints
-      |> List.collect (fun constraint_ ->
-        [ constraint_.operandType
-          constraint_.unwrappedType
-          constraint_.enclosingReturnType ])
-      |> List.map (applySubstitutions state >> inferenceVariables)
-      |> Set.unionMany
-    let fieldLinks =
-      state.PendingFieldAccesses
-      |> List.map (fun (_, recordType, _, resultType) ->
-        Set.union
-          (applySubstitutions state recordType |> inferenceVariables)
-          (applySubstitutions state resultType |> inferenceVariables))
-    let rec close (held : Set<int>) =
-      let grown =
-        fieldLinks
-        |> List.filter (fun linked -> not (Set.isEmpty (Set.intersect linked held)))
-        |> List.fold Set.union held
-      if grown = held then held else close grown
-    if Set.isEmpty seed then seed else close seed
-  let quantified =
-    Set.difference
-      typeVariables
-      (Set.union (freeVariablesInEnv state env) unwrapVariables)
-  // Apply known type substitutions before saving field constraints.
-  // This lets each call give fresh copies to the variables being generalized,
-  // instead of retaining references to variables that were already resolved.
-  let capturedConstraints, remainingConstraints =
+  // Apply known types before saving constraints, so each call gets fresh copies
+  // of only the variables that are still unknown.
+  let pendingFieldAccesses =
     state.PendingFieldAccesses
     |> List.map (fun (nodeId, recordType, fieldName, resultType) ->
       (nodeId,
        applySubstitutions state recordType,
        fieldName,
        applySubstitutions state resultType))
-    |> List.partition (fun (_, recordType, _, resultType) ->
-      let constraintVariables =
-        Set.union (inferenceVariables recordType) (inferenceVariables resultType)
-      not (Set.isEmpty constraintVariables)
-      && Set.isSubset constraintVariables quantified)
+  let constraintVariables (_, recordType, _, resultType) =
+    Set.union (inferenceVariables recordType) (inferenceVariables resultType)
+  let pendingUnwrapConstraints =
+    state.PendingUnwrapConstraints
+    |> List.map (fun constraint_ ->
+      { constraint_ with
+          operandType = applySubstitutions state constraint_.operandType
+          unwrappedType = applySubstitutions state constraint_.unwrappedType
+          enclosingReturnType =
+            applySubstitutions state constraint_.enclosingReturnType })
+  let unwrapVariables (constraint_ : UnwrapConstraint) =
+    [ constraint_.operandType
+      constraint_.unwrappedType
+      constraint_.enclosingReturnType ]
+    |> List.map inferenceVariables
+    |> Set.unionMany
+  let links =
+    (pendingFieldAccesses |> List.map constraintVariables)
+    @ (pendingUnwrapConstraints |> List.map unwrapVariables)
+  // In `t.1.2`, knowing t's type lets us determine t.1's type, then t.1.2's.
+  // Track those types together. Do the same for the types linked by `?`.
+  let rec closeOverConstraints (held : Set<int>) : Set<int> =
+    let grown =
+      links
+      |> List.filter (fun linked -> not (Set.isEmpty (Set.intersect linked held)))
+      |> List.fold Set.union held
+    if grown = held then held else closeOverConstraints grown
+  // A function using a variable from outside must use that variable's
+  // existing type, not a fresh type for each call.
+  let envVariables = freeVariablesInEnv state env |> closeOverConstraints
+  let quantified =
+    Set.difference (closeOverConstraints (inferenceVariables typ)) envVariables
+  let capturedConstraints, remainingConstraints =
+    pendingFieldAccesses
+    |> List.partition (fun fieldAccess ->
+      let variables = constraintVariables fieldAccess
+      not (Set.isEmpty variables) && Set.isSubset variables quantified)
+  let capturedUnwraps, remainingUnwraps =
+    pendingUnwrapConstraints
+    |> List.partition (fun constraint_ ->
+      let variables = unwrapVariables constraint_
+      not (Set.isEmpty variables) && Set.isSubset variables quantified)
   state.PendingFieldAccesses <- remainingConstraints
-  { quantified = quantified; typ = typ; fieldConstraints = capturedConstraints }
+  state.PendingUnwrapConstraints <- remainingUnwraps
+  { quantified = quantified
+    typ = typ
+    fieldConstraints = capturedConstraints
+    unwrapConstraints = capturedUnwraps }
 
 let internal instantiateScheme
   (state : State)
@@ -829,6 +829,13 @@ let internal instantiateScheme
     state.PendingFieldAccesses <-
       (nodeId, replace recordType, fieldName, replace resultType)
       :: state.PendingFieldAccesses
+  for constraint_ in scheme.unwrapConstraints do
+    state.PendingUnwrapConstraints <-
+      { constraint_ with
+          operandType = replace constraint_.operandType
+          unwrappedType = replace constraint_.unwrappedType
+          enclosingReturnType = replace constraint_.enclosingReturnType }
+      :: state.PendingUnwrapConstraints
   replace scheme.typ
 
 
@@ -844,7 +851,10 @@ let internal emptyEnv : Env =
     typeVariables = Map.empty }
 
 let internal monomorphic (typ : StaticType) : TypeScheme =
-  { quantified = Set.empty; typ = typ; fieldConstraints = [] }
+  { quantified = Set.empty
+    typ = typ
+    fieldConstraints = []
+    unwrapConstraints = [] }
 
 let internal addSchemes (env : Env) (bindings : List<string * TypeScheme>) : Env =
   let locals =

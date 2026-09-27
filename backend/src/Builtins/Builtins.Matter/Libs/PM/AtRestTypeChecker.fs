@@ -353,6 +353,7 @@ module private DarkTypes =
       | Checker.InvalidPattern -> "InvalidPattern"
       | Checker.DuplicatePatternBinding -> "DuplicatePatternBinding"
       | Checker.UnknownRecordField -> "UnknownRecordField"
+      | Checker.UnknownTupleElement -> "UnknownTupleElement"
       | Checker.MissingRecordField -> "MissingRecordField"
       | Checker.DuplicateRecordField -> "DuplicateRecordField"
       | Checker.UnknownEnumCase -> "UnknownEnumCase"

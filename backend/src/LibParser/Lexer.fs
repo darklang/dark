@@ -26,7 +26,9 @@ type SpannedToken =
     // comments between the previous token and this one, in source order — kept
     // so tooling (formatter, lossless round-trip) can reproduce the source.
     // Trailing comments at EOF land on the TEOF token.
-    leadingTrivia : List<Trivia> }
+    leadingTrivia : List<Trivia>
+    // Already reported by the lexer; avoid a duplicate parser error.
+    lexError : bool }
 
 /// Decode the escape starting at `source[escapeStartIndex]`, which must be `\`.
 /// Returns `Some(charsConsumed, decodedText)`, or `None` for an invalid escape:
@@ -523,7 +525,8 @@ let tokenize
        text = input.Substring(startIndex, endIndex - startIndex)
        range = { start = position; end_ = endPosition }
        docComment = docComment
-       leadingTrivia = leadingTrivia },
+       leadingTrivia = leadingTrivia
+       lexError = false },
      endIndex,
      endPosition)
 
@@ -1063,5 +1066,11 @@ let tokenize
           go (index + 1) (advance position index (index + 1)) tokensRev
 
   match go 0 { row = 0; column = 0 } [] with
-  | Ok tokens -> Ok(tokens, List.ofSeq diagnostics)
+  | Ok tokens ->
+    let diagnosed = diagnostics |> Seq.map fst |> System.Collections.Generic.HashSet
+    let tokens =
+      tokens
+      |> List.map (fun t ->
+        if diagnosed.Contains t.range then { t with lexError = true } else t)
+    Ok(tokens, List.ofSeq diagnostics)
   | Error message -> Error message

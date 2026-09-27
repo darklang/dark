@@ -9,4 +9,4 @@ module Errors =
 
   (Builtin.testRuntimeError "error").fieldName = error="Uncaught exception: error"
 
-  (let x = 6L in x.fieldName) = error="Attempting to perform field access of an Int64, but this only works with records"
+  (let x = 6L in x.fieldName) = error="Attempting to perform field access of an Int64, but this only works with records and tuples"

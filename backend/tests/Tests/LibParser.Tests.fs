@@ -1614,6 +1614,15 @@ let private goldenDiagnosticsTests =
         [ "expected ']' to close the '[' at line 1:9, found end of file"
           "expected an expression, found end of file" ]
       golden "[1L; 2L]" [ "expected ',' between list elements, found ';'" ]
+      // Invalid tuple indices produce one diagnostic each.
+      golden "t.1L" [ "expected a tuple element number after '.', found '1L'" ]
+      golden
+        "t.1e0 + 1L"
+        [ "expected a tuple element number after '.', found '1e0'" ]
+      golden "t.1.2e3" [ "expected a tuple element number after '.', found '1.2e3'" ]
+      // Report the lexer error without an extra parser error.
+      golden "t.1.2L" [ "invalid number literal: 1.2L" ]
+      golden "t.300y" [ "out of range for Int8: 300" ]
       golden
         "[1L; 2L; 3L]"
         [ "expected ',' between list elements, found ';'"
