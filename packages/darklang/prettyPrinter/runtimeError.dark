@@ -382,7 +382,11 @@ module RuntimeError =
         [ ES.String "Attempting to perform field access of "
           ES.IndefiniteArticle
           ES.ValueType actualType
-          ES.String ", but this only works with records" ]
+          ES.String ", but this only works with records and tuples" ]
+      | FieldAccessTupleIndexOutOfRange(fieldName, tupleLength) ->
+        [ ES.String $"Tried to access element .{fieldName} of a tuple with "
+          ES.Int tupleLength
+          ES.String " elements; tuple elements are numbered from .1" ]
 
 
     | Enum err ->

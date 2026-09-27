@@ -1753,8 +1753,12 @@ and parseAtom (state : ParserState) (i : int) : WT.Expr * int =
   // it to the lambda itself (for example, `fun v -> Ok (x)?`).
   if tok state i = TFun then (baseE, j) else parsePostfix state baseE j
 
-// Postfix field access and unwrap (left-associative).
+// Parse `value?.field.1` from left to right: unwrap, field, then tuple element.
+// The parser stores both `.field` and `.1` as field accesses.
 and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
+  let access (e : WT.Expr) (dotR : TokenRange) (fieldR : TokenRange) field =
+    WT.ERecordFieldAccess(span (WT.exprRange e) fieldR, e, (fieldR, field), dotR)
+  let isDigits (s : string) = s <> "" && Seq.forall System.Char.IsDigit s
   match tok state i, tok state (i + 1) with
   | TQuestion, _ ->
     let question = rng state i
@@ -1773,12 +1777,41 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
       (WT.EUnwrap(span (WT.exprRange e) question, e, question))
       (i + 1)
   | TDot, TIdent field ->
-    let dotR = rng state i
-    let fieldR = rng state (i + 1)
-    parsePostfix
-      state
-      (WT.ERecordFieldAccess(span (WT.exprRange e) fieldR, e, (fieldR, field), dotR))
-      (i + 2)
+    parsePostfix state (access e (rng state i) (rng state (i + 1)) field) (i + 2)
+  | TDot, TInt _ when isDigits (txt state (i + 1)) ->
+    let field = txt state (i + 1)
+    parsePostfix state (access e (rng state i) (rng state (i + 1)) field) (i + 2)
+  // The lexer reads `1.2` in `t.1.2` as a float; split it into two accesses.
+  | TDot, TFloat _ when
+    (match (txt state (i + 1)).Split('.') with
+     | [| a; b |] -> isDigits a && isDigits b
+     | _ -> false)
+    ->
+    let text = txt state (i + 1)
+    let a = text.Substring(0, text.IndexOf '.')
+    let b = text.Substring(a.Length + 1)
+    let r = rng state (i + 1)
+    let at (col : int) = { r.start with column = r.start.column + col }
+    let aR = { start = r.start; end_ = at a.Length }
+    let innerDotR = { start = at a.Length; end_ = at (a.Length + 1) }
+    let bR = { start = at (a.Length + 1); end_ = r.end_ }
+    let inner = access e (rng state i) aR a
+    parsePostfix state (access inner innerDotR bR b) (i + 2)
+  // Give invalid indices such as `t.1L` and `t.1e0` a specific diagnostic.
+  | TDot,
+    (TInt _ | TInt64 _ | TInt128 _ | TInt8 _ | TInt16 _ | TInt32 _ | TUInt8 _ | TUInt16 _ | TUInt32 _ | TUInt64 _ | TUInt128 _ | TFloat _) ->
+    let text = txt state (i + 1)
+    // The lexer already reports malformed literals such as `1.2L` or `300y`.
+    if not state.toks[i + 1].lexError then
+      errFull
+        state
+        DiagnosticCode.expected
+        (i + 1)
+        $"expected a tuple element number after '.', found '{text}'"
+        []
+        (Some "tuple elements are plain numbers counting from 1: t.1, t.2")
+    let digits = text |> Seq.takeWhile System.Char.IsDigit |> System.String.Concat
+    parsePostfix state (access e (rng state i) (rng state (i + 1)) digits) (i + 2)
   | _ -> (e, i)
 
 // `$"text {expr} text"` — re-scan the token's source text, deriving exact ranges

@@ -1141,8 +1141,8 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     | EVariable(_, _)
     | EUnwrap(_, _)
     | ERecordFieldAccess(_, _, _) ->
-      $"{exprPart}.{PrettyPrinter.formatFieldName fieldName}"
-    | _ -> $"({exprPart}).{PrettyPrinter.formatFieldName fieldName}"
+      $"{exprPart}.{PrettyPrinter.formatAccessedFieldName fieldName}"
+    | _ -> $"({exprPart}).{PrettyPrinter.formatAccessedFieldName fieldName}"
 
   | EVariable(_id, name) -> name
 

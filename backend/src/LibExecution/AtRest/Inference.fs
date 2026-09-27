@@ -407,6 +407,76 @@ let internal addUnwrap
       enclosingReturnType = returned }
     :: state.PendingUnwrapConstraints
 
+/// Resolve record or tuple access for both immediate and deferred checking.
+/// The subject type must already be normalized; inference variables are deferred.
+let internal resolveFieldAccess
+  (state : State)
+  (nodeId : id)
+  (subjectType : StaticType)
+  (fieldName : string)
+  : StaticType =
+  let invalidSubject () =
+    state.Error(
+      TypeMismatch,
+      Some nodeId,
+      None,
+      Some subjectType,
+      RecordRequiredForFieldAccess
+    )
+    state.Fresh(Some nodeId)
+  match subjectType with
+  | TTuple(first, second, rest) ->
+    let elements = first :: second :: rest
+    match RT.tupleIndexOfFieldName fieldName with
+    | Some n when n <= List.length elements -> List.item (n - 1) elements
+    | _ ->
+      state.Error(
+        UnknownTupleElement,
+        Some nodeId,
+        None,
+        Some subjectType,
+        Identifier fieldName
+      )
+      state.Fresh(Some nodeId)
+  | TCustom _ ->
+    match declarationForCustom state (Some nodeId) subjectType with
+    | Some(_, typeArgs, declaration) ->
+      match declaration.definition with
+      | TypeDeclaration.Record fields ->
+        match
+          fields
+          |> NEList.toList
+          |> List.tryFind (fun field -> field.name = fieldName)
+        with
+        | Some field ->
+          declarationFieldType
+            state
+            (Some nodeId)
+            declaration.typeParams
+            typeArgs
+            field.typ
+        | None ->
+          state.Error(
+            UnknownRecordField,
+            Some nodeId,
+            None,
+            Some subjectType,
+            Identifier fieldName
+          )
+          state.Fresh(Some nodeId)
+      | TypeDeclaration.Enum _ -> invalidSubject ()
+      // An alias surviving normalization has a cycle or unavailable target.
+      | TypeDeclaration.Alias _ -> state.FreshTainted(Some nodeId)
+    // Missing declarations and invalid type arguments are already diagnosed.
+    | None -> state.FreshTainted(Some nodeId)
+  | TInferenceVariable _ ->
+    if containsTaintedInferenceVariable state subjectType then
+      state.FreshTainted(Some nodeId)
+    else
+      state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
+      state.Fresh(Some nodeId)
+  | _ -> invalidSubject ()
+
 let rec internal checkExprWithContext
   (state : State)
   (env : Env)
@@ -1047,47 +1117,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
       state.PendingFieldAccesses <-
         (nodeId, recordType, fieldName, fieldType) :: state.PendingFieldAccesses
       fieldType
-    | _ ->
-      match declarationForCustom state (Some nodeId) recordType with
-      | Some(_, typeArgs, declaration) ->
-        match declaration.definition with
-        | TypeDeclaration.Record fields ->
-          match
-            fields
-            |> NEList.toList
-            |> List.tryFind (fun field -> field.name = fieldName)
-          with
-          | Some field ->
-            declarationFieldType
-              state
-              (Some nodeId)
-              declaration.typeParams
-              typeArgs
-              field.typ
-          | None ->
-            state.Error(
-              UnknownRecordField,
-              Some nodeId,
-              None,
-              Some recordType,
-              Identifier fieldName
-            )
-            state.Fresh(Some nodeId)
-        | _ ->
-          state.Error(
-            TypeMismatch,
-            Some nodeId,
-            None,
-            Some recordType,
-            RecordRequiredForFieldAccess
-          )
-          state.Fresh(Some nodeId)
-      | None ->
-        if containsTaintedInferenceVariable state recordType then
-          state.FreshTainted(Some nodeId)
-        else
-          state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
-          state.Fresh(Some nodeId)
+    | subjectType -> resolveFieldAccess state nodeId subjectType fieldName
   | ERecordUpdate(nodeId, record, updates) ->
     let recordType = inferExpr state env record
     let updates = NEList.toList updates

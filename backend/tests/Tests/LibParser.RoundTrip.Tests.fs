@@ -1799,6 +1799,9 @@ let exprs =
 
     // field access
     t "field access 1" "person.name" "person.name" [] [] [] false
+    t "tuple element access" "pair.2" "pair.2" [] [] [] false
+    // Preserve both accesses despite the lexer reading `1.2` as a float.
+    t "nested tuple element access" "pair.1.2" "pair.1.2" [] [] [] false
     t
       "field access 2"
       "(Tests.Person { name =\"Janice\" }).name"

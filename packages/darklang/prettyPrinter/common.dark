@@ -111,6 +111,13 @@ let formatFieldName (name: String) : String =
   else
     $"``{name}``"
 
+/// Print numeric field names without backticks for tuple access such as `t.1`.
+let formatAccessedFieldName (name: String) : String =
+  let isDigits =
+    (Stdlib.Bool.not (Stdlib.String.isEmpty name))
+    && (name |> Stdlib.String.toList |> Stdlib.List.all Stdlib.Char.isDigit)
+  if isDigits then name else formatFieldName name
+
 /// The fraction of a float literal with its trailing zeros dropped (`1.50` -> `1.5`), by parsing and
 /// reprinting it. Only trusted when that comes back as a plain `0.xxx` decimal: `00001` reprints as
 /// `1e-5`, and cutting two characters off that gave `0.-5`.
@@ -274,4 +281,3 @@ module DisplayOptions =
   /// The defaults at a given width.
   let atWidth (width: Int) : DisplayOptions =
     { DisplayOptions.default with width = width }
-

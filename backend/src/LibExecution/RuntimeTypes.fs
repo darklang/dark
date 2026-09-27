@@ -1409,6 +1409,19 @@ module StreamImpl =
       | first :: _ -> elemType first
 
 
+/// Parse a field name as a 1-based tuple index; reject "0", "01" and non-digits.
+let tupleIndexOfFieldName (fieldName : string) : Option<int> =
+  if
+    fieldName.Length > 0
+    && fieldName.Length <= 9
+    && fieldName[0] <> '0'
+    && Seq.forall (fun c -> c >= '0' && c <= '9') fieldName
+  then
+    Some(int fieldName)
+  else
+    None
+
+
 module RuntimeError =
   module TypeChecking =
     type TypeCheckPathPart =
@@ -1573,6 +1586,8 @@ module RuntimeError =
       | FieldAccessEmptyFieldName
       | FieldAccessFieldNotFound of fieldName : string
       | FieldAccessNotRecord of actualType : ValueType
+      /// Invalid or out-of-range tuple index, such as `t.0` or `t.x`.
+      | FieldAccessTupleIndexOutOfRange of fieldName : string * tupleLength : int
 
 
   /// Errors that occur when trying to apply a function or lambda

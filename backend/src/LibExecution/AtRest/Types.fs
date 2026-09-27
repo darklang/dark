@@ -53,10 +53,20 @@ type Dependency =
   | FunctionDependency of FQFnName.FQFnName
   | ValueDependency of FQValueName.FQValueName
 
+/// Types needed to check a `?` expression once inference has enough information.
+/// The operand and the return type of the function or lambda containing it must
+/// both be Option or both be Result; for Result, their error types must also match.
+type internal UnwrapConstraint =
+  { expressionId : id
+    operandType : StaticType
+    unwrappedType : StaticType
+    enclosingReturnType : StaticType }
+
 type internal TypeScheme =
   { quantified : Set<int>
     typ : StaticType
-    fieldConstraints : List<id * StaticType * string * StaticType> }
+    fieldConstraints : List<id * StaticType * string * StaticType>
+    unwrapConstraints : List<UnwrapConstraint> }
 
 type Proof =
   internal
@@ -74,6 +84,7 @@ type DiagnosticCode =
   | InvalidPattern
   | DuplicatePatternBinding
   | UnknownRecordField
+  | UnknownTupleElement
   | MissingRecordField
   | DuplicateRecordField
   | UnknownEnumCase

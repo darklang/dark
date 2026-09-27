@@ -46,6 +46,7 @@ type IssueCode =
   | InvalidPattern
   | DuplicatePatternBinding
   | UnknownRecordField
+  | UnknownTupleElement
   | MissingRecordField
   | DuplicateRecordField
   | UnknownEnumCase
@@ -266,6 +267,7 @@ let issueCodeToString (code: IssueCode) : String =
   | InvalidPattern -> "InvalidPattern"
   | DuplicatePatternBinding -> "DuplicatePatternBinding"
   | UnknownRecordField -> "UnknownRecordField"
+  | UnknownTupleElement -> "UnknownTupleElement"
   | MissingRecordField -> "MissingRecordField"
   | DuplicateRecordField -> "DuplicateRecordField"
   | UnknownEnumCase -> "UnknownEnumCase"
@@ -407,6 +409,8 @@ let contextToStringWith
     match code with
     | UnknownVariable -> $"Local variable '{ident}' is not in scope"
     | UnknownRecordField -> $"Record has no field named '{ident}'"
+    | UnknownTupleElement ->
+      $"Tuple has no element .{ident}; elements are numbered from .1"
     | UnknownEnumCase -> $"Enum has no case named '{ident}'"
     | UnknownDeclaredTypeVariable ->
       $"Type variable '{ident}' is not declared in this scope"
@@ -463,7 +467,7 @@ let contextToStringWith
     let symbol = PrettyPrinter.ProgramTypes.infixFnName operation
     $"Operator {symbol} does not accept this operand type"
   | RecordRequiredForConstruction -> "Record construction requires a record type"
-  | RecordRequiredForFieldAccess -> "Field access requires a record"
+  | RecordRequiredForFieldAccess -> "Field access requires a record or tuple"
   | RecordRequiredForUpdate -> "Record update requires a record"
   | EnumRequiredForConstruction -> "Enum construction requires an enum type"
   | EnumRequiredForPattern -> "An enum pattern requires an enum type"

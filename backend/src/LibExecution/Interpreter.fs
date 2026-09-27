@@ -2805,6 +2805,19 @@ let private runSyncInstructions
               RTE.Records.FieldAccessFieldNotFound fieldName
               |> RTE.Record
               |> raiseRTE vm.threadID
+        // Tuple indices are stored as field names.
+        | DTuple _ when fieldName = "" ->
+          RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE vm.threadID
+        | DTuple(first, second, rest) ->
+          let length = 2 + List.length rest
+          match tupleIndexOfFieldName fieldName with
+          | Some 1 -> registers[targetReg] <- first
+          | Some 2 -> registers[targetReg] <- second
+          | Some n when n <= length -> registers[targetReg] <- List.item (n - 3) rest
+          | _ ->
+            RTE.Records.FieldAccessTupleIndexOutOfRange(fieldName, length)
+            |> RTE.Record
+            |> raiseRTE vm.threadID
         | dv ->
           RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
           |> RTE.Record

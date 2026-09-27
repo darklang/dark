@@ -318,6 +318,60 @@ let private unitTests =
           (withHelper (PT.ELet(945UL, PT.LPWildcard 946UL, get 947UL 0, get 950UL 1)))
         |> CheckerApi.checkPackageFunction rows
         |> expectChecked
+        // `fun row -> row.item?` leaves both the operand and return type unknown.
+        // Each call must instantiate the field and unwrap constraints together.
+        let nestedIntRow, nestedIntDeclaration =
+          record "unwrap-nested-int-row" (option PT.TInt)
+        let nestedStringRow, nestedStringDeclaration =
+          record "unwrap-nested-string-row" (option PT.TString)
+        let nestedRows =
+          rows
+          |> Checker.TypeEnvironment.addType nestedIntRow nestedIntDeclaration
+          |> Checker.TypeEnvironment.addType nestedStringRow nestedStringDeclaration
+        let withDeferredHelper body =
+          PT.ELet(
+            980UL,
+            PT.LPVariable(981UL, "get"),
+            PT.ELambda(
+              982UL,
+              NEList.singleton (PT.LPVariable(983UL, "row")),
+              PT.EUnwrap(
+                984UL,
+                PT.ERecordFieldAccess(985UL, PT.EVariable(986UL, "row"), "item")
+              )
+            ),
+            body
+          )
+        fn
+          (NEList.ofList
+            (parameter "a" (customType nestedIntRow))
+            [ parameter "b" (customType nestedStringRow) ])
+          (PT.TTuple(option PT.TInt, option PT.TString, []))
+          (withDeferredHelper (PT.ETuple(987UL, get 988UL 0, get 991UL 1, [])))
+        |> CheckerApi.checkPackageFunction nestedRows
+        |> expectChecked
+        oneArgFn
+          (customType nestedIntRow)
+          (option PT.TString)
+          (withDeferredHelper (get 994UL 0))
+        |> CheckerApi.checkPackageFunction nestedRows
+        |> expectDiagnostic Checker.TypeMismatch
+        let invalidRow = PT.FQTypeName.package "unwrap-scalar-item-row"
+        let invalidRows =
+          nestedRows
+          |> Checker.TypeEnvironment.addType
+            invalidRow
+            { typeParams = []
+              definition =
+                PT.TypeDeclaration.Record(
+                  NEList.singleton { name = "item"; typ = PT.TInt; description = "" }
+                ) }
+        oneArgFn
+          (customType invalidRow)
+          (option PT.TInt)
+          (withDeferredHelper (get 997UL 0))
+        |> CheckerApi.checkPackageFunction invalidRows
+        |> expectDiagnostic Checker.TypeMismatch
         // An operand whose declaration is unavailable could be an alias of
         // Option: that is a missing dependency, not a definite error.
         oneArgFn
@@ -369,6 +423,368 @@ let private unitTests =
           PT.EUnwrap(921UL, PT.EEnum(922UL, nr optionName, [ PT.TInt ], "None", []))
         CheckerApi.checkExpression environment outside
         |> expectDiagnostic Checker.InvalidUnwrap
+      }
+
+      test "field access on a known scalar is a definite error" {
+        oneArgFn PT.TInt64 PT.TInt (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "1"))
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.TypeMismatch
+      }
+
+      test "field access on a rigid type parameter is a definite error" {
+        { oneArgFn
+            (PT.TVariable "a")
+            PT.TInt
+            (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "field")) with
+            typeParams = [ "a" ] }
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.TypeMismatch
+      }
+
+      test "deferred field access on a scalar is a definite error" {
+        let lambda =
+          PT.ELambda(
+            1UL,
+            NEList.singleton (PT.LPVariable(2UL, "t")),
+            PT.ERecordFieldAccess(3UL, PT.EVariable(4UL, "t"), "1")
+          )
+        oneArgFn
+          PT.TInt64
+          PT.TInt
+          (PT.EApply(5UL, lambda, [], NEList.singleton (PT.EArg(6UL, 0))))
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.TypeMismatch
+      }
+
+      test "field access with an unavailable declaration stays incomplete" {
+        oneArgFn
+          (customType (PT.FQTypeName.package "missing-field-access-type"))
+          PT.TInt
+          (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "field"))
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectBlocker Checker.MissingTypeDeclaration
+      }
+
+      test "field access through a cyclic alias stays incomplete" {
+        let name = PT.FQTypeName.package "cyclic-field-access-type"
+        let declaration : PT.TypeDeclaration.T =
+          { typeParams = []; definition = PT.TypeDeclaration.Alias(customType name) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType name declaration
+        oneArgFn
+          (customType name)
+          PT.TInt
+          (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "field"))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectBlocker Checker.AliasCycle
+      }
+
+      test "t.2 is the type of a tuple's second element" {
+        let tupleType = PT.TTuple(PT.TInt, PT.TString, [ PT.TBool ])
+        oneArgFn
+          tupleType
+          PT.TString
+          (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "2"))
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectChecked
+      }
+
+      test "t.3 on a pair has no element" {
+        let tupleType = PT.TTuple(PT.TInt, PT.TString, [])
+        oneArgFn tupleType PT.TInt (PT.ERecordFieldAccess(4UL, PT.EArg(5UL, 0), "3"))
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.UnknownTupleElement
+      }
+
+      test "t.1 through a lambda resolves once the tuple is known" {
+        // Defer `.1` until the call supplies the parameter's tuple type.
+        let first =
+          PT.ELambda(
+            6UL,
+            NEList.singleton (PT.LPVariable(7UL, "t")),
+            PT.ERecordFieldAccess(8UL, PT.EVariable(9UL, "t"), "1")
+          )
+        let body =
+          PT.ELet(
+            10UL,
+            PT.LPVariable(11UL, "first"),
+            first,
+            PT.EApply(
+              12UL,
+              PT.EVariable(13UL, "first"),
+              [],
+              NEList.singleton (PT.EArg(14UL, 0))
+            )
+          )
+        oneArgFn (PT.TTuple(PT.TInt, PT.TString, [])) PT.TInt body
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectChecked
+      }
+
+      // `(fun t -> t.1.<index>) ((1, 2), 3)`: resolve `.1` before `.<index>`.
+      let chainedThroughLambda (index : string) =
+        let inner = PT.ERecordFieldAccess(22UL, PT.EVariable(23UL, "t"), "1")
+        let lambda =
+          PT.ELambda(
+            20UL,
+            NEList.singleton (PT.LPVariable(21UL, "t")),
+            PT.ERecordFieldAccess(24UL, inner, index)
+          )
+        let arg =
+          PT.ETuple(
+            25UL,
+            PT.ETuple(26UL, PT.EInt(27UL, 1I), PT.EInt(28UL, 2I), []),
+            PT.EInt(29UL, 3I),
+            []
+          )
+        oneArgFn PT.TUnit PT.TInt (PT.EApply(30UL, lambda, [], NEList.singleton arg))
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+
+      test "t.1.2 through a lambda resolves the chain in dependency order" {
+        chainedThroughLambda "2" |> expectChecked
+      }
+
+      test "t.1.3 through a lambda is out of range, not ambiguous" {
+        chainedThroughLambda "3" |> expectDiagnostic Checker.UnknownTupleElement
+      }
+
+      // `let f = fun t -> t.1.<index> in <call>`: the type of `t.1` appears only
+      // in the field constraints, not in `f`'s type, and must still generalize
+      let letBoundChain
+        (index : string)
+        (call : PT.Expr)
+        (returnType : PT.TypeReference)
+        =
+        let inner = PT.ERecordFieldAccess(72UL, PT.EVariable(73UL, "t"), "1")
+        let lambda =
+          PT.ELambda(
+            70UL,
+            NEList.singleton (PT.LPVariable(71UL, "t")),
+            PT.ERecordFieldAccess(74UL, inner, index)
+          )
+        oneArgFn
+          PT.TUnit
+          returnType
+          (PT.ELet(75UL, PT.LPVariable(76UL, "f"), lambda, call))
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+      let callF (id : uint64) (arg : PT.Expr) =
+        PT.EApply(id, PT.EVariable(id + 1UL, "f"), [], NEList.singleton arg)
+      let nested (id : uint64) (inner : PT.Expr) (outer : PT.Expr) =
+        PT.ETuple(id, inner, outer, [])
+      let ints (id : uint64) =
+        PT.ETuple(id, PT.EInt(id + 1UL, 1I), PT.EInt(id + 2UL, 2I), [])
+
+      test "a let-bound `fun t -> t.1.2` resolves at its call" {
+        letBoundChain
+          "2"
+          (callF 80UL (nested 82UL (ints 83UL) (PT.EInt(86UL, 3I))))
+          PT.TInt
+        |> expectChecked
+      }
+
+      test "a let-bound `fun t -> t.1.3` is out of range at its call" {
+        letBoundChain
+          "3"
+          (callF 80UL (nested 82UL (ints 83UL) (PT.EInt(86UL, 3I))))
+          PT.TInt
+        |> expectDiagnostic Checker.UnknownTupleElement
+      }
+
+      test "a let-bound `fun t -> t.1.2` is instantiated per call" {
+        // `(f ((1, 2), 3), f (("a", "b"), 3))`: the second call must not see
+        // the first call's element types
+        let strings =
+          PT.ETuple(
+            90UL,
+            PT.EString(91UL, [ PT.StringText "a" ]),
+            PT.EString(92UL, [ PT.StringText "b" ]),
+            []
+          )
+        let calls =
+          PT.ETuple(
+            93UL,
+            callF 80UL (nested 82UL (ints 83UL) (PT.EInt(86UL, 3I))),
+            callF 94UL (nested 96UL strings (PT.EInt(97UL, 3I))),
+            []
+          )
+        letBoundChain "2" calls (PT.TTuple(PT.TInt, PT.TString, [])) |> expectChecked
+      }
+
+      let capturedChain (index : string) =
+        // `let outer = fun t -> let inner = fun u -> t.1.<index> in inner ()`
+        let access =
+          PT.ERecordFieldAccess(
+            100UL,
+            PT.ERecordFieldAccess(101UL, PT.EVariable(102UL, "t"), "1"),
+            index
+          )
+        let inner =
+          PT.ELambda(103UL, NEList.singleton (PT.LPVariable(104UL, "u")), access)
+        let outer =
+          PT.ELambda(
+            105UL,
+            NEList.singleton (PT.LPVariable(106UL, "t")),
+            PT.ELet(
+              107UL,
+              PT.LPVariable(108UL, "inner"),
+              inner,
+              PT.EApply(
+                109UL,
+                PT.EVariable(110UL, "inner"),
+                [],
+                NEList.singleton (PT.EUnit 111UL)
+              )
+            )
+          )
+        let body =
+          PT.ELet(
+            112UL,
+            PT.LPVariable(113UL, "outer"),
+            outer,
+            PT.EApply(
+              114UL,
+              PT.EVariable(115UL, "outer"),
+              [],
+              NEList.singleton (nested 116UL (ints 117UL) (PT.EInt(120UL, 3I)))
+            )
+          )
+        oneArgFn PT.TUnit PT.TInt body
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+
+      test "a nested function's tuple chain stays connected to its outer parameter" {
+        capturedChain "2" |> expectChecked
+      }
+
+      test "a nested function's captured tuple chain reports an invalid index" {
+        capturedChain "3" |> expectDiagnostic Checker.UnknownTupleElement
+      }
+
+      test "t.0 is not an element: they count from 1" {
+        let tupleType = PT.TTuple(PT.TInt, PT.TString, [])
+        oneArgFn tupleType PT.TInt (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "0"))
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.UnknownTupleElement
+      }
+
+      test "t.1 has the element's type, so a wrong return type is a mismatch" {
+        let tupleType = PT.TTuple(PT.TInt, PT.TString, [])
+        oneArgFn
+          tupleType
+          PT.TString
+          (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "1"))
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.TypeMismatch
+      }
+
+      test "t.2 sees through an alias to a tuple" {
+        let aliasName = PT.FQTypeName.package "aliased-pair"
+        let aliasDeclaration : PT.TypeDeclaration.T =
+          { typeParams = []
+            definition = PT.TypeDeclaration.Alias(PT.TTuple(PT.TInt, PT.TString, [])) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType aliasName aliasDeclaration
+        oneArgFn
+          (customType aliasName)
+          PT.TString
+          (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "2"))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
+      }
+
+      test "t.2 of a generic pair is the second type variable" {
+        let tupleType = PT.TTuple(PT.TVariable "a", PT.TVariable "b", [])
+        { oneArgFn
+            tupleType
+            (PT.TVariable "b")
+            (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "2")) with
+            typeParams = [ "a"; "b" ] }
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectChecked
+      }
+
+      test "t.1 of a generic pair is not the second type variable" {
+        let tupleType = PT.TTuple(PT.TVariable "a", PT.TVariable "b", [])
+        { oneArgFn
+            tupleType
+            (PT.TVariable "b")
+            (PT.ERecordFieldAccess(2UL, PT.EArg(3UL, 0), "1")) with
+            typeParams = [ "a"; "b" ] }
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.TypeMismatch
+      }
+
+      test "a let-bound `fun t -> t.1` is reusable across tuple shapes" {
+        // `let first = fun t -> t.1 in (first (1, "a"), first ("b", 2, true))`
+        let first =
+          PT.ELambda(
+            40UL,
+            NEList.singleton (PT.LPVariable(41UL, "t")),
+            PT.ERecordFieldAccess(42UL, PT.EVariable(43UL, "t"), "1")
+          )
+        let call id (arg : PT.Expr) =
+          PT.EApply(id, PT.EVariable(id + 1UL, "first"), [], NEList.singleton arg)
+        let body =
+          PT.ELet(
+            44UL,
+            PT.LPVariable(45UL, "first"),
+            first,
+            PT.ETuple(
+              46UL,
+              call
+                47UL
+                (PT.ETuple(
+                  49UL,
+                  PT.EInt(50UL, 1I),
+                  PT.EString(51UL, [ PT.StringText "a" ]),
+                  []
+                )),
+              call
+                52UL
+                (PT.ETuple(
+                  54UL,
+                  PT.EString(55UL, [ PT.StringText "b" ]),
+                  PT.EInt(56UL, 2I),
+                  [ PT.EBool(57UL, true) ]
+                )),
+              []
+            )
+          )
+        oneArgFn PT.TUnit (PT.TTuple(PT.TInt, PT.TString, [])) body
+        |> CheckerApi.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectChecked
+      }
+
+      test "a deferred chain may mix tuple elements and record fields" {
+        // `(fun t -> t.1.count) (record, 3)`: `.count` waits on `.1`
+        let recordName = PT.FQTypeName.package "chained-record"
+        let declaration : PT.TypeDeclaration.T =
+          { typeParams = []
+            definition =
+              PT.TypeDeclaration.Record(
+                NEList.singleton { name = "count"; typ = PT.TInt; description = "" }
+              ) }
+        let environment =
+          Checker.TypeEnvironment.empty
+          |> Checker.TypeEnvironment.addType recordName declaration
+        let lambda =
+          PT.ELambda(
+            60UL,
+            NEList.singleton (PT.LPVariable(61UL, "t")),
+            PT.ERecordFieldAccess(
+              62UL,
+              PT.ERecordFieldAccess(63UL, PT.EVariable(64UL, "t"), "1"),
+              "count"
+            )
+          )
+        let arg = PT.ETuple(65UL, PT.EArg(66UL, 0), PT.EInt(67UL, 3I), [])
+        oneArgFn
+          (customType recordName)
+          PT.TInt
+          (PT.EApply(68UL, lambda, [], NEList.singleton arg))
+        |> CheckerApi.checkPackageFunction environment
+        |> expectChecked
       }
 
       test "function parameters are available by their source names" {
