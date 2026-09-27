@@ -183,8 +183,7 @@ let private previewShowsValuesAndPerformsNothing =
     "traces calls finds the runs, and traces values replays one without performing its effects"
     (fun state ->
       task {
-        // No rung pinning: `complete` is both the shipped rung and the only one that records
-        // calls, and the harness sets it.
+        // No level pinning: recording is on or off, and the harness turns it on.
         do! start state
         do!
           fn

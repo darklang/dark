@@ -293,7 +293,8 @@ let private testTracesHelp =
       let! output = runCli state [ "traces"; "help" ]
       for term in
         [ "list"
-          "view"
+          "show"
+          "record"
           "tail"
           "follow"
           "find"
@@ -310,7 +311,8 @@ let private testTracesTailShowsLastEval =
       let! _ = runCli state [ "eval"; "let x = 7L\nx" ]
       let! output = runCli state [ "traces"; "tail" ]
       Expect.stringContains output "entry     eval" "the entry line"
-      Expect.stringContains output "expression = \"let x = 7L" "recorded input"
+      // All of it, not the table's truncation: a multi-line input prints as its own block.
+      Expect.stringContains output "let x = 7L" "recorded input"
     })
 
 let private testTracesDeleteEmpties =
@@ -512,7 +514,9 @@ let private testTracesRejectsEmptyPattern =
     task {
       let cases =
         [ [ "traces"; "find"; "" ], "find takes something to look for"
-          [ "traces"; "find"; ""; "--view" ], "find takes something to look for"
+          [ "traces"; "find"; ""; "--show" ], "find takes something to look for"
+          // The flag that went with the verb, refused by name rather than as an unknown flag.
+          [ "traces"; "find"; "x"; "--view" ], "`--view` is `--show`"
           [ "traces"; "find"; ""; "--json" ], "find takes something to look for"
           [ "traces"; "list"; "--fn"; "" ], "--fn takes a function name"
           [ "traces"; "list"; "--route"; "" ],
@@ -523,15 +527,15 @@ let private testTracesRejectsEmptyPattern =
     })
 
 let private testTracesViewRejectsNegativeSubOptions =
-  cliTestWithFreshTraces "view --depth/--slow-ms reject negative" (fun state ->
+  cliTestWithFreshTraces "show --depth/--slow-ms reject negative" (fun state ->
     task {
       let! _ = runCli state [ "eval"; "1L + 1L" ]
       let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
       let tid = parseTraceID listJson
 
-      let! depthOut = runCli state [ "traces"; "view"; tid; "--depth"; "-1" ]
+      let! depthOut = runCli state [ "traces"; "show"; tid; "--depth"; "-1" ]
       Expect.stringContains depthOut "--depth is gone" "depth -1"
-      let! slowOut = runCli state [ "traces"; "view"; tid; "--slow-ms"; "-1" ]
+      let! slowOut = runCli state [ "traces"; "show"; tid; "--slow-ms"; "-1" ]
       Expect.stringContains
         slowOut
         "--slow-ms is a number of milliseconds"
@@ -612,13 +616,12 @@ let private testTracesPruneIdempotent =
       })
 
 /// `pin` and `unpin` go through Dark's own SQL (`Darklang.Tracing.Store.setPinned`), and a
-/// The recording ladder, end to end: what each rung actually stores.
+/// Recording, end to end: what `off` and `on` actually store.
 ///
-/// `off | io | complete`, and the difference between the last two is the call log, which is what
-/// a resume and a preview read. Sequenced and restored, because the level is process-global.
-let private testRecordingRungs =
+/// Sequenced and restored, because the setting is process-global.
+let private testRecordingSettings =
   testSequenced
-  <| testTask "each recording rung stores what it says, and nothing more" {
+  <| testTask "recording off stores nothing, and on stores the run and its calls" {
     do!
       withState (fun state ->
         task {
@@ -632,7 +635,7 @@ let private testRecordingRungs =
               return n
             }
 
-          // A run with one impure call in it, at each rung in turn.
+          // A run with one impure call in it, with recording off and then on.
           let run () =
             runCli state [ "eval"; "Stdlib.printLine \"x\"" ]
             |> Task.map ignore<string>
@@ -645,28 +648,16 @@ let private testRecordingRungs =
             let! afterOff = Traces.list 10
             Expect.isEmpty afterOff "off records nothing"
 
-            // `io`: the row, its input and its answer -- and no calls, so nothing to replay.
-            LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Io
-            do! run ()
-            let! afterIo = Traces.list 10
-            match afterIo with
-            | [ (only : Traces.Trace) ] ->
-              Expect.isSome only.result "io records what the run answered"
-              let! n = rows (string only.id)
-              Expect.equal n 0 "io records no calls"
-            | other -> failtest $"expected one run at io, got {List.length other}"
-
-            // `complete`: the same row, plus the impure call, with a duration.
-            LibDB.Tracing.TraceDetail.setForTesting
-              LibDB.Tracing.TraceDetail.Complete
+            // `on`: the row with its input and its answer, plus the impure call.
+            LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
             let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
             do! run ()
-            let! afterComplete = Traces.list 10
-            match afterComplete with
+            let! afterOn = Traces.list 10
+            match afterOn with
             | [ (only : Traces.Trace) ] ->
-              Expect.isSome only.result "complete records the answer too"
+              Expect.isSome only.result "on records what the run answered"
               let! n = rows (string only.id)
-              Expect.equal n 1 "complete records the one impure call"
+              Expect.equal n 1 "on records the one impure call"
               let! logged =
                 Sql.query
                   "SELECT fn_hash, kind, parent_call_id, ord FROM trace_fn_calls
@@ -684,33 +675,73 @@ let private testRecordingRungs =
               Expect.isNone parent "nothing is nested"
               Expect.equal ord 0L "and it is the first effect of its process"
             | other ->
-              failtest $"expected one run at complete, got {List.length other}"
+              failtest
+                $"expected one run with recording on, got {List.length other}"
           finally
             LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
         })
   }
 
 
-/// `--trace <level>` for one command, and `traces record` for a session. Both set the level for
-/// one OS process and nothing else; `traces record` refuses from a shell, where the process is
-/// about to exit and the change could not outlive it.
-let private testTraceLevelEntryPoints =
-  cliTest "a typo in a recording level is refused by both entry points" (fun state ->
-    task {
-      let! bad = runCli state [ "traces"; "record"; "loud" ]
-      Expect.stringContains
-        bad
-        "not a recording level"
-        "a name off the ladder is refused"
+/// The recording setting, read and written through the CLI.
+///
+/// There are two doors onto one stored key -- `dark traces record on` and
+/// `dark config set trace.record on` -- and this asserts they are the same key, since the whole
+/// point of having two is that neither is a second source of truth. Sequenced and restored:
+/// the write is persistent, which is what makes it worth testing and also what makes it a
+/// hazard for every test after it.
+let private testRecordingSetting =
+  testSequenced
+  <| testTask "the recording setting is one key with two doors onto it" {
+    do!
+      withState (fun state ->
+        task {
+          let! before = LibDB.Config.get "trace.record"
 
-      // `runCli` is the non-interactive path, which is exactly the case that cannot work.
-      let! shell = runCli state [ "traces"; "record"; "io" ]
-      Expect.stringContains
-        shell
-        "about to exit"
-        "and a valid one from a shell says why it would not stick"
-      Expect.stringContains shell "dark --trace io" "pointing at the form that does"
-    })
+          try
+            let! bad = runCli state [ "traces"; "record"; "loud" ]
+            Expect.stringContains
+              bad
+              "not a recording setting"
+              "a word that is neither on nor off is refused"
+
+            let! _ = runCli state [ "traces"; "record"; "on" ]
+            let! stored = LibDB.Config.get "trace.record"
+            Expect.equal
+              stored
+              (Some "on")
+              "`traces record on` writes the stored key"
+
+            let! shown = runCli state [ "traces"; "record" ]
+            Expect.stringContains
+              shown
+              "recording: on"
+              "and reading it back says so"
+
+            let! _ = runCli state [ "config"; "set"; "trace.record"; "off" ]
+            let! stored = LibDB.Config.get "trace.record"
+            Expect.equal stored (Some "off") "and `config set` writes the same key"
+
+            let! json = runCli state [ "traces"; "record"; "--json" ]
+            Expect.stringContains json "\"stored\"" "--json says what is stored"
+
+            let! bogus = runCli state [ "config"; "set"; "trace.record"; "loud" ]
+            Expect.stringContains
+              bogus
+              "on or off"
+              "and the config door refuses the same words"
+          finally
+            // Whatever was there before, including nothing.
+            match before with
+            | Some v -> (LibDB.Config.set "trace.record" v).Result
+            | None ->
+              (Sql.query "DELETE FROM config_v0 WHERE key = @key"
+               |> Sql.parameters [ "key", Sql.string "trace.record" ]
+               |> Sql.executeStatementAsync)
+                .Result
+            LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+        })
+  }
 
 
 /// What a command reports to a SHELL, which is the only part of a failure a script can read.
@@ -750,7 +781,9 @@ let private testExitCodes =
             [ "traces"; "show"; "zzzzzzzz" ], 1, "a run id nothing matches"
             [ "traces"; "fork"; "zzzzzzzz" ], 1, "forking a run that is not there"
             [ "ps"; "show"; "zzzzzzzz" ], 1, "a process id nothing matches"
-            [ "traces"; "record"; "loud" ], 1, "a level off the ladder"
+            [ "traces"; "record"; "loud" ],
+            1,
+            "a recording setting that is not on or off"
             [ "traces"; "nonsense" ], 1, "a subcommand that does not exist"
             [ "traces"; "list"; "-1" ], 1, "a limit that is not a count"
 
@@ -785,8 +818,10 @@ let private testTracesJsonShapes =
       let short = tid.Substring(0, 8)
 
       let! showJson = runCli state [ "traces"; "show"; short; "--json" ]
-      for key in [ "\"run\""; "\"calls\""; "\"durationMs\""; "\"fnName\"" ] do
+      for key in [ "\"run\""; "\"calls\""; "\"durationMs\""; "\"fn\"" ] do
         Expect.stringContains showJson key $"show --json carries {key}"
+      // A recorded value is TEXT in JSON, not the encoding it is stored as.
+      Expect.isFalse (showJson.Contains "DUnit") "no Dval encoding in the JSON"
       // The tree columns are gone from the Dark type, so they must not reappear in the JSON.
       for gone in [ "parentCallId"; "lambdaExprId" ] do
         Expect.isFalse
@@ -854,7 +889,7 @@ let private testTracesLargeTraceListSurvives =
 
 let private testTracesViewToleratesCorruptedRow =
   cliTestWithFreshTraces
-    "traces view <id> renders the rest of the call tree on a corrupted row"
+    "traces show <id> renders the rest of the log on a corrupted row"
     (fun state ->
       task {
         let! _ = runCli state [ "eval"; "Stdlib.Int64.add 1L 2L" ]
@@ -877,10 +912,10 @@ let private testTracesViewToleratesCorruptedRow =
                   "badArgs", Sql.bytes corruptBytes
                   "badResult", Sql.bytes corruptBytes ] ] ]
 
-        let! out = runCli state [ "traces"; "view"; tid ]
+        let! out = runCli state [ "traces"; "show"; tid ]
         Expect.isFalse
           (out.Contains "corrupt-test")
-          "corrupt row dropped from rendered tree"
+          "corrupt row dropped from the rendered log"
         Expect.stringContains out "Stdlib" "non-corrupt rows still render"
       })
 
@@ -906,7 +941,7 @@ let private testTracesTruncatedStillShowsRoot =
       withState (fun state ->
         task {
           // Set both here rather than relying on suite ordering, so this still means something alone.
-          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Complete
+          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
           LibDB.Tracing.TraceLimits.useMaxEventsForTesting 20
           try
             let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
@@ -920,14 +955,16 @@ let private testTracesTruncatedStillShowsRoot =
             Expect.stringContains evalOut "40" "the eval itself succeeded"
             let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
             let tid = parseTraceID listJson
-            let! view = runCli state [ "traces"; "view"; tid ]
+            let! shown = runCli state [ "traces"; "show"; tid ]
 
+            // The marker prints after the log and outside the display cap, so a run with more
+            // calls than fit on a screen still says it was cut by the RECORDER.
             Expect.stringContains
-              view
+              shown
               "trace truncated"
               "the marker says the trace was capped"
             Expect.stringContains
-              view
+              shown
               "printLine"
               "and the calls it did keep are still rendered"
           finally
@@ -1093,7 +1130,8 @@ let private slowCliTests =
   if System.Environment.GetEnvironmentVariable "DARK_FAST_TESTS" = "1" then
     []
   else
-    [ Tests.CliSurface.everyCommandSurvivesABogusArgument
+    [ Tests.CliSurface.everyCommandWorksWithValidArguments
+      Tests.CliSurface.everyCommandSurvivesABogusArgument
       Tests.CliSurface.everyCommandSurvivesABranch
       Tests.CliScm.editingOnABranchRepointsItsCallers
       Tests.CliScm.discardOnABranchLeavesMainsDraftAlone
@@ -1144,8 +1182,8 @@ let tests =
          testTracesReplayReruns
          testTracesPruneIdempotent
          testTracesPinRoundTrip
-         testRecordingRungs
-         testTraceLevelEntryPoints
+         testRecordingSettings
+         testRecordingSetting
          testTracesJsonShapes
          testExitCodes
          testTracesLargeTraceListSurvives

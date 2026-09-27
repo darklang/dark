@@ -231,6 +231,24 @@ let runCliCatching
       return Error(e.Message.Split('\n')[0])
   }
 
+/// `runCliCatching`, keeping the exit code.
+///
+/// The sweeps judge a command by what it printed AND by what it told the shell, and those are two
+/// different findings: a command that prints an answer and exits 1 is as wrong as one that
+/// refuses and exits 0. `runCliCatching` threw the status away, so every sweep built on it could
+/// only see half of what it was looking at.
+let runCliCatchingWithStatus
+  (target : Target)
+  (args : string list)
+  : Task<Result<string * int, string>> =
+  task {
+    try
+      let! outcome = runCliWithStatus target args
+      return Ok outcome
+    with e ->
+      return Error(e.Message.Split('\n')[0])
+  }
+
 /// Author a fn through the CLI (`fn <name> <decl>`), discarding the output.
 /// For sites that assert on the authoring output itself, use `runCli` directly.
 let author (target : Target) (name : string) (decl : string) : Task<unit> =
@@ -472,7 +490,7 @@ let cliTestOnMain (name : string) (body : Target -> Task<unit>) : Test =
 let cliTestWithFreshTraces (name : string) (body : Target -> Task<unit>) : Test =
   cliTest name (fun state ->
     task {
-      LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Complete
+      LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
       try
         // Recording is already on, so this clears the delete's own trace along with the rest.
         let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]

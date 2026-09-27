@@ -565,7 +565,7 @@ let private traceCarriesProcessAndSeq =
               if n == 0L then () else (shout n
                                        loop (n - 1L))
             loop 20L)"""
-    LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Complete
+    LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
     try
       let traceId = LibExecution.AnalysisTypes.TraceID.create ()
       let tracer =

@@ -132,11 +132,14 @@ fall-through arm answers plausibly instead of refusing, so `dark commits zzznope
 main's commits as though nothing had been asked, and `dark branch rename` created a branch
 called "rename".
 
-Shapes 2 and 4 are automated in `CliSurface.Tests.fs`, driven off the command registry rather
-than a list, so a new command is swept the day it is registered. A command that must not be
-RUN goes in `notSweepable` there, with the reason; a name in that list that is no longer
-registered fails its own test, because an exclusion nobody revisits is how a sweep quietly
-stops covering the thing it was written for.
+Shapes 1, 2, 3 and 4 are automated in `CliSurface.Tests.fs`, driven off the command registry
+rather than a list, so a new command is swept the day it is registered. Registering one costs
+two things there: a known-good invocation in `knownGood` (shape 3), and, if it must not be given
+real arguments, a line in `unsafeWithArguments` saying why. A command that must not be RUN AT ALL
+goes in `notSweepable`, also with the reason. All three are checked against the registry in both
+directions: a registered command that is in none of them fails, and a name in one of them that is
+no longer registered fails too, because an exclusion nobody revisits is how a sweep quietly stops
+covering the thing it was written for.
 
 ### Processes and live programming
 
