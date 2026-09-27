@@ -209,7 +209,10 @@ let hintsForView (state: State) (width: Int) : String =
       Stdlib.List.flatten [ [ ("↑↓", "move"), ("⏎", "inspect") ], backHint, [ ("i", "install"), ("r", "start"), ("s", "stop") ] ]
     else if view == vTraces then
       Stdlib.List.flatten
-        [ [ ("↑↓", "move"), ("⏎", "open") ], backHint, paneHint, [ ("f", "filter"), ("E", "errors") ] ]
+        [ [ ("↑↓", "move"), ("⏎", "open"), ("r", "resume"), ("*", "pin"), ("x", "delete") ]
+          backHint
+          paneHint
+          [ ("f", "filter"), ("E", "errors") ] ]
     else if view == vDocs then
       Stdlib.List.flatten [ [ ("↑↓", "move"), ("⏎", "read") ], backHint, paneHint ]
     else

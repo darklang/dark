@@ -406,11 +406,18 @@ let traceDetail (state: State) : String =
           $"status  {Cli.TraceRuns.statusText run.status}"
           $"input   {Cli.Text.oneLineAt 60 run.input}"
           $"started {Cli.TraceRuns.whenText run.created}" ]
+      // The keys this pane answers to, then the two things it deliberately does not do. Forking
+      // wants a position, and the position comes from reading the log, so it belongs to the
+      // command and not to a key on a list. Putting a run's values beside the code wants a
+      // function to read them through, which a run does not have just one of.
       let footer =
         [ ""
-          Stdlib.Cli.UI.Colors.dimText $"dark traces resume {Cli.Text.shortIdText run.id}"
-          Stdlib.Cli.UI.Colors.dimText $"dark traces fork {Cli.Text.shortIdText run.id} --at <n>"
-          Stdlib.Cli.UI.Colors.dimText "dark traces values <fn> -- the code with this run's values beside it" ]
+          Stdlib.Cli.UI.Colors.dimText "r resume    * pin    x delete"
+          ""
+          Stdlib.Cli.UI.Colors.dimText
+            $"dark traces fork {Cli.Text.shortIdText run.id} --at <n>   branch from a position"
+          Stdlib.Cli.UI.Colors.dimText
+            "dark traces values <fn>   that function's code, with this run's values beside it" ]
       [ header, lineage, pinned, [ "" ], calls, footer ]
       |> Stdlib.List.flatten
       |> Stdlib.String.join "\n"

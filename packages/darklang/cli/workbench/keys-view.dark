@@ -253,8 +253,23 @@ let handleViewKey
     | Some "x" ->
       // Matter: the traces that called the selected fn. REPL: x drops the
       // session bindings. Home, on a branch row: x deletes that branch.
-      // Changes: x discards all WIP.
-      if state.activeView == vMatter then
+      // Changes: x discards all WIP. Traces: x throws the run away.
+      if state.activeView == vTraces then
+        // Confirmed, like `x` on Changes, because a run is the only record of what happened and
+        // nothing brings it back.
+        match Stdlib.List.getAt state.items state.selected with
+        | Some item ->
+          Step.Continue
+            { state with
+                input =
+                  Stdlib.Option.Option.Some
+                    (InputState
+                      { prompt =
+                          $"delete run {Cli.Text.shortIdText item.name}? type y then enter: "
+                        field = Stdlib.Cli.UI.TextField.fromText ""
+                        action = "trace-delete" }) }
+        | None -> Step.Continue state
+      else if state.activeView == vMatter then
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->
           if item.isModule then Step.Continue state else openReader state (tracesText state) false
@@ -321,9 +336,42 @@ let handleViewKey
       if state.activeView == vApps then
         Step.Continue (goTo state (mkDest (extViewIndex "processes") 0) false)
       else Step.Continue state
+    | Some "*" ->
+      // Traces: pin the run under the cursor, or unpin it. `*` is what the table prints in the
+      // pin column, and every letter that would have read better is taken -- `p` is the prompt
+      // and `j`/`k` are vim movement, above. Retention drops the oldest runs as they pile up,
+      // and the one you are reading is the one you least want dropped. In place, no
+      // confirmation, because it is one bit and pressing it again puts it back.
+      if state.activeView == vTraces then
+        match Stdlib.List.getAt state.items state.selected with
+        | Some item ->
+          match Cli.TraceRuns.find item.name with
+          | Error m -> Step.Continue { state with message = m }
+          | Ok run ->
+            let wanted = Stdlib.Bool.not run.pinned
+            if Darklang.Tracing.Store.setPinned run.id wanted then
+              let verb = if wanted then "pinned" else "unpinned"
+              let reloaded = { state with items = reloadItems state }
+              Step.Continue
+                { reloaded with
+                    message = $"{verb} {Cli.Text.shortIdText run.id}" }
+            else
+              Step.Continue
+                { state with message = "that run is gone: it was dropped while you looked at it" }
+        | None -> Step.Continue state
+      else Step.Continue state
     | Some "r" ->
-      // Home: rebase the branch under the cursor. Apps: run. Matter: rename the selected leaf.
-      if state.activeView == vHome then
+      // Home: rebase the branch under the cursor. Apps: run. Traces: resume the run, which
+      // leaves the workbench, because a resume runs the program again -- it prints, it can ask
+      // for input, and it can take as long as it likes. `Step.Launch` is how the workbench hands
+      // the terminal over for exactly that.
+      // Matter: rename the selected leaf.
+      if state.activeView == vTraces then
+        match Stdlib.List.getAt state.items state.selected with
+        | Some item ->
+          Step.Launch(state, $"traces resume {Cli.Text.shortIdText item.name}")
+        | None -> Step.Continue state
+      else if state.activeView == vHome then
         match branchForAction state with
         | Some b ->
           Step.Continue

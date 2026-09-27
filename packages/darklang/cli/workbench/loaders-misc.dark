@@ -428,7 +428,10 @@ let loadTraceBodyItems () : List<BodyItem> =
           let status =
             Stdlib.String.padEndToWidth (Cli.TraceRuns.statusText t.status) 10
           let ago = Stdlib.String.padEndToWidth (Cli.TraceRuns.whenText t.created) 16
-          $"{status}{ago}{t.entry}  {Cli.Text.oneLine t.input}" })
+          // A pin is the one thing about a run you change from this pane, so the row has to
+          // show it: `*` pinned, nothing otherwise, as the CLI table prints it.
+          let pin = if t.pinned then "* " else "  "
+          $"{pin}{status}{ago}{t.entry}  {Cli.Text.oneLine t.input}" })
 
 
 /// Installed + available apps (for the Apps view). A filled dot marks installed; a hollow one available.
