@@ -713,6 +713,68 @@ let private testTraceLevelEntryPoints =
     })
 
 
+/// What a command reports to a SHELL, which is the only part of a failure a script can read.
+///
+/// This exists because `dark run` printed a reason and then exited 0 for a script that raised,
+/// a script that was not there, and a script that ended non-zero itself -- so nothing driving
+/// Dark could tell a failure from a success, and nothing here could see it, because the harness
+/// used to return output and throw the status away.
+let private testExitCodes =
+  cliTest "a command's exit code says whether it worked" (fun state ->
+    task {
+      // The suite's working directory is `backend/`, and these only have to be readable by the
+      // same process, so the system temp directory is the portable place for them.
+      let script (name : string) (body : string) : string =
+        let path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), name)
+        System.IO.File.WriteAllText(path, body)
+        path
+
+      let good = script "exit-ok.dark" "Stdlib.printLine \"fine\"\n"
+      let raises = script "exit-raise.dark" "Stdlib.Int64.divide 1L 0L\n"
+
+      try
+        let cases =
+          [ [ "run"; good ], 0, "a script that ran"
+            [ "run"; raises ], 1, "a script that raised"
+            [ "run"
+              System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "exit-missing.dark"
+              ) ],
+            1,
+            "a script that is not there"
+            [ "eval"; "1L + 1L" ], 0, "an expression that answered"
+            [ "eval"; "Stdlib.Int64.divide 1L 0L" ], 1, "an expression that raised"
+
+            // Naming something that is not there is a refusal, whatever printed.
+            [ "traces"; "show"; "zzzzzzzz" ], 1, "a run id nothing matches"
+            [ "traces"; "fork"; "zzzzzzzz" ], 1, "forking a run that is not there"
+            [ "ps"; "show"; "zzzzzzzz" ], 1, "a process id nothing matches"
+            [ "traces"; "record"; "loud" ], 1, "a level off the ladder"
+            [ "traces"; "nonsense" ], 1, "a subcommand that does not exist"
+            [ "traces"; "list"; "-1" ], 1, "a limit that is not a count"
+
+            // An empty ANSWER is not a refusal: the question was asked and answered.
+            [ "traces"; "calls"; "Nothing.Ran.Through.This" ],
+            0,
+            "a function no run went through"
+            [ "traces" ], 0, "the listing"
+            [ "ps" ], 0, "what is running"
+            [ "traces"; "help" ], 0, "the help" ]
+
+        for (args, expected, what) in cases do
+          let! (_out, status) = runCliWithStatus state args
+          let typed = String.concat " " args
+          Expect.equal status expected $"{what}: dark {typed}"
+      finally
+        for path in [ good; raises ] do
+          try
+            System.IO.File.Delete path
+          with _ ->
+            ()
+    })
+
+
 /// Everything `--json` answers, in the shape something that is not a person would read.
 let private testTracesJsonShapes =
   cliTestWithFreshTraces "--json answers on show, calls and values" (fun state ->
@@ -1085,6 +1147,7 @@ let tests =
          testRecordingRungs
          testTraceLevelEntryPoints
          testTracesJsonShapes
+         testExitCodes
          testTracesLargeTraceListSurvives
          testTracesViewToleratesCorruptedRow
          testTracesRejectsNegativeLimit

@@ -201,18 +201,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "list", "--fn" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces list --fn <name> [limit] [--json]")
-    state
+    { state with exitCode = 1 }
   | [ "list", "--route" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces list --route <substring> [limit] [--json]")
-    state
+    { state with exitCode = 1 }
   | [ "list", limitStr ] ->
     match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeListJson state limit else executeList state limit
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
-      state
+      { state with exitCode = 1 }
   | [ "list", "--fn", fnName ] ->
     executeListByFn state fnName 20 wantsJson
   | [ "list", "--fn", fnName, limitStr ] ->
@@ -220,7 +220,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Ok limit -> executeListByFn state fnName limit wantsJson
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
-      state
+      { state with exitCode = 1 }
   | [ "list", "--route", route ] ->
     executeListByRoute state route 20 wantsJson
   | [ "list", "--route", route, limitStr ] ->
@@ -228,7 +228,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Ok limit -> executeListByRoute state route limit wantsJson
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
-      state
+      { state with exitCode = 1 }
 
   | [ "follow" ] ->
     executeFollow state Stdlib.Option.Option.None wantsJson
@@ -243,7 +243,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       if wantsJson then executeStatsJson state limit else executeStats state limit
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
-      state
+      { state with exitCode = 1 }
 
   | [ "tail" ] -> executeTail state Stdlib.Option.Option.None 1
   // Flag-without-arg case must precede the `[ "tail", nStr ]` arm
@@ -251,13 +251,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "tail", "--route" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces tail [N] --route <substring>")
-    state
+    { state with exitCode = 1 }
   | [ "tail", nStr ] ->
     match Stdlib.Int.parse nStr with
     | Ok n -> executeTail state Stdlib.Option.Option.None n
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "trace number"))
-      state
+      { state with exitCode = 1 }
   | [ "tail", "--route", route ] ->
     executeTail state (Stdlib.Option.Option.Some route) 1
   | [ "tail", "--route", route, nStr ]
@@ -266,7 +266,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Ok n -> executeTail state (Stdlib.Option.Option.Some route) n
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "trace number"))
-      state
+      { state with exitCode = 1 }
 
   | [ "find", pattern ] ->
     if wantsFindView then
@@ -282,7 +282,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       else executeFind state pattern limit
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
-      state
+      { state with exitCode = 1 }
 
   | [ "hotspots" ] ->
     if wantsJson then executeHotspotsJson state 100
@@ -294,7 +294,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       else executeHotspots state limit
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
-      state
+      { state with exitCode = 1 }
 
   | "view" :: traceID :: flagArgs ->
     match parseViewOptions defaultViewOptions flagArgs with
@@ -304,7 +304,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | None -> state
     | Error msg ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-      state
+      { state with exitCode = 1 }
 
   // The run verbs (`cli/traceRuns.dark`). `resume` replays the log; `rerun` performs
   // everything again, which is why they are two words.
@@ -313,10 +313,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // --trace <level> <cmd>` is the same thing for a single command.
   | [ "record" ] ->
     let level = Darklang.Tracing.Store.recordLevel ()
-    Stdlib.printLine $"recording: {level}"
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.dimText
-        "  dark traces record off | io | complete   change it for this session")
+    if wantsJson then
+      // The one thing an empty `--json` listing cannot say for itself. A person reading an
+      // empty table gets the reason under it; something parsing `[]` gets nothing, and has to
+      // be able to ask whether the store is empty or the recording is off.
+      let key = Cli.jsonStr "level"
+      let value = Cli.jsonStr level
+      Stdlib.printLine $"{{{key}: {value}}}"
+    else
+      Stdlib.printLine $"recording: {level}"
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          "  dark traces record off | io | complete   change it for this session")
     state
   | [ "record", level ] ->
     if Darklang.Tracing.Store.setRecordLevel level then
@@ -354,27 +362,26 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       { state with exitCode = 1 }
 
   | [ "show", prefix ] ->
-    if wantsJson then
-      Cli.TraceRuns.printShowJson prefix
-    else
-      Cli.TraceRuns.printShow state.currentBranchId prefix
-    state
+    let ok =
+      if wantsJson then
+        Cli.TraceRuns.printShowJson prefix
+      else
+        Cli.TraceRuns.printShow state.currentBranchId prefix
+    Cli.exitWith state ok
   | [ "resume", prefix ] -> Cli.TraceRuns.resume state prefix
   | [ "fork", prefix ] ->
-    Cli.TraceRuns.fork prefix Stdlib.Option.Option.None
-    state
+    Cli.exitWith state (Cli.TraceRuns.fork prefix Stdlib.Option.Option.None)
   | [ "fork", prefix, "--at", at ] ->
-    match Stdlib.Int64.parse at with
-    | Ok n -> Cli.TraceRuns.fork prefix (Stdlib.Option.Option.Some n)
-    | Error _ ->
-      Cli.printErr $"--at wants a position from the `pos` column of `traces show`, not {at}"
-    state
-  | [ "pin", prefix ] ->
-    Cli.TraceRuns.pin prefix true
-    state
-  | [ "unpin", prefix ] ->
-    Cli.TraceRuns.pin prefix false
-    state
+    let ok =
+      match Stdlib.Int64.parse at with
+      | Ok n -> Cli.TraceRuns.fork prefix (Stdlib.Option.Option.Some n)
+      | Error _ ->
+        Cli.printErr
+          $"--at wants a position from the `pos` column of `traces show`, not {at}"
+        false
+    Cli.exitWith state ok
+  | [ "pin", prefix ] -> Cli.exitWith state (Cli.TraceRuns.pin prefix true)
+  | [ "unpin", prefix ] -> Cli.exitWith state (Cli.TraceRuns.pin prefix false)
   // The call inbox: one function's recorded calls, and the code with that call's values.
   | [ "calls", fnName ] ->
     if wantsJson then
@@ -400,36 +407,39 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             Stdlib.Option.Option.Some
               "up/down pick a run  |  esc quit  (nothing here performs an effect)" }
     match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None with
-    | Ok _ -> ()
-    | Error e -> Cli.printErr e
-    state
+    | Ok _ -> state
+    | Error e ->
+      Cli.printErr e
+      { state with exitCode = 1 }
   | [ "values", fnName ] ->
     if wantsJson then
-      Cli.TraceRuns.printValuesJson
-        state.currentBranchId
-        fnName
-        Stdlib.Option.Option.None
-      state
+      Cli.exitWith
+        state
+        (Cli.TraceRuns.printValuesJson
+          state.currentBranchId
+          fnName
+          Stdlib.Option.Option.None)
     else
       Cli.TraceRuns.printValues state fnName Stdlib.Option.Option.None
   | [ "values", fnName, run ] ->
     if wantsJson then
-      Cli.TraceRuns.printValuesJson
-        state.currentBranchId
-        fnName
-        (Stdlib.Option.Option.Some run)
-      state
+      Cli.exitWith
+        state
+        (Cli.TraceRuns.printValuesJson
+          state.currentBranchId
+          fnName
+          (Stdlib.Option.Option.Some run))
     else
       Cli.TraceRuns.printValues state fnName (Stdlib.Option.Option.Some run)
   | [ "calls" ] | [ "values" ] ->
     let verb = Stdlib.Option.withDefault (Stdlib.List.head args) ""
     Cli.printErr $"traces {verb} needs a function name, like Darklang.Stdlib.List.map"
-    state
+    { state with exitCode = 1 }
 
   | [ "show" ] | [ "resume" ] | [ "fork" ] | [ "pin" ] | [ "unpin" ] ->
     let verb = Stdlib.Option.withDefault (Stdlib.List.head args) ""
     Cli.printErr $"traces {verb} needs an id prefix -- `dark traces` lists them"
-    state
+    { state with exitCode = 1 }
 
   | [ "rerun", traceID ] ->
     match resolveTraceID traceID with
@@ -465,7 +475,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         state
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "--keep N"))
-      state
+      { state with exitCode = 1 }
 
   | [ "delete", traceID ] ->
     match resolveTraceID traceID with
@@ -483,10 +493,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "follow", "--route" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces follow --route <substring> [--json]")
-    state
+    { state with exitCode = 1 }
   | [ "delete", "--keep" ] ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces delete --keep <N>")
-    state
+    { state with exitCode = 1 }
   | [ "delete", "--before" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
@@ -498,10 +508,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // ran a known command, just forgot the id/path.
   | [ "view" ] ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces view <trace-id> [flags]")
-    state
+    { state with exitCode = 1 }
   | [ "rerun" ] ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces rerun <trace-id>")
-    state
+    { state with exitCode = 1 }
   | [ "delete" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
@@ -518,13 +528,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | "follow" :: _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces follow [--route <substring>] [--json]")
-    state
+    { state with exitCode = 1 }
 
   // Catch malformed arity-1 invocations (e.g. `traces rerun <id> --fake-arg`)
   // that the strict-length arms above missed.
   | "rerun" :: _ ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces rerun <trace-id>")
-    state
+    { state with exitCode = 1 }
   | "delete" :: _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
@@ -533,7 +543,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | "tail" :: _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces tail [N] [--route <substring>]")
-    state
+    { state with exitCode = 1 }
   | "list" :: _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
@@ -547,11 +557,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | "hotspots" :: _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces hotspots [trace-limit] [--json]")
-    state
+    { state with exitCode = 1 }
   | "stats" :: _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Usage: traces stats [limit] [--json]")
-    state
+    { state with exitCode = 1 }
 
   | _ ->
     // If the first token isn't a known subcommand, surface that
@@ -572,7 +582,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"unknown subcommand: {head}")
         Stdlib.printLine ""
         Stdlib.printLine (help state)
-        state
+        { state with exitCode = 1 }
       | [] ->
         Stdlib.printLine (help state)
         state
@@ -584,7 +594,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     printMatches "" (Darklang.Tracing.Store.list limit)
     state
@@ -596,7 +606,7 @@ let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
 let executeListJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     Stdlib.printLine
       (Stdlib.Json.serialize<List<TraceSummary>> (Darklang.Tracing.Store.list limit))
@@ -611,10 +621,10 @@ let executeListByFn
   : Cli.AppState =
   if Stdlib.String.trim fnName == "" then
     Cli.printErr "--fn takes a function name, or part of one"
-    state
+    { state with exitCode = 1 }
   else if limit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.listByFn fnName limit
     if jsonMode then
@@ -634,7 +644,7 @@ let executeHotspots
   : Cli.AppState =
   if traceLimit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.hotspots traceLimit
 
@@ -668,7 +678,7 @@ let executeHotspotsJson
   : Cli.AppState =
   if traceLimit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.hotspots traceLimit
     let body =
@@ -702,10 +712,10 @@ let executeFind
   : Cli.AppState =
   if pattern == "" then
     Cli.printErr "find takes something to look for: part of an id, or of what was run"
-    state
+    { state with exitCode = 1 }
   else if limit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     printMatches
       $"no kept run matches {pattern}"
@@ -723,10 +733,10 @@ let executeFindJson
   : Cli.AppState =
   if pattern == "" then
     Cli.printErr "find takes something to look for: part of an id, or of what was run"
-    state
+    { state with exitCode = 1 }
   else if limit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.find pattern limit
     Stdlib.printLine (Stdlib.Json.serialize<List<TraceSummary>> rows)
@@ -739,7 +749,7 @@ let executeFindJson
 let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
   if pattern == "" then
     Cli.printErr "find takes something to look for: part of an id, or of what was run"
-    state
+    { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.find pattern 1
     match rows with
@@ -770,10 +780,10 @@ let executeTail
     | None -> false
   if n < 1 then
     Cli.printErr "tail takes which run back to open, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else if routeIsEmpty then
     Cli.printErr "--route takes part of a path or a method, like /orders or GET"
-    state
+    { state with exitCode = 1 }
   else
     // Over-fetch so route-filtered Nth candidate is reachable; the
     // unfiltered case picks straight from the first N rows.
@@ -818,7 +828,7 @@ let executeTail
 let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.statsByHandler limit
 
@@ -862,7 +872,7 @@ let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
 let executeStatsJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.statsByHandler limit
     let body =
@@ -937,7 +947,7 @@ let executeFollow
     | None -> false
   if routeIsEmpty then
     Cli.printErr "--route takes part of a path or a method, like /orders or GET"
-    state
+    { state with exitCode = 1 }
   else
   if jsonMode == false then
     let label =
@@ -969,10 +979,10 @@ let executeListByRoute
   : Cli.AppState =
   if Stdlib.String.trim route == "" then
     Cli.printErr "--route takes part of a path or a method, like /orders or GET"
-    state
+    { state with exitCode = 1 }
   else if limit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
-    state
+    { state with exitCode = 1 }
   else
     // Over-fetch then filter; tracesList returns the most-recent N rows
     // unfiltered, so to find N matching we may need to pull more. Cap at
@@ -1097,7 +1107,7 @@ let executeView
   match result with
   | None ->
     Cli.printErr $"no run whose id starts with {traceID} -- `dark traces` lists them"
-    state
+    { state with exitCode = 1 }
   | Some trace ->
     let input = formatInputs state.currentBranchId trace.inputs
     let fnCalls = formatFnCalls opts state.currentBranchId trace.functionCalls
@@ -1149,7 +1159,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
     | Error err ->
       let pretty = Cli.ExecutionError.toString state.currentBranchId err
       Cli.printErr $"the rerun failed: {pretty}"
-      state
+      { state with exitCode = 1 }
 
 
 let executeClear (state: Cli.AppState) : Cli.AppState =
@@ -1182,7 +1192,7 @@ let executeClearBefore
   match parseDuration durationStr with
   | Error msg ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-    state
+    { state with exitCode = 1 }
   | Ok seconds ->
     let now = Stdlib.DateTime.now ()
     // cleanup
@@ -1207,7 +1217,7 @@ let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
   match deleted with
   | 0 ->
     Cli.printErr $"no run whose id starts with {traceID} -- `dark traces` lists them"
-    state
+    { state with exitCode = 1 }
   | _ ->
     Stdlib.printLine $"deleted {Cli.Text.shortIdText traceID}"
     state
@@ -1219,7 +1229,7 @@ let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
 let executePruneKeep (state: Cli.AppState) (keepN: Int) : Cli.AppState =
   if keepN < 0 then
     Cli.printErr "--keep takes a number of runs to keep, so it cannot be negative"
-    state
+    { state with exitCode = 1 }
   else
     let deleted = Darklang.Tracing.Store.pruneKeep keepN
     match deleted with
@@ -1325,7 +1335,7 @@ let help (_state: Cli.AppState) : String =
     "  stats [n] | hotspots [n]      runs per entry; time per function across recent runs"
     ""
     "Record more, or less"
-    "  record                        what this session is recording"
+    "  record [--json]               what this session is recording"
     "  record off | io | complete    change it, for this session only"
     ""
     "Throw some away"

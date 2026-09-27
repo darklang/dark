@@ -120,9 +120,11 @@ type ValuesJson =
 
 
 /// One run and its log, as JSON.
-let printShowJson (prefix: String) : Unit =
+let printShowJson (prefix: String) : Bool =
   match find prefix with
-  | Error e -> Cli.printErr e
+  | Error e ->
+    Cli.printErr e
+    false
   | Ok run ->
     let calls =
       match Darklang.Tracing.Store.view run.id with
@@ -130,11 +132,14 @@ let printShowJson (prefix: String) : Unit =
       | None -> []
     Stdlib.printLine
       (Stdlib.Json.serialize<RunJson> (RunJson { run = run; calls = calls }))
+    true
 
 
-let printShow (branchId: Uuid) (prefix: String) : Unit =
+let printShow (branchId: Uuid) (prefix: String) : Bool =
   match find prefix with
-  | Error e -> Cli.printErr e
+  | Error e ->
+    Cli.printErr e
+    false
   | Ok e ->
     Stdlib.printLine e.id
     Stdlib.printLine $"  status    {statusText e.status}"
@@ -156,6 +161,7 @@ let printShow (branchId: Uuid) (prefix: String) : Unit =
         $"  forked    from {Cli.Text.shortIdText id}, keeping its log before position {Stdlib.Int64.toString at}"
     | None -> ()
     printLog e.id
+    true
 
 
 /// Run the run's input again, replaying its log. `eval` and `run <file>` go through the paths
@@ -164,7 +170,7 @@ let resume (state: AppState) (prefix: String) : AppState =
   match find prefix with
   | Error e ->
     Cli.printErr e
-    state
+    { state with exitCode = 1 }
   | Ok e ->
     if Darklang.Tracing.Store.armResume e.id then
       Stdlib.printLine $"resuming {Cli.Text.shortIdText e.id}: {Cli.Text.oneLine e.input}"
@@ -193,20 +199,27 @@ let resume (state: AppState) (prefix: String) : AppState =
       { state with exitCode = 1 }
 
 
-let fork (prefix: String) (at: Stdlib.Option.Option<Int64>) : Unit =
+let fork (prefix: String) (at: Stdlib.Option.Option<Int64>) : Bool =
   match find prefix with
-  | Error e -> Cli.printErr e
+  | Error e ->
+    Cli.printErr e
+    false
   | Ok e ->
     match Darklang.Tracing.Store.fork e.id at with
     | Ok child ->
       Stdlib.printLine $"forked {Cli.Text.shortIdText e.id} as {Cli.Text.shortIdText child}"
       Stdlib.printLine $"  resume it with: dark traces resume {Cli.Text.shortIdText child}"
-    | Error msg -> Cli.printErr msg
+      true
+    | Error msg ->
+      Cli.printErr msg
+      false
 
 
-let pin (prefix: String) (pinned: Bool) : Unit =
+let pin (prefix: String) (pinned: Bool) : Bool =
   match find prefix with
-  | Error e -> Cli.printErr e
+  | Error e ->
+    Cli.printErr e
+    false
   | Ok e ->
     if Darklang.Tracing.Store.setPinned e.id pinned then
       if pinned then
@@ -214,8 +227,10 @@ let pin (prefix: String) (pinned: Bool) : Unit =
           $"pinned {Cli.Text.shortIdText e.id} -- it will not be dropped to make room"
       else
         Stdlib.printLine $"unpinned {Cli.Text.shortIdText e.id}"
+      true
     else
       Cli.printErr $"{Cli.Text.shortIdText e.id} is gone: it was deleted while this command ran"
+      false
 
 
 // ───────── the call inbox: which runs went through a function, and its values ─────────
@@ -236,6 +251,10 @@ let pin (prefix: String) (pinned: Bool) : Unit =
 /// The branch is not a parameter: the index records the name a run went through, so a run
 /// recorded against another branch's version of the function is still a run that went through
 /// this name. `values` resolves the CODE on the branch you are standing on.
+/// Unit, not Bool, unlike its neighbours: "no recorded run went through this function" is an
+/// ANSWER, not a refusal. A command that was asked a question and answered it truthfully
+/// succeeded, however empty the answer. Naming something that does not exist is the other
+/// thing, and that is what exits non-zero.
 let printCalls (fnName: String) : Unit =
   match Darklang.Tracing.Store.runsCalling fnName 25L with
   | [] ->
@@ -256,7 +275,7 @@ let printValuesJson
   (branchId: Uuid)
   (fnName: String)
   (runPrefix: Stdlib.Option.Option<String>)
-  : Unit =
+  : Bool =
   let chosen =
     match runPrefix with
     | Some prefix -> find prefix
@@ -267,7 +286,9 @@ let printValuesJson
         Stdlib.Result.Result.Error $"no recorded run went through {fnName}"
 
   match chosen with
-  | Error e -> Cli.printErr e
+  | Error e ->
+    Cli.printErr e
+    false
   | Ok run ->
     let (collected, problem) = Darklang.Tracing.Store.previewRun branchId run.id
     let values =
@@ -280,6 +301,7 @@ let printValuesJson
       (Stdlib.Json.serialize<ValuesJson>
         (ValuesJson
           { run = run.id; fn = fnName; values = values; problem = problem }))
+    true
 
 
 /// The function's source, with `// = value` beside each call, for one run.
@@ -310,7 +332,12 @@ let printValues
         Stdlib.Option.Option.None
 
   match chosen with
-  | None -> state
+  // Either a run id that matches nothing, which is a refusal, or a function nothing has run,
+  // which is an empty answer. Both leave nothing to print, and only the first is a failure.
+  | None ->
+    match runPrefix with
+    | Some _ -> { state with exitCode = 1 }
+    | None -> state
   | Some run ->
     // The function is looked up BEFORE the run is replayed: a replay is the whole cost of this
     // command, and a typo should not pay it.

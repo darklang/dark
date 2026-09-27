@@ -146,14 +146,31 @@ let private runCliTimeout = System.TimeSpan.FromMinutes 2.0
 /// printed while it was open, which is why these tests had to be sequenced against every
 /// other test rather than only against each other.
 let rec runCli (target : Target) (args : string list) : Task<string> =
+  task {
+    let! (out, _status) = runCliWithStatus target args
+    return out
+  }
+
+/// `runCli`, and the exit code the command would have given a shell.
+///
+/// The status is the only part of a failure a script can read -- an agent, a CI step, a shell
+/// `&&` -- and it was invisible to every test here, so a command could print a reason and then
+/// report success and nothing would notice. `executeCliCommand` has returned it all along
+/// (`cli/entry.dark`); this stops throwing it away.
+and runCliWithStatus (target : Target) (args : string list) : Task<string * int> =
   match target with
-  | Instance i -> Tests.CliInstance.run i args
+  | Instance i ->
+    task {
+      let! (code, out, err) = Tests.CliInstance.runRaw i args
+      let out = out.Trim()
+      return ((if out <> "" then out else err.Trim()), code)
+    }
   | InProcess state -> runCliInProcess state args
 
 and private runCliInProcess
   (state : RT.ExecutionState)
   (args : string list)
-  : Task<string> =
+  : Task<string * int> =
   task {
     let argsDval = args |> List.map RT.DString |> Dval.list RT.KTString
     let fnName =
@@ -184,7 +201,15 @@ and private runCliInProcess
       // reading the buffer or we capture nothing.
       NonBlockingConsole.wait ()
       match result with
-      | Ok _ -> return (NonBlockingConsole.stopCapture ()).Trim()
+      | Ok(RT.DInt status) ->
+        return
+          ((NonBlockingConsole.stopCapture ()).Trim(),
+           int (RT.DarkInt.toBigInt status))
+      | Ok other ->
+        return
+          Tests.failtestf
+            "runCli: expected an exit code from executeCliCommand, got %A"
+            other
       | Error(rte, _) -> return Tests.failtestf "runCli errored: %A" rte
     finally
       NonBlockingConsole.stopCapture () |> ignore<string>

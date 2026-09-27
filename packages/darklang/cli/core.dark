@@ -145,6 +145,17 @@ let printOk (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.succes
 let printErr (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
 let printHint (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.hint msg)
 
+/// The state a command hands back, given whether it did what it was asked.
+///
+/// A refusal that prints a reason and then reports success is invisible to everything that is
+/// not a person reading the screen: a shell `&&`, a CI step, an agent. The exit code is the only
+/// part of a failure those can read, so a command that printed a reason says so here.
+///
+/// An empty ANSWER is not a refusal: a command asked a question and told the truth about it
+/// succeeded, however little there was to say.
+let exitWith (state: AppState) (ok: Bool) : AppState =
+  if ok then state else { state with exitCode = 1 }
+
 
 /// First 8 hex chars of a hash, for human-readable display.
 let shortHash (h: LanguageTools.ProgramTypes.Hash) : String =

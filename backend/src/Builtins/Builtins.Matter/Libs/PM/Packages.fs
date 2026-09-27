@@ -441,8 +441,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make "arg" (TVariable "a") "" ]
       returnType = TypeReference.result (TVariable "b") TString
       description =
-        "Calls <param fn> with <param arg>; `Error` with the runtime error's message instead "
-        + "of raising when the call fails."
+        "Calls <param fn> with <param arg>; `Error` with the failure's message instead of "
+        + "raising, whatever the failure was."
       fn =
         (function
         | exeState, vm, _, [| DApplicable applicable; arg |] ->
@@ -452,32 +452,43 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 exeState
                 vm.activeAccess
                 (LibDB.PolicyStore.rootOf applicable)
-            match!
-              Execution.executeApplicable
-                asRoot
-                asRoot.access
-                applicable
-                (NEList.singleton arg)
-            with
-            | Ok dv ->
-              return
-                DEnum(
-                  Dval.resultType (),
-                  Dval.resultType (),
-                  [ ValueType.Unknown; ValueType.Known KTString ],
-                  "Ok",
-                  [ dv ]
-                )
-            | Error(rte, _) ->
-              let! message = Execution.runtimeErrorMessage asRoot rte
-              return
-                DEnum(
-                  Dval.resultType (),
-                  Dval.resultType (),
-                  [ ValueType.Unknown; ValueType.Known KTString ],
-                  "Error",
-                  [ DString message ]
-                )
+            let ok (dv : Dval) =
+              DEnum(
+                Dval.resultType (),
+                Dval.resultType (),
+                [ ValueType.Unknown; ValueType.Known KTString ],
+                "Ok",
+                [ dv ]
+              )
+            let err (message : string) =
+              DEnum(
+                Dval.resultType (),
+                Dval.resultType (),
+                [ ValueType.Unknown; ValueType.Known KTString ],
+                "Error",
+                [ DString message ]
+              )
+            // Two kinds of failure, and both have to come back as a value. A runtime error is
+            // the expected one. An F#-side raise -- `Exception.raiseInternal` from a builtin,
+            // say, reporting a store that cannot answer -- is not, and it used to unwind
+            // whoever called this: a live view whose `update` hit one lost the whole host loop
+            // and the terminal with it, instead of showing the error in a band. The callers of
+            // this builtin are precisely the ones that cannot let user code unwind them
+            // (`Stdlib.Live.call`), so it catches both.
+            try
+              match!
+                Execution.executeApplicable
+                  asRoot
+                  asRoot.access
+                  applicable
+                  (NEList.singleton arg)
+              with
+              | Ok dv -> return ok dv
+              | Error(rte, _) ->
+                let! message = Execution.runtimeErrorMessage asRoot rte
+                return err message
+            with e ->
+              return err e.Message
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

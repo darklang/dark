@@ -172,14 +172,19 @@ let printList (branchId: Uuid) : Unit =
 
 
 /// One process in full. The short id names it, as everywhere else; <param full> adds the whole uuid.
-let printShowWith (branchId: Uuid) (prefix: String) (full: Bool) : Unit =
+/// One process in full. `false` when it said why it could not, so the caller can exit non-zero:
+/// naming a process that is not there is a refusal, and a shell has only the code to read.
+let printShowWith (branchId: Uuid) (prefix: String) (full: Bool) : Bool =
   match find prefix with
-  | Error e -> Cli.printErr e
+  | Error e ->
+    Cli.printErr e
+    false
   | Ok p ->
     match Stdlib.Exec.inspect p.id with
     | None ->
       Cli.printErr
         $"process {Cli.Text.shortId p.id} finished while you were asking -- `dark ps` for what is left"
+      false
     | Some detail ->
       let s = detail.summary
       let id = if full then Stdlib.Uuid.toString s.id else Cli.Text.shortId s.id
@@ -202,8 +207,9 @@ let printShowWith (branchId: Uuid) (prefix: String) (full: Bool) : Unit =
         frames
         |> Stdlib.List.iter (fun ep ->
           Stdlib.printLine $"    {executionPointText branchId ep}")
+      true
 
-let printShow (branchId: Uuid) (prefix: String) : Unit = printShowWith branchId prefix false
+let printShow (branchId: Uuid) (prefix: String) : Bool = printShowWith branchId prefix false
 
 /// The table, then every process in full: `dark eval 'Darklang.Cli.Ps.printAll ()'` from inside an
 /// eval is the one line that shows a parent and its child with both stacks.
@@ -213,7 +219,8 @@ let printAll () : Unit =
   Stdlib.Exec.list ()
   |> Stdlib.List.iter (fun p ->
     Stdlib.printLine ""
-    printShow branchId (Cli.Text.shortId p.id))
+    let _shown = printShow branchId (Cli.Text.shortId p.id)
+    ())
 
 
 /// The escape hatch, not the stdlib verb: a process stuck in a host call is ended without waiting
@@ -276,7 +283,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let args = args |> Stdlib.List.filter (fun a -> a != "--json")
 
   match args with
-  | [] -> if wantsJson then printJson () else printList state.currentBranchId
+  | [] ->
+    if wantsJson then printJson () else printList state.currentBranchId
+    state
   | [ "--watch" ] ->
     let view =
       Apps.Model.View
@@ -289,28 +298,49 @@ let execute (state: AppState) (args: List<String>) : AppState =
           keys =
             Stdlib.Option.Option.Some "up/down move  |  c cancel  |  k kill  |  esc quit" }
     match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None with
-    | Ok _ -> ()
-    | Error e -> Cli.printErr e
+    | Ok _ -> state
+    | Error e ->
+      Cli.printErr e
+      { state with exitCode = 1 }
   | [ "show", prefix ] ->
-    if wantsJson then
-      match find prefix with
-      | Error e -> Cli.printErr e
-      | Ok p ->
-        match Stdlib.Exec.inspect p.id with
-        | None -> Cli.printErr $"process {Cli.Text.shortId p.id} finished while you were asking"
-        | Some d -> Stdlib.printLine (Stdlib.Json.serialize<Stdlib.Exec.Detail> d)
-    else
-      printShow state.currentBranchId prefix
-  | [ "show", prefix, "--full" ] -> printShowWith state.currentBranchId prefix true
-  | [ "cancel", target ] -> Stdlib.printLine (stop target false)
-  | [ "kill", target ] -> Stdlib.printLine (stop target true)
+    let ok =
+      if wantsJson then
+        match find prefix with
+        | Error e ->
+          Cli.printErr e
+          false
+        | Ok p ->
+          match Stdlib.Exec.inspect p.id with
+          | None ->
+            Cli.printErr
+              $"process {Cli.Text.shortId p.id} finished while you were asking"
+            false
+          | Some d ->
+            Stdlib.printLine (Stdlib.Json.serialize<Stdlib.Exec.Detail> d)
+            true
+      else
+        printShow state.currentBranchId prefix
+    Cli.exitWith state ok
+  | [ "show", prefix, "--full" ] ->
+    Cli.exitWith state (printShowWith state.currentBranchId prefix true)
+  | [ "cancel", target ] ->
+    Stdlib.printLine (stop target false)
+    state
+  | [ "kill", target ] ->
+    Stdlib.printLine (stop target true)
+    state
   | [ verb ] when (Stdlib.List.member [ "show", "cancel", "kill" ] verb) ->
     Cli.printErr $"ps {verb} needs an id prefix (or a pid) -- `dark ps` lists them"
-  | "help" :: _ -> Stdlib.printLine (help state)
+    { state with exitCode = 1 }
+  | "help" :: _ ->
+    Stdlib.printLine (help state)
+    state
   | unknown :: _ ->
     Cli.printErr $"ps has no `{unknown}`. `dark ps help` lists what it does have."
-  | _ -> Stdlib.printLine (help state)
-  state
+    { state with exitCode = 1 }
+  | _ ->
+    Stdlib.printLine (help state)
+    state
 
 
 let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
