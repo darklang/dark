@@ -661,14 +661,12 @@ jobs:
 
   #
   # Jobs to run on `main` after we've confirmed the build is OK
-  # Publish cli via github releases
-  publish-github-release:
+  # Every green merge to main becomes a release, by tagging it
+  tag-release:
     executor: in-container
     steps:
       - darkcheckout
-      - setup-app
-      - attach_workspace: { at: "." }
-      - run: ./scripts/deployment/publish-github-release
+      - run: ./scripts/deployment/tag-release
 
   # Publish VS Code Extension to the Marketplace
   publish-vs-code-extension:
@@ -696,6 +694,12 @@ workflows:
 
       # Release jobs (only on main)
       - publish-vs-code-extension:
+          filters:
+            branches:
+              only: main
+          requires: [ok-to-deploy]
+
+      - tag-release:
           filters:
             branches:
               only: main
@@ -747,8 +751,8 @@ workflows:
       # jobs run on this branch while the matrix is being debugged, and they
       # should: the artifacts are the point. Publishing on a branch push is
       # different, because publish-github-release creates a real GitHub
-      # release with the next free v0.0.N tag. Without this narrower filter,
-      # every push to the branch would cut a release.
+      # release, and without a tag it has no version to give it. Main gets
+      # its releases by tag-release pushing one, not through this filter.
       - publish-release-clis:
           filters:
             tags:

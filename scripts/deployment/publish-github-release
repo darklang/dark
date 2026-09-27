@@ -33,12 +33,12 @@ delete_tag() {
     "https://api.github.com/repos/$OWNER/$REPO/git/refs/tags/$tag_name"
 }
 
-# A release comes from a pushed tag and nothing else. This used to also run on
-# every merge to main, scanning for the next free v0.0.N, which meant "release"
-# just meant "someone merged". Releases are now deliberate.
+# A release comes from a pushed tag and nothing else. Green merges to main get
+# one from tag-release, which picks the next v0.0.N; a tag pushed by hand works
+# the same way. Either way this script only publishes, it never names a version.
 if [ -z "${CIRCLE_TAG:-}" ]; then
   echo "No CIRCLE_TAG set. Releases are cut from a pushed tag; refusing to"
-  echo "invent a version. Push a tag (v1.2.3) to publish one."
+  echo "invent a version. Push a tag (v0.0.N) to publish one."
   exit 1
 fi
 TAG="$CIRCLE_TAG"

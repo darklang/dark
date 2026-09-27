@@ -1,0 +1,42 @@
+#! /usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Tag a green main commit with the next v0.0.N. The tag's own pipeline
+# (release-clis) builds and publishes, same as a tag pushed by hand.
+
+set -euo pipefail
+
+if [ "${CIRCLE_PROJECT_USERNAME:-}" != "darklang" ]; then
+  echo "Only tags from darklang/dark's CI. Nothing to do here."
+  exit 0
+fi
+
+# Only the newest commit on main gets a release; an older pipeline finishing
+# late would otherwise publish over it. The newer commit's pipeline tags it,
+# or, if that one goes red, the next green one does.
+main=$(git ls-remote origin refs/heads/main | cut -f1)
+if [ "$main" != "$CIRCLE_SHA1" ]; then
+  echo "main has moved on to $main; its own pipeline will tag it."
+  exit 0
+fi
+
+git fetch --quiet --force --tags origin
+
+# Tagged by hand already, or this is a rerun.
+existing=$(git tag --points-at "$CIRCLE_SHA1" 'v*')
+if [ -n "$existing" ]; then
+  echo "Already tagged: $existing"
+  exit 0
+fi
+
+last=$(git tag --list 'v0.0.*' | grep -E '^v0\.0\.[0-9]+$' | sort -V | tail -n 1)
+tag="v0.0.$((${last##*.} + 1))"
+
+# Through the API rather than `git push`: CI's checkout key is read-only.
+curl -sS --fail-with-body -X POST \
+  -H "Authorization: Bearer $GITHUB_RELEASES_TOKEN" \
+  -H "Accept: application/vnd.github+json" \
+  "https://api.github.com/repos/darklang/dark/git/refs" \
+  -d "{\"ref\":\"refs/tags/$tag\",\"sha\":\"$CIRCLE_SHA1\"}"
+
+echo "Tagged $CIRCLE_SHA1 as $tag"
