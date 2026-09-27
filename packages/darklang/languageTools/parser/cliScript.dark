@@ -22,6 +22,8 @@ type WTCliScriptModule =
     values:
       List<LanguageTools.WrittenTypes.ValueDeclaration.ValueDeclaration>
     fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
+    traits: List<LanguageTools.WrittenTypes.TraitDeclaration.TraitDeclaration>
+    impls: List<LanguageTools.WrittenTypes.ImplDeclaration.ImplDeclaration>
     submodules:
       List<LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration>
     exprs: List<LanguageTools.WrittenTypes.Expr> }
@@ -30,7 +32,10 @@ type PTCliScriptModule =
   { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
     values:
       List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+    /// Includes the method fns of top-level impls, at the impls' member paths
     fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+    traits: List<LanguageTools.ProgramTypes.Trait.Trait>
+    impls: List<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>
     submodules: List<LanguageTools.ProgramTypes.Definitions>
     exprs: List<LanguageTools.ProgramTypes.Expr> }
 
@@ -73,6 +78,20 @@ let parseDecls
           | Function f -> Stdlib.Option.Option.Some f
           | _ -> Stdlib.Option.Option.None)
 
+      let traits =
+        source.declarations
+        |> Stdlib.List.filterMap (fun decl ->
+          match decl with
+          | Trait t -> Stdlib.Option.Option.Some t
+          | _ -> Stdlib.Option.Option.None)
+
+      let impls =
+        source.declarations
+        |> Stdlib.List.filterMap (fun decl ->
+          match decl with
+          | Impl i -> Stdlib.Option.Option.Some i
+          | _ -> Stdlib.Option.Option.None)
+
       let submodules =
         source.declarations
         |> Stdlib.List.filterMap (fun decl ->
@@ -89,6 +108,8 @@ let parseDecls
             types = types
             values = values
             fns = fns
+            traits = traits
+            impls = impls
             submodules = submodules
             exprs = exprs }
       )
@@ -184,6 +205,20 @@ let toPT
 
       (pf, ops, unresolvedNames))
 
+  // Process traits and generate ops
+  let (traits, traitOps, traitUnresolvedNames) =
+    processDecls wt.traits (fun t ->
+      WrittenTypesToProgramTypes.traitWithOps ctx t)
+
+  // Process impls: each is its item plus the method fns beneath it
+  let implResults =
+    wt.impls |> Stdlib.List.map (fun i -> WrittenTypesToProgramTypes.implWithOps ctx i)
+  let impls = implResults |> Stdlib.List.map (fun (i, _, _, _) -> i)
+  let implFns =
+    implResults |> Stdlib.List.map (fun (_, fns, _, _) -> fns) |> Stdlib.List.flatten
+  let implOps = implResults |> Stdlib.List.map (fun (_, _, ops, _) -> ops)
+  let implUnresolvedNames = implResults |> Stdlib.List.map (fun (_, _, _, u) -> u)
+
   // Process submodules recursively with ops
   let (submodules, submoduleOps, submoduleUnresolvedNames) =
     processDecls wt.submodules (fun m ->
@@ -210,6 +245,8 @@ let toPT
       [ typeOps |> Stdlib.List.flatten
         valueOps |> Stdlib.List.flatten
         fnOps |> Stdlib.List.flatten
+        traitOps |> Stdlib.List.flatten
+        implOps |> Stdlib.List.flatten
         submoduleOps |> Stdlib.List.flatten ]
 
   // Collect all unresolved names
@@ -218,13 +255,17 @@ let toPT
       [ typeUnresolvedNames |> Stdlib.List.flatten
         valueUnresolvedNames |> Stdlib.List.flatten
         fnUnresolvedNames |> Stdlib.List.flatten
+        traitUnresolvedNames |> Stdlib.List.flatten
+        implUnresolvedNames |> Stdlib.List.flatten
         submoduleUnresolvedNames |> Stdlib.List.flatten
         unresolvedNamesInExprs |> Stdlib.List.flatten ]
 
   (PTCliScriptModule
     { types = types
       values = values
-      fns = fns
+      fns = Stdlib.List.append fns implFns
+      traits = traits
+      impls = impls
       submodules = submodules
       exprs = exprs },
     allOps,
@@ -256,6 +297,16 @@ let stabilizedHash
         Stdlib.Option.Option.Some(
           (ProgramTypes.Reference.PackageFn before.hash,
             ProgramTypes.Reference.PackageFn after.hash)
+        )
+      | (AddTrait before, AddTrait after) ->
+        Stdlib.Option.Option.Some(
+          (ProgramTypes.Reference.PackageTrait before.hash,
+            ProgramTypes.Reference.PackageTrait after.hash)
+        )
+      | (AddTraitImpl before, AddTraitImpl after) ->
+        Stdlib.Option.Option.Some(
+          (ProgramTypes.Reference.PackageTraitImpl before.hash,
+            ProgramTypes.Reference.PackageTraitImpl after.hash)
         )
       | _ -> Stdlib.Option.Option.None
 
@@ -332,6 +383,32 @@ let parseFromWT
                     provisionalFirstPassOps
                     firstPassOps }))
 
+      let adjustedTraits =
+        (Stdlib.List.zip result.traits initialParse.traits)
+        |> Stdlib.Option.mapWithDefault result.traits (fun zipped ->
+          zipped
+          |> Stdlib.List.map (fun tuple ->
+            let (newTrait, originalTrait) = tuple
+            { newTrait with
+                hash =
+                  stabilizedHash
+                    (ProgramTypes.Reference.PackageTrait originalTrait.hash)
+                    provisionalFirstPassOps
+                    firstPassOps }))
+
+      let adjustedImpls =
+        (Stdlib.List.zip result.impls initialParse.impls)
+        |> Stdlib.Option.mapWithDefault result.impls (fun zipped ->
+          zipped
+          |> Stdlib.List.map (fun tuple ->
+            let (newImpl, originalImpl) = tuple
+            { newImpl with
+                hash =
+                  stabilizedHash
+                    (ProgramTypes.Reference.PackageTraitImpl originalImpl.hash)
+                    provisionalFirstPassOps
+                    firstPassOps }))
+
       let adjustedSubmodules =
         (Stdlib.List.zip result.submodules initialParse.submodules)
         |> Stdlib.Option.mapWithDefault result.submodules (fun zipped ->
@@ -378,10 +455,38 @@ let parseFromWT
                           provisionalFirstPassOps
                           firstPassOps }))
 
+            let subTraits =
+              (Stdlib.List.zip newSub.traits originalSub.traits)
+              |> Stdlib.Option.mapWithDefault newSub.traits (fun z ->
+                z
+                |> Stdlib.List.map (fun t ->
+                  let (newT, origT) = t
+                  { newT with
+                      hash =
+                        stabilizedHash
+                          (ProgramTypes.Reference.PackageTrait origT.hash)
+                          provisionalFirstPassOps
+                          firstPassOps }))
+
+            let subImpls =
+              (Stdlib.List.zip newSub.impls originalSub.impls)
+              |> Stdlib.Option.mapWithDefault newSub.impls (fun z ->
+                z
+                |> Stdlib.List.map (fun i ->
+                  let (newI, origI) = i
+                  { newI with
+                      hash =
+                        stabilizedHash
+                          (ProgramTypes.Reference.PackageTraitImpl origI.hash)
+                          provisionalFirstPassOps
+                          firstPassOps }))
+
             ProgramTypes.Definitions
               { types = subTypes
                 values = subValues
                 fns = subFns
+                traits = subTraits
+                impls = subImpls
                 exprs = newSub.exprs }))
 
       let adjusted =
@@ -389,6 +494,8 @@ let parseFromWT
           { types = adjustedTypes
             values = adjustedValues
             fns = adjustedFns
+            traits = adjustedTraits
+            impls = adjustedImpls
             submodules = adjustedSubmodules
             exprs = result.exprs }
 

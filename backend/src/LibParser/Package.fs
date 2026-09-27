@@ -19,7 +19,9 @@ open LibSerialization.Hashing
 type private WTPackageModule =
   { fns : List<WT.PackageFn.PackageFn>
     types : List<WT.PackageType.PackageType>
-    values : List<WT.PackageValue.PackageValue> }
+    values : List<WT.PackageValue.PackageValue>
+    traits : List<WT.PackageTrait.PackageTrait>
+    impls : List<WT.PackageTraitImpl.PackageTraitImpl> }
 /// Lower a WT package module to PackageOps (WT2PT lowering + AddX/SetName op
 /// generation).
 let private wtModuleToOps
@@ -58,6 +60,22 @@ let private wtModuleToOps
           (WT2PT.PackageValue.Name.toModules value.name)
           value)
 
+    let! traits =
+      modul.traits
+      |> Ply.List.mapSequentially (fun t ->
+        WT2PT.Trait.toPT pm onMissing (t.name.owner :: t.name.modules) t)
+
+    let! impls =
+      modul.impls
+      |> Ply.List.mapSequentially (fun i ->
+        // Method targets resolve from the impl's own module: its member path.
+        WT2PT.TraitImpl.toPT
+          builtins
+          pm
+          onMissing
+          (i.name.owner :: i.name.modules @ [ i.name.name ])
+          i)
+
     // Set*Name ops carry a placeholder; the real hash replaces it in
     // LoadPackagesFromDisk.computeRealHashes.
     let nameBasedHash = PackageLocation.placeholderHash
@@ -76,7 +94,18 @@ let private wtModuleToOps
         for (wtFn, ptFn) in List.zip modul.fns fns do
           yield PT.PackageOp.AddFn ptFn
           let loc = WT2PT.PackageFn.Name.toLocation wtFn.name
-          yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc), None) ]
+          yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc), None)
+
+        for (wtTrait, ptTrait) in List.zip modul.traits traits do
+          yield PT.PackageOp.AddTrait ptTrait
+          let loc = WT2PT.Trait.Name.toLocation wtTrait.name
+          yield PT.PackageOp.SetName(loc, PT.PackageTrait(nameBasedHash loc), None)
+
+        for (wtImpl, ptImpl) in List.zip modul.impls impls do
+          yield PT.PackageOp.AddTraitImpl ptImpl
+          let loc = WT2PT.TraitImpl.Name.toLocation wtImpl.name
+          yield
+            PT.PackageOp.SetName(loc, PT.PackageTraitImpl(nameBasedHash loc), None) ]
 
     return ops
   }
@@ -91,6 +120,8 @@ type private PkgItem =
   | PFn of WT.PackageFn.PackageFn
   | PType of WT.PackageType.PackageType
   | PValue of WT.PackageValue.PackageValue
+  | PTrait of WT.PackageTrait.PackageTrait
+  | PImpl of WT.PackageTraitImpl.PackageTraitImpl
   | PErr of WT.Range * string
 
 let private noOwner (kind : string) (name : string) : string =
@@ -110,6 +141,14 @@ let private packageItem (item : WTSourceFile.Item) : PkgItem =
     match path with
     | owner :: modules -> PValue(WT.packageValue owner modules v)
     | [] -> PErr(v.range, noOwner "value" v.name.name)
+  | WTSourceFile.Trait(path, t) ->
+    match path with
+    | owner :: modules -> PTrait(WT.packageTrait owner modules t)
+    | [] -> PErr(t.range, noOwner "trait" t.name.name)
+  | WTSourceFile.Impl(memberPath, impl) ->
+    match memberPath with
+    | owner :: rest -> PImpl(WT.packageImpl owner rest impl)
+    | [] -> PErr(impl.range, noOwner "impl" impl.trait_.typ.name)
   | WTSourceFile.Expr(_, e) ->
     PErr(WT.exprRange e, "expressions are not allowed in package files")
   | WTSourceFile.TypeDB(_, t) ->
@@ -139,12 +178,23 @@ let private packageDecls
     |> List.choose (function
       | PValue v -> Some v
       | _ -> None)
+  let traits =
+    items
+    |> List.choose (function
+      | PTrait t -> Some t
+      | _ -> None)
+  let impls =
+    items
+    |> List.choose (function
+      | PImpl i -> Some i
+      | _ -> None)
   let errors =
     items
     |> List.choose (function
       | PErr(r, msg) -> Some(r, msg)
       | _ -> None)
-  ({ fns = fns; types = types; values = values }, errors)
+  ({ fns = fns; types = types; values = values; traits = traits; impls = impls },
+   errors)
 
 /// Parse + lower a package file: the nested module tree gives module-qualified
 /// names. Returns `Error diagnostics` on parse failure.

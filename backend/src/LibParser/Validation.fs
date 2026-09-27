@@ -30,6 +30,7 @@ type IssueCode =
   | DBMode
   | DBShape
   | TestMode
+  | ImplMethods
 
 module IssueCode =
   let toString (code : IssueCode) : string =
@@ -48,6 +49,7 @@ module IssueCode =
     | DBMode -> "VALIDATION-DB-MODE"
     | DBShape -> "VALIDATION-DB-SHAPE"
     | TestMode -> "VALIDATION-TEST-MODE"
+    | ImplMethods -> "VALIDATION-IMPL-METHODS"
 
 type Issue =
   { range : WT.Range
@@ -330,6 +332,19 @@ let rec private declarationStructureIssues
     @ exprIssues true fn.body
   | WT.DValue value -> exprIssues false value.body
   | WT.DType _ -> []
+  | WT.DTrait t ->
+    // Duplicate method names would collapse to one record field.
+    duplicateIssues (t.methods |> List.map (fun m -> (m.name.name, m.name.range)))
+  | WT.DImpl impl ->
+    // Whether the methods match the trait's needs the trait's declaration, which
+    // only the checker has; here: no duplicates, and each method is a valid fn.
+    (duplicateIssues (
+      (impl.methods |> List.map (fun m -> (m.name.name, m.name.range)))
+      @ (impl.aliases |> List.map (fun a -> (a.name.name, a.name.range)))
+     )
+     |> List.map (fun i -> { i with code = ImplMethods }))
+    @ (impl.methods
+       |> List.collect (fun fn -> declarationStructureIssues (WT.DFunction fn)))
   | WT.DModule modul -> modul.declarations |> List.collect declarationStructureIssues
   | WT.DExpr expr -> exprIssues false expr
   | WT.DTypeDB typ ->
@@ -356,7 +371,9 @@ let rec private declarationPurposeIssues
   match declaration with
   | WT.DFunction _
   | WT.DValue _
-  | WT.DType _ -> []
+  | WT.DType _
+  | WT.DTrait _
+  | WT.DImpl _ -> []
   // WrittenTypes does not distinguish a file module header (`module A.B`),
   // which may be empty, from a block module (`module X =`), which may not. The
   // parser validates the block form while it still has that syntax detail.
