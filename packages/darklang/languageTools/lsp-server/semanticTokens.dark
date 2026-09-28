@@ -127,8 +127,8 @@ module EncodeSemanticTokens =
       List<LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken<LanguageTools.SemanticTokens.TokenType>>)
     : List<UInt64> =
     LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.mapListToFlatDataForResult<Darklang.LanguageTools.SemanticTokens.TokenType>
-      (fun t -> tokenType t)
       tokens
+      (fun t -> tokenType t)
 
 
 
