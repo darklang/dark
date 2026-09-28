@@ -423,6 +423,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     { name = rtName
                       typeSymbolTable = TST.empty
                       typeArgs = []
+                      boundImpls = []
                       // Do not capture the resolver's access here. The code
                       // that calls or receives this reference supplies its
                       // own frame access (for example, an HTTP server).

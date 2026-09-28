@@ -229,7 +229,7 @@ let notted (v: Stdlib.Option.Option<Bool>) : Stdlib.Option.Option<Bool> = Some (
 notted (Some true) = Some false
 
 let literals (v: Stdlib.Option.Option<String>) : Stdlib.Option.Option<String> =
-  Some (v? ++ "what?" ++ (Stdlib.Char.toString '?'))
+  Some (v? + "what?" + (Stdlib.Char.toString '?'))
 literals (Some "a") = Some "awhat??"
 
 type AliasR = Stdlib.Result.Result<Int, String>
@@ -243,7 +243,7 @@ let str
   : Stdlib.Result.Result<String, String> =
   Ok (Stdlib.Int.toString v?)
 [str (Error "a"), Ok "b"] = [Error "a", Ok "b"]
-Stdlib.Result.map (str (Error "a")) (fun s -> s ++ "!") = Error "a"
+Stdlib.Result.map (str (Error "a")) (fun s -> s + "!") = Error "a"
 Stdlib.Result.withDefault (str (Error "a")) "d" = "d"
 
 // `?` still works when the function receives its arguments in separate calls.

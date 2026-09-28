@@ -129,27 +129,52 @@ module FQFnName =
   /// The hash of a function in the package manager
   type Package = Hash
 
-  /// A trait method, named by the trait and the method: `Show.show`.
-  ///
-  /// `implFn` is the fn the chosen implementation names for this method, recorded when the
-  /// item was SAVED. Stored code means one thing forever: an implementation that arrives
-  /// later does not change what this call runs; it arrives as an ordinary update, through
-  /// propagation, like any other fn this item calls.
-  ///
-  /// It carries its location like every other reference, so a rename moves it and the
-  /// dependency edge it produces reads like any other.
-  ///
-  /// The fn, not the `TraitImpl` item: it is what runs and what traces record, and editing the
-  /// implementation's OTHER method then leaves this call alone.
-  ///
-  /// `None` where the implementation is not knowable at save time: inside
-  /// `let display<'a: Show> (v: 'a) = Show.show v` it depends on the caller's type argument,
-  /// so the lookup stays at run time. See `TraitMethod` in RuntimeTypes for that order.
-  type TraitMethod =
-    { trait_ : FQTraitName.Package
-      method_ : string
-      implFn : Option<ResolvedName<Package>> }
+  /// How much of a trait call's implementation the save was able to say. Three states, not
+  /// two: a call that is waiting for its caller's type argument is not the same thing as one
+  /// nobody could work out, and an `Option` said both with the same value.
+  type ImplChoice =
+    /// The save picked it, and stored code goes on running it: an implementation that arrives
+    /// later does not change this call, it arrives as an ordinary update through propagation.
+    ///
+    /// It carries its location like every other reference, so a rename moves it and the
+    /// dependency edge it produces reads like any other. The fn, not the `TraitImpl` item:
+    /// that is what runs and what traces record, so editing the implementation's OTHER method
+    /// leaves this call alone.
+    | Chosen of ResolvedName<Package>
+    /// The self type is this type parameter of the item the call sits in, so the
+    /// implementation is whatever the caller's type argument implies. Inside
+    /// `let display<'a: Show> (v: 'a) = Show.show v` the answer is `FromTypeParam "a"`: the
+    /// call is complete apart from a hole, and the hole has a name. The caller records what
+    /// its type argument implies (`PackageFn.boundResolutions`), so nothing is looked up in
+    /// the store at run time.
+    | FromTypeParam of string
+    /// Nothing to say. Only two shapes reach it: code that is parsed and run without being
+    /// saved (a script, `dark eval`, a test file), where parse time and run time are the same
+    /// moment, and an item saved by something that did not run the resolution pass.
+    | Unknown
 
+  /// A trait method, named by the trait and the method: `Show.show`.
+  type TraitMethod =
+    { trait_ : FQTraitName.Package; method_ : string; implFn : ImplChoice }
+
+
+  /// What a CALL worked out for one of the callee's bounds: for the callee's type param
+  /// `param` owing `trait_`, the implementation this call's type argument implies.
+  ///
+  /// This is the other half of `FromTypeParam`. The callee's body says "my implementation comes
+  /// from 'a"; the caller says "at this call, 'a's implementation is that one". Between them
+  /// nothing about a saved call is decided when it runs. `impl` is itself an `ImplChoice` because
+  /// a generic calling a generic passes its own deferral along.
+  type BoundImpl =
+    {
+      param : string
+      trait_ : FQTraitName.Package
+      /// One entry per method of the trait, because the callee's body may call any of them and
+      /// the answer has to be a fn rather than an implementation item: naming the item would
+      /// mean reading it at run time to find the method's fn.
+      method_ : string
+      choice : ImplChoice
+    }
 
   type FQFnName =
     | Builtin of Builtin
@@ -452,7 +477,13 @@ type Expr =
   | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
 
   /// Reference a function name, _usually_ so we can _apply_ it with args
-  | EFnName of id * NameResolution<FQFnName.FQFnName>
+  /// A fn by name, and what this call worked out for the fn's bounds: `display 56L` records
+  /// that `display`'s `'a: ToString` is `ToString for Int64` here. Empty for everything
+  /// unbounded, which is nearly every call.
+  | EFnName of
+    id *
+    NameResolution<FQFnName.FQFnName> *
+    boundImpls : List<FQFnName.BoundImpl>
 
   // Composed of a parameters * the expression itself
   // The id in the varname list is the analysis id, used to get a livevalue
@@ -464,12 +495,7 @@ type Expr =
   /// chosen when this was SAVED names for the operator's method, so `+` on a type of yours goes
   /// on meaning what it meant. `None` for `&&` and `||`, which are not trait methods; for `==`
   /// and `!=`, which always resolve at the call; and for an operand type only known at run time.
-  | EInfix of
-    id *
-    Infix *
-    lhs : Expr *
-    rhs : Expr *
-    implFn : Option<ResolvedName<FQFnName.Package>>
+  | EInfix of id * Infix * lhs : Expr * rhs : Expr * implFn : FQFnName.ImplChoice
 
 
   // -- References to custom types and data --
@@ -524,7 +550,7 @@ and PipeExpr =
   | EPipeLambda of id * pats : NEList<LetPattern> * body : Expr
 
   /// `1 |> (+) 1`
-  | EPipeInfix of id * Infix * Expr
+  | EPipeInfix of id * Infix * Expr * implFn : FQFnName.ImplChoice
 
   /// `1 |> Json.serialize<Int64>`
   | EPipeFnCall of
@@ -631,7 +657,7 @@ module Expr =
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _, _)
     | ELambda(id, _, _)
-    | EFnName(id, _)
+    | EFnName(id, _, _)
     | EVariable(id, _)
     | EArg(id, _)
     | EApply(id, _, _, _)

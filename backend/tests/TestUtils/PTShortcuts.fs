@@ -88,7 +88,7 @@ let eEnum
 
 
 let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
-  EInfix(gid (), op, left, right, None)
+  EInfix(gid (), op, left, right, FQFnName.Unknown)
 
 let eBuiltinValue (name : string) (version : int) : Expr =
   EValue(gid (), NameResolution.ok (FQValueName.fqBuiltIn name version))
@@ -97,10 +97,10 @@ let ePackageValue hash : Expr =
   EValue(gid (), NameResolution.ok (FQValueName.fqPackage hash))
 
 let eBuiltinFn (name : string) (version : int) : Expr =
-  EFnName(gid (), NameResolution.ok (FQFnName.fqBuiltIn name version))
+  EFnName(gid (), NameResolution.ok (FQFnName.fqBuiltIn name version), [])
 
 let ePackageFn hash : Expr =
-  EFnName(gid (), NameResolution.ok (FQFnName.fqPackage hash))
+  EFnName(gid (), NameResolution.ok (FQFnName.fqPackage hash), [])
 
 let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
   let pats = NEList.ofListUnsafe "eLambda" [] pats
@@ -121,7 +121,8 @@ let eStatement (first : Expr) (next : Expr) : Expr = EStatement(gid (), first, n
 let pLambda id (pats : List<LetPattern>) (body : Expr) : PipeExpr =
   EPipeLambda(id, NEList.ofListUnsafe "pLambda" [] pats, body)
 
-let pInfix id (op : Infix) (expr : Expr) : PipeExpr = EPipeInfix(id, op, expr)
+let pInfix id (op : Infix) (expr : Expr) : PipeExpr =
+  EPipeInfix(id, op, expr, FQFnName.Unknown)
 
 let pFnCall
   id

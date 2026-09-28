@@ -30,8 +30,14 @@ type internal State(environment : TypeEnvironment) =
   let mutable pendingFieldAccesses : List<id * StaticType * string * StaticType> = []
   // `'a: Trait` owed at a type, from a bounded fn's instantiation or a
   // `Trait.method` call; discharged once the item's substitutions are known.
+  // `forParam` is set when this is a CALLEE's bound owed at a call: it names the callee's type
+  // param, which is what the caller has to record the implementation against.
   let mutable constraints
-    : List<Option<id> * FQTraitName.Package * StaticType * Option<string>> =
+    : List<Option<id> *
+      FQTraitName.Package *
+      StaticType *
+      Option<string> *
+      Option<string>> =
     []
   // The bounds the item being checked declares on its own (rigid) type params.
   let mutable declaredBounds : List<Bound> = []
@@ -44,6 +50,22 @@ type internal State(environment : TypeEnvironment) =
     System.Collections.Generic.Dictionary<id, struct (string * List<Hash>)>()
 
   let mutable pendingUnwrapConstraints : List<UnwrapConstraint> = []
+
+  // A call whose self type is one of the enclosing item's own type params. Separate from
+  // `resolutions` because there is nothing for the save to choose from: the answer is the
+  // caller's, and what the save records is WHICH param it comes from.
+  let deferrals = System.Collections.Generic.Dictionary<id, string>()
+
+  // What a CALL worked out for the callee's bounds: at this node, the callee's type param owes
+  // this trait, and these implementations apply at the type the call passes. The save orders
+  // them and writes the winner onto the call, which is what makes a bounded call static.
+  let callerBounds =
+    System.Collections.Generic.Dictionary<id, List<string * Hash * List<Hash>>>()
+
+  // The same, where the answer is one of THIS item's type params rather than an implementation:
+  // a bounded fn calling a bounded fn passes its own deferral along.
+  let callerBoundDeferrals =
+    System.Collections.Generic.Dictionary<id, List<string * Hash * string>>()
 
   member _.PendingUnwrapConstraints
     with get () = pendingUnwrapConstraints
@@ -61,9 +83,10 @@ type internal State(environment : TypeEnvironment) =
       nodeId : Option<id>,
       trait_ : FQTraitName.Package,
       typ : StaticType,
-      method_ : Option<string>
+      method_ : Option<string>,
+      ?forParam : string
     ) : unit =
-    constraints <- (nodeId, trait_, typ, method_) :: constraints
+    constraints <- (nodeId, trait_, typ, method_, forParam) :: constraints
   /// The implementations that apply to the call at <param nodeId>, for the save to choose from.
   member _.RecordResolution
     (
@@ -77,6 +100,56 @@ type internal State(environment : TypeEnvironment) =
     | _ -> ()
 
   member _.Resolutions = resolutions
+
+  /// This call's self type is type param <param param> of the item it sits in, so the
+  /// implementation is whatever the caller's type argument implies. Recorded so the stored form
+  /// can say "waiting for the caller" rather than "nobody could tell".
+  member _.RecordDeferral(nodeId : Option<id>, param : string) : unit =
+    match nodeId with
+    | Some nodeId -> deferrals[nodeId] <- param
+    | None -> ()
+
+  member _.Deferrals = deferrals
+
+  /// At <param nodeId>, the callee's type param <param param> owes <param trait_>, and these
+  /// implementations apply at the type this call passes.
+  member _.RecordCallerBound
+    (
+      nodeId : Option<id>,
+      param : string,
+      trait_ : Hash,
+      impls : List<Hash>
+    ) : unit =
+    match nodeId with
+    | Some nodeId when not (List.isEmpty impls) ->
+      let existing =
+        match callerBounds.TryGetValue nodeId with
+        | true, v -> v
+        | _ -> []
+      callerBounds[nodeId] <- (param, trait_, impls) :: existing
+    | _ -> ()
+
+  /// A bounded fn calling a bounded fn: the callee's param's implementation is this item's own
+  /// param, whichever that resolves to. Stored as a deferral so the chain threads at run time.
+  member _.RecordCallerBoundDeferral
+    (
+      nodeId : Option<id>,
+      param : string,
+      trait_ : Hash,
+      fromParam : string
+    ) : unit =
+    match nodeId with
+    | Some nodeId ->
+      let existing =
+        match callerBoundDeferrals.TryGetValue nodeId with
+        | true, v -> v
+        | _ -> []
+      callerBoundDeferrals[nodeId] <- (param, trait_, fromParam) :: existing
+    | None -> ()
+
+  member _.CallerBoundDeferrals = callerBoundDeferrals
+
+  member _.CallerBounds = callerBounds
 
   member _.Diagnostics = diagnostics
   member _.Blockers = blockers

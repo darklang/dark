@@ -101,16 +101,22 @@ module FQFnName =
 
   type Package = Hash
 
-  /// A trait method: the trait, the method name, and the fn the chosen implementation names
-  /// for it, when the save was able to choose.
-  ///
-  /// With an `implFn`, that is what runs: no lookup, and no implementation stored later can
-  /// change it. Without one (a call inside a polymorphic fn, where the implementation depends
-  /// on the caller's type argument), applying it resolves at call time, in this order:
-  /// explicit type args, the self argument's ValueType head, the caller's TypeSymbolTable
-  /// binding for the self param.
+  /// How much of a trait call's implementation is decided, the runtime's half of
+  /// `PT.FQFnName.ImplChoice`.
+  type ImplChoice =
+    /// That fn runs. No lookup, and no implementation stored later can change it.
+    | Chosen of Package
+    /// The implementation comes from this type parameter of the fn the call sits in, and the
+    /// CALLER put it in the frame (`CallFrame.boundImpls`). Read from there rather than asked
+    /// of the store, so a saved program answers the same way whatever the store holds now.
+    | FromTypeParam of string
+    /// Nothing recorded, so resolve at the call: explicit type args, then the self argument's
+    /// ValueType head, then the caller's TypeSymbolTable binding for the self param. This is
+    /// the only path that asks the store, and saved code does not take it.
+    | Unknown
+
   type TraitMethod =
-    { trait_ : FQTraitName.Package; method_ : string; implFn : Option<Package> }
+    { trait_ : FQTraitName.Package; method_ : string; implFn : ImplChoice }
 
   type FQFnName =
     | Builtin of Builtin
@@ -1190,6 +1196,14 @@ and ApplicableNamedFn =
     access : Option<Permissions.Access>
 
     argsSoFar : List<Dval>
+
+    /// What the CALLER worked out for each of this fn's bounds: for type param `p` owing trait
+    /// `t`, the implementation the caller's type argument implies. Filled in when the item was
+    /// saved, carried into the frame when this is applied, and read by a call in the body whose
+    /// implementation `FromTypeParam`s to `p`. Empty for everything that has no bounds, which is
+    /// nearly every call.
+    boundImpls :
+      List<struct (string * FQTypeName.Package * string * FQFnName.ImplChoice)>
   }
 
 and ApplicableLambda =
@@ -2796,6 +2810,12 @@ type CallFrame =
 
     mutable typeSymbolTable : TypeSymbolTable
 
+    /// The implementations this frame's bounds resolved to, from the applicable that pushed it.
+    /// A list rather than a map: it has one entry per bound, so nearly always none and never
+    /// more than a handful, and a linear scan beats allocating a map per call.
+    mutable boundImpls :
+      List<struct (string * FQTypeName.Package * string * FQFnName.Package)>
+
     mutable registers : Registers
   }
 
@@ -3257,6 +3277,7 @@ type VMState =
         access = Permissions.Access.denyAll
         instrData = rootInstrData
         expectedReturnType = ValueNone
+        boundImpls = []
         programCounter = 0
         registers = Array.zeroCreate instrs.registerCount
         argBufs = Array.empty
@@ -3335,6 +3356,7 @@ type VMState =
           executionPoint = Source
           instrData = instrData
           expectedReturnType = ValueNone
+          boundImpls = []
           programCounter = 0
           access = Permissions.Access.denyAll
           registers = Array.zeroCreate registerCount

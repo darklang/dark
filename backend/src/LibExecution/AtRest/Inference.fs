@@ -270,7 +270,7 @@ let private instantiateFunction
         nodeId,
         FunctionUnavailable(
           FQFnName.TraitMethod
-            { trait_ = traitHash; method_ = methodName; implFn = None }
+            { trait_ = traitHash; method_ = methodName; implFn = FQFnName.Unknown }
         )
       )
       state.FreshTainted nodeId
@@ -337,7 +337,7 @@ let private instantiateFunction
           match b.trait_.trait_.resolved, Map.tryFind b.param vars with
           | Ok { name = FQTraitName.Package traitHash }, Some typ ->
             state.AddDependency(TraitDependency traitHash)
-            state.AddConstraint(nodeId, traitHash, typ, None)
+            state.AddConstraint(nodeId, traitHash, typ, None, b.param)
           | _ -> ()
         let parameters =
           NEList.map (convertType state nodeId vars) signature.parameters
@@ -885,7 +885,7 @@ and private inferPipePartVia
     match parameters.tail with
     | [] -> bodyType
     | next :: rest -> TFn(NEList.ofList next rest, bodyType)
-  | EPipeInfix(nodeId, infix, rhs) ->
+  | EPipeInfix(nodeId, infix, rhs, _) ->
     // The lhs has already been inferred, so apply the operator rule directly.
     let rhsType = inferExpr state env rhs
     match infix with
@@ -925,7 +925,12 @@ and private inferPipePartVia
     | [], [], _, Some fqName, _ -> inferNegateResult state nodeId fqName input
     | [], [ rhs ], _, _, Some(fqName, infix) ->
       state.AddDependency(FunctionDependency fqName)
-      inferPipePartVia state env input true (EPipeInfix(nodeId, infix, rhs))
+      inferPipePartVia
+        state
+        env
+        input
+        true
+        (EPipeInfix(nodeId, infix, rhs, FQFnName.Unknown))
     | _ ->
       let fnType =
         instantiateFunction state (Some nodeId) env.typeVariables name typeArgs
@@ -1145,15 +1150,15 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     // operator builtins that infix syntax lowers to.
     let specialCase =
       match callee, typeArgs, NEList.toList args with
-      | EFnName(_, name), [], [ arg ] when Option.isSome (asUnwrapBuiltin name) ->
+      | EFnName(_, name, _), [], [ arg ] when Option.isSome (asUnwrapBuiltin name) ->
         asUnwrapBuiltin name
         |> Option.map (fun fqName ->
           inferUnwrapResult state nodeId fqName (inferExpr state env arg))
-      | EFnName(_, name), [], [ arg ] when Option.isSome (asNegateBuiltin name) ->
+      | EFnName(_, name, _), [], [ arg ] when Option.isSome (asNegateBuiltin name) ->
         asNegateBuiltin name
         |> Option.map (fun fqName ->
           inferNegateResult state nodeId fqName (inferExpr state env arg))
-      | EFnName(_, name), [], [ lhs; rhs ] ->
+      | EFnName(_, name, _), [], [ lhs; rhs ] ->
         asOperatorBuiltin name
         |> Option.map (fun (fqName, infix) ->
           state.AddDependency(FunctionDependency fqName)
@@ -1164,7 +1169,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     | None ->
       let calleeType =
         match callee with
-        | EFnName(nameId, name) ->
+        | EFnName(nameId, name, _) ->
           instantiateFunction state (Some nameId) env.typeVariables name typeArgs
         | _ ->
           if not (List.isEmpty typeArgs) then
@@ -1175,7 +1180,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
             )
           inferExpr state env callee
       applyArguments state env nodeId calleeType (NEList.toList args)
-  | EFnName(nodeId, name) ->
+  | EFnName(nodeId, name, _) ->
     instantiateFunction state (Some nodeId) env.typeVariables name []
   | ELambda(nodeId, patterns, body) ->
     let parameters = patterns |> NEList.map (fun _ -> state.Fresh(Some nodeId))

@@ -145,8 +145,8 @@ let rec private dischargeConstraints (state : State) : unit =
     rounds <- rounds + 1
     let batch = pending
     pending <- []
-    for nodeId, trait_, typ, method_ in batch do
-      dischargeOne state nodeId trait_ typ method_
+    for nodeId, trait_, typ, method_, forParam in batch do
+      dischargeOne state nodeId trait_ typ method_ forParam
       pending <- pending @ List.rev state.Constraints
       state.Constraints <- []
 
@@ -157,6 +157,9 @@ and private dischargeOne
   (trait_ : FQTraitName.Package)
   (typ : StaticType)
   (method_ : Option<string>)
+  /// The CALLEE's type param, when this is a callee's bound owed at a call. What the caller
+  /// records the implementation against.
+  (forParam : Option<string>)
   : unit =
   let typ = applySubstitutions state typ
   let typ = normalizeAliases state nodeId Set.empty typ
@@ -180,6 +183,17 @@ and private dischargeOne
         Some typ,
         TraitNeeded(trait_, method_)
       )
+    else
+      // Declared, so this call is waiting for its caller's type argument rather than being
+      // unresolvable. Record which param, so the stored form can say so; a node with no method
+      // is a bound owed at a CALL, which has no implementation field to hold it.
+      match method_, forParam with
+      | Some _, _ -> state.RecordDeferral(nodeId, name)
+      // A bounded fn calling a bounded fn: the callee's param owes the trait, and the answer is
+      // this item's own param, which ITS caller filled in. Recorded so the chain threads.
+      | None, Some param ->
+        state.RecordCallerBoundDeferral(nodeId, param, trait_, name)
+      | None, None -> ()
   | concrete ->
     match headOfStatic concrete with
     | None -> ()
@@ -195,9 +209,13 @@ and private dischargeOne
         )
       | [ entry ] ->
         // What the call resolves to, for the save to store with it.
-        match method_ with
-        | Some m -> state.RecordResolution(nodeId, m, [ entry.source ])
-        | None -> ()
+        match method_, forParam with
+        | Some m, _ -> state.RecordResolution(nodeId, m, [ entry.source ])
+        // A callee's bound at a concrete type: this is the answer the CALL records, so the
+        // callee's body does not have to ask for it.
+        | None, Some param ->
+          state.RecordCallerBound(nodeId, param, trait_, [ entry.source ])
+        | None, None -> ()
         // A conditional impl owes its own bounds at the type it matched: bind
         // its params by unifying its self type with the concrete one, then owe
         // each bound at the param's type.
@@ -220,10 +238,17 @@ and private dischargeOne
         // picks the newer, by the same rule the runtime would (`LibExecution.Lww`). A
         // conditional impl's own bounds are skipped rather than owed against an implementation
         // that may not be the one chosen; `dark constraints` reports the pair.
-        match method_ with
-        | Some m ->
+        match method_, forParam with
+        | Some m, _ ->
           state.RecordResolution(nodeId, m, several |> List.map (fun e -> e.source))
-        | None -> ()
+        | None, Some param ->
+          state.RecordCallerBound(
+            nodeId,
+            param,
+            trait_,
+            several |> List.map (fun e -> e.source)
+          )
+        | None, None -> ()
 
 /// `x.m` where `x` has no field `m`: the one visible impl, of any trait, with a
 /// method `m` for `x`'s head types the access as that method with `x` consumed.
@@ -376,8 +401,7 @@ let private resolvePendingFieldAccesses (state : State) : unit =
                   Some subjectType,
                   Identifier fieldName
                 )
-        | TypeDeclaration.Enum _
-        | TypeDeclaration.Alias _ ->
+        | TypeDeclaration.Enum _ ->
           if not (asReceiverCall ()) then
             state.Error(
               TypeMismatch,
@@ -386,23 +410,31 @@ let private resolvePendingFieldAccesses (state : State) : unit =
               Some subjectType,
               RecordRequiredForFieldAccess
             )
-        | _ -> ()
+        // An alias surviving normalization has a cycle or an unavailable target. That is the
+        // declaration's problem, it is blocked already, and calling the field access a definite
+        // error on top would blame the wrong line.
+        | TypeDeclaration.Alias _ -> asReceiverCall () |> ignore<bool>
         true
       | None ->
-        // Not a custom type: a tuple, or something like `(5).show`.
+        // Not a custom type: a tuple, a scalar, a rigid type param.
         if asReceiverCall () then
+          true
+        elif containsTaintedInferenceVariable state subjectType then
+          // Already accounted for by the taint; a second complaint adds nothing.
           true
         else
           match subjectType with
-          // A tuple index that got here is still a tuple index, and an out-of-range one is
-          // worth naming rather than calling the type ambiguous.
-          | TTuple _ ->
+          // A custom type whose declaration did not resolve (a cyclic alias, an unavailable
+          // target) is not the author's mistake and stays incomplete. Calling it a definite
+          // "not a record" would blame the field access for the declaration's problem.
+          | TCustom _ -> true
+          | _ ->
+            // The type is KNOWN and nothing offers the method, so this is a definite error and
+            // not an ambiguity: `resolveFieldAccess` names it (the tuple's length for an index
+            // past the end, "not a record" for a scalar). Blocking here instead would make the
+            // item merely incomplete, which is how `(5).field` stopped being a definite error.
             let fieldType = resolveFieldAccess state nodeId subjectType fieldName
             unify state (Some nodeId) RecordFieldAccess fieldType resultType
-            true
-          | _ ->
-            if not (containsTaintedInferenceVariable state subjectType) then
-              state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
             true
 
   let rec loop pending =
@@ -504,6 +536,14 @@ let private finish
           |> Seq.map (fun kv ->
             let struct (method_, impls) = kv.Value
             kv.Key, (method_, impls))
+          |> Map.ofSeq
+        deferrals =
+          state.Deferrals |> Seq.map (fun kv -> kv.Key, kv.Value) |> Map.ofSeq
+        callerBounds =
+          state.CallerBounds |> Seq.map (fun kv -> kv.Key, kv.Value) |> Map.ofSeq
+        callerBoundDeferrals =
+          state.CallerBoundDeferrals
+          |> Seq.map (fun kv -> kv.Key, kv.Value)
           |> Map.ofSeq }
 
 /// What a proof says each trait-method call resolves to: the node its name is at, the method,
@@ -511,6 +551,20 @@ let private finish
 /// save reads the answer out (`Builtins.Matter.Libs.PM.AtRestTypeChecker.resolveTraitCalls`).
 let resolutionsOf (proof : Proof) : Map<id, string * List<Hash>> =
   Proof.resolutions proof
+
+/// The calls this item defers to its caller's type argument, and which type param each one waits
+/// on. The save writes `FromTypeParam` for these, so a stored call says it is waiting rather than
+/// looking unresolved.
+let deferralsOf (proof : Proof) : Map<id, string> = Proof.deferrals proof
+
+/// What each CALL worked out for the callee's bounds: the callee's type param, the trait it
+/// owes, and the implementations that apply at the type this call passes.
+let callerBoundsOf (proof : Proof) : Map<id, List<string * Hash * List<Hash>>> =
+  Proof.callerBounds proof
+
+/// The same, where the answer is one of the calling item's own type params.
+let callerBoundDeferralsOf (proof : Proof) : Map<id, List<string * Hash * string>> =
+  Proof.callerBoundDeferrals proof
 
 let checkExpression (environment : TypeEnvironment) (expr : Expr) : Verdict =
   guardingStack (Some(Expr.toID expr)) (fun () ->

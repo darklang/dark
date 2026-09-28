@@ -61,7 +61,7 @@ let rec private kidsE (e : PT.Expr) : List<PT.Expr> =
     :: (parts
         |> List.collect (function
           | PT.EPipeLambda(_, _, b) -> [ b ]
-          | PT.EPipeInfix(_, _, e) -> [ e ]
+          | PT.EPipeInfix(_, _, e, _) -> [ e ]
           | PT.EPipeFnCall(_, _, _, args) -> args
           | PT.EPipeEnum(_, _, _, fields) -> fields
           | PT.EPipeVariable(_, _, args) -> args))
@@ -110,7 +110,7 @@ let private fqValStr (nr : PT.NameResolution<PT.FQValueName.FQValueName>) : stri
 /// details of the name-ish payload for nodes whose difference is not in child exprs
 let private nodeDetail (e : PT.Expr) : string =
   match e with
-  | PT.EFnName(_, nr) -> $"EFnName {fqFnStr nr}"
+  | PT.EFnName(_, nr, _) -> $"EFnName {fqFnStr nr}"
   | PT.EValue(_, nr) -> $"EValue {fqValStr nr}"
   | PT.EVariable(_, v) -> $"EVariable {v}"
   | PT.EArg(_, i) -> $"EArg {i}"

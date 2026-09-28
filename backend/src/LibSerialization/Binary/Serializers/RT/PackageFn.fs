@@ -38,7 +38,7 @@ let read (version : uint32) (r : BinaryReader) : PackageFn.PackageFn =
   let typeParams = List.read r String.read
   let parameters = NEList.read Parameter.read r
   let returnType = TypeReference.read r
-  let body = Instructions.read r
+  let body = Instructions.read version r
   let permissionCeiling =
     Option.read r LibSerialization.Binary.Serializers.Effects.read
   let bounds = TypeReference.Bound.readList version r

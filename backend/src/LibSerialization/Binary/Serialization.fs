@@ -72,9 +72,10 @@ let makeSerializer<'T, 'ID>
 /// every historical readVN alongside one current writer; that is what lets a new binary decode an OLD
 /// blob.
 ///
-/// No reader dispatches on the version yet, because `CurrentVersion` is still 1: v1 is the first
-/// format whose blobs outlive the binary that wrote them, since before it every store was rebuilt
-/// from `.dark` on each build. This exists so the first layout change has somewhere to go.
+/// Readers do dispatch on it now. The PT side threads it everywhere; on the RT side it reaches
+/// the applicable reader, whose layout changed in v4. An RT blob is a projection, but nothing on
+/// the shipped path re-folds one when the format moves (see `LibDB/Releases.fs`), so an old
+/// `rt_instrs` row is read by a new binary and the version has to be honoured there too.
 let makeDeserializerV<'T, 'ID>
   (reader : uint32 -> BinaryReader -> 'T)
   : 'ID -> byte[] -> 'T =
@@ -208,15 +209,15 @@ module RT =
 
   module Dval =
     let serialize id value = makeSerializer RT.Dval.write id value
-    let deserialize id data = makeDeserializer RT.Dval.read id data
+    let deserialize id data = makeDeserializerV RT.Dval.read id data
 
   module Instructions =
     let serialize id value = makeSerializer RT.Instructions.write id value
-    let deserialize id data = makeDeserializer RT.Instructions.read id data
+    let deserialize id data = makeDeserializerV RT.Instructions.read id data
 
   module PackageValue =
     let serialize id value = makeSerializer RT.PackageValue.write id value
-    let deserialize id data = makeDeserializer RT.PackageValue.read id data
+    let deserialize id data = makeDeserializerV RT.PackageValue.read id data
 
   module PackageFn =
     let serialize id value = makeSerializer RT.PackageFn.write id value

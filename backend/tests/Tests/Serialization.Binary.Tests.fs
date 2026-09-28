@@ -167,8 +167,56 @@ module PT =
                   PT.InfixFnCall PT.ArithmeticPlus,
                   PT.EInt64(_, 1L),
                   PT.EInt64(_, 2L),
-                  None) -> ()
+                  PT.FQFnName.Unknown) -> ()
       | other -> failtest $"a v2 `1L + 2L` read as {other}"
+    }
+
+  /// The same compatibility case one version on. v4 added a list to `EFnName` for the bounds
+  /// the CALL worked out, and a v3 blob has no list byte there. A reader that takes one anyway
+  /// reads the next expression's tag as a length, so this is written as v3 wrote it: an
+  /// EStatement whose first half is the EFnName, so a wrong-sized read shows up as the second
+  /// half failing rather than as a quietly different value.
+  let v3FnNameStillReads =
+    test "a format-v3 blob with a function reference still reads" {
+      let write (f : System.IO.BinaryWriter -> unit) : byte[] =
+        use stream = new System.IO.MemoryStream()
+        use w = new System.IO.BinaryWriter(stream)
+        f w
+        w.Flush()
+        stream.ToArray()
+
+      let writeString (w : System.IO.BinaryWriter) (str : string) =
+        // String.write: a varint byte count, then UTF-8 bytes. Short names fit one byte.
+        let bytes = System.Text.Encoding.UTF8.GetBytes str
+        w.Write(byte bytes.Length)
+        w.Write bytes
+
+      let payload =
+        write (fun w ->
+          w.Write 32uy // EStatement
+          w.Write 1UL
+          w.Write 31uy // EFnName, and in v3 it ends after the name
+          w.Write 2UL
+          w.Write 0uy // NameResolution.originalName: the empty list
+          w.Write 0uy // resolved = Ok
+          w.Write 1uy // FQFnName.Package
+          w.Write 0uy // Hash: not the 32-byte raw form, so the string form follows
+          writeString w "abc123"
+          w.Write 0uy // no location
+          w.Write 0uy // EInt64, the statement's second half
+          w.Write 3UL
+          w.Write 7L)
+
+      use stream = new System.IO.MemoryStream(payload)
+      use reader = new System.IO.BinaryReader(stream)
+      let back = LibSerialization.Binary.Serializers.PT.Expr.Expr.read 3u reader
+
+      match back with
+      | PT.EStatement(_, PT.EFnName(_, nr, []), PT.EInt64(_, 7L)) ->
+        match nr.resolved with
+        | Ok { name = PT.FQFnName.Package(PT.Hash "abc123") } -> ()
+        | other -> failtest $"the v3 function reference read as {other}"
+      | other -> failtest $"a v3 EFnName in a statement read as {other}"
     }
 
   let unknownVersionRejected =
@@ -277,7 +325,8 @@ module RT =
                   LibExecution.Permissions.Access.start
                     LibExecution.Permissions.Policy.allowAll
                 )
-              argsSoFar = [] }
+              argsSoFar = []
+              boundImpls = [] }
         )
       let decoded =
         value |> BS.RT.Dval.serialize "namedFn" |> BS.RT.Dval.deserialize "namedFn"
@@ -322,6 +371,49 @@ module RT =
         $"{name} must be refused as a format error, not by the comparer's guard"
 
   /// DB references are comparable but intentionally unsupported as keys.
+  /// v4 added the bounds a call worked out to a stored applicable, and a v3 blob ends with the
+  /// captured-access bool instead. A reader that takes the list anyway reads that bool as a
+  /// length and then runs off the end of the blob, so every `rt_instrs` row written before this
+  /// change would fail to decode. `package_functions` is a projection, but nothing on the
+  /// shipped path re-folds one when the format moves, so those rows are read as they stand.
+  let v3ApplicableStillReads =
+    test "a format-v3 stored applicable (no bounds) still reads" {
+      let writeString (w : System.IO.BinaryWriter) (str : string) =
+        let bytes = System.Text.Encoding.UTF8.GetBytes str
+        w.Write(byte bytes.Length)
+        w.Write bytes
+
+      let payload =
+        use stream = new System.IO.MemoryStream()
+        use w = new System.IO.BinaryWriter(stream)
+        w.Write 1uy // FQFnName.Package
+        writeString w "abc123" // the hash
+        w.Write 0uy // the type symbol table, empty
+        w.Write 0uy // typeArgs, empty
+        w.Write 0uy // argsSoFar, empty
+        w.Write true // captured access: the last field a v3 applicable has
+        w.Flush()
+        stream.ToArray()
+
+      use stream = new System.IO.MemoryStream(payload)
+      use reader = new System.IO.BinaryReader(stream)
+      let back =
+        LibSerialization.Binary.Serializers.RT.Dval.readApplicableNamedFn 3u reader
+
+      Expect.equal back.boundImpls [] "a v3 applicable has no recorded bounds"
+      Expect.equal
+        back.name
+        (RT.FQFnName.Package(RT.Hash "abc123"))
+        "the name reads as it always did"
+      Expect.isTrue
+        back.access.IsSome
+        "the captured-access bool was still the last byte"
+      Expect.equal
+        stream.Position
+        stream.Length
+        "the reader consumed the blob exactly"
+    }
+
   let dictWithDbKeyRejectedOnRead =
     test "a Dict keyed by a DB reference is refused on deserialize" {
       expectRefusedOnRead
@@ -343,6 +435,7 @@ module RT =
               typeSymbolTable = RT.TST.empty
               typeArgs = []
               argsSoFar = []
+              boundImpls = []
               access = None }
         )
       expectRefusedOnRead
@@ -430,6 +523,7 @@ let tests =
           PT.legacyRecoveryHoleTagRejected
           PT.v1PackageFnStillReads
           PT.v2ExpressionsStillRead
+          PT.v3FnNameStillReads
           PT.unknownVersionRejected ]
 
       testList
@@ -439,6 +533,7 @@ let tests =
           RT.packageFnTests
           RT.dvalTests
           RT.instructionsTests
+          RT.v3ApplicableStillReads
           RT.dictWithDbKeyRejectedOnRead
           RT.dictWithLambdaKeyRejectedOnRead
           RT.closureAccessIsStripped

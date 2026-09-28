@@ -65,7 +65,7 @@ let rec subExprs (expr : Expr) : List<Expr> =
 and pipeSubExprs (pe : PipeExpr) : List<Expr> =
   match pe with
   | EPipeLambda(_, _, body) -> [ body ]
-  | EPipeInfix(_, _, rhs) -> [ rhs ]
+  | EPipeInfix(_, _, rhs, _) -> [ rhs ]
   | EPipeFnCall(_, _, _, args) -> args
   | EPipeEnum(_, _, _, fields) -> fields
   | EPipeVariable(_, _, args) -> args
@@ -159,7 +159,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
 
   // things that can be applied
   | EInfix(_, _, left, right, _) -> Set.union (r left) (r right)
-  | EFnName(_, _) -> Set.empty
+  | EFnName(_, _, _) -> Set.empty
   | ELambda(_, _, body) -> r body
   | EApply(_, thingToApply, _, args) ->
     Set.unionMany
@@ -174,7 +174,7 @@ and symbolsUsedInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
 
   match pipeExpr with
   | EPipeLambda(_, _, body) -> r body
-  | EPipeInfix(_, _, expr) -> r expr
+  | EPipeInfix(_, _, expr, _) -> r expr
   | EPipeFnCall(_, _, _, args) -> args |> List.map r |> Set.unionMany
   | EPipeEnum(_, _, _, fields) -> fields |> List.map r |> Set.unionMany
   | EPipeVariable(_, _, args) -> args |> List.map r |> Set.unionMany
@@ -267,7 +267,7 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
   // the references we're collecting
   | EValue(_, { originalName = [ name ]; resolved = Ok _ }) -> Set.singleton name
   | EValue _ -> Set.empty
-  | EFnName(_, { originalName = [ name ]; resolved = Ok _ }) -> Set.singleton name
+  | EFnName(_, { originalName = [ name ]; resolved = Ok _ }, _) -> Set.singleton name
   | EFnName _ -> Set.empty
 
   // things that can be applied
@@ -286,7 +286,7 @@ and unqualifiedResolvedNamesInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
 
   match pipeExpr with
   | EPipeLambda(_, _, body) -> r body
-  | EPipeInfix(_, _, expr) -> r expr
+  | EPipeInfix(_, _, expr, _) -> r expr
   | EPipeFnCall(_, { originalName = [ name ]; resolved = Ok _ }, _, args) ->
     Set.add name (args |> List.map r |> Set.unionMany)
   | EPipeFnCall(_, _, _, args) -> args |> List.map r |> Set.unionMany

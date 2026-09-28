@@ -36,10 +36,20 @@ module FQFnName =
   /// chosen. With it, that fn is what runs, and a newer implementation reaches
   /// this call through propagation like any other update. Without it (a call in a
   /// polymorphic fn), the implementation is found from the self type at run time.
+  /// How much of a trait call's implementation is decided; the runtime's half of
+  /// `ProgramTypes.FQFnName.ImplChoice`.
+  type ImplChoice =
+    /// That fn runs
+    | Chosen of Package
+    /// Read from the frame the caller filled, rather than asked of the store
+    | FromTypeParam of String
+    /// Resolve at the call; the only path that asks the store
+    | Unknown
+
   type TraitMethod =
     { trait_: FQTraitName.Package
       method_: String
-      implFn: Stdlib.Option.Option<Package> }
+      implFn: ImplChoice }
 
   type FQFnName =
     | Builtin of Builtin

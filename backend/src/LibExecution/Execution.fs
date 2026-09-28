@@ -472,7 +472,8 @@ let executeFunction
         typeArgs = typeArgs
         // Host-initiated: runs under the run-level access the state carries.
         access = None
-        argsSoFar = [] }
+        argsSoFar = []
+        boundImpls = [] }
     let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
     RT.LoadVal(rc, applicable), rc, rc + 1
 

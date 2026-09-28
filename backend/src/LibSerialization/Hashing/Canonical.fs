@@ -144,6 +144,29 @@ let writeFQTraitName
       PTC.FQTraitName.Package.write w (resolveHash mode loc p)
 
 
+/// Which implementation a trait call resolved to, hashed because it is part of what the call
+/// MEANS. A chosen one hashes as the fn reference it is, SCC name-ref and all; a deferral hashes
+/// its type param, because the same source under a different param is a different call.
+let writeImplChoice
+  (mode : HashRefMode)
+  (w : BinaryWriter)
+  (implFn : PT.FQFnName.ImplChoice)
+  : unit =
+  match implFn with
+  | PT.FQFnName.Unknown -> w.Write(0uy)
+  | PT.FQFnName.FromTypeParam p ->
+    w.Write(3uy)
+    Common.String.write w p
+  | PT.FQFnName.Chosen r ->
+    match isSccRef mode r.location r.name with
+    | Some fqn ->
+      w.Write(2uy)
+      Common.String.write w fqn
+    | None ->
+      w.Write(1uy)
+      PTC.FQFnName.Package.write w (resolveHash mode r.location r.name)
+
+
 /// Write FQFnName, resolving deps and checking SCC substitution
 let writeFQFnName
   (mode : HashRefMode)
@@ -171,8 +194,13 @@ let writeFQFnName
     // hashed as the fn reference it is: an implementation inside this item's own SCC writes as
     // a name ref, like any other reference to something being saved in the same batch.
     match implFn with
-    | None -> w.Write(0uy)
-    | Some r ->
+    | PT.FQFnName.Unknown -> w.Write(0uy)
+    | PT.FQFnName.FromTypeParam p ->
+      // Which type param the implementation comes from is part of what the call means: the same
+      // source under a different param name is a different call.
+      w.Write(3uy)
+      Common.String.write w p
+    | PT.FQFnName.Chosen r ->
       match isSccRef mode r.location r.name with
       | Some fqn ->
         w.Write(2uy)
@@ -389,10 +417,11 @@ let writePipeExpr (mode : HashRefMode) (w : BinaryWriter) (pipeExpr : PT.PipeExp
     w.Write 1uy
     Common.NEList.write writeLetPattern w pats
     writeExpr mode w body
-  | PT.EPipeInfix(_id, infix, expr) ->
+  | PT.EPipeInfix(_id, infix, expr, implFn) ->
     w.Write 2uy
     ExprS.Infix.write w infix
     writeExpr mode w expr
+    writeImplChoice mode w implFn
   | PT.EPipeFnCall(_id, fnName, typeArgs, args) ->
     w.Write 3uy
     writeNameResolution (writeFQFnName mode) w fnName
@@ -530,8 +559,13 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
     // The implementation the save chose for this operator is part of what it means, and it is
     // hashed as the fn reference it is, SCC name-ref and all.
     match implFn with
-    | None -> w.Write(0uy)
-    | Some r ->
+    | PT.FQFnName.Unknown -> w.Write(0uy)
+    | PT.FQFnName.FromTypeParam p ->
+      // Which type param the implementation comes from is part of what the call means: the same
+      // source under a different param name is a different call.
+      w.Write(3uy)
+      Common.String.write w p
+    | PT.FQFnName.Chosen r ->
       match isSccRef mode r.location r.name with
       | Some fqn ->
         w.Write(2uy)
@@ -547,9 +581,22 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
         writeExpr mode w key
         writeExpr mode w value)
       pairs
-  | PT.EFnName(_id, nameRes) ->
+  | PT.EFnName(_id, nameRes, boundImpls) ->
     w.Write 31uy
     writeNameResolution (writeFQFnName mode) w nameRes
+    // What the call worked out for the callee's bounds is part of what the call means, for the
+    // same reason the implementation on a trait method call is. Written only when there are any,
+    // so an unbounded call keeps the hash it had.
+    if not (List.isEmpty boundImpls) then
+      w.Write(0xB1uy)
+      Common.List.write
+        w
+        (fun w (b : PT.FQFnName.BoundImpl) ->
+          Common.String.write w b.param
+          writeFQTraitName mode w None (PT.FQTraitName.Package b.trait_)
+          Common.String.write w b.method_
+          writeImplChoice mode w b.choice)
+        boundImpls
   | PT.EUnwrap(_id, operand) ->
     w.Write 36uy
     writeExpr mode w operand

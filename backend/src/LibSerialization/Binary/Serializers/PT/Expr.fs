@@ -364,11 +364,12 @@ module PipeExpr =
       w.Write id
       NEList.write LetPattern.write w pats
       Expr.write w body
-    | EPipeInfix(id, infix, expr) ->
+    | EPipeInfix(id, infix, expr, implFn) ->
       w.Write 2uy
       w.Write id
       Infix.write w infix
       Expr.write w expr
+      FQFnName.ImplChoice.write w implFn
     | EPipeFnCall(id, fnName, typeArgs, args) ->
       w.Write 3uy
       w.Write id
@@ -398,7 +399,8 @@ module PipeExpr =
       let id = r.ReadUInt64()
       let infix = Infix.read r
       let expr = Expr.read version r
-      EPipeInfix(id, infix, expr)
+      let implFn = FQFnName.ImplChoice.read version r
+      EPipeInfix(id, infix, expr, implFn)
     | 3uy ->
       let id = r.ReadUInt64()
       let fnName = NameResolution.read (FQFnName.read version) r
@@ -572,13 +574,8 @@ module Expr =
       Infix.write w op
       write w left
       write w right
-      // The implementation the save chose for this operator: v3 and later.
-      Option.write
-        w
-        (fun w (r : ResolvedName<FQFnName.Package>) ->
-          FQFnName.Package.write w r.name
-          Option.write w PackageLocation.write r.location)
-        implFn
+      // The implementation this operator resolved to: v3 and later.
+      FQFnName.ImplChoice.write w implFn
     | EDict(id, pairs) ->
       w.Write 30uy
       w.Write id
@@ -588,10 +585,19 @@ module Expr =
           write w key
           write w value)
         pairs
-    | EFnName(id, nameRes) ->
+    | EFnName(id, nameRes, boundImpls) ->
       w.Write 31uy
       w.Write id
       NameResolution.write FQFnName.write w nameRes
+      // What this call worked out for the callee's bounds: v4 and later.
+      List.write
+        w
+        (fun w (b : FQFnName.BoundImpl) ->
+          String.write w b.param
+          FQTraitName.Package.write w b.trait_
+          String.write w b.method_
+          FQFnName.ImplChoice.write w b.choice)
+        boundImpls
     | EUnwrap(id, operand) ->
       w.Write 36uy
       w.Write id
@@ -764,14 +770,7 @@ module Expr =
       // v3 and later carry the implementation the save resolved this operator to. A v1 or v2
       // blob ends after the right operand, so reading the option byte there would consume the
       // next expression's tag.
-      let implFn =
-        if version >= 3u then
-          Option.read r (fun r ->
-            let name = FQFnName.Package.read r
-            let location = Option.read r PackageLocation.read
-            { name = name; location = location })
-        else
-          None
+      let implFn = FQFnName.ImplChoice.read version r
       EInfix(id, op, left, right, implFn)
     | 30uy ->
       let id = r.ReadUInt64()
@@ -784,7 +783,19 @@ module Expr =
     | 31uy ->
       let id = r.ReadUInt64()
       let nameRes = NameResolution.read (FQFnName.read version) r
-      EFnName(id, nameRes)
+      // A v3 blob ends after the name; reading the list byte there would eat the next tag.
+      let boundImpls =
+        if version >= 4u then
+          List.read r (fun r ->
+            let param = String.read r
+            let trait_ = FQTraitName.Package.read r
+            let method_ = String.read r
+            let impl = FQFnName.ImplChoice.read version r
+            ({ param = param; trait_ = trait_; method_ = method_; choice = impl }
+            : FQFnName.BoundImpl))
+        else
+          []
+      EFnName(id, nameRes, boundImpls)
     | 32uy ->
       let id = r.ReadUInt64()
       let first = read version r
@@ -803,5 +814,5 @@ module Expr =
       EInt(id, value)
     | 36uy ->
       let id = r.ReadUInt64()
-      EUnwrap(id, read r)
+      EUnwrap(id, read version r)
     | b -> raiseFormatError $"Invalid Expr tag: {b}"

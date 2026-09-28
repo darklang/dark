@@ -354,19 +354,46 @@ type args first.
 implementations apply at each call node (`Proof.resolutions`, keyed by the node the name is at),
 and the store says which is newer. It is hashed with the item and becomes an ordinary fn
 dependency edge, so propagation, `pin` and `follow` treat a newer implementation like any other
-update. `None` where the self type is not knowable at save time (a call inside a bounded generic,
-an operator in a pipeline); those resolve at run time, which is what the selection
-path in `Interpreter.fs` is for.
+update.
 
-**Nothing loaded from disk records its implementation choice.** `resolveTraitCalls` is
-reached only from `addAuthored`, so `dark fn`/`impl`/`module` and the editor fill `implFn`
-in, while `LocalExec.reloadPackages` inserts its ops directly. Those calls are still
-ordinary hash references (name resolution runs at parse, so the TRAIT is a hash either
-way); what they lack is the third field, so every operator and trait method in `packages/`
-and in `seed.db` selects an implementation at RUN time in every clone. Two consequences: a
-dispatch-cost measurement taken against the shipped tree is measuring the unselected path,
-and "a saved call goes on meaning what it meant" is today a property of interactively
-authored items only.
+**A choice that cannot be made yet says so, rather than saying nothing.** The field is an
+`ImplChoice`, three states, not an option: `Chosen` (this fn), `FromTypeParam "a"` (my caller
+decides, and here is which of my type params it turns on), `Unknown` (nobody could work it out;
+resolve at run time). A call inside a bounded generic is the middle one: the checker knows the
+self type is the item's own rigid type param, so the callee records the param name and the CALL
+records what that param implied. That second half is `EFnName`'s third field, a list of
+`BoundImpl` (`param`, `trait_`, `method_`, `choice`), one entry per method of the trait so the
+callee's body finds a fn without reading the implementation item. `ApplicableNamedFn.boundImpls`
+carries it into the runtime and `CallFrame.boundImpls` is what the body reads; a `FromTypeParam`
+in a caller's own list is resolved against the caller's frame on the way in, which is what
+threads a bound through a generic that calls another generic. So the only resolutions left at
+run time are the genuinely unknowable ones, and a Dval's.
+
+`gates trait-choice-survives-rival` is the property: author a bounded generic and a caller, then
+author a NEWER rival implementation for the same type. The saved call keeps its answer while a
+fresh call takes the new one. Break either half of the mechanism and it fails.
+
+One trap when writing this kind of test by hand: **a type is content-addressed, so a same-shaped
+record anywhere in the store IS your type.** A throwaway `Pt = { x: Int64 }` shares its hash with
+every other `{ x: Int64 }` somebody left in the dev store, implementations and all, and your test
+then measures their choices. Give the field a name nobody else would use.
+
+A drop site worth knowing about, because it looks like nothing: **anything that rebuilds an
+`EFnName` must carry the third field.** `DeferredResolver.reResolveExpr` did not, so every
+authoring that went through `WipRefresh` re-hashed the item without its bounds and un-decided
+what the checker had decided. The parser's own `EFnName` sites are the exception: they write `[]`
+because the checker has not run yet.
+
+**The disk-load path records choices too, and it is the reason a reload rehashes so much.**
+`resolveTraitCalls` runs from `addAuthored` (so `dark fn`/`impl`/`module`, the editor and the
+LSP) and from `LocalExec.reloadPackages`, which authors `packages/` off disk. The reload path
+does it in the same order the authoring path does, pins at the hashes in hand and then
+`computeRealHashes` to move them, and it prints how many ops moved. Recording a choice changes
+an item's content hash and every caller's hash moves with it, so the op count it reports is
+larger than the number of calls pinned. Two things follow: the shipped tree and `seed.db` carry
+their choices, so a dispatch-cost measurement against them is measuring the resolved path; and
+"a saved call goes on meaning what it meant" holds for the tree, not just for what somebody
+typed at the CLI.
 
 **Every switch over item kinds has five arms.** Types, values, fns, traits, impls.
 A new listing, codec, or CLI command that handles three of them silently drops the
@@ -545,6 +572,15 @@ red with "capability denied: `sqliteQuery` needs file (read)", and the fix is to
 than to grant more. Set `HOME` as well as `DARK_CONFIG_RUNDIR` when a test touches `caps`.
 
 Clearing only `current_branch%` is the trap: it looks like isolation and leaves the relay wired up.
+
+**Your own experiments in the dev store break every gate that commits.** The gates start from a copy
+of `rundir/data.db`, and `dark commit` refuses a store holding unresolved references. So one
+throwaway item authored by hand, referring to something that never resolved, fails
+`workbench-scm` and `sync-multi-instance` with symptoms that look nothing like the cause: a
+fixture times out waiting for its own commit to appear. The gates guard against the CONFIG a
+copied store inherits and not against its draft. Author experiments into an isolated
+`DARK_CONFIG_RUNDIR`, or `dark discard -y` before running gates; `dark status` says whether the
+draft is clean.
 
 One consequence worth knowing: an isolated store usually looks like a FIRST RUN, and Home shows its welcome
 PANEL instead of a row's detail, so a test waiting for anything a populated Home draws waits forever. Do not

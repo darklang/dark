@@ -164,8 +164,17 @@ let private extract (roots : List<Work>) : List<Dependency> =
 
     | PipeExpr pipeExpr ->
       match pipeExpr with
-      | PT.EPipeLambda(_, _, body)
-      | PT.EPipeInfix(_, _, body) -> work.Push(Expr body)
+      | PT.EPipeLambda(_, _, body) -> work.Push(Expr body)
+
+      | PT.EPipeInfix(_, _, body, implFn) ->
+        match implFn with
+        | PT.FQFnName.Chosen r ->
+          dependencies <-
+            { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
+            :: dependencies
+        | PT.FQFnName.FromTypeParam _
+        | PT.FQFnName.Unknown -> ()
+        work.Push(Expr body)
 
       | PT.EPipeFnCall(_, nr, typeArgs, args) ->
         addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
@@ -235,8 +244,19 @@ let private extract (roots : List<Work>) : List<Dependency> =
         pushTypesInOrder typeArgs
         work.Push(Expr fnExpr)
 
-      | PT.EFnName(_, nr) ->
+      | PT.EFnName(_, nr, boundImpls) ->
         addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
+        // What this call worked out for the callee's bounds is a fn this item now depends on:
+        // that edge is what offers a newer implementation through `propagate` rather than
+        // letting it change under the call.
+        for b in boundImpls do
+          match b.choice with
+          | PT.FQFnName.Chosen r ->
+            dependencies <-
+              { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
+              :: dependencies
+          | PT.FQFnName.FromTypeParam _
+          | PT.FQFnName.Unknown -> ()
         // `Show.show` depends on the trait: editing the trait repoints every
         // caller, which is what makes a changed method signature visible.
         match nr.resolved with
@@ -250,12 +270,16 @@ let private extract (roots : List<Work>) : List<Dependency> =
           // And on the implementation it was resolved to, which is an ordinary fn edge: that
           // is what makes a newer implementation an ordinary repoint, offered by `propagate`
           // and refusable by `pin`, rather than something that changes under the call.
+          // Only a CHOSEN implementation is an edge. A call that defers to a type param names
+          // no fn of its own; the edge for that one belongs to the CALLER, which recorded what
+          // its type argument implied.
           match implFn with
-          | Some r ->
+          | PT.FQFnName.Chosen r ->
             dependencies <-
               { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
               :: dependencies
-          | None -> ()
+          | PT.FQFnName.FromTypeParam _
+          | PT.FQFnName.Unknown -> ()
         | _ -> ()
 
       | PT.ELambda(_, _, body) -> work.Push(Expr body)
@@ -264,11 +288,12 @@ let private extract (roots : List<Work>) : List<Dependency> =
         // An operator that resolved to one of your implementations depends on it, exactly as a
         // written-out call does: that edge is how a newer implementation is offered to you.
         match implFn with
-        | Some r ->
+        | PT.FQFnName.Chosen r ->
           dependencies <-
             { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
             :: dependencies
-        | None -> ()
+        | PT.FQFnName.FromTypeParam _
+        | PT.FQFnName.Unknown -> ()
         work.Push(Expr rhs)
         work.Push(Expr lhs)
 

@@ -114,7 +114,7 @@ let rec private inExpr (expr : PT.Expr) : List<string> =
     @ List.collect inTypeRef typeArgs
     @ (args |> NEList.toList |> List.collect inExpr)
 
-  | PT.EFnName(_, name) -> fromNR name
+  | PT.EFnName(_, name, _) -> fromNR name
 
   | PT.ELambda(_, _, body) -> inExpr body
 
@@ -155,7 +155,7 @@ and private inMatchCase (case_ : PT.MatchCase) : List<string> =
 and private inPipeExpr (pe : PT.PipeExpr) : List<string> =
   match pe with
   | PT.EPipeLambda(_, _, body) -> inExpr body
-  | PT.EPipeInfix(_, _, rhs) -> inExpr rhs
+  | PT.EPipeInfix(_, _, rhs, _) -> inExpr rhs
   | PT.EPipeFnCall(_, name, typeArgs, args) ->
     fromNR name @ List.collect inTypeRef typeArgs @ List.collect inExpr args
   | PT.EPipeEnum(_, typeName, _, fields) ->

@@ -453,7 +453,8 @@ let private buildSeedMapping
       |> List.fold (fun m loc -> Map.add loc sourceLocation m) Map.empty
     // Propagation moves hashes; it never re-resolves a trait call. A dependent that follows a
     // newer implementation does it through the ordinary fn edge, which `byHash` above covers.
-    pins = Map.empty }
+    pins = Map.empty
+    boundImpls = Map.empty }
 
 
 /// Compute new hashes for source + all transitive dependents using SCC-aware

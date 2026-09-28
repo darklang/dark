@@ -263,7 +263,12 @@ let private fnHashTests =
           let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
             { originalName = names
               resolved = Error PT.NameResolutionError.NotFound }
-          PT.EApply(gid (), PT.EFnName(gid (), nr), [], NEList.singleton (eVar "x"))
+          PT.EApply(
+            gid (),
+            PT.EFnName(gid (), nr, []),
+            [],
+            NEList.singleton (eVar "x")
+          )
         let h1 = h [ "x" ] (callUnresolved [ "Tests"; "UnresT"; "missing" ])
         let h2 = h [ "x" ] (callUnresolved [ "TwoStore"; "Cascade"; "base" ])
         Expect.notEqual h1 h2 "the name is all an unresolved reference has"
@@ -302,9 +307,16 @@ let private fnHashTests =
           let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
             PT.NameResolution.ok (
               PT.FQFnName.TraitMethod
-                { trait_ = PT.Hash traitHash; method_ = m; implFn = None }
+                { trait_ = PT.Hash traitHash
+                  method_ = m
+                  implFn = PT.FQFnName.Unknown }
             )
-          PT.EApply(gid (), PT.EFnName(gid (), nr), [], NEList.singleton (eVar "x"))
+          PT.EApply(
+            gid (),
+            PT.EFnName(gid (), nr, []),
+            [],
+            NEList.singleton (eVar "x")
+          )
         let h1 = h [ "x" ] (call "trait-show" "show")
         let h2 = h [ "x" ] (call "trait-show" "describe")
         let h3 = h [ "x" ] (call "trait-repr" "show")
@@ -317,23 +329,37 @@ let private fnHashTests =
       // the hash: that is what makes a newer implementation an ordinary version move that
       // propagation can offer, rather than something that changes the same item's behaviour.
       test "the implementation a call pins is part of its hash" {
-        let call (implFn : Option<string>) : PT.Expr =
-          let pinned =
-            implFn
-            |> Option.map (fun hash ->
-              let loc : PT.PackageLocation =
-                { owner = "Tests"; modules = [ "Show" ]; name = "show" }
-              ({ name = PT.Hash hash; location = Some loc }
-              : PT.ResolvedName<PT.FQFnName.Package>))
+        let call (pinned : PT.FQFnName.ImplChoice) : PT.Expr =
           let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
             PT.NameResolution.ok (
               PT.FQFnName.TraitMethod
                 { trait_ = PT.Hash "trait-show"; method_ = "show"; implFn = pinned }
             )
-          PT.EApply(gid (), PT.EFnName(gid (), nr), [], NEList.singleton (eVar "x"))
-        let unpinned = h [ "x" ] (call None)
-        let onFirst = h [ "x" ] (call (Some "impl-fn-1"))
-        let onSecond = h [ "x" ] (call (Some "impl-fn-2"))
+          PT.EApply(
+            gid (),
+            PT.EFnName(gid (), nr, []),
+            [],
+            NEList.singleton (eVar "x")
+          )
+        let unpinned = h [ "x" ] (call PT.FQFnName.Unknown)
+        let onFirst =
+          h
+            [ "x" ]
+            (call (
+              PT.FQFnName.Chosen
+                { name = PT.Hash "impl-fn-1"
+                  location =
+                    Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } }
+            ))
+        let onSecond =
+          h
+            [ "x" ]
+            (call (
+              PT.FQFnName.Chosen
+                { name = PT.Hash "impl-fn-2"
+                  location =
+                    Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } }
+            ))
         Expect.notEqual unpinned onFirst "resolving the call changes what it is"
         Expect.notEqual
           onFirst
@@ -341,8 +367,22 @@ let private fnHashTests =
           "and so does resolving it to another implementation"
         Expect.equal
           onFirst
-          (h [ "x" ] (call (Some "impl-fn-1")))
+          (h
+            [ "x" ]
+            (call (
+              PT.FQFnName.Chosen
+                { name = PT.Hash "impl-fn-1"
+                  location =
+                    Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } }
+            )))
           "the same implementation hashes the same"
+        // And deferring to a type param is its own state: not the same as unknown, and not the
+        // same as deferring to a different param.
+        let onParamA = h [ "x" ] (call (PT.FQFnName.FromTypeParam "a"))
+        let onParamB = h [ "x" ] (call (PT.FQFnName.FromTypeParam "b"))
+        Expect.notEqual unpinned onParamA "deferring is not the same as unknown"
+        Expect.notEqual onFirst onParamA "nor the same as choosing one"
+        Expect.notEqual onParamA onParamB "and which param is part of it"
       } ]
 
 

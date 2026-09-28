@@ -415,7 +415,7 @@ module Expr =
                 currentModule
                 (WT.Unresolved(NEList.singleton var))
             match fnResult.resolved with
-            | Ok _ -> return PT.EFnName(id, fnResult)
+            | Ok _ -> return PT.EFnName(id, fnResult, [])
             | Error _ -> return PT.EVariable(id, var)
       | WT.ERecordFieldAccess(_, obj, (_, fieldname), _) ->
         let id = gid ()
@@ -451,7 +451,7 @@ module Expr =
               let! fnResult =
                 resolveFnAllow builtins pm currentModule (WT.Unresolved fullPath)
               match fnResult.resolved with
-              | Ok _ -> return PT.EFnName(id, fnResult)
+              | Ok _ -> return PT.EFnName(id, fnResult, [])
               | Error _ ->
                 let! obj = toPT context obj
                 return PT.ERecordFieldAccess(id, obj, fieldname)
@@ -505,7 +505,7 @@ module Expr =
                 return
                   PT.EApply(
                     id,
-                    PT.EFnName(gid (), fnName),
+                    PT.EFnName(gid (), fnName, []),
                     processedTypeArgs,
                     processedArgs
                   )
@@ -524,7 +524,7 @@ module Expr =
           let! fnNameResolved = resolveFnAllow builtins pm currentModule name
           let! expr =
             match fnNameResolved.resolved with
-            | Ok _ -> Ply(PT.EFnName(gid (), fnNameResolved))
+            | Ok _ -> Ply(PT.EFnName(gid (), fnNameResolved, []))
             | Error _ -> toPT context callee
           return PT.EApply(id, expr, processedTypeArgs, processedArgs)
       | WT.EApply(_, lhs, typeArgs, args) ->
@@ -562,13 +562,13 @@ module Expr =
         | _ ->
           let! fnName = resolveFnAllow builtins pm currentModule name
           match fnName.resolved, valueResolved with
-          | Ok _, _ -> return PT.EFnName(id, fnName)
+          | Ok _, _ -> return PT.EFnName(id, fnName, [])
           // A bare qualified name that resolves to neither value nor fn returns
           // EValue(Error),
           // so DeferredResolver can later refresh forward references to values.
           // KnownBuiltin operator names stay EFnName.
           | Error _, Some value -> return PT.EValue(id, value)
-          | Error _, None -> return PT.EFnName(id, fnName)
+          | Error _, None -> return PT.EFnName(id, fnName, [])
       | WT.ELambda(_, pats, body, _, _) ->
         let id = gid ()
         // Lambda params do not inherit function arg slots. The enclosing
@@ -740,8 +740,8 @@ module Expr =
         let id = gid ()
         let! arg1 = toPT context arg1
         let! arg2 = toPT context arg2
-        // No implementation yet: the parser has no types. The save resolves it.
-        return PT.EInfix(id, Infix.toPT infixOp, arg1, arg2, None)
+        // Nothing to say yet: the parser has no types. The save resolves it.
+        return PT.EInfix(id, Infix.toPT infixOp, arg1, arg2, PT.FQFnName.Unknown)
       | WT.EStatement(_, first, next) ->
         let! first = toPT context first
         let! next = toPT context next
@@ -825,7 +825,7 @@ module Expr =
       | WT.EPipeInfix(_, (_, infixOp), first) ->
         let id = gid ()
         let! first = toPT context first
-        return PT.EPipeInfix(id, Infix.toPT infixOp, first)
+        return PT.EPipeInfix(id, Infix.toPT infixOp, first, PT.FQFnName.Unknown)
 
       | WT.EPipeFnCall(_, q, typeArgs, args) ->
         let id = gid ()

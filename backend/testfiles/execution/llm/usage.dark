@@ -4,21 +4,21 @@ module Anthropic =
   let parse (usage: String) : String =
     let body =
       """{"id":"m","type":"message","role":"assistant","""
-      ++ """"content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn","""
-      ++ usage
-      ++ "}"
+      + """"content":[{"type":"text","text":"hi"}],"stop_reason":"end_turn","""
+      + usage
+      + "}"
 
     match Stdlib.AltJson.parse body with
     | Ok json ->
       match Darklang.LLM.Providers.Anthropic.parseExtendedResponse json with
       | Ok r ->
         r.content
-        ++ " "
-        ++ (Stdlib.Int.toString r.usage.inputTokens)
-        ++ "/"
-        ++ (Stdlib.Int.toString r.usage.outputTokens)
-        ++ "/"
-        ++ (Stdlib.Int.toString r.usage.cacheReadTokens)
+        + " "
+        + (Stdlib.Int.toString r.usage.inputTokens)
+        + "/"
+        + (Stdlib.Int.toString r.usage.outputTokens)
+        + "/"
+        + (Stdlib.Int.toString r.usage.cacheReadTokens)
       | Error e -> Darklang.LLM.Provider.ProviderError.toString e
     | Error _ -> "bad json"
 
@@ -40,10 +40,10 @@ module OpenAI =
       match Darklang.LLM.Providers.OpenAI.extractUsage fields with
       | Ok u ->
         (Stdlib.Int.toString u.inputTokens)
-        ++ "/"
-        ++ (Stdlib.Int.toString u.outputTokens)
-        ++ "/"
-        ++ (Stdlib.Int.toString u.cacheReadTokens)
+        + "/"
+        + (Stdlib.Int.toString u.outputTokens)
+        + "/"
+        + (Stdlib.Int.toString u.cacheReadTokens)
       | Error e -> e
     | _ -> "bad json"
 

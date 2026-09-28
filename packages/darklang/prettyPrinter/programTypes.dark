@@ -677,7 +677,7 @@ let pipeExprDoc (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : Stdlib
     parens (
       Stdlib.Pretty.hang 2 (txt $"fun {argsPart} ->") [ exprDoc ctx body ])
 
-  | EPipeInfix(_id, infixOp, e) ->
+  | EPipeInfix(_id, infixOp, e, _) ->
     Stdlib.Pretty.concat (txt $"({infix infixOp}) ") (applyArg ctx e)
 
   | EPipeFnCall(_id, fnName, typeArgs, args) ->
@@ -1175,8 +1175,8 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     let inner = expr ctx operand
     match operand with
     | EVariable(_, _) | EArg(_, _) | ERecordFieldAccess(_, _, _)
-    | EUnwrap(_, _) -> inner ++ "?"
-    | _ -> "(" ++ inner ++ ")?"
+    | EUnwrap(_, _) -> inner + "?"
+    | _ -> "(" + inner + ")?"
 
   | ERecordFieldAccess(_id, e, fieldName) ->
     let exprPart = expr ctx e
@@ -1213,7 +1213,7 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
     $"(fun {patsPart} ->\n{PrettyPrinter.indent bodyPart})"
 
-  | EFnName(_id, fnName) ->
+  | EFnName(_id, fnName, _) ->
     NameResolution.fnName ctx fnName
 
   // LanguageTools.ID *

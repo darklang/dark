@@ -408,7 +408,8 @@ module FnName =
                                   ProgramTypes.FQFnName.TraitMethod
                                     { trait_ = traitHash
                                       method_ = methodName
-                                      implFn = Stdlib.Option.Option.None })
+                                      implFn =
+                                        ProgramTypes.FQFnName.ImplChoice.Unknown })
                               location = resolved.location }) })
               else
                 Stdlib.Option.Option.None

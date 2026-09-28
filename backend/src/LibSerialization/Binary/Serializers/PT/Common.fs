@@ -203,6 +203,36 @@ module FQFnName =
     let read (r : BinaryReader) : FQFnName.Package = Hash.read r
 
 
+  /// Which implementation a trait call resolved to, and how much of that the save could say.
+  ///
+  /// v4 writes a case tag. v3 wrote a bare option, whose `0`/`1` line up with `Unknown`/`Chosen`,
+  /// so a v3 blob reads through the same two tags and never produces `FromTypeParam`. v1 and v2
+  /// wrote no field at all and read as `Unknown`.
+  module ImplChoice =
+    let write (w : BinaryWriter) (c : FQFnName.ImplChoice) : unit =
+      match c with
+      | FQFnName.Unknown -> w.Write(0uy)
+      | FQFnName.Chosen r ->
+        w.Write(1uy)
+        Package.write w r.name
+        Option.write w PackageLocation.write r.location
+      | FQFnName.FromTypeParam p ->
+        w.Write(2uy)
+        String.write w p
+
+    let read (version : uint32) (r : BinaryReader) : FQFnName.ImplChoice =
+      if version < 3u then
+        FQFnName.Unknown
+      else
+        match r.ReadByte() with
+        | 0uy -> FQFnName.Unknown
+        | 1uy ->
+          let name = Package.read r
+          let location = Option.read r PackageLocation.read
+          FQFnName.Chosen { name = name; location = location }
+        | 2uy -> FQFnName.FromTypeParam(String.read r)
+        | b -> raiseFormatError $"Invalid ImplChoice tag: {b}"
+
   let write (w : BinaryWriter) (n : FQFnName.FQFnName) =
     match n with
     | FQFnName.Builtin b ->
@@ -212,17 +242,12 @@ module FQFnName =
       w.Write(1uy)
       Package.write w p
     | FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn } ->
-      // v2 only; a v1 blob never carries this tag. The implementation the save chose rides
-      // along as an option: v3 and later.
+      // v2 only; a v1 blob never carries this tag. The implementation the call resolved to
+      // rides along: an option in v3, an `ImplChoice` from v4.
       w.Write(2uy)
       FQTraitName.Package.write w t
       String.write w m
-      Option.write
-        w
-        (fun w (r : ResolvedName<FQFnName.Package>) ->
-          Package.write w r.name
-          Option.write w PackageLocation.write r.location)
-        implFn
+      ImplChoice.write w implFn
 
   let read (version : uint32) (r : BinaryReader) : FQFnName.FQFnName =
     match r.ReadByte() with
@@ -231,16 +256,7 @@ module FQFnName =
     | 2uy ->
       let t = FQTraitName.Package.read r
       let m = String.read r
-      // v3 and later carry the implementation the save resolved the call to; a v2 blob wrote the
-      // trait and the method and stopped.
-      let implFn =
-        if version >= 3u then
-          Option.read r (fun r ->
-            let name = Package.read r
-            let location = Option.read r PackageLocation.read
-            { name = name; location = location })
-        else
-          None
+      let implFn = ImplChoice.read version r
       FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn }
     | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 

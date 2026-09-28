@@ -626,6 +626,9 @@ let inline private takeFrame
   (instrData : InstrData)
   (expectedReturnType : TypeReference voption)
   (typeSymbolTable : TypeSymbolTable)
+  /// What the caller worked out for the callee's bounds; `[]` for everything unbounded.
+  (boundImpls :
+    List<struct (string * FQTypeName.Package * string * FQFnName.Package)>)
   : CallFrame =
   let mutable free = Unchecked.defaultof<Stack<CallFrame>>
   if vm.framePool.TryGetValue(registerCount, &free) && free.Count > 0 then
@@ -638,6 +641,7 @@ let inline private takeFrame
     f.expectedReturnType <- expectedReturnType
     f.programCounter <- 0
     f.typeSymbolTable <- typeSymbolTable
+    f.boundImpls <- boundImpls
     f
   else
     { id = id
@@ -648,6 +652,7 @@ let inline private takeFrame
       expectedReturnType = expectedReturnType
       programCounter = 0
       typeSymbolTable = typeSymbolTable
+      boundImpls = boundImpls
       registers = Array.zeroCreate registerCount
       argBufs = Array.empty }
 
@@ -1071,7 +1076,8 @@ let private completeBuiltin
         access = captureAccess ctx
         // `Applicable.argsSoFar` is a list because lambdas share it. Converting back costs a cons
         // per argument, but only on a partial application, which is rare and already not free.
-        argsSoFar = List.ofArray allArgs }
+        argsSoFar = List.ofArray allArgs
+        boundImpls = [] }
     |> AppNamedFn
     |> DApplicable
     |> Ply
@@ -1770,6 +1776,29 @@ let private completePackage
         callData.instrData
         (ValueSome fn.returnType)
         frameTst
+        // What the caller recorded for this fn's bounds, with any entry that defers to the
+        // CALLER's own type param resolved against the caller's frame. That is what threads a
+        // bound through a generic that calls another generic.
+        //
+        // Almost every call in a program is into an unbounded fn, and the early-out keeps those
+        // exactly as they were: the closure below captures the frame, so it is allocated per
+        // call, and `List.choose` on an empty list would pay for it to do nothing.
+        (if List.isEmpty ctx.applicable.boundImpls then
+           []
+         else
+           ctx.applicable.boundImpls
+           |> List.choose (fun struct (param, trait_, method_, choice) ->
+             match choice with
+             | FQFnName.Chosen impl -> Some(struct (param, trait_, method_, impl))
+             | FQFnName.FromTypeParam outer ->
+               currentFrame.boundImpls
+               |> List.tryPick (fun struct (op, ot, om, oimpl) ->
+                 if op = outer && ot = trait_ && om = method_ then
+                   Some(struct (param, trait_, method_, oimpl))
+                 else
+                   None)
+             | FQFnName.Unknown -> None))
+
     ArgSeq.fill frame.registers allArgs
     recordStage vm ApplyStage.PkgFrame pkgFrameAlloc
     PushFrame frame
@@ -2431,7 +2460,8 @@ let rec private deepEquals
                 typeSymbolTable = TST.empty
                 typeArgs = []
                 access = Some access
-                argsSoFar = [] }
+                argsSoFar = []
+                boundImpls = [] }
           match!
             exeState.callApplicable exeState access applicable (NEList.doubleton a b)
           with
@@ -2610,6 +2640,33 @@ let private deepEqualsTop
         return DBool r
       }
 
+/// The implementation to call, from the three states the save can record.
+///
+/// `Chosen` is the ordinary case and the cheap one. `FromTypeParam` reads the frame the CALLER
+/// filled (`CallFrame.boundImpls`), so a call inside a bounded generic runs what its caller's
+/// type argument implied rather than whatever the store holds now. `ValueNone` means nothing was
+/// recorded and the call has to be resolved here, which is the only path that asks the store.
+let inline private recordedImpl
+  (currentFrame : CallFrame)
+  (tm : FQFnName.TraitMethod)
+  : FQFnName.Package voption =
+  match tm.implFn with
+  | FQFnName.Chosen implFn -> ValueSome implFn
+  | FQFnName.FromTypeParam param ->
+    let rec find
+      (entries :
+        List<struct (string * FQTypeName.Package * string * FQFnName.Package)>)
+      =
+      match entries with
+      | [] -> ValueNone
+      | struct (p, t, m, impl) :: rest ->
+        if p = param && t = tm.trait_ && m = tm.method_ then
+          ValueSome impl
+        else
+          find rest
+    find currentFrame.boundImpls
+  | FQFnName.Unknown -> ValueNone
+
 let private applyInstruction
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2749,6 +2806,9 @@ let private applyInstruction
           lambdaInstrData
           ValueNone
           lambdaTst
+          // A lambda body is part of the item that wrote it, so a trait call in it defers to
+          // the same type params the enclosing frame resolved.
+          currentFrame.boundImpls
 
       let lambdaRegsAlloc = allocNow vm
       if vm.stats.enabled then
@@ -2861,7 +2921,8 @@ let private applyInstruction
       // The save chose an implementation and stored the fn it named, so there is nothing to
       // pick: call it exactly as a direct call would. This is the ordinary case for a call
       // whose self type was known when it was written, which is nearly all of them.
-      | FQFnName.TraitMethod { trait_ = _; method_ = _; implFn = Some implFn } ->
+      | FQFnName.TraitMethod tm when (recordedImpl currentFrame tm).IsSome ->
+        let implFn = (recordedImpl currentFrame tm).Value
         let implCtx =
           { ctx with
               // The type args named the TRAIT's params (the self type first); the impl fn
@@ -2888,9 +2949,9 @@ let private applyInstruction
         | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
         | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
 
-      | FQFnName.TraitMethod { trait_ = traitHash
-                               method_ = methodName
-                               implFn = None } ->
+      | FQFnName.TraitMethod tm ->
+        let traitHash = tm.trait_
+        let methodName = tm.method_
         // Pick the impl, then call its fn exactly as a direct call would: the impl
         // fn is what runs, what traces record, and what carries the ceiling.
         //
@@ -3430,6 +3491,21 @@ let private runSyncInstructions
             true
           else
             false
+        // Tuple indices are stored as field names. An index in range is answered here; a name
+        // that is not an index (`t.show`) leaves the drain, since an impl's self type can be a
+        // tuple and that is a receiver call.
+        | DTuple(first, second, rest) ->
+          match tupleIndexOfFieldName fieldName with
+          | Some 1 ->
+            registers[targetReg] <- first
+            true
+          | Some 2 ->
+            registers[targetReg] <- second
+            true
+          | Some n when n <= 2 + List.length rest ->
+            registers[targetReg] <- List.item (n - 3) rest
+            true
+          | _ -> false
         | _ -> false
       if handled then counter <- counter + 1 else running <- false
 
@@ -4008,7 +4084,8 @@ let private receiverMethod
                   typeSymbolTable = TST.empty
                   typeArgs = []
                   access = Some currentFrame.access
-                  argsSoFar = [] }
+                  argsSoFar = []
+                  boundImpls = [] }
             match! exeState.fns.package fnHash with
             | Some fn when NEList.length fn.parameters = 1 ->
               match!
@@ -4031,7 +4108,8 @@ let private receiverMethod
                         typeSymbolTable = TST.empty
                         typeArgs = []
                         access = Some currentFrame.access
-                        argsSoFar = [ receiver ] }
+                        argsSoFar = [ receiver ]
+                        boundImpls = [] }
                   )
                 )
           | None -> return None
@@ -4066,6 +4144,13 @@ let private runRareOpcode
         match receiver with
         | DRecord _ ->
           RTE.Records.FieldAccessFieldNotFound fieldName
+          |> RTE.Record
+          |> raiseRTE vm.threadID
+        | DTuple(_, _, rest) ->
+          RTE.Records.FieldAccessTupleIndexOutOfRange(
+            fieldName,
+            2 + List.length rest
+          )
           |> RTE.Record
           |> raiseRTE vm.threadID
         | dv ->

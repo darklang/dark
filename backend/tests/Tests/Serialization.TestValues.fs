@@ -362,7 +362,8 @@ module ProgramTypes =
                             NameResolution.ok (
                               FQFnName.Builtin
                                 { name = "int64ToString"; version = 0 }
-                            )
+                            ),
+                            []
                           ),
                           [ typeReference ],
                           NEList.singleton (EInt64(id, 6L))
@@ -374,14 +375,14 @@ module ProgramTypes =
                             InfixFnCall(ComparisonNotEquals),
                             EInt64(id, 5L),
                             EInt64(id, 6L),
-                            None
+                            FQFnName.Unknown
                           ),
                           EInfix(
                             id,
                             InfixFnCall(ArithmeticPlus),
                             EInt64(id, 5L),
                             EInt64(id, 2L),
-                            None
+                            FQFnName.Unknown
                           ),
                           Some(
                             ELambda(
@@ -392,7 +393,7 @@ module ProgramTypes =
                                 InfixFnCall(ArithmeticPlus),
                                 EVariable(id, "y"),
                                 EArg(id, 0),
-                                None
+                                FQFnName.Unknown
                               )
                             )
                           )
@@ -412,18 +413,19 @@ module ProgramTypes =
                                   NameResolution.ok (
                                     FQFnName.Builtin
                                       { name = "int64Add"; version = 0 }
-                                  )
+                                  ),
+                                  []
                                 ),
                                 [],
                                 NEList.doubleton (EInt64(id, 6L)) (EInt64(id, 2L))
                               ),
-                              None
+                              FQFnName.Unknown
                             ),
                             EList(
                               id,
                               [ EInt64(id, 5L); EInt64(id, 6L); EInt64(id, 7L) ]
                             ),
-                            None
+                            FQFnName.Unknown
                           )
                         )
                       ),
@@ -447,13 +449,14 @@ module ProgramTypes =
                                      InfixFnCall(ArithmeticPlus),
                                      EInt64(id, 2L),
                                      EVariable(id, "y"),
-                                     None
+                                     FQFnName.Unknown
                                    )
                                  )
                                  EPipeInfix(
                                    id,
                                    InfixFnCall(ArithmeticPlus),
-                                   EInt64(id, 2L)
+                                   EInt64(id, 2L),
+                                   FQFnName.Unknown
                                  )
                                  EPipeFnCall(
                                    id,
@@ -494,7 +497,8 @@ module ProgramTypes =
                                   NameResolution.ok (
                                     FQFnName.Builtin
                                       { name = "modFunction"; version = 2 }
-                                  )
+                                  ),
+                                  []
                                 ),
                                 [],
                                 (NEList.singleton (EInt64(id, 5L)))
@@ -545,7 +549,7 @@ module ProgramTypes =
                                       InfixFnCall(ArithmeticPlus),
                                       EInt64(id, 6L),
                                       EVariable(id, "var"),
-                                      None
+                                      FQFnName.Unknown
                                     ) }
                                 { pat = MPFloat(id, Positive, "5", "6")
                                   whenCondition = None
@@ -603,7 +607,7 @@ module ProgramTypes =
                                       BinOp(BinOpAnd),
                                       EBool(id, true),
                                       EBool(id, false),
-                                      None
+                                      FQFnName.Unknown
                                     ),
                                     ELet(
                                       id,
@@ -763,11 +767,20 @@ module ProgramTypes =
               { trait_ = Hash "trait-show"
                 method_ = "show"
                 implFn =
-                  Some
+                  FQFnName.Chosen
                     { name = Hash "impl-show-fn"
                       location =
                         Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } } }
-          )
+          ),
+          // and what the CALLER worked out for the callee's bound
+          [ { param = "a"
+              trait_ = Hash "trait-show"
+              method_ = "show"
+              choice =
+                FQFnName.Chosen
+                  { name = Hash "impl-show-fn"
+                    location =
+                      Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } } } ]
         ),
         [],
         NEList.singleton (EArg(gid (), 0))

@@ -118,7 +118,8 @@ let partialEvaluate
         typeSymbolTable = RT.TST.empty
         typeArgs = typeArgs
         access = None
-        argsSoFar = [] }
+        argsSoFar = []
+        boundImpls = [] }
     instructions.Add(RT.LoadVal(fnReg, RT.DApplicable(RT.AppNamedFn appFn)))
 
     // Load the arguments

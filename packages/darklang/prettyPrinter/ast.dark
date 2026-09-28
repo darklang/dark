@@ -125,7 +125,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
   | EArg(_, index) -> here "Arg" $"#{Stdlib.Int.toString index}"
   | ESelf _ -> here "Self" ""
 
-  | EFnName(_, name) ->
+  | EFnName(_, name, _) ->
     here
       "FnName"
       (PrettyPrinter.ProgramTypes.NameResolution.fnName ctx name)
@@ -284,7 +284,7 @@ let pipeExpr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (p: Language
       [ line depth "PipeLambda" ps ]
       (expr ctx (depth + 1) body)
 
-  | EPipeInfix(_, op, e) ->
+  | EPipeInfix(_, op, e, _) ->
     let opStr = PrettyPrinter.ProgramTypes.infix op
     Stdlib.List.append
       [ line depth "PipeInfix" opStr ]

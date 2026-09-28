@@ -49,6 +49,16 @@ module FQFnName =
   module Package =
     let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package = Hash.toRT p
 
+  module ImplChoice =
+    /// The runtime wants the fn, not where it is named, and it wants to know which of the three
+    /// states this is: a chosen implementation runs directly, one from a type param is read out
+    /// of the frame the caller filled, and an unknown one is the only thing that asks the store.
+    let toRT (c : PT.FQFnName.ImplChoice) : RT.FQFnName.ImplChoice =
+      match c with
+      | PT.FQFnName.Chosen r -> RT.FQFnName.Chosen(Package.toRT r.name)
+      | PT.FQFnName.FromTypeParam p -> RT.FQFnName.FromTypeParam p
+      | PT.FQFnName.Unknown -> RT.FQFnName.Unknown
+
   let toRT (fqfn : PT.FQFnName.FQFnName) : RT.FQFnName.FQFnName =
     match fqfn with
     // `-x` is stored as `Builtin.negate x`; it runs as `Negate.negate x`, like `+` runs
@@ -59,7 +69,9 @@ module FQFnName =
       match NumericTraits.ofNegate () with
       | Some(traitHash, methodName) ->
         RT.FQFnName.TraitMethod
-          { trait_ = RT.Hash traitHash; method_ = methodName; implFn = None }
+          { trait_ = RT.Hash traitHash
+            method_ = methodName
+            implFn = RT.FQFnName.Unknown }
       | None -> RT.FQFnName.Builtin { name = name; version = 0 }
     // `~x` the same way: stored as `Builtin.bitwiseNot`, run as `BitwiseNot.bitwiseNot`.
     | PT.FQFnName.Builtin { name = name; version = 0 } when
@@ -68,7 +80,9 @@ module FQFnName =
       match NumericTraits.ofBitwiseNot () with
       | Some(traitHash, methodName) ->
         RT.FQFnName.TraitMethod
-          { trait_ = RT.Hash traitHash; method_ = methodName; implFn = None }
+          { trait_ = RT.Hash traitHash
+            method_ = methodName
+            implFn = RT.FQFnName.Unknown }
       | None -> RT.FQFnName.Builtin { name = name; version = 0 }
     | PT.FQFnName.Builtin s -> RT.FQFnName.Builtin(Builtin.toRT s)
     | PT.FQFnName.Package p -> RT.FQFnName.Package(Package.toRT p)
@@ -77,7 +91,7 @@ module FQFnName =
       RT.FQFnName.TraitMethod
         { trait_ = FQTypeName.Package.toRT t
           method_ = m
-          implFn = implFn |> Option.map (fun r -> Package.toRT r.name) }
+          implFn = ImplChoice.toRT implFn }
 
 
 module NameResolutionError =
@@ -210,7 +224,7 @@ module InfixFnName =
   /// comparison, the polymorphic builtin for the rest (and for every operator
   /// while the package refs are not generated yet).
   let toRT
-    (implFn : Option<PT.ResolvedName<PT.FQFnName.Package>>)
+    (implFn : PT.FQFnName.ImplChoice)
     (name : PT.InfixFnName)
     : RT.FQFnName.FQFnName =
     match NumericTraits.ofInfix name with
@@ -218,7 +232,7 @@ module InfixFnName =
       RT.FQFnName.TraitMethod
         { trait_ = RT.Hash traitHash
           method_ = methodName
-          implFn = implFn |> Option.map (fun r -> FQFnName.Package.toRT r.name) }
+          implFn = FQFnName.ImplChoice.toRT implFn }
     | None -> RT.FQFnName.Builtin(toFnName name)
 
 
@@ -852,7 +866,8 @@ module Expr =
             typeSymbolTable = RT.TST.empty
             typeArgs = []
             access = None
-            argsSoFar = [] }
+            argsSoFar = []
+            boundImpls = [] }
 
         let applicable = RT.Applicable.AppNamedFn namedFn
 
@@ -941,13 +956,18 @@ module Expr =
           | PT.EPipeLambda(id, pats, body) ->
             PT.EApply(id, PT.ELambda(id, pats, body), [], NEList.ofList lhs [])
 
-          // `1 |> (+) 1`
-          // A pipeline's operator is not resolved at save time.
-          | PT.EPipeInfix(id, infix, rhs) -> PT.EInfix(id, infix, lhs, rhs, None)
+          // `1 |> (+) 1`, carrying whatever the save recorded for it
+          | PT.EPipeInfix(id, infix, rhs, implFn) ->
+            PT.EInfix(id, infix, lhs, rhs, implFn)
 
           // `1 |> Json.serialize<Int64>`
           | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
-            PT.EApply(id, PT.EFnName(id, fnName), typeArgs, NEList.ofList lhs args)
+            PT.EApply(
+              id,
+              PT.EFnName(id, fnName, []),
+              typeArgs,
+              NEList.ofList lhs args
+            )
 
           // `1 |> Option.Some`
           | PT.EPipeEnum(id, typeName, caseName, fields) ->
@@ -1000,7 +1020,8 @@ module Expr =
                     typeSymbolTable = RT.TST.empty
                     typeArgs = []
                     access = None
-                    argsSoFar = [] }
+                    argsSoFar = []
+                    boundImpls = [] }
                 |> RT.DApplicable
               )
               RT.Apply(resultReg, notRc, [], NEList.singleton equal.resultIn) ]
@@ -1018,7 +1039,8 @@ module Expr =
               typeSymbolTable = RT.TST.empty
               typeArgs = []
               access = None
-              argsSoFar = [] }
+              argsSoFar = []
+              boundImpls = [] }
           |> RT.DApplicable
         ),
         right.registerCount,
@@ -1054,13 +1076,23 @@ module Expr =
 
 
     // functions
-    | PT.EFnName(_, { resolved = Ok resolved }) ->
+    | PT.EFnName(_, { resolved = Ok resolved }, boundImpls) ->
       let namedFn : RT.ApplicableNamedFn =
         { name = FQFnName.toRT resolved.name
           typeSymbolTable = RT.TST.empty
           typeArgs = []
           access = None
-          argsSoFar = [] }
+          argsSoFar = []
+          // What the call worked out for the callee's bounds, carried into the frame when this
+          // is applied, so a call in the callee's body that defers to a type param reads it
+          // there instead of asking the store.
+          boundImpls =
+            boundImpls
+            |> List.map (fun (b : PT.FQFnName.BoundImpl) ->
+              struct (b.param,
+                      FQTypeName.Package.toRT b.trait_,
+                      b.method_,
+                      FQFnName.ImplChoice.toRT b.choice)) }
 
       let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
 
@@ -1068,7 +1100,7 @@ module Expr =
         instructions = [ RT.LoadVal(rc, applicable) ]
         resultIn = rc }
 
-    | PT.EFnName(_, { originalName = names; resolved = Error nre }) ->
+    | PT.EFnName(_, { originalName = names; resolved = Error nre }, _) ->
       // CLEANUP make it ok to _reference_ a bad name, so long as we don't try to `apply` it.
       { registerCount = rc
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
@@ -1498,14 +1530,15 @@ module PackageValue =
     // A trait impl is a record of these (`Show<Point> { show = Point.Show.show }`),
     // so this is what makes `impl` work in scripts and testfiles, where values go
     // through this evaluator rather than the interpreter.
-    | PT.EFnName(_, { resolved = Ok resolved }) ->
+    | PT.EFnName(_, { resolved = Ok resolved }, _) ->
       RT.DApplicable(
         RT.AppNamedFn
           { name = FQFnName.toRT resolved.name
             typeSymbolTable = RT.TST.empty
             typeArgs = []
             access = None
-            argsSoFar = [] }
+            argsSoFar = []
+            boundImpls = [] }
       )
     | _ ->
       // For more complex expressions, return Unit as fallback

@@ -48,10 +48,32 @@ module FQFnName =
   /// chosen. With it, that fn is what runs, and a newer implementation reaches
   /// this call through propagation like any other update. Without it (a call in a
   /// polymorphic fn), the implementation is found from the self type at run time.
+  /// How much of a trait call's implementation the save could say. Three states, not
+  /// two: a call waiting for its caller's type argument is not the same as one
+  /// nobody could work out, and an Option said both with the same value.
+  type ImplChoice =
+    /// The save picked it; stored code goes on running it
+    | Chosen of ResolvedName<Package>
+    /// The self type is this type param of the item the call sits in, so the
+    /// implementation is whatever the caller's type argument implies, and the
+    /// caller records it.
+    | FromTypeParam of String
+    /// Nothing to say. Only code parsed and run without being saved gets here.
+    | Unknown
+
+  /// What a CALL worked out for one of the callee's bounds: for the callee's type
+  /// param `param` owing `trait_`, what this call's type argument implies.
+  type BoundImpl =
+    { param: String
+      trait_: FQTraitName.Package
+      /// One entry per method of the trait: the callee's body may call any of them
+      method_: String
+      choice: ImplChoice }
+
   type TraitMethod =
     { trait_: FQTraitName.Package
       method_: String
-      implFn: Stdlib.Option.Option<ResolvedName<Package>> }
+      implFn: ImplChoice }
 
   type FQFnName =
     | Builtin of Builtin
@@ -194,7 +216,7 @@ type PipeExpr =
 
   | EPipeLambda of ID * List<LetPattern> * Expr
 
-  | EPipeInfix of ID * Infix * Expr
+  | EPipeInfix of ID * Infix * Expr * FQFnName.ImplChoice
 
   | EPipeFnCall of
     ID *
@@ -298,7 +320,7 @@ type Expr =
     Infix *
     Expr *
     Expr *
-    implFn: Stdlib.Option.Option<ResolvedName<FQFnName.Package>>
+    implFn: FQFnName.ImplChoice
 
   | ELambda of ID * List<LetPattern> * Expr
 
@@ -306,7 +328,7 @@ type Expr =
   // they definitely don't _always_ make sense.
   | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
 
-  | EFnName of ID * NameResolution<FQFnName.FQFnName>
+  | EFnName of ID * NameResolution<FQFnName.FQFnName> * List<FQFnName.BoundImpl>
 
   | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
 
@@ -342,7 +364,7 @@ module Expr =
     | EVariable(id, _)
     | EArg(id, _)
     | EValue(id, _)
-    | EFnName(id, _)
+    | EFnName(id, _, _)
     | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)

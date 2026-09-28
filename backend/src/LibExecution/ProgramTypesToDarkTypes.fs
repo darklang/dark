@@ -190,6 +190,66 @@ module FQFnName =
 
     let fromDT (d : Dval) : PT.FQFnName.Package = Hash.fromDT d
 
+  module ImplChoice =
+    let typeName () =
+      FQTypeName.fqPackage (
+        PackageRefs.Type.LanguageTools.ProgramTypes.FQFnName.implChoice ()
+      )
+    let knownType () = KTCustomType(typeName (), [])
+
+    let toDT (c : PT.FQFnName.ImplChoice) : Dval =
+      let (caseName, fields) =
+        match c with
+        | PT.FQFnName.Chosen r ->
+          "Chosen", [ ResolvedName.toDT (Hash.knownType ()) Package.toDT r ]
+        | PT.FQFnName.FromTypeParam p -> "FromTypeParam", [ DString p ]
+        | PT.FQFnName.Unknown -> "Unknown", []
+      DEnum(typeName (), typeName (), [], caseName, fields)
+
+    let fromDT (d : Dval) : PT.FQFnName.ImplChoice =
+      match d with
+      | DEnum(_, _, [], "Chosen", [ r ]) ->
+        PT.FQFnName.Chosen(ResolvedName.fromDT Package.fromDT r)
+      | DEnum(_, _, [], "FromTypeParam", [ DString p ]) ->
+        PT.FQFnName.FromTypeParam p
+      | DEnum(_, _, [], "Unknown", []) -> PT.FQFnName.Unknown
+      | _ -> Exception.raiseInternal "Invalid FQFnName.ImplChoice" []
+
+  module BoundImpl =
+    let typeName () =
+      FQTypeName.fqPackage (
+        PackageRefs.Type.LanguageTools.ProgramTypes.FQFnName.boundImpl ()
+      )
+    let knownType () = KTCustomType(typeName (), [])
+
+    let toDT (b : PT.FQFnName.BoundImpl) : Dval =
+      DRecord(
+        typeName (),
+        typeName (),
+        [],
+        Map
+          [ "param", DString b.param
+            "trait_", FQTraitName.Package.toDT b.trait_
+            "method_", DString b.method_
+            "choice", ImplChoice.toDT b.choice ]
+      )
+
+    let fromDT (d : Dval) : PT.FQFnName.BoundImpl =
+      match d with
+      | DRecord(_, _, _, fields) ->
+        { param =
+            match Map.find "param" fields with
+            | Some(DString p) -> p
+            | _ -> Exception.raiseInternal "Invalid BoundImpl.param" []
+          trait_ =
+            FQTraitName.Package.fromDT (Map.find "trait_" fields |> Option.get)
+          method_ =
+            match Map.find "method_" fields with
+            | Some(DString m) -> m
+            | _ -> Exception.raiseInternal "Invalid BoundImpl.method_" []
+          choice = ImplChoice.fromDT (Map.find "choice" fields |> Option.get) }
+      | _ -> Exception.raiseInternal "Invalid FQFnName.BoundImpl" []
+
   module TraitMethod =
     let typeName () =
       FQTypeName.fqPackage (
@@ -200,10 +260,7 @@ module FQFnName =
       let fields =
         [ "trait_", FQTraitName.Package.toDT u.trait_
           "method_", DString u.method_
-          "implFn",
-          u.implFn
-          |> Option.map (ResolvedName.toDT (Hash.knownType ()) Package.toDT)
-          |> Dval.option (ResolvedName.knownType (Hash.knownType ())) ]
+          "implFn", ImplChoice.toDT u.implFn ]
       DRecord(typeName (), typeName (), [], Map fields)
 
     let fromDT (d : Dval) : PT.FQFnName.TraitMethod =
@@ -215,11 +272,7 @@ module FQFnName =
             match Map.find "method_" fields with
             | Some(DString m) -> m
             | _ -> Exception.raiseInternal "Invalid TraitMethod.method_" []
-          implFn =
-            match Map.find "implFn" fields with
-            | Some(DEnum(_, _, _, "Some", [ r ])) ->
-              Some(ResolvedName.fromDT Package.fromDT r)
-            | _ -> None }
+          implFn = ImplChoice.fromDT (Map.find "implFn" fields |> Option.get) }
       | _ -> Exception.raiseInternal "Invalid FQFnName.TraitMethod" []
 
 
@@ -743,8 +796,12 @@ module PipeExpr =
           |> Dval.list (KTTuple(VT.int64, VT.string, []))
         "EPipeLambda", [ DInt64(int64 id); variables; exprToDT body ]
 
-      | PT.EPipeInfix(id, infix, expr) ->
-        "EPipeInfix", [ DInt64(int64 id); Infix.toDT infix; exprToDT expr ]
+      | PT.EPipeInfix(id, infix, expr, implFn) ->
+        "EPipeInfix",
+        [ DInt64(int64 id)
+          Infix.toDT infix
+          exprToDT expr
+          FQFnName.ImplChoice.toDT implFn ]
 
       | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
         "EPipeFnCall",
@@ -788,8 +845,13 @@ module PipeExpr =
 
       PT.EPipeLambda(uint64 id, variables, exprFromDT body)
 
-    | DEnum(_, _, [], "EPipeInfix", [ DInt64 id; infix; expr ]) ->
-      PT.EPipeInfix(uint64 id, Infix.fromDT infix, exprFromDT expr)
+    | DEnum(_, _, [], "EPipeInfix", [ DInt64 id; infix; expr; implFn ]) ->
+      PT.EPipeInfix(
+        uint64 id,
+        Infix.fromDT infix,
+        exprFromDT expr,
+        FQFnName.ImplChoice.fromDT implFn
+      )
 
     | DEnum(_,
             _,
@@ -960,12 +1022,12 @@ module Expr =
 
       // function calls
       | PT.EInfix(id, infix, lhs, rhs, implFn) ->
-        let implFn =
-          implFn
-          |> Option.map (ResolvedName.toDT (Hash.knownType ()) FQFnName.Package.toDT)
-          |> Dval.option (ResolvedName.knownType (Hash.knownType ()))
-
-        "EInfix", [ DInt64(int64 id); Infix.toDT infix; toDT lhs; toDT rhs; implFn ]
+        "EInfix",
+        [ DInt64(int64 id)
+          Infix.toDT infix
+          toDT lhs
+          toDT rhs
+          FQFnName.ImplChoice.toDT implFn ]
 
       | PT.ELambda(id, pats, body) ->
         let variables =
@@ -990,10 +1052,14 @@ module Expr =
           )
           DList(VT.known (knownType ()), args |> NEList.toList |> List.map toDT) ]
 
-      | PT.EFnName(id, name) ->
+      | PT.EFnName(id, name, boundImpls) ->
         "EFnName",
         [ DInt64(int64 id)
-          NameResolution.toDT (FQFnName.knownType ()) FQFnName.toDT name ]
+          NameResolution.toDT (FQFnName.knownType ()) FQFnName.toDT name
+          DList(
+            VT.known (FQFnName.BoundImpl.knownType ()),
+            List.map FQFnName.BoundImpl.toDT boundImpls
+          ) ]
 
       | PT.ERecordUpdate(id, record, updates) ->
         let updates =
@@ -1152,10 +1218,7 @@ module Expr =
         Infix.fromDT infix,
         fromDT lhs,
         fromDT rhs,
-        (match implFn with
-         | DEnum(_, _, _, "Some", [ r ]) ->
-           Some(ResolvedName.fromDT FQFnName.Package.fromDT r)
-         | _ -> None)
+        FQFnName.ImplChoice.fromDT implFn
       )
 
     | DEnum(_, _, [], "ELambda", [ DInt64 id; DList(_vtTODO, pats); body ]) ->
@@ -1180,8 +1243,12 @@ module Expr =
         args |> NEList.ofListUnsafe "EApply" [] |> NEList.map fromDT
       )
 
-    | DEnum(_, _, [], "EFnName", [ DInt64 id; name ]) ->
-      PT.EFnName(uint64 id, NameResolution.fromDT FQFnName.fromDT name)
+    | DEnum(_, _, [], "EFnName", [ DInt64 id; name; DList(_, boundImpls) ]) ->
+      PT.EFnName(
+        uint64 id,
+        NameResolution.fromDT FQFnName.fromDT name,
+        List.map FQFnName.BoundImpl.fromDT boundImpls
+      )
 
     | DEnum(_,
             _,

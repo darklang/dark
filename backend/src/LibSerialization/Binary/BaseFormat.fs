@@ -11,8 +11,12 @@ open System
 /// tag 2. Readers dispatch on the blob version; v1 blobs read with `bounds = []`.
 /// v3 (traits, 2026-09): `Trait` and `TraitImpl` items, `AddTrait`/`AddTraitImpl` op tags 15
 /// and 16, `Reference` tags 3 and 4. Nothing existing changed layout; a v2 blob reads as is.
+/// v4 (traits, 2026-09): the implementation a trait call resolved to is an `ImplChoice` (chosen,
+/// from a type param, or unknown) rather than an option, on `FQFnName.TraitMethod`, `EInfix` and
+/// `EPipeInfix`, and `EFnName` carries what the caller worked out for the callee's bounds. A v3
+/// blob's option reads as `Chosen` or `Unknown`; a v1 or v2 blob had no field and reads `Unknown`.
 [<Literal>]
-let CurrentVersion = 3u
+let CurrentVersion = 4u
 
 /// The oldest version this binary still reads.
 [<Literal>]

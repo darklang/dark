@@ -256,7 +256,8 @@ module Hashing =
         NEList.map (renameLetPattern m) pats,
         norm c (mergeEnv env m) body
       )
-    | PT.EPipeInfix(id, op, expr) -> PT.EPipeInfix(id, op, norm c env expr)
+    | PT.EPipeInfix(id, op, expr, implFn) ->
+      PT.EPipeInfix(id, op, norm c env expr, implFn)
     | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
       PT.EPipeFnCall(id, fnName, typeArgs, List.map (norm c env) args)
     | PT.EPipeEnum(id, typeName, caseName, fields) ->

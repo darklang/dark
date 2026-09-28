@@ -266,3 +266,79 @@ gate_reload_is_reproducible() {
   fi
   echo "reload-is-reproducible: two reloads of one tree agree on all $n op ids."
 }
+
+# --- trait-choice-survives-rival: a saved call keeps the implementation it was written against ---
+# The property the save-time choice exists for. An ordinary trait call stores the fn the chosen
+# implementation names, and a BOUNDED generic cannot: its self type is its caller's business. So
+# the callee records that it defers to its own type param and the CALL records what that param
+# implied, and neither is decided again at run time. A newer rival implementation arriving after
+# the save must therefore change nothing until something repoints the call.
+#
+# Gate, not a testfile: nothing loaded from disk records a choice (only `addAuthored` does), so
+# the thing under test only exists after authoring through the CLI, twice, with a store in between.
+gate_trait_choice_survives_rival() {
+  set -euo pipefail
+
+  WORK=rundir/trait-rival
+  rm -rf "$WORK"
+  mkdir -p "$WORK/logs"
+  scripts/testing/_copy-store "$WORK/data.db"
+  # A copied store carries the real relay and its write secret; nothing here syncs, but a
+  # sync-shaped command would reach production. See the AGENTS.md note.
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;'
+
+  # run-cli reads the build state from the rundir it is pointed at, and says so on every call
+  # when it is missing. It is the tree's, not the store's, so carry it across.
+  cp rundir/build-state.json "$WORK/" 2>/dev/null || true
+
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  CLI=./scripts/run-cli
+  clean() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+  $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }" >/dev/null
+  $CLI impl Stachu.Rival \
+    "ToString for Pt = let toString (p: Pt) : String = Stdlib.Int64.toString p.gateRivalOnly" >/dev/null
+  $CLI module Stachu.Rival - >/dev/null <<'DARK'
+let display<'a: Stdlib.ToString> (v: 'a) : String =
+  Stdlib.ToString.toString v
+
+let callIt () : String =
+  let p = Stachu.Rival.Pt { gateRivalOnly = 7L }
+  Stdlib.String.join ["value: ", Stachu.Rival.display p] ""
+DARK
+
+  before=$($CLI eval 'Stachu.Rival.callIt ()' | clean)
+  if [[ "$before" != *"value: 7"* ]]; then
+    echo "trait-choice-survives-rival: the bounded call did not work before any rival: $before"
+    exit 1
+  fi
+
+  # A NEWER implementation of the same trait for the same type. It wins any run-time dispatch,
+  # by the last-writer-wins rule, which is exactly why the saved call must not be asking.
+  $CLI impl Stachu.RivalNewer \
+    "Stdlib.ToString for Stachu.Rival.Pt = let toString (p: Stachu.Rival.Pt) : String = \"RIVAL\"" \
+    >/dev/null
+
+  after=$($CLI eval 'Stachu.Rival.callIt ()' | clean)
+  if [[ "$after" == *RIVAL* ]]; then
+    echo "trait-choice-survives-rival: a newer implementation changed a saved call underneath it"
+    echo "  before the rival: $before"
+    echo "  after  the rival: $after"
+    exit 1
+  fi
+  if [[ "$after" != *"value: 7"* ]]; then
+    echo "trait-choice-survives-rival: the saved call stopped working once a rival existed: $after"
+    exit 1
+  fi
+
+  # The rival is reachable, so the run is testing a real rival rather than a failed authoring.
+  direct=$($CLI eval 'Stdlib.ToString.toString (Stachu.Rival.Pt { gateRivalOnly = 7L })' | clean)
+  if [[ "$direct" != *RIVAL* ]]; then
+    echo "trait-choice-survives-rival: the rival implementation never became the newest one,"
+    echo "  so nothing was actually tested. A fresh call answered: $direct"
+    exit 1
+  fi
+
+  echo "trait-choice-survives-rival: the saved bounded call kept its implementation ($after)"
+  echo "  while a fresh call takes the newer one ($direct)."
+}

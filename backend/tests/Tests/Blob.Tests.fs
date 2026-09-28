@@ -722,7 +722,8 @@ let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
         typeSymbolTable = RT.TST.empty
         typeArgs = []
         access = None
-        argsSoFar = argsSoFar }
+        argsSoFar = argsSoFar
+        boundImpls = [] }
   )
 
 let promoteRewritesInsideClosedRegisters =

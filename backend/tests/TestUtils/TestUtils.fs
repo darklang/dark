@@ -647,7 +647,7 @@ module Expect =
           pats'
         exprEqualityBaseFn checkIDs ("body" :: path) body body' errorFn
 
-      | EPipeInfix(_, op, e), EPipeInfix(_, op', e') ->
+      | EPipeInfix(_, op, e, _), EPipeInfix(_, op', e', _) ->
         check path op op'
         exprEqualityBaseFn checkIDs ("expr" :: path) e e' errorFn
 
@@ -777,7 +777,7 @@ module Expect =
           typeArgs'
         eqNEList path args args'
 
-      | EFnName(_, name), EFnName(_, name') ->
+      | EFnName(_, name, _), EFnName(_, name', _) ->
         check path (stripNRLocation name) (stripNRLocation name')
 
       | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->

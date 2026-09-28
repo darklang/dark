@@ -170,6 +170,27 @@ module FQFnName =
       | DEnum(_, _, [], "Hash", [ DString h ]) -> Hash h
       | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
 
+  module ImplChoice =
+    let typeName () =
+      FQTypeName.fqPackage (
+        PackageRefs.Type.LanguageTools.RuntimeTypes.FQFnName.implChoice ()
+      )
+
+    let toDT (c : FQFnName.ImplChoice) : Dval =
+      let (caseName, fields) =
+        match c with
+        | FQFnName.Chosen h -> "Chosen", [ Package.toDT h ]
+        | FQFnName.FromTypeParam p -> "FromTypeParam", [ DString p ]
+        | FQFnName.Unknown -> "Unknown", []
+      DEnum(typeName (), typeName (), [], caseName, fields)
+
+    let fromDT (d : Dval) : FQFnName.ImplChoice =
+      match d with
+      | DEnum(_, _, [], "Chosen", [ h ]) -> FQFnName.Chosen(Package.fromDT h)
+      | DEnum(_, _, [], "FromTypeParam", [ DString p ]) -> FQFnName.FromTypeParam p
+      | DEnum(_, _, [], "Unknown", []) -> FQFnName.Unknown
+      | _ -> Exception.raiseInternal "Invalid FQFnName.ImplChoice" []
+
   module TraitMethod =
     let typeName () =
       FQTypeName.fqPackage (
@@ -180,8 +201,7 @@ module FQFnName =
       let fields =
         [ "trait_", FQTraitName.Package.toDT u.trait_
           "method_", DString u.method_
-          "implFn",
-          u.implFn |> Option.map Package.toDT |> Dval.option (Hash.knownType ()) ]
+          "implFn", ImplChoice.toDT u.implFn ]
       DRecord(typeName (), typeName (), [], Map fields)
 
     let fromDT (d : Dval) : FQFnName.TraitMethod =
@@ -193,10 +213,7 @@ module FQFnName =
             match Map.find "method_" fields with
             | Some(DString m) -> m
             | _ -> Exception.raiseInternal "Invalid TraitMethod.method_" []
-          implFn =
-            match Map.find "implFn" fields with
-            | Some(DEnum(_, _, _, "Some", [ h ])) -> Some(Package.fromDT h)
-            | _ -> None }
+          implFn = ImplChoice.fromDT (Map.find "implFn" fields |> Option.get) }
       | _ -> Exception.raiseInternal "Invalid FQFnName.TraitMethod" []
 
 
@@ -675,6 +692,9 @@ module ApplicableNamedFn =
         typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT
         // Access is runtime-only; Dark values do not carry captured access.
         access = Some(Permissions.Access.start Permissions.Policy.denyAll)
+        // Not carried through Dark values: a decoded applicable is code, and the bounds its
+        // caller resolved belong to the call rather than to the value.
+        boundImpls = []
         argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
     | _ -> Exception.raiseInternal "Invalid ApplicableNamedFn" []
 

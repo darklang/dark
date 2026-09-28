@@ -82,6 +82,19 @@ type Proof =
       /// when it was written. A node missing here had no knowable self type (a call inside a
       /// bounded generic), and stays a run-time lookup.
       resolutions : Map<id, string * List<Hash>>
+
+      /// The calls whose self type is one of this item's own type params, and which param.
+      /// Not "unresolved": the answer belongs to the caller, and the caller records it.
+      deferrals : Map<id, string>
+
+      /// The other half: at this call, the CALLEE's type param owes this trait, and these
+      /// implementations apply at the type the call passes. The save orders them and writes the
+      /// winner onto the call, which is what makes a call into a bounded fn static.
+      callerBounds : Map<id, List<string * Hash * List<Hash>>>
+
+      /// The same where the answer is one of this item's own params, so the chain threads
+      /// through a bounded fn that calls a bounded fn.
+      callerBoundDeferrals : Map<id, List<string * Hash * string>>
     }
 
 type DiagnosticCode =
@@ -595,6 +608,13 @@ module Proof =
   let inferredType (proof : Proof) : StaticType = proof.inferredType
   let dependencies (proof : Proof) : Set<Dependency> = proof.dependencies
   let resolutions (proof : Proof) : Map<id, string * List<Hash>> = proof.resolutions
+  let deferrals (proof : Proof) : Map<id, string> = proof.deferrals
+
+  let callerBounds (proof : Proof) : Map<id, List<string * Hash * List<Hash>>> =
+    proof.callerBounds
+
+  let callerBoundDeferrals (proof : Proof) : Map<id, List<string * Hash * string>> =
+    proof.callerBoundDeferrals
 
 
 // --------------------

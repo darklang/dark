@@ -308,7 +308,7 @@ let private resolveTraitMethod
                           PT.FQFnName.TraitMethod
                             { trait_ = traitHash
                               method_ = methodName
-                              implFn = None }
+                              implFn = PT.FQFnName.Unknown }
                         location = loc } }
           | _ -> return None
   }

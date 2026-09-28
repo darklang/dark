@@ -556,7 +556,11 @@ module Expr =
         let (right, unresolvedNames) =
           Expr.toPT ctx context right
 
-        (ProgramTypes.PipeExpr.EPipeInfix(gid (), Infix.toPT infix, right),
+        (ProgramTypes.PipeExpr.EPipeInfix(
+           gid (),
+           Infix.toPT infix,
+           right,
+           ProgramTypes.FQFnName.ImplChoice.Unknown),
           unresolvedNames)
 
       | EPipeLambda(_, pats, body, _, _) ->
@@ -929,7 +933,7 @@ module Expr =
                 (WrittenTypes.Name.Unresolved(range, [ var ]))
 
             match asFn.resolved with
-            | Ok _ -> (ProgramTypes.Expr.EFnName(gid (), asFn), [])
+            | Ok _ -> (ProgramTypes.Expr.EFnName(gid (), asFn, []), [])
             | Error _ -> (ProgramTypes.Expr.EVariable(gid (), var), [])
 
     | EUnwrap(_, operand, _) ->
@@ -1061,7 +1065,7 @@ module Expr =
         left,
         right,
         // The parser has no types; the save resolves it.
-        Stdlib.Option.Option.None
+        ProgramTypes.FQFnName.ImplChoice.Unknown
       ),
        unresolvedNames)
 
@@ -1106,7 +1110,7 @@ module Expr =
         if Stdlib.List.``member`` context.localBindings fnName.fn.name then
           (ProgramTypes.Expr.EVariable(gid (), fnName.fn.name), [])
         else
-          (ProgramTypes.Expr.EFnName(gid (), resolvedFnName), unresolvedNames)
+          (ProgramTypes.Expr.EFnName(gid (), resolvedFnName, []), unresolvedNames)
       | Error _ ->
         // Qualified fn resolution failed. The parser emits EFnName for *any*
         // qualified reference, including standalone VALUES (e.g. `Stdlib.Blob.empty`
@@ -1131,7 +1135,7 @@ module Expr =
           (ProgramTypes.Expr.EValue(gid (), asValue), unresolvedNames)
       | _ ->
         // Function resolution succeeded, keep as EFnName
-        (ProgramTypes.Expr.EFnName(gid (), resolvedFnName), unresolvedNames)
+        (ProgramTypes.Expr.EFnName(gid (), resolvedFnName, []), unresolvedNames)
 
     | EApply(_, fn, typeArgs, args) ->
       // Parse typeArgs and args once (shared across all branches)
@@ -1174,7 +1178,7 @@ module Expr =
         let unresolvedName = WrittenTypes.Name.Unresolved(range, [ name ])
         let fnName = NameResolver.FnName.resolve ctx unresolvedName
         match fnName.resolved with
-        | Ok _ -> ProgramTypes.Expr.EFnName(gid (), fnName)
+        | Ok _ -> ProgramTypes.Expr.EFnName(gid (), fnName, [])
         | Error _ ->
           let valueName = NameResolver.ValueName.resolve ctx unresolvedName
           match valueName.resolved with

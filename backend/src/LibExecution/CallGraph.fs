@@ -88,7 +88,7 @@ let callbackParams (fn : PT.PackageFn.PackageFn) : Set<int> =
 let rec analyze (callbacks : Set<int>) (expr : PT.Expr) : Analysis =
   let own =
     match expr with
-    | PT.EFnName(_, nr) -> nameRef nr
+    | PT.EFnName(_, nr, _) -> nameRef nr
     // A passed callback may be called by the receiving function.
     | PT.EArg(_, index) when Set.contains index callbacks -> Analysis.callbackEscape
     // A package value may contain named functions or lambdas in an arbitrarily

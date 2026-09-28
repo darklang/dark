@@ -305,7 +305,8 @@ let resolveTraitCalls
     // A trait method named outright (`Show.show x`), as opposed to an operator.
     let rec namesATraitMethod (expr : PT.Expr) : bool =
       match expr with
-      | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.TraitMethod _ } }) -> true
+      | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.TraitMethod _ } }, _) ->
+        true
       | _ -> PTAst.subExprs expr |> List.exists namesATraitMethod
 
     let worthChecking =
@@ -344,11 +345,29 @@ let resolveTraitCalls
             dependencies.values
             candidates.values
         // Only the fns that could have something to record are inferred. Every fn is still
-        // declared, so no signature goes missing, and `hasInfix` is a cheap AST walk against
-        // an inference pass over the body. On a whole-tree reload that is most of the work:
-        // about a third of the tree mentions an operator or a trait.
+        // declared, so no signature goes missing, and these are cheap AST walks against an
+        // inference pass over the body. On a whole-tree reload that is most of the work: about a
+        // third of the tree mentions an operator, a trait method, or a call into a bounded fn.
+        let boundedFns : Set<PT.Hash> =
+          Map.fold
+            (fun m k v -> Map.add k v m)
+            dependencies.functions
+            candidates.functions
+          |> Map.fold
+            (fun acc hash (fn : PT.PackageFn.PackageFn) ->
+              if List.isEmpty fn.bounds then acc else Set.add hash acc)
+            Set.empty
+
+        // A call into a bounded fn is what records the implementation the callee's body defers
+        // to, so it has to be checked even when the body has no operator in it.
+        let rec callsBoundedFn (expr : PT.Expr) : bool =
+          match expr with
+          | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.Package h } }, _) ->
+            Set.contains h boundedFns
+          | _ -> PTAst.subExprs expr |> List.exists callsBoundedFn
+
         let worthChecking (fn : PT.PackageFn.PackageFn) : bool =
-          hasInfix fn.body || namesATraitMethod fn.body
+          hasInfix fn.body || namesATraitMethod fn.body || callsBoundedFn fn.body
         let batch =
           CheckerApi.checkPackageBatchWhere
             worthChecking
@@ -409,17 +428,67 @@ let resolveTraitCalls
                       | _ -> None))
           }
 
-        let pinsByItem =
-          Dictionary<PT.Hash, Map<id, PT.ResolvedName<PT.FQFnName.Package>>>()
+        let pinsByItem = Dictionary<PT.Hash, Map<id, PT.FQFnName.ImplChoice>>()
+        let boundsByItem =
+          Dictionary<PT.Hash, Map<id, List<PT.FQFnName.BoundImpl>>>()
         let collect (hash : PT.Hash) (proof : Checker.Proof) : Ply<unit> =
           uply {
             let mutable pins = Map.empty
             for KeyValue(nodeId, (method_, implHashes)) in
               CheckerApi.resolutionsOf proof do
               match! implFnFor method_ implHashes with
-              | Some implFn -> pins <- Map.add nodeId implFn pins
+              | Some implFn ->
+                pins <- Map.add nodeId (PT.FQFnName.Chosen implFn) pins
               | None -> ()
+            // A call whose self type is one of the item's own type params is not a call nobody
+            // could work out: it is waiting for its caller, and it says so.
+            for KeyValue(nodeId, param) in CheckerApi.deferralsOf proof do
+              if not (Map.containsKey nodeId pins) then
+                pins <- Map.add nodeId (PT.FQFnName.FromTypeParam param) pins
             if not (Map.isEmpty pins) then pinsByItem[hash] <- pins
+
+            // The other half: what this item's CALLS worked out for the bounds of the fns they
+            // name. That is what makes a call into a bounded fn static: the callee's body defers
+            // to its type param, and the call says which implementation that param implies.
+            let mutable bounds = Map.empty
+            for KeyValue(nodeId, owed) in CheckerApi.callerBoundsOf proof do
+              let mutable resolved = []
+              for (param, traitHash, implHashes) in owed do
+                // One entry per method of the trait, so the callee's body finds a fn for
+                // whichever method it calls without reading the implementation item at run time.
+                match! pm.getTrait traitHash with
+                | Some trait_ ->
+                  for m in NEList.toList trait_.methods do
+                    match! implFnFor m.name implHashes with
+                    | Some implFn ->
+                      resolved <-
+                        ({ param = param
+                           trait_ = traitHash
+                           method_ = m.name
+                           choice = PT.FQFnName.Chosen implFn }
+                        : PT.FQFnName.BoundImpl)
+                        :: resolved
+                    | None -> ()
+                | None -> ()
+              if not (List.isEmpty resolved) then
+                bounds <- Map.add nodeId resolved bounds
+            for KeyValue(nodeId, owed) in CheckerApi.callerBoundDeferralsOf proof do
+              let mutable passedAlong = []
+              for (param, traitHash, fromParam) in owed do
+                match! pm.getTrait traitHash with
+                | Some trait_ ->
+                  for m in NEList.toList trait_.methods do
+                    passedAlong <-
+                      ({ param = param
+                         trait_ = traitHash
+                         method_ = m.name
+                         choice = PT.FQFnName.FromTypeParam fromParam }
+                      : PT.FQFnName.BoundImpl)
+                      :: passedAlong
+                | None -> ()
+              let existing = Map.tryFind nodeId bounds |> Option.defaultValue []
+              bounds <- Map.add nodeId (existing @ passedAlong) bounds
+            if not (Map.isEmpty bounds) then boundsByItem[hash] <- bounds
           }
         for result in batch.functions do
           match result.item, result.verdict with
@@ -432,10 +501,23 @@ let resolveTraitCalls
             do! collect valueHash proof
           | _, _ -> ()
 
+
         let mappingFor (hash : PT.Hash) : Option<LibDB.AstTransformer.HashMapping> =
-          match pinsByItem.TryGetValue hash with
-          | true, pins -> Some { LibDB.AstTransformer.emptyMapping with pins = pins }
-          | _ -> None
+          let pins =
+            match pinsByItem.TryGetValue hash with
+            | true, pins -> pins
+            | _ -> Map.empty
+          let bounds =
+            match boundsByItem.TryGetValue hash with
+            | true, bounds -> bounds
+            | _ -> Map.empty
+          if Map.isEmpty pins && Map.isEmpty bounds then
+            None
+          else
+            Some
+              { LibDB.AstTransformer.emptyMapping with
+                  pins = pins
+                  boundImpls = bounds }
 
         return
           ops
