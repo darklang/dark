@@ -66,18 +66,18 @@ let fns () : List<BuiltInFn> =
         + "{{0}}."
       fn =
         let resultOk r = Dval.resultOk KTInt128 KTString r |> Ply
+        let resultError r = Dval.resultError KTInt128 KTString r |> Ply
         (function
-        | _, vm, _, [| DInt128 v; DInt128 d |] ->
-          (try
+        | _, _, _, [| DInt128 v; DInt128 d |] ->
+          if d = System.Int128.Zero then
+            // The return type is a `Result`, so surface this as an `Error`
+            // rather than raising a runtime error.
+            DString "Cannot divide by 0" |> resultError
+          else if d = System.Int128.NegativeOne then
+            // `MinValue % -1` overflows in .NET, but the remainder is always 0.
+            System.Int128.Zero |> DInt128 |> resultOk
+          else
             v % d |> DInt128 |> resultOk
-           with e ->
-             if d = System.Int128.Zero then
-               RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-             else
-               Exception.raiseInternal
-                 "unexpected failure case in Int128.remainder"
-                 [ "v", v; "d", d ]
-                 e)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

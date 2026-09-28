@@ -36,7 +36,8 @@ Stdlib.Int8.remainder 20y 8y = Stdlib.Result.Result.Ok 4y
 Stdlib.Int8.remainder -20y 8y = Stdlib.Result.Result.Ok -4y
 Stdlib.Int8.remainder -20y -8y = Stdlib.Result.Result.Ok -4y
 Stdlib.Int8.remainder -15y 6y = Stdlib.Result.Result.Ok -3y
-Stdlib.Int8.remainder 5y 0y = error="Cannot divide by 0"
+Stdlib.Int8.remainder -128y -1y = Stdlib.Result.Result.Ok 0y
+Stdlib.Int8.remainder 5y 0y = Stdlib.Result.Result.Error "Cannot divide by 0"
 Stdlib.Int8.add 10y 9y = 19y
 Stdlib.Int8.add 10y 0y = 10y
 Stdlib.Int8.add 88y 9y = 97y

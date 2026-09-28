@@ -41,7 +41,8 @@ Stdlib.Int128.remainder 20Q 8Q = Stdlib.Result.Result.Ok 4Q
 Stdlib.Int128.remainder -20Q 8Q = Stdlib.Result.Result.Ok -4Q
 Stdlib.Int128.remainder -20Q -8Q = Stdlib.Result.Result.Ok -4Q
 Stdlib.Int128.remainder -15Q 6Q = Stdlib.Result.Result.Ok -3Q
-Stdlib.Int128.remainder 5Q 0Q = error="Cannot divide by 0"
+Stdlib.Int128.remainder -170141183460469231731687303715884105728Q -1Q = Stdlib.Result.Result.Ok 0Q
+Stdlib.Int128.remainder 5Q 0Q = Stdlib.Result.Result.Error "Cannot divide by 0"
 Stdlib.Int128.add 10Q 9Q = 19Q
 Stdlib.Int128.add 88Q 9Q = 97Q
 Stdlib.Int128.add -1Q 2Q = 1Q
