@@ -214,9 +214,9 @@ let sortBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
 /// This is a bit much. CLEANUP tidy this up
 module SortByComparatorHelpers =
   let validate
-    (comparator: 'a -> 'a -> Int)
     (x: 'a)
     (y: 'a)
+    (comparator: 'a -> 'a -> Int)
     : Result.Result<Int, String> =
     let result = comparator x y
 
@@ -227,23 +227,23 @@ module SortByComparatorHelpers =
         $"Expected comparator function to return -1, 0, or 1, but it returned {Int.toString result}"
 
   let merge
-    (comparator: 'a -> 'a -> Int)
     (left: List<'a>)
     (right: List<'a>)
+    (comparator: 'a -> 'a -> Int)
     : Result.Result<List<'a>, String> =
     match (left, right) with
     | ([], _) -> Result.Result.Ok right
     | (_, []) -> Result.Result.Ok left
     | (x :: xs, y :: ys) ->
-      match validate comparator x y with
+      match validate x y comparator with
       | Error msg -> Result.Result.Error msg
       | Ok result ->
         if result <= 0 then
-          match merge comparator xs right with
+          match merge xs right comparator with
           | Error msg -> Result.Result.Error msg
           | Ok merged -> Result.Result.Ok(push merged x)
         else
-          match merge comparator left ys with
+          match merge left ys comparator with
           | Error msg -> Result.Result.Error msg
           | Ok merged -> Result.Result.Ok(push merged y)
 
@@ -256,8 +256,8 @@ module SortByComparatorHelpers =
       (push left x, push right y)
 
   let mergeSort
-    (comparator: 'a -> 'a -> Int)
     (lst: List<'a>)
+    (comparator: 'a -> 'a -> Int)
     : Result.Result<List<'a>, String> =
     match lst with
     | [] -> Result.Result.Ok []
@@ -265,12 +265,12 @@ module SortByComparatorHelpers =
     | lst ->
       let (left, right) = splitList lst
 
-      match mergeSort comparator left with
+      match mergeSort left comparator with
       | Error msg -> Result.Result.Error msg
       | Ok sortedLeft ->
-        match mergeSort comparator right with
+        match mergeSort right comparator with
         | Error msg -> Result.Result.Error msg
-        | Ok sortedRight -> merge comparator sortedLeft sortedRight
+        | Ok sortedRight -> merge sortedLeft sortedRight comparator
 
 /// Returns a copy of <param list>, sorted using {{fn a b}} to compare values
 /// <var a> and <var b>.
@@ -283,7 +283,7 @@ let sortByComparator
   (list: List<'a>)
   (fn: 'a -> 'a -> Int)
   : Result.Result<List<'a>, String> =
-  SortByComparatorHelpers.mergeSort fn list
+  SortByComparatorHelpers.mergeSort list fn
 
 
 
@@ -551,8 +551,8 @@ let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
 
 /// Helper function for chunkBySize. Recursively divides a list into chunks of a given size.
 let chunkBySizeHelper
-  (size: Int)
   (currentList: List<'a>)
+  (size: Int)
   (accum: List<List<'a>>)
   : List<List<'a>> =
   match currentList with
@@ -567,7 +567,7 @@ let chunkBySizeHelper
       else
         push accum taken
 
-    chunkBySizeHelper size rest newAccum
+    chunkBySizeHelper rest size newAccum
 
 type ChunkBySizeError = | SizeMustBeGreaterThanZero
 
@@ -581,7 +581,7 @@ let chunkBySize
     Result.Result.Error
       ChunkBySizeError.SizeMustBeGreaterThanZero
   else
-    Result.Result.Ok(chunkBySizeHelper size list [])
+    Result.Result.Ok(chunkBySizeHelper list size [])
 
 
 let splitLast (l: List<'a>) : Option.Option<(List<'a> * 'a)> =
