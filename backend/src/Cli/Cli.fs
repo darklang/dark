@@ -169,6 +169,7 @@ let private startupSettings () : Map<string, string> =
         "exec.policy"
         "exec.maxInstructions"
         "exec.maxBytes"
+        "exec.storePollMs"
         "trace.keep"
         "trace.maxMb"
         "trace.record" ])
@@ -268,6 +269,15 @@ let execute
           | true, n when n >= 0L -> n
           | _ -> 0L
         | None -> 0L
+      // How often a live view looks for a change. Left alone it is the 200 ms the scheduler
+      // ships with; a value under 10 ms is refused there rather than here, because a busy loop
+      // on a timer is not a setting anyone means.
+      match Map.tryFind "exec.storePollMs" settings with
+      | Some v ->
+        match System.Int32.TryParse v with
+        | true, n when n >= 10 -> LibExecution.Scheduler.storePollMs <- n
+        | _ -> ()
+      | None -> ()
       LibExecution.Scheduler.maxInstructions <- cap "exec.maxInstructions"
       LibExecution.Scheduler.maxBytes <- cap "exec.maxBytes"
       LibDB.Tracing.TraceRetention.configure

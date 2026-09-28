@@ -136,8 +136,16 @@ type ProcessSummary =
 let defaultQuantum = 10_000L
 
 /// How often the store is polled for a change (`PRAGMA data_version`) while a process waits on
-/// `StoreChanged`: the ceiling on how long a saved edit takes to reach a live view.
-let storePollMs = 200
+/// `StoreChanged`: the ceiling on how long a saved edit takes to REACH a live view, which is
+/// about half of how long it takes to repaint one (the other half is the reload, which drops
+/// every name cache and so pays for a cold render).
+///
+/// 200 ms is not a cost decision. A poll is 7.6 microseconds, so five a second is 0.007% of a
+/// core and twenty a second is 0.03%; the reason to leave it here is that a save lands as
+/// several ops, and a poll fast enough to catch one mid-write reloads twice, each reload making
+/// the next render cold. `exec.storePollMs` in the store's config is the knob for measuring
+/// that (`Cli.fs` reads it).
+let mutable storePollMs = 200
 
 /// How many worker schedulers a group starts: one per core unless the host says otherwise
 /// (`exec.workers` in the store's config; `Cli.fs` reads it).

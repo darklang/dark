@@ -57,6 +57,7 @@ let checkValue (key: String) (value: String) : Stdlib.Option.Option<String> =
     [ "exec.workers"
       "exec.maxInstructions"
       "exec.maxBytes"
+      "exec.storePollMs"
       "http.requestTimeoutMs"
       "trace.keep"
       "trace.maxMb" ]
@@ -138,6 +139,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "  exec.policy              - Expert: a Dark fn picking the next process (default: round robin)"
       "  exec.maxInstructions     - Expert: stop a process past this many instructions (default: none)"
       "  exec.maxBytes            - Expert: stop a process past this many bytes allocated (default: none)"
+      "  exec.storePollMs         - How often a --live view looks for a change (default: 200; minimum 10)"
       "  http.requestTimeoutMs    - serve cancels a handler past this and answers 504 (default: 30000; 0 = none)"
       "  trace.record             - Keep a record of every run (on/off; default: off)"
       "  trace.keep               - How many traces to keep (a served request is one; default: 200; 0 = all)"
@@ -191,6 +193,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
       "exec.policy"
       "exec.maxInstructions"
       "exec.maxBytes"
+      "exec.storePollMs"
       "trace.record"
       "trace.keep"
       "trace.maxMb"

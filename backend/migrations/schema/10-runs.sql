@@ -47,3 +47,10 @@ CREATE INDEX IF NOT EXISTS idx_trace_fns_fn_name ON trace_fns(fn_name);
 -- by `timestamp DESC`; `status` is how the CLI finds the runs that can be resumed.
 CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON traces(timestamp);
 CREATE INDEX IF NOT EXISTS idx_traces_status    ON traces(status);
+
+-- Every read of one run's log selects by `trace_id` and orders by `seq`, so the composite
+-- serves both halves and the single-column `idx_trace_fn_calls_trace_id` in `08-traces.sql`
+-- becomes redundant. That file is frozen, so the old index stays on disk; SQLite will pick
+-- this one.
+CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_trace_seq
+  ON trace_fn_calls(trace_id, seq);
