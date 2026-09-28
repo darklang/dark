@@ -289,7 +289,7 @@ let steps : List<Step> =
     { name = "20260924_000006_traces_entry_hash"
       run = fun () -> addColumnIfMissing "traces" "entry_hash" "TEXT" }
 
-    // What the run answered: the other half of what its row records, and what `traces log`
+    // What the run answered: the other half of what its row records, and what `traces details`
     // ends with. Nothing stored the output before this.
     { name = "20260926_000001_traces_result_value"
       run = fun () -> addColumnIfMissing "traces" "result_value" "BLOB" }
@@ -298,6 +298,13 @@ let steps : List<Step> =
       run =
         fun () ->
           addColumnIfMissing "traces" "duration_ms" "INTEGER NOT NULL DEFAULT 0" }
+
+    // The version of each function a run went through, so a resume can say which of them have
+    // been edited since. `10-runs.sql` declares it for fresh stores; this carries it to the ones
+    // that already have the table.
+    { name = "20260928_000001_trace_fns_fn_hash"
+      run =
+        fun () -> addColumnIfMissing "trace_fns" "fn_hash" "TEXT NOT NULL DEFAULT ''" }
 
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]

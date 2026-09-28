@@ -91,10 +91,17 @@ let setPinned (traceID: String) (pinned: Bool) : Bool =
   updated > 0
 
 
-/// The package functions one run went through, by name. What `traces show <run>` offers when you
-/// name a run rather than a function.
-let fnsOf (traceID: String) : List<String> =
+/// The package functions one run went through: each one's name, and the hash the run went
+/// through. The names are what `traces show <run>` offers when you name a run rather than a
+/// function; the hashes are what `traces resume` compares against the store to say which of a
+/// run's callees have been edited since.
+let fnsWithHashes (traceID: String) : List<String * String> =
   Builtin.tracesFnsOf traceID
+
+
+/// Just the names of `fnsWithHashes`.
+let fnsOf (traceID: String) : List<String> =
+  (fnsWithHashes traceID) |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.first pair)
 
 
 /// The runs that went through <param fnName>, newest first. Answers at the shipped recording

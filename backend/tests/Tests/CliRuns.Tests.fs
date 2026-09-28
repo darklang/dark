@@ -169,6 +169,35 @@ let private replayAfterAnEdit =
           (uuidOf last)
           (uuidOf first)
           "against the uuid the old run made"
+        // The one thing about a resume the run itself cannot notice, so the resume says it.
+        Expect.stringContains resumed "edited since this ran" "the resume says what moved"
+        Expect.stringContains
+          resumed
+          "Tests.Exec.shape"
+          "and names the function that moved"
+      })
+
+
+/// The other half of `replayAfterAnEdit`: a resume against code nobody touched must not
+/// warn, or the warning means nothing on the run that has it.
+let private replayWithoutAnEdit =
+  cliTestWithFreshTraces
+    "a resume against unchanged code says nothing about edits"
+    (fun state ->
+      task {
+        do! start state
+        // A body nothing else in these tests has: a package hash is structural, so two functions
+        // with identical bodies share one, and `trace_fns` would name whichever of them the
+        // store resolves that hash to.
+        do! fn state "Tests.Exec.steady" "(s: String) : String = \"steady:\" ++ s"
+        do! commit state "steady"
+        let! _ = runCli state [ "eval"; "Tests.Exec.steady \"x\"" ]
+        let! prefix = latestPrefix ()
+        let! resumed = runCli state [ "exec"; "resume"; prefix ]
+        Expect.stringContains resumed "steady:x" "the resume ran"
+        Expect.isFalse
+          (resumed.Contains "edited since this ran")
+          "nothing moved, so nothing is said"
       })
 
 
@@ -550,6 +579,7 @@ let tests =
     forkDivergesAfterThePosition
     suspendThenResume
     replayAfterAnEdit
+    replayWithoutAnEdit
     previewShowsValuesAndPerformsNothing
     retentionKeepsTheNewestAndTheSuspended
     retentionKeepsTheNewestOfEachEntry

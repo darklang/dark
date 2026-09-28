@@ -30,9 +30,14 @@
 -- Recording keeps only the impure calls, so nothing in `trace_fn_calls` says
 -- that a run passed through `MyApp.Orders.route`. This is what `dark traces calls <fn>` reads:
 -- one row per (run, function), no arguments, no results, a few hundred bytes for a normal run.
+--
+-- `fn_hash` is the version the run actually went through. A resume replays the recorded log
+-- against whatever those names mean NOW, so comparing the two is what lets `traces resume` say
+-- which of the run's callees have been edited since.
 CREATE TABLE IF NOT EXISTS trace_fns (
   trace_id TEXT NOT NULL,
   fn_name TEXT NOT NULL,
+  fn_hash TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (trace_id, fn_name)
 );
 CREATE INDEX IF NOT EXISTS idx_trace_fns_fn_name ON trace_fns(fn_name);

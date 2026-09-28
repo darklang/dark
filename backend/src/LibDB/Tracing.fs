@@ -99,7 +99,7 @@ type T =
     /// Write what was collected. Takes the live `ExecutionState` because an ephemeral blob ref
     /// dies when the request scope pops, so the bytes are promoted to persistent ones before
     /// they are serialized; without that a trace records refs to bytes that are gone and
-    /// `traces log` cannot reconstruct a request body.
+    /// `traces details` cannot reconstruct a request body.
     storeTraceResults : RT.ExecutionState -> Ply.Ply<unit>
 
     /// Whether this run gets a row of its own. A preview does not: looking at a run is not a run.
@@ -259,7 +259,7 @@ type TracerState =
     /// so they are live from there and nothing later in the log may be handed to them (a fork
     /// cut by position can leave a later ordinal without its earlier ones).
     replayEnded : System.Collections.Generic.HashSet<System.Guid>
-    /// Wall clock for the whole run, started when the tracer was made. What `traces log` prints
+    /// Wall clock for the whole run, started when the tracer was made. What `traces details` prints
     /// as `took`, and the only honest source for it: the row's `timestamp` and `updated` are
     /// both the store instant for a served request, and on a resumed run they span however long
     /// it sat suspended. A resumed run's clock is its own, replay included.
@@ -650,18 +650,21 @@ module TraceStorage =
                 "seq", Sql.int64 ev.seq
                 "ord", Sql.int64 ev.ord ]) ]
 
-      // Which functions the run went through, names only (`trace_fns`). `INSERT OR IGNORE`
-      // because a resume rewrites its trace in place and the pairs are the same.
+      // Which functions the run went through (`trace_fns`), by name AND by the hash the run
+      // actually went through. `INSERT OR REPLACE`, not IGNORE: a resume rewrites its trace in
+      // place, and its live half may have gone through a newer hash for a name already there.
       let fnStmt =
         match fns with
         | [] -> []
         | _ ->
-          [ "INSERT OR IGNORE INTO trace_fns (trace_id, fn_name) VALUES (@traceId, @fnName)",
+          [ "INSERT OR REPLACE INTO trace_fns (trace_id, fn_name, fn_hash)
+             VALUES (@traceId, @fnName, @fnHash)",
             fns
             |> List.map (fun hash ->
               [ "traceId", Sql.string traceIdStr
                 "fnName",
-                Sql.string (fnNameToSimpleString (RT.FQFnName.Package hash)) ]) ]
+                Sql.string (fnNameToSimpleString (RT.FQFnName.Package hash))
+                "fnHash", Sql.string (string hash) ]) ]
 
       let _ = Sql.executeTransactionSync (baseStatements @ eventStmt @ fnStmt)
       TraceRetention.run () |> ignore<int>

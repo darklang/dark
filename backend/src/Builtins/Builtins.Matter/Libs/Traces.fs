@@ -70,7 +70,7 @@ let private statusToDT (status : string) : Dval =
 
 /// A run's input as one line of text: the expression or the script's source as it was written.
 /// A served request is a record, not a string; it is named rather than dumped, since the whole
-/// thing is one `traces log` away and a table cell is 40 characters.
+/// thing is one `traces details` away and a table cell is 40 characters.
 /// A recorded dval as one line, for a table cell or a summary line. Shared by the input and
 /// the result, because the two want the same treatment.
 let private oneLineDval (label : string) (bytes : byte[]) : string =
@@ -853,22 +853,24 @@ let fns () : List<BuiltInFn> =
     { name = fn "tracesFnsOf" 0
       typeParams = []
       parameters = [ Param.make "traceID" TString "" ]
-      returnType = TList TString
+      returnType = TList(TTuple(TString, TString, []))
       description =
-        "The package functions one run went through, by name. The inverse of `tracesListByFn`, "
-        + "off the same names-only index: it is what lets `traces show <run>` offer the code the "
-        + "run actually ran, rather than asking you to know a function name before you can look "
-        + "at a run."
+        "The package functions one run went through: each one's name, and the hash the run "
+        + "actually went through. The inverse of `tracesListByFn`, off the same index. The names "
+        + "are what lets `traces show <run>` offer the code the run ran, rather than asking you "
+        + "to know a function name before you can look at a run; the hashes are how a resume "
+        + "tells you which of them have been edited since."
       fn =
         (function
         | _, _, _, [| DString traceID |] ->
           uply {
-            let! names =
+            let! rows =
               Sql.query
-                "SELECT fn_name FROM trace_fns WHERE trace_id = @t ORDER BY fn_name"
+                "SELECT fn_name, fn_hash FROM trace_fns WHERE trace_id = @t ORDER BY fn_name"
               |> Sql.parameters [ "t", Sql.string traceID ]
-              |> Sql.executeAsync (fun read -> read.string "fn_name")
-            return names |> List.map DString |> Dval.list KTString
+              |> Sql.executeAsync (fun read ->
+                DTuple(DString(read.string "fn_name"), DString(read.string "fn_hash"), []))
+            return rows |> Dval.list (KTTuple(VT.string, VT.string, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
