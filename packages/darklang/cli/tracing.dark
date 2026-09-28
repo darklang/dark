@@ -362,15 +362,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       { state with exitCode = 1 }
 
   // `view` was `show` with filters, and both of them are `log` now: one run has one rendering.
-  // A script still passing the old name is told what it is called rather than getting a usage
-  // dump.
   // `view` is `show` by another name, and people reach for both. An alias costs one arm.
   | "view" :: rest -> execute state (Stdlib.List.push rest "show")
-  // `log` was this verb for about a day, in a draft he read. Refused by name rather than as an
-  // unknown subcommand, because the person typing it read it somewhere of ours.
+
+  // `log` was this verb's name in an earlier draft of ours. Refused BY NAME rather than falling
+  // through to "unknown subcommand", because whoever types it read it somewhere we wrote.
   | "log" :: rest ->
     let tail = Stdlib.String.join rest " "
-    Cli.printErr "`traces details` is `traces details`: what the run was, and what it did"
+    Cli.printErr "`traces log` is now `traces details`: what the run was, and what it did"
     Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  dark traces details {tail}")
     { state with exitCode = 1 }
 
