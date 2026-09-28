@@ -33,6 +33,24 @@ interleaved pairs, median paired difference) and `scripts/perf/gate`. Kept here 
   onto a worker costs about 9 us in Debug (10,000 spawns of a trivial program in 90 ms,
   including the placement scan and the `Wake`).
 
+## 2026-09-28: the published budget had been left behind
+
+9.90 MB to 10.29 MB. Not a regression this measurement caught: the gate had simply not been run
+published since the review pass, and the branch went on growing while only the DEBUG budget was
+raised to match. CI runs `scripts/perf/gate --published`, so it would have been red on the next
+push whatever else changed.
+
+Bisected before raising it, because "our own work did it" is the assumption worth checking: the
+same workload, same reloaded store, against the two published binaries either side of the last
+wave. Four pairs each, in bytes, high run and low run per pair -- before 10,271,784 / 10,189,840 /
+10,271,832 / 10,214,432, after 10,287,448 / 10,288,256 / 10,280,064 / 10,280,032. About 40 KB
+apart, which is the noise floor. The overshoot predates that wave entirely.
+
+It is startup again, for the same reasons the last two entries give: a bigger package set, the
+registry file every process writes at boot, and the worker pool's config read. Instructions,
+builtin calls, package calls and frame pushes are identical run to run (37,254 / 11,208 / 1,005 /
+11,005), so nothing per step moved.
+
 ## 2026-09-22: the budget again, after the review pass
 
 9.82 MB to 9.90 MB, measured the same way (the CI-built binary, a reloaded store, three runs).
