@@ -135,6 +135,18 @@ let callStackFromVM (vm : RT.VMState) : RT.CallStack =
   callStackForFrame vm vm.currentFrameID [] @ vm.nestedCallStack
 
 
+/// Runtime error message for native-stack exhaustion in callbacks or comparisons.
+/// AtRestCheckGuard matches this exact message to produce CheckFailure.TooDeep.
+let outOfStackMessage =
+  "Out of stack: went too deep, recursing through builtin callbacks "
+  + "(List.map and the like) or comparing a deeply nested value"
+
+/// Recognize exceptions from stack checks, including wrappers added by sort comparers.
+let rec private isOutOfStack (ex : exn) : bool =
+  match ex with
+  | :? System.InsufficientExecutionStackException -> true
+  | _ -> not (isNull ex.InnerException) && isOutOfStack ex.InnerException
+
 let execute
   (exeState : RT.ExecutionState)
   (instrs : Option<tlid> * RT.Instructions)
@@ -156,6 +168,9 @@ let execute
       | RT.RuntimeErrorException(_threadID, rte) ->
         let callStack = callStackFromVM vm
         return Error(rte, callStack)
+      | ex when isOutOfStack ex ->
+        return
+          Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
       | ex ->
         let metadata : Metadata =
           Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
@@ -321,6 +336,9 @@ let private runLoaded
   // allocate on every application, including the common synchronous success that
   // calls none of them.
   try
+    // Builtin callbacks use the native stack. Check space before nesting another run
+    // so deep recursion raises a catchable error.
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let running = Interpreter.executeUnder exeState access vm
 
     match Ply.trySync running with
@@ -340,6 +358,9 @@ let private runLoaded
           with
           | RT.RuntimeErrorException(_threadID, rte) ->
             return Error(rte, callStackFromVM vm)
+          | ex when isOutOfStack ex ->
+            return
+              Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
           | ex -> return! uncaught exeState vm ex
         finally
           exeState.test.postTestExecutionHook exeState.test
@@ -348,6 +369,10 @@ let private runLoaded
   | RT.RuntimeErrorException(_threadID, rte) ->
     exeState.test.postTestExecutionHook exeState.test
     Ply(Error(rte, callStackFromVM vm))
+  // Excessive program depth is a runtime error, not an internal exception to report.
+  | ex when isOutOfStack ex ->
+    exeState.test.postTestExecutionHook exeState.test
+    Ply(Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm))
   | ex ->
     uply {
       try

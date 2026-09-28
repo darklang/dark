@@ -2,7 +2,7 @@
 module Darklang.Cli.Packages.AtRestCheck
 
 let checkBranch (branchId: Uuid) : LanguageTools.AtRestTypeChecker.Report =
-  Builtin.atRestCheckBranch branchId
+  LanguageTools.AtRestTypeChecker.checkBranch branchId
 
 let customTypeName
   (branchId: Uuid)
@@ -97,7 +97,7 @@ let printSaveReport
     let details =
       Stdlib.List.append
         (issueLines branchId report.diagnostics)
-        (issueLines branchId report.blockers)
+        (issueLines branchId report.warnings)
     Stdlib.List.append
       [ ""
         (Stdlib.Cli.UI.Colors.error
@@ -109,10 +109,48 @@ let printSaveReport
     let details =
       Stdlib.List.append
         (issueLines branchId report.diagnostics)
-        (issueLines branchId report.blockers)
+        (issueLines branchId report.warnings)
     Stdlib.List.append
       [ ""
         (Stdlib.Cli.UI.Colors.warning
           "At-rest type check was incomplete (save continued):") ]
       details
     |> Stdlib.printLines
+
+
+/// Script errors name local declarations without exposing their parser-only owner.
+let scriptReport
+  (branchId: Uuid)
+  (report: LanguageTools.AtRestTypeChecker.Report)
+  : String =
+  let sourceName (locations: List<LanguageTools.ProgramTypes.PackageLocation>) : Stdlib.Option.Option<String> =
+    LanguageTools.PackageManager.pickLocation
+      LanguageTools.PackageManager.PickContext.empty
+      locations
+    |> Stdlib.Option.map (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn [])
+
+  let typeName (hash: LanguageTools.ProgramTypes.Hash) : Stdlib.Option.Option<String> =
+    sourceName (LanguageTools.PackageManager.Type.locations branchId hash)
+
+  let itemLines (item: LanguageTools.AtRestTypeChecker.ItemReport) : List<String> =
+    if item.verdict != LanguageTools.AtRestTypeChecker.Verdict.Failed then []
+    else
+      let (kind, locations) =
+        match item.item with
+        | PackageType hash -> ("Type", LanguageTools.PackageManager.Type.locations branchId hash)
+        | PackageValue hash -> ("Value", LanguageTools.PackageManager.Value.locations branchId hash)
+        | PackageFn hash -> ("Function", LanguageTools.PackageManager.Function.locations branchId hash)
+      let label =
+        match sourceName locations with
+        | Some name -> kind ++ " " ++ name
+        | None -> "Top-level expression"
+      let issues =
+        deduplicate item.diagnostics
+        |> Stdlib.List.map (fun issue ->
+          let code = LanguageTools.AtRestTypeChecker.issueCodeToString issue.code
+          let message = LanguageTools.AtRestTypeChecker.issueToStringWith typeName issue
+          "  - [" ++ code ++ "] " ++ message)
+      Stdlib.List.push issues (label ++ ":")
+
+  let lines = Stdlib.List.flatten (Stdlib.List.map report.items itemLines)
+  Stdlib.String.join (Stdlib.List.push lines "Static type check failed:") "\n"

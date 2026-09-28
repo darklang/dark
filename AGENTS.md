@@ -414,6 +414,10 @@ that needs an EOF, and an agent harness hands you a socket that never gives one,
 hang the call well past its timeout. If you pipe real input and it gets dropped, `DARK_STDIN=1`
 forces it through.
 
+**For deep tree walks in Dark, avoid recursion inside builtin callbacks.** For example,
+`Stdlib.List.map children (fun child -> visit child)` starts a nested interpreter run at
+each level and can fail with "Out of stack". Use direct recursion or an explicit work list.
+
 **`let f () = <a literal>` rebuilds it on every call.** A nullary function whose body is a constant is
 not a constant; `val` is evaluated once. If the body doesn't depend on anything, make it a `val`.
 

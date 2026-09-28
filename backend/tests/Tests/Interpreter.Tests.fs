@@ -872,6 +872,182 @@ module SyncUnify =
   let tests = testList "SyncUnify" [ agreesWithAsyncPath ]
 
 
+module AliasChecks =
+  module TC = LibExecution.TypeChecker
+
+  let private aliasName = RT.FQTypeName.fqPackage "alias-cache-test"
+  let private targetName = RT.FQTypeName.fqPackage "alias-cache-target"
+
+  let private reference name args =
+    RT.TCustomType({ originalName = [ "Alias" ]; resolved = Ok name }, args)
+
+  let private alias = reference aliasName []
+
+  let private declaration name parameters target : RT.PackageType.PackageType =
+    let (RT.FQTypeName.Package hash) = name
+    { hash = hash
+      declaration =
+        { typeParams = parameters; definition = RT.TypeDeclaration.Alias target } }
+
+  let private typesFor target : RT.Types =
+    { package = fun _ -> Ply.Ply(Some(declaration aliasName [] target)) }
+
+  let private check types expected actual =
+    TC.checkFnParam
+      types
+      (RT.FQFnName.fqBuiltin "test" 0)
+      RT.TST.empty
+      0
+      "value"
+      expected
+      actual
+    |> Ply.toTask
+
+  let tests =
+    testList
+      "AliasChecks"
+      [ testTask "warm aliases use the sync path and retain their error name" {
+          let types = typesFor RT.TInt64
+          let! accepted = check types alias (RT.DInt64 1L)
+          Expect.equal accepted (Ok RT.TST.empty) "first call resolves the alias"
+          Expect.equal
+            (TC.tryUnifyWithAliasesSync types RT.TST.empty alias (RT.DInt64 1L))
+            (ValueSome RT.TST.empty)
+            "subsequent calls use the synchronous checker"
+          let! rejected = check types alias (RT.DString "wrong")
+          match rejected with
+          | Error(RTE.Apply(RTE.Applications.FnParameterNotExpectedType(_,
+                                                                        _,
+                                                                        _,
+                                                                        Some expected,
+                                                                        _,
+                                                                        _,
+                                                                        _))) ->
+            Expect.equal expected alias "error retains the declared alias"
+          | _ -> failtest "expected an argument type error"
+          let! result =
+            TC.checkFnResult
+              types
+              (RT.FQFnName.fqBuiltin "test" 0)
+              RT.TST.empty
+              alias
+              (RT.DString "wrong")
+            |> Ply.toTask
+          match result with
+          | Error(RTE.Apply(RTE.Applications.FnResultNotExpectedType(_,
+                                                                     Some expected,
+                                                                     _,
+                                                                     _,
+                                                                     _))) ->
+            Expect.equal expected alias "return error retains the declared alias"
+          | _ -> failtest "expected a return type error"
+        }
+        testTask "aliases of records and enums use the nominal fast path" {
+          let target = reference targetName []
+          let cases =
+            [ RT.TypeDeclaration.Record(
+                NEList.singleton { name = "field"; typ = RT.TInt64 }
+              ),
+              RT.DRecord(
+                targetName,
+                targetName,
+                [],
+                Map.ofList [ "field", RT.DInt64 1L ]
+              )
+              RT.TypeDeclaration.Enum(
+                NEList.singleton { name = "Case"; fields = [] }
+              ),
+              RT.DEnum(targetName, targetName, [], "Case", []) ]
+          for definition, actual in cases do
+            let types : RT.Types =
+              { package =
+                  fun hash ->
+                    if RT.FQTypeName.Package hash = aliasName then
+                      Ply.Ply(Some(declaration aliasName [] target))
+                    else
+                      Ply.Ply(
+                        Some
+                          { hash = hash
+                            declaration =
+                              { typeParams = []; definition = definition } }
+                      ) }
+            let! accepted = check types alias actual
+            Expect.equal
+              accepted
+              (Ok RT.TST.empty)
+              "the alias accepts the nominal value"
+            Expect.equal
+              (TC.tryUnifyWithAliasesSync types RT.TST.empty alias actual)
+              (ValueSome RT.TST.empty)
+              "the warm nominal alias is synchronous"
+        }
+        testTask "resolved aliases are scoped to their type provider" {
+          let integers = typesFor RT.TInt64
+          let strings = typesFor RT.TString
+          let! _ = check integers alias (RT.DInt64 1L)
+          Expect.equal
+            (TC.tryUnifyWithAliasesSync strings RT.TST.empty alias (RT.DInt64 1L))
+            ValueNone
+            "another provider cannot reuse the resolution"
+          let! accepted = check strings alias (RT.DString "right")
+          Expect.equal accepted (Ok RT.TST.empty) "the other declaration wins"
+          Expect.equal
+            (TC.tryUnifyWithAliasesSync strings RT.TST.empty alias (RT.DInt64 1L))
+            ValueNone
+            "a warm cache cannot accept the other provider's type"
+        }
+        testTask "generic alias chains do not cache call-specific bindings" {
+          let expected = reference aliasName [ RT.TVariable "call" ]
+          let types : RT.Types =
+            { package =
+                fun hash ->
+                  let decl =
+                    if RT.FQTypeName.Package hash = aliasName then
+                      declaration
+                        aliasName
+                        [ "a" ]
+                        (reference targetName [ RT.TVariable "a" ])
+                    else
+                      declaration targetName [ "b" ] (RT.TList(RT.TVariable "b"))
+                  Ply.Ply(Some decl) }
+          for actual in
+            [ RT.DList(VT.known RT.KTInt64, [ RT.DInt64 1L ])
+              RT.DList(VT.known RT.KTString, [ RT.DString "text" ]) ] do
+            let! accepted = check types expected actual
+            match accepted with
+            | Ok tst ->
+              Expect.equal
+                (TC.tryUnifyWithAliasesSync types RT.TST.empty expected actual)
+                (ValueSome tst)
+                "each call binds its own type variable"
+            | Error _ -> failtest "expected the generic alias to accept both calls"
+        }
+        testTask "a missing alias-chain endpoint is retried" {
+          let mutable available = false
+          let types : RT.Types =
+            { package =
+                fun hash ->
+                  if RT.FQTypeName.Package hash = aliasName then
+                    Ply.Ply(Some(declaration aliasName [] (reference targetName [])))
+                  elif available then
+                    Ply.Ply(Some(declaration targetName [] RT.TInt64))
+                  else
+                    Ply.Ply None }
+          let! _ = RT.TypeReference.unwrapAlias types alias |> Ply.toTask
+          Expect.equal
+            (RT.TypeReference.tryResolvedAlias types alias)
+            ValueNone
+            "an incomplete chain is not cached"
+          available <- true
+          let! accepted = check types alias (RT.DInt64 1L)
+          Expect.equal accepted (Ok RT.TST.empty) "a newly available alias resolves"
+          Expect.equal
+            (TC.tryUnifyWithAliasesSync types RT.TST.empty alias (RT.DInt64 1L))
+            (ValueSome RT.TST.empty)
+            "the complete chain can now be cached"
+        } ]
+
+
 module DictKeyOrdering =
   let private oneOfEachCase : List<string * RT.Dval> =
     [ "DUnit", RT.DUnit
@@ -1064,6 +1240,76 @@ module DictKeyOrdering =
         equalityIsNotTransitive ]
 
 
+/// Deep equality, ordering, type merging, and substitution must fail the stack check.
+/// A small thread stack triggers the guard without allocating values large enough
+/// to stall the parallel suite. A missing check terminates the test process.
+module DeepValues =
+  let private depth = 20_000
+
+  /// A list and its element type, both nested `depth` levels deep.
+  let private deepList () : RT.Dval =
+    let rec build (n : int) (value : RT.Dval) (typ : RT.ValueType) : RT.Dval =
+      if n = 0 then value else build (n - 1) (RT.DList(typ, [ value ])) (VT.list typ)
+
+    build depth (RT.DInt64 1L) (VT.known RT.KTInt64)
+
+  let private onSmallStack (f : unit -> unit) : Option<exn> =
+    let mutable thrown = None
+    let thread =
+      System.Threading.Thread(
+        (fun () ->
+          try
+            f ()
+          with ex ->
+            thrown <- Some ex),
+        256 * 1024
+      )
+    thread.Start()
+    thread.Join()
+    thrown
+
+  let private refusesToOverflow (name : string) (f : RT.Dval -> RT.Dval -> unit) =
+    test name {
+      let a = deepList ()
+      let b = deepList ()
+
+      match onSmallStack (fun () -> f a b) with
+      | Some(:? System.InsufficientExecutionStackException) -> ()
+      | Some ex ->
+        failtest $"expected the stack check to fail, got {ex.GetType().Name}"
+      | None ->
+        failtest "expected the stack check to fail, but the comparison finished"
+    }
+
+  let private substitutionRefusesToOverflow =
+    test "Types.substitute" {
+      let typ =
+        [ 1..depth ] |> List.fold (fun inner _ -> RT.TList inner) (RT.TVariable "a")
+
+      match
+        onSmallStack (fun () ->
+          RT.Types.substitute [ "a" ] [ RT.TInt ] typ |> ignore<RT.TypeReference>)
+      with
+      | Some(:? System.InsufficientExecutionStackException) -> ()
+      | Some ex ->
+        failtest $"expected the stack check to fail, got {ex.GetType().Name}"
+      | None ->
+        failtest "expected the stack check to fail, but substitution finished"
+    }
+
+  let tests =
+    testList
+      "DeepValues"
+      [ refusesToOverflow "equals" (fun a b -> Dval.equals a b |> ignore<bool>)
+        refusesToOverflow "compareForSort" (fun a b ->
+          RT.DvalOrdering.compareForSort a b |> ignore<int>)
+        refusesToOverflow "ValueType.merge" (fun a b ->
+          match a, b with
+          | RT.DList(ta, _), RT.DList(tb, _) ->
+            VT.merge ta tb |> ignore<Result<RT.ValueType, unit>>
+          | _ -> failtest "expected lists")
+        substitutionRefusesToOverflow ]
+
 let tests =
   testList
     "Interpreter"
@@ -1087,4 +1333,6 @@ let tests =
       Fns.tests
       Statement.tests
       SyncUnify.tests
-      DictKeyOrdering.tests ]
+      AliasChecks.tests
+      DictKeyOrdering.tests
+      DeepValues.tests ]

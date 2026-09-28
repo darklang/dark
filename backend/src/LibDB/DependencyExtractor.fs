@@ -223,7 +223,11 @@ let private extract (roots : List<Work>) : List<Dependency> =
 
       | PT.EList(_, items) -> pushExprsInOrder items
 
-      | PT.EDict(_, pairs) -> pairs |> List.map snd |> pushExprsInOrder
+      | PT.EDict(_, pairs) ->
+        // Track dependencies in both dictionary keys and values.
+        for key, value in List.rev pairs do
+          work.Push(Expr value)
+          work.Push(Expr key)
 
       | PT.ETuple(_, first, second, rest) ->
         pushExprsInOrder rest

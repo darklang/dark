@@ -70,7 +70,6 @@ let main (args : string array) : int =
         Tests.WrittenTypesLoweringParity.tests
         Tests.HttpClient.tests
         Tests.Terminal.tests
-        Tests.AtRestTypeChecker.tests
         Tests.PTConformance.tests
 
         // package manager

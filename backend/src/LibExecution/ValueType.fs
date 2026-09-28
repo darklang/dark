@@ -61,6 +61,9 @@ let rec private mergeKnownTypes
   if System.Object.ReferenceEquals(left, right) then
     Ok left
   else
+    // Check stack space before recursive type merging so deep types raise a catchable
+    // exception instead of overflowing the native stack. See Dval.equals.
+    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 
     match left, right with
     | KTUnit, KTUnit -> KTUnit |> Ok

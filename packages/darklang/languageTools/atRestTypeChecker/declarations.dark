@@ -1,0 +1,563 @@
+/// Validate type declarations and cache their transitive problems per batch.
+/// Alias cycles and declaration dependencies are analyzed here; Types supplies
+/// conversion, substitution, alias expansion, and Dict-key usability.
+module Darklang.LanguageTools.AtRestTypeChecker.Declarations
+
+// --------------------
+// Well-formedness
+// --------------------
+
+/// Find which type parameters reach runtime values, starting with none.
+/// Recursive references use the previous round's results. A traversal failure
+/// keeps known facts and marks the declaration Incomplete.
+let prepareValueTypeParameters
+  (env: Model.Environment)
+  (failures: Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>)
+  : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
+  let declarations =
+    (Stdlib.Dict.toList env.types)
+    |> Stdlib.List.filter (fun (_, decl) ->
+      Stdlib.Bool.not (Stdlib.List.isEmpty decl.typeParams))
+  let (parameters, failures, changed) =
+    Stdlib.List.fold declarations (env.valueTypeParameters, failures, false)
+      (fun (parameters, failures, changed) (name, decl) ->
+        if Stdlib.Dict.``member`` failures name then (parameters, failures, changed)
+        else
+          let previous =
+            Stdlib.Option.withDefault (Stdlib.Dict.get parameters name) []
+          let (used, failures) =
+            match guard (Types.declarationValueParameters env) decl with
+            | Ok used ->
+              let used =
+                Stdlib.List.filter decl.typeParams (fun param ->
+                  Stdlib.List.``member`` used param)
+              (used, failures)
+            | Error failure ->
+              (previous, Stdlib.Dict.set failures name (failureFinding failure))
+          (Stdlib.Dict.setOverridingDuplicates parameters name used,
+           failures, changed || previous != used))
+  let env = { env with valueTypeParameters = parameters }
+  if changed then prepareValueTypeParameters env failures else (env, failures)
+
+/// The arguments constrained by dictionary keys inside a custom declaration.
+/// Summaries keep this lookup finite even for recursive or growing type arguments.
+let customDictKeys
+  (env: Model.Environment)
+  (name: LanguageTools.ProgramTypes.Hash)
+  (args: List<Model.Ty>)
+  : List<Model.Ty> =
+  match Types.declaration env name with
+  | Some decl ->
+    let required = Stdlib.Option.withDefault (Stdlib.Dict.get env.dictKeyParameters name) []
+    Types.argsThatReachValues decl.typeParams required args
+  | None -> []
+
+/// Key types written in this type, including requirements of custom declarations.
+/// Declaration bodies have already been summarized; do not expand them per use.
+let dictKeyTypes (env: Model.Environment) (ty: Model.Ty) : List<Model.Ty> =
+  let many (types: List<Model.Ty>) : List<Model.Ty> =
+    Stdlib.List.flatten (Stdlib.List.map types (dictKeyTypes env))
+  match ty with
+  | TDict(key, value) -> Stdlib.List.push (many [ key, value ]) key
+  | TList inner -> dictKeyTypes env inner
+  | TStream inner -> dictKeyTypes env inner
+  | TDB inner -> dictKeyTypes env inner
+  | TTuple(first, second, rest) -> many (Stdlib.List.append [ first, second ] rest)
+  | TFn(parameters, ret) -> many (Stdlib.List.push parameters ret)
+  | TCustom(name, args) -> Stdlib.List.append (customDictKeys env name args) (many args)
+  | _ -> []
+
+/// Parameters whose values affect the orderability of a key in this declaration.
+let dictKeyParametersFor
+  (env: Model.Environment)
+  (decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  : List<String> =
+  let mapping = Types.rigid decl.typeParams
+  let keys =
+    (Types.declarationFieldTypes decl)
+    |> Stdlib.List.map (fun field ->
+      let (ty, _) = Types.fromReference mapping Stdlib.Option.Option.None field
+      dictKeyTypes env ty)
+    |> Stdlib.List.flatten
+  Stdlib.List.filter decl.typeParams (fun param ->
+    Stdlib.List.any keys (fun key ->
+      // Already-invalid keys are reported independently. Phantom parameters do
+      // not affect orderability when replaced by an unorderable type.
+      if Types.isUsableDictKey env [] key then
+        Stdlib.Bool.not (Types.isUsableDictKey env []
+          (Types.substituteRigid (Stdlib.Dict.set Dict {} param Model.Ty.TBlob) key))
+      else false))
+
+/// Propagate requirements until no parameter gains one. The finite set of
+/// declared parameters bounds this even for mutual recursion. Keep traversal
+/// failures per declaration so other items retain their findings.
+let prepareDictKeyParameters
+  (env: Model.Environment)
+  (failures: Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>)
+  : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
+  let declarations =
+    (Stdlib.Dict.toList env.types)
+    |> Stdlib.List.filter (fun (_, decl) -> Stdlib.Bool.not (Stdlib.List.isEmpty decl.typeParams))
+  let (requirements, failures, changed) =
+    Stdlib.List.fold declarations (env.dictKeyParameters, failures, false) (fun (requirements, failures, changed) (name, decl) ->
+      if Stdlib.Dict.``member`` failures name then (requirements, failures, changed)
+      else
+        match guard (dictKeyParametersFor env) decl with
+        | Error failure ->
+          (requirements, Stdlib.Dict.set failures name (failureFinding failure), changed)
+        | Ok required ->
+          let previous = Stdlib.Option.withDefault (Stdlib.Dict.get requirements name) []
+          (Stdlib.Dict.setOverridingDuplicates requirements name required,
+           failures, changed || previous != required))
+  let env = { env with dictKeyParameters = requirements }
+  if changed then prepareDictKeyParameters env failures else (env, failures)
+
+let checkDictKey
+  (env: Model.Environment)
+  (at: Stdlib.Option.Option<Int64>)
+  (found: List<Model.Finding>)
+  (key: Model.Ty)
+  : List<Model.Finding> =
+  if Types.isUsableDictKey env [] key then found
+  else
+    Stdlib.List.push found
+      (Types.definiteError IssueCode.UnsupportedDictKeyType at
+        Stdlib.Option.Option.None (Stdlib.Option.Option.Some key) Context.NoDetail)
+
+/// Check type references, arities, and Dict keys without expanding declarations.
+/// Collect referenced type names for the caller to check separately.
+let checkTypeStructure
+  (env: Model.Environment)
+  (at: Stdlib.Option.Option<Int64>)
+  (names: List<LanguageTools.ProgramTypes.Hash>)
+  (found: List<Model.Finding>)
+  (ty: Model.Ty)
+  : (List<LanguageTools.ProgramTypes.Hash> * List<Model.Finding>) =
+  let many
+    (names: List<LanguageTools.ProgramTypes.Hash>)
+    (found: List<Model.Finding>)
+    (tys: List<Model.Ty>)
+    : (List<LanguageTools.ProgramTypes.Hash> * List<Model.Finding>) =
+    Stdlib.List.fold tys (names, found) (fun (names, found) t ->
+      checkTypeStructure env at names found t)
+
+  match ty with
+  | TStream inner -> checkTypeStructure env at names found inner
+  | TList inner -> checkTypeStructure env at names found inner
+  | TDB inner -> checkTypeStructure env at names found inner
+  | TDict(key, value) ->
+    let found = checkDictKey env at found key
+    many names found [ key, value ]
+  | TTuple(first, second, rest) ->
+    many names found (Stdlib.List.append [ first, second ] rest)
+  | TFn(parameters, ret) -> many names found (Stdlib.List.push parameters ret)
+  | TCustom(name, args) ->
+    let (names, found) = many names found args
+
+    match Types.declaration env name with
+    | None ->
+      let problem =
+        Types.warning IssueCode.MissingTypeDeclaration at (Context.TypeUnavailable name)
+      (names, Stdlib.List.push found problem)
+    | Some decl ->
+      if Stdlib.List.length decl.typeParams != Stdlib.List.length args then
+        (names, Stdlib.List.push found (Types.arityMismatch at ty name decl args))
+      else
+        let found =
+          Stdlib.List.fold (customDictKeys env name args) found (checkDictKey env at)
+        (Stdlib.List.push names name, found)
+  | _ -> (names, found)
+
+/// Find aliases that expansion would follow. Stop at records and enums,
+/// whose declarations may be recursive.
+let aliasEdges
+  (env: Model.Environment)
+  (found: List<LanguageTools.ProgramTypes.Hash>)
+  (typ: LanguageTools.ProgramTypes.TypeReference)
+  : List<LanguageTools.ProgramTypes.Hash> =
+  match typ with
+  | TCustomType(name, args) ->
+    let found = aliasEdgesIn env found args
+
+    match Types.resolvedType name with
+    | Some hash ->
+      match Types.declaration env hash with
+      | Some decl ->
+        match decl.definition with
+        | Alias _ -> Stdlib.List.push found hash
+        | _ -> found
+      | None -> found
+    | None -> found
+  | TList inner -> aliasEdges env found inner
+  | TStream inner -> aliasEdges env found inner
+  | TDB inner -> aliasEdges env found inner
+  | TDict(key, value) -> aliasEdges env (aliasEdges env found key) value
+  | TTuple(first, second, rest) ->
+    aliasEdgesIn env (aliasEdges env (aliasEdges env found first) second) rest
+  | TFn(parameters, ret) -> aliasEdgesIn env (aliasEdges env found ret) parameters
+  | _ -> found
+
+let aliasEdgesIn
+  (env: Model.Environment)
+  (found: List<LanguageTools.ProgramTypes.Hash>)
+  (typs: List<LanguageTools.ProgramTypes.TypeReference>)
+  : List<LanguageTools.ProgramTypes.Hash> =
+  match typs with
+  | [] -> found
+  | t :: rest -> aliasEdgesIn env (aliasEdges env found t) rest
+
+/// Detect alias cycles. `known` caches results; `expanding` tracks the current path.
+let reachesAliasCycle
+  (env: Model.Environment)
+  (known: Dict<LanguageTools.ProgramTypes.Hash, Bool>)
+  (expanding: Dict<LanguageTools.ProgramTypes.Hash, Bool>)
+  (name: LanguageTools.ProgramTypes.Hash)
+  : (Bool * Dict<LanguageTools.ProgramTypes.Hash, Bool>) =
+  match Stdlib.Dict.get known name with
+  | Some answer -> (answer, known)
+  | None ->
+    if Stdlib.Dict.``member`` expanding name then
+      (true, known)
+    else
+      let next =
+        match Types.declaration env name with
+        | Some decl ->
+          match decl.definition with
+          | Alias target -> aliasEdges env [] target
+          | _ -> []
+        | None -> []
+
+      let expanding = Stdlib.Dict.setOverridingDuplicates expanding name true
+      let (answer, known) = anyReachesAliasCycle env known expanding next
+      (answer, Stdlib.Dict.setOverridingDuplicates known name answer)
+
+let anyReachesAliasCycle
+  (env: Model.Environment)
+  (known: Dict<LanguageTools.ProgramTypes.Hash, Bool>)
+  (expanding: Dict<LanguageTools.ProgramTypes.Hash, Bool>)
+  (names: List<LanguageTools.ProgramTypes.Hash>)
+  : (Bool * Dict<LanguageTools.ProgramTypes.Hash, Bool>) =
+  match names with
+  | [] -> (false, known)
+  | name :: rest ->
+    let (answer, known) = reachesAliasCycle env known expanding name
+    if answer then (true, known) else anyReachesAliasCycle env known expanding rest
+
+/// The problems in one declaration's own fields, and the declarations they name.
+/// `cyclic` says which aliases reach an alias cycle.
+let declarationFactsOf
+  (env: Model.Environment)
+  (cyclic: Dict<LanguageTools.ProgramTypes.Hash, Bool>)
+  (name: LanguageTools.ProgramTypes.Hash)
+  (decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  : Model.DeclarationFacts =
+  let none = Stdlib.Option.Option.None
+  let mapping = Types.rigid decl.typeParams
+
+  let (names, found) =
+    Stdlib.List.fold
+      (Types.declarationFieldTypes decl)
+      ([], [])
+      (fun (names, found) field ->
+        let (t, found) = Types.fromReferenceInto mapping none found field
+        checkTypeStructure env none names found t)
+
+  let found =
+    if Stdlib.Option.withDefault (Stdlib.Dict.get cyclic name) false then
+      Stdlib.List.push
+        found
+        (Types.warning IssueCode.AliasCycle none Context.AliasCycleReferenced)
+    else
+      found
+
+  Model.DeclarationFacts
+    { problems = Stdlib.List.reverse found
+      references = Stdlib.List.unique names }
+
+/// The warning for a declaration the checker failed on.
+let failureFinding (failure: CheckFailure) : Model.Finding =
+  let context =
+    match failure with
+    | TooDeep -> Context.DeclarationTooDeep
+    | Failed message -> Context.CheckerUnavailable message
+
+  Types.warning IssueCode.UnsupportedConstruct Stdlib.Option.Option.None context
+
+/// Cache declaration facts and transitive problems for the batch. Memoize alias
+/// cycle checks and collect problems by strongly connected component to avoid
+/// repeatedly traversing dependencies shared by multiple declarations.
+let prepareDeclarations (env: Model.Environment) : Model.Environment =
+  let (env, traversalFailures) =
+    prepareValueTypeParameters
+      { env with valueTypeParameters = Stdlib.Dict.map env.types (fun _ _ -> []) }
+      Dict {}
+  let (env, traversalFailures) =
+    prepareDictKeyParameters { env with dictKeyParameters = Dict {} } traversalFailures
+  let cyclic =
+    Stdlib.List.fold (Stdlib.Dict.keys env.types) Dict {} (fun known name ->
+      let (_, known) = reachesAliasCycle env known Dict {} name
+      known)
+
+  // Guard each declaration separately so a traversal failure blocks its users
+  // without discarding findings for the rest of the batch.
+  let env =
+    { env with
+        declarationFacts =
+          Stdlib.Dict.map env.types (fun name decl ->
+            match
+              guard (fun decl -> declarationFactsOf env cyclic name decl) decl
+            with
+            | Ok declarationFacts ->
+              match Stdlib.Dict.get traversalFailures name with
+              | Some problem ->
+                { declarationFacts with problems = Stdlib.List.push declarationFacts.problems problem }
+              | None -> declarationFacts
+            | Error failure ->
+              Model.DeclarationFacts
+                { problems = [ failureFinding failure ]; references = [] }) }
+
+  { env with declarationProblems = allDeclarationProblems env }
+
+
+// Declaration problems by strongly connected component.
+
+/// Tarjan traversal state. Components are completed in dependency order.
+type Components =
+  { nextIndex: Int
+    index: Dict<LanguageTools.ProgramTypes.Hash, Int>
+    lowLink: Dict<LanguageTools.ProgramTypes.Hash, Int>
+    stack: List<LanguageTools.ProgramTypes.Hash>
+    onStack: Dict<LanguageTools.ProgramTypes.Hash, Bool>
+    completed: List<List<LanguageTools.ProgramTypes.Hash>> }
+
+let referencesOf
+  (env: Model.Environment)
+  (name: LanguageTools.ProgramTypes.Hash)
+  : List<LanguageTools.ProgramTypes.Hash> =
+  match Stdlib.Dict.get env.declarationFacts name with
+  | Some declarationFacts -> declarationFacts.references
+  | None -> []
+
+let indexOrZero
+  (indices: Dict<LanguageTools.ProgramTypes.Hash, Int>)
+  (name: LanguageTools.ProgramTypes.Hash)
+  : Int =
+  Stdlib.Option.withDefault (Stdlib.Dict.get indices name) 0
+
+let strongConnect
+  (env: Model.Environment)
+  (components: Components)
+  (node: LanguageTools.ProgramTypes.Hash)
+  : Components =
+  let components =
+    { components with
+        index =
+          Stdlib.Dict.setOverridingDuplicates
+            components.index node components.nextIndex
+        lowLink =
+          Stdlib.Dict.setOverridingDuplicates
+            components.lowLink node components.nextIndex
+        nextIndex = components.nextIndex + 1
+        stack = Stdlib.List.push components.stack node
+        onStack = Stdlib.Dict.setOverridingDuplicates components.onStack node true }
+
+  let components = connectSuccessors env components node (referencesOf env node)
+
+  if indexOrZero components.lowLink node == indexOrZero components.index node then
+    popComponent components node []
+  else
+    components
+
+let connectSuccessors
+  (env: Model.Environment)
+  (components: Components)
+  (node: LanguageTools.ProgramTypes.Hash)
+  (successors: List<LanguageTools.ProgramTypes.Hash>)
+  : Components =
+  match successors with
+  | [] -> components
+  | successor :: rest ->
+    let components =
+      if Stdlib.Bool.not (Stdlib.Dict.``member`` components.index successor) then
+        let components = strongConnect env components successor
+        let lowLink =
+          Stdlib.Int.min
+            (indexOrZero components.lowLink node)
+            (indexOrZero components.lowLink successor)
+        { components with
+            lowLink =
+              Stdlib.Dict.setOverridingDuplicates components.lowLink node lowLink }
+      else if Stdlib.Dict.``member`` components.onStack successor then
+        let lowLink =
+          Stdlib.Int.min
+            (indexOrZero components.lowLink node)
+            (indexOrZero components.index successor)
+        { components with
+            lowLink =
+              Stdlib.Dict.setOverridingDuplicates components.lowLink node lowLink }
+      else
+        components
+
+    connectSuccessors env components node rest
+
+let popComponent
+  (components: Components)
+  (root: LanguageTools.ProgramTypes.Hash)
+  (members: List<LanguageTools.ProgramTypes.Hash>)
+  : Components =
+  match components.stack with
+  | [] ->
+    { components with completed = Stdlib.List.push components.completed members }
+  | top :: rest ->
+    let components =
+      { components with
+          stack = rest
+          onStack = Stdlib.Dict.remove components.onStack top }
+    let members = Stdlib.List.push members top
+
+    if top == root then
+      { components with completed = Stdlib.List.push components.completed members }
+    else
+      popComponent components root members
+
+/// Cache each declaration's own and transitive problems. Members of a strongly
+/// connected component share a result, built from already completed dependencies.
+let allDeclarationProblems
+  (env: Model.Environment)
+  : Dict<LanguageTools.ProgramTypes.Hash, List<Model.Finding>> =
+  let start =
+    Components
+      { nextIndex = 0
+        index = Dict {}
+        lowLink = Dict {}
+        stack = []
+        onStack = Dict {}
+        completed = [] }
+
+  let components =
+    Stdlib.List.fold (Stdlib.Dict.keys env.types) start (fun components name ->
+      if Stdlib.Dict.``member`` components.index name then components
+      else strongConnect env components name)
+
+  Stdlib.List.fold
+    (Stdlib.List.reverse components.completed)
+    Dict {}
+    (fun declarationProblems members ->
+      let own =
+        members
+        |> Stdlib.List.map (fun m ->
+          match Stdlib.Dict.get env.declarationFacts m with
+          | Some declarationFacts -> declarationFacts.problems
+          | None -> [])
+        |> Stdlib.List.flatten
+
+      let reached =
+        members
+        |> Stdlib.List.map (fun m -> referencesOf env m)
+        |> Stdlib.List.flatten
+        |> Stdlib.List.filter (fun r ->
+          Stdlib.Bool.not (Stdlib.List.``member`` members r))
+        |> Stdlib.List.unique
+        |> Stdlib.List.map (fun r ->
+          Stdlib.Option.withDefault (Stdlib.Dict.get declarationProblems r) [])
+        |> Stdlib.List.flatten
+
+      let problems = Stdlib.List.append own reached
+      // Use guarded equality; `unique` can overflow while hashing deep findings.
+      // If comparison fails, keep both findings.
+      let problems =
+        match guard (fun problems -> Stdlib.List.dedup problems) problems with
+        | Ok unique -> unique
+        | Error _ -> problems
+
+      Stdlib.List.fold members declarationProblems (fun declarationProblems m ->
+        Stdlib.Dict.setOverridingDuplicates declarationProblems m problems))
+
+let declarationFactsFor
+  (env: Model.Environment)
+  (name: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Option.Option<Model.DeclarationFacts> =
+  match Stdlib.Dict.get env.declarationFacts name with
+  | Some declarationFacts -> Stdlib.Option.Option.Some declarationFacts
+  | None ->
+    match Types.declaration env name with
+    | Some decl ->
+      let (_, cyclic) = reachesAliasCycle env Dict {} Dict {} name
+      Stdlib.Option.Option.Some(declarationFactsOf env cyclic name decl)
+    | None -> Stdlib.Option.Option.None
+
+/// Collect problems from a declaration and its dependencies at `at`.
+/// Visit each once, using a work list to avoid exhausting the native stack.
+let visit
+  (env: Model.Environment)
+  (at: Stdlib.Option.Option<Int64>)
+  (walked: Dict<LanguageTools.ProgramTypes.Hash, Bool>)
+  (found: List<Model.Finding>)
+  (name: LanguageTools.ProgramTypes.Hash)
+  : (Dict<LanguageTools.ProgramTypes.Hash, Bool> * List<Model.Finding>) =
+  visitAll env at walked found [ name ]
+
+let visitAll
+  (env: Model.Environment)
+  (at: Stdlib.Option.Option<Int64>)
+  (walked: Dict<LanguageTools.ProgramTypes.Hash, Bool>)
+  (found: List<Model.Finding>)
+  (pending: List<LanguageTools.ProgramTypes.Hash>)
+  : (Dict<LanguageTools.ProgramTypes.Hash, Bool> * List<Model.Finding>) =
+  match pending with
+  | [] -> (walked, found)
+  | name :: rest ->
+    if Stdlib.Dict.``member`` walked name then
+      visitAll env at walked found rest
+    else
+      let walked = Stdlib.Dict.setOverridingDuplicates walked name true
+
+      match declarationFactsFor env name with
+      | None -> visitAll env at walked found rest
+      | Some declarationFacts ->
+        let found =
+          Stdlib.List.fold declarationFacts.problems found (fun found problem ->
+            Stdlib.List.push found { problem with at = at })
+
+        visitAll
+          env at walked found (Stdlib.List.append declarationFacts.references rest)
+
+/// Collect declaration and dependency problems without a source node.
+let collectDeclarationProblems
+  (env: Model.Environment)
+  (name: LanguageTools.ProgramTypes.Hash)
+  : List<Model.Finding> =
+  let (_, found) = visit env Stdlib.Option.Option.None Dict {} [] name
+  Stdlib.List.reverse found
+
+/// Retrieve or cache a declaration's transitive problems, independent of use site.
+let declarationProblemsFor
+  (env: Model.Environment)
+  (name: LanguageTools.ProgramTypes.Hash)
+  : (List<Model.Finding> * Model.Environment) =
+  match Stdlib.Dict.get env.declarationProblems name with
+  | Some problems -> (problems, env)
+  | None ->
+    let problems = collectDeclarationProblems env name
+    let declarationProblems =
+      Stdlib.Dict.setOverridingDuplicates env.declarationProblems name problems
+    (problems, { env with declarationProblems = declarationProblems })
+
+/// Check every component `ty` reaches: each custom type is declared and used at its
+/// arity, aliases do not cycle, and Dict keys are orderable.
+let validateType
+  (env: Model.Environment)
+  (at: Stdlib.Option.Option<Int64>)
+  (found: List<Model.Finding>)
+  (ty: Model.Ty)
+  : (List<Model.Finding> * Model.Environment) =
+  let (names, found) = checkTypeStructure env at [] found ty
+
+  Stdlib.List.fold (Stdlib.List.unique names) (found, env) (fun (found, env) name ->
+    let (problems, env) = declarationProblemsFor env name
+
+    let found =
+      Stdlib.List.fold problems found (fun found problem ->
+        Stdlib.List.push found { problem with at = at })
+
+    (found, env))

@@ -770,8 +770,8 @@ let complete
   | [ "profile" ] ->
     Profiles.all |> Stdlib.List.map (fun profile -> Cli.Completion.simple profile.name)
   | [ "profile", "default" ]
-  | [ "profile", "read-only", _root ]
-  | [ "profile", "local-dev", _root ] -> [ Cli.Completion.simple "--yes" ]
+  | [ "profile", "read-only", _ ]
+  | [ "profile", "local-dev", _ ] -> [ Cli.Completion.simple "--yes" ]
   | "profile" :: _ -> []
   | _ ->
     Command.subcommands
