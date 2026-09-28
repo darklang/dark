@@ -162,14 +162,29 @@ type private KeyReader(readKey : unit -> RT.Dval) =
 
 
 /// The store poll: `PRAGMA data_version` on a timer, posting `StoreChanged` to every watching
-/// queue when it moves. One per `storeVersion` source.
+/// queue once it has STOPPED moving. One per `storeVersion` source.
+///
+/// Settling, rather than posting on the first tick that sees a change, is what lets the interval
+/// be short. One save is several ops -- the value, its propagation, the commit -- and a poll fast
+/// enough to land between two of them reports a half-written save, which costs a reload: every
+/// reload drops the name caches, so the render after it is a cold one. Waiting for one quiet tick
+/// makes a save arrive once however many ops it took, and makes the interval a question about how
+/// soon you hear rather than how often you are interrupted.
+///
+/// The ceiling is for a writer that never goes quiet (a long pull): after `maxHoldMs` of
+/// continuous movement it reports anyway, so a live view is never starved while ops stream in.
 type private StorePoll(version : unit -> int64, intervalMs : int) =
   let watchers = ConcurrentDictionary<Queue, unit>()
+  let maxHoldMs = 500L
+
   let mutable lastVersion =
     try
       version ()
     with _ ->
       -1L
+
+  /// When the still-unreported movement started; 0 for nothing pending.
+  let mutable movingSince = 0L
 
   let timer =
     new Timer(
@@ -179,10 +194,18 @@ type private StorePoll(version : unit -> int64, intervalMs : int) =
             version ()
           with _ ->
             lastVersion
+
+        let post () =
+          movingSince <- 0L
+          for q in watchers.Keys do
+            q.Post HostEvent.StoreChanged
+
         if now <> lastVersion then
           lastVersion <- now
-          for q in watchers.Keys do
-            q.Post HostEvent.StoreChanged),
+          if movingSince = 0L then movingSince <- System.Environment.TickCount64
+          elif System.Environment.TickCount64 - movingSince >= maxHoldMs then post ()
+        elif movingSince <> 0L then
+          post ()),
       null,
       intervalMs,
       intervalMs

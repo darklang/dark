@@ -131,15 +131,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // List all common config keys
     [ "Common configuration keys:"
       ""
-      "  sync.default_instance    - Default instance for sync service"
-      "  sync.interval_seconds    - Sync check interval (default: 20)"
-      "  sync.auto_start          - Auto-start sync service (default: true)"
       "  live.autopush            - Every save commits and pushes to the relay (on/off; default: off)"
+      "  apps.sync.intervalMs     - How often the sync daemon pulls from the relay (default: 5000)"
       "  exec.workers             - Scheduler worker threads (default: one per core)"
       "  exec.policy              - Expert: a Dark fn picking the next process (default: round robin)"
       "  exec.maxInstructions     - Expert: stop a process past this many instructions (default: none)"
       "  exec.maxBytes            - Expert: stop a process past this many bytes allocated (default: none)"
-      "  exec.storePollMs         - How often a --live view looks for a change (default: 200; minimum 10)"
+      "  exec.storePollMs         - How often a --live view looks for a change (default: 25; minimum 10)"
       "  http.requestTimeoutMs    - serve cancels a handler past this and answers 504 (default: 30000; 0 = none)"
       "  trace.record             - Keep a record of every run (on/off; default: off)"
       "  trace.keep               - How many traces to keep (a served request is one; default: 200; 0 = all)"
@@ -185,10 +183,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   let configKeys =
-    [ "sync.default_instance"
-      "sync.interval_seconds"
-      "sync.auto_start"
-      "live.autopush"
+    [ "live.autopush"
+      "apps.sync.intervalMs"
       "exec.workers"
       "exec.policy"
       "exec.maxInstructions"
@@ -214,13 +210,9 @@ let help (_state: Cli.AppState) : String =
     "  config list                - List common configuration keys"
     ""
     "Examples:"
-    "  config set sync.default_instance local"
-    "  config set sync.interval_seconds 60"
-    "  config get sync.default_instance"
-    "  config set sync.auto_start false"
+    "  config set live.autopush on"
+    "  config set apps.sync.intervalMs 2000"
+    "  config get trace.record"
     ""
-    "Common keys:"
-    "  sync.default_instance    - Which instance to sync with"
-    "  sync.interval_seconds    - How often to check for changes (default: 20)"
-    "  sync.auto_start          - Start sync service automatically (default: true)" ]
+    "`config list` names every key this reads, with its default." ]
   |> Stdlib.String.join "\n"

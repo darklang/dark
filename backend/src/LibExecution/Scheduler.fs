@@ -140,12 +140,16 @@ let defaultQuantum = 10_000L
 /// about half of how long it takes to repaint one (the other half is the reload, which drops
 /// every name cache and so pays for a cold render).
 ///
-/// 200 ms is not a cost decision. A poll is 7.6 microseconds, so five a second is 0.007% of a
-/// core and twenty a second is 0.03%; the reason to leave it here is that a save lands as
-/// several ops, and a poll fast enough to catch one mid-write reloads twice, each reload making
-/// the next render cold. `exec.storePollMs` in the store's config is the knob for measuring
-/// that (`Cli.fs` reads it).
-let mutable storePollMs = 200
+/// A poll is 7.6 microseconds, so this is not a cost decision: 25 ms is forty wakeups a second
+/// and 0.03% of a core, and the timer only runs while something is actually watching. What used
+/// to keep it at 200 was that a save lands as several ops and a fast poll could report a
+/// half-written one, paying for a reload and a cold render. `StorePoll` settles for one quiet
+/// tick now, so a save arrives once however many ops it took, and the interval decides only how
+/// soon you hear about it.
+///
+/// Measured against a live view, op to repaint: 1,430 ms at 2,000; 154 ms at 200; 40 ms at 25.
+/// `exec.storePollMs` in the store's config overrides it (`Cli.fs` reads it).
+let mutable storePollMs = 25
 
 /// How many worker schedulers a group starts: one per core unless the host says otherwise
 /// (`exec.workers` in the store's config; `Cli.fs` reads it).
