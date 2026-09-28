@@ -91,6 +91,12 @@ let setPinned (traceID: String) (pinned: Bool) : Bool =
   updated > 0
 
 
+/// The package functions one run went through, by name. What `traces show <run>` offers when you
+/// name a run rather than a function.
+let fnsOf (traceID: String) : List<String> =
+  Builtin.tracesFnsOf traceID
+
+
 /// The runs that went through <param fnName>, newest first. Answers at the shipped recording
 /// level: it reads the names-only index every recorded run writes, not the call rows.
 let runsCalling (fnName: String) (limit: Int64) : List<Trace> =

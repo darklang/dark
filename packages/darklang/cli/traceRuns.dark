@@ -113,7 +113,7 @@ type CallJson =
     process: Stdlib.Option.Option<String> }
 
 
-/// What `traces log --json` hands back: the run, and the impure calls it logged.
+/// What `traces details --json` hands back: the run, and the impure calls it logged.
 type RunWithCallsJson =
   { run: RunJson
     calls: List<CallJson> }
@@ -128,7 +128,7 @@ type ValuesJson =
     problem: Stdlib.Option.Option<String> }
 
 
-/// A run, for `--json`. The ONE converter: `list`, `find`, `calls`, `follow` and `log` all come
+/// A run, for `--json`. The ONE converter: `list`, `find`, `calls`, `follow` and `details` all come
 /// through here, so no two of them can hand back a run with different fields in it.
 let runJson (branchId: Uuid) (run: Darklang.Tracing.Trace) : RunJson =
   RunJson
@@ -175,7 +175,7 @@ let printRunsJson (branchId: Uuid) (runs: List<Darklang.Tracing.Trace>) : Unit =
 
 
 /// One run and its log, as JSON.
-let printLogJson (branchId: Uuid) (prefix: String) : Bool =
+let printDetailsJson (branchId: Uuid) (prefix: String) : Bool =
   match find prefix with
   | Error e ->
     Cli.printErr e
