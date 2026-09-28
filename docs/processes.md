@@ -23,69 +23,69 @@ state's concurrent caches.
 
 ---
 
-## The three shapes that changed
+## The three types it rests on
 
-Everything below rests on three additions to `LibExecution/RuntimeTypes.fs`, and they are worth
-reading first because every later section assumes them.
+Three additions to `LibExecution/RuntimeTypes.fs`, worth reading first because every later
+section assumes them.
 
 **A VM carries a budget and what it is waiting on.**
 
 ```fsharp
- type VMState =
-   { ...
-+    /// Instructions left in this slice. -1 when nothing is scheduling this VM,
-+    /// and -1 never reaches zero, so an unscheduled run is never preempted.
-+    mutable budget : int64
-+    /// Reads handed out as promises and not settled yet.
-+    mutable pendingReads : ResizeArray<Promise>
-+    /// The host operation this VM is waiting on, so `ps` can name the wait.
-+    mutable hostInflight : Operation option }
+type VMState =
+  { ...
+    /// Instructions left in this slice. -1 when nothing is scheduling this VM,
+    /// and -1 never reaches zero, so an unscheduled run is never preempted.
+    mutable budget : int64
+    /// Reads handed out as promises and not settled yet.
+    mutable pendingReads : ResizeArray<Promise>
+    /// The host operation this VM is waiting on, so `ps` can name the wait.
+    mutable hostInflight : Operation option }
 ```
 
 **A value can be a read that has not landed.**
 
 ```fsharp
- type Dval =
-   | DInt64 of int64
-   ...
-+  | DPromise of Promise
+type Dval =
+  | DInt64 of int64
+  ...
+  | DPromise of Promise
 
-+and Promise =
-+  { /// The read itself. Settling waits on this.
-+    Task : Task<Dval>
-+    /// The frame that made it, and the builtin that made it: what a failure is
-+    /// reported against, at the point someone looks at the value.
-+    frame : CallFrame
-+    fn : FQFnName }
+and Promise =
+  { /// The read itself. Settling waits on this.
+    Task : Task<Dval>
+    /// The frame that made it, and the builtin that made it: what a failure is
+    /// reported against, at the point someone looks at the value.
+    frame : CallFrame
+    fn : FQFnName }
 ```
 
 A `DPromise` only ever sits at the top of a register, as a frame's result, or as a builtin's
 return value, so no builtin body is ever handed one. Forcing one is `forceOperand`, and every
 opcode that needs a real value goes through it.
 
-**The tracer answers a third question.** It already said "record this call" and "what is this
-call's ordinal"; it now also answers "what should this effectful call DO":
+**The tracer answers three questions**, not two: "record this call", "what is this call's
+ordinal", and "what should this effectful call DO":
 
 ```fsharp
- type Tracing =
-   { ...
-+    /// A resume: the log's answer for this call, by (process, ordinal).
-+    replayEffect : int64 -> ReplayStep
-+    /// A preview: the log's answer by (name, arguments), or `ValueNone` when the log
-+    /// cannot answer, in which case the preview stops rather than performing anything.
-+    previewEffect : Option<string -> Dval[] -> ReplayStep voption>
-+    /// Which package functions a run went through, names only, for `traces calls`.
-+    noteFunction : Hash -> unit }
+type Tracing =
+  { ...
+    /// A resume: the log's answer for this call, by (process, ordinal).
+    replayEffect : int64 -> ReplayStep
+    /// A preview: the log's answer by (name, arguments), or `ValueNone` when the log
+    /// cannot answer, in which case the preview stops rather than performing anything.
+    previewEffect : Option<string -> Dval[] -> ReplayStep voption>
+    /// Which package functions a run went through, names only, for `traces calls`.
+    noteFunction : Hash -> unit }
 
-+and ReplayStep =
-+  /// Hand back the recorded value.
-+  | Serve of Dval
-+  /// Perform this one for real and go on replaying: a spawn, whose recorded
-+  /// result names a process that no longer exists, or an environment read,
-+  /// whose result was never stored.
-+  | PerformOnce
-+  /// The log has run out; this call and everything after it is live.
-+  | PerformOnwards
+and ReplayStep =
+  /// Hand back the recorded value.
+  | Serve of Dval
+  /// Perform this one for real and go on replaying: a spawn, whose recorded
+  /// result names a process that no longer exists, or an environment read,
+  /// whose result was never stored.
+  | PerformOnce
+  /// The log has run out; this call and everything after it is live.
+  | PerformOnwards
 ```
 
 `previewEffect` is `None` on an ordinary run, so the cost on the hot path is one null test and
@@ -884,7 +884,8 @@ and says so.
 | DB read | from the log | as file read |
 | DB write | from the log | a replayed insert inserts twice |
 | process run, exec | from the log | output is logged; re-running is a second `rm` or deploy |
-| process spawn, IO, terminate | from the log; refuse past a handle that was alive at suspend | the subprocess died with the old run; nothing to serve |
+| process spawn | performed again; the new child replays the recorded child's rows | a recorded result names a process that no longer exists |
+| process IO, terminate | from the log; refuse past a handle that was alive at suspend | the subprocess died with the old run; nothing to serve |
 | environment read | from the log | the value the run saw; another machine's env differs |
 | environment write, chdir | from the log, then re-apply to the resuming process before going live | the live suffix assumes the env the old process set |
 | clock | from the log | time must not jump backwards then forwards inside one run |
@@ -902,14 +903,6 @@ re-performed; non-deterministic sources (clock, random, input) are answered from
 resume and a fork see the same past; and the run's own process state that died with the
 old process (cwd, env it set, spawned subprocess handles, open streams) is the
 exception: re-apply what can be re-applied, refuse to cross what cannot.
-
-All three open questions the table raised were decided (2026-09-21) and are built: a
-resume echoes the logged output dimmed, or marked `[replayed]` when output is
-redirected; a call whose result was a live handle this run cannot have (an OS
-subprocess, an open HTTP stream) stops the resume at that step, naming it, and leaves
-the run as it was (an `Exec.spawn` is performed again instead, 2026-09-22, and the child
-replays its own rows); a logged file read whose file has changed since the recording
-warns and continues on what it read then.
 
 ---
 
@@ -939,6 +932,22 @@ What is deliberately not here, and where the seams are:
   value); `Exec.await` is how a value comes back.
 - Runs moved to another machine are files; a relay route would be its own
   change on the relay's own deploy.
+- The host's answer comes back through the task the loop parks on (the scheduler's
+  `Completed` post), not as a `Response` event of its own. If a `Response` event is ever
+  wanted (a remote host), `performRequested` is the one place to change.
+- `httpGetUnsafeBytesStart` performs inline on purpose (it exists not to wait); the HTTP
+  server's bind performs inline under the child guest's access (`HttpServer.fs`).
+- `Exec.awaitWithin` uses `Task.Delay` with a cancellation source, not the queue's
+  `Timer` event; same effect, one less path through the scheduler.
+- A cancel of a process parked on a task that never completes waits forever; that is
+  what `ps kill` is for, said in the ps help. A stop reason is a string on the process
+  ("cancelled", "stopped by ps kill", "its parent finished") and the awaiter sees it as
+  an `UncaughtException` with that message.
+- `ps` shows the tree from the `parent` field; a process whose parent has been forgotten
+  (the finished-process cap, 64 per scheduler) becomes a root.
+- `Effects.readsOnly` is a name table with one entry. If a second builtin needs it, that
+  is the moment to consider a real `HttpRead` effect and what it costs the policy
+  language.
 - The stdin reader thread has not been checked on Windows.
 
 ---
@@ -996,6 +1005,17 @@ rest of this file is what the system does; this section is how to move around in
   `execSettings`/`workerCount`/`installPolicy`, `installStoreVersionSource`, the Ctrl-C
   suspend, `DARK_SCHEDULER=off`.
 
+Where live meets the scheduler, for whoever changes one side and has to walk the other:
+`Stdlib.Host.await` and its `EventSpec`/`Event` types (`stdlib/hostAwait.dark`), the host
+loop in `cli/apps/host.dark` and the workbench loop in `cli/loop.dark`; the store version
+source `HostEvents.sources.storeVersion`, installed from `Cli/Cli.fs` over
+`LibDB.Sqlite.DataVersion`; `Scheduler.SpawnApply` and `AwaitWithin` in `HttpServer.fs`; the
+test harness's `loopDriver`/`stepOn`/`pushKey`/`pushTick` over `Scheduler.PushEvent`;
+`cli/ps.dark` and the workbench's Processes pane over `Exec.list`/`inspect`/`cancel`; live
+values (`TraceExpr` and `storeExprResult` in `Interpreter.fs`, `Tracing.forProcess`,
+`LiveValues.fs`); and `Cli/Cli.fs`, where `apps daemon-main <slug>` sits beside
+main-through-the-scheduler and `DARK_SCHEDULER=off`.
+
 ### Rules that bite
 
 - Only a process's own scheduler thread steps it; everything else posts to its queue.
@@ -1034,300 +1054,26 @@ rest of this file is what the system does; this section is how to move around in
 - A process run (`Stdlib.Cli.execute`) parks now (`Host.blocking`); a file or libc call
   never does. A test process that parks on the host: run `sleep 1`; one that parks
   forever: `Builtin.testGateWait n`, released by `Gates.release n` from F#.
+- `exec.maxInflight` is a `mutable` in `Interpreter.Promises`, not a config key, because one
+  test lowers it to 2 to see the bound hold.
+- Two traps under the perf gate, both in `docs/perf/history.md`: a `scripts/dev/build
+  --optimize` binary reads about 0.3 MB higher than CI's
+  `scripts/build/build-release-cli-exes.sh`, and a store that has just run the suite reads
+  another 2.5% high. Build with the CI script and `reload-packages` before trusting a
+  published number.
 - Never wait on a suite with a `pgrep -f` that matches itself; run it in the foreground
   or wait on the `Tests` pid. Two suites in one clone destroy each other.
 
-### Half-decisions and rough edges
-
-- The builtin signature is still `Ply<Dval>`. A finished `Ply` is a free struct, so this
-  costs nothing; the request protocols ride the VM (`pendingNext`, `pendingHostOp`)
-  rather than a return type. Changing the ABI of every builtin was judged not worth it.
-  The store-facing builtins (`DB`, `PM`, `Traces`, the CLI host's script runner) await
-  SQLite, which never actually waits.
-- The host's answer comes back through the task the loop parks on (the scheduler's
-  `Completed` post), not as a `Response` event of its own. If a `Response` event is ever
-  wanted (a remote host), `performRequested` is the one place to change.
-- `httpGetUnsafeBytesStart` performs inline on purpose (it exists not to wait); the HTTP
-  server's bind performs inline under the child guest's access (`HttpServer.fs`, live's
-  file).
-- `Exec.awaitWithin` uses `Task.Delay` with a cancellation source, not the queue's
-  `Timer` event; same effect, one less path through the scheduler.
-- A cancel of a process parked on a task that never completes waits forever; that is
-  what `ps kill` is for, said in the ps help. A stop reason is a string on the process
-  ("cancelled", "stopped by ps kill", "its parent finished") and the awaiter sees it as
-  an `UncaughtException` with that message.
-- `ps` shows the tree from the `parent` field; a process whose parent has been forgotten
-  (the finished-process cap, 64 per scheduler) becomes a root. `Summary` does not carry
-  `detached`; add it if the view needs it (a `PackageRefs` change, so the seed dance).
-- `Effects.readsOnly` is a name table with one entry. If a second builtin needs it, that
-  is the moment to consider a real `HttpRead` effect and what it costs the policy
-  language.
-- `exec.maxInflight` is a `mutable` because one test lowers it; it is not a config key.
-- The perf gate budget went 9.74 to 9.82 MB (its own commit, reason in
-  `docs/perf/history.md`). Two traps: the `scripts/dev/build --optimize` binary reads
-  about 0.3 MB higher on the gate than CI's `scripts/build/build-release-cli-exes.sh`,
-  and a store that just ran the suite reads 2.5% high. Build with the CI script and
-  `reload-packages` before trusting a published gate number.
-
-### How the bench and the gate were run
-
-- Save a snapshot after a Debug build: `scripts/perf/bench bin save <name>` (it copies
-  `backend/Build/out/Cli/Debug/net10.0`; `--optimize` builds go elsewhere, so an A/B of
-  two snapshots is Debug against Debug, which is what every number on this branch is).
-  Snapshots live in `rundir/perf/bin/` (`after-oneloop`, `after-host-requests`,
-  `after-http-requests`, `after-pure-nobuilder` are the Ply-out series; `integ-pre-loop`
-  is the tip before it).
-- Save a store fixture matching the snapshot: `scripts/perf/bench fixture save <name>`
-  writes `rundir/perf/fixture-<name>.db` (`fixture` alone is `fixture.db`). Then
-  `scripts/perf/bench ab <A> <B> <scenario> --fixture-a <name> --fixture-b <name>`; the
-  scenarios are `scripts/perf/bench scenarios` (`interp-arith`, `interp-list`,
-  `eval-map1000`, `eval-stream`, ...). Fifteen interleaved pairs; read the median paired
-  difference and the pairs count, not the medians. Raw outputs from this series are in
-  `rundir/perf-plyout/` and `rundir/perf-followups/` (not in git).
-- A workload of your own: a `.dark` file in `rundir/perf-workloads/` in the shape of
-  `arith.dark` (warm, `Builtin.interpreterStatsReset`, time with `Builtin.timeNowMs`,
-  print `elapsed_ms=`), run by hand with `scripts/run-in-docker
-  /home/dark/app/rundir/perf/bin/<name>/Cli --no-trace run
-  rundir/perf-workloads/<file>.dark`, interleaved A/B in a shell loop. That is how the
-  blob number was taken (`blobcalls.dark` is there).
-- The gate: `scripts/perf/gate` prints MB; the exact bytes are the `totalAllocatedBytes`
-  of the `gc.stats` line in `rundir/logs/telemetry.jsonl` after a run. Three runs spread
-  about 70 KB on 9.5 MB. `scripts/perf/gate --published` needs a fresh seed and a binary
-  from `scripts/build/build-release-cli-exes.sh` (the CI path; `--optimize` reads 0.3 MB
-  higher).
-- Bench the box only when it is quiet; `bench ab` refuses under load unless `--allow-noise`.
-
 ### Tests, and which are slow
 
-- `scripts/dev/build --optimize --test` is the full published suite, about 5m45s, 11,444
-  tests; every landing ran it. It needs the seed export first after a `PackageRefs`
-  change.
+- `scripts/dev/build --optimize --test` is the full published suite, about 5m45s. It needs
+  the seed export first after a `PackageRefs` change.
 - Groups worth knowing (`./scripts/run-backend-tests --filter <group>`, seconds after
-  the reload): `tests/scheduler` (36 tests, about 10 s, `testSequenced` because gates,
-  trace and the fake key source are process-wide), `tests/LibExecution` (6,734 testfile
-  cases, about 40 s, the stdlib), `tests/HttpClient` (4 s), `tests/CliWorkspace` (16 s,
-  the workbench and live), `tests/MultiInstance` (10 s, sync), `tests/builtin` (the
-  one-wrapper rule), `tests/Interpreter/PermissionsGate`, `tests/permissions`,
-  `tests/PermissionEscape`, `tests/blob`. `--groups` lists everything with counts.
+  the reload): `tests/scheduler` (about 10 s, `testSequenced` because gates, trace and
+  the fake key source are process-wide), `tests/LibExecution` (the stdlib testfiles,
+  about 40 s), `tests/HttpClient` (4 s), `tests/CliWorkspace` (16 s, the workbench and
+  live), `tests/MultiInstance` (10 s, sync), `tests/builtin` (the one-wrapper rule),
+  `tests/Interpreter/PermissionsGate`, `tests/permissions`, `tests/PermissionEscape`,
+  `tests/blob`. `--groups` lists everything with counts.
 - Test-only builtins in `TestUtils/LibTest.fs`: `testGateWait n`, `testTrace s`,
   `testRead n`; `Gates.release`/`reset`, `Trace.take` from F#.
-
-### For the next items
-
-- The perf table (main vs branch): build main in a sibling clone with the same config
-  (Debug for `bin save`, or a published build on both sides and pass paths to `bench
-  ab`, which accepts a path in place of a snapshot name); the two stores must each match
-  their binary (`--fixture-a`/`--fixture-b`, or `none` for a published binary's own
-  seed). For the HTTP row, a local server: `scripts/perf/http` starts one; N GETs in a
-  `List.map` on main run one by one (main has no scheduler), so the ratio is roughly N.
-  Startup: `dark eval 1L` wall clock, twenty runs each, interleaved. `List.parallelMap`
-  on one worker: `dark config set exec.workers 1`.
-- `serve` end to end: `HttpServer.fs` `executeHandler` spawns each request with
-  `SpawnApply` and the serve process as parent, so a request is already a process a `ps
-  kill` reaches; a timeout is `Scheduler.AwaitWithin` on the handler's completion then
-  `Cancel` (the same member `Exec.awaitWithin` uses); the slow-handler test is one
-  request that sleeps beside three that do not; `scripts/perf/http` is the before/after.
-  Per-request state is `perRequestStateFor`.
-- Process titles: `Cli/Cli.fs` `main` knows the command after parsing; write
-  `/proc/self/comm` (15 bytes) and, for the cmdline, overwrite the argv memory through
-  `prctl(PR_SET_MM_ARG_START/END)` or by writing into the original argv area (P/Invoke).
-  Plain host code called once at startup is the right shape; `tests/hostBoundary` scans
-  for OS-touching IL, so put it in `Host/` and see what the scan says.
-- The live process view: the registry should be a directory of files under the rundir
-  (one per OS process, written at startup with pid, title, entry, branch, started,
-  removed at exit), read by `dark ps` from any shell, stale entries dropped when `kill
-  -0 pid` fails; cross-process cancel is a signal (`SIGINT`, the CLI's Ctrl-C path,
-  which already suspends an execution) and cross-process kill is `SIGKILL`; the store's
-  `PRAGMA data_version` poll is not the right carrier for this. `ps --watch` is a host
-  loop over `Host.await [Key; Timer 500]` painting `Cli.Ps.treeRows` through the `Node`
-  tree; the workbench pane already paints those rows.
-- Limits: `exec.maxInstructions` is a comparison against `p.instructionsTaken` (what the
-  slices spent of the budget, `quantum - vm.budget` per slice) in `Scheduler.Step`
-  before the slice; bytes are `GC.GetAllocatedBytesForCurrentThread()` bracketing the
-  slice on the scheduler thread (one thread per scheduler, so the delta is that
-  process's) accumulated on the process; a process over its cap is `Finish`ed with a
-  plain reason like a cancel. `ps` gets two columns.
-- Suspended runs across machines: the execution is rows in the trace tables
-  (`LibDB/Traces.fs`, the schema in `migrations/schema/08-traces.sql`); `dark traces
-  push` is a bundle of those rows through the sync transport (`httpPostUnsafeBytes` to
-  the relay), `pull` the reverse, then `resume` as today. Check the log's size on a real
-  run first; a run that read a big file has the bytes in the log.
-- The tracing cap is built (`TraceRetention`: `trace.keep`, `trace.maxMb`, the suspended,
-  pinned and newest-per-entry exemptions), the redaction is built, and so is pinning
-  (`dark traces pin|unpin`, the `pinned` column).
-- Replay refinements: all in `invokeBuiltin`'s `replayed` arm (the `Stdout` echo is a
-  `match fn.callEffects` there), and in `Tracing.createReplayTracer` for what the log
-  cannot reproduce (an open stream, a live subprocess handle, a `Native` call), which
-  should fail the resume naming the step's ordinal, and a `FileRead` whose file's mtime
-  moved since the log, which should warn.
-
----
-
----
-
-## Decisions, indexed
-
-One line each, with the date they were taken. The design they came out of is this doc
-and `docs/live.md`.
-
-| id | decision |
-|---|---|
-| H1 | hosts learn of a store change by polling `PRAGMA data_version` |
-| H2 | reload = re-resolve names at the next call; in-flight finishes on old code; a fn held as a value keeps its hash, so daemons need a restart until the scheduler's budget yield |
-| H3 | which views re-run: transitive dependents from `package_dependencies`; re-run-all as fallback |
-| H4 | a view is `Model -> Node`; one `Node<'msg>` tree; `Ui.Tui.render`, `Ui.Html.render` |
-| H5 | model held in memory across a swap; `:save` snapshots it as a `val` |
-| H6 | broken edit: keep the last good hash, error in a band; same for RTEs |
-| H7 | `serve` resolves the router per request; SSE browser refresh only if time |
-| H8 | prod host follows a chosen branch (`dark --branch <name> serve ...`, which exists); new auto-commit-and-push mode |
-| H9 | live values from traces: after record/replay lands, not on the demo path |
-| H10 | agent channel: untouched until the agent harness merges |
-| reframe | target is two demos, phases disposable; `Node` tree and remote move into the first stretch |
-
-Scheduler:
-
-| id | decision |
-|---|---|
-| S1+S2 | process = wrapped `VMState`, F# cooperative scheduler first; then remove host re-entry until all state is explicit and portable ("a then c") |
-| S3 | Ply leaves the interpreter at the end: awaits park on `Operation`, resume with `Response` |
-| S4 | reads (calls whose effects are all read-effects) run concurrently and force on use; writes keep program order; `demand x` forces now; `Exec.spawn`/`await` for deliberate background work |
-| S5 | instruction-budget yields (BEAM reductions), measured on the perf bench |
-| S6 | `readKey` parks on an event queue fed by a reader thread; users still write `readKey ()` |
-| S7 | an execution is record/replay: entry + inputs + effectful-call log; resume after Ctrl-C = replay then live; fork = shared log prefix + parent pointer; classic's store-only-impure rule (`callEffects` non-empty) |
-| S8 | persistence = the log; no frame serialisation |
-| S9 | cores now, via per-process `ExecutionState` copies (the Http server's trick) |
-| S10 | live and scheduler in parallel, two clones, merge at the end |
-| naming | the durable record/replay thing is an `Execution`; Dark module `Stdlib.Exec` (`spawn`, `await`, `select`, `demand`); CLI `dark exec list/show/resume/fork` for durable ones, `dark ps` for what is running now; `Process` stays an F#-internal name; `Stdlib.Cli.Process` (OS subprocess) untouched |
-| S4 verbs | three verbs: `demand x` forces a not-ready value; `Exec.spawn f` starts an explicit execution and returns a handle; `Exec.await h` waits on the handle |
-| follow-up order | cores, implicit reads, record/replay, re-entry removal, Ply out, policy. Cores first (Stachu, 2026-09-19: "do the full thing, don't half-ass it"): the cache surgery before the visible reads win. Record/replay before re-entry removal because its replay tests then guard the rewrites |
-| syntax (2026-09-21) | the force word is `await` (`demand` renamed); one Dark stop verb `Exec.cancel h` (children die with their parent unless detached), the CLI keeps `dark ps cancel` (polite, cleanup) and `dark ps kill` (escape hatch for a process stuck in a native call); `List.parallelMap` stays; two CLI nouns stay (`dark ps` = running now, `dark exec` = suspended runs); the `concurrency` permission stays a real effect. Trims: `DARK_EXEC_WORKERS` gone, `exec.workers` defaults to the cores, `exec.maxInflight` a fixed default, `DARK_SCHEDULER=off` and `exec.policy` out of user docs, the HTTP read hint goes with Http-as-read, `Ps.printAll` goes with the live process view |
-| one branch (2026-09-21) | one branch `scheduler-and-live`, one PR "Scheduler and live programming", one clone; the two tracks' commits stay grouped; live never rebases onto scheduler changes, it merges them and walks the seam list |
-| replay (2026-09-21) | all three recommendations of `replay-effects-2026-09-21.md`: dimmed echo of the old run's output on resume; refuse to resume past an unreproducible effect (open stream, live subprocess, undeclared native call) with a message naming the step; warn on a file read whose file changed since the log |
-| awaits, gate, tracing (2026-09-21) | the two `await`s stay (`await x` on a value, `Exec.await h` on a handle); the perf gate budget is raised in the merge commit with `gate --update`, reason in `docs/perf/history.md`; tracing on by default behind the retention cap once the cap exists |
-| unlooked reads (2026-09-21) | a read nobody looks at is waited for at the end of the run, and its failure fails the run there, naming the read (the JS unhandled-rejection rule); forcing at every frame's return was the barrier nobody wanted |
----
-
----
-
-## Decisions made while building
-
-Departures from the plan, each with its reason; as binding as the table above. Details
-are in `docs/processes.md` and `docs/live.md` in the tree.
-
-- Cores: no copy-on-spawn caches; they were already concurrent and content-keyed, and a
-  per-process copy would break a lambda created in one process and applied in another.
-  The tracer is the one per-process thing; denial lists are shared and locked so a
-  child's denial reaches the parent.
-- Reads: a read in flight is the builtin's own task wrapped as a promise in the
-  register, forced by the first instruction that inspects it; not a spawned process.
-  `Http` is not a read effect (`http` stays one word in the permission language: a
-  policy grants a URL, not a method); GET and HEAD are `httpClientRead`, which
-  `Effects.readsOnly` names a read per builtin, so `HttpClient.get`, `head` and `request
-  "GET"` are reads and every other method keeps its order. `Clock` and `Random` complete
-  synchronously and stay in order. A denied read raises at the call site; a failed read
-  raises at the force point.
-- Executions: the log is the state; no frame snapshots. A replayed `printLine` prints
-  nothing (pending Stachu's call on the replay analysis). The recorded run's process ids
-  are matched to the resumed run's in order of first appearance, which is also the order
-  a parent spawns its children: a resumed run performs its spawns again, and each new
-  child replays the recorded child's rows.
-- Re-entry removal: List and Stream families done; the HTTP server done on the live
-  side. The interpreter honours a request after a builtin's first wait (`landBuiltin`),
-  rather than threading a continuation through the stream implementation.
-- Policy: an F# loop asks a Dark chooser which runnable process steps next, instead of
-  the plan's Dark-owned loop over step builtins, which moved the hot loop into Dark for
-  no gain.
-- Ply out: every library that can park now hands the loop a host operation; the
-  store-facing builtins keep `Ply` because SQLite has no asynchronous I/O and they never
-  park; the builtin signature stays `Ply<Dval>`.
-- The perf gate: over budget by honest startup work (a bigger package set, the registry
-  file, the worker pool), nothing per step, spawn or event; raised with `gate --update`,
-  said in the PR and in `docs/perf/history.md`.
-- The two `await`s: `Stdlib.await x` forces a value, `Exec.await h` waits on a handle;
-  the same word, different modules, because one function cannot be typed as both.
-- One branch: `scheduler-and-live`, made by merging `live-programming` into the
-  scheduler's integration branch, no conflicts; the live clone's container stopped,
-  nothing deleted.
-- `Http` as a read: no second effect name. `httpClientRead` (GET and HEAD) is named a
-  read by `Effects.readsOnly`, a per-builtin table beside `isRead`, since `http` in a
-  policy grants a URL, not a method, and a new effect name is one every policy and older
-  binary would have to know. `HttpClient.request "GET"` dispatches to it in Dark, so the
-  user surface did not change.
-- The trims: `exec.maxInflight` stayed a `mutable` in `Interpreter.Promises` (not a
-  config key) because one test lowers it to 2 to see the bound hold.
-- Replay refinements (2026-09-21, coordinator): the three rules live in
-  `Interpreter.ReplayPolicy`, run before a logged result is handed back. The "undeclared
-  native call" refusal is by builtin name, not by the `Native` effect: the runtime's own
-  libc-backed builtins (every posix call) carry `Native`, so the effect would have
-  refused every file read; a user-level FFI builtin joins the name set when one exists.
-- Tracing on by default (2026-09-21, coordinator): the default records the impure calls
-  only (Stachu's call). The three levels were later cut to two switches, recording on/off
-  and values on/off, which is the same thing said in fewer words; the cap is two config keys, `trace.keep` (200 traces) and `trace.maxMb` (256 MB
-  of args and results), enforced at store time, a suspended execution's trace exempt; a
-  pass costs one count per store and scans byte weights only past fifty traces, at most
-  every ten seconds. Secrets in the log stay an open question; the docs say what is in
-  the clear.
-- Suspended runs across machines (2026-09-21, coordinator, REVERSED 2026-09-24): a text
-  bundle of the rows was built and then removed again (Stachu's call). It carried no
-  code, no blobs and no argv, so it moved the runs whose log happened to be
-  self-contained and quietly went live early for the rest. Moving a run belongs with
-  synchronising runs properly, and should arrive with that design.
-- Per-process caps (2026-09-21, coordinator): `exec.maxTurns` and `exec.maxBytes` as
-  expert config keys, unset = no cap, checked before each slice; bytes are
-  `GC.GetAllocatedBytesForCurrentThread` around the slice on the scheduler's own thread,
-  so the delta is that process's. Not defaults: a default cap would break a legitimate
-  long run; the keys are for a host that wants a fence. `ps show` prints the allocation
-  either way.
-- The live process view (2026-09-21, coordinator). The registry is a directory of files
-  under `<rundir>/run/ps/`, one per OS process, written by the CLI at startup with pid,
-  title, command, branch and start time, removed on `ProcessExit`, stale ones (pid gone)
-  dropped by readers. Chosen over a socket or the store: nothing to keep alive, nothing
-  to migrate, readable by any shell, and the daemons' pidfiles already live beside it.
-  Cross-process reach is a signal (INT = the Ctrl-C suspend path, KILL); TERM was the
-  first cut and did not reach the suspend handler; a process's own Dark tree is not
-  published, so `ps` shows the machine's OS rows plus this instance's tree. A view can
-  now declare `every: Some ms` and gets a `Tick` event; `ps --watch` is such a view
-  (cursor, `c`, `k`, Escape). The workbench pane lists the machine rows under its own
-  table. No browser version: nothing serves a page for it yet, and a `serve` of the view
-  would need a request loop of its own; a follow-up if wanted.
-- The perf table (2026-09-21, coordinator), raw runs. Setup: a throwaway clone
-  `perf-main` at the branch's base (the merge-base with `origin/main`, "Merge pull
-  request #5774"), published build (`scripts/dev/build --optimize` after `export-seed`),
-  its own container; the branch's published build in the scheduler container; workloads
-  under `rundir/perf-workloads/` in both (`httpgets.dark`, `httpone.dark`,
-  `parmap.dark`, `arith.dark`, `listwork.dark`, `slow-server.dark`). A local slow server
-  was the plan but a `run` script is a guest and may not reach a private address
-  (`canUsePrivateNetworkHttp`), so the HTTP row uses `https://httpbin.org/delay/1` with
-  `permissions allow http GET` on both stores. HTTP GETs x20, ms: main 20601, 19723,
-  20761; branch 3090, 2202, 1378. `parmap.dark` (branch): workers=1 map/parallelMap
-  2003/1823, 1965/1811, 2129/1929; workers=8 2011/309, 1988/282, 1949/284; workers=48
-  1995/296, 1935/255, 1949/266. `arith.dark` interleaved main/branch x8: 28/31 28/30
-  28/30 28/30 28/30 27/30 27/30 28/32. `listwork.dark` x8: 948/812 954/879 946/868
-  959/829 937/875 930/868 950/861 940/870. `dark eval 1L` x20: main min/median/max
-  593/605/639, branch 674/689/744. `scripts/perf/http --release -n 2000 -c 16`: main
-  4414, 4478, 4815 req/s, p50 3.12/3.12/2.96 ms, 49.79/49.78/49.80 KB; branch 4383,
-  4395, 3841 req/s, p50 2.40/2.51/4.15 ms, 84.55/85.45/87.07 KB. Two findings: startup
-  +84 ms (30 ms is the scheduler path, the rest the bigger package set and live's
-  startup; the workers were already lazy) and +35 KB per HTTP request, cut to +5.6 KB
-  (55.4 KB vs 49.8; `scripts/perf/http --release` after the child-count change:
-  4526/3951/4078 req/s, p50 2.25/3.91/3.79 ms, 55.39/55.39/55.41 KB) by not scanning
-  every scheduler for a finished leaf's children.
-
----
-
----
-
-## Seam list: every place live touches the scheduler
-
-The two tracks are one branch now; this is the map of where they meet, for whoever
-changes one side and has to walk the other. `Stdlib.Host.await` and its
-`EventSpec`/`Event` types (`stdlib/hostAwait.dark`; the host loop in
-`cli/apps/host.dark`, the workbench loop in `cli/loop.dark`, `Live.poll` describing a
-change). The store version source `HostEvents.sources.storeVersion`, installed from
-`Cli/Cli.fs` over `LibDB.Sqlite.DataVersion`. `Scheduler.SpawnApply` and `AwaitWithin`
-in `HttpServer.fs`. The test harness's `loopDriver`/`stepOn`/`pushKey`/`pushTick` over
-`Scheduler.PushEvent`. `cli/ps.dark` and the workbench's Processes pane over
-`Exec.list`/`inspect`/`cancel`. Live values: `TraceExpr` and `storeExprResult` in
-`Interpreter.fs`, `Tracing.forProcess`, `LiveValues.fs`. `Cli/Cli.fs`: `apps daemon-main
-<slug>` beside main-through-the-scheduler and `DARK_SCHEDULER=off`. `docs/live.md` names
-scheduler surfaces in "The host loop", "Live values" and "The agent channel".

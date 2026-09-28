@@ -379,7 +379,8 @@ pays many replays. Each performs nothing, so it is CPU and not risk.
 demo 1, TUI follows edits
   terminal A:  dark apps view stats
   terminal B:  edit Stats.render (workbench, LSP, or an agent), save
-  A repaints within ~200 ms.
+  A repaints before the save has finished printing (about 460 ms end to end,
+  of which the live half is 8 ms; the rest is the authoring command).
   terminal B:  save a version with a type error
   A keeps the last frame; a band under it shows the diagnostic.
   terminal B:  fix it
@@ -390,7 +391,7 @@ demo 2, prod follows a branch
                dark --branch <b> serve Site.router --port 8080
   local:       dark config set live.autopush on
                edit Site.page, save
-  ~5 s later:  curl http://<host>:8080/  -> new page
+  ~2 s later:  curl http://<host>:8080/  -> new page
   local:       save a broken Site.page
                curl -> still the last good page; the host log has the diagnostic
 ```
@@ -400,4 +401,4 @@ Demo.router '(req: Stdlib.Http.Request): Stdlib.Http.Response =
 Stdlib.Http.responseWithText (Demo.page ()) 200'`, `dark serve Demo.router --port 9095`;
 then `dark fn Demo.page '(): String = "v2"'` in another terminal and the next `curl` has
 it; `dark fn Demo.page '(): String = 3'` leaves the page on v2 and prints the diagnostic
-in the serve terminal. The recorded runs of both demos are in the PR.
+in the serve terminal.
