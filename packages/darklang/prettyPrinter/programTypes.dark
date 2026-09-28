@@ -96,7 +96,16 @@ type Context =
     /// Live values: what a call produced the last time this code ran, keyed by the call's
     /// expression id (as text), already rendered. A call with an entry prints with `// = <value>`
     /// after it. Empty everywhere but the editor's panes.
-    liveValues: Dict<String, String> }
+    liveValues: Dict<String, String>
+
+    /// May a live value change the LAYOUT?
+    ///
+    /// A comment cannot sit in the middle of a line, so showing what each stage of a pipe produced
+    /// means breaking the pipe one stage per line. `dark traces show` and the workbench's Inspect
+    /// pane want that. The LSP must not have it: its inlay hints are found by printing twice, once
+    /// with values and once without, and zipping the two line for line, so a print that gains LINES
+    /// when it gains values yields no hints at all.
+    breakForValues: Bool }
 
 module Context =
   let forBranch (branchId: Uuid) : Context =
@@ -106,7 +115,8 @@ module Context =
         currentFunction = Stdlib.Option.Option.None
         width = 80
         preferredLocation = Stdlib.Option.Option.None
-        liveValues = Stdlib.Dict.empty }
+        liveValues = Stdlib.Dict.empty
+        breakForValues = false }
 
   val forMain = forBranch Darklang.SCM.Branch.mainBranchId
 
@@ -122,7 +132,8 @@ module Context =
         currentFunction = Stdlib.Option.Option.None
         width = 80
         preferredLocation = Stdlib.Option.Option.None
-        liveValues = Stdlib.Dict.empty }
+        liveValues = Stdlib.Dict.empty
+        breakForValues = false }
 
   let toPickContext (ctx: Context) : LanguageTools.PackageManager.PickContext =
     LanguageTools.PackageManager.PickContext
@@ -615,6 +626,28 @@ let applyArg (ctx: Context) (arg: LanguageTools.ProgramTypes.Expr) : Stdlib.Pret
   if applyArgNeedsParens arg then parens inner else inner
 
 
+/// The ` // = value` a live value adds after an expression, or nothing at all.
+///
+/// Zero columns wide for layout (`Styled` measures only its middle), so adding one never moves
+/// the code it sits after.
+let valueSuffix (ctx: Context) (id: Int64) : Stdlib.Pretty.Doc =
+  match Stdlib.Dict.get ctx.liveValues (Stdlib.Int64.toString id) with
+  | Some value -> Stdlib.Pretty.styled $" // = {value}" "" ""
+  | None -> Stdlib.Pretty.text ""
+
+
+/// A pipe stage's own expression id, which is what its value is keyed by. Every stage carries one
+/// through the desugaring (`EPipeFnCall(id, ...)` becomes `EApply(id, ...)`), which is why the
+/// values are already there to print.
+let pipeExprId (p: LanguageTools.ProgramTypes.PipeExpr) : Int64 =
+  match p with
+  | EPipeVariable(id, _, _) -> id
+  | EPipeLambda(id, _, _) -> id
+  | EPipeInfix(id, _, _) -> id
+  | EPipeFnCall(id, _, _, _) -> id
+  | EPipeEnum(id, _, _, _) -> id
+
+
 let pipeExprDoc (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : Stdlib.Pretty.Doc =
   let txt (s: String) : Stdlib.Pretty.Doc = Stdlib.Pretty.text s
 
@@ -911,10 +944,34 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
   // `xs |> List.length` on one line when it fits; longer chains keep one stage per line.
   | EPipe(_id, e, pipeExprs) ->
+    // Each stage carries its own value, which is the thing you actually want from a pipe: what came
+    // out of step two, not only what the whole thing answered.
+    //
+    // Only where the layout may change, though. A comment cannot sit in the middle of a line, so
+    // annotating the stages means one stage per line, and a caller that needs the lines to stay
+    // put (the LSP) gets the pipe exactly as it printed before.
+    let annotate =
+      ctx.breakForValues
+      && (pipeExprs
+          |> Stdlib.List.any (fun pe ->
+            Stdlib.Option.isSome
+              (Stdlib.Dict.get ctx.liveValues (Stdlib.Int64.toString (pipeExprId pe)))))
+
     let stages =
       pipeExprs
-      |> Stdlib.List.map (fun pe -> Stdlib.Pretty.concat (txt "|> ") (pipeExprDoc ctx pe))
-      |> Stdlib.Pretty.join Stdlib.Pretty.line
+      |> Stdlib.List.map (fun pe ->
+        let stage = Stdlib.Pretty.concat (txt "|> ") (pipeExprDoc ctx pe)
+
+        if annotate then
+          Stdlib.Pretty.concat stage (valueSuffix ctx (pipeExprId pe))
+        else
+          stage)
+      // A hard line, not a soft one, on the annotated path: a soft line is only a break if the
+      // group it is in decides to break, and an `// = value` is zero columns wide, so an
+      // enclosing group would happily flatten the pipe back onto one line with the comments
+      // swallowing it.
+      |> Stdlib.Pretty.join (
+        if annotate then Stdlib.Pretty.hardLine else Stdlib.Pretty.line)
 
     // Low-power heads would swallow the pipe into their final branch.
     let head =
@@ -922,8 +979,14 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
       | ELambda(_, _, _) -> exprDoc ctx e
       | _ -> if (exprPower e) == 0 then parens (exprDoc ctx e) else exprDoc ctx e
 
-    Stdlib.Pretty.group (
-      Stdlib.Pretty.concat head (Stdlib.Pretty.concat Stdlib.Pretty.line stages))
+    let sep =
+      if annotate then Stdlib.Pretty.hardLine else Stdlib.Pretty.line
+
+    let doc = Stdlib.Pretty.concat head (Stdlib.Pretty.concat sep stages)
+
+    // Grouping is what lets a short pipe sit on one line, which is where a comment would eat the
+    // rest of it.
+    if annotate then doc else Stdlib.Pretty.group doc
 
   // Parenthesise only where precedence or associativity requires it. The old printer wrapped both
   // operands unconditionally, which turned `n * (factorial n - 1L)` into `(n) * ((factorial n) - (1L))`
@@ -1059,14 +1122,7 @@ let lineDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   let doc = exprDoc ctx e
 
   match e with
-  | EApply(id, _, _, _) ->
-    match Stdlib.Dict.get ctx.liveValues (Stdlib.Int64.toString id) with
-    | Some value ->
-      // Zero columns wide for layout (`Styled` measures only its middle), so the code breaks
-      // exactly as it does without the values, and the two prints line up line for line.
-      // The LSP relies on that to place its hints.
-      Stdlib.Pretty.concat doc (Stdlib.Pretty.styled $" // = {value}" "" "")
-    | None -> doc
+  | EApply(id, _, _, _) -> Stdlib.Pretty.concat doc (valueSuffix ctx id)
   | _ -> doc
 
 

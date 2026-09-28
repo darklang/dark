@@ -74,7 +74,8 @@ let annotate
 
         let ctx =
           { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
-              liveValues = values }
+              liveValues = values
+              breakForValues = true }
 
         ((PrettyPrinter.ProgramTypes.packageFn ctx fnDef) |> Stdlib.String.split "\n",
          problem)

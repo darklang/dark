@@ -1116,6 +1116,29 @@ match Darklang.LanguageTools.PackageManager.Function.find bid loc with
 | None -> "no hash"
 """
 
+/// The Dark source for two prints of one function under the EDITOR's context: the plain one and
+/// the annotated one, joined by a marker. The LSP finds its hints by zipping these line for line,
+/// so they must have the same number of lines whatever the code is.
+let private plainAndAnnotated (owner : string) (modul : string) (name : string) =
+  $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}"; modules = ["{modul}"]; name = "{name}" }}
+let bid = Darklang.SCM.Branch.mainBranchId
+let values =
+  match Darklang.Stdlib.Live.Values.replay bid loc with
+  | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map (fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval bid d)
+  | None -> Darklang.Stdlib.Dict.empty
+let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
+match Darklang.LanguageTools.PackageManager.Function.find bid loc with
+| Some hash ->
+  match Darklang.LanguageTools.PackageManager.Function.get hash with
+  | Some fn ->
+    (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn)
+    ++ "@@@"
+    ++ (Darklang.PrettyPrinter.ProgramTypes.packageFn {{ ctx with liveValues = values }} fn)
+  | None -> "no fn"
+| None -> "no hash"
+"""
+
+
 /// Live values: a function's last recorded call, run again through the code as it is NOW, with
 /// the value of every call inside it put beside the code. The trace names the call by the
 /// function's dotted name; the current version's hash is what runs. So an edit to a callee shows
@@ -1153,6 +1176,55 @@ let private previewPicksWhichRunToShow =
           runCli target [ "traces"; "show"; "Tests.Inbox.describe"; older ]
         Expect.stringContains chosen "\"BOB\"" "the run that was asked for"
         Expect.isFalse (chosen.Contains "\"ALICE\"") "and not the newest one"
+      })
+
+
+/// A pipe's stages each carry a value, and the value of step two is the thing you wanted. Showing
+/// them means one stage per line, because a comment cannot sit in the middle of one -- so the
+/// layout depends on the values, which is exactly what the editor's hints cannot survive. The two
+/// halves of that are what this pins.
+let private pipeStagesCarryTheirValues =
+  cliTestWithFreshTraces
+    "a pipe shows a value per stage, and the editor's print keeps its lines"
+    (fun target ->
+      task {
+        let author = author target
+        do!
+          author
+            "Tests.Pipes.sizes"
+            "(n: Int64): Int =\n  [1L, 2L, n] |> Stdlib.List.map (fun x -> x * 2L) |> Stdlib.List.length"
+
+        let! ran = runCli target [ "eval"; "Tests.Pipes.sizes 5L" ]
+        Expect.stringContains ran "3" "the call ran"
+
+        let! shown = runCli target [ "traces"; "show"; "Tests.Pipes.sizes" ]
+        Expect.stringContains
+          shown
+          "|> Stdlib.List.map (fun x -> x * 2L) // = [2, 4, 10]"
+          "what came out of the middle stage, on its own line"
+        Expect.stringContains
+          shown
+          "|> Stdlib.List.length // = 3"
+          "and out of the last one"
+
+        // The editor's contract: the annotated print gains characters, never lines. A `// = value`
+        // is zero columns wide for layout, and the pipe is left on one line here, so the two
+        // prints zip.
+        let state = executionState target
+        let! both = evalUnder state (plainAndAnnotated "Tests" "Pipes" "sizes")
+        match both with
+        | RT.DString printed ->
+          match printed.Split "@@@" with
+          | [| plain; annotated |] ->
+            Expect.equal
+              (annotated.Split('\n').Length)
+              (plain.Split('\n').Length)
+              "same number of lines with the values as without"
+            Expect.isFalse
+              (annotated.Contains "// =")
+              "and no annotation at all on a pipe the editor has to keep on one line"
+          | other -> failtest $"expected two prints, got {other.Length}"
+        | other -> failtest $"expected the prints, got {other}"
       })
 
 
@@ -1262,7 +1334,7 @@ r.fns
                     RT.DInt count,
                     [ RT.DEnum(_, _, _, "Some", [ RT.DString problem ]) ]) ->
           // `Values` no longer carries the run's own answer: the preview's business is the
-          // values inside the code, and `traces log` is where a run's answer lives.
+          // values inside the code, and `traces details` is where a run's answer lives.
           Expect.isFalse
             hasResult
             "placeholder, kept so the tuple shape still reads"
@@ -1446,6 +1518,7 @@ let tests : List<Test> =
           devErrorPageCarriesTheListener
           devStreamReportsAnEditAfterTheServe
           liveValuesReplayTheLastCall
+          pipeStagesCarryTheirValues
           previewPicksWhichRunToShow
           observeAndShow ]
     ) ]

@@ -410,7 +410,8 @@ let printValues
             $"run {Cli.Text.shortIdText run.id}  {run.entry}  {whenText run.created}")
         let ctx =
           { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
-              liveValues = values }
+              liveValues = values
+              breakForValues = true }
         Stdlib.printLine (PrettyPrinter.ProgramTypes.packageFn ctx fn)
         match problem with
         | Some message ->
