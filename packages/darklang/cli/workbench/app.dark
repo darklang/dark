@@ -58,25 +58,28 @@ let onKey
 /// colleague's pull).
 ///
 /// Under `--live` this re-reads the item list, so the detail pane shows the version that is
-/// there now, and the SCM picture. Without it the change is only NAMED: the footer says what
-/// moved and `R` reloads when you are ready, because a list that rearranges itself under the
-/// cursor while you are reading it is the thing to opt into.
+/// there now, and the SCM picture. Without it, nothing: you did not ask to follow, and a footer
+/// announcing someone else's edit interrupts you just as much as the reload would. `R` re-reads
+/// when you want it.
 ///
 /// The name caches were dropped by the poll that reported the change either way, so the reads
 /// see the store as it is. Your own saves take the authoring path (`authoring.dark`), which
 /// reloads on its own.
 let onStoreChanged (state: State) (change: Stdlib.Live.Change) : State =
-  let names =
-    if change.unknown then
-      "more than 500 ops (everything re-run)"
-    else
-      Stdlib.String.join (Stdlib.Live.touchedNames change) ", "
-
   if state.live then
+    let names =
+      if change.unknown then
+        "more than 500 ops (everything re-run)"
+      else
+        Stdlib.String.join (Stdlib.Live.touchedNames change) ", "
+
     forceScmRefresh
       { state with items = reloadItems state; message = $"changed elsewhere: {names}" }
   else
-    { state with message = $"changed elsewhere: {names} (R to reload)" }
+    // Quiet. Without `--live` you did not ask to hear about someone else's edit, and a footer
+    // that keeps announcing one is the same interruption as the reload, minus the usefulness.
+    // `R` re-reads whenever you want it.
+    state
 
 /// A FUNCTION, not a `val`: a component holds lambdas, and a lambda cannot be stored. Its
 /// instructions live in the execution that created it, so a stored one is a dangling reference that

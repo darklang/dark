@@ -84,8 +84,8 @@ let private forkDivergesAfterThePosition =
           child.parent
           (Some(parent.id, 1L))
           "and knows where it came from"
-        let! shown = runCli state [ "exec"; "log"; prefixOf child ]
-        Expect.stringContains shown "forked" "log says so"
+        let! shown = runCli state [ "exec"; "details"; prefixOf child ]
+        Expect.stringContains shown "forked" "details says so"
         Expect.stringContains
           shown
           ((string parent.id).Substring(0, 8))
