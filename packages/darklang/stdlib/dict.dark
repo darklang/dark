@@ -123,3 +123,8 @@ let filterMap
     | None -> Option.Option.None
     | Some newValue -> Option.Option.Some ((k, newValue)))
   |> Dict.fromListOverwritingDuplicates
+
+
+/// The empty dict, for the same reason an empty list is a zero
+impl Stdlib.Zero for Dict<'k, 'v> =
+  let zero () : Dict<'k, 'v> = Dict { }

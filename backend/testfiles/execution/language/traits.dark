@@ -117,6 +117,22 @@ module Ambiguity =
   (1).describe = error "Int has more than one `describe`: 2 traits declare it. Say which one you mean, as `SomeTrait.describe value`"
 
 
+module MethodBounds =
+  // A method may declare its own type params and bounds, on top of the trait's bound on the
+  // self type. They are discharged where the method is CALLED, since a method has no body of
+  // its own to check them in.
+  type Box = { n: Int64 }
+
+  trait Pair<'a> =
+    let pair<'b: Stdlib.Compare> (v: 'a) (w: 'b) : Bool
+
+  impl Pair for Box =
+    let pair<'b: Stdlib.Compare> (v: Box) (w: 'b) : Bool = w < w
+
+  MethodBounds.Pair.pair (MethodBounds.Box { n = 1L }) 5L = false
+  MethodBounds.Pair.pair (MethodBounds.Box { n = 1L }) true = error "Bool has no implementation of Darklang.Stdlib.Compare. Write `impl Compare for Bool = ...`, or run `dark impls Compare` to see which types do"
+
+
 module Equality =
   // `==` is `Equal.equals`. A type with an impl says what equal means; everything
   // else, builtin types included, compares structurally.

@@ -1557,12 +1557,16 @@ module TraitDeclaration =
 
       let (rtyp, rtUnresolved) = TypeReference.toPT ctx m.returnType
 
+      let (methodBounds, boundUnresolved) = Bound.listToPT ctx m.bounds
+
       let unresolvedNames =
-        Stdlib.List.flatten [ prUnresolved |> Stdlib.List.flatten, rtUnresolved ]
+        Stdlib.List.flatten
+          [ prUnresolved |> Stdlib.List.flatten, rtUnresolved, boundUnresolved ]
 
       (ProgramTypes.Trait.Method
         { name = m.name.name
           typeParams = m.typeParams |> Stdlib.List.map (fun (_, n) -> n)
+          bounds = methodBounds
           parameters = params
           returnType = rtyp
           permissionCeiling =

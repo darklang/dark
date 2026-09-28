@@ -46,9 +46,8 @@ trait Negate<'a> =
   let negate (a: 'a) : 'a
 
 
-/// The identity for `+`: `Zero.zero<Int64> ()` is `0L`, and `Zero.zero<String> ()` is `""`.
-/// Not only a number's zero, which is why String implements it; a List, a Dict and a Set
-/// each have one too, and they are a follow-up rather than a decision against them.
+/// The identity for `+`. Not only a number's zero: `Zero.zero<Int64> ()` is `0L`,
+/// `Zero.zero<String> ()` is `""`, and a List and a Dict have one each.
 /// Dispatched from an explicit type arg or the caller's bound, since there is no argument
 /// to read the type from; `Stdlib.sum` takes a seed instead so an empty list never has to ask.
 trait Zero<'a> =

@@ -90,7 +90,9 @@ tell you the tree has moved on rather than silently running a stale binary.
     ./scripts/testing/gates <name>                    one gate (setup, relay-routes, first-day, ...)
     ./scripts/testing/gates ci                        the subset CI runs, each bounded by 5m
     ./scripts/testing/gates all                       every gate except gates-are-clean, the slow
-                                                      meta-gate that re-runs the rest itself
+                                                      meta-gate that re-runs the rest itself. Serial;
+                                                      `--parallel` is four times faster and currently
+                                                      reports failures that are not there
     ./scripts/perf/gate                               reference workload, allocation vs budget
     ./scripts/perf/suite                              six workloads, allocation per iteration
     ./scripts/perf/checks                             by-hand interpreter and error-message checks
@@ -687,8 +689,12 @@ The point of all this is that a green F# build says nothing about Dark, which re
 `///` for doc comments on types, DU cases and fns, in both F# and Dark. `//` for inline
 notes. 85 columns, for both languages.
 
-`scripts/formatting/format` holds the F# side to it; run it before you commit. It reports
-`.dark` as `ignored`, so Dark is on you. Aim for 85 there anyway. Some existing Dark files
+`scripts/formatting/format` holds the F# side to it. **It is a pre-merge step, not a
+per-commit one.** Run it once when the branch is being readied to merge; do not run it
+between intermediate commits, and do not hand-apply what it would have done. Checking
+formatting on every commit while more work is coming costs a cycle each time and changes
+nothing a reviewer sees. It reports `.dark` as `ignored`, so Dark is on you. Aim for 85
+there anyway. Some existing Dark files
 don't: `scm/packageOps.dark` and `sync/relay/protocol.dark` are written wider, and are not worth
 reflowing just to close the gap.
 

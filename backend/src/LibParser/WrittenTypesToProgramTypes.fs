@@ -1019,9 +1019,11 @@ module Trait =
                   LibExecution.Effects.all
                   |> List.tryFind (fun effect -> $"%A{effect}" = name))
                 |> Set.ofList)
+            let! methodBounds = Bound.listToPT pm onMissing currentModule m.bounds
             return
               ({ name = m.name
                  typeParams = m.typeParams
+                 bounds = methodBounds
                  parameters = parameters
                  returnType = returnType
                  permissionCeiling = permissionCeiling
@@ -1036,6 +1038,7 @@ module Trait =
             NEList.ofListWithDefault
               ({ name = "_"
                  typeParams = []
+                 bounds = []
                  parameters =
                    NEList.singleton { name = "_"; typ = PT.TUnit; description = "" }
                  returnType = PT.TUnit

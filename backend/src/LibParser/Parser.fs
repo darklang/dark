@@ -3121,14 +3121,6 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
         errExpected state mNameIdx "a method name"
         { range = rng state mNameIdx; name = "_" }
     let (mTypeParams, mBounds, afterMName) = parseTypeParams state (mNameIdx + 1)
-    if not (List.isEmpty mTypeParams) then
-      state.diagnostics.Add
-        { code = DiagnosticCode.bound
-          severity = DiagError
-          range = mName.range
-          message = "Trait methods cannot declare their own type parameters yet"
-          related = []
-          hint = Some "put the type parameter on the trait instead" }
     let ps = System.Collections.Generic.List<WT.FnParam>()
     let mutable kk = afterMName
     let mutable more = true

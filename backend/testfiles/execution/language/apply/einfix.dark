@@ -13,8 +13,8 @@ Stdlib.Int64.add 5L 3L = 8L
 10.0 / 4.0 = 2.5
 7L % 3L = 1L
 -8L % 3L = 1L
-7.5 % 2.0 = 1.5
--1.5 % 2.0 = 0.5
+// `%` is integer-only: Float has no Modulo implementation, deliberately
+7.5 % 2.0 = error "Float has no implementation of Darklang.Stdlib.Modulo. Write `impl Modulo for Float = ...`, or run `dark impls Modulo` to see which types do"
 2.0 ** 3.0 = 8.0
 2L ** 3L = 8L
 2.5 < 3.5 = true

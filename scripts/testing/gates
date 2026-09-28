@@ -154,14 +154,19 @@ case "$cmd" in
     echo "diff against golden HTML), scripts/testing/cross-machine (two real machines and a relay)."
     ;;
   all)
-    # Parallel by default: wall time is the slowest gate (~2m15s), not the sum (~8m).
-    # `gates all --serial` keeps the old one-at-a-time behavior with per-gate timings.
     NAMES=()
     for g in "${GATES[@]}"; do [[ "$g" == "gates-are-clean" ]] || NAMES+=("$g"); done
-    if [[ "${1:-}" == "--serial" ]]; then
-      run_many unbound "${NAMES[@]}"
-    else
+    # Serial by default. Parallel is four times faster and reports failures that are not there:
+    # measured on one quiet clone, `--parallel` failed six of ten on this branch and two of ten on
+    # main, and every one of them passed on its own straight afterwards. It is not the capability
+    # file (giving each gate its own HOME changes nothing) and it is not this branch (main fails
+    # too); it looks like the gates that stand up servers timing out against each other under load.
+    # Until that is chased down, a red gate should mean a red gate. CI runs `gates ci`, which was
+    # always serial, so nothing there changes.
+    if [[ "${1:-}" == "--parallel" ]]; then
       run_parallel "${NAMES[@]}"
+    else
+      run_many unbound "${NAMES[@]}"
     fi
     ;;
   ci)

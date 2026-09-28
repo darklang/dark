@@ -2181,7 +2181,7 @@ let private traitTests =
           | other -> failtest $"items: {other}")
 
       testCase
-        "diagnoses a bound that is not a trait, a default body, and method type params"
+        "diagnoses a bound that is not a trait, a default body, and a trait with no type param"
         (fun _ ->
           let msgs (src : string) =
             (P.parse src).diagnostics |> List.map (fun d -> d.code)
@@ -2193,10 +2193,12 @@ let private traitTests =
             (msgs "trait Show<'a> =\n  let show (v: 'a) : String = \"default\"")
             [ P.DiagnosticCode.bound ]
             "default body"
+          // A method MAY declare its own type params and bounds; they are discharged where
+          // the method is called.
           Expect.equal
             (msgs "trait Fun<'f> =\n  let map<'b> (v: 'f) : 'b")
-            [ P.DiagnosticCode.bound ]
-            "method type params"
+            []
+            "method type params are allowed"
           Expect.equal
             (msgs "trait Show =\n  let show (v: Int) : String")
             [ P.DiagnosticCode.bound ]

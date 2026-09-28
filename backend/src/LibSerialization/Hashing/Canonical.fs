@@ -687,6 +687,7 @@ let writeTrait (mode : HashRefMode) (w : BinaryWriter) (t : PT.Trait.Trait) =
     (fun w (m : PT.Trait.Method) ->
       Common.String.write w m.name
       Common.List.write w Common.String.write m.typeParams
+      writeBounds mode w m.bounds
       Common.NEList.write (writeParameter mode) w m.parameters
       writeTypeReference mode w m.returnType
       match m.permissionCeiling with

@@ -835,6 +835,13 @@ module ProgramTypes =
         NEList.singleton
           { name = "convert"
             typeParams = []
+            // a method-level bound, which is the field that used to be parsed and dropped
+            bounds =
+              [ { param = "b"
+                  trait_ =
+                    { trait_ =
+                        NameResolution.ok (FQTraitName.Package(Hash "trait-equal"))
+                      typeArgs = [] } } ]
             parameters =
               NEList.singleton { name = "v"; typ = TVariable "a"; description = "" }
             returnType = TVariable "b"

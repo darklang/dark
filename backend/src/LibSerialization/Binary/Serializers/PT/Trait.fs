@@ -15,6 +15,10 @@ module Method =
   let write (w : BinaryWriter) (m : Trait.Method) : unit =
     String.write w m.name
     LibSerialization.Binary.Serializers.Common.List.write w String.write m.typeParams
+    LibSerialization.Binary.Serializers.Common.List.write
+      w
+      TypeReference.Bound.write
+      m.bounds
     NEList.write
       LibSerialization.Binary.Serializers.PT.PackageFn.Parameter.write
       w
@@ -30,6 +34,10 @@ module Method =
     let name = String.read r
     let typeParams =
       LibSerialization.Binary.Serializers.Common.List.read r String.read
+    // Not version-gated: traits and their methods only exist from format v3, so a stored
+    // method has always had this field.
+    let bounds =
+      LibSerialization.Binary.Serializers.Common.List.read r TypeReference.Bound.read
     let parameters =
       NEList.read LibSerialization.Binary.Serializers.PT.PackageFn.Parameter.read r
     let returnType = TypeReference.read r
@@ -38,6 +46,7 @@ module Method =
     let description = String.read r
     { name = name
       typeParams = typeParams
+      bounds = bounds
       parameters = parameters
       returnType = returnType
       permissionCeiling = permissionCeiling

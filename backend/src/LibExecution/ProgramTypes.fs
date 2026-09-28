@@ -770,12 +770,18 @@ module Trait =
   /// most an impl of this method may do; an impl fn with a wider one fails the
   /// at-rest check (`ImplExceedsCeiling`).
   type Method =
-    { name : string
+    {
+      name : string
       typeParams : List<string>
+      /// `let convert<'b: Equal> (v: 'a) : 'b`: what the method's OWN type params owe, on top
+      /// of the trait's bound on the self type. Discharged where the method is called, like a
+      /// fn's bounds, since a method has no body of its own to check them in.
+      bounds : List<Bound>
       parameters : NEList<PackageFn.Parameter>
       returnType : TypeReference
       permissionCeiling : Option<Set<Effects.Effect>>
-      description : string }
+      description : string
+    }
 
   type Trait =
     {

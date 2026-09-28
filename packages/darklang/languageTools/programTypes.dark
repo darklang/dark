@@ -517,6 +517,9 @@ module Trait =
   type Method =
     { name: String
       typeParams: List<String>
+      /// `let convert<'b: Equal> (v: 'a) : 'b`: what the method's own type params owe, on
+      /// top of the trait's bound on the self type
+      bounds: List<Bound>
       parameters: List<PackageFn.Parameter>
       returnType: TypeReference
       permissionCeiling: Option<List<LanguageTools.Permissions.Effect>>

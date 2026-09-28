@@ -271,8 +271,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Wraps <param a> around so that {{0 <= res < b}}, for two numbers of "
-        + "the same numeric type. The modulus <param b> must be greater than 0."
+        "Wraps <param a> around so that {{0 <= res < b}}, for two integers of "
+        + "the same type. The modulus <param b> must be greater than 0."
       fn =
         (function
         | _, vm, _, [| DInt8 v; DInt8 m |] ->
@@ -334,14 +334,12 @@ let fns () : List<BuiltInFn> =
           else
             let r = DarkInt.toBigInt v % m
             Ply(Dval.int (if r < System.Numerics.BigInteger.Zero then m + r else r))
-        | _, vm, _, [| DFloat v; DFloat m |] ->
-          if m = 0.0 then
-            zeroModulus vm
-          elif m < 0.0 then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DFloat(if r < 0.0 then m + r else r))
+        // No Float arm. `%` on Floats is gone: nothing used it, and what it did was floored
+        // where the C-family languages are truncated, raised on a zero divisor where our own
+        // Float division deliberately returns Infinity, and raised Int-category errors for a
+        // Float operation. Swift and Elm both removed float `%` for the same reason. A Float
+        // pair now takes the type error below, and through the operator it is a missing
+        // `Modulo` implementation, which names the line that would add one.
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"

@@ -238,11 +238,13 @@ let private traitMethodSignature
           { typeParams = NEList.toList trait_.typeParams @ m.typeParams
             parameters = m.parameters |> NEList.map (fun p -> p.typ)
             returnType = m.returnType
+            // The trait's bound on the self type, then whatever the method itself declares.
             bounds =
-              [ { param = trait_.typeParams.head
-                  trait_ =
-                    { trait_ = NameResolution.ok (FQTraitName.Package traitHash)
-                      typeArgs = [] } } ] }
+              { param = trait_.typeParams.head
+                trait_ =
+                  { trait_ = NameResolution.ok (FQTraitName.Package traitHash)
+                    typeArgs = [] } }
+              :: m.bounds }
       else
         None)
 
