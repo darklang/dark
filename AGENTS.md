@@ -372,6 +372,20 @@ Empty is tolerated; non-empty with a missing key crashes at startup with "Packag
 hash not found". After adding a ref:
 `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`
 
+A rebase that brings in someone else's package changes moves those hashes too, and the reload
+then fails with "a hardened package ref moved". Same fix. Note that `scripts/dev/build` prints
+Success for the steps that did work, so ask `scripts/dev/status` whether the reload passed.
+
+**Two branches adding an instruction both take the next tag.** An `Instruction` case needs a
+number in three places: `Opcode.index` (RuntimeTypes.fs) and the read and write halves of
+`LibSerialization/Binary/Serializers/RT/Instructions.fs`. When two branches each add a case,
+both pick the same next number, and merging them is asymmetric in a way that bites: the READ
+side conflicts, because both arms start `| 23uy ->`, while the WRITE side merges CLEANLY into
+two arms that both `w.Write 23uy`. That compiles, passes every test that round-trips through one
+process, and writes instructions that a later reader decodes as the wrong case. After any merge
+or rebase that brings in a new instruction, grep both halves for a duplicated tag before
+trusting the build.
+
 **Name resolution in test files.** `backend/testfiles/` is parsed with owner "Tests", so
 `Darklang.*` names need full qualification or the `Stdlib.` shortcut. `Stdlib.Json.ParseError.toString`
 and `Darklang.SCM.Branch.mainBranchId` resolve; `SCM.Branch.mainBranchId` doesn't. Impl:
