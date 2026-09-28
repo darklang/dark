@@ -141,7 +141,7 @@ let onKey
   let count = Stdlib.List.length state.rows
 
   match key with
-  | Escape -> Component.Step.Exit
+  | Escape -> Component.Step.Exit state
   | UpArrow ->
     let i = if state.selected > 0 then state.selected - 1 else state.selected
     Component.Step.Stay({ state with selected = i })
@@ -156,7 +156,7 @@ let onKey
     | Some "a" -> Component.Step.Stay(setAll state true)
     | Some "n" -> Component.Step.Stay(setAll state false)
     | Some "v" -> Component.Step.Stay(viewSelected state)
-    | Some "q" -> Component.Step.Exit
+    | Some "q" -> Component.Step.Exit state
     | _ -> Component.Step.Stay state
 
 

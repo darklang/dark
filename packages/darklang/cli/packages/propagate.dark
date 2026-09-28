@@ -109,8 +109,9 @@ let typeReferenceEqual
   | (TList innerA, TList innerB) ->
     typeReferenceEqual branchId innerA innerB
 
-  | (TDict innerA, TDict innerB) ->
-    typeReferenceEqual branchId innerA innerB
+  | (TDict(keyA, valueA), TDict(keyB, valueB)) ->
+    (typeReferenceEqual branchId keyA keyB)
+    && (typeReferenceEqual branchId valueA valueB)
 
   | (TDB innerA, TDB innerB) ->
     typeReferenceEqual branchId innerA innerB

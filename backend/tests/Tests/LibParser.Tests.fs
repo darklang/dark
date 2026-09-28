@@ -1970,10 +1970,74 @@ let private unwrapTests =
           (P.parse "val f = fun x -> Some x?").diagnostics
           "lambda boundary") ]
 
+
+// Small stacks exercise the guard without enormous fixtures or suite-wide GC pressure.
+let private stackSafetyTests =
+  testList
+    "stack-safety"
+    [ for label, source in
+        [ "parenthesized types",
+          "type T = "
+          + String.replicate 2000 "("
+          + "Int64"
+          + String.replicate 2000 ")"
+          "constructor patterns",
+          "match value with | " + String.replicate 2000 "Some " + "x -> 1L"
+          "elif chains",
+          "if true then 1L " + String.replicate 2000 "elif true then 1L " + "else 1L"
+          "module headers", String.replicate 2000 "module M\n" + "val x = 1L"
+          "parentheses", String.replicate 2000 "(" + "1L" + String.replicate 2000 ")"
+          "prefix operators", String.replicate 2000 "!" + "true"
+          "right-associated operators", String.replicate 2000 "1L ** " + "1L"
+          "validation of left-associated operators",
+          String.replicate 2000 "1L + " + "1L"
+          "cons patterns",
+          "match xs with | " + String.replicate 2000 "x :: " + "[] -> 1L"
+          "let patterns",
+          "let "
+          + String.replicate 2000 "(x, "
+          + "x"
+          + String.replicate 2000 ")"
+          + " = v in 1L"
+          "type arguments",
+          "type T = "
+          + String.replicate 2000 "List<"
+          + "Int64"
+          + String.replicate 2000 ">" ] do
+        for execution in [ false; true ] do
+          testCase $"{label}, execution={execution}" (fun _ ->
+            let mutable result = Ok []
+            let thread =
+              System.Threading.Thread(
+                (fun () ->
+                  try
+                    let diagnostics =
+                      if execution then
+                        match P.parseFor Validation.Script source with
+                        | Ok _ -> []
+                        | Error diagnostics -> diagnostics
+                      else
+                        (P.parse source).diagnostics
+                    result <- Ok diagnostics
+                  with ex ->
+                    result <- Error ex),
+                256 * 1024
+              )
+            thread.Start()
+            thread.Join()
+            match result with
+            | Error ex -> failtest $"parser threw {ex.GetType().Name}: {ex.Message}"
+            | Ok diagnostics ->
+              Expect.exists
+                diagnostics
+                (fun d -> d.code = P.DiagnosticCode.tooDeep)
+                "reports excessive nesting") ]
+
 let tests =
   testList
     "LibParser"
-    [ unwrapTests
+    [ stackSafetyTests
+      unwrapTests
       parserStructureTests
       internalUnitTests
       offsideTests

@@ -154,7 +154,7 @@ let printScriptError (state: AppState) (e: ExecutionError.ExecutionError) : AppS
   | _ -> ()
   let pretty = ExecutionError.toString state.currentBranchId e
   Stdlib.printLine $"Script error: {pretty}"
-  state
+  { state with exitCode = 1 }
 
 /// Run the script and, at an interactive terminal, offer to retry an
 /// instance-policy denial. "Once" is temporary; "always" saves the rule.

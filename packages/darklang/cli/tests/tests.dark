@@ -1167,7 +1167,7 @@ let testTreeRefusesWhatItCannotShow (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail(
-      $"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {shown withDepth}"
+      $"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {Stdlib.Bool.toString (shown withDepth)}"
     )
 
 /// `discard` throws the whole draft away, so an unanswerable prompt is not a yes: it

@@ -41,6 +41,15 @@ type Diagnostic =
 
 type ParseResult = { parsed : Option<WT.ParsedFile>; diagnostics : List<Diagnostic> }
 
+// Construct this after unwinding, when there is room to allocate diagnostics.
+let private stackExhaustionDiagnostic () : Diagnostic =
+  { code = DiagnosticCode.tooDeep
+    severity = DiagError
+    range = { start = { row = 0; column = 0 }; end_ = { row = 0; column = 0 } }
+    message = "nesting too deep for the available stack; parsing abandoned"
+    related = []
+    hint = Some "Split the expression into intermediate bindings." }
+
 let diagnosticOfValidationIssue (issue : Validation.Issue) : Diagnostic =
   { code = Validation.IssueCode.toString issue.code
     severity = DiagError
@@ -795,6 +804,7 @@ let private effectCaseNames : List<string> =
   LibExecution.Effects.all |> List.map (fun effect -> $"%A{effect}")
 
 let rec parseExpr (state : ParserState) (i : int) : WT.Expr * int =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   if tooDeep state i || outOfFuel state i then
     (WT.EError(rng state i), state.tokenCount - 1)
   else
@@ -1087,6 +1097,7 @@ and parsePatternCons (state : ParserState) (i : int) : WT.MatchPattern * int =
     (head, j)
 
 and parsePatternBase (state : ParserState) (i : int) : WT.MatchPattern * int =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   if tooDeep state i || outOfFuel state i then
     (WT.MPError(rng state i), state.tokenCount - 1)
   else
@@ -1389,6 +1400,7 @@ and parseIf (state : ParserState) (minCol : int) (i : int) : WT.Expr * int =
 
 // a simple binding pattern: variable / wildcard / `()` unit
 and parseLetPattern (state : ParserState) (i : int) : WT.LetPattern * int =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match tok state i with
   | TUnderscore -> (WT.LPWildcard(rng state i), i + 1)
   | TIdent s -> (WT.LPVariable(rng state i, s), i + 1)
@@ -1573,6 +1585,7 @@ and parseInfixRhs
   (left0 : WT.Expr)
   (j0 : int)
   : WT.Expr * int =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   let mutable left = left0
   let mutable j = j0
   let mutable go = true
@@ -1747,6 +1760,7 @@ and parseApp (state : ParserState) (i : int) : WT.Expr * int =
       (WT.EApply(span (WT.exprRange lhs) endR, lhs, [], List.ofSeq args), k)
 
 and parseAtom (state : ParserState) (i : int) : WT.Expr * int =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   let (baseE, j) = parsePrimary state i
   // Any postfix after an unparenthesized lambda belongs to its body.
   // If the body couldn't parse it, leave it for an error rather than attaching
@@ -2695,6 +2709,7 @@ and parseTypeArgs
     (List.ofSeq args, Some closeR, k3)
 
 and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match tok state i with
   | TLParen ->
     // `(T)` grouping or `(A * B)` parenthesized tuple
@@ -3179,6 +3194,7 @@ and parseItems
   (start : int)
   (minCol : int)
   : List<WT.Declaration> * List<WT.Expr> * int =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   // each item is its own offside statement (anchored per item in the body);
   // the enclosing scope's anchor + decl anchor are restored on exit
   let savedDecl = state.declAnchor
@@ -3370,7 +3386,10 @@ and parseTokensAt
       abandoned = false
       steps = 0
       interpDepth = interpDepth }
-  parseFile rootScope state
+  try
+    parseFile rootScope state
+  with :? System.InsufficientExecutionStackException when interpDepth = 0 ->
+    { parsed = None; diagnostics = [ stackExhaustionDiagnostic () ] }
 
 and parseTokens (toks : SpannedToken[]) : ParseResult =
   parseTokensAt 0 ItemScope.Script toks
@@ -3408,18 +3427,21 @@ let private parseSyntaxWithRootScope
 /// Parse for tooling: return a recoverable tree and include mode-independent
 /// structural diagnostics after a clean syntax pass.
 let parse (source : string) : ParseResult =
-  let result = parseSyntaxWithRootScope ItemScope.Script source
-  let syntaxDiagnostics = result.diagnostics
-  // Tree-wide rules have one implementation in Validation. Run them only
-  // after a clean syntax pass so recovery holes do not create cascaded errors.
-  let structuralDiagnostics =
-    match syntaxDiagnostics, result.parsed with
-    | [], Some(WT.SourceFile sourceFile) ->
-      sourceFile
-      |> Validation.validateStructure
-      |> List.map diagnosticOfValidationIssue
-    | _ -> []
-  { result with diagnostics = syntaxDiagnostics @ structuralDiagnostics }
+  try
+    let result = parseSyntaxWithRootScope ItemScope.Script source
+    let syntaxDiagnostics = result.diagnostics
+    // Tree-wide rules have one implementation in Validation. Run them only
+    // after a clean syntax pass so recovery holes do not create cascaded errors.
+    let structuralDiagnostics =
+      match syntaxDiagnostics, result.parsed with
+      | [], Some(WT.SourceFile sourceFile) ->
+        sourceFile
+        |> Validation.validateStructure
+        |> List.map diagnosticOfValidationIssue
+      | _ -> []
+    { result with diagnostics = syntaxDiagnostics @ structuralDiagnostics }
+  with :? System.InsufficientExecutionStackException ->
+    { parsed = None; diagnostics = [ stackExhaustionDiagnostic () ] }
 
 /// Parse for execution: syntax, structural, and file-purpose validation run
 /// once, and only a validated source file can be returned on success.
@@ -3427,27 +3449,31 @@ let parseFor
   (mode : Validation.Mode)
   (source : string)
   : Result<Validation.ValidatedSourceFile, List<Diagnostic>> =
-  let rootScope =
-    match mode with
-    | Validation.Package -> ItemScope.Module
-    | Validation.Script
-    | Validation.Test -> ItemScope.Script
-  let result = parseSyntaxWithRootScope rootScope source
-  match result.diagnostics, result.parsed with
-  | [], Some(WT.SourceFile sourceFile) ->
-    match Validation.validate mode sourceFile with
-    | Ok validated -> Ok validated
-    | Error issues ->
-      issues |> NEList.toList |> List.map diagnosticOfValidationIssue |> Error
-  | (_ :: _ as diagnostics), _ -> Error diagnostics
-  | [], None ->
-    Error
-      [ { code = DiagnosticCode.unexpected
-          severity = DiagError
-          range = { start = { row = 0; column = 0 }; end_ = { row = 0; column = 0 } }
-          message = "Parser did not produce a source tree"
-          related = []
-          hint = None } ]
+  try
+    let rootScope =
+      match mode with
+      | Validation.Package -> ItemScope.Module
+      | Validation.Script
+      | Validation.Test -> ItemScope.Script
+    let result = parseSyntaxWithRootScope rootScope source
+    match result.diagnostics, result.parsed with
+    | [], Some(WT.SourceFile sourceFile) ->
+      match Validation.validate mode sourceFile with
+      | Ok validated -> Ok validated
+      | Error issues ->
+        issues |> NEList.toList |> List.map diagnosticOfValidationIssue |> Error
+    | (_ :: _ as diagnostics), _ -> Error diagnostics
+    | [], None ->
+      Error
+        [ { code = DiagnosticCode.unexpected
+            severity = DiagError
+            range =
+              { start = { row = 0; column = 0 }; end_ = { row = 0; column = 0 } }
+            message = "Parser did not produce a source tree"
+            related = []
+            hint = None } ]
+  with :? System.InsufficientExecutionStackException ->
+    Error [ stackExhaustionDiagnostic () ]
 
 /// Kept as a compatibility entrypoint. Test syntax has the same parse shape as
 /// all other source; parseFor Validation.Test applies the Test purpose rules.
