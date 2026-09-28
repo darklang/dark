@@ -637,7 +637,7 @@ One row (`LibDB.Traces`, the `traces` table): what was run (`eval`,
 `run <file>`, `GET /path`), its input, its status (`running`, `done`,
 `failed`, `suspended`), whether it is pinned, and, for a fork, the run and the
 position it branched from. Its calls are `trace_fn_calls` under the same id.
-`dark traces` lists them; `traces log|show|resume|fork|pin|rerun|delete`.
+`dark traces` lists them; `traces details|show|resume|fork|pin|rerun|delete`.
 `Darklang.Tracing.Store` is the Dark side.
 
 - Ctrl-C during a traced run: the CLI's handler cancels what the run spawned
@@ -713,7 +713,7 @@ A plain random UUID, and `dark traces` prints the shortest prefix that tells the
 apart: eight characters, unless two of the listed ids collide there.
 
 Random, with no structure in front, because an id is something a person TYPES -- `traces
-resume`, `traces log`, `traces fork` all take one -- and a short prefix has to be unique.
+resume`, `traces details`, `traces fork` all take one -- and a short prefix has to be unique.
 Anything ordered in front (a timestamp, say) makes two runs from the same moment agree for a
 dozen characters and every short id ambiguous. Nothing needs order out of the id: SQLite sorts
 by a column, and every listing orders by `timestamp` or `rowid`.

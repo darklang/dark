@@ -369,7 +369,7 @@ let appDetail (state: State) : String =
   | None -> "(no app selected)"
 
 /// The selected run: where it stands, what it was given, and what it did to the world. The same
-/// answer `dark traces log <id>` gives, because it is the same row.
+/// answer `dark traces details <id>` gives, because it is the same row.
 let traceDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | None ->

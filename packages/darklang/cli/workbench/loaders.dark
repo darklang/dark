@@ -605,7 +605,7 @@ let refreshLiveValues (next: State) : State =
         match Stdlib.Live.Values.replay next.branchId entry with
         | Some v ->
           // One line each, and short: a value beside a call is a glance, and the pane's width
-          // is the code's. `dark traces log` has the whole value.
+          // is the code's. `dark traces details` has the whole value.
           v.byExpr
           |> Stdlib.Dict.map (fun _ dv ->
             PrettyPrinter.RuntimeTypes.dvalOneLine next.branchId 40 dv)

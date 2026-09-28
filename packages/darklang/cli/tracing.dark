@@ -370,7 +370,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // unknown subcommand, because the person typing it read it somewhere of ours.
   | "log" :: rest ->
     let tail = Stdlib.String.join rest " "
-    Cli.printErr "`traces log` is `traces details`: what the run was, and what it did"
+    Cli.printErr "`traces details` is `traces details`: what the run was, and what it did"
     Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  dark traces details {tail}")
     { state with exitCode = 1 }
 
@@ -459,7 +459,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | Ok n -> Cli.TraceRuns.fork prefix (Stdlib.Option.Option.Some n)
       | Error _ ->
         Cli.printErr
-          $"--at wants a position from the `pos` column of `traces log`, not {at}"
+          $"--at wants a position from the `pos` column of `traces details`, not {at}"
         false
     Cli.exitWith state ok
   | [ "pin", prefix ] -> Cli.exitWith state (Cli.TraceRuns.pin prefix true)
@@ -839,7 +839,7 @@ let executeFindJson
 
 
 /// `traces find <pattern> --log` -- search-then-drill in one step: the newest matching run,
-/// rendered as `traces log` would. If several match, the others are noted and you get the
+/// rendered as `traces details` would. If several match, the others are noted and you get the
 /// freshest.
 let executeFindDetails (state: Cli.AppState) (pattern: String) : Cli.AppState =
   if pattern == "" then
@@ -860,7 +860,7 @@ let executeFindDetails (state: Cli.AppState) (pattern: String) : Cli.AppState =
 
 /// `traces tail [N] [--route <substring>]` -- the Nth-most-recent run, shown (default N=1, the
 /// very latest). Skips the list-then-copy-id round trip you would otherwise do with
-/// `traces list` then `traces log <id>`; `tail 2` peeks back one without copying ids. An
+/// `traces list` then `traces details <id>`; `tail 2` peeks back one without copying ids. An
 /// optional route filter narrows to runs matching the substring before counting.
 let executeTail
   (state: Cli.AppState)
@@ -1118,7 +1118,7 @@ let printMatches (nothing: String) (rows: List<TraceSummary>) : Unit =
     Stdlib.printLine ""
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText
-        "  dark traces log <id>   one run: its input, what it did, where it stands")
+        "  dark traces details <id>   one run: its input, what it did, where it stands")
 
 
 /// Single-line render of a dval for the trace viewer; strategy lives in
@@ -1193,7 +1193,7 @@ let formatFnCalls
           "\n"
 
 
-/// `traces log <run> [flags]` -- one run: what it was, what it answered, where it stands, and
+/// `traces details <run> [flags]` -- one run: what it was, what it answered, where it stands, and
 /// the sequence of impure calls it made. The ONE renderer for a single run, which is why `tail`
 /// and `find --log` come through here too: there used to be a second verb (`view`) printing
 /// almost the same thing, and the two drifted.
@@ -1424,7 +1424,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [ "stats" ] -> [ Completion.simple "--json" ]
   | [ "hotspots" ] -> [ Completion.simple "--json" ]
   | [ "record" ] -> [ Completion.simple "on", Completion.simple "off" ]
-  // After `traces log <run>` the next token is a flag. Only the ones that still mean something:
+  // After `traces details <run>` the next token is a flag. Only the ones that still mean something:
   // the tree flags are refused by name, and offering them would be a trap.
   | "details" :: _ :: _ ->
     [ Completion.simple "--filter"
