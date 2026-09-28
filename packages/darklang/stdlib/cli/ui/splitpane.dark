@@ -23,8 +23,8 @@ let render
   (firstPct: Int)
   (focused: Focus)
   (titleFirst: String)
-  (renderFirst: Layout.Region -> List<Layout.Span>)
   (titleSecond: String)
+  (renderFirst: Layout.Region -> List<Layout.Span>)
   (renderSecond: Layout.Region -> List<Layout.Span>)
   : List<Layout.Span> =
   let firstFocused = focused == Focus.First

@@ -24,22 +24,22 @@ let swap (tuple: ('a * 'b)) : ('b * 'a) =
 
 
 /// Transform the first value in a pair
-let mapFirst (fn: 'a -> 'c) (tuple: ('a * 'b)) : ('c * 'b) =
+let mapFirst (tuple: ('a * 'b)) (fn: 'a -> 'c) : ('c * 'b) =
   let (first, second) = tuple
   (fn first, second)
 
 
 /// Transform the second value in a pair
-let mapSecond (fn: 'b -> 'c) (tuple: ('a * 'b)) : ('a * 'c) =
+let mapSecond (tuple: ('a * 'b)) (fn: 'b -> 'c) : ('a * 'c) =
   let (first, second) = tuple
   (first, fn second)
 
 
 /// Transform both values in a pair
 let mapBoth
+  (tuple: ('a * 'b))
   (fnFirst: 'a -> 'c)
   (fnSecond: 'b -> 'd)
-  (tuple: ('a * 'b))
   : ('c * 'd) =
   let (first, second) = tuple
   (fnFirst first, fnSecond second)

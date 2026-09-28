@@ -2465,16 +2465,16 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
     t
       "fn call with indentation"
       """Stdlib.Tuple3.mapAllThree
+  ("one", 2L, "pi")
   (fun x -> Stdlib.String.toUppercase x)
   (fun x -> x - 2L)
   (fun x -> Stdlib.String.toUppercase x)
-  ("one", 2L, "pi")
 """
       """Stdlib.Tuple3.mapAllThree
+  ("one", 2L, "pi")
   (fun x -> Stdlib.String.toUppercase x)
   (fun x -> x - 2L)
-  (fun x -> Stdlib.String.toUppercase x)
-  ("one", 2L, "pi")"""
+  (fun x -> Stdlib.String.toUppercase x)"""
       []
       []
       []
