@@ -10,6 +10,9 @@ config/local
 
 # Build system
 rundir/
+# The published CLI's own store, made by `scripts/build/build-release-cli-exes.sh` and the
+# demo recordings. Same reason as `rundir/`: it is a 55 MB SQLite file that changes on every run.
+rundir-rel/
 
 # F# / dotnet
 backend/packages/
