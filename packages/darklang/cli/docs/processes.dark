@@ -49,7 +49,8 @@ Every `eval` and `run` is recorded (only its effects: what it read, wrote,
 sent and got back), so Ctrl-C does not lose it.
 
   traces                        the runs kept here, newest first
-  traces show <id>              one run: what it ran, where it stands, its log
+  traces log <id>               one run: what it ran, where it stands, what it did
+  traces show <fn> [<id>]       that function's code, with a run's values beside it
   traces resume <id>            carry on where it stopped: the log answers what
                                 already happened, then the run goes live
   traces fork <id> [--at <n>]   a new run from any point of an old one

@@ -14,17 +14,17 @@ state resets between calls; package changes persist.
   typecheck                                       # audit declarations on the branch
   status                                          # inspect changes
   commit "message" -y                            # save them
-  apps view stats                                 # a live view; edits repaint it
+  apps view stats --live                          # a TUI app; your edits repaint it
   ps                                              # what is running
   traces                                          # what ran, and what it did
   traces calls <fn>                               # the runs that went through a function
-  traces values <fn> [<run>]                      # that function's code, with a run's values
+  traces show <fn> [<run>]                        # that function's code, with a run's values
   traces resume <id>                              # pick a Ctrl-C'd run back up
 
 The loop that is worth knowing, because it needs no print statements and no second
 run: with `dark traces record on`, every `eval`, `run` and served request is kept, so
 after something has run
-once, `traces calls <fn>` lists the runs that went through it and `traces values <fn>`
+once, `traces calls <fn>` lists the runs that went through it and `traces show <fn>`
 replays one and shows what every call in it evaluated to, through the code as it is
 NOW. Edit a callee and look again: the values move. Nothing is performed while you
 look -- the effects are answered from the log -- so it is safe on a function that
@@ -215,10 +215,10 @@ configured, not whatever it asks for.
 
 ## Live, and processes
 
-Running things follow your edits. `apps view <Module>` opens any module with
+Running things follow your edits WHEN ASKED. `apps view <Module> --live` opens any module with
 `init`/`update`/`render` as a live view; save an edit to it or its callees and it
 repaints. `serve <router>` runs the newest router that passes its checks on every
-request; a broken save keeps the previous one serving (`--no-live` pins). The
+request with `--live`; a broken save keeps the previous one serving. The
 workbench and the LSP show `// = value` beside calls from the last recorded run.
 
 Every run is a process: reads run at once with no code change, writes keep
@@ -242,10 +242,10 @@ The loop, then:
   dark traces record on            keep a record of every run (off by default)
   dark run thing.dark              ... so this run is kept, with what it did
   dark traces                      the runs, newest first
-  dark traces values <fn>          that function's code, with the values from
+  dark traces show <fn>            that function's code, with the values from
                                    the newest run that went through it
 
-`traces values` is the one that replaces a print statement. It replays the run
+`traces show` is the one that replaces a print statement. It replays the run
 with every impure call answered from what was recorded, so nothing is performed
 a second time -- no second charge, no second write -- and the pure code is
 recomputed, so the values are the values of the code as it is NOW. Edit a

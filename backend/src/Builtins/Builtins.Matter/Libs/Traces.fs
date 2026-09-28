@@ -70,7 +70,7 @@ let private statusToDT (status : string) : Dval =
 
 /// A run's input as one line of text: the expression or the script's source as it was written.
 /// A served request is a record, not a string; it is named rather than dumped, since the whole
-/// thing is one `traces show` away and a table cell is 40 characters.
+/// thing is one `traces log` away and a table cell is 40 characters.
 /// A recorded dval as one line, for a table cell or a summary line. Shared by the input and
 /// the result, because the two want the same treatment.
 let private oneLineDval (label : string) (bytes : byte[]) : string =

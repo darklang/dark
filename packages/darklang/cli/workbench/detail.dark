@@ -369,7 +369,7 @@ let appDetail (state: State) : String =
   | None -> "(no app selected)"
 
 /// The selected run: where it stands, what it was given, and what it did to the world. The same
-/// answer `dark traces show <id>` gives, because it is the same row.
+/// answer `dark traces log <id>` gives, because it is the same row.
 let traceDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | None ->
@@ -412,12 +412,12 @@ let traceDetail (state: State) : String =
       // function to read them through, which a run does not have just one of.
       let footer =
         [ ""
-          Stdlib.Cli.UI.Colors.dimText "r resume    * pin    x delete"
+          Stdlib.Cli.UI.Colors.dimText "r resume    p pin    x delete"
           ""
           Stdlib.Cli.UI.Colors.dimText
             $"dark traces fork {Cli.Text.shortIdText run.id} --at <n>   branch from a position"
           Stdlib.Cli.UI.Colors.dimText
-            "dark traces values <fn>   that function's code, with this run's values beside it" ]
+            "dark traces show <fn>   that function's code, with this run's values beside it" ]
       [ header, lineage, pinned, [ "" ], calls, footer ]
       |> Stdlib.List.flatten
       |> Stdlib.String.join "\n"

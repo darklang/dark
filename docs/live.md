@@ -6,7 +6,7 @@ entry names again. This is that something, and the rules a host follows once it 
 heard.
 
 `dark docs live` is the short, user-facing version of this document: a live
-view (`apps view <Module>`), a live `serve`, a host on another machine
+view (`apps view <Module> --live`), a `serve --live`, a host on another machine
 following a branch, live values in the editor. This is the design and the
 rules a host follows.
 
@@ -129,7 +129,7 @@ The router's hash is the approval root, so the guest state is re-derived when th
 moves. A newly broken version is said once on stdout (`[live] <entry>: still on the
 last good version; the newest has a type error: <why>`), and the fix too (`[live] now
 on the new version of <entry>`), beside the `[HttpServer] ...` request lines; the
-wire keeps getting the last good one. `--no-live` pins the
+wire keeps getting the last good one. Without `--live` the version resolved at start pins the
 version resolved at start. What a request answers when its handler is slow, raises or
 is stopped (504, 500, 503, and `http.requestTimeoutMs`) is in `docs/processes.md`, "An
 HTTP request is a process".
@@ -144,7 +144,7 @@ is nothing for it to read. Making the poll an event would mean a builtin that ha
 process the scheduler's latest store generation; the poll is one `PRAGMA data_version`
 on a held connection, so that trade is not worth its builtin yet.
 
-`serve --dev` adds the browser half: `GET /__live` is an event stream that holds the
+`--live` also brings the browser half: `GET /__live` is an event stream that holds the
 connection, compares the router's hash every half second to the one the page was served
 from (the page's own listener says which, `/__live?from=<hash>`, so an edit that lands
 between the response and the connect is still reported), says `reload` once it moved (`[live] page told to reload` in the log; the wait
@@ -200,7 +200,7 @@ the host then adds `Timer ms` to every wait and hands the view an `Event.Tick`, 
 
 The loop itself is `cli/apps/host.dark`. A `View` is three fns by name (`init : Unit ->
 'model`, `update : 'model -> Host.Event<'msg> -> 'model`, `render : 'model -> Node`), on an
-`App` as `Target.Views`, or any module with those three (`dark apps view My.Module`).
+`App` as `Target.Views`, or any module with those three (`dark apps view My.Module --live`).
 One turn: a store change that reaches the view's entries (`Live.affects`) re-resolves
 them through `LastGood` and re-renders, with a toast naming what moved; a key goes to
 the focused `Input` or `Button`, else to `update`. `render` failing at rest or at run
@@ -358,7 +358,7 @@ Where they show:
   The annotation is zero columns wide for layout (a `Styled` with an empty middle), so
   the code breaks exactly as it does without the values.
 - The workbench. The Matter view's detail pane refreshes the values whenever the
-  selected function changes (`refreshLiveValues`) and prints with them. `dark traces values
+  selected function changes (`refreshLiveValues`) and prints with them. `dark traces show
   <fn> --watch` is the same thing as a panel of its own, with the runs to pick from and
   up/down to move between them (`cli/traceWatch.dark`).
 - The LSP. `textDocument/inlayHint` answers one hint per annotated line, placed at the

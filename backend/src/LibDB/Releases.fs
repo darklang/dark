@@ -289,7 +289,7 @@ let steps : List<Step> =
     { name = "20260924_000006_traces_entry_hash"
       run = fun () -> addColumnIfMissing "traces" "entry_hash" "TEXT" }
 
-    // What the run answered: the other half of what its row records, and what `traces show`
+    // What the run answered: the other half of what its row records, and what `traces log`
     // ends with. Nothing stored the output before this.
     { name = "20260926_000001_traces_result_value"
       run = fun () -> addColumnIfMissing "traces" "result_value" "BLOB" }

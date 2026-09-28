@@ -596,7 +596,7 @@ one after it:
 lambda as well costs 300x the bytes (0.59 MB against 0.002 MB for the same ten
 thousand calls) and buys one thing: a call tree for profiling. A night of
 ordinary work with that on left 15.8 GB in `trace_fn_calls`. Nothing a person
-does with a recorded run needs it: the preview (`traces values`) re-runs the
+does with a recorded run needs it: the preview (`traces show`) re-runs the
 pure code against the recorded impure answers, so a pure value is recomputed
 rather than stored -- which is also why it follows an edit to a pure function,
 and a stored value would not. Storing them for profiling is worth its own
@@ -637,7 +637,7 @@ One row (`LibDB.Traces`, the `traces` table): what was run (`eval`,
 `run <file>`, `GET /path`), its input, its status (`running`, `done`,
 `failed`, `suspended`), whether it is pinned, and, for a fork, the run and the
 position it branched from. Its calls are `trace_fn_calls` under the same id.
-`dark traces` lists them; `traces show|resume|fork|pin|rerun|view|delete`.
+`dark traces` lists them; `traces log|show|resume|fork|pin|rerun|delete`.
 `Darklang.Tracing.Store` is the Dark side.
 
 - Ctrl-C during a traced run: the CLI's handler cancels what the run spawned
@@ -713,7 +713,7 @@ A plain random UUID, and `dark traces` prints the shortest prefix that tells the
 apart: eight characters, unless two of the listed ids collide there.
 
 Random, with no structure in front, because an id is something a person TYPES -- `traces
-resume`, `traces values`, `traces fork` all take one -- and a short prefix has to be unique.
+resume`, `traces log`, `traces fork` all take one -- and a short prefix has to be unique.
 Anything ordered in front (a timestamp, say) makes two runs from the same moment agree for a
 dozen characters and every short id ambiguous. Nothing needs order out of the id: SQLite sorts
 by a column, and every listing orders by `timestamp` or `rowid`.
@@ -730,7 +730,7 @@ random UUID gives.
 A resume takes a run forward. A PREVIEW looks at one, and the difference is the whole design:
 a preview never performs an effect.
 
-`dark traces values <fn> [<run>]` replays a recorded run with every effectful call answered
+`dark traces show <fn> [<run>]` replays a recorded run with every effectful call answered
 from that run's log, collects the value of every expression on the way, and prints the
 function you asked about with `// = value` beside each call. `dark traces calls <fn>` is the
 list of runs to choose from.
@@ -766,7 +766,7 @@ The pieces:
 What a preview does not do: it does not write, it is not a run, and it does not echo a logged
 print (that echo belongs to a resume, where somebody is taking the run forward).
 
-**Everything that shows a value beside code comes through here.** `dark traces values`, the
+**Everything that shows a value beside code comes through here.** `dark traces show`, the
 workbench's gutter and the LSP's inlay hints all call `Live.Values.replay`, which is the
 preview with the newest run that went through the function. There is no second mechanism; the
 one that used to re-run a single function on its recorded arguments, and perform its effects

@@ -18,7 +18,7 @@ module BinarySer = LibSerialization.Binary.Serialization
 ///   off   nothing is stored. Nothing to list, resume, fork or read values from.
 ///   on    the run -- what it was, what it answered, where it stands -- and every impure
 ///         call in order, with its arguments, its result and how long it took. That log is
-///         what a resume answers from, what a fork branches, and what `dark traces values`
+///         what a resume answers from, what a fork branches, and what `dark traces show`
 ///         reads to put a run's values beside your code.
 ///
 /// Off is the default, so nothing is recorded until someone asks for it. Three ways to ask,
@@ -99,7 +99,7 @@ type T =
     /// Write what was collected. Takes the live `ExecutionState` because an ephemeral blob ref
     /// dies when the request scope pops, so the bytes are promoted to persistent ones before
     /// they are serialized; without that a trace records refs to bytes that are gone and
-    /// `traces show` cannot reconstruct a request body.
+    /// `traces log` cannot reconstruct a request body.
     storeTraceResults : RT.ExecutionState -> Ply.Ply<unit>
 
     /// Whether this run gets a row of its own. A preview does not: looking at a run is not a run.
@@ -259,7 +259,7 @@ type TracerState =
     /// so they are live from there and nothing later in the log may be handed to them (a fork
     /// cut by position can leave a later ordinal without its earlier ones).
     replayEnded : System.Collections.Generic.HashSet<System.Guid>
-    /// Wall clock for the whole run, started when the tracer was made. What `traces show` prints
+    /// Wall clock for the whole run, started when the tracer was made. What `traces log` prints
     /// as `took`, and the only honest source for it: the row's `timestamp` and `updated` are
     /// both the store instant for a served request, and on a resumed run they span however long
     /// it sat suspended. A resumed run's clock is its own, replay included.

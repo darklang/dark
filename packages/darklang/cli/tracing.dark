@@ -183,22 +183,60 @@ let confirmDestructive (autoConfirm: Bool) (action: String) : Bool =
   Cli.Prompt.confirm autoConfirm $"{action} (y/n): "
 
 
+/// Does this argument look like a RUN id rather than a function name?
+///
+/// `traces show` took a run id until this branch and takes a function name now, so the mistake
+/// is the one everybody will make once. Without this it is answered plausibly: a run id has no
+/// dots, so it parses as a package location, `trace_fns` has no row for it, and you are told
+/// "no recorded run went through 077f48c0" about a run that is sitting in the table.
+///
+/// A function name has dots. A run id is hex and hyphens and nothing else.
+let looksLikeARunId (arg: String) : Bool =
+  if Stdlib.String.contains arg "." then
+    false
+  else
+    let hex = "0123456789abcdefABCDEF-"
+    ((Stdlib.String.length arg) >= 4)
+    && (Stdlib.String.toList arg
+        |> Stdlib.List.all (fun c -> Stdlib.String.contains hex (Stdlib.String.fromChar c)))
+
+
+/// Say which verb takes a run, rather than answering about a function nobody has called.
+let refuseRunIdToShow (state: Cli.AppState) (arg: String) : Cli.AppState =
+  match Darklang.Tracing.Store.resolveID arg with
+  | Ok id ->
+    Cli.printErr $"`traces show` takes a function name; {arg} is a run"
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.dimText
+        $"  dark traces log {Cli.Text.shortIdText id}       what that run did")
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.dimText
+        $"  dark traces show <fn> {arg}   that function's code, with this run's values")
+    { state with exitCode = 1 }
+  | Error _ ->
+    Cli.printErr
+      $"`traces show` takes a function name, like Darklang.Stdlib.List.map; {arg} is neither that nor a run"
+    { state with exitCode = 1 }
+
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // Hoist boolean flags out to single bools so each subcommand's arms
   // don't have to enumerate their position. `--yes`/`-y` for destructive
-  // confirmations; `--json` for output format; `--show` is find-only.
+  // confirmations; `--json` for output format; `--log` is find-only.
   let autoConfirm =
     (Stdlib.List.member args "--yes") || (Stdlib.List.member args "-y")
   let wantsJson = Stdlib.List.member args "--json"
-  let wantsFindShow = Stdlib.List.member args "--show"
+  let wantsFindLog = Stdlib.List.member args "--log"
   let args =
     args
     |> Stdlib.List.filter (fun a ->
-      a != "--yes" && a != "-y" && a != "--json" && a != "--show")
-  // `--view` went with the verb of the same name. Refused by name rather than as an unknown
-  // flag, so a script that still passes it is told what it is called now.
-  if Stdlib.List.member args "--view" then
-    Cli.printErr "`--view` is `--show`: it opens the newest matching run, as `traces show` does"
+      a != "--yes" && a != "-y" && a != "--json" && a != "--log")
+  // `--view`, then `--show`, both of which opened the newest matching run. That is `log` now,
+  // and so is the flag. Refused by name rather than as an unknown flag, so a script still
+  // passing one is told what it is called.
+  if (Stdlib.List.member args "--view") || (Stdlib.List.member args "--show") then
+    Cli.printErr
+      "`traces find --log` opens the newest matching run (it was --view, then --show)"
     { state with exitCode = 1 }
   else
   match args with
@@ -279,8 +317,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       { state with exitCode = 1 }
 
   | [ "find", pattern ] ->
-    if wantsFindShow then
-      executeFindShow state pattern
+    if wantsFindLog then
+      executeFindLog state pattern
     elif wantsJson then
       executeFindJson state pattern 20
     else
@@ -306,13 +344,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       { state with exitCode = 1 }
 
-  // `view` was `show` with filters. One run has one rendering, so there is one verb: a script
-  // still passing `view` is told what it is called now rather than getting a usage dump.
+  // `view` was `show` with filters, and both of them are `log` now: one run has one rendering.
+  // A script still passing the old name is told what it is called rather than getting a usage
+  // dump.
   | "view" :: rest ->
     let tail = Stdlib.String.join rest " "
-    Cli.printErr "`traces view` is `traces show`: one run, its answer, and its log"
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.dimText $"  dark traces show {tail}")
+    Cli.printErr "`traces view` is `traces log`: one run, its answer, and what it did"
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  dark traces log {tail}")
     { state with exitCode = 1 }
 
   // Whether runs are recorded at all, and changing it. The setting lives in this instance's
@@ -380,12 +418,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Cli.printErr $"'{value}' is not a recording setting; it is on or off"
       { state with exitCode = 1 }
 
-  | "show" :: prefix :: flagArgs ->
+  | "log" :: prefix :: flagArgs ->
     if wantsJson then
-      Cli.exitWith state (Cli.TraceRuns.printShowJson state.currentBranchId prefix)
+      Cli.exitWith state (Cli.TraceRuns.printLogJson state.currentBranchId prefix)
     else
       match parseViewOptions defaultViewOptions flagArgs with
-      | Ok opts -> executeShow state prefix opts
+      | Ok opts -> executeLog state prefix opts
       | Error msg ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
         { state with exitCode = 1 }
@@ -400,7 +438,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | Ok n -> Cli.TraceRuns.fork prefix (Stdlib.Option.Option.Some n)
       | Error _ ->
         Cli.printErr
-          $"--at wants a position from the `pos` column of `traces show`, not {at}"
+          $"--at wants a position from the `pos` column of `traces log`, not {at}"
         false
     Cli.exitWith state ok
   | [ "pin", prefix ] -> Cli.exitWith state (Cli.TraceRuns.pin prefix true)
@@ -416,12 +454,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
   // The watching form of the same thing: the runs to pick from, and the code repainting as you
   // move between them or save an edit.
-  | [ "values", fnName, "--watch" ] ->
+  | [ "show", fnName, "--watch" ] ->
     Stdlib.LocalStore.configSet Cli.TraceWatch.fnKey fnName
     let view =
       Apps.Model.View
-        { name = "traces-values"
-          title = $"values: {fnName}"
+        { name = "traces-show"
+          title = $"show: {fnName}"
           init = "Darklang.Cli.TraceWatch.init"
           update = "Darklang.Cli.TraceWatch.update"
           render = "Darklang.Cli.TraceWatch.render"
@@ -429,13 +467,17 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           keys =
             Stdlib.Option.Option.Some
               "up/down pick a run  |  esc quit  (nothing here performs an effect)" }
-    match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None with
+    // `--watch` IS the opt-in: a panel whose whole job is to repaint as runs arrive and as you
+    // edit the code it is showing you.
+    match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None true with
     | Ok _ -> state
     | Error e ->
       Cli.printErr e
       { state with exitCode = 1 }
-  | [ "values", fnName ] ->
-    if wantsJson then
+  | [ "show", fnName ] ->
+    if looksLikeARunId fnName then
+      refuseRunIdToShow state fnName
+    else if wantsJson then
       Cli.exitWith
         state
         (Cli.TraceRuns.printValuesJson
@@ -444,8 +486,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           Stdlib.Option.Option.None)
     else
       Cli.TraceRuns.printValues state fnName Stdlib.Option.Option.None
-  | [ "values", fnName, run ] ->
-    if wantsJson then
+  | [ "show", fnName, run ] ->
+    if looksLikeARunId fnName then
+      refuseRunIdToShow state fnName
+    else if wantsJson then
       Cli.exitWith
         state
         (Cli.TraceRuns.printValuesJson
@@ -454,12 +498,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           (Stdlib.Option.Option.Some run))
     else
       Cli.TraceRuns.printValues state fnName (Stdlib.Option.Option.Some run)
-  | [ "calls" ] | [ "values" ] ->
+  // `values` was this verb's name until `show` took it over: `show` shows you the code, which is
+  // what you are usually after, and `log` shows the recordings.
+  | "values" :: rest ->
+    let tail = Stdlib.String.join rest " "
+    Cli.printErr "`traces values` is `traces show`: the code, with a run's values beside it"
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  dark traces show {tail}")
+    { state with exitCode = 1 }
+  | [ "calls" ] | [ "show" ] ->
     let verb = Stdlib.Option.withDefault (Stdlib.List.head args) ""
     Cli.printErr $"traces {verb} needs a function name, like Darklang.Stdlib.List.map"
     { state with exitCode = 1 }
 
-  | [ "show" ] | [ "resume" ] | [ "fork" ] | [ "pin" ] | [ "unpin" ] ->
+  | [ "log" ] | [ "resume" ] | [ "fork" ] | [ "pin" ] | [ "unpin" ] ->
     let verb = Stdlib.Option.withDefault (Stdlib.List.head args) ""
     Cli.printErr $"traces {verb} needs an id prefix -- `dark traces` lists them"
     { state with exitCode = 1 }
@@ -540,7 +591,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "find" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        "Usage: traces find <pattern> [limit] [--show] [--json]")
+        "Usage: traces find <pattern> [limit] [--log] [--json]")
     state
 
   // Catch any other malformed follow invocation — anything not matched
@@ -572,7 +623,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | "find" :: _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        "Usage: traces find <pattern> [limit] [--show] [--json]")
+        "Usage: traces find <pattern> [limit] [--log] [--json]")
     state
   | "hotspots" :: _ ->
     Stdlib.printLine
@@ -589,7 +640,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // look like it succeeded silently.
     let knownSubcommands =
       [ "help", "list", "view", "tail", "follow", "find", "hotspots"
-        "stats", "rerun", "delete", "show", "resume", "fork", "pin", "unpin", "calls",
+        "stats", "rerun", "delete", "show", "log", "resume", "fork", "pin", "unpin", "calls",
         "values", "record" ]
     // `view` is in that list on purpose: it is a verb we HAD, and its own arm says what it is
     // called now. Taking it out would send a script that still uses it to the generic help.
@@ -766,10 +817,10 @@ let executeFindJson
     state
 
 
-/// `traces find <pattern> --show` -- search-then-drill in one step: the newest matching run,
-/// rendered as `traces show` would. If several match, the others are noted and you get the
+/// `traces find <pattern> --log` -- search-then-drill in one step: the newest matching run,
+/// rendered as `traces log` would. If several match, the others are noted and you get the
 /// freshest.
-let executeFindShow (state: Cli.AppState) (pattern: String) : Cli.AppState =
+let executeFindLog (state: Cli.AppState) (pattern: String) : Cli.AppState =
   if pattern == "" then
     Cli.printErr "find takes something to look for: part of an id, or of what was run"
     { state with exitCode = 1 }
@@ -783,12 +834,12 @@ let executeFindShow (state: Cli.AppState) (pattern: String) : Cli.AppState =
     | row :: _ ->
       Stdlib.printLine $"the newest run matching {pattern}: {row.id}"
       Stdlib.printLine ""
-      executeShow state row.id defaultViewOptions
+      executeLog state row.id defaultViewOptions
 
 
 /// `traces tail [N] [--route <substring>]` -- the Nth-most-recent run, shown (default N=1, the
 /// very latest). Skips the list-then-copy-id round trip you would otherwise do with
-/// `traces list` then `traces show <id>`; `tail 2` peeks back one without copying ids. An
+/// `traces list` then `traces log <id>`; `tail 2` peeks back one without copying ids. An
 /// optional route filter narrows to runs matching the substring before counting.
 let executeTail
   (state: Cli.AppState)
@@ -839,7 +890,7 @@ let executeTail
           $"there is no {nStr}{ordinalSuffix n}-most-recent run{suffix}"
       Stdlib.printLine msg
       state
-    | row :: _ -> executeShow state row.id defaultViewOptions
+    | row :: _ -> executeLog state row.id defaultViewOptions
 
 
 /// `traces stats` — per-handler aggregate over the last N traces:
@@ -1046,7 +1097,7 @@ let printMatches (nothing: String) (rows: List<TraceSummary>) : Unit =
     Stdlib.printLine ""
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText
-        "  dark traces show <id>   one run: its input, its log, where it stands")
+        "  dark traces log <id>   one run: its input, what it did, where it stands")
 
 
 /// Single-line render of a dval for the trace viewer; strategy lives in
@@ -1121,11 +1172,11 @@ let formatFnCalls
           "\n"
 
 
-/// `traces show <run> [flags]` -- one run: what it was, what it answered, where it stands, and
+/// `traces log <run> [flags]` -- one run: what it was, what it answered, where it stands, and
 /// the sequence of impure calls it made. The ONE renderer for a single run, which is why `tail`
-/// and `find --show` come through here too: there used to be a second verb (`view`) printing
+/// and `find --log` come through here too: there used to be a second verb (`view`) printing
 /// almost the same thing, and the two drifted.
-let executeShow
+let executeLog
   (state: Cli.AppState)
   (prefix: String)
   (opts: ViewOptions)
@@ -1207,7 +1258,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
       $"no kept run has the id {traceID}, or its input is not something to evaluate"
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText
-        "  a served request's input is a record, not source: `traces values` reads one instead")
+        "  a served request's input is a record, not source: `traces show <fn>` reads one instead")
     state
   | Some code ->
     Stdlib.printLine
@@ -1320,13 +1371,13 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [] ->
     // Every verb the help lists, in the help's order, so the two cannot drift.
     [ Completion.simple "show"
+      Completion.simple "calls"
+      Completion.simple "log"
       Completion.simple "resume"
       Completion.simple "fork"
       Completion.simple "rerun"
       Completion.simple "pin"
       Completion.simple "unpin"
-      Completion.simple "calls"
-      Completion.simple "values"
       Completion.simple "list"
       Completion.simple "find"
       Completion.simple "tail"
@@ -1344,7 +1395,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [ "follow" ] ->
     [ Completion.simple "--route", Completion.simple "--json" ]
   | [ "find" ] ->
-    [ Completion.simple "--show", Completion.simple "--json" ]
+    [ Completion.simple "--log", Completion.simple "--json" ]
   | [ "delete" ] ->
     [ Completion.simple "--all"
       Completion.simple "--keep"
@@ -1352,15 +1403,16 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [ "stats" ] -> [ Completion.simple "--json" ]
   | [ "hotspots" ] -> [ Completion.simple "--json" ]
   | [ "record" ] -> [ Completion.simple "on", Completion.simple "off" ]
-  // After `traces show <run>` the next token is a flag. Only the ones that still mean
-  // something: the tree flags are refused by name, and offering them would be a trap.
-  | "show" :: _ :: _ ->
+  // After `traces log <run>` the next token is a flag. Only the ones that still mean something:
+  // the tree flags are refused by name, and offering them would be a trap.
+  | "log" :: _ :: _ ->
     [ Completion.simple "--filter"
       Completion.simple "--exclude"
       Completion.simple "--slow"
       Completion.simple "--slow-ms"
       Completion.simple "--all"
       Completion.simple "--json" ]
+  | [ "show", _ ] -> [ Completion.simple "--watch", Completion.simple "--json" ]
   // After a value-taking flag, the next token is a user-supplied
   // substring/path — no canonical completion to suggest. Returning
   // an empty list forces the user to type a value rather than
@@ -1386,27 +1438,28 @@ let help (_state: Cli.AppState) : String =
     ""
     "  dark traces                   the runs, newest first"
     ""
+    "Read the code through a run"
+    "  show <fn> [<run>]             that function's code, with that run's values beside it."
+    "                                Answers every effect from the log and performs none"
+    "  show <fn> --watch             the same, as a panel: up/down pick a run, and it"
+    "                                repaints as runs arrive and as you edit the code"
+    "  calls <fn>                    the runs that went through one function, newest first"
+    ""
     "Using a run"
-    "  show <run> [flags]            what it ran, what it answered, its effect log"
+    "  log <run> [flags]             what it ran, what it answered, and what it did to the"
+    "                                world, in order"
     "  resume <run>                  carry on where it stopped: the log answers what already"
     "                                happened, then the run goes live"
     "  fork <run> [--at <n>]         a new run branching from any position of an old one"
     "  rerun <run>                   run the input again, performing every effect for real"
     "  pin <run> | unpin <run>       keep it whatever retention says"
     ""
-    "Read the code through a run"
-    "  calls <fn>                    the runs that went through one function, newest first"
-    "  values <fn> [<run>]           that function's code, with that run's values beside it."
-    "                                Answers every effect from the log and performs none"
-    "  values <fn> --watch           the same, as a panel: up/down pick a run, and it"
-    "                                repaints as runs arrive and as you edit the code"
-    ""
     "Look around"
     "  list [n] [--json]             the runs, newest first"
     "  list --fn <substring> [n]     ... only the ones that called a matching function"
     "  list --route <substring> [n]  ... only the served requests matching a path or method"
     "  find <pattern> [n]            ... only the ones whose recorded values contain it"
-    "  find <pattern> --show         ... and show the newest of them"
+    "  find <pattern> --log          ... and open the newest of them"
     "  tail [n] [--route <s>]        the nth-most-recent run, shown (default 1)"
     "  follow [--route <s>]          print runs as they arrive"
     "  stats [n] | hotspots [n]      runs per entry; time per function across recent runs"
@@ -1419,11 +1472,11 @@ let help (_state: Cli.AppState) : String =
     "  delete <run>                  one run"
     "  delete --all | --keep <n> | --before <duration>   (duration: 30s, 10m, 2h, 7d)"
     ""
-    "A <run> is any unambiguous prefix of its id: `show fe62`, `resume fe6219e9-4705`."
-    "`--json` works on every verb that prints something: list, show, calls, values, find,"
-    "stats, hotspots and follow. `dark ps --json` too."
+    "A <run> is any unambiguous prefix of its id: `log fe62`, `resume fe6219e9-4705`."
+    "`--json` works on every verb that prints something: list, log, show, calls, find, stats,"
+    "hotspots and follow. `dark ps --json` too."
     ""
-    "Flags for `show` and `tail`, combinable:"
+    "Flags for `log` and `tail`, combinable:"
     "  --filter <pattern>            only logged calls whose name matches it"
     "  --exclude <pattern>           the ones whose name does not"
     "  --slow | --slow-ms <n>        only calls that took over 10ms, or over <n>ms"

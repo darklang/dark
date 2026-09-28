@@ -573,7 +573,7 @@ let private handleRequest
             // A served request is a run like any other (`dark traces`), so it says how it went
             // and what served it. The recorder's upsert wrote the row with `done`; a 5xx is the
             // one case where the request is worth finding again, so it is marked failed. The
-            // handler's hash is what lets `traces values` replay the request against it: a
+            // handler's hash is what lets `traces show` replay the request against it: a
             // request's input is a record, not source, so there is nothing else to re-run.
             if tracer.enabled then
               let runId = AT.TraceID.toUUID traceID

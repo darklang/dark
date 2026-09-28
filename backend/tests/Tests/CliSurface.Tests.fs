@@ -96,7 +96,7 @@ let private sweepFailure (outcome : Result<string, string>) : Option<string> =
 
 /// One line, because `eval` takes the expression as a single argument.
 let private renderExpr (body : string) : string =
-  "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"test-instance\" [] in "
+  "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"test-instance\" [] false in "
   + "let s = Darklang.Cli.Workbench.refreshScmStatus st st in "
   + "let frame = fun v w h -> (Darklang.Cli.Workbench.viewAtSize { s with activeView = v } (Darklang.Stdlib.Cli.Tui.Size { width = w; height = h })).rows in "
   + body
@@ -130,7 +130,7 @@ let private hintRowKeepsTheWayOut =
     (fun state ->
       task {
         let lastRow (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"i\" [] in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"i\" [] false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s1 = { s0 with activeView = 4 } in "
           + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
@@ -183,7 +183,7 @@ let private headerKeepsTheBranchWhenNarrow =
         // A deliberately long instance name, so the row is over-full whatever the shared
         // store holds: the test creates the condition rather than hoping.
         let row (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"inst-with-a-deliberately-long-name-for-this-test\" [] in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"inst-with-a-deliberately-long-name-for-this-test\" [] false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s1 = { s0 with activeView = 4 } in "
           + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
@@ -213,7 +213,7 @@ let private workbenchBranchActionsWork =
     (fun state ->
       task {
         let act (action : string) (text : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s = { s0 with activeView = 4 } in "
           + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\"; field = Stdlib.Cli.UI.TextField.fromText \"{text}\"; action = \"{action}\" }}) with "
@@ -251,7 +251,7 @@ let private mergeAndRebaseRefuseOnMain =
     (fun state ->
       task {
         let act (action : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s = { s0 with activeView = 4 } in "
           + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\"; field = Stdlib.Cli.UI.TextField.fromText \"y\"; action = \"{action}\" }}) with "
@@ -663,7 +663,7 @@ type private Seeded =
     branch : string
     /// A commit hash `show` can open.
     commit : string
-    /// A recorded run `traces show` can open.
+    /// A recorded run `traces log` can open.
     run : string
   }
 
@@ -708,7 +708,7 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "db", [ "list" ]
       "ops", [ "3" ]
       "ps", [ "--json" ]
-      "traces", [ "show"; seed.run ]
+      "traces", [ "log"; seed.run ]
       "conflicts", [ "list" ]
       "backups", [ "list" ]
       "whoami", []

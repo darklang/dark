@@ -84,8 +84,8 @@ let private forkDivergesAfterThePosition =
           child.parent
           (Some(parent.id, 1L))
           "and knows where it came from"
-        let! shown = runCli state [ "exec"; "show"; prefixOf child ]
-        Expect.stringContains shown "forked" "show says so"
+        let! shown = runCli state [ "exec"; "log"; prefixOf child ]
+        Expect.stringContains shown "forked" "log says so"
         Expect.stringContains
           shown
           ((string parent.id).Substring(0, 8))
@@ -180,7 +180,7 @@ let private replayAfterAnEdit =
 /// answered from the log, so the print in the middle of the function must not print again.
 let private previewShowsValuesAndPerformsNothing =
   cliTestWithFreshTraces
-    "traces calls finds the runs, and traces values replays one without performing its effects"
+    "traces calls finds the runs, and traces show replays one without performing its effects"
     (fun state ->
       task {
         // No level pinning: recording is on or off, and the harness turns it on.
@@ -200,7 +200,7 @@ let private previewShowsValuesAndPerformsNothing =
         let! listed = runCli state [ "traces"; "calls"; "Tests.Prev.greet" ]
         Expect.stringContains listed "eval" "the run that went through it"
 
-        let! viewed = runCli state [ "traces"; "values"; "Tests.Prev.greet" ]
+        let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.greet" ]
         Expect.stringContains
           viewed
           "toUppercase name // = \"BOB\""

@@ -287,7 +287,8 @@ let private locSource (modules : List<string>) (name : string) : string =
   $"Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = \"Tests\"; modules = [{mods}]; name = \"{name}\" }}"
 
 /// A live server (`serve` without the command) for the router at <param routerLoc>, resolved
-/// on <param branchSource> (Dark source for the branch id), with `--dev` when <param dev>:
+/// on <param branchSource> (Dark source for the branch id), with the browser half (what
+/// `--live` turns on at the command line) when <param dev>:
 /// the port is handed to <param body>, and the listener is stopped after it.
 let private withLiveServer
   (state : RT.ExecutionState)
@@ -387,7 +388,7 @@ let private previewOfAServedRequest =
                     "the request is listed under the handler"
 
                   let! viewed =
-                    runCli target [ "traces"; "values"; "Tests.PrevHttp.router" ]
+                    runCli target [ "traces"; "show"; "Tests.PrevHttp.router" ]
                   Expect.stringContains
                     viewed
                     "page () // = \"hello\""
@@ -813,7 +814,7 @@ let private modelSavesAndResumes =
       let! resumed =
         evalUnder
           state
-          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"{name}\")"
+          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"{name}\") false"
       let session =
         match resumed with
         | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
@@ -830,7 +831,7 @@ let private modelSavesAndResumes =
       let! missing =
         evalUnder
           state
-          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\")"
+          $"Darklang.Cli.Apps.Host.prepareWith Darklang.SCM.Branch.mainBranchId ({view}) (Darklang.Stdlib.Option.Option.Some \"Tests.LiveSave.Sessions.nope\") false"
       match missing with
       | RT.DEnum(_, _, _, "Error", [ RT.DString why ]) ->
         Expect.stringContains
@@ -1002,11 +1003,11 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         | other -> failtest $"expected a diagnostic, got {other}"
       })
 
-/// The `--dev` stream: a page's listener says which version served it, and an edit that lands
+/// The `--live` stream: a page's listener says which version served it, and an edit that lands
 /// after the page was served (even before the stream opened) is reported to it.
 let private devStreamReportsAnEditAfterTheServe =
   cliTest
-    "a serve --dev page is told to reload for an edit made after it was served"
+    "a serve --live page is told to reload for an edit made after it was served"
     (fun target ->
       task {
         let state = executionState target
@@ -1056,11 +1057,11 @@ let private devStreamReportsAnEditAfterTheServe =
       })
 
 
-/// Under `--dev`, a handler that fails at run time answers a page that carries the reload
+/// Under `--live`, a handler that fails at run time answers a page that carries the reload
 /// listener, so the tab recovers when the edit that fixes it lands.
 let private devErrorPageCarriesTheListener =
   cliTest
-    "a serve --dev error page still carries the /__live listener"
+    "a serve --live error page still carries the /__live listener"
     (fun target ->
       task {
         let state = executionState target
@@ -1123,7 +1124,7 @@ match Darklang.LanguageTools.PackageManager.Function.find bid loc with
 /// different dot shows you that request's values.
 let private previewPicksWhichRunToShow =
   cliTestWithFreshTraces
-    "traces calls lists the runs, and traces values renders the one you pick"
+    "traces calls lists the runs, and traces show renders the one you pick"
     (fun target ->
       task {
         let author = author target
@@ -1143,13 +1144,13 @@ let private previewPicksWhichRunToShow =
         Expect.equal (List.length rows) 2 "one row per run that went through it"
 
         // The newest run by default.
-        let! newest = runCli target [ "traces"; "values"; "Tests.Inbox.describe" ]
+        let! newest = runCli target [ "traces"; "show"; "Tests.Inbox.describe" ]
         Expect.stringContains newest "\"ALICE\"" "the newest run's value"
 
         // ... and an older one by its id, which is the whole point of the list.
         let older = (List.item 1 rows).Trim().Split(' ') |> Array.head
         let! chosen =
-          runCli target [ "traces"; "values"; "Tests.Inbox.describe"; older ]
+          runCli target [ "traces"; "show"; "Tests.Inbox.describe"; older ]
         Expect.stringContains chosen "\"BOB\"" "the run that was asked for"
         Expect.isFalse (chosen.Contains "\"ALICE\"") "and not the newest one"
       })
@@ -1261,7 +1262,7 @@ r.fns
                     RT.DInt count,
                     [ RT.DEnum(_, _, _, "Some", [ RT.DString problem ]) ]) ->
           // `Values` no longer carries the run's own answer: the preview's business is the
-          // values inside the code, and `traces show` is where a run's answer lives.
+          // values inside the code, and `traces log` is where a run's answer lives.
           Expect.isFalse
             hasResult
             "placeholder, kept so the tuple shape still reads"

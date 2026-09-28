@@ -1,9 +1,9 @@
-/// `dark traces values <fn> --watch`: a function's code with a recorded run's values beside it,
+/// `dark traces show <fn> --watch`: a function's code with a recorded run's values beside it,
 /// and the runs to pick from, repainting as new ones arrive.
 ///
 /// This is Dark Classic's trace-driven development, whole: the dots down the left are the runs,
 /// the code on the right carries `// = value` at every call, up and down move between runs, and
-/// the panel follows both a new run and an edit to the code. `dark traces values <fn>` is the
+/// the panel follows both a new run and an edit to the code. `dark traces show <fn>` is the
 /// one-shot print of the same thing.
 ///
 /// Nothing here performs an effect. Each repaint replays the selected run with every impure call

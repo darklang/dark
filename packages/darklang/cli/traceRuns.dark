@@ -113,13 +113,13 @@ type CallJson =
     process: Stdlib.Option.Option<String> }
 
 
-/// What `traces show --json` hands back: the run, and the impure calls it logged.
+/// What `traces log --json` hands back: the run, and the impure calls it logged.
 type RunWithCallsJson =
   { run: RunJson
     calls: List<CallJson> }
 
 
-/// What `traces values --json` hands back: which run was read, and what each expression in the
+/// What `traces show --json` hands back: which run was read, and what each expression in the
 /// code evaluated to, keyed by the expression's id. `problem` is set when the replay stopped.
 type ValuesJson =
   { run: String
@@ -128,7 +128,7 @@ type ValuesJson =
     problem: Stdlib.Option.Option<String> }
 
 
-/// A run, for `--json`. The ONE converter: `list`, `find`, `calls`, `follow` and `show` all come
+/// A run, for `--json`. The ONE converter: `list`, `find`, `calls`, `follow` and `log` all come
 /// through here, so no two of them can hand back a run with different fields in it.
 let runJson (branchId: Uuid) (run: Darklang.Tracing.Trace) : RunJson =
   RunJson
@@ -175,7 +175,7 @@ let printRunsJson (branchId: Uuid) (runs: List<Darklang.Tracing.Trace>) : Unit =
 
 
 /// One run and its log, as JSON.
-let printShowJson (branchId: Uuid) (prefix: String) : Bool =
+let printLogJson (branchId: Uuid) (prefix: String) : Bool =
   match find prefix with
   | Error e ->
     Cli.printErr e
@@ -222,7 +222,7 @@ let resume (state: AppState) (prefix: String) : AppState =
         Cli.printErr
           $"{Cli.Text.shortIdText e.id} was a served request ({e.entry}); resume only re-runs `eval` and"
         Stdlib.printLine
-          $"  `run <file>`. `dark traces values <fn> {Cli.Text.shortIdText e.id}` shows what it did."
+          $"  `run <file>`. `dark traces show <fn> {Cli.Text.shortIdText e.id}` shows what it did."
         { state with exitCode = 1 }
     else
       Cli.printErr $"{Cli.Text.shortIdText e.id} is gone: it was deleted while this command ran"
@@ -271,7 +271,7 @@ let pin (prefix: String) (pinned: Bool) : Bool =
 // `traces calls <fn>` is the dots: the runs that went through the function, from the names-only
 // index every recorded run writes.
 //
-// `traces values <fn> [<run>]` is the code with the values. It replays the whole run with every
+// `traces show <fn> [<run>]` is the code with the values. It replays the whole run with every
 // effectful call answered from that run's log -- by name and arguments, classic's key -- and
 // performs none of them. Looking at code never touches the world. A call the log cannot answer
 // stops the preview and says which one it was, rather than going and doing it.
@@ -296,10 +296,10 @@ let printCalls (fnName: String) : Unit =
     Stdlib.printLine ""
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText
-        "  dark traces values <fn> <run>  the code, with that run's values beside it")
+        "  dark traces show <fn> <run>  the code, with that run's values beside it")
 
 
-/// The values `traces values` would print beside the code, as JSON: the ids and the values,
+/// The values `traces show` would print beside the code, as JSON: the ids and the values,
 /// with no source. What an agent wants, since it can read the code already.
 let printValuesJson
   (branchId: Uuid)
@@ -342,6 +342,18 @@ let printValues
   : AppState =
   let branchId = state.currentBranchId
   let entry = LanguageTools.ProgramTypes.parsePackageLocation fnName
+
+  // Does the function exist at all? Asked FIRST, because the two failures read the same way
+  // and are not the same thing: a name nothing has run is an empty answer, and a name that is
+  // not a function is a refusal. Asking in the other order told you "no recorded run went
+  // through Stdlib.List.mpa" about a typo.
+  if
+    (LanguageTools.PackageManager.Function.find branchId entry)
+    == Stdlib.Option.Option.None
+  then
+    Cli.printErr $"no function named {fnName} on this branch"
+    { state with exitCode = 1 }
+  else
 
   let chosen =
     match runPrefix with
