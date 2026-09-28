@@ -232,7 +232,7 @@ let jumpToWorkspace (state: State) (n: Int) : State =
     else state
 
 /// Keys while the nav has the keyboard. The arrows follow how the rows sit
-/// on screen. As a strip: ←→ (h/l) walk it and ↓ (j) steps into the
+/// on screen. As a strip: ←→ walk it and ↓ steps into the
 /// content. As an overlay the rows run top to bottom, so ↑↓ walk and →
 /// leaves, as the column did. Either way ⏎ goes, and tab and esc hand the
 /// keyboard back to the content (esc is one step back everywhere, and
@@ -292,12 +292,6 @@ let handleNavbarKey
   | Tab -> toContent
   | _ ->
     match keyChar with
-    | Some "k" -> up ()
-    | Some "j" -> down ()
-    | Some "l" -> right ()
-    | Some "h" -> left ()
-    | Some "g" -> moveToStart ()
-    | Some "G" -> moveToEnd ()
     // ` toggles: it opened the nav, so it also hands the keyboard back.
     | Some "`" -> toContent
     | _ ->

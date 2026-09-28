@@ -155,13 +155,8 @@ let handleViewKey
     ascend state
   | _ ->
     match keyChar with
-    // Vim motion - the same movement as the arrows, so muscle memory works either way.
-    | Some "k" -> navUp state
-    | Some "j" -> navDown state
-    | Some "h" -> focusLeft state
-    | Some "l" -> focusRight state
-    | Some "g" -> navTop state
-    | Some "G" -> navBottom state
+    // No vim motion. The arrows, Home/End and PageUp/PageDown above are the movement, and a
+    // second way to move costs six letters that actions want more.
     | Some "a" ->
       // Changes, on a conflict row: acknowledge. AI: ask the agent. Devices: add an instance (placeholder).
       if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "ok"
@@ -336,12 +331,20 @@ let handleViewKey
       if state.activeView == vApps then
         Step.Continue (goTo state (mkDest (extViewIndex "processes") 0) false)
       else Step.Continue state
-    | Some "*" ->
-      // Traces: pin the run under the cursor, or unpin it. `*` is what the table prints in the
-      // pin column, and every letter that would have read better is taken -- `p` is the prompt
-      // and `j`/`k` are vim movement, above. Retention drops the oldest runs as they pile up,
-      // and the one you are reading is the one you least want dropped. In place, no
-      // confirmation, because it is one bit and pressing it again puts it back.
+    | Some "R" ->
+      // Reload now: what `--live` would have done for you. The footer says when there is
+      // something to reload, and pressing it when there is not costs one re-read.
+      Step.Continue
+        (forceScmRefresh
+          { state with items = reloadItems state; message = "reloaded" })
+    | Some "p" ->
+      // Traces: pin the run under the cursor, or unpin it. Retention drops the oldest runs as
+      // they pile up, and the one you are reading is the one you least want dropped. In place,
+      // no confirmation, because it is one bit and pressing it again puts it back.
+      //
+      // `p` is the prompt everywhere else, and on this pane it is the pin. That is the same
+      // rule every other letter follows here (`r` is rebase on Home, start on Apps, rename on
+      // Code), and the footer says which one you are looking at.
       if state.activeView == vTraces then
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->

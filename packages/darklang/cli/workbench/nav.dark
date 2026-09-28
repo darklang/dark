@@ -127,7 +127,7 @@ let ascend (state: State) : Step =
           filter = "" }
     Step.Continue (moveToPoint state point true)
 
-// ── Movement (shared by arrows + vim keys, so j/k/h/l/g/G mean the same as the arrows) ──
+// ── Movement (the arrows, Home/End and PageUp/PageDown; there is no second key set) ──
 
 /// The nearest selectable row to `from`, looking in `dir` (+1 / -1) past any
 /// section headers; `from` itself if it's selectable. Falls back to the other
@@ -190,7 +190,7 @@ let navDown (state: State) : Step =
       else target
     Step.Continue { state with selected = landed; detailScroll = 0 }
 
-/// Jump to the top / bottom of the list (vim g / G).
+/// Jump to the top / bottom of the list (Home / End).
 let navTop (state: State) : Step =
   let top = if isSectioned state then selectableRow state.items 0 1 else 0
   Step.Continue { state with selected = top; detailScroll = 0 }
