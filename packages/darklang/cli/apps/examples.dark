@@ -34,7 +34,12 @@ let heartbeat (name: String) : Int =
     | Some name when name != "" -> name
     | _ -> "Darklang.Cli.Apps.Examples.beat"
 
-  Runner.run name step 0 intervalMs
+  // Following edits is opt-in, and `apps start <slug> --live` is how it is asked for: the flag
+  // writes this key before the daemon launches, so a daemon started from a unit file carries
+  // the same answer.
+  let live = (Config.get ("apps." ++ name ++ ".live")) == (Stdlib.Option.Option.Some "on")
+
+  Runner.run name step 0 intervalMs live
 
 
 module TextEdit =

@@ -1,10 +1,15 @@
-/// The runner for a daemon that follows edits.
+/// The runner for a daemon.
 ///
 /// A daemon written for this is a STEP, `step : 's -> 's`, held by name and called once per tick.
-/// Between ticks the runner waits through `Stdlib.Host.await`, so an edit to the step (or to
-/// anything it calls) is resolved through `Stdlib.Live.LastGood` before the next tick, and a broken
-/// version is skipped, with the reason in the log. Under the scheduler the wait is a park and the
-/// same loop runs.
+/// Between ticks the runner waits through `Stdlib.Host.await`.
+///
+/// `live` is what makes it follow edits: on, an edit to the step (or to anything it calls) is
+/// resolved through `Stdlib.Live.LastGood` before the next tick, and a broken version is skipped
+/// with the reason in the log. Off, which is the default, the daemon runs the version it started
+/// on until somebody restarts it -- because a background process quietly changing what it does
+/// while you edit is the thing you want to have asked for. `apps start <slug> --live` asks.
+///
+/// Under the scheduler the wait is a park and the same loop runs.
 module Darklang.Cli.Apps.Runner
 
 /// An interval as the timer spec wants it.
@@ -18,6 +23,7 @@ let loop
   (lg: Stdlib.Live.LastGood)
   (state: 's)
   (intervalMs: Int)
+  (live: Bool)
   : Int =
   let state =
     match Stdlib.Live.call lg state with
@@ -26,7 +32,14 @@ let loop
       Stdlib.printLine $"{name}: the step failed, so its state was kept: {rte}"
       state
 
-  match Stdlib.Host.await [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ] with
+  // Not live: the store is never watched, so the poll behind it never starts for this process.
+  let specs =
+    if live then
+      [ Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
+    else
+      [ Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
+
+  match Stdlib.Host.await specs with
   | StoreChanged change when Stdlib.Live.affects change lg.entry ->
     let refreshed = Stdlib.Live.refresh branchId lg
 
@@ -38,15 +51,21 @@ let loop
     // full interval, not at once. A change that lands during this plain wait is reported by
     // the next `StoreChanged` wait, since the poll behind it accumulates.
     let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
-    loop name branchId refreshed state intervalMs
+    loop name branchId refreshed state intervalMs live
   | StoreChanged _ ->
     let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer (timerMs intervalMs) ]
-    loop name branchId lg state intervalMs
-  | _ -> loop name branchId lg state intervalMs
+    loop name branchId lg state intervalMs live
+  | _ -> loop name branchId lg state intervalMs live
 
 /// Run <param stepName> over <param init> every <param intervalMs>, forever. What a daemon
-/// entrypoint calls after claiming its pidfile.
-let run (name: String) (stepName: String) (init: 's) (intervalMs: Int) : Int =
+/// entrypoint calls after claiming its pidfile. <param live> follows edits to the step.
+let run
+  (name: String)
+  (stepName: String)
+  (init: 's)
+  (intervalMs: Int)
+  (live: Bool)
+  : Int =
   match Stdlib.Live.locationOfName stepName with
   | None ->
     Stdlib.printLine $"{name}: {stepName} is not a package fn name"
@@ -63,5 +82,5 @@ let run (name: String) (stepName: String) (init: 's) (intervalMs: Int) : Int =
 
       Stdlib.printLine $"{name}: {why}"
       1
-    | Some _ -> loop name branchId lg init intervalMs
+    | Some _ -> loop name branchId lg init intervalMs live
 

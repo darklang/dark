@@ -19,7 +19,7 @@ Any module with these three is a view:
   let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
     Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.bold "counter"; ... ]
 
-  apps view My.Counter          open it; edit `render` or anything it calls
+  apps view My.Counter --live   open it, following your edits to `render` or anything it calls
                                 from another terminal and it repaints
 
 The tree `render` returns paints to the terminal, to a page, or to text, so
@@ -31,8 +31,8 @@ the same view is a pane and a web page. Ctrl-S saves the model as a `val`;
   serve My.router               every request runs the newest router that
                                 passes its checks; a broken save keeps the
                                 previous one serving and logs why
-  serve My.router --dev         the open page reloads when its code changes
-  serve My.router --no-live     pin the version resolved at start
+  serve My.router --live        follow edits; the open page reloads when its code changes
+  serve My.router               pin the version resolved at start
 
 Each request is a process: a slow handler holds up nobody, one past
 `http.requestTimeoutMs` is cancelled with a 504, one that raises answers 500

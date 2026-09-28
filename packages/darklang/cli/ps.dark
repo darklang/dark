@@ -297,7 +297,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
           every = Stdlib.Option.Option.Some 500L
           keys =
             Stdlib.Option.Option.Some "up/down move  |  c cancel  |  k kill  |  esc quit" }
-    match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None with
+    // `--watch` IS the opt-in: a panel whose whole job is to repaint. It follows the store for
+    // the same reason it follows the clock.
+    match Apps.Host.openView state.currentBranchId view Stdlib.Option.Option.None true with
     | Ok _ -> state
     | Error e ->
       Cli.printErr e

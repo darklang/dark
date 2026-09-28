@@ -136,8 +136,17 @@ let daemonMain (state: Cli.AppState) (slug: String) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"'{slug}' is not a daemon")
       { state with exitCode = 1 }
 
-/// `apps start <slug>` — launch a daemon detached (verified) and report its pid.
-let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
+/// `apps start <slug> [--live]` -- launch a daemon detached (verified) and report its pid.
+///
+/// `--live` is recorded as `apps.<slug>.live` before the launch rather than passed on the
+/// command line: a daemon takes its settings from config (`apps.<slug>.step`,
+/// `apps.<slug>.intervalMs`), a unit file starts it with no arguments of ours, and the answer
+/// has to be the same either way.
+let startDaemon (state: Cli.AppState) (slug: String) (live: Bool) : Cli.AppState =
+  let _ =
+    Stdlib.LocalStore.configSet
+      ("apps." ++ slug ++ ".live")
+      (if live then "on" else "off")
   if Service.platform () == Service.Platform.Unsupported then
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error "Background daemons need Linux or macOS — they're not supported on this platform yet.")
@@ -166,7 +175,10 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
 
   state
 
-/// `apps view <slug> [<name>]` — open one of an app's live views; it follows edits until Esc.
+/// `apps view <slug> [<name>] [--live]` -- open one of an app's live views.
+///
+/// `--live` is what makes it follow your edits; without it the view runs the version it resolved
+/// when it opened, and a save somewhere else does not move it.
 ///
 /// The slug may also be a MODULE path (`My.Dashboard`): a module with `init`, `update` and `render`
 /// is a view without anyone declaring an app for it, which is the shape a first edit-and-watch
@@ -176,10 +188,11 @@ let viewApp
   (slug: String)
   (name: String)
   (resume: Stdlib.Option.Option<String>)
+  (live: Bool)
   : Cli.AppState =
   match Registry.findBySlug state.currentBranchId slug with
   | None when Stdlib.String.contains slug "." ->
-    match Host.openView state.currentBranchId (Model.viewAt slug slug slug) resume with
+    match Host.openView state.currentBranchId (Model.viewAt slug slug slug) resume live with
     | Ok _ -> state
     | Error e ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
@@ -199,7 +212,7 @@ let viewApp
 
       state
     | Some view ->
-      match Host.openView state.currentBranchId view resume with
+      match Host.openView state.currentBranchId view resume live with
       | Ok _ -> state
       | Error e ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
@@ -301,29 +314,52 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "run", slug ] -> runApp state slug
 
   // No view named: the one `Live.show` points at, when something has pointed.
-  | [ "view" ] ->
+  | [ "view" ] | [ "view", "--live" ] ->
     match Stdlib.Live.shown () with
-    | Some loc -> viewApp state (Stdlib.Live.entryName loc) "" Stdlib.Option.Option.None
+    | Some loc ->
+      viewApp
+        state
+        (Stdlib.Live.entryName loc)
+        ""
+        Stdlib.Option.Option.None
+        (Stdlib.List.member args "--live")
     | None ->
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.error
           "nothing to show yet: `apps view <slug>` or `apps view <Module.Path>` opens one; `apps view` alone opens whatever `Stdlib.Live.show` last pointed at")
       { state with exitCode = 1 }
 
-  | [ "view", slug ] -> viewApp state slug "" Stdlib.Option.Option.None
-  | [ "view", slug, "--resume", saved ] -> viewApp state slug "" (Stdlib.Option.Option.Some saved)
-  | [ "view", slug, name ] -> viewApp state slug name Stdlib.Option.Option.None
-  | [ "view", slug, name, "--resume", saved ] -> viewApp state slug name (Stdlib.Option.Option.Some saved)
+  // `--live` is hoisted out before the match rather than doubling every arm: four forms times
+  // two flags is eight arms saying the same thing, and the one you forget is the bug.
+  | "view" :: rest ->
+    let live = Stdlib.List.member rest "--live"
+    match rest |> Stdlib.List.filter (fun a -> a != "--live") with
+    | [ slug ] -> viewApp state slug "" Stdlib.Option.Option.None live
+    | [ slug, "--resume", saved ] ->
+      viewApp state slug "" (Stdlib.Option.Option.Some saved) live
+    | [ slug, name ] -> viewApp state slug name Stdlib.Option.Option.None live
+    | [ slug, name, "--resume", saved ] ->
+      viewApp state slug name (Stdlib.Option.Option.Some saved) live
+    | _ ->
+      Cli.printErr
+        "Usage: apps view <slug> [<name>] [--resume <val>] [--live]"
+      { state with exitCode = 1 }
 
   // `spawn` is an alias for `start` (the verb for bringing a daemon to life).
-  | [ "start", slug ] | [ "spawn", slug ] -> startDaemon state slug
+  | [ "start", slug ] | [ "spawn", slug ] -> startDaemon state slug false
+  | [ "start", slug, "--live" ] | [ "spawn", slug, "--live" ] ->
+    startDaemon state slug true
   | [ "daemon-main", slug ] -> daemonMain state slug
 
   // Stop, then start: for a daemon that is `behind` (its entrypoint moved under it) and for one
   // written as a single long-running fn, which cannot follow an edit any other way.
   | [ "restart", slug ] ->
     let _ = Stdlib.Cli.Daemon.stop slug
-    startDaemon state slug
+    // A restart keeps whatever `--live` the last start recorded, rather than quietly turning it
+    // off. `apps start <slug>` is how you turn it off.
+    let live =
+      (Stdlib.LocalStore.configGet ("apps." ++ slug ++ ".live")) == "on"
+    startDaemon state slug live
 
   | [ "stop", slug ] ->
     match Stdlib.Cli.Daemon.stop slug with
@@ -444,15 +480,17 @@ let help (_state: Cli.AppState) : String =
 
   Stdlib.printLine ""
   Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Live views")
-  [ helpLine "apps view <slug> [<name>]" "Open a view; it follows edits to its code until Esc"
+  [ helpLine "apps view <slug> [<name>]" "Open a view; Esc closes it"
     helpLine "apps view <Module.Path>" "The same for any module with init, update and render"
     helpLine "apps view" "The view `Stdlib.Live.show` last pointed at (an agent's channel)"
+    helpLine "  ... --live" "Follow edits: a save repaints it, keeping the model"
     helpLine "  ... --resume <val>" "Start from a model saved with Ctrl-S (a `val` under .Sessions)" ]
   |> Stdlib.printLines
 
   Stdlib.printLine ""
   Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "  Daemons")
   [ helpLine "apps start <slug>" "Launch detached (alias: spawn)"
+    helpLine "  ... --live" "Follow edits to its step between ticks, until you restart it"
     helpLine "apps restart <slug>" "Stop and start; for one `behind` an edit to its entrypoint"
     helpLine "apps stop <slug>" "Stop a running daemon"
     helpLine "apps status [slug]" "Running / stopped / stale (+ pid)"

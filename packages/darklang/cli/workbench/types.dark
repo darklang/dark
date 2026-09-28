@@ -154,6 +154,11 @@ let emptyRepl () : ReplState =
 
 type State =
   { activeView: Int
+    /// `--live`: reload when something changes the store under you. Off, the change is NOTICED
+    /// and named in the footer and nothing moves until you press `R`, which is the difference
+    /// between a viewer telling you something happened and a viewer rearranging itself while
+    /// you read it.
+    live: Bool
     location: Packages.PackageLocation
     items: List<BodyItem>
     selected: Int

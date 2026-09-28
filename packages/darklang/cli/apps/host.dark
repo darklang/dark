@@ -46,6 +46,11 @@ type Session<'model, 'msg> =
     toast: Stdlib.Option.Option<String>
     /// The first tree row on screen, when the tree is taller than the pane.
     scroll: Int
+    /// `--live`: follow the code. Off, the view runs the version it resolved at start and a
+    /// save changes nothing on screen, which is what you want when the thing on screen is
+    /// running and you are editing something else. On, a save repaints it, and an agent
+    /// pointing `Live.show` somewhere else switches it.
+    live: Bool
     terminal: Stdlib.Cli.Tui.TerminalSession.State
     exiting: Bool }
 
@@ -292,7 +297,7 @@ let shownView () : Stdlib.Option.Option<Model.View> =
 let followShown (s: Session<'model, 'msg>) : (Session<'model, 'msg> * Bool) =
   match shownView () with
   | Some view when view.render != s.view.render ->
-    match prepareWith s.branchId view Stdlib.Option.Option.None with
+    match prepareWith s.branchId view Stdlib.Option.Option.None s.live with
     | Ok fresh ->
       ({ fresh with
           terminal = s.terminal
@@ -418,11 +423,20 @@ val toastMs = 3000L
 let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
   // One timer: the view's own interval when it has one (a toast clears on the next tick), else
   // the toast's, else none.
+  // Without `--live` the store is not watched at all, so the 200 ms poll never starts for this
+  // process and a `StoreChanged` can never arrive. That is the gate: one entry missing from a
+  // list, rather than a check on every path that could act on one.
+  let watching =
+    if s.live then [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ]
+    else [ Stdlib.Host.EventSpec.Key ]
+
   let specs =
     match (s.view.every, s.toast) with
-    | (Some ms, _) -> [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer ms ]
-    | (None, Some _) -> [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged, Stdlib.Host.EventSpec.Timer toastMs ]
-    | (None, None) -> [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ]
+    | (Some ms, _) ->
+      Stdlib.List.pushBack watching (Stdlib.Host.EventSpec.Timer ms)
+    | (None, Some _) ->
+      Stdlib.List.pushBack watching (Stdlib.Host.EventSpec.Timer toastMs)
+    | (None, None) -> watching
 
   match Stdlib.Host.await specs with
   | StoreChanged change ->
@@ -492,6 +506,7 @@ let prepareWith
   (branchId: Uuid)
   (view: Model.View)
   (resume: Stdlib.Option.Option<String>)
+  (live: Bool)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
   Stdlib.Host.begin ()
 
@@ -526,25 +541,28 @@ let prepareWith
               band = Stdlib.Option.Option.None
               toast = Stdlib.Option.Option.None
               scroll = 0
+              live = live
               terminal = Stdlib.Cli.Tui.TerminalSession.init ()
               exiting = false }
         )
       )
 
-/// A session at the view's `init`, rendered once, with no terminal yet.
+/// A session at the view's `init`, rendered once, with no terminal yet. Follows the code, since
+/// what drives this is a test of following it.
 let prepare
   (branchId: Uuid)
   (view: Model.View)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
-  prepareWith branchId view Stdlib.Option.Option.None
+  prepareWith branchId view Stdlib.Option.Option.None true
 
 /// `prepareWith`, on screen. `Error` also when there is no terminal to take.
 let start
   (branchId: Uuid)
   (view: Model.View)
   (resume: Stdlib.Option.Option<String>)
+  (live: Bool)
   : Stdlib.Result.Result<Session<'model, 'msg>, String> =
-  match prepareWith branchId view resume with
+  match prepareWith branchId view resume live with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok s ->
     let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
@@ -562,13 +580,14 @@ let stop (s: Session<'model, 'msg>) : Unit =
   let _stopped = Stdlib.Cli.Tui.TerminalSession.stop s.terminal
   ()
 
-/// `dark apps view <slug> [<name>] [--resume <val>]`: run the view until it quits.
+/// `dark apps view <slug> [<name>] [--resume <val>] [--live]`: run the view until it quits.
 let openView
   (branchId: Uuid)
   (view: Model.View)
   (resume: Stdlib.Option.Option<String>)
+  (live: Bool)
   : Stdlib.Result.Result<Unit, String> =
-  match start branchId view resume with
+  match start branchId view resume live with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok session ->
     let finished = run session
