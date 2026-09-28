@@ -7,12 +7,13 @@ module Darklang.Cli.TraceRuns
 
 /// The name the trace index would have recorded, given what a person typed.
 ///
-/// `Stdlib.List.map` is how everyone writes it and how the rest of the CLI accepts it, but the
-/// index stores the name a hash resolves to, which is owner-first: `Darklang.Stdlib.List.map`.
-/// Without this, `traces calls Stdlib.List.map` answered "no recorded run went through
-/// Stdlib.List.map" about a function with plenty of runs -- an empty ANSWER to what was really a
-/// spelling this command did not take, which is the worst of both. `dark view` takes the short
-/// form, so these should too.
+/// `Stdlib.List.map` is how everyone writes it and how the rest of the CLI accepts
+/// it, but the index stores the name a hash resolves to, which is owner-first:
+/// `Darklang.Stdlib.List.map`. Without this, `traces calls Stdlib.List.map` answered
+/// "no recorded run went through Stdlib.List.map" about a function with plenty of
+/// runs -- an empty ANSWER to what was really a spelling this command did not take,
+/// which is the worst of both. `dark view` takes the short form, so these should
+/// too.
 let canonicalFnName (branchId: Uuid) (typed: String) : String =
   let resolves (name: String) : Bool =
     (LanguageTools.PackageManager.Function.find
@@ -27,16 +28,18 @@ let canonicalFnName (branchId: Uuid) (typed: String) : String =
     if resolves qualified then qualified else typed
 
 
-/// Why a trace question came back empty, as the line or two that goes under the answer.
+/// Why a trace question came back empty, as the line or two that goes under the
+/// answer.
 ///
-/// "Nothing here" has more than one cause, they are not equally the person's fault, and the
-/// advice under each is different. Recording OFF means nothing could have been kept and doing
-/// the thing again will not help; recording ON means it simply has not happened yet. One vague
-/// line covering both used to tell someone with recording off to go and run it again, which is
-/// the one piece of advice that cannot work.
+/// "Nothing here" has more than one cause, they are not equally the person's fault,
+/// and the advice under each is different. Recording OFF means nothing could have
+/// been kept and doing the thing again will not help; recording ON means it simply
+/// has not happened yet. One vague line covering both used to tell someone with
+/// recording off to go and run it again, which is the one piece of advice that
+/// cannot work.
 ///
-/// <param doing> is what they would do about it, in the imperative: "run something that calls
-/// it", "run something".
+/// <param doing> is what they would do about it, in the imperative: "run something
+/// that calls it", "run something".
 let whyEmpty (doing: String) : List<String> =
   if Darklang.Tracing.Store.enabled () then
     [ $"  recording is on, so {doing} and look again" ]
@@ -238,13 +241,14 @@ let printDetailsJson (branchId: Uuid) (prefix: String) : Bool =
 /// they always do; the armed resume is what makes them replay.
 /// The functions a run went through that have been EDITED since it ran.
 ///
-/// A resume replays the log the run recorded against whatever those names mean now, so the old
-/// run meets the new callees. That is often the point (resume after you fixed the thing that
-/// stopped it), and it is never something the run itself can notice, so it is said rather than
-/// refused -- the same call the replay table makes for a file whose bytes moved.
+/// A resume replays the log the run recorded against whatever those names mean now,
+/// so the old run meets the new callees. That is often the point (resume after you
+/// fixed the thing that stopped it), and it is never something the run itself can
+/// notice, so it is said rather than refused -- the same call the replay table makes
+/// for a file whose bytes moved.
 ///
-/// A name that has since been DELETED is not in here: the resume will fail on it for itself,
-/// with a better message than this could give.
+/// A name that has since been DELETED is not in here: the resume will fail on it for
+/// itself, with a better message than this could give.
 ///
 /// The names come from `trace_fns`, which resolves each hash the run went through to a name at
 /// store time. A package hash is STRUCTURAL, so two functions with identical bodies share one and

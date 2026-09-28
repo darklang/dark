@@ -869,7 +869,11 @@ let fns () : List<BuiltInFn> =
                 "SELECT fn_name, fn_hash FROM trace_fns WHERE trace_id = @t ORDER BY fn_name"
               |> Sql.parameters [ "t", Sql.string traceID ]
               |> Sql.executeAsync (fun read ->
-                DTuple(DString(read.string "fn_name"), DString(read.string "fn_hash"), []))
+                DTuple(
+                  DString(read.string "fn_name"),
+                  DString(read.string "fn_hash"),
+                  []
+                ))
             return rows |> Dval.list (KTTuple(VT.string, VT.string, []))
           }
         | _ -> incorrectArgs ())

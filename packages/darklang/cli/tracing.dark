@@ -365,8 +365,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // `view` is `show` by another name, and people reach for both. An alias costs one arm.
   | "view" :: rest -> execute state (Stdlib.List.push rest "show")
 
-  // `log` was this verb's name in an earlier draft of ours. Refused BY NAME rather than falling
-  // through to "unknown subcommand", because whoever types it read it somewhere we wrote.
+  // `log` was this verb's name in an earlier draft of ours. Refused BY NAME rather
+  // than falling through to "unknown subcommand", because whoever types it read it
+  // somewhere we wrote.
   | "log" :: rest ->
     let tail = Stdlib.String.join rest " "
     Cli.printErr "`traces log` is now `traces details`: what the run was, and what it did"
@@ -419,14 +420,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "record", value ] ->
     if (value == "on") || (value == "off") then
       let on = value == "on"
-      // What was STORED, not what is in effect: setting `on` while the environment already
-      // says on is a real change, because it pins it.
-      let wasAlready = (Darklang.Tracing.Store.storedSetting ()) == (Stdlib.Option.Option.Some on)
+      // What was STORED, not what is in effect: setting `on` while the environment
+      // already says on is a real change, because it pins it.
+      let wasAlready =
+        (Darklang.Tracing.Store.storedSetting ()) == (Stdlib.Option.Option.Some on)
       Darklang.Tracing.Store.setRecording on
 
       if wasAlready then
-        // Nothing moved. Saying what the setting now means, as though it had, is how a command
-        // reads as if it did not take.
+        // Nothing moved. Saying what the setting now means, as though it had, is how
+        // a command reads as if it did not take.
         Stdlib.printLine $"recording: {value}, as it already was"
       else
         Stdlib.printLine $"recording: {value}"
@@ -730,18 +732,19 @@ let executeListByFn
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
     { state with exitCode = 1 }
   else
-    // A no-op on a PARTIAL name, which this verb also takes: nothing resolves it, so it is
-    // handed on as typed and the substring match does its job.
+    // A no-op on a PARTIAL name, which this verb also takes: nothing resolves it, so
+    // it is handed on as typed and the substring match does its job.
     let fnName = Cli.TraceRuns.canonicalFnName state.currentBranchId typed
     let rows = Darklang.Tracing.Store.listByFn fnName limit
     if jsonMode then
       Cli.TraceRuns.printRunsJson state.currentBranchId rows
       state
     else
-      // `--fn` searches the effect LOG, and the log holds only the impure calls, so a pure
-      // function is never in it. "No kept run went through it" is the OTHER question's answer
-      // and was simply wrong here: `traces calls` is the verb that asks it, and if it has an
-      // answer this says so rather than leaving a person with a flat no.
+      // `--fn` searches the effect LOG, and the log holds only the impure calls, so
+      // a pure function is never in it. "No kept run went through it" is the OTHER
+      // question's answer and was simply wrong here: `traces calls` is the verb that
+      // asks it, and if it has an answer this says so rather than leaving a person
+      // with a flat no.
       match rows with
       | [] ->
         Stdlib.printLine $"no kept run made an effectful call matching {fnName}"
@@ -1289,9 +1292,10 @@ let executeDetails
     | Some data ->
       let logged = data.functionCalls |> Stdlib.List.filter (fun c -> c.ord >= 0L)
 
-      // An empty log is its own answer and gets ONE line. Saying "0 calls with effects" and
-      // then "(it touched nothing outside itself)" underneath is the same sentence twice, and
-      // the second one is the better sentence: it says WHY there is nothing here.
+      // An empty log is its own answer and gets ONE line. Saying "0 calls with
+      // effects" and then "(it touched nothing outside itself)" underneath is the
+      // same sentence twice, and the second one is the better sentence: it says WHY
+      // there is nothing here.
       match logged with
       | [] ->
         Stdlib.printLine

@@ -1,6 +1,6 @@
 // TODO:
-//alias PT = LanguageTools.ProgramTypes
-//alias RT = Stdlib.RuntimeTypes
+// alias PT = LanguageTools.ProgramTypes
+// alias RT = Stdlib.RuntimeTypes
 
 // TODO: update all of the 'namePart's to nameToStrings with fn inputs
 
@@ -100,11 +100,12 @@ type Context =
 
     /// May a live value change the LAYOUT?
     ///
-    /// A comment cannot sit in the middle of a line, so showing what each stage of a pipe produced
-    /// means breaking the pipe one stage per line. `dark traces show` and the workbench's Inspect
-    /// pane want that. The LSP must not have it: its inlay hints are found by printing twice, once
-    /// with values and once without, and zipping the two line for line, so a print that gains LINES
-    /// when it gains values yields no hints at all.
+    /// A comment cannot sit in the middle of a line, so showing what each stage of a
+    /// pipe produced means breaking the pipe one stage per line. `dark traces show`
+    /// and the workbench's Inspect pane want that. The LSP must not have it: its
+    /// inlay hints are found by printing twice, once with values and once without,
+    /// and zipping the two line for line, so a print that gains LINES when it gains
+    /// values yields no hints at all.
     breakForValues: Bool }
 
 module Context =
@@ -628,17 +629,17 @@ let applyArg (ctx: Context) (arg: LanguageTools.ProgramTypes.Expr) : Stdlib.Pret
 
 /// The ` // = value` a live value adds after an expression, or nothing at all.
 ///
-/// Zero columns wide for layout (`Styled` measures only its middle), so adding one never moves
-/// the code it sits after.
+/// Zero columns wide for layout (`Styled` measures only its middle), so adding one
+/// never moves the code it sits after.
 let valueSuffix (ctx: Context) (id: Int64) : Stdlib.Pretty.Doc =
   match Stdlib.Dict.get ctx.liveValues (Stdlib.Int64.toString id) with
   | Some value -> Stdlib.Pretty.styled $" // = {value}" "" ""
   | None -> Stdlib.Pretty.text ""
 
 
-/// A pipe stage's own expression id, which is what its value is keyed by. Every stage carries one
-/// through the desugaring (`EPipeFnCall(id, ...)` becomes `EApply(id, ...)`), which is why the
-/// values are already there to print.
+/// A pipe stage's own expression id, which is what its value is keyed by. Every
+/// stage carries one through the desugaring (`EPipeFnCall(id, ...)` becomes
+/// `EApply(id, ...)`), which is why the values are already there to print.
 let pipeExprId (p: LanguageTools.ProgramTypes.PipeExpr) : Int64 =
   match p with
   | EPipeVariable(id, _, _) -> id
@@ -944,18 +945,19 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
   // `xs |> List.length` on one line when it fits; longer chains keep one stage per line.
   | EPipe(_id, e, pipeExprs) ->
-    // Each stage carries its own value, which is the thing you actually want from a pipe: what came
-    // out of step two, not only what the whole thing answered.
+    // Each stage carries its own value, which is the thing you actually want from a
+    // pipe: what came out of step two, not only what the whole thing answered.
     //
-    // Only where the layout may change, though. A comment cannot sit in the middle of a line, so
-    // annotating the stages means one stage per line, and a caller that needs the lines to stay
-    // put (the LSP) gets the pipe exactly as it printed before.
+    // Only where the layout may change, though. A comment cannot sit in the middle
+    // of a line, so annotating the stages means one stage per line, and a caller
+    // that needs the lines to stay put (the LSP) gets the pipe exactly as it printed
+    // before.
     let annotate =
       ctx.breakForValues
       && (pipeExprs
           |> Stdlib.List.any (fun pe ->
-            Stdlib.Option.isSome
-              (Stdlib.Dict.get ctx.liveValues (Stdlib.Int64.toString (pipeExprId pe)))))
+            let key = Stdlib.Int64.toString (pipeExprId pe)
+            Stdlib.Option.isSome (Stdlib.Dict.get ctx.liveValues key)))
 
     let stages =
       pipeExprs
@@ -966,10 +968,10 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
           Stdlib.Pretty.concat stage (valueSuffix ctx (pipeExprId pe))
         else
           stage)
-      // A hard line, not a soft one, on the annotated path: a soft line is only a break if the
-      // group it is in decides to break, and an `// = value` is zero columns wide, so an
-      // enclosing group would happily flatten the pipe back onto one line with the comments
-      // swallowing it.
+      // A hard line, not a soft one, on the annotated path: a soft line is only a
+      // break if the group it is in decides to break, and an `// = value` is zero
+      // columns wide, so an enclosing group would happily flatten the pipe back onto
+      // one line with the comments swallowing it.
       |> Stdlib.Pretty.join (
         if annotate then Stdlib.Pretty.hardLine else Stdlib.Pretty.line)
 
@@ -984,8 +986,8 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
     let doc = Stdlib.Pretty.concat head (Stdlib.Pretty.concat sep stages)
 
-    // Grouping is what lets a short pipe sit on one line, which is where a comment would eat the
-    // rest of it.
+    // Grouping is what lets a short pipe sit on one line, which is where a comment
+    // would eat the rest of it.
     if annotate then doc else Stdlib.Pretty.group doc
 
   // Parenthesise only where precedence or associativity requires it. The old printer wrapped both

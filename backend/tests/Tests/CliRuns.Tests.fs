@@ -170,7 +170,10 @@ let private replayAfterAnEdit =
           (uuidOf first)
           "against the uuid the old run made"
         // The one thing about a resume the run itself cannot notice, so the resume says it.
-        Expect.stringContains resumed "edited since this ran" "the resume says what moved"
+        Expect.stringContains
+          resumed
+          "edited since this ran"
+          "the resume says what moved"
         Expect.stringContains
           resumed
           "Tests.Exec.shape"

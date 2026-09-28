@@ -806,30 +806,33 @@ let private testEmptyAnswersNameTheirCause =
 /// the owner-first name a hash resolves to, so the short form came back as an empty ANSWER about
 /// a function with plenty of runs, which is worse than a refusal because it looks like a fact.
 let private testTracesTakeTheShortNameForm =
-  cliTest "the traces verbs take `Stdlib.X` as well as `Darklang.Stdlib.X`" (fun state ->
-    task {
-      let! _ = runCli state [ "traces"; "record"; "on" ]
-      let! _ = runCli state [ "eval"; "Stdlib.List.length [1L, 2L]" ]
+  cliTest
+    "the traces verbs take `Stdlib.X` as well as `Darklang.Stdlib.X`"
+    (fun state ->
+      task {
+        let! _ = runCli state [ "traces"; "record"; "on" ]
+        let! _ = runCli state [ "eval"; "Stdlib.List.length [1L, 2L]" ]
 
-      let! full = runCli state [ "traces"; "calls"; "Darklang.Stdlib.List.length" ]
-      let! short = runCli state [ "traces"; "calls"; "Stdlib.List.length" ]
-      Expect.isFalse
-        (short.Contains "no recorded run")
-        "the short form finds the same runs the long one does"
-      Expect.equal
-        (short.Split('\n').Length)
-        (full.Split('\n').Length)
-        "and answers with the same table"
+        let! full =
+          runCli state [ "traces"; "calls"; "Darklang.Stdlib.List.length" ]
+        let! short = runCli state [ "traces"; "calls"; "Stdlib.List.length" ]
+        Expect.isFalse
+          (short.Contains "no recorded run")
+          "the short form finds the same runs the long one does"
+        Expect.equal
+          (short.Split('\n').Length)
+          (full.Split('\n').Length)
+          "and answers with the same table"
 
-      let! shownShort = runCli state [ "traces"; "show"; "Stdlib.List.length" ]
-      Expect.isFalse
-        (shownShort.Contains "no function named")
-        "`show` takes it too"
+        let! shownShort = runCli state [ "traces"; "show"; "Stdlib.List.length" ]
+        Expect.isFalse
+          (shownShort.Contains "no function named")
+          "`show` takes it too"
 
-      // A name that really is not there is still a refusal, not an empty answer.
-      let! nope = runCli state [ "traces"; "show"; "Stdlib.List.lenth" ]
-      Expect.stringContains nope "no function named" "a typo is still refused"
-    })
+        // A name that really is not there is still a refusal, not an empty answer.
+        let! nope = runCli state [ "traces"; "show"; "Stdlib.List.lenth" ]
+        Expect.stringContains nope "no function named" "a typo is still refused"
+      })
 
 
 /// What a command reports to a SHELL, which is the only part of a failure a script can read.
