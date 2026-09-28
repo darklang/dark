@@ -419,20 +419,27 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "record", value ] ->
     if (value == "on") || (value == "off") then
       let on = value == "on"
+      // What was STORED, not what is in effect: setting `on` while the environment already
+      // says on is a real change, because it pins it.
+      let wasAlready = (Darklang.Tracing.Store.storedSetting ()) == (Stdlib.Option.Option.Some on)
       Darklang.Tracing.Store.setRecording on
-      Stdlib.printLine $"recording: {value}"
-      if on then
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.dimText
-            "  every run from here is kept, this session included: `dark traces list`")
+
+      if wasAlready then
+        // Nothing moved. Saying what the setting now means, as though it had, is how a command
+        // reads as if it did not take.
+        Stdlib.printLine $"recording: {value}, as it already was"
       else
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.dimText
-            ("  nothing from here on is kept, so `resume`, `fork` and `values` will have "
-             ++ "nothing to work with"))
-      Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.dimText
-          $"  the same setting by the other door: dark config set trace.record {value}")
+        Stdlib.printLine $"recording: {value}"
+
+        if on then
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.dimText
+              "  every run from here is kept, this session included: `dark traces list`")
+        else
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.dimText
+              ("  nothing from here on is kept, so `resume`, `fork` and `show` will have "
+               ++ "nothing to work with"))
       state
     else
       Cli.printErr $"'{value}' is not a recording setting; it is on or off"
@@ -464,17 +471,20 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "pin", prefix ] -> Cli.exitWith state (Cli.TraceRuns.pin prefix true)
   | [ "unpin", prefix ] -> Cli.exitWith state (Cli.TraceRuns.pin prefix false)
   // The call inbox: one function's recorded calls, and the code with that call's values.
-  | [ "calls", fnName ] ->
+  | [ "calls", typed ] ->
+    let fnName = Cli.TraceRuns.canonicalFnName state.currentBranchId typed
+
     if wantsJson then
       Cli.TraceRuns.printRunsJson
         state.currentBranchId
         (Darklang.Tracing.Store.runsCalling fnName 25L)
     else
-      Cli.TraceRuns.printCalls fnName
+      Cli.TraceRuns.printCalls state.currentBranchId fnName
     state
   // The watching form of the same thing: the runs to pick from, and the code repainting as you
   // move between them or save an edit.
-  | [ "show", fnName, "--watch" ] ->
+  | [ "show", typed, "--watch" ] ->
+    let fnName = Cli.TraceRuns.canonicalFnName state.currentBranchId typed
     Stdlib.LocalStore.configSet Cli.TraceWatch.fnKey fnName
     let view =
       Apps.Model.View
@@ -709,24 +719,49 @@ let executeListJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
 
 let executeListByFn
   (state: Cli.AppState)
-  (fnName: String)
+  (typed: String)
   (limit: Int)
   (jsonMode: Bool)
   : Cli.AppState =
-  if Stdlib.String.trim fnName == "" then
+  if Stdlib.String.trim typed == "" then
     Cli.printErr "--fn takes a function name, or part of one"
     { state with exitCode = 1 }
   else if limit < 1 then
     Cli.printErr "a limit is a number of runs, so it has to be 1 or more"
     { state with exitCode = 1 }
   else
+    // A no-op on a PARTIAL name, which this verb also takes: nothing resolves it, so it is
+    // handed on as typed and the substring match does its job.
+    let fnName = Cli.TraceRuns.canonicalFnName state.currentBranchId typed
     let rows = Darklang.Tracing.Store.listByFn fnName limit
     if jsonMode then
       Cli.TraceRuns.printRunsJson state.currentBranchId rows
       state
     else
-      printMatches $"no kept run went through {fnName}" rows
-      state
+      // `--fn` searches the effect LOG, and the log holds only the impure calls, so a pure
+      // function is never in it. "No kept run went through it" is the OTHER question's answer
+      // and was simply wrong here: `traces calls` is the verb that asks it, and if it has an
+      // answer this says so rather than leaving a person with a flat no.
+      match rows with
+      | [] ->
+        Stdlib.printLine $"no kept run made an effectful call matching {fnName}"
+
+        match Darklang.Tracing.Store.runsCalling fnName 1L with
+        | [] ->
+          (Cli.TraceRuns.whyEmpty "run something that calls it")
+          |> Stdlib.List.iter (fun line ->
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText line))
+        | _ ->
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.dimText
+              "  runs DID go through it, and it made no impure calls of its own:")
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.dimText $"  dark traces calls {fnName}")
+
+        state
+      | _ ->
+        printMatches "" rows
+        state
 
 
 /// `traces hotspots [limit]` — across the last <limit> traces (default 100),
@@ -1253,9 +1288,22 @@ let executeDetails
         "  log       not kept (dropped to make room, or recording was off)"
     | Some data ->
       let logged = data.functionCalls |> Stdlib.List.filter (fun c -> c.ord >= 0L)
-      Stdlib.printLine
-        $"  log       {Cli.Text.plural (Stdlib.List.length logged) "call"} with effects"
-      Stdlib.printLine (formatFnCalls opts branchId logged)
+
+      // An empty log is its own answer and gets ONE line. Saying "0 calls with effects" and
+      // then "(it touched nothing outside itself)" underneath is the same sentence twice, and
+      // the second one is the better sentence: it says WHY there is nothing here.
+      match logged with
+      | [] ->
+        Stdlib.printLine
+          "  log       nothing: every call this run made was pure"
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            ("            so there is nothing to replay; `dark traces show <fn>` still has its "
+             ++ "values, which are recomputed"))
+      | _ ->
+        Stdlib.printLine
+          $"  log       {Cli.Text.plural (Stdlib.List.length logged) "call"} with effects"
+        Stdlib.printLine (formatFnCalls opts branchId logged)
       // A recorder that hit its own cap leaves a marker row, which is not part of the log and
       // must never be hidden -- by a filter, or by the display cap. So it prints after, always:
       // a trace that reads as complete when it was cut is the one thing a debugging aid must

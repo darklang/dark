@@ -48,8 +48,9 @@ let annotate
   : (List<String> * Stdlib.Option.Option<String>) =
   match run with
   | None ->
-    ([ $"no recorded run went through {fn} yet"
-       "run something that calls it and this fills in" ],
+    (Stdlib.List.append
+       [ $"no recorded run went through {fn} yet" ]
+       (Cli.TraceRuns.whyEmpty "run something that calls it"),
      Stdlib.Option.Option.None)
   | Some r ->
     let entry = LanguageTools.ProgramTypes.parsePackageLocation fn

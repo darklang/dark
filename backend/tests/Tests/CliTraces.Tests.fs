@@ -747,6 +747,91 @@ let private testRecordingSetting =
   }
 
 
+/// "Nothing here" has more than one cause, and the advice under each is different. This pins that
+/// they are told apart, because one vague line used to tell someone with recording OFF to go and
+/// run the thing again, which is the one piece of advice that cannot work.
+let private testEmptyAnswersNameTheirCause =
+  testSequenced
+  <| testTask "an empty trace answer says WHY it is empty" {
+    do!
+      withState (fun state ->
+        task {
+          let! before = LibDB.Config.get "trace.record"
+
+          try
+            let! _ = runCli state [ "traces"; "record"; "on" ]
+            let! onCase =
+              runCli state [ "traces"; "calls"; "Darklang.Stdlib.Uuid.generate" ]
+            Expect.stringContains
+              onCase
+              "recording is on"
+              "recording on: it simply has not happened yet"
+
+            let! _ = runCli state [ "traces"; "record"; "off" ]
+            let! offCase =
+              runCli state [ "traces"; "calls"; "Darklang.Stdlib.Uuid.generate" ]
+            Expect.stringContains
+              offCase
+              "recording is off"
+              "recording off: nothing could have been kept"
+            Expect.stringContains
+              offCase
+              "dark traces record on"
+              "and the lever is the one that helps, not `run it again`"
+
+            // Setting a setting to what it already is is not a change, and saying what the
+            // setting now means reads as though the command did not take.
+            let! again = runCli state [ "traces"; "record"; "off" ]
+            Expect.stringContains
+              again
+              "as it already was"
+              "the second `record off` says nothing moved"
+            Expect.isFalse
+              (again.Contains "nothing from here on is kept")
+              "and does not describe a change that did not happen"
+          finally
+            match before with
+            | Some v -> (LibDB.Config.set "trace.record" v).Result
+            | None ->
+              (Sql.query "DELETE FROM config_v0 WHERE key = @key"
+               |> Sql.parameters [ "key", Sql.string "trace.record" ]
+               |> Sql.executeStatementAsync)
+                .Result
+            LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
+        })
+  }
+
+
+/// `dark view Stdlib.List.map` works, so these have to as well. They did not: the index stores
+/// the owner-first name a hash resolves to, so the short form came back as an empty ANSWER about
+/// a function with plenty of runs, which is worse than a refusal because it looks like a fact.
+let private testTracesTakeTheShortNameForm =
+  cliTest "the traces verbs take `Stdlib.X` as well as `Darklang.Stdlib.X`" (fun state ->
+    task {
+      let! _ = runCli state [ "traces"; "record"; "on" ]
+      let! _ = runCli state [ "eval"; "Stdlib.List.length [1L, 2L]" ]
+
+      let! full = runCli state [ "traces"; "calls"; "Darklang.Stdlib.List.length" ]
+      let! short = runCli state [ "traces"; "calls"; "Stdlib.List.length" ]
+      Expect.isFalse
+        (short.Contains "no recorded run")
+        "the short form finds the same runs the long one does"
+      Expect.equal
+        (short.Split('\n').Length)
+        (full.Split('\n').Length)
+        "and answers with the same table"
+
+      let! shownShort = runCli state [ "traces"; "show"; "Stdlib.List.length" ]
+      Expect.isFalse
+        (shownShort.Contains "no function named")
+        "`show` takes it too"
+
+      // A name that really is not there is still a refusal, not an empty answer.
+      let! nope = runCli state [ "traces"; "show"; "Stdlib.List.lenth" ]
+      Expect.stringContains nope "no function named" "a typo is still refused"
+    })
+
+
 /// What a command reports to a SHELL, which is the only part of a failure a script can read.
 ///
 /// This exists because `dark run` printed a reason and then exited 0 for a script that raised,
@@ -1195,6 +1280,8 @@ let tests =
          testTracesPinRoundTrip
          testRecordingSettings
          testRecordingSetting
+         testEmptyAnswersNameTheirCause
+         testTracesTakeTheShortNameForm
          testTracesJsonShapes
          testExitCodes
          testTracesLargeTraceListSurvives

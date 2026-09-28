@@ -5,6 +5,46 @@
 module Darklang.Cli.TraceRuns
 
 
+/// The name the trace index would have recorded, given what a person typed.
+///
+/// `Stdlib.List.map` is how everyone writes it and how the rest of the CLI accepts it, but the
+/// index stores the name a hash resolves to, which is owner-first: `Darklang.Stdlib.List.map`.
+/// Without this, `traces calls Stdlib.List.map` answered "no recorded run went through
+/// Stdlib.List.map" about a function with plenty of runs -- an empty ANSWER to what was really a
+/// spelling this command did not take, which is the worst of both. `dark view` takes the short
+/// form, so these should too.
+let canonicalFnName (branchId: Uuid) (typed: String) : String =
+  let resolves (name: String) : Bool =
+    (LanguageTools.PackageManager.Function.find
+      branchId
+      (LanguageTools.ProgramTypes.parsePackageLocation name))
+    != Stdlib.Option.Option.None
+
+  if resolves typed then
+    typed
+  else
+    let qualified = $"Darklang.{typed}"
+    if resolves qualified then qualified else typed
+
+
+/// Why a trace question came back empty, as the line or two that goes under the answer.
+///
+/// "Nothing here" has more than one cause, they are not equally the person's fault, and the
+/// advice under each is different. Recording OFF means nothing could have been kept and doing
+/// the thing again will not help; recording ON means it simply has not happened yet. One vague
+/// line covering both used to tell someone with recording off to go and run it again, which is
+/// the one piece of advice that cannot work.
+///
+/// <param doing> is what they would do about it, in the imperative: "run something that calls
+/// it", "run something".
+let whyEmpty (doing: String) : List<String> =
+  if Darklang.Tracing.Store.enabled () then
+    [ $"  recording is on, so {doing} and look again" ]
+  else
+    [ "  recording is off, so nothing has been kept at all"
+      $"  dark traces record on    then {doing}" ]
+
+
 /// The shortest prefix that tells THESE ids apart, which is what a table should print.
 ///
 /// Eight is almost always enough, and a table that prints more than it needs to spends the
@@ -328,12 +368,15 @@ let pin (prefix: String) (pinned: Bool) : Bool =
 /// ANSWER, not a refusal. A command that was asked a question and answered it truthfully
 /// succeeded, however empty the answer. Naming something that does not exist is the other
 /// thing, and that is what exits non-zero.
-let printCalls (fnName: String) : Unit =
+let printCalls (branchId: Uuid) (typed: String) : Unit =
+  let fnName = canonicalFnName branchId typed
+
   match Darklang.Tracing.Store.runsCalling fnName 25L with
   | [] ->
     Stdlib.printLine $"no recorded run went through {fnName}"
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.dimText "  run something that calls it, then look again")
+    (whyEmpty "run something that calls it")
+    |> Stdlib.List.iter (fun line ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText line))
   | runs ->
     printTable runs
     Stdlib.printLine ""
@@ -346,9 +389,11 @@ let printCalls (fnName: String) : Unit =
 /// with no source. What an agent wants, since it can read the code already.
 let printValuesJson
   (branchId: Uuid)
-  (fnName: String)
+  (typed: String)
   (runPrefix: Stdlib.Option.Option<String>)
   : Bool =
+  let fnName = canonicalFnName branchId typed
+
   let chosen =
     match runPrefix with
     | Some prefix -> find prefix
@@ -380,10 +425,11 @@ let printValuesJson
 /// The function's source, with `// = value` beside each call, for one run.
 let printValues
   (state: AppState)
-  (fnName: String)
+  (typed: String)
   (runPrefix: Stdlib.Option.Option<String>)
   : AppState =
   let branchId = state.currentBranchId
+  let fnName = canonicalFnName branchId typed
   let entry = LanguageTools.ProgramTypes.parsePackageLocation fnName
 
   // Does the function exist at all? Asked FIRST, because the two failures read the same way
@@ -411,6 +457,10 @@ let printValues
       | [ newest ] -> Stdlib.Option.Option.Some newest
       | _ ->
         Stdlib.printLine $"no recorded run went through {fnName}"
+
+        (whyEmpty "run something that calls it")
+        |> Stdlib.List.iter (fun line ->
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText line))
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.dimText
             "  run something that calls it, then look again")
