@@ -25,29 +25,29 @@ let third (tuple: ('a * 'b * 'c)) : 'c =
 
 
 /// Transform the first value in a triple
-let mapFirst (fn: 'a -> 'd) (tuple: ('a * 'b * 'c)) : ('d * 'b * 'c) =
+let mapFirst (tuple: ('a * 'b * 'c)) (fn: 'a -> 'd) : ('d * 'b * 'c) =
   let (first, second, third) = tuple
   (fn first, second, third)
 
 
 /// Transform the second value in a triple
-let mapSecond (fn: 'b -> 'd) (tuple: ('a * 'b * 'c)) : ('a * 'd * 'c) =
+let mapSecond (tuple: ('a * 'b * 'c)) (fn: 'b -> 'd) : ('a * 'd * 'c) =
   let (first, second, third) = tuple
   (first, fn second, third)
 
 
 /// Transform the third value in a triple
-let mapThird (fn: 'c -> 'd) (tuple: ('a * 'b * 'c)) : ('a * 'b * 'd) =
+let mapThird (tuple: ('a * 'b * 'c)) (fn: 'c -> 'd) : ('a * 'b * 'd) =
   let (first, second, third) = tuple
   (first, second, fn third)
 
 
 /// Transform all values in a triple
 let mapAllThree
+  (tuple: ('a * 'b * 'c))
   (fnFirst: 'a -> 'd)
   (fnSecond: 'b -> 'e)
   (fnThird: 'c -> 'f)
-  (tuple: ('a * 'b * 'c))
   : ('d * 'e * 'f) =
   let (first, second, third) = tuple
   (fnFirst first, fnSecond second, fnThird third)
