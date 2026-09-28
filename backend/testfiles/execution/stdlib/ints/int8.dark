@@ -72,6 +72,9 @@ Stdlib.Int8.power 1y 127y = 1y
 Stdlib.Int8.power 3y 5y = -13y
 Stdlib.Int8.power 120y 20y = 0y
 Stdlib.Int8.power 2y -3y = error="Cannot raise integer to a negative exponent"
+Stdlib.Int8.power 0y -1y = error="Cannot raise integer to a negative exponent"
+Stdlib.Int8.power 1y -5y = error="Cannot raise integer to a negative exponent"
+Stdlib.Int8.power -1y -3y = error="Cannot raise integer to a negative exponent"
 Stdlib.Int8.divide 10y 5y = 2y
 Stdlib.Int8.divide 17y 3y = 5y
 Stdlib.Int8.divide -8y 5y = -1y

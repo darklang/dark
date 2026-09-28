@@ -106,6 +106,9 @@ Stdlib.Int64.power -1L 2147483649L = -1L
 Stdlib.Int64.power 2L 2147483649L = 0L
 Stdlib.Int64.power 2L 64L = 0L
 Stdlib.Int64.power 2L -3L = error="Cannot raise integer to a negative exponent"
+Stdlib.Int64.power 0L -1L = error="Cannot raise integer to a negative exponent"
+Stdlib.Int64.power 1L -5L = error="Cannot raise integer to a negative exponent"
+Stdlib.Int64.power -1L -3L = error="Cannot raise integer to a negative exponent"
 5L ** 2L = 25L
 -8L ** 5L = -32768L
 50L ** 2L = 2500L

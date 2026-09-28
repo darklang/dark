@@ -43,25 +43,10 @@ let divide (a: Int32) (b: Int32) : Int32 = Builtin.int32Divide a b
 
 
 /// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must to be positive.
+/// <param exponent> must be non-negative.
 /// Overflow wraps around.
 let power (``base``: Int32) (exponent: Int32) : Int32 =
-  // Handle some edge cases around 1. We want to make this match
-  // OCaml, so we have to support an exponent below int32
-  // This only matters for 1 or -1, and otherwise a
-  // number raised to an int32 exponent wouldn't fit in an int32
-  if ``base`` == 0l && exponent == 0l then
-    1l
-  else if ``base`` == 0l then
-    0l
-  else if ``base`` == 1l then
-    1l
-  else if ``base`` == -1l && (``mod`` exponent 2l == 0l) then
-    1l
-  else if ``base`` == -1l then
-    -1l
-  else
-    Builtin.int32Power ``base`` exponent
+  Builtin.int32Power ``base`` exponent
 
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).

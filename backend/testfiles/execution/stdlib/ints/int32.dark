@@ -62,6 +62,9 @@ Stdlib.Int32.power 1l 2147483647l = 1l
 Stdlib.Int32.power 2l 31l = -2147483648l
 Stdlib.Int32.power 120l 20l = 0l
 Stdlib.Int32.power 2l -3l = error="Cannot raise integer to a negative exponent"
+Stdlib.Int32.power 0l -1l = error="Cannot raise integer to a negative exponent"
+Stdlib.Int32.power 1l -5l = error="Cannot raise integer to a negative exponent"
+Stdlib.Int32.power -1l -3l = error="Cannot raise integer to a negative exponent"
 Stdlib.Int32.greaterThan 20l 1l = true
 
 Stdlib.Int32.greaterThanOrEqualTo 0l 1l = false

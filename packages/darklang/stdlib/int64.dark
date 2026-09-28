@@ -43,19 +43,10 @@ let divide (a: Int64) (b: Int64) : Int64 = Builtin.int64Divide a b
 
 
 /// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must to be positive.
+/// <param exponent> must be non-negative.
 /// Overflow wraps around.
 let power (``base``: Int64) (exponent: Int64) : Int64 =
-  // Handle some edge cases around 1. We want to make this match
-  // OCaml, so we have to support an exponent above int32, but
-  // below int63. This only matters for 1 or -1, and otherwise a
-  // number raised to an int63 exponent wouldn't fit in an int63
-  if ``base`` == 0L && exponent == 0L then 1L
-  else if ``base`` == 0L then 0L
-  else if ``base`` == 1L then 1L
-  else if ``base`` == -1L && (``mod`` exponent 2L == 0L) then 1L
-  else if ``base`` == -1L then -1L
-  else Builtin.int64Power ``base`` exponent
+  Builtin.int64Power ``base`` exponent
 
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
