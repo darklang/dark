@@ -33,6 +33,23 @@ interleaved pairs, median paired difference) and `scripts/perf/gate`. Kept here 
   onto a worker costs about 9 us in Debug (10,000 spawns of a trivial program in 90 ms,
   including the placement scan and the `Wake`).
 
+## 2026-09-29: the budget is an AOT baseline now, and is NOT comparable to the ones above it
+
+9.60 MB (R2R) to 10.17 MB (AOT). **Read neither as a regression nor an improvement**: they are
+different publish modes and the numbers do not compare. Every entry above this one is ReadyToRun.
+
+`build-release-cli-exes.sh` defaulted to R2R, which is not what we ship, so every published number
+in this file describes a binary nobody runs. The default is `auto` now (AOT where a runtime allows
+it), the build writes the mode beside the binary, `budget.json` records which mode its number is
+in, and the gate refuses across modes rather than reporting nonsense. `AGENTS.md` has the rule.
+
+The one genuinely surprising thing: AOT is about five times FASTER to start and allocates about
+6% MORE for the same workload. Startup time and startup allocation are not the same axis, and this
+is the clearest case of it in the file.
+
+For the record, both modes on the same commit and a freshly reloaded store: R2R 9.60 MB,
+`dark eval 1L` 276 ms; AOT 10.17 MB, `dark eval 1L` 40 ms.
+
 ## 2026-09-29: the schema pass came off every command
 
 10.29 MB to 9.60 MB, which is below where the branch started and 0.17 MB under main's own
