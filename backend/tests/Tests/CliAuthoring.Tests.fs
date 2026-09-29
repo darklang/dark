@@ -474,6 +474,77 @@ let traitsAreAuthoredListedAndDisambiguated =
       })
 
 
+/// A rival implementation cannot reach a call inside a BOUNDED generic either. The callee's body
+/// records that its implementation comes from `'a` and the CALL records what `'a` implied, so
+/// neither is decided again when it runs.
+///
+/// Its own names throughout, and its own trait: CLI tests share one store, so a test that authored
+/// a third implementation for another test's type would change what that test's later steps see.
+/// `gates trait-choice-survives-rival` covers the same property against a built CLI; this is the
+/// copy that runs in the F# suite, and therefore in CI.
+let aRivalCannotReachABoundedCall =
+  instanceTest
+    "a newer implementation does not reach a call inside a bounded generic"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "type"; "Tests.Bnd.Pt"; "{ n: Int64 }" ]
+        do!
+          run
+            state
+            [ "trait"; "Tests.Bnd.Named"; "<'a> = let name (v: 'a) : String" ]
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.Bnd"
+              "Named for Pt = let name (p: Pt) : String = \"first\"" ]
+
+        // `dark fn` wants the type params adjacent to the name and `module` takes a path rather
+        // than inline source, so the bounded generic goes in through a file, as `CliScm.Tests`
+        // does for the same reason.
+        let file =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            "dark-bounded-rival.dark"
+          )
+        System.IO.File.WriteAllText(
+          file,
+          "let nameIt<'a: Tests.Bnd.Named> (v: 'a) : String =\n"
+          + "  Tests.Bnd.Named.name v\n\n"
+          + "let callsBounded () : String =\n"
+          + "  Tests.Bnd.nameIt (Tests.Bnd.Pt { n = 1L })\n"
+        )
+        do! run state [ "module"; "Tests.Bnd"; file ]
+        do!
+          evals
+            state
+            "Tests.Bnd.callsBounded ()"
+            "first"
+            "the bounded call runs what its caller's type argument implied"
+
+        // A newer implementation, for the same trait and the same type.
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.BndRival"
+              "Tests.Bnd.Named for Tests.Bnd.Pt = let name (p: Tests.Bnd.Pt) : String = \"rival\"" ]
+        do!
+          evals
+            state
+            "Tests.Bnd.callsBounded ()"
+            "first"
+            "and the saved bounded call is untouched by it"
+        do!
+          evals
+            state
+            "Tests.Bnd.Named.name (Tests.Bnd.Pt { n = 1L })"
+            "rival"
+            "while a fresh call takes the newer one, so the rival really is the winner"
+      })
+
+
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
     traitsAreAuthoredListedAndDisambiguated
@@ -482,4 +553,5 @@ let tests : List<Test> =
     renameOntoALiveNameIsRefusedAndBothSurvive
     deleteRefusesWhileSomethingStillCallsIt
     undoStepsBackAndStopsAtTheFirstVersion
-    authoringIdenticalSourceReportsUnchanged ]
+    authoringIdenticalSourceReportsUnchanged
+    aRivalCannotReachABoundedCall ]

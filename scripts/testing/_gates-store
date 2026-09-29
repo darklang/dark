@@ -287,12 +287,19 @@ gate_trait_choice_survives_rival() {
   # sync-shaped command would reach production. See the AGENTS.md note.
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;'
 
-  # run-cli reads the build state from the rundir it is pointed at, and says so on every call
-  # when it is missing. It is the tree's, not the store's, so carry it across.
-  cp rundir/build-state.json "$WORK/" 2>/dev/null || true
+  # The binary the runner was given, defaulting to the debug tree, which is the convention every
+  # other gate here follows: CI has no debug build and passes the published one in as $CLI.
+  # Calling `run-cli` instead would hardcode the debug path and refuse in CI, which is exactly
+  # how this gate spent its first run there exiting in one second without testing anything.
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  if [[ ! -x "$CLI" ]]; then
+    echo "trait-choice-survives-rival: no CLI at $CLI."
+    echo "  Build one (scripts/dev/build), or pass CLI=<path> as the CI step does."
+    exit 2
+  fi
+  CLI="$PWD/$CLI"
 
   export DARK_CONFIG_RUNDIR="$PWD/$WORK"
-  CLI=./scripts/run-cli
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
   $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }" >/dev/null
