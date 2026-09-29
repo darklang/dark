@@ -135,8 +135,9 @@ let callStackFromVM (vm : RT.VMState) : RT.CallStack =
   callStackForFrame vm vm.currentFrameID [] @ vm.nestedCallStack
 
 
-/// Runtime error message for native-stack exhaustion in callbacks or comparisons.
-/// AtRestCheckGuard matches this exact message to produce CheckFailure.TooDeep.
+/// Message used when recursive calls leave too little stack space to continue.
+/// AtRestCheckGuard identifies this error by comparing its message with this
+/// constant, then returns CheckFailure.TooDeep so the checker reports Incomplete.
 let outOfStackMessage =
   "Out of stack: went too deep, recursing through builtin callbacks "
   + "(List.map and the like) or comparing a deeply nested value"
@@ -336,8 +337,9 @@ let private runLoaded
   // allocate on every application, including the common synchronous success that
   // calls none of them.
   try
-    // Builtin callbacks use the native stack. Check space before nesting another run
-    // so deep recursion raises a catchable error.
+    // Builtins such as List.map call Dark functions by starting another interpreter run.
+    // Repeated callbacks can exhaust the .NET call stack. Check available stack space
+    // first so excessive nesting raises a catchable exception instead of crashing.
     System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
     let running = Interpreter.executeUnder exeState access vm
 
@@ -369,7 +371,8 @@ let private runLoaded
   | RT.RuntimeErrorException(_threadID, rte) ->
     exeState.test.postTestExecutionHook exeState.test
     Ply(Error(rte, callStackFromVM vm))
-  // Excessive program depth is a runtime error, not an internal exception to report.
+  // Return stack-depth failures to the caller as runtime errors.
+  // Skip reportException, which is reserved for unexpected internal failures.
   | ex when isOutOfStack ex ->
     exeState.test.postTestExecutionHook exeState.test
     Ply(Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm))

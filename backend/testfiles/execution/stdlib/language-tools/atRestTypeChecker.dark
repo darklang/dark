@@ -1,10 +1,13 @@
-// At-rest checker cases through the public entry point and individual rules.
-// `check source name` parses a module and returns a declaration's verdict and codes.
-// `checkFunctionAst types fn` checks constructed ASTs for cases the parser rejects.
-// Whole-package coverage is exercised by the CLI's `typecheck` command.
+// Test the at-rest type checker through its public API and individual checking rules.
+// `check source name` parses source and returns the named declaration's verdict
+// and issue codes. `checkFunctionAst types fn` accepts a manually constructed
+// syntax tree, allowing tests of invalid input that the parser would reject.
+// Checked means the check succeeded; Failed means a definite type error was found;
+// Incomplete means the checker could not finish proving the declaration's types.
+// The CLI's `typecheck` command separately checks all declarations on a branch.
 
 // ---------------------------------------------------------------------------------------
-// Harness
+// Test helpers
 // ---------------------------------------------------------------------------------------
 
 let verdictWord (v: Darklang.LanguageTools.AtRestTypeChecker.Verdict) : String =
@@ -63,7 +66,7 @@ let itemSummary
       ++ (codesOf (Stdlib.List.append i.diagnostics i.warnings))
     | None -> "no report for the declaration"
 
-/// Parse and check a module, then return the verdict for declaration `name`.
+/// Parse and check the source, then return the verdict and issue codes for `name`.
 let check (source: String) (name: String) : String =
   match parsePackageOps source with
   | Error e -> e
@@ -72,7 +75,7 @@ let check (source: String) (name: String) : String =
       (Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops)
       (itemNamed ops name)
 
-/// The rendered issues for one declaration, `Code: message`.
+/// Return the named declaration's errors and warnings as `Code: message` strings.
 let issues (source: String) (name: String) : List<String> =
   match parsePackageOps source with
   | Error e -> [ e ]
@@ -91,7 +94,7 @@ let issues (source: String) (name: String) : List<String> =
           ++ (Darklang.LanguageTools.AtRestTypeChecker.issueToString issue))
       | None -> [ "no report for the declaration" ]
 
-// ---- hand-built declarations -----------------------------------------------------------
+// ---- Helpers for constructing syntax trees directly -----------------------------------
 
 let hash (text: String) : Darklang.LanguageTools.ProgramTypes.Hash =
   Darklang.LanguageTools.ProgramTypes.Hash.Hash text
@@ -183,7 +186,8 @@ let outcomeSummary (outcome: Darklang.LanguageTools.AtRestTypeChecker.Items.Outc
   ++ ":"
   ++ (codesOf (Stdlib.List.append outcome.diagnostics outcome.warnings))
 
-/// Check `fn` using `types` as existing dependencies.
+/// Check `fn` with the supplied type declarations available as dependencies.
+/// Return only the function's verdict and issue codes.
 let checkFunctionAst
   (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
   (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
@@ -200,8 +204,8 @@ let checkFunctionAstOutcome
     Darklang.LanguageTools.AtRestTypeChecker.Items.checkFunction (environmentWith types) fn
   outcome
 
-/// Check hand-built declarations as candidates, through the same guarded entry point
-/// saving and committing use.
+/// Check the supplied types and functions through the public API used by saves
+/// and commits. That API converts checker failures into Incomplete reports.
 let checkPackageOpsSummary
   (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
   (fns: List<Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>)
@@ -212,7 +216,8 @@ let checkPackageOpsSummary
       (Stdlib.List.map fns (fun f -> Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn f))
   summary (Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops)
 
-/// Check a batch of values, in the order given.
+/// Check values together so they can refer to each other. Return their summaries
+/// in input order, even if dependency checking requires a different order.
 let checkValueAsts
   (values: List<Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue>)
   : List<String> =
@@ -255,7 +260,8 @@ let tList
 let nestedListType (depth: Int) : Darklang.LanguageTools.ProgramTypes.TypeReference =
   Stdlib.List.fold (Stdlib.List.range 1 depth) (tInt ()) (fun t _ -> tList t)
 
-/// A tuple type nested `depth` deep, which the checker walks through `List.map`.
+/// Build a tuple type with `depth` nested tuples. Checking its elements calls
+/// back through List.map at each level, exercising the native stack limit.
 let nestedTupleType (depth: Int) : Darklang.LanguageTools.ProgramTypes.TypeReference =
   Stdlib.List.fold (Stdlib.List.range 1 depth) (tInt ()) (fun t _ ->
     Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(tInt (), t, []))
@@ -266,11 +272,12 @@ let nestedListExpr (depth: Int) : Darklang.LanguageTools.ProgramTypes.Expr =
 
 
 // ---------------------------------------------------------------------------------------
-// Bodies, returns and arguments
+// Syntax-node IDs, function arguments, and return types
 // ---------------------------------------------------------------------------------------
 
 module BindingIds =
-  // let x = 1; let y = "s"; x, with control over y's pattern ID.
+  // Build `let x = 1; let y = "s"; x`. The caller chooses y's binding ID
+  // so a test can make it collide with x's ID.
   let body (secondId: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
     Darklang.LanguageTools.ProgramTypes.Expr.ELet(
       1L,
@@ -283,7 +290,8 @@ module BindingIds =
           6L, [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText "s" ]),
         Darklang.LanguageTools.ProgramTypes.Expr.EVariable(7L, "x")))
 
-  // Repeated binding IDs must produce Incomplete. Unique IDs allow normal checking.
+  // Duplicate binding IDs make the result Incomplete because the checker cannot
+  // distinguish the bindings. With unique IDs, returning x is valid only as Int.
   (checkPackageOpsSummary []
     [ oneArg (tUnit ()) Darklang.LanguageTools.ProgramTypes.TypeReference.TString
         (body 2L) ]) = "incomplete:UnsupportedConstruct"
@@ -295,7 +303,8 @@ module BindingIds =
   (checkPackageOpsSummary []
     [ oneArg (tUnit ()) (tInt ()) (body 5L) ]) = "checked:"
 
-  // The warning belongs to this item, leaving another item's definite error.
+  // A duplicate-ID warning in one function must preserve the definite return-type
+  // error reported for a different function in the same batch.
   (checkPackageOpsSummary []
     [ oneArg (tUnit ()) (tInt ()) (body 2L)
       fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 8L) ]) =
@@ -316,8 +325,9 @@ module InferenceIds =
       Darklang.LanguageTools.ProgramTypes.Expr.ERecordFieldAccess(
         id + 2L, Darklang.LanguageTools.ProgramTypes.Expr.EVariable(id + 3L, "x"), "field"))
 
-  // let (a, b) = (fun x -> x.field, fun x -> x.field); b 1
-  // Shared lambda IDs let generalization move b's field constraint into a's scheme.
+  // Build `let (a, b) = (fun x -> x.field, fun x -> x.field); b 1`.
+  // If both lambdas share an ID, the checker can mistakenly attach b's field
+  // requirement to a and miss the invalid call b 1. Reject the duplicate IDs.
   let body (secondId: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
     Darklang.LanguageTools.ProgramTypes.Expr.ELet(
       1L,
@@ -368,8 +378,9 @@ module ConstructorDeclarations =
            "  let r = R { xs = [1] }"
            "  1" ]) "f") = "checked:"
 
-  // The type is an existing dependency, not a candidate with its own report.
-  // Its missing field type still blocks a function that only constructs it.
+  // Only the function receives a report here; the record type is a dependency.
+  // Its unavailable field type makes the function's check Incomplete, even when
+  // the function constructs the record with an empty list.
   (let typ = declared "record" [] (recordOf [ ("xs", tList (custom "missing" [])) ])
    let construction =
      Darklang.LanguageTools.ProgramTypes.Expr.ERecord(
@@ -385,14 +396,16 @@ module ConstructorDeclarations =
     "incomplete:MissingTypeDeclaration"
 
 module LambdaArgumentSlots =
-  // EArg inside a lambda must not resolve to the outer function's Int argument.
+  // EArg refers to a package function's parameter by position. Inside a lambda,
+  // it must be rejected rather than mistaken for the outer function's Int argument.
   val parameters =
     [ Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(11L, "text") ]
 
   let lambda () : Darklang.LanguageTools.ProgramTypes.Expr =
     Darklang.LanguageTools.ProgramTypes.Expr.ELambda(10L, parameters, arg 12L)
 
-  // Check this for expected-type checking, inference, and pipeline lambdas.
+  // Reject the invalid EArg when checking a lambda against a declared type,
+  // inferring a discarded lambda's type, or checking a lambda in a pipeline.
   (checkFunctionAst []
     (oneArg (tInt ())
       (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn(
@@ -412,7 +425,7 @@ module LambdaArgumentSlots =
         [ Darklang.LanguageTools.ProgramTypes.PipeExpr.EPipeLambda(
             10L, parameters, arg 12L) ])))) = "failed:InvalidArgumentIndex"
 
-  // Ordinary parser output captures enclosing arguments by name.
+  // Valid source refers to captured outer parameters by name, so these lambdas pass.
   (check "let f (x: Int) : String -> Int = fun text -> x" "f") = "checked:"
   (check "let f (x: Int) : Int = x |> (fun y -> x + y)" "f") = "checked:"
 
@@ -425,16 +438,18 @@ module Basics =
 
   (check "let f (x: Int) : Int = Stdlib.String.length x" "f") = "failed:TypeMismatch"
 
-  // A function's own parameter types, by name.
+  // Looking up `other` by name must use its declared String type.
   (check "let f (value: Int) (other: String) : String = other" "f") = "checked:"
 
-  // Applying something that is not a function.
+  // Calling an Int as though it were a function must report NotCallable.
   (check "let f (x: Int) : Int = x 1" "f") = "failed:NotCallable"
 
-  // Builtins are checked against their signatures, which have no bodies to follow.
+  // Check builtin calls using their declared parameter and return types;
+  // builtin implementations are not Dark bodies the checker can inspect.
   (check "let f (u: Unit) : Int64 = Builtin.int64Add 1L 2L" "f") = "checked:"
 
-  // An argument index past the function's parameters: only serialized input can say it.
+  // Reject an argument index outside the function's parameter list. Construct
+  // the syntax tree directly because source code cannot express this invalid index.
   (checkFunctionAst
     []
     (oneArg
@@ -450,7 +465,8 @@ module Basics =
 module Constructors =
   val pair = "type Pair = | None | Some of (Int * String)"
 
-  // A tuple is one field; two fields is a count mismatch.
+  // Pair.Some takes one tuple field. Some(1, "url") supplies two fields;
+  // Some((1, "url")) supplies the single tuple the declaration requires.
   (check
     (src [ pair, "let f (u: Unit) : Pair = Pair.Some(1, \"url\")" ])
     "f") = "failed:EnumFieldCountMismatch"
@@ -488,7 +504,7 @@ module Constructors =
     (src [ "type R = { a: Int }", "let f (r: R) : R = { r with a = \"x\" }" ])
     "f") = "failed:TypeMismatch"
 
-  // Constructor type arguments can use the enclosing function's type parameters.
+  // Resolve 'a in Box<'a>.Box using the enclosing function's type parameters.
   (check
     (src
       [ "type Box<'item> = | Box of 'item"
@@ -497,7 +513,7 @@ module Constructors =
 
 
 // ---------------------------------------------------------------------------------------
-// Declarations
+// Type declarations, aliases, and missing dependencies
 // ---------------------------------------------------------------------------------------
 
 module Declarations =
@@ -507,13 +523,14 @@ module Declarations =
 
   (check "let f<'a, 'a> (x: 'a) : 'a = x" "f") = "failed:DuplicateTypeParameter"
 
-  // An alias that expands into itself with a bigger argument is reported once, not
-  // expanded without end.
+  // Expanding A<'a> repeatedly adds another List layer. Detect this alias cycle
+  // and return Incomplete instead of expanding it forever.
   (check
     (src [ "type A<'a> = A<List<'a>>", "let f (x: A<Int>) : Int = x" ])
     "f") = "incomplete:AliasCycle"
 
-  // ...nor one that comes back to itself through an alias handing back its argument.
+  // Loop still refers to itself when the reference passes through Identity.
+  // Detect the cycle after substituting Identity's type argument.
   (check
     (src
       [ "type Identity<'a> = 'a"
@@ -521,7 +538,8 @@ module Declarations =
         "let f (x: Loop) : Int = x" ])
     "f") = "incomplete:AliasCycle"
 
-  // An alias handed back its own argument is no cycle, however often it nests.
+  // Identity<Identity<Int>> expands to Int and terminates. Reusing an alias in
+  // nested type arguments is valid when the alias definition is not recursive.
   (check
     (src [ "type Identity<'a> = 'a", "let f (x: Identity<Identity<Int>>) : Int = x" ])
     "f") = "checked:"
@@ -530,8 +548,8 @@ module Declarations =
     (src [ "type Identity<'a> = 'a", "let f (x: Identity<Identity<Int>>) : String = x" ])
     "f") = "failed:TypeMismatch"
 
-  // Forwarding through another alias does not turn finite nested arguments into
-  // a definition cycle. The expanded result still participates in unification.
+  // Forward<Forward<Int>> also expands to Int through Identity. Accept an Int
+  // return, reject a String return, and still detect the actual Loop cycle below.
   (check
     (src
       [ "type Identity<'a> = 'a"
@@ -554,14 +572,15 @@ module Declarations =
         "let f (x: Loop) : Int = x" ])
     "f") = "incomplete:AliasCycle"
 
-  // A declaration that is not available could be an alias for anything, so using
-  // it where an Int is expected is no evidence of a mismatch.
+  // An unavailable type might be an alias for Int. Report a missing declaration
+  // instead of claiming its value cannot satisfy an Int return type.
   (checkFunctionAst
     []
     (oneArg (custom "not-available" []) (tInt ()) (arg 1L))
   ) = "incomplete:MissingTypeDeclaration"
 
-  // A type variable the function does not declare: the parser always declares them.
+  // This syntax tree uses 'b without declaring it as a type parameter. Construct
+  // it directly because the parser normally adds referenced type parameters.
   (checkFunctionAst
     []
     (fnNamed
@@ -591,10 +610,12 @@ module Declarations =
 
   (check (src [ pair, "let f (x: (Int * List<Pair<String, Bool>>)) : Unit = ()" ]) "f") = "checked:"
 
-  // Wrong type arity reports one error, without crashing or adding field ambiguity.
+  // Pair requires two type arguments. Supplying one should report the type error
+  // without crashing or adding a misleading warning about x.first's type.
   (check (src [ pair, "let f (x: Pair<Int>) : Int = x.first" ]) "f") = "failed:TypeMismatch"
 
-  // A missing declaration, nested in a signature or referenced through an alias.
+  // Find unavailable types even when nested inside a function parameter's type
+  // or reached by expanding an alias.
   (checkFunctionAst
     []
     (oneArg
@@ -615,15 +636,15 @@ module Declarations =
         )) ]
     (oneArg (custom "alias-to-nowhere" []) (tUnit ()) (unitExpr 1L))) = "incomplete:MissingTypeDeclaration"
 
-  // A declaration the item only depends on is still walked: its missing field type
-  // blocks the item.
+  // Inspect the fields of dependency types too. An unavailable field type makes
+  // this function's check Incomplete even though its body does not read the field.
   (checkFunctionAst
     [ declared "box-with-missing-field" [] (recordOf [ ("hidden", custom "nowhere" []) ]) ]
     (oneArg (custom "box-with-missing-field" []) (tUnit ()) (unitExpr 1L))) = "incomplete:MissingTypeDeclaration"
 
 
 // ---------------------------------------------------------------------------------------
-// Dict keys
+// Types allowed as dictionary keys
 // ---------------------------------------------------------------------------------------
 
 module DictKeys =
@@ -637,7 +658,7 @@ module DictKeys =
 
   (key [] "Int -> Int") = rejected
   (key [] "Blob") = rejected
-  // `Stream` has no source spelling of its own.
+  // Construct TStream directly because the parser has no source syntax for it.
   (checkFunctionAst
     []
     (oneArg
@@ -665,7 +686,8 @@ module DictKeys =
   (key [ "type Plain = { x: Int }" ] "Plain") = accepted
   (key [ "type Node = { kids: List<Node> }" ] "Node") = accepted
 
-  // A type argument matters only if it can end up holding a value.
+  // A type argument affects key validity only when a field can contain a value
+  // of that type. Box stores its argument; Phantom has only a String field.
   (key [ "type Box<'a> = { v: 'a }" ] "Box<Int -> Int>") = rejected
   (key [ "type Box<'a> = { v: 'a }" ] "Box<Box<Int -> Int>>") = rejected
   (key [ "type Box<'a> = { v: 'a }" ] "Box<Box<Int>>") = accepted
@@ -701,7 +723,8 @@ module RecursivePhantomKeys =
     [ "type P<'a> = End | Next of Alias<'a>", "type Alias<'a> = P<'a>" ]
     "P<Int -> Int>") = "checked:"
 
-  // Only the second parameter reaches a value, despite being swapped in the cycle.
+  // A's second type argument becomes B's `value` field. Track the argument swap
+  // through the recursive declarations: only that argument must be a valid key type.
   let swapped (typ: String) : String =
     DictKeys.key
       [ "type A<'a, 'b> = End | Next of B<'b, 'a>"
@@ -715,7 +738,9 @@ module RecursivePhantomKeys =
     [ "type P<'a> = End | Next of P<'a> | Run of (Int -> Int)" ]
     "P<Int>") = "failed:UnsupportedDictKeyType"
 
-  // Phantom reachability also feeds requirements inherited from dictionary aliases.
+  // In the first P declaration, 'a never appears in a stored payload, so P can
+  // be a key even when 'a is a function. Adding Value of 'a makes that invalid.
+  // Preserve this distinction when the dictionary is hidden behind alias D.
   (check
     (src [ "type P<'a> = End | Next of P<'a>"
            "type D<'a> = Dict<P<'a>, Int>"
@@ -736,9 +761,10 @@ module InstantiatedDictKeys =
   (signature [ "type E<'a> = | E of Dict<'a, Int>" ] "E<Int -> Int>") = "failed:UnsupportedDictKeyType"
   (signature [ "type R<'a> = { items: Dict<'a, Int> }", "type W<'a> = { wrapped: R<List<'a>> }" ] "W<Int -> Int>") = "failed:UnsupportedDictKeyType"
   (signature [ "type R<'a> = { items: Dict<'a, Int> }", "type W<'a> = { wrapped: R<List<'a>> }" ] "W<Int>") = "checked:"
-  // Phantom arguments do not constrain a dictionary key's values.
+  // Phantom stores no value of type 'a, so D can use a function as its type argument.
   (signature [ "type Phantom<'a> = { label: String }", "type D<'a> = Dict<Phantom<'a>, Int>" ] "D<Int -> Int>") = "checked:"
-  // Requirements propagate through cycles, including changing type arguments.
+  // Follow dictionary-key requirements through recursive declarations, including
+  // references that wrap the next type argument in List or in a function type.
   (signature [ "type A<'a> = { next: List<B<'a>> }", "type B<'b> = { next: List<A<'b>>; items: Dict<'b, Int> }" ] "A<Int -> Int>") = "failed:UnsupportedDictKeyType"
   (signature [ "type A<'a> = { next: List<B<'a>> }", "type B<'b> = { next: List<A<'b>>; items: Dict<'b, Int> }" ] "A<Int>") = "checked:"
   (signature [ "type Node<'a> = { next: List<Node<List<'a>>>; items: Dict<'a, Int> }" ] "Node<Int -> Int>") = "failed:UnsupportedDictKeyType"
@@ -752,7 +778,8 @@ module InstantiatedDictKeys =
   (call [ "  let _ = make (fun y -> y + 1)", "  ()" ]) = "failed:UnsupportedDictKeyType"
   (call [ "  let _ = make<Int -> Int> (fun y -> y + 1)", "  ()" ]) = "failed:UnsupportedDictKeyType"
   (call [ "  let _ = make 1", "  let _ = make \"ok\"", "  ()" ]) = "checked:"
-  // Function aliases and generalized lambdas must retain the pending requirement.
+  // Calls through a local alias or lambda must still enforce make's key requirement.
+  // Check each use of g separately, allowing Int and String but rejecting functions.
   (call [ "  let g = make", "  let _ = g (fun y -> y + 1)", "  ()" ]) = "failed:UnsupportedDictKeyType"
   (call [ "  let g = fun x -> make x", "  let _ = g (fun y -> y + 1)", "  ()" ]) = "failed:UnsupportedDictKeyType"
   (call [ "  let g = fun x -> make x", "  let _ = g 1", "  let _ = g \"ok\"", "  ()" ]) = "checked:"
@@ -764,7 +791,8 @@ module InstantiatedDictKeys =
 // ---------------------------------------------------------------------------------------
 
 module Operators =
-  // Unary ~ has the integer-only domain of its runtime builtin.
+  // Bitwise NOT (~) accepts every integer type. Reject Bool, Float, and String,
+  // matching the builtin's runtime checks.
   (Stdlib.List.map
     [ "Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32", "Int64",
       "UInt64", "Int128", "UInt128", "Int" ]
@@ -783,7 +811,8 @@ module Operators =
 
   (check "let f (x: String) : String = x + x" "f") = "failed:InvalidInfixOperand"
 
-  // `**` has no 128-bit form.
+  // Exponentiation (**) does not support Int128 or UInt128, even though other
+  // arithmetic operators support those types.
   (check "let f (value: Int128) : Int128 = value ** value" "f") = "failed:InvalidInfixOperand"
 
   (check "let f (value: UInt128) : UInt128 = value ** value" "f") = "failed:InvalidInfixOperand"
@@ -791,7 +820,8 @@ module Operators =
   (check "let f (value: Int128) : Int128 = value + value" "f") = "checked:"
   (check "let f (value: UInt128) : UInt128 = value * value" "f") = "checked:"
 
-  // Bitwise operators accept all integers, including 128-bit types, but not Float.
+  // Bitwise operators require integer operands. Accept 128-bit integers and
+  // reject Float for both bitwise operations and shifts.
   (check "let f (value: Float) : Float = value & value" "f") = "failed:InvalidInfixOperand"
 
   (check "let f (value: Float) : Float = value << value" "f") = "failed:InvalidInfixOperand"
@@ -799,8 +829,8 @@ module Operators =
   (check "let f (value: Int128) : Int128 = value ^ value" "f") = "checked:"
   (check "let f (value: Int64) : Int64 = value >> value" "f") = "checked:"
 
-  // Operator builtins called by name are checked as the operator, not by their loose
-  // signatures.
+  // Direct calls such as Builtin.add must follow the operator's typing rules.
+  // Their generic builtin signatures alone would allow invalid operand types.
   (check "let f (u: Unit) : Bool = Builtin.lessThan 1 \"x\"" "f") = "failed:TypeMismatch"
 
   (check "let f (u: Unit) : Int = Builtin.add 1 2" "f") = "checked:"
@@ -811,17 +841,20 @@ module Operators =
 
   (check "let f (u: Unit) : Bool = Builtin.equals \"x\" \"x\"" "f") = "checked:"
 
-  // An operator used as a value or partially applied has no safe static signature.
+  // The checker cannot fully describe an operator's type restrictions when it is
+  // passed around or partially applied. Report Incomplete for Builtin.add 1.
   (check "let f (u: Unit) : Int -> Int = Builtin.add 1" "f") = "incomplete:UnsupportedConstruct"
 
-  // In a pipe the input is the left operand, and the same domains apply.
+  // A pipeline supplies the operator's first argument. Apply the same operand-type
+  // restrictions as a direct call, including power's rejection of UInt128.
   (check "let f (value: Int) : Int = value |> Builtin.subtract 1" "f") = "checked:"
 
   (check "let f (value: UInt128) : UInt128 = value |> Builtin.power value" "f") = "failed:InvalidInfixOperand"
 
   (check "let f (value: UInt128) : UInt128 = Builtin.power value value" "f") = "failed:InvalidInfixOperand"
 
-  // Unary minus is negation: signed numbers only.
+  // Unary minus accepts signed integers and Float. Reject unsigned integers
+  // and nonnumeric values, and check the resulting type against the return type.
   (check "let f (value: Int) : Int = -value" "f") = "checked:"
   (check "let f (value: Float) : Float = -value" "f") = "checked:"
   (check "let f (value: Int) : String = -value" "f") = "failed:TypeMismatch"
@@ -836,16 +869,17 @@ module Operators =
 // ---------------------------------------------------------------------------------------
 
 module Builtins =
-  // `unwrap` exposes Option or Result payloads; other inputs leave its type unknown.
+  // Infer Builtin.unwrap's result from an Option or Result payload. For other
+  // input types, report Incomplete because its result type cannot be established.
   (check "let f (x: Stdlib.Option.Option<Int>) : Int = Builtin.unwrap x" "f") = "checked:"
 
   (check "let f (u: Unit) : Int = Builtin.unwrap 1" "f") = "incomplete:UnsupportedConstruct"
 
-  // A result type that requires an explicit type argument.
+  // jsonParse needs an explicit type argument to determine the parsed value's type.
   (check "let f (u: Unit) : Int = Builtin.jsonParse \"1\"" "f") = "incomplete:UnsupportedConstruct"
 
-  // An explicit type argument allows checking. Builtin signature types such as
-  // jsonParse's ParseError are loaded as dependencies too.
+  // jsonParse<Int> supplies the missing type information. Also load the types
+  // named in its signature, including Result and the ParseError error type.
   (check
     (src
       [ "let f (u: Unit) : Int ="
@@ -854,7 +888,8 @@ module Builtins =
         "  | Error _ -> 0" ])
     "f") = "checked:"
 
-  // The same for `Option`, reached only through `listGetAt`'s signature.
+  // Load Option from listGetAt's return type so the checker can validate these
+  // Some and None patterns, even though the function's own signature omits Option.
   (check
     (src
       [ "let f (x: List<Int>) : Int ="
@@ -863,13 +898,13 @@ module Builtins =
         "  | None -> 0" ])
     "f") = "checked:"
 
-  // A result type variable no parameter constrains, and none declared: its real result
-  // type is only known at runtime.
+  // applicableByName returns a type variable that its inputs do not determine
+  // and its signature does not declare. Report Incomplete for that unknown result.
   (check
     "let f (b: Uuid) : Int = match Builtin.applicableByName b \"x\" with | Ok _ -> 1 | Error _ -> 0"
     "f") = "incomplete:UnsupportedConstruct"
 
-  // An unavailable builtin.
+  // A builtin missing from the registry makes the check Incomplete.
   (checkFunctionAst
     []
     (oneArg
@@ -890,7 +925,8 @@ module Builtins =
         [ intExpr 12L 1 ]
       )))) = "incomplete:MissingFunctionSignature"
 
-  // Explicit type arguments: the right number, resolving the function's own parameters.
+  // Accept the required number of explicit type arguments, including type parameters
+  // from the calling function. Reject calls supplying too many type arguments.
   (check
     (src [ "let same (x: 'a) : 'a = x", "let f (u: Unit) : Int = same<Int> 1" ])
     "f") = "checked:"
@@ -922,15 +958,17 @@ module PostfixUnwrap =
   let unwrapArg (id: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
     Darklang.LanguageTools.ProgramTypes.Expr.EUnwrap(id, arg (id + 1L))
 
-  /// `r?` in a function from `input` to `output`, which then succeeds with "success".
+  /// Build a function that applies ? to an `input` parameter, then returns
+  /// `success "success"` with declared type `output`. `success` is Ok or Some.
   let returning (input: String) (output: String) (success: String) : String =
     src
       [ $"let f (r: {input}) : {output} ="
         "  let _ = r?"
         $"  {success} \"success\"" ]
 
-  // The operand and the function's result are the same kind, and for a Result carry
-  // the same error.
+  // ? requires its operand and the enclosing return type to both be Option or
+  // both be Result. For Result, their error types must also match; their success
+  // types may differ.
   (check
     (returning
       "Stdlib.Result.Result<Int, String>"
@@ -971,12 +1009,13 @@ module PostfixUnwrap =
     "let f (r: Stdlib.Result.Result<Int, String>) : Int = r?"
     "f") = "failed:InvalidUnwrap"
 
-  // A plain success is not wrapped for you.
+  // r? produces the unwrapped Int. The function must explicitly wrap its success
+  // value in Ok to satisfy its declared Result return type.
   (check
     "let f (r: Stdlib.Result.Result<Int, String>) : Stdlib.Result.Result<Int, String> = r?"
     "f") = "failed:TypeMismatch"
 
-  // The error type is compared at the `?`, against the function's declared error.
+  // Report a Result error-type mismatch at the ? expression and name both types.
   (issues
     (returning
       "Stdlib.Result.Result<Int, Bool>"
@@ -984,7 +1023,8 @@ module PostfixUnwrap =
       "Ok")
     "f") = [ "TypeMismatch: In the error returned by ?: expected String, got Bool" ]
 
-  // Through an alias, and with a type parameter for the error.
+  // Apply the same ? rules when the operand uses a type alias or the Result
+  // error type is a declared type parameter.
   (check
     (src
       [ "type Checked = Stdlib.Result.Result<Int, String>"
@@ -1000,7 +1040,7 @@ module PostfixUnwrap =
       "Ok")
     "f") = "checked:"
 
-  // `?` resolves its payload type immediately, allowing later arithmetic checks.
+  // Unwrapping Option<Int> tells the checker that n is Int before checking n + n.
   (check
     (src
       [ "let f (o: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<Int> ="
@@ -1008,8 +1048,8 @@ module PostfixUnwrap =
         "  Some(n + n)" ])
     "f") = "checked:"
 
-  // In a lambda, `?` returns from the lambda: the function around it may return
-  // anything.
+  // ? returns from the nearest lambda. Check against that lambda's return type;
+  // the outer function's return type does not determine whether the ? is valid.
   (check
     (src
       [ "let f (r: Stdlib.Result.Result<Int, String>) : Int ="
@@ -1030,7 +1070,8 @@ module PostfixUnwrap =
         "  o |> fun x -> Some(x? + 1)" ])
     "f") = "checked:"
 
-  // What the lambda returns says what its operand must be.
+  // Returning Some tells the checker that x? needs an Option operand. Accept
+  // Some 4 as the argument and reject the plain Int 4.
   (check
     "let f (u: Unit) : Stdlib.Option.Option<Int> = (fun x -> Some(x? + 1)) (Some 4)"
     "f") = "checked:"
@@ -1039,7 +1080,8 @@ module PostfixUnwrap =
     "let f (u: Unit) : Stdlib.Option.Option<Int> = (fun x -> Some(x? + 1)) 4"
     "f") = "failed:InvalidUnwrap"
 
-  // Each use of a generalized helper checks its own field type and `?` constraints.
+  // Infer get's field and ? requirements separately for each call. It can accept
+  // both IntRow and StringRow, while each result must match the caller's return type.
   let rows (body: List<String>) : String =
     src
       (Stdlib.List.append
@@ -1070,7 +1112,8 @@ module PostfixUnwrap =
         "  get b" ])
     "f") = "checked:"
 
-  // `fun row -> row.item?`: the row reaches the `?` only through the field.
+  // Infer the ? operand from row.item after the call supplies the row's type.
+  // Here unwrapping Option<Option<Int>> leaves the Option<Int> the lambda returns.
   (check
     (rows
       [ "let f (a: NestedRow) : Stdlib.Option.Option<Int> ="
@@ -1078,7 +1121,8 @@ module PostfixUnwrap =
         "  get a" ])
     "f") = "checked:"
 
-  // Each call instantiates the field and the `?` together: `a` does not decide `b`.
+  // Keep the field type and ? requirement together when checking each call to get.
+  // Calling it with NestedIntRow must not fix the type used for NestedStringRow.
   let nestedRows (body: List<String>) : String =
     src
       (Stdlib.List.append
@@ -1100,7 +1144,7 @@ module PostfixUnwrap =
         "  get a" ])
     "f") = "failed:TypeMismatch"
 
-  // A field that is no Option or Result cannot be unwrapped.
+  // Reject row.item? when the caller supplies a record whose item field is Int.
   (check
     (src
       [ "type ScalarRow = { item: Int }"
@@ -1109,18 +1153,21 @@ module PostfixUnwrap =
         "  get a" ])
     "f") = "failed:InvalidUnwrap"
 
-  // A missing declaration could alias Option, so report a missing dependency.
+  // An unavailable operand type might be an alias for Option. Report Incomplete
+  // for the missing declaration instead of assuming the ? is invalid.
   (checkFunctionAst
     []
     (oneArg (custom "unwrap-missing-alias" []) (optionOf (tInt ())) (unwrapArg 30L))) = "incomplete:MissingTypeDeclaration"
 
-  // An Int cannot be unwrapped, even when the return type is unavailable.
+  // An Int operand is definitely invalid for ?, even if an unavailable return
+  // type also makes part of the check incomplete. Keep both findings.
   (checkFunctionAst
     []
     (oneArg (tInt ()) (custom "unwrap-missing-alias" []) (unwrapArg 32L))) = "failed:InvalidUnwrap,MissingTypeDeclaration"
 
-  // Outside any function there is nothing to return from. The parser refuses this
-  // too; the checker does not rely on it.
+  // Reject ? outside a function because there is no enclosing call to return from.
+  // Construct this invalid value directly to test the checker independently of
+  // the parser, which also rejects it.
   (checkValueAsts
     [ valueNamed
         "unwrap-outside"
@@ -1134,16 +1181,17 @@ module PostfixUnwrap =
 module TupleAccess =
   (check "let f (x: (Int * String * Bool)) : String = x.2" "f") = "checked:"
   (check "let f (x: (Int * String)) : Int = x.3" "f") = "failed:UnknownTupleElement"
-  // Elements count from 1.
+  // Tuple indexes start at 1, so x.0 is invalid.
   (check "let f (x: (Int * String)) : Int = x.0" "f") = "failed:UnknownTupleElement"
   (check "let f (x: (Int * String)) : String = x.1" "f") = "failed:TypeMismatch"
 
-  // A known scalar has no elements, whether known now or once a lambda is applied.
+  // Int64 has no tuple elements. Reject x.1 both directly and through a lambda
+  // whose parameter type becomes known only when the lambda is called.
   (check "let f (x: Int64) : Int = x.1" "f") = "failed:TypeMismatch"
   (check "let f (x: Int64) : Int = (fun t -> t.1) x" "f") = "failed:TypeMismatch"
 
-  // A declared type parameter does not guarantee a record field or tuple element.
-  // This remains a definite error when access is deferred through a local helper.
+  // A function declared for every 'a cannot assume that x has a field or tuple
+  // element. Reject that assumption even when the access occurs in a local helper.
   (check "let f<'a> (x: 'a) : Int = x.1" "f") = "failed:TypeMismatch"
   (check
     (src [ "let f<'a> (x: 'a) : Int =", "  let get = fun t -> t.field", "  get x" ])
@@ -1159,7 +1207,7 @@ module TupleAccess =
   (check "let f<'a, 'b> (x: ('a * 'b)) : 'b = x.2" "f") = "checked:"
   (check "let f<'a, 'b> (x: ('a * 'b)) : 'b = x.1" "f") = "failed:TypeMismatch"
 
-  // `.1` waits for the call to say what the parameter is.
+  // Defer checking t.1 until first x supplies the tuple type for t.
   (check
     (src
       [ "let f (x: (Int * String)) : Int ="
@@ -1167,7 +1215,8 @@ module TupleAccess =
         "  first x" ])
     "f") = "checked:"
 
-  // A generalized `fun t -> t.1` serves tuples of any shape.
+  // Infer a separate tuple type for each use of first, allowing different element
+  // types and tuple lengths in the two calls.
   (check
     (src
       [ "let f (u: Unit) : (Int * String) ="
@@ -1175,13 +1224,14 @@ module TupleAccess =
         "  (first (1, \"a\"), first (\"b\", 2, true))" ])
     "f") = "checked:"
 
-  // In `t.1.2`, `.2` is resolved once `.1` is: an index out of range is reported
-  // as such, not as an ambiguity.
+  // Once t.1 is known to be a pair, accept its second element and reject its
+  // third. Report the invalid index rather than an unresolved-type warning.
   (check "let f (u: Unit) : Int = (fun t -> t.1.2) ((1, 2), 3)" "f") = "checked:"
   (check "let f (u: Unit) : Int = (fun t -> t.1.3) ((1, 2), 3)" "f") = "failed:UnknownTupleElement"
 
-  // `t.1`'s type shows only in the pending accesses, not in `f`'s own type, and is
-  // still generalized with it.
+  // Each use of f must get a separate type for the intermediate t.1 too.
+  // That type appears only in the deferred field checks, not in f's parameter
+  // or return type, so copying only the function type would lose it.
   let letBoundChain (index: String) (returnType: String) (call: String) : String =
     check
       (src
@@ -1192,10 +1242,11 @@ module TupleAccess =
 
   (letBoundChain "2" "Int" "f ((1, 2), 3)") = "checked:"
   (letBoundChain "3" "Int" "f ((1, 2), 3)") = "failed:UnknownTupleElement"
-  // The second call does not see the first call's element types.
+  // Calling f on Int tuples must not force a later call's String elements to be Int.
   (letBoundChain "2" "(Int * String)" "(f ((1, 2), 3), f ((\"a\", \"b\"), 3))") = "checked:"
 
-  // A nested function's chain stays tied to the outer parameter it captures.
+  // inner captures t from outer. Its tuple accesses must use the type supplied
+  // to outer, even though inner's own parameter is unrelated to t.
   let capturedChain (index: String) : String =
     check
       (src
@@ -1210,7 +1261,7 @@ module TupleAccess =
   (capturedChain "2") = "checked:"
   (capturedChain "3") = "failed:UnknownTupleElement"
 
-  // A chain may mix tuple elements and record fields: `.count` waits on `.1`.
+  // Resolve t.1 to the Counted record before checking its count field.
   (check
     (src
       [ "type Counted = { count: Int }"
@@ -1219,12 +1270,14 @@ module TupleAccess =
 
 
 // ---------------------------------------------------------------------------------------
-// Dictionary keys and generalization
+// Dictionary keys and reusing inferred types
 // ---------------------------------------------------------------------------------------
 
 module DictGeneralization =
-  // A key's early return must remain tied to the anonymous lambda's return type.
-  // A named local lambda also has a self binding, which can mask this bug.
+  // ? in a dictionary key returns from the enclosing lambda. It is invalid if
+  // that lambda returns a plain Dict, and valid with a matching Option or Result.
+  // Use an anonymous lambda so a separate self-reference cannot accidentally
+  // preserve the return-type constraint and hide a bug in checking the key.
   (check
     (src
       [ "let f () : Dict<Int, Int> ="
@@ -1257,7 +1310,9 @@ module DictGeneralization =
         "    Ok entries) ()" ])
     "f") = "checked:"
 
-  // Literal keys permit generalization; evaluating a call in a key does not.
+  // With a literal key, the dictionary's empty-list values can be used as both
+  // List<Int> and List<String>. A key containing a function call prevents that
+  // generalization, so both uses must agree on one element type.
   let dictionaryUses (key: String) : String =
     src
       [ "let identity (x: Int) : Int = x"
@@ -1301,13 +1356,15 @@ module Unresolved =
       (tUnit ())
       (unitExpr 1L))) = "incomplete:UnresolvedTypeName"
 
-  // An unavailable package value has no inferred type.
+  // Without a package value's definition, the checker cannot infer its type.
+  // Report MissingValueSignature and return Incomplete.
   (checkFunctionAst
     []
     (oneArg (tUnit ()) (tInt ()) (useValue 1L "no-such-value"))
   ) = "incomplete:MissingValueSignature"
 
-  // An unresolved scrutinee is reported once, not again as every pattern's ambiguity.
+  // When the value being matched has an unresolved name, report that problem
+  // without adding warnings about pattern types that depend on the missing value.
   (checkFunctionAst
     []
     (oneArg
@@ -1329,7 +1386,7 @@ module Unresolved =
 
 
 // ---------------------------------------------------------------------------------------
-// Patterns and exhaustiveness
+// Pattern types and whether matches cover every possible value
 // ---------------------------------------------------------------------------------------
 
 module Patterns =
@@ -1383,8 +1440,8 @@ module Patterns =
         "  | A true -> 1"
         "  | B -> 2" ]
 
-  // A case whose field is restricted does not cover the case; the message names what
-  // is missing.
+  // Matching A true leaves A false uncovered. Report Incomplete and include
+  // A(false) as an example of the missing input.
   (check (restrictive ()) "f") = "incomplete:NonExhaustiveMatch"
 
   (issues (restrictive ()) "f") = [ "NonExhaustiveMatch: Match is not exhaustive; an uncovered pattern is A(false)" ]
@@ -1393,7 +1450,8 @@ module Patterns =
     "let f (x: Stdlib.Option.Option<Int>) : Int = match x with | Some y -> y"
     "f") = "incomplete:NonExhaustiveMatch"
 
-  // Report an uncovered recursive case without expanding it forever.
+  // Identify missing Tree cases without following Node's recursive field forever.
+  // Use an abbreviated example such as Node(…) in the diagnostic.
   let tree (cases: List<String>) : String =
     src
       (Stdlib.List.append
@@ -1408,7 +1466,8 @@ module Patterns =
 
   (check (tree [ "  | Leaf -> 0", "  | Node _ -> 1" ]) "f") = "checked:"
 
-  // Skip recursive wildcard columns when another column determines coverage.
+  // In (_, true), the wildcard covers every Tree. Check the Bool element without
+  // repeatedly expanding the recursive Tree type, then check the false cases.
   let treeAndBool (cases: List<String>) : String =
     src
       (Stdlib.List.append
@@ -1423,16 +1482,18 @@ module Patterns =
     (treeAndBool [ "  | (_, true) -> 1", "  | (Leaf, false) -> 2", "  | (Node _, false) -> 3" ])
     "f") = "checked:"
 
-  // A guard may fail, so a guarded case covers nothing.
+  // A when condition may be false. The checker does not evaluate it, so a guarded
+  // case cannot prove that its input is covered, even for the constant condition here.
   (check
     "let f (x: Bool) : Int = match x with | true -> 1 | false when 1 == 1 -> 0"
     "f") = "incomplete:NonExhaustiveMatch"
 
-  // A known scalar cannot have a field, support a record update, or match an enum pattern.
+  // An Int is not a record: reject field access and record updates on it.
   (check "let f (x: Int) : Int = x.field" "f") = "failed:TypeMismatch"
   (check "let f (x: Int) : Int = { x with field = 1 }" "f") = "failed:TypeMismatch"
 
-  // Unknown element types do not make a known non-record/non-enum uncertain.
+  // An empty list's element type may be unknown, but it is still a list.
+  // Record operations and enum patterns on that list are definite errors.
   (check
     (src [ "let f (u: Unit) : Int =", "  let xs = []", "  xs.field" ])
     "f") = "failed:TypeMismatch"
@@ -1443,22 +1504,24 @@ module Patterns =
     (src [ "let f (u: Unit) : Int =", "  let xs = []", "  match xs with | Missing -> 1 | _ -> 2" ])
     "f") = "failed:InvalidPattern"
   (check "let f (x: Int) : Int = match x with | Some y -> y | _ -> 0" "f") = "failed:InvalidPattern"
-  // A declared type parameter must support the body for every instantiation.
+  // f must work for every possible 'a, so it cannot assume that x has a field.
   (check "let f<'a> (x: 'a) : Int = x.field" "f") = "failed:TypeMismatch"
 
-  // An enum pattern needs an enum.
+  // Reject an enum-case pattern when the matched value is a record.
   (check
     (src [ "type R = { a: Int }", "let f (r: R) : Int = match r with | Foo -> 1" ])
     "f") = "failed:InvalidPattern"
 
-  // An invalid case still binds its variables and suppresses coverage errors.
+  // Report the unknown case Missing. Still recognize its binding x, and skip
+  // coverage checking so this one mistake does not cause extra diagnostics.
   (check
     (src
       [ "type Only = | Valid"
         "let f (value: Only) : Int = match value with | Missing x -> x" ])
     "f") = "failed:UnknownEnumCase"
 
-  // A name bound twice within one or-alternative, which only serialized input can say.
+  // Reject (x, x) within an or-pattern because it binds x twice. Construct the
+  // syntax tree directly because the parser would reject this source pattern.
   (checkFunctionAst
     []
     (oneArg
@@ -1488,7 +1551,8 @@ module Patterns =
               rhs = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(70L, "x") } ]
       )))) = "failed:DuplicatePatternBinding"
 
-  // Or-alternatives that bind different names, which the parser also refuses.
+  // Every alternative in an or-pattern must bind the same names. Check that the
+  // checker rejects (x, _) | (_, y), independently of the parser's own rejection.
   (checkFunctionAst
     []
     (oneArg
@@ -1520,26 +1584,31 @@ module Patterns =
 
 
 // ---------------------------------------------------------------------------------------
-// Unknowns, ambiguity and cascades
+// Unknown types and avoiding misleading extra diagnostics
 // ---------------------------------------------------------------------------------------
 
 module Ambiguity =
-  // An unknown confined to a discarded value does not matter.
+  // The discarded empty list's element type does not affect the function's result,
+  // so leaving it unknown must not make the check Incomplete.
   (check (src [ "let f (u: Unit) : Int =", "  let _ = []", "  1" ]) "f") = "checked:"
 
-  // Nor does it hide a definite error elsewhere.
+  // The unknown element type of a discarded list must not hide a wrong return type.
   (check (src [ "let f (u: Unit) : Int =", "  let _ = []", "  \"wrong\"" ]) "f") = "failed:TypeMismatch"
 
-  // Unknown element types cannot repair incompatible outer types.
+  // A list cannot satisfy a Blob return type, regardless of its unknown element type.
   (check "let f (u: Unit) : Blob = []" "f") = "failed:TypeMismatch"
 
-  // A definite error is not hidden by an unrelated warning.
+  // Preserve the definite return-type error alongside the warning that the match
+  // does not handle false. The overall verdict remains Failed.
   (check "let f (value: Bool) : String = match value with | true -> 1" "f") = "failed:NonExhaustiveMatch,TypeMismatch"
 
-  // A field of something whose type is never fixed.
+  // The unused lambda never receives a record type, so the checker cannot verify
+  // that its parameter has a path field. Report Incomplete.
   (check (src [ "let f (u: Unit) : Unit =", "  let _ = (fun record -> record.path)", "  ()" ]) "f") = "incomplete:AmbiguousType"
 
-  // Only what is observed has to be known: `path` is, `value` never is.
+  // f reads only the known String field path, so its result can be checked while
+  // the unused value field's type remains unknown. Binding the whole record as
+  // unfixed leaves an unknown in the value's public type and is Incomplete.
   let found () : String =
     src
       [ "type FoundValue<'a> = { path: String; value: 'a }"
@@ -1552,7 +1621,8 @@ module Ambiguity =
   (check (found ()) "f") = "checked:"
   (check (found ()) "unfixed") = "incomplete:AmbiguousType"
 
-  // The ambiguity is reported at the node that introduced the unknown.
+  // Passing an empty list through identity and discarding the result does not
+  // require the checker to determine the list's element type.
   (let outcome =
     checkFunctionAstOutcome
       []
@@ -1576,6 +1646,8 @@ module Ambiguity =
         )))
    outcomeSummary outcome) = "checked:"
 
+  // Calling the Unit parameter is an error at the application node (3), not
+  // at the empty-list argument (100), whose element type is still unknown.
   (let outcome =
     checkFunctionAstOutcome
       []
@@ -1590,16 +1662,18 @@ module Ambiguity =
         )))
    Stdlib.List.map outcome.diagnostics (fun i -> i.nodeId)) = [ Stdlib.Option.Option.Some 3UL ]
 
-  // Binding an unknown to a type that contains it.
+  // y y would require y's function type to contain itself. With the unused local
+  // helper's types unresolved, retain this finding as a warning and return Incomplete.
   (check (src [ "let f (u: Unit) : Int =", "  let g = (fun y -> y y)", "  1" ]) "f") = "incomplete:AmbiguousType,OccursCheckFailed"
 
 
 // ---------------------------------------------------------------------------------------
-// Let, lambdas and generalization
+// Local bindings, lambdas, and generalization (checking each use at its own type)
 // ---------------------------------------------------------------------------------------
 
 module ProvisionalDiagnostics =
-  // Keep provisional findings as warnings even when another error fails the item.
+  // Findings that still depend on unresolved types must remain warnings in the
+  // LSP output, even when a separate definite error makes the function Failed.
   let displayed (last: String) : String =
     let source =
       src [ "let f () : Int =", "  let g = fun y -> y y", "  " ++ last ]
@@ -1633,12 +1707,14 @@ module ProvisionalDiagnostics =
     "failed:TypeMismatch/AmbiguousType,OccursCheckFailed/error,warning,warning"
 
 module Lets =
-  // A let-bound lambda is generalized: each use gets its own instance.
+  // Generalizing the local identity lambda lets one call use Int and another use
+  // String. Neither call should fix the parameter type for the other.
   (check
     (src [ "let f (u: Unit) : (Int * String) =", "  let identity = (fun x -> x)", "  (identity 1, identity \"ok\")" ])
     "f") = "checked:"
 
-  // A nested function can call itself, at its own arity.
+  // Recognize loop's recursive call and check its two arguments against loop's
+  // parameters, independently of the outer function's single parameter.
   (check
     (src
       [ "let f (value: Int) : Int ="
@@ -1646,7 +1722,7 @@ module Lets =
         "  loop value 1" ])
     "f") = "checked:"
 
-  // ...and the self-call is checked against the lambda's own type.
+  // A recursive call to loop must use its declared Int parameter; reject the String.
   (check
     (src
       [ "let f (value: Int) : Int ="
@@ -1654,7 +1730,8 @@ module Lets =
         "  loop value" ])
     "f") = "failed:TypeMismatch"
 
-  // With an outer `f` in scope, a new lambda named `f` captures it rather than itself.
+  // If f is already in scope, the new lambda's body refers to that existing Int
+  // binding. Do not mistake the captured f for a recursive call to the new lambda.
   (check
     (src
       [ "let g (value: Int) : Int ="
@@ -1663,7 +1740,7 @@ module Lets =
         "  f value" ])
     "g") = "checked:"
 
-  // A field of a lambda's parameter, known only once the lambda is used.
+  // Defer checking record.count until getCount is called with the Counted type.
   val counted = "type Counted = { count: Int }"
 
   (check
@@ -1674,7 +1751,8 @@ module Lets =
         "  getCount value" ])
     "f") = "checked:"
 
-  // ...and a helper used on two record types, each through its own instance.
+  // Check record.value separately for each call to getValue, allowing an Int field
+  // in RowInt and a String field in RowString.
   (check
     (src
       [ "type RowInt = { value: Int }"
@@ -1684,7 +1762,8 @@ module Lets =
         "  (getValue a, getValue b)" ])
     "f") = "checked:"
 
-  // A lambda's callers determine the enum type needed by its patterns.
+  // List.map supplies Option<Int> as get's parameter type. Use it to check the
+  // lambda's Some and None patterns and infer the payload as Int.
   (check
     (src
       [ "let f (xs: List<Stdlib.Option.Option<Int>>) : List<Int> ="
@@ -1692,8 +1771,9 @@ module Lets =
         "  Stdlib.List.map xs get" ])
     "f") = "checked:"
 
-  // Keep g's argument tied to the captured x.field. Passing a String must fail
-  // regardless of the order in which constraints appear.
+  // g calls the captured x.field, whose Box declaration requires Int -> Int.
+  // Reject a String argument to g whether requireBox fixes x's type before or
+  // after g is defined.
   let boxed (lines: List<String>) : String =
     src
       (Stdlib.List.flatten
@@ -1723,8 +1803,8 @@ module Lets =
       [ "    let g = fun y -> x.field y", "    let _ = requireBox x", "    let _ = g 1" ])
     "f") = "checked:"
 
-  // Two arguments may go to one function or to a function and its result.
-  // Wait for the callee's type to determine which.
+  // g 1 2 can call a two-parameter function or a one-parameter function that
+  // returns another function. Wait for invoke's argument to determine which.
   let invoked (callee: String) (declarations: List<String>) : String =
     src
       (Stdlib.List.append
@@ -1742,7 +1822,9 @@ module Lets =
     (invoked "adder" [ "let adder (a: Int) : Int -> Int = fun b -> a + b" ])
     "f") = "checked:"
 
-  // Preserve runtime arity: `(Int, Int) -> Int` differs from `Int -> (Int -> Int)`.
+  // Calling both forms with two arguments works, but their function types differ:
+  // a two-parameter function cannot stand in for a function returning a function.
+  // Preserve this distinction inside custom type arguments too.
   (check
     (src
       [ "let add (a: Int) (b: Int) : Int = a + b"
@@ -1756,7 +1838,8 @@ module Lets =
         "let f (x: Tag<Int -> Int -> Int>) : Tag<Int -> (Int -> Int)> = x" ])
     "f") = "failed:TypeMismatch"
 
-  // A type that occurs in itself only through an alias that drops it is no cycle.
+  // Expanding Identity<'a> yields 'a, so comparing x with identity x introduces
+  // no recursive type. Expand the alias before deciding whether there is a cycle.
   (check
     (src
       [ "type Identity<'a> = 'a"
@@ -1766,32 +1849,34 @@ module Lets =
 
   (check "val f = fun x -> x x" "f") = "failed:OccursCheckFailed"
 
-  // ...nor through another unknown function: `f` would contain `g`, which would
-  // contain `f`. Two unknowns called independently, or one on the other's result,
-  // are fine.
+  // In a b and b a, each function's type would contain the other's type, creating
+  // a cycle. Independent calls and ordinary function composition have no such cycle.
   (check "val f = fun a b -> (a b, b a)" "f") = "failed:OccursCheckFailed"
   (check "val f = fun a b -> (a 1, b 2)" "f") = "checked:"
   (check "val f = fun a b -> a (b 1)" "f") = "checked:"
 
-  // Calls share a monomorphic callee even while its arity is unknown. Reconcile
-  // both argument types and results before capturing constraints in a scheme.
+  // The parameter g has one type throughout the lambda, even before its number
+  // of parameters is known. Its calls must agree on argument and result types.
   (check "val f = fun g -> (g 1, g true)" "f") = "failed:TypeMismatch"
   (check "val f = fun g -> (g 1, g 2)" "f") = "checked:"
-  // A generalized subject must satisfy all operation kinds, in either order.
+  // All uses of x must be compatible: it cannot be both a record and a function,
+  // and a function cannot be a dictionary key. Detect this in either expression order.
   (check "val f = fun x -> (x.field, x 1)" "f") = "failed:TypeMismatch"
   (check "val f = fun x -> (x 1, x.field)" "f") = "failed:TypeMismatch"
   (check "val f = fun x -> (x 1, Dict { x: 1 })" "f") = "failed:UnsupportedDictKeyType"
   (check "val f = fun x -> (Dict { x: 1 }, x 1)" "f") = "failed:UnsupportedDictKeyType"
   (check "val f = fun g -> (g 1 + 1, if g 2 then 1 else 0)" "f") = "failed:TypeMismatch"
 
-  // Reconcile field access, updates, unwraps, and enum patterns before generalization.
-  // The subject's declaration may still be unknown.
+  // Repeated uses of a field or payload must agree on its type, even before its
+  // record or enum declaration is known. Compare reads, updates, unwraps, and
+  // patterns before allowing the helper to be reused at different types.
   (check "val f = fun r -> (r.field + 1, if r.field then 1 else 0)" "f") = "failed:TypeMismatch"
   (check "val f = fun r -> (r.field + 1, r.field + 2)" "f") = "checked:"
   (check "val f = fun r -> (r.first + 1, if r.second then 1 else 0)" "f") = "checked:"
   (check "val f = fun r -> ({ r with field = 1 }, { r with field = true })" "f") = "failed:TypeMismatch"
   (check "val f = fun r -> (r.field + 1, { r with field = true })" "f") = "failed:TypeMismatch"
-  // The update fixes the field to Bool before the numeric operation is checked.
+  // When the update comes first, it fixes field's type to Bool. The later addition
+  // then reports both the invalid numeric operand and the conflicting field type.
   (check "val f = fun r -> ({ r with field = true }, r.field + 1)" "f") = "failed:InvalidInfixOperand,TypeMismatch"
   (check "val f = fun r -> (r.field + 1, { r with field = 2 })" "f") = "checked:"
   (check "val f = fun x -> (Builtin.unwrap x + 1, if Builtin.unwrap x then 1 else 0)" "f") = "failed:TypeMismatch"
@@ -1805,8 +1890,8 @@ module Lets =
     "f") = "failed:TypeMismatch"
   (check "val f = fun x -> match x with | C a -> 1 | C(a, b) -> 2 | _ -> 0" "f") = "failed:EnumFieldCountMismatch"
 
-  // The subjects may only become the same later in the body, after the field
-  // constraints were first queued.
+  // The final if requires a and b to have the same type. Revisit their earlier
+  // field uses and detect that one requires Int while the other requires Bool.
   (check
     (src
       [ "val f = fun a b ->"
@@ -1816,7 +1901,8 @@ module Lets =
         "  (first, second)" ])
     "f") = "failed:TypeMismatch"
 
-  // Reconciliation preserves both sites for checking against a later declaration.
+  // Once get is called with R, report both accesses to its nonexistent missing
+  // field. Combining their type requirements must not lose either source location.
   (Stdlib.List.length
     (issues
       (src
@@ -1827,8 +1913,9 @@ module Lets =
           "  ()" ])
       "f")) = 2
 
-  // Different argument counts relate the longer call to the shorter result,
-  // without guessing whether g has one or two parameters.
+  // g 1 2 applies the result of g 1 to another argument. Preserve that relationship
+  // while allowing g to be either a two-parameter function or a function returning
+  // a function. If g 1 is required to be Int, the longer call is invalid.
   (check "val f = fun g -> (g 1, g 1 2)" "f") = "checked:"
   (check "val f = fun g -> (g 1 2, g 1)" "f") = "checked:"
   (check "val f = fun g -> (g 1 + 1, g 1 2)" "f") = "failed:NotCallable"
@@ -1849,8 +1936,9 @@ module Lets =
         "  partial full" ])
     "f") = "checked:"
 
-  // Consuming an already-known argument changes the deferred constraint graph
-  // even without adding a substitution or reducing the constraint count.
+  // takes establishes that g accepts an Int first. Checking that argument in
+  // g 1 a exposes a cycle with a g. Keep solving after an argument is consumed,
+  // even if no new type is inferred and the number of deferred checks stays the same.
   (check
     (src
       [ "let takes<'a> (g: Int -> 'a) : Unit = ()"
@@ -1871,8 +1959,8 @@ module Lets =
         "  (first, second)" ])
     "f") = "failed:OccursCheckFailed"
 
-  // Check Dict literal keys even when no signature mentions the Dict.
-  // A helper's caller may supply the type needed for this check.
+  // Validate keys in dictionary literals even when the dictionary is only local.
+  // If a key's type is initially unknown, retain the check until a call supplies it.
   (check
     (src [ "let f (u: Unit) : Unit =", "  let bad = Dict { (fun () -> ()): 1 }", "  ()" ])
     "f") = "failed:UnsupportedDictKeyType"
@@ -1886,14 +1974,15 @@ module Lets =
 
   (check (single "\"a\"") "f") = "checked:"
 
-  // A function cannot be a key, even when its parameter type is unknown.
+  // Knowing that a key is a function is enough to reject it; its parameter type
+  // does not need to be known. Apply this rule to literals and helper calls.
   (check
     (src [ "let f (u: Unit) : Unit =", "  let bad = Dict { (fun x -> x): 1 }", "  ()" ])
     "f") = "failed:UnsupportedDictKeyType"
   (check (single "(fun () -> ())") "f") = "failed:UnsupportedDictKeyType"
 
-  // A name bound twice by one let, which only serialized input can say, is an error
-  // whether or not the binding is generalized.
+  // Reject let (x, x) regardless of whether the bound expression is generalized.
+  // Construct the syntax tree directly because the parser rejects duplicate names.
   let bindsTwice
     (value: Darklang.LanguageTools.ProgramTypes.Expr)
     : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
@@ -1912,13 +2001,15 @@ module Lets =
         Darklang.LanguageTools.ProgramTypes.Expr.EVariable(84L, "x")
       ))
 
-  // Generalized: a tuple of arguments only builds a value.
+  // A tuple of existing arguments is eligible for generalization. Duplicate
+  // names in its binding pattern must still be rejected.
   (checkFunctionAst
     []
     (bindsTwice
       (Darklang.LanguageTools.ProgramTypes.Expr.ETuple(85L, arg 86L, arg 87L, [])))) = "failed:DuplicatePatternBinding"
 
-  // Not generalized: an `if` may do more.
+  // The checker does not generalize if expressions. This takes the other binding
+  // path, which must also reject the duplicate name x.
   (checkFunctionAst
     []
     (bindsTwice
@@ -1937,7 +2028,8 @@ module Lets =
 // ---------------------------------------------------------------------------------------
 
 module Values =
-  // A value is checked after the values it uses, whatever order they come in.
+  // Infer second-value's String type before checking first-value, even though
+  // first-value appears earlier in the input batch.
   (checkValueAsts
     [ valueNamed "first-value" (useValue 24L "second-value")
       valueNamed
@@ -1947,13 +2039,15 @@ module Values =
           [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText "ready" ]
         )) ]) = [ "checked:", "checked:" ]
 
-  // Values in a cycle have no type to start from.
+  // Each value depends on the other's inferred type. With no independent type
+  // information to break the cycle, both checks are Incomplete.
   (checkValueAsts
     [ valueNamed "recursive-first" (useValue 26L "recursive-second")
       valueNamed "recursive-second" (useValue 27L "recursive-first") ]) = [ "incomplete:MissingValueSignature"
                                                                              "incomplete:MissingValueSignature" ]
 
-  // An immutable value is generalized: one empty list, used at two types.
+  // Generalize the package value's empty-list element type so functions can use
+  // the same value as List<Int> and List<String>.
   let empties () : String =
     src
       [ "val empty = []"
@@ -1966,25 +2060,28 @@ module Values =
 
 
 // ---------------------------------------------------------------------------------------
-// Batches, dependencies and size
+// Batch results, dependency loading, and deeply nested input
 // ---------------------------------------------------------------------------------------
 
 module Batches =
-  // Each candidate has its own verdict; one failure does not fail its neighbours.
+  // Give each declaration its own verdict. The invalid function's return type
+  // must not change the valid function's Checked result.
   let pair () : String =
     src [ "let valid (x: Int) : Int = x", "let invalid (x: Int) : String = x" ]
 
   (check (pair ()) "valid") = "checked:"
   (check (pair ()) "invalid") = "failed:TypeMismatch"
 
-  // A dependency from the store contributes its signature and the types it names.
+  // Load Option.map's signature and the types it references from the package
+  // store, then use them to check the call and its lambda argument.
   (check
     "let f (x: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<Int> = Stdlib.Option.map x (fun y -> y + 1)"
     "f") = "checked:"
 
-  // Deep input may check or return Incomplete, but must not crash or fail typing.
-  // Recursion through builtin callbacks consumes native stack; direct Dark
-  // recursion uses heap frames, so the depth limit depends on the traversal.
+  // These nested types and values are valid. Check them successfully where
+  // possible, or return Incomplete when traversal reaches the stack limit.
+  // Builtin callbacks nest on the .NET stack; direct Dark recursion uses heap
+  // frames, so different traversals can handle different nesting depths.
   (checkPackageOpsSummary
     [] [ oneArg (nestedListType 5000) (tUnit ()) (unitExpr 1L) ]) = "checked:"
 
@@ -1996,13 +2093,15 @@ module Batches =
     [ oneArg (tUnit ()) (nestedListType 5000) (nestedListExpr 5000) ]
   ) = "incomplete:UnsupportedConstruct"
 
-  // A deep item stays Incomplete; other items are checked and can fail the batch.
+  // A stack-depth failure in one function must leave another function's definite
+  // return-type error visible. The batch reports both findings and remains Failed.
   (checkPackageOpsSummary
     []
     [ oneArg (tUnit ()) (nestedListType 5000) (nestedListExpr 5000)
       fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:TypeMismatch,UnsupportedConstruct"
 
-  // Deep signatures and type declarations block their users, not unrelated items.
+  // A signature or type declaration that is too deep makes its check and dependent
+  // checks Incomplete. Continue checking unrelated functions for definite errors.
   (checkPackageOpsSummary
     []
     [ fnNamed "deep-signature" [] [ ("value", nestedTupleType 3000) ] (tInt ()) (intExpr 5L 1)
@@ -2013,8 +2112,8 @@ module Batches =
     [ fnNamed "uses-deep" [] [ ("value", custom "deep-declaration" []) ] (tInt ()) (intExpr 6L 1)
       fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:MissingTypeDeclaration,TypeMismatch,UnsupportedConstruct"
 
-  // A long chain of shallow declarations may finish with cached reachability or
-  // hit the traversal guard. Either way, retain the unrelated definite error.
+  // Checking a key through 2,000 linked record declarations may complete or reach
+  // the stack limit. In either case, preserve the separate wrong-return error.
   (let chain =
     Stdlib.List.map (Stdlib.List.range 0 1999) (fun i ->
       let field =
@@ -2071,7 +2170,8 @@ module Batches =
        chain [ oneArg (custom "alias-0" []) (tUnit ()) (unitExpr 1L) ]
    answer == "checked:" || answer == "incomplete:UnsupportedConstruct") = true
 
-  // Many items in one batch.
+  // Check 300 functions sharing one enum declaration in a single batch.
+  // All 301 declarations must receive Checked results.
   (let payload =
     declared
       "batch-payload"
@@ -2098,8 +2198,9 @@ module Batches =
 // ---------------------------------------------------------------------------------------
 
 module Guarded =
-  // The loader itself (including retrieval/conversion) runs inside the guard.
-  // A failed dependency must not lose already loaded items or the queue after it.
+  // Catch failures while fetching or converting dependencies. A failed load
+  // must preserve previously loaded declarations and continue with the remaining
+  // queue. This loader deliberately fails on the dependency named broken.
   let loadDependency
     (closure: Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure)
     (reference: Darklang.LanguageTools.ProgramTypes.Reference)
@@ -2146,7 +2247,8 @@ module Guarded =
    Stdlib.List.map results (fun (_, outcome) -> outcomeSummary outcome)) =
     [ "incomplete:MissingTypeDeclaration", "failed:TypeMismatch" ]
 
-  // Checker runtime failures produce an Incomplete report for authoring and commit.
+  // A runtime error inside the checker becomes an Incomplete report through the
+  // same error-handling wrapper used by saves and commits.
   (summary (
     Darklang.LanguageTools.AtRestTypeChecker.guarded
       (fun _ -> Builtin.unwrap Stdlib.Option.Option.None)
@@ -2155,12 +2257,13 @@ module Guarded =
 
 
 // ---------------------------------------------------------------------------------------
-// Invariants across constraint kinds and failure boundaries
+// Interactions between typing rules and recovery from checker failures
 // ---------------------------------------------------------------------------------------
 
 module Invariants =
-  // Every pair of disjoint subject shapes, in both orders. Numeric operations
-  // leave x unknown here; a literal operand would resolve it before deferral.
+  // Each pair requires incompatible types for x, such as a record and a function.
+  // Check both expression orders. Use x + x rather than x + 1 so x's exact numeric
+  // type stays unknown and the test exercises checks that must wait for more information.
   val shapePairs =
     [ ("x.field", "x 1")
       ("{ x with field = 1 }", "x 1")
@@ -2179,7 +2282,8 @@ module Invariants =
     check $"val f = fun x -> ({first}, {second})" "f" == "failed:TypeMismatch"
     && check $"val f = fun x -> ({second}, {first})" "f" == "failed:TypeMismatch")) = true
 
-  // Subject equality may arrive after both requirements have been queued.
+  // The final if makes x and y have the same type. Revisit the deferred checks
+  // and reject the combined requirement for both a record field and a function call.
   (check
     (src [ "val f = fun x y ->"
            "  let a = x.field"
@@ -2187,13 +2291,17 @@ module Invariants =
            "  let _ = if true then x else y"
            "  (a, b)" ]) "f") = "failed:TypeMismatch"
 
-  // Valid overlaps remain generalizable, including numeric-domain intersections.
+  // Accept combinations that some type can satisfy: signed integers support all
+  // three numeric operations, and a record can support both field access and updates
+  // or be a dictionary key when its contents are valid key types.
   (check "val f = fun x -> (x + x, -x, x & x)" "f") = "checked:"
   (check "val f = fun x -> (x.field, { x with field = 1 })" "f") = "checked:"
   (check "val f = fun x -> (x.field, Dict { x: 1 })" "f") = "checked:"
 
-  // Orderability follows observed members, nested keys, and aliases. A phantom
-  // argument does not become orderable merely because its container is a key.
+  // A dictionary key cannot contain a function, including inside a list, record
+  // field, enum payload, or alias. Infer this from how those contents are used.
+  // A phantom type argument stores no payload, so using its container as a key
+  // must not impose key restrictions on that unused argument.
   val badKeys =
     [ "(x 1, Dict { [x]: 1 })"
       "(x.field 1, Dict { x: 1 })"
@@ -2219,16 +2327,18 @@ module Invariants =
            "val f = fun x -> (x 1, Dict { wrap x: 1 })" ]) "f") = "failed:UnsupportedDictKeyType"
   (check "val f = fun x -> (if true then x else x.next, Dict { x: 1 })" "f") = "checked:"
 
-  // An unwrap and a pattern describe the same payload. The pattern also fixes
-  // which of Option/Result is possible, without guessing at an arbitrary enum.
+  // Builtin.unwrap and a Some or Ok pattern must agree on the success payload's
+  // type. Error patterns describe Result's separate error payload. These case
+  // names also determine Option versus Result; an unrelated case C is invalid.
   (check "val f = fun x -> (Builtin.unwrap x + 1, match x with | Some y -> if y then 1 else 0 | _ -> 0)" "f") = "failed:TypeMismatch"
   (check "val f = fun x -> ((match x with | Ok y -> if y then 1 else 0 | _ -> 0), Builtin.unwrap x + 1)" "f") = "failed:TypeMismatch"
   (check "val f = fun x -> (Builtin.unwrap x + 1, match x with | Some y -> y + 1 | _ -> 0)" "f") = "checked:"
   (check "val f = fun x -> (Builtin.unwrap x + 1, match x with | Error y -> if y then 1 else 0 | _ -> 0)" "f") = "checked:"
   (check "val f = fun x -> (Builtin.unwrap x, match x with | C y -> y | _ -> 0)" "f") = "failed:UnknownEnumCase"
 
-  // Shared environment deduplication must not use unguarded native hashing of
-  // deep diagnostic types, nor hide a shallow error elsewhere in the batch.
+  // The duplicate arity errors contain a deeply nested type. Removing duplicate
+  // findings must not overflow the .NET stack while hashing or comparing them,
+  // or prevent the separate wrong-return error from being reported.
   (let bad = custom "arity-one" [ nestedListType 5000, tInt () ]
    let env =
      environmentWith
@@ -2239,8 +2349,9 @@ module Invariants =
        [ fnNamed "wrong-return" [] [ ("x", tInt ()) ] (tUnit ()) (arg 2L) ]
    Stdlib.List.map results (fun (_, outcome) -> outcomeSummary outcome)) = [ "failed:TypeMismatch" ]
 
-  // One failed load of any candidate kind, a missing item, and duplicate names
-  // must leave the other verdicts intact. This is the loader used by checkBranch.
+  // Exercise the branch checker with failed type and function loads, a missing
+  // value, and a repeated function reference. Preserve the good and bad functions'
+  // individual results, and report the repeated reference only once.
   let loadCandidate
     (reference: Darklang.LanguageTools.ProgramTypes.Reference)
     : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.PackageOp> =
@@ -2270,8 +2381,9 @@ module Invariants =
   (Stdlib.List.length (branchReport ()).items) = 5
   (itemSummary (branchReport ()) (Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "good")))) = "checked:"
 
-  // Structural containment includes unwraps as well as function applications;
-  // nominal record fields may recurse, but Option<'a> cannot equal 'a.
+  // An Option or Result cannot have the same type as its own success payload.
+  // Detect these type cycles through unwraps and calls. Named recursive records
+  // are valid; separately check whether their fields make them usable as keys.
   (check "val f = fun x -> if true then x else Builtin.unwrap x" "f") = "failed:OccursCheckFailed"
   (check "val f = fun x y -> (x y, if true then x else Builtin.unwrap y)" "f") = "failed:OccursCheckFailed"
   (check "val f = fun x y -> ((if true then x else Builtin.unwrap y), x y)" "f") = "failed:OccursCheckFailed"

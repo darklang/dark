@@ -291,18 +291,6 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
   |> List.distinct
 
 
-/// Extract references from a function's signature only (parameters and return
-/// type), not its body. Enough to type-check a call to it.
-let extractFromFnSignature (fn : PT.PackageFn.PackageFn) : List<Dependency> =
-  extract (
-    (fn.parameters
-     |> NEList.toList
-     |> List.map (fun parameter -> TypeRef parameter.typ))
-    @ [ TypeRef fn.returnType ]
-  )
-  |> List.distinct
-
-
 /// Extract all references from a value definition
 let extractFromValue (value : PT.PackageValue.PackageValue) : List<Dependency> =
   extract [ Expr value.body ] |> List.distinct

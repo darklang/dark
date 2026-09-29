@@ -272,7 +272,9 @@ let dlistToByteArray (dvalList : List<Dval>) : byte[] =
   |> Array.ofList
 
 
-/// Check stack space before comparing nested values; see `equals`.
+/// Comparing nested values makes recursive calls that can exhaust the stack.
+/// Stop with a catchable exception before that happens, so a deeply nested
+/// value produces an error instead of crashing the process.
 let inline private ensureSufficientExecutionStack () : unit =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 

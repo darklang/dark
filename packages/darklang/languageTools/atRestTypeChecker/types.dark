@@ -1,16 +1,17 @@
-/// Type substitution, conversion, alias expansion, and Dict-key usability.
-/// These operations return findings alongside their results; the solver decides
-/// how to report them.
+/// Helpers for converting declared types, replacing type variables, expanding
+/// aliases, and checking which types can be dictionary keys. Conversion and alias
+/// expansion collect findings for the checker to include in the final report.
 module Darklang.LanguageTools.AtRestTypeChecker.Types
 
 // --------------------
-// Findings
+// Create findings and distinguish warnings from errors.
 // --------------------
 
-/// Warnings mean "could not prove"; everything else is a diagnostic. `Items`
-/// decides whether a diagnostic's evidence is definite despite any unknowns.
+/// Identify issue codes reported as warnings, which prevent a Checked verdict.
+/// Other codes describe errors; Items may still report an error as a warning if
+/// its evidence depends on types that remain unknown.
 ///
-/// Every code is listed, with no wildcard, so a new code has to be put on one side.
+/// List every code explicitly so adding one requires choosing its classification.
 let isWarning (code: IssueCode) : Bool =
   match code with
   | UnresolvedTypeName
@@ -44,6 +45,9 @@ let isWarning (code: IssueCode) : Bool =
   | InvalidUnwrap
   | UnsupportedDictKeyType -> false
 
+/// Create an error finding whose expected or actual types may still be unknown.
+/// Items decides whether those unknowns make the error too uncertain to report
+/// as a definite failure.
 let error
   (code: IssueCode)
   (at: Stdlib.Option.Option<Int64>)
@@ -59,8 +63,8 @@ let error
       definite = false
       context = context }
 
-/// A diagnostic whose evidence does not depend on unknowns in its display types:
-/// a list has no record fields, for example, whatever its element type becomes.
+/// Create an error that remains valid regardless of unknowns in its displayed
+/// types. For example, a list has no record fields even if its element type is unknown.
 let definiteError
   (code: IssueCode)
   (at: Stdlib.Option.Option<Int64>)
@@ -71,6 +75,8 @@ let definiteError
   let finding = error code at expected actual context
   { finding with definite = true }
 
+/// Create a warning with a location and context, but no expected or actual type.
+/// Callers supply a warning code classified by isWarning.
 let warning
   (code: IssueCode)
   (at: Stdlib.Option.Option<Int64>)
@@ -86,11 +92,11 @@ let warning
 
 
 // --------------------
-// Substitution
+// Replace type variables and inspect types that are still being inferred.
 // --------------------
 
-/// Follow `ty` through the substitution until it is not a bound variable. Only the
-/// top is resolved; see `zonk` for the whole type.
+/// Follow replacements for an inference variable until reaching an unbound
+/// variable or another type. Leave nested components alone; zonk resolves those too.
 let walk (subst: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Model.Ty =
   match ty with
   | TVar v ->
@@ -99,7 +105,9 @@ let walk (subst: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Model.Ty =
     | None -> ty
   | _ -> ty
 
-/// Apply substitutions throughout `ty`.
+/// Replace inference variables throughout a type with the types assigned to them.
+/// Follow replacement chains and rebuild nested components, leaving variables
+/// unchanged when the solver has not assigned them a type.
 let zonk (subst: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Model.Ty =
   match walk subst ty with
   | TStream inner -> Model.Ty.TStream(zonk subst inner)
@@ -121,7 +129,9 @@ let zonk (subst: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Model.Ty =
     )
   | other -> other
 
-/// Replace only variables in `mapping`; the scheme is already substituted.
+/// Replace mapped inference variables throughout a type in one pass. Insert each
+/// replacement as supplied, without following further mappings inside it.
+/// Used to give a saved scheme fresh variables after its inferred types are resolved.
 let substitute (mapping: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Model.Ty =
   match ty with
   | TVar v ->
@@ -148,7 +158,8 @@ let substitute (mapping: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Model.Ty =
     )
   | other -> other
 
-/// The unknowns in `ty`, added to `found`. `ty` should be zonked.
+/// Add inference variables found in this type to found, using dictionary keys as
+/// a set. Apply substitutions with zonk first if only unresolved variables are wanted.
 let varsInto (found: Dict<Model.Var, Bool>) (ty: Model.Ty) : Dict<Model.Var, Bool> =
   match ty with
   | TVar v -> Stdlib.Dict.setOverridingDuplicates found v true
@@ -168,11 +179,13 @@ let varsInto (found: Dict<Model.Var, Bool>) (ty: Model.Ty) : Dict<Model.Var, Boo
       varsInto found t)
   | _ -> found
 
-/// The unknowns left in `ty` once the substitution is applied.
+/// Return the inference variables still unresolved after following substitutions.
+/// Dictionary keys form a set; repeated occurrences appear only once.
 let freeVars (subst: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Dict<Model.Var, Bool> =
   freeVarsInto subst Dict {} ty
 
-/// Add free variables to `found`. Follow substitutions without rebuilding the type.
+/// Add unresolved inference variables to found, following replacements as needed.
+/// Inspect the existing type structure without allocating a fully substituted copy.
 let freeVarsInto
   (subst: Dict<Model.Var, Model.Ty>)
   (found: Dict<Model.Var, Bool>)
@@ -192,6 +205,7 @@ let freeVarsInto
   | TDB inner -> freeVarsInto subst found inner
   | _ -> found
 
+/// Collect unresolved inference variables from a list of types into the same set.
 let freeVarsAll
   (subst: Dict<Model.Var, Model.Ty>)
   (found: Dict<Model.Var, Bool>)
@@ -201,7 +215,8 @@ let freeVarsAll
   | [] -> found
   | t :: rest -> freeVarsAll subst (freeVarsInto subst found t) rest
 
-/// Whether `ty` reaches a `TError` anywhere. `ty` should be zonked.
+/// Check whether the type contains a TError placeholder from an earlier problem.
+/// Apply substitutions first so errors hidden behind inference variables are visible.
 let hasError (ty: Model.Ty) : Bool =
   match ty with
   | TError -> true
@@ -218,9 +233,12 @@ let hasError (ty: Model.Ty) : Bool =
     hasError ret || Stdlib.List.any parameters (fun t -> hasError t)
   | _ -> false
 
-/// Whether unknown `v` occurs in `ty`, looking through the substitution.
+/// Check whether inference variable v appears in ty after following replacements.
+/// The solver uses this to reject bindings that would create an infinite type,
+/// such as binding v to List<v>. This walk does not expand aliases.
 ///
-/// Use direct recursion to avoid an extra interpreted callback at every node.
+/// Walk directly instead of using builtin callbacks, which would add a nested
+/// interpreter run and consume native stack space at each recursive level.
 let occurs (subst: Dict<Model.Var, Model.Ty>) (v: Model.Var) (ty: Model.Ty) : Bool =
   match ty with
   | TVar other ->
@@ -240,12 +258,15 @@ let occurs (subst: Dict<Model.Var, Model.Ty>) (v: Model.Var) (ty: Model.Ty) : Bo
   | TDB inner -> occurs subst v inner
   | _ -> false
 
+/// Check whether any type in the list contains v, following its substitutions.
 let occursIn (subst: Dict<Model.Var, Model.Ty>) (v: Model.Var) (tys: List<Model.Ty>) : Bool =
   match tys with
   | [] -> false
   | t :: rest -> occurs subst v t || occursIn subst v rest
 
-/// Instantiate a Template by replacing the declared parameters in `mapping`.
+/// Replace named TRigid parameters throughout a type, leaving inference variables
+/// and unmapped parameters unchanged. Callers use this to supply a signature's
+/// type arguments or to test a declaration with a particular parameter replaced.
 let substituteRigid (mapping: Dict<String, Model.Ty>) (ty: Model.Ty) : Model.Ty =
   match ty with
   | TRigid name ->
@@ -268,6 +289,7 @@ let substituteRigid (mapping: Dict<String, Model.Ty>) (ty: Model.Ty) : Model.Ty 
   | TDB inner -> Model.Ty.TDB(substituteRigid mapping inner)
   | _ -> ty
 
+/// Replace named type parameters in each list element, preserving element order.
 let substituteRigidIn (mapping: Dict<String, Model.Ty>) (tys: List<Model.Ty>) : List<Model.Ty> =
   match tys with
   | [] -> []
@@ -275,9 +297,11 @@ let substituteRigidIn (mapping: Dict<String, Model.Ty>) (tys: List<Model.Ty>) : 
 
 
 // --------------------
-// From what the author wrote
+// Convert declared type references into the checker's internal types.
 // --------------------
 
+/// Extract a successfully resolved package-type hash. Return None when name
+/// resolution failed; the caller decides how to report the unresolved name.
 let resolvedType
   (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
@@ -287,8 +311,10 @@ let resolvedType
     | Package hash -> Stdlib.Option.Option.Some hash
   | Error _ -> Stdlib.Option.Option.None
 
-/// Convert a written type. Type variables are looked up in `mapping`: a function's
-/// own type parameters map to rigid types, a declaration's to its arguments.
+/// Convert a declared type reference, adding conversion problems to found.
+/// Look up type parameters in mapping: a generic definition uses TRigid types,
+/// while a use of that definition supplies its type arguments. Unresolved names
+/// and unmapped parameters produce TError placeholders and warnings at the supplied location.
 let fromReferenceInto
   (mapping: Dict<String, Model.Ty>)
   (at: Stdlib.Option.Option<Int64>)
@@ -357,6 +383,8 @@ let fromReferenceInto
     let (ret, found) = fromReferenceInto mapping at found ret
     (Model.Ty.TFn(parameters, ret), found)
 
+/// Convert a list of type references in order, collecting findings in one shared
+/// list. Converted types keep their input order; new findings are prepended to found.
 let fromReferencesInto
   (mapping: Dict<String, Model.Ty>)
   (at: Stdlib.Option.Option<Int64>)
@@ -369,6 +397,8 @@ let fromReferencesInto
       (Stdlib.List.push converted t, found))
   (Stdlib.List.reverse reversed, found)
 
+/// Convert several type references and return their types with any findings,
+/// starting with an empty findings list.
 let fromReferences
   (mapping: Dict<String, Model.Ty>)
   (at: Stdlib.Option.Option<Int64>)
@@ -376,6 +406,8 @@ let fromReferences
   : (List<Model.Ty> * List<Model.Finding>) =
   fromReferencesInto mapping at [] typs
 
+/// Convert one type reference and return its type with any findings, starting
+/// with an empty findings list.
 let fromReference
   (mapping: Dict<String, Model.Ty>)
   (at: Stdlib.Option.Option<Int64>)
@@ -383,12 +415,15 @@ let fromReference
   : (Model.Ty * List<Model.Finding>) =
   fromReferenceInto mapping at [] typ
 
-/// Declared type parameters, each standing for itself.
+/// Map each declared parameter name to a TRigid type with that name. These types
+/// must remain generic while checking a definition, rather than being inferred
+/// as a particular type from the body.
 let rigid (names: List<String>) : Dict<String, Model.Ty> =
   Stdlib.List.fold names Dict {} (fun mapping name ->
     Stdlib.Dict.setOverridingDuplicates mapping name (Model.Ty.TRigid name))
 
-/// Map declared type parameters to arguments. `None` when the counts differ.
+/// Pair declared parameter names with supplied type arguments in order.
+/// Return None if their counts differ, since no complete mapping can be made.
 let bindParams
   (names: List<String>)
   (args: List<Model.Ty>)
@@ -401,7 +436,9 @@ let bindParams
     )
   | None -> Stdlib.Option.Option.None
 
-/// The type of one of a declaration's fields, at these type arguments.
+/// Convert a declared field type using the type arguments supplied for its owner.
+/// Return the converted type and any findings, or TError with a count mismatch
+/// when the arguments cannot be paired with the declaration's parameters.
 let fieldType
   (at: Stdlib.Option.Option<Int64>)
   (typeParams: List<String>)
@@ -411,7 +448,8 @@ let fieldType
   match bindParams typeParams typeArgs with
   | Some mapping -> fromReference mapping at typ
   | None ->
-    // Malformed input, kept from throwing at this boundary.
+    // Report the mismatched counts as a finding so malformed input does not
+    // turn into an exception while converting a field type.
     let problem =
       error
         IssueCode.TypeMismatch
@@ -423,18 +461,23 @@ let fieldType
 
 
 // --------------------
-// Declarations and aliases
+// Look up declarations and expand type aliases.
 // --------------------
 
+/// Convert a count or index to the Int64 representation used in report contexts.
+/// The caller must supply a number that fits in Int64.
 let int64 (n: Int) : Int64 = Builtin.unwrap (Stdlib.Int.toInt64 n)
 
+/// Count list elements in the Int64 form used for reported argument counts.
 let count (xs: List<'a>) : Int64 = int64 (Stdlib.List.length xs)
 
+/// Represent a resolved function in the report by its builtin name or package hash.
 let fnNameRef (name: LanguageTools.ProgramTypes.FQFnName.FQFnName) : NameRef =
   match name with
   | Builtin b -> NameRef.Builtin(b.name, Stdlib.Int64.fromInt32 b.version)
   | Package hash -> NameRef.Package hash
 
+/// Represent a resolved value in the report by its builtin name or package hash.
 let valueNameRef
   (name: LanguageTools.ProgramTypes.FQValueName.FQValueName)
   : NameRef =
@@ -442,16 +485,17 @@ let valueNameRef
   | Builtin b -> NameRef.Builtin(b.name, Stdlib.Int64.fromInt32 b.version)
   | Package hash -> NameRef.Package hash
 
+/// Look up a type declaration already loaded into the environment by content hash.
 let declaration
   (env: Model.Environment)
   (name: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration> =
   Stdlib.Dict.get env.types name
 
-/// Expand aliases at the top of `ty`, keeping any findings.
-/// Failed expansion returns TError to suppress dependent errors and repeated
-/// expansion attempts. A missing declaration might alias the expected type,
-/// so it does not prove a type mismatch.
+/// Follow substitutions and outer aliases until reaching a non-alias type,
+/// returning any findings from expansion. On failure, use TError to avoid further
+/// errors based on an unavailable type. In particular, a missing declaration may
+/// be an alias for the expected type, so its absence cannot prove a mismatch.
 let expand
   (env: Model.Environment)
   (subst: Dict<Model.Var, Model.Ty>)
@@ -460,6 +504,9 @@ let expand
   : (Model.Ty * List<Model.Finding>) =
   expandFrom env subst at [] [] ty
 
+/// Expand outer aliases while carrying prior findings and the active alias path.
+/// seen detects recursive alias definitions. Records and enums keep their identity;
+/// check their argument counts without expanding their fields.
 let expandFrom
   (env: Model.Environment)
   (subst: Dict<Model.Var, Model.Ty>)
@@ -489,11 +536,10 @@ let expandFrom
             warning IssueCode.AliasCycle at Context.AliasCycleReferenced
           )
         else
-          // Normalize supplied arguments before entering this definition.
-          // Then a repeated alias in the body really is recursion, whereas
-          // Forward<Forward<Int>> has already reduced its inner Forward.
-          // Keep the caller's history while normalizing: Loop = Identity<Loop>
-          // must still encounter Loop a second time.
+          // Expand argument aliases before adding this alias to the active path.
+          // For Forward<'a> = 'a, Forward<Forward<Int>> must reduce to Int without
+          // mistaking ordinary nesting for a recursive definition. Retain the
+          // existing path: Loop = Forward<Loop> must still be detected as a cycle.
           match expandDeepAll env subst at seen args [] with
           | Error problem -> blocked problem
           | Ok args ->
@@ -514,6 +560,8 @@ let expandFrom
           blocked (arityMismatch at ty name decl args)
   | _ -> (ty, found)
 
+/// Report a custom type used with the wrong number of arguments, including its
+/// hash and the expected and supplied counts in the diagnostic context.
 let arityMismatch
   (at: Stdlib.Option.Option<Int64>)
   (ty: Model.Ty)
@@ -528,12 +576,14 @@ let arityMismatch
     (Stdlib.Option.Option.Some ty)
     (Context.TypeArity(name, count decl.typeParams, count args))
 
-/// Expand aliases throughout `ty`, or return the finding preventing expansion.
-/// Used to normalize alias arguments and check variable containment: a structural
-/// occurrence such as `t = Identity<t>` may disappear after expansion.
+/// Follow substitutions and expand aliases throughout the supplied type,
+/// including nested arguments. Return a finding if a required declaration is
+/// missing, an alias has the wrong argument count, or expansion reaches a cycle.
+/// Record and enum fields are not expanded.
 ///
-/// Expand arguments before the alias body. `seen` tracks active expansions
-/// to detect cycles through both arguments and bodies.
+/// Used before checking variable containment: if Ignore<'a> aliases Int,
+/// Ignore<t> does not actually contain t after expansion. Expand arguments before
+/// entering each alias body, keeping seen as the path of active alias definitions.
 let expandDeep
   (env: Model.Environment)
   (subst: Dict<Model.Var, Model.Ty>)
@@ -595,7 +645,8 @@ let expandDeep
     | Error problem -> Stdlib.Result.Result.Error problem
   | other -> Stdlib.Result.Result.Ok other
 
-/// Expand each type in order, stopping at the first failure.
+/// Expand a list of types, stopping at the first expansion failure. done holds
+/// previously expanded types in reverse order; reverse it when the list is complete.
 let expandDeepAll
   (env: Model.Environment)
   (subst: Dict<Model.Var, Model.Ty>)
@@ -612,9 +663,9 @@ let expandDeepAll
       expandDeepAll env subst at seen rest (Stdlib.List.push done expanded)
     | Error problem -> Stdlib.Result.Result.Error problem
 
-/// The declaration a (possibly aliased) custom type names, with its arguments.
-/// `None` for anything else, and for a custom type used at the wrong arity, since
-/// its arguments cannot be substituted into the declaration's fields.
+/// Resolve outer aliases and return the resulting custom type's hash, arguments,
+/// and declaration, along with any expansion findings. Return None for other
+/// types or failed expansion, including uses with the wrong number of type arguments.
 let declarationFor
   (env: Model.Environment)
   (subst: Dict<Model.Var, Model.Ty>)
@@ -636,10 +687,11 @@ let declarationFor
 
 
 // --------------------
-// Dict keys
+// Determine which types can be used as dictionary keys.
 // --------------------
 
-/// The types a declaration's fields are written as.
+/// Return the declared types to inspect: an alias target, record field types,
+/// or the payload types from every enum case.
 let declarationFieldTypes (decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration) : List<LanguageTools.ProgramTypes.TypeReference> =
   match decl.definition with
   | Alias target -> [ target ]
@@ -649,8 +701,9 @@ let declarationFieldTypes (decl: LanguageTools.ProgramTypes.TypeDeclaration.Type
     |> Stdlib.List.map (fun case -> Stdlib.List.map case.fields (fun f -> f.typ))
     |> Stdlib.List.flatten
 
-/// Keep the arguments whose type parameter reaches a value: arguments for phantom
-/// parameters never become runtime values, so they need not be orderable.
+/// Select arguments whose parameter names are in used, preserving argument order.
+/// For dictionary-key checks, this excludes phantom parameters: their arguments
+/// describe the type but never occur in its stored values.
 let argsThatReachValues
   (typeParams: List<String>)
   (used: List<String>)
@@ -661,9 +714,13 @@ let argsThatReachValues
     pairs
     |> Stdlib.List.filter (fun (p, _) -> Stdlib.List.``member`` used p)
     |> Stdlib.List.map (fun (_, arg) -> arg)
+  // If the counts differ, retain all arguments so malformed input cannot hide
+  // an invalid key type. Argument-count validation reports the mismatch separately.
   | None -> args
 
-/// The type variables in `typ` that can end up holding a runtime value.
+/// Collect type-variable names that can describe values within this type.
+/// Use cached summaries for custom types to skip phantom arguments. If a custom
+/// type is unavailable, inspect all its arguments rather than assume any are unused.
 let typeVariablesThatReachValues
   (env: Model.Environment)
   (typ: LanguageTools.ProgramTypes.TypeReference)
@@ -699,6 +756,8 @@ let typeVariablesThatReachValues
       (recurse ret)
   | _ -> []
 
+/// Collect parameters that can occur in an alias target, record fields, or enum
+/// payloads. Declarations uses this result to update its cached parameter summaries.
 let declarationValueParameters
   (env: Model.Environment)
   (decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
@@ -707,17 +766,21 @@ let declarationValueParameters
   |> Stdlib.List.map (fun t -> typeVariablesThatReachValues env t)
   |> Stdlib.List.flatten
 
-/// Cached parameters proven to reach values; traversal failures are separate warnings.
-/// Preparation starts known declarations at the empty set and grows it to a fixed
-/// point, so passing a parameter only around a cycle does not make it a value.
+/// Read the cached parameters that can describe stored values; default to none.
+/// Declarations starts with empty summaries and repeats analysis until they stop
+/// changing. Passing a parameter only around a recursive cycle does not make it
+/// a stored value. Failures during that analysis are recorded as separate warnings.
 let valueTypeParameters
   (env: Model.Environment)
   (name: LanguageTools.ProgramTypes.Hash)
   : List<String> =
   Stdlib.Option.withDefault (Stdlib.Dict.get env.valueTypeParameters name) []
 
-/// Check that `ty` cannot contain functions, streams, DBs, or blobs as Dict keys.
-/// Allow type variables here; their orderability is checked at runtime.
+/// Check for types forbidden in dictionary keys: functions, streams, DBs, and blobs,
+/// including those stored inside containers, records, or enum payloads.
+/// Type variables are allowed here; more specific inferred or supplied types can
+/// be checked later. Missing declarations and TError do not add key errors because
+/// their underlying problems are reported separately.
 let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTypes.Hash>) (ty: Model.Ty) : Bool =
   match ty with
   | TFn(_, _) -> false
@@ -738,11 +801,12 @@ let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTy
       let expanding = Stdlib.List.push seen name
       let used = valueTypeParameters env name
 
-      // `seen` bounds walks through declaration bodies, not through supplied
-      // arguments. Box<Box<Fn>> must visit both instances; only the definition
-      // can be skipped. Phantom arguments still never reach runtime values.
+      // Stop revisiting a declaration's fields, but still inspect supplied
+      // arguments. Box<Box<Fn>> must reach Fn even though both layers use Box.
+      // Arguments for phantom parameters can be skipped because they store no value.
       let fieldsUsable =
-        // Use `if` to stop recursive visits; boolean operators evaluate both sides.
+        // Use if so a previously visited declaration's fields are not walked
+        // again. Dark's boolean operators evaluate both operands.
         if Stdlib.List.``member`` seen name then
           true
         else
@@ -754,7 +818,8 @@ let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTy
           isUsableDictKey env seen t)
       else
         false
-  // Listed rather than wildcarded: a new type should not become a key by default.
+  // List allowed cases explicitly so a new type must be considered before it
+  // can pass this check. Unknowns and error placeholders are handled as described above.
   | TRigid _
   | TVar _
   | TError
@@ -777,6 +842,9 @@ let isUsableDictKey (env: Model.Environment) (seen: List<LanguageTools.ProgramTy
   | TUuid
   | TDateTime -> true
 
+/// Check a declaration's field type for forbidden dictionary-key contents without
+/// first converting the full type. Follow custom declarations with the same cycle
+/// guard as isUsableDictKey, and inspect only arguments that can occur in values.
 let isUsableDictKeyReference
   (env: Model.Environment)
   (seen: List<LanguageTools.ProgramTypes.Hash>)
@@ -802,16 +870,22 @@ let isUsableDictKeyReference
           let used = valueTypeParameters env hash
           argsThatReachValues decl.typeParams used args
         | None -> args
+      // Check the declaration's own fields separately from the supplied arguments.
+      // Its parameter summary determines which arguments also need checking below.
       isUsableDictKey env seen (Model.Ty.TCustom(hash, []))
       && Stdlib.List.all reachable recurse
-    | None -> true // unresolved; reported elsewhere
+    // An unresolved name is reported by type conversion, not as an invalid key.
+    | None -> true
   | _ -> true
 
 
 // --------------------
-// To the report's vocabulary
+// Convert internal types to the public report format.
 // --------------------
 
+/// Convert an internal type to StaticType for diagnostics. Apply substitutions
+/// before calling so inferred types appear in the report. Keep declared parameter
+/// names, but hide internal inference-variable identities and error placeholders.
 let toStatic (ty: Model.Ty) : StaticType =
   match ty with
   | TUnit -> StaticType.TUnit
@@ -848,6 +922,7 @@ let toStatic (ty: Model.Ty) : StaticType =
   | TFn(parameters, ret) ->
     StaticType.TFn(Stdlib.List.map parameters (fun t -> toStatic t), toStatic ret)
   | TRigid name -> StaticType.TRigidVariable name
-  // Display both kinds of unknown as `_`.
+  // Use the same anonymous variable for unresolved types and types unavailable
+  // because of an earlier error. Both are displayed as _ in diagnostics.
   | TVar _ -> StaticType.TInferenceVariable 0
   | TError -> StaticType.TInferenceVariable 0
