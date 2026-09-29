@@ -5,7 +5,7 @@ let content () : String =
 
 A trait names one or more fns over one open type. An implementation says how one
 type does them. A call picks the implementation by the type of the value it is
-given. Every operator is a trait (`+` is `Add`, `<` is `Compare`, `==` is `Equal`), as
+given. Every operator is a trait (`+` is `Add`, `<` is `Compare`), as
 is `toString`, so every builtin type already has implementations; yours join
 with one `impl`.
 
@@ -77,7 +77,6 @@ with one `impl`.
   BitwiseAnd BitwiseOr BitwiseXor BitwiseNot     `& | ^` and `~x`
   ShiftLeft ShiftRight                        `<<` and `>>`
   Compare                            `< <= > >=`; also `Stdlib.max`, `min`, `clamp`
-  Equal                             `==` and `!=`; structural unless implemented
   ToString                       `x.toString`, `Stdlib.toString x`
   Zero, One                      `Zero.zero<Int64> ()`; `Stdlib.sum seed xs` and
                                  `product seed xs` take a seed, so summing an
