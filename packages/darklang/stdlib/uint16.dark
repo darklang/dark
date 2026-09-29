@@ -26,7 +26,6 @@ let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Multiply a b
 
 
 /// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must to be positive.
 /// Overflow wraps around.
 let power (``base``: UInt16) (exponent: UInt16) : UInt16 =
   if ``base`` == 0us && exponent == 0us then 1us

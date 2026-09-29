@@ -43,8 +43,8 @@ let divide (a: Int64) (b: Int64) : Int64 = Builtin.int64Divide a b
 
 
 /// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must be non-negative.
 /// Overflow wraps around.
+/// Raises an error if <param exponent> is negative.
 let power (``base``: Int64) (exponent: Int64) : Int64 =
   Builtin.int64Power ``base`` exponent
 

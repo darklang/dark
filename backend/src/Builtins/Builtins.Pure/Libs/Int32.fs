@@ -136,8 +136,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "base" TInt32 ""; Param.make "exponent" TInt32 "" ]
       returnType = TInt32
       description =
-        "Raise <param base> to the power of <param exponent>. <param exponent> "
-        + "must to be positive. Overflow wraps around."
+        "Raise <param base> to the power of <param exponent>. Overflow wraps "
+        + "around. Raises an error if <param exponent> is negative."
       fn =
         (function
         | _, vm, _, [| DInt32 number; DInt32 exp |] ->

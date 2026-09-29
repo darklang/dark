@@ -39,8 +39,8 @@ let multiply (a: Int16) (b: Int16) : Int16 = Builtin.int16Multiply a b
 
 
 /// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must be non-negative.
 /// Overflow wraps around.
+/// Raises an error if <param exponent> is negative.
 let power (``base``: Int16) (exponent: Int16) : Int16 =
   Builtin.int16Power ``base`` exponent
 

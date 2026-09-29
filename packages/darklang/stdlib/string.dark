@@ -33,7 +33,7 @@ let articleFor (nextWord: String) : String =
       "a"
 
 
-/// Returns {{true}} if <param s> is the empty string {{\"\"}
+/// Returns {{true}} if <param s> is the empty string {{""}}
 let isEmpty (s: String) : Bool = Builtin.stringIsEmpty s
 
 
@@ -376,22 +376,22 @@ let padEndToWidth (s: String) (width: Int) : String =
 // TODO: re-write in dark
 /// Returns a copy of <param str> with all leading and trailing whitespace
 /// removed. 'whitespace' here means all Unicode characters with the
-/// {{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and
-/// {{\"\\n\"}}
+/// {{White_Space}} property, which includes {{" "}}, {{"\t"}} and
+/// {{"\n"}}.
 let trim (str: String) : String = Builtin.stringTrim str
 
 
 // TODO: re-write in dark
 /// Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
 /// here means all Unicode characters with the {{White_Space}} property, which
-/// includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}
+/// includes {{" "}}, {{"\t"}} and {{"\n"}}.
 let trimStart (str: String) : String = Builtin.stringTrimStart str
 
 
 // TODO: re-write in dark
 /// Returns a copy of <param str> with all trailing whitespace removed.
 /// 'whitespace' here means all Unicode characters with the {{White_Space}}
-/// property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}.
+/// property, which includes {{" "}}, {{"\t"}} and {{"\n"}}.
 let trimEnd (str: String) : String = Builtin.stringTrimEnd str
 
 
@@ -461,8 +461,8 @@ let pluralize (word: String) : String =
     $"{word}s"
 
 
-/// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>,
-/// measured in UTF-16 code units. Returns {{Nothing}} if <param searchFor> does not occur.
+/// Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>,
+/// measured in UTF-16 code units. Returns {{None}} if <param searchFor> does not occur.
 /// The returned index is **not** suitable for arithmetic with {{first}}, {{dropFirst}},
 /// or {{slice}}, which are all EGC-indexed — for that, use {{indexOfEgc}}.
 let indexOf (str: String) (searchFor: String) : Option.Option<Int> =
@@ -470,9 +470,9 @@ let indexOf (str: String) (searchFor: String) : Option.Option<Int> =
   if idx == -1 then Option.Option.None else Option.Option.Some idx
 
 
-/// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>,
+/// Returns {{Some index}} of the first occurrence of <param searchFor> in <param str>,
 /// measured in extended grapheme clusters (consistent with {{length}}, {{slice}},
-/// {{first}}, and {{dropFirst}}). Returns {{Nothing}} if <param searchFor> does not occur.
+/// {{first}}, and {{dropFirst}}). Returns {{None}} if <param searchFor> does not occur.
 /// The match must begin and end on EGC boundaries — searching for a partial grapheme
 /// (e.g. a base codepoint inside a ZWJ sequence) will not match.
 let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int> =
@@ -480,8 +480,8 @@ let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int> =
   if idx == -1 then Option.Option.None else Option.Option.Some idx
 
 
-/// Returns {{Just index}} of the last occurrence of <param searchFor> in <param str>,
-/// measured in UTF-16 code units. Returns {{Nothing}} if <param searchFor> does not occur.
+/// Returns {{Some index}} of the last occurrence of <param searchFor> in <param str>,
+/// measured in UTF-16 code units. Returns {{None}} if <param searchFor> does not occur.
 /// For an EGC-indexed result, use {{lastIndexOfEgc}}.
 let lastIndexOf
   (str: String)
@@ -495,8 +495,8 @@ let lastIndexOf
     Option.Option.Some(lastIndex)
 
 
-/// Returns {{Just index}} of the last occurrence of <param searchFor> in <param str>,
-/// measured in extended grapheme clusters. Returns {{Nothing}} if <param searchFor>
+/// Returns {{Some index}} of the last occurrence of <param searchFor> in <param str>,
+/// measured in extended grapheme clusters. Returns {{None}} if <param searchFor>
 /// does not occur. The match must begin and end on EGC boundaries.
 let lastIndexOfEgc
   (str: String)

@@ -22,12 +22,15 @@ let get (dict: Dict<'k, 'v>) (key: 'k) : Stdlib.Option.Option<'v> =
   Builtin.dictGet dict key
 
 
-/// Returns a copy of <param dict> with the <param key> set to <param val>
+/// Returns a copy of <param dict> with the <param key> set to <param val>.
+/// Raises an error if <param key> is already in <param dict>; use
+/// <fn Dict.setOverridingDuplicates> to replace an existing value.
 let set (dict: Dict<'k, 'v>) (key: 'k) (``val``: 'v) : Dict<'k, 'v> =
   Builtin.dictSet dict key ``val``
 
 
-/// Returns a copy of <param dict> with the <param key> set to <param val>
+/// Returns a copy of <param dict> with the <param key> set to <param val>,
+/// replacing any existing value for <param key>.
 let setOverridingDuplicates (dict: Dict<'k, 'v>) (key: 'k) (``val``: 'v) : Dict<'k, 'v> =
   Builtin.dictSetOverridingDuplicates dict key ``val``
 

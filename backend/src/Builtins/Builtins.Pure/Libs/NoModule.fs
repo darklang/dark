@@ -352,8 +352,8 @@ let fns () : List<BuiltInFn> =
       description =
         "Raises a number to the power of another number of the same type. "
         + "Supported for every integer type and Float (not Int128/UInt128). "
-        + "Integer exponents must be non-negative. Fixed-width integer overflow "
-        + "wraps around; the arbitrary-precision Int grows instead."
+        + "A negative integer exponent raises an error. Fixed-width integer "
+        + "overflow wraps around; the arbitrary-precision Int grows instead."
       fn =
         // Fixed-width powers wrap, so they use modular exponentiation
         // (`powSigned`/`powUnsigned`) — this stays cheap even for huge

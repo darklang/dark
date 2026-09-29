@@ -177,8 +177,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
       returnType = TInt
       description =
-        "Raise <param base> to the power of <param exponent>. <param exponent> "
-        + "must be non-negative. The arbitrary-precision result grows as needed."
+        "Raise <param base> to the power of <param exponent>. The "
+        + "arbitrary-precision result grows as needed. Raises an error if "
+        + "<param exponent> is negative."
       fn =
         (function
         | _, vm, _, [| DInt b; DInt exp |] ->
