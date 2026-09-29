@@ -137,60 +137,64 @@ let private reResolveAllItems
 /// 5. If the ops changed at all, discard old WIP and re-insert
 /// 6. Return count of changed items
 let refresh (pm : PT.PackageManager) : Task<int64> =
-  task {
-    // 1. Get the draft. Not `getWipOps`, which returns committed ops too; see the module doc.
-    let! wipOps = Queries.getDraftOps ()
+  Telemetry.timeTask "author.wipRefresh" [] (fun () ->
+    task {
+      // 1. Get the draft. Not `getWipOps`, which returns committed ops too; see the module doc.
+      let! wipOps = Queries.getDraftOps ()
 
-    if List.isEmpty wipOps then
-      return 0L
-    else
-      // 2. Compact superseded edits. Required for correctness (see compactWipOps), and
-      // doing it before re-resolution avoids re-resolving copies about to be dropped.
-      let compactedOps = compactWipOps wipOps
-
-      // 3. Re-resolve unresolved names
-      let! reResolvedOps = reResolveAllItems pm compactedOps
-
-      // If re-resolution changed nothing, stabilization is a no-op: the ops were
-      // stabilized before insert (scmAddOps), so re-hashing gives the same hashes --
-      // after an SCC rehash of the whole log. Skip it; any dependent that exists
-      // re-resolves to a new hash and takes the full path.
-      if reResolvedOps = compactedOps then
+      if List.isEmpty wipOps then
         return 0L
       else
+        // 2. Compact superseded edits. Required for correctness (see compactWipOps), and
+        // doing it before re-resolution avoids re-resolving copies about to be dropped.
+        let compactedOps = compactWipOps wipOps
 
-        // 4. Stabilize hashes (SCC-aware)
-        let stabilizedOps = HS.computeRealHashes reResolvedOps
+        // 3. Re-resolve unresolved names
+        let! reResolvedOps = reResolveAllItems pm compactedOps
 
-        // 5. Compare old and new hashes
-        let oldHashes = HS.extractAllHashes wipOps |> Set.ofList
-        let newHashes = HS.extractAllHashes stabilizedOps |> Set.ofList
-
-        // Hashes PLUS op count: compaction is detectable without comparing transient Add-item
-        // hashes, which stabilization may fill differently on each load.
-        if
-          oldHashes = newHashes && List.length stabilizedOps = List.length wipOps
-        then
+        // If re-resolution changed nothing, stabilization is a no-op: the ops were
+        // stabilized before insert (scmAddOps), so re-hashing gives the same hashes --
+        // after an SCC rehash of the whole log. Skip it; any dependent that exists
+        // re-resolves to a new hash and takes the full path.
+        if reResolvedOps = compactedOps then
           return 0L
         else
-          // Count changed items (items that got a new hash)
-          let changedCount = Set.difference newHashes oldHashes |> Set.count |> int64
 
-          // 6. Discard the old draft and re-insert the updated one, as ONE transaction: split in
-          //    two, a crash between them deletes the draft with nothing to put back. Capture the
-          //    existing origin_ts FIRST, so an op whose hash didn't change comes back with its own
-          //    stamp rather than a fresh one. No commit: nothing here is committed, by construction.
-          //    A failure raises into the author's `try/with` rather than reporting 0 changed.
-          let! preserveTs = Queries.getWipOpOriginTs ()
-          let! _ =
-            Inserts.rewriteOpsAtomically
-              Inserts.draftDeletes
-              (fun opId ->
-                match Map.tryFind opId preserveTs with
-                | Some ts -> ts
-                | None -> Inserts.nextOriginTs ())
-              (fun _ -> None)
-              "op"
-              stabilizedOps
-          return changedCount
-  }
+          // 4. Stabilize hashes (SCC-aware)
+          let stabilizedOps = HS.computeRealHashes reResolvedOps
+
+          // 5. Compare old and new hashes
+          let oldHashes = HS.extractAllHashes wipOps |> Set.ofList
+          let newHashes = HS.extractAllHashes stabilizedOps |> Set.ofList
+
+          // Hashes PLUS op count: compaction is detectable without comparing transient Add-item
+          // hashes, which stabilization may fill differently on each load.
+          if
+            oldHashes = newHashes && List.length stabilizedOps = List.length wipOps
+          then
+            return 0L
+          else
+            // Count changed items (items that got a new hash)
+            let changedCount =
+              Set.difference newHashes oldHashes |> Set.count |> int64
+
+            // 6. Discard the old draft and re-insert the updated one, as ONE transaction: split in
+            //    two, a crash between them deletes the draft with nothing to put back. Capture the
+            //    existing origin_ts FIRST, so an op whose hash didn't change comes back with its own
+            //    stamp rather than a fresh one. No commit: nothing here is committed, by construction.
+            //    A failure raises into the author's `try/with` rather than reporting 0 changed.
+            let! preserveTs = Queries.getWipOpOriginTs ()
+            let! _ =
+              Inserts.rewriteOpsAtomically
+                Inserts.draftDeletes
+                (fun opId ->
+                  match Map.tryFind opId preserveTs with
+                  | Some ts -> ts
+                  | None -> Inserts.nextOriginTs ())
+                (fun _ -> None)
+                "op"
+                stabilizedOps
+            return changedCount
+    }
+
+  )

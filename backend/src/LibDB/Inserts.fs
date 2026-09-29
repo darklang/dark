@@ -228,7 +228,9 @@ let rec insertAndApplyOpsWith
       let insertedOpIds =
         insertedOpsWithIds |> List.map (fun (opId, _, _, _, _) -> opId)
 
-      do! PackageOpPlayback.applyOpsFrom source opsToApply
+      do!
+        Telemetry.timeTask "author.fold" [] (fun () ->
+          PackageOpPlayback.applyOpsFrom source opsToApply)
 
       // An `Add*` the log already held is not folded again, and does not need to be, except for one
       // thing: the names its body reached its callees through in THIS parse. Two names can hold one
@@ -238,14 +240,17 @@ let rec insertAndApplyOpsWith
         List.zip opsWithIds rowsAffected
         |> List.filter (fun (_, affected) -> affected = 0)
         |> List.map (fun ((_, op, _, _, _), _) -> op)
-      do! PackageOpPlayback.recordDependenciesOnly ignored
+      do!
+        Telemetry.timeTask "author.deps" [] (fun () ->
+          PackageOpPlayback.recordDependenciesOnly ignored)
 
       // A `SetName` already in the log, for a name bound to something else right now, is a revert:
       // unsayable as a `SetName` (`PT.restating`), so it is re-authored as the decision it is. An
       // `UpdateDoc` already in the log, saying something the target does not currently say, is the
       // same thing one level down, and goes back in stamped. Recursion terminates: a `SetName`
       // becomes a `Decision`, and a stamped `UpdateDoc` is a new op id, so neither is ignored again.
-      let! toRestateNames = notCurrentlyBound ignored
+      let! toRestateNames =
+        Telemetry.timeTask "author.notBound" [] (fun () -> notCurrentlyBound ignored)
       let! toRestateDocs = docsNotCurrentlySaid ignored
       let toRestate = toRestateNames @ toRestateDocs
       let! restated =
