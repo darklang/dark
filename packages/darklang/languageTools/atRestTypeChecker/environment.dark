@@ -1,19 +1,24 @@
-/// Build the checking environment from builtin signatures and declarations loaded
-/// by content hash. Dependency loading reads immutable content; inference and
-/// solving operate on the resulting environment.
+/// Supply builtin metadata and load the package declarations needed for checking.
+/// Read package dependencies by content hash and inspect their syntax and declared
+/// types without executing their code. Builtin metadata is fetched as needed.
 module Darklang.LanguageTools.AtRestTypeChecker.Environment
 
 // --------------------
-// Builtins
+// Convert builtin metadata into the types used by the checker.
 // --------------------
 
-/// The package type a value was built as.
+/// Read the package type's hash stored in a record or enum value.
+/// Used to identify the standard Option and Result types from actual values.
+/// Return an empty hash for values that are neither package records nor enums.
 let typeHashOf (value: 'a) : LanguageTools.ProgramTypes.Hash =
   match LanguageTools.RuntimeTypes.reflect value with
   | DEnum(Package hash, _, _, _, _) -> hash
   | DRecord(Package hash, _, _, _) -> hash
   | _ -> LanguageTools.ProgramTypes.Hash.Hash ""
 
+/// Convert a builtin's runtime type metadata to the type-reference format used
+/// by package declarations. Preserve type arguments, names, and resolution errors;
+/// runtime metadata provides no source location for resolved package types.
 let fromRuntimeType
   (typ: LanguageTools.RuntimeTypes.TypeReference)
   : LanguageTools.ProgramTypes.TypeReference =
@@ -80,7 +85,9 @@ let fromRuntimeType
       Stdlib.List.map args (fun t -> fromRuntimeType t)
     )
 
-/// The type variables a runtime type mentions.
+/// Collect type-variable names from a runtime type, including nested components.
+/// Repeated occurrences remain in the list; builtinCallable removes duplicates
+/// when adding undeclared parameters to the signature.
 let runtimeVariables (typ: LanguageTools.RuntimeTypes.TypeReference) : List<String> =
   match typ with
   | TVariable name -> [ name ]
@@ -99,8 +106,10 @@ let runtimeVariables (typ: LanguageTools.RuntimeTypes.TypeReference) : List<Stri
     Stdlib.List.flatten (Stdlib.List.map args runtimeVariables)
   | _ -> []
 
-/// Convert a signature once, preserving its type parameters for each caller.
-/// Collect problems now and report them at each use.
+/// Convert a declared signature into a template that callers can reuse.
+/// Keep generic parameters as named TRigid types for substitution at each use,
+/// and save validation problems to report at the calls that rely on this signature.
+/// Return any declaration-validation caches populated along the way.
 let signatureTemplate
   (env: Model.Environment)
   (signature: Model.Signature)
@@ -123,9 +132,10 @@ let signatureTemplate
    ),
    env)
 
-/// Build a builtin's callable signature. A result type variable that no parameter
-/// constrains needs an explicit type argument, as in `jsonParse<'a>`.
-/// If that variable is undeclared, the signature cannot safely describe the result.
+/// Decide whether a builtin's metadata supplies a usable signature and convert it.
+/// A type variable appearing only in the return type needs an explicit type
+/// argument, as in jsonParse<'a>. If it is not declared as a type parameter,
+/// mark the builtin Untrusted because its result type cannot be determined safely.
 let builtinCallable
   (env: Model.Environment)
   (fn: LanguageTools.BuiltinFunction)
@@ -145,9 +155,12 @@ let builtinCallable
     Stdlib.List.all resultOnly (fun v -> Stdlib.List.``member`` fn.typeParams v)
 
   if Stdlib.List.isEmpty parameterTypes then
+    // The checker does not support builtin signatures with no parameters.
     (Model.Callable.Unavailable, env)
   else if resultOnlyDeclared then
-    // Older builtins predate declared type parameters: quantify what they use.
+    // Older builtins omit some type parameters from their metadata. Add the
+    // missing names so argument types can determine them. The check above has
+    // already rejected undeclared variables that appear only in the return type.
     let undeclared =
       (Stdlib.List.append parameterVariables returnVariables)
       |> Stdlib.List.unique
@@ -164,7 +177,9 @@ let builtinCallable
   else
     (Model.Callable.Untrusted UntrustedBuiltin.ResultTypeUnconstrained, env)
 
-/// Resolve a function's signature and convert it to a callable template.
+/// Look up a package signature in env or fetch one builtin's metadata, then
+/// convert it for checking. Return Unavailable if the signature cannot be found.
+/// Solve.callableFor caches the result, including unavailable or untrusted signatures.
 let resolveCallable
   (env: Model.Environment)
   (fn: LanguageTools.ProgramTypes.FQFnName.FQFnName)
@@ -179,7 +194,9 @@ let resolveCallable
     | Some builtin -> builtinCallable env builtin
     | None -> (Model.Callable.Unavailable, env)
 
-/// The declared type of a builtin value.
+/// Fetch one builtin value's declared type and convert it to a package-style type
+/// reference. Return None for missing builtins or package values, whose types
+/// must instead be inferred from their bodies.
 let builtinValueType
   (name: LanguageTools.ProgramTypes.FQValueName.FQValueName)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.TypeReference> =
@@ -189,7 +206,9 @@ let builtinValueType
     |> Stdlib.Option.map (fun value -> fromRuntimeType value.``type``)
   | Package _ -> Stdlib.Option.Option.None
 
-/// Start an environment; builtin signatures are fetched and cached on first use.
+/// Create an empty environment with the standard Option and Result type hashes.
+/// Declarations are loaded later; builtin signatures are fetched as needed and
+/// their converted templates are cached when the solver first uses them.
 let builtins () : Model.Environment =
   Model.Environment
     { types = Dict {}
@@ -205,9 +224,11 @@ let builtins () : Model.Environment =
 
 
 // --------------------
-// What an item refers to
+// Find package dependencies in names, types, and expression syntax.
 // --------------------
 
+/// Return the package reference for a resolved type name. Unresolved names add
+/// no dependency here; type checking reports their resolution errors separately.
 let typeNameRefs
   (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName>)
   : List<LanguageTools.ProgramTypes.Reference> =
@@ -215,8 +236,9 @@ let typeNameRefs
   | Some hash -> [ LanguageTools.ProgramTypes.Reference.PackageType hash ]
   | None -> []
 
-/// Dependencies of a function name: the package function, or a builtin's
-/// signature types. Special typing rules may require additional declarations.
+/// Find the package declarations needed to check a function reference.
+/// A package function contributes its own reference; a builtin contributes the
+/// package types in its signature, or those required by its special checking rule.
 let functionNameRefs
   (env: Model.Environment)
   (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQFnName.FQFnName>)
@@ -227,8 +249,9 @@ let functionNameRefs
     | Package hash -> [ LanguageTools.ProgramTypes.Reference.PackageFn hash ]
     | Builtin builtinName ->
       if builtinName.name == "unwrap" then
-        // Its polymorphic builtin signature does not name these, but its typing
-        // rule does. Load them before reconciling unwraps with enum patterns.
+        // unwrap's generic signature does not mention Option or Result. Load
+        // both declarations so its special typing rule can recognize their cases
+        // when inferring types from unwrap calls and enum patterns.
         [ LanguageTools.ProgramTypes.Reference.PackageType env.optionType
           LanguageTools.ProgramTypes.Reference.PackageType env.resultType ]
       else
@@ -240,9 +263,9 @@ let functionNameRefs
         | None -> []
   | Error _ -> []
 
-/// Dependencies of a value name: the package value or a builtin's declared types.
+/// Find the package declarations needed to check a value reference: the value
+/// itself for a package value, or the package types in a builtin value's metadata.
 let valueNameRefs
-  (env: Model.Environment)
   (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQValueName.FQValueName>)
   : List<LanguageTools.ProgramTypes.Reference> =
   match name.resolved with
@@ -255,6 +278,9 @@ let valueNameRefs
       | None -> []
   | Error _ -> []
 
+/// Collect resolved package-type references throughout a type, including type
+/// arguments and function components. Loading follows these references later;
+/// this walk does not fetch declarations or remove duplicate references.
 let typeRefs (typ: LanguageTools.ProgramTypes.TypeReference) : List<LanguageTools.ProgramTypes.Reference> =
   match typ with
   | TStream inner -> typeRefs inner
@@ -272,16 +298,22 @@ let typeRefs (typ: LanguageTools.ProgramTypes.TypeReference) : List<LanguageTool
       (Stdlib.List.flatten (Stdlib.List.map args typeRefs))
   | _ -> []
 
+/// Collect package-type references from all the supplied types into one list.
 let typeListRefs
   (typs: List<LanguageTools.ProgramTypes.TypeReference>)
   : List<LanguageTools.ProgramTypes.Reference> =
   Stdlib.List.flatten (Stdlib.List.map typs typeRefs)
 
+/// Collect references from an alias's target, a record's field types, or an enum's
+/// case payload types, so loading can follow the declaration's dependencies.
 let declarationRefs
   (decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
   : List<LanguageTools.ProgramTypes.Reference> =
   typeListRefs (Types.declarationFieldTypes decl)
 
+/// Walk an expression's syntax to collect package dependencies without evaluating it.
+/// Visit lambda bodies, both sides of conditionals, and every match guard and body,
+/// since checking needs their declarations even when execution might skip them.
 let exprRefs
   (env: Model.Environment)
   (expr: LanguageTools.ProgramTypes.Expr)
@@ -311,11 +343,13 @@ let exprRefs
     Stdlib.List.flatten [ typeNameRefs name, typeListRefs typeArgs, many fields ]
   | ELet(_, _, value, body) -> many [ value, body ]
   | ERecordFieldAccess(_, record, _) -> exprRefs env record
-  | EValue(_, name) -> valueNameRefs env name
+  | EValue(_, name) -> valueNameRefs name
   | EIf(_, condition, thenExpr, elseExpr) ->
     many
       (Stdlib.List.append [ condition, thenExpr ] (Stdlib.Option.toList elseExpr))
   | EMatch(_, arg, cases) ->
+    // Match patterns contain unqualified case names, not package references.
+    // Their enum declarations are determined from the matched value's type.
     Stdlib.List.append
       (exprRefs env arg)
       (cases
@@ -340,13 +374,17 @@ let exprRefs
       (many (Stdlib.List.map updates (fun (_, v) -> v)))
   | EStatement(_, first, next) -> many [ first, next ]
   | EUnwrap(_, operand) ->
-    // Postfix `?` needs Option and Result declarations for its typing rule.
+    // ? has no explicit type name in the syntax. Add Option and Result so the
+    // solver can check its operand and the enclosing function's return type.
     Stdlib.List.append
       [ LanguageTools.ProgramTypes.Reference.PackageType env.optionType
         LanguageTools.ProgramTypes.Reference.PackageType env.resultType ]
       (exprRefs env operand)
   | _ -> []
 
+/// Collect dependencies from a pipeline step, including named functions or enum
+/// constructors and the expressions supplied as arguments. exprRefs handles the
+/// value entering the pipeline separately.
 let pipeRefs
   (env: Model.Environment)
   (pipePart: LanguageTools.ProgramTypes.PipeExpr)
@@ -364,23 +402,28 @@ let pipeRefs
   | EPipeEnum(_, name, _, fields) ->
     Stdlib.List.append (typeNameRefs name) (many fields)
 
+/// Collect the types referenced by a function's parameters and return type.
+/// Dependency functions are checked through these signatures, without walking their bodies.
 let signatureRefs (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn) : List<LanguageTools.ProgramTypes.Reference> =
   typeListRefs
     (Stdlib.List.push (Stdlib.List.map fn.parameters (fun p -> p.typ)) fn.returnType)
 
 
 // --------------------
-// The dependency closure
+// Load dependencies and follow their references to further declarations.
 // --------------------
 
-/// Dependency declarations loaded so far.
+/// Successfully loaded dependencies, indexed by content hash. Keep value bodies
+/// for later inference; loaded functions contribute their declared signatures.
 type Closure =
   { types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageType.PackageType>
     values: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageValue.PackageValue>
     fns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn> }
 
-/// Load candidate dependencies transitively by hash. Existing functions contribute
-/// only their signatures and the types those signatures reference.
+/// Load the dependencies in pending, then follow references found in each one.
+/// candidateRefs identifies declarations already supplied by the caller; skip
+/// loading those again. Follow dependency values' bodies and dependency functions'
+/// signatures, since values need inference but functions have declared types.
 let loadClosure
   (env: Model.Environment)
   (candidateRefs: List<LanguageTools.ProgramTypes.Reference>)
@@ -396,6 +439,9 @@ let loadClosure
     pending
     (Closure { types = Dict {}; values = Dict {}; fns = Dict {} })
 
+/// Process the remaining references, attempting each distinct reference once.
+/// Mark a reference seen before loading it so cycles, duplicates, and failed loads
+/// do not cause repeated attempts. Keep successfully loaded declarations in closure.
 let loadPendingDependencies
   (load: Closure -> LanguageTools.ProgramTypes.Reference -> (List<LanguageTools.ProgramTypes.Reference> * Closure))
   (seen: Dict<LanguageTools.ProgramTypes.Reference, Bool>)
@@ -410,15 +456,17 @@ let loadPendingDependencies
     else
       let seen = Stdlib.Dict.setOverridingDuplicates seen next true
 
-      // Guard retrieval and traversal together: stored-AST conversion can fail too.
-      // A failed dependency blocks its users without aborting the batch.
+      // Fetching converts stored syntax into Dark values and can fail before the
+      // reference walk begins. Catch errors from either step, leave that dependency
+      // unavailable, and continue loading the rest. Its users are checked later.
       match guard (fun reference -> load closure reference) next with
       | Ok((refs, loaded)) ->
         loadPendingDependencies load seen (Stdlib.List.append refs rest) loaded
       | Error _ -> loadPendingDependencies load seen rest closure
 
-/// Fetch and walk one dependency inside `loadPendingDependencies`' guard so even a
-/// failure in the F# conversion leaves the rest of the dependency queue intact.
+/// Fetch one declaration by hash, save it, and return the references to visit next.
+/// Missing declarations leave closure unchanged. The caller guards both loading
+/// and traversal so a conversion or syntax-walk failure cannot abort the queue.
 let loadDependency
   (env: Model.Environment)
   (closure: Closure)

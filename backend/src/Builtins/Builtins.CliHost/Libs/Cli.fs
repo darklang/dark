@@ -451,7 +451,8 @@ module ExecutionError =
 
 
 /// Check script declarations and top-level expressions without executing them.
-/// Check expressions as temporary values so top-level `?` stays outside a function.
+/// Represent top-level expressions as unsaved value declarations for checking.
+/// Values introduce no function scope, so top-level `?` is correctly rejected.
 /// Return a Failed report, or None when execution may proceed.
 let checkScript
   (state : RT.ExecutionState)
@@ -466,8 +467,9 @@ let checkScript
           if index = lastExpression then
             expr
           else
-            // Match execute's sequencing rule: only the last expression may
-            // produce a non-Unit value. Fresh IDs keep the source nodes distinct.
+            // Every top-level expression except the last must return Unit.
+            // Wrap it in a statement so the checker enforces this requirement.
+            // Fresh IDs keep the generated nodes distinct from source nodes.
             PT.EStatement(gid (), expr, PT.EUnit(gid ()))
         PT.PackageOp.AddValue
           { hash = PT.Hash $"<script-expression:{index}>"
@@ -480,8 +482,9 @@ let checkScript
           |> List.map PT.PackageOp.AddValue
           (script.fns @ script.submodules.fns) |> List.map PT.PackageOp.AddFn
           expressionOps ]
-    // Convert candidates separately so one failure does not hide other errors.
-    let candidates =
+    // Convert each op independently. If one is too deeply nested to convert,
+    // skip it so the checker can still report errors in the remaining ops.
+    let convertedOps =
       ops
       |> List.choose (fun op ->
         try
@@ -494,7 +497,7 @@ let checkScript
           PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkPackageOps ()
         )
       let args =
-        DList(VT.customType (PT2DT.PackageOp.typeName ()) [], candidates)
+        DList(VT.customType (PT2DT.PackageOp.typeName ()) [], convertedOps)
         |> NEList.singleton
       let! reportResult = Exe.executeFunction state fnName [] args
       match reportResult with
@@ -508,8 +511,9 @@ let checkScript
       return None
   }
 
-/// Parse and check guest source before its execution policy is applied. Like name
-/// resolution, checking uses the host's package access and never executes guest code.
+/// Parse and type-check the script using the CLI's access to package declarations.
+/// This does not execute script code. The script's permission policy is applied
+/// separately when it runs.
 let private prepareGuest
   (state : RT.ExecutionState)
   (parse : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>>)
@@ -616,7 +620,10 @@ let execute
       |> List.choose (function
         | PT.PackageOp.AddType t -> Some(PT2RT.PackageType.toRT t)
         | _ -> None)
-    // Read branch values from package_values.rt_dval; they are already evaluated.
+    // Load branch values from the database, where their evaluated results are stored.
+    // Adding them through PackageValue.toRT would override those results with a
+    // conversion that only supports constants, breaking values initialized by calls.
+    // Branch-specific name resolution still selects the correct value hash.
     let branchFns =
       branchOps
       |> List.choose (function
@@ -632,9 +639,10 @@ let execute
     let traceID = AT.TraceID.create ()
     let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
 
-    // Evaluate dependencies on demand, including those reached through functions.
-    // Cache each successful value to avoid repeating its effects.
-    // Report a missing value if initialization reaches a dependency cycle.
+    // Initialize referenced script values when they are read, even inside functions.
+    // Reuse successful results so each initializer runs only once.
+    // If a value is already being initialized, return None to stop the dependency
+    // cycle; the caller reports it as a missing value.
     let definitions =
       values
       |> List.map (fun value -> PT2RT.Hash.toRT value.hash, value)

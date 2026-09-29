@@ -190,7 +190,8 @@ type Report =
     diagnostics: List<Issue>
     warnings: List<Issue> }
 
-/// A runtime failure that prevented the checker from finishing.
+/// An error encountered while running the checker itself.
+/// Makes the check Incomplete because the checker could not finish.
 type CheckFailure =
   /// Nesting deep enough to exhaust the native stack.
   | TooDeep
@@ -203,18 +204,19 @@ let emptyReport () : Report =
 
 /// Check package operations before they are persisted or presented as diagnostics.
 ///
-/// Run the Dark checker through the outer guard; checker failures produce an
-/// Incomplete report.
+/// Run the checker with error handling around the entire batch.
+/// If a checker error escapes the per-declaration handlers, return Incomplete.
 let checkPackageOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Report =
   guarded Run.checkPackageOps ops
 
-/// Check every declaration visible on a branch, as `checkPackageOps` does.
+/// Type-check all declarations visible on the selected branch.
 let checkBranch (branchId: Uuid) : Report = guarded Run.checkBranch branchId
 
-/// Report a checker failure as Incomplete. This outer guard covers shared batch
-/// work; per-item guards in Run and Items preserve other items' findings.
+/// Return an Incomplete report if shared work for the batch fails.
+/// Run and Items catch errors for individual declarations separately, preserving
+/// the results of the other declarations.
 let guarded (check: 'a -> Report) (input: 'a) : Report =
   match guard check input with
   | Ok report -> report
@@ -227,7 +229,8 @@ let guarded (check: 'a -> Report) (input: 'a) : Report =
         diagnostics = []
         warnings = [ warning ] }
 
-/// Return checker runtime errors as CheckFailure values through the F# boundary.
+/// Use an F# builtin to run the check and catch runtime errors.
+/// Return Ok with the check's result, or Error if the checker itself fails.
 let guard (check: 'a -> 'b) (input: 'a) : Stdlib.Result.Result<'b, CheckFailure> =
   Builtin.atRestCheckGuarded check input
 

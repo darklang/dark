@@ -30,6 +30,10 @@ let purityToDT (p : Previewable) : Dval =
     | Impure -> "Impure"
   DEnum(typeName, typeName, [], caseName, [])
 
+// The type checker is written in Dark, but builtin types and signatures live in F#.
+// These helpers convert that metadata into Dark records the checker can read.
+// Both the "get all builtins" and "get one builtin" APIs use them. The checker
+// uses the latter to avoid converting every builtin when it only needs a few.
 let private builtinValueToDT (name : FQValueName.Builtin) (data : BuiltInValue) =
   let fields =
     [ "name", RT2DT.FQValueName.Builtin.toDT name

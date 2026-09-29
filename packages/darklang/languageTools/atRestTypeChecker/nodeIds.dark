@@ -1,5 +1,6 @@
-/// Reject duplicate inference IDs before solving. Shared IDs can cause one
-/// generalized binding to lose constraints to another.
+/// The checker uses syntax-node IDs to keep inferred types and their requirements
+/// separate. If two nodes share an ID, their requirements can be mixed up and a
+/// type error can be missed. Detect these duplicates before checking the body.
 module Darklang.LanguageTools.AtRestTypeChecker.NodeIds
 
 type Node =
@@ -8,9 +9,9 @@ type Node =
   | MatchPattern of LanguageTools.ProgramTypes.MatchPattern
   | Pipe of LanguageTools.ProgramTypes.PipeExpr
 
-/// Return child nodes and any ID used for inference. Skip literal IDs;
-/// Solve checks let-binding IDs separately.
-/// Keep arms with bindings separate: grouped patterns can mix up values during lowering.
+/// Return the node's ID if it is used to identify an inferred type, plus the
+/// child nodes to visit next. Ignore IDs that do not serve this purpose, such as
+/// literal IDs. Solve separately checks the IDs used to identify named let bindings.
 let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
   let exprs (xs: List<LanguageTools.ProgramTypes.Expr>) : List<Node> =
     Stdlib.List.map xs (fun e -> Node.Expression e)
@@ -20,6 +21,8 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     Stdlib.List.map xs (fun p -> Node.MatchPattern p)
   let none = Stdlib.Option.Option.None
 
+  // Keep cases that bind variables in separate match arms. Grouping those cases
+  // can make the compiler associate a bound name with the wrong value.
   match node with
   | Expression e ->
     let id = Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Expr.toID e)
@@ -126,7 +129,9 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     | EPipeEnum(id, _, _, args) -> (Some id, exprs args)
     | EPipeInfix(_, _, rhs) -> (none, [ Node.Expression rhs ])
 
-/// Walk iteratively so deeply nested input does not consume the native stack.
+/// Return the first inference ID encountered twice, or None if all are unique.
+/// Keep the nodes still to visit in a list, so a deeply nested syntax tree does
+/// not require equally deep nesting on the .NET call stack.
 let findDuplicate
   (pending: List<Node>)
   (seen: Dict<Int64, Bool>)
@@ -144,6 +149,9 @@ let findDuplicate
       else
         findDuplicate pending (Stdlib.Dict.set seen id true)
 
+/// Convert a duplicate inference ID into a warning.
+/// Callers use this warning to skip checking the affected body, avoiding
+/// incorrect results caused by treating separate nodes as the same node.
 let problem (body: LanguageTools.ProgramTypes.Expr) : Stdlib.Option.Option<Model.Finding> =
   match findDuplicate [ Node.Expression body ] Dict {} with
   | None -> Stdlib.Option.Option.None

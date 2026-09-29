@@ -735,8 +735,9 @@ let tryUnifySync
       | Undecided -> ValueNone
 
 
-/// Reuse a previously resolved alias without entering the asynchronous checker.
-/// Keep the original signature reference at the call site for error reporting.
+/// Check against an alias's cached underlying type when available.
+/// Leave the caller's original type reference unchanged so error messages can
+/// still identify the declared type.
 let tryUnifyWithAliasesSync
   (types : Types)
   (tst : TypeSymbolTable)

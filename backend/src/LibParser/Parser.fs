@@ -41,7 +41,8 @@ type Diagnostic =
 
 type ParseResult = { parsed : Option<WT.ParsedFile>; diagnostics : List<Diagnostic> }
 
-// Construct this after unwinding, when there is room to allocate diagnostics.
+// Build the diagnostic after the exception has exited the recursive parser calls,
+// when enough stack space is available to safely construct the error response.
 let private stackExhaustionDiagnostic () : Diagnostic =
   { code = DiagnosticCode.tooDeep
     severity = DiagError
@@ -3430,8 +3431,9 @@ let parse (source : string) : ParseResult =
   try
     let result = parseSyntaxWithRootScope ItemScope.Script source
     let syntaxDiagnostics = result.diagnostics
-    // Tree-wide rules have one implementation in Validation. Run them only
-    // after a clean syntax pass so recovery holes do not create cascaded errors.
+    // Validation owns checks that inspect the whole parsed syntax tree.
+    // Run them only when parsing reports no errors, because placeholders inserted
+    // during error recovery could otherwise produce misleading extra diagnostics.
     let structuralDiagnostics =
       match syntaxDiagnostics, result.parsed with
       | [], Some(WT.SourceFile sourceFile) ->

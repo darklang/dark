@@ -300,5 +300,6 @@ type BuiltInParam =
     description: String }
 
 
-/// The runtime's own view of a value, including the type it was built as.
+/// Convert a value into a Dval that Dark code can inspect.
+/// For records and enums, the result includes the package type's hash.
 let reflect (value: 'a) : Dval = Builtin.reflect value

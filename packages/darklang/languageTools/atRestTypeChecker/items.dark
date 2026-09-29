@@ -1,20 +1,24 @@
-/// Check functions, values, and type declarations, then assemble item verdicts.
-/// Checked requires all relevant constraints to be solved; a definite diagnostic
-/// yields Failed; unresolved requirements yield Incomplete.
+/// Check each function, value, or type declaration and produce its report.
+/// Definite errors make a declaration Failed. Warnings or unresolved checks make
+/// it Incomplete when there are no definite errors. Otherwise it is Checked.
 module Darklang.LanguageTools.AtRestTypeChecker.Items
 
-/// One item's result.
+/// The verdict and reported issues for one declaration.
 type Outcome =
   { verdict: Verdict
     diagnostics: List<Issue>
     warnings: List<Issue>
-    /// A checked value's type scheme, used to check references to it.
+    /// Present only for Checked declarations. The batch saves package values'
+    /// schemes so later declarations can use their inferred types.
     scheme: Stdlib.Option.Option<Model.Scheme> }
 
+/// Wrap a type in a scheme without making any of its unknowns generic.
+/// Those unknowns must be resolved before the declaration can be Checked.
 let monomorphic (t: Model.Ty) : Model.Scheme =
   Model.Scheme { quantified = []; typ = t; constraints = [] }
 
-/// Report an internal checker failure as an Incomplete item.
+/// Report an error encountered while running the checker as an Incomplete result.
+/// Attach the warning to at when a source node is available, and return no scheme.
 let checkerFailureOutcome
   (at: Stdlib.Option.Option<Int64>)
   (failure: CheckFailure)
@@ -26,7 +30,8 @@ let checkerFailureOutcome
         [ failureIssue (Stdlib.Option.map at (fun id -> toUInt64 id)) failure ]
       scheme = Stdlib.Option.Option.None }
 
-/// Guard one item so a checker failure preserves the rest of the batch's findings.
+/// Catch errors from checking one declaration so the rest of the batch can continue.
+/// On failure, return Incomplete and keep the environment from before this check.
 let guardItem
   (at: Stdlib.Option.Option<Int64>)
   (env: Model.Environment)
@@ -38,15 +43,18 @@ let guardItem
 
 
 // --------------------
-// Verdicts
+// Turn solver findings into reported issues and a verdict.
 // --------------------
 
-/// Convert a node ID to the report's unsigned form, preserving its bits.
+/// Convert the checker's signed node ID to the report's UInt64 representation.
+/// For negative IDs, add 2^64 to preserve the original 64-bit identifier.
 let toUInt64 (id: Int64) : UInt64 =
   let n = Stdlib.Int.fromInt64 id
   let unsigned = if n < 0 then n + 18446744073709551616 else n
   Builtin.unwrap (Stdlib.Int.toUInt64 unsigned)
 
+/// Convert a finding to the public report format, replacing type unknowns with
+/// any types the solver determined before formatting expected and actual types.
 let toIssue (s: Solve.State) (finding: Model.Finding) : Issue =
   let staticType (t: Model.Ty) : StaticType = Types.toStatic (Solve.zonk s t)
 
@@ -57,8 +65,9 @@ let toIssue (s: Solve.State) (finding: Model.Finding) : Issue =
       actual = Stdlib.Option.map finding.actual staticType
       context = finding.context }
 
-/// Check exhaustiveness after solving. Skip matches with invalid patterns or
-/// scrutinee types, whose coverage cannot be assessed reliably.
+/// Check match coverage after type inference and report gaps as warnings.
+/// Skip a match if its input type contains an error or its patterns already have
+/// findings, since those problems can make coverage warnings misleading.
 let checkCoverage (s: Solve.State) : Solve.State =
   let nodesWithFindings =
     Stdlib.List.fold s.findings Dict {} (fun ids finding ->
@@ -82,6 +91,8 @@ let checkCoverage (s: Solve.State) : Solve.State =
         match Coverage.uncovered s.env s.subst scrutinee cases with
         | None -> s
         | Some missing ->
+          // Anything means coverage is incomplete but no specific example is
+          // available. Omit the example while retaining the coverage warning.
           let witness =
             match missing with
             | Anything -> Stdlib.Option.Option.None
@@ -95,8 +106,9 @@ let checkCoverage (s: Solve.State) : Solve.State =
               (Context.UncoveredPattern witness))
     | _ -> s)
 
-/// Decide the verdict. Unknowns outside the generalized scheme make the item
-/// Incomplete. An issue depends on unknowns only when they affect its evidence.
+/// Finish deferred checks, classify findings, and decide the declaration's verdict.
+/// Generic variables saved in the scheme may remain unknown. Other unknowns in
+/// the declaration's type or an error's evidence prevent a complete check.
 let finish
   (s: Solve.State)
   (itemAt: Stdlib.Option.Option<Int64>)
@@ -105,11 +117,15 @@ let finish
   let s = checkCoverage (Solve.reportUnsolvedConstraints s)
   let findings = Stdlib.List.reverse s.findings
 
+  // Quantified variables are intentionally generic, so they do not indicate
+  // missing type information for this declaration.
   let unsolved (t: Model.Ty) : List<Model.Var> =
     (Stdlib.Dict.keys (Types.freeVars s.subst t))
     |> Stdlib.List.filter (fun v ->
       Stdlib.Bool.not (Stdlib.List.``member`` scheme.quantified v))
 
+  // A definite error holds even if its displayed types still contain unknowns.
+  // For other errors, unresolved expected or actual types leave the error uncertain.
   let unsolvedIn (finding: Model.Finding) : List<Model.Var> =
     if finding.definite then
       []
@@ -125,7 +141,8 @@ let finish
   let diagnostics =
     Stdlib.List.filter findings (fun f -> Stdlib.Bool.not (Types.isWarning f.code))
 
-  // One ambiguity per node that introduced something still unknown.
+  // Report these unresolved types once per source node. Solver-created unknowns
+  // have no source node of their own, so use the declaration's body node instead.
   let origins =
     (Stdlib.List.append
       (unsolved scheme.typ)
@@ -148,7 +165,8 @@ let finish
       (Stdlib.List.filter findings (fun f -> Types.isWarning f.code))
       ambiguities
 
-  // Keep provisional findings as warnings, even when another error fails the item.
+  // Errors that still depend on unknown types become warnings. Retain them even
+  // when a separate, definite error makes the declaration Failed.
   let (diagnostics, provisional) =
     Stdlib.List.partition diagnostics (fun d -> Stdlib.List.isEmpty (unsolvedIn d))
   let warnings = Stdlib.List.append warnings provisional
@@ -158,7 +176,8 @@ let finish
     else if Stdlib.Bool.not (Stdlib.List.isEmpty warnings) then Verdict.Incomplete
     else Verdict.Checked
 
-  // Resolve this item's substitution before another item instantiates the scheme.
+  // Save inferred types into the scheme before this declaration's solver state
+  // is discarded. Later checks must not need its private substitution table.
   let checkedScheme =
     match verdict with
     | Checked ->
@@ -173,9 +192,11 @@ let finish
 
 
 // --------------------
-// Items
+// Check individual declarations.
 // --------------------
 
+/// Produce a declaration-wide error for each repeated name, using the supplied
+/// issue code and context to distinguish type parameters from type members.
 let duplicateProblems
   (names: List<String>)
   (site: DuplicateSite)
@@ -193,12 +214,15 @@ let duplicateProblems
       ))
   )
 
-/// Check a function and return the updated signature caches for later items.
+/// Check a function's declared signature and require its body to return that type.
+/// Return any environment caches populated during the check for later declarations.
 let checkFunction
   (env: Model.Environment)
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : (Outcome * Model.Environment) =
   let none = Stdlib.Option.Option.None
+  // Declared type parameters must stay generic while checking the body; choosing
+  // a concrete type for one would accept a function that fails for other callers.
   let rigid = Types.rigid fn.typeParams
 
   let (parameters, parameterProblems) =
@@ -212,6 +236,8 @@ let checkFunction
     |> Stdlib.List.fold Dict {} (fun locals (p, t) ->
       Stdlib.Dict.setOverridingDuplicates locals p.name (Model.Binder.Mono t))
 
+  // Named parameters and positional arguments use the signature's types. Self
+  // calls use the same signature, and ? must agree with the declared return type.
   let scope =
     Generate.Scope
       { locals = locals
@@ -229,6 +255,8 @@ let checkFunction
         Generate.reports parameterProblems
         Generate.reports returnProblems
         Model.Constraint.WellFormed(none, self)
+        // Duplicate inference IDs can merge unrelated types. Report the problem
+        // and skip the body, while still checking the signature above.
         (match NodeIds.problem fn.body with
          | Some problem -> Generate.report problem
          | None -> Generate.check scope ret Site.FunctionReturnValue fn.body) ]
@@ -237,7 +265,9 @@ let checkFunction
   let bodyId = LanguageTools.ProgramTypes.Expr.toID fn.body
   (finish s (Stdlib.Option.Option.Some bodyId) (monomorphic self), s.env)
 
-/// Infer a package value and generalize it when its body is non-expansive.
+/// Solve the requirements prepared for a package value and infer its type.
+/// Allow a reusable generic type only for bodies accepted by isNonExpansive,
+/// such as literals and lambdas. Results of calls must have one resolved type.
 let checkValue
   (env: Model.Environment)
   (value: LanguageTools.ProgramTypes.PackageValue.PackageValue)
@@ -255,6 +285,8 @@ let checkValue
   let bodyId = LanguageTools.ProgramTypes.Expr.toID value.body
   (finish s (Stdlib.Option.Option.Some bodyId) scheme, s.env)
 
+/// Check duplicate type parameters and member names, then include validation
+/// problems from this type declaration and the declarations it depends on.
 let checkType (env: Model.Environment) (packageType: LanguageTools.ProgramTypes.PackageType.PackageType) : Outcome =
   let none = Stdlib.Option.Option.None
   let decl = packageType.declaration
@@ -281,17 +313,22 @@ let checkType (env: Model.Environment) (packageType: LanguageTools.ProgramTypes.
         Generate.reports (Stdlib.List.reverse found) ]
 
   let s = Solve.solve (Solve.start env) constraints
+  // A type declaration has no expression type to infer. Supply Unit so finish
+  // can classify its findings without introducing an unknown result type.
   finish s none (monomorphic Model.Ty.TUnit)
 
 
 // --------------------
-// Batches
+// Prepare declarations and check package values in dependency order.
 // --------------------
 
+/// Make a type declaration available by hash before checking references to it.
 let addType (env: Model.Environment) (t: LanguageTools.ProgramTypes.PackageType.PackageType) : Model.Environment =
   { env with
       types = Stdlib.Dict.setOverridingDuplicates env.types t.hash t.declaration }
 
+/// Make the declared signature available before checking function bodies, so
+/// callers and recursive functions can be checked regardless of their list order.
 let addFunctionSignature
   (env: Model.Environment)
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
@@ -310,7 +347,8 @@ let addFunctionSignature
           (LanguageTools.ProgramTypes.FQFnName.FQFnName.Package fn.hash)
           signature }
 
-/// The package values a constraint uses.
+/// Collect package-value references recorded in these requirements, including
+/// nested All groups. Builtin values do not need to be scheduled with the batch.
 let valueDependencies (c: Model.Constraint) : List<LanguageTools.ProgramTypes.Hash> =
   match c with
   | All constraints ->
@@ -321,17 +359,25 @@ let valueDependencies (c: Model.Constraint) : List<LanguageTools.ProgramTypes.Ha
     | Builtin _ -> []
   | _ -> []
 
+/// A value whose body has been inspected but whose type requirements still need
+/// solving. Save those requirements so waiting for dependencies does not repeat
+/// the syntax walk.
 type PendingValue =
   { value: LanguageTools.ProgramTypes.PackageValue.PackageValue
     typ: Model.Ty
     constraints: Model.Constraint
+    /// Distinct package-value hashes referenced by the generated requirements.
     uses: List<LanguageTools.ProgramTypes.Hash> }
 
+/// Use the body's root node as the location for findings about the whole value
+/// or function, including errors encountered while running the checker.
 let bodyNodeId
   (body: LanguageTools.ProgramTypes.Expr)
   : Stdlib.Option.Option<Int64> =
   Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Expr.toID body)
 
+/// Infer an initial type and requirements from a value's syntax without solving
+/// them yet. If inference IDs are duplicated, record that problem and skip inference.
 let prepareValue
   (value: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : PendingValue =
@@ -346,13 +392,14 @@ let prepareValue
       constraints = constraints
       uses = Stdlib.List.unique (valueDependencies constraints) }
 
-/// Check dependencies before their users. Check cyclic values last; without each
-/// other's type schemes, they remain Incomplete.
+/// Prepare each value, then check dependencies before values that use them.
+/// Check dependency cycles last; missing inferred types prevent a Checked verdict.
 let checkValues
   (env: Model.Environment)
   (values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>)
   : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Outcome>) =
-  // Record generation failures without a scheme; dependent values stay Incomplete.
+  // A failure while inspecting one body must not stop preparation of the others.
+  // Record Incomplete without a scheme, so its users cannot assume a valid type.
   let (pending, outcomes) =
     Stdlib.List.fold values ([], Dict {}) (fun (pending, outcomes) value ->
       match guard prepareValue value with
@@ -363,6 +410,8 @@ let checkValues
 
   checkPendingValues env outcomes (Stdlib.List.reverse pending)
 
+/// Check values whose dependencies are no longer pending and save successful
+/// type schemes for later values. Continue until every pending value has an outcome.
 let checkPendingValues
   (env: Model.Environment)
   (outcomes: Dict<LanguageTools.ProgramTypes.Hash, Outcome>)
@@ -375,12 +424,17 @@ let checkPendingValues
       Stdlib.List.fold pending Dict {} (fun waiting p ->
         Stdlib.Dict.setOverridingDuplicates waiting p.value.hash true)
 
+    // Wait only for other values still in this batch. A self-reference cannot
+    // become available by waiting; references with no usable scheme are reported
+    // during checking, including missing or unsuccessful dependencies.
     let (ready, blocked) =
       Stdlib.List.partition pending (fun p ->
         Stdlib.List.all p.uses (fun h ->
           h == p.value.hash
           || Stdlib.Bool.not (Stdlib.Dict.``member`` pendingHashes h)))
 
+    // If none are ready, the remaining dependencies contain a cycle. Check all
+    // remaining values with the schemes available so far instead of waiting forever.
     let (checkNow, later) =
       if Stdlib.List.isEmpty ready then (blocked, []) else (ready, blocked)
 
@@ -390,6 +444,8 @@ let checkPendingValues
           guardItem (bodyNodeId p.value.body) env (fun env ->
             checkValue env p.value p.typ p.constraints)
 
+        // Only Checked outcomes provide a scheme. An incomplete or failed value
+        // must not supply an assumed type to declarations that reference it.
         let env =
           match outcome.scheme with
           | Some scheme ->
@@ -402,8 +458,10 @@ let checkPendingValues
 
     checkPendingValues env outcomes later
 
-/// Check a closed batch against `env`. Types and function signatures are declared
-/// first, so order within the batch does not matter.
+/// Check the supplied declarations using env for dependencies outside this batch.
+/// Register all types and function signatures first, then infer package values
+/// before checking function bodies that may reference them. Return results grouped
+/// as types, values, and functions, preserving the supplied order within each group.
 let checkBatch
   (env: Model.Environment)
   (types: List<LanguageTools.ProgramTypes.PackageType.PackageType>)
