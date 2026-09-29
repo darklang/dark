@@ -33,6 +33,19 @@ interleaved pairs, median paired difference) and `scripts/perf/gate`. Kept here 
   onto a worker costs about 9 us in Debug (10,000 spawns of a trivial program in 90 ms,
   including the placement scan and the `Wake`).
 
+## 2026-09-29: the schema pass came off every command
+
+10.29 MB to 9.60 MB, which is below where the branch started and 0.17 MB under main's own
+9.43 + the scheduler's honest startup cost. Not a tuning win: `Cli.EmbeddedResources.extract` was
+running the whole embedded schema before every single command -- `CREATE TABLE IF NOT EXISTS` for
+every table, the release steps, every index, and a second SQLite connection for the store stamp --
+and the stamp that makes all of it unnecessary already existed, guarding only the seed top-up.
+
+Worth knowing for its own sake: 0.69 MB of allocation and 35 ms of wall clock were in work whose
+answer is always "nothing to do", on a path nobody had looked at because it is before `main`.
+`cli.extractResources` went 37 ms to 2 ms. The telemetry that named it is `cli.extract.schema` and
+`cli.extract.releases`, which were already being emitted and had never been read.
+
 ## 2026-09-28: the published budget had been left behind
 
 9.90 MB to 10.29 MB. Not a regression this measurement caught: the gate had simply not been run
