@@ -158,6 +158,24 @@ let fixSelection (state: State) : State =
     let fixed = selectableRow state.items state.selected 1
     if fixed == state.selected then state else { state with selected = fixed }
 
+/// Ten of whatever the arrow does, for shift+arrow.
+///
+/// Ten steps rather than a screenful, and by repeating the arrow rather than reimplementing it:
+/// both ends clamp for free, section headers are stepped over exactly as they are one at a time,
+/// and a pane that scrolls its document scrolls it. Home and PageUp exist and he does not use
+/// them; this needs no fn key and no letter taken away from something else.
+let repeatStep (state: State) (step: State -> Step) (times: Int) : Step =
+  let go (s: State) (n: Int) : State =
+    if n <= 0 then
+      s
+    else
+      match step s with
+      | Continue next -> go next (n - 1)
+      | _ -> s
+
+  Step.Continue(go state times)
+
+
 /// Up: scroll the inspector when it's focused, else move the list selection up.
 let navUp (state: State) : Step =
   if (isDocument state) || (state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second) then

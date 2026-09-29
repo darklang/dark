@@ -355,7 +355,7 @@ let private previewOfAServedRequest =
         let state = executionState target
         let author = author target
         // `cliTest` leaves the suite default, which is `off`; `cliTestWithFreshTraces` is the
-        // harness that sets a rung. This test is about what a recorded run can show, so it
+        // harness that sets a rung. This test is about what a recorded trace can show, so it
         // needs one.
         LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
         try
@@ -1147,7 +1147,7 @@ match Darklang.LanguageTools.PackageManager.Function.find bid loc with
 /// different dot shows you that request's values.
 let private previewPicksWhichRunToShow =
   cliTestWithFreshTraces
-    "traces calls lists the runs, and traces show renders the one you pick"
+    "traces calls lists the traces, and traces show renders the one you pick"
     (fun target ->
       task {
         let author = author target
@@ -1334,7 +1334,7 @@ r.fns
                     RT.DInt count,
                     [ RT.DEnum(_, _, _, "Some", [ RT.DString problem ]) ]) ->
           // `Values` no longer carries the run's own answer: the preview's business is the
-          // values inside the code, and `traces details` is where a run's answer lives.
+          // values inside the code, and `traces inspect` is where a trace's answer lives.
           Expect.isFalse
             hasResult
             "placeholder, kept so the tuple shape still reads"

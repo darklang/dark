@@ -7,7 +7,7 @@
 module Darklang.Tracing.Store
 
 
-/// Is this run being recorded? Worth asking before reporting an empty result: with recording
+/// Is this trace being recorded? Worth asking before reporting an empty result: with recording
 /// off, every query returns empty whatever ran.
 let enabled () : Bool =
   Builtin.tracesRecording ()
@@ -46,7 +46,7 @@ let find (pattern: String) (limit: Int) : List<Trace> =
   Builtin.tracesFind pattern limit
 
 
-/// Full payload for one run: its row, its inputs and its calls.
+/// Full payload for one trace: its row, its inputs and its calls.
 let view (traceID: String) : Stdlib.Option.Option<TraceData> =
   Builtin.tracesView traceID
 
@@ -57,12 +57,12 @@ let getInput (traceID: String) : Stdlib.Option.Option<String> =
   Builtin.tracesGetInput traceID
 
 
-/// One run by id, if it is still here.
+/// One trace by id, if it is still here.
 let get (traceID: String) : Stdlib.Option.Option<Trace> =
   Builtin.tracesGet traceID
 
 
-/// A new run branched from <param traceID>, keeping its log up to <param at> (a position from
+/// A new trace branched from <param traceID>, keeping its log up to <param at> (a position from
 /// `traces show`; the whole log when {{None}}), suspended, so `resume` takes it from there.
 let fork (traceID: String) (at: Stdlib.Option.Option<Int64>) : Stdlib.Result.Result<String, String> =
   Builtin.tracesFork traceID at
@@ -70,12 +70,12 @@ let fork (traceID: String) (at: Stdlib.Option.Option<Int64>) : Stdlib.Result.Res
 
 /// Arm a resume of <param traceID>: the next `eval` or `run` this instance starts replays its
 /// log instead of performing the effects, then goes live. `dark traces resume` arms and then
-/// runs the run's own input; that is the whole of a resume.
+/// runs the trace's own input; that is the whole of a resume.
 let armResume (traceID: String) : Bool =
   Builtin.tracesArmResume traceID
 
 
-/// Pin a run so retention never drops it, or unpin it. Returns whether a run had that id.
+/// Pin a trace so retention never drops it, or unpin it. Returns whether a trace had that id.
 ///
 /// SQL here rather than in a builtin, the way the SCM silos own theirs: it is one UPDATE over a
 /// table this module owns, and nothing about it needs the runtime.
@@ -91,10 +91,10 @@ let setPinned (traceID: String) (pinned: Bool) : Bool =
   updated > 0
 
 
-/// The package functions one run went through: each one's name, and the hash the run
-/// went through. The names are what `traces show <run>` offers when you name a run
+/// The package functions one trace went through: each one's name, and the hash the trace
+/// went through. The names are what `traces show <trace>` offers when you name a trace
 /// rather than a function; the hashes are what `traces resume` compares against the
-/// store to say which of a run's callees have been edited since.
+/// store to say which of a trace's callees have been edited since.
 let fnsWithHashes (traceID: String) : List<String * String> =
   Builtin.tracesFnsOf traceID
 
@@ -104,20 +104,20 @@ let fnsOf (traceID: String) : List<String> =
   (fnsWithHashes traceID) |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.first pair)
 
 
-/// The runs that went through <param fnName>, newest first. Answers at the shipped recording
-/// level: it reads the names-only index every recorded run writes, not the call rows.
-let runsCalling (fnName: String) (limit: Int64) : List<Trace> =
-  Builtin.tracesRunsCalling fnName limit
+/// The traces that went through <param fnName>, newest first. Answers at the shipped recording
+/// level: it reads the names-only index every recorded trace writes, not the call rows.
+let wentThrough (fnName: String) (limit: Int64) : List<Trace> =
+  Builtin.tracesWentThrough fnName limit
 
 
-/// Replay a recorded run for VIEWING: every effectful call answered from that run's log, none
+/// Replay a recorded trace for VIEWING: every effectful call answered from that trace's log, none
 /// performed, and every expression's value collected. Hands back the values, by source
 /// expression id, and why it stopped early if it did.
-let previewRun
+let previewTrace
   (branchId: Uuid)
   (traceID: String)
   : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> * Stdlib.Option.Option<String>) =
-  Builtin.cliPreviewRun branchId traceID
+  Builtin.cliPreviewTrace branchId traceID
 
 
 /// Expand a trace-ID prefix to the full ID, or say why it can't be.
@@ -142,7 +142,7 @@ let resolveID (input: String) : Stdlib.Result.Result<String, String> =
   match matches with
   | [] ->
     Stdlib.Result.Result.Error
-      $"no run whose id starts with {input} -- `dark traces` lists them"
+      $"no trace whose id starts with {input} -- `dark traces` lists them"
   | [ fullID ] -> Stdlib.Result.Result.Ok fullID
   | candidates ->
     // Six were asked for, so a sixth means "at least one more", not "one more".
@@ -154,7 +154,7 @@ let resolveID (input: String) : Stdlib.Result.Result<String, String> =
       |> Stdlib.List.map (fun id -> $"  {Stdlib.String.slice id 0 12}")
       |> Stdlib.String.join "\n"
     Stdlib.Result.Result.Error
-      $"more than one run starts with {input}; give more of the id:\n{body}{suffix}"
+      $"more than one trace starts with {input}; give more of the id:\n{body}{suffix}"
 
 
 /// Per-fn totals over the last <param traceLimit> traces:

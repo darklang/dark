@@ -50,8 +50,8 @@ with its error, one stopped from `ps` answers 503.
 ## Live values in the editor
 
 The workbench and the LSP show `// = value` beside the calls in a function:
-its last recorded run, replayed through the code as it is now. Edit a callee,
-the values follow, no new call needed. Any recorded run will do: the default
+its last recorded trace, replayed through the code as it is now. Edit a callee,
+the values follow, no new call needed. Any recorded trace will do: the default
 recording keeps every impure call, and the pure ones are recomputed.
 
 ## What a save prints

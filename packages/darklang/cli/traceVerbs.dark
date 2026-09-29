@@ -1,8 +1,8 @@
-/// The run half of `dark traces`: showing one run, resuming it, forking it, pinning it.
+/// The trace half of `dark traces`: showing one trace, resuming it, forking it, pinning it.
 ///
-/// A trace IS a run, so these verbs and the reading verbs in `cli/tracing.dark` work on the
+/// These verbs and the reading verbs in `cli/tracing.dark` work on the
 /// same rows. What is running right now is `dark ps`; this is what ran, kept.
-module Darklang.Cli.TraceRuns
+module Darklang.Cli.TraceVerbs
 
 
 /// The name the trace index would have recorded, given what a person typed.
@@ -10,8 +10,8 @@ module Darklang.Cli.TraceRuns
 /// `Stdlib.List.map` is how everyone writes it and how the rest of the CLI accepts
 /// it, but the index stores the name a hash resolves to, which is owner-first:
 /// `Darklang.Stdlib.List.map`. Without this, `traces calls Stdlib.List.map` answered
-/// "no recorded run went through Stdlib.List.map" about a function with plenty of
-/// runs -- an empty ANSWER to what was really a spelling this command did not take,
+/// "no recorded trace went through Stdlib.List.map" about a function with plenty of
+/// traces -- an empty ANSWER to what was really a spelling this command did not take,
 /// which is the worst of both. `dark view` takes the short form, so these should
 /// too.
 let canonicalFnName (branchId: Uuid) (typed: String) : String =
@@ -70,14 +70,14 @@ let statusText (status: Darklang.Tracing.Status) : String =
   | Suspended -> "suspended"
 
 
-/// The run whose id starts with `prefix`, when exactly one does.
+/// The trace whose id starts with `prefix`, when exactly one does.
 let find (prefix: String) : Stdlib.Result.Result<Darklang.Tracing.Trace, String> =
   match Darklang.Tracing.Store.resolveID prefix with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok id ->
     match Darklang.Tracing.Store.get id with
     | Some t -> Stdlib.Result.Result.Ok t
-    | None -> Stdlib.Result.Result.Error $"no run has the id {id}"
+    | None -> Stdlib.Result.Result.Error $"no trace has the id {id}"
 
 
 /// "22 minutes ago", from the stamp the store keeps (ISO with fractional seconds, which the
@@ -92,109 +92,116 @@ let whenText (created: String) : String =
   | Error _ -> created
 
 
-/// One row of the run table. Deliberately narrow: `Table.print` pads to the widest cell and
+/// One row of the trace table. Deliberately narrow: `Table.print` pads to the widest cell and
 /// does not wrap, so a column that is usually empty costs every row its width. The fork lineage
 /// and the full input are in `traces show`.
 let row (width: Int) (e: Darklang.Tracing.Trace) : List<String> =
-  [ Stdlib.String.slice e.id 0 width,
-    statusText e.status,
-    whenText e.created,
-    Cli.Text.oneLineAt 22 e.entry,
-    Cli.Text.oneLineAt 18 e.input,
-    (if e.pinned then "*" else "") ]
+  // A `*` on the id rather than a column of its own. A pin column is four characters of width on
+  // every row for a flag almost no row has, and `input` is the column that truncates.
+  let id =
+    if e.pinned then
+      $"*{Stdlib.String.slice e.id 0 width}"
+    else
+      $" {Stdlib.String.slice e.id 0 width}"
+
+  [ id
+    statusText e.status
+    whenText e.created
+    Cli.Text.oneLineAt 22 e.entry
+    Cli.Text.oneLineAt 22 e.input ]
 
 
-/// Any list of runs, as a table. The ONE renderer: `dark traces`, `traces list --fn`,
+/// Any list of traces, as a table. The ONE renderer: `dark traces`, `traces list --fn`,
 /// `traces find` and `traces calls` all come through here, so none of them can drift into
 /// showing a different set of columns for the same rows.
-let printTable (runs: List<Darklang.Tracing.Trace>) : Unit =
-  let width = idWidth (runs |> Stdlib.List.map (fun e -> e.id))
+let printTable (traces: List<Darklang.Tracing.Trace>) : Unit =
+  let width = idWidth (traces |> Stdlib.List.map (fun e -> e.id))
   Stdlib.Cli.UI.Table.print
-    [ "id", "status", "when", "what ran", "input", "pin" ]
-    (runs |> Stdlib.List.map (fun e -> row width e))
+    [ " id", "status", "when", "what ran", "input" ]
+    (traces |> Stdlib.List.map (fun e -> row width e))
 
 
 
-/// Where a fork branched from: the run, and the position in its log the fork kept.
+/// Where a fork branched from: the trace, and the position in its log the fork kept.
 type ForkJson =
-  { run: String
+  { trace: String
     at: Int64 }
 
 
-/// A run as `--json` hands it over.
+/// A trace as `--json` hands it over.
 ///
 /// Every recorded value is a STRING here, rendered the way the terminal renders it. The stored
 /// form is a typed Dval, and serializing that gives `{"Some":[{"DInt64":[42]}]}` -- faithful,
 /// and not what the program said. Whoever reads this wants `42`, and a value they can paste
 /// back into Dark. The type is also flat, so `.answered` does not mean reaching through an
 /// option-of-a-union.
-type RunJson =
+type TraceJson =
   { id: String
     /// `eval`, `run <file>`, `GET /path`.
     entry: String
     input: String
-    /// What the run answered. Absent while it is still going, and for one that failed.
+    /// What the trace answered. Absent while it is still going, and for one that failed.
     answered: Stdlib.Option.Option<String>
     status: String
     pinned: Bool
-    /// Wall clock for the whole run. Absent for one still going.
+    /// Wall clock for the whole trace. Absent for one still going.
     durationMs: Stdlib.Option.Option<Int64>
     forkedFrom: Stdlib.Option.Option<ForkJson>
     created: String
     updated: String }
 
 
-/// One recorded call, as `--json` hands it over. Same rule about values as `RunJson`.
+/// One recorded call, as `--json` hands it over. Same rule about values as `TraceJson`.
 type CallJson =
-  { /// Where the call sits in the run's log: what `fork --at` takes.
+  { /// Where the call sits in the trace's log: what `fork --at` takes.
     pos: Int64
     fn: String
     args: List<String>
     result: String
     durationMs: Int
-    /// The process that made the call, for a run that spawned any.
+    /// The process that made the call, for a trace that spawned any.
     process: Stdlib.Option.Option<String> }
 
 
-/// What `traces details --json` hands back: the run, and the impure calls it logged.
-type RunWithCallsJson =
-  { run: RunJson
+/// What `traces inspect --json` hands back: the trace, and the impure calls it logged.
+type TraceWithCallsJson =
+  { trace: TraceJson
     calls: List<CallJson> }
 
 
-/// What `traces show --json` hands back: which run was read, and what each expression in the
+/// What `traces show --json` hands back: which trace was read, and what each expression in the
 /// code evaluated to, keyed by the expression's id. `problem` is set when the replay stopped.
 type ValuesJson =
-  { run: String
+  { trace: String
     fn: String
     values: Dict<String, String>
     problem: Stdlib.Option.Option<String> }
 
 
-/// A run, for `--json`. The ONE converter: `list`, `find`, `calls`, `follow` and `details` all come
-/// through here, so no two of them can hand back a run with different fields in it.
-let runJson (branchId: Uuid) (run: Darklang.Tracing.Trace) : RunJson =
-  RunJson
-    { id = run.id
-      entry = run.entry
-      input = run.input
+/// A trace, for `--json`. The ONE converter: `list`, `find`, `calls`, `follow` and `inspect` all come
+/// through here, so no two of them can hand back a trace with different fields in it.
+let traceJson (branchId: Uuid) (trace: Darklang.Tracing.Trace) : TraceJson =
+  TraceJson
+    { id = trace.id
+      entry = trace.entry
+      input = trace.input
       answered =
-        run.result
+        trace.result
         |> Stdlib.Option.map (fun dv -> Darklang.Tracing.Format.compactDval branchId dv)
-      status = statusText run.status
-      pinned = run.pinned
+      status = statusText trace.status
+      pinned = trace.pinned
       durationMs =
-        if run.durationMs > 0L then
-          Stdlib.Option.Option.Some run.durationMs
+        if trace.durationMs > 0L then
+          Stdlib.Option.Option.Some trace.durationMs
         else
           Stdlib.Option.Option.None
       forkedFrom =
-        run.parent
+        trace.parent
         |> Stdlib.Option.map (fun p ->
           let (id, at) = p
-          ForkJson { run = id; at = at })
-      created = run.created
-      updated = run.updated }
+          ForkJson { trace = id; at = at })
+      created = trace.created
+      updated = trace.updated }
 
 
 /// One logged call, for `--json`.
@@ -210,55 +217,55 @@ let callJson (branchId: Uuid) (call: Darklang.Tracing.FnCall) : CallJson =
       process = call.processId |> Stdlib.Option.map (fun p -> Stdlib.Uuid.toString p) }
 
 
-/// A list of runs, as JSON. Every listing verb prints through this.
-let printRunsJson (branchId: Uuid) (runs: List<Darklang.Tracing.Trace>) : Unit =
+/// A list of traces, as JSON. Every listing verb prints through this.
+let printTracesJson (branchId: Uuid) (traces: List<Darklang.Tracing.Trace>) : Unit =
   Stdlib.printLine
-    (Stdlib.Json.serialize<List<RunJson>>
-      (runs |> Stdlib.List.map (fun r -> runJson branchId r)))
+    (Stdlib.Json.serialize<List<TraceJson>>
+      (traces |> Stdlib.List.map (fun r -> traceJson branchId r)))
 
 
 /// One run and its log, as JSON.
-let printDetailsJson (branchId: Uuid) (prefix: String) : Bool =
+let printInspectJson (branchId: Uuid) (prefix: String) : Bool =
   match find prefix with
   | Error e ->
     Cli.printErr e
     false
-  | Ok run ->
+  | Ok trace ->
     let calls =
-      match Darklang.Tracing.Store.view run.id with
+      match Darklang.Tracing.Store.view trace.id with
       | Some data ->
         data.functionCalls
         |> Stdlib.List.filter (fun c -> c.ord >= 0L)
         |> Stdlib.List.map (fun c -> callJson branchId c)
       | None -> []
     Stdlib.printLine
-      (Stdlib.Json.serialize<RunWithCallsJson>
-        (RunWithCallsJson { run = runJson branchId run; calls = calls }))
+      (Stdlib.Json.serialize<TraceWithCallsJson>
+        (TraceWithCallsJson { trace = traceJson branchId trace; calls = calls }))
     true
 
 
-/// Run the run's input again, replaying its log. `eval` and `run <file>` go through the paths
+/// Run the trace's input again, replaying its log. `eval` and `run <file>` go through the paths
 /// they always do; the armed resume is what makes them replay.
-/// The functions a run went through that have been EDITED since it ran.
+/// The functions a trace went through that have been EDITED since it ran.
 ///
-/// A resume replays the log the run recorded against whatever those names mean now,
-/// so the old run meets the new callees. That is often the point (resume after you
-/// fixed the thing that stopped it), and it is never something the run itself can
+/// A resume replays the log the trace recorded against whatever those names mean now,
+/// so the old trace meets the new callees. That is often the point (resume after you
+/// fixed the thing that stopped it), and it is never something the trace itself can
 /// notice, so it is said rather than refused -- the same call the replay table makes
 /// for a file whose bytes moved.
 ///
 /// A name that has since been DELETED is not in here: the resume will fail on it for
 /// itself, with a better message than this could give.
 ///
-/// The names come from `trace_fns`, which resolves each hash the run went through to a name at
+/// The names come from `trace_fns`, which resolves each hash the trace went through to a name at
 /// store time. A package hash is STRUCTURAL, so two functions with identical bodies share one and
 /// the name you get is whichever of them the store resolves it to. The comparison is still sound
 /// -- that name is bound to that hash -- but the name printed can be a sibling's.
 let movedSince
   (branchId: Uuid)
-  (runID: String)
+  (traceID: String)
   : List<String> =
-  (Darklang.Tracing.Store.fnsWithHashes runID)
+  (Darklang.Tracing.Store.fnsWithHashes traceID)
   |> Stdlib.List.filterMap (fun pair ->
     let (name, recorded) = pair
     let location = LanguageTools.ProgramTypes.parsePackageLocation name
@@ -355,38 +362,38 @@ let pin (prefix: String) (pinned: Bool) : Bool =
 // Classic showed a handler's requests as dots down the left and, for the selected one, the
 // value of every expression beside the code. These two verbs are that, for any function.
 //
-// `traces calls <fn>` is the dots: the runs that went through the function, from the names-only
-// index every recorded run writes.
+// `traces calls <fn>` is the dots: the traces that went through the function, from the names-only
+// index every recorded trace writes.
 //
-// `traces show <fn> [<run>]` is the code with the values. It replays the whole run with every
-// effectful call answered from that run's log -- by name and arguments, classic's key -- and
+// `traces show <fn> [<trace>]` is the code with the values. It replays the whole trace with every
+// effectful call answered from that trace's log -- by name and arguments, classic's key -- and
 // performs none of them. Looking at code never touches the world. A call the log cannot answer
 // stops the preview and says which one it was, rather than going and doing it.
 
 
-/// "12 minutes ago  GET /orders  a1b2c3d4", one line per run that went through the function.
-/// The branch is not a parameter: the index records the name a run went through, so a run
-/// recorded against another branch's version of the function is still a run that went through
+/// "12 minutes ago  GET /orders  a1b2c3d4", one line per trace that went through the function.
+/// The branch is not a parameter: the index records the name a trace went through, so a run
+/// recorded against another branch's version of the function is still a trace that went through
 /// this name. `values` resolves the CODE on the branch you are standing on.
-/// Unit, not Bool, unlike its neighbours: "no recorded run went through this function" is an
+/// Unit, not Bool, unlike its neighbours: "no recorded trace went through this function" is an
 /// ANSWER, not a refusal. A command that was asked a question and answered it truthfully
 /// succeeded, however empty the answer. Naming something that does not exist is the other
 /// thing, and that is what exits non-zero.
 let printCalls (branchId: Uuid) (typed: String) : Unit =
   let fnName = canonicalFnName branchId typed
 
-  match Darklang.Tracing.Store.runsCalling fnName 25L with
+  match Darklang.Tracing.Store.wentThrough fnName 25L with
   | [] ->
-    Stdlib.printLine $"no recorded run went through {fnName}"
+    Stdlib.printLine $"no recorded trace went through {fnName}"
     (whyEmpty "run something that calls it")
     |> Stdlib.List.iter (fun line ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText line))
-  | runs ->
-    printTable runs
+  | traces ->
+    printTable traces
     Stdlib.printLine ""
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText
-        "  dark traces show <fn> <run>  the code, with that run's values beside it")
+        "  dark traces show <fn> <trace>  the code, with that trace's values beside it")
 
 
 /// The values `traces show` would print beside the code, as JSON: the ids and the values,
@@ -394,25 +401,25 @@ let printCalls (branchId: Uuid) (typed: String) : Unit =
 let printValuesJson
   (branchId: Uuid)
   (typed: String)
-  (runPrefix: Stdlib.Option.Option<String>)
+  (tracePrefix: Stdlib.Option.Option<String>)
   : Bool =
   let fnName = canonicalFnName branchId typed
 
   let chosen =
-    match runPrefix with
+    match tracePrefix with
     | Some prefix -> find prefix
     | None ->
-      match Darklang.Tracing.Store.runsCalling fnName 1L with
+      match Darklang.Tracing.Store.wentThrough fnName 1L with
       | [ newest ] -> Stdlib.Result.Result.Ok newest
       | _ ->
-        Stdlib.Result.Result.Error $"no recorded run went through {fnName}"
+        Stdlib.Result.Result.Error $"no recorded trace went through {fnName}"
 
   match chosen with
   | Error e ->
     Cli.printErr e
     false
-  | Ok run ->
-    let (collected, problem) = Darklang.Tracing.Store.previewRun branchId run.id
+  | Ok trace ->
+    let (collected, problem) = Darklang.Tracing.Store.previewTrace branchId trace.id
     let values =
       collected
       |> Stdlib.List.map (fun pair ->
@@ -422,15 +429,15 @@ let printValuesJson
     Stdlib.printLine
       (Stdlib.Json.serialize<ValuesJson>
         (ValuesJson
-          { run = run.id; fn = fnName; values = values; problem = problem }))
+          { trace = trace.id; fn = fnName; values = values; problem = problem }))
     true
 
 
-/// The function's source, with `// = value` beside each call, for one run.
+/// The function's source, with `// = value` beside each call, for one trace.
 let printValues
   (state: AppState)
   (typed: String)
-  (runPrefix: Stdlib.Option.Option<String>)
+  (tracePrefix: Stdlib.Option.Option<String>)
   : AppState =
   let branchId = state.currentBranchId
   let fnName = canonicalFnName branchId typed
@@ -438,7 +445,7 @@ let printValues
 
   // Does the function exist at all? Asked FIRST, because the two failures read the same way
   // and are not the same thing: a name nothing has run is an empty answer, and a name that is
-  // not a function is a refusal. Asking in the other order told you "no recorded run went
+  // not a function is a refusal. Asking in the other order told you "no recorded trace went
   // through Stdlib.List.mpa" about a typo.
   if
     (LanguageTools.PackageManager.Function.find branchId entry)
@@ -449,7 +456,7 @@ let printValues
   else
 
   let chosen =
-    match runPrefix with
+    match tracePrefix with
     | Some prefix ->
       match find prefix with
       | Ok r -> Stdlib.Option.Option.Some r
@@ -457,10 +464,10 @@ let printValues
         Cli.printErr e
         Stdlib.Option.Option.None
     | None ->
-      match Darklang.Tracing.Store.runsCalling fnName 1L with
+      match Darklang.Tracing.Store.wentThrough fnName 1L with
       | [ newest ] -> Stdlib.Option.Option.Some newest
       | _ ->
-        Stdlib.printLine $"no recorded run went through {fnName}"
+        Stdlib.printLine $"no recorded trace went through {fnName}"
 
         (whyEmpty "run something that calls it")
         |> Stdlib.List.iter (fun line ->
@@ -471,14 +478,14 @@ let printValues
         Stdlib.Option.Option.None
 
   match chosen with
-  // Either a run id that matches nothing, which is a refusal, or a function nothing has run,
+  // Either a trace id that matches nothing, which is a refusal, or a function nothing has run,
   // which is an empty answer. Both leave nothing to print, and only the first is a failure.
   | None ->
-    match runPrefix with
+    match tracePrefix with
     | Some _ -> { state with exitCode = 1 }
     | None -> state
-  | Some run ->
-    // The function is looked up BEFORE the run is replayed: a replay is the whole cost of this
+  | Some trace ->
+    // The function is looked up BEFORE the trace is replayed: a replay is the whole cost of this
     // command, and a typo should not pay it.
     match LanguageTools.PackageManager.Function.find branchId entry with
     | None ->
@@ -491,9 +498,9 @@ let printValues
           $"{fnName} resolves to a version this store cannot load; the store is damaged"
         { state with exitCode = 1 }
       | Some fn ->
-        // One call: it loads the run's log, replays the run with every effect answered from it
+        // One call: it loads the trace's log, replays the trace with every effect answered from it
         // and none performed, and hands back what every expression evaluated to.
-        let (collected, problem) = Darklang.Tracing.Store.previewRun branchId run.id
+        let (collected, problem) = Darklang.Tracing.Store.previewTrace branchId trace.id
 
         let values =
           collected
@@ -504,7 +511,7 @@ let printValues
 
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.dimText
-            $"run {Cli.Text.shortIdText run.id}  {run.entry}  {whenText run.created}")
+            $"trace {Cli.Text.shortIdText trace.id}  {trace.entry}  {whenText trace.created}")
         let ctx =
           { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
               liveValues = values

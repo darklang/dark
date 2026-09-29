@@ -8,29 +8,29 @@
 module IdWidth =
   // The shortest prefix that tells THESE ids apart. Eight unless two of them collide, which is
   // what makes a table narrow without ever being ambiguous.
-  (Darklang.Cli.TraceRuns.idWidth
+  (Darklang.Cli.TraceVerbs.idWidth
     [ "aaaaaaaa1111", "bbbbbbbb2222" ]) = 8
 
-  (Darklang.Cli.TraceRuns.idWidth
+  (Darklang.Cli.TraceVerbs.idWidth
     [ "aaaaaaaa1111", "aaaaaaaa2222" ]) = 12
 
-  (Darklang.Cli.TraceRuns.idWidth
+  (Darklang.Cli.TraceVerbs.idWidth
     [ "aaaaaaaaaaaa1111", "aaaaaaaaaaaa2222" ]) = 16
 
   // One id is unique by definition, and none is not a question.
-  (Darklang.Cli.TraceRuns.idWidth [ "aaaaaaaaaaaaaaaa" ]) = 8
-  (Darklang.Cli.TraceRuns.idWidth []) = 8
+  (Darklang.Cli.TraceVerbs.idWidth [ "aaaaaaaaaaaaaaaa" ]) = 8
+  (Darklang.Cli.TraceVerbs.idWidth []) = 8
 
   // Ids that agree past every width in the ladder fall back to the whole uuid.
-  (Darklang.Cli.TraceRuns.idWidth
+  (Darklang.Cli.TraceVerbs.idWidth
     [ "aaaaaaaaaaaaaaaaaaaaaaaaa1", "aaaaaaaaaaaaaaaaaaaaaaaaa2" ]) = 36
 
 
 module Status =
-  (Darklang.Cli.TraceRuns.statusText Darklang.Tracing.Status.Running) = "running"
-  (Darklang.Cli.TraceRuns.statusText Darklang.Tracing.Status.Done) = "done"
-  (Darklang.Cli.TraceRuns.statusText Darklang.Tracing.Status.Failed) = "failed"
-  (Darklang.Cli.TraceRuns.statusText Darklang.Tracing.Status.Suspended) = "suspended"
+  (Darklang.Cli.TraceVerbs.statusText Darklang.Tracing.Status.Running) = "running"
+  (Darklang.Cli.TraceVerbs.statusText Darklang.Tracing.Status.Done) = "done"
+  (Darklang.Cli.TraceVerbs.statusText Darklang.Tracing.Status.Failed) = "failed"
+  (Darklang.Cli.TraceVerbs.statusText Darklang.Tracing.Status.Suspended) = "suspended"
 
 
 module ShortId =
@@ -72,11 +72,11 @@ module TheLog =
       Darklang.SCM.Branch.mainBranchId
       [ call "httpClientGet" 120 0L, call "printLine" 0 1L ]
 
-  // A run that did nothing outside itself says so, rather than printing an empty block.
+  // A trace that did nothing outside itself says so, rather than printing an empty block.
   (Darklang.Cli.Tracing.formatFnCalls
     Darklang.Cli.Tracing.defaultViewOptions
     Darklang.SCM.Branch.mainBranchId
-    []) = "  (this run touched nothing outside itself)"
+    []) = "  (this trace touched nothing outside itself)"
 
   // The log is a sequence: one line per call, in the order they completed, with the position
   // `fork --at` takes and the time it took.

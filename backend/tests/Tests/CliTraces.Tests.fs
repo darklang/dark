@@ -294,7 +294,7 @@ let private testTracesHelp =
       for term in
         [ "list"
           "show"
-          "details"
+          "inspect"
           "record"
           "tail"
           "follow"
@@ -334,7 +334,7 @@ let private testTracesStatsCounts =
       let! _ = runCli state [ "eval"; "2L" ]
       let! output = runCli state [ "traces"; "stats" ]
       Expect.stringContains output "total ms" "table header"
-      Expect.stringContains output "runs" "the count column"
+      Expect.stringContains output "traces" "the count column"
       Expect.stringContains output "eval" "the eval row"
     })
 
@@ -389,7 +389,7 @@ let private testTracesPruneKeep =
       let latestTid = parseTraceID latestJson
 
       let! pruneOut = runCli state [ "traces"; "delete"; "--keep"; "1"; "--yes" ]
-      Expect.stringContains pruneOut "deleted 2 runs" "prune confirm"
+      Expect.stringContains pruneOut "deleted 2 traces" "prune confirm"
 
       let! listOut = runCli state [ "traces"; "list" ]
       Expect.stringContains listOut "what ran" "the run table's header"
@@ -427,11 +427,11 @@ let private testTracesFindEscapesLikeWildcards =
     task {
       let! _ = runCli state [ "eval"; "1L + 1L" ]
       let! pctOut = runCli state [ "traces"; "find"; "%" ]
-      Expect.stringContains pctOut "no kept run matches %" "literal %"
+      Expect.stringContains pctOut "no kept trace matches %" "literal %"
       let! zPctOut = runCli state [ "traces"; "find"; "z%" ]
-      Expect.stringContains zPctOut "no kept run matches z%" "literal z%"
+      Expect.stringContains zPctOut "no kept trace matches z%" "literal z%"
       let! zUscOut = runCli state [ "traces"; "find"; "z_" ]
-      Expect.stringContains zUscOut "no kept run matches z_" "literal z_"
+      Expect.stringContains zUscOut "no kept trace matches z_" "literal z_"
     })
 
 let private testTracesRouteEmptyRejection =
@@ -515,11 +515,11 @@ let private testTracesRejectsEmptyPattern =
     task {
       let cases =
         [ [ "traces"; "find"; "" ], "find takes something to look for"
-          [ "traces"; "find"; ""; "--details" ], "find takes something to look for"
+          [ "traces"; "find"; ""; "--inspect" ], "find takes something to look for"
           // The two spellings this flag has had, each refused by name rather than as an
           // unknown flag.
-          [ "traces"; "find"; "x"; "--view" ], "traces find --details"
-          [ "traces"; "find"; "x"; "--show" ], "traces find --details"
+          [ "traces"; "find"; "x"; "--view" ], "traces find --inspect"
+          [ "traces"; "find"; "x"; "--show" ], "traces find --inspect"
           [ "traces"; "find"; ""; "--json" ], "find takes something to look for"
           [ "traces"; "list"; "--fn"; "" ], "--fn takes a function name"
           [ "traces"; "list"; "--route"; "" ],
@@ -536,9 +536,9 @@ let private testTracesViewRejectsNegativeSubOptions =
       let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
       let tid = parseTraceID listJson
 
-      let! depthOut = runCli state [ "traces"; "details"; tid; "--depth"; "-1" ]
+      let! depthOut = runCli state [ "traces"; "inspect"; tid; "--depth"; "-1" ]
       Expect.stringContains depthOut "--depth is gone" "depth -1"
-      let! slowOut = runCli state [ "traces"; "details"; tid; "--slow-ms"; "-1" ]
+      let! slowOut = runCli state [ "traces"; "inspect"; tid; "--slow-ms"; "-1" ]
       Expect.stringContains
         slowOut
         "--slow-ms is a number of milliseconds"
@@ -562,8 +562,8 @@ let private testTracesDeleteGrammar =
         let! _ = runCli state [ "eval"; "4L + 4L" ]
         let! pruneOne = runCli state [ "traces"; "delete"; "--keep"; "1"; "--yes" ]
 
-        Expect.stringContains clearOne "cleared 1 run" "singular"
-        Expect.stringContains clearTwo "cleared 2 runs" "plural"
+        Expect.stringContains clearOne "cleared 1 trace" "singular"
+        Expect.stringContains clearTwo "cleared 2 traces" "plural"
         Expect.stringContains pruneNone "none kept" "prune --keep 0"
         Expect.stringContains pruneOne "kept the most-recent" "prune --keep 1"
       })
@@ -581,7 +581,7 @@ let private testTracesReplayReruns =
         Expect.stringContains out "3" "result printed"
         Expect.stringContains out "rerun complete" "completion line"
 
-        // A rerun is a run of its own, so the count goes 1 -> 2.
+        // A rerun is a trace of its own, so the count goes 1 -> 2.
         let! listJsonAfter = runCli state [ "traces"; "list"; "10"; "--json" ]
         let traceCount = (listJsonAfter.Split("\"id\":\"")).Length - 1
         Expect.equal
@@ -606,11 +606,12 @@ let private testTracesPruneIdempotent =
         let! _ = runCli state [ "traces"; "delete"; "--keep"; "2"; "--yes" ]
         let! _ = runCli state [ "traces"; "delete"; "--keep"; "2"; "--yes" ]
 
-        // The table shortens ids, so count the rows rather than the uuids: every run row
-        // starts with a hex id prefix and carries the entry it ran.
+        // The table shortens ids, so count the rows rather than the uuids: every trace row
+        // starts with the pin marker (a space, or `*` when pinned) then a hex id prefix, and
+        // carries the entry it ran.
         let! listOut = runCli state [ "traces"; "list" ]
         let rowPattern =
-          System.Text.RegularExpressions.Regex("^[0-9a-f]{8}\\S*\\s+done\\s")
+          System.Text.RegularExpressions.Regex("^[ *][0-9a-f]{8}\\S*\\s+done\\s")
         let count =
           listOut.Split('\n')
           |> Array.filter (fun l -> rowPattern.IsMatch l)
@@ -869,7 +870,7 @@ let private testExitCodes =
             [ "eval"; "Stdlib.Int64.divide 1L 0L" ], 1, "an expression that raised"
 
             // Naming something that is not there is a refusal, whatever printed.
-            [ "traces"; "details"; "zzzzzzzz" ], 1, "a run id nothing matches"
+            [ "traces"; "inspect"; "zzzzzzzz" ], 1, "a run id nothing matches"
             [ "traces"; "show"; "zzzzzzzz" ],
             1,
             "a name that is neither a fn nor a run"
@@ -916,9 +917,9 @@ let private testTracesJsonShapes =
       let tid = parseTraceID listJson
       let short = tid.Substring(0, 8)
 
-      let! logJson = runCli state [ "traces"; "details"; short; "--json" ]
-      for key in [ "\"run\""; "\"calls\""; "\"durationMs\""; "\"fn\"" ] do
-        Expect.stringContains logJson key $"details --json carries {key}"
+      let! logJson = runCli state [ "traces"; "inspect"; short; "--json" ]
+      for key in [ "\"trace\""; "\"calls\""; "\"durationMs\""; "\"fn\"" ] do
+        Expect.stringContains logJson key $"inspect --json carries {key}"
       // A recorded value is TEXT in JSON, not the encoding it is stored as.
       Expect.isFalse (logJson.Contains "DUnit") "no Dval encoding in the JSON"
       // The tree columns are gone from the Dark type, so they must not reappear in the JSON.
@@ -932,7 +933,7 @@ let private testTracesJsonShapes =
       Expect.stringContains
         callsJson
         tid
-        "calls --json lists the run that went through it"
+        "calls --json lists the trace that went through it"
 
       let! valuesJson =
         runCli state [ "traces"; "show"; "Darklang.Stdlib.printLine"; "--json" ]
@@ -956,8 +957,8 @@ let private testTracesPinRoundTrip =
 
         let! pinned = runCli state [ "traces"; "pin"; short ]
         Expect.stringContains pinned $"pinned {short}" "pin says so"
-        let! shown = runCli state [ "traces"; "details"; short ]
-        Expect.stringContains shown "pinned" "and `details` carries it"
+        let! shown = runCli state [ "traces"; "inspect"; short ]
+        Expect.stringContains shown "pinned" "and `inspect` carries it"
 
         let! unpinned = runCli state [ "traces"; "unpin"; short ]
         Expect.stringContains unpinned $"unpinned {short}" "unpin says so"
@@ -965,7 +966,7 @@ let private testTracesPinRoundTrip =
         let! missing = runCli state [ "traces"; "pin"; "zzzzzzzz" ]
         Expect.stringContains
           missing
-          "no run whose id starts with zzzzzzzz"
+          "no trace whose id starts with zzzzzzzz"
           "an id nothing matches is refused by name"
       })
 
@@ -988,7 +989,7 @@ let private testTracesLargeTraceListSurvives =
 
 let private testTracesViewToleratesCorruptedRow =
   cliTestWithFreshTraces
-    "traces details <id> renders the rest of the log on a corrupted row"
+    "traces inspect <id> renders the rest of the log on a corrupted row"
     (fun state ->
       task {
         let! _ = runCli state [ "eval"; "Stdlib.Int64.add 1L 2L" ]
@@ -1011,7 +1012,7 @@ let private testTracesViewToleratesCorruptedRow =
                   "badArgs", Sql.bytes corruptBytes
                   "badResult", Sql.bytes corruptBytes ] ] ]
 
-        let! out = runCli state [ "traces"; "details"; tid ]
+        let! out = runCli state [ "traces"; "inspect"; tid ]
         Expect.isFalse
           (out.Contains "corrupt-test")
           "corrupt row dropped from the rendered log"
@@ -1054,7 +1055,7 @@ let private testTracesTruncatedStillShowsRoot =
             Expect.stringContains evalOut "40" "the eval itself succeeded"
             let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
             let tid = parseTraceID listJson
-            let! shown = runCli state [ "traces"; "details"; tid ]
+            let! shown = runCli state [ "traces"; "inspect"; tid ]
 
             // The marker prints after the log and outside the display cap, so a run with more
             // calls than fit on a screen still says it was cut by the RECORDER.

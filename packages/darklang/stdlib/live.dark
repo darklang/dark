@@ -735,9 +735,9 @@ module Values =
       problem: Stdlib.Option.Option<String> }
 
 
-  /// The live values for <param entry>: the newest recorded run that went through it, replayed
-  /// against the code as it is NOW, with every impure call answered from that run's log and none
-  /// performed. `None` when no recorded run went through it, which is not an error: there is
+  /// The live values for <param entry>: the newest recorded trace that went through it, replayed
+  /// against the code as it is NOW, with every impure call answered from that trace's log and none
+  /// performed. `None` when no recorded trace went through it, which is not an error: there is
   /// nothing to show yet.
   ///
   /// One mechanism, not two. This used to re-run the ONE function on the arguments a recorded
@@ -750,11 +750,11 @@ module Values =
     (branchId: Uuid)
     (entry: LanguageTools.ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Values> =
-    match Darklang.Tracing.Store.runsCalling (entryName entry) 1L with
+    match Darklang.Tracing.Store.wentThrough (entryName entry) 1L with
     | [] -> Stdlib.Option.Option.None
     | newest :: _ ->
       let (collected, problem) =
-        Darklang.Tracing.Store.previewRun branchId newest.id
+        Darklang.Tracing.Store.previewTrace branchId newest.id
 
       let byExpr =
         collected

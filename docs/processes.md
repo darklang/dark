@@ -3,7 +3,7 @@
 A running computation is a value the runtime can step, park, resume and
 inspect; one thread runs many of them, and a group of worker threads (one per
 core) runs many more. Reads run concurrently on their own and writes keep
-their order; `Exec.spawn`/`await` run chosen work in the background. A run is
+their order; `Exec.spawn`/`await` run chosen work in the background. A trace is
 a TRACE: one row, kept with the log of what it did to the world, suspended by
 Ctrl-C, resumed or forked by replaying that log, and read back beside the code
 that made it. A lambda a builtin applies is a frame on the process's own
@@ -74,7 +74,7 @@ type Tracing =
     /// A preview: the log's answer by (name, arguments), or `ValueNone` when the log
     /// cannot answer, in which case the preview stops rather than performing anything.
     previewEffect : Option<string -> Dval[] -> ReplayStep voption>
-    /// Which package functions a run went through, names only, for `traces calls`.
+    /// Which package functions a trace went through, names only, for `traces calls`.
     noteFunction : Hash -> unit }
 
 and ReplayStep =
@@ -167,7 +167,7 @@ process-wide (`HostEvents.Shared`) and deliver to whichever queue asked:
 - `Key of KeyRead`: from the stdin reader thread. It starts on the first
   `Key` subscription and reads one key per request, delivered to the queue
   that requested it (requests from several schedulers are served oldest
-  first, one read in flight), so a run that never waits on a key never
+  first, one read in flight), so a trace that never waits on a key never
   touches the console, and nothing eats keys meant for a `readLine` after a
   TUI has quit. Redirected stdin never starts it: `readKey` answers Escape at
   once, as it always did.
@@ -239,7 +239,7 @@ variable shadows it.
 ## Entry points
 
 - `Cli.fs` `main`: the entry function is the root process of a fresh scheduler
-  that runs on the main thread until it finishes. (`DARK_SCHEDULER=off`, in
+  that traces on the main thread until it finishes. (`DARK_SCHEDULER=off`, in
   `Cli.fs`, runs the function as a plain unscheduled `execute`; a bisect
   switch for whoever is asking whether an oddity is the scheduler's, not a
   setting.)
@@ -331,13 +331,13 @@ How it works (`Interpreter.Promises`, `RuntimeTypes.Promise`):
   through it). `Clock` and `Random` are not read effects either: reading
   them never waits, and `sleep`, the one clock call that does, is a wait the
   program means to take. A read that finishes synchronously (most file and db
-  reads in this runtime) is never a promise; only a real wait is.
+  reads in this tracetime) is never a promise; only a real wait is.
 - A promise is only ever at the top level of a register, a frame's result, or
   a builtin's returned value. Every instruction that inspects, stores or
   passes a value forces it first: `Apply` forces the callee and every
   argument (so no builtin body ever sees one), record, enum, list, tuple, dict and string construction force
   their parts, a closure forces what it closes over, `if`, `||`, `&&`, match
-  and let patterns force what they look at, and the end of a run forces its
+  and let patterns force what they look at, and the end of a trace forces its
   result. A bare `let x = ...` copies without looking, which is what keeps a
   read in flight across the statements after it. Returning a promise from a
   function is fine (a wrapper handing back its builtin's result); the return
@@ -353,10 +353,10 @@ How it works (`Interpreter.Promises`, `RuntimeTypes.Promise`):
   the frames it was called from added below the stack (`vm.nestedCallStack`),
   so the report names both sites. A denial is raised at the call, before
   anything is in flight: the ambient effect check runs before the body. A
-  read nothing ever looks at has no force point, so the end of the run is
-  its force point: a run does not end until every read it made has landed
+  read nothing ever looks at has no force point, so the end of the trace is
+  its force point: a trace does not end until every read it made has landed
   (`VMState.pendingReads`, checked at the root frame's return), and the
-  first that failed fails the run there, naming the read. The rule a JS
+  first that failed fails the trace there, naming the read. The rule a JS
   unhandled rejection follows: `let _ = HttpClient.get bad []` and code that
   never reads it is a failed run, not a silent one. Reads that finish on the
   calling thread raise at the call; only a real wait is deferred.
@@ -405,7 +405,7 @@ concurrency` once. `List.parallelMap` is `spawn` per element then `await` in
 order, for work that computes; reads run concurrently under plain `List.map`
 already.
 
-From a run nobody scheduled (a test's `execute`, the LSP, an HTTP handler)
+From a trace nobody scheduled (a test's `execute`, the LSP, an HTTP handler)
 `spawn` uses a process-wide scheduler with workers of its own
 (`Scheduler.CurrentOrShared`), started on first use, and `await` blocks that
 thread on the completion as any builtin wait would.
@@ -572,11 +572,11 @@ on. `Tracing.FnCall` in Dark carries `processId : Option<Uuid>` and `seq`. A
 run nobody scheduled writes `''`.
 
 Recording is on or off, and off is what a shipped binary does until somebody
-asks (`TraceDetail.Off | On`). On, a run keeps its own row -- what it was, what
+asks (`TraceDetail.Off | On`). On, a trace keeps its own row -- what it was, what
 it was given, what it answered, how long it took -- plus every impure call in
 order, builtins with a non-empty `callEffects`, each with its arguments, its
 result, its ordinal and its duration. That is the classic rule for what an
-effect is, and it is the smallest log a run can be resumed, forked or
+effect is, and it is the smallest log a trace can be resumed, forked or
 previewed from, so there is no middle setting to pick: anything less than the
 log is a row you can read and nothing you can do.
 
@@ -596,7 +596,7 @@ one after it:
 lambda as well costs 300x the bytes (0.59 MB against 0.002 MB for the same ten
 thousand calls) and buys one thing: a call tree for profiling. A night of
 ordinary work with that on left 15.8 GB in `trace_fn_calls`. Nothing a person
-does with a recorded run needs it: the preview (`traces show`) re-runs the
+does with a recorded trace needs it: the preview (`traces show`) re-runs the
 pure code against the recorded impure answers, so a pure value is recomputed
 rather than stored -- which is also why it follows an edit to a pure function,
 and a stored value would not. Storing them for profiling is worth its own
@@ -604,7 +604,7 @@ feature, with its own switch and its own retention, rather than a third
 setting here.
 
 What that buys back, beyond the disk: the interpreter keeps its fast paths and
-its per-frame bookkeeping stays off in a recorded run, because nothing about a
+its per-frame bookkeeping stays off in a recorded trace, because nothing about a
 frame is recorded (`skipTracing` is always true for the recorder). A trace is
 a SEQUENCE of impure calls, not a tree of frames, so `parent_call_id`,
 `lambda_expr_id` and `kind` are written flat.
@@ -622,69 +622,69 @@ freely, since a replay serves results, not arguments. An environment read's
 secret IS its result, so the result is not stored at all, and a replay runs
 that one call again for real instead of serving a value it does not have
 (`ReplayStep.PerformOnce`, decided by the builtin's name in the row) and
-goes on replaying everything else. So a resumed run reads the environment of
+goes on replaying everything else. So a resumed trace reads the environment of
 the machine resuming it, which is also the honest answer on another machine.
 
 Everything else the effects were given and returned is in the log as it is: a
-key file's bytes a run read, a response body, what a run printed. A secret you
+key file's bytes a trace read, a response body, what a trace printed. A secret you
 do not want on disk is one to keep out of an effect, or run with `--no-trace`.
 Redaction covers everything stored, because the impure calls are everything
 stored.
 
-## A trace is a run
+## What a trace is
 
 One row (`LibDB.Traces`, the `traces` table): what was run (`eval`,
 `run <file>`, `GET /path`), its input, its status (`running`, `done`,
-`failed`, `suspended`), whether it is pinned, and, for a fork, the run and the
+`failed`, `suspended`), whether it is pinned, and, for a fork, the trace and the
 position it branched from. Its calls are `trace_fn_calls` under the same id.
-`dark traces` lists them; `traces details|show|resume|fork|pin|rerun|delete`.
+`dark traces` lists them; `traces inspect|show|resume|fork|pin|rerun|delete`.
 `Darklang.Tracing.Store` is the Dark side.
 
-- Ctrl-C during a traced run: the CLI's handler cancels what the run spawned
+- Ctrl-C during a traced run: the CLI's handler cancels what the trace spawned
   and gives it a quarter of a second to land (`Cli.fs`,
-  `stopChildrenPolitely`), stores the log as it stands, marks the run
+  `stopChildrenPolitely`), stores the log as it stands, marks the trace
   suspended, prints the resume command and leaves
   (`installSuspendOnInterrupt`; `Traces.Foreground`). Cancelling first is
   what makes the log's end mean something: a child mid-write finishes the
   write and stops at its next turn, rather than being cut by process exit
   with half of it done and none of it logged. A TUI reading keys takes Ctrl-C
-  as input and never gets here. A run the suspend took out of the foreground
+  as input and never gets here. A trace the suspend took out of the foreground
   stores nothing more if it goes on (a test's does; the CLI's has exited).
 - `resume`: `armResume` then the same input through the ordinary `eval` or
   `run` path; the script runner takes the armed resume in place of a fresh
   tracer (`Tracing.createReplayTracer`). Every effectful call whose
   `(process, ordinal)` the log has is answered from it, and not performed: a
   replayed `printLine` is echoed dimmed, so the person resuming sees where
-  the run had got to without the world seeing it twice. Three kinds of call
+  the trace had got to without the world seeing it twice. Three kinds of call
   are not answered from the log:
 
   - A handle the old process owned and this one cannot have (an OS
     subprocess, an open HTTP stream) stops the resume at that step, naming
-    it, and leaves the run as it was (its status and its log).
+    it, and leaves the trace as it was (its status and its log).
   - `Exec.spawn` (and `spawnDetached`, `cancel`, `kill`) is performed again:
     serving the old handle would name a process nothing answers to, so the
     resume really spawns, and the new child replays the recorded child's own
-    rows through the matching below. A run that spawned resumes like any
+    rows through the matching below. A trace that spawned resumes like any
     other, children included.
   - An environment read has no result in the log (it is the secret that is
     kept out of it), so it is read again from the environment of the machine
-    resuming the run.
+    resuming the trace.
 
   Either of the last two performs the call and goes on replaying everything
   else (`ReplayStep.PerformOnce`; the set is `Tracing.Redact.performAgain`). A logged file read whose file has changed
-  since the run was recorded warns and continues on what it read then. The
+  since the trace was recorded warns and continues on what it read then. The
   first ordinal a process asks for that the log lacks ends that process's
   replay for good, so nothing later in the log can be handed to it after a
-  live call; from there the run is live, still recording, and the stored
+  live call; from there the trace is live, still recording, and the stored
   trace ends up as the replayed prefix plus what ran after. The recorded
-  process ids are the recorded run's; a resumed run's processes are matched
+  process ids are the recorded trace's; a resumed trace's processes are matched
   to them in the order they first appear in the log, which is the order a
   script's expressions start in, and the order a parent spawns its children.
-  A run nobody scheduled (a plain `execute`, as in the test harness) records
+  A trace nobody scheduled (a plain `execute`, as in the test harness) records
   and replays under `Guid.Empty`, which is seeded directly and is NOT in the
   list the matching pops from: leaving it in hands the first spawned child
   the root's rows, and the child's own log is never reached.
-- `fork`: a new run with the same input, holding a copy of the parent's rows
+- `fork`: a new trace with the same input, holding a copy of the parent's rows
   with `seq` below the position (the whole log with no `--at`), suspended;
   resume it and it diverges where the log ends. Cutting
   by `seq` can leave a process's later ordinals without earlier ones, which
@@ -703,37 +703,37 @@ position it branched from. Its calls are `trace_fn_calls` under the same id.
 
 Tested in `CliRuns.Tests.fs`: record and resume, fork at a position, suspend
 mid-way and resume, replay after an edit, a spawn resuming with its child's
-own log, retention (the count cap sparing a suspended run, the byte cap
+own log, retention (the count cap sparing a suspended trace, the byte cap
 sparing the newest, the newest of each entry surviving the count cap), the
 echo and the refusal.
 
-## A run's id
+## A trace's id
 
 A plain random UUID, and `dark traces` prints the shortest prefix that tells the listed runs
 apart: eight characters, unless two of the listed ids collide there.
 
 Random, with no structure in front, because an id is something a person TYPES -- `traces
-resume`, `traces details`, `traces fork` all take one -- and a short prefix has to be unique.
+resume`, `traces inspect`, `traces fork` all take one -- and a short prefix has to be unique.
 Anything ordered in front (a timestamp, say) makes two runs from the same moment agree for a
 dozen characters and every short id ambiguous. Nothing needs order out of the id: SQLite sorts
 by a column, and every listing orders by `timestamp` or `rowid`.
 
 Not content-addressed, unlike an op id or a commit id, and deliberately. An id has to exist
-when the run STARTS, before there is a log to hash; and content-addressing pays when two
-parties independently produce the same thing, which is true of an edit and false of a run --
+when the trace STARTS, before there is a log to hash; and content-addressing pays when two
+parties independently produce the same thing, which is true of an edit and false of a trace --
 two runs of the same input an hour apart are different events. Syncing runs needs the id to
 travel with the row, which it does, and a namespace two instances cannot collide in, which a
 random UUID gives.
 
-## Preview: looking at a run
+## Preview: looking at a trace
 
-A resume takes a run forward. A PREVIEW looks at one, and the difference is the whole design:
+A resume takes a trace forward. A PREVIEW looks at one, and the difference is the whole design:
 a preview never performs an effect.
 
-`dark traces show <fn> [<run>]` replays a recorded run with every effectful call answered
-from that run's log, collects the value of every expression on the way, and prints the
+`dark traces show <fn> [<run>]` replays a recorded trace with every effectful call answered
+from that trace's log, collects the value of every expression on the way, and prints the
 function you asked about with `// = value` beside each call. `dark traces calls <fn>` is the
-list of runs to choose from.
+list of traces to choose from.
 
 This is classic's Preview (`classic-dark/backend/src/LibExecution/Interpreter.fs`, the
 `realOrPreview = Preview` arms), with two things taken from it deliberately:
@@ -757,14 +757,14 @@ The pieces:
   handing back the default there would hand back a tracer that performs effects.
 - `cliPreviewRun`: one builtin that loads the log, replays, and hands back the values. No armed
   mode and no shared slot, so two previews at once cannot take each other's log.
-- Two ways in, because a run has two shapes. An `eval` or a `run <file>` replays its source. A
+- Two ways in, because a trace has two shapes. An `eval` or a `run <file>` replays its source. A
   served request's input is a record, so the row carries `entry_hash`, the handler that served
   it, and the preview applies that handler to the recorded request.
-- `trace_fns`: which functions a run went through, names only, written while recording. Without it, "which runs went through this sub-router" is
+- `trace_fns`: which functions a trace went through, names only, written while recording. Without it, "which runs went through this sub-router" is
   unanswerable, because a package call is never recorded.
 
-What a preview does not do: it does not write, it is not a run, and it does not echo a logged
-print (that echo belongs to a resume, where somebody is taking the run forward).
+What a preview does not do: it does not write, it is not a trace, and it does not echo a logged
+print (that echo belongs to a resume, where somebody is taking the trace forward).
 
 **Everything that shows a value beside code comes through here.** `dark traces show`, the
 workbench's gutter and the LSP's inlay hints all call `Live.Values.replay`, which is the
@@ -772,12 +772,12 @@ preview with the newest run that went through the function. There is no second m
 one that used to re-run a single function on its recorded arguments, and perform its effects
 for real, is deleted (`docs/live.md`, "Live values").
 
-## A run on another machine
+## A trace on another machine
 
 Not built, and deliberately not. A half-answer to "move a run" is worse than
 none: a text bundle of the rows carries no code, no blobs and no argv, so it
-moves the runs whose log happens to be self-contained and quietly goes live
-early for the rest. The real version is part of synchronising runs (a route on
+moves the traces whose log happens to be self-contained and quietly goes live
+early for the rest. The real version is part of synchronising traces (a route on
 the relay, or the sync transport carrying rows), and it should arrive with the
 rest of that design rather than ahead of it.
 ## `dark ps`
@@ -866,7 +866,7 @@ Each scheduler asks for itself; with workers, that is per core.
 
 The rule is uniform: every call with a declared effect has its result in the execution's
 log, and `dark traces resume` or `fork` hands the logged result back without
-performing the effect, until the log runs out and the run goes live. Below, "from the
+performing the effect, until the log runs out and the trace goes live. Below, "from the
 log" means exactly that: the recorded result is handed back and the effect is not
 performed again. "Re-perform" means do it again; "refuse" means the resume stops there
 and says so.
@@ -875,32 +875,32 @@ and says so.
 |---|---|---|
 | stdout, stderr writes | from the log; in a fresh terminal, echo the logged output dimmed (display, not a re-perform; off in the same terminal) | the world saw it once; silent serve leaves a person mid-conversation with no scrollback |
 | readLine, readKey | from the log | the input was given once; re-asking blocks on a key already pressed |
-| file read | from the log; warn if the file's mtime is newer than the log | the run decided on those bytes; re-reading diverges silently |
+| file read | from the log; warn if the file's mtime is newer than the log | the trace decided on those bytes; re-reading diverges silently |
 | file write, append, delete, rename, chmod, mkdir, symlink | from the log | re-performing appends twice or deletes the wrong generation |
-| directory list, stat, cwd, readlink | from the log | a snapshot the run reasoned about |
-| HTTP GET, HEAD | from the log | idempotent, but the response is what the run acted on; re-fetching costs a call per resume and can diverge |
+| directory list, stat, cwd, readlink | from the log | a snapshot the trace reasoned about |
+| HTTP GET, HEAD | from the log | idempotent, but the response is what the trace acted on; re-fetching costs a call per resume and can diverge |
 | HTTP POST, PUT, DELETE, PATCH | from the log | sent once; twice charges the card twice |
 | HTTP stream open | from the log for the open; refuse past the first unlogged chunk | later chunks were never logged; serving blindly hangs, re-performing opens a second connection |
 | DB read | from the log | as file read |
 | DB write | from the log | a replayed insert inserts twice |
 | process run, exec | from the log | output is logged; re-running is a second `rm` or deploy |
 | process spawn | performed again; the new child replays the recorded child's rows | a recorded result names a process that no longer exists |
-| process IO, terminate | from the log; refuse past a handle that was alive at suspend | the subprocess died with the old run; nothing to serve |
-| environment read | from the log | the value the run saw; another machine's env differs |
+| process IO, terminate | from the log; refuse past a handle that was alive at suspend | the subprocess died with the old trace; nothing to serve |
+| environment read | from the log | the value the trace saw; another machine's env differs |
 | environment write, chdir | from the log, then re-apply to the resuming process before going live | the live suffix assumes the env the old process set |
-| clock | from the log | time must not jump backwards then forwards inside one run |
+| clock | from the log | time must not jump backwards then forwards inside one trace |
 | random | from the log | a fork that re-rolls is not a fork |
 | sleep, timers | from the log, returning at once | the wait already happened |
 | package store read | from the log | replay-after-an-edit depends on it: prefix on the old results, live suffix on the current store |
 | package store write | from the log | landing an op twice is a duplicate or a conflict |
-| sync push, pull | from the log; a resume never pushes or pulls on its own | the push is on the server; a mid-replay pull lands ops the run never saw |
+| sync push, pull | from the log; a resume never pushes or pulls on its own | the push is on the server; a mid-replay pull lands ops the trace never saw |
 | permission prompt | not logged; re-checked every call, never replayed | a fork must not inherit an approval nobody gave it |
 | trace read, write | from the log; the live suffix records itself | a trace write during replay would write into the log being replayed |
 | native (FFI) | refuse unless declared pure | nothing is known about what it did |
 
 The principle that falls out: reads are answered from the log; writes are never
 re-performed; non-deterministic sources (clock, random, input) are answered from it so a
-resume and a fork see the same past; and the run's own process state that died with the
+resume and a fork see the same past; and the trace's own process state that died with the
 old process (cwd, env it set, spawned subprocess handles, open streams) is the
 exception: re-apply what can be re-applied, refuse to cross what cannot.
 
@@ -914,7 +914,7 @@ What is deliberately not here, and where the seams are:
   its own: it runs a function for inspection, not as part of a program.
 - A policy chooses which runnable process to step, not where a spawn lands:
   `Exec.spawn` goes to the least loaded worker, in F#.
-- A resume matches recorded processes to new ones by start order; a run that
+- A resume matches recorded processes to new ones by start order; a trace that
   spawned from Dark may not line up. `resume` is the CLI's, since it runs the
   input through the CLI's own paths; `Exec.fork` from Dark exists.
 - `ps show` says how many reads a process has in flight, not which, and shows
@@ -930,7 +930,7 @@ What is deliberately not here, and where the seams are:
 - `sleep` parks on its timer task, not on a `Timer` event; `ps` says `sleep`.
 - `Event.ExecDone` carries only the id (a Dark enum cannot hold an untyped
   value); `Exec.await` is how a value comes back.
-- Runs moved to another machine are files; a relay route would be its own
+- Traces moved to another machine are files; a relay route would be its own
   change on the relay's own deploy.
 - The host's answer comes back through the task the loop parks on (the scheduler's
   `Completed` post), not as a `Response` event of its own. If a `Response` event is ever
@@ -966,7 +966,7 @@ rest of this file is what the system does; this section is how to move around in
   waits on: `hostInflight` first, then the instruction under the counter), `Dispatch`
   (events to processes), `Workers` (the group: root plus one scheduler per worker
   thread; `SpawnOn` picks the least loaded), `CurrentOrShared` (the process-wide
-  scheduler a run nobody scheduled uses). `Scheduler.Current`/`CurrentProcess` are
+  scheduler a trace nobody scheduled uses). `Scheduler.Current`/`CurrentProcess` are
   `AsyncLocal`s: a fresh thread sees `None` and takes the no-scheduler path.
 - `LibExecution/HostEvents.fs`: the queue (`Queue.Post`/`Take`/`ArmTimer`), the sources
   (`sources.readKey`/`storeVersion`, installed from `Cli/Cli.fs` and

@@ -60,11 +60,14 @@ let withLens (state: State) (lens: Lens) : State =
 let handleViewKey
   (state: State)
   (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
   match key with
-  | UpArrow -> navUp state
-  | DownArrow -> navDown state
+  // shift+arrow is ten of them. See `repeatStep`: Home and PageUp are still there and he does
+  // not use them, and this asks for no fn key and takes no letter away from anything.
+  | UpArrow -> if modifiers.shift then repeatStep state navUp 10 else navUp state
+  | DownArrow -> if modifiers.shift then repeatStep state navDown 10 else navDown state
   // ←/→ move between the panes - list, detail - the way they sit on screen.
   // Going into a module is ⏎ (and back out is esc), so the arrows mean one
   // thing everywhere. The nav is above, reached by esc, tab or `.
@@ -260,7 +263,7 @@ let handleViewKey
                   Stdlib.Option.Option.Some
                     (InputState
                       { prompt =
-                          $"delete run {Cli.Text.shortIdText item.name}? type y then enter: "
+                          $"delete trace {Cli.Text.shortIdText item.name}? type y then enter: "
                         field = Stdlib.Cli.UI.TextField.fromText ""
                         action = "trace-delete" }) }
         | None -> Step.Continue state
@@ -348,7 +351,7 @@ let handleViewKey
       if state.activeView == vTraces then
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->
-          match Cli.TraceRuns.find item.name with
+          match Cli.TraceVerbs.find item.name with
           | Error m -> Step.Continue { state with message = m }
           | Ok run ->
             let wanted = Stdlib.Bool.not run.pinned
@@ -439,7 +442,7 @@ let handleKey
             handleSearchResultsKey state key keyChar
           else if navbarFocused state then
             // Let Home's welcome shortcut work before content has focus.
-            if (state.activeView == vHome) && (keyChar == Stdlib.Option.Option.Some "b") then handleViewKey state key keyChar
+            if (state.activeView == vHome) && (keyChar == Stdlib.Option.Option.Some "b") then handleViewKey state key modifiers keyChar
             else handleNavbarKey state key keyChar
           else
-            handleViewKey state key keyChar
+            handleViewKey state key modifiers keyChar

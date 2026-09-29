@@ -99,7 +99,7 @@ type T =
     /// Write what was collected. Takes the live `ExecutionState` because an ephemeral blob ref
     /// dies when the request scope pops, so the bytes are promoted to persistent ones before
     /// they are serialized; without that a trace records refs to bytes that are gone and
-    /// `traces details` cannot reconstruct a request body.
+    /// `traces inspect` cannot reconstruct a request body.
     storeTraceResults : RT.ExecutionState -> Ply.Ply<unit>
 
     /// Whether this run gets a row of its own. A preview does not: looking at a run is not a run.
@@ -259,7 +259,7 @@ type TracerState =
     /// so they are live from there and nothing later in the log may be handed to them (a fork
     /// cut by position can leave a later ordinal without its earlier ones).
     replayEnded : System.Collections.Generic.HashSet<System.Guid>
-    /// Wall clock for the whole run, started when the tracer was made. What `traces details` prints
+    /// Wall clock for the whole run, started when the tracer was made. What `traces inspect` prints
     /// as `took`, and the only honest source for it: the row's `timestamp` and `updated` are
     /// both the store instant for a served request, and on a resumed run they span however long
     /// it sat suspended. A resumed run's clock is its own, replay included.
@@ -384,7 +384,7 @@ let private makeStoreFnResult
 /// its own; they share the event list and get their own ordinals.
 ///
 /// `skipTracing` stays TRUE even while recording, which is what keeps the interpreter's fast
-/// paths and its per-frame bookkeeping out of a recorded run: nothing about frames is recorded,
+/// paths and its per-frame bookkeeping out of a recorded trace: nothing about frames is recorded,
 /// because a pure value is recomputed by a replay rather than stored. Only reached with
 /// recording on, so there is no level to branch on.
 let rec private executionTracingFor

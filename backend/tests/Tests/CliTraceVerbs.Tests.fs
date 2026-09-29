@@ -1,7 +1,7 @@
 /// Executions: a run kept beside its trace, resumed and forked by replaying the log of its
 /// effectful calls (`docs/processes.md`, "Executions"). Driven through the CLI, since that is
 /// where a run is made, suspended and taken up again.
-module Tests.CliRuns
+module Tests.CliTraceVerbs
 
 open Expecto
 open System.Threading.Tasks
@@ -84,7 +84,7 @@ let private forkDivergesAfterThePosition =
           child.parent
           (Some(parent.id, 1L))
           "and knows where it came from"
-        let! shown = runCli state [ "exec"; "details"; prefixOf child ]
+        let! shown = runCli state [ "exec"; "inspect"; prefixOf child ]
         Expect.stringContains shown "forked" "details says so"
         Expect.stringContains
           shown
@@ -212,7 +212,7 @@ let private replayWithoutAnEdit =
 /// answered from the log, so the print in the middle of the function must not print again.
 let private previewShowsValuesAndPerformsNothing =
   cliTestWithFreshTraces
-    "traces calls finds the runs, and traces show replays one without performing its effects"
+    "traces calls finds the traces, and traces show replays one without performing its effects"
     (fun state ->
       task {
         // No level pinning: recording is on or off, and the harness turns it on.

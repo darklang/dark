@@ -24,24 +24,28 @@ type Status =
 /// A run: one row of `traces`.
 type Trace =
   { id: String
-    /// `eval`, `run <file>`, or `GET /path`: what was run.
+    /// `eval`, `run <file>`, or `GET /path`: what ran.
     entry: String
     /// The expression or the script's source, for the ones `resume` can run again; the
     /// printed form of the request for a served one.
     input: String
-    /// What the run answered, once it has. `None` while it is still going, and for a run that
+    /// What the trace answered, once it has. `None` while it is still going, and for one that
     /// failed: there is no answer to show.
     result: Stdlib.Option.Option<LanguageTools.RuntimeTypes.Dval>
     status: Status
-    /// For a fork: the run it branched from, and the position in that log it kept.
+    /// For a fork: the trace it branched from, and the position in that log it kept.
     parent: Stdlib.Option.Option<(String * Int64)>
-    /// Retention never drops a pinned run, whatever the caps say.
+    /// Retention never drops a pinned trace, whatever the caps say.
     pinned: Bool
-    /// Wall clock for the whole run, measured by the recorder. `0` for a run still going, and
+    /// Wall clock for the whole trace, measured by the recorder. `0` for one still going, and
     /// for one recorded before this was kept. Not `updated - created`: those are the same
-    /// instant for a served request, and a resumed run's pair spans the suspension.
+    /// instant for a served request, and a resumed trace's pair spans the suspension.
     durationMs: Int64
-    /// When the run started.
+    /// Which handler served this, for a trace that is a served request. The only field that
+    /// names the ROOT of the trace: `entry` says `GET /orders`, this says which function
+    /// answered it.
+    entryHash: Stdlib.Option.Option<String>
+    /// When the trace started.
     created: String
     updated: String }
 
@@ -74,13 +78,13 @@ type FnCall =
     ord: Int64 }
 
 
-/// One recorded call of one function, in some run. The inbox behind `dark traces calls`: the
+/// One recorded call of one function, in some trace. The inbox behind `dark traces calls`: the
 /// same idea as classic's trace dots, for any function rather than only a handler.
 type Call =
   { callId: String
-    /// The run it was made in.
+    /// The trace it was made in.
     traceId: String
-    /// What that run was: `eval`, `run <file>`, `GET /path`.
+    /// What that trace was: `eval`, `run <file>`, `GET /path`.
     entry: String
     /// When the run started.
     created: String

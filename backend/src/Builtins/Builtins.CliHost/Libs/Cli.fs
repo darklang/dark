@@ -519,7 +519,7 @@ let childState
 
 /// `execute`, with the tracer handed in rather than chosen here.
 ///
-/// A preview supplies one (`cliPreviewRun`): it answers every effect from a recorded run's log,
+/// A preview supplies one (`cliPreviewTrace`): it answers every effect from a recorded trace's log,
 /// performs none, records nothing, and is not itself a run -- which is exactly what a supplied,
 /// disabled tracer gives, since `executionId` then stays `None` and the row, the foreground
 /// registration and the status updates are all skipped.
@@ -997,7 +997,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cliPreviewRun" 0
+    { name = fn "cliPreviewTrace" 0
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "the branch to resolve names against"

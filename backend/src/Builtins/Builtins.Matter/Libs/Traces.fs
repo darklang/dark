@@ -48,6 +48,7 @@ let private traceColumnsOf (prefix : string) : string =
     "timestamp"
     "updated"
     "result_value"
+    "entry_hash"
     "duration_ms" ]
   |> List.map (fun c -> $"{prefix}.{c}")
   |> String.concat ", "
@@ -70,7 +71,7 @@ let private statusToDT (status : string) : Dval =
 
 /// A run's input as one line of text: the expression or the script's source as it was written.
 /// A served request is a record, not a string; it is named rather than dumped, since the whole
-/// thing is one `traces details` away and a table cell is 40 characters.
+/// thing is one `traces inspect` away and a table cell is 40 characters.
 /// A recorded dval as one line, for a table cell or a summary line. Shared by the input and
 /// the result, because the two want the same treatment.
 let private oneLineDval (label : string) (bytes : byte[]) : string =
@@ -121,7 +122,13 @@ let private traceRowToDT (read : RowReader) : Dval =
         "updated", DString(read.string "updated")
         // Wall clock for the whole run. Dark decides how to say it; a `0` means a run that is
         // still going, or one recorded before the column existed.
-        "durationMs", DInt64(read.int64 "duration_ms") ]
+        "durationMs", DInt64(read.int64 "duration_ms")
+        // Which handler served a request. The only thing that names the ROOT of a served
+        // trace, which is what `traces show <trace>` wants to open.
+        "entryHash",
+        (match read.stringOrNone "entry_hash" with
+         | Some h -> Dval.optionSome KTString (DString h)
+         | None -> Dval.optionNone KTString) ]
   )
 
 /// Read a binary-serialized dval back into a darklang-typed Dval (the
@@ -816,7 +823,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "tracesRunsCalling" 0
+    { name = fn "tracesWentThrough" 0
       typeParams = []
       parameters =
         [ Param.make "fnName" TString "the function's dotted name"

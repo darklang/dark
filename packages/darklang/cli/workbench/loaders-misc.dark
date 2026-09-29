@@ -408,15 +408,15 @@ let cronDetail (state: State) : String =
     ++ "r run-now   p pause/resume   t traces   e edit"
   | None -> Stdlib.Cli.UI.Colors.dimText "no crons yet - declare a Darklang.Cron value"
 
-/// The runs this instance kept, for the Traces view. The same rows `dark traces` lists, in the
+/// The traces this instance kept, for the Traces view. The same rows `dark traces` lists, in the
 /// same order; the id is the item name, so the detail pane can resolve it back with
-/// `Cli.TraceRuns.find`. No sample rows: an empty list means nothing has run, and inventing runs
+/// `Cli.TraceVerbs.find`. No sample rows: an empty list means nothing has run, and inventing runs
 /// to make the pane look full makes every other row in it suspect.
 let loadTraceBodyItems () : List<BodyItem> =
   let runs = Darklang.Tracing.Store.list 30
   // The shortest prefix that tells THESE runs apart, as the CLI table does it: the detail pane
   // resolves the name back to a run, and a prefix two runs share resolves to neither.
-  let width = Cli.TraceRuns.idWidth (runs |> Stdlib.List.map (fun t -> t.id))
+  let width = Cli.TraceVerbs.idWidth (runs |> Stdlib.List.map (fun t -> t.id))
 
   runs
   |> Stdlib.List.map (fun t ->
@@ -426,9 +426,9 @@ let loadTraceBodyItems () : List<BodyItem> =
         isModule = false
         desc =
           let status =
-            Stdlib.String.padEndToWidth (Cli.TraceRuns.statusText t.status) 10
-          let ago = Stdlib.String.padEndToWidth (Cli.TraceRuns.whenText t.created) 16
-          // A pin is the one thing about a run you change from this pane, so the row has to
+            Stdlib.String.padEndToWidth (Cli.TraceVerbs.statusText t.status) 10
+          let ago = Stdlib.String.padEndToWidth (Cli.TraceVerbs.whenText t.created) 16
+          // A pin is the one thing about a trace you change from this pane, so the row has to
           // show it: `*` pinned, nothing otherwise, as the CLI table prints it.
           let pin = if t.pinned then "* " else "  "
           $"{pin}{status}{ago}{t.entry}  {Cli.Text.oneLine t.input}" })

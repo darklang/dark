@@ -3,7 +3,7 @@ module Darklang.Cli.Docs.Processes
 let content () : String =
   """# Processes: things run at once, pause, and resume
 
-Every run is a process the runtime owns: it can run beside others, be paused,
+Every trace is a process the runtime owns: it can run beside others, be paused,
 looked at, stopped, and picked up again later. You mostly meet this without
 writing anything.
 
@@ -43,24 +43,24 @@ A tight loop cannot freeze a TUI or a server: it gets a turn, then others
 run. In a system monitor a Dark process shows as what it runs: `dark serve
 :9090`, `dark eval`, `dark <daemon>`.
 
-## Pick a run back up
+## Pick a trace back up
 
 Every `eval` and `run` is recorded (only its effects: what it read, wrote,
 sent and got back), so Ctrl-C does not lose it.
 
-  traces                        the runs kept here, newest first
-  traces details <id>               one run: what it ran, where it stands, what it did
-  traces show <fn> [<id>]       that function's code, with a run's values beside it
+  traces                        the traces kept here, newest first
+  traces inspect <id>               one trace: what it ran, where it stands, what it did
+  traces show <fn> [<id>]       that function's code, with a trace's values beside it
   traces resume <id>            carry on where it stopped: the log answers what
-                                already happened, then the run goes live
-  traces fork <id> [--at <n>]   a new run from any point of an old one
+                                already happened, then the trace goes live
+  traces fork <id> [--at <n>]   a new trace from any point of an old one
   traces pin <id>               keep it, whatever else is dropped to make room
 
-A resume echoes what the old run printed (dimmed), stops if the log holds
+A resume echoes what the old trace printed (dimmed), stops if the log holds
 something it cannot have again (an OS subprocess, an open stream), and warns
 when a file it read has changed since. The oldest are dropped once there are
 more than `trace.keep` traces (a served request is one) or `trace.maxMb` of
-log; a suspended run's never.
+log; a suspended trace's never.
 
 What the log holds: what each effect was given and returned. Secret request
 headers (`authorization`, `cookie`, `set-cookie`, `x-api-key`) are stored as
@@ -75,7 +75,7 @@ opposite).
 
 ## Knobs, all optional
 
-  config set trace.record on|off       keep a record of every run (default: off)
+  config set trace.record on|off       keep a record of every trace (default: off)
   config set exec.workers <n>          worker threads (default: one per core)
   config set http.requestTimeoutMs <n> a server cancels a handler past this: 504 (30 s)
   config set trace.keep <n>            traces kept (200); trace.maxMb, MB of log kept (256)

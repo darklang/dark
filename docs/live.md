@@ -45,7 +45,7 @@ names they bound or unbound (`touched`), or `unknown` when it will not describe 
 (more than 500 ops in one poll, which a host treats as "everything changed").
 
 Why insert time and not the origin stamp or the rowid: the origin stamp is a logical
-clock that runs ahead after a big batch (a package reload mints thousands of stamps a
+clock that traces ahead after a big batch (a package reload mints thousands of stamps a
 millisecond apart), so an op authored in the next process can carry a stamp EARLIER
 than the log's newest and never sort as "after" it; a peer's ops arrive with the peer's
 clock. A rowid is reused after a delete. Insert time only moves forward on this store.
@@ -335,7 +335,7 @@ run that went through the function (`trace_fns`, the names-only index), replays 
 with every impure call answered from its own log and none performed, and returns `Values`:
 `byExpr`, the value of every call keyed by the id of the `EApply` that made it -- calls inside
 callees too, under their own ids -- and `problem`, the reason the replay stopped early if it did,
-with the values up to that point still in `byExpr`. `None` means no recorded run went through
+with the values up to that point still in `byExpr`. `None` means no recorded trace went through
 the function, which is not an error: there is nothing to show yet.
 
 Two consequences worth stating, because they are the point. Because the whole run is replayed
@@ -347,7 +347,7 @@ The runtime side is one instruction: `PT2RT` emits `TraceExpr(exprId, reg)` afte
 call, and the interpreter hands the register's value to `tracing.storeExprResult`, which
 is a no-op everywhere except under a preview's tracer (and is skipped outright when
 `skipTracing` is set, so the normal path pays a branch and nothing else). The RECORDER never
-sets it: a recorded run stores no per-expression values, because the replay recomputes them.
+sets it: a recorded trace stores no per-expression values, because the replay recomputes them.
 
 Where they show:
 
@@ -359,7 +359,7 @@ Where they show:
   the code breaks exactly as it does without the values.
 - The workbench. The Matter view's detail pane refreshes the values whenever the
   selected function changes (`refreshLiveValues`) and prints with them. `dark traces show
-  <fn> --watch` is the same thing as a panel of its own, with the runs to pick from and
+  <fn> --watch` is the same thing as a panel of its own, with the traces to pick from and
   up/down to move between them (`cli/traceWatch.dark`).
 - The LSP. `textDocument/inlayHint` answers one hint per annotated line, placed at the
   end of the document's line with the same text (`LspServer.InlayHints`). A document
@@ -367,10 +367,10 @@ Where they show:
   `fileSystem/write` lands ops, the server sends `workspace/inlayHint/refresh`.
 
 All four go through `Live.Values.replay`, so none of them can drift into showing something the
-others do not, and any recorded run will do: there is no second setting to turn on first.
+others do not, and any recorded trace will do: there is no second setting to turn on first.
 
 The cost to know about: a hint request replays once per function in the document that has a
-recorded run, and there is no cache shared between them. A big file with many recorded functions
+recorded trace, and there is no cache shared between them. A big file with many recorded functions
 pays many replays. Each performs nothing, so it is CPU and not risk.
 
 ## The demos

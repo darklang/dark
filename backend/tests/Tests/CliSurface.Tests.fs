@@ -663,7 +663,7 @@ type private Seeded =
     branch : string
     /// A commit hash `show` can open.
     commit : string
-    /// A recorded run `traces details` can open.
+    /// A recorded run `traces inspect` can open.
     run : string
   }
 
@@ -708,7 +708,7 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "db", [ "list" ]
       "ops", [ "3" ]
       "ps", [ "--json" ]
-      "traces", [ "details"; seed.run ]
+      "traces", [ "inspect"; seed.run ]
       "conflicts", [ "list" ]
       "backups", [ "list" ]
       "whoami", []

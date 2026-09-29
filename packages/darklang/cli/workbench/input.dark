@@ -363,7 +363,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
     else
       match Stdlib.List.getAt state.items state.selected with
       | Some item ->
-        match Cli.TraceRuns.find item.name with
+        match Cli.TraceVerbs.find item.name with
         | Error m ->
           Step.Continue { state with input = Stdlib.Option.Option.None; message = m }
         | Ok run ->
