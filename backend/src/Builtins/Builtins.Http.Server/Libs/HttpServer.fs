@@ -224,7 +224,7 @@ type private LiveRouting =
     /// The guest state built for the router hash last handed out. Rebuilt when the hash moves, since
     /// the router is the approval root and the root is a hash.
     mutable guest : Option<Hash * ExecutionState>
-    /// `serve --dev`: an open page reloads when the router it came from moves. `GET /__live` is an
+    /// `serve --live`: an open page reloads when the router it came from moves. `GET /__live` is an
     /// event stream that says so, and every HTML response carries the six-line script that listens.
     dev : bool
   }
@@ -381,7 +381,7 @@ let private perRequestStateFor
   { exeState with tracing = tracer.executionTracing }
 
 
-// ───────── serve --dev: the page reloads when the router moves ─────────
+// ───────── serve --live: the page reloads when the router moves ─────────
 
 /// The listener a page carries, told which version served it (`from`), so a save that lands
 /// between this response and the browser's connect is still reported: the stream compares
@@ -446,7 +446,7 @@ let private serveLiveEvents
         do! write ": still here\n\n"
   }
 
-/// The listening script, appended to an HTML body under `--dev`. Only HTML: a JSON or image
+/// The listening script, appended to an HTML body under `--live`. Only HTML: a JSON or image
 /// response must reach the client untouched.
 ///
 /// A failure (5xx) that is not HTML is made into a page that carries it too: the handler that
