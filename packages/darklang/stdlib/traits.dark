@@ -62,19 +62,19 @@ trait One<'a> =
 /// A value rendered as text for a person: `p.toString`, or `ToString.toString p`.
 /// Every builtin type implements it with the `toString` fn it already had;
 /// `Stdlib.toRepr` stays the structural debug form.
+// CLEANUP if this splits, it splits in two: `ToString` for the form a person reads and
+// `ToDebugString` for the derived one. Nothing more elaborate, and not worth holding a PR for.
 trait ToString<'a> =
   let toString (v: 'a) : String
 
 
-/// `a == b` (and `a != b`, which is its negation). Every value compares
-/// structurally unless its type implements this: a record or enum that says
-/// what equal means (compare ids, ignore a cache field) gets its own `==`.
-/// A container asks its elements, so `[ p ] == [ q ]` uses `impl Equal for Point`
-/// and agrees with `p == q`. The builtin types are never overridden, and
-/// `List.member`, `List.unique`, `List.sort` and dict keys stay structural
-/// whatever you implement.
-trait Equal<'a> =
-  let equals (a: 'a) (b: 'a) : Bool
+// CLEANUP `Equal` went here, and `==` dispatched through it with a structural fallback.
+// It is out because equality is checked by STRUCTURE: a trait made `==` consult a type's
+// implementation while `List.member`, `List.unique`, `List.sort` and dict keys stayed
+// structural, and dict keys cannot do otherwise, being hashed inside F#'s own Map. Two
+// notions of equality, and which you got depended on which function you called.
+// Worth reconsidering if a type turns up that genuinely needs its own equality, but the
+// answer then has to cover the container paths too.
 
 
 /// `a & b`

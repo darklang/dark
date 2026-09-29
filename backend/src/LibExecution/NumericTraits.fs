@@ -30,8 +30,8 @@ let ofInfix (op : InfixFnName) : Option<string * string> =
   | ComparisonLessThanOrEqual -> some (Traits.compare ()) "lessThanOrEqualTo"
   | ComparisonGreaterThan -> some (Traits.compare ()) "greaterThan"
   | ComparisonGreaterThanOrEqual -> some (Traits.compare ()) "greaterThanOrEqualTo"
-  // `==` is `Equal.equals`; `!=` is `not (Equal.equals a b)`, lowered as two calls.
-  | ComparisonEquals -> some (Traits.equal ()) "equals"
+  // `==` and `!=` are NOT traits: equality is structural, so both lower to their builtins.
+  | ComparisonEquals -> None
   | ComparisonNotEquals -> None
   | BitwiseAnd -> some (Traits.bitwiseAnd ()) "bitwiseAnd"
   | BitwiseOr -> some (Traits.bitwiseOr ()) "bitwiseOr"
@@ -66,7 +66,6 @@ let private all () : List<InfixFnName * (string * string)> =
     ComparisonLessThanOrEqual
     ComparisonGreaterThan
     ComparisonGreaterThanOrEqual
-    ComparisonEquals
     BitwiseAnd
     BitwiseOr
     BitwiseXor

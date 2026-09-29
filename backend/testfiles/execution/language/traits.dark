@@ -134,20 +134,17 @@ module MethodBounds =
 
 
 module Equality =
-  // `==` is `Equal.equals`. A type with an impl says what equal means; everything
-  // else, builtin types included, compares structurally.
+  // `==` is NOT a trait: equality is structural, for every value, always. A type cannot
+  // say what equal means for it, which is deliberate -- see the `Equal` note in
+  // `stdlib/traits.dark`.
   type User = { id: Int64; name: String }
-  type Plain = { n: Int64 }
   type Holder = { user: User }
 
-  impl Stdlib.Equal for User =
-    let equals (a: User) (b: User) : Bool = a.id == b.id
+  // Every field counts, including the one a custom equality would have ignored.
+  Equality.User { id = 1L; name = "a" } == Equality.User { id = 1L; name = "a" } = true
+  Equality.User { id = 1L; name = "a" } == Equality.User { id = 1L; name = "b" } = false
+  Equality.User { id = 1L; name = "a" } != Equality.User { id = 1L; name = "b" } = true
 
-  Equality.User { id = 1L; name = "a" } == Equality.User { id = 1L; name = "b" } = true
-  Equality.User { id = 1L; name = "a" } != Equality.User { id = 2L; name = "a" } = true
-  Equality.User { id = 1L; name = "a" } != Equality.User { id = 1L; name = "b" } = false
-  Equality.Plain { n = 1L } == Equality.Plain { n = 1L } = true
-  Equality.Plain { n = 1L } != Equality.Plain { n = 2L } = true
   1 == 1 = true
   1 != 1 = false
   "a" == "a" = true
@@ -155,25 +152,23 @@ module Equality =
   Stdlib.Option.Option.Some 1 == Stdlib.Option.Option.Some 1 = true
   1 == "a" = error "Cannot perform equality check on Int and String"
 
-  // A container asks its elements' implementation, so `[ p ] == [ q ]` agrees with `p == q`
-  [ Equality.User { id = 1L; name = "a" } ] == [ Equality.User { id = 1L; name = "b" } ] = true
-  [ Equality.User { id = 1L; name = "a" } ] == [ Equality.User { id = 2L; name = "a" } ] = false
-  [ Equality.User { id = 1L; name = "a" } ] != [ Equality.User { id = 2L; name = "a" } ] = true
-  // lengths first, so an implementation is never asked about a pair that does not exist
+  // Containers compare element by element, structurally, and agree with the elements.
+  [ Equality.User { id = 1L; name = "a" } ] == [ Equality.User { id = 1L; name = "a" } ] = true
+  [ Equality.User { id = 1L; name = "a" } ] == [ Equality.User { id = 1L; name = "b" } ] = false
+  [ Equality.User { id = 1L; name = "a" } ] != [ Equality.User { id = 1L; name = "b" } ] = true
+  // lengths first
   [ Equality.User { id = 1L; name = "a" } ] == [] = false
-  // and a type with no implementation is still compared field by field
-  [ Equality.Plain { n = 1L } ] == [ Equality.Plain { n = 1L } ] = true
-  [ Equality.Plain { n = 1L } ] == [ Equality.Plain { n = 2L } ] = false
 
-  // the same one level down: a tuple slot, a dict value, an Option's payload, a record field
-  (1L, Equality.User { id = 1L; name = "a" }) == (1L, Equality.User { id = 1L; name = "b" }) = true
-  (Stdlib.Dict.fromListOverwritingDuplicates [ ("k", Equality.User { id = 1L; name = "a" }) ]) == (Stdlib.Dict.fromListOverwritingDuplicates [ ("k", Equality.User { id = 1L; name = "b" }) ]) = true
-  Stdlib.Option.Option.Some(Equality.User { id = 1L; name = "a" }) == Stdlib.Option.Option.Some(Equality.User { id = 1L; name = "b" }) = true
+  // the same one level down: a tuple slot, a dict value, an Option payload, a record field
+  (1L, Equality.User { id = 1L; name = "a" }) == (1L, Equality.User { id = 1L; name = "a" }) = true
+  (1L, Equality.User { id = 1L; name = "a" }) == (1L, Equality.User { id = 1L; name = "b" }) = false
+  (Stdlib.Dict.fromListOverwritingDuplicates [ ("k", Equality.User { id = 1L; name = "a" }) ]) == (Stdlib.Dict.fromListOverwritingDuplicates [ ("k", Equality.User { id = 1L; name = "a" }) ]) = true
   Stdlib.Option.Option.Some(Equality.User { id = 1L; name = "a" }) == Stdlib.Option.Option.None = false
-  [ [ Equality.User { id = 1L; name = "a" } ] ] == [ [ Equality.User { id = 1L; name = "b" } ] ] = true
-  Equality.Holder { user = Equality.User { id = 1L; name = "a" } } == Equality.Holder { user = Equality.User { id = 1L; name = "b" } } = true
+  [ [ Equality.User { id = 1L; name = "a" } ] ] == [ [ Equality.User { id = 1L; name = "b" } ] ] = false
+  Equality.Holder { user = Equality.User { id = 1L; name = "a" } } == Equality.Holder { user = Equality.User { id = 1L; name = "a" } } = true
+  Equality.Holder { user = Equality.User { id = 1L; name = "a" } } == Equality.Holder { user = Equality.User { id = 1L; name = "b" } } = false
 
-  // a list of builtin values is untouched by any of this
+  // a list of builtin values, unchanged throughout
   [ 1L, 2L ] == [ 1L, 2L ] = true
   [ 1L, 2L ] == [ 1L, 3L ] = false
   [] == [] = true

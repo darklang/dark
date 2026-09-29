@@ -89,11 +89,9 @@ with one `impl`.
 
   Two things worth knowing. An implementation of your own for a builtin numeric
   type -- `impl Add for Int64` -- is stored and never called: two operands of one
-  builtin numeric type are added directly. And `==` compares every value
-  structurally unless its type implements `Equal`, which no builtin type does. A
-  container asks its elements, so `[ p ] == [ q ]` runs `impl Equal for Point`;
-  `List.member`, `List.unique`, `List.sort` and dict keys do not, and stay
-  structural whatever you implement. `docs operators` has the operator table.
+  builtin numeric type are added directly. And `==` is not a trait: equality is
+  structural for every value, always, and no type can say otherwise. `docs operators`
+  has the operator table.
 
 ## Which implementation a call runs
   It is decided when you SAVE, not when the call runs. The checker knows the type

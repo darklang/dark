@@ -106,6 +106,12 @@ extra build costs. `--optimize` builds Release INSTEAD of Debug, so `run-cli` wi
 tree is behind until the next plain build. While iterating on one group, stay in Debug -- a
 filtered run is seconds either way.
 
+**`--test` can decide there is nothing to run.** `scripts/dev/build --optimize --test` plans by what
+gets COMPILED, so a change to `backend/testfiles/**` or to a `.dark` docs page reports "nothing has
+changed since the last successful build" and skips the tests entirely, even though those files are
+exactly the test inputs you edited. It reads like a pass. When the change was to testfiles or
+packages rather than F#, run `./scripts/run-backend-tests --published` directly.
+
 `run-backend-tests` does NOT compile. It reloads packages and runs the test binary that is
 already there, so an `.fs` change you have not built yet is simply not in the run. It looks
 exactly like a pass, and a red test you "fixed" stays red with its old message, which is the

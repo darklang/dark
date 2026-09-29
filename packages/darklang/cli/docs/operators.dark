@@ -5,9 +5,9 @@ let content () : String =
 
 ## Comparison
   == != < > <= >=
-  `==` and `!=` are `Stdlib.Equal`: structural on every type unless the type
-  implements `Equal`. `< > <= >=` are `Stdlib.Compare`: every numeric type implements
-  it, and so can yours. `docs traits` has how.
+  `==` and `!=` are structural on every type and are not traits, so no type can
+  change what they mean. `< > <= >=` are `Stdlib.Compare`: every numeric type
+  implements it, and so can yours. `docs traits` has how.
 
 ## Boolean
   && ||   and unary !x

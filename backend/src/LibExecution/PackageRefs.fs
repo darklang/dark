@@ -573,7 +573,6 @@ module Trait =
       let power = p [] "Power"
       let negate = p [] "Negate"
       let compare = p [] "Compare"
-      let equal = p [] "Equal"
       let bitwiseAnd = p [] "BitwiseAnd"
       let bitwiseOr = p [] "BitwiseOr"
       let bitwiseXor = p [] "BitwiseXor"
@@ -593,7 +592,6 @@ module Trait =
           power ()
           negate ()
           compare ()
-          equal ()
           bitwiseAnd ()
           bitwiseOr ()
           bitwiseXor ()

@@ -284,8 +284,9 @@ gate_trait_choice_survives_rival() {
   mkdir -p "$WORK/logs"
   scripts/testing/_copy-store "$WORK/data.db"
   # A copied store carries the real relay and its write secret; nothing here syncs, but a
-  # sync-shaped command would reach production. See the AGENTS.md note.
-  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;'
+  # sync-shaped command would reach production. See the AGENTS.md note. Guarded the way the
+  # other gates guard it, so a box without `sqlite3` does not take the gate with it.
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   # The binary the runner was given, defaulting to the debug tree, which is the convention every
   # other gate here follows: CI has no debug build and passes the published one in as $CLI.

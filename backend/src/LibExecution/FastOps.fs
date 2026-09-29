@@ -522,7 +522,6 @@ let traitTag (traitHash : string) (methodName : string) : int voption =
       put (PackageRefs.Trait.Stdlib.Traits.subtract ()) "subtract" subtract
       put (PackageRefs.Trait.Stdlib.Traits.multiply ()) "multiply" multiply
       put (PackageRefs.Trait.Stdlib.Traits.negate ()) "negate" negate
-      put (PackageRefs.Trait.Stdlib.Traits.equal ()) "equals" equals
       put (PackageRefs.Trait.Stdlib.Traits.bitwiseAnd ()) "bitwiseAnd" bitwiseAnd
       put (PackageRefs.Trait.Stdlib.Traits.bitwiseOr ()) "bitwiseOr" bitwiseOr
       put (PackageRefs.Trait.Stdlib.Traits.bitwiseXor ()) "bitwiseXor" bitwiseXor
