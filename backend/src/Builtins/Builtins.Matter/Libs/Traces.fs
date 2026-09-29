@@ -393,27 +393,32 @@ let fns () : List<BuiltInFn> =
         [ Param.make "traceLimit" TInt "Aggregate over the last N traces (e.g. 100)" ]
       returnType = TList(TTuple(TString, TInt, [ TInt; TInt ]))
       description =
-        "Per-handler aggregate over the last N traces: (handler, traceCount, totalMs, maxMs). Total ms sums every fn-call duration in each trace; per-trace latency would need a separate column on `traces`."
+        "Per-entry aggregate over the last N traces: (entry, traceCount, totalMs, maxMs). The ms "
+        + "are each TRACE's own wall clock, which is the number a person reading \"how long does "
+        + "this take\" is asking for."
       fn =
         (function
         | _, vm, _, [| DInt traceLimitArg |] ->
           let traceLimit = intToInt64 vm traceLimitArg
           uply {
-            // Subquery: the last N trace IDs (and their handler_desc).
-            // LEFT JOIN so traces with zero fn_calls still get counted.
-            // SUM/MAX of NULL → 0 via COALESCE — sqlite quirk.
+            // The TRACE's own duration, not the sum of its impure calls.
+            //
+            // It used to join `trace_fn_calls` and sum those, and its own description said
+            // per-trace latency "would need a separate column on `traces`". That column exists
+            // now. Summing the calls meant a pure `eval` that took 69 ms reported 0, which is a
+            // number nobody can act on and everybody notices.
+            //
+            // No join, so no double counting: the aggregate is over the traces themselves.
             let! rows =
               Sql.query
-                "SELECT t.handler_desc AS handler,
-                        COUNT(DISTINCT t.id) AS trace_count,
-                        COALESCE(SUM(c.duration_ms), 0) AS total_ms,
-                        COALESCE(MAX(c.duration_ms), 0) AS max_ms
-                 FROM traces t
-                 LEFT JOIN trace_fn_calls c ON c.trace_id = t.id
-                 WHERE t.id IN (
-                   SELECT id FROM traces ORDER BY rowid DESC LIMIT @traceLimit
+                "SELECT handler_desc AS handler,
+                        COUNT(*) AS trace_count,
+                        COALESCE(SUM(duration_ms), 0) AS total_ms,
+                        COALESCE(MAX(duration_ms), 0) AS max_ms
+                 FROM (
+                   SELECT handler_desc, duration_ms FROM traces ORDER BY rowid DESC LIMIT @traceLimit
                  )
-                 GROUP BY t.handler_desc
+                 GROUP BY handler_desc
                  ORDER BY trace_count DESC, handler"
               |> Sql.parameters [ "traceLimit", Sql.int64 traceLimit ]
               |> Sql.executeAsync (fun read ->
