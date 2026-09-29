@@ -79,6 +79,11 @@ module Escaping =
   pp "héllo" = "\"héllo\""
   pp "日本" = "\"日本\""
 
+  // Escape special characters inside a grapheme without losing its other
+  // characters: the combining accent after a backslash, or the LF in CRLF.
+  pp "a\\\u0301b" = "\"a\\\\\u0301b\""
+  pp "a\r\nb" = "\"a\\r\\nb\""
+
   // Escaping happens at every depth, not just the top level.
   pp [ "a\nb" ] = "[\"a\\nb\"]"
 

@@ -34,12 +34,19 @@ let sign (s: LanguageTools.Sign) : String =
 let hexDigitChar (n: Int) : String =
   Stdlib.String.slice "0123456789ABCDEF" n (n + 1)
 
-// Encode one Char to its source-form. ASCII control characters and the
-// backslash get an escape; everything else (printable ASCII, non-ASCII
-// graphemes) passes through unchanged.
+// Escape backslashes and ASCII controls within a grapheme, preserving the
+// remaining text. The caller handles quotes for string and char literals.
 let encodeChar (c: Char) : String =
   match Stdlib.Char.toAsciiCode c with
-  | None -> Stdlib.Char.toString c
+  | None ->
+    // Multi-unit graphemes can contain a backslash plus combining marks, or
+    // CRLF. Escape those without dropping the rest of the grapheme. Escape
+    // backslashes first so the escapes added for CR and LF stay intact.
+    c
+    |> Stdlib.Char.toString
+    |> Stdlib.String.replaceAll "\\" "\\\\"
+    |> Stdlib.String.replaceAll "\r" "\\r"
+    |> Stdlib.String.replaceAll "\n" "\\n"
   | Some code ->
     if code == 92 then "\\\\"
     else if code == 7 then "\\a"

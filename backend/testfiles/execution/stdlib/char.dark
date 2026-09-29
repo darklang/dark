@@ -4,6 +4,10 @@ let smiley () : Char =
 let hand () : Char =
   "✋🏿" |> Stdlib.String.head |> Builtin.unwrap
 
+// `e` followed by a combining acute accent: one grapheme, two code units
+let eCombiningAcute () : Char =
+  "e\u0301" |> Stdlib.String.head |> Builtin.unwrap
+
 let family () : Char =
   "👩‍👩‍👧‍👦" |> Stdlib.String.head |> Builtin.unwrap
 
@@ -132,18 +136,24 @@ Stdlib.Char.isASCII 'ჾ' = false
 Stdlib.Char.isASCII 'Ჾ' = false
 Stdlib.Char.isASCII ' ' = true
 Stdlib.Char.isASCII '\t' = true
+Stdlib.Char.isASCII (eCombiningAcute ()) = false
 
 
 Stdlib.Char.toAsciiCode 'a' = Stdlib.Option.Option.Some 97
 Stdlib.Char.toAsciiCode 'A' = Stdlib.Option.Option.Some 65
-Stdlib.Char.toAsciiCode 'á' = Stdlib.Option.Option.Some 225
-Stdlib.Char.toAsciiCode 'Á' = Stdlib.Option.Option.Some 193
+Stdlib.Char.toAsciiCode 'á' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'Á' = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode '3' = Stdlib.Option.Option.Some 51
 Stdlib.Char.toAsciiCode (smiley ()) = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode 'ż' = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode 'Ż' = Stdlib.Option.Option.None
-Stdlib.Char.toAsciiCode 'ó' = Stdlib.Option.Option.Some 243
-Stdlib.Char.toAsciiCode 'Ó' = Stdlib.Option.Option.Some 211
+Stdlib.Char.toAsciiCode 'ó' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'Ó' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'é' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'ÿ' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode (eCombiningAcute ()) = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode '~' = Stdlib.Option.Option.Some 126
+Stdlib.Char.toAsciiCode '\t' = Stdlib.Option.Option.Some 9
 Stdlib.Char.toAsciiCode 'ł' = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode 'Ł' = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode (hand ()) = Stdlib.Option.Option.None
