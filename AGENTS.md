@@ -167,6 +167,26 @@ Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
 The playbook is the one to read cold. Its recurring lesson: nearly all wasted effort came from
 trusting a measurement nobody had checked.
 
+**AOT or R2R, and why it decides a number.** `scripts/build/build-release-cli-exes.sh` can publish
+either. They are about FIVE TIMES apart on startup (`dark eval 1L`: 40 ms AOT, 276 ms R2R,
+measured), different sizes, and different allocation, so a number taken against one says nothing
+about the other -- and nothing in the binary's filename says which you have.
+
+The rule: **anything that produces a number, or gates a release, is AOT. Anything you are only
+running is R2R.** So `perf/gate --published`, `perf/suite`, `perf/bench`, `gates first-day`, and
+any figure you quote to a person or write into a document: AOT. Iterating on a bug that only
+happens in a published build, or just checking the thing starts: R2R, and say which it was if you
+quote a number from it.
+
+The default is `--mode=auto`, which is AOT on every runtime that can do it and R2R on the ones
+that cannot (Windows, from a Linux host), so the default is AOT here. `--mode=r2r` is the fast
+path, about 40 seconds cheaper on the one-runtime default. `--mode=aot` refuses a runtime this
+host cannot AOT-build rather than falling back, which is why it is not the default.
+
+The build writes the mode to `clis/<binary>.mode`, `scripts/perf/budget.json` records the
+`publishedMode` its numbers were taken in, and `perf/gate` REFUSES a binary from the other mode
+rather than reporting a number that compares across them.
+
 Decide with allocation, not time. Allocation for a fixed workload is far steadier than time and
 doesn't care how loaded the box is; time drifts by more than most individual wins are worth. It is
 not byte-identical though, and the store it runs against matters as much as the binary --

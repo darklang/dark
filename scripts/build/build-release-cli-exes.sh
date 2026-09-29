@@ -31,7 +31,13 @@ set -euo pipefail
 # Parse arguments
 RUNTIMES_ARG=""
 GZIP_OUTPUT=false
-MODE="r2r"
+# `auto`, not `r2r`: R2R is not the artifact we ship, and a binary nobody runs is one every
+# measurement and every gate then describes instead of the real thing. AOT costs about 40 seconds
+# more on the one-runtime default (1m50 against 1m8, measured). `auto` rather than `aot` because
+# `aot` errors out on a runtime this host cannot AOT-build, and `--runtimes=all` on Linux contains
+# several; auto falls back per runtime, which is what the release matrix already does.
+# `--mode=r2r` is the explicit fast path.
+MODE="auto"
 SEED_PATH=""
 DRY_RUN=false
 
@@ -360,6 +366,12 @@ build_for_runtime() {
       gzip -f "$target"
     fi
   fi
+
+  # Which mode produced it, beside it. AOT and R2R differ by about 5x in startup and by an
+  # unknown amount in allocation, so a number taken against one says nothing about the other --
+  # and nothing in the binary's name says which it is. `scripts/perf/_common` reads this and
+  # refuses to compare a budget against a binary from the other mode.
+  echo "$rt_mode" > "$target.mode"
 }
 
 # Build for each runtime
