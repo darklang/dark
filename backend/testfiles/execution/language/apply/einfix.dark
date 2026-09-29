@@ -47,11 +47,14 @@ Stdlib.Int64.add 5L 3L = 8L
 // Float overflow follows IEEE (infinity), not an error
 2.0 ** 100000.0 = Builtin.testInfinity
 
-// `**` (power) works on every integer type and Float; Int128/UInt128 are unsupported
+// `**` (power) works on every numeric type, the 128-bit ints included
 2y ** 3y = 8y
 3uy ** 3uy = 27uy
 2l ** 10l = 1024l
-2Q ** 3Q = error="Int128 has no implementation of Darklang.Stdlib.Power. Write `impl Power for Int128 = ...`, or run `dark impls Power` to see which types do"
+2Q ** 3Q = 8Q
+2Z ** 3Z = 8Z
+// and wraps on overflow, as the narrower widths do
+2Z ** 128Z = 0Z
 // unary `-` works on every signed integer type and Float
 -(Stdlib.Int8.add 2y 3y) = -5y
 -(Stdlib.Float.add 1.0 1.5) = -2.5

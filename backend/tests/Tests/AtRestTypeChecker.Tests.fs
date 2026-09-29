@@ -1844,7 +1844,7 @@ let private unitTests =
         |> expectChecked
       }
 
-      test "an operator is its trait: no Power impl for the 128-bit ints" {
+      test "an operator is its trait, and the 128-bit ints have Power like the rest" {
         let infix nodeId operation =
           PT.EInfix(
             nodeId,
@@ -1855,13 +1855,14 @@ let private unitTests =
           )
         let environment = numericEnvironment ()
 
+        // `Power` covers every numeric width now, the 128-bit ones included.
         oneArgFn PT.TInt128 PT.TInt128 (infix 187UL PT.ArithmeticPower)
         |> CheckerApi.checkPackageFunction environment
-        |> expectDiagnostic Checker.MissingImpl
+        |> expectChecked
 
         oneArgFn PT.TUInt128 PT.TUInt128 (infix 190UL PT.ArithmeticPower)
         |> CheckerApi.checkPackageFunction environment
-        |> expectDiagnostic Checker.MissingImpl
+        |> expectChecked
 
         oneArgFn PT.TInt128 PT.TInt128 (infix 193UL PT.ArithmeticPlus)
         |> CheckerApi.checkPackageFunction environment
@@ -1932,7 +1933,7 @@ let private unitTests =
 
         oneArgFn PT.TInt128 PT.TInt128 (pipeline PT.ArithmeticPower)
         |> CheckerApi.checkPackageFunction (numericEnvironment ())
-        |> expectDiagnostic Checker.MissingImpl
+        |> expectChecked
 
         oneArgFn PT.TInt128 PT.TInt128 (pipeline PT.ArithmeticPlus)
         |> CheckerApi.checkPackageFunction (numericEnvironment ())

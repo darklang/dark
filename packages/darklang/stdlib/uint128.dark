@@ -29,6 +29,12 @@ let multiply (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Multiply a b
 let divide (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Divide a b
 
 
+/// Raise <param base> to the power of <param exponent>.
+/// <param exponent> must to be positive. Overflow wraps around.
+let power (``base``: UInt128) (exponent: UInt128) : UInt128 =
+  Builtin.uint128Power ``base`` exponent
+
+
 /// Returns {{true}} if <param a> is greater than <param b>
 let greaterThan (a: UInt128) (b: UInt128) : Bool =
   Builtin.uint128GreaterThan a b
@@ -131,6 +137,10 @@ impl Multiply for UInt128 =
 
 impl Divide for UInt128 =
   let divide = Stdlib.UInt128.divide
+
+
+impl Power for UInt128 =
+  let power = Stdlib.UInt128.power
 
 
 impl Modulo for UInt128 =

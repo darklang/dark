@@ -42,6 +42,12 @@ let multiply (a: Int128) (b: Int128) : Int128 = Builtin.int128Multiply a b
 let divide (a: Int128) (b: Int128) : Int128 = Builtin.int128Divide a b
 
 
+/// Raise <param base> to the power of <param exponent>.
+/// <param exponent> must to be positive. Overflow wraps around.
+let power (``base``: Int128) (exponent: Int128) : Int128 =
+  Builtin.int128Power ``base`` exponent
+
+
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
 let absoluteValue (a: Int128) : Int128 =
   if lessThan a 0Q then
@@ -164,6 +170,10 @@ impl Multiply for Int128 =
 
 impl Divide for Int128 =
   let divide = Stdlib.Int128.divide
+
+
+impl Power for Int128 =
+  let power = Stdlib.Int128.power
 
 
 impl Modulo for Int128 =
