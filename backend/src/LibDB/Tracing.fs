@@ -383,7 +383,7 @@ let private makeStoreFnResult
 /// The interpreter hooks for one process writing this trace. `forProcess` hands a spawned process
 /// its own; they share the event list and get their own ordinals.
 ///
-/// `skipTracing` stays TRUE even while recording, which is what keeps the interpreter's fast
+/// `recordAllCalls` stays FALSE even while recording, which is what keeps the interpreter's fast
 /// paths and its per-frame bookkeeping out of a recorded trace: nothing about frames is recorded,
 /// because a pure value is recomputed by a replay rather than stored. Only reached with
 /// recording on, so there is no level to branch on.
@@ -395,7 +395,8 @@ let rec private executionTracingFor
       storeFnResult = makeStoreFnResult state pid
       noteFunction =
         (fun hash -> lock state.sync (fun () -> state.fns.Add hash |> ignore<bool>))
-      skipTracing = true
+      collectExprValues = false
+      recordAllCalls = false
       traceEffects = true
       nextEffect = (fun () -> lock state.sync (fun () -> nextOrdinal state pid))
       replayEffect =
@@ -800,7 +801,7 @@ let createCliTracer
   // hooks anyway means building an event per frame and holding every argument and result alive for the
   // whole run, to discard all of it at the end.
   //
-  // `Exe.noTracing` sets `skipTracing = true`, which also lets the interpreter skip its own per-frame
+  // `Exe.noTracing` leaves `recordAllCalls` false, which also lets the interpreter skip its own per-frame
   // bookkeeping (`pendingCallArgs`) rather than just calling no-op hooks.
   if TraceDetail.current = TraceDetail.Off then
     { enabled = false
@@ -912,7 +913,10 @@ let createPreviewTracer
   // effects for real, which is the one thing a preview must never do.
   let rec previewTracing () : RT.Tracing.Tracing =
     { Exe.noTracing with
-        skipTracing = false
+        // Values, not calls. The fast paths stay on: a preview reads the value a call left in
+        // its register, which the shortcut writes just as the long way round does.
+        collectExprValues = true
+        recordAllCalls = false
         traceEffects = false
         storeExprResult = fun exprId dv -> collected.Add(int64 exprId, dv)
         previewEffect = Some lookup

@@ -185,10 +185,20 @@ let stateForProcess
   (state : RT.ExecutionState)
   (pid : ProcessId)
   : RT.ExecutionState =
-  if state.tracing.skipTracing && not state.tracing.traceEffects then
-    state
-  else
+  // Every tracer that keeps anything per process needs its own copy, and a PREVIEW is one of
+  // them even though it records nothing: `forProcess` is what hands a spawned child the preview
+  // tracer instead of the default, and the default performs effects for real. Testing the
+  // recording flags alone would send a concurrent preview's children off to touch the world.
+  let needsPerProcess =
+    state.tracing.recordAllCalls
+    || state.tracing.traceEffects
+    || state.tracing.collectExprValues
+    || Option.isSome state.tracing.previewEffect
+
+  if needsPerProcess then
     { state with tracing = state.tracing.forProcess pid }
+  else
+    state
 
 
 type Scheduler(quantum : int64) =

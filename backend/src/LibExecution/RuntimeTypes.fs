@@ -2567,15 +2567,28 @@ module Tracing =
       storeFrameEntry : StoreFrameEntry
       storeLambdaResult : StoreLambdaResult
       /// Live values: the result of the source expression with this id, as it was computed
-      /// (`TraceExpr`). Only when `skipTracing` is off; a replay for the editor collects these.
+      /// (`TraceExpr`). Gated on `collectExprValues`; a replay for the editor collects these.
       storeExprResult : id -> Dval -> unit
-      /// When true, the interpreter skips the frame hooks (storeFrameEntry, storeLambdaResult,
-      /// storeFnResult for package fns and pure builtins) and the pendingCallArgs bookkeeping,
-      /// and takes its fast paths. Effectful builtin calls are still recorded when
-      /// `traceEffects` is set: that log is small, and it is what a run resumes from.
-      skipTracing : bool
+      /// Collect every expression's value as it is computed, for VIEWING a run: this is what
+      /// puts `// = 140` beside a line. One flat stream keyed by source expression id, at every
+      /// depth, because `PT2RT` emits `TraceExpr` in every function body it compiles.
+      ///
+      /// Independent of `recordAllCalls` on purpose, and that independence is the whole point:
+      /// collecting values needs the VALUE a call produced, not a record of the call, so the
+      /// interpreter can still take every shortcut it would take on an ordinary run. These were
+      /// one flag until it turned out that a preview was paying for call recording it never
+      /// asked for and never read -- a 24x multiplier on viewing arithmetic-heavy code.
+      collectExprValues : bool
+      /// Record EVERY call: the frame hooks (storeFrameEntry, storeLambdaResult, storeFnResult
+      /// for package fns and pure builtins) and the pendingCallArgs bookkeeping. When this is
+      /// on the interpreter must not take its fast paths, because a shortcut that skips a call
+      /// would silently drop that call from the record.
+      ///
+      /// Effectful builtin calls are recorded separately, under `traceEffects`: that log is
+      /// small, it is what a run resumes from, and it does not cost the fast paths.
+      recordAllCalls : bool
       /// Record every effectful builtin call (the classic rule: a call with non-empty
-      /// `callEffects`), with its ordinal, whatever `skipTracing` says about the rest.
+      /// `callEffects`), with its ordinal, whatever `recordAllCalls` says about the rest.
       traceEffects : bool
       /// The ordinal for an effectful builtin call about to be made, per process: the first is 0.
       /// Assigned at the call, not at completion, so a read that lands late keeps its place.

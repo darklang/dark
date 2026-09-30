@@ -879,7 +879,7 @@ let private resolveTypeArgsAsync
 /// The classic rule: an effectful call (`ord >= 0`) is recorded whenever effects are traced; a
 /// pure one only under full tracing.
 let inline private recordsCall (tracing : Tracing.Tracing) (ord : int64) : bool =
-  (ord >= 0L && tracing.traceEffects) || not tracing.skipTracing
+  (ord >= 0L && tracing.traceEffects) || tracing.recordAllCalls
 
 
 /// Record a builtin's result in the trace, and hand it back.
@@ -1233,7 +1233,7 @@ let private invokeBuiltin
 
   // An effectful call's place in the process's log, taken now rather than when it completes, so
   // a read that lands late keeps it. -1 for a pure call, or when nothing records.
-  let recording = exeState.tracing.traceEffects || not exeState.tracing.skipTracing
+  let recording = exeState.tracing.traceEffects || exeState.tracing.recordAllCalls
   let ord =
     if recording && not (Set.isEmpty fn.callEffects) then
       exeState.tracing.nextEffect ()
@@ -1439,9 +1439,13 @@ let private completeBuiltin
 
 /// The result of an `Int` operator, or `ValueNone` to take the ordinary path.
 ///
-/// Declines while tracing is on: a builtin call is recorded with its arguments and result when it
-/// returns, and a fast path that skipped that would quietly drop every arithmetic operation from the
-/// trace. Tracing is off in the CLI, which is what this is for.
+/// Declines only while every call is being recorded: a builtin call is then written down with its
+/// arguments and result when it returns, and a fast path that skipped that would quietly drop every
+/// arithmetic operation from the record.
+///
+/// It does NOT decline for a preview. A preview collects the VALUE each expression produced, and the
+/// fast path leaves that value in the destination register exactly as the long way round does, so the
+/// `TraceExpr` instruction that follows the call reads the same thing either way.
 let private tryFastOp
   (exeState : ExecutionState)
   (threadID : ThreadID)
@@ -1449,7 +1453,7 @@ let private tryFastOp
   (ctx : ApplyContext)
   : Dval voption =
   if
-    not exeState.tracing.skipTracing || not (List.isEmpty ctx.applicable.argsSoFar)
+    exeState.tracing.recordAllCalls || not (List.isEmpty ctx.applicable.argsSoFar)
   then
     ValueNone
   else
@@ -1563,7 +1567,7 @@ let private tryFastOpDirect
   (argRegs : NEList<Register>)
   : Dval voption =
   if
-    not exeState.tracing.skipTracing
+    exeState.tracing.recordAllCalls
     || not (List.isEmpty typeArgs)
     || not (List.isEmpty applicable.argsSoFar)
   then
@@ -2019,7 +2023,7 @@ let private completePackage
       vm.stats.tstSizeSum <- vm.stats.tstSizeSum + n
       if n > vm.stats.tstSizeMax then vm.stats.tstSizeMax <- n
     let newFrameId = nextFrameId vm
-    if not exeState.tracing.skipTracing then
+    if exeState.tracing.recordAllCalls then
       vm.pendingCallArgs[newFrameId] <- ArgSeq.toList allArgs
     if vm.stats.enabled then
       vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
@@ -2028,7 +2032,7 @@ let private completePackage
         vm.framePushTimestamps[newFrameId] <-
           System.Diagnostics.Stopwatch.GetTimestamp()
     let pkgEp = FreeTVars.packageExecutionPoint fn.hash
-    if not exeState.tracing.skipTracing then
+    if exeState.tracing.recordAllCalls then
       exeState.tracing.storeFrameEntry newFrameId pkgEp (ArgSeq.toList allArgs)
     // Names only, and only when something is recording: this is what lets `traces calls <fn>`
     // find the runs that went through a function at the shipped level, where the call itself
@@ -2535,7 +2539,7 @@ let inline private pushLambdaFrame
 
   recordStage vm ApplyStage.LambdaFrame lambdaFrameAlloc
   if vm.stats.enabled then vm.stats.framePushCount <- vm.stats.framePushCount + 1L
-  if not exeState.tracing.skipTracing then
+  if exeState.tracing.recordAllCalls then
     exeState.tracing.storeFrameEntry
       newFrame.id
       newFrame.executionPoint
@@ -3007,7 +3011,7 @@ let private applyInstructionForced
           // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick,
           // and nearly every `Stdlib.x` call in Dark arrives down this path.
           let early =
-            if exeState.tracing.skipTracing then
+            if not exeState.tracing.recordAllCalls then
               tryFastOpOn vm.threadID registers biFn.name newArgRegs
             else
               ValueNone
@@ -3885,7 +3889,7 @@ let private runSyncInstructions
         raiseRTE vm.threadID (RTE.ParseTimeNameResolution(names, nre))
 
       | TraceExpr(exprId, reg) ->
-        if not exeState.tracing.skipTracing then
+        if exeState.tracing.collectExprValues then
           exeState.tracing.storeExprResult exprId registers[reg]
 
       // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
@@ -4282,7 +4286,7 @@ let private returnFromFrame
 
     // Trace package function call at frame return.
     // Lambda frames fire storeLambdaResult instead.
-    if not exeState.tracing.skipTracing then
+    if exeState.tracing.recordAllCalls then
       match currentFrame.executionPoint with
       | Function fnName ->
         match vm.pendingCallArgs.TryGetValue(currentFrame.id) with
