@@ -2533,6 +2533,12 @@ module Tracing =
       /// Wall clock for the call, in milliseconds. For a read in flight this is measured at the
       /// landing, so it is the real round trip rather than the time to hand back a promise.
       durationMs : int64
+      /// The frame this call was made in.
+      ///
+      /// What links a recorded call to the shape around it: which function, which pass of which
+      /// loop. Without it the log is a flat list of calls with no way to say that these three
+      /// writes were three passes of one loop and those two were a different one.
+      frameId : uuid
     }
 
   type StoreFnResult = FunctionRecord -> CallMeta -> NEList<Dval> -> Dval -> unit

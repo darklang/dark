@@ -1355,6 +1355,33 @@ let executeInspect
       Stdlib.printLine
         $"  forked    from {Cli.Text.shortIdText id}, keeping its log before position {pos}"
     | None -> ()
+    // WHICH CODE THIS RAN, which is the other half of discovery. `dark traces calls <fn>` goes
+    // from a function to its traces; without this there was no way back, and a trace's own
+    // identity was a uuid and an input line. Every recorded trace writes this index, so it
+    // costs a read rather than a replay.
+    //
+    // The standard library is left out: a trace goes through `List.map` and `Int.toString` on
+    // the way to anything, and listing them buries the two or three functions someone wrote.
+    let went =
+      (Darklang.Tracing.Store.fnsOf run.id)
+      |> Stdlib.List.filter (fun n ->
+        Stdlib.Bool.not (Stdlib.String.startsWith n "Darklang.Stdlib."))
+      |> Stdlib.List.unique
+
+    match went with
+    | [] -> ()
+    | _ ->
+      let shown = went |> Stdlib.List.take 6
+      Stdlib.printLine $"  ran       {Stdlib.String.join shown ", "}"
+
+      if (Stdlib.List.length went) > 6 then
+        let more = Stdlib.Int.toString ((Stdlib.List.length went) - 6)
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"            and {more} more")
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          "            `dark traces show <fn>` reads any of them through this trace")
+
     // The log. A trace whose log was dropped to make room, or that ran with recording off, is a
     // different answer from a trace that touched nothing, so the two do not share a line.
     match Darklang.Tracing.Store.view run.id with
@@ -1601,9 +1628,8 @@ let help (_state: Cli.AppState) : String =
     "  show <trace>                  the same from the other end: the code that trace ran"
     "  show <fn> --watch             the same as a panel: up/down pick a trace, and it"
     "                                repaints as traces arrive and as you edit the code"
-    "  show <fn> --expand map        a loop shows every pass on the line, not just the last"
-    "  show <fn> --expand map,fold   several at once; `all` for every loop"
-    "  show <fn> --expand map:2      just that pass"
+    "  show <fn> --expand map:2      a loop shows that pass, not its last"
+    "  show <fn> --expand map:2,fold:2   several loops at once"
     "  show <fn> --json              every loop and every pass at once, for an agent"
     "  calls <fn>                    the traces that went through one function, newest first"
     ""

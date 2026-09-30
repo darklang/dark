@@ -1009,7 +1009,7 @@ let fns () : List<BuiltInFn> =
             TTuple(
               TString,
               TString,
-              [ TInt64; TInt64; TString; TString ]
+              [ TInt64; TInt64; TString; TString; TInt64 ]
             )
           ),
           [ TList(
@@ -1023,7 +1023,7 @@ let fns () : List<BuiltInFn> =
         + "collected. Nothing is recorded: a view is not a run.\n\n"
         + "Four things come back. The VALUES, keyed by source expression id, one per "
         + "expression, the last one executed: that is what puts `// = 140` beside a line. The "
-        + "FRAMES the replay walked, each as (frame, parent, call site, pass, kind, callee), "
+        + "FRAMES the replay walked, each as (frame, parent, call site, pass, kind, callee, order), "
         + "which is the tree a reader navigates: a loop's passes are the sibling frames "
         + "sharing a parent and a call site, numbered in the order they ran. The values again "
         + "keyed by (FRAME, expression), which is what tells pass 3 from pass 7. And why the "
@@ -1049,7 +1049,8 @@ let fns () : List<BuiltInFn> =
                 [ ValueType.Known KTInt64
                   ValueType.Known KTInt64
                   ValueType.Known KTString
-                  ValueType.Known KTString ]
+                  ValueType.Known KTString
+                  ValueType.Known KTInt64 ]
               )
             let frameValueKt =
               KTTuple(
@@ -1111,7 +1112,8 @@ let fns () : List<BuiltInFn> =
                     [ DInt64 callSite
                       DInt64(int64 f.pass)
                       DString kind
-                      DString callee ]
+                      DString callee
+                      DInt64(int64 f.ord) ]
                   ))
                 |> List.ofSeq
                 |> Dval.list frameKt

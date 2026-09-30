@@ -892,6 +892,59 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "tracesFramesOf" 0
+      typeParams = []
+      parameters = [ Param.make "traceID" TString "" ]
+      returnType =
+        TList(TTuple(TString, TString, [ TString; TString; TInt64; TInt64 ]))
+      description =
+        "The SHAPE one run took, as it was recorded: each frame with its parent, what it ran, "
+        + "which pass it was at its call site, and the order it was pushed.\n\n"
+        + "Read rather than replayed, which is the point. A view recomputes values by re-running "
+        + "the code with its effects answered from the log, so it can only show what it reaches: "
+        + "a run suspended mid-loop, or one whose replay stops at an effect the log cannot "
+        + "answer, has passes that happened and that no re-running will show. These rows say "
+        + "they happened.\n\n"
+        + "Empty for a run recorded before the shape was kept, which is an honest answer: that "
+        + "shape was never written down and cannot be invented now."
+      fn =
+        (function
+        | _, _, _, [| DString traceID |] ->
+          uply {
+            let! rows =
+              Sql.query
+                "SELECT frame_id, parent_frame_id, kind, call_site, fn_hash, pass, ord
+                 FROM trace_frames WHERE trace_id = @t ORDER BY ord"
+              |> Sql.parameters [ "t", Sql.string traceID ]
+              |> Sql.executeAsync (fun read ->
+                let orEmpty (col : string) =
+                  read.stringOrNone col |> Option.defaultValue ""
+                DTuple(
+                  DString(read.string "frame_id"),
+                  DString(orEmpty "parent_frame_id"),
+                  [ DString(read.string "kind")
+                    // The lambda's expression id for a lambda, the callee's hash for a call.
+                    DString(
+                      match orEmpty "call_site" with
+                      | "" -> orEmpty "fn_hash"
+                      | site -> site
+                    )
+                    DInt64(read.int64 "pass")
+                    DInt64(read.int64 "ord") ]
+                ))
+            return
+              rows
+              |> Dval.list (
+                KTTuple(VT.string, VT.string, [ VT.string; VT.string; VT.int64; VT.int64 ])
+              )
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.TraceRead ]
       deprecated = NotDeprecated } ]
 
 

@@ -42,6 +42,14 @@ let private tableExists (table : string) : bool =
   |> Sql.executeExistsSync
 
 
+/// Create a table, or do nothing if it is already there (the FRESH store, where the schema just
+/// declared it). The statement carries its own `IF NOT EXISTS`, so this is about the print.
+let createTableIfMissing (table : string) (ddl : string) : unit =
+  if not (tableExists table) then
+    print $"  release: adding {table}"
+    Sql.query ddl |> Sql.executeStatementSync
+
+
 /// Add a column, or do nothing if it is already there (the FRESH store, where the schema just declared
 /// it).
 let addColumnIfMissing
@@ -305,6 +313,36 @@ let steps : List<Step> =
     { name = "20260928_000001_trace_fns_fn_hash"
       run =
         fun () -> addColumnIfMissing "trace_fns" "fn_hash" "TEXT NOT NULL DEFAULT ''" }
+
+    // The SHAPE of a run: which frames existed and which frame made each recorded call. A view
+    // recomputes values by replaying, but it can only reach as far as the log takes it, so a run
+    // suspended mid-loop has passes no replay will ever show. `08-traces.sql` declares these for
+    // fresh stores; this carries them to the ones that already exist.
+    //
+    // No backfill. An old trace has no frames and never will: the shape was not recorded when it
+    // ran, and it cannot be invented afterwards. Those traces keep working, with the values a
+    // replay can reach and no shape around them, which is exactly what they had before.
+    { name = "20260930_000001_trace_frames"
+      run =
+        fun () ->
+          createTableIfMissing
+            "trace_frames"
+            "CREATE TABLE IF NOT EXISTS trace_frames (
+               trace_id        TEXT NOT NULL,
+               frame_id        TEXT NOT NULL,
+               parent_frame_id TEXT,
+               kind            TEXT NOT NULL,
+               call_site       TEXT,
+               fn_hash         TEXT,
+               pass            INTEGER NOT NULL DEFAULT 0,
+               ord             INTEGER NOT NULL DEFAULT 0,
+               PRIMARY KEY (trace_id, frame_id)
+             )"
+          Sql.query
+            "CREATE INDEX IF NOT EXISTS idx_trace_frames_parent
+               ON trace_frames(trace_id, parent_frame_id)"
+          |> Sql.executeStatementSync
+          addColumnIfMissing "trace_fn_calls" "frame_id" "TEXT" }
 
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]

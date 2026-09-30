@@ -99,6 +99,35 @@ let fnsWithHashes (traceID: String) : List<String * String> =
   Builtin.tracesFnsOf traceID
 
 
+/// One frame as it was RECORDED, read back rather than replayed.
+type StoredFrame =
+  { id: String
+    /// "" at the entry.
+    parent: String
+    /// "source" | "function" | "lambda"
+    kind: String
+    /// The lambda's expression id, or the callee's hash.
+    site: String
+    /// Which pass this is among its siblings at the same call site, from 0.
+    pass: Int64
+    /// The order it was pushed, across the whole run.
+    ord: Int64 }
+
+
+/// The shape one run took, as recorded.
+///
+/// A view recomputes values by replaying, so it can only show what it reaches. This is what
+/// HAPPENED, including the passes a replay that stopped early will never get to. Empty for a run
+/// recorded before the shape was kept.
+let storedFrames (traceID: String) : List<StoredFrame> =
+  (Builtin.tracesFramesOf traceID)
+  |> Stdlib.List.map (fun row ->
+    let (id, parent, kind, site, pass, ord) = row
+
+    StoredFrame
+      { id = id; parent = parent; kind = kind; site = site; pass = pass; ord = ord })
+
+
 /// Just the names of `fnsWithHashes`.
 let fnsOf (traceID: String) : List<String> =
   (fnsWithHashes traceID) |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.first pair)
@@ -121,8 +150,11 @@ type ViewFrame =
     pass: Int64
     /// "source" | "function" | "lambda"
     kind: String
-    /// The callee's name, for a `function` frame. "" otherwise.
-    callee: String }
+    /// The callee's hash, for a `function` frame. "" otherwise.
+    callee: String
+    /// The order this frame was pushed, across the whole view. `pass` counts within one call
+    /// site and cannot order frames at different sites; this can.
+    ord: Int64 }
 
 
 /// The same replay, with the frame tree and the values keyed by (frame, expression).
@@ -141,7 +173,7 @@ let viewTraceTree
   let frames =
     frames
     |> Stdlib.List.map (fun row ->
-      let (id, parent, callSite, pass, kind, callee) = row
+      let (id, parent, callSite, pass, kind, callee, ord) = row
 
       ViewFrame
         { id = id
@@ -149,7 +181,8 @@ let viewTraceTree
           callSite = callSite
           pass = pass
           kind = kind
-          callee = callee })
+          callee = callee
+          ord = ord })
 
   (values, frames, frameValues, problem)
 

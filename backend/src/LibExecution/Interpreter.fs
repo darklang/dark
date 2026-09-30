@@ -918,7 +918,9 @@ let private traceBuiltinResult
           if t.IsCompletedSuccessfully then
             exeState.tracing.storeFnResult
               fnRecord
-              { ord = ord; durationMs = elapsedMs traceSw }
+              { ord = ord
+                durationMs = elapsedMs traceSw
+                frameId = currentFrame.id }
               args
               t.Result),
         TaskContinuationOptions.ExecuteSynchronously
@@ -927,7 +929,9 @@ let private traceBuiltinResult
     | _ ->
       exeState.tracing.storeFnResult
         fnRecord
-        { ord = ord; durationMs = elapsedMs traceSw }
+        { ord = ord
+                durationMs = elapsedMs traceSw
+                frameId = currentFrame.id }
         args
         result
   result
@@ -4309,7 +4313,7 @@ let private returnFromFrame
                 if t.IsCompletedSuccessfully then
                   exeState.tracing.storeFnResult
                     fnRecord
-                    { ord = -1L; durationMs = 0L }
+                    { ord = -1L; durationMs = 0L; frameId = currentFrame.id }
                     args
                     t.Result),
               TaskContinuationOptions.ExecuteSynchronously
@@ -4318,7 +4322,7 @@ let private returnFromFrame
           | _ ->
             exeState.tracing.storeFnResult
               fnRecord
-              { ord = -1L; durationMs = 0L }
+              { ord = -1L; durationMs = 0L; frameId = currentFrame.id }
               args
               resultOfFrame
         | _ -> ()
