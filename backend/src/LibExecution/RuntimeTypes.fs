@@ -2542,7 +2542,13 @@ module Tracing =
   /// the args bound into it. The uuid lets the tracer associate this entry
   /// with the matching exit (storeFnResult for fns, storeLambdaResult for
   /// lambdas).
-  type StoreFrameEntry = uuid -> ExecutionPoint -> List<Dval> -> unit
+  /// (frame, its parent, what the frame runs, the arguments it was given).
+  ///
+  /// The parent is what makes these a TREE rather than a bag. `ExecutionPoint.Lambda` carries
+  /// the lambda's own expression id, so sibling frames sharing a parent and a lambda id are the
+  /// passes of one loop, in the order the interpreter ran them -- which is what a reader is
+  /// expanding when they open a loop.
+  type StoreFrameEntry = uuid -> uuid -> ExecutionPoint -> List<Dval> -> unit
 
   /// Fired when a Lambda call frame returns. Function frames return via
   /// storeFnResult, which already includes args + result. Lambdas don't
@@ -2566,9 +2572,13 @@ module Tracing =
       storeFnResult : StoreFnResult
       storeFrameEntry : StoreFrameEntry
       storeLambdaResult : StoreLambdaResult
-      /// Live values: the result of the source expression with this id, as it was computed
-      /// (`TraceExpr`). Gated on `collectExprValues`; a replay for the editor collects these.
-      storeExprResult : id -> Dval -> unit
+      /// Live values: the result of the source expression with this id, in the frame that was
+      /// running, as it was computed (`TraceExpr`). Gated on `collectExprValues`.
+      ///
+      /// The frame is part of the key because an expression id alone is not unique within a
+      /// run: a loop body writes the same id once per pass, and keying on the id alone means
+      /// the last pass wins and the other hundred and ninety-nine are lost.
+      storeExprResult : id -> uuid -> Dval -> unit
       /// Collect every expression's value as it is computed, for VIEWING a run: this is what
       /// puts `// = 140` beside a line. One flat stream keyed by source expression id, at every
       /// depth, because `PT2RT` emits `TraceExpr` in every function body it compiles.
@@ -2579,6 +2589,16 @@ module Tracing =
       /// one flag until it turned out that a preview was paying for call recording it never
       /// asked for and never read -- a 24x multiplier on viewing arithmetic-heavy code.
       collectExprValues : bool
+      /// Build the frame tree as the run goes: which frames existed, what each ran, and which
+      /// frame made it. Separate from `recordAllCalls` because it does NOT cost the fast paths:
+      /// a lambda application and a package call both push a real frame either way, and the
+      /// only frames a shortcut skips are elided operator wrappers, which no reader wants a
+      /// frame for.
+      ///
+      /// This is the ONLY flag the interpreter tests at a frame push, and anything that sets
+      /// `recordAllCalls` must set this too. That is what keeps a run with tracing off paying
+      /// exactly what it paid before: one boolean test on a field already in cache, not two.
+      collectFrames : bool
       /// Record EVERY call: the frame hooks (storeFrameEntry, storeLambdaResult, storeFnResult
       /// for package fns and pure builtins) and the pendingCallArgs bookkeeping. When this is
       /// on the interpreter must not take its fast paths, because a shortcut that skips a call

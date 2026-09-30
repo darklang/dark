@@ -2032,8 +2032,12 @@ let private completePackage
         vm.framePushTimestamps[newFrameId] <-
           System.Diagnostics.Stopwatch.GetTimestamp()
     let pkgEp = FreeTVars.packageExecutionPoint fn.hash
-    if exeState.tracing.recordAllCalls then
-      exeState.tracing.storeFrameEntry newFrameId pkgEp (ArgSeq.toList allArgs)
+    if exeState.tracing.collectFrames then
+      exeState.tracing.storeFrameEntry
+        newFrameId
+        vm.currentFrameID
+        pkgEp
+        (ArgSeq.toList allArgs)
     // Names only, and only when something is recording: this is what lets `traces calls <fn>`
     // find the runs that went through a function at the shipped level, where the call itself
     // is not recorded. Two boolean tests when nothing is recording.
@@ -2539,9 +2543,10 @@ let inline private pushLambdaFrame
 
   recordStage vm ApplyStage.LambdaFrame lambdaFrameAlloc
   if vm.stats.enabled then vm.stats.framePushCount <- vm.stats.framePushCount + 1L
-  if exeState.tracing.recordAllCalls then
+  if exeState.tracing.collectFrames then
     exeState.tracing.storeFrameEntry
       newFrame.id
+      vm.currentFrameID
       newFrame.executionPoint
       (ArgSeq.toList allArgs)
   vm.frameToPush <- ValueSome newFrame
@@ -3890,7 +3895,7 @@ let private runSyncInstructions
 
       | TraceExpr(exprId, reg) ->
         if exeState.tracing.collectExprValues then
-          exeState.tracing.storeExprResult exprId registers[reg]
+          exeState.tracing.storeExprResult exprId vm.currentFrameID registers[reg]
 
       // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
       | CheckIfFirstExprIsUnit reg ->

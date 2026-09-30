@@ -396,6 +396,7 @@ let rec private executionTracingFor
       noteFunction =
         (fun hash -> lock state.sync (fun () -> state.fns.Add hash |> ignore<bool>))
       collectExprValues = false
+      collectFrames = false
       recordAllCalls = false
       traceEffects = true
       nextEffect = (fun () -> lock state.sync (fun () -> nextOrdinal state pid))
@@ -867,6 +868,17 @@ let createReplayTracer
         storeTrace traceID description inputVarName inputDval state exeState }
 
 
+/// One frame the replay walked: what made it, what it runs, and which pass it is at that call
+/// site. `valuesKept` is false past the cap, where a frame is counted but its values are not
+/// held, so the view can still say how many passes there were.
+type PreviewFrame =
+  { parent : System.Guid
+    executionPoint : RT.ExecutionPoint
+    pass : int
+    args : List<RT.Dval>
+    valuesKept : bool }
+
+
 /// A tracer for VIEWING a run: every effectful call is answered by its name and arguments from
 /// that run's log, none is performed, and every expression's value is collected on the way.
 /// Classic called this Preview. Nothing is written: a preview is not itself a run.
@@ -877,15 +889,52 @@ let createReplayTracer
 /// there; a name-and-arguments key still answers every call you did not touch. Last write wins,
 /// as classic's `DISTINCT ON ... ORDER BY timestamp DESC` did.
 ///
-/// `collected` is where the values land, keyed by the source expression's id, last write
-/// winning. See `storeExprResult` below for why that key is doing real work.
+/// `collected` is where the values land, keyed by (frame, source expression id). `frames` is
+/// the frame tree the replay walked, which is what turns those values from a flat bag into
+/// something a reader can navigate: a loop's passes are the sibling frames that share a parent
+/// and a lambda id, in the order they ran.
+///
+/// `lastByExpr` is the flat view every current consumer still wants: one value per expression,
+/// the last one executed. It is kept as the run goes rather than derived from `collected`
+/// afterwards, because a dictionary does not iterate in insertion order and "the last pass" is
+/// exactly what would be lost.
 let createPreviewTracer
   (rows : List<string * byte[] * RT.Dval>)
-  (collected : System.Collections.Generic.Dictionary<int64, RT.Dval>)
+  (collected :
+    System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>)
+  (frames : System.Collections.Generic.Dictionary<System.Guid, PreviewFrame>)
+  (lastByExpr : System.Collections.Generic.Dictionary<int64, RT.Dval>)
   : T =
-  let answers = System.Collections.Generic.Dictionary<string, RT.Dval>()
+  // Every recorded result for a key, in the order it was recorded, rather than just the last.
+  //
+  // The key is (name, arguments), which is classic's and survives the code moving. What it does
+  // NOT do on its own is tell two identical calls apart: `Uuid.generate ()` called twice has
+  // one key and two answers, and last-write-wins served the second one to both callers. A run
+  // that made ten different uuids showed one value, ten times, with no error and no marker.
+  //
+  // So the answers are a queue per key and a lookup CONSUMES one. The n-th call gets the n-th
+  // recorded result, which is what a reader is looking at.
+  //
+  // When the queue runs out the last recorded value is served again. That is the old behaviour,
+  // kept deliberately: replaying against code that now calls something more times than the
+  // recording did should degrade to a repeated value rather than stop the whole view.
+  let answers =
+    System.Collections.Generic.Dictionary<
+      string,
+      System.Collections.Generic.Queue<RT.Dval>
+      >()
+  let lastAnswer = System.Collections.Generic.Dictionary<string, RT.Dval>()
   for (name, argsBytes, result) in rows do
-    answers[name + "\u0000" + System.Convert.ToBase64String argsBytes] <- result
+    let key = name + "\u0000" + System.Convert.ToBase64String argsBytes
+    let mutable q = Unchecked.defaultof<System.Collections.Generic.Queue<RT.Dval>>
+    if not (answers.TryGetValue(key, &q)) then
+      q <- System.Collections.Generic.Queue<RT.Dval>()
+      answers[key] <- q
+    q.Enqueue result
+    lastAnswer[key] <- result
+
+  // The queues are consumed, so two processes of a previewed run must not race on them.
+  let answersGate = obj ()
 
   let lookup (name : string) (args : RT.Dval[]) : RT.Tracing.ReplayStep voption =
     if Set.contains name Redact.performAgain then
@@ -900,13 +949,83 @@ let createPreviewTracer
         BinarySer.RT.Dval.serialize
           "trace_fn_calls.args"
           (RT.DList(LibExecution.ValueType.unknownTODO, List.ofArray args))
-      match
-        answers.TryGetValue(
-          name + "\u0000" + System.Convert.ToBase64String argsBytes
-        )
-      with
-      | true, v -> ValueSome(RT.Tracing.ReplayStep.Serve v)
-      | false, _ -> ValueNone
+      let key = name + "\u0000" + System.Convert.ToBase64String argsBytes
+      lock answersGate (fun () ->
+        let mutable q = Unchecked.defaultof<System.Collections.Generic.Queue<RT.Dval>>
+        if answers.TryGetValue(key, &q) && q.Count > 0 then
+          ValueSome(RT.Tracing.ReplayStep.Serve(q.Dequeue()))
+        else
+          // Either the code now makes this call more often than the recording did, or it never
+          // made it at all. The first degrades to the last recorded value; the second has no
+          // answer and the view stops there and says which call stopped it.
+          let mutable last = Unchecked.defaultof<RT.Dval>
+          if lastAnswer.TryGetValue(key, &last) then
+            ValueSome(RT.Tracing.ReplayStep.Serve last)
+          else
+            ValueNone)
+
+  // How many passes of one loop, or calls at one call site, keep their values.
+  //
+  // Without a cap the values are back to scaling with the RUN rather than with what can be
+  // shown: `fib 20` pushes about twenty-two thousand frames, and keeping every one of them
+  // costs what appending every expression execution used to cost. Twenty is the threshold the
+  // view summarises at anyway, so past it a frame is counted and its values are not held.
+  //
+  // Reaching a pass past the cap is a second replay asking for that one pass, which is cheap
+  // now: opening a trace of `fib 20` is 95ms, so a targeted re-run for pass 147 is not a wait.
+  // That is only affordable because the replay got fast; it would not have been before.
+  let passCap = 20
+
+  // A cheap identity for the CALL SITE a frame belongs to, for counting passes.
+  //
+  // This was `string ep` for one measurement, and that alone cost 17x on a preview of `fib 20`:
+  // an `ExecutionPoint.Lambda` carries its parent, so formatting one walks and allocates the
+  // whole chain, once per frame, twenty-two thousand times. A lambda's own expression id and a
+  // function's hash are already unique per site and are plain values.
+  let siteKey (ep : RT.ExecutionPoint) : int64 =
+    match ep with
+    | RT.ExecutionPoint.Source -> 0L
+    | RT.ExecutionPoint.Lambda(_, lambdaExprId) -> int64 lambdaExprId
+    // A structural hash, so two different functions called from ONE frame could in principle
+    // collide and share a pass counter. The effect would be a wrong pass number on a call that
+    // is not a loop, where the number is not shown; the frame ids stay distinct either way.
+    | RT.ExecutionPoint.Function name -> int64 (hash name)
+
+  // (parent frame, which call site) -> how many frames have been seen there
+  let siteCounts =
+    System.Collections.Generic.Dictionary<struct (System.Guid * int64), int>()
+
+  // A scheduler is one thread, but a worker group is one per core, and every process of a
+  // previewed run shares these three maps: `forProcess` hands each child a tracer that closes
+  // over the same ones, which is how a spawned child's values reach the same view.
+  //
+  // So a previewed `parallelMap` writes to them from several threads at once. A plain
+  // Dictionary corrupts under that -- a concurrent resize can spin forever, not merely lose a
+  // write -- and the pass counter is a read-modify-write that has to be atomic or two passes
+  // take the same number. The lock is held for a dictionary write, nowhere near the interpreter
+  // loop, and it costs nothing measurable against what a preview does per expression.
+  let gate = obj ()
+
+  let noteFrame
+    (frameId : System.Guid)
+    (parentId : System.Guid)
+    (ep : RT.ExecutionPoint)
+    (args : List<RT.Dval>)
+    : unit =
+    let site = struct (parentId, siteKey ep)
+    lock gate (fun () ->
+      let mutable seen = 0
+      siteCounts.TryGetValue(site, &seen) |> ignore<bool>
+      siteCounts[site] <- seen + 1
+      // `pass` is the ordinal among siblings at this call site, which is what a loop's passes
+      // are numbered by. Kept on every frame, including those past the cap, so the view can
+      // say "200 passes" truthfully while holding twenty of them.
+      frames[frameId] <-
+        { parent = parentId
+          executionPoint = ep
+          pass = seen
+          args = (if seen < passCap then args else [])
+          valuesKept = seen < passCap })
 
   // Every process of the run previews, not just the first. The CLI spawns each expression as a
   // process of its own, and the scheduler asks the tracer for that process's own hooks
@@ -917,19 +1036,29 @@ let createPreviewTracer
         // Values, not calls. The fast paths stay on: a preview reads the value a call left in
         // its register, which the shortcut writes just as the long way round does.
         collectExprValues = true
+        collectFrames = true
         recordAllCalls = false
         traceEffects = false
-        // Last write wins, per source expression. A list here looks more faithful and is
-        // not: a recursive function or a loop writes the SAME expression id once per call, so
-        // `fib 20` appended about a hundred and thirty thousand entries and the caller then
-        // kept eight of them -- having converted every one to a Dark value first. Keying at
-        // collection makes the cost the size of what can be DISPLAYED rather than the size of
-        // the run, which is what made a preview scale with compute instead of with code.
+        // Keyed by (frame, expression). The expression id alone is not unique within a run: a
+        // loop body writes the same id once per pass, so keying on it alone kept the last pass
+        // and lost the other hundred and ninety-nine.
         //
-        // The shape work replaces this key with (frame path, expression id) so a loop's passes
-        // stop overwriting each other. That is a bigger key, not a longer list: still bounded
-        // by what a reader can be shown.
-        storeExprResult = fun exprId dv -> collected[int64 exprId] <- dv
+        // It is still bounded by what can be shown rather than by what ran, which is the
+        // property that made opening a trace stop scaling with compute. The cap is what keeps
+        // it: past `passCap` a frame is counted and its values are dropped.
+        storeExprResult =
+          fun exprId frameId dv ->
+            lock gate (fun () ->
+              // Last EXECUTED wins, which is what every consumer had when the key was the
+              // expression id alone and the values arrived as a list in execution order. A
+              // dictionary does not iterate in insertion order, so flattening `collected`
+              // afterwards would hand back an arbitrary pass instead of the last one. Kept
+              // here, where the order is still known.
+              lastByExpr[int64 exprId] <- dv
+              let mutable f = Unchecked.defaultof<PreviewFrame>
+              if not (frames.TryGetValue(frameId, &f)) || f.valuesKept then
+                collected[struct (frameId, int64 exprId)] <- dv)
+        storeFrameEntry = noteFrame
         previewEffect = Some lookup
         forProcess = fun _ -> previewTracing () }
 

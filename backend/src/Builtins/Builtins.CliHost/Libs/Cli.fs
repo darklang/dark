@@ -1046,13 +1046,25 @@ let fns () : List<BuiltInFn> =
                 match run.input with
                 | DString source ->
                   let! log = LibDB.Traces.previewLog id
-                  let collected = System.Collections.Generic.Dictionary<int64, RT.Dval>()
-                  let tracer = Tracing.createPreviewTracer log collected
+                  let collected =
+                    System.Collections.Generic.Dictionary<
+                      struct (System.Guid * int64),
+                      RT.Dval
+                      >()
+                  let frames =
+                    System.Collections.Generic.Dictionary<
+                      System.Guid,
+                      Tracing.PreviewFrame
+                      >()
+                  let lastByExpr =
+                    System.Collections.Generic.Dictionary<int64, RT.Dval>()
+                  let tracer =
+                    Tracing.createPreviewTracer log collected frames lastByExpr
                   let exeState = { exeState with branchId = PT.BranchId.Id branchId }
                   let branchState = createBranchState exeState false
                   let! parsed = parseCliExpr branchState source
                   let values () =
-                    collected
+                    lastByExpr
                     |> Seq.map (fun kv ->
                       DTuple(DInt64 kv.Key, RT2DT.Dval.toDT kv.Value, []))
                     |> List.ofSeq
@@ -1098,10 +1110,22 @@ let fns () : List<BuiltInFn> =
                           "this run has no source to replay and no handler recorded against it")
                   | Some hash ->
                     let! log = LibDB.Traces.previewLog id
-                    let collected = System.Collections.Generic.Dictionary<int64, RT.Dval>()
-                    let tracer = Tracing.createPreviewTracer log collected
+                    let collected =
+                      System.Collections.Generic.Dictionary<
+                        struct (System.Guid * int64),
+                        RT.Dval
+                        >()
+                    let frames =
+                      System.Collections.Generic.Dictionary<
+                        System.Guid,
+                        Tracing.PreviewFrame
+                        >()
+                    let lastByExpr =
+                      System.Collections.Generic.Dictionary<int64, RT.Dval>()
+                    let tracer =
+                      Tracing.createPreviewTracer log collected frames lastByExpr
                     let values () =
-                      collected
+                      lastByExpr
                       |> Seq.map (fun kv ->
                         DTuple(DInt64 kv.Key, RT2DT.Dval.toDT kv.Value, []))
                       |> List.ofSeq
