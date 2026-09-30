@@ -433,7 +433,15 @@ let executeFollow (state: AppState) (arg: String) (note: String) : AppState =
         // normal edit takes -- there's no second, special repoint mechanism to keep in sync with the first.
         match SCM.Propagation.staleDependencies loc with
         | [] ->
-          Cli.printHint "  already on the current version of everything it uses."
+          // Say what was checked. `follow` is about VERSIONS of the items this one uses; a
+          // rival implementation of the same trait is a different item, so `constraints` can
+          // report something while this correctly reports nothing, and the two read as a
+          // contradiction unless each says what it looked at.
+          Cli.printHint
+            "  already on the current version of every item it uses."
+
+          Cli.printHint
+            "  (a rival implementation is a different item, not a newer version; `dark constraints` reports those)"
           state
         | stale ->
           stale

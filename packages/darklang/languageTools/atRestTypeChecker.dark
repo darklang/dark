@@ -103,6 +103,7 @@ type Site =
   | FunctionArgument of Int64
   | IfWithoutElse
   | RecordFieldAccess
+  | InterpolatedSegment
   | UnitLetPattern
   | TupleLetPattern
   | MatchPattern
@@ -362,6 +363,8 @@ let siteToString (site: Site) : String =
     $"argument {Stdlib.Int64.toString (position + 1L)}"
   | IfWithoutElse -> "an if without an else"
   | RecordFieldAccess -> "this field access"
+  | InterpolatedSegment ->
+    "this interpolated segment, which must already be a String"
   | UnitLetPattern -> "a unit let-pattern"
   | TupleLetPattern -> "a tuple let-pattern"
   | MatchPattern -> "a match pattern"
@@ -422,6 +425,7 @@ let untrustedBuiltinToString (reason: UntrustedBuiltin) : String =
 let contextToStringWith
   (customTypeName:
     LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (actualName: Stdlib.Option.Option<String>)
   (code: IssueCode)
   (context: Context)
   : String =
@@ -551,22 +555,33 @@ let contextToStringWith
       match customTypeName traitHash with
       | Some name -> name
       | None -> $"#{Stdlib.String.slice (LanguageTools.ProgramTypes.hashToString traitHash) 0 12}"
+    // `subject` is the type the diagnostic is about, named when we know it. The run-time
+    // message for the same situation says "Bool has no implementation of X", and these used
+    // to say "this type", which sent the reader looking for which type was meant.
+    let subject =
+      match actualName with
+      | Some t -> t
+      | None -> "This type"
     match code with
     | MissingImpl ->
       match method with
-      | Some m -> $"No implementation of {traitName} for this type, so `{traitName}.{m}` cannot run on it"
-      | None -> $"No implementation of {traitName} for this type, and this function requires one (`'a: {traitName}`)"
+      | Some m -> $"{subject} has no implementation of {traitName}, so `{traitName}.{m}` cannot run on it"
+      | None -> $"{subject} has no implementation of {traitName}, and this function requires one (`'a: {traitName}`)"
     | UnboundTypeParameter ->
-      $"This type parameter needs a {traitName} implementation, but the function does not declare `'a: {traitName}`"
+      $"{subject} needs a {traitName} implementation, but the function does not declare `'a: {traitName}`"
     | AmbiguousImpl ->
       match method with
-      | Some m -> $"More than one implementation offers `{m}` for this type; name the trait, as `{traitName}.{m} value`"
-      | None -> $"More than one implementation of {traitName} for this type is visible; `dark impls {traitName}` lists them"
+      | Some m -> $"More than one implementation offers `{m}` for {subject}; name the trait, as `{traitName}.{m} value`"
+      | None -> $"More than one implementation of {traitName} for {subject} is visible; `dark impls {traitName}` lists them"
     | _ -> $"Needs an implementation of {traitName}"
 
 
 let contextToString (code: IssueCode) (context: Context) : String =
-  contextToStringWith (fun _ -> Stdlib.Option.Option.None) code context
+  contextToStringWith
+    (fun _ -> Stdlib.Option.Option.None)
+    Stdlib.Option.Option.None
+    code
+    context
 
 
 let issueToStringWith
@@ -585,7 +600,12 @@ let issueToStringWith
         + staticTypeToStringWith customTypeName actual
       | None -> ""
     | None -> ""
-  (contextToStringWith customTypeName issue.code issue.context) + detail
+  let actualName =
+    match issue.actual with
+    | Some actual ->
+      Stdlib.Option.Option.Some(staticTypeToStringWith customTypeName actual)
+    | None -> Stdlib.Option.Option.None
+  (contextToStringWith customTypeName actualName issue.code issue.context) + detail
 
 let issueToString (issue: Issue) : String =
   issueToStringWith (fun _ -> Stdlib.Option.Option.None) issue

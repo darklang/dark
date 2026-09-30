@@ -783,6 +783,7 @@ module private DarkTypes =
       make "FunctionArgument" [ DInt64(int64 position) ]
     | Checker.IfWithoutElse -> make "IfWithoutElse" []
     | Checker.RecordFieldAccess -> make "RecordFieldAccess" []
+    | Checker.InterpolatedSegment -> make "InterpolatedSegment" []
     | Checker.UnitLetPattern -> make "UnitLetPattern" []
     | Checker.TupleLetPattern -> make "TupleLetPattern" []
     | Checker.MatchPattern -> make "MatchPattern" []

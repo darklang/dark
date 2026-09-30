@@ -117,7 +117,37 @@ let createImplInline
             let moduleCtx = { ctx with currentModule = baseLocation.modules }
             let (packageImpl, _fns, ops, unresolvedNames) =
               LanguageTools.WrittenTypesToProgramTypes.implWithOps moduleCtx implDecl
-            (ops, packageImpl.hash, unresolvedNames))
+
+            // An implementation of a trait that does not exist is not a forward reference
+            // worth waiting on: without the trait there is nothing to implement, and the
+            // generic "will resolve when dependencies are added" sends you looking for a
+            // missing dependency rather than a missing trait. Say which it is, and take the
+            // trait's name out of the generic list so it is reported once.
+            let traitName =
+              Stdlib.String.join packageImpl.trait_.originalName "."
+
+            let traitUnresolved =
+              match packageImpl.trait_.resolved with
+              | Ok _ -> false
+              | Error _ -> true
+
+            if traitUnresolved then
+              Stdlib.printLine
+                (Stdlib.Cli.UI.Colors.error $"There is no trait called {traitName}.")
+
+              Stdlib.printLine
+                (Stdlib.Cli.UI.Colors.hint
+                  "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")
+
+              Stdlib.printLine ""
+
+            let remaining =
+              unresolvedNames
+              |> Stdlib.List.filter (fun triple ->
+                let (_, originalName, _) = triple
+                (Stdlib.String.join originalName ".") != traitName)
+
+            (ops, packageImpl.hash, remaining))
 
       | None ->
         if hasParseError then

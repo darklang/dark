@@ -159,6 +159,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
         Stdlib.printLine $"{traitPath}  ({methodNames})"
 
+        // The self-type column is as wide as the widest entry, with 12 as a floor. A fixed
+        // width meant one long type name pushed its own row's second column out and the
+        // table stopped lining up.
+        let selfWidth =
+          candidates
+          |> Stdlib.List.map (fun c ->
+            Stdlib.String.displayWidth (describeSelf state.currentBranchId c.self))
+          |> Stdlib.List.fold 12 (fun acc w -> if w > acc then w else acc)
+
         candidates
         |> Stdlib.List.sortBy (fun c -> describeSelf state.currentBranchId c.self)
         |> Stdlib.List.iter (fun c ->
@@ -178,7 +187,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             | _ -> ""
 
           Stdlib.printLine
-            $"  {Stdlib.String.padEndToWidth selfStr 12} {Stdlib.Cli.UI.Colors.dimText sourceName}{note}")
+            $"  {Stdlib.String.padEndToWidth selfStr selfWidth} {Stdlib.Cli.UI.Colors.dimText sourceName}{note}")
       state
   | _ ->
     if json then

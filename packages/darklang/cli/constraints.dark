@@ -57,9 +57,9 @@ let line (f: SCM.Constraints.Finding) : String =
     // reader's next action is a paste, so the thing to paste is spelled out.
     match choice with
     | Mine ->
-      $"  #{f.id}  {u}\n         and {r} both implement {d} for {self}. Calls run {u}, the later of the two.\n         Make it permanent: `dark deprecate impl {r}`. Leave it: `dark ack #{f.id}`"
+      $"  #{f.id}  {u}\n         and {r} both implement {d} for {self}. Calls run {u}, the later of the two.\n         This is two implementations, not an out-of-date one, so `dark propagate follow` will not change it.\n         Make it permanent: `dark deprecate impl {r}`. Leave it: `dark ack #{f.id}`"
     | Theirs ->
-      $"  #{f.id}  {u}\n         and {r} both implement {d} for {self}. Calls run {r}, the later of the two.\n         Make it permanent: `dark deprecate impl {u}`. Leave it: `dark ack #{f.id}`"
+      $"  #{f.id}  {u}\n         and {r} both implement {d} for {self}. Calls run {r}, the later of the two.\n         This is two implementations, not an out-of-date one, so `dark propagate follow` will not change it.\n         Make it permanent: `dark deprecate impl {u}`. Leave it: `dark ack #{f.id}`"
     | Neither ->
       $"  #{f.id}  {u}\n         and {r} both implement {d} for {self}, and neither came from a commit, so no call can choose.\n         Save one of them again, or `dark deprecate impl {r}`"
   | (_, _) -> $"  #{f.id}  {u}"

@@ -170,6 +170,9 @@ type Site =
   | FunctionArgument of position : int
   | IfWithoutElse
   | RecordFieldAccess
+  /// A `{...}` inside an interpolated string. Its own site because "expected String, got
+  /// Int64" gives no clue which rule was applied.
+  | InterpolatedSegment
   | UnitLetPattern
   | TupleLetPattern
   | MatchPattern

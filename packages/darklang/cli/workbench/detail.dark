@@ -222,6 +222,8 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
       Stdlib.List.flatten
         [ group "modules" (ofKind "module")
           group "types" (ofKind "type")
+          group "traits" (ofKind "trait")
+          group "implementations" (ofKind "impl")
           group "values" (ofKind "val")
           group "functions" (ofKind "fn") ]
   Stdlib.List.flatten

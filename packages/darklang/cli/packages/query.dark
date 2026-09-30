@@ -144,6 +144,18 @@ let hashListToDict
 /// The fold is main-only -- a branch's ops sit inert until it merges -- so this is an overlay, the
 /// same way a branch's NAMES are an overlay rather than rows of their own. Until this consulted the
 /// branch, deprecating on a branch changed nothing there and `view` went on calling the item live.
+/// The deprecation in force for one item on this branch, or None if it is not deprecated.
+///
+/// The one wrapper for `pmGetCurrentDeprecation`: `view` asks it to draw the header and
+/// `undeprecate` asks it so it can say when there is nothing to undo.
+let currentDeprecation
+  (branchId: Uuid)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.DeprecationKind * String)> =
+  Builtin.pmGetCurrentDeprecation branchId hash itemKind
+
+
 let loadDeprecationSets (branchId: Uuid) : DeprecationSets =
   let (all, hidden) = Builtin.pmGetDeprecationSets branchId
   DeprecationSets

@@ -1052,7 +1052,8 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     segments
     |> List.iter (function
       | StringText _ -> ()
-      | StringInterpolation expr -> checkExpr state env TString expr)
+      | StringInterpolation expr ->
+        checkExprWithContext state env TString expr InterpolatedSegment)
     TString
   | EUnwrap(nodeId, operand) ->
     let operandType = inferExpr state env operand

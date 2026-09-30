@@ -382,7 +382,10 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
       allItemKinds
       |> Stdlib.List.filterMap (fun pair ->
         let (k, _) = pair
-        resolveTarget branchId currentLoc k target)
+
+        match resolveTarget branchId currentLoc k target with
+        | Some r -> Stdlib.Option.Option.Some((k, r))
+        | None -> Stdlib.Option.Option.None)
 
     match resolved with
     | [] ->
@@ -398,16 +401,42 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
         (Stdlib.Cli.UI.Colors.hint "  say which: `dark deprecate <fn|type|value|trait|impl> <name>`")
 
       state
-    | [ targetRef ] ->
-      let op = LanguageTools.ProgramTypes.PackageOp.Undeprecate targetRef
+    | [ pair ] ->
+      let (itemKind, targetRef) = pair
 
-      match SCM.PackageOps.add branchId [ op ] with
-      | Ok _ ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Undeprecated {target}")
+      // Say nothing happened when nothing did. Undeprecating something that was never
+      // deprecated used to report success, which reads as though it undid something.
+      let hash =
+        match targetRef with
+        | PackageType h -> Stdlib.Option.Option.Some h
+        | PackageFn h -> Stdlib.Option.Option.Some h
+        | PackageValue h -> Stdlib.Option.Option.Some h
+        | PackageTrait h -> Stdlib.Option.Option.Some h
+        | PackageTraitImpl h -> Stdlib.Option.Option.Some h
+
+      let isDeprecated =
+        match hash with
+        | Some h ->
+          match Query.currentDeprecation branchId h itemKind with
+          | Some _ -> true
+          | None -> false
+        | None -> false
+
+      if Stdlib.Bool.not isDeprecated then
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.hint $"{target} is not deprecated; nothing to undo.")
+
         state
-      | Error e ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Undeprecate failed: {e}")
-        state
+      else
+        let op = LanguageTools.ProgramTypes.PackageOp.Undeprecate targetRef
+
+        match SCM.PackageOps.add branchId [ op ] with
+        | Ok _ ->
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Undeprecated {target}")
+          state
+        | Error e ->
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Undeprecate failed: {e}")
+          state
   | _ ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "usage: dark undeprecate <name>")
     state

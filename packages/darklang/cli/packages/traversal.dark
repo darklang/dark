@@ -110,6 +110,19 @@ let resolveEntity
 
   let isAModule = Query.hasContent moduleResults
 
+  // An implementation wins over the module of the same name, because that module IS the
+  // implementation: its methods are ordinary fns beneath the impl's member path. Letting the
+  // module win meant `view Acme.Point.Show` printed the implementation and then listed its own
+  // method fns underneath, the same thing twice.
+  let implHere =
+    match (Query.searchExactMatch branchId basePath name).impls with
+    | item :: _ -> Stdlib.Option.Option.Some item.location
+    | [] -> Stdlib.Option.Option.None
+
+  match implHere with
+  | Some loc -> Stdlib.Result.Result.Ok(PackageLocation.Impl loc)
+  | None ->
+
   if isAModule then
     Stdlib.Result.Result.Ok (PackageLocation.Module modulePath)
   // Not a module -- check if it's a type/value/fn
