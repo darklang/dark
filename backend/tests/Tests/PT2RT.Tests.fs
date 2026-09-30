@@ -1782,7 +1782,64 @@ module LiveValues =
       | None -> failtest "no TraceExpr followed the Apply"
     }
 
-  let tests = testList "LiveValues" [ traceExprFollowsACall ]
+  /// `a + b` compiles its own `Apply` by hand rather than going through the `EApply` case, and
+  /// for a long time that meant no hook and no recorded value: every piece of arithmetic in a
+  /// program was invisible to a trace. It discarded the expression id as well, so there was
+  /// nothing to key a value by even in principle.
+  let traceExprFollowsAnInfixCall =
+    testTask "an EInfix call is followed by TraceExpr with its id and result register" {
+      let expr = E.Infix.Add.simple
+      let exprId =
+        match expr with
+        | PT.EInfix(id, _, _, _) -> id
+        | other -> failtest $"expected an EInfix, got {other}"
+      let actual = PT2RT.Expr.toRT Map.empty 0 None expr
+      let hook =
+        actual.instructions
+        |> List.pairwise
+        |> List.tryPick (fun pair ->
+          match pair with
+          | RT.Apply(resultReg, _, _, _), RT.TraceExpr(id, reg) ->
+            Some(id, reg, resultReg)
+          | _ -> None)
+      match hook with
+      | Some(id, reg, resultReg) ->
+        Expect.equal id exprId "the hook names the EInfix"
+        Expect.equal reg resultReg "and the register the result is in"
+      | None -> failtest "no TraceExpr followed the infix Apply"
+    }
+
+  /// `&&` and `||` are their own instruction rather than a call, so the pairing above does not
+  /// apply; the hook still has to be there, naming the expression and the register `And` wrote.
+  let traceExprFollowsABinOp =
+    testTask "an EInfix BinOp is followed by TraceExpr with its id and result register" {
+      let expr = E.Infix.And.mixed
+      let exprId =
+        match expr with
+        | PT.EInfix(id, _, _, _) -> id
+        | other -> failtest $"expected an EInfix, got {other}"
+      let actual = PT2RT.Expr.toRT Map.empty 0 None expr
+      let hook =
+        actual.instructions
+        |> List.pairwise
+        |> List.tryPick (fun pair ->
+          match pair with
+          | RT.And(resultReg, _, _), RT.TraceExpr(id, reg) -> Some(id, reg, resultReg)
+          | RT.Or(resultReg, _, _), RT.TraceExpr(id, reg) -> Some(id, reg, resultReg)
+          | _ -> None)
+      match hook with
+      | Some(id, reg, resultReg) ->
+        Expect.equal id exprId "the hook names the EInfix"
+        Expect.equal reg resultReg "and the register the operator wrote"
+      | None -> failtest "no TraceExpr followed the BinOp"
+    }
+
+  let tests =
+    testList
+      "LiveValues"
+      [ traceExprFollowsACall
+        traceExprFollowsAnInfixCall
+        traceExprFollowsABinOp ]
 
 
 let tests =

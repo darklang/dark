@@ -444,6 +444,108 @@ let private spawnedChildReplays =
       })
 
 
+/// Two identical calls in one run have two answers, and the view has to show both.
+///
+/// The preview keys recorded results on (name, arguments), which is what lets a view survive the
+/// code moving. On its own it cannot tell two identical calls apart: `Uuid.generate ()` twice
+/// has one key and two results, and last-write-wins served the second to both callers. The run
+/// made two different uuids and the view showed one of them, twice, with no error and no marker.
+/// That is the worst shape a bug can take in a debugging tool.
+let private identicalCallsKeepTheirOwnValues =
+  cliTestWithFreshTraces
+    "two identical calls in one run show their own recorded values, not one twice"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.Prev.two"
+            ("() : String =\n"
+             + "  let a = Stdlib.Uuid.toString (Stdlib.Uuid.generate ())\n"
+             + "  let b = Stdlib.Uuid.toString (Stdlib.Uuid.generate ())\n"
+             + "  $\"{a} {b}\"")
+        do! commit state "two"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.two" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.two ()" ]
+
+        // The run really did make two different uuids. If it did not, the rest proves nothing.
+        let ranPair =
+          ran.Split('\n')
+          |> Array.map (fun l -> l.Trim())
+          |> Array.filter (fun l -> l.Contains " " && l.Length > 60)
+          |> Array.tryLast
+        match ranPair with
+        | None -> failtest "the run did not print two uuids"
+        | Some pair ->
+          let parts = pair.Split(' ')
+          Expect.notEqual parts[0] parts[1] "the run itself made two different uuids"
+
+          let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.two" ]
+          // Each `let` line carries its own recorded value. Collapsed, both lines showed the
+          // same one.
+          let shown =
+            viewed.Split('\n')
+            |> Array.filter (fun l -> l.Contains "Uuid.generate" && l.Contains "// =")
+            |> Array.map (fun l -> l.Substring(l.IndexOf "// =").Trim())
+          Expect.equal shown.Length 2 "both calls carry a value"
+          Expect.notEqual
+            shown[0]
+            shown[1]
+            "and they are the two the run made, not the second one twice"
+      })
+
+
+/// Looking at code must never touch the world, and a SPAWNED process is the case where that
+/// was easiest to get wrong.
+///
+/// The scheduler hands each process its own tracer, and it decided whether to bother by asking
+/// whether anything was being recorded. A preview records nothing, so the answer was no, and a
+/// spawned child inherited the DEFAULT tracer: the one that performs effects for real. Viewing
+/// a recorded run that used `parallelMap`, or any spawn, would have run its writes again.
+///
+/// A uuid rather than a print, because the child's stdout does not come back through the
+/// harness and its absence would prove nothing. A uuid is evidence either way: served from the
+/// log it matches the recording, rolled for real it cannot. The spawn ITSELF is performed again
+/// on purpose (`Redact.performAgain`), so a real child process is created here and the question
+/// is only which tracer it gets.
+let private previewOfASpawnServesTheChildFromTheLog =
+  cliTestWithFreshTraces
+    "previewing a run that spawned a process serves the child from the log, not the world"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.Prev.conc"
+            ("() : String =\n"
+             + "  let h = Stdlib.Exec.spawn (fun () -> Stdlib.Uuid.toString (Stdlib.Uuid.generate ()))\n"
+             + "  Stdlib.Exec.await h")
+        do! commit state "conc"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.conc" ]
+
+        let! ran = runCli state [ "eval"; "Tests.Prev.conc ()" ]
+        let uuidIn (out : string) : string option =
+          out.Split('\n')
+          |> Array.map (fun l -> l.Trim().Trim('"'))
+          |> Array.filter (fun l -> l.Length = 36 && l.Split('-').Length = 5)
+          |> Array.tryLast
+        let recorded =
+          match uuidIn ran with
+          | Some u -> u
+          | None -> failtest $"the run did not produce a uuid: {ran}"
+
+        let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.conc" ]
+        // The value beside `await h` is what the child made. If the child ran for real during
+        // the preview it is a fresh uuid, and the view is showing something that never happened.
+        Expect.stringContains
+          viewed
+          recorded
+          "the child's value came from the log, so the spawned process previewed too"
+      })
+
+
 /// The header half of the redaction, at the unit: the names in the table are blanked in the
 /// arguments a row stores, whatever case they were written in, and nothing else is touched.
 let private secretHeadersAreRedacted =
@@ -584,6 +686,8 @@ let tests =
     replayAfterAnEdit
     replayWithoutAnEdit
     previewShowsValuesAndPerformsNothing
+    previewOfASpawnServesTheChildFromTheLog
+    identicalCallsKeepTheirOwnValues
     retentionKeepsTheNewestAndTheSuspended
     retentionKeepsTheNewestOfEachEntry
     byteCapSparesTheRunThatTrippedIt

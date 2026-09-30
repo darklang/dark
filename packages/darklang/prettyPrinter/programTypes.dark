@@ -1125,6 +1125,10 @@ let lineDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
   match e with
   | EApply(id, _, _, _) -> Stdlib.Pretty.concat doc (valueSuffix ctx id)
+  // An infix expression is a call and reads as one: `let total = price * qty // = 140`.
+  // Its value was not recorded at all until PT2RT started emitting a trace instruction for
+  // it, so there was nothing to print here and the arm did not exist.
+  | EInfix(id, _, _, _) -> Stdlib.Pretty.concat doc (valueSuffix ctx id)
   | _ -> doc
 
 
