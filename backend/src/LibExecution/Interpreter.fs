@@ -1915,7 +1915,10 @@ let private packageFnCallData
     let d : PackageFnCallData =
       { instrData =
           { instructions = List.toArray fn.body.instructions
-            resultReg = fn.body.resultIn }
+            resultReg = fn.body.resultIn
+            // A package function's frame carries the table that maps its instructions back to
+            // the expressions they came from.
+            symbols = fn.symbols }
         packageLayer = Permissions.Layer.Package id
         ceiling =
           match fn.permissionCeiling with
@@ -2029,6 +2032,11 @@ let private completePackage
     let newFrameId = nextFrameId vm
     if exeState.tracing.recordAllCalls then
       vm.pendingCallArgs[newFrameId] <- ArgSeq.toList allArgs
+    // A lambda defined in this function is applied from somewhere else's frame, so its table
+    // has to be somewhere both can reach. Entering the function is when it becomes known.
+    if exeState.tracing.collectExprValues && not (Map.isEmpty fn.symbols.Value.lambdas) then
+      for KeyValue(lambdaId, table) in fn.symbols.Value.lambdas do
+        vm.lambdaSymbols[lambdaId] <- table
     if vm.stats.enabled then
       vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
       vm.stats.framePushCount <- vm.stats.framePushCount + 1L
@@ -2226,15 +2234,24 @@ let private callPackageResolved
   // frame whose whole job is to run the two instructions that would. Partial applications go the
   // ordinary way: the point is to skip the frame, and a partial application doesn't push one anyway.
   match thinWrapperOf exeState fn with
+  // `collectExprValues`: not while something is watching. Eliding a forwarder skips its frame,
+  // and the frame is how a reader knows a lambda was passed to `List.map` rather than to
+  // `List.fold`. The same guard is on the early elision above.
   | ValueSome biFn when
     List.isEmpty ctx.applicable.argsSoFar
     && List.isEmpty resolvedExplicitTypeArgsVT
     && ArgSeq.count ctx.args = NEList.length fn.parameters
+    && not exeState.tracing.collectExprValues
     ->
     // Counted as a package call, since one happened. `framePushCount` is deliberately not bumped:
     // the gap between the two counters is what elision saves.
     if vm.stats.enabled then
       vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+    // The run still WENT THROUGH this function, so the index that answers "which functions did
+    // this trace run" has to say so. Skipping a frame is an optimisation; disappearing from the
+    // trace is a lie, and it took `List.map` out of every recorded trace the moment eliding
+    // started working.
+    if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
     // Entering the wrapper, frame or not: its package approval and ceiling
     // apply to the builtin it forwards to, and to any callback that builtin
     // applies. This also caches the call data, which is what lets the early
@@ -2498,7 +2515,20 @@ let inline private pushLambdaFrame
     else
       let d : InstrData =
         { instructions = List.toArray foundLambda.instructions.instructions
-          resultReg = foundLambda.instructions.resultIn }
+          resultReg = foundLambda.instructions.resultIn
+          // The lambda's OWN table. Its body is its own instruction list with its own program
+          // counter, so the enclosing function's indices do not reach it, and without this
+          // every value inside a loop is lost.
+          //
+          // From the VM rather than from the current frame: the frame applying a lambda is
+          // whatever was passed it (`List.map`'s), not the one that defined it.
+          symbols =
+            lazy
+              { exprAt =
+                  match vm.lambdaSymbols.TryGetValue exprId with
+                  | true, table -> table
+                  | false, _ -> Map.empty
+                lambdas = Map.empty } }
       vm.lambdaInstrDataCache[exprId] <- d
       d
 
@@ -2993,8 +3023,21 @@ let private applyInstructionForced
         // Only with the wrapper's call data in hand: its package approval and
         // ceiling are applied below, and they live on the call data the first
         // (long-way) call cached. Without it, go the long way, which caches it.
+        // Not while something is watching. Eliding a forwarder skips its frame, and a frame is
+        // how a reader knows a lambda was passed to `List.map` rather than to `List.fold`: the
+        // name of a loop comes from the function it is a loop OF.
+        //
+        // Worth stating because this elision only started firing when the value-hook opcode
+        // came out of the instruction stream. A thin wrapper is recognised as exactly
+        // `[LoadVal; Apply]`, and the marker made every stdlib forwarder three instructions,
+        // so none of them ever matched. Taking it out turned the optimisation on for the whole
+        // standard library.
         let earlyWrapper =
-          if List.isEmpty typeArgs && List.isEmpty applicable.argsSoFar then
+          if
+            List.isEmpty typeArgs
+            && List.isEmpty applicable.argsSoFar
+            && not exeState.tracing.collectExprValues
+          then
             match thinWrapperCachedFor exeState pkg with
             | ValueSome biFn ->
               let mutable callData = Unchecked.defaultof<PackageFnCallData>
@@ -3015,6 +3058,9 @@ let private applyInstructionForced
           // every forwarder that reached the cache.
           if vm.stats.enabled then
             vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+          // Went through it, so the trace index says so. See the same line in the late elision.
+          if exeState.tracing.traceEffects then
+            exeState.tracing.noteFunction pkg
 
           // The operator table, before the context exists. `callBuiltinResolved` checks the same
           // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick,
@@ -3391,8 +3437,42 @@ let private runSyncInstructions
   let mutable force : Task<Dval> = null
   let mutable forceReg = 0
 
+  /// Hand the value the instruction at <param at> produced to whatever is watching.
+  ///
+  /// See `noteFinishedValue` for the same thing from `runFrame`.
+  ///
+  /// The symbol table says which register that instruction left its value in. Called on the two
+  /// paths where an instruction has actually finished: straight after a sequential one, and on
+  /// re-entry when a call's frame has returned and written its result back.
+  ///
+  /// Not called after a jump, where the instruction "before" the new counter never ran and its
+  /// register may hold nothing at all.
+  let inline noteValue (at : int) =
+    if exeState.tracing.collectExprValues then
+      match Map.tryFind at instrData.symbols.Value.exprAt with
+      | Some(struct (exprId, reg)) ->
+        // A register that holds nothing is an instruction that has not finished. A frame is
+        // re-entered for more reasons than a returned call -- the budget running out mid-block
+        // is one -- and in those cases the instruction "before" the counter may never have run.
+        // Reporting a value only when there is one is the whole check.
+        let v = registers[reg]
+        if not (isNull (box v)) then
+          exeState.tracing.storeExprResult exprId vm.currentFrameID v
+      | None -> ()
+
   while running && budget <> 0L && counter < instrData.instructions.Length do
     budget <- budget - 1L
+
+    // The value the PREVIOUS instruction produced.
+    //
+    // Here because every way of getting to the next instruction passes through here: finishing
+    // one inline, returning from a call that pushed a frame, resuming after the budget ran out.
+    // Hooking the advance instead would mean hooking each of them.
+    //
+    // A jump arrives here too, and the instruction it jumped over never ran, so its register
+    // holds nothing; `noteValue` checks for that rather than this needing to know.
+    if counter > 0 then noteValue (counter - 1)
+
     let inst = instrData.instructions[counter]
 
     match inst with
@@ -3897,9 +3977,13 @@ let private runSyncInstructions
       | RaiseNRE(names, nre) ->
         raiseRTE vm.threadID (RTE.ParseTimeNameResolution(names, nre))
 
-      | TraceExpr(exprId, reg) ->
-        if exeState.tracing.collectExprValues then
-          exeState.tracing.storeExprResult exprId vm.currentFrameID registers[reg]
+      // A compiler marker, not an instruction. `RT.DebugSymbols.split` collects every one of
+      // these into the symbol table and removes it, on every path that turns an expression into
+      // something runnable, so one reaching here means a path skipped the split.
+      | TraceExpr(exprId, _) ->
+        Exception.raiseInternal
+          "TraceExpr reached the interpreter: some path built instructions without splitting out the symbol table"
+          [ "exprId", exprId ]
 
       // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
       | CheckIfFirstExprIsUnit reg ->
@@ -3941,6 +4025,12 @@ let private runSyncInstructions
 
         counter <- counter + 1
 
+  // The last instruction of a block. Every other value is reported by the next iteration, and
+  // for this one there is no next iteration -- only when the block genuinely ENDED, though: a
+  // loop that stopped to run a callee resumes here later and the value is not in yet.
+  if counter >= instrData.instructions.Length && counter > 0 then
+    noteValue (counter - 1)
+
   vm.budget <- budget
   struct (counter, pending)
 
@@ -3981,6 +4071,29 @@ type private FrameStep =
     | _ -> false
 
 
+/// The value the instruction at <param at> produced, for whatever is watching.
+///
+/// The same lookup `runSyncInstructions` does on its way into each iteration. It is needed here
+/// too for the LAST instruction of a block: when that instruction is a call, the frame is pushed,
+/// the callee runs, and the caller resumes with its counter already past the end -- so the
+/// instruction loop is never entered again and never gets to report it. That is the last
+/// expression of every lambda body, which is most of what a loop shows.
+let private noteFinishedValue
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (registers : Dval array)
+  (instrData : InstrData)
+  (at : int)
+  : unit =
+  if exeState.tracing.collectExprValues && at >= 0 then
+    match Map.tryFind at instrData.symbols.Value.exprAt with
+    | Some(struct (exprId, reg)) ->
+      let v = registers[reg]
+      if not (isNull (box v)) then
+        exeState.tracing.storeExprResult exprId vm.currentFrameID v
+    | None -> ()
+
+
 /// Run a frame's instructions until something needs the caller: an await, one of the four rare
 /// opcodes, a pushed frame, or the end of the block.
 ///
@@ -3996,6 +4109,11 @@ let private runFrame
   : FrameStep =
   let mutable step = FrameBlockEnded
   let mutable running = true
+
+  // The block was already finished when this frame was re-entered: its last instruction was a
+  // call, and the callee has just returned with the result now in the register.
+  if currentFrame.programCounter >= instrData.instructions.Length then
+    noteFinishedValue exeState vm registers instrData (currentFrame.programCounter - 1)
 
   while running
         && currentFrame.programCounter < instrData.instructions.Length

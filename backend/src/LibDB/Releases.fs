@@ -344,6 +344,13 @@ let steps : List<Step> =
           |> Sql.executeStatementSync
           addColumnIfMissing "trace_fn_calls" "frame_id" "TEXT" }
 
+    // Which instruction produced which expression's value, in its own column beside the
+    // instructions. `06-packages.sql` declares it for fresh stores; this carries it to the ones
+    // that already exist. NULL until a function is next written, and a function with no symbols
+    // runs exactly as before and simply shows no values, which is what it did anyway.
+    { name = "20260930_000002_package_functions_debug_symbols"
+      run = fun () -> addColumnIfMissing "package_functions" "debug_symbols" "BLOB" }
+
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]
 

@@ -126,13 +126,21 @@ module RT =
       Values.RuntimeTypes.packageValues
 
   let packageFnTests =
+    // `symbols` travels in its own column, not in this blob, so a roundtrip through the
+    // instructions cannot bring it back and is not meant to. Both sides are normalised to the
+    // same empty table: two `Lazy` values are not equal to each other even when they compute
+    // the same thing, so comparing them would fail on identity rather than on content.
+    let normalise (fn : RT.PackageFn.PackageFn) =
+      { fn with symbols = RT.DebugSymbols.emptyLazy }
+
     Roundtripping.testRoundtripMany
       "packageFns"
       (fun fn ->
         fn
         |> BS.RT.PackageFn.serialize fn.hash
-        |> BS.RT.PackageFn.deserialize fn.hash)
-      Values.RuntimeTypes.packageFns
+        |> BS.RT.PackageFn.deserialize fn.hash
+        |> normalise)
+      (Values.RuntimeTypes.packageFns |> List.map normalise)
 
   let dvalTests =
     let dvalEquals (expected : RT.Dval) (actual : RT.Dval) : bool =

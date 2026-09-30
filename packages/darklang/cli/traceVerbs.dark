@@ -455,8 +455,21 @@ let printValuesJson
         (Stdlib.Int64.toString id, Darklang.Tracing.Format.compactDval branchId dv))
       |> Stdlib.Dict.fromListOverwritingDuplicates
 
+    let selfHash =
+      LanguageTools.PackageManager.Function.find
+        branchId
+        (LanguageTools.ProgramTypes.parsePackageLocation fnName)
+      |> Stdlib.Option.map (fun h ->
+        match h with
+        | Hash v -> v)
+      |> Stdlib.Option.withDefault ""
+
     let sites =
-      (loopsOf frames (Darklang.Tracing.Store.fnsWithHashes trace.id))
+      (loopsOf
+        frames
+        (Darklang.Tracing.Store.fnsWithHashes trace.id)
+        (Darklang.Tracing.Store.storedFrames trace.id)
+        selfHash)
       |> Stdlib.List.map (fun site ->
         let passes =
           site.passes
@@ -507,16 +520,76 @@ type Loop =
     /// not a number from the rendering, so it survives another loop being added above it and
     /// means something without a legend. Two loops of one function are `map` and `map#2`.
     name: String
-    /// One frame per pass, in the order they ran.
-    passes: List<Darklang.Tracing.Store.ViewFrame> }
+    /// One frame per pass the REPLAY reached, in the order they ran. These are what carry the
+    /// values, because values come from re-running.
+    passes: List<Darklang.Tracing.Store.ViewFrame>
+    /// How many passes the RECORD says there were.
+    ///
+    /// Usually the same as `passes`. It differs when the replay stopped early -- an effect the
+    /// log cannot answer, a run suspended mid-loop -- and then this is the true number and
+    /// `passes` is how far the re-run got. Saying "pass 2 of 2" about a loop that ran seven
+    /// times is the failure this exists to prevent. 0 for a trace recorded before the shape was
+    /// kept, where the honest answer is that nobody wrote it down.
+    recorded: Int }
+
+
+/// Is <param frameId> inside <param fnHash>, rather than inside something it called?
+///
+/// Walks up looking for <param fnHash>, stepping over the standard library on the way. A lambda
+/// passed to `List.map` sits under `List.map`'s frame, not directly under the function you are
+/// reading, so stopping at the first function frame would say no to every loop there is. But
+/// stopping at the first frame of YOUR code is right: a loop inside a callee belongs on the
+/// callee's page, and the callee has its own.
+///
+/// <param fuel> bounds the walk: the frames come from a store and a cycle would hang the view,
+/// where a real chain is a handful deep.
+let insideFn
+  (frames: List<Darklang.Tracing.Store.ViewFrame>)
+  (frameId: String)
+  (fnHash: String)
+  (stdlibHashes: List<String>)
+  (fuel: Int)
+  : Bool =
+  if fuel <= 0 then
+    false
+  else
+    match frames |> Stdlib.List.findFirst (fun f -> f.id == frameId) with
+    | None -> false
+    | Some f ->
+      if (f.kind == "function") && (f.callee == fnHash) then
+        true
+      else if (f.kind == "function") && (Stdlib.Bool.not (Stdlib.List.member stdlibHashes f.callee)) then
+        // Somebody else's code, so whatever is below it is on their page.
+        false
+      else if (f.parent == "") || (f.parent == f.id) then
+        false
+      else
+        insideFn frames f.parent fnHash stdlibHashes (fuel - 1)
 
 
 /// The loops of a trace, in the order they first ran.
 let loopsOf
   (frames: List<Darklang.Tracing.Store.ViewFrame>)
   (fnNames: List<String * String>)
+  /// The shape as RECORDED, for the passes a replay could not reach.
+  (stored: List<Darklang.Tracing.Store.StoredFrame>)
+  /// The hash of the function being viewed. A trace goes through many functions and only the
+  /// loops inside THIS one belong on its page: offering `map` while reading a function that
+  /// contains no loop sends someone looking for something that is not there.
+  (selfHash: String)
   : List<Loop> =
-  let lambdas = frames |> Stdlib.List.filter (fun f -> f.kind == "lambda")
+  // Which of the functions this trace went through are the standard library, by hash. Walking
+  // up from a lambda steps over these to find the function whose page this is.
+  let stdlibHashes =
+    fnNames
+    |> Stdlib.List.filter (fun pair ->
+      Stdlib.String.startsWith (Stdlib.Tuple2.first pair) "Darklang.Stdlib.")
+    |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.second pair)
+
+  let lambdas =
+    frames
+    |> Stdlib.List.filter (fun f ->
+      (f.kind == "lambda") && (insideFn frames f.parent selfHash stdlibHashes 64))
 
   // The function a lambda was passed to is its PARENT frame: `List.map` pushes a frame and
   // applies the lambda inside it. That is where a loop's name comes from. The frame carries the
@@ -549,14 +622,24 @@ let loopsOf
       |> Stdlib.Option.map (fun f -> loopNameOf f.parent)
       |> Stdlib.Option.withDefault ""
 
-    (nm, passes))
+    // The recorded count for this call site. Stored lambda frames carry the lambda's own
+    // expression id as their site, which is the same key the replay frames use.
+    let siteText = Stdlib.Int64.toString site
+
+    let recorded =
+      stored
+      |> Stdlib.List.filter (fun f -> (f.kind == "lambda") && (f.site == siteText))
+      |> Stdlib.List.length
+
+    (nm, passes, recorded))
   |> Stdlib.List.filter (fun t ->
-    let (nm, passes) = t
-    (nm != "") && ((Stdlib.List.length passes) > 1))
+    let (nm, passes, recorded) = t
+    // A call site the RECORD says repeated is a loop even if the replay only reached one pass.
+    (nm != "") && (((Stdlib.List.length passes) > 1) || (recorded > 1)))
   // Two loops of one function get `map` and `map#2`, in the order they ran. Numbering only the
   // repeats keeps the common case a plain word.
   |> Stdlib.List.fold [] (fun acc t ->
-    let (nm, passes) = t
+    let (nm, passes, recorded) = t
 
     let seen =
       acc
@@ -565,7 +648,10 @@ let loopsOf
       |> Stdlib.List.length
 
     let name = if seen == 0 then nm else $"{nm}#{Stdlib.Int.toString (seen + 1)}"
-    Stdlib.List.append acc [ Loop { name = name; passes = passes } ])
+
+    Stdlib.List.append
+      acc
+      [ Loop { name = name; passes = passes; recorded = recorded } ])
 
 
 /// One pass's values, laid over the page.
@@ -673,7 +759,16 @@ let printValues
         let (collected, frames, frameValues, problem) =
           Darklang.Tracing.Store.viewTraceTree branchId trace.id
 
-        let sites = loopsOf frames (Darklang.Tracing.Store.fnsWithHashes trace.id)
+        let selfHash =
+          match hash with
+          | Hash h -> h
+
+        let sites =
+          loopsOf
+            frames
+            (Darklang.Tracing.Store.fnsWithHashes trace.id)
+            (Darklang.Tracing.Store.storedFrames trace.id)
+            selfHash
 
         // WHICH PASS OF EACH LOOP YOU ARE LOOKING AT: `--expand map:2,fold:2`.
         //
@@ -791,15 +886,27 @@ let printValues
 
             sites
             |> Stdlib.List.iter (fun site ->
-              let n = Stdlib.Int.toString (Stdlib.List.length site.passes)
+              let reached = Stdlib.List.length site.passes
+              // The RECORD's count when there is one, because it is the true one. A replay that
+              // stopped early has fewer passes than happened, and reporting its count would say
+              // "pass 2 of 2" about a loop that went round seven times.
+              let total = if site.recorded > reached then site.recorded else reached
+              let n = Stdlib.Int.toString total
 
               let p =
                 match chosenOf site with
-                | None -> n
+                | None -> Stdlib.Int.toString reached
                 | Some frame -> positionOf site frame
 
+              let short =
+                if total > reached then
+                  $", the view only reached {Stdlib.Int.toString reached}"
+                else
+                  ""
+
               Stdlib.printLine
-                (Stdlib.Cli.UI.Colors.dimText $"  {site.name}: showing pass {p} of {n}"))
+                (Stdlib.Cli.UI.Colors.dimText
+                  $"  {site.name}: showing pass {p} of {n}{short}"))
 
             Stdlib.printLine
               (Stdlib.Cli.UI.Colors.dimText

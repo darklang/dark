@@ -339,9 +339,15 @@ type Scheduler(quantum : int64) =
       with
       | ValueSome spare ->
         let tlid, program = instrs
+        // Split here too. This is a second way into a root frame, beside `VMState.create`, and a
+        // marker that reaches the interpreter is a marker nobody collected.
+        let struct (rootInstrs, rootSymbols) =
+          RT.DebugSymbols.split program.instructions
+
         let instrData : RT.InstrData =
-          { instructions = List.toArray program.instructions
-            resultReg = program.resultIn }
+          { instructions = List.toArray rootInstrs
+            resultReg = program.resultIn
+            symbols = lazy rootSymbols }
         RT.VMState.reuseFor (spare, tlid, instrData, program.registerCount)
       | ValueNone -> RT.VMState.create instrs
     Interpreter.seedRootAccess exeState.access vm

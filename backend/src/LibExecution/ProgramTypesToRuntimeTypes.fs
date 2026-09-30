@@ -1438,8 +1438,7 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
-    { hash = Hash.toRT f.hash
-      body =
+    let instrs =
         let (rcAfterParams, symbols) : (int * Map<string, int>) =
           f.parameters
           |> NEList.toList
@@ -1453,6 +1452,12 @@ module PackageFn =
           |> Option.orElse (UnwrapReturnCheck.fromBody f.body)
         Expr.toRT symbols rcAfterParams (Some fnName) f.body
         |> UnwrapReturnCheck.applyToInstructions expectedReturnType
+
+    let struct (instructions, debugSymbols) = RT.DebugSymbols.split instrs.instructions
+
+    { hash = Hash.toRT f.hash
+      body = { instrs with instructions = instructions }
+      symbols = lazy debugSymbols
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
       returnType = f.returnType |> TypeReference.toRT

@@ -109,6 +109,10 @@ let private hashCoupledSurvivors =
     // say which of its callees have been edited since. A hash the store no longer has is the
     // interesting case, not a broken one -- the resume reads it as "gone" and says nothing.
     "trace_fns"
+    // Same again, one level down: `fn_hash` on a frame is the version of the callee that frame
+    // ENTERED. It is the shape of a run that happened, which outlives the code it went through
+    // exactly as the calls and the names above do.
+    "trace_frames"
     "type_checked" ] // content-addressed cache: a clean result stays clean
 
 

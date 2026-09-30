@@ -1104,24 +1104,21 @@ let createViewTracer
           else
             ValueNone)
 
-  // How many passes of one loop, or calls at one call site, keep their values.
+  // How many passes of one call site keep their values.
   //
-  // Without a cap the values are back to scaling with the RUN rather than with what can be
-  // shown: `fib 20` pushes about twenty-two thousand frames, and keeping every one of them
-  // costs what appending every expression execution used to cost. Twenty is the threshold the
-  // view summarises at anyway, so past it a frame is counted and its values are not held.
+  // Without a cap the values scale with the RUN rather than with what can be shown: `fib 20`
+  // pushes about twenty-two thousand frames. Past the cap a frame is still counted, so the view
+  // can say how many passes there were, and its values are not held.
   //
-  // Reaching a pass past the cap is a second replay asking for that one pass, which is cheap
-  // now: opening a trace of `fib 20` is 95ms, so a targeted re-run for pass 147 is not a wait.
-  // That is only affordable because the replay got fast; it would not have been before.
+  // Reaching a pass past it is a second view asking for that one pass, which is affordable
+  // because opening a trace is now milliseconds.
   let passCap = 20
 
   // A cheap identity for the CALL SITE a frame belongs to, for counting passes.
   //
-  // This was `string ep` for one measurement, and that alone cost 17x on a view of `fib 20`:
-  // an `ExecutionPoint.Lambda` carries its parent, so formatting one walks and allocates the
-  // whole chain, once per frame, twenty-two thousand times. A lambda's own expression id and a
-  // function's hash are already unique per site and are plain values.
+  // Not `string ep`: an `ExecutionPoint.Lambda` carries its parent, so formatting one walks and
+  // allocates the whole chain, once per frame. A lambda's own expression id and a function's
+  // hash are already unique per site and are plain values.
   let siteKey (ep : RT.ExecutionPoint) : int64 =
     match ep with
     | RT.ExecutionPoint.Source -> 0L
@@ -1162,6 +1159,10 @@ let createViewTracer
       // `pass` is the ordinal among siblings at this call site, which is what a loop's passes
       // are numbered by. Kept on every frame, including those past the cap, so the view can
       // say "200 passes" truthfully while holding twenty of them.
+      // Every pass gets a frame, so the COUNT is honest: a view has to be able to say a loop
+      // went round two thousand times. Past the cap the frame is a marker -- no arguments, no
+      // values -- which is what keeps the cost of a big loop in the count rather than in the
+      // contents.
       let ord = frameOrd
       frameOrd <- frameOrd + 1
 
@@ -1185,13 +1186,11 @@ let createViewTracer
         collectFrames = true
         recordAllCalls = false
         traceEffects = false
-        // Keyed by (frame, expression). The expression id alone is not unique within a run: a
-        // loop body writes the same id once per pass, so keying on it alone kept the last pass
-        // and lost the other hundred and ninety-nine.
+        // Keyed by (frame, expression). An expression id alone is not unique within a run: a
+        // loop body writes the same id once per pass, so keying on it alone keeps only the last.
         //
-        // It is still bounded by what can be shown rather than by what ran, which is the
-        // property that made opening a trace stop scaling with compute. The cap is what keeps
-        // it: past `passCap` a frame is counted and its values are dropped.
+        // Bounded by what can be SHOWN rather than by what ran, which is what stops a view
+        // scaling with compute. `passCap` is what keeps it so.
         storeExprResult =
           fun exprId frameId dv ->
             lock gate (fun () ->
@@ -1201,8 +1200,11 @@ let createViewTracer
               // afterwards would hand back an arbitrary pass instead of the last one. Kept
               // here, where the order is still known.
               lastByExpr[int64 exprId] <- dv
+              // Only for a frame under the cap. Past it the frame is a marker that exists to
+              // be counted; the flat view above still holds the last value, which is what a
+              // collapsed line shows.
               let mutable f = Unchecked.defaultof<ViewFrame>
-              if not (frames.TryGetValue(frameId, &f)) || f.valuesKept then
+              if frames.TryGetValue(frameId, &f) && f.valuesKept then
                 collected[struct (frameId, int64 exprId)] <- dv)
         storeFrameEntry = noteFrame
         viewEffect = Some lookup

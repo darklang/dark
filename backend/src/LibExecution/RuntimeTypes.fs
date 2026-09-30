@@ -877,6 +877,36 @@ and Instructions =
   }
 
 
+/// Which source expression each instruction produced the value of.
+///
+/// The second thing `PT2RT` makes, beside the instructions. The instructions are what the
+/// interpreter RUNS; this is what maps them back to the code a person wrote, and nothing that
+/// only runs code ever needs to load it.
+///
+/// Keyed by instruction index: "after the instruction at this index, the register named here
+/// holds the value of the expression named here". That is exactly what a trace needs to put
+/// `// = 140` beside a line, and it is the same table anything else pointing at source would
+/// want -- a runtime error saying which expression rather than which instruction, a future
+/// step-debugger.
+///
+/// It used to be welded into the instruction stream as a `TraceExpr` opcode after every call:
+/// a symbol table smeared through the code it describes, carried by every run whether or not
+/// anything was watching.
+and DebugSymbols =
+  {
+    /// instruction index -> (the expression, the register its value is in)
+    exprAt : Map<int, struct (id * Register)>
+
+    /// The same, per lambda, keyed by the lambda's expression id.
+    ///
+    /// A lambda's body is its own instruction list run in its own frame with its own program
+    /// counter, so its indices are its own and the enclosing table cannot hold them. Kept here
+    /// rather than on the lambda so the whole tree is ONE artifact in one column, and the
+    /// instruction blob carries none of it.
+    lambdas : Map<id, Map<int, struct (id * Register)>>
+  }
+
+
 and DvalMap = Map<string, Dval>
 
 and [<CustomEquality; CustomComparison>] DictKey =
@@ -2348,7 +2378,119 @@ module PackageFn =
 
       // CLEANUP consider renaming - just `instructions` maybe?
       body : Instructions
+
+      /// Which instruction produced which expression's value. Stored in its own column, and
+      /// LAZY, because running the code never needs it and reading the code always does. Forced
+      /// only where a value is actually being collected, so an ordinary run does not pay to
+      /// deserialize a table nothing will read.
+      symbols : Lazy<DebugSymbols>
     }
+
+
+/// Pulling the symbol table out of the instruction stream.
+///
+/// The compiler emits a `TraceExpr` after every call and every infix, carrying the expression id
+/// and the register its value landed in. That is the mapping a reader needs, in the one place it
+/// does not belong: welded into the code, carried by every run whether or not anything is
+/// watching.
+///
+/// This is the single seam where it comes out, and every path that turns an expression into
+/// something runnable goes through it. The instructions go one way, the table the other, and the
+/// indices in the table are indices into the list AFTER the opcodes are removed, so the
+/// interpreter looks up by program counter with no arithmetic.
+///
+/// After this runs, no `TraceExpr` survives: it is a marker the compiler leaves for this
+/// function to collect, not an instruction anything executes.
+module DebugSymbols =
+  let empty : DebugSymbols = { exprAt = Map.empty; lambdas = Map.empty }
+
+  /// The empty table, as one shared value.
+  ///
+  /// Shared on purpose. `Lazy` has no structural equality, so two `lazy` expressions computing
+  /// the same thing are never equal to each other, and a record holding one compares by
+  /// identity. Everything that means "no symbols here" uses this, so those records compare
+  /// equal -- which is what a serialization roundtrip test asks.
+  let emptyLazy : Lazy<DebugSymbols> = lazy empty
+
+  /// Take the markers out of one instruction list, and say what they said.
+  ///
+  /// Removing instructions moves every instruction after them, and jumps are RELATIVE, so every
+  /// jump that spans a removed marker has to be rewritten or it lands somewhere else. That is
+  /// the whole of the difficulty here, and getting it wrong breaks arithmetic rather than
+  /// tracing: `1 + 2` compiles to a jump over nothing in particular.
+  let private stripFrom
+    (instrs : List<Instruction>)
+    (onLambda : Instruction -> Instruction)
+    : struct (List<Instruction> * Map<int, struct (id * Register)>) =
+    let originals = List.toArray instrs
+
+    // originalIndex -> index in the list being built, or -1 for a marker that is going away.
+    // One extra slot: a jump may target one past the end, which is how a block ends.
+    let newIndex = Array.zeroCreate (originals.Length + 1)
+    let mutable next = 0
+    for i in 0 .. originals.Length - 1 do
+      match originals[i] with
+      | TraceExpr _ -> newIndex[i] <- -1
+      | _ ->
+        newIndex[i] <- next
+        next <- next + 1
+    newIndex[originals.Length] <- next
+
+    /// A relative jump from <param at>, rewritten for the list being built.
+    let rejump (at : int) (offset : int) : int =
+      let target = at + offset
+      let clamped = max 0 (min target originals.Length)
+      // A jump that lands ON a removed marker lands on what follows it instead; scanning
+      // forward is what "what follows it" means.
+      let mutable t = clamped
+      while t < originals.Length && newIndex[t] = -1 do
+        t <- t + 1
+      newIndex[t] - newIndex[at]
+
+    let kept = ResizeArray<Instruction>()
+    let mutable table = Map.empty
+
+    for i in 0 .. originals.Length - 1 do
+      match originals[i] with
+      // The value of the instruction BEFORE it, which is the call that produced it.
+      | TraceExpr(exprId, reg) ->
+        if i > 0 && newIndex[i - 1] >= 0 then
+          table <- Map.add newIndex[i - 1] (struct (exprId, reg)) table
+
+      | JumpBy offset -> kept.Add(JumpBy(rejump i offset))
+      | JumpByIfFalse(offset, condReg) ->
+        kept.Add(JumpByIfFalse(rejump i offset, condReg))
+      | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
+        kept.Add(CheckMatchPatternAndExtractVars(valueReg, pat, rejump i failJump))
+
+      | CreateLambda _ as instr -> kept.Add(onLambda instr)
+
+      | instr -> kept.Add instr
+
+    struct (List.ofSeq kept, table)
+
+
+  let split (instrs : List<Instruction>) : struct (List<Instruction> * DebugSymbols) =
+    let mutable lambdas = Map.empty
+
+    let rec go (instrs : List<Instruction>) =
+      stripFrom instrs (fun instr ->
+        match instr with
+        | CreateLambda(createTo, lambda) ->
+          // A lambda's body is its OWN instruction list, run in its own frame with its own
+          // program counter. Missing this is missing every value inside a loop, which is most
+          // of what anyone opens a trace for.
+          let struct (inner, innerTable) = go lambda.instructions.instructions
+          lambdas <- Map.add lambda.exprId innerTable lambdas
+          CreateLambda(
+            createTo,
+            { lambda with
+                instructions = { lambda.instructions with instructions = inner } }
+          )
+        | other -> other)
+
+    let struct (kept, table) = go instrs
+    struct (kept, { exprAt = table; lambdas = lambdas })
 
 
 /// Functionality written in Dark stored and managed outside of user space
@@ -2589,11 +2731,10 @@ module Tracing =
       /// puts `// = 140` beside a line. One flat stream keyed by source expression id, at every
       /// depth, because `PT2RT` emits `TraceExpr` in every function body it compiles.
       ///
-      /// Independent of `recordAllCalls` on purpose, and that independence is the whole point:
-      /// collecting values needs the VALUE a call produced, not a record of the call, so the
-      /// interpreter can still take every shortcut it would take on an ordinary run. These were
-      /// one flag until it turned out that a view was paying for call recording it never
-      /// asked for and never read -- a 24x multiplier on viewing arithmetic-heavy code.
+      /// Independent of `recordAllCalls` on purpose: collecting values needs the VALUE a call
+      /// produced, not a record of the call, so the interpreter can still take every shortcut it
+      /// would take on an ordinary run. Merging the two costs a view the fast paths it never
+      /// needed to give up.
       collectExprValues : bool
       /// Build the frame tree as the run goes: which frames existed, what each ran, and which
       /// frame made it. Separate from `recordAllCalls` because it does NOT cost the fast paths:
@@ -2661,6 +2802,10 @@ type InstrData =
 
     /// The register that the result of the block will be in
     resultReg : Register
+
+    /// Which instruction produced which expression's value, for whatever is watching. Lazy,
+    /// and forced only when something is collecting values.
+    symbols : Lazy<DebugSymbols>
   }
 
 /// Cached consumer policy and the policy function that produced it. The owner
@@ -3129,6 +3274,16 @@ type VMState =
     /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
     mutable lambdaInstrDataCache : Dictionary<id, InstrData>
 
+    /// Each lambda's symbol table, by the lambda's expression id.
+    ///
+    /// A lambda's table belongs to the function that DEFINED it, but its frame is pushed from
+    /// whatever is applying it -- `List.map`'s frame, not yours. So the tables are collected
+    /// here as functions are entered, and a lambda frame looks up its own. Expression ids are
+    /// unique, so there is nothing to collide.
+    ///
+    /// Only filled when something is collecting values; empty on an ordinary run.
+    mutable lambdaSymbols : Dictionary<id, Map<int, struct (id * Register)>>
+
     /// Memoized `ExecutionPoint`s for lambda frames, keyed on the lambda's expression id and holding
     /// the calling frame's execution point they derive from. See the note at the use site in
     /// `applyInstruction`.
@@ -3245,9 +3400,12 @@ type VMState =
 
     let rootCallFrameID = System.Guid.NewGuid()
 
+    let struct (rootInstrs, rootSymbols) = DebugSymbols.split instrs.instructions
+
     let rootInstrData : InstrData =
-      { instructions = List.toArray instrs.instructions
-        resultReg = instrs.resultIn }
+      { instructions = List.toArray rootInstrs
+        resultReg = instrs.resultIn
+        symbols = lazy rootSymbols }
 
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID
@@ -3273,6 +3431,7 @@ type VMState =
       rootInstrData = struct (tlid, rootInstrData)
       pooledRootFrame = ValueNone
       lambdaInstrDataCache = Dictionary()
+      lambdaSymbols = Dictionary()
       lambdaEpCache = Dictionary()
       stats = InterpreterStats.create ()
       frameToPush = ValueNone
