@@ -171,10 +171,35 @@ type TraceWithCallsJson =
 
 /// What `traces show --json` hands back: which trace was read, and what each expression in the
 /// code evaluated to, keyed by the expression's id. `problem` is set when the replay stopped.
+/// One pass of one loop, for `--json`: what an agent needs to ask for it, and what it produced.
+type LoopPassJson =
+  { pass: Int64
+    /// `--expand map:3`, ready to use.
+    expand: String
+    /// The values this pass produced, by expression id. Everything the pass saw, at once, so an
+    /// agent never has to walk in one step at a time.
+    values: Dict<String, String> }
+
+
+/// A repeated call site, for `--json`.
+type LoopJson =
+  { /// `map`, `fold`, `map#2`: the function this is a loop of. What `--expand` takes.
+    name: String
+    passCount: Int
+    passes: List<LoopPassJson> }
+
+
 type ValuesJson =
   { trace: String
     fn: String
     values: Dict<String, String>
+    /// The loops, with every pass and every pass's values.
+    ///
+    /// A person navigates a step at a time because a screen holds one thing. An agent has no
+    /// such limit and a round trip costs it more than the bytes do, so the whole tree comes back
+    /// in one call. `values` above is still the flat view, which is what a reader of the code
+    /// wants; these are what tells pass 3 from pass 7.
+    loops: List<LoopJson>
     problem: Stdlib.Option.Option<String> }
 
 
@@ -368,7 +393,7 @@ let pin (prefix: String) (pinned: Bool) : Bool =
 // `traces show <fn> [<trace>]` is the code with the values. It replays the whole trace with every
 // effectful call answered from that trace's log -- by name and arguments, classic's key -- and
 // performs none of them. Looking at code never touches the world. A call the log cannot answer
-// stops the preview and says which one it was, rather than going and doing it.
+// stops the view and says which one it was, rather than going and doing it.
 
 
 /// "12 minutes ago  GET /orders  a1b2c3d4", one line per trace that went through the function.
@@ -419,18 +444,202 @@ let printValuesJson
     Cli.printErr e
     false
   | Ok trace ->
-    let (collected, problem) = Darklang.Tracing.Store.previewTrace branchId trace.id
+    let (collected, frames, frameValues, problem) =
+      Darklang.Tracing.Store.viewTraceTree branchId trace.id
+
     let values =
       collected
       |> Stdlib.List.map (fun pair ->
         let (id, dv) = pair
         (Stdlib.Int64.toString id, Darklang.Tracing.Format.compactDval branchId dv))
       |> Stdlib.Dict.fromListOverwritingDuplicates
+
+    let loops =
+      (loopSites frames (Darklang.Tracing.Store.fnsWithHashes trace.id))
+      |> Stdlib.List.map (fun loop ->
+        let passes =
+          loop.passes
+          |> Stdlib.List.map (fun f ->
+            let mine =
+              frameValues
+              |> Stdlib.List.filter (fun row ->
+                let (fid, _, _) = row
+                fid == f.id)
+              |> Stdlib.List.map (fun row ->
+                let (_, exprId, dv) = row
+
+                (Stdlib.Int64.toString exprId,
+                 Darklang.Tracing.Format.compactDval branchId dv))
+              |> Stdlib.Dict.fromListOverwritingDuplicates
+
+            let p = Stdlib.Int64.toString (f.pass + 1L)
+
+            LoopPassJson
+              { pass = f.pass + 1L
+                expand = $"{loop.name}:{p}"
+                values = mine })
+
+        LoopJson
+          { name = loop.name
+            passCount = Stdlib.List.length loop.passes
+            passes = passes })
+
     Stdlib.printLine
       (Stdlib.Json.serialize<ValuesJson>
         (ValuesJson
-          { trace = trace.id; fn = fnName; values = values; problem = problem }))
+          { trace = trace.id
+            fn = fnName
+            values = values
+            loops = loops
+            problem = problem }))
     true
+
+
+/// A repeated call site in one trace: a lambda that ran more than once, which is what a loop is.
+///
+/// Numbered `[1]`, `[2]` in the order the passes first ran, because that is a label a person can
+/// type. Expression ids are the real key and are sixteen digits of nothing to a reader.
+type LoopSite =
+  { /// What a person types: `--expand map`.
+    ///
+    /// The function the lambda was passed to, short: `map`, `fold`, `filter`. A name from the
+    /// code rather than a number from the rendering, so it survives another loop being added
+    /// above it and means something without a legend. Two loops of the same function in one
+    /// place are `map` and `map#2`, in the order they run.
+    name: String
+    /// The lambda's expression id, which is what the frames are keyed by.
+    callSite: Int64
+    /// One frame per pass, in the order they ran.
+    passes: List<Darklang.Tracing.Store.ViewFrame> }
+
+
+/// The repeated call sites of a trace, numbered, in the order they first ran.
+///
+/// A call site that ran ONCE is not a loop and is not listed: there is nothing to choose between,
+/// and its value is already on the line.
+let loopSites
+  (frames: List<Darklang.Tracing.Store.ViewFrame>)
+  (fnNames: List<String * String>)
+  : List<LoopSite> =
+  let lambdas =
+    frames |> Stdlib.List.filter (fun f -> f.kind == "lambda")
+
+  // The function a lambda was passed to is its PARENT frame: `List.map` pushes a frame, and
+  // applies the lambda inside it. That is where a loop's name comes from.
+  // A package frame carries the callee's HASH. The trace records hash-to-name for every
+  // function it went through, which is what turns it back into `map`.
+  let shortNameOf (frameId: String) : String =
+    frames
+    |> Stdlib.List.findFirst (fun f -> f.id == frameId)
+    |> Stdlib.Option.map (fun parent ->
+      if parent.kind == "function" then
+        fnNames
+        |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.second pair) == parent.callee)
+        |> Stdlib.Option.map (fun pair ->
+          Stdlib.Tuple2.first pair
+          |> Stdlib.String.split "."
+          |> Stdlib.List.last
+          |> Stdlib.Option.withDefault "loop")
+        |> Stdlib.Option.withDefault "loop"
+      else
+        "loop")
+    |> Stdlib.Option.withDefault "loop"
+
+  // The distinct call sites, in the order they first appear.
+  let sites =
+    lambdas
+    |> Stdlib.List.fold [] (fun acc f ->
+      if Stdlib.List.member acc f.callSite then acc else Stdlib.List.append acc [ f.callSite ])
+
+  sites
+  |> Stdlib.List.map (fun site ->
+    let passes =
+      lambdas
+      |> Stdlib.List.filter (fun f -> f.callSite == site)
+      |> Stdlib.List.sortBy (fun f -> f.pass)
+
+    (site, passes))
+  |> Stdlib.List.filter (fun pair ->
+    let (_site, passes) = pair
+    (Stdlib.List.length passes) > 1)
+  |> Stdlib.List.map (fun pair ->
+    let (site, passes) = pair
+
+    let base' =
+      passes
+      |> Stdlib.List.head
+      |> Stdlib.Option.map (fun f -> shortNameOf f.parent)
+      |> Stdlib.Option.withDefault "loop"
+
+    (base', site, passes))
+  // Two loops of the same function get `map` and `map#2`, in the order they ran. Numbering only
+  // the repeats keeps the common case a plain word.
+  |> Stdlib.List.fold [] (fun acc triple ->
+    let (base', site, passes) = triple
+
+    let seen =
+      acc
+      |> Stdlib.List.filter (fun l ->
+        (l.name == base') || (Stdlib.String.startsWith l.name $"{base'}#"))
+      |> Stdlib.List.length
+
+    let name = if seen == 0 then base' else $"{base'}#{Stdlib.Int.toString (seen + 1)}"
+
+    Stdlib.List.append
+      acc
+      [ LoopSite { name = name; callSite = site; passes = passes } ])
+
+
+/// Put a set of passes' values onto the page, for one loop.
+///
+/// Several passes on one line, comma-separated: `// = "/r/AA.json", "/r/BBBB.json"`. That is
+/// what expanding a loop MEANS here -- the line is the same line, and it carries what it was
+/// each time round rather than what it happened to be on the last.
+///
+/// Built on top of the flat values, so every line OUTSIDE the loop keeps what it did. Without
+/// that, expanding a loop would blank the function around it, which is the context that makes
+/// the pass mean anything.
+let mergePassValues
+  (branchId: Uuid)
+  (base': Dict<String, String>)
+  (frameValues: List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)>)
+  (passes: List<Darklang.Tracing.Store.ViewFrame>)
+  : Dict<String, String> =
+  let ids = passes |> Stdlib.List.map (fun f -> f.id)
+
+  let mine =
+    frameValues
+    |> Stdlib.List.filter (fun row ->
+      let (fid, _, _) = row
+      Stdlib.List.member ids fid)
+    |> Stdlib.List.map (fun row ->
+      let (_, exprId, dv) = row
+
+      (Stdlib.Int64.toString exprId,
+       PrettyPrinter.RuntimeTypes.dvalOneLine branchId 40 dv))
+
+  // One entry per expression, its passes joined in the order they ran. Built by walking the
+  // distinct keys rather than folding into a dict, because `Dict.set` refuses a key it already
+  // has -- it adds, it does not overwrite.
+  let keys =
+    mine
+    |> Stdlib.List.fold [] (fun acc pair ->
+      let k = Stdlib.Tuple2.first pair
+      if Stdlib.List.member acc k then acc else Stdlib.List.append acc [ k ])
+
+  let joined =
+    keys
+    |> Stdlib.List.map (fun k ->
+      let vs =
+        mine
+        |> Stdlib.List.filter (fun pair -> (Stdlib.Tuple2.first pair) == k)
+        |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.second pair)
+
+      (k, Stdlib.String.join vs ", "))
+
+  // The expanded values last, so they win over the flat one on the same line.
+  Stdlib.List.append (Stdlib.Dict.toList base') joined
+  |> Stdlib.Dict.fromListOverwritingDuplicates
 
 
 /// The function's source, with `// = value` beside each call, for one trace.
@@ -438,6 +647,7 @@ let printValues
   (state: AppState)
   (typed: String)
   (tracePrefix: Stdlib.Option.Option<String>)
+  (expand: Stdlib.Option.Option<String>)
   : AppState =
   let branchId = state.currentBranchId
   let fnName = canonicalFnName branchId typed
@@ -499,27 +709,133 @@ let printValues
         { state with exitCode = 1 }
       | Some fn ->
         // One call: it loads the trace's log, replays the trace with every effect answered from it
-        // and none performed, and hands back what every expression evaluated to.
-        let (collected, problem) = Darklang.Tracing.Store.previewTrace branchId trace.id
+        // and none performed, and hands back what every expression evaluated to, plus the frames
+        // it walked. The frames are what make a loop navigable rather than a single line showing
+        // whichever pass happened to run last.
+        let (collected, frames, frameValues, problem) =
+          Darklang.Tracing.Store.viewTraceTree branchId trace.id
 
-        let values =
-          collected
-          |> Stdlib.List.map (fun pair ->
-            let (id, dv) = pair
-            (Stdlib.Int64.toString id, PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
-          |> Stdlib.Dict.fromListOverwritingDuplicates
+        let loops = loopSites frames (Darklang.Tracing.Store.fnsWithHashes trace.id)
 
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.dimText
-            $"trace {Cli.Text.shortIdText trace.id}  {trace.entry}  {whenText trace.created}")
-        let ctx =
-          { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
-              liveValues = values
-              breakForValues = true }
-        Stdlib.printLine (PrettyPrinter.ProgramTypes.packageFn ctx fn)
-        match problem with
-        | Some message ->
+        // WHICH LOOPS ARE EXPANDED, as a SET: `--expand map,fold`.
+        //
+        // Collapsed, a looped line shows its last pass: a value that is true, is one of several,
+        // and does not say so. Expanded, the line carries every pass. `map:2` narrows to one.
+        let requested =
+          match expand with
+          | None -> []
+          | Some raw -> Stdlib.String.split raw ","
+
+        let wantsAll = Stdlib.List.member requested "all"
+
+        let chosenPassesOf (loop: LoopSite) : List<Darklang.Tracing.Store.ViewFrame> =
+          let selector =
+            requested
+            |> Stdlib.List.findFirst (fun r ->
+              (r == loop.name) || (Stdlib.String.startsWith r $"{loop.name}:"))
+
+          match selector with
+          | None -> if wantsAll then loop.passes else []
+          | Some sel ->
+            match Stdlib.String.split sel ":" with
+            | [ _, p ] ->
+              (match Stdlib.Int64.parse p with
+               | Ok n -> loop.passes |> Stdlib.List.filter (fun f -> f.pass == (n - 1L))
+               | Error _ -> loop.passes)
+            | _ -> loop.passes
+
+        // A name nobody can act on is a refusal, not a silently unchanged page.
+        let unknown =
+          requested
+          |> Stdlib.List.filter (fun r ->
+            let nm =
+              Stdlib.String.split r ":" |> Stdlib.List.head |> Stdlib.Option.withDefault r
+
+            (nm != "all")
+            && ((loops |> Stdlib.List.findFirst (fun l -> l.name == nm))
+                == Stdlib.Option.Option.None))
+
+        match unknown with
+        | bad :: _ ->
+          let names = loops |> Stdlib.List.map (fun l -> l.name) |> Stdlib.String.join ", "
+          Cli.printErr $"no loop called `{bad}` in this trace"
+
+          if names != "" then
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  loops here: {names}")
+
+          { state with exitCode = 1 }
+        | [] ->
+          // The flat view first, so every line outside a loop keeps its value, then each
+          // expanded loop's lines replaced by the passes asked for.
+          let flat =
+            collected
+            |> Stdlib.List.map (fun pair ->
+              let (id, dv) = pair
+              (Stdlib.Int64.toString id, PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
+            |> Stdlib.Dict.fromListOverwritingDuplicates
+
+          let values =
+            loops
+            |> Stdlib.List.fold flat (fun acc loop ->
+              match chosenPassesOf loop with
+              | [] -> acc
+              | chosen -> mergePassValues branchId acc frameValues chosen)
+
           Stdlib.printLine
-            (Stdlib.Cli.UI.Colors.error $"  the preview stopped here: {message}")
-        | None -> ()
-        state
+            (Stdlib.Cli.UI.Colors.dimText
+              $"trace {Cli.Text.shortIdText trace.id}  {trace.entry}  {whenText trace.created}")
+
+          let ctx =
+            { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
+                liveValues = values
+                breakForValues = true }
+
+          Stdlib.printLine (PrettyPrinter.ProgramTypes.packageFn ctx fn)
+
+          match problem with
+          | Some message ->
+            Stdlib.printLine
+              (Stdlib.Cli.UI.Colors.error $"  the view stopped here: {message}")
+          | None -> ()
+
+          // What is on the page, and what else there is. Saying which loops are collapsed is
+          // the difference between trusting the page and being misled by it: a collapsed line
+          // shows one pass of several and looks exactly like a line that ran once.
+          match loops with
+          | [] -> state
+          | _ ->
+            Stdlib.printLine ""
+
+            loops
+            |> Stdlib.List.iter (fun loop ->
+              let n = Stdlib.Int.toString (Stdlib.List.length loop.passes)
+
+              match chosenPassesOf loop with
+              | [] ->
+                Stdlib.printLine
+                  (Stdlib.Cli.UI.Colors.dimText
+                    $"  {loop.name}: {n} passes, showing the last")
+              | [ _ ] ->
+                Stdlib.printLine
+                  (Stdlib.Cli.UI.Colors.dimText $"  {loop.name}: 1 of {n} passes")
+              | chosen ->
+                let c = Stdlib.Int.toString (Stdlib.List.length chosen)
+
+                Stdlib.printLine
+                  (Stdlib.Cli.UI.Colors.dimText $"  {loop.name}: all {c} passes"))
+
+            let collapsed = loops |> Stdlib.List.filter (fun l -> (chosenPassesOf l) == [])
+
+            match collapsed with
+            | [] -> state
+            | _ ->
+              let names =
+                collapsed |> Stdlib.List.map (fun l -> l.name) |> Stdlib.String.join ","
+
+              Stdlib.printLine
+                (Stdlib.Cli.UI.Colors.dimText
+                  $"       dark traces show {fnName} --expand {names}")
+
+              state
+
+

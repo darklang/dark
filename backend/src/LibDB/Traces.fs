@@ -67,7 +67,7 @@ type Trace =
     /// and for one recorded before this column existed. NOT `updated - timestamp`: those are the
     /// same instant for a served request, and on a resumed run they span the suspension.
     durationMs : int64
-    /// For a served request: the handler that served it. What a preview applies to the
+    /// For a served request: the handler that served it. What a view applies to the
     /// recorded request, since a request's input is not source it can re-run.
     entryHash : Option<string>
     created : string
@@ -356,14 +356,14 @@ module Foreground =
     }
 
 
-/// The recorded log of a run, as a preview answers from: the name of each effectful call, the
+/// The recorded log of a run, as a view answers from: the name of each effectful call, the
 /// arguments as they were stored, and the result. Keyed by name and arguments rather than by
-/// ordinal (`Tracing.createPreviewTracer` says why), so this is the whole of what a view needs.
+/// ordinal (`Tracing.createViewTracer` says why), so this is the whole of what a view needs.
 ///
-/// No arming and no shared slot: a preview is one call that loads this, runs, and hands back
+/// No arming and no shared slot: a view is one call that loads this, runs, and hands back
 /// what it collected. Two of them at once cannot take each other's log, which matters when the
 /// thing driving `dark` is an agent rather than a person at a prompt.
-let previewLog (id : System.Guid) : Task<List<string * byte[] * RT.Dval>> =
+let viewLog (id : System.Guid) : Task<List<string * byte[] * RT.Dval>> =
   task {
     let! rows =
       Sql.query

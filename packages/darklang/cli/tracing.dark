@@ -279,10 +279,21 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     (Stdlib.List.member args "--yes") || (Stdlib.List.member args "-y")
   let wantsJson = Stdlib.List.member args "--json"
   let wantsFindInspect = Stdlib.List.member args "--inspect"
+  // `--expand map,fold` picks which loops show every pass, for `show`. Taken out of `args`
+  // here with its value, the same way the boolean flags are, so the positional patterns below
+  // do not have to know it can appear.
+  let expand =
+    args
+    |> Stdlib.List.findFirstIndex (fun a -> a == "--expand")
+    |> Stdlib.Option.andThen (fun i -> Stdlib.List.getAt args (i + 1))
   let args =
     args
     |> Stdlib.List.filter (fun a ->
       a != "--yes" && a != "-y" && a != "--json" && a != "--inspect")
+  let args =
+    match expand with
+    | None -> args
+    | Some v -> args |> Stdlib.List.filter (fun a -> a != "--expand" && a != v)
   // `--view`, then `--show`, both of which opened the newest matching run. That is `log` now,
   // and so is the flag. Refused by name rather than as an unknown flag, so a script still
   // passing one is told what it is called.
@@ -554,7 +565,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           fnName
           Stdlib.Option.Option.None)
     else
-      Cli.TraceVerbs.printValues state fnName Stdlib.Option.Option.None
+      Cli.TraceVerbs.printValues state fnName Stdlib.Option.Option.None expand
   | [ "show", fnName, run ] ->
     if looksLikeATraceId fnName then
       showFromTrace state fnName
@@ -566,7 +577,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           fnName
           (Stdlib.Option.Option.Some run))
     else
-      Cli.TraceVerbs.printValues state fnName (Stdlib.Option.Option.Some run)
+      Cli.TraceVerbs.printValues state fnName (Stdlib.Option.Option.Some run) expand
   // `values` was this verb's name until `show` took it over: `show` shows you the code, which is
   // what you are usually after, and `log` shows the recordings.
   | "values" :: rest ->
@@ -1590,6 +1601,10 @@ let help (_state: Cli.AppState) : String =
     "  show <trace>                  the same from the other end: the code that trace ran"
     "  show <fn> --watch             the same as a panel: up/down pick a trace, and it"
     "                                repaints as traces arrive and as you edit the code"
+    "  show <fn> --expand map        a loop shows every pass on the line, not just the last"
+    "  show <fn> --expand map,fold   several at once; `all` for every loop"
+    "  show <fn> --expand map:2      just that pass"
+    "  show <fn> --json              every loop and every pass at once, for an agent"
     "  calls <fn>                    the traces that went through one function, newest first"
     ""
     "Use a trace"

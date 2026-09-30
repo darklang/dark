@@ -7,7 +7,7 @@
 /// one-shot print of the same thing.
 ///
 /// Nothing here performs an effect. Each repaint replays the selected trace with every impure call
-/// answered from that trace's own log (`Darklang.Tracing.Store.previewTrace`), so a handler that
+/// answered from that trace's own log (`Darklang.Tracing.Store.viewTrace`), so a handler that
 /// charges a card does not charge it again while you look at it. That property is why this can be
 /// left open beside an editor.
 module Darklang.Cli.TraceWatch
@@ -63,7 +63,7 @@ let annotate
         ([ $"{fn} resolves to a version this store cannot load" ],
          Stdlib.Option.Option.None)
       | Some fnDef ->
-        let (collected, problem) = Darklang.Tracing.Store.previewTrace branchId r.id
+        let (collected, problem) = Darklang.Tracing.Store.viewTrace branchId r.id
 
         let values =
           collected

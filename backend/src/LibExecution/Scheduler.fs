@@ -19,7 +19,7 @@
 /// (`docs/processes.md`, "What a process shares and what it owns").
 ///
 /// The one edge (`docs/processes.md`, "Edges"): a callable the HTTP server's handler path or a
-/// preview runs still gets a VM of its own through `Execution.executeApplicable`, outside any
+/// view runs still gets a VM of its own through `Execution.executeApplicable`, outside any
 /// process.
 module LibExecution.Scheduler
 
@@ -186,14 +186,14 @@ let stateForProcess
   (pid : ProcessId)
   : RT.ExecutionState =
   // Every tracer that keeps anything per process needs its own copy, and a PREVIEW is one of
-  // them even though it records nothing: `forProcess` is what hands a spawned child the preview
+  // them even though it records nothing: `forProcess` is what hands a spawned child the view
   // tracer instead of the default, and the default performs effects for real. Testing the
-  // recording flags alone would send a concurrent preview's children off to touch the world.
+  // recording flags alone would send a concurrent view's children off to touch the world.
   let needsPerProcess =
     state.tracing.recordAllCalls
     || state.tracing.traceEffects
     || state.tracing.collectExprValues
-    || Option.isSome state.tracing.previewEffect
+    || Option.isSome state.tracing.viewEffect
 
   if needsPerProcess then
     { state with tracing = state.tracing.forProcess pid }

@@ -1257,8 +1257,8 @@ let private invokeBuiltin
   // -- looking at code must never touch the world. Classic called this Preview and returned
   // `DIncomplete` for the miss; we have no such value, so the run stops and the view says which
   // call stopped it.
-  let previewed =
-    match exeState.tracing.previewEffect with
+  let viewed =
+    match exeState.tracing.viewEffect with
     | Some lookup when not (Set.isEmpty fn.callEffects) ->
       match lookup fn.name.name allArgs with
       | ValueSome step -> ValueSome step
@@ -1272,10 +1272,10 @@ let private invokeBuiltin
         |> raiseRTE vm.threadID
     | _ -> ValueNone
 
-  let fromPreview = ValueOption.isSome previewed
+  let fromView = ValueOption.isSome viewed
 
   let replayed =
-    match previewed with
+    match viewed with
     | ValueSome p -> p
     | ValueNone ->
       if ord >= 0L then
@@ -1285,10 +1285,10 @@ let private invokeBuiltin
 
   match replayed with
   | Tracing.ReplayStep.Serve result ->
-    // Not for a preview: the echo of a logged print, the refusal at an unreproducible handle
+    // Not for a view: the echo of a logged print, the refusal at an unreproducible handle
     // and the stale-file warning are all about a RESUME, where the person is taking a run
     // forward. Looking at code should be silent and should never refuse.
-    if not fromPreview then ReplayPolicy.beforeServing vm fn ord allArgs
+    if not fromView then ReplayPolicy.beforeServing vm fn ord allArgs
     finishBuiltin
       exeState
       vm
@@ -1443,7 +1443,7 @@ let private completeBuiltin
 /// arguments and result when it returns, and a fast path that skipped that would quietly drop every
 /// arithmetic operation from the record.
 ///
-/// It does NOT decline for a preview. A preview collects the VALUE each expression produced, and the
+/// It does NOT decline for a view. A view collects the VALUE each expression produced, and the
 /// fast path leaves that value in the destination register exactly as the long way round does, so the
 /// `TraceExpr` instruction that follows the call reads the same thing either way.
 let private tryFastOp

@@ -110,14 +110,65 @@ let wentThrough (fnName: String) (limit: Int64) : List<Trace> =
   Builtin.tracesWentThrough fnName limit
 
 
+/// One frame the replay walked. `parent` is "" at the entry. A loop's passes are the frames
+/// that share a parent and a `callSite`, numbered by `pass` in the order they ran.
+type ViewFrame =
+  { id: String
+    parent: String
+    /// The lambda's own expression id, for a `lambda` frame. 0 otherwise.
+    callSite: Int64
+    /// Which pass this is among its siblings at that call site: 0 for a plain call.
+    pass: Int64
+    /// "source" | "function" | "lambda"
+    kind: String
+    /// The callee's name, for a `function` frame. "" otherwise.
+    callee: String }
+
+
+/// The same replay, with the frame tree and the values keyed by (frame, expression).
+///
+/// That key is what tells pass 3 from pass 7: keyed by expression alone, a loop's two hundred
+/// passes overwrite each other and only the last survives.
+let viewTraceTree
+  (branchId: Uuid)
+  (traceID: String)
+  : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> *
+    List<ViewFrame> *
+    List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)> *
+    Stdlib.Option.Option<String>) =
+  let (values, frames, frameValues, problem) = Builtin.cliViewTrace branchId traceID
+
+  let frames =
+    frames
+    |> Stdlib.List.map (fun row ->
+      let (id, parent, callSite, pass, kind, callee) = row
+
+      ViewFrame
+        { id = id
+          parent = parent
+          callSite = callSite
+          pass = pass
+          kind = kind
+          callee = callee })
+
+  (values, frames, frameValues, problem)
+
+
 /// Replay a recorded trace for VIEWING: every effectful call answered from that trace's log, none
 /// performed, and every expression's value collected. Hands back the values, by source
 /// expression id, and why it stopped early if it did.
-let previewTrace
+///
+/// This is the FLAT view: one value per expression, the last one executed, which is what puts
+/// `// = 140` beside a line. `viewTraceTree` is the same replay with the frames as well.
+let viewTrace
   (branchId: Uuid)
   (traceID: String)
   : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> * Stdlib.Option.Option<String>) =
-  Builtin.cliPreviewTrace branchId traceID
+  // Through `viewTraceTree` rather than the builtin: one Dark wrapper per builtin is the
+  // rule, and a second reference to `cliViewTrace` is what the builtin-access test catches.
+  let (values, _frames, _frameValues, problem) = viewTraceTree branchId traceID
+
+  (values, problem)
 
 
 /// Expand a trace-ID prefix to the full ID, or say why it can't be.

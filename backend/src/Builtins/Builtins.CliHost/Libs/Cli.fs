@@ -519,7 +519,7 @@ let childState
 
 /// `execute`, with the tracer handed in rather than chosen here.
 ///
-/// A preview supplies one (`cliPreviewTrace`): it answers every effect from a recorded trace's log,
+/// A view supplies one (`cliViewTrace`): it answers every effect from a recorded trace's log,
 /// performs none, records nothing, and is not itself a run -- which is exactly what a supplied,
 /// disabled tracer gives, since `executionId` then stays `None` and the row, the foreground
 /// registration and the status updates are all skipped.
@@ -997,7 +997,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cliPreviewTrace" 0
+    { name = fn "cliViewTrace" 0
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "the branch to resolve names against"
@@ -1005,14 +1005,29 @@ let fns () : List<BuiltInFn> =
       returnType =
         TTuple(
           TList(TTuple(TInt64, TCustomType(NR.ok (RT2DT.Dval.typeName ()), []), [])),
-          TypeReference.option TString,
-          []
+          TList(
+            TTuple(
+              TString,
+              TString,
+              [ TInt64; TInt64; TString; TString ]
+            )
+          ),
+          [ TList(
+              TTuple(TString, TInt64, [ TCustomType(NR.ok (RT2DT.Dval.typeName ()), []) ])
+            )
+            TypeReference.option TString ]
         )
       description =
         "Replay a recorded run for VIEWING: every effectful call is answered from that run's "
         + "log by name and arguments, none is performed, and every expression's value is "
-        + "collected. Returns those values, keyed by the source expression's id, and why it "
-        + "stopped early if it did. Nothing is recorded: a preview is not a run.\n\n"
+        + "collected. Nothing is recorded: a view is not a run.\n\n"
+        + "Four things come back. The VALUES, keyed by source expression id, one per "
+        + "expression, the last one executed: that is what puts `// = 140` beside a line. The "
+        + "FRAMES the replay walked, each as (frame, parent, call site, pass, kind, callee), "
+        + "which is the tree a reader navigates: a loop's passes are the sibling frames "
+        + "sharing a parent and a call site, numbered in the order they ran. The values again "
+        + "keyed by (FRAME, expression), which is what tells pass 3 from pass 7. And why the "
+        + "replay stopped early, if it did.\n\n"
         + "This is classic's Preview. One call rather than an armed mode, so two of them at "
         + "once cannot take each other's log."
       fn =
@@ -1026,26 +1041,104 @@ let fns () : List<BuiltInFn> =
                 []
               )
             let noValues = Dval.list kt []
-            let answer (values : Dval) (problem : Option<string>) =
+            // (frame, parent, call site, pass, kind, callee)
+            let frameKt =
+              KTTuple(
+                ValueType.Known KTString,
+                ValueType.Known KTString,
+                [ ValueType.Known KTInt64
+                  ValueType.Known KTInt64
+                  ValueType.Known KTString
+                  ValueType.Known KTString ]
+              )
+            let frameValueKt =
+              KTTuple(
+                ValueType.Known KTString,
+                ValueType.Known KTInt64,
+                [ ValueType.Known(RT2DT.Dval.knownType ()) ]
+              )
+            let noFrames = Dval.list frameKt []
+            let noFrameValues = Dval.list frameValueKt []
+            let answer
+              (values : Dval)
+              (frames : Dval)
+              (frameValues : Dval)
+              (problem : Option<string>)
+              =
               DTuple(
                 values,
-                (match problem with
-                 | Some p -> Dval.optionSome KTString (DString p)
-                 | None -> Dval.optionNone KTString),
-                []
+                frames,
+                [ frameValues
+                  (match problem with
+                   | Some p -> Dval.optionSome KTString (DString p)
+                   | None -> Dval.optionNone KTString) ]
               )
+            let emptyAnswer (problem : Option<string>) =
+              answer noValues noFrames noFrameValues problem
+
+            /// The frame tree and the per-frame values, as Dark sees them.
+            let treeOf
+              (frames : System.Collections.Generic.Dictionary<_, Tracing.ViewFrame>)
+              (collected :
+                System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>)
+              =
+              let frameRows =
+                frames
+                |> Seq.map (fun kv ->
+                  let f = kv.Value
+                  // A root frame's parent is itself, which is how the interpreter starts; an
+                  // empty string is what Dark reads as "no parent".
+                  let parent =
+                    if f.parent = kv.Key then "" else string f.parent
+                  let kind, callSite, callee =
+                    match f.executionPoint with
+                    | RT.ExecutionPoint.Source -> "source", 0L, ""
+                    | RT.ExecutionPoint.Lambda(_, lambdaExprId) ->
+                      "lambda", int64 lambdaExprId, ""
+                    // The HASH for a package function, not `string name`, which is the F#
+                    // structural form (`Package (Hash "0528ba...")`). The trace already records
+                    // hash-to-name for every function it went through, so the readable name is
+                    // one lookup away on the Dark side and does not need a package read here.
+                    | RT.ExecutionPoint.Function name ->
+                      let callee =
+                        match name with
+                        | RT.FQFnName.Package h -> string h
+                        | RT.FQFnName.Builtin b -> b.name
+                      "function", 0L, callee
+                  DTuple(
+                    DString(string kv.Key),
+                    DString parent,
+                    [ DInt64 callSite
+                      DInt64(int64 f.pass)
+                      DString kind
+                      DString callee ]
+                  ))
+                |> List.ofSeq
+                |> Dval.list frameKt
+              let valueRows =
+                collected
+                |> Seq.map (fun kv ->
+                  let struct (frameId, exprId) = kv.Key
+                  DTuple(
+                    DString(string frameId),
+                    DInt64 exprId,
+                    [ RT2DT.Dval.toDT kv.Value ]
+                  ))
+                |> List.ofSeq
+                |> Dval.list frameValueKt
+              frameRows, valueRows
             match System.Guid.TryParse traceID with
-            | false, _ -> return answer noValues (Some "not an id")
+            | false, _ -> return emptyAnswer (Some "not an id")
             | true, id ->
               match! LibDB.Traces.get id with
-              | None -> return answer noValues (Some "no run has this id")
+              | None -> return emptyAnswer (Some "no run has this id")
               | Some run ->
                 // Only a run whose input is source can be replayed from the CLI. A served
                 // request is a run too, and re-running one needs the server's handler, which
                 // is the next piece of this.
                 match run.input with
                 | DString source ->
-                  let! log = LibDB.Traces.previewLog id
+                  let! log = LibDB.Traces.viewLog id
                   let collected =
                     System.Collections.Generic.Dictionary<
                       struct (System.Guid * int64),
@@ -1054,12 +1147,12 @@ let fns () : List<BuiltInFn> =
                   let frames =
                     System.Collections.Generic.Dictionary<
                       System.Guid,
-                      Tracing.PreviewFrame
+                      Tracing.ViewFrame
                       >()
                   let lastByExpr =
                     System.Collections.Generic.Dictionary<int64, RT.Dval>()
                   let tracer =
-                    Tracing.createPreviewTracer log collected frames lastByExpr
+                    Tracing.createViewTracer log collected frames lastByExpr
                   let exeState = { exeState with branchId = PT.BranchId.Id branchId }
                   let branchState = createBranchState exeState false
                   let! parsed = parseCliExpr branchState source
@@ -1069,12 +1162,15 @@ let fns () : List<BuiltInFn> =
                       DTuple(DInt64 kv.Key, RT2DT.Dval.toDT kv.Value, []))
                     |> List.ofSeq
                     |> Dval.list kt
+                  let answerWithTree () (problem : Option<string>) =
+                    let frameRows, valueRows = treeOf frames collected
+                    answer (values ()) frameRows valueRows problem
                   match parsed with
                   | Error _ ->
-                    return answer noValues (Some "the run's input no longer parses")
+                    return emptyAnswer (Some "the run's input no longer parses")
                   | Ok mod' ->
                     let! dbs = loadDBs ()
-                    let previewState =
+                    let viewState =
                       PolicyStore.guestState
                         exeState.accountID
                         LibExecution.Permissions.Policy.allowAll
@@ -1084,32 +1180,31 @@ let fns () : List<BuiltInFn> =
                     try
                       match!
                         executeWith
-                          previewState
+                          viewState
                           mod'
                           []
                           dbs
                           (EvalExpression source)
                           (Some tracer)
                       with
-                      | Ok _ -> return answer (values ()) None
+                      | Ok _ -> return answerWithTree () None
                       | Error(rte, _) ->
-                        let! message = Exe.runtimeErrorMessage previewState rte
-                        return answer (values ()) (Some message)
+                        let! message = Exe.runtimeErrorMessage viewState rte
+                        return answerWithTree () (Some message)
                     with e ->
-                      return answer (values ()) (Some e.Message)
+                      return answerWithTree () (Some e.Message)
                 | requestDval ->
                   // A served request: its input is a record, so there is no source to re-run.
-                  // The handler that served it was recorded on the row, so the preview applies
+                  // The handler that served it was recorded on the row, so the view applies
                   // that to the request instead -- the same replay, a different way in.
                   match run.entryHash with
                   | None ->
                     return
-                      answer
-                        noValues
+                      emptyAnswer
                         (Some
                           "this run has no source to replay and no handler recorded against it")
                   | Some hash ->
-                    let! log = LibDB.Traces.previewLog id
+                    let! log = LibDB.Traces.viewLog id
                     let collected =
                       System.Collections.Generic.Dictionary<
                         struct (System.Guid * int64),
@@ -1118,18 +1213,21 @@ let fns () : List<BuiltInFn> =
                     let frames =
                       System.Collections.Generic.Dictionary<
                         System.Guid,
-                        Tracing.PreviewFrame
+                        Tracing.ViewFrame
                         >()
                     let lastByExpr =
                       System.Collections.Generic.Dictionary<int64, RT.Dval>()
                     let tracer =
-                      Tracing.createPreviewTracer log collected frames lastByExpr
+                      Tracing.createViewTracer log collected frames lastByExpr
                     let values () =
                       lastByExpr
                       |> Seq.map (fun kv ->
                         DTuple(DInt64 kv.Key, RT2DT.Dval.toDT kv.Value, []))
                       |> List.ofSeq
                       |> Dval.list kt
+                    let answerWithTree () (problem : Option<string>) =
+                      let frameRows, valueRows = treeOf frames collected
+                      answer (values ()) frameRows valueRows problem
                     let applicable =
                       AppNamedFn
                         { name = FQFnName.Package(Hash hash)
@@ -1137,23 +1235,23 @@ let fns () : List<BuiltInFn> =
                           typeArgs = []
                           access = None
                           argsSoFar = [] }
-                    let previewState =
+                    let viewState =
                       { PolicyStore.rootState exeState exeState.access [ Hash hash ] with
                           tracing = tracer.executionTracing }
                     try
                       match!
                         Exe.executeApplicable
-                          previewState
-                          previewState.access
+                          viewState
+                          viewState.access
                           applicable
                           (NEList.singleton requestDval)
                       with
-                      | Ok _ -> return answer (values ()) None
+                      | Ok _ -> return answerWithTree () None
                       | Error(rte, _) ->
-                        let! message = Exe.runtimeErrorMessage previewState rte
-                        return answer (values ()) (Some message)
+                        let! message = Exe.runtimeErrorMessage viewState rte
+                        return answerWithTree () (Some message)
                     with e ->
-                      return answer (values ()) (Some e.Message)
+                      return answerWithTree () (Some e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

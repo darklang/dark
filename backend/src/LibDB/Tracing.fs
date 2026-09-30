@@ -31,7 +31,7 @@ module BinarySer = LibSerialization.Binary.Serialization
 /// A stored setting beats the environment, because the environment here is a container-wide
 /// default and the stored one is a decision somebody made in this store.
 ///
-/// What is NOT stored, at any setting: the pure calls. The preview re-runs pure code against
+/// What is NOT stored, at any setting: the pure calls. The view re-runs pure code against
 /// the recorded impure answers, so a pure value is recomputed rather than kept. Storing them
 /// as well cost 300x the bytes (0.59 MB against 0.002 MB for the same ten thousand calls) and
 /// bought only a call tree for profiling, which is worth its own feature rather than a third
@@ -40,7 +40,7 @@ module TraceDetail =
   type T =
     | Off
     /// The run and its impure calls (non-empty `callEffects`), each with its ordinal and its
-    /// duration: what a resume serves from and what a preview answers from
+    /// duration: what a resume serves from and what a view answers from
     /// (`docs/processes.md`).
     | On
 
@@ -102,7 +102,7 @@ type T =
     /// `traces inspect` cannot reconstruct a request body.
     storeTraceResults : RT.ExecutionState -> Ply.Ply<unit>
 
-    /// Whether this run gets a row of its own. A preview does not: looking at a run is not a run.
+    /// Whether this run gets a row of its own. A view does not: looking at a run is not a run.
     enabled : bool
   }
 
@@ -871,7 +871,7 @@ let createReplayTracer
 /// One frame the replay walked: what made it, what it runs, and which pass it is at that call
 /// site. `valuesKept` is false past the cap, where a frame is counted but its values are not
 /// held, so the view can still say how many passes there were.
-type PreviewFrame =
+type ViewFrame =
   { parent : System.Guid
     executionPoint : RT.ExecutionPoint
     pass : int
@@ -881,7 +881,7 @@ type PreviewFrame =
 
 /// A tracer for VIEWING a run: every effectful call is answered by its name and arguments from
 /// that run's log, none is performed, and every expression's value is collected on the way.
-/// Classic called this Preview. Nothing is written: a preview is not itself a run.
+/// Classic called this Preview. Nothing is written: a view is not itself a run.
 ///
 /// The key is `(name, arguments)` rather than the `(process, ordinal)` a resume uses, and for
 /// the reason classic had: a view has to survive the code having moved on. Add a call in the
@@ -898,11 +898,11 @@ type PreviewFrame =
 /// the last one executed. It is kept as the run goes rather than derived from `collected`
 /// afterwards, because a dictionary does not iterate in insertion order and "the last pass" is
 /// exactly what would be lost.
-let createPreviewTracer
+let createViewTracer
   (rows : List<string * byte[] * RT.Dval>)
   (collected :
     System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>)
-  (frames : System.Collections.Generic.Dictionary<System.Guid, PreviewFrame>)
+  (frames : System.Collections.Generic.Dictionary<System.Guid, ViewFrame>)
   (lastByExpr : System.Collections.Generic.Dictionary<int64, RT.Dval>)
   : T =
   // Every recorded result for a key, in the order it was recorded, rather than just the last.
@@ -933,14 +933,14 @@ let createPreviewTracer
     q.Enqueue result
     lastAnswer[key] <- result
 
-  // The queues are consumed, so two processes of a previewed run must not race on them.
+  // The queues are consumed, so two processes of a viewed run must not race on them.
   let answersGate = obj ()
 
   let lookup (name : string) (args : RT.Dval[]) : RT.Tracing.ReplayStep voption =
     if Set.contains name Redact.performAgain then
       // Serving these is what `performAgain` exists to prevent: a spawn's recorded result is a
       // handle to a process that no longer exists, so serving it makes the next `await` fail.
-      // They are made again instead. A spawned child inherits this tracer, so it previews too
+      // They are made again instead. A spawned child inherits this tracer, so it is viewed too
       // and nothing it does reaches the world either.
       ValueSome RT.Tracing.ReplayStep.PerformOnce
     else
@@ -978,7 +978,7 @@ let createPreviewTracer
 
   // A cheap identity for the CALL SITE a frame belongs to, for counting passes.
   //
-  // This was `string ep` for one measurement, and that alone cost 17x on a preview of `fib 20`:
+  // This was `string ep` for one measurement, and that alone cost 17x on a view of `fib 20`:
   // an `ExecutionPoint.Lambda` carries its parent, so formatting one walks and allocates the
   // whole chain, once per frame, twenty-two thousand times. A lambda's own expression id and a
   // function's hash are already unique per site and are plain values.
@@ -996,14 +996,14 @@ let createPreviewTracer
     System.Collections.Generic.Dictionary<struct (System.Guid * int64), int>()
 
   // A scheduler is one thread, but a worker group is one per core, and every process of a
-  // previewed run shares these three maps: `forProcess` hands each child a tracer that closes
+  // viewed run shares these three maps: `forProcess` hands each child a tracer that closes
   // over the same ones, which is how a spawned child's values reach the same view.
   //
-  // So a previewed `parallelMap` writes to them from several threads at once. A plain
+  // So a viewed `parallelMap` writes to them from several threads at once. A plain
   // Dictionary corrupts under that -- a concurrent resize can spin forever, not merely lose a
   // write -- and the pass counter is a read-modify-write that has to be atomic or two passes
   // take the same number. The lock is held for a dictionary write, nowhere near the interpreter
-  // loop, and it costs nothing measurable against what a preview does per expression.
+  // loop, and it costs nothing measurable against what a view does per expression.
   let gate = obj ()
 
   let noteFrame
@@ -1027,13 +1027,13 @@ let createPreviewTracer
           args = (if seen < passCap then args else [])
           valuesKept = seen < passCap })
 
-  // Every process of the run previews, not just the first. The CLI spawns each expression as a
+  // Every process of the run is viewed, not just the first. The CLI spawns each expression as a
   // process of its own, and the scheduler asks the tracer for that process's own hooks
   // (`forProcess`); handing back the default there is handing back a tracer that performs
-  // effects for real, which is the one thing a preview must never do.
-  let rec previewTracing () : RT.Tracing.Tracing =
+  // effects for real, which is the one thing a view must never do.
+  let rec viewTracing () : RT.Tracing.Tracing =
     { Exe.noTracing with
-        // Values, not calls. The fast paths stay on: a preview reads the value a call left in
+        // Values, not calls. The fast paths stay on: a view reads the value a call left in
         // its register, which the shortcut writes just as the long way round does.
         collectExprValues = true
         collectFrames = true
@@ -1055,15 +1055,15 @@ let createPreviewTracer
               // afterwards would hand back an arbitrary pass instead of the last one. Kept
               // here, where the order is still known.
               lastByExpr[int64 exprId] <- dv
-              let mutable f = Unchecked.defaultof<PreviewFrame>
+              let mutable f = Unchecked.defaultof<ViewFrame>
               if not (frames.TryGetValue(frameId, &f)) || f.valuesKept then
                 collected[struct (frameId, int64 exprId)] <- dv)
         storeFrameEntry = noteFrame
-        previewEffect = Some lookup
-        forProcess = fun _ -> previewTracing () }
+        viewEffect = Some lookup
+        forProcess = fun _ -> viewTracing () }
 
   // `enabled = false` is doing real work: it is what stops the host giving this run a row of
   // its own, and what makes the store a no-op.
   { enabled = false
     storeTraceResults = fun _ -> uply { return () }
-    executionTracing = previewTracing () }
+    executionTracing = viewTracing () }

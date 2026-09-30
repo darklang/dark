@@ -754,7 +754,7 @@ module Values =
     | [] -> Stdlib.Option.Option.None
     | newest :: _ ->
       let (collected, problem) =
-        Darklang.Tracing.Store.previewTrace branchId newest.id
+        Darklang.Tracing.Store.viewTrace branchId newest.id
 
       let byExpr =
         collected

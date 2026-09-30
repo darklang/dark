@@ -22,7 +22,7 @@ let rec noTracing : RT.Tracing.Tracing =
     nextEffect = fun () -> -1L
     noteFunction = fun _ -> ()
     replayEffect = fun _ -> RT.Tracing.ReplayStep.PerformOnwards
-    previewEffect = None
+    viewEffect = None
     forProcess = fun _ -> noTracing }
 
 let noTestContext : RT.TestContext =

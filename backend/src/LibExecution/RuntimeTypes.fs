@@ -2454,7 +2454,7 @@ module DB =
 /// This is a LABEL, not a decision: nothing in the runtime branches on it. What decides
 /// anything is `callEffects`, a set that is empty for a pure call, and it decides everything --
 /// the permission gate, the call-graph analysis, the pure-builtin fast path, and whether a
-/// preview answers a call from the log or performs it. `callEffects` composes and this does not,
+/// a view answers a call from the log or performs it. `callEffects` composes and this does not,
 /// so where the two could disagree, `callEffects` is the one that is true.
 type Previewable =
   /// The same inputs always yield the same outputs. e.g. `DateTime.addSeconds`
@@ -2586,7 +2586,7 @@ module Tracing =
       /// Independent of `recordAllCalls` on purpose, and that independence is the whole point:
       /// collecting values needs the VALUE a call produced, not a record of the call, so the
       /// interpreter can still take every shortcut it would take on an ordinary run. These were
-      /// one flag until it turned out that a preview was paying for call recording it never
+      /// one flag until it turned out that a view was paying for call recording it never
       /// asked for and never read -- a 24x multiplier on viewing arithmetic-heavy code.
       collectExprValues : bool
       /// Build the frame tree as the run goes: which frames existed, what each ran, and which
@@ -2628,15 +2628,15 @@ module Tracing =
       /// Two keys for two jobs. A resume keys on `(process, ordinal)`, which keeps order and
       /// tells two identical calls apart; a view keys on `(name, arguments)`, which survives
       /// an edit that adds a call in the middle -- every call you did not touch still matches.
-      /// `ValueNone` means the log cannot answer it, and the preview stops there. A `Serve`
+      /// `ValueNone` means the log cannot answer it, and the view stops there. A `Serve`
       /// hands back what was recorded; `PerformOnce` is for the handful of calls that must be
       /// made again rather than served -- a spawn, whose recorded result is a handle to a
       /// process that no longer exists, and an environment read, whose result was never stored.
-      /// Those perform under the preview's own tracer, so a spawned child previews too.
+      /// Those perform under the view's own tracer, so a spawned child is viewed too.
       ///
       /// The arguments arrive as the array the interpreter already has, so an ordinary run
       /// pays one null test here and allocates nothing.
-      previewEffect : Option<string -> Dval[] -> ReplayStep voption>
+      viewEffect : Option<string -> Dval[] -> ReplayStep voption>
       /// The same trace, seen from another process. A recorder keeps one call stack per
       /// process and stamps every event with the process id and a sequence number across
       /// the whole trace, so two processes stepping on two threads write one log whose

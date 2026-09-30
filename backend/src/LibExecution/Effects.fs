@@ -8,7 +8,7 @@ module LibExecution.Effects
 open Prelude
 
 /// A deliberately small initial vocabulary. Add a case only when callers need
-/// to distinguish it for typechecking, preview, replay, or scheduling.
+/// to distinguish it for typechecking, viewing, replay, or scheduling.
 [<RequireQualifiedAccess>]
 type Effect =
   | Http

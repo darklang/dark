@@ -1098,13 +1098,22 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
     // Grouped, so a short lambda stays on one line. It used to break unconditionally, which cost two
     // lines for `(fun x -> x + 1L)` and pushed the body of every `List.map` down a line for nothing.
+    // The closing paren goes after a SOFT line, which is nothing when the lambda fits on one
+    // line and a break when it does not. It has to be there: a multi-line body ends with an
+    // expression that `lineDoc` may annotate, and a bare `)` after that annotation lands inside
+    // the comment -- `Stdlib.String.length line // = 14)` -- so the rendered code is wrong and
+    // will not parse.
+    //
+    // Soft rather than conditional on whether there ARE values: the editor's inlay hints print
+    // this twice, once with values and once without, and zip the two line for line. A break
+    // that appears only when a value does would shift every line below it in one of the two.
     Stdlib.Pretty.group (
       Stdlib.Pretty.concat
         (txt $"(fun {patsPart} ->")
         (Stdlib.Pretty.concat
           (Stdlib.Pretty.nest 2 (
             Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx body)))
-          (txt ")")))
+          (Stdlib.Pretty.concat Stdlib.Pretty.softLine (txt ")"))))
 
   | EStatement(_id, first, next) ->
     Stdlib.Pretty.concat
