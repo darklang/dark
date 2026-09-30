@@ -877,10 +877,11 @@ let createReplayTracer
 /// there; a name-and-arguments key still answers every call you did not touch. Last write wins,
 /// as classic's `DISTINCT ON ... ORDER BY timestamp DESC` did.
 ///
-/// `collected` is where the values land, keyed by the source expression's id.
+/// `collected` is where the values land, keyed by the source expression's id, last write
+/// winning. See `storeExprResult` below for why that key is doing real work.
 let createPreviewTracer
   (rows : List<string * byte[] * RT.Dval>)
-  (collected : System.Collections.Generic.List<int64 * RT.Dval>)
+  (collected : System.Collections.Generic.Dictionary<int64, RT.Dval>)
   : T =
   let answers = System.Collections.Generic.Dictionary<string, RT.Dval>()
   for (name, argsBytes, result) in rows do
@@ -918,7 +919,17 @@ let createPreviewTracer
         collectExprValues = true
         recordAllCalls = false
         traceEffects = false
-        storeExprResult = fun exprId dv -> collected.Add(int64 exprId, dv)
+        // Last write wins, per source expression. A list here looks more faithful and is
+        // not: a recursive function or a loop writes the SAME expression id once per call, so
+        // `fib 20` appended about a hundred and thirty thousand entries and the caller then
+        // kept eight of them -- having converted every one to a Dark value first. Keying at
+        // collection makes the cost the size of what can be DISPLAYED rather than the size of
+        // the run, which is what made a preview scale with compute instead of with code.
+        //
+        // The shape work replaces this key with (frame path, expression id) so a loop's passes
+        // stop overwriting each other. That is a bigger key, not a longer list: still bounded
+        // by what a reader can be shown.
+        storeExprResult = fun exprId dv -> collected[int64 exprId] <- dv
         previewEffect = Some lookup
         forProcess = fun _ -> previewTracing () }
 
