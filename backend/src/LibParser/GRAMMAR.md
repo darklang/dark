@@ -276,7 +276,7 @@ Generics work on:
 `>>` closes two levels.
 
 A type parameter may carry **bounds**: `'a: Show`, or several joined with `+`
-(`'a: Show + Equal`; `,` separates parameters, so it cannot separate bounds).
+(`'a: Show + Compare`; `,` separates parameters, so it cannot separate bounds).
 A bound names a trait, optionally with type arguments (`'a: Convert<Int>`).
 Bounds are allowed on function and type declarations, and on `impl`. A bound
 that does not name a trait is `PARSE-BOUND`.
@@ -355,12 +355,11 @@ declaration or an alias of an existing fn:
       let show (xs: List<'a>) : String = "..."
 
 An entry that is neither (a `val`, a `let` bound to anything but a name) is
-`PARSE-BOUND`; an impl with no entries is `PARSE-EXPECTED`. An impl lowers to
-its own package item (`PT.TraitImpl`) named `<module>[.<Type>].<Trait>`, with the
-method fns declared in the block as ordinary fns beneath that name and an
-alias naming the fn it points at; the type segment is omitted when the
-enclosing module is already named for the type. Duplicate member names are
-`VALIDATION-IMPL-METHODS`.
+`PARSE-BOUND`; an impl with no entries is `PARSE-EXPECTED`. An impl lowers to its
+own package item (`PT.TraitImpl`) named `<module>[.<Type>].<Trait>`, its declared
+methods becoming ordinary fns beneath that name and an alias naming the fn it
+points at. The type segment is dropped when the enclosing module is already named
+for the type. Duplicate member names are `VALIDATION-IMPL-METHODS`.
 
 ### Test classification
 

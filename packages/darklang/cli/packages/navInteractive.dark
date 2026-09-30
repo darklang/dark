@@ -175,7 +175,7 @@ let buildNavItemsFromResults
     |> Stdlib.List.map (fun i ->
       NavItem { name = i.location.name; entityType = EntityType.Impl; location = PackageLocation.Impl i.location })
 
-  Stdlib.List.flatten [ submodules, types, traits, values, functions, impls ]
+  Stdlib.List.flatten [ submodules, types, functions, values, traits, impls ]
 
 
 // Create interactive navigation state for a location

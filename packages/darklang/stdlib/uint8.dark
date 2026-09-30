@@ -150,31 +150,25 @@ let shiftLeft (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8ShiftLeft a b
 let shiftRight (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8ShiftRight a b
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for UInt8 =
   let add = Stdlib.UInt8.add
 
-
 impl Subtract for UInt8 =
   let subtract = Stdlib.UInt8.subtract
-
 
 impl Multiply for UInt8 =
   let multiply = Stdlib.UInt8.multiply
 
-
 impl Divide for UInt8 =
   let divide = Stdlib.UInt8.divide
-
 
 impl Modulo for UInt8 =
   let modulo = Stdlib.UInt8.``mod``
 
-
 impl Power for UInt8 =
   let power = Stdlib.UInt8.power
-
 
 impl Compare for UInt8 =
   let lessThan = Stdlib.UInt8.lessThan
@@ -182,38 +176,29 @@ impl Compare for UInt8 =
   let greaterThan = Stdlib.UInt8.greaterThan
   let greaterThanOrEqualTo = Stdlib.UInt8.greaterThanOrEqualTo
 
-
 impl ToString for UInt8 =
   let toString = Stdlib.UInt8.toString
-
 
 impl Zero for UInt8 =
   let zero () : UInt8 = 0uy
 
-
 impl One for UInt8 =
   let one () : UInt8 = 1uy
-
 
 impl BitwiseAnd for UInt8 =
   let bitwiseAnd = Stdlib.UInt8.bitwiseAnd
 
-
 impl BitwiseOr for UInt8 =
   let bitwiseOr = Stdlib.UInt8.bitwiseOr
-
 
 impl BitwiseXor for UInt8 =
   let bitwiseXor = Stdlib.UInt8.bitwiseXor
 
-
 impl BitwiseNot for UInt8 =
   let bitwiseNot = Stdlib.UInt8.bitwiseNot
 
-
 impl ShiftLeft for UInt8 =
   let shiftLeft = Stdlib.UInt8.shiftLeft
-
 
 impl ShiftRight for UInt8 =
   let shiftRight = Stdlib.UInt8.shiftRight

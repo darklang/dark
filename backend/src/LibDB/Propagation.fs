@@ -358,21 +358,22 @@ let private stabilizationFromAffected
   (seedMapping : AT.HashMapping)
   (affected : List<Affected>)
   : HS.Stabilization =
-  let mutable types = Map.empty
-  let mutable fns = Map.empty
-  let mutable values = Map.empty
-  let mutable traits = Map.empty
-  let mutable impls = Map.empty
-  for a in affected do
-    match a with
-    | AffectedType(fqn, t, h, loc) -> types <- Map.add fqn (t, h, loc) types
-    | AffectedFn(fqn, f, h, loc) -> fns <- Map.add fqn (f, h, loc) fns
-    | AffectedValue(fqn, v, h, loc) -> values <- Map.add fqn (v, h, loc) values
-    | AffectedTrait(fqn, t, h, loc) -> traits <- Map.add fqn (t, h, loc) traits
-    | AffectedTraitImpl(fqn, i, h, loc) -> impls <- Map.add fqn (i, h, loc) impls
-  HS.stabilize
-    seedMapping
-    { types = types; fns = fns; values = values; traits = traits; impls = impls }
+  affected
+  |> List.fold
+    (fun (input : HS.Input) a ->
+      match a with
+      | AffectedType(fqn, t, h, loc) ->
+        { input with types = Map.add fqn (t, h, loc) input.types }
+      | AffectedFn(fqn, f, h, loc) ->
+        { input with fns = Map.add fqn (f, h, loc) input.fns }
+      | AffectedValue(fqn, v, h, loc) ->
+        { input with values = Map.add fqn (v, h, loc) input.values }
+      | AffectedTrait(fqn, t, h, loc) ->
+        { input with traits = Map.add fqn (t, h, loc) input.traits }
+      | AffectedTraitImpl(fqn, i, h, loc) ->
+        { input with impls = Map.add fqn (i, h, loc) input.impls })
+    HS.emptyInput
+  |> HS.stabilize seedMapping
 
 
 /// Apply the SCC stabilization to one affected item: transform body, stamp

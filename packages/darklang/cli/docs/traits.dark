@@ -3,11 +3,10 @@ module Darklang.Cli.Docs.Traits
 let content () : String =
   """# Traits
 
-A trait names one or more fns over one open type. An implementation says how one
-type does them. A call picks the implementation by the type of the value it is
-given. Every operator is a trait (`+` is `Add`, `<` is `Compare`), as
-is `toString`, so every builtin type already has implementations; yours join
-with one `impl`.
+A trait names one or more fns over one open type; an implementation says how one type
+does them; a call picks by the type of the value it is given. Nearly every operator is a
+trait (`+` is `Add`, `<` is `Compare`; `==` is not), as is `toString`, so every
+builtin type already has implementations. Yours join with one `impl`.
 
 ## Implement a trait that exists
   type Point = { x: Int64; y: Int64 }
@@ -86,11 +85,10 @@ with one `impl`.
   operators; String implements Add (`"a" + "b"`) and Compare, so `"a" < "b"` works;
   Char and DateTime implement Compare too.
 
-  Two things worth knowing. An implementation of your own for a builtin numeric
-  type -- `impl Add for Int64` -- is stored and never called: two operands of one
-  builtin numeric type are added directly. And `==` is not a trait: equality is
-  structural for every value, always, and no type can say otherwise. `docs operators`
-  has the operator table.
+  Two things worth knowing. Your own `impl Add for Int64` is stored and never called:
+  two operands of one builtin numeric type are added directly. And `==` is not a
+  trait: equality is structural for every value and no type can say otherwise.
+  `docs operators` has the operator table.
 
 ## Which implementation a call runs
   It is decided when you SAVE, not when the call runs. The checker knows the type
@@ -100,13 +98,11 @@ with one `impl`.
   other update does, through `dark propagate` (and `pin` refuses it), because a
   stored call depends on that implementation's fn like any other call.
 
-  Operators are trait methods, so `v1 + v2` is stored the same way.
-
-  Two cases are not decided at save time, and resolve at run time as before:
-    - inside a bounded fn (`let display<'a: Show> (v: 'a) = Show.show v`), where
-      the implementation depends on the type the caller passes. Deciding that
-      when you save is compiler work nobody has done yet.
-    - an operator inside a pipeline (`x |> (+) y`).
+  Operators are stored the same way, inside a pipeline too. A call in a bounded fn
+  (`let display<'a: ToString> (v: 'a) = v.toString`) stores "whatever my caller's 'a
+  implied", and the caller stores which implementation that was, so it is not a
+  run-time lookup either. What is left for run time: a call whose type nothing could
+  work out when it was saved.
 
 ## Two implementations for one type
   A call finds an implementation anywhere on the branch, whatever module it was
@@ -127,7 +123,7 @@ with one `impl`.
   Bool has no implementation of Stdlib.Add. Write `impl Add for Bool = ...`, or
   run `dark impls Add` to see which types do
 
-  2 implementations of Stdlib.Show for Int64 exist, and there is no record of
+  2 implementations of Stdlib.ToString for Int64 exist, and there is no record of
   which came first, so none is used
       only for implementations a script made in memory
 

@@ -534,6 +534,20 @@ let private reResolveTraitRef
     return { trait_ = trait_; typeArgs = typeArgs }
   }
 
+/// The parameter walk `reResolveFn` and `reResolveTrait` share.
+let private reResolveParams
+  (contextModules : List<string>)
+  (pm : PT.PackageManager)
+  (ps : NEList<PT.PackageFn.Parameter>)
+  : Ply<NEList<PT.PackageFn.Parameter>> =
+  ps
+  |> Ply.NEList.mapSequentially (fun (p : PT.PackageFn.Parameter) ->
+    uply {
+      let! typ = reResolveTypeRef contextModules pm p.typ
+      return { p with typ = typ }
+    })
+
+
 let private reResolveBounds
   (contextModules : List<string>)
   (pm : PT.PackageManager)
@@ -578,14 +592,7 @@ let reResolveFn
   uply {
     let! body = reResolveExpr contextModules pm f.body
 
-    let! parameters =
-      Ply.NEList.mapSequentially
-        (fun (p : PT.PackageFn.Parameter) ->
-          uply {
-            let! typ = reResolveTypeRef contextModules pm p.typ
-            return { p with typ = typ }
-          })
-        f.parameters
+    let! parameters = reResolveParams contextModules pm f.parameters
 
     let! returnType = reResolveTypeRef contextModules pm f.returnType
     let! bounds = reResolveBounds contextModules pm f.bounds
@@ -614,16 +621,16 @@ let reResolveTrait
       Ply.NEList.mapSequentially
         (fun (m : PT.Trait.Method) ->
           uply {
-            let! parameters =
-              Ply.NEList.mapSequentially
-                (fun (p : PT.PackageFn.Parameter) ->
-                  uply {
-                    let! typ = reResolveTypeRef contextModules pm p.typ
-                    return { p with typ = typ }
-                  })
-                m.parameters
+            let! parameters = reResolveParams contextModules pm m.parameters
             let! returnType = reResolveTypeRef contextModules pm m.returnType
-            return { m with parameters = parameters; returnType = returnType }
+            // A method's OWN bounds are hashed and read by the checker like the trait's,
+            // so a forward-referenced trait in one has to be repaired here too.
+            let! methodBounds = reResolveBounds contextModules pm m.bounds
+            return
+              { m with
+                  parameters = parameters
+                  returnType = returnType
+                  bounds = methodBounds }
           })
         t.methods
     return { t with bounds = bounds; methods = methods }
@@ -643,11 +650,9 @@ let reResolveImpl
   let contextModules = owner :: modules @ [ name ]
 
   uply {
-    let! traitRef =
-      reResolveTraitRef
-        contextModules
-        pm
-        { trait_ = i.trait_; typeArgs = i.traitTypeArgs }
+    let! trait_ = reResolveTraitName contextModules pm.findTrait i.trait_
+    let! traitTypeArgs =
+      Ply.List.mapSequentially (reResolveTypeRef contextModules pm) i.traitTypeArgs
     let! self = reResolveTypeRef contextModules pm i.self
     let! bounds = reResolveBounds contextModules pm i.bounds
     let! methods =
@@ -659,8 +664,8 @@ let reResolveImpl
         })
     return
       { i with
-          trait_ = traitRef.trait_
-          traitTypeArgs = traitRef.typeArgs
+          trait_ = trait_
+          traitTypeArgs = traitTypeArgs
           self = self
           bounds = bounds
           methods = methods }

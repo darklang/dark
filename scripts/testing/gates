@@ -35,9 +35,8 @@ GATES=(
   gates-are-clean
 )
 
-# What CI runs, in one config line: the gates that need only the debug build already in
-# backend/Build. first-day wants a published artifact and the sync gates add minutes; those run
-# locally, by name or via `all`.
+# What CI runs: the gates that need only the debug build already in backend/Build. first-day
+# wants a published artifact and the sync gates add minutes; those run locally or via `all`.
 CI_GATES=(relay-routes workbench-scm workbench-views trait-choice-survives-rival)
 
 describe() {
@@ -158,13 +157,8 @@ case "$cmd" in
   all)
     NAMES=()
     for g in "${GATES[@]}"; do [[ "$g" == "gates-are-clean" ]] || NAMES+=("$g"); done
-    # Serial by default. Parallel is four times faster and reports failures that are not there:
-    # measured on one quiet clone, `--parallel` failed six of ten on this branch and two of ten on
-    # main, and every one of them passed on its own straight afterwards. It is not the capability
-    # file (giving each gate its own HOME changes nothing) and it is not this branch (main fails
-    # too); it looks like the gates that stand up servers timing out against each other under load.
-    # Until that is chased down, a red gate should mean a red gate. CI runs `gates ci`, which was
-    # always serial, so nothing there changes.
+    # Serial by default: `--parallel` is four times faster and reports failures that are not
+    # there (six of ten here, two of ten on main, all passing on their own straight after).
     if [[ "${1:-}" == "--parallel" ]]; then
       run_parallel "${NAMES[@]}"
     else

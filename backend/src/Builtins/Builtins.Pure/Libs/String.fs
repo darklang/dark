@@ -107,8 +107,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString a; DString b |] ->
-          // Ordinal, not culture-aware: the same two strings have to order the same way on
-          // every machine, which a culture-aware comparison does not promise.
+          // Ordinal so the ordering is the same on every machine; see the description.
           Ply(DInt64(int64 (System.String.CompareOrdinal(a, b))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

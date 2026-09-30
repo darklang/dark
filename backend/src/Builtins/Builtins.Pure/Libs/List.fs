@@ -886,10 +886,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO make this consistent with `==`. `==` consults a type's `Equal` implementation,
-    // and inside containers too; this does not, so `xs == ys` can say equal where
-    // `List.member` says no. Consistency means a call per element on a path that was moved
-    // INTO F# to avoid exactly that, so it needs a decision and a measurement, not a patch.
     { name = fn "listMember" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "value" varA "" ]
@@ -1016,10 +1012,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO make this consistent with `==`. `==` consults a type's `Equal` implementation,
-    // and inside containers too; this does not, so `xs == ys` can say equal where
-    // `List.unique` keeps both. Consistency means a call per element on a path that was moved
-    // INTO F# to avoid exactly that, so it needs a decision and a measurement, not a patch.
     { name = fn "listUnique" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -1041,9 +1033,10 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO make this consistent with `==`. `<` consults a type's `Compare` implementation; this sorts
-    // structurally, so a type can order one way under `<` and another under `List.sort`. Consistency means a call per element on a path that was moved
-    // INTO F# to avoid exactly that, so it needs a decision and a measurement, not a patch.
+    // TODO inconsistent with `<`, which dispatches on the type's `Compare` impl; this sorts
+    // structurally, so a type can order one way under `<` and another under `List.sort`.
+    // Fixing it means a dispatched call per comparison on a path that was moved into F# to
+    // avoid exactly that, so it wants a measurement first.
     { name = fn "listSort" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]

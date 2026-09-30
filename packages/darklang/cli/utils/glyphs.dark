@@ -21,10 +21,10 @@ val type_ = "#"
 /// A value, and the fallback for anything unrecognised.
 val value = "•"
 
-/// A trait.
+/// A trait: the hollow diamond to its impls' filled one.
 val trait_ = "◇"
 
-/// An impl.
+/// An impl of a trait: `trait_` filled in.
 val impl_ = "◆"
 
 
@@ -61,7 +61,7 @@ let sectionHeader (kind: String) : String =
     | "val" -> "Values"
     | "value" -> "Values"
     | "trait" -> "Traits"
-    | "impl" -> "Implementations"
+    | "impl" -> "Trait implementations"
     | other -> other
 
   $"{Glyphs.forKind kind} {label}:"

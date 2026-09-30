@@ -27,9 +27,7 @@ let content () : String =
   and Float". `"a" + "b"` is `"ab"`, since String implements Add.
   A type of your own joins with `impl Add for Vec = ...`.
   `/` is integer division on ints, float division on floats.
-  `%` is integer-only (the modulus must be > 0). Float has no Modulo implementation:
-  float wrapping is a named function's job in most languages, ours was wrong in several
-  ways, and nothing used it.
+  `%` is integer-only (the modulus must be > 0). Float has no Modulo implementation.
   `**` (power) works on all integer types and Float (not Int128/UInt128,
   which have no Power implementation), and nests right: `2 ** 3 ** 2` is
   `2 ** (3 ** 2)`.

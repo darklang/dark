@@ -50,14 +50,10 @@ module HandleCommand =
       // Load all packages from disk as live ops (commit-free authoring: no init commit).
       // Note: values are stored with NULL rt_dval at this point.
       //
-      // Run twice, because the second pass needs the first one's answers. A trait call and an
-      // operator record the implementation they resolved to, and working that out needs the
-      // at-rest checker, the trait hashes in `package-ref-hashes.txt` (generated below) and the
-      // impl stamps in the store. None of those exist until the tree is in. So: fill, generate
-      // the refs, resolve, and fill again with the resolved ops.
-      //
-      // Without this, nothing the CLI ships records its implementation, because the pass is
-      // reached from `addAuthored` and this path does not go through it.
+      // Filled twice: resolving what a trait call or operator runs needs the at-rest checker,
+      // the hashes in `package-ref-hashes.txt` and the impl stamps, none of which exist until
+      // the tree is in. Without the second pass nothing the CLI ships records its impl, since
+      // resolution is reached from `addAuthored` and this path is not.
       let fill (commitBaseline : bool) (ops : List<PackageOp>) : Ply<unit> =
         uply {
           do! LibDB.Purge.purge ()

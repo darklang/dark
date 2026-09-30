@@ -77,9 +77,19 @@ let isGreaterThan (c1: Char) (c2: Char) : Bool =
 let isGreaterThanOrEqualTo (c1: Char) (c2: Char) : Bool =
   Builtin.charIsGreaterThanOrEqualTo c1 c2
 
+/// `a < b` on Chars: ordinal, the rule the four comparisons above already use.
+impl Compare for Char =
+  let lessThan = Stdlib.Char.isLessThan
+  let lessThanOrEqualTo = Stdlib.Char.isLessThanOrEqualTo
+  let greaterThan = Stdlib.Char.isGreaterThan
+  let greaterThanOrEqualTo = Stdlib.Char.isGreaterThanOrEqualTo
+
 
 /// Stringify <param c>
 let toString (c: Char) : String = Builtin.charToString c
+
+impl ToString for Char =
+  let toString = Stdlib.Char.toString
 
 
 /// Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,
@@ -91,15 +101,3 @@ let fromCodepoint (codepoint: Int) : Stdlib.Option.Option<Char> =
 /// Return the codepoint when <param c> contains exactly one Unicode scalar.
 /// This is the inverse of <fn Char.fromCodepoint>.
 let toCodepoint (c: Char) : Stdlib.Option.Option<Int> = Builtin.charToCodepoint c
-
-
-impl ToString for Char =
-  let toString = Stdlib.Char.toString
-
-
-/// `a < b` on Chars: ordinal, the rule the four comparisons above already use.
-impl Compare for Char =
-  let lessThan = Stdlib.Char.isLessThan
-  let lessThanOrEqualTo = Stdlib.Char.isLessThanOrEqualTo
-  let greaterThan = Stdlib.Char.isGreaterThan
-  let greaterThanOrEqualTo = Stdlib.Char.isGreaterThanOrEqualTo

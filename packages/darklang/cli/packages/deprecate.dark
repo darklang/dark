@@ -1,6 +1,6 @@
 module Darklang.Cli.Packages.Deprecate
 
-// `deprecate` marks a fn/type/value as deprecated.
+// `deprecate` marks a fn/type/value/trait/impl as deprecated.
 //
 // TODO (v1.5): interactive kind picker when stdin is a TTY and --kind is
 //   missing (reuse CompletionPicker).
@@ -101,10 +101,10 @@ val allItemKinds =
 
 /// The kind and the target, whether or not the kind was typed.
 ///
-/// `deprecate fn Acme.Foo` and `deprecate Acme.Foo` both work. You know the name; being made to name
-/// its kind as well is a question a tool asks because the question is easy to implement, and `delete`
-/// and `undeprecate` already infer it. `locations` does not stop one name holding two kinds, so a name
-/// that resolves twice is refused rather than guessed at, and the explicit form is how you say which.
+/// `deprecate fn Acme.Foo` and `deprecate Acme.Foo` both work, as they do for
+/// `delete` and `undeprecate`. `locations` does not stop one name holding two
+/// kinds, so a name that resolves twice is refused rather than guessed at; the
+/// explicit form is how you say which.
 let resolveKindAndTarget
   (branchId: Uuid)
   (currentLoc: Packages.PackageLocation)

@@ -220,9 +220,9 @@ module InfixFnName =
     // checking resolve operators consistently.
     RT.FQFnName.builtin (PT.InfixFnName.toBuiltinName name) 0
 
-  /// What an operator calls: the stdlib trait method for arithmetic and
-  /// comparison, the polymorphic builtin for the rest (and for every operator
-  /// while the package refs are not generated yet).
+  /// What an operator calls: the stdlib trait method for arithmetic and ordering, the
+  /// polymorphic builtin for the rest (`==`, `!=`, `&&`, `||`) and for every operator
+  /// while the package refs are not generated yet.
   let toRT
     (implFn : PT.FQFnName.ImplChoice)
     (name : PT.InfixFnName)
@@ -996,36 +996,6 @@ module Expr =
         resultIn = resultReg }
 
 
-
-    // `a != b` is `not (a == b)`: `Equal` has one method, so a type's own equality
-    // serves both operators, and `not` pushes down to SQL like the rest.
-    | PT.EInfix(id, PT.InfixFnCall PT.ComparisonNotEquals, left, right, implFn) when
-      Option.isSome (NumericTraits.ofInfix PT.ComparisonEquals)
-      ->
-      let equal =
-        toRT
-          symbols
-          rc
-          currentFnName
-          (PT.EInfix(id, PT.InfixFnCall PT.ComparisonEquals, left, right, implFn))
-      let notRc = equal.registerCount
-      let resultReg = notRc + 1
-      { registerCount = resultReg + 1
-        instructions =
-          equal.instructions
-          @ [ RT.LoadVal(
-                notRc,
-                RT.AppNamedFn
-                  { name = RT.FQFnName.Builtin(RT.FQFnName.builtin "boolNot" 0)
-                    typeSymbolTable = RT.TST.empty
-                    typeArgs = []
-                    access = None
-                    argsSoFar = []
-                    boundImpls = [] }
-                |> RT.DApplicable
-              )
-              RT.Apply(resultReg, notRc, [], NEList.singleton equal.resultIn) ]
-        resultIn = resultReg }
 
     | PT.EInfix(_, PT.InfixFnCall infix, left, right, implFn) ->
       let left = toRT symbols rc currentFnName left

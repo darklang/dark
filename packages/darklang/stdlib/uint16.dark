@@ -152,31 +152,25 @@ let shiftLeft (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16ShiftLeft a b
 let shiftRight (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16ShiftRight a b
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for UInt16 =
   let add = Stdlib.UInt16.add
 
-
 impl Subtract for UInt16 =
   let subtract = Stdlib.UInt16.subtract
-
 
 impl Multiply for UInt16 =
   let multiply = Stdlib.UInt16.multiply
 
-
 impl Divide for UInt16 =
   let divide = Stdlib.UInt16.divide
-
 
 impl Modulo for UInt16 =
   let modulo = Stdlib.UInt16.``mod``
 
-
 impl Power for UInt16 =
   let power = Stdlib.UInt16.power
-
 
 impl Compare for UInt16 =
   let lessThan = Stdlib.UInt16.lessThan
@@ -184,38 +178,29 @@ impl Compare for UInt16 =
   let greaterThan = Stdlib.UInt16.greaterThan
   let greaterThanOrEqualTo = Stdlib.UInt16.greaterThanOrEqualTo
 
-
 impl ToString for UInt16 =
   let toString = Stdlib.UInt16.toString
-
 
 impl Zero for UInt16 =
   let zero () : UInt16 = 0us
 
-
 impl One for UInt16 =
   let one () : UInt16 = 1us
-
 
 impl BitwiseAnd for UInt16 =
   let bitwiseAnd = Stdlib.UInt16.bitwiseAnd
 
-
 impl BitwiseOr for UInt16 =
   let bitwiseOr = Stdlib.UInt16.bitwiseOr
-
 
 impl BitwiseXor for UInt16 =
   let bitwiseXor = Stdlib.UInt16.bitwiseXor
 
-
 impl BitwiseNot for UInt16 =
   let bitwiseNot = Stdlib.UInt16.bitwiseNot
 
-
 impl ShiftLeft for UInt16 =
   let shiftLeft = Stdlib.UInt16.shiftLeft
-
 
 impl ShiftRight for UInt16 =
   let shiftRight = Stdlib.UInt16.shiftRight

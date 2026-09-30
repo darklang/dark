@@ -42,9 +42,7 @@ module Hash =
 type BranchId = Branching.BranchId
 
 
-/// Fully-Qualified Type Name
-///
-/// Used to reference a type defined in a Package or by a User
+/// Where an item is named: owner, modules, and the name itself.
 type PackageLocation =
   // CLEANUP this doesn't really account for when you're referring to a root 'owner'
   { owner : string
@@ -52,19 +50,16 @@ type PackageLocation =
     name : string }
 
 
-/// A successfully resolved name and (where applicable) the package
-/// location that resolved it.
-///
-/// `location` is the matched fully-qualified location after `namesToTry`
-///   expansion — `Some` for resolved package items, `None` for builtins
-///   (and for resolved package items where no location was captured).
-///   Carrying it alongside the resolved hash lets downstream consumers
-///   skip a post-hoc lookup: dep-edge inserts, propagation rewrites
-///   (AstTransformer's byLocation substitution), SCC hash substitution
-///   (Canonical), and deferred refresh after a package moves.
+/// A resolved name, and the package location that resolved it where there is one: the
+/// matched fully-qualified location after `namesToTry` expansion. `None` for builtins.
+/// Carried next to the hash so dep-edge inserts, propagation rewrites and SCC hash
+/// substitution do not each have to look it up again.
 type ResolvedName<'a> = { name : 'a; location : Option<PackageLocation> }
 
 
+/// Fully-Qualified Type Name
+///
+/// Used to reference a type defined in a Package or by a User
 module FQTypeName =
   type Package = Hash
 
@@ -169,9 +164,9 @@ module FQFnName =
     {
       param : string
       trait_ : FQTraitName.Package
-      /// One entry per method of the trait, because the callee's body may call any of them and
-      /// the answer has to be a fn rather than an implementation item: naming the item would
-      /// mean reading it at run time to find the method's fn.
+      /// Why one `BoundImpl` per method and not per trait: the callee's body may call any of
+      /// them, and the answer has to be a fn rather than an impl item, since naming the item
+      /// would mean reading it at run time to find the method's fn.
       method_ : string
       choice : ImplChoice
     }
@@ -491,10 +486,10 @@ type Expr =
   | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
   /// Calls upon an infix function
-  /// `a + b`. `implFn` is the same thing `TraitMethod` carries: the fn the implementation
-  /// chosen when this was SAVED names for the operator's method, so `+` on a type of yours goes
-  /// on meaning what it meant. `None` for `&&` and `||`, which are not trait methods; for `==`
-  /// and `!=`, which always resolve at the call; and for an operand type only known at run time.
+  /// `a + b`. `implFn` is the same thing `TraitMethod` carries: the fn the impl chosen when
+  /// this was SAVED names for the operator's method, so `+` on a type of yours goes on
+  /// meaning what it meant. `Unknown` for the operators that are not trait methods (`&&`,
+  /// `||`, `==`, `!=`) and for an operand type only known at run time.
   | EInfix of id * Infix * lhs : Expr * rhs : Expr * implFn : FQFnName.ImplChoice
 
 
@@ -780,7 +775,7 @@ module PackageFn =
       /// row is a new version that `permissions update` asks about.
       permissionCeiling : Option<Set<Effects.Effect>>
 
-      /// `'a: Show + Equal` on the declaration's type params. Part of the content
+      /// `'a: Show + Compare` on the declaration's type params. Part of the content
       /// hash: a bound is a contract on the caller. Checked eagerly at fn entry by
       /// the interpreter (like every other declared parameter type) and statically
       /// by the at-rest checker.
@@ -799,7 +794,7 @@ module Trait =
     {
       name : string
       typeParams : List<string>
-      /// `let convert<'b: Equal> (v: 'a) : 'b`: what the method's OWN type params owe, on top
+      /// `let convert<'b: Show> (v: 'a) : 'b`: what the method's OWN type params owe, on top
       /// of the trait's bound on the self type. Discharged where the method is called, like a
       /// fn's bounds, since a method has no body of its own to check them in.
       bounds : List<Bound>
@@ -815,7 +810,7 @@ module Trait =
       /// The first is the self type; the rest are the trait's other params
       /// (`Convert<'a, 'b>`).
       typeParams : NEList<string>
-      /// `trait Compare<'a: Equal> = ...`: supertraits, as bounds on the params.
+      /// `trait Sorted<'a: Compare> = ...`: supertraits, as bounds on the params.
       bounds : List<Bound>
       methods : NEList<Method>
       description : string
@@ -837,8 +832,9 @@ module TraitImpl =
       /// `impl<'a: Show> Show for List<'a>`: the impl's own params and their bounds
       typeParams : List<string>
       bounds : List<Bound>
-      /// method name -> the fn that implements it, in the trait's method order. A
-      /// name resolution like `EFnName`'s, so propagation can follow the fn.
+      /// method name -> the fn that implements it, in the order the block declared them.
+      /// A name resolution like `EFnName`'s, so propagation can follow the fn. The order
+      /// is part of the content hash, so two parsers must agree on it.
       methods : List<string * NameResolution<FQFnName.FQFnName>>
       description : string
     }

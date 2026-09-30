@@ -43,11 +43,6 @@ module FQFnName =
   type Builtin = { name: String; version: Int32 }
   type Package = Hash
 
-  /// A trait method: the trait, the method name (`Show.show`), and the fn the
-  /// implementation chosen when this was SAVED names for that method, if one was
-  /// chosen. With it, that fn is what runs, and a newer implementation reaches
-  /// this call through propagation like any other update. Without it (a call in a
-  /// polymorphic fn), the implementation is found from the self type at run time.
   /// How much of a trait call's implementation the save could say. Three states, not
   /// two: a call waiting for its caller's type argument is not the same as one
   /// nobody could work out, and an Option said both with the same value.
@@ -70,6 +65,8 @@ module FQFnName =
       method_: String
       choice: ImplChoice }
 
+  /// A trait method call: the trait, the method name (`ToString.toString`), and how
+  /// much the save could say about which implementation runs.
   type TraitMethod =
     { trait_: FQTraitName.Package
       method_: String
@@ -313,8 +310,8 @@ type Expr =
   // function calls
   /// `a + b`. `implFn` is what a trait-method name carries: the fn the implementation chosen
   /// when this was SAVED names for the operator's method, so the operator goes on meaning what
-  /// it meant. `None` for the operators that are no trait method, and where the operand type is
-  /// only known at run time.
+  /// it meant. `Unknown` for the operators that are no trait method (`==`, `!=`, `&&`, `||`)
+  /// and where the operand type is only known at run time.
   | EInfix of
     ID *
     Infix *

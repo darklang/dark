@@ -406,7 +406,7 @@ let kindLabel (k: String) : String =
   | "fn" -> "function"
   | "type" -> "type"
   | "trait" -> "trait"
-  | "impl" -> "implementation"
+  | "impl" -> "trait implementation"
   | _ -> "value"
 
 
@@ -515,10 +515,10 @@ let moduleHandlerFn (req: HttpRequest) : HttpResponse =
       ($"{crumbs name}<h1>{esc name}</h1><p class=\"lede\">{lede}</p>"
        + subBlock
        + (section "type" "Types")
-       + (section "trait" "Traits")
        + (section "fn" "Functions")
        + (section "value" "Values")
-       + (section "impl" "Implementations"))
+       + (section "trait" "Traits")
+       + (section "impl" "Trait implementations"))
 
 
 /// One item: its source, what it needs, and who needs it.

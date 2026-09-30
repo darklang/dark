@@ -192,35 +192,28 @@ let shiftLeft (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftLeft a b
 let shiftRight (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftRight a b
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for Int64 =
   let add = Stdlib.Int64.add
 
-
 impl Subtract for Int64 =
   let subtract = Stdlib.Int64.subtract
-
 
 impl Multiply for Int64 =
   let multiply = Stdlib.Int64.multiply
 
-
 impl Divide for Int64 =
   let divide = Stdlib.Int64.divide
-
 
 impl Modulo for Int64 =
   let modulo = Stdlib.Int64.``mod``
 
-
 impl Power for Int64 =
   let power = Stdlib.Int64.power
 
-
 impl Negate for Int64 =
   let negate = Stdlib.Int64.negate
-
 
 impl Compare for Int64 =
   let lessThan = Stdlib.Int64.lessThan
@@ -228,38 +221,29 @@ impl Compare for Int64 =
   let greaterThan = Stdlib.Int64.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int64.greaterThanOrEqualTo
 
-
 impl ToString for Int64 =
   let toString = Stdlib.Int64.toString
-
 
 impl Zero for Int64 =
   let zero () : Int64 = 0L
 
-
 impl One for Int64 =
   let one () : Int64 = 1L
-
 
 impl BitwiseAnd for Int64 =
   let bitwiseAnd = Stdlib.Int64.bitwiseAnd
 
-
 impl BitwiseOr for Int64 =
   let bitwiseOr = Stdlib.Int64.bitwiseOr
-
 
 impl BitwiseXor for Int64 =
   let bitwiseXor = Stdlib.Int64.bitwiseXor
 
-
 impl BitwiseNot for Int64 =
   let bitwiseNot = Stdlib.Int64.bitwiseNot
 
-
 impl ShiftLeft for Int64 =
   let shiftLeft = Stdlib.Int64.shiftLeft
-
 
 impl ShiftRight for Int64 =
   let shiftRight = Stdlib.Int64.shiftRight

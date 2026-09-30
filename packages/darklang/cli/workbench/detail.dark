@@ -222,10 +222,10 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
       Stdlib.List.flatten
         [ group "modules" (ofKind "module")
           group "types" (ofKind "type")
-          group "traits" (ofKind "trait")
-          group "implementations" (ofKind "impl")
+          group "functions" (ofKind "fn")
           group "values" (ofKind "val")
-          group "functions" (ofKind "fn") ]
+          group "traits" (ofKind "trait")
+          group "trait implementations" (ofKind "impl") ]
   Stdlib.List.flatten
     [ [ Stdlib.Cli.UI.Colors.boldText (item.name + "/")
         Stdlib.Cli.UI.Colors.dimText (plural (Stdlib.List.length children) "item")

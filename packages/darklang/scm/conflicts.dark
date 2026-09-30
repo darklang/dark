@@ -122,7 +122,8 @@ let stringGt (a: String) (b: String) : Bool =
 
 // the auto-resolution rule (must mirror the fold exactly)
 
-/// Does the thing stamped <param aTs> and hashed <param aHash> beat the one stamped <param bTs>?
+/// Does the thing stamped <param aTs> / hashed <param aHash> beat the one stamped
+/// <param bTs> / hashed <param bHash>?
 ///
 /// The rule itself, over stamps and hashes alone, so everything that has to agree can ask it:
 /// bindings of one name (`incomingWins`, below) and two implementations of one trait for one type

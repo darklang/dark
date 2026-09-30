@@ -283,22 +283,11 @@ gate_trait_choice_survives_rival() {
   rm -rf "$WORK"
   mkdir -p "$WORK/logs"
   scripts/testing/_copy-store "$WORK/data.db"
-  # A copied store carries the real relay and its write secret; nothing here syncs, but a
-  # sync-shaped command would reach production. See the AGENTS.md note. Guarded the way the
-  # other gates guard it, so a box without `sqlite3` does not take the gate with it.
+  # A copied store carries the real relay and its write secret. See the AGENTS.md note.
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
-  # The binary the runner was given, defaulting to the debug tree, which is the convention every
-  # other gate here follows: CI has no debug build and passes the published one in as $CLI.
-  # Calling `run-cli` instead would hardcode the debug path and refuse in CI, which is exactly
-  # how this gate spent its first run there exiting in one second without testing anything.
-  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
-  if [[ ! -x "$CLI" ]]; then
-    echo "trait-choice-survives-rival: no CLI at $CLI."
-    echo "  Build one (scripts/dev/build), or pass CLI=<path> as the CI step does."
-    exit 2
-  fi
-  CLI="$PWD/$CLI"
+  # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
 
   export DARK_CONFIG_RUNDIR="$PWD/$WORK"
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
@@ -321,8 +310,8 @@ DARK
     exit 1
   fi
 
-  # A NEWER implementation of the same trait for the same type. It wins any run-time dispatch,
-  # by the last-writer-wins rule, which is exactly why the saved call must not be asking.
+  # A NEWER implementation for the same type: it wins any run-time dispatch, which is
+  # exactly why the saved call must not be asking.
   $CLI impl Stachu.RivalNewer \
     "Stdlib.ToString for Stachu.Rival.Pt = let toString (p: Stachu.Rival.Pt) : String = \"RIVAL\"" \
     >/dev/null
@@ -339,7 +328,7 @@ DARK
     exit 1
   fi
 
-  # The rival is reachable, so the run is testing a real rival rather than a failed authoring.
+  # Proves the rival landed, so a pass is not a failed authoring.
   direct=$($CLI eval 'Stdlib.ToString.toString (Stachu.Rival.Pt { gateRivalOnly = 7L })' | clean)
   if [[ "$direct" != *RIVAL* ]]; then
     echo "trait-choice-survives-rival: the rival implementation never became the newest one,"

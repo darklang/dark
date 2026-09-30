@@ -12,10 +12,8 @@ open ProgramTypes
 
 module Traits = PackageRefs.Trait.Stdlib.Traits
 
-/// The trait and method an operator is. Every operator is one, bitwise included: "integer-only"
-/// is the set of types with a `BitwiseAnd` implementation. `==` is `Equal.equals`, with a structural
-/// fallback for a type that has no implementation, so every value stays comparable and the
-/// builtin types are never overridden.
+/// The trait and method an operator is. Every operator that is one, bitwise included:
+/// "integer-only" is the set of types with a `BitwiseAnd` implementation.
 let ofInfix (op : InfixFnName) : Option<string * string> =
   let some (hash : string) (methodName : string) =
     if hash = "" then None else Some(hash, methodName)

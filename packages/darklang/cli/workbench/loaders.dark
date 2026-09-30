@@ -131,14 +131,9 @@ let wipItemCount () : Int =
 /// The glyph a Changes row leads with, by what the row is: a fn, a type, a
 /// value, a removal, or a conflict waiting on you.
 let changeIcon (kind: String) : String =
-  if kind == "fn" then "ƒ"
-  else if kind == "type" then "◇"
-  else if kind == "value" then "▪"
-  else if kind == "trait" then "◇"
-  else if kind == "impl" then "◆"
-  else if kind == "conflict" then "⚠"
+  if kind == "conflict" then "⚠"
   else if kind == "removed" then "✕"
-  else "·"
+  else Stdlib.String.trim (Darklang.Cli.Glyphs.forKind kind)
 
 /// `+3 -1` for a diff, dim; "" for a diff with no changed lines.
 let diffStat (lines: List<Stdlib.Diff.DiffLine>) : String =

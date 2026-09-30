@@ -4,6 +4,10 @@ module Darklang.Stdlib.List
 /// Returns an empty list
 val empty = []
 
+/// The empty list is what `+` starts from, as `0` is for a number
+impl Stdlib.Zero for List<'a> =
+  let zero () : List<'a> = []
+
 /// Returns a one-element list containing the given <param val>
 let singleton (value: 'a) : List<'a> =
   [ value ]
@@ -588,9 +592,3 @@ let splitLast (l: List<'a>) : Option.Option<(List<'a> * 'a)> =
   match reverse l with
   | [] -> Option.Option.None
   | head :: tail -> Option.Option.Some((reverse tail, head))
-
-
-/// The empty list is what `+` would start from, the same way `0` is for a number and
-/// `""` is for a String
-impl Stdlib.Zero for List<'a> =
-  let zero () : List<'a> = []

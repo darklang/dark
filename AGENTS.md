@@ -275,7 +275,7 @@ The decisions live in Dark; F# does what only F# can do (parse, hash, serialize,
       draft.dark               #   one answer to "what have I changed"
       storeHealth.dark         #   what can be wrong with the STORE
 
-    LibDB/Lww.fs               # THE last-writer-wins rule. One place, on purpose; see below
+    LibExecution/Lww.fs        # THE last-writer-wins rule. One place, on purpose; see below
     LibDB/PackageOpPlayback.fs # THE FOLD: ops -> projections. Read this first.
     LibDB/Inserts.fs           # author: mint the op id, insert, fold
     LibDB/Draft.fs             # discard / un-stage; the only code that edits `locations` outside the fold
@@ -283,7 +283,7 @@ The decisions live in Dark; F# does what only F# can do (parse, hash, serialize,
     LibDB/Propagation.fs       # the cascade: who depends on what moved
     LibDB/Releases.fs          # shape changes to canonical tables on existing stores
 
-**Last-writer-wins lives in `LibDB/Lww.fs`, and asking it twice is the bug.** Two different things need
+**Last-writer-wins lives in `LibExecution/Lww.fs`, and asking it twice is the bug.** Two different things need
 the rule: the fold decides which binding survives, and conflict recording decides which side to NAME as
 the winner (`SCM.Conflicts.incomingWins`, in Dark, because the recording is in Dark). If those disagree, a
 recorded conflict names a winner the fold did not pick and two instances converge on different content
@@ -333,7 +333,7 @@ A trait is a package item (`PT.Trait`: type params, bounds, method signatures wi
 optional ceilings); an impl is a package item (`PT.TraitImpl`: the trait, its type args,
 the self type, own params and bounds, methods as `(name, fn)` pairs). Two ops,
 `AddTrait` and `AddTraitImpl`; two tables, `package_traits` and `package_trait_impls(trait_hash)`;
-`FQTraitName` for references; binary format v3. The parser lowers `trait`/`impl` in
+`FQTraitName` for references; binary format v4. The parser lowers `trait`/`impl` in
 `SourceFile.items` (F#) and `implWithOps` (Dark); both must agree on the impl's member
 path `<module>[.<Type>].<Trait>`, with the method fns as ordinary fns beneath it.
 Dispatch candidates come off the index (`PT2RT.ImplCandidate.ofPackageManager`),
@@ -341,14 +341,11 @@ selection is `Traits.fs`, the checker validates traits and impls in `AtRestTypeC
 (`ImplMethodSet`, `ImplMethodSignature`, `ImplExceedsCeiling`). The operators are the
 stdlib traits (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through
 `NumericTraits.fs`, whose hashes come from `PackageRefs.Trait`, so a new operator trait
-needs a ref and a regenerated `package-ref-hashes.txt`. `==` is `Equal.equals` with a
-structural fallback (`Interpreter.structuralEquals`; the selection memo holds `Hash ""`
-for "no implementation"), answered without dispatch for anything but a record, an enum
-or a container holding one. A container consults its elements' `Equal`
-(`Interpreter.deepEquals`), and whether a type needs that walk at all is memoised per
-type, so a `List<Int64>` costs what it always did; `List.member`, `List.unique`,
-`List.sort` and dict keys are structural always, and dict keys have to be, since F#
-hashes them inside its own `Map`. `!=` lowers to `boolNot (Equal.equals a b)`. `Zero.zero`/`One.one` dispatch from an
+needs a ref and a regenerated `package-ref-hashes.txt`. `==` and `!=` are NOT traits: equality is
+structural for every value and lowers to its builtin, as it did before traits. A type
+cannot override it, which is what keeps `List.member`, `List.unique`, `List.sort` and
+dict keys meaning the same thing as `==` -- dict keys have to be structural anyway, since
+F# hashes them inside its own `Map`. `Zero.zero`/`One.one` dispatch from an
 explicit type arg or the caller's bound, so a call to the impl fn clears the trait's
 type args first.
 

@@ -183,35 +183,28 @@ let random (start: Int) (``end``: Int) : Int =
   Builtin.intRandom start ``end``
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for Int =
   let add = Stdlib.Int.add
 
-
 impl Subtract for Int =
   let subtract = Stdlib.Int.subtract
-
 
 impl Multiply for Int =
   let multiply = Stdlib.Int.multiply
 
-
 impl Divide for Int =
   let divide = Stdlib.Int.divide
-
 
 impl Modulo for Int =
   let modulo = Stdlib.Int.``mod``
 
-
 impl Power for Int =
   let power = Stdlib.Int.power
 
-
 impl Negate for Int =
   let negate = Stdlib.Int.negate
-
 
 impl Compare for Int =
   let lessThan = Stdlib.Int.lessThan
@@ -219,38 +212,29 @@ impl Compare for Int =
   let greaterThan = Stdlib.Int.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int.greaterThanOrEqualTo
 
-
 impl ToString for Int =
   let toString = Stdlib.Int.toString
-
 
 impl Zero for Int =
   let zero () : Int = 0
 
-
 impl One for Int =
   let one () : Int = 1
-
 
 impl BitwiseAnd for Int =
   let bitwiseAnd = Stdlib.Int.bitwiseAnd
 
-
 impl BitwiseOr for Int =
   let bitwiseOr = Stdlib.Int.bitwiseOr
-
 
 impl BitwiseXor for Int =
   let bitwiseXor = Stdlib.Int.bitwiseXor
 
-
 impl BitwiseNot for Int =
   let bitwiseNot = Stdlib.Int.bitwiseNot
 
-
 impl ShiftLeft for Int =
   let shiftLeft = Stdlib.Int.shiftLeft
-
 
 impl ShiftRight for Int =
   let shiftRight = Stdlib.Int.shiftRight

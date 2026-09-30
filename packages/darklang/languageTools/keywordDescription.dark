@@ -25,7 +25,7 @@ let keywords () : List<KeywordDescription> =
     KeywordDescription
       { name = "impl"
         description =
-          "Provides a trait's methods for one type: `impl Show for Point = let show (p: Point) : String = ...`" }
+          "Provides a trait's methods for one type: `impl ToString for Point = let toString (p: Point) : String = ...`" }
     KeywordDescription
       { name = "of"
         description =

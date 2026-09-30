@@ -5,6 +5,12 @@ The durable record. Method is in `docs/perf/playbook.md`, what's next in `docs/p
 Rounds: **1** (#5696) and **2** (#5700) were interpreter allocation campaigns, **3** (#5699) was
 NativeAOT, **4** is the current branch.
 
+Keep entries SHORT: a label for the round, the numbers, and the few sentences nobody should have to
+re-derive. One entry per round, and a round is a branch -- a later change on the same branch edits
+that entry's numbers rather than adding a second one. A budget that drifts up because a feature
+loads more is a clause, not a section. Anything longer belongs in `playbook.md` (method) or in the
+"Things established" section below (facts).
+
 ---
 
 ## This round: parameterised types
@@ -306,49 +312,12 @@ remains is a large FIXED per-process cost, still unexplained; that is the open q
 never been measured. Where `status` scales with the store: `Constraints.pending`'s three-way join
 and the per-binding recursive CTE in `draftRepoints`.
 
-## Traits (2026-09): debug 9.29 MB -> 9.46 MB, published 9.74 MB -> 9.60 MB
+## Traits (2026-09): debug 9.29 -> 9.54 MB, published 9.74 -> 9.77 MB
 
-- The operators are trait methods now (`+` is `Stdlib.Add.add`), with `FastOps.evalNumeric`
-  in front for two operands of one builtin numeric type, so the Int path the gate measures is
-  the same table lookup it was. The debug budget rose 1.8% and the published number fell;
-  what moved is per process, not per operation: the trait-name set the resolver gates on and
-  the `PackageRefs.Trait` table, loaded once.
-- Per call (`costs.dark`-style harness, selection memoised): a dispatched `10L / 2L` is 77
-  bytes over the fast-path `+`; `Vec + Vec` is 121 bytes over calling the impl fn directly.
-  The first dispatch for a (branch, trait, method, self) is about 3 KB: candidate list off
-  `package_trait_impls`, selection, memo entry.
-- Three things cost a day of allocation work on the way and are worth not re-finding: a
-  tuple allocated by `match a, b` in the fast path (nested matches instead); selection
-  running on every dispatched call before the memo existed; and trait-first name resolution
-  querying type locations for every qualified fn name (four misses per `Stdlib.List.map`)
-  before the resolver was gated on the set of live trait names.
-- Measurement trap, so the next person does not chase it: the published gate reads 9.6 MB
-  against a CLI built by `scripts/build/build-release-cli-exes.sh` (what CI measures) and
-  9.9 to 10.0 MB against the one `scripts/dev/build --optimize --test` leaves behind. Same
-  tree, same seed; the two build paths do not produce the same binary. Measure the first.
-
-## 2026-09-22, saving the implementation with the call
-
-Storing the implementation a trait call resolved to (`FQFnName.TraitMethod`'s third field, and
-the same on `EInfix`) takes trait dispatch out of the reference workload entirely:
-`traitDispatches` reads 0 where it used to count every call. It costs about 1% of allocation
-instead, and the cost is at LOAD, not at call: each call site carries a resolved reference with
-its location, so every item that calls a trait method deserializes a little more.
-
-Measured on the reference workload: debug 9.6 MB against a 9.46 MB budget, published 9.8 MB
-against 9.74 MB, both inside the 3% tolerance, so the gate passes and the budget is unchanged.
-Do not "fix" this by dropping the location from the stored reference: it is what makes the pin an
-ordinary dependency edge, which is what lets propagation offer a newer implementation and `pin`
-refuse it.
-
-## 2026-09-24, the sweep
-
-Making the bitwise operators traits, and giving `Compare` implementations to String, Char and
-DateTime, added about ninety package items that load at startup. The reference workload reads
-9,641,704 bytes in debug against a 9,460,680 budget: 1.9% over, inside the 3% tolerance, with
-1.05% of headroom left before the gate fails. Published is 9.8 MB against 9.74.
-
-That is a load-time cost, not a call-time one: `traitDispatches` still reads 0 on this workload,
-because every call the workload makes was resolved when it was saved. Anyone adding another
-handful of stdlib implementations should expect to re-pin the debug budget rather than to have
-made the interpreter slower.
+The operators are trait methods now (`+` is `Stdlib.Add.add`), with `FastOps.evalNumeric` in front
+for two operands of one builtin numeric type, and each call storing the implementation it resolved
+to. Both budgets went up a little, and the cost is at LOAD rather than per operation: about ninety
+more package items, the `PackageRefs.Trait` table, and a resolved reference per call site.
+`traitDispatches` reads 0 on the reference workload, because every call it makes was resolved when
+it was saved. A dispatch that does happen costs 77 bytes over the fast path, and about 3 KB the
+first time for a given (branch, trait, method, self type).

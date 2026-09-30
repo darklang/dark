@@ -191,6 +191,19 @@ module TypeReference =
           return PT.TCustomType(resolved, typeArgs)
     }
 
+/// The effect names the parser kept, as a ceiling. An unknown name already produced a
+/// diagnostic, so it is simply not part of the ceiling.
+let private ceilingOf
+  (effects : Option<List<string>>)
+  : Option<Set<LibExecution.Effects.Effect>> =
+  effects
+  |> Option.map (fun names ->
+    names
+    |> List.choose (fun name ->
+      LibExecution.Effects.all |> List.tryFind (fun effect -> $"%A{effect}" = name))
+    |> Set.ofList)
+
+
 module Bound =
   let toPT
     (pm : PT.PackageManager)
@@ -1011,14 +1024,7 @@ module Trait =
                 m.parameters
             let! returnType =
               TypeReference.toPT pm onMissing currentModule m.returnType
-            let permissionCeiling =
-              m.effects
-              |> Option.map (fun names ->
-                names
-                |> List.choose (fun name ->
-                  LibExecution.Effects.all
-                  |> List.tryFind (fun effect -> $"%A{effect}" = name))
-                |> Set.ofList)
+            let permissionCeiling = ceilingOf m.effects
             let! methodBounds = Bound.listToPT pm onMissing currentModule m.bounds
             return
               ({ name = m.name
@@ -1210,16 +1216,7 @@ module PackageFn =
           body = body
           typeParams = allTypeParams
           bounds = bounds
-          permissionCeiling =
-            // Names were validated by the parser; an unknown one already
-            // produced a diagnostic, so it is simply not part of the ceiling.
-            fn.effects
-            |> Option.map (fun names ->
-              names
-              |> List.choose (fun name ->
-                LibExecution.Effects.all
-                |> List.tryFind (fun effect -> $"%A{effect}" = name))
-              |> Set.ofList) }
+          permissionCeiling = ceilingOf fn.effects }
     }
 
 

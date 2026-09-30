@@ -156,47 +156,35 @@ their type variables. Two kinds of signature must not be trusted:
   rather than the declared signature; used as a value or partially applied there is
   no signature to give them, and the use is `Incomplete`.
 
-Infix syntax itself no longer lowers to those builtins. `a + b` is
-`Stdlib.Add.add a b` (`NumericTraits.ofInfix`; likewise `- * / % **` and the four
-comparisons), and `-x`, which the parser stores as `Builtin.negate x`, runs as
-`Stdlib.Negate.negate x` (`NumericTraits.ofNegate`). The checker treats each as a trait
-method call: the operands unify, and the operand type owes an `Add` (or `Negate`) impl.
-See below.
+Infix syntax itself no longer lowers to those builtins. `a + b` is `Stdlib.Add.add a b`
+(`NumericTraits.ofInfix`, likewise `- * / % **` and the four comparisons), and `-x`, which
+the parser stores as `Builtin.negate x`, runs as `Stdlib.Negate.negate x`. The checker
+treats each as a trait method call. `==` is not one: equality is structural, so the
+operands must unify and nothing further is owed.
 
 ## Traits
 
-A trait and an impl are their own package items (`PT.Trait`, `PT.TraitImpl`). The
-checker reads both straight off the PT (`ImplEntry.ofImpl`), the same way the
-runtime reads its dispatch candidates, and validates each item in the batch:
-`validateTrait`, and `validateImpl` for the method set (`ImplMethodSet`), each
-method fn unifying with the trait's signature at the self type
-(`ImplMethodSignature`), and the impl fn's effect ceiling fitting under the
-method's (`ImplExceedsCeiling`).
+A trait and an impl are package items, read off the PT (`ImplEntry.ofImpl`) the way the
+runtime reads its dispatch candidates. `validateImpl` checks the method set
+(`ImplMethodSet`), each method fn against the trait's signature at the self type
+(`ImplMethodSignature`), and the impl fn's ceiling against the method's
+(`ImplExceedsCeiling`).
 
-- A `TraitMethod` call takes its signature from the trait's method, with the
-  trait's first type parameter as the self type (`traitMethodSignature`).
-- Instantiating a bounded fn signature (`bounds` on `FunctionSignature`) adds one
-  constraint per bound on the instantiated variable (`State.Constraints`); an infix
-  operator adds one for its trait on the operand type.
-- Constraints discharge at `finish`, after substitution. A concrete head needs exactly
-  one visible impl (`MissingImpl`, `AmbiguousImpl`; a blanket `impl<'a> T for 'a`
-  loses to a specific one). The item's own rigid type parameter needs the bound
-  declared on the item (`UnboundTypeParameter`). An inference variable still unbound
-  is a `ConstrainedType` blocker, not a diagnostic.
-- Receiver calls: `x.m` where `x`'s type is a record without field `m` falls back to
-  the one visible impl carrying a method `m` for `x`'s head type, typed with `x`
-  consumed; no such impl keeps `UnknownRecordField`.
-- Visibility is the environment's: `TypeEnvironment.impls` holds what the authoring
-  adapter loaded from the store for every type the batch or its closure names, plus
-  the operator traits always (`addVisibleImpls`). A trait needed only by a receiver
-  call is loaded by `implTraitsMissingDeclarations`.
-
-- A conditional impl owes its own bounds at the type it matched: discharging
-  `Show List<Option<Int>>` against `impl<'a: Show> Show for List<'a>` unifies the
-  impl's self with the concrete type and owes `Show Option<Int>`, round by round
-  until the type is exhausted (`dischargeConstraints`).
-- `==` records no constraint: `Equal` has a structural fallback, so every type is
-  comparable; the operand types still have to unify.
+- A `TraitMethod` call is typed from the trait's method, with the trait's first type
+  parameter as self (`traitMethodSignature`). A bounded signature adds one constraint per
+  bound on the instantiated variable; an operator adds one for its trait on the operand type.
+- Constraints discharge at `finish`, after substitution. A concrete head needs exactly one
+  visible impl (`MissingImpl`, `AmbiguousImpl`; a blanket `impl<'a> T for 'a` loses to a
+  specific one). The item's own rigid parameter needs the bound declared on the item
+  (`UnboundTypeParameter`). An inference variable still unbound is a `ConstrainedType`
+  blocker, not a diagnostic.
+- A conditional impl owes its own bounds at the type it matched: `Show List<Option<Int>>`
+  against `impl<'a: Show> Show for List<'a>` owes `Show Option<Int>`, round by round until
+  the type is exhausted (`dischargeConstraints`).
+- `x.m`, where `x` is a record without a field `m`, falls back to the one visible impl
+  carrying a method `m` for `x`'s head type; no such impl keeps `UnknownRecordField`.
+- Visible means in `TypeEnvironment.impls`: what the adapter loaded for the types the batch
+  names, plus the operator traits always (`addVisibleImpls`).
 
 ## Where this should live
 

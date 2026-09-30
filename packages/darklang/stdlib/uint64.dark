@@ -166,31 +166,25 @@ let shiftLeft (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64ShiftLeft a b
 let shiftRight (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64ShiftRight a b
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for UInt64 =
   let add = Stdlib.UInt64.add
 
-
 impl Subtract for UInt64 =
   let subtract = Stdlib.UInt64.subtract
-
 
 impl Multiply for UInt64 =
   let multiply = Stdlib.UInt64.multiply
 
-
 impl Divide for UInt64 =
   let divide = Stdlib.UInt64.divide
-
 
 impl Modulo for UInt64 =
   let modulo = Stdlib.UInt64.``mod``
 
-
 impl Power for UInt64 =
   let power = Stdlib.UInt64.power
-
 
 impl Compare for UInt64 =
   let lessThan = Stdlib.UInt64.lessThan
@@ -198,38 +192,29 @@ impl Compare for UInt64 =
   let greaterThan = Stdlib.UInt64.greaterThan
   let greaterThanOrEqualTo = Stdlib.UInt64.greaterThanOrEqualTo
 
-
 impl ToString for UInt64 =
   let toString = Stdlib.UInt64.toString
-
 
 impl Zero for UInt64 =
   let zero () : UInt64 = 0UL
 
-
 impl One for UInt64 =
   let one () : UInt64 = 1UL
-
 
 impl BitwiseAnd for UInt64 =
   let bitwiseAnd = Stdlib.UInt64.bitwiseAnd
 
-
 impl BitwiseOr for UInt64 =
   let bitwiseOr = Stdlib.UInt64.bitwiseOr
-
 
 impl BitwiseXor for UInt64 =
   let bitwiseXor = Stdlib.UInt64.bitwiseXor
 
-
 impl BitwiseNot for UInt64 =
   let bitwiseNot = Stdlib.UInt64.bitwiseNot
 
-
 impl ShiftLeft for UInt64 =
   let shiftLeft = Stdlib.UInt64.shiftLeft
-
 
 impl ShiftRight for UInt64 =
   let shiftRight = Stdlib.UInt64.shiftRight

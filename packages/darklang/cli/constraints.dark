@@ -53,8 +53,6 @@ let line (f: SCM.Constraints.Finding) : String =
   | (RivalImplementations, Rivals(self, rival, choice)) ->
     let r = SCM.Constraints.fqnOf rival
 
-    // Both names on the line, then what runs, then the exact command to retire the other: the
-    // reader's next action is a paste, so the thing to paste is spelled out.
     match choice with
     | Mine ->
       $"  #{f.id}  {u}\n         and {r} both implement {d} for {self}. Calls run {u}, the later of the two.\n         This is two implementations, not an out-of-date one, so `dark propagate follow` will not change it.\n         Make it permanent: `dark deprecate impl {r}`. Leave it: `dark ack #{f.id}`"
@@ -413,7 +411,7 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
           ()
         | Rivals(_, _, _) ->
           // `resolutionsFor` offers nothing here, so this arm is not reached; a call already runs
-          // the newer one, and settling it for good is `deprecate` or `unbind` on the other.
+          // the newer one, and making that permanent is `dark deprecate impl` on the other.
           ()
         Cli.printOk
           $"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf f.usage}")

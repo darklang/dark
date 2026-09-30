@@ -92,6 +92,14 @@ let displayWidth (s: String) : Int =
 /// (`impl Add for String` below) and the interpreter answers the builtin without a call.
 let append (s1: String) (s2: String) : String = Builtin.stringAppend s1 s2
 
+/// `"a" + "b"` is `"ab"`
+impl Add for String =
+  let add = Stdlib.String.append
+
+/// ...and the empty string is what `+` starts from
+impl Zero for String =
+  let zero () : String = ""
+
 
 /// Concatenates the two strings by prepending <param s2> to <param s1> and
 /// returns the joined string
@@ -579,13 +587,3 @@ impl Compare for String =
 /// A String is already text
 impl ToString for String =
   let toString (s: String) : String = s
-
-
-/// `"a" + "b"` is `"ab"`
-impl Add for String =
-  let add = Stdlib.String.append
-
-
-/// The empty string is what `+` starts from, exactly as `0` is for a number
-impl Zero for String =
-  let zero () : String = ""

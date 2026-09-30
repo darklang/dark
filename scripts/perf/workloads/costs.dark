@@ -25,25 +25,17 @@ let resFn (i: Int) : Stdlib.Result.Result<Int, String> = Stdlib.Result.Result.Ok
 let listFn (i: Int) : List<Int> = [ i ]
 let enumFn (i: Int) : Enum = Enum.One i
 
-// For the equality rows. `Tagged` carries an `Equal` implementation and `Plain` does not, so the
-// pair of rows says what consulting an implementation costs over the structural walk.
+// For the equality rows: `==` is structural, and a record is where it stops being a primitive
+// comparison and starts walking.
 type Plain = { n: Int }
-type Tagged = { id: Int; note: String }
-
-impl Stdlib.Equal for Tagged =
-  let equals (a: Tagged) (b: Tagged) : Bool = a.id == b.id
 
 // Built once, not per iteration: the rows are measuring the comparison, not the construction.
 let plainL = Plain { n = 1 }
 let plainR = Plain { n = 1 }
-let taggedL = Tagged { id = 1; note = "l" }
-let taggedR = Tagged { id = 1; note = "r" }
 let intsL = [ 1, 2, 3, 4, 5 ]
 let intsR = [ 1, 2, 3, 4, 5 ]
 let plainsL = [ plainL, plainL, plainL, plainL, plainL ]
 let plainsR = [ plainR, plainR, plainR, plainR, plainR ]
-let taggedsL = [ taggedL, taggedL, taggedL, taggedL, taggedL ]
-let taggedsR = [ taggedR, taggedR, taggedR, taggedR, taggedR ]
 
 /// Runs `f` 2000 times and reports bytes allocated per call. Warms up first, because the first call
 /// through a function loads and converts it.
@@ -141,10 +133,8 @@ let main () : Int64 =
   measure "Int == Int" (fun i -> if i == 5 then 1 else 0)
   measure "String == String" (fun i -> if "hello" == "hellp" then 1 else 0)
   measure "5-list of Int ==" (fun i -> if intsL == intsR then 1 else 0)
-  measure "record, no Equal impl ==" (fun i -> if plainL == plainR then 1 else 0)
-  measure "record with an Equal impl ==" (fun i -> if taggedL == taggedR then 1 else 0)
-  measure "5-list of records, no Equal ==" (fun i -> if plainsL == plainsR then 1 else 0)
-  measure "5-list of records with Equal ==" (fun i -> if taggedsL == taggedsR then 1 else 0)
+  measure "record ==" (fun i -> if plainL == plainR then 1 else 0)
+  measure "5-list of records ==" (fun i -> if plainsL == plainsR then 1 else 0)
 
   Builtin.debug "--- control flow" 0L
   measure "if/else" (fun i -> if i > 1000 then 1 else 0)

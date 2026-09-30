@@ -143,9 +143,6 @@ let private transformFnName
                                           method_ = methodName
                                           implFn = implFn }
          location = loc } ->
-    // The implementation this call was resolved to moves like any other fn reference: it is
-    // usually a fn being saved in the same batch, whose placeholder hash stabilizes here, and
-    // it carries a location, so a rename reaches it too.
     let implFn = moveChoice mapping implFn
     let asTrait : PT.NameResolution<PT.FQTraitName.FQTraitName> =
       { originalName = nr.originalName
@@ -509,7 +506,8 @@ let transformTrait (mapping : HashMapping) (t : PT.Trait.Trait) : PT.Trait.Trait
                 m.parameters
                 |> NEList.map (fun p ->
                   { p with typ = transformTypeRef mapping p.typ })
-              returnType = transformTypeRef mapping m.returnType }) }
+              returnType = transformTypeRef mapping m.returnType
+              bounds = m.bounds |> List.map (transformBound mapping) }) }
 
 let transformImpl
   (mapping : HashMapping)

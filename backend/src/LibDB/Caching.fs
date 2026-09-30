@@ -21,7 +21,8 @@ let private clearActions = ConcurrentBag<unit -> unit>()
 let register (clear : unit -> unit) : unit = clearActions.Add clear
 
 /// Bumped by every `invalidateAll`, so a memo held outside these caches (the
-/// interpreter's impl selections) can tell that the store moved under it.
+/// interpreter's impl selections) can tell that the store moved under it. Mutable
+/// because `Interlocked.Increment` needs a byref.
 let mutable private generationCounter = 0
 let generation () : int = generationCounter
 
@@ -43,6 +44,8 @@ let withCache (f : 'key -> Ply<Option<'value>>) =
   clearActions.Add(fun () -> cache.Clear())
 
   fun (key : 'key) ->
+    // Out-param, not `match cache.TryGetValue k with | true, v ->`, which allocates a
+    // tuple per lookup (docs/perf/history.md).
     let mutable cached = Unchecked.defaultof<Option<'value>>
     if cache.TryGetValue(key, &cached) then
       // Deliberately outside the computation expression. Once a script is warm nearly every call lands

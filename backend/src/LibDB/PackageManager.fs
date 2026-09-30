@@ -630,6 +630,9 @@ let combine
     findTrait = overlayFirst overlay.findTrait fallback.findTrait
     findTraitImpl = overlayFirst overlay.findTraitImpl fallback.findTraitImpl
     traitNames =
+      // One-slot memo: the union is kept while both inputs are the same objects, so a
+      // resolution pass pays for it once. One publish of one tuple, and the sets are never
+      // written after they are handed out.
       let mutable last : Option<HashSet<string> * HashSet<string> * HashSet<string>> =
         None
       fun () ->

@@ -202,7 +202,8 @@ let inOp (op : PT.PackageOp) : Option<string * List<string>> =
         |> NEList.toList
         |> List.collect (fun (m : PT.Trait.Method) ->
           (m.parameters |> NEList.toList |> List.collect (fun p -> inTypeRef p.typ))
-          @ inTypeRef m.returnType)
+          @ inTypeRef m.returnType
+          @ (m.bounds |> List.collect (fun b -> fromNR b.trait_.trait_)))
       let inBounds = t.bounds |> List.collect (fun b -> fromNR b.trait_.trait_)
       Some(hash, inMethods @ inBounds)
     | PT.PackageOp.AddTraitImpl i ->

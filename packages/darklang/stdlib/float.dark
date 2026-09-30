@@ -153,32 +153,25 @@ let toInt (a: Float) : Int = Stdlib.Float.roundTowardsZero a
 let toBits (a: Float) : Int = Builtin.floatToBits a
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for Float =
   let add = Stdlib.Float.add
 
-
 impl Subtract for Float =
   let subtract = Stdlib.Float.subtract
-
 
 impl Multiply for Float =
   let multiply = Stdlib.Float.multiply
 
-
 impl Divide for Float =
   let divide = Stdlib.Float.divide
-
-
 
 impl Power for Float =
   let power = Stdlib.Float.power
 
-
 impl Negate for Float =
   let negate = Stdlib.Float.negate
-
 
 impl Compare for Float =
   let lessThan = Stdlib.Float.lessThan
@@ -186,14 +179,11 @@ impl Compare for Float =
   let greaterThan = Stdlib.Float.greaterThan
   let greaterThanOrEqualTo = Stdlib.Float.greaterThanOrEqualTo
 
-
 impl ToString for Float =
   let toString = Stdlib.Float.toString
 
-
 impl Zero for Float =
   let zero () : Float = 0.0
-
 
 impl One for Float =
   let one () : Float = 1.0

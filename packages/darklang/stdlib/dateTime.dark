@@ -10,6 +10,9 @@ let parse (s: String) : Stdlib.Result.Result<DateTime, String> =
 /// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
 let toString (date: DateTime) : String = Builtin.dateTimeToString date
 
+impl ToString for DateTime =
+  let toString = Stdlib.DateTime.toString
+
 
 /// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}
 let toStringISO8601BasicDateTime (date: DateTime) : String =
@@ -57,6 +60,13 @@ let greaterThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
 /// Returns whether {{<param d1> <= <param d2>}}
 let lessThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
   Builtin.dateTimeLessThanOrEqualTo d1 d2
+
+/// `d1 < d2` on DateTimes, by the four comparisons above.
+impl Compare for DateTime =
+  let lessThan = Stdlib.DateTime.lessThan
+  let lessThanOrEqualTo = Stdlib.DateTime.lessThanOrEqualTo
+  let greaterThan = Stdlib.DateTime.greaterThan
+  let greaterThanOrEqualTo = Stdlib.DateTime.greaterThanOrEqualTo
 
 
 /// Converts <param date> to an <type Int> representing seconds since the Unix epoch
@@ -134,15 +144,3 @@ let millisecond (date: DateTime) : Int =
 /// Returns the difference of the two dates, in milliseconds
 let subtractMs (d1: DateTime) (d2: DateTime) : Int =
   Builtin.dateTimeSubtractMs d1 d2
-
-
-impl ToString for DateTime =
-  let toString = Stdlib.DateTime.toString
-
-
-/// `d1 < d2` on DateTimes, by the four comparisons above.
-impl Compare for DateTime =
-  let lessThan = Stdlib.DateTime.lessThan
-  let lessThanOrEqualTo = Stdlib.DateTime.lessThanOrEqualTo
-  let greaterThan = Stdlib.DateTime.greaterThan
-  let greaterThanOrEqualTo = Stdlib.DateTime.greaterThanOrEqualTo

@@ -138,17 +138,21 @@ let rec private dischargeConstraints (state : State) : unit =
   // impl's own bounds at the matched type (`Show Option<Int>`), which are added
   // here and discharged in turn. Bounded by rounds: each round strips one type
   // constructor, so the chain ends with the type.
-  let mutable pending = List.rev state.Constraints
-  let mutable rounds = 0
+  let rec drain pending (rounds : int) : unit =
+    if not (List.isEmpty pending) && rounds < 16 then
+      let owed =
+        pending
+        |> List.fold
+          (fun acc (nodeId, trait_, typ, method_, forParam) ->
+            dischargeOne state nodeId trait_ typ method_ forParam
+            let owed = List.rev state.Constraints
+            state.Constraints <- []
+            acc @ owed)
+          []
+      drain owed (rounds + 1)
+  let initial = List.rev state.Constraints
   state.Constraints <- []
-  while not (List.isEmpty pending) && rounds < 16 do
-    rounds <- rounds + 1
-    let batch = pending
-    pending <- []
-    for nodeId, trait_, typ, method_, forParam in batch do
-      dischargeOne state nodeId trait_ typ method_ forParam
-      pending <- pending @ List.rev state.Constraints
-      state.Constraints <- []
+  drain initial 0
 
 /// One owed bound, at the type it was owed for.
 and private dischargeOne
@@ -594,31 +598,44 @@ let addVisibleImpls
   (environment : TypeEnvironment)
   : Ply<TypeEnvironment> =
   uply {
-    let mutable environment = environment
     // `+` needs `Add`'s impls visible and no item names `Add`, so the operator
     // traits are always in the set.
     let traits =
-      Seq.append (LibExecution.NumericTraits.traitHashes ()) traits |> Seq.distinct
-    for traitHash in traits do
-      let! impls = pm.impls traitHash
-      // Only what a name still binds counts, same as dispatch.
-      let! live =
-        impls
-        |> Ply.List.filterSequentially (fun i ->
+      Seq.append (LibExecution.NumericTraits.traitHashes ()) traits
+      |> Seq.distinct
+      |> List.ofSeq
+    let! environment =
+      traits
+      |> Ply.List.foldSequentially
+        (fun environment traitHash ->
           uply {
-            let! locs = pm.getTraitImplLocations i.hash
-            let! bound = Ply.List.mapSequentially pm.findTraitImpl locs
-            return bound |> List.exists (fun b -> b = Some i.hash)
+            let! impls = pm.impls traitHash
+            // Only what a name still binds counts, same as dispatch.
+            let! live =
+              impls
+              |> Ply.List.filterSequentially (fun i ->
+                uply {
+                  let! locs = pm.getTraitImplLocations i.hash
+                  let! bound = Ply.List.mapSequentially pm.findTraitImpl locs
+                  return bound |> List.exists (fun b -> b = Some i.hash)
+                })
+            return
+              live
+              |> List.fold (fun env i -> TypeEnvironment.addImpl i env) environment
           })
-      for i in live do
-        environment <- TypeEnvironment.addImpl i environment
+        environment
     // A receiver call (`p.show`) reaches a trait the item never names, so the
     // trait itself has to be present for every impl registered.
-    for traitHash in TypeEnvironment.implTraitsMissingDeclarations environment do
-      match! pm.getTrait traitHash with
-      | Some t -> environment <- TypeEnvironment.addTrait t environment
-      | None -> ()
-    return environment
+    return!
+      TypeEnvironment.implTraitsMissingDeclarations environment
+      |> Ply.List.foldSequentially
+        (fun environment traitHash ->
+          uply {
+            match! pm.getTrait traitHash with
+            | Some t -> return TypeEnvironment.addTrait t environment
+            | None -> return environment
+          })
+        environment
   }
 
 

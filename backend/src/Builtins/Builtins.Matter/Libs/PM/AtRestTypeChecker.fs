@@ -272,15 +272,14 @@ let private aggregate
 
 /// Which implementation each trait-method call in a batch resolves to, written onto the calls.
 ///
-/// Runs before the batch is hashed and stored, because the choice is part of what the item IS:
-/// a saved call goes on running the implementation it was written against, and a newer one
-/// arrives as an ordinary repoint through propagation. The at-rest check that follows the save
-/// reports on what was stored, which is why this is its own pass rather than a use of that one.
+/// Runs before the batch is hashed, because the choice is part of what the item IS: a saved
+/// call goes on running the impl it was written against, and a newer one arrives as an
+/// ordinary repoint. Its own pass rather than a use of the at-rest check, which reports on
+/// what was already stored.
 ///
-/// Where the checker could not know the self type (a call inside a bounded generic), nothing is
-/// written and the call resolves at run time, as it must. Where two implementations apply, the
-/// newer one is chosen, by the same rule the runtime would use (`LibExecution.Lww`), which is
-/// why the choice is made HERE, with the store's stamps, rather than in the checker.
+/// A call whose self type the checker cannot know (inside a bounded generic) is left to
+/// resolve at run time. Two applicable impls are ordered by the store's stamps, which is
+/// why this lives here and not in the checker (`LibExecution.Lww`).
 let resolveTraitCalls
   (pm : PT.PackageManager)
   (builtins : Builtins)
@@ -433,23 +432,36 @@ let resolveTraitCalls
           Dictionary<PT.Hash, Map<id, List<PT.FQFnName.BoundImpl>>>()
         let collect (hash : PT.Hash) (proof : Checker.Proof) : Ply<unit> =
           uply {
-            let mutable pins = Map.empty
-            for KeyValue(nodeId, (method_, implHashes)) in
-              CheckerApi.resolutionsOf proof do
-              match! implFnFor method_ implHashes with
-              | Some implFn ->
-                pins <- Map.add nodeId (PT.FQFnName.Chosen implFn) pins
-              | None -> ()
+            let! pins =
+              CheckerApi.resolutionsOf proof
+              |> Map.toList
+              |> Ply.List.foldSequentially
+                (fun pins (nodeId, (method_, implHashes)) ->
+                  uply {
+                    match! implFnFor method_ implHashes with
+                    | Some implFn ->
+                      return Map.add nodeId (PT.FQFnName.Chosen implFn) pins
+                    | None -> return pins
+                  })
+                Map.empty
             // A call whose self type is one of the item's own type params is not a call nobody
             // could work out: it is waiting for its caller, and it says so.
-            for KeyValue(nodeId, param) in CheckerApi.deferralsOf proof do
-              if not (Map.containsKey nodeId pins) then
-                pins <- Map.add nodeId (PT.FQFnName.FromTypeParam param) pins
+            let pins =
+              CheckerApi.deferralsOf proof
+              |> Map.fold
+                (fun pins nodeId param ->
+                  if Map.containsKey nodeId pins then
+                    pins
+                  else
+                    Map.add nodeId (PT.FQFnName.FromTypeParam param) pins)
+                pins
             if not (Map.isEmpty pins) then pinsByItem[hash] <- pins
 
             // The other half: what this item's CALLS worked out for the bounds of the fns they
             // name. That is what makes a call into a bounded fn static: the callee's body defers
             // to its type param, and the call says which implementation that param implies.
+            // Accumulated in loops rather than folds: the trait and the impl fn are both
+            // awaited, so the fold version is three nested `uply` continuations deep.
             let mutable bounds = Map.empty
             for KeyValue(nodeId, owed) in CheckerApi.callerBoundsOf proof do
               let mutable resolved = []

@@ -183,35 +183,28 @@ let shiftLeft (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftLeft a b
 let shiftRight (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftRight a b
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for Int32 =
   let add = Stdlib.Int32.add
 
-
 impl Subtract for Int32 =
   let subtract = Stdlib.Int32.subtract
-
 
 impl Multiply for Int32 =
   let multiply = Stdlib.Int32.multiply
 
-
 impl Divide for Int32 =
   let divide = Stdlib.Int32.divide
-
 
 impl Modulo for Int32 =
   let modulo = Stdlib.Int32.``mod``
 
-
 impl Power for Int32 =
   let power = Stdlib.Int32.power
 
-
 impl Negate for Int32 =
   let negate = Stdlib.Int32.negate
-
 
 impl Compare for Int32 =
   let lessThan = Stdlib.Int32.lessThan
@@ -219,38 +212,29 @@ impl Compare for Int32 =
   let greaterThan = Stdlib.Int32.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int32.greaterThanOrEqualTo
 
-
 impl ToString for Int32 =
   let toString = Stdlib.Int32.toString
-
 
 impl Zero for Int32 =
   let zero () : Int32 = 0l
 
-
 impl One for Int32 =
   let one () : Int32 = 1l
-
 
 impl BitwiseAnd for Int32 =
   let bitwiseAnd = Stdlib.Int32.bitwiseAnd
 
-
 impl BitwiseOr for Int32 =
   let bitwiseOr = Stdlib.Int32.bitwiseOr
-
 
 impl BitwiseXor for Int32 =
   let bitwiseXor = Stdlib.Int32.bitwiseXor
 
-
 impl BitwiseNot for Int32 =
   let bitwiseNot = Stdlib.Int32.bitwiseNot
 
-
 impl ShiftLeft for Int32 =
   let shiftLeft = Stdlib.Int32.shiftLeft
-
 
 impl ShiftRight for Int32 =
   let shiftRight = Stdlib.Int32.shiftRight

@@ -149,9 +149,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           (Stdlib.Cli.UI.Colors.dimText
             $"No implementations of {traitPath} on this branch. `dark search {traitPath} --impl` looks on others.")
       else
-        // The methods are the trait's, so they are the same on every line: once at the top, not
-        // thirteen times down the page. Then one line per type, sorted, because the store hands
-        // them back in whatever order its index does.
+        // Sorted, because the store returns candidates in whatever order its index does.
         let methodNames =
           match candidates with
           | c :: _ -> c.methods |> Stdlib.Dict.keys |> Stdlib.List.sort |> Stdlib.String.join ", "
@@ -159,9 +157,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
         Stdlib.printLine $"{traitPath}  ({methodNames})"
 
-        // The self-type column is as wide as the widest entry, with 12 as a floor. A fixed
-        // width meant one long type name pushed its own row's second column out and the
-        // table stopped lining up.
+        // 12 is a floor, so a page of short type names still has a column.
         let selfWidth =
           candidates
           |> Stdlib.List.map (fun c ->
@@ -174,9 +170,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           let selfStr = describeSelf state.currentBranchId c.self
           let sourceName = sourceNameOf state.currentBranchId c.source
 
-          // Another implementation for the same type, written later, is the one a call runs. Say so
-          // here: this list is what dispatch can reach, and half of it being unreachable is the kind
-          // of thing you want to find out from the listing rather than from a value you did not expect.
+          // Mark what a call will not reach.
           let note =
             match statusOf state.currentBranchId candidates c with
             | "unordered" ->

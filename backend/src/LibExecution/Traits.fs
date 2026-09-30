@@ -97,9 +97,9 @@ let headOfKnownType (kt : KnownType) : Head =
   | KTDict _ -> Head.Dict
 
 
-/// Does a candidate's self type agree with the value's type beyond the head? Only
-/// consulted to break a tie. A type variable agrees with anything; `Unknown` agrees
-/// with anything; otherwise heads must match recursively.
+/// Does a candidate's self type agree with the value's type beyond the head? A type
+/// variable agrees with anything; `Unknown` agrees with anything; otherwise heads must
+/// match recursively.
 let rec private argsAgree (t : TypeReference) (vt : ValueType) : bool =
   match t, vt with
   | TVariable _, _ -> true

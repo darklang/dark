@@ -607,7 +607,7 @@ let expectGt (state : ParserState) (j : int) : TokenRange * int =
 // one `>` pending for the enclosing generic.
 // declaration type parameters `<'a, 'b>` — collect the (tick-stripped) names
 // so generic types/fns keep their params (needed for runtime type unification).
-/// `<'a, 'b: Show + Equal>`: the declared type params, and each `: Trait [+ Trait]`
+/// `<'a, 'b: Show + Compare>`: the declared type params, and each `: Trait [+ Trait]`
 /// bound as its own entry. `parseBoundTrait` is passed in because the type
 /// parser is defined later in the file (mutual recursion via a parameter rather
 /// than a `rec` group spanning half the parser).
@@ -650,7 +650,7 @@ let parseTypeParamsWith
         names.Add(name, rng state k)
         expectingName <- false
         k <- k + 1
-        // `'a: Show + Equal`: each trait after the colon is one bound on this param.
+        // `'a: Show + Compare`: each trait after the colon is one bound on this param.
         if tok state k = TColon then
           let colon = rng state k
           k <- k + 1
@@ -2888,6 +2888,30 @@ and parseTypeParams
   parseTypeParamsWith parseBoundTrait state i
 
 // a function parameter `(name: Type)` or `()`
+/// A run of `(name: T)` parameters, with the blank-name check both a fn declaration and a
+/// trait method need. Stops when a step makes no progress, the file's usual guard.
+and parseParams (state : ParserState) (i : int) : List<WT.FnParam> * int =
+  let ps = System.Collections.Generic.List<WT.FnParam>()
+  let mutable k = i
+  let mutable more = true
+  while more && tok state k = TLParen do
+    let (p, k2) = parseParam state k
+    ps.Add p
+    if k2 = k then more <- false else k <- k2
+  for parameter in ps do
+    match parameter with
+    | WT.FPNormal(_, name, _, _, _, _, _) when name.name = "" ->
+      state.diagnostics.Add
+        { code = DiagnosticCode.pattern
+          severity = DiagError
+          range = name.range
+          message = "Blank parameter '___' is not allowed in a package function"
+          related = []
+          hint = Some "use () for a unit parameter or give the parameter a name" }
+    | _ -> ()
+  (List.ofSeq ps, k)
+
+
 and parseParam (state : ParserState) (i : int) : WT.FnParam * int =
   let lparen = rng state i
   if tok state (i + 1) = TRParen then
@@ -2976,24 +3000,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
       { range = rng state nameIdx; name = "_" }
   let (typeParams, bounds, afterName) = parseTypeParams state (nameIdx + 1)
   if tok state afterName = TLParen then
-    let ps = System.Collections.Generic.List<WT.FnParam>()
-    let mutable kk = afterName
-    let mutable more = true
-    while more && tok state kk = TLParen do
-      let (p, kk2) = parseParam state kk
-      ps.Add p
-      if kk2 = kk then more <- false else kk <- kk2
-    for parameter in ps do
-      match parameter with
-      | WT.FPNormal(_, name, _, _, _, _, _) when name.name = "" ->
-        state.diagnostics.Add
-          { code = DiagnosticCode.pattern
-            severity = DiagError
-            range = name.range
-            message = "Blank parameter '___' is not allowed in a package function"
-            related = []
-            hint = Some "use () for a unit parameter or give the parameter a name" }
-      | _ -> ()
+    let (ps, kk) = parseParams state afterName
     let (colon, afterColon) =
       if tok state kk = TColon then
         (rng state kk, kk + 1)
@@ -3014,7 +3021,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
         name = nameId
         typeParams = typeParams
         bounds = bounds
-        parameters = List.ofSeq ps
+        parameters = ps
         effects = effects
         returnType = returnType
         body = body
@@ -3121,13 +3128,7 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
         errExpected state mNameIdx "a method name"
         { range = rng state mNameIdx; name = "_" }
     let (mTypeParams, mBounds, afterMName) = parseTypeParams state (mNameIdx + 1)
-    let ps = System.Collections.Generic.List<WT.FnParam>()
-    let mutable kk = afterMName
-    let mutable more = true
-    while more && tok state kk = TLParen do
-      let (p, kk2) = parseParam state kk
-      ps.Add p
-      if kk2 = kk then more <- false else kk <- kk2
+    let (ps, kk) = parseParams state afterMName
     let (colon, afterColon) =
       if tok state kk = TColon then
         (rng state kk, kk + 1)
@@ -3159,7 +3160,7 @@ and parseTraitDecl (state : ParserState) (i : int) : WT.Declaration * int =
         name = mName
         typeParams = mTypeParams
         bounds = mBounds
-        parameters = List.ofSeq ps
+        parameters = ps
         effects = effects
         returnType = returnType
         body = body

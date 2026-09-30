@@ -151,31 +151,25 @@ let shiftLeft (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32ShiftLeft a b
 let shiftRight (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32ShiftRight a b
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for UInt32 =
   let add = Stdlib.UInt32.add
 
-
 impl Subtract for UInt32 =
   let subtract = Stdlib.UInt32.subtract
-
 
 impl Multiply for UInt32 =
   let multiply = Stdlib.UInt32.multiply
 
-
 impl Divide for UInt32 =
   let divide = Stdlib.UInt32.divide
-
 
 impl Modulo for UInt32 =
   let modulo = Stdlib.UInt32.``mod``
 
-
 impl Power for UInt32 =
   let power = Stdlib.UInt32.power
-
 
 impl Compare for UInt32 =
   let lessThan = Stdlib.UInt32.lessThan
@@ -183,38 +177,29 @@ impl Compare for UInt32 =
   let greaterThan = Stdlib.UInt32.greaterThan
   let greaterThanOrEqualTo = Stdlib.UInt32.greaterThanOrEqualTo
 
-
 impl ToString for UInt32 =
   let toString = Stdlib.UInt32.toString
-
 
 impl Zero for UInt32 =
   let zero () : UInt32 = 0ul
 
-
 impl One for UInt32 =
   let one () : UInt32 = 1ul
-
 
 impl BitwiseAnd for UInt32 =
   let bitwiseAnd = Stdlib.UInt32.bitwiseAnd
 
-
 impl BitwiseOr for UInt32 =
   let bitwiseOr = Stdlib.UInt32.bitwiseOr
-
 
 impl BitwiseXor for UInt32 =
   let bitwiseXor = Stdlib.UInt32.bitwiseXor
 
-
 impl BitwiseNot for UInt32 =
   let bitwiseNot = Stdlib.UInt32.bitwiseNot
 
-
 impl ShiftLeft for UInt32 =
   let shiftLeft = Stdlib.UInt32.shiftLeft
-
 
 impl ShiftRight for UInt32 =
   let shiftRight = Stdlib.UInt32.shiftRight

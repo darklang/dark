@@ -897,10 +897,9 @@ and Instructions =
 
 and DvalMap = Map<string, Dval>
 
-/// TODO the one place that CANNOT be made consistent with `==`, which consults a type's
-/// `Equal` implementation. A dict key is hashed and compared inside F#'s own `Map`, where
-/// there is no interpreter to call and no `Ply` to await, so a type that says what equal
-/// means is ignored here. Worth saying out loud in the docs rather than fixing.
+/// A dict key is hashed and compared inside F#'s own `Map`, so the comparison is
+/// structural and cannot call the interpreter or await a `Ply`. Nothing a type says
+/// about equality can reach here.
 and [<CustomEquality; CustomComparison>] DictKey =
   | DictKey of Dval
 
@@ -2393,7 +2392,7 @@ module PackageFn =
       /// `Access`; this never widens it.
       permissionCeiling : Option<Set<Effects.Effect>>
 
-      /// `'a: Show + Equal`; see `ProgramTypes.PackageFn.bounds`. Checked at entry.
+      /// `'a: Show + Compare`; see `ProgramTypes.PackageFn.bounds`. Checked at entry.
       bounds : List<Bound>
 
       // CLEANUP consider renaming - just `instructions` maybe?

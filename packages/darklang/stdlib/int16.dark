@@ -185,35 +185,28 @@ let shiftLeft (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftLeft a b
 let shiftRight (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftRight a b
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for Int16 =
   let add = Stdlib.Int16.add
 
-
 impl Subtract for Int16 =
   let subtract = Stdlib.Int16.subtract
-
 
 impl Multiply for Int16 =
   let multiply = Stdlib.Int16.multiply
 
-
 impl Divide for Int16 =
   let divide = Stdlib.Int16.divide
-
 
 impl Modulo for Int16 =
   let modulo = Stdlib.Int16.``mod``
 
-
 impl Power for Int16 =
   let power = Stdlib.Int16.power
 
-
 impl Negate for Int16 =
   let negate = Stdlib.Int16.negate
-
 
 impl Compare for Int16 =
   let lessThan = Stdlib.Int16.lessThan
@@ -221,38 +214,29 @@ impl Compare for Int16 =
   let greaterThan = Stdlib.Int16.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int16.greaterThanOrEqualTo
 
-
 impl ToString for Int16 =
   let toString = Stdlib.Int16.toString
-
 
 impl Zero for Int16 =
   let zero () : Int16 = 0s
 
-
 impl One for Int16 =
   let one () : Int16 = 1s
-
 
 impl BitwiseAnd for Int16 =
   let bitwiseAnd = Stdlib.Int16.bitwiseAnd
 
-
 impl BitwiseOr for Int16 =
   let bitwiseOr = Stdlib.Int16.bitwiseOr
-
 
 impl BitwiseXor for Int16 =
   let bitwiseXor = Stdlib.Int16.bitwiseXor
 
-
 impl BitwiseNot for Int16 =
   let bitwiseNot = Stdlib.Int16.bitwiseNot
 
-
 impl ShiftLeft for Int16 =
   let shiftLeft = Stdlib.Int16.shiftLeft
-
 
 impl ShiftRight for Int16 =
   let shiftRight = Stdlib.Int16.shiftRight

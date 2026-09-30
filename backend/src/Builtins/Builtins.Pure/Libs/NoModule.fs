@@ -334,12 +334,10 @@ let fns () : List<BuiltInFn> =
           else
             let r = DarkInt.toBigInt v % m
             Ply(Dval.int (if r < System.Numerics.BigInteger.Zero then m + r else r))
-        // No Float arm. `%` on Floats is gone: nothing used it, and what it did was floored
-        // where the C-family languages are truncated, raised on a zero divisor where our own
-        // Float division deliberately returns Infinity, and raised Int-category errors for a
-        // Float operation. Swift and Elm both removed float `%` for the same reason. A Float
-        // pair now takes the type error below, and through the operator it is a missing
-        // `Modulo` implementation, which names the line that would add one.
+        // No Float arm, on purpose: float `%` was floored where the C family truncates and
+        // raised on a zero divisor where our own Float division returns Infinity. Swift and
+        // Elm dropped theirs for the same reason. A Float pair now takes the type error
+        // below, which through the operator reads as a missing `Modulo` impl.
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"

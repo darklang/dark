@@ -278,7 +278,7 @@ let evalDictSet
     ValueNone
 
 
-/// The arithmetic and comparison operators on the fixed-width and float types, for the trait
+/// The arithmetic and ordering operators on the fixed-width, float and String types, for the trait
 /// method the operator lowers to. What the impl fn would compute (`Stdlib.Int64.add` is
 /// `a + b` in F#, wrapping), restated here so the operator never pays impl selection when both
 /// operands are the same builtin numeric type. Anything that can fail (`divide`, `modulo`,
@@ -288,7 +288,7 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
   // which is the cost this table exists to avoid.
   if tag = add then
     match a with
-    // `"a" + "b"`: what `++` computes, `normalize` included
+    // `"a" + "b"`: string concatenation, `normalize` included
     | DString x ->
       (match b with
        | DString y -> ValueSome(DString(String.normalize (x + y)))
@@ -498,13 +498,12 @@ let evalNumeric (tag : int) (a : Dval) (b : Dval) : Dval voption =
     ValueNone
 
 
-/// The tag for a trait method, when the trait is one of the stdlib operator traits. Rebuilt
-/// when the package refs reload, since the hashes move with the stdlib. The table is
-/// published whole and never written after: readers on other threads only ever see a
-/// finished one.
-/// A reference tuple rather than a struct one, so the generation and the table it belongs to
-/// are published in ONE store. As a struct it took two, and a reader between them could pair
-/// the new generation with the old table and read an operator's tag out of it.
+/// The tag for a trait method, when the trait is one of the stdlib operator traits.
+/// Rebuilt when the package refs reload, since the hashes move with the stdlib.
+///
+/// A reference tuple, not a struct one, so the generation and its table publish in ONE
+/// store: as a struct a reader between the two stores could pair the new generation with
+/// the old table. Same shape and same reason as `NumericTraits.cache`.
 let mutable private traitTags : int * Dictionary<struct (string * string), int> =
   (-1, Dictionary())
 
@@ -540,19 +539,14 @@ let traitTag (traitHash : string) (methodName : string) : int voption =
         greaterThanOrEqualTo
       traitTags <- (gen, fresh)
       fresh
+  // Out-param, not the tuple form, which allocates per lookup (docs/perf/history.md):
+  // this runs once per trait-method Apply.
   let mutable tag = 0
   if table.TryGetValue(struct (traitHash, methodName), &tag) then
     ValueSome tag
   else
     ValueNone
 
-
-/// `Equal.equals`: the one trait method with a structural fallback, and the one the
-/// interpreter answers without dispatch for anything but a record or an enum.
-let isEquals (traitHash : string) (methodName : string) : bool =
-  match traitTag traitHash methodName with
-  | ValueSome tag -> tag = equals
-  | ValueNone -> false
 
 /// Looked up by name once per call rather than matched as a string: `FQFnName.Builtin` is a small
 /// record and this is a single probe of a table with ten entries in it.

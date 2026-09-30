@@ -136,8 +136,8 @@ module RuntimeError =
   /// suffix pointing the user at the right conversion function. Empty
   /// string otherwise (Unknown, Unit, String, collection/custom types).
   let toStringHint (vt: LanguageTools.RuntimeTypes.ValueType) : String =
-    // One hint for every type that has a ToString implementation, which since traits is
-    // every builtin type: `Stdlib.toString` is the fn to reach for, whatever the type is.
+    // One hint for the types that have a ToString impl; `Stdlib.toString` is the fn to
+    // reach for whichever it is. Collections and custom types have none, so no hint.
     match vt with
     | Known KTInt8
     | Known KTUInt8

@@ -154,35 +154,28 @@ let shiftLeft (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftLeft a b
 let shiftRight (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftRight a b
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for Int128 =
   let add = Stdlib.Int128.add
 
-
 impl Subtract for Int128 =
   let subtract = Stdlib.Int128.subtract
-
 
 impl Multiply for Int128 =
   let multiply = Stdlib.Int128.multiply
 
-
 impl Divide for Int128 =
   let divide = Stdlib.Int128.divide
-
-
-impl Power for Int128 =
-  let power = Stdlib.Int128.power
-
 
 impl Modulo for Int128 =
   let modulo = Stdlib.Int128.``mod``
 
+impl Power for Int128 =
+  let power = Stdlib.Int128.power
 
 impl Negate for Int128 =
   let negate = Stdlib.Int128.negate
-
 
 impl Compare for Int128 =
   let lessThan = Stdlib.Int128.lessThan
@@ -190,38 +183,29 @@ impl Compare for Int128 =
   let greaterThan = Stdlib.Int128.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int128.greaterThanOrEqualTo
 
-
 impl ToString for Int128 =
   let toString = Stdlib.Int128.toString
-
 
 impl Zero for Int128 =
   let zero () : Int128 = 0Q
 
-
 impl One for Int128 =
   let one () : Int128 = 1Q
-
 
 impl BitwiseAnd for Int128 =
   let bitwiseAnd = Stdlib.Int128.bitwiseAnd
 
-
 impl BitwiseOr for Int128 =
   let bitwiseOr = Stdlib.Int128.bitwiseOr
-
 
 impl BitwiseXor for Int128 =
   let bitwiseXor = Stdlib.Int128.bitwiseXor
 
-
 impl BitwiseNot for Int128 =
   let bitwiseNot = Stdlib.Int128.bitwiseNot
 
-
 impl ShiftLeft for Int128 =
   let shiftLeft = Stdlib.Int128.shiftLeft
-
 
 impl ShiftRight for Int128 =
   let shiftRight = Stdlib.Int128.shiftRight

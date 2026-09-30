@@ -241,9 +241,10 @@ Rules:
 - String concat: + (not @)
 - String interpolation: $"x = {expr}; total = {a + b}" -- does NOT auto-coerce
   non-strings; wrap with Stdlib.toString
-- Every operator is a trait: `+ - * / % **` and `-x` are Add Subtract Multiply Divide Modulo Power
-  Negate, `< <= > >=` are Compare. `==`/`!=` are NOT traits: always structural,
-  `& | ^ << >>` and `~x` are BitwiseAnd BitwiseOr BitwiseXor ShiftLeft ShiftRight BitwiseNot.
+- Most operators are traits: `+ - * / % **` and `-x` are Add Subtract Multiply Divide Modulo
+  Power Negate; `< <= > >=` are Compare; `& | ^ << >>` and `~x` are BitwiseAnd BitwiseOr
+  BitwiseXor ShiftLeft ShiftRight BitwiseNot. `==` and `!=` are NOT traits: structural on
+  every value, always, and no type can override them.
   Operands must match (`1 + 2`, `1.0 + 2.0`; `1L + 2.0` is an error). `/` is
   integer division on ints, float on floats; `**` is power; a bare `1` is an
   arbitrary-precision `Int` and never overflows. `"a" + "b"` is `"ab"`.

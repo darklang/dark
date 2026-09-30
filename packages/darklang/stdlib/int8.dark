@@ -183,35 +183,28 @@ let shiftLeft (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftLeft a b
 let shiftRight (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftRight a b
 
 
-// The operator traits, over the fns above.
+// The traits, over the fns above.
 
 impl Add for Int8 =
   let add = Stdlib.Int8.add
 
-
 impl Subtract for Int8 =
   let subtract = Stdlib.Int8.subtract
-
 
 impl Multiply for Int8 =
   let multiply = Stdlib.Int8.multiply
 
-
 impl Divide for Int8 =
   let divide = Stdlib.Int8.divide
-
 
 impl Modulo for Int8 =
   let modulo = Stdlib.Int8.``mod``
 
-
 impl Power for Int8 =
   let power = Stdlib.Int8.power
 
-
 impl Negate for Int8 =
   let negate = Stdlib.Int8.negate
-
 
 impl Compare for Int8 =
   let lessThan = Stdlib.Int8.lessThan
@@ -219,38 +212,29 @@ impl Compare for Int8 =
   let greaterThan = Stdlib.Int8.greaterThan
   let greaterThanOrEqualTo = Stdlib.Int8.greaterThanOrEqualTo
 
-
 impl ToString for Int8 =
   let toString = Stdlib.Int8.toString
-
 
 impl Zero for Int8 =
   let zero () : Int8 = 0y
 
-
 impl One for Int8 =
   let one () : Int8 = 1y
-
 
 impl BitwiseAnd for Int8 =
   let bitwiseAnd = Stdlib.Int8.bitwiseAnd
 
-
 impl BitwiseOr for Int8 =
   let bitwiseOr = Stdlib.Int8.bitwiseOr
-
 
 impl BitwiseXor for Int8 =
   let bitwiseXor = Stdlib.Int8.bitwiseXor
 
-
 impl BitwiseNot for Int8 =
   let bitwiseNot = Stdlib.Int8.bitwiseNot
 
-
 impl ShiftLeft for Int8 =
   let shiftLeft = Stdlib.Int8.shiftLeft
-
 
 impl ShiftRight for Int8 =
   let shiftRight = Stdlib.Int8.shiftRight

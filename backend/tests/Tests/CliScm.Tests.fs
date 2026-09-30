@@ -1712,10 +1712,17 @@ let private aNameHoldsOneItemWhateverItsKind =
 
       // The value section must hold `other` and NOT `thing`: one live binding per name, so the
       // displaced value is gone from the listing rather than sitting beside the fn.
+      //
+      // Sliced by "the lines under Values: until the next section header", not by a fixed pair
+      // of headers: the listing's section ORDER is a UI decision and has changed once already.
       let valuesSection =
-        let i = listing.IndexOf "Values:"
-        let j = listing.IndexOf "Functions:"
-        if i >= 0 && j > i then listing.Substring(i, j - i) else ""
+        let lines = listing.Split '\n'
+        match lines |> Array.tryFindIndex (fun l -> l.Contains "Values:") with
+        | None -> ""
+        | Some i ->
+          lines[i + 1 ..]
+          |> Array.takeWhile (fun l -> not (l.TrimEnd().EndsWith ":"))
+          |> String.concat "\n"
 
       Expect.stringContains
         valuesSection

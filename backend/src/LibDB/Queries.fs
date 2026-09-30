@@ -743,13 +743,10 @@ let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
       return { allDeprecated = deprecated; hidden = mainSets.hidden }
   }
 
-/// The implementations currently deprecated, by hash. A deprecated implementation is
-/// not a dispatch candidate: deprecating one of two rivals is how the ambiguity
-/// finding says to resolve it, so it has to take the rival out of the running.
-/// When each impl was added, by the stamp of its `AddTraitImpl` op. Selection orders two impls of
-/// one trait for one type by it (`LibExecution.Lww`), so the same call picks the same impl on every
-/// instance. An impl whose row predates the column answers "", and unstamped rivals are reported
-/// rather than picked.
+/// When each impl was added, by the stamp of its `AddTraitImpl` op. Selection orders two
+/// impls of one trait for one type by it (`LibExecution.Lww`), so the same call picks the
+/// same impl on every instance. A row written before the column answers "", and a pair of
+/// unstamped rivals is reported rather than picked.
 let getTraitImplStamps () : Task<Map<string, string>> =
   task {
     let! rows =
@@ -759,6 +756,8 @@ let getTraitImplStamps () : Task<Map<string, string>> =
   }
 
 
+/// The impls currently deprecated. A deprecated impl is not a dispatch candidate:
+/// deprecating one of two rivals is how the ambiguity finding says to settle it.
 let getDeprecatedTraitImplHashes () : Task<Set<string>> =
   task {
     let! rows =
