@@ -912,7 +912,7 @@ module Expr =
 
         toRT symbols rc currentFnName (PT.EPipe(id, newLHS, parts))
 
-    | PT.EInfix(_, PT.BinOp op, left, right) ->
+    | PT.EInfix(id, PT.BinOp op, left, right) ->
       let left = toRT symbols rc currentFnName left
       let right = toRT symbols left.registerCount currentFnName right
 
@@ -924,12 +924,15 @@ module Expr =
         | PT.BinOpAnd -> RT.And(resultReg, left.resultIn, right.resultIn)
 
       { registerCount = rcAfterResult
-        instructions = left.instructions @ right.instructions @ [ opInstr ]
+        instructions =
+          left.instructions
+          @ right.instructions
+          @ [ opInstr; RT.TraceExpr(id, resultReg) ]
         resultIn = resultReg }
 
 
 
-    | PT.EInfix(_, PT.InfixFnCall infix, left, right) ->
+    | PT.EInfix(id, PT.InfixFnCall infix, left, right) ->
       let left = toRT symbols rc currentFnName left
       let right = toRT symbols left.registerCount currentFnName right
 
@@ -959,7 +962,11 @@ module Expr =
                 infixRc,
                 [],
                 NEList.ofList left.resultIn [ right.resultIn ]
-              ) ]
+              )
+              // An infix call is a call, and a reader wants its value as much as any other:
+              // `total * rate // = 140`. This was missing, so every `+`, `-`, `<` and `++` in
+              // Dark was invisible to a trace. The id was being discarded here too.
+              RT.TraceExpr(id, resultReg) ]
         resultIn = resultReg }
 
 
