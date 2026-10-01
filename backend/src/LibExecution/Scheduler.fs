@@ -185,17 +185,12 @@ let stateForProcess
   (state : RT.ExecutionState)
   (pid : ProcessId)
   : RT.ExecutionState =
-  // Every tracer that keeps anything per process needs its own copy, and a PREVIEW is one of
-  // them even though it records nothing: `forProcess` is what hands a spawned child the view
-  // tracer instead of the default, and the default performs effects for real. Testing the
-  // recording flags alone would send a concurrent view's children off to touch the world.
-  let needsPerProcess =
-    state.tracing.recordAllCalls
-    || state.tracing.traceEffects
-    || state.tracing.collectExprValues
-    || Option.isSome state.tracing.viewEffect
-
-  if needsPerProcess then
+  // `collectFrames` is the question "is anyone watching at all", which is exactly the question
+  // here: a tracer that keeps anything per process needs its own copy, and a VIEW is one of them
+  // even though it records nothing. `forProcess` is what hands a spawned child the view tracer
+  // instead of the default, and the default performs effects for real, so getting this wrong
+  // sends a concurrent view's children off to touch the world.
+  if state.tracing.collectFrames then
     { state with tracing = state.tracing.forProcess pid }
   else
     state

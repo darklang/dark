@@ -146,8 +146,6 @@ type ViewFrame =
     parent: String
     /// The lambda's own expression id, for a `lambda` frame. 0 otherwise.
     callSite: Int64
-    /// Which pass this is among its siblings at that call site: 0 for a plain call.
-    pass: Int64
     /// "source" | "function" | "lambda"
     kind: String
     /// The callee's hash, for a `function` frame. "" otherwise.
@@ -173,13 +171,12 @@ let viewTraceTree
   let frames =
     frames
     |> Stdlib.List.map (fun row ->
-      let (id, parent, callSite, pass, kind, callee, ord) = row
+      let (id, parent, callSite, kind, callee, ord) = row
 
       ViewFrame
         { id = id
           parent = parent
           callSite = callSite
-          pass = pass
           kind = kind
           callee = callee
           ord = ord })

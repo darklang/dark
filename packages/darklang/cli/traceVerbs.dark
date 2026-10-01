@@ -172,7 +172,7 @@ type TraceWithCallsJson =
 /// What `traces show --json` hands back: which trace was read, and what each expression in the
 /// code evaluated to, keyed by the expression's id. `problem` is set when the replay stopped.
 /// One pass of a loop, for `--json`.
-type SitePassJson =
+type LoopPassJson =
   { /// Which one this is, counting from 1.
     at: Int
     /// `--expand map:3`, ready to use.
@@ -183,11 +183,11 @@ type SitePassJson =
 
 
 /// A loop, for `--json`.
-type SiteJson =
+type LoopJson =
   { /// `map`, `fold`, `map#2`. What `--expand` takes.
     name: String
     count: Int
-    passes: List<SitePassJson> }
+    passes: List<LoopPassJson> }
 
 
 type ValuesJson =
@@ -200,7 +200,7 @@ type ValuesJson =
     /// screen is confusing. An agent has no such problem and a round trip costs it more than
     /// the bytes do, so the whole tree comes back in one call. `values` above is the flat view,
     /// one value per expression; these are what tells pass 3 from pass 7.
-    sites: List<SiteJson>
+    loops: List<LoopJson>
     problem: Stdlib.Option.Option<String> }
 
 
@@ -464,15 +464,15 @@ let printValuesJson
         | Hash v -> v)
       |> Stdlib.Option.withDefault ""
 
-    let sites =
+    let loops =
       (loopsOf
         frames
         (Darklang.Tracing.Store.fnsWithHashes trace.id)
         (Darklang.Tracing.Store.storedFrames trace.id)
         selfHash)
-      |> Stdlib.List.map (fun site ->
+      |> Stdlib.List.map (fun loop ->
         let passes =
-          site.passes
+          loop.passes
           |> Stdlib.List.indexedMap (fun i f ->
             let mine =
               frameValues
@@ -488,14 +488,14 @@ let printValuesJson
 
             let p = Stdlib.Int.toString (i + 1)
 
-            SitePassJson
+            LoopPassJson
               { at = i + 1
-                expand = $"{site.name}:{p}"
+                expand = $"{loop.name}:{p}"
                 values = mine })
 
-        SiteJson
-          { name = site.name
-            count = Stdlib.List.length site.passes
+        LoopJson
+          { name = loop.name
+            count = Stdlib.List.length loop.passes
             passes = passes })
 
     Stdlib.printLine
@@ -504,7 +504,7 @@ let printValuesJson
           { trace = trace.id
             fn = fnName
             values = values
-            sites = sites
+            loops = loops
             problem = problem }))
     true
 
@@ -610,10 +610,10 @@ let loopsOf
   lambdas
   |> Stdlib.List.fold [] (fun acc f ->
     if Stdlib.List.member acc f.callSite then acc else Stdlib.List.append acc [ f.callSite ])
-  |> Stdlib.List.map (fun site ->
+  |> Stdlib.List.map (fun callSite ->
     let passes =
       lambdas
-      |> Stdlib.List.filter (fun f -> f.callSite == site)
+      |> Stdlib.List.filter (fun f -> f.callSite == callSite)
       |> Stdlib.List.sortBy (fun f -> f.ord)
 
     let nm =
@@ -624,7 +624,7 @@ let loopsOf
 
     // The recorded count for this call site. Stored lambda frames carry the lambda's own
     // expression id as their site, which is the same key the replay frames use.
-    let siteText = Stdlib.Int64.toString site
+    let siteText = Stdlib.Int64.toString callSite
 
     let recorded =
       stored
@@ -763,7 +763,7 @@ let printValues
           match hash with
           | Hash h -> h
 
-        let sites =
+        let loops =
           loopsOf
             frames
             (Darklang.Tracing.Store.fnsWithHashes trace.id)
@@ -787,20 +787,20 @@ let printValues
           | Some raw -> Stdlib.String.split raw ","
 
         /// The pass a selector asks for: `map` is the first, `map:3` is the third.
-        let selectorFor (site: Site) : Stdlib.Option.Option<String> =
+        let selectorFor (loop: Loop) : Stdlib.Option.Option<String> =
           requested
           |> Stdlib.List.findFirst (fun r ->
-            (r == site.name) || (Stdlib.String.startsWith r $"{site.name}:"))
+            (r == loop.name) || (Stdlib.String.startsWith r $"{loop.name}:"))
 
-        /// Which one of a site's frames this is, counting from 1, as text.
-        let positionOf (site: Site) (frame: Darklang.Tracing.Store.ViewFrame) : String =
-          site.passes
+        /// Which one of a loop's passes this is, counting from 1, as text.
+        let positionOf (loop: Loop) (frame: Darklang.Tracing.Store.ViewFrame) : String =
+          loop.passes
           |> Stdlib.List.findFirstIndex (fun f -> f.id == frame.id)
           |> Stdlib.Option.map (fun i -> Stdlib.Int.toString (i + 1))
           |> Stdlib.Option.withDefault "1"
 
-        let chosenOf (site: Site) : Stdlib.Option.Option<Darklang.Tracing.Store.ViewFrame> =
-          match selectorFor site with
+        let chosenOf (loop: Loop) : Stdlib.Option.Option<Darklang.Tracing.Store.ViewFrame> =
+          match selectorFor loop with
           | None -> Stdlib.Option.Option.None
           | Some sel ->
             match Stdlib.String.split sel ":" with
@@ -809,9 +809,9 @@ let printValues
             // are each `pass = 0`, and numbering by it would make `receipt:2` unreachable.
             | [ _, p ] ->
               (match Stdlib.Int.parse p with
-               | Ok n -> Stdlib.List.getAt site.passes (n - 1)
+               | Ok n -> Stdlib.List.getAt loop.passes (n - 1)
                | Error _ -> Stdlib.Option.Option.None)
-            | _ -> Stdlib.List.head site.passes
+            | _ -> Stdlib.List.head loop.passes
 
         // A name nobody can act on is a refusal, not a silently unchanged page. So is a pass
         // number a loop does not have.
@@ -821,27 +821,27 @@ let printValues
             let nm =
               Stdlib.String.split r ":" |> Stdlib.List.head |> Stdlib.Option.withDefault r
 
-            (sites |> Stdlib.List.findFirst (fun site -> site.name == nm))
+            (loops |> Stdlib.List.findFirst (fun loop -> loop.name == nm))
             == Stdlib.Option.Option.None)
 
         let outOfRange =
-          sites
-          |> Stdlib.List.filter (fun site ->
-            ((selectorFor site) != Stdlib.Option.Option.None)
-            && ((chosenOf site) == Stdlib.Option.Option.None))
+          loops
+          |> Stdlib.List.filter (fun loop ->
+            ((selectorFor loop) != Stdlib.Option.Option.None)
+            && ((chosenOf loop) == Stdlib.Option.Option.None))
 
         match (unknown, outOfRange) with
         | (bad :: _, _) ->
-          let names = sites |> Stdlib.List.map (fun site -> site.name) |> Stdlib.String.join ", "
+          let names = loops |> Stdlib.List.map (fun loop -> loop.name) |> Stdlib.String.join ", "
           Cli.printErr $"nothing called `{bad}` in this trace"
 
           if names != "" then
             Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  here: {names}")
 
           { state with exitCode = 1 }
-        | (_, site :: _) ->
-          let n = Stdlib.Int.toString (Stdlib.List.length site.passes)
-          Cli.printErr $"`{site.name}` ran {n} times, so that pass does not exist"
+        | (_, loop :: _) ->
+          let n = Stdlib.Int.toString (Stdlib.List.length loop.passes)
+          Cli.printErr $"`{loop.name}` ran {n} times, so that pass does not exist"
           { state with exitCode = 1 }
         | _ ->
           let flat =
@@ -853,9 +853,9 @@ let printValues
 
           // A chosen pass replaces the values on the lines inside that loop.
           let values =
-            sites
-            |> Stdlib.List.fold flat (fun acc site ->
-              match chosenOf site with
+            loops
+            |> Stdlib.List.fold flat (fun acc loop ->
+              match chosenOf loop with
               | None -> acc
               | Some frame -> valuesOfFrame branchId acc frameValues frame.id)
 
@@ -879,24 +879,24 @@ let printValues
           // Which pass every loop is showing. A line inside a loop looks exactly like a line
           // that ran once, so the page has to say which pass it is, or a reader takes one pass
           // for the whole story.
-          match sites with
+          match loops with
           | [] -> state
           | _ ->
             Stdlib.printLine ""
 
-            sites
-            |> Stdlib.List.iter (fun site ->
-              let reached = Stdlib.List.length site.passes
+            loops
+            |> Stdlib.List.iter (fun loop ->
+              let reached = Stdlib.List.length loop.passes
               // The RECORD's count when there is one, because it is the true one. A replay that
               // stopped early has fewer passes than happened, and reporting its count would say
               // "pass 2 of 2" about a loop that went round seven times.
-              let total = if site.recorded > reached then site.recorded else reached
+              let total = if loop.recorded > reached then loop.recorded else reached
               let n = Stdlib.Int.toString total
 
               let p =
-                match chosenOf site with
+                match chosenOf loop with
                 | None -> Stdlib.Int.toString reached
-                | Some frame -> positionOf site frame
+                | Some frame -> positionOf loop frame
 
               let short =
                 if total > reached then
@@ -906,7 +906,7 @@ let printValues
 
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.dimText
-                  $"  {site.name}: showing pass {p} of {n}{short}"))
+                  $"  {loop.name}: showing pass {p} of {n}{short}"))
 
             Stdlib.printLine
               (Stdlib.Cli.UI.Colors.dimText

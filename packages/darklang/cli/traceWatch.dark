@@ -26,6 +26,13 @@ type Model =
     fn: String
     /// The traces that went through it, newest first.
     traces: List<Darklang.Tracing.Trace>
+    /// One line per trace, already rendered.
+    ///
+    /// Built here rather than in `render` because the "2 minutes ago" column reads the CLOCK,
+    /// and a render must be pure: the TUI runs it under a policy that denies effects, so a
+    /// render that asks the time is a panel that shows an error instead of itself. `reload` is
+    /// where effects are allowed, and it already runs on every tick, move and edit.
+    traceLines: List<String>
     cursor: Int
     /// The selected trace's code, already annotated. Recomputed on a move, a tick and an edit,
     /// because all three can change it: a different trace, a new one arriving, different code.
@@ -103,6 +110,22 @@ let pickCursor
   | None -> Stdlib.Int.max 0 (Stdlib.Int.min cursor ((Stdlib.List.length ids) - 1))
 
 
+/// When a trace ran, without asking what time it is now.
+///
+/// The list elsewhere says "2 minutes ago", which reads better and costs a CLOCK read. A panel
+/// may not have one: it runs under a policy that denies effects, which is the right rule for
+/// something repainting on a timer. And a relative time is the wrong thing here anyway -- this
+/// panel is open while traces arrive, so "2 minutes ago" would be wrong within a minute of being
+/// painted unless every tick recomputed it.
+let clockFreeTime (created: String) : String =
+  match Stdlib.String.split created "T" with
+  | [ _, rest ] ->
+    (match Stdlib.String.split rest "." with
+     | [ hms ] -> hms
+     | hms :: _ -> hms)
+  | _ -> created
+
+
 /// Reload the traces and re-annotate. One function for every reason the panel changes, so a move
 /// and a tick cannot drift apart in what they show.
 ///
@@ -114,12 +137,22 @@ let reload
   : Model =
   let traces = Darklang.Tracing.Store.wentThrough fn 25L
   let cursor = pickCursor (traces |> Stdlib.List.map (fun r -> r.id)) cursor keep
-  let (source, problem) = annotate branchId fn (Stdlib.List.getAt runs cursor)
+  let (source, problem) = annotate branchId fn (Stdlib.List.getAt traces cursor)
+
+  let traceLines =
+    traces
+    |> Stdlib.List.indexedMap (fun i r ->
+      let mark = if i == cursor then "> " else "  "
+      let id = Cli.Text.shortIdText r.id
+      let at = Stdlib.String.padEndToWidth (clockFreeTime r.created) 16
+      let status = Stdlib.String.padEndToWidth (Cli.TraceVerbs.statusText r.status) 10
+      $"{mark}{id}  {status}{at}{Cli.Text.oneLineAt 40 r.input}")
 
   Model
     { branchId = branchId
       fn = fn
-      runs = traces
+      traces = traces
+      traceLines = traceLines
       cursor = cursor
       source = source
       problem = problem }
@@ -151,19 +184,10 @@ let update (m: Model) (event: Apps.Host.Event<Msg>) : Model =
 
 
 let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
-  let traceLines =
-    m.traces
-    |> Stdlib.List.indexedMap (fun i r ->
-      let mark = if i == m.cursor then "> " else "  "
-      let id = Cli.Text.shortIdText r.id
-      let ago = Stdlib.String.padEndToWidth (Cli.TraceVerbs.whenText r.created) 16
-      let status = Stdlib.String.padEndToWidth (Cli.TraceVerbs.statusText r.status) 10
-      $"{mark}{id}  {status}{ago}{Cli.Text.oneLineAt 40 r.input}")
-
   let traces =
-    match traceLines with
+    match m.traceLines with
     | [] -> Stdlib.Cli.UI.Node.dim "  (no traces yet)"
-    | _ -> Stdlib.Cli.UI.Node.Node.Rows traceLines
+    | _ -> Stdlib.Cli.UI.Node.Node.Rows m.traceLines
 
   let problem =
     match m.problem with

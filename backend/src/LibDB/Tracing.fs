@@ -412,9 +412,6 @@ let private makeStoreFnResult
 /// The interpreter hooks for one process writing this trace. `forProcess` hands a spawned process
 /// its own; they share the event list and get their own ordinals.
 ///
-/// `recordAllCalls` stays FALSE even while recording, which is what keeps the interpreter's fast
-/// paths out of a recorded trace: a pure value is recomputed by a replay rather than stored.
-///
 /// `collectFrames` is TRUE, and costs the fast paths nothing: a lambda application and a package
 /// call push a real frame either way, and the only frames a shortcut skips are elided operator
 /// wrappers, which no reader wants a frame for. What it buys is the SHAPE, which a replay cannot
@@ -430,10 +427,9 @@ let rec private executionTracingFor
         (fun hash -> lock state.sync (fun () -> state.fns.Add hash |> ignore<bool>))
       collectExprValues = false
       collectFrames = true
-      recordAllCalls = false
       traceEffects = true
       storeFrameEntry =
-        (fun frameId parentId ep _args ->
+        (fun frameId parentId ep ->
           lock state.sync (fun () ->
             // The site key is the lambda's own expression id, or the callee's hash. NOT the
             // execution point formatted as a string: a lambda's execution point carries its
@@ -935,7 +931,7 @@ let createCliTracer
   // hooks anyway means building an event per frame and holding every argument and result alive for the
   // whole run, to discard all of it at the end.
   //
-  // `Exe.noTracing` leaves `recordAllCalls` false, which also lets the interpreter skip its own per-frame
+  // `Exe.noTracing` leaves everything off, which also lets the interpreter skip its own per-frame
   // bookkeeping (`pendingCallArgs`) rather than just calling no-op hooks.
   if TraceDetail.current = TraceDetail.Off then
     { enabled = false
@@ -1015,7 +1011,6 @@ type ViewFrame =
     /// site. And the frames come back from a dictionary, whose iteration order is not a
     /// promise. This is the one thing that says what happened first.
     ord : int
-    args : List<RT.Dval>
     valuesKept : bool }
 
 
@@ -1149,7 +1144,6 @@ let createViewTracer
     (frameId : System.Guid)
     (parentId : System.Guid)
     (ep : RT.ExecutionPoint)
-    (args : List<RT.Dval>)
     : unit =
     let site = struct (parentId, siteKey ep)
     lock gate (fun () ->
@@ -1171,7 +1165,6 @@ let createViewTracer
           executionPoint = ep
           pass = seen
           ord = ord
-          args = (if seen < passCap then args else [])
           valuesKept = seen < passCap })
 
   // Every process of the run is viewed, not just the first. The CLI spawns each expression as a
@@ -1184,7 +1177,6 @@ let createViewTracer
         // its register, which the shortcut writes just as the long way round does.
         collectExprValues = true
         collectFrames = true
-        recordAllCalls = false
         traceEffects = false
         // Keyed by (frame, expression). An expression id alone is not unique within a run: a
         // loop body writes the same id once per pass, so keying on it alone keeps only the last.

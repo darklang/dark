@@ -594,7 +594,7 @@ let inline private recordStage (vm : VMState) (stage : int) (before : int64) : u
     vm.stats.countByStage[stage] <- vm.stats.countByStage[stage] + 1L
     if d > 0L then vm.stats.allocByStage[stage] <- vm.stats.allocByStage[stage] + d
 
-/// Frame identity is internal to a VM: `callFrames`, `pendingCallArgs` and `framePushTimestamps` key on it,
+/// Frame identity is internal to a VM: `callFrames` and `framePushTimestamps` key on it,
 /// and the tracer's `storeFrameEntry` ignores the argument entirely. It never reaches storage or the wire.
 ///
 /// "Internal to a VM" is the whole invariant: ids repeat across VMs, so anything keyed on one has to
@@ -876,10 +876,9 @@ let private resolveTypeArgsAsync
 
 
 
-/// The classic rule: an effectful call (`ord >= 0`) is recorded whenever effects are traced; a
-/// pure one only under full tracing.
+/// The classic rule: an effectful call (`ord >= 0`) is recorded when effects are traced.
 let inline private recordsCall (tracing : Tracing.Tracing) (ord : int64) : bool =
-  (ord >= 0L && tracing.traceEffects) || tracing.recordAllCalls
+  ord >= 0L && tracing.traceEffects
 
 
 /// Record a builtin's result in the trace, and hand it back.
@@ -1237,7 +1236,7 @@ let private invokeBuiltin
 
   // An effectful call's place in the process's log, taken now rather than when it completes, so
   // a read that lands late keeps it. -1 for a pure call, or when nothing records.
-  let recording = exeState.tracing.traceEffects || exeState.tracing.recordAllCalls
+  let recording = exeState.tracing.traceEffects
   let ord =
     if recording && not (Set.isEmpty fn.callEffects) then
       exeState.tracing.nextEffect ()
@@ -1443,22 +1442,17 @@ let private completeBuiltin
 
 /// The result of an `Int` operator, or `ValueNone` to take the ordinary path.
 ///
-/// Declines only while every call is being recorded: a builtin call is then written down with its
-/// arguments and result when it returns, and a fast path that skipped that would quietly drop every
-/// arithmetic operation from the record.
+/// Always taken when the shape allows it.
 ///
-/// It does NOT decline for a view. A view collects the VALUE each expression produced, and the
-/// fast path leaves that value in the destination register exactly as the long way round does, so the
-/// `TraceExpr` instruction that follows the call reads the same thing either way.
+/// A view does not stop it: a view collects the VALUE each expression produced, and the fast path
+/// leaves that value in the destination register exactly as the long way round does, so the symbol
+/// table finds the same thing either way.
 let private tryFastOp
-  (exeState : ExecutionState)
   (threadID : ThreadID)
   (fn : BuiltInFn)
   (ctx : ApplyContext)
   : Dval voption =
-  if
-    exeState.tracing.recordAllCalls || not (List.isEmpty ctx.applicable.argsSoFar)
-  then
+  if not (List.isEmpty ctx.applicable.argsSoFar) then
     ValueNone
   else
     let mutable tag = 0
@@ -1563,7 +1557,6 @@ let private tryFastOpOn
 /// `tryFastOp` covers the ones that arrive through an elided package wrapper and have already had a
 /// context built; this covers the ones compiled as a direct builtin call, which is what `a + b` is.
 let private tryFastOpDirect
-  (exeState : ExecutionState)
   (threadID : ThreadID)
   (registers : Dval array)
   (applicable : ApplicableNamedFn)
@@ -1571,9 +1564,7 @@ let private tryFastOpDirect
   (argRegs : NEList<Register>)
   : Dval voption =
   if
-    exeState.tracing.recordAllCalls
-    || not (List.isEmpty typeArgs)
-    || not (List.isEmpty applicable.argsSoFar)
+    not (List.isEmpty typeArgs) || not (List.isEmpty applicable.argsSoFar)
   then
     ValueNone
   else
@@ -1604,7 +1595,7 @@ let rec private callBuiltinResolved
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
   : Ply<Dval> =
-  match tryFastOp exeState vm.threadID fn ctx with
+  match tryFastOp vm.threadID fn ctx with
   | ValueSome result ->
     // Counted, so `builtinCalls` still says how many builtin calls the program made.
     if vm.stats.enabled then
@@ -2030,8 +2021,6 @@ let private completePackage
       vm.stats.tstSizeSum <- vm.stats.tstSizeSum + n
       if n > vm.stats.tstSizeMax then vm.stats.tstSizeMax <- n
     let newFrameId = nextFrameId vm
-    if exeState.tracing.recordAllCalls then
-      vm.pendingCallArgs[newFrameId] <- ArgSeq.toList allArgs
     // A lambda defined in this function is applied from somewhere else's frame, so its table
     // has to be somewhere both can reach. Entering the function is when it becomes known.
     if exeState.tracing.collectExprValues && not (Map.isEmpty fn.symbols.Value.lambdas) then
@@ -2045,11 +2034,7 @@ let private completePackage
           System.Diagnostics.Stopwatch.GetTimestamp()
     let pkgEp = FreeTVars.packageExecutionPoint fn.hash
     if exeState.tracing.collectFrames then
-      exeState.tracing.storeFrameEntry
-        newFrameId
-        vm.currentFrameID
-        pkgEp
-        (ArgSeq.toList allArgs)
+      exeState.tracing.storeFrameEntry newFrameId vm.currentFrameID pkgEp
     // Names only, and only when something is recording: this is what lets `traces calls <fn>`
     // find the runs that went through a function at the shipped level, where the call itself
     // is not recorded. Two boolean tests when nothing is recording.
@@ -2578,11 +2563,7 @@ let inline private pushLambdaFrame
   recordStage vm ApplyStage.LambdaFrame lambdaFrameAlloc
   if vm.stats.enabled then vm.stats.framePushCount <- vm.stats.framePushCount + 1L
   if exeState.tracing.collectFrames then
-    exeState.tracing.storeFrameEntry
-      newFrame.id
-      vm.currentFrameID
-      newFrame.executionPoint
-      (ArgSeq.toList allArgs)
+    exeState.tracing.storeFrameEntry newFrame.id vm.currentFrameID newFrame.executionPoint
   vm.frameToPush <- ValueSome newFrame
   newFrame
 
@@ -2939,7 +2920,7 @@ let private applyInstructionForced
     // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
     // branch or not. Written that way first, it cost the gate and a view build several percent each.
     match
-      tryFastOpDirect exeState vm.threadID registers applicable typeArgs newArgRegs
+      tryFastOpDirect vm.threadID registers applicable typeArgs newArgRegs
     with
     | ValueSome result ->
       if vm.stats.enabled then
@@ -3066,10 +3047,7 @@ let private applyInstructionForced
           // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick,
           // and nearly every `Stdlib.x` call in Dark arrives down this path.
           let early =
-            if not exeState.tracing.recordAllCalls then
-              tryFastOpOn vm.threadID registers biFn.name newArgRegs
-            else
-              ValueNone
+            tryFastOpOn vm.threadID registers biFn.name newArgRegs
 
           match early with
           | ValueSome result ->
@@ -4411,53 +4389,6 @@ let private returnFromFrame
 
     let parentFrame = vm.callFrames[parentID]
 
-    // Trace package function call at frame return.
-    // Lambda frames fire storeLambdaResult instead.
-    if exeState.tracing.recordAllCalls then
-      match currentFrame.executionPoint with
-      | Function fnName ->
-        match vm.pendingCallArgs.TryGetValue(currentFrame.id) with
-        | true, args ->
-          vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-          let source : Tracing.Source = (parentFrame.executionPoint, None)
-          let fnRecord : Tracing.FunctionRecord = (source, fnName)
-          let args = NEList.ofListUnsafe "" [] args
-          match resultOfFrame with
-          // A function handing back a read still in flight (a wrapper around a read builtin):
-          // the trace gets its value when it lands.
-          | DPromise p ->
-            p.Task.ContinueWith(
-              (fun (t : Task<Dval>) ->
-                if t.IsCompletedSuccessfully then
-                  exeState.tracing.storeFnResult
-                    fnRecord
-                    { ord = -1L; durationMs = 0L; frameId = currentFrame.id }
-                    args
-                    t.Result),
-              TaskContinuationOptions.ExecuteSynchronously
-            )
-            |> ignore<Task>
-          | _ ->
-            exeState.tracing.storeFnResult
-              fnRecord
-              { ord = -1L; durationMs = 0L; frameId = currentFrame.id }
-              args
-              resultOfFrame
-        | _ -> ()
-      | Lambda _ ->
-        vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-        let frameId = currentFrame.id
-        match resultOfFrame with
-        | DPromise p ->
-          p.Task.ContinueWith(
-            (fun (t : Task<Dval>) ->
-              if t.IsCompletedSuccessfully then
-                exeState.tracing.storeLambdaResult frameId t.Result),
-            TaskContinuationOptions.ExecuteSynchronously
-          )
-          |> ignore<Task>
-        | _ -> exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
-      | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
     let next = currentFrame.continuation
     if not (obj.ReferenceEquals(next, null)) then
       // A frame a builtin asked for: its result goes to the builtin's continuation, and what

@@ -2690,18 +2690,19 @@ module Tracing =
   /// the args bound into it. The uuid lets the tracer associate this entry
   /// with the matching exit (storeFnResult for fns, storeLambdaResult for
   /// lambdas).
-  /// (frame, its parent, what the frame runs, the arguments it was given).
+  /// (frame, its parent, what the frame runs).
   ///
   /// The parent is what makes these a TREE rather than a bag. `ExecutionPoint.Lambda` carries
   /// the lambda's own expression id, so sibling frames sharing a parent and a lambda id are the
   /// passes of one loop, in the order the interpreter ran them -- which is what a reader is
-  /// expanding when they open a loop.
-  type StoreFrameEntry = uuid -> uuid -> ExecutionPoint -> List<Dval> -> unit
+  /// choosing between when they pick a pass.
+  ///
+  /// No arguments. They were here for a design where a view started from a frame instead of
+  /// from the top, which is not how it works: a view replays the whole run, which is fast
+  /// enough that starting in the middle buys nothing. Passing them cost a list allocation per
+  /// frame push, on every traced run, for something neither tracer read.
+  type StoreFrameEntry = uuid -> uuid -> ExecutionPoint -> unit
 
-  /// Fired when a Lambda call frame returns. Function frames return via
-  /// storeFnResult, which already includes args + result. Lambdas don't
-  /// fire storeFnResult, so this is the corresponding exit hook for them.
-  type StoreLambdaResult = uuid -> Dval -> unit
 
   /// What a replay does with the effectful call about to be made.
   ///
@@ -2719,7 +2720,6 @@ module Tracing =
     {
       storeFnResult : StoreFnResult
       storeFrameEntry : StoreFrameEntry
-      storeLambdaResult : StoreLambdaResult
       /// Live values: the result of the source expression with this id, in the frame that was
       /// running, as it was computed (`TraceExpr`). Gated on `collectExprValues`.
       ///
@@ -2731,31 +2731,20 @@ module Tracing =
       /// puts `// = 140` beside a line. One flat stream keyed by source expression id, at every
       /// depth, because `PT2RT` emits `TraceExpr` in every function body it compiles.
       ///
-      /// Independent of `recordAllCalls` on purpose: collecting values needs the VALUE a call
-      /// produced, not a record of the call, so the interpreter can still take every shortcut it
-      /// would take on an ordinary run. Merging the two costs a view the fast paths it never
-      /// needed to give up.
+      /// Collecting values needs the VALUE a call produced, not a record of the call, so the
+      /// interpreter still takes every shortcut it would take on an ordinary run.
       collectExprValues : bool
       /// Build the frame tree as the run goes: which frames existed, what each ran, and which
-      /// frame made it. Separate from `recordAllCalls` because it does NOT cost the fast paths:
-      /// a lambda application and a package call both push a real frame either way, and the
-      /// only frames a shortcut skips are elided operator wrappers, which no reader wants a
-      /// frame for.
+      /// frame made it. Costs the fast paths nothing: a lambda application and a package call
+      /// both push a real frame either way, and the only frames a shortcut skips are elided
+      /// operator wrappers, which no reader wants a frame for.
       ///
-      /// This is the ONLY flag the interpreter tests at a frame push, and anything that sets
-      /// `recordAllCalls` must set this too. That is what keeps a run with tracing off paying
-      /// exactly what it paid before: one boolean test on a field already in cache, not two.
+      /// True for both of the tracers that exist -- recording and viewing -- and false only when
+      /// nobody is watching, which is why the interpreter can test this one field at a frame
+      /// push rather than asking which kind of watching it is.
       collectFrames : bool
-      /// Record EVERY call: the frame hooks (storeFrameEntry, storeLambdaResult, storeFnResult
-      /// for package fns and pure builtins) and the pendingCallArgs bookkeeping. When this is
-      /// on the interpreter must not take its fast paths, because a shortcut that skips a call
-      /// would silently drop that call from the record.
-      ///
-      /// Effectful builtin calls are recorded separately, under `traceEffects`: that log is
-      /// small, it is what a run resumes from, and it does not cost the fast paths.
-      recordAllCalls : bool
       /// Record every effectful builtin call (the classic rule: a call with non-empty
-      /// `callEffects`), with its ordinal, whatever `recordAllCalls` says about the rest.
+      /// `callEffects`), with its ordinal.
       traceEffects : bool
       /// The ordinal for an effectful builtin call about to be made, per process: the first is 0.
       /// Assigned at the call, not at completion, so a read that lands late keeps its place.
