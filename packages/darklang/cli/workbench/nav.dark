@@ -72,7 +72,7 @@ let backLabel (state: State) : String =
   | [] -> if state.activeView == vHome then "" else "Home"
   | p :: _ ->
     if (p.view == state.activeView) && (p.view == vMatter) then
-      match Stdlib.List.last (modulePathOf p.location) with
+      match Stdlib.List.last (Packages.modulePathOf p.location) with
       | Some m -> if p.lens == state.matter.lens then m else "Tree"
       | None -> "Tree"
     else
@@ -102,7 +102,7 @@ let descend (state: State) : Step =
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
     if item.isModule then
-      let path = Stdlib.List.append (modulePathOf state.location) [ item.name ]
+      let path = Stdlib.List.append (Packages.modulePathOf state.location) [ item.name ]
       let point =
         { (returnPointOf state) with
             location = Packages.PackageLocation.Module path
@@ -116,7 +116,7 @@ let descend (state: State) : Step =
 /// Backspace goes to the parent module; Escape follows navigation history.
 let ascend (state: State) : Step =
   if state.activeView != vMatter then Step.Continue state else
-  match Stdlib.List.reverse (modulePathOf state.location) with
+  match Stdlib.List.reverse (Packages.modulePathOf state.location) with
   | [] -> Step.Continue state
   | _ :: parent ->
     let point =

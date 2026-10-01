@@ -48,7 +48,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
       if item.isModule then
         Step.Continue { state with input = Stdlib.Option.Option.None; message = "rename failed: can't rename a module" }
       else
-        let modules = modulePathOf state.location
+        let modules = Packages.modulePathOf state.location
         let results = Packages.Query.searchExactMatch state.branchId modules item.name
         let refOpt =
           if item.kind == "type" then

@@ -130,15 +130,6 @@ let helpRowsAtWidth
 
 
 // Helper functions
-let modulePathOf (location: PackageLocation) : List<String> =
-  match location with
-  | Module path -> path
-  | Type t -> Stdlib.List.append [t.owner] t.modules
-  | Value v -> Stdlib.List.append [v.owner] v.modules
-  | Function f -> Stdlib.List.append [f.owner] f.modules
-  | Trait t -> Stdlib.List.append [t.owner] t.modules
-  | Impl i -> Stdlib.List.append [i.owner] i.modules
-
 let buildNavItemsFromResults
   (results: LanguageTools.ProgramTypes.Search.SearchResults)
   (modulePath: List<String>)

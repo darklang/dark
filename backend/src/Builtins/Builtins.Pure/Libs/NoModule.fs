@@ -57,14 +57,18 @@ let private outOfRange (vm : VMState) : 'a =
 
 /// `number ^ exp` wrapped into a signed `bits`-wide integer.
 /// Uses modular exponentiation so huge exponents stay cheap.
-let private powSigned (bits : int) (number : bigint) (exp : bigint) : bigint =
+///
+/// Not private: `Int128`/`UInt128` need the same arithmetic, and their builtins live in their
+/// own files because this one's match has no 128-bit arms.
+let powSigned (bits : int) (number : bigint) (exp : bigint) : bigint =
   let m = System.Numerics.BigInteger.Pow(bigint 2, bits)
   let r = System.Numerics.BigInteger.ModPow(number, exp, m)
   let r = ((r % m) + m) % m
   if r >= m / bigint 2 then r - m else r
 
-/// `number ^ exp` wrapped into an unsigned `bits`-wide integer.
-let private powUnsigned (bits : int) (number : bigint) (exp : bigint) : bigint =
+/// `number ^ exp` wrapped into an unsigned `bits`-wide integer. Public for the same reason
+/// as `powSigned`.
+let powUnsigned (bits : int) (number : bigint) (exp : bigint) : bigint =
   let m = System.Numerics.BigInteger.Pow(bigint 2, bits)
   let r = System.Numerics.BigInteger.ModPow(number, exp, m)
   ((r % m) + m) % m

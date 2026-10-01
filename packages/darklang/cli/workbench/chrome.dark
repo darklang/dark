@@ -11,7 +11,7 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
     // Matter owns its split, so its title carries the path or lens, item
     // count, and active filter here.
     // The breadcrumb, or `packages` at the root: the nav says Code already.
-    let path = Stdlib.String.join (modulePathOf state.location) " › "
+    let path = Stdlib.String.join (Packages.modulePathOf state.location) " › "
     let where = if path == "" then "packages" else path
     let lens =
       if state.matter.lens == Lens.ValuesOnly then "values only"

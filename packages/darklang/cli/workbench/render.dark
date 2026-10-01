@@ -79,7 +79,7 @@ let matterSplitFor (state: State) : Int =
   let forNames = longest + 11
   // The title on the edge is the module path, which outgrows the names under it: `Feriel ›
   // ModelContextProtocol` over one short child. Room for it and its count too.
-  let pathWidth = Stdlib.String.displayWidth (Stdlib.String.join (modulePathOf state.location) " › ")
+  let pathWidth = Stdlib.String.displayWidth (Stdlib.String.join (Packages.modulePathOf state.location) " › ")
   let needed = Stdlib.max forNames (pathWidth + 10)
   let pct = (needed * 100) / w
 

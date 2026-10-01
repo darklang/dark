@@ -11,7 +11,7 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
   if Stdlib.List.isEmpty state.items then
     Stdlib.Cli.UI.Layout.at region 1 2 (Stdlib.Cli.UI.Colors.dimText "(no items here)")
   else
-    let modPath = modulePathOf state.location
+    let modPath = Packages.modulePathOf state.location
     let wipNames = state.wipNames
     let deprecatedNames = state.deprecatedNames
     let focused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
@@ -174,7 +174,7 @@ let accessSummaryLines (state: State) (hash: String) : List<String> =
 /// run of 25 `name  desc` rows read as a dump; the kinds are how a person
 /// scans a module, so they are how it is laid out.
 let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
-  let path = Stdlib.List.append (modulePathOf state.location) [ item.name ]
+  let path = Stdlib.List.append (Packages.modulePathOf state.location) [ item.name ]
   let location = Packages.PackageLocation.Module path
   let allChildren = moduleContents state.branchId location
 
@@ -283,7 +283,7 @@ let detailLines (state: State) : List<String> =
       if (Stdlib.String.trim state.renderPeek) == "" then [ Stdlib.Cli.UI.Colors.dimText "(view produced no output)" ]
       else Stdlib.String.split state.renderPeek "\n"
     else
-      let modulePath = modulePathOf state.location
+      let modulePath = Packages.modulePathOf state.location
       let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
       // Anchored at the module being browsed, so the Inspect pane spells references the way someone
       // standing in that module would. `modulePath` is owner-first, which is what `forModule` wants.
@@ -434,7 +434,7 @@ let itemMeta (state: State) : String =
   | Some item ->
     if item.isModule then ""
     else
-      let modulePath = modulePathOf state.location
+      let modulePath = Packages.modulePathOf state.location
       let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
       let hashOpt =
         if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
@@ -470,7 +470,7 @@ let tracesText (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | None -> "(nothing selected)"
   | Some item ->
-    let fullName = Stdlib.String.join (Stdlib.List.append (modulePathOf state.location) [ item.name ]) "."
+    let fullName = Stdlib.String.join (Stdlib.List.append (Packages.modulePathOf state.location) [ item.name ]) "."
     let rows =
       Darklang.Tracing.Store.listByFn fullName 30
       |> Stdlib.List.map (fun t -> "  " + t.handler + "  ·  " + t.timestamp)

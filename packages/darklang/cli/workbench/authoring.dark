@@ -149,7 +149,7 @@ let openNewEditor (state: State) (kind: String) (targetModule: List<String>) : S
 /// target module has to come from somewhere: use the current tree location if it's deep enough (owner.Module),
 /// otherwise ask for it - so you can author from anywhere, not only inside a module.
 let startNew (state: State) (kind: String) : Step =
-  let modPath = modulePathOf state.location
+  let modPath = Packages.modulePathOf state.location
   if Stdlib.List.length modPath >= 2 then
     openNewEditor state kind modPath
   else
@@ -166,7 +166,7 @@ let startNew (state: State) (kind: String) : Step =
 
 /// Open the editor on an existing fn, prefilled with its full current declaration (doc comments dropped).
 let openEditExisting (state: State) (item: BodyItem) : Step =
-  let modules = modulePathOf state.location
+  let modules = Packages.modulePathOf state.location
   let fullName = Stdlib.String.join (Stdlib.List.append modules [ item.name ]) "."
   let results = Packages.Query.searchExactMatch state.branchId modules item.name
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch state.branchId

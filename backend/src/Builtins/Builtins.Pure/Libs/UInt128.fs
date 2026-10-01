@@ -8,6 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NoModule = Builtins.Pure.Libs.NoModule
 
 
 module ParseError =
@@ -113,17 +114,11 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUInt128 number; DUInt128 exp |] ->
-          // wrap on overflow via modular exponentiation, which stays cheap even
-          // for huge exponents (no enormous bigint is built)
-          let m = System.Numerics.BigInteger.Pow(bigint 2, 128)
-          let r =
-            System.Numerics.BigInteger.ModPow(
-              System.Numerics.BigInteger.Parse(string number),
-              System.Numerics.BigInteger.Parse(string exp),
-              m
-            )
-          let r = ((r % m) + m) % m
-          System.UInt128.Parse(r.ToString()) |> DUInt128 |> Ply
+          NoModule.powUnsigned
+            128
+            (System.Numerics.BigInteger.Parse(string number))
+            (System.Numerics.BigInteger.Parse(string exp))
+          |> fun r -> System.UInt128.Parse(r.ToString()) |> DUInt128 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

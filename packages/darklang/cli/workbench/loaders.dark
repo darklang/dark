@@ -3,15 +3,6 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-let modulePathOf (location: Packages.PackageLocation) : List<String> =
-  match location with
-  | Module path -> path
-  | Type t -> Stdlib.List.append [ t.owner ] t.modules
-  | Value v -> Stdlib.List.append [ v.owner ] v.modules
-  | Function f -> Stdlib.List.append [ f.owner ] f.modules
-  | Trait t -> Stdlib.List.append [ t.owner ] t.modules
-  | Impl i -> Stdlib.List.append [ i.owner ] i.modules
-
 /// A one-line, clipped rendering of a value's body for the row description:
 /// `"hello"`, `[1, 2, 3]`. First line only, and no more than `width`
 /// columns - a value can be a whole table.
@@ -46,7 +37,7 @@ let moduleRows
   (location: Packages.PackageLocation)
   (describe: Bool)
   : List<BodyItem> =
-  let modulePath = modulePathOf location
+  let modulePath = Packages.modulePathOf location
   let results = Packages.Query.allDirectDescendants branchId modulePath
   let subs = Packages.Query.getDirectSubmodules results (Stdlib.List.length modulePath)
   // Anchored at the module being listed, so a signature spells its neighbours
@@ -464,7 +455,7 @@ let depsText (state: State) : String =
     if item.isModule then
       "Modules have no dependencies - select a fn, type, or value."
     else
-      referencesText state (modulePathOf state.location) item.name item.kind
+      referencesText state (Packages.modulePathOf state.location) item.name item.kind
 
 /// How many references a list on the item page shows before pointing at `:deps`.
 val referenceCap = 12
@@ -497,7 +488,7 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
         let namesDict =
           Darklang.Cli.Deps.resolveNamesIn
             state.branchId
-            (modulePathOf state.location)
+            (Packages.modulePathOf state.location)
             (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
         deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " + (Darklang.Cli.Deps.getName namesDict th))
     // Dependents - what uses this item.
@@ -507,7 +498,7 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
       if Stdlib.List.isEmpty dependents then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
       else
         // Spelled from where the reader is standing, like everything else on this page.
-        let here = modulePathOf state.location
+        let here = Packages.modulePathOf state.location
         dependents
         |> Stdlib.List.map (fun t ->
           let (_h, sLoc, _rt) = t
@@ -547,7 +538,7 @@ let readBadges (state: State) : (List<String> * List<String>) =
     // and Home's "N changed" are the same fact, and two reads of it could disagree.
     let wip = state.scmStatus.wipNames
     let sets = Packages.Query.loadDeprecationSets state.branchId
-    let results = Packages.Query.allDirectDescendants state.branchId (modulePathOf state.location)
+    let results = Packages.Query.allDirectDescendants state.branchId (Packages.modulePathOf state.location)
     let pick = fun pairs ->
       pairs
       |> Stdlib.List.filter (fun (hash, _name) -> Packages.Query.isDeprecated sets hash)
@@ -627,7 +618,7 @@ let refreshPeek (next: State) : State =
       | Some item ->
         if (Stdlib.Bool.not item.isModule) && (item.kind == "fn") && (item.name == "render") then
           let fullpath =
-            Stdlib.String.join (Stdlib.List.append (modulePathOf next.location) [ item.name ]) "."
+            Stdlib.String.join (Stdlib.List.append (Packages.modulePathOf next.location) [ item.name ]) "."
           captureOutput (fun () ->
             Eval.evaluateRaw next.accountId next.branchId (fullpath + " ()") [] false)
         else
