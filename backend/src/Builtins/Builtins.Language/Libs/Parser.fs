@@ -1098,11 +1098,11 @@ module WrittenTypesToDarkTypes =
     let t = tn WTRefs.implDeclaration
     let memberT = tn WTRefs.implMember
     let members =
-      (impl.methods
-       |> List.map (fun m -> DEnum(memberT, memberT, [], "Method", [ fnDeclToDT m ])))
-      @ (impl.aliases
-         |> List.map (fun a ->
-           DEnum(memberT, memberT, [], "Alias", [ valueDeclToDT a ])))
+      impl.members
+      |> List.map (fun m ->
+        match m with
+        | WT.IMethod fn -> DEnum(memberT, memberT, [], "Method", [ fnDeclToDT fn ])
+        | WT.IAlias a -> DEnum(memberT, memberT, [], "Alias", [ valueDeclToDT a ]))
     DRecord(
       t,
       t,

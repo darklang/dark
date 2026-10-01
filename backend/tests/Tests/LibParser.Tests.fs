@@ -1804,7 +1804,12 @@ let private rangeInvariantTests =
     | WT.DType _
     | WT.DTrait _
     | WT.DTypeDB _ -> []
-    | WT.DImpl impl -> impl.methods |> List.map (fun f -> f.body)
+    | WT.DImpl impl ->
+      impl.members
+      |> List.choose (fun m ->
+        match m with
+        | WT.IMethod f -> Some f.body
+        | WT.IAlias _ -> None)
     | WT.DTest t -> [ t.actual ]
   testList
     "range-invariants"
@@ -2033,6 +2038,41 @@ let private traitTests =
             "List"
             "head of List<'a>"
         | other -> failtest $"impls: {other}")
+
+      // The ORDER of an impl's members reaches `PT.TraitImpl.methods`, which is hashed in
+      // list order. The F# WT used to hold declared methods and aliases in two lists and
+      // re-join them declared-first, so a block that interleaved them hashed differently
+      // than it was written, and differently from what the Dark parser makes of the same
+      // source. One ordered list is what stops that, and this is what says so.
+      testCase
+        "an impl's members keep source order, declared and aliased interleaved"
+        (fun _ ->
+          let src =
+            "impl Show for Point =\n"
+            + "  let a = Acme.one\n"
+            + "  let b (p: Point) : String = \"b\"\n"
+            + "  let c = Acme.two\n"
+            + "  let d (p: Point) : String = \"d\"\n"
+          match parseDecls src with
+          | [ WT.DImpl impl ] ->
+            let names =
+              impl.members
+              |> List.map (fun m ->
+                match m with
+                | WT.IMethod fn -> fn.name.name
+                | WT.IAlias a -> a.name.name)
+            Expect.equal
+              names
+              [ "a"; "b"; "c"; "d" ]
+              "the block's own order, not grouped by kind"
+
+            // And it survives lowering, which is the half the content hash sees.
+            let packaged = WT.packageImpl "Tests" [ "Acme"; "Point"; "Show" ] impl
+            Expect.equal
+              (packaged.methods |> List.map fst)
+              [ "a"; "b"; "c"; "d" ]
+              "PT.TraitImpl.methods is in the same order"
+          | other -> failtest $"interleaved impl: {other}")
 
       testCase "parses bounds with + on fns and types" (fun _ ->
         match

@@ -536,6 +536,14 @@ type TraitDecl =
 /// Lowers to its own package item, `PT.TraitImpl`, named `<module>[.<Type>].<Trait>`,
 /// with the block's method fns as ordinary fns beneath it and an alias member naming
 /// the fn it points at (`packageImpl`, `SourceFile.items`).
+/// One entry in an impl block, in the order the block wrote it.
+type ImplMember =
+  /// A method declared here: `let show (p: Point) : String = ...`
+  | IMethod of FnDecl
+  /// `let add = Stdlib.Int64.add`: a method that is an existing fn, so the
+  /// impl names it instead of wrapping it.
+  | IAlias of ValueDecl
+
 type ImplDecl =
   {
     range : Range
@@ -543,10 +551,11 @@ type ImplDecl =
     bounds : List<TypeParamBound>
     trait_ : QualifiedTypeIdentifier
     forType : TypeReference
-    methods : List<FnDecl>
-    /// `let add = Stdlib.Int64.add`: a method that is an existing fn, so the
-    /// impl names it instead of wrapping it.
-    aliases : List<ValueDecl>
+    /// ONE list, in source order, because `PT.TraitImpl.methods` is hashed in order.
+    /// Splitting it into declared and aliased and re-joining them, which this used to do,
+    /// made a block that interleaves the two hash differently than it was written, and
+    /// differently from what the Dark parser produces for the same source.
+    members : List<ImplMember>
     keywordImpl : Range
     keywordFor : Range
     symbolEquals : Range
@@ -941,19 +950,23 @@ let packageTrait
 /// The method fns an impl declares, as package fns under the impl's own path, with
 /// the impl's type params and bounds prepended (a conditional impl's methods are
 /// generic over the impl's params).
+let implMethodDecls (impl : ImplDecl) : List<FnDecl> =
+  impl.members
+  |> List.choose (fun m ->
+    match m with
+    | IMethod fn ->
+      Some
+        { fn with
+            typeParams = impl.typeParams @ fn.typeParams
+            bounds = impl.bounds @ fn.bounds }
+    | IAlias _ -> None)
+
 let implMethodFns
   (owner : string)
   (memberPath : List<string>)
   (impl : ImplDecl)
   : List<PackageFn.PackageFn> =
-  impl.methods
-  |> List.map (fun m ->
-    packageFn
-      owner
-      memberPath
-      { m with
-          typeParams = impl.typeParams @ m.typeParams
-          bounds = impl.bounds @ m.bounds })
+  implMethodDecls impl |> List.map (packageFn owner memberPath)
 
 /// The impl item itself. Its location is the member path: the module the method
 /// fns live in IS the impl's name.
@@ -968,28 +981,28 @@ let packageImpl
       ({ owner = owner; modules = List.rev revModules; name = name }
       : PackageTraitImpl.Name)
     | [] -> { owner = owner; modules = []; name = impl.trait_.typ.name }
-  let declared =
-    impl.methods
-    |> List.map (fun m -> (m.name.name, Unresolved(NEList.singleton m.name.name)))
-  let aliased =
-    impl.aliases
-    |> List.map (fun a ->
-      let target =
-        match a.body with
-        | EFnName(_, q) ->
-          Unresolved(
-            NEList.ofListUnsafe
-              "alias"
-              []
-              ((q.modules |> List.map (fun (m, _) -> m.name)) @ [ q.fn.name ])
-          )
-        | EVariable(_, n) -> Unresolved(NEList.singleton n)
-        | _ -> Unresolved(NEList.singleton a.name.name)
-      (a.name.name, target))
+  let members =
+    impl.members
+    |> List.map (fun m ->
+      match m with
+      | IMethod fn -> (fn.name.name, Unresolved(NEList.singleton fn.name.name))
+      | IAlias a ->
+        let target =
+          match a.body with
+          | EFnName(_, q) ->
+            Unresolved(
+              NEList.ofListUnsafe
+                "alias"
+                []
+                ((q.modules |> List.map (fun (m, _) -> m.name)) @ [ q.fn.name ])
+            )
+          | EVariable(_, n) -> Unresolved(NEList.singleton n)
+          | _ -> Unresolved(NEList.singleton a.name.name)
+        (a.name.name, target))
   { name = location
     trait_ = impl.trait_
     forType = impl.forType
     typeParams = impl.typeParams |> List.map fst
     bounds = impl.bounds |> List.map boundNorm
-    methods = declared @ aliased
+    methods = members
     description = impl.description }

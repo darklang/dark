@@ -3214,16 +3214,16 @@ and parseImplDecl (state : ParserState) (i : int) : WT.Declaration * int =
     else
       errExpected state afterType "'=' after the type"
       (zeroWidthAtEnd (rng state afterType), afterType)
-  let methods = System.Collections.Generic.List<WT.FnDecl>()
-  let aliases = System.Collections.Generic.List<WT.ValueDecl>()
+  // ONE list, in source order: the order reaches the content hash.
+  let members = System.Collections.Generic.List<WT.ImplMember>()
   let mutable k = afterEq
   let mutable go = true
   while go && tok state k = TLet && (rng state k).start.column > kwCol do
     let (d, k2) = parseDecl state k
     match d with
-    | WT.DFunction fn -> methods.Add fn
+    | WT.DFunction fn -> members.Add(WT.IMethod fn)
     | WT.DValue({ body = WT.EVariable _ } as v)
-    | WT.DValue({ body = WT.EFnName _ } as v) -> aliases.Add v
+    | WT.DValue({ body = WT.EFnName _ } as v) -> members.Add(WT.IAlias v)
     | _ ->
       state.diagnostics.Add
         { code = DiagnosticCode.bound
@@ -3235,7 +3235,7 @@ and parseImplDecl (state : ParserState) (i : int) : WT.Declaration * int =
           related = []
           hint = None }
     if k2 > k then k <- k2 else go <- false
-  if methods.Count = 0 && aliases.Count = 0 then
+  if members.Count = 0 then
     errExpected state afterEq "at least one method, indented under the impl"
   let endR = if k > 0 then rng state (k - 1) else eq
   (WT.DImpl
@@ -3244,8 +3244,7 @@ and parseImplDecl (state : ParserState) (i : int) : WT.Declaration * int =
       bounds = bounds
       trait_ = traitId
       forType = forType
-      methods = List.ofSeq methods
-      aliases = List.ofSeq aliases
+      members = List.ofSeq members
       keywordImpl = kwImpl
       keywordFor = kwFor
       symbolEquals = eq

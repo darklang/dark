@@ -27,14 +27,7 @@ let rec private collectItems
     | WT.DTrait t -> [ Trait(path, t) ]
     | WT.DImpl impl ->
       let memberPath = WT.implMemberPath path impl
-      (impl.methods
-       |> List.map (fun m ->
-         Fn(
-           memberPath,
-           { m with
-               typeParams = impl.typeParams @ m.typeParams
-               bounds = impl.bounds @ m.bounds }
-         )))
+      (WT.implMethodDecls impl |> List.map (fun m -> Fn(memberPath, m)))
       @ [ Impl(memberPath, impl) ]
     | WT.DFunction fn -> [ Fn(path, fn) ]
     | WT.DType t -> [ Type(path, t) ]
