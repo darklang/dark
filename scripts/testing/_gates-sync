@@ -572,7 +572,7 @@ gate_sync_multi_instance() {
   x A commit "cold review" -y > /dev/null
   x A push > /dev/null
   want "a cold instance stages what sits past page 1" "^Staged [1-9][0-9]* op\(s\) from .* on branch \"review\"" "$(x D review pull)"
-  want "D evaluates at all" "^3$" "$(x D eval 'Stdlib.Int64.add 1L 2L' | tail -1)"
+  want "D evaluates at all" "^3$" "$(x D eval '1L + 2L' | tail -1)"
   want "and it stays inert on main" "^Error: SM\.T\.coldstaged not found$" "$(x D eval 'SM.T.coldstaged ()' | tail -1)"
   want "approving the cold queue lands it" "^Approved [1-9][0-9]* op\(s\) from \"review\" into main\.$" "$(x D review approve)"
   want "and then main has it" "^66$" "$(x D eval 'SM.T.coldstaged ()' | tail -1)"

@@ -343,3 +343,9 @@ more per call than it did.
 
 Taken as the minimum of four runs a side (debug 10,353,536 of 10.3-10.4 MB; published 10,747,488
 of 10.7-10.8), not a single reading, for the reason the 2026-08-27 entry gives.
+
+Then partly handed back. Removing the per-type arithmetic fns the same way took published to
+10,475,584, a 2.5% improvement, and the budget went down with it in the same commit. Debug did not
+move. Nothing was tuned for it: 1,069 call sites stopped being package calls and became operators,
+which `FastOps` answers without entering a frame, so the saving is call sites that no longer load a
+fn reference rather than anything the interpreter does differently.

@@ -98,18 +98,14 @@ let singleHop =
 
     let! v1 = authorIn m """let base' (x: Int64) : Int64 = x + 1L"""
 
-    let! _ =
-      authorIn
-        m
-        $"""let dep (x: Int64) : Int64 = ({m}.base' x) + 10L"""
+    let! _ = authorIn m $"""let dep (x: Int64) : Int64 = ({m}.base' x) + 10L"""
 
     let! depBefore = liveBoundHash (loc m "dep")
     Expect.isSome depBefore "dep is bound after authoring"
 
     let baseV1 = hashBoundTo v1 "base'"
 
-    let! v2 =
-      authorIn m """let base' (x: Int64) : Int64 = x + 1000L"""
+    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 1000L"""
 
     let baseV2 = hashBoundTo v2 "base'"
     Expect.notEqual baseV1 baseV2 "editing the body moves the content hash"
@@ -173,8 +169,7 @@ let three (x: Int64) : Int64 = ({m}.shared x) + 30L"""
 
     let sharedV1 = hashBoundTo v1 "shared"
 
-    let! v2 =
-      authorIn m """let shared (x: Int64) : Int64 = x + 3000L"""
+    let! v2 = authorIn m """let shared (x: Int64) : Int64 = x + 3000L"""
 
     let! repointed = cascade (loc m "shared") sharedV1 (hashBoundTo v2 "shared")
 
@@ -212,8 +207,7 @@ let free (x: Int64) : Int64 = ({m}.base' x) + 20L"""
          VALUES (@branch, 'Darklang', @m, 'held', 'pin', 'test', '2026-01-02T00:00:00.000Z')"
         [ "m", Sql.string m; "branch", Sql.string (string PT.BranchId.Main) ]
 
-    let! v2 =
-      authorIn m """let base' (x: Int64) : Int64 = x + 4000L"""
+    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 4000L"""
 
     let! repointed = cascade (loc m "base'") baseV1 (hashBoundTo v2 "base'")
 
@@ -250,8 +244,7 @@ let mine (x: Int64) : Int64 = ({m}.base' x) + 10L"""
 
 let theirs (x: Int64) : Int64 = (Darklang.{m}.base' x) + 20L"""
 
-    let! v2 =
-      authorIn m """let base' (x: Int64) : Int64 = x + 5000L"""
+    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 5000L"""
 
     let! repointed = cascade (loc m "base'") baseV1 (hashBoundTo v2 "base'")
 
@@ -277,10 +270,7 @@ let noChangeNoCascade =
 
     let! v1 = authorIn m """let base' (x: Int64) : Int64 = x + 1L"""
 
-    let! _ =
-      authorIn
-        m
-        $"""let dep (x: Int64) : Int64 = ({m}.base' x) + 10L"""
+    let! _ = authorIn m $"""let dep (x: Int64) : Int64 = ({m}.base' x) + 10L"""
 
     let! depBefore = liveBoundHash (loc m "dep")
     let baseV1 = hashBoundTo v1 "base'"
@@ -330,8 +320,7 @@ let finalVersionWins =
     do! cleanup m
 
     let! v1 = authorIn m """let r (x: Int64) : Int64 = x + 1L"""
-    let! _ =
-      authorIn m $"""let rd (x: Int64) : Int64 = ({m}.r x) + 0L"""
+    let! _ = authorIn m $"""let rd (x: Int64) : Int64 = ({m}.r x) + 0L"""
 
     // Three edits with no commit in between. Each one cascades, so `rd` is
     // re-authored three times; what must hold is that it ends on the LAST version of
@@ -377,10 +366,8 @@ let sharedHashesAllRepoint =
     let! h2 = liveBoundHash (loc m "sh2")
     Expect.equal h1 h2 "same body, same hash: one item at two names"
 
-    let! _ =
-      authorIn m $"""let d1 (x: Int64) : Int64 = ({m}.sh1 x) + 3L"""
-    let! _ =
-      authorIn m $"""let d2 (x: Int64) : Int64 = ({m}.sh2 x) + 4L"""
+    let! _ = authorIn m $"""let d1 (x: Int64) : Int64 = ({m}.sh1 x) + 3L"""
+    let! _ = authorIn m $"""let d2 (x: Int64) : Int64 = ({m}.sh2 x) + 4L"""
 
     let! d1Before = liveBoundHash (loc m "d1")
     let! d2Before = liveBoundHash (loc m "d2")
@@ -473,13 +460,9 @@ let secondPassIsSilent =
 
     let! v1 = authorIn m """let base' (x: Int64) : Int64 = x + 1L"""
 
-    let! _ =
-      authorIn
-        m
-        $"""let dep (x: Int64) : Int64 = ({m}.base' x) + 10L"""
+    let! _ = authorIn m $"""let dep (x: Int64) : Int64 = ({m}.base' x) + 10L"""
 
-    let! v2 =
-      authorIn m """let base' (x: Int64) : Int64 = x + 7000L"""
+    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 7000L"""
 
     let baseV1 = hashBoundTo v1 "base'"
     let baseV2 = hashBoundTo v2 "base'"
@@ -628,13 +611,9 @@ let private callersFoundByEitherNameOfOneBody =
     let! _ = authorIn m1 "let twin (x: Int64) : Int64 = x + 4001L"
     let! _ = authorIn m2 "let twin (x: Int64) : Int64 = x + 4001L"
     let! _ =
-      authorIn
-        m1
-        "let caller (x: Int64) : Int64 = (Darklang.TwinOne.twin x) + 10L"
+      authorIn m1 "let caller (x: Int64) : Int64 = (Darklang.TwinOne.twin x) + 10L"
     let! _ =
-      authorIn
-        m2
-        "let caller (x: Int64) : Int64 = (Darklang.TwinTwo.twin x) + 10L"
+      authorIn m2 "let caller (x: Int64) : Int64 = (Darklang.TwinTwo.twin x) + 10L"
 
     let edgesTo (m : string) =
       Sql.query

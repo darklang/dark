@@ -2376,14 +2376,7 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       []
       []
       false
-    t
-      "pipe, into fn call"
-      "1L |> (+) 2L"
-      "1L |> (+) 2L"
-      []
-      []
-      []
-      false
+    t "pipe, into fn call" "1L |> (+) 2L" "1L |> (+) 2L" [] [] [] false
     t
       "pipe, into fn call 2"
       "1L |> Stdlib.toString"
@@ -2400,14 +2393,7 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       []
       []
       false
-    t
-      "pipe, into fn call 4"
-      "1L + 2L |> (+) 1L"
-      "1L + 2L |> (+) 1L"
-      []
-      []
-      []
-      false
+    t "pipe, into fn call 4" "1L + 2L |> (+) 1L" "1L + 2L |> (+) 1L" [] [] [] false
     t
       "pipe, into fn call 5"
       "[1L, 2L] |> Stdlib.List.last |> Builtin.unwrap"

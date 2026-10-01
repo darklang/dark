@@ -1241,8 +1241,7 @@ let reuseBranchIdRevives =
 let branchValueContentFoldIsolatesName =
   testTask
     "folding a branch value's AddValue content populates package_values but NOT locations" {
-    let source =
-      "module Darklang.BranchValFoldTest\n\nval vv = 3L + 4L"
+    let source = "module Darklang.BranchValFoldTest\n\nval vv = 3L + 4L"
     let! ops = parsePackageOps source
     let addValueOps =
       ops
