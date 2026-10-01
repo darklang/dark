@@ -1,0 +1,94 @@
+module Darklang.CompilerCases.Stdlib.Option
+
+type Tag =
+  | S of String
+  | N of Int64
+
+// Darklang.Stdlib.Option.map is only nominally the target; these are nested-pattern cases.
+let map_nestedTupleInSome () : Int64 =
+  match Stdlib.Option.Option.Some(("k", 5L)) with
+  | Some((_, 5L)) -> 1L
+  | Some((_, _)) -> 2L
+  | None -> 3L
+let map_nestedCtorInTupleInSome () : Int64 =
+  match Stdlib.Option.Option.Some(("k", Tag.S "2.0")) with
+  | Some((_, S "2.0")) -> 1L
+  | Some((_, _)) -> 2L
+  | None -> 3L
+let map_nestedCtorMiss () : Int64 =
+  match Stdlib.Option.Option.Some(("k", Tag.S "x")) with
+  | Some((_, S "2.0")) -> 1L
+  | Some((_, other)) -> 2L
+  | None -> 3L
+let map_findFirstTupleLambda () : Stdlib.Option.Option<(String * Int64)> =
+  Stdlib.List.findFirst [("a", 1L), ("jsonrpc", 2L)] (fun (k, v) -> k == "jsonrpc")
+let map_findFirstThenNested () : Int64 =
+  match Stdlib.List.findFirst [("a", Tag.N 1L), ("jsonrpc", Tag.S "2.0")] (fun (k, v) -> k == "jsonrpc") with
+  | Some((_, S "2.0")) -> 1L
+  | None -> 3L
+  | Some((_, other)) -> 2L
+
+type Mixed =
+  | Nada
+  | Payload of String
+
+// nullary cases of a mixed enum, returned bare and inside containers
+let map_mixedNullary () : Mixed = Mixed.Nada
+let map_mixedPayload () : Mixed = Mixed.Payload "p"
+let map_mixedNullaryInResult () : Stdlib.Result.Result<Unit, Mixed> = Stdlib.Result.Result.Error Mixed.Nada
+let map_mixedNullaryInList () : List<Mixed> = [Mixed.Nada, Mixed.Payload "p"]
+let map_jsonStringLiteralPattern () : Int64 =
+  match Stdlib.Option.Option.Some(("k", Stdlib.AltJson.Json.String "2.0")) with
+  | Some((_, String "2.0")) -> 1L
+  | Some((_, _)) -> 2L
+  | None -> 3L
+let map_jsonStringLiteralPatternFlat () : Int64 =
+  match Stdlib.AltJson.Json.String "2.0" with
+  | String "2.0" -> 1L
+  | _ -> 2L
+
+type PErr =
+  | Missing
+  | Invalid of Stdlib.AltJson.Json
+
+let validateLike (fields: List<(String * Stdlib.AltJson.Json)>) : Stdlib.Result.Result<Unit, PErr> =
+  match Stdlib.List.findFirst fields (fun (k, v) -> k == "jsonrpc") with
+  | Some((_, String "2.0")) -> Stdlib.Result.Result.Ok()
+  | None -> Stdlib.Result.Result.Error(PErr.Missing)
+  | Some((_, invalid)) -> Stdlib.Result.Result.Error(PErr.Invalid invalid)
+let findFirstParam (fields: List<(String * Stdlib.AltJson.Json)>) : Stdlib.Option.Option<(String * Stdlib.AltJson.Json)> =
+  Stdlib.List.findFirst fields (fun (k, v) -> k == "jsonrpc")
+
+let validateLikeNoneFirst (fields: List<(String * Stdlib.AltJson.Json)>) : Stdlib.Result.Result<Unit, PErr> =
+  match Stdlib.List.findFirst fields (fun (k, v) -> k == "jsonrpc") with
+  | None -> Stdlib.Result.Result.Error(PErr.Missing)
+  | Some((_, String "2.0")) -> Stdlib.Result.Result.Ok()
+  | Some((_, invalid)) -> Stdlib.Result.Result.Error(PErr.Invalid invalid)
+let validateLikeNoLiteral (fields: List<(String * Stdlib.AltJson.Json)>) : Stdlib.Result.Result<Unit, PErr> =
+  match Stdlib.List.findFirst fields (fun (k, v) -> k == "jsonrpc") with
+  | Some((_, String s)) -> Stdlib.Result.Result.Ok()
+  | None -> Stdlib.Result.Result.Error(PErr.Missing)
+  | Some((_, invalid)) -> Stdlib.Result.Result.Error(PErr.Invalid invalid)
+let validateLikeInt (fields: List<(String * Stdlib.AltJson.Json)>) : Int64 =
+  match Stdlib.List.findFirst fields (fun (k, v) -> k == "jsonrpc") with
+  | Some((_, String "2.0")) -> 1L
+  | None -> 2L
+  | Some((_, invalid)) -> 3L
+let validateLikeOptArg (o: Stdlib.Option.Option<(String * Stdlib.AltJson.Json)>) : Int64 =
+  match o with
+  | Some((_, String "2.0")) -> 1L
+  | None -> 2L
+  | Some((_, invalid)) -> 3L
+
+type JsonAlias = Stdlib.AltJson.Json
+
+let validateLikeAlias (fields: List<(String * JsonAlias)>) : Stdlib.Result.Result<Unit, PErr> =
+  match Stdlib.List.findFirst fields (fun (k, v) -> k == "jsonrpc") with
+  | Some((_, String "2.0")) -> Stdlib.Result.Result.Ok()
+  | None -> Stdlib.Result.Result.Error(PErr.Missing)
+  | Some((_, invalid)) -> Stdlib.Result.Result.Error(PErr.Invalid invalid)
+
+// The cases above (validateLike*, validateJsonRpc look-alikes) pin two fixes from
+// 2026-09-17: a nested constructor test used to run its payload loads before the tag
+// check (SIGSEGV on the miss path), and a nested `String "2.0"` resolved its tag
+// against whichever sum type with a `String` case was registered last.

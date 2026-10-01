@@ -1,0 +1,14 @@
+module Darklang.CompilerCases.Stdlib.String
+
+let pick (b: Bool) : String = if b then "0" else "1"
+
+// Darklang.Stdlib.String.append
+let append_basic () : String = Stdlib.String.append "ab" "cd"
+let append_ifValue () : String = Stdlib.String.append (pick false) ":"
+let append_interp () : String =
+  let a = "x"
+  let st = if Stdlib.String.length a == 5 then "0" else "1"
+  $"{a}{st}:tail"
+let append_interpOfIf () : String =
+  let st = pick false
+  $"{st}:tail"

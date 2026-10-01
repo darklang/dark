@@ -68,7 +68,12 @@ let private builtinsLazy : Lazy<RT.Builtins> =
     (LibExecution.Builtin.combine
       [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
         Builtins.CliHost.Builtin.builtins ()
-        BuiltinCli.builtins () ]
+        BuiltinCli.builtins ()
+#if DARK_WITH_COMPILER
+        // The vendored compiler extension (build-gated).
+        Builtins.Compiler.Builtin.builtins ()
+#endif
+        ]
       [])
 
 

@@ -1,0 +1,62 @@
+module Darklang.CompilerCases.Stdlib.AltJson
+
+type NumBox =
+  | Num of Float
+  | Nothing
+  | Many of List<NumBox>
+
+// Darklang.Stdlib.AltJson.Json (constructing values of the real, recursive Json type)
+let numberLit () : Stdlib.AltJson.Json = Stdlib.AltJson.Json.Number 2.5
+let numberComputed () : Stdlib.AltJson.Json =
+  Stdlib.AltJson.Json.Number (Stdlib.Float.multiply 1.25 2.0)
+let numberInPair () : (String * Stdlib.AltJson.Json) = ("k", Stdlib.AltJson.Json.Number 2.5)
+let numberInObject () : Stdlib.AltJson.Json =
+  Stdlib.AltJson.Json.Object [ ("k", Stdlib.AltJson.Json.Number 2.5) ]
+let numberInArray () : Stdlib.AltJson.Json =
+  Stdlib.AltJson.Json.Array [ Stdlib.AltJson.Json.Number 2.5, Stdlib.AltJson.Json.Null ]
+let recursiveBox () : NumBox = NumBox.Many [ NumBox.Num 2.5, NumBox.Nothing ]
+let recursiveBoxLit () : NumBox = NumBox.Num 2.5
+
+// Darklang.Stdlib.List.append, with a float-carrying constructor in the appended element
+let appendNum_ontoTwo () : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.List.append
+    [ ("a", Stdlib.AltJson.Json.Null), ("b", Stdlib.AltJson.Json.Null) ]
+    [ ("k", Stdlib.AltJson.Json.Number 2.5) ]
+let appendNum_ontoOne () : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.List.append [ ("a", Stdlib.AltJson.Json.Null) ] [ ("k", Stdlib.AltJson.Json.Number 2.5) ]
+let appendNum_ontoTwoNoTuple () : List<Stdlib.AltJson.Json> =
+  Stdlib.List.append
+    [ Stdlib.AltJson.Json.Null, Stdlib.AltJson.Json.Null ]
+    [ Stdlib.AltJson.Json.Number 2.5 ]
+let appendStr_ontoTwo () : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.List.append
+    [ ("a", Stdlib.AltJson.Json.Null), ("b", Stdlib.AltJson.Json.Null) ]
+    [ ("k", Stdlib.AltJson.Json.String "v") ]
+let appendBox_ontoTwo () : List<NumBox> =
+  Stdlib.List.append [ NumBox.Nothing, NumBox.Nothing ] [ NumBox.Num 2.5 ]
+let appendNum_twoOntoTwo () : List<Stdlib.AltJson.Json> =
+  Stdlib.List.append
+    [ Stdlib.AltJson.Json.Null, Stdlib.AltJson.Json.Null ]
+    [ Stdlib.AltJson.Json.Number 2.5, Stdlib.AltJson.Json.Number 3.5 ]
+
+let appendNumParam (fields: List<(String * Stdlib.AltJson.Json)>) (x: Float) : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.List.append fields [ ("k", Stdlib.AltJson.Json.Number x) ]
+let appendNumParamLit (fields: List<(String * Stdlib.AltJson.Json)>) : List<(String * Stdlib.AltJson.Json)> =
+  Stdlib.List.append fields [ ("k", Stdlib.AltJson.Json.Number 2.5) ]
+let appendIntParam (fields: List<(String * Int64)>) (x: Int64) : List<(String * Int64)> =
+  Stdlib.List.append fields [ ("k", x) ]
+let appendFloatParam (fields: List<(String * Float)>) (x: Float) : List<(String * Float)> =
+  Stdlib.List.append fields [ ("k", x) ]
+
+let pairsThenFloat (xs: List<(String * Float)>) (x: Float) : (List<(String * Float)> * Float) = (xs, x)
+let pairsThenFloatBoxed (xs: List<(String * Float)>) (x: Float) : List<(String * Float)> = [ ("k", x) ]
+let intsThenFloatAppend (xs: List<Int64>) (x: Float) : (List<Int64> * List<Float>) =
+  (Stdlib.List.append xs [ 9L ], [ x ])
+
+// `appendFloatParam` with a 2+ element `fields` and a float PARAMETER in the appended
+// tuple used to put a pointer-shaped value where the float should be
+// (`compilerEquivCheck <hash> ([("a", 1.0), ("b", 2.0)], 2.5)` -> DIFF; one element,
+// or a literal 2.5, matched). The float bit-move used the physical scratch X9, which
+// on x86-64 is the same R11 the allocator reloads a spilled address into, so under
+// register pressure the store wrote the address. Fixed 2026-09-17 (fresh virtual temps
+// in the MIR -> LIR float paths); kept as the regression case.

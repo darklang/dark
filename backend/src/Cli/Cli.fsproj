@@ -133,6 +133,20 @@
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
   </ItemGroup>
+  <!--
+    Build-gated compiler extension (plan §3.5). Off by default; only a
+    -p:DarkWithCompiler=true build references it and defines DARK_WITH_COMPILER,
+    which activates the guarded 10th combine entry in Cli.fs. NOTE: trimming
+    (TrimMode=link) applies only to the published/AOT build; the dev CLI is a
+    plain Debug JIT build, so linking the compiler here is safe for dogfooding.
+    A trim-clean posture for the shipped binary is a later, separate concern.
+  -->
+  <PropertyGroup Condition="'$(DarkWithCompiler)' == 'true'">
+    <DefineConstants>$(DefineConstants);DARK_WITH_COMPILER</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(DarkWithCompiler)' == 'true'">
+    <ProjectReference Include="../Builtins/Builtins.Compiler/Builtins.Compiler.fsproj" />
+  </ItemGroup>
   <ItemGroup>
     <Compile Include="EmbeddedResources.fs" />
     <Compile Include="Cli.fs" />

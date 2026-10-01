@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Run the native compiler's own test suite, inside this container, against a
+# checkout of it (usually the branch carrying our fixes). The checkout is copied
+# under backend/src/LibCompiler/upstream/ (untracked) because the container only
+# sees this clone. Before sending a compiler patch upstream, this is the check.
+#
+#   scripts/compiler/upstream-tests                      the copy already there
+#   scripts/compiler/upstream-tests --filter=layout      its --filter, passed through
+#
+# On the host, refresh the copy first:
+#
+#   rsync -a --delete --exclude .git --exclude bin --exclude obj --exclude TestResults \
+#       ~/code/compiler/ backend/src/LibCompiler/upstream/
+#
+# E2E batches are capped at 64: the default (8192 checks in one compile) overflows
+# the stack here, on main as much as on the patch.
+set -euo pipefail
+cd backend/src/LibCompiler/upstream
+./build --ai
+exec ./run-tests --ai --e2e-batch-size=64 "$@"

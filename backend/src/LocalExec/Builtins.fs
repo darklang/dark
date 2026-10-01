@@ -21,5 +21,11 @@ let all () : RT.Builtins =
       Builtins.Matter.Builtin.builtins ptPM
       Builtins.CliHost.Builtin.builtins ()
       Builtins.Http.Server.Builtin.builtins ()
-      TestUtils.LibTest.builtins () ]
+      TestUtils.LibTest.builtins ()
+#if DARK_WITH_COMPILER
+      // 10th entry: the airlifted compiler extension. Present only in
+      // -p:DarkWithCompiler=true builds; the core links without it.
+      Builtins.Compiler.Builtin.builtins ()
+#endif
+      ]
     []

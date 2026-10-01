@@ -1,0 +1,50 @@
+module Darklang.CompilerCases.Stdlib.Float
+
+type FloatBox =
+  | Num of Float
+  | Nothing
+
+type FloatRec = { x: Float; n: Int64 }
+
+// Darklang.Stdlib.Float.multiply
+let multiply_plain () : Float = Stdlib.Float.multiply 2.5 2.0
+let multiply_boxed () : FloatBox = FloatBox.Num (Stdlib.Float.multiply 2.5 2.0)
+let multiply_inRecord () : FloatRec = FloatRec { x = Stdlib.Float.multiply 2.5 2.0; n = 7L }
+let multiply_inOption () : Stdlib.Option.Option<Float> =
+  Stdlib.Option.Option.Some (Stdlib.Float.multiply 2.5 2.0)
+let multiply_inList () : List<Float> = [Stdlib.Float.multiply 2.5 2.0, 1.5]
+let multiply_inTuple () : (Float * Int64) = (Stdlib.Float.multiply 2.5 2.0, 3L)
+
+// Darklang.Stdlib.Int64.toFloat
+let toFloat_boxed () : FloatBox = FloatBox.Num (Stdlib.Int64.toFloat 5L)
+
+let boxParam (x: Float) : FloatBox = FloatBox.Num x
+let pairParam (k: String) (x: Float) : (String * FloatBox) = (k, FloatBox.Num x)
+
+// Darklang.Stdlib.Float.add (the float arrives as a parameter, not a call result)
+let add_viaParam () : FloatBox = boxParam (Stdlib.Float.add 1.5 1.0)
+let add_pairViaParam () : (String * FloatBox) = pairParam "k" (Stdlib.Float.add 1.5 1.0)
+let add_listOfPairs () : List<(String * FloatBox)> =
+  Stdlib.List.append [] [ ("k", FloatBox.Num (Stdlib.Float.add 1.5 1.0)) ]
+
+// Darklang.Stdlib.Float.multiply: a float kept live across list construction
+let multiply_liveAcrossList3 () : (List<Int64> * Float) =
+  let f = Stdlib.Float.multiply 1.25 2.0
+  let xs = [1L, 2L, 3L]
+  (xs, f)
+let multiply_liveAcrossList1 () : (List<Int64> * Float) =
+  let f = Stdlib.Float.multiply 1.25 2.0
+  let xs = [1L]
+  (xs, f)
+let multiply_liveAcrossAppend () : (List<Int64> * Float) =
+  let f = Stdlib.Float.multiply 1.25 2.0
+  let xs = Stdlib.List.append [1L, 2L] [3L]
+  (xs, f)
+let multiply_liveAcrossCall () : (String * Float) =
+  let f = Stdlib.Float.multiply 1.25 2.0
+  let s = Stdlib.String.append "a" "b"
+  (s, f)
+
+let listThenFloat (xs: List<Int64>) (x: Float) : (List<Int64> * Float) = (xs, x)
+let floatThenList (x: Float) (xs: List<Int64>) : (List<Int64> * Float) = (xs, x)
+let strThenFloat (s: String) (t: String) (x: Float) : (String * Float) = (Stdlib.String.append s t, x)

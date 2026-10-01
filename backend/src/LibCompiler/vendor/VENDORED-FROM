@@ -1,0 +1,6 @@
+repo     https://github.com/pbiggar/darklang-compiler
+commit   f2a20fae46ed0c217ddfc8051c3af2005a8e4b46
+date     2026-09-18
+subject  Test a list arm's guard before taking it
+branch   upstream-dark-fixes
+worktree no

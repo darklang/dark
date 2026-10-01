@@ -1,0 +1,16 @@
+module Darklang.CompilerCases.Stdlib.Int64
+
+// Darklang.Stdlib.Int64.toString: the minimum value used to negate to itself and
+// recurse until the stack ran out (SIGSEGV); fixed 2026-09-17 in the compiler's stdlib.
+let toString_min () : String = Stdlib.Int64.toString (-9223372036854775808L)
+let toString_negTen () : String = Stdlib.Int64.toString (-10L)
+let toString_neg () : String = Stdlib.Int64.toString (-1234567L)
+let toString_zero () : String = Stdlib.Int64.toString 0L
+
+// Darklang.Stdlib.Int8.toString, same edge
+let toString_int8Min () : String = Stdlib.Int8.toString (-128y)
+
+// Darklang.Stdlib.Int8.shiftLeft: the compiler and the interpreter DISAGREE for a
+// shift count >= the width (interpreter: 1y << 8y = 1, compiler: 0). Open.
+let shiftLeft_byWidth () : Int8 = Stdlib.Int8.shiftLeft 1y 8y
+let shiftLeft_toSignBit () : Int8 = Stdlib.Int8.shiftLeft 1y 7y
