@@ -22,7 +22,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         "  fn <location> -    (read body from stdin)"
         ""
         "Examples:"
-        "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
+        "  fn double (x: Int): Int = (x * 2)"
         "  fn greet (name: String): String = \"Hello, \" + name"
         ""
         "  # Multi-line body via stdin (run from shell, not the REPL):"
@@ -134,7 +134,7 @@ let createFnInline
             (Stdlib.Cli.UI.Colors.error "Expected exactly one function declaration")
             ""
             "Examples:"
-            "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
+            "  fn double (x: Int): Int = (x * 2)"
             "  fn greet (name: String): String = \"Hello, \" + name"
             ""
           ] |> Stdlib.printLines
@@ -144,7 +144,7 @@ let createFnInline
         (Stdlib.Cli.UI.Colors.error "Failed to parse function definition")
         ""
         "Make sure your syntax is correct. Examples:"
-        "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
+        "  fn double (x: Int): Int = (x * 2)"
         "  fn greet (name: String): String = \"Hello, \" + name"
         ""
       ] |> Stdlib.printLines
@@ -167,13 +167,13 @@ let help (_state: Cli.AppState) : String =
     ""
     "Examples:"
     "  # Simple function:"
-    "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
+    "  fn double (x: Int): Int = (x * 2)"
     ""
     "  # String function:"
     "  fn greet (name: String): String = \"Hello, \" + name"
     ""
     "  # Multiple parameters:"
-    "  fn add (a: Int) (b: Int): Int = Stdlib.Int.add a b"
+    "  fn add (a: Int) (b: Int): Int = (a + b)"
     ""
     "  # Boolean function:"
     "  fn isPositive (x: Int): Bool = x > 0"

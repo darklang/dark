@@ -228,7 +228,7 @@ let sleep (delayMs: Float) : Unit =
 let isDirectory (path: String) : Bool =
   match stat path with
   | Ok result ->
-    (Stdlib.Int.bitwiseAnd result.mode StatMode.ifmt) == StatMode.ifdir
+    (result.mode & StatMode.ifmt) == StatMode.ifdir
   | Error _ -> false
 
 

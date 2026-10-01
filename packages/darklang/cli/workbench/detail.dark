@@ -28,7 +28,7 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
     let anyDesc = state.items |> Stdlib.List.any (fun it -> it.desc != "")
     let nameCap =
       if state.activeView == vHome then
-        Stdlib.max 16 (Stdlib.Int.divide (region.cols * 2) 3)
+        Stdlib.max 16 ((region.cols * 2) / 3)
       else 36
     let nameCol =
       if Stdlib.Bool.not anyDesc then 0

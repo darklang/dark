@@ -170,11 +170,11 @@ let private parentHashLinesFromDark
   )
 
 // A branch's source: one fn `foo` returning `answer`, computed via a CORE call
-// (Stdlib.Int64.add), so executing its body ALSO proves the overlay resolves core names.
+// ((+)), so executing its body ALSO proves the overlay resolves core names.
 let private branchSource (answer : int) : string =
   $"""module Darklang.BranchTestOverlay
 
-let foo (x: Int64) : Int64 = Stdlib.Int64.add {answer - 2}L 2L"""
+let foo (x: Int64) : Int64 = {answer - 2}L + 2L"""
 
 let private fooLoc : PT.PackageLocation =
   { owner = "Darklang"; modules = [ "BranchTestOverlay" ]; name = "foo" }
@@ -183,7 +183,7 @@ let private fooLoc : PT.PackageLocation =
 let private namedSource (modName : string) (answer : int) : string =
   $"""module Darklang.{modName}
 
-let foo (x: Int64) : Int64 = Stdlib.Int64.add {answer - 2}L 2L"""
+let foo (x: Int64) : Int64 = {answer - 2}L + 2L"""
 
 let private fooLocIn (modName : string) : PT.PackageLocation =
   { owner = "Darklang"; modules = [ modName ]; name = "foo" }
@@ -229,10 +229,12 @@ let isolationFromCore =
 /// than only adding one, is what lets a branch delete something.
 let unbindHidesACoreNameOnTheBranchOnly =
   testTask "a branch's unbind hides main's name on the branch and leaves main alone" {
+    // Any fn main holds at a known location. `add` used to serve; it lives under its
+    // `Add` impl now, so this uses one that is still a plain top-level fn.
     let addLoc : PT.PackageLocation =
-      { owner = "Darklang"; modules = [ "Stdlib"; "Int64" ]; name = "add" }
+      { owner = "Darklang"; modules = [ "Stdlib"; "Int64" ]; name = "remainder" }
     let! onCore = pmPT.findFn addLoc |> Ply.toTask
-    Expect.isSome onCore "Stdlib.Int64.add is a main fn"
+    Expect.isSome onCore "Stdlib.Int64.remainder is a main fn"
     let hash = Option.get onCore
 
     let branch = PM.withExtraOps pmPT [ PT.PackageOp.Unbind(addLoc, Some hash) ]
@@ -1240,7 +1242,7 @@ let branchValueContentFoldIsolatesName =
   testTask
     "folding a branch value's AddValue content populates package_values but NOT locations" {
     let source =
-      "module Darklang.BranchValFoldTest\n\nval vv = Stdlib.Int64.add 3L 4L"
+      "module Darklang.BranchValFoldTest\n\nval vv = 3L + 4L"
     let! ops = parsePackageOps source
     let addValueOps =
       ops

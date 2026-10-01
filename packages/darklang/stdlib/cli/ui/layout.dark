@@ -94,7 +94,7 @@ let distributeRows (totalRows: Int) (requests: List<SizeRequest>) : List<Int> =
       (Stdlib.List.map2 mins wants (fun minR want ->
         let share =
           if totalWant > 0 then
-            Stdlib.Int.divide (want * remaining) totalWant
+            (want * remaining) / totalWant
           else
             0
         minR + share))
@@ -176,7 +176,7 @@ let distributeCols (totalCols: Int) (requests: List<SizeRequest>) : List<Int> =
       (Stdlib.List.map2 mins wants (fun minC want ->
         let share =
           if totalWant > 0 then
-            Stdlib.Int.divide (want * remaining) totalWant
+            (want * remaining) / totalWant
           else
             0
         minC + share))

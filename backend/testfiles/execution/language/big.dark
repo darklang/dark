@@ -14,8 +14,8 @@ module BigTestCase =
 
    let d1 =
      d0
-     |> Stdlib.Float.power 2.1
-     |> Stdlib.Float.add 1.0
+     |> (**) 2.1
+     |> (+) 1.0
      |> Stdlib.Float.sqrt
 
    let reverse = Stdlib.String.reverse str

@@ -96,7 +96,7 @@ let examples () : ModelContextProtocol.ServerBuilder.Resource =
     name = "Code Examples"
     description = "Common Darklang code patterns and examples"
     handler = fun _uri ->
-      "# Darklang Code Examples\n\n## Basic Function\n```darklang\nlet add (x: Int) (y: Int) : Int =\n  Stdlib.Int.add x y\n```\n\n## List Processing\n```darklang\nlet processNumbers (numbers: List<Int>) : List<Int> =\n  numbers\n  |> Stdlib.List.filter (fun n -> Stdlib.Int.greaterThan n 0)\n  |> Stdlib.List.map (fun n -> Stdlib.Int.multiply n 2)\n```\n\n## HTTP Request\n```darklang\nlet fetchData (url: String) : String =\n  match Stdlib.HttpClient.get url with\n  | Ok response -> response.body\n  | Error err -> $\"Error: {err}\"\n```"
+      "# Darklang Code Examples\n\n## Basic Function\n```darklang\nlet add (x: Int) (y: Int) : Int =\n  (x + y)\n```\n\n## List Processing\n```darklang\nlet processNumbers (numbers: List<Int>) : List<Int> =\n  numbers\n  |> Stdlib.List.filter (fun n -> n > 0)\n  |> Stdlib.List.map (fun n -> n * 2)\n```\n\n## HTTP Request\n```darklang\nlet fetchData (url: String) : String =\n  match Stdlib.HttpClient.get url with\n  | Ok response -> response.body\n  | Error err -> $\"Error: {err}\"\n```"
   }
 
 

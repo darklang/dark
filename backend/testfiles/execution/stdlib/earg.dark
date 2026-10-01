@@ -1,6 +1,6 @@
 module Test =
   let addTwo (earg1: Int) (earg2: Int): Int =
-    Stdlib.Int.add earg1 earg2
+    earg1 + earg2
 
   let shadowTest (shadowedEarg: Int): Int =
     let shadowedEarg = 42
@@ -8,16 +8,16 @@ module Test =
 
   let argAndLocalVar (mixedEarg: Int): Int =
     let localVarNotEarg = 10
-    Stdlib.Int.add mixedEarg localVarNotEarg  // mixedEarg=EArg(0), localVarNotEarg=EVariable("localVarNotEarg")
+    (mixedEarg + localVarNotEarg)  // mixedEarg=EArg(0), localVarNotEarg=EVariable("localVarNotEarg")
 
   let nestedShadowing (eargOne: Int) (eargTwo: Int): Int =
     let a =
       let eargOne = 100
-      Stdlib.Int.add eargOne eargTwo
-    Stdlib.Int.add a eargOne
+      eargOne + eargTwo
+    a + eargOne
 
   let lambdaTest (eargX: Int) : Int =
-    let addX = (fun eargX -> Stdlib.Int.add eargX 1)
+    let addX = (fun eargX -> eargX + 1)
     let result = eargX + (addX eargX)
     result
 

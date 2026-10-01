@@ -6,76 +6,53 @@ type ParseError =
   | OutOfRange
 
 
-/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-/// The modulus <param b> must be greater than 0.
-/// Use <fn UInt128.remainder> if you want the remainder after division, which has
-/// a different behavior for negative numbers.
-let ``mod`` (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Mod a b
-
 impl Modulo for UInt128 =
-  let modulo = Stdlib.UInt128.``mod``
+  /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+  /// The modulus <param b> must be greater than 0.
+  /// Use <fn UInt128.remainder> if you want the remainder after division, which has
+  /// a different behavior for negative numbers.
+  let modulo (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Mod a b
 
-
-/// Adds two 128-bit unsigned integers together (wraps on overflow)
-let add (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Add a b
 
 impl Add for UInt128 =
-  let add = Stdlib.UInt128.add
+  /// Adds two 128-bit unsigned integers together (wraps on overflow)
+  let add (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Add a b
 
-
-/// Subtracts two 128-bit unsigned integers (wraps on overflow)
-let subtract (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Subtract a b
 
 impl Subtract for UInt128 =
-  let subtract = Stdlib.UInt128.subtract
+  /// Subtracts two 128-bit unsigned integers (wraps on overflow)
+  let subtract (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Subtract a b
 
-
-/// Multiplies two 128-bit unsigned integers (wraps on overflow)
-let multiply (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Multiply a b
 
 impl Multiply for UInt128 =
-  let multiply = Stdlib.UInt128.multiply
+  /// Multiplies two 128-bit unsigned integers (wraps on overflow)
+  let multiply (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Multiply a b
 
-
-/// Divides two 128-bit unsigned integers
-let divide (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Divide a b
 
 impl Divide for UInt128 =
-  let divide = Stdlib.UInt128.divide
+  /// Divides two 128-bit unsigned integers
+  let divide (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Divide a b
 
-
-/// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must to be positive. Overflow wraps around.
-let power (``base``: UInt128) (exponent: UInt128) : UInt128 =
-  Builtin.uint128Power ``base`` exponent
 
 impl Power for UInt128 =
-  let power = Stdlib.UInt128.power
+  /// Raise <param base> to the power of <param exponent>.
+  /// <param exponent> must to be positive. Overflow wraps around.
+  let power (``base``: UInt128) (exponent: UInt128) : UInt128 =
+    Builtin.uint128Power ``base`` exponent
 
-
-/// Returns {{true}} if <param a> is greater than <param b>
-let greaterThan (a: UInt128) (b: UInt128) : Bool =
-  Builtin.uint128GreaterThan a b
-
-
-/// Returns {{true}} if <param a> is greater than or equal to <param b>
-let greaterThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
-  Builtin.uint128GreaterThanOrEqualTo a b
-
-
-/// Returns {{true}} if <param a> is less than <param b>
-let lessThan (a: UInt128) (b: UInt128) : Bool = Builtin.uint128LessThan a b
-
-
-/// Returns {{true}} if <param a> is less than or equal to <param b>
-let lessThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
-  Builtin.uint128LessThanOrEqualTo a b
 
 impl Compare for UInt128 =
-  let lessThan = Stdlib.UInt128.lessThan
-  let lessThanOrEqualTo = Stdlib.UInt128.lessThanOrEqualTo
-  let greaterThan = Stdlib.UInt128.greaterThan
-  let greaterThanOrEqualTo = Stdlib.UInt128.greaterThanOrEqualTo
+  /// Returns {{true}} if <param a> is less than <param b>
+  let lessThan (a: UInt128) (b: UInt128) : Bool = Builtin.uint128LessThan a b
+  /// Returns {{true}} if <param a> is less than or equal to <param b>
+  let lessThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
+    Builtin.uint128LessThanOrEqualTo a b
+  /// Returns {{true}} if <param a> is greater than <param b>
+  let greaterThan (a: UInt128) (b: UInt128) : Bool =
+    Builtin.uint128GreaterThan a b
+  /// Returns {{true}} if <param a> is greater than or equal to <param b>
+  let greaterThanOrEqualTo (a: UInt128) (b: UInt128) : Bool =
+    Builtin.uint128GreaterThanOrEqualTo a b
 
 
 /// Get the square root of an <type UInt128>
@@ -112,51 +89,39 @@ let fromUInt32 (i: UInt32) : UInt128 = Builtin.uint128FromUInt32 i
 let fromUInt64 (i: UInt64) : UInt128 = Builtin.uint128FromUInt64 i
 
 
-/// Bitwise AND on two <type UInt128> values
-let bitwiseAnd (a: UInt128) (b: UInt128) : UInt128 =
-  Builtin.uint128BitwiseAnd a b
-
 impl BitwiseAnd for UInt128 =
-  let bitwiseAnd = Stdlib.UInt128.bitwiseAnd
+  /// Bitwise AND on two <type UInt128> values
+  let bitwiseAnd (a: UInt128) (b: UInt128) : UInt128 =
+    Builtin.uint128BitwiseAnd a b
 
-
-/// Bitwise OR on two <type UInt128> values
-let bitwiseOr (a: UInt128) (b: UInt128) : UInt128 =
-  Builtin.uint128BitwiseOr a b
 
 impl BitwiseOr for UInt128 =
-  let bitwiseOr = Stdlib.UInt128.bitwiseOr
+  /// Bitwise OR on two <type UInt128> values
+  let bitwiseOr (a: UInt128) (b: UInt128) : UInt128 =
+    Builtin.uint128BitwiseOr a b
 
-
-/// Bitwise XOR on two <type UInt128> values
-let bitwiseXor (a: UInt128) (b: UInt128) : UInt128 =
-  Builtin.uint128BitwiseXor a b
 
 impl BitwiseXor for UInt128 =
-  let bitwiseXor = Stdlib.UInt128.bitwiseXor
+  /// Bitwise XOR on two <type UInt128> values
+  let bitwiseXor (a: UInt128) (b: UInt128) : UInt128 =
+    Builtin.uint128BitwiseXor a b
 
-
-/// Bitwise NOT on a <type UInt128> value
-let bitwiseNot (a: UInt128) : UInt128 = Builtin.uint128BitwiseNot a
 
 impl BitwiseNot for UInt128 =
-  let bitwiseNot = Stdlib.UInt128.bitwiseNot
+  /// Bitwise NOT on a <type UInt128> value
+  let bitwiseNot (a: UInt128) : UInt128 = Builtin.uint128BitwiseNot a
 
-
-/// Bitwise left shift of a <type UInt128> value
-let shiftLeft (a: UInt128) (b: UInt128) : UInt128 =
-  Builtin.uint128ShiftLeft a b
 
 impl ShiftLeft for UInt128 =
-  let shiftLeft = Stdlib.UInt128.shiftLeft
+  /// Bitwise left shift of a <type UInt128> value
+  let shiftLeft (a: UInt128) (b: UInt128) : UInt128 =
+    Builtin.uint128ShiftLeft a b
 
-
-/// Bitwise right shift of a <type UInt128> value
-let shiftRight (a: UInt128) (b: UInt128) : UInt128 =
-  Builtin.uint128ShiftRight a b
 
 impl ShiftRight for UInt128 =
-  let shiftRight = Stdlib.UInt128.shiftRight
+  /// Bitwise right shift of a <type UInt128> value
+  let shiftRight (a: UInt128) (b: UInt128) : UInt128 =
+    Builtin.uint128ShiftRight a b
 
 impl ToString for UInt128 =
   /// Stringify <param uint128>

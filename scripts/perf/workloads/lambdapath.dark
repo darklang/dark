@@ -54,7 +54,7 @@ let best (body: Int -> Int) : Int =
 
 /// ns per element, from the difference between two sizes.
 let perElement (label: String) (small: Int) (large: Int) (n: Int) : Unit =
-  let ns = Stdlib.Int.divide ((large - small) * 1000000) (iterations * n)
+  let ns = ((large - small) * 1000000) / (iterations * n)
   Stdlib.printLine (label + "  " + (Stdlib.toString ns) + " ns")
 
 // `let`, not `val`: a `val` whose body is not a literal silently evaluates to unit.

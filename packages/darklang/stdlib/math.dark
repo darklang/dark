@@ -18,14 +18,14 @@ val e = 2.718281828459045
 /// Returns the equivalent of <param angleInDegrees> in radians, the unit used
 /// by all of Dark's trigonometry functions.
 let degrees (angleInDegrees: Float) : Float =
-  (Stdlib.Float.multiply angleInDegrees Stdlib.Math.pi)
-  |> Stdlib.Float.divide 180.0
+  (angleInDegrees * Stdlib.Math.pi)
+  |> (/) 180.0
 
 
 /// Returns the equivalent of <param angleInTurns> in radians, the unit used by all of
 /// Dark's trigonometry functions.
 let turns (angleInTurns: Float) : Float =
-  Stdlib.Float.multiply Stdlib.Math.tau angleInTurns
+  Stdlib.Math.tau * angleInTurns
 
 
 /// Returns <param angleInRadians> in radians, the unit used by all of Dark's

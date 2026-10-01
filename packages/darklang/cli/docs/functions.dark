@@ -29,7 +29,7 @@ let content () : String =
   fun (a, b) -> a + b
 
 ## Partial application
-  let addFive = Stdlib.Int.add 5
+  let addFive = (+) 5
   addFive 3   # 8
 
 ## Unit return

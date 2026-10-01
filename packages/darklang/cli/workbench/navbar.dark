@@ -401,8 +401,8 @@ let renderNavbarOverlay (state: State) (wip: Int) (conflicts: Int) (screen: Stdl
   let n = Stdlib.List.length rows
   let w = 34
   let h = Stdlib.min (n + 2) (Stdlib.max 3 (screen.rows - 2))
-  let top = screen.top + (Stdlib.Int.divide (Stdlib.max 0 (screen.rows - h)) 2)
-  let left = screen.left + (Stdlib.Int.divide (Stdlib.max 0 (screen.cols - w)) 2)
+  let top = screen.top + ((Stdlib.max 0 (screen.rows - h)) / 2)
+  let left = screen.left + ((Stdlib.max 0 (screen.cols - w)) / 2)
   let region = Stdlib.Cli.UI.Layout.Region { top = top; left = left; rows = h; cols = w }
   Stdlib.List.flatten
     [ Stdlib.Cli.UI.Layout.clearRegion region

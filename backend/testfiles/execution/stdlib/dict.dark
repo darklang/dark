@@ -113,8 +113,8 @@ module Map =
     (Dict { "key1": 5L; "key2": 3L; "key3": 3L })
     (fun k x ->
       Stdlib.Bool.and
-        (Stdlib.Int64.greaterThanOrEqualTo x 1L)
-        (Stdlib.Int64.lessThanOrEqualTo x 4L)
+        (x >= 1L)
+        (x <= 4L)
     )
     )= (Dict { "key3": true; "key2": true; "key1": false })
 

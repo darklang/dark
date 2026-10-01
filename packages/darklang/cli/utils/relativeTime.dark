@@ -23,15 +23,15 @@ let ago (then_: DateTime) : String =
   if seconds < 60 then
     "just now"
   else if seconds < 3600 then
-    plural (Stdlib.Int.divide seconds 60) "minute"
+    plural (seconds / 60) "minute"
   else if seconds < 86400 then
-    plural (Stdlib.Int.divide seconds 3600) "hour"
+    plural (seconds / 3600) "hour"
   else if seconds < 2592000 then
-    plural (Stdlib.Int.divide seconds 86400) "day"
+    plural (seconds / 86400) "day"
   else if seconds < 31536000 then
-    plural (Stdlib.Int.divide seconds 2592000) "month"
+    plural (seconds / 2592000) "month"
   else
-    plural (Stdlib.Int.divide seconds 31536000) "year"
+    plural (seconds / 31536000) "year"
 
 
 /// The relative form, or the exact stamp when `long` is set.

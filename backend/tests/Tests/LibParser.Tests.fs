@@ -233,12 +233,12 @@ let private parserStructureTests =
         | other -> failtest $"unexpected char pattern: {other}")
 
       testCase "parses a qualified function call" (fun _ ->
-        match (P.parse "Stdlib.Int64.add 1L 2L").parsed with
+        match (P.parse "Stdlib.Int64.remainder 1L 2L").parsed with
         | Some(WT.SourceFile { exprsToEval = [ WT.EApply(_,
                                                          WT.EFnName(_, q),
                                                          _,
                                                          [ _; _ ]) ] }) ->
-          Expect.equal q.fn.name "add" "callee fn name"
+          Expect.equal q.fn.name "remainder" "callee fn name"
           Expect.equal (List.length q.modules) 2 "two module segments"
         | other -> failtest $"unexpected: {other}")
 
@@ -2168,7 +2168,7 @@ let private traitTests =
         (fun _ ->
           let decls =
             parseDecls
-              "module Darklang.Stdlib.Int64\nimpl Add for Int64 =\n  let add = Stdlib.Int64.add"
+              "module Darklang.Stdlib.Int64\nimpl Add for Int64 =\n  let add = Stdlib.Int64.remainder"
           match
             SourceFile.items
               { range = WT.synthRange; declarations = decls; exprsToEval = [] }
@@ -2184,7 +2184,7 @@ let private traitTests =
             | [ ("add", WT.Unresolved target) ] ->
               Expect.equal
                 (NEList.toList target)
-                [ "Stdlib"; "Int64"; "add" ]
+                [ "Stdlib"; "Int64"; "remainder" ]
                 "the alias target"
             | other -> failtest $"methods: {other}"
           | other -> failtest $"items: {other}")

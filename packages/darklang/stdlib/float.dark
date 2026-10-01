@@ -38,81 +38,58 @@ let truncate (a: Float) : Int = Builtin.floatTruncate a
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
 let absoluteValue (a: Float) : Float =
-  if (Stdlib.Float.lessThan a 0.0) then
-    Stdlib.Float.multiply a -1.0
+  if (a < 0.0) then
+    a * -1.0
   else
     a
 
 
-/// Returns the negation of <param a>, {{-a}}
-let negate (a: Float) : Float = Stdlib.Float.multiply a -1.0
-
 impl Negate for Float =
-  let negate = Stdlib.Float.negate
+  /// Returns the negation of <param a>, {{-a}}
+  let negate (a: Float) : Float = a * -1.0
 
 
 /// Get the square root of a float
 let sqrt (a: Float) : Float = Builtin.floatSqrt a
 
 
-/// Add <type Float> <param a> to <type Float> <param b>
-let add (a: Float) (b: Float) : Float = Builtin.floatAdd a b
-
 impl Add for Float =
-  let add = Stdlib.Float.add
+  /// Add <type Float> <param a> to <type Float> <param b>
+  let add (a: Float) (b: Float) : Float = Builtin.floatAdd a b
 
-
-/// Subtract <type Float> <param b> from <type Float> <param a>
-let subtract (a: Float) (b: Float) : Float = Builtin.floatSubtract a b
 
 impl Subtract for Float =
-  let subtract = Stdlib.Float.subtract
+  /// Subtract <type Float> <param b> from <type Float> <param a>
+  let subtract (a: Float) (b: Float) : Float = Builtin.floatSubtract a b
 
-
-/// Multiply <type Float> <param a> by <type Float> <param b>
-let multiply (a: Float) (b: Float) : Float = Builtin.floatMultiply a b
 
 impl Multiply for Float =
-  let multiply = Stdlib.Float.multiply
+  /// Multiply <type Float> <param a> by <type Float> <param b>
+  let multiply (a: Float) (b: Float) : Float = Builtin.floatMultiply a b
 
-
-/// Returns <param base> raised to the power of <param exponent>
-let power (``base``: Float) (exponent: Float) : Float =
-  Builtin.floatPower ``base`` exponent
 
 impl Power for Float =
-  let power = Stdlib.Float.power
+  /// Returns <param base> raised to the power of <param exponent>
+  let power (``base``: Float) (exponent: Float) : Float =
+    Builtin.floatPower ``base`` exponent
 
-
-/// Divide <type Float> <param a> by <type Float> <param b>
-let divide (a: Float) (b: Float) : Float = Builtin.floatDivide a b
 
 impl Divide for Float =
-  let divide = Stdlib.Float.divide
+  /// Divide <type Float> <param a> by <type Float> <param b>
+  let divide (a: Float) (b: Float) : Float = Builtin.floatDivide a b
 
-
-
-/// Returns true if a is greater than b
-let greaterThan (a: Float) (b: Float) : Bool = Builtin.floatGreaterThan a b
-
-/// Returns true if a is greater than or equal to b
-let greaterThanOrEqualTo (a: Float) (b: Float) : Bool =
-  Builtin.floatGreaterThanOrEqualTo a b
-
-
-/// Returns true if a is less than b
-let lessThan (a: Float) (b: Float) : Bool = Builtin.floatLessThan a b
-
-
-/// Returns true if a is less than or equal to b
-let lessThanOrEqualTo (a: Float) (b: Float) : Bool =
-  Builtin.floatLessThanOrEqualTo a b
 
 impl Compare for Float =
-  let lessThan = Stdlib.Float.lessThan
-  let lessThanOrEqualTo = Stdlib.Float.lessThanOrEqualTo
-  let greaterThan = Stdlib.Float.greaterThan
-  let greaterThanOrEqualTo = Stdlib.Float.greaterThanOrEqualTo
+  /// Returns true if a is less than b
+  let lessThan (a: Float) (b: Float) : Bool = Builtin.floatLessThan a b
+  /// Returns true if a is less than or equal to b
+  let lessThanOrEqualTo (a: Float) (b: Float) : Bool =
+    Builtin.floatLessThanOrEqualTo a b
+  /// Returns true if a is greater than b
+  let greaterThan (a: Float) (b: Float) : Bool = Builtin.floatGreaterThan a b
+  /// Returns true if a is greater than or equal to b
+  let greaterThanOrEqualTo (a: Float) (b: Float) : Bool =
+    Builtin.floatGreaterThanOrEqualTo a b
 
 
 /// If <param value> is within the range given by <param limitA> and <param
@@ -134,14 +111,14 @@ let clampRefusingNaN
     Stdlib.Result.Result.Error "clampRefusingNaN requires limits that are numbers"
   else
     let (lower, upper) =
-      if Stdlib.Float.lessThan limitA limitB then
+      if (limitA < limitB) then
         (limitA, limitB)
       else
         (limitB, limitA)
 
-    if Stdlib.Float.lessThan value lower then
+    if (value < lower) then
       Stdlib.Result.Result.Ok lower
-    else if Stdlib.Float.greaterThan value upper then
+    else if (value > upper) then
       Stdlib.Result.Result.Ok upper
     else
       Stdlib.Result.Result.Ok value

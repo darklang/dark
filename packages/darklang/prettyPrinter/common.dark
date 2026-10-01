@@ -50,7 +50,7 @@ let encodeChar (c: Char) : String =
     else if code == 12 then "\\f"
     else if code == 13 then "\\r"
     else if code < 32 || code == 127 then
-      let hi = Stdlib.Int.divide code 16
+      let hi = code / 16
       let lo = code % 16
       $"\\x{hexDigitChar hi}{hexDigitChar lo}"
     else

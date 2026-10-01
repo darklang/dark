@@ -111,7 +111,7 @@ let executeDetailed (state: AppState) (limit: Int64) (showAll: Bool) : AppState 
 
       if n > 50L then
         Cli.printHint
-          $"    ... {Stdlib.toString (Stdlib.Int64.subtract n 50L)} more -- `dark ops` walks the log in full.")
+          $"    ... {Stdlib.toString (n - 50L)} more -- `dark ops` walks the log in full.")
 
     state
 

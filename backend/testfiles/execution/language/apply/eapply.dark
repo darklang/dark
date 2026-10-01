@@ -1,7 +1,7 @@
 (let fn = (fun x -> x + 1L)
  fn 6L) = 7L
 
-(let fn = Stdlib.Int64.add
+(let fn = (+)
  fn 3L 4L) = 7L
 
 (let fn = (fun a b -> Stdlib.max a b)

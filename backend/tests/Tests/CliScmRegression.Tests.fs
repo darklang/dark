@@ -430,7 +430,7 @@ let private theEverydayLoop =
         fn
           state
           "Tests.Day.cents"
-          "(d: Int64) : Int64 = Stdlib.Int64.multiply d 100L"
+          "(d: Int64) : Int64 = d * 100L"
       do! fn state "Tests.Day.total" "(a: Int64) : Int64 = Tests.Day.cents a"
 
       // Live on write: no build step between authoring and running it.
@@ -445,7 +445,7 @@ let private theEverydayLoop =
         fn
           state
           "Tests.Day.cents"
-          "(d: Int64) : Int64 = Stdlib.Int64.multiply d 1000L"
+          "(d: Int64) : Int64 = d * 1000L"
       do! evals state "Tests.Day.total 3L" "3000" "the caller followed the edit"
       do! dirty state "the repoint is staged, not committed"
 

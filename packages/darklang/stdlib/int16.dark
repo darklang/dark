@@ -6,14 +6,12 @@ type ParseError =
   | OutOfRange
 
 
-/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-/// The modulus <param b> must be greater than 0.
-/// Use <fn Int16.remainder> if you want the remainder after division, which has
-/// a different behavior for negative numbers.
-let ``mod`` (a: Int16) (b: Int16) : Int16 = Builtin.int16Mod a b
-
 impl Modulo for Int16 =
-  let modulo = Stdlib.Int16.``mod``
+  /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+  /// The modulus <param b> must be greater than 0.
+  /// Use <fn Int16.remainder> if you want the remainder after division, which has
+  /// a different behavior for negative numbers.
+  let modulo (a: Int16) (b: Int16) : Int16 = Builtin.int16Mod a b
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -29,95 +27,73 @@ let remainder
   Builtin.int16Remainder value divisor
 
 
-/// Adds two 16-bit signed integers together (wraps on overflow)
-let add (a: Int16) (b: Int16) : Int16 = Builtin.int16Add a b
-
 impl Add for Int16 =
-  let add = Stdlib.Int16.add
+  /// Adds two 16-bit signed integers together (wraps on overflow)
+  let add (a: Int16) (b: Int16) : Int16 = Builtin.int16Add a b
 
-
-/// Subtracts two 16-bit signed integers (wraps on overflow)
-let subtract (a: Int16) (b: Int16) : Int16 = Builtin.int16Subtract a b
 
 impl Subtract for Int16 =
-  let subtract = Stdlib.Int16.subtract
+  /// Subtracts two 16-bit signed integers (wraps on overflow)
+  let subtract (a: Int16) (b: Int16) : Int16 = Builtin.int16Subtract a b
 
-
-/// Multiplies two 16-bit signed integers (wraps on overflow)
-let multiply (a: Int16) (b: Int16) : Int16 = Builtin.int16Multiply a b
 
 impl Multiply for Int16 =
-  let multiply = Stdlib.Int16.multiply
+  /// Multiplies two 16-bit signed integers (wraps on overflow)
+  let multiply (a: Int16) (b: Int16) : Int16 = Builtin.int16Multiply a b
 
-
-/// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must to be positive.
-/// Overflow wraps around.
-let power (``base``: Int16) (exponent: Int16) : Int16 =
-  // Handle some edge cases around 1. We want to make this match
-  // OCaml, so we have to support an exponent below int16
-  // This only matters for 1 or -1, and otherwise a
-  // number raised to an int16 exponent wouldn't fit in an int16
-  if ``base`` == 0s && exponent == 0s then
-    1s
-  else if ``base`` == 0s then
-    0s
-  else if ``base`` == 1s then
-    1s
-  else if ``base`` == -1s && (``mod`` exponent 2s == 0s) then
-    1s
-  else if ``base`` == -1s then
-    -1s
-  else
-    Builtin.int16Power ``base`` exponent
 
 impl Power for Int16 =
-  let power = Stdlib.Int16.power
+  /// Raise <param base> to the power of <param exponent>.
+  /// <param exponent> must to be positive.
+  /// Overflow wraps around.
+  let power (``base``: Int16) (exponent: Int16) : Int16 =
+    // Handle some edge cases around 1. We want to make this match
+    // OCaml, so we have to support an exponent below int16
+    // This only matters for 1 or -1, and otherwise a
+    // number raised to an int16 exponent wouldn't fit in an int16
+    if ``base`` == 0s && exponent == 0s then
+      1s
+    else if ``base`` == 0s then
+      0s
+    else if ``base`` == 1s then
+      1s
+    else if ``base`` == -1s && ((exponent % 2s) == 0s) then
+      1s
+    else if ``base`` == -1s then
+      -1s
+    else
+      Builtin.int16Power ``base`` exponent
 
-
-/// Divides two 16-bit signed integers
-let divide (a: Int16) (b: Int16) : Int16 = Builtin.int16Divide a b
 
 impl Divide for Int16 =
-  let divide = Stdlib.Int16.divide
+  /// Divides two 16-bit signed integers
+  let divide (a: Int16) (b: Int16) : Int16 = Builtin.int16Divide a b
 
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
 let absoluteValue (a: Int16) : Int16 =
-  if lessThan a 0s then
-    negate a
+  if a < 0s then
+    -a
   else
     a
 
 
-/// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-let negate (a: Int16) : Int16 = Builtin.int16Negate a
-
 impl Negate for Int16 =
-  let negate = Stdlib.Int16.negate
+  /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
+  let negate (a: Int16) : Int16 = Builtin.int16Negate a
 
-
-/// Returns {{true}} if <param a> is greater than <param b>
-let greaterThan (a: Int16) (b: Int16) : Bool = Builtin.int16GreaterThan a b
-
-
-/// Returns {{true}} if <param a> is greater than or equal to <param b>
-let greaterThanOrEqualTo (a: Int16) (b: Int16) : Bool =
-  Builtin.int16GreaterThanOrEqualTo a b
-
-
-/// Returns {{true}} if <param a> is less than <param b>
-let lessThan (a: Int16) (b: Int16) : Bool = Builtin.int16LessThan a b
-
-/// Returns {{true}} if <param a> is less than or equal to <param b>
-let lessThanOrEqualTo (a: Int16) (b: Int16) : Bool =
-  Builtin.int16LessThanOrEqualTo a b
 
 impl Compare for Int16 =
-  let lessThan = Stdlib.Int16.lessThan
-  let lessThanOrEqualTo = Stdlib.Int16.lessThanOrEqualTo
-  let greaterThan = Stdlib.Int16.greaterThan
-  let greaterThanOrEqualTo = Stdlib.Int16.greaterThanOrEqualTo
+  /// Returns {{true}} if <param a> is less than <param b>
+  let lessThan (a: Int16) (b: Int16) : Bool = Builtin.int16LessThan a b
+  /// Returns {{true}} if <param a> is less than or equal to <param b>
+  let lessThanOrEqualTo (a: Int16) (b: Int16) : Bool =
+    Builtin.int16LessThanOrEqualTo a b
+  /// Returns {{true}} if <param a> is greater than <param b>
+  let greaterThan (a: Int16) (b: Int16) : Bool = Builtin.int16GreaterThan a b
+  /// Returns {{true}} if <param a> is greater than or equal to <param b>
+  let greaterThanOrEqualTo (a: Int16) (b: Int16) : Bool =
+    Builtin.int16GreaterThanOrEqualTo a b
 
 
 /// Returns a random 16-bit signed integer between <param start> and <param end> (inclusive)
@@ -184,46 +160,34 @@ let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int16> =
   Builtin.int16FromUInt128 i
 
 
-/// Bitwise AND on two <type Int16> values
-let bitwiseAnd (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseAnd a b
-
 impl BitwiseAnd for Int16 =
-  let bitwiseAnd = Stdlib.Int16.bitwiseAnd
+  /// Bitwise AND on two <type Int16> values
+  let bitwiseAnd (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseAnd a b
 
-
-/// Bitwise OR on two <type Int16> values
-let bitwiseOr (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseOr a b
 
 impl BitwiseOr for Int16 =
-  let bitwiseOr = Stdlib.Int16.bitwiseOr
+  /// Bitwise OR on two <type Int16> values
+  let bitwiseOr (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseOr a b
 
-
-/// Bitwise XOR on two <type Int16> values
-let bitwiseXor (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseXor a b
 
 impl BitwiseXor for Int16 =
-  let bitwiseXor = Stdlib.Int16.bitwiseXor
+  /// Bitwise XOR on two <type Int16> values
+  let bitwiseXor (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseXor a b
 
-
-/// Bitwise NOT on an <type Int16> value
-let bitwiseNot (a: Int16) : Int16 = Builtin.int16BitwiseNot a
 
 impl BitwiseNot for Int16 =
-  let bitwiseNot = Stdlib.Int16.bitwiseNot
+  /// Bitwise NOT on an <type Int16> value
+  let bitwiseNot (a: Int16) : Int16 = Builtin.int16BitwiseNot a
 
-
-/// Bitwise left shift of an <type Int16> value
-let shiftLeft (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftLeft a b
 
 impl ShiftLeft for Int16 =
-  let shiftLeft = Stdlib.Int16.shiftLeft
+  /// Bitwise left shift of an <type Int16> value
+  let shiftLeft (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftLeft a b
 
-
-/// Bitwise right shift of an <type Int16> value
-let shiftRight (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftRight a b
 
 impl ShiftRight for Int16 =
-  let shiftRight = Stdlib.Int16.shiftRight
+  /// Bitwise right shift of an <type Int16> value
+  let shiftRight (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftRight a b
 
 impl ToString for Int16 =
   /// Stringify <param int16>

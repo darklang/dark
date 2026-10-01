@@ -6,61 +6,61 @@ Stdlib.min 4294967295ul 0ul = 0ul
 
 Stdlib.clamp 100ul 0ul 0ul = 0ul
 
-Stdlib.UInt32.add 10ul 9ul = 19ul
-Stdlib.UInt32.add 88ul 9ul = 97ul
-Stdlib.UInt32.add 1ul 0ul = 1ul
-Stdlib.UInt32.add 4294967294ul 1ul = 4294967295ul
+(10ul + 9ul) = 19ul
+(88ul + 9ul) = 97ul
+(1ul + 0ul) = 1ul
+(4294967294ul + 1ul) = 4294967295ul
 
-Stdlib.UInt32.add 4294967295ul 1ul = 0ul
-Stdlib.UInt32.subtract 10ul 9ul = 1ul
-Stdlib.UInt32.subtract 88ul 9ul = 79ul
+(4294967295ul + 1ul) = 0ul
+(10ul - 9ul) = 1ul
+(88ul - 9ul) = 79ul
 
-Stdlib.UInt32.subtract 0ul 1ul = 4294967295ul
-Stdlib.UInt32.subtract 1ul 0ul = 1ul
-Stdlib.UInt32.subtract 4294967295ul 1ul = 4294967294ul
+(0ul - 1ul) = 4294967295ul
+(1ul - 0ul) = 1ul
+(4294967295ul - 1ul) = 4294967294ul
 
-Stdlib.UInt32.multiply 8ul 8ul = 64ul
-Stdlib.UInt32.multiply 8ul 0ul = 0ul
-Stdlib.UInt32.multiply 2147483647ul 2ul = 4294967294ul
+(8ul * 8ul) = 64ul
+(8ul * 0ul) = 0ul
+(2147483647ul * 2ul) = 4294967294ul
 
-Stdlib.UInt32.multiply 2147483648ul 2ul = 0ul
-Stdlib.UInt32.power 2ul 3ul = 8ul
-Stdlib.UInt32.power 0ul 1ul = 0ul
-Stdlib.UInt32.power 1ul 0ul = 1ul
-Stdlib.UInt32.power 0ul 0ul = 1ul
-Stdlib.UInt32.power 1ul 255ul = 1ul
+(2147483648ul * 2ul) = 0ul
+(2ul ** 3ul) = 8ul
+(0ul ** 1ul) = 0ul
+(1ul ** 0ul) = 1ul
+(0ul ** 0ul) = 1ul
+(1ul ** 255ul) = 1ul
 
-Stdlib.UInt32.power 65536ul 2ul = 0ul
-Stdlib.UInt32.divide 10ul 5ul = 2ul
-Stdlib.UInt32.divide 17ul 3ul = 5ul
-Stdlib.UInt32.divide 8ul 5ul = 1ul
-Stdlib.UInt32.divide 0ul 1ul = 0ul
-Stdlib.UInt32.divide 4294967295ul 2ul = 2147483647ul
+(65536ul ** 2ul) = 0ul
+(10ul / 5ul) = 2ul
+(17ul / 3ul) = 5ul
+(8ul / 5ul) = 1ul
+(0ul / 1ul) = 0ul
+(4294967295ul / 2ul) = 2147483647ul
 
-Stdlib.UInt32.divide 1ul 0ul = error="Cannot divide by 0"
-Stdlib.UInt32.greaterThan 20ul 1ul = true
+(1ul / 0ul) = error="Cannot divide by 0"
+(20ul > 1ul) = true
 
-Stdlib.UInt32.greaterThanOrEqualTo 0ul 1ul = false
-Stdlib.UInt32.greaterThanOrEqualTo 1ul 0ul = true
-Stdlib.UInt32.greaterThanOrEqualTo 6ul 1ul = true
-Stdlib.UInt32.greaterThanOrEqualTo 6ul 8ul = false
-Stdlib.UInt32.greaterThanOrEqualTo 4294967295ul 0ul = true
-Stdlib.UInt32.greaterThanOrEqualTo 0ul 4294967295ul = false
+(0ul >= 1ul) = false
+(1ul >= 0ul) = true
+(6ul >= 1ul) = true
+(6ul >= 8ul) = false
+(4294967295ul >= 0ul) = true
+(0ul >= 4294967295ul) = false
 
-Stdlib.UInt32.lessThanOrEqualTo 6ul 8ul = true
-Stdlib.UInt32.lessThanOrEqualTo 10ul 1ul = false
-Stdlib.UInt32.lessThanOrEqualTo 0ul 1ul = true
-Stdlib.UInt32.lessThanOrEqualTo 1ul 0ul = false
-Stdlib.UInt32.lessThanOrEqualTo 4294967295ul 0ul = false
-Stdlib.UInt32.lessThanOrEqualTo 0ul 4294967295ul = true
-Stdlib.UInt32.lessThanOrEqualTo 4294967295ul 4294967295ul = true
+(6ul <= 8ul) = true
+(10ul <= 1ul) = false
+(0ul <= 1ul) = true
+(1ul <= 0ul) = false
+(4294967295ul <= 0ul) = false
+(0ul <= 4294967295ul) = true
+(4294967295ul <= 4294967295ul) = true
 
-Stdlib.UInt32.lessThan 6ul 8ul = true
-Stdlib.UInt32.lessThan 10ul 1ul = false
-Stdlib.UInt32.lessThan 0ul 1ul = true
-Stdlib.UInt32.lessThan 1ul 0ul = false
-Stdlib.UInt32.lessThan 0ul 4294967295ul = true
-Stdlib.UInt32.lessThan 4294967295ul 4294967295ul = false
+(6ul < 8ul) = true
+(10ul < 1ul) = false
+(0ul < 1ul) = true
+(1ul < 0ul) = false
+(0ul < 4294967295ul) = true
+(4294967295ul < 4294967295ul) = false
 
 Stdlib.toString 120ul = "120"
 Stdlib.toString 1ul = "1"
@@ -74,37 +74,37 @@ Stdlib.UInt32.sqrt 4ul = 2.0
 Stdlib.UInt32.sqrt 100ul = 10.0
 Stdlib.UInt32.sqrt 86ul = 9.273618495495704
 
-Stdlib.UInt32.mod 15ul 5ul = 0ul
-Stdlib.UInt32.mod 15ul 6ul = 3ul
-Stdlib.UInt32.mod 0ul 15ul = 0ul
-Stdlib.UInt32.mod 1ul 2ul = 1ul
-Stdlib.UInt32.mod 32768ul 53ul = 14ul
-Stdlib.UInt32.mod 4294967295ul 3ul = 0ul
+(15ul % 5ul) = 0ul
+(15ul % 6ul) = 3ul
+(0ul % 15ul) = 0ul
+(1ul % 2ul) = 1ul
+(32768ul % 53ul) = 14ul
+(4294967295ul % 3ul) = 0ul
 
-Stdlib.UInt32.mod 5ul 0ul = error="Cannot evaluate modulus against 0"
+(5ul % 0ul) = error="Cannot evaluate modulus against 0"
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 1ul 2ul)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.UInt32.greaterThanOrEqualTo x 1ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) = [ true, true, true, true, true ]
+  (x >= 1ul)
+  && (x <= 2ul)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 10ul 20ul)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.UInt32.greaterThanOrEqualTo x 10ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) = [ true, true, true, true, true ]
+  (x >= 10ul)
+  && (x <= 20ul)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 2ul 1ul)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.UInt32.greaterThanOrEqualTo x 1ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) = [ true, true, true, true, true ]
+  (x >= 1ul)
+  && (x <= 2ul)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 20ul 10ul)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.UInt32.greaterThanOrEqualTo x 10ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) = [ true, true, true, true, true ]
+  (x >= 10ul)
+  && (x <= 20ul)) = [ true, true, true, true, true ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 0ul 1ul)
@@ -182,31 +182,31 @@ Stdlib.UInt32.fromUInt128 1Z = Stdlib.Option.Option.Some 1ul
 Stdlib.UInt32.fromUInt128 4294967295Z = Stdlib.Option.Option.Some 4294967295ul
 Stdlib.UInt32.fromUInt128 4294967296Z = Stdlib.Option.Option.None
 
-Stdlib.UInt32.bitwiseAnd 12ul 10ul = 8ul
-Stdlib.UInt32.bitwiseAnd 0ul 0ul = 0ul
-Stdlib.UInt32.bitwiseAnd 4294967295ul 0ul = 0ul
-Stdlib.UInt32.bitwiseAnd 4294967295ul 4294967295ul = 4294967295ul
+(12ul & 10ul) = 8ul
+(0ul & 0ul) = 0ul
+(4294967295ul & 0ul) = 0ul
+(4294967295ul & 4294967295ul) = 4294967295ul
 
-Stdlib.UInt32.bitwiseOr 12ul 10ul = 14ul
-Stdlib.UInt32.bitwiseOr 0ul 0ul = 0ul
-Stdlib.UInt32.bitwiseOr 4294967295ul 0ul = 4294967295ul
+(12ul | 10ul) = 14ul
+(0ul | 0ul) = 0ul
+(4294967295ul | 0ul) = 4294967295ul
 
-Stdlib.UInt32.bitwiseXor 12ul 10ul = 6ul
-Stdlib.UInt32.bitwiseXor 0ul 0ul = 0ul
-Stdlib.UInt32.bitwiseXor 4294967295ul 4294967295ul = 0ul
+(12ul ^ 10ul) = 6ul
+(0ul ^ 0ul) = 0ul
+(4294967295ul ^ 4294967295ul) = 0ul
 
-Stdlib.UInt32.bitwiseNot 0ul = 4294967295ul
-Stdlib.UInt32.bitwiseNot 4294967295ul = 0ul
-Stdlib.UInt32.bitwiseNot 1ul = 4294967294ul
+(~0ul) = 4294967295ul
+(~4294967295ul) = 0ul
+(~1ul) = 4294967294ul
 
-Stdlib.UInt32.shiftLeft 1ul 2ul = 4ul
-Stdlib.UInt32.shiftLeft 0ul 5ul = 0ul
-Stdlib.UInt32.shiftLeft 1ul 0ul = 1ul
-Stdlib.UInt32.shiftLeft 1ul 31ul = 2147483648ul
-Stdlib.UInt32.shiftLeft 5ul 3ul = 40ul
+(1ul << 2ul) = 4ul
+(0ul << 5ul) = 0ul
+(1ul << 0ul) = 1ul
+(1ul << 31ul) = 2147483648ul
+(5ul << 3ul) = 40ul
 
-Stdlib.UInt32.shiftRight 8ul 2ul = 2ul
-Stdlib.UInt32.shiftRight 0ul 5ul = 0ul
-Stdlib.UInt32.shiftRight 1ul 0ul = 1ul
-Stdlib.UInt32.shiftRight 2147483648ul 31ul = 1ul
-Stdlib.UInt32.shiftRight 40ul 3ul = 5ul
+(8ul >> 2ul) = 2ul
+(0ul >> 5ul) = 0ul
+(1ul >> 0ul) = 1ul
+(2147483648ul >> 31ul) = 1ul
+(40ul >> 3ul) = 5ul

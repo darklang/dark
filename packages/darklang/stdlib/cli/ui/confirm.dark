@@ -47,8 +47,8 @@ let centred (region: Layout.Region) (rows: Int) (cols: Int) : Layout.Region =
   let h = Stdlib.min region.rows rows
 
   Layout.Region
-    { top = region.top + (Stdlib.Int.divide (region.rows - h) 2)
-      left = region.left + (Stdlib.Int.divide (region.cols - w) 2)
+    { top = region.top + ((region.rows - h) / 2)
+      left = region.left + ((region.cols - w) / 2)
       rows = h
       cols = w }
 

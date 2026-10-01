@@ -28,7 +28,7 @@ let padLeft (s: String) (width: Int) : String =
 let bar (value: Int) (maxVal: Int) (width: Int) (color: String) : String =
   let barLen =
     if maxVal == 0 then 0
-    else Stdlib.Int.divide (value * width) maxVal
+    else ((value * width) / maxVal)
   let filled = Stdlib.String.repeat "█" (barLen)
   let empty = Stdlib.String.repeat "░" ((width - barLen))
   (Darklang.Stdlib.Cli.UI.Colors.colorize color filled) + (Darklang.Stdlib.Cli.UI.Colors.dimText empty)

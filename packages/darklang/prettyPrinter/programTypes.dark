@@ -1622,8 +1622,8 @@ let packageImpl
       let argsPart = args |> Stdlib.List.map (fun a -> typeReference ctx a) |> Stdlib.String.join ", "
       $"{name}<{argsPart}>"
   // A method declared in the block lives beneath the impl's own path and prints
-  // bare; an alias of a fn elsewhere prints in full, so `let add = add` cannot
-  // happen when the target is `Stdlib.Int64.add`.
+  // bare; an alias of a fn elsewhere prints in full, so `let append = append`
+  // cannot happen when the target is `Stdlib.String.append`.
   let implPath =
     match Darklang.LanguageTools.PackageManager.pickLocation (Context.toPickContext ctx) (LanguageTools.PackageManager.TraitImpl.locations ctx.branchId i.hash) with
     | Some l -> Stdlib.List.flatten [ [ l.owner ], l.modules, [ l.name ] ]

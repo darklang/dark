@@ -98,9 +98,9 @@ let peerHeadsUpLine
       if mins < 120L then
         (Stdlib.toString mins) + "m"
       else if mins < 2880L then
-        (Stdlib.toString (Stdlib.Int64.divide mins 60L)) + "h"
+        (Stdlib.toString (mins / 60L)) + "h"
       else
-        (Stdlib.toString (Stdlib.Int64.divide mins 1440L)) + "d"
+        (Stdlib.toString (mins / 1440L)) + "d"
 
     let subject = if message == "" then "no message" else message
 

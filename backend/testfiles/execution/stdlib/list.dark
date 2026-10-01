@@ -205,8 +205,8 @@ module Map =
 
   Stdlib.List.map [ 1L, 2L, 3L ] (fun x ->
     Stdlib.Bool.and
-      (Stdlib.Int64.greaterThanOrEqualTo x 0L)
-      (Stdlib.Int64.lessThanOrEqualTo x 4L)) = [ true, true, true ]
+      (x >= 0L)
+      (x <= 4L)) = [ true, true, true ]
 
   Stdlib.List.map [ 1L, 2L ] (fun x -> x + 1L) = [ 2L, 3L ]
   Stdlib.List.map [] (fun x -> x + 1L) = []
@@ -284,15 +284,15 @@ Stdlib.List.sortByComparator [ 3L, 1L, 2L ] (fun a b -> 3) =
 // CLEANUP: it should be a type error on the function not returning an Int64
 Stdlib.List.sortByComparator [ 1L, 2L, 3L ] (fun a b -> "㧑༷釺") = error="Cannot perform equality check on String and Int"
 Stdlib.List.sortByComparator [ 3L, 1L, 2L ] (fun a b ->
-  if Stdlib.Int64.lessThan a b then -1 else 1) = Stdlib.Result.Result.Ok
+  if (a < b) then -1 else 1) = Stdlib.Result.Result.Ok
   [ 1L, 2L, 3L ]
 
 Stdlib.List.sortByComparator [] (fun a b ->
-  if Stdlib.Int64.lessThan a b then -1 else 1) = Stdlib.Result.Result.Ok []
+  if (a < b) then -1 else 1) = Stdlib.Result.Result.Ok []
 
 Stdlib.List.sortByComparator
   [ 3L, 1L, 2L, 67L, 3L, -1L, 6L, 3L, 5L, 6L, 2L, 5L, 63L, 2L, 3L, 5L, -1L, -1L, -1L ]
-  (fun a b -> if Stdlib.Int64.lessThan a b then -1 else 1) =
+  (fun a b -> if (a < b) then -1 else 1) =
   Stdlib.Result.Result.Ok [ -1L, -1L, -1L, -1L, 1L, 2L, 2L, 2L, 3L, 3L, 3L, 3L, 5L, 5L, 5L, 6L, 6L, 63L, 67L ]
 
 // CLEANUP this error message is not ideal in 2 ways:
@@ -322,7 +322,7 @@ Stdlib.List.takeWhile [ 1L, 5L, 2L, 2L ] (fun item -> item < 3L) = [ 1L ]
 Stdlib.List.takeWhile [] (fun item -> item < 3L) = []
 
 // it isn't specified which is the right value to keep when there are duplicates
-Stdlib.List.uniqueBy [ 1L, 2L, 3L, 4L ] (fun x -> Stdlib.Int64.divide x 2L) = [ 1L, 2L, 4L ]
+Stdlib.List.uniqueBy [ 1L, 2L, 3L, 4L ] (fun x -> x / 2L) = [ 1L, 2L, 4L ]
 Stdlib.List.uniqueBy [ 1L, 2L, 3L, 4L ] (fun x -> x) = [ 1L, 2L, 3L, 4L ]
 Stdlib.List.uniqueBy [ 1L, 1L, 1L, 1L ] (fun x -> x) = [ 1L ]
 Stdlib.List.uniqueBy [ 7L, 42L, 7L, 2L, 10L ] (fun x -> x) = [ 2L, 7L, 10L, 42L ]
@@ -362,10 +362,10 @@ module Zipping =
   Stdlib.List.zip [ Builtin.testRuntimeError "msg" ] [ Some "" ] = error="Uncaught exception: msg"
 module GroupByWithKey =
   Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
-    Stdlib.Int64.mod x 2L) = [ (1L, [ 1L, 3L, 5L ]), (0L, [ 2L, 4L ]) ]
+    (x % 2L)) = [ (1L, [ 1L, 3L, 5L ]), (0L, [ 2L, 4L ]) ]
 
   Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
-    Stdlib.Int64.mod x 2L) = [ (1L, [ 1L, 3L, 5L ]), (0L, [ 2L, 4L ]) ]
+    (x % 2L)) = [ (1L, [ 1L, 3L, 5L ]), (0L, [ 2L, 4L ]) ]
 
   Stdlib.List.groupByWithKey
     [ "apple", "banana", "avocado", "grape", "apricot" ]
@@ -376,10 +376,10 @@ module GroupByWithKey =
   Stdlib.List.groupByWithKey [ 'a', 'b', 'c', 'a', 'b' ] (fun c -> c) =
     [ ('a', [ 'a', 'a' ]), ('b', [ 'b', 'b' ]), ('c', [ 'c' ]) ]
 
-  Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x -> Stdlib.Int64.mod x 2L == 0L) =
+  Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x -> (x % 2L) == 0L) =
     [ (false, [ 1L, 3L, 5L ]), (true, [ 2L, 4L ]) ]
 
-  Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x -> ((Stdlib.Int64.mod x 2L), "test")) =
+  Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x -> ((x % 2L), "test")) =
     [ ((1L, "test"), [ 1L, 3L, 5L ]), ((0L, "test"), [ 2L, 4L ]) ]
 
   Stdlib.List.groupByWithKey [] (fun x -> x) = []

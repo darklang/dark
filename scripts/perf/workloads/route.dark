@@ -49,7 +49,7 @@ let _ =
      + " routes, "
      + (Stdlib.toString elapsed)
      + " ms, "
-     + (Stdlib.toString (Stdlib.Int.divide (elapsed * 1000) iterations))
+     + (Stdlib.toString ((elapsed * 1000) / iterations))
      + " us each (checksum "
      + (Stdlib.toString total)
      + ")")

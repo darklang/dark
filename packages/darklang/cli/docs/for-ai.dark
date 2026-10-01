@@ -230,7 +230,7 @@ Rules:
   modules are not first-class values. Use the full path each time.)
 - Pipe |> feeds the left value as the FIRST argument of the right fn; any
   args written after the fn come after it: `[1, 2] |> Stdlib.List.map toString`,
-  `n |> Stdlib.Int.add 1`. Wrap a complex left side in parens: (complex expr) |> fn
+  `n |> (+) 1`. Wrap a complex left side in parens: (complex expr) |> fn
 - Lists: [1, 2, 3] (commas; a semicolon is a parse error)
 - Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
   double quotes; "a" is not 'a')

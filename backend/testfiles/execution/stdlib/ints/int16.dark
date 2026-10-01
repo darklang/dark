@@ -10,75 +10,75 @@ Stdlib.min 32767s -32768s = -32768s
 
 Stdlib.clamp -100s 0s -1s = -1s
 
-Stdlib.Int16.add 10s 9s = 19s
-Stdlib.Int16.add 88s 9s = 97s
-Stdlib.Int16.add -1s 2s = 1s
-Stdlib.Int16.add 1s 0s = 1s
-Stdlib.Int16.add -55s 55s = 0s
-Stdlib.Int16.add 30000s 2767s = 32767s
-Stdlib.Int16.add -30000s -2768s = -32768s
-Stdlib.Int16.add -30000s -2769s = 32767s
-Stdlib.Int16.add 30000s 2768s = -32768s
-Stdlib.Int16.subtract 10s 9s = 1s
-Stdlib.Int16.subtract 88s 9s = 79s
-Stdlib.Int16.subtract 0s 1s = -1s
-Stdlib.Int16.subtract 1s 0s = 1s
-Stdlib.Int16.subtract -55s -55s = 0s
-Stdlib.Int16.subtract -2769s 30000s = 32767s
-Stdlib.Int16.multiply 8s 8s = 64s
-Stdlib.Int16.multiply 1s 0s = 0s
-Stdlib.Int16.multiply 5145s 5145s = -5519s
-Stdlib.Int16.power 2s 3s = 8s
-Stdlib.Int16.power 0s 1s = 0s
-Stdlib.Int16.power 1s 0s = 1s
-Stdlib.Int16.power 0s 0s = 1s
-Stdlib.Int16.power -2s 5s = -32s
-Stdlib.Int16.power -1s 5s = -1s
-Stdlib.Int16.power -1s 6s = 1s
-Stdlib.Int16.power 1s 32767s = 1s
-Stdlib.Int16.power 2s 15s = -32768s
-Stdlib.Int16.power 120s 20s = 0s
-Stdlib.Int16.power 2s -3s = error="Cannot raise integer to a negative exponent"
-Stdlib.Int16.divide 10s 5s = 2s
-Stdlib.Int16.divide 17s 3s = 5s
-Stdlib.Int16.divide -8s 5s = -1s
-Stdlib.Int16.divide 0s 1s = 0s
-Stdlib.Int16.divide 1s 0s = error="Cannot divide by 0"
-Stdlib.Int16.divide -32768s -1s = -32768s
-Stdlib.Int16.divide -32768s 1s = -32768s
+(10s + 9s) = 19s
+(88s + 9s) = 97s
+(-1s + 2s) = 1s
+(1s + 0s) = 1s
+(-55s + 55s) = 0s
+(30000s + 2767s) = 32767s
+(-30000s + -2768s) = -32768s
+(-30000s + -2769s) = 32767s
+(30000s + 2768s) = -32768s
+(10s - 9s) = 1s
+(88s - 9s) = 79s
+(0s - 1s) = -1s
+(1s - 0s) = 1s
+(-55s - -55s) = 0s
+(-2769s - 30000s) = 32767s
+(8s * 8s) = 64s
+(1s * 0s) = 0s
+(5145s * 5145s) = -5519s
+(2s ** 3s) = 8s
+(0s ** 1s) = 0s
+(1s ** 0s) = 1s
+(0s ** 0s) = 1s
+(-2s ** 5s) = -32s
+(-1s ** 5s) = -1s
+(-1s ** 6s) = 1s
+(1s ** 32767s) = 1s
+(2s ** 15s) = -32768s
+(120s ** 20s) = 0s
+(2s ** -3s) = error="Cannot raise integer to a negative exponent"
+(10s / 5s) = 2s
+(17s / 3s) = 5s
+(-8s / 5s) = -1s
+(0s / 1s) = 0s
+(1s / 0s) = error="Cannot divide by 0"
+(-32768s / -1s) = -32768s
+(-32768s / 1s) = -32768s
 
-Stdlib.Int16.negate -5s = 5s
-Stdlib.Int16.negate 5s = -5s
-Stdlib.Int16.negate 0s = 0s
-Stdlib.Int16.negate -0s = 0s
-Stdlib.Int16.negate -32768s = -32768s
-Stdlib.Int16.greaterThan 20s 1s = true
-Stdlib.Int16.greaterThan 20s 130s = false
+(--5s) = 5s
+(-5s) = -5s
+(-0s) = 0s
+(--0s) = 0s
+(--32768s) = -32768s
+(20s > 1s) = true
+(20s > 130s) = false
 
-Stdlib.Int16.greaterThanOrEqualTo 0s 1s = false
-Stdlib.Int16.greaterThanOrEqualTo 1s 0s = true
-Stdlib.Int16.greaterThanOrEqualTo 6s 1s = true
-Stdlib.Int16.greaterThanOrEqualTo 6s 8s = false
-Stdlib.Int16.greaterThanOrEqualTo -5s -20s = true
-Stdlib.Int16.greaterThanOrEqualTo -20s -1s = false
-Stdlib.Int16.greaterThanOrEqualTo -20s -20s = true
-Stdlib.Int16.greaterThanOrEqualTo -130s -20s = false
+(0s >= 1s) = false
+(1s >= 0s) = true
+(6s >= 1s) = true
+(6s >= 8s) = false
+(-5s >= -20s) = true
+(-20s >= -1s) = false
+(-20s >= -20s) = true
+(-130s >= -20s) = false
 
-Stdlib.Int16.lessThan 6s 8s = true
-Stdlib.Int16.lessThan 10s 1s = false
-Stdlib.Int16.lessThan 0s 1s = true
-Stdlib.Int16.lessThan 1s 0s = false
-Stdlib.Int16.lessThan -100s 22544s = true
-Stdlib.Int16.lessThan -999s -9999s = false
-Stdlib.Int16.lessThan -8888s -8888s = false
+(6s < 8s) = true
+(10s < 1s) = false
+(0s < 1s) = true
+(1s < 0s) = false
+(-100s < 22544s) = true
+(-999s < -9999s) = false
+(-8888s < -8888s) = false
 
-Stdlib.Int16.lessThanOrEqualTo 6s 8s = true
-Stdlib.Int16.lessThanOrEqualTo 10s 1s = false
-Stdlib.Int16.lessThanOrEqualTo 0s 1s = true
-Stdlib.Int16.lessThanOrEqualTo 1s 0s = false
-Stdlib.Int16.lessThanOrEqualTo -100s 22544s = true
-Stdlib.Int16.lessThanOrEqualTo -999s -9999s = false
-Stdlib.Int16.lessThanOrEqualTo -8888s -8888s = true
+(6s <= 8s) = true
+(10s <= 1s) = false
+(0s <= 1s) = true
+(1s <= 0s) = false
+(-100s <= 22544s) = true
+(-999s <= -9999s) = false
+(-8888s <= -8888s) = true
 
 Stdlib.toString 0s = "0"
 Stdlib.toString 1s = "1"
@@ -92,26 +92,26 @@ Stdlib.Int16.toFloat -10s = -10.0
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.Int16.random 1s 2s)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.Int16.greaterThanOrEqualTo x 1s)
-  && (Stdlib.Int16.lessThanOrEqualTo x 2s)) = [ true, true, true, true, true ]
+  (x >= 1s)
+  && (x <= 2s)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.Int16.random 10s 20s)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.Int16.greaterThanOrEqualTo x 10s)
-  && (Stdlib.Int16.lessThanOrEqualTo x 20s)) = [ true, true, true, true, true ]
+  (x >= 10s)
+  && (x <= 20s)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.Int16.random 2s 1s)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.Int16.greaterThanOrEqualTo x 1s)
-  && (Stdlib.Int16.lessThanOrEqualTo x 2s)) = [ true, true, true, true, true ]
+  (x >= 1s)
+  && (x <= 2s)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.Int16.random 20s 10s)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.Int16.greaterThanOrEqualTo x 10s)
-  && (Stdlib.Int16.lessThanOrEqualTo x 20s)) = [ true, true, true, true, true ]
+  (x >= 10s)
+  && (x <= 20s)) = [ true, true, true, true, true ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.Int16.random 0s 1s)
@@ -202,43 +202,43 @@ Stdlib.Int16.fromUInt128 1Z = Stdlib.Option.Option.Some 1s
 Stdlib.Int16.fromUInt128 32767Z = Stdlib.Option.Option.Some 32767s
 Stdlib.Int16.fromUInt128 32768Z = Stdlib.Option.Option.None
 
-Stdlib.Int16.bitwiseAnd 12s 10s = 8s
-Stdlib.Int16.bitwiseAnd 0s 0s = 0s
-Stdlib.Int16.bitwiseAnd (-1s) 0s = 0s
-Stdlib.Int16.bitwiseAnd 32767s 32767s = 32767s
-Stdlib.Int16.bitwiseAnd (-32768s) (-1s) = -32768s
-Stdlib.Int16.bitwiseAnd 32767s (-32768s) = 0s
-Stdlib.Int16.bitwiseAnd (-1s) (-1s) = -1s
+(12s & 10s) = 8s
+(0s & 0s) = 0s
+((-1s) & 0s) = 0s
+(32767s & 32767s) = 32767s
+((-32768s) & (-1s)) = -32768s
+(32767s & (-32768s)) = 0s
+((-1s) & (-1s)) = -1s
 
-Stdlib.Int16.bitwiseOr 12s 10s = 14s
-Stdlib.Int16.bitwiseOr 0s 0s = 0s
-Stdlib.Int16.bitwiseOr (-1s) 0s = -1s
-Stdlib.Int16.bitwiseOr 32767s 0s = 32767s
-Stdlib.Int16.bitwiseOr (-32768s) 0s = -32768s
-Stdlib.Int16.bitwiseOr 32767s (-32768s) = -1s
+(12s | 10s) = 14s
+(0s | 0s) = 0s
+((-1s) | 0s) = -1s
+(32767s | 0s) = 32767s
+((-32768s) | 0s) = -32768s
+(32767s | (-32768s)) = -1s
 
-Stdlib.Int16.bitwiseXor 12s 10s = 6s
-Stdlib.Int16.bitwiseXor 0s 0s = 0s
-Stdlib.Int16.bitwiseXor (-1s) (-1s) = 0s
-Stdlib.Int16.bitwiseXor 32767s (-1s) = -32768s
-Stdlib.Int16.bitwiseXor (-32768s) (-1s) = 32767s
-Stdlib.Int16.bitwiseXor 32767s 32767s = 0s
+(12s ^ 10s) = 6s
+(0s ^ 0s) = 0s
+((-1s) ^ (-1s)) = 0s
+(32767s ^ (-1s)) = -32768s
+((-32768s) ^ (-1s)) = 32767s
+(32767s ^ 32767s) = 0s
 
-Stdlib.Int16.bitwiseNot 0s = -1s
-Stdlib.Int16.bitwiseNot (-1s) = 0s
-Stdlib.Int16.bitwiseNot 32767s = -32768s
-Stdlib.Int16.bitwiseNot (-32768s) = 32767s
-Stdlib.Int16.bitwiseNot 1s = -2s
+(~0s) = -1s
+(~(-1s)) = 0s
+(~32767s) = -32768s
+(~(-32768s)) = 32767s
+(~1s) = -2s
 
-Stdlib.Int16.shiftLeft 1s 2s = 4s
-Stdlib.Int16.shiftLeft 0s 5s = 0s
-Stdlib.Int16.shiftLeft 1s 0s = 1s
-Stdlib.Int16.shiftLeft 1s 14s = 16384s
-Stdlib.Int16.shiftLeft 5s 3s = 40s
+(1s << 2s) = 4s
+(0s << 5s) = 0s
+(1s << 0s) = 1s
+(1s << 14s) = 16384s
+(5s << 3s) = 40s
 
-Stdlib.Int16.shiftRight 8s 2s = 2s
-Stdlib.Int16.shiftRight 0s 5s = 0s
-Stdlib.Int16.shiftRight 1s 0s = 1s
-Stdlib.Int16.shiftRight 16384s 14s = 1s
-Stdlib.Int16.shiftRight (-1s) 1s = -1s
-Stdlib.Int16.shiftRight 40s 3s = 5s
+(8s >> 2s) = 2s
+(0s >> 5s) = 0s
+(1s >> 0s) = 1s
+(16384s >> 14s) = 1s
+((-1s) >> 1s) = -1s
+(40s >> 3s) = 5s

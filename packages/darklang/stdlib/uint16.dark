@@ -6,79 +6,56 @@ type ParseError =
   | OutOfRange
 
 
-/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-/// The modulus <param b> must be greater than 0.
-/// Use <fn UInt16.remainder> if you want the remainder after division, which has
-/// a different behavior for negative numbers.
-let ``mod`` (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Mod a b
-
 impl Modulo for UInt16 =
-  let modulo = Stdlib.UInt16.``mod``
+  /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+  /// The modulus <param b> must be greater than 0.
+  /// Use <fn UInt16.remainder> if you want the remainder after division, which has
+  /// a different behavior for negative numbers.
+  let modulo (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Mod a b
 
-
-/// Adds two 16-bit unsigned integers together (wraps on overflow)
-let add (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Add a b
 
 impl Add for UInt16 =
-  let add = Stdlib.UInt16.add
+  /// Adds two 16-bit unsigned integers together (wraps on overflow)
+  let add (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Add a b
 
-
-/// Subtracts two 16-bit unsigned  integers (wraps on overflow)
-let subtract (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Subtract a b
 
 impl Subtract for UInt16 =
-  let subtract = Stdlib.UInt16.subtract
+  /// Subtracts two 16-bit unsigned  integers (wraps on overflow)
+  let subtract (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Subtract a b
 
-
-/// Multiplies two 16-bit unsigned  integers (wraps on overflow)
-let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Multiply a b
 
 impl Multiply for UInt16 =
-  let multiply = Stdlib.UInt16.multiply
+  /// Multiplies two 16-bit unsigned  integers (wraps on overflow)
+  let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Multiply a b
 
-
-/// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must to be positive.
-/// Overflow wraps around.
-let power (``base``: UInt16) (exponent: UInt16) : UInt16 =
-  if ``base`` == 0us && exponent == 0us then 1us
-  else if ``base`` == 0us then 0us
-  else if ``base`` == 1us then 1us
-  else Builtin.uint16Power ``base`` exponent
 
 impl Power for UInt16 =
-  let power = Stdlib.UInt16.power
+  /// Raise <param base> to the power of <param exponent>.
+  /// <param exponent> must to be positive.
+  /// Overflow wraps around.
+  let power (``base``: UInt16) (exponent: UInt16) : UInt16 =
+    if ``base`` == 0us && exponent == 0us then 1us
+    else if ``base`` == 0us then 0us
+    else if ``base`` == 1us then 1us
+    else Builtin.uint16Power ``base`` exponent
 
-
-/// Divides two 16-bit unsigned integers
-let divide (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Divide a b
 
 impl Divide for UInt16 =
-  let divide = Stdlib.UInt16.divide
+  /// Divides two 16-bit unsigned integers
+  let divide (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Divide a b
 
-
-/// Returns {{true}} if <param a> is greater than <param b>
-let greaterThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16GreaterThan a b
-
-
-/// Returns {{true}} if <param a> is greater than or equal to <param b>
-let greaterThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
-  Builtin.uint16GreaterThanOrEqualTo a b
-
-
-/// Returns {{true}} if <param a> is less than <param b>
-let lessThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16LessThan a b
-
-
-/// Returns {{true}} if <param a> is less than or equal to <param b>
-let lessThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
-  Builtin.uint16LessThanOrEqualTo a b
 
 impl Compare for UInt16 =
-  let lessThan = Stdlib.UInt16.lessThan
-  let lessThanOrEqualTo = Stdlib.UInt16.lessThanOrEqualTo
-  let greaterThan = Stdlib.UInt16.greaterThan
-  let greaterThanOrEqualTo = Stdlib.UInt16.greaterThanOrEqualTo
+  /// Returns {{true}} if <param a> is less than <param b>
+  let lessThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16LessThan a b
+  /// Returns {{true}} if <param a> is less than or equal to <param b>
+  let lessThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
+    Builtin.uint16LessThanOrEqualTo a b
+  /// Returns {{true}} if <param a> is greater than <param b>
+  let greaterThan (a: UInt16) (b: UInt16) : Bool = Builtin.uint16GreaterThan a b
+  /// Returns {{true}} if <param a> is greater than or equal to <param b>
+  let greaterThanOrEqualTo (a: UInt16) (b: UInt16) : Bool =
+    Builtin.uint16GreaterThanOrEqualTo a b
 
 
 /// Returns a random 16-bit unsigned integer between <param start> and <param end> (inclusive)
@@ -148,46 +125,34 @@ let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt16> =
   Builtin.uint16FromUInt128 i
 
 
-/// Bitwise AND on two <type UInt16> values
-let bitwiseAnd (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16BitwiseAnd a b
-
 impl BitwiseAnd for UInt16 =
-  let bitwiseAnd = Stdlib.UInt16.bitwiseAnd
+  /// Bitwise AND on two <type UInt16> values
+  let bitwiseAnd (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16BitwiseAnd a b
 
-
-/// Bitwise OR on two <type UInt16> values
-let bitwiseOr (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16BitwiseOr a b
 
 impl BitwiseOr for UInt16 =
-  let bitwiseOr = Stdlib.UInt16.bitwiseOr
+  /// Bitwise OR on two <type UInt16> values
+  let bitwiseOr (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16BitwiseOr a b
 
-
-/// Bitwise XOR on two <type UInt16> values
-let bitwiseXor (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16BitwiseXor a b
 
 impl BitwiseXor for UInt16 =
-  let bitwiseXor = Stdlib.UInt16.bitwiseXor
+  /// Bitwise XOR on two <type UInt16> values
+  let bitwiseXor (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16BitwiseXor a b
 
-
-/// Bitwise NOT on a <type UInt16> value
-let bitwiseNot (a: UInt16) : UInt16 = Builtin.uint16BitwiseNot a
 
 impl BitwiseNot for UInt16 =
-  let bitwiseNot = Stdlib.UInt16.bitwiseNot
+  /// Bitwise NOT on a <type UInt16> value
+  let bitwiseNot (a: UInt16) : UInt16 = Builtin.uint16BitwiseNot a
 
-
-/// Bitwise left shift of a <type UInt16> value
-let shiftLeft (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16ShiftLeft a b
 
 impl ShiftLeft for UInt16 =
-  let shiftLeft = Stdlib.UInt16.shiftLeft
+  /// Bitwise left shift of a <type UInt16> value
+  let shiftLeft (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16ShiftLeft a b
 
-
-/// Bitwise right shift of a <type UInt16> value
-let shiftRight (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16ShiftRight a b
 
 impl ShiftRight for UInt16 =
-  let shiftRight = Stdlib.UInt16.shiftRight
+  /// Bitwise right shift of a <type UInt16> value
+  let shiftRight (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16ShiftRight a b
 
 impl ToString for UInt16 =
   /// Stringify <param uint16>

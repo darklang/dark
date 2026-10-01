@@ -37,7 +37,7 @@ let bomb () : Int = Builtin.unwrap (Error "should not execute")
 let argumentOrder
   (first: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<Int, String> =
-  Ok (Stdlib.Int.add first? (bomb ()))
+  Ok ((+) first? (bomb ()))
 
 argumentOrder (Error "first") = Error "first"
 

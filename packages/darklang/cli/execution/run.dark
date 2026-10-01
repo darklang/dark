@@ -285,5 +285,5 @@ let help (_state: AppState) : String =
     "offers to allow the exact rule once (this run) or always (saved), then retries."
     ""
     "To call a package function, use 'eval' instead:"
-    "  eval Stdlib.Int.add 5 3" ]
+    "  eval (5 + 3)" ]
   |> Stdlib.String.join "\n"

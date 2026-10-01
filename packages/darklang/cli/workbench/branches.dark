@@ -110,8 +110,8 @@ let renderBranchPicker
   let h = Stdlib.min 18 (Stdlib.max 5 (screen.rows - 2))
   let region =
     Stdlib.Cli.UI.Layout.Region
-      { top = screen.top + (Stdlib.Int.divide (screen.rows - h) 2)
-        left = screen.left + (Stdlib.Int.divide (screen.cols - w) 2)
+      { top = screen.top + ((screen.rows - h) / 2)
+        left = screen.left + ((screen.cols - w) / 2)
         rows = h; cols = w }
   Stdlib.List.flatten
     [ Stdlib.Cli.UI.Layout.clearRegion region

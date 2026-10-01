@@ -8,10 +8,10 @@ module Darklang.Cli.Workbench
 let ago (d: DateTime) : String =
   let secs = Stdlib.DateTime.subtract (Stdlib.DateTime.now ()) d
   if secs < 60 then "just now"
-  else if secs < 3600 then (Stdlib.toString (Stdlib.Int.divide secs 60)) + "m ago"
-  else if secs < 86400 then (Stdlib.toString (Stdlib.Int.divide secs 3600)) + "h ago"
+  else if secs < 3600 then (Stdlib.toString (secs / 60)) + "m ago"
+  else if secs < 86400 then (Stdlib.toString (secs / 3600)) + "h ago"
   else if secs < 172800 then "yesterday"
-  else (Stdlib.toString (Stdlib.Int.divide secs 86400)) + " days ago"
+  else (Stdlib.toString (secs / 86400)) + " days ago"
 
 /// Is this row a section header - a label the cursor skips over? Home is the
 /// view that has them (`ViewBehavior.SectionedList`).

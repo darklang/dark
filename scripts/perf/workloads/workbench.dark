@@ -30,7 +30,7 @@ let timeView
 
   Stdlib.printLine
     ("view " + (Stdlib.toString idx) + ": "
-     + (Stdlib.toString (Stdlib.Int.divide (t1 - t0) 3)) + " ms/render")
+     + (Stdlib.toString ((t1 - t0) / 3)) + " ms/render")
 
 let base =
   Darklang.Cli.Workbench.initialState

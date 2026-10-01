@@ -209,7 +209,7 @@ let unstagesARepointButNotAnEdit =
       authorIntoMain
         $"""module Darklang.{m}
 
-let src (x: Int64) : Int64 = Stdlib.Int64.add x 8001L"""
+let src (x: Int64) : Int64 = x + 8001L"""
 
     let! _ =
       authorIntoMain
@@ -225,7 +225,7 @@ let follower (x: Int64) : Int64 = Darklang.{m}.src x"""
       authorIntoMain
         $"""module Darklang.{m}
 
-let src (x: Int64) : Int64 = Stdlib.Int64.add x 8002L"""
+let src (x: Int64) : Int64 = x + 8002L"""
 
     let fromHash = hashBoundTo v1 "src"
     let toHash = hashBoundTo v2 "src"

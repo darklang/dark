@@ -167,7 +167,7 @@ let editingOnABranchRepointsItsCallers =
         author
           state
           "Tests.BranchProp.caller"
-          "() : Int64 = Stdlib.Int64.multiply (Tests.BranchProp.base ()) 7L"
+          "() : Int64 = (Tests.BranchProp.base ()) * 7L"
 
       do!
         shows
@@ -205,7 +205,7 @@ let private aBranchKnowsWhatFollowed =
           author
             state
             "Tests.BranchFollow.caller"
-            "() : Int64 = Stdlib.Int64.multiply (Tests.BranchFollow.base ()) 7L"
+            "() : Int64 = (Tests.BranchFollow.base ()) * 7L"
         do! commit state "branchfollow v1"
         // Other tests leave followers in main's draft too, so main is asserted RELATIVE to itself.
         let followedIn (status : string) =
@@ -677,7 +677,7 @@ let private aMissingNameIsOneLineNotAStackHeader =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Stk.boom"; "() : Int64 = Stdlib.Int64.divide 1L 0L" ]
+            [ "fn"; "Tests.Stk.boom"; "() : Int64 = 1L / 0L" ]
         let! deep = runCli state [ "eval"; "Tests.Stk.boom ()" ]
         Expect.stringContains
           deep
@@ -1052,7 +1052,7 @@ let private deprecationIsReversible =
         author
           state
           "Tests.Undep.item"
-          "(x: Int64) : Int64 = Stdlib.Int64.add x 4242L"
+          "(x: Int64) : Int64 = x + 4242L"
 
       let! _ =
         runCli state [ "delete"; "fn"; "Tests.Undep.item"; "-m"; "t"; "--yes" ]
@@ -1211,14 +1211,14 @@ let private editsAreVisibleInTheSameProcess =
       let! _ =
         runCli
           state
-          [ "fn"; "Tests.Cache.v"; "(x: Int64) : Int64 = Stdlib.Int64.add x 1L" ]
+          [ "fn"; "Tests.Cache.v"; "(x: Int64) : Int64 = x + 1L" ]
 
       do! shows state [ "eval"; "Tests.Cache.v 0L" ] "1" "the first version runs"
 
       let! _ =
         runCli
           state
-          [ "fn"; "Tests.Cache.v"; "(x: Int64) : Int64 = Stdlib.Int64.add x 2L" ]
+          [ "fn"; "Tests.Cache.v"; "(x: Int64) : Int64 = x + 2L" ]
 
       do!
         shows
@@ -1234,7 +1234,7 @@ let private deprecationTakesEffectInTheSameProcess =
       let! _ =
         runCli
           state
-          [ "fn"; "Tests.Harm.f"; "(x: Int64) : Int64 = Stdlib.Int64.add x 31L" ]
+          [ "fn"; "Tests.Harm.f"; "(x: Int64) : Int64 = x + 31L" ]
 
       do! shows state [ "eval"; "Tests.Harm.f 0L" ] "31" "it runs to begin with"
 
@@ -1293,11 +1293,11 @@ let partialCommitTakesOnlyWhatYouNamed =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Pc.solo"; "(x: Int64) : Int64 = Stdlib.Int64.add x 1L" ]
+            [ "fn"; "Tests.Pc.solo"; "(x: Int64) : Int64 = x + 1L" ]
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Pc.base"; "(x: Int64) : Int64 = Stdlib.Int64.add x 2L" ]
+            [ "fn"; "Tests.Pc.base"; "(x: Int64) : Int64 = x + 2L" ]
         let! _ =
           runCli
             state
@@ -1373,7 +1373,7 @@ let private branchVerbsTakeTheNameYouSee =
       let! _ =
         runCli
           state
-          [ "fn"; "Tests.Vn.one"; "(x: Int64) : Int64 = Stdlib.Int64.add x 1L" ]
+          [ "fn"; "Tests.Vn.one"; "(x: Int64) : Int64 = x + 1L" ]
       do! switch state "main"
 
       let! listing = runCli state [ "branches" ]
@@ -1409,7 +1409,7 @@ let reviewQueueRoundTrips =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Rq.one"; "(x: Int64) : Int64 = Stdlib.Int64.add x 5L" ]
+            [ "fn"; "Tests.Rq.one"; "(x: Int64) : Int64 = x + 5L" ]
         do! switch state "main"
 
         let path = $"{LibConfig.Config.runDir}/rq-test-bundle.json"
@@ -1447,7 +1447,7 @@ let private otherBranchAnswersStayCurrent =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Br.one"; "(x: Int64) : Int64 = Stdlib.Int64.add x 11L" ]
+            [ "fn"; "Tests.Br.one"; "(x: Int64) : Int64 = x + 11L" ]
 
         do! switch state "main"
 
@@ -1458,7 +1458,7 @@ let private otherBranchAnswersStayCurrent =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Br.two"; "(x: Int64) : Int64 = Stdlib.Int64.add x 22L" ]
+            [ "fn"; "Tests.Br.two"; "(x: Int64) : Int64 = x + 22L" ]
 
         do! switch state "main"
 
@@ -1486,7 +1486,7 @@ let private followingDoesNotDestroyASharedName =
         do! fn state "Tests.Follow.dep" "() : Int64 = 1L"
 
         // Identical bodies, so x and y are ONE content-addressed item sharing a hash.
-        let body = "() : Int64 = Stdlib.Int64.add (Tests.Follow.dep ()) 100L"
+        let body = "() : Int64 = (Tests.Follow.dep ()) + 100L"
         do! fn state "Tests.Follow.x" body
         do! fn state "Tests.Follow.y" body
 
@@ -1586,7 +1586,7 @@ let private editChangesAnItemWithoutRetypingIt =
           author
             state
             "Tests.Edit.target"
-            "(x: Int64) : Int64 = Stdlib.Int64.multiply x 2L"
+            "(x: Int64) : Int64 = x * 2L"
         do! fn state "Tests.Edit.sibling" "() : Int64 = 9L"
 
         // `--raw` must be exactly what the authoring path accepts: a whole declaration, no trailer, no
@@ -1600,7 +1600,7 @@ let private editChangesAnItemWithoutRetypingIt =
         let file = System.IO.Path.Combine(dir, "dark-edit-test.dark")
         System.IO.File.WriteAllText(
           file,
-          raw.Replace("multiply x 2L", "multiply x 5L")
+          raw.Replace("x * 2L", "x * 5L")
         )
 
         do!
@@ -1628,7 +1628,7 @@ let private editChangesAnItemWithoutRetypingIt =
           author
             state
             "Tests.Edit.caller"
-            "() : Int64 = Stdlib.Int64.add (Tests.Edit.target 1L) 100L"
+            "() : Int64 = (Tests.Edit.target 1L) + 100L"
 
         do!
           shows
@@ -1639,7 +1639,7 @@ let private editChangesAnItemWithoutRetypingIt =
 
         System.IO.File.WriteAllText(
           file,
-          raw.Replace("multiply x 2L", "multiply x 9L")
+          raw.Replace("x * 2L", "x * 9L")
         )
         let! _ = runCli state [ "edit"; "Tests.Edit.target"; file ]
 
@@ -1826,7 +1826,7 @@ let private branchReadsAnswerAboutTheBranch =
           author
             state
             "Tests.BranchRead.caller"
-            "() : Int64 = Stdlib.Int64.add (Tests.BranchRead.base ()) 0L"
+            "() : Int64 = (Tests.BranchRead.base ()) + 0L"
         let! _ = runCli state [ "branch"; "new"; "brTwo" ]
         do! fn state "Tests.BranchRead.deep" "() : Int64 = 3L"
 
@@ -1895,7 +1895,7 @@ let private bareMergeAndRebaseMeanThisBranch =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Bare.one"; "(x: Int64) : Int64 = Stdlib.Int64.add x 1L" ]
+            [ "fn"; "Tests.Bare.one"; "(x: Int64) : Int64 = x + 1L" ]
         do! commit state "bare branch work"
 
         // The dry runs are the safe half to assert on: they name the branch without moving anything.
@@ -1937,12 +1937,12 @@ let private dependentsSeeTheBranchYouAreOn =
           author
             state
             "Tests.Dep.target"
-            "(x: Int64) : Int64 = Stdlib.Int64.add x 1L"
+            "(x: Int64) : Int64 = x + 1L"
         do!
           author
             state
             "Tests.Dep.mainCaller"
-            "(x: Int64) : Int64 = Stdlib.Int64.add (Tests.Dep.target x) 10L"
+            "(x: Int64) : Int64 = (Tests.Dep.target x) + 10L"
 
         do!
           shows
@@ -1958,7 +1958,7 @@ let private dependentsSeeTheBranchYouAreOn =
           author
             state
             "Tests.Dep.branchCaller"
-            "(x: Int64) : Int64 = Stdlib.Int64.add (Tests.Dep.target x) 99L"
+            "(x: Int64) : Int64 = (Tests.Dep.target x) + 99L"
 
         let! onBranch = runCli state [ "deps"; "Tests.Dep.target" ]
         Expect.stringContains
@@ -2009,7 +2009,7 @@ let private branchBundleKeepsWhatItCannotRead =
           author
             state
             "Tests.Bundle.only"
-            "(x: Int64) : Int64 = Stdlib.Int64.add x 1L"
+            "(x: Int64) : Int64 = x + 1L"
         do! switch state "main"
 
         let exported = $"{LibConfig.Config.runDir}/bundle-partial.json"
@@ -2130,7 +2130,7 @@ let private mergeGatesAreDecidedInDark =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Gate.one"; "(x: Int64) : Int64 = Stdlib.Int64.add x 6L" ]
+            [ "fn"; "Tests.Gate.one"; "(x: Int64) : Int64 = x + 6L" ]
         // Committed, so the refusal under test is the CHILDREN one and not the uncommitted-work
         // one -- both are real, and a test that cannot tell them apart proves neither.
         do! commit state "gate work"
@@ -2170,7 +2170,7 @@ let private diffAndLogAnswerInJson =
           author
             state
             "Tests.JsonS.only"
-            "(x: Int64) : Int64 = Stdlib.Int64.add x 1L"
+            "(x: Int64) : Int64 = x + 1L"
 
         // `log` on a branch is the op sequence, oldest first.
         let! logJson = runCli state [ "log"; "--json" ]
@@ -2255,7 +2255,7 @@ let commitRefusesUnresolvedReferences =
           author
             state
             "Tests.UnresT.callee"
-            "(x: Int64) : Int64 = Stdlib.Int64.add x 3L"
+            "(x: Int64) : Int64 = x + 3L"
 
         let! forward = runCli state [ "commit"; "forward ref"; "-y" ]
         Expect.isFalse
@@ -2293,7 +2293,7 @@ let private discardOnABranchLeavesMainAlone =
           author
             state
             "Tests.Disc.onMain"
-            "(x: Int64) : Int64 = Stdlib.Int64.add x 90210L"
+            "(x: Int64) : Int64 = x + 90210L"
 
         // Fully qualified: `SCM.PackageOps.draftOpCount` does not resolve here and comes
         // back as an error STRING, so before-vs-after would compare two identical error
@@ -2310,7 +2310,7 @@ let private discardOnABranchLeavesMainAlone =
           author
             state
             "Tests.Disc.onBranch"
-            "(x: Int64) : Int64 = Stdlib.Int64.add x 90211L"
+            "(x: Int64) : Int64 = x + 90211L"
         do!
           shows
             state
@@ -2449,7 +2449,7 @@ let private branchItemsArePolicyTargets =
         let! _ =
           runCli
             state
-            [ "fn"; "Tests.Pol.only"; "(x: Int64) : Int64 = Stdlib.Int64.add x 5L" ]
+            [ "fn"; "Tests.Pol.only"; "(x: Int64) : Int64 = x + 5L" ]
 
         // `locations` is main's projection and a branch's SetNames never fold into it, so
         // a read that goes only to that table answers about MAIN while you're on a branch.

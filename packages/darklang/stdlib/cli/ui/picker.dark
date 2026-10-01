@@ -113,9 +113,8 @@ let view (state: State) (region: Layout.Region) : List<Layout.Span> =
   let thumb =
     if (count state) > region.rows then
       let position =
-        Stdlib.Int.divide
-          (state.selected * (region.rows - 1))
-          (Stdlib.max 1 ((count state) - 1))
+        (state.selected * (region.rows - 1))
+        / (Stdlib.max 1 ((count state) - 1))
 
       Layout.at region position (region.cols - 1) (Colors.colorize Colors.cyan "|")
     else

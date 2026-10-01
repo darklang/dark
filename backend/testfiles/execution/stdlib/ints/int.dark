@@ -64,7 +64,7 @@ Stdlib.Int.fromUInt128 340282366920938463463374607431768211455Z =
 // --- conversions into the fixed-width types (Some if it fits, else None) ---
 Stdlib.Int.toInt8 100 = Stdlib.Option.Option.Some 100y
 Stdlib.Int.toInt8 200 = Stdlib.Option.Option.None
-Stdlib.Int.toUInt8 (Stdlib.Int.negate 1) = Stdlib.Option.Option.None
+Stdlib.Int.toUInt8 (-1) = Stdlib.Option.Option.None
 Stdlib.Int.toInt32 (2 ** 40) = Stdlib.Option.Option.None
 Stdlib.Int.toInt128 (2 ** 100) =
   Stdlib.Option.Option.Some 1267650600228229401496703205376Q
@@ -93,14 +93,14 @@ Stdlib.Int.remainder 5 0 = Stdlib.Result.Result.Error "Cannot divide by 0"
 Stdlib.Int.remainder (2 ** 100) 7 = Stdlib.Result.Result.Ok 2
 
 // --- mod: wraps into [0, b); RTE if b <= 0 ---
-Stdlib.Int.mod 15 5 = 0
-Stdlib.Int.mod 15 6 = 3
-Stdlib.Int.mod 0 15 = 0
-Stdlib.Int.mod -1 2 = 1
-Stdlib.Int.mod -754 53 = 41
-Stdlib.Int.mod (2 ** 100) 7 = 2
-Stdlib.Int.mod 5 0 = error="Cannot evaluate modulus against 0"
-Stdlib.Int.mod 5 -5 = error="Cannot evaluate modulus against a negative number"
+(15 % 5) = 0
+(15 % 6) = 3
+(0 % 15) = 0
+(-1 % 2) = 1
+(-754 % 53) = 41
+((2 ** 100) % 7) = 2
+(5 % 0) = error="Cannot evaluate modulus against 0"
+(5 % -5) = error="Cannot evaluate modulus against a negative number"
 
 // the % operator dispatches to mod
 15 % 5 = 0
@@ -108,10 +108,10 @@ Stdlib.Int.mod 5 -5 = error="Cannot evaluate modulus against a negative number"
 5 % -5 = error="Cannot evaluate modulus against a negative number"
 
 // --- shiftLeft / shiftRight: count must fit Int32, else OutOfRange ---
-Stdlib.Int.shiftLeft 1 4 = 16
-Stdlib.Int.shiftLeft 1 64 = 18446744073709551616
-Stdlib.Int.shiftRight 256 4 = 16
-Stdlib.Int.shiftLeft 1 (2 ** 40) =
+(1 << 4) = 16
+(1 << 64) = 18446744073709551616
+(256 >> 4) = 16
+(1 << (2 ** 40)) =
   error="Encountered out-of-range value for type of Int"
-Stdlib.Int.shiftRight 1 (2 ** 40) =
+(1 >> (2 ** 40)) =
   error="Encountered out-of-range value for type of Int"

@@ -31,7 +31,7 @@ let rowsAtSize (size: Stdlib.Cli.Tui.Size) : List<String> =
   let screen =
     Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = height; cols = width }
 
-  let half = Stdlib.Int.divide (width - 4) 2
+  let half = (width - 4) / 2
 
   // A picker, mid-list, with more items than fit: the selection marker and the scrollbar both show.
   let picker =

@@ -4,9 +4,9 @@ let userFn () : Int64 = 6L
 ([] |> Stdlib.List.push 2L) = [ 2L ]
 
 // nested function
-([] |> Stdlib.List.push (Stdlib.Int64.add 1L (Stdlib.Int64.add 1L 3L))) = [ 5L ]
+([] |> Stdlib.List.push (1L + (1L + 3L))) = [ 5L ]
 
-([] |> Stdlib.List.push (Stdlib.Int64.add 1L ((+) 1L 3L))) = [ 5L ]
+([] |> Stdlib.List.push (1L + ((+) 1L 3L))) = [ 5L ]
 
 ([] |> Stdlib.List.push (Builtin.testRuntimeError "err")) = error="Uncaught exception: err"
 
@@ -16,7 +16,7 @@ let userFn () : Int64 = 6L
 ([ 5L ]
  |> Stdlib.List.head
  |> Builtin.unwrap
- |> Stdlib.Int64.add 1L
+ |> (+) 1L
  |> (+) 3L
  |> (fun x -> if (x + 4L) > 1L then x else (1L + x))) = 9L
 
@@ -93,10 +93,10 @@ module FnName =
   (let fn = (fun x -> x + 1L)
    6L |> fn) = 7L
 
-  (let fn = Stdlib.Int64.add
+  (let fn = (+)
    3L |> fn 4L) = 7L
 
-  (let fn = Stdlib.Int64.subtract
+  (let fn = (-)
    11L |> fn 4L) = 7L
 
   (let fn = (fun a b -> Stdlib.max a b)

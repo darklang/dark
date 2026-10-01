@@ -82,7 +82,7 @@ let measure (label: String) (f: Int -> Int) : Unit =
   let c = onePass f
   let best = Stdlib.min a (Stdlib.min b c)
   // Nanoseconds per call, from milliseconds over `iterations`.
-  let ns = Stdlib.Int.divide (best * 1000000) iterations
+  let ns = (best * 1000000) / iterations
   Stdlib.printLine (label + "  " + (Stdlib.toString ns) + " ns")
 
 /// Run the process hot before the first row is timed.

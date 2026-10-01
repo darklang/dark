@@ -83,7 +83,7 @@ let private testRunCases =
   testCliEquals
     "run smoke"
     [ "Bool.and", [ "eval"; "Stdlib.Bool.and true false" ], "false"
-      "Int64.add", [ "eval"; "Stdlib.Int64.add 5L 3L" ], "8" ]
+      "Int64.add", [ "eval"; "5L + 3L" ], "8" ]
 
 let private testEvalCases =
   testCliEquals
@@ -614,7 +614,9 @@ let private testTracesViewToleratesCorruptedRow =
     "traces view <id> renders the rest of the call tree on a corrupted row"
     (fun state ->
       task {
-        let! _ = runCli state [ "eval"; "Stdlib.Int64.add 1L 2L" ]
+        // A real package call, so the trace has a non-corrupt fn_call row to render.
+        // `1L + 2L` has none: the interpreter answers a builtin numeric pair directly.
+        let! _ = runCli state [ "eval"; "Stdlib.List.length [1L, 2L]" ]
         let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
         let tid = parseTraceID listJson
 

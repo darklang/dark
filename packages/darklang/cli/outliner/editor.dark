@@ -665,7 +665,7 @@ let view
     let thumb =
       if total > region.rows then
         let position =
-          Stdlib.Int.divide (cursorRow * (region.rows - 1)) (Stdlib.max 1 (total - 1))
+          (cursorRow * (region.rows - 1)) / (Stdlib.max 1 (total - 1))
 
         Stdlib.Cli.UI.Layout.at
           region

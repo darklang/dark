@@ -6,46 +6,46 @@ Stdlib.min 340282366920938463463374607431768211455Z 0Z = 0Z
 
 Stdlib.clamp 100Z 0Z 0Z = 0Z
 
-Stdlib.UInt128.add 10Z 9Z = 19Z
-Stdlib.UInt128.add 88Z 9Z = 97Z
-Stdlib.UInt128.add 1Z 0Z = 1Z
-Stdlib.UInt128.add 55Z 55Z = 110Z
-Stdlib.UInt128.add 9223372036854775807Z 2Z = 9223372036854775809Z
+(10Z + 9Z) = 19Z
+(88Z + 9Z) = 97Z
+(1Z + 0Z) = 1Z
+(55Z + 55Z) = 110Z
+(9223372036854775807Z + 2Z) = 9223372036854775809Z
 
-Stdlib.UInt128.add 170141183460469231731687303715884105726Z 4Z = 170141183460469231731687303715884105730Z
+(170141183460469231731687303715884105726Z + 4Z) = 170141183460469231731687303715884105730Z
 
-Stdlib.UInt128.add 340282366920938463463374607431768211455Z 1Z = 0Z
-Stdlib.UInt128.subtract 10Z 9Z = 1Z
-Stdlib.UInt128.subtract 88Z 9Z = 79Z
-Stdlib.UInt128.subtract 1Z 0Z = 1Z
+(340282366920938463463374607431768211455Z + 1Z) = 0Z
+(10Z - 9Z) = 1Z
+(88Z - 9Z) = 79Z
+(1Z - 0Z) = 1Z
 
-Stdlib.UInt128.multiply 8Z 8Z = 64Z
-Stdlib.UInt128.multiply 1Z 0Z = 0Z
+(8Z * 8Z) = 64Z
+(1Z * 0Z) = 0Z
 
-Stdlib.UInt128.multiply 340282366920938463463374607431768211455Z 2Z = 340282366920938463463374607431768211454Z
-Stdlib.UInt128.divide 10Z 5Z = 2Z
-Stdlib.UInt128.divide 17Z 3Z = 5Z
-Stdlib.UInt128.divide 0Z 1Z = 0Z
+(340282366920938463463374607431768211455Z * 2Z) = 340282366920938463463374607431768211454Z
+(10Z / 5Z) = 2Z
+(17Z / 3Z) = 5Z
+(0Z / 1Z) = 0Z
 
-Stdlib.UInt128.divide 1Z 0Z = error="Cannot divide by 0"
-Stdlib.UInt128.greaterThan 20Z 1Z = true
+(1Z / 0Z) = error="Cannot divide by 0"
+(20Z > 1Z) = true
 
-Stdlib.UInt128.greaterThan (20Z) (170141183460469231731687303715884105727Z) = false
+((20Z) > (170141183460469231731687303715884105727Z)) = false
 
-Stdlib.UInt128.greaterThanOrEqualTo 0Z 1Z = false
-Stdlib.UInt128.greaterThanOrEqualTo 1Z 0Z = true
-Stdlib.UInt128.greaterThanOrEqualTo 6Z 1Z = true
-Stdlib.UInt128.greaterThanOrEqualTo 6Z 8Z = false
+(0Z >= 1Z) = false
+(1Z >= 0Z) = true
+(6Z >= 1Z) = true
+(6Z >= 8Z) = false
 
-Stdlib.UInt128.lessThanOrEqualTo 6Z 8Z = true
-Stdlib.UInt128.lessThanOrEqualTo 10Z 1Z = false
-Stdlib.UInt128.lessThanOrEqualTo 0Z 1Z = true
-Stdlib.UInt128.lessThanOrEqualTo 1Z 0Z = false
+(6Z <= 8Z) = true
+(10Z <= 1Z) = false
+(0Z <= 1Z) = true
+(1Z <= 0Z) = false
 
-Stdlib.UInt128.lessThan 6Z 8Z = true
-Stdlib.UInt128.lessThan 10Z 1Z = false
-Stdlib.UInt128.lessThan 0Z 1Z = true
-Stdlib.UInt128.lessThan 1Z 0Z = false
+(6Z < 8Z) = true
+(10Z < 1Z) = false
+(0Z < 1Z) = true
+(1Z < 0Z) = false
 
 Stdlib.toString 0Z = "0"
 Stdlib.toString 1Z = "1"
@@ -58,12 +58,12 @@ Stdlib.UInt128.sqrt 4Z = 2.0
 Stdlib.UInt128.sqrt 100Z = 10.0
 Stdlib.UInt128.sqrt 86Z = 9.273618495495704
 
-Stdlib.UInt128.mod 15Z 5Z = 0Z
-Stdlib.UInt128.mod 15Z 6Z = 3Z
-Stdlib.UInt128.mod 0Z 15Z = 0Z
-Stdlib.UInt128.mod 127Z 3Z = 1Z
+(15Z % 5Z) = 0Z
+(15Z % 6Z) = 3Z
+(0Z % 15Z) = 0Z
+(127Z % 3Z) = 1Z
 
-Stdlib.UInt128.mod 5Z 0Z = error="Cannot evaluate modulus against 0"
+(5Z % 0Z) = error="Cannot evaluate modulus against 0"
 // parses OK
 Stdlib.UInt128.parse "0" = Stdlib.Result.Result.Ok(0Z)
 Stdlib.UInt128.parse "1" = Stdlib.Result.Result.Ok(1Z)
@@ -109,29 +109,29 @@ Stdlib.UInt128.fromUInt64 0UL = 0Z
 Stdlib.UInt128.fromUInt64 1UL = 1Z
 Stdlib.UInt128.fromUInt64 18446744073709551615UL = 18446744073709551615Z
 
-Stdlib.UInt128.bitwiseAnd 12Z 10Z = 8Z
-Stdlib.UInt128.bitwiseAnd 0Z 0Z = 0Z
-Stdlib.UInt128.bitwiseAnd 255Z 0Z = 0Z
-Stdlib.UInt128.bitwiseAnd 255Z 255Z = 255Z
+(12Z & 10Z) = 8Z
+(0Z & 0Z) = 0Z
+(255Z & 0Z) = 0Z
+(255Z & 255Z) = 255Z
 
-Stdlib.UInt128.bitwiseOr 12Z 10Z = 14Z
-Stdlib.UInt128.bitwiseOr 0Z 0Z = 0Z
-Stdlib.UInt128.bitwiseOr 255Z 0Z = 255Z
+(12Z | 10Z) = 14Z
+(0Z | 0Z) = 0Z
+(255Z | 0Z) = 255Z
 
-Stdlib.UInt128.bitwiseXor 12Z 10Z = 6Z
-Stdlib.UInt128.bitwiseXor 0Z 0Z = 0Z
-Stdlib.UInt128.bitwiseXor 255Z 255Z = 0Z
+(12Z ^ 10Z) = 6Z
+(0Z ^ 0Z) = 0Z
+(255Z ^ 255Z) = 0Z
 
-Stdlib.UInt128.bitwiseNot 0Z = 340282366920938463463374607431768211455Z
-Stdlib.UInt128.bitwiseNot 340282366920938463463374607431768211455Z = 0Z
-Stdlib.UInt128.bitwiseNot 1Z = 340282366920938463463374607431768211454Z
+(~0Z) = 340282366920938463463374607431768211455Z
+(~340282366920938463463374607431768211455Z) = 0Z
+(~1Z) = 340282366920938463463374607431768211454Z
 
-Stdlib.UInt128.shiftLeft 1Z 2Z = 4Z
-Stdlib.UInt128.shiftLeft 0Z 5Z = 0Z
-Stdlib.UInt128.shiftLeft 1Z 0Z = 1Z
-Stdlib.UInt128.shiftLeft 5Z 3Z = 40Z
+(1Z << 2Z) = 4Z
+(0Z << 5Z) = 0Z
+(1Z << 0Z) = 1Z
+(5Z << 3Z) = 40Z
 
-Stdlib.UInt128.shiftRight 8Z 2Z = 2Z
-Stdlib.UInt128.shiftRight 0Z 5Z = 0Z
-Stdlib.UInt128.shiftRight 1Z 0Z = 1Z
-Stdlib.UInt128.shiftRight 40Z 3Z = 5Z
+(8Z >> 2Z) = 2Z
+(0Z >> 5Z) = 0Z
+(1Z >> 0Z) = 1Z
+(40Z >> 3Z) = 5Z

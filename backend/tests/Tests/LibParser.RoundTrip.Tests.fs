@@ -1490,10 +1490,10 @@ let exprs =
       "list of function calls"
       """[
   Stdlib.Tuple2.second (4L, 5L)
-  Stdlib.Int64.add 1L 2L
+  Stdlib.Int64.remainder 1L 2L
   Stdlib.List.head [1L, 2L]
 ]"""
-      "[\n  Stdlib.Tuple2.second (4L, 5L),\n  Stdlib.Int64.add 1L 2L,\n  Stdlib.List.head [1L, 2L]\n]"
+      "[\n  Stdlib.Tuple2.second (4L, 5L),\n  Stdlib.Int64.remainder 1L 2L,\n  Stdlib.List.head [1L, 2L]\n]"
       []
       []
       []
@@ -1503,12 +1503,12 @@ let exprs =
       "list of function calls -indented"
       """[
   Stdlib.Tuple2.second (4L, 5L)
-  (Stdlib.Int64.add
+  (Stdlib.Int64.remainder
     1L
     2L)
   Stdlib.List.head [1L, 2L]
 ]"""
-      "[\n  Stdlib.Tuple2.second (4L, 5L),\n  Stdlib.Int64.add 1L 2L,\n  Stdlib.List.head [1L, 2L]\n]"
+      "[\n  Stdlib.Tuple2.second (4L, 5L),\n  Stdlib.Int64.remainder 1L 2L,\n  Stdlib.List.head [1L, 2L]\n]"
       []
       []
       []
@@ -2321,8 +2321,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "pipe, if head"
-      "(if true then 1L else 2L) |> Stdlib.Int64.add 1L"
-      "(if true then 1L else 2L) |> Stdlib.Int64.add 1L"
+      "(if true then 1L else 2L) |> (+) 1L"
+      "(if true then 1L else 2L) |> (+) 1L"
       []
       []
       []
@@ -2362,8 +2362,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "pipe, lambda then another stage"
-      "1L |> (fun x -> x + 1L) |> Stdlib.Int64.add 2L"
-      "1L |> (fun x -> x + 1L) |> Stdlib.Int64.add 2L"
+      "1L |> (fun x -> x + 1L) |> (+) 2L"
+      "1L |> (fun x -> x + 1L) |> (+) 2L"
       []
       []
       []
@@ -2378,8 +2378,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "pipe, into fn call"
-      "1L |> Stdlib.Int64.add 2L"
-      "1L |> Stdlib.Int64.add 2L"
+      "1L |> (+) 2L"
+      "1L |> (+) 2L"
       []
       []
       []
@@ -2402,8 +2402,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "pipe, into fn call 4"
-      "Stdlib.Int64.add 1L 2L |> Stdlib.Int64.add 1L"
-      "Stdlib.Int64.add 1L 2L |> Stdlib.Int64.add 1L"
+      "1L + 2L |> (+) 1L"
+      "1L + 2L |> (+) 1L"
       []
       []
       []
@@ -2756,8 +2756,8 @@ let functionDeclarations =
 
     t
       "multiple param"
-      "let isHigher (a: Int64) (b: Int64) : Bool =\n  Stdlib.Int64.greaterThan a b"
-      "let isHigher (a: Int64) (b: Int64): Bool =\n  Stdlib.Int64.greaterThan a b"
+      "let isHigher (a: Int64) (b: Int64) : Bool =\n  a > b"
+      "let isHigher (a: Int64) (b: Int64): Bool =\n  a > b"
       []
       []
       []
@@ -2783,8 +2783,8 @@ let functionDeclarations =
 
     t
       "package fn call"
-      "let sum (a : Int64) (b : Int64) : Int64 =\n  Stdlib.Int64.add a b"
-      "let sum (a: Int64) (b: Int64): Int64 =\n  Stdlib.Int64.add a b"
+      "let sum (a : Int64) (b : Int64) : Int64 =\n  a + b"
+      "let sum (a: Int64) (b: Int64): Int64 =\n  a + b"
       []
       []
       []
@@ -2826,21 +2826,21 @@ let functionDeclarations =
     t
       "self reference, shadowed name"
       """let incr (y: Int64) (z: Int64): Int64 =
-  if Stdlib.Int64.lessThanOrEqualTo z 0L then
+  if z <= 0L then
     y
   else
-    let result = incr y (Stdlib.Int64.subtract z 1L)
-    let incr = (fun x -> Stdlib.Int64.add x 2L)
+    let result = incr y (z - 1L)
+    let incr = (fun x -> x + 2L)
     let lambdaResult = incr z
-    Stdlib.Int64.add result lambdaResult"""
+    result + lambdaResult"""
       """let incr (y: Int64) (z: Int64): Int64 =
-  if Stdlib.Int64.lessThanOrEqualTo z 0L then
+  if z <= 0L then
     y
   else
-    let result = incr y (Stdlib.Int64.subtract z 1L)
-    let incr = (fun x -> Stdlib.Int64.add x 2L)
+    let result = incr y (z - 1L)
+    let incr = (fun x -> x + 2L)
     let lambdaResult = incr z
-    Stdlib.Int64.add result lambdaResult"""
+    result + lambdaResult"""
       []
       []
       []

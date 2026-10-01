@@ -6,79 +6,56 @@ type ParseError =
   | OutOfRange
 
 
-/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-/// The modulus <param b> must be greater than 0.
-/// Use <fn UInt8.remainder> if you want the remainder after division, which has
-/// a different behavior for negative numbers.
-let ``mod`` (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Mod a b
-
 impl Modulo for UInt8 =
-  let modulo = Stdlib.UInt8.``mod``
+  /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+  /// The modulus <param b> must be greater than 0.
+  /// Use <fn UInt8.remainder> if you want the remainder after division, which has
+  /// a different behavior for negative numbers.
+  let modulo (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Mod a b
 
-
-/// Adds two 8-bit unsigned integers together (wraps on overflow)
-let add (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Add a b
 
 impl Add for UInt8 =
-  let add = Stdlib.UInt8.add
+  /// Adds two 8-bit unsigned integers together (wraps on overflow)
+  let add (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Add a b
 
-
-/// Subtracts two 8-bit unsigned  integers (wraps on overflow)
-let subtract (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Subtract a b
 
 impl Subtract for UInt8 =
-  let subtract = Stdlib.UInt8.subtract
+  /// Subtracts two 8-bit unsigned  integers (wraps on overflow)
+  let subtract (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Subtract a b
 
-
-/// Multiplies two 8-bit unsigned  integers (wraps on overflow)
-let multiply (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Multiply a b
 
 impl Multiply for UInt8 =
-  let multiply = Stdlib.UInt8.multiply
+  /// Multiplies two 8-bit unsigned  integers (wraps on overflow)
+  let multiply (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Multiply a b
 
-
-/// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must to be positive.
-/// Overflow wraps around.
-let power (``base``: UInt8) (exponent: UInt8) : UInt8 =
-  if ``base`` == 0uy && exponent == 0uy then 1uy
-  else if ``base`` == 0uy then 0uy
-  else if ``base`` == 1uy then 1uy
-  else Builtin.uint8Power ``base`` exponent
 
 impl Power for UInt8 =
-  let power = Stdlib.UInt8.power
+  /// Raise <param base> to the power of <param exponent>.
+  /// <param exponent> must to be positive.
+  /// Overflow wraps around.
+  let power (``base``: UInt8) (exponent: UInt8) : UInt8 =
+    if ``base`` == 0uy && exponent == 0uy then 1uy
+    else if ``base`` == 0uy then 0uy
+    else if ``base`` == 1uy then 1uy
+    else Builtin.uint8Power ``base`` exponent
 
-
-/// Divides two 8-bit unsigned  integers
-let divide (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Divide a b
 
 impl Divide for UInt8 =
-  let divide = Stdlib.UInt8.divide
+  /// Divides two 8-bit unsigned  integers
+  let divide (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Divide a b
 
-
-/// Returns {{true}} if <param a> is greater than <param b>
-let greaterThan (a: UInt8) (b: UInt8) : Bool = Builtin.uint8GreaterThan a b
-
-
-/// Returns {{true}} if <param a> is greater than or equal to <param b>
-let greaterThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
-  Builtin.uint8GreaterThanOrEqualTo a b
-
-
-/// Returns {{true}} if <param a> is less than <param b>
-let lessThan (a: UInt8) (b: UInt8) : Bool = Builtin.uint8LessThan a b
-
-
-/// Returns {{true}} if <param a> is less than or equal to <param b>
-let lessThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
-  Builtin.uint8LessThanOrEqualTo a b
 
 impl Compare for UInt8 =
-  let lessThan = Stdlib.UInt8.lessThan
-  let lessThanOrEqualTo = Stdlib.UInt8.lessThanOrEqualTo
-  let greaterThan = Stdlib.UInt8.greaterThan
-  let greaterThanOrEqualTo = Stdlib.UInt8.greaterThanOrEqualTo
+  /// Returns {{true}} if <param a> is less than <param b>
+  let lessThan (a: UInt8) (b: UInt8) : Bool = Builtin.uint8LessThan a b
+  /// Returns {{true}} if <param a> is less than or equal to <param b>
+  let lessThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
+    Builtin.uint8LessThanOrEqualTo a b
+  /// Returns {{true}} if <param a> is greater than <param b>
+  let greaterThan (a: UInt8) (b: UInt8) : Bool = Builtin.uint8GreaterThan a b
+  /// Returns {{true}} if <param a> is greater than or equal to <param b>
+  let greaterThanOrEqualTo (a: UInt8) (b: UInt8) : Bool =
+    Builtin.uint8GreaterThanOrEqualTo a b
 
 
 /// Returns a random 8 bit unsigned integer between <param start> and <param end> (inclusive)
@@ -146,46 +123,34 @@ let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt8> =
   Builtin.uint8FromUInt128 i
 
 
-/// Bitwise AND on two <type UInt8> values
-let bitwiseAnd (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8BitwiseAnd a b
-
 impl BitwiseAnd for UInt8 =
-  let bitwiseAnd = Stdlib.UInt8.bitwiseAnd
+  /// Bitwise AND on two <type UInt8> values
+  let bitwiseAnd (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8BitwiseAnd a b
 
-
-/// Bitwise OR on two <type UInt8> values
-let bitwiseOr (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8BitwiseOr a b
 
 impl BitwiseOr for UInt8 =
-  let bitwiseOr = Stdlib.UInt8.bitwiseOr
+  /// Bitwise OR on two <type UInt8> values
+  let bitwiseOr (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8BitwiseOr a b
 
-
-/// Bitwise XOR on two <type UInt8> values
-let bitwiseXor (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8BitwiseXor a b
 
 impl BitwiseXor for UInt8 =
-  let bitwiseXor = Stdlib.UInt8.bitwiseXor
+  /// Bitwise XOR on two <type UInt8> values
+  let bitwiseXor (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8BitwiseXor a b
 
-
-/// Bitwise NOT on a <type UInt8> value
-let bitwiseNot (a: UInt8) : UInt8 = Builtin.uint8BitwiseNot a
 
 impl BitwiseNot for UInt8 =
-  let bitwiseNot = Stdlib.UInt8.bitwiseNot
+  /// Bitwise NOT on a <type UInt8> value
+  let bitwiseNot (a: UInt8) : UInt8 = Builtin.uint8BitwiseNot a
 
-
-/// Bitwise left shift of a <type UInt8> value
-let shiftLeft (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8ShiftLeft a b
 
 impl ShiftLeft for UInt8 =
-  let shiftLeft = Stdlib.UInt8.shiftLeft
+  /// Bitwise left shift of a <type UInt8> value
+  let shiftLeft (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8ShiftLeft a b
 
-
-/// Bitwise right shift of a <type UInt8> value
-let shiftRight (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8ShiftRight a b
 
 impl ShiftRight for UInt8 =
-  let shiftRight = Stdlib.UInt8.shiftRight
+  /// Bitwise right shift of a <type UInt8> value
+  let shiftRight (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8ShiftRight a b
 
 impl ToString for UInt8 =
   /// Stringify <param Uint8>

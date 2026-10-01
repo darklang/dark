@@ -165,7 +165,7 @@ let testEvalBoolAnd (): TestResult =
 
 
 let testEvalInt64Add (): TestResult =
-  expectExact ["eval", "Stdlib.Int64.add 5L 3L"] "8"
+  expectExact ["eval", "(5L + 3L)"] "8"
 
 
 let testEvalStringLength (): TestResult =
@@ -473,7 +473,7 @@ let testHarmfulGate (): TestResult =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let fnName = $"Tests.HarmGate.g{suffix}"
 
-  let _ = runWithCommand [ "fn", fnName, "(x: Int64) : Int64 = Stdlib.Int64.add x 31L" ]
+  let _ = runWithCommand [ "fn", fnName, "(x: Int64) : Int64 = (x + 31L)" ]
 
   let _ =
     runWithCommand
@@ -832,7 +832,7 @@ let testEditRoundTripsThroughRaw (): TestResult =
         branchName
         "fn"
         "/" + name
-        "let tripled (n: Int64) : Int64 = Stdlib.Int64.multiply n 3L" ]
+        "let tripled (n: Int64) : Int64 = (n * 3L)" ]
 
   let before = runWithCommand [ "--branch", branchName, "view", name, "--raw" ]
   // The hash, not the op count: an apply that changes nothing still records that the
@@ -848,7 +848,7 @@ let testEditRoundTripsThroughRaw (): TestResult =
   let _ =
     (Stdlib.Cli.File.writeAtomic
       changedPath
-      "let tripled (n: Int64) : Int64 = Stdlib.Int64.multiply n 30L")
+      "let tripled (n: Int64) : Int64 = (n * 30L)")
     |> Builtin.unwrap
 
   let _ = runWithCommand [ "--branch", branchName, "edit", name, changedPath ]
@@ -1076,7 +1076,7 @@ let testAuthoringAcceptsAQuotedSeparator (): TestResult =
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
 
-  let body = "(x: Int64) : Int64 = Stdlib.Int64.multiply x 2L"
+  let body = "(x: Int64) : Int64 = (x * 2L)"
   let _ = runWithCommand [ "branch", "create", branch ]
   let _ = run [ "fn", "/Tests.QuotedEq.quoted", "= " + body ]
   let _ = run [ "fn", "/Tests.QuotedEq.split", "=", body ]

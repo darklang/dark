@@ -81,7 +81,7 @@ let matterSplitFor (state: State) : Int =
   // ModelContextProtocol` over one short child. Room for it and its count too.
   let pathWidth = Stdlib.String.displayWidth (Stdlib.String.join (modulePathOf state.location) " › ")
   let needed = Stdlib.max forNames (pathWidth + 10)
-  let pct = Stdlib.Int.divide (needed * 100) w
+  let pct = (needed * 100) / w
 
   Stdlib.max matterSplitMinPct (Stdlib.min matterSplitMaxPct pct)
 
@@ -217,7 +217,7 @@ let paneGeometry
   else
     let contentRows = Stdlib.max 0 (region.rows - 2)
     let top = region.top + 1
-    let ruleCol = Stdlib.Int.divide (region.cols * firstPct) 100
+    let ruleCol = (region.cols * firstPct) / 100
     let list =
       Stdlib.Cli.UI.Layout.Region
         { top = top

@@ -254,10 +254,10 @@ let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View 
 
       let centred (text: String) (row: Int) : List<Stdlib.Cli.UI.Layout.Span> =
         let col =
-          Stdlib.max 0 (Stdlib.Int.divide (size.width - (Stdlib.String.displayWidth text)) 2)
+          Stdlib.max 0 ((size.width - (Stdlib.String.displayWidth text)) / 2)
         Stdlib.Cli.UI.Layout.at screen row col (Stdlib.Cli.UI.Colors.dimText text)
 
-      let row = Stdlib.max 0 (Stdlib.Int.divide size.height 2)
+      let row = Stdlib.max 0 (size.height / 2)
 
       Stdlib.List.flatten
         [ centred "terminal too small" (Stdlib.max 0 (row - 1))

@@ -2,7 +2,7 @@ module Darklang =
   module Test =
     module EArgTests =
       let addTwo (earg1: Int) (earg2: Int): Int =
-        Stdlib.Int.add earg1 earg2
+        earg1 + earg2
 
       let shadowTest (shadowedEarg: Int): Int =
         let shadowedEarg = 42
@@ -10,16 +10,16 @@ module Darklang =
 
       let argAndLocalVar (mixedEarg: Int): Int =
         let localVarNotEarg = 10
-        Stdlib.Int.add mixedEarg localVarNotEarg  // mixedEarg=EArg(0), localVarNotEarg=EVariable("localVarNotEarg")
+        (mixedEarg + localVarNotEarg)  // mixedEarg=EArg(0), localVarNotEarg=EVariable("localVarNotEarg")
 
       let nestedShadowing (eargOne: Int) (eargTwo: Int): Int =
         let a =
           let eargOne = 100
-          Stdlib.Int.add eargOne eargTwo
-        Stdlib.Int.add a eargOne
+          eargOne + eargTwo
+        a + eargOne
 
       let lambdaTest (eargX: Int) : Int =
-        let addX = (fun x -> Stdlib.Int.add x 1)
+        let addX = (fun x -> x + 1)
         let result = eargX + (addX eargX)
         result
 

@@ -40,7 +40,7 @@ let render (region: Layout.Region) (displayLines: List<String>) (selected: Int) 
     let thumb =
       if total > region.rows then
         let thumbRow =
-          Stdlib.Int.divide (selected * (region.rows - 1)) (Stdlib.max 1 (total - 1))
+          (selected * (region.rows - 1)) / (Stdlib.max 1 (total - 1))
         Layout.at region thumbRow (region.cols - 1) (Colors.colorize Colors.cyan "▐")
       else
         []

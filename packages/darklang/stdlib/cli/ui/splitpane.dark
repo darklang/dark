@@ -45,7 +45,7 @@ let render
   else
     match orientation with
     | Horizontal ->
-      let firstCols = Stdlib.Int.divide (region.cols * firstPct) 100
+      let firstCols = (region.cols * firstPct) / 100
       let secondCols = region.cols - firstCols
       let firstRegion =
         Layout.Region { top = region.top; left = region.left; rows = region.rows; cols = firstCols }
@@ -55,7 +55,7 @@ let render
         [ Box.panel firstRegion titleFirst firstFocused renderFirst
           Box.panel secondRegion titleSecond secondFocused renderSecond ]
     | Vertical ->
-      let firstRows = Stdlib.Int.divide (region.rows * firstPct) 100
+      let firstRows = (region.rows * firstPct) / 100
       let secondRows = region.rows - firstRows
       let firstRegion =
         Layout.Region { top = region.top; left = region.left; rows = firstRows; cols = region.cols }

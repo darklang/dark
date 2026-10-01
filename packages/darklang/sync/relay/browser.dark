@@ -91,7 +91,7 @@ let feature (title: String) (desc: String) : String =
 /// ungrouped run of digits gets read digit by digit.
 let num (n: Int64) : String =
   if n < 0L then
-    "-" + num (Stdlib.Int64.negate n)
+    "-" + num (-n)
   else if n < 1000L then
     Stdlib.toString n
   else

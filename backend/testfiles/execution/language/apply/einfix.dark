@@ -1,7 +1,7 @@
 5L + 3L = 8L
 "xx" + "yy" = "xxyy"
 (5L + (3L)) = 8L
-Stdlib.Int64.add 5L 3L = 8L
+(5L + 3L) = 8L
 
 // Numeric operators are polymorphic over numeric types at runtime
 1.0 + 2.0 = 3.0
@@ -56,8 +56,8 @@ Stdlib.Int64.add 5L 3L = 8L
 // and wraps on overflow, as the narrower widths do
 2Z ** 128Z = 0Z
 // unary `-` works on every signed integer type and Float
--(Stdlib.Int8.add 2y 3y) = -5y
--(Stdlib.Float.add 1.0 1.5) = -2.5
+-(2y + 3y) = -5y
+-(1.0 + 1.5) = -2.5
 5L + (Builtin.testRuntimeError "error") = error="Uncaught exception: error"
 (Builtin.testRuntimeError "error") + 5L = error="Uncaught exception: error"
 (Builtin.testRuntimeError "one") + (Builtin.testRuntimeError "two") = error="Uncaught exception: one"
@@ -105,7 +105,7 @@ Stdlib.Int64.add 5L 3L = 8L
 ~0uy = 255uy
 ~0 = -1
 ~(-1) = 0
-~(Stdlib.Int64.add 2L 3L) = -6L
+~(2L + 3L) = -6L
 
 // bitwise operators are traits like every other operator, so a Float says what is missing
 1.0 & 2.0 = error="Float has no implementation of Darklang.Stdlib.BitwiseAnd. Write `impl BitwiseAnd for Float = ...`, or run `dark impls BitwiseAnd` to see which types do"

@@ -58,7 +58,7 @@ let readMark (text: String) : (String * Mark) =
 
 let parseLine (raw: String) : Line =
   let (text, mark) = readMark (Stdlib.String.trim raw)
-  Line { depth = Stdlib.Int.divide (indentWidth raw) 2; text = text; mark = mark }
+  Line { depth = ((indentWidth raw) / 2); text = text; mark = mark }
 
 /// Add one line to the outline being built, hanging it off the nearest shallower line.
 ///

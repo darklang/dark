@@ -63,6 +63,6 @@ let c0 = Darklang.Cli.Telemetry.now ()
 let _p = presentN n sess view 0
 let c1 = Darklang.Cli.Telemetry.now ()
 
-Stdlib.printLine ("handleKey:            " + (Stdlib.toString (Stdlib.Int.divide (a1 - a0) n)) + " ms")
-Stdlib.printLine ("viewAtSize:           " + (Stdlib.toString (Stdlib.Int.divide (b1 - b0) n)) + " ms")
-Stdlib.printLine ("preparePresentAtSize: " + (Stdlib.toString (Stdlib.Int.divide (c1 - c0) n)) + " ms")
+Stdlib.printLine ("handleKey:            " + (Stdlib.toString ((a1 - a0) / n)) + " ms")
+Stdlib.printLine ("viewAtSize:           " + (Stdlib.toString ((b1 - b0) / n)) + " ms")
+Stdlib.printLine ("preparePresentAtSize: " + (Stdlib.toString ((c1 - c0) / n)) + " ms")
