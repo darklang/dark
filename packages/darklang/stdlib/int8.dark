@@ -12,6 +12,9 @@ type ParseError =
 /// a different behavior for negative numbers.
 let ``mod`` (a: Int8) (b: Int8) : Int8 = Builtin.int8Mod a b
 
+impl Modulo for Int8 =
+  let modulo = Stdlib.Int8.``mod``
+
 
 /// Returns the integer remainder left over after dividing <param value> by
 /// <param divisor>, as a <type Result>.
@@ -29,13 +32,22 @@ let remainder
 /// Adds two 8-bit signed integers together (wraps on overflow)
 let add (a: Int8) (b: Int8) : Int8 = Builtin.int8Add a b
 
+impl Add for Int8 =
+  let add = Stdlib.Int8.add
+
 
 /// Subtracts two 8-bit signed integers (wraps on overflow)
 let subtract (a: Int8) (b: Int8) : Int8 = Builtin.int8Subtract a b
 
+impl Subtract for Int8 =
+  let subtract = Stdlib.Int8.subtract
+
 
 /// Multiplies two 8-bit signed integers (wraps on overflow)
 let multiply (a: Int8) (b: Int8) : Int8 = Builtin.int8Multiply a b
+
+impl Multiply for Int8 =
+  let multiply = Stdlib.Int8.multiply
 
 
 /// Raise <param base> to the power of <param exponent>.
@@ -59,9 +71,15 @@ let power (``base``: Int8) (exponent: Int8) : Int8 =
   else
     Builtin.int8Power ``base`` exponent
 
+impl Power for Int8 =
+  let power = Stdlib.Int8.power
+
 
 /// Divides two 8-bit signed integers
 let divide (a: Int8) (b: Int8) : Int8 = Builtin.int8Divide a b
+
+impl Divide for Int8 =
+  let divide = Stdlib.Int8.divide
 
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
@@ -74,6 +92,9 @@ let absoluteValue (a: Int8) : Int8 =
 
 /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
 let negate (a: Int8) : Int8 = Builtin.int8Negate a
+
+impl Negate for Int8 =
+  let negate = Stdlib.Int8.negate
 
 
 /// Returns {{true}} if <param a> is greater than <param b>
@@ -91,6 +112,12 @@ let lessThan (a: Int8) (b: Int8) : Bool = Builtin.int8LessThan a b
 /// Returns {{true}} if <param a> is less than or equal to <param b>
 let lessThanOrEqualTo (a: Int8) (b: Int8) : Bool =
   Builtin.int8LessThanOrEqualTo a b
+
+impl Compare for Int8 =
+  let lessThan = Stdlib.Int8.lessThan
+  let lessThanOrEqualTo = Stdlib.Int8.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int8.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int8.greaterThanOrEqualTo
 
 
 /// Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)
@@ -158,55 +185,43 @@ let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int8> =
 /// Bitwise AND on two <type Int8> values
 let bitwiseAnd (a: Int8) (b: Int8) : Int8 = Builtin.int8BitwiseAnd a b
 
+impl BitwiseAnd for Int8 =
+  let bitwiseAnd = Stdlib.Int8.bitwiseAnd
+
 
 /// Bitwise OR on two <type Int8> values
 let bitwiseOr (a: Int8) (b: Int8) : Int8 = Builtin.int8BitwiseOr a b
+
+impl BitwiseOr for Int8 =
+  let bitwiseOr = Stdlib.Int8.bitwiseOr
 
 
 /// Bitwise XOR on two <type Int8> values
 let bitwiseXor (a: Int8) (b: Int8) : Int8 = Builtin.int8BitwiseXor a b
 
+impl BitwiseXor for Int8 =
+  let bitwiseXor = Stdlib.Int8.bitwiseXor
+
 
 /// Bitwise NOT on an <type Int8> value
 let bitwiseNot (a: Int8) : Int8 = Builtin.int8BitwiseNot a
+
+impl BitwiseNot for Int8 =
+  let bitwiseNot = Stdlib.Int8.bitwiseNot
 
 
 /// Bitwise left shift of an <type Int8> value
 let shiftLeft (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftLeft a b
 
+impl ShiftLeft for Int8 =
+  let shiftLeft = Stdlib.Int8.shiftLeft
+
 
 /// Bitwise right shift of an <type Int8> value
 let shiftRight (a: Int8) (b: Int8) : Int8 = Builtin.int8ShiftRight a b
 
-
-// The traits, over the fns above.
-
-impl Add for Int8 =
-  let add = Stdlib.Int8.add
-
-impl Subtract for Int8 =
-  let subtract = Stdlib.Int8.subtract
-
-impl Multiply for Int8 =
-  let multiply = Stdlib.Int8.multiply
-
-impl Divide for Int8 =
-  let divide = Stdlib.Int8.divide
-
-impl Modulo for Int8 =
-  let modulo = Stdlib.Int8.``mod``
-
-impl Power for Int8 =
-  let power = Stdlib.Int8.power
-
-impl Negate for Int8 =
-  let negate = Stdlib.Int8.negate
-
-impl Compare for Int8 =
-  let lessThan = Stdlib.Int8.lessThan
-  let lessThanOrEqualTo = Stdlib.Int8.lessThanOrEqualTo
-  let greaterThan = Stdlib.Int8.greaterThan
-  let greaterThanOrEqualTo = Stdlib.Int8.greaterThanOrEqualTo
+impl ShiftRight for Int8 =
+  let shiftRight = Stdlib.Int8.shiftRight
 
 impl ToString for Int8 =
   /// Stringify <param int8>
@@ -217,21 +232,3 @@ impl Zero for Int8 =
 
 impl One for Int8 =
   let one () : Int8 = 1y
-
-impl BitwiseAnd for Int8 =
-  let bitwiseAnd = Stdlib.Int8.bitwiseAnd
-
-impl BitwiseOr for Int8 =
-  let bitwiseOr = Stdlib.Int8.bitwiseOr
-
-impl BitwiseXor for Int8 =
-  let bitwiseXor = Stdlib.Int8.bitwiseXor
-
-impl BitwiseNot for Int8 =
-  let bitwiseNot = Stdlib.Int8.bitwiseNot
-
-impl ShiftLeft for Int8 =
-  let shiftLeft = Stdlib.Int8.shiftLeft
-
-impl ShiftRight for Int8 =
-  let shiftRight = Stdlib.Int8.shiftRight

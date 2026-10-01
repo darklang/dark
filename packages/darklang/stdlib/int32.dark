@@ -12,6 +12,9 @@ type ParseError =
 /// a different behavior for negative numbers.
 let ``mod`` (a: Int32) (b: Int32) : Int32 = Builtin.int32Mod a b
 
+impl Modulo for Int32 =
+  let modulo = Stdlib.Int32.``mod``
+
 
 /// Returns the integer remainder left over after dividing <param value> by
 /// <param divisor>, as a <type Result>.
@@ -29,17 +32,29 @@ let remainder
 /// Adds two integers together (wraps on overflow)
 let add (a: Int32) (b: Int32) : Int32 = Builtin.int32Add a b
 
+impl Add for Int32 =
+  let add = Stdlib.Int32.add
+
 
 /// Subtracts two integers (wraps on overflow)
 let subtract (a: Int32) (b: Int32) : Int32 = Builtin.int32Subtract a b
+
+impl Subtract for Int32 =
+  let subtract = Stdlib.Int32.subtract
 
 
 /// Multiplies two integers (wraps on overflow)
 let multiply (a: Int32) (b: Int32) : Int32 = Builtin.int32Multiply a b
 
+impl Multiply for Int32 =
+  let multiply = Stdlib.Int32.multiply
+
 
 /// Divides two integers
 let divide (a: Int32) (b: Int32) : Int32 = Builtin.int32Divide a b
+
+impl Divide for Int32 =
+  let divide = Stdlib.Int32.divide
 
 
 /// Raise <param base> to the power of <param exponent>.
@@ -63,6 +78,9 @@ let power (``base``: Int32) (exponent: Int32) : Int32 =
   else
     Builtin.int32Power ``base`` exponent
 
+impl Power for Int32 =
+  let power = Stdlib.Int32.power
+
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
 let absoluteValue (a: Int32) : Int32 =
@@ -74,6 +92,9 @@ let absoluteValue (a: Int32) : Int32 =
 
 /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
 let negate (a: Int32) : Int32 = Builtin.int32Negate a
+
+impl Negate for Int32 =
+  let negate = Stdlib.Int32.negate
 
 
 /// Returns {{true}} if <param a> is greater than <param b>
@@ -91,6 +112,12 @@ let lessThan (a: Int32) (b: Int32) : Bool = Builtin.int32LessThan a b
 /// Returns {{true}} if <param a> is less than or equal to <param b>
 let lessThanOrEqualTo (a: Int32) (b: Int32) : Bool =
   Builtin.int32LessThanOrEqualTo a b
+
+impl Compare for Int32 =
+  let lessThan = Stdlib.Int32.lessThan
+  let lessThanOrEqualTo = Stdlib.Int32.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int32.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int32.greaterThanOrEqualTo
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
@@ -158,55 +185,43 @@ let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int32> =
 /// Bitwise AND on two <type Int32> values
 let bitwiseAnd (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseAnd a b
 
+impl BitwiseAnd for Int32 =
+  let bitwiseAnd = Stdlib.Int32.bitwiseAnd
+
 
 /// Bitwise OR on two <type Int32> values
 let bitwiseOr (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseOr a b
+
+impl BitwiseOr for Int32 =
+  let bitwiseOr = Stdlib.Int32.bitwiseOr
 
 
 /// Bitwise XOR on two <type Int32> values
 let bitwiseXor (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseXor a b
 
+impl BitwiseXor for Int32 =
+  let bitwiseXor = Stdlib.Int32.bitwiseXor
+
 
 /// Bitwise NOT on an <type Int32> value
 let bitwiseNot (a: Int32) : Int32 = Builtin.int32BitwiseNot a
+
+impl BitwiseNot for Int32 =
+  let bitwiseNot = Stdlib.Int32.bitwiseNot
 
 
 /// Bitwise left shift of an <type Int32> value
 let shiftLeft (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftLeft a b
 
+impl ShiftLeft for Int32 =
+  let shiftLeft = Stdlib.Int32.shiftLeft
+
 
 /// Bitwise right shift of an <type Int32> value
 let shiftRight (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftRight a b
 
-
-// The traits, over the fns above.
-
-impl Add for Int32 =
-  let add = Stdlib.Int32.add
-
-impl Subtract for Int32 =
-  let subtract = Stdlib.Int32.subtract
-
-impl Multiply for Int32 =
-  let multiply = Stdlib.Int32.multiply
-
-impl Divide for Int32 =
-  let divide = Stdlib.Int32.divide
-
-impl Modulo for Int32 =
-  let modulo = Stdlib.Int32.``mod``
-
-impl Power for Int32 =
-  let power = Stdlib.Int32.power
-
-impl Negate for Int32 =
-  let negate = Stdlib.Int32.negate
-
-impl Compare for Int32 =
-  let lessThan = Stdlib.Int32.lessThan
-  let lessThanOrEqualTo = Stdlib.Int32.lessThanOrEqualTo
-  let greaterThan = Stdlib.Int32.greaterThan
-  let greaterThanOrEqualTo = Stdlib.Int32.greaterThanOrEqualTo
+impl ShiftRight for Int32 =
+  let shiftRight = Stdlib.Int32.shiftRight
 
 impl ToString for Int32 =
   /// Stringify <param int>
@@ -217,21 +232,3 @@ impl Zero for Int32 =
 
 impl One for Int32 =
   let one () : Int32 = 1l
-
-impl BitwiseAnd for Int32 =
-  let bitwiseAnd = Stdlib.Int32.bitwiseAnd
-
-impl BitwiseOr for Int32 =
-  let bitwiseOr = Stdlib.Int32.bitwiseOr
-
-impl BitwiseXor for Int32 =
-  let bitwiseXor = Stdlib.Int32.bitwiseXor
-
-impl BitwiseNot for Int32 =
-  let bitwiseNot = Stdlib.Int32.bitwiseNot
-
-impl ShiftLeft for Int32 =
-  let shiftLeft = Stdlib.Int32.shiftLeft
-
-impl ShiftRight for Int32 =
-  let shiftRight = Stdlib.Int32.shiftRight

@@ -17,6 +17,9 @@ type ParseError = | BadFormat
 /// a different behavior for negative numbers.
 let ``mod`` (a: Int) (b: Int) : Int = Builtin.intMod a b
 
+impl Modulo for Int =
+  let modulo = Stdlib.Int.``mod``
+
 
 /// Returns the integer remainder left over after dividing <param value> by
 /// <param divisor>, as a <type Result>.
@@ -31,23 +34,38 @@ let remainder (value: Int) (divisor: Int) : Stdlib.Result.Result<Int, String> =
 /// Adds two integers together
 let add (a: Int) (b: Int) : Int = Builtin.intAdd a b
 
+impl Add for Int =
+  let add = Stdlib.Int.add
+
 
 /// Subtracts two integers
 let subtract (a: Int) (b: Int) : Int = Builtin.intSubtract a b
+
+impl Subtract for Int =
+  let subtract = Stdlib.Int.subtract
 
 
 /// Multiplies two integers
 let multiply (a: Int) (b: Int) : Int = Builtin.intMultiply a b
 
+impl Multiply for Int =
+  let multiply = Stdlib.Int.multiply
+
 
 /// Divides two integers, rounding towards zero
 let divide (a: Int) (b: Int) : Int = Builtin.intDivide a b
+
+impl Divide for Int =
+  let divide = Stdlib.Int.divide
 
 
 /// Raise <param base> to the power of <param exponent>.
 /// <param exponent> must be non-negative.
 let power (``base``: Int) (exponent: Int) : Int =
   Builtin.intPower ``base`` exponent
+
+impl Power for Int =
+  let power = Stdlib.Int.power
 
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
@@ -56,6 +74,9 @@ let absoluteValue (a: Int) : Int = if lessThan a 0 then negate a else a
 
 /// Returns the negation of <param a>, {{-a}}
 let negate (a: Int) : Int = Builtin.intNegate a
+
+impl Negate for Int =
+  let negate = Stdlib.Int.negate
 
 
 /// Returns {{true}} if <param a> is greater than <param b>
@@ -73,6 +94,12 @@ let lessThan (a: Int) (b: Int) : Bool = Builtin.intLessThan a b
 
 /// Returns {{true}} if <param a> is less than or equal to <param b>
 let lessThanOrEqualTo (a: Int) (b: Int) : Bool = Builtin.intLessThanOrEqualTo a b
+
+impl Compare for Int =
+  let lessThan = Stdlib.Int.lessThan
+  let lessThanOrEqualTo = Stdlib.Int.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int.greaterThanOrEqualTo
 
 
 /// Get the square root of an <type Int>
@@ -163,50 +190,38 @@ let toUInt128 (a: Int) : Stdlib.Option.Option<UInt128> = Builtin.intToUInt128 a
 
 let bitwiseAnd (a: Int) (b: Int) : Int = Builtin.intBitwiseAnd a b
 
+impl BitwiseAnd for Int =
+  let bitwiseAnd = Stdlib.Int.bitwiseAnd
+
 let bitwiseOr (a: Int) (b: Int) : Int = Builtin.intBitwiseOr a b
+
+impl BitwiseOr for Int =
+  let bitwiseOr = Stdlib.Int.bitwiseOr
 
 let bitwiseXor (a: Int) (b: Int) : Int = Builtin.intBitwiseXor a b
 
+impl BitwiseXor for Int =
+  let bitwiseXor = Stdlib.Int.bitwiseXor
+
 let bitwiseNot (a: Int) : Int = Builtin.intBitwiseNot a
+
+impl BitwiseNot for Int =
+  let bitwiseNot = Stdlib.Int.bitwiseNot
 
 let shiftLeft (a: Int) (b: Int) : Int = Builtin.intShiftLeft a b
 
+impl ShiftLeft for Int =
+  let shiftLeft = Stdlib.Int.shiftLeft
+
 let shiftRight (a: Int) (b: Int) : Int = Builtin.intShiftRight a b
+
+impl ShiftRight for Int =
+  let shiftRight = Stdlib.Int.shiftRight
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
 let random (start: Int) (``end``: Int) : Int =
   Builtin.intRandom start ``end``
-
-
-// The traits, over the fns above.
-
-impl Add for Int =
-  let add = Stdlib.Int.add
-
-impl Subtract for Int =
-  let subtract = Stdlib.Int.subtract
-
-impl Multiply for Int =
-  let multiply = Stdlib.Int.multiply
-
-impl Divide for Int =
-  let divide = Stdlib.Int.divide
-
-impl Modulo for Int =
-  let modulo = Stdlib.Int.``mod``
-
-impl Power for Int =
-  let power = Stdlib.Int.power
-
-impl Negate for Int =
-  let negate = Stdlib.Int.negate
-
-impl Compare for Int =
-  let lessThan = Stdlib.Int.lessThan
-  let lessThanOrEqualTo = Stdlib.Int.lessThanOrEqualTo
-  let greaterThan = Stdlib.Int.greaterThan
-  let greaterThanOrEqualTo = Stdlib.Int.greaterThanOrEqualTo
 
 impl ToString for Int =
   /// Stringify <param int>
@@ -217,21 +232,3 @@ impl Zero for Int =
 
 impl One for Int =
   let one () : Int = 1
-
-impl BitwiseAnd for Int =
-  let bitwiseAnd = Stdlib.Int.bitwiseAnd
-
-impl BitwiseOr for Int =
-  let bitwiseOr = Stdlib.Int.bitwiseOr
-
-impl BitwiseXor for Int =
-  let bitwiseXor = Stdlib.Int.bitwiseXor
-
-impl BitwiseNot for Int =
-  let bitwiseNot = Stdlib.Int.bitwiseNot
-
-impl ShiftLeft for Int =
-  let shiftLeft = Stdlib.Int.shiftLeft
-
-impl ShiftRight for Int =
-  let shiftRight = Stdlib.Int.shiftRight

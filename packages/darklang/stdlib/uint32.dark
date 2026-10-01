@@ -12,17 +12,29 @@ type ParseError =
 /// a different behavior for negative numbers.
 let ``mod`` (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Mod a b
 
+impl Modulo for UInt32 =
+  let modulo = Stdlib.UInt32.``mod``
+
 
 /// Adds two 32-bit unsigned integers together (wraps on overflow)
 let add (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Add a b
+
+impl Add for UInt32 =
+  let add = Stdlib.UInt32.add
 
 
 /// Subtracts two 32-bit unsigned  integers (wraps on overflow)
 let subtract (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Subtract a b
 
+impl Subtract for UInt32 =
+  let subtract = Stdlib.UInt32.subtract
+
 
 /// Multiplies two 32-bit unsigned  integers (wraps on overflow)
 let multiply (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Multiply a b
+
+impl Multiply for UInt32 =
+  let multiply = Stdlib.UInt32.multiply
 
 
 /// Raise <param base> to the power of <param exponent>.
@@ -34,9 +46,15 @@ let power (``base``: UInt32) (exponent: UInt32) : UInt32 =
   else if ``base`` == 1ul then 1ul
   else Builtin.uint32Power ``base`` exponent
 
+impl Power for UInt32 =
+  let power = Stdlib.UInt32.power
+
 
 /// Divides two 32-bit unsigned integers
 let divide (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Divide a b
+
+impl Divide for UInt32 =
+  let divide = Stdlib.UInt32.divide
 
 
 /// Returns {{true}} if <param a> is greater than <param b>
@@ -55,6 +73,12 @@ let lessThan (a: UInt32) (b: UInt32) : Bool = Builtin.uint32LessThan a b
 /// Returns {{true}} if <param a> is less than or equal to <param b>
 let lessThanOrEqualTo (a: UInt32) (b: UInt32) : Bool =
   Builtin.uint32LessThanOrEqualTo a b
+
+impl Compare for UInt32 =
+  let lessThan = Stdlib.UInt32.lessThan
+  let lessThanOrEqualTo = Stdlib.UInt32.lessThanOrEqualTo
+  let greaterThan = Stdlib.UInt32.greaterThan
+  let greaterThanOrEqualTo = Stdlib.UInt32.greaterThanOrEqualTo
 
 
 /// Returns a random 32-bit unsigned integer between <param start> and <param end> (inclusive)
@@ -126,52 +150,43 @@ let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt32> =
 /// Bitwise AND on two <type UInt32> values
 let bitwiseAnd (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32BitwiseAnd a b
 
+impl BitwiseAnd for UInt32 =
+  let bitwiseAnd = Stdlib.UInt32.bitwiseAnd
+
 
 /// Bitwise OR on two <type UInt32> values
 let bitwiseOr (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32BitwiseOr a b
+
+impl BitwiseOr for UInt32 =
+  let bitwiseOr = Stdlib.UInt32.bitwiseOr
 
 
 /// Bitwise XOR on two <type UInt32> values
 let bitwiseXor (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32BitwiseXor a b
 
+impl BitwiseXor for UInt32 =
+  let bitwiseXor = Stdlib.UInt32.bitwiseXor
+
 
 /// Bitwise NOT on a <type UInt32> value
 let bitwiseNot (a: UInt32) : UInt32 = Builtin.uint32BitwiseNot a
+
+impl BitwiseNot for UInt32 =
+  let bitwiseNot = Stdlib.UInt32.bitwiseNot
 
 
 /// Bitwise left shift of a <type UInt32> value
 let shiftLeft (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32ShiftLeft a b
 
+impl ShiftLeft for UInt32 =
+  let shiftLeft = Stdlib.UInt32.shiftLeft
+
 
 /// Bitwise right shift of a <type UInt32> value
 let shiftRight (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32ShiftRight a b
 
-
-// The traits, over the fns above.
-
-impl Add for UInt32 =
-  let add = Stdlib.UInt32.add
-
-impl Subtract for UInt32 =
-  let subtract = Stdlib.UInt32.subtract
-
-impl Multiply for UInt32 =
-  let multiply = Stdlib.UInt32.multiply
-
-impl Divide for UInt32 =
-  let divide = Stdlib.UInt32.divide
-
-impl Modulo for UInt32 =
-  let modulo = Stdlib.UInt32.``mod``
-
-impl Power for UInt32 =
-  let power = Stdlib.UInt32.power
-
-impl Compare for UInt32 =
-  let lessThan = Stdlib.UInt32.lessThan
-  let lessThanOrEqualTo = Stdlib.UInt32.lessThanOrEqualTo
-  let greaterThan = Stdlib.UInt32.greaterThan
-  let greaterThanOrEqualTo = Stdlib.UInt32.greaterThanOrEqualTo
+impl ShiftRight for UInt32 =
+  let shiftRight = Stdlib.UInt32.shiftRight
 
 impl ToString for UInt32 =
   /// Stringify <param uint32>
@@ -182,21 +197,3 @@ impl Zero for UInt32 =
 
 impl One for UInt32 =
   let one () : UInt32 = 1ul
-
-impl BitwiseAnd for UInt32 =
-  let bitwiseAnd = Stdlib.UInt32.bitwiseAnd
-
-impl BitwiseOr for UInt32 =
-  let bitwiseOr = Stdlib.UInt32.bitwiseOr
-
-impl BitwiseXor for UInt32 =
-  let bitwiseXor = Stdlib.UInt32.bitwiseXor
-
-impl BitwiseNot for UInt32 =
-  let bitwiseNot = Stdlib.UInt32.bitwiseNot
-
-impl ShiftLeft for UInt32 =
-  let shiftLeft = Stdlib.UInt32.shiftLeft
-
-impl ShiftRight for UInt32 =
-  let shiftRight = Stdlib.UInt32.shiftRight

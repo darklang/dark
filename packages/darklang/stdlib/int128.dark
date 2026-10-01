@@ -12,6 +12,9 @@ type ParseError =
 /// a different behavior for negative numbers.
 let ``mod`` (a: Int128) (b: Int128) : Int128 = Builtin.int128Mod a b
 
+impl Modulo for Int128 =
+  let modulo = Stdlib.Int128.``mod``
+
 
 /// Returns the integer remainder left over after dividing <param value> by
 /// <param divisor>, as a <type Result>.
@@ -29,23 +32,38 @@ let remainder
 /// Adds two 128-bit signed integers together (wraps on overflow)
 let add (a: Int128) (b: Int128) : Int128 = Builtin.int128Add a b
 
+impl Add for Int128 =
+  let add = Stdlib.Int128.add
+
 
 /// Subtracts two 128-bit signed integers (wraps on overflow)
 let subtract (a: Int128) (b: Int128) : Int128 = Builtin.int128Subtract a b
+
+impl Subtract for Int128 =
+  let subtract = Stdlib.Int128.subtract
 
 
 /// Multiplies two 128-bit signed integers (wraps on overflow)
 let multiply (a: Int128) (b: Int128) : Int128 = Builtin.int128Multiply a b
 
+impl Multiply for Int128 =
+  let multiply = Stdlib.Int128.multiply
+
 
 /// Divides two 128-bit signed integers
 let divide (a: Int128) (b: Int128) : Int128 = Builtin.int128Divide a b
+
+impl Divide for Int128 =
+  let divide = Stdlib.Int128.divide
 
 
 /// Raise <param base> to the power of <param exponent>.
 /// <param exponent> must to be positive. Overflow wraps around.
 let power (``base``: Int128) (exponent: Int128) : Int128 =
   Builtin.int128Power ``base`` exponent
+
+impl Power for Int128 =
+  let power = Stdlib.Int128.power
 
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
@@ -57,6 +75,9 @@ let absoluteValue (a: Int128) : Int128 =
 
 /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
 let negate (a: Int128) : Int128 = Builtin.int128Negate a
+
+impl Negate for Int128 =
+  let negate = Stdlib.Int128.negate
 
 
 /// Returns {{true}} if <param a> is greater than <param b>
@@ -74,6 +95,12 @@ let lessThan (a: Int128) (b: Int128) : Bool = Builtin.int128LessThan a b
 /// Returns {{true}} if <param a> is less than or equal to <param b>
 let lessThanOrEqualTo (a: Int128) (b: Int128) : Bool =
   Builtin.int128LessThanOrEqualTo a b
+
+impl Compare for Int128 =
+  let lessThan = Stdlib.Int128.lessThan
+  let lessThanOrEqualTo = Stdlib.Int128.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int128.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int128.greaterThanOrEqualTo
 
 
 /// Get the square root of an <type Int128>
@@ -129,55 +156,43 @@ let fromUInt64 (i: UInt64) : Int128 = Builtin.int128FromUInt64 i
 /// Bitwise AND on two <type Int128> values
 let bitwiseAnd (a: Int128) (b: Int128) : Int128 = Builtin.int128BitwiseAnd a b
 
+impl BitwiseAnd for Int128 =
+  let bitwiseAnd = Stdlib.Int128.bitwiseAnd
+
 
 /// Bitwise OR on two <type Int128> values
 let bitwiseOr (a: Int128) (b: Int128) : Int128 = Builtin.int128BitwiseOr a b
+
+impl BitwiseOr for Int128 =
+  let bitwiseOr = Stdlib.Int128.bitwiseOr
 
 
 /// Bitwise XOR on two <type Int128> values
 let bitwiseXor (a: Int128) (b: Int128) : Int128 = Builtin.int128BitwiseXor a b
 
+impl BitwiseXor for Int128 =
+  let bitwiseXor = Stdlib.Int128.bitwiseXor
+
 
 /// Bitwise NOT on an <type Int128> value
 let bitwiseNot (a: Int128) : Int128 = Builtin.int128BitwiseNot a
+
+impl BitwiseNot for Int128 =
+  let bitwiseNot = Stdlib.Int128.bitwiseNot
 
 
 /// Bitwise left shift of an <type Int128> value
 let shiftLeft (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftLeft a b
 
+impl ShiftLeft for Int128 =
+  let shiftLeft = Stdlib.Int128.shiftLeft
+
 
 /// Bitwise right shift of an <type Int128> value
 let shiftRight (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftRight a b
 
-
-// The traits, over the fns above.
-
-impl Add for Int128 =
-  let add = Stdlib.Int128.add
-
-impl Subtract for Int128 =
-  let subtract = Stdlib.Int128.subtract
-
-impl Multiply for Int128 =
-  let multiply = Stdlib.Int128.multiply
-
-impl Divide for Int128 =
-  let divide = Stdlib.Int128.divide
-
-impl Modulo for Int128 =
-  let modulo = Stdlib.Int128.``mod``
-
-impl Power for Int128 =
-  let power = Stdlib.Int128.power
-
-impl Negate for Int128 =
-  let negate = Stdlib.Int128.negate
-
-impl Compare for Int128 =
-  let lessThan = Stdlib.Int128.lessThan
-  let lessThanOrEqualTo = Stdlib.Int128.lessThanOrEqualTo
-  let greaterThan = Stdlib.Int128.greaterThan
-  let greaterThanOrEqualTo = Stdlib.Int128.greaterThanOrEqualTo
+impl ShiftRight for Int128 =
+  let shiftRight = Stdlib.Int128.shiftRight
 
 impl ToString for Int128 =
   /// Stringify <param int128>
@@ -188,21 +203,3 @@ impl Zero for Int128 =
 
 impl One for Int128 =
   let one () : Int128 = 1Q
-
-impl BitwiseAnd for Int128 =
-  let bitwiseAnd = Stdlib.Int128.bitwiseAnd
-
-impl BitwiseOr for Int128 =
-  let bitwiseOr = Stdlib.Int128.bitwiseOr
-
-impl BitwiseXor for Int128 =
-  let bitwiseXor = Stdlib.Int128.bitwiseXor
-
-impl BitwiseNot for Int128 =
-  let bitwiseNot = Stdlib.Int128.bitwiseNot
-
-impl ShiftLeft for Int128 =
-  let shiftLeft = Stdlib.Int128.shiftLeft
-
-impl ShiftRight for Int128 =
-  let shiftRight = Stdlib.Int128.shiftRight

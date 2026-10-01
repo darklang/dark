@@ -12,6 +12,9 @@ type ParseError =
 /// a different behavior for negative numbers.
 let ``mod`` (a: Int64) (b: Int64) : Int64 = Builtin.int64Mod a b
 
+impl Modulo for Int64 =
+  let modulo = Stdlib.Int64.``mod``
+
 
 /// Returns the integer remainder left over after dividing <param value> by
 /// <param divisor>, as a <type Result>.
@@ -29,17 +32,29 @@ let remainder
 /// Adds two integers together (wraps on overflow)
 let add (a: Int64) (b: Int64) : Int64 = Builtin.int64Add a b
 
+impl Add for Int64 =
+  let add = Stdlib.Int64.add
+
 
 /// Subtracts two integers (wraps on overflow)
 let subtract (a: Int64) (b: Int64) : Int64 = Builtin.int64Subtract a b
+
+impl Subtract for Int64 =
+  let subtract = Stdlib.Int64.subtract
 
 
 /// Multiplies two integers (wraps on overflow)
 let multiply (a: Int64) (b: Int64) : Int64 = Builtin.int64Multiply a b
 
+impl Multiply for Int64 =
+  let multiply = Stdlib.Int64.multiply
+
 
 /// Divides two integers
 let divide (a: Int64) (b: Int64) : Int64 = Builtin.int64Divide a b
+
+impl Divide for Int64 =
+  let divide = Stdlib.Int64.divide
 
 
 /// Raise <param base> to the power of <param exponent>.
@@ -57,6 +72,9 @@ let power (``base``: Int64) (exponent: Int64) : Int64 =
   else if ``base`` == -1L then -1L
   else Builtin.int64Power ``base`` exponent
 
+impl Power for Int64 =
+  let power = Stdlib.Int64.power
+
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
 let absoluteValue (a: Int64) : Int64 =
@@ -65,6 +83,9 @@ let absoluteValue (a: Int64) : Int64 =
 
 /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
 let negate (a: Int64) : Int64 = Builtin.int64Negate a
+
+impl Negate for Int64 =
+  let negate = Stdlib.Int64.negate
 
 
 /// Returns {{true}} if <param a> is greater than <param b>
@@ -82,6 +103,12 @@ let lessThan (a: Int64) (b: Int64) : Bool = Builtin.int64LessThan a b
 /// Returns {{true}} if <param a> is less than or equal to <param b>
 let lessThanOrEqualTo (a: Int64) (b: Int64) : Bool =
   Builtin.int64LessThanOrEqualTo a b
+
+impl Compare for Int64 =
+  let lessThan = Stdlib.Int64.lessThan
+  let lessThanOrEqualTo = Stdlib.Int64.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int64.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int64.greaterThanOrEqualTo
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
@@ -167,55 +194,43 @@ let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int64> =
 /// Bitwise AND on two <type Int64> values
 let bitwiseAnd (a: Int64) (b: Int64) : Int64 = Builtin.int64BitwiseAnd a b
 
+impl BitwiseAnd for Int64 =
+  let bitwiseAnd = Stdlib.Int64.bitwiseAnd
+
 
 /// Bitwise OR on two <type Int64> values
 let bitwiseOr (a: Int64) (b: Int64) : Int64 = Builtin.int64BitwiseOr a b
+
+impl BitwiseOr for Int64 =
+  let bitwiseOr = Stdlib.Int64.bitwiseOr
 
 
 /// Bitwise XOR on two <type Int64> values
 let bitwiseXor (a: Int64) (b: Int64) : Int64 = Builtin.int64BitwiseXor a b
 
+impl BitwiseXor for Int64 =
+  let bitwiseXor = Stdlib.Int64.bitwiseXor
+
 
 /// Bitwise NOT on an <type Int64> value
 let bitwiseNot (a: Int64) : Int64 = Builtin.int64BitwiseNot a
+
+impl BitwiseNot for Int64 =
+  let bitwiseNot = Stdlib.Int64.bitwiseNot
 
 
 /// Bitwise left shift of an <type Int64> value
 let shiftLeft (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftLeft a b
 
+impl ShiftLeft for Int64 =
+  let shiftLeft = Stdlib.Int64.shiftLeft
+
 
 /// Bitwise right shift of an <type Int64> value
 let shiftRight (a: Int64) (b: Int64) : Int64 = Builtin.int64ShiftRight a b
 
-
-// The traits, over the fns above.
-
-impl Add for Int64 =
-  let add = Stdlib.Int64.add
-
-impl Subtract for Int64 =
-  let subtract = Stdlib.Int64.subtract
-
-impl Multiply for Int64 =
-  let multiply = Stdlib.Int64.multiply
-
-impl Divide for Int64 =
-  let divide = Stdlib.Int64.divide
-
-impl Modulo for Int64 =
-  let modulo = Stdlib.Int64.``mod``
-
-impl Power for Int64 =
-  let power = Stdlib.Int64.power
-
-impl Negate for Int64 =
-  let negate = Stdlib.Int64.negate
-
-impl Compare for Int64 =
-  let lessThan = Stdlib.Int64.lessThan
-  let lessThanOrEqualTo = Stdlib.Int64.lessThanOrEqualTo
-  let greaterThan = Stdlib.Int64.greaterThan
-  let greaterThanOrEqualTo = Stdlib.Int64.greaterThanOrEqualTo
+impl ShiftRight for Int64 =
+  let shiftRight = Stdlib.Int64.shiftRight
 
 impl ToString for Int64 =
   /// Stringify <param int>
@@ -226,21 +241,3 @@ impl Zero for Int64 =
 
 impl One for Int64 =
   let one () : Int64 = 1L
-
-impl BitwiseAnd for Int64 =
-  let bitwiseAnd = Stdlib.Int64.bitwiseAnd
-
-impl BitwiseOr for Int64 =
-  let bitwiseOr = Stdlib.Int64.bitwiseOr
-
-impl BitwiseXor for Int64 =
-  let bitwiseXor = Stdlib.Int64.bitwiseXor
-
-impl BitwiseNot for Int64 =
-  let bitwiseNot = Stdlib.Int64.bitwiseNot
-
-impl ShiftLeft for Int64 =
-  let shiftLeft = Stdlib.Int64.shiftLeft
-
-impl ShiftRight for Int64 =
-  let shiftRight = Stdlib.Int64.shiftRight

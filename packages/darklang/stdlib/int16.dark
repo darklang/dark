@@ -12,6 +12,9 @@ type ParseError =
 /// a different behavior for negative numbers.
 let ``mod`` (a: Int16) (b: Int16) : Int16 = Builtin.int16Mod a b
 
+impl Modulo for Int16 =
+  let modulo = Stdlib.Int16.``mod``
+
 
 /// Returns the integer remainder left over after dividing <param value> by
 /// <param divisor>, as a <type Result>.
@@ -29,13 +32,22 @@ let remainder
 /// Adds two 16-bit signed integers together (wraps on overflow)
 let add (a: Int16) (b: Int16) : Int16 = Builtin.int16Add a b
 
+impl Add for Int16 =
+  let add = Stdlib.Int16.add
+
 
 /// Subtracts two 16-bit signed integers (wraps on overflow)
 let subtract (a: Int16) (b: Int16) : Int16 = Builtin.int16Subtract a b
 
+impl Subtract for Int16 =
+  let subtract = Stdlib.Int16.subtract
+
 
 /// Multiplies two 16-bit signed integers (wraps on overflow)
 let multiply (a: Int16) (b: Int16) : Int16 = Builtin.int16Multiply a b
+
+impl Multiply for Int16 =
+  let multiply = Stdlib.Int16.multiply
 
 
 /// Raise <param base> to the power of <param exponent>.
@@ -59,9 +71,15 @@ let power (``base``: Int16) (exponent: Int16) : Int16 =
   else
     Builtin.int16Power ``base`` exponent
 
+impl Power for Int16 =
+  let power = Stdlib.Int16.power
+
 
 /// Divides two 16-bit signed integers
 let divide (a: Int16) (b: Int16) : Int16 = Builtin.int16Divide a b
+
+impl Divide for Int16 =
+  let divide = Stdlib.Int16.divide
 
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
@@ -74,6 +92,9 @@ let absoluteValue (a: Int16) : Int16 =
 
 /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
 let negate (a: Int16) : Int16 = Builtin.int16Negate a
+
+impl Negate for Int16 =
+  let negate = Stdlib.Int16.negate
 
 
 /// Returns {{true}} if <param a> is greater than <param b>
@@ -91,6 +112,12 @@ let lessThan (a: Int16) (b: Int16) : Bool = Builtin.int16LessThan a b
 /// Returns {{true}} if <param a> is less than or equal to <param b>
 let lessThanOrEqualTo (a: Int16) (b: Int16) : Bool =
   Builtin.int16LessThanOrEqualTo a b
+
+impl Compare for Int16 =
+  let lessThan = Stdlib.Int16.lessThan
+  let lessThanOrEqualTo = Stdlib.Int16.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int16.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int16.greaterThanOrEqualTo
 
 
 /// Returns a random 16-bit signed integer between <param start> and <param end> (inclusive)
@@ -160,55 +187,43 @@ let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int16> =
 /// Bitwise AND on two <type Int16> values
 let bitwiseAnd (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseAnd a b
 
+impl BitwiseAnd for Int16 =
+  let bitwiseAnd = Stdlib.Int16.bitwiseAnd
+
 
 /// Bitwise OR on two <type Int16> values
 let bitwiseOr (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseOr a b
+
+impl BitwiseOr for Int16 =
+  let bitwiseOr = Stdlib.Int16.bitwiseOr
 
 
 /// Bitwise XOR on two <type Int16> values
 let bitwiseXor (a: Int16) (b: Int16) : Int16 = Builtin.int16BitwiseXor a b
 
+impl BitwiseXor for Int16 =
+  let bitwiseXor = Stdlib.Int16.bitwiseXor
+
 
 /// Bitwise NOT on an <type Int16> value
 let bitwiseNot (a: Int16) : Int16 = Builtin.int16BitwiseNot a
+
+impl BitwiseNot for Int16 =
+  let bitwiseNot = Stdlib.Int16.bitwiseNot
 
 
 /// Bitwise left shift of an <type Int16> value
 let shiftLeft (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftLeft a b
 
+impl ShiftLeft for Int16 =
+  let shiftLeft = Stdlib.Int16.shiftLeft
+
 
 /// Bitwise right shift of an <type Int16> value
 let shiftRight (a: Int16) (b: Int16) : Int16 = Builtin.int16ShiftRight a b
 
-
-// The traits, over the fns above.
-
-impl Add for Int16 =
-  let add = Stdlib.Int16.add
-
-impl Subtract for Int16 =
-  let subtract = Stdlib.Int16.subtract
-
-impl Multiply for Int16 =
-  let multiply = Stdlib.Int16.multiply
-
-impl Divide for Int16 =
-  let divide = Stdlib.Int16.divide
-
-impl Modulo for Int16 =
-  let modulo = Stdlib.Int16.``mod``
-
-impl Power for Int16 =
-  let power = Stdlib.Int16.power
-
-impl Negate for Int16 =
-  let negate = Stdlib.Int16.negate
-
-impl Compare for Int16 =
-  let lessThan = Stdlib.Int16.lessThan
-  let lessThanOrEqualTo = Stdlib.Int16.lessThanOrEqualTo
-  let greaterThan = Stdlib.Int16.greaterThan
-  let greaterThanOrEqualTo = Stdlib.Int16.greaterThanOrEqualTo
+impl ShiftRight for Int16 =
+  let shiftRight = Stdlib.Int16.shiftRight
 
 impl ToString for Int16 =
   /// Stringify <param int16>
@@ -219,21 +234,3 @@ impl Zero for Int16 =
 
 impl One for Int16 =
   let one () : Int16 = 1s
-
-impl BitwiseAnd for Int16 =
-  let bitwiseAnd = Stdlib.Int16.bitwiseAnd
-
-impl BitwiseOr for Int16 =
-  let bitwiseOr = Stdlib.Int16.bitwiseOr
-
-impl BitwiseXor for Int16 =
-  let bitwiseXor = Stdlib.Int16.bitwiseXor
-
-impl BitwiseNot for Int16 =
-  let bitwiseNot = Stdlib.Int16.bitwiseNot
-
-impl ShiftLeft for Int16 =
-  let shiftLeft = Stdlib.Int16.shiftLeft
-
-impl ShiftRight for Int16 =
-  let shiftRight = Stdlib.Int16.shiftRight

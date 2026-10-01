@@ -47,6 +47,9 @@ let absoluteValue (a: Float) : Float =
 /// Returns the negation of <param a>, {{-a}}
 let negate (a: Float) : Float = Stdlib.Float.multiply a -1.0
 
+impl Negate for Float =
+  let negate = Stdlib.Float.negate
+
 
 /// Get the square root of a float
 let sqrt (a: Float) : Float = Builtin.floatSqrt a
@@ -55,22 +58,37 @@ let sqrt (a: Float) : Float = Builtin.floatSqrt a
 /// Add <type Float> <param a> to <type Float> <param b>
 let add (a: Float) (b: Float) : Float = Builtin.floatAdd a b
 
+impl Add for Float =
+  let add = Stdlib.Float.add
+
 
 /// Subtract <type Float> <param b> from <type Float> <param a>
 let subtract (a: Float) (b: Float) : Float = Builtin.floatSubtract a b
 
+impl Subtract for Float =
+  let subtract = Stdlib.Float.subtract
+
 
 /// Multiply <type Float> <param a> by <type Float> <param b>
 let multiply (a: Float) (b: Float) : Float = Builtin.floatMultiply a b
+
+impl Multiply for Float =
+  let multiply = Stdlib.Float.multiply
 
 
 /// Returns <param base> raised to the power of <param exponent>
 let power (``base``: Float) (exponent: Float) : Float =
   Builtin.floatPower ``base`` exponent
 
+impl Power for Float =
+  let power = Stdlib.Float.power
+
 
 /// Divide <type Float> <param a> by <type Float> <param b>
 let divide (a: Float) (b: Float) : Float = Builtin.floatDivide a b
+
+impl Divide for Float =
+  let divide = Stdlib.Float.divide
 
 
 
@@ -89,6 +107,12 @@ let lessThan (a: Float) (b: Float) : Bool = Builtin.floatLessThan a b
 /// Returns true if a is less than or equal to b
 let lessThanOrEqualTo (a: Float) (b: Float) : Bool =
   Builtin.floatLessThanOrEqualTo a b
+
+impl Compare for Float =
+  let lessThan = Stdlib.Float.lessThan
+  let lessThanOrEqualTo = Stdlib.Float.lessThanOrEqualTo
+  let greaterThan = Stdlib.Float.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Float.greaterThanOrEqualTo
 
 
 /// If <param value> is within the range given by <param limitA> and <param
@@ -146,33 +170,6 @@ let toInt (a: Float) : Int = Stdlib.Float.roundTowardsZero a
 
 /// Return <param a>'s IEEE 754 binary64 bits as a signed 64-bit value.
 let toBits (a: Float) : Int = Builtin.floatToBits a
-
-
-// The traits, over the fns above.
-
-impl Add for Float =
-  let add = Stdlib.Float.add
-
-impl Subtract for Float =
-  let subtract = Stdlib.Float.subtract
-
-impl Multiply for Float =
-  let multiply = Stdlib.Float.multiply
-
-impl Divide for Float =
-  let divide = Stdlib.Float.divide
-
-impl Power for Float =
-  let power = Stdlib.Float.power
-
-impl Negate for Float =
-  let negate = Stdlib.Float.negate
-
-impl Compare for Float =
-  let lessThan = Stdlib.Float.lessThan
-  let lessThanOrEqualTo = Stdlib.Float.lessThanOrEqualTo
-  let greaterThan = Stdlib.Float.greaterThan
-  let greaterThanOrEqualTo = Stdlib.Float.greaterThanOrEqualTo
 
 impl ToString for Float =
   /// Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`,
