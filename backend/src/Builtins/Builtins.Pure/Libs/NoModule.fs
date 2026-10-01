@@ -334,10 +334,10 @@ let fns () : List<BuiltInFn> =
           else
             let r = DarkInt.toBigInt v % m
             Ply(Dval.int (if r < System.Numerics.BigInteger.Zero then m + r else r))
-        // No Float arm, on purpose: float `%` was floored where the C family truncates and
-        // raised on a zero divisor where our own Float division returns Infinity. Swift and
-        // Elm dropped theirs for the same reason. A Float pair now takes the type error
-        // below, which through the operator reads as a missing `Modulo` impl.
+        // No Float arm, on purpose: a float `%` has to choose between flooring and
+        // truncating, and what a zero divisor does when our own Float division returns
+        // Infinity. Swift and Elm have no float modulo either. A Float pair takes the type
+        // error below, which through the operator reads as a missing `Modulo` impl.
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"

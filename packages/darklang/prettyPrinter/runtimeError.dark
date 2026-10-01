@@ -563,7 +563,7 @@ module RuntimeError =
           ES.ShortTraitName trait_
           ES.String "` lists them; `dark deprecate impl <name>` retires one" ]
       | MethodAmbiguous(method_, self, traits) ->
-        // No article in front of the type: "on a Int64" was what the old wording produced.
+        // No article in front of the type: an article here produces "on a Int64".
         [ ES.ValueType self
           ES.String $" has more than one `{method_}`: "
           ES.String (Stdlib.toString (Stdlib.List.length traits))

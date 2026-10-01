@@ -28,7 +28,7 @@ type Token =
   | TTrue
   | TFalse
   | TPlus
-  | TPlusPlus // ++ (string concatenation)
+  | TPlusPlus // ++ (not an operator; lexed so the parser can name it in an error)
   | TMinus
   | TStar
   | TStarStar // ** (exponentiation)

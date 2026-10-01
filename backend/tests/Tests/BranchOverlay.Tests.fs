@@ -229,8 +229,8 @@ let isolationFromCore =
 /// than only adding one, is what lets a branch delete something.
 let unbindHidesACoreNameOnTheBranchOnly =
   testTask "a branch's unbind hides main's name on the branch and leaves main alone" {
-    // Any fn main holds at a known location. `add` used to serve; it lives under its
-    // `Add` impl now, so this uses one that is still a plain top-level fn.
+    // Any fn main holds at a known location, and it has to be a plain top-level fn: a
+    // trait method lives under its impl's path, not directly under `Stdlib.Int64`.
     let addLoc : PT.PackageLocation =
       { owner = "Darklang"; modules = [ "Stdlib"; "Int64" ]; name = "remainder" }
     let! onCore = pmPT.findFn addLoc |> Ply.toTask

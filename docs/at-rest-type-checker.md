@@ -156,7 +156,7 @@ their type variables. Two kinds of signature must not be trusted:
   rather than the declared signature; used as a value or partially applied there is
   no signature to give them, and the use is `Incomplete`.
 
-Infix syntax itself no longer lowers to those builtins. `a + b` is `Stdlib.Add.add a b`
+Infix syntax does not lower to those builtins. `a + b` is `Stdlib.Add.add a b`
 (`NumericTraits.ofInfix`, likewise `- * / % **` and the four comparisons), and `-x`, which
 the parser stores as `Builtin.negate x`, runs as `Stdlib.Negate.negate x`. The checker
 treats each as a trait method call. `==` is not one: equality is structural, so the

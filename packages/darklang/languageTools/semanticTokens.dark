@@ -1060,7 +1060,7 @@ module Expr =
       |> Stdlib.List.flatten
 
     // hacky temp. syntax -- see `grammar.js`
-    // Int.add (1) (2)
+    // Stdlib.Int64.remainder (1) (2)
     | EFnName(_range, fnName) -> QualifiedFnIdentifier.tokenize fnName
 
     | EApply(_range, lhs, typeArgs, args) ->

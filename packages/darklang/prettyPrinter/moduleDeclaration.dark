@@ -11,6 +11,20 @@ module ModuleDeclaration =
       exprs: List<LanguageTools.ProgramTypes.Expr * List<String>>
       submodules: List<Module> }
 
+  /// A module with nothing in it. Sixteen places spelled out eight empty fields each, so
+  /// adding a kind meant editing all sixteen.
+  val emptyModule =
+    Module
+      { name = ""
+        types = []
+        fns = []
+        values = []
+        traits = []
+        impls = []
+        exprs = []
+        submodules = [] }
+
+
   /// Add an item that has no module path to the sentinel module `name`, creating it at the end
   /// of `ms` if it isn't there yet. Everything already in `ms` is kept.
   let intoRootless (ms: List<Module>) (name: String) (add: Module -> Module) : List<Module> =
@@ -20,15 +34,7 @@ module ModuleDeclaration =
       match found with
       | m :: _ -> m
       | [] ->
-        Module
-          { name = name
-            types = []
-            fns = []
-            values = []
-            traits = []
-            impls = []
-            exprs = []
-            submodules = [] }
+        { emptyModule with name = name }
 
     Stdlib.List.append others [ add target ]
 
@@ -49,28 +55,16 @@ module ModuleDeclaration =
       match (foundModuleMaybe, submoduleNames) with
       | [], [] ->
         let newModule =
-          Module
-            { name = firstModuleNamePart
-              types = [ t ]
-              fns = []
-              values = []
-              traits = []
-              impls = []
-              exprs = []
-              submodules = [] }
+          { emptyModule with
+              name = firstModuleNamePart
+              types = [ t ] }
 
         Stdlib.List.append otherModules [ newModule ]
 
       | [], submoduleNames ->
         let newModuleWithSubmodule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              traits = []
-              impls = []
-              exprs = []
+          { emptyModule with
+              name = firstModuleNamePart
               submodules = withTypeHelper [] t submoduleNames }
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
@@ -130,28 +124,16 @@ module ModuleDeclaration =
       match (foundModuleMaybe, submoduleNames) with
       | [], [] ->
         let newModule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = [ f ]
-              values = []
-              traits = []
-              impls = []
-              exprs = []
-              submodules = [] }
+          { emptyModule with
+              name = firstModuleNamePart
+              fns = [ f ] }
 
         Stdlib.List.append otherModules [ newModule ]
 
       | [], submoduleNames ->
         let newModuleWithSubmodule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              traits = []
-              impls = []
-              exprs = []
+          { emptyModule with
+              name = firstModuleNamePart
               submodules = withFnHelper [] f submoduleNames }
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
@@ -210,28 +192,16 @@ module ModuleDeclaration =
       match (foundModuleMaybe, submoduleNames) with
       | [], [] ->
         let newModule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = [ v ]
-              traits = []
-              impls = []
-              exprs = []
-              submodules = [] }
+          { emptyModule with
+              name = firstModuleNamePart
+              values = [ v ] }
 
         Stdlib.List.append otherModules [ newModule ]
 
       | [], submoduleNames ->
         let newModuleWithSubmodule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              traits = []
-              impls = []
-              exprs = []
+          { emptyModule with
+              name = firstModuleNamePart
               submodules = withValueHelper [] v submoduleNames }
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
@@ -289,15 +259,7 @@ module ModuleDeclaration =
         match foundModuleMaybe with
         | found :: _ -> found
         | [] ->
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              traits = []
-              impls = []
-              exprs = []
-              submodules = [] }
+          { emptyModule with name = firstModuleNamePart }
 
       let updated =
         match submoduleNames with
@@ -345,15 +307,7 @@ module ModuleDeclaration =
         match foundModuleMaybe with
         | found :: _ -> found
         | [] ->
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              traits = []
-              impls = []
-              exprs = []
-              submodules = [] }
+          { emptyModule with name = firstModuleNamePart }
 
       let updated =
         match submoduleNames with
@@ -431,28 +385,16 @@ module ModuleDeclaration =
       match (foundModuleMaybe, submoduleNames) with
       | [], [] ->
         let newModule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              traits = []
-              impls = []
-              exprs = [ (expr, []) ]
-              submodules = [] }
+          { emptyModule with
+              name = firstModuleNamePart
+              exprs = [ (expr, []) ] }
 
         Stdlib.List.append otherModules [ newModule ]
 
       | [], submoduleNames ->
         let newModuleWithSubmodule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              traits = []
-              impls = []
-              exprs = []
+          { emptyModule with
+              name = firstModuleNamePart
               submodules = withExpr [] (expr, submoduleNames) }
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]

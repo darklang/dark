@@ -269,7 +269,8 @@ let fnName
   | Builtin b -> FQFnName.builtIn b
   | Package p -> FQFnName.package branchId p
   // A trait's hash is not a type's, so it needs the trait's own locations: without this a trait
-  // method prints as a 64-character hash, which it did in arity errors and partial applications.
+  // method prints as a 64-character hash wherever a fn name is printed, arity errors and
+  // partial applications included.
   | TraitMethod tm ->
     let traitHash = tm.trait_
     let method = tm.method_

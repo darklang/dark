@@ -1905,8 +1905,8 @@ let private unitTests =
         |> List.iteri (fun i operation ->
           let nodeId = 400UL + (uint64 i * 10UL)
 
-          // A bitwise operator is a trait method like every other operator, so Float is not a
-          // special rule in the checker any more: it is a type with no implementation. (The
+          // A bitwise operator is a trait method like every other operator, so the checker has
+          // no special rule for Float: it is a type with no implementation. (The
           // environment here has no implementations at all, so every operand type says so; the
           // real ones come from the store, and the language testfile covers the integers.)
           oneArgFn PT.TFloat PT.TFloat (infix nodeId operation)

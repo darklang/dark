@@ -93,7 +93,7 @@ trait Compare<'a> =
 
 
 /// A value rendered as text for a person: `p.toString`, or `ToString.toString p`.
-/// Every builtin type implements it with the `toString` fn it already had;
+/// Every builtin type implements it, so `toString` works on any of them;
 /// `Stdlib.toRepr` stays the structural debug form.
 // CLEANUP if this splits, it splits into `ToString` for what a person reads and
 // `ToDebugString` for the derived one. Nothing more elaborate.
@@ -111,8 +111,8 @@ let max<'a: Compare> (a: 'a) (b: 'a) : 'a = if a > b then a else b
 let min<'a: Compare> (a: 'a) (b: 'a) : 'a = if a < b then a else b
 
 
-/// The distance of <param value> from zero. The per-type ones remain, since a fixed-width
-/// minimum has no positive counterpart and each type refuses it its own way.
+/// The distance of <param value> from zero. Each fixed-width type keeps its own
+/// `absoluteValue` as well, since its minimum has no positive counterpart.
 let abs<'a: Compare + Negate + Zero> (value: 'a) : 'a =
   if value < Zero.zero () then -value else value
 

@@ -436,7 +436,7 @@ let private resolvePendingFieldAccesses (state : State) : unit =
             // The type is KNOWN and nothing offers the method, so this is a definite error and
             // not an ambiguity: `resolveFieldAccess` names it (the tuple's length for an index
             // past the end, "not a record" for a scalar). Blocking here instead would make the
-            // item merely incomplete, which is how `(5).field` stopped being a definite error.
+            // item merely incomplete, and `(5).field` would stop being a definite error.
             let fieldType = resolveFieldAccess state nodeId subjectType fieldName
             unify state (Some nodeId) RecordFieldAccess fieldType resultType
             true

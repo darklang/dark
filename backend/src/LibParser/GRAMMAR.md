@@ -348,8 +348,8 @@ declaration or an alias of an existing fn:
     impl Show for Point =
       let show (p: Point) : String = "..."
 
-    impl Add for Int64 =
-      let add = Stdlib.Int64.add
+    impl Add for String =
+      let add = Stdlib.String.append
 
     impl<'a: Show> Show for List<'a> =
       let show (xs: List<'a>) : String = "..."

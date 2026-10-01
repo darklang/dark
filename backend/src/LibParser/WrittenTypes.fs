@@ -539,7 +539,7 @@ type TraitDecl =
 type ImplMember =
   /// A method declared here: `let show (p: Point) : String = ...`
   | IMethod of FnDecl
-  /// `let add = Stdlib.Int64.add`: a method that is an existing fn, so the
+  /// `let add = Stdlib.String.append`: a method that is an existing fn, so the
   /// impl names it instead of wrapping it.
   | IAlias of ValueDecl
 
@@ -551,9 +551,9 @@ type ImplDecl =
     trait_ : QualifiedTypeIdentifier
     forType : TypeReference
     /// ONE list, in source order, because `PT.TraitImpl.methods` is hashed in order.
-    /// Splitting it into declared and aliased and re-joining them, which this used to do,
-    /// made a block that interleaves the two hash differently than it was written, and
-    /// differently from what the Dark parser produces for the same source.
+    /// Two lists, declared and aliased, re-joined declared-first would hash a block that
+    /// interleaves them differently than it was written, and differently from what the Dark
+    /// parser produces for the same source.
     members : List<ImplMember>
     keywordImpl : Range
     keywordFor : Range

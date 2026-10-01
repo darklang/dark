@@ -524,7 +524,7 @@ module PackageFn =
       /// Part of the content hash and of the upgrade contract, so changing the
       /// row is a new version that `permissions update` asks about.
       permissionCeiling: Option<List<LanguageTools.Permissions.Effect>>
-      /// `'a: Show + Equal` on the type params; part of the content hash. Checked
+      /// `'a: Show + Compare` on the type params; part of the content hash. Checked
       /// at fn entry by the interpreter and statically by the at-rest checker.
       bounds: List<Bound> }
 
@@ -536,7 +536,7 @@ module Trait =
   type Method =
     { name: String
       typeParams: List<String>
-      /// `let convert<'b: Equal> (v: 'a) : 'b`: what the method's own type params owe, on
+      /// `let convert<'b: Compare> (v: 'a) : 'b`: what the method's own type params owe, on
       /// top of the trait's bound on the self type
       bounds: List<Bound>
       parameters: List<PackageFn.Parameter>

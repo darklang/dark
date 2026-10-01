@@ -342,7 +342,7 @@ selection is `Traits.fs`, the checker validates traits and impls in `AtRestTypeC
 stdlib traits (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through
 `NumericTraits.fs`, whose hashes come from `PackageRefs.Trait`, so a new operator trait
 needs a ref and a regenerated `package-ref-hashes.txt`. `==` and `!=` are NOT traits: equality is
-structural for every value and lowers to its builtin, as it did before traits. A type
+structural for every value and lowers to its builtin. A type
 cannot override it, which is what keeps `List.member`, `List.unique`, `List.sort` and
 dict keys meaning the same thing as `==` -- dict keys have to be structural anyway, since
 F# hashes them inside its own `Map`. `Zero.zero`/`One.one` dispatch from an
@@ -382,9 +382,9 @@ every other `{ x: Int64 }` somebody left in the dev store, implementations and a
 then measures their choices. Give the field a name nobody else would use.
 
 A drop site worth knowing about, because it looks like nothing: **anything that rebuilds an
-`EFnName` must carry the third field.** `DeferredResolver.reResolveExpr` did not, so every
-authoring that went through `WipRefresh` re-hashed the item without its bounds and un-decided
-what the checker had decided. The parser's own `EFnName` sites are the exception: they write `[]`
+`EFnName` must carry the third field.** Drop it and the item re-hashes without its
+bounds, un-deciding what the checker decided; `DeferredResolver.reResolveExpr`, which every
+authoring through `WipRefresh` goes down, is the one to watch. The parser's own `EFnName` sites are the exception: they write `[]`
 because the checker has not run yet.
 
 **The disk-load path records choices too, and it is the reason a reload rehashes so much.**
@@ -401,15 +401,15 @@ typed at the CLI.
 **Every switch over item kinds has five arms.** Types, values, fns, traits, impls.
 A new listing, codec, or CLI command that handles three of them silently drops the
 other two; `ls`, `tree`, `search`, completion, the workbench, the relay browser and
-the LSP all had to learn them, and the names-only search builtins return six lists.
+the LSP all handle all five, and the names-only search builtins return six lists.
 
 **A bare trait name falls back to the stdlib.** `impl Add for Point` in any module
 means `Stdlib.Add` unless something closer is called Add (both resolvers,
 `resolveTraitName` and `TraitName.resolve`). Two same-shaped traits still hash the
 same; a trait and a same-shaped record do not.
 
-**An impl over fns that already exist is an alias block.** `impl Add for Int64 = let
-add = Stdlib.Int64.add` generates no fn; the impl names the existing one. The
+**An impl over fns that already exist is an alias block.** `impl Add for String = let
+add = Stdlib.String.append` generates no fn; the impl names the existing one. The
 interpreter answers two operands of one builtin numeric type without dispatch
 (`FastOps.evalNumeric`), so those aliases are what the checker and `dark impls` see,
 not what runs.
@@ -459,7 +459,7 @@ Dark namespace. Write `Stdlib.List.map` or `Darklang.Stdlib.List.map`, never
 match arm the bare case is fine, since the matched value's type resolves it.
 
 **Cross-module pipes.** Dark parses pipes greedily, so
-`Stdlib.List.length xs |> Stdlib.Int.toString` raises "Pipe: LongIdent". Parenthesize the
+`Stdlib.List.length xs |> Stdlib.toString` raises "Pipe: LongIdent". Parenthesize the
 left side.
 
 **A literal inside a tuple pattern silently falls through.** `| Some(_, _, "propagation") ->`

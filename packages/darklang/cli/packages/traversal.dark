@@ -112,8 +112,8 @@ let resolveEntity
 
   // An implementation wins over the module of the same name, because that module IS the
   // implementation: its methods are ordinary fns beneath the impl's member path. Letting the
-  // module win meant `view Acme.Point.Show` printed the implementation and then listed its own
-  // method fns underneath, the same thing twice.
+  // module win would make `view Acme.Point.Show` print the implementation and then list its
+  // own method fns underneath, the same thing twice.
   let implHere =
     match (Query.searchExactMatch branchId basePath name).impls with
     | item :: _ -> Stdlib.Option.Option.Some item.location

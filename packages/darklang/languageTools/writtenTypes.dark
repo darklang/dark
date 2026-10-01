@@ -550,7 +550,7 @@ module FnDeclaration =
     { range: Range
       name: FnIdentifier
       typeParams: List<(Range * String)>
-      /// `'a: Show + Equal` on the type params, one entry per trait
+      /// `'a: Show + Compare` on the type params, one entry per trait
       bounds: List<TypeParamBound>
       parameters: List<Parameter>
       /// The effect row on the return colon, if one was written. Like

@@ -146,13 +146,15 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
 
     let locationStr = Packages.formatLocation location
 
+    let submodules = Query.readerSubmodules directSubmodules implNames
+
     let submoduleRows =
-      if Stdlib.List.isEmpty directSubmodules then
+      if Stdlib.List.isEmpty submodules then
         []
       else
         Stdlib.List.flatten [
           [ Display.getSectionHeader "submodule" ]
-          directSubmodules
+          submodules
           |> Stdlib.List.map (fun name -> $"  {name}/")
           [ "" ]
         ]

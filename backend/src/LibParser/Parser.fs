@@ -788,7 +788,7 @@ let offsideContinues (state : ParserState) (headIdx : int) (k : int) : bool =
 
 // A `-` GLUED to a following number, with a space before it, is a negative-literal
 // ARGUMENT (`f a -1`), not subtraction (`f a - 1` = `(f a) - 1`). The application
-// arg loop accepts it so `Float.multiply a -1.0` / `add 5L -1L` parse correctly
+// arg loop accepts it so `f a -1.0` / `add 5L -1L` parse correctly
 // (matches F#'s high-precedence-application rule).
 let isNegLitArg (state : ParserState) (k : int) : bool =
   tok state k = TMinus
@@ -1574,7 +1574,7 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
 // Binding powers, loosest → tightest (higher binds tighter); a right-assoc
 // op recurses at its own power so it nests to the right.
 //   1 `||`   2 `&&`   3 `== != < > <= >=`   4 `|`   5 `^`   6 `&`
-//   7 `<< >>`   8 `@` (right)   9 `+ - ++`   10 `* / %`   11 `**` (right)
+//   7 `<< >>`   8 `@` (right)   9 `+ -`   10 `* / %`   11 `**` (right)
 // The bitwise levels follow Python's order rather than C's: they bind TIGHTER
 // than the comparisons, so `a & b == c` is `(a & b) == c` and not C's
 // `a & (b == c)`. Every pre-existing operator keeps its relative position.
@@ -1622,7 +1622,7 @@ and parseInfixRhs
     // operand's end, or inside parens, or an indented continuation. Otherwise
     // a following statement that starts with a prefix operator (`1L\n-8L …`)
     // would be wrongly glued on as `1L - 8L …`. On a new line, a pure infix
-    // operator at the statement column continues (`x\n++ y` — `++` can't start
+    // operator at the statement column continues (`x\n* y`: `*` cannot start
     // a statement), but `-` there begins a new statement (a negative literal),
     // so it must be indented PAST it. This rule is identical for every caller.
     let opContinues =

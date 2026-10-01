@@ -1002,7 +1002,7 @@ let private invokeBuiltin
     if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
   // Every builtin's signature is async because some of them have to be -- HTTP, the package store,
-  // anything touching disk. Most aren't: `Int64.add` computes and returns.
+  // anything touching disk. Most aren't: `Builtin.int64Add` computes and returns.
   let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
 
   // `finishBuiltin` is top-level rather than a local closing over the eight values it needs, for the
@@ -1895,7 +1895,7 @@ let private callPackageViaFrame
       )
     else
       // A bounded fn: the bounds are part of the declared parameter types, checked
-      // here at entry like the parameter types were just above (the D4 decision).
+      // here at entry like the parameter types just above.
       let tstAtEntry = tst
       uply {
         do! checkBoundsAtEntry exeState vm fn tstAtEntry

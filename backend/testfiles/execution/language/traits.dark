@@ -135,8 +135,8 @@ module MethodBounds =
 
 module Equality =
   // `==` is NOT a trait: equality is structural, for every value, always. A type cannot
-  // say what equal means for it, which is deliberate -- see the `Equal` note in
-  // `stdlib/traits.dark`.
+  // say what equal means for it, which is what keeps `List.member`, `List.unique`,
+  // `List.sort` and dict keys meaning the same thing as `==`.
   type User = { id: Int64; name: String }
   type Holder = { user: User }
 

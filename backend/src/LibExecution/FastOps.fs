@@ -97,9 +97,10 @@ let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
   else
     ValueNone
 
-/// The operator itself, for two `String`s. `stringAppend` reaches this because `++` is a thin
-/// wrapper the elision already resolves to its builtin, so it arrives here with the same shape an
-/// `Int` operator does -- and paid the full builtin path to concatenate two strings.
+/// The operator itself, for two `String`s. `stringAppend` reaches this because `"a" + "b"` is
+/// the `Add` impl for String, which names `Stdlib.String.append`, a thin wrapper the elision
+/// already resolves to its builtin; so it arrives here with the same shape an `Int` operator
+/// does, rather than paying the full builtin path to concatenate two strings.
 let evalStr (tag : int) (a : string) (b : string) : Dval voption =
   if tag = strAppend then
     // Exactly what the builtin computes, `normalize` included: two normalized strings can join
@@ -279,7 +280,7 @@ let evalDictSet
 
 
 /// The arithmetic and ordering operators on the fixed-width, float and String types, for the trait
-/// method the operator lowers to. What the impl fn would compute (`Stdlib.Int64.add` is
+/// method the operator lowers to. What the impl fn would compute (`Stdlib.Int64.Add.add` is
 /// `a + b` in F#, wrapping), restated here so the operator never pays impl selection when both
 /// operands are the same builtin numeric type. Anything that can fail (`divide`, `modulo`,
 /// `power`) and every mixed pair declines: the impl runs and raises its own error.

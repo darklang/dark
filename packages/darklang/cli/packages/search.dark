@@ -9,8 +9,8 @@ val batchDisplayCap = 3
 
 // Operator symbols aren't function names, so a literal search for one finds
 // nothing useful. Map each to the keyword that surfaces its named operation —
-// `search %` -> `mod`, `search &&` -> `Bool.and`,
-// `search /` -> `divide` (handy given Float math has no infix). Returns None for
+// `search %` -> `modulo`, `search &&` -> `Bool.and`,
+// `search /` -> `divide`. Returns None for
 // an ordinary query, which searches unchanged.
 let operatorAlias (query: String) : Stdlib.Option.Option<String> =
   match Stdlib.String.trim query with
@@ -18,7 +18,7 @@ let operatorAlias (query: String) : Stdlib.Option.Option<String> =
   | "-" -> Stdlib.Option.Option.Some "subtract"
   | "*" -> Stdlib.Option.Option.Some "multiply"
   | "/" -> Stdlib.Option.Option.Some "divide"
-  | "%" -> Stdlib.Option.Option.Some "mod"
+  | "%" -> Stdlib.Option.Option.Some "modulo"
   | "**" -> Stdlib.Option.Option.Some "power"
   | "&" -> Stdlib.Option.Option.Some "bitwiseAnd"
   | "|" -> Stdlib.Option.Option.Some "bitwiseOr"

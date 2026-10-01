@@ -1072,7 +1072,7 @@ let fns (_pm : PT.PackageManager) : List<BuiltInFn> =
             with ex ->
               // Resolution is an improvement on what is stored, never a gate on storing it:
               // a batch this cannot make sense of is saved as it arrived. Said out loud, because
-              // the symptom otherwise is only that operators got slower.
+              // the symptom otherwise is only that operators run slower.
               System.Console.Error.WriteLine
                 $"note: could not resolve trait calls in this save ({ex.Message}); they will \
                    resolve when they run"

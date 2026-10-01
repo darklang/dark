@@ -848,7 +848,7 @@ module ProgramTypes =
         NEList.singleton
           { name = "convert"
             typeParams = []
-            // a method-level bound, which is the field that used to be parsed and dropped
+            // a method-level bound, so the round trip has to carry one
             bounds =
               [ { param = "b"
                   trait_ =

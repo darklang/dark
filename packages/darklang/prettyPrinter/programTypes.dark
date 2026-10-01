@@ -1386,7 +1386,7 @@ let db
 
 
 
-/// `<'a: Show + Equal, 'b>`: each type param followed by its bounds, if any.
+/// `<'a: Show + Compare, 'b>`: each type param followed by its bounds, if any.
 let typeParamsWithBounds
   (ctx: Context)
   (typeParams: List<String>)
@@ -1629,8 +1629,8 @@ let packageImpl
     | Some l -> Stdlib.List.flatten [ [ l.owner ], l.modules, [ l.name ] ]
     | None -> []
   // A method whose fn lives under the impl's own path was WRITTEN here, so it prints as the
-  // declaration the author wrote. Printing the alias line for those gave `let d = d`, which says
-  // nothing and does not parse back. A method that names a fn elsewhere prints as that alias.
+  // declaration the author wrote. Printing the alias line for those would give `let d = d`,
+  // which says nothing and does not parse back. A method that names a fn elsewhere prints as that alias.
   let methods =
     i.methods
     |> Stdlib.List.map (fun (name, fn) ->

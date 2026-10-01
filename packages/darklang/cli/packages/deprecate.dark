@@ -404,8 +404,8 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
     | [ pair ] ->
       let (itemKind, targetRef) = pair
 
-      // Say nothing happened when nothing did. Undeprecating something that was never
-      // deprecated used to report success, which reads as though it undid something.
+      // Say nothing happened when nothing did: reporting success for undeprecating something
+      // that was never deprecated reads as though it undid something.
       let hash =
         match targetRef with
         | PackageType h -> Stdlib.Option.Option.Some h

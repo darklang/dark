@@ -35,8 +35,8 @@ let private isNumeric (typ : StaticType) : bool =
 
 /// The POLYMORPHIC BUILTIN's own table, reached only when an operator is called by name
 /// (`Builtin.power a b`) rather than through its trait. The trait says what `**` means and
-/// covers every numeric width; this builtin has no 128-bit arms and never will, since it is
-/// the legacy path that nothing in `packages/` calls any more.
+/// covers every numeric width; this builtin has no 128-bit arms and never will, since nothing
+/// in `packages/` calls it by name.
 let private supportsNumericOperation
   (operation : InfixFnName)
   (typ : StaticType)
