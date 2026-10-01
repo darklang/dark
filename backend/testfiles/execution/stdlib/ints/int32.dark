@@ -41,7 +41,8 @@ Stdlib.Int32.remainder 20l 8l = Stdlib.Result.Result.Ok 4l
 Stdlib.Int32.remainder -20l 8l = Stdlib.Result.Result.Ok -4l
 Stdlib.Int32.remainder -20l -8l = Stdlib.Result.Result.Ok -4l
 Stdlib.Int32.remainder -15l 6l = Stdlib.Result.Result.Ok -3l
-Stdlib.Int32.remainder 5l 0l = error="Cannot divide by 0"
+Stdlib.Int32.remainder -2147483648l -1l = Stdlib.Result.Result.Ok 0l
+Stdlib.Int32.remainder 5l 0l = Stdlib.Result.Result.Error "Cannot divide by 0"
 Stdlib.Int32.mod 15l 5l = 0l
 Stdlib.Int32.mod 15l 6l = 3l
 Stdlib.Int32.mod 0l 15l = 0l
@@ -61,6 +62,9 @@ Stdlib.Int32.power 1l 2147483647l = 1l
 Stdlib.Int32.power 2l 31l = -2147483648l
 Stdlib.Int32.power 120l 20l = 0l
 Stdlib.Int32.power 2l -3l = error="Cannot raise integer to a negative exponent"
+Stdlib.Int32.power 0l -1l = error="Cannot raise integer to a negative exponent"
+Stdlib.Int32.power 1l -5l = error="Cannot raise integer to a negative exponent"
+Stdlib.Int32.power -1l -3l = error="Cannot raise integer to a negative exponent"
 Stdlib.Int32.greaterThan 20l 1l = true
 
 Stdlib.Int32.greaterThanOrEqualTo 0l 1l = false

@@ -72,9 +72,10 @@ let fns () : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DChar c |] ->
-          let charValue = int c[0]
-          if charValue >= 0 && charValue < 256 then
-            Dval.optionSome KTInt (Dval.int (bigint charValue)) |> Ply
+          // A Dark Char is a grapheme: an ASCII first code unit does not make
+          // the whole character ASCII (for example, e followed by an accent).
+          if c.Length = 1 && int c[0] < 128 then
+            Dval.optionSome KTInt (Dval.int (bigint (int c[0]))) |> Ply
           else
             Dval.optionNone KTInt |> Ply
         | _ -> incorrectArgs ()

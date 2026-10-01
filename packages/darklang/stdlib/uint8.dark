@@ -26,7 +26,6 @@ let multiply (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Multiply a b
 
 
 /// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must to be positive.
 /// Overflow wraps around.
 let power (``base``: UInt8) (exponent: UInt8) : UInt8 =
   if ``base`` == 0uy && exponent == 0uy then 1uy

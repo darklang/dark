@@ -67,18 +67,18 @@ let fns () : List<BuiltInFn> =
         + "{{0}}."
       fn =
         let resultOk r = Dval.resultOk KTInt16 KTString r |> Ply
+        let resultError r = Dval.resultError KTInt16 KTString r |> Ply
         (function
-        | _, vm, _, [| DInt16 v; DInt16 d |] ->
-          (try
+        | _, _, _, [| DInt16 v; DInt16 d |] ->
+          if d = 0s then
+            // The return type is a `Result`, so surface this as an `Error`
+            // rather than raising a runtime error.
+            DString "Cannot divide by 0" |> resultError
+          else if d = -1s then
+            // `MinValue % -1` overflows in .NET, but the remainder is always 0.
+            0s |> DInt16 |> resultOk
+          else
             v % d |> DInt16 |> resultOk
-           with e ->
-             if d = 0s then
-               RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-             else
-               Exception.raiseInternal
-                 "unexpected failure case in Int16.remainder"
-                 [ "v", v; "d", d ]
-                 e)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -136,8 +136,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "base" TInt16 ""; Param.make "exponent" TInt16 "" ]
       returnType = TInt16
       description =
-        "Raise <param base> to the power of <param exponent>. <param exponent> "
-        + "must to be positive. Overflow wraps around."
+        "Raise <param base> to the power of <param exponent>. Overflow wraps "
+        + "around. Raises an error if <param exponent> is negative."
       fn =
         (function
         | _, vm, _, [| DInt16 number; DInt16 exp |] ->

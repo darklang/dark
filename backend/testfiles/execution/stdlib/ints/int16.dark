@@ -54,6 +54,9 @@ Stdlib.Int16.power 1s 32767s = 1s
 Stdlib.Int16.power 2s 15s = -32768s
 Stdlib.Int16.power 120s 20s = 0s
 Stdlib.Int16.power 2s -3s = error="Cannot raise integer to a negative exponent"
+Stdlib.Int16.power 0s -1s = error="Cannot raise integer to a negative exponent"
+Stdlib.Int16.power 1s -5s = error="Cannot raise integer to a negative exponent"
+Stdlib.Int16.power -1s -3s = error="Cannot raise integer to a negative exponent"
 Stdlib.Int16.divide 10s 5s = 2s
 Stdlib.Int16.divide 17s 3s = 5s
 Stdlib.Int16.divide -8s 5s = -1s
@@ -68,6 +71,12 @@ Stdlib.Int16.negate 5s = -5s
 Stdlib.Int16.negate 0s = 0s
 Stdlib.Int16.negate -0s = 0s
 Stdlib.Int16.negate -32768s = -32768s
+
+Stdlib.Int16.remainder 15s 6s = Stdlib.Result.Result.Ok 3s
+Stdlib.Int16.remainder -20s 8s = Stdlib.Result.Result.Ok -4s
+Stdlib.Int16.remainder -20s -8s = Stdlib.Result.Result.Ok -4s
+Stdlib.Int16.remainder -32768s -1s = Stdlib.Result.Result.Ok 0s
+Stdlib.Int16.remainder 5s 0s = Stdlib.Result.Result.Error "Cannot divide by 0"
 Stdlib.Int16.greaterThan 20s 1s = true
 Stdlib.Int16.greaterThan 20s 130s = false
 

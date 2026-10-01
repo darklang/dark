@@ -26,7 +26,6 @@ let multiply (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Multiply a b
 
 
 /// Raise <param base> to the power of <param exponent>.
-/// <param exponent> must to be positive.
 /// Overflow wraps around.
 let power (``base``: UInt32) (exponent: UInt32) : UInt32 =
   if ``base`` == 0ul && exponent == 0ul then 1ul
