@@ -70,10 +70,20 @@ let listModule
   Stdlib.printLine $"Contents of {locationStr}:"
   Stdlib.printLine ""
 
-  // Display in order: modules, types, values, functions
-  if Stdlib.Bool.not (Stdlib.List.isEmpty allSubmodules) then
-    Stdlib.printLine (Display.getSectionHeader "module")
+  // An implementation's method fns live in a module named for the trait, so every impl puts
+  // a submodule here with the same name. It is already listed under trait implementations,
+  // and a dozen of them bury the functions people came to read, so the generated one is not
+  // listed twice. `dark view <Type>.<Trait>` still reaches the methods.
+  let implNames = impls |> Stdlib.List.map (fun (name, _) -> name)
+
+  let submodules =
     allSubmodules
+    |> Stdlib.List.filter (fun name -> Stdlib.Bool.not (Stdlib.List.member implNames name))
+
+  // Display in order: modules, types, functions, values, traits, trait implementations
+  if Stdlib.Bool.not (Stdlib.List.isEmpty submodules) then
+    Stdlib.printLine (Display.getSectionHeader "module")
+    submodules
     |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
     Stdlib.printLine ""
 

@@ -176,7 +176,22 @@ let accessSummaryLines (state: State) (hash: String) : List<String> =
 let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
   let path = Stdlib.List.append (modulePathOf state.location) [ item.name ]
   let location = Packages.PackageLocation.Module path
-  let children = moduleContents state.branchId location
+  let allChildren = moduleContents state.branchId location
+
+  // An impl's method fns live in a module named for the trait, so every impl leaves a
+  // submodule of the same name beside it. It is already a row under trait implementations,
+  // and a numeric type has seventeen of them, which buries the functions. Same reason
+  // `dark ls` drops them.
+  let implNames =
+    allChildren
+    |> Stdlib.List.filter (fun c -> c.kind == "impl")
+    |> Stdlib.List.map (fun c -> c.name)
+
+  let children =
+    allChildren
+    |> Stdlib.List.filter (fun c ->
+      Stdlib.Bool.not (c.isModule && (Stdlib.List.member implNames c.name)))
+
   let ofKind (kind: String) : List<BodyItem> =
     children |> Stdlib.List.filter (fun c -> c.kind == kind)
   // One column across every group, so a value's literal and a fn's signature

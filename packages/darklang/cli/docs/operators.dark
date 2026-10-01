@@ -28,12 +28,13 @@ let content () : String =
   A type of your own joins with `impl Add for Vec = ...`.
   `/` is integer division on ints, float division on floats.
   `%` is integer-only (the modulus must be > 0). Float has no Modulo implementation.
-  `**` (power) works on all integer types and Float (not Int128/UInt128,
-  which have no Power implementation), and nests right: `2 ** 3 ** 2` is
-  `2 ** (3 ** 2)`.
+  `**` (power) works on every integer type and Float, and nests right:
+  `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
   Unary `-x` negates signed ints and Float; an unsigned type has no Negate
   implementation, and `-x` on one says so.
-  Integer overflow (+ - * / ** and unary -) raises a runtime error.
+  A fixed-width integer WRAPS on overflow, it does not raise: `9223372036854775807L + 1L`
+  is `-9223372036854775808L`, and `-x` on a type's minimum is that minimum again.
+  `Int` is arbitrary-precision and does not wrap. Dividing by zero raises.
   Float arithmetic follows IEEE (overflow -> infinity).
 
 ## Bitwise (every integer type; Float has no implementation)
