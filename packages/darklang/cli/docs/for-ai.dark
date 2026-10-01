@@ -254,8 +254,8 @@ callee, run it again, and the numbers move without re-running the world.
 A line inside a loop carries ONE value, the last time round. To see another
 pass, name the loop:
 
-  dark traces show <fn> --expand map:3          that loop's third pass
-  dark traces show <fn> --expand map:3,fold:3   two loops, same iteration
+  dark traces show <fn> --pass map:3          that loop's third pass
+  dark traces show <fn> --pass map:3,fold:3   two loops, same iteration
 
 Names come from the code: `map` and `fold` are the function the lambda was
 passed to. Two of a name are `map` and `map#2`. The footer says which pass each
@@ -263,7 +263,7 @@ loop is showing. To read a function the run CALLED, just view it:
 `dark traces show <that fn>`.
 
 **For you, do not navigate.** `dark traces show <fn> --json` returns every loop,
-every pass and all of their values in ONE call, each carrying the `--expand`
+every pass and all of their values in ONE call, each carrying the `--pass`
 string a person would type. A person goes a step at a time because several
 answers to one question on one screen is confusing; you have no such problem and
 a round trip costs you more than the bytes do.

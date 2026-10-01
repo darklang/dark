@@ -175,8 +175,8 @@ type TraceWithCallsJson =
 type LoopPassJson =
   { /// Which one this is, counting from 1.
     at: Int
-    /// `--expand map:3`, ready to use.
-    expand: String
+    /// `--pass map:3`, ready to use.
+    pass: String
     /// What this pass produced, by expression id. Everything at once, so an agent never
     /// has to walk in a step at a time the way a person does.
     values: Dict<String, String> }
@@ -184,7 +184,7 @@ type LoopPassJson =
 
 /// A loop, for `--json`.
 type LoopJson =
-  { /// `map`, `fold`, `map#2`. What `--expand` takes.
+  { /// `map`, `fold`, `map#2`. What `--pass` takes.
     name: String
     count: Int
     passes: List<LoopPassJson> }
@@ -468,7 +468,7 @@ let printValuesJson
       (loopsOf
         frames
         (Darklang.Tracing.Store.fnsWithHashes trace.id)
-        (Darklang.Tracing.Store.storedFrames trace.id)
+        (Darklang.Tracing.Store.recordedLoopPasses trace.id)
         selfHash)
       |> Stdlib.List.map (fun loop ->
         let passes =
@@ -490,7 +490,7 @@ let printValuesJson
 
             LoopPassJson
               { at = i + 1
-                expand = $"{loop.name}:{p}"
+                pass = $"{loop.name}:{p}"
                 values = mine })
 
         LoopJson
@@ -514,7 +514,7 @@ let printValuesJson
 /// One that ran once is not a loop. There is nothing to choose between and its value is already
 /// on the line.
 type Loop =
-  { /// What a person types: `--expand map:3`.
+  { /// What a person types: `--pass map:3`.
     ///
     /// The function the lambda was passed to: `map`, `fold`, `filter`. A name from the code,
     /// not a number from the rendering, so it survives another loop being added above it and
@@ -571,8 +571,8 @@ let insideFn
 let loopsOf
   (frames: List<Darklang.Tracing.Store.ViewFrame>)
   (fnNames: List<String * String>)
-  /// The shape as RECORDED, for the passes a replay could not reach.
-  (stored: List<Darklang.Tracing.Store.StoredFrame>)
+  /// How many times each loop went round as RECORDED, for the passes a replay could not reach.
+  (recordedPasses: List<String * Int64>)
   /// The hash of the function being viewed. A trace goes through many functions and only the
   /// loops inside THIS one belong on its page: offering `map` while reading a function that
   /// contains no loop sends someone looking for something that is not there.
@@ -622,14 +622,15 @@ let loopsOf
       |> Stdlib.Option.map (fun f -> loopNameOf f.parent)
       |> Stdlib.Option.withDefault ""
 
-    // The recorded count for this call site. Stored lambda frames carry the lambda's own
-    // expression id as their site, which is the same key the replay frames use.
+    // What the RECORD says, keyed by the lambda's own expression id, which is the same key the
+    // replay's frames carry.
     let siteText = Stdlib.Int64.toString callSite
 
     let recorded =
-      stored
-      |> Stdlib.List.filter (fun f -> (f.kind == "lambda") && (f.site == siteText))
-      |> Stdlib.List.length
+      recordedPasses
+      |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == siteText)
+      |> Stdlib.Option.map (fun pair -> Stdlib.Int.fromInt64 (Stdlib.Tuple2.second pair))
+      |> Stdlib.Option.withDefault 0
 
     (nm, passes, recorded))
   |> Stdlib.List.filter (fun t ->
@@ -691,7 +692,8 @@ let printValues
   (state: AppState)
   (typed: String)
   (tracePrefix: Stdlib.Option.Option<String>)
-  (expand: Stdlib.Option.Option<String>)
+  /// What `--pass` was given, if anything: `map:2`, or `map:2,fold:2`.
+  (passArg: Stdlib.Option.Option<String>)
   : AppState =
   let branchId = state.currentBranchId
   let fnName = canonicalFnName branchId typed
@@ -767,22 +769,22 @@ let printValues
           loopsOf
             frames
             (Darklang.Tracing.Store.fnsWithHashes trace.id)
-            (Darklang.Tracing.Store.storedFrames trace.id)
+            (Darklang.Tracing.Store.recordedLoopPasses trace.id)
             selfHash
 
-        // WHICH PASS OF EACH LOOP YOU ARE LOOKING AT: `--expand map:2,fold:2`.
+        // WHICH PASS OF EACH LOOP YOU ARE LOOKING AT: `--pass map:2,fold:2`.
         //
         // Every line carries exactly ONE value at a time. `map:2` puts pass 2's values on the
         // lines inside that loop, and the footer says which pass each loop is showing. Several
         // values on one line would be several answers to one question with no way to tell which
         // is which, so the page never does that.
         //
-        // There is deliberately no way to expand a CALL here. `dark traces show <that fn>`
+        // There is deliberately no way to pick a pass of a CALL here. `dark traces show <fn>`
         // already shows any function's own code and values, and `traces inspect` lists which
         // functions a trace ran, so going into one is a command away and does not need a
         // second way of saying it.
         let requested =
-          match expand with
+          match passArg with
           | None -> []
           | Some raw -> Stdlib.String.split raw ","
 
@@ -910,6 +912,6 @@ let printValues
 
             Stdlib.printLine
               (Stdlib.Cli.UI.Colors.dimText
-                "       --expand <loop>:<n> for another pass")
+                "       --pass <loop>:<n> for another pass")
 
             state

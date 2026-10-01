@@ -279,25 +279,34 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     (Stdlib.List.member args "--yes") || (Stdlib.List.member args "-y")
   let wantsJson = Stdlib.List.member args "--json"
   let wantsFindInspect = Stdlib.List.member args "--inspect"
-  // `--expand map,fold` picks which loops show every pass, for `show`. Taken out of `args`
+  // `--pass map:2` picks which pass of a loop the page shows, for `show`. Taken out of `args`
   // here with its value, the same way the boolean flags are, so the positional patterns below
   // do not have to know it can appear.
-  let expand =
+  let pass =
     args
-    |> Stdlib.List.findFirstIndex (fun a -> a == "--expand")
+    |> Stdlib.List.findFirstIndex (fun a -> a == "--pass")
     |> Stdlib.Option.andThen (fun i -> Stdlib.List.getAt args (i + 1))
   let args =
     args
     |> Stdlib.List.filter (fun a ->
       a != "--yes" && a != "-y" && a != "--json" && a != "--inspect")
+  // `--pass` with nothing after it. Without this the flag stays in `args` and the positional
+  // patterns below read it as a trace id, so `traces show <fn> --pass` answered "no trace whose
+  // id starts with --pass", which tells someone who mistyped a flag to go looking for a trace.
+  let passMissingValue =
+    (Stdlib.List.member args "--pass") && (pass == Stdlib.Option.Option.None)
+
   let args =
-    match expand with
+    match pass with
     | None -> args
-    | Some v -> args |> Stdlib.List.filter (fun a -> a != "--expand" && a != v)
+    | Some v -> args |> Stdlib.List.filter (fun a -> a != "--pass" && a != v)
   // `--view`, then `--show`, both of which opened the newest matching run. That is `log` now,
   // and so is the flag. Refused by name rather than as an unknown flag, so a script still
   // passing one is told what it is called.
-  if (Stdlib.List.member args "--view") || (Stdlib.List.member args "--show") then
+  if passMissingValue then
+    Cli.printErr "--pass needs a loop and a pass, like `--pass map:2`"
+    { state with exitCode = 1 }
+  else if (Stdlib.List.member args "--view") || (Stdlib.List.member args "--show") then
     Cli.printErr "`traces find --inspect` opens the newest matching run"
     { state with exitCode = 1 }
   else
@@ -565,7 +574,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           fnName
           Stdlib.Option.Option.None)
     else
-      Cli.TraceVerbs.printValues state fnName Stdlib.Option.Option.None expand
+      Cli.TraceVerbs.printValues state fnName Stdlib.Option.Option.None pass
   | [ "show", fnName, run ] ->
     if looksLikeATraceId fnName then
       showFromTrace state fnName
@@ -577,7 +586,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           fnName
           (Stdlib.Option.Option.Some run))
     else
-      Cli.TraceVerbs.printValues state fnName (Stdlib.Option.Option.Some run) expand
+      Cli.TraceVerbs.printValues state fnName (Stdlib.Option.Option.Some run) pass
   // `values` was this verb's name until `show` took it over: `show` shows you the code, which is
   // what you are usually after, and `log` shows the recordings.
   | "values" :: rest ->
@@ -1596,7 +1605,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
       Completion.simple "--slow-ms"
       Completion.simple "--all"
       Completion.simple "--json" ]
-  | [ "show", _ ] -> [ Completion.simple "--watch", Completion.simple "--json" ]
+  | [ "show", _ ] -> [ Completion.simple "--watch", Completion.simple "--json", Completion.simple "--pass" ]
   // After a value-taking flag, the next token is a user-supplied
   // substring/path — no canonical completion to suggest. Returning
   // an empty list forces the user to type a value rather than
@@ -1628,8 +1637,8 @@ let help (_state: Cli.AppState) : String =
     "  show <trace>                  the same from the other end: the code that trace ran"
     "  show <fn> --watch             the same as a panel: up/down pick a trace, and it"
     "                                repaints as traces arrive and as you edit the code"
-    "  show <fn> --expand map:2      a loop shows that pass, not its last"
-    "  show <fn> --expand map:2,fold:2   several loops at once"
+    "  show <fn> --pass map:2        show that pass of that loop, not its last"
+    "  show <fn> --pass map:2,fold:2 several loops at once"
     "  show <fn> --json              every loop and every pass at once, for an agent"
     "  calls <fn>                    the traces that went through one function, newest first"
     ""

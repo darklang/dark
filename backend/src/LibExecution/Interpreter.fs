@@ -895,8 +895,7 @@ let private traceBuiltinResult
   (result : Dval)
   : Dval =
   if recordsCall exeState.tracing ord then
-    let source : Tracing.Source = (currentFrame.executionPoint, None)
-    let fnRecord : Tracing.FunctionRecord = (source, FQFnName.Builtin fn.name)
+    let fnName = FQFnName.Builtin fn.name
     let args = NEList.ofListUnsafe "" [] (List.ofArray allArgs)
     let elapsedMs (from : int64) : int64 =
       if from = 0L then
@@ -916,7 +915,7 @@ let private traceBuiltinResult
         (fun (t : Task<Dval>) ->
           if t.IsCompletedSuccessfully then
             exeState.tracing.storeFnResult
-              fnRecord
+              fnName
               { ord = ord
                 durationMs = elapsedMs traceSw
                 frameId = currentFrame.id }
@@ -927,7 +926,7 @@ let private traceBuiltinResult
       |> ignore<Task>
     | _ ->
       exeState.tracing.storeFnResult
-        fnRecord
+        fnName
         { ord = ord
                 durationMs = elapsedMs traceSw
                 frameId = currentFrame.id }

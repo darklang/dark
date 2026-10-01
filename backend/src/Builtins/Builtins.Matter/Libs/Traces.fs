@@ -895,51 +895,35 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "tracesFramesOf" 0
+    { name = fn "tracesLoopPasses" 0
       typeParams = []
       parameters = [ Param.make "traceID" TString "" ]
-      returnType =
-        TList(TTuple(TString, TString, [ TString; TString; TInt64; TInt64 ]))
+      returnType = TList(TTuple(TString, TInt64, []))
       description =
-        "The SHAPE one run took, as it was recorded: each frame with its parent, what it ran, "
-        + "which pass it was at its call site, and the order it was pushed.\n\n"
+        "How many times each loop in a recorded run actually went round, as it was RECORDED: "
+        + "the lambda's expression id, and the number of passes.\n\n"
         + "Read rather than replayed, which is the point. A view recomputes values by re-running "
         + "the code with its effects answered from the log, so it can only show what it reaches: "
         + "a run suspended mid-loop, or one whose replay stops at an effect the log cannot "
-        + "answer, has passes that happened and that no re-running will show. These rows say "
-        + "they happened.\n\n"
-        + "Empty for a run recorded before the shape was kept, which is an honest answer: that "
-        + "shape was never written down and cannot be invented now."
+        + "answer, has passes that happened and that no re-running will show. Without this a "
+        + "view says \"pass 3 of 3\" about a loop that went round seven times, which is a "
+        + "confident lie in a debugging tool.\n\n"
+        + "Counted in SQL rather than by handing back every frame, because the count is the "
+        + "whole of what anyone asks. Empty for a run recorded before the shape was kept."
       fn =
         (function
         | _, _, _, [| DString traceID |] ->
           uply {
             let! rows =
               Sql.query
-                "SELECT frame_id, parent_frame_id, kind, call_site, fn_hash, pass, ord
-                 FROM trace_frames WHERE trace_id = @t ORDER BY ord"
+                "SELECT call_site, COUNT(*) AS passes
+                 FROM trace_frames
+                 WHERE trace_id = @t AND kind = 'lambda' AND call_site IS NOT NULL
+                 GROUP BY call_site"
               |> Sql.parameters [ "t", Sql.string traceID ]
               |> Sql.executeAsync (fun read ->
-                let orEmpty (col : string) =
-                  read.stringOrNone col |> Option.defaultValue ""
-                DTuple(
-                  DString(read.string "frame_id"),
-                  DString(orEmpty "parent_frame_id"),
-                  [ DString(read.string "kind")
-                    // The lambda's expression id for a lambda, the callee's hash for a call.
-                    DString(
-                      match orEmpty "call_site" with
-                      | "" -> orEmpty "fn_hash"
-                      | site -> site
-                    )
-                    DInt64(read.int64 "pass")
-                    DInt64(read.int64 "ord") ]
-                ))
-            return
-              rows
-              |> Dval.list (
-                KTTuple(VT.string, VT.string, [ VT.string; VT.string; VT.int64; VT.int64 ])
-              )
+                DTuple(DString(read.string "call_site"), DInt64(read.int64 "passes"), []))
+            return rows |> Dval.list (KTTuple(VT.string, VT.int64, []))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

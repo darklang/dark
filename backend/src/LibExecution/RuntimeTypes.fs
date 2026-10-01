@@ -2652,13 +2652,6 @@ type SqlSpec =
 
 
 module Tracing =
-  /// Record the source expression of an error.
-  /// This is to show the code that was responsible for it.
-  /// TODO maybe rename to ExprLocation
-  type Source = ExecutionPoint * Option<id>
-
-  type FunctionRecord = Source * FQFnName.FQFnName
-
   /// Fired when a builtin call, or a package fn frame, completes. `ord` is the call's ordinal
   /// among the process's effectful builtin calls, handed out by `nextEffect` when the call was
   /// made, and -1 for anything else (a pure builtin, a package fn). It is what a replay keys on.
@@ -2683,7 +2676,7 @@ module Tracing =
       frameId : uuid
     }
 
-  type StoreFnResult = FunctionRecord -> CallMeta -> NEList<Dval> -> Dval -> unit
+  type StoreFnResult = FQFnName.FQFnName -> CallMeta -> NEList<Dval> -> Dval -> unit
 
   /// Fired when a new call frame is pushed (Function or Lambda).
   /// Carries the frame's uuid, the executionPoint of the new frame, and

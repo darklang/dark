@@ -392,7 +392,7 @@ let private makeStoreFnResult
   (state : TracerState)
   (pid : System.Guid)
   : RT.Tracing.StoreFnResult =
-  fun (_, name) meta args result ->
+  fun name meta args result ->
     if meta.ord >= 0L then
       let simpleName = fnNameToSimpleString name
       lock state.sync (fun () ->
