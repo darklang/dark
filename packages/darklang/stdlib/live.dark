@@ -750,7 +750,7 @@ module Values =
     (branchId: Uuid)
     (entry: LanguageTools.ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Values> =
-    match Darklang.Tracing.Store.wentThrough (entryName entry) 1L with
+    match Darklang.Tracing.Store.wentThroughNamed branchId (entryName entry) 1L with
     | [] -> Stdlib.Option.Option.None
     | newest :: _ ->
       let (collected, problem) =

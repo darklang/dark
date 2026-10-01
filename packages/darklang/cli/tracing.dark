@@ -189,10 +189,10 @@ let confirmDestructive (autoConfirm: Bool) (action: String) : Bool =
 
 /// Does this argument look like a TRACE id rather than a function name?
 ///
-/// `traces show` took a trace id until this branch and takes a function name now, so the mistake
-/// is the one everybody will make once. Without this it is answered plausibly: a trace id has no
-/// dots, so it parses as a package location, `trace_fns` has no row for it, and you are told
-/// "no recorded trace went through 077f48c0" about a trace that is sitting in the table.
+/// `show` takes a function name, and handing it a trace id is the mistake everybody makes once.
+/// Without this it is answered plausibly rather than refused: a trace id has no dots, so it
+/// parses as a package location, `trace_fns` has no row for it, and you are told "no recorded
+/// trace went through 077f48c0" about a trace that is sitting in the table.
 ///
 /// A function name has dots. A trace id is hex and hyphens and nothing else.
 let looksLikeATraceId (arg: String) : Bool =
@@ -311,8 +311,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   if iterationMissingValue then
     Cli.printErr "--iteration needs a loop and a number, like `--iteration map:2`"
     { state with exitCode = 1 }
-  // `--pass` for a week of this branch's life. Refused by name rather than falling through to
-  // the positional patterns, which read it as a trace id and answered something unrelated.
+  // Refused by name rather than left to the positional patterns below, which would read it as
+  // a trace id and answer something unrelated.
   else if Stdlib.List.member args "--pass" then
     Cli.printErr "`--pass` is now `--iteration`: one run of a loop is an iteration"
     { state with exitCode = 1 }
@@ -440,13 +440,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // `view` is `show` by another name, and people reach for both. An alias costs one arm.
   | "view" :: rest -> execute state (Stdlib.List.push rest "show")
 
-  // `details` was this verb's name for a week of this branch's life. An alias rather than a
-  // refusal: nobody outside ever saw it, so there is no name to teach, only a habit to absorb.
+  // An alias rather than a refusal: people reach for both words, and there is nothing to teach.
   | "details" :: rest -> execute state (Stdlib.List.push rest "inspect")
 
-  // `log` was this verb's name in an earlier draft of ours. Refused BY NAME rather
-  // than falling through to "unknown subcommand", because whoever types it read it
-  // somewhere we wrote.
+  // Refused BY NAME rather than falling through to "unknown subcommand", because whoever types
+  // it read it somewhere we wrote.
   | "log" :: rest ->
     let tail = Stdlib.String.join rest " "
     Cli.printErr "`traces log` is now `traces inspect`: what the trace was, and what it did"
@@ -558,7 +556,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     if wantsJson then
       Cli.TraceVerbs.printTracesJson
         state.currentBranchId
-        (Darklang.Tracing.Store.wentThrough fnName 25L)
+        (Darklang.Tracing.Store.wentThroughNamed state.currentBranchId fnName 25L)
     else
       Cli.TraceVerbs.printCalls state.currentBranchId fnName
     state
@@ -609,8 +607,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           (Stdlib.Option.Option.Some run))
     else
       Cli.TraceVerbs.showCode state fnName (Stdlib.Option.Option.Some run) iteration
-  // `values` was this verb's name until `show` took it over: `show` shows you the code, which is
-  // what you are usually after, and `log` shows the recordings.
+  // Refused by name, like the others: `show` is the verb for the code with its values on it.
   | "values" :: rest ->
     let tail = Stdlib.String.join rest " "
     Cli.printErr "`traces values` is `traces show`: the code, with a trace's values beside it"
@@ -828,7 +825,7 @@ let executeListByFn
       | [] ->
         Stdlib.printLine $"no kept trace made an effectful call matching {fnName}"
 
-        match Darklang.Tracing.Store.wentThrough fnName 1L with
+        match Darklang.Tracing.Store.wentThroughNamed state.currentBranchId fnName 1L with
         | [] ->
           (Cli.TraceVerbs.whyEmpty "run something that calls it")
           |> Stdlib.List.iter (fun line ->
@@ -1434,8 +1431,8 @@ let formatFnCalls
 
 /// `traces inspect <trace> [flags]` -- one trace: what it was, what it answered, where it stands, and
 /// the sequence of impure calls it made. The ONE renderer for a single run, which is why `tail`
-/// and `find --log` come through here too: there used to be a second verb (`view`) printing
-/// almost the same thing, and the two drifted.
+/// and `find --log` come through here rather than printing their own: two renderers for one
+/// thing drift.
 let executeInspect
   (state: Cli.AppState)
   (prefix: String)

@@ -2002,7 +2002,11 @@ let private completePackage
           System.Diagnostics.Stopwatch.GetTimestamp()
     let pkgEp = FreeTVars.packageExecutionPoint fn.hash
     if exeState.tracing.collectFrames then
-      exeState.tracing.storeFrameEntry newFrameId vm.currentFrameID pkgEp
+      exeState.tracing.storeFrameEntry
+        newFrameId
+        vm.currentFrameID
+        pkgEp
+        (ArgSeq.toList allArgs)
     // Names only, and only when something is recording: this is what lets `traces calls <fn>`
     // find the runs that went through a function, where the call itself is not recorded.
     if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
@@ -2534,6 +2538,7 @@ let inline private pushLambdaFrame
       newFrame.id
       vm.currentFrameID
       newFrame.executionPoint
+      (ArgSeq.toList allArgs)
   vm.frameToPush <- ValueSome newFrame
   newFrame
 

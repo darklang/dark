@@ -833,15 +833,23 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fnName" TString "the function's dotted name"
+          Param.make "fnHash" TString "its hash, or \"\" to ask by name"
           Param.make "limit" TInt64 "" ]
       returnType =
         TList(TCustomType(NR.ok (FQTypeName.fqPackage (TracesRefs.trace ())), []))
       description =
-        "The runs that went through this function, newest first. Read from the names-only "
-        + "index every recorded run writes, so it answers at the shipped recording level."
+        "The runs that went through this function, newest first.\n\n"
+        + "By name OR by hash, because they answer opposite halves of the same question and "
+        + "neither is enough alone. The HASH finds runs of this CODE under any name, which is "
+        + "what being content-addressed means: two byte-identical functions are one function. "
+        + "The NAME finds runs of this FUNCTION under any code, which is what makes values "
+        + "follow an edit -- editing a callee changes the caller's hash too, so after one edit "
+        + "the recorded run is under a hash nothing resolves to any more. It is also the only "
+        + "thing left when the store no longer has the function at all, which is how a run "
+        + "whose code has gone is told apart from a typo."
       fn =
         (function
-        | _, _, _, [| DString fnName; DInt64 limit |] ->
+        | _, _, _, [| DString fnName; DString fnHash; DInt64 limit |] ->
           uply {
             let typeName = FQTypeName.fqPackage (TracesRefs.trace ())
             let cols = traceColumnsOf "t"
@@ -851,9 +859,13 @@ let fns () : List<BuiltInFn> =
                   FROM traces t
                   JOIN trace_fns f ON f.trace_id = t.id
                   WHERE f.fn_name = @fn
+                     OR (@hash <> '' AND f.fn_hash = @hash)
                   ORDER BY t.timestamp DESC, t.rowid DESC
                   LIMIT @limit"
-              |> Sql.parameters [ "fn", Sql.string fnName; "limit", Sql.int64 limit ]
+              |> Sql.parameters
+                [ "fn", Sql.string fnName
+                  "hash", Sql.string fnHash
+                  "limit", Sql.int64 limit ]
               |> Sql.executeAsync traceRowToDT
             return rows |> Dval.list (KTCustomType(typeName, []))
           }

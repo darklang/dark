@@ -469,7 +469,7 @@ let tracesText (state: State) : String =
     // `wentThrough` reads the names-only index every recorded trace writes, which is what
     // `dark traces calls <fn>` uses and what this pane means.
     let rows =
-      Darklang.Tracing.Store.wentThrough fullName 30L
+      Darklang.Tracing.Store.wentThroughNamed state.branchId fullName 30L
       |> Stdlib.List.map (fun t -> "  " ++ t.entry ++ "  ·  " ++ t.created)
     // Empty means one of two things, and `traces list` already knows which:
     // nothing has called it, or recording is off (the default) so nothing

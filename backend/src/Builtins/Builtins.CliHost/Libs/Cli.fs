@@ -1001,11 +1001,25 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "the branch to resolve names against"
-          Param.make "traceID" TString "the run to view" ]
+          Param.make "traceID" TString "the run to view"
+          Param.make
+            "focus"
+            (TList(TTuple(TInt64, TInt64, [])))
+            "extra iterations to keep, as (site, which one), empty for an ordinary view" ]
       returnType =
         TTuple(
           TList(TTuple(TInt64, TCustomType(NR.ok (RT2DT.Dval.typeName ()), []), [])),
-          TList(TTuple(TString, TString, [ TInt64; TString; TString; TInt64 ])),
+          TList(
+            TTuple(
+              TString,
+              TString,
+              [ TInt64
+                TString
+                TString
+                TInt64
+                TList(TCustomType(NR.ok (RT2DT.Dval.typeName ()), [])) ]
+            )
+          ),
           [ TList(
               TTuple(
                 TString,
@@ -1021,17 +1035,29 @@ let fns () : List<BuiltInFn> =
         + "collected. Nothing is recorded: a view is not a run.\n\n"
         + "Four things come back. The VALUES, keyed by source expression id, one per "
         + "expression, the last one executed: that is what puts `// = 140` beside a line. The "
-        + "FRAMES the replay walked, each as (frame, parent, call site, kind, callee, order), "
-        + "which is the tree a reader navigates: a loop's passes are the sibling frames "
-        + "sharing a parent and a call site, numbered in the order they ran. The values again "
+        + "FRAMES the replay walked, each as (frame, parent, site, kind, callee, order), "
+        + "which is the tree a reader navigates: a loop's iterations are the frames sharing a "
+        + "SITE, numbered in the order they ran -- a lambda's own expression id, or a hash of "
+        + "a function's name, so a recursion counts the same way a `List.map` does. The values again "
         + "keyed by (FRAME, expression), which is what tells pass 3 from pass 7. And why the "
         + "replay stopped early, if it did.\n\n"
         + "This is classic's Preview. One call rather than an armed mode, so two of them at "
         + "once cannot take each other's log."
       fn =
         (function
-        | exeState, _, _, [| DUuid branchId; DString traceID |] ->
+        | exeState,
+          _,
+          _,
+          [| DUuid branchId; DString traceID; DList(_, focusRows) |] ->
           uply {
+            // A view keeps the first and last few iterations of every site. Asking for one in
+            // between is this: the same view again, keeping that one as well.
+            let focus =
+              focusRows
+              |> List.choose (fun row ->
+                match row with
+                | DTuple(DInt64 site, DInt64 at, []) -> Some(struct (site, int at))
+                | _ -> None)
             let kt =
               KTTuple(
                 ValueType.Known KTInt64,
@@ -1047,7 +1073,8 @@ let fns () : List<BuiltInFn> =
                 [ ValueType.Known KTInt64
                   ValueType.Known KTString
                   ValueType.Known KTString
-                  ValueType.Known KTInt64 ]
+                  ValueType.Known KTInt64
+                  ValueType.Known(KTList(ValueType.Known(RT2DT.Dval.knownType ()))) ]
               )
             let frameValueKt =
               KTTuple(
@@ -1087,11 +1114,10 @@ let fns () : List<BuiltInFn> =
                   // A root frame's parent is itself, which is how the interpreter starts; an
                   // empty string is what Dark reads as "no parent".
                   let parent = if f.parent = kv.Key then "" else string f.parent
-                  let kind, callSite, callee =
+                  let kind, callee =
                     match f.executionPoint with
-                    | RT.ExecutionPoint.Source -> "source", 0L, ""
-                    | RT.ExecutionPoint.Lambda(_, lambdaExprId) ->
-                      "lambda", int64 lambdaExprId, ""
+                    | RT.ExecutionPoint.Source -> "source", ""
+                    | RT.ExecutionPoint.Lambda _ -> "lambda", ""
                     // The HASH for a package function, not `string name`, which is the F#
                     // structural form (`Package (Hash "0528ba...")`). The trace already records
                     // hash-to-name for every function it went through, so the readable name is
@@ -1101,14 +1127,17 @@ let fns () : List<BuiltInFn> =
                         match name with
                         | RT.FQFnName.Package h -> string h
                         | RT.FQFnName.Builtin b -> b.name
-                      "function", 0L, callee
+                      "function", callee
                   DTuple(
                     DString(string kv.Key),
                     DString parent,
-                    [ DInt64 callSite
+                    [ DInt64(Tracing.siteKeyOf f.executionPoint)
                       DString kind
                       DString callee
-                      DInt64(int64 f.ord) ]
+                      DInt64(int64 f.ord)
+                      Dval.list
+                        (RT2DT.Dval.knownType ())
+                        (f.args |> List.map RT2DT.Dval.toDT) ]
                   ))
                 |> List.ofSeq
                 |> Dval.list frameKt
@@ -1143,7 +1172,7 @@ let fns () : List<BuiltInFn> =
                   let lastByExpr =
                     System.Collections.Generic.Dictionary<int64, RT.Dval>()
                   let tracer =
-                    Tracing.createViewTracer log collected frames lastByExpr
+                    Tracing.createViewTracer log collected frames lastByExpr focus
                   let exeState = { exeState with branchId = PT.BranchId.Id branchId }
                   let branchState = createBranchState exeState false
                   let! parsed = parseCliExpr branchState source
@@ -1205,7 +1234,7 @@ let fns () : List<BuiltInFn> =
                     let lastByExpr =
                       System.Collections.Generic.Dictionary<int64, RT.Dval>()
                     let tracer =
-                      Tracing.createViewTracer log collected frames lastByExpr
+                      Tracing.createViewTracer log collected frames lastByExpr focus
                     let values () =
                       lastByExpr
                       |> Seq.map (fun kv ->

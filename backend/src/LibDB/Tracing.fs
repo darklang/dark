@@ -415,7 +415,7 @@ let rec private executionTracingFor
       // loop recorded nothing, its count came back zero, and a view silently reported "pass 3
       // of 3" about a loop that went round five times.
       storeFrameEntry =
-        (fun _frameId _parentId ep ->
+        (fun _frameId _parentId ep _args ->
           match ep with
           | RT.ExecutionPoint.Lambda(_, lambdaExprId) ->
             let key = int64 lambdaExprId
@@ -690,10 +690,9 @@ module TraceStorage =
       // REACHES. Without this a run whose log was capped, or which was suspended mid-loop,
       // reports "pass 3 of 3" about a loop that went round five times.
       //
-      // It used to be a row per FRAME, with parent links and a walk that kept only the frames
-      // an effectful call sat under. That wrote 8,523 rows for a 2000-pass loop to answer a
-      // question that is one number per loop, and the pruning made it wrong for a loop that
-      // made no impure call at all -- which is most loops.
+      // One number per loop rather than a row per frame: the only question anyone asks of a
+      // recorded run's shape is how many times a loop went round, and a row per frame is 8,523
+      // of them for a 2000-iteration loop.
       let loopStmt =
         match List.ofSeq loopPasses with
         | [] -> []
@@ -925,20 +924,23 @@ let createReplayTracer
         storeTrace traceID description inputVarName inputDval state exeState }
 
 
-/// One frame the replay walked: what made it, what it runs, and which pass it is at that call
-/// site. `valuesKept` is false past the cap, where a frame is counted but its values are not
-/// held, so the view can still say how many passes there were.
+/// One frame the replay walked: what made it, what it runs, and what it was given.
+///
+/// `valuesKept` is false outside the window a view holds, where a frame is counted but its
+/// values are not, so the view can still say how many iterations there were.
 type ViewFrame =
   {
     parent : System.Guid
     executionPoint : RT.ExecutionPoint
-    pass : int
+    /// What this entry was given, in order. Paired with the declaration's parameter names when
+    /// shown, so an iteration can say `n = 4` rather than leaving a reader to infer it. Dropped
+    /// with the values when the frame falls out of the window.
+    args : List<RT.Dval>
     /// The order this frame was pushed, across the whole view.
     ///
-    /// `pass` counts within ONE call site, so it cannot order frames at different sites: three
-    /// calls to the same function from three passes of a loop are each `pass = 0` at their own
-    /// site. And the frames come back from a dictionary, whose iteration order is not a
-    /// promise. This is the one thing that says what happened first.
+    /// The frames come back from a dictionary, whose iteration order is not a promise, and a
+    /// count within one site cannot order frames at different sites. This is the one thing that
+    /// says what happened first, and it is what numbers a loop's iterations.
     ord : int
     valuesKept : bool
   }
@@ -963,12 +965,37 @@ type ViewFrame =
 /// the last one executed. It is kept as the run goes rather than derived from `collected`
 /// afterwards, because a dictionary does not iterate in insertion order and "the last pass" is
 /// exactly what would be lost.
+/// A cheap identity for the SITE a frame belongs to: the thing a trace can enter more than once.
+///
+/// For a lambda that is its own expression id, so the iterations of `List.map (fun x -> ...)`
+/// share one. For a function it is a hash of its name, so the entries of a recursion, or of a
+/// function a loop called once per iteration, share one too. Those are the same idea and
+/// counting them is the same counting, which is why there is one key rather than two.
+///
+/// Not `string ep`: an `ExecutionPoint.Lambda` carries its parent, so formatting one walks and
+/// allocates the whole chain, once per frame.
+///
+/// The function case is a structural hash, so two different functions called from ONE frame
+/// could in principle collide and share a counter. The effect would be a wrong iteration number
+/// on a call that is not a loop, where the number is not shown; the frame ids stay distinct
+/// either way.
+let siteKeyOf (ep : RT.ExecutionPoint) : int64 =
+  match ep with
+  | RT.ExecutionPoint.Source -> 0L
+  | RT.ExecutionPoint.Lambda(_, lambdaExprId) -> int64 lambdaExprId
+  | RT.ExecutionPoint.Function name -> int64 (hash name)
+
+
 let createViewTracer
   (rows : List<string * byte[] * RT.Dval>)
   (collected :
     System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>)
   (frames : System.Collections.Generic.Dictionary<System.Guid, ViewFrame>)
   (lastByExpr : System.Collections.Generic.Dictionary<int64, RT.Dval>)
+  /// Iterations to keep BESIDES the window, as (which site, which iteration, counting from 0).
+  /// This is how one in the middle of a long loop is reached: the view runs again asking for
+  /// it. Empty for an ordinary view.
+  (focus : List<struct (int64 * int)>)
   : T =
   // Every recorded result for a key, in the order it was recorded, rather than just the last.
   //
@@ -1027,33 +1054,50 @@ let createViewTracer
           else
             ValueNone)
 
-  // How many passes of one call site keep their values.
+  // Which iterations of one call site keep their values: the first few and the last few.
   //
-  // Without a cap the values scale with the RUN rather than with what can be shown: `fib 20`
-  // pushes about twenty-two thousand frames. Past the cap a frame is still counted, so the view
-  // can say how many passes there were, and its values are not held.
+  // Without a bound the values scale with the RUN rather than with what can be shown: `fib 20`
+  // pushes about twenty-two thousand frames. The first N and the last N is ten frames a site
+  // however many times it goes round, and it is the pair people actually compare -- how the
+  // loop started against how it ended. A flat "first twenty" could not show the end of a long
+  // loop at all, which is the half most often worth seeing.
   //
-  // Reaching a pass past it is a second view asking for that one pass, which is affordable
-  // because opening a trace is now milliseconds.
-  let passCap = 20
+  // Anything in between is reached by asking for it: `focus` below replays again keeping that
+  // one iteration, which costs what opening the trace costs. So nothing is unreachable, and
+  // what is held at once is bounded by the window rather than by the loop.
 
-  // A cheap identity for the CALL SITE a frame belongs to, for counting passes.
-  //
-  // Not `string ep`: an `ExecutionPoint.Lambda` carries its parent, so formatting one walks and
-  // allocates the whole chain, once per frame. A lambda's own expression id and a function's
-  // hash are already unique per site and are plain values.
-  let siteKey (ep : RT.ExecutionPoint) : int64 =
-    match ep with
-    | RT.ExecutionPoint.Source -> 0L
-    | RT.ExecutionPoint.Lambda(_, lambdaExprId) -> int64 lambdaExprId
-    // A structural hash, so two different functions called from ONE frame could in principle
-    // collide and share a pass counter. The effect would be a wrong pass number on a call that
-    // is not a loop, where the number is not shown; the frame ids stay distinct either way.
-    | RT.ExecutionPoint.Function name -> int64 (hash name)
+  let headKept = 5
+  let tailKept = 5
 
   // (parent frame, which call site) -> how many frames have been seen there
   let siteCounts =
     System.Collections.Generic.Dictionary<struct (System.Guid * int64), int>()
+
+  // The tail window: the most recent frames at each site that are still holding values, oldest
+  // first. When an eleventh iteration arrives the sixth-from-last stops being in the last five,
+  // so its values go. Head frames never enter this queue and so are never dropped.
+  let tailWindow =
+    System.Collections.Generic.Dictionary<
+      struct (System.Guid * int64),
+      System.Collections.Generic.Queue<System.Guid>
+     >()
+
+  // Which expressions each frame wrote, so dropping one is a bounded amount of work rather than
+  // a scan of everything collected so far.
+  let writtenBy =
+    System.Collections.Generic.Dictionary<System.Guid, ResizeArray<int64>>()
+
+  let dropValuesOf (frameId : System.Guid) : unit =
+    let mutable exprs = Unchecked.defaultof<ResizeArray<int64>>
+    if writtenBy.TryGetValue(frameId, &exprs) then
+      for exprId in exprs do
+        collected.Remove(struct (frameId, exprId)) |> ignore<bool>
+      writtenBy.Remove frameId |> ignore<bool>
+    // The frame itself stays, with `valuesKept` turned off: the COUNT has to remain honest, so
+    // a view can still say a loop went round two thousand times while holding ten of them.
+    let mutable f = Unchecked.defaultof<ViewFrame>
+    if frames.TryGetValue(frameId, &f) then
+      frames[frameId] <- { f with valuesKept = false; args = [] }
 
   let mutable frameOrd = 0
 
@@ -1072,8 +1116,9 @@ let createViewTracer
     (frameId : System.Guid)
     (parentId : System.Guid)
     (ep : RT.ExecutionPoint)
+    (args : List<RT.Dval>)
     : unit =
-    let site = struct (parentId, siteKey ep)
+    let site = struct (parentId, siteKeyOf ep)
     lock gate (fun () ->
       let mutable seen = 0
       siteCounts.TryGetValue(site, &seen) |> ignore<bool>
@@ -1088,12 +1133,29 @@ let createViewTracer
       let ord = frameOrd
       frameOrd <- frameOrd + 1
 
+      // In the head, or the one iteration this view was asked to go and get.
+      let here = siteKeyOf ep
+      let isFocused =
+        focus |> List.exists (fun (struct (site', at)) -> site' = here && at = seen)
+
+      let inHead = seen < headKept
+
       frames[frameId] <-
         { parent = parentId
           executionPoint = ep
-          pass = seen
           ord = ord
-          valuesKept = seen < passCap })
+          args = args
+          valuesKept = true }
+
+      // Everything past the head joins the tail window, and the window pushes the oldest out.
+      // A focused frame is not queued, so nothing can evict the iteration we came back for.
+      if not inHead && not isFocused then
+        let mutable q = Unchecked.defaultof<System.Collections.Generic.Queue<System.Guid>>
+        if not (tailWindow.TryGetValue(site, &q)) then
+          q <- System.Collections.Generic.Queue<System.Guid>()
+          tailWindow[site] <- q
+        q.Enqueue frameId
+        if q.Count > tailKept then dropValuesOf (q.Dequeue()))
 
   // Every process of the run is viewed, not just the first. The CLI spawns each expression as a
   // process of its own, and the scheduler asks the tracer for that process's own hooks
@@ -1110,7 +1172,7 @@ let createViewTracer
         // loop body writes the same id once per pass, so keying on it alone keeps only the last.
         //
         // Bounded by what can be SHOWN rather than by what ran, which is what stops a view
-        // scaling with compute. `passCap` is what keeps it so.
+        // scaling with compute. The head-and-tail window is what keeps it so.
         storeExprResult =
           fun exprId frameId dv ->
             lock gate (fun () ->
@@ -1125,7 +1187,12 @@ let createViewTracer
               // collapsed line shows.
               let mutable f = Unchecked.defaultof<ViewFrame>
               if frames.TryGetValue(frameId, &f) && f.valuesKept then
-                collected[struct (frameId, int64 exprId)] <- dv)
+                collected[struct (frameId, int64 exprId)] <- dv
+                let mutable exprs = Unchecked.defaultof<ResizeArray<int64>>
+                if not (writtenBy.TryGetValue(frameId, &exprs)) then
+                  exprs <- ResizeArray()
+                  writtenBy[frameId] <- exprs
+                exprs.Add(int64 exprId))
         storeFrameEntry = noteFrame
         viewEffect = Some lookup
         forProcess = fun _ -> viewTracing () }

@@ -544,6 +544,11 @@ let private recursionIsALoopAndEmptyIterationsStaySilent =
           "// = 24"
           "the second iteration has its own product"
         Expect.stringContains second "// = 6" "and its own sub"
+        // And what it was GIVEN, which is the other half of reading an iteration: the values of
+        // a call mean nothing without the inputs that produced them. `fact 5` is what the RUN
+        // was given; `n = 4` is what this time round was.
+        Expect.stringContains second "n = 4" "and says what this iteration was given"
+        Expect.stringContains second "given" "while still saying what the whole run was given"
 
         // The fifth is the base case. It returns before `sub` and the product ever run, so those
         // lines have no value in it -- and must not show the ones that another iteration left.
@@ -568,6 +573,52 @@ let private recursionIsALoopAndEmptyIterationsStaySilent =
 /// `hotspots` reads the effect log, which holds only impure calls, so every name it can print is
 /// a builtin. Neither answers "what have recent runs been about". `trace_fns` always held the
 /// answer and nothing read it.
+/// The first few iterations and the last few are held; any other is fetched when asked for.
+///
+/// Holding every iteration of every loop means the values scale with the RUN rather than with
+/// what can be shown, and `fib 20` pushes twenty-two thousand frames. Holding only the first few
+/// means the END of a long loop -- usually the half worth seeing -- is unreachable. So: a window
+/// at each end, and anything in between costs one more replay, which is what opening the trace
+/// costs anyway. The point is that nothing is unreachable however long the loop is.
+let private everyIterationOfALoopIsReachable =
+  cliTestWithFreshTraces
+    "the view holds the first and last iterations, and fetches any other when asked"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.Prev.scaled"
+            ("(n: Int) : Int =\n"
+             + "  Stdlib.List.range 1 n\n"
+             + "  |> Stdlib.List.map (fun i ->\n"
+             + "    let big = i * 100\n"
+             + "    big)\n"
+             + "  |> Stdlib.List.length")
+        do! commit state "scaled"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.scaled" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.scaled 30" ]
+        Expect.stringContains ran "30" "the loop went round thirty times"
+
+        // In the head, in the tail, and the ones in between that are the whole point: 7 and 15
+        // are outside the window at both ends and have to be gone and got.
+        for (which, expected) in [ 1, "100"; 7, "700"; 15, "1500"; 30, "3000" ] do
+          let! shown =
+            runCli
+              state
+              [ "traces"; "show"; "Tests.Prev.scaled"; "--iteration"; $"map:{which}" ]
+          Expect.stringContains
+            shown
+            $"// = {expected}"
+            $"iteration {which} shows its own value, not another iteration's"
+          Expect.stringContains
+            shown
+            $"showing iteration {which} of 30"
+            $"and the page says which one it is"
+      })
+
+
 let private tracesFnsNamesWhatRunsWentThrough =
   cliTestWithFreshTraces
     "traces fns names the functions recent runs went through, bundled library hidden"
@@ -613,6 +664,38 @@ let private tracesFnsNamesWhatRunsWentThrough =
 ///
 /// The second half covers what the index keeps when it has no name at all: the hash. Sixty-four
 /// hex characters printed as if they were a name reads like corruption and blows the column out.
+/// Two names for one function find the same runs, because they ARE one function.
+///
+/// Dark is content-addressed: byte-identical bodies have one hash, and the name is a label on
+/// it. The index records whichever name resolved when the run happened, so asking by name found
+/// nothing under the other one and said "no recorded trace went through it" about code that had
+/// just run. The lookup asks by hash now, and the name is only used when there is no hash --
+/// which is the case where the store no longer has the function at all.
+let private twoNamesForOneFunctionFindTheSameRuns =
+  cliTestWithFreshTraces
+    "an alias of a function finds its runs, because content addressing makes them one function"
+    (fun state ->
+      task {
+        do! start state
+        let body = "(n: Int) : Int =\n  n * 3"
+        do! fn state "Tests.Prev.tripled" body
+        do! fn state "Tests.Other.tripled" body
+        do! commit state "tripled twice"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.tripled" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.tripled 4" ]
+        Expect.stringContains ran "12" "one of them ran"
+
+        let! other = runCli state [ "traces"; "calls"; "Tests.Other.tripled" ]
+        Expect.stringContains
+          other
+          "eval"
+          "the run is found under the name that did NOT run, because it is the same code"
+        Expect.isFalse
+          (other.Contains "no recorded trace")
+          "asking by name alone used to answer this with nothing"
+      })
+
+
 let private aFunctionThatRanAndWentIsNotATypo =
   cliTestWithFreshTraces
     "a function that ran and whose code has gone reads differently from a typo"
@@ -961,7 +1044,9 @@ let tests =
     identicalCallsKeepTheirOwnValues
     pureLoopPassesAreCounted
     recursionIsALoopAndEmptyIterationsStaySilent
+    everyIterationOfALoopIsReachable
     tracesFnsNamesWhatRunsWentThrough
+    twoNamesForOneFunctionFindTheSameRuns
     aFunctionThatRanAndWentIsNotATypo
     deletingATraceTakesItsLoopCounts
     retentionKeepsTheNewestAndTheSuspended

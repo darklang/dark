@@ -125,8 +125,43 @@ let fnCounts (traceLimit: Int64) : List<String * Int64> =
   Builtin.tracesFnCounts traceLimit
 
 
-let wentThrough (fnName: String) (limit: Int64) : List<Trace> =
-  Builtin.tracesWentThrough fnName limit
+/// The runs that went through a function, newest first.
+///
+/// By name OR by hash, because they answer opposite halves of one question.
+///
+/// The HASH finds runs of this CODE under any name: Dark is content-addressed, so two
+/// byte-identical functions are one function and both names should find the same runs.
+///
+/// The NAME finds runs of this FUNCTION under any code, which is what makes values follow an
+/// edit. Editing a callee changes the caller's hash too, so one edit later the recorded run sits
+/// under a hash that nothing resolves to. By hash alone, a live view would go blank the moment
+/// you changed anything, which is the opposite of the point.
+///
+/// `""` for the hash when there is none to give.
+let wentThrough (fnName: String) (fnHash: String) (limit: Int64) : List<Trace> =
+  Builtin.tracesWentThrough fnName fnHash limit
+
+
+/// The runs that went through a function a person named.
+///
+/// Resolves the name to its hash first, so every alias of one function finds the same runs, and
+/// falls back to the name when the store has no such function. That fallback is what lets a run
+/// whose code has since gone stay distinguishable from a typo.
+let wentThroughNamed
+  (branchId: Uuid)
+  (fnName: String)
+  (limit: Int64)
+  : List<Trace> =
+  let hash =
+    Darklang.LanguageTools.PackageManager.Function.find
+      branchId
+      (Darklang.LanguageTools.ProgramTypes.parsePackageLocation fnName)
+    |> Stdlib.Option.map (fun h ->
+      match h with
+      | Hash v -> v)
+    |> Stdlib.Option.withDefault ""
+
+  wentThrough fnName hash limit
 
 
 /// One frame the replay walked. `parent` is "" at the entry. A loop's passes are the frames
@@ -134,7 +169,9 @@ let wentThrough (fnName: String) (limit: Int64) : List<Trace> =
 type ViewFrame =
   { id: String
     parent: String
-    /// The lambda's own expression id, for a `lambda` frame. 0 otherwise.
+    /// The SITE: the thing a trace can enter more than once. A lambda's own expression id, or
+    /// a hash of a function's name. Frames sharing one are the iterations of a loop, whether
+    /// that loop is a `List.map` going round or a function calling itself.
     callSite: Int64
     /// "source" | "function" | "lambda"
     kind: String
@@ -142,7 +179,10 @@ type ViewFrame =
     callee: String
     /// The order this frame was pushed, across the whole view. `pass` counts within one call
     /// site and cannot order frames at different sites; this can.
-    ord: Int64 }
+    ord: Int64
+    /// What this entry was given, in order. Empty for a frame outside the window the view
+    /// keeps, which is how the arguments cost what the values cost rather than more.
+    args: List<LanguageTools.RuntimeTypes.Dval> }
 
 
 /// The same replay, with the frame tree and the values keyed by (frame, expression).
@@ -152,16 +192,21 @@ type ViewFrame =
 let viewTraceTree
   (branchId: Uuid)
   (traceID: String)
+  /// Extra iterations to keep, as (site, which one, counting from 0). A view holds the first
+  /// and last few of each site; this is how one in between is reached, by running the view
+  /// again and asking for it. `[]` for an ordinary view.
+  (focus: List<(Int64 * Int64)>)
   : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> *
     List<ViewFrame> *
     List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)> *
     Stdlib.Option.Option<String>) =
-  let (values, frames, frameValues, problem) = Builtin.cliViewTrace branchId traceID
+  let (values, frames, frameValues, problem) =
+    Builtin.cliViewTrace branchId traceID focus
 
   let frames =
     frames
     |> Stdlib.List.map (fun row ->
-      let (id, parent, callSite, kind, callee, ord) = row
+      let (id, parent, callSite, kind, callee, ord, args) = row
 
       ViewFrame
         { id = id
@@ -169,7 +214,8 @@ let viewTraceTree
           callSite = callSite
           kind = kind
           callee = callee
-          ord = ord })
+          ord = ord
+          args = args })
 
   (values, frames, frameValues, problem)
 
@@ -186,7 +232,7 @@ let viewTrace
   : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> * Stdlib.Option.Option<String>) =
   // Through `viewTraceTree` rather than the builtin: one Dark wrapper per builtin is the
   // rule, and a second reference to `cliViewTrace` is what the builtin-access test catches.
-  let (values, _frames, _frameValues, problem) = viewTraceTree branchId traceID
+  let (values, _frames, _frameValues, problem) = viewTraceTree branchId traceID []
 
   (values, problem)
 

@@ -135,7 +135,7 @@ let reload
   (cursor: Int)
   (keep: Stdlib.Option.Option<String>)
   : Model =
-  let traces = Darklang.Tracing.Store.wentThrough fn 25L
+  let traces = Darklang.Tracing.Store.wentThroughNamed branchId fn 25L
   let cursor = pickCursor (traces |> Stdlib.List.map (fun r -> r.id)) cursor keep
   let (source, problem) = annotate branchId fn (Stdlib.List.getAt traces cursor)
 

@@ -12,7 +12,7 @@ module Dval = LibExecution.Dval
 
 let rec noTracing : RT.Tracing.Tracing =
   { storeFnResult = fun _ _ _ _ -> ()
-    storeFrameEntry = fun _ _ _ -> ()
+    storeFrameEntry = fun _ _ _ _ -> ()
     storeExprResult = fun _ _ _ -> ()
     collectExprValues = false
     collectFrames = false

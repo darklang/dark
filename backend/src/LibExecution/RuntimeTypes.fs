@@ -889,9 +889,8 @@ and Instructions =
 /// want -- a runtime error saying which expression rather than which instruction, a future
 /// step-debugger.
 ///
-/// It used to be welded into the instruction stream as a `TraceExpr` opcode after every call:
-/// a symbol table smeared through the code it describes, carried by every run whether or not
-/// anything was watching.
+/// Its own artifact rather than instructions in the stream, so the instructions stay
+/// instructions and nothing carries a symbol table through a run that nobody is watching.
 and DebugSymbols =
   {
     /// instruction index -> (the expression, the register its value is in)
@@ -2690,7 +2689,12 @@ module Tracing =
   /// from the top, which is not how it works: a view replays the whole run, which is fast
   /// enough that starting in the middle buys nothing. Passing them cost a list allocation per
   /// frame push, on every traced run, for something neither tracer read.
-  type StoreFrameEntry = uuid -> uuid -> ExecutionPoint -> unit
+  /// A frame was entered: its id, its parent's, where it is, and what it was given.
+  ///
+  /// The arguments are here because this is the only place they exist as a unit. By the time
+  /// the body runs they are registers, and which register holds which parameter is a question
+  /// for the debug symbols rather than something the interpreter carries around.
+  type StoreFrameEntry = uuid -> uuid -> ExecutionPoint -> List<Dval> -> unit
 
 
   /// What a replay does with the effectful call about to be made.

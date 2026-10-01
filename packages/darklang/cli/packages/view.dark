@@ -501,7 +501,7 @@ let printTraceHint (branchId: Uuid) (location: PackageLocation) : Unit =
   | Function loc ->
     let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
 
-    match Darklang.Tracing.Store.wentThrough name 25L with
+    match Darklang.Tracing.Store.wentThroughNamed branchId name 25L with
     | [] -> ()
     | traces ->
       let n = Stdlib.List.length traces
