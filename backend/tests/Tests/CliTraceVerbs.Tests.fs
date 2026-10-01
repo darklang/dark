@@ -444,6 +444,49 @@ let private spawnedChildReplays =
       })
 
 
+/// A loop that made no impure call still knows how many times it went round.
+///
+/// The count comes from the RECORD, not from the replay, and the record used to keep only the
+/// frames an effectful call sat under. So a pure loop stored nothing, its count came back zero,
+/// and the view fell back to counting the passes IT reached. That is right until a replay
+/// cannot reach them all, and then it reports "pass 3 of 3" about a loop that went round five
+/// times, with nothing to say it is short.
+///
+/// Invisible for exactly as long as nobody wrote this.
+let private pureLoopPassesAreCounted =
+  cliTestWithFreshTraces
+    "a loop that made no impure call still records how many passes it had"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.Prev.pure"
+            ("(n: Int) : Int =\n"
+             + "  Stdlib.List.range 1 n\n"
+             + "  |> Stdlib.List.map (fun i -> i * 2)\n"
+             + "  |> Stdlib.List.length")
+        do! commit state "pure"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.pure" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.pure 5" ]
+        Expect.stringContains ran "5" "the run went round five times"
+
+        let! latest' = latest ()
+        let! counted =
+          Sql.query
+            "SELECT passes FROM trace_loops WHERE trace_id = @t ORDER BY passes DESC LIMIT 1"
+          |> Sql.parameters [ "t", Sql.string (string latest'.id) ]
+          |> Sql.executeRowOptionAsync (fun read -> read.int64 "passes")
+
+        match counted with
+        | None ->
+          failtest
+            "a pure loop recorded no pass count, so a view that stops early cannot say how many passes there were"
+        | Some n -> Expect.equal n 5L "all five passes are counted, not just the ones with effects"
+      })
+
+
 /// Two identical calls in one run have two answers, and the view has to show both.
 ///
 /// The preview keys recorded results on (name, arguments), which is what lets a view survive the
@@ -688,6 +731,7 @@ let tests =
     previewShowsValuesAndPerformsNothing
     previewOfASpawnServesTheChildFromTheLog
     identicalCallsKeepTheirOwnValues
+    pureLoopPassesAreCounted
     retentionKeepsTheNewestAndTheSuspended
     retentionKeepsTheNewestOfEachEntry
     byteCapSparesTheRunThatTrippedIt

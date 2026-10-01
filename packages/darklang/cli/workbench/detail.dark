@@ -463,8 +463,13 @@ let tracesText (state: State) : String =
   | None -> "(nothing selected)"
   | Some item ->
     let fullName = Stdlib.String.join (Stdlib.List.append (modulePathOf state.location) [ item.name ]) "."
+    // `wentThrough`, not `listByFn`. The latter matches `trace_fn_calls.fn_hash`, which only
+    // ever holds the name of an effectful BUILTIN, so it answers "no recorded calls" for every
+    // function anyone writes: 26 traces went through `Demo.Orders.settle` and it found 0.
+    // `wentThrough` reads the names-only index every recorded trace writes, which is what
+    // `dark traces calls <fn>` uses and what this pane means.
     let rows =
-      Darklang.Tracing.Store.listByFn fullName 30
+      Darklang.Tracing.Store.wentThrough fullName 30L
       |> Stdlib.List.map (fun t -> "  " ++ t.entry ++ "  ·  " ++ t.created)
     // Empty means one of two things, and `traces list` already knows which:
     // nothing has called it, or recording is off (the default) so nothing

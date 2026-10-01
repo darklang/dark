@@ -161,7 +161,7 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
   uply {
     let! events =
       Sql.query
-        "SELECT call_id, parent_call_id, kind, fn_hash, lambda_expr_id,
+        "SELECT call_id, fn_hash,
                 args, result, duration_ms, process_id, seq, ord
          FROM trace_fn_calls
          WHERE trace_id = @traceId
@@ -169,10 +169,7 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
       |> Sql.parameters [ "traceId", Sql.string traceId ]
       |> Sql.executeAsync (fun read ->
         {| callId = read.string "call_id"
-           parentCallId = read.stringOrNone "parent_call_id"
-           kind = read.string "kind"
            fnHash = read.stringOrNone "fn_hash"
-           lambdaExprId = read.stringOrNone "lambda_expr_id"
            argsBytes = read.bytes "args"
            resultBytes = read.bytes "result"
            durationMs = read.int64 "duration_ms"
@@ -188,11 +185,14 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
       events
       |> List.choose (fun ev ->
         try
+          // `kind` is not read: the writer puts 'builtin' on every row, because the log is a
+          // sequence of impure builtin calls. Nor are `parent_call_id` and `lambda_expr_id`,
+          // which are NULL on every row of every trace. The columns stay in the schema, which
+          // has merged; the reader stops pretending they carry anything.
           let displayName =
-            match ev.kind, ev.fnHash with
-            | "lambda", _ -> "(lambda)"
-            | _, Some name -> name
-            | _, None -> "(unknown)"
+            match ev.fnHash with
+            | Some name -> name
+            | None -> "(unknown)"
           let args = parseArgsBytes ev.argsBytes
           let result = parseDvalBytes ev.resultBytes
           let fields =
@@ -908,18 +908,15 @@ let fns () : List<BuiltInFn> =
         + "answer, has passes that happened and that no re-running will show. Without this a "
         + "view says \"pass 3 of 3\" about a loop that went round seven times, which is a "
         + "confident lie in a debugging tool.\n\n"
-        + "Counted in SQL rather than by handing back every frame, because the count is the "
-        + "whole of what anyone asks. Empty for a run recorded before the shape was kept."
+        + "One row per loop, counted as the run went. Every pass is counted, including the "
+        + "ones that made no impure call. Empty for a run recorded before counts were kept."
       fn =
         (function
         | _, _, _, [| DString traceID |] ->
           uply {
             let! rows =
               Sql.query
-                "SELECT call_site, COUNT(*) AS passes
-                 FROM trace_frames
-                 WHERE trace_id = @t AND kind = 'lambda' AND call_site IS NOT NULL
-                 GROUP BY call_site"
+                "SELECT call_site, passes FROM trace_loops WHERE trace_id = @t"
               |> Sql.parameters [ "t", Sql.string traceID ]
               |> Sql.executeAsync (fun read ->
                 DTuple(DString(read.string "call_site"), DInt64(read.int64 "passes"), []))

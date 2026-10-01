@@ -249,11 +249,11 @@ let showFromTrace (state: Cli.AppState) (arg: String) : Cli.AppState =
             Stdlib.String.contains trace.input fn)
 
     match root with
-    | Some fn -> Cli.TraceVerbs.printValues state fn (Stdlib.Option.Option.Some arg)
+    | Some fn -> Cli.TraceVerbs.showCode state fn (Stdlib.Option.Option.Some arg)
     | None ->
 
     match Darklang.Tracing.Store.fnsOf id with
-    | [ only ] -> Cli.TraceVerbs.printValues state only (Stdlib.Option.Option.Some arg)
+    | [ only ] -> Cli.TraceVerbs.showCode state only (Stdlib.Option.Option.Some arg)
     | [] ->
       Cli.printErr
         $"{Cli.Text.shortIdText id} went through no package function, so there is no code to show"
@@ -569,24 +569,24 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     else if wantsJson then
       Cli.exitWith
         state
-        (Cli.TraceVerbs.printValuesJson
+        (Cli.TraceVerbs.showCodeJson
           state.currentBranchId
           fnName
           Stdlib.Option.Option.None)
     else
-      Cli.TraceVerbs.printValues state fnName Stdlib.Option.Option.None pass
+      Cli.TraceVerbs.showCode state fnName Stdlib.Option.Option.None pass
   | [ "show", fnName, run ] ->
     if looksLikeATraceId fnName then
       showFromTrace state fnName
     else if wantsJson then
       Cli.exitWith
         state
-        (Cli.TraceVerbs.printValuesJson
+        (Cli.TraceVerbs.showCodeJson
           state.currentBranchId
           fnName
           (Stdlib.Option.Option.Some run))
     else
-      Cli.TraceVerbs.printValues state fnName (Stdlib.Option.Option.Some run) pass
+      Cli.TraceVerbs.showCode state fnName (Stdlib.Option.Option.Some run) pass
   // `values` was this verb's name until `show` took it over: `show` shows you the code, which is
   // what you are usually after, and `log` shows the recordings.
   | "values" :: rest ->

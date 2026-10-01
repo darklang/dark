@@ -314,35 +314,24 @@ let steps : List<Step> =
       run =
         fun () -> addColumnIfMissing "trace_fns" "fn_hash" "TEXT NOT NULL DEFAULT ''" }
 
-    // The SHAPE of a run: which frames existed and which frame made each recorded call. A view
-    // recomputes values by replaying, but it can only reach as far as the log takes it, so a run
-    // suspended mid-loop has passes no replay will ever show. `08-traces.sql` declares these for
-    // fresh stores; this carries them to the ones that already exist.
+    // How many times each loop in a run went round, so a view that could not replay every pass
+    // can still say how many there were. `08-traces.sql` declares it for fresh stores; this
+    // carries it to the ones that already exist.
     //
-    // No backfill. An old trace has no frames and never will: the shape was not recorded when it
-    // ran, and it cannot be invented afterwards. Those traces keep working, with the values a
-    // replay can reach and no shape around them, which is exactly what they had before.
-    { name = "20260930_000001_trace_frames"
+    // No backfill. A trace recorded before this has no counts and never will: they were not
+    // written down when it ran. Those traces keep working, reporting the passes a replay can
+    // reach, which is exactly what they did before.
+    { name = "20260930_000003_trace_loops"
       run =
         fun () ->
           createTableIfMissing
-            "trace_frames"
-            "CREATE TABLE IF NOT EXISTS trace_frames (
-               trace_id        TEXT NOT NULL,
-               frame_id        TEXT NOT NULL,
-               parent_frame_id TEXT,
-               kind            TEXT NOT NULL,
-               call_site       TEXT,
-               fn_hash         TEXT,
-               pass            INTEGER NOT NULL DEFAULT 0,
-               ord             INTEGER NOT NULL DEFAULT 0,
-               PRIMARY KEY (trace_id, frame_id)
-             )"
-          Sql.query
-            "CREATE INDEX IF NOT EXISTS idx_trace_frames_parent
-               ON trace_frames(trace_id, parent_frame_id)"
-          |> Sql.executeStatementSync
-          addColumnIfMissing "trace_fn_calls" "frame_id" "TEXT" }
+            "trace_loops"
+            "CREATE TABLE IF NOT EXISTS trace_loops (
+               trace_id  TEXT NOT NULL,
+               call_site TEXT NOT NULL,
+               passes    INTEGER NOT NULL,
+               PRIMARY KEY (trace_id, call_site)
+             )" }
 
     // Which instruction produced which expression's value, in its own column beside the
     // instructions. `06-packages.sql` declares it for fresh stores; this carries it to the ones

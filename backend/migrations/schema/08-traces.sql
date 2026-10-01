@@ -34,43 +34,34 @@ CREATE TABLE IF NOT EXISTS trace_fn_calls (
   args BLOB NOT NULL,
   result BLOB NOT NULL,
   duration_ms INTEGER NOT NULL DEFAULT 0,
-  -- Which frame made this call, pointing into trace_frames. What lets three recorded writes be
-  -- read as three passes of one loop rather than three writes.
-  frame_id TEXT,
   PRIMARY KEY (trace_id, call_id)
 );
 CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_trace_id ON trace_fn_calls(trace_id);
 CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_fn_hash  ON trace_fn_calls(fn_hash);
 
 
--- The SHAPE of a run: which frames existed, what each ran, which frame made it, and which pass
--- it was among its siblings at the same call site.
+-- How many times each loop in a run went round.
 --
--- Values are not here. A view recomputes what every line evaluated to by replaying the run with
--- its effects answered from the log, which is why a trace costs bytes rather than megabytes.
--- What a replay CANNOT recover is the shape it never reaches: a run suspended mid-loop, or one
--- whose replay stops at an effect the log has no answer for, has passes that happened and that
--- no amount of re-running will show. That is what these rows are for.
+-- One row per loop, keyed by the lambda's own expression id. Not a tree, and not a row per
+-- pass: this answers exactly one question, and it exists for exactly one reason.
 --
--- One row per frame that is an ANCESTOR of a recorded call, not per frame pushed. A pure helper
--- called in a tight loop pushes frames nobody will ever ask about, and recording every one of
--- them would make the shape cost more than the log it describes.
-CREATE TABLE IF NOT EXISTS trace_frames (
-  trace_id        TEXT NOT NULL,
-  frame_id        TEXT NOT NULL,
-  parent_frame_id TEXT,                       -- NULL at the entry
-  kind            TEXT NOT NULL,              -- 'source' | 'function' | 'lambda'
-  -- The lambda's own expression id, for a lambda frame. Sibling frames sharing a parent and
-  -- this are the passes of one loop.
-  call_site       TEXT,
-  -- The callee's hash, for a function frame.
-  fn_hash         TEXT,
-  -- Which pass this is among its siblings at the same call site, from 0.
-  pass            INTEGER NOT NULL DEFAULT 0,
-  -- The order this frame was pushed across the whole run. `pass` counts within one call site
-  -- and cannot order frames at different sites.
-  ord             INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (trace_id, frame_id)
+-- A view recomputes what every line evaluated to by REPLAYING the run with its effects answered
+-- from the log, so it can only show the passes it reaches. A run whose log was capped, or which
+-- was suspended mid-loop, has passes that happened and that no re-running will show. Without
+-- this the view reports "pass 3 of 3" about a loop that went round five times, which is a
+-- confident lie in a debugging tool.
+--
+-- Every pass is counted, including passes that made no impure call. An earlier version stored a
+-- row per FRAME and kept only the frames an effectful call sat under, which wrote thousands of
+-- rows for one loop AND silently counted zero for a pure one.
+--
+-- Values are not here, and neither is the tree. Both come from the replay. If something ever
+-- needs to read a trace's shape WITHOUT replaying it, this table is where that would go; traces
+-- are transient, so widening it later costs nothing.
+CREATE TABLE IF NOT EXISTS trace_loops (
+  trace_id  TEXT NOT NULL,
+  -- The lambda's own expression id. Sibling passes share it, which is what makes them one loop.
+  call_site TEXT NOT NULL,
+  passes    INTEGER NOT NULL,
+  PRIMARY KEY (trace_id, call_site)
 );
-CREATE INDEX IF NOT EXISTS idx_trace_frames_parent
-  ON trace_frames(trace_id, parent_frame_id);

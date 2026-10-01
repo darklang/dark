@@ -424,7 +424,7 @@ let printCalls (branchId: Uuid) (typed: String) : Unit =
 
 /// The values `traces show` would print beside the code, as JSON: the ids and the values,
 /// with no source. What an agent wants, since it can read the code already.
-let printValuesJson
+let showCodeJson
   (branchId: Uuid)
   (typed: String)
   (tracePrefix: Stdlib.Option.Option<String>)
@@ -687,8 +687,12 @@ let valuesOfFrame
   |> Stdlib.Dict.fromListOverwritingDuplicates
 
 
-/// The function's source, with `// = value` beside each call, for one trace.
-let printValues
+/// What `dark traces show <fn>` prints: the function's source, with `// = value` beside each
+/// call, for one trace.
+///
+/// Named for the verb. It was `printValues` when the verb was `traces values`, and a stranger
+/// looking for what `show` does did not find it.
+let showCode
   (state: AppState)
   (typed: String)
   (tracePrefix: Stdlib.Option.Option<String>)

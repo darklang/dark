@@ -197,24 +197,6 @@ type CompletedEvent =
     /// The call's ordinal among its process's effectful calls, taken when the call was made.
     /// One process's rows in `ord` order are its log, and what a replay keys on.
     ord : int64
-    /// The frame this call was made in, which is what points it into the shape.
-    frameId : System.Guid
-  }
-
-
-/// One frame a recorded run pushed: what made it, what it runs, and which pass it is.
-///
-/// Recorded for the shape, not for values: a replay recomputes what every line evaluated to,
-/// but it can only reach as far as the log takes it. A run that was suspended mid-loop, or
-/// whose replay stops at an effect the log cannot answer, has a shape the replay will never
-/// see. This is that shape, written down.
-type RecordedFrame =
-  { parent : System.Guid
-    executionPoint : RT.ExecutionPoint
-    /// Which pass this is among its siblings at the same call site.
-    pass : int
-    /// The order this frame was pushed, across the whole run.
-    ord : int
   }
 
 
@@ -273,13 +255,14 @@ type TracerState =
     /// The package functions this run went through, by hash, for the `trace_fns` index. A
     /// hash-set add per call, resolved to names once at store time.
     fns : System.Collections.Generic.HashSet<RT.Hash>
-    /// Every frame this run pushed, for the shape. Pruned at store time to the ones that are
-    /// ancestors of a recorded call, which is what keeps it bounded: a pure helper called in a
-    /// tight loop pushes frames nobody will ever ask about.
-    frames : System.Collections.Generic.Dictionary<System.Guid, RecordedFrame>
-    /// (parent frame, call site) -> how many frames have been seen there, for `pass`.
-    frameSites : System.Collections.Generic.Dictionary<struct (System.Guid * int64), int>
-    mutable nextFrameOrd : int
+    /// How many times each loop went round, by the lambda's own expression id.
+    ///
+    /// A COUNT, not a tree. The only question anyone asks of a recorded run's shape is how many
+    /// passes a loop had, so that a view which could not reach them all can still say "pass 3
+    /// of 5" instead of "pass 3 of 3". Storing a row per frame to answer it wrote 8,523 rows
+    /// for a 2000-pass loop.
+    loopPasses : System.Collections.Generic.Dictionary<int64, int>
+
     /// Processes whose replay has ended: the log had no answer for an ordinal they asked for,
     /// so they are live from there and nothing later in the log may be handed to them (a fork
     /// cut by position can leave a later ordinal without its earlier ones).
@@ -301,9 +284,7 @@ let private newState () : TracerState =
     ordinals = System.Collections.Generic.Dictionary()
     replay = System.Collections.Generic.Dictionary()
     replayEnded = System.Collections.Generic.HashSet()
-    frames = System.Collections.Generic.Dictionary()
-    frameSites = System.Collections.Generic.Dictionary()
-    nextFrameOrd = 0
+    loopPasses = System.Collections.Generic.Dictionary()
     elapsed = System.Diagnostics.Stopwatch.StartNew()
     sync = obj () }
 
@@ -405,8 +386,7 @@ let private makeStoreFnResult
             durationMs = meta.durationMs
             processId = pid
             seq = 0L
-            ord = meta.ord
-            frameId = meta.frameId })
+            ord = meta.ord })
 
 
 /// The interpreter hooks for one process writing this trace. `forProcess` hands a spawned process
@@ -428,25 +408,22 @@ let rec private executionTracingFor
       collectExprValues = false
       collectFrames = true
       traceEffects = true
+      // Count the lambda applications, and nothing else.
+      //
+      // Every pass of every loop, including the ones that made no impure call. That last part
+      // is the point: the old shape kept only frames an effectful call sat under, so a pure
+      // loop recorded nothing, its count came back zero, and a view silently reported "pass 3
+      // of 3" about a loop that went round five times.
       storeFrameEntry =
-        (fun frameId parentId ep ->
-          lock state.sync (fun () ->
-            // The site key is the lambda's own expression id, or the callee's hash. NOT the
-            // execution point formatted as a string: a lambda's execution point carries its
-            // parent, so formatting one walks the whole chain, once per frame.
-            let siteKey =
-              match ep with
-              | RT.ExecutionPoint.Source -> 0L
-              | RT.ExecutionPoint.Lambda(_, lambdaExprId) -> int64 lambdaExprId
-              | RT.ExecutionPoint.Function name -> int64 (hash name)
-            let site = struct (parentId, siteKey)
-            let mutable seen = 0
-            state.frameSites.TryGetValue(site, &seen) |> ignore<bool>
-            state.frameSites[site] <- seen + 1
-            let ord = state.nextFrameOrd
-            state.nextFrameOrd <- ord + 1
-            state.frames[frameId] <-
-              { parent = parentId; executionPoint = ep; pass = seen; ord = ord }))
+        (fun _frameId _parentId ep ->
+          match ep with
+          | RT.ExecutionPoint.Lambda(_, lambdaExprId) ->
+            let key = int64 lambdaExprId
+            lock state.sync (fun () ->
+              let mutable seen = 0
+              state.loopPasses.TryGetValue(key, &seen) |> ignore<bool>
+              state.loopPasses[key] <- seen + 1)
+          | _ -> ())
       nextEffect = (fun () -> lock state.sync (fun () -> nextOrdinal state pid))
       replayEffect =
         (fun ord ->
@@ -614,8 +591,8 @@ module TraceStorage =
     (inputDval : RT.Dval)
     (events : List<CompletedEvent>)
     (fns : List<RT.Hash>)
-    /// Every frame the run pushed. Pruned here to the ones a recorded call sits under.
-    (frames : System.Collections.Generic.Dictionary<System.Guid, RecordedFrame>)
+    /// How many times each loop went round, by the lambda's expression id.
+    (loopPasses : System.Collections.Generic.Dictionary<int64, int>)
     (accountID : Option<System.Guid>)
     /// Wall clock for the whole run, from the tracer's own stopwatch.
     (durationMs : int64)
@@ -666,7 +643,8 @@ module TraceStorage =
               "accountId", accountIDSql
               "durationMs", Sql.int64 durationMs ] ]
 
-          "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ] ]
+          "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ]
+          "DELETE FROM trace_loops WHERE trace_id = @traceId", [ traceIdParam ] ]
 
       // Skip the events INSERT when empty: fumble rejects zero-param-row
       // prepared statements, hit when a trace errors before any call fires.
@@ -676,15 +654,14 @@ module TraceStorage =
         | [] -> []
         | _ ->
           // `parent_call_id` and `lambda_expr_id` stay NULL and `kind` stays 'builtin': the log
-          // is a sequence of impure calls, and the tree they sit in is `trace_frames`, which
-          // `frame_id` points into. The two old columns stay because `08-traces.sql` has merged
-          // and is frozen.
+          // is a sequence of impure calls, not a tree of frames. The columns stay because
+          // `08-traces.sql` has merged and is frozen.
           [ "INSERT INTO trace_fn_calls
             (trace_id, call_id, parent_call_id, kind, fn_hash,
-             lambda_expr_id, args, result, duration_ms, process_id, seq, ord, frame_id)
+             lambda_expr_id, args, result, duration_ms, process_id, seq, ord)
            VALUES
             (@traceId, @callId, NULL, 'builtin', @fnHash,
-             NULL, @args, @result, @durationMs, @processId, @seq, @ord, @frameId)",
+             NULL, @args, @result, @durationMs, @processId, @seq, @ord)",
             events
             |> List.map (fun ev ->
               let argsBytes = serializeArgs ev.args
@@ -701,81 +678,30 @@ module TraceStorage =
                  else
                    Sql.string (string ev.processId))
                 "seq", Sql.int64 ev.seq
-                "ord", Sql.int64 ev.ord
-                "frameId",
-                (if ev.frameId = System.Guid.Empty then
-                   Sql.dbnull
-                 else
-                   Sql.string (string ev.frameId)) ]) ]
+                "ord", Sql.int64 ev.ord ]) ]
 
-      // THE SHAPE, pruned to the frames that matter.
+      // HOW MANY TIMES EACH LOOP WENT ROUND. One row per loop, not per pass.
       //
-      // A run pushes a frame for every package call and every lambda application, which for
-      // anything with a loop in it is thousands. Almost none of them will ever be asked about:
-      // what a reader opens is the frame a recorded call sits in, and the frames between that
-      // and the entry. So the walk goes UP from each recorded call, marking ancestors, and
-      // everything unmarked is dropped.
+      // This is the whole of what anyone asks of a recorded run's shape, and it is asked for
+      // one reason: a view recomputes values by replaying, so it can only show the passes it
+      // REACHES. Without this a run whose log was capped, or which was suspended mid-loop,
+      // reports "pass 3 of 3" about a loop that went round five times.
       //
-      // That is what makes the shape cost a fraction of the log rather than a multiple of it.
-      // `fib 20` pushes twenty-two thousand frames and records none, so it stores none.
-      let keptFrames =
-        let wanted = System.Collections.Generic.Dictionary<System.Guid, RecordedFrame>()
-        let rec walkUp (id : System.Guid) =
-          if id <> System.Guid.Empty && not (wanted.ContainsKey id) then
-            match frames.TryGetValue id with
-            | true, f ->
-              wanted[id] <- f
-              // A root frame is its own parent, which is how the interpreter starts. Following
-              // that would not terminate.
-              if f.parent <> id then walkUp f.parent
-            | false, _ -> ()
-        for ev in events do
-          walkUp ev.frameId
-        wanted |> Seq.map (fun kv -> (kv.Key, kv.Value)) |> List.ofSeq
-
-      let keptIds =
-        keptFrames |> List.map fst |> System.Collections.Generic.HashSet
-
-      let frameStmt =
-        match keptFrames with
+      // It used to be a row per FRAME, with parent links and a walk that kept only the frames
+      // an effectful call sat under. That wrote 8,523 rows for a 2000-pass loop to answer a
+      // question that is one number per loop, and the pruning made it wrong for a loop that
+      // made no impure call at all -- which is most loops.
+      let loopStmt =
+        match List.ofSeq loopPasses with
         | [] -> []
-        | _ ->
-          [ "INSERT OR REPLACE INTO trace_frames
-              (trace_id, frame_id, parent_frame_id, kind, call_site, fn_hash, pass, ord)
-             VALUES
-              (@traceId, @frameId, @parent, @kind, @callSite, @fnHash, @pass, @ord)",
-            keptFrames
-            |> List.map (fun (id, f) ->
-              let kind, callSite, fnHash =
-                match f.executionPoint with
-                | RT.ExecutionPoint.Source -> "source", Sql.dbnull, Sql.dbnull
-                | RT.ExecutionPoint.Lambda(_, lambdaExprId) ->
-                  "lambda", Sql.string (string lambdaExprId), Sql.dbnull
-                | RT.ExecutionPoint.Function name ->
-                  let h =
-                    match name with
-                    | RT.FQFnName.Package hash -> string hash
-                    | RT.FQFnName.Builtin b -> b.name
-                  "function", Sql.dbnull, Sql.string h
+        | passes ->
+          [ "INSERT OR REPLACE INTO trace_loops (trace_id, call_site, passes)
+             VALUES (@traceId, @callSite, @passes)",
+            passes
+            |> List.map (fun (KeyValue(callSite, n)) ->
               [ "traceId", Sql.string traceIdStr
-                "frameId", Sql.string (string id)
-                "parent",
-                // NULL when the parent is not itself a kept frame: the VM's initial frame is
-                // never pushed through the hook, so the outermost recorded frame would
-                // otherwise point at a row that does not exist. A dangling parent reads as a
-                // tree with a missing node rather than as the root, which is worse than no
-                // pointer at all.
-                (if f.parent = id
-                    || f.parent = System.Guid.Empty
-                    || not (keptIds.Contains f.parent) then
-                   Sql.dbnull
-                 else
-                   Sql.string (string f.parent))
-                "kind", Sql.string kind
-                "callSite", callSite
-                "fnHash", fnHash
-                "pass", Sql.int64 (int64 f.pass)
-                "ord", Sql.int64 (int64 f.ord) ]) ]
+                "callSite", Sql.string (string callSite)
+                "passes", Sql.int64 (int64 n) ]) ]
 
       // Which functions the run went through (`trace_fns`), by name AND by the hash the run
       // actually went through. `INSERT OR REPLACE`, not IGNORE: a resume rewrites its trace in
@@ -794,7 +720,7 @@ module TraceStorage =
                 "fnHash", Sql.string (string hash) ]) ]
 
       let _ =
-        Sql.executeTransactionSync (baseStatements @ eventStmt @ fnStmt @ frameStmt)
+        Sql.executeTransactionSync (baseStatements @ eventStmt @ fnStmt @ loopStmt)
       TraceRetention.run () |> ignore<int>
 
 
@@ -865,13 +791,13 @@ let private storeTrace
       use _span = Telemetry.span "trace.store" [ "traceId", traceIdStr ]
       // A copy taken under the lock: a run suspended by Ctrl-C stores while its processes may
       // still be recording, and the copy is what gets prepared and written.
-      let struct (events, dropped, nextSeq, fns, frames) =
+      let struct (events, dropped, nextSeq, fns, loopPasses) =
         lock state.sync (fun () ->
           struct (state.events.ToArray(),
                   state.dropped,
                   state.nextSeq,
                   List.ofSeq state.fns,
-                  System.Collections.Generic.Dictionary(state.frames)))
+                  System.Collections.Generic.Dictionary(state.loopPasses)))
       if dropped > 0 then
         Telemetry.event
           "trace.truncated"
@@ -896,12 +822,11 @@ let private storeTrace
                    durationMs = 0L
                    processId = System.Guid.Empty
                    seq = nextSeq
-                   ord = -1L
-                   frameId = System.Guid.Empty } ]
+                   ord = -1L } ]
            else
              List.ofArray events)
           fns
-          frames
+          loopPasses
           exeState.accountID
           state.elapsed.ElapsedMilliseconds
       with ex ->
@@ -932,7 +857,7 @@ let createCliTracer
   // whole run, to discard all of it at the end.
   //
   // `Exe.noTracing` leaves everything off, which also lets the interpreter skip its own per-frame
-  // bookkeeping (`pendingCallArgs`) rather than just calling no-op hooks.
+  // per-frame bookkeeping rather than just calling no-op hooks.
   if TraceDetail.current = TraceDetail.Off then
     { enabled = false
       executionTracing = Exe.noTracing

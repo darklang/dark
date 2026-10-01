@@ -887,7 +887,6 @@ let inline private recordsCall (tracing : Tracing.Tracing) (ord : int64) : bool 
 /// function's cold-path `uply`, and so gets built on every builtin call, hot path included.
 let private traceBuiltinResult
   (exeState : ExecutionState)
-  (currentFrame : CallFrame)
   (fn : BuiltInFn)
   (ord : int64)
   (traceSw : int64)
@@ -916,9 +915,7 @@ let private traceBuiltinResult
           if t.IsCompletedSuccessfully then
             exeState.tracing.storeFnResult
               fnName
-              { ord = ord
-                durationMs = elapsedMs traceSw
-                frameId = currentFrame.id }
+              { ord = ord; durationMs = elapsedMs traceSw }
               args
               t.Result),
         TaskContinuationOptions.ExecuteSynchronously
@@ -927,9 +924,7 @@ let private traceBuiltinResult
     | _ ->
       exeState.tracing.storeFnResult
         fnName
-        { ord = ord
-                durationMs = elapsedMs traceSw
-                frameId = currentFrame.id }
+        { ord = ord; durationMs = elapsedMs traceSw }
         args
         result
   result
@@ -1033,7 +1028,6 @@ let withValue (vm : VMState) (dv : Dval) (k : Dval -> Ply<Dval>) : Ply<Dval> =
 let private finishBuiltin
   (exeState : ExecutionState)
   (vm : VMState)
-  (currentFrame : CallFrame)
   (fn : BuiltInFn)
   (tst : TypeSymbolTable)
   (allArgs : Dval[])
@@ -1065,7 +1059,7 @@ let private finishBuiltin
   match TypeChecker.tryUnifySync tst fn.returnType result with
   | ValueSome _ ->
     recordStage vm ApplyStage.BiCheckResult biResAlloc
-    Ply(traceBuiltinResult exeState currentFrame fn ord traceSw allArgs result)
+    Ply(traceBuiltinResult exeState fn ord traceSw allArgs result)
   | ValueNone ->
     // Closed here rather than after the await: a bracket spanning a bind measures whatever nested
     // execution resumes inside it, not this region. The async answer isn't counted, which is the
@@ -1082,7 +1076,7 @@ let private finishBuiltin
       with
       | Ok _ -> ()
       | Error rte -> raiseRTE vm.threadID rte
-      return traceBuiltinResult exeState currentFrame fn ord traceSw allArgs result
+      return traceBuiltinResult exeState fn ord traceSw allArgs result
     }
 
 
@@ -1169,7 +1163,6 @@ module ReplayPolicy =
 /// the VM (`pendingFinish`) by `invokeBuiltin`; whoever begins the chain takes it off.
 let private finishFor
   (exeState : ExecutionState)
-  (currentFrame : CallFrame)
   (fn : BuiltInFn)
   (ord : int64)
   (traceSw : int64)
@@ -1178,7 +1171,7 @@ let private finishFor
   if recordsCall exeState.tracing ord then
     let args = Array.copy allArgs
     fun dv ->
-      traceBuiltinResult exeState currentFrame fn ord traceSw args dv |> ignore<Dval>
+      traceBuiltinResult exeState fn ord traceSw args dv |> ignore<Dval>
   else
     Unchecked.defaultof<_>
 
@@ -1190,7 +1183,6 @@ let private finishFor
 let private invokeBuiltin
   (exeState : ExecutionState)
   (vm : VMState)
-  (currentFrame : CallFrame)
   (fn : BuiltInFn)
   (tst : TypeSymbolTable)
   (typeArgs : List<TypeReference>)
@@ -1294,7 +1286,6 @@ let private invokeBuiltin
     finishBuiltin
       exeState
       vm
-      currentFrame
       fn
       tst
       allArgs
@@ -1324,13 +1315,12 @@ let private invokeBuiltin
       // The body asked for an apply (`requestApply`): this is its placeholder, not its result.
       // The result is checked where it is made and reaches the trace through the continuation.
       if requested vm then
-        vm.pendingFinish <- finishFor exeState currentFrame fn ord traceSw allArgs
+        vm.pendingFinish <- finishFor exeState fn ord traceSw allArgs
         Ply result
       else
         finishBuiltin
           exeState
           vm
-          currentFrame
           fn
           tst
           allArgs
@@ -1364,14 +1354,13 @@ let private invokeBuiltin
             Exception.raiseInternal
               "requestApply after the first await of a read"
               [ "builtin", fn.name.name ]
-          vm.pendingFinish <- finishFor exeState currentFrame fn ord traceSw allArgs
+          vm.pendingFinish <- finishFor exeState fn ord traceSw allArgs
           return result
         else
           return!
             finishBuiltin
               exeState
               vm
-              currentFrame
               fn
               tst
               allArgs
@@ -1411,7 +1400,6 @@ let inline private captureAccess (ctx : ApplyContext) : Option<Permissions.Acces
 let private completeBuiltin
   (exeState : ExecutionState)
   (vm : VMState)
-  (currentFrame : CallFrame)
   (ctx : ApplyContext)
   (fn : BuiltInFn)
   (allArgs : Dval[])
@@ -1436,7 +1424,7 @@ let private completeBuiltin
     |> DApplicable
     |> Ply
   else
-    invokeBuiltin exeState vm currentFrame fn tst ctx.typeArgs allArgs
+    invokeBuiltin exeState vm fn tst ctx.typeArgs allArgs
 
 
 /// The result of an `Int` operator, or `ValueNone` to take the ordinary path.
@@ -1678,7 +1666,7 @@ and private callBuiltinResolvedSlow
   // `if` rather than `match biRestPs, biRestArgs with`: the tuple form allocates the pair, once per
   // call, to ask a question two `isEmpty` checks answer.
   if List.isEmpty biRestPs || biRestArgIdx >= newArgDvals.Length then
-    completeBuiltin exeState vm currentFrame ctx fn allArgs argCount paramCount tst
+    completeBuiltin exeState vm ctx fn allArgs argCount paramCount tst
   else
     // Something in the remaining parameters needs the type store. Finish the check in a computation
     // expression and carry on from there -- still the one implementation, just resumed asynchronously.
@@ -1708,7 +1696,6 @@ and private callBuiltinResolvedSlow
         completeBuiltin
           exeState
           vm
-          currentFrame
           ctx
           fn
           allArgs

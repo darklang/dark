@@ -73,8 +73,8 @@ type FnCall =
     /// Where this call completed in the whole trace, across processes. One process's rows in
     /// `seq` order are its log; all of them are the interleaving.
     seq: Int64
-    /// This call's place in its process's effect log, what a resume keys on; -1 for a call
-    /// that is not in the log (a pure call under full tracing, or a row from before ordinals).
+    /// This call's place in its process's effect log, what a resume keys on; -1 for a row that
+    /// is not in the log, such as the marker a truncated trace ends with.
     ord: Int64 }
 
 

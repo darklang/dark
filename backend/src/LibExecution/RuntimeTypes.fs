@@ -2668,12 +2668,6 @@ module Tracing =
       /// Wall clock for the call, in milliseconds. For a read in flight this is measured at the
       /// landing, so it is the real round trip rather than the time to hand back a promise.
       durationMs : int64
-      /// The frame this call was made in.
-      ///
-      /// What links a recorded call to the shape around it: which function, which pass of which
-      /// loop. Without it the log is a flat list of calls with no way to say that these three
-      /// writes were three passes of one loop and those two were a different one.
-      frameId : uuid
     }
 
   type StoreFnResult = FQFnName.FQFnName -> CallMeta -> NEList<Dval> -> Dval -> unit
@@ -3331,8 +3325,8 @@ type VMState =
     mutable hostInflight : HostTypes.Operation
 
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
-    /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
-    /// continuation the builder makes for the loop body.
+    /// interpreter loop: a local is a field in every continuation the builder makes for the
+    /// loop body.
     /// Frames from a lambda this VM's builtins applied in a borrowed VM, for the error path only.
     ///
     /// `executeApplicable` runs the lambda in its own VM, so those frames are not reachable from
@@ -3342,13 +3336,6 @@ type VMState =
     mutable nestedCallStack : CallStack
 
     mutable finalResult : Dval voption
-
-    /// Arguments of calls whose frames are still running, keyed by frame id, so the tracer can pair
-    /// them with the result when the frame returns. Empty and untouched when tracing is off.
-    ///
-    /// On the VM rather than a local of the interpreter loop so that the parts of the loop that run
-    /// outside the computation expression can reach it.
-    pendingCallArgs : Dictionary<uuid, Dval list>
 
     /// When each frame was pushed, so a package fn can be timed on the way out.
     ///
@@ -3432,7 +3419,6 @@ type VMState =
       nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
-      pendingCallArgs = Dictionary()
       framePushTimestamps = Dictionary()
       framePool = Dictionary() }
 
@@ -3455,8 +3441,8 @@ type VMState =
     ) : VMState =
     // Keep the id when the frame is kept. `Guid.NewGuid()` draws from the cryptographic RNG, which
     // is why `nextFrameId` exists for pushes; this runs once per lambda application, so it is the
-    // same trap. Frame identity is internal to a VM -- `callFrames`, `pendingCallArgs` and the
-    // tracer's per-frame maps key on it and it never leaves -- and the previous application's
+    // same trap. Frame identity is internal to a VM -- `callFrames` and the tracer's per-frame
+    // maps key on it and it never leaves -- and the previous application's
     // frames are gone, so reusing the id collides with nothing.
     let rootCallFrameID =
       match vm.pooledRootFrame with
@@ -3520,7 +3506,6 @@ type VMState =
     vm.nestedCallStack <- []
     vm.finalResult <- ValueNone
     vm.matchBindings.Clear()
-    vm.pendingCallArgs.Clear()
     vm.framePushTimestamps.Clear()
     // `framePool` is deliberately *not* cleared. It holds frames that have already been returned,
     // keyed by register count, for the next push to reuse -- so clearing it here threw away the
