@@ -82,8 +82,8 @@ let testWorkbenchSyncStanding () : TestResult =
   let branchLabel = Darklang.Cli.Workbench.syncBranchStanding branch "feature" false
   let branchSummary = Darklang.Cli.Workbench.syncPushSummary branch
   let disconnected = Darklang.Cli.Workbench.emptySyncFacts ()
-  if (Stdlib.String.contains mainLabel "7 op(s) not on the relay")
-     && (Stdlib.String.contains branchLabel "3 op(s) not on the relay")
+  if (Stdlib.String.contains mainLabel "7 ops not on the relay")
+     && (Stdlib.String.contains branchLabel "3 ops not on the relay")
      && (Stdlib.String.contains branchSummary "1 branch")
      && (Darklang.Cli.Workbench.syncPushSummary clean == "nothing to push")
      && (Darklang.Cli.Workbench.syncPushSummary disconnected == "")
