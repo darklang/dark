@@ -926,7 +926,8 @@ let createReplayTracer
 /// site. `valuesKept` is false past the cap, where a frame is counted but its values are not
 /// held, so the view can still say how many passes there were.
 type ViewFrame =
-  { parent : System.Guid
+  {
+    parent : System.Guid
     executionPoint : RT.ExecutionPoint
     pass : int
     /// The order this frame was pushed, across the whole view.
@@ -936,7 +937,8 @@ type ViewFrame =
     /// site. And the frames come back from a dictionary, whose iteration order is not a
     /// promise. This is the one thing that says what happened first.
     ord : int
-    valuesKept : bool }
+    valuesKept : bool
+  }
 
 
 /// A tracer for VIEWING a run: every effectful call is answered by its name and arguments from
@@ -979,10 +981,7 @@ let createViewTracer
   // kept deliberately: replaying against code that now calls something more times than the
   // recording did should degrade to a repeated value rather than stop the whole view.
   let answers =
-    System.Collections.Generic.Dictionary<
-      string,
-      System.Collections.Generic.Queue<RT.Dval>
-      >()
+    System.Collections.Generic.Dictionary<string, System.Collections.Generic.Queue<RT.Dval>>()
   let lastAnswer = System.Collections.Generic.Dictionary<string, RT.Dval>()
   for (name, argsBytes, result) in rows do
     let key = name + "\u0000" + System.Convert.ToBase64String argsBytes
@@ -1011,7 +1010,8 @@ let createViewTracer
           (RT.DList(LibExecution.ValueType.unknownTODO, List.ofArray args))
       let key = name + "\u0000" + System.Convert.ToBase64String argsBytes
       lock answersGate (fun () ->
-        let mutable q = Unchecked.defaultof<System.Collections.Generic.Queue<RT.Dval>>
+        let mutable q =
+          Unchecked.defaultof<System.Collections.Generic.Queue<RT.Dval>>
         if answers.TryGetValue(key, &q) && q.Count > 0 then
           ValueSome(RT.Tracing.ReplayStep.Serve(q.Dequeue()))
         else

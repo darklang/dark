@@ -134,8 +134,7 @@ module Fn =
           return
             Some
               { fn with
-                  symbols =
-                    lazy (BS.RT.PackageFn.deserializeDebugSymbols hashStr b) }
+                  symbols = lazy (BS.RT.PackageFn.deserializeDebugSymbols hashStr b) }
     }
 
 

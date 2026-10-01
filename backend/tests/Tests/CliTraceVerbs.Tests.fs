@@ -483,7 +483,11 @@ let private pureLoopPassesAreCounted =
         | None ->
           failtest
             "a pure loop recorded no pass count, so a view that stops early cannot say how many passes there were"
-        | Some n -> Expect.equal n 5L "all five passes are counted, not just the ones with effects"
+        | Some n ->
+          Expect.equal
+            n
+            5L
+            "all five passes are counted, not just the ones with effects"
       })
 
 
@@ -522,14 +526,18 @@ let private identicalCallsKeepTheirOwnValues =
         | None -> failtest "the run did not print two uuids"
         | Some pair ->
           let parts = pair.Split(' ')
-          Expect.notEqual parts[0] parts[1] "the run itself made two different uuids"
+          Expect.notEqual
+            parts[0]
+            parts[1]
+            "the run itself made two different uuids"
 
           let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.two" ]
           // Each `let` line carries its own recorded value. Collapsed, both lines showed the
           // same one.
           let shown =
             viewed.Split('\n')
-            |> Array.filter (fun l -> l.Contains "Uuid.generate" && l.Contains "// =")
+            |> Array.filter (fun l ->
+              l.Contains "Uuid.generate" && l.Contains "// =")
             |> Array.map (fun l -> l.Substring(l.IndexOf "// =").Trim())
           Expect.equal shown.Length 2 "both calls carry a value"
           Expect.notEqual

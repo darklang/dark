@@ -27,7 +27,10 @@ module Parameter =
 /// needs it and reading code always does. A store that has the instructions and not the symbols
 /// is a store that can run but not show, which is exactly the right thing to degrade to.
 module DebugSymbols =
-  let private writeTable (w : BinaryWriter) (table : Map<int, struct (id * Register)>) =
+  let private writeTable
+    (w : BinaryWriter)
+    (table : Map<int, struct (id * Register)>)
+    =
     let entries = Map.toList table
     Varint.write w entries.Length
     entries

@@ -2470,7 +2470,9 @@ module DebugSymbols =
     struct (List.ofSeq kept, table)
 
 
-  let split (instrs : List<Instruction>) : struct (List<Instruction> * DebugSymbols) =
+  let split
+    (instrs : List<Instruction>)
+    : struct (List<Instruction> * DebugSymbols) =
     let mutable lambdas = Map.empty
 
     let rec go (instrs : List<Instruction>) =

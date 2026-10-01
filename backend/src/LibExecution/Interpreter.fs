@@ -1170,8 +1170,7 @@ let private finishFor
   : Dval -> unit =
   if recordsCall exeState.tracing ord then
     let args = Array.copy allArgs
-    fun dv ->
-      traceBuiltinResult exeState fn ord traceSw args dv |> ignore<Dval>
+    fun dv -> traceBuiltinResult exeState fn ord traceSw args dv |> ignore<Dval>
   else
     Unchecked.defaultof<_>
 
@@ -1284,17 +1283,7 @@ let private invokeBuiltin
     // and the stale-file warning are all about a RESUME, where the person is taking a run
     // forward. Looking at code should be silent and should never refuse.
     if not fromView then ReplayPolicy.beforeServing vm fn ord allArgs
-    finishBuiltin
-      exeState
-      vm
-      fn
-      tst
-      allArgs
-      ord
-      traceSw
-      sw
-      bodyAllocBefore
-      result
+    finishBuiltin exeState vm fn tst allArgs ord traceSw sw bodyAllocBefore result
   // `PerformOnce`: the log deliberately has no answer for this one (a read whose result was
   // redacted out of it), so it is performed for real and the replay goes on. `PerformOnwards`:
   // the log ran out, and this process is live from here.
@@ -1551,9 +1540,7 @@ let private tryFastOpDirect
   (typeArgs : List<TypeReference>)
   (argRegs : NEList<Register>)
   : Dval voption =
-  if
-    not (List.isEmpty typeArgs) || not (List.isEmpty applicable.argsSoFar)
-  then
+  if not (List.isEmpty typeArgs) || not (List.isEmpty applicable.argsSoFar) then
     ValueNone
   else
     match applicable.name with
@@ -1693,16 +1680,7 @@ and private callBuiltinResolvedSlow
               | Error rte -> return raiseRTE vm.threadID rte
         }
       do! checkRest biNextI biRestPs biRestArgIdx
-      return!
-        completeBuiltin
-          exeState
-          vm
-          ctx
-          fn
-          allArgs
-          argCount
-          paramCount
-          tstRest
+      return! completeBuiltin exeState vm ctx fn allArgs argCount paramCount tstRest
     }
 
 
@@ -2010,7 +1988,10 @@ let private completePackage
     let newFrameId = nextFrameId vm
     // A lambda defined in this function is applied from somewhere else's frame, so its table
     // has to be somewhere both can reach. Entering the function is when it becomes known.
-    if exeState.tracing.collectExprValues && not (Map.isEmpty fn.symbols.Value.lambdas) then
+    if
+      exeState.tracing.collectExprValues
+      && not (Map.isEmpty fn.symbols.Value.lambdas)
+    then
       for KeyValue(lambdaId, table) in fn.symbols.Value.lambdas do
         vm.lambdaSymbols[lambdaId] <- table
     if vm.stats.enabled then
@@ -2549,7 +2530,10 @@ let inline private pushLambdaFrame
   recordStage vm ApplyStage.LambdaFrame lambdaFrameAlloc
   if vm.stats.enabled then vm.stats.framePushCount <- vm.stats.framePushCount + 1L
   if exeState.tracing.collectFrames then
-    exeState.tracing.storeFrameEntry newFrame.id vm.currentFrameID newFrame.executionPoint
+    exeState.tracing.storeFrameEntry
+      newFrame.id
+      vm.currentFrameID
+      newFrame.executionPoint
   vm.frameToPush <- ValueSome newFrame
   newFrame
 
@@ -2905,9 +2889,7 @@ let private applyInstructionForced
     // A function, not a `let mutable` here: the rest of this body has `uply` blocks in it, and a
     // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
     // branch or not. Written that way first, it cost the gate and a view build several percent each.
-    match
-      tryFastOpDirect vm.threadID registers applicable typeArgs newArgRegs
-    with
+    match tryFastOpDirect vm.threadID registers applicable typeArgs newArgRegs with
     | ValueSome result ->
       if vm.stats.enabled then
         vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
@@ -3026,14 +3008,12 @@ let private applyInstructionForced
           if vm.stats.enabled then
             vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
           // Went through it, so the trace index says so. See the same line in the late elision.
-          if exeState.tracing.traceEffects then
-            exeState.tracing.noteFunction pkg
+          if exeState.tracing.traceEffects then exeState.tracing.noteFunction pkg
 
           // The operator table, before the context exists. `callBuiltinResolved` checks the same
           // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick,
           // and nearly every `Stdlib.x` call in Dark arrives down this path.
-          let early =
-            tryFastOpOn vm.threadID registers biFn.name newArgRegs
+          let early = tryFastOpOn vm.threadID registers biFn.name newArgRegs
 
           match early with
           | ValueSome result ->
@@ -4077,7 +4057,12 @@ let private runFrame
   // The block was already finished when this frame was re-entered: its last instruction was a
   // call, and the callee has just returned with the result now in the register.
   if currentFrame.programCounter >= instrData.instructions.Length then
-    noteFinishedValue exeState vm registers instrData (currentFrame.programCounter - 1)
+    noteFinishedValue
+      exeState
+      vm
+      registers
+      instrData
+      (currentFrame.programCounter - 1)
 
   while running
         && currentFrame.programCounter < instrData.instructions.Length

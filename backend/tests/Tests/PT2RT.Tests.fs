@@ -1787,7 +1787,8 @@ module LiveValues =
   /// program was invisible to a trace. It discarded the expression id as well, so there was
   /// nothing to key a value by even in principle.
   let traceExprFollowsAnInfixCall =
-    testTask "an EInfix call is followed by TraceExpr with its id and result register" {
+    testTask
+      "an EInfix call is followed by TraceExpr with its id and result register" {
       let expr = E.Infix.Add.simple
       let exprId =
         match expr with
@@ -1812,7 +1813,8 @@ module LiveValues =
   /// `&&` and `||` are their own instruction rather than a call, so the pairing above does not
   /// apply; the hook still has to be there, naming the expression and the register `And` wrote.
   let traceExprFollowsABinOp =
-    testTask "an EInfix BinOp is followed by TraceExpr with its id and result register" {
+    testTask
+      "an EInfix BinOp is followed by TraceExpr with its id and result register" {
       let expr = E.Infix.And.mixed
       let exprId =
         match expr with
@@ -1824,8 +1826,10 @@ module LiveValues =
         |> List.pairwise
         |> List.tryPick (fun pair ->
           match pair with
-          | RT.And(resultReg, _, _), RT.TraceExpr(id, reg) -> Some(id, reg, resultReg)
-          | RT.Or(resultReg, _, _), RT.TraceExpr(id, reg) -> Some(id, reg, resultReg)
+          | RT.And(resultReg, _, _), RT.TraceExpr(id, reg) ->
+            Some(id, reg, resultReg)
+          | RT.Or(resultReg, _, _), RT.TraceExpr(id, reg) ->
+            Some(id, reg, resultReg)
           | _ -> None)
       match hook with
       | Some(id, reg, resultReg) ->
@@ -1837,9 +1841,7 @@ module LiveValues =
   let tests =
     testList
       "LiveValues"
-      [ traceExprFollowsACall
-        traceExprFollowsAnInfixCall
-        traceExprFollowsABinOp ]
+      [ traceExprFollowsACall; traceExprFollowsAnInfixCall; traceExprFollowsABinOp ]
 
 
 let tests =

@@ -919,7 +919,11 @@ let fns () : List<BuiltInFn> =
                 "SELECT call_site, passes FROM trace_loops WHERE trace_id = @t"
               |> Sql.parameters [ "t", Sql.string traceID ]
               |> Sql.executeAsync (fun read ->
-                DTuple(DString(read.string "call_site"), DInt64(read.int64 "passes"), []))
+                DTuple(
+                  DString(read.string "call_site"),
+                  DInt64(read.int64 "passes"),
+                  []
+                ))
             return rows |> Dval.list (KTTuple(VT.string, VT.int64, []))
           }
         | _ -> incorrectArgs ())

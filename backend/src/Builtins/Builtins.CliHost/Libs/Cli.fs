@@ -1005,15 +1005,13 @@ let fns () : List<BuiltInFn> =
       returnType =
         TTuple(
           TList(TTuple(TInt64, TCustomType(NR.ok (RT2DT.Dval.typeName ()), []), [])),
-          TList(
-            TTuple(
-              TString,
-              TString,
-              [ TInt64; TString; TString; TInt64 ]
-            )
-          ),
+          TList(TTuple(TString, TString, [ TInt64; TString; TString; TInt64 ])),
           [ TList(
-              TTuple(TString, TInt64, [ TCustomType(NR.ok (RT2DT.Dval.typeName ()), []) ])
+              TTuple(
+                TString,
+                TInt64,
+                [ TCustomType(NR.ok (RT2DT.Dval.typeName ()), []) ]
+              )
             )
             TypeReference.option TString ]
         )
@@ -1088,8 +1086,7 @@ let fns () : List<BuiltInFn> =
                   let f = kv.Value
                   // A root frame's parent is itself, which is how the interpreter starts; an
                   // empty string is what Dark reads as "no parent".
-                  let parent =
-                    if f.parent = kv.Key then "" else string f.parent
+                  let parent = if f.parent = kv.Key then "" else string f.parent
                   let kind, callSite, callee =
                     match f.executionPoint with
                     | RT.ExecutionPoint.Source -> "source", 0L, ""
@@ -1140,15 +1137,9 @@ let fns () : List<BuiltInFn> =
                 | DString source ->
                   let! log = LibDB.Traces.viewLog id
                   let collected =
-                    System.Collections.Generic.Dictionary<
-                      struct (System.Guid * int64),
-                      RT.Dval
-                      >()
+                    System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>()
                   let frames =
-                    System.Collections.Generic.Dictionary<
-                      System.Guid,
-                      Tracing.ViewFrame
-                      >()
+                    System.Collections.Generic.Dictionary<System.Guid, Tracing.ViewFrame>()
                   let lastByExpr =
                     System.Collections.Generic.Dictionary<int64, RT.Dval>()
                   let tracer =
@@ -1200,21 +1191,17 @@ let fns () : List<BuiltInFn> =
                   match run.entryHash with
                   | None ->
                     return
-                      emptyAnswer
-                        (Some
-                          "this run has no source to replay and no handler recorded against it")
+                      emptyAnswer (
+                        Some
+                          "this run has no source to replay and no handler recorded against it"
+                      )
                   | Some hash ->
                     let! log = LibDB.Traces.viewLog id
                     let collected =
-                      System.Collections.Generic.Dictionary<
-                        struct (System.Guid * int64),
-                        RT.Dval
-                        >()
+                      System.Collections.Generic.Dictionary<struct (System.Guid *
+                      int64), RT.Dval>()
                     let frames =
-                      System.Collections.Generic.Dictionary<
-                        System.Guid,
-                        Tracing.ViewFrame
-                        >()
+                      System.Collections.Generic.Dictionary<System.Guid, Tracing.ViewFrame>()
                     let lastByExpr =
                       System.Collections.Generic.Dictionary<int64, RT.Dval>()
                     let tracer =

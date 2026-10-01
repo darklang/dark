@@ -1439,21 +1439,22 @@ module PackageFn =
 
   let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
     let instrs =
-        let (rcAfterParams, symbols) : (int * Map<string, int>) =
-          f.parameters
-          |> NEList.toList
-          |> List.fold
-            (fun (rc, symbols) p -> (rc + 1, Map.add p.name rc symbols))
-            (0, Map.empty)
+      let (rcAfterParams, symbols) : (int * Map<string, int>) =
+        f.parameters
+        |> NEList.toList
+        |> List.fold
+          (fun (rc, symbols) p -> (rc + 1, Map.add p.name rc symbols))
+          (0, Map.empty)
 
-        let fnName = PT.FQFnName.Package f.hash
-        let expectedReturnType =
-          UnwrapReturnCheck.fromReturnType f.returnType
-          |> Option.orElse (UnwrapReturnCheck.fromBody f.body)
-        Expr.toRT symbols rcAfterParams (Some fnName) f.body
-        |> UnwrapReturnCheck.applyToInstructions expectedReturnType
+      let fnName = PT.FQFnName.Package f.hash
+      let expectedReturnType =
+        UnwrapReturnCheck.fromReturnType f.returnType
+        |> Option.orElse (UnwrapReturnCheck.fromBody f.body)
+      Expr.toRT symbols rcAfterParams (Some fnName) f.body
+      |> UnwrapReturnCheck.applyToInstructions expectedReturnType
 
-    let struct (instructions, debugSymbols) = RT.DebugSymbols.split instrs.instructions
+    let struct (instructions, debugSymbols) =
+      RT.DebugSymbols.split instrs.instructions
 
     { hash = Hash.toRT f.hash
       body = { instrs with instructions = instructions }
