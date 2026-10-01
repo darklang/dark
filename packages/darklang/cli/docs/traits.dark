@@ -57,7 +57,12 @@ builtin type already has implementations. Yours join with one `impl`.
   module it was written in: `impl ToString for Point` inside `Acme` is
   `Acme.Point.ToString`, and its method fn is `Acme.Point.ToString.toString`.
 
-    dark ls Acme               // Traits and Implementations sections
+  So an implementation's methods live in a module named for the trait. A listing
+  shows you the implementation rather than that module, since they are the same
+  thing under two headings: `ls`, `tree` and `view` all agree, and `view` on the
+  implementation is how you read the methods.
+
+    dark ls Acme               // Traits and Trait implementations sections
     dark view Stdlib.ToString  // prints the trait back
     dark view Acme.Point.ToString
     dark impls ToString        // every implementation a call can reach

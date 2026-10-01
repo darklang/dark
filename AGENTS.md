@@ -106,6 +106,12 @@ extra build costs. `--optimize` builds Release INSTEAD of Debug, so `run-cli` wi
 tree is behind until the next plain build. While iterating on one group, stay in Debug -- a
 filtered run is seconds either way.
 
+**The gates run against the DEBUG binary, so do not run them straight after `--optimize`.**
+Every gate defaults to `backend/Build/out/Cli/Debug/net10.0/Cli`, and `--optimize` builds Release
+instead of Debug, so `gates all` right after it fails gates that have nothing wrong with them: one
+exits in a second with no CLI to run, and `first-day` refuses because the published artifact is
+older than the tree. Build Debug first, or pass `CLI=<path>` the way the CI step does.
+
 **`--test` can decide there is nothing to run.** `scripts/dev/build --optimize --test` plans by what
 gets COMPILED, so a change to `backend/testfiles/**` or to a `.dark` docs page reports "nothing has
 changed since the last successful build" and skips the tests entirely, even though those files are
