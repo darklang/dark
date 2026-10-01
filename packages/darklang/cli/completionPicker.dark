@@ -23,7 +23,7 @@ let supportsSize (size: Stdlib.Cli.Tui.Size) : Bool =
   size.height >= minimumHeight && size.width >= minimumWidth
 
 val unsupportedSizeMessage =
-  $"Completion picker requires at least {Stdlib.Int.toString minimumWidth} columns and {Stdlib.Int.toString minimumHeight} rows."
+  $"Completion picker requires at least {Stdlib.toString minimumWidth} columns and {Stdlib.toString minimumHeight} rows."
 
 let helpTextAtWidth (width: Int) : String =
   if Stdlib.String.displayWidth fullHelpText <= width then
@@ -133,9 +133,9 @@ let viewAtSize
 
   let indicatorRows =
     if layout.showScrollIndicator then
-      let start = Stdlib.Int.toString (offset + 1)
-      let endIndex = Stdlib.Int.toString (offset + visibleCount)
-      let total = Stdlib.Int.toString itemCount
+      let start = Stdlib.toString (offset + 1)
+      let endIndex = Stdlib.toString (offset + visibleCount)
+      let total = Stdlib.toString itemCount
       [ Stdlib.Cli.UI.Colors.dimText $"({start}-{endIndex} of {total})" ]
     else
       []

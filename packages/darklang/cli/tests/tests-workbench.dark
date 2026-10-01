@@ -40,7 +40,7 @@ let testWorkbenchDocumentScroll () : TestResult =
   let items =
     Stdlib.List.range 1 40 |> Stdlib.List.map (fun n ->
       Darklang.Cli.Workbench.BodyItem
-        { name = "row " + (Stdlib.Int.toString n)
+        { name = "row " + (Stdlib.toString n)
           kind = "sync-row"; isModule = false
           desc = if n == 40 then "last activity" else "sync fact" })
   let state =
@@ -97,7 +97,7 @@ let testWorkbenchBranchPicker () : TestResult =
     Stdlib.List.range 1 20 |> Stdlib.List.map (fun n ->
       Darklang.Cli.Workbench.BranchChoice
         { id = Darklang.SCM.Branch.mainBranchId
-          name = "branch-" + (Stdlib.Int.toString n); detail = "" })
+          name = "branch-" + (Stdlib.toString n); detail = "" })
   let picker = Darklang.Cli.Workbench.BranchPicker
     { choices = choices; field = Stdlib.Cli.UI.TextField.fromText ""; selected = 0 }
   let state = { base with overlay = Darklang.Cli.Workbench.Overlay.Branches picker }

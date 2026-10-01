@@ -83,7 +83,7 @@ let issueLines
   |> Stdlib.List.map (fun (line, occurrences) ->
     let count = Stdlib.List.length occurrences
     if count == 1 then line
-    else line + " (" + Stdlib.Int.toString count + " occurrences)")
+    else line + " (" + Stdlib.toString count + " occurrences)")
 
 let summary
   (report: LanguageTools.AtRestTypeChecker.Report)

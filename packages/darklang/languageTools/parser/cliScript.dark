@@ -49,7 +49,7 @@ let parseDecls
   match diagnostics with
   | (range, message) :: _ ->
     let rendered =
-      $"Parse error at line {Stdlib.Int.toString (range.start.row + 1)}, column {Stdlib.Int.toString range.start.column}: {message}"
+      $"Parse error at line {Stdlib.toString (range.start.row + 1)}, column {Stdlib.toString range.start.column}: {message}"
 
     Stdlib.Result.Result.Error(ParseError.Message rendered)
 

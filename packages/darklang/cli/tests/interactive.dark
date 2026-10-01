@@ -88,7 +88,7 @@ let drive
     // The pane size is fixed so a layout assertion means the same thing on every machine;
     // the workbench refuses to start below its minimum.
     let header =
-      [ $"set timeout {Stdlib.Int.toString timeoutSeconds}",
+      [ $"set timeout {Stdlib.toString timeoutSeconds}",
         "set env(LINES) 50",
         "set env(COLUMNS) 200",
         $"spawn /usr/bin/env {envPrefix} {i.cli} {argString}" ]

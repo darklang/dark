@@ -111,7 +111,7 @@ let renderRowChangeAtWidth
   (width: Int)
   (change: RowChange)
   : String =
-  let terminalRow = Stdlib.Int.toString (change.row + 1)
+  let terminalRow = Stdlib.toString (change.row + 1)
   let content = Text.normalizeToWidth change.content width
   $"\u001b[{terminalRow};1H\u001b[0m\u001b[K{content}\u001b[0m\r"
 
@@ -121,8 +121,8 @@ let renderCursor (cursor: Tui.Cursor) : String =
   match cursor with
   | Hidden -> ""
   | Visible(row, column) ->
-    let terminalRow = Stdlib.Int.toString (Stdlib.max 0 row + 1)
-    let terminalColumn = Stdlib.Int.toString (Stdlib.max 0 column + 1)
+    let terminalRow = Stdlib.toString (Stdlib.max 0 row + 1)
+    let terminalColumn = Stdlib.toString (Stdlib.max 0 column + 1)
     $"\u001b[{terminalRow};{terminalColumn}H\u001b[?25h"
 
 

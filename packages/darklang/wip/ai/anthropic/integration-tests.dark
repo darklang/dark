@@ -76,7 +76,7 @@ module DirectApiTests =
         if hasStopReason && hasUsage && isComplete then
           TestResult.Pass
         else
-          TestResult.Fail $"Missing expected response fields. StopReason: {Stdlib.Bool.toString hasStopReason}, Usage: {Stdlib.Bool.toString hasUsage}, Complete: {Stdlib.Bool.toString isComplete}"
+          TestResult.Fail $"Missing expected response fields. StopReason: {Stdlib.toString hasStopReason}, Usage: {Stdlib.toString hasUsage}, Complete: {Stdlib.toString isComplete}"
       | Error e ->
         TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
@@ -105,7 +105,7 @@ module TokenCountingTests =
         if result.input_tokens > 0 then
           TestResult.Pass
         else
-          TestResult.Fail $"Expected positive token count, got {Stdlib.Int.toString result.input_tokens}"
+          TestResult.Fail $"Expected positive token count, got {Stdlib.toString result.input_tokens}"
       | Error e ->
         TestResult.Fail $"Token count error: {Response.ApiError.toString e}"
 
@@ -138,7 +138,7 @@ module TokenCountingTests =
           if longResult.input_tokens > shortResult.input_tokens then
             TestResult.Pass
           else
-            TestResult.Fail $"Expected long prompt ({Stdlib.Int.toString longResult.input_tokens}) > short prompt ({Stdlib.Int.toString shortResult.input_tokens})"
+            TestResult.Fail $"Expected long prompt ({Stdlib.toString longResult.input_tokens}) > short prompt ({Stdlib.toString shortResult.input_tokens})"
         | Error e -> TestResult.Fail $"Long prompt error: {Response.ApiError.toString e}"
       | Error e -> TestResult.Fail $"Short prompt error: {Response.ApiError.toString e}"
 
@@ -918,7 +918,7 @@ module BatchTests =
         if (isProcessing || isComplete) && total >= 1 then
           TestResult.Pass
         else
-          TestResult.Fail $"Unexpected batch state: processing={Stdlib.Bool.toString isProcessing}, complete={Stdlib.Bool.toString isComplete}, total={Stdlib.Int.toString total}"
+          TestResult.Fail $"Unexpected batch state: processing={Stdlib.toString isProcessing}, complete={Stdlib.toString isComplete}, total={Stdlib.toString total}"
       | Error e ->
         TestResult.Fail $"Create batch error: {Response.ApiError.toString e}"
 
@@ -1152,11 +1152,11 @@ let runAllTests () : String =
   let resultLine =
     if finalSummary.failedTests == 0 then
       if finalSummary.skippedTests > 0 then
-        $"All run tests passed! ({Stdlib.Int.toString finalSummary.skippedTests} skipped)"
+        $"All run tests passed! ({Stdlib.toString finalSummary.skippedTests} skipped)"
       else
         "All tests passed!"
     else
       let failedNames = Stdlib.String.join finalSummary.failedTestNames "\n  - "
       $"Failed tests:\n  - {failedNames}"
 
-  $"Anthropic API Integration Tests\nTotal: {Stdlib.Int.toString finalSummary.totalTests}, Passed: {Stdlib.Int.toString finalSummary.passedTests}, Failed: {Stdlib.Int.toString finalSummary.failedTests}, Skipped: {Stdlib.Int.toString finalSummary.skippedTests}\n{resultLine}"
+  $"Anthropic API Integration Tests\nTotal: {Stdlib.toString finalSummary.totalTests}, Passed: {Stdlib.toString finalSummary.passedTests}, Failed: {Stdlib.toString finalSummary.failedTests}, Skipped: {Stdlib.toString finalSummary.skippedTests}\n{resultLine}"

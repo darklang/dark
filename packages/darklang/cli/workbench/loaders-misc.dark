@@ -100,7 +100,7 @@ let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
     Stdlib.List.filter
       [ (if id == currentBranchId then "current" else "")
         (if SCM.PackageOps.draftOpCountFor id > 0L then "draft" else "")
-        (if ahead > 0L then (Stdlib.Int64.toString ahead) + " ops ahead" else "")
+        (if ahead > 0L then (Stdlib.toString ahead) + " ops ahead" else "")
         last ]
       (fun part -> part != "")
     |> Stdlib.String.join " · "
@@ -248,10 +248,10 @@ let loadSyncItemsWith (peers: Stdlib.Option.Option<List<BodyItem>>) : List<BodyI
       let unpushed = facts.mainUnpushed
       let waiting =
         if unpushed == 0L then "no main ops waiting to push"
-        else (Stdlib.Int64.toString unpushed) + " op(s) to push"
+        else (Stdlib.toString unpushed) + " op(s) to push"
       let cursor = SCM.Wire.pullCursor relay
       let pulled =
-        if cursor == 0L then "nothing pulled yet" else "pulled up to op " + (Stdlib.Int64.toString cursor)
+        if cursor == 0L then "nothing pulled yet" else "pulled up to op " + (Stdlib.toString cursor)
       [ row "identity" identity
         row "relay" (relay + " · " + secret)
         row "standing" (waiting + " · " + pulled)
@@ -323,7 +323,7 @@ let syncPeerItems () : List<BodyItem> =
     match Darklang.Cli.Sync.relayGetAuthed relay "/branch/owners" with
     | Error e -> [ row "relay" ("unreachable: " + e) ]
     | Ok body ->
-      let knownIds = SCM.Branch.list () |> Stdlib.List.map (fun b -> Stdlib.Uuid.toString b.id)
+      let knownIds = SCM.Branch.list () |> Stdlib.List.map (fun b -> Stdlib.toString b.id)
       let entries =
         Stdlib.String.fromBlobWithReplacement body
         |> Stdlib.String.splitOnNewline
@@ -342,7 +342,7 @@ let syncPeerItems () : List<BodyItem> =
             |> Stdlib.List.length
           let fact =
             (plural (Stdlib.List.length theirs) "branch") + " on the relay"
-            + (if notPulled == 0 then "" else " · " + (Stdlib.Int.toString notPulled) + " not pulled · `:branch pull --from " + owner + "`")
+            + (if notPulled == 0 then "" else " · " + (Stdlib.toString notPulled) + " not pulled · `:branch pull --from " + owner + "`")
           row owner fact)
 
 let loadErrorItems () : List<BodyItem> =

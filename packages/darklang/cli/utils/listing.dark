@@ -26,7 +26,7 @@ let shouldCap (all: Bool) : Bool =
 /// <param seeAlso> is what the reader should do, since not every surface that caps a
 /// listing has an `--all` flag of its own to point at.
 let footerSeeAlso (left: Int) (what: String) (seeAlso: String) : String =
-  Stdlib.Cli.UI.Colors.hint $"  ... and {Stdlib.Int.toString left} more {what} ({seeAlso})"
+  Stdlib.Cli.UI.Colors.hint $"  ... and {Stdlib.toString left} more {what} ({seeAlso})"
 
 
 /// The footer under a capped listing on a command that takes `--all` itself.
@@ -126,7 +126,7 @@ let groupedByModule (names: List<String>) : List<(String * List<String>)> =
 /// One group as its two rows: a dimmed header with the count, and the leaves on one line.
 let groupRows (group: (String * List<String>)) : List<String> =
   let (m, leaves) = group
-  let count = Stdlib.Int.toString (Stdlib.List.length leaves)
+  let count = Stdlib.toString (Stdlib.List.length leaves)
 
   [ Stdlib.Cli.UI.Colors.dimText $"  {m}  ({count})", $"    {Stdlib.String.join leaves ", "}" ]
 

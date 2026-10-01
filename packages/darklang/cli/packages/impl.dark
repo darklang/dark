@@ -192,7 +192,7 @@ let help (_state: Cli.AppState) : String =
     "Examples:"
     "  impl . \"ToString for Point = let toString (p: Point) : String = Stdlib.toString p.x\""
     "  impl /Acme \"Add for Vec = let add (a: Vec) (b: Vec) : Vec = Vec { x = a.x + b.x; y = a.y + b.y }\""
-    "  impl . \"Show for Int64 = let show = Stdlib.Int64.toString\""
+    "  impl . \"Show for Int64 = let show = Stdlib.toString\""
     ""
     "  # Several methods via stdin (run from shell, not the REPL):"
     "  ./scripts/run-cli impl /Acme - <<'EOF'"

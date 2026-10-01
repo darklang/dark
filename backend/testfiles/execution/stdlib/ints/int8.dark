@@ -85,11 +85,11 @@ Stdlib.Int8.lessThan 0y 1y = true
 Stdlib.Int8.lessThan 1y 0y = false
 Stdlib.Int8.lessThan -128y 127y = true
 
-Stdlib.Int8.toString 0y = "0"
-Stdlib.Int8.toString 1y = "1"
-Stdlib.Int8.toString -1y = "-1"
-Stdlib.Int8.toString -128y = "-128" // Int8 lower limit
-Stdlib.Int8.toString 127y = "127" // Int8 upper limit
+Stdlib.toString 0y = "0"
+Stdlib.toString 1y = "1"
+Stdlib.toString -1y = "-1"
+Stdlib.toString -128y = "-128" // Int8 lower limit
+Stdlib.toString 127y = "127" // Int8 upper limit
 
 Stdlib.Int8.toFloat 2y = 2.0
 Stdlib.Int8.toFloat 127y = 127.0

@@ -63,10 +63,10 @@ Stdlib.UInt16.lessThan 1us 0us = false
 Stdlib.UInt16.lessThan 0us 65535us = true
 Stdlib.UInt16.lessThan 65535us 65535us = false
 
-Stdlib.UInt16.toString 120us = "120"
-Stdlib.UInt16.toString 1us = "1"
-Stdlib.UInt16.toString 0us = "0" // UInt16 lower limit
-Stdlib.UInt16.toString 65535us = "65535" // UInt16 upper limit
+Stdlib.toString 120us = "120"
+Stdlib.toString 1us = "1"
+Stdlib.toString 0us = "0" // UInt16 lower limit
+Stdlib.toString 65535us = "65535" // UInt16 upper limit
 
 Stdlib.UInt16.toFloat 2us = 2.0
 Stdlib.UInt16.toFloat 0us = 0.0

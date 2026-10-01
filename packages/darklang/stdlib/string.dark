@@ -172,11 +172,11 @@ let join (l: List<String>) (separator: String) : String =
 
 /// Returns the list of characters as a string
 let fromList (lst: List<Char>) : String =
-  join (List.map lst (fun c -> Char.toString c)) ""
+  join (List.map lst (fun c -> Stdlib.toString c)) ""
 
 
 /// Converts a <type Char> to a <type String>
-let fromChar (c: Char) : String = Char.toString c
+let fromChar (c: Char) : String = Stdlib.toString c
 
 
 /// URLBase64 encodes a string without padding. Uses URL-safe encoding with
@@ -223,7 +223,7 @@ let digest (s: String) : String =
 let random (length: Int) : Result.Result<String, String> =
   if length < 0 then
     Result.Result.Error
-      $"Expected `length` to be positive, but it was `{length |> Int.toString}`"
+      $"Expected `length` to be positive, but it was `{length |> Stdlib.toString}`"
   else
     let characters =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -542,7 +542,7 @@ let toOrdinal (n: Int) : String =
       | 3 -> "rd"
       | _ -> "th"
 
-  (Int.toString n) + suffix
+  (Stdlib.toString n) + suffix
 
 
 /// Splits the given <param str> at each newline character and returns a list of substrings.

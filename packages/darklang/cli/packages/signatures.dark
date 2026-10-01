@@ -260,10 +260,10 @@ let executeFiltered
   Stdlib.printLine ""
 
   let typesNote =
-    if includeTypes then $", {Stdlib.Int.toString totalTypes} types"
+    if includeTypes then $", {Stdlib.toString totalTypes} types"
     else ""
 
-  let summary = $"{Stdlib.Int.toString totalFns} fns{typesNote} across {Stdlib.Int.toString (Stdlib.List.length allKeys)} modules"
+  let summary = $"{Stdlib.toString totalFns} fns{typesNote} across {Stdlib.toString (Stdlib.List.length allKeys)} modules"
   Stdlib.printLine (Stdlib.Cli.UI.Colors.hint summary)
 
   if Stdlib.Bool.not includeTypes then

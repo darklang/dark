@@ -486,7 +486,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
   else
     let withPrevious = r.withPrevious
 
-    Cli.printOk $"  CHANGED ({Stdlib.Int.toString (Stdlib.List.length changed)})"
+    Cli.printOk $"  CHANGED ({Stdlib.toString (Stdlib.List.length changed)})"
 
     let nameWidth = widest (r.items |> Stdlib.List.map (fun i -> i.name))
 
@@ -498,7 +498,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
       ()
     else
       Stdlib.printLine ""
-      Cli.printOk $"  REMOVED ({Stdlib.Int.toString (Stdlib.List.length r.removed)})"
+      Cli.printOk $"  REMOVED ({Stdlib.toString (Stdlib.List.length r.removed)})"
       r.removed |> Stdlib.List.iter (fun name -> Stdlib.printLine $"    - {name}")
 
     // PROPAGATES TO -- outcomes, not ops. This is a PREVIEW; nothing is authored until you say yes.
@@ -509,7 +509,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
     else
       Stdlib.printLine ""
       Cli.printOk
-        $"  PROPAGATES TO ({Stdlib.Int.toString (Stdlib.List.length repoints)})   (auto, reduced to final versions)"
+        $"  PROPAGATES TO ({Stdlib.toString (Stdlib.List.length repoints)})   (auto, reduced to final versions)"
 
       let repointWidth = widest (repoints |> Stdlib.List.map (fun rp -> rp.name))
 
@@ -528,7 +528,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine ""
 
       Cli.printOk
-        $"  STAYING BEHIND ({Stdlib.Int.toString (Stdlib.List.length behind)})   (pinned, so they keep the version they have)"
+        $"  STAYING BEHIND ({Stdlib.toString (Stdlib.List.length behind)})   (pinned, so they keep the version they have)"
 
       let behindWidth = widest (behind |> Stdlib.List.map (fun rp -> rp.name))
 
@@ -545,7 +545,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
     else
       Stdlib.printLine ""
       Cli.printOk
-        $"  CONFLICTS ({Stdlib.Int.toString (Stdlib.List.length conflicts)})   auto-resolved, needs your ok"
+        $"  CONFLICTS ({Stdlib.toString (Stdlib.List.length conflicts)})   auto-resolved, needs your ok"
 
       conflicts
       |> Stdlib.List.iter (fun c -> Stdlib.printLine (SCM.Conflicts.summaryLine c))

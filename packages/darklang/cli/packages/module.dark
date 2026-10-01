@@ -257,7 +257,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.success
-                  $"✓ Defined {Stdlib.Int.toString count} {what} in {modulePath}")
+                  $"✓ Defined {Stdlib.toString count} {what} in {modulePath}")
 
               // Name what did not, so a rejected declaration is something you find out now rather than
               // the next time you call it.

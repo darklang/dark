@@ -388,7 +388,7 @@ let listBatches
     []
     |> (fun params ->
       match limit with
-      | Some l -> Stdlib.List.append params [ ("limit", Stdlib.Int.toString l) ]
+      | Some l -> Stdlib.List.append params [ ("limit", Stdlib.toString l) ]
       | None -> params)
     |> (fun params ->
       match afterId with

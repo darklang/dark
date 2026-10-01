@@ -125,10 +125,6 @@ let parse (s: String) : Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
   Builtin.int64Parse s
 
 
-/// Stringify <param int>
-let toString (int: Int64) : String = Builtin.int64ToString int
-
-
 /// Converts an <type Int8> to an <type Int64>.
 let fromInt8 (i: Int8) : Int64 = Builtin.int64FromInt8 i
 
@@ -222,7 +218,8 @@ impl Compare for Int64 =
   let greaterThanOrEqualTo = Stdlib.Int64.greaterThanOrEqualTo
 
 impl ToString for Int64 =
-  let toString = Stdlib.Int64.toString
+  /// Stringify <param int>
+  let toString (int: Int64) : String = Builtin.int64ToString int
 
 impl Zero for Int64 =
   let zero () : Int64 = 0L

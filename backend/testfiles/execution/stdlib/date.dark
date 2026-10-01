@@ -3,7 +3,7 @@ let d (datestr: String) : DateTime =
 
 let p (datestr: String) : Stdlib.Result.Result<String, String> =
   (Stdlib.DateTime.parse datestr)
-  |> Stdlib.Result.map (fun x -> Stdlib.DateTime.toString x)
+  |> Stdlib.Result.map (fun x -> Stdlib.toString x)
 
 module DateParsing =
   p "2019-07-28T22:42:36Z" = Stdlib.Result.Result.Ok "2019-07-28T22:42:36Z"
@@ -194,7 +194,7 @@ module Epoch1970 =
   Stdlib.DateTime.second (d "1970-07-28T22:42:36Z") = 36
 
 module Conversion =
-  Stdlib.DateTime.toString (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
+  Stdlib.toString (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
 
   Stdlib.DateTime.atStartOfDay (d "2019-07-28T22:42:36Z") = (d "2019-07-28T00:00:00Z")
 
@@ -223,8 +223,8 @@ module Conversion =
   (d "2019-07-28T22:42:36Z")
   |> Stdlib.DateTime.toSeconds
   |> Stdlib.DateTime.fromSeconds
-  |> Stdlib.DateTime.toString = "2019-07-28T22:42:36Z"
-// Stdlib.DateTime.today |> Stdlib.DateTime.toString = "2020-10-17T00:00:00Z" // todo, how can we test this
+  |> Stdlib.toString = "2019-07-28T22:42:36Z"
+// Stdlib.DateTime.today |> Stdlib.toString = "2020-10-17T00:00:00Z" // todo, how can we test this
 
 module AddingSeconds =
   let a (d1: String) (s: Int) : DateTime =
@@ -292,7 +292,7 @@ module MillisecondConversion =
 
   1564353756123
   |> Stdlib.DateTime.fromMilliseconds
-  |> Stdlib.DateTime.toString = "2019-07-28T22:42:36.123Z"
+  |> Stdlib.toString = "2019-07-28T22:42:36.123Z"
 
   // Round-trip: ms -> DateTime -> ms
   0 |> Stdlib.DateTime.fromMilliseconds |> Stdlib.DateTime.toMilliseconds = 0
@@ -317,8 +317,8 @@ module AddMilliseconds =
   ams "2020-11-26T04:37:46Z" 0 = (d "2020-11-26T04:37:46Z")
   (ams "2020-11-26T04:37:46Z" 500) |> Stdlib.DateTime.millisecond = 500
   ams "2020-11-26T04:37:46Z" 1000 = (d "2020-11-26T04:37:47Z")
-  (ams "2020-11-26T04:37:46Z" 1500) |> Stdlib.DateTime.toString = "2020-11-26T04:37:47.500Z"
-  (ams "2020-11-26T04:37:46Z" -500) |> Stdlib.DateTime.toString = "2020-11-26T04:37:45.500Z"
+  (ams "2020-11-26T04:37:46Z" 1500) |> Stdlib.toString = "2020-11-26T04:37:47.500Z"
+  (ams "2020-11-26T04:37:46Z" -500) |> Stdlib.toString = "2020-11-26T04:37:45.500Z"
 
 
 module SubtractMilliseconds =
@@ -328,7 +328,7 @@ module SubtractMilliseconds =
   sms "2020-11-26T04:37:46Z" 0 = (d "2020-11-26T04:37:46Z")
   (sms "2020-11-26T04:37:46Z" 500) |> Stdlib.DateTime.millisecond = 500
   sms "2020-11-26T04:37:46Z" 1000 = (d "2020-11-26T04:37:45Z")
-  (sms "2020-11-26T04:37:46Z" -500) |> Stdlib.DateTime.toString = "2020-11-26T04:37:46.500Z"
+  (sms "2020-11-26T04:37:46Z" -500) |> Stdlib.toString = "2020-11-26T04:37:46.500Z"
 
 
 module DifferenceMs =

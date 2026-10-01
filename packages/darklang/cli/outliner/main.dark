@@ -72,9 +72,9 @@ let docLabel (doc: Document) : String =
   let suffix =
     if total == 0 then "empty"
     else if done_ > 0 then
-      $"{Stdlib.Int.toString total} lines, {Stdlib.Int.toString done_} done"
+      $"{Stdlib.toString total} lines, {Stdlib.toString done_} done"
     else
-      $"{Stdlib.Int.toString total} lines"
+      $"{Stdlib.toString total} lines"
 
   $"{doc.title}  ({suffix})"
 
@@ -297,7 +297,7 @@ let onEditorKey
         else
           Stdlib.Cli.UI.Confirm.askDangerous
             $"Delete {shown}?"
-            $"{Stdlib.Int.toString count} lines underneath go with it. u undoes it."
+            $"{Stdlib.toString count} lines underneath go with it. u undoes it."
 
       KeyResult.Continue
         { carried with

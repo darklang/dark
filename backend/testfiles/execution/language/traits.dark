@@ -10,10 +10,10 @@ module Shapes =
 
   impl Show for Point =
     let show (p: Point) : String =
-      $"({Stdlib.Int.toString p.x}, {Stdlib.Int.toString p.y})"
+      $"({Stdlib.toString p.x}, {Stdlib.toString p.y})"
 
   impl Show for Int =
-    let show (n: Int) : String = Stdlib.Int.toString n
+    let show (n: Int) : String = Stdlib.toString n
 
   impl Show for Bool =
     let show (b: Bool) : String = if b then "yes" else "no"
@@ -197,7 +197,7 @@ module Rendering =
   type Point = { x: Int64; y: Int64 }
 
   impl Stdlib.ToString for Point =
-    let toString (p: Point) : String = $"({Stdlib.Int64.toString p.x}, {Stdlib.Int64.toString p.y})"
+    let toString (p: Point) : String = $"({Stdlib.toString p.x}, {Stdlib.toString p.y})"
 
   (Rendering.Point { x = 1L; y = 2L }).toString = "(1, 2)"
   Stdlib.toString (Rendering.Point { x = 1L; y = 2L }) = "(1, 2)"

@@ -82,7 +82,7 @@ let exec (program: String) (args: List<String>) : Result.Result<String, String> 
 
       if err == "" then
         Stdlib.Result.Result.Error
-          $"Command failed with exit code {Stdlib.Int.toString output.exitCode}"
+          $"Command failed with exit code {Stdlib.toString output.exitCode}"
       else
         Stdlib.Result.Result.Error err)
 

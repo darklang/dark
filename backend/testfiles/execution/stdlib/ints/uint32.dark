@@ -62,10 +62,10 @@ Stdlib.UInt32.lessThan 1ul 0ul = false
 Stdlib.UInt32.lessThan 0ul 4294967295ul = true
 Stdlib.UInt32.lessThan 4294967295ul 4294967295ul = false
 
-Stdlib.UInt32.toString 120ul = "120"
-Stdlib.UInt32.toString 1ul = "1"
-Stdlib.UInt32.toString 0ul = "0" // UInt32 lower limit
-Stdlib.UInt32.toString 4294967295ul = "4294967295" // UInt32 upper limit
+Stdlib.toString 120ul = "120"
+Stdlib.toString 1ul = "1"
+Stdlib.toString 0ul = "0" // UInt32 lower limit
+Stdlib.toString 4294967295ul = "4294967295" // UInt32 upper limit
 
 Stdlib.UInt32.toFloat 2ul = 2.0
 Stdlib.UInt32.toFloat 0ul = 0.0

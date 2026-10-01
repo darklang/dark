@@ -20,7 +20,7 @@ let runServerCli (u: Unit) : Int =
   let _deleted = Stdlib.Cli.FileSystem.deleteFile logFilePath
 
   (Stdlib.DateTime.now ())
-  |> Stdlib.DateTime.toString
+  |> Stdlib.toString
   |> fun nowStr -> log $"Running Darklang LSP Server {nowStr}"
 
 

@@ -212,7 +212,7 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
     if Stdlib.List.isEmpty rows then []
     else
       Stdlib.List.flatten
-        [ [ "  " + (Stdlib.Cli.UI.Colors.dimText (label + " · " + (Stdlib.Int.toString (Stdlib.List.length rows)))) ]
+        [ [ "  " + (Stdlib.Cli.UI.Colors.dimText (label + " · " + (Stdlib.toString (Stdlib.List.length rows)))) ]
           Stdlib.List.map rows childLine
           [ "" ] ]
   let contents =
@@ -495,7 +495,7 @@ let inspectPageLines (state: State) : List<String> =
             Stdlib.List.append
               srcPlain
               [ Stdlib.Cli.UI.Colors.warning
-                  $"(syntax highlighting off: re-lexing produced {Stdlib.Int.toString (Stdlib.List.length h)} lines, source has {Stdlib.Int.toString (Stdlib.List.length srcPlain)})" ]
+                  $"(syntax highlighting off: re-lexing produced {Stdlib.toString (Stdlib.List.length h)} lines, source has {Stdlib.toString (Stdlib.List.length srcPlain)})" ]
         Stdlib.List.append highlighted access
       // The order a reader wants: what this is, the code, what running it needs, who it touches.
       // The keys that act on it are in the footer, so they are not repeated here.

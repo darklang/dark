@@ -78,10 +78,6 @@ let parse (s: String) : Stdlib.Result.Result<UInt8, Stdlib.UInt8.ParseError> =
   Builtin.uint8Parse s
 
 
-/// Stringify <param Uint8>
-let toString (uint8: UInt8) : String = Builtin.uint8ToString uint8
-
-
 /// Converts an <type Int8> to a <type UInt8>. Returns {{None}} if the value is less than 0.
 let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt8> = Builtin.uint8FromInt8 i
 
@@ -177,7 +173,8 @@ impl Compare for UInt8 =
   let greaterThanOrEqualTo = Stdlib.UInt8.greaterThanOrEqualTo
 
 impl ToString for UInt8 =
-  let toString = Stdlib.UInt8.toString
+  /// Stringify <param Uint8>
+  let toString (uint8: UInt8) : String = Builtin.uint8ToString uint8
 
 impl Zero for UInt8 =
   let zero () : UInt8 = 0uy

@@ -84,10 +84,6 @@ let sqrt (a: Int128) : Float = Builtin.int128Sqrt a
 let toFloat (a: Int128) : Float = Builtin.int128ToFloat a
 
 
-/// Stringify <param int128>
-let toString (int128: Int128) : String = Builtin.int128ToString int128
-
-
 /// Parses a <type String> into an <type Int128>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
@@ -184,7 +180,8 @@ impl Compare for Int128 =
   let greaterThanOrEqualTo = Stdlib.Int128.greaterThanOrEqualTo
 
 impl ToString for Int128 =
-  let toString = Stdlib.Int128.toString
+  /// Stringify <param int128>
+  let toString (int128: Int128) : String = Builtin.int128ToString int128
 
 impl Zero for Int128 =
   let zero () : Int128 = 0Q

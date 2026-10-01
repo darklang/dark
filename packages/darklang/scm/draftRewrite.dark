@@ -346,7 +346,7 @@ let unstageRepoint
         |> Stdlib.List.filterMap (fun entry ->
           let (opId, _, source) = entry
           if source == "propagation" then
-            Stdlib.Option.Option.Some(Stdlib.Uuid.toString opId)
+            Stdlib.Option.Option.Some(Stdlib.toString opId)
           else
             Stdlib.Option.Option.None)
 

@@ -58,7 +58,7 @@ type Document =
 // --- Keys ---
 
 let k (id: Int) : String =
-  Stdlib.Int.toString id
+  Stdlib.toString id
 
 let parseKey (key: String) : Int =
   match Stdlib.Int.parse key with

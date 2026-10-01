@@ -93,7 +93,7 @@ let identity () : String =
   if (stored != "") && ((mintedAt == here) || (autoMinted |> Stdlib.Bool.not)) then
     stored
   else
-    let generated = $"inst-{Stdlib.Uuid.toString (Stdlib.Uuid.generate ())}"
+    let generated = $"inst-{Stdlib.toString (Stdlib.Uuid.generate ())}"
     Stdlib.LocalStore.configSet "sync.identity" generated
     Stdlib.LocalStore.configSet "sync.identity.origin" here
     generated
@@ -127,7 +127,7 @@ let identityProblem (name: String) : Stdlib.Option.Option<String> =
     match bad with
     | [] -> Stdlib.Option.Option.None
     | c :: _ ->
-      let shown = Stdlib.Char.toString c
+      let shown = Stdlib.toString c
       Stdlib.Option.Option.Some
         $"an identity can't contain \"{shown}\" -- letters, digits, dot, dash and underscore only, because it travels in a url and comes back in the relay's owner list"
 

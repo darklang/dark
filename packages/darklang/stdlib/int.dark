@@ -93,10 +93,6 @@ let parse (s: String) : Stdlib.Result.Result<Int, ParseError> =
   Builtin.intParse s
 
 
-/// Stringify <param int>
-let toString (int: Int) : String = Builtin.intToString int
-
-
 // Conversions from the fixed-width integer types into `Int` (always succeed).
 
 /// Converts an <type Int8> to an arbitrary-precision <type Int>
@@ -213,7 +209,8 @@ impl Compare for Int =
   let greaterThanOrEqualTo = Stdlib.Int.greaterThanOrEqualTo
 
 impl ToString for Int =
-  let toString = Stdlib.Int.toString
+  /// Stringify <param int>
+  let toString (int: Int) : String = Builtin.intToString int
 
 impl Zero for Int =
   let zero () : Int = 0

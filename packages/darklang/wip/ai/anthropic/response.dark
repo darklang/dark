@@ -126,7 +126,7 @@ module ApiError =
     | Overloaded msg -> "API overloaded: " + msg
     | InvalidResponse msg -> "Invalid response: " + msg
     | UnknownError(statusCode, body) ->
-      "HTTP " + Stdlib.Int.toString statusCode + " error: " + body
+      "HTTP " + Stdlib.toString statusCode + " error: " + body
 
   /// Check if the error is retryable
   let isRetryable (err: ApiError) : Bool =

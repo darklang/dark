@@ -202,10 +202,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
     else
 
-    let checkedCount = Stdlib.Int.toString totals.checkedCount
-    let failedCount = Stdlib.Int.toString totals.failedCount
-    let incompleteCount = Stdlib.Int.toString totals.incompleteCount
-    let totalCount = Stdlib.Int.toString total
+    let checkedCount = Stdlib.toString totals.checkedCount
+    let failedCount = Stdlib.toString totals.failedCount
+    let incompleteCount = Stdlib.toString totals.incompleteCount
+    let totalCount = Stdlib.toString total
 
     Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "At-rest package type audit")
     Stdlib.printLine (

@@ -246,7 +246,7 @@ let runExtendedLoop
 
       if newState.turn > config.maxTurns then
         Stdlib.Result.Result.Error
-          $"Max turns exceeded ({Stdlib.Int.toString newState.turn}/{Stdlib.Int.toString config.maxTurns})"
+          $"Max turns exceeded ({Stdlib.toString newState.turn}/{Stdlib.toString config.maxTurns})"
       else
         runExtendedLoop provider config extensions newState
 

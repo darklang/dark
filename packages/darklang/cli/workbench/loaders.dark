@@ -61,8 +61,8 @@ let moduleRows
     |> Stdlib.List.map (fun t ->
       let shape (_u: Unit) : String =
         match t.entity.declaration.definition with
-        | Record fields -> "record · " + (Stdlib.Int.toString (Stdlib.List.length fields)) + " fields"
-        | Enum cases -> "enum · " + (Stdlib.Int.toString (Stdlib.List.length cases)) + " cases"
+        | Record fields -> "record · " + (Stdlib.toString (Stdlib.List.length fields)) + " fields"
+        | Enum cases -> "enum · " + (Stdlib.toString (Stdlib.List.length cases)) + " cases"
         | Alias tr -> typeRef tr
       BodyItem
         { name = t.location.name
@@ -99,7 +99,7 @@ let moduleRows
     results.traits
     |> Stdlib.List.map (fun t ->
       let shape (_u: Unit) : String =
-        "trait · " + (Stdlib.Int.toString (Stdlib.List.length t.entity.methods)) + " methods"
+        "trait · " + (Stdlib.toString (Stdlib.List.length t.entity.methods)) + " methods"
       BodyItem
         { name = t.location.name
           kind = "trait"
@@ -141,9 +141,9 @@ let diffStat (lines: List<Stdlib.Diff.DiffLine>) : String =
   let removed = lines |> Stdlib.List.filter (fun l -> match l with | Removed _ -> true | _ -> false) |> Stdlib.List.length
   if (added == 0) && (removed == 0) then ""
   else
-    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+" + (Stdlib.Int.toString added)))
+    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+" + (Stdlib.toString added)))
     + " "
-    + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("-" + (Stdlib.Int.toString removed)))
+    + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("-" + (Stdlib.toString removed)))
 
 /// Feeds the Changes view and Matter's Changed lens -- one list, two angles. The
 /// lens shows the draft as your code filtered to what moved, with the real tree
@@ -212,7 +212,7 @@ let commitListText () : String =
     |> Stdlib.List.map (fun c ->
       // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
       let short = Stdlib.String.first c.hash 8
-      let ops = Stdlib.Int64.toString c.ops
+      let ops = Stdlib.toString c.ops
       "  " + (Stdlib.Cli.UI.Colors.dimText short) + "  " + c.message
       + (Stdlib.Cli.UI.Colors.dimText ("  " + c.author + " · " + ops + (if ops == "1" then " op" else " ops"))))
   Stdlib.String.join
@@ -236,10 +236,10 @@ let commitOpsText (branchId: Uuid) (selected: Int) : String =
       |> Stdlib.String.join "\n"
     let more =
       if opCount > 20 then
-        "\n\n  … and " + (Stdlib.Int.toString (opCount - 20)) + " more ops"
+        "\n\n  … and " + (Stdlib.toString (opCount - 20)) + " more ops"
       else
         ""
-    c.message + "  (" + (Stdlib.Int.toString opCount) + " ops)\n\n" + opLines + more
+    c.message + "  (" + (Stdlib.toString opCount) + " ops)\n\n" + opLines + more
 
 /// Render diff lines as syntax-highlighted code with a faint wash behind what
 /// changed: green behind added lines, red behind removed, nothing behind
@@ -521,11 +521,11 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
       else
         Stdlib.List.append
           (Stdlib.List.take lines referenceCap)
-          [ Stdlib.Cli.UI.Colors.dimText ("  + " + (Stdlib.Int.toString (n - referenceCap)) + " more · :deps " + fqn + " lists them all") ]
+          [ Stdlib.Cli.UI.Colors.dimText ("  + " + (Stdlib.toString (n - referenceCap)) + " more · :deps " + fqn + " lists them all") ]
     // No item name here: `inspectPageLines` composes this under a page already headed by that
     // item's source, so including it printed the name twice on one screen.
     let heading (label: String) (n: Int) : String =
-      (sectionHeading label) + (Stdlib.Cli.UI.Colors.dimText (" · " + (Stdlib.Int.toString n)))
+      (sectionHeading label) + (Stdlib.Cli.UI.Colors.dimText (" · " + (Stdlib.toString n)))
     Stdlib.String.join
       (Stdlib.List.flatten
         [ [ heading "uses" (Stdlib.List.length deps) ]

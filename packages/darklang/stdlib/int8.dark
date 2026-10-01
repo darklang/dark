@@ -114,10 +114,6 @@ let parse (s: String) : Stdlib.Result.Result<Int8, Stdlib.Int8.ParseError> =
   Builtin.int8Parse s
 
 
-/// Stringify <param int8>
-let toString (int8: Int8) : String = Builtin.int8ToString int8
-
-
 /// Converts a <type UInt8> to an <type Int8>. Returns {{None}} if the value is greater than 127.
 let fromUInt8 (i: UInt8) : Stdlib.Option.Option<Int8> = Builtin.int8FromUInt8 i
 
@@ -213,7 +209,8 @@ impl Compare for Int8 =
   let greaterThanOrEqualTo = Stdlib.Int8.greaterThanOrEqualTo
 
 impl ToString for Int8 =
-  let toString = Stdlib.Int8.toString
+  /// Stringify <param int8>
+  let toString (int8: Int8) : String = Builtin.int8ToString int8
 
 impl Zero for Int8 =
   let zero () : Int8 = 0y

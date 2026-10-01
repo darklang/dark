@@ -77,7 +77,7 @@ let expectExact (args: List<String>) (expected: String): TestResult =
 ///
 /// Everything happens between a throwaway parent and its child, so main gains nothing.
 let testConflictWalkthrough (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let parent = "cli-walk-parent-" + suffix
   let child = "cli-walk-child-" + suffix
   let fnName = "Tests.CliWalk.f" + suffix
@@ -183,7 +183,7 @@ let testEvalListLength (): TestResult =
 /// not, because a commit is what other machines pull. So after an invalid module the item EXISTS, the
 /// message says it is WIP, and the definitions that were already there are untouched.
 let testModuleCommand (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-module-test-" + suffix
   let moduleName = "Tests.CliModule"
   let initialSource =
@@ -290,7 +290,7 @@ let testModuleCommand (): TestResult =
 
 
 let testModuleRejectsDuplicateNames (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-module-duplicate-test-" + suffix
   let moduleName = "Tests.CliModuleDuplicate"
   let source =
@@ -332,7 +332,7 @@ let testModuleRejectsDuplicateNames (): TestResult =
 /// So this drives the real binary. It merges a child into a THROWAWAY PARENT rather than into main, so a
 /// run leaves no fn behind on main.
 let testMergeRoundTrip (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let parent = "cli-merge-parent-" + suffix
   let child = "cli-merge-child-" + suffix
   let fnName = "Tests.CliMerge.landed" + suffix
@@ -372,7 +372,7 @@ let testMergeRoundTrip (): TestResult =
 
 
 let testFnAcceptsCompleteDeclaration (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-authoring-test-" + suffix
   let moduleName = "Tests.CliAuthoring"
   let fnSource =
@@ -470,7 +470,7 @@ let testViewFunction (): TestResult =
 /// permissive by design ("tests run permissive" in `Execution.createState`), so an in-harness
 /// RT-level test guards nothing.
 let testHarmfulGate (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let fnName = $"Tests.HarmGate.g{suffix}"
 
   let _ = runWithCommand [ "fn", fnName, "(x: Int64) : Int64 = Stdlib.Int64.add x 31L" ]
@@ -545,7 +545,7 @@ let testBatchSearchKeepsQueriesIndependent (): TestResult =
 
 
 let testUnresolvedNameGuidance (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-name-guidance-test-" + suffix
   let moduleName = "Tests.CliNameGuidance"
   let _ = runWithCommand ["branch", "create", branchName]
@@ -663,7 +663,7 @@ let testViewInstructionsShowsLambdas (): TestResult =
   // The subject is authored here rather than borrowed from the stdlib. Whether a given stdlib function
   // compiles to a lambda is an implementation detail: it can become a direct builtin call, and then a
   // test pointing at it still runs, still fails, and covers nothing.
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let name = "Tests.CliLambda.keepBig" + suffix
 
   let _ =
@@ -818,7 +818,7 @@ let testViewRawIsUndecorated (): TestResult =
 /// the parser disagree anywhere, a round trip authors a second version of the item
 /// and the op log grows every time someone looks at it.
 let testEditRoundTripsThroughRaw (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-edit-test-" + suffix
   let name = "Tests.CliEdit.tripled"
   let sourcePath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
@@ -875,7 +875,7 @@ let testEditRoundTripsThroughRaw (): TestResult =
 /// otherwise `view Zz.alpha` prints a definition headed `Zz.beta`, and `--raw` feeds
 /// that wrong name to whatever writes it back.
 let testViewHeadsWithTheNameYouAskedFor (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-sharedbody-test-" + suffix
   let alpha = "Tests.CliShared.alpha"
   let beta = "Tests.CliShared.beta"
@@ -925,7 +925,7 @@ let testViewHeadsWithTheNameYouAskedFor (): TestResult =
 /// item is worse than one that fails: nothing says so, and the store quietly holds
 /// something you did not write.
 let testEditRoundTripsTypesAndValues (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-edit-kinds-" + suffix
   let typeName = "Tests.CliEditKinds.Pair"
   let valueName = "Tests.CliEditKinds.answer"
@@ -991,7 +991,7 @@ let testEditRoundTripsTypesAndValues (): TestResult =
 /// be a rejection: half-applying it, or reporting a failure while the store moved,
 /// would make an editor round trip something you cannot trust.
 let testEditLeavesTheItemAloneOnABadFile (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-edit-bad-" + suffix
   let name = "Tests.CliEditBad.kept"
   let badPath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
@@ -1072,7 +1072,7 @@ let testEditRefusesWhatItCannotEdit (): TestResult =
 /// Every way of passing a definition authors the same item. The `=` is a separator:
 /// unquoted the shell splits it off, quoted it arrives attached, and both come off.
 let testAuthoringAcceptsAQuotedSeparator (): TestResult =
-  let branch = "cli-quoted-eq-" + (Stdlib.Int.toString (Stdlib.Int.random 1 999999))
+  let branch = "cli-quoted-eq-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
 
@@ -1106,7 +1106,7 @@ let testAuthoringAcceptsAQuotedSeparator (): TestResult =
 /// A lowercase module segment is refused. It would be read as the item's NAME, so
 /// `Tests.lower.f` authors `Tests.lower` and nothing can refer to it afterwards.
 let testAuthoringRefusesALowercaseModule (): TestResult =
-  let branch = "cli-lowercase-" + (Stdlib.Int.toString (Stdlib.Int.random 1 999999))
+  let branch = "cli-lowercase-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
 
@@ -1173,7 +1173,7 @@ let testTreeRefusesWhatItCannotShow (): TestResult =
 /// `discard` throws the whole draft away, so an unanswerable prompt is not a yes: it
 /// refuses, and the work is still there. `-y` is how a script says yes.
 let testDiscardNeedsAnExplicitYes (): TestResult =
-  let branch = "cli-discard-" + (Stdlib.Int.toString (Stdlib.Int.random 1 999999))
+  let branch = "cli-discard-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
 

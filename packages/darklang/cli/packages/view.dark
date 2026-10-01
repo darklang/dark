@@ -491,7 +491,7 @@ let instructionRows
       |> Stdlib.List.indexedMap (fun index i ->
         let idx =
           Stdlib.Cli.UI.Colors.dimText
-            (Stdlib.String.padStartToWidth (Stdlib.Int.toString index) 4)
+            (Stdlib.String.padStartToWidth (Stdlib.toString index) 4)
         // Width of the widest opcode actually in this body, not a fixed 22. Most functions use short
         // opcodes, and a fixed column leaves a corridor of blanks between them and their operands.
         let op =
@@ -509,7 +509,7 @@ let instructionRows
         PrettyPrinter.RuntimeTypes.Instructions.header l.instructions
       Stdlib.List.flatten
         [ [ ""
-            Stdlib.Cli.UI.Colors.hint $"lambda#{Stdlib.UInt64.toString l.exprId}"
+            Stdlib.Cli.UI.Colors.hint $"lambda#{Stdlib.toString l.exprId}"
             Stdlib.Cli.UI.Colors.dimText $"  {header}"
             "" ]
           renderBody l.instructions ])

@@ -434,7 +434,7 @@ let onKeySearching
       let note =
         if text == "" then "filter cleared"
         else if hits == 0 then $"no matches for \"{text}\""
-        else $"{Stdlib.Int.toString hits} lines match \"{text}\""
+        else $"{Stdlib.toString hits} lines match \"{text}\""
 
       Stdlib.Cli.UI.Widget.Outcome.Emitted(filtered, Msg.Note note)
     | Cancelled ->
@@ -545,7 +545,7 @@ let prefixFor (vn: VisibleNode) (isCursor: Bool) : String =
 /// The count of what a fold is hiding, as it appears at the end of the line.
 let hiddenSuffix (vn: VisibleNode) : String =
   if vn.hiddenCount > 0 then
-    $" ({Stdlib.Int.toString vn.hiddenCount} hidden)"
+    $" ({Stdlib.toString vn.hiddenCount} hidden)"
   else
     ""
 

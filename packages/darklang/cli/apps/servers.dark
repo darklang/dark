@@ -17,7 +17,7 @@ let httpDaemon
 
   let announce () : Unit =
     Stdlib.printLine
-      $"{name}: serving {label} on http://localhost:{Stdlib.Int.toString port}"
+      $"{name}: serving {label} on http://localhost:{Stdlib.toString port}"
 
   match Stdlib.HttpServer.serve (Stdlib.HttpServer.Config.defaults port) router announce with
   | Ok _ -> ()
@@ -65,6 +65,6 @@ let syncDaemon (name: String) : Int =
     | Error e -> Stdlib.printLine $"{name}: could not write pidfile: {e}"
     | Ok _ ->
       Stdlib.printLine
-        $"{name}: syncing every {Stdlib.Int.toString intervalMs}ms (pid {Stdlib.Int.toString (Stdlib.Cli.Sys.currentPid ())})"
+        $"{name}: syncing every {Stdlib.toString intervalMs}ms (pid {Stdlib.toString (Stdlib.Cli.Sys.currentPid ())})"
 
   syncTick name intervalMs (Cli.initState ()) 1000000000

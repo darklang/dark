@@ -369,7 +369,7 @@ let detectRemovals
 let inPlaceholders (values: List<String>) : String =
   let ps =
     values
-    |> Stdlib.List.indexedMap (fun i _ -> $"@p{Stdlib.Int.toString i}")
+    |> Stdlib.List.indexedMap (fun i _ -> $"@p{Stdlib.toString i}")
 
   Stdlib.String.join ps ", "
 
@@ -463,7 +463,7 @@ let branchBases (branchId: Uuid) : List<NameBase> =
   Stdlib.Sqlite.rowsP
     (localDb ())
     "SELECT owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @p0"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
     baseFromRow
 
 /// The bases recorded for a SYNC SOURCE: the hashes this instance and that source last agreed on.
@@ -567,9 +567,9 @@ let record (branchId: Uuid) (conflicts: List<Conflict>) : Int =
                Stdlib.Json.serialize<List<Candidate>> c.candidates
                c.autoResolvedTo
                c.reason
-               Stdlib.Uuid.toString branchId ] ])
+               Stdlib.toString branchId ] ])
           ("UPDATE conflicts SET branch_id = @p0 WHERE id = @p1 AND status = 'pending'",
-           [ [ Stdlib.Uuid.toString branchId, c.id ] ]) ]
+           [ [ Stdlib.toString branchId, c.id ] ]) ]
     with
     | Ok _ -> written + 1
     | Error _ -> written)
@@ -642,7 +642,7 @@ let pending () : List<Conflict> =
       "SELECT id, owner, modules, name, item_type, COALESCE(part,'') AS part, kind, candidates,
               auto_resolved_to, reason, status, COALESCE(resolved_by,'') AS resolved_by
        FROM conflicts WHERE status = 'pending' AND branch_id = @p0 ORDER BY created_at"
-      [ Stdlib.Uuid.toString (onBranch ()) ]
+      [ Stdlib.toString (onBranch ()) ]
       conflictFromRow
 
   // A conflict whose name has since been bound to something that is NEITHER candidate was settled by
@@ -711,7 +711,7 @@ let getByIdPrefix (rawPrefix: String) : Stdlib.Option.Option<Conflict> =
        -- rather than filtering: `show <id>` of a settled conflict should still find it.
        ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, created_at
        LIMIT 1"
-      [ idPrefix, Stdlib.Uuid.toString (onBranch ()) ]
+      [ idPrefix, Stdlib.toString (onBranch ()) ]
   with
   | Ok [ row ] -> conflictFromRow row
   | _ -> Stdlib.Option.Option.None

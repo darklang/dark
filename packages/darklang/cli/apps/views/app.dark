@@ -47,7 +47,7 @@ let displayRows
 let chromeFor (state: State) : Stdlib.Cli.UI.Chrome.Frame =
   match state.screen with
   | ViewList _selected ->
-    let count = Stdlib.Int.toString (Stdlib.List.length state.views)
+    let count = Stdlib.toString (Stdlib.List.length state.views)
 
     Stdlib.Cli.UI.Chrome.frame
       "Views"

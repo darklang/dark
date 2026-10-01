@@ -114,10 +114,6 @@ let parse (s: String) : Stdlib.Result.Result<Int16, Stdlib.Int16.ParseError> =
   Builtin.int16Parse s
 
 
-/// Stringify <param int16>
-let toString (int16: Int16) : String = Builtin.int16ToString int16
-
-
 /// Converts an <type Int8> to an <type Int16>.
 let fromInt8 (i: Int8) : Int16 = Builtin.int16FromInt8 i
 
@@ -215,7 +211,8 @@ impl Compare for Int16 =
   let greaterThanOrEqualTo = Stdlib.Int16.greaterThanOrEqualTo
 
 impl ToString for Int16 =
-  let toString = Stdlib.Int16.toString
+  /// Stringify <param int16>
+  let toString (int16: Int16) : String = Builtin.int16ToString int16
 
 impl Zero for Int16 =
   let zero () : Int16 = 0s

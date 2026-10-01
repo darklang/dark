@@ -139,7 +139,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
     | Some _ -> ()
     | None ->
       let cfg = Darklang.Cli.Config.readConfig ()
-      let cfg2 = Stdlib.Dict.setOverridingDuplicates cfg "instance.id" (Stdlib.Uuid.toString (Stdlib.Uuid.generate ()))
+      let cfg2 = Stdlib.Dict.setOverridingDuplicates cfg "instance.id" (Stdlib.toString (Stdlib.Uuid.generate ()))
       Darklang.Cli.Config.writeConfig cfg2
   // Instance name: config override wins, else the machine hostname, else a safe fallback. Config-adjustable.
   let instanceName =

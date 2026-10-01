@@ -134,7 +134,7 @@ let executeDiffCmd (state: AppState) (args: List<String>) : AppState =
     else
       let nameWidth = Cli.Commit.widest (r.items |> Stdlib.List.map (fun i -> i.name))
 
-      Cli.printOk $"  CHANGED ({Stdlib.Int.toString (Stdlib.List.length r.changed)})"
+      Cli.printOk $"  CHANGED ({Stdlib.toString (Stdlib.List.length r.changed)})"
 
       r.items
       |> Stdlib.List.iter (fun item ->

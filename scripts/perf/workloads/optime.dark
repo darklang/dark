@@ -83,7 +83,7 @@ let measure (label: String) (f: Int -> Int) : Unit =
   let best = Stdlib.min a (Stdlib.min b c)
   // Nanoseconds per call, from milliseconds over `iterations`.
   let ns = Stdlib.Int.divide (best * 1000000) iterations
-  Stdlib.printLine (label + "  " + (Stdlib.Int.toString ns) + " ns")
+  Stdlib.printLine (label + "  " + (Stdlib.toString ns) + " ns")
 
 /// Run the process hot before the first row is timed.
 ///
@@ -181,7 +181,7 @@ measure "build a 5-element literal            " (fun i -> Stdlib.List.length [ i
 Stdlib.printLine "--- strings"
 measure "concat two strings                   " (fun i -> Stdlib.String.length ("ab" + "cd"))
 measure "repeat one char 8 times             " (fun i -> Stdlib.String.length (Stdlib.String.repeat " " 8))
-measure "Int to String                        " (fun i -> Stdlib.String.length (Stdlib.Int.toString i))
+measure "Int to String                        " (fun i -> Stdlib.String.length (Stdlib.toString i))
 
 Stdlib.printLine "--- control flow"
 // What an `Int` operator costs now that the interpreter evaluates it rather than calling a builtin.

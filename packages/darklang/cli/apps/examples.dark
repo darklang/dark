@@ -12,7 +12,7 @@ let beat (name: String) (intervalMs: Int) (remaining: Int) : Int =
     0
   else
     let pid = Stdlib.Cli.Sys.currentPid ()
-    Stdlib.printLine $"{name}: beat (pid {Stdlib.Int.toString pid})"
+    Stdlib.printLine $"{name}: beat (pid {Stdlib.toString pid})"
     Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat intervalMs)
     beat name intervalMs (remaining - 1)
 
@@ -29,7 +29,7 @@ let heartbeat (name: String) : Int =
     | Error e -> Stdlib.printLine $"{name}: could not write pidfile: {e}"
     | Ok _ ->
       Stdlib.printLine
-        $"{name}: started (pid {Stdlib.Int.toString (Stdlib.Cli.Sys.currentPid ())}, interval {Stdlib.Int.toString intervalMs}ms)"
+        $"{name}: started (pid {Stdlib.toString (Stdlib.Cli.Sys.currentPid ())}, interval {Stdlib.toString intervalMs}ms)"
 
   beat name intervalMs 1000000000
 

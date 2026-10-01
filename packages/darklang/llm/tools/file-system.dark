@@ -115,7 +115,7 @@ let searchFileForPattern
             if currentState.hitResultLimit then
               (lineNumber + 1, currentState)
             else if Stdlib.String.contains line pattern then
-              let matchText = $"{displayPath}:{Stdlib.Int.toString lineNumber}: {line}"
+              let matchText = $"{displayPath}:{Stdlib.toString lineNumber}: {line}"
               let updatedMatches = Stdlib.List.append currentState.matches [ matchText ]
               let reachedLimit = (Stdlib.List.length updatedMatches) >= maxSearchResults
               let updatedState =

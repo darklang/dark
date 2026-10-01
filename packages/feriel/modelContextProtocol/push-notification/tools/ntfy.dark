@@ -15,7 +15,7 @@ let sendNotification (topic: String) (message: String) (title: String) : String 
     if response.statusCode == 200 then
       "Notification sent successfully to topic: " + topic
     else
-      "Failed to send notification. Status: " + (Darklang.Stdlib.Int.toString response.statusCode)
+      "Failed to send notification. Status: " + (Darklang.Stdlib.toString response.statusCode)
   | Error err ->
     "Error sending notification: " + (Darklang.Stdlib.HttpClient.toString err)
 

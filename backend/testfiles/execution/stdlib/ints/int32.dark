@@ -170,11 +170,11 @@ Stdlib.Int32.parse "1I" = Stdlib.Result.Result.Error Stdlib.Int32.ParseError.Bad
 Stdlib.Int32.parse "one" = Stdlib.Result.Result.Error Stdlib.Int32.ParseError.BadFormat
 Stdlib.Int32.parse "XIV" = Stdlib.Result.Result.Error Stdlib.Int32.ParseError.BadFormat
 
-Stdlib.Int32.toString 0l = "0"
-Stdlib.Int32.toString 1l = "1"
-Stdlib.Int32.toString -1l = "-1"
-Stdlib.Int32.toString -2147483648l = "-2147483648" // Int32 lower limit
-Stdlib.Int32.toString 2147483647l = "2147483647" // Int32 upper limit
+Stdlib.toString 0l = "0"
+Stdlib.toString 1l = "1"
+Stdlib.toString -1l = "-1"
+Stdlib.toString -2147483648l = "-2147483648" // Int32 lower limit
+Stdlib.toString 2147483647l = "2147483647" // Int32 upper limit
 
 Stdlib.Int32.fromInt8 0y = 0l
 Stdlib.Int32.fromInt8 1y = 1l

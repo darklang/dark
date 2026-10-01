@@ -7,11 +7,9 @@ let parse (s: String) : Stdlib.Result.Result<DateTime, String> =
   Builtin.dateTimeParse s
 
 
-/// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
-let toString (date: DateTime) : String = Builtin.dateTimeToString date
-
 impl ToString for DateTime =
-  let toString = Stdlib.DateTime.toString
+  /// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
+  let toString (date: DateTime) : String = Builtin.dateTimeToString date
 
 
 /// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}

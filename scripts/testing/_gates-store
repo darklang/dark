@@ -294,7 +294,7 @@ gate_trait_choice_survives_rival() {
 
   $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }" >/dev/null
   $CLI impl Stachu.Rival \
-    "ToString for Pt = let toString (p: Pt) : String = Stdlib.Int64.toString p.gateRivalOnly" >/dev/null
+    "ToString for Pt = let toString (p: Pt) : String = Stdlib.toString p.gateRivalOnly" >/dev/null
   $CLI module Stachu.Rival - >/dev/null <<'DARK'
 let display<'a: Stdlib.ToString> (v: 'a) : String =
   Stdlib.ToString.toString v

@@ -164,9 +164,9 @@ Stdlib.UInt64.parse "1I" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.B
 Stdlib.UInt64.parse "one" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
 Stdlib.UInt64.parse "XIV" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
 
-Stdlib.UInt64.toString 0UL = "0"
-Stdlib.UInt64.toString 1UL = "1"
-Stdlib.UInt64.toString 18446744073709551615UL = "18446744073709551615"
+Stdlib.toString 0UL = "0"
+Stdlib.toString 1UL = "1"
+Stdlib.toString 18446744073709551615UL = "18446744073709551615"
 
 Stdlib.UInt64.fromInt8 0y = Stdlib.Option.Option.Some 0UL
 Stdlib.UInt64.fromInt8 1y = Stdlib.Option.Option.Some 1UL

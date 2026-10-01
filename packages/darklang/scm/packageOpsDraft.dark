@@ -24,7 +24,7 @@ let draftWhere (branchId: Uuid) : String =
 
 /// Params for `draftWhere` (the branch form binds one).
 let draftParams (branchId: Uuid) : List<String> =
-  if SCM.Branch.isMain branchId then [] else [ Stdlib.Uuid.toString branchId ]
+  if SCM.Branch.isMain branchId then [] else [ Stdlib.toString branchId ]
 
 
 /// How many ops are in the draft.
@@ -53,7 +53,7 @@ let authoredDraftOpCountFor (branchId: Uuid) : Int64 =
     "SELECT count(*) AS n FROM package_ops p
      JOIN op_branches ob ON ob.op_id = p.id
      WHERE p.commit_hash IS NULL AND ob.branch_id = @p0 AND ob.source <> 'import'"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
     "n"
   |> Stdlib.Option.withDefault 0L
 
@@ -473,7 +473,7 @@ let stampDraftFor (branchId: Uuid) (commitHash: String) : Int64 =
   // `draftWhere` binds @p0 when there is a branch; the commit hash takes the next slot, as in
   // `stampDraftOpsFor`, so the predicate is the one definition of "the draft" and not a copy of it.
   let params = draftParams branchId
-  let hashSlot = $"@p{Stdlib.Int.toString (Stdlib.List.length params)}"
+  let hashSlot = $"@p{Stdlib.toString (Stdlib.List.length params)}"
 
   let _ =
     Stdlib.Sqlite.mustExec
@@ -522,8 +522,8 @@ let stampDraftOpsFor
 
     // `draftWhere` binds @p0 when there is a branch. The commit hash and the id follow it.
     let where = draftWhere branchId
-    let hashSlot = $"@p{Stdlib.Int.toString positional}"
-    let idSlot = $"@p{Stdlib.Int.toString (positional + 1)}"
+    let hashSlot = $"@p{Stdlib.toString positional}"
+    let idSlot = $"@p{Stdlib.toString (positional + 1)}"
 
     let rows =
       opIds
@@ -594,7 +594,7 @@ let discardBranchDraft (branchId: Uuid) : Int64 =
       "SELECT id FROM package_ops
        WHERE commit_hash IS NULL AND effective = 0
          AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @p0)"
-      [ Stdlib.Uuid.toString branchId ]
+      [ Stdlib.toString branchId ]
       "id"
 
   let idsJson = Stdlib.Json.serialize<List<String>> draftIds
@@ -608,7 +608,7 @@ let discardBranchDraft (branchId: Uuid) : Int64 =
       "DELETE FROM package_ops
         WHERE id IN (SELECT value FROM json_each(@p0))
           AND id NOT IN (SELECT op_id FROM op_branches WHERE branch_id <> @p1)"
-      [ idsJson, Stdlib.Uuid.toString branchId ]
+      [ idsJson, Stdlib.toString branchId ]
 
   // Untag everything the branch held, whether or not the row above survived (a sibling's tag keeps
   // the row; this branch's tag must still go).
@@ -618,7 +618,7 @@ let discardBranchDraft (branchId: Uuid) : Int64 =
       "DELETE FROM op_branches
         WHERE branch_id = @p0
           AND op_id IN (SELECT value FROM json_each(@p1))"
-      [ Stdlib.Uuid.toString branchId, idsJson ]
+      [ Stdlib.toString branchId, idsJson ]
 
   // Once the branch holds nothing, its per-name fork points describe ops that no longer exist. They stay
   // while any op survives, because those ops are still based on them.
@@ -626,7 +626,7 @@ let discardBranchDraft (branchId: Uuid) : Int64 =
     Stdlib.Sqlite.scalarIntP
       (localDb ())
       "SELECT count(*) AS n FROM op_branches WHERE branch_id = @p0"
-      [ Stdlib.Uuid.toString branchId ]
+      [ Stdlib.toString branchId ]
       "n"
     |> Stdlib.Option.withDefault 0L
 
@@ -635,7 +635,7 @@ let discardBranchDraft (branchId: Uuid) : Int64 =
       Stdlib.Sqlite.execP
         (localDb ())
         "DELETE FROM branch_name_bases WHERE branch_id = @p0"
-        [ Stdlib.Uuid.toString branchId ]
+        [ Stdlib.toString branchId ]
     else
       Stdlib.Result.Result.Ok 0
 
@@ -693,11 +693,11 @@ let discardDraftName
       SCM.Branches.ownFrontierOps branchId
       |> Stdlib.List.filter (fun entry ->
         let (id, op) = entry
-        (Stdlib.List.member uncommitted (Stdlib.Uuid.toString id))
+        (Stdlib.List.member uncommitted (Stdlib.toString id))
         && (Stdlib.Option.isSome (SCM.Branches.opBindsKey op key)))
       |> Stdlib.List.map (fun entry ->
         let (id, _) = entry
-        Stdlib.Uuid.toString id)
+        Stdlib.toString id)
 
     dropBranchOps branchId bindingIds
 
@@ -710,7 +710,7 @@ let dropBranchOps (branchId: Uuid) (ids: List<String>) : Stdlib.Result.Result<In
   match ids with
   | [] -> Stdlib.Result.Result.Ok 0
   | ids ->
-    let b = Stdlib.Uuid.toString branchId
+    let b = Stdlib.toString branchId
     let rows = ids |> Stdlib.List.map (fun id -> [ id, b, b ])
 
     let untagRows = ids |> Stdlib.List.map (fun id -> [ b, id ])

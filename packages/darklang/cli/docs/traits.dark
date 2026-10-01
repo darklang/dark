@@ -13,7 +13,7 @@ builtin type already has implementations. Yours join with one `impl`.
 
   impl ToString for Point =
     let toString (p: Point) : String =
-      $"({Stdlib.Int64.toString p.x}, {Stdlib.Int64.toString p.y})"
+      $"({Stdlib.toString p.x}, {Stdlib.toString p.y})"
 
   impl Add for Point =
     let add (a: Point) (b: Point) : Point =

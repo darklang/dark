@@ -1284,7 +1284,7 @@ let list
       let params = []
       let withLimit =
         match limit with
-        | Some l -> Stdlib.List.append params [ ("limit", Stdlib.Int.toString l) ]
+        | Some l -> Stdlib.List.append params [ ("limit", Stdlib.toString l) ]
         | None -> params
       let withAfter =
         match after with

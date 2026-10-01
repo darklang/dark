@@ -141,7 +141,7 @@ let renderPreview (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
 
 /// "1 commit" / "2 commits" - count + correctly-pluralized noun.
 let plural (n: Int) (noun: String) : String =
-  (Stdlib.Int.toString n) + " " + noun + (if n == 1 then "" else "s")
+  (Stdlib.toString n) + " " + noun + (if n == 1 then "" else "s")
 
 /// A reverse-video selection used by modal pickers. `plain` must be unstyled.
 let selectionRow (width: Int) (plain: String) : String =

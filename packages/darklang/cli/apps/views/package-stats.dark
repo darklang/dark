@@ -48,13 +48,13 @@ let rowsAtSize
 
   let summaryLine =
     "  "
-    + Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgGreen + Darklang.Stdlib.Cli.UI.Colors.black + Darklang.Stdlib.Cli.UI.Colors.bold) (" " + Stdlib.Int.toString totalFns + " fns ")
+    + Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgGreen + Darklang.Stdlib.Cli.UI.Colors.black + Darklang.Stdlib.Cli.UI.Colors.bold) (" " + Stdlib.toString totalFns + " fns ")
     + "  "
-    + Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgBlue + Darklang.Stdlib.Cli.UI.Colors.white + Darklang.Stdlib.Cli.UI.Colors.bold) (" " + Stdlib.Int.toString totalTypes + " types ")
+    + Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgBlue + Darklang.Stdlib.Cli.UI.Colors.white + Darklang.Stdlib.Cli.UI.Colors.bold) (" " + Stdlib.toString totalTypes + " types ")
     + "  "
-    + Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgMagenta + Darklang.Stdlib.Cli.UI.Colors.white + Darklang.Stdlib.Cli.UI.Colors.bold) (" " + Stdlib.Int.toString totalValues + " values ")
+    + Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgMagenta + Darklang.Stdlib.Cli.UI.Colors.white + Darklang.Stdlib.Cli.UI.Colors.bold) (" " + Stdlib.toString totalValues + " values ")
     + "  "
-    + Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.grayBg + Darklang.Stdlib.Cli.UI.Colors.white + Darklang.Stdlib.Cli.UI.Colors.bold) (" " + Stdlib.Int.toString totalModules + " modules ")
+    + Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.grayBg + Darklang.Stdlib.Cli.UI.Colors.white + Darklang.Stdlib.Cli.UI.Colors.bold) (" " + Stdlib.toString totalModules + " modules ")
   let divider =
     Darklang.Stdlib.Cli.UI.Colors.dimText
       (Stdlib.String.repeat "─" termCols)
@@ -87,10 +87,10 @@ let rowsAtSize
           Darklang.Stdlib.Cli.UI.Colors.boldText (padRight s.name 30)
         else
           padRight s.name 30
-      let fnStr = Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.green (padLeft (Stdlib.Int.toString s.fnCount) 6)
-      let typeStr = Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.blue (padLeft (Stdlib.Int.toString s.typeCount) 6)
-      let valStr = Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.magenta (padLeft (Stdlib.Int.toString s.valueCount) 6)
-      let modStr = Darklang.Stdlib.Cli.UI.Colors.dimText (padLeft (Stdlib.Int.toString s.submodules) 6)
+      let fnStr = Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.green (padLeft (Stdlib.toString s.fnCount) 6)
+      let typeStr = Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.blue (padLeft (Stdlib.toString s.typeCount) 6)
+      let valStr = Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.magenta (padLeft (Stdlib.toString s.valueCount) 6)
+      let modStr = Darklang.Stdlib.Cli.UI.Colors.dimText (padLeft (Stdlib.toString s.submodules) 6)
       let barStr = bar s.fnCount maxFns 20 Darklang.Stdlib.Cli.UI.Colors.green
 
       "  " + nameStr + "  " + fnStr + "  " + typeStr + "  " + valStr + "  " + modStr + "  " + barStr)
@@ -108,7 +108,7 @@ let rowsAtSize
       + "  "
       + Darklang.Stdlib.Cli.UI.Colors.dimText
           ("—  "
-           + Stdlib.Int.toString (Stdlib.List.length stats)
+           + Stdlib.toString (Stdlib.List.length stats)
            + " top-level modules")
       ""
       summaryLine

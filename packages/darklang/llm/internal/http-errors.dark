@@ -17,7 +17,7 @@ let mapStatusToError (statusCode: Int) (body: String) : ProviderError =
   | 404 -> ProviderError.InvalidRequestError "Resource not found"
   | 429 -> ProviderError.RateLimitError "Rate limit exceeded"
   | code when code >= 500 && code < 600 -> ProviderError.ServerError body
-  | code -> ProviderError.Unknown("HTTP " + Stdlib.Int.toString code + ": " + body)
+  | code -> ProviderError.Unknown("HTTP " + Stdlib.toString code + ": " + body)
 
 
 /// Handle an HTTP response, returning Ok for success or mapped error

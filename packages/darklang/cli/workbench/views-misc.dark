@@ -59,7 +59,7 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
         if cursor == 0L then
           Stdlib.Cli.UI.Colors.dimText "nothing pulled from it yet"
         else
-          Stdlib.Cli.UI.Colors.dimText ("caught up to op " + (Stdlib.Int64.toString cursor))
+          Stdlib.Cli.UI.Colors.dimText ("caught up to op " + (Stdlib.toString cursor))
       [ "   " + on + "  " + relay
         "   " + (Stdlib.Cli.UI.Colors.dimText "as ") + identity + "     " + pulled ]
 
@@ -74,7 +74,7 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
       |> Stdlib.List.take 6
       |> Stdlib.List.map (fun b ->
         let marker = if b.id == state.branchId then Stdlib.Cli.UI.Colors.boldText b.name else Stdlib.Cli.UI.Colors.dimText b.name
-        "   " + marker + "     " + (Stdlib.Cli.UI.Colors.dimText ((Stdlib.Int64.toString b.ops) + (if b.ops == 1L then " op" else " ops"))))
+        "   " + marker + "     " + (Stdlib.Cli.UI.Colors.dimText ((Stdlib.toString b.ops) + (if b.ops == 1L then " op" else " ops"))))
 
   titledLines
     region
@@ -82,7 +82,7 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
     (Stdlib.List.flatten
       [ [ hdr "This instance"
           "   " + on + "  " + state.instanceName + " (" + owner + ")"
-          "   " + (Stdlib.Cli.UI.Colors.dimText ((Stdlib.Int64.toString ops) + " ops in the log"))
+          "   " + (Stdlib.Cli.UI.Colors.dimText ((Stdlib.toString ops) + " ops in the log"))
           ""
           hdr "Relay" ]
         relayLines

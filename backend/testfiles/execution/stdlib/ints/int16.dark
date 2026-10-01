@@ -80,11 +80,11 @@ Stdlib.Int16.lessThanOrEqualTo -100s 22544s = true
 Stdlib.Int16.lessThanOrEqualTo -999s -9999s = false
 Stdlib.Int16.lessThanOrEqualTo -8888s -8888s = true
 
-Stdlib.Int16.toString 0s = "0"
-Stdlib.Int16.toString 1s = "1"
-Stdlib.Int16.toString -1s = "-1"
-Stdlib.Int16.toString -32768s = "-32768" // Int16 lower limit
-Stdlib.Int16.toString 32767s = "32767" // Int16 upper limit
+Stdlib.toString 0s = "0"
+Stdlib.toString 1s = "1"
+Stdlib.toString -1s = "-1"
+Stdlib.toString -32768s = "-32768" // Int16 lower limit
+Stdlib.toString 32767s = "32767" // Int16 upper limit
 
 Stdlib.Int16.toFloat 2s = 2.0
 Stdlib.Int16.toFloat -10s = -10.0

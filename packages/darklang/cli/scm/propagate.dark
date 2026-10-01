@@ -321,7 +321,7 @@ let executeShow (state: AppState) (arg: String) : AppState =
     match SCM.Propagation.staleDependencies loc with
     | [] -> Cli.printHint "  it's on the current version of everything it uses."
     | stale ->
-      let n = Stdlib.Int.toString (Stdlib.List.length stale)
+      let n = Stdlib.toString (Stdlib.List.length stale)
       Cli.printHint $"  behind on {n} of its dependencies:"
 
       stale

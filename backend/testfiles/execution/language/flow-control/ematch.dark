@@ -277,7 +277,7 @@ module Float =
    | var -> "fail") = "pass"
 
   (match 6.5 with
-   | var -> $"pass: {Stdlib.Float.toString var}"
+   | var -> $"pass: {Stdlib.toString var}"
    | 6.5 -> "fail"
    | 5.5 -> "fail") = "pass: 6.5"
 
@@ -293,7 +293,7 @@ module Float =
    | var -> "fail") = "pass"
 
   (match -4.7 with
-   | var -> $"pass: {Stdlib.Float.toString var}"
+   | var -> $"pass: {Stdlib.toString var}"
    | -4.7 -> "fail"
    | 4.7 -> "fail") = "pass: -4.7"
 
@@ -320,7 +320,7 @@ module Char =
    | var -> "fail") = "pass"
 
   (match 'a' with
-   | var -> $"pass: {Stdlib.Char.toString var}"
+   | var -> $"pass: {Stdlib.toString var}"
    | 'a' -> "fail"
    | 'b' -> "fail") = "pass: a"
 
@@ -348,7 +348,7 @@ module List =
 
   (match [ 1L, 2L, 3L ] with
    | var ->
-     let length = (Stdlib.List.length var) |> Stdlib.Int.toString
+     let length = (Stdlib.List.length var) |> Stdlib.toString
 
      $"pass with length: {length}"
    | [ 1L, 2L, 3L ] -> "fail"

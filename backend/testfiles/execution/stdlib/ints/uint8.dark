@@ -63,10 +63,10 @@ Stdlib.UInt8.lessThan 1uy 0uy = false
 Stdlib.UInt8.lessThan 0uy 255uy = true
 Stdlib.UInt8.lessThan 255uy 255uy = false
 
-Stdlib.UInt8.toString 120uy = "120"
-Stdlib.UInt8.toString 1uy = "1"
-Stdlib.UInt8.toString 0uy = "0" // UInt8 lower limit
-Stdlib.UInt8.toString 255uy = "255" // UInt8 upper limit
+Stdlib.toString 120uy = "120"
+Stdlib.toString 1uy = "1"
+Stdlib.toString 0uy = "0" // UInt8 lower limit
+Stdlib.toString 255uy = "255" // UInt8 upper limit
 
 Stdlib.UInt8.toFloat 2uy = 2.0
 Stdlib.UInt8.toFloat 0uy = 0.0

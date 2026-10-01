@@ -30,11 +30,11 @@ let dump (size: Stdlib.Cli.Tui.Size) : Unit =
     v.rows
     |> Stdlib.List.indexedMap (fun i r ->
       Stdlib.printLine
-        ((Stdlib.Int.toString size.width)
+        ((Stdlib.toString size.width)
          + "x"
-         + (Stdlib.Int.toString size.height)
+         + (Stdlib.toString size.height)
          + " "
-         + (Stdlib.Int.toString i)
+         + (Stdlib.toString i)
          + "|"
          + r))
   ()

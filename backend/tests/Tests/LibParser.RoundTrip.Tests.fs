@@ -1568,8 +1568,8 @@ let exprs =
       false
     t
       "dict with a computed key"
-      "Dict { Stdlib.Int64.toString 1L: 1L }"
-      "Dict { Stdlib.Int64.toString 1L: 1L }"
+      "Dict { Stdlib.toString 1L: 1L }"
+      "Dict { Stdlib.toString 1L: 1L }"
       []
       []
       []
@@ -2386,8 +2386,8 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       false
     t
       "pipe, into fn call 2"
-      "1L |> Stdlib.Int64.toString"
-      "1L |> Stdlib.Int64.toString"
+      "1L |> Stdlib.toString"
+      "1L |> Stdlib.toString"
       []
       []
       []

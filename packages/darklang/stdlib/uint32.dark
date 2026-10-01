@@ -80,10 +80,6 @@ let parse
   Builtin.uint32Parse s
 
 
-/// Stringify <param uint32>
-let toString (uint32: UInt32) : String = Builtin.uint32ToString uint32
-
-
 /// Converts an <type Int8> to a <type UInt32>. Returns {{None}} if the value is less than 0.
 let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt32> =
   Builtin.uint32FromInt8 i
@@ -178,7 +174,8 @@ impl Compare for UInt32 =
   let greaterThanOrEqualTo = Stdlib.UInt32.greaterThanOrEqualTo
 
 impl ToString for UInt32 =
-  let toString = Stdlib.UInt32.toString
+  /// Stringify <param uint32>
+  let toString (uint32: UInt32) : String = Builtin.uint32ToString uint32
 
 impl Zero for UInt32 =
   let zero () : UInt32 = 0ul

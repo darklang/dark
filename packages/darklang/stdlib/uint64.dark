@@ -96,10 +96,6 @@ let parse
   Builtin.uint64Parse s
 
 
-/// Stringify <param int>
-let toString (uint64: UInt64) : String = Builtin.uint64ToString uint64
-
-
 /// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0
 let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt64> =
   Builtin.uint64FromInt8 i
@@ -193,7 +189,8 @@ impl Compare for UInt64 =
   let greaterThanOrEqualTo = Stdlib.UInt64.greaterThanOrEqualTo
 
 impl ToString for UInt64 =
-  let toString = Stdlib.UInt64.toString
+  /// Stringify <param int>
+  let toString (uint64: UInt64) : String = Builtin.uint64ToString uint64
 
 impl Zero for UInt64 =
   let zero () : UInt64 = 0UL

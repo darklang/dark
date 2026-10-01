@@ -85,11 +85,9 @@ impl Compare for Char =
   let greaterThanOrEqualTo = Stdlib.Char.isGreaterThanOrEqualTo
 
 
-/// Stringify <param c>
-let toString (c: Char) : String = Builtin.charToString c
-
 impl ToString for Char =
-  let toString = Stdlib.Char.toString
+  /// Stringify <param c>
+  let toString (c: Char) : String = Builtin.charToString c
 
 
 /// Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,

@@ -47,7 +47,7 @@ module Darklang =
         match data with
         | (0, result) -> result
         | (1, data) -> data + "_modified"  // 'data' shadows the parameter
-        | (data, text) -> (Stdlib.Int.toString data) + "_" + text  // 'data' shadows parameter
+        | (data, text) -> (Stdlib.toString data) + "_" + text  // 'data' shadows parameter
 
 
 

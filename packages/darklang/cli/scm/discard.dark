@@ -93,7 +93,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // reads as "already fine".
   Stdlib.printLine (
     Stdlib.Cli.UI.Colors.warning
-      $"  DISCARDING ({Stdlib.Int.toString (Stdlib.List.length changed)}) on {scope}, {Cli.Text.plural (Stdlib.Int.fromInt64 ops) "op"}"
+      $"  DISCARDING ({Stdlib.toString (Stdlib.List.length changed)}) on {scope}, {Cli.Text.plural (Stdlib.Int.fromInt64 ops) "op"}"
   )
 
   // Ops that bind no name have nothing to list per-name; say how many rather than showing an

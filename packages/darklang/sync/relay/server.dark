@@ -81,7 +81,7 @@ let topModules (limit: Int64) : List<(String * Int64)> =
     "SELECT owner || '.' || modules AS m, COUNT(*) n FROM locations
      WHERE unlisted_at IS NULL AND modules <> ''
      GROUP BY m ORDER BY n DESC LIMIT @p0"
-    [ Stdlib.Int64.toString limit ]
+    [ Stdlib.toString limit ]
     nameCountRow
 
 
@@ -238,7 +238,7 @@ let dependentsOf (hash: String) : List<(String * String)> =
        WHERE d.depends_on_hash = @p0 AND l.unlisted_at IS NULL
        ORDER BY o, m, n
        LIMIT "
-       + Stdlib.Int64.toString dependentsFetchLimit)
+       + Stdlib.toString dependentsFetchLimit)
       [ hash ]
       pathAndKind
 
@@ -288,7 +288,7 @@ let searchItems (q: String) : List<(String * String * String)> =
        END,
        LENGTH(l.owner || l.modules || l.name), o, m, n
      LIMIT "
-     + Stdlib.Int64.toString searchFetchLimit)
+     + Stdlib.toString searchFetchLimit)
     [ $"%{q}%", q ]
     pathAndKind
 

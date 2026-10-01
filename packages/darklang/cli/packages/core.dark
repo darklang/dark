@@ -96,11 +96,11 @@ let peerHeadsUpLine
 
     let age =
       if mins < 120L then
-        (Stdlib.Int64.toString mins) + "m"
+        (Stdlib.toString mins) + "m"
       else if mins < 2880L then
-        (Stdlib.Int64.toString (Stdlib.Int64.divide mins 60L)) + "h"
+        (Stdlib.toString (Stdlib.Int64.divide mins 60L)) + "h"
       else
-        (Stdlib.Int64.toString (Stdlib.Int64.divide mins 1440L)) + "d"
+        (Stdlib.toString (Stdlib.Int64.divide mins 1440L)) + "d"
 
     let subject = if message == "" then "no message" else message
 

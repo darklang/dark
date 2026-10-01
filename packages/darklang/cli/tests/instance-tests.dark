@@ -27,7 +27,7 @@ let testInstancesAreIsolated () : TestResult =
       let _ = Instance.dispose a
       TestResult.Fail $"second instance: {e}"
     | Ok b ->
-      let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+      let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
       let name = $"iso-{suffix}"
 
       let _ = Instance.run a [ "branch", "create", name ]

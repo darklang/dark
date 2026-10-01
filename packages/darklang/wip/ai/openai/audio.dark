@@ -562,7 +562,7 @@ module Transcriptions =
 
     let tempField =
       match opts.temperature with
-      | Some t -> Stdlib.Option.Option.Some(Stdlib.Float.toString t)
+      | Some t -> Stdlib.Option.Option.Some(Stdlib.toString t)
       | None -> Stdlib.Option.Option.None
 
     let chunkingField =
@@ -789,7 +789,7 @@ module Translations =
 
     let textFields =
       match opts.temperature with
-      | Some t -> Stdlib.List.append withFormat [ ("temperature", Stdlib.Float.toString t) ]
+      | Some t -> Stdlib.List.append withFormat [ ("temperature", Stdlib.toString t) ]
       | None -> withFormat
 
     Shared.buildMultipartBody textFields [] "file" opts.fileName opts.audioData

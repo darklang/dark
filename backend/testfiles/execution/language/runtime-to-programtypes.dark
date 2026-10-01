@@ -84,7 +84,7 @@ Stdlib.Result.isError (promote (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 
     Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(fakeType (), fakeType (), [], "Some", [ int 1 ]))
  with
  | Ok (EEnum(_, _, _, caseName, fields)) ->
-   caseName + "/" + (Stdlib.Int.toString (Stdlib.List.length fields))
+   caseName + "/" + (Stdlib.toString (Stdlib.List.length fields))
  | _ -> "FAIL") = "Some/1"
 
 (match

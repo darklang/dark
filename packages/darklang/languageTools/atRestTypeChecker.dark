@@ -331,7 +331,7 @@ let nameRefToStringWith
     if version == 0L then
       $"Builtin.{name}"
     else
-      $"Builtin.{name}_v{Stdlib.Int64.toString version}"
+      $"Builtin.{name}_v{Stdlib.toString version}"
   | Package hash ->
     match resolve hash with
     | Some name -> name
@@ -360,7 +360,7 @@ let siteToString (site: Site) : String =
   | StatementBeforeFinalExpression -> "the statement before the final expression"
   | FunctionApplication -> "this function application"
   | FunctionArgument position ->
-    $"argument {Stdlib.Int64.toString (position + 1L)}"
+    $"argument {Stdlib.toString (position + 1L)}"
   | IfWithoutElse -> "an if without an else"
   | RecordFieldAccess -> "this field access"
   | InterpolatedSegment ->
@@ -494,32 +494,32 @@ let contextToStringWith
   | Arity(expected, actual) ->
     let noun =
       if expected == 1L then "1 type argument"
-      else $"{Stdlib.Int64.toString expected} type arguments"
+      else $"{Stdlib.toString expected} type arguments"
     let verb = if actual == 1L then "was" else "were"
 
     match code with
     | ExplicitTypeArgumentCountMismatch ->
-      $"Expected {noun}, but {Stdlib.Int64.toString actual} {verb} given explicitly"
+      $"Expected {noun}, but {Stdlib.toString actual} {verb} given explicitly"
     | _ ->
       $"This type declaration expects {noun}, "
-      + $"but {Stdlib.Int64.toString actual} {verb} provided"
+      + $"but {Stdlib.toString actual} {verb} provided"
   | NamedArity(ident, expected, actual) ->
     let noun =
-      if expected == 1L then "1 field" else $"{Stdlib.Int64.toString expected} fields"
+      if expected == 1L then "1 field" else $"{Stdlib.toString expected} fields"
     let verb = if actual == 1L then "was" else "were"
 
     $"Case '{ident}' expects {noun}, "
-    + $"but {Stdlib.Int64.toString actual} {verb} provided"
+    + $"but {Stdlib.toString actual} {verb} provided"
   | TypeArity(hash, expected, actual) ->
     let noun =
       if expected == 1L then "1 type argument"
-      else $"{Stdlib.Int64.toString expected} type arguments"
+      else $"{Stdlib.toString expected} type arguments"
     let verb = if actual == 1L then "was" else "were"
 
     $"{typeName hash} expects {noun}, "
-    + $"but {Stdlib.Int64.toString actual} {verb} provided"
+    + $"but {Stdlib.toString actual} {verb} provided"
   | ArgumentIndex index ->
-    $"There is no argument at index {Stdlib.Int64.toString index}"
+    $"There is no argument at index {Stdlib.toString index}"
   | UncoveredPattern witness ->
     match witness with
     | Some witness -> $"Match is not exhaustive; an uncovered pattern is {witness}"

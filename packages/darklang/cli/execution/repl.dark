@@ -37,12 +37,12 @@ let isSimpleName (name: String) : Bool =
     let chars = Stdlib.String.toList name
     let firstOk =
       match Stdlib.List.head chars with
-      | Some c -> Stdlib.Char.isASCIILetter c || (Stdlib.Char.toString c) == "_"
+      | Some c -> Stdlib.Char.isASCIILetter c || (Stdlib.toString c) == "_"
       | None -> false
     let restOk =
       chars
       |> Stdlib.List.all (fun c ->
-        Stdlib.Char.isASCIILetter c || Stdlib.Char.isDigit c || (Stdlib.Char.toString c) == "_")
+        Stdlib.Char.isASCIILetter c || Stdlib.Char.isDigit c || (Stdlib.toString c) == "_")
     firstOk && restOk
 
 /// Split pasted text into the statements a REPL would have received had you typed them one at a time.
@@ -85,7 +85,7 @@ let openBracketDepth (text: String) : Int =
     Stdlib.String.toList text
     |> Stdlib.List.fold (0, false, false) (fun acc c ->
       let (depth, inString, escaped) = acc
-      let s = Stdlib.Char.toString c
+      let s = Stdlib.toString c
       if escaped then (depth, inString, false)
       // A backslash only escapes inside a string; outside one it's the REPL's own continuation marker.
       else if s == "\\" then (depth, inString, inString)
@@ -221,7 +221,7 @@ let captureExpr (bindings: List<Binding>) (branchId: Uuid) (name: String) (rhs: 
   // `Stdlib.Uuid.parse ".."` rather than a bare literal: this is SOURCE TEXT the REPL evaluates, there
   // is no Uuid literal syntax to interpolate, and `captureValue` takes a Uuid. A string here would
   // typecheck nowhere and land as the silent degradation `captureValue`'s note describes.
-  let branch = Stdlib.Uuid.toString branchId
+  let branch = Stdlib.toString branchId
   $"{chain}\nDarklang.Cli.Repl.captureValue (Stdlib.Uuid.parse \"{branch}\" |> Stdlib.Result.withDefault Darklang.SCM.Branch.mainBranchId) {name}"
 
 /// Read `captureValue`'s output back. `Some source` when the value round-tripped, `None` when it has no

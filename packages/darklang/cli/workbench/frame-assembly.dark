@@ -30,7 +30,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
   // The sync glance: what is waiting on you first, else where this instance stands with its relay.
   let (syncColored, syncPlain) =
     if needsYou > 0 then
-      let t = "⚠ " + (Stdlib.Int.toString needsYou) + " need you"
+      let t = "⚠ " + (Stdlib.toString needsYou) + " need you"
       (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink t, t)
     else
       let facts = state.scmStatus.sync

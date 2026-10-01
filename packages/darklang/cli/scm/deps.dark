@@ -83,7 +83,7 @@ let showDependents
     Stdlib.printLine $"No dependents found for {entityName}"
   | deps ->
     let count = Stdlib.List.length deps
-    Stdlib.printLine $"Found {Stdlib.Int.toString count} dependents of {entityName}:"
+    Stdlib.printLine $"Found {Stdlib.toString count} dependents of {entityName}:"
     Stdlib.printLine ""
 
     deps
@@ -167,7 +167,7 @@ let showTransitiveDependents
     Stdlib.printLine $"Nothing depends on {entityName}"
   | deps ->
     let count = Stdlib.List.length deps
-    Stdlib.printLine $"Found {Stdlib.Int.toString count} items that could break if {entityName} changes:"
+    Stdlib.printLine $"Found {Stdlib.toString count} items that could break if {entityName} changes:"
     Stdlib.printLine ""
 
     // Grouped by module and capped, same reasoning as `showDependents`.
@@ -193,7 +193,7 @@ let showDependencies
   | [] -> Stdlib.printLine $"No dependencies found for {entityName}"
   | deps ->
     let count = Stdlib.List.length deps
-    Stdlib.printLine $"Found {Stdlib.Int.toString count} dependencies of {entityName}:"
+    Stdlib.printLine $"Found {Stdlib.toString count} dependencies of {entityName}:"
     Stdlib.printLine ""
 
     deps

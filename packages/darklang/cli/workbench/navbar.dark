@@ -141,7 +141,7 @@ let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
 /// are the frame's already-computed counts, for the badges; pass 0s when
 /// only the shape matters (the key handler does).
 let navbarRows (state: State) (wip: Int) (conflicts: Int) : List<NavbarRow> =
-  let count (n: Int) : String = Stdlib.Int.toString n
+  let count (n: Int) : String = Stdlib.toString n
   // Once, not once per workspace and again per row.
   let vis = visibleViews state
   visibleWorkspacesIn vis
@@ -319,7 +319,7 @@ let renderNavbarRows (state: State) (rows: List<NavbarRow>) (inner: Stdlib.Cli.U
     rows
     |> Stdlib.List.indexedMap (fun i r ->
       let left = "  " + r.label
-      let num = Stdlib.Int.toString (r.ws + 1)
+      let num = Stdlib.toString (r.ws + 1)
       let sep = if r.badge != "" then "  " else ""
       let rightPlain = r.badge + sep + num
       // Two columns of gutter on every row, so the cursor bar (which lives in
@@ -362,7 +362,7 @@ let renderNavStrip
 
   // One item, styled, with the width of its plain text: ` 3 Changes ● 3 `.
   let paint (i: Int) (r: NavbarRow) : (String * Int) =
-    let num = (Stdlib.Int.toString (r.ws + 1)) + " "
+    let num = (Stdlib.toString (r.ws + 1)) + " "
     let here = i == active
     let badgePlain = if r.badge == "" then "" else " " + r.badge
     let plain = " " + num + r.label + badgePlain + " "

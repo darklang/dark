@@ -270,15 +270,15 @@ Stdlib.Int64.parse "1I" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.Bad
 Stdlib.Int64.parse "one" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
 Stdlib.Int64.parse "XIV" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
 
-Stdlib.Int64.toString 0L = "0"
-Stdlib.Int64.toString 1L = "1"
-Stdlib.Int64.toString -1L = "-1"
-Stdlib.Int64.toString -4611686018427387904L = "-4611686018427387904" // int63 lower limit
-Stdlib.Int64.toString -4611686018427387905L = "-4611686018427387905" // past the int63 upper limit"
-Stdlib.Int64.toString -9223372036854775808L = "-9223372036854775808" // .NET lower limit
-Stdlib.Int64.toString 4611686018427387903L = "4611686018427387903" // int63 upper limit
-Stdlib.Int64.toString 4611686018427387904L = "4611686018427387904" // past the int63 upper limit
-Stdlib.Int64.toString 9223372036854775807L = "9223372036854775807" // .NET upper limit
+Stdlib.toString 0L = "0"
+Stdlib.toString 1L = "1"
+Stdlib.toString -1L = "-1"
+Stdlib.toString -4611686018427387904L = "-4611686018427387904" // int63 lower limit
+Stdlib.toString -4611686018427387905L = "-4611686018427387905" // past the int63 upper limit"
+Stdlib.toString -9223372036854775808L = "-9223372036854775808" // .NET lower limit
+Stdlib.toString 4611686018427387903L = "4611686018427387903" // int63 upper limit
+Stdlib.toString 4611686018427387904L = "4611686018427387904" // past the int63 upper limit
+Stdlib.toString 9223372036854775807L = "9223372036854775807" // .NET upper limit
 
 Stdlib.Int64.fromInt8 0y = 0L
 Stdlib.Int64.fromInt8 1y = 1L

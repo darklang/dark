@@ -93,9 +93,9 @@ let num (n: Int64) : String =
   if n < 0L then
     "-" + num (Stdlib.Int64.negate n)
   else if n < 1000L then
-    Stdlib.Int64.toString n
+    Stdlib.toString n
   else
-    let rest = Stdlib.Int64.toString (n % 1000L) |> Stdlib.String.padStart "0" 3
+    let rest = Stdlib.toString (n % 1000L) |> Stdlib.String.padStart "0" 3
     // `padStart` only fails when the pad string is not one character, and "0" is.
     let padded = rest |> Stdlib.Result.withDefault ""
     (num (n / 1000L)) + "," + padded
@@ -663,13 +663,13 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
         if Stdlib.List.isEmpty rest then
           heading + (pillsDiv "" (pillsFor shown))
         else
-          let more = Stdlib.Int.toString (Stdlib.List.length rest)
+          let more = Stdlib.toString (Stdlib.List.length rest)
           let fetched = Stdlib.List.length items
           // Past the fetch cap the list on the page is a sample, and saying so is the whole point of
           // having counted separately.
           let truncated =
             if (Stdlib.Int.fromInt64 total) > fetched then
-              lede $"Showing the first {Stdlib.Int.toString fetched} of {n}."
+              lede $"Showing the first {Stdlib.toString fetched} of {n}."
             else
               ""
 
@@ -759,7 +759,7 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
 
       let capped =
         if (Stdlib.Int.fromInt64 total) > n then
-          let shown = Stdlib.Int.toString n
+          let shown = Stdlib.toString n
 
           $"<p class=\"lede\">Showing the first {shown} of {num total}. Narrow the search to see the rest.</p>"
         else

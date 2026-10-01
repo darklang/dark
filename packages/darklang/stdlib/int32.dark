@@ -114,10 +114,6 @@ let parse (s: String) : Stdlib.Result.Result<Int32, Stdlib.Int32.ParseError> =
   Builtin.int32Parse s
 
 
-/// Stringify <param int>
-let toString (int: Int32) : String = Builtin.int32ToString int
-
-
 /// Converts an <type Int8> to a <type Int32>.
 let fromInt8 (i: Int8) : Int32 = Builtin.int32FromInt8 i
 
@@ -213,7 +209,8 @@ impl Compare for Int32 =
   let greaterThanOrEqualTo = Stdlib.Int32.greaterThanOrEqualTo
 
 impl ToString for Int32 =
-  let toString = Stdlib.Int32.toString
+  /// Stringify <param int>
+  let toString (int: Int32) : String = Builtin.int32ToString int
 
 impl Zero for Int32 =
   let zero () : Int32 = 0l

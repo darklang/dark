@@ -79,10 +79,10 @@ module RuntimeError =
         let newSegment =
           match segment with
           | String s -> s
-          | Int i -> Stdlib.Int.toString i
+          | Int i -> Stdlib.toString i
           | Ordinal i -> Stdlib.String.toOrdinal i
           | Count(i, singular, plural) ->
-            let count = Stdlib.Int.toString i
+            let count = Stdlib.toString i
 
             if i == 1 then
               let segment = segmentsToString branchId [ singular ]
@@ -554,7 +554,7 @@ module RuntimeError =
           ES.ShortTraitName trait_
           ES.String "` to see which types do" ]
       | DispatchAmbiguous(trait_, self, candidates) ->
-        [ ES.String (Stdlib.Int.toString (Stdlib.List.length candidates))
+        [ ES.String (Stdlib.toString (Stdlib.List.length candidates))
           ES.String " implementations of "
           ES.TraitName trait_
           ES.String " for "
@@ -566,7 +566,7 @@ module RuntimeError =
         // No article in front of the type: "on a Int64" was what the old wording produced.
         [ ES.ValueType self
           ES.String $" has more than one `{method_}`: "
-          ES.String (Stdlib.Int.toString (Stdlib.List.length traits))
+          ES.String (Stdlib.toString (Stdlib.List.length traits))
           ES.String $" traits declare it. Say which one you mean, as `SomeTrait.{method_} value`" ]
       | SelfTypeUnknown(trait_, method_) ->
         [ ES.ShortTraitName trait_

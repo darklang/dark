@@ -200,7 +200,7 @@ module FQValueName =
         if t.version == 0l then
           ""
         else
-          $"_v{Stdlib.Int32.toString t.version}"
+          $"_v{Stdlib.toString t.version}"
 
       $"Builtin.{namePart}{versionPart}"
 
@@ -247,7 +247,7 @@ module FQFnName =
         if t.version == 0l then
           ""
         else
-          $"_v{Stdlib.Int32.toString t.version}"
+          $"_v{Stdlib.toString t.version}"
 
       $"Builtin.{namePart}{versionPart}"
 
@@ -542,19 +542,19 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
 
   | MPUnit _id -> "()"
 
-  | MPBool(_id, b) -> Stdlib.Bool.toString b
+  | MPBool(_id, b) -> Stdlib.toString b
 
-  | MPInt8(_id, i) -> (Stdlib.Int8.toString i) + "y"
-  | MPUInt8(_id, i) -> (Stdlib.UInt8.toString i) + "uy"
-  | MPInt16(_id, i) -> (Stdlib.Int16.toString i) + "s"
-  | MPUInt16(_id, i) -> (Stdlib.UInt16.toString i) + "us"
-  | MPInt32(_id, i) -> (Stdlib.Int32.toString i) + "l"
-  | MPUInt32(_id, i) -> (Stdlib.UInt32.toString i) + "ul"
-  | MPInt64(_id, i) -> (Stdlib.Int64.toString i) + "L"
-  | MPUInt64(_id, i) -> (Stdlib.UInt64.toString i) + "UL"
-  | MPInt128(_id, i) -> (Stdlib.Int128.toString i) + "Q"
-  | MPUInt128(_id, i) -> (Stdlib.UInt128.toString i) + "Z"
-  | MPInt(_id, i) -> Stdlib.Int.toString i
+  | MPInt8(_id, i) -> (Stdlib.toString i) + "y"
+  | MPUInt8(_id, i) -> (Stdlib.toString i) + "uy"
+  | MPInt16(_id, i) -> (Stdlib.toString i) + "s"
+  | MPUInt16(_id, i) -> (Stdlib.toString i) + "us"
+  | MPInt32(_id, i) -> (Stdlib.toString i) + "l"
+  | MPUInt32(_id, i) -> (Stdlib.toString i) + "ul"
+  | MPInt64(_id, i) -> (Stdlib.toString i) + "L"
+  | MPUInt64(_id, i) -> (Stdlib.toString i) + "UL"
+  | MPInt128(_id, i) -> (Stdlib.toString i) + "Q"
+  | MPUInt128(_id, i) -> (Stdlib.toString i) + "Z"
+  | MPInt(_id, i) -> Stdlib.toString i
 
   | MPFloat(_id, sign, whole, remainder) ->
     let remainderPart = PrettyPrinter.processRemainder remainder
@@ -1096,19 +1096,19 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   match e with
   | EUnit _id -> "()"
 
-  | EBool(_id, b) -> Stdlib.Bool.toString b
+  | EBool(_id, b) -> Stdlib.toString b
 
-  | EInt8(_id, i) -> Stdlib.Int8.toString i + "y"
-  | EUInt8(_id, i) -> Stdlib.UInt8.toString i + "uy"
-  | EInt16(_id, i) -> Stdlib.Int16.toString i + "s"
-  | EUInt16(_id, i) -> Stdlib.UInt16.toString i + "us"
-  | EInt32(_id, i) -> Stdlib.Int32.toString i + "l"
-  | EUInt32(_id, i) -> Stdlib.UInt32.toString i + "ul"
-  | EInt64(_id, i) -> (Stdlib.Int64.toString i) + "L"
-  | EUInt64(_id, i) -> (Stdlib.UInt64.toString i) + "UL"
-  | EInt128(_id, i) -> Stdlib.Int128.toString i + "Q"
-  | EUInt128(_id, i) -> Stdlib.UInt128.toString i + "Z"
-  | EInt(_id, i) -> Stdlib.Int.toString i
+  | EInt8(_id, i) -> Stdlib.toString i + "y"
+  | EUInt8(_id, i) -> Stdlib.toString i + "uy"
+  | EInt16(_id, i) -> Stdlib.toString i + "s"
+  | EUInt16(_id, i) -> Stdlib.toString i + "us"
+  | EInt32(_id, i) -> Stdlib.toString i + "l"
+  | EUInt32(_id, i) -> Stdlib.toString i + "ul"
+  | EInt64(_id, i) -> (Stdlib.toString i) + "L"
+  | EUInt64(_id, i) -> (Stdlib.toString i) + "UL"
+  | EInt128(_id, i) -> Stdlib.toString i + "Q"
+  | EUInt128(_id, i) -> Stdlib.toString i + "Z"
+  | EInt(_id, i) -> Stdlib.toString i
 
   | EFloat(_id, sign, whole, remainder) ->
     let signPart = PrettyPrinter.sign sign
@@ -1199,8 +1199,8 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       |> Stdlib.Dict.toList
       |> Stdlib.List.findFirst (fun (name, idx) -> idx == index)
       |> Stdlib.Option.map (fun (name, _) -> name)
-      |> Stdlib.Option.withDefault $"earg{Stdlib.Int.toString index}"
-    | None -> $"earg{Stdlib.Int.toString index}"
+      |> Stdlib.Option.withDefault $"earg{Stdlib.toString index}"
+    | None -> $"earg{Stdlib.toString index}"
 
   // control flow
   | ELambda(_id, pats, body) ->
@@ -1375,7 +1375,7 @@ let db
     if db.version == 0l then
       ""
     else
-      $"_v{Stdlib.Int32.toString db.version}"
+      $"_v{Stdlib.toString db.version}"
 
   let doc =
     Stdlib.Pretty.hang

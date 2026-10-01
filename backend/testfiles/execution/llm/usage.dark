@@ -14,11 +14,11 @@ module Anthropic =
       | Ok r ->
         r.content
         + " "
-        + (Stdlib.Int.toString r.usage.inputTokens)
+        + (Stdlib.toString r.usage.inputTokens)
         + "/"
-        + (Stdlib.Int.toString r.usage.outputTokens)
+        + (Stdlib.toString r.usage.outputTokens)
         + "/"
-        + (Stdlib.Int.toString r.usage.cacheReadTokens)
+        + (Stdlib.toString r.usage.cacheReadTokens)
       | Error e -> Darklang.LLM.Provider.ProviderError.toString e
     | Error _ -> "bad json"
 
@@ -39,11 +39,11 @@ module OpenAI =
     | Ok(Object fields) ->
       match Darklang.LLM.Providers.OpenAI.extractUsage fields with
       | Ok u ->
-        (Stdlib.Int.toString u.inputTokens)
+        (Stdlib.toString u.inputTokens)
         + "/"
-        + (Stdlib.Int.toString u.outputTokens)
+        + (Stdlib.toString u.outputTokens)
         + "/"
-        + (Stdlib.Int.toString u.cacheReadTokens)
+        + (Stdlib.toString u.cacheReadTokens)
       | Error e -> e
     | _ -> "bad json"
 

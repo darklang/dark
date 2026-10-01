@@ -311,11 +311,11 @@ type Cookie =
 
 //     let cookie =
 //       [ ("Expires", expires)
-//         ("Max-Age", cookie.maxAge |> Stdlib.Int.toString)
+//         ("Max-Age", cookie.maxAge |> Stdlib.toString)
 //         ("Domain", cookie.domain)
 //         ("Path", cookie.path)
-//         ("Secure", cookie.secure |> Stdlib.Bool.toString)
-//         ("HttpOnly", cookie.httpOnly |> Stdlib.Bool.toString)
+//         ("Secure", cookie.secure |> Stdlib.toString)
+//         ("HttpOnly", cookie.httpOnly |> Stdlib.toString)
 //         ("SameSite", cookie.sameSite) ]
 //       |> Stdlib.List.filterMap (fun (k, v) -> if v == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(k, v))
 //       |> Stdlib.List.map (fun (k, v) -> k + "=" + v)

@@ -83,7 +83,7 @@ let sortKey
   (modules: List<String>)
   (name: String)
   : String =
-  let mr = Stdlib.Int.toString (matchRank (itemQuery query) name)
+  let mr = Stdlib.toString (matchRank (itemQuery query) name)
   let st = if isStdlib owner modules then "0" else "1"
   let path =
     [ [owner], modules, [name] ]
@@ -137,7 +137,7 @@ let overflowNote (total: Int) (shown: Int) : Unit =
   if extra > 0 then
     Stdlib.printLine (
       Stdlib.Cli.UI.Colors.hint
-        $"  ... and {Stdlib.Int.toString extra} more (narrow with --exact or `nav` into a module)")
+        $"  ... and {Stdlib.toString extra} more (narrow with --exact or `nav` into a module)")
   else
     ()
 
@@ -428,12 +428,12 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           // usual discovery target, so they sort last - a wall of namespace
           // matches shouldn't precede an equally-ranked fn/type/value hit.
           let sectionKeys =
-            [ ($"{Stdlib.Int.toString moduleRank}4", "module")
-              ($"{Stdlib.Int.toString (bestItemRank queryText results.types)}1", "type")
-              ($"{Stdlib.Int.toString (bestItemRank queryText results.values)}2", "value")
-              ($"{Stdlib.Int.toString (bestItemRank queryText results.fns)}3", "function")
-              ($"{Stdlib.Int.toString (bestItemRank queryText results.traits)}0", "trait")
-              ($"{Stdlib.Int.toString (bestItemRank queryText results.impls)}5", "impl") ]
+            [ ($"{Stdlib.toString moduleRank}4", "module")
+              ($"{Stdlib.toString (bestItemRank queryText results.types)}1", "type")
+              ($"{Stdlib.toString (bestItemRank queryText results.values)}2", "value")
+              ($"{Stdlib.toString (bestItemRank queryText results.fns)}3", "function")
+              ($"{Stdlib.toString (bestItemRank queryText results.traits)}0", "trait")
+              ($"{Stdlib.toString (bestItemRank queryText results.impls)}5", "impl") ]
 
           let order =
             sectionKeys

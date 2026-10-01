@@ -28,11 +28,11 @@ let daemonState (slug: String) : String =
     if Stdlib.Cli.Posix.isProcessRunning pid then
       let portStr =
         match daemonPort slug with
-        | Some p -> $" :{Stdlib.Int.toString p}"
+        | Some p -> $" :{Stdlib.toString p}"
         | None -> ""
-      $"running (pid {Stdlib.Int.toString pid}){portStr}"
+      $"running (pid {Stdlib.toString pid}){portStr}"
     else
-      $"stale (pid {Stdlib.Int.toString pid})"
+      $"stale (pid {Stdlib.toString pid})"
   | None -> "stopped"
 
 /// One list row: pretty label · (slug) · [kind] · description — daemons append their live state.
@@ -84,7 +84,7 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
 
       match Stdlib.Cli.Daemon.start slug expr with
       | Ok pid ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {app.name} started (pid {Stdlib.Int.toString pid})")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {app.name} started (pid {Stdlib.toString pid})")
       | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
     | Foreground _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a foreground app — run it with `apps run {slug}`")

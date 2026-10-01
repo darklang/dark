@@ -128,11 +128,6 @@ let parse (s: String) : Stdlib.Result.Result<Float, ParseError> =
   Builtin.floatParse s
 
 
-/// Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`,
-/// `0.30000000000000004`, `1e+16`, `1e-5`.
-let toString (a: Float) : String = Builtin.floatToString a
-
-
 /// Returns true if <param f> is NaN
 let isNaN (f: Float) : Bool = Builtin.floatIsNaN f
 
@@ -180,7 +175,9 @@ impl Compare for Float =
   let greaterThanOrEqualTo = Stdlib.Float.greaterThanOrEqualTo
 
 impl ToString for Float =
-  let toString = Stdlib.Float.toString
+  /// Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`,
+  /// `0.30000000000000004`, `1e+16`, `1e-5`.
+  let toString (a: Float) : String = Builtin.floatToString a
 
 impl Zero for Float =
   let zero () : Float = 0.0

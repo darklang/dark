@@ -80,10 +80,6 @@ let parse
   Builtin.uint16Parse s
 
 
-/// Stringify <param uint16>
-let toString (uint16: UInt16) : String = Builtin.uint16ToString uint16
-
-
 /// Converts an <type Int8> to a <type UInt16>. Returns {{None}} if the value is less than 0.
 let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt16> =
   Builtin.uint16FromInt8 i
@@ -179,7 +175,8 @@ impl Compare for UInt16 =
   let greaterThanOrEqualTo = Stdlib.UInt16.greaterThanOrEqualTo
 
 impl ToString for UInt16 =
-  let toString = Stdlib.UInt16.toString
+  /// Stringify <param uint16>
+  let toString (uint16: UInt16) : String = Builtin.uint16ToString uint16
 
 impl Zero for UInt16 =
   let zero () : UInt16 = 0us

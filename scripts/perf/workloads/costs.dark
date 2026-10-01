@@ -123,7 +123,7 @@ let main () : Int64 =
   measure "concat two strings" (fun i -> Stdlib.String.length ("ab" + "cd"))
   measure "length of a 5-char string" (fun i -> Stdlib.String.length "hello")
   measure "split a path" (fun i -> Stdlib.List.length (Stdlib.String.split "/a/b/c" "/"))
-  measure "Int to String" (fun i -> Stdlib.String.length (Stdlib.Int.toString i))
+  measure "Int to String" (fun i -> Stdlib.String.length (Stdlib.toString i))
 
   // Repeated last as well as first: the first row of the table absorbs one-time costs (loading the
   // functions the harness itself uses), so the honest floor is this one.

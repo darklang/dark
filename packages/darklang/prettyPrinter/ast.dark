@@ -46,18 +46,18 @@ let matchPattern (pat: LanguageTools.ProgramTypes.MatchPattern) : String =
   match pat with
   | MPVariable(_, name) -> name
   | MPUnit _ -> "()"
-  | MPBool(_, b) -> Stdlib.Bool.toString b
-  | MPInt8(_, i) -> Stdlib.Int8.toString i
-  | MPUInt8(_, i) -> Stdlib.UInt8.toString i
-  | MPInt16(_, i) -> Stdlib.Int16.toString i
-  | MPUInt16(_, i) -> Stdlib.UInt16.toString i
-  | MPInt32(_, i) -> Stdlib.Int32.toString i
-  | MPUInt32(_, i) -> Stdlib.UInt32.toString i
-  | MPInt64(_, i) -> Stdlib.Int64.toString i
-  | MPUInt64(_, i) -> Stdlib.UInt64.toString i
-  | MPInt128(_, i) -> Stdlib.Int128.toString i
-  | MPUInt128(_, i) -> Stdlib.UInt128.toString i
-  | MPInt(_, i) -> Stdlib.Int.toString i
+  | MPBool(_, b) -> Stdlib.toString b
+  | MPInt8(_, i) -> Stdlib.toString i
+  | MPUInt8(_, i) -> Stdlib.toString i
+  | MPInt16(_, i) -> Stdlib.toString i
+  | MPUInt16(_, i) -> Stdlib.toString i
+  | MPInt32(_, i) -> Stdlib.toString i
+  | MPUInt32(_, i) -> Stdlib.toString i
+  | MPInt64(_, i) -> Stdlib.toString i
+  | MPUInt64(_, i) -> Stdlib.toString i
+  | MPInt128(_, i) -> Stdlib.toString i
+  | MPUInt128(_, i) -> Stdlib.toString i
+  | MPInt(_, i) -> Stdlib.toString i
   | MPFloat(_, sign, whole, part) ->
     let s = PrettyPrinter.sign sign
     $"{s}{whole}.{part}"
@@ -105,24 +105,24 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
 
   match e with
   | EUnit _ -> here "Unit" ""
-  | EBool(_, b) -> here "Bool" (Stdlib.Bool.toString b)
-  | EInt8(_, i) -> here "EInt8" (Stdlib.Int8.toString i)
-  | EUInt8(_, i) -> here "EUInt8" (Stdlib.UInt8.toString i)
-  | EInt16(_, i) -> here "EInt16" (Stdlib.Int16.toString i)
-  | EUInt16(_, i) -> here "EUInt16" (Stdlib.UInt16.toString i)
-  | EInt32(_, i) -> here "EInt32" (Stdlib.Int32.toString i)
-  | EUInt32(_, i) -> here "EUInt32" (Stdlib.UInt32.toString i)
-  | EInt64(_, i) -> here "EInt64" (Stdlib.Int64.toString i)
-  | EUInt64(_, i) -> here "EUInt64" (Stdlib.UInt64.toString i)
-  | EInt128(_, i) -> here "EInt128" (Stdlib.Int128.toString i)
-  | EUInt128(_, i) -> here "EUInt128" (Stdlib.UInt128.toString i)
-  | EInt(_, i) -> here "Int" (Stdlib.Int.toString i)
+  | EBool(_, b) -> here "Bool" (Stdlib.toString b)
+  | EInt8(_, i) -> here "EInt8" (Stdlib.toString i)
+  | EUInt8(_, i) -> here "EUInt8" (Stdlib.toString i)
+  | EInt16(_, i) -> here "EInt16" (Stdlib.toString i)
+  | EUInt16(_, i) -> here "EUInt16" (Stdlib.toString i)
+  | EInt32(_, i) -> here "EInt32" (Stdlib.toString i)
+  | EUInt32(_, i) -> here "EUInt32" (Stdlib.toString i)
+  | EInt64(_, i) -> here "EInt64" (Stdlib.toString i)
+  | EUInt64(_, i) -> here "EUInt64" (Stdlib.toString i)
+  | EInt128(_, i) -> here "EInt128" (Stdlib.toString i)
+  | EUInt128(_, i) -> here "EUInt128" (Stdlib.toString i)
+  | EInt(_, i) -> here "Int" (Stdlib.toString i)
   | EFloat(_, sign, whole, part) ->
     let s = PrettyPrinter.sign sign
     here "Float" $"{s}{whole}.{part}"
   | EChar(_, c) -> here "Char" $"'{c}'"
   | EVariable(_, name) -> here "Variable" name
-  | EArg(_, index) -> here "Arg" $"#{Stdlib.Int.toString index}"
+  | EArg(_, index) -> here "Arg" $"#{Stdlib.toString index}"
   | ESelf _ -> here "Self" ""
 
   | EFnName(_, name, _) ->
@@ -168,11 +168,11 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
     Stdlib.List.flatten [ here "Let" (letPattern pat), child rhs, child body ]
 
   | EList(_, items) ->
-    let n = Stdlib.Int.toString (Stdlib.List.length items)
+    let n = Stdlib.toString (Stdlib.List.length items)
     Stdlib.List.append (here "List" $"{n} items") (children items)
 
   | EDict(_, pairs) ->
-    let n = Stdlib.Int.toString (Stdlib.List.length pairs)
+    let n = Stdlib.toString (Stdlib.List.length pairs)
     let pairLines =
       pairs
       |> Stdlib.List.map (fun pair ->
@@ -211,7 +211,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
     Stdlib.List.flatten [ here "Statement" "", child first, child next ]
 
   | EMatch(_, arg, cases) ->
-    let n = Stdlib.Int.toString (Stdlib.List.length cases)
+    let n = Stdlib.toString (Stdlib.List.length cases)
     let caseLines =
       cases
       |> Stdlib.List.map (fun c ->
@@ -268,7 +268,7 @@ let expr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (e: LanguageTool
     Stdlib.List.append (here "Enum" $"{n}{ta}.{caseName}") (children fields)
 
   | EPipe(_, lhs, parts) ->
-    let n = Stdlib.Int.toString (Stdlib.List.length parts)
+    let n = Stdlib.toString (Stdlib.List.length parts)
     let partLines =
       (Stdlib.List.map parts (fun p -> pipeExpr ctx (depth + 1) p))
       |> Stdlib.List.flatten

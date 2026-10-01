@@ -90,7 +90,7 @@ let padRight (s: String) (width: Int) : String =
   Stdlib.Cli.Tui.Text.fitToWidth s width
 
 let threadRows (cols: Int) (thread: Thread) : List<String> =
-  let idStr = Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold + Darklang.Stdlib.Cli.UI.Colors.cyan) ("#" + Stdlib.Int.toString thread.id)
+  let idStr = Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold + Darklang.Stdlib.Cli.UI.Colors.cyan) ("#" + Stdlib.toString thread.id)
   let badge = statusBadge thread.status
   let topicStr =
     if thread.status == "done" then
@@ -186,11 +186,11 @@ let rowsAtSize
       + "  "
       + Darklang.Stdlib.Cli.UI.Colors.dimText
           ("—  "
-           + Stdlib.Int.toString threadCount
+           + Stdlib.toString threadCount
            + " threads  •  "
-           + Stdlib.Int.toString runningCount
+           + Stdlib.toString runningCount
            + " running  •  "
-           + Stdlib.Int.toString reviewCount
+           + Stdlib.toString reviewCount
            + " awaiting review")
       ""
       hr cols

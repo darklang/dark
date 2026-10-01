@@ -13,7 +13,7 @@ let getRecent (limit: Int) : List<LanguageTools.ProgramTypes.PackageOp> =
       // `rowid DESC` breaks the tie, as everywhere else here that orders on a timestamp: `created_at` is
       // second-resolution, so a burst of ops inside one second ties and a LIMIT takes an arbitrary subset.
       ("SELECT id, op_blob FROM package_ops ORDER BY created_at DESC, rowid DESC LIMIT "
-       + Stdlib.Int.toString limit)
+       + Stdlib.toString limit)
       [])
 
 
@@ -38,7 +38,7 @@ let opsInCommitLimited
       (localDb ())
       "SELECT id, op_blob FROM package_ops WHERE commit_hash = @p0
        ORDER BY origin_ts, rowid LIMIT @p1"
-      [ commitHash, Stdlib.Int64.toString limit ])
+      [ commitHash, Stdlib.toString limit ])
 
 
 /// The ops in a commit that name or deprecate something, capped at <param limit>, with the total count
@@ -92,7 +92,7 @@ let visibleParams (branchId: Uuid) : List<String> =
   if SCM.Branch.isMain branchId then
     []
   else
-    [ Stdlib.Uuid.toString branchId, Stdlib.Uuid.toString SCM.Branch.mainBranchId ]
+    [ Stdlib.toString branchId, Stdlib.toString SCM.Branch.mainBranchId ]
 
 
 /// Which ops a branch OWNS, which is a different question from what it can see. A branch owns the ops
@@ -109,7 +109,7 @@ let ownedWhere (branchId: Uuid) : String =
 
 
 let ownedParams (branchId: Uuid) : List<String> =
-  if SCM.Branch.isMain branchId then [] else [ Stdlib.Uuid.toString branchId ]
+  if SCM.Branch.isMain branchId then [] else [ Stdlib.toString branchId ]
 
 
 /// How many ops this branch can see.
@@ -127,7 +127,7 @@ let summariesFor (branchId: Uuid) (limit: Int64) : List<OpSummary> =
   let sql =
     "SELECT id, origin_ts AS ts, length(op_blob) AS sz, op_blob FROM package_ops WHERE "
     + visibleWhere branchId
-    + $" ORDER BY rowid DESC LIMIT {Stdlib.Int64.toString limit}"
+    + $" ORDER BY rowid DESC LIMIT {Stdlib.toString limit}"
 
   Stdlib.Sqlite.rowsP
     (localDb ())
@@ -183,8 +183,8 @@ let commitsOnBranch (branchId: Uuid) (limit: Int64) : List<Commits.Commit> =
   // Counted rather than written out: main's arm binds none and a branch's binds one, and a second copy
   // of that fact is a second thing to keep in step.
   let bound = ownedParams branchId
-  let params = Stdlib.List.append bound [ Stdlib.Int64.toString limit ]
-  let limitParam = "@p" + (Stdlib.Int.toString (Stdlib.List.length bound))
+  let params = Stdlib.List.append bound [ Stdlib.toString limit ]
+  let limitParam = "@p" + (Stdlib.toString (Stdlib.List.length bound))
 
   Stdlib.Sqlite.rowsP
     (localDb ())
@@ -206,7 +206,7 @@ let commitsArrivedRecently (limit: Int64) : List<Commits.Commit> =
     (localDb ())
     "SELECT c.hash, c.message, c.author, c.origin_ts, c.created_at, c.parent
      FROM commits c ORDER BY c.origin_ts DESC LIMIT @p0"
-    [ Stdlib.Int64.toString limit ]
+    [ Stdlib.toString limit ]
     (fun row -> Commits.commitFromRow row)
 
 

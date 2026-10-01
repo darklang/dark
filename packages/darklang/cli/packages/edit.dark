@@ -153,7 +153,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         // is left alone and so is the file, so a long edit is not thrown away on a
         // stray exit code.
         Stdlib.printLine
-          $"`{editor}` exited {Stdlib.Int.toString code}; nothing applied."
+          $"`{editor}` exited {Stdlib.toString code}; nothing applied."
 
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.dimText $"  Your edit is still at {path}.")

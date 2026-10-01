@@ -23,7 +23,7 @@ module ParseError =
         match part with
         | Root -> "root"
         | Field name -> "." + name
-        | Index index -> "[" + Int.toString index + "]"
+        | Index index -> "[" + Stdlib.toString index + "]"
 
     type JsonPath = List<Part.Part>
 
@@ -79,7 +79,7 @@ module ParseError =
     // Can't parse JSON because argument 4 (`Int`) is missing at path: `root.Enh`
     | EnumMissingField(typ, index, path) ->
       "Can't parse JSON because argument "
-      + Int.toString index
+      + Stdlib.toString index
       + " (`"
       + PrettyPrinter.RuntimeTypes.typeReference branchId typ
       + "`) is missing at path: `"

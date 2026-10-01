@@ -695,7 +695,7 @@ module DocPart =
     | WholeItem -> "the item"
     | RecordField name -> $"field {name}"
     | EnumCase name -> $"case {name}"
-    | Parameter index -> $"parameter {Stdlib.Int.toString (index + 1)}"
+    | Parameter index -> $"parameter {Stdlib.toString (index + 1)}"
 
 
 type PackageOp =

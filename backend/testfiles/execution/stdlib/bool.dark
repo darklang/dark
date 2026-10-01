@@ -28,5 +28,5 @@ Stdlib.Bool.xor false true = true
 Stdlib.Bool.xor true false = true
 Stdlib.Bool.xor true true = false
 
-Stdlib.Bool.toString true = "true"
-Stdlib.Bool.toString false = "false"
+Stdlib.toString true = "true"
+Stdlib.toString false = "false"

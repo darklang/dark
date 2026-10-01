@@ -189,7 +189,7 @@ let runScript
     if exitCode == 0 then
       state
     else
-      Stdlib.printLine $"Script exited with code {Stdlib.Int.toString exitCode}"
+      Stdlib.printLine $"Script exited with code {Stdlib.toString exitCode}"
       state
   | Error(Denied denied) ->
     let canAsk =

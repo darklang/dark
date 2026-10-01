@@ -29,7 +29,7 @@ let relayBundleStamp (owner: String) (branchId: Uuid) : (String * Int64) =
       (localDb ())
       "SELECT COALESCE(max_ts,'') AS ts, COALESCE(op_count,0) AS n FROM relay_branches
        WHERE owner = @p0 AND branch_id = @p1"
-      [ owner, Stdlib.Uuid.toString branchId ]
+      [ owner, Stdlib.toString branchId ]
   with
   | Some row ->
     (Stdlib.Sqlite.textOr row "ts",
@@ -69,10 +69,10 @@ let relayStoreBundle
         "INSERT OR REPLACE INTO relay_branches (owner, branch_id, bundle, max_ts, op_count)
          VALUES (@p0, @p1, @p2, @p3, @p4)"
         [ owner,
-          Stdlib.Uuid.toString branchId,
+          Stdlib.toString branchId,
           bundle,
           maxTs,
-          Stdlib.Int64.toString opCount ]
+          Stdlib.toString opCount ]
 
     true
   else
@@ -87,7 +87,7 @@ let relayGetBundle (owner: String) (branchId: Uuid) : String =
     Stdlib.Sqlite.queryOneP
       (localDb ())
       "SELECT bundle FROM relay_branches WHERE owner = @p0 AND branch_id = @p1"
-      [ owner, Stdlib.Uuid.toString branchId ]
+      [ owner, Stdlib.toString branchId ]
   with
   | Some row -> Stdlib.Sqlite.textField row "bundle" |> Stdlib.Option.withDefault ""
   | None -> ""
@@ -158,7 +158,7 @@ let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, MergeRefusal> =
     Stdlib.Sqlite.scalarIntP
       (localDb ())
       "SELECT count(*) AS n FROM op_branches WHERE branch_id = @p0"
-      [ Stdlib.Uuid.toString branchId ]
+      [ Stdlib.toString branchId ]
       "n"
     |> Stdlib.Option.withDefault 0L
 
@@ -175,7 +175,7 @@ let canMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, MergeRefusal> =
         (localDb ())
         "SELECT count(*) AS n FROM branches
          WHERE parent_id = @p0 AND merged_at IS NULL AND archived_at IS NULL"
-        [ Stdlib.Uuid.toString branchId ]
+        [ Stdlib.toString branchId ]
         "n"
     with
     | None -> Stdlib.Result.Result.Error MergeRefusal.CouldNotCheckChildren
@@ -196,7 +196,7 @@ let activeChildNames (branchId: Uuid) : List<String> =
     "SELECT CASE WHEN name = '' THEN id ELSE name END AS name FROM branches
      WHERE parent_id = @p0 AND merged_at IS NULL AND archived_at IS NULL
      ORDER BY name"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
     "name"
 
 
@@ -211,7 +211,7 @@ let ensure (branchId: Uuid) (parentId: Uuid) : Unit =
       (localDb ())
       "INSERT INTO branches (id, name, parent_id) VALUES (@p0, '', @p1)
        ON CONFLICT(id) DO UPDATE SET archived_at = NULL, merged_at = NULL"
-      [ Stdlib.Uuid.toString branchId, Stdlib.Uuid.toString parentId ]
+      [ Stdlib.toString branchId, Stdlib.toString parentId ]
 
   ()
 
@@ -221,7 +221,7 @@ let setName (branchId: Uuid) (name: String) : Unit =
     Stdlib.Sqlite.mustExec
       (localDb ())
       "UPDATE branches SET name = @p1 WHERE id = @p0"
-      [ Stdlib.Uuid.toString branchId, name ]
+      [ Stdlib.toString branchId, name ]
 
   ()
 
@@ -232,7 +232,7 @@ let setName (branchId: Uuid) (name: String) : Unit =
 /// Only effective=0 ops are deleted: anything that made it into main is main's now, and deleting it here
 /// would tear a hole in the shared log rather than discard a branch.
 let archive (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
-  let b = Stdlib.Uuid.toString branchId
+  let b = Stdlib.toString branchId
 
   // ONE transaction. This is the only place that deletes from `package_ops`, the canonical log, and it
   // needs three more statements to stay consistent with that delete. Run separately, a crash between any
@@ -270,7 +270,7 @@ let pruneAppliedTags (branchId: Uuid) : Unit =
       (localDb ())
       "DELETE FROM op_branches
        WHERE branch_id = @p0 AND op_id IN (SELECT id FROM package_ops WHERE applied = 1)"
-      [ Stdlib.Uuid.toString branchId ]
+      [ Stdlib.toString branchId ]
 
   ()
 
@@ -337,19 +337,19 @@ let listLines (includeMerged: Bool) : List<String> =
       // with its child. The id alone reads as corruption; say what it is instead.
       match Stdlib.List.findFirst branches (fun p -> p.id == parentId) with
       | Some p when p.name != "" -> p.name
-      | Some _ -> Stdlib.String.slice (Stdlib.Uuid.toString parentId) 0 8
+      | Some _ -> Stdlib.String.slice (Stdlib.toString parentId) 0 8
       | None ->
-        let short = Stdlib.String.slice (Stdlib.Uuid.toString parentId) 0 8
+        let short = Stdlib.String.slice (Stdlib.toString parentId) 0 8
         $"{short} (a branch not in this store; `branch pull --from <who>` brings it)"
 
   branches
   |> Stdlib.List.filter (fun b -> includeMerged || (Stdlib.Bool.not b.merged))
   |> Stdlib.List.map (fun b ->
     let status =
-      if b.merged then "merged" else $"{Stdlib.Int64.toString b.ops} op(s)"
+      if b.merged then "merged" else $"{Stdlib.toString b.ops} op(s)"
 
-    let label = if b.name == "" then Stdlib.Uuid.toString b.id else b.name
-    let shortId = Stdlib.String.slice (Stdlib.Uuid.toString b.id) 0 8
+    let label = if b.name == "" then Stdlib.toString b.id else b.name
+    let shortId = Stdlib.String.slice (Stdlib.toString b.id) 0 8
     $"{label} ({shortId}) <- {parentLabel b.parent}  [{status}]")
 
 /// The names a branch has recorded a base for -- i.e. every name it has touched.
@@ -357,7 +357,7 @@ let touchedNames (branchId: Uuid) : List<String> =
   Stdlib.Sqlite.columnP
     (localDb ())
     "SELECT name FROM branch_name_bases WHERE branch_id = @p0"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
     "name"
 
 
@@ -383,7 +383,7 @@ let nameBases (branchId: Uuid) : List<(String * String * String * String)> =
   Stdlib.Sqlite.rowsP
     (localDb ())
     "SELECT owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @p0"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
     (fun row ->
       match
         (Stdlib.Sqlite.textField row "owner",
@@ -424,7 +424,7 @@ let parentHashesForBases (parentId: Uuid) (branchId: Uuid) : Dict<String, String
        JOIN package_ops p ON p.id = l.op_id
        WHERE b.branch_id = @p0 AND l.unlisted_at IS NULL
          AND p.commit_hash IS NOT NULL"
-      [ Stdlib.Uuid.toString branchId ]
+      [ Stdlib.toString branchId ]
       (fun row ->
         match
           (Stdlib.Sqlite.textField row "owner",
@@ -529,7 +529,7 @@ let rebaseDetailed (branchId: Uuid) : Stdlib.Result.Result<Rebased, String> =
         |> Stdlib.Dict.get (nameKey o m n)
         |> Stdlib.Option.withDefault ""
 
-      [ current, Stdlib.Uuid.toString branchId, o, m, n ])
+      [ current, Stdlib.toString branchId, o, m, n ])
 
   // The other half of "accept the parent's changes": what the branch CALLS. A branch that never
   // touched `f` has no base for it, so the bases above say nothing when the parent moves `f`; but
@@ -631,7 +631,7 @@ let uncommittedOpIds (branchId: Uuid) : List<String> =
     "SELECT p.id FROM package_ops p
      JOIN op_branches ob ON ob.op_id = p.id
      WHERE ob.branch_id = @p0 AND p.commit_hash IS NULL"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
     "id"
 
 
@@ -642,7 +642,7 @@ let ownOpRows (branchId: Uuid) : List<Dict<String, Stdlib.Sqlite.Value>> =
      JOIN op_branches ob ON ob.op_id = p.id
      WHERE ob.branch_id = @p0
      ORDER BY p.origin_ts, p.rowid"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
 
 
 /// Does this op bind <param key>? True for a SetName and for a Decision that overrides the binding, since
@@ -689,7 +689,7 @@ let setBaseToParent (branchId: Uuid) (key: (String * String * String)) : Unit =
       (localDb ())
       "UPDATE branch_name_bases SET base_hash = @p0
        WHERE branch_id = @p1 AND owner = @p2 AND modules = @p3 AND name = @p4"
-      [ current, Stdlib.Uuid.toString branchId, owner, modules, name ]
+      [ current, Stdlib.toString branchId, owner, modules, name ]
 
   ()
 
@@ -714,7 +714,7 @@ let resolveTakeTheirs
         match opBindsKey op key with
         | Some _ ->
           Stdlib.Option.Option.Some
-            [ Stdlib.Uuid.toString id, Stdlib.Uuid.toString branchId ]
+            [ Stdlib.toString id, Stdlib.toString branchId ]
         | None -> Stdlib.Option.Option.None)
 
     match ids with
@@ -816,7 +816,7 @@ let retagFrontierToParent
   (branchId: Uuid)
   (parentId: Uuid)
   : Stdlib.Result.Result<Int, String> =
-  let b = Stdlib.Uuid.toString branchId
+  let b = Stdlib.toString branchId
 
   let tagged =
     Stdlib.Sqlite.scalarIntP
@@ -837,11 +837,11 @@ let retagFrontierToParent
       // needs; for one it did rebind, INSERT OR IGNORE keeps the parent's own first-touch row.
       [ ("INSERT OR IGNORE INTO op_branches (op_id, branch_id, source)
           SELECT op_id, @p0, source FROM op_branches WHERE branch_id = @p1",
-         [ [ Stdlib.Uuid.toString parentId, b ] ])
+         [ [ Stdlib.toString parentId, b ] ])
         ("DELETE FROM op_branches WHERE branch_id = @p0", [ [ b ] ])
         ("INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
           SELECT @p0, owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @p1",
-         [ [ Stdlib.Uuid.toString parentId, b ] ])
+         [ [ Stdlib.toString parentId, b ] ])
         ("DELETE FROM branch_name_bases WHERE branch_id = @p0", [ [ b ] ])
         ("UPDATE branches SET merged_at = datetime('now') WHERE id = @p0", [ [ b ] ]) ]
   with
@@ -855,7 +855,7 @@ let frontierIds (branchId: Uuid) : List<Uuid> =
   Stdlib.Sqlite.rowsP
     (localDb ())
     "SELECT op_id FROM op_branches WHERE branch_id = @p0"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
     (fun row -> Stdlib.Sqlite.uuidField row "op_id")
 
 
@@ -864,7 +864,7 @@ let frontierIds (branchId: Uuid) : List<Uuid> =
 /// Returns how many ops are ABOUT to flip, not how many are tagged. A branch can carry tags on ops main
 /// already has -- a whole-log import does -- and counting those reports work the merge did not do.
 let markMergedEffective (branchId: Uuid) : Stdlib.Result.Result<Int, String> =
-  let b = Stdlib.Uuid.toString branchId
+  let b = Stdlib.toString branchId
 
   let toFlip =
     Stdlib.Sqlite.scalarIntP
@@ -896,7 +896,7 @@ let markMergedEffective (branchId: Uuid) : Stdlib.Result.Result<Int, String> =
 /// merge" while its changes are already in main, and which `dark branches` lists as live forever. Every
 /// other point is recoverable by running the merge again, because the frontier is still tagged.
 let finishMerge (branchId: Uuid) : Stdlib.Result.Result<Unit, String> =
-  let b = Stdlib.Uuid.toString branchId
+  let b = Stdlib.toString branchId
 
   match
     Stdlib.Sqlite.execBatch

@@ -68,9 +68,9 @@ let branchRows (unit: Unit) : List<ScmJson.BranchJson> =
   |> Stdlib.List.map (fun b ->
     ScmJson.BranchJson
       // Ids are `Uuid` inside and text only where the medium is text. JSON is text.
-      { id = Stdlib.Uuid.toString b.id
-        name = if b.name == "" then Stdlib.Uuid.toString b.id else b.name
-        parent = Stdlib.Uuid.toString b.parent
+      { id = Stdlib.toString b.id
+        name = if b.name == "" then Stdlib.toString b.id else b.name
+        parent = Stdlib.toString b.parent
         parentName =
           if SCM.Branch.isMain b.parent then
             ""
@@ -106,7 +106,7 @@ let executeSwitch (state: AppState) (branchRef: String) : AppState =
       let _ = Cli.printHint "  `dark switch <branch>`, and `dark branches` lists them."
       SCM.PackageOps.currentBranch ()
     | ref when (ref == "") || (ref == SCM.Branch.mainBranchName) ->
-      let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.Uuid.toString SCM.Branch.mainBranchId)
+      let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.toString SCM.Branch.mainBranchId)
       let _ = Stdlib.LocalStore.configSet "current_branch_name" SCM.Branch.mainBranchName
       let _ = SCM.PackageOps.selectBranch SCM.Branch.mainBranchId
       let _ = Cli.printOk $"switched to {SCM.Branch.mainBranchName}."
@@ -151,10 +151,10 @@ let executeSwitch (state: AppState) (branchRef: String) : AppState =
       // brings in a peer's same-named branch move you onto theirs without a word.
       let handle =
         match SCM.PackageOps.branchName branchId with
-        | "" -> Stdlib.Uuid.toString branchId
+        | "" -> Stdlib.toString branchId
         | named -> named
 
-      let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.Uuid.toString branchId)
+      let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.toString branchId)
       let _ = Stdlib.LocalStore.configSet "current_branch_name" handle
       let _ = SCM.PackageOps.selectBranch branchId
 
@@ -294,7 +294,7 @@ let executeArchive
       // next edit would land there and revive it. Move to the parent, in this process and in the
       // config the next one reads, and say so.
       if SCM.PackageOps.currentBranch () == branchId then
-        let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.Uuid.toString parentId)
+        let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.toString parentId)
         let _ =
           Stdlib.LocalStore.configSet
             "current_branch_name"
@@ -346,7 +346,7 @@ let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
       // The relay keys on the branch ID, not the name: two machines can each have a `fix-auth`, and
       // they are different branches. The name travels inside the bundle, for display on the far end.
       // The id is a `Uuid`; a URL is text, so this is one of the few places it becomes a string.
-      let branchParam = Stdlib.Uuid.toString branchId
+      let branchParam = Stdlib.toString branchId
 
       match Sync.relayPostTo url $"/branch/push?owner={id}&branch={branchParam}" bundle with
       | Ok reply ->
