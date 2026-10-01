@@ -58,6 +58,31 @@ let addAuthored
     | Error message -> Stdlib.Result.Result.Error message
 
 
+/// <fn addAuthored> for ops a GENERATOR produced while following an edit. The same checks
+/// and the same stabilisation; the difference is that the bindings land marked as
+/// propagation, so `status` and `commit` list them as "followed" rather than as something
+/// the person typed, and a pin un-stages them the way it un-stages a repoint.
+let addRegenerated
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  let duplicates = LanguageTools.PackageManager.duplicateDeclarations ops
+
+  if Stdlib.Bool.not (Stdlib.List.isEmpty duplicates) then
+    Stdlib.Result.Result.Error(
+      "Declared more than once: " ++ (Stdlib.String.join duplicates ", "))
+  else
+    let stabilizedOps = LanguageTools.PackageManager.stabilizeHashes ops
+
+    match
+      Builtin.scmAddRegeneratedOps branchId (Lineage.recordPrevious branchId stabilizedOps)
+    with
+    | Ok _ ->
+      Stdlib.Result.Result.Ok(
+        LanguageTools.AtRestTypeChecker.checkPackageOps stabilizedOps)
+    | Error message -> Stdlib.Result.Result.Error message
+
+
 // the op-log DATA-ACCESS SILO
 // This module OWNS every SQL query against `package_ops`. Callers (the `dark ops` CLI, doctor, sync) go
 // through the typed functions below and never hand-roll SQL. There should be no op-log SQL outside here.

@@ -61,3 +61,14 @@ let toList (blob: Blob) : List<UInt8> = Builtin.blobToBytes blob
 
 /// Escape hatch: collect a List<UInt8> into a Blob.
 let fromList (bytes: List<UInt8>) : Blob = Builtin.blobFromBytes bytes
+
+
+/// Stores <param blob> in the package store, content-addressed, and returns the hash it
+/// lives under, which is what <fn load> takes. The same bytes persist to the same hash, so
+/// this is safe to repeat. A generator's input file is stored this way once, and the saved
+/// generator names it by hash.
+let persist (blob: Blob) : String = Builtin.blobPersist blob
+
+
+/// The persistent blob stored under <param hash>, or None when the store has no such row.
+let load (hash: String) : Stdlib.Option.Option<Blob> = Builtin.blobLoad hash

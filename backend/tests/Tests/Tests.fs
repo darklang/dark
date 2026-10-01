@@ -101,6 +101,7 @@ let main (args : string array) : int =
         testList "CliWorkspace" Tests.CliWorkspace.tests
         testList "CliScmRegression" Tests.CliScmRegression.tests
         testList "CliPackages" Tests.CliPackages.tests
+        testList "CliGenerate" Tests.CliGenerate.tests
         Tests.CliScriptLowering.tests
         Tests.Toplevels.tests
 

@@ -224,6 +224,41 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       PT2DT.PackageType.toDT
 
 
+    // The declaration behind a type the PROGRAM names, as `reflect` is for a value.
+    //
+    // `pmGetType` reads the store by hash and carries `PackageRead`; this takes the
+    // type as a type argument, which the program resolved to a hash when it was
+    // written, so the declaration is part of the program rather than a resource it
+    // reaches for. That is what lets a generator that mirrors or derives from a type
+    // stay effect-free, and what makes the type an ordinary dependency of the fn that
+    // names it: `package_dependencies` records type arguments, so editing the type
+    // repoints the generator.
+    { name = fn "pmTypeDeclaration" 0
+      typeParams = [ "a" ]
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType =
+        TypeReference.option (TCustomType(NR.ok (PT2DT.PackageType.typeName ()), []))
+      description =
+        "The package type declaration behind <typeParam a>, or None when <typeParam a> "
+        + "is not a package type (a builtin type, a type variable, a list)."
+      fn =
+        (function
+        | _, _, [ typeArg ], [| DUnit |] ->
+          uply {
+            let kt = KTCustomType(PT2DT.PackageType.typeName (), [])
+            match typeArg with
+            | TCustomType({ resolved = Ok(FQTypeName.Package(Hash hash)) }, _) ->
+              let! result = pm.getType (PT.Hash hash)
+              return result |> Option.map PT2DT.PackageType.toDT |> Dval.option kt
+            | _ -> return Dval.option kt None
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     // values
     findByLocationFn "pmFindValue" "value" PMPT.Value.find (fun branchPM loc ->
       branchPM.findValue loc)

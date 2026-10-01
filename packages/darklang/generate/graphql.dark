@@ -1,0 +1,524 @@
+module Darklang.Generate.GraphQL
+
+// A client from a GraphQL schema (SDL): `GraphQL.client <schema.graphql>`.
+//
+// Object and input types become records with decoders and encoders; a nullable field
+// (no `!`) is an `Option`, `[T]` is a `List`; `ID` and enums are `String` (an enum's
+// values are in the doc comment); custom scalars are `String` with a note. Each field
+// of the `Query` type becomes a fn `client -> args -> Result<T, ApiError>` that POSTs
+// the operation with its selection set spelled out (every scalar field, objects
+// followed three levels deep, self-referential ones stopping there) and decodes
+// `data.<field>`; each field of `Mutation` likewise. Interfaces, unions, fragments,
+// directives and subscriptions are not handled; a union-typed field is left as raw
+// JSON with a note.
+
+
+type Token =
+  | Name of String
+  | Punct of String
+  | Str of String
+
+
+/// SDL as tokens, with `#` comments and `"""` descriptions dropped.
+let tokenize (text: String) : List<Token> =
+  let chars = Stdlib.String.toList text
+  let isNameChar (c: Char) : Bool = (Stdlib.Char.isAlphanumeric c) || (c == '_')
+  let (tokens, current, mode) =
+    chars
+    |> Stdlib.List.fold ([], [], "") (fun (tokens, current, mode) c ->
+      // mode: "" plain, "name" inside a name, "comment" to end of line,
+      // "string" inside "...", "block" inside """...""" (tracked by quote count)
+      match mode with
+      | "comment" -> if c == '\n' then (tokens, [], "") else (tokens, [], "comment")
+      | "string" ->
+        if c == '"' then
+          (Stdlib.List.pushBack tokens (Token.Str(Stdlib.String.fromList current)), [], "")
+        else
+          (tokens, Stdlib.List.pushBack current c, "string")
+      | "block" ->
+        // Three quotes close it; count consecutive quotes in `current`.
+        if c == '"' then
+          let quotes = Stdlib.List.pushBack current c
+          if (Stdlib.List.length quotes) >= 3 then (tokens, [], "") else (tokens, quotes, "block")
+        else
+          (tokens, [], "block")
+      | "quote1" ->
+        // After one `"`: a second means an empty string or a block start.
+        if c == '"' then (tokens, [], "quote2") else (tokens, [ c ], "string")
+      | "quote2" ->
+        if c == '"' then (tokens, [], "block") else (Stdlib.List.pushBack tokens (Token.Str ""), [], "")
+      | "name" ->
+        if isNameChar c then
+          (tokens, Stdlib.List.pushBack current c, "name")
+        else
+          let tokens = Stdlib.List.pushBack tokens (Token.Name(Stdlib.String.fromList current))
+          if c == '#' then (tokens, [], "comment")
+          else if c == '"' then (tokens, [], "quote1")
+          else if Stdlib.List.member [ '{', '}', '(', ')', ':', '[', ']', '!', '=', '@', '|', '&' ] c then
+            (Stdlib.List.pushBack tokens (Token.Punct(Stdlib.Char.toString c)), [], "")
+          else (tokens, [], "")
+      | _ ->
+        if c == '#' then (tokens, [], "comment")
+        else if c == '"' then (tokens, [], "quote1")
+        else if isNameChar c then (tokens, [ c ], "name")
+        else if Stdlib.List.member [ '{', '}', '(', ')', ':', '[', ']', '!', '=', '@', '|', '&' ] c then
+          (Stdlib.List.pushBack tokens (Token.Punct(Stdlib.Char.toString c)), [], "")
+        else (tokens, [], ""))
+  match mode with
+  | "name" -> Stdlib.List.pushBack tokens (Token.Name(Stdlib.String.fromList current))
+  | _ -> tokens
+
+
+/// A GraphQL type reference: named, list, non-null.
+type GType =
+  | Named of String
+  | List of GType
+  | NonNull of GType
+
+
+type Field =
+  { name: String
+    args: List<(String * GType)>
+    typ: GType }
+
+
+type Definition =
+  | Object of name: String * fields: List<Field>
+  | Input of name: String * fields: List<Field>
+  | Enum of name: String * values: List<String>
+  | Scalar of String
+  | Other of String
+
+
+/// Parse one type reference from the front of <param tokens>.
+let parseType (tokens: List<Token>) : Stdlib.Option.Option<(GType * List<Token>)> =
+  match tokens with
+  | Punct "[" :: rest ->
+    match parseType rest with
+    | Some pair ->
+      let (inner, after) = pair
+      match after with
+      | Punct "]" :: Punct "!" :: more -> Stdlib.Option.Option.Some((GType.NonNull(GType.List inner), more))
+      | Punct "]" :: more -> Stdlib.Option.Option.Some((GType.List inner, more))
+      | _ -> Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+  | Name n :: Punct "!" :: rest -> Stdlib.Option.Option.Some((GType.NonNull(GType.Named n), rest))
+  | Name n :: rest -> Stdlib.Option.Option.Some((GType.Named n, rest))
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Skip a default value after `=`: one token, or a bracketed/braced group.
+let skipDefault (tokens: List<Token>) : List<Token> =
+  match tokens with
+  | Punct "=" :: Punct "[" :: rest ->
+    let (_, remaining, _) =
+      rest
+      |> Stdlib.List.fold (1, [], false) (fun (depth, out, done_) t ->
+        if done_ then (depth, Stdlib.List.pushBack out t, true)
+        else
+          match t with
+          | Punct "[" -> (depth + 1, out, false)
+          | Punct "]" -> if depth == 1 then (0, out, true) else (depth - 1, out, false)
+          | _ -> (depth, out, false))
+    remaining
+  | Punct "=" :: Punct "{" :: rest ->
+    let (_, remaining, _) =
+      rest
+      |> Stdlib.List.fold (1, [], false) (fun (depth, out, done_) t ->
+        if done_ then (depth, Stdlib.List.pushBack out t, true)
+        else
+          match t with
+          | Punct "{" -> (depth + 1, out, false)
+          | Punct "}" -> if depth == 1 then (0, out, true) else (depth - 1, out, false)
+          | _ -> (depth, out, false))
+    remaining
+  | Punct "=" :: _ :: rest -> rest
+  | _ -> tokens
+
+
+/// Skip directives: `@name` optionally followed by `( ... )`.
+let skipDirectives (tokens: List<Token>) : List<Token> =
+  match tokens with
+  | Punct "@" :: Name _ :: Punct "(" :: rest ->
+    let (_, remaining, _) =
+      rest
+      |> Stdlib.List.fold (1, [], false) (fun (depth, out, done_) t ->
+        if done_ then (depth, Stdlib.List.pushBack out t, true)
+        else
+          match t with
+          | Punct "(" -> (depth + 1, out, false)
+          | Punct ")" -> if depth == 1 then (0, out, true) else (depth - 1, out, false)
+          | _ -> (depth, out, false))
+    skipDirectives remaining
+  | Punct "@" :: Name _ :: rest -> skipDirectives rest
+  | _ -> tokens
+
+
+/// Parse `name: Type` arguments up to the closing `)`.
+let parseArgs (tokens: List<Token>) : (List<(String * GType)> * List<Token>) =
+  let step (state: (List<(String * GType)> * List<Token> * Bool)) : (List<(String * GType)> * List<Token> * Bool) =
+    let (args, rest, done_) = state
+    if done_ then state
+    else
+      match rest with
+      | Punct ")" :: more -> (args, more, true)
+      | Name n :: Punct ":" :: more ->
+        match parseType more with
+        | Some pair ->
+          let (t, after) = pair
+          (Stdlib.List.pushBack args (n, t), skipDirectives (skipDefault after), false)
+        | None -> (args, [], true)
+      | _ :: more -> (args, more, false)
+      | [] -> (args, [], true)
+  let (args, rest, _) =
+    (Stdlib.List.range 0 200) |> Stdlib.List.fold ([], tokens, false) (fun state _ -> step state)
+  (args, rest)
+
+
+/// Parse fields up to the closing `}`.
+let parseFields (tokens: List<Token>) : (List<Field> * List<Token>) =
+  let step (state: (List<Field> * List<Token> * Bool)) : (List<Field> * List<Token> * Bool) =
+    let (fields, rest, done_) = state
+    if done_ then state
+    else
+      match rest with
+      | Punct "}" :: more -> (fields, more, true)
+      | Name n :: Punct "(" :: more ->
+        let (args, afterArgs) = parseArgs more
+        match afterArgs with
+        | Punct ":" :: afterColon ->
+          match parseType afterColon with
+          | Some pair ->
+            let (t, after) = pair
+            (Stdlib.List.pushBack fields (Field { name = n; args = args; typ = t }), skipDirectives after, false)
+          | None -> (fields, [], true)
+        | _ -> (fields, [], true)
+      | Name n :: Punct ":" :: more ->
+        match parseType more with
+        | Some pair ->
+          let (t, after) = pair
+          (Stdlib.List.pushBack fields (Field { name = n; args = []; typ = t }), skipDirectives after, false)
+        | None -> (fields, [], true)
+      | _ :: more -> (fields, more, false)
+      | [] -> (fields, [], true)
+  let (fields, rest, _) =
+    (Stdlib.List.range 0 2000) |> Stdlib.List.fold ([], tokens, false) (fun state _ -> step state)
+  (fields, rest)
+
+
+/// Skip to just past the matching `}` of a block that has been opened.
+let skipBlock (tokens: List<Token>) : List<Token> =
+  let (_, remaining, _) =
+    tokens
+    |> Stdlib.List.fold (1, [], false) (fun (depth, out, done_) t ->
+      if done_ then (depth, Stdlib.List.pushBack out t, true)
+      else
+        match t with
+        | Punct "{" -> (depth + 1, out, false)
+        | Punct "}" -> if depth == 1 then (0, out, true) else (depth - 1, out, false)
+        | _ -> (depth, out, false))
+  remaining
+
+
+/// Every definition in the document.
+let parseDefinitions (tokens: List<Token>) : List<Definition> =
+  // `implements A & B` and directives between the name and `{` are skipped.
+  let toBrace (ts: List<Token>) : List<Token> =
+    ts |> Stdlib.List.dropWhile (fun t ->
+      match t with
+      | Punct "{" -> false
+      | _ -> true)
+  let step (state: (List<Definition> * List<Token>)) : (List<Definition> * List<Token>) =
+    let (defs, rest) = state
+    match rest with
+    | [] -> (defs, [])
+    | Name "type" :: Name n :: more ->
+      match toBrace more with
+      | Punct "{" :: body ->
+        let (fields, after) = parseFields body
+        (Stdlib.List.pushBack defs (Definition.Object(n, fields)), after)
+      | other -> (defs, other)
+    | Name "input" :: Name n :: more ->
+      match toBrace more with
+      | Punct "{" :: body ->
+        let (fields, after) = parseFields body
+        (Stdlib.List.pushBack defs (Definition.Input(n, fields)), after)
+      | other -> (defs, other)
+    | Name "enum" :: Name n :: more ->
+      match toBrace more with
+      | Punct "{" :: body ->
+        let values =
+          body
+          |> Stdlib.List.takeWhile (fun t ->
+            match t with
+            | Punct "}" -> false
+            | _ -> true)
+          |> Stdlib.List.filterMap (fun t ->
+            match t with
+            | Name v -> Stdlib.Option.Option.Some v
+            | _ -> Stdlib.Option.Option.None)
+        (Stdlib.List.pushBack defs (Definition.Enum(n, values)), skipBlock body)
+      | other -> (defs, other)
+    | Name "scalar" :: Name n :: more -> (Stdlib.List.pushBack defs (Definition.Scalar n), more)
+    | Name "schema" :: more ->
+      match toBrace more with
+      | Punct "{" :: body -> (defs, skipBlock body)
+      | other -> (defs, other)
+    | Name kind :: Name n :: more when (kind == "interface") || (kind == "union") ->
+      (Stdlib.List.pushBack defs (Definition.Other n), more)
+    | _ :: more -> (defs, more)
+  let (defs, _) =
+    (Stdlib.List.range 0 5000) |> Stdlib.List.fold ([], tokens) (fun state _ -> step state)
+  defs
+
+
+/// GraphQL types as the shared model. Object and input types are `Named`; enums, ID
+/// and custom scalars are strings; interfaces and unions are raw JSON.
+let shapeOf (defs: List<Definition>) (t: GType) : Generate.Model.Shape =
+  let inner (u: GType) : Generate.Model.Shape =
+    match u with
+    | NonNull x -> shapeOf defs x
+    | List x -> Generate.Model.Shape.List(shapeOf defs x)
+    | Named "Int" -> Generate.Model.Shape.Int
+    | Named "Float" -> Generate.Model.Shape.Float
+    | Named "String" -> Generate.Model.Shape.String
+    | Named "Boolean" -> Generate.Model.Shape.Bool
+    | Named "ID" -> Generate.Model.Shape.String
+    | Named n ->
+      let known =
+        defs
+        |> Stdlib.List.findFirst (fun d ->
+          match d with
+          | Object(name, _) -> name == n
+          | Input(name, _) -> name == n
+          | _ -> false)
+      match known with
+      | Some _ -> Generate.Model.Shape.Named(Generate.Source.typeName n)
+      | None ->
+        let isEnum =
+          defs
+          |> Stdlib.List.any (fun d ->
+            match d with
+            | Enum(name, _) -> name == n
+            | Scalar name -> name == n
+            | _ -> false)
+        if isEnum then Generate.Model.Shape.String else Generate.Model.Shape.Any
+  // Nullable unless wrapped in NonNull; the Optional sits outside.
+  match t with
+  | NonNull x -> inner x
+  | other -> Generate.Model.Shape.Optional(inner other)
+
+
+let recordOf (defs: List<Definition>) (name: String) (fields: List<Field>) : Generate.Model.Record =
+  Generate.Model.Record
+    { name = Generate.Source.typeName name
+      fields =
+        fields
+        |> Stdlib.List.map (fun f ->
+          let note =
+            match f.typ with
+            | Named n
+            | NonNull(Named n) ->
+              let enumValues =
+                defs
+                |> Stdlib.List.filterMap (fun d ->
+                  match d with
+                  | Enum(en, values) -> if en == n then Stdlib.Option.Option.Some values else Stdlib.Option.Option.None
+                  | _ -> Stdlib.Option.Option.None)
+                |> Stdlib.List.flatten
+              match enumValues with
+              | [] -> Stdlib.Option.Option.None
+              | vs -> Stdlib.Option.Option.Some("one of: " ++ (Stdlib.String.join vs ", "))
+            | _ -> Stdlib.Option.Option.None
+          Generate.Model.Field
+            { name = Generate.Source.identifier f.name
+              key = f.name
+              shape = shapeOf defs f.typ
+              note = note }) }
+
+
+/// The selection set for a type: `Some ""` for a scalar (nothing to select), `Some
+/// " { ... }"` for an object with its fields, `None` for an object past <param depth>,
+/// which the caller then leaves out of the query.
+let selection (defs: List<Definition>) (t: GType) (depth: Int) : Stdlib.Option.Option<String> =
+  let bare (u: GType) : String =
+    match u with
+    | NonNull x -> bare x
+    | List x -> bare x
+    | Named n -> n
+  let n = bare t
+  let fieldsOf =
+    defs
+    |> Stdlib.List.filterMap (fun d ->
+      match d with
+      | Object(name, fields) -> if name == n then Stdlib.Option.Option.Some fields else Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.flatten
+  match fieldsOf with
+  | [] -> Stdlib.Option.Option.Some ""
+  | fields ->
+    // Past the depth limit an object field is not selected at all. For a type that
+    // refers to itself (`friends: [Character]`) that means the deepest level comes
+    // back without the field and its decoder says so; the query is then the thing to
+    // hand-edit, as with any GraphQL client.
+    if depth <= 0 then
+      Stdlib.Option.Option.None
+    else
+      let parts =
+        fields
+        |> Stdlib.List.filter (fun f -> Stdlib.List.isEmpty f.args)
+        |> Stdlib.List.filterMap (fun f ->
+          match selection defs f.typ (depth - 1) with
+          | Some sub -> Stdlib.Option.Option.Some(f.name ++ sub)
+          | None -> Stdlib.Option.Option.None)
+      match parts with
+      | [] -> Stdlib.Option.Option.None
+      | _ -> Stdlib.Option.Option.Some(" { " ++ (Stdlib.String.join parts " ") ++ " }")
+
+
+/// The GraphQL spelling of a type, for variable declarations.
+let gqlType (t: GType) : String =
+  match t with
+  | Named n -> n
+  | List x -> "[" ++ (gqlType x) ++ "]"
+  | NonNull x -> (gqlType x) ++ "!"
+
+
+/// One operation fn for a root field.
+let operationSource (defs: List<Definition>) (kind: String) (f: Field) : String =
+  let name = Generate.Source.identifier f.name
+  let params_ =
+    f.args
+    |> Stdlib.List.map (fun (a, t) ->
+      let arg = Generate.Source.identifier a
+      let typ = Generate.Model.typeText (shapeOf defs t)
+      $"({arg}: {typ})")
+  let allParams = Stdlib.String.join (Stdlib.List.push params_ "(client: Client)") " "
+  let varDecls =
+    f.args |> Stdlib.List.map (fun (a, t) -> "$" ++ a ++ ": " ++ (gqlType t)) |> Stdlib.String.join ", "
+  let varUses =
+    f.args |> Stdlib.List.map (fun (a, _) -> a ++ ": $" ++ a) |> Stdlib.String.join ", "
+  let query =
+    (if Stdlib.List.isEmpty f.args then kind else $"{kind}({varDecls})")
+    ++ " { "
+    ++ f.name
+    ++ (if Stdlib.List.isEmpty f.args then "" else $"({varUses})")
+    ++ ((selection defs f.typ 3) |> Stdlib.Option.withDefault "")
+    ++ " }"
+  let variables =
+    f.args
+    |> Stdlib.List.map (fun (a, t) ->
+      let key = Generate.Source.stringLiteral a
+      let enc = Generate.Model.encoder (shapeOf defs t)
+      let arg = Generate.Source.identifier a
+      $"({key}, {enc} {arg})")
+    |> Stdlib.String.join ", "
+  let resultShape = shapeOf defs f.typ
+  let returnType = Generate.Model.typeText resultShape
+  let fieldKey = Generate.Source.stringLiteral f.name
+  let decode =
+    match resultShape with
+    | Optional inner ->
+      let dec = Generate.Model.decoder inner
+      $"Stdlib.AltJson.Decode.optional data {fieldKey} {dec}"
+    | shape ->
+      let dec = Generate.Model.decoder shape
+      $"Stdlib.AltJson.Decode.required data {fieldKey} {dec}"
+  Stdlib.String.join
+    [ $"/// {kind} {f.name}",
+      $"let {name} {allParams} : Stdlib.Result.Result<{returnType}, ApiError> =",
+      "  let payload =",
+      "    Stdlib.AltJson.Encode.object",
+      "      [ (\"query\", Stdlib.AltJson.Encode.string " ++ (Generate.Source.stringLiteral query) ++ "),",
+      $"        (\"variables\", Stdlib.AltJson.Encode.object [ {variables} ]) ]",
+      "  let headers = Stdlib.List.append client.headers [ (\"Content-Type\", \"application/json\") ]",
+      "  match Stdlib.HttpClient.request \"POST\" client.url headers (Stdlib.Blob.fromString (Stdlib.AltJson.Encode.toText payload)) with",
+      "  | Error e -> Stdlib.Result.Result.Error(ApiError.Transport(Stdlib.HttpClient.toString e))",
+      "  | Ok response ->",
+      "    if (response.statusCode >= 200) && (response.statusCode < 300) then",
+      "      match Stdlib.Blob.toString response.body with",
+      "      | Error _ -> Stdlib.Result.Result.Error ApiError.NotText",
+      "      | Ok text ->",
+      "        match Stdlib.AltJson.parse text with",
+      "        | Error _ -> Stdlib.Result.Result.Error(ApiError.Decode \"the response is not JSON\")",
+      "        | Ok json ->",
+      "          match Stdlib.AltJson.Decode.fieldsOf json with",
+      "          | Error e -> Stdlib.Result.Result.Error(ApiError.Decode e)",
+      "          | Ok top ->",
+      "            match Stdlib.AltJson.Decode.optional top \"errors\" Stdlib.AltJson.Decode.any with",
+      "            | Ok(Some errors) -> Stdlib.Result.Result.Error(ApiError.GraphQL(Stdlib.AltJson.format errors))",
+      "            | _ ->",
+      "              match Stdlib.AltJson.Decode.required top \"data\" Stdlib.AltJson.Decode.fieldsOf with",
+      "              | Error e -> Stdlib.Result.Result.Error(ApiError.Decode e)",
+      "              | Ok data ->",
+      $"                match {decode} with",
+      "                | Ok value -> Stdlib.Result.Result.Ok value",
+      "                | Error e -> Stdlib.Result.Result.Error(ApiError.Decode e)",
+      "    else",
+      "      Stdlib.Result.Result.Error(ApiError.Status response.statusCode)" ]
+    "\n"
+
+
+let preamble () : List<String> =
+  [ Stdlib.String.join
+      [ "/// Where operations are POSTed. `headers` is sent with every request.",
+        "type Client =",
+        "  { url: String",
+        "    headers: List<(String * String)> }" ]
+      "\n"
+    Stdlib.String.join
+      [ "type ApiError =",
+        "  /// The request did not complete.",
+        "  | Transport of String",
+        "  /// The server answered outside 2xx.",
+        "  | Status of Int",
+        "  /// A 2xx body that was not text.",
+        "  | NotText",
+        "  /// The response carried `errors`; this is them, as JSON text.",
+        "  | GraphQL of String",
+        "  /// A 2xx body that did not decode as the operation's type; says which field.",
+        "  | Decode of String" ]
+      "\n" ]
+
+
+/// A client for the API described by <param schema>, a GraphQL schema in SDL.
+let client (schema: Blob) : Generate.Run =
+  if Stdlib.Blob.length schema == 0 then
+    Generate.failed [ "the schema is empty (a missing input reads as empty)" ]
+  else
+    match Stdlib.Blob.toString schema with
+    | Error _ -> Generate.failed [ "the schema is not UTF-8 text" ]
+    | Ok text ->
+      let defs = parseDefinitions (tokenize text)
+      let rootFields (root: String) : List<Field> =
+        defs
+        |> Stdlib.List.filterMap (fun d ->
+          match d with
+          | Object(name, fields) -> if name == root then Stdlib.Option.Option.Some fields else Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.None)
+        |> Stdlib.List.flatten
+      let queries = rootFields "Query"
+      let mutations = rootFields "Mutation"
+      if Stdlib.List.isEmpty defs then
+        Generate.failed [ "no type definitions found; is this a GraphQL schema in SDL?" ]
+      else if Stdlib.List.isEmpty queries && Stdlib.List.isEmpty mutations then
+        Generate.failed [ "no `type Query` or `type Mutation`; nothing to call" ]
+      else
+        let records =
+          defs
+          |> Stdlib.List.filterMap (fun d ->
+            match d with
+            | Object(name, fields) ->
+              if (name == "Query") || (name == "Mutation") || (name == "Subscription") then
+                Stdlib.Option.Option.None
+              else
+                Stdlib.Option.Option.Some(recordOf defs name fields)
+            | Input(name, fields) -> Stdlib.Option.Option.Some(recordOf defs name fields)
+            | _ -> Stdlib.Option.Option.None)
+        let operations =
+          Stdlib.List.append
+            (queries |> Stdlib.List.map (fun f -> operationSource defs "query" f))
+            (mutations |> Stdlib.List.map (fun f -> operationSource defs "mutation" f))
+        Generate.ofSource
+          (Generate.Source.module_
+            (Stdlib.List.flatten [ preamble (), Generate.Model.declarations records, operations ]))

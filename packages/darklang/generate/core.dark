@@ -1,0 +1,315 @@
+module Darklang.Generate
+
+// Generators: Dark fns that write Dark.
+//
+// A generator is an ordinary pure fn that returns a `Run`: the source text of a
+// module, and where it should land. `dark generate` stages that source exactly the
+// way `dark module` stages a file you typed, so what a generator makes is named,
+// hashed, printed and synced like anything hand-written. There is no second-class
+// "generated" kind.
+//
+// A saved run is itself a fn in the target module:
+//
+//   let orderGenerator () : Generate.Run =
+//     Generate.Json.fromSample "Order" (Generate.input "7f3a1c9e...")
+//
+// Its body is the whole recipe: the library generator it calls and the inputs it
+// reads. Because it references those by hash, it repoints when they change, and a
+// repointed generator re-runs in the draft as part of propagation. Inputs that are
+// not package items (a file on disk) are re-read only when you run `dark generate`
+// again.
+
+
+/// What one run of a generator produced.
+type Run =
+  { /// The module the source lands under, as a path `dark module` would accept
+    /// (`Acme.Orders`). A library generator leaves it empty; `dark generate --into`
+    /// fills it, and a saved generator's own module is the default.
+    into: String
+
+    /// A module's worth of Dark source: types, fns, values. Staged through the same
+    /// path as `dark module`, so it has to parse and resolve like typed code.
+    source: String
+
+    /// Why there is nothing worth staging, when there is not. A generator reports
+    /// its own problems here (an input that would not parse, a shape it cannot
+    /// express) rather than failing, so a saved generator keeps a plain `Run`
+    /// signature and the CLI can print the reasons. Non-empty means `source` is not
+    /// staged.
+    errors: List<String>
+
+    /// Files rather than package items: a relative path and its text, for output
+    /// that lives outside the store (a `.d.ts` for an editor, a schema for another
+    /// system). Written by `dark generate --out <dir>`; a propagation re-run does
+    /// not touch the disk, so these are only ever written on an explicit run.
+    artifacts: List<(String * String)> }
+
+
+/// A run that has nothing to say but why.
+let failed (errors: List<String>) : Run =
+  Run { into = ""; source = ""; errors = errors; artifacts = [] }
+
+
+/// A run of <param source>, destination to be filled in by the caller.
+let ofSource (source: String) : Run =
+  Run { into = ""; source = source; errors = []; artifacts = [] }
+
+
+/// A run that produces files, not package items.
+let ofArtifacts (artifacts: List<(String * String)>) : Run =
+  Run { into = ""; source = ""; errors = []; artifacts = artifacts }
+
+
+/// The persistent blob stored under <param hash>, for use inside a saved generator.
+///
+/// A missing input is not a case a generator can do anything with, so this does not
+/// return an Option: it yields the empty blob, and every library generator treats an
+/// empty input as an error it reports in `Run.errors`. That keeps the saved fn's
+/// body a one-liner and its signature `Generate.Run`.
+let input (hash: String) : Blob =
+  (Stdlib.Blob.load hash) |> Stdlib.Option.withDefault Stdlib.Blob.empty
+
+
+/// Text emission helpers. Every generator writes source through these so that the
+/// output is stable across runs (sorted where order is not meaningful, one layout)
+/// and so that names are legal before the parser sees them.
+module Source =
+
+  /// A field or fn name the parser accepts: lower-case first character, then
+  /// letters, digits and underscore. Anything else is dropped; an empty or
+  /// digit-leading result gets a leading underscore.
+  let identifier (raw: String) : String =
+    let kept =
+      raw
+      |> Stdlib.String.toList
+      |> Stdlib.List.filter (fun c ->
+        (Stdlib.Char.isAlphanumeric c) || (c == '_'))
+      |> Stdlib.String.fromList
+
+    let lowered =
+      match Stdlib.String.toList kept with
+      | [] -> "_"
+      | first :: rest ->
+        if Stdlib.Char.isDigit first then
+          "_" ++ kept
+        else
+          (Stdlib.Char.toLowercase first |> Stdlib.Char.toString)
+          ++ (Stdlib.String.fromList rest)
+
+    lowered
+
+
+  /// A type name the parser accepts: upper-case first character, letters and digits.
+  let typeName (raw: String) : String =
+    let kept =
+      raw
+      |> Stdlib.String.toList
+      |> Stdlib.List.filter (fun c -> Stdlib.Char.isAlphanumeric c)
+      |> Stdlib.String.fromList
+
+    match Stdlib.String.toList kept with
+    | [] -> "T"
+    | first :: rest ->
+      if Stdlib.Char.isDigit first then
+        "T" ++ kept
+      else
+        (Stdlib.Char.toUppercase first |> Stdlib.Char.toString)
+        ++ (Stdlib.String.fromList rest)
+
+
+  /// <param text> as a Dark string literal, quotes and escapes included.
+  let stringLiteral (text: String) : String =
+    "\"" ++ (PrettyPrinter.escapeSpecialCharacters text) ++ "\""
+
+
+  /// One record field line, with a doc comment when there is something to say.
+  let field
+    (name: String)
+    (typ: String)
+    (doc: Stdlib.Option.Option<String>)
+    : String =
+    match doc with
+    | None -> $"{name}: {typ}"
+    | Some text -> $"/// {text}\n    {name}: {typ}"
+
+
+  /// A record type declaration over already-rendered field lines.
+  let recordType (name: String) (fields: List<String>) : String =
+    match fields with
+    | [] -> $"type {name} = {{ }}"
+    | _ ->
+      let body = Stdlib.String.join fields "\n    "
+      $"type {name} =\n  {{ {body} }}"
+
+
+  /// An enum type declaration over already-rendered case lines (`| Name of T`).
+  let enumType (name: String) (cases: List<String>) : String =
+    let body = Stdlib.String.join cases "\n  "
+    $"type {name} =\n  {body}"
+
+
+  /// A fn declaration.
+  let fn
+    (name: String)
+    (params_: String)
+    (returnType: String)
+    (body: String)
+    : String =
+    $"let {name} {params_} : {returnType} =\n  {body}"
+
+
+  /// Declarations joined into one module source, two blank lines apart, the way the
+  /// formatter lays out a file.
+  let module_ (declarations: List<String>) : String =
+    Stdlib.String.join declarations "\n\n\n"
+
+
+/// The shape of data a generator has learned about, shared by the JSON, JSON Schema,
+/// OpenAPI and CSV generators, and what each shape becomes: a type reference, a
+/// decoder from `AltJson`, an encoder to it.
+///
+/// Decoders and encoders are emitted because `Stdlib.Json.parse` reads Dark's own
+/// encoding of `Option` (`{"Some": [1]}`), not the missing-or-null that every other
+/// system writes. A generated record therefore comes with `decode<Name>` and
+/// `encode<Name>` over `Stdlib.AltJson.Decode` / `Encode`, and the `parse` fn a
+/// generator adds calls those.
+module Model =
+
+  type Shape =
+    | Int
+    | Float
+    | String
+    | Bool
+    /// Not pinned down: kept as raw `AltJson.Json`.
+    | Any
+    | List of Shape
+    | Optional of Shape
+    /// A record emitted in the same run (or already in the module), by type name.
+    | Named of String
+
+
+  type Field =
+    { /// The Dark field name, legal for the parser.
+      name: String
+      /// The key as the data spells it, which the decoder reads and the encoder writes.
+      key: String
+      shape: Shape
+      note: Stdlib.Option.Option<String> }
+
+
+  type Record = { name: String; fields: List<Field> }
+
+
+  let typeText (shape: Shape) : String =
+    match shape with
+    | Int -> "Int"
+    | Float -> "Float"
+    | String -> "String"
+    | Bool -> "Bool"
+    | Any -> "Stdlib.AltJson.Json"
+    | List inner -> $"List<{typeText inner}>"
+    | Optional inner -> $"Stdlib.Option.Option<{typeText inner}>"
+    | Named name -> name
+
+
+  /// The decoder expression for a shape: a `Json -> Result<T, String>`.
+  let decoder (shape: Shape) : String =
+    match shape with
+    | Int -> "Stdlib.AltJson.Decode.int"
+    | Float -> "Stdlib.AltJson.Decode.float"
+    | String -> "Stdlib.AltJson.Decode.string"
+    | Bool -> "Stdlib.AltJson.Decode.bool"
+    | Any -> "Stdlib.AltJson.Decode.any"
+    | List inner -> $"(Stdlib.AltJson.Decode.list {decoder inner})"
+    // An optional inside a list or another optional: null is None.
+    | Optional inner ->
+      $"(fun j -> match j with | Null -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None | v -> ({decoder inner} v) |> Stdlib.Result.map (fun x -> Stdlib.Option.Option.Some x))"
+    | Named name -> $"decode{name}"
+
+
+  /// The encoder expression for a shape: a `T -> Json`.
+  let encoder (shape: Shape) : String =
+    match shape with
+    | Int -> "Stdlib.AltJson.Encode.int"
+    | Float -> "Stdlib.AltJson.Encode.float"
+    | String -> "Stdlib.AltJson.Encode.string"
+    | Bool -> "Stdlib.AltJson.Encode.bool"
+    | Any -> "Stdlib.AltJson.Encode.any"
+    | List inner -> $"(Stdlib.AltJson.Encode.list {encoder inner})"
+    | Optional inner -> $"(Stdlib.AltJson.Encode.optional {encoder inner})"
+    | Named name -> $"encode{name}"
+
+
+  let recordSource (r: Record) : String =
+    let fields =
+      r.fields
+      |> Stdlib.List.map (fun f ->
+        let note =
+          if (f.name != f.key) && (Stdlib.Option.isNone f.note) then
+            Stdlib.Option.Option.Some $"key \"{f.key}\" in the data"
+          else
+            f.note
+        Source.field f.name (typeText f.shape) note)
+    Source.recordType r.name fields
+
+
+  /// `decode<Name> : Json -> Result<Name, String>`, one nested match per field so
+  /// the first field that does not decode names itself.
+  let decoderSource (r: Record) : String =
+    let assemble =
+      $"Stdlib.Result.Result.Ok({r.name} {{ "
+      ++ (r.fields |> Stdlib.List.map (fun f -> $"{f.name} = {f.name}") |> Stdlib.String.join "; ")
+      ++ " })"
+
+    let body =
+      r.fields
+      |> Stdlib.List.reverse
+      |> Stdlib.List.fold assemble (fun inner f ->
+        let read =
+          match f.shape with
+          | Optional inner ->
+            $"Stdlib.AltJson.Decode.optional fields {Source.stringLiteral f.key} {decoder inner}"
+          | shape ->
+            $"Stdlib.AltJson.Decode.required fields {Source.stringLiteral f.key} {decoder shape}"
+        $"match {read} with\n    | Error e -> Stdlib.Result.Result.Error e\n    | Ok {f.name} ->\n    {inner}")
+
+    Stdlib.String.join
+      [ $"/// A {r.name} from JSON as other systems write it: a missing or null key is None.",
+        $"let decode{r.name} (json: Stdlib.AltJson.Json) : Stdlib.Result.Result<{r.name}, String> =",
+        "  match Stdlib.AltJson.Decode.fieldsOf json with",
+        $"  | Error e -> Stdlib.Result.Result.Error(\"{r.name}: \" ++ e)",
+        "  | Ok fields ->",
+        $"    {body}" ]
+      "\n"
+
+
+  /// `encode<Name> : Name -> Json`; an absent Option is left out.
+  let encoderSource (r: Record) : String =
+    let pairs =
+      r.fields
+      |> Stdlib.List.map (fun f ->
+        $"({Source.stringLiteral f.key}, {encoder f.shape} value.{f.name})")
+      |> Stdlib.String.join ",\n      "
+    Stdlib.String.join
+      [ $"let encode{r.name} (value: {r.name}) : Stdlib.AltJson.Json =",
+        "  Stdlib.AltJson.Encode.object",
+        $"    [ {pairs} ]" ]
+      "\n"
+
+
+  /// The declarations for a set of records: types first, then decoders, then
+  /// encoders, in the order given.
+  let declarations (records: List<Record>) : List<String> =
+    Stdlib.List.flatten
+      [ records |> Stdlib.List.map recordSource,
+        records |> Stdlib.List.map decoderSource,
+        records |> Stdlib.List.map encoderSource ]
+
+
+  /// A `parse` fn over the root record: text in, record out.
+  let parseFn (root: String) : String =
+    Source.fn
+      "parse"
+      "(json: String)"
+      $"Stdlib.Result.Result<{root}, String>"
+      $"Stdlib.AltJson.Decode.parse decode{root} json"

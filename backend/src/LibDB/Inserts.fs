@@ -358,15 +358,22 @@ let insertAndApplyOpsAsWip (ops : List<PT.PackageOp>) : Task<int64> =
 /// `run`, or ops that arrived over sync. Rejects protected `Darklang` bindings
 /// and unstabilized hashes before insertion; trusted seeding does not come
 /// through here.
-let insertUntrustedOps (ops : List<PT.PackageOp>) : Task<Result<int64, string>> =
+let insertUntrustedOpsFrom
+  (source : string)
+  (ops : List<PT.PackageOp>)
+  : Task<Result<int64, string>> =
   task {
     match reservedOwnerViolation ops, placeholderHashViolation ops with
     | Some reason, _
     | None, Some reason -> return Error reason
     | None, None ->
-      let! count = insertAndApplyOpsAsWip ops
+      let! count =
+        insertAndApplyOpsWith (fun _ -> nextOriginTs ()) (fun _ -> None) source ops
       return Ok count
   }
+
+let insertUntrustedOps (ops : List<PT.PackageOp>) : Task<Result<int64, string>> =
+  insertUntrustedOpsFrom "op" ops
 
 let draftDeletes : List<string> =
   [ "DELETE FROM locations WHERE source <> 'resolution'

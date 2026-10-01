@@ -24,6 +24,9 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PM.Permissions.builtins
       Libs.PM.Store.builtins ()
 
+      // Blobs that live in the package store
+      Libs.Blobs.builtins ()
+
       // Traces (reader surface)
       Libs.Traces.builtins ()
 

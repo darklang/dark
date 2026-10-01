@@ -97,6 +97,14 @@ module Type =
     : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
     Builtin.pmGetType hash
 
+  /// The declaration behind a type the program names, as <fn Builtin.reflect> is for
+  /// a value: `declarationOf<Acme.Core.Money> ()`. None for a builtin type or a type
+  /// variable. No effect: the type was resolved when the program was written, so its
+  /// declaration is part of the program, and naming it makes it a dependency of the fn.
+  let declarationOf<'a> ()
+    : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
+    Builtin.pmTypeDeclaration<'a> ()
+
   /// Every name this type is bound to on <param branchId>. More than one
   /// when structurally identical types share a hash.
   let locations

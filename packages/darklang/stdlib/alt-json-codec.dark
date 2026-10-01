@@ -1,0 +1,84 @@
+module Darklang.Stdlib.AltJson.Decode
+
+// Reading typed values out of an `AltJson.Json` tree, for JSON as other systems write
+// it: a missing key or a `null` is `None`, a bare value is `Some`. `Stdlib.Json.parse`
+// reads Dark's own encoding (`{"Some": [1]}`), which no other system emits, so the
+// generators emit decoders built from these instead. Each helper returns
+// `Result<T, String>` with a message that names what was expected.
+
+
+let int (json: Json) : Result.Result<Int, String> =
+  match json with
+  | Number n ->
+    if ((Float.truncate n) |> Int.toFloat) == n then
+      Result.Result.Ok(Float.toInt n)
+    else
+      Result.Result.Error("expected a whole number, got " ++ (Float.toString n))
+  | _ -> Result.Result.Error "expected a number"
+
+let float (json: Json) : Result.Result<Float, String> =
+  match json with
+  | Number n -> Result.Result.Ok n
+  | _ -> Result.Result.Error "expected a number"
+
+let string (json: Json) : Result.Result<String, String> =
+  match json with
+  | String s -> Result.Result.Ok s
+  | _ -> Result.Result.Error "expected a string"
+
+let bool (json: Json) : Result.Result<Bool, String> =
+  match json with
+  | Bool b -> Result.Result.Ok b
+  | _ -> Result.Result.Error "expected true or false"
+
+/// The value itself, for a field whose shape is not pinned down.
+let any (json: Json) : Result.Result<Json, String> = Result.Result.Ok json
+
+let list (item: Json -> Result.Result<'a, String>) (json: Json) : Result.Result<List<'a>, String> =
+  match json with
+  | Array items -> items |> List.map item |> Result.collect
+  | _ -> Result.Result.Error "expected an array"
+
+/// A required field: missing or null is an error naming the key.
+let required
+  (fields: List<(String * Json)>)
+  (key: String)
+  (decode: Json -> Result.Result<'a, String>)
+  : Result.Result<'a, String> =
+  match List.findFirst fields (fun (k, _) -> k == key) with
+  | None -> Result.Result.Error("missing field \"" ++ key ++ "\"")
+  | Some pair ->
+    let (_, value) = pair
+    match value with
+    | Null -> Result.Result.Error("field \"" ++ key ++ "\" is null")
+    | v -> (decode v) |> Result.mapError (fun e -> "field \"" ++ key ++ "\": " ++ e)
+
+/// An optional field: missing or null is `None`.
+let optional
+  (fields: List<(String * Json)>)
+  (key: String)
+  (decode: Json -> Result.Result<'a, String>)
+  : Result.Result<Option.Option<'a>, String> =
+  match List.findFirst fields (fun (k, _) -> k == key) with
+  | None -> Result.Result.Ok Option.Option.None
+  | Some pair ->
+    let (_, value) = pair
+    match value with
+    | Null -> Result.Result.Ok Option.Option.None
+    | v ->
+      (decode v)
+      |> Result.map (fun x -> Option.Option.Some x)
+      |> Result.mapError (fun e -> "field \"" ++ key ++ "\": " ++ e)
+
+/// The fields of an object, or an error naming what it was instead.
+let fieldsOf (json: Json) : Result.Result<List<(String * Json)>, String> =
+  match json with
+  | Object fields -> Result.Result.Ok fields
+  | _ -> Result.Result.Error "expected an object"
+
+/// Parse text and decode it in one step.
+let parse (decode: Json -> Result.Result<'a, String>) (text: String) : Result.Result<'a, String> =
+  match AltJson.parse text with
+  | Error e -> Result.Result.Error("not JSON: " ++ (AltJson.ParseError.toString e))
+  | Ok json -> decode json
+

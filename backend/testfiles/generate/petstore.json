@@ -1,0 +1,59 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Petstore", "version": "1.0.0" },
+  "paths": {
+    "/pets": {
+      "get": {
+        "summary": "List all pets",
+        "operationId": "listPets",
+        "parameters": [ { "name": "limit", "in": "query", "schema": { "type": "integer" } } ],
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Pets" } } } } }
+      },
+      "post": {
+        "summary": "Create a pet",
+        "operationId": "createPet",
+        "requestBody": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NewPet" } } } },
+        "responses": { "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Pet" } } } } }
+      }
+    },
+    "/pets/{petId}": {
+      "get": {
+        "summary": "Info for a specific pet",
+        "operationId": "showPetById",
+        "parameters": [ { "name": "petId", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "200": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Pet" } } } } }
+      },
+      "delete": {
+        "operationId": "deletePet",
+        "parameters": [ { "name": "petId", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "204": { "description": "deleted" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Pet": {
+        "type": "object",
+        "required": [ "id", "name" ],
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "tag": { "type": "string" },
+          "status": { "type": "string", "enum": [ "available", "sold" ] },
+          "owner": { "type": "object", "properties": { "email": { "type": "string" } }, "required": [ "email" ] }
+        }
+      },
+      "NewPet": {
+        "type": "object",
+        "required": [ "name" ],
+        "properties": { "name": { "type": "string" }, "tag": { "type": "string" } }
+      },
+      "Pets": { "type": "array", "items": { "$ref": "#/components/schemas/Pet" } },
+      "Error": {
+        "type": "object",
+        "required": [ "code", "message" ],
+        "properties": { "code": { "type": "integer" }, "message": { "type": "string" }, "details": { "oneOf": [ { "type": "string" }, { "type": "object" } ] } }
+      }
+    }
+  }
+}

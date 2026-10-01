@@ -1,0 +1,30 @@
+# A slice of the classic example.
+"""
+A character in the saga.
+"""
+type Character {
+  id: ID!
+  name: String!
+  height: Float
+  friends: [Character!]!
+  appearsIn: [Episode!]!
+  homePlanet: String
+}
+
+enum Episode { NEWHOPE EMPIRE JEDI }
+
+input ReviewInput {
+  stars: Int!
+  commentary: String
+}
+
+type Review { stars: Int! commentary: String }
+
+type Query {
+  hero(episode: Episode = JEDI): Character
+  characters(limit: Int): [Character!]!
+}
+
+type Mutation {
+  createReview(episode: Episode!, review: ReviewInput!): Review
+}

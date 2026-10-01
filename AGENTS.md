@@ -397,6 +397,16 @@ parameter whose type you never touched. Confusingly it reproduces only where the
 rebuilt (the LibExecution testfile harness) and not under `eval`. Call the function instead of
 reaching for the `val` when the result is a custom type.
 
+**`Stdlib.List.push` puts the element at the FRONT.** `pushBack` is the one that appends.
+A fold that builds a list with `push` comes out reversed, and nothing says so until the
+output is read by a person (a generated record's fields in reverse order). Same family:
+`Stdlib.List.unique` sorts, so it destroys first-seen order; dedupe by hand when order
+is the point.
+
+**`Int` literals are bare, `Int64` literals take `L`.** `Stdlib.String.slice s 0 8` is
+right; `slice s 0L 8L` fails at the call with "expects Int, but got Int64". Most stdlib
+fns over positions and counts take `Int`.
+
 **Record update takes no type tag.** `{ state with field = v }` is right.
 `MyType { state with field = v }` looks like F# but parses as function application.
 

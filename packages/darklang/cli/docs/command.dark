@@ -184,6 +184,14 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "generate"
+          description = "Generators: fns that write Dark, staged like typed code"
+          aliases = [ "generators", "generator", "metaprogramming", "codegen" ]
+          context = "cli"
+          content = Docs.Generate.content
+          subtopics = [] }
+
+      DocTopic
         { name = "deprecation"
           description = "Mark package items as deprecated / obsolete / harmful"
           aliases = [ "deprecate", "delete" ]
