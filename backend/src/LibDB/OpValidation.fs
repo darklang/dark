@@ -42,6 +42,11 @@ let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
       Some("fn", PackageLocation.toFQN loc)
     | PT.PackageOp.AddValue _, PT.PackageOp.SetName(loc, PT.PackageValue _, _) ->
       Some("value", PackageLocation.toFQN loc)
+    | PT.PackageOp.AddTrait _, PT.PackageOp.SetName(loc, PT.PackageTrait _, _) ->
+      Some("trait", PackageLocation.toFQN loc)
+    | PT.PackageOp.AddTraitImpl _,
+      PT.PackageOp.SetName(loc, PT.PackageTraitImpl _, _) ->
+      Some("impl", PackageLocation.toFQN loc)
     | _ -> None)
   |> List.countBy (fun declaration -> declaration)
   |> List.filter (fun (_, count) -> count > 1)

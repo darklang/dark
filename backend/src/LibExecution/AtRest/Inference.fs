@@ -285,10 +285,14 @@ let private instantiateFunction
           typeVariableScope
           signature.typeParams
           explicitTypeArgs
+      // Each bound against ITS OWN trait. `signature.bounds` is the trait's bound on the
+      // self type, whose trait is `traitHash`, followed by whatever the method declares,
+      // whose traits are not: `let pair<'b: Compare>` on a `Pair` method owes `Compare`.
       for b in signature.bounds do
-        match Map.tryFind b.param vars with
-        | Some typ -> state.AddConstraint(nodeId, traitHash, typ, Some methodName)
-        | None -> ()
+        match b.trait_.trait_.resolved, Map.tryFind b.param vars with
+        | Ok { name = FQTraitName.Package boundTrait }, Some typ ->
+          state.AddConstraint(nodeId, boundTrait, typ, Some methodName)
+        | _ -> ()
       let parameters =
         NEList.map (convertType state nodeId vars) signature.parameters
       let returnType = convertType state nodeId vars signature.returnType

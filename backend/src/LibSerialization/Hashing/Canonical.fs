@@ -193,21 +193,7 @@ let writeFQFnName
     // The chosen implementation is part of what this call MEANS, so it is hashed, and it is
     // hashed as the fn reference it is: an implementation inside this item's own SCC writes as
     // a name ref, like any other reference to something being saved in the same batch.
-    match implFn with
-    | PT.FQFnName.Unknown -> w.Write(0uy)
-    | PT.FQFnName.FromTypeParam p ->
-      // Which type param the implementation comes from is part of what the call means: the same
-      // source under a different param name is a different call.
-      w.Write(3uy)
-      Common.String.write w p
-    | PT.FQFnName.Chosen r ->
-      match isSccRef mode r.location r.name with
-      | Some fqn ->
-        w.Write(2uy)
-        Common.String.write w fqn
-      | None ->
-        w.Write(1uy)
-        PTC.FQFnName.Package.write w (resolveHash mode r.location r.name)
+    writeImplChoice mode w implFn
 
 
 /// Write FQValueName, resolving deps and checking SCC substitution
@@ -558,21 +544,7 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
     writeExpr mode w right
     // The implementation the save chose for this operator is part of what it means, and it is
     // hashed as the fn reference it is, SCC name-ref and all.
-    match implFn with
-    | PT.FQFnName.Unknown -> w.Write(0uy)
-    | PT.FQFnName.FromTypeParam p ->
-      // Which type param the implementation comes from is part of what the call means: the same
-      // source under a different param name is a different call.
-      w.Write(3uy)
-      Common.String.write w p
-    | PT.FQFnName.Chosen r ->
-      match isSccRef mode r.location r.name with
-      | Some fqn ->
-        w.Write(2uy)
-        Common.String.write w fqn
-      | None ->
-        w.Write(1uy)
-        PTC.FQFnName.Package.write w (resolveHash mode r.location r.name)
+    writeImplChoice mode w implFn
   | PT.EDict(_id, pairs) ->
     w.Write 30uy
     Common.List.write

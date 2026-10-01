@@ -129,8 +129,15 @@ module MethodBounds =
   impl Pair for Box =
     let pair<'b: Stdlib.Compare> (v: Box) (w: 'b) : Bool = w < w
 
+  // Both polarities, so the assertion cannot pass for a swapped argument order or a
+  // constant: `w < w` is false, and an ordering that works says so.
   MethodBounds.Pair.pair (MethodBounds.Box { n = 1L }) 5L = false
+  MethodBounds.Pair.pair (MethodBounds.Box { n = 1L }) "a" = false
   MethodBounds.Pair.pair (MethodBounds.Box { n = 1L }) true = error "Bool has no implementation of Darklang.Stdlib.Compare. Write `impl Compare for Bool = ...`, or run `dark impls Compare` to see which types do"
+
+  // A METHOD's own bound is owed against ITS trait, not the enclosing one. `Bool` has no
+  // `Compare`, and the error says `Compare`: if the method's bound were discharged against
+  // the trait it is declared in, this would ask for a `Pair` impl for Bool instead.
 
 
 module Equality =

@@ -290,16 +290,16 @@ let private fnHashTests =
         let hPlain = Hashing.computeFnHash Hashing.Normal plain
         let hBounded = Hashing.computeFnHash Hashing.Normal bounded
         Expect.notEqual hPlain hBounded "a bound is part of the fn's identity"
-        // The pre-bounds writer ended after the ceiling byte; an empty list must not
-        // append a length byte. Pin the exact hash of a known fn so a change here is
-        // loud: this value was produced before `bounds` existed.
+        // The pre-bounds writer ended after the ceiling byte, and an empty list must not
+        // append a length byte, or adding the field would have repointed the whole store.
+        // The literal is the pin: it is what `makeFn (eInt64 42)` hashed to before `bounds`
+        // existed, so if the writer starts emitting anything for an empty list, this fails
+        // loudly rather than agreeing with itself.
         let (PT.Hash asHex) = hPlain
-        Expect.equal (String.length asHex) 64 "sha256 hex"
-        let withEmpty = { plain with bounds = [] }
         Expect.equal
-          (Hashing.computeFnHash Hashing.Normal withEmpty)
-          hPlain
-          "[] is byte-identical to no field"
+          asHex
+          "37d6123e78e0dd93b49abcbca87e56528993f9f84731256f16a20bc2325bb391"
+          "a fn with no bounds hashes as it did before bounds existed"
       }
 
       test "a TraitMethod call hashes by trait hash and method name" {
