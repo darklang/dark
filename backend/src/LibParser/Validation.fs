@@ -81,6 +81,7 @@ let private issue range code message = detailedIssue range code message [] None
 let private isIgnoredName (name : string) = name = "" || name.StartsWith "_"
 
 let rec private letBindings (pattern : WT.LetPattern) : List<string * WT.Range> =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match pattern with
   | WT.LPVariable(range, name) -> [ (name, range) ]
   | WT.LPTuple(_, first, _, second, rest, _, _) ->
@@ -91,6 +92,7 @@ let rec private letBindings (pattern : WT.LetPattern) : List<string * WT.Range> 
   | WT.LPWildcard _ -> []
 
 let rec private matchBindings (pattern : WT.MatchPattern) : List<string * WT.Range> =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match pattern with
   | WT.MPVariable(range, name) -> [ (name, range) ]
   | WT.MPList(_, contents, _, _) -> contents |> List.collect (fst >> matchBindings)
@@ -147,11 +149,13 @@ let private duplicateIssues (bindings : List<string * WT.Range>) : List<Issue> =
     | _ -> [])
 
 let rec private duplicatePatternIssues (pattern : WT.MatchPattern) : List<Issue> =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match pattern with
   | WT.MPOr(_, alternatives) -> alternatives |> List.collect duplicatePatternIssues
   | other -> duplicateIssues (matchBindings other)
 
 let rec private structuralPatternIssues (pattern : WT.MatchPattern) : List<Issue> =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   let recurse = structuralPatternIssues
   match pattern with
   | WT.MPOr(range, []) ->
@@ -203,6 +207,7 @@ let private patternIssues (pattern : WT.MatchPattern) : List<Issue> =
   duplicatePatternIssues pattern @ structuralPatternIssues pattern
 
 let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue> =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   let recurse = exprIssues insideFunction
   match expr with
   | WT.EError range ->
@@ -319,6 +324,7 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
 let rec private declarationStructureIssues
   (declaration : WT.Declaration)
   : List<Issue> =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match declaration with
   | WT.DFunction fn ->
     duplicateIssues (
@@ -353,6 +359,7 @@ let rec private declarationPurposeIssues
   (mode : Mode)
   (declaration : WT.Declaration)
   : List<Issue> =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
   match declaration with
   | WT.DFunction _
   | WT.DValue _

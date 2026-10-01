@@ -227,7 +227,11 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EList(id, items) -> PT.EList(id, items |> List.map (transformExpr mapping))
 
   | PT.EDict(id, pairs) ->
-    PT.EDict(id, pairs |> List.map (fun (k, v) -> (k, transformExpr mapping v)))
+    PT.EDict(
+      id,
+      pairs
+      |> List.map (fun (k, v) -> (transformExpr mapping k, transformExpr mapping v))
+    )
 
   | PT.ETuple(id, first, second, rest) ->
     PT.ETuple(

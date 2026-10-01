@@ -20,3 +20,18 @@ module Documentation =
        Darklang.LanguageTools.BuiltinFunctionParameter
          { name = "b"
            ``type`` = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 } ]
+
+module Lookup =
+  // Named lookups preserve the metadata exposed by the full registry.
+  (Darklang.LanguageTools.findBuiltinFn "listMap" 0l) =
+    ((Darklang.LanguageTools.allBuiltinFns ())
+     |> Stdlib.List.findFirst (fun f -> f.name.name == "listMap" && f.name.version == 0l))
+
+  (Darklang.LanguageTools.findBuiltinFn "int64Add" 999l) = None
+  (Darklang.LanguageTools.findBuiltinFn "notARegisteredBuiltin" 0l) = None
+
+  (Stdlib.List.all (Darklang.LanguageTools.allBuiltinValues ()) (fun value ->
+    Darklang.LanguageTools.findBuiltinValue value.name.name value.name.version
+    == Some value)) = true
+
+  (Darklang.LanguageTools.findBuiltinValue "notARegisteredBuiltin" 0l) = None

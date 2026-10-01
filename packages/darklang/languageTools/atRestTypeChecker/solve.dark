@@ -1,0 +1,2217 @@
+/// Check generated typing requirements and record the types assigned to unknowns.
+/// Retry requirements that need more information as inference progresses. Save
+/// generic bindings for reuse, and turn checks that remain unresolved into warnings.
+module Darklang.LanguageTools.AtRestTypeChecker.Solve
+
+/// Inference state for one declaration, using the batch's shared environment.
+/// Each operation returns an updated copy with new type assignments or findings.
+type State =
+  { env: Model.Environment
+    /// Types assigned to inference variables; assignments may refer to other variables.
+    subst: Dict<Model.Var, Model.Ty>
+    /// Counter for Fresh variables, separate from unknowns identified by syntax nodes.
+    nextVariableId: Int
+    /// Reusable local type schemes, keyed by the pattern node that introduced each name.
+    schemes: Dict<Int64, Model.Scheme>
+    /// Requirements waiting for more type information, most recently queued first.
+    waiting: List<Model.Constraint>
+    /// Match-coverage requirements saved for Items to check after type inference.
+    /// Some may move into a generic scheme to be checked at each use instead.
+    coverage: List<Model.Constraint>
+    /// Errors and warnings accumulated so far, with new findings prepended.
+    findings: List<Model.Finding> }
+
+/// Begin checking a declaration with fresh inference state and the supplied environment.
+let start (env: Model.Environment) : State =
+  State
+    { env = env
+      subst = Dict {}
+      nextVariableId = 0
+      schemes = Dict {}
+      waiting = []
+      coverage = []
+      findings = [] }
+
+
+// --------------------
+// Update state and adapt shared type helpers to retain their findings.
+// --------------------
+
+/// Prepend one finding to the accumulated errors and warnings.
+let addFinding (s: State) (finding: Model.Finding) : State =
+  { s with findings = Stdlib.List.push s.findings finding }
+
+/// Prepend a group of findings in the order supplied by the caller.
+let addFindings (s: State) (findings: List<Model.Finding>) : State =
+  match findings with
+  | [] -> s
+  | _ -> { s with findings = Stdlib.List.append findings s.findings }
+
+/// Allocate an inference variable distinct from all earlier Fresh variables in this state.
+let fresh (s: State) : (Model.Ty * State) =
+  (Model.Ty.TVar(Model.Var.Fresh s.nextVariableId),
+   { s with nextVariableId = s.nextVariableId + 1 })
+
+/// Omit an expected or actual type from a finding.
+let none () : Stdlib.Option.Option<Model.Ty> = Stdlib.Option.Option.None
+
+/// Include an expected or actual type in a finding.
+let some (t: Model.Ty) : Stdlib.Option.Option<Model.Ty> = Stdlib.Option.Option.Some t
+
+/// Follow replacements and outer aliases, adding expansion problems to the state.
+/// Nested components remain unexpanded unless needed to resolve an alias argument.
+let expand (s: State) (at: Stdlib.Option.Option<Int64>) (ty: Model.Ty) : (Model.Ty * State) =
+  let (expanded, found) = Types.expand s.env s.subst at ty
+  (expanded, addFindings s found)
+
+/// Apply this state's inferred types throughout ty, leaving unassigned variables unknown.
+let zonk (s: State) (ty: Model.Ty) : Model.Ty = Types.zonk s.subst ty
+
+/// Resolve outer aliases and return a custom type's declaration and arguments.
+/// Keep expansion problems in the state; return None when no usable declaration remains.
+let declarationFor
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (ty: Model.Ty)
+  : (Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * List<Model.Ty> * LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)> * State) =
+  let (found, problems) = Types.declarationFor s.env s.subst at ty
+  (found, addFindings s problems)
+
+/// Convert a declared field type using its owner's supplied type arguments,
+/// retaining any conversion findings in the state.
+let fieldType
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (typeParams: List<String>)
+  (typeArgs: List<Model.Ty>)
+  (typ: LanguageTools.ProgramTypes.TypeReference)
+  : (Model.Ty * State) =
+  let (t, problems) = Types.fieldType at typeParams typeArgs typ
+  (t, addFindings s problems)
+
+/// Validate the inferred type and its declarations, retaining updated caches.
+/// When a source node is available, also save dictionary-key checks that must
+/// wait for more type information.
+let validateType (s: State) (at: Stdlib.Option.Option<Int64>) (ty: Model.Ty) : State =
+  let ty = zonk s ty
+  let (found, env) = Declarations.validateType s.env at [] ty
+  let s = addFindings { s with env = env } found
+  match at with
+  | Some id -> deferDictKeys s id (Declarations.dictKeyTypes env ty)
+  | None -> s
+
+/// Queue apparently valid dictionary keys that still contain unknown types.
+/// Later inference may reveal a forbidden type. These requirements can be saved
+/// with a generic binding and repeated for each use, like checks from dictionary literals.
+let deferDictKeys (s: State) (at: Int64) (keys: List<Model.Ty>) : State =
+  Stdlib.List.fold keys s (fun s key ->
+    let key = zonk s key
+    if
+      Types.isUsableDictKey s.env [] key
+      && Stdlib.Bool.not (Stdlib.Dict.isEmpty (Types.freeVars s.subst key))
+    then
+      queueDeferred s (Model.Constraint.DictKey(at, key))
+    else
+      s)
+
+
+// --------------------
+// Make types agree by assigning unknowns or reporting mismatches.
+// --------------------
+
+/// Assign TError to unresolved variables in ty after a problem has been reported.
+/// This prevents further diagnostics that would require knowing those types.
+let markUnknownsAsError (s: State) (ty: Model.Ty) : State =
+  let vars = Stdlib.Dict.keys (Types.freeVars s.subst ty)
+
+  { s with
+      subst =
+        Stdlib.List.fold vars s.subst (fun subst v ->
+          Stdlib.Dict.setOverridingDuplicates subst v Model.Ty.TError) }
+
+/// Mark unresolved variables across several dependent types as unavailable.
+let markAllUnknownsAsError (s: State) (tys: List<Model.Ty>) : State =
+  Stdlib.List.fold tys s (fun s t -> markUnknownsAsError s t)
+
+/// Require actual to agree with expected, assigning unknowns where possible.
+/// Use at and site to locate and explain any mismatch.
+///
+/// Follow existing assignments first and accept identical types immediately.
+/// Compare components or expand aliases only when the types still differ.
+let unify
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (site: Site)
+  (expected: Model.Ty)
+  (actual: Model.Ty)
+  : State =
+  let expected = Types.walk s.subst expected
+  let actual = Types.walk s.subst actual
+
+  if expected == actual then s else unifyDifferent s at site expected actual
+
+/// Compare types after following assignments and ruling out exact equality.
+/// Unknowns can be assigned, matching containers compare their components, and
+/// aliases may need expansion before a mismatch can be established.
+let unifyDifferent
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (site: Site)
+  (expected: Model.Ty)
+  (actual: Model.Ty)
+  : State =
+    match (expected, actual) with
+    | (TVar v, _) -> bindVar s at site v expected actual
+    | (_, TVar v) -> bindVar s at site v expected actual
+    | (TError, other) -> markUnknownsAsError s other
+    | (other, TError) -> markUnknownsAsError s other
+    | (TStream left, TStream right) -> unify s at site left right
+    | (TList left, TList right) -> unify s at site left right
+    | (TDB left, TDB right) -> unify s at site left right
+    | (TDict(leftKey, leftValue), TDict(rightKey, rightValue)) ->
+      unify (unify s at site leftKey rightKey) at site leftValue rightValue
+    | (TTuple(l1, l2, lr), TTuple(r1, r2, rr)) ->
+      if Stdlib.List.length lr == Stdlib.List.length rr then
+        unifyAll (unify (unify s at site l1 r1) at site l2 r2) at site lr rr
+      else
+        mismatch s at site expected actual
+    | (TFn(leftParams, leftRet), TFn(rightParams, rightRet)) ->
+      // Function types must have the same number of parameters, as at runtime.
+      // A two-parameter function differs from a one-parameter function returning another.
+      if Stdlib.List.length leftParams == Stdlib.List.length rightParams then
+        unify (unifyAll s at site leftParams rightParams) at site leftRet rightRet
+      else
+        mismatch s at site expected actual
+    | (TCustom(leftName, leftArgs), TCustom(rightName, rightArgs)) ->
+      if leftName == rightName && Stdlib.Bool.not (isAlias s leftName) then
+        // These types refer to the same non-alias declaration. Compare their
+        // type arguments without expanding record fields or enum payloads.
+        if Stdlib.List.length leftArgs == Stdlib.List.length rightArgs then
+          unifyAll s at site leftArgs rightArgs
+        else
+          mismatch s at site expected actual
+      else
+        unifyExpanded s at site expected actual
+    | (TCustom(_, _), _) -> unifyExpanded s at site expected actual
+    | (_, TCustom(_, _)) -> unifyExpanded s at site expected actual
+    | _ -> mismatch s at site expected actual
+
+/// Require corresponding types to agree. The caller checks list lengths first;
+/// this helper stops when either list ends and does not report count mismatches.
+let unifyAll
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (site: Site)
+  (expected: List<Model.Ty>)
+  (actual: List<Model.Ty>)
+  : State =
+  match expected with
+  | [] -> s
+  | e :: expectedRest ->
+    match actual with
+    | [] -> s
+    | a :: actualRest ->
+      unifyAll (unify s at site e a) at site expectedRest actualRest
+
+/// Check whether the loaded declaration is an alias. Missing declarations return false.
+let isAlias (s: State) (name: LanguageTools.ProgramTypes.Hash) : Bool =
+  match Stdlib.Dict.get s.env.types name with
+  | Some decl ->
+    match decl.definition with
+    | Alias _ -> true
+    | _ -> false
+  | None -> false
+
+/// Expand outer aliases and retry comparison if either type changes. Matching
+/// non-alias types were handled by unifyDifferent; if neither changes, they mismatch.
+let unifyExpanded
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (site: Site)
+  (expected: Model.Ty)
+  (actual: Model.Ty)
+  : State =
+  let (expandedExpected, s) = expand s at expected
+  let (expandedActual, s) = expand s at actual
+
+  if expandedExpected == expected && expandedActual == actual then
+    mismatch s at site expected actual
+  else
+    unify s at site expandedExpected expandedActual
+
+/// Assign v to the other type while rejecting an assignment that would contain v
+/// within itself. Expand aliases before declaring such a cycle, since an alias
+/// can discard an argument or reduce to v itself.
+let bindVar
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (site: Site)
+  (v: Model.Var)
+  (expected: Model.Ty)
+  (actual: Model.Ty)
+  : State =
+  let other =
+    match expected with
+    | TVar e -> if e == v then actual else expected
+    | _ -> expected
+
+  let bindTo (t: Model.Ty) : State =
+    { s with subst = Stdlib.Dict.setOverridingDuplicates s.subst v t }
+
+  if mayContainVars other && Types.occurs s.subst v other then
+    // For Identity<'a> = 'a, t = Identity<t> reduces to t = t and needs no assignment.
+    match Types.expandDeep s.env s.subst at [] other with
+    | Ok expanded ->
+      if expanded == Model.Ty.TVar v then
+        s
+      else if Types.occurs s.subst v expanded then
+        if involvesError s expected actual then
+          s
+        else
+          addFinding
+            s
+            (Types.error
+              IssueCode.OccursCheckFailed
+              at
+              (some expected)
+              (some actual)
+              (Context.At site))
+      else
+        bindTo expanded
+    | Error problem ->
+      // Failed expansion does not prove an infinite type. Report its problem
+      // and make this variable unavailable to dependent checks.
+      let s = bindTo Model.Ty.TError
+      addFinding s problem
+  else
+    bindTo other
+
+/// Skip the occurrence walk for types whose syntax cannot contain an inference
+/// variable, such as primitives or custom types with no supplied arguments.
+let mayContainVars (t: Model.Ty) : Bool =
+  match t with
+  | TVar _ -> true
+  | TStream _ -> true
+  | TList _ -> true
+  | TDB _ -> true
+  | TDict(_, _) -> true
+  | TTuple(_, _, _) -> true
+  | TCustom(_, args) -> Stdlib.Bool.not (Stdlib.List.isEmpty args)
+  | TFn(_, _) -> true
+  | _ -> false
+
+/// Check whether either type contains a placeholder for an already reported problem.
+let involvesError (s: State) (expected: Model.Ty) (actual: Model.Ty) : Bool =
+  Types.hasError (zonk s expected) || Types.hasError (zonk s actual)
+
+/// Report a definite type mismatch after comparison has ruled out agreement.
+let mismatch
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (site: Site)
+  (expected: Model.Ty)
+  (actual: Model.Ty)
+  : State =
+  // The incompatible outer types or component counts are already known.
+  // Resolving unknown components cannot make those differences disappear.
+  addFinding
+    s
+    (Types.definiteError
+      IssueCode.TypeMismatch
+      at
+      (some expected)
+      (some actual)
+      (Context.At site))
+
+
+// --------------------
+// Create independent uses of generic types and save reusable local type schemes.
+// --------------------
+
+/// Produce arguments for a declared type, using supplied types or fresh unknowns.
+/// A nonempty explicit list must have the declared length; report a mismatch but
+/// still fill missing positions so checking can continue.
+let typeArguments
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (names: List<String>)
+  (explicit: List<Model.Ty>)
+  : (List<Model.Ty> * State) =
+  let (args, _, s) = instantiateParams s at names explicit
+  (args, s)
+
+/// Build both the ordered type arguments and a mapping from parameter names.
+/// No explicit arguments means inference supplies them all. A nonempty list with
+/// the wrong length is an error; continue with fresh unknowns for missing positions.
+let instantiateParams
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (names: List<String>)
+  (explicit: List<Model.Ty>)
+  : (List<Model.Ty> * Dict<String, Model.Ty> * State) =
+  let s =
+    match explicit with
+    | [] -> s
+    | _ ->
+      let expectedCount = Stdlib.List.length names
+      let givenCount = Stdlib.List.length explicit
+
+      if givenCount == expectedCount then
+        s
+      else
+        addFinding
+          s
+          (Types.error
+            IssueCode.ExplicitTypeArgumentCountMismatch
+            at
+            (none ())
+            (none ())
+            (Context.Arity(Types.int64 expectedCount, Types.int64 givenCount)))
+
+  instantiateFrom s names explicit [] Dict {}
+
+/// Pair remaining parameter names with explicit arguments or fresh unknowns.
+/// args accumulates in reverse order. Excess explicit arguments are ignored here
+/// because instantiateParams has already reported their count mismatch.
+let instantiateFrom
+  (s: State)
+  (names: List<String>)
+  (explicit: List<Model.Ty>)
+  (args: List<Model.Ty>)
+  (mapping: Dict<String, Model.Ty>)
+  : (List<Model.Ty> * Dict<String, Model.Ty> * State) =
+  match names with
+  | [] -> (Stdlib.List.reverse args, mapping, s)
+  | name :: rest ->
+    let (arg, remaining, s) =
+      match explicit with
+      | given :: others -> (given, others, s)
+      | [] ->
+        let (t, s) = fresh s
+        (t, [], s)
+
+    instantiateFrom
+      s
+      rest
+      remaining
+      (Stdlib.List.push args arg)
+      (Stdlib.Dict.setOverridingDuplicates mapping name arg)
+
+/// Give one use of a scheme fresh variables for every quantified parameter.
+/// Apply the same replacements to its saved requirements and solve them for this
+/// use, leaving variables shared with the surrounding scope unchanged.
+let instantiate (s: State) (scheme: Model.Scheme) : (Model.Ty * State) =
+  let (mapping, s) =
+    Stdlib.List.fold scheme.quantified (Dict {}, s) (fun (mapping, s) v ->
+      let (t, s) = fresh s
+      (Stdlib.Dict.setOverridingDuplicates mapping v t, s))
+
+  let s =
+    Stdlib.List.fold scheme.constraints s (fun s c ->
+      solve s (renameConstraint mapping c))
+
+  (Types.substitute mapping scheme.typ, s)
+
+/// Transform type fields in requirements that can be saved in a generic scheme.
+/// Preserve source locations, patterns, and other metadata. Requirements that
+/// should already have been handled immediately pass through unchanged.
+let mapConstraintTypes
+  (mapType: Model.Ty -> Model.Ty)
+  (c: Model.Constraint)
+  : Model.Constraint =
+  match c with
+  | GetField(at, record, field, result) ->
+    Model.Constraint.GetField(at, mapType record, field, mapType result)
+  | UpdateRecord(at, record, fields) ->
+    Model.Constraint.UpdateRecord(
+      at,
+      mapType record,
+      Stdlib.List.map fields (fun (name, t) -> (name, mapType t))
+    )
+  | EnumPattern(at, scrutinee, caseName, fields) ->
+    Model.Constraint.EnumPattern(
+      at,
+      mapType scrutinee,
+      caseName,
+      Stdlib.List.map fields (fun t -> mapType t)
+    )
+  | Operand(at, operation, operand, subject) ->
+    Model.Constraint.Operand(at, operation, mapType operand, subject)
+  | Negate(at, operand) -> Model.Constraint.Negate(at, mapType operand)
+  | BitwiseNot(at, operand) -> Model.Constraint.BitwiseNot(at, mapType operand)
+  | DictKey(at, key) -> Model.Constraint.DictKey(at, mapType key)
+  | Apply(at, callee, args, result) ->
+    Model.Constraint.Apply(
+      at,
+      mapType callee,
+      Stdlib.List.map args (fun (t, site) -> (mapType t, site)),
+      mapType result
+    )
+  | Unwrap(at, fn, arg, result) ->
+    Model.Constraint.Unwrap(at, fn, mapType arg, mapType result)
+  | Propagate(at, operand, inner, returned) ->
+    Model.Constraint.Propagate(at, mapType operand, mapType inner, mapType returned)
+  | Covers(at, scrutinee, cases, ids) ->
+    Model.Constraint.Covers(at, mapType scrutinee, cases, ids)
+  | other -> other
+
+/// Give a saved requirement the same fresh inference variables as its scheme's type.
+let renameConstraint
+  (mapping: Dict<Model.Var, Model.Ty>)
+  (c: Model.Constraint)
+  : Model.Constraint =
+  mapConstraintTypes (fun typ -> Types.substitute mapping typ) c
+
+/// Collect unresolved variables used by a deferred or coverage requirement.
+/// Generalization uses this set to keep connected types and checks together.
+let constraintVars (s: State) (c: Model.Constraint) : Dict<Model.Var, Bool> =
+  let into (found: Dict<Model.Var, Bool>) (t: Model.Ty) : Dict<Model.Var, Bool> =
+    Types.varsInto found (zonk s t)
+
+  match c with
+  | GetField(_, record, _, result) -> into (into Dict {} record) result
+  | UpdateRecord(_, record, fields) ->
+    Stdlib.List.fold fields (into Dict {} record) (fun found (_, t) -> into found t)
+  | EnumPattern(_, scrutinee, _, fields) ->
+    Stdlib.List.fold fields (into Dict {} scrutinee) (fun found t -> into found t)
+  | Operand(_, _, operand, _) -> into Dict {} operand
+  | Negate(_, operand) -> into Dict {} operand
+  | BitwiseNot(_, operand) -> into Dict {} operand
+  | DictKey(_, key) -> into Dict {} key
+  | Apply(_, callee, args, result) ->
+    Stdlib.List.fold args (into (into Dict {} callee) result) (fun found (t, _) ->
+      into found t)
+  | Unwrap(_, _, arg, result) -> into (into Dict {} arg) result
+  | Propagate(_, operand, inner, returned) ->
+    into (into (into Dict {} operand) inner) returned
+  | Covers(_, scrutinee, _, _) -> into Dict {} scrutinee
+  | _ -> Dict {}
+
+/// Find unknowns in the scheme's type that remain shared with its surrounding
+/// scope, excluding the quantified variables made fresh at each use.
+let schemeFreeVars (s: State) (scheme: Model.Scheme) : Dict<Model.Var, Bool> =
+  Stdlib.Dict.filter (Types.freeVars s.subst scheme.typ) (fun v _ ->
+    Stdlib.Bool.not (Stdlib.List.``member`` scheme.quantified v))
+
+/// Build a reusable type scheme after solving as much pending work as possible.
+/// Unknowns independent of the surrounding scope may vary at each use. Save
+/// their deferred requirements with the scheme and remove those checks from this state.
+let schemeFor
+  (s: State)
+  (ty: Model.Ty)
+  (scope: List<Model.Binder>)
+  : (Model.Scheme * State) =
+  let s = solvePendingConstraints s
+  let ty = zonk s ty
+
+  let inScope =
+    Stdlib.List.fold scope Dict {} (fun found binder ->
+      match binder with
+      | Mono t -> Stdlib.Dict.merge found (Types.freeVars s.subst t)
+      | Poly other ->
+        match Stdlib.Dict.get s.schemes other with
+        | Some scheme -> Stdlib.Dict.merge found (schemeFreeVars s scheme)
+        | None -> found)
+
+  // Associate each pending check with all unknowns it uses. If a check moves
+  // into the scheme, every one of those unknowns needs a fresh copy at each use.
+  let pending =
+    Stdlib.List.map
+      (Stdlib.List.append
+        (Stdlib.List.reverse s.waiting)
+        (Stdlib.List.reverse s.coverage))
+      (fun c -> (c, constraintVars s c))
+
+  // Unknowns connected to outer bindings must remain shared. Making them fresh
+  // would disconnect this binding from checks that still belong to its enclosing scope.
+  let pinned = pinnedBy inScope pending
+
+  let notPinned (vars: Dict<Model.Var, Bool>) : Dict<Model.Var, Bool> =
+    Stdlib.Dict.filter vars (fun v _ ->
+      Stdlib.Bool.not (Stdlib.Dict.``member`` pinned v))
+
+  let quantified =
+    growQuantified pinned (notPinned (Types.freeVars s.subst ty)) pending
+
+  // A check with no unknowns stays here. Move only checks whose unknowns all
+  // belong to the scheme, so no saved check refers to this state's private variables.
+  let travels (entry: (Model.Constraint * Dict<Model.Var, Bool>)) : Bool =
+    let (_, vars) = entry
+    let keys = Stdlib.Dict.keys vars
+
+    Stdlib.Bool.not (Stdlib.List.isEmpty keys)
+    && Stdlib.List.all keys (fun v -> Stdlib.Dict.``member`` quantified v)
+
+  let captured =
+    pending
+    |> Stdlib.List.filter travels
+    |> Stdlib.List.map (fun (c, _) -> zonkConstraint s c)
+
+  let stays (c: Model.Constraint) : Bool =
+    Stdlib.Bool.not (travels (c, constraintVars s c))
+
+  let scheme =
+    Model.Scheme
+      { quantified = Stdlib.Dict.keys quantified
+        typ = ty
+        constraints = captured }
+
+  (scheme,
+   { s with
+       waiting = Stdlib.List.filter s.waiting stays
+       coverage = Stdlib.List.filter s.coverage stays })
+
+/// Starting with unknowns from outer bindings, add every variable connected to
+/// them by a pending requirement. Repeat until the set stops growing; all of
+/// these variables must remain shared rather than becoming generic.
+let pinnedBy
+  (pinned: Dict<Model.Var, Bool>)
+  (pending: List<(Model.Constraint * Dict<Model.Var, Bool>)>)
+  : Dict<Model.Var, Bool> =
+  let grown =
+    Stdlib.List.fold pending pinned (fun pinned (_, vars) ->
+      let touches =
+        Stdlib.List.any (Stdlib.Dict.keys vars) (fun v ->
+          Stdlib.Dict.``member`` pinned v)
+
+      if touches then Stdlib.Dict.merge pinned vars else pinned)
+
+  if Stdlib.Dict.size grown == Stdlib.Dict.size pinned then
+    pinned
+  else
+    pinnedBy grown pending
+
+/// Extend the generic variables to include all unknowns in connected requirements,
+/// provided none is pinned to the surrounding scope. Repeat until no variables
+/// are added, so each saved check can receive a complete independent set at each use.
+let growQuantified
+  (pinned: Dict<Model.Var, Bool>)
+  (quantified: Dict<Model.Var, Bool>)
+  (pending: List<(Model.Constraint * Dict<Model.Var, Bool>)>)
+  : Dict<Model.Var, Bool> =
+  let grown =
+    Stdlib.List.fold pending quantified (fun quantified (_, vars) ->
+      let keys = Stdlib.Dict.keys vars
+      let touches =
+        Stdlib.List.any keys (fun v -> Stdlib.Dict.``member`` quantified v)
+
+      let free =
+        Stdlib.List.all keys (fun v ->
+          Stdlib.Bool.not (Stdlib.Dict.``member`` pinned v))
+
+      if touches && free then Stdlib.Dict.merge quantified vars else quantified)
+
+  if Stdlib.Dict.size grown == Stdlib.Dict.size quantified then
+    quantified
+  else
+    growQuantified pinned grown pending
+
+/// Save a let binding's reusable scheme under its pattern-node ID. Reusing an ID
+/// for another binding makes the scheme unavailable and produces a warning.
+let generalize
+  (s: State)
+  (key: Int64)
+  (ty: Model.Ty)
+  (scope: List<Model.Binder>)
+  : State =
+  let (scheme, s) = schemeFor s ty scope
+  if Stdlib.Dict.``member`` s.schemes key then
+    // The same ID cannot identify two independent bindings. Replace the saved
+    // scheme with TError so later uses do not accidentally use either binding's type.
+    let s =
+      addFinding s
+        (Types.warning IssueCode.UnsupportedConstruct
+          (Stdlib.Option.Option.Some key) Context.DuplicateBindingId)
+    let invalidScheme =
+      Model.Scheme { quantified = []; typ = Model.Ty.TError; constraints = [] }
+    { s with schemes = Stdlib.Dict.setOverridingDuplicates s.schemes key invalidScheme }
+  else
+    { s with schemes = Stdlib.Dict.set s.schemes key scheme }
+
+/// Apply known type assignments to a requirement before saving it in a scheme.
+let zonkConstraint (s: State) (c: Model.Constraint) : Model.Constraint =
+  mapConstraintTypes (fun typ -> zonk s typ) c
+
+
+// --------------------
+// Process requirements and retry checks that need more type information.
+// --------------------
+
+/// Process one requirement, either updating the state or saving it for later.
+/// Handle the frequent All and Equal cases directly to avoid an extra helper call.
+let solve (s: State) (c: Model.Constraint) : State =
+  match c with
+  | All constraints -> solveAll s constraints
+  | Equal(at, site, expected, actual) ->
+    unify s (Stdlib.Option.Option.Some at) site expected actual
+  | _ -> solveOther s c
+
+/// Process requirements in their generated order. Handle nested groups and type
+/// equalities here, avoiding another interpreted call for those common cases.
+let solveAll (s: State) (constraints: List<Model.Constraint>) : State =
+  match constraints with
+  | [] -> s
+  | c :: rest ->
+    match c with
+    | All inner -> solveAll (solveAll s inner) rest
+    | Equal(at, site, expected, actual) ->
+      solveAll (unify s (Stdlib.Option.Option.Some at) site expected actual) rest
+    | _ -> solveAll (solveOther s c) rest
+
+/// Dispatch lookups, construction checks, generalization, and validation.
+/// Save coverage for Items; try other checks now and queue any that need more information.
+let solveOther (s: State) (c: Model.Constraint) : State =
+  match c with
+  | Report finding -> addFinding s finding
+  | UseFunction(at, fn, typeArgs, target) -> useFunction s at fn typeArgs target
+  | UseValue(at, name, target) -> useValue s at name target
+  | UseLocal(at, key, target) ->
+    match Stdlib.Dict.get s.schemes key with
+    | Some scheme ->
+      let (t, s) = instantiate s scheme
+      unify s (Stdlib.Option.Option.Some at) Site.Expression t target
+    | None -> markUnknownsAsError s target
+  | NewRecord(at, typeName, typeArgs, fields, result) ->
+    newRecord s at typeName typeArgs fields result
+  | NewEnum(at, typeName, typeArgs, caseName, fields, result) ->
+    newEnum s at typeName typeArgs caseName fields result
+  | Generalize(key, ty, scope) -> generalize s key ty scope
+  | Covers(_, _, _, _) -> { s with coverage = Stdlib.List.push s.coverage c }
+  | WellFormed(at, ty) -> validateType s at ty
+  | _ ->
+    match trySolveDeferred s c with
+    | Some s -> s
+    | None -> queueDeferred s c
+
+/// What a pending use already requires of its subject, even while the subject's
+/// type is unknown. Repeated accesses to the same field, enum case, or unwrapped
+/// payload must agree, and incompatible uses can reveal an error immediately.
+type DeferredRequirement =
+  /// The subject is used in a record update.
+  | RecordType
+  /// The subject is called as a function; its parameter count is still unknown.
+  | CallableType
+  /// The subject is used by an operator that requires a numeric type.
+  | NumericType
+  /// Accessing or updating this field constrains its type.
+  | FieldType of String * Model.Ty
+  /// A pattern names this enum case and constrains its payload types.
+  | CaseFields of String * List<Model.Ty>
+  /// unwrap or ? extracts a payload of this type from the subject.
+  | UnwrappedType of Model.Ty
+
+/// A requirement on a subject type, with the node and context to use if it
+/// conflicts with another pending use of the same subject.
+type DeferredUse =
+  { at: Int64
+    subject: Model.Ty
+    site: Site
+    requirement: DeferredRequirement }
+
+/// Extract facts that can be compared with other pending requirements. One record
+/// update contributes both a record requirement and a type requirement for each field.
+let deferredUses (c: Model.Constraint) : List<DeferredUse> =
+  let use (at: Int64) (subject: Model.Ty) (requirement: DeferredRequirement) : DeferredUse =
+    DeferredUse { at = at; subject = subject; site = Site.Expression; requirement = requirement }
+
+  match c with
+  | Apply(at, callee, _, _) -> [ use at callee DeferredRequirement.CallableType ]
+  | Operand(at, _, operand, _) -> [ use at operand DeferredRequirement.NumericType ]
+  | Negate(at, operand) -> [ use at operand DeferredRequirement.NumericType ]
+  | BitwiseNot(at, operand) -> [ use at operand DeferredRequirement.NumericType ]
+  | GetField(at, record, field, result) ->
+    [ DeferredUse
+        { at = at
+          subject = record
+          site = Site.RecordFieldAccess
+          requirement = DeferredRequirement.FieldType(field, result) } ]
+  | UpdateRecord(at, record, fields) ->
+    Stdlib.List.push (Stdlib.List.map fields (fun (name, typ) ->
+      DeferredUse
+        { at = at
+          subject = record
+          site = Site.Expression
+          requirement = DeferredRequirement.FieldType(name, typ) }))
+      (use at record DeferredRequirement.RecordType)
+  | EnumPattern(at, scrutinee, name, fields) ->
+    [ DeferredUse
+        { at = at
+          subject = scrutinee
+          site = Site.MatchPattern
+          requirement = DeferredRequirement.CaseFields(name, fields) } ]
+  | Unwrap(at, _, arg, result) ->
+    [ DeferredUse
+        { at = at
+          subject = arg
+          site = Site.Expression
+          requirement = DeferredRequirement.UnwrappedType result } ]
+  | Propagate(at, operand, inner, _) ->
+    [ DeferredUse
+        { at = at
+          subject = operand
+          site = Site.Expression
+          requirement = DeferredRequirement.UnwrappedType inner } ]
+  | _ -> []
+
+/// Broad categories used to detect incompatible pending uses of one unknown.
+/// They do not choose a concrete numeric type, function arity, or member types.
+type DeferredShape =
+  | Record
+  | Enum
+  | Number
+  | Function
+
+/// Map a pending use to the broad category compared by relateDeferred.
+let deferredShape (requirement: DeferredRequirement) : DeferredShape =
+  match requirement with
+  | RecordType -> DeferredShape.Record
+  | FieldType(_, _) -> DeferredShape.Record
+  | CaseFields(_, _) -> DeferredShape.Enum
+  | UnwrappedType _ -> DeferredShape.Enum
+  | CallableType -> DeferredShape.Function
+  | NumericType -> DeferredShape.Number
+
+/// Combine an unwrap requirement with an enum-case pattern on the same subject.
+/// Some/None selects standard Option; Ok/Error selects standard Result. Other
+/// names fit neither. Retried pattern checks then validate payload counts and types.
+let relateUnwrapCase
+  (s: State)
+  (at: Int64)
+  (subject: Model.Ty)
+  (inner: Model.Ty)
+  (caseName: String)
+  : State =
+  let nodeId = Stdlib.Option.Option.Some at
+  if caseName == "Some" || caseName == "None" then
+    unify
+      s nodeId Site.MatchPattern
+      (Model.Ty.TCustom(s.env.optionType, [ inner ])) subject
+  else if caseName == "Ok" || caseName == "Error" then
+    let (error, s) = fresh s
+    unify
+      s nodeId Site.MatchPattern
+      (Model.Ty.TCustom(s.env.resultType, [ inner, error ])) subject
+  else
+    addFinding s
+      (Types.definiteError
+        IssueCode.UnknownEnumCase nodeId (none ()) (none ())
+        (Context.Identifier caseName))
+
+/// Compare two pending uses when their subjects resolve to the same type.
+/// Report incompatible categories, connect matching fields or payloads, and use
+/// enum-case names to resolve the Option/Result choice for unwrap requirements.
+let relateDeferred (s: State) (current: DeferredUse) (previous: DeferredUse) : State =
+  let subject = Types.walk s.subst current.subject
+
+  if subject == Model.Ty.TError || subject != Types.walk s.subst previous.subject then
+    s
+  else if deferredShape current.requirement != deferredShape previous.requirement then
+    addFinding s
+      (Types.definiteError
+        IssueCode.TypeMismatch (Stdlib.Option.Option.Some current.at)
+        (none ()) (none ()) (Context.At current.site))
+  else
+    let nodeId = Stdlib.Option.Option.Some current.at
+
+    match (current.requirement, previous.requirement) with
+    | (FieldType(name, typ), FieldType(oldName, oldType)) ->
+      if name == oldName then unify s nodeId current.site oldType typ else s
+    | (UnwrappedType typ, UnwrappedType oldType) ->
+      unify s nodeId current.site oldType typ
+    | (UnwrappedType inner, CaseFields(name, _)) ->
+      relateUnwrapCase s current.at subject inner name
+    | (CaseFields(name, _), UnwrappedType inner) ->
+      relateUnwrapCase s current.at subject inner name
+    | (CaseFields(name, fields), CaseFields(oldName, oldFields)) ->
+      if name != oldName then
+        s
+      else if Stdlib.List.length fields == Stdlib.List.length oldFields then
+        unifyAll s nodeId current.site oldFields fields
+      else
+        addFinding
+          s
+          (Types.definiteError
+            IssueCode.EnumFieldCountMismatch
+            nodeId
+            (none ())
+            (none ())
+            (Context.NamedArity(name, Types.count oldFields, Types.count fields)))
+    | _ -> s
+
+/// Before queuing a check, compare it with existing pending uses and detect
+/// impossible containment, such as an Option containing itself as its payload.
+/// Keep the original requirement for a full check once its subject is known.
+/// Avoid adding identical findings when retries discover the same conflict again.
+let queueDeferred (s: State) (c: Model.Constraint) : State =
+  let unwrapped =
+    match c with
+    | Unwrap(at, _, subject, result) ->
+      Stdlib.Option.Option.Some((at, subject, result))
+    | Propagate(at, operand, inner, _) ->
+      Stdlib.Option.Option.Some((at, operand, inner))
+    | _ -> Stdlib.Option.Option.None
+
+  let s =
+    match unwrapped with
+    | Some((at, subject, result)) ->
+      match Types.walk s.subst subject with
+      | TVar v ->
+        if wouldContainItself s at v [ result ] then
+          let finding =
+            Types.definiteError IssueCode.OccursCheckFailed
+              (Stdlib.Option.Option.Some at) (some subject) (some result) (Context.At Site.Expression)
+          if Stdlib.List.any s.findings (fun previous -> previous == finding) then
+            s
+          else
+            addFinding s finding
+        else
+          s
+      | _ -> s
+    | _ -> s
+  let uses = deferredUses c
+
+  // Collect only the findings from these comparisons, then merge them back
+  // without duplicates. Keep any type assignments made while relating the uses.
+  let checked =
+    if Stdlib.List.isEmpty uses then
+      { s with findings = [] }
+    else
+      Stdlib.List.fold s.waiting { s with findings = [] } (fun s previous ->
+        Stdlib.List.fold (deferredUses previous) s (fun s previous ->
+          Stdlib.List.fold uses s (fun s current -> relateDeferred s current previous)))
+
+  let s =
+    Stdlib.List.fold
+      (Stdlib.List.reverse checked.findings)
+      { checked with findings = s.findings }
+      (fun s finding ->
+        if Stdlib.List.any s.findings (fun previous -> previous == finding) then s
+        else addFinding s finding)
+
+  { s with waiting = Stdlib.List.push s.waiting c }
+
+/// Count pending requirements plus arguments still waiting to be applied.
+/// A partially resolved call can make progress without removing its Apply requirement.
+let pendingWork (pending: List<Model.Constraint>) : Int =
+  Stdlib.List.fold pending 0 (fun count c ->
+    match c with
+    | Apply(_, _, args, _) -> count + 1 + Stdlib.List.length args
+    | _ -> count + 1)
+
+/// Retry pending checks in order while work decreases or new variables receive types.
+/// When neither changes, inspect remaining dictionary keys for errors already
+/// implied by their other uses, then leave unresolved requirements queued.
+let solvePendingConstraints (s: State) : State =
+  let pending = Stdlib.List.reverse s.waiting
+  let before = pendingWork pending
+
+  if before == 0 then
+    s
+  else
+    let decided = Stdlib.Dict.size s.subst
+    let s = Stdlib.List.fold pending { s with waiting = [] } (fun s c -> solve s c)
+
+    if
+      pendingWork s.waiting < before
+      || Stdlib.Dict.size s.subst > decided
+    then
+      solvePendingConstraints s
+    else
+      checkDeferredKeys s
+
+/// Try a requirement that may need more type information. None asks the caller
+/// to queue the original requirement unchanged. Application checks return Some
+/// and queue only the part of the call they could not yet process.
+let trySolveDeferred (s: State) (c: Model.Constraint) : Stdlib.Option.Option<State> =
+  match c with
+  | GetField(at, record, field, result) -> getField s at record field result
+  | UpdateRecord(at, record, fields) -> updateRecord s at record fields
+  | EnumPattern(at, scrutinee, caseName, fields) ->
+    enumPattern s at scrutinee caseName fields
+  | Operand(at, operation, operand, _) -> operandFor s at operation operand
+  | Negate(at, operand) -> negate s at operand
+  | BitwiseNot(at, operand) -> bitwiseNot s at operand
+  | Unwrap(at, fn, arg, result) -> unwrap s at fn arg result
+  | Propagate(at, operand, inner, returned) ->
+    checkUnwrapReturn s c at operand inner returned
+  | DictKey(at, key) -> dictKey s at key
+  | Apply(at, callee, args, result) ->
+    Stdlib.Option.Option.Some(applyArguments s at callee args result)
+  | _ -> Stdlib.Option.Option.Some(solve s c)
+
+/// Reject a dictionary key containing a forbidden type as soon as one is known.
+/// Otherwise finish when no inference variables remain, or return None to wait.
+let dictKey (s: State) (at: Int64) (key: Model.Ty) : Stdlib.Option.Option<State> =
+  let key = zonk s key
+
+  if Stdlib.Bool.not (Types.isUsableDictKey s.env [] key) then
+    // A known forbidden component proves the key invalid even when other
+    // components are unknown. Preserve those unknowns in the reported type.
+    Stdlib.Option.Option.Some(
+      addFinding
+        s
+        (Types.definiteError
+          IssueCode.UnsupportedDictKeyType
+          (Stdlib.Option.Option.Some at)
+          Stdlib.Option.Option.None
+          (Stdlib.Option.Option.Some key)
+          Context.NoDetail)
+    )
+  else if Stdlib.Dict.isEmpty (Types.freeVars s.subst key) then
+    Stdlib.Option.Option.Some s
+  else
+    Stdlib.Option.Option.None
+
+/// Follow pending field, enum-payload, and unwrap relationships from a dictionary
+/// key to find forbidden contents before the enclosing types are fully known.
+/// Track visited variables and follow only those that can affect key validity,
+/// excluding phantom type arguments that never occur in stored values.
+let checkReachableKeyTypes
+  (s: State)
+  (uses: List<DeferredUse>)
+  (at: Int64)
+  (seen: Dict<Model.Var, Bool>)
+  (pending: List<Model.Ty>)
+  : State =
+  match pending with
+  | [] -> s
+  | key :: rest ->
+    let key = zonk s key
+    match dictKey s at key with
+    | Some s -> checkReachableKeyTypes s uses at seen rest
+    | None ->
+      // Replacing a variable with Blob tests whether its value could make this
+      // key invalid. Variables that do not affect validity need no further traversal.
+      let variables =
+        (Stdlib.Dict.keys (Types.freeVars s.subst key))
+        |> Stdlib.List.filter (fun v ->
+          Stdlib.Bool.not (Stdlib.Dict.``member`` seen v)
+          && Stdlib.Bool.not (Types.isUsableDictKey s.env []
+            (Types.substitute (Dict { v: Model.Ty.TBlob }) key)))
+
+      let (s, seen, pending) =
+        Stdlib.List.fold variables (s, seen, rest) (fun (s, seen, pending) v ->
+          let subject = Model.Ty.TVar v
+          let seen = Stdlib.Dict.setOverridingDuplicates seen v true
+          let (s, pending) =
+            Stdlib.List.fold uses (s, pending) (fun (s, pending) use ->
+              if Types.walk s.subst use.subject != subject then
+                (s, pending)
+              else
+                match use.requirement with
+                | CallableType ->
+                  (addFinding s (Types.definiteError IssueCode.UnsupportedDictKeyType
+                    (Stdlib.Option.Option.Some at) (none ()) (some subject) Context.NoDetail), pending)
+                | FieldType(_, typ) -> (s, Stdlib.List.push pending typ)
+                | CaseFields(_, fields) -> (s, Stdlib.List.append fields pending)
+                | UnwrappedType typ -> (s, Stdlib.List.push pending typ)
+                | RecordType -> (s, pending)
+                | NumericType -> (s, pending))
+          (s, seen, pending))
+      checkReachableKeyTypes s uses at seen pending
+
+/// Use all pending relationships to check unresolved dictionary keys for definite
+/// errors. Keep the requirements queued and merge new findings without duplicates.
+let checkDeferredKeys (s: State) : State =
+  let uses = Stdlib.List.flatten (Stdlib.List.map s.waiting deferredUses)
+  let checked =
+    Stdlib.List.fold s.waiting { s with findings = [] } (fun s c ->
+      match c with
+      | DictKey(at, key) -> checkReachableKeyTypes s uses at Dict {} [ key ]
+      | _ -> s)
+  Stdlib.List.fold checked.findings s (fun s finding ->
+    if Stdlib.List.any s.findings (fun previous -> previous == finding) then s
+    else addFinding s finding)
+
+/// Make the final attempts at deferred checks, including return-type inference
+/// from ?. Report remaining checks as warnings and clear the queue. Mark dependent
+/// result types unavailable where another warning would only repeat the problem.
+let reportUnsolvedConstraints (s: State) : State =
+  let s = inferUnwrapReturnTypes (solvePendingConstraints s)
+
+  let pending = Stdlib.List.reverse s.waiting
+
+  Stdlib.List.fold pending { s with waiting = [] } (fun s c ->
+    let ambiguous (at: Int64) (subject: AmbiguousSubject) : State =
+      addFinding
+        s
+        (Types.warning
+          IssueCode.AmbiguousType
+          (Stdlib.Option.Option.Some at)
+          (Context.Ambiguous subject))
+
+    match c with
+    | GetField(at, _, _, result) ->
+      markUnknownsAsError (ambiguous at AmbiguousSubject.RecordType) result
+    | UpdateRecord(at, _, fields) ->
+      markAllUnknownsAsError
+        (ambiguous at AmbiguousSubject.RecordType)
+        (Stdlib.List.map fields (fun (_, t) -> t))
+    | EnumPattern(at, _, _, fields) ->
+      markAllUnknownsAsError (ambiguous at AmbiguousSubject.EnumPatternType) fields
+    | Operand(at, _, _, subject) -> ambiguous at subject
+    | Negate(at, _) -> ambiguous at AmbiguousSubject.UnaryMinusOperand
+    | BitwiseNot(at, _) -> ambiguous at AmbiguousSubject.BitwiseNotOperand
+    | DictKey(at, _) -> ambiguous at AmbiguousSubject.DictKeyType
+    | Apply(at, _, args, result) ->
+      markAllUnknownsAsError
+        (ambiguous at AmbiguousSubject.CalleeType)
+        (Stdlib.List.push (Stdlib.List.map args (fun (t, _) -> t)) result)
+    | Unwrap(at, fn, _, result) ->
+      markUnknownsAsError
+        (addFinding
+          s
+          (Types.warning
+            IssueCode.UnsupportedConstruct
+            (Stdlib.Option.Option.Some at)
+            (Context.Untrusted(
+              Types.fnNameRef fn,
+              UntrustedBuiltin.UnwrapArgumentUnknown
+            ))))
+        result
+    | Propagate(at, _, inner, _) ->
+      markUnknownsAsError
+        (addFinding
+          s
+          (Types.warning
+            IssueCode.UnsupportedConstruct
+            (Stdlib.Option.Option.Some at)
+            Context.UnwrapRequiresOptionOrResult))
+        inner
+    | _ -> s)
+
+/// If a lambda's return type is still unknown, use a known ? operand to choose
+/// Option or Result. Result must keep the operand's error type, but the successful
+/// return value gets a fresh unknown because the body may return a different type.
+/// Retry pending checks if these assignments reveal more information.
+let inferUnwrapReturnTypes (s: State) : State =
+  let decided = Stdlib.Dict.size s.subst
+
+  let s =
+    Stdlib.List.fold (Stdlib.List.reverse s.waiting) s (fun s c ->
+      match c with
+      | Propagate(at, operand, _, returned) ->
+        match Types.walk s.subst returned with
+        | TVar _ ->
+          let nodeId = Stdlib.Option.Option.Some at
+          let (operandType, s) = expand s nodeId operand
+
+          match unwrapContainer s operandType with
+          | OptionOf _ ->
+            let (success, s) = fresh s
+            unify
+              s
+              nodeId
+              Site.LambdaReturnValue
+              (Model.Ty.TCustom(s.env.optionType, [ success ]))
+              returned
+          | ResultOf(_, error) ->
+            let (success, s) = fresh s
+            unify
+              s
+              nodeId
+              Site.LambdaReturnValue
+              (Model.Ty.TCustom(s.env.resultType, [ success, error ]))
+              returned
+          | NotContainer -> s
+        | _ -> s
+      | _ -> s)
+
+  if Stdlib.Dict.size s.subst > decided then solvePendingConstraints s else s
+
+
+// --------------------
+// Obtain types for named functions and values.
+// --------------------
+
+/// Instantiate a named function's signature at this use and connect it to target.
+/// Attach cached signature problems to this node, enforce required explicit type
+/// arguments, and retain dictionary-key requirements for inferred arguments.
+/// Unavailable or untrusted signatures produce warnings and an unavailable target type.
+let useFunction
+  (s: State)
+  (at: Int64)
+  (fn: LanguageTools.ProgramTypes.FQFnName.FQFnName)
+  (typeArgs: List<Model.Ty>)
+  (target: Model.Ty)
+  : State =
+  let nodeId = Stdlib.Option.Option.Some at
+
+  let untrusted (reason: UntrustedBuiltin) : State =
+    markUnknownsAsError
+      (addFinding
+        s
+        (Types.warning
+          IssueCode.UnsupportedConstruct
+          nodeId
+          (Context.Untrusted(Types.fnNameRef fn, reason))))
+      target
+
+  let (callable, s) = callableFor s fn
+
+  match callable with
+  | Untrusted reason -> untrusted reason
+  | Unavailable ->
+    markUnknownsAsError
+      (addFinding
+        s
+        (Types.warning
+          IssueCode.MissingFunctionSignature
+          nodeId
+          (Context.FunctionUnavailable(Types.fnNameRef fn))))
+      target
+  | Declared t ->
+    if t.needsTypeArgs && Stdlib.List.isEmpty typeArgs then
+      untrusted UntrustedBuiltin.ExplicitTypeArgumentsRequired
+    else
+      let (_, mapping, s) = instantiateParams s nodeId t.typeParams typeArgs
+
+      let fnType =
+        Types.substituteRigid mapping (Model.Ty.TFn(t.parameters, t.returnType))
+
+      let s =
+        Stdlib.List.fold t.problems s (fun s problem ->
+          addFinding s { problem with at = nodeId })
+
+      // The template's declared structure is already validated. Inferred arguments
+      // need key requirements retained until their types are known; explicit
+      // arguments may introduce new invalid types and need full validation now.
+      let s =
+        if Stdlib.List.isEmpty typeArgs then
+          let keys = Stdlib.List.map t.dictKeyTypes (Types.substituteRigid mapping)
+          deferDictKeys s at keys
+        else
+          validateType s nodeId fnType
+
+      unify s nodeId Site.Expression fnType target
+
+/// Retrieve the converted signature or its unavailability reason, caching the
+/// result in the batch environment so later uses do not repeat the lookup and conversion.
+let callableFor
+  (s: State)
+  (fn: LanguageTools.ProgramTypes.FQFnName.FQFnName)
+  : (Model.Callable * State) =
+  match Stdlib.Dict.get s.env.callables fn with
+  | Some callable -> (callable, s)
+  | None ->
+    let (callable, env) = Environment.resolveCallable s.env fn
+    let callables = Stdlib.Dict.setOverridingDuplicates env.callables fn callable
+    (callable, { s with env = { env with callables = callables } })
+
+/// Instantiate a checked package value's scheme, or read a builtin value's declared
+/// type, then validate it and connect it to target. Missing type information produces
+/// a warning and marks the target's unknowns unavailable.
+let useValue
+  (s: State)
+  (at: Int64)
+  (name: LanguageTools.ProgramTypes.FQValueName.FQValueName)
+  (target: Model.Ty)
+  : State =
+  let nodeId = Stdlib.Option.Option.Some at
+
+  let found =
+    match name with
+    | Package hash ->
+      match Stdlib.Dict.get s.env.values hash with
+      | Some scheme -> Stdlib.Option.Option.Some(instantiate s scheme)
+      | None -> Stdlib.Option.Option.None
+    | Builtin _ ->
+      match Environment.builtinValueType name with
+      | Some typ ->
+        let (converted, problems) = Types.fromReference Dict {} nodeId typ
+        Stdlib.Option.Option.Some((converted, addFindings s problems))
+      | None -> Stdlib.Option.Option.None
+
+  match found with
+  | Some((t, s)) ->
+    let s = validateType s nodeId t
+    unify s nodeId Site.Expression t target
+  | None ->
+    markUnknownsAsError
+      (addFinding
+        s
+        (Types.warning
+          IssueCode.MissingValueSignature
+          nodeId
+          (Context.ValueUnavailable(Types.valueNameRef name))))
+      target
+
+
+// --------------------
+// Check calls, including partial applications and functions returning functions.
+// --------------------
+
+/// Collect unresolved variables after expanding aliases throughout t. If Tag<'a>
+/// aliases Int, Tag<t> no longer contains t. Return an empty list when expansion
+/// fails, since an unavailable type cannot prove a containment cycle here.
+let containedUnknowns
+  (s: State)
+  (at: Int64)
+  (t: Model.Ty)
+  : List<Model.Var> =
+  match Types.expandDeep s.env s.subst (Stdlib.Option.Option.Some at) [] t with
+  | Ok expanded -> Stdlib.Dict.keys (Types.freeVars s.subst expanded)
+  | Error _ -> []
+
+/// Check whether v would contain itself through the proposed contents and existing
+/// pending calls or unwraps. A function contains its argument and result types;
+/// an Option or Result contains the payload extracted from it.
+/// Do not follow record fields or enum declarations as containment edges, since
+/// those declarations are allowed to be recursive.
+let wouldContainItself
+  (s: State)
+  (at: Int64)
+  (v: Model.Var)
+  (contents: List<Model.Ty>)
+  : Bool =
+  let unknowns (types: List<Model.Ty>) : List<Model.Var> =
+    Stdlib.List.flatten (Stdlib.List.map types (fun t -> containedUnknowns s at t))
+
+  let contains
+    (subject: Model.Ty)
+    (types: List<Model.Ty>)
+    : Stdlib.Option.Option<(Model.Var * List<Model.Var>)> =
+    match Types.walk s.subst subject with
+    | TVar c -> Stdlib.Option.Option.Some((c, unknowns types))
+    | _ -> Stdlib.Option.Option.None
+
+  let waiting =
+    s.waiting
+    |> Stdlib.List.filterMap (fun c ->
+      match c with
+      | Apply(_, callee, applied, gives) ->
+        contains callee (Stdlib.List.push (Stdlib.List.map applied (fun (t, _) -> t)) gives)
+      | Unwrap(_, _, subject, result) -> contains subject [ result ]
+      | Propagate(_, operand, inner, _) -> contains operand [ inner ]
+      | _ -> Stdlib.Option.Option.None)
+
+  let edges =
+    (Stdlib.List.push waiting (v, unknowns contents))
+    |> Stdlib.List.fold Dict {} (fun graph (c, inside) ->
+      let known = Stdlib.Option.withDefault (Stdlib.Dict.get graph c) []
+      Stdlib.Dict.setOverridingDuplicates graph c (Stdlib.List.append inside known))
+
+  reaches edges v (Stdlib.Option.withDefault (Stdlib.Dict.get edges v) []) Dict {}
+
+/// Follow the containment graph from frontier, returning true if it reaches target.
+/// Keep visited variables in seen so an unrelated cycle cannot repeat forever.
+let reaches
+  (edges: Dict<Model.Var, List<Model.Var>>)
+  (target: Model.Var)
+  (frontier: List<Model.Var>)
+  (seen: Dict<Model.Var, Bool>)
+  : Bool =
+  match frontier with
+  | [] -> false
+  | next :: rest ->
+    if next == target then
+      true
+    else if Stdlib.Dict.``member`` seen next then
+      reaches edges target rest seen
+    else
+      let more = Stdlib.Option.withDefault (Stdlib.Dict.get edges next) []
+
+      reaches
+        edges
+        target
+        (Stdlib.List.append more rest)
+        (Stdlib.Dict.setOverridingDuplicates seen next true)
+
+/// Report a call whose pending type relationships would create an infinite type.
+/// Retain unresolved types as evidence; Items keeps the finding as a warning
+/// while that evidence still depends on unknowns.
+let selfApplication
+  (s: State)
+  (at: Int64)
+  (callee: Model.Ty)
+  (args: List<(Model.Ty * Site)>)
+  : State =
+  addFinding
+    s
+    (Types.error
+      IssueCode.OccursCheckFailed
+      (Stdlib.Option.Option.Some at)
+      (some callee)
+      (Stdlib.List.head (Stdlib.List.map args (fun (t, _) -> t)))
+      (Context.At Site.FunctionApplication))
+
+/// Consume arguments against a known function type one at a time. Fewer arguments
+/// leave a function result; extra arguments can apply a function returned by the call.
+///
+/// If the callee is unknown, wait instead of choosing its parameter count. g 1 2
+/// could call a two-parameter function or a one-parameter function returning another,
+/// and those are distinct function types at runtime.
+let applyArguments
+  (s: State)
+  (at: Int64)
+  (callee: Model.Ty)
+  (args: List<(Model.Ty * Site)>)
+  (result: Model.Ty)
+  : State =
+  let nodeId = Stdlib.Option.Option.Some at
+
+  match args with
+  | [] -> unify s nodeId Site.Expression callee result
+  | (arg, site) :: rest ->
+    let (callee, s) = expand s nodeId callee
+
+    match callee with
+    | TFn(parameters, ret) ->
+      match parameters with
+      | [ parameter ] ->
+        applyArguments (unify s nodeId site parameter arg) at ret rest result
+      | parameter :: others ->
+        applyArguments
+          (unify s nodeId site parameter arg)
+          at
+          (Model.Ty.TFn(others, ret))
+          rest
+          result
+      | [] -> notCallable s nodeId callee args result
+    | TVar v -> waitApplication s at v args result
+    | TError ->
+      markAllUnknownsAsError s
+        (Stdlib.List.push (Stdlib.List.map args (fun (t, _) -> t)) result)
+    | _ -> notCallable s nodeId callee args result
+
+/// Keep one pending call for each unknown callee, combining other calls to that
+/// same shared type. Their common argument positions must agree. If one call has
+/// extra arguments, apply them to the shorter call's result, preserving either
+/// possible function shape without guessing the callee's parameter count.
+let waitApplication
+  (s: State)
+  (at: Int64)
+  (v: Model.Var)
+  (args: List<(Model.Ty * Site)>)
+  (result: Model.Ty)
+  : State =
+  let callee = Model.Ty.TVar v
+
+  if wouldContainItself s at v (Stdlib.List.push (Stdlib.List.map args (fun (t, _) -> t)) result) then
+    selfApplication s at callee args
+  else
+    let previous =
+      Stdlib.List.findFirst s.waiting (fun c ->
+        match c with
+        | Apply(_, other, _, _) -> Types.walk s.subst other == callee
+        | _ -> false)
+
+    match previous with
+    | Some previous ->
+      match previous with
+      | Apply(oldAt, _, oldArgs, oldResult) ->
+        let s =
+          { s with
+              waiting = Stdlib.List.filter s.waiting (fun c -> c != previous) }
+        let (s, remaining, oldRemaining) = unifyAppliedPrefix s at args oldArgs
+
+        match (remaining, oldRemaining) with
+        | ([], []) ->
+          let s =
+            unify s (Stdlib.Option.Option.Some at) Site.FunctionApplication oldResult result
+          applyArguments s at callee args result
+        | ([], more) ->
+          let s = applyArguments s at callee args result
+          applyArguments s oldAt result more oldResult
+        | (more, _) ->
+          let s = applyArguments s oldAt callee oldArgs oldResult
+          applyArguments s at oldResult more result
+      | _ -> s
+    | None ->
+      queueDeferred s (Model.Constraint.Apply(at, callee, args, result))
+
+/// Require matching types for argument positions shared by two calls. Return
+/// either call's remaining arguments for application to the shorter call's result.
+/// This relates the calls without assigning a parameter count to their unknown callee.
+let unifyAppliedPrefix
+  (s: State)
+  (at: Int64)
+  (args: List<(Model.Ty * Site)>)
+  (oldArgs: List<(Model.Ty * Site)>)
+  : (State * List<(Model.Ty * Site)> * List<(Model.Ty * Site)>) =
+  match args with
+  | [] -> (s, [], oldArgs)
+  | (arg, site) :: rest ->
+    match oldArgs with
+    | [] -> (s, args, [])
+    | (oldArg, _) :: oldRest ->
+      let s = unify s (Stdlib.Option.Option.Some at) site oldArg arg
+      unifyAppliedPrefix s at rest oldRest
+
+/// Report that a known type cannot accept these arguments. Mark dependent argument
+/// and result unknowns unavailable to avoid errors based on this failed call.
+let notCallable
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (callee: Model.Ty)
+  (args: List<(Model.Ty * Site)>)
+  (result: Model.Ty)
+  : State =
+  let s =
+    addFinding
+      s
+      (Types.definiteError
+        IssueCode.NotCallable
+        at
+        (none ())
+        (some callee)
+        Context.NoDetail)
+
+  markAllUnknownsAsError s
+    (Stdlib.List.push (Stdlib.List.map args (fun (t, _) -> t)) result)
+
+
+// --------------------
+// Validate construction, field access, updates, and enum patterns.
+// --------------------
+
+/// Build a custom type from its declaration's parameters and supplied arguments,
+/// then validate it and its dependencies. Return None if the declaration is missing;
+/// the caller reports that absence in the context of the operation being checked.
+let instantiateType
+  (s: State)
+  (at: Int64)
+  (typeName: LanguageTools.ProgramTypes.Hash)
+  (typeArgs: List<Model.Ty>)
+  : Stdlib.Option.Option<(Model.Ty * State)> =
+  let nodeId = Stdlib.Option.Option.Some at
+
+  match Types.declaration s.env typeName with
+  | None ->
+    Stdlib.Option.Option.None
+  | Some decl ->
+    let (args, s) = typeArguments s nodeId decl.typeParams typeArgs
+    let typ = Model.Ty.TCustom(typeName, args)
+    // Check the declaration and its dependencies here too. A constructed value
+    // may be discarded without its type ever appearing in the enclosing signature.
+    Stdlib.Option.Option.Some((typ, validateType s nodeId typ))
+
+/// Report that a required type declaration was not loaded into the environment.
+let missingType (s: State) (at: Int64) (typeName: LanguageTools.ProgramTypes.Hash) : State =
+  addFinding
+    s
+    (Types.warning
+      IssueCode.MissingTypeDeclaration
+      (Stdlib.Option.Option.Some at)
+      (Context.TypeUnavailable typeName))
+
+/// Check record construction against its declaration and assign the result type.
+/// Reject repeated, unknown, or missing fields, and connect each supplied field
+/// slot to its declared type before the field expression is checked.
+let newRecord
+  (s: State)
+  (at: Int64)
+  (typeName: LanguageTools.ProgramTypes.Hash)
+  (typeArgs: List<Model.Ty>)
+  (fields: List<(String * Model.Ty)>)
+  (result: Model.Ty)
+  : State =
+  let nodeId = Stdlib.Option.Option.Some at
+
+  match instantiateType s at typeName typeArgs with
+  | None ->
+    markAllUnknownsAsError
+      (missingType s at typeName)
+      (Stdlib.List.push (Stdlib.List.map fields (fun (_, t) -> t)) result)
+  | Some((recordType, s)) ->
+    let s = unify s nodeId Site.Expression recordType result
+    let (found, s) = declarationFor s nodeId recordType
+
+    match found with
+    | None -> s
+    | Some((_, args, decl)) ->
+      match decl.definition with
+      | Record declared ->
+        let s =
+          Stdlib.List.fold
+            (Generate.duplicates (Stdlib.List.map fields (fun (name, _) -> name)))
+            s
+            (fun s name ->
+              addFinding
+                s
+                (Types.error
+                  IssueCode.DuplicateRecordField
+                  nodeId
+                  (none ())
+                  (none ())
+                  (Context.Duplicate(name, DuplicateSite.InRecordConstruction))))
+
+        let s =
+          Stdlib.List.fold fields s (fun s (name, slot) ->
+            match Stdlib.List.findFirst declared (fun f -> f.name == name) with
+            | Some field ->
+              let (t, s) = fieldType s nodeId decl.typeParams args field.typ
+              unify s nodeId Site.Expression t slot
+            | None ->
+              addFinding
+                s
+                (Types.error
+                  IssueCode.UnknownRecordField
+                  nodeId
+                  (none ())
+                  (none ())
+                  (Context.Identifier name)))
+
+        let supplied = Stdlib.List.map fields (fun (name, _) -> name)
+
+        let missing =
+          declared
+          |> Stdlib.List.map (fun f -> f.name)
+          |> Stdlib.List.filter (fun name ->
+            Stdlib.Bool.not (Stdlib.List.``member`` supplied name))
+
+        if Stdlib.List.isEmpty missing then
+          s
+        else
+          addFinding
+            s
+            (Types.error
+              IssueCode.MissingRecordField
+              nodeId
+              (none ())
+              (none ())
+              (Context.Identifiers missing))
+      | Enum _ -> recordRequired s nodeId recordType
+      | Alias _ -> recordRequired s nodeId recordType
+
+/// Report a constructor that names a type which does not resolve to a record.
+let recordRequired
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (actual: Model.Ty)
+  : State =
+  addFinding
+    s
+    (Types.definiteError
+      IssueCode.TypeMismatch
+      at
+      (none ())
+      (some actual)
+      Context.RecordRequiredForConstruction)
+
+/// Check enum construction, including the named case and exact payload count.
+/// Connect payload slots to declared field types, retaining each slot's diagnostic
+/// context so pipeline inputs can be reported distinctly from written fields.
+let newEnum
+  (s: State)
+  (at: Int64)
+  (typeName: LanguageTools.ProgramTypes.Hash)
+  (typeArgs: List<Model.Ty>)
+  (caseName: String)
+  (fields: List<(Model.Ty * Site)>)
+  (result: Model.Ty)
+  : State =
+  let nodeId = Stdlib.Option.Option.Some at
+  let fieldTypes = Stdlib.List.map fields (fun (t, _) -> t)
+
+  match instantiateType s at typeName typeArgs with
+  | None ->
+    markAllUnknownsAsError
+      (missingType s at typeName) (Stdlib.List.push fieldTypes result)
+  | Some((enumType, s)) ->
+    let s = unify s nodeId Site.Expression enumType result
+    let (found, s) = declarationFor s nodeId enumType
+
+    match found with
+    | None -> s
+    | Some((_, args, decl)) ->
+      match decl.definition with
+      | Enum cases ->
+        match Stdlib.List.findFirst cases (fun case -> case.name == caseName) with
+        | None ->
+          addFinding
+            s
+            (Types.definiteError
+              IssueCode.UnknownEnumCase
+              nodeId
+              (some enumType)
+              (none ())
+              (Context.Identifier caseName))
+        | Some case ->
+          match Stdlib.List.zip case.fields fields with
+          | Some pairs ->
+            Stdlib.List.fold pairs s (fun s (declared, (slot, site)) ->
+              let (t, s) = fieldType s nodeId decl.typeParams args declared.typ
+              unify s nodeId site t slot)
+          | None ->
+            addFinding
+              s
+              (Types.definiteError
+                IssueCode.EnumFieldCountMismatch
+                nodeId
+                (none ())
+                (none ())
+                (Context.NamedArity(
+                  caseName,
+                  Types.count case.fields,
+                  Types.count fields
+                )))
+      | Record _ ->
+        addFinding
+          s
+          (Types.definiteError
+            IssueCode.TypeMismatch
+            nodeId
+            (none ())
+            (some enumType)
+            Context.EnumRequiredForConstruction)
+      | Alias _ ->
+        addFinding
+          s
+          (Types.definiteError
+            IssueCode.TypeMismatch
+            nodeId
+            (none ())
+            (some enumType)
+            Context.EnumRequiredForConstruction)
+
+/// Parse tuple-element access using the runtime's field-name rules: one to nine
+/// digits with no leading zero. The resulting index starts at one; the caller
+/// checks whether that position exists in the tuple.
+let tupleIndexOfFieldName (field: String) : Stdlib.Option.Option<Int> =
+  let chars = Stdlib.String.toList field
+
+  match chars with
+  | [] -> Stdlib.Option.Option.None
+  | c :: _ ->
+    if
+      c != '0'
+      && Stdlib.List.length chars <= 9
+      && Stdlib.List.all chars (fun c -> Stdlib.Char.isDigit c)
+    then
+      Stdlib.Result.toOption (Stdlib.Int.parse field)
+    else
+      Stdlib.Option.Option.None
+
+/// Resolve a tuple position or declared record field and connect its type to result.
+/// Return None only while the receiver is an inference variable. Invalid access
+/// reports a finding and marks the result unavailable to dependent checks.
+let getField
+  (s: State)
+  (at: Int64)
+  (record: Model.Ty)
+  (field: String)
+  (result: Model.Ty)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId record
+
+  match subject with
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some(markUnknownsAsError s result)
+  | TTuple(first, second, rest) ->
+    let elements = Stdlib.List.append [ first, second ] rest
+
+    match
+      (tupleIndexOfFieldName field)
+      |> Stdlib.Option.andThen (fun n -> Stdlib.List.getAt elements (n - 1))
+    with
+    | Some element ->
+      Stdlib.Option.Option.Some(unify s nodeId Site.RecordFieldAccess element result)
+    | None ->
+      Stdlib.Option.Option.Some(
+        markUnknownsAsError
+          (addFinding
+            s
+            (Types.definiteError
+              IssueCode.UnknownTupleElement
+              nodeId
+              (none ())
+              (some record)
+              (Context.Identifier field)))
+          result
+      )
+  | _ ->
+    let (found, s) = declarationFor s nodeId subject
+
+    match found with
+    | Some((_, args, decl)) ->
+      match decl.definition with
+      | Record fields ->
+        match Stdlib.List.findFirst fields (fun f -> f.name == field) with
+        | Some declared ->
+          let (t, s) = fieldType s nodeId decl.typeParams args declared.typ
+          Stdlib.Option.Option.Some(unify s nodeId Site.RecordFieldAccess t result)
+        | None ->
+          Stdlib.Option.Option.Some(
+            markUnknownsAsError
+              (addFinding
+                s
+                (Types.definiteError
+                  IssueCode.UnknownRecordField
+                  nodeId
+                  (none ())
+                  (some record)
+                  (Context.Identifier field)))
+              result
+          )
+      | _ ->
+        Stdlib.Option.Option.Some(
+          markUnknownsAsError
+            (addFinding
+              s
+              (Types.definiteError
+                IssueCode.TypeMismatch
+                nodeId
+                (none ())
+                (some record)
+                Context.RecordRequiredForFieldAccess))
+            result
+        )
+    | None ->
+      // A declared generic parameter must work for every allowed caller type,
+      // so it cannot assume record fields exist. Only inference variables can
+      // wait for a more specific type, and they were handled above.
+      Stdlib.Option.Option.Some(
+        markUnknownsAsError
+          (addFinding
+            s
+            (Types.definiteError
+              IssueCode.TypeMismatch
+              nodeId
+              (none ())
+              (some record)
+              Context.RecordRequiredForFieldAccess))
+          result
+      )
+
+/// Require a record and check each updated field against its declared type.
+/// Return None while the receiver type is unknown; an unavailable or non-record
+/// receiver also makes the replacement slots' unresolved types unavailable.
+let updateRecord
+  (s: State)
+  (at: Int64)
+  (record: Model.Ty)
+  (fields: List<(String * Model.Ty)>)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId record
+  let slots = Stdlib.List.map fields (fun (_, t) -> t)
+
+  match subject with
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some(markAllUnknownsAsError s slots)
+  | _ ->
+    let (found, s) = declarationFor s nodeId subject
+
+    match found with
+    | Some((_, args, decl)) ->
+      match decl.definition with
+      | Record declared ->
+        Stdlib.Option.Option.Some(
+          Stdlib.List.fold fields s (fun s (name, slot) ->
+            match Stdlib.List.findFirst declared (fun f -> f.name == name) with
+            | Some field ->
+              let (t, s) = fieldType s nodeId decl.typeParams args field.typ
+              unify s nodeId Site.Expression t slot
+            | None ->
+              addFinding
+                s
+                (Types.definiteError
+                  IssueCode.UnknownRecordField
+                  nodeId
+                  (none ())
+                  (some record)
+                  (Context.Identifier name)))
+        )
+      | _ ->
+        Stdlib.Option.Option.Some(
+          markAllUnknownsAsError
+            (addFinding
+              s
+              (Types.definiteError
+                IssueCode.TypeMismatch
+                nodeId
+                (none ())
+                (some record)
+                Context.RecordRequiredForUpdate))
+            slots
+        )
+    | None ->
+      Stdlib.Option.Option.Some(
+        markAllUnknownsAsError
+          (addFinding
+            s
+            (Types.definiteError
+              IssueCode.TypeMismatch
+              nodeId
+              (none ())
+              (some record)
+              Context.RecordRequiredForUpdate))
+          slots
+      )
+
+/// Check a pattern's case name, payload count, and payload types against the
+/// matched value's enum declaration. Wait for an unknown input type; on failure,
+/// mark payload unknowns unavailable so case-body checks do not compound the error.
+let enumPattern
+  (s: State)
+  (at: Int64)
+  (scrutinee: Model.Ty)
+  (caseName: String)
+  (fields: List<Model.Ty>)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId scrutinee
+
+  let failWith (s: State) (finding: Model.Finding) : Stdlib.Option.Option<State> =
+    Stdlib.Option.Option.Some(markAllUnknownsAsError (addFinding s finding) fields)
+
+  match subject with
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some(markAllUnknownsAsError s fields)
+  | _ ->
+    let (found, s) = declarationFor s nodeId subject
+
+    match found with
+    | Some((_, args, decl)) ->
+      match decl.definition with
+      | Enum cases ->
+        match Stdlib.List.findFirst cases (fun case -> case.name == caseName) with
+        | None ->
+          failWith
+            s
+            (Types.definiteError
+              IssueCode.UnknownEnumCase
+              nodeId
+              (some scrutinee)
+              (none ())
+              (Context.Identifier caseName))
+        | Some case ->
+          match Stdlib.List.zip case.fields fields with
+          | Some pairs ->
+            Stdlib.Option.Option.Some(
+              Stdlib.List.fold pairs s (fun s (declared, slot) ->
+                let (t, s) = fieldType s nodeId decl.typeParams args declared.typ
+                unify s nodeId Site.MatchPattern t slot)
+            )
+          | None ->
+            failWith
+              s
+              (Types.definiteError
+                IssueCode.EnumFieldCountMismatch
+                nodeId
+                (none ())
+                (none ())
+                (Context.NamedArity(
+                  caseName,
+                  Types.count case.fields,
+                  Types.count fields
+                )))
+      | _ ->
+        failWith
+          s
+          (Types.definiteError
+            IssueCode.InvalidPattern
+            nodeId
+            (some scrutinee)
+            (none ())
+            Context.EnumRequiredForPattern)
+    | None ->
+      failWith
+        s
+        (Types.definiteError
+          IssueCode.InvalidPattern
+          nodeId
+          (some scrutinee)
+          (none ())
+          Context.EnumRequiredForPattern)
+
+
+// --------------------
+// Check operator operands, builtin unwrap, and postfix ?.
+// --------------------
+
+/// Recognize integer types of every supported width, plus Float.
+let isNumeric (t: Model.Ty) : Bool =
+  match t with
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
+  | TInt64
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TInt
+  | TFloat -> true
+  | _ -> false
+
+/// Recognize signed integers and Float, the types accepted by unary minus.
+let isSignedNumeric (t: Model.Ty) : Bool =
+  match t with
+  | TInt8
+  | TInt16
+  | TInt32
+  | TInt64
+  | TInt128
+  | TInt
+  | TFloat -> true
+  | _ -> false
+
+/// Identify bitwise and shift operators, whose operands must be integers.
+let isBitwise (operation: LanguageTools.ProgramTypes.InfixFnName) : Bool =
+  match operation with
+  | BitwiseAnd
+  | BitwiseOr
+  | BitwiseXor
+  | ShiftLeft
+  | ShiftRight -> true
+  | _ -> false
+
+/// Check which numeric types this operator supports at runtime. Exponentiation
+/// excludes 128-bit integers, and bitwise operators exclude Float.
+let supports (operation: LanguageTools.ProgramTypes.InfixFnName) (t: Model.Ty) : Bool =
+  match operation with
+  | ArithmeticPower ->
+    match t with
+    | TInt128 -> false
+    | TUInt128 -> false
+    | _ -> isNumeric t
+  | _ ->
+    if isBitwise operation then
+      match t with
+      | TFloat -> false
+      | _ -> isNumeric t
+    else
+      isNumeric t
+
+/// Check a numeric operator's operand after resolving aliases. Wait for an
+/// inference variable; report a definite error for a known unsupported type.
+let operandFor
+  (s: State)
+  (at: Int64)
+  (operation: LanguageTools.ProgramTypes.InfixFnName)
+  (operand: Model.Ty)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId operand
+
+  match subject with
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some s
+  | _ ->
+    if supports operation subject then
+      Stdlib.Option.Option.Some s
+    else
+      Stdlib.Option.Option.Some(
+        addFinding
+          s
+          (Types.definiteError
+            IssueCode.InvalidInfixOperand
+            nodeId
+            (none ())
+            (some subject)
+            (Context.InfixOperandUnsupported operation))
+      )
+
+/// Require a signed integer or Float for unary minus, waiting if its type is unknown.
+let negate (s: State) (at: Int64) (operand: Model.Ty) : Stdlib.Option.Option<State> =
+  unaryOperand s at operand isSignedNumeric Context.UnaryMinusOperandNotSignedNumeric
+
+/// Require an integer for bitwise NOT, waiting if its type is unknown.
+let bitwiseNot (s: State) (at: Int64) (operand: Model.Ty) : Stdlib.Option.Option<State> =
+  unaryOperand s at operand
+    (fun t -> isNumeric t && t != Model.Ty.TFloat)
+    Context.BitwiseNotOperandNotInteger
+
+/// Resolve a unary operand and check it with accepts. Unknown inference variables
+/// wait; error placeholders add no finding; known rejected types use the supplied context.
+let unaryOperand
+  (s: State)
+  (at: Int64)
+  (operand: Model.Ty)
+  (accepts: Model.Ty -> Bool)
+  (context: Context)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId operand
+
+  match subject with
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some s
+  | _ ->
+    if accepts subject then
+      Stdlib.Option.Option.Some s
+    else
+      Stdlib.Option.Option.Some(
+        addFinding
+          s
+          (Types.definiteError
+            IssueCode.InvalidInfixOperand
+            nodeId
+            (none ())
+            (some subject)
+            context)
+      )
+
+/// Determine builtin unwrap's result from the Some payload of standard Option
+/// or the Ok payload of standard Result. Wait for an unknown argument type;
+/// other argument types produce a warning that this use cannot be checked.
+let unwrap
+  (s: State)
+  (at: Int64)
+  (fn: LanguageTools.ProgramTypes.FQFnName.FQFnName)
+  (arg: Model.Ty)
+  (result: Model.Ty)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId arg
+
+  match subject with
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some(markUnknownsAsError s result)
+  | TCustom(name, args) ->
+    match args with
+    | [ inner ] ->
+      if name == s.env.optionType then
+        Stdlib.Option.Option.Some(unify s nodeId Site.Expression inner result)
+      else
+        Stdlib.Option.Option.Some(unwrapUnknown s at fn result)
+    | [ ok, _ ] ->
+      if name == s.env.resultType then
+        Stdlib.Option.Option.Some(unify s nodeId Site.Expression ok result)
+      else
+        Stdlib.Option.Option.Some(unwrapUnknown s at fn result)
+    | _ -> Stdlib.Option.Option.Some(unwrapUnknown s at fn result)
+  | _ -> Stdlib.Option.Option.Some(unwrapUnknown s at fn result)
+
+/// Warn that the checker cannot determine this unwrap call's result and mark
+/// its result unknowns unavailable, avoiding further errors based on that type.
+let unwrapUnknown
+  (s: State)
+  (at: Int64)
+  (fn: LanguageTools.ProgramTypes.FQFnName.FQFnName)
+  (result: Model.Ty)
+  : State =
+  markUnknownsAsError
+    (addFinding
+      s
+      (Types.warning
+        IssueCode.UnsupportedConstruct
+        (Stdlib.Option.Option.Some at)
+        (Context.Untrusted(
+          Types.fnNameRef fn,
+          UntrustedBuiltin.UnwrapArgumentUnknown
+        ))))
+    result
+
+/// The standard container and payload types recognized for postfix ?.
+type UnwrapContainer =
+  /// Some carries a value; None can be returned early without a payload.
+  | OptionOf of value: Model.Ty
+  /// Ok carries a value; Error's payload must match the enclosing return type's error payload.
+  | ResultOf of value: Model.Ty * error: Model.Ty
+  /// Not a standard Option or Result with the expected number of type arguments.
+  | NotContainer
+
+/// Recognize standard Option and Result by their package hashes and argument counts.
+/// Callers resolve substitutions and aliases before using this helper.
+let unwrapContainer (s: State) (t: Model.Ty) : UnwrapContainer =
+  match t with
+  | TCustom(name, [ value ]) ->
+    if name == s.env.optionType then UnwrapContainer.OptionOf value
+    else UnwrapContainer.NotContainer
+  | TCustom(name, [ value, error ]) ->
+    if name == s.env.resultType then UnwrapContainer.ResultOf(value, error)
+    else UnwrapContainer.NotContainer
+  | _ -> UnwrapContainer.NotContainer
+
+/// Report a definite postfix-? error at the operator's node with the supplied reason.
+let invalidUnwrap (s: State) (at: Int64) (context: Context) : State =
+  addFinding
+    s
+    (Types.definiteError
+      IssueCode.InvalidUnwrap
+      (Stdlib.Option.Option.Some at)
+      (none ())
+      (none ())
+      context)
+
+/// Check postfix ?: connect inner to the operand's successful payload, and require
+/// the enclosing return type to accept its None or Error. Successful payload types
+/// may differ, but both sides must use the same container and Result error type.
+/// A known return type can determine an unknown operand's container, as in
+/// fun x -> Some (x? + 1). Keep unresolved checks queued at the ? node and suppress
+/// extra errors when either side is unavailable because of an earlier problem.
+let checkUnwrapReturn
+  (s: State)
+  (c: Model.Constraint)
+  (at: Int64)
+  (operand: Model.Ty)
+  (inner: Model.Ty)
+  (returned: Model.Ty)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (operandType, s) = expand s nodeId operand
+
+  match operandType with
+  | TError -> Stdlib.Option.Option.Some(markUnknownsAsError s inner)
+  | TVar _ ->
+    let (returnedType, s) = expand s nodeId returned
+
+    match returnedType with
+    | TVar _ -> Stdlib.Option.Option.None
+    | TError -> Stdlib.Option.Option.Some(markUnknownsAsError s inner)
+    | _ ->
+      match unwrapContainer s returnedType with
+      | OptionOf _ ->
+        Stdlib.Option.Option.Some(
+          unify
+            s
+            nodeId
+            Site.Expression
+            (Model.Ty.TCustom(s.env.optionType, [ inner ]))
+            operand
+        )
+      | ResultOf(_, error) ->
+        Stdlib.Option.Option.Some(
+          unify
+            s
+            nodeId
+            Site.Expression
+            (Model.Ty.TCustom(s.env.resultType, [ inner, error ]))
+            operand
+        )
+      | NotContainer ->
+        Stdlib.Option.Option.Some(
+          markUnknownsAsError
+            (invalidUnwrap s at Context.UnwrapRequiresMatchingReturnType)
+            inner
+        )
+  | _ ->
+    let operandContainer = unwrapContainer s operandType
+
+    match operandContainer with
+    | NotContainer ->
+      Stdlib.Option.Option.Some(
+        markUnknownsAsError
+          (invalidUnwrap s at Context.UnwrapRequiresOptionOrResult) inner
+      )
+    | _ ->
+      let s =
+        match operandContainer with
+        | OptionOf value -> unify s nodeId Site.Expression value inner
+        | ResultOf(value, _) -> unify s nodeId Site.Expression value inner
+        | NotContainer -> s
+
+      let (returnedType, s) = expand s nodeId returned
+
+      match returnedType with
+      // The payload assignment above is useful even while the return type is
+      // unknown. Keep the updated state and queue the remaining check ourselves.
+      | TVar _ -> Stdlib.Option.Option.Some(queueDeferred s c)
+      | TError -> Stdlib.Option.Option.Some s
+      | _ ->
+        match (operandContainer, unwrapContainer s returnedType) with
+        | (OptionOf _, OptionOf _) -> Stdlib.Option.Option.Some s
+        | (ResultOf(_, error), ResultOf(_, returnedError)) ->
+          Stdlib.Option.Option.Some(
+            unify s nodeId Site.UnwrappedError returnedError error
+          )
+        | _ ->
+          Stdlib.Option.Option.Some(
+            invalidUnwrap s at Context.UnwrapRequiresMatchingReturnType
+          )

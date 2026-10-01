@@ -103,3 +103,84 @@ let parsePTSourceFileWithOps
 
     (sourceFile, ops) |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Parse package declarations into written types, or return syntax diagnostics.
+let packageToWrittenTypes
+  (source: String)
+  : Stdlib.Result.Result<WrittenTypes.ParsedFile, List<(Parser.Range * String)>> =
+  Builtin.parserParsePackageToWrittenTypes source
+
+
+/// Convert a top-level declaration to a module member for shared lowering.
+let toModuleDeclaration
+  (declaration: WrittenTypes.SourceFile.SourceFileDeclaration)
+  : WrittenTypes.ModuleDeclaration.Declaration =
+  match declaration with
+  | Type typ -> WrittenTypes.ModuleDeclaration.Declaration.Type typ
+  | Function fn -> WrittenTypes.ModuleDeclaration.Declaration.Function fn
+  | Value value -> WrittenTypes.ModuleDeclaration.Declaration.Value value
+  | Module modul -> WrittenTypes.ModuleDeclaration.Declaration.SubModule modul
+
+
+/// Lower a module to package operations without storing them. Resolve references
+/// within the module and against <param context>, then stabilize recursive hashes.
+let moduleToPackageOps
+  (context: NameResolver.NRContext)
+  (rootModule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+  : (List<ProgramTypes.PackageOp> * List<WrittenTypes.UnresolvedName>) =
+  // Provisional ops use unique location hashes, so every declaration can resolve
+  // every other without touching the store.
+  let (_, provisionalOps, _) =
+    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper context rootModule
+
+  let pm = ProgramTypes.PackageManager.withExtraOps context.pm provisionalOps
+
+  let (_, ops, unresolvedNames) =
+    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
+      { context with pm = pm }
+      rootModule
+
+  (PackageManager.stabilizeHashes ops, unresolvedNames)
+
+
+/// Parse package source under <param owner> and <param modules>, resolving against
+/// <param branchId> and the other declarations in the source. Return stabilized
+/// operations, or an error for invalid syntax or unresolved names.
+let packageSourceToOps
+  (branchId: Uuid)
+  (owner: String)
+  (modules: List<String>)
+  (source: String)
+  : Stdlib.Result.Result<List<ProgramTypes.PackageOp>, String> =
+  match packageToWrittenTypes source with
+  | Error diagnostics ->
+    let messages = Stdlib.List.map diagnostics (fun (_, message) -> message)
+    Stdlib.Result.Result.Error(Stdlib.String.join messages "; ")
+  | Ok(SourceFile sourceFile) ->
+    let rootModule =
+      WrittenTypes.ModuleDeclaration.ModuleDeclaration
+        { range = sourceFile.range
+          name = (sourceFile.range, "__module__")
+          declarations =
+            Stdlib.List.map sourceFile.declarations (fun d -> toModuleDeclaration d)
+          keywordModule = sourceFile.range }
+
+    let context =
+      NameResolver.NRContext
+        { onMissing = NameResolver.OnMissing.Allow
+          pm = PackageManager.pm ()
+          branchId = branchId
+          owner = owner
+          currentModule = modules }
+
+    let (ops, unresolvedNames) = moduleToPackageOps context rootModule
+
+    if Stdlib.List.isEmpty unresolvedNames then
+      Stdlib.Result.Result.Ok ops
+    else
+      let names =
+        unresolvedNames
+        |> Stdlib.List.map (fun (_, parts, _) -> Stdlib.String.join parts ".")
+        |> Stdlib.List.unique
+      Stdlib.Result.Result.Error("unresolved: " ++ Stdlib.String.join names ", ")

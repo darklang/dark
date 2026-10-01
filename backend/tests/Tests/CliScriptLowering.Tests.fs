@@ -204,13 +204,223 @@ let private testMiddleStatementErrorStopsTheScript =
   }
 
 
+/// Script and eval lowering both produce a list of top-level expressions. Every
+/// expression before the last must be Unit, just as in a function's body.
+let private testTopLevelSequencing =
+  [ "script", false; "eval", true ]
+  |> List.map (fun (mode, isEval) ->
+    let run code =
+      task {
+        let! state = executionStateFor pmPT false Map.empty
+        let! parsed =
+          (if isEval then
+             Cli.parseCliExpr state code
+           else
+             Cli.parseCliScript state "Tests" "sequence" code)
+          |> Ply.toTask
+        let mod' =
+          match parsed with
+          | Ok mod' -> mod'
+          | Error diags -> failtest $"Parse failed: %A{diags}"
+        let source =
+          if isEval then Cli.EvalExpression code else Cli.RunScript("t", code)
+        let! result = Cli.execute state mod' [] Map.empty source |> Ply.toTask
+        return result, state.test.sideEffectCount
+      }
+
+    let rejects label code expectedEffects =
+      testTask label {
+        let! result, effects = run code
+        match result with
+        | Error(error, _) ->
+          Expect.equal
+            error
+            (RT.RuntimeError.Statement(
+              RT.RuntimeError.Statements.FirstExpressionMustBeUnit(
+                LibExecution.ValueType.unit,
+                LibExecution.ValueType.int64,
+                RT.DInt64 1L
+              )
+            ))
+            "a non-Unit intermediate uses the ordinary statement error"
+        | Ok value -> failtest $"expected a statement error, got %A{value}"
+        Expect.equal effects expectedEffects "nothing after the error executes"
+      }
+
+    let accepts label code expected =
+      testTask label {
+        let! result, _ = run code
+        Expect.equal
+          result
+          (Ok expected)
+          "the final expression determines the result"
+      }
+
+    testList
+      mode
+      [ rejects "newline sequence rejects a non-Unit intermediate" "1L\n\"done\"" 0
+        rejects
+          "a non-Unit middle expression stops later effects"
+          "Builtin.testIncrementSideEffectCounter ()\n1L\nBuiltin.testIncrementSideEffectCounter \"done\""
+          1
+        accepts "Unit intermediate" "()\n\"done\"" (RT.DString "done")
+        accepts "explicit discard" "let _ = 1L\n\"done\"" (RT.DString "done")
+        accepts "non-Unit final expression" "1L" (RT.DInt64 1L)
+        accepts "Unit final expression" "()\n()" RT.DUnit ])
+  |> testList "top-level sequencing"
+
+
+/// The checker sees declarations and expressions together, without running either.
+let private scriptTypeChecking =
+  let rejects name source =
+    testTask name {
+      let! state = executionStateFor pmPT false Map.empty
+      let! parsed = Cli.parseCliScript state "Tests" "" source |> Ply.toTask
+      let script =
+        match parsed with
+        | Ok script -> script
+        | Error errors -> failtest $"parse failed: %A{errors}"
+      let! report = Cli.checkScript state script |> Ply.toTask
+      Expect.isSome report "a definite error prevents execution"
+      Expect.equal state.test.sideEffectCount 0 "checking never executes script code"
+    }
+  let accepts name source =
+    testTask name {
+      let! state = executionStateFor pmPT false Map.empty
+      let! parsed = Cli.parseCliScript state "Tests" "" source |> Ply.toTask
+      let script =
+        match parsed with
+        | Ok script -> script
+        | Error errors -> failtest $"parse failed: %A{errors}"
+      let! report = Cli.checkScript state script |> Ply.toTask
+      Expect.isNone report "checked and incomplete scripts may execute"
+      Expect.equal state.test.sideEffectCount 0 "checking never executes script code"
+    }
+  testList
+    "script type checking"
+    [ rejects
+        "checks unused functions before effects"
+        "let bad () : Int = true\nBuiltin.testIncrementSideEffectCounter ()\n0L"
+      rejects "checks unused values" "val bad = 1L + true\n0L"
+      rejects
+        "checks generic field access before effects"
+        "let bad<'a> (x: 'a) : Int = x.field\nBuiltin.testIncrementSideEffectCounter ()\n0L"
+      rejects
+        "checks generic tuple access before effects"
+        "let bad<'a> (x: 'a) : Int = x.1\nBuiltin.testIncrementSideEffectCounter ()\n0L"
+      rejects
+        "checks top-level expressions before effects"
+        "Builtin.testIncrementSideEffectCounter ()\n1L + true"
+      rejects "checks separate top-level sequencing" "1L\n0L"
+      rejects
+        "checks a definite error alongside an incomplete declaration"
+        "let missing () : Int = Unavailable.fn ()\n1L + true"
+      accepts
+        "script declarations form one environment"
+        "module Local =\n  type Count = Int64\n  val initial = 2L\n  let plus (n: Count) : Count = n + initial\nLocal.plus 3L"
+      accepts
+        "mutual recursion"
+        "let even (n: Int) : Bool = if n == 0 then true else odd (n - 1)\nlet odd (n: Int) : Bool = if n == 0 then false else even (n - 1)\neven 4"
+      accepts
+        "incomplete unused declarations do not block execution"
+        "let unused () : Int = Unavailable.fn ()\n42L"
+      accepts "keeps an arbitrary final expression type" "()\n\"done\"" ]
+
+/// Script values use the same interpreter as expressions, and are initialized once.
+let private scriptValueExecution =
+  let accepts name code expected expectedEffects =
+    testTask name {
+      let! state = executionStateFor pmPT false Map.empty
+      let! script = parse code
+      let! report = Cli.checkScript state script |> Ply.toTask
+      Expect.isNone report "the checker accepts the script"
+      Expect.equal state.test.sideEffectCount 0 "checking does not evaluate values"
+      let! result =
+        Cli.execute state script [] Map.empty (Cli.RunScript("values", code))
+        |> Ply.toTask
+      Expect.equal result (Ok expected) "computed values reach their callers"
+      Expect.equal state.test.sideEffectCount expectedEffects "initializers run once"
+    }
+
+  testList
+    "script value execution"
+    [ accepts "arithmetic" "val n = 1L + 2L\nn + 1L" (RT.DInt64 4L) 0
+      accepts
+        "lambda and value alias"
+        "val inc = fun x -> x + 1L\nval alias = inc\nalias 2L"
+        (RT.DInt64 3L)
+        0
+      accepts
+        "interpolation"
+        "val text = $\"hello {\"world\"}\"\ntext"
+        (RT.DString "hello world")
+        0
+      accepts
+        "forward dependency through a function is evaluated once"
+        "val first = later ()\nlet later () : Int64 = second\nval second = Builtin.testIncrementSideEffectCounter 2L\nfirst + second"
+        (RT.DInt64 4L)
+        1
+      accepts
+        "submodule values"
+        "module Local =\n  val n = 1L + 2L\nLocal.n + 1L"
+        (RT.DInt64 4L)
+        0
+      accepts
+        "unused values are initialized"
+        "val unused = Builtin.testIncrementSideEffectCounter 2L\n0L"
+        (RT.DInt64 0L)
+        1
+      testTask "a failed initializer stops later effects" {
+        let code =
+          "val bad = 1L / 0L\nval later = Builtin.testIncrementSideEffectCounter 2L\nBuiltin.testIncrementSideEffectCounter 3L"
+        let! state = executionStateFor pmPT false Map.empty
+        let! script = parse code
+        let! result =
+          Cli.execute state script [] Map.empty (Cli.RunScript("values", code))
+          |> Ply.toTask
+        Expect.isError result "the initializer's error reaches the caller"
+        Expect.equal state.test.sideEffectCount 0 "execution stops at the error"
+      }
+      testTask "cyclic initializers fail without substituting Unit" {
+        let code = "val first = second\nval second = first\nfirst"
+        let! state = executionStateFor pmPT false Map.empty
+        let! script = parse code
+        let! result =
+          Cli.execute state script [] Map.empty (Cli.RunScript("values", code))
+          |> Ply.toTask
+        match result with
+        | Error(RT.RuntimeError.ValueNotFound _, _) -> ()
+        | other -> failtest $"Expected an unavailable cyclic value, got %A{other}"
+      }
+      testTask "initializers inherit script permissions" {
+        let code = "val now = Builtin.timeNowMs ()\nnow"
+        let! state = executionStateFor pmPT false Map.empty
+        let! script = parse code
+        let restricted =
+          LibExecution.Execution.restrictRun
+            LibExecution.Permissions.Policy.denyAll
+            state
+        let! result =
+          Cli.execute restricted script [] Map.empty (Cli.RunScript("values", code))
+          |> Ply.toTask
+        Expect.isError result "a value initializer cannot bypass the run policy"
+        Expect.isTrue
+          (state.deniedRequests
+           |> Seq.exists (fun denial ->
+             denial.layer = LibExecution.Permissions.Layer.Run))
+          "the failure comes from the inherited run policy"
+      } ]
+
 let tests =
   testList
     "CliScriptLowering"
-    [ testUnresolvedRefsDoNotCollide
+    [ scriptTypeChecking
+      scriptValueExecution
+      testUnresolvedRefsDoNotCollide
       testIdenticalDeclarationsShareAHash
       testMutuallyRecursiveDeclarations
       testScriptTypeUnifiesWithPackageType
       testDeclarationsAreNameableAfterLowering
       testRegistryDoesNotDisplaceStoredNames
-      testMiddleStatementErrorStopsTheScript ]
+      testMiddleStatementErrorStopsTheScript
+      testTopLevelSequencing ]

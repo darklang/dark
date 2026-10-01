@@ -721,6 +721,7 @@ let rec private inferBiParams
 /// computation-expression version. Getting all the way through, which is the usual case, allocates
 /// nothing: top-level so nothing is captured, and a struct tuple so the return isn't an allocation.
 let rec private checkBiParamsSync
+  (types : Types)
   (i : int)
   (ps : List<BuiltInParam>)
   (args : Dval[])
@@ -733,13 +734,14 @@ let rec private checkBiParamsSync
     if argIdx >= args.Length then
       struct (i, ps, argIdx, tst)
     else
-      match TypeChecker.tryUnifySync tst p.typ args[argIdx] with
+      match TypeChecker.tryUnifyWithAliasesSync types tst p.typ args[argIdx] with
       | ValueSome updatedTst ->
-        checkBiParamsSync (i + 1) pRest args (argIdx + 1) updatedTst
+        checkBiParamsSync types (i + 1) pRest args (argIdx + 1) updatedTst
       | ValueNone -> struct (i, ps, argIdx, tst)
 
 /// As [checkBiParamsSync], for package fns.
 let rec private checkPkgParamsSync
+  (types : Types)
   (i : int)
   (ps : List<PackageFn.Parameter>)
   (args : ArgSeq)
@@ -751,8 +753,9 @@ let rec private checkPkgParamsSync
     match ArgSeq.uncons args with
     | ValueNone -> struct (i, ps, args, tst)
     | ValueSome(struct (a, aRest)) ->
-      match TypeChecker.tryUnifySync tst p.typ a with
-      | ValueSome updatedTst -> checkPkgParamsSync (i + 1) pRest aRest updatedTst
+      match TypeChecker.tryUnifyWithAliasesSync types tst p.typ a with
+      | ValueSome updatedTst ->
+        checkPkgParamsSync types (i + 1) pRest aRest updatedTst
       | ValueNone -> struct (i, ps, args, tst)
 
 
@@ -922,7 +925,9 @@ let private finishBuiltin
     vm.stats.recordBuiltin (fn.name.name, elapsed)
 
   let biResAlloc = allocNow vm
-  match TypeChecker.tryUnifySync tst fn.returnType result with
+  match
+    TypeChecker.tryUnifyWithAliasesSync exeState.types tst fn.returnType result
+  with
   | ValueSome _ ->
     recordStage vm ApplyStage.BiCheckResult biResAlloc
     Ply(traceBuiltinResult exeState currentFrame fn allArgs result)
@@ -1315,7 +1320,13 @@ and private callBuiltinResolvedSlow
   let biTcRunAlloc = allocNow vm
   let already = List.length applicable.argsSoFar
   let struct (biNextI, biRestPs, biRestArgIdx, biTst) =
-    checkBiParamsSync already (List.skip already fn.parameters) newArgDvals 0 tst
+    checkBiParamsSync
+      exeState.types
+      already
+      (List.skip already fn.parameters)
+      newArgDvals
+      0
+      tst
   tst <- biTst
   recordStage vm ApplyStage.BiTypeCheckRun biTcRunAlloc
 
@@ -1777,7 +1788,7 @@ let private callPackageViaFrame
 
   let pkgTcRunAlloc = allocNow vm
   let struct (pkgNextI, pkgRestPs, pkgRestArgs, pkgTst) =
-    checkPkgParamsSync alreadyApplied pkgParams newArgDvals tst
+    checkPkgParamsSync exeState.types alreadyApplied pkgParams newArgDvals tst
   tst <- pkgTst
   recordStage vm ApplyStage.PkgTypeCheckRun pkgTcRunAlloc
 
@@ -3027,7 +3038,13 @@ let private checkFrameReturnType
     let tst = currentFrame.typeSymbolTable
     // Every frame return checks its result, so the same sync-first treatment as the argument checks
     // applies: skip the bind when the answer needs no type lookup.
-    match TypeChecker.tryUnifySync tst expectedReturnType resultOfFrame with
+    match
+      TypeChecker.tryUnifyWithAliasesSync
+        exeState.types
+        tst
+        expectedReturnType
+        resultOfFrame
+    with
     | ValueSome _ ->
       recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
       completedUnit

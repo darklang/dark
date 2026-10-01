@@ -380,6 +380,8 @@ module ExecutionError =
   type ExecutionError =
     | Parse of ParseError.ParseError
     | Runtime of RT.RuntimeError.Error
+    /// The Dark checker report, kept structured for CLI rendering.
+    | TypeCheck of Dval
     /// A runtime error reclassified after the run (see `classify`), carrying
     /// what the retry prompt needs. Deliberately not a RuntimeError case: the
     /// classification and the suggested rule are CLI presentation.
@@ -442,26 +444,93 @@ module ExecutionError =
       match err with
       | Parse pe -> "Parse", [ ParseError.toDT pe ]
       | Runtime rte -> "Runtime", [ RT2DT.RuntimeError.toDT rte ]
+      | TypeCheck report -> "TypeCheck", [ report ]
       | Denied d -> "Denied", [ permissionDeniedToDT d ]
       | Unhandled u -> "Unhandled", [ unhandledToDT u ]
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-/// Parse guest source (`run`/`eval`): the first diagnostic, rendered against
-/// `source`, becomes the `ParseError` the caller reports.
-let private parseGuest
+/// Check script declarations and top-level expressions without executing them.
+/// Represent top-level expressions as unsaved value declarations for checking.
+/// Values introduce no function scope, so top-level `?` is correctly rejected.
+/// Return a Failed report, or None when execution may proceed.
+let checkScript
+  (state : RT.ExecutionState)
+  (script : Utils.CliScript.PTCliScriptModule)
+  : Ply<Option<Dval>> =
+  uply {
+    let lastExpression = List.length script.exprs - 1
+    let expressionOps =
+      script.exprs
+      |> List.mapi (fun index expr ->
+        let body =
+          if index = lastExpression then
+            expr
+          else
+            // Every top-level expression except the last must return Unit.
+            // Wrap it in a statement so the checker enforces this requirement.
+            // Fresh IDs keep the generated nodes distinct from source nodes.
+            PT.EStatement(gid (), expr, PT.EUnit(gid ()))
+        PT.PackageOp.AddValue
+          { hash = PT.Hash $"<script-expression:{index}>"
+            description = ""
+            body = body })
+    let ops =
+      List.concat
+        [ (script.types @ script.submodules.types) |> List.map PT.PackageOp.AddType
+          (script.values @ script.submodules.values)
+          |> List.map PT.PackageOp.AddValue
+          (script.fns @ script.submodules.fns) |> List.map PT.PackageOp.AddFn
+          expressionOps ]
+    // Convert each op independently. If one is too deeply nested to convert,
+    // skip it so the checker can still report errors in the remaining ops.
+    let convertedOps =
+      ops
+      |> List.choose (fun op ->
+        try
+          Some(PT2DT.PackageOp.toDT op)
+        with :? System.InsufficientExecutionStackException ->
+          None)
+    try
+      let fnName =
+        FQFnName.fqPackage (
+          PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkPackageOps ()
+        )
+      let args =
+        DList(VT.customType (PT2DT.PackageOp.typeName ()) [], convertedOps)
+        |> NEList.singleton
+      let! reportResult = Exe.executeFunction state fnName [] args
+      match reportResult with
+      | Ok(DRecord(_, _, _, fields) as report) ->
+        match Map.tryFind "verdict" fields with
+        | Some(DEnum(_, _, _, "Failed", [])) -> return Some report
+        | _ -> return None
+      // Only definite type errors block execution. Runtime checks always apply.
+      | _ -> return None
+    with _ ->
+      return None
+  }
+
+/// Parse and type-check the script using the CLI's access to package declarations.
+/// This does not execute script code. The script's permission policy is applied
+/// separately when it runs.
+let private prepareGuest
+  (state : RT.ExecutionState)
   (parse : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>>)
   (source : string)
-  : Ply<Result<Utils.CliScript.PTCliScriptModule, ParseError.ParseError>> =
+  : Ply<Result<Utils.CliScript.PTCliScriptModule, ExecutionError.ExecutionError>> =
   uply {
     match! parse with
-    | Ok m -> return Ok m
+    | Ok script ->
+      match! checkScript state script with
+      | Some report -> return Error(ExecutionError.TypeCheck report)
+      | None -> return Ok script
     | Error diagnostics ->
       let message =
         match diagnostics with
         | d :: _ -> P.renderDiagnostic source d
         | [] -> "Parse error"
-      return Error(ParseError.Message message)
+      return Error(ExecutionError.Parse(ParseError.Message message))
   }
 
 /// Run a guest entry point (`run`/`eval`), turning an escaping exception into
@@ -531,12 +600,7 @@ let execute
         [ mod'.types |> List.map PT2RT.PackageType.toRT
           mod'.submodules.types |> List.map PT2RT.PackageType.toRT ]
 
-    let values =
-      List.concat
-        [ mod'.values
-          |> List.map (PT2RT.PackageValue.toRT parentState.values.builtIn)
-          mod'.submodules.values
-          |> List.map (PT2RT.PackageValue.toRT parentState.values.builtIn) ]
+    let values = mod'.values @ mod'.submodules.values
 
     let fns =
       List.concat
@@ -556,11 +620,10 @@ let execute
       |> List.choose (function
         | PT.PackageOp.AddType t -> Some(PT2RT.PackageType.toRT t)
         | _ -> None)
-    // Branch VALUES are deliberately NOT grafted here: the author path folds their
-    // content into package_values + evaluates them (rt_dval), so getValue reads the
-    // interpreter-computed Dval. The graft's PT2RT.PackageValue.toRT uses
-    // evalConstantExpr (constants only) and would SHADOW that with an empty Dval for
-    // a fn-call body. Name resolution stays branch-isolated via the SetName overlay.
+    // Load branch values from the database, where their evaluated results are stored.
+    // Adding them through PackageValue.toRT would override those results with a
+    // conversion that only supports constants, breaking values initialized by calls.
+    // Branch-specific name resolution still selects the correct value hash.
     let branchFns =
       branchOps
       |> List.choose (function
@@ -570,14 +633,55 @@ let execute
     // TODO we should probably use LibPM's in-memory grafting thing instead of this
     // (no need for RT.PM.withExtras to exist, I think)
     let pm =
-      pmRT
-      |> PackageManager.withExtras (branchTypes @ types) values (branchFns @ fns)
+      pmRT |> PackageManager.withExtras (branchTypes @ types) [] (branchFns @ fns)
 
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
     let traceID = AT.TraceID.create ()
     let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
 
-    let state = childState parentState pm tracer.executionTracing program
+    // Initialize referenced script values when they are read, even inside functions.
+    // Reuse successful results so each initializer runs only once.
+    // If a value is already being initialized, return None to stop the dependency
+    // cycle; the caller reports it as a missing value.
+    let definitions =
+      values
+      |> List.map (fun value -> PT2RT.Hash.toRT value.hash, value)
+      |> Map.ofList
+    let evaluated = Dictionary<RT.Hash, RT.PackageValue.PackageValue>()
+    let evaluating = HashSet<RT.Hash>()
+
+    let rec scriptState () : RT.ExecutionState =
+      childState
+        parentState
+        { pm with getValue = getValue }
+        tracer.executionTracing
+        program
+
+    and getValue (hash : RT.Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
+      uply {
+        match evaluated.TryGetValue hash with
+        | true, value -> return Some value
+        | false, _ ->
+          match Map.tryFind hash definitions with
+          | None -> return! pm.getValue hash
+          | Some value ->
+            if not (evaluating.Add hash) then
+              return None
+            else
+              try
+                let instructions = PT2RT.Expr.toRT Map.empty 0 None value.body
+                match! Exe.executeExpr (scriptState ()) instructions with
+                | Ok body ->
+                  let value : RT.PackageValue.PackageValue =
+                    { hash = hash; body = body }
+                  evaluated.Add(hash, value)
+                  return Some value
+                | Error(error, _) -> return raiseUntargetedRTE error
+              finally
+                evaluating.Remove hash |> ignore<bool>
+      }
+
+    let state = scriptState ()
 
     match mod'.exprs with
     | [] ->
@@ -587,6 +691,20 @@ let execute
         |> raiseUntargetedRTE
     | exprs ->
       let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
+      // Initialize values before top-level expressions. Dependencies may run first.
+      let valueInstrs =
+        values
+        |> List.map (fun value ->
+          PT.ELet(
+            gid (),
+            PT.LPWildcard(gid ()),
+            PT.EValue(
+              gid (),
+              PT.NameResolution.ok (PT.FQValueName.Package value.hash)
+            ),
+            PT.EUnit(gid ())
+          )
+          |> PT2RT.Expr.toRT Map.empty 0 None)
 
       // Awaited in order, and the first error ends the script.
       let rec runInOrder (instrs : List<RT.Instructions>) : Ply<RT.ExecutionResult> =
@@ -595,12 +713,18 @@ let execute
           | [] -> return Ok DUnit
           | [ last ] -> return! Exe.executeExpr state last
           | instr :: rest ->
+            // Separate top-level expressions obey the same sequencing rule as
+            // EStatement inside a block, including its runtime error and trace.
+            let instr =
+              { instr with
+                  instructions =
+                    instr.instructions @ [ RT.CheckIfFirstExprIsUnit instr.resultIn ] }
             match! Exe.executeExpr state instr with
             | Error _ as failed -> return failed
             | Ok _ -> return! runInOrder rest
         }
 
-      let! result = runInOrder exprInstrs
+      let! result = runInOrder (valueInstrs @ exprInstrs)
       do! tracer.storeTraceResults state
       return result
   }
@@ -760,7 +884,10 @@ let fns () : List<BuiltInFn> =
                   // that declare the same thing share a hash anyway. The
                   // filename reaches traces via `RunScript`.
                   let! parsedScript =
-                    parseGuest (parseCliScript branchState "CliScript" "" code) code
+                    prepareGuest
+                      branchState
+                      (parseCliScript branchState "CliScript" "" code)
+                      code
 
                   let! dbs = loadDBs ()
 
@@ -860,9 +987,7 @@ let fns () : List<BuiltInFn> =
                       | other ->
                         do! printCallStack hostState "Script" callStack
                         return resultError (ExecutionError.toDT other)
-                  | Error pe ->
-                    return
-                      resultError (ExecutionError.toDT (ExecutionError.Parse pe))
+                  | Error pe -> return resultError (ExecutionError.toDT pe)
                 })
           }
         | _ -> incorrectArgs ())
@@ -936,7 +1061,10 @@ let fns () : List<BuiltInFn> =
                   // single-expression only; parse failures surface a precise
                   // diagnostic (no fallback).
                   let! parsedScript =
-                    parseGuest (parseCliExpr branchState expression) expression
+                    prepareGuest
+                      branchState
+                      (parseCliExpr branchState expression)
+                      expression
 
                   let! dbs = loadDBs ()
 
@@ -999,9 +1127,7 @@ let fns () : List<BuiltInFn> =
                           print
                             $"Error when executing expression. Call-stack:\n{csString}\n"
                         return resultError (ExecutionError.toDT other)
-                  | Error pe ->
-                    return
-                      resultError (ExecutionError.toDT (ExecutionError.Parse pe))
+                  | Error pe -> return resultError (ExecutionError.toDT pe)
                 })
           }
         | _ -> incorrectArgs ())

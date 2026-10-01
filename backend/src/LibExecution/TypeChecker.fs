@@ -735,6 +735,26 @@ let tryUnifySync
       | Undecided -> ValueNone
 
 
+/// Check against an alias's cached underlying type when available.
+/// Leave the caller's original type reference unchanged so error messages can
+/// still identify the declared type.
+let tryUnifyWithAliasesSync
+  (types : Types)
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : Dval)
+  : TypeSymbolTable voption =
+  match tryUnifySync tst expected actual with
+  | ValueSome _ as result -> result
+  | ValueNone ->
+    match expected with
+    | TCustomType _ ->
+      match TypeReference.tryResolvedAlias types expected with
+      | ValueSome resolved -> tryUnifySync tst resolved actual
+      | ValueNone -> ValueNone
+    | _ -> ValueNone
+
+
 let checkFnParam
   (types : Types)
   (fnName : FQFnName.FQFnName)

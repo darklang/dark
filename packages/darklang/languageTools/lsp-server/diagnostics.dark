@@ -185,7 +185,7 @@ let issueDiagnostic
     "darklang-at-rest"
     (AtRestTypeChecker.issueToString issue)
 
-/// Exclude unresolved-name blockers already reported at their identifier ranges.
+/// Exclude unresolved-name warnings already reported at their identifier ranges.
 let reportedByNameResolver (issue: AtRestTypeChecker.Issue) : Bool =
   match issue.code with
   | UnresolvedTypeName
@@ -199,8 +199,8 @@ let itemDiagnostics
   (item: AtRestTypeChecker.ItemReport)
   : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
   let ranges = sourcesForItem fallback sources item.item
-  // Severity follows the issue: definite diagnostics are errors; incomplete
-  // blockers remain warnings even on an otherwise failed item.
+  // Severity follows the issue: definite diagnostics are errors; warnings keep
+  // their severity even on an otherwise failed item.
   let keep (issue: AtRestTypeChecker.Issue) : Bool =
     Stdlib.Bool.not (reportedByNameResolver issue)
   let severityOf
@@ -217,7 +217,7 @@ let itemDiagnostics
   let warning = LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
   Stdlib.List.append
     (severityOf error item.diagnostics)
-    (severityOf warning item.blockers)
+    (severityOf warning item.warnings)
 
 
 let atRestDiagnostics
@@ -231,15 +231,15 @@ let atRestDiagnostics
     report.items
     |> Stdlib.List.map (itemDiagnostics fallback sources)
     |> Stdlib.List.flatten
-  let aggregateBlockers =
+  let aggregateWarnings =
     if Stdlib.List.isEmpty report.items then
-      report.blockers
+      report.warnings
       |> Stdlib.List.map (issueDiagnostic
            LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
            fallback)
     else
       []
-  Stdlib.List.append itemResults aggregateBlockers
+  Stdlib.List.append itemResults aggregateWarnings
 
 let gatherAndReportDiagnostics
   (requestUri: String)
