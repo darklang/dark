@@ -1228,6 +1228,7 @@ let private invokeBuiltin
   // An effectful call's place in the process's log, taken now rather than when it completes, so
   // a read that lands late keeps it. -1 for a pure call, or when nothing records.
   let recording = exeState.tracing.traceEffects
+
   let ord =
     if recording && not (Set.isEmpty fn.callEffects) then
       exeState.tracing.nextEffect ()
@@ -2022,8 +2023,7 @@ let private completePackage
     if exeState.tracing.collectFrames then
       exeState.tracing.storeFrameEntry newFrameId vm.currentFrameID pkgEp
     // Names only, and only when something is recording: this is what lets `traces calls <fn>`
-    // find the runs that went through a function at the shipped level, where the call itself
-    // is not recorded. Two boolean tests when nothing is recording.
+    // find the runs that went through a function, where the call itself is not recorded.
     if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
     // We already hold the fn here, so the loop needn't fetch it.
     let callData = packageFnCallData exeState fn

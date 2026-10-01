@@ -839,10 +839,16 @@ let showCode
         match (unknown, outOfRange) with
         | (bad :: _, _) ->
           let names = loops |> Stdlib.List.map (fun loop -> loop.name) |> Stdlib.String.join ", "
-          Cli.printErr $"nothing called `{bad}` in this trace"
+          // "nothing called `map`" would read as "nothing INVOKED map", which is the opposite
+          // of true: a loop is named after the function it was passed to, so the trace called
+          // that function many times. What is missing is a LOOP by that name.
+          Cli.printErr $"no loop named `{bad}` here"
 
-          if names != "" then
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  here: {names}")
+          if names == "" then
+            Stdlib.printLine
+              (Stdlib.Cli.UI.Colors.dimText "  this function has no loops in this trace")
+          else
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  its loops are: {names}")
 
           { state with exitCode = 1 }
         | (_, loop :: _) ->
