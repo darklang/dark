@@ -68,6 +68,21 @@ headers (`authorization`, `cookie`, `set-cookie`, `x-api-key`) are stored as
 reads the environment again). Everything else is in the clear: a key file a run
 read, a response body, what it printed.
 
+What the log does NOT hold: the value of anything pure. `traces show` does not
+read values off a disk, it RE-RUNS the function with every effectful call
+answered from the log, collecting each expression's value as it goes. Three
+things follow from that, and they surprise people in both directions. Values
+follow an edit, so fixing a callee and looking again shows the new numbers
+against the old recorded effects, with no new run. A function that did nothing
+impure still has values, because they are computed rather than stored. And
+arithmetic is shown for the same reason everything else is: the replay watches
+it happen.
+
+How a replay knows which expression an instruction belongs to: each package
+function carries a table of it, built when the code was compiled and stored
+beside the instructions. It is read only when something replays, so an ordinary
+run never pays for it, and it is about 3% of what the code itself takes.
+
 Nothing is recorded until you ask for it. Three ways: `dark traces record on`
 for this instance, `config set trace.record on` for the same setting by the
 other door, and `dark --trace <command>` for one command (`--no-trace` for the

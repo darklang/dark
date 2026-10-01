@@ -689,6 +689,7 @@ let fns () : List<BuiltInFn> =
             Sql.executeTransactionSync
               [ ("DELETE FROM trace_fn_calls", [ [] ])
                 ("DELETE FROM trace_fns", [ [] ])
+                ("DELETE FROM trace_loops", [ [] ])
                 ("DELETE FROM traces", [ [] ]) ]
             |> ignore<List<int>>
             return Dval.int (bigint count)

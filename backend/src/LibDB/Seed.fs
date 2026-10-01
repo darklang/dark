@@ -105,6 +105,7 @@ let export (outputPath : string) : Task<unit> =
       -- (`trace_fn_calls` alone runs to hundreds of MB), so strip them and the seed is just canon.
       DELETE FROM trace_fn_calls;
       DELETE FROM trace_fns;
+      DELETE FROM trace_loops;
       DELETE FROM traces;
 
       -- ALL of it: `config_v0` is per-install by construction, and nothing needs a

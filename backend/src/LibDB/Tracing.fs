@@ -482,6 +482,9 @@ module TraceRetention =
       Sql.executeTransactionSync
         [ "DELETE FROM trace_fn_calls WHERE trace_id = @id", ps
           "DELETE FROM trace_fns WHERE trace_id = @id", ps
+          // Added with the table. Every other per-trace table is dropped here, and a loop row
+          // outlives its trace with nothing that can ever read it again.
+          "DELETE FROM trace_loops WHERE trace_id = @id", ps
           "DELETE FROM traces WHERE id = @id", ps ]
       |> ignore<List<int>>
 

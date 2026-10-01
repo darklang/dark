@@ -22,8 +22,28 @@ let jsonEscape (s: String) : String =
 /// embedded newlines). Used wherever we need a Dval inline — e.g. the
 /// trace tree's `fn(args) → result` rows.
 let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
-  let pretty = PrettyPrinter.RuntimeTypes.dval branchId dv
-  pretty
-  |> Stdlib.String.split "\n"
-  |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
-  |> Stdlib.String.join ""
+  // Bounded, for the same reason the page's rendering is: formatting a 2000-element list in full
+  // took 1.3 seconds to produce one field of a JSON document. The budget is far larger than the
+  // sixty characters a line of the page gets, because an agent reading this has more use for the
+  // value than someone skimming a column does. `...` means there was more.
+  //
+  // NOT through `dvalOneLine`, which caps depth at two as well. Doing that here would quietly
+  // start eliding the inside of any nested value an agent reads, which is a different and worse
+  // kind of loss than a long list being cut short. Full depth, as this has always had.
+  let budget = 2000
+
+  let text =
+    PrettyPrinter.RuntimeTypes.dval
+      branchId
+      (PrettyPrinter.RuntimeTypes.capForDisplay budget dv)
+
+  let oneLine =
+    text
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+    |> Stdlib.String.join ""
+
+  if (Stdlib.String.length oneLine) > budget then
+    (Stdlib.String.slice oneLine 0 (budget - 3)) ++ "..."
+  else
+    oneLine

@@ -491,6 +491,124 @@ let private pureLoopPassesAreCounted =
       })
 
 
+/// Deleting a trace has to take its loop counts with it.
+///
+/// `trace_loops` arrived with this branch and every delete path was written before it existed,
+/// so a deleted trace left its rows behind. Nothing can ever read them again: every query is
+/// `WHERE trace_id = @t` against a trace that is gone. They are invisible, they only grow, and
+/// retention runs on its own, so a long-lived store accumulates them for as long as it lives.
+/// Recursion is a loop, and an iteration that never reached a line must not borrow another's.
+///
+/// Both of these are the same failure in different clothes, and both shipped wrong until they
+/// were walked by hand. `fact 5` recursed five times and the page showed the last call's numbers
+/// with no footer and nothing saying there had been others, because only LAMBDA frames counted as
+/// a loop. And asking for the base case, which returns before the lines below it run, printed the
+/// first call's values under a heading naming the fifth: the lines fell through to the flat
+/// last-value-wins figure.
+let private recursionIsALoopAndEmptyIterationsStaySilent =
+  cliTestWithFreshTraces
+    "recursion has iterations, and one that returned early shows no values rather than another's"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.Prev.fact"
+            ("(n: Int) : Int =\n"
+             + "  if n <= 1 then\n"
+             + "    1\n"
+             + "  else\n"
+             + "    let sub = Tests.Prev.fact (n - 1)\n"
+             + "    n * sub")
+        do! commit state "fact"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.fact" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.fact 5" ]
+        Expect.stringContains ran "120" "the run went five deep"
+
+        // Five entries into the same function, so five iterations, named after it.
+        let! viewed = runCli state [ "traces"; "show"; "Tests.Prev.fact" ]
+        Expect.stringContains
+          viewed
+          "fact: showing iteration 5 of 5"
+          "recursion is counted as a loop, not shown as a single call"
+
+        // The second call is `fact 4`: its sub is 6 and its product is 24. These are the values
+        // that were unreachable before, because only the last call's survived.
+        let! second =
+          runCli
+            state
+            [ "traces"; "show"; "Tests.Prev.fact"; "--iteration"; "fact:2" ]
+        Expect.stringContains
+          second
+          "// = 24"
+          "the second iteration has its own product"
+        Expect.stringContains second "// = 6" "and its own sub"
+
+        // The fifth is the base case. It returns before `sub` and the product ever run, so those
+        // lines have no value in it -- and must not show the ones that another iteration left.
+        let! baseCase =
+          runCli
+            state
+            [ "traces"; "show"; "Tests.Prev.fact"; "--iteration"; "fact:5" ]
+        Expect.stringContains
+          baseCase
+          "fact: showing iteration 5 of 5"
+          "it is the iteration that was asked for"
+        Expect.isFalse
+          (baseCase.Contains "// = 24")
+          "the base case did not run the product, so it must not carry iteration 2's value"
+        Expect.isFalse (baseCase.Contains "// = 120") "nor the first iteration's"
+      })
+
+
+let private deletingATraceTakesItsLoopCounts =
+  cliTestWithFreshTraces
+    "deleting a trace drops its loop counts too, rather than orphaning them"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.Prev.looped"
+            ("(n: Int) : Int =\n"
+             + "  Stdlib.List.range 1 n\n"
+             + "  |> Stdlib.List.map (fun i -> i * 2)\n"
+             + "  |> Stdlib.List.length")
+        do! commit state "looped"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.looped" ]
+        let! _ = runCli state [ "eval"; "Tests.Prev.looped 4" ]
+
+        let! latest' = latest ()
+        let traceId = string latest'.id
+
+        let countRows () =
+          Sql.query "SELECT COUNT(*) as c FROM trace_loops WHERE trace_id = @t"
+          |> Sql.parameters [ "t", Sql.string traceId ]
+          |> Sql.executeRowAsync (fun read -> read.int64 "c")
+
+        let! before = countRows ()
+        Expect.isGreaterThan
+          before
+          0L
+          "the run recorded a loop, so there is something to orphan"
+
+        // `--yes`: with no terminal to answer the prompt the verb cancels, and it used to
+        // cancel and exit 0, which is how this test passed its first run against code that
+        // deleted nothing.
+        let! _ = runCli state [ "traces"; "delete"; traceId; "--yes" ]
+        let! after = countRows ()
+        Expect.equal after 0L "the loop rows went with the trace"
+
+        let! stillThere =
+          Sql.query "SELECT COUNT(*) as c FROM traces WHERE id = @t"
+          |> Sql.parameters [ "t", Sql.string traceId ]
+          |> Sql.executeRowAsync (fun read -> read.int64 "c")
+        Expect.equal stillThere 0L "and so did the trace, so the delete really ran"
+      })
+
+
 /// Two identical calls in one run have two answers, and the view has to show both.
 ///
 /// The preview keys recorded results on (name, arguments), which is what lets a view survive the
@@ -740,6 +858,8 @@ let tests =
     previewOfASpawnServesTheChildFromTheLog
     identicalCallsKeepTheirOwnValues
     pureLoopPassesAreCounted
+    recursionIsALoopAndEmptyIterationsStaySilent
+    deletingATraceTakesItsLoopCounts
     retentionKeepsTheNewestAndTheSuspended
     retentionKeepsTheNewestOfEachEntry
     byteCapSparesTheRunThatTrippedIt

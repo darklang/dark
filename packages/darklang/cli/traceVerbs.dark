@@ -171,35 +171,39 @@ type TraceWithCallsJson =
 
 /// What `traces show --json` hands back: which trace was read, and what each expression in the
 /// code evaluated to, keyed by the expression's id. `problem` is set when the replay stopped.
-/// One pass of a loop, for `--json`.
-type LoopPassJson =
+/// One iteration of a loop, for `--json`.
+type LoopIterationJson =
   { /// Which one this is, counting from 1.
     at: Int
-    /// `--pass map:3`, ready to use.
-    pass: String
-    /// What this pass produced, by expression id. Everything at once, so an agent never
+    /// `--iteration map:3`, ready to use.
+    iteration: String
+    /// What this iteration produced, by expression id. Everything at once, so an agent never
     /// has to walk in a step at a time the way a person does.
     values: Dict<String, String> }
 
 
 /// A loop, for `--json`.
 type LoopJson =
-  { /// `map`, `fold`, `map#2`. What `--pass` takes.
+  { /// `map`, `fold`, `map#2`. What `--iteration` takes.
     name: String
+    /// The full name of the function this is a loop of, so the short `name` above is never the
+    /// only thing an agent has. Two modules can both have a `map`, and then the short names are
+    /// `map` and `map#2`, which tells them apart but does not say which is which.
+    fn: String
     count: Int
-    passes: List<LoopPassJson> }
+    iterations: List<LoopIterationJson> }
 
 
 type ValuesJson =
   { trace: String
     fn: String
     values: Dict<String, String>
-    /// Everything that can be opened, with every pass and every pass's values.
+    /// Everything that can be opened, with every iteration and its values.
     ///
     /// A person sees one value a line at a time, because several answers to one question on one
     /// screen is confusing. An agent has no such problem and a round trip costs it more than
     /// the bytes do, so the whole tree comes back in one call. `values` above is the flat view,
-    /// one value per expression; these are what tells pass 3 from pass 7.
+    /// one value per expression; these are what tells iteration 3 from iteration 7.
     loops: List<LoopJson>
     problem: Stdlib.Option.Option<String> }
 
@@ -464,6 +468,23 @@ let showCodeJson
         | Hash v -> v)
       |> Stdlib.Option.withDefault ""
 
+    // Which frames carry anything. Built once for the whole trace, not once per loop.
+    //
+    // Two jobs. It drops the iterations with nothing to say: the view keeps values for a bounded
+    // number of them, so a 2000-iteration loop used to serialise 2000 objects of which 1,980 were
+    // `"values": {}`, and `count` below already says how many there were. And it stops every
+    // iteration scanning the whole value list to find its own, which is iterations times values:
+    // 2000 x 12,000 on that same loop.
+    //
+    // A dict, not `List.unique`: `unique` folds with `member seen` over every element, so it is
+    // the number of values SQUARED, and 6,046 rows is eighteen million comparisons.
+    let framesWithValues =
+      frameValues
+      |> Stdlib.List.map (fun row ->
+        let (fid, _, _) = row
+        (fid, true))
+      |> Stdlib.Dict.fromListOverwritingDuplicates
+
     let loops =
       (loopsOf
         frames
@@ -471,9 +492,16 @@ let showCodeJson
         (Darklang.Tracing.Store.recordedLoopPasses trace.id)
         selfHash)
       |> Stdlib.List.map (fun loop ->
-        let passes =
-          loop.passes
-          |> Stdlib.List.indexedMap (fun i f ->
+        let iterations =
+          loop.iterations
+          |> Stdlib.List.indexedMap (fun i f -> (i, f))
+          |> Stdlib.List.filter (fun pair ->
+            (Stdlib.Dict.get framesWithValues (Stdlib.Tuple2.second pair).id)
+            != Stdlib.Option.Option.None)
+          |> Stdlib.List.map (fun pair ->
+            let i = Stdlib.Tuple2.first pair
+            let f = Stdlib.Tuple2.second pair
+
             let mine =
               frameValues
               |> Stdlib.List.filter (fun row ->
@@ -488,15 +516,16 @@ let showCodeJson
 
             let p = Stdlib.Int.toString (i + 1)
 
-            LoopPassJson
+            LoopIterationJson
               { at = i + 1
-                pass = $"{loop.name}:{p}"
+                iteration = $"{loop.name}:{p}"
                 values = mine })
 
         LoopJson
           { name = loop.name
-            count = Stdlib.List.length loop.passes
-            passes = passes })
+            fn = loop.fnName
+            count = Stdlib.List.length loop.iterations
+            iterations = iterations })
 
     Stdlib.printLine
       (Stdlib.Json.serialize<ValuesJson>
@@ -514,20 +543,24 @@ let showCodeJson
 /// One that ran once is not a loop. There is nothing to choose between and its value is already
 /// on the line.
 type Loop =
-  { /// What a person types: `--pass map:3`.
+  { /// What a person types: `--iteration map:3`.
     ///
     /// The function the lambda was passed to: `map`, `fold`, `filter`. A name from the code,
     /// not a number from the rendering, so it survives another loop being added above it and
     /// means something without a legend. Two loops of one function are `map` and `map#2`.
     name: String
-    /// One frame per pass the REPLAY reached, in the order they ran. These are what carry the
+    /// The full name of the function this is a loop of: `Darklang.Stdlib.List.map`. `name` is
+    /// its last segment, which is what reads well on a page and what someone types. Two modules
+    /// can both hold a `map`; this is what says which one this was.
+    fnName: String
+    /// One frame per iteration the REPLAY reached, in the order they ran. These are what carry the
     /// values, because values come from re-running.
-    passes: List<Darklang.Tracing.Store.ViewFrame>
-    /// How many passes the RECORD says there were.
+    iterations: List<Darklang.Tracing.Store.ViewFrame>
+    /// How many iterations the RECORD says there were.
     ///
-    /// Usually the same as `passes`. It differs when the replay stopped early -- an effect the
+    /// Usually the same as `iterations`. It differs when the replay stopped early -- an effect the
     /// log cannot answer, a run suspended mid-loop -- and then this is the true number and
-    /// `passes` is how far the re-run got. Saying "pass 2 of 2" about a loop that ran seven
+    /// `iterations` is how far the re-run got. Saying "iteration 2 of 2" about a loop that ran seven
     /// times is the failure this exists to prevent. 0 for a trace recorded before the shape was
     /// kept, where the honest answer is that nobody wrote it down.
     recorded: Int }
@@ -571,8 +604,8 @@ let insideFn
 let loopsOf
   (frames: List<Darklang.Tracing.Store.ViewFrame>)
   (fnNames: List<String * String>)
-  /// How many times each loop went round as RECORDED, for the passes a replay could not reach.
-  (recordedPasses: List<String * Int64>)
+  /// How many times each loop went round as RECORDED, for the iterations a replay could not reach.
+  (recordedIterations: List<String * Int64>)
   /// The hash of the function being viewed. A trace goes through many functions and only the
   /// loops inside THIS one belong on its page: offering `map` while reading a function that
   /// contains no loop sends someone looking for something that is not there.
@@ -586,10 +619,33 @@ let loopsOf
       Stdlib.String.startsWith (Stdlib.Tuple2.first pair) "Darklang.Stdlib.")
     |> Stdlib.List.map (fun pair -> Stdlib.Tuple2.second pair)
 
+  let lambdaFrames = frames |> Stdlib.List.filter (fun f -> f.kind == "lambda")
+
+  // Ask "is this lambda inside the function being viewed" ONCE per call site, not once per
+  // frame.
+  //
+  // `insideFn` walks up the frame tree and every step scans the frame list, so asking it per
+  // frame is the number of frames squared. On a 2000-iteration loop that was most of the ten
+  // seconds opening the trace took. A call site is a lambda's own expression id, so every
+  // frame at one site is the same lambda in the same place, and the answer cannot differ
+  // between them.
+  let siteIsOurs =
+    lambdaFrames
+    |> Stdlib.List.fold [] (fun acc f ->
+      if acc |> Stdlib.List.any (fun pair -> (Stdlib.Tuple2.first pair) == f.callSite) then
+        acc
+      else
+        Stdlib.List.append
+          acc
+          [ (f.callSite, insideFn frames f.parent selfHash stdlibHashes 64) ])
+
   let lambdas =
-    frames
+    lambdaFrames
     |> Stdlib.List.filter (fun f ->
-      (f.kind == "lambda") && (insideFn frames f.parent selfHash stdlibHashes 64))
+      siteIsOurs
+      |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == f.callSite)
+      |> Stdlib.Option.map (fun pair -> Stdlib.Tuple2.second pair)
+      |> Stdlib.Option.withDefault false)
 
   // The function a lambda was passed to is its PARENT frame: `List.map` pushes a frame and
   // applies the lambda inside it. That is where a loop's name comes from. The frame carries the
@@ -601,46 +657,83 @@ let loopsOf
       if parent.kind == "function" then
         fnNames
         |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.second pair) == parent.callee)
-        |> Stdlib.Option.andThen (fun pair ->
-          Stdlib.Tuple2.first pair |> Stdlib.String.split "." |> Stdlib.List.last)
+        |> Stdlib.Option.map (fun pair -> Stdlib.Tuple2.first pair)
       else
         Stdlib.Option.Option.None)
     |> Stdlib.Option.withDefault ""
 
-  lambdas
-  |> Stdlib.List.fold [] (fun acc f ->
-    if Stdlib.List.member acc f.callSite then acc else Stdlib.List.append acc [ f.callSite ])
-  |> Stdlib.List.map (fun callSite ->
-    let passes =
-      lambdas
-      |> Stdlib.List.filter (fun f -> f.callSite == callSite)
-      |> Stdlib.List.sortBy (fun f -> f.ord)
+  let shortNameOf (full: String) : String =
+    full
+    |> Stdlib.String.split "."
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault full
 
-    let nm =
-      passes
-      |> Stdlib.List.head
-      |> Stdlib.Option.map (fun f -> loopNameOf f.parent)
-      |> Stdlib.Option.withDefault ""
+  // The frames of the function being VIEWED. More than one of them means this trace entered
+  // it more than once, which happens two ways and looks the same from here: it recursed, or a
+  // loop somewhere above called it once per iteration. Either way each entry ran the same lines
+  // with its own values, and without this a reader gets the last entry's numbers with nothing
+  // saying there were others.
+  //
+  // Tail recursion is NOT this case and cannot be: a tail call re-enters the SAME frame, so
+  // there is one frame and one set of values however many times it goes round. See the note
+  // in the status doc.
+  let selfFrames =
+    frames
+    |> Stdlib.List.filter (fun f -> (f.kind == "function") && (f.callee == selfHash))
+    |> Stdlib.List.sortBy (fun f -> f.ord)
 
-    // What the RECORD says, keyed by the lambda's own expression id, which is the same key the
-    // replay's frames carry.
-    let siteText = Stdlib.Int64.toString callSite
+  let selfName =
+    fnNames
+    |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.second pair) == selfHash)
+    |> Stdlib.Option.map (fun pair -> Stdlib.Tuple2.first pair)
+    |> Stdlib.Option.withDefault ""
 
-    let recorded =
-      recordedPasses
-      |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == siteText)
-      |> Stdlib.Option.map (fun pair -> Stdlib.Int.fromInt64 (Stdlib.Tuple2.second pair))
-      |> Stdlib.Option.withDefault 0
+  let selfLoops =
+    if ((Stdlib.List.length selfFrames) > 1) && (selfName != "") then
+      [ (selfName, selfFrames, Stdlib.List.length selfFrames) ]
+    else
+      []
 
-    (nm, passes, recorded))
-  |> Stdlib.List.filter (fun t ->
-    let (nm, passes, recorded) = t
-    // A call site the RECORD says repeated is a loop even if the replay only reached one pass.
-    (nm != "") && (((Stdlib.List.length passes) > 1) || (recorded > 1)))
+  let lambdaLoops =
+    lambdas
+    |> Stdlib.List.fold [] (fun acc f ->
+      if Stdlib.List.member acc f.callSite then acc else Stdlib.List.append acc [ f.callSite ])
+    |> Stdlib.List.map (fun callSite ->
+      let iterations =
+        lambdas
+        |> Stdlib.List.filter (fun f -> f.callSite == callSite)
+        |> Stdlib.List.sortBy (fun f -> f.ord)
+
+      let nm =
+        iterations
+        |> Stdlib.List.head
+        |> Stdlib.Option.map (fun f -> loopNameOf f.parent)
+        |> Stdlib.Option.withDefault ""
+
+      // What the RECORD says, keyed by the lambda's own expression id, which is the same key the
+      // replay's frames carry.
+      let siteText = Stdlib.Int64.toString callSite
+
+      let recorded =
+        recordedIterations
+        |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == siteText)
+        |> Stdlib.Option.map (fun pair -> Stdlib.Int.fromInt64 (Stdlib.Tuple2.second pair))
+        |> Stdlib.Option.withDefault 0
+
+      (nm, iterations, recorded))
+    |> Stdlib.List.filter (fun t ->
+      let (nm, iterations, recorded) = t
+      // A call site the RECORD says repeated is a loop even if the replay reached one iteration.
+      (nm != "") && (((Stdlib.List.length iterations) > 1) || (recorded > 1)))
+
+  // The function's own entries first: it is the outer thing on the page, and a reader looking
+  // for "which call am I seeing" should meet it before the loops inside it.
+  Stdlib.List.append selfLoops lambdaLoops
   // Two loops of one function get `map` and `map#2`, in the order they ran. Numbering only the
   // repeats keeps the common case a plain word.
   |> Stdlib.List.fold [] (fun acc t ->
-    let (nm, passes, recorded) = t
+    let (full, iterations, recorded) = t
+    let nm = shortNameOf full
 
     let seen =
       acc
@@ -652,25 +745,48 @@ let loopsOf
 
     Stdlib.List.append
       acc
-      [ Loop { name = name; passes = passes; recorded = recorded } ])
+      [ Loop { name = name; fnName = full; iterations = iterations; recorded = recorded } ])
 
 
-/// One pass's values, laid over the page.
+/// One iteration's values, laid over the page.
 ///
-/// ONE pass, never several. A line showing `// = 14, 16, 18` is three answers to one question
-/// and a reader has to work out which is which; at any moment every line carries exactly one
-/// value, and the page says which pass that is. Choosing a different pass changes the whole
-/// page together, so the values on it are always from one consistent run of the loop.
+/// ONE iteration, never several. A line showing `// = 14, 16, 18` is three answers to one
+/// question and a reader has to work out which is which; at any moment every line carries
+/// exactly one value, and the page says which iteration that is. Choosing a different one
+/// changes the whole page together, so the values on it are always from one consistent run of
+/// the loop.
 ///
 /// Laid over the flat values rather than replacing them, so every line OUTSIDE the loop keeps
-/// what it did. Without that, choosing a pass would blank the function around it, which is the
-/// context that makes the pass mean anything.
+/// what it did. Without that, choosing one would blank the function around it, which is the
+/// context that makes the iteration mean anything.
 let valuesOfFrame
   (branchId: Uuid)
   (base': Dict<String, String>)
   (frameValues: List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)>)
+  /// EVERY frame of the loop, not just the chosen one. Needed to know which lines belong to
+  /// the loop's body, which is what makes blanking them safe.
+  (loopFrameIds: List<String>)
   (frameId: String)
   : Dict<String, String> =
+  // Every line this loop's body ever wrote a value to, across all of its iterations.
+  //
+  // Through a dict rather than `List.member` against the frame ids: a loop with two thousand
+  // iterations and six thousand values asks that question twelve million times otherwise, which
+  // is seconds of a page that is supposed to be instant.
+  let loopFrames =
+    loopFrameIds
+    |> Stdlib.List.map (fun id -> (id, true))
+    |> Stdlib.Dict.fromListOverwritingDuplicates
+
+  let ownedByLoop =
+    frameValues
+    |> Stdlib.List.filter (fun row ->
+      let (fid, _, _) = row
+      (Stdlib.Dict.get loopFrames fid) != Stdlib.Option.Option.None)
+    |> Stdlib.List.map (fun row ->
+      let (_, exprId, _) = row
+      Stdlib.Int64.toString exprId)
+
   let mine =
     frameValues
     |> Stdlib.List.filter (fun row ->
@@ -682,8 +798,21 @@ let valuesOfFrame
       (Stdlib.Int64.toString exprId,
        PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
 
-  // The pass's values last, so they win over the flat one on the same line.
-  Stdlib.List.append (Stdlib.Dict.toList base') mine
+  // Clear the loop's own lines BEFORE laying the chosen iteration over them.
+  //
+  // Without this, a line the chosen iteration never reached keeps the flat value, which is
+  // whatever the last iteration to reach it left there, under a heading naming this one. Two
+  // ways to meet that: ask for an iteration past the cap, where no values were kept at all,
+  // or land on a base case that returns before the lines below it run. Both printed another
+  // iteration's numbers with total confidence. That is the exact lie the footer exists to
+  // prevent, and a blank line is the honest answer.
+  let outside =
+    base'
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.filter (fun pair ->
+      Stdlib.Bool.not (Stdlib.List.member ownedByLoop (Stdlib.Tuple2.first pair)))
+
+  Stdlib.List.append outside mine
   |> Stdlib.Dict.fromListOverwritingDuplicates
 
 
@@ -696,8 +825,8 @@ let showCode
   (state: AppState)
   (typed: String)
   (tracePrefix: Stdlib.Option.Option<String>)
-  /// What `--pass` was given, if anything: `map:2`, or `map:2,fold:2`.
-  (passArg: Stdlib.Option.Option<String>)
+  /// What `--iteration` was given, if anything: `map:2`, or `map:2,fold:2`.
+  (iterationArg: Stdlib.Option.Option<String>)
   : AppState =
   let branchId = state.currentBranchId
   let fnName = canonicalFnName branchId typed
@@ -729,12 +858,11 @@ let showCode
       | _ ->
         Stdlib.printLine $"no recorded trace went through {fnName}"
 
+        // `whyEmpty` already says to go and run something, and says it differently depending on
+        // whether recording is even on. A second line saying it again was left behind here.
         (whyEmpty "run something that calls it")
         |> Stdlib.List.iter (fun line ->
           Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText line))
-        Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.dimText
-            "  run something that calls it, then look again")
         Stdlib.Option.Option.None
 
   match chosen with
@@ -761,7 +889,7 @@ let showCode
         // One call: it loads the trace's log, replays the trace with every effect answered from it
         // and none performed, and hands back what every expression evaluated to, plus the frames
         // it walked. The frames are what make a loop navigable rather than a single line showing
-        // whichever pass happened to run last.
+        // whichever iteration happened to run last.
         let (collected, frames, frameValues, problem) =
           Darklang.Tracing.Store.viewTraceTree branchId trace.id
 
@@ -776,31 +904,31 @@ let showCode
             (Darklang.Tracing.Store.recordedLoopPasses trace.id)
             selfHash
 
-        // WHICH PASS OF EACH LOOP YOU ARE LOOKING AT: `--pass map:2,fold:2`.
+        // WHICH ITERATION OF EACH LOOP YOU ARE LOOKING AT: `--iteration map:2,fold:2`.
         //
-        // Every line carries exactly ONE value at a time. `map:2` puts pass 2's values on the
-        // lines inside that loop, and the footer says which pass each loop is showing. Several
+        // Every line carries exactly ONE value at a time. `map:2` puts iteration 2's values on the
+        // lines inside that loop, and the footer says which iteration each loop is showing. Several
         // values on one line would be several answers to one question with no way to tell which
         // is which, so the page never does that.
         //
-        // There is deliberately no way to pick a pass of a CALL here. `dark traces show <fn>`
+        // There is deliberately no way to pick an iteration of a CALL here. `dark traces show <fn>`
         // already shows any function's own code and values, and `traces inspect` lists which
         // functions a trace ran, so going into one is a command away and does not need a
         // second way of saying it.
         let requested =
-          match passArg with
+          match iterationArg with
           | None -> []
           | Some raw -> Stdlib.String.split raw ","
 
-        /// The pass a selector asks for: `map` is the first, `map:3` is the third.
+        /// The iteration a selector asks for: `map` is the first, `map:3` is the third.
         let selectorFor (loop: Loop) : Stdlib.Option.Option<String> =
           requested
           |> Stdlib.List.findFirst (fun r ->
             (r == loop.name) || (Stdlib.String.startsWith r $"{loop.name}:"))
 
-        /// Which one of a loop's passes this is, counting from 1, as text.
+        /// Which one of a loop's iterations this is, counting from 1, as text.
         let positionOf (loop: Loop) (frame: Darklang.Tracing.Store.ViewFrame) : String =
-          loop.passes
+          loop.iterations
           |> Stdlib.List.findFirstIndex (fun f -> f.id == frame.id)
           |> Stdlib.Option.map (fun i -> Stdlib.Int.toString (i + 1))
           |> Stdlib.Option.withDefault "1"
@@ -810,16 +938,16 @@ let showCode
           | None -> Stdlib.Option.Option.None
           | Some sel ->
             match Stdlib.String.split sel ":" with
-            // By POSITION in the site's own list, not by the frame's `pass`. `pass` counts
-            // within one call site, so three calls to one function from three passes of a loop
-            // are each `pass = 0`, and numbering by it would make `receipt:2` unreachable.
+            // By POSITION in the site's own list, not by the frame's `pass` counter, which counts
+            // within one call site, so three calls to one function from three iterations of a loop
+            // are each zero, and numbering by it would make `receipt:2` unreachable.
             | [ _, p ] ->
               (match Stdlib.Int.parse p with
-               | Ok n -> Stdlib.List.getAt loop.passes (n - 1)
+               | Ok n -> Stdlib.List.getAt loop.iterations (n - 1)
                | Error _ -> Stdlib.Option.Option.None)
-            | _ -> Stdlib.List.head loop.passes
+            | _ -> Stdlib.List.head loop.iterations
 
-        // A name nobody can act on is a refusal, not a silently unchanged page. So is a pass
+        // A name nobody can act on is a refusal, not a silently unchanged page. So is an iteration
         // number a loop does not have.
         let unknown =
           requested
@@ -852,8 +980,8 @@ let showCode
 
           { state with exitCode = 1 }
         | (_, loop :: _) ->
-          let n = Stdlib.Int.toString (Stdlib.List.length loop.passes)
-          Cli.printErr $"`{loop.name}` ran {n} times, so that pass does not exist"
+          let n = Stdlib.Int.toString (Stdlib.List.length loop.iterations)
+          Cli.printErr $"`{loop.name}` ran {n} times, so that iteration does not exist"
           { state with exitCode = 1 }
         | _ ->
           let flat =
@@ -863,17 +991,27 @@ let showCode
               (Stdlib.Int64.toString id, PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
             |> Stdlib.Dict.fromListOverwritingDuplicates
 
-          // A chosen pass replaces the values on the lines inside that loop.
+          // A chosen iteration replaces the values on the lines inside that loop.
           let values =
             loops
             |> Stdlib.List.fold flat (fun acc loop ->
               match chosenOf loop with
               | None -> acc
-              | Some frame -> valuesOfFrame branchId acc frameValues frame.id)
+              | Some frame ->
+                let loopFrameIds = loop.iterations |> Stdlib.List.map (fun f -> f.id)
+                valuesOfFrame branchId acc frameValues loopFrameIds frame.id)
 
+          // The id, and what the run was GIVEN. Values beside the lines say what happened;
+          // without the input a reader has no idea what it happened to, and `n * sub // = 24`
+          // means nothing until you know the call was `fact 5`. The id is here so the line can
+          // be turned into `traces inspect <id>` without going back to the list.
           Stdlib.printLine
             (Stdlib.Cli.UI.Colors.dimText
               $"trace {Cli.Text.shortIdText trace.id}  {trace.entry}  {whenText trace.created}")
+
+          if trace.input != "" then
+            Stdlib.printLine
+              (Stdlib.Cli.UI.Colors.dimText $"given  {Cli.Text.oneLineAt 72 trace.input}")
 
           let ctx =
             { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
@@ -888,8 +1026,8 @@ let showCode
               (Stdlib.Cli.UI.Colors.error $"  the view stopped here: {message}")
           | None -> ()
 
-          // Which pass every loop is showing. A line inside a loop looks exactly like a line
-          // that ran once, so the page has to say which pass it is, or a reader takes one pass
+          // Which iteration every loop is showing. A line inside a loop looks exactly like a line
+          // that ran once, so the page has to say which one it is, or a reader takes a single iteration
           // for the whole story.
           match loops with
           | [] -> state
@@ -898,10 +1036,10 @@ let showCode
 
             loops
             |> Stdlib.List.iter (fun loop ->
-              let reached = Stdlib.List.length loop.passes
+              let reached = Stdlib.List.length loop.iterations
               // The RECORD's count when there is one, because it is the true one. A replay that
-              // stopped early has fewer passes than happened, and reporting its count would say
-              // "pass 2 of 2" about a loop that went round seven times.
+              // stopped early has fewer iterations than happened, and reporting its count would say
+              // "iteration 2 of 2" about a loop that went round seven times.
               let total = if loop.recorded > reached then loop.recorded else reached
               let n = Stdlib.Int.toString total
 
@@ -918,10 +1056,44 @@ let showCode
 
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.dimText
-                  $"  {loop.name}: showing pass {p} of {n}{short}"))
+                  $"  {loop.name}: showing iteration {p} of {n}{short}")
+
+              // Say so when the chosen iteration has nothing to show, rather than printing a page of
+              // bare lines and leaving the reader to wonder whether the code really did nothing.
+              // Two causes, and the reader needs to be able to tell them apart: an iteration past the
+              // cap kept no values, and an iteration that returned early never produced any.
+              match chosenOf loop with
+              | None -> ()
+              | Some frame ->
+                let kept =
+                  frameValues
+                  |> Stdlib.List.filter (fun row ->
+                    let (fid, _, _) = row
+                    fid == frame.id)
+                  |> Stdlib.List.length
+
+                if kept == 0 then
+                  // Counted rather than hardcoded. The view keeps values for a bounded number
+                  // of iterations and that bound lives in F#; asking the frames how many actually
+                  // carry values says the true thing without a second copy of the number here.
+                  let withValues =
+                    loop.iterations
+                    |> Stdlib.List.filter (fun f ->
+                      frameValues
+                      |> Stdlib.List.any (fun row ->
+                        let (fid, _, _) = row
+                        fid == f.id))
+                    |> Stdlib.List.length
+
+                  let kept = Stdlib.Int.toString withValues
+
+                  Stdlib.printLine
+                    (Stdlib.Cli.UI.Colors.dimText
+                      ("       nothing to show for this one: it returned before those lines "
+                       ++ $"ran, or it is past the {kept} the view keeps values for")))
 
             Stdlib.printLine
               (Stdlib.Cli.UI.Colors.dimText
-                "       --pass <loop>:<n> for another pass")
+                "       --iteration <loop>:<n> for another one")
 
             state

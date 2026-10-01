@@ -224,3 +224,60 @@ module Options =
     (Darklang.PrettyPrinter.DisplayOptions.atWidth 200)
     (Builtin.reflect (loc "Darklang" [ "Stdlib" ] "map")) =
     "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner: \"Darklang\", modules: [\"Stdlib\"], name: \"map\" }"
+
+// ========================================
+// `dvalOneLine` renders only as much as it can show
+//
+// It formats a value and then cuts the result to a character budget, so a long list used to be
+// formatted in full to produce sixty characters of it. A 2000-element list cost 2.1 seconds of a
+// 2.6 second trace page, and it scaled with the DATA rather than with the trace, which is the
+// wrong axis entirely.
+//
+// Only a prefix is rendered now. These pin that the prefix is character-for-character what the
+// whole value would have produced. The second case is the one that caught the subtle half: cut a
+// list down far enough and the printer lays it out INLINE instead of wrapped, and the two differ
+// by the space after the bracket, so the cut has to stay above the width where that flips.
+// ========================================
+module OneLine =
+  let big () : List<Int> =
+    Stdlib.List.range 1 2000 |> Stdlib.List.map (fun i -> i * 37)
+
+  Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine
+    Darklang.SCM.Branch.mainBranchId
+    60
+    (Builtin.reflect (big ())) =
+    "[ 37, 74, 111, 148, 185, 222, 259, 296, 333, 370, 407, 44..."
+
+  // A budget small enough that a naive prefix would fit on one line and lose the space.
+  Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine
+    Darklang.SCM.Branch.mainBranchId
+    10
+    (Builtin.reflect (big ())) = "[ 37, 7..."
+
+  // Short enough to need no cut at all: inline, and untouched.
+  Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine
+    Darklang.SCM.Branch.mainBranchId
+    60
+    (Builtin.reflect [ 1, 2, 3 ]) = "[1, 2, 3]"
+
+// ========================================
+// The trace JSON's renderer bounds length, not depth
+//
+// `compactDval` is what `--json` and the effect log hand an agent. It was routed through the
+// page's one-line renderer while making big values cheap to format, which quietly brought the
+// page's depth limit with it: every nested value an agent read would have been hollowed out two
+// levels down. A long list cut short is a visible loss; that is not.
+// ========================================
+module CompactDval =
+  // Four levels, which the page elides and this must not.
+  Darklang.Tracing.Format.compactDval
+    Darklang.SCM.Branch.mainBranchId
+    (Builtin.reflect [ [ [ [ 1, 2 ], [ 3, 4 ] ], [ [ 5, 6 ] ] ], [ [ [ 7, 8 ] ] ] ]) =
+    "[[[[1, 2], [3, 4]], [[5, 6]]], [[[7, 8]]]]"
+
+  // The page, for contrast: same value, elided.
+  Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine
+    Darklang.SCM.Branch.mainBranchId
+    2000
+    (Builtin.reflect [ [ [ [ 1, 2 ], [ 3, 4 ] ], [ [ 5, 6 ] ] ], [ [ [ 7, 8 ] ] ] ]) =
+    "[[[..., ...], [...]], [[...]]]"
