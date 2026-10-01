@@ -840,8 +840,28 @@ let showCode
     (LanguageTools.PackageManager.Function.find branchId entry)
     == Stdlib.Option.Option.None
   then
-    Cli.printErr $"no function named {fnName} on this branch"
-    { state with exitCode = 1 }
+    // A name the store does not have is usually a typo, and sometimes a function that RAN and
+    // has since gone: `scripts/dev/build` re-authors the store from the `.dark` files on disk,
+    // so anything authored by hand disappears while its traces stay. The trace index still
+    // holds the name, so we can tell the two apart instead of saying "no such function" about
+    // something the reader watched run ten minutes ago, and which `traces fns` will happily
+    // still offer them.
+    match Darklang.Tracing.Store.wentThrough fnName 1L with
+    | [] ->
+      Cli.printErr $"no function named {fnName} on this branch"
+      { state with exitCode = 1 }
+    | _ ->
+      Cli.printErr $"{fnName} ran, but its code is no longer in this store"
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          "  a build re-authors the store from the .dark files, so anything authored by hand goes")
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          "  its runs are still kept: dark traces calls <fn>, then dark traces inspect <id>")
+
+      { state with exitCode = 1 }
   else
 
   let chosen =

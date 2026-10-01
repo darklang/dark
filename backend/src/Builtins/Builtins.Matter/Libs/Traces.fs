@@ -896,6 +896,41 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "tracesFnCounts" 0
+      typeParams = []
+      parameters = [ Param.make "traceLimit" TInt64 "" ]
+      returnType = TList(TTuple(TString, TInt64, []))
+      description =
+        "Which package functions recent runs went through, and how many runs went through "
+        + "each, most first.\n\n"
+        + "The inverse of `tracesWentThrough`, which answers the same question for one function "
+        + "you already have in mind. This is the other direction, for when you have not got one: "
+        + "`hotspots` cannot answer it, because it reads the effect log and the effect log holds "
+        + "only the impure calls, so it can only ever name builtins."
+      fn =
+        (function
+        | _, _, _, [| DInt64 traceLimit |] ->
+          uply {
+            let! rows =
+              Sql.query
+                "SELECT f.fn_name AS name, COUNT(DISTINCT f.trace_id) AS runs
+                 FROM trace_fns f
+                 WHERE f.trace_id IN
+                   (SELECT id FROM traces ORDER BY rowid DESC LIMIT @traceLimit)
+                 GROUP BY f.fn_name
+                 ORDER BY runs DESC, name ASC"
+              |> Sql.parameters [ "traceLimit", Sql.int64 traceLimit ]
+              |> Sql.executeAsync (fun read ->
+                DTuple(DString(read.string "name"), DInt64(read.int64 "runs"), []))
+            return rows |> Dval.list (KTTuple(VT.string, VT.int64, []))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.TraceRead ]
+      deprecated = NotDeprecated }
+
+
     { name = fn "tracesLoopPasses" 0
       typeParams = []
       parameters = [ Param.make "traceID" TString "" ]

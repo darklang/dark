@@ -143,7 +143,7 @@ module Topics =
       DocTopic
         { name = "processes"
           description =
-            "Things run at once, pause, resume: await, Exec, ps, traces resume"
+            "Things run at once, and what they did: await, Exec, ps, and reading a run back through your code"
           aliases =
             [ "ps"
               "traces"

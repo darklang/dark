@@ -43,14 +43,35 @@ A tight loop cannot freeze a TUI or a server: it gets a turn, then others
 run. In a system monitor a Dark process shows as what it runs: `dark serve
 :9090`, `dark eval`, `dark <daemon>`.
 
-## Pick a trace back up
+## Read your code through a run, and pick one back up
 
-Every `eval` and `run` is recorded (only its effects: what it read, wrote,
-sent and got back), so Ctrl-C does not lose it.
+Every `eval`, every `run` and every served request is kept as a trace (only its
+effects: what it read, wrote, sent and got back), so you can look at what
+happened, and so Ctrl-C does not lose it.
+
+The one to learn first is `show`. It takes a FUNCTION, not an id, and uses that
+function's newest run, so there is nothing to look up:
+
+  traces show <fn> [<id>]       that function's code, with a run's values beside
+                                each line. Loops included: the page says which
+                                iteration it is showing, and `--iteration map:2`
+                                picks another
+  traces show <fn> --watch      the same as a panel, repainting as runs arrive
+                                and as you edit the code
+  traces show <fn> --json       every loop and iteration at once, for an agent
+
+Finding your way to a function, from either direction:
+
+  traces calls <fn>             the runs that went through one function
+  traces fns [n]                ... and the other way: which functions recent
+                                runs went through, most first
+  dark view <fn>                ends with how many runs went through it
+
+And the rest:
 
   traces                        the traces kept here, newest first
-  traces inspect <id>               one trace: what it ran, where it stands, what it did
-  traces show <fn> [<id>]       that function's code, with a trace's values beside it
+  traces inspect <id>           one trace: what it ran, where it stands, what
+                                it did to the world, in order
   traces resume <id>            carry on where it stopped: the log answers what
                                 already happened, then the trace goes live
   traces fork <id> [--at <n>]   a new trace from any point of an old one

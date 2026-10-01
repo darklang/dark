@@ -116,6 +116,15 @@ let fnsOf (traceID: String) : List<String> =
 
 /// The traces that went through <param fnName>, newest first. Answers at the shipped recording
 /// level: it reads the names-only index every recorded trace writes, not the call rows.
+/// Which package functions recent runs went through, and how many runs each, most first.
+///
+/// The other direction from `wentThrough`: that one answers "show me the runs for this
+/// function", this one answers "I have not got a function in mind, what have the runs been
+/// about". `hotspots` reads the effect log and so can only ever name builtins.
+let fnCounts (traceLimit: Int64) : List<String * Int64> =
+  Builtin.tracesFnCounts traceLimit
+
+
 let wentThrough (fnName: String) (limit: Int64) : List<Trace> =
   Builtin.tracesWentThrough fnName limit
 

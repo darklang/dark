@@ -413,6 +413,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       { state with exitCode = 1 }
 
+  // `--all` is not stripped from `args` the way the other flags are, because `delete --all`
+  // needs it, so these arms name it rather than reading it out of the list.
+  | [ "fns" ] -> executeFnCounts state 100 false
+  | [ "fns", "--all" ] -> executeFnCounts state 100 true
+  | [ "fns", limitStr ]
+  | [ "fns", limitStr, "--all" ] ->
+    match Stdlib.Int.parse limitStr with
+    | Ok limit -> executeFnCounts state limit (Stdlib.List.member args "--all")
+    | Error _ ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
+      { state with exitCode = 1 }
+
   | [ "hotspots" ] ->
     if wantsJson then executeHotspotsJson state 100
     else executeHotspots state 100
@@ -738,7 +750,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // explicitly before dumping help so a typo'd `traces lst` doesn't
     // look like it succeeded silently.
     let knownSubcommands =
-      [ "help", "list", "view", "tail", "follow", "find", "hotspots"
+      [ "help", "list", "view", "tail", "follow", "find", "fns", "hotspots"
         "stats", "rerun", "delete", "show", "inspect", "log", "resume", "fork", "pin", "unpin", "calls",
         "values", "record" ]
     // `view` is in that list on purpose: it is a verb we HAD, and its own arm says what it is
@@ -837,6 +849,105 @@ let executeListByFn
 /// `traces hotspots [limit]` — across the last <limit> traces (default 100),
 /// aggregate per-fn timing: call count, total ms, max ms. Sort by total ms
 /// descending. The "where is my time going?" view.
+/// `traces fns [n] [--all]` -- which functions recent runs went through, most first.
+///
+/// The other direction from `traces calls <fn>`. That one needs a function in mind; this one is
+/// for when you have just come back to a store and do not have one. `hotspots` cannot answer it:
+/// it reads the effect log, which holds only the impure calls, so every name it can print is a
+/// builtin.
+///
+/// The bundled library is hidden by default. `Stdlib.List.map` is in almost every run, and
+/// saying so buries the handful of names that are actually yours.
+let executeFnCounts
+  (state: Cli.AppState)
+  (traceLimit: Int)
+  (showAll: Bool)
+  : Cli.AppState =
+  if traceLimit < 1 then
+    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    { state with exitCode = 1 }
+  else
+    // `Int` is arbitrary-precision, so this conversion really can fail. Refused by name rather
+    // than defaulted, because silently counting a different number of traces than you asked for
+    // is the kind of quiet wrongness this whole branch has been removing.
+    match Stdlib.Int.toInt64 traceLimit with
+    | None ->
+      Cli.printErr "that limit is too large to be a number of traces"
+      { state with exitCode = 1 }
+    | Some limit64 ->
+
+    let all = Darklang.Tracing.Store.fnCounts limit64
+
+    let rows =
+      if showAll then
+        all
+      else
+        all
+        |> Stdlib.List.filter (fun row ->
+          Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.Tuple2.first row) "Darklang."))
+
+    let hidden = (Stdlib.List.length all) - (Stdlib.List.length rows)
+
+    // A function the store no longer has is indexed under its HASH, because that is all the
+    // trace kept once the code went. `scripts/dev/build` re-authors from the `.dark` files on
+    // disk, so anything authored by hand goes, and its runs stay. Printing sixty-four hex
+    // characters as if it were a name is both ugly and a lie about what it is; this says what
+    // happened and keeps the column narrow.
+    let display (name: String) : String =
+      if Stdlib.String.contains name "." then
+        name
+      else
+        $"(gone) {Stdlib.String.slice name 0 8}"
+
+    match rows with
+    | [] ->
+      if (Stdlib.List.length all) > 0 then
+        Stdlib.printLine "every function recent runs went through is from the bundled library"
+
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText "  dark traces fns --all    show them")
+      else
+        Stdlib.printLine "no runs have been kept yet"
+
+        (Cli.TraceVerbs.whyEmpty "run something")
+        |> Stdlib.List.iter (fun line ->
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText line))
+
+      state
+    | _ ->
+      let width =
+        rows
+        |> Stdlib.List.map (fun row ->
+          Stdlib.String.length (display (Stdlib.Tuple2.first row)))
+        |> Stdlib.List.fold 2 (fun acc n -> if n > acc then n else acc)
+
+      Stdlib.printLine
+        $"functions the last {Stdlib.Int.toString traceLimit} runs went through, most first:"
+
+      Stdlib.printLine ""
+
+      rows
+      |> Stdlib.List.iter (fun row ->
+        let (name, runs) = row
+        let padded = Stdlib.String.padEndToWidth (display name) width
+        let n = Stdlib.Int64.toString runs
+        let word = if runs == 1L then "run" else "runs"
+        Stdlib.printLine $"  {padded}  {n} {word}")
+
+      Stdlib.printLine ""
+
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          "  dark traces show <fn>    the code, with the newest run's values beside it")
+
+      if hidden > 0 then
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.dimText
+            $"  dark traces fns --all    with the {Stdlib.Int.toString hidden} from the bundled library")
+
+      state
+
+
 let executeHotspots
   (state: Cli.AppState)
   (traceLimit: Int)
@@ -1586,6 +1697,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
       Completion.simple "tail"
       Completion.simple "follow"
       Completion.simple "stats"
+      Completion.simple "fns"
       Completion.simple "hotspots"
       Completion.simple "record"
       Completion.simple "delete"
@@ -1672,7 +1784,9 @@ let help (_state: Cli.AppState) : String =
     "  find <pattern> --inspect      ... and open the newest of them"
     "  tail [n] [--route <s>]        the nth-most-recent trace, shown (default 1)"
     "  follow [--route <s>]          print traces as they arrive"
-    "  stats [n] | hotspots [n]      traces per entry; time per function across recent traces"
+    "  fns [n] [--all]               which functions recent runs went through, most first"
+    "  stats [n]                     how many runs per entry point"
+    "  hotspots [n]                  time per BUILTIN across recent runs, off the effect log"
     ""
     "Recording"
     "  record [--json]               whether traces are being kept, and where that was decided"
