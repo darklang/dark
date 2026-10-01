@@ -179,7 +179,8 @@ module RuntimeTypes =
         parameters = NEList.singleton { name = "x"; typ = RT.TInt64 }
         returnType = RT.TInt64
         body = instructions[0]
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
       { hash = RT.Hash "fn2"
         typeParams = [ "T" ]
         parameters =
@@ -188,7 +189,8 @@ module RuntimeTypes =
             [ { name = "param2"; typ = RT.TString } ]
         returnType = RT.TString
         body = instructions[0]
-        permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock) } ]
+        permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
+        bounds = [] } ]
 
 
   let vals : List<RT.Dval> =
@@ -360,7 +362,8 @@ module ProgramTypes =
                             NameResolution.ok (
                               FQFnName.Builtin
                                 { name = "int64ToString"; version = 0 }
-                            )
+                            ),
+                            []
                           ),
                           [ typeReference ],
                           NEList.singleton (EInt64(id, 6L))
@@ -371,13 +374,15 @@ module ProgramTypes =
                             id,
                             InfixFnCall(ComparisonNotEquals),
                             EInt64(id, 5L),
-                            EInt64(id, 6L)
+                            EInt64(id, 6L),
+                            FQFnName.Unknown
                           ),
                           EInfix(
                             id,
                             InfixFnCall(ArithmeticPlus),
                             EInt64(id, 5L),
-                            EInt64(id, 2L)
+                            EInt64(id, 2L),
+                            FQFnName.Unknown
                           ),
                           Some(
                             ELambda(
@@ -387,7 +392,8 @@ module ProgramTypes =
                                 id,
                                 InfixFnCall(ArithmeticPlus),
                                 EVariable(id, "y"),
-                                EArg(id, 0)
+                                EArg(id, 0),
+                                FQFnName.Unknown
                               )
                             )
                           )
@@ -407,16 +413,19 @@ module ProgramTypes =
                                   NameResolution.ok (
                                     FQFnName.Builtin
                                       { name = "int64Add"; version = 0 }
-                                  )
+                                  ),
+                                  []
                                 ),
                                 [],
                                 NEList.doubleton (EInt64(id, 6L)) (EInt64(id, 2L))
-                              )
+                              ),
+                              FQFnName.Unknown
                             ),
                             EList(
                               id,
                               [ EInt64(id, 5L); EInt64(id, 6L); EInt64(id, 7L) ]
-                            )
+                            ),
+                            FQFnName.Unknown
                           )
                         )
                       ),
@@ -439,13 +448,15 @@ module ProgramTypes =
                                      id,
                                      InfixFnCall(ArithmeticPlus),
                                      EInt64(id, 2L),
-                                     EVariable(id, "y")
+                                     EVariable(id, "y"),
+                                     FQFnName.Unknown
                                    )
                                  )
                                  EPipeInfix(
                                    id,
                                    InfixFnCall(ArithmeticPlus),
-                                   EInt64(id, 2L)
+                                   EInt64(id, 2L),
+                                   FQFnName.Unknown
                                  )
                                  EPipeFnCall(
                                    id,
@@ -486,7 +497,8 @@ module ProgramTypes =
                                   NameResolution.ok (
                                     FQFnName.Builtin
                                       { name = "modFunction"; version = 2 }
-                                  )
+                                  ),
+                                  []
                                 ),
                                 [],
                                 (NEList.singleton (EInt64(id, 5L)))
@@ -536,7 +548,8 @@ module ProgramTypes =
                                       id,
                                       InfixFnCall(ArithmeticPlus),
                                       EInt64(id, 6L),
-                                      EVariable(id, "var")
+                                      EVariable(id, "var"),
+                                      FQFnName.Unknown
                                     ) }
                                 { pat = MPFloat(id, Positive, "5", "6")
                                   whenCondition = None
@@ -593,7 +606,8 @@ module ProgramTypes =
                                       id,
                                       BinOp(BinOpAnd),
                                       EBool(id, true),
-                                      EBool(id, false)
+                                      EBool(id, false),
+                                      FQFnName.Unknown
                                     ),
                                     ELet(
                                       id,
@@ -730,14 +744,64 @@ module ProgramTypes =
           { name = "param"; typ = typeReference; description = "desc" }
       returnType = typeReference
       description = "test"
-      permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock) }
+      permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
+      bounds = [] }
 
-  let packageFns = [ packageFn ]
+  /// `let f<'a: Show + Equal<Int>> ...`: two bounds on one param, one with a type arg,
+  /// and a body that calls a trait method.
+  let boundedPackageFn : PackageFn.PackageFn =
+    let showRef : TraitRef =
+      { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-show"))
+        typeArgs = [] }
+    let eqRef : TraitRef =
+      { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-eq"))
+        typeArgs = [ TInt ] }
+    let traitCall =
+      EApply(
+        gid (),
+        EFnName(
+          gid (),
+          NameResolution.ok (
+            // With an implementation chosen, which is what a saved call carries.
+            FQFnName.TraitMethod
+              { trait_ = Hash "trait-show"
+                method_ = "show"
+                implFn =
+                  FQFnName.Chosen
+                    { name = Hash "impl-show-fn"
+                      location =
+                        Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } } }
+          ),
+          // and what the CALLER worked out for the callee's bound
+          [ { param = "a"
+              trait_ = Hash "trait-show"
+              method_ = "show"
+              choice =
+                FQFnName.Chosen
+                  { name = Hash "impl-show-fn"
+                    location =
+                      Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } } } ]
+        ),
+        [],
+        NEList.singleton (EArg(gid (), 0))
+      )
+    { hash = Hash "bounded-fn"
+      body = traitCall
+      typeParams = [ "a" ]
+      parameters =
+        NEList.singleton { name = "value"; typ = TVariable "a"; description = "" }
+      returnType = TString
+      description = "bounded"
+      permissionCeiling = None
+      bounds = [ { param = "a"; trait_ = showRef }; { param = "a"; trait_ = eqRef } ] }
+
+  let packageFns = [ packageFn; boundedPackageFn ]
 
   let packageType : PackageType.PackageType =
     { hash = hashPT
       declaration =
         { typeParams = [ "a" ]
+          bounds = []
           definition =
             TypeDeclaration.Enum(
               NEList.ofList
@@ -750,12 +814,73 @@ module ProgramTypes =
 
       description = "test" }
 
-  let packageTypes = [ packageType ]
+  /// `type Set<'a: Compare> = List<'a>`
+  let boundedPackageType : PackageType.PackageType =
+    { hash = Hash "bounded-type"
+      declaration =
+        { typeParams = [ "a" ]
+          bounds =
+            [ { param = "a"
+                trait_ =
+                  { trait_ =
+                      NameResolution.ok (FQTraitName.Package(Hash "trait-ord"))
+                    typeArgs = [] } } ]
+          definition = TypeDeclaration.Alias(TList(TVariable "a")) }
+      description = "bounded" }
+
+  let packageTypes = [ packageType; boundedPackageType ]
 
   let packageValue : PT.PackageValue.PackageValue =
     { hash = Hash ""; body = constValue; description = "test" }
 
   let packageValues = [ packageValue ]
+
+  /// `trait Convert<'a, 'b: Equal> = let convert (v: 'a) :{} 'b`, with a doc.
+  let trait_ : Trait.Trait =
+    { hash = Hash "trait-convert"
+      typeParams = NEList.doubleton "a" "b"
+      bounds =
+        [ { param = "b"
+            trait_ =
+              { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-eq"))
+                typeArgs = [] } } ]
+      methods =
+        NEList.singleton
+          { name = "convert"
+            typeParams = []
+            // a method-level bound, which is the field that used to be parsed and dropped
+            bounds =
+              [ { param = "b"
+                  trait_ =
+                    { trait_ =
+                        NameResolution.ok (FQTraitName.Package(Hash "trait-equal"))
+                      typeArgs = [] } } ]
+            parameters =
+              NEList.singleton { name = "v"; typ = TVariable "a"; description = "" }
+            returnType = TVariable "b"
+            permissionCeiling = Some Set.empty
+            description = "the method" }
+      description = "a trait" }
+
+  let traits = [ trait_ ]
+
+  /// `impl<'a: Show> Convert<Int> for List<'a>` naming one method fn.
+  let impl : TraitImpl.TraitImpl =
+    { hash = Hash "impl-convert-list"
+      trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-convert"))
+      traitTypeArgs = [ TInt ]
+      self = TList(TVariable "a")
+      typeParams = [ "a" ]
+      bounds =
+        [ { param = "a"
+            trait_ =
+              { trait_ = NameResolution.ok (FQTraitName.Package(Hash "trait-show"))
+                typeArgs = [] } } ]
+      methods =
+        [ ("convert", NameResolution.ok (FQFnName.Package(Hash "fn-convert"))) ]
+      description = "an impl" }
+
+  let impls = [ impl ]
 
   let packageLocation : PackageLocation =
     { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }
@@ -784,10 +909,16 @@ module ProgramTypes =
       PT.BranchId.Id(System.Guid.Parse "3f2504e0-4f89-11d3-9a0c-0305e82c3301")
 
     [ AddType packageTypes[0]
+      AddType boundedPackageType
+      AddFn boundedPackageFn
       AddValue packageValues[0]
       AddFn packageFns[0]
+      AddTrait trait_
+      AddTraitImpl impl
 
       SetName(loc, Reference.PackageFn hashPT, None)
+      SetName(otherLoc, Reference.PackageTrait hashPT, None)
+      SetName(otherLoc, Reference.PackageTraitImpl shortHash, Some hashPT)
       SetName(loc, Reference.PackageFn hashPT, Some hashPT)
       SetName(otherLoc, Reference.PackageType hashPT, Some shortHash)
       SetName(otherLoc, Reference.PackageValue shortHash, None)

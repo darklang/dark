@@ -5,12 +5,16 @@
 /// lower of the two (a portable, instance-independent tiebreak). An identical binding already live is
 /// stale too: there is nothing to win, and the fold keeps what it has with its earliest stamp.
 ///
-/// Two places apply it: the op-fold (`PackageOpPlayback.applySetNameFrom`) and divergence detection
-/// (`SCM.Conflicts.incomingWins`, in Dark). Keeping the rule here means the F# copy cannot drift;
+/// Three places apply it: the op-fold (`PackageOpPlayback.applySetNameFrom`), divergence detection
+/// (`SCM.Conflicts.incomingWins`, in Dark) and choosing between two implementations of one trait for
+/// one type (`LibExecution.Traits.select`). Keeping the rule here means the F# copy cannot drift;
 /// `Tests.Lww` holds the Dark one to it.
 ///
+/// It lives in `LibExecution` rather than `LibDB` for the third of those: selection runs in the
+/// interpreter, which `LibDB` is downstream of.
+///
 /// Stamps are `yyyy-MM-ddTHH:mm:ss.fffZ` strings, so lexical `<` is already chronological -- no parsing.
-module LibDB.Lww
+module LibExecution.Lww
 
 
 /// True iff binding (newTs, newHash) loses to the live binding (curTs, curHash) under timestamp-LWW.
@@ -45,3 +49,24 @@ let incomingWins
   (curHash : string)
   : bool =
   if curTs = "" then true else not (isStale newTs newHash curTs curHash)
+
+
+/// The winner among several candidates, each with its stamp and its content hash: the newest, and on
+/// an exact tie the higher hash. Returns None when NOTHING carries a stamp, which is not a tie but an
+/// absence of provenance: nothing says which came later, so the caller has to report rather than pick.
+///
+/// Two impls of one trait for one type are chosen this way (`LibExecution.Traits.select`), so the same
+/// call means the same thing on every instance that holds both.
+let winnerOf (candidates : List<'a * string * string>) : Option<'a> =
+  if List.isEmpty candidates then
+    None
+  elif candidates |> List.forall (fun (_, ts, _) -> ts = "") then
+    None
+  else
+    candidates
+    |> List.reduce (fun (bestItem, bestTs, bestHash) (item, ts, hash) ->
+      if isStale ts hash bestTs bestHash then
+        (bestItem, bestTs, bestHash)
+      else
+        (item, ts, hash))
+    |> fun (item, _, _) -> Some item

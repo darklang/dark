@@ -9,7 +9,7 @@ val newline = "\n"
 /// to it if the original string exceeds the given length. Otherwise, returns the original string.
 let ellipsis (s: String) (length: Int) : String =
   if String.length s > length then
-    (String.slice s 0 length) ++ "..."
+    (String.slice s 0 length) + "..."
   else
     s
 
@@ -87,12 +87,23 @@ let displayWidth (s: String) : Int =
 
 
 /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
-let append (s1: String) (s2: String) : String = $"{s1}{s2}"
+///
+/// Names the builtin rather than interpolating, because this is what `"a" + "b"` runs through
+/// (`impl Add for String` below) and the interpreter answers the builtin without a call.
+let append (s1: String) (s2: String) : String = Builtin.stringAppend s1 s2
+
+/// `"a" + "b"` is `"ab"`
+impl Add for String =
+  let add = Stdlib.String.append
+
+/// ...and the empty string is what `+` starts from
+impl Zero for String =
+  let zero () : String = ""
 
 
 /// Concatenates the two strings by prepending <param s2> to <param s1> and
 /// returns the joined string
-let prepend (s1: String) (s2: String) : String = s2 ++ s1
+let prepend (s1: String) (s2: String) : String = s2 + s1
 
 
 //TODO: write the dark version of this function once we have regex
@@ -161,11 +172,11 @@ let join (l: List<String>) (separator: String) : String =
 
 /// Returns the list of characters as a string
 let fromList (lst: List<Char>) : String =
-  join (List.map lst (fun c -> Char.toString c)) ""
+  join (List.map lst (fun c -> Stdlib.toString c)) ""
 
 
 /// Converts a <type Char> to a <type String>
-let fromChar (c: Char) : String = Char.toString c
+let fromChar (c: Char) : String = Stdlib.toString c
 
 
 /// URLBase64 encodes a string without padding. Uses URL-safe encoding with
@@ -212,7 +223,7 @@ let digest (s: String) : String =
 let random (length: Int) : Result.Result<String, String> =
   if length < 0 then
     Result.Result.Error
-      $"Expected `length` to be positive, but it was `{length |> Int.toString}`"
+      $"Expected `length` to be positive, but it was `{length |> Stdlib.toString}`"
   else
     let characters =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -332,7 +343,7 @@ let padStart
   else
     let padCount = goalLength - String.length string
     let pad = String.repeat padWith padCount
-    Result.Result.Ok(pad ++ string)
+    Result.Result.Ok(pad + string)
 
 
 /// If <param string> is shorter than <param goalLength> characters, returns a
@@ -354,7 +365,7 @@ let padEnd
   else
     let padCount = goalLength - String.length string
     let pad = String.repeat padWith padCount
-    Result.Result.Ok(string ++ pad)
+    Result.Result.Ok(string + pad)
 
 
 /// Pad <param s> with leading spaces to at least <param width> display cells.
@@ -363,14 +374,14 @@ let padEnd
 /// leaves them ragged. Longer text comes back unclipped; styled text wants `Cli.Tui.Text.fitToWidth`.
 let padStartToWidth (s: String) (width: Int) : String =
   let padding = width - (String.displayWidth s)
-  if padding <= 0 then s else (String.repeat " " padding) ++ s
+  if padding <= 0 then s else (String.repeat " " padding) + s
 
 
 /// Pad <param s> with trailing spaces to at least <param width> display cells.
 /// See <fn padStartToWidth> for why this measures cells.
 let padEndToWidth (s: String) (width: Int) : String =
   let padding = width - (String.displayWidth s)
-  if padding <= 0 then s else s ++ (String.repeat " " padding)
+  if padding <= 0 then s else s + (String.repeat " " padding)
 
 
 // TODO: re-write in dark
@@ -531,7 +542,7 @@ let toOrdinal (n: Int) : String =
       | 3 -> "rd"
       | _ -> "th"
 
-  (Int.toString n) ++ suffix
+  (Stdlib.toString n) + suffix
 
 
 /// Splits the given <param str> at each newline character and returns a list of substrings.
@@ -552,3 +563,27 @@ let head (str: String) : Option.Option<Char> =
 /// byte), or {{None}} if <param index> is negative or past the end.
 let charAt (str: String) (index: Int) : Option.Option<Char> =
   str |> String.toList |> List.getAt index
+
+
+/// Orders two strings: negative when <param a> sorts first, 0 when they are equal, positive
+/// when <param b> does. Only the sign is meaningful. Ordinal rather than language-aware, so
+/// two machines order the same pair the same way.
+let compare (a: String) (b: String) : Int64 = Builtin.stringCompare a b
+
+
+/// `"a" < "b"`, and with it `Stdlib.max`, `min` and `clamp` on Strings.
+impl Compare for String =
+  let lessThan (a: String) (b: String) : Bool = (Stdlib.String.compare a b) < 0L
+
+  let lessThanOrEqualTo (a: String) (b: String) : Bool =
+    (Stdlib.String.compare a b) <= 0L
+
+  let greaterThan (a: String) (b: String) : Bool = (Stdlib.String.compare a b) > 0L
+
+  let greaterThanOrEqualTo (a: String) (b: String) : Bool =
+    (Stdlib.String.compare a b) >= 0L
+
+
+/// A String is already text
+impl ToString for String =
+  let toString (s: String) : String = s

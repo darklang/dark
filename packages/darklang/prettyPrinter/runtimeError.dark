@@ -35,6 +35,8 @@ module RuntimeError =
     // -- Types
     | TypeName of FQTypeName
     | ShortTypeName of FQTypeName
+    | TraitName of LanguageTools.RuntimeTypes.FQTraitName.FQTraitName
+    | ShortTraitName of LanguageTools.RuntimeTypes.FQTraitName.FQTraitName
     | TypeReference of TypeReference
     | TypeOfValue of Dval // CLEANUP should these all just be ValueTypes?
     | ValueType of ValueType
@@ -77,10 +79,10 @@ module RuntimeError =
         let newSegment =
           match segment with
           | String s -> s
-          | Int i -> Stdlib.Int.toString i
+          | Int i -> Stdlib.toString i
           | Ordinal i -> Stdlib.String.toOrdinal i
           | Count(i, singular, plural) ->
-            let count = Stdlib.Int.toString i
+            let count = Stdlib.toString i
 
             if i == 1 then
               let segment = segmentsToString branchId [ singular ]
@@ -93,7 +95,7 @@ module RuntimeError =
             //Builtin.debug "prevSegments" prevSegments
             match Stdlib.List.head prevSegments with
             | None -> ""
-            | Some prev -> Stdlib.String.articleFor prev ++ " "
+            | Some prev -> Stdlib.String.articleFor prev + " "
 
           | FunctionName fn -> fnName branchId fn
 
@@ -103,6 +105,8 @@ module RuntimeError =
           | TypeName t -> typeName branchId t
           | ValueName v -> valueName branchId v
           | ShortTypeName t -> shortTypeName branchId t
+          | TraitName t -> traitName branchId t
+          | ShortTraitName t -> shortTraitName branchId t
           | TypeReference t -> typeReference branchId t
           | TypeOfValue dv -> Dval.valueTypeName branchId dv
           | ValueType vt -> valueType branchId vt
@@ -132,23 +136,25 @@ module RuntimeError =
   /// suffix pointing the user at the right conversion function. Empty
   /// string otherwise (Unknown, Unit, String, collection/custom types).
   let toStringHint (vt: LanguageTools.RuntimeTypes.ValueType) : String =
+    // One hint for the types that have a ToString impl; `Stdlib.toString` is the fn to
+    // reach for whichever it is. Collections and custom types have none, so no hint.
     match vt with
-    | Known KTInt8 -> ". Try wrapping it with `Stdlib.Int8.toString`."
-    | Known KTUInt8 -> ". Try wrapping it with `Stdlib.UInt8.toString`."
-    | Known KTInt16 -> ". Try wrapping it with `Stdlib.Int16.toString`."
-    | Known KTUInt16 -> ". Try wrapping it with `Stdlib.UInt16.toString`."
-    | Known KTInt32 -> ". Try wrapping it with `Stdlib.Int32.toString`."
-    | Known KTUInt32 -> ". Try wrapping it with `Stdlib.UInt32.toString`."
-    | Known KTInt64 -> ". Try wrapping it with `Stdlib.Int64.toString`."
-    | Known KTUInt64 -> ". Try wrapping it with `Stdlib.UInt64.toString`."
-    | Known KTInt128 -> ". Try wrapping it with `Stdlib.Int128.toString`."
-    | Known KTUInt128 -> ". Try wrapping it with `Stdlib.UInt128.toString`."
-    | Known KTInt -> ". Try wrapping it with `Stdlib.Int.toString`."
-    | Known KTFloat -> ". Try wrapping it with `Stdlib.Float.toString`."
-    | Known KTBool -> ". Try wrapping it with `Stdlib.Bool.toString`."
-    | Known KTChar -> ". Try wrapping it with `Stdlib.Char.toString`."
-    | Known KTDateTime -> ". Try wrapping it with `Stdlib.DateTime.toString`."
-    | Known KTUuid -> ". Try wrapping it with `Stdlib.Uuid.toString`."
+    | Known KTInt8
+    | Known KTUInt8
+    | Known KTInt16
+    | Known KTUInt16
+    | Known KTInt32
+    | Known KTUInt32
+    | Known KTInt64
+    | Known KTUInt64
+    | Known KTInt128
+    | Known KTUInt128
+    | Known KTInt
+    | Known KTFloat
+    | Known KTBool
+    | Known KTChar
+    | Known KTDateTime
+    | Known KTUuid -> ". Try wrapping it with `Stdlib.toString`."
     | _ -> ""
 
 
@@ -277,8 +283,8 @@ module RuntimeError =
       let nameStr = Stdlib.String.join originalName "."
 
       match err with
-      | NotFound -> [ES.String (nameStr ++ " not found")]
-      | InvalidName -> [ES.String (nameStr ++ " is not a valid name")]
+      | NotFound -> [ES.String (nameStr + " not found")]
+      | InvalidName -> [ES.String (nameStr + " is not a valid name")]
 
     | TypeNotFound name ->
       [ ES.String "Type "
@@ -531,6 +537,50 @@ module RuntimeError =
         [ ES.String "Cannot serialize "
           ES.FullValue dv
           ES.String " into JSON" ]
+
+    | Trait err ->
+      match err with
+      | MissingImpl(trait_, self) ->
+        // The type is in hand, so the fix-it names it: `impl Add for <type>` made the reader
+        // work out that `<type>` meant the String they had just used.
+        [ ES.ValueType self
+          ES.String " has no implementation of "
+          ES.TraitName trait_
+          ES.String ". Write `impl "
+          ES.ShortTraitName trait_
+          ES.String " for "
+          ES.ValueType self
+          ES.String " = ...`, or run `dark impls "
+          ES.ShortTraitName trait_
+          ES.String "` to see which types do" ]
+      | DispatchAmbiguous(trait_, self, candidates) ->
+        [ ES.String (Stdlib.toString (Stdlib.List.length candidates))
+          ES.String " implementations of "
+          ES.TraitName trait_
+          ES.String " for "
+          ES.ValueType self
+          ES.String " exist, and there is no record of which came first, so none is used. `dark impls "
+          ES.ShortTraitName trait_
+          ES.String "` lists them; `dark deprecate impl <name>` retires one" ]
+      | MethodAmbiguous(method_, self, traits) ->
+        // No article in front of the type: "on a Int64" was what the old wording produced.
+        [ ES.ValueType self
+          ES.String $" has more than one `{method_}`: "
+          ES.String (Stdlib.toString (Stdlib.List.length traits))
+          ES.String $" traits declare it. Say which one you mean, as `SomeTrait.{method_} value`" ]
+      | SelfTypeUnknown(trait_, method_) ->
+        [ ES.ShortTraitName trait_
+          ES.String $".{method_} has no argument to read a type from, so it cannot tell which "
+          ES.String "type you mean. Name it: `"
+          ES.ShortTraitName trait_
+          ES.String $".{method_}<Int64> ...`" ]
+      | NoSuchMethod(trait_, method_) ->
+        [ ES.TraitName trait_
+          ES.String $" has no method named {method_}" ]
+      | TraitNotFound trait_ ->
+        [ ES.String "Trait "
+          ES.TraitName trait_
+          ES.String " is not on this branch" ]
 
     | CLI err ->
       match err with

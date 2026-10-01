@@ -136,7 +136,7 @@ let handleHoverRequest
 
         let description =
           match i.description with
-          | Some d -> "\n\nDescription: \n\n" ++ d
+          | Some d -> "\n\nDescription: \n\n" + d
           | None -> "no description available"
 
         (text, metadata, description)
@@ -152,10 +152,10 @@ let handleHoverRequest
               { kind = LanguageServerProtocol.MarkupKind.Markdown
                 value =
                   (HoverInformation.createCodeSnippet hoveringOn)
-                  ++ "\n\n"
-                  ++ metadata
-                  ++ "\n\n"
-                  ++ description }
+                  + "\n\n"
+                  + metadata
+                  + "\n\n"
+                  + description }
 
           range = Stdlib.Option.Option.None }
 

@@ -60,7 +60,7 @@ let cliBinary () : String =
 
 /// A fresh instance. Fails with a message rather than half-existing.
 let create () : Stdlib.Result.Result<T, String> =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let dir = $"{root ()}/{suffix}"
   let src = seedFrom ()
 
@@ -157,6 +157,6 @@ let expectExit (i: T) (args: List<String>) (expected: Int) : TestResult =
     if out.exitCode == expected then
       TestResult.Pass
     else
-      let got = Stdlib.Int.toString out.exitCode
-      let want = Stdlib.Int.toString expected
+      let got = Stdlib.toString out.exitCode
+      let want = Stdlib.toString expected
       TestResult.Fail $"`{cmd}` exited {got}, expected {want}"

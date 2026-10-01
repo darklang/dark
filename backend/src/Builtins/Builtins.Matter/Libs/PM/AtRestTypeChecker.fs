@@ -17,16 +17,23 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 module PackageRefs = LibExecution.PackageRefs
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module PTAst = LibExecution.ProgramTypesAst
 module Dependencies = LibDB.DependencyExtractor
 
 
 type private Closure =
   { types : Map<PT.Hash, PT.PackageType.PackageType>
     values : Map<PT.Hash, PT.PackageValue.PackageValue>
-    functions : Map<PT.Hash, PT.PackageFn.PackageFn> }
+    functions : Map<PT.Hash, PT.PackageFn.PackageFn>
+    traits : Map<PT.Hash, PT.Trait.Trait>
+    impls : Map<PT.Hash, PT.TraitImpl.TraitImpl> }
 
 let private emptyClosure : Closure =
-  { types = Map.empty; values = Map.empty; functions = Map.empty }
+  { types = Map.empty
+    values = Map.empty
+    functions = Map.empty
+    traits = Map.empty
+    impls = Map.empty }
 
 let private referenceOfDependency
   (dependency : Dependencies.Dependency)
@@ -49,6 +56,12 @@ let private candidateItems
       | PT.PackageOp.AddFn fn ->
         (PT.Reference.PackageFn fn.hash :: items,
          { closure with functions = Map.add fn.hash fn closure.functions })
+      | PT.PackageOp.AddTrait t ->
+        (PT.Reference.PackageTrait t.hash :: items,
+         { closure with traits = Map.add t.hash t closure.traits })
+      | PT.PackageOp.AddTraitImpl i ->
+        (PT.Reference.PackageTraitImpl i.hash :: items,
+         { closure with impls = Map.add i.hash i closure.impls })
       | PT.PackageOp.SetName _
       | PT.PackageOp.Unbind _
       | PT.PackageOp.Deprecate _
@@ -72,6 +85,14 @@ let private candidateDependencies (closure : Closure) : List<PT.Reference> =
       closure.functions.Values
       |> Seq.collect Dependencies.extractFromFn
       |> Seq.map referenceOfDependency
+      |> Seq.toList
+      closure.traits.Values
+      |> Seq.collect Dependencies.extractFromTrait
+      |> Seq.map referenceOfDependency
+      |> Seq.toList
+      closure.impls.Values
+      |> Seq.collect Dependencies.extractFromImpl
+      |> Seq.map referenceOfDependency
       |> Seq.toList ]
 
 let private loadDependencyClosure
@@ -86,7 +107,9 @@ let private loadDependencyClosure
       Set.unionMany
         [ candidates.types.Keys |> Seq.map PT.Reference.PackageType |> Set.ofSeq
           candidates.values.Keys |> Seq.map PT.Reference.PackageValue |> Set.ofSeq
-          candidates.functions.Keys |> Seq.map PT.Reference.PackageFn |> Set.ofSeq ]
+          candidates.functions.Keys |> Seq.map PT.Reference.PackageFn |> Set.ofSeq
+          candidates.traits.Keys |> Seq.map PT.Reference.PackageTrait |> Set.ofSeq
+          candidates.impls.Keys |> Seq.map PT.Reference.PackageTraitImpl |> Set.ofSeq ]
     let mutable pending = candidateDependencies candidates
     let mutable closure = emptyClosure
 
@@ -135,6 +158,24 @@ let private loadDependencyClosure
                 @ pending
               closure <-
                 { closure with functions = Map.add fn.hash fn closure.functions }
+          | PT.Reference.PackageTrait hash ->
+            let! item = pm.getTrait hash
+            match item with
+            | None -> ()
+            | Some t ->
+              pending <-
+                (t |> Dependencies.extractFromTrait |> List.map referenceOfDependency)
+                @ pending
+              closure <- { closure with traits = Map.add t.hash t closure.traits }
+          | PT.Reference.PackageTraitImpl hash ->
+            let! item = pm.getTraitImpl hash
+            match item with
+            | None -> ()
+            | Some i ->
+              pending <-
+                (i |> Dependencies.extractFromImpl |> List.map referenceOfDependency)
+                @ pending
+              closure <- { closure with impls = Map.add i.hash i closure.impls }
 
     return closure
   }
@@ -147,6 +188,16 @@ let private addTrustedDependencyDeclarations
     dependencies.types.Values
     |> Seq.fold
       (fun environment typ -> Checker.TypeEnvironment.addPackageType typ environment)
+      environment
+  let environment =
+    dependencies.traits.Values
+    |> Seq.fold
+      (fun environment t -> Checker.TypeEnvironment.addTrait t environment)
+      environment
+  let environment =
+    dependencies.impls.Values
+    |> Seq.fold
+      (fun environment i -> Checker.TypeEnvironment.addImpl i environment)
       environment
   dependencies.functions.Values
   |> Seq.fold
@@ -200,7 +251,8 @@ let private aggregate
   (batch : Checker.BatchResult)
   : CheckReport =
   let items =
-    List.concat [ batch.types; batch.values; batch.functions ]
+    List.concat
+      [ batch.types; batch.values; batch.functions; batch.traits; batch.impls ]
     |> List.filter (fun result -> Set.contains result.item candidateRefs)
     |> List.map itemReport
 
@@ -217,6 +269,287 @@ let private aggregate
     items = items
     diagnostics = diagnostics
     blockers = blockers }
+
+/// Which implementation each trait-method call in a batch resolves to, written onto the calls.
+///
+/// Runs before the batch is hashed, because the choice is part of what the item IS: a saved
+/// call goes on running the impl it was written against, and a newer one arrives as an
+/// ordinary repoint. Its own pass rather than a use of the at-rest check, which reports on
+/// what was already stored.
+///
+/// A call whose self type the checker cannot know (inside a bounded generic) is left to
+/// resolve at run time. Two applicable impls are ordered by the store's stamps, which is
+/// why this lives here and not in the checker (`LibExecution.Lww`).
+let resolveTraitCalls
+  (pm : PT.PackageManager)
+  (builtins : Builtins)
+  (ops : List<PT.PackageOp>)
+  : Ply<List<PT.PackageOp>> =
+  uply {
+    // A fn with no trait call and no operator has nothing to resolve, and the checker is not
+    // cheap; an ordinary save pays nothing. An operator is a trait method too, so the cheap
+    // test is "does this fn mention a trait, or any infix at all".
+    let rec hasInfix (expr : PT.Expr) : bool =
+      match expr with
+      | PT.EInfix _ -> true
+      | PT.EPipe(_, first, parts) ->
+        hasInfix first
+        || parts
+           |> List.exists (fun p ->
+             match p with
+             | PT.EPipeInfix _ -> true
+             | _ -> false)
+        || (PTAst.subExprs expr |> List.exists hasInfix)
+      | _ -> PTAst.subExprs expr |> List.exists hasInfix
+    // A trait method named outright (`Show.show x`), as opposed to an operator.
+    let rec namesATraitMethod (expr : PT.Expr) : bool =
+      match expr with
+      | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.TraitMethod _ } }, _) ->
+        true
+      | _ -> PTAst.subExprs expr |> List.exists namesATraitMethod
+
+    let worthChecking =
+      ops
+      |> List.exists (fun op ->
+        match op with
+        | PT.PackageOp.AddFn fn ->
+          hasInfix fn.body
+          || (Dependencies.extractFromFn fn
+              |> List.exists (fun d -> d.itemKind = PT.ItemKind.Trait))
+        // A value's body is an expression too, and `let scale = 3L * 4L` is an operator call
+        // that the checker types the same way. It is evaluated once at load rather than per
+        // call, so nothing here is about speed; it is about the value meaning the same thing
+        // after someone else's implementation arrives.
+        | PT.PackageOp.AddValue value -> hasInfix value.body
+        | _ -> false)
+    if not worthChecking then
+      return ops
+    else
+      let _, candidates = candidateItems ops
+      let! dependencies = loadDependencyClosure pm candidates
+      match
+        Checker.TypeEnvironment.empty |> Checker.TypeEnvironment.addBuiltins builtins
+      with
+      | Error _ -> return ops
+      | Ok environment ->
+        let environment = addTrustedDependencyDeclarations dependencies environment
+        let! environment =
+          CheckerApi.addVisibleImpls
+            pm
+            (Seq.append candidates.traits.Keys dependencies.traits.Keys)
+            environment
+        let values =
+          Map.fold
+            (fun values hash value -> Map.add hash value values)
+            dependencies.values
+            candidates.values
+        // Only the fns that could have something to record are inferred. Every fn is still
+        // declared, so no signature goes missing, and these are cheap AST walks against an
+        // inference pass over the body. On a whole-tree reload that is most of the work: about a
+        // third of the tree mentions an operator, a trait method, or a call into a bounded fn.
+        let boundedFns : Set<PT.Hash> =
+          Map.fold
+            (fun m k v -> Map.add k v m)
+            dependencies.functions
+            candidates.functions
+          |> Map.fold
+            (fun acc hash (fn : PT.PackageFn.PackageFn) ->
+              if List.isEmpty fn.bounds then acc else Set.add hash acc)
+            Set.empty
+
+        // A call into a bounded fn is what records the implementation the callee's body defers
+        // to, so it has to be checked even when the body has no operator in it.
+        let rec callsBoundedFn (expr : PT.Expr) : bool =
+          match expr with
+          | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.Package h } }, _) ->
+            Set.contains h boundedFns
+          | _ -> PTAst.subExprs expr |> List.exists callsBoundedFn
+
+        let worthChecking (fn : PT.PackageFn.PackageFn) : bool =
+          hasInfix fn.body || namesATraitMethod fn.body || callsBoundedFn fn.body
+        let batch =
+          CheckerApi.checkPackageBatchWhere
+            worthChecking
+            environment
+            (candidates.types.Values |> Seq.toList)
+            (values.Values |> Seq.toList)
+            (candidates.functions.Values |> Seq.toList)
+            (candidates.traits.Values |> Seq.toList)
+            (candidates.impls.Values |> Seq.toList)
+
+        // The winner among the implementations that apply, and the fn it names for the method.
+        let! stamps = LibDB.Queries.getTraitImplStamps ()
+        // A deprecated implementation is not a candidate at run time, so it must not be one
+        // here either: `dark constraints` tells you to deprecate one of two rivals, and pinning
+        // the one you just retired would make that advice a trap.
+        let! deprecated = LibDB.Queries.getDeprecatedTraitImplHashes ()
+        let implFnFor
+          (method_ : string)
+          (implHashes : List<PT.Hash>)
+          : Ply<Option<PT.ResolvedName<PT.FQFnName.Package>>> =
+          uply {
+            let implHashes =
+              implHashes
+              |> List.filter (fun (PT.Hash h) -> not (Set.contains h deprecated))
+            // One implementation is not an ordering question: it is the answer. Several are,
+            // and an unstamped pair has no answer, so the call is left to resolve at run time
+            // and `dark constraints` reports the pair.
+            let winner =
+              match implHashes with
+              | [] -> None
+              | [ only ] -> Some only
+              | several ->
+                several
+                |> List.map (fun (PT.Hash h as hash) ->
+                  (hash, stamps |> Map.tryFind h |> Option.defaultValue "", h))
+                |> LibExecution.Lww.winnerOf
+            match winner with
+            | None -> return None
+            | Some winner ->
+              // The batch's own implementations are not in the store yet.
+              let! impl =
+                match Map.tryFind winner candidates.impls with
+                | Some i -> Ply(Some i)
+                | None -> pm.getTraitImpl winner
+              // The implementation's own reference to the fn, location and all, which is why
+              // the edge this produces reads like any other and a rename reaches it.
+              return
+                impl
+                |> Option.bind (fun i ->
+                  i.methods
+                  |> List.tryPick (fun (name, nr) ->
+                    if name <> method_ then
+                      None
+                    else
+                      match nr.resolved with
+                      | Ok { name = PT.FQFnName.Package h; location = loc } ->
+                        Some { name = h; location = loc }
+                      | _ -> None))
+          }
+
+        let pinsByItem = Dictionary<PT.Hash, Map<id, PT.FQFnName.ImplChoice>>()
+        let boundsByItem =
+          Dictionary<PT.Hash, Map<id, List<PT.FQFnName.BoundImpl>>>()
+        let collect (hash : PT.Hash) (proof : Checker.Proof) : Ply<unit> =
+          uply {
+            let! pins =
+              CheckerApi.resolutionsOf proof
+              |> Map.toList
+              |> Ply.List.foldSequentially
+                (fun pins (nodeId, (method_, implHashes)) ->
+                  uply {
+                    match! implFnFor method_ implHashes with
+                    | Some implFn ->
+                      return Map.add nodeId (PT.FQFnName.Chosen implFn) pins
+                    | None -> return pins
+                  })
+                Map.empty
+            // A call whose self type is one of the item's own type params is not a call nobody
+            // could work out: it is waiting for its caller, and it says so.
+            let pins =
+              CheckerApi.deferralsOf proof
+              |> Map.fold
+                (fun pins nodeId param ->
+                  if Map.containsKey nodeId pins then
+                    pins
+                  else
+                    Map.add nodeId (PT.FQFnName.FromTypeParam param) pins)
+                pins
+            if not (Map.isEmpty pins) then pinsByItem[hash] <- pins
+
+            // The other half: what this item's CALLS worked out for the bounds of the fns they
+            // name. That is what makes a call into a bounded fn static: the callee's body defers
+            // to its type param, and the call says which implementation that param implies.
+            // Accumulated in loops rather than folds: the trait and the impl fn are both
+            // awaited, so the fold version is three nested `uply` continuations deep.
+            let mutable bounds = Map.empty
+            for KeyValue(nodeId, owed) in CheckerApi.callerBoundsOf proof do
+              let mutable resolved = []
+              for (param, traitHash, implHashes) in owed do
+                // One entry per method of the trait, so the callee's body finds a fn for
+                // whichever method it calls without reading the implementation item at run time.
+                match! pm.getTrait traitHash with
+                | Some trait_ ->
+                  for m in NEList.toList trait_.methods do
+                    match! implFnFor m.name implHashes with
+                    | Some implFn ->
+                      resolved <-
+                        ({ param = param
+                           trait_ = traitHash
+                           method_ = m.name
+                           choice = PT.FQFnName.Chosen implFn }
+                        : PT.FQFnName.BoundImpl)
+                        :: resolved
+                    | None -> ()
+                | None -> ()
+              if not (List.isEmpty resolved) then
+                bounds <- Map.add nodeId resolved bounds
+            for KeyValue(nodeId, owed) in CheckerApi.callerBoundDeferralsOf proof do
+              let mutable passedAlong = []
+              for (param, traitHash, fromParam) in owed do
+                match! pm.getTrait traitHash with
+                | Some trait_ ->
+                  for m in NEList.toList trait_.methods do
+                    passedAlong <-
+                      ({ param = param
+                         trait_ = traitHash
+                         method_ = m.name
+                         choice = PT.FQFnName.FromTypeParam fromParam }
+                      : PT.FQFnName.BoundImpl)
+                      :: passedAlong
+                | None -> ()
+              let existing = Map.tryFind nodeId bounds |> Option.defaultValue []
+              bounds <- Map.add nodeId (existing @ passedAlong) bounds
+            if not (Map.isEmpty bounds) then boundsByItem[hash] <- bounds
+          }
+        for result in batch.functions do
+          match result.item, result.verdict with
+          | PT.Reference.PackageFn fnHash, Checker.Checked proof ->
+            do! collect fnHash proof
+          | _, _ -> ()
+        for result in batch.values do
+          match result.item, result.verdict with
+          | PT.Reference.PackageValue valueHash, Checker.Checked proof ->
+            do! collect valueHash proof
+          | _, _ -> ()
+
+
+        let mappingFor (hash : PT.Hash) : Option<LibDB.AstTransformer.HashMapping> =
+          let pins =
+            match pinsByItem.TryGetValue hash with
+            | true, pins -> pins
+            | _ -> Map.empty
+          let bounds =
+            match boundsByItem.TryGetValue hash with
+            | true, bounds -> bounds
+            | _ -> Map.empty
+          if Map.isEmpty pins && Map.isEmpty bounds then
+            None
+          else
+            Some
+              { LibDB.AstTransformer.emptyMapping with
+                  pins = pins
+                  boundImpls = bounds }
+
+        return
+          ops
+          |> List.map (fun op ->
+            match op with
+            | PT.PackageOp.AddFn fn ->
+              match mappingFor fn.hash with
+              | Some mapping ->
+                PT.PackageOp.AddFn(LibDB.AstTransformer.transformFn mapping fn)
+              | None -> op
+            | PT.PackageOp.AddValue value ->
+              match mappingFor value.hash with
+              | Some mapping ->
+                PT.PackageOp.AddValue(
+                  LibDB.AstTransformer.transformValue mapping value
+                )
+              | None -> op
+            | _ -> op)
+  }
+
 
 let checkPackageOps
   (pm : PT.PackageManager)
@@ -237,6 +570,13 @@ let checkPackageOps
         |> unavailableReport
     | Ok environment ->
       let environment = addTrustedDependencyDeclarations dependencies environment
+      // Every trait the batch or its closure mentions: its stored impls are what a
+      // bound or a method call in the batch can discharge with.
+      let! environment =
+        CheckerApi.addVisibleImpls
+          pm
+          (Seq.append candidates.traits.Keys dependencies.traits.Keys)
+          environment
       let values =
         Map.fold
           (fun values hash value -> Map.add hash value values)
@@ -248,6 +588,8 @@ let checkPackageOps
           (candidates.types.Values |> Seq.toList)
           (values.Values |> Seq.toList)
           (candidates.functions.Values |> Seq.toList)
+          (candidates.traits.Values |> Seq.toList)
+          (candidates.impls.Values |> Seq.toList)
       return aggregate (Set.ofList candidateRefs) batch
   }
 
@@ -268,7 +610,10 @@ let checkBranch (pm : PT.PackageManager) (builtins : Builtins) : Ply<CheckReport
       List.concat
         [ results.types |> List.map (fun item -> PT.PackageOp.AddType item.entity)
           results.values |> List.map (fun item -> PT.PackageOp.AddValue item.entity)
-          results.fns |> List.map (fun item -> PT.PackageOp.AddFn item.entity) ]
+          results.fns |> List.map (fun item -> PT.PackageOp.AddFn item.entity)
+          results.traits |> List.map (fun item -> PT.PackageOp.AddTrait item.entity)
+          results.impls
+          |> List.map (fun item -> PT.PackageOp.AddTraitImpl item.entity) ]
     return! checkPackageOps pm builtins ops
   }
 
@@ -362,6 +707,12 @@ module private DarkTypes =
       | Checker.DuplicateTypeParameter -> "DuplicateTypeParameter"
       | Checker.DuplicateTypeMember -> "DuplicateTypeMember"
       | Checker.InvalidUnwrap -> "InvalidUnwrap"
+      | Checker.MissingImpl -> "MissingImpl"
+      | Checker.UnboundTypeParameter -> "UnboundTypeParameter"
+      | Checker.AmbiguousImpl -> "AmbiguousImpl"
+      | Checker.ImplMethodSet -> "ImplMethodSet"
+      | Checker.ImplMethodSignature -> "ImplMethodSignature"
+      | Checker.ImplExceedsCeiling -> "ImplExceedsCeiling"
       | Checker.UnsupportedDictKeyType -> "UnsupportedDictKeyType"
     enumValue (issueCodeName ()) caseName []
 
@@ -371,6 +722,7 @@ module private DarkTypes =
       | Checker.UnresolvedTypeName -> "UnresolvedTypeName"
       | Checker.UnresolvedFunctionName -> "UnresolvedFunctionName"
       | Checker.UnresolvedValueName -> "UnresolvedValueName"
+      | Checker.UnresolvedTraitName -> "UnresolvedTraitName"
       | Checker.MissingTypeDeclaration -> "MissingTypeDeclaration"
       | Checker.MissingFunctionSignature -> "MissingFunctionSignature"
       | Checker.MissingValueSignature -> "MissingValueSignature"
@@ -401,6 +753,16 @@ module private DarkTypes =
       )
     | PT.FQFnName.Package hash ->
       DEnum(typeName, typeName, [], "Package", [ PT2DT.Hash.toDT hash ])
+    | PT.FQFnName.TraitMethod { trait_ = traitHash; method_ = method_; implFn = _ } ->
+      DEnum(
+        typeName,
+        typeName,
+        [],
+        "TraitMethod",
+        // The checker's own NameRef: the trait and the method, which is what a diagnostic
+        // names. Which implementation it resolved to is not part of the message.
+        [ PT2DT.Hash.toDT traitHash; DString method_ ]
+      )
 
   let private valueNameToDT (name : PT.FQValueName.FQValueName) : Dval =
     let typeName = nameRefName ()
@@ -421,6 +783,7 @@ module private DarkTypes =
     let make caseName fields = DEnum(typeName, typeName, [], caseName, fields)
     match site with
     | Checker.LambdaReturnValue -> make "LambdaReturnValue" []
+    | Checker.ImplMethodSignatureSite -> make "ImplMethodSignatureSite" []
     | Checker.FunctionReturnValue -> make "FunctionReturnValue" []
     | Checker.UnwrappedError -> make "UnwrappedError" []
     | Checker.ValueBody -> make "ValueBody" []
@@ -432,6 +795,7 @@ module private DarkTypes =
       make "FunctionArgument" [ DInt64(int64 position) ]
     | Checker.IfWithoutElse -> make "IfWithoutElse" []
     | Checker.RecordFieldAccess -> make "RecordFieldAccess" []
+    | Checker.InterpolatedSegment -> make "InterpolatedSegment" []
     | Checker.UnitLetPattern -> make "UnitLetPattern" []
     | Checker.TupleLetPattern -> make "TupleLetPattern" []
     | Checker.MatchPattern -> make "MatchPattern" []
@@ -468,6 +832,7 @@ module private DarkTypes =
     | Checker.RecordType -> make "RecordType"
     | Checker.EnumPatternType -> make "EnumPatternType"
     | Checker.ItemType -> make "ItemType"
+    | Checker.ConstrainedType -> make "ConstrainedType"
 
   let private untrustedBuiltinToDT (reason : Checker.UntrustedBuiltin) : Dval =
     let typeName = untrustedBuiltinName ()
@@ -492,6 +857,10 @@ module private DarkTypes =
     | Checker.At site -> make "At" [ siteToDT site ]
     | Checker.Unresolved attempted -> make "Unresolved" [ strings attempted ]
     | Checker.TypeUnavailable name -> make "TypeUnavailable" [ PT2DT.Hash.toDT name ]
+    | Checker.TraitUnavailable name ->
+      make "TraitUnavailable" [ PT2DT.Hash.toDT name ]
+    | Checker.ImplMethod(trait_, method_, detail) ->
+      make "ImplMethod" [ PT2DT.Hash.toDT trait_; DString method_; DString detail ]
     | Checker.FunctionUnavailable name ->
       make "FunctionUnavailable" [ fnNameToDT name ]
     | Checker.ValueUnavailable name -> make "ValueUnavailable" [ valueNameToDT name ]
@@ -537,6 +906,11 @@ module private DarkTypes =
     | Checker.DeclarationTooDeep -> make "DeclarationTooDeep" []
     | Checker.UnaryMinusOperandNotSignedNumeric ->
       make "UnaryMinusOperandNotSignedNumeric" []
+    | Checker.TraitNeeded(trait_, method_) ->
+      make
+        "TraitNeeded"
+        [ PT2DT.Hash.toDT trait_
+          method_ |> Option.map DString |> Dval.option KTString ]
     | Checker.CheckerUnavailable detail ->
       make "CheckerUnavailable" [ DString detail ]
 
@@ -604,7 +978,7 @@ module private DarkTypes =
     )
 
 
-let fns (pm : PT.PackageManager) : List<BuiltInFn> =
+let fns (_pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "atRestCheckPackageOps" 0
       typeParams = []
       parameters =
@@ -637,12 +1011,72 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               else
                 let ops = decoded |> List.choose (fun value -> value)
                 let builtins = exeState.builtins
-                let! report = checkPackageOps pm builtins ops
+                // The branch the author is on, not this builtin set's pm (main's):
+                // impls bound on the branch are what the batch's calls dispatch to.
+                let branchPm = LibDB.PackageManager.ptForBranch exeState.branchId
+                let! report = checkPackageOps branchPm builtins ops
                 return DarkTypes.reportToDT report
             with ex ->
               return
                 unavailableReport $"At-rest checker unavailable: {ex.Message}"
                 |> DarkTypes.reportToDT
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "pmResolveTraitCalls" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "ops"
+            (TList(
+              TCustomType(
+                NR.ok (
+                  FQTypeName.fqPackage (
+                    PackageRefs.Type.LanguageTools.ProgramTypes.packageOp ()
+                  )
+                ),
+                []
+              )
+            ))
+            "the ops about to be saved" ]
+      returnType =
+        TList(
+          TCustomType(
+            NR.ok (
+              FQTypeName.fqPackage (
+                PackageRefs.Type.LanguageTools.ProgramTypes.packageOp ()
+              )
+            ),
+            []
+          )
+        )
+      description =
+        "Records, on each trait-method call in these declarations, which implementation it resolved to, so a saved item goes on running the implementation it was written against. Anything it cannot resolve comes back unchanged, to be resolved when it runs."
+      fn =
+        (function
+        | exeState, _, _, [| DList(vt, ops) |] ->
+          uply {
+            try
+              let decoded = ops |> List.map PT2DT.PackageOp.fromDT
+              if decoded |> List.exists Option.isNone then
+                return DList(vt, ops)
+              else
+                let decoded = decoded |> List.choose (fun value -> value)
+                let branchPm = LibDB.PackageManager.ptForBranch exeState.branchId
+                let! resolved = resolveTraitCalls branchPm exeState.builtins decoded
+                return DList(vt, resolved |> List.map PT2DT.PackageOp.toDT)
+            with ex ->
+              // Resolution is an improvement on what is stored, never a gate on storing it:
+              // a batch this cannot make sense of is saved as it arrived. Said out loud, because
+              // the symptom otherwise is only that operators got slower.
+              System.Console.Error.WriteLine
+                $"note: could not resolve trait calls in this save ({ex.Message}); they will \
+                   resolve when they run"
+              return DList(vt, ops)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

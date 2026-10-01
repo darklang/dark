@@ -28,11 +28,11 @@ let daemonState (slug: String) : String =
     if Stdlib.Cli.Posix.isProcessRunning pid then
       let portStr =
         match daemonPort slug with
-        | Some p -> $" :{Stdlib.Int.toString p}"
+        | Some p -> $" :{Stdlib.toString p}"
         | None -> ""
-      $"running (pid {Stdlib.Int.toString pid}){portStr}"
+      $"running (pid {Stdlib.toString pid}){portStr}"
     else
-      $"stale (pid {Stdlib.Int.toString pid})"
+      $"stale (pid {Stdlib.toString pid})"
   | None -> "stopped"
 
 /// One list row: pretty label · (slug) · [kind] · description — daemons append their live state.
@@ -40,7 +40,7 @@ let row (app: Model.App) : String =
   let tag = Model.kindTag app.target
   let extra =
     match app.target with
-    | Daemon _ -> "  " ++ Stdlib.Cli.UI.Colors.dimText ("· " ++ daemonState app.slug)
+    | Daemon _ -> "  " + Stdlib.Cli.UI.Colors.dimText ("· " + daemonState app.slug)
     | Foreground _ -> ""
   $"  {app.name}  {Stdlib.Cli.UI.Colors.dimText ($"({app.slug})  [{tag}]")}  {Stdlib.Cli.UI.Colors.dimText app.description}{extra}"
 
@@ -80,11 +80,11 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
       else
 
       let q = "\""
-      let expr = entrypoint ++ " " ++ q ++ slug ++ q
+      let expr = entrypoint + " " + q + slug + q
 
       match Stdlib.Cli.Daemon.start slug expr with
       | Ok pid ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {app.name} started (pid {Stdlib.Int.toString pid})")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {app.name} started (pid {Stdlib.toString pid})")
       | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
     | Foreground _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a foreground app — run it with `apps run {slug}`")
@@ -111,7 +111,7 @@ let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
         ()
       else
         Stdlib.printLine "  recent logs:"
-        logs |> Stdlib.List.map (fun l -> "    " ++ l) |> Stdlib.printLines
+        logs |> Stdlib.List.map (fun l -> "    " + l) |> Stdlib.printLines
     | Foreground _ -> ()
 
   state
@@ -140,7 +140,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     |> Stdlib.List.map (fun a ->
       let installedTag =
         if Registry.isInstalled a.slug then Stdlib.Cli.UI.Colors.success "  ✓ installed" else ""
-      (row a) ++ installedTag)
+      (row a) + installedTag)
     |> Stdlib.printLines
 
     Stdlib.printLine ""
@@ -208,13 +208,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     else
       Stdlib.printLine "Daemon status:"
       daemons
-      |> Stdlib.List.map (fun a -> "  " ++ Stdlib.Cli.Daemon.statusLine a.slug)
+      |> Stdlib.List.map (fun a -> "  " + Stdlib.Cli.Daemon.statusLine a.slug)
       |> Stdlib.printLines
 
     state
 
   | [ "status", slug ] ->
-    Stdlib.printLine ("  " ++ Stdlib.Cli.Daemon.statusLine slug)
+    Stdlib.printLine ("  " + Stdlib.Cli.Daemon.statusLine slug)
     state
 
   | [ "logs", slug ] ->
@@ -282,7 +282,7 @@ let complete
 // A single help line: "  cmd <args>   description", padded for a clean column.
 let helpLine (usage: String) (desc: String) : String =
   let pad = Stdlib.String.padEndToWidth usage 26
-  "  " ++ pad ++ Stdlib.Cli.UI.Colors.dimText desc
+  "  " + pad + Stdlib.Cli.UI.Colors.dimText desc
 
 let help (_state: Cli.AppState) : String =
   Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "dark apps")

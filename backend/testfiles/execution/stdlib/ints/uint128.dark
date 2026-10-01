@@ -1,15 +1,10 @@
-Stdlib.UInt128.max 5Z 6Z = 6Z
-Stdlib.UInt128.max 10Z 1Z = 10Z
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max 10Z 1Z = 10Z
 
-Stdlib.UInt128.min 5Z 6Z = 5Z
-Stdlib.UInt128.min 10Z 10Z = 10Z
-Stdlib.UInt128.min 340282366920938463463374607431768211455Z 0Z = 0Z
+Stdlib.min 340282366920938463463374607431768211455Z 0Z = 0Z
 
-Stdlib.UInt128.clamp 1Z 2Z 1Z = 1Z
-Stdlib.UInt128.clamp 3Z 0Z 2Z = 2Z
-Stdlib.UInt128.clamp 100Z 0Z 0Z = 0Z
-Stdlib.UInt128.clamp 100Z 1Z 0Z = 1Z
-
+Stdlib.clamp 100Z 0Z 0Z = 0Z
 
 Stdlib.UInt128.add 10Z 9Z = 19Z
 Stdlib.UInt128.add 88Z 9Z = 97Z
@@ -52,9 +47,9 @@ Stdlib.UInt128.lessThan 10Z 1Z = false
 Stdlib.UInt128.lessThan 0Z 1Z = true
 Stdlib.UInt128.lessThan 1Z 0Z = false
 
-Stdlib.UInt128.toString 0Z = "0"
-Stdlib.UInt128.toString 1Z = "1"
-Stdlib.UInt128.toString 340282366920938463463374607431768211455Z = "340282366920938463463374607431768211455"
+Stdlib.toString 0Z = "0"
+Stdlib.toString 1Z = "1"
+Stdlib.toString 340282366920938463463374607431768211455Z = "340282366920938463463374607431768211455"
 
 Stdlib.UInt128.toFloat 2Z = 2.0
 Stdlib.UInt128.toFloat 340282366920938463463374607431768211455Z = 340282366920938463463374607431768211455.0
@@ -81,10 +76,8 @@ Stdlib.UInt128.parse "078" = Stdlib.Result.Result.Ok(78Z) // "octal" format igno
 Stdlib.UInt128.parse "170141183460469231731687303715884105727" =
   Stdlib.Result.Result.Ok(170141183460469231731687303715884105727Z)
 
-
 Stdlib.UInt128.parse "170141183460469231731687303715884105729" =
   Stdlib.Result.Result.Ok 170141183460469231731687303715884105729Z
-
 
 // bad format
 Stdlib.UInt128.parse "1 2 3" = Stdlib.Result.Result.Error Stdlib.UInt128.ParseError.BadFormat

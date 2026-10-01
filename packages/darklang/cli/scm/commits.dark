@@ -22,7 +22,7 @@ let authorLabel (author: String) : String =
 
 /// One display row: [short hash; ops committed; author; message].
 let commitRow (c: SCM.Commits.Commit) : List<String> =
-  let ops = Stdlib.Int64.toString (SCM.PackageOps.opCountIn c.hash)
+  let ops = Stdlib.toString (SCM.PackageOps.opCountIn c.hash)
   [ SCM.Conflicts.shortHash c.hash, ops, authorLabel c.author, c.message ]
 
 let executeList (state: AppState) (limit: Int64) (showAll: Bool) : AppState =
@@ -61,7 +61,7 @@ let executeList (state: AppState) (limit: Int64) (showAll: Bool) : AppState =
       if shown >= total then
         counted
       else
-        $"{counted} - showing the {Stdlib.Int.toString shown} most recent"
+        $"{counted} - showing the {Stdlib.toString shown} most recent"
 
     Cli.printOk header
 
@@ -71,7 +71,7 @@ let executeList (state: AppState) (limit: Int64) (showAll: Bool) : AppState =
 
     if hidden > 0 then
       Cli.printHint
-        $"  {Stdlib.Int.toString hidden} housekeeping commit(s) (branch archives) hidden -- `dark commits --all` shows them"
+        $"  {Stdlib.toString hidden} housekeeping commit(s) (branch archives) hidden -- `dark commits --all` shows them"
 
     state
 
@@ -111,7 +111,7 @@ let executeDetailed (state: AppState) (limit: Int64) (showAll: Bool) : AppState 
 
       if n > 50L then
         Cli.printHint
-          $"    ... {Stdlib.Int64.toString (Stdlib.Int64.subtract n 50L)} more -- `dark ops` walks the log in full.")
+          $"    ... {Stdlib.toString (Stdlib.Int64.subtract n 50L)} more -- `dark ops` walks the log in full.")
 
     state
 
@@ -216,7 +216,7 @@ let showCommit (state: AppState) (c: SCM.Commits.Commit) : Unit =
   if n > 50L then
     Stdlib.printLine ""
     Cli.printHint
-      $"  showing the first 50 of {Stdlib.Int64.toString n} -- `dark ops` walks the log in full."
+      $"  showing the first 50 of {Stdlib.toString n} -- `dark ops` walks the log in full."
 
 let helpShow (_state: AppState) : String =
   [     ""

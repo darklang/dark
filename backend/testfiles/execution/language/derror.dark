@@ -22,7 +22,7 @@ module ErrorPropagation =
   Stdlib.Result.Result.Error(Builtin.testRuntimeError "test") = error="Uncaught exception: test"
   Stdlib.Result.Result.Ok(Builtin.testRuntimeError "test") = error="Uncaught exception: test"
   // pipe into error
-  ("test" |> Builtin.testRuntimeError |> (++) "3") = error="Uncaught exception: test"
+  ("test" |> Builtin.testRuntimeError |> (+) "3") = error="Uncaught exception: test"
   type EPRec =
     { i: Int64
       m: Int64

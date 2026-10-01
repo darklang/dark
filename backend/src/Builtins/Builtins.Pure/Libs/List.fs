@@ -1033,6 +1033,10 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // TODO inconsistent with `<`, which dispatches on the type's `Compare` impl; this sorts
+    // structurally, so a type can order one way under `<` and another under `List.sort`.
+    // Fixing it means a dispatched call per comparison on a path that was moved into F# to
+    // avoid exactly that, so it wants a measurement first.
     { name = fn "listSort" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]

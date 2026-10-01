@@ -220,12 +220,12 @@ let chainOpRows (branchId: Uuid) : List<Dict<String, Stdlib.Sqlite.Value>> =
   Stdlib.Sqlite.rowsOrEmptyP
     (localDb ())
     (chainCteSql
-     ++ " SELECT p.id, p.op_blob, p.origin_ts AS ts
+     + " SELECT p.id, p.op_blob, p.origin_ts AS ts
           FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
           WHERE ob.branch_id IN (SELECT bid FROM chain)
           ORDER BY p.origin_ts, p.rowid")
-    [ Stdlib.Uuid.toString branchId
-      Stdlib.Uuid.toString SCM.Branch.mainBranchId ]
+    [ Stdlib.toString branchId
+      Stdlib.toString SCM.Branch.mainBranchId ]
 
 
 /// <fn chainBindingEntries>, keeping only the names the chain leaves bound.

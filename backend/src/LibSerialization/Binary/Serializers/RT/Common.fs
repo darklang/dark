@@ -66,6 +66,16 @@ module FQTypeName =
     FQTypeName.Package h
 
 
+module FQTraitName =
+  let write (w : BinaryWriter) (n : FQTraitName.FQTraitName) : unit =
+    match n with
+    | FQTraitName.Package h -> Hash.write w h
+
+  let read (r : BinaryReader) : FQTraitName.FQTraitName =
+    let h = Hash.read r
+    FQTraitName.Package h
+
+
 module FQFnName =
   let write (w : BinaryWriter) (n : FQFnName.FQFnName) : unit =
     match n with
@@ -76,6 +86,18 @@ module FQFnName =
     | FQFnName.Package h ->
       w.Write 1uy
       Hash.write w h
+    | FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn } ->
+      w.Write 2uy
+      Hash.write w t
+      String.write w m
+      match implFn with
+      | FQFnName.Unknown -> w.Write 0uy
+      | FQFnName.Chosen h ->
+        w.Write 1uy
+        Hash.write w h
+      | FQFnName.FromTypeParam p ->
+        w.Write 2uy
+        String.write w p
 
   let read (r : BinaryReader) : FQFnName.FQFnName =
     match r.ReadByte() with
@@ -86,6 +108,16 @@ module FQFnName =
     | 1uy ->
       let h = Hash.read r
       FQFnName.Package h
+    | 2uy ->
+      let t = Hash.read r
+      let m = String.read r
+      let implFn =
+        match r.ReadByte() with
+        | 0uy -> FQFnName.Unknown
+        | 1uy -> FQFnName.Chosen(Hash.read r)
+        | 2uy -> FQFnName.FromTypeParam(String.read r)
+        | b -> raiseFormatError $"Invalid ImplChoice tag: {b}"
+      FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn }
     | b -> raiseFormatError $"Invalid FQFnName tag: {b}"
 
 

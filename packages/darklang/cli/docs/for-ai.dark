@@ -75,7 +75,7 @@ never against what you typed.
 - Never write `PACKAGE.` in source or search; it is internal notation.
 - Lists use commas: `[1, 2]`; chars use single quotes: `'a'`.
 - `|>` passes its left value as the first argument. Parenthesize a complex left side.
-- Strings concatenate with `++`. Interpolation does not coerce non-strings.
+- Strings concatenate with `+`. Interpolation does not coerce non-strings.
 - Bare integers are arbitrary-precision `Int`; numeric operands must have one type.
 - Local values use `let max = 6` without annotations; package values use `val`.
 - Record construction is `State { count = 0 }`; update is `{ state with count = 1 }`.
@@ -238,14 +238,24 @@ Rules:
   `let (a, b) = pair`, `fun (name, done) -> ...`
 - Tuple elements by position, counting from 1: `pair.1`, `triple.3`,
   `nested.1.2`. `.0` and past-the-end are errors.
-- String concat: ++ (not @)
-- String interpolation: $"x = {expr}; total = {a ++ b}" -- does NOT auto-coerce
-  non-strings; wrap with Stdlib.Int.toString / Stdlib.Float.toString
-- Numeric operators (+ - * / % ** < > <= >= and unary -) are polymorphic over
-  numeric types; operands must match (`1 + 2`, `1.0 + 2.0`). `/` is integer
-  division on ints; float division on floats. `**` is power. A bare `1` is an
-  arbitrary-precision `Int` and never overflows.
-- Bitwise operators (& | ^ << >> and unary ~) work on every integer type, not
+- String concat: + (not @)
+- String interpolation: $"x = {expr}; total = {a + b}" -- does NOT auto-coerce
+  non-strings; wrap with Stdlib.toString
+- Most operators are traits: `+ - * / % **` and `-x` are Add Subtract Multiply Divide Modulo
+  Power Negate; `< <= > >=` are Compare; `& | ^ << >>` and `~x` are BitwiseAnd BitwiseOr
+  BitwiseXor ShiftLeft ShiftRight BitwiseNot. `==` and `!=` are NOT traits: structural on
+  every value, always, and no type can override them.
+  Operands must match (`1 + 2`, `1.0 + 2.0`; `1L + 2.0` is an error). `/` is
+  integer division on ints, float on floats; `**` is power; a bare `1` is an
+  arbitrary-precision `Int` and never overflows. `"a" + "b"` is `"ab"`.
+- Traits: `impl Add for Vec = let add (a: Vec) (b: Vec) : Vec = ...` gives Vec
+  a `+`; `impl ToString for Point = let toString (p: Point) : String = ...`
+  gives `p.toString`; your own with `trait Area<'a> = let area (s: 'a) : Float`.
+  A bound is `let f<'a: ToString> (v: 'a) = ...`. Author with `dark trait` /
+  `dark impl`; `dark impls <Trait> --json` lists implementations with the status a
+  call sees (active, shadowed, unordered); `dark constraints --json` has the rival
+  pairs; `docs traits`.
+- Bitwise operators have implementations for every integer type and none for
   Float; both operands (the shift count included) must be the same type.
 - `!x` is boolean not. Inside a `match`, `|` is the arm separator, so bitwise-or
   there needs parens: `| A -> (a | b)`.
@@ -268,7 +278,7 @@ If commands hang or fail silently, check logs:
   rundir/logs/           # other logs
 
 ## More
-  docs syntax | types | operators | errors | packages
+  docs syntax | types | traits | operators | errors | packages
   docs stdlib | cli | scm | deprecation
   docs signatures <module>
   help <command>"""

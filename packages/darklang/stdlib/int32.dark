@@ -106,54 +106,12 @@ let sqrt (a: Int32) : Float = Builtin.int32Sqrt a
 let toFloat (a: Int32) : Float = Builtin.int32ToFloat a
 
 
-/// Returns the sum of all the ints in the list
-let sum (lst: List<Int32>) : Int32 =
-  Stdlib.List.fold lst 0l (fun acc x -> add acc x)
-
-
-/// Returns the higher of <param a> and <param b>
-let max (a: Int32) (b: Int32) : Int32 =
-  if greaterThan a b then a else b
-
-
-/// Returns the lower of <param a> and <param b>
-let min (a: Int32) (b: Int32) : Int32 =
-  if lessThan a b then a else b
-
-
-/// If <param value> is within the range given by <param limitA> and <param
-/// limitB>, returns <param value>.
-/// If <param value> is outside the range, returns <param limitA> or <param
-/// limitB>, whichever is closer to <param value>.
-/// <param limitA> and <param limitB> can be provided in any order.
-let clamp (value: Int32) (limitA: Int32) (limitB: Int32) : Int32 =
-  let min =
-    if lessThan limitA limitB then
-      limitA
-    else
-      limitB
-
-  let max =
-    if greaterThan limitA limitB then
-      limitA
-    else
-      limitB
-
-  if lessThan value min then min
-  else if greaterThan value max then max
-  else value
-
-
 /// Parses a <type String> into an <type Int32>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int32> range).
 let parse (s: String) : Stdlib.Result.Result<Int32, Stdlib.Int32.ParseError> =
   Builtin.int32Parse s
-
-
-/// Stringify <param int>
-let toString (int: Int32) : String = Builtin.int32ToString int
 
 
 /// Converts an <type Int8> to a <type Int32>.
@@ -219,3 +177,61 @@ let shiftLeft (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftLeft a b
 
 /// Bitwise right shift of an <type Int32> value
 let shiftRight (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftRight a b
+
+
+// The traits, over the fns above.
+
+impl Add for Int32 =
+  let add = Stdlib.Int32.add
+
+impl Subtract for Int32 =
+  let subtract = Stdlib.Int32.subtract
+
+impl Multiply for Int32 =
+  let multiply = Stdlib.Int32.multiply
+
+impl Divide for Int32 =
+  let divide = Stdlib.Int32.divide
+
+impl Modulo for Int32 =
+  let modulo = Stdlib.Int32.``mod``
+
+impl Power for Int32 =
+  let power = Stdlib.Int32.power
+
+impl Negate for Int32 =
+  let negate = Stdlib.Int32.negate
+
+impl Compare for Int32 =
+  let lessThan = Stdlib.Int32.lessThan
+  let lessThanOrEqualTo = Stdlib.Int32.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int32.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int32.greaterThanOrEqualTo
+
+impl ToString for Int32 =
+  /// Stringify <param int>
+  let toString (int: Int32) : String = Builtin.int32ToString int
+
+impl Zero for Int32 =
+  let zero () : Int32 = 0l
+
+impl One for Int32 =
+  let one () : Int32 = 1l
+
+impl BitwiseAnd for Int32 =
+  let bitwiseAnd = Stdlib.Int32.bitwiseAnd
+
+impl BitwiseOr for Int32 =
+  let bitwiseOr = Stdlib.Int32.bitwiseOr
+
+impl BitwiseXor for Int32 =
+  let bitwiseXor = Stdlib.Int32.bitwiseXor
+
+impl BitwiseNot for Int32 =
+  let bitwiseNot = Stdlib.Int32.bitwiseNot
+
+impl ShiftLeft for Int32 =
+  let shiftLeft = Stdlib.Int32.shiftLeft
+
+impl ShiftRight for Int32 =
+  let shiftRight = Stdlib.Int32.shiftRight

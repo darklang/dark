@@ -30,7 +30,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
   // The sync glance: what is waiting on you first, else where this instance stands with its relay.
   let (syncColored, syncPlain) =
     if needsYou > 0 then
-      let t = "⚠ " ++ (Stdlib.Int.toString needsYou) ++ " need you"
+      let t = "⚠ " + (Stdlib.toString needsYou) + " need you"
       (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink t, t)
     else
       let facts = state.scmStatus.sync
@@ -51,15 +51,15 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
         // past the edge of the row.
         let dim (s: String) : String = Stdlib.Cli.UI.Colors.dimText s
         let branchStyled =
-          Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.purple) branch
-        let whoPlain = "    " ++ state.accountName ++ " @ " ++ state.instanceName
-        let whoNoInstancePlain = "    " ++ state.accountName
-        let fullLeftPlain = "  " ++ branch ++ whoPlain
-        let fullLeft = "  " ++ branchStyled ++ (dim whoPlain)
-        let noInstanceLeftPlain = "  " ++ branch ++ whoNoInstancePlain
-        let noInstanceLeft = "  " ++ branchStyled ++ (dim whoNoInstancePlain)
-        let branchOnlyPlain = "  " ++ branch
-        let branchOnly = "  " ++ branchStyled
+          Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.purple) branch
+        let whoPlain = "    " + state.accountName + " @ " + state.instanceName
+        let whoNoInstancePlain = "    " + state.accountName
+        let fullLeftPlain = "  " + branch + whoPlain
+        let fullLeft = "  " + branchStyled + (dim whoPlain)
+        let noInstanceLeftPlain = "  " + branch + whoNoInstancePlain
+        let noInstanceLeft = "  " + branchStyled + (dim whoNoInstancePlain)
+        let branchOnlyPlain = "  " + branch
+        let branchOnly = "  " + branchStyled
 
         // Narrow terminals drop whole segments in priority order rather than letting the row
         // overwrite itself: the instance goes first, then the account; the branch and the glance
@@ -77,7 +77,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
           [ Stdlib.Cli.UI.Layout.at r 0 0 leftLine
             (if rightPlain == "" then []
              else
-               Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - (Stdlib.String.displayWidth rightPlain) - 1)) rightLine) ])
+               Stdlib.Cli.UI.Layout.at r 0 (Stdlib.max 0 (r.cols - (Stdlib.String.displayWidth rightPlain) - 1)) rightLine) ])
   // The nav: a strip between the context row and the body when there's room
   // for one, else nothing here (it becomes an overlay, see below) and the
   // body takes the rows.
@@ -110,12 +110,12 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
               // The caret comes from the field, and sits wherever the cursor is rather than always at the
               // end -- which is the visible half of being able to move it at all.
               let room =
-                Stdlib.Int.max 8 (size.width - 6 - (Stdlib.String.displayWidth inp.prompt))
+                Stdlib.max 8 (size.width - 6 - (Stdlib.String.displayWidth inp.prompt))
 
               (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "› ")
-              ++ (Stdlib.Cli.UI.Colors.boldText inp.prompt)
-              ++ (Stdlib.Cli.UI.TextField.renderInline inp.field room)
-              ++ ghost
+              + (Stdlib.Cli.UI.Colors.boldText inp.prompt)
+              + (Stdlib.Cli.UI.TextField.renderInline inp.field room)
+              + ghost
             | None ->
               match state.reading with
               | Some _ -> Frame.formatHints [ ("↑↓", "scroll"), ("PgUp/PgDn", "page"), (":", "cmd"), ("esc", "back") ]
@@ -135,7 +135,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
               (Stdlib.String.contains state.message "fail")
               || (Stdlib.String.contains state.message "conflict")
               || (Stdlib.String.contains state.message "descend")
-            (if bad then " ✗ " else " ✓ ") ++ state.message ++ " "
+            (if bad then " ✗ " else " ✓ ") + state.message + " "
         let toastWidth = Stdlib.String.displayWidth toastPlain
         let toast =
           if toastPlain == "" then
@@ -143,20 +143,20 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
           else
             let bad = Stdlib.String.startsWith toastPlain " ✗"
             let colored =
-              Stdlib.Cli.UI.Colors.colorize ((if bad then Stdlib.Cli.UI.Colors.pinkBg else Stdlib.Cli.UI.Colors.greenBg) ++ Stdlib.Cli.UI.Colors.black) toastPlain
-            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - toastWidth - 1)) colored
+              Stdlib.Cli.UI.Colors.colorize ((if bad then Stdlib.Cli.UI.Colors.pinkBg else Stdlib.Cli.UI.Colors.greenBg) + Stdlib.Cli.UI.Colors.black) toastPlain
+            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.max 0 (r.cols - toastWidth - 1)) colored
         // Clip the hints to stop short of the toast rather than letting the toast overwrite them. Canvas lets a
         // later span truncate an earlier one, which worked, but left the two abutting with no gap on a long
         // hint row - it read as a collision rather than two things sharing a line.
         let hintRoom =
-          if toastPlain == "" then r.cols else Stdlib.Int.max 0 (r.cols - toastWidth - 8)
+          if toastPlain == "" then r.cols else Stdlib.max 0 (r.cols - toastWidth - 8)
         // An ellipsis where the row was cut, so a hint list that lost its tail reads as truncated rather than
         // as a key whose name happens to end mid-word.
         let shownHints =
           if (Stdlib.Cli.Tui.Text.styledWidth h) <= hintRoom then
             h
           else
-            (Stdlib.Cli.Tui.Text.clipToWidth h (Stdlib.Int.max 0 (hintRoom - 2))) ++ (Stdlib.Cli.UI.Colors.dimText "…")
+            (Stdlib.Cli.Tui.Text.clipToWidth h (Stdlib.max 0 (hintRoom - 2))) + (Stdlib.Cli.UI.Colors.dimText "…")
         Stdlib.List.flatten [ Frame.renderKeyHints r shownHints, toast ])
   Stdlib.List.flatten
     [ Stdlib.Cli.UI.Layout.vstack
@@ -222,14 +222,14 @@ let renderCommandCompletions (state: State) (screen: Stdlib.Cli.UI.Layout.Region
         let n = Stdlib.List.length items
         let boxRows = n + 2
         let footerRow = screen.top + screen.rows - 1
-        let top = Stdlib.Int.max screen.top (footerRow - boxRows)
+        let top = Stdlib.max screen.top (footerRow - boxRows)
         // Full width so it fully covers the body band underneath (no bleed-through of the body's box borders).
         let region = Stdlib.Cli.UI.Layout.Region { top = top; left = screen.left; rows = boxRows; cols = screen.cols }
         Stdlib.Cli.UI.Box.panel region "complete  ·  tab to accept" true (fun inner ->
           let rows =
             items
             |> Stdlib.List.indexedMap (fun i item ->
-              let raw = "  " ++ item.display
+              let raw = "  " + item.display
               let line =
                 if i == state.completionSel then selectionRow inner.cols raw else raw
               Stdlib.Cli.UI.Layout.at inner i 0 line)
@@ -254,13 +254,13 @@ let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View 
 
       let centred (text: String) (row: Int) : List<Stdlib.Cli.UI.Layout.Span> =
         let col =
-          Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Stdlib.String.displayWidth text)) 2)
+          Stdlib.max 0 (Stdlib.Int.divide (size.width - (Stdlib.String.displayWidth text)) 2)
         Stdlib.Cli.UI.Layout.at screen row col (Stdlib.Cli.UI.Colors.dimText text)
 
-      let row = Stdlib.Int.max 0 (Stdlib.Int.divide size.height 2)
+      let row = Stdlib.max 0 (Stdlib.Int.divide size.height 2)
 
       Stdlib.List.flatten
-        [ centred "terminal too small" (Stdlib.Int.max 0 (row - 1))
+        [ centred "terminal too small" (Stdlib.max 0 (row - 1))
           centred "resize to at least 56x12" row ]
     else
       renderFull state size

@@ -163,7 +163,7 @@ let getPath (req: Http.Request) : String =
     let pathOnlyParts = String.split pathWithQuery "?"
 
     match List.head pathOnlyParts with
-    | Some p -> "/" ++ p
+    | Some p -> "/" + p
     | None -> "/"
 
 

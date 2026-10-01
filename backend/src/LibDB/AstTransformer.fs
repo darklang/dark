@@ -23,12 +23,31 @@ module PackageItem = LibDB.PackageItem
 /// `byLocationRename` updates the stored location on refs when a source item
 /// moved names but kept the same content hash.
 type HashMapping =
-  { byLocation : Map<PT.PackageLocation, Hash>
+  {
+    byLocation : Map<PT.PackageLocation, Hash>
     byHash : Map<Hash, Hash>
-    byLocationRename : Map<PT.PackageLocation, PT.PackageLocation> }
+    byLocationRename : Map<PT.PackageLocation, PT.PackageLocation>
+
+    /// The implementation each trait-method call resolved to, by the node its name is at.
+    ///
+    /// Filled by the SAVE, from what the at-rest checker proved about the item
+    /// (`resolveTraitCalls`), so a call goes on running the implementation it was written
+    /// against. Empty everywhere else: propagation and SCC stabilization rewrite hashes, they do
+    /// not re-resolve anything.
+    pins : Map<id, PT.FQFnName.ImplChoice>
+
+    /// What the SAVE worked out for the bounds of the fn each call names, keyed by the call's
+    /// name node. The other half of `pins`: that one says what a call in a bounded fn's BODY
+    /// defers to, this one says which implementation the CALLER's type argument implies.
+    boundImpls : Map<id, List<PT.FQFnName.BoundImpl>>
+  }
 
 let emptyMapping : HashMapping =
-  { byLocation = Map.empty; byHash = Map.empty; byLocationRename = Map.empty }
+  { byLocation = Map.empty
+    byHash = Map.empty
+    byLocationRename = Map.empty
+    pins = Map.empty
+    boundImpls = Map.empty }
 
 let private replaceHash
   (mapping : HashMapping)
@@ -63,6 +82,89 @@ let private transformNameResolution
             resolved = Ok { name = transform newHash; location = newLocation } }
     | None -> nr
   | Error _ -> nr
+
+/// The implementation the save chose for the trait-method call at this node, written onto its
+/// name. Nothing else can be pinned, and a node the save had no answer for is left alone: a
+/// call whose self type is only known at run time stays a run-time lookup.
+/// A reference the save wrote, moved through a hash mapping like every other one.
+let private movedRef
+  (mapping : HashMapping)
+  (r : PT.ResolvedName<PT.FQFnName.Package>)
+  : PT.ResolvedName<PT.FQFnName.Package> =
+  { r with
+      name = replaceHash mapping r.location r.name
+      location =
+        r.location
+        |> Option.map (fun loc ->
+          Map.tryFind loc mapping.byLocationRename |> Option.defaultValue loc) }
+
+
+let private pinAt
+  (mapping : HashMapping)
+  (nodeId : id)
+  (nr : PT.NameResolution<PT.FQFnName.FQFnName>)
+  : PT.NameResolution<PT.FQFnName.FQFnName> =
+  match Map.tryFind nodeId mapping.pins, nr.resolved with
+  | Some choice,
+    Ok({ name = PT.FQFnName.TraitMethod { trait_ = traitHash
+                                          method_ = methodName
+                                          implFn = _ } } as r) ->
+    { nr with
+        resolved =
+          Ok
+            { r with
+                name =
+                  PT.FQFnName.TraitMethod
+                    { trait_ = traitHash; method_ = methodName; implFn = choice } } }
+  | _ -> nr
+
+
+/// A recorded implementation moves like any other fn reference: it is usually a fn being saved
+/// in the same batch, whose placeholder hash stabilizes here, and it carries a location so a
+/// rename reaches it too. The other two states name no fn and pass through.
+let private moveChoice
+  (mapping : HashMapping)
+  (choice : PT.FQFnName.ImplChoice)
+  : PT.FQFnName.ImplChoice =
+  match choice with
+  | PT.FQFnName.Chosen r -> PT.FQFnName.Chosen(movedRef mapping r)
+  | PT.FQFnName.FromTypeParam _
+  | PT.FQFnName.Unknown -> choice
+
+
+/// A fn name in an expression. A trait method names the trait, so its hash moves
+/// with the trait's; a package fn moves through the fn mapping.
+let private transformFnName
+  (mapping : HashMapping)
+  (nr : PT.NameResolution<PT.FQFnName.FQFnName>)
+  : PT.NameResolution<PT.FQFnName.FQFnName> =
+  match nr.resolved with
+  | Ok { name = PT.FQFnName.TraitMethod { trait_ = traitHash
+                                          method_ = methodName
+                                          implFn = implFn }
+         location = loc } ->
+    let implFn = moveChoice mapping implFn
+    let asTrait : PT.NameResolution<PT.FQTraitName.FQTraitName> =
+      { originalName = nr.originalName
+        resolved = Ok { name = PT.FQTraitName.Package traitHash; location = loc } }
+    let moved =
+      transformNameResolution
+        mapping
+        asTrait
+        PT.FQTraitName.Package
+        PackageItem.traitPackageHash
+    match moved.resolved with
+    | Ok { name = PT.FQTraitName.Package newHash; location = newLoc } ->
+      { nr with
+          resolved =
+            Ok
+              { name =
+                  PT.FQFnName.TraitMethod
+                    { trait_ = newHash; method_ = methodName; implFn = implFn }
+                location = newLoc } }
+    | Error _ -> nr
+  | _ ->
+    transformNameResolution mapping nr PT.FQFnName.Package PackageItem.fnPackageHash
 
 let rec private transformTypeRef
   (mapping : HashMapping)
@@ -145,17 +247,23 @@ and private transformPipeExpr
   | PT.EPipeLambda(id, pats, body) ->
     PT.EPipeLambda(id, pats, transformExpr mapping body)
 
-  | PT.EPipeInfix(id, infix, rhs) ->
-    PT.EPipeInfix(id, infix, transformExpr mapping rhs)
+  | PT.EPipeInfix(id, infix, rhs, implFn) ->
+    PT.EPipeInfix(
+      id,
+      infix,
+      transformExpr mapping rhs,
+      // The same as `EInfix`: the save's answer for this node, or the one already there, moved.
+      (match Map.tryFind id mapping.pins with
+       | Some pinned -> pinned
+       | None -> moveChoice mapping implFn)
+    )
 
   | PT.EPipeFnCall(id, nr, typeArgs, args) ->
     PT.EPipeFnCall(
       id,
-      transformNameResolution
-        mapping
-        nr
-        PT.FQFnName.Package
-        PackageItem.fnPackageHash,
+      // `pinAt` as well as the move: `xs |> Show.show` is a trait method call like any
+      // other, and the save picked an implementation for it.
+      transformFnName mapping nr |> pinAt mapping id,
       typeArgs |> List.map (transformTypeRef mapping),
       args |> List.map (transformExpr mapping)
     )
@@ -245,20 +353,32 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
       args |> NEList.map (transformExpr mapping)
     )
 
-  | PT.EFnName(id, nr) ->
+  | PT.EFnName(id, nr, boundImpls) ->
     PT.EFnName(
       id,
-      transformNameResolution
-        mapping
-        nr
-        PT.FQFnName.Package
-        PackageItem.fnPackageHash
+      transformFnName mapping nr |> pinAt mapping id,
+      (match Map.tryFind id mapping.boundImpls with
+       | Some resolved -> resolved
+       | None ->
+         boundImpls
+         |> List.map (fun (b : PT.FQFnName.BoundImpl) ->
+           { b with choice = moveChoice mapping b.choice }))
     )
 
   | PT.ELambda(id, pats, body) -> PT.ELambda(id, pats, transformExpr mapping body)
 
-  | PT.EInfix(id, infix, lhs, rhs) ->
-    PT.EInfix(id, infix, transformExpr mapping lhs, transformExpr mapping rhs)
+  | PT.EInfix(id, infix, lhs, rhs, implFn) ->
+    PT.EInfix(
+      id,
+      infix,
+      transformExpr mapping lhs,
+      transformExpr mapping rhs,
+      // Either the save's answer for this node, or the one already there, moved like any
+      // other reference.
+      (match Map.tryFind id mapping.pins with
+       | Some pinned -> pinned
+       | None -> moveChoice mapping implFn)
+    )
 
   | PT.ERecord(id, nr, typeArgs, fields) ->
     PT.ERecord(
@@ -309,6 +429,21 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EStatement(id, first, next) ->
     PT.EStatement(id, transformExpr mapping first, transformExpr mapping next)
 
+let private transformTraitRef
+  (mapping : HashMapping)
+  (t : PT.TraitRef)
+  : PT.TraitRef =
+  { trait_ =
+      transformNameResolution
+        mapping
+        t.trait_
+        PT.FQTraitName.Package
+        PackageItem.traitPackageHash
+    typeArgs = t.typeArgs |> List.map (transformTypeRef mapping) }
+
+let private transformBound (mapping : HashMapping) (b : PT.Bound) : PT.Bound =
+  { b with trait_ = transformTraitRef mapping b.trait_ }
+
 let transformFn
   (mapping : HashMapping)
   (fn : PT.PackageFn.PackageFn)
@@ -318,7 +453,8 @@ let transformFn
       parameters =
         fn.parameters
         |> NEList.map (fun p -> { p with typ = transformTypeRef mapping p.typ })
-      returnType = transformTypeRef mapping fn.returnType }
+      returnType = transformTypeRef mapping fn.returnType
+      bounds = fn.bounds |> List.map (transformBound mapping) }
 
 let transformValue
   (mapping : HashMapping)
@@ -356,4 +492,33 @@ let transformType
   { typ with
       declaration =
         { typ.declaration with
-            definition = transformTypeDefinition mapping typ.declaration.definition } }
+            definition = transformTypeDefinition mapping typ.declaration.definition
+            bounds = typ.declaration.bounds |> List.map (transformBound mapping) } }
+
+let transformTrait (mapping : HashMapping) (t : PT.Trait.Trait) : PT.Trait.Trait =
+  { t with
+      bounds = t.bounds |> List.map (transformBound mapping)
+      methods =
+        t.methods
+        |> NEList.map (fun m ->
+          { m with
+              parameters =
+                m.parameters
+                |> NEList.map (fun p ->
+                  { p with typ = transformTypeRef mapping p.typ })
+              returnType = transformTypeRef mapping m.returnType
+              bounds = m.bounds |> List.map (transformBound mapping) }) }
+
+let transformImpl
+  (mapping : HashMapping)
+  (i : PT.TraitImpl.TraitImpl)
+  : PT.TraitImpl.TraitImpl =
+  let traitRef =
+    transformTraitRef mapping { trait_ = i.trait_; typeArgs = i.traitTypeArgs }
+  { i with
+      trait_ = traitRef.trait_
+      traitTypeArgs = traitRef.typeArgs
+      self = transformTypeRef mapping i.self
+      bounds = i.bounds |> List.map (transformBound mapping)
+      methods =
+        i.methods |> List.map (fun (m, nr) -> (m, transformFnName mapping nr)) }

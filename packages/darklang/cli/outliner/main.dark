@@ -72,9 +72,9 @@ let docLabel (doc: Document) : String =
   let suffix =
     if total == 0 then "empty"
     else if done_ > 0 then
-      $"{Stdlib.Int.toString total} lines, {Stdlib.Int.toString done_} done"
+      $"{Stdlib.toString total} lines, {Stdlib.toString done_} done"
     else
-      $"{Stdlib.Int.toString total} lines"
+      $"{Stdlib.toString total} lines"
 
   $"{doc.title}  ({suffix})"
 
@@ -297,7 +297,7 @@ let onEditorKey
         else
           Stdlib.Cli.UI.Confirm.askDangerous
             $"Delete {shown}?"
-            $"{Stdlib.Int.toString count} lines underneath go with it. u undoes it."
+            $"{Stdlib.toString count} lines underneath go with it. u undoes it."
 
       KeyResult.Continue
         { carried with
@@ -432,7 +432,7 @@ let renameRows
     state.documents
     |> Stdlib.List.map (fun d ->
       if d.id == docId then
-        Stdlib.Cli.UI.TextField.renderInline field (Stdlib.Int.max 8 (region.cols - 4))
+        Stdlib.Cli.UI.TextField.renderInline field (Stdlib.max 8 (region.cols - 4))
       else
         docLabel d)
 
@@ -452,7 +452,7 @@ let exportPathRows
         region
         3
         2
-        (Stdlib.Cli.UI.TextField.renderInline field (Stdlib.Int.max 8 (region.cols - 4))) ]
+        (Stdlib.Cli.UI.TextField.renderInline field (Stdlib.max 8 (region.cols - 4))) ]
 
 /// Title, badge and hints for the screen in front.
 let chromeFor (state: State) : Stdlib.Cli.UI.Chrome.Frame =

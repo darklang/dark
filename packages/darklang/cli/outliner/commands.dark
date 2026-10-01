@@ -55,10 +55,10 @@ let ls () : Unit =
     else
       data.documents
       |> Stdlib.List.indexedMap (fun i doc ->
-        let number = Stdlib.Int.toString (i + 1)
+        let number = Stdlib.toString (i + 1)
         let active = if doc.id == data.activeDocId then "*" else " "
         let count = Stdlib.List.length (descendants doc.outline doc.outline.rootChildren)
-        let lines = Stdlib.Cli.UI.Colors.dimText $"({Stdlib.Int.toString count} lines)"
+        let lines = Stdlib.Cli.UI.Colors.dimText $"({Stdlib.toString count} lines)"
         $"{active} {number}. {doc.title}  {lines}")
       |> Stdlib.printLines
 
@@ -148,7 +148,7 @@ let import (path: String) (title: String) : Unit =
         match saved with
         | Ok _ ->
           let count = Stdlib.List.length (descendants doc.outline doc.outline.rootChildren)
-          Stdlib.printLine $"imported \"{doc.title}\" ({Stdlib.Int.toString count} lines)"
+          Stdlib.printLine $"imported \"{doc.title}\" ({Stdlib.toString count} lines)"
         | Error e -> printError $"couldn't save: {e}"
 
 

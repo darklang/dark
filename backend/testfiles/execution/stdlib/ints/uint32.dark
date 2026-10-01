@@ -1,18 +1,10 @@
-Stdlib.UInt32.max 5ul 6ul = 6ul
-Stdlib.UInt32.max 10ul 1ul = 10ul
-Stdlib.UInt32.max 0ul 6ul = 6ul
-Stdlib.UInt32.max 4294967295ul 0ul = 4294967295ul
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max 4294967295ul 0ul = 4294967295ul
 
-Stdlib.UInt32.min 5ul 6ul = 5ul
-Stdlib.UInt32.min 10ul 10ul = 10ul
-Stdlib.UInt32.min 4294967295ul 0ul = 0ul
+Stdlib.min 4294967295ul 0ul = 0ul
 
-Stdlib.UInt32.clamp 1ul 2ul 1ul = 1ul
-Stdlib.UInt32.clamp 3ul 0ul 2ul = 2ul
-Stdlib.UInt32.clamp 100ul 0ul 0ul = 0ul
-Stdlib.UInt32.clamp 100ul 0ul 1ul = 1ul
-Stdlib.UInt32.clamp 100ul 1ul 0ul = 1ul
-
+Stdlib.clamp 100ul 0ul 0ul = 0ul
 
 Stdlib.UInt32.add 10ul 9ul = 19ul
 Stdlib.UInt32.add 88ul 9ul = 97ul
@@ -70,10 +62,10 @@ Stdlib.UInt32.lessThan 1ul 0ul = false
 Stdlib.UInt32.lessThan 0ul 4294967295ul = true
 Stdlib.UInt32.lessThan 4294967295ul 4294967295ul = false
 
-Stdlib.UInt32.toString 120ul = "120"
-Stdlib.UInt32.toString 1ul = "1"
-Stdlib.UInt32.toString 0ul = "0" // UInt32 lower limit
-Stdlib.UInt32.toString 4294967295ul = "4294967295" // UInt32 upper limit
+Stdlib.toString 120ul = "120"
+Stdlib.toString 1ul = "1"
+Stdlib.toString 0ul = "0" // UInt32 lower limit
+Stdlib.toString 4294967295ul = "4294967295" // UInt32 upper limit
 
 Stdlib.UInt32.toFloat 2ul = 2.0
 Stdlib.UInt32.toFloat 0ul = 0.0
@@ -122,9 +114,9 @@ Stdlib.UInt32.mod 5ul 0ul = error="Cannot evaluate modulus against 0"
  |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 0ul 2ul)
  |> Stdlib.List.unique) = [ 0ul, 1ul, 2ul ]
 
-Stdlib.UInt32.sum [ 1ul, 2ul ] = 3ul
+Stdlib.sum 0ul [ 1ul, 2ul ] = 3ul
 
-Stdlib.UInt32.sum [ 1ul, 4294967295ul ] = 0ul // wraps on overflow
+Stdlib.sum 0ul [ 1ul, 4294967295ul ] = 0ul // wraps on overflow
 Stdlib.UInt32.parse "-129" = Stdlib.Result.Result.Error Stdlib.UInt32.ParseError.OutOfRange
 
 Stdlib.UInt32.parse "4294967296" = Stdlib.Result.Result.Error Stdlib.UInt32.ParseError.OutOfRange
@@ -144,7 +136,6 @@ Stdlib.UInt32.parse "" = Stdlib.Result.Result.Error Stdlib.UInt32.ParseError.Bad
 Stdlib.UInt32.parse "1I" = Stdlib.Result.Result.Error Stdlib.UInt32.ParseError.BadFormat
 Stdlib.UInt32.parse "one" = Stdlib.Result.Result.Error Stdlib.UInt32.ParseError.BadFormat
 Stdlib.UInt32.parse "XIV" = Stdlib.Result.Result.Error Stdlib.UInt32.ParseError.BadFormat
-
 
 Stdlib.UInt32.fromInt8 0y = Stdlib.Option.Option.Some 0ul
 Stdlib.UInt32.fromInt8 1y = Stdlib.Option.Option.Some 1ul

@@ -54,7 +54,7 @@ module Editing =
   let insertAtCursor (state: State) (char: String) : State =
     let beforeCursor = Stdlib.String.slice state.text 0 state.cursorPosition
     let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
-    let newText = beforeCursor ++ char ++ afterCursor
+    let newText = beforeCursor + char + afterCursor
     { state with
         text = newText
         cursorPosition = state.cursorPosition + (Stdlib.String.length char)
@@ -66,7 +66,7 @@ module Editing =
     if state.cursorPosition > 0 then
       let beforeCursor = Stdlib.String.slice state.text 0 (state.cursorPosition - 1)
       let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
-      let newText = beforeCursor ++ afterCursor
+      let newText = beforeCursor + afterCursor
       { state with
           text = newText
           cursorPosition = state.cursorPosition - 1
@@ -81,20 +81,20 @@ module Editing =
     if state.cursorPosition < textLength then
       let beforeCursor = Stdlib.String.slice state.text 0 state.cursorPosition
       let afterCursor = Stdlib.String.dropFirst state.text (state.cursorPosition + 1)
-      let newText = beforeCursor ++ afterCursor
+      let newText = beforeCursor + afterCursor
       { state with text = newText; historyIndex = -1 }
     else
       state
 
   /// Move cursor left
   let moveCursorLeft (state: State) : State =
-    let newCursorPos = Stdlib.Int.max 0 (state.cursorPosition - 1)
+    let newCursorPos = Stdlib.max 0 (state.cursorPosition - 1)
     { state with cursorPosition = newCursorPos }
 
   /// Move cursor right
   let moveCursorRight (state: State) : State =
     let textLength = Stdlib.String.length state.text
-    let newCursorPos = Stdlib.Int.min textLength (state.cursorPosition + 1)
+    let newCursorPos = Stdlib.min textLength (state.cursorPosition + 1)
     { state with cursorPosition = newCursorPos }
 
   /// Move cursor to start of line
@@ -194,13 +194,13 @@ module Display =
     if Stdlib.String.isEmpty locationStr then
       "> "
     else
-      locationStr ++ " > "
+      locationStr + " > "
 
   let styledPrefix (locationStr: String) : String =
     if Stdlib.String.isEmpty locationStr then
       "> "
     else
-      Stdlib.Cli.UI.Colors.dimText $"{locationStr} " ++ "> "
+      Stdlib.Cli.UI.Colors.dimText $"{locationStr} " + "> "
 
   /// Format the complete prompt with input and optional hint
   let formatPromptWithInput
@@ -209,9 +209,9 @@ module Display =
     (hint: String)
     : String =
     if Stdlib.String.isEmpty hint then
-      styledPrefix locationStr ++ text
+      styledPrefix locationStr + text
     else
-      styledPrefix locationStr ++ text ++ (Stdlib.Cli.UI.Colors.hint hint)
+      styledPrefix locationStr + text + (Stdlib.Cli.UI.Colors.hint hint)
 
   /// Build the complete prompt region and Unicode-correct logical cursor.
   let viewAtSize
@@ -220,7 +220,7 @@ module Display =
     (hint: String)
     (size: Stdlib.Cli.Tui.Size)
     : Stdlib.Cli.Tui.View =
-    let width = Stdlib.Int.max 1 size.width
+    let width = Stdlib.max 1 size.width
     let styled =
       formatPromptWithInput locationStr state.text hint
     let beforeCursor =
@@ -229,12 +229,12 @@ module Display =
         0
         state.cursorPosition
     let cursorText =
-      plainPrefix locationStr ++ beforeCursor
+      plainPrefix locationStr + beforeCursor
     let (cursorRow, cursorColumn) =
       Stdlib.Cli.Tui.Text.positionAfter cursorText width
     let wrapped = Stdlib.Cli.Tui.Text.wrapAtColumn styled width
     let requiredHeight =
-      Stdlib.Int.max
+      Stdlib.max
         (Stdlib.List.length wrapped)
         (cursorRow + 1)
     let rows =

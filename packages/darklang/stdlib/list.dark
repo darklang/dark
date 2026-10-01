@@ -4,6 +4,10 @@ module Darklang.Stdlib.List
 /// Returns an empty list
 val empty = []
 
+/// The empty list is what `+` starts from, as `0` is for a number
+impl Stdlib.Zero for List<'a> =
+  let zero () : List<'a> = []
+
 /// Returns a one-element list containing the given <param val>
 let singleton (value: 'a) : List<'a> =
   [ value ]
@@ -92,7 +96,7 @@ let repeat
   : Result.Result<List<'a>, String> =
   if times < 0 then
     Result.Result.Error
-      $"Expected `times` to be positive, but it was `{times |> Int.toString}`"
+      $"Expected `times` to be positive, but it was `{times |> Stdlib.toString}`"
   else
     Result.Result.Ok(repeatUnsafe times value)
 
@@ -224,7 +228,7 @@ module SortByComparatorHelpers =
       Result.Result.Ok result
     else
       Result.Result.Error
-        $"Expected comparator function to return -1, 0, or 1, but it returned {Int.toString result}"
+        $"Expected comparator function to return -1, 0, or 1, but it returned {Stdlib.toString result}"
 
   let merge
     (left: List<'a>)

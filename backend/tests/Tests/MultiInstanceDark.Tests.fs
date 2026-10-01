@@ -382,7 +382,7 @@ let mainSyncCarriesTheAuthorsCommit =
             "match Darklang.SCM.Wire.wireDecode (Stdlib.String.toBlob (Builtin.unwrap (Stdlib.Cli.File.readText \""
             + path
             + "\"))) with\n"
-            + "| Ok bundle -> (match Darklang.SCM.Wire.importFrom \"peer:a\" bundle.ops bundle.commits with | Ok o -> Stdlib.Int.toString o.imported | Error e -> e)\n"
+            + "| Ok bundle -> (match Darklang.SCM.Wire.importFrom \"peer:a\" bundle.ops bundle.commits with | Ok o -> Stdlib.toString o.imported | Error e -> e)\n"
             + "| Error e -> e"
           )
         Expect.isFalse
@@ -460,7 +460,7 @@ let supersededReportsCheckAuthorship =
                AND substr(op_blob, 9, 1) = X'0B'"
         let! (policies : string) =
           darkOn
-            "Darklang.SCM.PackageOps.supersededPolicies () |> Stdlib.Result.withDefault [] |> Stdlib.List.length |> Stdlib.Int.toString"
+            "Darklang.SCM.PackageOps.supersededPolicies () |> Stdlib.Result.withDefault [] |> Stdlib.List.length |> Stdlib.toString"
         Expect.equal
           policies
           "DString \"0\""
@@ -491,7 +491,7 @@ let supersededReportsCheckAuthorship =
             "module TwoStore.Sup\n\nlet g (x: Int64) : Int64 = x + 2L\n"
         let! (overrides : string) =
           darkOn
-            "Darklang.SCM.PackageOps.supersededOverrides () |> Stdlib.Result.withDefault [] |> Stdlib.List.length |> Stdlib.Int.toString"
+            "Darklang.SCM.PackageOps.supersededOverrides () |> Stdlib.Result.withDefault [] |> Stdlib.List.length |> Stdlib.toString"
         Expect.equal
           overrides
           "DString \"0\""
@@ -509,7 +509,7 @@ let aFailedImportLeavesNoCommit =
         activate a
         let! (before : string) =
           darkOn
-            "Stdlib.Sqlite.scalarInt (Stdlib.LocalStore.path ()) \"SELECT count(*) AS n FROM commits\" \"n\" |> Stdlib.Option.withDefault 0L |> Stdlib.Int64.toString"
+            "Stdlib.Sqlite.scalarInt (Stdlib.LocalStore.path ()) \"SELECT count(*) AS n FROM commits\" \"n\" |> Stdlib.Option.withDefault 0L |> Stdlib.toString"
         // blobHex that is not hex: `scmImportOps` throws inside, and importFrom's error arm runs.
         let! (result : string) =
           darkOn (
@@ -518,7 +518,7 @@ let aFailedImportLeavesNoCommit =
           )
         let! (after : string) =
           darkOn
-            "Stdlib.Sqlite.scalarInt (Stdlib.LocalStore.path ()) \"SELECT count(*) AS n FROM commits\" \"n\" |> Stdlib.Option.withDefault 0L |> Stdlib.Int64.toString"
+            "Stdlib.Sqlite.scalarInt (Stdlib.LocalStore.path ()) \"SELECT count(*) AS n FROM commits\" \"n\" |> Stdlib.Option.withDefault 0L |> Stdlib.toString"
         Expect.equal
           after
           before

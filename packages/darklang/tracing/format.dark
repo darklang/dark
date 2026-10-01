@@ -6,7 +6,7 @@ module Darklang.Tracing.Format
 
 /// Right-align a number in a field `width` columns wide by prepending spaces.
 let padNum (n: Int) (width: Int) : String =
-  Stdlib.String.padStartToWidth (Stdlib.Int.toString n) width
+  Stdlib.String.padStartToWidth (Stdlib.toString n) width
 
 
 /// Escape a string for embedding in JSON. Handles backslash and double-

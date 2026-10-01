@@ -148,7 +148,7 @@ let ceilingRow (ceiling: Stdlib.Option.Option<List<Permissions.Effect>>) : Strin
   | None -> ""
   | Some effects ->
     let cases = effects |> Stdlib.List.map Permissions.effectCaseName
-    "{" ++ (Stdlib.String.join cases ", ") ++ "}"
+    "{" + (Stdlib.String.join cases ", ") + "}"
 
 let empty () : Permissions.Policy =
   Permissions.Policy { allow = []; deny = [] }
@@ -282,13 +282,13 @@ let httpRule
         // with path `/`, the way the runtime normalizes it.
         let (beforeQuery, query) =
           match Stdlib.String.splitFirst rest "?" with
-          | Some((before, query)) -> (before, Permissions.Scope.Only("?" ++ query))
+          | Some((before, query)) -> (before, Permissions.Scope.Only("?" + query))
           | None -> (rest, Permissions.Scope.All)
         // No path matches every path. For example, `/api` matches `/api` and
         // `/api/users`, but not `/apix`.
         let (authority, path) =
           match Stdlib.String.splitFirst beforeQuery "/" with
-          | Some((authority, path)) -> (authority, Permissions.Scope.Only("/" ++ path))
+          | Some((authority, path)) -> (authority, Permissions.Scope.Only("/" + path))
           | None -> (beforeQuery, Permissions.Scope.All)
         match Permissions.hostAndPort scheme authority with
         | None -> Stdlib.Option.Option.None
@@ -383,7 +383,7 @@ let tokens (text: String) : Stdlib.Option.Option<List<String>> =
       | Bare -> Stdlib.Option.Option.Some(Stdlib.List.reverse (finish current soFar active))
       | _ -> Stdlib.Option.Option.None
     | c :: rest ->
-      let s = Stdlib.Char.toString c
+      let s = Stdlib.toString c
       match mode with
       | Bare ->
         if s == " " || s == "\t" || s == "\n" then
@@ -471,7 +471,7 @@ let scopeText (scope: Permissions.Scope<String>) : String =
 /// A shell-safe token. This is also understood by <fn tokens>, so rendered
 /// policies round-trip internally as well as through an external shell.
 let quoteToken (value: String) : String =
-  "'" ++ (Stdlib.String.replaceAll value "'" "'\\''") ++ "'"
+  "'" + (Stdlib.String.replaceAll value "'" "'\\''") + "'"
 
 let renderStringScope (scope: Permissions.Scope<String>) : String =
   match scope with
@@ -483,10 +483,10 @@ let renderHostRule (host: Permissions.HostRule) : String =
   | Any -> "*"
   | Exact host ->
     if Stdlib.String.contains host ":" && Stdlib.Bool.not (Stdlib.String.startsWith host "[") then
-      "[" ++ host ++ "]"
+      "[" + host + "]"
     else
       host
-  | SubdomainsOf domain -> "*." ++ domain
+  | SubdomainsOf domain -> "*." + domain
 
 /// Faithful text for one HTTP rule: `http <method> <url>`.
 let renderHttpRule (rule: Permissions.HttpRule) : String =
@@ -508,7 +508,7 @@ let renderHttpRule (rule: Permissions.HttpRule) : String =
     let port =
       match rule.port with
       | All -> if rule.host == Permissions.HostRule.Any then "" else ":*"
-      | Only port -> ":" ++ Stdlib.Int.toString port
+      | Only port -> ":" + Stdlib.toString port
     let path =
       match rule.pathPrefix with
       | All -> ""
@@ -540,16 +540,16 @@ let renderRule (rule: Permissions.Rule) : String =
   | Effect effect -> Permissions.effectName effect
   | Http rule -> Permissions.renderHttpRule rule
   | HttpServer All -> "http-server *"
-  | HttpServer(Only port) -> "http-server " ++ Stdlib.Int.toString port
-  | FileRead scope -> "file read " ++ Permissions.renderStringScope scope
-  | FileWrite scope -> "file write " ++ Permissions.renderStringScope scope
-  | EnvRead scope -> "env read " ++ Permissions.renderStringScope scope
-  | EnvWrite scope -> "env write " ++ Permissions.renderStringScope scope
-  | DbRead scope -> "db read " ++ Permissions.renderStringScope scope
-  | DbWrite scope -> "db write " ++ Permissions.renderStringScope scope
+  | HttpServer(Only port) -> "http-server " + Stdlib.toString port
+  | FileRead scope -> "file read " + Permissions.renderStringScope scope
+  | FileWrite scope -> "file write " + Permissions.renderStringScope scope
+  | EnvRead scope -> "env read " + Permissions.renderStringScope scope
+  | EnvWrite scope -> "env write " + Permissions.renderStringScope scope
+  | DbRead scope -> "db read " + Permissions.renderStringScope scope
+  | DbWrite scope -> "db write " + Permissions.renderStringScope scope
   | Process rule -> Permissions.renderProcessRule rule
 
 let render (policy: Permissions.Policy) : List<String> =
   Stdlib.List.append
     (policy.allow |> Stdlib.List.map Permissions.renderRule)
-    (policy.deny |> Stdlib.List.map (fun rule -> "deny " ++ Permissions.renderRule rule))
+    (policy.deny |> Stdlib.List.map (fun rule -> "deny " + Permissions.renderRule rule))

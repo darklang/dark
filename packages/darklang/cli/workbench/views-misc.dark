@@ -23,7 +23,7 @@ let deviceConfigText () : String =
       entries
       |> Stdlib.List.map (fun pair ->
         let (k, v) = pair
-        "  " ++ k ++ "  =  " ++ v)
+        "  " + k + "  =  " + v)
   Stdlib.List.flatten
     [ [ "Configuration  (rundir/cli-config.json)", "" ]
       rows
@@ -41,7 +41,7 @@ let deviceConfigText () : String =
 /// neither has to guess about the other.
 let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   let owner = if state.accountName == "" then "you" else state.accountName
-  let hdr = fun t -> Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) t
+  let hdr = fun t -> Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.cyan) t
   let on = Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "●"
   let off = Stdlib.Cli.UI.Colors.dimText "○"
 
@@ -51,38 +51,38 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
 
   let relayLines =
     if relay == "" then
-      [ "   " ++ off ++ "  " ++ (Stdlib.Cli.UI.Colors.dimText "no relay yet.")
-        "   " ++ (Stdlib.Cli.UI.Colors.dimText "`dark sync setup` asks for one, takes the secret without echoing it, and pushes once.") ]
+      [ "   " + off + "  " + (Stdlib.Cli.UI.Colors.dimText "no relay yet.")
+        "   " + (Stdlib.Cli.UI.Colors.dimText "`dark sync setup` asks for one, takes the secret without echoing it, and pushes once.") ]
     else
       let cursor = SCM.Wire.pullCursor relay
       let pulled =
         if cursor == 0L then
           Stdlib.Cli.UI.Colors.dimText "nothing pulled from it yet"
         else
-          Stdlib.Cli.UI.Colors.dimText ("caught up to op " ++ (Stdlib.Int64.toString cursor))
-      [ "   " ++ on ++ "  " ++ relay
-        "   " ++ (Stdlib.Cli.UI.Colors.dimText "as ") ++ identity ++ "     " ++ pulled ]
+          Stdlib.Cli.UI.Colors.dimText ("caught up to op " + (Stdlib.toString cursor))
+      [ "   " + on + "  " + relay
+        "   " + (Stdlib.Cli.UI.Colors.dimText "as ") + identity + "     " + pulled ]
 
   // Branches with their frontier sizes: how much work is sitting on each line of work.
   let branches = SCM.Branch.list () |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
 
   let branchLines =
     if Stdlib.List.isEmpty branches then
-      [ "   " ++ (Stdlib.Cli.UI.Colors.dimText "no branches. everything is on main.") ]
+      [ "   " + (Stdlib.Cli.UI.Colors.dimText "no branches. everything is on main.") ]
     else
       branches
       |> Stdlib.List.take 6
       |> Stdlib.List.map (fun b ->
         let marker = if b.id == state.branchId then Stdlib.Cli.UI.Colors.boldText b.name else Stdlib.Cli.UI.Colors.dimText b.name
-        "   " ++ marker ++ "     " ++ (Stdlib.Cli.UI.Colors.dimText ((Stdlib.Int64.toString b.ops) ++ (if b.ops == 1L then " op" else " ops"))))
+        "   " + marker + "     " + (Stdlib.Cli.UI.Colors.dimText ((Stdlib.toString b.ops) + (if b.ops == 1L then " op" else " ops"))))
 
   titledLines
     region
     (paneTitle "Devices" [] false)
     (Stdlib.List.flatten
       [ [ hdr "This instance"
-          "   " ++ on ++ "  " ++ state.instanceName ++ " (" ++ owner ++ ")"
-          "   " ++ (Stdlib.Cli.UI.Colors.dimText ((Stdlib.Int64.toString ops) ++ " ops in the log"))
+          "   " + on + "  " + state.instanceName + " (" + owner + ")"
+          "   " + (Stdlib.Cli.UI.Colors.dimText ((Stdlib.toString ops) + " ops in the log"))
           ""
           hdr "Relay" ]
         relayLines
@@ -91,8 +91,8 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
         branchLines
         [ ""
           hdr "Configuration  ·  cli-config.json"
-          "   " ++ (Stdlib.Cli.UI.Colors.dimText "instance.name  ") ++ state.instanceName
-          "   " ++ (Stdlib.Cli.UI.Colors.dimText "instance.id    ") ++ (Stdlib.String.slice (configValueOr "instance.id" "(unset)") 0 8) ++ (Stdlib.Cli.UI.Colors.dimText "...")
+          "   " + (Stdlib.Cli.UI.Colors.dimText "instance.name  ") + state.instanceName
+          "   " + (Stdlib.Cli.UI.Colors.dimText "instance.id    ") + (Stdlib.String.slice (configValueOr "instance.id" "(unset)") 0 8) + (Stdlib.Cli.UI.Colors.dimText "...")
           ""
           Stdlib.Cli.UI.Colors.dimText "   s sync now  ·  a where setup lives  ·  c view/edit config     what arrived, and conflicts, live in SCM" ] ])
 
@@ -114,15 +114,15 @@ let renderAI (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.
   splitListPreviewTitled
     state
     region
-    (tabs ++ (paneTrailer trailer))
+    (tabs + (paneTrailer trailer))
     (paneTitle previewTitle [] detailFocused)
     empty
 
 /// The Calendar view (mock) - a month grid over cron fire-times + date-typed values, with today's agenda. A
 /// personal, login-gated view; greenfield, so this is a stand-in for the real system to come.
 let renderCalendar (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  let hdr = fun t -> Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) t
-  let today = Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) "[24]"
+  let hdr = fun t -> Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.cyan) t
+  let today = Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.cyan) "[24]"
   titledLines
     region
     (paneTitle "Calendar" [ "July 2026", "(mock data)" ] false)
@@ -131,7 +131,7 @@ let renderCalendar (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
       "          1     2     3     4     5     6"
       "    7     8     9    10    11    12    13"
       "   14    15    16    17    18    19    20"
-      "   21    22    23   " ++ today ++ "•   25•   26    27"
+      "   21    22    23   " + today + "•   25•   26    27"
       "   28    29    30    31"
       ""
       hdr "Today · Thu Jul 24"
@@ -162,14 +162,14 @@ let syncLines (state: State) : List<String> =
     state.items
     |> Stdlib.List.filter (fun it -> it.kind != "sync-sec")
     |> Stdlib.List.map (fun it -> (Stdlib.String.displayWidth it.name) + 2)
-    |> Stdlib.List.fold 16 (fun acc n -> Stdlib.Int.max acc n)
+    |> Stdlib.List.fold 16 (fun acc n -> Stdlib.max acc n)
   state.items
   |> Stdlib.List.map (fun it ->
     if it.kind == "sync-sec" then
       if it.name == "" then "" else sectionHeading it.name
     else
-      "  " ++ (Stdlib.String.padEndToWidth it.name labelCol)
-      ++ (Stdlib.Cli.UI.Colors.dimText it.desc))
+      "  " + (Stdlib.String.padEndToWidth it.name labelCol)
+      + (Stdlib.Cli.UI.Colors.dimText it.desc))
 
 let renderSync (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   let lines = syncLines state
@@ -222,6 +222,6 @@ let builtinDetailLines (state: State) : List<String> =
       let ret = PrettyPrinter.RuntimeTypes.typeReference state.branchId fn.returnType
       [ Stdlib.Cli.UI.Colors.boldText ($"{fn.name.name}({params}) -> {ret}")
         ""
-        Stdlib.Cli.UI.Colors.dimText ("builtin  ·  " ++ (Darklang.Cli.Builtins.purityTag fn.purity))
+        Stdlib.Cli.UI.Colors.dimText ("builtin  ·  " + (Darklang.Cli.Builtins.purityTag fn.purity))
         ""
         fn.description ]

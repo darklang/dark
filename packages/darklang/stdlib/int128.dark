@@ -42,6 +42,12 @@ let multiply (a: Int128) (b: Int128) : Int128 = Builtin.int128Multiply a b
 let divide (a: Int128) (b: Int128) : Int128 = Builtin.int128Divide a b
 
 
+/// Raise <param base> to the power of <param exponent>.
+/// <param exponent> must to be positive. Overflow wraps around.
+let power (``base``: Int128) (exponent: Int128) : Int128 =
+  Builtin.int128Power ``base`` exponent
+
+
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
 let absoluteValue (a: Int128) : Int128 =
   if lessThan a 0Q then
@@ -76,48 +82,6 @@ let sqrt (a: Int128) : Float = Builtin.int128Sqrt a
 
 /// Converts an <type Int128> to a <type Float>
 let toFloat (a: Int128) : Float = Builtin.int128ToFloat a
-
-
-/// Returns the sum of all the ints in the list
-let sum (lst: List<Int128>) : Int128 =
-  Stdlib.List.fold lst 0Q (fun acc x -> add acc x)
-
-
-/// Returns the higher of <param a> and <param b>
-let max (a: Int128) (b: Int128) : Int128 =
-  if (Stdlib.Int128.greaterThan a b) then a else b
-
-
-/// Returns the lower of <param a> and <param b>
-let min (a: Int128) (b: Int128) : Int128 =
-  if (Stdlib.Int128.lessThan a b) then a else b
-
-
-/// If <param value> is within the range given by <param limitA> and <param
-/// limitB>, returns <param value>.
-/// If <param value> is outside the range, returns <param limitA> or <param
-/// limitB>, whichever is closer to <param value>.
-/// <param limitA> and <param limitB> can be provided in any order.
-let clamp (value: Int128) (limitA: Int128) (limitB: Int128) : Int128 =
-  let min =
-    if (Stdlib.Int128.lessThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  let max =
-    if (Stdlib.Int128.greaterThan limitA limitB) then
-      limitA
-    else
-      limitB
-
-  if (Stdlib.Int128.lessThan value min) then min
-  else if (Stdlib.Int128.greaterThan value max) then max
-  else value
-
-
-/// Stringify <param int128>
-let toString (int128: Int128) : String = Builtin.int128ToString int128
 
 
 /// Parses a <type String> into an <type Int128>, returning {{Ok}} with the
@@ -184,3 +148,61 @@ let shiftLeft (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftLeft a b
 
 /// Bitwise right shift of an <type Int128> value
 let shiftRight (a: Int128) (b: Int128) : Int128 = Builtin.int128ShiftRight a b
+
+
+// The traits, over the fns above.
+
+impl Add for Int128 =
+  let add = Stdlib.Int128.add
+
+impl Subtract for Int128 =
+  let subtract = Stdlib.Int128.subtract
+
+impl Multiply for Int128 =
+  let multiply = Stdlib.Int128.multiply
+
+impl Divide for Int128 =
+  let divide = Stdlib.Int128.divide
+
+impl Modulo for Int128 =
+  let modulo = Stdlib.Int128.``mod``
+
+impl Power for Int128 =
+  let power = Stdlib.Int128.power
+
+impl Negate for Int128 =
+  let negate = Stdlib.Int128.negate
+
+impl Compare for Int128 =
+  let lessThan = Stdlib.Int128.lessThan
+  let lessThanOrEqualTo = Stdlib.Int128.lessThanOrEqualTo
+  let greaterThan = Stdlib.Int128.greaterThan
+  let greaterThanOrEqualTo = Stdlib.Int128.greaterThanOrEqualTo
+
+impl ToString for Int128 =
+  /// Stringify <param int128>
+  let toString (int128: Int128) : String = Builtin.int128ToString int128
+
+impl Zero for Int128 =
+  let zero () : Int128 = 0Q
+
+impl One for Int128 =
+  let one () : Int128 = 1Q
+
+impl BitwiseAnd for Int128 =
+  let bitwiseAnd = Stdlib.Int128.bitwiseAnd
+
+impl BitwiseOr for Int128 =
+  let bitwiseOr = Stdlib.Int128.bitwiseOr
+
+impl BitwiseXor for Int128 =
+  let bitwiseXor = Stdlib.Int128.bitwiseXor
+
+impl BitwiseNot for Int128 =
+  let bitwiseNot = Stdlib.Int128.bitwiseNot
+
+impl ShiftLeft for Int128 =
+  let shiftLeft = Stdlib.Int128.shiftLeft
+
+impl ShiftRight for Int128 =
+  let shiftRight = Stdlib.Int128.shiftRight

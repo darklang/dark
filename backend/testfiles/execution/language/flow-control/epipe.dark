@@ -99,5 +99,5 @@ module FnName =
   (let fn = Stdlib.Int64.subtract
    11L |> fn 4L) = 7L
 
-  (let fn = Stdlib.Int64.max
+  (let fn = (fun a b -> Stdlib.max a b)
    3L |> fn 7L) = 7L

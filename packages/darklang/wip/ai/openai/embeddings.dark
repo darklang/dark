@@ -129,10 +129,10 @@ let createWithOptions
     let requestJson = Json.Object withUser_
     let body = Stdlib.AltJson.format requestJson
     let headers = Config.getHeaders apiKey
-    let url = Config.baseUrl ++ "/embeddings"
+    let url = Config.baseUrl + "/embeddings"
 
     match Stdlib.HttpClient.post url headers (Stdlib.String.toBlob body) with
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
@@ -157,7 +157,7 @@ let createWithOptions
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
 
 /// Generate embeddings for text
 let create
@@ -248,10 +248,10 @@ let createBatchWithOptions
     let requestJson = Json.Object withUser_
     let body = Stdlib.AltJson.format requestJson
     let headers = Config.getHeaders apiKey
-    let url = Config.baseUrl ++ "/embeddings"
+    let url = Config.baseUrl + "/embeddings"
 
     match Stdlib.HttpClient.post url headers (Stdlib.String.toBlob body) with
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
@@ -276,7 +276,7 @@ let createBatchWithOptions
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
 
 /// Generate embeddings for multiple texts (uses text-embedding-3-small)
 let createBatch

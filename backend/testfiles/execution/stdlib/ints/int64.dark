@@ -2,33 +2,13 @@ Stdlib.Int64.absoluteValue -5L = 5L
 Stdlib.Int64.absoluteValue 5L = 5L
 Stdlib.Int64.absoluteValue (-9223372036854775808L) = -9223372036854775808L
 
-Stdlib.Int64.max 5L 6L = 6L
-Stdlib.Int64.max 10L 1L = 10L
-Stdlib.Int64.max -5L 6L = 6L
-Stdlib.Int64.max -100L -20000L = -100L
-Stdlib.Int64.max 250L -26L = 250L
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max -100L -20000L = -100L
 
-Stdlib.Int64.min 5L 6L = 5L
-Stdlib.Int64.min 50L -10L = -10L
-Stdlib.Int64.min -5L 6L = -5L
-Stdlib.Int64.min -100L -20000L = -20000L
-Stdlib.Int64.min 250L -26L = -26L
+Stdlib.min -100L -20000L = -20000L
 
-Stdlib.Int64.clamp -5L -2L 5L = -2L // in bounds
-Stdlib.Int64.clamp -3L -2L 1L = -2L // below min
-Stdlib.Int64.clamp -5L 1L 1L = 1L // at limit
-Stdlib.Int64.clamp 1L 2L 1L = 1L // above max
-Stdlib.Int64.clamp 3L 0L 2L = 2L //  below in
-Stdlib.Int64.clamp -100L 0L 0L = 0L
-Stdlib.Int64.clamp 100L 0L 0L = 0L
-Stdlib.Int64.clamp -100L 0L -1L = -1L
-Stdlib.Int64.clamp 100L 0L -1L = 0L
-Stdlib.Int64.clamp -100L -1L 0L = -1L
-Stdlib.Int64.clamp 100L -1L 0L = 0L
-Stdlib.Int64.clamp -100L 1L 0L = 0L
-Stdlib.Int64.clamp 100L 1L 0L = 1L
-Stdlib.Int64.clamp -2147483647L 250L -26L = -26L
-Stdlib.Int64.clamp 2147483647L 250L -26L = 250L
+Stdlib.clamp -2147483647L 250L -26L = -26L
 
 Stdlib.Int64.negate -5L = 5L
 Stdlib.Int64.negate 5L = -5L
@@ -251,8 +231,7 @@ Stdlib.Int64.divide (-9223372036854775808L) -1L = -9223372036854775808L
  |> Stdlib.List.map (fun x -> Stdlib.Int64.random 0L 2L)
  |> Stdlib.List.unique) = [ 0L, 1L, 2L ]
 
-Stdlib.Int64.sum [ 1L, 2L ] = 3L
-
+Stdlib.sum 0L [ 1L, 2L ] = 3L
 
 // parses ok
 Stdlib.Int64.parse "0" = Stdlib.Result.Result.Ok 0L
@@ -291,16 +270,15 @@ Stdlib.Int64.parse "1I" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.Bad
 Stdlib.Int64.parse "one" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
 Stdlib.Int64.parse "XIV" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
 
-
-Stdlib.Int64.toString 0L = "0"
-Stdlib.Int64.toString 1L = "1"
-Stdlib.Int64.toString -1L = "-1"
-Stdlib.Int64.toString -4611686018427387904L = "-4611686018427387904" // int63 lower limit
-Stdlib.Int64.toString -4611686018427387905L = "-4611686018427387905" // past the int63 upper limit"
-Stdlib.Int64.toString -9223372036854775808L = "-9223372036854775808" // .NET lower limit
-Stdlib.Int64.toString 4611686018427387903L = "4611686018427387903" // int63 upper limit
-Stdlib.Int64.toString 4611686018427387904L = "4611686018427387904" // past the int63 upper limit
-Stdlib.Int64.toString 9223372036854775807L = "9223372036854775807" // .NET upper limit
+Stdlib.toString 0L = "0"
+Stdlib.toString 1L = "1"
+Stdlib.toString -1L = "-1"
+Stdlib.toString -4611686018427387904L = "-4611686018427387904" // int63 lower limit
+Stdlib.toString -4611686018427387905L = "-4611686018427387905" // past the int63 upper limit"
+Stdlib.toString -9223372036854775808L = "-9223372036854775808" // .NET lower limit
+Stdlib.toString 4611686018427387903L = "4611686018427387903" // int63 upper limit
+Stdlib.toString 4611686018427387904L = "4611686018427387904" // past the int63 upper limit
+Stdlib.toString 9223372036854775807L = "9223372036854775807" // .NET upper limit
 
 Stdlib.Int64.fromInt8 0y = 0L
 Stdlib.Int64.fromInt8 1y = 1L

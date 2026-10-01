@@ -334,7 +334,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Ok n ->
       if confirmDestructive
            autoConfirm
-           $"Keep the {Stdlib.Int.toString n} most-recent traces and drop the rest?" then
+           $"Keep the {Stdlib.toString n} most-recent traces and drop the rest?" then
         executePruneKeep state n
       else
         Stdlib.printLine "Cancelled."
@@ -469,7 +469,7 @@ let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
       printEmptyStateHint ()
       state
     | _ ->
-      Stdlib.printLine $"Recent traces (last {Stdlib.Int.toString limit}):"
+      Stdlib.printLine $"Recent traces (last {Stdlib.toString limit}):"
       Stdlib.printLine ""
       printTraceRows rows
       Stdlib.printLine ""
@@ -514,7 +514,7 @@ let executeListByFn
         printEmptyStateHint ()
         state
       | _ ->
-        Stdlib.printLine $"Traces calling '{fnName}' (last {Stdlib.Int.toString limit}):"
+        Stdlib.printLine $"Traces calling '{fnName}' (last {Stdlib.toString limit}):"
         Stdlib.printLine ""
         printTraceRows rows
         Stdlib.printLine ""
@@ -537,13 +537,13 @@ let executeHotspots
 
     match rows with
     | [] ->
-      Stdlib.printLine $"No fn-call data in the last {Stdlib.Int.toString traceLimit} traces."
+      Stdlib.printLine $"No fn-call data in the last {Stdlib.toString traceLimit} traces."
       state
     | _ ->
       let fnCount = Stdlib.List.length rows
       let fnWord = if fnCount == 1 then "fn" else "fns"
       Stdlib.printLine
-        $"Hotspots (last {Stdlib.Int.toString traceLimit} traces, top {Stdlib.Int.toString fnCount} {fnWord} by total ms):"
+        $"Hotspots (last {Stdlib.toString traceLimit} traces, top {Stdlib.toString fnCount} {fnWord} by total ms):"
       Stdlib.printLine ""
       Stdlib.printLine "  total ms │   max ms │ count │ fn"
       Stdlib.printLine "  ─────────┼──────────┼───────┼─────────────────────────"
@@ -573,9 +573,9 @@ let executeHotspotsJson
       |> Stdlib.List.map (fun row ->
         let (name, count, total, max) = row
         $"{{\"name\":\"{jsonEscape name}\""
-        ++ $",\"count\":{Stdlib.Int.toString count}"
-        ++ $",\"totalMs\":{Stdlib.Int.toString total}"
-        ++ $",\"maxMs\":{Stdlib.Int.toString max}}}")
+        + $",\"count\":{Stdlib.toString count}"
+        + $",\"totalMs\":{Stdlib.toString total}"
+        + $",\"maxMs\":{Stdlib.toString max}}}")
       |> Stdlib.String.join ","
     Stdlib.printLine $"[{body}]"
     state
@@ -613,7 +613,7 @@ let executeFind
       state
     | _ ->
       Stdlib.printLine
-        $"Traces matching '{pattern}' (last {Stdlib.Int.toString limit}):"
+        $"Traces matching '{pattern}' (last {Stdlib.toString limit}):"
       Stdlib.printLine ""
       printTraceRows rows
       Stdlib.printLine ""
@@ -713,7 +713,7 @@ let executeTail
       let msg =
         if n == 1 then $"No traces yet{suffix}."
         else
-          let nStr = Stdlib.Int.toString n
+          let nStr = Stdlib.toString n
           $"No {nStr}{ordinalSuffix n}-most-recent trace{suffix}."
       Stdlib.printLine msg
       state
@@ -738,7 +738,7 @@ let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
       state
     | _ ->
       Stdlib.printLine
-        $"Per-handler stats (last {Stdlib.Int.toString limit} traces):"
+        $"Per-handler stats (last {Stdlib.toString limit} traces):"
       Stdlib.printLine ""
       Stdlib.printLine "  total ms │   max ms │ count │ handler"
       Stdlib.printLine "  ─────────┼──────────┼───────┼─────────────────────────"
@@ -777,9 +777,9 @@ let executeStatsJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
       |> Stdlib.List.map (fun row ->
         let (handler, count, total, max) = row
         $"{{\"handler\":\"{jsonEscape handler}\""
-        ++ $",\"count\":{Stdlib.Int.toString count}"
-        ++ $",\"totalMs\":{Stdlib.Int.toString total}"
-        ++ $",\"maxMs\":{Stdlib.Int.toString max}}}")
+        + $",\"count\":{Stdlib.toString count}"
+        + $",\"totalMs\":{Stdlib.toString total}"
+        + $",\"maxMs\":{Stdlib.toString max}}}")
       |> Stdlib.String.join ","
     Stdlib.printLine $"[{body}]"
     state
@@ -904,7 +904,7 @@ let executeListByRoute
         printEmptyStateHint ()
         state
       | _ ->
-        Stdlib.printLine $"Traces matching route '{route}' (last {Stdlib.Int.toString limit}):"
+        Stdlib.printLine $"Traces matching route '{route}' (last {Stdlib.toString limit}):"
         Stdlib.printLine ""
         printTraceRows matching
         Stdlib.printLine ""
@@ -1006,7 +1006,7 @@ let renderCall
       let resultRepr = compactDval branchId call.result
       let durationSuffix =
         if call.durationMs > 0 then
-          $"  ({Stdlib.Int.toString call.durationMs}ms)"
+          $"  ({Stdlib.toString call.durationMs}ms)"
         else
           ""
       let header =
@@ -1131,7 +1131,7 @@ let executeClear (state: Cli.AppState) : Cli.AppState =
     state
   | _ ->
     let traceWord = if count == 1 then "trace" else "traces"
-    Stdlib.printLine $"Cleared {Stdlib.Int.toString count} {traceWord}."
+    Stdlib.printLine $"Cleared {Stdlib.toString count} {traceWord}."
     state
 
 
@@ -1160,7 +1160,7 @@ let executeClearBefore
     // cleanup
     let cutoffDt =
       Stdlib.DateTime.subtractSeconds now seconds
-    let cutoff = Stdlib.DateTime.toString cutoffDt
+    let cutoff = Stdlib.toString cutoffDt
     let count = Darklang.Tracing.Store.clearBefore cutoff
     match count with
     | 0 ->
@@ -1169,7 +1169,7 @@ let executeClearBefore
     | _ ->
       let traceWord = if count == 1 then "trace" else "traces"
       Stdlib.printLine
-        $"Cleared {Stdlib.Int.toString count} {traceWord} older than {durationStr}."
+        $"Cleared {Stdlib.toString count} {traceWord} older than {durationStr}."
       state
 
 
@@ -1198,16 +1198,16 @@ let executePruneKeep (state: Cli.AppState) (keepN: Int) : Cli.AppState =
     match deleted with
     | 0 ->
       Stdlib.printLine
-        $"Already at or below {Stdlib.Int.toString keepN} traces; nothing to prune."
+        $"Already at or below {Stdlib.toString keepN} traces; nothing to prune."
       state
     | _ ->
       let traceWord = if deleted == 1 then "trace" else "traces"
       let keptPhrase =
         if keepN == 0 then "none kept"
         else if keepN == 1 then "kept the most-recent"
-        else $"kept the {Stdlib.Int.toString keepN} most-recent"
+        else $"kept the {Stdlib.toString keepN} most-recent"
       Stdlib.printLine
-        $"Pruned {Stdlib.Int.toString deleted} {traceWord}; {keptPhrase}."
+        $"Pruned {Stdlib.toString deleted} {traceWord}; {keptPhrase}."
       state
 
 

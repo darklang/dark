@@ -45,7 +45,7 @@
 
 
 (let pairs = [ (1L, "one"), (2L, "two"), (3L, "three") ]
- let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
+ let transformer = fun (num, str) -> $"{Stdlib.toString num}:{str}"
  Stdlib.List.map pairs transformer) =
   [ "1:one", "2:two", "3:three" ]
 
@@ -55,9 +55,9 @@
  let transformer =
    fun (num, str, flag) ->
      if flag then
-       $"{Stdlib.Int64.toString num}:{str}:TRUE"
+       $"{Stdlib.toString num}:{str}:TRUE"
      else
-       $"{Stdlib.Int64.toString num}:{str}:FALSE"
+       $"{Stdlib.toString num}:{str}:FALSE"
 
  Stdlib.List.map triplets transformer
  ) = [ "1:one:TRUE", "2:two:FALSE" ]
@@ -65,7 +65,7 @@
 // nested
 (let sing = [ (("1"), "2"), (("3"), "4") ]
 
- let transformer = fun ((str1), str2) -> str1 ++ str2
+ let transformer = fun ((str1), str2) -> str1 + str2
  Stdlib.List.map sing transformer) = [ "12", "34" ]
 
 // Nested tuple lambda destructuring regression test.
@@ -75,26 +75,26 @@
  let transformer =
    fun ((num, str), flag) ->
      if flag then
-       $"{Stdlib.Int64.toString num}:{str}:TRUE"
+       $"{Stdlib.toString num}:{str}:TRUE"
      else
-       $"{Stdlib.Int64.toString num}:{str}:FALSE"
+       $"{Stdlib.toString num}:{str}:FALSE"
 
  Stdlib.List.map triplets transformer) =
   [ "1:one:TRUE", "2:two:FALSE" ]
 
 (let triplets = [ (1L, "one", true), (2L, "two", false) ]
- let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
+ let transformer = fun (num, str) -> $"{Stdlib.toString num}:{str}"
  Stdlib.List.map triplets transformer) = error="Could not deconstruct value (1, \"one\", true) into pattern ([variable], [variable])"
 Stdlib.Dict.map
   (Dict
     { "key1": ("val11", "val12")
       "key2": ("val21", "val22") })
-  (fun x (y, z) -> x ++ y ++ z) =
+  (fun x (y, z) -> x + y + z) =
    (Dict { "key2": "key2val21val22"; "key1": "key1val11val12" })
 
 (Stdlib.Dict.map
   (Dict { "key1": ("val11", "val12"); "key2": ("val21", "val22") })
-  (fun x (_, z) -> x ++ z)) =
+  (fun x (_, z) -> x + z)) =
     (Dict { "key2": "key2val22"; "key1": "key1val12" })
 
 

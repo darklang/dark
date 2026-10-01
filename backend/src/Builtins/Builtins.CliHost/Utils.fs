@@ -22,6 +22,8 @@ module CliScript =
     { types : List<PT.PackageType.PackageType>
       values : List<PT.PackageValue.PackageValue>
       fns : List<PT.PackageFn.PackageFn>
+      traits : List<PT.Trait.Trait>
+      impls : List<PT.TraitImpl.TraitImpl>
       submodules : Definitions
       exprs : List<PT.Expr> }
 
@@ -74,6 +76,16 @@ module CliScript =
         )
         "fns",
         DList(VT.customType packageFn [], m.fns |> List.map PT2DT.PackageFn.toDT)
+        "traits",
+        DList(
+          VT.known (PT2DT.Trait.knownType ()),
+          m.traits |> List.map PT2DT.Trait.toDT
+        )
+        "impls",
+        DList(
+          VT.known (PT2DT.TraitImpl.knownType ()),
+          m.impls |> List.map PT2DT.TraitImpl.toDT
+        )
         "submodules", m.submodules |> submoduleToDT
         "exprs", DList(VT.unknownTODO, m.exprs |> List.map PT2DT.Expr.toDT) ]
 
@@ -106,6 +118,14 @@ module CliScript =
         | Some(DList(_, exprs)) -> List.map (fun e -> e |> PT2DT.Expr.fromDT) exprs
         | _ ->
           Exception.raiseInternal "Invalid PTCliScriptModule, missing exprs field" []
+      let traits =
+        match Map.tryFind "traits" fields with
+        | Some(DList(_, ts)) -> List.map PT2DT.Trait.fromDT ts
+        | _ -> []
+      let impls =
+        match Map.tryFind "impls" fields with
+        | Some(DList(_, is)) -> List.map PT2DT.TraitImpl.fromDT is
+        | _ -> []
 
       let submodules : Definitions =
         match Map.tryFind "submodules" fields with
@@ -173,6 +193,8 @@ module CliScript =
       { types = types
         values = values
         fns = fns
+        traits = traits
+        impls = impls
         submodules = submodules
         exprs = exprs }
 

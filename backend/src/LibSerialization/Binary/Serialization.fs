@@ -72,9 +72,10 @@ let makeSerializer<'T, 'ID>
 /// every historical readVN alongside one current writer; that is what lets a new binary decode an OLD
 /// blob.
 ///
-/// No reader dispatches on the version yet, because `CurrentVersion` is still 1: v1 is the first
-/// format whose blobs outlive the binary that wrote them, since before it every store was rebuilt
-/// from `.dark` on each build. This exists so the first layout change has somewhere to go.
+/// Readers do dispatch on it now. The PT side threads it everywhere; on the RT side it reaches
+/// the applicable reader, whose layout changed in v4. An RT blob is a projection, but nothing on
+/// the shipped path re-folds one when the format moves (see `LibDB/Releases.fs`), so an old
+/// `rt_instrs` row is read by a new binary and the version has to be honoured there too.
 let makeDeserializerV<'T, 'ID>
   (reader : uint32 -> BinaryReader -> 'T)
   : 'ID -> byte[] -> 'T =
@@ -128,19 +129,27 @@ module PT =
 
   module PackageType =
     let serialize id value = makeSerializer PT.PackageType.write id value
-    let deserialize id data = makeDeserializer PT.PackageType.read id data
+    let deserialize id data = makeDeserializerV PT.PackageType.read id data
 
   module PackageValue =
     let serialize id value = makeSerializer PT.PackageValue.write id value
-    let deserialize id data = makeDeserializer PT.PackageValue.read id data
+    let deserialize id data = makeDeserializerV PT.PackageValue.read id data
 
   module PackageFn =
     let serialize id value = makeSerializer PT.PackageFn.write id value
-    let deserialize id data = makeDeserializer PT.PackageFn.read id data
+    let deserialize id data = makeDeserializerV PT.PackageFn.read id data
+
+  module Trait =
+    let serialize id value = makeSerializer PT.Trait.write id value
+    let deserialize id data = makeDeserializer PT.Trait.read id data
+
+  module TraitImpl =
+    let serialize id value = makeSerializer PT.Trait.TraitImpl.write id value
+    let deserialize id data = makeDeserializerV PT.Trait.TraitImpl.read id data
 
   module PackageOp =
     let serialize id value = makeSerializer PT.PackageOp.write id value
-    let deserialize id data = makeDeserializer PT.PackageOp.read id data
+    let deserialize id data = makeDeserializerV PT.PackageOp.read id data
 
     /// The op, or None when THIS BUILD cannot read it. Nearly every reader wants this
     /// one rather than `deserialize`: a synced store's own log legitimately holds ops
@@ -200,19 +209,19 @@ module RT =
 
   module Dval =
     let serialize id value = makeSerializer RT.Dval.write id value
-    let deserialize id data = makeDeserializer RT.Dval.read id data
+    let deserialize id data = makeDeserializerV RT.Dval.read id data
 
   module Instructions =
     let serialize id value = makeSerializer RT.Instructions.write id value
-    let deserialize id data = makeDeserializer RT.Instructions.read id data
+    let deserialize id data = makeDeserializerV RT.Instructions.read id data
 
   module PackageValue =
     let serialize id value = makeSerializer RT.PackageValue.write id value
-    let deserialize id data = makeDeserializer RT.PackageValue.read id data
+    let deserialize id data = makeDeserializerV RT.PackageValue.read id data
 
   module PackageFn =
     let serialize id value = makeSerializer RT.PackageFn.write id value
-    let deserialize id data = makeDeserializer RT.PackageFn.read id data
+    let deserialize id data = makeDeserializerV RT.PackageFn.read id data
 
   module ValueType =
     let serialize (vt : LibExecution.RuntimeTypes.ValueType) : byte[] =

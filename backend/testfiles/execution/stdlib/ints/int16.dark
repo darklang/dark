@@ -1,29 +1,14 @@
 Stdlib.Int16.absoluteValue -5s = 5s
 Stdlib.Int16.absoluteValue 5s = 5s
 Stdlib.Int16.absoluteValue -32768s = -32768s
-Stdlib.Int16.clamp -5s -2s 5s = -2s
-Stdlib.Int16.clamp -3s -2s 1s = -2s
-Stdlib.Int16.clamp -5s 1s 1s = 1s
-Stdlib.Int16.clamp 1s 2s 1s = 1s
-Stdlib.Int16.clamp 3s 0s 2s = 2s
 
-Stdlib.Int16.max 5s 6s = 6s
-Stdlib.Int16.max 10s 1s = 10s
-Stdlib.Int16.max -5s 6s = 6s
-Stdlib.Int16.max 32767s -32768s = 32767s
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max 32767s -32768s = 32767s
 
-Stdlib.Int16.min 5s 6s = 5s
-Stdlib.Int16.min 50s -10s = -10s
-Stdlib.Int16.min -5s 6s = -5s
-Stdlib.Int16.min 32767s -32768s = -32768s
+Stdlib.min 32767s -32768s = -32768s
 
-Stdlib.Int16.clamp -100s 0s 0s = 0s
-Stdlib.Int16.clamp 100s 0s 0s = 0s
-Stdlib.Int16.clamp -100s 0s -1s = -1s
-Stdlib.Int16.clamp 100s 0s -1s = 0s
-Stdlib.Int16.clamp -100s -1s 0s = -1s
-Stdlib.Int16.clamp -100s 1s 0s = 0s
-Stdlib.Int16.clamp 100s 1s 0s = 1s
+Stdlib.clamp -100s 0s -1s = -1s
 
 Stdlib.Int16.add 10s 9s = 19s
 Stdlib.Int16.add 88s 9s = 97s
@@ -62,7 +47,6 @@ Stdlib.Int16.divide 1s 0s = error="Cannot divide by 0"
 Stdlib.Int16.divide -32768s -1s = -32768s
 Stdlib.Int16.divide -32768s 1s = -32768s
 
-
 Stdlib.Int16.negate -5s = 5s
 Stdlib.Int16.negate 5s = -5s
 Stdlib.Int16.negate 0s = 0s
@@ -96,11 +80,11 @@ Stdlib.Int16.lessThanOrEqualTo -100s 22544s = true
 Stdlib.Int16.lessThanOrEqualTo -999s -9999s = false
 Stdlib.Int16.lessThanOrEqualTo -8888s -8888s = true
 
-Stdlib.Int16.toString 0s = "0"
-Stdlib.Int16.toString 1s = "1"
-Stdlib.Int16.toString -1s = "-1"
-Stdlib.Int16.toString -32768s = "-32768" // Int16 lower limit
-Stdlib.Int16.toString 32767s = "32767" // Int16 upper limit
+Stdlib.toString 0s = "0"
+Stdlib.toString 1s = "1"
+Stdlib.toString -1s = "-1"
+Stdlib.toString -32768s = "-32768" // Int16 lower limit
+Stdlib.toString 32767s = "32767" // Int16 upper limit
 
 Stdlib.Int16.toFloat 2s = 2.0
 Stdlib.Int16.toFloat -10s = -10.0
@@ -137,7 +121,6 @@ Stdlib.Int16.toFloat -10s = -10.0
  |> Stdlib.List.map (fun x -> Stdlib.Int16.random 0s 2s)
  |> Stdlib.List.unique) = [ 0s, 1s, 2s ]
 
-
 Stdlib.Int16.parse "0" = Stdlib.Result.Result.Ok 0s
 Stdlib.Int16.parse "1" = Stdlib.Result.Result.Ok 1s
 Stdlib.Int16.parse " 1" = Stdlib.Result.Result.Ok 1s
@@ -166,7 +149,6 @@ Stdlib.Int16.parse "" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFo
 Stdlib.Int16.parse "1I" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
 Stdlib.Int16.parse "one" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
 Stdlib.Int16.parse "XIV" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
-
 
 Stdlib.Int16.fromInt8 0y = 0s
 Stdlib.Int16.fromInt8 1y = 1s

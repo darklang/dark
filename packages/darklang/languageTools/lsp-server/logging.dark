@@ -5,7 +5,7 @@ val logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
 
 let log (input: String) : Unit =
   // returns Result -- ignored
-  let _logged = Stdlib.Cli.FileSystem.appendToFile logFilePath (input ++ "\n")
+  let _logged = Stdlib.Cli.FileSystem.appendToFile logFilePath (input + "\n")
 
   ()
 
@@ -20,7 +20,7 @@ let logAndSendToClient (response: String) : Unit =
     response
     |> Stdlib.String.toBytes
     |> Stdlib.List.length
-    |> Stdlib.Int.toString
+    |> Stdlib.toString
 
   Stdlib.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
 

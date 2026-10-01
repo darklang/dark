@@ -20,7 +20,7 @@ let formatHints (pairs: List<(String * String)>) : String =
   pairs
   |> Stdlib.List.map (fun pair ->
     let (k, l) = pair
-    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.white k) ++ " " ++ (Stdlib.Cli.UI.Colors.dimText l))
+    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.white k) + " " + (Stdlib.Cli.UI.Colors.dimText l))
   |> Stdlib.String.join (Stdlib.Cli.UI.Colors.dimText " · ")
 
 /// Fit key hints to a row: <param keep> always survives, <param droppable> gives way from its END.
@@ -39,12 +39,12 @@ let formatHintsFitted
     pairs
     |> Stdlib.List.map (fun p ->
       let (k, l) = p
-      k ++ " " ++ l)
+      k + " " + l)
     |> Stdlib.String.join "   "
 
   // 2 for the indent, 3 for the join between the droppable run and the kept keys.
   let room =
-    Stdlib.Int.max 0 (width - (Stdlib.String.displayWidth (plainOf keep)) - 5)
+    Stdlib.max 0 (width - (Stdlib.String.displayWidth (plainOf keep)) - 5)
 
   let (fitted, _stopped) =
     droppable
@@ -66,4 +66,4 @@ let formatHintsFitted
 /// Render a one-row, pre-colored key-hint bar at the bottom of the body. The string is already styled
 /// (see `formatHints`), so this just indents + places it.
 let renderKeyHints (region: Stdlib.Cli.UI.Layout.Region) (hints: String) : List<Stdlib.Cli.UI.Layout.Span> =
-  Stdlib.Cli.UI.Layout.at region 0 0 ("  " ++ hints)
+  Stdlib.Cli.UI.Layout.at region 0 0 ("  " + hints)

@@ -33,24 +33,52 @@ let private isNumeric (typ : StaticType) : bool =
   | TFloat -> true
   | _ -> false
 
-/// Bitwise operators are defined only for integer operands.
-let private isBitwise (operation : InfixFnName) : bool =
-  match operation with
-  | BitwiseAnd
-  | BitwiseOr
-  | BitwiseXor
-  | ShiftLeft
-  | ShiftRight -> true
-  | _ -> false
-
+/// The POLYMORPHIC BUILTIN's own table, reached only when an operator is called by name
+/// (`Builtin.power a b`) rather than through its trait. The trait says what `**` means and
+/// covers every numeric width; this builtin has no 128-bit arms and never will, since it is
+/// the legacy path that nothing in `packages/` calls any more.
 let private supportsNumericOperation
   (operation : InfixFnName)
   (typ : StaticType)
   : bool =
   match operation, typ with
   | ArithmeticPower, (TInt128 | TUInt128) -> false
-  | _, TFloat when isBitwise operation -> false
   | _ -> isNumeric typ
+
+/// What an arithmetic or comparison operand owes. Through the operator syntax it
+/// is an impl of the operator's trait (`Add` for `+`), recorded as a constraint on
+/// the operand type and discharged with the item's other bounds. Called as the
+/// polymorphic builtin (`Builtin.add a b`) it is the builtin's own table of numeric
+/// types, which is all that builtin accepts.
+let private numericOperandRule
+  (state : State)
+  (nodeId : id)
+  (operation : InfixFnName)
+  (viaBuiltin : bool)
+  (pipeline : bool)
+  (operandType : StaticType)
+  : unit =
+  let asTrait =
+    if viaBuiltin then None else LibExecution.NumericTraits.ofInfix operation
+  match asTrait with
+  | Some(traitHash, methodName) ->
+    state.AddConstraint(Some nodeId, Hash traitHash, operandType, Some methodName)
+  | None ->
+    let concrete = normalizeAliases state (Some nodeId) Set.empty operandType
+    if not (supportsNumericOperation operation concrete) then
+      match concrete with
+      | TInferenceVariable _ ->
+        if not (containsTaintedInferenceVariable state operandType) then
+          let reason = if pipeline then PipelineNumericOperand else NumericOperand
+          state.Block(AmbiguousType, Some nodeId, Ambiguous reason)
+      | _ ->
+        state.Error(
+          InvalidInfixOperand,
+          Some nodeId,
+          None,
+          Some concrete,
+          InfixOperandUnsupported operation
+        )
 
 let rec internal isNonExpansive (expr : Expr) : bool =
   ensureStack ()
@@ -171,21 +199,58 @@ let private inferNegateResult
   (argType : StaticType)
   : StaticType =
   state.AddDependency(FunctionDependency fqName)
-  let concrete = normalizeAliases state (Some nodeId) Set.empty argType
-  if not (isSignedNumeric concrete) then
-    match concrete with
-    | TInferenceVariable _ ->
-      if not (containsTaintedInferenceVariable state argType) then
-        state.Block(AmbiguousType, Some nodeId, Ambiguous UnaryMinusOperand)
-    | _ ->
-      state.Error(
-        InvalidInfixOperand,
-        Some nodeId,
-        None,
-        Some concrete,
-        UnaryMinusOperandNotSignedNumeric
-      )
+  // Through the syntax `-x` is `Negate.negate x`, so the operand owes a `Negate` impl; the
+  // builtin's own table stands in only while the refs are not generated.
+  match LibExecution.NumericTraits.ofNegate () with
+  | Some(traitHash, methodName) ->
+    state.AddConstraint(Some nodeId, Hash traitHash, argType, Some methodName)
+  | None ->
+    let concrete = normalizeAliases state (Some nodeId) Set.empty argType
+    if not (isSignedNumeric concrete) then
+      match concrete with
+      | TInferenceVariable _ ->
+        if not (containsTaintedInferenceVariable state argType) then
+          state.Block(AmbiguousType, Some nodeId, Ambiguous UnaryMinusOperand)
+      | _ ->
+        state.Error(
+          InvalidInfixOperand,
+          Some nodeId,
+          None,
+          Some concrete,
+          UnaryMinusOperandNotSignedNumeric
+        )
   argType
+
+/// A trait method's signature is the trait record's field: `show: 'a -> String`
+/// on `Show<'a>` is `show<'a> : 'a -> String`. Instantiating it owes `Show 'a`.
+let private traitMethodSignature
+  (state : State)
+  (nodeId : Option<id>)
+  (traitHash : FQTraitName.Package)
+  (methodName : string)
+  : Option<FunctionSignature> =
+  match Map.tryFind traitHash state.Environment.traits with
+  | None ->
+    state.Block(MissingTypeDeclaration, nodeId, TraitUnavailable traitHash)
+    None
+  | Some trait_ ->
+    trait_.methods
+    |> NEList.toList
+    |> List.tryPick (fun m ->
+      if m.name = methodName then
+        Some
+          { typeParams = NEList.toList trait_.typeParams @ m.typeParams
+            parameters = m.parameters |> NEList.map (fun p -> p.typ)
+            returnType = m.returnType
+            // The trait's bound on the self type, then whatever the method itself declares.
+            bounds =
+              { param = trait_.typeParams.head
+                trait_ =
+                  { trait_ = NameResolution.ok (FQTraitName.Package traitHash)
+                    typeArgs = [] } }
+              :: m.bounds }
+      else
+        None)
 
 let private instantiateFunction
   (state : State)
@@ -198,6 +263,39 @@ let private instantiateFunction
   | None ->
     state.Block(UnresolvedFunctionName, nodeId, Unresolved name.originalName)
     state.FreshTainted nodeId
+  | Some(FQFnName.TraitMethod { trait_ = traitHash
+                                method_ = methodName
+                                implFn = _ }) ->
+    state.AddDependency(TraitDependency traitHash)
+    match traitMethodSignature state nodeId traitHash methodName with
+    | None ->
+      state.Block(
+        MissingFunctionSignature,
+        nodeId,
+        FunctionUnavailable(
+          FQFnName.TraitMethod
+            { trait_ = traitHash; method_ = methodName; implFn = FQFnName.Unknown }
+        )
+      )
+      state.FreshTainted nodeId
+    | Some signature ->
+      let vars =
+        typeVariables
+          state
+          nodeId
+          typeVariableScope
+          signature.typeParams
+          explicitTypeArgs
+      for b in signature.bounds do
+        match Map.tryFind b.param vars with
+        | Some typ -> state.AddConstraint(nodeId, traitHash, typ, Some methodName)
+        | None -> ()
+      let parameters =
+        NEList.map (convertType state nodeId vars) signature.parameters
+      let returnType = convertType state nodeId vars signature.returnType
+      let typ = TFn(parameters, returnType)
+      validateTypeClosure state nodeId typ
+      typ
   | Some fqName when isOperatorLikeBuiltin name ->
     // Applied to its full argument list it is checked as the operator (see
     // `asOperatorBuiltin`); as a value or partially applied there is no
@@ -238,6 +336,13 @@ let private instantiateFunction
             typeVariableScope
             signature.typeParams
             explicitTypeArgs
+        // A bounded fn's instantiation owes each bound at what the variable becomes.
+        for b in signature.bounds do
+          match b.trait_.trait_.resolved, Map.tryFind b.param vars with
+          | Ok { name = FQTraitName.Package traitHash }, Some typ ->
+            state.AddDependency(TraitDependency traitHash)
+            state.AddConstraint(nodeId, traitHash, typ, None, b.param)
+          | _ -> ()
         let parameters =
           NEList.map (convertType state nodeId vars) signature.parameters
         let returnType = convertType state nodeId vars signature.returnType
@@ -701,6 +806,7 @@ and internal inferInfix
   (state : State)
   (env : Env)
   (nodeId : id)
+  (viaBuiltin : bool)
   (infix : Infix)
   (lhs : Expr)
   (rhs : Expr)
@@ -724,20 +830,7 @@ and internal inferInfix
   | InfixFnCall operation ->
     let lhsType = inferExpr state env lhs
     checkExpr state env lhsType rhs
-    let concrete = normalizeAliases state (Some nodeId) Set.empty lhsType
-    if not (supportsNumericOperation operation concrete) then
-      match concrete with
-      | TInferenceVariable _ ->
-        if not (containsTaintedInferenceVariable state lhsType) then
-          state.Block(AmbiguousType, Some nodeId, Ambiguous NumericOperand)
-      | _ ->
-        state.Error(
-          InvalidInfixOperand,
-          Some nodeId,
-          None,
-          Some concrete,
-          InfixOperandUnsupported operation
-        )
+    numericOperandRule state nodeId operation viaBuiltin false lhsType
     match operation with
     | ComparisonGreaterThan
     | ComparisonGreaterThanOrEqual
@@ -764,6 +857,17 @@ and internal inferPipePart
   (input : StaticType)
   (part : PipeExpr)
   : StaticType =
+  inferPipePartVia state env input false part
+
+/// `viaBuiltin`: the part is the polymorphic operator builtin called by name
+/// (`|> Builtin.add 1`), rewritten to the operator's shape.
+and private inferPipePartVia
+  (state : State)
+  (env : Env)
+  (input : StaticType)
+  (viaBuiltin : bool)
+  (part : PipeExpr)
+  : StaticType =
   ensureStack ()
   match part with
   | EPipeLambda(nodeId, patterns, body) ->
@@ -785,7 +889,7 @@ and internal inferPipePart
     match parameters.tail with
     | [] -> bodyType
     | next :: rest -> TFn(NEList.ofList next rest, bodyType)
-  | EPipeInfix(nodeId, infix, rhs) ->
+  | EPipeInfix(nodeId, infix, rhs, _) ->
     // The lhs has already been inferred, so apply the operator rule directly.
     let rhsType = inferExpr state env rhs
     match infix with
@@ -804,20 +908,7 @@ and internal inferPipePart
       TBool
     | InfixFnCall operation ->
       unify state (Some nodeId) PipelineNumericOperator input rhsType
-      let concrete = normalizeAliases state (Some nodeId) Set.empty input
-      if not (supportsNumericOperation operation concrete) then
-        match concrete with
-        | TInferenceVariable _ ->
-          if not (containsTaintedInferenceVariable state input) then
-            state.Block(AmbiguousType, Some nodeId, Ambiguous PipelineNumericOperand)
-        | _ ->
-          state.Error(
-            InvalidInfixOperand,
-            Some nodeId,
-            None,
-            Some concrete,
-            InfixOperandUnsupported operation
-          )
+      numericOperandRule state nodeId operation viaBuiltin true input
       match operation with
       | ComparisonGreaterThan
       | ComparisonGreaterThanOrEqual
@@ -838,7 +929,12 @@ and internal inferPipePart
     | [], [], _, Some fqName, _ -> inferNegateResult state nodeId fqName input
     | [], [ rhs ], _, _, Some(fqName, infix) ->
       state.AddDependency(FunctionDependency fqName)
-      inferPipePart state env input (EPipeInfix(nodeId, infix, rhs))
+      inferPipePartVia
+        state
+        env
+        input
+        true
+        (EPipeInfix(nodeId, infix, rhs, FQFnName.Unknown))
     | _ ->
       let fnType =
         instantiateFunction state (Some nodeId) env.typeVariables name typeArgs
@@ -956,7 +1052,8 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     segments
     |> List.iter (function
       | StringText _ -> ()
-      | StringInterpolation expr -> checkExpr state env TString expr)
+      | StringInterpolation expr ->
+        checkExprWithContext state env TString expr InterpolatedSegment)
     TString
   | EUnwrap(nodeId, operand) ->
     let operandType = inferExpr state env operand
@@ -1058,26 +1155,26 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     // operator builtins that infix syntax lowers to.
     let specialCase =
       match callee, typeArgs, NEList.toList args with
-      | EFnName(_, name), [], [ arg ] when Option.isSome (asUnwrapBuiltin name) ->
+      | EFnName(_, name, _), [], [ arg ] when Option.isSome (asUnwrapBuiltin name) ->
         asUnwrapBuiltin name
         |> Option.map (fun fqName ->
           inferUnwrapResult state nodeId fqName (inferExpr state env arg))
-      | EFnName(_, name), [], [ arg ] when Option.isSome (asNegateBuiltin name) ->
+      | EFnName(_, name, _), [], [ arg ] when Option.isSome (asNegateBuiltin name) ->
         asNegateBuiltin name
         |> Option.map (fun fqName ->
           inferNegateResult state nodeId fqName (inferExpr state env arg))
-      | EFnName(_, name), [], [ lhs; rhs ] ->
+      | EFnName(_, name, _), [], [ lhs; rhs ] ->
         asOperatorBuiltin name
         |> Option.map (fun (fqName, infix) ->
           state.AddDependency(FunctionDependency fqName)
-          inferInfix state env nodeId infix lhs rhs)
+          inferInfix state env nodeId true infix lhs rhs)
       | _ -> None
     match specialCase with
     | Some resultType -> resultType
     | None ->
       let calleeType =
         match callee with
-        | EFnName(nameId, name) ->
+        | EFnName(nameId, name, _) ->
           instantiateFunction state (Some nameId) env.typeVariables name typeArgs
         | _ ->
           if not (List.isEmpty typeArgs) then
@@ -1088,7 +1185,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
             )
           inferExpr state env callee
       applyArguments state env nodeId calleeType (NEList.toList args)
-  | EFnName(nodeId, name) ->
+  | EFnName(nodeId, name, _) ->
     instantiateFunction state (Some nodeId) env.typeVariables name []
   | ELambda(nodeId, patterns, body) ->
     let parameters = patterns |> NEList.map (fun _ -> state.Fresh(Some nodeId))
@@ -1104,20 +1201,57 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     unify state (Some nodeId) LambdaReturnValue returnType bodyType
     resolveUnwrapConstraints state false
     TFn(parameters, bodyType)
-  | EInfix(nodeId, infix, lhs, rhs) -> inferInfix state env nodeId infix lhs rhs
+  | EInfix(nodeId, infix, lhs, rhs, _) ->
+    inferInfix state env nodeId false infix lhs rhs
   | ERecord(nodeId, name, typeArgs, fields) ->
     inferRecordConstruction state env nodeId name typeArgs fields
   | ERecordFieldAccess(nodeId, record, fieldName) ->
     let recordType = inferExpr state env record
-    match normalizeAliases state (Some nodeId) Set.empty recordType with
-    | TInferenceVariable _ when containsTaintedInferenceVariable state recordType ->
-      state.FreshTainted(Some nodeId)
-    | TInferenceVariable _ ->
+    // Anything but a field the record type is known to have is settled at the item
+    // boundary: an inference variable may still become a record, and a miss may be a
+    // receiver call (`p.show`) once the impls are consulted.
+    let defer () =
       let fieldType = state.Fresh(Some nodeId)
       state.PendingFieldAccesses <-
         (nodeId, recordType, fieldName, fieldType) :: state.PendingFieldAccesses
       fieldType
-    | subjectType -> resolveFieldAccess state nodeId subjectType fieldName
+    match normalizeAliases state (Some nodeId) Set.empty recordType with
+    | TInferenceVariable _ when containsTaintedInferenceVariable state recordType ->
+      state.FreshTainted(Some nodeId)
+    | TInferenceVariable _ -> defer ()
+    // A tuple INDEX is neither a field nor a method, so it is answered here, as it is
+    // without traits. `x.show` on a tuple is still a miss and still defers: an impl's self
+    // type can be a tuple, or blanket, so the receiver call has to get its chance.
+    | TTuple(first, second, rest) as subjectType when
+      (match RT.tupleIndexOfFieldName fieldName with
+       | Some n -> n <= List.length (first :: second :: rest)
+       | None -> false)
+      ->
+      resolveFieldAccess state nodeId subjectType fieldName
+    | _ ->
+      match declarationForCustom state (Some nodeId) recordType with
+      | Some(_, typeArgs, declaration) ->
+        match declaration.definition with
+        | TypeDeclaration.Record fields ->
+          match
+            fields
+            |> NEList.toList
+            |> List.tryFind (fun field -> field.name = fieldName)
+          with
+          | Some field ->
+            declarationFieldType
+              state
+              (Some nodeId)
+              declaration.typeParams
+              typeArgs
+              field.typ
+          | None -> defer ()
+        | _ -> defer ()
+      | None ->
+        if containsTaintedInferenceVariable state recordType then
+          state.FreshTainted(Some nodeId)
+        else
+          defer ()
   | ERecordUpdate(nodeId, record, updates) ->
     let recordType = inferExpr state env record
     let updates = NEList.toList updates

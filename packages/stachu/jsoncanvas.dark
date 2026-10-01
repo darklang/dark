@@ -491,8 +491,8 @@ loadCanvas('example');"
   <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
   <title>JSON Canvas Viewer</title>
   <style>"
-    ++ css
-    ++ "</style>
+    + css
+    + "</style>
 </head>
 <body>
   <div id=\"controls\">
@@ -504,8 +504,8 @@ loadCanvas('example');"
   </div>
   <div id=\"canvas\"><svg id=\"edges\"></svg></div>
   <script>"
-    ++ js
-    ++ "</script>
+    + js
+    + "</script>
 </body>
 </html>"
 

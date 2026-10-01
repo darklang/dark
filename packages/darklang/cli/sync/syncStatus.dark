@@ -33,7 +33,7 @@ let executeExport (state: AppState) (path: String) : AppState =
   let ops = SCM.Wire.exportOps ()
 
   match Stdlib.Cli.File.writeText path (SCM.Wire.wireEncode ops) with
-  | Ok _ -> Cli.printOk $"Exported {Stdlib.Int.toString (Stdlib.List.length ops)} ops to {path}"
+  | Ok _ -> Cli.printOk $"Exported {Stdlib.toString (Stdlib.List.length ops)} ops to {path}"
   | Error _ -> Cli.printErr $"Couldn't write {path}"
 
   state
@@ -59,7 +59,7 @@ let executeImport (state: AppState) (path: String) : AppState =
         SCM.PackageOps.recordSyncBases source
 
         Cli.printOk
-          $"Imported {Stdlib.Int.toString outcome.imported} new op(s), of {Stdlib.Int.toString (Stdlib.List.length ops)} in file."
+          $"Imported {Stdlib.toString outcome.imported} new op(s), of {Stdlib.toString (Stdlib.List.length ops)} in file."
 
         reportDetection outcome.bulk outcome.detected
         reportConflicts outcome.conflicts
@@ -92,8 +92,8 @@ let executeStatus (state: AppState) (url: String) : AppState =
     | Ok respBody ->
       match SCM.Wire.headDecode respBody with
       | Ok theirs ->
-        Cli.printOk $"local: {Stdlib.Int64.toString mine.count} ops"
-        Cli.printOk $"relay: {Stdlib.Int64.toString theirs.count} ops"
+        Cli.printOk $"local: {Stdlib.toString mine.count} ops"
+        Cli.printOk $"relay: {Stdlib.toString theirs.count} ops"
 
         // Effective ops this relay is not known to hold. The same question `push` decides on.
         let unpushed = SCM.Wire.unpushedCount url
@@ -114,13 +114,13 @@ let executeStatus (state: AppState) (url: String) : AppState =
           |> Stdlib.List.iter (fun entry ->
             let (name, n) = entry
             Cli.printHint
-              $"  branch \"{name}\": {Stdlib.Int64.toString n} op(s) not on the relay -- `dark branch push {name}`.")
+              $"  branch \"{name}\": {Stdlib.toString n} op(s) not on the relay -- `dark branch push {name}`.")
 
           match relayGetAuthed url "/branch/owners" with
           | Error _ -> ()
           | Ok body ->
             let knownIds =
-              SCM.Branches.list () |> Stdlib.List.map (fun b -> Stdlib.Uuid.toString b.id)
+              SCM.Branches.list () |> Stdlib.List.map (fun b -> Stdlib.toString b.id)
 
             let me = SCM.PackageOps.identity ()
 
@@ -152,7 +152,7 @@ let executeStatus (state: AppState) (url: String) : AppState =
           else
             ()
         | (true, false) ->
-          Cli.printOk $"{Stdlib.Int64.toString unpushed} op(s) to send -- `dark push {url}`."
+          Cli.printOk $"{Stdlib.toString unpushed} op(s) to send -- `dark push {url}`."
           branchLines ()
         // No count on this side: how many ops are waiting is only knowable by asking for them, and
         // `/sync/head` is deliberately a cheap stamp. The other three arms say a state, so this one does.
@@ -161,7 +161,7 @@ let executeStatus (state: AppState) (url: String) : AppState =
           branchLines ()
         | (true, true) ->
           Cli.printOk
-            $"out of sync both ways ({Stdlib.Int64.toString unpushed} op(s) to send) -- `dark sync {url}`."
+            $"out of sync both ways ({Stdlib.toString unpushed} op(s) to send) -- `dark sync {url}`."
           branchLines ()
       | Error _ -> Cli.printErr "Relay returned an unparseable head."
     | Error e -> Cli.printErr $"Status from {url} failed: {e}"

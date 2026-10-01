@@ -134,6 +134,38 @@ let fns () : List<BuiltInFn> =
     // TODO: add power function
 
 
+    { name = fn "int128Power" 0
+      typeParams = []
+      parameters = [ Param.make "base" TInt128 ""; Param.make "exponent" TInt128 "" ]
+      returnType = TInt128
+      description =
+        "Raise <param base> to the power of <param exponent>. <param exponent> "
+        + "must to be positive. Overflow wraps around."
+      fn =
+        (function
+        | _, vm, _, [| DInt128 number; DInt128 exp |] ->
+          if exp < System.Int128.Zero then
+            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+          else
+            // wrap on overflow via modular exponentiation, which stays cheap
+            // even for huge exponents (no enormous bigint is built)
+            let m = System.Numerics.BigInteger.Pow(bigint 2, 128)
+            let r =
+              System.Numerics.BigInteger.ModPow(
+                System.Numerics.BigInteger.Parse(string number),
+                System.Numerics.BigInteger.Parse(string exp),
+                m
+              )
+            let r = ((r % m) + m) % m
+            let r = if r >= m / bigint 2 then r - m else r
+            System.Int128.Parse(r.ToString()) |> DInt128 |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "int128Divide" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]

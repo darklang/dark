@@ -136,7 +136,7 @@ let pushHandlerFn (req: HttpRequest) : HttpResponse =
       // A JSON body, not a sentence: the client acts on this count, and a protocol a client
       // parses out of English is one wording change from silent breakage.
       Stdlib.Http.responseWithText
-        $"{{\"stored\": {Stdlib.Int.toString n}, \"owner\": \"{owner}\"}}"
+        $"{{\"stored\": {Stdlib.toString n}, \"owner\": \"{owner}\"}}"
         200
     | Error e -> Stdlib.Http.serverError e
   | Error _ ->

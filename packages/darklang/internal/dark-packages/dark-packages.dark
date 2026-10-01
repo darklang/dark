@@ -111,7 +111,7 @@ let opsPostHandlerFn (req: HttpRequest) : HttpResponse =
   | Ok ops ->
     match SCM.PackageOps.add serverBranchId ops with
     | Ok insertedCount ->
-      let countStr = Stdlib.Int.toString insertedCount
+      let countStr = Stdlib.toString insertedCount
       Stdlib.Http.responseWithText $"Successfully received and applied {countStr} ops" 200
     | Error errorMsg -> Stdlib.Http.serverError errorMsg
   | Error _err ->
@@ -157,9 +157,9 @@ let statsHandlerFn (req: HttpRequest) : HttpResponse =
   let stats = packageStats ()
   let body =
     $"Package stats:
-- types: {stats.types |> Stdlib.Int.toString}
-- fns: {stats.fns |> Stdlib.Int.toString}
-- values: {stats.values |> Stdlib.Int.toString}"
+- types: {stats.types |> Stdlib.toString}
+- fns: {stats.fns |> Stdlib.toString}
+- values: {stats.values |> Stdlib.toString}"
   Stdlib.Http.responseWithText body 200
 
 val statsHandler =

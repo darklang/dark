@@ -36,7 +36,7 @@ let runVerbose (task: String) : String =
       else
         let names = Stdlib.List.map result.toolCalls (fun tc -> tc.name)
         $"\n\n(Tools used: {Stdlib.String.join names ", "})"
-    result.response ++ tools
+    result.response + tools
   | Error e -> $"Error: {e}"
 
 

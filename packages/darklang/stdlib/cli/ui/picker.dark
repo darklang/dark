@@ -28,7 +28,7 @@ let make (labels: List<String>) : State =
 /// Rebuild with new labels, keeping the cursor where it was if it still exists.
 let withLabels (state: State) (labels: List<String>) : State =
   let count = Stdlib.List.length labels
-  let selected = Stdlib.Int.max 0 (Stdlib.Int.min (count - 1) state.selected)
+  let selected = Stdlib.max 0 (Stdlib.min (count - 1) state.selected)
   State { labels = labels; selected = selected; scroll = state.scroll }
 
 let count (state: State) : Int =
@@ -37,8 +37,8 @@ let count (state: State) : Int =
 // --- Movement ---
 
 let moveTo (state: State) (index: Int) : State =
-  let last = Stdlib.Int.max 0 ((count state) - 1)
-  { state with selected = Stdlib.Int.max 0 (Stdlib.Int.min last index) }
+  let last = Stdlib.max 0 ((count state) - 1)
+  { state with selected = Stdlib.max 0 (Stdlib.min last index) }
 
 let moveUp (state: State) : State =
   moveTo state (state.selected - 1)
@@ -54,8 +54,8 @@ let moveToEnd (state: State) : State =
 
 /// Slide the window so the selection sits inside it, moving as little as possible.
 let scrolled (state: State) (rows: Int) : State =
-  let visible = Stdlib.Int.max 1 rows
-  let last = Stdlib.Int.max 0 ((count state) - visible)
+  let visible = Stdlib.max 1 rows
+  let last = Stdlib.max 0 ((count state) - visible)
 
   let scroll =
     if state.selected < state.scroll then state.selected
@@ -64,7 +64,7 @@ let scrolled (state: State) (rows: Int) : State =
     else
       state.scroll
 
-  { state with scroll = Stdlib.Int.max 0 (Stdlib.Int.min last scroll) }
+  { state with scroll = Stdlib.max 0 (Stdlib.min last scroll) }
 
 
 // --- Keys ---
@@ -93,7 +93,7 @@ let onKey (state: State) (kp: Widget.KeyPress) : Widget.Outcome<State, Msg> =
 /// The marker is not decoration: selection used to be colour alone, which is invisible on a monochrome
 /// terminal and on e-ink.
 let rowFor (label: String) (isSelected: Bool) : String =
-  let line = (if isSelected then "> " else "  ") ++ label
+  let line = (if isSelected then "> " else "  ") + label
 
   if isSelected then Colors.colorize Colors.selection line else line
 
@@ -115,7 +115,7 @@ let view (state: State) (region: Layout.Region) : List<Layout.Span> =
       let position =
         Stdlib.Int.divide
           (state.selected * (region.rows - 1))
-          (Stdlib.Int.max 1 ((count state) - 1))
+          (Stdlib.max 1 ((count state) - 1))
 
       Layout.at region position (region.cols - 1) (Colors.colorize Colors.cyan "|")
     else

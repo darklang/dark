@@ -59,7 +59,7 @@ let isKnownGroup (prefix: String): Bool =
 
 
 let versionSuffix (v: Int32) : String =
-  if v == 0l then "" else $"_v{Stdlib.Int32.toString v}"
+  if v == 0l then "" else $"_v{Stdlib.toString v}"
 
 
 let purityTag (purity: LanguageTools.BuiltinFunctionPurity) : String =
@@ -200,9 +200,9 @@ let execute (state: AppState) (args: List<String>): AppState =
 
   let summary =
     match filter with
-    | None -> $"Total: {Stdlib.Int.toString totalCount} builtin functions"
+    | None -> $"Total: {Stdlib.toString totalCount} builtin functions"
     | Some pattern ->
-      $"Showing {Stdlib.Int.toString totalCount} functions matching '{pattern}'"
+      $"Showing {Stdlib.toString totalCount} functions matching '{pattern}'"
 
   [ ""
     Stdlib.Cli.UI.Colors.hint summary ]

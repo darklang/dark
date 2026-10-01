@@ -52,6 +52,7 @@ type Dependency =
   | TypeDependency of FQTypeName.Package
   | FunctionDependency of FQFnName.FQFnName
   | ValueDependency of FQValueName.FQValueName
+  | TraitDependency of FQTraitName.Package
 
 /// Types needed to check a `?` expression once inference has enough information.
 /// The operand and the return type of the function or lambda containing it must
@@ -70,9 +71,31 @@ type internal TypeScheme =
 
 type Proof =
   internal
-    { inferredType : StaticType
+    {
+      inferredType : StaticType
       scheme : TypeScheme
-      dependencies : Set<Dependency> }
+      dependencies : Set<Dependency>
+      /// Which implementations each trait-method call could be, by the node its name is at,
+      /// once the self type is known: the method, and every implementation that applies.
+      ///
+      /// The SAVE stores the choice with the call, so the call goes on meaning what it meant
+      /// when it was written. A node missing here had no knowable self type (a call inside a
+      /// bounded generic), and stays a run-time lookup.
+      resolutions : Map<id, string * List<Hash>>
+
+      /// The calls whose self type is one of this item's own type params, and which param.
+      /// Not "unresolved": the answer belongs to the caller, and the caller records it.
+      deferrals : Map<id, string>
+
+      /// The other half: at this call, the CALLEE's type param owes this trait, and these
+      /// implementations apply at the type the call passes. The save orders them and writes the
+      /// winner onto the call, which is what makes a call into a bounded fn static.
+      callerBounds : Map<id, List<string * Hash * List<Hash>>>
+
+      /// The same where the answer is one of this item's own params, so the chain threads
+      /// through a bounded fn that calls a bounded fn.
+      callerBoundDeferrals : Map<id, List<string * Hash * string>>
+    }
 
 type DiagnosticCode =
   | TypeMismatch
@@ -94,11 +117,30 @@ type DiagnosticCode =
   | DuplicateTypeMember
   | UnsupportedDictKeyType
   | InvalidUnwrap
+  /// A bound `'a: Trait` (or a `Trait.method x` call) at a concrete type with no impl
+  /// visible for it.
+  | MissingImpl
+  /// A bound at a type param of the enclosing fn that does not itself declare it.
+  | UnboundTypeParameter
+  /// More than one impl matches: `x.m` where two traits offer `m` for `x`'s type,
+  /// or two impls of one trait for one type.
+  | AmbiguousImpl
+  /// An impl leaves out a method the trait declares, or names one it does not.
+  | ImplMethodSet
+  /// An impl's method fn does not have the trait method's signature at the
+  /// impl's self type.
+  | ImplMethodSignature
+  /// An impl's method fn may do more than the trait's method allows.
+  | ImplExceedsCeiling
 
 type BlockerCode =
   | UnresolvedTypeName
   | UnresolvedFunctionName
   | UnresolvedValueName
+  /// `impl Show for Point` where nothing called `Show` is visible. Its own code rather
+  /// than `UnresolvedTypeName`, because a trait is not a type and something reading the
+  /// code should not go looking for one.
+  | UnresolvedTraitName
   | MissingTypeDeclaration
   | MissingFunctionSignature
   | MissingValueSignature
@@ -115,6 +157,8 @@ type BlockerCode =
 /// argument".
 type Site =
   | LambdaReturnValue
+  /// An impl's method fn against the trait's method signature at the self type.
+  | ImplMethodSignatureSite
   | FunctionReturnValue
   /// Checks that the error type of a Result used with `?` matches the error
   /// type returned by the function or lambda containing it.
@@ -126,6 +170,9 @@ type Site =
   | FunctionArgument of position : int
   | IfWithoutElse
   | RecordFieldAccess
+  /// A `{...}` inside an interpolated string. Its own site because "expected String, got
+  /// Int64" gives no clue which rule was applied.
+  | InterpolatedSegment
   | UnitLetPattern
   | TupleLetPattern
   | MatchPattern
@@ -158,6 +205,8 @@ type AmbiguousSubject =
   | RecordType
   | EnumPatternType
   | ItemType
+  /// A bound whose type is still an inference variable at the end of the item.
+  | ConstrainedType
 
 /// Why a builtin's declared signature is not something the checker can check against.
 type UntrustedBuiltin =
@@ -187,6 +236,7 @@ type Context =
   /// A name the resolver never resolved. The parts are what the author wrote.
   | Unresolved of attempted : List<string>
   | TypeUnavailable of FQTypeName.Package
+  | TraitUnavailable of FQTraitName.Package
   | FunctionUnavailable of FQFnName.FQFnName
   | ValueUnavailable of FQValueName.FQValueName
   /// One identifier the issue is about: a variable, field, case, or type parameter.
@@ -196,6 +246,10 @@ type Context =
   | Duplicate of name : string * site : DuplicateSite
   | Ambiguous of subject : AmbiguousSubject
   | Untrusted of fn : FQFnName.FQFnName * reason : UntrustedBuiltin
+  /// The trait a bound or method call needed an impl of.
+  | TraitNeeded of trait_ : FQTraitName.Package * method_ : Option<string>
+  /// The trait method an impl gets wrong, and what is wrong with it.
+  | ImplMethod of trait_ : FQTraitName.Package * method_ : string * detail : string
   | Arity of expected : int * actual : int
   | NamedArity of name : string * expected : int * actual : int
   | TypeArity of typ : FQTypeName.Package * expected : int * actual : int
@@ -235,9 +289,39 @@ type Diagnostic =
 type Blocker = { code : BlockerCode; nodeId : Option<id>; context : Context }
 
 type FunctionSignature =
-  { typeParams : List<string>
+  {
+    typeParams : List<string>
     parameters : NEList<TypeReference>
-    returnType : TypeReference }
+    returnType : TypeReference
+    /// `'a: Show`: each instantiation of the signature owes an impl for the trait
+    /// at whatever the variable becomes.
+    bounds : List<Bound>
+  }
+
+/// One impl the checker knows of: what trait, what self type, which methods. Read
+/// off the stored `Impl` item, exactly as the runtime's `ImplCandidate` is.
+type ImplEntry =
+  {
+    trait_ : FQTraitName.Package
+    self : TypeReference
+    /// Bounds on a conditional impl (`impl<'a: Show> Show for List<'a>`), which
+    /// the impl's own type params owe.
+    bounds : List<Bound>
+    methods : List<string>
+    source : Hash
+  }
+
+module ImplEntry =
+  let ofImpl (i : TraitImpl.TraitImpl) : Option<ImplEntry> =
+    match i.trait_.resolved with
+    | Ok { name = FQTraitName.Package traitHash } ->
+      Some
+        { trait_ = traitHash
+          self = i.self
+          bounds = i.bounds
+          methods = i.methods |> List.map fst
+          source = i.hash }
+    | Error _ -> None
 
 type TypeEnvironmentBuildError = BuiltinFunctionHasNoParameters of FQFnName.Builtin
 
@@ -323,12 +407,22 @@ let rec private runtimeTypeVariables (typ : RT.TypeReference) : Set<string> =
 
 type TypeEnvironment =
   internal
-    { types : Map<FQTypeName.Package, TypeDeclaration.T>
+    {
+      types : Map<FQTypeName.Package, TypeDeclaration.T>
       functions : Map<FQFnName.FQFnName, FunctionSignature>
       unsupportedFunctions : Map<FQFnName.FQFnName, UntrustedBuiltin>
       requiresExplicitTypeArguments : Set<FQFnName.FQFnName>
       values : Map<FQValueName.FQValueName, TypeReference>
-      checkedValues : Map<FQValueName.FQValueName, TypeScheme> }
+      checkedValues : Map<FQValueName.FQValueName, TypeScheme>
+      /// The declared ceiling of every package fn in scope, for impl checking.
+      functionCeilings :
+        Map<FQFnName.FQFnName, Option<Set<LibExecution.Effects.Effect>>>
+      /// Every trait the item being checked can name.
+      traits : Map<FQTraitName.Package, Trait.Trait>
+      /// Every impl visible to the item being checked, by hash so the same one
+      /// offered twice counts once.
+      impls : Map<Hash, ImplEntry>
+    }
 
 module TypeEnvironment =
   let empty : TypeEnvironment =
@@ -337,7 +431,32 @@ module TypeEnvironment =
       unsupportedFunctions = Map.empty
       requiresExplicitTypeArguments = Set.empty
       values = Map.empty
-      checkedValues = Map.empty }
+      checkedValues = Map.empty
+      functionCeilings = Map.empty
+      traits = Map.empty
+      impls = Map.empty }
+
+  let addTrait (t : Trait.Trait) (environment : TypeEnvironment) : TypeEnvironment =
+    { environment with traits = Map.add t.hash t environment.traits }
+
+  let addImpl
+    (impl : TraitImpl.TraitImpl)
+    (environment : TypeEnvironment)
+    : TypeEnvironment =
+    match ImplEntry.ofImpl impl with
+    | Some entry ->
+      { environment with impls = Map.add entry.source entry environment.impls }
+    | None -> environment
+
+  /// The traits registered impls refer to that the environment has no declaration for.
+  let implTraitsMissingDeclarations
+    (environment : TypeEnvironment)
+    : List<FQTraitName.Package> =
+    environment.impls.Values
+    |> Seq.map (fun e -> e.trait_)
+    |> Seq.distinct
+    |> Seq.filter (fun t -> not (Map.containsKey t environment.traits))
+    |> Seq.toList
 
   let addType
     (name : FQTypeName.Package)
@@ -397,8 +516,15 @@ module TypeEnvironment =
     let signature =
       { typeParams = fn.typeParams
         parameters = fn.parameters |> NEList.map (fun p -> p.typ)
-        returnType = fn.returnType }
-    addFunction (FQFnName.Package fn.hash) signature environment
+        returnType = fn.returnType
+        bounds = fn.bounds }
+    let environment = addFunction (FQFnName.Package fn.hash) signature environment
+    { environment with
+        functionCeilings =
+          Map.add
+            (FQFnName.Package fn.hash)
+            fn.permissionCeiling
+            environment.functionCeilings }
 
   /// Add builtin signatures without executable bodies. Invalid zero-argument
   /// builtins are returned as errors instead of throwing.
@@ -454,7 +580,8 @@ module TypeEnvironment =
                       (rest
                        |> List.map (fun parameter ->
                          runtimeTypeToProgramType parameter.typ))
-                  returnType = runtimeTypeToProgramType fn.returnType }
+                  returnType = runtimeTypeToProgramType fn.returnType
+                  bounds = [] }
               let environment = addFunction name signature environment
               let environment =
                 if Set.isEmpty resultOnlyVariables then
@@ -483,6 +610,14 @@ type Verdict =
 module Proof =
   let inferredType (proof : Proof) : StaticType = proof.inferredType
   let dependencies (proof : Proof) : Set<Dependency> = proof.dependencies
+  let resolutions (proof : Proof) : Map<id, string * List<Hash>> = proof.resolutions
+  let deferrals (proof : Proof) : Map<id, string> = proof.deferrals
+
+  let callerBounds (proof : Proof) : Map<id, List<string * Hash * List<Hash>>> =
+    proof.callerBounds
+
+  let callerBoundDeferrals (proof : Proof) : Map<id, List<string * Hash * string>> =
+    proof.callerBoundDeferrals
 
 
 // --------------------
@@ -495,4 +630,6 @@ type BatchResult =
   { environment : TypeEnvironment
     types : List<ItemVerdict>
     values : List<ItemVerdict>
-    functions : List<ItemVerdict> }
+    functions : List<ItemVerdict>
+    traits : List<ItemVerdict>
+    impls : List<ItemVerdict> }

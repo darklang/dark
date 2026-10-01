@@ -23,7 +23,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ""
         "Examples:"
         "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
-        "  fn greet (name: String): String = \"Hello, \" ++ name"
+        "  fn greet (name: String): String = \"Hello, \" + name"
         ""
         "  # Multi-line body via stdin (run from shell, not the REPL):"
         "  ./scripts/run-cli fn fib - <<'EOF'"
@@ -99,7 +99,7 @@ let createFnInline
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.hint
             ($"Rename it to `let {location.name} ...`, or change the "
-             ++ "fn target."))
+             + "fn target."))
         // Nothing was saved: an agent's authoring loop branches on the exit.
         { state with exitCode = 1 }
 
@@ -135,7 +135,7 @@ let createFnInline
             ""
             "Examples:"
             "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
-            "  fn greet (name: String): String = \"Hello, \" ++ name"
+            "  fn greet (name: String): String = \"Hello, \" + name"
             ""
           ] |> Stdlib.printLines
           { state with exitCode = 1 }
@@ -145,7 +145,7 @@ let createFnInline
         ""
         "Make sure your syntax is correct. Examples:"
         "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
-        "  fn greet (name: String): String = \"Hello, \" ++ name"
+        "  fn greet (name: String): String = \"Hello, \" + name"
         ""
       ] |> Stdlib.printLines
       { state with exitCode = 1 }
@@ -170,7 +170,7 @@ let help (_state: Cli.AppState) : String =
     "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
     ""
     "  # String function:"
-    "  fn greet (name: String): String = \"Hello, \" ++ name"
+    "  fn greet (name: String): String = \"Hello, \" + name"
     ""
     "  # Multiple parameters:"
     "  fn add (a: Int) (b: Int): Int = Stdlib.Int.add a b"

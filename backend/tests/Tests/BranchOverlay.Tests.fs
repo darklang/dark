@@ -162,7 +162,7 @@ let private parentHashLinesFromDark
     + darkBranch branchId
     + " |> Stdlib.List.map (fun (o, m, n, _h) -> "
     + key
-    + " ++ \"=\" ++ ((Stdlib.Dict.get "
+    + " + \"=\" + ((Stdlib.Dict.get "
     + hashes
     + " "
     + key

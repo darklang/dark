@@ -7,8 +7,9 @@ let parse (s: String) : Stdlib.Result.Result<DateTime, String> =
   Builtin.dateTimeParse s
 
 
-/// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
-let toString (date: DateTime) : String = Builtin.dateTimeToString date
+impl ToString for DateTime =
+  /// Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}
+  let toString (date: DateTime) : String = Builtin.dateTimeToString date
 
 
 /// Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}
@@ -57,6 +58,13 @@ let greaterThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
 /// Returns whether {{<param d1> <= <param d2>}}
 let lessThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
   Builtin.dateTimeLessThanOrEqualTo d1 d2
+
+/// `d1 < d2` on DateTimes, by the four comparisons above.
+impl Compare for DateTime =
+  let lessThan = Stdlib.DateTime.lessThan
+  let lessThanOrEqualTo = Stdlib.DateTime.lessThanOrEqualTo
+  let greaterThan = Stdlib.DateTime.greaterThan
+  let greaterThanOrEqualTo = Stdlib.DateTime.greaterThanOrEqualTo
 
 
 /// Converts <param date> to an <type Int> representing seconds since the Unix epoch

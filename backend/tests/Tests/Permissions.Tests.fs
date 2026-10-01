@@ -466,7 +466,8 @@ let materializedValuesCaptureCallablesRecursively =
         typeSymbolTable = RT.TST.empty
         typeArgs = []
         access = None
-        argsSoFar = [] }
+        argsSoFar = []
+        boundImpls = [] }
     let stored =
       RT.DList(RT.ValueType.Unknown, [ RT.DApplicable(RT.AppNamedFn named) ])
     match LibExecution.Dval.captureValueAccess denyAll stored with

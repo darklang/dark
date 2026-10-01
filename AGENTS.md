@@ -90,7 +90,9 @@ tell you the tree has moved on rather than silently running a stale binary.
     ./scripts/testing/gates <name>                    one gate (setup, relay-routes, first-day, ...)
     ./scripts/testing/gates ci                        the subset CI runs, each bounded by 5m
     ./scripts/testing/gates all                       every gate except gates-are-clean, the slow
-                                                      meta-gate that re-runs the rest itself
+                                                      meta-gate that re-runs the rest itself. Serial;
+                                                      `--parallel` is four times faster and currently
+                                                      reports failures that are not there
     ./scripts/perf/gate                               reference workload, allocation vs budget
     ./scripts/perf/suite                              six workloads, allocation per iteration
     ./scripts/perf/checks                             by-hand interpreter and error-message checks
@@ -103,6 +105,12 @@ the suite spends its time in is F#, so the suite takes several times longer in D
 extra build costs. `--optimize` builds Release INSTEAD of Debug, so `run-cli` will say the debug
 tree is behind until the next plain build. While iterating on one group, stay in Debug -- a
 filtered run is seconds either way.
+
+**`--test` can decide there is nothing to run.** `scripts/dev/build --optimize --test` plans by what
+gets COMPILED, so a change to `backend/testfiles/**` or to a `.dark` docs page reports "nothing has
+changed since the last successful build" and skips the tests entirely, even though those files are
+exactly the test inputs you edited. It reads like a pass. When the change was to testfiles or
+packages rather than F#, run `./scripts/run-backend-tests --published` directly.
 
 `run-backend-tests` does NOT compile. It reloads packages and runs the test binary that is
 already there, so an `.fs` change you have not built yet is simply not in the run. It looks
@@ -267,7 +275,7 @@ The decisions live in Dark; F# does what only F# can do (parse, hash, serialize,
       draft.dark               #   one answer to "what have I changed"
       storeHealth.dark         #   what can be wrong with the STORE
 
-    LibDB/Lww.fs               # THE last-writer-wins rule. One place, on purpose; see below
+    LibExecution/Lww.fs        # THE last-writer-wins rule. One place, on purpose; see below
     LibDB/PackageOpPlayback.fs # THE FOLD: ops -> projections. Read this first.
     LibDB/Inserts.fs           # author: mint the op id, insert, fold
     LibDB/Draft.fs             # discard / un-stage; the only code that edits `locations` outside the fold
@@ -275,7 +283,7 @@ The decisions live in Dark; F# does what only F# can do (parse, hash, serialize,
     LibDB/Propagation.fs       # the cascade: who depends on what moved
     LibDB/Releases.fs          # shape changes to canonical tables on existing stores
 
-**Last-writer-wins lives in `LibDB/Lww.fs`, and asking it twice is the bug.** Two different things need
+**Last-writer-wins lives in `LibExecution/Lww.fs`, and asking it twice is the bug.** Two different things need
 the rule: the fold decides which binding survives, and conflict recording decides which side to NAME as
 the winner (`SCM.Conflicts.incomingWins`, in Dark, because the recording is in Dark). If those disagree, a
 recorded conflict names a winner the fold did not pick and two instances converge on different content
@@ -318,6 +326,108 @@ a self-hosted relay's hosted ops go.
 goes straight to `locations` answers about MAIN while you are standing on a branch -- and it answers
 plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
 op log directly.
+
+## Traits
+
+A trait is a package item (`PT.Trait`: type params, bounds, method signatures with
+optional ceilings); an impl is a package item (`PT.TraitImpl`: the trait, its type args,
+the self type, own params and bounds, methods as `(name, fn)` pairs). Two ops,
+`AddTrait` and `AddTraitImpl`; two tables, `package_traits` and `package_trait_impls(trait_hash)`;
+`FQTraitName` for references; binary format v4. The parser lowers `trait`/`impl` in
+`SourceFile.items` (F#) and `implWithOps` (Dark); both must agree on the impl's member
+path `<module>[.<Type>].<Trait>`, with the method fns as ordinary fns beneath it.
+Dispatch candidates come off the index (`PT2RT.ImplCandidate.ofPackageManager`),
+selection is `Traits.fs`, the checker validates traits and impls in `AtRestTypeChecker`
+(`ImplMethodSet`, `ImplMethodSignature`, `ImplExceedsCeiling`). The operators are the
+stdlib traits (`stdlib/traits.dark`); `+` lowers to `Stdlib.Add.add` through
+`NumericTraits.fs`, whose hashes come from `PackageRefs.Trait`, so a new operator trait
+needs a ref and a regenerated `package-ref-hashes.txt`. `==` and `!=` are NOT traits: equality is
+structural for every value and lowers to its builtin, as it did before traits. A type
+cannot override it, which is what keeps `List.member`, `List.unique`, `List.sort` and
+dict keys meaning the same thing as `==` -- dict keys have to be structural anyway, since
+F# hashes them inside its own `Map`. `Zero.zero`/`One.one` dispatch from an
+explicit type arg or the caller's bound, so a call to the impl fn clears the trait's
+type args first.
+
+**A trait call stores the implementation it resolved to.** `FQFnName.TraitMethod` carries
+`implFn`, the fn the chosen implementation names for that method, as a located reference;
+`EInfix` carries the same for an operator. It is written by `resolveTraitCalls`
+(`Builtins.Matter/Libs/PM/AtRestTypeChecker.fs`), which runs inside `addAuthored` BEFORE
+`stabilizeHashes`, since the choice is part of what the item is: the at-rest checker says which
+implementations apply at each call node (`Proof.resolutions`, keyed by the node the name is at),
+and the store says which is newer. It is hashed with the item and becomes an ordinary fn
+dependency edge, so propagation, `pin` and `follow` treat a newer implementation like any other
+update.
+
+**A choice that cannot be made yet says so, rather than saying nothing.** The field is an
+`ImplChoice`, three states, not an option: `Chosen` (this fn), `FromTypeParam "a"` (my caller
+decides, and here is which of my type params it turns on), `Unknown` (nobody could work it out;
+resolve at run time). A call inside a bounded generic is the middle one: the checker knows the
+self type is the item's own rigid type param, so the callee records the param name and the CALL
+records what that param implied. That second half is `EFnName`'s third field, a list of
+`BoundImpl` (`param`, `trait_`, `method_`, `choice`), one entry per method of the trait so the
+callee's body finds a fn without reading the implementation item. `ApplicableNamedFn.boundImpls`
+carries it into the runtime and `CallFrame.boundImpls` is what the body reads; a `FromTypeParam`
+in a caller's own list is resolved against the caller's frame on the way in, which is what
+threads a bound through a generic that calls another generic. So the only resolutions left at
+run time are the genuinely unknowable ones, and a Dval's.
+
+`gates trait-choice-survives-rival` is the property: author a bounded generic and a caller, then
+author a NEWER rival implementation for the same type. The saved call keeps its answer while a
+fresh call takes the new one. Break either half of the mechanism and it fails.
+
+One trap when writing this kind of test by hand: **a type is content-addressed, so a same-shaped
+record anywhere in the store IS your type.** A throwaway `Pt = { x: Int64 }` shares its hash with
+every other `{ x: Int64 }` somebody left in the dev store, implementations and all, and your test
+then measures their choices. Give the field a name nobody else would use.
+
+A drop site worth knowing about, because it looks like nothing: **anything that rebuilds an
+`EFnName` must carry the third field.** `DeferredResolver.reResolveExpr` did not, so every
+authoring that went through `WipRefresh` re-hashed the item without its bounds and un-decided
+what the checker had decided. The parser's own `EFnName` sites are the exception: they write `[]`
+because the checker has not run yet.
+
+**The disk-load path records choices too, and it is the reason a reload rehashes so much.**
+`resolveTraitCalls` runs from `addAuthored` (so `dark fn`/`impl`/`module`, the editor and the
+LSP) and from `LocalExec.reloadPackages`, which authors `packages/` off disk. The reload path
+does it in the same order the authoring path does, pins at the hashes in hand and then
+`computeRealHashes` to move them, and it prints how many ops moved. Recording a choice changes
+an item's content hash and every caller's hash moves with it, so the op count it reports is
+larger than the number of calls pinned. Two things follow: the shipped tree and `seed.db` carry
+their choices, so a dispatch-cost measurement against them is measuring the resolved path; and
+"a saved call goes on meaning what it meant" holds for the tree, not just for what somebody
+typed at the CLI.
+
+**Every switch over item kinds has five arms.** Types, values, fns, traits, impls.
+A new listing, codec, or CLI command that handles three of them silently drops the
+other two; `ls`, `tree`, `search`, completion, the workbench, the relay browser and
+the LSP all had to learn them, and the names-only search builtins return six lists.
+
+**A bare trait name falls back to the stdlib.** `impl Add for Point` in any module
+means `Stdlib.Add` unless something closer is called Add (both resolvers,
+`resolveTraitName` and `TraitName.resolve`). Two same-shaped traits still hash the
+same; a trait and a same-shaped record do not.
+
+**An impl over fns that already exist is an alias block.** `impl Add for Int64 = let
+add = Stdlib.Int64.add` generates no fn; the impl names the existing one. The
+interpreter answers two operands of one builtin numeric type without dispatch
+(`FastOps.evalNumeric`), so those aliases are what the checker and `dark impls` see,
+not what runs.
+
+**An impl is a candidate only while a name binds it on the branch asked and it is not
+deprecated** (`ImplCandidate` liveness, then `Queries.getDeprecatedTraitImplHashes` in the
+store's candidate provider). Two live implementations of one trait for one type do not error:
+the one whose `AddTraitImpl` op is newer runs. The stamp rides on `package_trait_impls.origin_ts`,
+the candidate carries it, and `Traits.select` asks `LibExecution.Lww` -- the same rule the op-fold
+uses for two bindings of one name, so this must not grow a second copy. The pair is the
+`rival-implementations` finding in `dark constraints` (Dark computes the same winner through
+`SCM.Conflicts.beats`), and deprecating one settles it. A call errors only when NO rival carries a
+stamp, which means nothing came from an op. Dispatch is memoised on the package manager
+(`implSelectionMemo`, keyed by branch, trait, method and self type) under
+`LibDB.Caching.generation`, which every `invalidateAll` bumps; a side-loaded manager
+(`withExtraImpls`, `withExtras`) gets its own memo, and the script host's child state
+must take the grafted manager's `getTrait` too, or a script's own trait is "not in the
+package manager" at dispatch.
 
 ## Gotchas
 
@@ -466,6 +576,15 @@ than to grant more. Set `HOME` as well as `DARK_CONFIG_RUNDIR` when a test touch
 
 Clearing only `current_branch%` is the trap: it looks like isolation and leaves the relay wired up.
 
+**Your own experiments in the dev store break every gate that commits.** The gates start from a copy
+of `rundir/data.db`, and `dark commit` refuses a store holding unresolved references. So one
+throwaway item authored by hand, referring to something that never resolved, fails
+`workbench-scm` and `sync-multi-instance` with symptoms that look nothing like the cause: a
+fixture times out waiting for its own commit to appear. The gates guard against the CONFIG a
+copied store inherits and not against its draft. Author experiments into an isolated
+`DARK_CONFIG_RUNDIR`, or `dark discard -y` before running gates; `dark status` says whether the
+draft is clean.
+
 One consequence worth knowing: an isolated store usually looks like a FIRST RUN, and Home shows its welcome
 PANEL instead of a row's detail, so a test waiting for anything a populated Home draws waits forever. Do not
 anchor a workbench test on the greeting either way: "Welcome, <name>" is on every Home, and the panel is the
@@ -609,8 +728,12 @@ The point of all this is that a green F# build says nothing about Dark, which re
 `///` for doc comments on types, DU cases and fns, in both F# and Dark. `//` for inline
 notes. 85 columns, for both languages.
 
-`scripts/formatting/format` holds the F# side to it; run it before you commit. It reports
-`.dark` as `ignored`, so Dark is on you. Aim for 85 there anyway. Some existing Dark files
+`scripts/formatting/format` holds the F# side to it. **It is a pre-merge step, not a
+per-commit one.** Run it once when the branch is being readied to merge; do not run it
+between intermediate commits, and do not hand-apply what it would have done. Checking
+formatting on every commit while more work is coming costs a cycle each time and changes
+nothing a reviewer sees. It reports `.dark` as `ignored`, so Dark is on you. Aim for 85
+there anyway. Some existing Dark files
 don't: `scm/packageOps.dark` and `sync/relay/protocol.dark` are written wider, and are not worth
 reflowing just to close the gap.
 

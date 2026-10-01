@@ -24,7 +24,7 @@ let reportConflicts (conflicts: List<SCM.Conflicts.Conflict>) : Unit =
   match conflicts with
   | [] -> ()
   | cs ->
-    let n = Stdlib.Int.toString (Stdlib.List.length cs)
+    let n = Stdlib.toString (Stdlib.List.length cs)
 
     // "conflict(s)" rather than `Cli.Text.plural`: `scripts/testing/gates sync-multi-instance` matches
     // this line verbatim, so the two have to move together.
@@ -51,7 +51,7 @@ let pushTailNotes (url: String) : Unit =
   |> Stdlib.List.iter (fun entry ->
     let (name, n) = entry
     Cli.printHint
-      $"  branch \"{name}\": {Stdlib.Int64.toString n} op(s) not on the relay -- `dark branch push {name}`.")
+      $"  branch \"{name}\": {Stdlib.toString n} op(s) not on the relay -- `dark branch push {name}`.")
 
 let executePush (state: AppState) (url: String) : AppState =
   if url == "" then
@@ -106,12 +106,12 @@ let executePush (state: AppState) (url: String) : AppState =
 
         let ids =
           if n > 5 then
-            $"{shown}, and {Stdlib.Int.toString (n - 5)} more"
+            $"{shown}, and {Stdlib.toString (n - 5)} more"
           else
             shown
 
         Stdlib.Result.Result.Error
-          $"refusing to push: {Stdlib.Int.toString n} op(s) contain this relay's write secret ({ids}). A relay serves its store as public HTML, so pushing these would publish the secret. Rewrite those items, or rotate the secret if it has already gone out."
+          $"refusing to push: {Stdlib.toString n} op(s) contain this relay's write secret ({ids}). A relay serves its store as public HTML, so pushing these would publish the secret. Rewrite those items, or rotate the secret if it has already gone out."
       else
 
       chunks
@@ -146,7 +146,7 @@ let executePush (state: AppState) (url: String) : AppState =
         if stored == sent then
           ""
         else
-          $" ({Stdlib.Int.toString stored} new)"
+          $" ({Stdlib.toString stored} new)"
 
       // Our own push moved the relay's head, so without this the next `sync status` reports "ops to
       // receive" for the ops we just sent. Failing to read it is not a failure to push; the next pull
@@ -183,7 +183,7 @@ let executePush (state: AppState) (url: String) : AppState =
       | branchId ->
         // `current_branch_name` is kept beside the id purely for display, which is what this is.
         let named = Stdlib.LocalStore.configGet "current_branch_name"
-        let shown = if named == "" then Stdlib.Uuid.toString branchId else named
+        let shown = if named == "" then Stdlib.toString branchId else named
 
         Cli.printHint
           $"  that was main. You're on \"{shown}\" -- `dark branch push {shown}` sends the branch."
@@ -216,7 +216,7 @@ let executePullPages
   // -1 means a page FAILED, distinct from 0 meaning "nothing left": the caller memoizes the relay's head
   // on success, and doing that after a failure makes every later pull answer "Nothing new".
   | Error e ->
-    Cli.printErr $"  page {Stdlib.Int64.toString (page + 1L)} failed: {e}"
+    Cli.printErr $"  page {Stdlib.toString (page + 1L)} failed: {e}"
     -1
   | Ok body ->
     match SCM.Wire.wireDecode body with
@@ -231,7 +231,7 @@ let executePullPages
         // chain, and we cannot know this page is the last one until its ops are counted, so the final
         // iteration starts one request that returns nothing. One wasted round trip per pull.
         let next =
-          relayGetStart $"{url}/sync/pull?sinceSeq={Stdlib.Int64.toString bundle.cursor}"
+          relayGetStart $"{url}/sync/pull?sinceSeq={Stdlib.toString bundle.cursor}"
 
         match SCM.Wire.importFrom url ops bundle.commits with
         | Error e ->
@@ -243,7 +243,7 @@ let executePullPages
           let _ =
             if outcome.imported > 0 then
               Cli.printOk
-                $"  +{Stdlib.Int.toString outcome.imported} op(s) (page {Stdlib.Int64.toString (page + 1L)})"
+                $"  +{Stdlib.toString outcome.imported} op(s) (page {Stdlib.toString (page + 1L)})"
             else
               ()
 
@@ -254,7 +254,7 @@ let executePullPages
 
           match next with
           | Error e ->
-            Cli.printErr $"  page {Stdlib.Int64.toString (page + 2L)} failed: {e}"
+            Cli.printErr $"  page {Stdlib.toString (page + 2L)} failed: {e}"
             -1
           | Ok handle ->
             let rest = executePullPages state url (page + 1L) handle
@@ -303,7 +303,7 @@ let executePull (state: AppState) (url: String) : AppState =
     else
 
     match
-      relayGet $"{url}/sync/pull?sinceSeq={Stdlib.Int64.toString since}"
+      relayGet $"{url}/sync/pull?sinceSeq={Stdlib.toString since}"
     with
     | Ok respBody ->
       match SCM.Wire.wireDecode respBody with
@@ -383,7 +383,7 @@ let executePull (state: AppState) (url: String) : AppState =
               // Page 2 is requested here rather than inside the loop so that it is already flying while
               // page 1 imports, which is the same overlap every later page gets.
               match
-                relayGetStart $"{url}/sync/pull?sinceSeq={Stdlib.Int64.toString bundle.cursor}"
+                relayGetStart $"{url}/sync/pull?sinceSeq={Stdlib.toString bundle.cursor}"
               with
               | Ok handle -> executePullPages state url 1L handle
               | Error e ->
@@ -413,11 +413,11 @@ let executePull (state: AppState) (url: String) : AppState =
               | Some h -> SCM.Wire.rememberHead url h
               | None -> ()
 
-          let total = outcome.imported + (Stdlib.Int.max 0 laterPages)
+          let total = outcome.imported + (Stdlib.max 0 laterPages)
 
           Cli.printOk
-            $"Pulled {Stdlib.Int.toString total} new op(s) from {url} as \"{id}\"."
-          recordActivity "pulled" $"{Stdlib.Int.toString total} new op(s) from {url}"
+            $"Pulled {Stdlib.toString total} new op(s) from {url} as \"{id}\"."
+          recordActivity "pulled" $"{Stdlib.toString total} new op(s) from {url}"
 
           // The story, not just the number: the arriving commits' subjects ARE the answer to "what
           // changed since I left", and they are already local by now. Capped; the pull that catches

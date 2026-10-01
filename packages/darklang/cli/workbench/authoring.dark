@@ -44,7 +44,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
   else
   // Resolve the name against the target module (a `module …` line, or the editor's target from where it opened).
   match Packages.Location.parseRelativeTo (Packages.PackageLocation.Module targetMod) leaf with
-  | Error e -> keepErr ("bad name: " ++ e)
+  | Error e -> keepErr ("bad name: " + e)
   | Ok location ->
     let diags = LanguageTools.Parser.Parse.diagnostics fullSource
     if Stdlib.Bool.not (Stdlib.List.isEmpty diags) then
@@ -112,9 +112,9 @@ let saveEditing (state: State) (es: EditingState) : Step =
                   detailScroll = 0
                   message =
                     match Packages.AtRestCheck.summary report with
-                    | Some summary -> "saved " ++ leaf ++ " (" ++ summary ++ ")"
-                    | None -> "saved " ++ leaf }
-          | Error m -> keepErr ("save failed: " ++ m)
+                    | Some summary -> "saved " + leaf + " (" + summary + ")"
+                    | None -> "saved " + leaf }
+          | Error m -> keepErr ("save failed: " + m)
         | Error m -> keepErr m
       | None -> keepErr "could not parse"
 
@@ -136,14 +136,14 @@ let openNewEditor (state: State) (kind: String) (targetModule: List<String>) : S
     if kind == "type" then ("New type", "type NewType =\n  { field: Int }", 5)
     else if kind == "value" then ("New value", "val newValue = 1", 4)
     else ("New function", "let newFunction (x: Int): Int =\n  x", 4)
-  let where = "  ·  in " ++ (Stdlib.String.join targetModule ".")
+  let where = "  ·  in " + (Stdlib.String.join targetModule ".")
   let buf = Stdlib.Cli.UI.Editor.fromText template
   Step.Continue
     { state with
         editing =
           Stdlib.Option.Option.Some
             (EditingState
-              { kind = kind; nameStr = titleBase ++ where; targetModule = targetModule; buf = { buf with col = nameCol }; err = "" }) }
+              { kind = kind; nameStr = titleBase + where; targetModule = targetModule; buf = { buf with col = nameCol }; err = "" }) }
 
 /// Author a new item. The declaration is a BARE name (a qualified `let Owner.Mod.name` is a parse error), so the
 /// target module has to come from somewhere: use the current tree location if it's deep enough (owner.Module),
@@ -157,12 +157,12 @@ let startNew (state: State) (kind: String) : Step =
     // modPath (the current location) already starts with the owner, so don't prepend it again - only fall
     // back to the account owner when at the root with no module path (else you get "Stachu.Stachu.").
     let base = if Stdlib.List.isEmpty modPath then owner else Stdlib.String.join modPath "."
-    let prefill = base ++ "."
+    let prefill = base + "."
     Step.Continue
       { state with
           input =
             Stdlib.Option.Option.Some
-              (InputState { prompt = "save into module (owner.Module): "; field = Stdlib.Cli.UI.TextField.fromText prefill; action = "author-" ++ kind }) }
+              (InputState { prompt = "save into module (owner.Module): "; field = Stdlib.Cli.UI.TextField.fromText prefill; action = "author-" + kind }) }
 
 /// Open the editor on an existing fn, prefilled with its full current declaration (doc comments dropped).
 let openEditExisting (state: State) (item: BodyItem) : Step =
@@ -190,5 +190,5 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
       { state with
           editing =
             Stdlib.Option.Option.Some
-              (EditingState { kind = kind; nameStr = "Editing " ++ fullName; targetModule = modules; buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src); err = "" }) }
+              (EditingState { kind = kind; nameStr = "Editing " + fullName; targetModule = modules; buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src); err = "" }) }
   | None -> Step.Continue state

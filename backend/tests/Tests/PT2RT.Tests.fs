@@ -11,6 +11,20 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageRefs = LibExecution.PackageRefs
 
 module E = TestValues.Expressions
+
+/// What `+` lowers to: `Stdlib.Add.add` (the builtin only while the refs are
+/// not generated, which a test run never is).
+let private plus : RT.FQFnName.FQFnName =
+  RT.FQFnName.TraitMethod
+    { trait_ = RT.Hash(PackageRefs.Trait.Stdlib.Traits.add ())
+      method_ = "add"
+      implFn = RT.FQFnName.Unknown }
+
+let private times : RT.FQFnName.FQFnName =
+  RT.FQFnName.TraitMethod
+    { trait_ = RT.Hash(PackageRefs.Trait.Stdlib.Traits.multiply ())
+      method_ = "multiply"
+      implFn = RT.FQFnName.Unknown }
 module PM = TestValues.PM
 
 open TestUtils.PTShortcuts
@@ -377,7 +391,8 @@ module Expr =
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
-                   argsSoFar = [] }
+                   argsSoFar = []
+                   boundImpls = [] }
              )
            )
            RT.Apply(5, 4, [], NEList.ofList 2 [ 3 ])
@@ -390,7 +405,8 @@ module Expr =
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
-                   argsSoFar = [] }
+                   argsSoFar = []
+                   boundImpls = [] }
              )
            )
            RT.Apply(8, 7, [], NEList.ofList 5 [ 6 ])
@@ -531,7 +547,8 @@ module Expr =
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
-                   argsSoFar = [] }
+                   argsSoFar = []
+                   boundImpls = [] }
              )
            )
            RT.Apply(7, 6, [], NEList.ofList 4 [ 5 ])
@@ -637,11 +654,12 @@ module Expr =
              2,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "add" 0
+                 { name = plus
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
-                   argsSoFar = [] }
+                   argsSoFar = []
+                   boundImpls = [] }
              )
            )
            RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
@@ -662,7 +680,8 @@ module Expr =
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
-                   argsSoFar = [] }
+                   argsSoFar = []
+                   boundImpls = [] }
              )
            )
            RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
@@ -687,11 +706,12 @@ module Expr =
                          2,
                          RT.DApplicable(
                            RT.AppNamedFn
-                             { name = RT.FQFnName.fqBuiltin "add" 0
+                             { name = plus
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
                                access = None
-                               argsSoFar = [] }
+                               argsSoFar = []
+                               boundImpls = [] }
                          )
                        )
                        RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
@@ -720,11 +740,12 @@ module Expr =
                          2,
                          (RT.DApplicable(
                            RT.AppNamedFn
-                             { name = RT.FQFnName.fqBuiltin "add" 0
+                             { name = plus
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
                                access = None
-                               argsSoFar = [] }
+                               argsSoFar = []
+                               boundImpls = [] }
                          ))
                        )
                        RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
@@ -746,11 +767,12 @@ module Expr =
                          2,
                          (RT.DApplicable(
                            RT.AppNamedFn
-                             { name = RT.FQFnName.fqBuiltin "multiply" 0
+                             { name = times
                                typeSymbolTable = RT.TST.empty
                                typeArgs = []
                                access = None
-                               argsSoFar = [] }
+                               argsSoFar = []
+                               boundImpls = [] }
                          ))
                        )
                        RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
@@ -767,7 +789,8 @@ module Expr =
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
-                   argsSoFar = [] }
+                   argsSoFar = []
+                   boundImpls = [] }
              )
            )
 
@@ -777,11 +800,12 @@ module Expr =
              9,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "add" 0
+                 { name = plus
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
-                   argsSoFar = [] }
+                   argsSoFar = []
+                   boundImpls = [] }
              )
            )
            RT.Apply(10, 9, [], NEList.ofList 7 [ 8 ]) ],
@@ -1020,11 +1044,12 @@ module Expr =
                2,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "add" 0
+                   { name = plus
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None
-                     argsSoFar = [] }
+                     argsSoFar = []
+                     boundImpls = [] }
                )
              )
              RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
@@ -1112,7 +1137,8 @@ module Expr =
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
-                                 argsSoFar = [] }
+                                 argsSoFar = []
+                                 boundImpls = [] }
                            )
                          )
                          RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
@@ -1143,7 +1169,8 @@ module Expr =
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
-                                 argsSoFar = [] }
+                                 argsSoFar = []
+                                 boundImpls = [] }
                            )
                          )
                          RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
@@ -1177,7 +1204,8 @@ module Expr =
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
-                                 argsSoFar = [] }
+                                 argsSoFar = []
+                                 boundImpls = [] }
                            )
                          )
                          RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
@@ -1216,7 +1244,8 @@ module Expr =
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
-                                 argsSoFar = [] }
+                                 argsSoFar = []
+                                 boundImpls = [] }
                            )
                          )
                          RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
@@ -1252,7 +1281,8 @@ module Expr =
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
-                                 argsSoFar = [] }
+                                 argsSoFar = []
+                                 boundImpls = [] }
                            )
                          )
                          RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
@@ -1299,7 +1329,8 @@ module Expr =
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
-                                 argsSoFar = [] }
+                                 argsSoFar = []
+                                 boundImpls = [] }
                            )
                          )
                          RT.Apply(4, 3, [], NEList.ofList 1 [ 2 ])
@@ -1311,7 +1342,8 @@ module Expr =
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
-                                 argsSoFar = [] }
+                                 argsSoFar = []
+                                 boundImpls = [] }
                            )
                          )
                          RT.Apply(6, 5, [], NEList.ofList 0 [ 4 ]) ]
@@ -1347,7 +1379,8 @@ module Expr =
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
-                                 argsSoFar = [] }
+                                 argsSoFar = []
+                                 boundImpls = [] }
                            )
                          )
                          RT.Apply(4, 3, [], NEList.ofList 1 [ 2 ])
@@ -1359,7 +1392,8 @@ module Expr =
                                  typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  access = None
-                                 argsSoFar = [] }
+                                 argsSoFar = []
+                                 boundImpls = [] }
                            )
                          )
                          RT.Apply(6, 5, [], NEList.ofList 0 [ 4 ]) ]
@@ -1398,7 +1432,8 @@ module Expr =
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None
-                     argsSoFar = [] }
+                     argsSoFar = []
+                     boundImpls = [] }
                )
              ) ],
            0)
@@ -1417,7 +1452,8 @@ module Expr =
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None
-                     argsSoFar = [] }
+                     argsSoFar = []
+                     boundImpls = [] }
                )
              )
              RT.Apply(2, 1, [], NEList.ofList 0 []) ],
@@ -1438,7 +1474,8 @@ module Expr =
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None
-                     argsSoFar = [] }
+                     argsSoFar = []
+                     boundImpls = [] }
                )
              )
              RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
@@ -1459,7 +1496,8 @@ module Expr =
                      typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      access = None
-                     argsSoFar = [] }
+                     argsSoFar = []
+                     boundImpls = [] }
                )
              )
              RT.Apply(3, 2, [], NEList.ofList 1 [])
@@ -1487,7 +1525,8 @@ module Expr =
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        access = None
-                       argsSoFar = [] }
+                       argsSoFar = []
+                       boundImpls = [] }
                  )
                ) ],
              0)
@@ -1506,7 +1545,8 @@ module Expr =
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        access = None
-                       argsSoFar = [] }
+                       argsSoFar = []
+                       boundImpls = [] }
                  )
                )
                RT.Apply(2, 1, [], NEList.ofList 0 []) ],
@@ -1527,7 +1567,8 @@ module Expr =
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        access = None
-                       argsSoFar = [] }
+                       argsSoFar = []
+                       boundImpls = [] }
                  )
                )
                RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
@@ -1558,11 +1599,12 @@ module Expr =
                              2,
                              RT.DApplicable(
                                RT.AppNamedFn
-                                 { name = RT.FQFnName.fqBuiltin "add" 0
+                                 { name = plus
                                    typeSymbolTable = RT.TST.empty
                                    typeArgs = []
                                    access = None
-                                   argsSoFar = [] }
+                                   argsSoFar = []
+                                   boundImpls = [] }
                              )
                            )
                            RT.Apply(3, 2, [], { head = 0; tail = [ 1 ] }) ]
@@ -1578,7 +1620,8 @@ module Expr =
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        access = None
-                       argsSoFar = [] }
+                       argsSoFar = []
+                       boundImpls = [] }
                  )
                )
                RT.Apply(5, 4, [], { head = 0; tail = [ 3 ] }) ],
@@ -1602,7 +1645,8 @@ module Expr =
                        typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        access = None
-                       argsSoFar = [] }
+                       argsSoFar = []
+                       boundImpls = [] }
                  )
                )
                RT.Apply(3, 2, [ RT.TBool; RT.TString ], { head = 0; tail = [ 1 ] }) ],
@@ -1641,7 +1685,8 @@ module Expr =
                    typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    access = None
-                   argsSoFar = [] }
+                   argsSoFar = []
+                   boundImpls = [] }
              )
            )
            RT.Apply(2, 1, [], NEList.ofList 0 [])
@@ -1684,7 +1729,8 @@ module PackageFn =
           parameters = params' |> NEList.ofListUnsafe "" []
           returnType = returnType
           description = "TODO"
-          permissionCeiling = None }
+          permissionCeiling = None
+          bounds = [] }
 
       let actual = PT2RT.PackageFn.toRT fn |> _.body
       let actual = (actual.registerCount, actual.instructions, actual.resultIn)

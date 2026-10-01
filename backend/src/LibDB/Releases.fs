@@ -245,6 +245,18 @@ let steps : List<Step> =
               print
                 $"  release: added `removed` to {List.length rows} stored conflict(s)" }
 
+    // Which of two impls of one trait for one type RUNS. Selection orders rivals by the stamp of
+    // the op that introduced them, so a store made before the column has no order to go on and every
+    // pair of rivals errors at the call. The column is enough: the ops are still in the log, and the
+    // next fold fills it.
+    { name = "20260922_000001_trait_impls_origin_ts"
+      run =
+        fun () ->
+          addColumnIfMissing
+            "package_trait_impls"
+            "origin_ts"
+            "TEXT NOT NULL DEFAULT ''" }
+
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]
 

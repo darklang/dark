@@ -142,6 +142,9 @@ gate_lsp_branches() {
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  # A fresh rundir denies file and store writes, which kills the server on its first
+  # request; the editor runs with the operator's grants, so this rundir does too.
+  "$PWD/$CLI" permissions allow all >/dev/null 2>&1 || true
   "$PWD/$CLI" branch create lsp-gate >/dev/null 2>&1
   "$PWD/$CLI" --branch lsp-gate fn LspGate.T.f '() : Int64 = 5L' >/dev/null 2>&1
 

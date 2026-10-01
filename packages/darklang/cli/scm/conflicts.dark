@@ -115,7 +115,7 @@ let firstDivergence (a: String) (b: String) : Int =
   |> Stdlib.List.findFirstIndex (fun pair ->
     let (ca, cb) = pair
     ca != cb)
-  |> Stdlib.Option.withDefault (Stdlib.Int.min (Stdlib.List.length la) (Stdlib.List.length lb))
+  |> Stdlib.Option.withDefault (Stdlib.min (Stdlib.List.length la) (Stdlib.List.length lb))
 
 /// Whose version a candidate is, in the words all three views use.
 ///
@@ -172,7 +172,7 @@ let executeList (state: AppState) : AppState =
     Cli.printOk "no conflicts pending."
     state
   | cs ->
-    let n = Stdlib.Int.toString (Stdlib.List.length cs)
+    let n = Stdlib.toString (Stdlib.List.length cs)
     Cli.printOk $"{n} pending"
 
     // Once for the whole list, not once per candidate row: both are store reads.
@@ -226,7 +226,7 @@ let executeList (state: AppState) : AppState =
           Stdlib.List.getAt flats i |> Stdlib.Option.withDefault "(nothing to show)"
 
         let windowed =
-          if windowStart == 0 then flat else "..." ++ (Stdlib.String.dropFirst flat windowStart)
+          if windowStart == 0 then flat else "..." + (Stdlib.String.dropFirst flat windowStart)
 
         let suffixed =
           if textsEqual then
@@ -580,7 +580,7 @@ let executeJson (state: AppState) (args: List<String>) : AppState =
 /// already settled stay settled.
 let walkOne (state: AppState) (c: SCM.Conflicts.Conflict) (n: Int) (total: Int) : Bool =
   let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
-  let pos = $"{Stdlib.Int.toString n}/{Stdlib.Int.toString total}"
+  let pos = $"{Stdlib.toString n}/{Stdlib.toString total}"
   Stdlib.printLine ""
   Cli.printOk $"  [{pos}]  {dotted}  [{c.itemType}]"
 
@@ -661,7 +661,7 @@ let executeWalk (state: AppState) : AppState =
     state
   | cs ->
     let total = Stdlib.List.length cs
-    Cli.printOk $"{Stdlib.Int.toString total} to review. A is yours, B is what arrived."
+    Cli.printOk $"{Stdlib.toString total} to review. A is yours, B is what arrived."
 
     let _ =
       cs
@@ -679,7 +679,7 @@ let executeWalk (state: AppState) : AppState =
     match SCM.Conflicts.pending () with
     | [] -> Cli.printOk "all settled."
     | left ->
-      let n = Stdlib.Int.toString (Stdlib.List.length left)
+      let n = Stdlib.toString (Stdlib.List.length left)
       Cli.printOk $"{n} still pending -- `dark conflicts` picks up where you left off."
 
     state

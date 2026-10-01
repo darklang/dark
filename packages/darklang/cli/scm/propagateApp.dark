@@ -48,7 +48,7 @@ let render (state: State) : String =
     match state.rows with
     | [] -> "  nothing in your draft followed anything else.\n"
     | rows ->
-      let n = Stdlib.Int.toString (Stdlib.List.length rows)
+      let n = Stdlib.toString (Stdlib.List.length rows)
       $"  {n} item(s) moved because something they use moved\n"
 
   let body =
@@ -58,16 +58,16 @@ let render (state: State) : String =
 
   let footer =
     "\n\n  space toggle   a all follow   n all pinned   v view   q done"
-    ++ "\n  changes apply as you toggle -- toggling back is a complete undo"
+    + "\n  changes apply as you toggle -- toggling back is a complete undo"
 
   let msg = if state.message == "" then "" else $"\n\n  {state.message}"
 
   "\n  dark propagate -- what followed your change\n\n"
-  ++ header
-  ++ "\n"
-  ++ body
-  ++ msg
-  ++ footer
+  + header
+  + "\n"
+  + body
+  + msg
+  + footer
 
 
 /// Toggle the selected row, applying the change for real, then reload so the screen shows the new truth.

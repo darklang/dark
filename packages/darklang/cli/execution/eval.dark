@@ -91,7 +91,7 @@ let help (_state: AppState) : String =
     ""
     "Examples:"
     "  eval 1 + 2                     - Arithmetic operations"
-    "  eval \"hello\" ++ \"world\"         - String concatenation"
+    "  eval \"hello\" + \"world\"         - String concatenation"
     "  eval [1, 2, 3] |> List.length  - List operations"
     "  eval Stdlib.String.length \"test\" - Function calls"
     ""

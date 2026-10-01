@@ -743,6 +743,43 @@ let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
       return { allDeprecated = deprecated; hidden = mainSets.hidden }
   }
 
+/// When each impl was added, by the stamp of its `AddTraitImpl` op. Selection orders two
+/// impls of one trait for one type by it (`LibExecution.Lww`), so the same call picks the
+/// same impl on every instance. A row written before the column answers "", and a pair of
+/// unstamped rivals is reported rather than picked.
+let getTraitImplStamps () : Task<Map<string, string>> =
+  task {
+    let! rows =
+      Sql.query "SELECT hash, origin_ts FROM package_trait_impls"
+      |> Sql.executeAsync (fun read -> (read.string "hash", read.string "origin_ts"))
+    return Map.ofList rows
+  }
+
+
+/// The impls currently deprecated. A deprecated impl is not a dispatch candidate:
+/// deprecating one of two rivals is how the ambiguity finding says to settle it.
+let getDeprecatedTraitImplHashes () : Task<Set<string>> =
+  task {
+    let! rows =
+      Sql.query
+        """
+        SELECT DISTINCT d.item_hash
+        FROM deprecations d
+        WHERE d.item_kind = 'impl'
+          AND d.unlisted_at IS NULL
+          AND d.state = 'deprecated'
+          AND NOT EXISTS (
+            SELECT 1 FROM deprecations later
+            WHERE later.item_hash = d.item_hash
+              AND later.item_kind = d.item_kind
+              AND later.unlisted_at IS NULL
+              AND later.state <> 'deprecated'
+              AND COALESCE(later.origin_ts, '') > COALESCE(d.origin_ts, ''))
+        """
+      |> Sql.executeAsync (fun read -> read.string "item_hash")
+    return Set.ofList rows
+  }
+
 let getHarmfulFnHashes () : Task<Set<Hash>> =
   task {
     // F# decides whether the annotation is Harmful, which keeps the SQL schema simple.

@@ -11,7 +11,7 @@ let indent (s: String) : String =
   |> Stdlib.List.map (fun line ->
     match line with
     | "" -> ""
-    | line -> "  " ++ line)
+    | line -> "  " + line)
   |> Stdlib.String.join "\n"
 
 let indentByLevel (level: Int) (s: String) : String =
@@ -22,7 +22,7 @@ let indentByLevel (level: Int) (s: String) : String =
   |> Stdlib.List.map (fun line ->
     match line with
     | "" -> ""
-    | line -> indentStr ++ line)
+    | line -> indentStr + line)
   |> Stdlib.String.join "\n"
 
 let sign (s: LanguageTools.Sign) : String =
@@ -39,7 +39,7 @@ let hexDigitChar (n: Int) : String =
 // graphemes) passes through unchanged.
 let encodeChar (c: Char) : String =
   match Stdlib.Char.toAsciiCode c with
-  | None -> Stdlib.Char.toString c
+  | None -> Stdlib.toString c
   | Some code ->
     if code == 92 then "\\\\"
     else if code == 7 then "\\a"
@@ -54,7 +54,7 @@ let encodeChar (c: Char) : String =
       let lo = code % 16
       $"\\x{hexDigitChar hi}{hexDigitChar lo}"
     else
-      Stdlib.Char.toString c
+      Stdlib.toString c
 
 // Encode special characters back to source-form. Symmetric with the parser's
 // `decodeStringContent`. Quote escapes are added per quote style — `"` for
@@ -96,7 +96,7 @@ let formatFieldName (name: String) : String =
   // Keep this list in sync with the lexer's `keyword` function
   // (backend/src/LibParser/Lexer.fs). `def` is intentionally not reserved.
   let reserved =
-    [ "let", "val", "in", "if", "elif", "then", "else", "type", "of"
+    [ "let", "val", "in", "if", "elif", "then", "else", "type", "trait", "impl", "of"
       "match", "with", "fun", "when", "true", "false", "_" ]
   let isReserved =
     reserved |> Stdlib.List.findFirst (fun k -> k == name) |> Stdlib.Option.isSome
@@ -124,11 +124,11 @@ let formatAccessedFieldName (name: String) : String =
 let processRemainder (remainder: String) : String =
   match $".{remainder}" |> Stdlib.Float.parse with
   | Ok floatValue ->
-    let printed = Stdlib.Float.toString floatValue
+    let printed = Stdlib.toString floatValue
     let isPlainDecimal =
       printed
       |> Stdlib.String.toList
-      |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c || (Stdlib.Char.toString c) == ".")
+      |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c || (Stdlib.toString c) == ".")
     if isPlainDecimal && (Stdlib.String.startsWith printed "0.") then
       Stdlib.String.dropFirst printed 2
     else
@@ -190,7 +190,7 @@ let shortenName
 
     match remaining with
     | [] -> name
-    | segments -> (Stdlib.String.join segments ".") ++ "." ++ name
+    | segments -> (Stdlib.String.join segments ".") + "." + name
 
 
 /// How to paint the pieces of a rendered value.

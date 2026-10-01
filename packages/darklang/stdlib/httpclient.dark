@@ -137,7 +137,7 @@ let basicAuth
 
 /// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>
 let bearerToken (token: String) : (String * String) =
-  ("authorization", ("bearer " ++ token))
+  ("authorization", ("bearer " + token))
 
 
 module ContentType =
@@ -232,7 +232,7 @@ module Sse =
       if field == "data" then
         let newData =
           if hasData then
-            data ++ "\n" ++ value
+            data + "\n" + value
           else
             value
 

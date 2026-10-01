@@ -8,14 +8,14 @@ module Darklang.Tailscale
 
 // The MagicDNS URL a tailnet peer is reached at — 443, no explicit port, fronted by `tailscale serve`.
 let peerUrl (name: String) (tailnet: String) : String =
-  "https://" ++ name ++ "." ++ tailnet ++ ".ts.net"
+  "https://" + name + "." + tailnet + ".ts.net"
 
 
 // ─── CLI wrappers (shell out to the `tailscale` binary) ───
 
 // Run a `tailscale` subcommand: stdout on success, stderr as the error. The one shell-out seam.
 let run (subcommand: String) : Stdlib.Result.Result<String, String> =
-  Stdlib.Cli.executeWithStdOutOrStdErr ("tailscale " ++ subcommand)
+  Stdlib.Cli.executeWithStdOutOrStdErr ("tailscale " + subcommand)
 
 // Your tailnet at a glance — the peer/device list (`tailscale status`).
 let status () : Stdlib.Result.Result<String, String> =
@@ -24,11 +24,11 @@ let status () : Stdlib.Result.Result<String, String> =
 // Expose this instance's local HTTP server over TLS on the tailnet (`tailscale serve --https=443`).
 let serve (localPort: Int) : Stdlib.Result.Result<Unit, String> =
   Stdlib.Cli.executeWithUnitOrStdErr
-    ("tailscale serve --https=443 " ++ Stdlib.Int.toString localPort)
+    ("tailscale serve --https=443 " + Stdlib.toString localPort)
 
 // Reachability check to a peer by MagicDNS name (`tailscale ping <peer>`).
 let ping (peer: String) : Stdlib.Result.Result<String, String> =
-  run ("ping " ++ peer)
+  run ("ping " + peer)
 
 
 // ─── auth (read on the inbound HTTP path) ───

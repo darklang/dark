@@ -86,44 +86,6 @@ let fromFloatRounded (a: Float) : Stdlib.Option.Option<UInt64> =
     Stdlib.Option.Option.None
 
 
-/// Returns the sum of all the ints in the list
-let sum (lst: List<UInt64>) : UInt64 =
-  Stdlib.List.fold lst 0UL (fun acc x -> add acc x)
-
-
-/// Returns the higher of <param a> and <param b>
-let max (a: UInt64) (b: UInt64) : UInt64 =
-  if greaterThan a b then a else b
-
-
-/// Returns the lower of <param a> and <param b>
-let min (a: UInt64) (b: UInt64) : UInt64 =
-  if lessThan a b then a else b
-
-
-/// If <param value> is within the range given by <param limitA> and <param
-/// limitB>, returns <param value>.
-/// If <param value> is outside the range, returns <param limitA> or <param
-/// limitB>, whichever is closer to <param value>.
-/// <param limitA> and <param limitB> can be provided in any order.
-let clamp (value: UInt64) (limitA: UInt64) (limitB: UInt64) : UInt64 =
-  let min =
-    if lessThan limitA limitB then
-      limitA
-    else
-      limitB
-
-  let max =
-    if greaterThan limitA limitB then
-      limitA
-    else
-      limitB
-
-  if lessThan value min then min
-  else if greaterThan value max then max
-  else value
-
-
 /// Parses a <type String> into a <type UInt64>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
@@ -132,10 +94,6 @@ let parse
   (s: String)
   : Stdlib.Result.Result<UInt64, Stdlib.UInt64.ParseError> =
   Builtin.uint64Parse s
-
-
-/// Stringify <param int>
-let toString (uint64: UInt64) : String = Builtin.uint64ToString uint64
 
 
 /// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0
@@ -202,3 +160,58 @@ let shiftLeft (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64ShiftLeft a b
 
 /// Bitwise right shift of a <type UInt64> value
 let shiftRight (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64ShiftRight a b
+
+
+// The traits, over the fns above.
+
+impl Add for UInt64 =
+  let add = Stdlib.UInt64.add
+
+impl Subtract for UInt64 =
+  let subtract = Stdlib.UInt64.subtract
+
+impl Multiply for UInt64 =
+  let multiply = Stdlib.UInt64.multiply
+
+impl Divide for UInt64 =
+  let divide = Stdlib.UInt64.divide
+
+impl Modulo for UInt64 =
+  let modulo = Stdlib.UInt64.``mod``
+
+impl Power for UInt64 =
+  let power = Stdlib.UInt64.power
+
+impl Compare for UInt64 =
+  let lessThan = Stdlib.UInt64.lessThan
+  let lessThanOrEqualTo = Stdlib.UInt64.lessThanOrEqualTo
+  let greaterThan = Stdlib.UInt64.greaterThan
+  let greaterThanOrEqualTo = Stdlib.UInt64.greaterThanOrEqualTo
+
+impl ToString for UInt64 =
+  /// Stringify <param int>
+  let toString (uint64: UInt64) : String = Builtin.uint64ToString uint64
+
+impl Zero for UInt64 =
+  let zero () : UInt64 = 0UL
+
+impl One for UInt64 =
+  let one () : UInt64 = 1UL
+
+impl BitwiseAnd for UInt64 =
+  let bitwiseAnd = Stdlib.UInt64.bitwiseAnd
+
+impl BitwiseOr for UInt64 =
+  let bitwiseOr = Stdlib.UInt64.bitwiseOr
+
+impl BitwiseXor for UInt64 =
+  let bitwiseXor = Stdlib.UInt64.bitwiseXor
+
+impl BitwiseNot for UInt64 =
+  let bitwiseNot = Stdlib.UInt64.bitwiseNot
+
+impl ShiftLeft for UInt64 =
+  let shiftLeft = Stdlib.UInt64.shiftLeft
+
+impl ShiftRight for UInt64 =
+  let shiftRight = Stdlib.UInt64.shiftRight

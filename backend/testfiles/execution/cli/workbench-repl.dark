@@ -77,7 +77,7 @@ Darklang.Cli.Repl.withBindings [] "x + 1" = "x + 1"
   [ Darklang.Cli.Repl.Binding { name = "x"; source = "1"; value = "1"; captured = true }
     Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; value = "x + 1"; captured = false } ]
   (Darklang.Cli.Repl.Binding { name = "x"; source = "99"; value = "99"; captured = true })
- |> Stdlib.List.map (fun b -> b.name ++ "=" ++ b.source)) = [ "x=99", "y=x + 1" ]
+ |> Stdlib.List.map (fun b -> b.name + "=" + b.source)) = [ "x=99", "y=x + 1" ]
 
 // --- reading `captureValue` back ---
 Darklang.Cli.Repl.readCaptured "ok:[1L, 2L]" = Stdlib.Option.Option.Some "[1L, 2L]"

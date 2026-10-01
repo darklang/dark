@@ -1,18 +1,10 @@
-Stdlib.UInt8.max 5uy 6uy = 6uy
-Stdlib.UInt8.max 10uy 1uy = 10uy
-Stdlib.UInt8.max 0uy 6uy = 6uy
-Stdlib.UInt8.max 255uy 0uy = 255uy
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max 255uy 0uy = 255uy
 
-Stdlib.UInt8.min 5uy 6uy = 5uy
-Stdlib.UInt8.min 10uy 10uy = 10uy
-Stdlib.UInt8.min 255uy 0uy = 0uy
+Stdlib.min 10uy 10uy = 10uy
 
-Stdlib.UInt8.clamp 1uy 2uy 1uy = 1uy
-Stdlib.UInt8.clamp 3uy 0uy 2uy = 2uy
-Stdlib.UInt8.clamp 100uy 0uy 0uy = 0uy
-Stdlib.UInt8.clamp 100uy 0uy 1uy = 1uy
-Stdlib.UInt8.clamp 100uy 1uy 0uy = 1uy
-
+Stdlib.clamp 100uy 0uy 0uy = 0uy
 
 Stdlib.UInt8.add 10uy 9uy = 19uy
 Stdlib.UInt8.add 88uy 9uy = 97uy
@@ -71,10 +63,10 @@ Stdlib.UInt8.lessThan 1uy 0uy = false
 Stdlib.UInt8.lessThan 0uy 255uy = true
 Stdlib.UInt8.lessThan 255uy 255uy = false
 
-Stdlib.UInt8.toString 120uy = "120"
-Stdlib.UInt8.toString 1uy = "1"
-Stdlib.UInt8.toString 0uy = "0" // UInt8 lower limit
-Stdlib.UInt8.toString 255uy = "255" // UInt8 upper limit
+Stdlib.toString 120uy = "120"
+Stdlib.toString 1uy = "1"
+Stdlib.toString 0uy = "0" // UInt8 lower limit
+Stdlib.toString 255uy = "255" // UInt8 upper limit
 
 Stdlib.UInt8.toFloat 2uy = 2.0
 Stdlib.UInt8.toFloat 0uy = 0.0
@@ -123,9 +115,9 @@ Stdlib.UInt8.mod 5uy 0uy = error="Cannot evaluate modulus against 0"
  |> Stdlib.List.map (fun x -> Stdlib.UInt8.random 0uy 2uy)
  |> Stdlib.List.unique) = [ 0uy, 1uy, 2uy ]
 
-Stdlib.UInt8.sum [ 1uy, 2uy ] = 3uy
+Stdlib.sum 0uy [ 1uy, 2uy ] = 3uy
 
-Stdlib.UInt8.sum [ 1uy, 255uy ] = 0uy // wraps on overflow
+Stdlib.sum 0uy [ 1uy, 255uy ] = 0uy // wraps on overflow
 Stdlib.UInt8.parse "-129" = Stdlib.Result.Result.Error Stdlib.UInt8.ParseError.OutOfRange
 Stdlib.UInt8.parse "256" = Stdlib.Result.Result.Error Stdlib.UInt8.ParseError.OutOfRange
 
@@ -144,7 +136,6 @@ Stdlib.UInt8.parse "" = Stdlib.Result.Result.Error Stdlib.UInt8.ParseError.BadFo
 Stdlib.UInt8.parse "1I" = Stdlib.Result.Result.Error Stdlib.UInt8.ParseError.BadFormat
 Stdlib.UInt8.parse "one" = Stdlib.Result.Result.Error Stdlib.UInt8.ParseError.BadFormat
 Stdlib.UInt8.parse "XIV" = Stdlib.Result.Result.Error Stdlib.UInt8.ParseError.BadFormat
-
 
 Stdlib.UInt8.fromInt8 0y = Stdlib.Option.Option.Some 0uy
 Stdlib.UInt8.fromInt8 1y = Stdlib.Option.Option.Some 1uy

@@ -246,11 +246,11 @@ module Chunking =
   (Stdlib.List.length
     (Stdlib.List.flatten
       (Darklang.SCM.Conflicts.inChunks
-        (Stdlib.List.map (Stdlib.List.range 1 2500) (fun i -> Stdlib.Int.toString i))))) = 2500
+        (Stdlib.List.map (Stdlib.List.range 1 2500) (fun i -> Stdlib.toString i))))) = 2500
 
   ((Stdlib.List.length
       (Darklang.SCM.Conflicts.inChunks
-        (Stdlib.List.map (Stdlib.List.range 1 2500) (fun i -> Stdlib.Int.toString i)))) > 1) = true
+        (Stdlib.List.map (Stdlib.List.range 1 2500) (fun i -> Stdlib.toString i)))) > 1) = true
 
 
 module Placeholders =

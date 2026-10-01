@@ -26,9 +26,16 @@ module PT = LibExecution.ProgramTypes
 type private Registry =
   { types : Map<PT.Hash, List<PT.PackageLocation>>
     values : Map<PT.Hash, List<PT.PackageLocation>>
-    fns : Map<PT.Hash, List<PT.PackageLocation>> }
+    fns : Map<PT.Hash, List<PT.PackageLocation>>
+    traits : Map<PT.Hash, List<PT.PackageLocation>>
+    impls : Map<PT.Hash, List<PT.PackageLocation>> }
 
-let private empty = { types = Map.empty; values = Map.empty; fns = Map.empty }
+let private empty =
+  { types = Map.empty
+    values = Map.empty
+    fns = Map.empty
+    traits = Map.empty
+    impls = Map.empty }
 
 let mutable private registry = empty
 let private writeLock = obj ()
@@ -56,12 +63,16 @@ let register
   (types : List<PT.Hash * PT.PackageLocation>)
   (values : List<PT.Hash * PT.PackageLocation>)
   (fns : List<PT.Hash * PT.PackageLocation>)
+  (traits : List<PT.Hash * PT.PackageLocation>)
+  (impls : List<PT.Hash * PT.PackageLocation>)
   : unit =
   lock writeLock (fun () ->
     registry <-
       { types = add types registry.types
         values = add values registry.values
-        fns = add fns registry.fns })
+        fns = add fns registry.fns
+        traits = add traits registry.traits
+        impls = add impls registry.impls })
 
 /// Reverse lookups only. Resolution reads the store directly, and adding a layer
 /// to `findType`/`getType` would put this on the parser's hot path for the sake
@@ -74,3 +85,9 @@ let valueLocations (hash : PT.Hash) : List<PT.PackageLocation> =
 
 let fnLocations (hash : PT.Hash) : List<PT.PackageLocation> =
   Map.tryFind hash registry.fns |> Option.defaultValue []
+
+let traitLocations (hash : PT.Hash) : List<PT.PackageLocation> =
+  Map.tryFind hash registry.traits |> Option.defaultValue []
+
+let implLocations (hash : PT.Hash) : List<PT.PackageLocation> =
+  Map.tryFind hash registry.impls |> Option.defaultValue []

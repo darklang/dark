@@ -94,7 +94,7 @@ let recent (limit: Int64) : List<Commit> =
     (localDb ())
     "SELECT hash, message, author, origin_ts, created_at, parent FROM commits
      ORDER BY created_at DESC, rowid DESC LIMIT @p0"
-    [ Stdlib.Int64.toString limit ]
+    [ Stdlib.toString limit ]
     commitFromRow
 
 /// Remove a commit row. For a commit that turned out to name no ops -- an import where everything deduped,

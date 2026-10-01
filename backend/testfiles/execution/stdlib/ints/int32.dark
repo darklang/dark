@@ -2,33 +2,13 @@ Stdlib.Int32.absoluteValue -5l = 5l
 Stdlib.Int32.absoluteValue 5l = 5l
 Stdlib.Int32.absoluteValue (-2147483648l) = -2147483648l
 
-Stdlib.Int32.max 5l 6l = 6l
-Stdlib.Int32.max 10l 1l = 10l
-Stdlib.Int32.max -5l 6l = 6l
-Stdlib.Int32.max -100l -20000l = -100l
-Stdlib.Int32.max 250l -26l = 250l
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max -100l -20000l = -100l
 
-Stdlib.Int32.min 5l 6l = 5l
-Stdlib.Int32.min 50l -10l = -10l
-Stdlib.Int32.min -5l 6l = -5l
-Stdlib.Int32.min -100l -20000l = -20000l
-Stdlib.Int32.min 250l -26l = -26l
+Stdlib.min -100l -20000l = -20000l
 
-Stdlib.Int32.clamp -5l -2l 5l = -2l // in bounds
-Stdlib.Int32.clamp -3l -2l 1l = -2l // below min
-Stdlib.Int32.clamp -5l 1l 1l = 1l // at limit
-Stdlib.Int32.clamp 1l 2l 1l = 1l // above max
-Stdlib.Int32.clamp 3l 0l 2l = 2l //  below in
-Stdlib.Int32.clamp -100l 0l 0l = 0l
-Stdlib.Int32.clamp 100l 0l 0l = 0l
-Stdlib.Int32.clamp -100l 0l -1l = -1l
-Stdlib.Int32.clamp 100l 0l -1l = 0l
-Stdlib.Int32.clamp -100l -1l 0l = -1l
-Stdlib.Int32.clamp 100l -1l 0l = 0l
-Stdlib.Int32.clamp -100l 1l 0l = 0l
-Stdlib.Int32.clamp 100l 1l 0l = 1l
-Stdlib.Int32.clamp -2147483647l 250l -26l = -26l
-Stdlib.Int32.clamp 2147483647l 250l -26l = 250l
+Stdlib.clamp -2147483647l 250l -26l = -26l
 
 Stdlib.Int32.negate -5l = 5l
 Stdlib.Int32.negate 5l = -5l
@@ -107,7 +87,6 @@ Stdlib.Int32.add 2147483647l 1l = -2147483648l
 Stdlib.Int32.add 55l 2147483647l = -2147483594l
 Stdlib.Int32.add -2147483648l -1l = 2147483647l
 
-
 Stdlib.Int32.subtract 10l 9l = 1l
 Stdlib.Int32.subtract 88l 9l = 79l
 Stdlib.Int32.subtract 0l 1l = -1l
@@ -152,13 +131,11 @@ Stdlib.Int32.divide (-2147483648l) -1l = -2147483648l
  |> Stdlib.List.map (fun x -> Stdlib.Int32.random 0l 1l)
  |> Stdlib.List.unique) = [ 0l, 1l ]
 
-
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.Int32.random 0l 2l)
  |> Stdlib.List.unique) = [ 0l, 1l, 2l ]
 
-
-Stdlib.Int32.sum [ 1l, 2l ] = 3l
+Stdlib.sum 0l [ 1l, 2l ] = 3l
 
 // ok
 Stdlib.Int32.parse "0" = Stdlib.Result.Result.Ok 0l
@@ -193,12 +170,11 @@ Stdlib.Int32.parse "1I" = Stdlib.Result.Result.Error Stdlib.Int32.ParseError.Bad
 Stdlib.Int32.parse "one" = Stdlib.Result.Result.Error Stdlib.Int32.ParseError.BadFormat
 Stdlib.Int32.parse "XIV" = Stdlib.Result.Result.Error Stdlib.Int32.ParseError.BadFormat
 
-
-Stdlib.Int32.toString 0l = "0"
-Stdlib.Int32.toString 1l = "1"
-Stdlib.Int32.toString -1l = "-1"
-Stdlib.Int32.toString -2147483648l = "-2147483648" // Int32 lower limit
-Stdlib.Int32.toString 2147483647l = "2147483647" // Int32 upper limit
+Stdlib.toString 0l = "0"
+Stdlib.toString 1l = "1"
+Stdlib.toString -1l = "-1"
+Stdlib.toString -2147483648l = "-2147483648" // Int32 lower limit
+Stdlib.toString 2147483647l = "2147483647" // Int32 upper limit
 
 Stdlib.Int32.fromInt8 0y = 0l
 Stdlib.Int32.fromInt8 1y = 1l

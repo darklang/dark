@@ -141,7 +141,7 @@ let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
 /// are the frame's already-computed counts, for the badges; pass 0s when
 /// only the shape matters (the key handler does).
 let navbarRows (state: State) (wip: Int) (conflicts: Int) : List<NavbarRow> =
-  let count (n: Int) : String = Stdlib.Int.toString n
+  let count (n: Int) : String = Stdlib.toString n
   // Once, not once per workspace and again per row.
   let vis = visibleViews state
   visibleWorkspacesIn vis
@@ -153,8 +153,8 @@ let navbarRows (state: State) (wip: Int) (conflicts: Int) : List<NavbarRow> =
     // repeated the number without saying anything the tree doesn't.
     let (badge, color) =
       if w.name == "Changes" then
-        if conflicts > 0 then ("⚠ " ++ (count conflicts), Stdlib.Cli.UI.Colors.orange)
-        else if wip > 0 then ("● " ++ (count wip), Stdlib.Cli.UI.Colors.pink)
+        if conflicts > 0 then ("⚠ " + (count conflicts), Stdlib.Cli.UI.Colors.orange)
+        else if wip > 0 then ("● " + (count wip), Stdlib.Cli.UI.Colors.pink)
         else ("", "")
       else ("", "")
     NavbarRow
@@ -249,11 +249,11 @@ let handleNavbarKey
   let rowsNow (_u: Unit) : List<NavbarRow> = navbarRows state 0 0
 
   let selIn (rows: List<NavbarRow>) : Int =
-    Stdlib.Int.max 0 (Stdlib.Int.min state.navbarSel ((Stdlib.List.length rows) - 1))
+    Stdlib.max 0 (Stdlib.min state.navbarSel ((Stdlib.List.length rows) - 1))
 
   let moveToIn (rows: List<NavbarRow>) (i: Int) : Step =
     let n = Stdlib.List.length rows
-    Step.Continue { state with navbarSel = Stdlib.Int.max 0 (Stdlib.Int.min (n - 1) i) }
+    Step.Continue { state with navbarSel = Stdlib.max 0 (Stdlib.min (n - 1) i) }
 
   let moveBy (delta: Int) : Step =
     let rows = rowsNow ()
@@ -313,23 +313,23 @@ let handleNavbarKey
 let renderNavbarRows (state: State) (rows: List<NavbarRow>) (inner: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   let n = Stdlib.List.length rows
   let active = activeRow state rows
-  let sel = Stdlib.Int.max 0 (Stdlib.Int.min state.navbarSel (n - 1))
-  let width = Stdlib.Int.max 1 inner.cols
+  let sel = Stdlib.max 0 (Stdlib.min state.navbarSel (n - 1))
+  let width = Stdlib.max 1 inner.cols
   let lines =
     rows
     |> Stdlib.List.indexedMap (fun i r ->
-      let left = "  " ++ r.label
-      let num = Stdlib.Int.toString (r.ws + 1)
+      let left = "  " + r.label
+      let num = Stdlib.toString (r.ws + 1)
       let sep = if r.badge != "" then "  " else ""
-      let rightPlain = r.badge ++ sep ++ num
+      let rightPlain = r.badge + sep + num
       // Two columns of gutter on every row, so the cursor bar (which lives in
       // the gutter) doesn't shift the row it's on.
       let gap =
-        Stdlib.Int.max 1 (width - 2 - (Stdlib.String.displayWidth left) - (Stdlib.String.displayWidth rightPlain) - 1)
+        Stdlib.max 1 (width - 2 - (Stdlib.String.displayWidth left) - (Stdlib.String.displayWidth rightPlain) - 1)
       let spaces = Stdlib.String.repeat " " gap
       let badgeStyled = if r.badge == "" then "" else Stdlib.Cli.UI.Colors.colorize r.badgeColor r.badge
       let numStyled = Stdlib.Cli.UI.Colors.dimText num
-      let right = spaces ++ badgeStyled ++ sep ++ numStyled
+      let right = spaces + badgeStyled + sep + numStyled
       if (navbarFocused state) && (i == sel) then
         selectionBar left right true
       else
@@ -337,7 +337,7 @@ let renderNavbarRows (state: State) (rows: List<NavbarRow>) (inner: Stdlib.Cli.U
           if i == active then Stdlib.Cli.UI.Colors.boldText left
           else if navbarFocused state then left
           else Stdlib.Cli.UI.Colors.dimText left
-        "  " ++ leftStyled ++ right)
+        "  " + leftStyled + right)
   Stdlib.Cli.UI.ListView.render
     inner
     lines
@@ -356,30 +356,30 @@ let renderNavStrip
   let rows = navbarRows state wip conflicts
   let n = Stdlib.List.length rows
   let focused = navbarFocused state
-  let sel = Stdlib.Int.max 0 (Stdlib.Int.min state.navbarSel (n - 1))
+  let sel = Stdlib.max 0 (Stdlib.min state.navbarSel (n - 1))
   let active = activeRow state rows
   let gap = 2
 
   // One item, styled, with the width of its plain text: ` 3 Changes ● 3 `.
   let paint (i: Int) (r: NavbarRow) : (String * Int) =
-    let num = (Stdlib.Int.toString (r.ws + 1)) ++ " "
+    let num = (Stdlib.toString (r.ws + 1)) + " "
     let here = i == active
-    let badgePlain = if r.badge == "" then "" else " " ++ r.badge
-    let plain = " " ++ num ++ r.label ++ badgePlain ++ " "
+    let badgePlain = if r.badge == "" then "" else " " + r.badge
+    let plain = " " + num + r.label + badgePlain + " "
     let width = Stdlib.String.displayWidth plain
     let text =
       if focused && (i == sel) then
         Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.reverse plain
       else if here then
         Stdlib.Cli.UI.Colors.colorize
-          (Stdlib.Cli.UI.Colors.purpleBg ++ Stdlib.Cli.UI.Colors.white ++ Stdlib.Cli.UI.Colors.bold)
+          (Stdlib.Cli.UI.Colors.purpleBg + Stdlib.Cli.UI.Colors.white + Stdlib.Cli.UI.Colors.bold)
           plain
       else
         let label = if focused then r.label else Stdlib.Cli.UI.Colors.dimText r.label
         let badge =
           if r.badge == "" then ""
-          else " " ++ (Stdlib.Cli.UI.Colors.colorize r.badgeColor r.badge)
-        " " ++ (Stdlib.Cli.UI.Colors.dimText num) ++ label ++ badge ++ " "
+          else " " + (Stdlib.Cli.UI.Colors.colorize r.badgeColor r.badge)
+        " " + (Stdlib.Cli.UI.Colors.dimText num) + label + badge + " "
     (text, width)
 
   let (_endCol, spans) =
@@ -400,9 +400,9 @@ let renderNavbarOverlay (state: State) (wip: Int) (conflicts: Int) (screen: Stdl
   let rows = navbarRows state wip conflicts
   let n = Stdlib.List.length rows
   let w = 34
-  let h = Stdlib.Int.min (n + 2) (Stdlib.Int.max 3 (screen.rows - 2))
-  let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
-  let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
+  let h = Stdlib.min (n + 2) (Stdlib.max 3 (screen.rows - 2))
+  let top = screen.top + (Stdlib.Int.divide (Stdlib.max 0 (screen.rows - h)) 2)
+  let left = screen.left + (Stdlib.Int.divide (Stdlib.max 0 (screen.cols - w)) 2)
   let region = Stdlib.Cli.UI.Layout.Region { top = top; left = left; rows = h; cols = w }
   Stdlib.List.flatten
     [ Stdlib.Cli.UI.Layout.clearRegion region

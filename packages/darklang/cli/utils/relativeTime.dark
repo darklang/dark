@@ -17,7 +17,7 @@ let ago (then_: DateTime) : String =
 
   let plural (n: Int) (unit: String) : String =
     let s = if n == 1 then "" else "s"
-    $"{Stdlib.Int.toString n} {unit}{s} ago"
+    $"{Stdlib.toString n} {unit}{s} ago"
 
   // A clock that is a little ahead, or a commit made during this second.
   if seconds < 60 then
@@ -36,4 +36,4 @@ let ago (then_: DateTime) : String =
 
 /// The relative form, or the exact stamp when `long` is set.
 let stamp (long: Bool) (t: DateTime) : String =
-  if long then Stdlib.DateTime.toString t else RelativeTime.ago t
+  if long then Stdlib.toString t else RelativeTime.ago t

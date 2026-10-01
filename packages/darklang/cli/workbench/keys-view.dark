@@ -120,11 +120,11 @@ let handleViewKey
           // via search, nothing else on screen says what you are reading.
           let title =
             Stdlib.Cli.UI.Colors.dimText
-              ((Stdlib.String.join (modulePathOf state.location) ".") ++ "." ++ item.name ++ "  · " ++ item.kind)
+              ((Stdlib.String.join (modulePathOf state.location) ".") + "." + item.name + "  · " + item.kind)
 
           openReader
             state
-            (title ++ "\n\n" ++ (detailLines state |> Stdlib.String.join "\n"))
+            (title + "\n\n" + (detailLines state |> Stdlib.String.join "\n"))
             true
       | None -> descend state
     else
@@ -271,7 +271,7 @@ let handleViewKey
             { state with
                 input =
                   Stdlib.Option.Option.Some
-                    (InputState { prompt = "delete branch " ++ b.name ++ "? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "branch-delete" }) }
+                    (InputState { prompt = "delete branch " + b.name + "? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "branch-delete" }) }
         | None -> Step.Continue state
       else if (state.activeView == vSCM) then
         Step.Continue
@@ -301,7 +301,7 @@ let handleViewKey
           Step.Continue
             { state with
                 input =
-                  Stdlib.Option.Option.Some (InputState { prompt = "merge " ++ b.name ++ " into parent? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "merge" }) }
+                  Stdlib.Option.Option.Some (InputState { prompt = "merge " + b.name + " into parent? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "merge" }) }
         | None -> Step.Continue state
       else Step.Continue state
     | Some "B" ->
@@ -325,7 +325,7 @@ let handleViewKey
             { state with
                 input =
                   Stdlib.Option.Option.Some
-                    (InputState { prompt = "rebase " ++ b.name ++ " onto parent? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "rebase" }) }
+                    (InputState { prompt = "rebase " + b.name + " onto parent? type y then enter: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "rebase" }) }
         | None -> Step.Continue state
       else if state.activeView == vApps then launchOrStartApp state
       else if state.activeView == vMatter then

@@ -99,7 +99,7 @@ gate_first_day() {
   want "first run reports a clean tree" "^(clean:|draft:)" status
 
   # 2. Author something and run it. The thing the language is for.
-  want "authoring a fn"    "Created function: FirstDay\.Hello\.greet" fn /FirstDay.Hello.greet '(name: String) : String = "hi " ++ name'
+  want "authoring a fn"    "Created function: FirstDay\.Hello\.greet" fn /FirstDay.Hello.greet '(name: String) : String = "hi " + name'
   want "and running it"    "hi world"        eval 'FirstDay.Hello.greet "world"'
   want "status sees it"    "^draft: 1 item"  status
 
@@ -113,15 +113,17 @@ gate_first_day() {
   want "authoring on it"   "Created function: FirstDay\.Hello\.only" --branch firstday fn /FirstDay.Hello.only '() : Int64 = 1L'
   want "main cannot see it" "not found"      --branch main eval 'FirstDay.Hello.only ()'
 
-  # 5. Merge it, and main can.
+  # 5. Commit it (merge refuses a branch with uncommitted work), merge it, and main can.
+  want "committing on it"  "^ *commit [0-9a-f]{8} -- [0-9]+ op" --branch firstday commit "only" -y
   want "merge --dry-run"   "would merge"     --branch firstday merge firstday --dry-run
   want "merging"           "Merged"          --branch firstday merge firstday -y
   want "main sees it now"  "^1$"             --branch main eval 'FirstDay.Hello.only ()'
 
   # 6. A real divergence: both sides move one name, merge records a conflict.
   dark branch create clash >/dev/null 2>&1 || true
-  dark --branch clash fn /FirstDay.Hello.greet '(name: String) : String = "yo " ++ name' >/dev/null 2>&1 || true
-  dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "hey " ++ name' >/dev/null 2>&1 || true
+  dark --branch clash fn /FirstDay.Hello.greet '(name: String) : String = "yo " + name' >/dev/null 2>&1 || true
+  dark --branch clash commit "yo" -y >/dev/null 2>&1 || true
+  dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "hey " + name' >/dev/null 2>&1 || true
   want "merge records a conflict" "[0-9]+ conflict" --branch clash merge clash -y
   want "conflicts --json lists it" '"pending":[1-9]' --branch main conflicts --json
 
@@ -134,7 +136,7 @@ gate_first_day() {
   CID=$(dark --branch main conflicts --json 2>/dev/null | grep -oE '"id":"[a-f0-9]+"' | head -1 | cut -d'"' -f4)
   dark --branch main conflicts override "$CID" B >/dev/null 2>&1 || true
   want "the override holds"      "yo "        --branch main eval 'FirstDay.Hello.greet "x"'
-  dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "later " ++ name' >/dev/null 2>&1 || true
+  dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "later " + name' >/dev/null 2>&1 || true
   want "a later edit wins"       "later "     --branch main eval 'FirstDay.Hello.greet "x"'
   wantnot "and your own change of mind is not reported" "overrode this|decision-superseded" --branch main constraints
 
@@ -263,4 +265,77 @@ gate_reload_is_reproducible() {
     exit 1
   fi
   echo "reload-is-reproducible: two reloads of one tree agree on all $n op ids."
+}
+
+# --- trait-choice-survives-rival: a saved call keeps the implementation it was written against ---
+# The property the save-time choice exists for. An ordinary trait call stores the fn the chosen
+# implementation names, and a BOUNDED generic cannot: its self type is its caller's business. So
+# the callee records that it defers to its own type param and the CALL records what that param
+# implied, and neither is decided again at run time. A newer rival implementation arriving after
+# the save must therefore change nothing until something repoints the call.
+#
+# Gate, not a testfile: nothing loaded from disk records a choice (only `addAuthored` does), so
+# the thing under test only exists after authoring through the CLI, twice, with a store in between.
+gate_trait_choice_survives_rival() {
+  set -euo pipefail
+
+  WORK=rundir/trait-rival
+  rm -rf "$WORK"
+  mkdir -p "$WORK/logs"
+  scripts/testing/_copy-store "$WORK/data.db"
+  # A copied store carries the real relay and its write secret. See the AGENTS.md note.
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+  # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  clean() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+  $CLI type Stachu.Rival.Pt "= { gateRivalOnly: Int64 }" >/dev/null
+  $CLI impl Stachu.Rival \
+    "ToString for Pt = let toString (p: Pt) : String = Stdlib.toString p.gateRivalOnly" >/dev/null
+  $CLI module Stachu.Rival - >/dev/null <<'DARK'
+let display<'a: Stdlib.ToString> (v: 'a) : String =
+  Stdlib.ToString.toString v
+
+let callIt () : String =
+  let p = Stachu.Rival.Pt { gateRivalOnly = 7L }
+  Stdlib.String.join ["value: ", Stachu.Rival.display p] ""
+DARK
+
+  before=$($CLI eval 'Stachu.Rival.callIt ()' | clean)
+  if [[ "$before" != *"value: 7"* ]]; then
+    echo "trait-choice-survives-rival: the bounded call did not work before any rival: $before"
+    exit 1
+  fi
+
+  # A NEWER implementation for the same type: it wins any run-time dispatch, which is
+  # exactly why the saved call must not be asking.
+  $CLI impl Stachu.RivalNewer \
+    "Stdlib.ToString for Stachu.Rival.Pt = let toString (p: Stachu.Rival.Pt) : String = \"RIVAL\"" \
+    >/dev/null
+
+  after=$($CLI eval 'Stachu.Rival.callIt ()' | clean)
+  if [[ "$after" == *RIVAL* ]]; then
+    echo "trait-choice-survives-rival: a newer implementation changed a saved call underneath it"
+    echo "  before the rival: $before"
+    echo "  after  the rival: $after"
+    exit 1
+  fi
+  if [[ "$after" != *"value: 7"* ]]; then
+    echo "trait-choice-survives-rival: the saved call stopped working once a rival existed: $after"
+    exit 1
+  fi
+
+  # Proves the rival landed, so a pass is not a failed authoring.
+  direct=$($CLI eval 'Stdlib.ToString.toString (Stachu.Rival.Pt { gateRivalOnly = 7L })' | clean)
+  if [[ "$direct" != *RIVAL* ]]; then
+    echo "trait-choice-survives-rival: the rival implementation never became the newest one,"
+    echo "  so nothing was actually tested. A fresh call answered: $direct"
+    exit 1
+  fi
+
+  echo "trait-choice-survives-rival: the saved bounded call kept its implementation ($after)"
+  echo "  while a fresh call takes the newer one ($direct)."
 }

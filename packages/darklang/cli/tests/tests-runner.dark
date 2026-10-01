@@ -192,9 +192,9 @@ let runAllTests (): Int =
   Stdlib.printLine ""
   Stdlib.printLine "📊 Test Results Summary"
   Stdlib.printLine "======================"
-  Stdlib.printLine $"Total tests:  {Stdlib.Int.toString finalSummary.totalTests}"
-  Stdlib.printLine $"Passed:       {Stdlib.Int.toString finalSummary.passedTests}"
-  Stdlib.printLine $"Failed:       {Stdlib.Int.toString finalSummary.failedTests}"
+  Stdlib.printLine $"Total tests:  {Stdlib.toString finalSummary.totalTests}"
+  Stdlib.printLine $"Passed:       {Stdlib.toString finalSummary.passedTests}"
+  Stdlib.printLine $"Failed:       {Stdlib.toString finalSummary.failedTests}"
 
   if finalSummary.failedTests == 0 then
     Stdlib.printLine "🎉 All tests passed!"

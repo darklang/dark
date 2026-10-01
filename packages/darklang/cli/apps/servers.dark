@@ -13,11 +13,11 @@ let httpDaemon
   (router: Stdlib.Http.Request -> Stdlib.Http.Response)
   : Unit =
   let _claimed = Stdlib.Cli.Daemon.claimPidfile name
-  let port = Config.getInt ("apps." ++ name ++ ".port") defaultPort
+  let port = Config.getInt ("apps." + name + ".port") defaultPort
 
   let announce () : Unit =
     Stdlib.printLine
-      $"{name}: serving {label} on http://localhost:{Stdlib.Int.toString port}"
+      $"{name}: serving {label} on http://localhost:{Stdlib.toString port}"
 
   match Stdlib.HttpServer.serve (Stdlib.HttpServer.Config.defaults port) router announce with
   | Ok _ -> ()
@@ -58,13 +58,13 @@ let syncTick (name: String) (intervalMs: Int) (state: Cli.AppState) (remaining: 
 /// mid-edit is safe -- the two-machine runs drove live authoring under this exact loop. Interval:
 /// `apps.sync.intervalMs` in cli-config.json, default 30000.
 let syncDaemon (name: String) : Int =
-  let intervalMs = Config.getInt ("apps." ++ name ++ ".intervalMs") 30000
+  let intervalMs = Config.getInt ("apps." + name + ".intervalMs") 30000
 
   let _logged =
     match Stdlib.Cli.Daemon.claimPidfile name with
     | Error e -> Stdlib.printLine $"{name}: could not write pidfile: {e}"
     | Ok _ ->
       Stdlib.printLine
-        $"{name}: syncing every {Stdlib.Int.toString intervalMs}ms (pid {Stdlib.Int.toString (Stdlib.Cli.Sys.currentPid ())})"
+        $"{name}: syncing every {Stdlib.toString intervalMs}ms (pid {Stdlib.toString (Stdlib.Cli.Sys.currentPid ())})"
 
   syncTick name intervalMs (Cli.initState ()) 1000000000

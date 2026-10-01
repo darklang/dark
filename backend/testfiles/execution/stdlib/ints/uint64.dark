@@ -1,14 +1,10 @@
-Stdlib.UInt64.max 5UL 6UL = 6UL
-Stdlib.UInt64.max 10UL 1UL = 10UL
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max 10UL 1UL = 10UL
 
-Stdlib.UInt64.min 5UL 6UL = 5UL
-Stdlib.UInt64.min 10UL 10UL = 10UL
-Stdlib.UInt64.min 18446744073709551615UL 0UL = 0UL
+Stdlib.min 18446744073709551615UL 0UL = 0UL
 
-Stdlib.UInt64.clamp 1UL 2UL 1UL = 1UL
-Stdlib.UInt64.clamp 3UL 0UL 2UL = 2UL
-Stdlib.UInt64.clamp 100UL 0UL 0UL = 0UL
-Stdlib.UInt64.clamp 100UL 1UL 0UL = 1UL
+Stdlib.clamp 100UL 0UL 0UL = 0UL
 
 Stdlib.UInt64.mod 15UL 5UL = 0UL
 Stdlib.UInt64.mod 15UL 6UL = 3UL
@@ -33,7 +29,6 @@ Stdlib.UInt64.power 2UL 64UL = 0UL
 
 Stdlib.UInt64.greaterThan 20UL 1UL = true
 
-
 Stdlib.UInt64.greaterThanOrEqualTo 0UL 1UL = false
 Stdlib.UInt64.greaterThanOrEqualTo 1UL 0UL = true
 Stdlib.UInt64.greaterThanOrEqualTo 6UL 1UL = true
@@ -44,12 +39,10 @@ Stdlib.UInt64.lessThanOrEqualTo 10UL 1UL = false
 Stdlib.UInt64.lessThanOrEqualTo 0UL 1UL = true
 Stdlib.UInt64.lessThanOrEqualTo 1UL 0UL = false
 
-
 Stdlib.UInt64.lessThan 6UL 8UL = true
 Stdlib.UInt64.lessThan 10UL 1UL = false
 Stdlib.UInt64.lessThan 0UL 1UL = true
 Stdlib.UInt64.lessThan 1UL 0UL = false
-
 
 Stdlib.UInt64.sqrt 4UL = 2.0
 Stdlib.UInt64.sqrt 100UL = 10.0
@@ -127,7 +120,7 @@ Stdlib.UInt64.divide 1UL 0UL = error="Cannot divide by 0"
  |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 0UL 2UL)
  |> Stdlib.List.unique) = [ 0UL, 1UL, 2UL ]
 
-Stdlib.UInt64.sum [ 1UL, 2UL ] = 3UL
+Stdlib.sum 0UL [ 1UL, 2UL ] = 3UL
 
 // parses OK
 Stdlib.UInt64.parse "0" = Stdlib.Result.Result.Ok 0UL
@@ -153,10 +146,8 @@ Stdlib.UInt64.parse "-00001" = Stdlib.Result.Result.Error
 Stdlib.UInt64.parse "-10001" = Stdlib.Result.Result.Error
   Stdlib.UInt64.ParseError.OutOfRange
 
-
 Stdlib.UInt64.parse "18446744073709551615" = Stdlib.Result.Result.Ok 18446744073709551615UL
 Stdlib.UInt64.parse "18446744073709551616" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.OutOfRange
-
 
 // bad format
 Stdlib.UInt64.parse "1 2 3" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
@@ -173,11 +164,9 @@ Stdlib.UInt64.parse "1I" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.B
 Stdlib.UInt64.parse "one" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
 Stdlib.UInt64.parse "XIV" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
 
-
-Stdlib.UInt64.toString 0UL = "0"
-Stdlib.UInt64.toString 1UL = "1"
-Stdlib.UInt64.toString 18446744073709551615UL = "18446744073709551615"
-
+Stdlib.toString 0UL = "0"
+Stdlib.toString 1UL = "1"
+Stdlib.toString 18446744073709551615UL = "18446744073709551615"
 
 Stdlib.UInt64.fromInt8 0y = Stdlib.Option.Option.Some 0UL
 Stdlib.UInt64.fromInt8 1y = Stdlib.Option.Option.Some 1UL

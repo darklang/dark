@@ -145,8 +145,8 @@ let branchField (branchId: Uuid) (col: String) (dflt: String) : String =
   match
     Stdlib.Sqlite.queryP
       (localDb ())
-      ("SELECT " ++ col ++ " AS v FROM branches WHERE id = @p0")
-      [ Stdlib.Uuid.toString branchId ]
+      ("SELECT " + col + " AS v FROM branches WHERE id = @p0")
+      [ Stdlib.toString branchId ]
   with
   | Ok rows ->
     (match rows with
@@ -179,7 +179,7 @@ let exportBranch (branchId: Uuid) : String =
         "SELECT p.id, p.op_blob, p.origin_ts AS ts, COALESCE(p.commit_hash, '') AS author
          FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
          WHERE ob.branch_id = @p0 ORDER BY p.rowid ASC"
-        [ Stdlib.Uuid.toString branchId ])
+        [ Stdlib.toString branchId ])
 
   let frontierIds = frontier |> Stdlib.List.map (fun o -> o.id)
 
@@ -192,7 +192,7 @@ let exportBranch (branchId: Uuid) : String =
       | SetName(_, target, _) ->
         let hash = LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target)
         let kind = Deps.kindString (LanguageTools.ProgramTypes.Reference.kind target)
-        Stdlib.Option.Option.Some(Stdlib.Uuid.toString (contentOpId kind hash))
+        Stdlib.Option.Option.Some(Stdlib.toString (contentOpId kind hash))
       | _ -> Stdlib.Option.Option.None)
     |> Stdlib.List.filter (fun id -> Stdlib.Bool.not (Stdlib.List.``member`` frontierIds id))
     |> Stdlib.List.unique
@@ -226,7 +226,7 @@ let exportBranch (branchId: Uuid) : String =
       { branchId = branchId
         name = branchField branchId "name" ""
         // The bundle is JSON, so the parent travels as text like every other field in it.
-        parent = branchField branchId "parent_id" (Stdlib.Uuid.toString SCM.Branch.mainBranchId)
+        parent = branchField branchId "parent_id" (Stdlib.toString SCM.Branch.mainBranchId)
         ops = bundleOps
         commits = commits })
 
@@ -303,7 +303,7 @@ let importBranch (json: String) : Stdlib.Result.Result<String, String> =
 
     let importName =
       if b.name != "" && taken then
-        $"{b.name}~{Stdlib.String.first (Stdlib.Uuid.toString b.branchId) 8}"
+        $"{b.name}~{Stdlib.String.first (Stdlib.toString b.branchId) 8}"
       else
         b.name
 
@@ -322,7 +322,7 @@ let importBranch (json: String) : Stdlib.Result.Result<String, String> =
     let nothingNew = (Stdlib.Int.fromInt64 knownHere) == (Stdlib.List.length b.ops)
 
     if (branchIsMerged b.branchId) && nothingNew then
-      let handle = if importName == "" then Stdlib.Uuid.toString b.branchId else importName
+      let handle = if importName == "" then Stdlib.toString b.branchId else importName
       Stdlib.Result.Result.Ok
         $"branch \"{handle}\" is already merged here, and the bundle carries nothing new; left as merged."
     else
@@ -342,7 +342,7 @@ let importBranch (json: String) : Stdlib.Result.Result<String, String> =
       // registered by authoring rather than by `switch` gets `""` -- and the hint below has to be typeable.
       let handle =
         if importName == "" then
-          Stdlib.Uuid.toString b.branchId
+          Stdlib.toString b.branchId
         else
           importName
 
@@ -353,6 +353,6 @@ let importBranch (json: String) : Stdlib.Result.Result<String, String> =
         Stdlib.Result.Result.Ok $"branch \"{handle}\" is up to date."
       else
         Stdlib.Result.Result.Ok
-          $"imported branch \"{handle}\" ({Stdlib.Int.toString n} op(s)). `dark switch {handle}` to use it."
+          $"imported branch \"{handle}\" ({Stdlib.toString n} op(s)). `dark switch {handle}` to use it."
     | Error e -> Stdlib.Result.Result.Error e
   | Error _ -> Stdlib.Result.Result.Error "unparseable branch bundle"

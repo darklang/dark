@@ -45,7 +45,7 @@ let a1 = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
 let _ =
   Stdlib.printLine
     ("bytes per view build: "
-     ++ (Stdlib.Int.toString (Stdlib.Int.divide (Stdlib.Int.fromInt64 (a1 - a0)) 10)))
+     + (Stdlib.toString (Stdlib.Int.divide (Stdlib.Int.fromInt64 (a1 - a0)) 10)))
 
 // Time. Long enough that ~100 Hz sampling lands hundreds of samples inside it, so this is also the
 // section to run a sampling profiler against.
@@ -55,14 +55,14 @@ let elapsed = (Darklang.Cli.Telemetry.now ()) - t0
 
 let _ =
   Stdlib.printLine
-    ((Stdlib.Int.toString iterations)
-     ++ " views, "
-     ++ (Stdlib.Int.toString elapsed)
-     ++ " ms, "
-     ++ (Stdlib.Int.toString (Stdlib.Int.divide elapsed iterations))
-     ++ " ms each ("
-     ++ (Stdlib.Int.toString rows)
-     ++ " rows)")
+    ((Stdlib.toString iterations)
+     + " views, "
+     + (Stdlib.toString elapsed)
+     + " ms, "
+     + (Stdlib.toString (Stdlib.Int.divide elapsed iterations))
+     + " ms each ("
+     + (Stdlib.toString rows)
+     + " rows)")
 
 // Per-fn profile, over five views. Pipe into fnprofile with `--divide 5`.
 let _on = Darklang.LanguageTools.InterpreterStats.enableDetailedTiming true

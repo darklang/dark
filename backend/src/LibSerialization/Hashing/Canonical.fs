@@ -125,6 +125,48 @@ let writeFQTypeName
       PTC.FQTypeName.Package.write w (resolveHash mode loc p)
 
 
+/// Write FQTraitName, resolving deps and checking SCC substitution. Its own tag space:
+/// a trait is not a type, so a trait hash and a type hash never substitute for each other.
+let writeFQTraitName
+  (mode : HashRefMode)
+  (w : BinaryWriter)
+  (loc : Option<PT.PackageLocation>)
+  (name : PT.FQTraitName.FQTraitName)
+  =
+  match name with
+  | PT.FQTraitName.Package p ->
+    match isSccRef mode loc p with
+    | Some fqn ->
+      w.Write(1uy) // SCC name-ref tag
+      Common.String.write w fqn
+    | None ->
+      w.Write(0uy)
+      PTC.FQTraitName.Package.write w (resolveHash mode loc p)
+
+
+/// Which implementation a trait call resolved to, hashed because it is part of what the call
+/// MEANS. A chosen one hashes as the fn reference it is, SCC name-ref and all; a deferral hashes
+/// its type param, because the same source under a different param is a different call.
+let writeImplChoice
+  (mode : HashRefMode)
+  (w : BinaryWriter)
+  (implFn : PT.FQFnName.ImplChoice)
+  : unit =
+  match implFn with
+  | PT.FQFnName.Unknown -> w.Write(0uy)
+  | PT.FQFnName.FromTypeParam p ->
+    w.Write(3uy)
+    Common.String.write w p
+  | PT.FQFnName.Chosen r ->
+    match isSccRef mode r.location r.name with
+    | Some fqn ->
+      w.Write(2uy)
+      Common.String.write w fqn
+    | None ->
+      w.Write(1uy)
+      PTC.FQFnName.Package.write w (resolveHash mode r.location r.name)
+
+
 /// Write FQFnName, resolving deps and checking SCC substitution
 let writeFQFnName
   (mode : HashRefMode)
@@ -144,6 +186,28 @@ let writeFQFnName
     | None ->
       w.Write(1uy)
       PTC.FQFnName.Package.write w (resolveHash mode loc p)
+  | PT.FQFnName.TraitMethod { trait_ = t; method_ = m; implFn = implFn } ->
+    w.Write(3uy)
+    writeFQTraitName mode w loc (PT.FQTraitName.Package t)
+    Common.String.write w m
+    // The chosen implementation is part of what this call MEANS, so it is hashed, and it is
+    // hashed as the fn reference it is: an implementation inside this item's own SCC writes as
+    // a name ref, like any other reference to something being saved in the same batch.
+    match implFn with
+    | PT.FQFnName.Unknown -> w.Write(0uy)
+    | PT.FQFnName.FromTypeParam p ->
+      // Which type param the implementation comes from is part of what the call means: the same
+      // source under a different param name is a different call.
+      w.Write(3uy)
+      Common.String.write w p
+    | PT.FQFnName.Chosen r ->
+      match isSccRef mode r.location r.name with
+      | Some fqn ->
+        w.Write(2uy)
+        Common.String.write w fqn
+      | None ->
+        w.Write(1uy)
+        PTC.FQFnName.Package.write w (resolveHash mode r.location r.name)
 
 
 /// Write FQValueName, resolving deps and checking SCC substitution
@@ -353,10 +417,11 @@ let writePipeExpr (mode : HashRefMode) (w : BinaryWriter) (pipeExpr : PT.PipeExp
     w.Write 1uy
     Common.NEList.write writeLetPattern w pats
     writeExpr mode w body
-  | PT.EPipeInfix(_id, infix, expr) ->
+  | PT.EPipeInfix(_id, infix, expr, implFn) ->
     w.Write 2uy
     ExprS.Infix.write w infix
     writeExpr mode w expr
+    writeImplChoice mode w implFn
   | PT.EPipeFnCall(_id, fnName, typeArgs, args) ->
     w.Write 3uy
     writeNameResolution (writeFQFnName mode) w fnName
@@ -486,11 +551,28 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
     writeExpr mode w first
     writeExpr mode w second
     Common.List.write w (writeExpr mode) rest
-  | PT.EInfix(_id, op, left, right) ->
+  | PT.EInfix(_id, op, left, right, implFn) ->
     w.Write 29uy
     ExprS.Infix.write w op
     writeExpr mode w left
     writeExpr mode w right
+    // The implementation the save chose for this operator is part of what it means, and it is
+    // hashed as the fn reference it is, SCC name-ref and all.
+    match implFn with
+    | PT.FQFnName.Unknown -> w.Write(0uy)
+    | PT.FQFnName.FromTypeParam p ->
+      // Which type param the implementation comes from is part of what the call means: the same
+      // source under a different param name is a different call.
+      w.Write(3uy)
+      Common.String.write w p
+    | PT.FQFnName.Chosen r ->
+      match isSccRef mode r.location r.name with
+      | Some fqn ->
+        w.Write(2uy)
+        Common.String.write w fqn
+      | None ->
+        w.Write(1uy)
+        PTC.FQFnName.Package.write w (resolveHash mode r.location r.name)
   | PT.EDict(_id, pairs) ->
     w.Write 30uy
     Common.List.write
@@ -499,9 +581,22 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
         writeExpr mode w key
         writeExpr mode w value)
       pairs
-  | PT.EFnName(_id, nameRes) ->
+  | PT.EFnName(_id, nameRes, boundImpls) ->
     w.Write 31uy
     writeNameResolution (writeFQFnName mode) w nameRes
+    // What the call worked out for the callee's bounds is part of what the call means, for the
+    // same reason the implementation on a trait method call is. Written only when there are any,
+    // so an unbounded call keeps the hash it had.
+    if not (List.isEmpty boundImpls) then
+      w.Write(0xB1uy)
+      Common.List.write
+        w
+        (fun w (b : PT.FQFnName.BoundImpl) ->
+          Common.String.write w b.param
+          writeFQTraitName mode w None (PT.FQTraitName.Package b.trait_)
+          Common.String.write w b.method_
+          writeImplChoice mode w b.choice)
+        boundImpls
   | PT.EUnwrap(_id, operand) ->
     w.Write 36uy
     writeExpr mode w operand
@@ -556,6 +651,20 @@ let writeEnumCase
   Common.String.write w c.name
   Common.List.write w (writeEnumField mode) c.fields
 
+/// Bounds are behaviour (a contract on the caller), so they hash. Written ONLY when
+/// present, and last, so every item that has none keeps the hash it had before bounds
+/// existed: adding the field must not repoint the world.
+let writeBounds (mode : HashRefMode) (w : BinaryWriter) (bounds : List<PT.Bound>) =
+  if not (List.isEmpty bounds) then
+    w.Write(0xB0uy) // bounds marker; nothing else follows an item body
+    Common.List.write
+      w
+      (fun w (b : PT.Bound) ->
+        Common.String.write w b.param
+        writeNameResolution (writeFQTraitName mode) w b.trait_.trait_
+        Common.List.write w (writeTypeReference mode) b.trait_.typeArgs)
+      bounds
+
 let writeTypeDeclaration
   (mode : HashRefMode)
   (w : BinaryWriter)
@@ -572,6 +681,7 @@ let writeTypeDeclaration
   | PT.TypeDeclaration.Enum cases ->
     w.Write(2uy)
     Common.NEList.write (writeEnumCase mode) w cases
+  writeBounds mode w d.bounds
 
 
 // =====================
@@ -603,6 +713,7 @@ let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn
   | Some effects ->
     w.Write(1uy)
     LibSerialization.Binary.Serializers.Effects.write w effects
+  writeBounds mode w fn.bounds
 
 /// Write a PackageValue's hash-relevant content: its body.
 let writeValue
@@ -612,3 +723,40 @@ let writeValue
   =
   w.Write(2uy) // tag: value
   writeExpr mode w v.body
+
+/// Write a Trait's hash-relevant content: its params, supertraits and method
+/// signatures (ceilings included, descriptions not). Its own tag, so a trait and a
+/// record type of the same shape never share a hash.
+let writeTrait (mode : HashRefMode) (w : BinaryWriter) (t : PT.Trait.Trait) =
+  w.Write(3uy) // tag: trait
+  Common.NEList.write Common.String.write w t.typeParams
+  Common.NEList.write
+    (fun w (m : PT.Trait.Method) ->
+      Common.String.write w m.name
+      Common.List.write w Common.String.write m.typeParams
+      writeBounds mode w m.bounds
+      Common.NEList.write (writeParameter mode) w m.parameters
+      writeTypeReference mode w m.returnType
+      match m.permissionCeiling with
+      | None -> w.Write(0uy)
+      | Some effects ->
+        w.Write(1uy)
+        LibSerialization.Binary.Serializers.Effects.write w effects)
+    w
+    t.methods
+  writeBounds mode w t.bounds
+
+/// Write an Impl's hash-relevant content: which trait, at what, with which fns.
+let writeImpl (mode : HashRefMode) (w : BinaryWriter) (i : PT.TraitImpl.TraitImpl) =
+  w.Write(4uy) // tag: impl
+  writeNameResolution (writeFQTraitName mode) w i.trait_
+  Common.List.write w (writeTypeReference mode) i.traitTypeArgs
+  writeTypeReference mode w i.self
+  Common.List.write w Common.String.write i.typeParams
+  Common.List.write
+    w
+    (fun w (m : string, nr : PT.NameResolution<PT.FQFnName.FQFnName>) ->
+      Common.String.write w m
+      writeNameResolution (writeFQFnName mode) w nr)
+    i.methods
+  writeBounds mode w i.bounds

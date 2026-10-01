@@ -6,6 +6,6 @@ module Darklang.Cli.Text
 // so no CLI message reads "1 value(s)". The linguistic rule lives in stdlib; this just pairs it with a count.
 let plural (n: Int) (noun: String) : String =
   if n == 1 then
-    $"{Stdlib.Int.toString n} {noun}"
+    $"{Stdlib.toString n} {noun}"
   else
-    $"{Stdlib.Int.toString n} {Stdlib.String.pluralize noun}"
+    $"{Stdlib.toString n} {Stdlib.String.pluralize noun}"

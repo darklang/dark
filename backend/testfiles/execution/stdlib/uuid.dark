@@ -1,11 +1,11 @@
 // parse OK
 (Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
 |> Builtin.unwrap
-|> Stdlib.Uuid.toString = "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+|> Stdlib.toString = "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
 
 (Stdlib.Uuid.parse "11111111-2222-3333-4444-555555555555")
 |> Builtin.unwrap
-|> Stdlib.Uuid.toString = "11111111-2222-3333-4444-555555555555"
+|> Stdlib.toString = "11111111-2222-3333-4444-555555555555"
 
 // bad format
 Stdlib.Uuid.parse "👱🏼" = Stdlib.Result.Result.Error Stdlib.Uuid.ParseError.BadFormat

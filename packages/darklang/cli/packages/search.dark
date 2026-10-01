@@ -9,7 +9,7 @@ val batchDisplayCap = 3
 
 // Operator symbols aren't function names, so a literal search for one finds
 // nothing useful. Map each to the keyword that surfaces its named operation —
-// `search %` -> `mod`, `search ++` -> string concat, `search &&` -> `Bool.and`,
+// `search %` -> `mod`, `search &&` -> `Bool.and`,
 // `search /` -> `divide` (handy given Float math has no infix). Returns None for
 // an ordinary query, which searches unchanged.
 let operatorAlias (query: String) : Stdlib.Option.Option<String> =
@@ -35,7 +35,6 @@ let operatorAlias (query: String) : Stdlib.Option.Option<String> =
   | "!=" -> Stdlib.Option.Option.Some "notEquals"
   | "&&" -> Stdlib.Option.Option.Some "and"
   | "||" -> Stdlib.Option.Option.Some "or"
-  | "++" -> Stdlib.Option.Option.Some "append"
   | _ -> Stdlib.Option.Option.None
 
 
@@ -84,7 +83,7 @@ let sortKey
   (modules: List<String>)
   (name: String)
   : String =
-  let mr = Stdlib.Int.toString (matchRank (itemQuery query) name)
+  let mr = Stdlib.toString (matchRank (itemQuery query) name)
   let st = if isStdlib owner modules then "0" else "1"
   let path =
     [ [owner], modules, [name] ]
@@ -118,19 +117,19 @@ let docBlock (desc: String) (indent: String) : String =
   else
     let lines = Stdlib.String.splitOnNewline desc
     lines
-    |> Stdlib.List.map (fun line -> Stdlib.Cli.UI.Colors.dimText (indent ++ line))
+    |> Stdlib.List.map (fun line -> Stdlib.Cli.UI.Colors.dimText (indent + line))
     |> Stdlib.String.join "\n"
 
 
 let withDoc (headline: String) (desc: String) : String =
   let doc = docBlock desc "  "
-  if Stdlib.String.isEmpty doc then headline else headline ++ "\n" ++ doc
+  if Stdlib.String.isEmpty doc then headline else headline + "\n" + doc
 
 
 // A rendered result line, with its doc comment appended only under --with-docs.
 // The trailing blank line separates multi-line doc entries.
 let withOptionalDoc (withDocs: Bool) (headline: String) (desc: String) : String =
-  if withDocs then (withDoc headline desc) ++ "\n" else headline
+  if withDocs then (withDoc headline desc) + "\n" else headline
 
 
 let overflowNote (total: Int) (shown: Int) : Unit =
@@ -138,7 +137,7 @@ let overflowNote (total: Int) (shown: Int) : Unit =
   if extra > 0 then
     Stdlib.printLine (
       Stdlib.Cli.UI.Colors.hint
-        $"  ... and {Stdlib.Int.toString extra} more (narrow with --exact or `nav` into a module)")
+        $"  ... and {Stdlib.toString extra} more (narrow with --exact or `nav` into a module)")
   else
     ()
 
@@ -206,6 +205,8 @@ val argSpec =
         [ ("--type", [])
           ("--fn", [ "--function" ])
           ("--val", [ "--value" ])
+          ("--trait", [])
+          ("--impl", [])
           ("--batch", [])
           ("--exact", [])
           ("--shallow", [])
@@ -232,6 +233,14 @@ let parseArgs (args: List<String>) : ParsedArgs =
         Stdlib.List.append
           acc
           [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
+      | "--trait" ->
+        Stdlib.List.append
+          acc
+          [ LanguageTools.ProgramTypes.Search.EntityType.Trait ]
+      | "--impl" ->
+        Stdlib.List.append
+          acc
+          [ LanguageTools.ProgramTypes.Search.EntityType.TraitImpl ]
       | _ -> acc)
 
   ParsedArgs
@@ -247,7 +256,7 @@ let parseArgs (args: List<String>) : ParsedArgs =
 
 
 val usage =
-  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--exact] [--shallow] [--with-docs] [--include-deprecated]"
+  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--trait] [--impl] [--exact] [--shallow] [--with-docs] [--include-deprecated]"
 
 
 // The --json rendering. Typed results for the command an agent runs most; the signatures are the
@@ -282,6 +291,25 @@ let jsonOutput
           ("kind", Stdlib.AltJson.Json.String "value")
           ("signature", Stdlib.AltJson.Json.String "") ])
 
+  let traitRows =
+    results.traits
+    |> Stdlib.List.map (fun item ->
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(fullPathOf item))
+          ("kind", Stdlib.AltJson.Json.String "trait")
+          ("signature", Stdlib.AltJson.Json.String "") ])
+
+  let implRows =
+    results.impls
+    |> Stdlib.List.map (fun item ->
+      let ctx = contextFor branchId item
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(fullPathOf item))
+          ("kind", Stdlib.AltJson.Json.String "impl")
+          ("signature",
+           Stdlib.AltJson.Json.String(
+             $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName ctx item.entity.trait_} for {PrettyPrinter.ProgramTypes.typeReference ctx item.entity.self}")) ])
+
   let moduleRows =
     results.submodules
     |> Stdlib.List.map (fun modulePath ->
@@ -295,7 +323,7 @@ let jsonOutput
       [ ("query", Stdlib.AltJson.Json.String queryText)
         ("results",
          Stdlib.AltJson.Json.Array(
-           Stdlib.List.flatten [ fnRows, typeRows, valueRows, moduleRows ]
+           Stdlib.List.flatten [ fnRows, typeRows, valueRows, traitRows, implRows, moduleRows ]
          )) ]
   )
 
@@ -369,6 +397,8 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           (Stdlib.List.length results.types)
           + (Stdlib.List.length results.values)
           + (Stdlib.List.length results.fns)
+          + (Stdlib.List.length results.traits)
+          + (Stdlib.List.length results.impls)
           + submodulesCount
 
         if parsed.asJson then
@@ -398,10 +428,12 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           // usual discovery target, so they sort last - a wall of namespace
           // matches shouldn't precede an equally-ranked fn/type/value hit.
           let sectionKeys =
-            [ ($"{Stdlib.Int.toString moduleRank}4", "module")
-              ($"{Stdlib.Int.toString (bestItemRank queryText results.types)}1", "type")
-              ($"{Stdlib.Int.toString (bestItemRank queryText results.values)}2", "value")
-              ($"{Stdlib.Int.toString (bestItemRank queryText results.fns)}3", "function") ]
+            [ ($"{Stdlib.toString moduleRank}4", "module")
+              ($"{Stdlib.toString (bestItemRank queryText results.types)}1", "type")
+              ($"{Stdlib.toString (bestItemRank queryText results.values)}2", "value")
+              ($"{Stdlib.toString (bestItemRank queryText results.fns)}3", "function")
+              ($"{Stdlib.toString (bestItemRank queryText results.traits)}0", "trait")
+              ($"{Stdlib.toString (bestItemRank queryText results.impls)}5", "impl") ]
 
           let order =
             sectionKeys
@@ -432,6 +464,17 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 let ctx = contextFor state.currentBranchId item
                 let defn = Signatures.formatType ctx (fullPathOf item) item.entity
                 withOptionalDoc parsed.withDocs $"{defn}{mark}" item.entity.description)
+            | "trait" ->
+              renderSection "trait" queryText resultCap results.traits (fun item ->
+                let mark = Query.deprecationMarker depSets item.entity.hash
+                withOptionalDoc parsed.withDocs $"{fullPathOf item}{mark}" item.entity.description)
+            | "impl" ->
+              renderSection "impl" queryText resultCap results.impls (fun item ->
+                let mark = Query.deprecationMarker depSets item.entity.hash
+                let ctx = contextFor state.currentBranchId item
+                let header =
+                  $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName ctx item.entity.trait_} for {PrettyPrinter.ProgramTypes.typeReference ctx item.entity.self}"
+                withOptionalDoc parsed.withDocs $"{fullPathOf item} {Stdlib.Cli.UI.Colors.dimText header}{mark}" item.entity.description)
             | "module" ->
               if (Stdlib.List.isEmpty parsed.entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
                 Stdlib.printLine (Display.getSectionHeader "module")
@@ -513,6 +556,8 @@ let help (state: Cli.AppState) : String =
     "  --type                 Search only types"
     "  --fn                   Search only functions"
     "  --val                  Search only values"
+    "  --trait                Search only traits"
+    "  --impl                 Search only implementations of traits"
     "  --exact                Require exact match (default: fuzzy)"
     "  --shallow              Search only direct descendants (default: all descendants)"
     "  --with-docs            Also show doc comments"
@@ -543,7 +588,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   match Stdlib.List.last args with
   | Some lastArg ->
     if Stdlib.String.startsWith lastArg "--" then
-      ["--batch", "--type", "--fn", "--val", "--exact", "--shallow", "--with-docs", "--include-deprecated"]
+      ["--batch", "--type", "--fn", "--val", "--trait", "--impl", "--exact", "--shallow", "--with-docs", "--include-deprecated"]
       |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag lastArg)
       |> Stdlib.List.map Cli.Completion.simple
     else

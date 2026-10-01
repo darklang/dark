@@ -106,9 +106,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Adds two numbers of the same numeric type. Fixed-width integer "
-        + "overflow wraps around; the arbitrary-precision Int grows instead of "
-        + "overflowing; float arithmetic follows IEEE (overflow to infinity)."
+        "Adds two values of the same type. Strings concatenate. For numbers: fixed-width "
+        + "integer overflow wraps around, the arbitrary-precision Int grows instead of "
+        + "overflowing, and float arithmetic follows IEEE (overflow to infinity)."
       fn =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a + b))
@@ -123,6 +123,11 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUInt128 a; DUInt128 b |] -> Ply(DUInt128(a + b))
         | _, _, _, [| DInt a; DInt b |] -> Ply(Dval.dint (DarkInt.add a b))
         | _, _, _, [| DFloat a; DFloat b |] -> Ply(DFloat(a + b))
+        // `+` concatenates Strings (`impl Add for String`), and this builtin is what `+`
+        // lowers to while the package refs are not generated yet, which is how the stdlib's
+        // own string concatenation loads on a fresh tree.
+        | _, _, _, [| DString a; DString b |] ->
+          Ply(DString(String.normalize (a + b)))
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       // CLEANUP: SQL pushdown for fixed-width integer arithmetic does not match
@@ -266,8 +271,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Wraps <param a> around so that {{0 <= res < b}}, for two numbers of "
-        + "the same numeric type. The modulus <param b> must be greater than 0."
+        "Wraps <param a> around so that {{0 <= res < b}}, for two integers of "
+        + "the same type. The modulus <param b> must be greater than 0."
       fn =
         (function
         | _, vm, _, [| DInt8 v; DInt8 m |] ->
@@ -329,14 +334,10 @@ let fns () : List<BuiltInFn> =
           else
             let r = DarkInt.toBigInt v % m
             Ply(Dval.int (if r < System.Numerics.BigInteger.Zero then m + r else r))
-        | _, vm, _, [| DFloat v; DFloat m |] ->
-          if m = 0.0 then
-            zeroModulus vm
-          elif m < 0.0 then
-            negativeModulus vm
-          else
-            let r = v % m
-            Ply(DFloat(if r < 0.0 then m + r else r))
+        // No Float arm, on purpose: float `%` was floored where the C family truncates and
+        // raised on a zero divisor where our own Float division returns Infinity. Swift and
+        // Elm dropped theirs for the same reason. A Float pair now takes the type error
+        // below, which through the operator reads as a missing `Modulo` impl.
         | _, vm, _, [| a; b |] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"

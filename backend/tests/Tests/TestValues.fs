@@ -17,7 +17,7 @@ module PM =
   module Types =
     let make hash definition : PT.PackageType.PackageType =
       { hash = PT.Hash hash
-        declaration = { typeParams = []; definition = definition }
+        declaration = { typeParams = []; bounds = []; definition = definition }
         description = "TODO" }
 
     module Records =
@@ -87,7 +87,7 @@ module Expressions =
 
   // let onePlusTwo =
   //   eApply
-  //     (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Add" 0)))
+  //     (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Add" 0), []))
   //     []
   //     [ eInt64 1; eInt64 2 ]
 
@@ -215,10 +215,14 @@ module Expressions =
             whenCondition =
               Some(
                 eApply
-                  (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "equals" 0)))
+                  (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "equals" 0), []))
                   []
                   [ eApply
-                      (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "int64Mod" 0)))
+                      (PT.EFnName(
+                        gid (),
+                        NR.ok (PT.FQFnName.fqBuiltIn "int64Mod" 0),
+                        []
+                      ))
                       []
                       [ eVar "x"; eInt64 2 ]
                     eInt64 0 ]
@@ -357,7 +361,7 @@ module Expressions =
             whenCondition =
               Some(
                 eApply
-                  (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "equals" 0)))
+                  (PT.EFnName(gid (), NR.ok (PT.FQFnName.fqBuiltIn "equals" 0), []))
                   []
                   [ eVar "x"; eInt64 1 ]
               )
@@ -703,7 +707,8 @@ let pm : PT.PackageManager =
         returnType = PT.TVariable "x"
         body = eVar "x"
         description = "TODO"
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
 
     let outer : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.Outer.hash
@@ -722,7 +727,8 @@ let pm : PT.PackageManager =
               [ eStr [ strText "hi" ]; eBool true ])
             (eVar "x")
         description = "TODO"
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
 
     let myAdd : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.MyAdd.hash
@@ -734,7 +740,8 @@ let pm : PT.PackageManager =
         returnType = PT.TInt64
         body = eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ]
         description = "TODO"
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
 
     let fact : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.Fact.hash
@@ -758,7 +765,8 @@ let pm : PT.PackageManager =
             ))
 
         description = "TODO"
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
 
     // let addUpTO (n : Int64) : Int64 =
     //   if n <= 0 then 0
@@ -790,7 +798,8 @@ let pm : PT.PackageManager =
                         [ eVar "n"; eInt64 1L ] ]) ]
             ))
         description = "TODO"
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
 
     let myFnThatTakesALambda : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.MyFnThatTakesALambda.hash
@@ -805,7 +814,8 @@ let pm : PT.PackageManager =
         returnType = PT.TInt64
         body = eApply (eVar "fn") [] [ eVar "x" ]
         description = "TODO"
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
 
     let myFnThatReturnsUnit : PT.PackageFn.PackageFn =
       { hash = PT.Hash Expressions.Fns.Package.MyFnThatReturnsUnit.hash
@@ -815,7 +825,8 @@ let pm : PT.PackageManager =
         returnType = PT.TUnit
         body = eUnit ()
         description = "TODO"
-        permissionCeiling = None }
+        permissionCeiling = None
+        bounds = [] }
 
     [ inner
       outer

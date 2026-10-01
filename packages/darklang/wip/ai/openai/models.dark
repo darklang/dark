@@ -36,7 +36,7 @@ let list
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
     let headers = Config.getHeaders apiKey
-    let url = Config.baseUrl ++ "/models"
+    let url = Config.baseUrl + "/models"
 
     match Stdlib.HttpClient.get url headers with
     | Ok response ->
@@ -64,8 +64,8 @@ let list
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
 
 /// Retrieve a specific model
 /// GET /models/{model}
@@ -77,7 +77,7 @@ let get
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
     let headers = Config.getHeaders apiKey
-    let url = Config.baseUrl ++ "/models/" ++ modelId
+    let url = Config.baseUrl + "/models/" + modelId
 
     match Stdlib.HttpClient.get url headers with
     | Ok response ->
@@ -97,10 +97,10 @@ let get
           | _ -> Stdlib.Result.Result.Error "Invalid model response format"
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404 -> Stdlib.Result.Result.Error("Model not found: " ++ modelId)
+      | 404 -> Stdlib.Result.Result.Error("Model not found: " + modelId)
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
 
 /// Delete a fine-tuned model
 /// DELETE /models/{model}
@@ -112,7 +112,7 @@ let delete
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
     let headers = Config.getHeaders apiKey
-    let url = Config.baseUrl ++ "/models/" ++ modelId
+    let url = Config.baseUrl + "/models/" + modelId
 
     match Stdlib.HttpClient.request "DELETE" url headers Stdlib.Blob.empty with
     | Ok response ->
@@ -131,10 +131,10 @@ let delete
           | _ -> Stdlib.Result.Result.Error "Invalid delete response format"
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404 -> Stdlib.Result.Result.Error("Model not found: " ++ modelId)
+      | 404 -> Stdlib.Result.Result.Error("Model not found: " + modelId)
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
 
 
 // =============================================================================

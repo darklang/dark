@@ -191,6 +191,44 @@ module TypeReference =
           return PT.TCustomType(resolved, typeArgs)
     }
 
+/// The effect names the parser kept, as a ceiling. An unknown name already produced a
+/// diagnostic, so it is simply not part of the ceiling.
+let private ceilingOf
+  (effects : Option<List<string>>)
+  : Option<Set<LibExecution.Effects.Effect>> =
+  effects
+  |> Option.map (fun names ->
+    names
+    |> List.choose (fun name ->
+      LibExecution.Effects.all |> List.tryFind (fun effect -> $"%A{effect}" = name))
+    |> Set.ofList)
+
+
+module Bound =
+  let toPT
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (b : WT.Bound)
+    : Ply<PT.Bound> =
+    uply {
+      let! resolved =
+        NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName b.trait_)
+      let! typeArgs =
+        Ply.List.mapSequentially
+          (TypeReference.toPT pm onMissing currentModule)
+          b.trait_.typeArgs
+      return { param = b.param; trait_ = { trait_ = resolved; typeArgs = typeArgs } }
+    }
+
+  let listToPT
+    pm
+    onMissing
+    currentModule
+    (bs : List<WT.Bound>)
+    : Ply<List<PT.Bound>> =
+    Ply.List.mapSequentially (toPT pm onMissing currentModule) bs
+
 module BinaryOperation =
   let toPT (binop : WT.BinaryOperation) : PT.BinaryOperation =
     match binop with
@@ -390,7 +428,7 @@ module Expr =
                 currentModule
                 (WT.Unresolved(NEList.singleton var))
             match fnResult.resolved with
-            | Ok _ -> return PT.EFnName(id, fnResult)
+            | Ok _ -> return PT.EFnName(id, fnResult, [])
             | Error _ -> return PT.EVariable(id, var)
       | WT.ERecordFieldAccess(_, obj, (_, fieldname), _) ->
         let id = gid ()
@@ -426,7 +464,7 @@ module Expr =
               let! fnResult =
                 resolveFnAllow builtins pm currentModule (WT.Unresolved fullPath)
               match fnResult.resolved with
-              | Ok _ -> return PT.EFnName(id, fnResult)
+              | Ok _ -> return PT.EFnName(id, fnResult, [])
               | Error _ ->
                 let! obj = toPT context obj
                 return PT.ERecordFieldAccess(id, obj, fieldname)
@@ -480,7 +518,7 @@ module Expr =
                 return
                   PT.EApply(
                     id,
-                    PT.EFnName(gid (), fnName),
+                    PT.EFnName(gid (), fnName, []),
                     processedTypeArgs,
                     processedArgs
                   )
@@ -499,7 +537,7 @@ module Expr =
           let! fnNameResolved = resolveFnAllow builtins pm currentModule name
           let! expr =
             match fnNameResolved.resolved with
-            | Ok _ -> Ply(PT.EFnName(gid (), fnNameResolved))
+            | Ok _ -> Ply(PT.EFnName(gid (), fnNameResolved, []))
             | Error _ -> toPT context callee
           return PT.EApply(id, expr, processedTypeArgs, processedArgs)
       | WT.EApply(_, lhs, typeArgs, args) ->
@@ -514,7 +552,7 @@ module Expr =
       | WT.EFnName(_, q) ->
         let id = gid ()
         let name = qualifiedFnName q
-        // A bare qualified name like `Mod.Sub.foo` could be a package value or a
+        // A bare qualified name like `Mod.Subtract.foo` could be a package value or a
         // function. The parser uses a fn-name node so it can preserve module
         // ranges, but non-applied references still resolve value-first. Operator
         // `KnownBuiltin` names are always functions,
@@ -537,13 +575,13 @@ module Expr =
         | _ ->
           let! fnName = resolveFnAllow builtins pm currentModule name
           match fnName.resolved, valueResolved with
-          | Ok _, _ -> return PT.EFnName(id, fnName)
+          | Ok _, _ -> return PT.EFnName(id, fnName, [])
           // A bare qualified name that resolves to neither value nor fn returns
           // EValue(Error),
           // so DeferredResolver can later refresh forward references to values.
           // KnownBuiltin operator names stay EFnName.
           | Error _, Some value -> return PT.EValue(id, value)
-          | Error _, None -> return PT.EFnName(id, fnName)
+          | Error _, None -> return PT.EFnName(id, fnName, [])
       | WT.ELambda(_, pats, body, _, _) ->
         let id = gid ()
         // Lambda params do not inherit function arg slots. The enclosing
@@ -715,7 +753,8 @@ module Expr =
         let id = gid ()
         let! arg1 = toPT context arg1
         let! arg2 = toPT context arg2
-        return PT.EInfix(id, Infix.toPT infixOp, arg1, arg2)
+        // Nothing to say yet: the parser has no types. The save resolves it.
+        return PT.EInfix(id, Infix.toPT infixOp, arg1, arg2, PT.FQFnName.Unknown)
       | WT.EStatement(_, first, next) ->
         let! first = toPT context first
         let! next = toPT context next
@@ -799,7 +838,7 @@ module Expr =
       | WT.EPipeInfix(_, (_, infixOp), first) ->
         let id = gid ()
         let! first = toPT context first
-        return PT.EPipeInfix(id, Infix.toPT infixOp, first)
+        return PT.EPipeInfix(id, Infix.toPT infixOp, first, PT.FQFnName.Unknown)
 
       | WT.EPipeFnCall(_, q, typeArgs, args) ->
         let id = gid ()
@@ -921,7 +960,8 @@ module TypeDeclaration =
     : Ply<PT.TypeDeclaration.T> =
     uply {
       let! def = Definition.toPT pm onMissing currentModule d.definition
-      return { typeParams = d.typeParams; definition = def }
+      let! bounds = Bound.listToPT pm onMissing currentModule d.bounds
+      return { typeParams = d.typeParams; bounds = bounds; definition = def }
     }
 
 
@@ -954,6 +994,113 @@ module PackageType =
       return
         { hash = Hash ""; description = pt.description; declaration = declaration }
     }
+
+module Trait =
+  module Name =
+    let toLocation (name : WT.PackageTrait.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+  let toPT
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (t : WT.PackageTrait.PackageTrait)
+    : Ply<PT.Trait.Trait> =
+    uply {
+      let! bounds = Bound.listToPT pm onMissing currentModule t.bounds
+      let! methods =
+        t.methods
+        |> Ply.List.mapSequentially (fun m ->
+          uply {
+            let! parameters =
+              Ply.NEList.mapSequentially
+                (fun (p : WT.PackageFn.Parameter) ->
+                  uply {
+                    let! typ = TypeReference.toPT pm onMissing currentModule p.typ
+                    return
+                      ({ name = p.name; typ = typ; description = p.description }
+                      : PT.PackageFn.Parameter)
+                  })
+                m.parameters
+            let! returnType =
+              TypeReference.toPT pm onMissing currentModule m.returnType
+            let permissionCeiling = ceilingOf m.effects
+            let! methodBounds = Bound.listToPT pm onMissing currentModule m.bounds
+            return
+              ({ name = m.name
+                 typeParams = m.typeParams
+                 bounds = methodBounds
+                 parameters = parameters
+                 returnType = returnType
+                 permissionCeiling = permissionCeiling
+                 description = m.description }
+              : PT.Trait.Method)
+          })
+      return
+        { hash = PT.Hash ""
+          typeParams = NEList.ofListWithDefault "a" t.typeParams
+          bounds = bounds
+          methods =
+            NEList.ofListWithDefault
+              ({ name = "_"
+                 typeParams = []
+                 bounds = []
+                 parameters =
+                   NEList.singleton { name = "_"; typ = PT.TUnit; description = "" }
+                 returnType = PT.TUnit
+                 permissionCeiling = None
+                 description = "" }
+              : PT.Trait.Method)
+              methods
+          description = t.description }
+    }
+
+
+module TraitImpl =
+  module Name =
+    let toLocation (name : WT.PackageTraitImpl.Name) : PT.PackageLocation =
+      { owner = name.owner; modules = name.modules; name = name.name }
+
+  let toPT
+    (builtins : RT.Builtins)
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (i : WT.PackageTraitImpl.PackageTraitImpl)
+    : Ply<PT.TraitImpl.TraitImpl> =
+    uply {
+      let! trait_ =
+        NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName i.trait_)
+      let! traitTypeArgs =
+        Ply.List.mapSequentially
+          (TypeReference.toPT pm onMissing currentModule)
+          i.trait_.typeArgs
+      let! self = TypeReference.toPT pm onMissing currentModule i.forType
+      let! bounds = Bound.listToPT pm onMissing currentModule i.bounds
+      let! methods =
+        i.methods
+        |> Ply.List.mapSequentially (fun (name, target) ->
+          uply {
+            let! fn =
+              NR.resolveFnName
+                (BuiltinNames.fns builtins)
+                pm
+                onMissing
+                currentModule
+                target
+            return (name, fn)
+          })
+      return
+        { hash = PT.Hash ""
+          trait_ = trait_
+          traitTypeArgs = traitTypeArgs
+          self = self
+          typeParams = i.typeParams
+          bounds = bounds
+          methods = methods
+          description = i.description }
+    }
+
 
 module PackageValue =
   module Name =
@@ -1059,6 +1206,7 @@ module PackageFn =
         let withReturn = collectTVars fromParams returnType
         withReturn |> List.filter (fun n -> not (List.contains n explicitTypeParams))
       let allTypeParams = explicitTypeParams @ implicitTypeParams
+      let! bounds = Bound.listToPT pm onMissing currentModule fn.bounds
 
       return
         { hash = Hash ""
@@ -1067,16 +1215,8 @@ module PackageFn =
           description = fn.description
           body = body
           typeParams = allTypeParams
-          permissionCeiling =
-            // Names were validated by the parser; an unknown one already
-            // produced a diagnostic, so it is simply not part of the ceiling.
-            fn.effects
-            |> Option.map (fun names ->
-              names
-              |> List.choose (fun name ->
-                LibExecution.Effects.all
-                |> List.tryFind (fun effect -> $"%A{effect}" = name))
-              |> Set.ofList) }
+          bounds = bounds
+          permissionCeiling = ceilingOf fn.effects }
     }
 
 
