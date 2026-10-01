@@ -562,6 +562,108 @@ let private recursionIsALoopAndEmptyIterationsStaySilent =
       })
 
 
+/// You could always ask a function for its runs. This is the other direction.
+///
+/// `traces stats` groups by entry, so sixty-six runs collapse into one row saying `eval`, and
+/// `hotspots` reads the effect log, which holds only impure calls, so every name it can print is
+/// a builtin. Neither answers "what have recent runs been about". `trace_fns` always held the
+/// answer and nothing read it.
+let private tracesFnsNamesWhatRunsWentThrough =
+  cliTestWithFreshTraces
+    "traces fns names the functions recent runs went through, bundled library hidden"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.Prev.counted"
+            "(xs: List<Int>) : Int =\n  Stdlib.List.length xs"
+        do! commit state "counted"
+        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.counted" ]
+        let! ran = runCli state [ "eval"; "Tests.Prev.counted [1, 2, 3]" ]
+        Expect.stringContains ran "3" "the run happened"
+
+        let! listed = runCli state [ "traces"; "fns" ]
+        Expect.stringContains
+          listed
+          "Tests.Prev.counted"
+          "the function the run went through, which is the whole point of the verb"
+        // The run also went through `Darklang.Stdlib.List.length`, and so does almost every run.
+        // Listing it buries the handful of names that are actually yours.
+        Expect.isFalse
+          (listed.Contains "Darklang.Stdlib")
+          "the bundled library is hidden unless asked for"
+
+        let! all = runCli state [ "traces"; "fns"; "--all" ]
+        Expect.stringContains all "Tests.Prev.counted" "yours are still there"
+        Expect.stringContains
+          all
+          "Darklang.Stdlib"
+          "--all puts the bundled library back, or the flag does nothing"
+      })
+
+
+/// A function that RAN and has since gone is not a typo, and must not be reported as one.
+///
+/// `scripts/dev/build` re-authors the store from the `.dark` files, so anything authored by hand
+/// disappears while its runs stay. The index keeps the name, so the two cases can be told apart.
+/// Before they were, `traces show` answered "no function named X on this branch" about something
+/// the reader had watched run ten minutes earlier -- and `traces fns` will still offer it.
+///
+/// The second half covers what the index keeps when it has no name at all: the hash. Sixty-four
+/// hex characters printed as if they were a name reads like corruption and blows the column out.
+let private aFunctionThatRanAndWentIsNotATypo =
+  cliTestWithFreshTraces
+    "a function that ran and whose code has gone reads differently from a typo"
+    (fun state ->
+      task {
+        do! start state
+        let! _ = runCli state [ "eval"; "1L" ]
+        let! latest' = latest ()
+        let traceId = string latest'.id
+
+        // Two rows the store cannot resolve: one that kept its name, and one that kept only its
+        // hash, which is what the index holds once the code is gone.
+        let goneHash = String.replicate 64 "a"
+        do!
+          [ "Gone.Module.vanished", goneHash; goneHash, goneHash ]
+          |> List.map (fun (name, hash) ->
+            Sql.query
+              "INSERT INTO trace_fns (trace_id, fn_name, fn_hash) VALUES (@t, @n, @h)"
+            |> Sql.parameters
+              [ "t", Sql.string traceId
+                "n", Sql.string name
+                "h", Sql.string hash ]
+            |> Sql.executeStatementAsync
+            |> Task.map ignore<unit>)
+          |> Task.WhenAll
+          |> Task.map ignore<unit[]>
+
+        let! gone = runCli state [ "traces"; "show"; "Gone.Module.vanished" ]
+        Expect.stringContains
+          gone
+          "no longer in this store"
+          "it ran, so saying there is no such function sends the reader looking for a typo"
+
+        let! typo = runCli state [ "traces"; "show"; "Stdlib.List.mpa" ]
+        Expect.stringContains
+          typo
+          "no function named"
+          "a real typo still gets the refusal it should"
+        Expect.isFalse
+          (typo.Contains "no longer in this store")
+          "and is not dressed up as a function that went missing"
+
+        // The hash-only row, rendered as what it is rather than as sixty-four characters of name.
+        let! listed = runCli state [ "traces"; "fns"; "--all" ]
+        Expect.stringContains listed "(gone) aaaaaaaa" "a row with no name says so, shortened"
+        Expect.isFalse
+          (listed.Contains goneHash)
+          "and does not print the whole hash as though it were a name"
+      })
+
+
 let private deletingATraceTakesItsLoopCounts =
   cliTestWithFreshTraces
     "deleting a trace drops its loop counts too, rather than orphaning them"
@@ -859,6 +961,8 @@ let tests =
     identicalCallsKeepTheirOwnValues
     pureLoopPassesAreCounted
     recursionIsALoopAndEmptyIterationsStaySilent
+    tracesFnsNamesWhatRunsWentThrough
+    aFunctionThatRanAndWentIsNotATypo
     deletingATraceTakesItsLoopCounts
     retentionKeepsTheNewestAndTheSuspended
     retentionKeepsTheNewestOfEachEntry

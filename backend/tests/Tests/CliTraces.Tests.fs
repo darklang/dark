@@ -299,6 +299,7 @@ let private testTracesHelp =
           "tail"
           "follow"
           "find"
+          "fns"
           "hotspots"
           "rerun"
           "delete"
