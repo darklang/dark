@@ -17,19 +17,6 @@ let renderValue (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String 
 
 
 /// The first line at or after <param from> whose text, trimmed, is <param wanted>.
-let findLine
-  (docLines: List<String>)
-  (from: Int)
-  (wanted: String)
-  : Stdlib.Option.Option<Int> =
-  docLines
-  |> Stdlib.List.indexedMap (fun i line -> (i, line))
-  |> Stdlib.List.findFirst (fun pair ->
-    let (i, line) = pair
-    i >= from && (Stdlib.String.trim line) == wanted)
-  |> Stdlib.Option.map (fun pair -> Stdlib.Tuple2.first pair)
-
-
 /// How many spaces a line starts with: the printer indents two per module level and
 /// narrows the width by the same, so the header's indent says what width it was printed at.
 let leadingSpaces (line: String) : Int =
@@ -76,9 +63,28 @@ let hintsFor
           (PrettyPrinter.ProgramTypes.packageFn { ctx with liveValues = rendered } item.entity)
           |> Stdlib.String.split "\n"
 
+        // Where the function's own header sits in the PRINTED form, which is not line zero: the
+        // printer emits the doc comment first. Anchoring both sides on the header rather than on
+        // the top is what keeps the two in step whatever the printer puts above it.
+        let plainHeader =
+          plain
+          |> Stdlib.List.findFirstIndex (fun l ->
+            let t = Stdlib.String.trim l
+            (Stdlib.String.startsWith t $"let {item.location.name} ")
+            || (Stdlib.String.startsWith t $"let {item.location.name}("))
+          |> Stdlib.Option.withDefault 0
+
+        // BY POSITION. The function is printed at the document's own width, so its nth line is
+        // the document's nth line counting from the header, and that is already what the diff
+        // above assumes.
+        //
+        // Finding the line by matching its TEXT instead cannot tell two identical lines apart,
+        // and a function with two of them put both hints on the first and none on the second.
         Stdlib.List.zip plain annotated
         |> Stdlib.Option.withDefault []
-        |> Stdlib.List.filterMap (fun pair ->
+        |> Stdlib.List.indexedMap (fun i pair -> (i, pair))
+        |> Stdlib.List.filterMap (fun entry ->
+          let (i, pair) = entry
           let (p, a) = pair
 
           if p == a then
@@ -86,13 +92,16 @@ let hintsFor
           else
             // `a` is `p` followed by ` // = value`; the hint carries `= value`.
             let label = Stdlib.String.dropFirst a ((Stdlib.String.length p) + 4)
+            let line = headerLine + (i - plainHeader)
 
-            match findLine docLines headerLine (Stdlib.String.trim p) with
-            | None -> Stdlib.Option.Option.None
-            | Some line ->
-              let lineText =
-                docLines |> Stdlib.List.getAt line |> Stdlib.Option.withDefault ""
+            let lineText =
+              docLines |> Stdlib.List.getAt line |> Stdlib.Option.withDefault ""
 
+            // A line the document does not have is one the printer and the document disagree
+            // about, and a hint placed on it would land somewhere arbitrary.
+            if lineText == "" then
+              Stdlib.Option.Option.None
+            else
               Stdlib.Option.Option.Some(
                 LanguageServerProtocol.InlayHint.InlayHint
                   { position =

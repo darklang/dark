@@ -1228,6 +1228,68 @@ let private pipeStagesCarryTheirValues =
       })
 
 
+/// A hint goes on the line its value came from, even when two lines are identical.
+///
+/// The hints are built by printing the function twice, once plain and once with values, and
+/// diffing. Finding where each changed line LIVES used to be a search of the document for a line
+/// with the same text, which cannot tell two identical lines apart: a function with two of them
+/// put both hints on the first and none on the second, and pushed the line after the pair off
+/// the end of the document, losing its hint entirely. Counting from the function's header in
+/// both the printed form and the document is exact.
+let private hintsLandOnTheRightIdenticalLine =
+  cliTestWithFreshTraces
+    "a hint lands on its own line when another line is identical to it"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+        do!
+          author
+            "Tests.Dup.twice"
+            ("(n: Int64): Int64 =\n"
+             + "  let a =\n"
+             + "    let v = Stdlib.Int64.multiply n 2L\n"
+             + "    v\n"
+             + "  let b =\n"
+             + "    let v = Stdlib.Int64.multiply n 2L\n"
+             + "    v\n"
+             + "  Stdlib.Int64.add a b")
+        let! ran = runCli target [ "eval"; "Tests.Dup.twice 5L" ]
+        Expect.stringContains ran "20" "the run happened"
+
+        let! hints =
+          evalUnder
+            state
+            """let bid = Darklang.SCM.Branch.mainBranchId
+let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
+let q = Darklang.LanguageTools.ProgramTypes.Search.SearchQuery { currentModule = ["Tests", "Dup"]; text = ""; searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants; entityTypes = []; exactMatch = false }
+let r = Darklang.LanguageTools.PackageManager.Search.search bid q
+let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; exprs = [] }
+let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
+r.fns
+|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
+|> Darklang.Stdlib.List.flatten
+|> Darklang.Stdlib.List.map (fun h -> Darklang.Stdlib.UInt64.toString h.position.line)"""
+        let lines =
+          match hints with
+          | RT.DList(_, items) ->
+            items
+            |> List.map (fun i ->
+              match i with
+              | RT.DString l -> l
+              | other -> string other)
+            |> List.sort
+          | other -> failtest $"expected the hints, got {other}"
+
+        // One line each, so no line carries two and none is missing. Matching by text gave
+        // four hints across three lines, with one line holding two of them.
+        Expect.equal
+          (List.length lines)
+          (List.length (List.distinct lines))
+          $"every hint is on a line of its own, got {lines}"
+      })
+
+
 let private liveValuesReplayTheLastCall =
   cliTestWithFreshTraces
     "live values replay the last recorded call through the current code"
@@ -1242,7 +1304,16 @@ let private liveValuesReplayTheLastCall =
         do!
           author
             "Tests.LiveVals.greet"
-            "(name: String): String =\n  let up = Stdlib.String.toUppercase name\n  let n = Tests.LiveVals.double 21L\n  $\"hi {up} {Stdlib.Int64.toString n}\""
+            // `n + 1L` is here for the hints: an INFIX expression had no value in any trace Dark
+            // had ever taken until this branch, because the compiler marks the expression a
+            // replay should collect and the infix cases built their call by hand and never
+            // emitted the marker. The CLI shows them; this is the editor's half, which until now
+            // was only confirmed by the two paths sharing a replay rather than by an assertion.
+            ("(name: String): String =\n"
+             + "  let up = Stdlib.String.toUppercase name\n"
+             + "  let n = Tests.LiveVals.double 21L\n"
+             + "  let m = n + 1L\n"
+             + "  $\"hi {up} {Stdlib.Int64.toString m}\"")
 
         // Nothing recorded yet: no values, and no error.
         let! before = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
@@ -1255,7 +1326,7 @@ let private liveValuesReplayTheLastCall =
         | other -> failtest $"expected the print, got {other}"
 
         let! out = runCli target [ "eval"; "Tests.LiveVals.greet \"bob\"" ]
-        Expect.stringContains out "hi BOB 42" "the call ran"
+        Expect.stringContains out "hi BOB 43" "the call ran"
 
         let! after = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
         match after with
@@ -1269,7 +1340,7 @@ let private liveValuesReplayTheLastCall =
             "double 21L // = 42"
             "and the callee's result is beside its call"
           Expect.isFalse
-            (printed.Contains "toString n // =")
+            (printed.Contains "toString m // =")
             "a call inside an interpolated string is left bare: a comment there would break the string"
         | other -> failtest $"expected the print, got {other}"
 
@@ -1299,10 +1370,14 @@ r.fns
               | other -> string other)
             |> List.sort
           | other -> failtest $"expected the hints, got {other}"
+        // The last one is the point of the extra line: `7:18 = 43` is `n + 1L`, an INFIX
+        // expression. Every other hint here is a CALL's value, and calls had hints before this
+        // branch. Without this row the editor's half of the headline feature is confirmed only
+        // by sharing a replay with the CLI rather than by anything asserting it.
         Expect.equal
           hints
-          [ "2:30 = 42"; "5:43 = \"BOB\""; "6:31 = 42" ]
-          "one hint per call at a line position, at the end of the document's line"
+          [ "2:30 = 42"; "5:43 = \"BOB\""; "6:31 = 42"; "7:18 = 43" ]
+          "one hint per value at a line position, at the end of the document's line"
 
         // The callee changes; the replay runs the current code on the same recorded input.
         do!
@@ -1518,6 +1593,7 @@ let tests : List<Test> =
           devErrorPageCarriesTheListener
           devStreamReportsAnEditAfterTheServe
           liveValuesReplayTheLastCall
+          hintsLandOnTheRightIdenticalLine
           pipeStagesCarryTheirValues
           previewPicksWhichRunToShow
           observeAndShow ]
