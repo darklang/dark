@@ -380,7 +380,6 @@ module InfixFnName =
       ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
     | ComparisonEquals -> ProgramTypes.InfixFnName.ComparisonEquals
     | ComparisonNotEquals -> ProgramTypes.InfixFnName.ComparisonNotEquals
-    | StringConcat -> ProgramTypes.InfixFnName.StringConcat
 
 module BinaryOperation =
   let toPT

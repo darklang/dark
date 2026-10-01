@@ -659,11 +659,6 @@ let checkPackageFunction
       |> List.map (fun name -> name, TRigidVariable name)
       |> Map.ofList
     state.DeclaredBounds <- fn.bounds
-    for b in fn.bounds do
-      match b.trait_.trait_.resolved with
-      | Ok { name = FQTraitName.Package traitHash } ->
-        state.AddDependency(TraitDependency traitHash)
-      | _ -> ()
     let parameters =
       fn.parameters
       |> NEList.map (fun parameter ->
@@ -807,7 +802,6 @@ let private validateImpl
       // `UnresolvedTypeName 'trait'`, which names nothing anyone typed.
       state.Block(UnresolvedTraitName, None, Unresolved impl.trait_.originalName)
     | Ok { name = FQTraitName.Package traitHash } ->
-      state.AddDependency(TraitDependency traitHash)
       match Map.tryFind traitHash environment.traits with
       | None ->
         state.Block(MissingTypeDeclaration, None, TraitUnavailable traitHash)

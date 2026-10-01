@@ -230,7 +230,6 @@ type InfixFnName =
   | ComparisonLessThanOrEqual
   | ComparisonEquals
   | ComparisonNotEquals
-  | StringConcat
 
 type Infix =
   | InfixFnCall of InfixFnName

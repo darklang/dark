@@ -60,7 +60,6 @@ and InfixFnName =
   | ComparisonLessThanOrEqual
   | ComparisonEquals
   | ComparisonNotEquals
-  | StringConcat
 
 and BinaryOperation =
   | BinOpAnd

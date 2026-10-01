@@ -116,6 +116,8 @@ let withLocationDocs
               (r.types |> List.map _.location)
               @ (r.values |> List.map _.location)
               @ (r.fns |> List.map _.location)
+              @ (r.traits |> List.map _.location)
+              @ (r.impls |> List.map _.location)
 
             let! docs = Docs.docsForLocations branchId locations
 
@@ -140,7 +142,9 @@ let withLocationDocs
                 { r with
                     types = r.types |> List.map (patch Docs.onType)
                     values = r.values |> List.map (patch Docs.onValue)
-                    fns = r.fns |> List.map (patch Docs.onFn) }
+                    fns = r.fns |> List.map (patch Docs.onFn)
+                    traits = r.traits |> List.map (patch Docs.onTrait)
+                    impls = r.impls |> List.map (patch Docs.onImpl) }
           } }
 
 

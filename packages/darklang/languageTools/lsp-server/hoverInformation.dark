@@ -1225,13 +1225,6 @@ let collectInfixFnNameHoverInfoAtPos
     (hoverInfoForThingAtPosition ctx thingAtPosition range)
     |> Stdlib.Option.Option.Some
 
-  | StringConcat ->
-    let thingAtPosition =
-      CursorPosition.ThingAtPosition.Operator("String concat")
-
-    (hoverInfoForThingAtPosition ctx thingAtPosition range)
-    |> Stdlib.Option.Option.Some
-
 let collectBinOpHoverInfoAtPos
   (ctx: Context)
   (b: WrittenTypes.BinaryOperation)

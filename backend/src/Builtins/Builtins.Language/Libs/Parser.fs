@@ -87,7 +87,6 @@ module WrittenTypesToDarkTypes =
       | WT.ComparisonLessThanOrEqual -> "ComparisonLessThanOrEqual"
       | WT.ComparisonEquals -> "ComparisonEquals"
       | WT.ComparisonNotEquals -> "ComparisonNotEquals"
-      | WT.StringConcat -> "StringConcat"
     DEnum(t, t, [], case, [])
 
   let private infixToDT (i : WT.Infix) : Dval =

@@ -52,7 +52,6 @@ type Dependency =
   | TypeDependency of FQTypeName.Package
   | FunctionDependency of FQFnName.FQFnName
   | ValueDependency of FQValueName.FQValueName
-  | TraitDependency of FQTraitName.Package
 
 /// Types needed to check a `?` expression once inference has enough information.
 /// The operand and the return type of the function or lambda containing it must

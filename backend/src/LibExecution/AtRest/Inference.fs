@@ -266,7 +266,6 @@ let private instantiateFunction
   | Some(FQFnName.TraitMethod { trait_ = traitHash
                                 method_ = methodName
                                 implFn = _ }) ->
-    state.AddDependency(TraitDependency traitHash)
     match traitMethodSignature state nodeId traitHash methodName with
     | None ->
       state.Block(
@@ -340,7 +339,6 @@ let private instantiateFunction
         for b in signature.bounds do
           match b.trait_.trait_.resolved, Map.tryFind b.param vars with
           | Ok { name = FQTraitName.Package traitHash }, Some typ ->
-            state.AddDependency(TraitDependency traitHash)
             state.AddConstraint(nodeId, traitHash, typ, None, b.param)
           | _ -> ()
         let parameters =

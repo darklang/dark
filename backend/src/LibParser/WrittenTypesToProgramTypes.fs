@@ -125,7 +125,6 @@ module InfixFnName =
     | WT.ComparisonLessThanOrEqual -> PT.ComparisonLessThanOrEqual
     | WT.ComparisonEquals -> PT.ComparisonEquals
     | WT.ComparisonNotEquals -> PT.ComparisonNotEquals
-    | WT.StringConcat -> PT.StringConcat
 
 module TypeReference =
   let rec toPT

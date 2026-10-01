@@ -3290,44 +3290,6 @@ let private runSyncInstructions
 
 
       // == Working with Custom Data ==
-      // -- Records --
-      | GetRecordField(targetReg, recordReg, fieldName) ->
-        match registers[recordReg] with
-        | DRecord(_, _, _, fields) ->
-          if fieldName = "" then
-            RTE.Records.FieldAccessEmptyFieldName
-            |> RTE.Record
-            |> raiseRTE vm.threadID
-          else
-            // `TryGetValue`, not `Map.find`, which allocates a `Some` on every hit. After `Apply`
-            // this is the most-executed opcode a view build runs, so that `Some` was a substantial
-            // share of what drawing a screen allocated.
-            let mutable value = Unchecked.defaultof<Dval>
-            if fields.TryGetValue(fieldName, &value) then
-              registers[targetReg] <- value
-            else
-              RTE.Records.FieldAccessFieldNotFound fieldName
-              |> RTE.Record
-              |> raiseRTE vm.threadID
-        // Tuple indices are stored as field names.
-        | DTuple _ when fieldName = "" ->
-          RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE vm.threadID
-        | DTuple(first, second, rest) ->
-          let length = 2 + List.length rest
-          match tupleIndexOfFieldName fieldName with
-          | Some 1 -> registers[targetReg] <- first
-          | Some 2 -> registers[targetReg] <- second
-          | Some n when n <= length -> registers[targetReg] <- List.item (n - 3) rest
-          | _ ->
-            RTE.Records.FieldAccessTupleIndexOutOfRange(fieldName, length)
-            |> RTE.Record
-            |> raiseRTE vm.threadID
-        | dv ->
-          RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
-          |> RTE.Record
-          |> raiseRTE vm.threadID
-
-
       // -- Enums --
       | CreateLambda(lambdaReg, impl) ->
         exeState.lambdaInstrCache[impl.exprId] <- impl
@@ -3363,11 +3325,12 @@ let private runSyncInstructions
           )
           |> RuntimeError.Statement
           |> raiseRTE vm.threadID
-      // Unreachable: these five were filtered out above, but the match must be exhaustive.
+      // Unreachable: these six were filtered out above, but the match must be exhaustive.
       | CreateRecord _
       | CloneRecordWithUpdates _
       | CreateEnum _
       | LoadValue _
+      | GetRecordField _
       | Apply _ -> ()
 
       if vm.stats.enabled then

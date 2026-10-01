@@ -178,19 +178,22 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
   let location = Packages.PackageLocation.Module path
   let allChildren = moduleContents state.branchId location
 
-  // An impl's method fns live in a module named for the trait, so every impl leaves a
-  // submodule of the same name beside it. It is already a row under trait implementations,
-  // and a numeric type has seventeen of them, which buries the functions. Same reason
-  // `dark ls` drops them.
   let implNames =
     allChildren
     |> Stdlib.List.filter (fun c -> c.kind == "impl")
     |> Stdlib.List.map (fun c -> c.name)
 
+  let shownSubmodules =
+    Packages.Query.readerSubmodules
+      (allChildren
+       |> Stdlib.List.filter (fun c -> c.isModule)
+       |> Stdlib.List.map (fun c -> c.name))
+      implNames
+
   let children =
     allChildren
     |> Stdlib.List.filter (fun c ->
-      Stdlib.Bool.not (c.isModule && (Stdlib.List.member implNames c.name)))
+      Stdlib.Bool.not c.isModule || (Stdlib.List.member shownSubmodules c.name))
 
   let ofKind (kind: String) : List<BodyItem> =
     children |> Stdlib.List.filter (fun c -> c.kind == kind)
@@ -235,12 +238,20 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
       [ Stdlib.Cli.UI.Colors.dimText "  (empty module)", "" ]
     else
       Stdlib.List.flatten
-        [ group "modules" (ofKind "module")
-          group "types" (ofKind "type")
-          group "functions" (ofKind "fn")
-          group "values" (ofKind "val")
-          group "traits" (ofKind "trait")
-          group "trait implementations" (ofKind "impl") ]
+        // The one kind order, shared with `dark ls` and `dark tree`.
+        Darklang.Cli.Glyphs.kindOrder
+        |> Stdlib.List.map (fun kind ->
+          let label =
+            match kind with
+            | "module" -> "modules"
+            | "type" -> "types"
+            | "fn" -> "functions"
+            | "val" -> "values"
+            | "trait" -> "traits"
+            | "impl" -> "trait implementations"
+            | other -> other
+          group label (ofKind kind))
+        |> Stdlib.List.flatten
   Stdlib.List.flatten
     [ [ Stdlib.Cli.UI.Colors.boldText (item.name + "/")
         Stdlib.Cli.UI.Colors.dimText (plural (Stdlib.List.length children) "item")

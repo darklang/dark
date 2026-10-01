@@ -49,6 +49,12 @@ let forKind (kind: String) : String =
   Stdlib.Cli.Tui.Text.fitToWidth glyph 2
 
 
+/// The order a listing shows kinds in: what a module IS, then what it does, then the traits
+/// over them. One place, so `dark ls`, `dark tree` and the workbench cannot drift apart; they
+/// did, and fixing it meant the same edit in three files.
+val kindOrder = [ "module", "type", "fn", "val", "trait", "impl" ]
+
+
 /// A section header for a listing: glyph plus the plural noun.
 let sectionHeader (kind: String) : String =
   let label =
