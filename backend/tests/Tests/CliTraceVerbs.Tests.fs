@@ -616,6 +616,16 @@ let private everyIterationOfALoopIsReachable =
             shown
             $"showing iteration {which} of 30"
             $"and the page says which one it is"
+
+        // The same reach for an agent. `--json` used to ignore `--iteration` entirely, so an
+        // agent saw the first few and the last few of a long loop and had no way to ask for the
+        // rest, while a person could. The two are one question asked by two readers.
+        let! asJson =
+          runCli
+            state
+            [ "traces"; "show"; "Tests.Prev.scaled"; "--json"; "--iteration"; "map:15" ]
+        Expect.stringContains asJson "\"at\":15" "the agent gets the iteration it asked for"
+        Expect.stringContains asJson "1500" "with its own value"
       })
 
 

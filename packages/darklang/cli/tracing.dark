@@ -592,7 +592,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         (Cli.TraceVerbs.showCodeJson
           state.currentBranchId
           fnName
-          Stdlib.Option.Option.None)
+          Stdlib.Option.Option.None
+          iteration)
     else
       Cli.TraceVerbs.showCode state fnName Stdlib.Option.Option.None iteration
   | [ "show", fnName, run ] ->
@@ -604,7 +605,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         (Cli.TraceVerbs.showCodeJson
           state.currentBranchId
           fnName
-          (Stdlib.Option.Option.Some run))
+          (Stdlib.Option.Option.Some run)
+          iteration)
     else
       Cli.TraceVerbs.showCode state fnName (Stdlib.Option.Option.Some run) iteration
   // Refused by name, like the others: `show` is the verb for the code with its values on it.
@@ -1761,7 +1763,7 @@ let help (_state: Cli.AppState) : String =
     "                                repaints as traces arrive and as you edit the code"
     "  show <fn> --iteration map:2   show that iteration of that loop, not its last"
     "  show <fn> --iteration map:2,fold:2  several loops at once"
-    "  show <fn> --json              every loop and every iteration at once, for an agent"
+    "  show <fn> --json              the same for an agent, `--iteration` included"
     "  calls <fn>                    the traces that went through one function, newest first"
     ""
     "Use a trace"
@@ -1794,7 +1796,7 @@ let help (_state: Cli.AppState) : String =
     "  delete --all | --keep <n> | --before <duration>   (duration: 30s, 10m, 2h, 7d)"
     ""
     "A <trace> is any unambiguous prefix of its id: `inspect fe62`, `resume fe6219e9-4705`."
-    "`--json` works on every verb that prints something: list, details, show, calls, find, stats,"
+    "`--json` works on every verb that prints something: list, inspect, show, calls, find, stats,"
     "hotspots and follow. `dark ps --json` too."
     ""
     "Flags for `inspect` and `tail`, combinable:"

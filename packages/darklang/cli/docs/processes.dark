@@ -53,12 +53,21 @@ The one to learn first is `show`. It takes a FUNCTION, not an id, and uses that
 function's newest run, so there is nothing to look up:
 
   traces show <fn> [<id>]       that function's code, with a run's values beside
-                                each line. Loops included: the page says which
-                                iteration it is showing, and `--iteration map:2`
-                                picks another
+                                each line, what the run was given, and what this
+                                time round the loop was given
+  traces show <fn> --iteration map:2
+                                a particular time round a loop. Recursion counts
+                                as a loop, and so does a function a loop called
+                                once per iteration
   traces show <fn> --watch      the same as a panel, repainting as runs arrive
                                 and as you edit the code
-  traces show <fn> --json       every loop and iteration at once, for an agent
+  traces show <fn> --json       the same for an agent, `--iteration` included
+
+A view holds the first five times round each loop and the last five, and goes
+and gets any other one you ask for. So nothing in a loop is out of reach however
+long it ran, and a two-thousand-iteration loop costs the same to open as a short
+one. The page always shows ONE iteration at a time and says which: several
+values on one line are several answers to one question.
 
 Finding your way to a function, from either direction:
 
@@ -103,6 +112,13 @@ How a replay knows which expression an instruction belongs to: each package
 function carries a table of it, built when the code was compiled and stored
 beside the instructions. It is read only when something replays, so an ordinary
 run never pays for it, and it is about 3% of what the code itself takes.
+
+Which runs count as "this function's" is asked two ways, because each alone is
+wrong. Dark is content-addressed, so two byte-identical functions in different
+modules are ONE function and both names find the same runs. But editing anything
+a function calls changes its hash too, so by hash alone a view would go blank
+the moment you edited anything. Both: the hash finds runs of this CODE under any
+name, the name finds runs of this FUNCTION under any code.
 
 Nothing is recorded until you ask for it. Three ways: `dark traces record on`
 for this instance, `config set trace.record on` for the same setting by the

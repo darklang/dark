@@ -436,6 +436,10 @@ let showCodeJson
   (branchId: Uuid)
   (typed: String)
   (tracePrefix: Stdlib.Option.Option<String>)
+  /// What `--iteration` was given, if anything. An agent asking for the middle of a long loop
+  /// gets it fetched, exactly as the page does; without this it could see the first and last few
+  /// and had no way to reach the rest.
+  (iterationArg: Stdlib.Option.Option<String>)
   : Bool =
   let fnName = canonicalFnName branchId typed
 
@@ -453,16 +457,6 @@ let showCodeJson
     Cli.printErr e
     false
   | Ok trace ->
-    let (collected, frames, frameValues, problem) =
-      Darklang.Tracing.Store.viewTraceTree branchId trace.id []
-
-    let values =
-      collected
-      |> Stdlib.List.map (fun pair ->
-        let (id, dv) = pair
-        (Stdlib.Int64.toString id, Darklang.Tracing.Format.compactDval branchId dv))
-      |> Stdlib.Dict.fromListOverwritingDuplicates
-
     let selfHash =
       LanguageTools.PackageManager.Function.find
         branchId
@@ -471,6 +465,34 @@ let showCodeJson
         match h with
         | Hash v -> v)
       |> Stdlib.Option.withDefault ""
+
+    let fnNames = Darklang.Tracing.Store.fnsWithHashes trace.id
+    let recordedIters = Darklang.Tracing.Store.recordedLoopPasses trace.id
+
+    let viewWith (focus: List<(Int64 * Int64)>) =
+      let (collected, frames, frameValues, problem) =
+        Darklang.Tracing.Store.viewTraceTree branchId trace.id focus
+
+      (collected, frames, frameValues, problem, loopsOf frames fnNames recordedIters selfHash)
+
+    let requested =
+      match iterationArg with
+      | None -> []
+      | Some raw -> Stdlib.String.split raw ","
+
+    let first = viewWith []
+    let (_c0, _f0, frameValues0, _p0, loops0) = first
+    let wanted = iterationsToFetch loops0 frameValues0 requested
+
+    let (collected, frames, frameValues, problem, loops) =
+      if wanted == [] then first else viewWith wanted
+
+    let values =
+      collected
+      |> Stdlib.List.map (fun pair ->
+        let (id, dv) = pair
+        (Stdlib.Int64.toString id, Darklang.Tracing.Format.compactDval branchId dv))
+      |> Stdlib.Dict.fromListOverwritingDuplicates
 
     // Which frames carry anything. Built once for the whole trace, not once per loop.
     //
@@ -488,12 +510,8 @@ let showCodeJson
         (fid, true))
       |> Stdlib.Dict.fromListOverwritingDuplicates
 
-    let loops =
-      (loopsOf
-        frames
-        (Darklang.Tracing.Store.fnsWithHashes trace.id)
-        (Darklang.Tracing.Store.recordedLoopPasses trace.id)
-        selfHash)
+    let loopsJson =
+      loops
       |> Stdlib.List.map (fun loop ->
         let iterations =
           loop.iterations
@@ -538,7 +556,7 @@ let showCodeJson
             fn = fnName
             fnHash = selfHash
             values = values
-            loops = loops
+            loops = loopsJson
             problem = problem }))
     true
 
@@ -765,6 +783,71 @@ let loopsOf
             recorded = recorded } ])
 
 
+/// Which iteration of a loop a reader asked for, as a frame.
+///
+/// `map` is the first, `map:3` is the third. By POSITION in the site's own list, not by any
+/// counter on the frame: three calls to one function from three iterations of a loop all sit at
+/// position zero of their own sites, and numbering by that would make `receipt:2` unreachable.
+let chosenIteration
+  (requested: List<String>)
+  (loop: Loop)
+  : Stdlib.Option.Option<Darklang.Tracing.Store.ViewFrame> =
+  requested
+  |> Stdlib.List.findFirst (fun r ->
+    (r == loop.name) || (Stdlib.String.startsWith r $"{loop.name}:"))
+  |> Stdlib.Option.andThen (fun sel ->
+    match Stdlib.String.split sel ":" with
+    | [ _, p ] ->
+      (match Stdlib.Int.parse p with
+       | Ok n -> Stdlib.List.getAt loop.iterations (n - 1)
+       | Error _ -> Stdlib.Option.Option.None)
+    | _ -> Stdlib.List.head loop.iterations)
+
+
+/// Does this frame hold any values?
+///
+/// A view keeps values for the first and last few iterations of each site, so a frame in between
+/// is counted but not collected. Everything that shows an iteration has to ask this, because the
+/// answer is the difference between showing its numbers and borrowing another one's.
+let frameHasValues
+  (frameValues: List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)>)
+  (frameId: String)
+  : Bool =
+  frameValues
+  |> Stdlib.List.any (fun row ->
+    let (fid, _, _) = row
+    fid == frameId)
+
+
+/// The iterations a reader asked for that this view does not hold, as (site, which one).
+///
+/// A view keeps the first and last few of each site, which is what stops it growing with the
+/// loop. Anything in between has no values yet, and the way to get it is to run the view again
+/// asking for that one. So nothing in a loop is unreachable however long it is, and reaching
+/// into the middle costs one more replay rather than holding every iteration of every loop on
+/// the chance that someone looks.
+///
+/// The page and the `--json` both ask this, or an agent could see the first five and the last
+/// five of a two-thousand-iteration loop and have no way to reach the rest.
+let iterationsToFetch
+  (loops: List<Loop>)
+  (frameValues: List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)>)
+  (requested: List<String>)
+  : List<(Int64 * Int64)> =
+  loops
+  |> Stdlib.List.filterMap (fun loop ->
+    match chosenIteration requested loop with
+    | None -> Stdlib.Option.Option.None
+    | Some frame ->
+      if frameHasValues frameValues frame.id then
+        Stdlib.Option.Option.None
+      else
+        loop.iterations
+        |> Stdlib.List.findFirstIndex (fun f -> f.id == frame.id)
+        |> Stdlib.Option.andThen (fun i ->
+          Stdlib.Int.toInt64 i |> Stdlib.Option.map (fun at -> (frame.callSite, at))))
+
+
 /// One iteration's values, laid over the page.
 ///
 /// ONE iteration, never several. A line showing `// = 14, 16, 18` is three answers to one
@@ -933,7 +1016,6 @@ let showCode
           | None -> []
           | Some raw -> Stdlib.String.split raw ","
 
-        /// The iteration a selector asks for: `map` is the first, `map:3` is the third.
         let selectorFor (loop: Loop) : Stdlib.Option.Option<String> =
           requested
           |> Stdlib.List.findFirst (fun r ->
@@ -946,19 +1028,7 @@ let showCode
           |> Stdlib.Option.map (fun i -> Stdlib.Int.toString (i + 1))
           |> Stdlib.Option.withDefault "1"
 
-        let chosenOf (loop: Loop) : Stdlib.Option.Option<Darklang.Tracing.Store.ViewFrame> =
-          match selectorFor loop with
-          | None -> Stdlib.Option.Option.None
-          | Some sel ->
-            match Stdlib.String.split sel ":" with
-            // By POSITION in the site's own list, not by the frame's `pass` counter, which counts
-            // within one call site, so three calls to one function from three iterations of a loop
-            // are each zero, and numbering by it would make `receipt:2` unreachable.
-            | [ _, p ] ->
-              (match Stdlib.Int.parse p with
-               | Ok n -> Stdlib.List.getAt loop.iterations (n - 1)
-               | Error _ -> Stdlib.Option.Option.None)
-            | _ -> Stdlib.List.head loop.iterations
+        let chosenOf (loop: Loop) = chosenIteration requested loop
 
         let selfHash =
           match hash with
@@ -976,33 +1046,7 @@ let showCode
         let first = viewWith []
         let (_c0, _f0, frameValues0, _p0, loops0) = first
 
-        // Which iterations were asked for and are outside the window the view keeps.
-        //
-        // A view holds the first and last few of each site, which is what stops it growing with
-        // the loop. Anything in between has no values yet, and the way to get it is to run the
-        // view again asking for that one. So nothing in a loop is unreachable, however long it
-        // is, and the cost of reaching into the middle is one more replay rather than holding
-        // every iteration of every loop on the chance that someone looks.
-        let wanted =
-          loops0
-          |> Stdlib.List.filterMap (fun loop ->
-            match chosenOf loop with
-            | None -> Stdlib.Option.Option.None
-            | Some frame ->
-              let hasValues =
-                frameValues0
-                |> Stdlib.List.any (fun row ->
-                  let (fid, _, _) = row
-                  fid == frame.id)
-
-              if hasValues then
-                Stdlib.Option.Option.None
-              else
-                loop.iterations
-                |> Stdlib.List.findFirstIndex (fun f -> f.id == frame.id)
-                |> Stdlib.Option.andThen (fun i ->
-                  Stdlib.Int.toInt64 i
-                  |> Stdlib.Option.map (fun at -> (frame.callSite, at))))
+        let wanted = iterationsToFetch loops0 frameValues0 requested
 
         let (collected, frames, frameValues, problem, loops) =
           if wanted == [] then first else viewWith wanted
@@ -1172,24 +1216,13 @@ let showCode
               match chosenOf loop with
               | None -> ()
               | Some frame ->
-                let kept =
-                  frameValues
-                  |> Stdlib.List.filter (fun row ->
-                    let (fid, _, _) = row
-                    fid == frame.id)
-                  |> Stdlib.List.length
-
-                if kept == 0 then
+                if Stdlib.Bool.not (frameHasValues frameValues frame.id) then
                   // Counted rather than hardcoded. The view keeps values for a bounded number
                   // of iterations and that bound lives in F#; asking the frames how many actually
                   // carry values says the true thing without a second copy of the number here.
                   let withValues =
                     loop.iterations
-                    |> Stdlib.List.filter (fun f ->
-                      frameValues
-                      |> Stdlib.List.any (fun row ->
-                        let (fid, _, _) = row
-                        fid == f.id))
+                    |> Stdlib.List.filter (fun f -> frameHasValues frameValues f.id)
                     |> Stdlib.List.length
 
                   let kept = Stdlib.Int.toString withValues
