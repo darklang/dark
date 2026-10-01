@@ -321,3 +321,25 @@ more package items, the `PackageRefs.Trait` table, and a resolved reference per 
 `traitDispatches` reads 0 on the reference workload, because every call it makes was resolved when
 it was saved. A dispatch that does happen costs 77 bytes over the fast path, and about 3 KB the
 first time for a given (branch, trait, method, self type).
+
+## 2026-09-30, a budget RAISED on purpose: one way to stringify
+
+Both budgets go up, debug 9.54 -> 10.35 MB and published 9.77 -> 10.75 MB, about 8 and 10 per
+cent. This is the case the rule above does not cover: a deliberate increase to accommodate a
+change, not a number the tree earned down. It was Stachu's call, made knowing the cost, and the
+reason is here so the next person to meet a 10% step finds one.
+
+What changed: the sixteen per-type `toString` fns (`Stdlib.Int.toString` and its siblings) are
+gone, each type's `ToString` impl carries the function itself, and 829 call sites now say
+`Stdlib.toString`. The codebase is 46 lines shorter for it.
+
+Where the cost is, because it is not where you would look first: NOT run-time dispatch.
+`traitDispatches` reads 1 on the reference workload, the same as before. `Stdlib.toString v` is a
+call into a BOUNDED GENERIC, so each of those 829 call sites now carries the bound-impl metadata
+that makes a bounded call static, and all of it deserializes at startup. `Stdlib.Int.toString v`
+was a plain call and carried none. So the step is load-time, it scales with the number of call
+sites rather than with how often they run, and a workload that calls `toString` in a loop pays no
+more per call than it did.
+
+Taken as the minimum of four runs a side (debug 10,353,536 of 10.3-10.4 MB; published 10,747,488
+of 10.7-10.8), not a single reading, for the reason the 2026-08-27 entry gives.
