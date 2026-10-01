@@ -379,7 +379,7 @@ let traceDetail (state: State) : String =
   | Some item ->
     match Cli.TraceVerbs.find item.name with
     | Error e -> Stdlib.Cli.UI.Colors.dimText e
-    | Ok run ->
+    | Ok trace ->
       let lineage =
         match trace.parent with
         | Some((parent, at)) ->

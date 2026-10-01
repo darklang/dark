@@ -42,7 +42,7 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
       state
       region
       ""
-      "run"
+      "trace"
       "Detail"
       (Stdlib.Cli.UI.Colors.dimText
         "nothing has run yet -- every `dark eval`, `dark run` and served request is kept here")
