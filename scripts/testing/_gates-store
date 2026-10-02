@@ -267,6 +267,80 @@ gate_reload_is_reproducible() {
   echo "reload-is-reproducible: two reloads of one tree agree on all $n op ids."
 }
 
+# --- trait-checker-vs-dispatch: the checker and dispatch agree on which impls exist ---
+# An implementation is a candidate only while a name binds it AND it is not deprecated. Dispatch
+# applies both filters; so does the save-time resolver. The checker's visible-impl set applied
+# only the first, so deprecating the one implementation a call needs left a save that type-checked
+# clean, committed, and raised on its first call. The checker is the copy of the rule that has to
+# agree with the other two, and nothing in the suite compares them.
+#
+# Gate, not a testfile: deprecation is an op against a store, and the save under test has to go
+# through `addAuthored` with that op already in it.
+gate_trait_checker_vs_dispatch() {
+  set -euo pipefail
+
+  WORK=rundir/trait-deprecated
+  rm -rf "$WORK"
+  mkdir -p "$WORK/logs"
+  scripts/testing/_copy-store "$WORK/data.db"
+  # A copied store carries the real relay and its write secret. See the AGENTS.md note.
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+  # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  clean() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+  # A field name nobody else would write: a record's hash IS its identity, so a shared shape
+  # would hand us somebody's leftover implementations. See the AGENTS.md note.
+  $CLI type Stachu.Dep.Dt "= { gateDeprecatedOnly: Int64 }" >/dev/null
+  $CLI impl Stachu.Dep \
+    "Stdlib.Add for Dt = let add (a: Dt) (b: Dt) : Dt = Stachu.Dep.Dt { gateDeprecatedOnly = a.gateDeprecatedOnly + b.gateDeprecatedOnly }" \
+    >/dev/null
+
+  # While it is live, the save is fine and so is the call. Both halves matter: a gate that only
+  # checked the refusal would pass against a checker that refused everything.
+  $CLI fn Stachu.Dep.sumLive - >/dev/null <<'DARK'
+(a: Stachu.Dep.Dt) (b: Stachu.Dep.Dt) : Int64 =
+  (a + b).gateDeprecatedOnly
+DARK
+  live=$($CLI eval 'Stachu.Dep.sumLive (Stachu.Dep.Dt { gateDeprecatedOnly = 1L }) (Stachu.Dep.Dt { gateDeprecatedOnly = 2L })' | clean)
+  if [[ "$live" != *3* ]]; then
+    echo "trait-checker-vs-dispatch: the call did not work with a live implementation: $live"
+    exit 1
+  fi
+
+  $CLI deprecate impl Stachu.Dep.Dt.Add --kind obsolete -m 'gate' --yes >/dev/null
+
+  # Dispatch's answer, first, so the rest of the gate is measuring a real retirement and not a
+  # deprecate that did nothing.
+  dispatch=$($CLI eval 'Stdlib.Add.add (Stachu.Dep.Dt { gateDeprecatedOnly = 1L }) (Stachu.Dep.Dt { gateDeprecatedOnly = 2L })' 2>&1 | clean || true)
+  if [[ "$dispatch" != *"no implementation"* ]]; then
+    echo "trait-checker-vs-dispatch: deprecating the implementation did not retire it at"
+    echo "  dispatch, so nothing was tested. A fresh call answered: $dispatch"
+    exit 1
+  fi
+
+  # The checker must now say the same thing, at save time.
+  saved=$($CLI fn Stachu.Dep.sumDeprecated - 2>&1 <<'DARK' | clean || true
+(a: Stachu.Dep.Dt) (b: Stachu.Dep.Dt) : Int64 =
+  (a + b).gateDeprecatedOnly
+DARK
+)
+  if [[ "$saved" != *MissingImpl* ]]; then
+    echo "trait-checker-vs-dispatch: the checker accepted a call that dispatch refuses."
+    # shellcheck disable=SC2016  # the backticks are prose, not expansion
+    echo '  Saving a `+` on a type whose only implementation is deprecated should report'
+    echo "  MissingImpl. It answered:"
+    echo "    ${saved//$'\n'/$'\n'    }"
+    exit 1
+  fi
+
+  echo "trait-checker-vs-dispatch: a live implementation types and runs ($live); once it is"
+  echo "  deprecated the checker refuses the save with MissingImpl, as dispatch does."
+}
+
 # --- trait-choice-survives-rival: a saved call keeps the implementation it was written against ---
 # The property the save-time choice exists for. An ordinary trait call stores the fn the chosen
 # implementation names, and a BOUNDED generic cannot: its self type is its caller's business. So

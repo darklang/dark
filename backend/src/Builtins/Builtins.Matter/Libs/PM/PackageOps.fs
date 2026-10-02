@@ -783,7 +783,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmContentOpId" 0
       typeParams = []
       parameters =
-        [ Param.make "kind" TString "'fn', 'type' or 'value'"
+        [ Param.make "kind" TString "'fn', 'type', 'value', 'trait' or 'impl'"
           Param.make "hash" TString "the content hash" ]
       returnType = TUuid
       description =
@@ -792,10 +792,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [| DString kind; DString hash |] ->
           let tag =
+            // The tags `Hashing.contentOpHash` documents, all five of them: a branch holding
+            // a trait or an impl raised here on export.
             match kind with
             | "fn" -> 0uy
             | "type" -> 1uy
             | "value" -> 2uy
+            | "trait" -> 3uy
+            | "impl" -> 4uy
             | other ->
               Exception.raiseInternal
                 "scmContentOpId: unknown kind"

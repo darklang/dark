@@ -333,9 +333,15 @@ let resolveTraitCalls
       | Error _ -> return ops
       | Ok environment ->
         let environment = addTrustedDependencyDeclarations dependencies environment
+        // A deprecated implementation is not a candidate at run time, so it must not be one
+        // here either: `dark constraints` tells you to deprecate one of two rivals, and pinning
+        // the one you just retired would make that advice a trap. The checker below is held to
+        // the same set, or it types a call `implFnFor` then refuses to resolve.
+        let! deprecated = LibDB.Queries.getDeprecatedTraitImplHashes ()
         let! environment =
           CheckerApi.addVisibleImpls
             pm
+            deprecated
             (Seq.append candidates.traits.Keys dependencies.traits.Keys)
             environment
         let values =
@@ -379,10 +385,6 @@ let resolveTraitCalls
 
         // The winner among the implementations that apply, and the fn it names for the method.
         let! stamps = LibDB.Queries.getTraitImplStamps ()
-        // A deprecated implementation is not a candidate at run time, so it must not be one
-        // here either: `dark constraints` tells you to deprecate one of two rivals, and pinning
-        // the one you just retired would make that advice a trap.
-        let! deprecated = LibDB.Queries.getDeprecatedTraitImplHashes ()
         let implFnFor
           (method_ : string)
           (implHashes : List<PT.Hash>)
@@ -572,9 +574,11 @@ let checkPackageOps
       let environment = addTrustedDependencyDeclarations dependencies environment
       // Every trait the batch or its closure mentions: its stored impls are what a
       // bound or a method call in the batch can discharge with.
+      let! deprecated = LibDB.Queries.getDeprecatedTraitImplHashes ()
       let! environment =
         CheckerApi.addVisibleImpls
           pm
+          deprecated
           (Seq.append candidates.traits.Keys dependencies.traits.Keys)
           environment
       let values =

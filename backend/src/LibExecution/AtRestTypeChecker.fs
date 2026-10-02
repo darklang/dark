@@ -591,9 +591,16 @@ let private checkInferredPackageValue
     finish state (Some(Expr.toID value.body)) scheme)
 
 /// Impls are not referenced from call sites, so a dependency walk cannot find
-/// them; ask the store for every trait in the closure and register its live impls.
+/// them; ask the store for every trait in the closure and register the ones that could
+/// actually be selected.
+///
+/// `deprecated` is the store's deprecated-impl set. The checker has to apply the SAME two
+/// filters dispatch does, liveness and deprecation, or it says yes to a bound that raises
+/// at the first call: deprecate the only `impl Add for Point`, save `p1 + p2`, and the
+/// checker passed, the commit went through, and `Traits.NoImpl` came out of the call.
 let addVisibleImpls
   (pm : PT.PackageManager)
+  (deprecated : Set<string>)
   (traits : seq<PT.FQTraitName.Package>)
   (environment : TypeEnvironment)
   : Ply<TypeEnvironment> =
@@ -610,9 +617,13 @@ let addVisibleImpls
         (fun environment traitHash ->
           uply {
             let! impls = pm.impls traitHash
-            // Only what a name still binds counts, same as dispatch.
+            // Only what a name still binds, and only what is not retired: the two halves
+            // of `ImplCandidate` liveness, in the same order.
             let! live =
               impls
+              |> List.filter (fun i ->
+                let (PT.Hash h) = i.hash
+                not (Set.contains h deprecated))
               |> Ply.List.filterSequentially (fun i ->
                 uply {
                   let! locs = pm.getTraitImplLocations i.hash

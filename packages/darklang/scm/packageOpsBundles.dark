@@ -155,7 +155,7 @@ let branchField (branchId: Uuid) (col: String) (dflt: String) : String =
   | Error _ -> dflt
 
 
-/// The id of the `Add*` op that adds content <param hash> of <param kind> ("fn", "type", "value"). An
+/// The id of the `Add*` op that adds content <param hash> of <param kind> ("fn", "type", "value", "trait", "impl"). An
 /// Add op is identified by what it adds, so the id follows from the two alone.
 let contentOpId (kind: String) (hash: String) : Uuid = Builtin.scmContentOpId kind hash
 
@@ -191,7 +191,9 @@ let exportBranch (branchId: Uuid) : String =
       match op with
       | SetName(_, target, _) ->
         let hash = LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target)
-        let kind = Deps.kindString (LanguageTools.ProgramTypes.Reference.kind target)
+        let kind =
+          LanguageTools.ProgramTypes.ItemKind.toString (
+            LanguageTools.ProgramTypes.Reference.kind target)
         Stdlib.Option.Option.Some(Stdlib.toString (contentOpId kind hash))
       | _ -> Stdlib.Option.Option.None)
     |> Stdlib.List.filter (fun id -> Stdlib.Bool.not (Stdlib.List.``member`` frontierIds id))

@@ -84,7 +84,7 @@ let private builtinEnvironment () : Checker.TypeEnvironment =
 /// The builtins plus the stdlib's operator impls, which is what `1L + 2L` needs
 /// now that `+` is `Add.add`.
 let private numericEnvironment () : Checker.TypeEnvironment =
-  CheckerApi.addVisibleImpls TestUtils.TestUtils.pmPT [] (builtinEnvironment ())
+  CheckerApi.addVisibleImpls TestUtils.TestUtils.pmPT Set.empty [] (builtinEnvironment ())
   |> Ply.toTask
   |> _.Result
 
