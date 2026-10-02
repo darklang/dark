@@ -337,8 +337,8 @@ def run_once(binary, argv, trace, telemetry, fixture="UNSET"):
     if os.path.exists(tel_path):
         os.remove(tel_path)
     env = dict(os.environ)
-    # Pinned, never inherited: config/dev turns tracing on for the container, so a run that doesn't say
-    # otherwise is measuring the traced path without meaning to.
+    # Pinned, never inherited: config/dev turns tracing off and config/circleci turns it on, so a run
+    # that doesn't say otherwise measures whichever path its environment happened to hand it.
     env["DARK_CONFIG_TRACE_DETAIL"] = trace
     if telemetry:
         env["DARK_TELEMETRY"] = "1"
