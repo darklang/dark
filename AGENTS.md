@@ -775,6 +775,14 @@ The point of all this is that a green F# build says nothing about Dark, which re
     Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout
     eval <expr>                   # test small pieces
 
+**A truncated answer is worse than no answer, because it justifies doing nothing.** `tail -3` on a
+save that printed an error above its success line showed only the success, so a refused item read
+as a clean one. A container listing read three rows deep said this clone had no container up, which
+then became the reason not to make a fix; it had been up for ten days. Both are the same failure:
+truncation turns an unseen positive into a confident negative, and a negative leaves nothing behind
+to contradict it later. When a command's output decides whether to act, read all of it, and prefer
+`grep` for the thing you are deciding on over a positional `head`/`tail` that may not contain it.
+
 ## Style
 
 `///` for doc comments on types, DU cases and fns, in both F# and Dark. `//` for inline

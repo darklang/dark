@@ -137,11 +137,11 @@ builtin type already has implementations. Yours join with one `impl`.
   named.
 
 ## Errors, as they read
-  Bool has no implementation of Stdlib.Add. Write `impl Add for Bool = ...`, or
-  run `dark impls Add` to see which types do
+  Bool has no implementation of Darklang.Stdlib.Add. Write `impl Add for Bool =
+  ...`, or run `dark impls Add` to see which types do
 
-  2 implementations of Stdlib.ToString for Int64 exist, and there is no record of
-  which came first, so none is used
+  2 implementations of Darklang.Stdlib.ToString for Int64 exist, and there is no
+  record of which came first, so none is used
       only for implementations a script made in memory
 
   Zero.zero has no argument to read a type from, so it cannot tell which type
