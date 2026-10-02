@@ -56,8 +56,6 @@ impl Power for Int =
     Builtin.intPower ``base`` exponent
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-let absoluteValue (a: Int) : Int = if a < 0 then -a else a
 
 
 impl Negate for Int =

@@ -530,7 +530,7 @@ let repeat (string: String) (count: Int) : String =
 /// Converts an integer <param n> to its ordinal representation as a string.
 let toOrdinal (n: Int) : String =
   // `%` is Euclidean here (-1 % 10 = 9), so drop the sign first
-  let lastTwoDigits = (Int.absoluteValue n) % 100
+  let lastTwoDigits = (Stdlib.abs n) % 100
 
   let suffix =
     if lastTwoDigits >= 11 && lastTwoDigits <= 13 then

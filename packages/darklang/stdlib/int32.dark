@@ -70,12 +70,6 @@ impl Power for Int32 =
       Builtin.int32Power ``base`` exponent
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
-let absoluteValue (a: Int32) : Int32 =
-  if a < 0l then
-    -a
-  else
-    a
 
 
 impl Negate for Int32 =

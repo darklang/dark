@@ -240,13 +240,14 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   // Walk the op list pairwise to collect items keyed by FQN, paired with
   // their SetName hashes and locations. Add* is always followed by SetName.
   //
-  // Worth knowing before changing either walk: this one pairs an `Add*` with the NEXT
-  // `SetName` of its kind however far away, while `processOps` below pairs them only when
-  // ADJACENT. Every producer emits the two together (`LibParser/Package.fs`, the Dark
-  // lowering, the CLI authoring paths), and `compactWipOps` requires adjacency on the WIP
-  // path, so the two rules agree on every list that actually reaches here. They would
-  // disagree on a list with something in between: this walk would put the item in the SCC
-  // graph while `processOps` left both its ops holding the stale hash.
+  // TODO: this walk pairs an `Add*` with the NEXT `SetName` of its kind however far away,
+  // while `processOps` below pairs them only when ADJACENT. Every producer emits the two
+  // together (`LibParser/Package.fs`, the Dark lowering, the CLI authoring paths) and
+  // `compactWipOps` requires adjacency on the WIP path, so the two rules agree on every list
+  // that reaches here today. On a list with something in between they would not: this walk
+  // would put the item in the SCC graph while `processOps` left both its ops holding the
+  // stale hash. One rule, not two. Not urgent, and not something to change casually, since
+  // it decides content hashes.
   let mutable typeMap = Map.empty
   let mutable fnMap = Map.empty
   let mutable valueMap = Map.empty

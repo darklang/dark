@@ -39,27 +39,27 @@ let line (f: SCM.Constraints.Finding) : String =
   match (f.kind, f.detail) with
   | (KindChanged, _) ->
     let was = LanguageTools.ProgramTypes.ItemKind.toString f.dependencyKind
-    $"  #{f.id}  {u}\n         uses {d} as a {was}; that name is something else now (still resolves, by hash)"
+    $"  #{f.id}  {u}\n             uses {d} as a {was}; that name is something else now (still resolves, by hash)"
   | (StaleUsage, Versions(using, current)) ->
-    $"  #{f.id}  {u}\n         still on the version it was written against ({Cli.shortHash using}); {d} is at {Cli.shortHash current} now"
+    $"  #{f.id}  {u}\n             still on the version it was written against ({Cli.shortHash using}); {d} is at {Cli.shortHash current} now"
   // Its own sentence: `dependency` is the location itself here, so the stale-usage phrasing ("uses X")
   // would read as if the name called itself.
   | (DecisionSuperseded, Versions(using, current)) ->
-    $"  #{f.id}  {u}\n         you overrode this to the version you chose ({Cli.shortHash using}); a later edit rebound it to {Cli.shortHash current}"
+    $"  #{f.id}  {u}\n             you overrode this to the version you chose ({Cli.shortHash using}); a later edit rebound it to {Cli.shortHash current}"
   | (DecisionSuperseded, PolicyReplaced(was, now, by)) ->
     let whose = if by == "" then "a later choice" else by
 
-    $"  #{f.id}  {u}\n         you chose {policyName was} here; {whose} replaced it with {policyName now}"
+    $"  #{f.id}  {u}\n             you chose {policyName was} here; {whose} replaced it with {policyName now}"
   | (RivalImplementations, Rivals(self, rival, choice)) ->
     let r = SCM.Constraints.fqnOf rival
 
     match choice with
     | Mine ->
-      $"  #{f.id}  {u}\n         and {r} both implement {d} for {self}. Calls run {u}, the later of the two.\n         This is two implementations, not an out-of-date one, so `dark propagate follow` will not change it.\n         Make it permanent: `dark deprecate impl {r}`. Leave it: `dark ack #{f.id}`"
+      $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Calls run {u}, the later of the two.\n             Two implementations, not an out-of-date one, so `dark propagate follow` leaves it alone.\n             Make it permanent: `dark deprecate impl {r}`. Leave it: `dark ack #{f.id}`"
     | Theirs ->
-      $"  #{f.id}  {u}\n         and {r} both implement {d} for {self}. Calls run {r}, the later of the two.\n         This is two implementations, not an out-of-date one, so `dark propagate follow` will not change it.\n         Make it permanent: `dark deprecate impl {u}`. Leave it: `dark ack #{f.id}`"
+      $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Calls run {r}, the later of the two.\n             Two implementations, not an out-of-date one, so `dark propagate follow` leaves it alone.\n             Make it permanent: `dark deprecate impl {u}`. Leave it: `dark ack #{f.id}`"
     | Neither ->
-      $"  #{f.id}  {u}\n         and {r} both implement {d} for {self}, and neither came from a commit, so no call can choose.\n         Save one of them again, or `dark deprecate impl {r}`"
+      $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Neither came from a commit, so no call can choose.\n             Save one of them again, or `dark deprecate impl {r}`"
   | (_, _) -> $"  #{f.id}  {u}"
 
 

@@ -73,6 +73,10 @@ let createFnInline
         || Stdlib.String.startsWith trimmedDefinition "///"
       then
         definition
+      else if Stdlib.String.startsWith trimmedDefinition "<" then
+        // `dark fn F "<'a: Show> (v: 'a) : String = ..."`: type parameters bind to the name and
+        // the parser refuses a space between them, so there is nowhere for the usual one to go.
+        $"let {location.name}{trimmedDefinition}"
       else
         $"let {location.name} {definition}"
 

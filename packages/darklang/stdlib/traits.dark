@@ -102,6 +102,13 @@ trait ToString<'a> =
 
 
 // Written once over the traits above, for any type that implements them.
+//
+// TODO: every type used to carry its own `max`, `min`, `clamp`, `sum`, `product` and
+// `absoluteValue`, and those are all gone in favour of the generics below. We may want some of
+// them back. The open question is discoverability rather than behaviour: somebody who knows the
+// type before they know the trait reaches for `Int128.max`, does not find it, and has no obvious
+// next move. Not for now; the generics are the point of the feature and seven copies of each was
+// the thing worth deleting.
 
 /// The larger of two values of any type with a `Compare` impl
 let max<'a: Compare> (a: 'a) (b: 'a) : 'a = if a > b then a else b
@@ -111,8 +118,8 @@ let max<'a: Compare> (a: 'a) (b: 'a) : 'a = if a > b then a else b
 let min<'a: Compare> (a: 'a) (b: 'a) : 'a = if a < b then a else b
 
 
-/// The distance of <param value> from zero. Each fixed-width type keeps its own
-/// `absoluteValue` as well, since its minimum has no positive counterpart.
+/// The distance of <param value> from zero. A fixed-width minimum wraps back to itself, since it
+/// has no positive counterpart: `abs -128y` is `-128y`.
 let abs<'a: Compare + Negate + Zero> (value: 'a) : 'a =
   if value < Zero.zero () then -value else value
 

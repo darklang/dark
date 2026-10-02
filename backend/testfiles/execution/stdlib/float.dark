@@ -61,11 +61,11 @@ Stdlib.Float.isFinite Builtin.testNan = false
 Stdlib.Float.isFinite Builtin.testInfinity = false
 Stdlib.Float.isFinite Builtin.testNegativeInfinity = false
 
-Stdlib.Float.absoluteValue Builtin.testNegativeInfinity = Builtin.testInfinity
-Stdlib.Float.absoluteValue Builtin.testNan = Builtin.testNan
-Stdlib.Float.absoluteValue -5.6 = 5.6
-Stdlib.Float.absoluteValue -0.0 = 0.0
-Stdlib.Float.absoluteValue -0.0 = 0.0
+Stdlib.abs Builtin.testNegativeInfinity = Builtin.testInfinity
+Stdlib.abs Builtin.testNan = Builtin.testNan
+Stdlib.abs -5.6 = 5.6
+Stdlib.abs -0.0 = 0.0
+Stdlib.abs -0.0 = 0.0
 
 (-Builtin.testNan) = Builtin.testNan
 (-Builtin.testInfinity) = Builtin.testNegativeInfinity

@@ -36,12 +36,6 @@ let roundTowardsZero (a: Float) : Int = Builtin.floatRoundTowardsZero a
 let truncate (a: Float) : Int = Builtin.floatTruncate a
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-let absoluteValue (a: Float) : Float =
-  if (a < 0.0) then
-    a * -1.0
-  else
-    a
 
 
 impl Negate for Float =

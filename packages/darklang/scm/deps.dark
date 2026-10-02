@@ -10,9 +10,11 @@ module Darklang.SCM.Deps
 // IS one item, so a hash routinely lives at several names, and collapsing them loses dependents.
 
 
-/// The `item_type` column, which only ever holds what `ItemKind.toString` wrote. A string it
-/// would not have written is a row this build did not write, and reads as `Fn`; this is the one
-/// place to change if that ever has to be louder than a default.
+/// The `item_type` column, which only ever holds what `ItemKind.toString` wrote.
+// CLEANUP: a string `toString` would not have written reads as `Fn`, which is a guess. It should
+// either raise, or this should return a `Result` or an `Option` and make the six callers say what
+// they want done. Left as a default for now because the column has one writer, so it cannot
+// currently fire; this is the one place to change when that stops being true.
 let kindOf (s: String) : LanguageTools.ProgramTypes.ItemKind =
   LanguageTools.ProgramTypes.ItemKind.fromString s
   |> Stdlib.Option.withDefault LanguageTools.ProgramTypes.ItemKind.Fn

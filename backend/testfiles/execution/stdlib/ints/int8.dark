@@ -1,7 +1,7 @@
-Stdlib.Int8.absoluteValue -5y = 5y
-Stdlib.Int8.absoluteValue 5y = 5y
+Stdlib.abs -5y = 5y
+Stdlib.abs 5y = 5y
 
-Stdlib.Int8.absoluteValue -128y = -128y
+Stdlib.abs -128y = -128y
 // `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
 // reaches this type and that the type's own comparison holds at its extremes.
 Stdlib.max 127y -128y = 127y

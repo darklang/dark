@@ -64,10 +64,6 @@ impl Power for Int64 =
     else Builtin.int64Power ``base`` exponent
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
-let absoluteValue (a: Int64) : Int64 =
-  if a < 0L then -a else a
-
 
 impl Negate for Int64 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.

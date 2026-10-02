@@ -1,7 +1,7 @@
-Stdlib.Int128.absoluteValue -5Q = 5Q
-Stdlib.Int128.absoluteValue 5Q = 5Q
+Stdlib.abs -5Q = 5Q
+Stdlib.abs 5Q = 5Q
 
-Stdlib.Int128.absoluteValue -170141183460469231731687303715884105728Q = -170141183460469231731687303715884105728Q
+Stdlib.abs -170141183460469231731687303715884105728Q = -170141183460469231731687303715884105728Q
 
 // `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
 // reaches this type and that the type's own comparison holds at its extremes.

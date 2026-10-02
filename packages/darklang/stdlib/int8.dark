@@ -70,12 +70,6 @@ impl Divide for Int8 =
   let divide (a: Int8) (b: Int8) : Int8 = Builtin.int8Divide a b
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
-let absoluteValue (a: Int8) : Int8 =
-  if a < 0y then
-    -a
-  else
-    a
 
 
 impl Negate for Int8 =

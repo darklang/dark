@@ -1,6 +1,6 @@
-Stdlib.Int16.absoluteValue -5s = 5s
-Stdlib.Int16.absoluteValue 5s = 5s
-Stdlib.Int16.absoluteValue -32768s = -32768s
+Stdlib.abs -5s = 5s
+Stdlib.abs 5s = 5s
+Stdlib.abs -32768s = -32768s
 
 // `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
 // reaches this type and that the type's own comparison holds at its extremes.

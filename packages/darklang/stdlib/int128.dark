@@ -54,12 +54,6 @@ impl Power for Int128 =
     Builtin.int128Power ``base`` exponent
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
-let absoluteValue (a: Int128) : Int128 =
-  if a < 0Q then
-    -a
-  else
-    a
 
 impl Negate for Int128 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.

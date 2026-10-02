@@ -1,6 +1,6 @@
-Stdlib.Int32.absoluteValue -5l = 5l
-Stdlib.Int32.absoluteValue 5l = 5l
-Stdlib.Int32.absoluteValue (-2147483648l) = -2147483648l
+Stdlib.abs -5l = 5l
+Stdlib.abs 5l = 5l
+Stdlib.abs (-2147483648l) = -2147483648l
 
 // `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
 // reaches this type and that the type's own comparison holds at its extremes.

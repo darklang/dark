@@ -7,32 +7,35 @@ val displayCap = 20
 val batchDisplayCap = 3
 
 
-// Operator symbols aren't function names, so a literal search for one finds
-// nothing useful. Map each to the keyword that surfaces its named operation —
-// `search %` -> `modulo`, `search &&` -> `Bool.and`,
-// `search /` -> `divide`. Returns None for
-// an ordinary query, which searches unchanged.
+// An operator symbol is not a name, so searching for one literally finds nothing. Each one is
+// answered with the TRAIT it is, so `dark search %` lands on `Modulo` and every type that
+// implements it rather than on whatever happens to contain the letters. `NumericTraits.ofInfix`
+// is the authoritative symbol-to-trait table and this is its reader-facing half, so a trait
+// renamed there has to be renamed here.
+//
+// Four are not traits and say so by answering with a name instead: `==` and `!=` are structural
+// for every value, and `!`, `&&` and `||` are ordinary Bool functions.
 let operatorAlias (query: String) : Stdlib.Option.Option<String> =
   match Stdlib.String.trim query with
-  | "+" -> Stdlib.Option.Option.Some "add"
-  | "-" -> Stdlib.Option.Option.Some "subtract"
-  | "*" -> Stdlib.Option.Option.Some "multiply"
-  | "/" -> Stdlib.Option.Option.Some "divide"
-  | "%" -> Stdlib.Option.Option.Some "modulo"
-  | "**" -> Stdlib.Option.Option.Some "power"
-  | "&" -> Stdlib.Option.Option.Some "bitwiseAnd"
-  | "|" -> Stdlib.Option.Option.Some "bitwiseOr"
-  | "^" -> Stdlib.Option.Option.Some "bitwiseXor"
-  | "~" -> Stdlib.Option.Option.Some "bitwiseNot"
-  | "<<" -> Stdlib.Option.Option.Some "shiftLeft"
-  | ">>" -> Stdlib.Option.Option.Some "shiftRight"
-  | "!" -> Stdlib.Option.Option.Some "not"
-  | ">" -> Stdlib.Option.Option.Some "greaterThan"
-  | ">=" -> Stdlib.Option.Option.Some "greaterThanOrEqual"
-  | "<" -> Stdlib.Option.Option.Some "lessThan"
-  | "<=" -> Stdlib.Option.Option.Some "lessThanOrEqual"
+  | "+" -> Stdlib.Option.Option.Some "Add"
+  | "-" -> Stdlib.Option.Option.Some "Subtract"
+  | "*" -> Stdlib.Option.Option.Some "Multiply"
+  | "/" -> Stdlib.Option.Option.Some "Divide"
+  | "%" -> Stdlib.Option.Option.Some "Modulo"
+  | "**" -> Stdlib.Option.Option.Some "Power"
+  | "&" -> Stdlib.Option.Option.Some "BitwiseAnd"
+  | "|" -> Stdlib.Option.Option.Some "BitwiseOr"
+  | "^" -> Stdlib.Option.Option.Some "BitwiseXor"
+  | "~" -> Stdlib.Option.Option.Some "BitwiseNot"
+  | "<<" -> Stdlib.Option.Option.Some "ShiftLeft"
+  | ">>" -> Stdlib.Option.Option.Some "ShiftRight"
+  | "<" -> Stdlib.Option.Option.Some "Compare"
+  | "<=" -> Stdlib.Option.Option.Some "Compare"
+  | ">" -> Stdlib.Option.Option.Some "Compare"
+  | ">=" -> Stdlib.Option.Option.Some "Compare"
   | "==" -> Stdlib.Option.Option.Some "equals"
   | "!=" -> Stdlib.Option.Option.Some "notEquals"
+  | "!" -> Stdlib.Option.Option.Some "not"
   | "&&" -> Stdlib.Option.Option.Some "and"
   | "||" -> Stdlib.Option.Option.Some "or"
   | _ -> Stdlib.Option.Option.None
@@ -411,7 +414,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           match aliasKeyword with
           | Some kw ->
             Stdlib.printLine (
-              Stdlib.Cli.UI.Colors.hint $"  (operator {rawQueryText} maps to the \"{kw}\" operation)")
+              Stdlib.Cli.UI.Colors.hint $"  ({rawQueryText} is {kw})")
           | None -> ()
           Stdlib.printLine ""
 
