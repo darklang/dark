@@ -783,8 +783,10 @@ let loopsOf
   //   a lambda's call site inside it   `List.map (fun x -> ...)` going round
   //   the function itself              it recursed, or a loop above called it once per iteration
   //
-  // Tail recursion is neither and cannot be. A tail call re-enters the SAME frame, so it leaves
-  // one frame and one set of values however many times it goes round.
+  // Tail recursion is the second kind, not an exception to it. The interpreter does no tail-call
+  // optimisation, so a tail call pushes a frame like any other call, and that is what makes it
+  // steppable: `countdown 5 0` reads iteration 1 of 6 through 6 with the real accumulator on
+  // each. This comment used to claim the opposite, which was never true of this interpreter.
   //
   // Both kinds carry the same `callSite`, which the replay fills in for each: a lambda's own
   // expression id, or a hash of the function's name. So this is one grouping key, not two.
