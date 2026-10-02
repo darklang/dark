@@ -13,10 +13,10 @@
 # Supported runtimes: linux-x64, linux-musl-x64, linux-arm64, linux-arm, osx-x64, osx-arm64, win-x64, win-arm64
 #
 # Publish modes:
-#   r2r    ReadyToRun + single-file + trimmed. What main ships today. Default.
+#   r2r    ReadyToRun + single-file + trimmed. The explicit fast path.
 #   aot    NativeAOT for every requested runtime. Errors out if any requested
 #          runtime can't be AOT-built from this host (see the guards below).
-#   auto   AOT where it's possible, R2R where it isn't. This is what the
+#   auto   AOT where it's possible, R2R where it isn't. The DEFAULT, and what the
 #          release matrix uses: windows falls back without the caller
 #          having to know why.
 #
