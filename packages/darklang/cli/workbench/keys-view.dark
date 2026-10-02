@@ -60,11 +60,14 @@ let withLens (state: State) (lens: Lens) : State =
 let handleViewKey
   (state: State)
   (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
   match key with
-  | UpArrow -> navUp state
-  | DownArrow -> navDown state
+  // shift+arrow is ten of them. See `repeatStep`: Home and PageUp are still there and he does
+  // not use them, and this asks for no fn key and takes no letter away from anything.
+  | UpArrow -> if modifiers.shift then repeatStep state navUp 10 else navUp state
+  | DownArrow -> if modifiers.shift then repeatStep state navDown 10 else navDown state
   // ←/→ move between the panes - list, detail - the way they sit on screen.
   // Going into a module is ⏎ (and back out is esc), so the arrows mean one
   // thing everywhere. The nav is above, reached by esc, tab or `.
@@ -155,13 +158,8 @@ let handleViewKey
     ascend state
   | _ ->
     match keyChar with
-    // Vim motion - the same movement as the arrows, so muscle memory works either way.
-    | Some "k" -> navUp state
-    | Some "j" -> navDown state
-    | Some "h" -> focusLeft state
-    | Some "l" -> focusRight state
-    | Some "g" -> navTop state
-    | Some "G" -> navBottom state
+    // No vim motion. The arrows, Home/End and PageUp/PageDown above are the movement, and a
+    // second way to move costs six letters that actions want more.
     | Some "a" ->
       // Changes, on a conflict row: acknowledge. AI: ask the agent. Devices: add an instance (placeholder).
       if (state.activeView == vSCM) && (cursorRowIs state "conflict") then resolveConflict state "ok"
@@ -253,8 +251,23 @@ let handleViewKey
     | Some "x" ->
       // Matter: the traces that called the selected fn. REPL: x drops the
       // session bindings. Home, on a branch row: x deletes that branch.
-      // Changes: x discards all WIP.
-      if state.activeView == vMatter then
+      // Changes: x discards all WIP. Traces: x throws the run away.
+      if state.activeView == vTraces then
+        // Confirmed, like `x` on Changes, because a run is the only record of what happened and
+        // nothing brings it back.
+        match Stdlib.List.getAt state.items state.selected with
+        | Some item ->
+          Step.Continue
+            { state with
+                input =
+                  Stdlib.Option.Option.Some
+                    (InputState
+                      { prompt =
+                          $"delete trace {Cli.Text.shortIdText item.name}? type y then enter: "
+                        field = Stdlib.Cli.UI.TextField.fromText ""
+                        action = "trace-delete" }) }
+        | None -> Step.Continue state
+      else if state.activeView == vMatter then
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->
           if item.isModule then Step.Continue state else openReader state (tracesText state) false
@@ -316,9 +329,55 @@ let handleViewKey
       if state.activeView == vTraces then
         Step.Continue (goTo state (mkDest (extViewIndex "errors") 0) false)
       else Step.Continue state
+    | Some "P" ->
+      // Apps: the processes the scheduler is running, `dark ps` as a pane. `5` comes back.
+      if state.activeView == vApps then
+        Step.Continue (goTo state (mkDest (extViewIndex "processes") 0) false)
+      else Step.Continue state
+    | Some "R" ->
+      // Reload now: what `--live` would have done for you. The footer says when there is
+      // something to reload, and pressing it when there is not costs one re-read.
+      Step.Continue
+        (forceScmRefresh
+          { state with items = reloadItems state; message = "reloaded" })
+    | Some "p" ->
+      // Traces: pin the run under the cursor, or unpin it. Retention drops the oldest runs as
+      // they pile up, and the one you are reading is the one you least want dropped. In place,
+      // no confirmation, because it is one bit and pressing it again puts it back.
+      //
+      // `p` is the prompt everywhere else, and on this pane it is the pin. That is the same
+      // rule every other letter follows here (`r` is rebase on Home, start on Apps, rename on
+      // Code), and the footer says which one you are looking at.
+      if state.activeView == vTraces then
+        match Stdlib.List.getAt state.items state.selected with
+        | Some item ->
+          match Cli.TraceVerbs.find item.name with
+          | Error m -> Step.Continue { state with message = m }
+          | Ok run ->
+            let wanted = Stdlib.Bool.not run.pinned
+            if Darklang.Tracing.Store.setPinned run.id wanted then
+              let verb = if wanted then "pinned" else "unpinned"
+              let reloaded = { state with items = reloadItems state }
+              Step.Continue
+                { reloaded with
+                    message = $"{verb} {Cli.Text.shortIdText run.id}" }
+            else
+              Step.Continue
+                { state with message = "that run is gone: it was dropped while you looked at it" }
+        | None -> Step.Continue state
+      else Step.Continue state
     | Some "r" ->
-      // Home: rebase the branch under the cursor. Apps: run. Matter: rename the selected leaf.
-      if state.activeView == vHome then
+      // Home: rebase the branch under the cursor. Apps: run. Traces: resume the run, which
+      // leaves the workbench, because a resume runs the program again -- it prints, it can ask
+      // for input, and it can take as long as it likes. `Step.Launch` is how the workbench hands
+      // the terminal over for exactly that.
+      // Matter: rename the selected leaf.
+      if state.activeView == vTraces then
+        match Stdlib.List.getAt state.items state.selected with
+        | Some item ->
+          Step.Launch(state, $"traces resume {Cli.Text.shortIdText item.name}")
+        | None -> Step.Continue state
+      else if state.activeView == vHome then
         match branchForAction state with
         | Some b ->
           Step.Continue
@@ -383,7 +442,7 @@ let handleKey
             handleSearchResultsKey state key keyChar
           else if navbarFocused state then
             // Let Home's welcome shortcut work before content has focus.
-            if (state.activeView == vHome) && (keyChar == Stdlib.Option.Option.Some "b") then handleViewKey state key keyChar
+            if (state.activeView == vHome) && (keyChar == Stdlib.Option.Option.Some "b") then handleViewKey state key modifiers keyChar
             else handleNavbarKey state key keyChar
           else
-            handleViewKey state key keyChar
+            handleViewKey state key modifiers keyChar

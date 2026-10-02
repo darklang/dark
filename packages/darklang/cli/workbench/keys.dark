@@ -150,7 +150,7 @@ let handleReaderKey
   (key: Stdlib.Cli.Stdin.Key.Key)
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
-  // Reader mode: ↑↓/j/k scroll a line, PgUp/PgDn a screenful, g/G to the ends, Esc/q closes it.
+  // Reader mode: ↑↓ scroll a line, PgUp/PgDn a screenful, Esc/q closes it.
   let scrollUp = Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - 1) }
   let scrollDown = Step.Continue { state with detailScroll = state.detailScroll + 1 }
   let close = Step.Continue { state with reading = Stdlib.Option.Option.None; detailScroll = 0 }
@@ -170,12 +170,6 @@ let handleReaderKey
   | _ ->
     match keyChar with
     | Some "q" -> close
-    | Some "k" -> scrollUp
-    | Some "j" -> scrollDown
-    | Some "g" -> Step.Continue { state with detailScroll = 0 }
-    | Some "G" ->
-      let maxScroll = Stdlib.Int.max 0 ((Stdlib.List.length (Stdlib.String.split content "\n")) - 1)
-      Step.Continue { state with detailScroll = maxScroll }
     | Some ":" ->
       // Keep issuing: `:` from the reader closes it and opens a fresh command bar, so successive commands
       // don't need an esc between them.
@@ -194,7 +188,7 @@ let handleSearchResultsKey
   (key: Stdlib.Cli.Stdin.Key.Key)
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
-  // Search-results mode: ↑↓/j/k move, ⏎ jumps to the hit, Esc closes.
+  // Search-results mode: ↑↓ move, ⏎ jumps to the hit, Esc closes.
   let n = Stdlib.List.length state.search.hits
   let moveTo (i: Int) =
     Step.Continue
@@ -213,9 +207,5 @@ let handleSearchResultsKey
     | None -> closeSearch
   | _ ->
     match keyChar with
-    | Some "k" -> moveTo (state.search.selected - 1)
-    | Some "j" -> moveTo (state.search.selected + 1)
-    | Some "g" -> moveTo 0
-    | Some "G" -> moveTo (n - 1)
     | Some "q" -> closeSearch
     | _ -> Step.Continue state

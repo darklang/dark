@@ -21,6 +21,8 @@ open TestUtils.TestUtils
 
 open Tests.CliTestHarness
 
+module CliDsl = Tests.CliDsl
+
 let private testHelpCommand =
   cliTest "help command" (fun state ->
     task {
@@ -94,7 +96,7 @@ let private sweepFailure (outcome : Result<string, string>) : Option<string> =
 
 /// One line, because `eval` takes the expression as a single argument.
 let private renderExpr (body : string) : string =
-  "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"test-instance\" [] in "
+  "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"test-instance\" [] false in "
   + "let s = Darklang.Cli.Workbench.refreshScmStatus st st in "
   + "let frame = fun v w h -> (Darklang.Cli.Workbench.viewAtSize { s with activeView = v } (Darklang.Stdlib.Cli.Tui.Size { width = w; height = h })).rows in "
   + body
@@ -128,7 +130,7 @@ let private hintRowKeepsTheWayOut =
     (fun state ->
       task {
         let lastRow (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"i\" [] in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"i\" [] false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s1 = { s0 with activeView = 4 } in "
           + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
@@ -181,7 +183,7 @@ let private headerKeepsTheBranchWhenNarrow =
         // A deliberately long instance name, so the row is over-full whatever the shared
         // store holds: the test creates the condition rather than hoping.
         let row (w : int) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"inst-with-a-deliberately-long-name-for-this-test\" [] in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Stachu\" \"inst-with-a-deliberately-long-name-for-this-test\" [] false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s1 = { s0 with activeView = 4 } in "
           + "let s = { s1 with items = Darklang.Cli.Workbench.reloadItems s1 } in "
@@ -211,7 +213,7 @@ let private workbenchBranchActionsWork =
     (fun state ->
       task {
         let act (action : string) (text : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s = { s0 with activeView = 4 } in "
           + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\"; field = Stdlib.Cli.UI.TextField.fromText \"{text}\"; action = \"{action}\" }}) with "
@@ -249,7 +251,7 @@ let private mergeAndRebaseRefuseOnMain =
     (fun state ->
       task {
         let act (action : string) : string =
-          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] in "
+          "let st = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"T\" \"t\" [] false in "
           + "let s0 = Darklang.Cli.Workbench.refreshScmStatus st st in "
           + "let s = { s0 with activeView = 4 } in "
           + $"match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState {{ prompt = \"p\"; field = Stdlib.Cli.UI.TextField.fromText \"y\"; action = \"{action}\" }}) with "
@@ -636,6 +638,226 @@ let everyCommandSurvivesABranch =
           Tests.failtestf "commands that misbehave while on a branch:\n%s" detail
       })
 
+/// ─── Shape 3: every command with VALID arguments ───────────────────────────────
+///
+/// The three sweeps above run each command bare, with `--help`, and with a word that means
+/// nothing. None of them ever gives a command something to DO, and three of this branch's bugs
+/// lived in exactly that gap: a Dark call site is not type-checked until it executes, so
+/// `traces pin <id>` was dead on arrival with a green build and a green suite behind it.
+///
+/// This is the fourth shape (`AGENTS.md`, "Sweeping the CLI after a change"): one known-good
+/// invocation per command, against a store seeded with something to name. It asserts what the
+/// other sweeps assert -- nothing printed that looks like a runtime failure, and something
+/// printed at all -- plus the exit code, which for a command that was asked a fair question and
+/// answered it is 0.
+///
+/// The exit code is asserted in one direction only. A refusal exits non-zero, but some refusals
+/// still return the state unchanged and so exit 0, so `= 0` is a safe thing to require of a
+/// valid invocation and a useless thing to invert.
+/// What the seed leaves in the store for the sweep to name.
+type private Seeded =
+  {
+    /// A committed package fn, with a caller, so `deps`, `view`, `hash` and `undo` have a target.
+    fn : string
+    /// A branch that exists and differs from main.
+    branch : string
+    /// A commit hash `show` can open.
+    commit : string
+    /// A recorded run `traces inspect` can open.
+    run : string
+  }
+
+/// The invocation a person would actually type, per command.
+///
+/// `[]` means "bare IS the valid invocation" -- `status`, `whoami`, `branches` answer a question
+/// that needs no argument, and running them again here costs one dispatch and keeps the table
+/// complete rather than clever. Anything cheap and read-only is preferred: the sweep runs sixty
+/// commands, and one that takes ten seconds makes the whole thing something people skip.
+let private knownGood (seed : Seeded) : Map<string, List<string>> =
+  Map.ofList
+    [ "help", [ "status" ]
+      // `config list` reads; `config set` writes keys the F# boot reads at startup.
+      "config", [ "list" ]
+      // Bare asks GitHub for the latest release, which is a network call on a timeout.
+      "version", [ "--local" ]
+      "nav", [ "Darklang.Stdlib.List" ]
+      "ls", [ "Darklang.Stdlib.List" ]
+      "back", []
+      "eval", [ "1L + 1L" ]
+      "scripts", [ "list" ]
+      "view", [ seed.fn ]
+      "tree", [ "Darklang.Stdlib"; "--depth=1" ]
+      "search", [ "mergeFavoring" ]
+      "deps", [ seed.fn ]
+      "hash", [ seed.fn ]
+      "status", [ "--json" ]
+      "commits", [ "3"; "--json" ]
+      "show", [ seed.commit ]
+      "branch", [ "list" ]
+      "branches", [ "--json" ]
+      "switch", [ "main" ]
+      "diff", [ seed.branch; "--json" ]
+      "log", [ "--json" ]
+      "rebase", [ seed.branch; "--dry-run" ]
+      "merge", [ seed.branch; "--dry-run" ]
+      "propagate", [ "show"; seed.fn ]
+      "constraints", [ "--json" ]
+      "builtins", [ "listMap" ]
+      "find-values", [ "Darklang.Stdlib.Option.Option" ]
+      "docs", [ "scm" ]
+      "db", [ "list" ]
+      "ops", [ "3" ]
+      "ps", [ "--json" ]
+      "traces", [ "inspect"; seed.run ]
+      "conflicts", [ "list" ]
+      "backups", [ "list" ]
+      "whoami", []
+      "permissions", [ "show"; seed.fn ]
+      "typecheck", []
+      "workbench", []
+      "commit", [ "--json" ] ]
+
+/// Commands that are safe to run BARE and must not be given real arguments, with the reason.
+///
+/// Same rule as `notSweepable`: a bare entry is an exclusion nobody has justified. The reasons
+/// fall into four groups -- it reaches the network (and the relay url is a STORED default, so no
+/// argument is needed to reach production), it takes over the screen, it never returns, or it
+/// changes state the rest of the suite is standing on.
+let private unsafeWithArguments : Map<string, string> =
+  Map.ofList
+    [ "agent",
+      "asks a model: network, money, and `agent code` writes the answer into the store"
+      "push", "the relay url is a stored default, so this reaches the real one"
+      "pull", "ditto"
+      "sync", "ditto, and `sync setup` is a question flow that reads stdin"
+      "connect",
+      "rewrites the store's relay, so every later sync-shaped command follows it"
+      "review", "`review pull` with no url reaches the stored relay, quietly"
+      "identity", "renames the instance, and the name goes out on the next push"
+      "run-script", "takes a path and executes whatever is at it"
+      "fn",
+      "authors into the shared store; the seed above is the only fixture that should"
+      "val", "ditto"
+      "type", "ditto"
+      "module", "ditto"
+      "rename", "moves an item other tests may be naming"
+      "edit", "without a file argument it spawns $EDITOR as an interactive child"
+      "discard",
+      "drops the WHOLE draft, which takes other tests' uncommitted work with it"
+      "delete", "takes an item off the shelf"
+      "deprecate", "ditto, by the other door"
+      "undeprecate", "puts one back"
+      "undo", "steps a real item back a version"
+      "resolve", "writes a Resolve op, and an op syncs"
+      "ack", "closes a finding other tests assert on" ]
+
+/// Seed the store, run every command with a known-good invocation, and check the drift both ways.
+let everyCommandWorksWithValidArguments =
+  cliTestOnMain
+    "every registered command answers a fair question with exit 0"
+    (fun state ->
+      task {
+        let branch = "cli-sweep-args"
+        let fnName = "Tests.Sweep.f"
+
+        // Authored and committed, so `show`, `deps` and `propagate` have something real, and
+        // committed by NAME: `commit` with no `--include` would take whatever other tests left
+        // in the draft.
+        do! CliDsl.onMain state
+        do! CliDsl.fn state "Tests.Sweep.dep" "() : Int64 = 1L"
+        do! CliDsl.fn state fnName "() : Int64 = Tests.Sweep.dep ()"
+        do!
+          CliDsl.commitOnly
+            state
+            "cli-sweep fixture"
+            "Tests.Sweep.dep,Tests.Sweep.f"
+
+        // A branch that differs from main, for `diff` / `merge --dry-run` / `rebase --dry-run`.
+        do! CliDsl.switch state branch
+        do! CliDsl.fn state "Tests.Sweep.onBranch" "() : Int64 = 2L"
+        do! CliDsl.onMain state
+
+        let! commitsJson = runCli state [ "commits"; "1"; "--json" ]
+        let commit =
+          let split = commitsJson.Split("\"hash\":\"")
+          if split.Length < 2 then "" else split[1].Split('"')[0]
+
+        // A recorded run. Recording is off by default now, so the sweep turns it on for its own
+        // seed and puts it back, the way `cliTestWithFreshTraces` does.
+        let recordingBefore = LibDB.Tracing.TraceDetail.current
+        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+        let! _ = runCli state [ "eval"; "1L + 1L" ]
+        let! runsJson = runCli state [ "traces"; "list"; "1"; "--json" ]
+        let run =
+          let split = runsJson.Split("\"id\":\"")
+          if split.Length < 2 then "" else split[1].Split('"')[0]
+
+        try
+          Expect.isFalse (commit = "") "the seed made a commit to name"
+          Expect.isFalse (run = "") "the seed made a run to name"
+
+          let table =
+            knownGood { fn = fnName; branch = branch; commit = commit; run = run }
+
+          let! commands = registeredCommands state
+          Expect.isGreaterThan (List.length commands) 20 "the registry was read"
+
+          // Drift, both ways, so the table cannot quietly stop covering the registry.
+          let accounted =
+            Set.unionMany
+              [ table |> Map.keys |> Set.ofSeq
+                unsafeWithArguments |> Map.keys |> Set.ofSeq
+                Set.add "agent" notSweepable ]
+
+          let unaccounted = Set.difference (Set.ofList commands) accounted
+          if not (Set.isEmpty unaccounted) then
+            Tests.failtestf
+              "registered but no known-good invocation and no stated reason not to sweep: %s"
+              (unaccounted |> Set.toList |> String.concat ", ")
+
+          let stale =
+            Set.difference
+              (Set.union
+                (table |> Map.keys |> Set.ofSeq)
+                (unsafeWithArguments |> Map.keys |> Set.ofSeq))
+              (Set.ofList commands)
+          if not (Set.isEmpty stale) then
+            Tests.failtestf
+              "named in the valid-argument table but not registered: %s"
+              (stale |> Set.toList |> String.concat ", ")
+
+          let mutable failures : List<string * string> = []
+
+          for KeyValue(cmd, args) in table do
+            let! outcome = runCliCatchingWithStatus state (cmd :: args)
+            let printed = $"""dark {cmd} {String.concat " " args}"""
+
+            match outcome with
+            | Error e -> failures <- (printed, $"crashed: {e}") :: failures
+            | Ok(output, status) ->
+              match sweepFailure (Ok output) with
+              | Some why -> failures <- (printed, why) :: failures
+              | None ->
+                if status <> 0 then
+                  failures <- (printed, $"exited {status}") :: failures
+
+          if not (List.isEmpty failures) then
+            let detail =
+              failures
+              |> List.rev
+              |> List.map (fun (c, why) -> $"  {c} -> {why}")
+              |> String.concat "\n"
+
+            Tests.failtestf
+              "commands that did not answer a fair question:\n%s"
+              detail
+        finally
+          LibDB.Tracing.TraceDetail.setForTesting recordingBefore
+
+        do! archiveBranches state [ branch ]
+      })
+
+
 /// An empty grant is not a grant, and must not report that it is.
 let private permissionsRefusesAnEmptyRule =
   cliTest
@@ -718,7 +940,8 @@ let private missingTargetsAreNamed =
 /// A doc that confidently describes a command that is not there is worse than no doc, and nothing
 /// else checks. Narrow by design: only the WORD after `dark`, which is what is verifiable
 /// mechanically. It cannot tell you the prose is wrong, only that the commands are real.
-let private docTopicsToCheck = [ "scm"; "for-ai"; "cli" ]
+let private docTopicsToCheck =
+  [ "scm"; "for-ai"; "cli"; "processes"; "live"; "http-server" ]
 
 let private documentedCommandsAreReal =
   cliTest "every command the docs mention exists" (fun state ->

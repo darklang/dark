@@ -38,18 +38,14 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
   else if state.activeView == vApps then
     splitListPreview state region "" "app" "Detail" (Stdlib.Cli.UI.Colors.dimText "no apps registered")
   else if state.activeView == vTraces then
-    // Sample rows must SAY so in the title, not only in the detail pane: the first sample is the
-    // REPL's own "try:" example, which someone who just ran it will believe tracing recorded.
-    let sample =
-      if state.items |> Stdlib.List.any (fun it -> it.kind == "trace-sample") then "(sample)" else ""
-    let listFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
-    let detailFocused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second
-    splitListPreviewTitled
+    splitListPreview
       state
       region
-      (paneTitle "" (Stdlib.List.append (listTrailer state "run") [ sample ]) listFocused)
-      (paneTitle "Detail" [] detailFocused)
-      (Stdlib.Cli.UI.Colors.dimText "no traces yet - eval or run an app to record")
+      ""
+      "trace"
+      "Detail"
+      (Stdlib.Cli.UI.Colors.dimText
+        "nothing has run yet -- every `dark eval`, `dark run` and served request is kept here")
   else if state.activeView == vDocs then
     splitListPreview state region "" "topic" "Topic" (Stdlib.Cli.UI.Colors.dimText "(no topics)")
   else
@@ -213,7 +209,10 @@ let hintsForView (state: State) (width: Int) : String =
       Stdlib.List.flatten [ [ ("↑↓", "move"), ("⏎", "inspect") ], backHint, [ ("i", "install"), ("r", "start"), ("s", "stop") ] ]
     else if view == vTraces then
       Stdlib.List.flatten
-        [ [ ("↑↓", "move"), ("⏎", "open") ], backHint, paneHint, [ ("f", "filter"), ("E", "errors") ] ]
+        [ [ ("↑↓", "move"), ("⏎", "open"), ("r", "resume"), ("p", "pin"), ("x", "delete") ]
+          backHint
+          paneHint
+          [ ("f", "filter"), ("E", "errors") ] ]
     else if view == vDocs then
       Stdlib.List.flatten [ [ ("↑↓", "move"), ("⏎", "read") ], backHint, paneHint ]
     else
@@ -225,30 +224,34 @@ let hintsForView (state: State) (width: Int) : String =
       | None -> Stdlib.List.append [ ("↑↓", "move") ] backHint
   // Fitted rather than concatenated. The droppable run is ordered cheapest-last, so this view's own actions
   // outlive the secondary global keys, and `?`/`q` outlive everything.
-  // Home already lists `s switch branch`, so `S branches` would repeat it; the rest stay, `p`
-  // above all (see the note on it above).
+  // Home already lists `s switch branch`, so `S branches` would repeat it. Traces takes `p` for
+  // the pin, so the global `p prompt` must not also be offered there: two meanings in one footer
+  // is worse than one missing hint, and `:` is still on the line.
   let globals =
     if view == vHome then secondaryGlobal |> Stdlib.List.filter (fun pair -> let (k, _l) = pair in k != "S")
+    else if view == vTraces then
+      secondaryGlobal |> Stdlib.List.filter (fun pair -> let (k, _l) = pair in k != "p")
     else secondaryGlobal
   Frame.formatHintsFitted (Stdlib.List.append ctx globals) essential width
 
 /// The keymap, grouped, for the `?` overlay - (category, keys).
 val helpGroups =
   [ ("Go", "` nav   ←→ walk it   ↓ into the view   ⏎ go   1-8 view   S switch branch   esc one step back, the footer says where (never quits)")
-    ("Move", "↑↓ or j/k   g/G top/bottom   ←→ or h/l between panes   tab next pane")
+    ("Move", "↑↓ move   home/end top/bottom   ←→ between panes   tab next pane")
     ("Open", "⏎ into a module / open a row   backspace up a module")
     ("Find", "/ find   : command   ? this   q quit")
+    ("Reload", "R re-read the store (--live does it for you when something changes elsewhere)")
     ("Code", "e edit   n new fn   t new type   v new value   r rename   x traces   L lens   C changed   f filter   B builtins")
     ("REPL", "⏎ type (esc leaves the prompt)   f clear log   x clear session")
     ("Home", "⏎ open / switch to the row's branch   c commit   b new branch   s choose branch   m merge   r rebase   x delete branch")
     ("Changes", "⏎ source   c commit   x discard   u/d push/pull   o/t/a resolve the conflict under the cursor")
     ("Apps", "⏎ inspect   i install   r run   s stop")
-    ("Traces", "⏎ open   f filter   E errors")
+    ("Traces", "⏎ open   r resume   p pin   x delete   f filter   E errors")
     ("Sync", "s sync now   u push   d pull   o other instances")
     ("Search", "↑↓ move   ⏎ jump   esc close")
     // Last, and spelled out, because it's the way back to the pre-workbench CLI. Anything you could type at
     // the prompt runs from the `:` bar; `p` hands you the prompt itself.
-    ("Prompt", "p drops to the command prompt (quit returns here)   : runs one command without leaving") ]
+    ("Prompt", "p drops to the command prompt, except on Traces where it pins (quit returns here)   : runs one command without leaving") ]
 
 /// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
 let renderHelpOverlay (screen: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =

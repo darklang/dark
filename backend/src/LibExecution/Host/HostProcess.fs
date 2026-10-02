@@ -323,3 +323,27 @@ let terminate (processId : int64) : int * string * string =
       disposeProcessInfo processInfo
       (-1, "", $"Process termination error: {ex.Message}")
   | false, _ -> (-1, "", "Process not found")
+
+
+// ───────── the process's own title ─────────
+
+/// What a system monitor shows for this process: `dark` plus what it runs (`dark serve`, `dark
+/// apps sync`, `dark eval`), so a person looking at the box can tell them apart; `dark ps` is
+/// the other half of the "what is running" story.
+///
+/// Linux: the kernel's `comm` (what `top`, `pgrep -x` and the desktop monitors show), 15 bytes,
+/// written to `/proc/self/comm`. The full command line (`ps aux`) is the original argv memory,
+/// which managed code cannot rewrite without `CAP_SYS_RESOURCE`, so it stays as launched.
+/// Elsewhere: nothing; there is no portable way and it is not worth a native call.
+let setProcessTitle (title : string) : unit =
+  if System.OperatingSystem.IsLinux() then
+    try
+      let comm =
+        let bytes = System.Text.Encoding.UTF8.GetBytes title
+        if bytes.Length <= 15 then
+          title
+        else
+          System.Text.Encoding.UTF8.GetString(bytes, 0, 15)
+      System.IO.File.WriteAllText("/proc/self/comm", comm)
+    with _ ->
+      ()

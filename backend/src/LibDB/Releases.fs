@@ -42,6 +42,14 @@ let private tableExists (table : string) : bool =
   |> Sql.executeExistsSync
 
 
+/// Create a table, or do nothing if it is already there (the FRESH store, where the schema just
+/// declared it). The statement carries its own `IF NOT EXISTS`, so this is about the print.
+let createTableIfMissing (table : string) (ddl : string) : unit =
+  if not (tableExists table) then
+    print $"  release: adding {table}"
+    Sql.query ddl |> Sql.executeStatementSync
+
+
 /// Add a column, or do nothing if it is already there (the FRESH store, where the schema just declared
 /// it).
 let addColumnIfMissing
@@ -244,6 +252,93 @@ let steps : List<Step> =
             if not (List.isEmpty rows) then
               print
                 $"  release: added `removed` to {List.length rows} stored conflict(s)" }
+
+    // A trace is written by every process that ran under it, from whichever scheduler thread stepped
+    // each; `process_id` says which, and `seq` is the completion order across all of them. Old rows
+    // get '' and 0: one process, order unknown, which is what they were.
+    { name = "20260921_000001_trace_fn_calls_process_id"
+      run =
+        fun () ->
+          addColumnIfMissing "trace_fn_calls" "process_id" "TEXT NOT NULL DEFAULT ''" }
+
+    { name = "20260921_000002_trace_fn_calls_seq"
+      run =
+        fun () ->
+          addColumnIfMissing "trace_fn_calls" "seq" "INTEGER NOT NULL DEFAULT 0" }
+
+    // An effectful call's ordinal in its process, what a replay keys on. Old rows get -1: not
+    // replayable, which they are not.
+    { name = "20260921_000003_trace_fn_calls_ord"
+      run =
+        fun () ->
+          addColumnIfMissing "trace_fn_calls" "ord" "INTEGER NOT NULL DEFAULT -1" }
+
+    // A trace IS a run, so these five carry where a run stands as well as what it did. A row
+    // already in the store was written by a finished run, which is what `DEFAULT 'done'` says.
+    { name = "20260924_000001_traces_status"
+      run =
+        fun () -> addColumnIfMissing "traces" "status" "TEXT NOT NULL DEFAULT 'done'" }
+
+    { name = "20260924_000002_traces_parent_id"
+      run = fun () -> addColumnIfMissing "traces" "parent_id" "TEXT" }
+
+    { name = "20260924_000003_traces_parent_seq"
+      run = fun () -> addColumnIfMissing "traces" "parent_seq" "INTEGER" }
+
+    { name = "20260924_000004_traces_pinned"
+      run =
+        fun () -> addColumnIfMissing "traces" "pinned" "INTEGER NOT NULL DEFAULT 0" }
+
+    { name = "20260924_000005_traces_updated"
+      run =
+        fun () -> addColumnIfMissing "traces" "updated" "TEXT NOT NULL DEFAULT ''" }
+
+    // Which handler served a request, so a recorded request can be replayed against it.
+    { name = "20260924_000006_traces_entry_hash"
+      run = fun () -> addColumnIfMissing "traces" "entry_hash" "TEXT" }
+
+    // What the run answered: the other half of what its row records, and what `traces inspect`
+    // ends with. Nothing stored the output before this.
+    { name = "20260926_000001_traces_result_value"
+      run = fun () -> addColumnIfMissing "traces" "result_value" "BLOB" }
+
+    { name = "20260927_000001_traces_duration_ms"
+      run =
+        fun () ->
+          addColumnIfMissing "traces" "duration_ms" "INTEGER NOT NULL DEFAULT 0" }
+
+    // The version of each function a run went through, so a resume can say which of them have
+    // been edited since. `10-runs.sql` declares it for fresh stores; this carries it to the ones
+    // that already have the table.
+    { name = "20260928_000001_trace_fns_fn_hash"
+      run =
+        fun () -> addColumnIfMissing "trace_fns" "fn_hash" "TEXT NOT NULL DEFAULT ''" }
+
+    // How many times each loop in a run went round, so a view that could not replay every pass
+    // can still say how many there were. `08-traces.sql` declares it for fresh stores; this
+    // carries it to the ones that already exist.
+    //
+    // No backfill. A trace recorded before this has no counts and never will: they were not
+    // written down when it ran. Those traces keep working, reporting the passes a replay can
+    // reach, which is exactly what they did before.
+    { name = "20260930_000003_trace_loops"
+      run =
+        fun () ->
+          createTableIfMissing
+            "trace_loops"
+            "CREATE TABLE IF NOT EXISTS trace_loops (
+               trace_id  TEXT NOT NULL,
+               call_site TEXT NOT NULL,
+               passes    INTEGER NOT NULL,
+               PRIMARY KEY (trace_id, call_site)
+             )" }
+
+    // Which instruction produced which expression's value, in its own column beside the
+    // instructions. `06-packages.sql` declares it for fresh stores; this carries it to the ones
+    // that already exist. NULL until a function is next written, and a function with no symbols
+    // runs exactly as before and simply shows no values, which is what it did anyway.
+    { name = "20260930_000002_package_functions_debug_symbols"
+      run = fun () -> addColumnIfMissing "package_functions" "debug_symbols" "BLOB" }
 
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]

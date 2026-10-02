@@ -2,17 +2,52 @@
 /// and any consumer (CLI surface, dashboards, third-party tooling).
 ///
 /// These types describe what's stored in `traces` / `trace_fn_calls`
-/// after `LibDB.Tracing.createCliTracer` records an execution. The
-/// traces* builtins return them; the CLI's `traces` command formats
-/// them for display.
+/// after `LibDB.Tracing.createCliTracer` records a run. The traces*
+/// builtins return them; the CLI's `traces` command formats them for
+/// display.
+///
+/// A trace IS a run: one row, with what was run, where it stands, and
+/// what it did. So anything that was recorded can also be resumed, forked
+/// and previewed, a served HTTP request included.
 module Darklang.Tracing
 
 
-/// Top-level trace row — one per recorded execution.
-type TraceSummary =
-  { traceId: String
-    handler: String
-    timestamp: String }
+/// Where a run stands.
+type Status =
+  | Running
+  | Done
+  | Failed
+  /// Stopped by Ctrl-C, or a fork nobody has resumed yet. `resume` takes it from here.
+  | Suspended
+
+
+/// A run: one row of `traces`.
+type Trace =
+  { id: String
+    /// `eval`, `run <file>`, or `GET /path`: what ran.
+    entry: String
+    /// The expression or the script's source, for the ones `resume` can run again; the
+    /// printed form of the request for a served one.
+    input: String
+    /// What the trace answered, once it has. `None` while it is still going, and for one that
+    /// failed: there is no answer to show.
+    result: Stdlib.Option.Option<LanguageTools.RuntimeTypes.Dval>
+    status: Status
+    /// For a fork: the trace it branched from, and the position in that log it kept.
+    parent: Stdlib.Option.Option<(String * Int64)>
+    /// Retention never drops a pinned trace, whatever the caps say.
+    pinned: Bool
+    /// Wall clock for the whole trace, measured by the recorder. `0` for one still going, and
+    /// for one recorded before this was kept. Not `updated - created`: those are the same
+    /// instant for a served request, and a resumed trace's pair spans the suspension.
+    durationMs: Int64
+    /// Which handler served this, for a trace that is a served request. The only field that
+    /// names the ROOT of the trace: `entry` says `GET /orders`, this says which function
+    /// answered it.
+    entryHash: Stdlib.Option.Option<String>
+    /// When the trace started.
+    created: String
+    updated: String }
 
 
 /// One named input to a handler invocation. For HTTP handlers the
@@ -23,23 +58,87 @@ type InputVar =
     value: LanguageTools.RuntimeTypes.Dval }
 
 
-/// One recorded function-call event during trace execution.
+/// One call a run made, as it was recorded.
 type FnCall =
   { callId: String
-    parentCallId: Stdlib.Option.Option<String>
-    kind: String  // "function" | "lambda" | "builtin"
     fnName: String
-    lambdaExprId: Stdlib.Option.Option<String>
     args: List<LanguageTools.RuntimeTypes.Dval>
     result: LanguageTools.RuntimeTypes.Dval
-    /// Frame-entry-to-exit duration in ms. Builtins always 0 (no entry hook).
-    durationMs: Int }
+    /// Wall clock for the call. For a read in flight it is measured at the landing, so an HTTP
+    /// call carries its round trip rather than the time to hand back a promise.
+    durationMs: Int
+    /// The process that made the call. `None` for a run nobody scheduled, and for rows written
+    /// before processes existed.
+    processId: Stdlib.Option.Option<Uuid>
+    /// Where this call completed in the whole trace, across processes. One process's rows in
+    /// `seq` order are its log; all of them are the interleaving.
+    seq: Int64
+    /// This call's place in its process's effect log, what a resume keys on; -1 for a row that
+    /// is not in the log, such as the marker a truncated trace ends with.
+    ord: Int64 }
 
 
-/// Full trace payload — summary fields plus the input/fn-call lists.
+/// One recorded call of one function, in some trace. The inbox behind `dark traces calls`: the
+/// same idea as classic's trace dots, for any function rather than only a handler.
+type Call =
+  { callId: String
+    /// The trace it was made in.
+    traceId: String
+    /// What that trace was: `eval`, `run <file>`, `GET /path`.
+    entry: String
+    /// When the run started.
+    created: String
+    /// Where the call sits in the run's effect log, or -1 for a call with no effects.
+    ord: Int64 }
+
+
+/// A run and everything recorded under it.
 type TraceData =
-  { traceId: String
-    handler: String
-    timestamp: String
+  { trace: Trace
     inputs: List<InputVar>
     functionCalls: List<FnCall> }
+
+
+/// Why a replay stopped before the end of the code.
+///
+/// Two cases because two facts, and only F# knows which: either the replay got as far as
+/// running the code and the code raised, or it never got that far. The JUDGEMENT a reader
+/// needs on top of that -- is this my bug, or did the store move under the recording --
+/// is `ReplayStop.isDrift`, and it lives here because it is a decision rather than a fact.
+type ReplayStop =
+  /// The replay ran and the code raised. The error is the one the run raised today, not the
+  /// one the original run raised; a recorded run that stopped is `Trace.status`, not this.
+  | Raised of LanguageTools.RuntimeTypes.RuntimeError.Error
+  /// The replay never started: no such trace, a served request with no handler recorded, or
+  /// input that no longer parses. The string is for a person, since there is no error to show.
+  | Unreplayable of String
+
+
+module ReplayStop =
+  /// Did the world move under the recording, rather than the code being wrong?
+  ///
+  /// This is the question a reader actually has, because the two answers call for opposite
+  /// next actions: debug the code, or re-run it against the store as it is now. A trace is a
+  /// recording of code that RAN, so an error about something not resolving is almost never
+  /// the recorded code's fault; it is the store having changed since.
+  ///
+  /// An error case this does not know falls to `false`, which is the conservative answer: the
+  /// page then shows the error plainly, as it always did, rather than claiming drift it cannot
+  /// support. A new resolution-shaped error wants adding here, and until someone does, the
+  /// page is unhelpful rather than wrong.
+  let isDrift (stop: ReplayStop) : Bool =
+    match stop with
+    // Nothing to replay is itself the store having moved, except for the served-request gap,
+    // which is a missing feature. Both want "re-run it", so they answer the same here.
+    | Unreplayable _ -> true
+    | Raised err ->
+      match err with
+      // A name that no longer resolves, or resolves to a hash that is gone.
+      | ParseTimeNameResolution(_names, _err) -> true
+      | FnNotFound _ -> true
+      | TypeNotFound _ -> true
+      | ValueNotFound _ -> true
+      // Still there, but marked harmful since the recording. The commonest drift in practice,
+      // because deprecating something is a deliberate act someone takes after it has run.
+      | DeprecatedItemHalted _ -> true
+      | _ -> false

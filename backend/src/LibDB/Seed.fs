@@ -48,8 +48,15 @@ let export (outputPath : string) : Task<unit> =
 
     if System.IO.File.Exists outputPath then System.IO.File.Delete outputPath
 
-    // Checkpoint WAL before copying to ensure all data is in the main file
-    let sourceConnStr = $"Data Source={sourcePath};Mode=ReadOnly;Cache=Private"
+    // Checkpoint the WAL before copying, so the copy carries everything.
+    //
+    // ReadWrite, not ReadOnly: a checkpoint WRITES (it moves pages into the main file and
+    // truncates), so a read-only connection fails it with SQLite error 10, `disk I/O error`.
+    // That reads as a failing disk and it is not; it is this connection. It hid for a long time
+    // because a checkpoint with an empty WAL has nothing to do and succeeds either way, so the
+    // export only breaks once the store has been written to -- and then it breaks the release
+    // gates, which need a fresh seed.
+    let sourceConnStr = $"Data Source={sourcePath};Mode=ReadWrite;Cache=Private"
     use sourceConn = new SqliteConnection(sourceConnStr)
     sourceConn.Open()
     use checkpointCmd = sourceConn.CreateCommand()
@@ -104,6 +111,8 @@ let export (outputPath : string) : Task<unit> =
       -- Execution traces are dev telemetry, never part of a seed. They dominate a dev store by size
       -- (`trace_fn_calls` alone runs to hundreds of MB), so strip them and the seed is just canon.
       DELETE FROM trace_fn_calls;
+      DELETE FROM trace_fns;
+      DELETE FROM trace_loops;
       DELETE FROM traces;
 
       -- ALL of it: `config_v0` is per-install by construction, and nothing needs a

@@ -718,6 +718,23 @@ type BlobRef =
   | Persistent of hash : string * length : int64
 
 
+/// Where a frame is executing: the entry, a function, or a lambda inside one. Declared before
+/// `Dval` because a `Promise` records the point it was made at.
+type ExecutionPoint =
+  /// User is executing some "arbitrary" expression, passed in by a user.
+  /// This should only be at the `entrypoint` of a CallStack.
+  ///
+  /// Executing some top-level handler,
+  /// such as a saved Script, an HTTP handler, or a Cron.
+  | Source
+
+  // Executing some function
+  | Function of FQFnName.FQFnName
+
+  /// Executing some lambda
+  | Lambda of parent : ExecutionPoint * lambdaExprId : id
+
+
 type Instruction =
   // == Simple register operations ==
   /// Push a value into a register
@@ -842,6 +859,11 @@ type Instruction =
 
   | CheckIfFirstExprIsUnit of Register
 
+  /// Live values: hand the value now in `valueReg` to the tracer as the result of the source
+  /// expression `exprId` (an `EApply`), when the tracer wants expression results. Emitted after
+  /// every call; a no-op when tracing is off, so it costs a dispatch and nothing else.
+  | TraceExpr of exprId : id * valueReg : Register
+
 and Instructions =
   {
     /// How many registers are used in evaluating these instructions
@@ -852,6 +874,35 @@ and Instructions =
 
     /// The register that will hold the result of the instructions
     resultIn : Register
+  }
+
+
+/// Which source expression each instruction produced the value of.
+///
+/// The second thing `PT2RT` makes, beside the instructions. The instructions are what the
+/// interpreter RUNS; this is what maps them back to the code a person wrote, and nothing that
+/// only runs code ever needs to load it.
+///
+/// Keyed by instruction index: "after the instruction at this index, the register named here
+/// holds the value of the expression named here". That is exactly what a trace needs to put
+/// `// = 140` beside a line, and it is the same table anything else pointing at source would
+/// want -- a runtime error saying which expression rather than which instruction, a future
+/// step-debugger.
+///
+/// Its own artifact rather than instructions in the stream, so the instructions stay
+/// instructions and nothing carries a symbol table through a run that nobody is watching.
+and DebugSymbols =
+  {
+    /// instruction index -> (the expression, the register its value is in)
+    exprAt : Map<int, struct (id * Register)>
+
+    /// The same, per lambda, keyed by the lambda's expression id.
+    ///
+    /// A lambda's body is its own instruction list run in its own frame with its own program
+    /// counter, so its indices are its own and the enclosing table cannot hold them. Kept here
+    /// rather than on the lambda so the whole tree is ONE artifact in one column, and the
+    /// instruction blob carries none of it.
+    lambdas : Map<id, Map<int, struct (id * Register)>>
   }
 
 
@@ -893,6 +944,7 @@ and [<CustomEquality; CustomComparison>] DictKey =
     | DBlob _ -> 24
     | DApplicable _ -> 25
     | DStream _ -> 26
+    | DPromise _ -> 27
 
   static member compare (a : Dval) (b : Dval) : int =
     DvalOrdering.compareForDictKey a b
@@ -943,10 +995,11 @@ and [<CustomEquality; CustomComparison>] DictKey =
       | Persistent(h, l) -> combine (hash h * 31 + hash l)
       | Ephemeral e -> combine (hash e.id)
     | DApplicable _
-    | DStream _ ->
+    | DStream _
+    | DPromise _ ->
       Exception.raiseInternal
-        "A lambda or stream reached a Dict key hash; it should have been rejected \
-         when the dict was built"
+        "A lambda, stream or promise reached a Dict key hash; it should have been \
+         rejected when the dict was built"
         []
 
   static member private hashList(xs : List<Dval>) : int =
@@ -1046,10 +1099,12 @@ and DvalOrdering private () =
       | DApplicable _, _
       | _, DApplicable _
       | DStream _, _
-      | _, DStream _ ->
+      | _, DStream _
+      | DPromise _, _
+      | _, DPromise _ ->
         Exception.raiseInternal
-          "A lambda or stream reached a Dict key comparison; it should have been \
-           rejected when the dict was built"
+          "A lambda, stream or promise reached a Dict key comparison; it should have \
+           been rejected when the dict was built"
           []
       | _ -> compare (DictKey.caseTag a) (DictKey.caseTag b)
 
@@ -1270,6 +1325,28 @@ and [<NoComparison>] Dval =
   /// their IO source.
   | DStream of StreamImpl * disposed : bool ref * lockObj : obj
 
+  /// A read in flight. The interpreter hands one back instead of parking the process when a
+  /// builtin whose effects are all reads has to wait; it is forced (the process parks on it) at
+  /// the first instruction that inspects, stores or passes the value, at `await`, and at the
+  /// end of the run. So one is only ever at the top level of a register, a frame's result or a
+  /// builtin's returned value, never inside a list, record, closure or dict, and no builtin body
+  /// ever receives one: they are forced before the call. `docs/processes.md`, "Reads are
+  /// concurrent".
+  | DPromise of Promise
+
+
+/// A read in flight (`DPromise`): the task the builtin returned, and where it was called from,
+/// for the error at the force point and for `ps`. A class, so it compares by reference.
+and Promise
+  (
+    task : System.Threading.Tasks.Task<Dval>,
+    fn : FQFnName.FQFnName,
+    site : ExecutionPoint
+  ) =
+  member _.Task = task
+  member _.Fn = fn
+  member _.Site = site
+
 
 /// Lazy sequence producer. [FromIO] is the leaf — a pull-based
 /// producer. Mapped / Filtered / Take / Concat wrap other StreamImpls
@@ -1277,21 +1354,9 @@ and [<NoComparison>] Dval =
 /// until the enclosing [DStream] is drained via `readStreamNext` or
 /// `readStreamChunk`.
 ///
-/// Mapped/Filtered hold pre-bound `Dval -> Ply<...>` closures rather
-/// than the raw [Applicable]. The builtin wrapper (Stream.map etc.)
-/// closes over `exeState`/`vmState` when constructing the closure, so
-/// the drain path in Dval.fs stays decoupled from Execution — Dval.fs
-/// can't call Exe.executeApplicable directly since it sits earlier in
-/// the dependency chain.
-///
-/// TODO Mapped/Filtered closures hold a reference to the originating
-/// `ExecutionState`. If a Stream ever outlives its execution (long-lived
-/// debug pause, returned-from-handler-and-stashed), the closure pins
-/// stale state. Today this can't manifest — DStream isn't persistable
-/// (`isPersistable` rejects, binary-serialise raises), so a stream
-/// returned from a handler dies with its VM. Fix when it becomes a
-/// real path: pass `state` as a parameter to `next`/`nextChunk` rather
-/// than capturing it.
+/// Mapped/Filtered hold the [Applicable] itself; the puller applies it
+/// as a frame on its own stack (`Interpreter.requestApply`), so a
+/// stream captures no execution state and Dval.fs runs no Dark code.
 ///
 /// Take tracks both the original `n` (for introspection/printing) and
 /// a mutable `remaining` counter that decrements on each pull.
@@ -1334,21 +1399,24 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// termination) are the only unbounded paths. Becomes load-bearing
   /// if anyone adds a "buffer N elements ahead" or "merge multiple
   /// streams" combinator.
-  /// Every closure that may run guest code takes the DRAINER's access: a
-  /// transform's callback is deferred work, and when it finally runs it runs
-  /// inside whatever function is pulling. The closure intersects that with the
-  /// access captured when the transform was built, so neither side widens the
-  /// other. Native IO sources ignore it.
+  ///
+  /// A node that runs Dark code (`Unfold`, `Mapped`, `Filtered`) holds the callable
+  /// itself, not a closure over it: the pull is a step machine (`Stream.pull`) that
+  /// hands the callable back to the builtin pulling, which asks the interpreter to
+  /// apply it as a frame of the pulling process (`Interpreter.requestApply`). So the
+  /// callback runs inside whoever is pulling, under that frame's access narrowed by
+  /// what the callable captured; the builder's own access is folded into the
+  /// callable when the transform is made. Native IO sources are plain closures.
   | FromIO of
-    next : (Permissions.Access -> Ply<Option<Dval>>) *
+    next : (unit -> Ply<Option<Dval>>) *
     elemType : ValueType *
     disposer : (unit -> unit) option *
     nextChunk : (int -> Ply<Option<byte[]>>) option
-  | Mapped of
-    src : StreamImpl *
-    fn : (Permissions.Access -> Dval -> Ply<Dval>) *
-    elemType : ValueType
-  | Filtered of src : StreamImpl * pred : (Permissions.Access -> Dval -> Ply<bool>)
+  /// A producer written in Dark: the step takes the state and answers
+  /// `Some (element, nextState)` or `None`.
+  | Unfold of step : Applicable * state : Dval ref * elemType : ValueType
+  | Mapped of src : StreamImpl * fn : Applicable * elemType : ValueType
+  | Filtered of src : StreamImpl * pred : Applicable
   | Take of src : StreamImpl * n : int64 * remaining : int64 ref
   | Concat of streams : StreamImpl list ref
 
@@ -1400,6 +1468,7 @@ module StreamImpl =
   let rec elemType (impl : StreamImpl) : ValueType =
     match impl with
     | FromIO(_, t, _, _) -> t
+    | Unfold(_, _, t) -> t
     | Mapped(_, _, t) -> t
     | Filtered(src, _) -> elemType src
     | Take(src, _, _) -> elemType src
@@ -1763,21 +1832,6 @@ let raiseUntargetedRTE (rte : RuntimeError.Error) : 'a =
 
 
 
-type ExecutionPoint =
-  /// User is executing some "arbitrary" expression, passed in by a user.
-  /// This should only be at the `entrypoint` of a CallStack.
-  ///
-  /// Executing some top-level handler,
-  /// such as a saved Script, an HTTP handler, or a Cron.
-  | Source
-
-  // Executing some function
-  | Function of FQFnName.FQFnName
-
-  /// Executing some lambda
-  | Lambda of parent : ExecutionPoint * lambdaExprId : id
-
-
 /// Not: in reverse order
 type CallStack = List<ExecutionPoint>
 
@@ -1808,7 +1862,9 @@ let recordPermissionViolation
   (needed : string)
   : unit =
   let v = { resource = resource; needed = needed; via = via }
-  if not (sink.Contains v) then sink.Add v
+  // Processes on different scheduler threads share one sink (the host reads it after the run),
+  // so the append is locked. Denials are rare; the lock is never hot.
+  lock sink (fun () -> if not (sink.Contains v) then sink.Add v)
 
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
@@ -2078,11 +2134,17 @@ module Dval =
 
     | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
 
+    // Not known until the read lands: `Promise<t>` unifies with `t` by being unknown, which is
+    // the only way the runtime checker ever meets one (a package fn returning a read it did not
+    // inspect; every argument and every stored value is forced first).
+    | DPromise _ -> ValueType.Unknown
+
 
   let rec isUsableDictKey (dv : Dval) : bool =
     match dv with
     | DApplicable _
     | DStream _
+    | DPromise _
     | DDB _
     | DBlob _ -> false
 
@@ -2170,6 +2232,7 @@ module Dval =
           | DUuid _
           | DDB _
           | DStream _
+          | DPromise _
           | DBlob _ -> return dv
 
           | DList(vt, items) ->
@@ -2314,7 +2377,121 @@ module PackageFn =
 
       // CLEANUP consider renaming - just `instructions` maybe?
       body : Instructions
+
+      /// Which instruction produced which expression's value. Stored in its own column, and
+      /// LAZY, because running the code never needs it and reading the code always does. Forced
+      /// only where a value is actually being collected, so an ordinary run does not pay to
+      /// deserialize a table nothing will read.
+      symbols : Lazy<DebugSymbols>
     }
+
+
+/// Pulling the symbol table out of the instruction stream.
+///
+/// The compiler emits a `TraceExpr` after every call and every infix, carrying the expression id
+/// and the register its value landed in. That is the mapping a reader needs, in the one place it
+/// does not belong: welded into the code, carried by every run whether or not anything is
+/// watching.
+///
+/// This is the single seam where it comes out, and every path that turns an expression into
+/// something runnable goes through it. The instructions go one way, the table the other, and the
+/// indices in the table are indices into the list AFTER the opcodes are removed, so the
+/// interpreter looks up by program counter with no arithmetic.
+///
+/// After this runs, no `TraceExpr` survives: it is a marker the compiler leaves for this
+/// function to collect, not an instruction anything executes.
+module DebugSymbols =
+  let empty : DebugSymbols = { exprAt = Map.empty; lambdas = Map.empty }
+
+  /// The empty table, as one shared value.
+  ///
+  /// Shared on purpose. `Lazy` has no structural equality, so two `lazy` expressions computing
+  /// the same thing are never equal to each other, and a record holding one compares by
+  /// identity. Everything that means "no symbols here" uses this, so those records compare
+  /// equal -- which is what a serialization roundtrip test asks.
+  let emptyLazy : Lazy<DebugSymbols> = lazy empty
+
+  /// Take the markers out of one instruction list, and say what they said.
+  ///
+  /// Removing instructions moves every instruction after them, and jumps are RELATIVE, so every
+  /// jump that spans a removed marker has to be rewritten or it lands somewhere else. That is
+  /// the whole of the difficulty here, and getting it wrong breaks arithmetic rather than
+  /// tracing: `1 + 2` compiles to a jump over nothing in particular.
+  let private stripFrom
+    (instrs : List<Instruction>)
+    (onLambda : Instruction -> Instruction)
+    : struct (List<Instruction> * Map<int, struct (id * Register)>) =
+    let originals = List.toArray instrs
+
+    // originalIndex -> index in the list being built, or -1 for a marker that is going away.
+    // One extra slot: a jump may target one past the end, which is how a block ends.
+    let newIndex = Array.zeroCreate (originals.Length + 1)
+    let mutable next = 0
+    for i in 0 .. originals.Length - 1 do
+      match originals[i] with
+      | TraceExpr _ -> newIndex[i] <- -1
+      | _ ->
+        newIndex[i] <- next
+        next <- next + 1
+    newIndex[originals.Length] <- next
+
+    /// A relative jump from <param at>, rewritten for the list being built.
+    let rejump (at : int) (offset : int) : int =
+      let target = at + offset
+      let clamped = max 0 (min target originals.Length)
+      // A jump that lands ON a removed marker lands on what follows it instead; scanning
+      // forward is what "what follows it" means.
+      let mutable t = clamped
+      while t < originals.Length && newIndex[t] = -1 do
+        t <- t + 1
+      newIndex[t] - newIndex[at]
+
+    let kept = ResizeArray<Instruction>()
+    let mutable table = Map.empty
+
+    for i in 0 .. originals.Length - 1 do
+      match originals[i] with
+      // The value of the instruction BEFORE it, which is the call that produced it.
+      | TraceExpr(exprId, reg) ->
+        if i > 0 && newIndex[i - 1] >= 0 then
+          table <- Map.add newIndex[i - 1] (struct (exprId, reg)) table
+
+      | JumpBy offset -> kept.Add(JumpBy(rejump i offset))
+      | JumpByIfFalse(offset, condReg) ->
+        kept.Add(JumpByIfFalse(rejump i offset, condReg))
+      | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
+        kept.Add(CheckMatchPatternAndExtractVars(valueReg, pat, rejump i failJump))
+
+      | CreateLambda _ as instr -> kept.Add(onLambda instr)
+
+      | instr -> kept.Add instr
+
+    struct (List.ofSeq kept, table)
+
+
+  let split
+    (instrs : List<Instruction>)
+    : struct (List<Instruction> * DebugSymbols) =
+    let mutable lambdas = Map.empty
+
+    let rec go (instrs : List<Instruction>) =
+      stripFrom instrs (fun instr ->
+        match instr with
+        | CreateLambda(createTo, lambda) ->
+          // A lambda's body is its OWN instruction list, run in its own frame with its own
+          // program counter. Missing this is missing every value inside a loop, which is most
+          // of what anyone opens a trace for.
+          let struct (inner, innerTable) = go lambda.instructions.instructions
+          lambdas <- Map.add lambda.exprId innerTable lambdas
+          CreateLambda(
+            createTo,
+            { lambda with
+                instructions = { lambda.instructions with instructions = inner } }
+          )
+        | other -> other)
+
+    let struct (kept, table) = go instrs
+    struct (kept, { exprAt = table; lambdas = lambdas })
 
 
 /// Functionality written in Dark stored and managed outside of user space
@@ -2415,28 +2592,18 @@ module DB =
 // A bunch of tangled things we need to `and` together
 // ------------
 
-/// <summary>
-/// Used to mark whether a function can be run on the client rather than backend.
-/// </summary>
-/// <remarks>
-/// The runtime needs to know whether to save a function's results when it
-/// runs. Pure functions that can be run on the client do not need to have
-/// their results saved.
-/// In addition, some functions can be run without side-effects; to give
-/// the user a good experience, we can run them as soon as they are added.
-/// this includes DateTime.now and Int.random.
-/// </remarks>
+/// Whether a builtin always answers the same way, for a reader who wants to know.
+///
+/// This is a LABEL, not a decision: nothing in the runtime branches on it. What decides
+/// anything is `callEffects`, a set that is empty for a pure call, and it decides everything --
+/// the permission gate, the call-graph analysis, the pure-builtin fast path, and whether a
+/// a view answers a call from the log or performs it. `callEffects` composes and this does not,
+/// so where the two could disagree, `callEffects` is the one that is true.
 type Previewable =
-  /// The same inputs will always yield the same outputs,
-  /// so we don't need to save results. e.g. `DateTime.addSeconds`
+  /// The same inputs always yield the same outputs. e.g. `DateTime.addSeconds`
   | Pure
 
-  /// Output may vary with the same inputs, though we can safely preview.
-  /// e.g. `DateTime.now`. We should save the results.
-  | ImpurePreviewable
-
-  /// Can only be run on the server. e.g. `DB.update`
-  /// We should save the results.
+  /// May answer differently each time, or touch the world. e.g. `DateTime.now`, `DB.update`
   | Impure
 
 
@@ -2486,41 +2653,125 @@ type SqlSpec =
 
 
 module Tracing =
-  /// Record the source expression of an error.
-  /// This is to show the code that was responsible for it.
-  /// TODO maybe rename to ExprLocation
-  type Source = ExecutionPoint * Option<id>
+  /// Fired when a builtin call, or a package fn frame, completes. `ord` is the call's ordinal
+  /// among the process's effectful builtin calls, handed out by `nextEffect` when the call was
+  /// made, and -1 for anything else (a pure builtin, a package fn). It is what a replay keys on.
+  /// What a recorded call carries besides its arguments and its result.
+  ///
+  /// A struct, and passed by value: this is on the path of every builtin call, so a record here
+  /// would be an allocation per call for two numbers.
+  [<Struct>]
+  type CallMeta =
+    {
+      /// The call's place in its process's log of effectful calls, taken when the call was made
+      /// so a read that lands late keeps its position. -1 for a call with no effects.
+      ord : int64
+      /// Wall clock for the call, in milliseconds. For a read in flight this is measured at the
+      /// landing, so it is the real round trip rather than the time to hand back a promise.
+      durationMs : int64
+    }
 
-  type FunctionRecord = Source * FQFnName.FQFnName
-
-  type LoadFnResult =
-    FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
-
-  type StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
+  type StoreFnResult = FQFnName.FQFnName -> CallMeta -> NEList<Dval> -> Dval -> unit
 
   /// Fired when a new call frame is pushed (Function or Lambda).
   /// Carries the frame's uuid, the executionPoint of the new frame, and
   /// the args bound into it. The uuid lets the tracer associate this entry
   /// with the matching exit (storeFnResult for fns, storeLambdaResult for
   /// lambdas).
-  type StoreFrameEntry = uuid -> ExecutionPoint -> List<Dval> -> unit
+  /// (frame, its parent, what the frame runs).
+  ///
+  /// The parent is what makes these a TREE rather than a bag. `ExecutionPoint.Lambda` carries
+  /// the lambda's own expression id, so sibling frames sharing a parent and a lambda id are the
+  /// passes of one loop, in the order the interpreter ran them -- which is what a reader is
+  /// choosing between when they pick a pass.
+  ///
+  /// No arguments. They were here for a design where a view started from a frame instead of
+  /// from the top, which is not how it works: a view replays the whole run, which is fast
+  /// enough that starting in the middle buys nothing. Passing them cost a list allocation per
+  /// frame push, on every traced run, for something neither tracer read.
+  /// A frame was entered: its id, its parent's, where it is, and what it was given.
+  ///
+  /// The arguments are here because this is the only place they exist as a unit. By the time
+  /// the body runs they are registers, and which register holds which parameter is a question
+  /// for the debug symbols rather than something the interpreter carries around.
+  type StoreFrameEntry = uuid -> uuid -> ExecutionPoint -> List<Dval> -> unit
 
-  /// Fired when a Lambda call frame returns. Function frames return via
-  /// storeFnResult, which already includes args + result. Lambdas don't
-  /// fire storeFnResult, so this is the corresponding exit hook for them.
-  type StoreLambdaResult = uuid -> Dval -> unit
+
+  /// What a replay does with the effectful call about to be made.
+  ///
+  /// The two `Perform` cases both do the call for real; they differ in what happens after.
+  /// `PerformOnce` is for a call the log deliberately has no answer for (a read whose result
+  /// was redacted out of it), and the rest of the log is still good. `PerformOnwards` is the
+  /// end of the log, and it is also what a run that is not replaying at all answers.
+  type ReplayStep =
+    | Serve of Dval
+    | PerformOnce
+    | PerformOnwards
 
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
     {
-      loadFnResult : LoadFnResult
       storeFnResult : StoreFnResult
       storeFrameEntry : StoreFrameEntry
-      storeLambdaResult : StoreLambdaResult
-      /// When true, the interpreter skips firing all tracer hooks
-      /// (storeFrameEntry, storeFnResult, storeLambdaResult) and the
-      /// associated pendingCallArgs bookkeeping.
-      skipTracing : bool
+      /// Live values: the result of the source expression with this id, in the frame that was
+      /// running, as it was computed (`TraceExpr`). Gated on `collectExprValues`.
+      ///
+      /// The frame is part of the key because an expression id alone is not unique within a
+      /// run: a loop body writes the same id once per pass, and keying on the id alone means
+      /// the last pass wins and the other hundred and ninety-nine are lost.
+      storeExprResult : id -> uuid -> Dval -> unit
+      /// Collect every expression's value as it is computed, for VIEWING a run: this is what
+      /// puts `// = 140` beside a line. One flat stream keyed by source expression id, at every
+      /// depth, because `PT2RT` emits `TraceExpr` in every function body it compiles.
+      ///
+      /// Collecting values needs the VALUE a call produced, not a record of the call, so the
+      /// interpreter still takes every shortcut it would take on an ordinary run.
+      collectExprValues : bool
+      /// Build the frame tree as the run goes: which frames existed, what each ran, and which
+      /// frame made it. Costs the fast paths nothing: a lambda application and a package call
+      /// both push a real frame either way, and the only frames a shortcut skips are elided
+      /// operator wrappers, which no reader wants a frame for.
+      ///
+      /// True for both of the tracers that exist -- recording and viewing -- and false only when
+      /// nobody is watching, which is why the interpreter can test this one field at a frame
+      /// push rather than asking which kind of watching it is.
+      collectFrames : bool
+      /// Record every effectful builtin call (the classic rule: a call with non-empty
+      /// `callEffects`), with its ordinal.
+      traceEffects : bool
+      /// The ordinal for an effectful builtin call about to be made, per process: the first is 0.
+      /// Assigned at the call, not at completion, so a read that lands late keeps its place.
+      nextEffect : unit -> int64
+      /// Which package functions this run touched, by hash, taken at the frame push.
+      ///
+      /// Names only, no arguments and no results, so it costs a hash-set add per call and a
+      /// few hundred bytes per run. It is what answers "which runs went through this function"
+      /// at the shipped recording level, where a package call is otherwise not recorded at all.
+      noteFunction : Hash -> unit
+      /// Replay: what to do with the effectful call about to be made at this ordinal.
+      replayEffect : int64 -> ReplayStep
+      /// VIEWING a run rather than resuming it, which is classic's Preview: an effectful call
+      /// is answered by its name and arguments from the log, and one the log cannot answer is
+      /// NOT performed -- the run stops there instead. `None` when this is an ordinary run.
+      ///
+      /// Two keys for two jobs. A resume keys on `(process, ordinal)`, which keeps order and
+      /// tells two identical calls apart; a view keys on `(name, arguments)`, which survives
+      /// an edit that adds a call in the middle -- every call you did not touch still matches.
+      /// `ValueNone` means the log cannot answer it, and the view stops there. A `Serve`
+      /// hands back what was recorded; `PerformOnce` is for the handful of calls that must be
+      /// made again rather than served -- a spawn, whose recorded result is a handle to a
+      /// process that no longer exists, and an environment read, whose result was never stored.
+      /// Those perform under the view's own tracer, so a spawned child is viewed too.
+      ///
+      /// The arguments arrive as the array the interpreter already has, so an ordinary run
+      /// pays one null test here and allocates nothing.
+      viewEffect : Option<string -> Dval[] -> ReplayStep voption>
+      /// The same trace, seen from another process. A recorder keeps one call stack per
+      /// process and stamps every event with the process id and a sequence number across
+      /// the whole trace, so two processes stepping on two threads write one log whose
+      /// interleaving can be read back. The scheduler calls this at spawn; the hooks it
+      /// returns are the process's own. `noTracing` answers itself.
+      forProcess : System.Guid -> Tracing
     }
 
 
@@ -2533,6 +2784,10 @@ type InstrData =
 
     /// The register that the result of the block will be in
     resultReg : Register
+
+    /// Which instruction produced which expression's value, for whatever is watching. Lazy,
+    /// and forced only when something is collecting values.
+    symbols : Lazy<DebugSymbols>
   }
 
 /// Cached consumer policy and the policy function that produced it. The owner
@@ -2620,6 +2875,15 @@ type CallFrame =
     mutable typeSymbolTable : TypeSymbolTable
 
     mutable registers : Registers
+
+    /// Set on a frame a builtin asked for (`Interpreter.requestApply`): when the frame returns,
+    /// its result goes to this rather than into the parent's register, and what this answers, or
+    /// asks for next, is what reaches the parent. Null for every ordinary frame. Two plain fields
+    /// rather than a record, so a chain of a thousand applications allocates nothing for them.
+    mutable continuation : Dval -> Ply<Dval>
+    /// With `continuation`: what to do with the builtin's final result once the chain ends (the
+    /// trace record, if any). Null when nothing.
+    mutable finish : Dval -> unit
   }
 
 /// Synchronous regions of the Apply path that the allocation counters attribute to.
@@ -2762,6 +3026,7 @@ module Opcode =
     | VarNotFound _ -> 21
     | CheckIfFirstExprIsUnit _ -> 22
     | Unwrap _ -> 23
+    | TraceExpr _ -> 24
 
 
 /// Every `InterpreterStats` created while telemetry is on, so the process can total them at exit. A VM is
@@ -2991,6 +3256,16 @@ type VMState =
     /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
     mutable lambdaInstrDataCache : Dictionary<id, InstrData>
 
+    /// Each lambda's symbol table, by the lambda's expression id.
+    ///
+    /// A lambda's table belongs to the function that DEFINED it, but its frame is pushed from
+    /// whatever is applying it -- `List.map`'s frame, not yours. So the tables are collected
+    /// here as functions are entered, and a lambda frame looks up its own. Expression ids are
+    /// unique, so there is nothing to collide.
+    ///
+    /// Only filled when something is collecting values; empty on an ordinary run.
+    mutable lambdaSymbols : Dictionary<id, Map<int, struct (id * Register)>>
+
     /// Memoized `ExecutionPoint`s for lambda frames, keyed on the lambda's expression id and holding
     /// the calling frame's execution point they derive from. See the note at the use site in
     /// `applyInstruction`.
@@ -3010,9 +3285,54 @@ type VMState =
     /// from `callFrames` and fails the parent lookup on return.
     mutable frameIdCounter : int64
 
+    /// Instructions this VM may still run before the scheduler takes the thread back.
+    ///
+    /// `runSyncInstructions` counts it down and stops at zero, which `runFrame` reports as
+    /// `FrameBudget`; `Scheduler.Step` refills it before every slice. Negative means unlimited,
+    /// which is what a VM nobody schedules runs with (`execute`, and the VM the HTTP server's
+    /// handler path builds for a callable of its own).
+    mutable budget : int64
+
+    /// Reads this VM's calls handed back as promises that have not landed yet, for `ps`.
+    mutable inflight : int
+
+    /// Every read this VM's calls handed back as a promise, landed or not, for the end of the
+    /// run: a run does not end until its reads have, and a read nobody looked at that failed
+    /// fails the run there. Null until the first one.
+    mutable pendingReads : ResizeArray<Promise>
+
+    /// A builtin body asking for a callable to be applied on its behalf, in this VM, as a frame
+    /// of its own (`Interpreter.requestApply`): the callable, its first argument and any more,
+    /// and what to call with the result. Read and cleared by the interpreter right after the
+    /// body returns, which then pushes the frame instead of using the body's result. Null
+    /// `pendingNext` means no request. Four slots rather than a record, so a chain of a thousand
+    /// applications allocates nothing for them; one builtin is in flight per VM at a time.
+    mutable pendingNext : Dval -> Ply<Dval>
+    mutable pendingApplicable : Applicable
+    mutable pendingArg : Dval
+    mutable pendingMoreArgs : List<Dval>
+    /// For a request made after the builtin's body had already waited (a stream pulling from
+    /// the network, then applying its transform): what records the chain's final result in the
+    /// trace, left here by the body's completion for the landing site to pick up. Null when
+    /// nothing records.
+    mutable pendingFinish : Dval -> unit
+
+    /// A builtin body naming a host operation for the interpreter to perform on its behalf
+    /// (`Interpreter.requestHost`): the operation, and what to do with its outcome. The body
+    /// returns a placeholder; the interpreter performs the operation through the checked host
+    /// boundary, under the body's access, and continues with `pendingHostNext`. Null
+    /// `pendingHostOp` means no request. Read and cleared right after the body returns (or
+    /// lands, or a continuation answers).
+    mutable pendingHostOp : HostTypes.Operation
+    mutable pendingHostNext :
+      Result<HostTypes.Response, HostTypes.Failure> -> Ply<Dval>
+    /// The host operation this VM is waiting on right now, for `ps`. Null when none. Written by
+    /// the interpreter around the wait and read best-effort from other threads.
+    mutable hostInflight : HostTypes.Operation
+
     /// The value the root frame returned, set when it pops. On the VM rather than a local of the
-    /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
-    /// continuation the builder makes for the loop body.
+    /// interpreter loop: a local is a field in every continuation the builder makes for the
+    /// loop body.
     /// Frames from a lambda this VM's builtins applied in a borrowed VM, for the error path only.
     ///
     /// `executeApplicable` runs the lambda in its own VM, so those frames are not reachable from
@@ -3022,13 +3342,6 @@ type VMState =
     mutable nestedCallStack : CallStack
 
     mutable finalResult : Dval voption
-
-    /// Arguments of calls whose frames are still running, keyed by frame id, so the tracer can pair
-    /// them with the result when the frame returns. Empty and untouched when tracing is off.
-    ///
-    /// On the VM rather than a local of the interpreter loop so that the parts of the loop that run
-    /// outside the computation expression can reach it.
-    pendingCallArgs : Dictionary<uuid, Dval list>
 
     /// When each frame was pushed, so a package fn can be timed on the way out.
     ///
@@ -3062,9 +3375,12 @@ type VMState =
 
     let rootCallFrameID = System.Guid.NewGuid()
 
+    let struct (rootInstrs, rootSymbols) = DebugSymbols.split instrs.instructions
+
     let rootInstrData : InstrData =
-      { instructions = List.toArray instrs.instructions
-        resultReg = instrs.resultIn }
+      { instructions = List.toArray rootInstrs
+        resultReg = instrs.resultIn
+        symbols = lazy rootSymbols }
 
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID
@@ -3076,7 +3392,9 @@ type VMState =
         registers = Array.zeroCreate instrs.registerCount
         argBufs = Array.empty
         typeSymbolTable = TST.empty
-        parent = ValueNone }
+        parent = ValueNone
+        continuation = Unchecked.defaultof<_>
+        finish = Unchecked.defaultof<_> }
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
@@ -3088,14 +3406,25 @@ type VMState =
       rootInstrData = struct (tlid, rootInstrData)
       pooledRootFrame = ValueNone
       lambdaInstrDataCache = Dictionary()
+      lambdaSymbols = Dictionary()
       lambdaEpCache = Dictionary()
       stats = InterpreterStats.create ()
       frameToPush = ValueNone
       frameIdCounter = 0L
+      budget = -1L
+      inflight = 0
+      pendingReads = null
+      pendingNext = Unchecked.defaultof<_>
+      pendingFinish = Unchecked.defaultof<_>
+      pendingHostOp = Unchecked.defaultof<_>
+      pendingHostNext = Unchecked.defaultof<_>
+      hostInflight = Unchecked.defaultof<_>
+      pendingApplicable = Unchecked.defaultof<_>
+      pendingArg = DUnit
+      pendingMoreArgs = []
       nestedCallStack = []
       finalResult = ValueNone
       matchBindings = ResizeArray()
-      pendingCallArgs = Dictionary()
       framePushTimestamps = Dictionary()
       framePool = Dictionary() }
 
@@ -3118,8 +3447,8 @@ type VMState =
     ) : VMState =
     // Keep the id when the frame is kept. `Guid.NewGuid()` draws from the cryptographic RNG, which
     // is why `nextFrameId` exists for pushes; this runs once per lambda application, so it is the
-    // same trap. Frame identity is internal to a VM -- `callFrames`, `pendingCallArgs` and the
-    // tracer's per-frame maps key on it and it never leaves -- and the previous application's
+    // same trap. Frame identity is internal to a VM -- `callFrames` and the tracer's per-frame
+    // maps key on it and it never leaves -- and the previous application's
     // frames are gone, so reusing the id collides with nothing.
     let rootCallFrameID =
       match vm.pooledRootFrame with
@@ -3140,6 +3469,8 @@ type VMState =
         frame.typeSymbolTable <- TST.empty
         frame.parent <- ValueNone
         frame.access <- Permissions.Access.denyAll
+        frame.continuation <- Unchecked.defaultof<_>
+        frame.finish <- Unchecked.defaultof<_>
         if frame.registers.Length < registerCount then
           frame.registers <- Array.zeroCreate registerCount
         else
@@ -3155,7 +3486,9 @@ type VMState =
           registers = Array.zeroCreate registerCount
           argBufs = Array.empty
           typeSymbolTable = TST.empty
-          parent = ValueNone }
+          parent = ValueNone
+          continuation = Unchecked.defaultof<_>
+          finish = Unchecked.defaultof<_> }
 
     vm.pooledRootFrame <- ValueSome rootCallFrame
     vm.callFrames.Clear()
@@ -3165,10 +3498,20 @@ type VMState =
     vm.rootInstrData <- struct (tlid, instrData)
     vm.frameToPush <- ValueNone
     vm.frameIdCounter <- 0L
+    vm.budget <- -1L
+    vm.inflight <- 0
+    vm.pendingReads <- null
+    vm.pendingNext <- Unchecked.defaultof<_>
+    vm.pendingApplicable <- Unchecked.defaultof<_>
+    vm.pendingArg <- DUnit
+    vm.pendingMoreArgs <- []
+    vm.pendingFinish <- Unchecked.defaultof<_>
+    vm.pendingHostOp <- Unchecked.defaultof<_>
+    vm.pendingHostNext <- Unchecked.defaultof<_>
+    vm.hostInflight <- Unchecked.defaultof<_>
     vm.nestedCallStack <- []
     vm.finalResult <- ValueNone
     vm.matchBindings.Clear()
-    vm.pendingCallArgs.Clear()
     vm.framePushTimestamps.Clear()
     // `framePool` is deliberately *not* cleared. It holds frames that have already been returned,
     // keyed by register count, for the next push to reuse -- so clearing it here threw away the

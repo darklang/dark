@@ -60,10 +60,11 @@ val workspaces =
     // Its own row, not a leaf of Code: you reach for it from anywhere, so it gets a number key.
     Workspace { name = "REPL"; dest = mkDest vScratch 0; covers = [] }
     // Run starts work; Traces shows its results.
+    // Processes: what the scheduler is running right now; `P` from Apps.
     Workspace
       { name = "Apps"
         dest = mkDest vApps 0
-        covers = [ extViewIndex "crons", extViewIndex "calendar" ] }
+        covers = [ extViewIndex "crons", extViewIndex "calendar", extViewIndex "processes" ] }
     Workspace
       { name = "Traces"
         dest = mkDest vTraces 0
@@ -231,7 +232,7 @@ let jumpToWorkspace (state: State) (n: Int) : State =
     else state
 
 /// Keys while the nav has the keyboard. The arrows follow how the rows sit
-/// on screen. As a strip: ←→ (h/l) walk it and ↓ (j) steps into the
+/// on screen. As a strip: ←→ walk it and ↓ steps into the
 /// content. As an overlay the rows run top to bottom, so ↑↓ walk and →
 /// leaves, as the column did. Either way ⏎ goes, and tab and esc hand the
 /// keyboard back to the content (esc is one step back everywhere, and
@@ -291,12 +292,6 @@ let handleNavbarKey
   | Tab -> toContent
   | _ ->
     match keyChar with
-    | Some "k" -> up ()
-    | Some "j" -> down ()
-    | Some "l" -> right ()
-    | Some "h" -> left ()
-    | Some "g" -> moveToStart ()
-    | Some "G" -> moveToEnd ()
     // ` toggles: it opened the nav, so it also hands the keyboard back.
     | Some "`" -> toContent
     | _ ->

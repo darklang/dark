@@ -29,6 +29,9 @@ done
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=$(release_exe)
   [[ -x "$EXE" ]] && { assert_release_exe_fresh "$EXE" perf/gate || exit 2; }
+  # And that it is the same publish mode the budget was recorded in. See `release_exe_mode`.
+  WANT_MODE=$(python3 -c "import json;print(json.load(open('scripts/perf/budget.json')).get('steady',{}).get('publishedMode','r2r'))")
+  [[ -x "$EXE" ]] && { assert_release_exe_mode "$EXE" "$WANT_MODE" perf/gate || exit 2; }
 else
   EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 fi

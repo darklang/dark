@@ -26,7 +26,6 @@ let purityToDT (p : Previewable) : Dval =
   let caseName =
     match p with
     | Pure -> "Pure"
-    | ImpurePreviewable -> "ImpurePreviewable"
     | Impure -> "Impure"
   DEnum(typeName, typeName, [], caseName, [])
 

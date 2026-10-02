@@ -127,7 +127,7 @@ let ascend (state: State) : Step =
           filter = "" }
     Step.Continue (moveToPoint state point true)
 
-// ── Movement (shared by arrows + vim keys, so j/k/h/l/g/G mean the same as the arrows) ──
+// ── Movement (the arrows, Home/End and PageUp/PageDown; there is no second key set) ──
 
 /// The nearest selectable row to `from`, looking in `dir` (+1 / -1) past any
 /// section headers; `from` itself if it's selectable. Falls back to the other
@@ -157,6 +157,24 @@ let fixSelection (state: State) : State =
   else
     let fixed = selectableRow state.items state.selected 1
     if fixed == state.selected then state else { state with selected = fixed }
+
+/// Ten of whatever the arrow does, for shift+arrow.
+///
+/// Ten steps rather than a screenful, and by repeating the arrow rather than reimplementing it:
+/// both ends clamp for free, section headers are stepped over exactly as they are one at a time,
+/// and a pane that scrolls its document scrolls it. Home and PageUp exist and he does not use
+/// them; this needs no fn key and no letter taken away from something else.
+let repeatStep (state: State) (step: State -> Step) (times: Int) : Step =
+  let go (s: State) (n: Int) : State =
+    if n <= 0 then
+      s
+    else
+      match step s with
+      | Continue next -> go next (n - 1)
+      | _ -> s
+
+  Step.Continue(go state times)
+
 
 /// Up: scroll the inspector when it's focused, else move the list selection up.
 let navUp (state: State) : Step =
@@ -190,7 +208,7 @@ let navDown (state: State) : Step =
       else target
     Step.Continue { state with selected = landed; detailScroll = 0 }
 
-/// Jump to the top / bottom of the list (vim g / G).
+/// Jump to the top / bottom of the list (Home / End).
 let navTop (state: State) : Step =
   let top = if isSectioned state then selectableRow state.items 0 1 else 0
   Step.Continue { state with selected = top; detailScroll = 0 }
@@ -354,6 +372,7 @@ let launchOrStartApp (state: State) : Step =
   | Some app ->
     match app.target with
     | Foreground cmd -> Step.Launch(state, cmd)
+    | Views _ -> Step.Launch(state, $"apps view {app.slug}")
     | Daemon _ -> runAppsSubcommand state "start"
 
 /// Jump from a search result to its home in the Tree: open the containing module, select the leaf, close the

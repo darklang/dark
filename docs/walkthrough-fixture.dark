@@ -1,0 +1,102 @@
+// The fixtures the concurrency/tracing/live walkthrough reads. One file, one command, from the
+// repo root:
+//
+//   dark module /Demo.Walk - < docs/walkthrough-fixture.dark
+//
+// It lives in the repo rather than beside the walkthrough so that anyone who has cloned has it.
+// It is NOT under `packages/`, on purpose: everything there is authored into the store on every
+// build, and these are meant to be hand-authored, which is also what makes the "a build wipes
+// what you authored by hand" step in the walkthrough true.
+//
+// Everything here is PURE on purpose. A loop whose iterations make no impure call is the case
+// that used to record nothing and then report "iteration 3 of 3" about a loop that went round
+// five times, so it is the one worth walking.
+
+/// Two infix expressions, which had no recorded value before this branch.
+let scale (n: Int) : Int =
+  let doubled = n * 2
+  doubled + 1
+
+/// A second loop, so `--iteration` has more than one thing to pick.
+let total (xs: List<Int>) : Int =
+  Stdlib.List.fold xs 0 (fun acc x -> acc + x)
+
+/// A one-line lambda whose work is a CALL: nothing per-iteration on the line to change.
+let reportCall (xs: List<Int>) : String =
+  let scaled = Stdlib.List.map xs (fun x -> scale x)
+  let sum = total scaled
+  "sum=" ++ (Stdlib.Int.toString sum)
+
+/// A multi-line lambda, so `--iteration` visibly changes the lines.
+let reportInline (xs: List<Int>) : String =
+  let scaled =
+    Stdlib.List.map xs (fun x ->
+      let doubled = x * 2
+      doubled + 1)
+
+  "sum=" ++ (Stdlib.Int.toString (Stdlib.List.length scaled))
+
+/// Two loops in one body, for `--iteration map:2,fold:2`.
+let reportTwo (xs: List<Int>) : String =
+  let scaled =
+    Stdlib.List.map xs (fun x ->
+      let doubled = x * 2
+      doubled + 1)
+
+  let summed =
+    Stdlib.List.fold scaled 0 (fun acc x ->
+      let step = acc + x
+      step)
+
+  "sum=" ++ (Stdlib.Int.toString summed)
+
+/// NOT tail-recursive: the multiply happens after the call returns.
+let fact (n: Int) : Int =
+  if n <= 1 then
+    1
+  else
+    let sub = fact (n - 1)
+    n * sub
+
+/// Tail-recursive. Steps anyway: this interpreter does no tail-call optimisation.
+let countdown (n: Int) (acc: Int) : Int =
+  if n <= 0 then
+    acc
+  else
+    let step = acc + n
+    countdown (n - 1) step
+
+let inner (x: Int) : Int =
+  let a = x * 3
+  let b = a + 7
+  b - 1
+
+/// For the big-trace steps. A flat loop, so it stays fast to open.
+let big (n: Int) : Int =
+  let xs = Stdlib.List.range 1 n
+
+  let ys =
+    Stdlib.List.map xs (fun x ->
+      let v = inner x
+      v + 1)
+
+  Stdlib.List.length ys
+
+
+/// Branching recursion, for the big-trace timings. `fib 12` is 465 calls, `fib 14` 1,219,
+/// `fib 16` 3,193. Opening a trace of one is roughly quadratic in those, so stop at 16.
+let fib (n: Int) : Int =
+  if n < 2 then n else (fib (n - 1)) + (fib (n - 2))
+
+
+/// Eight pieces of CPU work, one after another. Pair it with `cores` below.
+let serial () : Int =
+  Stdlib.List.repeatUnsafe 8 24
+  |> Stdlib.List.map (fun n -> fib n)
+  |> Stdlib.List.length
+
+/// The same eight, one scheduler per core. Needs the `concurrency` permission.
+let cores () : Int =
+  Stdlib.List.repeatUnsafe 8 24
+  |> Stdlib.List.parallelMap (fun n -> fib n)
+  |> Stdlib.List.length

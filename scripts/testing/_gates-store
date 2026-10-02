@@ -99,7 +99,7 @@ gate_first_day() {
   want "first run reports a clean tree" "^(clean:|draft:)" status
 
   # 2. Author something and run it. The thing the language is for.
-  want "authoring a fn"    "Created function: FirstDay\.Hello\.greet" fn /FirstDay.Hello.greet '(name: String) : String = "hi " ++ name'
+  want "authoring a fn"    "Created function FirstDay\.Hello\.greet" fn /FirstDay.Hello.greet '(name: String) : String = "hi " ++ name'
   want "and running it"    "hi world"        eval 'FirstDay.Hello.greet "world"'
   want "status sees it"    "^draft: 1 item"  status
 
@@ -110,7 +110,7 @@ gate_first_day() {
 
   # 4. A branch, isolated from main.
   want "starting a branch" "^(started|switched|on) .*firstday" branch create firstday
-  want "authoring on it"   "Created function: FirstDay\.Hello\.only" --branch firstday fn /FirstDay.Hello.only '() : Int64 = 1L'
+  want "authoring on it"   "Created function FirstDay\.Hello\.only" --branch firstday fn /FirstDay.Hello.only '() : Int64 = 1L'
   want "main cannot see it" "not found"      --branch main eval 'FirstDay.Hello.only ()'
 
   # 5. Merge it, and main can.

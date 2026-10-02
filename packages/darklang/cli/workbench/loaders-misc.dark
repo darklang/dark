@@ -408,23 +408,31 @@ let cronDetail (state: State) : String =
     ++ "r run-now   p pause/resume   t traces   e edit"
   | None -> Stdlib.Cli.UI.Colors.dimText "no crons yet - declare a Darklang.Cron value"
 
-/// Recent execution traces (for the Traces view). Real traces if any are recorded; otherwise a labeled
-/// preview set so the surface reads as complete rather than empty (this env records none).
+/// The traces this instance kept, for the Traces view. The same rows `dark traces` lists, in the
+/// same order; the id is the item name, so the detail pane can resolve it back with
+/// `Cli.TraceVerbs.find`. No sample rows: an empty list means nothing has run, and inventing runs
+/// to make the pane look full makes every other row in it suspect.
 let loadTraceBodyItems () : List<BodyItem> =
-  let real =
-    Darklang.Tracing.Store.list 30
-    |> Stdlib.List.map (fun t ->
-      BodyItem { name = t.handler; kind = "trace"; isModule = false; desc = t.timestamp })
-  if Stdlib.Bool.not (Stdlib.List.isEmpty real) then
-    real
-  else
-    // Nothing recorded here yet, so show a shape-of-the-thing sample. Tagged distinctly so the detail pane
-    // can say which it's looking at, rather than calling every trace mock.
-    [ BodyItem { name = "✓ eval   Stdlib.List.map [1,2,3] (fun x -> x * 2)"; kind = "trace-sample"; isModule = false; desc = "" }
-      BodyItem { name = "✓ GET    /echo → 200            heartbeat"; kind = "trace-sample"; isModule = false; desc = "" }
-      BodyItem { name = "✗ POST   /sync → 500            syncer"; kind = "trace-sample"; isModule = false; desc = "" }
-      BodyItem { name = "✓ eval   @stachu.fizzbuzz 3"; kind = "trace-sample"; isModule = false; desc = "" }
-      BodyItem { name = "✓ CLI    dark status"; kind = "trace-sample"; isModule = false; desc = "" } ]
+  let runs = Darklang.Tracing.Store.list 30
+  // The shortest prefix that tells THESE runs apart, as the CLI table does it: the detail pane
+  // resolves the name back to a run, and a prefix two runs share resolves to neither.
+  let width = Cli.TraceVerbs.idWidth (runs |> Stdlib.List.map (fun t -> t.id))
+
+  runs
+  |> Stdlib.List.map (fun t ->
+    BodyItem
+      { name = Stdlib.String.slice t.id 0 width
+        kind = "trace"
+        isModule = false
+        desc =
+          let status =
+            Stdlib.String.padEndToWidth (Cli.TraceVerbs.statusText t.status) 10
+          let ago = Stdlib.String.padEndToWidth (Cli.TraceVerbs.whenText t.created) 16
+          // A pin is the one thing about a trace you change from this pane, so the row has to
+          // show it: `*` pinned, nothing otherwise, as the CLI table prints it.
+          let pin = if t.pinned then "* " else "  "
+          $"{pin}{status}{ago}{t.entry}  {Cli.Text.oneLine t.input}" })
+
 
 /// Installed + available apps (for the Apps view). A filled dot marks installed; a hollow one available.
 let loadAppItems (branchId: Uuid) : List<BodyItem> =

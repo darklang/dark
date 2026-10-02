@@ -272,6 +272,9 @@ let private applyAddFn
       | h -> h
     let fn = { fn with hash = hash }
     let (Hash hashStr) = hash
+    // Compiled once. Both columns come out of the same compilation, and doing it twice was
+    // doing the whole of PT2RT twice for every function written.
+    let rt = PT2RT.PackageFn.toRT fn
 
     do!
       upsertContentAddressed
@@ -280,8 +283,11 @@ let private applyAddFn
         "package_functions"
         hash
         [ "pt_def", box (BS.PT.PackageFn.serialize hashStr fn)
-          "rt_instrs",
-          box (fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize hashStr)
+          "rt_instrs", box (BS.RT.PackageFn.serialize hashStr rt)
+          // The other half of what the compiler makes: which instruction produced which
+          // expression's value. Its own column, because running the code never reads it.
+          "debug_symbols",
+          box (BS.RT.PackageFn.serializeDebugSymbols hashStr rt.symbols.Value)
           "description", box fn.description ]
         []
         mayRewriteExisting

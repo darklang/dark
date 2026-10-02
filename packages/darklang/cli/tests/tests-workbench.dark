@@ -51,8 +51,9 @@ let testWorkbenchDocumentScroll () : TestResult =
   let back = (wbKey nav Stdlib.Cli.Stdin.Key.Key.Tab).state
   // This used to focus an invisible preview and call the deleted syncDetail.
   let down = (wbKey back Stdlib.Cli.Stdin.Key.Key.DownArrow).state
-  let bottom = (wbChar down "G").state
-  let top = (wbChar bottom "g").state
+  // End/Home, not G/g: the vim aliases are gone, and these are the keys the footer names.
+  let bottom = (wbKey down Stdlib.Cli.Stdin.Key.Key.End).state
+  let top = (wbKey bottom Stdlib.Cli.Stdin.Key.Key.Home).state
   let frame (s: Darklang.Cli.Workbench.State) (width: Int) : String =
     (Darklang.Cli.Workbench.viewAtSize s
       (Stdlib.Cli.Tui.Size { width = width; height = 14 })).rows
@@ -81,8 +82,8 @@ let testWorkbenchSyncStanding () : TestResult =
   let branchLabel = Darklang.Cli.Workbench.syncBranchStanding branch "feature" false
   let branchSummary = Darklang.Cli.Workbench.syncPushSummary branch
   let disconnected = Darklang.Cli.Workbench.emptySyncFacts ()
-  if (Stdlib.String.contains mainLabel "7 op(s) not on the relay")
-     && (Stdlib.String.contains branchLabel "3 op(s) not on the relay")
+  if (Stdlib.String.contains mainLabel "7 ops not on the relay")
+     && (Stdlib.String.contains branchLabel "3 ops not on the relay")
      && (Stdlib.String.contains branchSummary "1 branch")
      && (Darklang.Cli.Workbench.syncPushSummary clean == "nothing to push")
      && (Darklang.Cli.Workbench.syncPushSummary disconnected == "")

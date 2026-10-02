@@ -132,11 +132,21 @@ fall-through arm answers plausibly instead of refusing, so `dark commits zzznope
 main's commits as though nothing had been asked, and `dark branch rename` created a branch
 called "rename".
 
-Shapes 2 and 4 are automated in `CliSurface.Tests.fs`, driven off the command registry rather
-than a list, so a new command is swept the day it is registered. A command that must not be
-RUN goes in `notSweepable` there, with the reason; a name in that list that is no longer
-registered fails its own test, because an exclusion nobody revisits is how a sweep quietly
-stops covering the thing it was written for.
+Shapes 1, 2, 3 and 4 are automated in `CliSurface.Tests.fs`, driven off the command registry
+rather than a list, so a new command is swept the day it is registered. Registering one costs
+two things there: a known-good invocation in `knownGood` (shape 3), and, if it must not be given
+real arguments, a line in `unsafeWithArguments` saying why. A command that must not be RUN AT ALL
+goes in `notSweepable`, also with the reason. All three are checked against the registry in both
+directions: a registered command that is in none of them fails, and a name in one of them that is
+no longer registered fails too, because an exclusion nobody revisits is how a sweep quietly stops
+covering the thing it was written for.
+
+### Processes and live programming
+
+`docs/processes.md` is the scheduler: what a process is, the loop, reads in flight, `Exec.spawn`,
+executions (resume, fork, export), `dark ps`. `docs/live.md` is live programming: the host loop,
+`serve` following edits, the `Node` tree, live values. `dark docs processes` and `dark docs live`
+are the short forms.
 
 ### Performance
 
@@ -156,6 +166,26 @@ Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
 
 The playbook is the one to read cold. Its recurring lesson: nearly all wasted effort came from
 trusting a measurement nobody had checked.
+
+**AOT or R2R, and why it decides a number.** `scripts/build/build-release-cli-exes.sh` can publish
+either. They are about FIVE TIMES apart on startup (`dark eval 1L`: 40 ms AOT, 276 ms R2R,
+measured), different sizes, and different allocation, so a number taken against one says nothing
+about the other -- and nothing in the binary's filename says which you have.
+
+The rule: **anything that produces a number, or gates a release, is AOT. Anything you are only
+running is R2R.** So `perf/gate --published`, `perf/suite`, `perf/bench`, `gates first-day`, and
+any figure you quote to a person or write into a document: AOT. Iterating on a bug that only
+happens in a published build, or just checking the thing starts: R2R, and say which it was if you
+quote a number from it.
+
+The default is `--mode=auto`, which is AOT on every runtime that can do it and R2R on the ones
+that cannot (Windows, from a Linux host), so the default is AOT here. `--mode=r2r` is the fast
+path, about 40 seconds cheaper on the one-runtime default. `--mode=aot` refuses a runtime this
+host cannot AOT-build rather than falling back, which is why it is not the default.
+
+The build writes the mode to `clis/<binary>.mode`, `scripts/perf/budget.json` records the
+`publishedMode` its numbers were taken in, and `perf/gate` REFUSES a binary from the other mode
+rather than reporting a number that compares across them.
 
 Decide with allocation, not time. Allocation for a fixed workload is far steadier than time and
 doesn't care how loaded the box is; time drifts by more than most individual wins are worth. It is
@@ -179,6 +209,8 @@ Logs go to `rundir/logs/fsharp-tests.log`.
 
     backend/src/          # F# source
       LibExecution/       # execution engine
+        Scheduler.fs      #   processes, the loop that steps them, the workers
+        HostEvents.fs     #   the event queue and its sources (keys, timers, the store poll)
         Host/             #   the checked host boundary: the only code that may
                           #   touch the OS (enforced by tests/hostBoundary)
       LibParser/          # parser
@@ -188,12 +220,15 @@ Logs go to `rundir/logs/fsharp-tests.log`.
                           # Matter, Pure, Random, Time
     packages/darklang/    # .dark files
       cli/                # the CLI app: registry, loop, workbench, outliner, etc.
+        apps/host.dark    #   the live host loop: a view follows edits
+        ps.dark, exec.dark#   what is running; the runs kept (resume, fork, export)
       scm/                # SCM library (branches, merge, conflicts, propagation, packageOps)
       sync/               # sync, on top of SCM: wire codec, import planning, the hosted relay
       stdlib/             # standard library
         cli/stdin.dark    #   reads keys
         cli/tui/          #   paints: view types, frame diffing, terminal session
         cli/ui/           #   composes: widgets, layout, the palette
+        cli/ui/node.dark  #   the Node tree a live view returns, and its three renderers
     backend/migrations/   # schema/, the from-scratch shape; changes to an existing store go in
                           # LibDB/Releases.fs
     rundir/logs/          # log files
@@ -225,7 +260,19 @@ traces), `Language` (reflection, parser, language tools), `Http.Server`, `Http.C
 `Random`. Add the fn to the `fns` list in the relevant `Libs/<module>.fs`, save, wait for
 the rebuild.
 
-A builtin that touches a scoped OS resource goes through the host boundary, not directly to `System.IO`/`System.Net`: add an `Operation` in `HostTypes.fs`, implement its check and execution in `Host.fs`, and call `PermissionCheck.performHost state vm op`. If a resource cannot be scoped honestly, classify it as `Native`. `tests/hostBoundary` enforces this.
+A builtin that touches a scoped OS resource goes through the host boundary, not directly to
+`System.IO`/`System.Net`: add an `Operation` in `HostTypes.fs`, implement its check and
+execution in `Host.fs`, and in the builtin name it: `Interpreter.requestHost vm op (fun outcome
+-> ...)`. The loop performs it through the checked boundary and hands the outcome to your
+continuation; nothing is awaited inside the body, and `ps` can say what the process waits on.
+Do not call `PermissionCheck.performHost` from a builtin body. If a resource cannot be scoped
+honestly, classify it as `Native`. `tests/hostBoundary` enforces this.
+
+A builtin that takes a callable never runs it: `Interpreter.requestApply vm applicable arg
+moreArgs next` asks, and the interpreter pushes the callable's frame on the process's own
+stack (`withValue` when the continuation has to look at the answer). `Execution.executeApplicable`
+is for code that runs a function outside any program (`LiveValues.fs`, `Router.step`), not for
+builtins. `docs/processes.md`, "No host re-entry".
 
 Return structured Dark values (enums, records), not pre-rendered strings or string tags.
 Dark-side code formats for display. Don't build `"superseded-by:<hash>"` in F# for a Dark
@@ -319,6 +366,25 @@ goes straight to `locations` answers about MAIN while you are standing on a bran
 plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
 op log directly.
 
+## Changing the schema
+
+**A `migrations/schema/*.sql` file is frozen once it has merged to main.** Those files declare the shape
+a FRESH store is born with, and they are read by every store that has ever been made from them. Editing
+one after it has merged makes the same filename mean two different things depending on when you pulled.
+
+So:
+
+- A NEW TABLE goes in a NEW numbered file (`10-executions.sql`), never appended to a merged one.
+- A file that has not merged yet is still yours: edit it in place until the PR lands.
+- A NEW COLUMN on an already-merged table is the one exception, and it takes both halves:
+  - declare it in the file that declares the table, for fresh stores, with a comment saying why;
+  - carry it to existing stores with a step in `LibDB/Releases.fs`.
+  There is no third option: a schema file only ever runs `CREATE TABLE` / `CREATE INDEX` /
+  `INSERT OR IGNORE` statements (`Releases.applySchemaTables`), so a patch file cannot `ALTER`.
+
+Adding a file changes the schema hash, which drops and re-folds the projection tables. That is cheap and
+expected; canonical tables are never dropped, which is the reason a column needs the `Releases` step.
+
 ## Gotchas
 
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.
@@ -326,10 +392,80 @@ Empty is tolerated; non-empty with a missing key crashes at startup with "Packag
 hash not found". After adding a ref:
 `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`
 
+A rebase that brings in someone else's package changes moves those hashes too, and the reload
+then fails with "a hardened package ref moved". Same fix. Note that `scripts/dev/build` prints
+Success for the steps that did work, so ask `scripts/dev/status` whether the reload passed.
+
+**Two branches adding an instruction both take the next tag.** An `Instruction` case needs a
+number in three places: `Opcode.index` (RuntimeTypes.fs) and the read and write halves of
+`LibSerialization/Binary/Serializers/RT/Instructions.fs`. When two branches each add a case,
+both pick the same next number, and merging them is asymmetric in a way that bites: the READ
+side conflicts, because both arms start `| 23uy ->`, while the WRITE side merges CLEANLY into
+two arms that both `w.Write 23uy`. That compiles, passes every test that round-trips through one
+process, and writes instructions that a later reader decodes as the wrong case. After any merge
+or rebase that brings in a new instruction, grep both halves for a duplicated tag before
+trusting the build.
+
 **Name resolution in test files.** `backend/testfiles/` is parsed with owner "Tests", so
 `Darklang.*` names need full qualification or the `Stdlib.` shortcut. `Stdlib.Json.ParseError.toString`
 and `Darklang.SCM.Branch.mainBranchId` resolve; `SCM.Branch.mainBranchId` doesn't. Impl:
 `backend/src/LibParser/NameResolver.fs` and `packages/darklang/languageTools/nameResolver.dark`.
+
+**A build wipes anything you authored by hand, and the next measurement looks like a fast pass.**
+`reload-packages` re-authors the store from the `.dark` files on disk, so a module you made with
+`dark module /Demo.X -` is gone after any build, including the one inside
+`scripts/dev/build --optimize --test`. That part is expected. The trap is what it does to timing
+work: `dark eval 'Demo.X.f 16'` then fails in milliseconds, the trace it leaves is a FAILED one,
+and timing `traces show` against it reports the startup baseline. A 0.18 s reading that should
+have been 23 s looks like a win rather than a mistake. Check the eval's own output, or the
+trace's `status`, before trusting any number taken against a hand-authored fixture. A fixture you
+intend to keep belongs in a file the walkthrough pipes in (`docs/walkthrough-fixture.dark`), so
+re-authoring it is one command rather than remembering what it was.
+
+**A wasm publish piped to `tail` looks like a 40-minute hang.** `dotnet publish` spawns MSBuild
+worker nodes with `/nodeReuse:true`. They inherit stdout and outlive the parent, so the pipe never
+closes, `tail` never gets EOF, and whatever error dotnet printed sits in its buffer unseen: the
+child exits, the shell stays, and `rundir/wasm-repl` stays empty with no exit code and no
+diagnostic. Run it to a FILE with node reuse off, and nothing else building in that container,
+since a Release wasm publish rebuilds the same project references and two of them fight over
+obj/bin:
+
+    MSBUILDDISABLENODEREUSE=1 dotnet publish backend/src/Wasm/Wasm.fsproj -c Release \
+      -o rundir/wasm-repl -nodeReuse:false > rundir/logs/wasm-publish.log 2>&1
+
+A real publish is 4 to 8 minutes and leaves hundreds of MB in `backend/Build/obj/Wasm` within the
+first couple of minutes; `obj` still tiny means it never got past restore, which is not slowness.
+Progress markers in the log, in order: restore, `Wasm -> ... Darklang.Wasm.dll`, `AOT'ing N
+assemblies`, then the emscripten link and `wasm-opt`, which is single-threaded and the long tail.
+(Diagnosed by the wasm-preview session, which named it from a one-line symptom.)
+
+**Never conclude an ABSENCE from output you truncated or filtered.** This is the one that gets
+through, because it produces a confident negative, and a negative is the result nobody re-checks:
+you look for a thing, do not see it, and move on. Every other harness mistake here produced a
+wrong positive that something eventually contradicted. This family produces silence, and silence
+agrees with whatever you already believed. Measured instances:
+
+- `git remote -v | head -4` cuts alphabetically after `oceanoak` and before `origin`, so `origin`
+  looks absent and you conclude the clone does not follow the remote convention
+- `grep -c` counts LINES, not occurrences, so a count comes back wrong and the "correction" you
+  then make is the error
+- a prefix regex over-matches (`Stdlib\.[A-Za-z0-9]+\.toString` also matches
+  `toStringISO8601BasicDate`), inventing call sites that do not exist
+- `head -c N` on JSON truncates mid-structure, so a valid payload fails to parse and reads as a
+  malformed response
+
+If a search comes back empty and you are about to act on the emptiness, re-run it without the
+filter.
+
+**Bracket every pattern you hand to `pgrep -f` / `pkill -f`.** The pattern appears in your own
+shell's command line, so an unbracketed one matches the process doing the matching. A waiter waits
+on itself forever; a `pkill -f "serve Foo"` kills the backgrounded shell whose command line
+contains "serve Foo", which looks exactly like the publish you just started dying for no reason.
+`[s]erve Foo` matches the target and not the matcher. Note that bracketing is not enough on its
+own: if the same shell also RUNS `serve Foo`, the bracketed pattern still matches it, so kill and
+start belong in separate commands. The same family: `2>&1` on a command whose stdout you are about
+to parse as JSON merges a warning into the payload and the parse failure reads as a product bug.
+All of these presented as product failures here and all of them were the harness.
 
 **A published artifact older than your tree fails like a broken product.** Every command dies with
 "Function <hash> couldn't be found", because reloading packages regenerates the pinned ref hashes but does
@@ -497,9 +633,10 @@ to copy from.
 
 ## Interactive CLI testing
 
-**A key pressed while a frame is painting is lost.** In an `expect` script, wait a beat after the text you
-matched before sending the next key, or the key lands mid-render and is dropped. The symptom is not "that
-key did nothing", it's the NEXT assertion timing out, which reads as a broken view.
+**A key pressed while a frame is painting is lost under `expect`.** The runtime queues a key that arrives
+while nobody waits for the next `Key` subscriber, but the terminal `expect` drives does not: wait a beat
+after the text you matched before sending the next key, or the key lands mid-render and is dropped. The
+symptom is not "that key did nothing", it's the NEXT assertion timing out, which reads as a broken view.
 `fixtures/_workbench-scm.expect`
 has a `press` helper for this.
 

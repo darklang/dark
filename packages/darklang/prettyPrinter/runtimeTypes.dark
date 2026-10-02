@@ -819,6 +819,66 @@ let dvalWith
   Stdlib.Pretty.render opts.width (Dval.toDoc branchId opts 0 dv)
 
 
+/// One value on one line, at most <param maxChars> of it: what a gutter, an inlay hint or a
+/// table cell shows beside the code. Rendered narrow and shallow, then flattened.
+/// The most of a list that can possibly show up in `maxChars` characters of rendering.
+///
+/// Rendering a value and then cutting the result to a budget means formatting the whole thing to
+/// show a prefix of it: a 2000-element list cost its entire length to produce sixty characters,
+/// which is where most of the time went when a trace's value happened to be a big collection.
+///
+/// How many elements are enough: the shortest thing a Dval renders to is one character, and every
+/// element after the first also costs a two-character separator, so k elements always produce at
+/// least 3k - 2 characters.
+///
+/// The floor of 64 is not slack, it is the correctness condition. The printer lays a value out
+/// INLINE when it fits its width and wraps it otherwise, and the two differ by a space after the
+/// bracket, so cutting a list down far enough to make it fit changes the characters rather than
+/// just shortening them. 64 elements are at least 190 characters, comfortably past any width this
+/// is used with, so the capped value always takes the same branch the whole one would have. A
+/// `maxChars` of 10 was enough to break this before the floor existed.
+///
+/// Only lists. A dict with thousands of keys has the same problem and is not handled here,
+/// because "the first n" of a dict needs an ordering this type does not promise.
+let capForDisplay
+    (maxChars: Int)
+    (dv: LanguageTools.RuntimeTypes.Dval)
+  : LanguageTools.RuntimeTypes.Dval =
+  let enough = Stdlib.Int.max ((maxChars / 3) + 2) 64
+
+  match dv with
+  | DList(t, items) ->
+    if (Stdlib.List.length items) > enough then
+      LanguageTools.RuntimeTypes.Dval.DList(t, Stdlib.List.take items enough)
+    else
+      dv
+  | _ -> dv
+
+
+let dvalOneLine
+    (branchId: Uuid)
+    (maxChars: Int)
+    (dv: LanguageTools.RuntimeTypes.Dval)
+  : String =
+  let dv = capForDisplay maxChars dv
+
+  let text =
+    dvalWith
+      branchId
+      { PrettyPrinter.DisplayOptions.default with
+          width = 60
+          maxDepth = Stdlib.Option.Option.Some 2 }
+      dv
+
+  let oneLine =
+    text |> Stdlib.String.split "\n" |> Stdlib.List.map Stdlib.String.trim |> Stdlib.String.join " "
+
+  if (Stdlib.String.length oneLine) > maxChars then
+    (Stdlib.String.slice oneLine 0 (maxChars - 3)) ++ "..."
+  else
+    oneLine
+
+
 /// Render a value with the default options.
 ///
 /// Kept at this exact signature because `Execution.fs` reaches it through `PackageRefs`, which is how

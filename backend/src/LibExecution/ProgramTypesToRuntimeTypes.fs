@@ -912,7 +912,7 @@ module Expr =
 
         toRT symbols rc currentFnName (PT.EPipe(id, newLHS, parts))
 
-    | PT.EInfix(_, PT.BinOp op, left, right) ->
+    | PT.EInfix(id, PT.BinOp op, left, right) ->
       let left = toRT symbols rc currentFnName left
       let right = toRT symbols left.registerCount currentFnName right
 
@@ -924,12 +924,15 @@ module Expr =
         | PT.BinOpAnd -> RT.And(resultReg, left.resultIn, right.resultIn)
 
       { registerCount = rcAfterResult
-        instructions = left.instructions @ right.instructions @ [ opInstr ]
+        instructions =
+          left.instructions
+          @ right.instructions
+          @ [ opInstr; RT.TraceExpr(id, resultReg) ]
         resultIn = resultReg }
 
 
 
-    | PT.EInfix(_, PT.InfixFnCall infix, left, right) ->
+    | PT.EInfix(id, PT.InfixFnCall infix, left, right) ->
       let left = toRT symbols rc currentFnName left
       let right = toRT symbols left.registerCount currentFnName right
 
@@ -959,7 +962,11 @@ module Expr =
                 infixRc,
                 [],
                 NEList.ofList left.resultIn [ right.resultIn ]
-              ) ]
+              )
+              // An infix call is a call, and a reader wants its value as much as any other:
+              // `total * rate // = 140`. This was missing, so every `+`, `-`, `<` and `++` in
+              // Dark was invisible to a trace. The id was being discarded here too.
+              RT.TraceExpr(id, resultReg) ]
         resultIn = resultReg }
 
 
@@ -998,7 +1005,7 @@ module Expr =
         resultIn = rc }
 
 
-    | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
+    | PT.EApply(id, thingToApplyExpr, typeArgs, args) ->
       // process the arguments first, so we know how many registers we need
       let (rcAfterArgs, argInstrs, argRegs) =
         args
@@ -1022,8 +1029,14 @@ module Expr =
           NEList.ofListUnsafe "" [] argRegs
         )
 
+      // The call's value, for a tracer that collects expression results (live values). Emitted
+      // for calls only: they are what a reader wants to see the value of, and one per call is
+      // one extra dispatch, no allocation, when nothing is tracing.
+      let traceInstr = RT.TraceExpr(id, putResultIn)
+
       { registerCount = thingToApply.registerCount + 1
-        instructions = argInstrs @ thingToApply.instructions @ [ callInstr ]
+        instructions =
+          argInstrs @ thingToApply.instructions @ [ callInstr; traceInstr ]
         resultIn = putResultIn }
 
 
@@ -1425,21 +1438,27 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
-    { hash = Hash.toRT f.hash
-      body =
-        let (rcAfterParams, symbols) : (int * Map<string, int>) =
-          f.parameters
-          |> NEList.toList
-          |> List.fold
-            (fun (rc, symbols) p -> (rc + 1, Map.add p.name rc symbols))
-            (0, Map.empty)
+    let instrs =
+      let (rcAfterParams, symbols) : (int * Map<string, int>) =
+        f.parameters
+        |> NEList.toList
+        |> List.fold
+          (fun (rc, symbols) p -> (rc + 1, Map.add p.name rc symbols))
+          (0, Map.empty)
 
-        let fnName = PT.FQFnName.Package f.hash
-        let expectedReturnType =
-          UnwrapReturnCheck.fromReturnType f.returnType
-          |> Option.orElse (UnwrapReturnCheck.fromBody f.body)
-        Expr.toRT symbols rcAfterParams (Some fnName) f.body
-        |> UnwrapReturnCheck.applyToInstructions expectedReturnType
+      let fnName = PT.FQFnName.Package f.hash
+      let expectedReturnType =
+        UnwrapReturnCheck.fromReturnType f.returnType
+        |> Option.orElse (UnwrapReturnCheck.fromBody f.body)
+      Expr.toRT symbols rcAfterParams (Some fnName) f.body
+      |> UnwrapReturnCheck.applyToInstructions expectedReturnType
+
+    let struct (instructions, debugSymbols) =
+      RT.DebugSymbols.split instrs.instructions
+
+    { hash = Hash.toRT f.hash
+      body = { instrs with instructions = instructions }
+      symbols = lazy debugSymbols
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
       returnType = f.returnType |> TypeReference.toRT

@@ -172,8 +172,13 @@ jobs:
   build-backend:
     executor: in-container
     resource_class: xlarge
-    # Two nodes: 0 runs the suite, 1 runs the perf gate and the gate scripts, which used to
-    # sit behind the suite in the same chain. That split is the whole point here.
+    # Two nodes: 0 runs the suite, 1 runs the gate scripts, which used to sit behind the
+    # suite in the same chain. That split is the whole point here.
+    #
+    # The allocation gate is NOT here, though it was. This job publishes with a plain
+    # `dotnet publish -c Release`, and the budget is recorded against a NativeAOT binary,
+    # which is what ships. Measuring one against the other is meaningless, so the gate
+    # lives in `build-cli`, the job that builds the thing users get.
     #
     # NOT more nodes with `--shard`, though the runner supports it and it is tested. Measured
     # against the whole suite in one process, sharding LOSES: a sequenced group cannot be
@@ -248,15 +253,6 @@ jobs:
             fi
             timeout 20m scripts/run-backend-tests --published
 
-      # Allocation for a fixed workload is steady enough to assert on and doesn't care how loaded
-      # the box is, which is more than can be said for time. The store is freshly loaded above, and
-      # that matters: the same binary on a working store allocates a couple of percent more.
-      - run:
-          name: Check the reference workload is within its allocation budget
-          command: |
-            [[ "$CIRCLE_NODE_INDEX" == "1" ]] || exit 0
-            scripts/perf/gate --published
-
       # Gate scripts covering what the F# suite structurally cannot
       - run:
           name: Gate scripts (the CI subset)
@@ -324,6 +320,21 @@ jobs:
       # `release-clis` workflow, so cross-compiling all eight here was work
       # nothing consumed.
       - run: ./scripts/build/build-release-cli-exes.sh
+
+      # Allocation for a fixed workload is steady enough to assert on and doesn't care how
+      # loaded the box is, which is more than can be said for time. The store is freshly
+      # loaded above, and that matters: the same binary on a working store allocates a couple
+      # of percent more.
+      #
+      # It runs HERE rather than in `build-backend` because the budget is recorded in a publish
+      # mode, and only this job produces that mode. The step above defaults to `--mode=auto`,
+      # which for this host's linux-x64 resolves to NativeAOT and writes the marker the gate
+      # checks. AOT is also what the release matrix ships, so this measures what users get.
+      # Costs a couple of seconds: the binary is already built.
+      - run:
+          name: Check the reference workload is within its allocation budget
+          command: scripts/perf/gate --published
+
       - persist_to_workspace:
           root: "."
           paths:

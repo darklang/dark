@@ -1,3 +1,49 @@
+module Darklang.LanguageServerProtocol.InlayHint
+
+/// A value the editor shows in the code without it being in the text. Ours carry live
+/// values: what a call produced when its function last ran (`docs/live.md`, "Live values").
+/// Only what our server sends; the rest of the type is in the comment below.
+type InlayHint =
+  { position: Position.Position
+    label: String
+    /// Space between the code and the hint, in the editor's background colour.
+    paddingLeft: Bool }
+
+let toJson (h: InlayHint) : Json =
+  Json.Object
+    [ ("position", Position.toJson h.position)
+      ("label", Json.String h.label)
+      ("paddingLeft", Json.Bool h.paddingLeft) ]
+
+
+module InlayHintRequest =
+  val method = "textDocument/inlayHint"
+
+  /// The document the hints are for. The request carries a range too; we answer for the
+  /// whole document, which the protocol allows.
+  module InlayHintParams =
+    type InlayHintParams =
+      { textDocument: TextDocumentIdentifier.TextDocumentIdentifier }
+
+    let fromJson (json: Json) : Stdlib.Result.Result<InlayHintParams, Unit> =
+      match json with
+      | Object fields ->
+        match Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument") with
+        | Some((_, textDocument)) ->
+          match TextDocumentIdentifier.fromJson textDocument with
+          | Ok textDocument ->
+            Stdlib.Result.Result.Ok(InlayHintParams { textDocument = textDocument })
+          | Error _ -> Stdlib.Result.Result.Error()
+        | None -> Stdlib.Result.Result.Error()
+      | _ -> Stdlib.Result.Result.Error()
+
+
+/// Server to client: the hints changed for reasons the client cannot see (here: a save
+/// landed, so the live values may differ). The client asks for them all again.
+module InlayHintRefreshRequest =
+  val method = "workspace/inlayHint/refresh"
+
+
 (*
   /// Inlay hint kinds.
   export namespace InlayHintKind {

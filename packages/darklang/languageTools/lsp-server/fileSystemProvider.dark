@@ -401,6 +401,16 @@ module WriteFile =
         | Error err ->
           sendErrorResponse state requestId [ $"Failed to add package ops: {err}" ]
         | Ok _report ->
+          // `live.autopush`: an editor save is a commit and a push when the mode is on. The push's
+          // story is captured, never written to this channel; the outcome goes to the log.
+          let _autopushed =
+            if Stdlib.List.isEmpty allOps then
+              ()
+            else
+              match Cli.Sync.Autopush.describe (Cli.Sync.Autopush.pushDraftOn branchId) with
+              | "" -> ()
+              | line -> log line
+
           // If ops were added, re-read the content from database to get the version with IDs
           let updatedContent =
             if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
@@ -440,5 +450,8 @@ module WriteFile =
               |> Stdlib.Option.Option.Some
             else
               Stdlib.Option.Option.None
+
+          // The live values may have moved with the code; the editor asks for them again.
+          if Stdlib.Bool.not (Stdlib.List.isEmpty allOps) then InlayHints.requestRefresh ()
 
           sendSuccessResponse state requestId allOps updatedContent

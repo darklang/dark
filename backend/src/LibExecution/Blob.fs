@@ -73,6 +73,25 @@ let readBytes (state : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
   }
 
 
+/// `readBytes`, then `k`, without a builder when the bytes are in hand. An ephemeral blob
+/// (nearly every blob a builtin sees: a string just encoded, a body just received) carries
+/// its bytes, so `k` runs at once and what it returns is the answer; only a persistent blob
+/// enters `uply` to wait for the store. For a builtin body, so the common path is a value.
+let withBytes
+  (state : ExecutionState)
+  (ref : BlobRef)
+  (k : byte[] -> Ply.Ply<Dval>)
+  : Ply.Ply<Dval> =
+  match ref with
+  | Ephemeral eph -> k eph.bytes
+  | Persistent(hash, _) when hash = emptyHash -> k [||]
+  | Persistent _ ->
+    uply {
+      let! bytes = readBytes state ref
+      return! k bytes
+    }
+
+
 /// [Dval.rewriteWith] leaf handler that promotes a `DBlob(Ephemeral _)`:
 /// hash the inline bytes, persist them via [insert], and return
 /// `Some(DBlob(Persistent _))`. Returns `None` for anything else so the

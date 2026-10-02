@@ -357,6 +357,32 @@ let performInputAction (state: State) (inp: InputState) : Step =
                 selected = 0
                 message = msg }
       | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
+  else if inp.action == "trace-delete" then
+    if inp.field.text != "y" then
+      Step.Continue { state with input = Stdlib.Option.Option.None }
+    else
+      match Stdlib.List.getAt state.items state.selected with
+      | Some item ->
+        match Cli.TraceVerbs.find item.name with
+        | Error m ->
+          Step.Continue { state with input = Stdlib.Option.Option.None; message = m }
+        | Ok run ->
+          let deleted = Darklang.Tracing.Store.delete run.id
+          let cleared =
+            { state with input = Stdlib.Option.Option.None; message = "" }
+          let reloaded = { cleared with items = reloadItems cleared }
+          // The list shortens, so the cursor can be past its end.
+          let selected =
+            Stdlib.Int.min state.selected ((Stdlib.List.length reloaded.items) - 1)
+          Step.Continue
+            { reloaded with
+                selected = Stdlib.Int.max selected 0
+                message =
+                  if deleted > 0 then
+                    $"deleted {Cli.Text.shortIdText run.id}"
+                  else
+                    "that run was already gone" }
+      | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
   else if inp.action == "branch-switch" then
     // `main` by name: it has no branch record for `getByName` to find.
     let wanted = Stdlib.String.trim inp.field.text

@@ -7,6 +7,121 @@ NativeAOT, **4** is the current branch.
 
 ---
 
+## 2026-09-21: what the scheduler costs where it is not the point
+
+Measured on the branch, before against after each step, with `scripts/perf/bench ab` (fifteen
+interleaved pairs, median paired difference) and `scripts/perf/gate`. Kept here so
+`docs/processes.md` can state the conclusions without the numbers.
+
+- The instruction budget (one decrement and test per instruction): within noise on
+  `interp-arith`, `interp-list` and `eval-listheavy` (+0.0%, -0.3%, -0.5%; IQRs 14 to 24 ms).
+  The instrument cannot resolve a 1% change either way, so the per-instruction check stayed and
+  the fallback (check on jumps and calls only) was not needed.
+- Callables as frames of the process (`requestApply`) for the list family: gate 9,463,000
+  against 9,428,440 bytes (+0.4%, inside the 0.8% noise band; a first cut with a record per
+  request and a closure per element was 11.1 MB, +19%); interp-list -1.7% (13 of 15 pairs
+  faster), eval-listheavy -0.1%, eval-map1000 -0.4%, interp-arith +1.5% (2 of 15; arith applies
+  no lambda). The stream family: gate unchanged (the reference workload has no stream);
+  eval-stream (3,000 elements through a map and a filter) -1.8%, 14 of 15 pairs faster.
+- Cores, on the shared desktop (a Threadripper 3960X), warm: four CPU-bound processes on four
+  workers finish in 0.59 to 0.65 of the one-thread wall time published, 0.34 in Debug. Not the
+  1/4 an idle machine would give a compute loop, and the scheduler is not why: four plain
+  `Interpreter.execute` calls on four threads, with or without a shared state, scale the same,
+  and so does a plain F# loop that only allocates (546 ms alone, 871 ms four at once), while a
+  loop that only computes scales nearly perfectly. The interpreter allocates per value, so the
+  allocator's scaling is its ceiling; server GC and a larger gen0 budget did not move it. A spawn
+  onto a worker costs about 9 us in Debug (10,000 spawns of a trivial program in 90 ms,
+  including the placement scan and the `Wake`).
+
+## 2026-09-29: the budget is an AOT baseline now, and is NOT comparable to the ones above it
+
+9.60 MB (R2R) to 10.17 MB (AOT). **Read neither as a regression nor an improvement**: they are
+different publish modes and the numbers do not compare. Every entry above this one is ReadyToRun.
+
+`build-release-cli-exes.sh` defaulted to R2R, which is not what we ship, so every published number
+in this file describes a binary nobody runs. The default is `auto` now (AOT where a runtime allows
+it), the build writes the mode beside the binary, `budget.json` records which mode its number is
+in, and the gate refuses across modes rather than reporting nonsense. `AGENTS.md` has the rule.
+
+The one genuinely surprising thing: AOT is about five times FASTER to start and allocates about
+6% MORE for the same workload. Startup time and startup allocation are not the same axis, and this
+is the clearest case of it in the file.
+
+For the record, both modes on the same commit and a freshly reloaded store: R2R 9.60 MB,
+`dark eval 1L` 276 ms; AOT 10.17 MB, `dark eval 1L` 40 ms.
+
+## 2026-09-29: the schema pass came off every command
+
+10.29 MB to 9.60 MB, which is below where the branch started and 0.17 MB under main's own
+9.43 + the scheduler's honest startup cost. Not a tuning win: `Cli.EmbeddedResources.extract` was
+running the whole embedded schema before every single command -- `CREATE TABLE IF NOT EXISTS` for
+every table, the release steps, every index, and a second SQLite connection for the store stamp --
+and the stamp that makes all of it unnecessary already existed, guarding only the seed top-up.
+
+Worth knowing for its own sake: 0.69 MB of allocation and 35 ms of wall clock were in work whose
+answer is always "nothing to do", on a path nobody had looked at because it is before `main`.
+`cli.extractResources` went 37 ms to 2 ms. The telemetry that named it is `cli.extract.schema` and
+`cli.extract.releases`, which were already being emitted and had never been read.
+
+## 2026-09-28: the published budget had been left behind
+
+9.90 MB to 10.29 MB. Not a regression this measurement caught: the gate had simply not been run
+published since the review pass, and the branch went on growing while only the DEBUG budget was
+raised to match. CI runs `scripts/perf/gate --published`, so it would have been red on the next
+push whatever else changed.
+
+Bisected before raising it, because "our own work did it" is the assumption worth checking: the
+same workload, same reloaded store, against the two published binaries either side of the last
+wave. Four pairs each, in bytes, high run and low run per pair -- before 10,271,784 / 10,189,840 /
+10,271,832 / 10,214,432, after 10,287,448 / 10,288,256 / 10,280,064 / 10,280,032. About 40 KB
+apart, which is the noise floor. The overshoot predates that wave entirely.
+
+It is startup again, for the same reasons the last two entries give: a bigger package set, the
+registry file every process writes at boot, and the worker pool's config read. Instructions,
+builtin calls, package calls and frame pushes are identical run to run (37,254 / 11,208 / 1,005 /
+11,005), so nothing per step moved.
+
+## 2026-09-22: the budget again, after the review pass
+
+9.82 MB to 9.90 MB, measured the same way (the CI-built binary, a reloaded store, three runs).
+The 0.08 MB is startup again: a larger package set (`ps`/`traces` and their help, the
+redaction table, one more field on a view) and the config read that now also carries the two
+trace keys. Nothing per step, per spawn or per event moved.
+
+## 2026-09-21: the scheduler's fixed cost, and the budget
+
+The published `steady` budget goes from 9.74 MB to 9.82 MB with the scheduler. Measured against the
+CI-built binary (`scripts/build/build-release-cli-exes.sh`) on a freshly loaded store: 9.8 MB three
+runs out of three, against 9.43 MB on main. That is startup, not the interpreter: a bigger package
+set (`Exec`, `Live`, `Ui.Node`, `ps`, `exec`, the docs topics), the machine registry file written at
+boot, and the config read that sizes the worker pool (the pool itself starts on first spawn). The
+workload itself runs one process on the shared scheduler, a few hundred bytes. Two traps met on the way to the number: `scripts/dev/build
+--optimize` produces a CLI that reads about 0.3 MB higher on this gate than the CI script does, and a
+store that has just run the suite reads another 2.5% high, so the gate was "3.5% over" until both
+were fixed. `--update` after the CI-style build, on the reloaded store, is what set the value.
+
+## 2026-09-21: an HTTP request is a process
+
+The per-request handler is a spawned process on a worker (`Scheduler.SpawnApply`, `HttpServer.fs`)
+instead of `executeApplicable` on a pool thread. `scripts/perf/http --release`, same tree, before
+vs after, on the shared desktop:
+
+| route | before | after | delta |
+|---|---|---|---|
+| `/hello` | 43.53 KB | 45.41 KB | +1.9 KB (+4%) |
+| `/json` | 51.78 KB | 53.59 KB | +1.8 KB (+3.5%) |
+
+Throughput 4.5 to 5.0k req/s either way (noise on this box). The 1.8 KB is the spawn: the process
+record, its completion task and continuation, the wake post, the apply program. The first cut was
++32 KB, brought down by three things: a finished process hands its VM to the scheduler's pool
+(`VMState.reuseFor`) rather than every request building five dictionaries and an empty frame pool;
+`ExecDone` goes to the schedulers with a subscriber for that process, registered at subscribe time,
+rather than to every worker's queue (one per core, fifty of them); and a finished leaf skips the
+group-wide scan for children (`childCounts`). The process table keeps the last 64 finished
+processes rather than all of them, so a server does not grow without bound. The PR description's
+table measures the branch against main on another day and another build and reads 5.6 KB per
+request; this entry measures one step within the branch.
+
 ## This round: parameterised types
 
 The synchronous fast path from round 2 ran only for types with no type arguments, guarded by
@@ -282,10 +397,11 @@ Same call, same store (11,989 ops): a 2000-op export page took >600s with tracin
 with it off; the full main export 5.6s off, never finishing on. The raw SQL is 0.014s either way.
 There is nothing to fix in push.
 
-The trap, so nobody re-files it: `config/dev` says `DARK_CONFIG_TRACE_DETAIL=off`, but a container
-created before that change has `on` baked into its environment (recreate, not restart, to fix), and
-`run-in-docker` forwards host `DARK_*` vars -- so two terminals can measure the same binary two
-orders of magnitude apart. Trust the live process, not the file.
+The trap, so nobody re-files it: a container carries whatever `config/dev` said when it was
+CREATED, and `config/dev` has said both things -- `off` while traces had no retention, `on` since
+they do (recreate, not restart, to pick up a change). `run-in-docker` also forwards host `DARK_*`
+vars, so two terminals can measure the same binary two orders of magnitude apart. Trust the live
+process, not the file, and pass `--no-trace` when the number has to be about the interpreter.
 
 The real problem underneath: tracing has no GC. One night of ordinary work left 15.8 GB in
 `trace_fn_calls` (164 traces, ~96 MB each; the store hit 17 GB and the relay was OOM-killed --

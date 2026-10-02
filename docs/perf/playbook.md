@@ -288,3 +288,11 @@ though its allocation column repeats to 0.1 KB.
   percent there is noise.
 - The wall-clock sections of `view.dark` and `route.dark` resolve about 1%; `keypress` reports whole
   milliseconds and cannot see a sub-millisecond win at all.
+- `dark run` exits 0 when the script fails, and a failing run is fast. `bench` now reads the
+  output for "Script error" and refuses the pair, but anything else that times a run has to
+  look. The case that found it: an older binary could not read a policy file a newer one had
+  written (a new effect name; missing or corrupt policy fails closed), so every A run was denied
+  its clock call at once, and the new binary read as 4% slower on three workloads, 0/15 pairs.
+  Two things to check before believing an A/B between binaries of different ages: that both
+  arms print the workload's own `elapsed_ms`, and that `rundir/policy` was written by a binary
+  the older arm understands.

@@ -38,7 +38,8 @@ val defaultEffects =
   Stdlib.List.append
     Profiles.readEffects
     [ LanguageTools.Permissions.Effect.DbWrite
-      LanguageTools.Permissions.Effect.TraceWrite ]
+      LanguageTools.Permissions.Effect.TraceWrite
+      LanguageTools.Permissions.Effect.Concurrency ]
 
 val httpsGet =
   LanguageTools.Permissions.Rule.Http(

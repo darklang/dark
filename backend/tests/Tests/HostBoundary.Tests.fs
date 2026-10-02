@@ -81,6 +81,7 @@ let private hostModules =
       "LibExecution", "LibExecution.HostHttp"
       "LibExecution", "LibExecution.HostLibc"
       "LibExecution", "LibExecution.HostProcess"
+      "LibExecution", "LibExecution.HostRegistry"
       "LibExecution", "LibExecution.HostSecurity" ]
 
 /// Known holdouts, one entry per (assembly, top-level type), shrinking as

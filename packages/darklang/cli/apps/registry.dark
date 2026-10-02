@@ -44,7 +44,24 @@ let available () : List<Model.App> =
       { name = "Demo HTTP Server"
         slug = "demo-http"
         description = "A tiny demo server (/, /hello, /echo)"
-        target = Model.Target.Daemon "Darklang.Cli.Apps.Servers.demoHttp" } ]
+        target = Model.Target.Daemon "Darklang.Cli.Apps.Servers.demoHttp" }
+    Model.App
+      { name = "Package Stats (live)"
+        slug = "stats"
+        description = "A live view of this store's names; follows edits to its own code"
+        target =
+          Model.Target.Views
+            [ Model.viewAt "stats" "Package stats" "Darklang.Cli.Apps.Views.Stats"
+              Model.viewAt "packages" "Package statistics" "Darklang.Cli.Apps.Views.PackageStats"
+              Model.View
+                { name = "sync"
+                  title = "Sync status"
+                  init = "Darklang.Cli.Sync.Status.init"
+                  update = "Darklang.Cli.Sync.Status.update"
+                  render = "Darklang.Cli.Sync.Status.render"
+                  // A relay's count moves on its own; ask again every five seconds.
+                  every = Stdlib.Option.Option.Some 5000L
+                  keys = Stdlib.Option.Option.None } ] } ]
 
 
 /// Any `App` value declared anywhere, discovered by type — so a user's own app shows up in

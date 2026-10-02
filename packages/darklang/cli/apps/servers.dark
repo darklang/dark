@@ -50,7 +50,26 @@ let syncTick (name: String) (intervalMs: Int) (state: Cli.AppState) (remaining: 
       else
         Cli.Sync.executeSync state url
 
-    Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat intervalMs)
+    // Wait ON THE RELAY rather than on a timer: ask it to hold the request until its head moves,
+    // for at most one interval. A relay that supports it answers the moment somebody else's push
+    // lands, which is what turns "your edit is live in five seconds" into "in under a second".
+    //
+    // The interval is still the floor. An older relay ignores the parameters and answers at once,
+    // so the wait returning early WITHOUT the head having moved means "this relay does not hold
+    // requests", and the rest of the interval is slept as it always was. Without that a daemon
+    // pointed at an old relay would spin.
+    if url == "" then
+      Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat intervalMs)
+    else
+      let startedAt = Cli.Telemetry.now ()
+      let moved = Cli.Sync.waitForRelayHead url intervalMs
+      let elapsed = (Cli.Telemetry.now ()) - startedAt
+
+      if (Stdlib.Bool.not moved) && (elapsed < intervalMs) then
+        Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat (intervalMs - elapsed))
+      else
+        ()
+
     syncTick name intervalMs nextState (remaining - 1)
 
 /// The set-and-forget sync loop: `dark apps enable sync` runs this as an auto-starting daemon.
