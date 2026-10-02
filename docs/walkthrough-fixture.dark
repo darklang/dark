@@ -81,3 +81,22 @@ let big (n: Int) : Int =
       v + 1)
 
   Stdlib.List.length ys
+
+
+/// Branching recursion, for the big-trace timings. `fib 12` is 465 calls, `fib 14` 1,219,
+/// `fib 16` 3,193. Opening a trace of one is roughly quadratic in those, so stop at 16.
+let fib (n: Int) : Int =
+  if n < 2 then n else (fib (n - 1)) + (fib (n - 2))
+
+
+/// Eight pieces of CPU work, one after another. Pair it with `cores` below.
+let serial () : Int =
+  Stdlib.List.repeatUnsafe 8 24
+  |> Stdlib.List.map (fun n -> fib n)
+  |> Stdlib.List.length
+
+/// The same eight, one scheduler per core. Needs the `concurrency` permission.
+let cores () : Int =
+  Stdlib.List.repeatUnsafe 8 24
+  |> Stdlib.List.parallelMap (fun n -> fib n)
+  |> Stdlib.List.length
