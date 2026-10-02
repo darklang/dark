@@ -646,6 +646,28 @@ to copy from.
 
 ## Interactive CLI testing
 
+**To ask what a view CONTAINS, call its row builder with `eval`. Drive the TUI only for the
+keyboard and the screen.** `_workbench-views.expect` says it itself: the workbench paints as a
+diff, and after two or three interactions the renderer stops re-emitting enough for a pattern to
+catch, so asserting deeper measures the renderer rather than the view. That makes `expect` and
+`tmux` the wrong instrument for content. The right one is the function that produces the rows:
+
+    dark eval 'Darklang.Cli.Workbench.moduleRows Darklang.SCM.Branch.mainBranchId
+                 (Darklang.Cli.Packages.PackageLocation.Module ["Darklang", "Stdlib", "Int64"]) false
+               |> Stdlib.List.map (fun r -> r.kind)'
+
+That turns a question about pixels into a question about a list, and then into a COUNT you can
+predict before you look. The Code view was drawing seventeen implementations and seventeen folders
+of the same names where it should have drawn seventeen and none; nothing about the rendered frame
+said so, and the count said so immediately.
+
+**Check a count rather than reading, wherever you can turn a claim into one.** Both of the hardest
+finds in the traits work came that way and neither came from careful reading: a PR description that
+had been claiming `impl Divide for Int64 = let divide = Stdlib.Int64.divide` is an alias block,
+caught by verifying "fourteen of seventeen" and finding `Stdlib.Int64.divide` does not exist; and
+the duplicate rows above. It works on prose as well as on views: every number in a document is a
+claim you can check, and the wrong ones travel in the company of other wrong ones.
+
 **A key pressed while a frame is painting is lost.** In an `expect` script, wait a beat after the text you
 matched before sending the next key, or the key lands mid-render and is dropped. The symptom is not "that
 key did nothing", it's the NEXT assertion timing out, which reads as a broken view.
