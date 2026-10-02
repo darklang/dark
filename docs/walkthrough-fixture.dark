@@ -12,25 +12,22 @@
 // that used to record nothing and then report "iteration 3 of 3" about a loop that went round
 // five times, so it is the one worth walking.
 
-/// Two infix expressions. Neither had a value in any trace Dark had ever taken before this
-/// branch, because the compiler never marked them for a replay to collect.
+/// Two infix expressions, which had no recorded value before this branch.
 let scale (n: Int) : Int =
   let doubled = n * 2
   doubled + 1
 
-/// A second loop, under a different name, so `--iteration` has more than one thing to pick.
+/// A second loop, so `--iteration` has more than one thing to pick.
 let total (xs: List<Int>) : Int =
   Stdlib.List.fold xs 0 (fun acc x -> acc + x)
 
-/// The loop's work is a CALL, and the lambda is one line. This is the shape that makes
-/// `--iteration` look broken: there is nothing per-iteration on the line to change.
+/// A one-line lambda whose work is a CALL: nothing per-iteration on the line to change.
 let reportCall (xs: List<Int>) : String =
   let scaled = Stdlib.List.map xs (fun x -> scale x)
   let sum = total scaled
   "sum=" ++ (Stdlib.Int.toString sum)
 
-/// A multi-line lambda, so the loop's own expressions get their own lines and can carry a value
-/// that differs per iteration. This is where `--iteration` visibly works.
+/// A multi-line lambda, so `--iteration` visibly changes the lines.
 let reportInline (xs: List<Int>) : String =
   let scaled =
     Stdlib.List.map xs (fun x ->
@@ -39,7 +36,7 @@ let reportInline (xs: List<Int>) : String =
 
   "sum=" ++ (Stdlib.Int.toString (Stdlib.List.length scaled))
 
-/// Two loops in one body, so `--iteration map:2,fold:2` has two things to move.
+/// Two loops in one body, for `--iteration map:2,fold:2`.
 let reportTwo (xs: List<Int>) : String =
   let scaled =
     Stdlib.List.map xs (fun x ->
@@ -53,8 +50,7 @@ let reportTwo (xs: List<Int>) : String =
 
   "sum=" ++ (Stdlib.Int.toString summed)
 
-/// NOT tail-recursive: the multiply happens after the recursive call returns, so each call gets
-/// its own frame and the view can step through them.
+/// NOT tail-recursive: the multiply happens after the call returns.
 let fact (n: Int) : Int =
   if n <= 1 then
     1
@@ -62,9 +58,7 @@ let fact (n: Int) : Int =
     let sub = fact (n - 1)
     n * sub
 
-/// Tail-recursive: the recursive call is the last thing, so the frame is REUSED. One frame, one
-/// set of values, however many times it goes round. Nothing to step through, and that is a
-/// property of the machine rather than a gap in the view.
+/// Tail-recursive. Steps anyway: this interpreter does no tail-call optimisation.
 let countdown (n: Int) (acc: Int) : Int =
   if n <= 0 then
     acc
@@ -77,7 +71,7 @@ let inner (x: Int) : Int =
   let b = a + 7
   b - 1
 
-/// For the big-trace steps: `Demo.Walk.big 2000` is 34,031 instructions and 4,003 frames.
+/// For the big-trace steps. A flat loop, so it stays fast to open.
 let big (n: Int) : Int =
   let xs = Stdlib.List.range 1 n
 
