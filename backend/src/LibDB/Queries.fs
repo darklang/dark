@@ -758,6 +758,17 @@ let getTraitImplStamps () : Task<Map<string, string>> =
 
 /// The impls currently deprecated. A deprecated impl is not a dispatch candidate:
 /// deprecating one of two rivals is how the ambiguity finding says to settle it.
+///
+/// TODO: this takes no branch, and `deprecations` has no `branch_id`, so it answers about MAIN
+/// while you are standing on a branch. Measured: deprecate one of two rival impls on a branch and
+/// `dark view` on that branch reports it deprecated, while a call on that branch still dispatches
+/// to it. The display path is branch-aware and this one is not, so the two halves disagree exactly
+/// where a branch is supposed to be the thing that differs. Deprecating a plain fn on a branch is
+/// branch-aware and behaves correctly, so this is specific to the impl-candidate path rather than
+/// to deprecation generally. The fix is a branch parameter threaded from the three callers (the
+/// candidate provider in `PackageManager`, and `resolveTraitCalls` and `checkPackageOps` in the
+/// Matter checker) and an overlay-aware read, which is the same shape as every other branch-aware
+/// query here.
 let getDeprecatedTraitImplHashes () : Task<Set<string>> =
   task {
     let! rows =
