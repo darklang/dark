@@ -36,7 +36,20 @@ the same view is a pane and a web page. Ctrl-S saves the model as a `val`;
 
 Each request is a process: a slow handler holds up nobody, one past
 `http.requestTimeoutMs` is cancelled with a 504, one that raises answers 500
-with its error, one stopped from `ps` answers 503.
+with its error, one stopped from `ps` answers 503. A tight loop in one handler
+cannot starve another, even on one worker.
+
+How the open page knows to reload. Under `--live`, an HTML response gets a
+small `<script>` appended that opens an `EventSource` on
+`GET /__live?from=<the router hash this page was served from>`. The server
+holds that connection open and compares the router's current hash against the
+one the page named, every half second; the moment they differ it writes
+`reload` and closes, and the page reloads and opens a new stream against the
+version it just got. If the stream errors instead, the server restarting say,
+the page retries after a second and a half, which is what makes it survive a
+restart rather than going blank. Only HTML gets the script: a JSON or an image
+response is untouched, and a change nobody's page cares about costs one hash
+comparison per open tab per half second.
 
 ## A live host on another machine
 

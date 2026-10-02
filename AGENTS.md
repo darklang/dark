@@ -411,6 +411,17 @@ trusting the build.
 and `Darklang.SCM.Branch.mainBranchId` resolve; `SCM.Branch.mainBranchId` doesn't. Impl:
 `backend/src/LibParser/NameResolver.fs` and `packages/darklang/languageTools/nameResolver.dark`.
 
+**A build wipes anything you authored by hand, and the next measurement looks like a fast pass.**
+`reload-packages` re-authors the store from the `.dark` files on disk, so a module you made with
+`dark module /Demo.X -` is gone after any build, including the one inside
+`scripts/dev/build --optimize --test`. That part is expected. The trap is what it does to timing
+work: `dark eval 'Demo.X.f 16'` then fails in milliseconds, the trace it leaves is a FAILED one,
+and timing `traces show` against it reports the startup baseline. A 0.18 s reading that should
+have been 23 s looks like a win rather than a mistake. Check the eval's own output, or the
+trace's `status`, before trusting any number taken against a hand-authored fixture. A fixture you
+intend to keep belongs in a file the walkthrough pipes in (`docs/walkthrough-fixture.dark`), so
+re-authoring it is one command rather than remembering what it was.
+
 **A wasm publish piped to `tail` looks like a 40-minute hang.** `dotnet publish` spawns MSBuild
 worker nodes with `/nodeReuse:true`. They inherit stdout and outlive the parent, so the pipe never
 closes, `tail` never gets EOF, and whatever error dotnet printed sits in its buffer unseen: the
