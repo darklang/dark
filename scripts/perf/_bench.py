@@ -6,8 +6,10 @@ bitten this project:
 
   - The store drifts. Traces and ops accumulate run over run, so the same command gets slower for reasons
     that have nothing to do with the code. Every run here starts from a byte-identical fixture.
-  - `config/dev` sets DARK_CONFIG_TRACE_DETAIL=on, so a dev run records a full execution trace and a user's
-    never does. Inherited silently, it lands in every number. Pinned explicitly here, and reported.
+  - Trace detail changes what a run does, and where it is set has moved: `config/dev` turns it OFF
+    now and `config/circleci` turns it ON, so a dev run and a CI run do different work and a user's
+    binary does a third thing. Inherited silently, it lands in every number. Pinned explicitly here,
+    and reported.
   - The box is shared. Four dark containers have been live at once on this machine, and the historical
     cli.execute spread is 5x on runs doing identical work. A datapoint taken while a neighbour compiles is
     noise wearing a number's clothes, so we refuse to record one.
