@@ -576,14 +576,6 @@ let contextToStringWith
     | _ -> $"Needs an implementation of {traitName}"
 
 
-let contextToString (code: IssueCode) (context: Context) : String =
-  contextToStringWith
-    (fun _ -> Stdlib.Option.Option.None)
-    Stdlib.Option.Option.None
-    code
-    context
-
-
 let issueToStringWith
   (customTypeName:
     LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)

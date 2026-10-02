@@ -223,7 +223,7 @@ type UntrustedBuiltin =
 /// What an issue is about, beyond its code.
 ///
 /// The checker states facts and Darklang turns them into a sentence
-/// (`LanguageTools.AtRestTypeChecker.contextToString`). That split is what lets each
+/// (`LanguageTools.AtRestTypeChecker.issueToString`). That split is what lets each
 /// surface phrase things its own way, and it is also better output: the checker has no
 /// name resolver, so rendering a name here could only ever produce `Type #a1b2c3d4`,
 /// while the Dark side can look the hash up and say `Stdlib.Option.Option`.

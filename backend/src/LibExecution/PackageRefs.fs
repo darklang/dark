@@ -360,7 +360,6 @@ module Type =
         let builtin = p [] "Builtin"
         let traitMethod = p [] "TraitMethod"
         let implChoice = p [] "ImplChoice"
-        let boundImpl = p [] "BoundImpl"
         let fqFnName = p [] "FQFnName"
 
       let nameResolutionError = p [] "NameResolutionError"
