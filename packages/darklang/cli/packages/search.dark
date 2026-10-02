@@ -364,6 +364,12 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
       if Stdlib.String.isEmpty queryText then
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Search query cannot be empty")
+        // "everything of this kind" is a listing, not a search, and `--trait` with no query is
+        // the natural way to reach for it.
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.hint
+            "  for everything in one place, `dark ls <module>` sections by kind; `dark tree` goes deeper")
+
         Stdlib.printLine ""
         Stdlib.printLine usage
         state
