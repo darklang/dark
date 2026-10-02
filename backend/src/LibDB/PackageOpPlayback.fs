@@ -33,6 +33,44 @@ open LibDB.PreparedBatch
 // Dependency table maintenance.
 // ------------------------------------------------------------------
 
+/// Record which BUILTINS an item's body calls.
+///
+/// Separate from `updateDependencies` because a builtin edge is a different shape: not
+/// content-addressed, so there is no hash to depend on and no location. This is the half of the
+/// kernel/package-set interface that used to be invisible from the store, and the thing that lets
+/// a fetched package set say which kernel it needs.
+///
+/// ADDS, never replaces, for the same reason as the package edges: content is immutable, so what a
+/// hash calls never changes.
+let updateBuiltinDependencies
+  (ctx : Ctx)
+  (itemHash : string)
+  (builtins : List<DE.BuiltinDependency>)
+  : Task<unit> =
+  task {
+    if List.isEmpty builtins then
+      ()
+    else
+      let placeholders =
+        builtins
+        |> List.mapi (fun i _ -> $"($item_hash, $bname_{i}, $bver_{i})")
+        |> String.concat ", "
+
+      let sql =
+        "INSERT OR IGNORE INTO package_builtin_deps "
+        + "(item_hash, builtin_name, builtin_version) VALUES "
+        + placeholders
+
+      do!
+        exec ctx sql (fun cmd ->
+          p cmd "$item_hash" itemHash
+          builtins
+          |> List.iteri (fun i b ->
+            p cmd $"$bname_{i}" b.name
+            p cmd $"$bver_{i}" b.version))
+  }
+
+
 /// Record what an item's body calls: one row per callee, by hash AND by the name this parse resolved
 /// it through.
 ///
@@ -257,6 +295,7 @@ let private applyAddValue
 
     let refs = DE.extractFromValue value
     do! updateDependencies ctx hashStr refs
+    do! updateBuiltinDependencies ctx hashStr (DE.builtinsInValue value)
   }
 
 /// Apply a single AddFn op to the package_functions table.
@@ -292,6 +331,7 @@ let private applyAddFn
 
     let refs = DE.extractFromFn fn
     do! updateDependencies ctx hashStr refs
+    do! updateBuiltinDependencies ctx hashStr (DE.builtinsInFn fn)
   }
 
 /// The `origin_ts` the log stamped on <param opId>, or None when the log does not hold it.

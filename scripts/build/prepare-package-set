@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+# Get this build's package set into the store, from whichever source `package-set.txt` names.
+#
+#   commit unset   reload `packages/` from disk, which is what has always happened
+#   commit <hash>  fetch the seed at that commit from the package server, and generate the
+#                  kernel's ref hashes from it
+#
+# One script rather than a branch in three CI jobs, because the two halves have to agree about what
+# "the package set" is or a build embeds one and tests another.
+#
+# The pinned path needs `DARK_SEED_URL` (or `--url`). It deliberately does NOT fall back to
+# reloading if the server is unreachable: a build that silently used the tree instead of the pin is
+# the exact failure the pin exists to prevent.
+
+set -euo pipefail
+
+[[ -f package-set.txt ]] || { echo "prepare-package-set: run from the repo root" >&2; exit 2; }
+
+URL_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --url) URL_ARGS=(--url "${2:?--url needs a url}"); shift 2 ;;
+    -h|--help) sed -n '3,15p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    *) echo "prepare-package-set: unknown argument $1" >&2; exit 2 ;;
+  esac
+done
+
+# The branch bundle, if this git branch carries one. Imported whichever way the base package set
+# arrives, because checking out the git branch IS asking for that branch's package code, and the
+# F# in the tree may name items only the bundle has. Idempotent: ops are content-addressed, so
+# re-importing what is already here changes nothing.
+import_bundle() {
+  if [[ -f "${DARK_PACKAGE_BUNDLE:-package-branch.json}" ]]; then
+    scripts/packages/bundle import
+  fi
+}
+
+PIN=$(awk '$1 == "commit" { print $2 }' package-set.txt)
+
+# Whether the kernel and the package set agree, asked wherever the package set is established so
+# it cannot be forgotten. `scripts/dev/build` asks it too, as a build action; CI never runs that
+# script, so without this the one invariant the whole scheme rests on went unchecked in exactly
+# the place it matters most.
+check_agreement() {
+  scripts/run-local-exec refs check
+}
+
+if [[ -z "$PIN" || "$PIN" == "unset" ]]; then
+  echo "No pin in package-set.txt; building the package set from packages/."
+  scripts/build/reload-packages
+  import_bundle
+  check_agreement
+  exit 0
+fi
+
+echo "Pinned to ${PIN}; fetching the seed rather than reloading packages/."
+scripts/fetch-seed "${URL_ARGS[@]}" --force
+
+# The kernel resolves its entry points by HASH, and that file is not in the seed -- it is a
+# projection of it. Without this step every kernel lookup resolves to "" and the binary fails on
+# its first command, somewhere that says nothing about why.
+scripts/run-local-exec refs generate
+
+import_bundle
+check_agreement

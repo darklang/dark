@@ -13,6 +13,17 @@ open Prelude
 let private connStringFor (path : string) : string =
   $"Data Source={path};Mode=ReadWriteCreate;Cache=Private;Pooling=true"
 
+/// A connection to a one-shot FILE beside the store: a backup being written, a seed being cut, a
+/// file being restored from.
+///
+/// Unpooled, which is the whole difference. A pooled connection outlives its `Close`, so a process
+/// that touches the same path twice -- a server cutting a seed at one commit, then at another, into
+/// a file it deleted in between -- is handed a handle to the file that is no longer there and fails
+/// with "attempt to write a readonly database" or a disk I/O error. The live store wants pooling;
+/// a file opened once does not.
+let private fileConnStringFor (path : string) : string =
+  $"Data Source={path};Mode=ReadWriteCreate;Cache=Private;Pooling=False"
+
 let private defaultConnString = connStringFor LibConfig.Config.dbPath
 
 /// The store this process is actually reading and writing, which is `LibConfig.Config.dbPath` except
@@ -55,7 +66,7 @@ module Backup =
 
   /// Snapshot the live store into `target`, creating it.
   let toFile (target : string) : Result<unit, string> =
-    copy connString (connStringFor target)
+    copy connString (fileConnStringFor target)
 
   /// Replace the live store's contents with `source`'s.
   ///
@@ -67,7 +78,7 @@ module Backup =
     if not (System.IO.File.Exists source) then
       Error $"no file at {source}"
     else
-      copy (connStringFor source) connString
+      copy (fileConnStringFor source) connString
 
 
 module Sql =

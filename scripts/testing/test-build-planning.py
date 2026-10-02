@@ -115,8 +115,20 @@ class TestMark(unittest.TestCase):
     self.assertTrue(self.actions("backend/src/LibDB/LibDB.fsproj").backend_full_build)
 
   def test_dark_package_reloads_packages(self):
-    self.assertTrue(self.actions("packages/darklang/stdlib/list.dark")
-                    .reload_all_packages)
+    # Pinned to disk mode rather than inheriting the shell's. Where packages come from
+    # decides this answer, so a test that does not say which it means passes or fails on
+    # an env var the reader cannot see.
+    with Env(DARK_CONFIG_PACKAGES_SOURCE="disk"):
+      self.assertTrue(self.actions("packages/darklang/stdlib/list.dark")
+                      .reload_all_packages)
+
+  def test_dark_package_routes_nowhere_from_seed(self):
+    # The point of seed mode: the store is the source, so editing the text changes nothing
+    # a build should act on.
+    with Env(DARK_CONFIG_PACKAGES_SOURCE="seed"):
+      should = self.actions("packages/darklang/stdlib/list.dark")
+      self.assertFalse(should.reload_all_packages)
+      self.assertEqual(should.unrouted, ["packages/darklang/stdlib/list.dark"])
 
   def test_migration_runs_migrations(self):
     self.assertTrue(self.actions("backend/migrations/001-init.sql").run_migrations)
@@ -136,14 +148,27 @@ class TestExpand(unittest.TestCase):
     return _buildplan.expand(should, **kw).chosen()
 
   def test_fsharp_change_reaches_the_package_reload(self):
-    with Env(CI=None):
+    # Disk mode, said out loud: the cascade from migrations to the reload exists only
+    # because the store is built from text.
+    with Env(CI=None, DARK_CONFIG_PACKAGES_SOURCE="disk"):
       self.assertEqual(
         self.expand("backend/src/LibDB/Queries.fs"),
-        ["backend_quick_build", "run_migrations", "reload_all_packages"])
-    with Env(CI="true"):
+        ["backend_quick_build", "run_migrations", "reload_all_packages", "check_refs"])
+    with Env(CI="true", DARK_CONFIG_PACKAGES_SOURCE="disk"):
       self.assertEqual(
         self.expand("backend/src/LibDB/Queries.fs"),
-        ["backend_full_build", "run_migrations", "reload_all_packages"])
+        ["backend_full_build", "run_migrations", "reload_all_packages", "check_refs"])
+
+  def test_fsharp_change_stops_at_migrations_from_seed(self):
+    # Half the cost of an F# change today is a package reload that usually did not need to
+    # happen. In seed mode it does not happen at all.
+    #
+    # `check_refs` still does, and has to: an F# change can add or move a kernel ref, and in
+    # seed mode there is no reload to notice that the store cannot answer for it.
+    with Env(CI=None, DARK_CONFIG_PACKAGES_SOURCE="seed"):
+      self.assertEqual(
+        self.expand("backend/src/LibDB/Queries.fs"),
+        ["backend_quick_build", "run_migrations", "check_refs"])
 
   def test_full_build_replaces_the_quick_one(self):
     actions = self.expand("backend/src/LibDB/LibDB.fsproj")

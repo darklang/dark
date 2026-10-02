@@ -38,6 +38,7 @@ class Should:
     "backend_quick_build",
     "run_migrations",
     "reload_all_packages",
+    "check_refs",
     "backend_test",
     "circleci_validate",
     "shellcheck",
@@ -52,6 +53,7 @@ class Should:
     self.backend_full_build = False
     self.backend_test = False
     self.reload_all_packages = False
+    self.check_refs = False
     self.circleci_validate = False
     self.run_migrations = False
     self.shellcheck = []
@@ -182,6 +184,12 @@ def expand(should, run_tests=False):
 
   if s.run_migrations and not packages_from_seed():
     s.reload_all_packages = True
+
+  # Whenever either side of the kernel/package-set interface could have moved. An `.fs`
+  # change can add or move a ref; a package change can take away what one resolves to.
+  # Cheap enough to run on both rather than reason about which refs a change touched.
+  if s.backend_quick_build or s.backend_full_build or s.reload_all_packages:
+    s.check_refs = True
 
   # backend_test is set by execute() on any build, but run_test() no-ops without
   # --test, so a plan that lists it would be lying.

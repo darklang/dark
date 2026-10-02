@@ -62,6 +62,24 @@ alter the serialized package format, and there's no cheap way to ask whether thi
 did. Narrowing it is the biggest remaining win in the loop, and it's entangled with
 `package-ref-hashes.txt`, so coordinate before starting.
 
+## Where the package set comes from
+
+`package-set.txt` at the root says which of two, and it ships `commit unset`, which
+means the first:
+
+    commit unset     built from `packages/` by reloading it, as always
+    commit <hash>    fetched as a seed from a package server, at that commit
+
+`scripts/build/prepare-package-set` is the one place that answers that question, and
+CI's package-reloading jobs go through it. `scripts/packages/pin` writes the pin. The
+pinned path has never run against a deployed server, so treat it as
+written-and-unverified until it has.
+
+**`docs/package-workflow.md` is the how-to**: adding a builtin and calling it from
+Dark, referencing a new package type or fn from F#, what your coworker does to build
+your branch, publishing, the pin, format changes, and what will bite. `dark docs
+packages` is the short version from inside the CLI.
+
 The container builds once when it starts. Rebuild-on-save is available but off by
 default, because a five-file change under a watcher pays for five rebuilds, four of them
 on half-finished states that produce real-looking failures:
@@ -321,10 +339,41 @@ op log directly.
 
 ## Gotchas
 
+**The test lock.** `run-backend-tests` refuses if another run holds `rundir/test.lock`. Wait for
+it. Do not clear it with a broad `pkill -f "out/Tests"`: that pattern matches every sibling clone
+on this machine and will kill somebody else's suite. Scope it to the clone if you must
+(`pkill -f "boot-migrate/backend/Build/out/Tests"`).
+
+**`Stdlib.Sqlite` parameters are `@p0`, `@p1`, not `?`.** With `?` nothing matches and nothing
+errors, so a cache silently never fills.
+
+**A new CLI command joins the registry sweep the day it is registered**, and the sweep runs every
+command with a bogus argument. An expensive command therefore taxes the whole suite; `grep` cost
+nine minutes until it learned to refuse an unscoped search.
+
+**Dark syntax traps.** No `let private`. No `rec` keyword. The list separator is `,`. A comment
+inside a list literal breaks the parser. Parenthesise a piped qualified call:
+`(Mod.f x) |> ...`.
+
+**Measure the artifact people actually run.** Debug, `publish -c Release`, R2R and AOT differ by
+about 25x on startup. Three separate wrong conclusions in one week came from measuring the wrong
+one.
+
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.
 Empty is tolerated; non-empty with a missing key crashes at startup with "PackageRefs: X
 hash not found". After adding a ref:
 `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`
+
+It IS tracked, and it is a projection of the store, which is the awkward combination it has to
+be: committing it is what makes a kernel entry point changing identity visible in review, and
+`assert-clean-worktree` is what enforces it. So a PR that moves one of the 206 hashes has to
+carry the regenerated file.
+
+**Resolving a conflict in it: regenerate, never hand-merge.** Two branches that both touch
+packages will conflict here, and the lines are content hashes, so picking sides is meaningless.
+`git checkout --theirs` it, then `./scripts/build/reload-packages` (or, on a store that came
+from a seed and has no `packages/` to reload, `scripts/run-local-exec refs generate`) and commit
+what that produces.
 
 **Name resolution in test files.** `backend/testfiles/` is parsed with owner "Tests", so
 `Darklang.*` names need full qualification or the `Stdlib.` shortcut. `Stdlib.Json.ParseError.toString`

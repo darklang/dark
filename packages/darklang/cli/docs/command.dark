@@ -150,7 +150,7 @@ module Topics =
 
       DocTopic
         { name = "relay"
-          description = "The optional sync server: setup, the write secret, smoke tests"
+          description = "The optional sync server: setup, the write secret, serving a seed"
           aliases = [ "matter", "server", "sync-server" ]
           context = "cli"
           content = Docs.Relay.content

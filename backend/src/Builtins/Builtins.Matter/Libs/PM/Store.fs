@@ -12,6 +12,7 @@ open LibExecution.Effects
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
+module VT = LibExecution.ValueType
 
 
 /// Refuse a store-level operation unless every non-root frame is bundled Darklang
@@ -99,6 +100,82 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = set [ Effect.PackageWrite ]
+      deprecated = NotDeprecated }
+
+    // Move the store to the op-log format this build writes, and put back the copy that made.
+    //
+    // First-party only, for the same reason as backup/restore: this rewrites every op blob in the
+    // log and drops every projection. A guest holding package-write must not reach it through a
+    // wrapper.
+    //
+    // A no-op in practice until the first real format bump -- `from` and `to` are equal, and it
+    // says so rather than doing anything. The mechanism exists now so the bump is not also the
+    // first time the migration runs.
+    { name = fn "pmStoreUpgrade" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType =
+        TypeReference.result
+          (TTuple(TInt64, TInt64, [ TInt64; TInt64; TString ]))
+          TString
+      description =
+        "Rewrites this store's op log into the format this build writes. Ok is (from, to, rewritten, unreadable, backupPath)."
+      fn =
+        let okKT =
+          KTTuple(
+            VT.known KTInt64,
+            VT.known KTInt64,
+            [ VT.known KTInt64; VT.known KTInt64; VT.known KTString ]
+          )
+        (function
+        | state, vm, _, [| DUnit |] ->
+          uply {
+            requireBundledCaller state vm "pmStoreUpgrade"
+            let! result = LibDB.StoreUpgrade.upgrade ()
+            match result with
+            | Ok r ->
+              return
+                Dval.resultOk
+                  okKT
+                  KTString
+                  (DTuple(
+                    DInt64(int64 r.from),
+                    DInt64(int64 r.to_),
+                    [ DInt64(int64 r.rewritten)
+                      DInt64(int64 r.unreadable)
+                      DString r.backup ]
+                  ))
+            | Error e -> return Dval.resultError okKT KTString (DString e)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      // `Native` alongside the writes: this opens SQLite directly to run the rewrite in one
+      // transaction, which a path rule alone cannot confine.
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite; Effect.Native ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmStoreRollback" 0
+      typeParams = []
+      parameters =
+        [ Param.make "target" TInt64 "the format version that was upgraded TO" ]
+      returnType = TypeReference.result TString TString
+      description =
+        "Restores the copy `pmStoreUpgrade` took on its way to <param target>. Ok is the path restored from."
+      fn =
+        (function
+        | state, vm, _, [| DInt64 target |] ->
+          uply {
+            requireBundledCaller state vm "pmStoreRollback"
+            let! result = LibDB.StoreUpgrade.rollback (uint32 target)
+            match result with
+            | Ok path -> return Dval.resultOk KTString KTString (DString path)
+            | Error e -> return Dval.resultError KTString KTString (DString e)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead; Effect.PackageWrite; Effect.Native ]
       deprecated = NotDeprecated }
 
     // Whether a write secret is stored for a relay, WITHOUT handing it over.

@@ -116,17 +116,36 @@ cd backend && \
 cd ..
 
 if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
-  # Seed mode: copy seed as test DB, Tests exe auto-grows on startup
+  # Seed mode: the test store is a COPY of a built store; the Tests exe folds anything
+  # unapplied on startup.
+  #
+  # Locally that copy is YOUR store, so a package you just authored is what the suite runs
+  # against. Testing the seed instead would test whatever the last fetch happened to hold,
+  # which is the one store guaranteed not to contain your change.
+  #
+  # CI has no store of its own to prefer, and wants the pinned one anyway: reproducible is
+  # the whole point of the pin.
   SEED_PATH="${DARK_CONFIG_RUNDIR}/seed.db"
-  if [[ -f "$SEED_PATH" ]]; then
-    echo "Copying seed.db as test database"
-    cp "$SEED_PATH" "$DB_PATH"
-  else
-    echo "ERROR: No seed.db found at $SEED_PATH"
-    echo "Run: ./scripts/run-cli export-seed /home/dark/app/rundir/seed.db"
-    echo "Or:  ./scripts/fetch-seed"
+  LIVE_PATH="${DARK_CONFIG_RUNDIR}/data.db"
+
+  SOURCE=""
+  if [[ ! -v CI && -f "$LIVE_PATH" ]]; then
+    SOURCE="$LIVE_PATH"
+  elif [[ -f "$SEED_PATH" ]]; then
+    SOURCE="$SEED_PATH"
+  fi
+
+  if [[ -z "$SOURCE" ]]; then
+    echo "ERROR: no store to copy. Looked for $LIVE_PATH and $SEED_PATH"
+    echo "Run: ./scripts/fetch-seed --from <path>"
+    echo "Or:  ./scripts/run-cli export-seed ${DARK_CONFIG_RUNDIR}/seed.db"
     exit 1
   fi
+
+  # `.backup`, not `cp`: the store is WAL, so a plain copy silently omits everything still
+  # in `data.db-wal` -- which is exactly the work you just did.
+  echo "Copying $(basename "$SOURCE") as test database"
+  sqlite3 -cmd ".timeout 10000" "$SOURCE" ".backup '$DB_PATH'"
 else
   # Disk mode: reload packages from .dark files.
   #  Migrations already ran inline above

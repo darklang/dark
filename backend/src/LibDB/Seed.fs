@@ -35,6 +35,10 @@ module Permission = LibExecution.Permissions
 /// context for whatever the command was asked to do, not an event worth repeating before every answer.
 let mutable private warnedAboutUnreadableOps = false
 
+/// Whether this process has already said that the store's format is ahead of this build's. Once,
+/// for the same reason: it is context for the command, not an event.
+let mutable private warnedAboutFormatSkew = false
+
 
 // ---------------------
 // Export
@@ -42,24 +46,39 @@ let mutable private warnedAboutUnreadableOps = false
 
 /// Export a seed database to the given output path: copy the full source DB, then strip everything
 /// that belongs to the machine that built it rather than to the package set (see the DELETEs below).
-let export (outputPath : string) : Task<unit> =
+/// A seed, optionally cut at a COMMIT rather than at now.
+///
+/// `Some commit` keeps the ops that commit or one of its ancestors names, and drops the rest, so
+/// two people fetching the same commit get the same bytes however far the source has moved since.
+/// That immutability is what makes the seed cacheable and the pin reproducible.
+///
+/// Ancestry through `commits.parent`, the same walk `revert` uses: a commit names a point in
+/// history, not a set of ops.
+let exportAt (outputPath : string) (upToCommit : string option) : Task<unit> =
   task {
-    let sourcePath = LibConfig.Config.dbPath
-
     if System.IO.File.Exists outputPath then System.IO.File.Delete outputPath
 
-    // Checkpoint WAL before copying to ensure all data is in the main file
-    let sourceConnStr = $"Data Source={sourcePath};Mode=ReadOnly;Cache=Private"
-    use sourceConn = new SqliteConnection(sourceConnStr)
-    sourceConn.Open()
-    use checkpointCmd = sourceConn.CreateCommand()
-    checkpointCmd.CommandText <- "PRAGMA wal_checkpoint(TRUNCATE);"
-    checkpointCmd.ExecuteNonQuery() |> ignore<int>
-    sourceConn.Close()
+    // Through SQLite's online-backup API, never a file copy.
+    //
+    // The store this runs against is LIVE -- a server cuts a seed while serving, and the process
+    // holding it has a WAL open -- and `data.db` alone is not the store while recent writes sit in
+    // `data.db-wal`. The previous version checkpointed the source first and then copied the file,
+    // which cannot work on a long-lived process: the checkpoint went through a ReadOnly connection,
+    // so the moment there was actually a WAL to fold in it failed with a disk I/O error.
+    //
+    // It also reads `Sqlite.connString` rather than the config path, so a test that repoints LibDB
+    // at its own store exports THAT store rather than the default one.
+    match Backup.toFile outputPath with
+    | Error e ->
+      Exception.raiseInternal $"could not snapshot the store to cut a seed: {e}" []
+    | Ok() -> ()
 
-    System.IO.File.Copy(sourcePath, outputPath)
-
-    let connStr = $"Data Source={outputPath};Mode=ReadWriteCreate;Cache=Private"
+    // `Pooling=False`: a pooled connection outlives its `Close`, so on a process that cuts more than
+    // one seed the second cut is handed a handle to a file the first one has since deleted and
+    // replaced, and fails with "attempt to write a readonly database". A cut opens one connection and
+    // happens rarely; pooling buys it nothing.
+    let connStr =
+      $"Data Source={outputPath};Mode=ReadWriteCreate;Cache=Private;Pooling=False"
 
     use conn = new SqliteConnection(connStr)
     conn.Open()
@@ -77,6 +96,7 @@ let export (outputPath : string) : Task<unit> =
       DELETE FROM package_values;
       DELETE FROM package_functions;
       DELETE FROM package_dependencies;
+      DELETE FROM package_builtin_deps;
       DELETE FROM deprecations;
 
       -- The builder's BRANCHES are not canon. A branch's ops live in `package_ops` at effective = 0 and are
@@ -136,12 +156,101 @@ let export (outputPath : string) : Task<unit> =
       """
     cleanCmd.ExecuteNonQuery() |> ignore<int>
 
+    // Cut at a commit: drop every op the commit's history does not name, and every commit outside
+    // that history. Runs AFTER the clean above, so it only ever narrows what that already kept.
+    match upToCommit with
+    | None -> ()
+    | Some commit ->
+      use cutCmd = conn.CreateCommand()
+      cutCmd.CommandText <-
+        """
+        CREATE TEMP TABLE seed_ancestry AS
+        WITH RECURSIVE ancestry(h) AS (
+          SELECT hash FROM commits WHERE hash = $commit
+          UNION
+          SELECT c.parent FROM commits c JOIN ancestry a ON c.hash = a.h WHERE c.parent <> ''
+        )
+        SELECT h FROM ancestry;
+
+        DELETE FROM package_ops
+        WHERE commit_hash IS NULL OR commit_hash NOT IN (SELECT h FROM seed_ancestry);
+
+        DELETE FROM commits WHERE hash NOT IN (SELECT h FROM seed_ancestry);
+
+        DROP TABLE seed_ancestry;
+        """
+      cutCmd.Parameters.AddWithValue("$commit", commit) |> ignore<SqliteParameter>
+      cutCmd.ExecuteNonQuery() |> ignore<int>
+
+    // `cut_at` names a commit even when the caller asked for no cut, so EVERY seed says what it is
+    // a cut of. Read back after the cut, so it is the tip of what the file actually holds rather
+    // than the tip of the store it came from.
+    let cutAt =
+      use tipCmd = conn.CreateCommand()
+      tipCmd.CommandText <-
+        "SELECT hash FROM commits ORDER BY created_at DESC, rowid DESC LIMIT 1"
+      match tipCmd.ExecuteScalar() with
+      | null -> ""
+      | tip -> string tip
+
+    // The stamp every seed and every store carries, so a store can say which cut it came from and
+    // which build made it. Written here because export is the only thing that knows.
+    //
+    // `format` is the op-blob layout version, which is what a migrator keys on: a store two
+    // formats behind needs two steps, and a store from a NEWER format has to be refused rather
+    // than misread.
+    use stampCmd = conn.CreateCommand()
+    stampCmd.CommandText <-
+      """
+      CREATE TABLE IF NOT EXISTS store_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      DELETE FROM store_meta;
+      INSERT INTO store_meta (key, value) VALUES
+        ('format', $format),
+        ('cut_at', $cutAt),
+        ('kernel', $kernel),
+        ('at', $at);
+      """
+    stampCmd.Parameters.AddWithValue(
+      "$format",
+      string LibSerialization.Binary.BaseFormat.currentVersion
+    )
+    |> ignore<SqliteParameter>
+    stampCmd.Parameters.AddWithValue("$cutAt", cutAt) |> ignore<SqliteParameter>
+    stampCmd.Parameters.AddWithValue("$kernel", LibConfig.Config.buildHash)
+    |> ignore<SqliteParameter>
+    stampCmd.Parameters.AddWithValue(
+      "$at",
+      System.DateTime.UtcNow.ToString(
+        "o",
+        System.Globalization.CultureInfo.InvariantCulture
+      )
+    )
+    |> ignore<SqliteParameter>
+    stampCmd.ExecuteNonQuery() |> ignore<int>
+
     use vacuumCmd = conn.CreateCommand()
     vacuumCmd.CommandText <- "VACUUM;"
     vacuumCmd.ExecuteNonQuery() |> ignore<int>
 
+    // Out of WAL before anyone gets the file. A seed is SHIPPED -- copied, served over HTTP,
+    // embedded in a binary -- and in WAL mode the `.db` on its own is not the whole database, so
+    // whether it is complete depends on when a checkpoint happened to run. `journal_mode=DELETE`
+    // folds the WAL back in and removes it, which makes the one file the whole seed.
+    // `LibDB.Sqlite` puts a store back into WAL at open, so nothing downstream loses it.
+    use settleCmd = conn.CreateCommand()
+    settleCmd.CommandText <-
+      "PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;"
+    settleCmd.ExecuteNonQuery() |> ignore<int>
+
     conn.Close()
   }
+
+
+/// A seed of main as it stands now.
+let export (outputPath : string) : Task<unit> = exportAt outputPath None
 
 
 // ---------------------
@@ -364,6 +473,7 @@ let projectionTables : List<string> =
     "package_values"
     "locations"
     "package_dependencies"
+    "package_builtin_deps"
     "deprecations"
     // Folded from `Decision` ops; nothing else writes it. Being here is what makes it genuinely derived
     // rather than a second source of truth about the same decisions.
@@ -496,6 +606,37 @@ module ValueEvaluationError =
     | None -> e.message
     | Some(PT.Hash h) -> $"Value {h} ({e.location}): {e.message}"
 
+/// The values this store may EVALUATE: not the ones somebody else pushed here.
+///
+/// Folding an op is inert -- it deserializes and writes projection rows, and runs no guest code.
+/// Evaluating a `val` is not: it executes the body. On a client that distinction does not arise,
+/// because everything in its store is either its own or something it chose to pull. On a SERVER it
+/// is the whole difference between holding somebody's code and running it, and `op_owners` already
+/// records which ops arrived by push.
+///
+/// So: a value with a pushed binding and no local one is folded, browsable and servable in a seed,
+/// and never executed here. Whoever fetches it evaluates it on their own machine, under their own
+/// policy, which is where that decision belongs.
+///
+/// "and no local one" matters. Content is shared, so a value this store authored can also arrive by
+/// push from a peer who wrote the same thing; anything locally bound is still evaluated.
+///
+/// `op_owners` is empty on an instance, so both EXISTS clauses are false there and this selects
+/// exactly what it selected before.
+let private evaluableValues =
+  """
+  pv.rt_dval IS NULL
+  AND NOT (
+    EXISTS (SELECT 1 FROM locations hl
+             WHERE hl.item_hash = pv.hash
+               AND hl.op_id IN (SELECT op_id FROM op_owners))
+    AND NOT EXISTS (SELECT 1 FROM locations ll
+                     WHERE ll.item_hash = pv.hash
+                       AND ll.op_id NOT IN (SELECT op_id FROM op_owners))
+  )
+  """
+
+
 /// Evaluate all package values that have NULL rt_dval, under `authority`.
 /// Multi-pass: values may depend on other values, so we retry until convergence.
 let evaluateAllValues
@@ -535,11 +676,11 @@ let evaluateAllValues
 
       let! unevaluatedValues =
         Sql.query
-          """
+          $"""
           SELECT pv.hash, pv.pt_def, l.owner, l.modules, l.name
           FROM package_values pv
           LEFT JOIN locations l ON l.item_hash = pv.hash AND l.unlisted_at IS NULL
-          WHERE pv.rt_dval IS NULL
+          WHERE {evaluableValues}
           """
         |> Sql.executeAsync (fun read ->
           let hash = Hash(read.string "hash")
@@ -657,6 +798,14 @@ let growIfNeeded
   : Task<bool> =
   task {
     use _span = Telemetry.span "seed.growIfNeeded" []
+
+    // Every process that opens the store passes through here, which is the only place a skew
+    // between the store's format and this build's is certain to be noticed. `Releases.runPending`
+    // says it too, but a shipped binary reaches that only when it has an embedded seed to unpack.
+    if not warnedAboutFormatSkew then
+      warnedAboutFormatSkew <- true
+      Releases.noteFormatSkew ()
+
     let! appliedCount =
       Telemetry.timeTask "seed.applyOps" [] (fun () -> applyUnappliedOps ())
     // The fold above reads effective=1 only, so branch-scoped Decisions (a branch's propagation
@@ -670,8 +819,10 @@ let growIfNeeded
     // NULL forever, and a NULL `rt_dval` reads as "value not found". Evaluate whenever any value is
     // unevaluated so the store self-heals on startup.
     let! hasUnevaluatedValues =
+      // The same predicate `evaluateAllValues` selects with, or a server would take this branch on
+      // every startup for hosted values it is never going to evaluate.
       Sql.query
-        "SELECT EXISTS(SELECT 1 FROM package_values WHERE rt_dval IS NULL) AS has_null"
+        $"SELECT EXISTS(SELECT 1 FROM package_values pv WHERE {evaluableValues}) AS has_null"
       |> Sql.executeRowAsync (fun read -> read.int64 "has_null")
       |> Task.map (fun n -> n > 0L)
     if appliedCount > 0L then

@@ -4,11 +4,22 @@ let content () : String =
   """# Running your own sync server (the relay)
 
 Syncing is OPTIONAL and opt-in: an instance is complete without one, and
-connecting is one `dark sync setup`. The relay is the sync server: a dumb
-store-and-forward for the op log that holds ops and hands them back out. It never folds or runs what it hosts, so pushing code to it
-cannot change what it serves, and the worst a bad relay can do is withhold.
-Losing one loses availability, not history -- every client holds the full log
-it has seen, and the next push repopulates a wiped relay.
+connecting is one `dark sync setup`. The server holds the op log and hands it
+back out: `/sync/pull` pages it, `/seed/*.db` cuts it as a file. Losing one
+loses availability, not history -- every client holds the full log it has seen,
+and the next push repopulates a wiped server.
+
+It FOLDS what you push, into main, like any other instance. That is what makes
+`/m`, `/p` and the seed routes show hosted packages rather than only what the
+binary shipped with. It does not RUN them: a pushed `val` is folded, browsable
+and servable in a seed, and never evaluated on the server -- whoever fetches it
+evaluates it on their own machine, under their own policy.
+
+Folding still binds NAMES, though, last-writer-wins over the whole store, and
+the server resolves its own router through those names. So anyone who can push
+here can change what this server serves. Who may bind what is not answered yet;
+for now the write secret is the whole of the answer, so treat push access as
+trust.
 
 ## Standing one up
 
@@ -27,10 +38,32 @@ Clients connect with:
 
     curl https://<relay>/ping                      answers
     curl https://<relay>/sync/head                 op count, as JSON
+    curl https://<relay>/seed/meta                 head commit, format, counts
     curl -X POST https://<relay>/sync/push         401 without the secret
 
 The 401 from another machine is the smoke test worth doing once: it proves
 the secret is required from the outside, not just missing locally.
+
+## Serving the package set as a file
+
+    /seed/latest.db          the store as of now
+    /seed/<commit>.db        the store as of that commit and its ancestors
+    /seed/meta               the same four fields without the megabytes
+    /seed/meta?commit=<c>    ...about that commit, or 404 if it is unknown
+
+A seed is the op log as a file: what a fresh install folds to become this
+store, and what CI fetches instead of parsing text. `latest.db` resolves to
+the head and is served as the cut AT that head, so it is the same thing as
+asking for that commit by name.
+
+Cut at a commit, always, because that is what makes a pin reproducible: the
+same commit yields the same ops however far the store has moved since. Cuts
+are cached beside the store and never need invalidating, commits being
+immutable and ops append-only. A short commit prefix resolves like git's; an
+ambiguous one is refused rather than guessed at.
+
+Clients fetch with `scripts/fetch-seed --url <url>`, which takes the commit
+from `package-set.txt` if that tree has a pin. See `dark docs packages`.
 
 ## Two things not to do to a relay
 
@@ -48,7 +81,8 @@ the secret is required from the outside, not just missing locally.
                                              are idempotent, run `dark sync`
     a conflict after pull                    not data loss -- both versions
                                              are kept; `dark conflicts`
-    "store was written by a newer build"     upgrade dark; the store is fine
+    "this store is format N"                 upgrade dark, or move the
+                                             `.pre-vN` copy back; `dark store`
 
 Reads are public by design. If that's wrong for your relay, put it behind
 something that terminates auth; the relay itself only gates writes and

@@ -211,6 +211,17 @@ def run_migrations():
   return run_backend(start, f"scripts/build/run-migrations {configuration}")
 
 
+def check_refs():
+  """Does the kernel this build produced agree with the package set in front of it?
+
+  The ref closures are lazy, so an unresolvable ref is otherwise found whenever some code
+  path happens to reach it, which can be a different day and an unrelated command. The
+  case this exists for is checking out somebody's git branch without their package work.
+  """
+  start = time.time()
+  return run_backend(start, "scripts/run-local-exec refs check")
+
+
 def reload_all_packages():
   start = time.time()
   if optimize:
@@ -298,6 +309,14 @@ def execute(should, outcome):
 
   if should.reload_all_packages:
     step("reload_all_packages", reload_all_packages)
+
+  # After anything that could have moved either side of the kernel/package-set interface.
+  # Decided here rather than in the plan because execute() sets some of these itself, so the
+  # plan's answer is not the final one. Cheap: one pass over ~200 refs against caches the
+  # store already holds.
+  if should.check_refs or should.reload_all_packages or should.backend_quick_build \
+     or should.backend_full_build:
+    step("check_refs", check_refs)
 
   # Gated here rather than inside backend_test(), so a build that skipped the tests
   # doesn't list running them among the things it did.

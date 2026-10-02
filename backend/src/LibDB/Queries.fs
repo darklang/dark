@@ -398,10 +398,15 @@ let getDraftOps () : Task<List<PT.PackageOp>> =
         """
         SELECT id, op_blob
         FROM package_ops
-        -- effective = 1: excludes client-pushed inert ops; see Inserts.draftDeletes.
+        -- NOT a hosted op: `op_owners` records who pushed each op TO this store, so a row there is
+        -- somebody else's work this store is only holding. It is folded like any other op now
+        -- (a server has to be able to see and serve what it hosts), which is exactly why it has
+        -- to be excluded HERE: `effective` used to carry that distinction, and a discard that
+        -- counted a peer's push as this store's draft would delete their data.
         WHERE effective = 1
           AND commit_hash IS NULL
           AND id NOT IN (SELECT op_id FROM op_branches)
+          AND id NOT IN (SELECT op_id FROM op_owners)
         ORDER BY created_at ASC, rowid ASC
         """
       |> Sql.executeAsync (fun read ->
@@ -471,9 +476,10 @@ let getWipOps () : Task<List<PT.PackageOp>> =
         -- Excluding them keeps main authoring's WIP-refresh from sweeping a branch's ops into
         -- main (re-inserting them effective=1 + folding). Branch isolation.
         --
-        -- effective = 1: excludes client-pushed inert ops; see Inserts.draftDeletes.
+        -- Hosted ops are excluded for the reason `getDraftOps` above spells out.
         WHERE effective = 1
           AND id NOT IN (SELECT op_id FROM op_branches)
+          AND id NOT IN (SELECT op_id FROM op_owners)
         -- rowid breaks ties: created_at is second-resolution and a batch shares it, and the pairing
         -- downstream (HashStabilization) is by adjacency.
         ORDER BY created_at ASC, rowid ASC

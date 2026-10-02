@@ -245,8 +245,93 @@ let steps : List<Step> =
               print
                 $"  release: added `removed` to {List.length rows} stored conflict(s)" }
 
+    // What BUILTINS each item calls. New table, so `CREATE TABLE IF NOT EXISTS` in the schema
+    // would reach an existing store only because the bootstrap replays it, which it does not
+    // promise to. Named here so the store records having got it. Empty until the next fold
+    // rebuilds it, which is correct: it is derived.
+    { name = "20260912_000001_package_builtin_deps"
+      run =
+        fun () ->
+          Sql.query
+            "CREATE TABLE IF NOT EXISTS package_builtin_deps (
+               item_hash TEXT NOT NULL,
+               builtin_name TEXT NOT NULL,
+               builtin_version INTEGER NOT NULL)"
+          |> Sql.executeStatementSync
+
+          Sql.query
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_package_builtin_deps_unique
+               ON package_builtin_deps(item_hash, builtin_name, builtin_version)"
+          |> Sql.executeStatementSync }
+
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]
+
+
+/// The format the store says it was written in, if it says.
+///
+/// Absent means a store older than the stamp, which is every store built before seeds carried one.
+/// That is not an error: it predates the field, and its ops are format 1 by construction.
+let storedFormat () : Option<uint32> =
+  if not (tableExists "store_meta") then
+    None
+  else
+    Sql.query "SELECT value FROM store_meta WHERE key = 'format'"
+    |> Sql.execute (fun read -> read.string "value")
+    |> Result.unwrap
+    |> List.tryHead
+    |> Option.bind (fun v ->
+      match System.UInt32.TryParse v with
+      | true, n -> Some n
+      | false, _ -> None)
+
+
+/// Say so when a store was written by a NEWER build's format, and stamp one that carries no format
+/// yet.
+///
+/// The asymmetry is the point. A store BEHIND this build is the migrator's job (it can read an old
+/// layout, because every historical reader stays in the binary). A store AHEAD of it cannot be read
+/// by trying harder: the layout is one this binary has never seen.
+///
+/// SAID, not raised, and the wording matters more than usual, because there is no working command
+/// left to recover WITH. The projections hold blobs in the newer layout too, so this build dies on
+/// its first package lookup -- which includes resolving the name of the command you typed. So the
+/// note names the FILE to move, not a verb to run: a `mv` needs no working binary.
+///
+/// `dark store rollback` covers the other case, and the likelier one: you upgraded, you are still
+/// on the build that did it, and you want it undone.
+let noteFormatSkew () : unit =
+  match storedFormat () with
+  | Some n when n > LibSerialization.Binary.BaseFormat.currentVersion ->
+    System.Console.Error.WriteLine(
+      $"note: this store is format {n} and this build reads "
+      + $"{LibSerialization.Binary.BaseFormat.currentVersion}, so its ops cannot be read. Upgrade "
+      + $"the binary. If this store was upgraded here, the copy from before that is at "
+      + $"{Sqlite.currentDbPath}.pre-v{n} -- move it back over {Sqlite.currentDbPath}."
+    )
+  | _ -> ()
+
+
+/// `noteFormatSkew`, plus the stamp for a store that carries none.
+///
+/// Stamping is a WRITE, so it belongs here in the migration path rather than on every open: a store
+/// that has run this once carries the stamp from then on.
+let private checkFormat () : unit =
+  noteFormatSkew ()
+
+  match storedFormat () with
+  | Some n when n > LibSerialization.Binary.BaseFormat.currentVersion -> ()
+  | _ ->
+    // Stamp it, so from here every store says what it is. `INSERT OR REPLACE` rather than a
+    // conditional: the value is the same whether the row was missing or already right.
+    Sql.query
+      "CREATE TABLE IF NOT EXISTS store_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    |> Sql.executeStatementSync
+
+    Sql.query "INSERT OR REPLACE INTO store_meta (key, value) VALUES ('format', @v)"
+    |> Sql.parameters
+      [ "v", Sql.string (string LibSerialization.Binary.BaseFormat.currentVersion) ]
+    |> Sql.executeStatementSync
 
 
 let private alreadyRun () : Set<string> =
@@ -323,6 +408,8 @@ let applySchemaIndexes (schemaSql : string) : unit =
 /// makes it safe to run against a store of any age, so a new step that skips those has nothing
 /// checking it.
 let runPending () : unit =
+  checkFormat ()
+
   // A step's name is its identity in `system_migrations_v0`, so two steps sharing one would run as
   // one and record as one, silently. Refused here, where every store passes on startup, because no
   // test constructs this list.

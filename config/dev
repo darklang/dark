@@ -27,8 +27,13 @@ DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT=sample-all
 # Turn it on for the one command you want a trace from.
 DARK_CONFIG_TRACE_DETAIL=off
 
-# Package source: "disk" (reload from .dark files) or "seed" (fetch from R2)
-# Default: disk (set to "seed" to use the seed-based flow)
+# Package source: "disk" (reload from .dark files) or "seed" (fetch a built store).
+#
+# Still "disk", deliberately, and not yet the default it is headed for. In seed mode the build
+# planner routes a `packages/**.dark` edit NOWHERE, which is correct -- the store is the source --
+# but it means the only way to change package code is the authoring verbs, and `dark edit
+# <module>` does not exist yet. Flipping this before it does would leave no way to edit packages
+# at all. `scripts/build/reload-packages` still works by hand if you opt in early.
 DARK_CONFIG_PACKAGES_SOURCE=disk
 
 ######################################
