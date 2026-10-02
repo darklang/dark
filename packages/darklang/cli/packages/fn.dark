@@ -122,6 +122,51 @@ let createFnInline
                 ctx
                 writtenFn
 
+            // A bound on a trait that does not exist is not a forward reference worth waiting
+            // on, same as `dark impl`: without the trait the bound constrains nothing, and the
+            // generic "will resolve when dependencies are added" sends you looking for a missing
+            // dependency. The common way to get here is naming a TYPE, which resolves fine as a
+            // type and not at all as a trait, so the generic message reads as a lie.
+            let unresolvedBoundNames =
+              packageFn.bounds
+              |> Stdlib.List.filterMap (fun b ->
+                match b.trait_.trait_.resolved with
+                | Ok _ -> Stdlib.Option.Option.None
+                | Error _ ->
+                  Stdlib.Option.Option.Some
+                    (Stdlib.String.join b.trait_.trait_.originalName "."))
+              |> Stdlib.List.unique
+
+            unresolvedBoundNames
+            |> Stdlib.List.iter (fun name ->
+              Stdlib.printLine
+                (Stdlib.Cli.UI.Colors.error $"There is no trait called {name}.")
+
+              let alsoAType =
+                match LanguageTools.ProgramTypes.parsePackageLocation name with
+                | location ->
+                  match LanguageTools.PackageManager.Type.find ctx.branchId location with
+                  | Some _ -> true
+                  | None -> false
+
+              if alsoAType then
+                Stdlib.printLine
+                  (Stdlib.Cli.UI.Colors.hint
+                    $"  {name} is a type. A bound names a trait: `'a: ToString`, not `'a: SomeType`.")
+              else
+                Stdlib.printLine
+                  (Stdlib.Cli.UI.Colors.hint
+                    "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")
+
+              Stdlib.printLine "")
+
+            let unresolvedNames =
+              unresolvedNames
+              |> Stdlib.List.filter (fun triple ->
+                let (_, originalName, _) = triple
+                Stdlib.Bool.not
+                  (Stdlib.List.member unresolvedBoundNames (Stdlib.String.join originalName ".")))
+
             let ops =
               [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
                 LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash, Stdlib.Option.Option.None) ]

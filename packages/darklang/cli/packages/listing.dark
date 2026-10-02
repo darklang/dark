@@ -131,10 +131,19 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | Module _ ->
         listModule branchId newLocation includeDeprecated showVersions
         state
-      | Type _ | Value _ | Function _ | Trait _ | Impl _ ->
+      // An implementation's methods are fns in a module named for it, so listing one is a real
+      // question with a real answer; the other four kinds are leaves.
+      | Impl i ->
+        let asModule =
+          PackageLocation.Module
+            (Stdlib.List.append (Stdlib.List.append [i.owner] i.modules) [i.name])
+
+        listModule branchId asModule includeDeprecated showVersions
+        state
+      | Type _ | Value _ | Function _ | Trait _ ->
         let locationStr = Packages.formatLocation newLocation
         Stdlib.printLine $"'{locationStr}' is not a module."
-        Stdlib.printLine "Use 'view' to see details of types, values, or functions."
+        Stdlib.printLine "`dark view` shows one item; `dark ls` lists a module."
         state
   | _ ->
     Stdlib.printLine (help state)

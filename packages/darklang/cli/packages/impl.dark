@@ -67,6 +67,11 @@ let createImplInline
         || Stdlib.String.startsWith trimmedDefinition "///"
       then
         definition
+      else if Stdlib.String.startsWith trimmedDefinition "<" then
+        // `dark impl Acme "<'a: Show> Show for List<'a> = ..."`, the conditional form `docs
+        // traits` documents. Type parameters bind to the `impl` keyword and the parser refuses a
+        // space between them, so there is nowhere for the usual one to go.
+        $"impl{trimmedDefinition}"
       else
         $"impl {definition}"
 
