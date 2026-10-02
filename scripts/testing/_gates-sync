@@ -163,6 +163,11 @@ gate_relay_routes() {
   check 200 "/stats"                  "$U/stats"
   check 200 "a real module"           "$U/m?name=Darklang.Stdlib.List"
   check 200 "a real item"             "$U/p?name=Darklang.Stdlib.List.map"
+  # A trait and an implementation render through the same page as a fn, by a different arm. The
+  # browser used to answer an unrecognised kind as a VALUE, so a wrong arm looked like a page.
+  check 200 "a trait"                 "$U/p?name=Darklang.Stdlib.Add"
+  check 200 "an implementation"       "$U/p?name=Darklang.Stdlib.Int64.Add"
+  check 200 "a trait method's fn"     "$U/p?name=Darklang.Stdlib.Int64.Add.add"
   check 200 "a search with hits"      "$U/search?q=map"
 
   # Pages that do not. The body has always said so; the status has not.
