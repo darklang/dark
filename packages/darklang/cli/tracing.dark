@@ -415,12 +415,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   // `--all` is not stripped from `args` the way the other flags are, because `delete --all`
   // needs it, so these arms name it rather than reading it out of the list.
-  | [ "fns" ] -> executeFnCounts state 100 false
-  | [ "fns", "--all" ] -> executeFnCounts state 100 true
+  | [ "fns" ]
+  | [ "fns", "--all" ] ->
+    let showAll = Stdlib.List.member args "--all"
+    if wantsJson then executeFnCountsJson state 100 showAll
+    else executeFnCounts state 100 showAll
   | [ "fns", limitStr ]
   | [ "fns", limitStr, "--all" ] ->
     match Stdlib.Int.parse limitStr with
-    | Ok limit -> executeFnCounts state limit (Stdlib.List.member args "--all")
+    | Ok limit ->
+      let showAll = Stdlib.List.member args "--all"
+      if wantsJson then executeFnCountsJson state limit showAll
+      else executeFnCounts state limit showAll
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       { state with exitCode = 1 }
@@ -945,6 +951,53 @@ let executeFnCounts
             $"  dark traces fns --all    with the {Stdlib.Int.toString hidden} from the bundled library")
 
       state
+
+
+/// `traces fns --json` -- the same answer for an agent.
+///
+/// The verb exists FOR the direction an agent needs, and shipped without this: `--json` is
+/// stripped from `args` before the dispatch arms, so it printed the human table and ignored the
+/// flag. That is the third time on this branch that two renderers of one question left the agent
+/// with less than the person, and the agent is the one that cannot read a table.
+///
+/// `gone` is what the page renders as `(gone) 8e573a4b`: the store no longer has that function,
+/// so the index kept its hash where a name would be.
+type FnRunsJson =
+  { fn: String
+    runs: Int64
+    gone: Bool }
+
+
+let executeFnCountsJson
+  (state: Cli.AppState)
+  (traceLimit: Int)
+  (showAll: Bool)
+  : Cli.AppState =
+  if traceLimit < 1 then
+    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    { state with exitCode = 1 }
+  else
+    match Stdlib.Int.toInt64 traceLimit with
+    | None ->
+      Cli.printErr "that limit is too large to be a number of traces"
+      { state with exitCode = 1 }
+    | Some limit64 ->
+
+    let rows =
+      Darklang.Tracing.Store.fnCounts limit64
+      |> Stdlib.List.filter (fun row ->
+        showAll
+        || Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.Tuple2.first row) "Darklang."))
+      |> Stdlib.List.map (fun row ->
+        let (name, runs) = row
+
+        FnRunsJson
+          { fn = name
+            runs = runs
+            gone = Stdlib.Bool.not (Stdlib.String.contains name ".") })
+
+    Stdlib.printLine (Stdlib.Json.serialize<List<FnRunsJson>> rows)
+    state
 
 
 let executeHotspots
@@ -1783,7 +1836,7 @@ let help (_state: Cli.AppState) : String =
     "  find <pattern> --inspect      ... and open the newest of them"
     "  tail [n] [--route <s>]        the nth-most-recent trace, shown (default 1)"
     "  follow [--route <s>]          print traces as they arrive"
-    "  fns [n] [--all]               which functions recent runs went through, most first"
+    "  fns [n] [--all] [--json]      which functions recent runs went through, most first"
     "  stats [n]                     how many runs per entry point"
     "  hotspots [n]                  time per BUILTIN across recent runs, off the effect log"
     ""
