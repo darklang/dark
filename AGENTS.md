@@ -411,6 +411,32 @@ trusting the build.
 and `Darklang.SCM.Branch.mainBranchId` resolve; `SCM.Branch.mainBranchId` doesn't. Impl:
 `backend/src/LibParser/NameResolver.fs` and `packages/darklang/languageTools/nameResolver.dark`.
 
+**A wasm publish piped to `tail` looks like a 40-minute hang.** `dotnet publish` spawns MSBuild
+worker nodes with `/nodeReuse:true`. They inherit stdout and outlive the parent, so the pipe never
+closes, `tail` never gets EOF, and whatever error dotnet printed sits in its buffer unseen: the
+child exits, the shell stays, and `rundir/wasm-repl` stays empty with no exit code and no
+diagnostic. Run it to a FILE with node reuse off, and nothing else building in that container,
+since a Release wasm publish rebuilds the same project references and two of them fight over
+obj/bin:
+
+    MSBUILDDISABLENODEREUSE=1 dotnet publish backend/src/Wasm/Wasm.fsproj -c Release \
+      -o rundir/wasm-repl -nodeReuse:false > rundir/logs/wasm-publish.log 2>&1
+
+A real publish is 4 to 8 minutes and leaves hundreds of MB in `backend/Build/obj/Wasm` within the
+first couple of minutes; `obj` still tiny means it never got past restore, which is not slowness.
+Progress markers in the log, in order: restore, `Wasm -> ... Darklang.Wasm.dll`, `AOT'ing N
+assemblies`, then the emscripten link and `wasm-opt`, which is single-threaded and the long tail.
+(Diagnosed by the wasm-preview session, which named it from a one-line symptom.)
+
+**Bracket every pattern you hand to `pgrep -f` / `pkill -f`.** The pattern appears in your own
+shell's command line, so an unbracketed one matches the process doing the matching. A waiter waits
+on itself forever; a `pkill -f "serve Foo"` kills the backgrounded shell whose command line
+contains "serve Foo", which looks exactly like the publish you just started dying for no reason.
+`[s]erve Foo` matches the target and not the matcher. The same family: `2>&1` on a command whose
+stdout you are about to parse as JSON merges a warning into the payload and the parse failure
+reads as a product bug. All three of these presented as product failures here and all three were
+the harness.
+
 **A published artifact older than your tree fails like a broken product.** Every command dies with
 "Function <hash> couldn't be found", because reloading packages regenerates the pinned ref hashes but does
 NOT re-export `rundir/seed.db`, and a binary built on that seed can't produce the refs it was pinned to. It
