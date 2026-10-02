@@ -448,6 +448,28 @@ module ExecutionError =
     DEnum(typeName, typeName, [], caseName, fields)
 
 
+
+/// Why a replay stopped. Two cases because two facts: the replay ran and the code raised, or
+/// it never got that far. Whether a raise means the store moved under the recording is a
+/// JUDGEMENT, and it is `Tracing.ReplayStop.isDrift` in Dark, not here -- which is also why
+/// this carries the error rather than a rendered message.
+module ReplayStop =
+  let fqTypeName () = FQTypeName.fqPackage (PackageRefs.Type.Tracing.replayStop ())
+  let typeRef () = TCustomType(NR.ok (fqTypeName ()), [])
+
+  type ReplayStop =
+    | Raised of RT.RuntimeError.Error
+    | Unreplayable of string
+
+  let toDT (stop : ReplayStop) : Dval =
+    let typeName = fqTypeName ()
+    let (caseName, fields) =
+      match stop with
+      | Raised rte -> "Raised", [ RT2DT.RuntimeError.toDT rte ]
+      | Unreplayable message -> "Unreplayable", [ DString message ]
+    DEnum(typeName, typeName, [], caseName, fields)
+
+
 /// Parse guest source (`run`/`eval`): the first diagnostic, rendered against
 /// `source`, becomes the `ParseError` the caller reports.
 let private parseGuest
@@ -1027,7 +1049,7 @@ let fns () : List<BuiltInFn> =
                 [ TCustomType(NR.ok (RT2DT.Dval.typeName ()), []) ]
               )
             )
-            TypeReference.option TString ]
+            TypeReference.option (ReplayStop.typeRef ()) ]
         )
       description =
         "Replay a recorded run for VIEWING: every effectful call is answered from that run's "
@@ -1045,10 +1067,7 @@ let fns () : List<BuiltInFn> =
         + "once cannot take each other's log."
       fn =
         (function
-        | exeState,
-          _,
-          _,
-          [| DUuid branchId; DString traceID; DList(_, focusRows) |] ->
+        | exeState, _, _, [| DUuid branchId; DString traceID; DList(_, focusRows) |] ->
           uply {
             // A view keeps the first and last few iterations of every site. Asking for one in
             // between is this: the same view again, keeping that one as well.
@@ -1084,21 +1103,22 @@ let fns () : List<BuiltInFn> =
               )
             let noFrames = Dval.list frameKt []
             let noFrameValues = Dval.list frameValueKt []
+            let stopKt = KTCustomType(ReplayStop.fqTypeName (), [])
             let answer
               (values : Dval)
               (frames : Dval)
               (frameValues : Dval)
-              (problem : Option<string>)
+              (problem : Option<ReplayStop.ReplayStop>)
               =
               DTuple(
                 values,
                 frames,
                 [ frameValues
                   (match problem with
-                   | Some p -> Dval.optionSome KTString (DString p)
-                   | None -> Dval.optionNone KTString) ]
+                   | Some stop -> Dval.optionSome stopKt (ReplayStop.toDT stop)
+                   | None -> Dval.optionNone stopKt) ]
               )
-            let emptyAnswer (problem : Option<string>) =
+            let emptyAnswer (problem : Option<ReplayStop.ReplayStop>) =
               answer noValues noFrames noFrameValues problem
 
             /// The frame tree and the per-frame values, as Dark sees them.
@@ -1154,10 +1174,13 @@ let fns () : List<BuiltInFn> =
                 |> Dval.list frameValueKt
               frameRows, valueRows
             match System.Guid.TryParse traceID with
-            | false, _ -> return emptyAnswer (Some "not an id")
+            | false, _ ->
+              return emptyAnswer (Some(ReplayStop.Unreplayable "not an id"))
             | true, id ->
               match! LibDB.Traces.get id with
-              | None -> return emptyAnswer (Some "no run has this id")
+              | None ->
+                return
+                  emptyAnswer (Some(ReplayStop.Unreplayable "no run has this id"))
               | Some run ->
                 // Only a run whose input is source can be replayed from the CLI. A served
                 // request is a run too, and re-running one needs the server's handler, which
@@ -1182,12 +1205,17 @@ let fns () : List<BuiltInFn> =
                       DTuple(DInt64 kv.Key, RT2DT.Dval.toDT kv.Value, []))
                     |> List.ofSeq
                     |> Dval.list kt
-                  let answerWithTree () (problem : Option<string>) =
+                  let answerWithTree () (problem : Option<ReplayStop.ReplayStop>) =
                     let frameRows, valueRows = treeOf frames collected
                     answer (values ()) frameRows valueRows problem
                   match parsed with
                   | Error _ ->
-                    return emptyAnswer (Some "the run's input no longer parses")
+                    return
+                      emptyAnswer (
+                        Some(
+                          ReplayStop.Unreplayable "the run's input no longer parses"
+                        )
+                      )
                   | Ok mod' ->
                     let! dbs = loadDBs ()
                     let viewState =
@@ -1209,10 +1237,10 @@ let fns () : List<BuiltInFn> =
                       with
                       | Ok _ -> return answerWithTree () None
                       | Error(rte, _) ->
-                        let! message = Exe.runtimeErrorMessage viewState rte
-                        return answerWithTree () (Some message)
+                        return answerWithTree () (Some(ReplayStop.Raised rte))
                     with e ->
-                      return answerWithTree () (Some e.Message)
+                      return
+                        answerWithTree () (Some(ReplayStop.Unreplayable e.Message))
                 | requestDval ->
                   // A served request: its input is a record, so there is no source to re-run.
                   // The handler that served it was recorded on the row, so the view applies
@@ -1221,8 +1249,10 @@ let fns () : List<BuiltInFn> =
                   | None ->
                     return
                       emptyAnswer (
-                        Some
-                          "this run has no source to replay and no handler recorded against it"
+                        Some(
+                          ReplayStop.Unreplayable
+                            "this run has no source to replay and no handler recorded against it"
+                        )
                       )
                   | Some hash ->
                     let! log = LibDB.Traces.viewLog id
@@ -1241,7 +1271,7 @@ let fns () : List<BuiltInFn> =
                         DTuple(DInt64 kv.Key, RT2DT.Dval.toDT kv.Value, []))
                       |> List.ofSeq
                       |> Dval.list kt
-                    let answerWithTree () (problem : Option<string>) =
+                    let answerWithTree () (problem : Option<ReplayStop.ReplayStop>) =
                       let frameRows, valueRows = treeOf frames collected
                       answer (values ()) frameRows valueRows problem
                     let applicable =
@@ -1264,10 +1294,10 @@ let fns () : List<BuiltInFn> =
                       with
                       | Ok _ -> return answerWithTree () None
                       | Error(rte, _) ->
-                        let! message = Exe.runtimeErrorMessage viewState rte
-                        return answerWithTree () (Some message)
+                        return answerWithTree () (Some(ReplayStop.Raised rte))
                     with e ->
-                      return answerWithTree () (Some e.Message)
+                      return
+                        answerWithTree () (Some(ReplayStop.Unreplayable e.Message))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

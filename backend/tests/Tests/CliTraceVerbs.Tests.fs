@@ -547,8 +547,14 @@ let private recursionIsALoopAndEmptyIterationsStaySilent =
         // And what it was GIVEN, which is the other half of reading an iteration: the values of
         // a call mean nothing without the inputs that produced them. `fact 5` is what the RUN
         // was given; `n = 4` is what this time round was.
-        Expect.stringContains second "n = 4" "and says what this iteration was given"
-        Expect.stringContains second "given" "while still saying what the whole run was given"
+        Expect.stringContains
+          second
+          "n = 4"
+          "and says what this iteration was given"
+        Expect.stringContains
+          second
+          "given"
+          "while still saying what the whole run was given"
 
         // The fifth is the base case. It returns before `sub` and the product ever run, so those
         // lines have no value in it -- and must not show the ones that another iteration left.
@@ -607,7 +613,11 @@ let private everyIterationOfALoopIsReachable =
           let! shown =
             runCli
               state
-              [ "traces"; "show"; "Tests.Prev.scaled"; "--iteration"; $"map:{which}" ]
+              [ "traces"
+                "show"
+                "Tests.Prev.scaled"
+                "--iteration"
+                $"map:{which}" ]
           Expect.stringContains
             shown
             $"// = {expected}"
@@ -623,8 +633,16 @@ let private everyIterationOfALoopIsReachable =
         let! asJson =
           runCli
             state
-            [ "traces"; "show"; "Tests.Prev.scaled"; "--json"; "--iteration"; "map:15" ]
-        Expect.stringContains asJson "\"at\":15" "the agent gets the iteration it asked for"
+            [ "traces"
+              "show"
+              "Tests.Prev.scaled"
+              "--json"
+              "--iteration"
+              "map:15" ]
+        Expect.stringContains
+          asJson
+          "\"at\":15"
+          "the agent gets the iteration it asked for"
         Expect.stringContains asJson "1500" "with its own value"
       })
 
@@ -750,7 +768,10 @@ let private aFunctionThatRanAndWentIsNotATypo =
 
         // The hash-only row, rendered as what it is rather than as sixty-four characters of name.
         let! listed = runCli state [ "traces"; "fns"; "--all" ]
-        Expect.stringContains listed "(gone) aaaaaaaa" "a row with no name says so, shortened"
+        Expect.stringContains
+          listed
+          "(gone) aaaaaaaa"
+          "a row with no name says so, shortened"
         Expect.isFalse
           (listed.Contains goneHash)
           "and does not print the whole hash as though it were a name"

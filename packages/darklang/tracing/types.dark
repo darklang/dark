@@ -97,3 +97,48 @@ type TraceData =
   { trace: Trace
     inputs: List<InputVar>
     functionCalls: List<FnCall> }
+
+
+/// Why a replay stopped before the end of the code.
+///
+/// Two cases because two facts, and only F# knows which: either the replay got as far as
+/// running the code and the code raised, or it never got that far. The JUDGEMENT a reader
+/// needs on top of that -- is this my bug, or did the store move under the recording --
+/// is `ReplayStop.isDrift`, and it lives here because it is a decision rather than a fact.
+type ReplayStop =
+  /// The replay ran and the code raised. The error is the one the run raised today, not the
+  /// one the original run raised; a recorded run that stopped is `Trace.status`, not this.
+  | Raised of LanguageTools.RuntimeTypes.RuntimeError.Error
+  /// The replay never started: no such trace, a served request with no handler recorded, or
+  /// input that no longer parses. The string is for a person, since there is no error to show.
+  | Unreplayable of String
+
+
+module ReplayStop =
+  /// Did the world move under the recording, rather than the code being wrong?
+  ///
+  /// This is the question a reader actually has, because the two answers call for opposite
+  /// next actions: debug the code, or re-run it against the store as it is now. A trace is a
+  /// recording of code that RAN, so an error about something not resolving is almost never
+  /// the recorded code's fault; it is the store having changed since.
+  ///
+  /// An error case this does not know falls to `false`, which is the conservative answer: the
+  /// page then shows the error plainly, as it always did, rather than claiming drift it cannot
+  /// support. A new resolution-shaped error wants adding here, and until someone does, the
+  /// page is unhelpful rather than wrong.
+  let isDrift (stop: ReplayStop) : Bool =
+    match stop with
+    // Nothing to replay is itself the store having moved, except for the served-request gap,
+    // which is a missing feature. Both want "re-run it", so they answer the same here.
+    | Unreplayable _ -> true
+    | Raised err ->
+      match err with
+      // A name that no longer resolves, or resolves to a hash that is gone.
+      | ParseTimeNameResolution(_names, _err) -> true
+      | FnNotFound _ -> true
+      | TypeNotFound _ -> true
+      | ValueNotFound _ -> true
+      // Still there, but marked harmful since the recording. The commonest drift in practice,
+      // because deprecating something is a deliberate act someone takes after it has run.
+      | DeprecatedItemHalted _ -> true
+      | _ -> false

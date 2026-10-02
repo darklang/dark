@@ -37,8 +37,12 @@ type Model =
     /// The selected trace's code, already annotated. Recomputed on a move, a tick and an edit,
     /// because all three can change it: a different trace, a new one arriving, different code.
     source: List<String>
-    /// Set when the replay stopped before the end, with the call that stopped it.
-    problem: Stdlib.Option.Option<String> }
+    /// Set when the replay stopped before the end: the error, whether the store moved under
+    /// the recording, and what to do about it.
+    ///
+    /// Already resolved, for the same reason `traceLines` is: rendering a runtime error reads
+    /// the package store to spell names, and a render may not. `annotate` does it.
+    problem: Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson> }
 
 
 type Msg = | Refresh
@@ -52,7 +56,7 @@ let annotate
   (branchId: Uuid)
   (fn: String)
   (trace: Stdlib.Option.Option<Darklang.Tracing.Trace>)
-  : (List<String> * Stdlib.Option.Option<String>) =
+  : (List<String> * Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson>) =
   match trace with
   | None ->
     (Stdlib.List.append
@@ -70,7 +74,8 @@ let annotate
         ([ $"{fn} resolves to a version this store cannot load" ],
          Stdlib.Option.Option.None)
       | Some fnDef ->
-        let (collected, problem) = Darklang.Tracing.Store.viewTrace branchId r.id
+        let (collected, stop) = Darklang.Tracing.Store.viewTrace branchId r.id
+        let problem = Cli.TraceVerbs.problemJson branchId r.id stop
 
         let values =
           collected
@@ -189,12 +194,26 @@ let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
     | [] -> Stdlib.Cli.UI.Node.dim "  (no traces yet)"
     | _ -> Stdlib.Cli.UI.Node.Node.Rows m.traceLines
 
+  // The same decision the page and `--json` use, printed as a band. Only the medium differs.
   let problem =
     match m.problem with
-    | Some why ->
-      [ Stdlib.Cli.UI.Node.band
-          Stdlib.Cli.UI.Node.Severity.Warning
-          $"the replay stopped here: {why}" ]
+    | Some p ->
+      let headline =
+        match p.why with
+        | Some why -> $"the replay stopped: {why}"
+        | None -> $"the replay stopped here: {p.message}"
+
+      // A band is ONE line and CLIPS, so only the headline goes in it and the rest follows as
+      // dim rows. Joined into the band they ran off the edge mid-sentence, which loses exactly
+      // the two parts a reader needs: the error and what to do.
+      let rest =
+        [ p.why |> Stdlib.Option.map (fun _ -> p.message), p.advice ]
+        |> Stdlib.List.filterMap (fun x -> x)
+        |> Stdlib.List.map (fun line -> Stdlib.Cli.UI.Node.dim $"  {line}")
+
+      Stdlib.List.push
+        rest
+        (Stdlib.Cli.UI.Node.band Stdlib.Cli.UI.Node.Severity.Warning headline)
     | None -> []
 
   Stdlib.Cli.UI.Node.column

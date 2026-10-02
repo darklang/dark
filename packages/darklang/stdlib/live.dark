@@ -731,7 +731,9 @@ module Values =
       /// Calls made inside callees are here too, under their own expressions' ids; a printer
       /// looking up the ids of one function's body simply never meets them.
       byExpr: Dict<String, LanguageTools.RuntimeTypes.Dval>
-      /// The replay stopped early; the values up to that point are still above.
+      /// The replay stopped early; the values up to that point are still above. Says what
+      /// moved first when the store has changed under the recording, since the error itself
+      /// is about running code and reads as the reader's own bug.
       problem: Stdlib.Option.Option<String> }
 
 
@@ -753,8 +755,19 @@ module Values =
     match Darklang.Tracing.Store.wentThroughNamed branchId (entryName entry) 1L with
     | [] -> Stdlib.Option.Option.None
     | newest :: _ ->
-      let (collected, problem) =
-        Darklang.Tracing.Store.viewTrace branchId newest.id
+      let (collected, stop) = Darklang.Tracing.Store.viewTrace branchId newest.id
+
+      // Rendered here, not stored as the stop: this is stdlib, so it cannot reach the CLI's
+      // converter, and a caller holding a `ReplayStop` would have to render it anyway. The
+      // cause goes FIRST when there is one, because a drift error reads as the reader's bug.
+      let problem =
+        stop
+        |> Stdlib.Option.map (fun stop ->
+          let (message, why) = Darklang.Tracing.Format.replayStop branchId stop
+
+          match why with
+          | Some why -> $"{why}: {message}"
+          | None -> message)
 
       let byExpr =
         collected

@@ -47,3 +47,28 @@ let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String 
     (Stdlib.String.slice oneLine 0 (budget - 3)) ++ "..."
   else
     oneLine
+
+
+/// What to tell a person about a replay that stopped, as (what happened, what to do about it).
+///
+/// The second half is the point. "The view stopped here: <error>" told a reader nothing they
+/// could act on, and worse, a drift error carries advice for a different command: a harmful
+/// deprecation says "pass --allow-harmful to run/eval", which is not what the reader is doing.
+///
+/// What to DO about it is left to the caller, because the answer names a command and this module
+/// is not CLI-specific.
+let replayStop
+  (branchId: Uuid)
+  (stop: Darklang.Tracing.ReplayStop)
+  : (String * Stdlib.Option.Option<String>) =
+  match stop with
+  | Unreplayable message -> (message, Stdlib.Option.Option.None)
+  | Raised err ->
+    let rendered = PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId err
+
+    if Darklang.Tracing.ReplayStop.isDrift stop then
+      (rendered,
+       Stdlib.Option.Option.Some
+         "the store has changed since this ran, so the replay no longer resolves")
+    else
+      (rendered, Stdlib.Option.Option.None)

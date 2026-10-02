@@ -196,6 +196,54 @@ type LoopJson =
     iterations: List<LoopIterationJson> }
 
 
+/// Why a page stopped, for `--json`. `drift` is the part an agent acts on: false means debug the
+/// code, true means the store moved since the recording and the next step is a rerun. A string
+/// alone made an agent parse prose to work that out, and it is a decision, not a message.
+type ProblemJson =
+  { /// The error, rendered. For a drift stop this is about running code and may carry advice
+    /// for `run`/`eval`, which is not what the reader is doing; `why` is the part that applies.
+    message: String
+    drift: Bool
+    /// Why, when there is something to say beyond the error itself.
+    why: Stdlib.Option.Option<String>
+    /// The next step, naming this trace, ready to run as printed.
+    advice: Stdlib.Option.Option<String> }
+
+
+/// The ONE place a stopped replay becomes words, for both readers. `show` prints the message and
+/// the advice; `--json` sends the same three fields. Two converters is how `show` and `show --json`
+/// came to disagree about iterations earlier on this branch, so this one is shared on purpose.
+let problemJson
+  (branchId: Uuid)
+  (traceId: String)
+  (problem: Stdlib.Option.Option<Darklang.Tracing.ReplayStop>)
+  : Stdlib.Option.Option<ProblemJson> =
+  problem
+  |> Stdlib.Option.map (fun stop ->
+    let (message, why) = Darklang.Tracing.Format.replayStop branchId stop
+
+    // The commands go on here rather than in `Format`, which is not CLI-specific, and they name
+    // THIS trace so they can be run as printed. `why` is the cause and `advice` is the next step;
+    // keeping them apart is what stops the page saying the same thing twice.
+    //
+    // `inspect` leads because it always works: it reads the recorded log and re-executes nothing,
+    // so it still has what the run answered. `rerun` is second and says "tries", because a
+    // drifted trace usually fails there too -- which is itself the answer to whether the code
+    // still runs, but it is not a fix, and advice that implies one is advice that misleads.
+    let advice =
+      why
+      |> Stdlib.Option.map (fun _ ->
+        let short = Cli.Text.shortIdText traceId
+
+        $"`dark traces inspect {short}` still has what it did; `dark traces rerun {short}` tries it against the store as it is now")
+
+    ProblemJson
+      { message = message
+        drift = Darklang.Tracing.ReplayStop.isDrift stop
+        why = why
+        advice = advice })
+
+
 type ValuesJson =
   { trace: String
     /// The function this page is of, by name and by hash. See `LoopJson.fnHash`.
@@ -209,7 +257,7 @@ type ValuesJson =
     /// the bytes do, so the whole tree comes back in one call. `values` above is the flat view,
     /// one value per expression; these are what tells iteration 3 from iteration 7.
     loops: List<LoopJson>
-    problem: Stdlib.Option.Option<String> }
+    problem: Stdlib.Option.Option<ProblemJson> }
 
 
 /// A trace, for `--json`. The ONE converter: `list`, `find`, `calls`, `follow` and `inspect` all come
@@ -557,7 +605,7 @@ let showCodeJson
             fnHash = selfHash
             values = values
             loops = loopsJson
-            problem = problem }))
+            problem = problemJson branchId trace.id problem }))
     true
 
 
@@ -1171,10 +1219,25 @@ let showCode
 
           Stdlib.printLine (PrettyPrinter.ProgramTypes.packageFn ctx fn)
 
-          match problem with
-          | Some message ->
-            Stdlib.printLine
-              (Stdlib.Cli.UI.Colors.error $"  the view stopped here: {message}")
+          // Through `problemJson` so the page and `--json` cannot drift apart: the drift
+          // judgement and the advice are decided once, and this only chooses how to print them.
+          match problemJson branchId trace.id problem with
+          | Some p ->
+            match p.why with
+            // Lead with the cause. The error underneath is about running code and often carries
+            // advice for `run`/`eval`, which is not what this reader is doing, so saying what
+            // moved first is what stops the page reading as their bug.
+            | Some why ->
+              Stdlib.printLine
+                (Stdlib.Cli.UI.Colors.error $"  the replay stopped: {why}")
+              Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    {p.message}")
+            | None ->
+              Stdlib.printLine
+                (Stdlib.Cli.UI.Colors.error $"  the replay stopped here: {p.message}")
+
+            match p.advice with
+            | Some advice -> Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    {advice}")
+            | None -> ()
           | None -> ()
 
           // Which iteration every loop is showing. A line inside a loop looks exactly like a line

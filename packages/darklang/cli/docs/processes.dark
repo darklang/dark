@@ -63,6 +63,23 @@ function's newest run, so there is nothing to look up:
                                 and as you edit the code
   traces show <fn> --json       the same for an agent, `--iteration` included
 
+A `show` RE-RUNS the function, answering every effect from the log and performing
+none, so the values are recomputed rather than stored. That means the page shows
+the code as it is NOW, which is what makes it useful while you edit, and it also
+means a replay can stop on something the recorded run sailed through: a callee
+deleted since, a name that moved, something deprecated as harmful. The page says
+which of the two happened, because they want opposite next steps:
+
+  the replay stopped here: <error>        the code raised. Debug it
+  the replay stopped: the store has ...   it ran once and the world moved. The
+                                          page then names `traces inspect <id>`,
+                                          which reads the log and re-runs
+                                          nothing, so it still has what the run
+                                          answered
+
+`--json` carries the same judgement as `problem.drift`, so an agent does not have
+to read the prose to tell them apart.
+
 A view holds the first five times round each loop and the last five, and goes
 and gets any other one you ask for. So nothing in a loop is out of reach however
 long it ran, and a two-thousand-iteration loop costs the same to open as a short

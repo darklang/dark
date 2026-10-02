@@ -215,7 +215,14 @@ let looksLikeATraceId (arg: String) : Bool =
 /// than one, and it lists them as commands you can run, because picking for you would be picking
 /// wrong half the time. None, and the trace touched no package function at all, which is its own
 /// answer.
-let showFromTrace (state: Cli.AppState) (arg: String) : Cli.AppState =
+let showFromTrace
+  (state: Cli.AppState)
+  (arg: String)
+  /// Passed through to `showCode`, so `show <trace> --iteration map:2` works from this end too.
+  (iteration: Stdlib.Option.Option<String>)
+  /// Same reason: an agent that found a trace by id asked for JSON and was handed the page.
+  (wantsJson: Bool)
+  : Cli.AppState =
   match Darklang.Tracing.Store.resolveID arg with
   | Error _ ->
     Cli.printErr
@@ -252,12 +259,25 @@ let showFromTrace (state: Cli.AppState) (arg: String) : Cli.AppState =
           |> Stdlib.List.findFirst (fun fn ->
             Stdlib.String.contains trace.input fn)
 
+    // One helper for both renderers, so neither end can learn something the other does not.
+    let show (state: Cli.AppState) (fn: String) : Cli.AppState =
+      if wantsJson then
+        Cli.exitWith
+          state
+          (Cli.TraceVerbs.showCodeJson
+            state.currentBranchId
+            fn
+            (Stdlib.Option.Option.Some arg)
+            iteration)
+      else
+        Cli.TraceVerbs.showCode state fn (Stdlib.Option.Option.Some arg) iteration
+
     match root with
-    | Some fn -> Cli.TraceVerbs.showCode state fn (Stdlib.Option.Option.Some arg)
+    | Some fn -> show state fn
     | None ->
 
     match Darklang.Tracing.Store.fnsOf id with
-    | [ only ] -> Cli.TraceVerbs.showCode state only (Stdlib.Option.Option.Some arg)
+    | [ only ] -> show state only
     | [] ->
       Cli.printErr
         $"{Cli.Text.shortIdText id} went through no package function, so there is no code to show"
@@ -591,7 +611,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       { state with exitCode = 1 }
   | [ "show", fnName ] ->
     if looksLikeATraceId fnName then
-      showFromTrace state fnName
+      showFromTrace state fnName iteration wantsJson
     else if wantsJson then
       Cli.exitWith
         state
@@ -604,7 +624,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Cli.TraceVerbs.showCode state fnName Stdlib.Option.Option.None iteration
   | [ "show", fnName, run ] ->
     if looksLikeATraceId fnName then
-      showFromTrace state fnName
+      showFromTrace state fnName iteration wantsJson
     else if wantsJson then
       Cli.exitWith
         state

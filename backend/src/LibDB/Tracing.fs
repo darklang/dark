@@ -1077,10 +1077,7 @@ let createViewTracer
   // first. When an eleventh iteration arrives the sixth-from-last stops being in the last five,
   // so its values go. Head frames never enter this queue and so are never dropped.
   let tailWindow =
-    System.Collections.Generic.Dictionary<
-      struct (System.Guid * int64),
-      System.Collections.Generic.Queue<System.Guid>
-     >()
+    System.Collections.Generic.Dictionary<struct (System.Guid * int64), System.Collections.Generic.Queue<System.Guid>>()
 
   // Which expressions each frame wrote, so dropping one is a bounded amount of work rather than
   // a scan of everything collected so far.
@@ -1150,7 +1147,8 @@ let createViewTracer
       // Everything past the head joins the tail window, and the window pushes the oldest out.
       // A focused frame is not queued, so nothing can evict the iteration we came back for.
       if not inHead && not isFocused then
-        let mutable q = Unchecked.defaultof<System.Collections.Generic.Queue<System.Guid>>
+        let mutable q =
+          Unchecked.defaultof<System.Collections.Generic.Queue<System.Guid>>
         if not (tailWindow.TryGetValue(site, &q)) then
           q <- System.Collections.Generic.Queue<System.Guid>()
           tailWindow[site] <- q

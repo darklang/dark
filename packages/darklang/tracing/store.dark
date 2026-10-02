@@ -199,7 +199,7 @@ let viewTraceTree
   : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> *
     List<ViewFrame> *
     List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)> *
-    Stdlib.Option.Option<String>) =
+    Stdlib.Option.Option<ReplayStop>) =
   let (values, frames, frameValues, problem) =
     Builtin.cliViewTrace branchId traceID focus
 
@@ -222,14 +222,15 @@ let viewTraceTree
 
 /// Replay a recorded trace for VIEWING: every effectful call answered from that trace's log, none
 /// performed, and every expression's value collected. Hands back the values, by source
-/// expression id, and why it stopped early if it did.
+/// expression id, and why it stopped early if it did. `ReplayStop.isDrift` is what tells a
+/// genuine raise from the store having moved under the recording.
 ///
 /// This is the FLAT view: one value per expression, the last one executed, which is what puts
 /// `// = 140` beside a line. `viewTraceTree` is the same replay with the frames as well.
 let viewTrace
   (branchId: Uuid)
   (traceID: String)
-  : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> * Stdlib.Option.Option<String>) =
+  : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> * Stdlib.Option.Option<ReplayStop>) =
   // Through `viewTraceTree` rather than the builtin: one Dark wrapper per builtin is the
   // rule, and a second reference to `cliViewTrace` is what the builtin-access test catches.
   let (values, _frames, _frameValues, problem) = viewTraceTree branchId traceID []

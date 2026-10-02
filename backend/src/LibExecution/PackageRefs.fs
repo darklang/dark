@@ -525,6 +525,7 @@ module Type =
     let inputVar = p [ "Tracing" ] "InputVar"
     let fnCall = p [ "Tracing" ] "FnCall"
     let traceData = p [ "Tracing" ] "TraceData"
+    let replayStop = p [ "Tracing" ] "ReplayStop"
 
   module Cli =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"

@@ -943,6 +943,112 @@ let private testTracesJsonShapes =
     })
 
 
+/// A replay stops for two different reasons and they need opposite next actions: the code is
+/// wrong, or the store moved under a recording of code that ran fine. The page used to say
+/// "the view stopped here: <error>" for both, and for drift the error it passed through carries
+/// advice for `run`/`eval` ("pass --allow-harmful"), which is not what a reader of a trace is
+/// doing. This pins both halves, and that `show`, `show <trace>` and `--json` agree.
+let private testReplayDistinguishesDriftFromARaise =
+  cliTestWithFreshTraces
+    "a replay says whether the code raised or the store moved under the recording"
+    (fun target ->
+      task {
+        let state = target
+        let author = author target
+
+        // Drift: a function that ran, then got deprecated as harmful. The recording is intact.
+        do!
+          author
+            "Tests.DriftT.inner"
+            "(n: Int64): Int64 = Stdlib.Int64.multiply n 2L"
+        do! author "Tests.DriftT.outer" "(n: Int64): Int64 = Tests.DriftT.inner n"
+
+        let! _ = runCli state [ "eval"; "Tests.DriftT.outer 5L" ]
+        let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
+        let tid = parseTraceID listJson
+        let short = tid.Substring(0, 8)
+
+        // Before the drift the page REPLAYS: the recorded value is on the line. Asserting only
+        // the absence of a stop would pass on any error message, which is how the first draft of
+        // this test passed while authoring was silently failing.
+        let! clean = runCli state [ "traces"; "show"; "Tests.DriftT.outer"; short ]
+        Expect.stringContains
+          clean
+          "= 10"
+          "a clean replay puts the value on the line"
+        Expect.isFalse
+          (clean.Contains "the replay stopped")
+          "and says nothing about stopping"
+
+        let! _ =
+          runCli
+            state
+            [ "deprecate"
+              "fn"
+              "Tests.DriftT.inner"
+              "--kind"
+              "harmful"
+              "--yes" ]
+
+        let! page = runCli state [ "traces"; "show"; "Tests.DriftT.outer"; short ]
+        Expect.stringContains
+          page
+          "the store has changed since this ran"
+          "a drift stop leads with the cause, not with an error about running code"
+        Expect.stringContains
+          page
+          $"dark traces inspect {short}"
+          "and names the command that still works, with this trace's id in it"
+
+        // The same trace from the other end. This path called `showCode` without its iteration
+        // argument for a while, which Dark does not catch until the call runs.
+        let! fromTrace = runCli state [ "traces"; "show"; short ]
+        Expect.stringContains
+          fromTrace
+          "the store has changed since this ran"
+          "`show <trace>` reaches the same page and says the same thing"
+
+        let! driftJson =
+          runCli state [ "traces"; "show"; "Tests.DriftT.outer"; short; "--json" ]
+        Expect.stringContains
+          driftJson
+          "\"drift\":true"
+          "--json carries the judgement, not prose for an agent to parse"
+
+        // Both ends, both media. `show <trace> --json` used to ignore the flag and print the
+        // page, so an agent that had found a trace by id got prose: the same split between two
+        // readers of one answer that this branch keeps turning up.
+        let! fromTraceJson = runCli state [ "traces"; "show"; short; "--json" ]
+        Expect.stringContains
+          fromTraceJson
+          "\"drift\":true"
+          "`show <trace> --json` answers in JSON, and says the same thing"
+
+        // A genuine raise must NOT be called drift, or the label means nothing.
+        do!
+          author "Tests.RaiseT.boom" "(n: Int64): Int64 = Stdlib.Int64.divide n 0L"
+        let! _ = runCli state [ "eval"; "Tests.RaiseT.boom 5L" ]
+        let! raiseList = runCli state [ "traces"; "list"; "1"; "--json" ]
+        let rid = (parseTraceID raiseList).Substring(0, 8)
+
+        let! raisePage = runCli state [ "traces"; "show"; "Tests.RaiseT.boom"; rid ]
+        Expect.stringContains
+          raisePage
+          "the replay stopped here"
+          "a real raise reads as a raise"
+        Expect.isFalse
+          (raisePage.Contains "the store has changed")
+          "and is not dressed up as drift"
+
+        let! raiseJson =
+          runCli state [ "traces"; "show"; "Tests.RaiseT.boom"; rid; "--json" ]
+        Expect.stringContains
+          raiseJson
+          "\"drift\":false"
+          "--json agrees with the page"
+      })
+
+
 /// parameter that does not bind is a RUNTIME failure there, not a load one: the command dies
 /// with SQLite's "Must add values for the following parameters". Nothing else in the suite runs
 /// either verb, so this is the test that keeps that path honest.
@@ -1304,5 +1410,6 @@ let tests =
          testTracesRouteEmptyRejection
          testTracesFindEscapesLikeWildcards
          testTracesTruncatedStillShowsRoot
+         testReplayDistinguishesDriftFromARaise
          testPermissionProfiles ]
      @ slowCliTests)
