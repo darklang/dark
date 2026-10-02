@@ -439,14 +439,33 @@ Progress markers in the log, in order: restore, `Wasm -> ... Darklang.Wasm.dll`,
 assemblies`, then the emscripten link and `wasm-opt`, which is single-threaded and the long tail.
 (Diagnosed by the wasm-preview session, which named it from a one-line symptom.)
 
+**Never conclude an ABSENCE from output you truncated or filtered.** This is the one that gets
+through, because it produces a confident negative, and a negative is the result nobody re-checks:
+you look for a thing, do not see it, and move on. Every other harness mistake here produced a
+wrong positive that something eventually contradicted. This family produces silence, and silence
+agrees with whatever you already believed. Measured instances:
+
+- `git remote -v | head -4` cuts alphabetically after `oceanoak` and before `origin`, so `origin`
+  looks absent and you conclude the clone does not follow the remote convention
+- `grep -c` counts LINES, not occurrences, so a count comes back wrong and the "correction" you
+  then make is the error
+- a prefix regex over-matches (`Stdlib\.[A-Za-z0-9]+\.toString` also matches
+  `toStringISO8601BasicDate`), inventing call sites that do not exist
+- `head -c N` on JSON truncates mid-structure, so a valid payload fails to parse and reads as a
+  malformed response
+
+If a search comes back empty and you are about to act on the emptiness, re-run it without the
+filter.
+
 **Bracket every pattern you hand to `pgrep -f` / `pkill -f`.** The pattern appears in your own
 shell's command line, so an unbracketed one matches the process doing the matching. A waiter waits
 on itself forever; a `pkill -f "serve Foo"` kills the backgrounded shell whose command line
 contains "serve Foo", which looks exactly like the publish you just started dying for no reason.
-`[s]erve Foo` matches the target and not the matcher. The same family: `2>&1` on a command whose
-stdout you are about to parse as JSON merges a warning into the payload and the parse failure
-reads as a product bug. All three of these presented as product failures here and all three were
-the harness.
+`[s]erve Foo` matches the target and not the matcher. Note that bracketing is not enough on its
+own: if the same shell also RUNS `serve Foo`, the bracketed pattern still matches it, so kill and
+start belong in separate commands. The same family: `2>&1` on a command whose stdout you are about
+to parse as JSON merges a warning into the payload and the parse failure reads as a product bug.
+All of these presented as product failures here and all of them were the harness.
 
 **A published artifact older than your tree fails like a broken product.** Every command dies with
 "Function <hash> couldn't be found", because reloading packages regenerates the pinned ref hashes but does
