@@ -38,7 +38,7 @@ let line (f: SCM.Constraints.Finding) : String =
 
   match (f.kind, f.detail) with
   | (KindChanged, _) ->
-    let was = SCM.Deps.kindString f.dependencyKind
+    let was = LanguageTools.ProgramTypes.ItemKind.toString f.dependencyKind
     $"  #{f.id}  {u}\n         uses {d} as a {was}; that name is something else now (still resolves, by hash)"
   | (StaleUsage, Versions(using, current)) ->
     $"  #{f.id}  {u}\n         still on the version it was written against ({Cli.shortHash using}); {d} is at {Cli.shortHash current} now"
@@ -69,8 +69,8 @@ let toJson (f: SCM.Constraints.Finding) : String =
   let k = Cli.jsonStr (SCM.Constraints.kindToString f.kind)
   let u = Cli.jsonStr (SCM.Constraints.fqnOf f.usage)
   let d = Cli.jsonStr (SCM.Constraints.fqnOf f.dependency)
-  let uk = Cli.jsonStr (SCM.Deps.kindString f.usageKind)
-  let dk = Cli.jsonStr (SCM.Deps.kindString f.dependencyKind)
+  let uk = Cli.jsonStr (LanguageTools.ProgramTypes.ItemKind.toString f.usageKind)
+  let dk = Cli.jsonStr (LanguageTools.ProgramTypes.ItemKind.toString f.dependencyKind)
 
   // The varying half is named for what it IS, so an agent reading this does not have to know that a
   // policy finding puts policy names in fields called `using` and `current`.

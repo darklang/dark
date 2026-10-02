@@ -180,10 +180,16 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
       match results.values with
       | i :: _ -> Stdlib.Option.Option.Some(("value", PrettyPrinter.ProgramTypes.packageValue ctx i.entity))
       | [] -> Stdlib.Option.Option.None
-    else
+    else if item.kind == "fn" then
       match results.fns with
       | i :: _ -> Stdlib.Option.Option.Some(("fn", PrettyPrinter.ProgramTypes.packageFn ctx i.entity))
       | [] -> Stdlib.Option.Option.None
+    else
+      // `saveEditing` has no trait or impl arm, so opening the editor on one would show you the
+      // source and then refuse to save it. Say which command does, rather than appearing to do
+      // nothing: `e` on a trait row used to fall into the fn arm, find nothing and return the
+      // state unchanged.
+      Stdlib.Option.Option.None
   match kindAndSrc with
   | Some((kind, src)) ->
     Step.Continue
@@ -191,4 +197,11 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
           editing =
             Stdlib.Option.Option.Some
               (EditingState { kind = kind; nameStr = "Editing " + fullName; targetModule = modules; buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src); err = "" }) }
-  | None -> Step.Continue state
+  | None ->
+    if item.kind == "trait" || item.kind == "impl" then
+      Step.Continue
+        { state with
+            message =
+              $"the editor does not author {item.kind}s; `dark edit {fullName}` does" }
+    else
+      Step.Continue { state with message = $"nothing to edit at {fullName}" }

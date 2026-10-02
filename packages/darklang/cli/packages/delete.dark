@@ -91,7 +91,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // ceremony -- infer it (each kind tried, at most one resolves, the same way `undeprecate`
     // does), and keep the explicit form for a hash or a collision.
     let (itemTypeStr, targetOpt) =
-      match (Propagate.itemKindFromString itemTypeStr, targetOpt) with
+      match (LanguageTools.ProgramTypes.ItemKind.fromString itemTypeStr, targetOpt) with
       | (None, None) ->
         let inferred =
           [ LanguageTools.ProgramTypes.ItemKind.Fn
@@ -104,11 +104,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             |> Stdlib.Option.map (fun _ -> k))
 
         (match inferred with
-         | [ k ] -> (SCM.Deps.kindString k, Stdlib.Option.Option.Some itemTypeStr)
+         | [ k ] -> (LanguageTools.ProgramTypes.ItemKind.toString k, Stdlib.Option.Option.Some itemTypeStr)
          | _ -> (itemTypeStr, targetOpt))
       | _ -> (itemTypeStr, targetOpt)
 
-    match Propagate.itemKindFromString itemTypeStr with
+    match LanguageTools.ProgramTypes.ItemKind.fromString itemTypeStr with
     | None ->
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.error

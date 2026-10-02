@@ -559,28 +559,12 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
     // The relay holds no branches of its own, so everything it serves is main's view.
     let ctx = PrettyPrinter.ProgramTypes.Context.forBranch SCM.Branch.mainBranchId
 
+    // The kind column holds what `ItemKind.toString` wrote, so an unparseable one is not a value;
+    // it is a row this build does not understand, and saying so beats printing nothing.
     let src =
-      match kind with
-      | "fn" ->
-        (match LanguageTools.PackageManager.Function.get h with
-         | Some f -> PrettyPrinter.ProgramTypes.packageFn ctx f
-         | None -> "(not stored here)")
-      | "type" ->
-        (match LanguageTools.PackageManager.Type.get h with
-         | Some t -> PrettyPrinter.ProgramTypes.packageType ctx t
-         | None -> "(not stored here)")
-      | "trait" ->
-        (match LanguageTools.PackageManager.Trait.get h with
-         | Some t -> PrettyPrinter.ProgramTypes.packageTrait ctx t
-         | None -> "(not stored here)")
-      | "impl" ->
-        (match LanguageTools.PackageManager.TraitImpl.get h with
-         | Some i -> PrettyPrinter.ProgramTypes.packageImpl ctx i
-         | None -> "(not stored here)")
-      | _ ->
-        (match LanguageTools.PackageManager.Value.get h with
-         | Some v -> PrettyPrinter.ProgramTypes.packageValue ctx v
-         | None -> "(not stored here)")
+      LanguageTools.ProgramTypes.ItemKind.fromString kind
+      |> Stdlib.Option.andThen (fun k -> PrettyPrinter.ProgramTypes.sourceOf ctx k h)
+      |> Stdlib.Option.withDefault "(not stored here)"
 
     let short = Stdlib.String.slice hashStr 0 12
     let desc = descriptionOf kind hashStr

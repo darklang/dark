@@ -84,7 +84,7 @@ let bindingFromOp
     let modules = Stdlib.String.join location.modules "."
 
     let itemType =
-      Deps.kindString (LanguageTools.ProgramTypes.Reference.kind target)
+      LanguageTools.ProgramTypes.ItemKind.toString (LanguageTools.ProgramTypes.Reference.kind target)
 
     let hash =
       LanguageTools.ProgramTypes.hashToString

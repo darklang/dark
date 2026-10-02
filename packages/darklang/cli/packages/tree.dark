@@ -232,7 +232,7 @@ let displayTree
       let implNames = implEntries |> Stdlib.List.map (fun (name, _) -> name)
 
       let moduleEntities =
-        Query.readerSubmodules submoduleNames implNames
+        LanguageTools.PackageManager.Search.readerSubmodules submoduleNames implNames
         |> Stdlib.List.map (fun name -> (name, EntityType.Module, LanguageTools.ProgramTypes.Hash.Hash ""))
         |> Stdlib.List.sortBy (fun (name, _, _) -> name)
       let typeEntities =

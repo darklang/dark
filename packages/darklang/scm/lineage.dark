@@ -35,7 +35,7 @@ let currentlyBound
       (b.owner == location.owner)
       && (b.modules == modules)
       && (b.name == location.name)
-      && (b.itemType == Deps.kindString kind))
+      && (b.itemType == LanguageTools.ProgramTypes.ItemKind.toString kind))
 
   match onParent with
   | Some b -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash b.hash)
@@ -49,7 +49,7 @@ let currentlyBound
        WHERE owner = @p0 AND modules = @p1 AND name = @p2
          AND item_type = @p3 AND unlisted_at IS NULL
        LIMIT 1"
-      [ location.owner, modules, location.name, Deps.kindString kind ]
+      [ location.owner, modules, location.name, LanguageTools.ProgramTypes.ItemKind.toString kind ]
 
   match found with
   | Some row ->

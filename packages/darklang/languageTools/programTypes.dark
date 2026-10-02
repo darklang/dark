@@ -581,6 +581,30 @@ type ItemKind =
   | Trait
   | TraitImpl
 
+module ItemKind =
+  /// The spelling that goes in a database column, a URL and an op bundle. The one place it is
+  /// written on this side, because it is a round trip: a second copy that disagreed about `impl`
+  /// versus `traitImpl` would read back someone else's rows as the wrong kind. It has to agree
+  /// with `PT.ItemKind.toString` in F#, which writes the same column from the fold.
+  let toString (k: ItemKind) : String =
+    match k with
+    | Fn -> "fn"
+    | Type -> "type"
+    | Value -> "value"
+    | Trait -> "trait"
+    | TraitImpl -> "impl"
+
+  /// `None` for anything `toString` would not have written. A blanket arm here is how a kind
+  /// nobody anticipated becomes a function: the copy in `SCM.Deps` fell through to `Fn`.
+  let fromString (s: String) : Stdlib.Option.Option<ItemKind> =
+    match s with
+    | "fn" -> Stdlib.Option.Option.Some ItemKind.Fn
+    | "type" -> Stdlib.Option.Option.Some ItemKind.Type
+    | "value" -> Stdlib.Option.Option.Some ItemKind.Value
+    | "trait" -> Stdlib.Option.Option.Some ItemKind.Trait
+    | "impl" -> Stdlib.Option.Option.Some ItemKind.TraitImpl
+    | _ -> Stdlib.Option.Option.None
+
 /// A reference to a specific package item by content hash.
 /// Collapses (Hash * ItemKind) pairs into one shape; leaves room for future
 /// growth (RefBuiltin, RefExternal, ...).

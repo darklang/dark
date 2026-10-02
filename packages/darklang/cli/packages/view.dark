@@ -66,7 +66,7 @@ let rawSource
   match location with
   | Module _ ->
     Stdlib.Result.Result.Error
-      "--raw prints ONE declaration. Name a fn, type or value, not a module."
+      "--raw prints ONE declaration. Name a fn, type, value, trait or impl, not a module."
   | Type loc -> sourceOf loc
   | Value loc -> sourceOf loc
   | Function loc -> sourceOf loc
@@ -146,7 +146,8 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
 
     let locationStr = Packages.formatLocation location
 
-    let submodules = Query.readerSubmodules directSubmodules implNames
+    let submodules =
+      LanguageTools.PackageManager.Search.readerSubmodules directSubmodules implNames
 
     let submoduleRows =
       if Stdlib.List.isEmpty submodules then
@@ -452,6 +453,11 @@ let fnAt
   | Type _ -> Stdlib.Result.Result.Error "that's a type; this view is for functions"
   | Value _ ->
     Stdlib.Result.Result.Error "that's a value; this view is for functions"
+  | Trait _ ->
+    Stdlib.Result.Result.Error "that's a trait; this view is for functions"
+  | Impl _ ->
+    Stdlib.Result.Result.Error
+      "that's an implementation; this view is for functions. Name one of its methods."
 
 
 /// The ProgramTypes tree, indented by depth. Node kinds are colored and payloads dimmed, so the shape

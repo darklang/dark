@@ -317,6 +317,20 @@ module Search =
         impls = searchResults.impls }
 
 
+  /// The submodules a READER should see.
+  ///
+  /// An impl's method fns live in a module named for the trait, so every impl leaves a submodule
+  /// beside it with the same name. The impl is already a row of its own, and a numeric type has
+  /// seventeen of them, which buries the functions somebody came to read. Every listing asks here
+  /// -- `dark ls`, `dark tree`, `dark view`, the workbench and the editor's tree view -- so what
+  /// counts as a submodule is decided once rather than five times. It lives beside `search`
+  /// because it is a fact about search results, and because the editor cannot reach into the CLI.
+  let readerSubmodules (submodules: List<String>) (implNames: List<String>) : List<String> =
+    submodules
+    |> Stdlib.List.filter (fun name ->
+      Stdlib.Bool.not (Stdlib.List.member implNames name))
+
+
   /// Search returning only names: (direct submodules, types, values, fns, traits, impls).
   ///
   /// `search` converts every matched item's full definition, parameters and body AST included, into Dark

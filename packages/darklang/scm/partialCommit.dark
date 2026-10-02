@@ -44,7 +44,7 @@ let draftNamings () : List<Selected> =
     | Decision(_, location, _, Override target)
     | SetName(location, target, _) ->
       let itemType =
-        SCM.Deps.kindString (LanguageTools.ProgramTypes.Reference.kind target)
+        LanguageTools.ProgramTypes.ItemKind.toString (LanguageTools.ProgramTypes.Reference.kind target)
 
       Stdlib.Option.Option.Some(
         Selected

@@ -1656,6 +1656,36 @@ let packageImpl
   $"{docComment}impl{typeParamPart} {traitPart} for {typeReference ctx i.self} =\n{PrettyPrinter.indent methods}"
 
 
+/// The source of one stored item, whichever kind it is. `None` means the store does not have it;
+/// the wording for that is the caller's, since a browser says "not stored here" and a CLI screen
+/// says "not stored locally".
+///
+/// Every screen that shows an item used to ask this for itself, five copies of fetch-by-kind and
+/// print-with-the-matching-printer. Three of the five had three arms, so the LSP refused to open a
+/// trait's file, `v` on a trait row in `dark propagate` raised, and the package server answered 500.
+let sourceOf
+  (ctx: Context)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Option.Option<String> =
+  match kind with
+  | Type ->
+    LanguageTools.PackageManager.Type.get hash
+    |> Stdlib.Option.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx t)
+  | Fn ->
+    LanguageTools.PackageManager.Function.get hash
+    |> Stdlib.Option.map (fun f -> PrettyPrinter.ProgramTypes.packageFn ctx f)
+  | Value ->
+    LanguageTools.PackageManager.Value.get hash
+    |> Stdlib.Option.map (fun v -> PrettyPrinter.ProgramTypes.packageValue ctx v)
+  | Trait ->
+    LanguageTools.PackageManager.Trait.get hash
+    |> Stdlib.Option.map (fun t -> PrettyPrinter.ProgramTypes.packageTrait ctx t)
+  | TraitImpl ->
+    LanguageTools.PackageManager.TraitImpl.get hash
+    |> Stdlib.Option.map (fun i -> PrettyPrinter.ProgramTypes.packageImpl ctx i)
+
+
 module BuiltinFn =
   let signature (branchId: Uuid) (f: LanguageTools.BuiltinFunction) : String =
     // CLEANUP: it's odd that we have to call the runtime pretty-printer here.

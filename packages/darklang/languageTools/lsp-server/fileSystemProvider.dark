@@ -47,31 +47,13 @@ module ReadFile =
         | Some script -> script.text
         | None -> $"Script not found: {scriptName}"
       else
-        let pm = LanguageTools.PackageManager.pm ()
         let branchId = state.currentBranchId
-
         let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
 
-        // Try to find as a specific entity (type, function, or value)
+        // A leaf of any of the five kinds; a module path falls through to the search below.
         let entityContent =
           match LanguageTools.PackageManager.findAny branchId location with
-          | Some ((hash, kind)) ->
-            match kind with
-            | Type ->
-              (pm.getType hash)
-              |> Stdlib.Option.andThen (fun typ ->
-                Stdlib.Option.Option.Some(
-                  PrettyPrinter.ProgramTypes.packageType ctx typ))
-            | Fn ->
-              (pm.getFn hash)
-              |> Stdlib.Option.andThen (fun fn ->
-                Stdlib.Option.Option.Some(
-                  PrettyPrinter.ProgramTypes.packageFn ctx fn))
-            | Value ->
-              (pm.getValue hash)
-              |> Stdlib.Option.andThen (fun value ->
-                Stdlib.Option.Option.Some(
-                  PrettyPrinter.ProgramTypes.packageValue ctx value))
+          | Some((hash, kind)) -> PrettyPrinter.ProgramTypes.sourceOf ctx kind hash
           | None -> Stdlib.Option.Option.None
 
         match entityContent with
@@ -89,11 +71,8 @@ module ReadFile =
                 entityTypes = []
                 exactMatch = false }
 
-          let ctx =
-            PrettyPrinter.ProgramTypes.Context.forBranch state.currentBranchId
-
           let results =
-            LanguageTools.PackageManager.Search.search state.currentBranchId searchQuery
+            LanguageTools.PackageManager.Search.search branchId searchQuery
 
           let definitions =
             LanguageTools.ProgramTypes.Definitions
@@ -107,7 +86,7 @@ module ReadFile =
           // The owner is not a module, so a package's items fan out into several top-level
           // modules (`Stdlib`, `Cli`, ...). Print all of them; `head` would show only the first.
           let modules =
-            PrettyPrinter.ModuleDeclaration.toModules state.currentBranchId definitions
+            PrettyPrinter.ModuleDeclaration.toModules branchId definitions
 
           match modules with
           | [] -> $"// No definitions found in {nameForLookup}"

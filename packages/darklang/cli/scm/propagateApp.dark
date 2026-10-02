@@ -115,19 +115,8 @@ let viewSelected (state: State) : State =
     let ctx = PrettyPrinter.ProgramTypes.Context.forBranch state.branchId
 
     let src =
-      match r.kind with
-      | Fn ->
-        match LanguageTools.PackageManager.Function.get r.at with
-        | Some f -> PrettyPrinter.ProgramTypes.packageFn ctx f
-        | None -> "(not stored locally)"
-      | Type ->
-        match LanguageTools.PackageManager.Type.get r.at with
-        | Some t -> PrettyPrinter.ProgramTypes.packageType ctx t
-        | None -> "(not stored locally)"
-      | Value ->
-        match LanguageTools.PackageManager.Value.get r.at with
-        | Some v -> PrettyPrinter.ProgramTypes.packageValue ctx v
-        | None -> "(not stored locally)"
+      PrettyPrinter.ProgramTypes.sourceOf ctx r.kind r.at
+      |> Stdlib.Option.withDefault "(not stored locally)"
 
     { state with message = src }
 

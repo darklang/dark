@@ -597,7 +597,7 @@ let everBoundHashes
   (loc: LanguageTools.ProgramTypes.PackageLocation)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : List<LanguageTools.ProgramTypes.Hash> =
-  let itemType = Deps.kindString itemKind
+  let itemType = LanguageTools.ProgramTypes.ItemKind.toString itemKind
 
   // main-scoped, on purpose: every hash ever bound on MAIN is this fn's contract.
   Stdlib.Sqlite.rowsP

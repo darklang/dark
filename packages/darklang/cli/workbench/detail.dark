@@ -184,7 +184,7 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
     |> Stdlib.List.map (fun c -> c.name)
 
   let shownSubmodules =
-    Packages.Query.readerSubmodules
+    LanguageTools.PackageManager.Search.readerSubmodules
       (allChildren
        |> Stdlib.List.filter (fun c -> c.isModule)
        |> Stdlib.List.map (fun c -> c.name))

@@ -110,7 +110,7 @@ let collectTransitiveDependents
     let toProcess =
       pending
       |> Stdlib.List.filter (fun (loc, kind) ->
-        let key = $"{fqn loc}:{Darklang.Cli.Packages.Propagate.itemKindToString kind}"
+        let key = $"{fqn loc}:{LanguageTools.ProgramTypes.ItemKind.toString kind}"
         Stdlib.Bool.not (Stdlib.List.member processed key))
 
     match toProcess with
@@ -131,7 +131,7 @@ let collectTransitiveDependents
           processed
           (targets
            |> Stdlib.List.map (fun (loc, kind) ->
-             $"{fqn loc}:{Darklang.Cli.Packages.Propagate.itemKindToString kind}"))
+             $"{fqn loc}:{LanguageTools.ProgramTypes.ItemKind.toString kind}"))
       let newAccumulated = Stdlib.List.append accumulated newDeps
 
       collectTransitiveDependents newProcessed newDeps newAccumulated
@@ -199,7 +199,7 @@ let showDependencies
     deps
     |> Stdlib.List.map (fun edge ->
       let (targetHash, refKind, loc) = edge
-      let kind = Darklang.Cli.Packages.Propagate.itemKindToString refKind
+      let kind = LanguageTools.ProgramTypes.ItemKind.toString refKind
 
       let behind =
         if isBehind loc targetHash then
@@ -226,27 +226,40 @@ let resolvePath
   match Packages.Traversal.traverse branchId currentLocation pathArg with
   | Error errMsg -> Stdlib.Result.Result.Error errMsg
   | Ok loc ->
+    // Traits and impls carry dependency rows like anything else (`DependencyExtractor`), so all
+    // five kinds are real questions here. Written once: four copies of this is how the two newest
+    // kinds came to raise "No matching case found" instead of answering.
+    let resolved
+      (itemLoc: LanguageTools.ProgramTypes.PackageLocation)
+      (kind: LanguageTools.ProgramTypes.ItemKind)
+      (hashOpt: Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash>)
+      : Stdlib.Result.Result<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * String * LanguageTools.ProgramTypes.ItemKind), String> =
+      let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation itemLoc
+      match hashOpt with
+      | Some hash -> Stdlib.Result.Result.Ok((hash, itemLoc, name, kind))
+      | None ->
+        let kindName = LanguageTools.ProgramTypes.ItemKind.toString kind
+        Stdlib.Result.Result.Error $"No {kindName} found at {name}"
+
     match loc with
     | Module _ ->
-      Stdlib.Result.Result.Error "Cannot show dependencies for a module, only for functions, types, or values"
-    | Function fnLoc ->
-      match LanguageTools.PackageManager.Function.find branchId fnLoc with
-      | Some hash ->
-        let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc
-        Stdlib.Result.Result.Ok((hash, fnLoc, name, LanguageTools.ProgramTypes.ItemKind.Fn))
-      | None -> Stdlib.Result.Result.Error $"Function not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc}"
-    | Type typeLoc ->
-      match LanguageTools.PackageManager.Type.find branchId typeLoc with
-      | Some hash ->
-        let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc
-        Stdlib.Result.Result.Ok((hash, typeLoc, name, LanguageTools.ProgramTypes.ItemKind.Type))
-      | None -> Stdlib.Result.Result.Error $"Type not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc}"
-    | Value valueLoc ->
-      match LanguageTools.PackageManager.Value.find branchId valueLoc with
-      | Some hash ->
-        let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc
-        Stdlib.Result.Result.Ok((hash, valueLoc, name, LanguageTools.ProgramTypes.ItemKind.Value))
-      | None -> Stdlib.Result.Result.Error $"Value not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc}"
+      Stdlib.Result.Result.Error
+        "Cannot show dependencies for a module, only for a fn, type, value, trait or impl"
+    | Function l ->
+      resolved l LanguageTools.ProgramTypes.ItemKind.Fn
+        (LanguageTools.PackageManager.Function.find branchId l)
+    | Type l ->
+      resolved l LanguageTools.ProgramTypes.ItemKind.Type
+        (LanguageTools.PackageManager.Type.find branchId l)
+    | Value l ->
+      resolved l LanguageTools.ProgramTypes.ItemKind.Value
+        (LanguageTools.PackageManager.Value.find branchId l)
+    | Trait l ->
+      resolved l LanguageTools.ProgramTypes.ItemKind.Trait
+        (LanguageTools.PackageManager.Trait.find branchId l)
+    | Impl l ->
+      resolved l LanguageTools.ProgramTypes.ItemKind.TraitImpl
+        (LanguageTools.PackageManager.TraitImpl.find branchId l)
 
 
 /// One dependency edge as the machine-readable shape, read off the EDGE (see `showDependencies`).
@@ -257,7 +270,7 @@ let edgeJson
 
   ScmJson.DependencyJson
     { name = fqnOf loc
-      kind = Darklang.Cli.Packages.Propagate.itemKindToString refKind
+      kind = LanguageTools.ProgramTypes.ItemKind.toString refKind
       hash = LanguageTools.ProgramTypes.hashToString targetHash
       behind = isBehind loc targetHash }
 
@@ -422,7 +435,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 let help (_state: AppState) : String =
   [
     "Usage: deps [subcommand] <path> [--deep] [--all]"
-    "Show dependencies and dependents of a function, type, or value."
+    "Show dependencies and dependents of a fn, type, value, trait or impl."
     ""
     "Subcommands:"
     "  uses <path>    - Show what the item uses (forward dependencies)"

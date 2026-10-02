@@ -71,7 +71,8 @@ let listModule
   Stdlib.printLine ""
 
   let implNames = impls |> Stdlib.List.map (fun (name, _) -> name)
-  let submodules = Query.readerSubmodules allSubmodules implNames
+  let submodules =
+    LanguageTools.PackageManager.Search.readerSubmodules allSubmodules implNames
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty submodules) then
     Stdlib.printLine (Display.getSectionHeader "module")

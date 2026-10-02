@@ -60,19 +60,6 @@ let allDirectDescendantNamesAndHashes
   LanguageTools.PackageManager.Search.searchNamesAndHashes branchId query
 
 
-/// The submodules a READER should see.
-///
-/// An impl's method fns live in a module named for the trait, so every impl leaves a submodule
-/// beside it with the same name. The impl is already a row of its own, and a numeric type has
-/// seventeen of them, which buries the functions somebody came to read. `dark ls`, `dark tree`
-/// and the workbench all ask here, so what counts as a submodule is decided once rather than
-/// three times.
-let readerSubmodules (submodules: List<String>) (implNames: List<String>) : List<String> =
-  submodules
-  |> Stdlib.List.filter (fun name ->
-    Stdlib.Bool.not (Stdlib.List.member implNames name))
-
-
 /// Drop items that are deprecated-and-hidden, for a (name, hash) listing.
 let filterDeprecatedPairs
   (items: List<(String * LanguageTools.ProgramTypes.Hash)>)
