@@ -178,22 +178,9 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
   let location = Packages.PackageLocation.Module path
   let allChildren = moduleContents state.branchId location
 
-  let implNames =
-    allChildren
-    |> Stdlib.List.filter (fun c -> c.kind == "impl")
-    |> Stdlib.List.map (fun c -> c.name)
-
-  let shownSubmodules =
-    LanguageTools.PackageManager.Search.readerSubmodules
-      (allChildren
-       |> Stdlib.List.filter (fun c -> c.isModule)
-       |> Stdlib.List.map (fun c -> c.name))
-      implNames
-
-  let children =
-    allChildren
-    |> Stdlib.List.filter (fun c ->
-      Stdlib.Bool.not c.isModule || (Stdlib.List.member shownSubmodules c.name))
+  // `moduleContents` already drops the folder an implementation generates, same as every other
+  // listing, so there is nothing left to filter here.
+  let children = allChildren
 
   let ofKind (kind: String) : List<BodyItem> =
     children |> Stdlib.List.filter (fun c -> c.kind == kind)

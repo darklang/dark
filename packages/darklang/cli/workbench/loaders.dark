@@ -14,8 +14,8 @@ let valueDesc (ctx: PrettyPrinter.ProgramTypes.Context) (body: LanguageTools.Pro
     else firstLine
   clipped
 
-/// The rows of a module for the Code list: its submodules, then types,
-/// values and fns, by name. Names only; the Inspect pane says what each is.
+/// The rows of a module for the Code list: its submodules, then types, values, fns, traits and
+/// implementations, by name. Names only; the Inspect pane says what each is.
 let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyItem> =
   moduleRows branchId location false
 
@@ -45,8 +45,13 @@ let moduleRows
   let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId modulePath
   let typeRef (t: LanguageTools.ProgramTypes.TypeReference) : String = PrettyPrinter.ProgramTypes.typeReference ctx t
   let descOf (build: Unit -> String) : String = if describe then build () else ""
+  // Every implementation leaves a submodule beside it with its own name, holding its method fns.
+  // The implementation is already a row; the folder is not one a reader wants, and `Stdlib.Int64`
+  // drew seventeen of each. The same rule every listing uses.
+  let implNames = results.impls |> Stdlib.List.map (fun i -> i.location.name)
   let moduleItems =
-    subs |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "module"; isModule = true; desc = "" })
+    LanguageTools.PackageManager.Search.readerSubmodules subs implNames
+    |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "module"; isModule = true; desc = "" })
   let typeItems =
     results.types
     |> Stdlib.List.map (fun t ->
