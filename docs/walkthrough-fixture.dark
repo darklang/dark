@@ -1,0 +1,89 @@
+// The fixtures the concurrency/tracing/live walkthrough reads. One file, one command, from the
+// repo root:
+//
+//   dark module /Demo.Walk - < docs/walkthrough-fixture.dark
+//
+// It lives in the repo rather than beside the walkthrough so that anyone who has cloned has it.
+// It is NOT under `packages/`, on purpose: everything there is authored into the store on every
+// build, and these are meant to be hand-authored, which is also what makes the "a build wipes
+// what you authored by hand" step in the walkthrough true.
+//
+// Everything here is PURE on purpose. A loop whose iterations make no impure call is the case
+// that used to record nothing and then report "iteration 3 of 3" about a loop that went round
+// five times, so it is the one worth walking.
+
+/// Two infix expressions. Neither had a value in any trace Dark had ever taken before this
+/// branch, because the compiler never marked them for a replay to collect.
+let scale (n: Int) : Int =
+  let doubled = n * 2
+  doubled + 1
+
+/// A second loop, under a different name, so `--iteration` has more than one thing to pick.
+let total (xs: List<Int>) : Int =
+  Stdlib.List.fold xs 0 (fun acc x -> acc + x)
+
+/// The loop's work is a CALL, and the lambda is one line. This is the shape that makes
+/// `--iteration` look broken: there is nothing per-iteration on the line to change.
+let reportCall (xs: List<Int>) : String =
+  let scaled = Stdlib.List.map xs (fun x -> scale x)
+  let sum = total scaled
+  "sum=" ++ (Stdlib.Int.toString sum)
+
+/// A multi-line lambda, so the loop's own expressions get their own lines and can carry a value
+/// that differs per iteration. This is where `--iteration` visibly works.
+let reportInline (xs: List<Int>) : String =
+  let scaled =
+    Stdlib.List.map xs (fun x ->
+      let doubled = x * 2
+      doubled + 1)
+
+  "sum=" ++ (Stdlib.Int.toString (Stdlib.List.length scaled))
+
+/// Two loops in one body, so `--iteration map:2,fold:2` has two things to move.
+let reportTwo (xs: List<Int>) : String =
+  let scaled =
+    Stdlib.List.map xs (fun x ->
+      let doubled = x * 2
+      doubled + 1)
+
+  let summed =
+    Stdlib.List.fold scaled 0 (fun acc x ->
+      let step = acc + x
+      step)
+
+  "sum=" ++ (Stdlib.Int.toString summed)
+
+/// NOT tail-recursive: the multiply happens after the recursive call returns, so each call gets
+/// its own frame and the view can step through them.
+let fact (n: Int) : Int =
+  if n <= 1 then
+    1
+  else
+    let sub = fact (n - 1)
+    n * sub
+
+/// Tail-recursive: the recursive call is the last thing, so the frame is REUSED. One frame, one
+/// set of values, however many times it goes round. Nothing to step through, and that is a
+/// property of the machine rather than a gap in the view.
+let countdown (n: Int) (acc: Int) : Int =
+  if n <= 0 then
+    acc
+  else
+    let step = acc + n
+    countdown (n - 1) step
+
+let inner (x: Int) : Int =
+  let a = x * 3
+  let b = a + 7
+  b - 1
+
+/// For the big-trace steps: `Demo.Walk.big 2000` is 34,031 instructions and 4,003 frames.
+let big (n: Int) : Int =
+  let xs = Stdlib.List.range 1 n
+
+  let ys =
+    Stdlib.List.map xs (fun x ->
+      let v = inner x
+      v + 1)
+
+  Stdlib.List.length ys
