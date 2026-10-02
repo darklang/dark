@@ -82,7 +82,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | None ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        $"{name} is a module. `dark edit` takes one fn, type or value.")
+        $"{name} is a module. `dark edit` takes one fn, type, value, trait or impl.")
 
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText

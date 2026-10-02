@@ -717,7 +717,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make
             "itemKind"
             (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
-            "fn, type, or value"
+            "fn, type, value, trait or impl"
           Param.make
             "hash"
             (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
@@ -822,7 +822,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make
             "sourceItemKind"
             (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
-            "fn, type, or value"
+            "fn, type, value, trait or impl"
           Param.make
             "fromSourceHashes"
             (TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])))
@@ -984,7 +984,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make
             "itemKind"
             (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
-            "fn, type, or value" ]
+            "fn, type, value, trait or impl" ]
       returnType =
         TypeReference.option (
           TTuple(

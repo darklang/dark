@@ -112,6 +112,15 @@ instead of Debug, so `gates all` right after it fails gates that have nothing wr
 exits in a second with no CLI to run, and `first-day` refuses because the published artifact is
 older than the tree. Build Debug first, or pass `CLI=<path>` the way the CI step does.
 
+**Two ways to make every gate fail for a reason that is not there, both of them sequencing.**
+`gates all` re-execs `$0 <name>` once per gate, so editing `scripts/testing/gates` or a
+`_gates-*` file while a run is in flight breaks every invocation that starts after the edit,
+with a bash syntax error and no gate output at all. And the gates run the binary directly
+through `CLI=`, which skips the staleness check `run-cli` does, so a `.dark` file edited after
+the last build leaves them against a store whose hashes have moved: each one dies in about a
+second with `Function <hash> couldn't be found` and nothing else. Build, run the gates, then
+edit.
+
 **`--test` can decide there is nothing to run.** `scripts/dev/build --optimize --test` plans by what
 gets COMPILED, so a change to `backend/testfiles/**` or to a `.dark` docs page reports "nothing has
 changed since the last successful build" and skips the tests entirely, even though those files are
@@ -408,6 +417,21 @@ typed at the CLI.
 A new listing, codec, or CLI command that handles three of them silently drops the
 other two; `ls`, `tree`, `search`, completion, the workbench, the relay browser and
 the LSP all handle all five, and the names-only search builtins return six lists.
+`ProgramTypes.ItemKind.toString`/`fromString` is the one spelling of the kinds as
+strings, on both sides of the line (`PT.ItemKind` in F#, `LanguageTools.ProgramTypes`
+in Dark); they write the same `item_type` column, so change one and change both.
+`PrettyPrinter.ProgramTypes.sourceOf` is the one "render the item at this hash of
+this kind", for the same reason.
+
+**An implementation and the module its methods live in share a name, so a listing
+that dedupes by name can drop the implementation.** The methods of `impl Add for
+Int64` are fns under `Stdlib.Int64.Add`, which also makes `Add` look like a submodule
+of `Stdlib.Int64`. A reader wants the implementation row, not the folder, so every
+listing filters the folder out through `LanguageTools.PackageManager.Search.readerSubmodules`
+and orders its sections by `Cli.Glyphs.kindOrder`. Five surfaces decided this for
+themselves at one point or another, and the one that forgot showed seventeen empty
+folders and no implementations. It lives in the package manager rather than in the CLI
+because the LSP needs it too.
 
 **A bare trait name falls back to the stdlib.** `impl Add for Point` in any module
 means `Stdlib.Add` unless something closer is called Add (both resolvers,

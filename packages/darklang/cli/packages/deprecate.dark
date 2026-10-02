@@ -111,7 +111,7 @@ let resolveKindAndTarget
   (first: String)
   (second: Stdlib.Option.Option<String>)
   : Stdlib.Result.Result<Target, String> =
-  match (Propagate.itemKindFromString first), second with
+  match (LanguageTools.ProgramTypes.ItemKind.fromString first), second with
   | (Some itemKind, Some target) ->
     match resolveTarget branchId currentLoc itemKind target with
     | Some targetRef ->
@@ -445,7 +445,7 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
 /// `undeprecate`'s own help. Registered against `undeprecate`, not shared with `deprecate`, whose flags
 /// are not this command's.
 let undeprecateHelp (_state: Cli.AppState) : String =
-  [ "Put a deprecated function, type, or value back on the shelf."
+  [ "Put a deprecated fn, type, value, trait or impl back on the shelf."
     ""
     "Usage: undeprecate <name>"
     ""

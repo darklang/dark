@@ -11,8 +11,8 @@ WORKS, because that model is not git's.
 
 Four ideas, one word each, so the docs and the output agree:
 
-  item       one fn, type or value. Content-addressed, so anything with the
-             same body IS the same item, shared by everyone who wrote it
+  item       one fn, type, value, trait or impl. Content-addressed, so anything
+             with the same body IS the same item, shared by everyone who wrote it
   location   a name bound to an item: owner, module path, name. Branch-scoped,
              which is what lets two branches disagree about what a name means
   op         one recorded change. The log of them IS the program; everything
@@ -53,7 +53,7 @@ Your edits are LIVE as soon as you write them. There is no build step.
 ## Looking around
   nav <path>        go to a module (`cd`)
   ls / back / tree  list / go back / show the hierarchy
-  view <name>       inspect a fn, type or value
+  view <name>       inspect a fn, type, value, trait or impl
   search <term>     find anything
   deps <name>       what it uses and what uses it (`--json`, `--deep`)
   builtins          the F# builtins

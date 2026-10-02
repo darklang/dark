@@ -453,7 +453,7 @@ let depsText (state: State) : String =
   | None -> "(nothing selected)"
   | Some item ->
     if item.isModule then
-      "Modules have no dependencies - select a fn, type, or value."
+      "Modules have no dependencies - select a fn, type, value, trait or impl."
     else
       referencesText state (Packages.modulePathOf state.location) item.name item.kind
 

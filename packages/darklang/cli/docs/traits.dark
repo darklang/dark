@@ -121,6 +121,12 @@ builtin type already has implementations. Yours join with one `impl`.
   implementations a script created in memory, where nothing says which came
   later.
 
+  Deprecating the LAST one is a different thing, and it is loud: nothing can
+  discharge the trait for that type any more, so saving a call that needs it
+  fails the at-rest check with `MissingImpl` rather than waiting for the call
+  to run. Existing saved calls keep the implementation they resolved against,
+  which is what makes retiring one safe to do before the callers are moved.
+
   Two traits with the same methods and shapes are one trait, whatever they are
   named.
 
