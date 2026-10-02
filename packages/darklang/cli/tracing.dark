@@ -222,6 +222,7 @@ let showFromTrace
   (iteration: Stdlib.Option.Option<String>)
   /// Same reason: an agent that found a trace by id asked for JSON and was handed the page.
   (wantsJson: Bool)
+  (wantsFull: Bool)
   : Cli.AppState =
   match Darklang.Tracing.Store.resolveID arg with
   | Error _ ->
@@ -268,7 +269,8 @@ let showFromTrace
             state.currentBranchId
             fn
             (Stdlib.Option.Option.Some arg)
-            iteration)
+            iteration
+            wantsFull)
       else
         Cli.TraceVerbs.showCode state fn (Stdlib.Option.Option.Some arg) iteration
 
@@ -302,6 +304,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let autoConfirm =
     (Stdlib.List.member args "--yes") || (Stdlib.List.member args "-y")
   let wantsJson = Stdlib.List.member args "--json"
+  // `--full` lifts the per-value cap for `--json`. Refused by name without `--json`, because the
+  // page caps a value at sixty characters to fit a line of code, which is a layout limit and not
+  // one `--full` should quietly fight.
+  let wantsFull = Stdlib.List.member args "--full"
   let wantsFindInspect = Stdlib.List.member args "--inspect"
   // `--iteration map:2` picks which iteration of a loop the page shows, for `show`. Taken out
   // of `args` here with its value, the same way the boolean flags are, so the positional
@@ -313,7 +319,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let args =
     args
     |> Stdlib.List.filter (fun a ->
-      a != "--yes" && a != "-y" && a != "--json" && a != "--inspect")
+      a != "--yes" && a != "-y" && a != "--json" && a != "--inspect" && a != "--full")
+  // `--full` without `--json` is refused rather than ignored. The page caps a value at sixty
+  // characters so it fits beside the code, which is a layout limit; lifting it there would wrap
+  // the page rather than show more. Silently accepting a flag that does nothing is the thing
+  // this branch has spent its time removing.
+  if wantsFull && Stdlib.Bool.not wantsJson then
+    Cli.printErr "`--full` is a `--json` flag: the page fits a value to one line of code"
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.dimText
+        "  dark traces show <fn> --json --full   the whole of every value")
+    { state with exitCode = 1 }
+  else
+
   // `--iteration` with nothing after it. Without this the flag stays in `args` and the
   // positional patterns below read it as a trace id, so `traces show <fn> --iteration` answered
   // "no trace whose id starts with --iteration", which sends someone who mistyped a flag off
@@ -611,7 +629,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       { state with exitCode = 1 }
   | [ "show", fnName ] ->
     if looksLikeATraceId fnName then
-      showFromTrace state fnName iteration wantsJson
+      showFromTrace state fnName iteration wantsJson wantsFull
     else if wantsJson then
       Cli.exitWith
         state
@@ -619,12 +637,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           state.currentBranchId
           fnName
           Stdlib.Option.Option.None
-          iteration)
+          iteration
+          wantsFull)
     else
       Cli.TraceVerbs.showCode state fnName Stdlib.Option.Option.None iteration
   | [ "show", fnName, run ] ->
     if looksLikeATraceId fnName then
-      showFromTrace state fnName iteration wantsJson
+      showFromTrace state fnName iteration wantsJson wantsFull
     else if wantsJson then
       Cli.exitWith
         state
@@ -632,7 +651,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           state.currentBranchId
           fnName
           (Stdlib.Option.Option.Some run)
-          iteration)
+          iteration
+          wantsFull)
     else
       Cli.TraceVerbs.showCode state fnName (Stdlib.Option.Option.Some run) iteration
   // Refused by name, like the others: `show` is the verb for the code with its values on it.
@@ -1837,6 +1857,7 @@ let help (_state: Cli.AppState) : String =
     "  show <fn> --iteration map:2   show that iteration of that loop, not its last"
     "  show <fn> --iteration map:2,fold:2  several loops at once"
     "  show <fn> --json              the same for an agent, `--iteration` included"
+    "  show <fn> --json --full       ... with no cap on a value's length"
     "  calls <fn>                    the traces that went through one function, newest first"
     ""
     "Use a trace"

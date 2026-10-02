@@ -6,17 +6,22 @@ module Darklang.LanguageTools.LspServer.InlayHints
 ///
 /// Placing them: the printer annotates a call at a line position with `// = value`, and the
 /// annotation is zero columns wide for layout, so the annotated print and the plain print
-/// break identically. A line that differs between the two carries a value; its plain text,
-/// trimmed, is looked for in the document from the function's header on, and the hint goes
-/// at the end of that line. A document the person has edited away from the printed form
-/// simply gets fewer hints, never a wrong one.
+/// break identically. That is the whole trick: the two prints have the same line structure,
+/// so a hint belongs on the document line at the same OFFSET from the function's header as
+/// the differing line is from the header of the annotated print.
+///
+/// Counting, not searching. Looking the line's text up in the document cannot tell two
+/// identical lines apart, so a function with the same expression twice put both hints on the
+/// first one. A document the person has edited away from the printed form gets hints in the
+/// wrong place rather than none, which is the trade: the editor is showing live values for
+/// code as the STORE has it, and a document that has drifted from that is already showing
+/// something else.
 
 /// One value on one line, short enough to sit beside the code.
 let renderValue (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv
 
 
-/// The first line at or after <param from> whose text, trimmed, is <param wanted>.
 /// How many spaces a line starts with: the printer indents two per module level and
 /// narrows the width by the same, so the header's indent says what width it was printed at.
 let leadingSpaces (line: String) : Int =

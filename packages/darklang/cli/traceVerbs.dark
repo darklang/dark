@@ -182,16 +182,27 @@ type LoopIterationJson =
 
 
 /// A loop, for `--json`.
+/// A function, named and identified, wherever `--json` points at one.
+///
+/// Both halves, because they answer different questions and each one goes stale on its own. The
+/// NAME is what a person reads and types, and it is what follows an edit: a name keeps meaning
+/// "the current version of this". The HASH is the function itself, so it is what survives the
+/// name being moved onto something else, and it is what lets someone come back to a trace later
+/// and look up the exact code that ran.
+///
+/// One type rather than a `fn`/`fnHash` pair at each site, so the two cannot drift apart and a
+/// reader learns the pairing once.
+type FnRef =
+  { name: String
+    hash: String }
+
+
 type LoopJson =
   { /// `map`, `fold`, `map#2`. What `--iteration` takes.
     name: String
-    /// The full name of the function this is a loop of, and its hash.
-    ///
-    /// Both, because they answer different questions. The name is what a person reads and types;
-    /// the hash is the function, and is what survives the name moving, and what a sync format
-    /// needs. The short `name` above is unique on the page but does not say WHICH `map` it was.
-    fn: String
-    fnHash: String
+    /// The function this is a loop of. The short `name` above is unique on the page but does not
+    /// say WHICH `map` it was.
+    fn: FnRef
     count: Int
     iterations: List<LoopIterationJson> }
 
@@ -246,9 +257,8 @@ let problemJson
 
 type ValuesJson =
   { trace: String
-    /// The function this page is of, by name and by hash. See `LoopJson.fnHash`.
-    fn: String
-    fnHash: String
+    /// The function this page is of.
+    fn: FnRef
     values: Dict<String, String>
     /// Everything that can be opened, with every iteration and its values.
     ///
@@ -488,6 +498,9 @@ let showCodeJson
   /// gets it fetched, exactly as the page does; without this it could see the first and last few
   /// and had no way to reach the rest.
   (iterationArg: Stdlib.Option.Option<String>)
+  /// `--full`: no budget on a value. The default caps each one and says what it cut; an agent
+  /// that has decided it wants the whole thing asks for it rather than guessing.
+  (full: Bool)
   : Bool =
   let fnName = canonicalFnName branchId typed
 
@@ -505,14 +518,34 @@ let showCodeJson
     Cli.printErr e
     false
   | Ok trace ->
-    let selfHash =
+    // Resolved before anything is replayed, and REFUSED when it does not resolve.
+    //
+    // This used to fall back to `""` and carry on, so an agent asking about a function a build
+    // had wiped got a full page of values with an empty hash in it and nothing saying so, while
+    // a person asking the same question got told what had happened and what to do. The whole
+    // point of the hash is looking the code up later, and "" cannot be looked up.
+    match
       LanguageTools.PackageManager.Function.find
         branchId
         (LanguageTools.ProgramTypes.parsePackageLocation fnName)
-      |> Stdlib.Option.map (fun h ->
-        match h with
-        | Hash v -> v)
-      |> Stdlib.Option.withDefault ""
+    with
+    | None ->
+      // Same two cases the page tells apart: never existed, or ran and has since gone.
+      match Darklang.Tracing.Store.wentThrough fnName "" 1L with
+      | [] -> Cli.printErr $"no function named {fnName} on this branch"
+      | _ ->
+        Cli.printErr
+          $"{fnName} ran, but its code is no longer in this store; `dark traces inspect` still has what it did"
+
+      false
+    | Some selfHashRaw ->
+
+    let selfHash =
+      match selfHashRaw with
+      | Hash v -> v
+
+    let budget =
+      if full then 0 else Darklang.Tracing.Format.defaultValueBudget
 
     let fnNames = Darklang.Tracing.Store.fnsWithHashes trace.id
     let recordedIters = Darklang.Tracing.Store.recordedLoopPasses trace.id
@@ -539,7 +572,7 @@ let showCodeJson
       collected
       |> Stdlib.List.map (fun pair ->
         let (id, dv) = pair
-        (Stdlib.Int64.toString id, Darklang.Tracing.Format.compactDval branchId dv))
+        (Stdlib.Int64.toString id, Darklang.Tracing.Format.compactDvalTo branchId budget dv))
       |> Stdlib.Dict.fromListOverwritingDuplicates
 
     // Which frames carry anything. Built once for the whole trace, not once per loop.
@@ -580,7 +613,7 @@ let showCodeJson
                 let (_, exprId, dv) = row
 
                 (Stdlib.Int64.toString exprId,
-                 Darklang.Tracing.Format.compactDval branchId dv))
+                 Darklang.Tracing.Format.compactDvalTo branchId budget dv))
               |> Stdlib.Dict.fromListOverwritingDuplicates
 
             let p = Stdlib.Int.toString (i + 1)
@@ -592,8 +625,7 @@ let showCodeJson
 
         LoopJson
           { name = loop.name
-            fn = loop.fnName
-            fnHash = loop.fnHash
+            fn = FnRef { name = loop.fnName; hash = loop.fnHash }
             count = Stdlib.List.length loop.iterations
             iterations = iterations })
 
@@ -601,8 +633,7 @@ let showCodeJson
       (Stdlib.Json.serialize<ValuesJson>
         (ValuesJson
           { trace = trace.id
-            fn = fnName
-            fnHash = selfHash
+            fn = FnRef { name = fnName; hash = selfHash }
             values = values
             loops = loopsJson
             problem = problemJson branchId trace.id problem }))
@@ -702,22 +733,27 @@ let loopsOf
   // seconds opening the trace took. A call site is a lambda's own expression id, so every
   // frame at one site is the same lambda in the same place, and the answer cannot differ
   // between them.
+  //
+  // A Dict rather than a list of pairs: the answer is then one lookup per frame instead of a scan
+  // per frame, which on a long loop is the difference the rest of this function already pays
+  // attention to.
   let siteIsOurs =
     lambdaFrames
-    |> Stdlib.List.fold [] (fun acc f ->
-      if acc |> Stdlib.List.any (fun pair -> (Stdlib.Tuple2.first pair) == f.callSite) then
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc f ->
+      let k = Stdlib.Int64.toString f.callSite
+
+      if (Stdlib.Dict.get acc k) != Stdlib.Option.Option.None then
         acc
       else
-        Stdlib.List.append
+        Stdlib.Dict.setOverridingDuplicates
           acc
-          [ (f.callSite, insideFn frames f.parent selfHash stdlibHashes 64) ])
+          k
+          (insideFn frames f.parent selfHash stdlibHashes 64))
 
   let lambdas =
     lambdaFrames
     |> Stdlib.List.filter (fun f ->
-      siteIsOurs
-      |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == f.callSite)
-      |> Stdlib.Option.map (fun pair -> Stdlib.Tuple2.second pair)
+      Stdlib.Dict.get siteIsOurs (Stdlib.Int64.toString f.callSite)
       |> Stdlib.Option.withDefault false)
 
   // Where a loop gets its name: the function the lambda was passed TO, which is its parent
@@ -763,16 +799,25 @@ let loopsOf
          let (nm, hash) = ownerOf f.parent
          (Stdlib.Int64.toString f.callSite, nm, hash, f)))
 
+  // Grouped in ONE pass. Scanning `sited` once per site is sites times iterations, and `sited`
+  // holds a frame per iteration, so a 2000-iteration loop re-walked 2000 frames for every site
+  // on the page. The keys stay a list because they must keep first-appearance order: that order
+  // is what `map` versus `map#2` means, and a Dict does not promise it.
+  let bySite =
+    sited
+    |> Stdlib.List.fold Stdlib.Dict.empty (fun acc t ->
+      let (k, _nm, _hash, _frame) = t
+      let atK = Stdlib.Dict.get acc k |> Stdlib.Option.withDefault []
+      Stdlib.Dict.setOverridingDuplicates acc k (Stdlib.List.push atK t))
+
   sited
   |> Stdlib.List.fold [] (fun acc t ->
     let (k, _nm, _hash, _frame) = t
     if Stdlib.List.member acc k then acc else Stdlib.List.append acc [ k ])
   |> Stdlib.List.map (fun k ->
-    let here =
-      sited
-      |> Stdlib.List.filter (fun t ->
-        let (k2, _nm, _hash, _frame) = t
-        k2 == k)
+    // Reversed, since the fold above prepends. Harmless: `iterations` sorts by `ord` anyway, and
+    // the name and hash are the same for every frame at one site.
+    let here = Stdlib.Dict.get bySite k |> Stdlib.Option.withDefault []
 
     let iterations =
       here

@@ -32,8 +32,13 @@ CREATE INDEX IF NOT EXISTS idx_package_values_type ON package_values(value_type)
 --                 that can say which expression rather than which instruction
 --
 -- The third is its own column because running code never reads it and reading code always
--- does. It used to be welded into the instruction stream as an opcode after every call, which
--- every run then carried whether or not anything was watching.
+-- does, so a run should not pay to carry it. It is nullable and read lazily for the same
+-- reason.
+--
+-- What it deliberately does NOT hold, so nobody goes looking: source SPANS (the editor places
+-- hints by counting lines from the function's header, so it needs none) and VARIABLE NAMES (a
+-- frame already carries its arguments, and the names belong to the parameter list, which is
+-- the better source because shadowing can give two registers one name).
 CREATE TABLE IF NOT EXISTS package_functions (
   hash TEXT PRIMARY KEY,
   pt_def BLOB NOT NULL,

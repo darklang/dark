@@ -408,6 +408,81 @@ module BrowserBuiltins =
         sqlSpec = NotQueryable
         previewable = Impure
         callEffects = set [ Effect.Stdout ]
+        deprecated = NotDeprecated }
+
+      // The prompt and every TUI park here. Without a tab-side answer the native builtin falls
+      // through to `awaitBlocking`, which polls `Console.KeyAvailable` and sleeps between polls:
+      // a tab has no console and may not sleep its only thread, so the first key wait kills the
+      // page. This answers the specs a tab CAN answer and refuses the rest by name.
+      { name = fn "hostAwait" 0
+        typeParams = []
+        parameters =
+          [ Param.make
+              "specs"
+              (TList(
+                TCustomType(
+                  NR.ok (
+                    FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.eventSpec ())
+                  ),
+                  []
+                )
+              ))
+              "" ]
+        returnType =
+          TCustomType(
+            NR.ok (FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.rawEvent ())),
+            []
+          )
+        description =
+          "Parks until the first of the given events happens, as a tab can."
+        fn =
+          (function
+          | _, vm, _, [| DList(_, specs) |] ->
+            let rawEvent =
+              FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.rawEvent ())
+            let case name fields = DEnum(rawEvent, rawEvent, [], name, fields)
+
+            let wantsKey =
+              specs
+              |> List.exists (fun d ->
+                match d with
+                | DEnum(_, _, _, "Key", []) -> true
+                | _ -> false)
+
+            let timerMs =
+              specs
+              |> List.tryPick (fun d ->
+                match d with
+                | DEnum(_, _, _, "Timer", [ DInt64 ms ]) -> Some ms
+                | _ -> None)
+
+            // Key first when both are asked for, which is what the prompt asks for
+            // (`Host.await [Key, StoreChanged]`). A tab's only writer is itself, so a store
+            // change cannot arrive while this process is the one parked.
+            if wantsKey then
+              uply {
+                let! ev = Browser.nextKey ()
+                return case "Key" [ keyRead ev ]
+              }
+            else
+              match timerMs with
+              | Some ms ->
+                uply {
+                  do! Task.Delay(int ms)
+                  return case "Timer" []
+                }
+              | None ->
+                RuntimeError.UncaughtException(
+                  "This waits on something a browser tab cannot produce. "
+                  + "Install the CLI to run it (darklang.com has the one-line installer).",
+                  [ "waiting on",
+                    DString(specs |> List.map string |> String.concat ", ") ]
+                )
+                |> raiseRTE vm.threadID
+          | _ -> incorrectArgs ())
+        sqlSpec = NotQueryable
+        previewable = Impure
+        callEffects = set [ Effect.Stdin; Effect.PackageRead ]
         deprecated = NotDeprecated } ]
 
   let builtins () : Builtins = Builtin.make [] fns

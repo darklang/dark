@@ -62,6 +62,11 @@ function's newest run, so there is nothing to look up:
   traces show <fn> --watch      the same as a panel, repainting as runs arrive
                                 and as you edit the code
   traces show <fn> --json       the same for an agent, `--iteration` included
+  traces show <fn> --json --full
+                                ... with no cap on a value's length. By default each value
+                                is capped at 2,000 characters and says what it cut, as
+                                `... (2000 items, use --full)`, so an agent can see how
+                                much it is missing before asking for all of it
 
 A `show` RE-RUNS the function, answering every effect from the log and performing
 none, so the values are recomputed rather than stored. That means the page shows
