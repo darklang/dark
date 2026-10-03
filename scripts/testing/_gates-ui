@@ -134,6 +134,17 @@ gate_lsp_branches() {
 
   fail() { echo "FAIL: $1" >&2; exit 1; }
 
+  # Before anything: a missing binary must say so. The server below is driven by a pipeline that
+  # ends in `|| true`, so without this check a missing or unbuilt `$CLI` produces an empty output
+  # file and the FIRST CONTENT ASSERTION fails instead -- it reported "getCurrentBranch did not
+  # report main by name" about a binary that was never asked. Exit 2, as the perf gate does for a
+  # stale artifact, so the difference between "wrong answer" and "nothing ran" stays visible.
+  [[ -x "$PWD/$CLI" ]] || {
+    echo "lsp-branches: no CLI at $CLI" >&2
+    echo "  scripts/dev/build, and note that --optimize leaves no debug tree" >&2
+    exit 2
+  }
+
   rm -rf "$WORK"
   mkdir -p "$WORK"
   # Strip ALL config: a copy of the dev store inherits `sync.relay` and the write secret, and one
@@ -142,6 +153,12 @@ gate_lsp_branches() {
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  # A fresh rundir seeds the default instance policy, which denies file and store writes; the
+  # server logs every request to rundir/logs/lsp-server.log and renames branches through the
+  # store, so under the default the first such request kills the process and every check below
+  # reads a dead one. The editor runs with the operator's own grants; give this throwaway rundir
+  # the same.
+  "$PWD/$CLI" permissions allow all >/dev/null 2>&1 || true
   "$PWD/$CLI" branch create lsp-gate >/dev/null 2>&1
   "$PWD/$CLI" --branch lsp-gate fn LspGate.T.f '() : Int64 = 5L' >/dev/null 2>&1
 
@@ -190,7 +207,12 @@ gate_lsp_branches() {
     req '{"jsonrpc":"2.0","id":13,"method":"dark/switchBranch","params":{"branchId":"main"}}'
     req '{"jsonrpc":"2.0","id":14,"method":"dark/scm/getWipSummary"}'
     sleep 3
-  } | timeout 120 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' > "$OUT" 2>&1 || true
+  # `--kill-after`: TERM then KILL five seconds later. A server that has grown large stops
+  # answering signals promptly -- the 42.6 GB orphan this gate is suspected of leaving behind
+  # ignored TERM and needed KILL -- and `timeout` without this flag gives up after the TERM and
+  # leaves it running. The server exits on EOF now, so this should never fire; it is here because
+  # a test must not be able to leave a process behind even when the thing it tests is broken.
+  } | timeout --kill-after=5 120 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' > "$OUT" 2>&1 || true
 
   # A type error here does not just fail one request: it takes the server's loop down with it, which is
   # what made this invisible -- the editor sees a dead process, not a bad response.

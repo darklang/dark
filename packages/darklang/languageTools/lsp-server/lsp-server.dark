@@ -24,8 +24,18 @@ let runServerCli (u: Unit) : Int =
   |> fun nowStr -> log $"Running Darklang LSP Server {nowStr}"
 
 
-  // The first message is the `initialize` capability exchange.
-  let incomingMessageRaw = readMessageFromClient ()
+  // The first message is the `initialize` capability exchange. No readable message
+  // at all means the client never arrived or went away immediately, and there is
+  // nothing to serve.
+  match readMessageFromClient () with
+  | None ->
+    log "No `initialize` message to read; the client is gone, nothing to serve"
+    0
+  | Some incomingMessageRaw -> runServerCliInit incomingMessageRaw
+
+
+/// Everything after a readable `initialize`: build the first state, then loop.
+let runServerCliInit (incomingMessageRaw: String) : Int =
   logIncomingRequest incomingMessageRaw
 
   let initialState =
@@ -64,7 +74,15 @@ let runServerCli (u: Unit) : Int =
 let runServerCliLoop (state: LspState) : Int =
   log "---"
 
-  let incomingMessageRaw = readMessageFromClient ()
+  // No readable message means the client has gone. Stop, rather than reading
+  // again forever.
+  match readMessageFromClient () with
+  | None -> 0
+  | Some incomingMessageRaw -> runServerCliStep state incomingMessageRaw
+
+
+/// One message, handled: parse it, act on it, then stop or wait for the next one.
+let runServerCliStep (state: LspState) (incomingMessageRaw: String) : Int =
   logIncomingRequest incomingMessageRaw
 
   let updatedState =
@@ -206,13 +224,24 @@ let tryReadHeader
     tryReadHeader contentLength
 
 
-// TODO maybe this should return a Result eventually,
-// and Error if we don't get a proper LSP message
-let readMessageFromClient () : String =
-  let contentLength = tryReadHeader Stdlib.Option.Option.None
-
-  match contentLength with
-  | Ok contentLength -> Builtin.stdinReadExactly contentLength
+/// The next message from the client, or `None` when there is not going to be one.
+///
+/// `None` covers two cases that cannot be told apart and do not need to be.
+/// `Stdin.readLine` maps a null read (EOF) to `""`, the same value a blank line
+/// gives, so neither this function nor its caller can distinguish "the client
+/// closed stdin" from "a blank line arrived before any `Content-Length`". Nothing
+/// is lost: an editor holds stdin open for the whole session and always sends the
+/// header first, so the first case means the client is gone and the second means
+/// the stream has desynchronised. Reading more cannot recover either.
+///
+/// This used to return `""` on that error, which left the loop parsing an empty
+/// message, failing to parse it, and reading again immediately, forever. With
+/// stdin closed that spin emitted about 68 KB/s and grew about 0.6 MB/s; one of
+/// these reached 42.6 GB over 28 hours and left the machine with 1 GB free.
+let readMessageFromClient () : Stdlib.Option.Option<String> =
+  match tryReadHeader Stdlib.Option.Option.None with
+  | Ok contentLength ->
+    Stdlib.Option.Option.Some(Builtin.stdinReadExactly contentLength)
   | Error err ->
-    log $"Error reading message from client: {err}"
-    ""
+    log $"No message to read ({err}); treating the client as gone, shutting down"
+    Stdlib.Option.Option.None
