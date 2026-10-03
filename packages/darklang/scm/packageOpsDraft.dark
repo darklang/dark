@@ -403,7 +403,10 @@ let typeCheckOps
   : LanguageTools.AtRestTypeChecker.Report =
 
   // Last SetName per location wins; ops are oldest-first, so a later fold entry replaces an earlier.
-  let liveTargets =
+  // Keyed on location while that rule is being applied, then re-keyed on hash
+  // below, because the filter asks "is this hash a live target" and a Dict keyed
+  // on location cannot answer that.
+  let liveTargetsByLocation =
     ops
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc op ->
       match op with
@@ -413,7 +416,15 @@ let typeCheckOps
           (decisionKey loc)
           (LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target))
       | _ -> acc)
+
+  // Dict, not `List.member`: the filter below tests every op against both sets,
+  // so a linear scan per op is O(ops x names) on a path `commit` and `merge` both
+  // take. See `packageOpsBranch`.
+  let liveTargets =
+    liveTargetsByLocation
     |> Stdlib.Dict.values
+    |> Stdlib.List.map (fun h -> (h, true))
+    |> Stdlib.Dict.fromListOverwritingDuplicates
 
   let namedHashes =
     ops
@@ -421,9 +432,11 @@ let typeCheckOps
       match op with
       | SetName(_, target, _) ->
         Stdlib.Option.Option.Some(
-          LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target)
+          (LanguageTools.ProgramTypes.hashToString (LanguageTools.ProgramTypes.Reference.hash target),
+           true)
         )
       | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.Dict.fromListOverwritingDuplicates
 
   let liveOps =
     ops
@@ -433,13 +446,16 @@ let typeCheckOps
         let h = LanguageTools.ProgramTypes.hashToString f.hash
         // Content some binding targets, or content no draft SetName ever named (don't silently
         // skip a shape this filter does not understand).
-        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+        (Stdlib.Dict.``member`` liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
       | AddType t ->
         let h = LanguageTools.ProgramTypes.hashToString t.hash
-        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+        (Stdlib.Dict.``member`` liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
       | AddValue v ->
         let h = LanguageTools.ProgramTypes.hashToString v.hash
-        (Stdlib.List.member liveTargets h) || (Stdlib.Bool.not (Stdlib.List.member namedHashes h))
+        (Stdlib.Dict.``member`` liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
       | _ -> true)
 
   match liveOps with

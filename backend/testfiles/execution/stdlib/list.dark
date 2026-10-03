@@ -328,6 +328,10 @@ Stdlib.List.uniqueBy [ 1L, 1L, 1L, 1L ] (fun x -> x) = [ 1L ]
 Stdlib.List.uniqueBy [ 7L, 42L, 7L, 2L, 10L ] (fun x -> x) = [ 2L, 7L, 10L, 42L ]
 Stdlib.List.uniqueBy [] (fun x -> x) = []
 Stdlib.List.uniqueBy [ 6L, 2.0 ] (fun x -> x) = error="Cannot add a Float (2.0) to a list of Int64. Failed at index 1."
+// When `fn` collapses two values it is the FIRST that survives, then the result is sorted.
+Stdlib.List.uniqueBy [ 30L, 31L, 10L, 11L ] (fun x -> Stdlib.Int64.divide x 10L) = [ 10L, 30L ]
+// A key type a Dict cannot hold raises, rather than being compared by identity.
+Stdlib.List.uniqueBy [ 1L ] (fun x -> (fun y -> y)) = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 Stdlib.List.unique [ 1L, 2L, 3L, 4L ] = [ 1L, 2L, 3L, 4L ]
 Stdlib.List.unique [ 1L, 1L, 1L, 1L ] = [ 1L ]
 Stdlib.List.unique [ 7L, 42L, 7L, 2L, 10L ] = [ 2L, 7L, 10L, 42L ]
@@ -340,6 +344,17 @@ Stdlib.List.dedup [ 1L, 1L, 1L, 1L ] = [ 1L ]
 Stdlib.List.dedup [ 1L, 2L, 3L, 4L ] = [ 1L, 2L, 3L, 4L ]
 Stdlib.List.dedup [] = []
 Stdlib.List.dedup [ "b", "a", "b", "a" ] = [ "b", "a" ]
+// Long enough that a dropped or doubled `reverse` shows up as order, not just as content.
+Stdlib.List.dedup [ 5L, 1L, 4L, 1L, 3L, 5L, 2L ] = [ 5L, 1L, 4L, 3L, 2L ]
+// Compound values work as the `seen` key, not just scalars.
+Stdlib.List.dedup [ (2L, "b"), (1L, "a"), (2L, "b") ] = [ (2L, "b"), (1L, "a") ]
+Stdlib.List.dedup [ [ 2L ], [ 1L ], [ 2L ] ] = [ [ 2L ], [ 1L ] ]
+
+// `seen` is a Dict, so equality is Dict-key equality rather than `==`. Two places that shows:
+// NaN is equal to itself as a key, where `==` reports it unequal, so the duplicate collapses.
+Stdlib.List.length (Stdlib.List.dedup [ Stdlib.Float.divide 0.0 0.0, Stdlib.Float.divide 0.0 0.0 ]) = 1
+// and a value no Dict can key raises instead of being compared by identity.
+Stdlib.List.dedup [ (fun x -> x) ] = error="Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
 module Zipping =
   // TODO: more tests, with values of more complex types
