@@ -151,17 +151,23 @@ let interleave (lA: List<'a>) (lB: List<'a>) : List<'a> =
 
 
 /// Returns the passed list, with only unique values, where uniqueness is based
-/// on the result of <param fn>. Only one of each value will be returned, but the
-/// order will not be maintained.
+/// on the result of <param fn>. Only one of each value will be returned, and the
+/// result is sorted, so the input order is not maintained.
+///
+/// Keeps what it has seen in a <type Dict> keyed on {{fn value}} rather than
+/// scanning a list per element, so this is O(n log n) and not quadratic.
+/// Uniqueness is therefore decided by <type Dict> key comparison rather than by
+/// {{==}}: see <fn dedup> for where the two disagree.
 let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
   list
-  |> fold ([], []) (fun (unique, seen) value ->
+  |> fold ([], Dict { }) (fun (unique, seen) value ->
     let uniqueValue = fn value
 
-    if member seen uniqueValue then
+    if Stdlib.Dict.``member`` seen uniqueValue then
       (unique, seen)
     else
-      (push unique value, push seen uniqueValue))
+      (push unique value,
+       Stdlib.Dict.setOverridingDuplicates seen uniqueValue true))
   |> fun (uniqueValues, _) -> uniqueValues
   |> sort
 
@@ -180,12 +186,23 @@ let unique (list: List<'a>) : List<'a> = Builtin.listUnique list
 /// authoring order, so getting that wrong surfaces much later, as a caller reading the
 /// wrong element.
 ///
-/// Quadratic: it scans what it has kept for each value. Fine for the list lengths that
-/// need ordering; reach for <fn unique> when the order does not matter.
+/// Keeps what it has seen in a <type Dict> rather than scanning what it has kept per
+/// value, and pushes onto the front instead of the back, so it is O(n log n) rather
+/// than quadratic in both compares and copies.
+///
+/// That makes <type Dict> key comparison, not {{==}}, the notion of equality. Two
+/// differences, both narrow: {{NaN}} equals itself as a key and so collapses, where
+/// {{==}} reports it unequal and keeps both; and a value no <type Dict> can key (a
+/// lambda, a blob, a stream, a DB) raises rather than comparing by identity.
 let dedup (list: List<'a>) : List<'a> =
   list
-  |> fold [] (fun acc value ->
-    if member acc value then acc else pushBack acc value)
+  |> fold ([], Dict { }) (fun (acc, seen) value ->
+    if Stdlib.Dict.``member`` seen value then
+      (acc, seen)
+    else
+      (push acc value, Stdlib.Dict.setOverridingDuplicates seen value true))
+  |> fun (acc, _) -> acc
+  |> reverse
 
 
 /// Returns true if <param list> has no values
