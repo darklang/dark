@@ -48,9 +48,14 @@ BCL wholesale asserts when compiled F# generics call into it. `InvariantGlobaliz
 
 `make-store.sh` copies this clone's `rundir/data.db`, deletes `config_v0` (relay url, push
 cursors, and `sync.secret.<url>`, the write secret shared between a person's machines and
-production) and the sync tables, asserts `config_v0` is empty, scans the bytes for a stored
-secret key, and only then writes the file. It never reads `~/.darklang` or `cli-config.json`.
-`deploy.sh` checks the bytes again. Keep it that way.
+production), the sync tables and the trace tables, asserts `config_v0` is empty, scans the
+bytes for a stored secret key, and only then writes the file. It never reads `~/.darklang` or
+`cli-config.json`. `deploy.sh` checks the bytes again. Keep it that way.
+
+It also sweeps orphan `package_blobs` (`pm-sweep-blobs`, against the snapshot) before the
+final VACUUM. Those rows are live, so no VACUUM reclaims them, and on a clone that has been
+worked in they are the biggest thing in the file. The sweep only sees `package_values`, which
+is why the traces go first and why it is skipped when `user_data_v0` has rows.
 
 ## Testing headless
 
