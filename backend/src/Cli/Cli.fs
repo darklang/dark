@@ -272,6 +272,39 @@ let main (args : string[]) =
     // Record host-operation decisions at the boundary.
     installAuditLog ()
 
+    // Loopback for guest HTTP, off unless asked for BY NAME. The guest default blocks loopback,
+    // RFC-1918, link-local and cloud-metadata as an SSRF guard, and a developer pointing the CLI
+    // at a server on this machine needs the first of those and nothing else; `devLoopbackConfig`
+    // widens exactly that one range and says why there.
+    //
+    // Deliberately NOT read from the instance policy, which can already express
+    // `http LOCALHOST *`. A policy may also say `all`, and guest code includes `darklang serve`
+    // handlers and package initialisation, so honouring the policy here would let a broad grant
+    // switch the guard off.
+    //
+    // Stored setting beats the environment, because the environment is a container-wide default
+    // and the stored value is a decision somebody made in this install. Anything other than
+    // `on` leaves it off: an unreadable opt-in has not happened.
+    let loopbackRequested () : bool =
+      let isOn (s : string) = s.Trim().ToLower() = "on"
+      let stored =
+        try
+          (LibDB.Config.get "http.loopback").Result
+        with _ ->
+          None
+      match stored with
+      | Some v -> isOn v
+      | None ->
+        match
+          System.Environment.GetEnvironmentVariable "DARK_CONFIG_HTTP_LOOPBACK"
+        with
+        | null
+        | "" -> false
+        | v -> isOn v
+
+    if loopbackRequested () then
+      LibExecution.HostHttp.setGuestConfig LibExecution.HostHttp.devLoopbackConfig
+
 
     // Now safe to access LibConfig paths. Gated on DARK_TELEMETRY, the same switch the Dark side
     // reads (`initState` in cli/core.dark), so both halves turn on together. Unconditional init would
