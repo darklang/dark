@@ -266,6 +266,22 @@ module LocalAccess =
     || host = "metadata"
     || host = "metadata.google.internal"
 
+  /// Loopback, including the IPv4-mapped-IPv6 spelling, which `IsLoopback` alone does not
+  /// recognise. Only used to WIDEN a guard, so missing a spelling would under-permit rather
+  /// than under-protect, but `::ffff:127.0.0.1` is reachable and so should answer true.
+  let isLoopback (ip : System.Net.IPAddress) : bool =
+    System.Net.IPAddress.IsLoopback ip
+    || (ip.IsIPv4MappedToIPv6 && System.Net.IPAddress.IsLoopback(ip.MapToIPv4()))
+
+  /// `localhost`, or any spelling of a loopback address.
+  let isLoopbackHost (host : string) : bool =
+    let host = host.Trim().ToLower()
+    if host = "localhost" then
+      true
+    else
+      let mutable ip = null
+      System.Net.IPAddress.TryParse(host, &ip) && isLoopback ip
+
   /// Disallow headers that would request the GCP Instance Metadata service.
   let hasInstanceMetadataHeader (headers : Headers) : bool =
     let eq = String.equalsCaseInsensitive
@@ -315,6 +331,29 @@ let private sync : Profile = profileOf syncConfig
 /// configuration's lifetime. A host that needs loopback reachable (a test
 /// harness with an in-process server) sets it here before guest execution.
 let setGuestConfig (config : Configuration) : unit = guest <- profileOf config
+
+/// `defaultConfig` with loopback reachable and NOTHING else widened: RFC-1918, Tailscale's CGN
+/// range, GCP private endpoints, link-local, cloud-metadata and 0.0.0.0 all stay blocked. Both
+/// predicates compose with the default rather than restating its ban list, so anything added
+/// there is inherited here.
+///
+/// For an explicit, named opt-in only. The guest default is unchanged, so nothing that ships
+/// reaches loopback unless a person turns this on: `Cli.fs` installs it from the `http.loopback`
+/// setting, and a browser would install it the same way if that is ever wanted.
+///
+/// Both halves have to widen. `allowedIP` alone leaves the NAME `localhost` refused by
+/// `allowedHost`, which is what a person actually types; `TestUtils.testHttpConfig` widens only
+/// the IP and its callers write `127.0.0.1`.
+///
+/// Why an opt-in rather than honouring the instance policy, which can already say
+/// `http LOCALHOST *`: a policy may say `all`, and guest code includes `darklang serve` handlers
+/// and package initialisation, which is what these guards exist to contain. A guard a broad grant
+/// switches off is not a guard.
+let devLoopbackConfig : Configuration =
+  { defaultConfig with
+      allowedIP = fun ip -> LocalAccess.isLoopback ip || defaultConfig.allowedIP ip
+      allowedHost =
+        fun host -> LocalAccess.isLoopbackHost host || defaultConfig.allowedHost host }
 
 let profileFor (profile : HttpProfile) : Profile =
   match profile with
