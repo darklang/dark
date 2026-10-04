@@ -18,7 +18,8 @@ type ParsedArgs =
     asJson: Bool
     conflictingFilters: Bool }
 
-val usage = "Usage: typecheck [--failed] [--incomplete] [--all] [--json]"
+val usage =
+  "Usage: typecheck [<module>] [--failed] [--incomplete] [--all] [--json]"
 
 val argSpec =
   FlagParser.Spec
@@ -175,10 +176,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         (FlagParser.parseErrorsMessage parsed.parseErrors))
     Stdlib.printLine usage
     state
-  else if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.positionals) then
+  else if (Stdlib.List.length parsed.positionals) > 1 then
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        "Error: typecheck does not take positional arguments")
+        "Error: typecheck takes at most one module to scope the audit to")
     Stdlib.printLine usage
     state
   else if parsed.conflictingFilters then
@@ -188,7 +189,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error usage)
     state
   else
-    let report = AtRestCheck.checkBranch state.currentBranchId
+    // A module scopes the audit to that subtree. Without one it is the whole branch, which
+    // on a full store is thousands of declarations and tens of seconds; a caller that wants
+    // an answer about one module should not pay for the rest.
+    let report =
+      match parsed.positionals with
+      | [] -> AtRestCheck.checkBranch state.currentBranchId
+      | [ one ] ->
+        AtRestCheck.checkModule state.currentBranchId (Stdlib.String.split one ".")
+      | _ -> AtRestCheck.checkBranch state.currentBranchId
     let totals = counts report.items
     let total = Stdlib.List.length report.items
 
@@ -235,6 +244,8 @@ let help (_state: Cli.AppState) : String =
     "  --incomplete  List only declarations the checker could not fully prove"
     "  --all         List checked, failed, and incomplete declarations"
     "  --json        The same report, typed, for an agent"
+    ""
+    "With a <module>, only that module and everything below it is audited."
     ""
     "Without a filter, failed and incomplete declarations are listed."
     "--failed and --incomplete may be combined; --all is mutually exclusive." ]

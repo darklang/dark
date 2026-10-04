@@ -508,6 +508,7 @@ let private notSweepable =
       "apps" // starts and stops daemons
       "login" // network, and writes credentials
       "logout" // ditto
+      "typecheck" // audits every declaration; swept with a module in CliJson.Tests.fs
       "export-seed" // takes its argument as a path and writes a multi-MB database there
       "devices" // shells out to `tailscale`
       "clear" ] // clears the screen, taking the sweep's own output with it
