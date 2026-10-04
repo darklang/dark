@@ -24,6 +24,7 @@ open Prelude
 
 open Fumble
 open LibDB.Sqlite
+open Microsoft.Data.Sqlite
 
 module Purge = LibDB.Purge
 
@@ -248,6 +249,69 @@ let everyDeclaredTableExists =
         glob in `Cli.fsproj`."""
   }
 
+/// `Seed.checkpointWal` against a store that has been WRITTEN to.
+///
+/// The write is the test. A checkpoint on an EMPTY log has nothing to do and succeeds on a
+/// read-only connection as readily as on a writable one, so a version of this without the
+/// INSERT would pass against the very bug it exists to catch.
+///
+/// That is also how the bug reached main. The only other test of `export` below reads
+/// `Seed.fs` as TEXT and asserts the source contains certain `DELETE FROM` strings, which is a
+/// real check on the strip list and cannot observe a runtime failure at all. `export` itself is
+/// never executed by the suite, because it copies `Config.dbPath` and in a test that is the
+/// store the whole suite shares.
+let seedExportFoldsANonEmptyWal =
+  testTask "Seed.checkpointWal folds a non-empty write-ahead log" {
+    let dir =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-seed-checkpoint-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+    let dbPath = System.IO.Path.Combine(dir, "scratch.db")
+    let walPath = dbPath + "-wal"
+
+    let exec (connStr : string) (sql : string) : unit =
+      use conn = new SqliteConnection(connStr)
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <- sql
+      cmd.ExecuteNonQuery() |> ignore<int>
+
+    let readBack () : string =
+      use conn = new SqliteConnection($"Data Source={dbPath};Mode=ReadOnly")
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <- "SELECT v FROM t"
+      string (cmd.ExecuteScalar())
+
+    try
+      let rw = $"Data Source={dbPath};Mode=ReadWriteCreate;Cache=Private"
+      exec rw "PRAGMA journal_mode=WAL"
+      exec rw "CREATE TABLE t (v TEXT)"
+      exec rw "INSERT INTO t (v) VALUES ('written')"
+
+      Expect.isGreaterThan
+        (System.IO.FileInfo walPath).Length
+        0L
+        "the log is non-empty before the checkpoint, which is the only case that can fail"
+
+      // Raises SqliteException, error 10, `disk I/O error`, if this ever opens read-only again.
+      LibDB.Seed.checkpointWal dbPath
+
+      Expect.equal
+        (System.IO.FileInfo walPath).Length
+        0L
+        "TRUNCATE leaves the log empty, so a plain file copy of the db carries the write"
+
+      Expect.equal
+        (readBack ())
+        "written"
+        "the folded write reads back from the main file, which is the point of folding it"
+    finally
+      System.IO.Directory.Delete(dir, true)
+  }
+
 
 let tests =
   testList
@@ -257,6 +321,7 @@ let tests =
       hashCoupledTablesAreClassified
       logStateProjectionsArePurged
       foldProjectionsArePurged
+      seedExportFoldsANonEmptyWal
       seedExportStripsPerInstallState
       seedExportStripsTheBuildersDraft
       everyDeclaredTableExists ]
