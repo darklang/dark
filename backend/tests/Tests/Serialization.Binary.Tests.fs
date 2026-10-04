@@ -72,6 +72,20 @@ module PT =
         |> BS.PT.PackageValue.deserialize c.hash)
       Values.ProgramTypes.packageValues
 
+  let traitTests =
+    Roundtripping.testRoundtripMany
+      "traits"
+      (fun (t : PT.Trait.Trait) ->
+        t |> BS.PT.Trait.serialize t.hash |> BS.PT.Trait.deserialize t.hash)
+      Values.ProgramTypes.traits
+
+  let implTests =
+    Roundtripping.testRoundtripMany
+      "impls"
+      (fun (i : PT.TraitImpl.TraitImpl) ->
+        i |> BS.PT.TraitImpl.serialize i.hash |> BS.PT.TraitImpl.deserialize i.hash)
+      Values.ProgramTypes.impls
+
   /// Every `PackageOp` case, through the writer and back.
   ///
   /// The op format is what two machines must agree on byte for byte. Storing an op and reading it
@@ -194,13 +208,135 @@ module PT =
         "an old Undeprecate blob reads as itself, unstamped"
     }
 
+  /// A v1 blob has no `bounds` list after the ceiling. A reader handed a v1 header must stop
+  /// there and answer `bounds = []`, or every fn stored before bounds existed becomes unreadable.
+  /// Built by writing the current format, dropping the trailing empty-list byte, and rewriting
+  /// the header version and length -- which is only a faithful v1 blob because this fn's body
+  /// contains nothing whose encoding has changed since (no operator, no trait method).
+  let v1PackageFnStillReads =
+    test "a format-v1 PackageFn blob (no bounds) still reads" {
+      let fn =
+        { Values.ProgramTypes.packageFn with body = PT.EInt64(1UL, 5L); bounds = [] }
+      let v2 = BS.PT.PackageFn.serialize fn.hash fn
+      // header: version (4) + length (4); payload follows. An empty List writes one
+      // varint length byte (0), and bounds is the last field.
+      let payloadLen = System.BitConverter.ToUInt32(v2, 4)
+      Expect.equal (int payloadLen) (v2.Length - 8) "header length matches"
+      Expect.equal v2[v2.Length - 1] 0uy "the trailing byte is the empty bounds list"
+      let v1 = Array.sub v2 0 (v2.Length - 1)
+      System.BitConverter.GetBytes(1u).CopyTo(v1, 0)
+      System.BitConverter.GetBytes(payloadLen - 1u).CopyTo(v1, 4)
+      let back = BS.PT.PackageFn.deserialize fn.hash v1
+      Expect.equal back fn "reads as the same fn, with bounds = []"
+    }
+
+  /// The real compatibility case, which the test above cannot cover: a v2 blob has no
+  /// implementation byte after an operator's operands, and no implementation byte after a trait
+  /// method's name. A reader that takes them anyway consumes the NEXT expression's tag and
+  /// misparses the rest of the body, so every fn stored before this branch that contains a `+`
+  /// would break. The blob here is written by hand, exactly as the v2 writer would have.
+  let v2ExpressionsStillRead =
+    test "a format-v2 blob with an operator and a trait method still reads" {
+      let write (f : System.IO.BinaryWriter -> unit) : byte[] =
+        use stream = new System.IO.MemoryStream()
+        use w = new System.IO.BinaryWriter(stream)
+        f w
+        w.Flush()
+        stream.ToArray()
+
+      // `1L + 2L` as v2 wrote it: EInfix (tag 29), the infix, then both operands, and stop.
+      let payload =
+        write (fun w ->
+          w.Write 29uy
+          w.Write 1UL
+          w.Write 0uy // Infix.InfixFnCall
+          w.Write 0uy // InfixFnName.ArithmeticPlus
+          w.Write 0uy // EInt64
+          w.Write 2UL
+          w.Write 1L
+          w.Write 0uy // EInt64
+          w.Write 3UL
+          w.Write 2L)
+
+      use stream = new System.IO.MemoryStream(payload)
+      use reader = new System.IO.BinaryReader(stream)
+      let back = LibSerialization.Binary.Serializers.PT.Expr.Expr.read 2u reader
+
+      match back with
+      | PT.EInfix(_,
+                  PT.InfixFnCall PT.ArithmeticPlus,
+                  PT.EInt64(_, 1L),
+                  PT.EInt64(_, 2L),
+                  PT.FQFnName.Unknown) -> ()
+      | other -> failtest $"a v2 `1L + 2L` read as {other}"
+    }
+
+  /// The same compatibility case one version on. v4 added a list to `EFnName` for the bounds
+  /// the CALL worked out, and a v3 blob has no list byte there. A reader that takes one anyway
+  /// reads the next expression's tag as a length, so this is written as v3 wrote it: an
+  /// EStatement whose first half is the EFnName, so a wrong-sized read shows up as the second
+  /// half failing rather than as a quietly different value.
+  let v3FnNameStillReads =
+    test "a format-v3 blob with a function reference still reads" {
+      let write (f : System.IO.BinaryWriter -> unit) : byte[] =
+        use stream = new System.IO.MemoryStream()
+        use w = new System.IO.BinaryWriter(stream)
+        f w
+        w.Flush()
+        stream.ToArray()
+
+      let writeString (w : System.IO.BinaryWriter) (str : string) =
+        // String.write: a varint byte count, then UTF-8 bytes. Short names fit one byte.
+        let bytes = System.Text.Encoding.UTF8.GetBytes str
+        w.Write(byte bytes.Length)
+        w.Write bytes
+
+      let payload =
+        write (fun w ->
+          w.Write 32uy // EStatement
+          w.Write 1UL
+          w.Write 31uy // EFnName, and in v3 it ends after the name
+          w.Write 2UL
+          w.Write 0uy // NameResolution.originalName: the empty list
+          w.Write 0uy // resolved = Ok
+          w.Write 1uy // FQFnName.Package
+          w.Write 0uy // Hash: not the 32-byte raw form, so the string form follows
+          writeString w "abc123"
+          w.Write 0uy // no location
+          w.Write 0uy // EInt64, the statement's second half
+          w.Write 3UL
+          w.Write 7L)
+
+      use stream = new System.IO.MemoryStream(payload)
+      use reader = new System.IO.BinaryReader(stream)
+      let back = LibSerialization.Binary.Serializers.PT.Expr.Expr.read 3u reader
+
+      match back with
+      | PT.EStatement(_, PT.EFnName(_, nr, []), PT.EInt64(_, 7L)) ->
+        match nr.resolved with
+        | Ok { name = PT.FQFnName.Package(PT.Hash "abc123") } -> ()
+        | other -> failtest $"the v3 function reference read as {other}"
+      | other -> failtest $"a v3 EFnName in a statement read as {other}"
+    }
+
+  let unknownVersionRejected =
+    test "a format version newer than this build is rejected, not guessed at" {
+      let fn = Values.ProgramTypes.packageFn
+      let blob = BS.PT.PackageFn.serialize fn.hash fn
+      System.BitConverter.GetBytes(99u).CopyTo(blob, 0)
+      Expect.throws
+        (fun () ->
+          BS.PT.PackageFn.deserialize fn.hash blob |> ignore<PT.PackageFn.PackageFn>)
+        "version 99 has no reader"
+    }
+
   let legacyRecoveryHoleTagRejected =
     test "legacy ProgramTypes recovery-hole tag is rejected" {
       use stream = new System.IO.MemoryStream([| 36uy |])
       use reader = new System.IO.BinaryReader(stream)
       Expect.throws
         (fun () ->
-          LibSerialization.Binary.Serializers.PT.Expr.Expr.read reader
+          LibSerialization.Binary.Serializers.PT.Expr.Expr.read 3u reader
           |> ignore<LibExecution.ProgramTypes.Expr>)
         "WrittenTypes recovery holes must not be deserialized as ProgramTypes"
     }
@@ -297,7 +433,8 @@ module RT =
                   LibExecution.Permissions.Access.start
                     LibExecution.Permissions.Policy.allowAll
                 )
-              argsSoFar = [] }
+              argsSoFar = []
+              boundImpls = [] }
         )
       let decoded =
         value |> BS.RT.Dval.serialize "namedFn" |> BS.RT.Dval.deserialize "namedFn"
@@ -342,6 +479,49 @@ module RT =
         $"{name} must be refused as a format error, not by the comparer's guard"
 
   /// DB references are comparable but intentionally unsupported as keys.
+  /// v4 added the bounds a call worked out to a stored applicable, and a v3 blob ends with the
+  /// captured-access bool instead. A reader that takes the list anyway reads that bool as a
+  /// length and then runs off the end of the blob, so every `rt_instrs` row written before this
+  /// change would fail to decode. `package_functions` is a projection, but nothing on the
+  /// shipped path re-folds one when the format moves, so those rows are read as they stand.
+  let v3ApplicableStillReads =
+    test "a format-v3 stored applicable (no bounds) still reads" {
+      let writeString (w : System.IO.BinaryWriter) (str : string) =
+        let bytes = System.Text.Encoding.UTF8.GetBytes str
+        w.Write(byte bytes.Length)
+        w.Write bytes
+
+      let payload =
+        use stream = new System.IO.MemoryStream()
+        use w = new System.IO.BinaryWriter(stream)
+        w.Write 1uy // FQFnName.Package
+        writeString w "abc123" // the hash
+        w.Write 0uy // the type symbol table, empty
+        w.Write 0uy // typeArgs, empty
+        w.Write 0uy // argsSoFar, empty
+        w.Write true // captured access: the last field a v3 applicable has
+        w.Flush()
+        stream.ToArray()
+
+      use stream = new System.IO.MemoryStream(payload)
+      use reader = new System.IO.BinaryReader(stream)
+      let back =
+        LibSerialization.Binary.Serializers.RT.Dval.readApplicableNamedFn 3u reader
+
+      Expect.equal back.boundImpls [] "a v3 applicable has no recorded bounds"
+      Expect.equal
+        back.name
+        (RT.FQFnName.Package(RT.Hash "abc123"))
+        "the name reads as it always did"
+      Expect.isTrue
+        back.access.IsSome
+        "the captured-access bool was still the last byte"
+      Expect.equal
+        stream.Position
+        stream.Length
+        "the reader consumed the blob exactly"
+    }
+
   let dictWithDbKeyRejectedOnRead =
     test "a Dict keyed by a DB reference is refused on deserialize" {
       expectRefusedOnRead
@@ -363,6 +543,7 @@ module RT =
               typeSymbolTable = RT.TST.empty
               typeArgs = []
               argsSoFar = []
+              boundImpls = []
               access = None }
         )
       expectRefusedOnRead
@@ -443,10 +624,16 @@ let tests =
           PT.packageTypeTests
           PT.packageValTests
           PT.packageFnTests
+          PT.traitTests
+          PT.implTests
           PT.toplevelTests
           PT.packageOpTests
           PT.deprecationStampRidesOnTheExistingTags
-          PT.legacyRecoveryHoleTagRejected ]
+          PT.legacyRecoveryHoleTagRejected
+          PT.v1PackageFnStillReads
+          PT.v2ExpressionsStillRead
+          PT.v3FnNameStillReads
+          PT.unknownVersionRejected ]
 
       testList
         "RT Roundtrip Tests"
@@ -455,6 +642,7 @@ let tests =
           RT.packageFnTests
           RT.dvalTests
           RT.instructionsTests
+          RT.v3ApplicableStillReads
           RT.dictWithDbKeyRejectedOnRead
           RT.dictWithLambdaKeyRejectedOnRead
           RT.closureAccessIsStripped

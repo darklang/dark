@@ -14,7 +14,7 @@ let withBackoffLoop
       Stdlib.Result.Result.Error e
     else
       let _ = Cli.Posix.sleep delayMs
-      withBackoffLoop maxAttempts (attempt + 1) (Stdlib.Float.multiply delayMs 2.0) fn
+      withBackoffLoop maxAttempts (attempt + 1) (delayMs * 2.0) fn
 
 
 /// Retry a function up to maxAttempts times with exponential backoff.

@@ -142,13 +142,13 @@ module BothWritersAgree =
 // above compares empty pages, so a writer that mangled `blobHex` or dropped `author` passed it.
 module BothWritersAgreeOnOps =
   /// A commit two of the three ops belong to where they were "authored"; the third was never committed.
-  let commitHash () : String = "c0ffee01" ++ (Stdlib.String.first (Stdlib.Uuid.toString (Stdlib.Uuid.generate ())) 8)
+  let commitHash () : String = "c0ffee01" + (Stdlib.String.first (Stdlib.toString (Stdlib.Uuid.generate ())) 8)
 
   let op (n: Int64) (commit: String) : Darklang.SCM.Wire.SyncOp =
     Darklang.SCM.Wire.SyncOp
-      { id = Stdlib.Uuid.toString (Stdlib.Uuid.generate ())
-        blobHex = Stdlib.Blob.toHex (Stdlib.String.toBlob $"wire-op-{Stdlib.Int64.toString n}")
-        ts = $"2026-01-0{Stdlib.Int64.toString n}T00:00:00.000Z"
+      { id = Stdlib.toString (Stdlib.Uuid.generate ())
+        blobHex = Stdlib.Blob.toHex (Stdlib.String.toBlob $"wire-op-{Stdlib.toString n}")
+        ts = $"2026-01-0{Stdlib.toString n}T00:00:00.000Z"
         author = ""
         commit = commit }
 
@@ -156,7 +156,7 @@ module BothWritersAgreeOnOps =
     (o.id, o.blobHex, o.ts, o.author, o.commit)
 
   let compare () : String =
-    let owner = $"wire-test-{Stdlib.Uuid.toString (Stdlib.Uuid.generate ())}"
+    let owner = $"wire-test-{Stdlib.toString (Stdlib.Uuid.generate ())}"
     let c = BothWritersAgreeOnOps.commitHash ()
     let ops =
       [ BothWritersAgreeOnOps.op 1L c
@@ -210,11 +210,11 @@ module BothWritersAgreeOnOps =
       let d = Stdlib.List.map viaDark BothWritersAgreeOnOps.fields
 
       if stored != 3 then
-        $"stored {Stdlib.Int.toString stored}, not 3"
+        $"stored {Stdlib.toString stored}, not 3"
       else if (Stdlib.List.length n) != 3 then
-        $"native served {Stdlib.Int.toString (Stdlib.List.length n)} of ours"
+        $"native served {Stdlib.toString (Stdlib.List.length n)} of ours"
       else if (Stdlib.List.length d) != 3 then
-        $"dark served {Stdlib.Int.toString (Stdlib.List.length d)} of ours"
+        $"dark served {Stdlib.toString (Stdlib.List.length d)} of ours"
       else if n != d then
         let show (t: (String * String * String * String * String)) : String =
           let (i, b, ts, a, cm) = t
@@ -225,7 +225,7 @@ module BothWritersAgreeOnOps =
       else if (d |> Stdlib.List.filter (fun (_, _, _, _, cm) -> cm == c) |> Stdlib.List.length) != 2 then
         "the ops lost their commit through the relay's store"
       else if Stdlib.Bool.not (nativeHasCommit && darkHasCommit) then
-        $"the commit row travelled native={Stdlib.Bool.toString nativeHasCommit} dark={Stdlib.Bool.toString darkHasCommit}"
+        $"the commit row travelled native={Stdlib.toString nativeHasCommit} dark={Stdlib.toString darkHasCommit}"
       else
         "3 ops, every field agrees, author is the owner, the commit rides along"
 

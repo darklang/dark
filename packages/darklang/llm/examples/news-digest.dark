@@ -34,6 +34,6 @@ let news (topic: String) : String =
       if Stdlib.List.isEmpty result.webSearchResults then ""
       else
         let srcList = Stdlib.List.map result.webSearchResults (fun s -> $"- {s.title}: {s.url}")
-        "\n\n## Sources\n" ++ (Stdlib.String.join srcList "\n")
-    result.response ++ sources
+        "\n\n## Sources\n" + (Stdlib.String.join srcList "\n")
+    result.response + sources
   | Error e -> $"Error: {e}"

@@ -4,6 +4,10 @@ module Darklang.Stdlib.List
 /// Returns an empty list
 val empty = []
 
+/// The empty list is what `+` starts from, as `0` is for a number
+impl Stdlib.Zero for List<'a> =
+  let zero () : List<'a> = []
+
 /// Returns a one-element list containing the given <param val>
 let singleton (value: 'a) : List<'a> =
   [ value ]
@@ -92,7 +96,7 @@ let repeat
   : Result.Result<List<'a>, String> =
   if times < 0 then
     Result.Result.Error
-      $"Expected `times` to be positive, but it was `{times |> Int.toString}`"
+      $"Expected `times` to be positive, but it was `{times |> Stdlib.toString}`"
   else
     Result.Result.Ok(repeatUnsafe times value)
 
@@ -241,7 +245,7 @@ module SortByComparatorHelpers =
       Result.Result.Ok result
     else
       Result.Result.Error
-        $"Expected comparator function to return -1, 0, or 1, but it returned {Int.toString result}"
+        $"Expected comparator function to return -1, 0, or 1, but it returned {Stdlib.toString result}"
 
   let merge
     (left: List<'a>)
@@ -531,7 +535,7 @@ let randomElement (list: List<'a>) : Option.Option<'a> =
 /// Groups <param list> into tuples (key, elements), where the key is computed by applying
 /// <param fn> to each element in the list.
 /// For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
-/// is {{fn item -> Int.mod item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
+/// is {{fn item -> item % 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
 /// Preserves the order of values and of the keys.
 let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
   list

@@ -7,21 +7,6 @@ module Darklang.Cli.Packages.Propagate
 // update changed a SIGNATURE -- which matters because propagation does a blind hash swap with no
 // type-checking, so a signature change is the one thing callers can't absorb silently.
 
-/// Convert an ItemKind to its display string
-let itemKindToString (kind: LanguageTools.ProgramTypes.ItemKind) : String =
-  match kind with
-  | Fn -> "fn"
-  | Type -> "type"
-  | Value -> "value"
-
-/// Parse a string to an ItemKind
-let itemKindFromString (s: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.ItemKind> =
-  match s with
-  | "fn" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Fn
-  | "type" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Type
-  | "value" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.ItemKind.Value
-  | _ -> Stdlib.Option.Option.None
-
 /// Every hash that has ever been at a location, NEWEST FIRST. Empty means the name is new here.
 /// Callers filter out the current hash to get only previous versions.
 ///

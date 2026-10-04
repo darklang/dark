@@ -91,14 +91,14 @@ let feature (title: String) (desc: String) : String =
 /// ungrouped run of digits gets read digit by digit.
 let num (n: Int64) : String =
   if n < 0L then
-    "-" ++ num (Stdlib.Int64.negate n)
+    "-" + num (-n)
   else if n < 1000L then
-    Stdlib.Int64.toString n
+    Stdlib.toString n
   else
-    let rest = Stdlib.Int64.toString (n % 1000L) |> Stdlib.String.padStart "0" 3
+    let rest = Stdlib.toString (n % 1000L) |> Stdlib.String.padStart "0" 3
     // `padStart` only fails when the pad string is not one character, and "0" is.
     let padded = rest |> Stdlib.Result.withDefault ""
-    (num (n / 1000L)) ++ "," ++ padded
+    (num (n / 1000L)) + "," + padded
 
 
 /// "1 item", "12 items". A count next to a bare plural reads as unfinished, and these pages are made of
@@ -158,9 +158,9 @@ let landingHandlerFn (req: HttpRequest) : HttpResponse =
 
   let featBlock =
     (feature "No setup" "Point a machine here and pull. No tailscale, no infra, nothing exposed to the internet.")
-    ++ (feature "Pick up where you left off" "Write on your laptop, keep going on your desktop. Your packages follow you.")
-    ++ (feature "Nothing ever breaks" "Every version is kept forever, content-addressed. Nothing is overwritten, so code that worked keeps working.")
-    ++ (feature "You're in control" "Pull for review and changes land pending until you approve them. The relay never runs your code, so it's safe to point at.")
+    + (feature "Pick up where you left off" "Write on your laptop, keep going on your desktop. Your packages follow you.")
+    + (feature "Nothing ever breaks" "Every version is kept forever, content-addressed. Nothing is overwritten, so code that worked keeps working.")
+    + (feature "You're in control" "Pull for review and changes land pending until you approve them. The relay never runs your code, so it's safe to point at.")
 
   // The pitch is for someone who has never heard of this; the browse block is for everyone who has. Both
   // are on the front page because a relay with nothing to look at reads like a status endpoint.
@@ -181,40 +181,40 @@ let landingHandlerFn (req: HttpRequest) : HttpResponse =
     "matter.darklang.com"
     // Lead with the strongest true thing, concretely; adjectives are where a product hides.
     ("<h1>Your packages, on every machine.</h1>"
-     ++ "<p class=\"lede\">Commit on one machine, pull on another. Every version is kept forever, "
-     ++ "content-addressed, and nothing runs until you approve it.</p>"
-     ++ "<h2>What's here</h2>"
-     ++ $"<div class=\"stat\"><div><span class=\"k\">{itemsStr}</span><span class=\"l\">items</span></div>"
-     ++ $"<div><span class=\"k\">{pubsStr}</span><span class=\"l\">publishers</span></div></div>"
-     ++ "<p class=\"lede\" style=\"margin-top:1rem\">Search above, or start from the biggest modules. "
-     ++ "The package set this relay runs is browsable down to source without installing anything -- "
-     ++ "<a href=\"/owners\">by publisher</a>, or <a href=\"/stats\">by the numbers</a>.</p>"
-     ++ $"<div class=\"grid\" style=\"margin-top:1rem\">{modCards}</div>"
-     ++ "<h2>Why matter</h2>"
-     ++ $"<div class=\"feats\">{featBlock}</div>"
-     ++ "<h2>Try it</h2>"
-     ++ "<p>Pulled changes land <strong>pending</strong> until you approve them. Reading needs no "
-     ++ "secret; pushing does, from whoever runs the relay.</p>"
-     ++ $"<pre><code>dark connect {selfUrl} --secret &lt;secret&gt;\ndark review pull\ndark review approve</code></pre>"
-     ++ "<h2>Or keep it local</h2>"
-     ++ "<p>Your Matter -- all your packages -- lives on your own machine no matter what. Syncing it "
-     ++ "<em>through matter.darklang.com</em> is the optional part: point your machines at your own "
-     ++ "<a href=\"https://docs.darklang.com/sync/tailscale\">tailscale</a> instead, or skip sync entirely and "
-     ++ "work fully offline. Local-first, always.</p>"
-     ++ "<details><summary>HTTP endpoints (for tooling)</summary>"
-     ++ "<table><tr><th>method</th><th>path</th><th>what it does</th></tr>"
-     ++ route "GET" "/sync/head" "how much it holds, without transferring anything"
-     ++ route "GET" "/sync/pull" "ops as wire records; `?sinceSeq=` pages, `?owner=` filters"
-     ++ route "POST" "/sync/push" "ingest ops; content-addressed, so a re-push is a no-op"
-     ++ route "GET" "/branch/list" "branches held for an owner"
-     ++ route "GET" "/branch/owners" "every hosted branch with its owner"
-     ++ route "GET" "/branch/pull" "one branch bundle"
-     ++ route "POST" "/branch/push" "store a branch bundle"
-     ++ route "GET" "/ping" "health"
-     ++ "</table></details>"
-     ++ "<p class=\"lede\" style=\"margin-top:2rem\">It only stores and hands back your changes, and it never "
-     ++ "runs your code. Pull for review and nothing lands until you've looked at it, so the worst a relay can "
-     ++ "do is hold something back. That's what makes it safe to point your machines at.</p>")
+     + "<p class=\"lede\">Commit on one machine, pull on another. Every version is kept forever, "
+     + "content-addressed, and nothing runs until you approve it.</p>"
+     + "<h2>What's here</h2>"
+     + $"<div class=\"stat\"><div><span class=\"k\">{itemsStr}</span><span class=\"l\">items</span></div>"
+     + $"<div><span class=\"k\">{pubsStr}</span><span class=\"l\">publishers</span></div></div>"
+     + "<p class=\"lede\" style=\"margin-top:1rem\">Search above, or start from the biggest modules. "
+     + "The package set this relay runs is browsable down to source without installing anything -- "
+     + "<a href=\"/owners\">by publisher</a>, or <a href=\"/stats\">by the numbers</a>.</p>"
+     + $"<div class=\"grid\" style=\"margin-top:1rem\">{modCards}</div>"
+     + "<h2>Why matter</h2>"
+     + $"<div class=\"feats\">{featBlock}</div>"
+     + "<h2>Try it</h2>"
+     + "<p>Pulled changes land <strong>pending</strong> until you approve them. Reading needs no "
+     + "secret; pushing does, from whoever runs the relay.</p>"
+     + $"<pre><code>dark connect {selfUrl} --secret &lt;secret&gt;\ndark review pull\ndark review approve</code></pre>"
+     + "<h2>Or keep it local</h2>"
+     + "<p>Your Matter -- all your packages -- lives on your own machine no matter what. Syncing it "
+     + "<em>through matter.darklang.com</em> is the optional part: point your machines at your own "
+     + "<a href=\"https://docs.darklang.com/sync/tailscale\">tailscale</a> instead, or skip sync entirely and "
+     + "work fully offline. Local-first, always.</p>"
+     + "<details><summary>HTTP endpoints (for tooling)</summary>"
+     + "<table><tr><th>method</th><th>path</th><th>what it does</th></tr>"
+     + route "GET" "/sync/head" "how much it holds, without transferring anything"
+     + route "GET" "/sync/pull" "ops as wire records; `?sinceSeq=` pages, `?owner=` filters"
+     + route "POST" "/sync/push" "ingest ops; content-addressed, so a re-push is a no-op"
+     + route "GET" "/branch/list" "branches held for an owner"
+     + route "GET" "/branch/owners" "every hosted branch with its owner"
+     + route "GET" "/branch/pull" "one branch bundle"
+     + route "POST" "/branch/push" "store a branch bundle"
+     + route "GET" "/ping" "health"
+     + "</table></details>"
+     + "<p class=\"lede\" style=\"margin-top:2rem\">It only stores and hands back your changes, and it never "
+     + "runs your code. Pull for review and nothing lands until you've looked at it, so the worst a relay can "
+     + "do is hold something back. That's what makes it safe to point your machines at.</p>")
 
 
 /// Everything user-supplied that reaches a page goes through this. A search box that echoes its query is
@@ -251,18 +251,18 @@ let crumbs (path: String) : String =
 let pageWithStatus (title: String) (body: String) (status: Int) : HttpResponse =
   let html =
     "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
-    ++ "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-    ++ $"<title>{esc title} -- matter</title><style>"
-    ++ css
-    ++ "</style></head><body><div class=\"wrap\">"
-    ++ "<header><a class=\"logo\" href=\"/\"><b>matter</b><span>darklang packages</span></a>"
-    ++ "<form class=\"find\" action=\"/search\" method=\"get\">"
-    ++ "<input name=\"q\" placeholder=\"Search packages\" autocomplete=\"off\" spellcheck=\"false\">"
-    ++ "</form></header>"
-    ++ body
-    ++ "<footer>Every version here is kept forever and addressed by the hash of its content. "
-    ++ "<a href=\"/stats\">What this relay holds</a>.</footer>"
-    ++ "</div></body></html>"
+    + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+    + $"<title>{esc title} -- matter</title><style>"
+    + css
+    + "</style></head><body><div class=\"wrap\">"
+    + "<header><a class=\"logo\" href=\"/\"><b>matter</b><span>darklang packages</span></a>"
+    + "<form class=\"find\" action=\"/search\" method=\"get\">"
+    + "<input name=\"q\" placeholder=\"Search packages\" autocomplete=\"off\" spellcheck=\"false\">"
+    + "</form></header>"
+    + body
+    + "<footer>Every version here is kept forever and addressed by the hash of its content. "
+    + "<a href=\"/stats\">What this relay holds</a>.</footer>"
+    + "</div></body></html>"
 
   Stdlib.Http.responseWithHtml html status
 
@@ -297,7 +297,7 @@ let renderDoc (raw: String) : String =
       else
         match Stdlib.String.split piece "&gt;" with
         | first :: rest ->
-          "<code>" ++ first ++ "</code>" ++ (Stdlib.String.join rest "&gt;")
+          "<code>" + first + "</code>" + (Stdlib.String.join rest "&gt;")
         | [] -> "<code>"
     )
     |> (fun pieces -> Stdlib.String.join pieces "")
@@ -362,10 +362,10 @@ let highlightLineHtml
         let before = esc (Stdlib.String.slice line cursor startCol)
         let body = esc (Stdlib.String.slice line startCol endCol)
         let cls = tokenClass tk.tokenType
-        (endCol, out ++ before ++ $"<span class=\"{cls}\">{body}</span>"))
+        (endCol, out + before + $"<span class=\"{cls}\">{body}</span>"))
 
   let (cursor, out) = stepped
-  out ++ esc (Stdlib.String.slice line cursor (Stdlib.String.length line))
+  out + esc (Stdlib.String.slice line cursor (Stdlib.String.length line))
 
 
 /// Source as highlighted HTML, falling back to escaped plain text when it will not parse.
@@ -405,6 +405,8 @@ let kindLabel (k: String) : String =
   match k with
   | "fn" -> "function"
   | "type" -> "type"
+  | "trait" -> "trait"
+  | "impl" -> "trait implementation"
   | _ -> "value"
 
 
@@ -463,10 +465,10 @@ let moduleHandlerFn (req: HttpRequest) : HttpResponse =
     notFoundPage
       name
       ($"{crumbs name}<h1>{esc name}</h1>"
-       ++ "<p class=\"lede\">Not in the package set this server runs. If it was pushed here, it is "
-       ++ "held and served to whoever pulls it, but these pages do not render hosted code yet: "
-       ++ "browse it from any client with <code>dark view</code>. "
-       ++ "<a href=\"/stats\">Why a relay works this way.</a></p>")
+       + "<p class=\"lede\">Not in the package set this server runs. If it was pushed here, it is "
+       + "held and served to whoever pulls it, but these pages do not render hosted code yet: "
+       + "browse it from any client with <code>dark view</code>. "
+       + "<a href=\"/stats\">Why a relay works this way.</a></p>")
   | _ ->
     let subBlock =
       if subs == [] then
@@ -511,10 +513,12 @@ let moduleHandlerFn (req: HttpRequest) : HttpResponse =
     page
       name
       ($"{crumbs name}<h1>{esc name}</h1><p class=\"lede\">{lede}</p>"
-       ++ subBlock
-       ++ (section "type" "Types")
-       ++ (section "fn" "Functions")
-       ++ (section "value" "Values"))
+       + subBlock
+       + (section "type" "Types")
+       + (section "fn" "Functions")
+       + (section "value" "Values")
+       + (section "trait" "Traits")
+       + (section "impl" "Trait implementations"))
 
 
 /// One item: its source, what it needs, and who needs it.
@@ -539,8 +543,8 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
     notFoundPage
       name
       ((crumbs modulePath)
-       ++ (Stdlib.Html.h1 [] [ Stdlib.Html.text leaf ] |> Stdlib.Html.nodeToString)
-       ++ (Stdlib.Html.p
+       + (Stdlib.Html.h1 [] [ Stdlib.Html.text leaf ] |> Stdlib.Html.nodeToString)
+       + (Stdlib.Html.p
              [ Stdlib.Html.classes [ "lede" ] ]
              [ Stdlib.Html.text "Not found here. It may live under a different module, or "
                Stdlib.Html.a
@@ -555,20 +559,12 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
     // The relay holds no branches of its own, so everything it serves is main's view.
     let ctx = PrettyPrinter.ProgramTypes.Context.forBranch SCM.Branch.mainBranchId
 
+    // The kind column holds what `ItemKind.toString` wrote, so an unparseable one is not a value;
+    // it is a row this build does not understand, and saying so beats printing nothing.
     let src =
-      match kind with
-      | "fn" ->
-        (match LanguageTools.PackageManager.Function.get h with
-         | Some f -> PrettyPrinter.ProgramTypes.packageFn ctx f
-         | None -> "(not stored here)")
-      | "type" ->
-        (match LanguageTools.PackageManager.Type.get h with
-         | Some t -> PrettyPrinter.ProgramTypes.packageType ctx t
-         | None -> "(not stored here)")
-      | _ ->
-        (match LanguageTools.PackageManager.Value.get h with
-         | Some v -> PrettyPrinter.ProgramTypes.packageValue ctx v
-         | None -> "(not stored here)")
+      LanguageTools.ProgramTypes.ItemKind.fromString kind
+      |> Stdlib.Option.andThen (fun k -> PrettyPrinter.ProgramTypes.sourceOf ctx k h)
+      |> Stdlib.Option.withDefault "(not stored here)"
 
     let short = Stdlib.String.slice hashStr 0 12
     let desc = descriptionOf kind hashStr
@@ -622,9 +618,9 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
 
     let linkList (title: String) (items: List<(String * String)>) (empty: String) : String =
       if items == [] then
-        (h2 title) ++ (lede empty)
+        (h2 title) + (lede empty)
       else
-        (h2 title) ++ (pillsDiv "" (pillsFor items))
+        (h2 title) + (pillsDiv "" (pillsFor items))
 
     /// `linkList`, but for a list that can be enormous. <param total> is the true count, which may exceed
     /// what was fetched.
@@ -635,7 +631,7 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
       (empty: String)
       : String =
       if items == [] then
-        (h2 title) ++ (lede empty)
+        (h2 title) + (lede empty)
       else
         let shown = items |> Stdlib.List.take visibleCallers
         let rest = items |> Stdlib.List.drop visibleCallers
@@ -649,15 +645,15 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
           |> Stdlib.Html.nodeToString
 
         if Stdlib.List.isEmpty rest then
-          heading ++ (pillsDiv "" (pillsFor shown))
+          heading + (pillsDiv "" (pillsFor shown))
         else
-          let more = Stdlib.Int.toString (Stdlib.List.length rest)
+          let more = Stdlib.toString (Stdlib.List.length rest)
           let fetched = Stdlib.List.length items
           // Past the fetch cap the list on the page is a sample, and saying so is the whole point of
           // having counted separately.
           let truncated =
             if (Stdlib.Int.fromInt64 total) > fetched then
-              lede $"Showing the first {Stdlib.Int.toString fetched} of {n}."
+              lede $"Showing the first {Stdlib.toString fetched} of {n}."
             else
               ""
 
@@ -669,7 +665,7 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
                 Stdlib.Html.stringNode truncated ]
             |> Stdlib.Html.nodeToString
 
-          heading ++ (pillsDiv "" (pillsFor shown)) ++ disclosure
+          heading + (pillsDiv "" (pillsFor shown)) + disclosure
 
     let deps = dependenciesOf hashStr
     let dependents = dependentsOf hashStr
@@ -677,13 +673,13 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
     page
       name
       ((crumbs modulePath)
-       ++ (Stdlib.Html.h1
+       + (Stdlib.Html.h1
              []
              [ Stdlib.Html.text leaf, Stdlib.Html.stringNode depBadge ]
            |> Stdlib.Html.nodeToString)
        // `&middot;` is markup, not text, so it goes in as a string node; escaping it would print the
        // entity rather than the dot.
-       ++ (Stdlib.Html.p
+       + (Stdlib.Html.p
              [ Stdlib.Html.classes [ "meta" ] ]
              [ Stdlib.Html.text $"{kindLabel kind} "
                Stdlib.Html.stringNode "&middot; "
@@ -691,17 +687,17 @@ let itemHandlerFn (req: HttpRequest) : HttpResponse =
                  [ ("title", Stdlib.Option.Option.Some hashStr) ]
                  [ Stdlib.Html.text short ] ]
            |> Stdlib.Html.nodeToString)
-       ++ descBlock
-       ++ $"<pre><code>{highlightHtml src}</code></pre>"
-       ++ (linkList "Uses" deps "Nothing. This stands on its own.")
-       ++ (cappedLinkList
+       + descBlock
+       + $"<pre><code>{highlightHtml src}</code></pre>"
+       + (linkList "Uses" deps "Nothing. This stands on its own.")
+       + (cappedLinkList
              "Used by"
              dependents
              (dependentsCountOf hashStr)
              "Nothing here calls it yet.")
-       ++ "<details><summary>What the hash means</summary><p class=\"lede\">Content-addressed: this hash "
-       ++ "is this code, forever. Editing the name publishes a different hash, and this one stays "
-       ++ "reachable and keeps working for anything already calling it.</p></details>")
+       + "<details><summary>What the hash means</summary><p class=\"lede\">Content-addressed: this hash "
+       + "is this code, forever. Editing the name publishes a different hash, and this one stays "
+       + "reachable and keeps working for anything already calling it.</p></details>")
 
 
 /// Search across every listed name. Deliberately name-and-module only: it is the query people actually
@@ -722,7 +718,7 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
         $"Search: {q}"
         ((Stdlib.Html.h1 [] [ Stdlib.Html.text "No matches" ]
           |> Stdlib.Html.nodeToString)
-         ++ (Stdlib.Html.p
+         + (Stdlib.Html.p
                [ Stdlib.Html.classes [ "lede" ] ]
                [ Stdlib.Html.text "Nothing here matches "
                  Stdlib.Html.code [] [ Stdlib.Html.text q ]
@@ -747,7 +743,7 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
 
       let capped =
         if (Stdlib.Int.fromInt64 total) > n then
-          let shown = Stdlib.Int.toString n
+          let shown = Stdlib.toString n
 
           $"<p class=\"lede\">Showing the first {shown} of {num total}. Narrow the search to see the rest.</p>"
         else
@@ -756,9 +752,9 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
       page
         $"Search: {q}"
         ($"<h1>{num total} {(if total == 1L then "match" else "matches")}</h1>"
-         ++ (Stdlib.Html.p
+         + (Stdlib.Html.p
                [ Stdlib.Html.classes [ "lede" ] ]
                [ Stdlib.Html.text "for ", Stdlib.Html.code [] [ Stdlib.Html.text q ] ]
              |> Stdlib.Html.nodeToString)
-         ++ capped
-         ++ $"<div class=\"rows\">{rows}</div>")
+         + capped
+         + $"<div class=\"rows\">{rows}</div>")

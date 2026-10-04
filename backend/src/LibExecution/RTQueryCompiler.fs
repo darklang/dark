@@ -6,6 +6,7 @@ module LibExecution.RTQueryCompiler
 
 open Prelude
 module RT = RuntimeTypes
+module PT = ProgramTypes
 
 /// Error message prefix shown to users when SQL compilation fails
 let errorTemplate =
@@ -69,6 +70,18 @@ let getSqlSpec
     (match exeState.fns.builtIn.TryGetValue builtinName with
      | true, fn -> Some fn.sqlSpec
      | false, _ -> None)
+  // An operator trait method pushes down as the SQL operator its polymorphic
+  // builtin carries; any other trait method is dispatched code, not SQL.
+  | RT.FQFnName.TraitMethod { trait_ = RT.Hash traitHash
+                              method_ = methodName
+                              implFn = _ } ->
+    match NumericTraits.tryInfix traitHash methodName with
+    | Some op ->
+      let builtinName = PT.InfixFnName.toBuiltinName op
+      (match exeState.fns.builtIn.TryGetValue(RT.FQFnName.builtin builtinName 0) with
+       | true, fn -> Some fn.sqlSpec
+       | false, _ -> None)
+    | None -> None
   | RT.FQFnName.Package _ ->
     // Package functions don't have SqlSpec - they delegate to builtins
     None
@@ -105,7 +118,8 @@ let partialEvaluate
         typeSymbolTable = RT.TST.empty
         typeArgs = typeArgs
         access = None
-        argsSoFar = [] }
+        argsSoFar = []
+        boundImpls = [] }
     instructions.Add(RT.LoadVal(fnReg, RT.DApplicable(RT.AppNamedFn appFn)))
 
     // Load the arguments
@@ -435,6 +449,8 @@ and executeInstruction
             Ok(
               state.withReg (createTo, Unknown $"Unsupported builtin function: {n}")
             )
+          | RT.FQFnName.TraitMethod { trait_ = _; method_ = m; implFn = _ } ->
+            Ok(state.withReg (createTo, Unknown $"Cannot inline trait method: {m}"))
 
     | other ->
       Ok(state.withReg (createTo, Unknown $"Apply on non-function: {other}"))

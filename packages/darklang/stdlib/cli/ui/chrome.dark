@@ -51,9 +51,9 @@ let withError (f: Frame) (message: String) : Frame =
 
 let toneStyle (tone: Tone) : String =
   match tone with
-  | Neutral -> Colors.grayBg ++ Colors.white
-  | Active -> Colors.greenBg ++ Colors.black
-  | Danger -> Colors.bgRed ++ Colors.brightWhite
+  | Neutral -> Colors.grayBg + Colors.white
+  | Active -> Colors.greenBg + Colors.black
+  | Danger -> Colors.bgRed + Colors.brightWhite
 
 /// A full-width bar, padded so the background colour reaches the right edge.
 let bar (width: Int) (style: String) (text: String) : String =
@@ -62,7 +62,7 @@ let bar (width: Int) (style: String) (text: String) : String =
   let padding =
     if width > used then Stdlib.String.repeat " " (width - used) else ""
 
-  Colors.colorize style (clipped ++ padding)
+  Colors.colorize style (clipped + padding)
 
 
 // --- Layout ---
@@ -79,14 +79,14 @@ let helpRows (height: Int) : Int =
 
 /// The region the body gets, in a terminal of this size.
 let bodyRegion (size: Tui.Size) : Layout.Region =
-  let height = Stdlib.Int.max 1 size.height
+  let height = Stdlib.max 1 size.height
   let top = titleRows height
 
   Layout.Region
     { top = top + 1
       left = 1
-      rows = Stdlib.Int.max 0 (height - top - (helpRows height))
-      cols = Stdlib.Int.max 1 size.width }
+      rows = Stdlib.max 0 (height - top - (helpRows height))
+      cols = Stdlib.max 1 size.width }
 
 
 // --- Rendering ---
@@ -94,20 +94,20 @@ let bodyRegion (size: Tui.Size) : Layout.Region =
 let titleBar (f: Frame) (width: Int) : String =
   let title =
     Colors.colorize
-      (Colors.purpleBg ++ Colors.white ++ Colors.bold)
+      (Colors.purpleBg + Colors.white + Colors.bold)
       $" {f.title} "
 
   let badge =
     if f.badge == "" then
       ""
     else
-      " " ++ (Colors.colorize (toneStyle f.badgeTone) $" {f.badge} ")
+      " " + (Colors.colorize (toneStyle f.badgeTone) $" {f.badge} ")
 
-  Tui.Text.clipToWidth (title ++ badge) width
+  Tui.Text.clipToWidth (title + badge) width
 
 let footBar (f: Frame) (width: Int) : String =
   if f.message == "" then
-    bar width (Colors.grayBg ++ Colors.white) f.help
+    bar width (Colors.grayBg + Colors.white) f.help
   else
     bar width (toneStyle f.messageTone) f.message
 
@@ -118,8 +118,8 @@ let view
   (size: Tui.Size)
   (body: Layout.Region -> List<Layout.Span>)
   : Tui.View =
-  let width = Stdlib.Int.max 1 size.width
-  let height = Stdlib.Int.max 1 size.height
+  let width = Stdlib.max 1 size.width
+  let height = Stdlib.max 1 size.height
   let screen = Layout.Region { top = 1; left = 1; rows = height; cols = width }
   let region = bodyRegion size
 

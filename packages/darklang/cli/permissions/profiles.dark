@@ -61,15 +61,15 @@ let fromEffects
       deny = [] }
 
 let usage (profile: Profiles.Profile) : String =
-  "permissions profile " ++ profile.name
-  ++ (if profile.needsRoot then " <ABSOLUTE-ROOT>" else "")
-  ++ " [--yes]"
+  "permissions profile " + profile.name
+  + (if profile.needsRoot then " <ABSOLUTE-ROOT>" else "")
+  + " [--yes]"
 
 val listing =
   Stdlib.List.append
     [ "Permission profiles (preview first; --yes applies):" ]
     (Profiles.all |> Stdlib.List.map (fun profile ->
-      "  " ++ Profiles.usage profile ++ "\n    " ++ profile.description))
+      "  " + Profiles.usage profile + "\n    " + profile.description))
 
 /// Validate the complete command before constructing a policy. The root stays
 /// a single typed field, so quotes, spaces and semicolons cannot inject rules.
@@ -108,4 +108,4 @@ let resolve
                 LanguageTools.Permissions.Effect.PackageWrite ]
         Stdlib.Result.Result.Ok
           { policy with allow = Stdlib.List.append policy.allow rules }
-    | _ -> Stdlib.Result.Result.Error ("usage: " ++ Profiles.usage profile)
+    | _ -> Stdlib.Result.Result.Error ("usage: " + Profiles.usage profile)

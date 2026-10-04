@@ -23,5 +23,5 @@ let fromEnv (envVar: String) (providerName: String) : Stdlib.Result.Result<Strin
     | Error e -> Stdlib.Result.Result.Error e
   | None ->
     Stdlib.Result.Result.Error(
-      envVar ++ " environment variable is not set. Please set it to your " ++ providerName ++ " API key.")
+      envVar + " environment variable is not set. Please set it to your " + providerName + " API key.")
 

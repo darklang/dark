@@ -84,8 +84,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       returnType = TList TString
       description =
         "The names that more than one declaration in this batch would bind, as "
-        + "\"fn Owner.Module.name\" strings. Stabilizing such a batch would store one "
-        + "body under the other's hash, so authoring surfaces refuse it."
+        + "\"<kind> Owner.Module.name\" strings, for any of the five kinds. Stabilizing "
+        + "such a batch would store one body under the other's hash, so authoring "
+        + "surfaces refuse it."
       fn =
         (function
         | _, _, _, [| DList(_vt, ops) |] ->
@@ -193,7 +194,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                       match op with
                       | PT.PackageOp.AddValue _
                       | PT.PackageOp.AddFn _
-                      | PT.PackageOp.AddType _ -> true
+                      | PT.PackageOp.AddType _
+                      | PT.PackageOp.AddTrait _
+                      | PT.PackageOp.AddTraitImpl _ -> true
                       | _ -> false)
                   if not (List.isEmpty contentOps) then
                     do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
@@ -780,7 +783,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmContentOpId" 0
       typeParams = []
       parameters =
-        [ Param.make "kind" TString "'fn', 'type' or 'value'"
+        [ Param.make "kind" TString "'fn', 'type', 'value', 'trait' or 'impl'"
           Param.make "hash" TString "the content hash" ]
       returnType = TUuid
       description =
@@ -789,10 +792,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [| DString kind; DString hash |] ->
           let tag =
+            // The tags `Hashing.contentOpHash` documents, all five of them: a branch holding
+            // a trait or an impl raised here on export.
             match kind with
             | "fn" -> 0uy
             | "type" -> 1uy
             | "value" -> 2uy
+            | "trait" -> 3uy
+            | "impl" -> 4uy
             | other ->
               Exception.raiseInternal
                 "scmContentOpId: unknown kind"
@@ -973,7 +980,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     match op with
                     | PT.PackageOp.AddValue _
                     | PT.PackageOp.AddFn _
-                    | PT.PackageOp.AddType _ -> true
+                    | PT.PackageOp.AddType _
+                    | PT.PackageOp.AddTrait _
+                    | PT.PackageOp.AddTraitImpl _ -> true
                     | _ -> false)
                 if not (List.isEmpty contentOps) then
                   do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps

@@ -89,7 +89,7 @@ let handleInputKey
     | UpArrow ->
       // Command bar: move up in the completion dropdown.
       if inp.action == "command" then
-        Step.Continue { state with completionSel = Stdlib.Int.max 0 (state.completionSel - 1) }
+        Step.Continue { state with completionSel = Stdlib.max 0 (state.completionSel - 1) }
       else
         Step.Continue state
     | DownArrow ->
@@ -97,7 +97,7 @@ let handleInputKey
         let n = Stdlib.List.length (commandCompletions state inp.field.text)
         Step.Continue
           { state with
-              completionSel = Stdlib.Int.min (Stdlib.Int.max 0 (n - 1)) (state.completionSel + 1) }
+              completionSel = Stdlib.min (Stdlib.max 0 (n - 1)) (state.completionSel + 1) }
       else
         Step.Continue state
     | Tab ->
@@ -126,7 +126,7 @@ let handleInputKey
                     Stdlib.Option.Option.Some
                       { inp with
                           field =
-                            Stdlib.Cli.UI.TextField.fromText (inp.field.text ++ hint) } }
+                            Stdlib.Cli.UI.TextField.fromText (inp.field.text + hint) } }
       else
         Step.Continue state
     | _ ->
@@ -157,9 +157,9 @@ let handleReaderKey
   // A page is the terminal height less the chrome, so it lands roughly where your eye already is. Reading a
   // 200-line doc one line at a time is not reading.
   let (_w, h) = Terminal.getSize ()
-  let page = Stdlib.Int.max 1 (h - 6)
+  let page = Stdlib.max 1 (h - 6)
   let pageUp =
-    Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - page) }
+    Step.Continue { state with detailScroll = Stdlib.max 0 (state.detailScroll - page) }
   let pageDown = Step.Continue { state with detailScroll = state.detailScroll + page }
   match key with
   | UpArrow -> scrollUp
@@ -194,7 +194,7 @@ let handleSearchResultsKey
     Step.Continue
       { state with
           search =
-            { state.search with selected = Stdlib.Int.max 0 (Stdlib.Int.min (n - 1) i) } }
+            { state.search with selected = Stdlib.max 0 (Stdlib.min (n - 1) i) } }
 
   let closeSearch = Step.Continue { state with search = emptySearch () }
   match key with

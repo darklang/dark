@@ -167,7 +167,7 @@ module LambdaImpl =
     Instructions.write w l.instructions
 
 
-  let read (r : BinaryReader) : LambdaImpl =
+  let read (version : uint32) (r : BinaryReader) : LambdaImpl =
     let exprId = r.ReadUInt64()
     let patterns = NEList.read LetPattern.read r
     let registersToCloseOver =
@@ -177,7 +177,7 @@ module LambdaImpl =
         (copyFrom, copyTo))
     let selfRegister = Option.read r (fun r -> r.ReadInt32())
 
-    let instructions = Instructions.read r
+    let instructions = Instructions.read version r
     { exprId = exprId
       patterns = patterns
       registersToCloseOver = registersToCloseOver
@@ -333,11 +333,11 @@ module Instruction =
       w.Write(exprId : uint64)
       w.Write(reg : int)
 
-  let read (r : BinaryReader) : Instruction =
+  let read (version : uint32) (r : BinaryReader) : Instruction =
     match r.ReadByte() with
     | 0uy ->
       let loadTo = r.ReadInt32()
-      let dval = Dval.read r
+      let dval = Dval.read version r
       LoadVal(loadTo, dval)
     | 1uy ->
       let copyTo = r.ReadInt32()
@@ -431,7 +431,7 @@ module Instruction =
       LoadValue(createTo, valueName)
     | 18uy ->
       let createTo = r.ReadInt32()
-      let lambda = LambdaImpl.read r
+      let lambda = LambdaImpl.read version r
       CreateLambda(createTo, lambda)
     | 19uy ->
       let createTo = r.ReadInt32()
@@ -466,8 +466,8 @@ let write (w : BinaryWriter) (instrs : Instructions) =
   List.write w Instruction.write instrs.instructions
   w.Write instrs.resultIn
 
-let read (r : BinaryReader) : Instructions =
+let read (version : uint32) (r : BinaryReader) : Instructions =
   let registerCount = Varint.read r
-  let instructions = List.read r Instruction.read
+  let instructions = List.read r (Instruction.read version)
   let resultIn = r.ReadInt32()
   { registerCount = registerCount; instructions = instructions; resultIn = resultIn }

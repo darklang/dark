@@ -10,7 +10,7 @@ let bar (current: Int) (total: Int) (label: String) : Unit =
 
   let filled =
     if total == 0 then 0
-    else Stdlib.Int.divide (current * width) total
+    else ((current * width) / total)
 
   let empty = width - filled
 
@@ -19,10 +19,10 @@ let bar (current: Int) (total: Int) (label: String) : Unit =
 
   let pct =
     if total == 0 then 0
-    else Stdlib.Int.divide (current * 100) total
+    else ((current * 100) / total)
 
   Stdlib.print
-    $"\r[{filledStr}{emptyStr}] {Stdlib.Int.toString pct}% {label}"
+    $"\r[{filledStr}{emptyStr}] {Stdlib.toString pct}% {label}"
 
   if current >= total then Stdlib.printLine ""
   else ()

@@ -2,54 +2,52 @@
 
 module ESelfTests =
   let factorial (n: Int): Int =
-    if Stdlib.Int.lessThanOrEqualTo n 1 then
+    if (n <= 1) then
       1
     else
-      Stdlib.Int.multiply n (factorial (Stdlib.Int.subtract n 1))
+      n * (factorial (n - 1))
 
 
   let fibonacci (n: Int): Int =
-    if Stdlib.Int.lessThanOrEqualTo n 1 then
+    if (n <= 1) then
       n
     else
-      Stdlib.Int.add
-        (ESelfTests.fibonacci (Stdlib.Int.subtract n 1))
-        (ESelfTests.fibonacci (Stdlib.Int.subtract n 2))
+      (ESelfTests.fibonacci (n - 1)) + (ESelfTests.fibonacci (n - 2))
 
 
   let sumUpTo (n: Int): Int =
-    if Stdlib.Int.lessThanOrEqualTo n 0 then
+    if (n <= 0) then
       0
     else
-      Stdlib.Int.add n (ESelfTests.sumUpTo (Stdlib.Int.subtract n 1))
+      n + (ESelfTests.sumUpTo (n - 1))
 
 
 module ShadowingTest =
   let factorialWithShadowing (n: Int): (String * Int) =
-    if Stdlib.Int.lessThanOrEqualTo n 1 then
+    if (n <= 1) then
       ("base_case", 1)
     else
       let factorialWithShadowing = "shadowed"
-      let result = Stdlib.Int.multiply n ((ShadowingTest.factorialWithShadowing (Stdlib.Int.subtract n 1)) |> Stdlib.Tuple2.second)
+      let result = n * ((ShadowingTest.factorialWithShadowing (n - 1)) |> Stdlib.Tuple2.second)
       (factorialWithShadowing , result)
 
   let factorialWithShadowingError (n: Int): (String * Int) =
-    if Stdlib.Int.lessThanOrEqualTo n 1 then
+    if (n <= 1) then
       ("base_case", 1)
     else
       let factorialWithShadowingError = "shadowed"
-      let result = Stdlib.Int.multiply n ((factorialWithShadowingError (Stdlib.Int.subtract n 1)) |> Stdlib.Tuple2.second)
+      let result = n * ((factorialWithShadowingError (n - 1)) |> Stdlib.Tuple2.second)
       (factorialWithShadowingError , result)
 
 
   let incrementWithShadowing (y: Int) (z: Int): Int =
-    if Stdlib.Int.lessThanOrEqualTo z 0 then
+    if (z <= 0) then
       y
     else
-      let result = incrementWithShadowing y (Stdlib.Int.subtract z 1)
-      let incrementWithShadowing = (fun x -> Stdlib.Int.add x 2)
+      let result = incrementWithShadowing y (z - 1)
+      let incrementWithShadowing = (fun x -> x + 2)
       let lambdaResult = incrementWithShadowing z
-      Stdlib.Int.add result lambdaResult
+      result + lambdaResult
 
 
   let matchWithShadowing (x: Int) : Int =
@@ -99,7 +97,7 @@ module ShadowingTest =
     | 2 ->
       let pipeWithShadowing = (fun v -> v * 6)
       x |> pipeWithShadowing
-    | pipeWithShadowing -> x |> Stdlib.Int.add pipeWithShadowing
+    | pipeWithShadowing -> x |> (+) pipeWithShadowing
 
 
   // A location holds ONE item, whatever its kind: `val valueShadowing` and `fn valueShadowing` would be

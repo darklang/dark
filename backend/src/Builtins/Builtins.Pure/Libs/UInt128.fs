@@ -8,6 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NoModule = Builtins.Pure.Libs.NoModule
 
 
 module ParseError =
@@ -100,6 +101,29 @@ let fns () : List<BuiltInFn> =
 
 
     // TODO: add power function
+
+
+    { name = fn "uint128Power" 0
+      typeParams = []
+      parameters =
+        [ Param.make "base" TUInt128 ""; Param.make "exponent" TUInt128 "" ]
+      returnType = TUInt128
+      description =
+        "Raise <param base> to the power of <param exponent>. Overflow wraps "
+        + "around."
+      fn =
+        (function
+        | _, _, _, [| DUInt128 number; DUInt128 exp |] ->
+          NoModule.powUnsigned
+            128
+            (System.Numerics.BigInteger.Parse(string number))
+            (System.Numerics.BigInteger.Parse(string exp))
+          |> fun r -> System.UInt128.Parse(r.ToString()) |> DUInt128 |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
 
 
     { name = fn "uint128Divide" 0

@@ -18,14 +18,14 @@ let beat (count: Int) : Int =
 // interval is read from config (`apps.<name>.intervalMs`, default 5000) -- daemons take their config
 // from cli-config.json, not argv.
 let heartbeat (name: String) : Int =
-  let intervalMs = Config.getInt ("apps." ++ name ++ ".intervalMs") 5000
+  let intervalMs = Config.getInt ("apps." + name + ".intervalMs") 5000
 
   let _logged =
     match Stdlib.Cli.Daemon.claimPidfile name with
     | Error e -> Stdlib.printLine $"{name}: could not write pidfile: {e}"
     | Ok _ ->
       Stdlib.printLine
-        $"{name}: started (pid {Stdlib.Int.toString (Stdlib.Cli.Sys.currentPid ())}, interval {Stdlib.Int.toString intervalMs}ms)"
+        $"{name}: started (pid {Stdlib.toString (Stdlib.Cli.Sys.currentPid ())}, interval {Stdlib.toString intervalMs}ms)"
 
   // The step is a NAME, and yours to point elsewhere (`apps.<name>.step`): a step under your own
   // owner is one you can edit while the daemon runs, which is what the runner is for.
@@ -52,7 +52,7 @@ module TextEdit =
     : Stdlib.Cli.Tui.View =
     Component.viewOfString
       ("  text editor (demo) - type, Enter or Esc to exit\n\n  "
-       ++ (Stdlib.Cli.UI.TextField.renderInline state 60))
+       + (Stdlib.Cli.UI.TextField.renderInline state 60))
 
   let onKey
     (state: Stdlib.Cli.UI.TextField.State)

@@ -93,6 +93,14 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "traits"
+          description = "Traits: declare, implement, call, bound; the operators are traits"
+          aliases = [ "trait", "impl", "impls" ]
+          context = "general"
+          content = Docs.Traits.content
+          subtopics = [] }
+
+      DocTopic
         { name = "operators"
           description = "Operators reference"
           aliases = [ "ops" ]
@@ -278,9 +286,9 @@ module Topics =
 
     let footer =
       [ ""
-        "Usage: " ++ Stdlib.Cli.UI.Colors.command "docs <topic>"
+        "Usage: " + Stdlib.Cli.UI.Colors.command "docs <topic>"
         ""
-        "Start with: " ++ Stdlib.Cli.UI.Colors.command "docs for-ai" ]
+        "Start with: " + Stdlib.Cli.UI.Colors.command "docs for-ai" ]
 
     (Stdlib.List.append (Stdlib.List.append header lines) footer)
     |> Stdlib.String.join "\n"
@@ -326,14 +334,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let help (_state: Cli.AppState) : String =
-  [ Stdlib.Cli.UI.Colors.info "Usage: " ++ Stdlib.Cli.UI.Colors.command "docs [topic]"
+  [ Stdlib.Cli.UI.Colors.info "Usage: " + Stdlib.Cli.UI.Colors.command "docs [topic]"
     "Browse in-CLI documentation."
     ""
     Stdlib.Cli.UI.Colors.info "Examples:"
-    "  " ++ Stdlib.Cli.UI.Colors.command "docs" ++ "         - List all topics"
-    "  " ++ Stdlib.Cli.UI.Colors.command "docs for-ai" ++ "  - AI agent quick start"
-    "  " ++ Stdlib.Cli.UI.Colors.command "docs syntax" ++ "  - Language syntax reference"
-    "  " ++ Stdlib.Cli.UI.Colors.command "docs errors" ++ "  - Common errors and fixes" ]
+    "  " + Stdlib.Cli.UI.Colors.command "docs" + "         - List all topics"
+    "  " + Stdlib.Cli.UI.Colors.command "docs for-ai" + "  - AI agent quick start"
+    "  " + Stdlib.Cli.UI.Colors.command "docs syntax" + "  - Language syntax reference"
+    "  " + Stdlib.Cli.UI.Colors.command "docs errors" + "  - Common errors and fixes" ]
   |> Stdlib.String.join "\n"
 
 

@@ -164,8 +164,17 @@ let private extract (roots : List<Work>) : List<Dependency> =
 
     | PipeExpr pipeExpr ->
       match pipeExpr with
-      | PT.EPipeLambda(_, _, body)
-      | PT.EPipeInfix(_, _, body) -> work.Push(Expr body)
+      | PT.EPipeLambda(_, _, body) -> work.Push(Expr body)
+
+      | PT.EPipeInfix(_, _, body, implFn) ->
+        match implFn with
+        | PT.FQFnName.Chosen r ->
+          dependencies <-
+            { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
+            :: dependencies
+        | PT.FQFnName.FromTypeParam _
+        | PT.FQFnName.Unknown -> ()
+        work.Push(Expr body)
 
       | PT.EPipeFnCall(_, nr, typeArgs, args) ->
         addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
@@ -239,12 +248,56 @@ let private extract (roots : List<Work>) : List<Dependency> =
         pushTypesInOrder typeArgs
         work.Push(Expr fnExpr)
 
-      | PT.EFnName(_, nr) ->
+      | PT.EFnName(_, nr, boundImpls) ->
         addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
+        // What this call worked out for the callee's bounds is a fn this item now depends on:
+        // that edge is what offers a newer implementation through `propagate` rather than
+        // letting it change under the call.
+        for b in boundImpls do
+          match b.choice with
+          | PT.FQFnName.Chosen r ->
+            dependencies <-
+              { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
+              :: dependencies
+          | PT.FQFnName.FromTypeParam _
+          | PT.FQFnName.Unknown -> ()
+        // `Show.show` depends on the trait: editing the trait repoints every
+        // caller, which is what makes a changed method signature visible.
+        match nr.resolved with
+        | Ok { name = PT.FQFnName.TraitMethod { trait_ = traitHash
+                                                method_ = _
+                                                implFn = implFn }
+               location = loc } ->
+          dependencies <-
+            { hash = traitHash; itemKind = PT.ItemKind.Trait; location = loc }
+            :: dependencies
+          // And on the implementation it was resolved to, which is an ordinary fn edge: that
+          // is what makes a newer implementation an ordinary repoint, offered by `propagate`
+          // and refusable by `pin`, rather than something that changes under the call.
+          // Only a CHOSEN implementation is an edge. A call that defers to a type param names
+          // no fn of its own; the edge for that one belongs to the CALLER, which recorded what
+          // its type argument implied.
+          match implFn with
+          | PT.FQFnName.Chosen r ->
+            dependencies <-
+              { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
+              :: dependencies
+          | PT.FQFnName.FromTypeParam _
+          | PT.FQFnName.Unknown -> ()
+        | _ -> ()
 
       | PT.ELambda(_, _, body) -> work.Push(Expr body)
 
-      | PT.EInfix(_, _, lhs, rhs) ->
+      | PT.EInfix(_, _, lhs, rhs, implFn) ->
+        // An operator that resolved to one of your implementations depends on it, exactly as a
+        // written-out call does: that edge is how a newer implementation is offered to you.
+        match implFn with
+        | PT.FQFnName.Chosen r ->
+          dependencies <-
+            { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
+            :: dependencies
+        | PT.FQFnName.FromTypeParam _
+        | PT.FQFnName.Unknown -> ()
         work.Push(Expr rhs)
         work.Push(Expr lhs)
 
@@ -278,6 +331,18 @@ let private extract (roots : List<Work>) : List<Dependency> =
 let extractFromExpr (expr : PT.Expr) : List<Dependency> = extract [ Expr expr ]
 
 
+/// A bound `'a: Show<X>` references the trait and its type args.
+let private traitRefDeps (t : PT.TraitRef) : List<Dependency> =
+  (extractFromNameResolution
+    t.trait_
+    PT.ItemKind.Trait
+    (fun (PT.FQTraitName.Package h) -> Some h))
+  @ extract (t.typeArgs |> List.map TypeRef)
+
+let private boundDeps (bounds : List<PT.Bound>) : List<Dependency> =
+  bounds |> List.collect (fun b -> traitRefDeps b.trait_)
+
+
 /// Extract all references from a function definition
 let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
   // Deduplicate references
@@ -288,6 +353,20 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
         |> List.map (fun parameter -> TypeRef parameter.typ))
     @ [ TypeRef fn.returnType ]
   )
+  @ boundDeps fn.bounds
+  |> List.distinct
+
+
+/// Extract references from a function's signature only (parameters and return
+/// type), not its body. Enough to type-check a call to it.
+let extractFromFnSignature (fn : PT.PackageFn.PackageFn) : List<Dependency> =
+  extract (
+    (fn.parameters
+     |> NEList.toList
+     |> List.map (fun parameter -> TypeRef parameter.typ))
+    @ [ TypeRef fn.returnType ]
+  )
+  @ boundDeps fn.bounds
   |> List.distinct
 
 
@@ -309,4 +388,27 @@ let extractFromType (typ : PT.PackageType.PackageType) : List<Dependency> =
       |> List.collect (fun case ->
         case.fields |> List.map (fun field -> TypeRef field.typ))
 
-  extract roots |> List.distinct
+  extract roots @ boundDeps typ.declaration.bounds |> List.distinct
+
+
+/// A trait references the types in its method signatures and its supertraits.
+let extractFromTrait (t : PT.Trait.Trait) : List<Dependency> =
+  let roots =
+    t.methods
+    |> NEList.toList
+    |> List.collect (fun m ->
+      (m.parameters |> NEList.toList |> List.map (fun p -> TypeRef p.typ))
+      @ [ TypeRef m.returnType ])
+  extract roots @ boundDeps t.bounds |> List.distinct
+
+
+/// An impl references its trait (this edge is how a trait finds its impls), its self
+/// type, its method fns and its bounds.
+let extractFromImpl (i : PT.TraitImpl.TraitImpl) : List<Dependency> =
+  traitRefDeps { trait_ = i.trait_; typeArgs = i.traitTypeArgs }
+  @ extract [ TypeRef i.self ]
+  @ (i.methods
+     |> List.collect (fun (_, nr) ->
+       extractFromNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash))
+  @ boundDeps i.bounds
+  |> List.distinct

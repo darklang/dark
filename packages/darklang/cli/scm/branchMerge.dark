@@ -9,7 +9,7 @@ let reportConflicts (conflicts: List<SCM.Conflicts.Conflict>) : Unit =
   match conflicts with
   | [] -> ()
   | cs ->
-    let n = Stdlib.Int.toString (Stdlib.List.length cs)
+    let n = Stdlib.toString (Stdlib.List.length cs)
 
     // "conflict(s)" is the shape `scripts/testing/gates sync-multi-instance` asserts on.
     Cli.printOk
@@ -173,7 +173,7 @@ let executeMerge
     | Ok outcome ->
       // "Merged N op(s)" is the shape `scripts/testing/gates sync-multi-instance` asserts on.
       Cli.printOk
-        $"Merged {Stdlib.Int.toString outcome.merged} op(s) from branch \"{branchRef}\" into its parent."
+        $"Merged {Stdlib.toString outcome.merged} op(s) from branch \"{branchRef}\" into its parent."
 
       reportConflicts outcome.conflicts
 
@@ -183,7 +183,7 @@ let executeMerge
       let landedOn =
         if SCM.PackageOps.currentBranch () == branchId then
           let (parentId, parentName) = parentOf branchId
-          let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.Uuid.toString parentId)
+          let _ = Stdlib.LocalStore.configSet "current_branch" (Stdlib.toString parentId)
           let _ =
             Stdlib.LocalStore.configSet
               "current_branch_name"

@@ -10,8 +10,8 @@ module Darklang.Cli
 /// something to silently ignore. Either way the flag is consumed, so it can't fall through and be read as
 /// the command.
 let takeFlagValue (args: List<String>) (flag: String) : (Stdlib.Option.Option<String> * List<String>) =
-  let long = "--" ++ flag
-  let eq = long ++ "="
+  let long = "--" + flag
+  let eq = long + "="
   let (found, _takingNext, kept) =
     args
     |> Stdlib.List.fold (Stdlib.Option.Option.None, false, []) (fun state arg ->

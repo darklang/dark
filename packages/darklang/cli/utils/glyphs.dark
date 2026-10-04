@@ -21,6 +21,12 @@ val type_ = "#"
 /// A value, and the fallback for anything unrecognised.
 val value = "•"
 
+/// A trait: the hollow diamond to its impls' filled one.
+val trait_ = "◇"
+
+/// An impl of a trait: `trait_` filled in.
+val impl_ = "◆"
+
 
 /// The glyph for a kind name, padded to two terminal columns so names line up.
 ///
@@ -36,9 +42,17 @@ let forKind (kind: String) : String =
     | "type" -> Glyphs.type_
     | "val" -> Glyphs.value
     | "value" -> Glyphs.value
+    | "trait" -> Glyphs.trait_
+    | "impl" -> Glyphs.impl_
     | _ -> Glyphs.value
 
   Stdlib.Cli.Tui.Text.fitToWidth glyph 2
+
+
+/// The order a listing shows kinds in: what a module IS, then what it does, then the traits
+/// over them. One place, so `dark ls`, `dark tree` and the workbench cannot drift apart; they
+/// did, and fixing it meant the same edit in three files.
+val kindOrder = [ "module", "type", "fn", "val", "trait", "impl" ]
 
 
 /// A section header for a listing: glyph plus the plural noun.
@@ -52,6 +66,8 @@ let sectionHeader (kind: String) : String =
     | "type" -> "Types"
     | "val" -> "Values"
     | "value" -> "Values"
+    | "trait" -> "Traits"
+    | "impl" -> "Impls"
     | other -> other
 
   $"{Glyphs.forKind kind} {label}:"

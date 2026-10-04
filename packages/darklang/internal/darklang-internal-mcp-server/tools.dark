@@ -35,7 +35,7 @@ let searchFunctions () : ModelContextProtocol.ServerBuilder.Tool =
               exactMatch = false }
         let results =
           LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId searchQuery
-        let resultCount = (Stdlib.List.length results.fns) |> Stdlib.Int.toString
+        let resultCount = (Stdlib.List.length results.fns) |> Stdlib.toString
         let formattedResults =
           results.fns
           |> Stdlib.List.map (fun fn ->
@@ -45,9 +45,9 @@ let searchFunctions () : ModelContextProtocol.ServerBuilder.Tool =
                   [ [ fn.location.owner ], fn.location.modules, [ fn.location.name ] ])
                 "."
             if fn.entity.description == "" then
-              "- " ++ full
+              "- " + full
             else
-              "- " ++ full ++ ": " ++ fn.entity.description)
+              "- " + full + ": " + fn.entity.description)
           |> Stdlib.String.join "\n"
         $"Found {resultCount} functions:\n{formattedResults}"
   }
@@ -65,7 +65,7 @@ let typecheck () : ModelContextProtocol.ServerBuilder.Tool =
           let errorList =
             diagnostics
             |> Stdlib.List.map (fun (range, message) ->
-              $"- {message} (line {range.start.row |> Stdlib.Int.toString})")
+              $"- {message} (line {range.start.row |> Stdlib.toString})")
             |> Stdlib.String.join "\n"
           $"Syntax errors found:\n{errorList}"
   }
@@ -86,10 +86,10 @@ let listPackages () : ModelContextProtocol.ServerBuilder.Tool =
             exactMatch = false }
       let results =
         LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId query
-      let packageCount = (Stdlib.List.length results.submodules) |> Stdlib.Int.toString
+      let packageCount = (Stdlib.List.length results.submodules) |> Stdlib.toString
       let formattedPackages =
         results.submodules
-        |> Stdlib.List.map (fun path -> "- " ++ (Stdlib.String.join path "."))
+        |> Stdlib.List.map (fun path -> "- " + (Stdlib.String.join path "."))
         |> Stdlib.String.join "\n"
       $"Found {packageCount} modules:\n{formattedPackages}"
   }

@@ -25,7 +25,7 @@ let branchExists (branchId: Uuid) : Bool =
     Stdlib.Sqlite.queryOneP
       (localDb ())
       "SELECT 1 AS n FROM branches WHERE id = @p0"
-      [ Stdlib.Uuid.toString branchId ]
+      [ Stdlib.toString branchId ]
 
   match registered with
   | Some _ -> true
@@ -34,7 +34,7 @@ let branchExists (branchId: Uuid) : Bool =
       Stdlib.Sqlite.queryOneP
         (localDb ())
         "SELECT 1 AS n FROM op_branches WHERE branch_id = @p0 LIMIT 1"
-        [ Stdlib.Uuid.toString branchId ]
+        [ Stdlib.toString branchId ]
     with
     | Some _ -> true
     | None -> false
@@ -47,7 +47,7 @@ let branchParentOf (branchId: Uuid) : Uuid =
     Stdlib.Sqlite.queryOneP
       (localDb ())
       "SELECT parent_id FROM branches WHERE id = @p0"
-      [ Stdlib.Uuid.toString branchId ]
+      [ Stdlib.toString branchId ]
   with
   | Some row ->
     SCM.Branch.fromTextField (Stdlib.Sqlite.textField row "parent_id")
@@ -169,13 +169,13 @@ let branchName (branchId: Uuid) : String =
   if SCM.Branch.isMain branchId then
     SCM.Branch.mainBranchName
   else
-    let fallback = Stdlib.Uuid.toString branchId
+    let fallback = Stdlib.toString branchId
 
     match
       Stdlib.Sqlite.queryP
         (localDb ())
         "SELECT name FROM branches WHERE id = @p0 LIMIT 1"
-        [ Stdlib.Uuid.toString branchId ]
+        [ Stdlib.toString branchId ]
     with
     | Ok(row :: _) ->
       match Stdlib.Sqlite.textField row "name" with
@@ -220,7 +220,7 @@ let resolveBranchRef (branchRef: String) : BranchRefResult =
           match
             Branches.list ()
             |> Stdlib.List.filter (fun b ->
-              Stdlib.String.startsWith (Stdlib.Uuid.toString b.id) branchRef)
+              Stdlib.String.startsWith (Stdlib.toString b.id) branchRef)
           with
           | [ only ] -> BranchRefResult.Found only.id
           | [] -> BranchRefResult.NotFound
@@ -249,7 +249,7 @@ let branchIsMerged (branchId: Uuid) : Bool =
     Stdlib.Sqlite.queryP
       (localDb ())
       "SELECT 1 AS n FROM branches WHERE id = @p0 AND merged_at IS NOT NULL"
-      [ Stdlib.Uuid.toString branchId ]
+      [ Stdlib.toString branchId ]
   with
   | Ok(_ :: _) -> true
   | _ -> false
@@ -260,7 +260,7 @@ let branchOpIds (branchId: Uuid) : List<String> =
   Stdlib.Sqlite.columnP
     (localDb ())
     "SELECT op_id FROM op_branches WHERE branch_id = @p0"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
     "op_id"
 
 
@@ -287,7 +287,7 @@ let mergedOpsOf (branchId: Uuid) : List<LanguageTools.ProgramTypes.PackageOp> =
       | BranchEvent(b, Merged ops, _) -> if b == branchId then ops else []
       | _ -> [])
     |> Stdlib.List.flatten
-    |> Stdlib.List.map Stdlib.Uuid.toString
+    |> Stdlib.List.map Stdlib.toString
 
   if Stdlib.List.isEmpty ids then
     []

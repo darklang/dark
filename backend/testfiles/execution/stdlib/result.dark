@@ -186,13 +186,13 @@ Stdlib.Result.mapError (Stdlib.Result.Result.Error "test") (fun x ->
   Stdlib.String.append x "-appended") = Stdlib.Result.Result.Error "test-appended"
 
 Stdlib.Result.mapError (Stdlib.Result.Result.Ok 4L) (fun x ->
-  Stdlib.Int64.divide x 2L) = Stdlib.Result.Result.Ok 4L
+  (x / 2L)) = Stdlib.Result.Result.Ok 4L
 
 
 Stdlib.Result.map (Stdlib.Result.Result.Error "test") (fun x ->
-  Stdlib.Int64.divide x 2L) = Stdlib.Result.Result.Error "test"
+  (x / 2L)) = Stdlib.Result.Result.Error "test"
 
-Stdlib.Result.map (Stdlib.Result.Result.Ok 4L) (fun x -> Stdlib.Int64.divide x 2L) = Stdlib.Result.Result.Ok
+Stdlib.Result.map (Stdlib.Result.Result.Ok 4L) (fun x -> x / 2L) = Stdlib.Result.Result.Ok
   2L
 
 

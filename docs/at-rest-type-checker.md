@@ -151,9 +151,69 @@ empty/cons split. A column's constructors expand only when its patterns name all
 The checker needs a declared or trusted signature to use a runtime value as evidence of its type. Builtin signatures are part of the trust boundary.
 Concrete results use their actual package types. Ordinary generic builtins declare or structurally expose their type variables. Two signature cases need special handling:
 
-- An unconstrained result variable, such as `Hash -> Option<'a>` or
-`optOrRes -> 'a`, means the result type is known only at runtime. The checker detects this from the signature and marks the builtin unsupported instead of quantifying the variable. It does not identify these builtins by name.
-- Operator builtins (`add`, `lessThan`, `equals`, `negate`, `bitwiseNot`, etc.) declare independent `'a`/`'b` parameters because the type language lacks numeric constraints. At runtime they require matching numeric types. Infix syntax lowers to these same builtins through `PT.InfixFnName.toBuiltinName`; unary `-x` lowers to `negate`. Direct calls such as `Builtin.add a b` therefore use the operator rule from that table, rather than the declared signature. Domains match each runtime operation: `power` excludes `Int128` and `UInt128`, although other arithmetic supports them. Operators used as values or partially applied have no suitable signature and remain `Incomplete`.
+- A result type variable that no parameter constrains (`Hash -> Option<'a>`,
+  `optOrRes -> 'a`) means the result is only known at runtime. The checker detects this
+  from the signature and treats the builtin as unsupported rather than quantifying the
+  variable. No builtin is recognized by name for this.
+- The polymorphic operator builtins (`add`, `lessThan`, `equals`, `negate`, ...)
+  declare independent `'a`/`'b` parameters because the type language has no numeric
+  constraint, but raise at runtime on anything but values of the same numeric type.
+  A by-name call (`Builtin.add a b`) is checked with the operator's numeric table
+  rather than the declared signature; used as a value or partially applied there is
+  no signature to give them, and the use is `Incomplete`.
+
+Infix syntax does not lower to those builtins. `a + b` is `Stdlib.Add.add a b`
+(`NumericTraits.ofInfix`, likewise `- * / % **` and the four comparisons), and `-x`, which
+the parser stores as `Builtin.negate x`, runs as `Stdlib.Negate.negate x`. The checker
+treats each as a trait method call. `==` is not one: equality is structural, so the
+operands must unify and nothing further is owed.
+
+## Traits
+
+A trait and an impl are package items, read off the PT (`ImplEntry.ofImpl`) the way the
+runtime reads its dispatch candidates. `validateImpl` checks the method set
+(`ImplMethodSet`), each method fn against the trait's signature at the self type
+(`ImplMethodSignature`), and the impl fn's ceiling against the method's
+(`ImplExceedsCeiling`).
+
+- A `TraitMethod` call is typed from the trait's method, with the trait's first type
+  parameter as self (`traitMethodSignature`). A bounded signature adds one constraint per
+  bound on the instantiated variable; an operator adds one for its trait on the operand type.
+- Constraints discharge at `finish`, after substitution. A concrete head needs exactly one
+  visible impl (`MissingImpl`, `AmbiguousImpl`; a blanket `impl<'a> T for 'a` loses to a
+  specific one). The item's own rigid parameter needs the bound declared on the item
+  (`UnboundTypeParameter`). An inference variable still unbound is a `ConstrainedType`
+  blocker, not a diagnostic.
+- A conditional impl owes its own bounds at the type it matched: `Show List<Option<Int>>`
+  against `impl<'a: Show> Show for List<'a>` owes `Show Option<Int>`, round by round until
+  the type is exhausted (`dischargeConstraints`).
+- `x.m`, where `x` is a record without a field `m`, falls back to the one visible impl
+  carrying a method `m` for `x`'s head type; no such impl keeps `UnknownRecordField`.
+- Visible means in `TypeEnvironment.impls`: what the adapter loaded for the types the batch
+  names, plus the operator traits always (`addVisibleImpls`).
+
+## Where this should live
+
+The checker is F# for throughput: it runs on every save, on every commit, and over the
+whole corpus for `typecheck` and batch validation. That is an argument from the shape
+of the work, not a measurement.
+
+It should eventually be Darklang, and the reason is not tidiness. Today the set of
+checks is fixed, and "our way is the way". The goal is that people can choose which
+at-rest checks apply to their packages and write their own. That needs the checks to be
+ordinary Darklang code, not an F# module with a builtin in front of it. There is a
+`CLEANUP` marker on the module saying so.
+
+## Non-goals
+
+- Replacing name resolution or parsing.
+- Executing constants to discover their types.
+- Rejecting synchronized or historical package operations.
+- Inferring public function signatures; package functions already declare them.
+- Treating runtime values as static evidence without a declared or trusted signature.
+- Persisting source ranges in `ProgramTypes`. Editor diagnostics use the corresponding
+  `WrittenTypes` declaration range; precise nested-expression mapping remains a
+  separate lowering concern.
 
 ## Verification
 

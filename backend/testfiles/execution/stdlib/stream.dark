@@ -101,7 +101,7 @@
 
 // map can change the element type
 (let s = Stdlib.Stream.fromList [ 1L, 2L, 3L ]
- let mapped = Stdlib.Stream.map s (fun n -> Stdlib.Int64.toString n)
+ let mapped = Stdlib.Stream.map s (fun n -> Stdlib.toString n)
  Stdlib.Stream.toList mapped) = [ "1", "2", "3" ]
 
 // take after map — the take limit applies to the mapped output

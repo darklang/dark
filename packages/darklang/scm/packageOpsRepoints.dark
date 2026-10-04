@@ -96,8 +96,8 @@ let mainNamesForHashes (hashes: List<String>) : List<(String * String)> =
       let sql =
         "SELECT item_hash, owner, modules, name FROM locations
          WHERE unlisted_at IS NULL AND item_hash IN ("
-        ++ (Conflicts.inPlaceholders chunk)
-        ++ ")"
+        + (Conflicts.inPlaceholders chunk)
+        + ")"
 
       Stdlib.Sqlite.rowsP
         (localDb ())

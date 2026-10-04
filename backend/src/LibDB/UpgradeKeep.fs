@@ -32,13 +32,6 @@ type Kept =
     source : string
   }
 
-let private kindOf (itemType : string) : PT.ItemKind option =
-  match itemType with
-  | "fn" -> Some PT.ItemKind.Fn
-  | "type" -> Some PT.ItemKind.Type
-  | "value" -> Some PT.ItemKind.Value
-  | _ -> None
-
 /// What the store binds at each of these names now.
 let private currentBindings
   (names : List<string * string * string>)
@@ -73,14 +66,18 @@ let restore
       let moved =
         before
         |> List.choose (fun (owner, modules, name, itemType, hash, source) ->
-          match Map.tryFind (owner, modules, name) now, kindOf itemType with
+          // `ItemKind.fromString`, not a local table: a three-arm copy here silently dropped
+          // every locally-edited trait and impl on upgrade, while the encoder below already
+          // had five arms. It raises on a kind nobody wrote, which is what we want of a
+          // string that only ever comes from `ItemKind.toString`.
+          match Map.tryFind (owner, modules, name) now with
           // Still ours: the build shipped nothing for this name, or shipped the same content.
-          | Some current, _ when current = hash -> None
+          | Some current when current = hash -> None
           // The name is gone entirely rather than rebound. Leave it; re-binding a name the build
           // retired would resurrect it, which is a different decision from keeping an edit.
-          | None, _ -> None
-          | Some _, None -> None
-          | Some _, Some kind ->
+          | None -> None
+          | Some _ ->
+            let kind = PT.ItemKind.fromString itemType
             Some
               { location =
                   { owner = owner
@@ -107,6 +104,8 @@ let restore
               | PT.ItemKind.Fn -> PT.Reference.PackageFn k.hash
               | PT.ItemKind.Type -> PT.Reference.PackageType k.hash
               | PT.ItemKind.Value -> PT.Reference.PackageValue k.hash
+              | PT.ItemKind.Trait -> PT.Reference.PackageTrait k.hash
+              | PT.ItemKind.TraitImpl -> PT.Reference.PackageTraitImpl k.hash
 
             let mods = String.concat "." k.location.modules
             let (PT.Hash h) = k.hash

@@ -22,7 +22,8 @@ let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
     parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
     returnType = PT.TInt
     description = ""
-    permissionCeiling = None }
+    permissionCeiling = None
+    bounds = [] }
 
 /// A `List<Int> -> (Int -> Int) -> List<Int>` fn: the shape that hands its own
 /// callback parameter to something else.
@@ -38,7 +39,8 @@ let private higherOrderFn (hash : string) (body : PT.Expr) : PT.PackageFn.Packag
             description = "" } ]
     returnType = PT.TList PT.TInt
     description = ""
-    permissionCeiling = None }
+    permissionCeiling = None
+    bounds = [] }
 
 /// A closure of in-memory fns, each body analyzed once, as
 /// `PackagePermissions.loadClosure` produces.

@@ -40,7 +40,7 @@ let evalToString (state: State) (expr: String) : String =
   match evalRaw state (Darklang.Cli.Repl.withBindings state.repl.bindings expr) with
   | Ok(Some s) -> Stdlib.String.trim s
   | Ok None -> ""
-  | Error message -> "Error: " ++ message
+  | Error message -> "Error: " + message
 
 /// Bind `name` to `rhs` for the rest of the session. Evaluates it once now: if the value has a literal form
 /// the binding holds the *value* (so the chain that re-establishes it on every later eval is free, and an
@@ -71,7 +71,7 @@ let bindSession (state: State) (name: String) (rhs: String) : (Stdlib.Option.Opt
       match evalRaw state (Darklang.Cli.Repl.withBindings state.repl.bindings $"let {name} = {rhs}\n{name}") with
       | Error m -> m
       | Ok _ -> message
-    (Stdlib.Option.Option.None, "not bound - " ++ plainMessage)
+    (Stdlib.Option.Option.None, "not bound - " + plainMessage)
   | Ok None -> fallback "nothing to capture"
   | Ok(Some out) ->
     match Darklang.Cli.Repl.readCaptured out with
@@ -97,9 +97,9 @@ let applyReplStatement (state: State) (stmt: String) : State =
       match Stdlib.String.split text "\n" with
       | first :: rest ->
         Stdlib.List.append
-          [ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") ++ first ]
-          (rest |> Stdlib.List.map (fun l -> "  " ++ l))
-      | [] -> [ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") ++ text ]
+          [ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + first ]
+          (rest |> Stdlib.List.map (fun l -> "  " + l))
+      | [] -> [ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + text ]
     match Darklang.Cli.Repl.parseLetBinding text with
     | Some pair ->
       let (name, rhs) = pair
@@ -107,7 +107,7 @@ let applyReplStatement (state: State) (stmt: String) : State =
       // A note may carry a second line (see `bindSession`'s fallback); one log entry per line keeps each
       // within the pane rather than clipping the tail of a long one.
       let noteLines =
-        Stdlib.String.split note "\n" |> Stdlib.List.map (fun l -> "  " ++ (Stdlib.Cli.UI.Colors.dimText l))
+        Stdlib.String.split note "\n" |> Stdlib.List.map (fun l -> "  " + (Stdlib.Cli.UI.Colors.dimText l))
       let logged =
         Stdlib.List.append state.repl.log (Stdlib.List.append echoLines noteLines)
       match bound with
@@ -124,7 +124,7 @@ let applyReplStatement (state: State) (stmt: String) : State =
       let resultLines =
         Stdlib.String.split output "\n"
         |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")
-        |> Stdlib.List.map (fun l -> "  " ++ l)
+        |> Stdlib.List.map (fun l -> "  " + l)
       { state with
           repl =
             { state.repl with
@@ -184,8 +184,8 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
           match Stdlib.String.split state.repl.pending "\n" with
           | first :: rest ->
             Stdlib.List.append
-              [ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") ++ first ]
-              (rest |> Stdlib.List.map (fun l -> "  " ++ l))
+              [ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "> ") + first ]
+              (rest |> Stdlib.List.map (fun l -> "  " + l))
           | [] -> []
       let withPending = Stdlib.List.append all pending
       let shown = withPending |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
@@ -210,9 +210,9 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
             // holding a captured literal.
             let marker = if b.captured then "" else Stdlib.Cli.UI.Colors.dimText "  ~"
             (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan b.name)
-            ++ (Stdlib.Cli.UI.Colors.dimText " = ")
-            ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green b.value)
-            ++ marker)
+            + (Stdlib.Cli.UI.Colors.dimText " = ")
+            + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green b.value)
+            + marker)
       let resultLines =
         if (Stdlib.String.trim state.repl.last) == "" then
           []
@@ -221,7 +221,7 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
       let count = Stdlib.List.length state.repl.bindings
       let heading =
         if count == 0 then Stdlib.Cli.UI.Colors.dimText "session bindings:"
-        else Stdlib.Cli.UI.Colors.dimText ("session bindings  ·  " ++ (plural count "name") ++ ":")
+        else Stdlib.Cli.UI.Colors.dimText ("session bindings  ·  " + (plural count "name") + ":")
       Stdlib.List.flatten [ [ heading, "" ], bindingLines, resultLines ]
       |> Stdlib.List.take inner.rows
       |> Stdlib.List.indexedMap (fun i l -> Stdlib.Cli.UI.Layout.at inner i 0 l)

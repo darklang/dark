@@ -11,7 +11,7 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
     // Matter owns its split, so its title carries the path or lens, item
     // count, and active filter here.
     // The breadcrumb, or `packages` at the root: the nav says Code already.
-    let path = Stdlib.String.join (modulePathOf state.location) " › "
+    let path = Stdlib.String.join (Packages.modulePathOf state.location) " › "
     let where = if path == "" then "packages" else path
     let lens =
       if state.matter.lens == Lens.ValuesOnly then "values only"
@@ -58,7 +58,7 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
       titledLines
         region
         (paneTitle (viewLabel state.activeView) [] false)
-        [ Stdlib.Cli.UI.Colors.dimText ((viewLabel state.activeView) ++ " - coming soon") ]
+        [ Stdlib.Cli.UI.Colors.dimText ((viewLabel state.activeView) + " - coming soon") ]
 
 /// The multiline editor, under a title naming what's being written: a spacious authoring surface (not
 /// the bottom prompt bar). The error line (if any) sits just under the title; the buffer renders below
@@ -69,8 +69,8 @@ let renderEditing (es: EditingState) (region: Stdlib.Cli.UI.Layout.Region) : Lis
   let errSpans =
     if es.err != "" then Stdlib.Cli.UI.Layout.at inner 0 0 (Stdlib.Cli.UI.Colors.error es.err) else []
   let bodyTop = if es.err != "" then 1 else 0
-  let visible = Stdlib.Int.max 1 (inner.rows - bodyTop)
-  let scroll = Stdlib.Int.max 0 (es.buf.row - visible + 1)
+  let visible = Stdlib.max 1 (inner.rows - bodyTop)
+  let scroll = Stdlib.max 0 (es.buf.row - visible + 1)
   let bodySpans =
     es.buf.lines
     |> Stdlib.List.indexedMap (fun i l -> (i, l))
@@ -84,7 +84,7 @@ let renderEditing (es: EditingState) (region: Stdlib.Cli.UI.Layout.Region) : Lis
         let before = Stdlib.String.slice l 0 es.buf.col
         let atCursor = if es.buf.col < llen then Stdlib.String.slice l es.buf.col (es.buf.col + 1) else " "
         let after = if es.buf.col < llen then Stdlib.String.slice l (es.buf.col + 1) llen else ""
-        Stdlib.Cli.UI.Layout.at inner screenRow 0 (before ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.reverse atCursor) ++ after)
+        Stdlib.Cli.UI.Layout.at inner screenRow 0 (before + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.reverse atCursor) + after)
       else
         Stdlib.Cli.UI.Layout.at inner screenRow 0 l)
     |> Stdlib.List.flatten
@@ -98,8 +98,8 @@ let renderSearchResults (state: State) (region: Stdlib.Cli.UI.Layout.Region) : L
     state.search.hits
     |> Stdlib.List.indexedMap (fun i h ->
       if i == state.search.selected then
-        selectionRow inner.cols ("  " ++ h.display)
-      else "  " ++ h.display)
+        selectionRow inner.cols ("  " + h.display)
+      else "  " + h.display)
   Stdlib.List.flatten
     [ frameWithTitles region title "" (0 - 1)
       Stdlib.Cli.UI.ListView.render inner lines state.search.selected ]
@@ -157,7 +157,7 @@ let hintsForView (state: State) (width: Int) : String =
   // Where esc goes, named: `esc ← Stdlib`, `esc ← Home`. Nothing on Home with nowhere left to go.
   let backHint =
     let label = backLabel state
-    if label == "" then [] else [ ("esc", "← " ++ label) ]
+    if label == "" then [] else [ ("esc", "← " + label) ]
   let secondaryGlobal = [ ("S", "branches"), ("/", "search"), (":", "cmd"), ("p", "prompt"), ("`", "views") ]
   let ctx =
     if navbarFocused state then
@@ -176,7 +176,12 @@ let hintsForView (state: State) (width: Int) : String =
         // for "try".
         [ [ ("↑↓", "move"), ("⏎", "open") ]
           backHint
-          [ ("e", "edit"), ("n/t/v", "new fn/type/val"), ("r", "rename"), ("x", "traces"), ("f", "filter") ]
+          [ ("e", "edit")
+            ("n/t/v", "new fn/type/val")
+            ("T/I", "new trait/impl")
+            ("r", "rename")
+            ("x", "traces")
+            ("f", "filter") ]
           (if Stdlib.List.member (visibleViews state) (extViewIndex "builtins") then [ ("B", "builtins") ] else [])
           paneHint ]
     else if view == vHome then
@@ -241,7 +246,7 @@ val helpGroups =
     ("Open", "⏎ into a module / open a row   backspace up a module")
     ("Find", "/ find   : command   ? this   q quit")
     ("Reload", "R re-read the store (--live does it for you when something changes elsewhere)")
-    ("Code", "e edit   n new fn   t new type   v new value   r rename   x traces   L lens   C changed   f filter   B builtins")
+    ("Code", "e edit   n new fn   t new type   v new value   T new trait   I new impl   r rename   x traces   L lens   C changed   f filter   B builtins")
     ("REPL", "⏎ type (esc leaves the prompt)   f clear log   x clear session")
     ("Home", "⏎ open / switch to the row's branch   c commit   b new branch   s choose branch   m merge   r rebase   x delete branch")
     ("Changes", "⏎ source   c commit   x discard   u/d push/pull   o/t/a resolve the conflict under the cursor")
@@ -263,12 +268,12 @@ let renderHelpOverlay (screen: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI
     |> Stdlib.List.map (fun pair ->
       let (_label, keys) = pair
       Stdlib.String.displayWidth keys)
-    |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
-  let w = Stdlib.Int.min (Stdlib.Int.max 40 (widest + 14)) (Stdlib.Int.max 40 (screen.cols - 4))
+    |> Stdlib.List.fold 0 (fun acc n -> Stdlib.max acc n)
+  let w = Stdlib.min (Stdlib.max 40 (widest + 14)) (Stdlib.max 40 (screen.cols - 4))
   let rows = (Stdlib.List.length helpGroups) * 2 + 3
-  let h = Stdlib.Int.min (Stdlib.Int.max 8 rows) (screen.rows - 2)
-  let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
-  let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
+  let h = Stdlib.min (Stdlib.max 8 rows) (screen.rows - 2)
+  let top = screen.top + ((Stdlib.max 0 (screen.rows - h)) / 2)
+  let left = screen.left + ((Stdlib.max 0 (screen.cols - w)) / 2)
   let region = Stdlib.Cli.UI.Layout.Region { top = top; left = left; rows = h; cols = w }
   Stdlib.List.flatten
     [ Stdlib.Cli.UI.Layout.clearRegion region

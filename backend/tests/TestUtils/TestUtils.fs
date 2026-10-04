@@ -84,7 +84,8 @@ let testPackageFn
         (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
         parameters
     returnType = returnType
-    permissionCeiling = None }
+    permissionCeiling = None
+    bounds = [] }
 
 
 
@@ -648,7 +649,7 @@ module Expect =
           pats'
         exprEqualityBaseFn checkIDs ("body" :: path) body body' errorFn
 
-      | EPipeInfix(_, op, e), EPipeInfix(_, op', e') ->
+      | EPipeInfix(_, op, e, _), EPipeInfix(_, op', e', _) ->
         check path op op'
         exprEqualityBaseFn checkIDs ("expr" :: path) e e' errorFn
 
@@ -729,7 +730,7 @@ module Expect =
         check path whole whole'
         check path part part'
 
-      | EInfix(_, op, l, r), EInfix(_, op', l', r') ->
+      | EInfix(_, op, l, r, _), EInfix(_, op', l', r', _) ->
         check path op op'
         eq ("lhs" :: path) l l'
         eq ("rhs" :: path) r r'
@@ -778,7 +779,7 @@ module Expect =
           typeArgs'
         eqNEList path args args'
 
-      | EFnName(_, name), EFnName(_, name') ->
+      | EFnName(_, name, _), EFnName(_, name', _) ->
         check path (stripNRLocation name) (stripNRLocation name')
 
       | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->

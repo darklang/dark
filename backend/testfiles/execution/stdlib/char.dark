@@ -201,17 +201,17 @@ Stdlib.Char.isGreaterThan 'a' (family ()) = false
 Stdlib.Char.isGreaterThan (smiley ()) (hand ()) = true
 
 
-Stdlib.Char.toString 'A' = "A"
-Stdlib.Char.toString 'a' = "a"
-Stdlib.Char.toString 'Á' = "Á"
-Stdlib.Char.toString '3' = "3"
-Stdlib.Char.toString (smiley ()) = "😂"
-Stdlib.Char.toString 'Ż' = "Ż"
-Stdlib.Char.toString 'Ó' = "Ó"
-Stdlib.Char.toString 'Ł' = "Ł"
-Stdlib.Char.toString (hand ()) = "✋🏿"
-Stdlib.Char.toString 'Ჾ' = "Ჾ"
-Stdlib.Char.toString 'ჾ' = "ჾ"
+Stdlib.toString 'A' = "A"
+Stdlib.toString 'a' = "a"
+Stdlib.toString 'Á' = "Á"
+Stdlib.toString '3' = "3"
+Stdlib.toString (smiley ()) = "😂"
+Stdlib.toString 'Ż' = "Ż"
+Stdlib.toString 'Ó' = "Ó"
+Stdlib.toString 'Ł' = "Ł"
+Stdlib.toString (hand ()) = "✋🏿"
+Stdlib.toString 'Ჾ' = "Ჾ"
+Stdlib.toString 'ჾ' = "ჾ"
 
 
 // Valid codepoints

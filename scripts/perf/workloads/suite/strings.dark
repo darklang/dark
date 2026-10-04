@@ -9,8 +9,8 @@ let iters () : Int =
   | None -> 0
 
 let work (n: Int) : Int =
-  let base = "field-" ++ (Stdlib.Int.toString n)
-  let parts = Stdlib.List.map (Stdlib.List.range 1 8) (fun i -> base ++ ":" ++ (Stdlib.Int.toString i))
+  let base = "field-" + (Stdlib.toString n)
+  let parts = Stdlib.List.map (Stdlib.List.range 1 8) (fun i -> base + ":" + (Stdlib.toString i))
   let joined = Stdlib.String.join parts ","
   let back = Stdlib.String.split joined ","
   (Stdlib.String.length joined) + (Stdlib.List.length back)
@@ -23,4 +23,4 @@ let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
 let t0 = Darklang.Cli.Telemetry.now ()
 let result = repeat (iters ()) 0
 let t1 = Darklang.Cli.Telemetry.now ()
-Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " result=" ++ (Stdlib.Int.toString result) ++ " stats=" ++ (Darklang.LanguageTools.InterpreterStats.get ()))
+Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " result=" + (Stdlib.toString result) + " stats=" + (Darklang.LanguageTools.InterpreterStats.get ()))

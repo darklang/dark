@@ -55,7 +55,7 @@ let azureConfig
     Stdlib.Result.Result.Ok(
       Config
         { apiKey = Stdlib.Option.Option.Some apiKey
-          baseUrl = endpoint ++ "/openai/deployments/" ++ deploymentName ++ "/chat/completions?api-version=" ++ apiVersion
+          baseUrl = endpoint + "/openai/deployments/" + deploymentName + "/chat/completions?api-version=" + apiVersion
           providerId = "azure"
           providerName = "Azure OpenAI"
           maxContextTokens = 128000 })
@@ -123,7 +123,7 @@ let toolSchemaToJson (tool: Provider.ToolSchema) : Json =
 let imageSourceToOpenAI (source: Provider.ImageSource) : Json =
   let url =
     match source with
-    | Base64(mediaType, data) -> "data:" ++ mediaType ++ ";base64," ++ data
+    | Base64(mediaType, data) -> "data:" + mediaType + ";base64," + data
     | Url u -> u
 
   Json.Object
@@ -322,7 +322,7 @@ let buildHeaders (config: Config) : List<(String * String)> =
     if Stdlib.String.contains config.baseUrl "azure" then
       Stdlib.List.append baseHeaders [ ("api-key", key) ]
     else
-      Stdlib.List.append baseHeaders [ ("Authorization", "Bearer " ++ key) ]
+      Stdlib.List.append baseHeaders [ ("Authorization", "Bearer " + key) ]
   | None -> baseHeaders
 
 

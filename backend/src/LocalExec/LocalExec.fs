@@ -42,26 +42,57 @@ module HandleCommand =
         |> Sql.executeRowAsync (fun read -> read.int64 "count")
       let! opsBefore = countOps ()
 
-      print "Purging ..."
-      do! LibDB.Purge.purge ()
 
       // Main has no CreateBranch op and no `branches` row, so a store with an empty `branches`
       // table is a store on main. Re-folding `package_ops` is the whole rebuild.
 
       print "Filling ..."
       // Load all packages from disk as live ops (commit-free authoring: no init commit).
-      // Note: values are stored with NULL rt_dval at this point
-      let! _ = LibDB.Inserts.insertAndApplyOpsAsWip ops
+      // Note: values are stored with NULL rt_dval at this point.
+      //
+      // Filled twice: resolving what a trait call or operator runs needs the at-rest checker,
+      // the hashes in `package-ref-hashes.txt` and the impl stamps, none of which exist until
+      // the tree is in. Without the second pass nothing the CLI ships records its impl, since
+      // resolution is reached from `addAuthored` and this path is not.
+      let fill (commitBaseline : bool) (ops : List<PackageOp>) : Ply<unit> =
+        uply {
+          do! LibDB.Purge.purge ()
+          let! _ = LibDB.Inserts.insertAndApplyOpsAsWip ops
+          if commitBaseline then
+            // The .dark files are the shipped baseline, not your draft. Commit them, or
+            // every `dark status` would open on the whole package tree as uncommitted
+            // work. Only the last fill needs it.
+            let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
+            ()
+          // Generate hash file BEFORE evaluating values, so that PackageRefs
+          // lookups resolve correctly during value evaluation.
+          do! LibDB.PackageRefsGenerator.generate ()
+          LibExecution.PackageRefs.reloadHashes ()
+          return ()
+        }
 
-      // The .dark files are the shipped baseline, not your draft. Commit them, or
-      // every `dark status` would open on the whole package tree as uncommitted
-      // work.
-      let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
+      do! fill false ops
 
-      // Generate hash file BEFORE evaluating values, so that PackageRefs
-      // lookups resolve correctly during value evaluation.
-      do! LibDB.PackageRefsGenerator.generate ()
-      LibExecution.PackageRefs.reloadHashes ()
+      let! resolved =
+        Builtins.Matter.Libs.PM.AtRestTypeChecker.resolveTraitCalls
+          BranchId.Main
+          PM.pt
+          (Builtins.all ())
+          ops
+      // The pins are written at the hashes in hand, then moved by the rehash, exactly as the
+      // authoring path does it.
+      let resolved = LibDB.HashStabilization.computeRealHashes resolved
+      // Ops, not items: recording the implementation changes the item's content hash, and every
+      // caller's hash moves with it, so the count is larger than the number of calls pinned.
+      let moved =
+        List.zip ops resolved |> List.filter (fun (a, b) -> a <> b) |> List.length
+      print $"Resolved trait calls: {moved} op(s) moved"
+      if resolved <> ops then
+        do! fill true resolved
+      else
+        // Nothing to pin, so the first fill is the final one; it still needs the baseline commit.
+        let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
+        ()
 
       // Evaluate all values now that all definitions are in the DB
       // The one trusted producer: these bodies come from the checked-in

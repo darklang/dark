@@ -100,6 +100,24 @@ and writeApplicableNamedFn (w : BinaryWriter) (namedFn : ApplicableNamedFn) =
   writeTypeSymbolTable w namedFn.typeSymbolTable
   List.write w TypeReference.write namedFn.typeArgs
   List.write w writeDval namedFn.argsSoFar
+  // What the CALL worked out for the callee's bounds. This is code, not a captured value, and
+  // it is the whole point of recording it: a bounded call's implementation has to survive into
+  // the stored instructions or the frame has nothing to read and the call asks the store again.
+  List.write
+    w
+    (fun w (struct (param, traitHash, method_, choice)) ->
+      String.write w param
+      Hash.write w traitHash
+      String.write w method_
+      match choice with
+      | FQFnName.Unknown -> w.Write 0uy
+      | FQFnName.Chosen h ->
+        w.Write 1uy
+        Hash.write w h
+      | FQFnName.FromTypeParam p ->
+        w.Write 2uy
+        String.write w p)
+    namedFn.boundImpls
   // Serialize only whether access was captured, never the access itself.
   // Compiled code references stay uncaptured and inherit the caller's access;
   // persisted captured values decode as deny-all.
@@ -217,11 +235,17 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     w.Write 25uy
     String.write w (string (DarkInt.toBigInt value))
 
-let rec readDval : BinaryReader -> Dval = fun r -> readDvalImpl r
+/// The blob's format version reaches the applicable reader, which is the one place in this
+/// file whose layout has changed: v4 added the bounds a call worked out. Every other shape
+/// here is the same in every version, so `version` is only passed along, never branched on
+/// except there.
+let rec readDval (version : uint32) : BinaryReader -> Dval =
+  fun r -> readDvalImpl version r
 
 and readValueType : BinaryReader -> ValueType = fun r -> readValueTypeImpl r
 
-and readApplicable : BinaryReader -> Applicable = fun r -> readApplicableImpl r
+and readApplicable (version : uint32) : BinaryReader -> Applicable =
+  fun r -> readApplicableImpl version r
 
 and readValueTypeImpl (r : BinaryReader) : ValueType =
   match r.ReadByte() with
@@ -272,21 +296,21 @@ and readKnownType (r : BinaryReader) : KnownType =
   | 25uy -> KTInt
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"
 
-and readApplicableImpl (r : BinaryReader) : Applicable =
+and readApplicableImpl (version : uint32) (r : BinaryReader) : Applicable =
   match r.ReadByte() with
-  | 0uy -> AppLambda(readApplicableLambda r)
-  | 1uy -> AppNamedFn(readApplicableNamedFn r)
+  | 0uy -> AppLambda(readApplicableLambda version r)
+  | 1uy -> AppNamedFn(readApplicableNamedFn version r)
   | b -> raiseFormatError $"Invalid Applicable tag: {b}"
 
-and readApplicableLambda (r : BinaryReader) : ApplicableLambda =
+and readApplicableLambda (version : uint32) (r : BinaryReader) : ApplicableLambda =
   let exprId = r.ReadUInt64()
   let closedRegisters =
     List.read r (fun r ->
       let reg = r.ReadInt32()
-      let dval = readDval r
+      let dval = readDval version r
       (reg, dval))
   let typeSymbolTable = readTypeSymbolTable r
-  let argsSoFar = List.read r readDval
+  let argsSoFar = List.read r (readDval version)
   { exprId = exprId
     closedRegisters = closedRegisters
     typeSymbolTable = typeSymbolTable
@@ -294,15 +318,33 @@ and readApplicableLambda (r : BinaryReader) : ApplicableLambda =
       LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.denyAll
     argsSoFar = argsSoFar }
 
-and readApplicableNamedFn (r : BinaryReader) : ApplicableNamedFn =
+and readApplicableNamedFn (version : uint32) (r : BinaryReader) : ApplicableNamedFn =
   let name = FQFnName.read r
   let typeSymbolTable = readTypeSymbolTable r
   let typeArgs = List.read r TypeReference.read
-  let argsSoFar = List.read r readDval
+  let argsSoFar = List.read r (readDval version)
+  // v4 and later. A v1-to-v3 blob ends with the captured-access bool, so reading a list
+  // count here would consume that bool as a length and misread everything after it.
+  let boundImpls =
+    if version >= 4u then
+      List.read r (fun r ->
+        let param = String.read r
+        let traitHash = Hash.read r
+        let method_ = String.read r
+        let choice =
+          match r.ReadByte() with
+          | 0uy -> FQFnName.Unknown
+          | 1uy -> FQFnName.Chosen(Hash.read r)
+          | 2uy -> FQFnName.FromTypeParam(String.read r)
+          | b -> raiseFormatError $"Invalid ImplChoice tag: {b}"
+        struct (param, traitHash, method_, choice))
+    else
+      []
   let wasCaptured = r.ReadBoolean()
   { name = name
     typeSymbolTable = typeSymbolTable
     typeArgs = typeArgs
+    boundImpls = boundImpls
     // Captured values decode as deny-all; code constants inherit the caller.
     access =
       if wasCaptured then
@@ -317,7 +359,7 @@ and readApplicableNamedFn (r : BinaryReader) : ApplicableNamedFn =
 and readTypeSymbolTable (r : BinaryReader) : TypeSymbolTable =
   Map.read String.read readValueType r |> Map.toList |> TST.ofList
 
-and readDvalImpl (r : BinaryReader) : Dval =
+and readDvalImpl (version : uint32) (r : BinaryReader) : Dval =
   match r.ReadByte() with
   | 0uy -> DUnit
   | 1uy -> DBool(r.ReadBoolean())
@@ -338,37 +380,37 @@ and readDvalImpl (r : BinaryReader) : Dval =
   | 16uy -> DDateTime(DarkDateTime.read r)
   | 17uy ->
     let valueType = readValueType r
-    let items = List.read r readDval
+    let items = List.read r (readDval version)
     DList(valueType, items)
   | 18uy ->
-    let first = readDval r
-    let second = readDval r
-    let rest = List.read r readDval
+    let first = readDval version r
+    let second = readDval version r
+    let rest = List.read r (readDval version)
     DTuple(first, second, rest)
   | 19uy ->
     let keyType = readValueType r
     let valueType = readValueType r
     let readKey (r : BinaryReader) : DictKey =
-      let k = readDval r
+      let k = readDval version r
       if not (LibExecution.RuntimeTypes.Dval.isUsableDictKey k) then
         raiseFormatError "Dict key that cannot be a key"
       DictKey k
-    let entries = Map.read readKey readDval r
+    let entries = Map.read readKey (readDval version) r
     DDict(keyType, valueType, entries)
   | 20uy ->
     let sourceTypeName = FQTypeName.read r
     let runtimeTypeName = FQTypeName.read r
     let typeArgs = List.read r readValueType
-    let fields = Map.read String.read readDval r
+    let fields = Map.read String.read (readDval version) r
     DRecord(sourceTypeName, runtimeTypeName, typeArgs, fields)
   | 21uy ->
     let sourceTypeName = FQTypeName.read r
     let runtimeTypeName = FQTypeName.read r
     let typeArgs = List.read r readValueType
     let caseName = String.read r
-    let fields = List.read r readDval
+    let fields = List.read r (readDval version)
     DEnum(sourceTypeName, runtimeTypeName, typeArgs, caseName, fields)
-  | 22uy -> DApplicable(readApplicable r)
+  | 22uy -> DApplicable(readApplicable version r)
   | 23uy -> DDB(String.read r)
   | 24uy ->
     let hash = String.read r
@@ -389,4 +431,4 @@ module Applicable =
 
 // Main exports
 let write = writeDval
-let read = readDval
+let read (version : uint32) (r : BinaryReader) : Dval = readDval version r

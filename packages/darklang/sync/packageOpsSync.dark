@@ -92,7 +92,7 @@ let unknownRecords
     let known =
       Stdlib.Sqlite.columnP
         (localDb ())
-        ("SELECT id FROM package_ops WHERE id IN (" ++ (Conflicts.inPlaceholders ids) ++ ")")
+        ("SELECT id FROM package_ops WHERE id IN (" + (Conflicts.inPlaceholders ids) + ")")
         ids
         "id"
 

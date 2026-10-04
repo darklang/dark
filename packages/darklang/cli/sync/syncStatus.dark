@@ -33,7 +33,7 @@ let executeExport (state: AppState) (path: String) : AppState =
   let ops = SCM.Wire.exportOps ()
 
   match Stdlib.Cli.File.writeText path (SCM.Wire.wireEncode ops) with
-  | Ok _ -> Cli.printOk $"Exported {Stdlib.Int.toString (Stdlib.List.length ops)} ops to {path}"
+  | Ok _ -> Cli.printOk $"Exported {Stdlib.toString (Stdlib.List.length ops)} ops to {path}"
   | Error _ -> Cli.printErr $"Couldn't write {path}"
 
   state

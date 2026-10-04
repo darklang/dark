@@ -32,7 +32,7 @@ let getModifiedTime (path: String) : Result.Result<Int, Posix.Error> =
 let copy (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
   (Posix.stat src)
   |> Stdlib.Result.andThen (fun srcStat ->
-    let srcMode = Stdlib.Int.bitwiseAnd srcStat.mode 511
+    let srcMode = srcStat.mode & 511
 
     match Posix.openFile src (Posix.OpenFlags.rdonly ()) 0 with
     | Ok srcFd ->
@@ -42,11 +42,9 @@ let copy (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
       match readResult with
       | Ok bytes ->
         let flags =
-          Stdlib.Int.bitwiseOr
-            (Stdlib.Int.bitwiseOr
-              (Posix.OpenFlags.wronly ())
-              (Posix.OpenFlags.creat ()))
-            (Posix.OpenFlags.trunc ())
+          (Posix.OpenFlags.wronly ())
+          | (Posix.OpenFlags.creat ())
+          | (Posix.OpenFlags.trunc ())
 
         match Posix.openFile dst flags srcMode with
         | Ok dstFd ->
@@ -153,7 +151,7 @@ let readTailChunks
       (Stdlib.Blob.concat chunks, cursor <= 0))
   else
     let chunkSize = 1024
-    let start = Stdlib.Int.max 0 (cursor - chunkSize)
+    let start = Stdlib.max 0 (cursor - chunkSize)
     let bytesToRead = cursor - start
 
     (Posix.fdSeekFromStart fd start)
@@ -221,11 +219,9 @@ let readLastLines
 /// Write text to a file, creating it if it doesn't exist or overwriting if it does.
 let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
   let flags =
-    Stdlib.Int.bitwiseOr
-      (Stdlib.Int.bitwiseOr
-        (Posix.OpenFlags.wronly ())
-        (Posix.OpenFlags.creat ()))
-      (Posix.OpenFlags.trunc ())
+    (Posix.OpenFlags.wronly ())
+    | (Posix.OpenFlags.creat ())
+    | (Posix.OpenFlags.trunc ())
 
   match Posix.openFile path flags Posix.Modes.defaultFile with
   | Ok fd ->
@@ -243,11 +239,9 @@ let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error
 /// Append text to a file, creating it if it doesn't exist.
 let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
   let flags =
-    Stdlib.Int.bitwiseOr
-      (Stdlib.Int.bitwiseOr
-        (Posix.OpenFlags.wronly ())
-        (Posix.OpenFlags.creat ()))
-      (Posix.OpenFlags.append ())
+    (Posix.OpenFlags.wronly ())
+    | (Posix.OpenFlags.creat ())
+    | (Posix.OpenFlags.append ())
 
   match Posix.openFile path flags Posix.Modes.defaultFile with
   | Ok fd ->
@@ -268,9 +262,7 @@ let touch (path: String) : Result.Result<Unit, Posix.Error> =
     Posix.utimesNow path
   else
     let flags =
-      Stdlib.Int.bitwiseOr
-        (Posix.OpenFlags.wronly ())
-        (Posix.OpenFlags.creat ())
+      (Posix.OpenFlags.wronly ()) | (Posix.OpenFlags.creat ())
 
     match Posix.openFile path flags Posix.Modes.defaultFile with
     | Ok fd ->
@@ -368,9 +360,7 @@ let writeAtomic (path: String) (content: String) : Result.Result<Unit, Posix.Err
 /// Run a function while holding an exclusive lock on a file.
 let withLock (path: String) (fn: Unit -> 'a) : Result.Result<'a, Posix.Error> =
   let flags =
-    Stdlib.Int.bitwiseOr
-      (Posix.OpenFlags.wronly ())
-      (Posix.OpenFlags.creat ())
+    (Posix.OpenFlags.wronly ()) | (Posix.OpenFlags.creat ())
 
   match Posix.openFile path flags Posix.Modes.defaultFile with
   | Ok fd ->

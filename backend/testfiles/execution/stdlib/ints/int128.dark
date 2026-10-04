@@ -1,41 +1,24 @@
-Stdlib.Int128.absoluteValue -5Q = 5Q
-Stdlib.Int128.absoluteValue 5Q = 5Q
+Stdlib.abs -5Q = 5Q
+Stdlib.abs 5Q = 5Q
 
-Stdlib.Int128.absoluteValue -170141183460469231731687303715884105728Q = -170141183460469231731687303715884105728Q
-Stdlib.Int128.max 5Q 6Q = 6Q
-Stdlib.Int128.max 10Q 1Q = 10Q
-Stdlib.Int128.max -5Q 6Q = 6Q
+Stdlib.abs -170141183460469231731687303715884105728Q = -170141183460469231731687303715884105728Q
 
-Stdlib.Int128.max 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
   170141183460469231731687303715884105727Q
 
-Stdlib.Int128.min 5Q 6Q = 5Q
-Stdlib.Int128.min 50Q -10Q = -10Q
-Stdlib.Int128.min -5Q 6Q = -5Q
-
-Stdlib.Int128.min 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
+Stdlib.min 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
   -170141183460469231731687303715884105728Q
 
+Stdlib.clamp -100Q 0Q -1Q = -1Q
 
-Stdlib.Int128.clamp -5Q -2Q 5Q = -2Q
-Stdlib.Int128.clamp -3Q -2Q 1Q = -2Q
-Stdlib.Int128.clamp -5Q 1Q 1Q = 1Q
-Stdlib.Int128.clamp 1Q 2Q 1Q = 1Q
-Stdlib.Int128.clamp 3Q 0Q 2Q = 2Q
-Stdlib.Int128.clamp -100Q 0Q 0Q = 0Q
-Stdlib.Int128.clamp 100Q 0Q 0Q = 0Q
-Stdlib.Int128.clamp -100Q 0Q -1Q = -1Q
-Stdlib.Int128.clamp 100Q 0Q -1Q = 0Q
-Stdlib.Int128.clamp -100Q -1Q 0Q = -1Q
-Stdlib.Int128.clamp -100Q 1Q 0Q = 0Q
-Stdlib.Int128.clamp 100Q 1Q 0Q = 1Q
+(--5Q) = 5Q
+(-5Q) = -5Q
+(-0Q) = 0Q
+(--0Q) = 0Q
 
-Stdlib.Int128.negate -5Q = 5Q
-Stdlib.Int128.negate 5Q = -5Q
-Stdlib.Int128.negate 0Q = 0Q
-Stdlib.Int128.negate -0Q = 0Q
-
-Stdlib.Int128.negate -170141183460469231731687303715884105728Q = -170141183460469231731687303715884105728Q
+(--170141183460469231731687303715884105728Q) = -170141183460469231731687303715884105728Q
 Stdlib.Int128.remainder 15Q 6Q = Stdlib.Result.Result.Ok 3Q
 Stdlib.Int128.remainder 20Q 8Q = Stdlib.Result.Result.Ok 4Q
 Stdlib.Int128.remainder -20Q 8Q = Stdlib.Result.Result.Ok -4Q
@@ -43,69 +26,65 @@ Stdlib.Int128.remainder -20Q -8Q = Stdlib.Result.Result.Ok -4Q
 Stdlib.Int128.remainder -15Q 6Q = Stdlib.Result.Result.Ok -3Q
 Stdlib.Int128.remainder -170141183460469231731687303715884105728Q -1Q = Stdlib.Result.Result.Ok 0Q
 Stdlib.Int128.remainder 5Q 0Q = Stdlib.Result.Result.Error "Cannot divide by 0"
-Stdlib.Int128.add 10Q 9Q = 19Q
-Stdlib.Int128.add 88Q 9Q = 97Q
-Stdlib.Int128.add -1Q 2Q = 1Q
-Stdlib.Int128.add 1Q 0Q = 1Q
-Stdlib.Int128.add -55Q 55Q = 0Q
-Stdlib.Int128.add 55Q 55Q = 110Q
-Stdlib.Int128.add 9223372036854775807Q 2Q = 9223372036854775809Q
+(10Q + 9Q) = 19Q
+(88Q + 9Q) = 97Q
+(-1Q + 2Q) = 1Q
+(1Q + 0Q) = 1Q
+(-55Q + 55Q) = 0Q
+(55Q + 55Q) = 110Q
+(9223372036854775807Q + 2Q) = 9223372036854775809Q
 
-Stdlib.Int128.add 170141183460469231731687303715884105726Q 4Q = -170141183460469231731687303715884105726Q
-Stdlib.Int128.subtract 10Q 9Q = 1Q
-Stdlib.Int128.subtract 88Q 9Q = 79Q
-Stdlib.Int128.subtract 0Q 1Q = -1Q
-Stdlib.Int128.subtract 1Q 0Q = 1Q
-Stdlib.Int128.subtract -55Q -55Q = 0Q
+(170141183460469231731687303715884105726Q + 4Q) = -170141183460469231731687303715884105726Q
+(10Q - 9Q) = 1Q
+(88Q - 9Q) = 79Q
+(0Q - 1Q) = -1Q
+(1Q - 0Q) = 1Q
+(-55Q - -55Q) = 0Q
 
-Stdlib.Int128.subtract -55Q 170141183460469231731687303715884105726Q = 170141183460469231731687303715884105675Q
-Stdlib.Int128.multiply 8Q 8Q = 64Q
-Stdlib.Int128.multiply 1Q 0Q = 0Q
+(-55Q - 170141183460469231731687303715884105726Q) = 170141183460469231731687303715884105675Q
+(8Q * 8Q) = 64Q
+(1Q * 0Q) = 0Q
 
-Stdlib.Int128.divide 10Q 5Q = 2Q
-Stdlib.Int128.divide 17Q 3Q = 5Q
-Stdlib.Int128.divide -8Q 5Q = -1Q
-Stdlib.Int128.divide 0Q 1Q = 0Q
+(10Q / 5Q) = 2Q
+(17Q / 3Q) = 5Q
+(-8Q / 5Q) = -1Q
+(0Q / 1Q) = 0Q
 
-Stdlib.Int128.divide 1Q 0Q = error="Cannot divide by 0"
-Stdlib.Int128.divide -170141183460469231731687303715884105728Q -1Q = -170141183460469231731687303715884105728Q
-Stdlib.Int128.greaterThan 20Q 1Q = true
+(1Q / 0Q) = error="Cannot divide by 0"
+(-170141183460469231731687303715884105728Q / -1Q) = -170141183460469231731687303715884105728Q
+(20Q > 1Q) = true
 
-Stdlib.Int128.greaterThan 20Q 170141183460469231731687303715884105727Q = false
+(20Q > 170141183460469231731687303715884105727Q) = false
 
-Stdlib.Int128.greaterThanOrEqualTo 0Q 1Q = false
-Stdlib.Int128.greaterThanOrEqualTo 1Q 0Q = true
-Stdlib.Int128.greaterThanOrEqualTo 6Q 1Q = true
-Stdlib.Int128.greaterThanOrEqualTo 6Q 8Q = false
-Stdlib.Int128.greaterThanOrEqualTo -5Q -20Q = true
-Stdlib.Int128.greaterThanOrEqualTo -20Q -1Q = false
-Stdlib.Int128.greaterThanOrEqualTo -20Q -20Q = true
+(0Q >= 1Q) = false
+(1Q >= 0Q) = true
+(6Q >= 1Q) = true
+(6Q >= 8Q) = false
+(-5Q >= -20Q) = true
+(-20Q >= -1Q) = false
+(-20Q >= -20Q) = true
 
-Stdlib.Int128.greaterThanOrEqualTo -170141183460469231731687303715884105728Q -20Q = false
+(-170141183460469231731687303715884105728Q >= -20Q) = false
 
-Stdlib.Int128.lessThanOrEqualTo 6Q 8Q = true
-Stdlib.Int128.lessThanOrEqualTo 10Q 1Q = false
-Stdlib.Int128.lessThanOrEqualTo 0Q 1Q = true
-Stdlib.Int128.lessThanOrEqualTo 1Q 0Q = false
+(6Q <= 8Q) = true
+(10Q <= 1Q) = false
+(0Q <= 1Q) = true
+(1Q <= 0Q) = false
 
-Stdlib.Int128.lessThan
-  -170141183460469231731687303715884105728Q
-  170141183460469231731687303715884105727Q = true
+(-170141183460469231731687303715884105728Q < 170141183460469231731687303715884105727Q) = true
 
-Stdlib.Int128.lessThan 6Q 8Q = true
-Stdlib.Int128.lessThan 10Q 1Q = false
-Stdlib.Int128.lessThan 0Q 1Q = true
-Stdlib.Int128.lessThan 1Q 0Q = false
+(6Q < 8Q) = true
+(10Q < 1Q) = false
+(0Q < 1Q) = true
+(1Q < 0Q) = false
 
-Stdlib.Int128.lessThan
-  -170141183460469231731687303715884105728Q
-  170141183460469231731687303715884105727Q = true
+(-170141183460469231731687303715884105728Q < 170141183460469231731687303715884105727Q) = true
 
-Stdlib.Int128.toString 0Q = "0"
-Stdlib.Int128.toString 1Q = "1"
-Stdlib.Int128.toString -1Q = "-1"
-Stdlib.Int128.toString -170141183460469231731687303715884105728Q = "-170141183460469231731687303715884105728"
-Stdlib.Int128.toString 170141183460469231731687303715884105727Q = "170141183460469231731687303715884105727"
+Stdlib.toString 0Q = "0"
+Stdlib.toString 1Q = "1"
+Stdlib.toString -1Q = "-1"
+Stdlib.toString -170141183460469231731687303715884105728Q = "-170141183460469231731687303715884105728"
+Stdlib.toString 170141183460469231731687303715884105727Q = "170141183460469231731687303715884105727"
 
 Stdlib.Int128.toFloat 2Q = 2.0
 Stdlib.Int128.toFloat 170141183460469231731687303715884105727Q = 170141183460469231731687303715884105727.0
@@ -116,15 +95,15 @@ Stdlib.Int128.sqrt 4Q = 2.0
 Stdlib.Int128.sqrt 100Q = 10.0
 Stdlib.Int128.sqrt 86Q = 9.273618495495704
 
-Stdlib.Int128.mod 15Q 5Q = 0Q
-Stdlib.Int128.mod 15Q 6Q = 3Q
-Stdlib.Int128.mod 0Q 15Q = 0Q
-Stdlib.Int128.mod -1Q 2Q = 1Q
-Stdlib.Int128.mod -128Q 53Q = 31Q
-Stdlib.Int128.mod 127Q 3Q = 1Q
+(15Q % 5Q) = 0Q
+(15Q % 6Q) = 3Q
+(0Q % 15Q) = 0Q
+(-1Q % 2Q) = 1Q
+(-128Q % 53Q) = 31Q
+(127Q % 3Q) = 1Q
 
-Stdlib.Int128.mod 5Q 0Q = error="Cannot evaluate modulus against 0"
-Stdlib.Int128.mod 5Q -5Q = error="Cannot evaluate modulus against a negative number"
+(5Q % 0Q) = error="Cannot evaluate modulus against 0"
+(5Q % -5Q) = error="Cannot evaluate modulus against a negative number"
 // parse OK
 Stdlib.Int128.parse "0" = Stdlib.Result.Result.Ok 0Q
 Stdlib.Int128.parse "1" = Stdlib.Result.Result.Ok 1Q
@@ -193,30 +172,30 @@ Stdlib.Int128.fromUInt64 0UL = 0Q
 Stdlib.Int128.fromUInt64 1UL = 1Q
 Stdlib.Int128.fromUInt64 18446744073709551615UL = 18446744073709551615Q
 
-Stdlib.Int128.bitwiseAnd 12Q 10Q = 8Q
-Stdlib.Int128.bitwiseAnd 0Q 0Q = 0Q
-Stdlib.Int128.bitwiseAnd (-1Q) 0Q = 0Q
-Stdlib.Int128.bitwiseAnd (-1Q) (-1Q) = -1Q
+(12Q & 10Q) = 8Q
+(0Q & 0Q) = 0Q
+((-1Q) & 0Q) = 0Q
+((-1Q) & (-1Q)) = -1Q
 
-Stdlib.Int128.bitwiseOr 12Q 10Q = 14Q
-Stdlib.Int128.bitwiseOr 0Q 0Q = 0Q
-Stdlib.Int128.bitwiseOr (-1Q) 0Q = -1Q
+(12Q | 10Q) = 14Q
+(0Q | 0Q) = 0Q
+((-1Q) | 0Q) = -1Q
 
-Stdlib.Int128.bitwiseXor 12Q 10Q = 6Q
-Stdlib.Int128.bitwiseXor 0Q 0Q = 0Q
-Stdlib.Int128.bitwiseXor (-1Q) (-1Q) = 0Q
+(12Q ^ 10Q) = 6Q
+(0Q ^ 0Q) = 0Q
+((-1Q) ^ (-1Q)) = 0Q
 
-Stdlib.Int128.bitwiseNot 0Q = -1Q
-Stdlib.Int128.bitwiseNot (-1Q) = 0Q
-Stdlib.Int128.bitwiseNot 1Q = -2Q
+(~0Q) = -1Q
+(~(-1Q)) = 0Q
+(~1Q) = -2Q
 
-Stdlib.Int128.shiftLeft 1Q 2Q = 4Q
-Stdlib.Int128.shiftLeft 0Q 5Q = 0Q
-Stdlib.Int128.shiftLeft 1Q 0Q = 1Q
-Stdlib.Int128.shiftLeft 5Q 3Q = 40Q
+(1Q << 2Q) = 4Q
+(0Q << 5Q) = 0Q
+(1Q << 0Q) = 1Q
+(5Q << 3Q) = 40Q
 
-Stdlib.Int128.shiftRight 8Q 2Q = 2Q
-Stdlib.Int128.shiftRight 0Q 5Q = 0Q
-Stdlib.Int128.shiftRight 1Q 0Q = 1Q
-Stdlib.Int128.shiftRight (-1Q) 1Q = -1Q
-Stdlib.Int128.shiftRight 40Q 3Q = 5Q
+(8Q >> 2Q) = 2Q
+(0Q >> 5Q) = 0Q
+(1Q >> 0Q) = 1Q
+((-1Q) >> 1Q) = -1Q
+(40Q >> 3Q) = 5Q

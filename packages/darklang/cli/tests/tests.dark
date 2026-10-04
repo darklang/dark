@@ -77,24 +77,24 @@ let expectExact (args: List<String>) (expected: String): TestResult =
 ///
 /// Everything happens between a throwaway parent and its child, so main gains nothing.
 let testConflictWalkthrough (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let parent = "cli-walk-parent-" ++ suffix
-  let child = "cli-walk-child-" ++ suffix
-  let fnName = "Tests.CliWalk.f" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let parent = "cli-walk-parent-" + suffix
+  let child = "cli-walk-child-" + suffix
+  let fnName = "Tests.CliWalk.f" + suffix
 
   let _ = runWithCommand [ "branch", "create", parent ]
   // A shared base for the name: both sides have to move it from something.
-  let _ = runWithCommand [ "--branch", parent, "fn", "/" ++ fnName, "() : Int64 = 1L" ]
+  let _ = runWithCommand [ "--branch", parent, "fn", "/" + fnName, "() : Int64 = 1L" ]
   let _ = runWithCommand [ "--branch", parent, "branch", "create", child ]
-  let _ = runWithCommand [ "--branch", child, "fn", "/" ++ fnName, "() : Int64 = 222L" ]
-  let _ = runWithCommand [ "--branch", parent, "fn", "/" ++ fnName, "() : Int64 = 111L" ]
+  let _ = runWithCommand [ "--branch", child, "fn", "/" + fnName, "() : Int64 = 222L" ]
+  let _ = runWithCommand [ "--branch", parent, "fn", "/" + fnName, "() : Int64 = 111L" ]
 
   let merged = runWithCommand [ "--branch", child, "merge", child ]
   let beforeJson = runWithCommand [ "--branch", parent, "conflicts", "--json" ]
   // `b` takes the other side, which is the answer that has to WRITE something.
   let walked = runWithStdinAndCommand "b\n" [ "--branch", parent, "conflicts", "walk" ]
   let afterJson = runWithCommand [ "--branch", parent, "conflicts", "--json" ]
-  let onMain = runWithCommand [ "--branch", "main", "eval", fnName ++ " ()" ]
+  let onMain = runWithCommand [ "--branch", "main", "eval", fnName + " ()" ]
 
   // Archive before asserting, not after: every arm below returns, so a trailing cleanup only runs
   // on the passing path, and these branches are otherwise permanent.
@@ -165,7 +165,7 @@ let testEvalBoolAnd (): TestResult =
 
 
 let testEvalInt64Add (): TestResult =
-  expectExact ["eval", "Stdlib.Int64.add 5L 3L"] "8"
+  expectExact ["eval", "(5L + 3L)"] "8"
 
 
 let testEvalStringLength (): TestResult =
@@ -183,8 +183,8 @@ let testEvalListLength (): TestResult =
 /// not, because a commit is what other machines pull. So after an invalid module the item EXISTS, the
 /// message says it is WIP, and the definitions that were already there are untouched.
 let testModuleCommand (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let branchName = "cli-module-test-" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-module-test-" + suffix
   let moduleName = "Tests.CliModule"
   let initialSource =
     [ "type Counter = { value: Int }"
@@ -226,39 +226,39 @@ let testModuleCommand (): TestResult =
       [ "--branch"
         branchName
         "module"
-        "/" ++ moduleName
+        "/" + moduleName
         initialPath ]
   let initialEval =
     runWithCommand
-      [ "--branch", branchName, "eval", moduleName ++ ".quadruple 3" ]
+      [ "--branch", branchName, "eval", moduleName + ".quadruple 3" ]
   let updateOutput =
     runWithCommand
       [ "--branch"
         branchName
         "module"
-        "/" ++ moduleName
+        "/" + moduleName
         updatedPath ]
   let updatedEval =
     runWithCommand
-      [ "--branch", branchName, "eval", moduleName ++ ".quadruple 3" ]
+      [ "--branch", branchName, "eval", moduleName + ".quadruple 3" ]
   let invalidOutput =
     runWithCommand
       [ "--branch"
         branchName
         "module"
-        "/" ++ moduleName
+        "/" + moduleName
         invalidPath ]
   let searchOutput =
     runWithCommand
       [ "--branch"
         branchName
         "search"
-        moduleName ++ ".shouldNotExist"
+        moduleName + ".shouldNotExist"
         "--exact"
         "--fn" ]
   let afterInvalidEval =
     runWithCommand
-      [ "--branch", branchName, "eval", moduleName ++ ".quadruple 3" ]
+      [ "--branch", branchName, "eval", moduleName + ".quadruple 3" ]
   let _ = runWithCommand ["branch", "archive", branchName, "-y"]
   let _ = Stdlib.Cli.File.delete initialPath
   let _ = Stdlib.Cli.File.delete updatedPath
@@ -290,8 +290,8 @@ let testModuleCommand (): TestResult =
 
 
 let testModuleRejectsDuplicateNames (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let branchName = "cli-module-duplicate-test-" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-module-duplicate-test-" + suffix
   let moduleName = "Tests.CliModuleDuplicate"
   let source =
     [ "let duplicate (n: Int) : Int = n"
@@ -303,13 +303,13 @@ let testModuleRejectsDuplicateNames (): TestResult =
   let _ = runWithCommand ["branch", "create", branchName]
   let moduleOutput =
     runWithCommand
-      [ "--branch", branchName, "module", "/" ++ moduleName, sourcePath ]
+      [ "--branch", branchName, "module", "/" + moduleName, sourcePath ]
   let searchOutput =
     runWithCommand
       [ "--branch"
         branchName
         "search"
-        moduleName ++ ".duplicate"
+        moduleName + ".duplicate"
         "--exact"
         "--fn" ]
   let _ = runWithCommand ["branch", "archive", branchName, "-y"]
@@ -324,7 +324,7 @@ let testModuleRejectsDuplicateNames (): TestResult =
   else
     TestResult.Fail
       ($"Expected duplicate declarations to be rejected without mutation; "
-       ++ $"module={moduleOutput}; search={searchOutput}")
+       + $"module={moduleOutput}; search={searchOutput}")
 
 
 /// Merging a branch, end to end, through the CLI.
@@ -332,22 +332,22 @@ let testModuleRejectsDuplicateNames (): TestResult =
 /// So this drives the real binary. It merges a child into a THROWAWAY PARENT rather than into main, so a
 /// run leaves no fn behind on main.
 let testMergeRoundTrip (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let parent = "cli-merge-parent-" ++ suffix
-  let child = "cli-merge-child-" ++ suffix
-  let fnName = "Tests.CliMerge.landed" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let parent = "cli-merge-parent-" + suffix
+  let child = "cli-merge-child-" + suffix
+  let fnName = "Tests.CliMerge.landed" + suffix
 
   let _ = runWithCommand [ "branch", "create", parent ]
   let _ = runWithCommand [ "--branch", parent, "branch", "create", child ]
   let _ =
     runWithCommand
-      [ "--branch", child, "fn", "/" ++ fnName, "() : Int64 = 7L" ]
+      [ "--branch", child, "fn", "/" + fnName, "() : Int64 = 7L" ]
 
   // --dry-run records nothing, so it has to answer the same question the merge does without doing it.
   let dryRun = runWithCommand [ "--branch", child, "merge", child, "--dry-run" ]
   let merged = runWithCommand [ "--branch", child, "merge", child ]
-  let onParent = runWithCommand [ "--branch", parent, "eval", fnName ++ " ()" ]
-  let onMain = runWithCommand [ "--branch", "main", "eval", fnName ++ " ()" ]
+  let onParent = runWithCommand [ "--branch", parent, "eval", fnName + " ()" ]
+  let onMain = runWithCommand [ "--branch", "main", "eval", fnName + " ()" ]
 
   // Archived before the assertions, because each arm returns and a trailing cleanup would only run
   // on the passing path.
@@ -372,13 +372,13 @@ let testMergeRoundTrip (): TestResult =
 
 
 let testFnAcceptsCompleteDeclaration (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let branchName = "cli-authoring-test-" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-authoring-test-" + suffix
   let moduleName = "Tests.CliAuthoring"
   let fnSource =
     [ "/// Greets someone by name."
       "let main (name: String) : String ="
-      "  \"Hello, \" ++ name"
+      "  \"Hello, \" + name"
     ] |> Stdlib.String.join "\n"
   let mismatchedSource =
     "let other (name: String) : String = name"
@@ -392,37 +392,37 @@ let testFnAcceptsCompleteDeclaration (): TestResult =
       [ "--branch"
         branchName
         "fn"
-        "/" ++ moduleName ++ ".main"
+        "/" + moduleName + ".main"
         fnSource ]
   let evalOutput =
     runWithCommand
       [ "--branch"
         branchName
         "eval"
-        moduleName ++ ".main \"Dark\"" ]
+        moduleName + ".main \"Dark\"" ]
   let fragmentOutput =
     runWithCommand
       [ "--branch"
         branchName
         "fn"
-        "/" ++ moduleName ++ ".double"
+        "/" + moduleName + ".double"
         "(n: Int) : Int = n * 2" ]
   let fragmentEval =
     runWithCommand
-      [ "--branch", branchName, "eval", moduleName ++ ".double 4" ]
+      [ "--branch", branchName, "eval", moduleName + ".double 4" ]
   let mismatchOutput =
     runWithCommand
       [ "--branch"
         branchName
         "fn"
-        "/" ++ moduleName ++ ".main"
+        "/" + moduleName + ".main"
         mismatchedSource ]
   let multipleOutput =
     runWithCommand
       [ "--branch"
         branchName
         "fn"
-        "/" ++ moduleName ++ ".extra"
+        "/" + moduleName + ".extra"
         multipleSource ]
   let _ = runWithCommand [ "branch", "archive", branchName, "-y" ]
 
@@ -439,9 +439,9 @@ let testFnAcceptsCompleteDeclaration (): TestResult =
   else
     TestResult.Fail
       ($"Expected complete and fragment fn input with target-name validation; "
-       ++ $"fn={fnOutput}; eval={evalOutput}; fragment={fragmentOutput}; "
-       ++ $"fragment eval={fragmentEval}; mismatch={mismatchOutput}; "
-       ++ $"multiple={multipleOutput}")
+       + $"fn={fnOutput}; eval={evalOutput}; fragment={fragmentOutput}; "
+       + $"fragment eval={fragmentEval}; mismatch={mismatchOutput}; "
+       + $"multiple={multipleOutput}")
 
 
 let testListFunctions (): TestResult =
@@ -470,10 +470,10 @@ let testViewFunction (): TestResult =
 /// permissive by design ("tests run permissive" in `Execution.createState`), so an in-harness
 /// RT-level test guards nothing.
 let testHarmfulGate (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let fnName = $"Tests.HarmGate.g{suffix}"
 
-  let _ = runWithCommand [ "fn", fnName, "(x: Int64) : Int64 = Stdlib.Int64.add x 31L" ]
+  let _ = runWithCommand [ "fn", fnName, "(x: Int64) : Int64 = (x + 31L)" ]
 
   let _ =
     runWithCommand
@@ -545,8 +545,8 @@ let testBatchSearchKeepsQueriesIndependent (): TestResult =
 
 
 let testUnresolvedNameGuidance (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let branchName = "cli-name-guidance-test-" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-name-guidance-test-" + suffix
   let moduleName = "Tests.CliNameGuidance"
   let _ = runWithCommand ["branch", "create", branchName]
   let stdlibOutput =
@@ -554,17 +554,17 @@ let testUnresolvedNameGuidance (): TestResult =
       [ "--branch"
         branchName
         "fn"
-        "/" ++ moduleName ++ ".negate"
+        "/" + moduleName + ".negate"
         "(value: Bool) : Bool = Bool.not value" ]
   let internalSource =
     ("(values: List<Int>) : List<Int> = "
-     ++ "PACKAGE.Darklang.Stdlib.List.map values (fun value -> value)")
+     + "PACKAGE.Darklang.Stdlib.List.map values (fun value -> value)")
   let packageOutput =
     runWithCommand
       [ "--branch"
         branchName
         "fn"
-        "/" ++ moduleName ++ ".map"
+        "/" + moduleName + ".map"
         internalSource ]
   // `-y`: the branch holds unmerged names, so a bare archive is refused and every later test would run
   // on this branch. Archiving the branch you stand on moves the process (and the config) back to main.
@@ -580,7 +580,7 @@ let testUnresolvedNameGuidance (): TestResult =
   else
     TestResult.Fail
       ($"Expected source-name guidance; stdlib={stdlibOutput}; "
-       ++ $"PACKAGE={packageOutput}")
+       + $"PACKAGE={packageOutput}")
 
 
 let testListTypes (): TestResult =
@@ -617,7 +617,7 @@ let testEvalSimpleExpression (): TestResult =
 
 
 let testEvalStringExpression (): TestResult =
-  expectExact ["eval", "\"hello\" ++ \"world\""] "helloworld"
+  expectExact ["eval", "\"hello\" + \"world\""] "helloworld"
 
 
 // ---------------------------------------------------------------- compiler views
@@ -663,13 +663,13 @@ let testViewInstructionsShowsLambdas (): TestResult =
   // The subject is authored here rather than borrowed from the stdlib. Whether a given stdlib function
   // compiles to a lambda is an implementation detail: it can become a direct builtin call, and then a
   // test pointing at it still runs, still fails, and covers nothing.
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let name = "Tests.CliLambda.keepBig" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let name = "Tests.CliLambda.keepBig" + suffix
 
   let _ =
     runWithCommand
       [ "fn"
-        "/" ++ name
+        "/" + name
         "(xs: List<Int64>) : List<Int64> = Stdlib.List.filter xs (fun x -> if x > 2L then true else false)" ]
 
   let output = runWithCommand ["view", name, "--instructions"]
@@ -818,8 +818,8 @@ let testViewRawIsUndecorated (): TestResult =
 /// the parser disagree anywhere, a round trip authors a second version of the item
 /// and the op log grows every time someone looks at it.
 let testEditRoundTripsThroughRaw (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let branchName = "cli-edit-test-" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-edit-test-" + suffix
   let name = "Tests.CliEdit.tripled"
   let sourcePath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
   let changedPath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
@@ -831,8 +831,8 @@ let testEditRoundTripsThroughRaw (): TestResult =
       [ "--branch"
         branchName
         "fn"
-        "/" ++ name
-        "let tripled (n: Int64) : Int64 = Stdlib.Int64.multiply n 3L" ]
+        "/" + name
+        "let tripled (n: Int64) : Int64 = (n * 3L)" ]
 
   let before = runWithCommand [ "--branch", branchName, "view", name, "--raw" ]
   // The hash, not the op count: an apply that changes nothing still records that the
@@ -848,11 +848,11 @@ let testEditRoundTripsThroughRaw (): TestResult =
   let _ =
     (Stdlib.Cli.File.writeAtomic
       changedPath
-      "let tripled (n: Int64) : Int64 = Stdlib.Int64.multiply n 30L")
+      "let tripled (n: Int64) : Int64 = (n * 30L)")
     |> Builtin.unwrap
 
   let _ = runWithCommand [ "--branch", branchName, "edit", name, changedPath ]
-  let evaluated = runWithCommand [ "--branch", branchName, "eval", name ++ " 2L" ]
+  let evaluated = runWithCommand [ "--branch", branchName, "eval", name + " 2L" ]
 
   let _ = runWithCommand [ "branch", "archive", branchName, "-y" ]
   if
@@ -863,7 +863,7 @@ let testEditRoundTripsThroughRaw (): TestResult =
   else
     TestResult.Fail(
       $"Expected a no-op round trip then a landed change; before: {before}, "
-      ++ $"after: {after}, eval: {evaluated}"
+      + $"after: {after}, eval: {evaluated}"
     )
 
 
@@ -875,8 +875,8 @@ let testEditRoundTripsThroughRaw (): TestResult =
 /// otherwise `view Zz.alpha` prints a definition headed `Zz.beta`, and `--raw` feeds
 /// that wrong name to whatever writes it back.
 let testViewHeadsWithTheNameYouAskedFor (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let branchName = "cli-sharedbody-test-" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-sharedbody-test-" + suffix
   let alpha = "Tests.CliShared.alpha"
   let beta = "Tests.CliShared.beta"
 
@@ -885,11 +885,11 @@ let testViewHeadsWithTheNameYouAskedFor (): TestResult =
   // The same body on purpose: that is what makes them one item.
   let _ =
     runWithCommand
-      [ "--branch", branchName, "fn", "/" ++ alpha, "let alpha () : Int64 = 7L" ]
+      [ "--branch", branchName, "fn", "/" + alpha, "let alpha () : Int64 = 7L" ]
 
   let _ =
     runWithCommand
-      [ "--branch", branchName, "fn", "/" ++ beta, "let beta () : Int64 = 7L" ]
+      [ "--branch", branchName, "fn", "/" + beta, "let beta () : Int64 = 7L" ]
 
   let rawAlpha = runWithCommand [ "--branch", branchName, "view", alpha, "--raw" ]
   let rawBeta = runWithCommand [ "--branch", branchName, "view", beta, "--raw" ]
@@ -914,7 +914,7 @@ let testViewHeadsWithTheNameYouAskedFor (): TestResult =
   else
     TestResult.Fail(
       $"Expected each name to head its own declaration; alpha: {rawAlpha}, "
-      ++ $"beta: {rawBeta}, shown: {shownAlpha} / {shownBeta}"
+      + $"beta: {rawBeta}, shown: {shownAlpha} / {shownBeta}"
     )
 
 
@@ -925,8 +925,8 @@ let testViewHeadsWithTheNameYouAskedFor (): TestResult =
 /// item is worse than one that fails: nothing says so, and the store quietly holds
 /// something you did not write.
 let testEditRoundTripsTypesAndValues (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let branchName = "cli-edit-kinds-" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-edit-kinds-" + suffix
   let typeName = "Tests.CliEditKinds.Pair"
   let valueName = "Tests.CliEditKinds.answer"
   let typePath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
@@ -939,11 +939,11 @@ let testEditRoundTripsTypesAndValues (): TestResult =
       [ "--branch"
         branchName
         "type"
-        "/" ++ typeName
+        "/" + typeName
         "{ a: Int64; b: String }" ]
 
   let _ =
-    runWithCommand [ "--branch", branchName, "val", "/" ++ valueName, "42L" ]
+    runWithCommand [ "--branch", branchName, "val", "/" + valueName, "42L" ]
 
   let typeBefore =
     runWithCommand [ "--branch", branchName, "view", typeName, "--raw" ]
@@ -981,7 +981,7 @@ let testEditRoundTripsTypesAndValues (): TestResult =
   else
     TestResult.Fail(
       $"Expected types and values to round-trip; type: {typeBefore} -> {typeAfter}, "
-      ++ $"value: {valueBefore} -> {valueAfter}"
+      + $"value: {valueBefore} -> {valueAfter}"
     )
 
 
@@ -991,8 +991,8 @@ let testEditRoundTripsTypesAndValues (): TestResult =
 /// be a rejection: half-applying it, or reporting a failure while the store moved,
 /// would make an editor round trip something you cannot trust.
 let testEditLeavesTheItemAloneOnABadFile (): TestResult =
-  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
-  let branchName = "cli-edit-bad-" ++ suffix
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-edit-bad-" + suffix
   let name = "Tests.CliEditBad.kept"
   let badPath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
 
@@ -1003,7 +1003,7 @@ let testEditLeavesTheItemAloneOnABadFile (): TestResult =
       [ "--branch"
         branchName
         "fn"
-        "/" ++ name
+        "/" + name
         "let kept (n: Int64) : Int64 = n" ]
 
   let hashBefore = runWithCommand [ "--branch", branchName, "hash", name ]
@@ -1029,7 +1029,7 @@ let testEditLeavesTheItemAloneOnABadFile (): TestResult =
   else
     TestResult.Fail(
       $"Expected a rejected file to change nothing; hashes {hashBefore} / "
-      ++ $"{hashAfterBad} / {hashAfterMissing}, said: {refused} | {missing}"
+      + $"{hashAfterBad} / {hashAfterMissing}, said: {refused} | {missing}"
     )
 
 
@@ -1064,21 +1064,21 @@ let testEditRefusesWhatItCannotEdit (): TestResult =
   else
     TestResult.Fail(
       $"Expected each refusal to name what to do instead; bare: {bare}, "
-      ++ $"module: {aModule}, unknown: {unknown}, raw module: {rawModule}, "
-      ++ $"no terminal: {noTerminal}"
+      + $"module: {aModule}, unknown: {unknown}, raw module: {rawModule}, "
+      + $"no terminal: {noTerminal}"
     )
 
 
 /// Every way of passing a definition authors the same item. The `=` is a separator:
 /// unquoted the shell splits it off, quoted it arrives attached, and both come off.
 let testAuthoringAcceptsAQuotedSeparator (): TestResult =
-  let branch = "cli-quoted-eq-" ++ (Stdlib.Int.toString (Stdlib.Int.random 1 999999))
+  let branch = "cli-quoted-eq-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
 
-  let body = "(x: Int64) : Int64 = Stdlib.Int64.multiply x 2L"
+  let body = "(x: Int64) : Int64 = (x * 2L)"
   let _ = runWithCommand [ "branch", "create", branch ]
-  let _ = run [ "fn", "/Tests.QuotedEq.quoted", "= " ++ body ]
+  let _ = run [ "fn", "/Tests.QuotedEq.quoted", "= " + body ]
   let _ = run [ "fn", "/Tests.QuotedEq.split", "=", body ]
   let typed = run [ "type", "/Tests.QuotedEq.T", "= { x: Int64 }" ]
   let valued = run [ "val", "/Tests.QuotedEq.v", "= 42L" ]
@@ -1106,7 +1106,7 @@ let testAuthoringAcceptsAQuotedSeparator (): TestResult =
 /// A lowercase module segment is refused. It would be read as the item's NAME, so
 /// `Tests.lower.f` authors `Tests.lower` and nothing can refer to it afterwards.
 let testAuthoringRefusesALowercaseModule (): TestResult =
-  let branch = "cli-lowercase-" ++ (Stdlib.Int.toString (Stdlib.Int.random 1 999999))
+  let branch = "cli-lowercase-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
 
@@ -1167,13 +1167,13 @@ let testTreeRefusesWhatItCannotShow (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail(
-      $"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {Stdlib.Bool.toString (shown withDepth)}"
+      $"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {Stdlib.toString (shown withDepth)}"
     )
 
 /// `discard` throws the whole draft away, so an unanswerable prompt is not a yes: it
 /// refuses, and the work is still there. `-y` is how a script says yes.
 let testDiscardNeedsAnExplicitYes (): TestResult =
-  let branch = "cli-discard-" ++ (Stdlib.Int.toString (Stdlib.Int.random 1 999999))
+  let branch = "cli-discard-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
 

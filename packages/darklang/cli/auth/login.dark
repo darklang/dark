@@ -36,7 +36,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         Stdlib.Dict.setOverridingDuplicates
           config
           "session.account_id"
-          (Stdlib.Uuid.toString account.id)
+          (Stdlib.toString account.id)
       Config.writeConfig updated
 
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Logged in as {account.name}.")

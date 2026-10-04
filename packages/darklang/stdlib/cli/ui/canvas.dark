@@ -82,7 +82,7 @@ let renderSegments (width: Int) (segments: List<Segment>) : String =
       if seg.col >= width then
         acc
       else
-        // Inlined rather than `Int.max`, for the reason given in `composeRow` below: it is a call,
+        // Inlined rather than `Stdlib.max`, for the reason given in `composeRow` below: it is a call,
         // and this runs once per segment. Same for the gap -- segments usually butt up against the
         // one before, so the ordinary case is a `repeat` that returns "" and an append that adds
         // nothing. Both are skipped when there is no gap to fill.
@@ -98,14 +98,14 @@ let renderSegments (width: Int) (segments: List<Segment>) : String =
 
         let next =
           if start > col then
-            out ++ (Stdlib.String.repeat " " (start - col)) ++ clipped
+            out + (Stdlib.String.repeat " " (start - col)) + clipped
           else
-            out ++ clipped
+            out + clipped
 
         (next, start + used))
 
   // A reset at the end so a colour left open by the last segment can't bleed into whatever follows.
-  text ++ "\u001b[0m"
+  text + "\u001b[0m"
 
 
 /// Paint one row's spans, in order.
@@ -140,7 +140,7 @@ let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
         if e > rightmost then e else rightmost
 
       // While the row is still in order, the last column seen is the highest one, so this needs no
-      // `max` -- and `Int.max` is a package call, which at one per span is not free.
+      // `max` -- and `Stdlib.max` is a package call, which at one per span is not free.
       (nextPlaced, orderedSoFar && (span.col >= lastCol), span.col, nextRightmost))
 
   let sorted =
@@ -154,8 +154,8 @@ let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
 /// Spans are bucketed by row in one pass. Doing it the obvious way (filter the whole span list once per row)
 /// is quadratic, and a full-screen frame has enough of both to make that hurt.
 let compose (width: Int) (height: Int) (spans: List<Layout.Span>) : List<String> =
-  let w = Stdlib.Int.max 1 width
-  let h = Stdlib.Int.max 0 height
+  let w = Stdlib.max 1 width
+  let h = Stdlib.max 0 height
 
   if h == 0 then
     []

@@ -25,7 +25,7 @@ type Embed =
   { title: Stdlib.Option.Option<String>
     description: Stdlib.Option.Option<String>
     url: Stdlib.Option.Option<String>
-    /// ISO8601 timestamp string, e.g. from Stdlib.DateTime.toString.
+    /// ISO8601 timestamp string, e.g. from Stdlib.toString.
     timestamp: Stdlib.Option.Option<String>
     /// Sidebar color as a decimal RGB integer, e.g. 0xFF0000 = 16711680 = red.
     color: Stdlib.Option.Option<Int>
@@ -74,9 +74,9 @@ type Error =
 let toString (e: Error) : String =
   match e with
   | RequestFailed re ->
-    "HTTP request failed: " ++ Stdlib.HttpClient.toString re
+    "HTTP request failed: " + Stdlib.HttpClient.toString re
   | DiscordError(code, body) ->
-    $"Discord returned {Stdlib.Int.toString code}: {body}"
+    $"Discord returned {Stdlib.toString code}: {body}"
 
 
 /// Build a minimal message with just text content.

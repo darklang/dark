@@ -116,7 +116,6 @@ let private infixDispatched : Set<string> =
       "lessThan"
       "lessThanOrEqualTo"
       "negate"
-      "stringAppend"
       "equals"
       "notEquals" ]
 
@@ -216,6 +215,28 @@ let private repoRefCounts : Lazy<Map<string, int>> =
 
 let private countReferences (builtinName : string) : int =
   packagesRefCounts.Value |> Map.tryFind builtinName |> Option.defaultValue 0
+
+
+/// Every name excluded as infix-dispatched is still a registered builtin.
+///
+/// `infixDispatched` is an exclusion list, and an exclusion nobody revisits is how
+/// a sweep quietly stops covering the thing it was written for: rename or retire a
+/// builtin and its name sits here forever, excusing nothing and hiding nothing,
+/// while the sweep it was carved out of no longer has a reason to skip anything.
+/// `notSweepable` in `CliSurface.Tests.fs` has had this check for the same reason;
+/// this is the second list learning it.
+let everyInfixExclusionIsReal =
+  test "every infix-dispatched exclusion is still a builtin" {
+    let registered = allBuiltinNames () |> Set.ofList
+    Expect.isGreaterThan (Set.count registered) 100 "the builtin sets were read"
+
+    let stale = Set.difference infixDispatched registered
+
+    if not (Set.isEmpty stale) then
+      Tests.failtestf
+        "excluded as infix-dispatched but not registered as a builtin: %s"
+        (stale |> Set.toList |> List.sort |> String.concat ", ")
+  }
 
 
 let builtinAccessInPackageMatter =
@@ -547,6 +568,7 @@ let tests =
     [ darkEffectTableMatchesRuntime
       oldFunctionsAreDeprecated
       builtinAccessInPackageMatter
+      everyInfixExclusionIsReal
       everyBuiltinIsReferenced
       descriptionsAreJoined
       everyBuiltinPackagesCallExists

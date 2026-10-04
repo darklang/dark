@@ -873,11 +873,11 @@ let parseToString (input: String) : String =
   match parse input with
   | Success(expr, remaining) ->
     if remaining == "" then
-      "Parsed: " ++ (Stdlib.Json.serialize<Expr> expr)
+      "Parsed: " + (Stdlib.Json.serialize<Expr> expr)
     else
       "Parsed with remaining: "
-      ++ (Stdlib.Json.serialize<Expr> expr)
-      ++ " | remaining: \""
-      ++ remaining
-      ++ "\""
-  | Failure error -> "Parse error: " ++ error
+      + (Stdlib.Json.serialize<Expr> expr)
+      + " | remaining: \""
+      + remaining
+      + "\""
+  | Failure error -> "Parse error: " + error

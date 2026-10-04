@@ -55,11 +55,11 @@ let runDir () : String =
   | None -> Stdlib.Option.withDefault (Stdlib.List.head candidates) "/tmp/darklang-run"
 
 let pidfilePath (name: String) : String =
-  (runDir ()) ++ "/" ++ name ++ ".pid"
+  (runDir ()) + "/" + name + ".pid"
 
 // A detached daemon has no terminal, so its output + startup errors append here; `tailLog` reads it.
 let logPath (name: String) : String =
-  (runDir ()) ++ "/" ++ name ++ ".log"
+  (runDir ()) + "/" + name + ".log"
 
 // The daemon's last `n` log lines (newest at the bottom); empty if it never logged.
 let tailLog (name: String) (n: Int) : List<String> =
@@ -79,7 +79,7 @@ let claimPidfile (name: String) : Stdlib.Result.Result<Unit, String> =
     match
       File.writeText
         (pidfilePath name)
-        (Stdlib.Int.toString pid)
+        (Stdlib.toString pid)
     with
     | Error e -> Stdlib.Result.Result.Error e.message
     | Ok _ -> Stdlib.Result.Result.Ok()
@@ -111,9 +111,9 @@ let statusLine (name: String) : String =
   match recordedPid name with
   | Some pid ->
     if Posix.isProcessRunning pid then
-      $"{name}: running (pid {Stdlib.Int.toString pid})"
+      $"{name}: running (pid {Stdlib.toString pid})"
     else
-      $"{name}: stale (pid {Stdlib.Int.toString pid} not running -- `stop` clears it)"
+      $"{name}: stale (pid {Stdlib.toString pid} not running -- `stop` clears it)"
   | None -> $"{name}: stopped"
 
 
@@ -133,10 +133,10 @@ let stop (name: String) : Stdlib.Result.Result<String, String> =
     let _removed = File.delete (pidfilePath name)
 
     if wasRunning then
-      Stdlib.Result.Result.Ok $"{name}: stopped (pid {Stdlib.Int.toString pid})"
+      Stdlib.Result.Result.Ok $"{name}: stopped (pid {Stdlib.toString pid})"
     else
       Stdlib.Result.Result.Ok
-        $"{name}: cleared stale pidfile (pid {Stdlib.Int.toString pid} was not running)"
+        $"{name}: cleared stale pidfile (pid {Stdlib.toString pid} was not running)"
 
 
 // ── launch ──

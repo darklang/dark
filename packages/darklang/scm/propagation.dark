@@ -91,7 +91,7 @@ let allChoices () : List<Choice> =
         "SELECT owner, modules, name, policy, note, origin_ts
          FROM propagation_policy WHERE branch_id = @p0
          ORDER BY owner, modules, (CASE WHEN name = '' THEN 1 ELSE 0 END), name"
-        [ Stdlib.Uuid.toString branchId ]
+        [ Stdlib.toString branchId ]
     with
     | Ok rs -> rs |> Stdlib.List.filterMap choiceFromRow
     // RAISE, not `[]`. Every reader of this list treats "no row" as FOLLOW, so a failed read would turn
@@ -271,7 +271,7 @@ let authorPolicyOp
   (policy: LanguageTools.ProgramTypes.PropagationPolicy)
   : Stdlib.Result.Result<Unit, String> =
   let loc = Deps.locationOf owner modules name
-  let now = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
+  let now = Stdlib.toString (Stdlib.DateTime.now ())
 
   let op =
     LanguageTools.ProgramTypes.PackageOp.Decision(
@@ -597,7 +597,7 @@ let everBoundHashes
   (loc: LanguageTools.ProgramTypes.PackageLocation)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : List<LanguageTools.ProgramTypes.Hash> =
-  let itemType = Deps.kindString itemKind
+  let itemType = LanguageTools.ProgramTypes.ItemKind.toString itemKind
 
   // main-scoped, on purpose: every hash ever bound on MAIN is this fn's contract.
   Stdlib.Sqlite.rowsP

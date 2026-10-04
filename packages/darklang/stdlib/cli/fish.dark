@@ -38,7 +38,7 @@ let addAlias
 
   (readFishConfig ())
   |> Result.andThen (fun content ->
-    let updatedContent = content ++ "\n" ++ aliasDefinition
+    let updatedContent = content + "\n" + aliasDefinition
     overwriteFishConfig updatedContent)
 
 
@@ -52,6 +52,6 @@ let addToPath (dir: String) : Result.Result<Unit, String> =
     if String.contains content exportLine then
       Result.Result.Ok()
     else
-      let updatedContent = content ++ "\n" ++ exportLine
+      let updatedContent = content + "\n" + exportLine
       overwriteFishConfig updatedContent
   | Error e -> Result.Result.Error e

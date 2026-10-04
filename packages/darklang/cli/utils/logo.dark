@@ -57,7 +57,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
         paddedLine
       else
         // Add color to non-empty lines
-        color ++ paddedLine ++ Stdlib.Cli.UI.Colors.reset)
+        color + paddedLine + Stdlib.Cli.UI.Colors.reset)
 
   let logoHeight = Stdlib.List.length paddedLogoLines
   let textHeight = Stdlib.List.length textLines
@@ -70,7 +70,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   let finalLogoLines =
     if logoHeight < targetHeight then // e.g, 3 < 7 = true
       let totalPadding = targetHeight - logoHeight // 7 - 3 = 4 empty lines needed
-      let paddingTop = Stdlib.Int.divide totalPadding 2 // 4 ÷ 2 = 2 lines above
+      let paddingTop = (totalPadding / 2) // 4 ÷ 2 = 2 lines above
       let paddingBottom = totalPadding - paddingTop // 4 - 2 = 2 lines below
       let emptyLogoLine = Stdlib.String.repeat " " maxLogoWidth // if maxLogoWidth = 6, then emptyLogoLine = "      " (6 spaces)
       match Stdlib.List.repeat paddingTop emptyLogoLine with // Create 2 empty top logo lines
@@ -87,7 +87,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   let finalTextLines =
     if textHeight < targetHeight then
       let totalPadding = targetHeight - textHeight
-      let paddingTop = Stdlib.Int.divide totalPadding 2
+      let paddingTop = totalPadding / 2
       let paddingBottom = totalPadding - paddingTop
       match Stdlib.List.repeat paddingTop "" with
       | Ok topEmpty ->
@@ -105,7 +105,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   match Stdlib.List.zip finalLogoLines finalTextLines with
   | Some zipped ->
     zipped
-    |> Stdlib.List.map (fun (logoLine, textLine) -> logoLine ++ spacing ++ textLine)
+    |> Stdlib.List.map (fun (logoLine, textLine) -> logoLine + spacing + textLine)
     |> Stdlib.String.join "\n"
   | None ->
     // This should never happen since we ensured both lists are the same length

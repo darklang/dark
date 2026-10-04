@@ -44,7 +44,7 @@ let parseRole (s: String) : Stdlib.Result.Result<Role, String> =
   | "assistant" -> Stdlib.Result.Result.Ok Role.Assistant
   | "tool" -> Stdlib.Result.Result.Ok Role.Tool
   | "function" -> Stdlib.Result.Result.Ok Role.Function
-  | other -> Stdlib.Result.Result.Error("Unknown role: " ++ other)
+  | other -> Stdlib.Result.Result.Error("Unknown role: " + other)
 
 
 // =============================================================================
@@ -664,7 +664,7 @@ let validateRequest (req: Request) : Stdlib.Result.Result<Unit, String> =
         Stdlib.Result.Result.Ok()
       else
         Stdlib.Result.Result.Error(
-          "Model " ++ req.model ++ " does not support temperature parameter")
+          "Model " + req.model + " does not support temperature parameter")
     | None -> Stdlib.Result.Result.Ok()
 
   // Check tools
@@ -674,7 +674,7 @@ let validateRequest (req: Request) : Stdlib.Result.Result<Unit, String> =
     else if caps.supportsTools then
       Stdlib.Result.Result.Ok()
     else
-      Stdlib.Result.Result.Error("Model " ++ req.model ++ " does not support tools")
+      Stdlib.Result.Result.Error("Model " + req.model + " does not support tools")
 
   // Check top_p
   let topPCheck =
@@ -684,7 +684,7 @@ let validateRequest (req: Request) : Stdlib.Result.Result<Unit, String> =
         Stdlib.Result.Result.Ok()
       else
         Stdlib.Result.Result.Error(
-          "Model " ++ req.model ++ " does not support top_p parameter")
+          "Model " + req.model + " does not support top_p parameter")
     | None -> Stdlib.Result.Result.Ok()
 
   // Check presence penalty
@@ -695,7 +695,7 @@ let validateRequest (req: Request) : Stdlib.Result.Result<Unit, String> =
         Stdlib.Result.Result.Ok()
       else
         Stdlib.Result.Result.Error(
-          "Model " ++ req.model ++ " does not support presence_penalty parameter")
+          "Model " + req.model + " does not support presence_penalty parameter")
     | None -> Stdlib.Result.Result.Ok()
 
   // Check frequency penalty
@@ -706,7 +706,7 @@ let validateRequest (req: Request) : Stdlib.Result.Result<Unit, String> =
         Stdlib.Result.Result.Ok()
       else
         Stdlib.Result.Result.Error(
-          "Model " ++ req.model ++ " does not support frequency_penalty parameter")
+          "Model " + req.model + " does not support frequency_penalty parameter")
     | None -> Stdlib.Result.Result.Ok()
 
   // Check stop sequences
@@ -716,7 +716,7 @@ let validateRequest (req: Request) : Stdlib.Result.Result<Unit, String> =
       if caps.supportsStop then
         Stdlib.Result.Result.Ok()
       else
-        Stdlib.Result.Result.Error("Model " ++ req.model ++ " does not support stop sequences")
+        Stdlib.Result.Result.Error("Model " + req.model + " does not support stop sequences")
     | None -> Stdlib.Result.Result.Ok()
 
   // Combine checks
@@ -1071,7 +1071,7 @@ let parseToolCalls (messageFields: List<(String * Json)>) : Stdlib.Result.Result
           | Error _ -> Stdlib.Option.Option.None)
       Stdlib.Result.Result.Ok successes
     else
-      Stdlib.Result.Result.Error("Failed to parse tool calls: " ++ Stdlib.String.join errors ", ")
+      Stdlib.Result.Result.Error("Failed to parse tool calls: " + Stdlib.String.join errors ", ")
   | Some _ -> Stdlib.Result.Result.Error "tool_calls field is not an array"
   | None -> Stdlib.Result.Result.Ok []
 
@@ -1175,7 +1175,7 @@ let parseResponse (json: Json) : Stdlib.Result.Result<Response, String> =
         | Ok _ -> Stdlib.Option.Option.None)
 
     if Stdlib.Bool.not (Stdlib.List.isEmpty errors) then
-      Stdlib.Result.Result.Error("Failed to parse choices: " ++ Stdlib.String.join errors ", ")
+      Stdlib.Result.Result.Error("Failed to parse choices: " + Stdlib.String.join errors ", ")
     else
       let choices =
         Stdlib.List.filterMap choiceResults (fun r ->
@@ -1218,10 +1218,10 @@ let send (apiKey: String) (req: Request) : Stdlib.Result.Result<Response, String
       let requestJson = buildRequestJson req
       let body = Stdlib.AltJson.format requestJson
       let headers = Config.getHeaders apiKey
-      let url = Config.baseUrl ++ "/chat/completions"
+      let url = Config.baseUrl + "/chat/completions"
 
       match Stdlib.HttpClient.post url headers (Stdlib.String.toBlob body) with
-      | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+      | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
       | Ok response ->
         let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
@@ -1229,22 +1229,22 @@ let send (apiKey: String) (req: Request) : Stdlib.Result.Result<Response, String
         | code when code >= 200 && code < 300 ->
           match Stdlib.AltJson.parse bodyStr with
           | Ok json -> parseResponse json
-          | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ (Stdlib.AltJson.ParseError.toString e))
+          | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " + (Stdlib.AltJson.ParseError.toString e))
         | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
         | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-        | code when code >= 500 -> Stdlib.Result.Result.Error("OpenAI server error: " ++ bodyStr)
+        | code when code >= 500 -> Stdlib.Result.Result.Error("OpenAI server error: " + bodyStr)
         | _ ->
           match Stdlib.AltJson.parse bodyStr with
           | Ok (Object fields) ->
             match Stdlib.AltJson.Helpers.getObject "error" fields with
-            | [] -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+            | [] -> Stdlib.Result.Result.Error("API error: " + bodyStr)
             | errorFields ->
               let message =
                 Stdlib.Option.withDefault
                   (Stdlib.AltJson.Helpers.getString "message" errorFields)
                   bodyStr
-              Stdlib.Result.Result.Error("API error: " ++ message)
-          | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+              Stdlib.Result.Result.Error("API error: " + message)
+          | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
 
 
 // =============================================================================
@@ -1278,13 +1278,13 @@ let list
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
     let headers = Config.getHeaders apiKey
-    let baseUrl = Config.baseUrl ++ "/chat/completions"
+    let baseUrl = Config.baseUrl + "/chat/completions"
 
     let queryParams =
       let params = []
       let withLimit =
         match limit with
-        | Some l -> Stdlib.List.append params [ ("limit", Stdlib.Int.toString l) ]
+        | Some l -> Stdlib.List.append params [ ("limit", Stdlib.toString l) ]
         | None -> params
       let withAfter =
         match after with
@@ -1300,12 +1300,12 @@ let list
       if Stdlib.List.isEmpty queryParams then
         baseUrl
       else
-        let paramParts = Stdlib.List.map queryParams (fun (k, v) -> k ++ "=" ++ v)
+        let paramParts = Stdlib.List.map queryParams (fun (k, v) -> k + "=" + v)
         let paramStr = Stdlib.String.join paramParts "&"
-        baseUrl ++ "?" ++ paramStr
+        baseUrl + "?" + paramStr
 
     match Stdlib.HttpClient.get url headers with
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
@@ -1328,11 +1328,11 @@ let list
                 | Error _ -> Stdlib.Option.Option.None)
             Stdlib.Result.Result.Ok successes
           else
-            Stdlib.Result.Result.Error("Failed to parse completions: " ++ Stdlib.String.join errors ", ")
+            Stdlib.Result.Result.Error("Failed to parse completions: " + Stdlib.String.join errors ", ")
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
 
 /// Get a chat completion by ID
 /// GET /chat/completions/{completion_id}
@@ -1341,10 +1341,10 @@ let get (apiKey: String) (completionId: String) : Stdlib.Result.Result<Response,
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
     let headers = Config.getHeaders apiKey
-    let url = Config.baseUrl ++ "/chat/completions/" ++ completionId
+    let url = Config.baseUrl + "/chat/completions/" + completionId
 
     match Stdlib.HttpClient.get url headers with
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
@@ -1352,11 +1352,11 @@ let get (apiKey: String) (completionId: String) : Stdlib.Result.Result<Response,
       | code when code >= 200 && code < 300 ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
-        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ (Stdlib.AltJson.ParseError.toString e))
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " + (Stdlib.AltJson.ParseError.toString e))
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
+      | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " + completionId)
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
 
 /// Update a chat completion's metadata
 /// POST /chat/completions/{completion_id}
@@ -1369,14 +1369,14 @@ let update
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
     let headers = Config.getHeaders apiKey
-    let url = Config.baseUrl ++ "/chat/completions/" ++ completionId
+    let url = Config.baseUrl + "/chat/completions/" + completionId
 
     let metaJson = Stdlib.List.map metadata (fun (k, v) -> (k, Json.String v))
     let requestJson = Json.Object [ ("metadata", Json.Object metaJson) ]
     let body = Stdlib.AltJson.format requestJson
 
     match Stdlib.HttpClient.post url headers (Stdlib.String.toBlob body) with
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
@@ -1384,11 +1384,11 @@ let update
       | code when code >= 200 && code < 300 ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
-        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ (Stdlib.AltJson.ParseError.toString e))
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " + (Stdlib.AltJson.ParseError.toString e))
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
+      | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " + completionId)
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
 
 /// Delete a chat completion
 /// DELETE /chat/completions/{completion_id}
@@ -1397,10 +1397,10 @@ let delete (apiKey: String) (completionId: String) : Stdlib.Result.Result<ChatCo
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
     let headers = Config.getHeaders apiKey
-    let url = Config.baseUrl ++ "/chat/completions/" ++ completionId
+    let url = Config.baseUrl + "/chat/completions/" + completionId
 
     match Stdlib.HttpClient.request "DELETE" url headers Stdlib.Blob.empty with
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
@@ -1417,9 +1417,9 @@ let delete (apiKey: String) (completionId: String) : Stdlib.Result.Result<ChatCo
           | _ -> Stdlib.Result.Result.Error "Invalid delete response format"
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
+      | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " + completionId)
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
 
 /// Parse a stored message from JSON fields
 let parseStoredMessage (msgFields: List<(String * Json)>) : Stdlib.Result.Result<StoredMessage, String> =
@@ -1460,10 +1460,10 @@ let getMessages
     Stdlib.Result.Result.Error "API key cannot be empty"
   else
     let headers = Config.getHeaders apiKey
-    let url = Config.baseUrl ++ "/chat/completions/" ++ completionId ++ "/messages"
+    let url = Config.baseUrl + "/chat/completions/" + completionId + "/messages"
 
     match Stdlib.HttpClient.get url headers with
-    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
+    | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " + Stdlib.HttpClient.toString e)
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
@@ -1492,12 +1492,12 @@ let getMessages
                 | Error _ -> Stdlib.Option.Option.None)
             Stdlib.Result.Result.Ok messages
           else
-            Stdlib.Result.Result.Error("Failed to parse messages: " ++ Stdlib.String.join errors ", ")
+            Stdlib.Result.Result.Error("Failed to parse messages: " + Stdlib.String.join errors ", ")
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
+      | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " + completionId)
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
+      | _ -> Stdlib.Result.Result.Error("API error: " + bodyStr)
 
 
 // =============================================================================
@@ -1612,7 +1612,7 @@ let completeJson (apiKey: String) (prompt: String) : Stdlib.Result.Result<Json, 
     | Some c ->
       match Stdlib.AltJson.parse c with
       | Ok json -> Stdlib.Result.Result.Ok json
-      | Error e -> Stdlib.Result.Result.Error("Failed to parse JSON: " ++ (Stdlib.AltJson.ParseError.toString e))
+      | Error e -> Stdlib.Result.Result.Error("Failed to parse JSON: " + (Stdlib.AltJson.ParseError.toString e))
     | None -> Stdlib.Result.Result.Error "No content in response"
   | Error e -> Stdlib.Result.Result.Error e
 

@@ -31,7 +31,7 @@ let describe (branchId: Uuid) (width: Int) (s: SCM.PackageOps.OpSummary) : Strin
     if Stdlib.String.displayWidth firstLine <= width then
       firstLine
     else
-      (Stdlib.String.slice firstLine 0 (width - 1)) ++ "..."
+      (Stdlib.String.slice firstLine 0 (width - 1)) + "..."
 
 /// One display row for an op summary: [short-or-full id; what it does; when].
 let summaryRow
@@ -78,9 +78,9 @@ let executeList (state: AppState) (limit: Int64) : AppState =
       if SCM.Branch.isMain branch then "on main" else $"on branch {branchName}"
 
     if shown >= (Stdlib.Int.fromInt64 total) then
-      $"{Stdlib.Int64.toString total} ops {where}"
+      $"{Stdlib.toString total} ops {where}"
     else
-      $"{Stdlib.Int64.toString total} ops {where} - showing the {Stdlib.Int.toString shown} most recent"
+      $"{Stdlib.toString total} ops {where} - showing the {Stdlib.toString shown} most recent"
 
   Cli.printOk header
 

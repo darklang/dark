@@ -47,31 +47,13 @@ module ReadFile =
         | Some script -> script.text
         | None -> $"Script not found: {scriptName}"
       else
-        let pm = LanguageTools.PackageManager.pm ()
         let branchId = state.currentBranchId
-
         let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
 
-        // Try to find as a specific entity (type, function, or value)
+        // A leaf of any of the five kinds; a module path falls through to the search below.
         let entityContent =
           match LanguageTools.PackageManager.findAny branchId location with
-          | Some ((hash, kind)) ->
-            match kind with
-            | Type ->
-              (pm.getType hash)
-              |> Stdlib.Option.andThen (fun typ ->
-                Stdlib.Option.Option.Some(
-                  PrettyPrinter.ProgramTypes.packageType ctx typ))
-            | Fn ->
-              (pm.getFn hash)
-              |> Stdlib.Option.andThen (fun fn ->
-                Stdlib.Option.Option.Some(
-                  PrettyPrinter.ProgramTypes.packageFn ctx fn))
-            | Value ->
-              (pm.getValue hash)
-              |> Stdlib.Option.andThen (fun value ->
-                Stdlib.Option.Option.Some(
-                  PrettyPrinter.ProgramTypes.packageValue ctx value))
+          | Some((hash, kind)) -> PrettyPrinter.ProgramTypes.sourceOf ctx kind hash
           | None -> Stdlib.Option.Option.None
 
         match entityContent with
@@ -89,23 +71,22 @@ module ReadFile =
                 entityTypes = []
                 exactMatch = false }
 
-          let ctx =
-            PrettyPrinter.ProgramTypes.Context.forBranch state.currentBranchId
-
           let results =
-            LanguageTools.PackageManager.Search.search state.currentBranchId searchQuery
+            LanguageTools.PackageManager.Search.search branchId searchQuery
 
           let definitions =
             LanguageTools.ProgramTypes.Definitions
               { types = results.types |> Stdlib.List.map (fun found -> found.entity)
                 fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
                 values = results.values |> Stdlib.List.map (fun found -> found.entity)
+                traits = results.traits |> Stdlib.List.map (fun found -> found.entity)
+                impls = results.impls |> Stdlib.List.map (fun found -> found.entity)
                 exprs = [] }
 
           // The owner is not a module, so a package's items fan out into several top-level
           // modules (`Stdlib`, `Cli`, ...). Print all of them; `head` would show only the first.
           let modules =
-            PrettyPrinter.ModuleDeclaration.toModules state.currentBranchId definitions
+            PrettyPrinter.ModuleDeclaration.toModules branchId definitions
 
           match modules with
           | [] -> $"// No definitions found in {nameForLookup}"
@@ -115,6 +96,7 @@ module ReadFile =
 
 
 module WriteFile =
+
   // Remove the prefix from a module path if it matches
   let stripModulePrefix
     (prefix: List<String>)
@@ -230,6 +212,31 @@ module WriteFile =
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
               LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageValue packageValue.hash, Stdlib.Option.Option.None) ]
           unresolvedNames = unresolvedNames }
+    | Trait traitDecl ->
+      let (packageTrait, ops, unresolvedNames) =
+        LanguageTools.WrittenTypesToProgramTypes.traitWithOps ctx traitDecl
+      LoweredDecl
+        { location = locationOf traitDecl.name.name
+          kind = LanguageTools.ProgramTypes.ItemKind.Trait
+          ops = ops
+          unresolvedNames = unresolvedNames }
+    // The impl's ops carry its method fns too; `isNewLocation` asks about the impl
+    | Impl implDecl ->
+      let (packageImpl, _fns, ops, unresolvedNames) =
+        LanguageTools.WrittenTypesToProgramTypes.implWithOps ctx implDecl
+      let memberPath =
+        LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.memberPath modules implDecl
+      let location =
+        match Stdlib.List.reverse memberPath with
+        | name :: revModules ->
+          LanguageTools.ProgramTypes.PackageLocation
+            { owner = owner; modules = Stdlib.List.reverse revModules; name = name }
+        | [] -> locationOf implDecl.trait_.typ.name
+      LoweredDecl
+        { location = location
+          kind = LanguageTools.ProgramTypes.ItemKind.TraitImpl
+          ops = ops
+          unresolvedNames = unresolvedNames }
     // `collectDecls` flattens submodules and never saves expressions.
     | SubModule _
     | Expr _ ->
@@ -252,6 +259,10 @@ module WriteFile =
       | Type -> pm.findType (branchId, location) |> Stdlib.Option.isSome
       | Fn -> pm.findFn (branchId, location) |> Stdlib.Option.isSome
       | Value -> pm.findValue (branchId, location) |> Stdlib.Option.isSome
+      | Trait -> pm.findTrait (branchId, location) |> Stdlib.Option.isSome
+      // The PM record carries no impl lookup; `pm` here is the persistent one anyway
+      | TraitImpl ->
+        LanguageTools.PackageManager.TraitImpl.find branchId location |> Stdlib.Option.isSome
     Stdlib.Bool.not existing
 
 
@@ -425,6 +436,8 @@ module WriteFile =
                   { types = results.types |> Stdlib.List.map (fun found -> found.entity)
                     fns = results.fns |> Stdlib.List.map (fun found -> found.entity)
                     values = results.values |> Stdlib.List.map (fun found -> found.entity)
+                    traits = results.traits |> Stdlib.List.map (fun found -> found.entity)
+                    impls = results.impls |> Stdlib.List.map (fun found -> found.entity)
                     exprs = [] }
 
               // As above: every top-level module, not just the first.

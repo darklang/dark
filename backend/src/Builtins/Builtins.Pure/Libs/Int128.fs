@@ -8,6 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NoModule = Builtins.Pure.Libs.NoModule
 
 
 module ParseError =
@@ -132,6 +133,33 @@ let fns () : List<BuiltInFn> =
 
 
     // TODO: add power function
+
+
+    { name = fn "int128Power" 0
+      typeParams = []
+      parameters = [ Param.make "base" TInt128 ""; Param.make "exponent" TInt128 "" ]
+      returnType = TInt128
+      description =
+        "Raise <param base> to the power of <param exponent>. Overflow wraps "
+        + "around. Raises an error if <param exponent> is negative."
+      fn =
+        (function
+        | _, vm, _, [| DInt128 number; DInt128 exp |] ->
+          if exp < System.Int128.Zero then
+            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+          else
+            // `BigInteger.Parse(string n)`, not a conversion: there is no BigInteger
+            // overload for Int128.
+            NoModule.powSigned
+              128
+              (System.Numerics.BigInteger.Parse(string number))
+              (System.Numerics.BigInteger.Parse(string exp))
+            |> fun r -> System.Int128.Parse(r.ToString()) |> DInt128 |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
 
 
     { name = fn "int128Divide" 0

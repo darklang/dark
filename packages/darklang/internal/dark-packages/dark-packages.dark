@@ -111,7 +111,7 @@ let opsPostHandlerFn (req: HttpRequest) : HttpResponse =
   | Ok ops ->
     match SCM.PackageOps.add serverBranchId ops with
     | Ok insertedCount ->
-      let countStr = Stdlib.Int.toString insertedCount
+      let countStr = Stdlib.toString insertedCount
       Stdlib.Http.responseWithText $"Successfully received and applied {countStr} ops" 200
     | Error errorMsg -> Stdlib.Http.serverError errorMsg
   | Error _err ->
@@ -139,8 +139,8 @@ val opsGetHandler =
 /// How many distinct content items the store holds. Counts CONTENT (distinct hashes), not names -- two
 /// names sharing a hash are one item, which is the whole point of content-addressing.
 ///
-/// Three COUNTs and nothing else -- no compiler, no codec, no fold -- which is the side of the F#/Dark
-/// line this belongs on.
+/// One COUNT per kind and nothing else -- no compiler, no codec, no fold -- which is the side of the
+/// F#/Dark line this belongs on.
 let packageStats () : Darklang.DarkPackages.Stats =
   let db = Stdlib.LocalStore.path ()
 
@@ -151,15 +151,19 @@ let packageStats () : Darklang.DarkPackages.Stats =
   Darklang.DarkPackages.Stats
     { types = Stdlib.Int.fromInt64 (countOf "package_types")
       values = Stdlib.Int.fromInt64 (countOf "package_values")
-      fns = Stdlib.Int.fromInt64 (countOf "package_functions") }
+      fns = Stdlib.Int.fromInt64 (countOf "package_functions")
+      traits = Stdlib.Int.fromInt64 (countOf "package_traits")
+      impls = Stdlib.Int.fromInt64 (countOf "package_trait_impls") }
 
 let statsHandlerFn (req: HttpRequest) : HttpResponse =
   let stats = packageStats ()
   let body =
     $"Package stats:
-- types: {stats.types |> Stdlib.Int.toString}
-- fns: {stats.fns |> Stdlib.Int.toString}
-- values: {stats.values |> Stdlib.Int.toString}"
+- types: {stats.types |> Stdlib.toString}
+- fns: {stats.fns |> Stdlib.toString}
+- values: {stats.values |> Stdlib.toString}
+- traits: {stats.traits |> Stdlib.toString}
+- impls: {stats.impls |> Stdlib.toString}"
   Stdlib.Http.responseWithText body 200
 
 val statsHandler =
@@ -253,7 +257,7 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
       match parseNameToLocation location with
       | Error errorMsg -> Stdlib.Http.badRequest errorMsg
       | Ok packageLocation ->
-        // Try as fn/type/value via the shared helper; module-browse on miss.
+        // Try as a leaf of any kind via the shared helper; module-browse on miss.
         match LanguageTools.PackageManager.findAny serverBranchId packageLocation with
         | Some ((hash, kind)) ->
           match kind with
@@ -273,6 +277,18 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
             match LanguageTools.PackageManager.Value.get hash with
             | Some v ->
               let json = v |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+              Stdlib.Http.responseWithJson json 200
+            | None -> Stdlib.Http.notFound ()
+          | Trait ->
+            match LanguageTools.PackageManager.Trait.get hash with
+            | Some t ->
+              let json = t |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Trait.Trait>
+              Stdlib.Http.responseWithJson json 200
+            | None -> Stdlib.Http.notFound ()
+          | TraitImpl ->
+            match LanguageTools.PackageManager.TraitImpl.get hash with
+            | Some i ->
+              let json = i |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>
               Stdlib.Http.responseWithJson json 200
             | None -> Stdlib.Http.notFound ()
         | None ->

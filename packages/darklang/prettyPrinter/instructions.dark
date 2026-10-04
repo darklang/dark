@@ -10,7 +10,7 @@
 module Darklang.PrettyPrinter.RuntimeTypes.Instructions
 
 let register (r: LanguageTools.RuntimeTypes.Register) : String =
-  "r" ++ (Stdlib.Int32.toString r)
+  "r" + (Stdlib.toString r)
 
 let registers (rs: List<LanguageTools.RuntimeTypes.Register>) : String =
   (Stdlib.List.map rs (fun r -> register r)) |> Stdlib.String.join ", "
@@ -52,19 +52,19 @@ let matchPattern (pat: LanguageTools.RuntimeTypes.MatchPattern) : String =
   match pat with
   | MPVariable reg -> register reg
   | MPUnit -> "()"
-  | MPBool b -> Stdlib.Bool.toString b
-  | MPInt8 i -> Stdlib.Int8.toString i
-  | MPUInt8 i -> Stdlib.UInt8.toString i
-  | MPInt16 i -> Stdlib.Int16.toString i
-  | MPUInt16 i -> Stdlib.UInt16.toString i
-  | MPInt32 i -> Stdlib.Int32.toString i
-  | MPUInt32 i -> Stdlib.UInt32.toString i
-  | MPInt64 i -> Stdlib.Int64.toString i
-  | MPUInt64 i -> Stdlib.UInt64.toString i
-  | MPInt128 i -> Stdlib.Int128.toString i
-  | MPUInt128 i -> Stdlib.UInt128.toString i
-  | MPInt i -> Stdlib.Int.toString i
-  | MPFloat f -> Stdlib.Float.toString f
+  | MPBool b -> Stdlib.toString b
+  | MPInt8 i -> Stdlib.toString i
+  | MPUInt8 i -> Stdlib.toString i
+  | MPInt16 i -> Stdlib.toString i
+  | MPUInt16 i -> Stdlib.toString i
+  | MPInt32 i -> Stdlib.toString i
+  | MPUInt32 i -> Stdlib.toString i
+  | MPInt64 i -> Stdlib.toString i
+  | MPUInt64 i -> Stdlib.toString i
+  | MPInt128 i -> Stdlib.toString i
+  | MPUInt128 i -> Stdlib.toString i
+  | MPInt i -> Stdlib.toString i
+  | MPFloat f -> Stdlib.toString f
   | MPChar c -> $"'{c}'"
   | MPString s -> $"\"{s}\""
   | MPList items ->
@@ -91,7 +91,7 @@ let matchPattern (pat: LanguageTools.RuntimeTypes.MatchPattern) : String =
 
 let segment (branchId: Uuid) (s: LanguageTools.RuntimeTypes.StringSegment) : String =
   match s with
-  | Text t -> "\"" ++ (Stdlib.String.replaceAll t "\n" "\\n") ++ "\""
+  | Text t -> "\"" + (Stdlib.String.replaceAll t "\n" "\\n") + "\""
   | Interpolated r -> register r
 
 
@@ -102,35 +102,35 @@ let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
     if (Stdlib.String.length s) <= 40 then
       s
     else
-      (Stdlib.String.slice s 0 37) ++ "..."
+      (Stdlib.String.slice s 0 37) + "..."
 
   match dv with
   | DUnit -> "unit"
-  | DBool b -> Stdlib.Bool.toString b
-  | DString s -> "\"" ++ (clip (Stdlib.String.replaceAll s "\n" "\\n")) ++ "\""
-  | DChar c -> $"'{Stdlib.Char.toString c}'"
-  | DInt64 i -> Stdlib.Int64.toString i
-  | DInt i -> Stdlib.Int.toString i
-  | DFloat f -> Stdlib.Float.toString f
-  | DList(_, items) -> $"[{Stdlib.Int.toString (Stdlib.List.length items)} items]"
+  | DBool b -> Stdlib.toString b
+  | DString s -> "\"" + (clip (Stdlib.String.replaceAll s "\n" "\\n")) + "\""
+  | DChar c -> $"'{Stdlib.toString c}'"
+  | DInt64 i -> Stdlib.toString i
+  | DInt i -> Stdlib.toString i
+  | DFloat f -> Stdlib.toString f
+  | DList(_, items) -> $"[{Stdlib.toString (Stdlib.List.length items)} items]"
   | DDict(_, _, entries) ->
     let n = Stdlib.List.length (Stdlib.Dict.keys entries)
-    $"{{{Stdlib.Int.toString n} entries}}"
+    $"{{{Stdlib.toString n} entries}}"
   | DRecord(_, typeName, _, fields) ->
     let n = Stdlib.List.length (Stdlib.Dict.keys fields)
     let t = PrettyPrinter.RuntimeTypes.typeName branchId typeName
-    $"{t} {{{Stdlib.Int.toString n} fields}}"
+    $"{t} {{{Stdlib.toString n} fields}}"
   | DEnum(_, typeName, _, caseName, fields) ->
     let t = PrettyPrinter.RuntimeTypes.typeName branchId typeName
     if Stdlib.List.isEmpty fields then
       $"{t}.{caseName}"
     else
-      let n = Stdlib.Int.toString (Stdlib.List.length fields)
+      let n = Stdlib.toString (Stdlib.List.length fields)
       $"{t}.{caseName} ({n})"
   | DApplicable app ->
     match app with
-    | AppNamedFn fn -> "&" ++ (PrettyPrinter.RuntimeTypes.fnName branchId fn.name)
-    | AppLambda l -> $"&lambda#{Stdlib.UInt64.toString l.exprId}"
+    | AppNamedFn fn -> "&" + (PrettyPrinter.RuntimeTypes.fnName branchId fn.name)
+    | AppLambda l -> $"&lambda#{Stdlib.toString l.exprId}"
   | other -> PrettyPrinter.RuntimeTypes.dval branchId other
 
 
@@ -179,15 +179,15 @@ let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instru
     $"{register t} <- {parts}"
   | CheckLetPatternAndExtractVars(v, p) -> $"{letPattern p} <- {register v}"
   | JumpByIfFalse(n, c) ->
-    let target = Stdlib.Int.toString (index + (Stdlib.Int.fromInt32 n) + 1)
-    $"{register c} -> +{Stdlib.Int32.toString n} -> {target}"
+    let target = Stdlib.toString (index + (Stdlib.Int.fromInt32 n) + 1)
+    $"{register c} -> +{Stdlib.toString n} -> {target}"
   | Unwrap(target, source, _) ->
-    (register target) ++ " <- " ++ (register source) ++ "?"
+    (register target) + " <- " + (register source) + "?"
   | JumpBy n ->
-    let target = Stdlib.Int.toString (index + (Stdlib.Int.fromInt32 n) + 1)
-    $"+{Stdlib.Int32.toString n} -> {target}"
+    let target = Stdlib.toString (index + (Stdlib.Int.fromInt32 n) + 1)
+    $"+{Stdlib.toString n} -> {target}"
   | CheckMatchPatternAndExtractVars(v, p, failJump) ->
-    let target = Stdlib.Int.toString (index + (Stdlib.Int.fromInt32 failJump) + 1)
+    let target = Stdlib.toString (index + (Stdlib.Int.fromInt32 failJump) + 1)
     $"{register v} ~ {matchPattern p}  else -> {target}"
   | MatchUnmatched v -> register v
   | CreateTuple(t, first, second, theRest) ->
@@ -208,8 +208,8 @@ let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instru
     let n = PrettyPrinter.RuntimeTypes.valueName branchId v
     $"{register t} <- {n}"
   | CreateLambda(t, l) ->
-    let n = Stdlib.Int.toString (Stdlib.List.length l.patterns)
-    $"{register t} <- lambda#{Stdlib.UInt64.toString l.exprId} ({n} params)"
+    let n = Stdlib.toString (Stdlib.List.length l.patterns)
+    $"{register t} <- lambda#{Stdlib.toString l.exprId} ({n} params)"
   | Apply(t, fnReg, _, args) ->
     $"{register t} <- {register fnReg}({registers args})"
   | RaiseNRE(names, _) -> Stdlib.String.join names "."
@@ -231,8 +231,8 @@ let lambdas (instrs: LanguageTools.RuntimeTypes.Instructions) : List<LanguageToo
 
 
 let header (instrs: LanguageTools.RuntimeTypes.Instructions) : String =
-  let n = Stdlib.Int.toString (Stdlib.List.length instrs.instructions)
-  let regs = Stdlib.Int32.toString instrs.registerCount
+  let n = Stdlib.toString (Stdlib.List.length instrs.instructions)
+  let regs = Stdlib.toString instrs.registerCount
   $"{n} instructions, {regs} registers, result in {register instrs.resultIn}"
 
 
@@ -241,9 +241,9 @@ let listing (branchId: Uuid) (instrs: LanguageTools.RuntimeTypes.Instructions) :
   let body =
     instrs.instructions
     |> Stdlib.List.indexedMap (fun index i ->
-      let idx = Stdlib.String.padStartToWidth (Stdlib.Int.toString index) 4
+      let idx = Stdlib.String.padStartToWidth (Stdlib.toString index) 4
       let op = Stdlib.String.padEndToWidth (opcode i) 24
       $"{idx}  {op} {operands branchId index i}")
     |> Stdlib.String.join "\n"
 
-  (header instrs) ++ "\n" ++ body
+  (header instrs) + "\n" + body

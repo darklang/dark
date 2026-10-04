@@ -14,7 +14,7 @@ module Stachu =
 //       match part with
 //       | Root -> "root"
 //       | Field name -> "." ++ name
-//       | Index index -> "[" ++ Int.toString index ++ "]"
+//       | Index index -> "[" + Stdlib.toString index + "]"
 
 //   type JsonPath = List<Part.Part>
 

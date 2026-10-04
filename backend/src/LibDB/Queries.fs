@@ -648,25 +648,17 @@ let getDeprecationSets () : Task<DeprecationSets> =
 /// `Undeprecate` is what lets a branch say "not here" about something main deprecated, which is the
 /// ancestor-override the schema comment describes. Main is an ordinary id here with an empty chain,
 /// so both readers below collapse to the plain main read.
+///
+/// The fold itself is `Deprecations.chainStanding`, shared with the authoring side rather than
+/// written again here: it also has to know what stands on a branch, to decide whether the op it is
+/// about to drop as a duplicate says something new. Two copies could disagree, and then what
+/// authoring decides and what this reads are answers about the same branch that do not match.
 let private chainDeprecationOverlay
   (branchId : PT.BranchId)
-  : Task<Map<string, Option<PT.DeprecationKind * string>>> =
+  : Task<Map<string, PT.ItemKind * Option<PT.DeprecationKind * string>>> =
   task {
     let! ops = Branches.chainOverlayOps branchId
-
-    return
-      ops
-      |> List.fold
-        (fun acc op ->
-          match op with
-          | PT.PackageOp.Deprecate(target, kind, message, _) ->
-            let (Hash h) = target.hash
-            Map.add h (Some(kind, message)) acc
-          | PT.PackageOp.Undeprecate(target, _) ->
-            let (Hash h) = target.hash
-            Map.add h None acc
-          | _ -> acc)
-        Map.empty
+    return Deprecations.chainStanding ops
   }
 
 
@@ -681,7 +673,7 @@ let getCurrentDeprecationFor
     let (Hash wanted) = itemHash
 
     match Map.tryFind wanted overlay with
-    | Some answer -> return answer
+    | Some(_kind, answer) -> return answer
     | None -> return! getCurrentDeprecation itemHash itemKind
   }
 
@@ -700,8 +692,8 @@ let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
         |> Map.fold
           (fun acc h entry ->
             match entry with
-            | Some _ -> Set.add (Hash h) acc
-            | None -> Set.remove (Hash h) acc)
+            | _kind, Some _ -> Set.add (Hash h) acc
+            | _kind, None -> Set.remove (Hash h) acc)
           mainSets.allDeprecated
 
       // `hidden` is "deprecated with no live caller", computed by the main query against main's
@@ -709,6 +701,78 @@ let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
       // is the branch's, and reporting them as hidden would hide items the branch still calls.
       return { allDeprecated = deprecated; hidden = mainSets.hidden }
   }
+
+/// When each impl was added, by the stamp of its `AddTraitImpl` op. Selection orders two
+/// impls of one trait for one type by it (`LibExecution.Lww`), so the same call picks the
+/// same impl on every instance. A row written before the column answers "", and a pair of
+/// unstamped rivals is reported rather than picked.
+let getTraitImplStamps () : Task<Map<string, string>> =
+  task {
+    let! rows =
+      Sql.query "SELECT hash, origin_ts FROM package_trait_impls"
+      |> Sql.executeAsync (fun read -> (read.string "hash", read.string "origin_ts"))
+    return Map.ofList rows
+  }
+
+
+/// The impls main has deprecated. A deprecated impl is not a dispatch candidate:
+/// deprecating one of two rivals is how the ambiguity finding says to settle it.
+///
+/// Main's answer only. Every caller wants <fn getDeprecatedTraitImplHashesFor> instead, which is
+/// why this one is private.
+let private getDeprecatedTraitImplHashesOnMain () : Task<Set<string>> =
+  task {
+    let! rows =
+      Sql.query
+        """
+        SELECT DISTINCT d.item_hash
+        FROM deprecations d
+        WHERE d.item_kind = 'impl'
+          AND d.unlisted_at IS NULL
+          AND d.state = 'deprecated'
+          AND NOT EXISTS (
+            SELECT 1 FROM deprecations later
+            WHERE later.item_hash = d.item_hash
+              AND later.item_kind = d.item_kind
+              AND later.unlisted_at IS NULL
+              AND later.state <> 'deprecated'
+              AND COALESCE(later.origin_ts, '') > COALESCE(d.origin_ts, ''))
+        """
+      |> Sql.executeAsync (fun read -> read.string "item_hash")
+    return Set.ofList rows
+  }
+
+
+/// <fn getDeprecatedTraitImplHashesOnMain> as <param branchId> sees it.
+///
+/// `deprecations` has no `branch_id`: a branch's `Deprecate` op sits inert in the op log and never
+/// reaches the projection, the same as a branch's names. Names answer that with an in-memory
+/// overlay and so does this, so an impl retired on a branch stops being a candidate THERE and
+/// stays one on main, and an impl main retired can be revived on a branch with `Undeprecate`.
+///
+/// This was wrong until it was fixed: the candidate path read main's answer while the display path
+/// read the branch's, so `dark view` on a branch called an impl deprecated while a call on that
+/// same branch still dispatched to it. Main is an ordinary id with an empty chain, so main
+/// collapses to the plain read.
+let getDeprecatedTraitImplHashesFor (branchId : PT.BranchId) : Task<Set<string>> =
+  task {
+    let! onMain = getDeprecatedTraitImplHashesOnMain ()
+    let! overlay = chainDeprecationOverlay branchId
+
+    if Map.isEmpty overlay then
+      return onMain
+    else
+      return
+        overlay
+        |> Map.fold
+          (fun acc h entry ->
+            match entry with
+            | PT.ItemKind.TraitImpl, Some _ -> Set.add h acc
+            | PT.ItemKind.TraitImpl, None -> Set.remove h acc
+            | _ -> acc)
+          onMain
+  }
+
 
 let getHarmfulFnHashes () : Task<Set<Hash>> =
   task {

@@ -113,7 +113,7 @@ let testTextNeverSplitsAWideGlyph (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail
-      $"Expected a wide glyph to be dropped whole, got width {Stdlib.Int.toString (Stdlib.String.displayWidth clipped)}"
+      $"Expected a wide glyph to be dropped whole, got width {Stdlib.toString (Stdlib.String.displayWidth clipped)}"
 
 
 let testTextDropsNonSgrEscapes (): TestResult =
@@ -151,7 +151,7 @@ let testTextCursorAfterFullRowWraps (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail
-      $"Expected (1, 0), got ({Stdlib.Int.toString row}, {Stdlib.Int.toString column})"
+      $"Expected (1, 0), got ({Stdlib.toString row}, {Stdlib.toString column})"
 
 
 let testTextFitPadsByColumnsNotCharacters (): TestResult =
@@ -162,7 +162,7 @@ let testTextFitPadsByColumnsNotCharacters (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail
-      $"Expected 6 columns, got {Stdlib.Int.toString (Stdlib.String.displayWidth fitted)}"
+      $"Expected 6 columns, got {Stdlib.toString (Stdlib.String.displayWidth fitted)}"
 
 
 let testTextFitIgnoresStylingWhenPadding (): TestResult =
@@ -385,7 +385,7 @@ let testWorkbenchPreviewsRender (): TestResult =
   if Stdlib.List.isEmpty broken then
     TestResult.Pass
   else
-    let names = broken |> Stdlib.List.map Stdlib.Int.toString |> Stdlib.String.join ", "
+    let names = broken |> Stdlib.List.map Stdlib.toString |> Stdlib.String.join ", "
     TestResult.Fail $"preview panes that drew nothing: {names}"
 
 
@@ -401,7 +401,7 @@ let testWorkbenchSectionsRender (): TestResult =
   if Stdlib.List.isEmpty brokenLenses then
     TestResult.Pass
   else
-    let nl = Stdlib.Int.toString (Stdlib.List.length brokenLenses)
+    let nl = Stdlib.toString (Stdlib.List.length brokenLenses)
     TestResult.Fail $"{nl} Matter lens(es) produced no frame"
 
 
@@ -418,7 +418,7 @@ let testWorkbenchEveryViewRenders (): TestResult =
   if Stdlib.List.isEmpty broken then
     TestResult.Pass
   else
-    let names = broken |> Stdlib.List.map Stdlib.Int.toString |> Stdlib.String.join ", "
+    let names = broken |> Stdlib.List.map Stdlib.toString |> Stdlib.String.join ", "
     TestResult.Fail $"Views produced no frame: {names}"
 
 
@@ -818,7 +818,7 @@ let testWorkbenchCapturesStrayOutput (): TestResult =
   if (value == 42) && (Stdlib.String.contains out "must not reach") then
     TestResult.Pass
   else
-    TestResult.Fail $"Expected 42 and the captured line, got {Stdlib.Int.toString value} / '{out}'"
+    TestResult.Fail $"Expected 42 and the captured line, got {Stdlib.toString value} / '{out}'"
 
 
 /// Does rendering view `viewIndex` put `marker` on the screen?

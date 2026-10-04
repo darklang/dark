@@ -13,7 +13,10 @@ let leafNameOf (src: String) : String =
     |> Stdlib.List.filter (fun t -> t != "")
   let raw = Stdlib.List.getAt toks 1 |> Stdlib.Option.withDefault ""
   let beforeParen = Stdlib.String.split raw "(" |> Stdlib.List.head |> Stdlib.Option.withDefault raw
-  Stdlib.String.split beforeParen ":" |> Stdlib.List.head |> Stdlib.Option.withDefault beforeParen
+  // `trait Show<'a> =` puts the type params on the name, so cut there too.
+  let beforeAngle =
+    Stdlib.String.split beforeParen "<" |> Stdlib.List.head |> Stdlib.Option.withDefault beforeParen
+  Stdlib.String.split beforeAngle ":" |> Stdlib.List.head |> Stdlib.Option.withDefault beforeAngle
 
 /// Save the editor's declaration: the buffer holds a full `let`/`type`/`val` declaration. Derive the leaf name
 /// from it, resolve the target location relative to the current tree spot, then parse → WrittenTypes → PT →
@@ -44,7 +47,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
   else
   // Resolve the name against the target module (a `module …` line, or the editor's target from where it opened).
   match Packages.Location.parseRelativeTo (Packages.PackageLocation.Module targetMod) leaf with
-  | Error e -> keepErr ("bad name: " ++ e)
+  | Error e -> keepErr ("bad name: " + e)
   | Ok location ->
     let diags = LanguageTools.Parser.Parse.diagnostics fullSource
     if Stdlib.Bool.not (Stdlib.List.isEmpty diags) then
@@ -82,6 +85,26 @@ let saveEditing (state: State) (es: EditingState) : Step =
                   [ LanguageTools.ProgramTypes.PackageOp.AddValue pv
                     LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue pv.hash, Stdlib.Option.Option.None) ]
             | _ -> Stdlib.Result.Result.Error "not a value definition"
+          // A trait and an implementation do NOT build a `SetName` here, unlike the three above.
+          // `traitWithOps` and `implWithOps` return a complete op list, placed: an implementation's
+          // name is derived from the module, the type and the trait rather than typed, so only the
+          // converter knows where it goes. Adding a `SetName` for symmetry would bind the name a
+          // second time, which folds once and looks fine. These are the same converters `dark trait`
+          // and `dark impl` call, so the two surfaces author identically.
+          else if es.kind == "trait" then
+            match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Trait _ -> true | _ -> false) with
+            | Some(Trait wt) ->
+              let (_pt, ops, unresolved) = LanguageTools.WrittenTypesToProgramTypes.traitWithOps ctx wt
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
+              else Stdlib.Result.Result.Ok ops
+            | _ -> Stdlib.Result.Result.Error "not a trait definition"
+          else if es.kind == "impl" then
+            match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Impl _ -> true | _ -> false) with
+            | Some(Impl wi) ->
+              let (_pi, _fns, ops, unresolved) = LanguageTools.WrittenTypesToProgramTypes.implWithOps ctx wi
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
+              else Stdlib.Result.Result.Ok ops
+            | _ -> Stdlib.Result.Result.Error "not an implementation"
           else
             match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Function _ -> true | _ -> false) with
             | Some(Function wf) ->
@@ -140,21 +163,27 @@ let openNewEditor (state: State) (kind: String) (targetModule: List<String>) : S
   let (titleBase, template, nameCol) =
     if kind == "type" then ("New type", "type NewType =\n  { field: Int }", 5)
     else if kind == "value" then ("New value", "val newValue = 1", 4)
+    else if kind == "trait" then
+      ("New trait", "trait NewTrait<'a> =\n  let method (v: 'a) : String", 6)
+    // An implementation's name is derived, so the cursor goes to the TRAIT being implemented
+    // rather than to a name you are about to type.
+    else if kind == "impl" then
+      ("New implementation", "impl NewTrait for SomeType =\n  let method (v: SomeType) : String = \"\"", 5)
     else ("New function", "let newFunction (x: Int): Int =\n  x", 4)
-  let where = "  ·  in " ++ (Stdlib.String.join targetModule ".")
+  let where = "  ·  in " + (Stdlib.String.join targetModule ".")
   let buf = Stdlib.Cli.UI.Editor.fromText template
   Step.Continue
     { state with
         editing =
           Stdlib.Option.Option.Some
             (EditingState
-              { kind = kind; nameStr = titleBase ++ where; targetModule = targetModule; buf = { buf with col = nameCol }; err = "" }) }
+              { kind = kind; nameStr = titleBase + where; targetModule = targetModule; buf = { buf with col = nameCol }; err = "" }) }
 
 /// Author a new item. The declaration is a BARE name (a qualified `let Owner.Mod.name` is a parse error), so the
 /// target module has to come from somewhere: use the current tree location if it's deep enough (owner.Module),
 /// otherwise ask for it - so you can author from anywhere, not only inside a module.
 let startNew (state: State) (kind: String) : Step =
-  let modPath = modulePathOf state.location
+  let modPath = Packages.modulePathOf state.location
   if Stdlib.List.length modPath >= 2 then
     openNewEditor state kind modPath
   else
@@ -162,16 +191,16 @@ let startNew (state: State) (kind: String) : Step =
     // modPath (the current location) already starts with the owner, so don't prepend it again - only fall
     // back to the account owner when at the root with no module path (else you get "Stachu.Stachu.").
     let base = if Stdlib.List.isEmpty modPath then owner else Stdlib.String.join modPath "."
-    let prefill = base ++ "."
+    let prefill = base + "."
     Step.Continue
       { state with
           input =
             Stdlib.Option.Option.Some
-              (InputState { prompt = "save into module (owner.Module): "; field = Stdlib.Cli.UI.TextField.fromText prefill; action = "author-" ++ kind }) }
+              (InputState { prompt = "save into module (owner.Module): "; field = Stdlib.Cli.UI.TextField.fromText prefill; action = "author-" + kind }) }
 
 /// Open the editor on an existing fn, prefilled with its full current declaration (doc comments dropped).
 let openEditExisting (state: State) (item: BodyItem) : Step =
-  let modules = modulePathOf state.location
+  let modules = Packages.modulePathOf state.location
   let fullName = Stdlib.String.join (Stdlib.List.append modules [ item.name ]) "."
   let results = Packages.Query.searchExactMatch state.branchId modules item.name
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch state.branchId
@@ -185,15 +214,25 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
       match results.values with
       | i :: _ -> Stdlib.Option.Option.Some(("value", PrettyPrinter.ProgramTypes.packageValue ctx i.entity))
       | [] -> Stdlib.Option.Option.None
-    else
+    else if item.kind == "fn" then
       match results.fns with
       | i :: _ -> Stdlib.Option.Option.Some(("fn", PrettyPrinter.ProgramTypes.packageFn ctx i.entity))
       | [] -> Stdlib.Option.Option.None
+    else if item.kind == "trait" then
+      match results.traits with
+      | i :: _ -> Stdlib.Option.Option.Some(("trait", PrettyPrinter.ProgramTypes.packageTrait ctx i.entity))
+      | [] -> Stdlib.Option.Option.None
+    else if item.kind == "impl" then
+      match results.impls with
+      | i :: _ -> Stdlib.Option.Option.Some(("impl", PrettyPrinter.ProgramTypes.packageImpl ctx i.entity))
+      | [] -> Stdlib.Option.Option.None
+    else
+      Stdlib.Option.Option.None
   match kindAndSrc with
   | Some((kind, src)) ->
     Step.Continue
       { state with
           editing =
             Stdlib.Option.Option.Some
-              (EditingState { kind = kind; nameStr = "Editing " ++ fullName; targetModule = modules; buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src); err = "" }) }
-  | None -> Step.Continue state
+              (EditingState { kind = kind; nameStr = "Editing " + fullName; targetModule = modules; buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src); err = "" }) }
+  | None -> Step.Continue { state with message = $"nothing to edit at {fullName}" }

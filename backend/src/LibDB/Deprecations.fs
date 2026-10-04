@@ -75,3 +75,36 @@ let standing
     | Some("deprecated", Some blob) -> return deserializeAnnotation blob
     | _ -> return None
   }
+
+
+/// What the chain's own `Deprecate`/`Undeprecate` ops say, folded in order: content hash to the
+/// kind it was said about, and the standing those ops leave.
+///
+/// A branch's deprecation never folds, so there is no `deprecations` row to ask and this overlay
+/// is the only answer for content the chain speaks about; <fn standing> is the fallback for
+/// content it is silent about.
+///
+/// Pure, and takes the ops rather than a branch, because the ops come from `Branches`, which
+/// compiles after this file. Both callers hand them in: authoring, to decide whether the op it is
+/// about to drop as a duplicate says what already stands, and `Queries`, to read for display. If
+/// those two folded it separately they could disagree, and then the restatement decision and the
+/// read disagree about the same branch -- the same shape of bug as two copies of `Lww`.
+///
+/// The kind travels in the value because one reader wants a single kind of item and the others
+/// want all of them. It does NOT key the map: content is the key, as everywhere else, and one
+/// hash bound to two kinds is answered by whichever op is later.
+let chainStanding
+  (ops : List<PT.PackageOp>)
+  : Map<string, PT.ItemKind * Option<PT.DeprecationKind * string>> =
+  ops
+  |> List.fold
+    (fun acc op ->
+      match op with
+      | PT.PackageOp.Deprecate(target, kind, message, _) ->
+        let (Hash h) = target.hash
+        Map.add h (target.kind, Some(kind, message)) acc
+      | PT.PackageOp.Undeprecate(target, _) ->
+        let (Hash h) = target.hash
+        Map.add h (target.kind, None) acc
+      | _ -> acc)
+    Map.empty

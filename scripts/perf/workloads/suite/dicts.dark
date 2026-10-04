@@ -10,7 +10,7 @@ let iters () : Int =
 
 let build (n: Int) : Dict<String, Int> =
   Stdlib.List.fold (Stdlib.List.range 1 n) Stdlib.Dict.empty (fun acc i ->
-    Stdlib.Dict.set acc ("k" ++ (Stdlib.Int.toString i)) i)
+    Stdlib.Dict.set acc ("k" + (Stdlib.toString i)) i)
 
 let work (n: Int) : Int =
   let d = build 20
@@ -28,4 +28,4 @@ let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
 let t0 = Darklang.Cli.Telemetry.now ()
 let result = repeat (iters ()) 0
 let t1 = Darklang.Cli.Telemetry.now ()
-Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " result=" ++ (Stdlib.Int.toString result) ++ " stats=" ++ (Darklang.LanguageTools.InterpreterStats.get ()))
+Stdlib.printLine ("elapsed_ms=" + (Stdlib.toString (t1 - t0)) + " result=" + (Stdlib.toString result) + " stats=" + (Darklang.LanguageTools.InterpreterStats.get ()))
