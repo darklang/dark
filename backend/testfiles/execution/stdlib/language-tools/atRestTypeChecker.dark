@@ -2137,6 +2137,31 @@ module Batches =
    answer == "failed:TypeMismatch"
    || answer == "failed:TypeMismatch,UnsupportedConstruct") = true
 
+  // The guard's own coverage, asserted ON the guard rather than through the checker.
+  //
+  // `TooDeep` does not mean "this type is too complicated for the checker". It means the check
+  // exhausted the NATIVE stack: `Builtin.atRestCheckGuarded` catches
+  // `InsufficientExecutionStackException`, returns `CheckFailure.TooDeep`, and `failureIssue`
+  // reports that as `UnsupportedConstruct` with `Context.DeclarationTooDeep`.
+  //
+  // Every other test above that reaches `TooDeep` reaches it as a SIDE EFFECT of the checker
+  // outrunning a limit nobody chose. So when the interpreter's stack use per Dark-level call
+  // changes, those tests stop covering the guard without saying that is what happened, and a
+  // guard whose only coverage is incidental is a guard somebody deletes as dead code.
+  //
+  // This pair does not depend on that. Comparing a deeply nested value recurses in F#, not in
+  // the interpreter, so it trips the stack check however the interpreter lays out its frames.
+  (Darklang.LanguageTools.AtRestTypeChecker.guard
+    (fun t -> t == (nestedListType 5000))
+    (nestedListType 5000)) =
+    Stdlib.Result.Result.Error
+      Darklang.LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep
+
+  // And it is not simply always failing: the same shape, shallow, comes back Ok.
+  (Darklang.LanguageTools.AtRestTypeChecker.guard
+    (fun t -> t == (nestedListType 2))
+    (nestedListType 2)) = Stdlib.Result.Result.Ok true
+
   (checkValueAsts
     [ valueNamed "deep-value" (nestedListExpr 5000)
       valueNamed "shallow-value" (intExpr 3L 1)

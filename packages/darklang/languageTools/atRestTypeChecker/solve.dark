@@ -18,6 +18,12 @@ type State =
     /// Match-coverage requirements saved for Items to check after type inference.
     /// Some may move into a generic scheme to be checked at each use instead.
     coverage: List<Model.Constraint>
+    /// How deep the structural comparison in `unify` currently is. Nesting, not a running
+    /// total: each `unify` restores its caller's value on the way out. See `maxUnifyDepth`.
+    unifyDepth: Int64
+    /// Set once `maxUnifyDepth` has been reached and the warning recorded, so the sibling
+    /// comparisons that are also too deep do not each record it again.
+    gaveUpOnDepth: Bool
     /// Errors and warnings accumulated so far, with new findings prepended.
     findings: List<Model.Finding> }
 
@@ -30,6 +36,8 @@ let start (env: Model.Environment) : State =
       schemes = Dict {}
       waiting = []
       coverage = []
+      unifyDepth = 0L
+      gaveUpOnDepth = false
       findings = [] }
 
 
@@ -138,6 +146,23 @@ let markAllUnknownsAsError (s: State) (tys: List<Model.Ty>) : State =
 ///
 /// Follow existing assignments first and accept identical types immediately.
 /// Compare components or expand aliases only when the types still differ.
+/// The deepest structural comparison `unify` will attempt before giving up and reporting
+/// the declaration Incomplete.
+///
+/// Comparing two types walks both in lockstep, so types nested N deep cost N nested calls.
+/// That used to be bounded by the .NET stack rather than by anything the checker decided:
+/// the comparison exhausted the native stack, `Builtin.atRestCheckGuarded` caught
+/// `InsufficientExecutionStackException`, and `failureIssue` turned it into
+/// `DeclarationTooDeep`. That is not a limit, it is a crash that happened to be
+/// load-bearing, and it moves whenever the interpreter changes how much native stack a
+/// Dark-level call costs. So the checker owns the number now, and "too deep to check" is a
+/// verdict it chooses rather than a wall it hits.
+///
+/// 1,000 sits well above anything written on purpose and well below the depths the tests
+/// use to be absurd (5,000 and 3,000). Real declarations nest in single digits. It has a
+/// name so that it can be argued with.
+val maxUnifyDepth = 1000L
+
 let unify
   (s: State)
   (at: Stdlib.Option.Option<Int64>)
@@ -148,7 +173,25 @@ let unify
   let expected = Types.walk s.subst expected
   let actual = Types.walk s.subst actual
 
-  if expected == actual then s else unifyDifferent s at site expected actual
+  if expected == actual then
+    s
+  else if s.unifyDepth >= maxUnifyDepth then
+    // Stop descending and report the declaration Incomplete. Recorded once per
+    // declaration: every sibling comparison below this point is also too deep, and a
+    // reader wants one warning rather than one per branch of the type.
+    if s.gaveUpOnDepth then
+      s
+    else
+      addFinding
+        { s with gaveUpOnDepth = true }
+        (Types.warning IssueCode.UnsupportedConstruct at Context.DeclarationTooDeep)
+  else
+    let deeper =
+      unifyDifferent { s with unifyDepth = s.unifyDepth + 1L } at site expected actual
+
+    // Restore the caller's depth. This counts nesting, so that a declaration with many
+    // shallow comparisons is not refused for having done a lot of them.
+    { deeper with unifyDepth = s.unifyDepth }
 
 /// Compare types after following assignments and ruling out exact equality.
 /// Unknowns can be assigned, matching containers compare their components, and
