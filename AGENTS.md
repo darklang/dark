@@ -133,6 +133,28 @@ renames flags that never existed upstream. Grep the working tree for any of thos
 report your own branch as though it were the world. Three times in one session, each time while
 deciding whether something was separable, which is the decision that depends on it most.
 
+**A host-side `timeout` around `run-backend-tests` leaves the real test process running, holding
+the lock.** `timeout 300 ./scripts/run-backend-tests ...` kills the wrapper on the host; the
+`Tests` binary inside the container is not its child and keeps going. It still holds the suite
+lock, so every run you start afterwards exits IMMEDIATELY, with no output and nothing resembling
+an error. Measured: a filtered run that should take seconds returned in 0s, four times in a row,
+and each one read as a pass.
+
+So two rules, and the second is the one that saves you:
+
+- Stop a run by pid from inside the container, never by killing the host wrapper and never by
+  pattern (see the `pkill -f` entry below):
+
+      source scripts/devcontainer/_container-for-clone
+      C=$(container_for_clone "$PWD")
+      P=$(docker exec "$C" ps -eo pid,args | awk '/[T]ests --colours/ {print $1}')
+      for p in $P; do docker exec "$C" kill $p; done
+
+- **Treat a zero-second test run as a lock, not a result.** An instant green is the most
+  believable wrong answer the suite can give you, because it looks exactly like a fast pass on a
+  narrow filter. If a run came back in under a second, check for a surviving `Tests` process
+  before you believe a word of it.
+
 ### Sweeping the CLI after a change
 
 ### Processes and live programming
