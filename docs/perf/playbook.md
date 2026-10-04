@@ -288,3 +288,73 @@ though its allocation column repeats to 0.1 KB.
   percent there is noise.
 - The wall-clock sections of `view.dark` and `route.dark` resolve about 1%; `keypress` reports whole
   milliseconds and cannot see a sub-millisecond win at all.
+
+## The store you measure against is half the measurement
+
+Four lessons that each cost a measurement. None of them is about a particular change; they are
+about the thing every reading here is taken against.
+
+### A store you copied is a store from a point in time, and the time is before your change
+
+The general rule behind the next section, and the one that has now cost three measurements in a
+day. A store is a snapshot: copying one, exporting one, or reloading one pins the code it
+contains. Measure after a change against a store taken before it and the change reads as having
+done nothing.
+
+- a seed exported mid-session, measured later as if it were clean (the next section)
+- a throwaway rundir seeded with `_copy-store` BEFORE an edit, then used to test the edit. The fix
+  was live in the dev store and absent from the copy, so the first "after" run reproduced the
+  bug exactly
+- the dev store itself, after `git checkout <base>` ran a build that reloaded BASE packages into
+  it. Coming back to the branch does not undo that, and a plain build then says "nothing has
+  changed", so the tree had the fix and the store did not. The measurement that exposed it was a
+  gate taking 129s instead of 12s, because the old code was still being killed by its timeout
+
+The check is the same in all three: before trusting a number, ask what the store was built from and
+WHEN. `scripts/dev/build` after returning from a detached checkout, and re-copy any throwaway store
+after a change you intend to measure.
+
+### The seed is not automatically clean
+
+"Build a fresh store from `rundir/seed.db`" is only valid if nobody has re-exported the seed since.
+`export-seed` writes it FROM the live store, so a seed exported during a working session carries
+that session's ops. Mine had the same day's mtime and gave 11.4 MB, which is exactly the dirty
+figure, and it nearly got written up as dirt a second time.
+
+**Look at `ls -la rundir/seed.db` before trusting a store built from it.** To get a store that is
+genuinely clean, delete `rundir/data.db*` and run `scripts/build/reload-packages`, which authors
+packages from source and carries no traces, no hand-authored modules and no approvals.
+
+Size is the other tell, and it is blunt enough to use without thinking. A freshly exported seed on
+this branch is 13 MB. The one that had been sitting in `rundir/` was 108 MB, so it was carrying
+about 95 MB of one session's ops. If `seed.db` is an order of magnitude larger than a fresh export,
+every "fresh store" built from it was a working store wearing a fresh store's name.
+
+A build will eventually tell you the seed is stale, but only when the package refs move:
+`rundir/seed.db cannot produce this binary's package refs`. Nothing tells you it is merely dirty.
+
+### Dirt is worth about 4%, not 19%
+
+An earlier commit message asserted that nine days of accumulated ops inflated the gate by about
+19%. The three-way measurement above says about 4%, and the 19% was itself an artifact of
+comparing against a seed that was not clean. This matters because that figure had become the
+standard reason to dismiss a bad reading, and it was wrong in the direction that made dismissal
+too easy.
+
+### A number far UNDER budget deserves the same suspicion as one far over
+
+Attempting an A/B against an older published binary gave 5.1 MB against a 9.7 MB budget, a
+plausible-looking 2.2x win. It was a failed run: that binary could not read the newer store
+("Function ... couldn't be found"), and stderr had gone to `/dev/null`. The only thing that caught
+it was the number being implausibly GOOD.
+
+This is a repeat, and the guard was already written down twice. The section above already says to
+check that both arms print the workload's own `elapsed_ms`, and `rundir/alloc-bisect.sh` exists for
+exactly this job: its header notes that twice on 30 September a binary that was not doing the work
+produced a plausible number, so it refuses a run whose summary line is absent. Use that script
+rather than writing a fresh loop, which is how this was hit again.
+
+Counting the ones we know about: two on 30 September, two the evening of 1 October, and the 5.1 MB
+above. **Five plausible wrong readings from this instrument.** The count is the argument: the gate
+is not a reliable instrument on a working clone, and the budget is pinned from readings taken
+with it.

@@ -115,6 +115,16 @@ The other trap: a filter that matches nothing used to be reported as `0 tests ru
 with exit 0. It fails now. `docs/unittests.md` has the rest, including what the three filter
 flags actually do and why they used to disagree with their own help text.
 
+It fails by PRINTING OVER a success, though, which is its own trap for anyone reading the run
+through a grep. Expecto still emits `EXPECTO! 0 tests run ... Success!`; the runner then explains
+itself and exits 1. So a `grep -oE "[0-9,]+ tests run.*"` captures Expecto's "Success!" and
+throws away both the override and the exit code, and an empty run reads as a passing one. Twice
+in one session that produced a confident, wrong report about the tooling.
+
+**Never report a conclusion about the tooling from matched text alone; show the exit code beside
+it.** Same family as "don't infer build state from logs" above, one level out: that one is about
+reading the wrong file, this one is about reading the right file too narrowly.
+
 ### Sweeping the CLI after a change
 
 A Dark call site is not type-checked until it executes, so a rename or a type change across
@@ -320,6 +330,112 @@ plausibly, which is why it is hard to spot. Go through the overlay helpers in `S
 op log directly.
 
 ## Gotchas
+
+**Never conclude an ABSENCE from output you truncated or filtered.** This is the one that gets
+through, because it produces a confident negative, and a negative is the result nobody re-checks:
+you look for a thing, do not see it, and move on. Every other harness mistake here produced a
+wrong positive that something eventually contradicted. This family produces silence, and silence
+agrees with whatever you already believed. Measured instances:
+
+- `git remote -v | head -4` cuts alphabetically after `oceanoak` and before `origin`, so `origin`
+  looks absent and you conclude the clone does not follow the remote convention
+- `grep -c` counts LINES, not occurrences, so a count comes back wrong and the "correction" you
+  then make is the error
+- a prefix regex over-matches (`Stdlib\.[A-Za-z0-9]+\.toString` also matches
+  `toStringISO8601BasicDate`), inventing call sites that do not exist
+- `head -c N` on JSON truncates mid-structure, so a valid payload fails to parse and reads as a
+  malformed response
+- a context pattern like `grep -o '.\{260\}NEEDLE.\{120\}'` requires 260 characters BEFORE the
+  match, so any hit near the start of a line silently fails to match and the needle reads as
+  absent. Reported "zero occurrences" of a number that was in the file 15 times. Count with a
+  fixed string first (`grep -c -F`), then go looking for context
+- a pipeline hides the exit code of the thing you care about. `./scripts/dev/build ... | tail -40`
+  reported exit 0 over a build that printed "Failed in 64.85s". Use `${PIPESTATUS[0]}`, or do not
+  pipe
+- `ls backend/Build/...` from the HOST returns nothing whether or not the file is there, because
+  that path is a container volume. See the entry below. This is the one variant that does not
+  announce itself: the others cut a real answer short, this one shows you an empty directory with
+  no error at all
+
+A HARNESS manufactures a negative the same way a filter does, and it is harder to see because
+running a control FEELS like the check. Headless chromium never reached a prompt in the browser
+build; the deployed site did not either, so the conclusion drawn was "not a regression", when the
+available conclusion was equally "not a working instrument". A real browser with a person in
+front of it gets a prompt in seconds. A control agreeing with your negative only rules out one of
+the two explanations, and the instrument is the one nobody suspects.
+
+**Bracket every pattern you hand to `pgrep -f` / `pkill -f`.** The pattern appears in your own
+shell's command line, so an unbracketed one matches the process doing the matching. A waiter waits
+on itself forever; a `pkill -f "serve Foo"` kills the backgrounded shell whose command line
+contains "serve Foo", which looks exactly like the publish you just started dying for no reason.
+`[s]erve Foo` matches the target and not the matcher. Note that bracketing is not enough on its
+own: if the same shell also RUNS `serve Foo`, the bracketed pattern still matches it, so kill and
+start belong in separate commands. That last clause caught me three more times in one night, each
+time in a command that started a fixture server and tidied up after an earlier one, so take the
+recipe rather than the rule: start background fixtures with `docker exec -d` (or `setsid` plus a
+redirect, so the exec can return), and STOP them by pid read from `ps`, never by pattern:
+
+    P=$(ps -eo pid,args | awk '/python3 \/tmp\/delay.py/ && !/awk/ {print $1}')
+    for p in $P; do kill $p; done
+
+`docker exec` without `-d` also hangs on a server that never exits, which looks like the command
+failing rather than the server working. The same family: `2>&1` on a command whose stdout you are about
+to parse as JSON merges a warning into the payload and the parse failure reads as a product bug.
+All of these presented as product failures here and all of them were the harness.
+
+**A wasm publish piped to `tail` looks like a 40-minute hang.** `dotnet publish` spawns MSBuild
+worker nodes with `/nodeReuse:true`. They inherit stdout and outlive the parent, so the pipe never
+closes, `tail` never gets EOF, and whatever error dotnet printed sits in its buffer unseen: the
+child exits, the shell stays, and `rundir/wasm-repl` stays empty with no exit code and no
+diagnostic. Run it to a FILE with node reuse off, and nothing else building in that container,
+since a Release wasm publish rebuilds the same project references and two of them fight over
+obj/bin:
+
+    MSBUILDDISABLENODEREUSE=1 dotnet publish backend/src/Wasm/Wasm.fsproj -c Release \
+      -o rundir/wasm-repl -nodeReuse:false > rundir/logs/wasm-publish.log 2>&1
+
+A real publish is 4 to 8 minutes and leaves hundreds of MB in `backend/Build/obj/Wasm` within the
+first couple of minutes; `obj` still tiny means it never got past restore, which is not slowness.
+Progress markers in the log, in order: restore, `Wasm -> ... Darklang.Wasm.dll`, `AOT'ing N
+assemblies`, then the emscripten link and `wasm-opt`, which is single-threaded and the long tail.
+(Diagnosed by the wasm-preview session, which named it from a one-line symptom.)
+
+**`backend/Build` is a container volume, so from the host it reads as EMPTY.** `ls`, `du` and
+`find` against it from the host return nothing at all, with no error, whether or not the binary is
+there. Everything here is driven through `./scripts/*` from the host, which is exactly the habit
+that leaves you inspecting host paths, and this one lies. To look at build output, look from
+inside:
+
+    source scripts/devcontainer/_container-for-clone
+    docker exec "$(container_for_clone "$PWD")" \
+      ls -la /home/dark/app/backend/Build/out/Cli/Debug/net10.0/Cli
+
+That helper exists for this and is meant to be sourced; its own comment explains why the
+`/home/dark/app` mount source is the only key that holds (names vary, the `local_folder` label is
+empty on some containers, and `docker ps --last 1` sorts by creation time, which says nothing about
+which clone you are in). `workspace-tools/clones` shows a container's STATE and ports, not its name.
+
+Cost of not knowing: twenty minutes on a missing-binary theory for a binary that was sitting there
+the whole time, immediately after a control had just saved me from a different wrong theory.
+
+**After `--optimize`, nothing will rebuild the debug tree.** `scripts/dev/build --optimize` builds
+Release INSTEAD of Debug, and `--help` says the debug tree is left behind "until the next plain
+build". A plain build does not do it. The build index tracks SOURCES, not outputs, so with no `.fs`
+change it reports "nothing has changed since the last successful build" and stops. Naming paths
+does not do it either: "1 path(s) given, but none of it changes what gets built". `dev/build` does
+force a full build when binaries are MISSING, but after `--optimize` the Debug binary is not
+missing, it is merely from whatever commit built it last, so the check passes and you are left with
+a Debug CLI and a package store that disagree about which commit they came from, silently. The
+supported escape, whose own comment explains the asymmetry:
+
+    scripts/build/clear-dotnet-build && scripts/dev/build
+
+That wipes Release too and costs a full rebuild, so do not reach for `--optimize` unless you are
+about to run the whole suite and then stop.
+
+If a search comes back empty and you are about to act on the emptiness, re-run it without the
+filter. If a harness reports that nothing happened, reproduce it by hand once before you write it
+down.
 
 **PackageRefs stale hash.** `backend/src/LibExecution/package-ref-hashes.txt` isn't in git.
 Empty is tolerated; non-empty with a missing key crashes at startup with "PackageRefs: X
