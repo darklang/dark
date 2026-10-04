@@ -80,49 +80,55 @@ let private issue range code message = detailedIssue range code message [] None
 
 let private isIgnoredName (name : string) = name = "" || name.StartsWith "_"
 
-let rec private letBindings (pattern : WT.LetPattern) : List<string * WT.Range> =
-  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
-  match pattern with
-  | WT.LPVariable(range, name) -> [ (name, range) ]
-  | WT.LPTuple(_, first, _, second, rest, _, _) ->
-    letBindings first
-    @ letBindings second
-    @ (rest |> List.collect (snd >> letBindings))
-  | WT.LPUnit _
-  | WT.LPWildcard _ -> []
+// Keep pending siblings on the heap and collect in reverse visitation order.
+let private letBindings (pattern : WT.LetPattern) : List<string * WT.Range> =
+  let rec loop pending bindings =
+    match pending with
+    | [] -> List.rev bindings
+    | current :: remaining ->
+      match current with
+      | WT.LPVariable(range, name) -> loop remaining ((name, range) :: bindings)
+      | WT.LPTuple(_, first, _, second, rest, _, _) ->
+        loop (first :: second :: (List.map snd rest @ remaining)) bindings
+      | WT.LPUnit _
+      | WT.LPWildcard _ -> loop remaining bindings
+  loop [ pattern ] []
 
-let rec private matchBindings (pattern : WT.MatchPattern) : List<string * WT.Range> =
-  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
-  match pattern with
-  | WT.MPVariable(range, name) -> [ (name, range) ]
-  | WT.MPList(_, contents, _, _) -> contents |> List.collect (fst >> matchBindings)
-  | WT.MPListCons(_, head, tail, _) -> matchBindings head @ matchBindings tail
-  | WT.MPTuple(_, first, _, second, rest, _, _) ->
-    matchBindings first
-    @ matchBindings second
-    @ (rest |> List.collect (snd >> matchBindings))
-  | WT.MPEnum(_, _, fields) -> fields |> List.collect matchBindings
-  // A valid or-pattern has one logical binding set. Use the first alternative
-  // as its representative when checking an enclosing tuple/list pattern.
-  | WT.MPOr(_, first :: _) -> matchBindings first
-  | WT.MPOr(_, [])
-  | WT.MPUnit _
-  | WT.MPBool _
-  | WT.MPInt _
-  | WT.MPInt64 _
-  | WT.MPInt8 _
-  | WT.MPUInt8 _
-  | WT.MPInt16 _
-  | WT.MPUInt16 _
-  | WT.MPInt32 _
-  | WT.MPUInt32 _
-  | WT.MPUInt64 _
-  | WT.MPInt128 _
-  | WT.MPUInt128 _
-  | WT.MPFloat _
-  | WT.MPChar _
-  | WT.MPString _
-  | WT.MPError _ -> []
+let private matchBindings (pattern : WT.MatchPattern) : List<string * WT.Range> =
+  let rec loop pending bindings =
+    match pending with
+    | [] -> List.rev bindings
+    | current :: remaining ->
+      match current with
+      | WT.MPVariable(range, name) -> loop remaining ((name, range) :: bindings)
+      | WT.MPList(_, contents, _, _) ->
+        loop (List.map fst contents @ remaining) bindings
+      | WT.MPListCons(_, head, tail, _) -> loop (head :: tail :: remaining) bindings
+      | WT.MPTuple(_, first, _, second, rest, _, _) ->
+        loop (first :: second :: (List.map snd rest @ remaining)) bindings
+      | WT.MPEnum(_, _, fields) -> loop (fields @ remaining) bindings
+      // An or-pattern contributes the first alternative's logical binding set.
+      | WT.MPOr(_, first :: _) -> loop (first :: remaining) bindings
+      | WT.MPOr(_, [])
+      | WT.MPUnit _
+      | WT.MPBool _
+      | WT.MPInt _
+      | WT.MPInt64 _
+      | WT.MPInt8 _
+      | WT.MPUInt8 _
+      | WT.MPInt16 _
+      | WT.MPUInt16 _
+      | WT.MPInt32 _
+      | WT.MPUInt32 _
+      | WT.MPUInt64 _
+      | WT.MPInt128 _
+      | WT.MPUInt128 _
+      | WT.MPFloat _
+      | WT.MPChar _
+      | WT.MPString _
+      | WT.MPError _ -> loop remaining bindings
+
+  loop [ pattern ] []
 
 let private usableBindingNames (pattern : WT.MatchPattern) : Set<string> =
   pattern

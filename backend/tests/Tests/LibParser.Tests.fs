@@ -971,6 +971,70 @@ let private validationTests =
           issues
           (fun issue -> issue.code = Validation.DuplicateBinder)
           "duplicate binder issue")
+      testCase "deep let patterns preserve duplicate binding order" (fun _ ->
+        let firstRange = WT.synthRange
+        let duplicateRange =
+          { firstRange with
+              start = { row = 0; column = 1 }
+              end_ = { row = 0; column = 2 } }
+        let mutable pattern = WT.LPVariable(firstRange, "x")
+        for _ in 1..20000 do
+          pattern <-
+            WT.LPTuple(
+              firstRange,
+              pattern,
+              firstRange,
+              WT.LPWildcard firstRange,
+              [],
+              firstRange,
+              firstRange
+            )
+        pattern <-
+          WT.LPTuple(
+            firstRange,
+            pattern,
+            firstRange,
+            WT.LPVariable(duplicateRange, "x"),
+            [],
+            firstRange,
+            firstRange
+          )
+        let unitExpr = WT.EUnit firstRange
+        let sf : WT.SourceFile =
+          { range = firstRange
+            declarations = []
+            exprsToEval =
+              [ WT.ELet(
+                  firstRange,
+                  pattern,
+                  unitExpr,
+                  unitExpr,
+                  firstRange,
+                  firstRange
+                ) ] }
+        let issues = Validation.validateStructure sf
+        Expect.equal (List.length issues) 1 "one duplicate"
+        Expect.equal issues.Head.code Validation.DuplicateBinder "duplicate binder"
+        Expect.equal issues.Head.range duplicateRange "later binding is reported"
+        Expect.equal
+          issues.Head.related
+          [ (firstRange, "'x' was first bound here") ]
+          "first binding remains the reference")
+      testCase
+        "match binding collection preserves order across pattern shapes"
+        (fun _ ->
+          let sf = sourceFile "match x with | (Some a, [a, a], a :: a, a) -> a"
+          let issues =
+            Validation.validateStructure sf
+            |> List.filter (fun issue -> issue.code = Validation.DuplicateBinder)
+          Expect.equal (List.length issues) 5 "all later bindings are duplicates"
+          let columns = issues |> List.map (fun issue -> issue.range.start.column)
+          Expect.equal columns (List.sort columns) "left-to-right duplicate order"
+          let firstRanges = issues |> List.map (fun issue -> fst issue.related.Head)
+          Expect.equal
+            (List.distinct firstRanges |> List.length)
+            1
+            "same first binding")
       testCase "package mode rejects trailing expressions" (fun _ ->
         let issues = sourceFile "1L" |> validationIssues Validation.Package
         Expect.exists

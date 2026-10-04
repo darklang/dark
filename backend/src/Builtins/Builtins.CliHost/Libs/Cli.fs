@@ -450,81 +450,14 @@ module ExecutionError =
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-/// Check script declarations and top-level expressions without executing them.
-/// Represent top-level expressions as unsaved value declarations for checking.
-/// Values introduce no function scope, so top-level `?` is correctly rejected.
-/// Return a Failed report, or None when execution may proceed.
-let checkScript
-  (state : RT.ExecutionState)
-  (script : Utils.CliScript.PTCliScriptModule)
-  : Ply<Option<Dval>> =
-  uply {
-    let lastExpression = List.length script.exprs - 1
-    let expressionOps =
-      script.exprs
-      |> List.mapi (fun index expr ->
-        let body =
-          if index = lastExpression then
-            expr
-          else
-            // Every top-level expression except the last must return Unit.
-            // Wrap it in a statement so the checker enforces this requirement.
-            // Fresh IDs keep the generated nodes distinct from source nodes.
-            PT.EStatement(gid (), expr, PT.EUnit(gid ()))
-        PT.PackageOp.AddValue
-          { hash = PT.Hash $"<script-expression:{index}>"
-            description = ""
-            body = body })
-    let ops =
-      List.concat
-        [ (script.types @ script.submodules.types) |> List.map PT.PackageOp.AddType
-          (script.values @ script.submodules.values)
-          |> List.map PT.PackageOp.AddValue
-          (script.fns @ script.submodules.fns) |> List.map PT.PackageOp.AddFn
-          expressionOps ]
-    // Convert each op independently. If one is too deeply nested to convert,
-    // skip it so the checker can still report errors in the remaining ops.
-    let convertedOps =
-      ops
-      |> List.choose (fun op ->
-        try
-          Some(PT2DT.PackageOp.toDT op)
-        with :? System.InsufficientExecutionStackException ->
-          None)
-    try
-      let fnName =
-        FQFnName.fqPackage (
-          PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkPackageOps ()
-        )
-      let args =
-        DList(VT.customType (PT2DT.PackageOp.typeName ()) [], convertedOps)
-        |> NEList.singleton
-      let! reportResult = Exe.executeFunction state fnName [] args
-      match reportResult with
-      | Ok(DRecord(_, _, _, fields) as report) ->
-        match Map.tryFind "verdict" fields with
-        | Some(DEnum(_, _, _, "Failed", [])) -> return Some report
-        | _ -> return None
-      // Only definite type errors block execution. Runtime checks always apply.
-      | _ -> return None
-    with _ ->
-      return None
-  }
-
-/// Parse and type-check the script using the CLI's access to package declarations.
-/// This does not execute script code. The script's permission policy is applied
-/// separately when it runs.
+/// Parse guest source without running advisory at-rest analysis.
 let private prepareGuest
-  (state : RT.ExecutionState)
   (parse : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>>)
   (source : string)
   : Ply<Result<Utils.CliScript.PTCliScriptModule, ExecutionError.ExecutionError>> =
   uply {
     match! parse with
-    | Ok script ->
-      match! checkScript state script with
-      | Some report -> return Error(ExecutionError.TypeCheck report)
-      | None -> return Ok script
+    | Ok script -> return Ok script
     | Error diagnostics ->
       let message =
         match diagnostics with
@@ -885,7 +818,6 @@ let fns () : List<BuiltInFn> =
                   // filename reaches traces via `RunScript`.
                   let! parsedScript =
                     prepareGuest
-                      branchState
                       (parseCliScript branchState "CliScript" "" code)
                       code
 
@@ -1061,10 +993,7 @@ let fns () : List<BuiltInFn> =
                   // single-expression only; parse failures surface a precise
                   // diagnostic (no fallback).
                   let! parsedScript =
-                    prepareGuest
-                      branchState
-                      (parseCliExpr branchState expression)
-                      expression
+                    prepareGuest (parseCliExpr branchState expression) expression
 
                   let! dbs = loadDBs ()
 

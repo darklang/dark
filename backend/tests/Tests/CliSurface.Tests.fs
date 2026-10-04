@@ -917,11 +917,7 @@ let private unwrapErrorsAreReadable =
       Expect.equal exitCode 1L "invalid unwrap fails eval"
       Expect.stringContains
         rejected
-        "Static type check failed"
-        "checked before execution"
-      Expect.stringContains
-        rejected
-        "Postfix ? requires a Result or Option operand"
+        "`?` needs an Option or Result"
         "names the ? and its required operand"
       Expect.isFalse
         (rejected.Contains "Encountered a Runtime Error")

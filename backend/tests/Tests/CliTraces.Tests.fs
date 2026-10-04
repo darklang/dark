@@ -146,63 +146,38 @@ let private testScriptDeclIdentity =
       "1" ]
 
 
-/// Both CLI entry points must stop before any user side effect on a definite error.
-let private testStaticScriptChecks =
-  cliTest "run and eval check before side effects" (fun target ->
+/// Advisory findings must not stop execution; runtime failures follow earlier effects.
+let private testAdvisoryScriptExecution =
+  cliTest "run and eval execute without an at-rest gate" (fun target ->
     task {
-      let sources =
-        [ "let bad () : Int = true\nStdlib.printLine \"SCRIPT_RAN\"\n0L"
-          "Stdlib.printLine \"SCRIPT_RAN\"\nStdlib.List.length \"bad\""
-          "let make<'a> (x: 'a) : Dict<'a, Int> = Dict { x: 1 }\nStdlib.printLine \"SCRIPT_RAN\"\nmake (fun y -> y + 1)"
-          "type D<'a> = Dict<'a, Int>\nlet bad (x: D<Int -> Int>) : Unit = ()\nStdlib.printLine \"SCRIPT_RAN\"\n0L"
-          "let bad<'a> (x: 'a) : 'a = { x with field = 1 }\nStdlib.printLine \"SCRIPT_RAN\"\n0L"
-          "let bad<'a> (x: 'a) : Int = match x with | Some _ -> 1 | None -> 0\nStdlib.printLine \"SCRIPT_RAN\"\n0L"
-          "type E<'a> = A of 'a\nlet bad () : Int =\n  Stdlib.printLine \"SCRIPT_RAN\"\n  let _ = E.B\n  0\nbad ()"
-          "let bad () : Int =\n  Stdlib.printLine \"SCRIPT_RAN\"\n  let _ = Dict { ((fun x -> x), Builtin.add): 1 }\n  0\nbad ()" ]
-      for source in sources do
+      let cases =
+        [ "let bad () : Int = true\nStdlib.printLine \"SCRIPT_RAN\"\n0L", 0L
+          "Stdlib.printLine \"SCRIPT_RAN\"\nStdlib.List.length \"bad\"", 1L ]
+      for source, expectedExit in cases do
         let path =
           System.IO.Path.Combine(
             System.IO.Path.GetTempPath(),
-            $"dark-static-{System.Guid.NewGuid()}.dark"
+            $"dark-advisory-{System.Guid.NewGuid()}.dark"
           )
         try
           System.IO.File.WriteAllText(path, source)
           for args in [ [ "eval"; source ]; [ "run"; path ] ] do
             let! output, exitCode = runCliWithExit target args
-            Expect.equal exitCode 1L $"a definite error exits nonzero: {source}"
-            Expect.stringContains
-              output
-              "Static type check failed"
-              "checked before execution"
-            Expect.isFalse (output.Contains "SCRIPT_RAN") "no user side effects"
+            Expect.equal
+              exitCode
+              expectedExit
+              "only reached runtime errors fail execution"
+            Expect.stringContains output "SCRIPT_RAN" "earlier effects run"
+            Expect.isFalse
+              (output.Contains "Static type check failed")
+              "no pre-run checker"
         finally
           System.IO.File.Delete path
-      let! phantomKey =
-        runCli
-          target
-          [ "eval"
-            "type P<'a> = End | Next of P<'a>\nlet count (p: P<Int -> Int>) : Int = Stdlib.Dict.size (Dict { p: 1 })\ncount P.End" ]
-      Expect.equal
-        phantomKey
-        "1"
-        "recursive phantom arguments do not reach key values"
-      let! incomplete =
-        runCli target [ "eval"; "let unused () : Int = Unavailable.fn ()\n42L" ]
-      Expect.equal incomplete "42" "an incomplete check retains runtime execution"
-      let! sequence =
-        runCli target [ "eval"; "1L\nStdlib.printLine \"SCRIPT_RAN\"" ]
-      Expect.stringContains
-        sequence
-        "Static type check failed"
-        "non-Unit intermediates are checked"
-      Expect.isFalse
-        (sequence.Contains "SCRIPT_RAN")
-        "sequencing errors precede side effects"
     })
 
 
-let private testScriptChecksUseSelectedBranch =
-  cliTestOnMain "script checks use the selected branch" (fun target ->
+let private testRuntimeChecksUseSelectedBranch =
+  cliTestOnMain "runtime checks use the selected branch" (fun target ->
     task {
       do! Tests.CliDsl.discardAll target
       do!
@@ -226,12 +201,9 @@ let private testScriptChecksUseSelectedBranch =
       let! rejected = runCli target [ "eval"; "Tests.ScriptChecking.accept 7L" ]
       Expect.stringContains
         rejected
-        "Static type check failed"
-        "the selected branch's signature is checked"
-      Expect.stringContains
-        rejected
-        "expected String"
-        "the branch declaration is used"
+        "Error"
+        "runtime checks use the selected branch"
+      Expect.stringContains rejected "String" "the branch declaration is used"
       let! accepted =
         runCli target [ "eval"; "Tests.ScriptChecking.accept \"branch\"" ]
       Expect.equal accepted "branch" "valid code on the branch still executes"
@@ -241,27 +213,25 @@ let private testScriptChecksUseSelectedBranch =
 
 // ─── Runtime error rendering ────────────────────────────────────────
 
-/// Known outer types are enough to reject a generic call before execution.
-let private testStaticPackageArgumentError =
-  cliTest "static errors describe package arguments" (fun state ->
+/// Runtime argument checking still rejects calls with the wrong type.
+let private testRuntimePackageArgumentError =
+  cliTest "runtime errors describe package arguments" (fun state ->
     task {
-      let! output = runCli state [ "eval"; "Stdlib.List.length \"not a list\"" ]
-      Expect.stringContains
-        output
-        "Static type check failed"
-        "rejected before execution"
-      Expect.stringContains output "argument 1" "argument identified"
-      Expect.stringContains output "expected List<_>" "expected type named"
-      Expect.stringContains output "got String" "actual type named"
+      let! output, exitCode =
+        runCliWithExit state [ "eval"; "Stdlib.List.length \"not a list\"" ]
+      Expect.equal exitCode 1L "runtime error exits nonzero"
+      Expect.stringContains output "List" "expected type named"
+      Expect.stringContains output "String" "actual type named"
+      Expect.isFalse (output.Contains "Static type check failed") "no static gate"
     })
 
-/// Static diagnostics also name a script's own types. These are never in the
+/// Runtime diagnostics also name a script's own types. These are never in the
 /// store, and the CLI renders the error after the executor holding them is gone,
 /// so the pretty-printer's hash-to-name lookup has nothing to find unless the
 /// script's names are carried to it. Missing, it prints 64-character hashes, and
 /// a declaration collision then reads as an ordinary type mismatch.
-let private testStaticErrorsNameScriptTypes =
-  cliTest "static errors name script types" (fun state ->
+let private testRuntimeErrorsNameScriptTypes =
+  cliTest "runtime errors name script types" (fun state ->
     task {
       let! output =
         runCli
@@ -271,13 +241,9 @@ let private testStaticErrorsNameScriptTypes =
              type Fahrenheit = { degrees: Float }\n\
              let describe (t: Celsius) : String = \"ok\"\n\
              describe (Fahrenheit { degrees = 1.0 })" ]
-      Expect.stringContains
-        output
-        "Static type check failed"
-        "rejected before execution"
-      Expect.stringContains output "argument 1" "argument identified"
-      Expect.stringContains output "expected Celsius" "expected type named"
-      Expect.stringContains output "got Fahrenheit" "actual type named"
+      Expect.stringContains output "Celsius" "expected type named"
+      Expect.stringContains output "Fahrenheit" "actual type named"
+      Expect.isFalse (output.Contains "Static type check failed") "no static gate"
       // Bare, not `CliScript.Celsius`: the owner is scaffolding the parser
       // stamped on, and no name can reach the declaration through it.
       Expect.isFalse (output.Contains "CliScript.") "no scaffolding owner"
@@ -975,10 +941,10 @@ let tests =
          testRunCases
          testEvalCases
          testScriptDeclIdentity
-         testStaticScriptChecks
-         testScriptChecksUseSelectedBranch
-         testStaticPackageArgumentError
-         testStaticErrorsNameScriptTypes
+         testAdvisoryScriptExecution
+         testRuntimeChecksUseSelectedBranch
+         testRuntimePackageArgumentError
+         testRuntimeErrorsNameScriptTypes
          testListFunctions
          testViewFunction
          testListTypes

@@ -1,6 +1,6 @@
 # At-rest type checker
 
-The at-rest type checker checks stored `ProgramTypes` without running user code. It catches definite type errors before the affected code runs.
+The at-rest type checker checks stored `ProgramTypes` without running user code. It reports structural and type errors independently of execution. `run` and `eval` do not invoke it or block on its findings; runtime checks apply when code executes.
 
 ## Check results
 
@@ -95,20 +95,20 @@ Avoid recursion inside builtin callbacks. Stack checks belong in the F# runtime 
 
 ## Trust boundary and rollout
 
-Authoring saves with warnings. Commit and script execution reject definite errors. Runtime checks remain enabled for every verdict.
+Authoring saves with warnings. Commit rejects definite errors unless overridden. Script execution does not run the at-rest checker. Runtime checks remain enabled.
 
 ### Scripts and eval
 
-Scripts and `eval` run the checker after parsing and lowering, before guest execution. The shared preparation path in `Builtins.CliHost/Libs/Cli.fs` sends
-declarations and top-level expressions to `checkPackageOps` as one batch.
-Top-level expressions become temporary values that are never stored. All except the last must return Unit, matching runtime sequencing. These items do not introduce a function scope for postfix `?`.
-
-Name resolution uses the selected branch and the script's declarations. Checking loads only the required dependency closure. `Failed` stops execution and returns structured diagnostics for the CLI. Incomplete or unavailable checks allow execution. Checking uses host package access, like name resolution; execution uses guest permissions.
+Scripts and `eval` parse and resolve names, then execute under guest permissions.
+They do not run the at-rest checker. An unused function with a type error does
+not prevent execution; a reached runtime error stops the run after any earlier
+effects. Name resolution uses the selected branch and the script's declarations.
+Top-level expressions except the last must return Unit, enforced at runtime.
 
 Script value initializers run under guest permissions before top-level
 expressions. Results are cached per run, including forward dependencies reached through functions. An error or dependency cycle stops execution. Stored package values use their already evaluated data.
 
-When checking is incomplete, runtime rules still check postfix `?`. A direct return annotation or final Option/Result constructor enables the check for mixing Option and Result; it does not expand aliases or follow helper calls.
+Runtime rules check postfix `?`. A direct return annotation or final Option/Result constructor enables the check for mixing Option and Result; it does not expand aliases or follow helper calls.
 Declared functions also check their final return value, including aliases.
 Lambdas have no declared return-type check.
 

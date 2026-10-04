@@ -270,71 +270,12 @@ let private testTopLevelSequencing =
   |> testList "top-level sequencing"
 
 
-/// The checker sees declarations and expressions together, without running either.
-let private scriptTypeChecking =
-  let rejects name source =
-    testTask name {
-      let! state = executionStateFor pmPT false Map.empty
-      let! parsed = Cli.parseCliScript state "Tests" "" source |> Ply.toTask
-      let script =
-        match parsed with
-        | Ok script -> script
-        | Error errors -> failtest $"parse failed: %A{errors}"
-      let! report = Cli.checkScript state script |> Ply.toTask
-      Expect.isSome report "a definite error prevents execution"
-      Expect.equal state.test.sideEffectCount 0 "checking never executes script code"
-    }
-  let accepts name source =
-    testTask name {
-      let! state = executionStateFor pmPT false Map.empty
-      let! parsed = Cli.parseCliScript state "Tests" "" source |> Ply.toTask
-      let script =
-        match parsed with
-        | Ok script -> script
-        | Error errors -> failtest $"parse failed: %A{errors}"
-      let! report = Cli.checkScript state script |> Ply.toTask
-      Expect.isNone report "checked and incomplete scripts may execute"
-      Expect.equal state.test.sideEffectCount 0 "checking never executes script code"
-    }
-  testList
-    "script type checking"
-    [ rejects
-        "checks unused functions before effects"
-        "let bad () : Int = true\nBuiltin.testIncrementSideEffectCounter ()\n0L"
-      rejects "checks unused values" "val bad = 1L + true\n0L"
-      rejects
-        "checks generic field access before effects"
-        "let bad<'a> (x: 'a) : Int = x.field\nBuiltin.testIncrementSideEffectCounter ()\n0L"
-      rejects
-        "checks generic tuple access before effects"
-        "let bad<'a> (x: 'a) : Int = x.1\nBuiltin.testIncrementSideEffectCounter ()\n0L"
-      rejects
-        "checks top-level expressions before effects"
-        "Builtin.testIncrementSideEffectCounter ()\n1L + true"
-      rejects "checks separate top-level sequencing" "1L\n0L"
-      rejects
-        "checks a definite error alongside an incomplete declaration"
-        "let missing () : Int = Unavailable.fn ()\n1L + true"
-      accepts
-        "script declarations form one environment"
-        "module Local =\n  type Count = Int64\n  val initial = 2L\n  let plus (n: Count) : Count = n + initial\nLocal.plus 3L"
-      accepts
-        "mutual recursion"
-        "let even (n: Int) : Bool = if n == 0 then true else odd (n - 1)\nlet odd (n: Int) : Bool = if n == 0 then false else even (n - 1)\neven 4"
-      accepts
-        "incomplete unused declarations do not block execution"
-        "let unused () : Int = Unavailable.fn ()\n42L"
-      accepts "keeps an arbitrary final expression type" "()\n\"done\"" ]
-
 /// Script values use the same interpreter as expressions, and are initialized once.
 let private scriptValueExecution =
   let accepts name code expected expectedEffects =
     testTask name {
       let! state = executionStateFor pmPT false Map.empty
       let! script = parse code
-      let! report = Cli.checkScript state script |> Ply.toTask
-      Expect.isNone report "the checker accepts the script"
-      Expect.equal state.test.sideEffectCount 0 "checking does not evaluate values"
       let! result =
         Cli.execute state script [] Map.empty (Cli.RunScript("values", code))
         |> Ply.toTask
@@ -414,8 +355,7 @@ let private scriptValueExecution =
 let tests =
   testList
     "CliScriptLowering"
-    [ scriptTypeChecking
-      scriptValueExecution
+    [ scriptValueExecution
       testUnresolvedRefsDoNotCollide
       testIdenticalDeclarationsShareAHash
       testMutuallyRecursiveDeclarations
