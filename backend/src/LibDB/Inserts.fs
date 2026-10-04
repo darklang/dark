@@ -154,6 +154,41 @@ let private docsNotCurrentlySaid
   }
 
 
+/// Which of these deprecation statements are NOT what currently stands for their target.
+///
+/// The same question `notCurrentlyBound` asks about bindings and `docsNotCurrentlySaid` asks about
+/// prose. `Deprecate` and `Undeprecate` are each other's inverse, so an op the log already holds is
+/// either a re-run of the same command (already in effect, nothing to do) or a RESTATEMENT: saying
+/// a thing again after the inverse, which is unsayable as itself because ops are
+/// content-addressed. `deprecations` is what tells them apart.
+///
+/// A deprecation is in effect only when the state AND the words match, so re-stating an older
+/// message while a newer deprecation stands is a restatement too, not a no-op.
+let private deprecationsNotInEffect
+  (ops : List<PT.PackageOp>)
+  : Task<List<PT.PackageOp>> =
+  task {
+    // `Some(kind, message)` is a Deprecate, naming the annotation it asks to stand; None is an
+    // Undeprecate, which asks for nothing to stand.
+    let candidates =
+      ops
+      |> List.choose (fun op ->
+        match op with
+        | PT.PackageOp.Deprecate(target, kind, message, _) ->
+          Some(op, target, Some(kind, message))
+        | PT.PackageOp.Undeprecate(target, _) -> Some(op, target, None)
+        | _ -> None)
+
+    let mutable restatements = []
+
+    for (op, (target : PT.Reference), asked) in candidates do
+      let! standing = Deprecations.standing target.hash target.kind
+      if standing <> asked then restatements <- op :: restatements
+
+    return List.rev restatements
+  }
+
+
 let rec insertAndApplyOpsWith
   (tsFor : System.Guid -> string)
   (commitFor : System.Guid -> string option)
@@ -243,11 +278,14 @@ let rec insertAndApplyOpsWith
       // A `SetName` already in the log, for a name bound to something else right now, is a revert:
       // unsayable as a `SetName` (`PT.restating`), so it is re-authored as the decision it is. An
       // `UpdateDoc` already in the log, saying something the target does not currently say, is the
-      // same thing one level down, and goes back in stamped. Recursion terminates: a `SetName`
-      // becomes a `Decision`, and a stamped `UpdateDoc` is a new op id, so neither is ignored again.
+      // same thing one level down, and goes back in stamped. So is a `Deprecate` or `Undeprecate`
+      // the log holds whose statement is not what stands: deprecate, undeprecate, deprecate the
+      // same way is three decisions and the third wears the first one's id. Recursion terminates: a
+      // `SetName` becomes a `Decision`, and a stamped op is a new op id, so none is ignored again.
       let! toRestateNames = notCurrentlyBound ignored
       let! toRestateDocs = docsNotCurrentlySaid ignored
-      let toRestate = toRestateNames @ toRestateDocs
+      let! toRestateDeprecations = deprecationsNotInEffect ignored
+      let toRestate = toRestateNames @ toRestateDocs @ toRestateDeprecations
       let! restated =
         if List.isEmpty toRestate then
           Task.FromResult 0L

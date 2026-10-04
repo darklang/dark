@@ -192,9 +192,9 @@ let contentIdIfWanted
     | AddType t -> Stdlib.Option.Option.Some(hashOf t.hash)
     | AddValue v -> Stdlib.Option.Option.Some(hashOf v.hash)
     // A `Reference`, not a `Hash`: deprecations key on content, and the hash is inside the reference.
-    | Deprecate(target, _, _) ->
+    | Deprecate(target, _, _, _) ->
       Stdlib.Option.Option.Some(hashOf (LanguageTools.ProgramTypes.Reference.hash target))
-    | Undeprecate target ->
+    | Undeprecate(target, _) ->
       Stdlib.Option.Option.Some(hashOf (LanguageTools.ProgramTypes.Reference.hash target))
     | _ -> Stdlib.Option.Option.None
 

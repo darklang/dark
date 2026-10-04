@@ -94,6 +94,106 @@ module PT =
         tl |> BS.PT.Toplevel.serialize tlid |> BS.PT.Toplevel.deserialize tlid)
       Values.ProgramTypes.toplevels
 
+  /// The deprecation stamp rides on tags 4 and 5 as a trailing field rather than on tags of its
+  /// own, and that is only safe if two things hold.
+  ///
+  /// A stamp-free op must still be the bytes every store already holds, or every deprecation ever
+  /// authored changes id. So the expected payload is spelled out by hand here rather than taken
+  /// from the writer: a writer compared against itself would agree with any layout.
+  ///
+  /// And a stamped op must be those same bytes with the field appended, so a binary built before
+  /// the field reads the target, the kind and the message, stops, ignores the tail and APPLIES the
+  /// deprecation. That is what makes the trailing field better than a new tag, which an earlier
+  /// binary would have stored unapplied, leaving a `Harmful` item reading as fine.
+  let deprecationStampRidesOnTheExistingTags =
+    test "a stamped deprecation is the old blob plus a trailing field" {
+      let target = PT.Reference.PackageFn Values.hashPT
+      let stamp = "2026-01-01T00:00:00.000Z-0001"
+
+      // The 8-byte header carries the payload's length, so the two blobs differ there as well as
+      // in the tail. What has to match is the op, which starts after it.
+      let payloadOf (op : PT.PackageOp) : byte array =
+        BS.PT.PackageOp.serialize (System.Guid.NewGuid()) op |> Array.skip 8
+
+      let handBuilt (writeOp : System.IO.BinaryWriter -> unit) : byte array =
+        use ms = new System.IO.MemoryStream()
+        use w = new System.IO.BinaryWriter(ms)
+        writeOp w
+        w.Flush()
+        ms.ToArray()
+
+      let oldDeprecate =
+        handBuilt (fun w ->
+          w.Write(4uy) // Deprecate
+          w.Write(2uy) // Reference.PackageFn
+          LibSerialization.Binary.Serializers.PT.Common.Hash.write w Values.hashPT
+          w.Write(2uy) // DeprecationKind.Obsolete
+          LibSerialization.Binary.Serializers.Common.String.write w "gone")
+
+      let oldUndeprecate =
+        handBuilt (fun w ->
+          w.Write(5uy) // Undeprecate
+          w.Write(2uy) // Reference.PackageFn
+          LibSerialization.Binary.Serializers.PT.Common.Hash.write w Values.hashPT)
+
+      Expect.equal
+        (payloadOf (
+          PT.PackageOp.Deprecate(target, PT.DeprecationKind.Obsolete, "gone", None)
+        ))
+        oldDeprecate
+        "an unstamped Deprecate is byte for byte what earlier builds wrote"
+      Expect.equal
+        (payloadOf (PT.PackageOp.Undeprecate(target, None)))
+        oldUndeprecate
+        "and so is an unstamped Undeprecate"
+
+      let stampedDeprecate =
+        payloadOf (
+          PT.PackageOp.Deprecate(
+            target,
+            PT.DeprecationKind.Obsolete,
+            "gone",
+            Some stamp
+          )
+        )
+      let stampedUndeprecate =
+        payloadOf (PT.PackageOp.Undeprecate(target, Some stamp))
+
+      Expect.equal
+        (stampedDeprecate |> Array.take oldDeprecate.Length)
+        oldDeprecate
+        "a stamped Deprecate starts with exactly those bytes, so an earlier reader applies it"
+      Expect.equal
+        (stampedUndeprecate |> Array.take oldUndeprecate.Length)
+        oldUndeprecate
+        "and so does a stamped Undeprecate"
+      Expect.isGreaterThan
+        stampedDeprecate.Length
+        oldDeprecate.Length
+        "the stamp is actually written"
+
+      // And THIS build reading a blob written in the old layout: the op, with no stamp. The bytes
+      // are the hand-built ones, so this is the old reader case rather than a round-trip.
+      let header (payload : byte array) : byte array =
+        handBuilt (fun w ->
+          w.Write(LibSerialization.Binary.BaseFormat.CurrentVersion)
+          w.Write(uint32 payload.Length))
+
+      let id = System.Guid.NewGuid()
+      Expect.equal
+        (BS.PT.PackageOp.deserialize
+          id
+          (Array.append (header oldDeprecate) oldDeprecate))
+        (PT.PackageOp.Deprecate(target, PT.DeprecationKind.Obsolete, "gone", None))
+        "an old Deprecate blob reads as itself, unstamped"
+      Expect.equal
+        (BS.PT.PackageOp.deserialize
+          id
+          (Array.append (header oldUndeprecate) oldUndeprecate))
+        (PT.PackageOp.Undeprecate(target, None))
+        "an old Undeprecate blob reads as itself, unstamped"
+    }
+
   let legacyRecoveryHoleTagRejected =
     test "legacy ProgramTypes recovery-hole tag is rejected" {
       use stream = new System.IO.MemoryStream([| 36uy |])
@@ -337,6 +437,7 @@ let tests =
           PT.packageFnTests
           PT.toplevelTests
           PT.packageOpTests
+          PT.deprecationStampRidesOnTheExistingTags
           PT.legacyRecoveryHoleTagRejected ]
 
       testList

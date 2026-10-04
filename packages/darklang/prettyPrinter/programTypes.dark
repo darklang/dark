@@ -1615,7 +1615,7 @@ module PackageOp =
         | None -> ""
       $"Unbind {path}{was}"
 
-    | Deprecate(target, kind, _message) ->
+    | Deprecate(target, kind, _message, _restating) ->
       let kindStr =
         match kind with
         | SupersededBy _ -> "superseded-by"
@@ -1625,7 +1625,7 @@ module PackageOp =
       let hash = LanguageTools.ProgramTypes.Reference.hash target
       $"Deprecate [{LanguageTools.ProgramTypes.hashToShort hash}] ({kindStr})"
 
-    | Undeprecate target ->
+    | Undeprecate(target, _restating) ->
       let hash = LanguageTools.ProgramTypes.Reference.hash target
       $"Undeprecate [{LanguageTools.ProgramTypes.hashToShort hash}]"
 

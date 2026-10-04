@@ -795,14 +795,28 @@ module ProgramTypes =
       Unbind(loc, None)
       Unbind(otherLoc, Some hashPT)
 
-      Deprecate(Reference.PackageFn hashPT, DeprecationKind.Obsolete, "gone")
-      Deprecate(Reference.PackageFn hashPT, DeprecationKind.Harmful, "")
+      Deprecate(Reference.PackageFn hashPT, DeprecationKind.Obsolete, "gone", None)
+      Deprecate(Reference.PackageFn hashPT, DeprecationKind.Harmful, "", None)
       Deprecate(
         Reference.PackageType hashPT,
         DeprecationKind.SupersededBy(Reference.PackageType shortHash),
-        "use the other one"
+        "use the other one",
+        None
       )
-      Undeprecate(Reference.PackageValue hashPT)
+      // Restatements: the same deprecation said again after an undeprecate, and the undeprecate
+      // said again after that, each made a distinct op by its stamp. The stamp rides on the
+      // existing tags as a trailing field, so these two also pin that the reader finds it.
+      Deprecate(
+        Reference.PackageFn hashPT,
+        DeprecationKind.Obsolete,
+        "gone",
+        Some "2026-01-01T00:00:00.000Z-0001"
+      )
+      Undeprecate(Reference.PackageValue hashPT, None)
+      Undeprecate(
+        Reference.PackageValue hashPT,
+        Some "2026-01-01T00:00:00.000Z-0002"
+      )
       UpdateDoc(loc, DocPart.WholeItem, "What it says about itself.", None, None)
       // The empty text is a real op: it is how a doc is cleared.
       UpdateDoc(loc, DocPart.WholeItem, "", Some shortHash, None)

@@ -93,8 +93,8 @@ let surgicallyUndoable
   | Decision(_, _, _, Override _) -> true
   | Decision(_, _, _, _) -> false
   | Unbind(_, _) -> false
-  | Deprecate(_, _, _) -> false
-  | Undeprecate _ -> false
+  | Deprecate(_, _, _, _) -> false
+  | Undeprecate(_, _) -> false
   | UpdateDoc(_, _, _, _, _) -> false
   | BranchEvent(_, _, _) -> false
 

@@ -562,42 +562,9 @@ let getCurrentDeprecation
   (itemHash : Hash)
   (itemKind : PT.ItemKind)
   : Task<Option<PT.DeprecationKind * string>> =
-  task {
-    let (Hash itemHashStr) = itemHash
-    let itemKindStr = itemKind.toString ()
-
-    let! row =
-      Sql.query
-        """
-        SELECT state, annotation_blob
-        FROM deprecations
-        WHERE item_hash = @item_hash
-          AND item_kind = @item_kind
-          AND unlisted_at IS NULL
-        -- By the op's time, then arrival as the tie-break for rows folded before `origin_ts`
-        -- existed. `created_at` alone answered "whichever reached this machine last", so two peers
-        -- holding the same two ops could disagree about whether an item is deprecated.
-        ORDER BY COALESCE(origin_ts, '') DESC, created_at DESC
-        LIMIT 1
-        """
-      |> Sql.parameters
-        [ "item_hash", Sql.string itemHashStr; "item_kind", Sql.string itemKindStr ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        (read.string "state", read.bytesOrNone "annotation_blob"))
-
-    match row with
-    | Some("deprecated", Some blob) ->
-      try
-        use ms = new System.IO.MemoryStream(blob)
-        use r = new System.IO.BinaryReader(ms)
-        let kind =
-          LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
-        let message = LibSerialization.Binary.Serializers.Common.String.read r
-        return Some(kind, message)
-      with _ ->
-        return None
-    | _ -> return None
-  }
+  // The read itself is `Deprecations.standing`, shared with the fold's writer and with the
+  // authoring paths that ask whether an op they are about to drop says what already stands.
+  Deprecations.standing itemHash itemKind
 
 
 /// Deprecation info for `ls`/`tree`/`search`: the full deprecated-hash set plus the subset
@@ -692,10 +659,10 @@ let private chainDeprecationOverlay
       |> List.fold
         (fun acc op ->
           match op with
-          | PT.PackageOp.Deprecate(target, kind, message) ->
+          | PT.PackageOp.Deprecate(target, kind, message, _) ->
             let (Hash h) = target.hash
             Map.add h (Some(kind, message)) acc
-          | PT.PackageOp.Undeprecate target ->
+          | PT.PackageOp.Undeprecate(target, _) ->
             let (Hash h) = target.hash
             Map.add h None acc
           | _ -> acc)

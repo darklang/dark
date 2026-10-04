@@ -708,6 +708,52 @@ let restateReverts
       let! held = heldOpIds ids
       let! mine = opsAlreadyOnBranch branchId ids
 
+      // Deprecation is a STATE, so the question is what stands rather than what the branch carries:
+      // the chain's own `Deprecate`/`Undeprecate` ops layered over main's projection, which is the
+      // same overlay `Queries.getCurrentDeprecationFor` reads. A branch's deprecation never folds,
+      // so there is no row to ask instead.
+      let deprecationTargets =
+        restatable
+        |> List.choose (fun op ->
+          match op with
+          | PT.PackageOp.Deprecate(target, _, _, _)
+          | PT.PackageOp.Undeprecate(target, _) -> Some target
+          | _ -> None)
+
+      let! chainSaid =
+        task {
+          if List.isEmpty deprecationTargets then
+            return Map.empty
+          else
+            let! ops = chainOverlayOps branchId
+            return
+              ops
+              |> List.fold
+                (fun m op ->
+                  match op with
+                  | PT.PackageOp.Deprecate(target, kind, message, _) ->
+                    let (Hash h) = target.hash
+                    Map.add h (Some(kind, message)) m
+                  | PT.PackageOp.Undeprecate(target, _) ->
+                    let (Hash h) = target.hash
+                    Map.add h None m
+                  | _ -> m)
+                Map.empty
+        }
+
+      let mutable mainStanding = Map.empty
+      for (target : PT.Reference) in deprecationTargets do
+        let (Hash h) = target.hash
+        if not (Map.containsKey h chainSaid || Map.containsKey h mainStanding) then
+          let! standing = Deprecations.standing target.hash target.kind
+          mainStanding <- Map.add h standing mainStanding
+
+      let standingFor (target : PT.Reference) =
+        let (Hash h) = target.hash
+        match Map.tryFind h chainSaid with
+        | Some said -> said
+        | None -> Map.tryFind h mainStanding |> Option.defaultValue None
+
       let saidAgain (op : PT.PackageOp) : bool =
         match op with
         | PT.PackageOp.SetName(location, target, _) ->
@@ -719,6 +765,9 @@ let restateReverts
         // written against what this branch reads), so an op the branch does not already carry is
         // saying something new whatever the log holds.
         | PT.PackageOp.UpdateDoc _ -> not (Set.contains (opRowId op) mine)
+        | PT.PackageOp.Deprecate(target, kind, message, _) ->
+          standingFor target <> Some(kind, message)
+        | PT.PackageOp.Undeprecate(target, _) -> standingFor target <> None
         | _ -> false
 
       return
