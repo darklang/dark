@@ -214,6 +214,10 @@ let checkPackageOps
 /// Type-check all declarations visible on the selected branch.
 let checkBranch (branchId: Uuid) : Report = guarded Run.checkBranch branchId
 
+/// Type-check just the declarations under <param modules>, and everything below them.
+let checkModule (branchId: Uuid) (modules: List<String>) : Report =
+  guarded (fun (b, m) -> Run.checkModule b m) ((branchId, modules))
+
 /// Return an Incomplete report if shared work for the batch fails.
 /// Run and Items catch errors for individual declarations separately, preserving
 /// the results of the other declarations.

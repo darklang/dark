@@ -4,6 +4,12 @@ module Darklang.Cli.Packages.AtRestCheck
 let checkBranch (branchId: Uuid) : LanguageTools.AtRestTypeChecker.Report =
   LanguageTools.AtRestTypeChecker.checkBranch branchId
 
+let checkModule
+  (branchId: Uuid)
+  (modules: List<String>)
+  : LanguageTools.AtRestTypeChecker.Report =
+  LanguageTools.AtRestTypeChecker.checkModule branchId modules
+
 let customTypeName
   (branchId: Uuid)
   (hash: LanguageTools.ProgramTypes.Hash)

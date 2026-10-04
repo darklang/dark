@@ -343,6 +343,33 @@ let emptyListingsAreStillArrays =
 /// `typecheck --json` is the at-rest audit, which is the one an agent reads before deciding a branch
 /// is safe to merge. Its five counters and its verdict are the whole contract; `items` carries the
 /// per-item rows, and stays an array when the audit found nothing to complain about.
+/// A module scopes the audit to that subtree, which is what keeps the contract test above cheap.
+/// Compares a narrow scope against a wider one, not against the whole branch: auditing the branch
+/// here would reintroduce the cost the scoping exists to avoid.
+let typecheckScopesToAModule =
+  instanceTest "typecheck <module> audits that module rather than everything" (fun state ->
+    task {
+      do! start state
+
+      let total (root : System.Text.Json.JsonElement) : int =
+        root.GetProperty("total").GetInt32()
+
+      let! narrow = parsed state [ "typecheck"; "Darklang.Stdlib.List"; "--json" ]
+      let! wider = parsed state [ "typecheck"; "Darklang.Stdlib"; "--json" ]
+
+      Expect.isGreaterThan (total narrow) 0 "a real module has declarations to audit"
+      Expect.isLessThan
+        (total narrow)
+        (total wider)
+        "a narrower scope audits fewer declarations than the module containing it"
+
+      // A module nobody has defined is not an error, it is an empty audit. A caller scoping to
+      // a name it got wrong should see zero rather than a refusal it has to special-case.
+      let! missing = parsed state [ "typecheck"; "Darklang.NoSuchModule"; "--json" ]
+      Expect.equal (total missing) 0 "an unknown module audits nothing"
+    })
+
+
 let typecheckAnswersWithItsCounts =
   instanceTest "typecheck --json answers with the audit's counts" (fun state ->
     task {
@@ -351,10 +378,10 @@ let typecheckAnswersWithItsCounts =
       do!
         hasKeys
           state
-          [ "typecheck"; "--json" ]
+          [ "typecheck"; "Darklang.Stdlib.List"; "--json" ]
           [ "verdict"; "checked"; "failed"; "incomplete"; "total"; "items" ]
 
-      let! root = parsed state [ "typecheck"; "--json" ]
+      let! root = parsed state [ "typecheck"; "Darklang.Stdlib.List"; "--json" ]
 
       // The one field a caller branches on. Anything outside these three is a new variant, and a
       // caller switching on it would fall through.
@@ -405,6 +432,7 @@ let tests : List<Test> =
     commitDryRunAnswersInJson
     commitsIsAnArrayOfCommits
     branchesIsAnArrayOfBranches
+    typecheckScopesToAModule
     typecheckAnswersWithItsCounts
     emptyListingsAreStillArrays
     aCommandWithoutJsonRefusesTheFlag ]

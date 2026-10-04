@@ -229,18 +229,13 @@ let checkReferences
   let checked = checkPackageOps (Stdlib.List.reverse ops)
   reportItems (Stdlib.List.append checked.items (Stdlib.List.reverse failures))
 
-/// Check all declarations visible on the selected branch. Fetch their hashes
-/// before loading their syntax trees, so checkReferences can catch each loading
-/// or conversion error separately and continue checking the other declarations.
-let checkBranch (branchId: Uuid) : Report =
-  let query =
-    LanguageTools.ProgramTypes.Search.SearchQuery
-      { currentModule = []
-        text = ""
-        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
-        entityTypes = []
-        exactMatch = false }
-
+/// Check the declarations a search query selects. Fetch their hashes before loading their
+/// syntax trees, so checkReferences can catch each loading or conversion error separately
+/// and continue checking the other declarations.
+let checkQuery
+  (branchId: Uuid)
+  (query: LanguageTools.ProgramTypes.Search.SearchQuery)
+  : Report =
   let (_, types, values, fns) =
     LanguageTools.PackageManager.Search.searchNamesAndHashes branchId query
   let references =
@@ -249,3 +244,27 @@ let checkBranch (branchId: Uuid) : Report =
         Stdlib.List.map values (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageValue hash)
         Stdlib.List.map fns (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageFn hash) ]
   checkReferences loadCandidate references
+
+/// A query that selects everything on the branch.
+let everything () : LanguageTools.ProgramTypes.Search.SearchQuery =
+  LanguageTools.ProgramTypes.Search.SearchQuery
+    { currentModule = []
+      text = ""
+      searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+      entityTypes = []
+      exactMatch = false }
+
+/// Every declaration visible on the selected branch.
+let checkBranch (branchId: Uuid) : Report = checkQuery branchId (everything ())
+
+/// Just the declarations under <param modules>, and everything below them: for a caller
+/// that wants an answer about one module rather than about the whole branch.
+let checkModule (branchId: Uuid) (modules: List<String>) : Report =
+  checkQuery
+    branchId
+    (LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modules
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = []
+        exactMatch = false })
