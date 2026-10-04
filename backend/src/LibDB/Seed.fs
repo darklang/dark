@@ -40,6 +40,29 @@ let mutable private warnedAboutUnreadableOps = false
 // Export
 // ---------------------
 
+/// Fold the write-ahead log into the main database file, so that a plain file copy of it
+/// carries everything.
+///
+/// ReadWrite, not ReadOnly: a checkpoint WRITES (it moves pages into the main file and then
+/// truncates the log), so a read-only connection fails it with SQLite error 10, `disk I/O
+/// error`. That reads as a failing disk and it is not; it is this connection.
+///
+/// It hid for a long time because a checkpoint with an EMPTY log has nothing to do and
+/// succeeds either way. So the export only breaks once the store has been written to, and
+/// then it breaks the release gates, which need a fresh seed.
+///
+/// Separate from `export` so a test can drive it: `export` always copies `Config.dbPath`,
+/// which in a test is the store the whole suite shares, and nothing can point it elsewhere.
+let checkpointWal (dbPath : string) : unit =
+  use conn =
+    new SqliteConnection($"Data Source={dbPath};Mode=ReadWrite;Cache=Private")
+  conn.Open()
+  use cmd = conn.CreateCommand()
+  cmd.CommandText <- "PRAGMA wal_checkpoint(TRUNCATE);"
+  cmd.ExecuteNonQuery() |> ignore<int>
+  conn.Close()
+
+
 /// Export a seed database to the given output path: copy the full source DB, then strip everything
 /// that belongs to the machine that built it rather than to the package set (see the DELETEs below).
 let export (outputPath : string) : Task<unit> =
@@ -48,14 +71,7 @@ let export (outputPath : string) : Task<unit> =
 
     if System.IO.File.Exists outputPath then System.IO.File.Delete outputPath
 
-    // Checkpoint WAL before copying to ensure all data is in the main file
-    let sourceConnStr = $"Data Source={sourcePath};Mode=ReadOnly;Cache=Private"
-    use sourceConn = new SqliteConnection(sourceConnStr)
-    sourceConn.Open()
-    use checkpointCmd = sourceConn.CreateCommand()
-    checkpointCmd.CommandText <- "PRAGMA wal_checkpoint(TRUNCATE);"
-    checkpointCmd.ExecuteNonQuery() |> ignore<int>
-    sourceConn.Close()
+    checkpointWal sourcePath
 
     System.IO.File.Copy(sourcePath, outputPath)
 
