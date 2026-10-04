@@ -2445,14 +2445,22 @@ module DebugSymbols =
 
     /// A relative jump from <param at>, rewritten for the list being built.
     let rejump (at : int) (offset : int) : int =
-      let target = at + offset
-      let clamped = max 0 (min target originals.Length)
+      // REWRITE THE INDEX THAT ACTUALLY RUNS NEXT, which is `at + offset + 1`, not
+      // `at + offset`. The interpreter sets `counter <- counter + jumpBy` and the loop then
+      // advances `counter <- counter + 1`, so a jump names the instruction BEFORE its landing
+      // point. Rewriting the wrong one of those two is almost invisible: both differences are
+      // taken against `newIndex[at]`, so the `+1` cancels for every jump whose landing point is
+      // not immediately preceded by a removed marker -- which is the overwhelming majority, and
+      // is why a 12,000-test suite passed over it. When the instruction before the landing point
+      // IS a removed marker, the forward scan below starts one position early, steps over that
+      // marker, and the jump overshoots its target by exactly one instruction.
+      let landing = max 0 (min (at + offset + 1) originals.Length)
       // A jump that lands ON a removed marker lands on what follows it instead; scanning
       // forward is what "what follows it" means.
-      let mutable t = clamped
+      let mutable t = landing
       while t < originals.Length && newIndex[t] = -1 do
         t <- t + 1
-      newIndex[t] - newIndex[at]
+      newIndex[t] - newIndex[at] - 1
 
     let kept = ResizeArray<Instruction>()
     let mutable table = Map.empty
