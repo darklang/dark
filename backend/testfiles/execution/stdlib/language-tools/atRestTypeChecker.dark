@@ -2078,12 +2078,20 @@ module Batches =
     "let f (x: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<Int> = Stdlib.Option.map x (fun y -> y + 1)"
     "f") = "checked:"
 
-  // These nested types and values are valid. Check them successfully where
-  // possible, or return Incomplete when traversal reaches the stack limit.
-  // Builtin callbacks nest on the .NET stack; direct Dark recursion uses heap
-  // frames, so different traversals can handle different nesting depths.
+  // These nested types and values are valid Dark. What decides the verdict is whether the
+  // checker is willing to work on something nested this deeply, and that is a limit it
+  // chooses: `NodeIds.maxDeclarationDepth`, applied wherever the type sits.
+  //
+  // The first of these expected "checked:" until that limit existed, and the reason was an
+  // accident rather than an intention. A 5,000-deep LIST type was accepted while the
+  // 3,000-deep TUPLE type below was refused, because walking a tuple calls back through
+  // List.map at each level and so nests on the .NET stack, while walking a list does not.
+  // Deeper and fine, shallower and refused, decided by the shape of the traversal. So this
+  // line is a TIGHTENING: the checker now refuses a 5,000-deep type here where it used to
+  // accept one, and the rule is sayable without reference to how the walk is written.
   (checkPackageOpsSummary
-    [] [ oneArg (nestedListType 5000) (tUnit ()) (unitExpr 1L) ]) = "checked:"
+    [] [ oneArg (nestedListType 5000) (tUnit ()) (unitExpr 1L) ]) =
+    "incomplete:UnsupportedConstruct"
 
   (checkPackageOpsSummary
     [] [ oneArg (tUnit ()) (nestedListType 200) (nestedListExpr 200) ]) = "checked:"

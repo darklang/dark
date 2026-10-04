@@ -331,6 +331,15 @@ let prepareDeclarations (env: Model.Environment) : Model.Environment =
     { env with
         declarationFacts =
           Stdlib.Dict.map env.types (fun name decl ->
+            // Too deep is refused before the walk rather than by the walk running out of
+            // native stack part way through it. Same finding either way, so a reader sees
+            // the same verdict; the difference is that this one is a decision.
+            match NodeIds.typeTooDeep (NodeIds.declaredTypes decl) with
+            | Some _ ->
+              Model.DeclarationFacts
+                { problems = [ failureFinding CheckFailure.TooDeep ]
+                  references = [] }
+            | None ->
             match
               guard (fun decl -> declarationFactsOf env cyclic name decl) decl
             with
