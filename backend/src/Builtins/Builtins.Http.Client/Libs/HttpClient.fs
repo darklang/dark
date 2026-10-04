@@ -41,6 +41,7 @@ module Blob = LibExecution.Blob
 module Stream = LibExecution.Stream
 module Host = LibExecution.Host
 module PermissionCheck = LibExecution.PermissionCheck
+module Interpreter = LibExecution.Interpreter
 
 let responseOKType () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.response ())
@@ -181,27 +182,6 @@ let private headerPairs (dvals : List<Dval>) : List<string * string> =
     | DTuple(DString k, DString v, []) -> Some(k, v)
     | _ -> None)
 
-/// Build and perform one Sync-profile host request. The caller gate has already run; the
-/// instance policy scopes the URL, which is what replaced the origin allowlist.
-let private syncRequest
-  (state : ExecutionState)
-  (vm : VMState)
-  (method : string)
-  (uri : string)
-  (headers : List<string * string>)
-  (body : byte array)
-  : Ply<Result<Host.Response, Host.Failure>> =
-  PermissionCheck.performHost
-    state
-    vm
-    (Host.Operation.HttpRequest(
-      HostTypes.HttpProfile.Sync,
-      method,
-      uri,
-      headers,
-      body
-    ))
-
 /// Shape a completed sync exchange: a 2xx body is Ok bytes; a non-2xx is a FAILURE, not a
 /// body -- Ok for anything that completed would hand the caller a relay's 400 as a
 /// successful fetch whose payload happens to be an error page, and `dark branch push`
@@ -239,6 +219,28 @@ let private fetchOutcome
         | HostTypes.HttpRequestError.BadMethod -> "bad method"
       Dval.resultError KTBlob KTString (DString $"{verb} failed: {reason}")
 
+/// One Sync-profile host request. The caller gate has already run; the instance policy
+/// scopes the URL.
+let private syncOp
+  (method : string)
+  (uri : string)
+  (headers : List<string * string>)
+  (body : byte array)
+  : Host.Operation =
+  Host.Operation.HttpRequest(HostTypes.HttpProfile.Sync, method, uri, headers, body)
+
+/// Name one Sync-profile request for the loop to perform, its outcome shaped by `fetchOutcome`.
+let private syncRequest
+  (vm : VMState)
+  (verb : string)
+  (method : string)
+  (uri : string)
+  (headers : List<string * string>)
+  (body : byte array)
+  : Ply<Dval> =
+  Interpreter.requestHost vm (syncOp method uri headers body) (fun outcome ->
+    Ply(fetchOutcome verb outcome))
+
 /// In-flight prefetches, keyed by a handle rather than by url: a pull can have the same
 /// url in flight twice, and a dictionary keyed by url would hand the second caller the
 /// first one's response.
@@ -248,73 +250,136 @@ let private pendingFetches =
 open LibExecution.Builtin.Shortcuts
 
 
+/// `Result<Response, RequestError>`, the answer of `read` and `request`.
+let private responseOk (response : Dval) : Dval =
+  Dval.resultOk
+    (KTCustomType(responseOKType (), []))
+    (KTCustomType(responseErrorType (), []))
+    response
+
+let private responseError (error : Dval) : Dval =
+  Dval.resultError
+    (KTCustomType(responseOKType (), []))
+    (KTCustomType(responseErrorType (), []))
+    error
+
+/// One guest-profile request, named for the loop to perform: the shared body of
+/// `httpClientRead` and `httpClientRequest`. `wrapper` is the Dark fn a bad header names.
+let private guestRequest
+  (vm : VMState)
+  (wrapper : unit -> string)
+  (method : string)
+  (uri : string)
+  (reqHeaders : List<Dval>)
+  (body : byte[])
+  : Ply<Dval> =
+  let resultOk = responseOk
+  let resultError = responseError
+  match parseHeaders vm (FQFnName.fqPackage (wrapper ())) reqHeaders with
+  | Error headerError ->
+    Ply(
+      resultError (
+        RequestError.toDT (HostTypes.HttpRequestError.BadHeader headerError)
+      )
+    )
+  | Ok headers ->
+    let op =
+      Host.Operation.HttpRequest(
+        HostTypes.HttpProfile.Guest,
+        method,
+        uri,
+        headers,
+        body
+      )
+    Interpreter.requestHost vm op (fun outcome ->
+      match outcome with
+      | Error failure ->
+        Exception.raiseInternal
+          "http request failed outside the typed error surface"
+          [ "message", failure.message ]
+      | Ok response ->
+        match Host.expectHttp response with
+        | Error err -> Ply(resultError (RequestError.toDT err))
+        | Ok response ->
+          let typ = responseOKType ()
+          let fields =
+            [ ("statusCode", Dval.int (bigint response.statusCode))
+              ("headers", headersToDval response.headers)
+              ("body", Blob.newEphemeral response.body) ]
+          Ply(resultOk (DRecord(typ, typ, [], Map fields))))
+
+let private responseResultType =
+  TypeReference.result
+    (TCustomType(NR.ok (responseOKType ()), []))
+    (TCustomType(NR.ok (responseErrorType ()), []))
+
+
 let fns () : List<BuiltInFn> =
-  [ { name = fn "httpClientRequest" 0
+  [ // A GET or HEAD observes and changes nothing, so it is a read: the interpreter hands it back
+    // in flight and the program runs on until it looks at the response (`docs/processes.md`,
+    // "Reads are concurrent"; `Effects.readsOnly` names this builtin). `Http` stays one word in
+    // the permission language; the split is what lets the table say which calls are reads.
+    { name = fn "httpClientRead" 0
+      typeParams = []
+      parameters =
+        [ Param.make "method" TString "GET or HEAD"
+          Param.make "uri" TString ""
+          Param.make "headers" headersType "" ]
+      returnType = responseResultType
+      description =
+        "A GET or HEAD of <param uri>: a read, so it runs concurrently with what follows and is "
+        + "waited for where the response is first looked at. Any other method is a BadMethod "
+        + "error; `httpClientRequest` is for those."
+      fn =
+        (function
+        | _, vm, _, [| DString method; DString uri; DList(_, reqHeaders) |] ->
+          match method.ToUpperInvariant() with
+          | "GET"
+          | "HEAD" as method ->
+            guestRequest
+              vm
+              PackageRefs.Fn.Stdlib.HttpClient.read
+              method
+              uri
+              reqHeaders
+              [||]
+          | _ ->
+            Ply(
+              responseError (RequestError.toDT HostTypes.HttpRequestError.BadMethod)
+            )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Http ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "httpClientRequest" 0
       typeParams = []
       parameters =
         [ Param.make "method" TString ""
           Param.make "uri" TString ""
           Param.make "headers" headersType ""
           Param.make "body" TBlob "" ]
-      returnType =
-        TypeReference.result
-          (TCustomType(NR.ok (responseOKType ()), []))
-          (TCustomType(NR.ok (responseErrorType ()), []))
+      returnType = responseResultType
       description =
-        "Make blocking HTTP call to <param uri>. Returns a <type Result> where "
-        + "the response is wrapped in {{ Ok }} if a response was successfully "
-        + "received and parsed, and is wrapped in {{ Error }} otherwise"
+        "Make an HTTP call to <param uri>, in program order (a write). Returns a <type Result> "
+        + "where the response is wrapped in {{ Ok }} if a response was successfully received "
+        + "and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
-        let responseTypeOK = KTCustomType(responseOKType (), [])
-        let responseTypeErr = KTCustomType(responseErrorType (), [])
-        let resultOk = Dval.resultOk responseTypeOK responseTypeErr
-        let resultError = Dval.resultError responseTypeOK responseTypeErr
         (function
         | state,
           vm,
           _,
           [| DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef |] ->
-          uply {
-            let! reqBodyBytes = Blob.readBytes state bodyRef
-            let headers =
-              parseHeaders
-                vm
-                (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.request ()))
-                reqHeaders
-            match headers with
-            | Error headerError ->
-              return
-                resultError (
-                  RequestError.toDT (
-                    HostTypes.HttpRequestError.BadHeader headerError
-                  )
-                )
-            | Ok headers ->
-              let op =
-                Host.Operation.HttpRequest(
-                  HostTypes.HttpProfile.Guest,
-                  method,
-                  uri,
-                  headers,
-                  reqBodyBytes
-                )
-              match! PermissionCheck.performHost state vm op with
-              | Error failure ->
-                return
-                  Exception.raiseInternal
-                    "http request failed outside the typed error surface"
-                    [ "message", failure.message ]
-              | Ok response ->
-                match Host.expectHttp response with
-                | Error err -> return resultError (RequestError.toDT err)
-                | Ok response ->
-                  let typ = responseOKType ()
-                  let fields =
-                    [ ("statusCode", Dval.int (bigint response.statusCode))
-                      ("headers", headersToDval response.headers)
-                      ("body", Blob.newEphemeral response.body) ]
-                  return resultOk (DRecord(typ, typ, [], Map fields))
-          }
+          Blob.withBytes state bodyRef (fun body ->
+            guestRequest
+              vm
+              PackageRefs.Fn.Stdlib.HttpClient.request
+              method
+              uri
+              reqHeaders
+              body)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -346,13 +411,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DString uri |] ->
-          uply {
-            // SSRF guards off (loopback/RFC-1918/tailnet reachable): only the
-            // bundled sync code may call this, not a third-party package.
-            requireBundledCaller state vm "httpGetUnsafeBytes"
-            let! response = syncRequest state vm "GET" uri [] [||]
-            return fetchOutcome "fetch" response
-          }
+          // SSRF guards off (loopback/RFC-1918/tailnet reachable): only the
+          // bundled sync code may call this, not a third-party package.
+          requireBundledCaller state vm "httpGetUnsafeBytes"
+          syncRequest vm "fetch" "GET" uri [] [||]
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -384,7 +446,9 @@ let fns () : List<BuiltInFn> =
             requireBundledCaller state vm "httpGetUnsafeBytesStart"
             // Started, not awaited: `Ply.toTask` materializes the running request, so it
             // is on the wire before this builtin returns.
-            let started = syncRequest state vm "GET" uri [] [||] |> Ply.toTask
+            let started =
+              PermissionCheck.performHost state vm (syncOp "GET" uri [] [||])
+              |> Ply.toTask
             let handle = System.Guid.NewGuid()
             pendingFetches[handle] <- started
             return Dval.resultOk KTUuid KTString (DUuid handle)
@@ -448,16 +512,12 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DString uri; DList(_, headerList) |] ->
-          uply {
-            requireBundledCaller state vm "httpGetUnsafeBytesWithHeaders"
-            // The credential is attached HERE, not passed in: the write secret must not
-            // reach Dark, where a pulled package could read it.
-            let headers =
-              headerPairs headerList
-              @ LibExecution.UnguardedOrigins.authHeadersFor uri
-            let! response = syncRequest state vm "GET" uri headers [||]
-            return fetchOutcome "fetch" response
-          }
+          requireBundledCaller state vm "httpGetUnsafeBytesWithHeaders"
+          // The credential is attached HERE, not passed in: the write secret must not
+          // reach Dark, where a pulled package could read it.
+          let headers =
+            headerPairs headerList @ LibExecution.UnguardedOrigins.authHeadersFor uri
+          syncRequest vm "fetch" "GET" uri headers [||]
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -487,21 +547,18 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DString uri; DBlob bodyRef; DList(_, headers) |] ->
-          uply {
-            requireBundledCaller state vm "httpPostUnsafeBytes"
-            let! body = Blob.readBytes state bodyRef
-            // Caller headers go AFTER the content type so a caller cannot accidentally
-            // unset it. A relay write secret arrives as a header rather than in the query
-            // string, which would put it in every access log and proxy trace between here
-            // and there; the stored credential is attached here, not passed in -- see
-            // `httpGetUnsafeBytesWithHeaders`.
-            let allHeaders =
-              ("Content-Type", "application/json")
-              :: (headerPairs headers
-                  @ LibExecution.UnguardedOrigins.authHeadersFor uri)
-            let! response = syncRequest state vm "POST" uri allHeaders body
-            return fetchOutcome "push" response
-          }
+          requireBundledCaller state vm "httpPostUnsafeBytes"
+          // Caller headers go AFTER the content type so a caller cannot accidentally
+          // unset it. A relay write secret arrives as a header rather than in the query
+          // string, which would put it in every access log and proxy trace between here
+          // and there; the stored credential is attached here, not passed in -- see
+          // `httpGetUnsafeBytesWithHeaders`.
+          let allHeaders =
+            ("Content-Type", "application/json")
+            :: (headerPairs headers
+                @ LibExecution.UnguardedOrigins.authHeadersFor uri)
+          Blob.withBytes state bodyRef (fun body ->
+            syncRequest vm "push" "POST" uri allHeaders body)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -548,38 +605,36 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk streamTypeOk streamTypeErr
         let resultError = Dval.resultError streamTypeOk streamTypeErr
         (function
-        | state, vm, _, [| DString method; DString uri; DList(_, reqHeaders) |] ->
-          uply {
-            let headers =
-              parseHeaders
-                vm
-                (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.stream ()))
-                reqHeaders
-            match headers with
-            | Error headerError ->
-              return
-                resultError (
-                  RequestError.toDT (
-                    HostTypes.HttpRequestError.BadHeader headerError
-                  )
-                )
-            | Ok headers ->
-              let op =
-                Host.Operation.HttpStreamOpen(
-                  HostTypes.HttpProfile.Guest,
-                  method,
-                  uri,
-                  headers
-                )
-              match! PermissionCheck.performHost state vm op with
+        | _, vm, _, [| DString method; DString uri; DList(_, reqHeaders) |] ->
+          let headers =
+            parseHeaders
+              vm
+              (FQFnName.fqPackage (PackageRefs.Fn.Stdlib.HttpClient.stream ()))
+              reqHeaders
+          match headers with
+          | Error headerError ->
+            Ply(
+              resultError (
+                RequestError.toDT (HostTypes.HttpRequestError.BadHeader headerError)
+              )
+            )
+          | Ok headers ->
+            let op =
+              Host.Operation.HttpStreamOpen(
+                HostTypes.HttpProfile.Guest,
+                method,
+                uri,
+                headers
+              )
+            Interpreter.requestHost vm op (fun outcome ->
+              match outcome with
               | Error failure ->
-                return
-                  Exception.raiseInternal
-                    "http stream open failed outside the typed error surface"
-                    [ "message", failure.message ]
+                Exception.raiseInternal
+                  "http stream open failed outside the typed error surface"
+                  [ "message", failure.message ]
               | Ok response ->
                 match Host.expectHttpStream response with
-                | Error err -> return resultError (RequestError.toDT err)
+                | Error err -> Ply(resultError (RequestError.toDT err))
                 | Ok head ->
                   let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
                     uply {
@@ -596,8 +651,7 @@ let fns () : List<BuiltInFn> =
                     [ ("statusCode", Dval.int (bigint head.statusCode))
                       ("headers", headersToDval head.headers)
                       ("body", body) ]
-                  return resultOk (DRecord(typ, typ, [], Map fields))
-          }
+                  Ply(resultOk (DRecord(typ, typ, [], Map fields))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

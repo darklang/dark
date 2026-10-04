@@ -154,6 +154,11 @@ let emptyRepl () : ReplState =
 
 type State =
   { activeView: Int
+    /// `--live`: reload when something changes the store under you. Off, the change is NOTICED
+    /// and named in the footer and nothing moves until you press `R`, which is the difference
+    /// between a viewer telling you something happened and a viewer rearranging itself while
+    /// you read it.
+    live: Bool
     location: Packages.PackageLocation
     items: List<BodyItem>
     selected: Int
@@ -215,6 +220,10 @@ type State =
     /// renderer has to stay a pure function of state for frame diffing to be sound. Refreshed on transitions
     /// by `refreshPeek`.
     renderPeek: String
+    /// Live values for the selected fn: what each call in it produced the last time it ran, keyed
+    /// by the call's expression id, rendered. Runs user code, so it is refreshed on transitions
+    /// (`refreshLiveValues`) and read by the printer, never computed while drawing.
+    liveValues: Dict<String, String>
     /// The REPL view's own state. Everything in here belongs to that one view, so it lives in one field
     /// rather than as four more on the workbench: a view you can hand a record to is a view you could mount
     /// somewhere else, and the parent stops being the place every view keeps its things.

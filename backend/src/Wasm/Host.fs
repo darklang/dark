@@ -408,6 +408,81 @@ module BrowserBuiltins =
         sqlSpec = NotQueryable
         previewable = Impure
         callEffects = set [ Effect.Stdout ]
+        deprecated = NotDeprecated }
+
+      // The prompt and every TUI park here. Without a tab-side answer the native builtin falls
+      // through to `awaitBlocking`, which polls `Console.KeyAvailable` and sleeps between polls:
+      // a tab has no console and may not sleep its only thread, so the first key wait kills the
+      // page. This answers the specs a tab CAN answer and refuses the rest by name.
+      { name = fn "hostAwait" 0
+        typeParams = []
+        parameters =
+          [ Param.make
+              "specs"
+              (TList(
+                TCustomType(
+                  NR.ok (
+                    FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.eventSpec ())
+                  ),
+                  []
+                )
+              ))
+              "" ]
+        returnType =
+          TCustomType(
+            NR.ok (FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.rawEvent ())),
+            []
+          )
+        description =
+          "Parks until the first of the given events happens, as a tab can."
+        fn =
+          (function
+          | _, vm, _, [| DList(_, specs) |] ->
+            let rawEvent =
+              FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.rawEvent ())
+            let case name fields = DEnum(rawEvent, rawEvent, [], name, fields)
+
+            let wantsKey =
+              specs
+              |> List.exists (fun d ->
+                match d with
+                | DEnum(_, _, _, "Key", []) -> true
+                | _ -> false)
+
+            let timerMs =
+              specs
+              |> List.tryPick (fun d ->
+                match d with
+                | DEnum(_, _, _, "Timer", [ DInt64 ms ]) -> Some ms
+                | _ -> None)
+
+            // Key first when both are asked for, which is what the prompt asks for
+            // (`Host.await [Key, StoreChanged]`). A tab's only writer is itself, so a store
+            // change cannot arrive while this process is the one parked.
+            if wantsKey then
+              uply {
+                let! ev = Browser.nextKey ()
+                return case "Key" [ keyRead ev ]
+              }
+            else
+              match timerMs with
+              | Some ms ->
+                uply {
+                  do! Task.Delay(int ms)
+                  return case "Timer" []
+                }
+              | None ->
+                RuntimeError.UncaughtException(
+                  "This waits on something a browser tab cannot produce. "
+                  + "Install the CLI to run it (darklang.com has the one-line installer).",
+                  [ "waiting on",
+                    DString(specs |> List.map string |> String.concat ", ") ]
+                )
+                |> raiseRTE vm.threadID
+          | _ -> incorrectArgs ())
+        sqlSpec = NotQueryable
+        previewable = Impure
+        callEffects = set [ Effect.Stdin; Effect.PackageRead ]
         deprecated = NotDeprecated } ]
 
   let builtins () : Builtins = Builtin.make [] fns
@@ -527,8 +602,17 @@ module Cli =
         LibExecution.HostSecurity.setPolicyDirectory (
           IO.Path.Combine(runDir, "policy")
         )
-        LibDB.PolicyStore.seedInstanceIfMissing
-          LibExecution.Permissions.Policy.defaultInstance
+        // A tab gets the permissive policy, not `defaultInstance`, and the reason is that the
+        // browser is already a tighter sandbox than this policy can describe. There is no
+        // filesystem to read, no process to spawn and no environment to leak; the things
+        // `defaultInstance` withholds are things a tab cannot do at all. Network is the one that
+        // matters and granting it gives away nothing, because `fetch` is bound by CORS and the
+        // page's origin either way: the page could already make the request.
+        //
+        // Without this, the first interesting thing anyone types dies with "permission denied by
+        // instance policy" and advice (`permissions allow http GET ...`) that cannot be followed
+        // in a tab, which reads as broken rather than as sandboxed.
+        LibDB.PolicyStore.seedInstanceIfMissing LibExecution.Permissions.Policy.allowAll
         LibExecution.HostSecurity.setPackageDbPath dbPath
 
         LibDB.Sqlite.Sql.warm ()
@@ -575,13 +659,22 @@ module Cli =
   [<JSInvokable>]
   let RunCli (args : string[]) : Task<int> =
     task {
-      let! bundled = LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+      // Everything in a tab's store is bundled, which is why this is `true` rather than the
+      // `hashesOwnedBy "Darklang"` a native binary uses. Natively that set separates the stdlib
+      // that shipped with the binary from code a person authored or pulled, and only the former
+      // is trusted without an explicit `permissions approve`. A tab has no such distinction: the
+      // store is downloaded with the build and is the same artifact, there is nothing in it that
+      // did not ship, and there is no way to approve anything anyway because an approval is
+      // written to `~/.darklang`, which a browser does not have.
+      //
+      // Without this, a demo function in the store dies with "permission denied by package
+      // policy ... To approve: `permissions approve <fn>`", naming a command a tab cannot run.
       let state =
         { Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll (state ()) with
             branchId = LibDB.PackageManager.currentBranchId ()
             canManagePolicies = true
             canUsePrivateNetworkHttp = true
-            isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
+            isBundledPackageFn = fun _ -> true }
       let fnName = RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
       let args =
         args

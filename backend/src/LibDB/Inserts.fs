@@ -263,7 +263,9 @@ let rec insertAndApplyOpsWith
       let insertedOpIds =
         insertedOpsWithIds |> List.map (fun (opId, _, _, _, _) -> opId)
 
-      do! PackageOpPlayback.applyOpsFrom source opsToApply
+      do!
+        Telemetry.timeTask "author.fold" [] (fun () ->
+          PackageOpPlayback.applyOpsFrom source opsToApply)
 
       // An `Add*` the log already held is not folded again, and does not need to be, except for one
       // thing: the names its body reached its callees through in THIS parse. Two names can hold one
@@ -273,7 +275,9 @@ let rec insertAndApplyOpsWith
         List.zip opsWithIds rowsAffected
         |> List.filter (fun (_, affected) -> affected = 0)
         |> List.map (fun ((_, op, _, _, _), _) -> op)
-      do! PackageOpPlayback.recordDependenciesOnly ignored
+      do!
+        Telemetry.timeTask "author.deps" [] (fun () ->
+          PackageOpPlayback.recordDependenciesOnly ignored)
 
       // A `SetName` already in the log, for a name bound to something else right now, is a revert:
       // unsayable as a `SetName` (`PT.restating`), so it is re-authored as the decision it is. An
@@ -282,9 +286,13 @@ let rec insertAndApplyOpsWith
       // the log holds whose statement is not what stands: deprecate, undeprecate, deprecate the
       // same way is three decisions and the third wears the first one's id. Recursion terminates: a
       // `SetName` becomes a `Decision`, and a stamped op is a new op id, so none is ignored again.
-      let! toRestateNames = notCurrentlyBound ignored
-      let! toRestateDocs = docsNotCurrentlySaid ignored
-      let! toRestateDeprecations = deprecationsNotInEffect ignored
+      let! toRestateNames =
+        Telemetry.timeTask "author.notBound" [] (fun () -> notCurrentlyBound ignored)
+      let! toRestateDocs =
+        Telemetry.timeTask "author.notSaid" [] (fun () -> docsNotCurrentlySaid ignored)
+      let! toRestateDeprecations =
+        Telemetry.timeTask "author.notInEffect" [] (fun () ->
+          deprecationsNotInEffect ignored)
       let toRestate = toRestateNames @ toRestateDocs @ toRestateDeprecations
       let! restated =
         if List.isEmpty toRestate then

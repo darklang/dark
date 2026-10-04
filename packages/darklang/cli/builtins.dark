@@ -65,7 +65,6 @@ let versionSuffix (v: Int32) : String =
 let purityTag (purity: LanguageTools.BuiltinFunctionPurity) : String =
   match purity with
   | Pure -> "[pure]"
-  | ImpurePreviewable -> "[impure-previewable]"
   | Impure -> "[impure]"
 
 

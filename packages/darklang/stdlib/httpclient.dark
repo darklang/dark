@@ -61,23 +61,38 @@ type StreamResponse =
     body: Stream<UInt8> }
 
 
-/// Make blocking HTTP call to <param uri>. Returns a <type Result> where
-/// the response is wrapped in {{ Ok }} if a response was successfully
-/// received and parsed, and is wrapped in {{ Error }} otherwise
+/// A GET or HEAD of <param uri>: a read. It runs concurrently with what follows, and
+/// your code waits for the response where it first looks at it, so `List.map get urls`
+/// has every request in flight at once. Any other method is a `BadMethod` error.
+let read
+  (method: String)
+  (uri: String)
+  (headers: List<(String * String)>)
+  : Stdlib.Result.Result<Response, RequestError> =
+  Builtin.httpClientRead method uri headers
+
+
+/// Make an HTTP call to <param uri>. Returns a <type Result> where the response is
+/// wrapped in {{ Ok }} if a response was successfully received and parsed, and is
+/// wrapped in {{ Error }} otherwise. A GET or HEAD is a `read` (concurrent); any other
+/// method is a write and runs in program order.
 let request
   (method: String)
   (uri: String)
   (headers: List<(String * String)>)
   (body: Blob)
   : Stdlib.Result.Result<Response, RequestError> =
-  Builtin.httpClientRequest method uri headers body
+  match Stdlib.String.toUppercase method with
+  | "GET" -> read "GET" uri headers
+  | "HEAD" -> read "HEAD" uri headers
+  | _ -> Builtin.httpClientRequest method uri headers body
 
 
 let get
   (uri: String)
   (headers: List<(String * String)>)
   : Stdlib.Result.Result<Response, RequestError> =
-  request "GET" uri headers Stdlib.Blob.empty
+  read "GET" uri headers
 
 
 let post
@@ -105,7 +120,7 @@ let delete (uri: String) : Stdlib.Result.Result<Response, RequestError> =
 
 
 let head (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-  request "HEAD" uri [] Stdlib.Blob.empty
+  read "HEAD" uri []
 
 
 /// Make a streaming HTTP call to <param uri>. The response's body is

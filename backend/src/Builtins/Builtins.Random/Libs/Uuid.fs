@@ -21,7 +21,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable =
         // Similarly to DateTime.now, it's not particularly fun for this to change
-        // when live programming, so let's keep this as Impure rather than ImpurePreviewable
+        // when live programming, so `Impure` is the honest label
         Impure
       callEffects = set [ Effect.Random ]
       deprecated = NotDeprecated } ]

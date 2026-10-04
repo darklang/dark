@@ -1,0 +1,227 @@
+/// `dark traces show <fn> --watch`: a function's code with a recorded trace's values beside it,
+/// and the traces to pick from, repainting as new ones arrive.
+///
+/// This is Dark Classic's trace-driven development, whole: the dots down the left are the traces,
+/// the code on the right carries `// = value` at every call, up and down move between traces, and
+/// the panel follows both a new trace and an edit to the code. `dark traces show <fn>` is the
+/// one-shot print of the same thing.
+///
+/// Nothing here performs an effect. Each repaint replays the selected trace with every impure call
+/// answered from that trace's own log (`Darklang.Tracing.Store.viewTrace`), so a handler that
+/// charges a card does not charge it again while you look at it. That property is why this can be
+/// left open beside an editor.
+module Darklang.Cli.TraceWatch
+
+
+/// The config key the command hands the function name over on.
+///
+/// A view's `init` is called with no arguments (`Apps.Host.start`), so a view that is ABOUT
+/// something has to be told what. `Live.show` does the same with the same mechanism.
+val fnKey = "traces.watch.fn"
+
+
+type Model =
+  { branchId: Uuid
+    /// The function being watched, as the trace index names it.
+    fn: String
+    /// The traces that went through it, newest first.
+    traces: List<Darklang.Tracing.Trace>
+    /// One line per trace, already rendered.
+    ///
+    /// Built here rather than in `render` because the "2 minutes ago" column reads the CLOCK,
+    /// and a render must be pure: the TUI runs it under a policy that denies effects, so a
+    /// render that asks the time is a panel that shows an error instead of itself. `reload` is
+    /// where effects are allowed, and it already runs on every tick, move and edit.
+    traceLines: List<String>
+    cursor: Int
+    /// The selected trace's code, already annotated. Recomputed on a move, a tick and an edit,
+    /// because all three can change it: a different trace, a new one arriving, different code.
+    source: List<String>
+    /// Set when the replay stopped before the end: the error, whether the store moved under
+    /// the recording, and what to do about it.
+    ///
+    /// Already resolved, for the same reason `traceLines` is: rendering a runtime error reads
+    /// the package store to spell names, and a render may not. `annotate` does it.
+    problem: Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson> }
+
+
+type Msg = | Refresh
+
+
+/// The function's source with the selected trace's values in it, as lines.
+///
+/// Returns the reason in place of the source when there is nothing to show, so the panel always
+/// has something true in it rather than going blank.
+let annotate
+  (branchId: Uuid)
+  (fn: String)
+  (trace: Stdlib.Option.Option<Darklang.Tracing.Trace>)
+  : (List<String> * Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson>) =
+  match trace with
+  | None ->
+    (Stdlib.List.append
+       [ $"no recorded trace went through {fn} yet" ]
+       (Cli.TraceVerbs.whyEmpty "run something that calls it"),
+     Stdlib.Option.Option.None)
+  | Some r ->
+    let entry = LanguageTools.ProgramTypes.parsePackageLocation fn
+
+    match LanguageTools.PackageManager.Function.find branchId entry with
+    | None -> ([ $"no function named {fn} on this branch" ], Stdlib.Option.Option.None)
+    | Some hash ->
+      match LanguageTools.PackageManager.Function.get hash with
+      | None ->
+        ([ $"{fn} resolves to a version this store cannot load" ],
+         Stdlib.Option.Option.None)
+      | Some fnDef ->
+        let (collected, stop) = Darklang.Tracing.Store.viewTrace branchId r.id
+        let problem = Cli.TraceVerbs.problemJson branchId r.id stop
+
+        let values =
+          collected
+          |> Stdlib.List.map (fun pair ->
+            let (id, dv) = pair
+            (Stdlib.Int64.toString id,
+             PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
+          |> Stdlib.Dict.fromListOverwritingDuplicates
+
+        let ctx =
+          { PrettyPrinter.ProgramTypes.Context.forBranch branchId with
+              liveValues = values
+              breakForValues = true }
+
+        ((PrettyPrinter.ProgramTypes.packageFn ctx fnDef) |> Stdlib.String.split "\n",
+         problem)
+
+
+/// Where the cursor lands after a reload, given the ids now on screen, where it was, and the trace
+/// it was reading.
+///
+/// Its own function because it is the part with a rule rather than a mechanism, and the rule is
+/// easy to get wrong: a new trace arrives at the TOP, so holding the INDEX would quietly move you
+/// onto a different trace while you were reading it.
+let pickCursor
+  (ids: List<String>)
+  (cursor: Int)
+  (keep: Stdlib.Option.Option<String>)
+  : Int =
+  let found =
+    match keep with
+    | Some id -> Stdlib.List.findFirstIndex ids (fun i -> i == id)
+    | None -> Stdlib.Option.Option.None
+
+  match found with
+  | Some i -> i
+  | None -> Stdlib.Int.max 0 (Stdlib.Int.min cursor ((Stdlib.List.length ids) - 1))
+
+
+/// When a trace ran, without asking what time it is now.
+///
+/// The list elsewhere says "2 minutes ago", which reads better and costs a CLOCK read. A panel
+/// may not have one: it runs under a policy that denies effects, which is the right rule for
+/// something repainting on a timer. And a relative time is the wrong thing here anyway -- this
+/// panel is open while traces arrive, so "2 minutes ago" would be wrong within a minute of being
+/// painted unless every tick recomputed it.
+let clockFreeTime (created: String) : String =
+  match Stdlib.String.split created "T" with
+  | [ _, rest ] ->
+    (match Stdlib.String.split rest "." with
+     | [ hms ] -> hms
+     | hms :: _ -> hms)
+  | _ -> created
+
+
+/// Reload the traces and re-annotate. One function for every reason the panel changes, so a move
+/// and a tick cannot drift apart in what they show.
+///
+let reload
+  (branchId: Uuid)
+  (fn: String)
+  (cursor: Int)
+  (keep: Stdlib.Option.Option<String>)
+  : Model =
+  let traces = Darklang.Tracing.Store.wentThroughNamed branchId fn 25L
+  let cursor = pickCursor (traces |> Stdlib.List.map (fun r -> r.id)) cursor keep
+  let (source, problem) = annotate branchId fn (Stdlib.List.getAt traces cursor)
+
+  let traceLines =
+    traces
+    |> Stdlib.List.indexedMap (fun i r ->
+      let mark = if i == cursor then "> " else "  "
+      let id = Cli.Text.shortIdText r.id
+      let at = Stdlib.String.padEndToWidth (clockFreeTime r.created) 16
+      let status = Stdlib.String.padEndToWidth (Cli.TraceVerbs.statusText r.status) 10
+      $"{mark}{id}  {status}{at}{Cli.Text.oneLineAt 40 r.input}")
+
+  Model
+    { branchId = branchId
+      fn = fn
+      traces = traces
+      traceLines = traceLines
+      cursor = cursor
+      source = source
+      problem = problem }
+
+
+let init () : Model =
+  let branchId = SCM.PackageOps.currentBranch ()
+
+  let fn = Stdlib.LocalStore.configGet fnKey
+
+  reload branchId fn 0 Stdlib.Option.Option.None
+
+
+let update (m: Model) (event: Apps.Host.Event<Msg>) : Model =
+  match event with
+  // A tick reloads BOTH halves: a new trace may have arrived, and the code may have been saved
+  // since the last paint. That is the whole live-programming property, and it costs one replay.
+  | Tick
+  | Msg Refresh ->
+    // Stay on the trace being read, not on its position in a list that grows from the top.
+    let here =
+      m.traces |> Stdlib.List.getAt m.cursor |> Stdlib.Option.map (fun r -> r.id)
+    reload m.branchId m.fn m.cursor here
+  | Key k ->
+    match k.key with
+    | UpArrow -> reload m.branchId m.fn (m.cursor - 1) Stdlib.Option.Option.None
+    | DownArrow -> reload m.branchId m.fn (m.cursor + 1) Stdlib.Option.Option.None
+    | _ -> m
+
+
+let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
+  let traces =
+    match m.traceLines with
+    | [] -> Stdlib.Cli.UI.Node.dim "  (no traces yet)"
+    | _ -> Stdlib.Cli.UI.Node.Node.Rows m.traceLines
+
+  // The same decision the page and `--json` use, printed as a band. Only the medium differs.
+  let problem =
+    match m.problem with
+    | Some p ->
+      let headline =
+        match p.why with
+        | Some why -> $"the replay stopped: {why}"
+        | None -> $"the replay stopped here: {p.message}"
+
+      // A band is ONE line and CLIPS, so only the headline goes in it and the rest follows as
+      // dim rows. Joined into the band they ran off the edge mid-sentence, which loses exactly
+      // the two parts a reader needs: the error and what to do.
+      let rest =
+        [ p.why |> Stdlib.Option.map (fun _ -> p.message), p.advice ]
+        |> Stdlib.List.filterMap (fun x -> x)
+        |> Stdlib.List.map (fun line -> Stdlib.Cli.UI.Node.dim $"  {line}")
+
+      Stdlib.List.push
+        rest
+        (Stdlib.Cli.UI.Node.band Stdlib.Cli.UI.Node.Severity.Warning headline)
+    | None -> []
+
+  Stdlib.Cli.UI.Node.column
+    (Stdlib.List.flatten
+      [ [ Stdlib.Cli.UI.Node.bold m.fn
+          Stdlib.Cli.UI.Node.dim
+            $"  {Cli.Text.plural (Stdlib.List.length m.traces) "trace"}, newest first"
+          traces
+          Stdlib.Cli.UI.Node.text ""
+          Stdlib.Cli.UI.Node.Node.Rows m.source ]
+        problem ])

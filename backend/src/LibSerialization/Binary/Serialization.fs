@@ -214,6 +214,13 @@ module RT =
     let serialize id value = makeSerializer RT.PackageFn.write id value
     let deserialize id data = makeDeserializer RT.PackageFn.read id data
 
+    /// The symbol table, which travels in its own column rather than in the instruction blob.
+    let serializeDebugSymbols id value =
+      makeSerializer RT.PackageFn.DebugSymbols.write id value
+
+    let deserializeDebugSymbols id data =
+      makeDeserializer RT.PackageFn.DebugSymbols.read id data
+
   module ValueType =
     let serialize (vt : LibExecution.RuntimeTypes.ValueType) : byte[] =
       use stream = new MemoryStream()

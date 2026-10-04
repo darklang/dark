@@ -111,7 +111,9 @@ gate_workbench_views() {
   # that view is gated on the ACCOUNT, not the identity, and only for the two people building it.
   run identity workbench-views-test
 
-  # traces: something has to have RUN for the Traces view to hold anything
+  # traces: recording is OFF until asked for, and something has to have RUN, for the Traces view
+  # to hold anything
+  run traces record on
   run eval 'WbV.T.draft ()'
   run eval 'Stdlib.List.length [ 1L; 2L; 3L ]'
 

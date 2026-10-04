@@ -4,13 +4,18 @@
 # Fails if the reference workload allocates more than its budget. This is the only perf tool in CI,
 # deliberately: one script, a couple of seconds. A long perf job gets ignored and then disabled.
 #
-#   scripts/perf/gate              against the debug build
-#   scripts/perf/gate --published  against the published one, as CI does
-#   scripts/perf/gate --update     rewrite this mode's budget to what it measures
+#   scripts/perf/gate              the debug build's allocation, reported but NOT gated
+#   scripts/perf/gate --published  against the published one, as CI does. This is the gate.
+#   scripts/perf/gate --update     rewrite the published budget to what it measures
 #
 # Allocation, not time: it doesn't care how loaded the machine is. It is not byte-identical either --
-# see docs/perf/playbook.md for the noise floor. Debug and published are budgeted separately, since
-# they don't allocate the same amount.
+# see docs/perf/playbook.md for the noise floor.
+#
+# Only the published build is budgeted. Debug had its own budget and it was retired: most of the
+# debug overage was `noteValue`, an interpreter hook that allocates a closure per frame in Debug
+# and is elided entirely by the Release optimiser, so the debug number tracked a configuration
+# nobody ships while the one we do ship was inside its budget. A debug run still prints what it
+# allocated, because the number is worth seeing; it just does not fail.
 # The budget is in scripts/perf/budget.json -- lower it in the same commit that earns it.
 
 set -euo pipefail
@@ -29,6 +34,9 @@ done
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=$(release_exe)
   [[ -x "$EXE" ]] && { assert_release_exe_fresh "$EXE" perf/gate || exit 2; }
+  # And that it is the same publish mode the budget was recorded in. See `release_exe_mode`.
+  WANT_MODE=$(python3 -c "import json;print(json.load(open('scripts/perf/budget.json')).get('steady',{}).get('publishedMode','r2r'))")
+  [[ -x "$EXE" ]] && { assert_release_exe_mode "$EXE" "$WANT_MODE" perf/gate || exit 2; }
 else
   EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 fi
@@ -45,9 +53,19 @@ WORKLOAD="scripts/perf/workloads/steady.dark"
 
 TELEMETRY=$(telemetry_path)
 
-# Trace detail off: a dev shell sets it on, a user's run has it off, and with it on the interpreter
+# Recording off: a dev shell sets it on, a user's run has it off, and with it on the interpreter
 # holds every argument and result alive for the whole run.
-run_workload() { DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" run "$WORKLOAD"; }
+#
+# `--no-trace`, not just the environment variable, and this is load-bearing. The ladder in
+# `LibDB/Tracing.fs` is env, then the store's `trace.record`, then the flag, and a STORED setting
+# beats the environment by design. So on any store where somebody has run `dark traces record on`
+# -- which the walkthrough tells you to do, and which every dev store on this branch therefore has
+# -- the env var below was silently overridden and the gate measured a recording run. That is worth
+# 2.1 MB on this workload, 22% of the budget, and it is why a local red here has looked like a
+# regression all week. The flag pins the setting for the run and beats both.
+run_workload() {
+  DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" --no-trace run "$WORKLOAD"
+}
 
 # One throwaway run first: against an empty store the first invocation seeds it, which on the
 # published binary is an extra ~470 MB that would otherwise be recorded as the budget.
@@ -76,9 +94,21 @@ measured = allocs[0]
 
 budget = json.load(open(budget_file))
 mode = sys.argv[4]
-limit = budget["steady"][mode]
+# `.get`, not `[...]`: debug has no budget any more and a missing key must not be a crash.
+limit = budget["steady"].get(mode)
 tolerance = budget["tolerance"]
 mb = lambda b: f"{b/1e6:.1f} MB"
+
+# Retired on purpose, so `--update` does not quietly put it back.
+if mode == "debug" and update:
+    print("perf/gate: the debug budget was retired; there is nothing to update.")
+    print("`scripts/perf/gate --published --update` is the one that exists.")
+    sys.exit(2)
+
+if mode == "debug":
+    print(f"steady.dark (debug) allocated {mb(measured)}; not budgeted, so this does not gate.")
+    print("The published build is what is budgeted: `scripts/perf/gate --published`.")
+    sys.exit(0)
 
 if update:
     budget["steady"][mode] = measured
@@ -103,7 +133,13 @@ if measured > ceiling:
     over = (measured / limit - 1) * 100
     print(f"FAIL: {over:.1f}% over budget.")
     print("If the regression is intended, raise the budget in the same commit and say why.")
-    print("If the store above is not a freshly loaded one, that alone accounts for about 2.5%.")
+    print("Before calling this a regression: measured on this box, the same binary and")
+    print("workload reads 2.1 MB higher against a working dev store than against one the")
+    print("published binary grew itself, which is 22% of the budget. CI is in the second")
+    print("case, so re-run there before believing this. Locally:")
+    print("  HOME=$(mktemp -d) DARK_CONFIG_RUNDIR=<path that does not exist yet> \\")
+    print("    scripts/perf/gate --published")
+    print("docs/perf/playbook.md has the four readings and what each part of the gap was.")
     sys.exit(1)
 
 if measured < limit * (1 - tolerance):

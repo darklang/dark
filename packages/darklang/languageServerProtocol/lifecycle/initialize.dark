@@ -540,6 +540,10 @@ module ServerCapabilities =
       semanticTokensProvider:
         Stdlib.Option.Option<SemanticTokens.SemanticTokenProviderOptions.SemanticTokenProviderOptions>
 
+      /// The server provides inlay hints.
+      // inlayHintProvider?: boolean | InlayHintOptions | InlayHintRegistrationOptions;
+      inlayHintProvider: Stdlib.Option.Option<Bool>
+
     // /// The server provides moniker support.
     // monikerProvider?: boolean | MonikerOptions | MonikerRegistrationOptions;
 
@@ -584,7 +588,10 @@ module ServerCapabilities =
           SemanticTokens.SemanticTokenProviderOptions.toJson p))
 
       capabilities.hoverProvider
-      |> Stdlib.Option.map (fun p -> ("hoverProvider", Json.Bool p)) ]
+      |> Stdlib.Option.map (fun p -> ("hoverProvider", Json.Bool p))
+
+      capabilities.inlayHintProvider
+      |> Stdlib.Option.map (fun p -> ("inlayHintProvider", Json.Bool p)) ]
 
     |> Stdlib.Option.values
     |> Json.Object

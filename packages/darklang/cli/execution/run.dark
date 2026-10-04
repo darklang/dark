@@ -125,7 +125,9 @@ let executeScript
         Stdlib.printLine $"Script not found: {scriptPath}"
     | OsAccessDenied -> Stdlib.printLine $"Permission denied: {scriptPath}"
     | Other msg -> Stdlib.printLine $"Could not read script {scriptPath}: {msg}"
-    state
+    // Every branch above printed a reason the script did not run, so this is a failure. Saying
+    // so in the exit code is the only part a script or an agent can read.
+    { state with exitCode = 1 }
   | Ok script ->
     let scriptSourceCode = Stdlib.String.fromBlobWithReplacement script
     runScript
@@ -190,7 +192,7 @@ let runScript
       state
     else
       Stdlib.printLine $"Script exited with code {Stdlib.Int.toString exitCode}"
-      state
+      { state with exitCode = exitCode }
   | Error(Denied denied) ->
     let canAsk =
       promptsLeft > 0

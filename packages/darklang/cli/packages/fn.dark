@@ -44,17 +44,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         state
 
 
-/// After defining a fn: its transitive permission requirements (naming its
-/// callbacks when the static walk cannot follow them), and where to inspect
-/// them.
-let printFunctionPermissionSummary (hash: String) : Unit =
-  let requirements = Permissions.Command.requirementDisplay hash
-  Stdlib.printLine
-    (Stdlib.Cli.UI.Colors.hint $"  permission requirements: {requirements}")
-  Stdlib.printLine
-    (Stdlib.Cli.UI.Colors.hint $"  inspect: `permissions show {hash}`")
-
-
 let createFnInline
   (currentLocation: Packages.PackageLocation)
   (locationStr: String)

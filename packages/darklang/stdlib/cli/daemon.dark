@@ -12,9 +12,47 @@ module Darklang.Stdlib.Cli.Daemon
 
 
 // ── pidfile + log location ──  ~/.darklang/run/<name>.{pid,log}
-let runDir () : String =
+
+/// Where pidfiles and logs may go, best first: `~/.darklang/run`, the instance's rundir, then
+/// `/tmp`. A reader takes the first that is already there; a writer takes the first it can
+/// write in, which is what puts one there.
+let runDirCandidates () : List<String> =
   let home = Stdlib.Option.withDefault (Env.home ()) "/tmp"
-  home ++ "/.darklang/run"
+
+  Stdlib.List.flatten
+    [ [ home ++ "/.darklang/run" ]
+      (match Env.get "DARK_CONFIG_RUNDIR" with
+       | Some rundir -> [ rundir ++ "/run" ]
+       | None -> [])
+      [ "/tmp/darklang-run" ] ]
+
+/// Can this process make <param dir> and write in it? Probed with a real write: a directory
+/// another user owns (a `~/.darklang` a root process created first) exists and is not ours.
+/// The probe file is removed again; only the writers ask (`claimPidfile`, `launchDetachedWith`).
+let writableDir (dir: String) : Bool =
+  match Posix.mkdirRecursive dir with
+  | Error _ -> false
+  | Ok _ ->
+    match File.writeText (dir ++ "/.probe") "" with
+    | Ok _ ->
+      let _ = Stdlib.Cli.FileSystem.deleteFile (dir ++ "/.probe")
+      true
+    | Error _ -> false
+
+/// Where a writer puts pidfiles and logs: the first candidate it can write in.
+let runDirForWriting () : String =
+  let candidates = runDirCandidates ()
+  match Stdlib.List.findFirst candidates (fun d -> writableDir d) with
+  | Some dir -> dir
+  | None -> Stdlib.Option.withDefault (Stdlib.List.head candidates) "/tmp/darklang-run"
+
+/// Where a reader looks: the first candidate that exists, so listing a daemon's state never
+/// writes. Falls back to the first candidate, which is where a writer would have put it.
+let runDir () : String =
+  let candidates = runDirCandidates ()
+  match Stdlib.List.findFirst candidates (fun d -> Stdlib.Cli.FileSystem.pathExists d) with
+  | Some dir -> dir
+  | None -> Stdlib.Option.withDefault (Stdlib.List.head candidates) "/tmp/darklang-run"
 
 let pidfilePath (name: String) : String =
   (runDir ()) ++ "/" ++ name ++ ".pid"
@@ -33,7 +71,7 @@ let tailLog (name: String) (n: Int) : List<String> =
 // Record THIS process as the named daemon. The entrypoint calls this on startup, so the pidfile holds
 // the real detached-worker pid, not a transient launcher.
 let claimPidfile (name: String) : Stdlib.Result.Result<Unit, String> =
-  match Posix.mkdirRecursive (runDir ()) with
+  match Posix.mkdirRecursive (runDirForWriting ()) with
   | Error e -> Stdlib.Result.Result.Error e.message
   | Ok _ ->
     let pid = Sys.currentPid ()
@@ -109,16 +147,23 @@ let launcher () : String =
   Stdlib.Cli.Sys.currentExecutablePath ()
 
 
-// Spawn `expr` DETACHED so it survives this process exiting: `nohup … &` backgrounds it + shields it
-// from hangups, the launching `sh -c` returns immediately, and the child reparents to init. Output
-// appends to the daemon's logfile. The entrypoint must `claimPidfile name` first.
-let launchDetached (name: String) (expr: String) : Stdlib.Result.Result<Unit, String> =
+// Spawn `dark <args...>` DETACHED so it survives this process exiting: `nohup … &` backgrounds it
+// + shields it from hangups, the launching `sh -c` returns immediately, and the child reparents to
+// init. Output appends to the daemon's logfile. The entrypoint must `claimPidfile name` first. A
+// command rather than an expression: a command runs in the CLI's own host state, which an `eval`
+// guest does not get, and a daemon needs the host's capabilities (the sync transport).
+let launchDetachedWith (name: String) (args: List<String>) : Stdlib.Result.Result<Unit, String> =
   // Create the run dir up front: the shell redirect below (and the pidfile) need it to exist, and
   // `claimPidfile` only mkdirs it from inside the child -- too late for this redirect on a fresh machine.
-  let _ = Posix.mkdirRecursive (runDir ())
+  let _ = Posix.mkdirRecursive (runDirForWriting ())
+
+  let quoted =
+    args
+    |> Stdlib.List.map (fun a -> "'" ++ (Stdlib.String.replaceAll a "'" "'\\''") ++ "'")
+    |> Stdlib.String.join " "
 
   let cmd =
-    $"nohup {launcher ()} eval '{expr}' >> {logPath name} 2>&1 &"
+    $"nohup {launcher ()} {quoted} >> {logPath name} 2>&1 &"
 
   match Process.exec "/bin/sh" [ "-c", cmd ] with
   | Ok _ -> Stdlib.Result.Result.Ok()
@@ -151,13 +196,13 @@ let waitUntilRunning
       waitUntilRunning name (tries - 1)
 
 
-// Launch a named daemon detached, running `expr`, then VERIFY it actually came up -- returns the live pid
-// or an error if it never claimed its pidfile (instead of falsely reporting success the instant the
-// shell forks). Refuses if it's already running.
-let start (name: String) (expr: String) : Stdlib.Result.Result<Int, String> =
+// Launch a named daemon detached, running `dark <args...>`, then VERIFY it actually came up:
+// returns the live pid or an error if it never claimed its pidfile (instead of falsely reporting
+// success the instant the shell forks). Refuses if it's already running.
+let startWith (name: String) (args: List<String>) : Stdlib.Result.Result<Int, String> =
   if isRunning name then
     Stdlib.Result.Result.Error $"{name} is already running (see `status`)"
   else
-    match launchDetached name expr with
+    match launchDetachedWith name args with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok _ -> waitUntilRunning name 20

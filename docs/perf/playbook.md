@@ -289,6 +289,90 @@ though its allocation column repeats to 0.1 KB.
 - The wall-clock sections of `view.dark` and `route.dark` resolve about 1%; `keypress` reports whole
   milliseconds and cannot see a sub-millisecond win at all.
 
+- `dark run` exits 0 when the script fails, and a failing run is fast. `bench` now reads the
+  output for "Script error" and refuses the pair, but anything else that times a run has to
+  look. The case that found it: an older binary could not read a policy file a newer one had
+  written (a new effect name; missing or corrupt policy fails closed), so every A run was denied
+  its clock call at once, and the new binary read as 4% slower on three workloads, 0/15 pairs.
+  Two things to check before believing an A/B between binaries of different ages: that both
+  arms print the workload's own `elapsed_ms`, and that `rundir/policy` was written by a binary
+  the older arm understands.
+---
+
+---
+
+## The gate could not reproduce its own baseline across a day
+
+On 2026-10-02 the published gate read 17% over budget. It was not a regression. Checking out
+`7973a64262`, the commit that had PINNED the budget the previous evening, building it and running
+the debug gate on a clean store gave:
+
+    steady.dark (debug) allocated 11.9 MB; budget 9.7 MB -- 23.0% over
+
+That commit's own message records the same gate at 5.8% over, which is 10.2 MB. Same source tree,
+same machine, eighteen hours apart, 1.7 MB different. There was nothing to bisect: the regression
+was already present at the baseline that defined "no regression".
+
+So a budget pinned from a reading taken on a working clone is pinned to that clone's afternoon.
+**Re-pin only from CI**, where the environment is constructed rather than accumulated, and treat a
+local red as a question rather than a finding until it reproduces somewhere clean.
+
+Ruled out that day, each with a measurement rather than an argument:
+
+- store dirt. Three store states, same binary: dirty 152 MB gave 11.8 MB, a copy of `seed.db`
+  108 MB gave 11.4 MB, a clean 56 MB store gave 11.3 MB
+- `rundir/policy/policies.bin`. Moving it aside did not lower the number; it made the gate exit 1
+  with no output at all, because `initialized` without `policies.bin` fails closed
+- a stored `trace.record` defeating the gate's `DARK_CONFIG_TRACE_DETAIL=off`. It was off. Worth
+  knowing anyway: `config/dev` sets that variable to `on` container-wide, and a STORED setting
+  beats the environment by design, so the gate's explicit `off` is load-bearing
+
+Not ruled out, and left alone deliberately: the `backend/Build` volume carrying something between
+builds, and the container's own baked environment (a container made from a sibling clone bakes
+that branch's `config/dev`, and this one's `TRACE_DETAIL` default already disagreed with the file).
+
+### 2026-10-03, settled: the gate reads 2.1 MB high on a dev store, and HOME is not why
+
+Four readings, same binary (AOT, published from the same commit) and same workload, varying one
+thing at a time. This is the measurement the entry above was missing.
+
+    store                         HOME     recording   allocated   verdict
+    dev rundir                    real     on (stored) 11.8 MB     22.1% over
+    dev rundir                    fresh    on (stored) 11.8 MB     21.7% over
+    dev rundir                    real     off         11.4 MB     17.6% over
+    grown by the published binary fresh    off          9.7 MB     at budget, exit 0
+
+So the 2.1 MB splits three ways, and only one of them was what anybody suspected:
+
+- **HOME: nothing.** 0.0 MB, rows one and two. The suspicion was `capabilities.bin`, which is
+  keyed on HOME and whose absence makes the host permissive. It was never there to matter:
+  `/home/dark/.darklang/` is EMPTY in these containers, so both runs were already permissive.
+  Worth knowing before anyone spends another experiment on it.
+- **The store's stored `trace.record`: 0.4 MB.** Real, and a gate bug rather than a fact about
+  stores. `gate` set `DARK_CONFIG_TRACE_DETAIL=off` and the ladder in `LibDB/Tracing.fs` puts the
+  STORED setting above the environment, so on any store where somebody ran `dark traces record on`
+  the gate was measuring a recording run. Proven directly: with `TRACE_DETAIL=off` set, one
+  `eval 1L` against the dev store took `traces` from 71 to 72; with `--no-trace` it stayed at 72.
+  `gate` passes `--no-trace` now, which pins the setting and beats both.
+- **Store provenance: 1.7 MB, and the mechanism is NOT identified.** A store grown by the
+  published binary from its own embedded seed reads 9.7; any store this dev tree produced reads
+  11.3 to 11.4 with recording off. It is not size (150 MB fresh against 152 MB dev), not the op
+  count (13,737 against 13,739), not dirt, and not config (the fresh store has zero `config_v0`
+  rows and the dev store has exactly one, the `trace.record` already accounted for above). The
+  three-way sweep in the entry above bottoming out at 11.3 is the same wall: all three of its
+  stores were dev-derived, so none of them could get under it.
+
+**CI is in the last row.** It runs `scripts/perf/gate --published` in a fresh container, against a
+store the published binary seeds itself, with no stored `trace.record`. So the budget is reachable,
+CI has been measuring the right thing, and it is the LOCAL readings that have been inflated. Two
+separate conclusions and both are needed: the branch has not regressed allocation, and the local
+instrument was wrong by a fifth of the budget.
+
+What to do with a local red, in order: pass `--no-trace` (the gate does now), then re-run against a
+store the published binary grows itself, and only then start bisecting.
+
+---
+
 ## The store you measure against is half the measurement
 
 Four lessons that each cost a measurement. None of them is about a particular change; they are

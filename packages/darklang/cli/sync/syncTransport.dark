@@ -11,6 +11,35 @@ module Darklang.Cli.Sync
 let relayGet (url: String) : Stdlib.Result.Result<Blob, String> =
   Builtin.httpGetUnsafeBytes url
 
+/// Ask the relay to tell us when it changes, rather than asking it again and again.
+///
+/// Sends the head we last saw and a wait; a relay that holds requests (`headHandlerFn`) answers
+/// the moment an op lands, or when the wait runs out. Returns whether the head is now DIFFERENT
+/// from the one we knew, which is the only thing the caller needs to decide whether to sync.
+///
+/// False covers three cases that all mean the same thing to a caller: the wait expired with
+/// nothing new, the relay does not hold requests and answered at once, or the relay could not be
+/// reached. The daemon distinguishes the second by how long this took.
+let waitForRelayHead (url: String) (waitMs: Int) : Bool =
+  let known = SCM.Wire.lastSeenHead url
+  // The COUNT half of the stamp, which is an integer and so needs no escaping in a query string.
+  // Ops are only ever added, so "the count moved" and "there is something to pull" are the same
+  // question; the full stamp is still what decides whether this call found anything.
+  let knownCount =
+    match Stdlib.String.split known "@" with
+    | count :: _ -> count
+    | [] -> ""
+
+  let ms = Stdlib.Int.toString waitMs
+
+  match relayGet $"{url}/sync/head?knownCount={knownCount}&waitMs={ms}" with
+  | Ok body ->
+    (match SCM.Wire.headDecode body with
+     | Ok h -> (SCM.Wire.headStamp h) != known
+     | Error _ -> false)
+  | Error _ -> false
+
+
 /// Begin a relay GET without waiting for it; collect it with `Builtin.httpAwaitBytes`.
 ///
 /// A pull starts the NEXT page before importing the one in hand, so the fetch and the import overlap

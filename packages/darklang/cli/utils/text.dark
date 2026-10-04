@@ -2,8 +2,61 @@ module Darklang.Cli.Text
 
 // Small text helpers shared across CLI commands, so counters and summaries read the same everywhere.
 
-// "1 value" / "2 values" — a count with its noun pluralized by the English rule in `Stdlib.String.pluralize`,
-// so no CLI message reads "1 value(s)". The linguistic rule lives in stdlib; this just pairs it with a count.
+/// <param text> as lines no wider than <param width>, broken at spaces, every line after the first
+/// carrying <param indent>. What every line a person reads at a save goes through: an 80-column
+/// terminal is the floor, and a wrapped line keeps its shape.
+let wrap (width: Int) (indent: String) (text: String) : List<String> =
+  let room = Stdlib.Int.max 20 (width - (Stdlib.String.length indent))
+
+  match Stdlib.Cli.Tui.Text.wrapAtWords text room with
+  | [] -> [ indent ++ text ]
+  | first :: rest ->
+    Stdlib.List.append [ indent ++ first ] (rest |> Stdlib.List.map (fun l -> indent ++ l))
+
+/// Print <param text> wrapped at 80 columns, indented by <param indent>, in <param colour>.
+let printWrapped (colour: String -> String) (indent: String) (text: String) : Unit =
+  wrap 80 indent text |> Stdlib.List.iter (fun l -> Stdlib.printLine (colour l))
+
+/// The first eight characters of an id: how every table and message names a process, a run or
+/// a commit. Eight is enough to be unique in practice and short enough to read in a column.
+let shortIdText (id: String) : String = Stdlib.String.slice id 0 8
+
+/// <fn shortIdText> for an id that is already a `Uuid`.
+let shortId (id: Uuid) : String = shortIdText (Stdlib.Uuid.toString id)
+
+/// <param text> on one line, at most <param width> characters: for a table cell that must not
+/// break the row. `Table.print` pads to the widest cell and never wraps, so a cell that is
+/// allowed to be long costs every row below it.
+let oneLineAt (width: Int) (text: String) : String =
+  let flat = Stdlib.String.replaceAll text "\n" " "
+  if Stdlib.String.length flat > width then
+    (Stdlib.String.slice flat 0 (width - 3)) ++ "..."
+  else
+    flat
+
+/// <fn oneLineAt> at 40 characters.
+let oneLine (text: String) : String = oneLineAt 40 text
+
+/// "9,999", "48k", "3.2M": a count at a glance, for a column where the exact number is not the
+/// point and the magnitude is.
+let count (n: Int64) : String =
+  if n < 10000L then Stdlib.Int64.toString n
+  else if n < 1000000L then $"{Stdlib.Int64.toString (Stdlib.Int64.divide n 1000L)}k"
+  else
+    let tenths = Stdlib.Int64.divide n 100000L
+    $"{Stdlib.Int64.toString (Stdlib.Int64.divide tenths 10L)}.{Stdlib.Int64.toString (Stdlib.Int64.``mod`` tenths 10L)}M"
+
+/// "812 B", "34 KB", "2.1 MB": bytes at a glance.
+let bytes (n: Int) : String =
+  if n < 1024 then $"{Stdlib.Int.toString n} B"
+  else if n < 1048576 then $"{Stdlib.Int.toString (Stdlib.Int.divide n 1024)} KB"
+  else
+    let tenths = Stdlib.Int.divide n 104858
+    $"{Stdlib.Int.toString (Stdlib.Int.divide tenths 10)}.{Stdlib.Int.toString (Stdlib.Int.``mod`` tenths 10)} MB"
+
+// "1 value" / "2 values": a count with its noun pluralized by the English rule in
+// `Stdlib.String.pluralize`, so no CLI message reads "1 value(s)". The linguistic rule lives in
+// stdlib; this just pairs it with a count.
 let plural (n: Int) (noun: String) : String =
   if n == 1 then
     $"{Stdlib.Int.toString n} {noun}"

@@ -26,6 +26,7 @@ let builtins (pm : PT.PackageManager) : Builtins =
 
       // Traces (reader surface)
       Libs.Traces.builtins ()
+      // Live values: a function's last recorded call, run again, with every call's result
 
       // Accounts
       Libs.Account.builtins () ]

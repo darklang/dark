@@ -281,6 +281,7 @@ let workbenchState () : Darklang.Cli.Workbench.State =
     "test-instance"
     // Every gateable view on, so the gated ones get rendered too.
     (Stdlib.List.range 0 40)
+    false
 
 
 /// Render one view and report whether it produced a plausible frame.

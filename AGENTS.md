@@ -125,7 +125,22 @@ in one session that produced a confident, wrong report about the tooling.
 it.** Same family as "don't infer build state from logs" above, one level out: that one is about
 reading the wrong file, this one is about reading the right file too narrowly.
 
+**And a claim about `main` needs `main`, not the tree you are standing in.** `git grep <pattern>
+upstream/main -- <path>` costs nothing and settles it. A clone is a branch, and the interesting
+branches here are the ones that change defaults: this one flips `DARK_CONFIG_TRACE_DETAIL` in
+`config/dev` from `off` to `on`, adds a stored `trace.record` that beats the environment, and
+renames flags that never existed upstream. Grep the working tree for any of those and you will
+report your own branch as though it were the world. Three times in one session, each time while
+deciding whether something was separable, which is the decision that depends on it most.
+
 ### Sweeping the CLI after a change
+
+### Processes and live programming
+
+`docs/processes.md` is the scheduler: what a process is, the loop, reads in flight, `Exec.spawn`,
+executions (resume, fork, export), `dark ps`. `docs/live.md` is live programming: the host loop,
+`serve` following edits, the `Node` tree, live values. `dark docs processes` and `dark docs live`
+are the short forms.
 
 A Dark call site is not type-checked until it executes, so a rename or a type change across
 `packages/` leaves holes a green suite cannot see. The bugs that get found here are found by
@@ -149,6 +164,47 @@ registered fails its own test, because an exclusion nobody revisits is how a swe
 stops covering the thing it was written for.
 
 ### Performance
+
+**AOT or R2R, and why it decides a number.** `scripts/build/build-release-cli-exes.sh` can publish
+either. They are about FIVE TIMES apart on startup (`dark eval 1L`: 40 ms AOT, 276 ms R2R,
+measured), different sizes, and different allocation, so a number taken against one says nothing
+about the other -- and nothing in the binary's filename says which you have.
+
+The rule: **anything that produces a number, or gates a release, is AOT. Anything you are only
+running is R2R.** So `perf/gate --published`, `perf/suite`, `perf/bench`, `gates first-day`, and
+any figure you quote to a person or write into a document: AOT. Iterating on a bug that only
+happens in a published build, or just checking the thing starts: R2R, and say which it was if you
+quote a number from it.
+
+The default is `--mode=auto`, which is AOT on every runtime that can do it and R2R on the ones
+that cannot (Windows, from a Linux host), so the default is AOT here. `--mode=r2r` is the fast
+path, about 40 seconds cheaper on the one-runtime default. `--mode=aot` refuses a runtime this
+host cannot AOT-build rather than falling back, which is why it is not the default.
+
+The build writes the mode to `clis/<binary>.mode`, `scripts/perf/budget.json` records the
+`publishedMode` its numbers were taken in, and `perf/gate` REFUSES a binary from the other mode
+rather than reporting a number that compares across them.
+
+Decide with allocation, not time. Allocation for a fixed workload is far steadier than time and
+doesn't care how loaded the box is; time drifts by more than most individual wins are worth. It is
+not byte-identical though, and the store it runs against matters as much as the binary --
+`docs/perf/playbook.md` has the measured noise floor. So
+`gate` asserts allocation and only allocation, against `scripts/perf/budget.json`, and CI runs it
+after the backend tests. When a change earns a lower number, lower the budget in the same commit
+with `scripts/perf/gate --published --update`, or it stops being a gate and becomes a ceiling to
+drift up to. Only the published build is budgeted: the debug budget was retired because most of
+its overage was an interpreter hook the Release optimiser elides, so it tracked a configuration
+nobody ships.
+
+`suite` is the wider view and asserts nothing -- it is for seeing whether a change that helped one
+shape of program hurt another. The six differ by more than an order of magnitude per iteration, so
+tuning against any one of them proves little.
+
+Two runs in the same clone destroy each other, so `run-backend-tests` takes a lock.
+Two runs in different clones are fine; each has its own container, so its own PID
+namespace, network and `rundir`.
+
+Logs go to `rundir/logs/fsharp-tests.log`.
 
 Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
 
@@ -331,6 +387,71 @@ op log directly.
 
 ## Gotchas
 
+## Changing the schema
+
+**A `migrations/schema/*.sql` file is frozen once it has merged to main.** Those files declare the shape
+a FRESH store is born with, and they are read by every store that has ever been made from them. Editing
+one after it has merged makes the same filename mean two different things depending on when you pulled.
+
+So:
+
+- A NEW TABLE goes in a NEW numbered file (`10-executions.sql`), never appended to a merged one.
+- A file that has not merged yet is still yours: edit it in place until the PR lands.
+- A NEW COLUMN on an already-merged table is the one exception, and it takes both halves:
+  - declare it in the file that declares the table, for fresh stores, with a comment saying why;
+  - carry it to existing stores with a step in `LibDB/Releases.fs`.
+  There is no third option: a schema file only ever runs `CREATE TABLE` / `CREATE INDEX` /
+  `INSERT OR IGNORE` statements (`Releases.applySchemaTables`), so a patch file cannot `ALTER`.
+
+Adding a file changes the schema hash, which drops and re-folds the projection tables. That is cheap and
+expected; canonical tables are never dropped, which is the reason a column needs the `Releases` step.
+
+**Two branches adding an instruction both take the next tag.** An `Instruction` case needs a
+number in three places: `Opcode.index` (RuntimeTypes.fs) and the read and write halves of
+`LibSerialization/Binary/Serializers/RT/Instructions.fs`. When two branches each add a case,
+both pick the same next number, and merging them is asymmetric in a way that bites: the READ
+side conflicts, because both arms start `| 23uy ->`, while the WRITE side merges CLEANLY into
+two arms that both `w.Write 23uy`. That compiles, passes every test that round-trips through one
+process, and writes instructions that a later reader decodes as the wrong case. After any merge
+or rebase that brings in a new instruction, grep both halves for a duplicated tag before
+trusting the build.
+
+**A build wipes anything you authored by hand, and the next measurement looks like a fast pass.**
+`reload-packages` re-authors the store from the `.dark` files on disk, so a module you made with
+`dark module /Demo.X -` is gone after any build, including the one inside
+`scripts/dev/build --optimize --test`. That part is expected. The trap is what it does to timing
+work: `dark eval 'Demo.X.f 16'` then fails in milliseconds, the trace it leaves is a FAILED one,
+and timing `traces show` against it reports the startup baseline. A 0.18 s reading that should
+have been 23 s looks like a win rather than a mistake. Check the eval's own output, or the
+trace's `status`, before trusting any number taken against a hand-authored fixture. A fixture you
+intend to keep belongs in a file the walkthrough pipes in (`docs/walkthrough-fixture.dark`), so
+re-authoring it is one command rather than remembering what it was.
+
+**`Defined N declarations` is not evidence your edit took effect.** Two different mechanisms
+drop an edit while printing the same success line, so treat the line as "parsed", not "live":
+
+- AN APPROVED NAME FOLLOWS THE APPROVED VERSION. `permissions approve` says so out loud
+  ("the name follows this version"). Re-authoring does write the new body and does repoint the
+  name, but a previously approved name keeps resolving to the approved version until you approve
+  again. Editing bodies in `docs/browser-concurrency-demo.dark` and re-running
+  `dark module /Demo.Browser - < ...` left every approved function on its OLD body; a
+  `permissions approve Demo.Browser.overlapping` made the new one live immediately. A newly
+  added name in the same file (a `val`) landed straight away, having no approval to pin it,
+  which is what makes it confusing: part of the file takes effect and part does not.
+- A DOC-ONLY EDIT NEVER LANDS AT ALL, for an unrelated reason: doc comments are deliberately
+  excluded from the content hash (`Canonical.fs`), so the write produces nothing new to store.
+  Written up in `notes/doc-comment-edits-dropped-2026-10-02.md`.
+
+These are NOT the same bug, and the first one is not a bug at all once you know it. What they
+share is the output.
+
+The tell, and the useful part, because it works without knowing which one you are in: A COUNT IN
+THE OUTPUT DISAGREED WITH THE FILE. A five-element list reported "10 reads", the old body's
+`repeatUnsafe 10` still running. Put something countable in what you are editing (a length, a
+name, a number in a string) and check the output moved. To test an edited module without
+re-approving, load it under a fresh module path, which needs `permissions approve` per function
+anyway since a fresh name has none.
+
 **Never conclude an ABSENCE from output you truncated or filtered.** This is the one that gets
 through, because it produces a confident negative, and a negative is the result nobody re-checks:
 you look for a thing, do not see it, and move on. Every other harness mistake here produced a
@@ -429,6 +550,11 @@ a Debug CLI and a package store that disagree about which commit they came from,
 supported escape, whose own comment explains the asymmetry:
 
     scripts/build/clear-dotnet-build && scripts/dev/build
+
+What holds that state is `rundir/build-index.json`, which is why neither a plain build nor
+named paths can talk the planner out of it: both ask the index, and the index says the
+sources are current, because they are. It is the OUTPUT that is stale and nothing tracks
+that.
 
 That wipes Release too and costs a full rebuild, so do not reach for `--optimize` unless you are
 about to run the whole suite and then stop.
@@ -616,6 +742,57 @@ The sync-multi-instance gate (`scripts/testing/_gates-sync`) does both correctly
 to copy from.
 
 ## Interactive CLI testing
+
+**A key pressed while a frame is painting is lost under `expect`.** The runtime queues a key that arrives
+while nobody waits for the next `Key` subscriber, but the terminal `expect` drives does not: wait a beat
+after the text you matched before sending the next key, or the key lands mid-render and is dropped. The
+symptom is not "that key did nothing", it's the NEXT assertion timing out, which reads as a broken view.
+`fixtures/_workbench-scm.expect`
+has a `press` helper for this.
+
+The interactive CLI (`run-cli` with no args) needs a real TTY. Use `expect`:
+
+    ./scripts/run-in-docker expect scripts/testing/fixtures/test-interactive.expect
+    ./scripts/run-in-docker expect scripts/testing/fixtures/test-workbench.expect
+
+`run-cli` with no args opens the WORKBENCH, so that second one covers the default experience:
+switching views, resize, the too-small guard, and quitting cleanly. None of it is reachable from
+the test suite -- the views render fine when called directly; what needs a terminal is the keyboard,
+the alternate screen and SIGWINCH.
+
+Telemetry lands in `rundir/logs/telemetry.jsonl`. Full guide: `docs interactive-testing`.
+
+For poking at it by hand, or driving something `expect` would be awkward for -- an editor,
+a pager, anything that takes over the screen -- `tmux` is more reliable:
+
+    tmux new-session -d -s work -x 200 -y 50
+    tmux send-keys -t work:0 'scripts/run-in-docker bash' Enter
+    tmux send-keys -t work:0 './scripts/run-cli ...' Enter
+    tmux capture-pane -t work:0 -p          # read the screen
+    tmux kill-session -t work
+
+Inside a pane, stdin IS a terminal, so `run-in-docker` allocates a TTY and everything that
+needs one works: `dark edit` really opens `$EDITOR`, and you drive it with more `send-keys`
+(`:%s/a/b/` then `:wq`, or `:cq` to exit non-zero and test the cancel path).
+
+Poll `capture-pane` in a loop rather than sleeping between steps; a command that shells out
+per invocation takes a second or more, and the pane is the only thing that tells you it is done.
+
+For a command that just asks QUESTIONS (`dark sync setup`, `dark conflicts walk`), reach for `script`
+before `expect`. It gives a pty and takes the answers on stdin, so there is no pattern matching
+to get wrong:
+
+    printf 'name\nhttp://localhost:9099\n<secret>\n' \
+      | script -qec "$CLI sync setup" /dev/null
+
+`expect` is worth it only when you must react to what comes back. Used for a plain question list it
+is easy to get subtly wrong, and the failure looks like the program hanging: an `expect` block with
+no `eof` branch returns IMMEDIATELY when the spawned process ends, matching nothing and printing
+nothing, so a script that exits 0 in silence means the process died, not that it hung. Give every
+block an `eof` branch, and don't call `wait` after one has already fired.
+
+A command that reads a line still reads a line under a pty: `Stdlib.Cli.Stdin.readLine` returns ""
+on a bare Enter. If Enter appears not to advance a prompt, suspect the harness first.
 
 **A key pressed while a frame is painting is lost.** In an `expect` script, wait a beat after the text you
 matched before sending the next key, or the key lands mid-render and is dropped. The symptom is not "that

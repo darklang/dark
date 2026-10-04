@@ -102,13 +102,40 @@ module Value =
 
 
 module Fn =
+  /// The function, with the symbol table that maps its instructions back to the source.
+  ///
+  /// One query over both columns rather than two paths. They are separate COLUMNS because the
+  /// instruction blob should not carry a table that only matters when something is reading the
+  /// code; they are not a separate READ, because one query is simpler than two and the table is
+  /// small.
+  ///
+  /// The symbols are NULL for a function written before the column existed, and for a body with
+  /// no calls in it. Both come back empty, which shows no values and runs exactly the same.
   let get (hash : Hash) : Ply<Option<RT.PackageFn.PackageFn>> =
-    getTimed
-      "fn"
-      "SELECT rt_instrs FROM package_functions WHERE hash = @hash"
-      "rt_instrs"
-      BS.RT.PackageFn.deserialize
-      hash
+    uply {
+      let (Hash hashStr) = hash
+      Telemetry.count "pkg.fn.get"
+      let! row =
+        Sql.query
+          "SELECT rt_instrs, debug_symbols FROM package_functions WHERE hash = @hash"
+        |> Sql.parameters [ "hash", Sql.string hashStr ]
+        |> Sql.executeRowOptionAsync (fun read ->
+          (read.bytes "rt_instrs", read.bytesOrNone "debug_symbols"))
+
+      match row with
+      | None -> return None
+      | Some(instrBytes, symbolBytes) ->
+        let fn = BS.RT.PackageFn.deserialize hashStr instrBytes
+        match symbolBytes with
+        | None -> return Some fn
+        | Some b ->
+          // The bytes come back with the row, which is free; turning them into a table is not,
+          // and a run that shows nobody anything never asks.
+          return
+            Some
+              { fn with
+                  symbols = lazy (BS.RT.PackageFn.deserializeDebugSymbols hashStr b) }
+    }
 
 
 /// Content-addressed blob storage — bytes keyed by SHA-256 hash.
@@ -156,6 +183,7 @@ module Blob =
       | RT.DBlob(RT.Persistent(hash, _)) -> Set.add hash acc
       | RT.DBlob(RT.Ephemeral _) -> acc
       | RT.DStream _
+      | RT.DPromise _
       | RT.DUnit
       | RT.DBool _
       | RT.DInt8 _

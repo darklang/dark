@@ -348,12 +348,29 @@ let extract () : unit =
 
     let dbPath = Path.Combine(darklangDir, "data.db")
 
+    // Asked ONCE, and it decides everything below.
+    //
+    // The stamp says which build last reconciled this store with its own embedded seed. The
+    // schema, the release steps and the seed are all fixed per binary, so a store this same
+    // build has already reconciled cannot need any of them again -- and nothing outside can
+    // create that need, because an older binary running here records ITS hash and we come back
+    // and do the work.
+    //
+    // It used to guard only the seed top-up, and the schema pass ran on every single command:
+    // `CREATE TABLE IF NOT EXISTS` for every table, then the release list, then every index.
+    // Measured on the published binary, that was 31 ms of a 203 ms startup, paid by `dark ps`
+    // and `dark eval 1L` alike.
+    let build = LibConfig.Config.buildHash
+    // A build with no hash of its own cannot claim anything, so it does the work every time,
+    // which is what every build did before.
+    let reconciled = build <> "dev" && storeStamp dbPath = Some build
+
     // An EXISTING store keeps whatever shape the seed it was born from had: the schema never runs
     // against it, so a table or column added since is simply absent, and the top-up below is the first
     // thing to trip over it -- as a raw SQLite error ("table locations has no column named previous"),
     // on a store that is otherwise fine. Bring the shape forward first, in the order the statements
     // require.
-    if File.Exists(dbPath) then
+    if File.Exists(dbPath) && not reconciled then
       try
         match embeddedSchema () with
         | Some sql ->
@@ -403,11 +420,7 @@ let extract () : unit =
     // Top up an existing store with this binary's own package code (see
     // `reseedFromEmbedded`: additive, content-addressed), then `growIfNeeded` folds
     // it; without this, upgrading the binary would mean wiping the store.
-    else
-      // A build with no hash of its own cannot claim anything, so it does the work every time,
-      // which is what every build did before.
-      let build = LibConfig.Config.buildHash
-      if build = "dev" || storeStamp dbPath <> Some build then
-        // The backup happens inside the top-up, once it knows there is something to top up.
-        timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
-        if build <> "dev" then recordStoreStamp dbPath build
+    else if not reconciled then
+      // The backup happens inside the top-up, once it knows there is something to top up.
+      timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
+      if build <> "dev" then recordStoreStamp dbPath build

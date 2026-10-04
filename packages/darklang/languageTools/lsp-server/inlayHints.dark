@@ -1,0 +1,193 @@
+module Darklang.LanguageTools.LspServer.InlayHints
+
+/// Live values in the editor (`docs/live.md`, "Live values"): beside each call in a
+/// function, what it produced when the function last ran, computed by running the current
+/// code again on the last recorded call's inputs (`Stdlib.Live.Values.replay`).
+///
+/// Placing them: the printer annotates a call at a line position with `// = value`, and the
+/// annotation is zero columns wide for layout, so the annotated print and the plain print
+/// break identically. That is the whole trick: the two prints have the same line structure,
+/// so a hint belongs on the document line at the same OFFSET from the function's header as
+/// the differing line is from the header of the annotated print.
+///
+/// Counting, not searching. Looking the line's text up in the document cannot tell two
+/// identical lines apart, so a function with the same expression twice put both hints on the
+/// first one. A document the person has edited away from the printed form gets hints in the
+/// wrong place rather than none, which is the trade: the editor is showing live values for
+/// code as the STORE has it, and a document that has drifted from that is already showing
+/// something else.
+
+/// One value on one line, short enough to sit beside the code.
+let renderValue (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
+  PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv
+
+
+/// How many spaces a line starts with: the printer indents two per module level and
+/// narrows the width by the same, so the header's indent says what width it was printed at.
+let leadingSpaces (line: String) : Int =
+  (Stdlib.String.length line) - (Stdlib.String.length (Stdlib.String.trimStart line))
+
+
+/// The hints for one function of the document.
+let hintsFor
+  (branchId: Uuid)
+  (docLines: List<String>)
+  (item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+  : List<LanguageServerProtocol.InlayHint.InlayHint> =
+  let headerLine =
+    docLines
+    |> Stdlib.List.findFirstIndex (fun line ->
+      let t = Stdlib.String.trim line
+      (Stdlib.String.startsWith t $"let {item.location.name} ")
+      || (Stdlib.String.startsWith t $"let {item.location.name}("))
+
+  match headerLine with
+  | None -> []
+  | Some headerLine ->
+    match Stdlib.Live.Values.replay branchId item.location with
+    | None -> []
+    | Some values ->
+      let rendered =
+        values.byExpr |> Stdlib.Dict.map (fun _ dv -> renderValue branchId dv)
+
+      if Stdlib.Dict.isEmpty rendered then
+        []
+      else
+        let indent =
+          docLines
+          |> Stdlib.List.getAt headerLine
+          |> Stdlib.Option.map (fun l -> leadingSpaces l)
+          |> Stdlib.Option.withDefault 0
+
+        let base = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+        let ctx = { base with width = Stdlib.Int.max 1 (base.width - indent) }
+        let plain =
+          (PrettyPrinter.ProgramTypes.packageFn ctx item.entity)
+          |> Stdlib.String.split "\n"
+        let annotated =
+          (PrettyPrinter.ProgramTypes.packageFn { ctx with liveValues = rendered } item.entity)
+          |> Stdlib.String.split "\n"
+
+        // Where the function's own header sits in the PRINTED form, which is not line zero: the
+        // printer emits the doc comment first. Anchoring both sides on the header rather than on
+        // the top is what keeps the two in step whatever the printer puts above it.
+        let plainHeader =
+          plain
+          |> Stdlib.List.findFirstIndex (fun l ->
+            let t = Stdlib.String.trim l
+            (Stdlib.String.startsWith t $"let {item.location.name} ")
+            || (Stdlib.String.startsWith t $"let {item.location.name}("))
+          |> Stdlib.Option.withDefault 0
+
+        // BY POSITION. The function is printed at the document's own width, so its nth line is
+        // the document's nth line counting from the header, and that is already what the diff
+        // above assumes.
+        //
+        // Finding the line by matching its TEXT instead cannot tell two identical lines apart,
+        // and a function with two of them put both hints on the first and none on the second.
+        Stdlib.List.zip plain annotated
+        |> Stdlib.Option.withDefault []
+        |> Stdlib.List.indexedMap (fun i pair -> (i, pair))
+        |> Stdlib.List.filterMap (fun entry ->
+          let (i, pair) = entry
+          let (p, a) = pair
+
+          if p == a then
+            Stdlib.Option.Option.None
+          else
+            // `a` is `p` followed by ` // = value`; the hint carries `= value`.
+            let label = Stdlib.String.dropFirst a ((Stdlib.String.length p) + 4)
+            let line = headerLine + (i - plainHeader)
+
+            let lineText =
+              docLines |> Stdlib.List.getAt line |> Stdlib.Option.withDefault ""
+
+            // A line the document does not have is one the printer and the document disagree
+            // about, and a hint placed on it would land somewhere arbitrary.
+            if lineText == "" then
+              Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.Some(
+                LanguageServerProtocol.InlayHint.InlayHint
+                  { position =
+                      LanguageServerProtocol.Position.Position
+                        { line = line |> Stdlib.Int.toUInt64 |> Stdlib.Option.withDefault 0UL
+                          character =
+                            (Stdlib.String.length lineText)
+                            |> Stdlib.Int.toUInt64
+                            |> Stdlib.Option.withDefault 0UL }
+                    label = label
+                    paddingLeft = true }))
+
+
+/// The functions a `darkfs:` document holds: the one it names, or every one under the
+/// module it names.
+let fnsIn
+  (branchId: Uuid)
+  (uri: String)
+  : List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>> =
+  if Stdlib.Bool.not (Stdlib.String.startsWith uri "darkfs:/") then
+    []
+  else
+    let nameForLookup =
+      uri |> Stdlib.String.dropFirst 8 |> Stdlib.String.dropLast 5
+
+    if Stdlib.String.startsWith nameForLookup "script/" then
+      []
+    else
+      let location = ProgramTypes.parsePackageLocation nameForLookup
+
+      match LanguageTools.PackageManager.findAny branchId location with
+      | Some((hash, Fn)) ->
+        match LanguageTools.PackageManager.Function.get hash with
+        | Some fn ->
+          [ LanguageTools.ProgramTypes.LocatedItem { entity = fn; location = location } ]
+        | None -> []
+      | Some _ -> []
+      | None ->
+        let query =
+          LanguageTools.ProgramTypes.Search.SearchQuery
+            { currentModule = Stdlib.String.split nameForLookup "."
+              text = ""
+              searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+              entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn ]
+              exactMatch = false }
+
+        (LanguageTools.PackageManager.Search.search branchId query).fns
+
+
+let handleInlayHintRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  (params: LanguageServerProtocol.InlayHint.InlayHintRequest.InlayHintParams.InlayHintParams)
+  : LspState =
+  let uri = params.textDocument.uri
+
+  let hints =
+    match Stdlib.Dict.get state.documentsInScope uri with
+    | None -> []
+    | Some doc ->
+      let docLines = Stdlib.String.split doc.text "\n"
+
+      fnsIn state.currentBranchId uri
+      |> Stdlib.List.map (fun item -> hintsFor state.currentBranchId docLines item)
+      |> Stdlib.List.flatten
+
+  let response =
+    (hints |> Stdlib.List.map LanguageServerProtocol.InlayHint.toJson |> Json.Array)
+    |> (fun r -> JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+    |> Stdlib.AltJson.format
+
+  logAndSendToClient response
+  state
+
+
+/// Ask the client to fetch every document's hints again: a save landed, so the values a
+/// replay gives may have changed. A request, so it carries an id; the client's empty reply
+/// is ignored.
+let requestRefresh () : Unit =
+  (JsonRPC.Request.makeString
+    LanguageServerProtocol.InlayHint.InlayHintRefreshRequest.method
+    (Stdlib.Option.Option.Some(JsonRPC.RequestID.String "inlayHint/refresh"))
+    Stdlib.Option.Option.None)
+  |> logAndSendToClient

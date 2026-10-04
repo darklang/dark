@@ -1,6 +1,6 @@
 // TODO:
-//alias PT = LanguageTools.ProgramTypes
-//alias RT = Stdlib.RuntimeTypes
+// alias PT = LanguageTools.ProgramTypes
+// alias RT = Stdlib.RuntimeTypes
 
 // TODO: update all of the 'namePart's to nameToStrings with fn inputs
 
@@ -91,7 +91,22 @@ type Context =
     /// is the subject's own. A name inside the body resolves against its own
     /// candidates, where this location does not appear.
     preferredLocation:
-      Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> }
+      Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>
+
+    /// Live values: what a call produced the last time this code ran, keyed by the call's
+    /// expression id (as text), already rendered. A call with an entry prints with `// = <value>`
+    /// after it. Empty everywhere but the editor's panes.
+    liveValues: Dict<String, String>
+
+    /// May a live value change the LAYOUT?
+    ///
+    /// A comment cannot sit in the middle of a line, so showing what each stage of a
+    /// pipe produced means breaking the pipe one stage per line. `dark traces show`
+    /// and the workbench's Inspect pane want that. The LSP must not have it: its
+    /// inlay hints are found by printing twice, once with values and once without,
+    /// and zipping the two line for line, so a print that gains LINES when it gains
+    /// values yields no hints at all.
+    breakForValues: Bool }
 
 module Context =
   let forBranch (branchId: Uuid) : Context =
@@ -100,7 +115,9 @@ module Context =
         currentModule = []
         currentFunction = Stdlib.Option.Option.None
         width = 80
-        preferredLocation = Stdlib.Option.Option.None }
+        preferredLocation = Stdlib.Option.Option.None
+        liveValues = Stdlib.Dict.empty
+        breakForValues = false }
 
   val forMain = forBranch Darklang.SCM.Branch.mainBranchId
 
@@ -115,7 +132,9 @@ module Context =
         currentModule = path
         currentFunction = Stdlib.Option.Option.None
         width = 80
-        preferredLocation = Stdlib.Option.Option.None }
+        preferredLocation = Stdlib.Option.Option.None
+        liveValues = Stdlib.Dict.empty
+        breakForValues = false }
 
   let toPickContext (ctx: Context) : LanguageTools.PackageManager.PickContext =
     LanguageTools.PackageManager.PickContext
@@ -608,6 +627,28 @@ let applyArg (ctx: Context) (arg: LanguageTools.ProgramTypes.Expr) : Stdlib.Pret
   if applyArgNeedsParens arg then parens inner else inner
 
 
+/// The ` // = value` a live value adds after an expression, or nothing at all.
+///
+/// Zero columns wide for layout (`Styled` measures only its middle), so adding one
+/// never moves the code it sits after.
+let valueSuffix (ctx: Context) (id: Int64) : Stdlib.Pretty.Doc =
+  match Stdlib.Dict.get ctx.liveValues (Stdlib.Int64.toString id) with
+  | Some value -> Stdlib.Pretty.styled $" // = {value}" "" ""
+  | None -> Stdlib.Pretty.text ""
+
+
+/// A pipe stage's own expression id, which is what its value is keyed by. Every
+/// stage carries one through the desugaring (`EPipeFnCall(id, ...)` becomes
+/// `EApply(id, ...)`), which is why the values are already there to print.
+let pipeExprId (p: LanguageTools.ProgramTypes.PipeExpr) : Int64 =
+  match p with
+  | EPipeVariable(id, _, _) -> id
+  | EPipeLambda(id, _, _) -> id
+  | EPipeInfix(id, _, _) -> id
+  | EPipeFnCall(id, _, _, _) -> id
+  | EPipeEnum(id, _, _, _) -> id
+
+
 let pipeExprDoc (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : Stdlib.Pretty.Doc =
   let txt (s: String) : Stdlib.Pretty.Doc = Stdlib.Pretty.text s
 
@@ -831,11 +872,11 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   // every binding into two lines and a chain of four into eight.
   | ELet(_id, pattern, rhs, body) ->
     let binding =
-      Stdlib.Pretty.hang 2 (txt $"let {letPattern pattern} =") [ exprDoc ctx rhs ]
+      Stdlib.Pretty.hang 2 (txt $"let {letPattern pattern} =") [ lineDoc ctx rhs ]
 
     Stdlib.Pretty.concat
       binding
-      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (exprDoc ctx body))
+      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (lineDoc ctx body))
 
   // `| Some v -> Some(fn v)` on the arm's own line when it fits.
   | EMatch(_id, arg, cases) ->
@@ -852,7 +893,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
           if hasBareBitwiseOr case.rhs then
             parens (exprDoc ctx case.rhs)
           else
-            exprDoc ctx case.rhs
+            lineDoc ctx case.rhs
 
         Stdlib.Pretty.group (
           Stdlib.Pretty.concat
@@ -904,10 +945,35 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
   // `xs |> List.length` on one line when it fits; longer chains keep one stage per line.
   | EPipe(_id, e, pipeExprs) ->
+    // Each stage carries its own value, which is the thing you actually want from a
+    // pipe: what came out of step two, not only what the whole thing answered.
+    //
+    // Only where the layout may change, though. A comment cannot sit in the middle
+    // of a line, so annotating the stages means one stage per line, and a caller
+    // that needs the lines to stay put (the LSP) gets the pipe exactly as it printed
+    // before.
+    let annotate =
+      ctx.breakForValues
+      && (pipeExprs
+          |> Stdlib.List.any (fun pe ->
+            let key = Stdlib.Int64.toString (pipeExprId pe)
+            Stdlib.Option.isSome (Stdlib.Dict.get ctx.liveValues key)))
+
     let stages =
       pipeExprs
-      |> Stdlib.List.map (fun pe -> Stdlib.Pretty.concat (txt "|> ") (pipeExprDoc ctx pe))
-      |> Stdlib.Pretty.join Stdlib.Pretty.line
+      |> Stdlib.List.map (fun pe ->
+        let stage = Stdlib.Pretty.concat (txt "|> ") (pipeExprDoc ctx pe)
+
+        if annotate then
+          Stdlib.Pretty.concat stage (valueSuffix ctx (pipeExprId pe))
+        else
+          stage)
+      // A hard line, not a soft one, on the annotated path: a soft line is only a
+      // break if the group it is in decides to break, and an `// = value` is zero
+      // columns wide, so an enclosing group would happily flatten the pipe back onto
+      // one line with the comments swallowing it.
+      |> Stdlib.Pretty.join (
+        if annotate then Stdlib.Pretty.hardLine else Stdlib.Pretty.line)
 
     // Low-power heads would swallow the pipe into their final branch.
     let head =
@@ -915,8 +981,14 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
       | ELambda(_, _, _) -> exprDoc ctx e
       | _ -> if (exprPower e) == 0 then parens (exprDoc ctx e) else exprDoc ctx e
 
-    Stdlib.Pretty.group (
-      Stdlib.Pretty.concat head (Stdlib.Pretty.concat Stdlib.Pretty.line stages))
+    let sep =
+      if annotate then Stdlib.Pretty.hardLine else Stdlib.Pretty.line
+
+    let doc = Stdlib.Pretty.concat head (Stdlib.Pretty.concat sep stages)
+
+    // Grouping is what lets a short pipe sit on one line, which is where a comment
+    // would eat the rest of it.
+    if annotate then doc else Stdlib.Pretty.group doc
 
   // Parenthesise only where precedence or associativity requires it. The old printer wrapped both
   // operands unconditionally, which turned `n * (factorial n - 1L)` into `(n) * ((factorial n) - (1L))`
@@ -1026,24 +1098,57 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
 
     // Grouped, so a short lambda stays on one line. It used to break unconditionally, which cost two
     // lines for `(fun x -> x + 1L)` and pushed the body of every `List.map` down a line for nothing.
+    // The closing paren goes after a SOFT line, which is nothing when the lambda fits on one
+    // line and a break when it does not. It has to be there: a multi-line body ends with an
+    // expression that `lineDoc` may annotate, and a bare `)` after that annotation lands inside
+    // the comment -- `Stdlib.String.length line // = 14)` -- so the rendered code is wrong and
+    // will not parse.
+    //
+    // Soft rather than conditional on whether there ARE values: the editor's inlay hints print
+    // this twice, once with values and once without, and zip the two line for line. A break
+    // that appears only when a value does would shift every line below it in one of the two.
     Stdlib.Pretty.group (
       Stdlib.Pretty.concat
         (txt $"(fun {patsPart} ->")
         (Stdlib.Pretty.concat
           (Stdlib.Pretty.nest 2 (
             Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx body)))
-          (txt ")")))
+          (Stdlib.Pretty.concat Stdlib.Pretty.softLine (txt ")"))))
 
   | EStatement(_id, first, next) ->
     Stdlib.Pretty.concat
-      (exprDoc ctx first)
-      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (exprDoc ctx next))
+      (lineDoc ctx first)
+      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (lineDoc ctx next))
 
   | e -> docOfText (exprString ctx e)
 
 
+/// An expression that ends its line: a `let`'s right-hand side, a block's last expression, a
+/// statement, a match arm's body. When the editor has a live value for the call there, it goes
+/// after the code as `// = value`. Only here: a value beside a call nested in an argument or an
+/// interpolated string would land in the middle of the code, and the comment would eat the rest
+/// of the line (`if c then f x // = 1 else g` loses its `else`). A call anywhere else is printed
+/// bare.
+let lineDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.Doc =
+  let doc = exprDoc ctx e
+
+  match e with
+  | EApply(id, _, _, _) -> Stdlib.Pretty.concat doc (valueSuffix ctx id)
+  // An infix expression is a call and reads as one: `let total = price * qty // = 140`.
+  // Its value was not recorded at all until PT2RT started emitting a trace instruction for
+  // it, so there was nothing to print here and the arm did not exist.
+  | EInfix(id, _, _, _) -> Stdlib.Pretty.concat doc (valueSuffix ctx id)
+  | _ -> doc
+
+
 let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   Stdlib.Pretty.render ctx.width (exprDoc ctx e)
+
+
+/// `expr`, for a function's whole body: the body's last expression ends a line, so a live value
+/// for it is shown.
+let bodyExpr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
+  Stdlib.Pretty.render ctx.width (lineDoc ctx e)
 
 
 /// The original string-building printer, still handling every construct the Doc layer hasn't taken over.
@@ -1512,7 +1617,7 @@ let packageFn
         currentFunction = Stdlib.Option.Option.Some((namePart, argMap))
         width = Stdlib.Int.max 1 (ctx.width - 2) }
 
-  let bodyPart = expr contextWithFn p.body
+  let bodyPart = bodyExpr contextWithFn p.body
 
   let docComment = formatDocComment p.description
 

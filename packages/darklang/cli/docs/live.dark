@@ -1,0 +1,87 @@
+module Darklang.Cli.Docs.Live
+
+let content () : String =
+  """# Live: running things follow your edits
+
+Save an edit and the things running it change, the moment the save passes
+the checker. A broken save never blanks anything: the last good version keeps
+running with the error beside it.
+
+## A live view
+
+Any module with these three is a view:
+
+  module My.Counter
+  type Model = { count: Int }
+  type Msg = | Inc
+  let init () : Model = Model { count = 0 }
+  let update (m: Model) (e: Darklang.Cli.Apps.Host.Event<Msg>) : Model = ...
+  let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
+    Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.bold "counter"; ... ]
+
+  apps view My.Counter --live   open it, following your edits to `render` or anything it calls
+                                from another terminal and it repaints
+
+The tree `render` returns paints to the terminal, to a page, or to text, so
+the same view is a pane and a web page. Ctrl-S saves the model as a `val`;
+`apps view My.Counter --resume <val>` starts from it.
+
+## A live server
+
+  serve My.router               every request runs the newest router that
+                                passes its checks; a broken save keeps the
+                                previous one serving and logs why
+  serve My.router --live        follow edits; the open page reloads when its code changes
+  serve My.router               pin the version resolved at start
+
+Each request is a process: a slow handler holds up nobody, one past
+`http.requestTimeoutMs` is cancelled with a 504, one that raises answers 500
+with its error, one stopped from `ps` answers 503. A tight loop in one handler
+cannot starve another, even on one worker.
+
+How the open page knows to reload. Under `--live`, an HTML response gets a
+small `<script>` appended that opens an `EventSource` on
+`GET /__live?from=<the router hash this page was served from>`. The server
+holds that connection open and compares the router's current hash against the
+one the page named, every half second; the moment they differ it writes
+`reload` and closes, and the page reloads and opens a new stream against the
+version it just got. If the stream errors instead, the server restarting say,
+the page retries after a second and a half, which is what makes it survive a
+restart rather than going blank. Only HTML gets the script: a JSON or an image
+response is untouched, and a change nobody's page cares about costs one hash
+comparison per open tab per half second.
+
+## A live host on another machine
+
+  # there
+  dark --branch feature apps enable sync    pull the branch on an interval
+  dark --branch feature serve My.router
+  # here
+  config set live.autopush on               every save commits and pushes
+  # ... edit, save; the page there changes a few seconds later
+
+## Live values in the editor
+
+The workbench and the LSP show `// = value` beside the calls in a function:
+its last recorded trace, replayed through the code as it is now. Edit a callee,
+the values follow, no new call needed. Any recorded trace will do: the default
+recording keeps every impure call, and the pure ones are recomputed.
+
+## What a save prints
+
+  dark val My.Counter.title '"v2"'
+  ✓ Updated value My.Counter.title
+    My.Counter.render follows
+  dark val My.Counter.title 3
+  ! Updated value My.Counter.title
+    My.Counter.render no longer type-checks: expected String, got Int (argument 2)
+
+A view on the broken version shows a band under its last good frame:
+`My.Counter.render: still on the last good version; the newest has a type
+error: ...`. Fix it and the band goes.
+
+The rule underneath: reload is name resolution. A save binds a name to a new
+hash, the old hash stays, a host resolves its entries again on the next
+change. `docs processes` is the other half; the design is `docs/live.md` in
+the repository.
+"""

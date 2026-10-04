@@ -13,10 +13,10 @@
 # Supported runtimes: linux-x64, linux-musl-x64, linux-arm64, linux-arm, osx-x64, osx-arm64, win-x64, win-arm64
 #
 # Publish modes:
-#   r2r    ReadyToRun + single-file + trimmed. What main ships today. Default.
+#   r2r    ReadyToRun + single-file + trimmed. The explicit fast path.
 #   aot    NativeAOT for every requested runtime. Errors out if any requested
 #          runtime can't be AOT-built from this host (see the guards below).
-#   auto   AOT where it's possible, R2R where it isn't. This is what the
+#   auto   AOT where it's possible, R2R where it isn't. The DEFAULT, and what the
 #          release matrix uses: windows falls back without the caller
 #          having to know why.
 #
@@ -31,7 +31,13 @@ set -euo pipefail
 # Parse arguments
 RUNTIMES_ARG=""
 GZIP_OUTPUT=false
-MODE="r2r"
+# `auto`, not `r2r`: R2R is not the artifact we ship, and a binary nobody runs is one every
+# measurement and every gate then describes instead of the real thing. AOT costs about 40 seconds
+# more on the one-runtime default (1m50 against 1m8, measured). `auto` rather than `aot` because
+# `aot` errors out on a runtime this host cannot AOT-build, and `--runtimes=all` on Linux contains
+# several; auto falls back per runtime, which is what the release matrix already does.
+# `--mode=r2r` is the explicit fast path.
+MODE="auto"
 SEED_PATH=""
 DRY_RUN=false
 
@@ -360,6 +366,12 @@ build_for_runtime() {
       gzip -f "$target"
     fi
   fi
+
+  # Which mode produced it, beside it. AOT and R2R differ by about 5x in startup and by an
+  # unknown amount in allocation, so a number taken against one says nothing about the other --
+  # and nothing in the binary's name says which it is. `scripts/perf/_common` reads this and
+  # refuses to compare a budget against a binary from the other mode.
+  echo "$rt_mode" > "$target.mode"
 }
 
 # Build for each runtime
