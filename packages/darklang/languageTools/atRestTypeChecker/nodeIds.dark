@@ -149,28 +149,13 @@ let findDuplicate
       else
         findDuplicate pending (Stdlib.Dict.set seen id true)
 
-/// The deepest a declaration's own shape may nest before the checker refuses to work on it.
-///
-/// Applies to bodies and to declared types alike, because it is one question asked of two
-/// shapes: how deeply nested a thing a person wrote may be before checking it is not worth
-/// attempting. Walking either costs a level per level, and inference additionally produces a
-/// requirement per node of a body, which then has to be solved.
-///
-/// There are TWO limits here, not three, and the split is deliberate. This one is the shape a
-/// declaration is allowed to HAVE. `Solve.maxUnifyDepth` is how far the solver will CHASE one,
-/// and it is separate because alias expansion means a comparison can go deeper than either
-/// type it started from, so one number cannot honestly be named for both.
-///
-/// 1,000: far above anything written on purpose, far below the 5,000 and 3,000 the testfile
-/// uses to be absurd. Measured against the whole package set, nothing comes near it.
+/// How deeply a declaration's body or declared types may nest before it is reported
+/// Incomplete. The shape a declaration may HAVE; `Solve.maxUnifyDepth` is how far the
+/// solver will chase one.
 val maxDeclarationDepth = 1000L
 
-/// Whether the tree nests deeper than <param limit>.
-///
-/// Measured one LEVEL at a time rather than by recursing into each node, so that measuring
-/// the depth cannot itself exhaust the stack that the limit exists to protect. Same reason
-/// `findDuplicate` carries its own work list. Stops as soon as the limit is passed, so an
-/// absurdly deep tree costs the limit rather than its own size.
+/// Whether the tree nests deeper than <param limit>, a level at a time so that measuring
+/// cannot exhaust the stack the limit protects.
 let deeperThan (limit: Int64) (depth: Int64) (level: List<Node>) : Bool =
   if Stdlib.List.isEmpty level then
     false
@@ -185,9 +170,7 @@ let deeperThan (limit: Int64) (depth: Int64) (level: List<Node>) : Bool =
 
     deeperThan limit (depth + 1L) next
 
-/// A body too deep to infer from, as a warning, so that callers can skip inference the way
-/// they already skip it for duplicate IDs. Reported as `DeclarationTooDeep`, which is what
-/// running out of native stack used to report, so the verdict a reader sees is unchanged.
+/// A body too deep to infer from, so callers can skip inference as they do for duplicate IDs.
 let tooDeep
   (body: LanguageTools.ProgramTypes.Expr)
   : Stdlib.Option.Option<Model.Finding> =
@@ -200,11 +183,8 @@ let tooDeep
   else
     Stdlib.Option.Option.None
 
-/// The immediate type arguments of a type, for walking one level at a time.
-///
-/// Multi-field cases are listed individually on purpose: a bare `_` would match them, but a
-/// `Case _` pattern does NOT match a case with several fields, and getting that wrong here
-/// would silently stop descending into exactly the types this is meant to measure.
+/// The immediate type arguments of a type. Multi-field cases are listed individually
+/// because a `Case _` pattern does not match a case with several fields.
 let typeChildren
   (typ: LanguageTools.ProgramTypes.TypeReference)
   : List<LanguageTools.ProgramTypes.TypeReference> =
@@ -218,10 +198,7 @@ let typeChildren
   | TFn(parameters, ret) -> Stdlib.List.push parameters ret
   | _ -> []
 
-/// Whether any of these types nests deeper than `maxDeclarationDepth`.
-///
-/// A level at a time, for the same reason as `deeperThan`: measuring must not be able to
-/// exhaust the stack whose exhaustion it replaces.
+/// Whether any of these types nests deeper than <param limit>, a level at a time.
 let typeDeeperThan
   (limit: Int64)
   (depth: Int64)
@@ -237,13 +214,8 @@ let typeDeeperThan
 
     typeDeeperThan limit (depth + 1L) next
 
-/// A declared type too deep to work on, as a warning.
-///
-/// The limit applies WHEREVER the type sits, which is a change in behaviour and the point of
-/// it. It used to depend on whether walking a given shape happened to recurse through a
-/// builtin callback: nested tuples did and were refused at depth 3,000, nested lists did not
-/// and were accepted at depth 5,000. Deeper and fine, shallower and refused, decided by an
-/// implementation detail of the walk. One rule, applied to both, is the whole intent.
+/// A declared type too deep to work on. Applies wherever the type sits, which it did not
+/// before: it used to depend on whether that shape's walk recursed through a builtin callback.
 let typeTooDeep
   (types: List<LanguageTools.ProgramTypes.TypeReference>)
   : Stdlib.Option.Option<Model.Finding> =
