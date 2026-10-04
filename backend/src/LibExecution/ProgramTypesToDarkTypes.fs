@@ -1788,6 +1788,16 @@ module PackageOp =
     | DEnum(_, _, _, "Some", [ h ]) -> Some(Hash.fromDT h)
     | _ -> None
 
+  /// Encodes the `restating` stamp carried by `UpdateDoc`, `Deprecate` and `Undeprecate`.
+  let private stampToDT (stamp : Option<string>) : Dval =
+    stamp |> Option.map DString |> Dval.option KTString
+
+  /// Decodes a `restating` stamp; anything but `Some s` reads as None.
+  let private stampFromDT (d : Dval) : Option<string> =
+    match d with
+    | DEnum(_, _, _, "Some", [ DString s ]) -> Some s
+    | _ -> None
+
   let toDT (op : PT.PackageOp) : Dval =
     let (caseName, fields) =
       match op with
@@ -1799,17 +1809,21 @@ module PackageOp =
         [ PackageLocation.toDT loc; Reference.toDT target; previousToDT previous ]
       | PT.PackageOp.Unbind(loc, previous) ->
         "Unbind", [ PackageLocation.toDT loc; previousToDT previous ]
-      | PT.PackageOp.Deprecate(target, kind, message) ->
+      | PT.PackageOp.Deprecate(target, kind, message, restating) ->
         "Deprecate",
-        [ Reference.toDT target; DeprecationKind.toDT kind; DString message ]
-      | PT.PackageOp.Undeprecate target -> "Undeprecate", [ Reference.toDT target ]
+        [ Reference.toDT target
+          DeprecationKind.toDT kind
+          DString message
+          stampToDT restating ]
+      | PT.PackageOp.Undeprecate(target, restating) ->
+        "Undeprecate", [ Reference.toDT target; stampToDT restating ]
       | PT.PackageOp.UpdateDoc(location, part, text, previous, restating) ->
         "UpdateDoc",
         [ PackageLocation.toDT location
           DocPart.toDT part
           DString text
           previousToDT previous
-          restating |> Option.map DString |> Dval.option KTString ]
+          stampToDT restating ]
       | PT.PackageOp.Decision(id, location, reason, kind) ->
         "Decision",
         [ DString id
@@ -1839,25 +1853,23 @@ module PackageOp =
       )
     | DEnum(_, _, [], "Unbind", [ loc; previous ]) ->
       Some(PT.PackageOp.Unbind(PackageLocation.fromDT loc, previousFromDT previous))
-    | DEnum(_, _, [], "Deprecate", [ target; kind; DString message ]) ->
+    | DEnum(_, _, [], "Deprecate", [ target; kind; DString message; restating ]) ->
       Some(
         PT.PackageOp.Deprecate(
           Reference.fromDT target,
           DeprecationKind.fromDT kind,
-          message
+          message,
+          stampFromDT restating
         )
       )
-    | DEnum(_, _, [], "Undeprecate", [ target ]) ->
-      Some(PT.PackageOp.Undeprecate(Reference.fromDT target))
+    | DEnum(_, _, [], "Undeprecate", [ target; restating ]) ->
+      Some(PT.PackageOp.Undeprecate(Reference.fromDT target, stampFromDT restating))
     | DEnum(_,
             _,
             [],
             "UpdateDoc",
             [ location; part; DString text; previous; restating ]) ->
-      let restating =
-        match restating with
-        | DEnum(_, _, _, "Some", [ DString s ]) -> Some s
-        | _ -> None
+      let restating = stampFromDT restating
       Some(
         PT.PackageOp.UpdateDoc(
           PackageLocation.fromDT location,

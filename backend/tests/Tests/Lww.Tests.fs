@@ -165,8 +165,8 @@ let private deprecationsSettleByWhenTheyWereSaid =
         // Said harmful at t2, said fine again at... no: said fine at t1, harmful at t2. The harmful
         // one is newer, so it is the answer either way round.
         let harmful =
-          PT.PackageOp.Deprecate(target, PT.DeprecationKind.Harmful, "no")
-        let fine = PT.PackageOp.Undeprecate target
+          PT.PackageOp.Deprecate(target, PT.DeprecationKind.Harmful, "no", None)
+        let fine = PT.PackageOp.Undeprecate(target, None)
 
         do!
           applyInOrder
@@ -181,8 +181,8 @@ let private deprecationsSettleByWhenTheyWereSaid =
         let fn2 = aFn 2L
         let target2 = PT.Reference.PackageFn fn2.hash
         let harmful2 =
-          PT.PackageOp.Deprecate(target2, PT.DeprecationKind.Harmful, "no")
-        let fine2 = PT.PackageOp.Undeprecate target2
+          PT.PackageOp.Deprecate(target2, PT.DeprecationKind.Harmful, "no", None)
+        let fine2 = PT.PackageOp.Undeprecate(target2, None)
 
         do!
           applyInOrder

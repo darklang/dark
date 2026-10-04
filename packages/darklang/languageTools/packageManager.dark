@@ -235,6 +235,23 @@ let ownerHasItems (branchId: Uuid) (owner: String) : Bool =
   Builtin.pmOwnerHasItems branchId owner
 
 
+/// The deprecation IN EFFECT for this item on <param branchId>, if any: its
+/// kind and its message.
+///
+/// `None` covers both "never deprecated" and "deprecated and then
+/// undeprecated", which is the distinction a caller usually does NOT want; it
+/// is the current state, not the history.
+///
+/// Deprecation keys on CONTENT, so this answers about the hash rather than
+/// about a name: every name bound to that content shares the answer.
+let currentDeprecation
+  (branchId: Uuid)
+  (hash: ProgramTypes.Hash)
+  (itemKind: ProgramTypes.ItemKind)
+  : Stdlib.Option.Option<ProgramTypes.DeprecationKind * String> =
+  Builtin.pmGetCurrentDeprecation branchId hash itemKind
+
+
 module Search =
   let search
     (branchId: Uuid)

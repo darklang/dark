@@ -257,12 +257,32 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             if proceed then
               let op =
                 LanguageTools.ProgramTypes.PackageOp.Deprecate
-                  (targetRef, deprecationKind, parsed.message)
+                  (targetRef,
+                   deprecationKind,
+                   parsed.message,
+                   Stdlib.Option.Option.None)
               match SCM.PackageOps.add branchId [ op ] with
               | Ok _ ->
-                Stdlib.printLine
-                  (Stdlib.Cli.UI.Colors.success $"Deprecated {itemTypeStr} {fullPath}")
-                state
+                // Report what is in EFFECT, not that the write returned Ok. The two can differ:
+                // an op's identity is its content, so a deprecation that was later undone is the
+                // op the log already holds. Authoring re-states it with a stamp (`PT.restating`),
+                // so this should now always be deprecated -- which is why the other arm says to
+                // report it rather than offering advice.
+                match
+                  LanguageTools.PackageManager.currentDeprecation
+                    branchId
+                    (LanguageTools.ProgramTypes.Reference.hash targetRef)
+                    itemKind
+                with
+                | Some _ ->
+                  Stdlib.printLine
+                    (Stdlib.Cli.UI.Colors.success $"Deprecated {itemTypeStr} {fullPath}")
+                  state
+                | None ->
+                  Stdlib.printLine
+                    (Stdlib.Cli.UI.Colors.error
+                      $"Not deprecated, though the op was written. That is a bug in op restatement -- please report it.")
+                  state
               | Error e ->
                 Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Deprecation failed: {e}")
                 state
@@ -324,12 +344,29 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
 
       state
     | targetRef :: _ ->
-      let op = LanguageTools.ProgramTypes.PackageOp.Undeprecate targetRef
+      let op =
+        LanguageTools.ProgramTypes.PackageOp.Undeprecate
+          (targetRef, Stdlib.Option.Option.None)
 
       match SCM.PackageOps.add branchId [ op ] with
       | Ok _ ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Undeprecated {target}")
-        state
+        // Same reason as `deprecate`: ask what is in effect. `Undeprecate` carries only its
+        // target, so before it had a stamp there was exactly one possible undeprecate op per item
+        // for all time; now authoring re-states it and this should always be undeprecated.
+        match
+          LanguageTools.PackageManager.currentDeprecation
+            branchId
+            (LanguageTools.ProgramTypes.Reference.hash targetRef)
+            (LanguageTools.ProgramTypes.Reference.kind targetRef)
+        with
+        | None ->
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Undeprecated {target}")
+          state
+        | Some _ ->
+          Stdlib.printLine
+            (Stdlib.Cli.UI.Colors.error
+              $"Still deprecated, though the op was written. That is a bug in op restatement -- please report it.")
+          state
       | Error e ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Undeprecate failed: {e}")
         state

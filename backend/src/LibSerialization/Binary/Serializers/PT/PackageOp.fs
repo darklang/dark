@@ -133,6 +133,42 @@ module DocPart =
 
 // -- PackageOp --
 
+/// Read a `restating` stamp written at the END of the payload, or None when the payload ends here.
+///
+/// The one place a field is not self-delimiting, and it is deliberate. A `PackageOp` is only ever
+/// serialized standalone -- `Serialization.makeSerializer` writes a header carrying the payload's
+/// real length and nothing follows it -- so "is there another byte" is a question this reader can
+/// ask. Do not copy the trick into a field that could ever be followed by another op.
+///
+/// What it buys: an EARLIER binary meeting a stamped op reads the target, the kind and the message,
+/// stops, ignores the trailing bytes and APPLIES the deprecation with a fresh `origin_ts`, so it
+/// agrees with a newer binary about what is deprecated. A new tag would have decoded as nothing at
+/// all and left the item reading as undeprecated until the old binary caught up, and the direction
+/// of that failure is "not deprecated", which for `Harmful` is the unsafe one.
+///
+/// What it costs: tags 4 and 5 are no longer self-delimiting, and an earlier binary silently decodes
+/// the blob as an op that is not quite the one written. That is normally the worst thing a format
+/// can do, and it is tolerable HERE for one reason only: the dropped field is the stamp, which is
+/// part of the op's identity and is never read by anything that acts on the op.
+let private readTrailingStamp (r : BinaryReader) : Option<string> =
+  if r.BaseStream.Position >= r.BaseStream.Length then
+    None
+  else
+    match r.ReadByte() with
+    | 0uy -> None
+    | 1uy -> Some(String.read r)
+    | b -> raiseFormatError $"Invalid trailing restating tag: {b}"
+
+/// The counterpart: nothing at all when there is no stamp, so every stamp-free blob is byte for
+/// byte what earlier builds wrote and every op id already in a store is stable.
+let private writeTrailingStamp (w : BinaryWriter) (stamp : Option<string>) : unit =
+  match stamp with
+  | None -> ()
+  | Some stamp ->
+    w.Write(1uy)
+    String.write w stamp
+
+
 let write (w : BinaryWriter) (op : PackageOp) : unit =
   match op with
   | PackageOp.AddType typ ->
@@ -163,14 +199,19 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     | Some(Hash h) ->
       w.Write(1uy)
       String.write w h
-  | PackageOp.Deprecate(target, kind, message) ->
+  // The stamp rides on the EXISTING tags as a trailing field rather than taking new ones, so an
+  // older binary applies a restated deprecation correctly instead of storing it unapplied. See
+  // `readTrailingStamp` for what that trades away.
+  | PackageOp.Deprecate(target, kind, message, restating) ->
     w.Write(4uy)
     Reference.write w target
     DeprecationKind.write w kind
     String.write w message
-  | PackageOp.Undeprecate target ->
+    writeTrailingStamp w restating
+  | PackageOp.Undeprecate(target, restating) ->
     w.Write(5uy)
     Reference.write w target
+    writeTrailingStamp w restating
   | PackageOp.UpdateDoc(location, part, text, previous, restating) ->
     w.Write(14uy)
     PackageLocation.write w location
@@ -234,10 +275,10 @@ let read (r : BinaryReader) : PackageOp =
     let target = Reference.read r
     let kind = DeprecationKind.read r
     let message = String.read r
-    PackageOp.Deprecate(target, kind, message)
+    PackageOp.Deprecate(target, kind, message, readTrailingStamp r)
   | 5uy ->
     let target = Reference.read r
-    PackageOp.Undeprecate target
+    PackageOp.Undeprecate(target, readTrailingStamp r)
   | 14uy ->
     let location = PackageLocation.read r
     let part = DocPart.read r

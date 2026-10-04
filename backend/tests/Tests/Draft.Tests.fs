@@ -361,7 +361,12 @@ let keepsAnOpItCannotRead =
 
     let! _ =
       Inserts.insertAndApplyOpsAsWip
-        [ PT.PackageOp.Deprecate(target, PT.DeprecationKind.Harmful, "draft test") ]
+        [ PT.PackageOp.Deprecate(
+            target,
+            PT.DeprecationKind.Harmful,
+            "draft test",
+            None
+          ) ]
 
     let! result = runDarkResult "Darklang.SCM.Draft.discardAll ()"
     let _ = unwrap result

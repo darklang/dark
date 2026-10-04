@@ -429,20 +429,6 @@ let private applySetNameFrom
           pOpt cmd "$previous" previousHash)
   }
 
-/// Serialize a DeprecationKind + message for the annotation_blob column.
-/// Keeps the on-disk representation close to the binary op serializer so one
-/// reader can surface both op-log history and current projected state.
-let private serializeAnnotation
-  (kind : PT.DeprecationKind)
-  (message : string)
-  : byte array =
-  use ms = new System.IO.MemoryStream()
-  use w = new System.IO.BinaryWriter(ms)
-  LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.write w kind
-  LibSerialization.Binary.Serializers.Common.String.write w message
-  ms.ToArray()
-
-
 /// Record a deprecation-state change: supersede any prior un-superseded `deprecations`
 /// row for (item_hash, item_kind), then insert the new row. Per call site: the state
 /// ('deprecated' or 'undeprecated') and the annotation blob (a serialized kind+message,
@@ -527,7 +513,7 @@ let private applyDeprecate
     target
     ts
     "deprecated"
-    (Some(serializeAnnotation kind message))
+    (Some(Deprecations.serializeAnnotation kind message))
 
 
 /// Apply an Undeprecate op: an `undeprecated` row with no annotation.
@@ -877,11 +863,14 @@ let private applyOp
     | PT.PackageOp.SetName(loc, target, _) ->
       do! applySetNameFrom ctx source op target.hash loc target.kind
     | PT.PackageOp.Unbind(loc, previous) -> do! applyUnbind ctx op loc previous
-    | PT.PackageOp.Deprecate(target, kind, message) ->
+    // `restating` is part of the op's identity and nothing else: the stamp exists so that saying a
+    // thing again is a distinct op, and what it SAYS is the kind and the message. The fold reads the
+    // op's `origin_ts` as it always did.
+    | PT.PackageOp.Deprecate(target, kind, message, _) ->
       // The op's own time, so the NEWEST statement wins rather than the last to arrive.
       let! ts = originTsOf ctx (Hashing.computeOpRowId op)
       do! applyDeprecate ctx ts target kind message
-    | PT.PackageOp.Undeprecate target ->
+    | PT.PackageOp.Undeprecate(target, _) ->
       let! ts = originTsOf ctx (Hashing.computeOpRowId op)
       do! applyUndeprecate ctx ts target
     | PT.PackageOp.UpdateDoc(location, part, text, previous, _) ->

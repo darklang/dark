@@ -762,12 +762,27 @@ type PackageOp =
   // The point is a prompt-for-committed-resolution loop that parallels
   // merge-conflict resolution — system surfaces what it noticed, author
   // commits their intent, op log carries both.
-  | Deprecate of target : Reference * kind : DeprecationKind * message : string
+  //
+  // `restating` is empty except on the restatement path, and is never read. Same hole as
+  // `UpdateDoc.restating`, one axis over: deprecation is a STATE, and `Deprecate` and
+  // `Undeprecate` are each other's inverse, so saying a thing again after the inverse produces
+  // the op that said it the first time and folds to nothing. `Inserts` and
+  // `Branches.restateReverts` stamp it, via `PT.restating`, and only when what the op says is
+  // not what currently stands.
+  | Deprecate of
+    target : Reference *
+    kind : DeprecationKind *
+    message : string *
+    restating : Option<string>
 
-  // Clear any prior deprecation on a target.
-  // TODO: merge-into-main needs a permission axis once ACLs land (a branch
-  //   shouldn't silently un-Harmful on merge).
-  | Undeprecate of target : Reference
+  /// Clear any prior deprecation on a target.
+  ///
+  /// `restating` matters MORE here than on `Deprecate`: this op carries only its target, so
+  /// without a stamp there is exactly one possible `Undeprecate` per item for all time.
+  ///
+  /// TODO: merge-into-main needs a permission axis once ACLs land (a branch
+  ///   shouldn't silently un-Harmful on merge).
+  | Undeprecate of target : Reference * restating : Option<string>
 
   /// What the thing at a NAME says about itself, or one named part of it.
   ///
@@ -1012,6 +1027,12 @@ let restating (ts : string) (op : PackageOp) : Option<PackageOp> =
     )
   | PackageOp.UpdateDoc(location, part, text, previous, _) ->
     Some(PackageOp.UpdateDoc(location, part, text, previous, Some ts))
+  // Deprecation is the same shape again, with the inverse spelled out as its own op rather than
+  // implied by a later binding: deprecate, undeprecate, deprecate the same way is three decisions
+  // and the third must not dedupe into the first.
+  | PackageOp.Deprecate(target, kind, message, _) ->
+    Some(PackageOp.Deprecate(target, kind, message, Some ts))
+  | PackageOp.Undeprecate(target, _) -> Some(PackageOp.Undeprecate(target, Some ts))
   | _ -> None
 
 
