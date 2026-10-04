@@ -329,7 +329,7 @@ let syncPeerItems () : List<BodyItem> =
         |> Stdlib.String.splitOnNewline
         |> Stdlib.List.filterMap (fun line ->
           match Stdlib.String.split (Stdlib.String.trim line) " " with
-          | [ owner, bid ] -> if owner == me then Stdlib.Option.Option.None else Stdlib.Option.Option.Some (owner, bid)
+          | [ owner, bid ] -> if owner == me then Stdlib.Option.Option.None else Stdlib.Option.Option.Some ((owner, bid))
           | _ -> Stdlib.Option.Option.None)
       let owners = entries |> Stdlib.List.map (fun pair -> let (o, _b) = pair in o) |> Stdlib.List.unique
       if Stdlib.List.isEmpty owners then [ row "" "no other instance has pushed a branch to this relay" ]

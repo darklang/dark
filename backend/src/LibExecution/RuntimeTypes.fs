@@ -996,14 +996,21 @@ and DvalOrdering private () =
     | DDateTime x, DDateTime y -> compare x y
     | DUuid x, DUuid y -> compare x y
 
-    | DList(_, x), DList(_, y) -> DvalOrdering.compareList mode x y
+    // Check stack space before recursing into compound values, as in Dval.equals,
+    // so deep comparisons raise a catchable exception.
+    | DList(_, x), DList(_, y) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
+      DvalOrdering.compareList mode x y
     | DTuple(x1, x2, xs), DTuple(y1, y2, ys) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       DvalOrdering.compareList mode (x1 :: x2 :: xs) (y1 :: y2 :: ys)
 
     | DDict(_, _, x), DDict(_, _, y) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       DvalOrdering.compareEntries mode (Map.toList x) (Map.toList y)
 
     | DRecord(_, x, _, xFields), DRecord(_, y, _, yFields) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       let c = compare x y
       if c <> 0 then
         c
@@ -1014,6 +1021,7 @@ and DvalOrdering private () =
           (Map.toList yFields |> List.map (fun (k, v) -> DictKey(DString k), v))
 
     | DEnum(_, xType, _, xCase, xFields), DEnum(_, yType, _, yCase, yFields) ->
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
       let c = compare xType yType
       if c <> 0 then
         c
@@ -3456,7 +3464,11 @@ module Types =
     (typeArguments : List<TypeReference>)
     (typ : TypeReference)
     : TypeReference =
-    let r = substitute typeParams typeArguments
+    // Check each recursive descent; an outer check cannot protect a deep type.
+    // Leaf types and parameter replacements need no check.
+    let r typ =
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
+      substitute typeParams typeArguments typ
     match typ with
     | TUnit
     | TBool
@@ -3517,16 +3529,65 @@ module TypeReference =
       [ t ]
     )
 
+  // Key by object identity: signatures reuse references, and structural hashing
+  // of deeply nested types can exhaust the native stack.
+  // Scope resolutions to their package manager, just like the declaration cache.
+  type private AliasCache =
+    System.Runtime.CompilerServices.ConditionalWeakTable<TypeReference, TypeReference>
+
+  let private aliasCaches =
+    System.Runtime.CompilerServices.ConditionalWeakTable<Types, AliasCache>()
+
+  let private newAliasCache =
+    System.Runtime.CompilerServices.ConditionalWeakTable<Types, AliasCache>
+      .CreateValueCallback(fun _ -> AliasCache())
+
+  let tryResolvedAlias
+    (types : Types)
+    (typ : TypeReference)
+    : TypeReference voption =
+    let mutable cache = Unchecked.defaultof<AliasCache>
+    let mutable resolved = Unchecked.defaultof<TypeReference>
+    if
+      aliasCaches.TryGetValue(types, &cache) && cache.TryGetValue(typ, &resolved)
+    then
+      ValueSome resolved
+    else
+      ValueNone
+
   let rec unwrapAlias (types : Types) (typ : TypeReference) : Ply<TypeReference> =
     match typ with
     | TCustomType({ resolved = Ok outerTypeName }, outerTypeArgs) ->
-      uply {
-        match! Types.find types outerTypeName with
-        | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } ->
-          let typ = Types.substitute typeParams outerTypeArgs typ
-          return! unwrapAlias types typ
-        | _ -> return typ
-      }
+      match tryResolvedAlias types typ with
+      | ValueSome resolved -> Ply resolved
+      | ValueNone ->
+        uply {
+          match! Types.find types outerTypeName with
+          | Some declaration ->
+            let! resolved =
+              match declaration.definition with
+              | TypeDeclaration.Alias target ->
+                System
+                  .Runtime
+                  .CompilerServices
+                  .RuntimeHelpers
+                  .EnsureSufficientExecutionStack()
+                let target =
+                  Types.substitute declaration.typeParams outerTypeArgs target
+                unwrapAlias types target
+              | _ -> Ply typ
+            // Do not cache a chain with a missing declaration; it may arrive later.
+            // Cache a resolved record or enum as itself.
+            let complete =
+              match declaration.definition, resolved with
+              | TypeDeclaration.Alias _, TCustomType _ ->
+                tryResolvedAlias types resolved |> ValueOption.isSome
+              | _ -> true
+            if complete then
+              aliasCaches.GetValue(types, newAliasCache).AddOrUpdate(typ, resolved)
+            return resolved
+          | None -> return typ
+        }
     | _ -> Ply typ
 
 

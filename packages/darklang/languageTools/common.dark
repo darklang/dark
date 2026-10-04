@@ -28,6 +28,10 @@ type BuiltinFunctionPurity =
 type BuiltinFunction =
   { name: RuntimeTypes.FQFnName.Builtin
     description: String
+    /// Type parameter names explicitly listed in the builtin's metadata.
+    /// Some older builtins use additional type variables in their parameter or
+    /// return types without listing them here.
+    typeParams: List<String>
     parameters: List<BuiltinFunctionParameter>
     returnType: RuntimeTypes.TypeReference
     purity: BuiltinFunctionPurity }
@@ -37,8 +41,22 @@ type BuiltinFunction =
 let allBuiltinFns () : List<BuiltinFunction> =
   Builtin.getAllBuiltinFns ()
 
+/// Look up a builtin function's metadata by name and version.
+/// Fetch only that builtin's metadata; return None if it does not exist.
+let findBuiltinFn (name: String) (version: Int32) : Stdlib.Option.Option<BuiltinFunction> =
+  Builtin.getBuiltinFn name version
+
 /// A Darklang builtin value
 type BuiltinValue =
   { name: RuntimeTypes.FQValueName.Builtin
     description: String
     ``type``: RuntimeTypes.TypeReference }
+
+/// Every builtin value this runtime has. Built fresh on each call.
+let allBuiltinValues () : List<BuiltinValue> =
+  Builtin.getAllBuiltinValues ()
+
+/// Look up a builtin value's metadata by name and version.
+/// Fetch only its name, description, and declared type; return None if it does not exist.
+let findBuiltinValue (name: String) (version: Int32) : Stdlib.Option.Option<BuiltinValue> =
+  Builtin.getBuiltinValue name version

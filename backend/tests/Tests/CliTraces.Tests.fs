@@ -146,33 +146,92 @@ let private testScriptDeclIdentity =
       "1" ]
 
 
-// ─── Runtime error rendering ────────────────────────────────────────
-
-/// A type mismatch against a package declaration names the function, the
-/// parameter and both types. Hashes appearing here instead of names is the
-/// failure mode that hid a declaration-collision bug for a whole release: the
-/// message named two hashes, so it read as a type mismatch rather than as the
-/// wrong function being called.
-let private testRteNamesPackageDecls =
-  cliTest "RTE names package declarations" (fun state ->
+/// Advisory findings must not stop execution; runtime failures follow earlier effects.
+let private testAdvisoryScriptExecution =
+  cliTest "run and eval execute without an at-rest gate" (fun target ->
     task {
-      let! output = runCli state [ "eval"; "Stdlib.List.length \"not a list\"" ]
-      Expect.stringContains
-        output
-        "Darklang.Stdlib.List.length"
-        "fn named, not hashed"
-      Expect.stringContains output "1st parameter `list`" "parameter named"
-      Expect.stringContains output "expects List<_>" "expected type named"
-      Expect.stringContains output "but got String" "actual type named"
+      let cases =
+        [ "let bad () : Int = true\nStdlib.printLine \"SCRIPT_RAN\"\n0L", 0L
+          "Stdlib.printLine \"SCRIPT_RAN\"\nStdlib.List.length \"bad\"", 1L ]
+      for source, expectedExit in cases do
+        let path =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-advisory-{System.Guid.NewGuid()}.dark"
+          )
+        try
+          System.IO.File.WriteAllText(path, source)
+          for args in [ [ "eval"; source ]; [ "run"; path ] ] do
+            let! output, exitCode = runCliWithExit target args
+            Expect.equal
+              exitCode
+              expectedExit
+              "only reached runtime errors fail execution"
+            Expect.stringContains output "SCRIPT_RAN" "earlier effects run"
+            Expect.isFalse
+              (output.Contains "Static type check failed")
+              "no pre-run checker"
+        finally
+          System.IO.File.Delete path
     })
 
-/// The same message for a script's own declarations. These are never in the
+
+let private testRuntimeChecksUseSelectedBranch =
+  cliTestOnMain "runtime checks use the selected branch" (fun target ->
+    task {
+      do! Tests.CliDsl.discardAll target
+      do!
+        Tests.CliDsl.fn
+          target
+          "Tests.ScriptChecking.accept"
+          "(value: Int64) : Int64 = value"
+      do! Tests.CliDsl.commit target "script checker branch fixture"
+      let branch = $"script-check-{System.Guid.NewGuid():N}"
+      do! Tests.CliDsl.switch target branch
+      do!
+        Tests.CliDsl.fn
+          target
+          "Tests.ScriptChecking.accept"
+          "(value: String) : String = value"
+      do! Tests.CliDsl.switch target "main"
+      let! main = runCli target [ "eval"; "Tests.ScriptChecking.accept 7L" ]
+      Expect.equal main "7" "main retains its numeric signature"
+      // The in-process harness starts after process-level --branch handling.
+      do! Tests.CliDsl.switch target branch
+      let! rejected = runCli target [ "eval"; "Tests.ScriptChecking.accept 7L" ]
+      Expect.stringContains
+        rejected
+        "Error"
+        "runtime checks use the selected branch"
+      Expect.stringContains rejected "String" "the branch declaration is used"
+      let! accepted =
+        runCli target [ "eval"; "Tests.ScriptChecking.accept \"branch\"" ]
+      Expect.equal accepted "branch" "valid code on the branch still executes"
+      do! archiveBranches target [ branch ]
+    })
+
+
+// ─── Runtime error rendering ────────────────────────────────────────
+
+/// Runtime argument checking still rejects calls with the wrong type.
+let private testRuntimePackageArgumentError =
+  cliTest "runtime errors describe package arguments" (fun state ->
+    task {
+      let! output, exitCode =
+        runCliWithExit state [ "eval"; "Stdlib.List.length \"not a list\"" ]
+      Expect.equal exitCode 1L "runtime error exits nonzero"
+      Expect.stringContains output "List" "expected type named"
+      Expect.stringContains output "String" "actual type named"
+      Expect.isFalse (output.Contains "Static type check failed") "no static gate"
+    })
+
+/// Runtime diagnostics also name a script's own types. These are never in the
 /// store, and the CLI renders the error after the executor holding them is gone,
 /// so the pretty-printer's hash-to-name lookup has nothing to find unless the
 /// script's names are carried to it. Missing, it prints 64-character hashes, and
 /// a declaration collision then reads as an ordinary type mismatch.
-let private testRteNamesScriptDecls =
-  cliTest "RTE names script declarations" (fun state ->
+let private testRuntimeErrorsNameScriptTypes =
+  cliTest "runtime errors name script types" (fun state ->
     task {
       let! output =
         runCli
@@ -182,9 +241,9 @@ let private testRteNamesScriptDecls =
              type Fahrenheit = { degrees: Float }\n\
              let describe (t: Celsius) : String = \"ok\"\n\
              describe (Fahrenheit { degrees = 1.0 })" ]
-      Expect.stringContains output "describe's 1st parameter `t`" "fn named"
-      Expect.stringContains output "expects Celsius" "expected type named"
-      Expect.stringContains output "but got Fahrenheit" "actual type named"
+      Expect.stringContains output "Celsius" "expected type named"
+      Expect.stringContains output "Fahrenheit" "actual type named"
+      Expect.isFalse (output.Contains "Static type check failed") "no static gate"
       // Bare, not `CliScript.Celsius`: the owner is scaffolding the parser
       // stamped on, and no name can reach the declaration through it.
       Expect.isFalse (output.Contains "CliScript.") "no scaffolding owner"
@@ -882,8 +941,10 @@ let tests =
          testRunCases
          testEvalCases
          testScriptDeclIdentity
-         testRteNamesPackageDecls
-         testRteNamesScriptDecls
+         testAdvisoryScriptExecution
+         testRuntimeChecksUseSelectedBranch
+         testRuntimePackageArgumentError
+         testRuntimeErrorsNameScriptTypes
          testListFunctions
          testViewFunction
          testListTypes

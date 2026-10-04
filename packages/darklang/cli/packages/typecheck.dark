@@ -109,14 +109,14 @@ let printItem
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"failed: {label}")
       Stdlib.List.append
         (AtRestCheck.issueLines branchId item.diagnostics)
-        (AtRestCheck.issueLines branchId item.blockers)
+        (AtRestCheck.issueLines branchId item.warnings)
       |> Stdlib.printLines
   | Incomplete ->
     if outputFilter.showIncomplete then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"incomplete: {label}")
       Stdlib.List.append
         (AtRestCheck.issueLines branchId item.diagnostics)
-        (AtRestCheck.issueLines branchId item.blockers)
+        (AtRestCheck.issueLines branchId item.warnings)
       |> Stdlib.printLines
 
 // The --json rendering. The same data the human view renders, typed: `docs for-ai` promises every
@@ -149,7 +149,7 @@ let jsonReport
       let issues =
         Stdlib.List.append
           (AtRestCheck.issueLines branchId item.diagnostics)
-          (AtRestCheck.issueLines branchId item.blockers)
+          (AtRestCheck.issueLines branchId item.warnings)
         |> Stdlib.List.map (fun l -> Stdlib.String.trim l)
 
       Stdlib.AltJson.Json.Object
@@ -216,7 +216,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | Incomplete ->
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.warning "The audit could not complete:")
-        AtRestCheck.issueLines state.currentBranchId report.blockers
+        AtRestCheck.issueLines state.currentBranchId report.warnings
         |> Stdlib.printLines
       | Checked
       | Failed -> ()

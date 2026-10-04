@@ -254,6 +254,7 @@ module ExecutionError =
   /// structured payload — no flattening to strings at the boundary.
   type ExecutionError =
     | Parse of LanguageTools.Parser.CliScript.ParseError
+    | TypeCheck of LanguageTools.AtRestTypeChecker.Report
     | Runtime of LanguageTools.RuntimeTypes.RuntimeError.Error
     | Denied of PermissionDenied
     | Unhandled of Unhandled
@@ -261,6 +262,7 @@ module ExecutionError =
   let toString (branchId: Uuid) (err: ExecutionError) : String =
     match err with
     | Parse pe -> LanguageTools.Parser.CliScript.ParseError.toString pe
+    | TypeCheck report -> Packages.AtRestCheck.scriptReport branchId report
     | Runtime rte ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId rte
     | Denied denied ->

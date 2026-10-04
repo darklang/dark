@@ -425,7 +425,7 @@ let refuseTypeErrors (parsed: Args) : Bool =
 
           Stdlib.List.append
             (Packages.AtRestCheck.issueLines branchId item.diagnostics)
-            (Packages.AtRestCheck.issueLines branchId item.blockers)
+            (Packages.AtRestCheck.issueLines branchId item.warnings)
           |> Stdlib.List.iter (fun line ->
             Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    {line}"))
         | _ -> ())
@@ -436,7 +436,7 @@ let refuseTypeErrors (parsed: Args) : Bool =
         if Stdlib.List.isEmpty report.items then
           Stdlib.List.append
             (Packages.AtRestCheck.issueLines branchId report.diagnostics)
-            (Packages.AtRestCheck.issueLines branchId report.blockers)
+            (Packages.AtRestCheck.issueLines branchId report.warnings)
           |> Stdlib.List.iter (fun line ->
             Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    {line}"))
         else

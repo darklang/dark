@@ -134,7 +134,7 @@ let commitDraft
   | Failed ->
     let count =
       Stdlib.List.length
-        (Stdlib.List.append typeReport.diagnostics typeReport.blockers)
+        (Stdlib.List.append typeReport.diagnostics typeReport.warnings)
 
     Stdlib.Result.Result.Error(
       $"the at-rest type check found {Stdlib.Int.toString count} definite error(s); "

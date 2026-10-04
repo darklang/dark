@@ -12,7 +12,6 @@ open Fumble
 open LibDB.Sqlite
 
 module RT = LibExecution.RuntimeTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module Dval = LibExecution.Dval
 
@@ -30,13 +29,10 @@ let private cliBuiltins : Lazy<RT.Builtins> =
 
 let buildState () : Task<RT.ExecutionState> =
   task {
-    let pmPTValue = pmPT
     let builtins = cliBuiltins.Force()
-    // Read evaluated package values as the CLI does. The PT-to-RT value converter
-    // handles literals only and turns computed values into Unit.
-    let pmRT =
-      { PT2RT.PackageManager.toRT builtins.values pmPTValue with
-          getValue = LibDB.PackageManager.rt.getValue }
+    // Reuse the CLI's compiled functions and evaluated values. The generic
+    // PT-to-RT adapter recompiles on every fetch, making checker tests much slower.
+    let pmRT = LibDB.PackageManager.rt
     let program : RT.Program = { dbs = Map.empty }
 
     let notify
@@ -137,6 +133,27 @@ let executionState (target : Target) : RT.ExecutionState =
 /// "forever" into a named failure, it does not police speed.
 let private runCliTimeout = System.TimeSpan.FromMinutes 2.0
 
+/// Run work on another thread so the timeout also covers synchronous code.
+/// None means it is still running. Stop before another test shares its state.
+let runWithTimeout
+  (timeout : System.TimeSpan)
+  (run : unit -> Task<'a>)
+  : Task<Option<'a>> =
+  task {
+    use timer = new System.Threading.CancellationTokenSource()
+    let deadline = Task.Delay(timeout, timer.Token)
+    let execution = Task.Run<'a>(System.Func<Task<'a>>(run))
+    try
+      let! finished = Task.WhenAny(execution, deadline)
+      if System.Object.ReferenceEquals(finished, execution) then
+        let! result = execution
+        return Some result
+      else
+        return None
+    finally
+      timer.Cancel()
+  }
+
 /// Invoke the CLI dispatch with the given args (e.g. `["traces"; "list"]`) and return the
 /// trimmed captured stdout.
 ///
@@ -166,26 +183,26 @@ and private runCliInProcess
       return Tests.failtestf "runCli: a capture was already open (nested runCli?)"
 
     try
-      let execution = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
-
-      // Bounds the WAIT, not the work: the call is not cancellable, so it finishes into a
-      // buffer nobody reads while the test fails with the command's name.
-      let! finished = Task.WhenAny(execution, Task.Delay runCliTimeout)
-
-      if not (System.Object.ReferenceEquals(finished, execution :> Task)) then
-        return
-          Tests.failtestf
-            "runCli timed out after %A: dark %s"
-            runCliTimeout
-            (String.concat " " args)
-
-      let! result = execution
-      // `Stdlib.printLine` queues to a background thread; drain before
-      // reading the buffer or we capture nothing.
-      NonBlockingConsole.wait ()
-      match result with
-      | Ok _ -> return (NonBlockingConsole.stopCapture ()).Trim()
-      | Error(rte, _) -> return Tests.failtestf "runCli errored: %A" rte
+      let! completed =
+        runWithTimeout runCliTimeout (fun () ->
+          Exe.executeFunction state fnName [] (NEList.singleton argsDval))
+      match completed with
+      | None ->
+        // The interpreter cannot cancel this command. Stop the suite before
+        // another test uses its store, and print the failure outside output capture.
+        let command = String.concat " " args
+        let message =
+          $"runCli timed out after {runCliTimeout}: dark {command}. Stopping the suite because the command cannot be cancelled."
+        System.Console.Error.WriteLine message
+        System.Environment.Exit 1
+        return Tests.failtest message
+      | Some result ->
+        // `Stdlib.printLine` queues to a background thread; drain before
+        // reading the buffer or we capture nothing.
+        NonBlockingConsole.wait ()
+        match result with
+        | Ok _ -> return (NonBlockingConsole.stopCapture ()).Trim()
+        | Error(rte, _) -> return Tests.failtestf "runCli errored: %A" rte
     finally
       NonBlockingConsole.stopCapture () |> ignore<string>
   }

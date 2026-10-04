@@ -7,6 +7,37 @@ NativeAOT, **4** is the current branch.
 
 ---
 
+## 2026-09-28: published budget with type checking
+
+Raised the published `steady.dark` budget from 9.7 to 18.9 MB to reflect CLI
+allocation with type checking enabled. Five runs after a fresh Release build and
+package reload measured 18.81–18.90 MB. The 3% tolerance and Debug budget are unchanged.
+
+## 2026-09-28: at-rest checker builtin lookup
+
+The checker constructed metadata and dictionaries for all 750 builtin functions on
+each check. A direct allocation probe measured 10,830,528 bytes for that environment
+alone. Named metadata lookups now fetch only the referenced builtins; the solver's
+existing per-check cache retains callable signatures. Lookups use the current
+execution state's registry, so there is no shared cache to become stale.
+
+Three Debug gate runs before the change allocated 29.5–29.6 MB; three after allocated
+18.6–18.8 MB. A temporary probe with pre-run checking disabled measured 12.4 MB in
+all three runs. The probe was reverted: checking remains enabled. The old Debug
+budget also fails without checking, so the remaining gap is not all checker overhead.
+
+A fresh published build allocated 18.8, 18.8 and 18.9 MB. This still exceeds the
+9.7 MB budget and 10.0 MB ceiling; neither budget was changed. The reported 24.8 MB
+failure came from an earlier artifact, not a same-build published baseline.
+The gate includes startup and checking, even though the workload resets its own
+instruction counters. Those counters stayed at 4,443 instructions, 1,208 builtin
+calls, 1,005 package calls and 404 frame pushes.
+
+Validation: 381 checker tests, seven builtin introspection tests, 39 script
+lowering tests and ten builtin registry tests passed in the published build.
+The published performance suite also completed all seven workloads; this is a
+smoke check, not an A/B comparison.
+
 ## This round: parameterised types
 
 The synchronous fast path from round 2 ran only for types with no type arguments, guarded by

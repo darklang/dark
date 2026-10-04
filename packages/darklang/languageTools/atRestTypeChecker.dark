@@ -114,8 +114,11 @@ type AmbiguousSubject =
   | NumericOperand
   | PipelineNumericOperand
   | UnaryMinusOperand
+  | BitwiseNotOperand
   | RecordType
   | EnumPatternType
+  | DictKeyType
+  | CalleeType
   | ItemType
 
 /// Why a builtin's declared signature is not something the checker can check against.
@@ -159,10 +162,13 @@ type Context =
   | UnwrapRequiresOptionOrResult
   | UnwrapRequiresMatchingReturnType
   | OrPatternBindingsDiffer
+  | DuplicateBindingId
+  | DuplicateInferenceId
   | ExplicitTypeArgumentsOnNonNamedFunction
   | AliasCycleReferenced
   | DeclarationTooDeep
   | UnaryMinusOperandNotSignedNumeric
+  | BitwiseNotOperandNotInteger
   | CheckerUnavailable of String
 
 type Issue =
@@ -176,25 +182,74 @@ type ItemReport =
   { item: LanguageTools.ProgramTypes.Reference
     verdict: Verdict
     diagnostics: List<Issue>
-    blockers: List<Issue> }
+    warnings: List<Issue> }
 
 type Report =
   { verdict: Verdict
     items: List<ItemReport>
     diagnostics: List<Issue>
-    blockers: List<Issue> }
+    warnings: List<Issue> }
+
+/// An error encountered while running the checker itself.
+/// Makes the check Incomplete because the checker could not finish.
+type CheckFailure =
+  /// Nesting deep enough to exhaust the native stack.
+  | TooDeep
+  /// Any other runtime error, rendered.
+  | Failed of message: String
 
 /// The report for nothing: no items, so trivially Checked.
 let emptyReport () : Report =
-  Report { verdict = Verdict.Checked; items = []; diagnostics = []; blockers = [] }
+  Report { verdict = Verdict.Checked; items = []; diagnostics = []; warnings = [] }
 
 /// Check package operations before they are persisted or presented as diagnostics.
 ///
-/// This is the single Dark-facing boundary for the runtime checker builtin.
+/// Run the checker with error handling around the entire batch.
+/// If a checker error escapes the per-declaration handlers, return Incomplete.
 let checkPackageOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Report =
-  Builtin.atRestCheckPackageOps ops
+  guarded Run.checkPackageOps ops
+
+/// Type-check all declarations visible on the selected branch.
+let checkBranch (branchId: Uuid) : Report = guarded Run.checkBranch branchId
+
+/// Return an Incomplete report if shared work for the batch fails.
+/// Run and Items catch errors for individual declarations separately, preserving
+/// the results of the other declarations.
+let guarded (check: 'a -> Report) (input: 'a) : Report =
+  match guard check input with
+  | Ok report -> report
+  | Error failure ->
+    let warning = failureIssue Stdlib.Option.Option.None failure
+
+    Report
+      { verdict = Verdict.Incomplete
+        items = []
+        diagnostics = []
+        warnings = [ warning ] }
+
+/// Use an F# builtin to run the check and catch runtime errors.
+/// Return Ok with the check's result, or Error if the checker itself fails.
+let guard (check: 'a -> 'b) (input: 'a) : Stdlib.Result.Result<'b, CheckFailure> =
+  Builtin.atRestCheckGuarded check input
+
+/// Turn a checker failure into an Incomplete warning.
+let failureIssue
+  (nodeId: Stdlib.Option.Option<UInt64>)
+  (failure: CheckFailure)
+  : Issue =
+  let context =
+    match failure with
+    | TooDeep -> Context.DeclarationTooDeep
+    | Failed message -> Context.CheckerUnavailable message
+
+  Issue
+    { code = IssueCode.UnsupportedConstruct
+      nodeId = nodeId
+      expected = Stdlib.Option.Option.None
+      actual = Stdlib.Option.Option.None
+      context = context }
 
 let staticTypeToStringWith
   (customTypeName:
@@ -352,8 +407,11 @@ let ambiguousSubjectToString (subject: AmbiguousSubject) : String =
   | NumericOperand -> "the numeric operand type"
   | PipelineNumericOperand -> "the numeric pipeline operand type"
   | UnaryMinusOperand -> "the operand type of unary minus"
+  | BitwiseNotOperand -> "the operand type of bitwise NOT"
   | RecordType -> "the record type"
   | EnumPatternType -> "which enum type contains this case"
+  | DictKeyType -> "the key type of this Dict"
+  | CalleeType -> "the type of the function called here"
   | ItemType -> "a complete type here"
 
 
@@ -479,6 +537,10 @@ let contextToStringWith
   | SelfOutsideFunction -> "Self is only available while checking a function"
   | OrPatternBindingsDiffer ->
     "Every branch of an or-pattern must bind the same names"
+  | DuplicateBindingId ->
+    "Multiple let bindings share a pattern node ID; their types cannot be checked"
+  | DuplicateInferenceId ->
+    "Multiple inference nodes share an ID; their types cannot be checked"
   | ExplicitTypeArgumentsOnNonNamedFunction ->
     "Explicit type arguments on a non-named function are not supported"
   | AliasCycleReferenced -> "A referenced type alias contains a cycle"
@@ -487,6 +549,7 @@ let contextToStringWith
     ++ "it was not checked"
   | UnaryMinusOperandNotSignedNumeric ->
     "Unary minus requires a signed integer or Float operand"
+  | BitwiseNotOperandNotInteger -> "Bitwise NOT requires an integer operand"
   | CheckerUnavailable detail -> $"The at-rest checker could not run: {detail}"
 
 

@@ -48,3 +48,12 @@ BranchCompletion.values [ "switch", "zzz-no-such-branch" ] = []
 
 // a subcommand that takes no branch gets no branch names
 BranchCompletion.values [ "list", "" ] = []
+
+module PermissionProfiles =
+  let values (args: List<String>) : List<String> =
+    Darklang.Cli.Permissions.Command.complete (Darklang.Cli.initState ()) args
+    |> Stdlib.List.map (fun item -> item.value)
+
+PermissionProfiles.values [ "profile", "default" ] = [ "--yes" ]
+PermissionProfiles.values [ "profile", "read-only", "/tmp" ] = [ "--yes" ]
+PermissionProfiles.values [ "profile", "local-dev", "/tmp" ] = [ "--yes" ]

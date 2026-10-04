@@ -218,6 +218,61 @@ module RoundtripTests =
         ]
 
 
+/// Exercise stored-AST conversion on a small stack. Tests built from Dark values
+/// skip this conversion and cannot check its stack guard.
+module DeepProgramTypes =
+  let private nested (wrap : 'a -> 'a) (leaf : 'a) : 'a =
+    [ 1..20_000 ] |> List.fold (fun value _ -> wrap value) leaf
+
+  let private refusesToOverflow
+    (name : string)
+    (input : unit -> 'a)
+    (convert : 'a -> RT.Dval)
+    =
+    test name {
+      let value = input ()
+      let mutable thrown = None
+      let thread =
+        System.Threading.Thread(
+          (fun () ->
+            try
+              convert value |> ignore<RT.Dval>
+            with ex ->
+              thrown <- Some ex),
+          256 * 1024
+        )
+      thread.Start()
+      thread.Join()
+
+      match thrown with
+      | Some(:? System.InsufficientExecutionStackException) -> ()
+      | Some ex ->
+        failtest $"expected the stack check to fail, got {ex.GetType().Name}"
+      | None -> failtest "expected the stack check to fail"
+    }
+
+  let tests =
+    testList
+      "deep outbound PT conversion"
+      [ refusesToOverflow
+          "type references"
+          (fun () -> nested PT.TList PT.TInt)
+          PT2DT.TypeReference.toDT
+        refusesToOverflow
+          "expressions"
+          (fun () -> nested (fun e -> PT.EList(0UL, [ e ])) (PT.EUnit 1UL))
+          PT2DT.Expr.toDT
+        refusesToOverflow
+          "let patterns"
+          (fun () ->
+            nested (fun p -> PT.LPTuple(0UL, p, PT.LPUnit 1UL, [])) (PT.LPUnit 1UL))
+          PT2DT.LetPattern.toDT
+        refusesToOverflow
+          "match patterns"
+          (fun () -> nested (fun p -> PT.MPList(0UL, [ p ])) (PT.MPUnit 1UL))
+          PT2DT.MatchPattern.toDT ]
+
+
 let tests =
   testList
     "DarkTypes Serialization"
@@ -227,4 +282,6 @@ let tests =
 
       testList
         "roundtrip RTs between internal types and dark types"
-        RoundtripTests.RuntimeTypes.tests ]
+        RoundtripTests.RuntimeTypes.tests
+
+      DeepProgramTypes.tests ]

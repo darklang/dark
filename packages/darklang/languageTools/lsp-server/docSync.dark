@@ -191,7 +191,7 @@ let handleTextDocumentDidChange
         match parsed with
         | Ok parsedFile ->
           if Stdlib.List.isEmpty (Parser.Parse.diagnostics text.text) then
-            (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+            (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
             |> Stdlib.Tuple3.first
             |> Stdlib.Option.Option.Some
           else

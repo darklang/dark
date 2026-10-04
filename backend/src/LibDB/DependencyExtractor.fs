@@ -223,7 +223,11 @@ let private extract (roots : List<Work>) : List<Dependency> =
 
       | PT.EList(_, items) -> pushExprsInOrder items
 
-      | PT.EDict(_, pairs) -> pairs |> List.map snd |> pushExprsInOrder
+      | PT.EDict(_, pairs) ->
+        // Track dependencies in both dictionary keys and values.
+        for key, value in List.rev pairs do
+          work.Push(Expr value)
+          work.Push(Expr key)
 
       | PT.ETuple(_, first, second, rest) ->
         pushExprsInOrder rest
@@ -282,18 +286,6 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
     :: (fn.parameters
         |> NEList.toList
         |> List.map (fun parameter -> TypeRef parameter.typ))
-    @ [ TypeRef fn.returnType ]
-  )
-  |> List.distinct
-
-
-/// Extract references from a function's signature only (parameters and return
-/// type), not its body. Enough to type-check a call to it.
-let extractFromFnSignature (fn : PT.PackageFn.PackageFn) : List<Dependency> =
-  extract (
-    (fn.parameters
-     |> NEList.toList
-     |> List.map (fun parameter -> TypeRef parameter.typ))
     @ [ TypeRef fn.returnType ]
   )
   |> List.distinct

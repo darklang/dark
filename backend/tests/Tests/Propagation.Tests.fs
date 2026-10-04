@@ -123,6 +123,74 @@ let singleHop =
     do! cleanup m
   }
 
+let dictionaryKeyReferences =
+  test "dictionary keys rewrite and expose function type and value references" {
+    let hash name = PT.Hash name
+    let body =
+      PT.EDict(
+        1UL,
+        [ PT.EApply(
+            2UL,
+            PT.EFnName(3UL, PT.NameResolution.ok (PT.FQFnName.Package(hash "fn"))),
+            [ PT.TCustomType(
+                PT.NameResolution.ok (PT.FQTypeName.Package(hash "type")),
+                []
+              ) ],
+            NEList.singleton (
+              PT.EValue(
+                4UL,
+                PT.NameResolution.ok (PT.FQValueName.Package(hash "key"))
+              )
+            )
+          ),
+          PT.EValue(5UL, PT.NameResolution.ok (PT.FQValueName.Package(hash "value"))) ]
+      )
+    let value : PT.PackageValue.PackageValue =
+      { hash = hash "container"; body = body; description = "" }
+    let names = [ "fn"; "type"; "key"; "value" ]
+    let mapping =
+      { LibDB.AstTransformer.emptyMapping with
+          byHash = names |> List.map (fun n -> hash n, hash $"new-{n}") |> Map.ofList }
+    let transformed = LibDB.AstTransformer.transformValue mapping value
+    let dependencies = LibDB.DependencyExtractor.extractFromValue transformed
+    Expect.equal
+      (dependencies |> List.map _.hash |> Set.ofList)
+      (names |> List.map (fun n -> hash $"new-{n}") |> Set.ofList)
+      "references in the key and value are rewritten and retained in the graph"
+  }
+
+let dictionaryKeyFollows =
+  testTask "a function called only in a dictionary key follows edits" {
+    let m = "PropTestDictionaryKey"
+    do! cleanup m
+    let! v1 = authorIn m "let key (x: Int64) : Int64 = Stdlib.Int64.add x 61L"
+    let! pairOps =
+      authorIn
+        m
+        $"let pairs (x: Int64) : Dict<Int64, Int64> = Dict {{ {m}.key x: 7L }}"
+    let keyV1 = hashBoundTo v1 "key"
+    let pairsV1 = hashBoundTo pairOps "pairs"
+    let pairs =
+      pairOps
+      |> List.pick (function
+        | PT.PackageOp.AddFn fn when fn.hash = pairsV1 -> Some fn
+        | _ -> None)
+    Expect.contains
+      (LibDB.DependencyExtractor.extractFromFn pairs |> List.map _.hash)
+      keyV1
+      "the call in the key records the function's current hash"
+
+    let! v2 = authorIn m "let key (x: Int64) : Int64 = Stdlib.Int64.add x 62L"
+    let! repointed = cascade (loc m "key") keyV1 (hashBoundTo v2 "key")
+    Expect.contains repointed "pairs" "a call in a key records a propagation edge"
+    let! pairsAfter = liveBoundHash (loc m "pairs")
+    Expect.notEqual
+      pairsAfter
+      (Some(hashStr pairsV1))
+      "rewriting the key changes the dependent's content hash"
+    do! cleanup m
+  }
+
 let transitive =
   testTask "the cascade is transitive: a repoint moves its own dependents too" {
     let m = "PropTestChain"
@@ -664,6 +732,8 @@ let tests =
   <| testList
     "Propagation"
     [ singleHop
+      dictionaryKeyReferences
+      dictionaryKeyFollows
       transitive
       multipleDependents
       pinStopsIt

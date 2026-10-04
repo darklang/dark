@@ -971,6 +971,70 @@ let private validationTests =
           issues
           (fun issue -> issue.code = Validation.DuplicateBinder)
           "duplicate binder issue")
+      testCase "deep let patterns preserve duplicate binding order" (fun _ ->
+        let firstRange = WT.synthRange
+        let duplicateRange =
+          { firstRange with
+              start = { row = 0; column = 1 }
+              end_ = { row = 0; column = 2 } }
+        let mutable pattern = WT.LPVariable(firstRange, "x")
+        for _ in 1..20000 do
+          pattern <-
+            WT.LPTuple(
+              firstRange,
+              pattern,
+              firstRange,
+              WT.LPWildcard firstRange,
+              [],
+              firstRange,
+              firstRange
+            )
+        pattern <-
+          WT.LPTuple(
+            firstRange,
+            pattern,
+            firstRange,
+            WT.LPVariable(duplicateRange, "x"),
+            [],
+            firstRange,
+            firstRange
+          )
+        let unitExpr = WT.EUnit firstRange
+        let sf : WT.SourceFile =
+          { range = firstRange
+            declarations = []
+            exprsToEval =
+              [ WT.ELet(
+                  firstRange,
+                  pattern,
+                  unitExpr,
+                  unitExpr,
+                  firstRange,
+                  firstRange
+                ) ] }
+        let issues = Validation.validateStructure sf
+        Expect.equal (List.length issues) 1 "one duplicate"
+        Expect.equal issues.Head.code Validation.DuplicateBinder "duplicate binder"
+        Expect.equal issues.Head.range duplicateRange "later binding is reported"
+        Expect.equal
+          issues.Head.related
+          [ (firstRange, "'x' was first bound here") ]
+          "first binding remains the reference")
+      testCase
+        "match binding collection preserves order across pattern shapes"
+        (fun _ ->
+          let sf = sourceFile "match x with | (Some a, [a, a], a :: a, a) -> a"
+          let issues =
+            Validation.validateStructure sf
+            |> List.filter (fun issue -> issue.code = Validation.DuplicateBinder)
+          Expect.equal (List.length issues) 5 "all later bindings are duplicates"
+          let columns = issues |> List.map (fun issue -> issue.range.start.column)
+          Expect.equal columns (List.sort columns) "left-to-right duplicate order"
+          let firstRanges = issues |> List.map (fun issue -> fst issue.related.Head)
+          Expect.equal
+            (List.distinct firstRanges |> List.length)
+            1
+            "same first binding")
       testCase "package mode rejects trailing expressions" (fun _ ->
         let issues = sourceFile "1L" |> validationIssues Validation.Package
         Expect.exists
@@ -1970,10 +2034,74 @@ let private unwrapTests =
           (P.parse "val f = fun x -> Some x?").diagnostics
           "lambda boundary") ]
 
+
+// Small stacks exercise the guard without enormous fixtures or suite-wide GC pressure.
+let private stackSafetyTests =
+  testList
+    "stack-safety"
+    [ for label, source in
+        [ "parenthesized types",
+          "type T = "
+          + String.replicate 2000 "("
+          + "Int64"
+          + String.replicate 2000 ")"
+          "constructor patterns",
+          "match value with | " + String.replicate 2000 "Some " + "x -> 1L"
+          "elif chains",
+          "if true then 1L " + String.replicate 2000 "elif true then 1L " + "else 1L"
+          "module headers", String.replicate 2000 "module M\n" + "val x = 1L"
+          "parentheses", String.replicate 2000 "(" + "1L" + String.replicate 2000 ")"
+          "prefix operators", String.replicate 2000 "!" + "true"
+          "right-associated operators", String.replicate 2000 "1L ** " + "1L"
+          "validation of left-associated operators",
+          String.replicate 2000 "1L + " + "1L"
+          "cons patterns",
+          "match xs with | " + String.replicate 2000 "x :: " + "[] -> 1L"
+          "let patterns",
+          "let "
+          + String.replicate 2000 "(x, "
+          + "x"
+          + String.replicate 2000 ")"
+          + " = v in 1L"
+          "type arguments",
+          "type T = "
+          + String.replicate 2000 "List<"
+          + "Int64"
+          + String.replicate 2000 ">" ] do
+        for execution in [ false; true ] do
+          testCase $"{label}, execution={execution}" (fun _ ->
+            let mutable result = Ok []
+            let thread =
+              System.Threading.Thread(
+                (fun () ->
+                  try
+                    let diagnostics =
+                      if execution then
+                        match P.parseFor Validation.Script source with
+                        | Ok _ -> []
+                        | Error diagnostics -> diagnostics
+                      else
+                        (P.parse source).diagnostics
+                    result <- Ok diagnostics
+                  with ex ->
+                    result <- Error ex),
+                256 * 1024
+              )
+            thread.Start()
+            thread.Join()
+            match result with
+            | Error ex -> failtest $"parser threw {ex.GetType().Name}: {ex.Message}"
+            | Ok diagnostics ->
+              Expect.exists
+                diagnostics
+                (fun d -> d.code = P.DiagnosticCode.tooDeep)
+                "reports excessive nesting") ]
+
 let tests =
   testList
     "LibParser"
-    [ unwrapTests
+    [ stackSafetyTests
+      unwrapTests
       parserStructureTests
       internalUnitTests
       offsideTests

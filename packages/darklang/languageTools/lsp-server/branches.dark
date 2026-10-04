@@ -383,7 +383,11 @@ let handleCommitRequest
   (requestID: JsonRPC.RequestID)
   (message: String)
   : LspState =
-  match SCM.PackageOps.commitDraft (SCM.Account.currentAuthor ()) (activeBranch ()) message with
+  let author =
+    match SCM.PackageOps.identity () with
+    | "" -> state.accountName
+    | id -> id
+  match SCM.PackageOps.commitDraft author (activeBranch ()) message with
   | Ok hash ->
     respondOk
       requestID
@@ -405,7 +409,7 @@ let handleDiscardRequest
     respondOk
       requestID
       (Json.Object
-        [ ("success", Json.Bool true), ("discardedCount", Json.Int(Stdlib.Int64.fromInt n)) ])
+        [ ("success", Json.Bool true), ("discardedCount", Json.Integer n) ])
     state
   | Error e ->
     respondError requestID e
@@ -449,7 +453,7 @@ let handleGetCommitOpsRequest
   respondOk
     requestID
     (Json.Object
-      [ ("names", Json.Array names), ("total", Json.Int(Stdlib.Int64.fromInt total)) ])
+      [ ("names", Json.Array names), ("total", Json.Integer total) ])
   state
 
 

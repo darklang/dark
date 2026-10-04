@@ -1,0 +1,160 @@
+/// The checker uses syntax-node IDs to keep inferred types and their requirements
+/// separate. If two nodes share an ID, their requirements can be mixed up and a
+/// type error can be missed. Detect these duplicates before checking the body.
+module Darklang.LanguageTools.AtRestTypeChecker.NodeIds
+
+type Node =
+  | Expression of LanguageTools.ProgramTypes.Expr
+  | LetPattern of LanguageTools.ProgramTypes.LetPattern
+  | MatchPattern of LanguageTools.ProgramTypes.MatchPattern
+  | Pipe of LanguageTools.ProgramTypes.PipeExpr
+
+/// Return the node's ID if it is used to identify an inferred type, plus the
+/// child nodes to visit next. Ignore IDs that do not serve this purpose, such as
+/// literal IDs. Solve separately checks the IDs used to identify named let bindings.
+let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
+  let exprs (xs: List<LanguageTools.ProgramTypes.Expr>) : List<Node> =
+    Stdlib.List.map xs (fun e -> Node.Expression e)
+  let lets (xs: List<LanguageTools.ProgramTypes.LetPattern>) : List<Node> =
+    Stdlib.List.map xs (fun p -> Node.LetPattern p)
+  let pats (xs: List<LanguageTools.ProgramTypes.MatchPattern>) : List<Node> =
+    Stdlib.List.map xs (fun p -> Node.MatchPattern p)
+  let none = Stdlib.Option.Option.None
+
+  // Keep cases that bind variables in separate match arms. Grouping those cases
+  // can make the compiler associate a bound name with the wrong value.
+  match node with
+  | Expression e ->
+    let id = Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Expr.toID e)
+    match e with
+    | EVariable(_, _)
+    | EFnName(_, _)
+    | EValue(_, _) -> (id, [])
+    | ELambda(_, parameters, body) ->
+      (id, Stdlib.List.append (lets parameters) [ Node.Expression body ])
+    | EApply(_, callee, _, args) -> (id, exprs (Stdlib.List.push args callee))
+    | EList(_, elements) -> (id, exprs elements)
+    | EDict(_, entries) ->
+      (id, exprs (Stdlib.List.flatten (Stdlib.List.map entries (fun (k, v) -> [ k, v ]))))
+    | ERecord(_, _, _, fields) ->
+      (id, exprs (Stdlib.List.map fields (fun (_, v) -> v)))
+    | EEnum(_, _, _, _, fields) -> (id, exprs fields)
+    | ERecordFieldAccess(_, record, _) -> (id, [ Node.Expression record ])
+    | EUnwrap(_, record) -> (id, [ Node.Expression record ])
+    | ERecordUpdate(_, record, fields) ->
+      (id, exprs (Stdlib.List.push (Stdlib.List.map fields (fun (_, v) -> v)) record))
+    | EMatch(_, arg, cases) ->
+      let cases =
+        Stdlib.List.flatten (Stdlib.List.map cases (fun c ->
+          let guard =
+            match c.whenCondition with
+            | Some e -> [ Node.Expression e ]
+            | None -> []
+          Stdlib.List.append [ Node.MatchPattern c.pat, Node.Expression c.rhs ] guard))
+      (id, Stdlib.List.push cases (Node.Expression arg))
+    | EIf(_, condition, thenExpr, elseExpr) ->
+      let tail =
+        match elseExpr with
+        | Some e -> [ e ]
+        | None -> []
+      (none, exprs (Stdlib.List.append [ condition, thenExpr ] tail))
+    | ELet(_, pattern, value, body) ->
+      (none, [ Node.LetPattern pattern, Node.Expression value, Node.Expression body ])
+    | ETuple(_, first, second, rest) ->
+      (none, exprs (Stdlib.List.append [ first, second ] rest))
+    | EInfix(_, _, first, next) -> (none, exprs [ first, next ])
+    | EStatement(_, first, next) -> (none, exprs [ first, next ])
+    | EPipe(_, lhs, parts) ->
+      (none, Stdlib.List.push (Stdlib.List.map parts (fun p -> Node.Pipe p)) (Node.Expression lhs))
+    | EString(_, segments) ->
+      (none, Stdlib.List.flatten (Stdlib.List.map segments (fun segment ->
+        match segment with
+        | StringText _ -> []
+        | StringInterpolation e -> [ Node.Expression e ])))
+    | EUnit _
+    | EBool(_, _)
+    | EInt8(_, _)
+    | EUInt8(_, _)
+    | EInt16(_, _)
+    | EUInt16(_, _)
+    | EInt32(_, _)
+    | EUInt32(_, _)
+    | EInt64(_, _)
+    | EUInt64(_, _)
+    | EInt128(_, _)
+    | EUInt128(_, _)
+    | EInt(_, _)
+    | EFloat(_, _, _, _)
+    | EChar(_, _)
+    | EArg(_, _)
+    | ESelf _ -> (none, [])
+  | LetPattern p ->
+    match p with
+    | LPTuple(id, first, second, rest) ->
+      (Some id, lets (Stdlib.List.append [ first, second ] rest))
+    | LPVariable(_, _)
+    | LPWildcard _
+    | LPUnit _ -> (none, [])
+  | MatchPattern p ->
+    match p with
+    | MPList(id, elements) -> (Some id, pats elements)
+    | MPEnum(id, _, elements) -> (Some id, pats elements)
+    | MPListCons(id, head, tail) -> (Some id, pats [ head, tail ])
+    | MPTuple(id, first, second, rest) ->
+      (Some id, pats (Stdlib.List.append [ first, second ] rest))
+    | MPOr(_, alternatives) -> (none, pats alternatives)
+    | MPVariable(_, _)
+    | MPUnit _
+    | MPBool(_, _)
+    | MPInt8(_, _)
+    | MPUInt8(_, _)
+    | MPInt16(_, _)
+    | MPUInt16(_, _)
+    | MPInt32(_, _)
+    | MPUInt32(_, _)
+    | MPInt64(_, _)
+    | MPUInt64(_, _)
+    | MPInt128(_, _)
+    | MPUInt128(_, _)
+    | MPInt(_, _)
+    | MPFloat(_, _, _, _)
+    | MPChar(_, _)
+    | MPString(_, _) -> (none, [])
+  | Pipe p ->
+    match p with
+    | EPipeLambda(id, parameters, body) ->
+      (Some id, Stdlib.List.append (lets parameters) [ Node.Expression body ])
+    | EPipeVariable(id, _, args) -> (Some id, exprs args)
+    | EPipeFnCall(id, _, _, args) -> (Some id, exprs args)
+    | EPipeEnum(id, _, _, args) -> (Some id, exprs args)
+    | EPipeInfix(_, _, rhs) -> (none, [ Node.Expression rhs ])
+
+/// Return the first inference ID encountered twice, or None if all are unique.
+/// Keep the nodes still to visit in a list, so a deeply nested syntax tree does
+/// not require equally deep nesting on the .NET call stack.
+let findDuplicate
+  (pending: List<Node>)
+  (seen: Dict<Int64, Bool>)
+  : Stdlib.Option.Option<Int64> =
+  match pending with
+  | [] -> Stdlib.Option.Option.None
+  | node :: rest ->
+    let (id, next) = children node
+    let pending = Stdlib.List.append next rest
+    match id with
+    | None -> findDuplicate pending seen
+    | Some id ->
+      if Stdlib.Dict.``member`` seen id then
+        Stdlib.Option.Option.Some id
+      else
+        findDuplicate pending (Stdlib.Dict.set seen id true)
+
+/// Convert a duplicate inference ID into a warning.
+/// Callers use this warning to skip checking the affected body, avoiding
+/// incorrect results caused by treating separate nodes as the same node.
+let problem (body: LanguageTools.ProgramTypes.Expr) : Stdlib.Option.Option<Model.Finding> =
+  match findDuplicate [ Node.Expression body ] Dict {} with
+  | None -> Stdlib.Option.Option.None
+  | Some id ->
+    Stdlib.Option.Option.Some(
+      Types.warning IssueCode.UnsupportedConstruct (Some id) Context.DuplicateInferenceId)

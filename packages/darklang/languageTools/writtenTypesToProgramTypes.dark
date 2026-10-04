@@ -52,7 +52,7 @@ let referenceBoundAt
   ops
   |> Stdlib.List.filterMap (fun op ->
     match op with
-    | SetName(loc, reference) ->
+    | SetName(loc, reference, _) ->
       if loc == location then Stdlib.Option.Option.Some reference
       else Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None)
