@@ -149,6 +149,54 @@ let findDuplicate
       else
         findDuplicate pending (Stdlib.Dict.set seen id true)
 
+/// The deepest a declaration's body may nest before the checker refuses to infer from it.
+///
+/// Inference walks the body and produces a requirement per node, so a body nested N deep
+/// costs N levels of walking and N requirements to solve afterwards. Nothing in the checker
+/// bounded that either; the native stack did, in the same accidental way it bounded `unify`.
+/// See `Solve.maxUnifyDepth` for the argument. The two limits are separate because they
+/// bound different things: that one is how deep a type comparison may go, this one is how
+/// deep a syntax tree may be before it is worth inferring from at all.
+///
+/// 1,000 for the same reason: far above anything written on purpose, far below the 5,000 the
+/// testfile uses to be absurd.
+val maxBodyDepth = 1000L
+
+/// Whether the tree nests deeper than <param limit>.
+///
+/// Measured one LEVEL at a time rather than by recursing into each node, so that measuring
+/// the depth cannot itself exhaust the stack that the limit exists to protect. Same reason
+/// `findDuplicate` carries its own work list. Stops as soon as the limit is passed, so an
+/// absurdly deep tree costs the limit rather than its own size.
+let deeperThan (limit: Int64) (depth: Int64) (level: List<Node>) : Bool =
+  if Stdlib.List.isEmpty level then
+    false
+  else if depth > limit then
+    true
+  else
+    let next =
+      Stdlib.List.flatten (
+        Stdlib.List.map level (fun node ->
+          let (_, children) = children node
+          children))
+
+    deeperThan limit (depth + 1L) next
+
+/// A body too deep to infer from, as a warning, so that callers can skip inference the way
+/// they already skip it for duplicate IDs. Reported as `DeclarationTooDeep`, which is what
+/// running out of native stack used to report, so the verdict a reader sees is unchanged.
+let tooDeep
+  (body: LanguageTools.ProgramTypes.Expr)
+  : Stdlib.Option.Option<Model.Finding> =
+  if deeperThan maxBodyDepth 0L [ Node.Expression body ] then
+    Stdlib.Option.Option.Some(
+      Types.warning
+        IssueCode.UnsupportedConstruct
+        (Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Expr.toID body))
+        Context.DeclarationTooDeep)
+  else
+    Stdlib.Option.Option.None
+
 /// Convert a duplicate inference ID into a warning.
 /// Callers use this warning to skip checking the affected body, avoiding
 /// incorrect results caused by treating separate nodes as the same node.
