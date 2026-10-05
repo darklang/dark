@@ -612,7 +612,8 @@ module Cli =
         // Without this, the first interesting thing anyone types dies with "permission denied by
         // instance policy" and advice (`permissions allow http GET ...`) that cannot be followed
         // in a tab, which reads as broken rather than as sandboxed.
-        LibDB.PolicyStore.seedInstanceIfMissing LibExecution.Permissions.Policy.allowAll
+        LibDB.PolicyStore.seedInstanceIfMissing
+          LibExecution.Permissions.Policy.allowAll
         LibExecution.HostSecurity.setPackageDbPath dbPath
 
         LibDB.Sqlite.Sql.warm ()

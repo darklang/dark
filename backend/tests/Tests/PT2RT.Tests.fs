@@ -1882,7 +1882,7 @@ module MarkerStripping =
             // Forward jumps only. `landAt = n` is a jump to one past the end, which is how a
             // block ends and is the case `rejump`'s extra `newIndex` slot exists for.
             for landAt in jumpAt + 1 .. n do
-              for markerAt in 0 .. n do
+              for markerAt in 0..n do
                 let instrs = build n jumpAt landAt markerAt
                 let struct (kept, _) = RT.DebugSymbols.split instrs
                 let jumpIdx =
@@ -1892,7 +1892,8 @@ module MarkerStripping =
                     | RT.JumpBy _ -> true
                     | _ -> false)
                 match jumpIdx with
-                | None -> yield (jumpAt, landAt, markerAt, "the jump was dropped", "")
+                | None ->
+                  yield (jumpAt, landAt, markerAt, "the jump was dropped", "")
                 | Some idx ->
                   let offset =
                     match kept[idx] with
@@ -1902,12 +1903,17 @@ module MarkerStripping =
                   // After stripping, every instruction is back at its original index, so the
                   // landmark aimed at is at `landAt` and a block-end jump lands at `n`.
                   let expected =
-                    if landAt >= n then "one past the end" else string (landmark landAt)
+                    if landAt >= n then
+                      "one past the end"
+                    else
+                      string (landmark landAt)
                   let actual =
-                    if landedAt = List.length kept then "one past the end"
+                    if landedAt = List.length kept then
+                      "one past the end"
                     elif landedAt < 0 || landedAt > List.length kept then
                       $"out of range ({landedAt})"
-                    else string kept[landedAt]
+                    else
+                      string kept[landedAt]
                   if expected <> actual then
                     yield (jumpAt, landAt, markerAt, expected, actual) ]
 
@@ -1927,7 +1933,8 @@ module MarkerStripping =
   /// covers both: every subset of marker positions, every jump position, every landing including
   /// backwards and one past the end.
   let jumpsSurviveSeveralMarkers =
-    testTask "jumps land where they did with any number of markers, in either direction" {
+    testTask
+      "jumps land where they did with any number of markers, in either direction" {
       let n = 5
       let failures =
         [ for mask in 0 .. (1 <<< n) - 1 do
@@ -1965,7 +1972,8 @@ module MarkerStripping =
                       | RT.JumpBy _ -> true
                       | _ -> false)
                   match jumpIdx with
-                  | None -> yield (mask, jumpAt, landing, wantInstr, "the jump was dropped")
+                  | None ->
+                    yield (mask, jumpAt, landing, wantInstr, "the jump was dropped")
                   | Some idx ->
                     let offset =
                       match kept[idx] with
@@ -1973,11 +1981,14 @@ module MarkerStripping =
                       | _ -> 0
                     let landedAt = idx + offset + 1
                     let gotInstr =
-                      if landedAt = List.length kept then "one past the end"
+                      if landedAt = List.length kept then
+                        "one past the end"
                       elif landedAt < 0 || landedAt > List.length kept then
                         $"out of range ({landedAt})"
-                      elif landedAt = idx then "the jump's own slot"
-                      else string kept[landedAt]
+                      elif landedAt = idx then
+                        "the jump's own slot"
+                      else
+                        string kept[landedAt]
                     if wantInstr <> gotInstr then
                       yield (mask, jumpAt, landing, wantInstr, gotInstr) ]
 

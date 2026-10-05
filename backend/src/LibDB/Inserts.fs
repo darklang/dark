@@ -289,7 +289,8 @@ let rec insertAndApplyOpsWith
       let! toRestateNames =
         Telemetry.timeTask "author.notBound" [] (fun () -> notCurrentlyBound ignored)
       let! toRestateDocs =
-        Telemetry.timeTask "author.notSaid" [] (fun () -> docsNotCurrentlySaid ignored)
+        Telemetry.timeTask "author.notSaid" [] (fun () ->
+          docsNotCurrentlySaid ignored)
       let! toRestateDeprecations =
         Telemetry.timeTask "author.notInEffect" [] (fun () ->
           deprecationsNotInEffect ignored)

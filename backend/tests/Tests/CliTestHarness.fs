@@ -83,8 +83,7 @@ let buildState () : Task<RT.ExecutionState> =
     // What a GUEST may do without the grant is still tested, in `PermissionEscape.Tests`.
     let testInstancePolicy =
       LibExecution.Permissions.Policy.allowEffects (
-        Set.add
-          LibExecution.Effects.Effect.Concurrency
+        Set.add LibExecution.Effects.Effect.Concurrency
         <| Set.add
           LibExecution.Effects.Effect.PackageWrite
           (LibExecution.Permissions.Policy.coverableEffects
