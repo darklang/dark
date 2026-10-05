@@ -40,16 +40,22 @@ builtin type already has implementations. Yours join with one `impl`.
       Stdlib.sum 0.0 (Stdlib.List.map xs (fun s -> Area.area s))
 
   The first type parameter is the type an implementation is for. A method can
-  cap what an implementation may do (`let fetch (u: 'a) :{Http} String` is Http and
-  nothing else); `docs permissions` has the effect names.
+  DECLARE a permission ceiling (`let fetch (u: 'a) :{Http} String`), which is stored and
+  is part of the trait's identity, but nothing enforces it against an implementation
+  yet: an implementation may declare and do more than its trait's method allows. An
+  implementation is still held to its OWN declared effects like any other fn, so this is
+  a missing check rather than a way around permissions. `docs permissions` has the
+  effect names.
 
 ## Bound a type parameter
   let describe<'a: ToString> (v: 'a) : String = "value: " + v.toString
   let biggest<'a: Compare + ToString> (xs: List<'a>) : String = ...
 
   `'a: ToString` means "any type with a ToString implementation". It is checked
-  when the fn is entered, against the caller's actual type, and statically by
-  the checker (`MissingImpl`, `UnboundTypeParameter`).
+  when the fn is entered, against the caller's actual type, and at SAVE by the
+  checker, which refuses a call whose type argument has no implementation
+  (`MissingImpl`). `UnboundTypeParameter`, a bound on a parameter the fn never
+  declared, is not reported yet and surfaces when the code runs.
 
 ## Where they live
   A trait is a package item like a type or a fn: `Stdlib.ToString`. An

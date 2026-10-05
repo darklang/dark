@@ -99,7 +99,6 @@ module HandleCommand =
 
       let! resolved =
         Builtins.Matter.Libs.PM.TraitCalls.resolveTraitCalls
-          (Some(System.IO.Path.Combine(LibConfig.Config.runDir, "trait-pins.cache")))
           exeState
           BranchId.Main
           PM.pt

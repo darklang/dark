@@ -531,8 +531,11 @@ module PackageFn =
 
 /// A trait: a set of fn signatures over one open type. Its own item kind.
 module Trait =
-  /// One method's signature; no body (the impls have those). The ceiling is the
-  /// most an impl of the method may do.
+  /// One method's signature; no body (the impls have those).
+  ///
+  /// The ceiling is DECLARED and stored and hashed with the trait, and nothing enforces it
+  /// against an implementation yet, so an impl may do more than the method allows. See the
+  /// F# mirror for the detail.
   type Method =
     { name: String
       typeParams: List<String>

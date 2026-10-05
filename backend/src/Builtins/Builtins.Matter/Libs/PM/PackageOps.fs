@@ -94,9 +94,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
             let! resolved =
-              // No cache on the authoring path: it checks the one item just written, not a
-              // tree, so there is nothing to reuse and a stale entry would be a risk for no gain.
-              TraitCalls.resolveTraitCalls None exeState exeState.branchId pm ptOps
+              TraitCalls.resolveTraitCalls exeState exeState.branchId pm ptOps
             return
               Dval.list (packageOpKT ()) (resolved |> List.map PT2DT.PackageOp.toDT)
           }
