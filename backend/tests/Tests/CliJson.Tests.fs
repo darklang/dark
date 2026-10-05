@@ -424,6 +424,34 @@ let aCommandWithoutJsonRefusesTheFlag =
       })
 
 
+/// An implementation is one result. Its method fn lives one level under it and the path it lives at
+/// reads as a module, so without collapsing them `search %` listed every `Modulo` implementation
+/// three times: as an impl, as a fn and as a module.
+let searchListsAnImplementationOnce =
+  instanceTest
+    "search lists an implementation once, not as its method fn and module too"
+    (fun state ->
+      task {
+        let! root = parsed state [ "search"; "%"; "--json" ]
+        let rows = root.GetProperty("results").EnumerateArray() |> Seq.toList
+        let named (kind : string) =
+          rows
+          |> List.filter (fun r -> r.GetProperty("kind").GetString() = kind)
+          |> List.map (fun r -> r.GetProperty("name").GetString())
+        let impls = named "impl"
+
+        Expect.isNonEmpty impls "search % finds the Modulo implementations"
+        let underAnImpl (name : string) =
+          impls |> List.exists (fun i -> name = i || name.StartsWith(i + "."))
+        Expect.isEmpty
+          (named "fn" |> List.filter underAnImpl)
+          "an implementation's method fn is not listed beside it"
+        Expect.isEmpty
+          (named "module" |> List.filter underAnImpl)
+          "an implementation's path is not listed as a module"
+      })
+
+
 /// Each of these runs the CLI as a CHILD, against a store of its own, so this list is not
 /// in `CliTraces`'s sequenced pile and does not need to be. Nothing here reaches into F#;
 /// every claim is about what a command printed.
@@ -435,6 +463,7 @@ let tests : List<Test> =
     constraintsKeepsItsShape
     depsAnswersBothDirections
     searchAnswersWithItsQuery
+    searchListsAnImplementationOnce
     commitDryRunAnswersInJson
     commitsIsAnArrayOfCommits
     branchesIsAnArrayOfBranches
