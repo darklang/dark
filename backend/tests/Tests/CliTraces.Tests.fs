@@ -909,6 +909,32 @@ let private testTracesTakeTheShortNameForm =
 /// a script that was not there, and a script that ended non-zero itself -- so nothing driving
 /// Dark could tell a failure from a success, and nothing here could see it, because the harness
 /// used to return output and throw the status away.
+/// `ps show` names a pid in its own usage line, and a one-shot `ps` prints pids rather than ids
+/// a person can use, so a pid from the machine table has to be something `show` takes.
+let private testPsShowTakesAPid =
+  cliTest "ps show takes a pid from the machine table" (fun state ->
+    task {
+      let dir =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-ps-show-{System.Guid.NewGuid()}"
+        )
+      System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+      LibExecution.HostRegistry.setDirectory dir
+      try
+        let command = "dark serve Demo.router --port 9095 --live"
+        LibExecution.HostRegistry.register "dark serve :9095" command "main"
+        let pid = string System.Environment.ProcessId
+        let! (out, status) = runCliWithStatus state [ "ps"; "show"; pid ]
+        Expect.equal status 0 $"a registered pid is shown: {out}"
+        Expect.stringContains out command "with its whole command line"
+        let! (_out, missing) = runCliWithStatus state [ "ps"; "show"; "999999" ]
+        Expect.equal missing 1 "a pid nothing has is still a refusal"
+      finally
+        LibExecution.HostRegistry.setDirectory ""
+        System.IO.Directory.Delete(dir, true)
+    })
+
 let private testExitCodes =
   cliTest "a command's exit code says whether it worked" (fun state ->
     task {
@@ -1469,6 +1495,7 @@ let tests =
          testTracesTakeTheShortNameForm
          testTracesJsonShapes
          testExitCodes
+         testPsShowTakesAPid
          testTracesLargeTraceListSurvives
          testTracesViewToleratesCorruptedRow
          testTracesRejectsNegativeLimit
