@@ -93,7 +93,12 @@ commands:
           name: Gzip artifacts
           command: |
             rm -rf clis/.darklang
-            gzip -f clis/darklang-*
+            # Only the binaries. The `.mode` beside each one is for the perf tooling and
+            # stays as it is; publish-github-release uploads only the `.gz` files.
+            # POSIX `case`, not `[[`: the musl job runs this on Alpine.
+            for f in clis/darklang-*; do
+              case "$f" in *.mode) ;; *) gzip -f "$f" ;; esac
+            done
       - persist_to_workspace:
           root: "."
           paths:
