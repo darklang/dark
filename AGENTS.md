@@ -74,6 +74,22 @@ failed and when, and `scripts/dev/status` reads it. Everything that used to grep
 `packages.log` for "Exception" now asks that file instead, which is why `run-cli` can
 tell you the tree has moved on rather than silently running a stale binary.
 
+**And `scripts/dev/build --optimize --test` exits 0 when it decided not to run the tests.**
+If nothing a build cares about has changed since the last successful one, it prints
+"nothing has changed since the last successful build" and skips every step including
+`backend_test`, so the zero means "did not run" rather than "ran and passed". Worse, it
+does not re-record anything, so `scripts/dev/status` goes on showing whatever the PREVIOUS
+run left there: a green exit code beside `failed: backend_test` at an older commit, which
+is the shape that nearly got reported as a passing suite. A doc-only commit is enough to
+put you in it.
+
+To actually run the suite against a published build without compiling, use
+`./scripts/run-backend-tests --published`, and read its own `EXPECTO!` line and exit code.
+That is the third shape of the same failure in one night: a filter that matched less than
+intended, a field that resolves at execution, and now a zero that means the step was
+skipped. Whenever a number is suspiciously good or suspiciously fast, ask whether the thing
+you think produced it actually ran.
+
     rundir/logs/build.log           # the last explicit build
     rundir/logs/packages.log        # .dark reload
     rundir/logs/watch.log           # a detached watcher
