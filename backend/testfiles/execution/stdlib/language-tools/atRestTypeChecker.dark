@@ -2157,11 +2157,13 @@ module Batches =
   // changes, those tests stop covering the guard without saying that is what happened, and a
   // guard whose only coverage is incidental is a guard somebody deletes as dead code.
   //
-  // This pair does not depend on that. Comparing a deeply nested value recurses in F#, not in
-  // the interpreter, so it trips the stack check however the interpreter lays out its frames.
+  // Comparing a deeply nested value recurses in F# rather than in the interpreter, so it does
+  // not depend on how the interpreter lays out frames. It DOES depend on the build: measured,
+  // Debug runs out of stack at about 5,000 and Release not until about 35,000, so the depth
+  // here is chosen for the stricter of the two with room to spare rather than for Debug.
   (Darklang.LanguageTools.AtRestTypeChecker.guard
-    (fun t -> t == (nestedListType 5000))
-    (nestedListType 5000)) =
+    (fun t -> t == (nestedListType 200000))
+    (nestedListType 200000)) =
     Stdlib.Result.Result.Error
       Darklang.LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep
 
