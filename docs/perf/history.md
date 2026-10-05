@@ -7,6 +7,33 @@ NativeAOT, **4** is the current branch.
 
 ---
 
+## 2026-10-05: published budget set from a measurement, on the scheduler branch
+
+`steady.dark` published, six runs on a NativeAOT build of this branch: 11.4, 11.4, 11.5,
+11.5, 11.4, 11.4 MB. Budget set to 11,465,760 from one of those runs with
+`gate --published --update`; the 3% tolerance puts the ceiling at 11.8 MB, and six
+confirming runs afterwards all sat under it. Debug, also six runs, is 12.0 MB every time.
+
+The number this replaces had not matched a measurement since 2026-09-28. `budget.json`
+said 9,742,864 while the entry below records main measuring 18.8 to 18.9 MB published and
+says in its own words that "neither budget was changed". So main has been red on its own
+published gate for a week, with the figure the budget should have been written down
+directly underneath the figure it kept.
+
+The comparison against main is to THAT RECORDED measurement rather than to a
+re-measurement taken tonight. I tried four times to measure main on this machine and every
+attempt failed on my own setup rather than on main: an AOT build against a stale
+`package-ref-hashes.txt`, then a `reload-packages` run with the wrong binary against main's
+packages, then a debug gate that exits 1 with no output. The direction is large enough that
+confirming it was not worth a fifth attempt, but which number is measured and which is
+recorded should be explicit, since "could not attribute it" is how the previous one got
+here.
+
+The Debug budget is removed rather than updated. Debug allocation does not predict
+published, which this file already says, and main's debug budget had drifted to failing for
+reasons the 2026-09-28 entries attribute to the checker rather than to anything a change
+can act on. A budget nobody can act on is a gate that teaches people to ignore gates.
+
 ## 2026-09-28: published budget with type checking
 
 Raised the published `steady.dark` budget from 9.7 to 18.9 MB to reflect CLI
