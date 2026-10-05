@@ -151,7 +151,13 @@ module TheLogIsCut =
     (textOf 41 Darklang.Cli.Tracing.defaultViewOptions)
     "--all") = true
 
-  // `--all` prints every one.
+  // `--all` prints every one. Counting LINES at 41 proves nothing on its own: the capped
+  // form prints forty plus a "... 1 more" line, so it is 41 lines either way. What tells
+  // them apart at this size is that the uncapped one has no "more" line at all.
+  (Stdlib.String.contains
+    (textOf 41 { Darklang.Cli.Tracing.defaultViewOptions with all = true })
+    "more") = false
+
   (logOf 41 { Darklang.Cli.Tracing.defaultViewOptions with all = true }) = 41
 
   (logOf 100 { Darklang.Cli.Tracing.defaultViewOptions with all = true }) = 100

@@ -298,6 +298,10 @@ let showFromTrace
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  // Kept before the flags are stripped below, for the `view` and `details` aliases: they
+  // re-enter with the verb swapped, and re-entering with the STRIPPED list loses `--json`
+  // and `--iteration`, so `traces view <fn> --json` printed the page.
+  let rawArgs = args
   // Hoist boolean flags out to single bools so each subcommand's arms
   // don't have to enumerate their position. `--yes`/`-y` for destructive
   // confirmations; `--json` for output format; `--log` is find-only.
@@ -482,10 +486,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       { state with exitCode = 1 }
 
   // `view` is `show` by another name, and people reach for both. An alias costs one arm.
-  | "view" :: rest -> execute state (Stdlib.List.push rest "show")
+  | "view" :: _ ->
+    execute state (Stdlib.List.push (Stdlib.List.drop rawArgs 1) "show")
 
   // An alias rather than a refusal: people reach for both words, and there is nothing to teach.
-  | "details" :: rest -> execute state (Stdlib.List.push rest "inspect")
+  | "details" :: _ ->
+    execute state (Stdlib.List.push (Stdlib.List.drop rawArgs 1) "inspect")
 
   // Refused BY NAME rather than falling through to "unknown subcommand", because whoever types
   // it read it somewhere we wrote.
@@ -747,7 +753,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "find" ] ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        "Usage: traces find <pattern> [limit] [--log] [--json]")
+        "Usage: traces find <pattern> [limit] [--inspect] [--json]")
     state
 
   // Catch any other malformed follow invocation — anything not matched
@@ -779,7 +785,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | "find" :: _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        "Usage: traces find <pattern> [limit] [--log] [--json]")
+        "Usage: traces find <pattern> [limit] [--inspect] [--json]")
     state
   | "hotspots" :: _ ->
     Stdlib.printLine
@@ -1802,7 +1808,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [ "follow" ] ->
     [ Completion.simple "--route", Completion.simple "--json" ]
   | [ "find" ] ->
-    [ Completion.simple "--log", Completion.simple "--json" ]
+    [ Completion.simple "--inspect", Completion.simple "--json" ]
   | [ "delete" ] ->
     [ Completion.simple "--all"
       Completion.simple "--keep"
@@ -1832,7 +1838,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [ "tail", "--route" ]
   | [ "follow", "--route" ] -> []
   | "find" :: _ :: _ ->
-    [ Completion.simple "--show", Completion.simple "--json" ]
+    [ Completion.simple "--inspect", Completion.simple "--json" ]
   | "tail" :: _ :: _ -> [ Completion.simple "--route" ]
   | "list" :: _ :: _ ->
     [ Completion.simple "--json" ]

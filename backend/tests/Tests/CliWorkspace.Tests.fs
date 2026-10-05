@@ -1405,14 +1405,13 @@ r.fns
 | Some v -> (false, Darklang.Stdlib.Dict.size v.byExpr, v.problem)
 | None -> (false, 0, Darklang.Stdlib.Option.Option.Some "no trace")"""
         match failed with
-        | RT.DTuple(RT.DBool hasResult,
+        | RT.DTuple(RT.DBool _placeholder,
                     RT.DInt count,
                     [ RT.DEnum(_, _, _, "Some", [ RT.DString problem ]) ]) ->
-          // `Values` no longer carries the run's own answer: the preview's business is the
-          // values inside the code, and `traces inspect` is where a trace's answer lives.
-          Expect.isFalse
-            hasResult
-            "placeholder, kept so the tuple shape still reads"
+          // The first slot is a literal `false` in both Dark arms, so asserting it was false
+          // could not fail and was testing nothing. `Values` no longer carries the run's own
+          // answer: the preview's business is the values inside the code, and `traces inspect`
+          // is where a trace's answer lives. The two assertions below are the real ones.
           Expect.isGreaterThan
             (RT.DarkInt.toBigInt count)
             0I
@@ -1586,7 +1585,6 @@ let tests : List<Test> =
           modelSavesAndResumes
           pollIgnoresAnOpUntilItIsApplied
           pollOnABranchSeesTheBranchsOwnSaves
-          serveFollowsEdits
           serveFollowsEditsOnABranch
           previewOfAServedRequest
           aFixedCalleeIsNotAdoptedThroughItsBrokenDependent

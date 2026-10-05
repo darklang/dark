@@ -276,14 +276,15 @@ When a run stopped partway, `traces resume <id>` carries on from where it got
 to rather than starting over, and `traces fork <id> --at <n>` runs a different
 tail from the same recorded beginning: three variations cost one real run.
 
-Every one of these takes `--json`, and so does `ps`. Use it: the tables are
-laid out for a person and their columns will change.
+`traces calls` and `traces inspect` take `--json`, and so does `ps`. Use it:
+the tables are laid out for a person and their columns will change. `resume`
+and `fork` report in prose; they do work rather than answer a question.
 
 Exit codes are the other thing you can branch on without reading English.
 `eval` and `run` exit 0 when the code ran and gave an answer, and non-zero
 when it raised, when the script was not there, or when the script itself
 ended non-zero. A permission refusal is non-zero too. The reason is still
-English on stderr; the code is the part to test.
+English on STDOUT, not stderr; the code is the part to test.
 
 ## Name Resolution
 Names resolve relative to the current module, searching from

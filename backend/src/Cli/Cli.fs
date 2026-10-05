@@ -383,8 +383,10 @@ let private installAuditLog () : unit =
 let private processTitle (args : string list) : string =
   let rec drop (args : string list) =
     match args with
-    | "--branch" :: _ :: rest
-    | "--trace" :: _ :: rest -> drop rest
+    // `--branch` takes a value; `--trace` does NOT, so matching it here swallowed the
+    // following argument and `dark --trace run app.dark` was titled `dark app.dark`.
+    // The generic flag arm below drops it.
+    | "--branch" :: _ :: rest -> drop rest
     | flag :: rest when flag.StartsWith "--" -> drop rest
     | _ -> args
   let portOf (rest : string list) =

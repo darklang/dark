@@ -893,6 +893,11 @@ let private testTracesTakeTheShortNameForm =
         // A name that really is not there is still a refusal, not an empty answer.
         let! nope = runCli state [ "traces"; "show"; "Stdlib.List.lenth" ]
         Expect.stringContains nope "no function named" "a typo is still refused"
+
+        // `record on` above writes a STORED setting, which outlives this test and would
+        // decide whether the next one records. Put it back.
+        let! _ = runCli state [ "traces"; "record"; "off" ]
+        return ()
       })
 
 
