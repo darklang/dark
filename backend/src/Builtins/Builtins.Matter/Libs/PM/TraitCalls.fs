@@ -221,20 +221,70 @@ let rec private namesATraitMethod (expr : PT.Expr) : bool =
 /// Whether this batch could have anything to resolve at all.
 ///
 /// An ordinary save of a fn with no trait call and no operator pays only these AST walks.
-let private worthChecking (ops : List<PT.PackageOp>) : bool =
-  ops
-  |> List.exists (fun op ->
-    match op with
-    | PT.PackageOp.AddFn fn ->
-      hasInfix fn.body
-      || (Dependencies.extractFromFn fn
-          |> List.exists (fun d -> d.itemKind = PT.ItemKind.Trait))
-    // A value's body is an expression too, and `let scale = 3L * 4L` is an operator call the
-    // checker types the same way. It is evaluated once at load rather than per call, so this
-    // is not about speed; it is about the value meaning the same thing after someone else's
-    // implementation arrives.
-    | PT.PackageOp.AddValue value -> hasInfix value.body
-    | _ -> false)
+/// The package functions an expression calls by name.
+let rec private calledPackageFns (expr : PT.Expr) : List<PT.Hash> =
+  let here =
+    match expr with
+    | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.Package h } }, _) -> [ h ]
+    | _ -> []
+  here @ (PTAst.subExprs expr |> List.collect calledPackageFns)
+
+
+/// Could anything in this batch have a choice to record?
+///
+/// Three clauses, and the third is the one an authoring batch needs. A save of
+/// `let f () = Stdlib.max 1L 2L` contains no operator and names no trait: its only dependency
+/// is on `Stdlib.max`, an ordinary package fn. But `max` is BOUNDED, so this call is the only
+/// place that can record which implementation its type argument implied, and skipping the
+/// batch means a bounded call authored through the CLI records nothing.
+///
+/// The cheap clauses run first and `List.exists` short-circuits, so a whole-tree reload
+/// answers on the first operator it meets and never reaches the store lookups below.
+let private worthChecking
+  (pm : PT.PackageManager)
+  (ops : List<PT.PackageOp>)
+  : Ply<bool> =
+  uply {
+    let cheaply =
+      ops
+      |> List.exists (fun op ->
+        match op with
+        | PT.PackageOp.AddFn fn ->
+          hasInfix fn.body
+          || namesATraitMethod fn.body
+          || (Dependencies.extractFromFn fn
+              |> List.exists (fun d -> d.itemKind = PT.ItemKind.Trait))
+        // A value's body is an expression too, and `let scale = 3L * 4L` is an operator call
+        // the checker types the same way. It is evaluated once at load rather than per call,
+        // so this is not about speed; it is about the value meaning the same thing after
+        // someone else's implementation arrives.
+        | PT.PackageOp.AddValue value -> hasInfix value.body
+        | _ -> false)
+
+    if cheaply then
+      return true
+    else
+      let called =
+        ops
+        |> List.collect (fun op ->
+          match op with
+          | PT.PackageOp.AddFn fn -> calledPackageFns fn.body
+          | PT.PackageOp.AddValue value -> calledPackageFns value.body
+          | _ -> [])
+        |> List.distinct
+
+      // Whether any of them is bounded. Sequential and short-circuiting by hand, because a
+      // batch that reaches here is an authoring batch of one or two items with a handful of
+      // calls, and the lookups are what the store caches anyway.
+      let mutable bounded = false
+      for h in called do
+        if not bounded then
+          match! pm.getFn h with
+          | Some fn -> bounded <- not (List.isEmpty fn.bounds)
+          | None -> ()
+
+      return bounded
+  }
 
 
 /// Write onto each trait-method call in <param ops> the implementation it resolves to.
@@ -248,7 +298,8 @@ let resolveTraitCalls
   (ops : List<PT.PackageOp>)
   : Ply<List<PT.PackageOp>> =
   uply {
-    if not (worthChecking ops) then
+    let! worth = worthChecking pm ops
+    if not worth then
       return ops
     else
       // A deprecated implementation is not a candidate at run time, so it must not be one
