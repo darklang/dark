@@ -1264,7 +1264,7 @@ let private hintsLandOnTheRightIdenticalLine =
 let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
 let q = Darklang.LanguageTools.ProgramTypes.Search.SearchQuery { currentModule = ["Tests", "Dup"]; text = ""; searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants; entityTypes = []; exactMatch = false }
 let r = Darklang.LanguageTools.PackageManager.Search.search bid q
-let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; exprs = [] }
+let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; traits = []; impls = []; exprs = [] }
 let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
 r.fns
 |> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
@@ -1351,7 +1351,7 @@ let private liveValuesReplayTheLastCall =
 let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
 let q = Darklang.LanguageTools.ProgramTypes.Search.SearchQuery { currentModule = ["Tests", "LiveVals"]; text = ""; searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants; entityTypes = []; exactMatch = false }
 let r = Darklang.LanguageTools.PackageManager.Search.search bid q
-let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; exprs = [] }
+let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; traits = []; impls = []; exprs = [] }
 let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
 r.fns
 |> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
