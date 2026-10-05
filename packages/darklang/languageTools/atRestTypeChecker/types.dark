@@ -329,6 +329,25 @@ let resolvedType
     | Package hash -> Stdlib.Option.Option.Some hash
   | Error _ -> Stdlib.Option.Option.None
 
+/// Is every part of <param ty> decided, so an implementation can be chosen against it?
+///
+/// The head being known is not enough: `Option<?>` has a known head and cannot tell
+/// `impl for Option<Int64>` from `impl for Option<String>`. A choice made against an
+/// undecided argument is a choice made by timestamp.
+let fullyResolved (subst: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Bool =
+  Stdlib.List.isEmpty (Stdlib.Dict.keys (freeVars subst ty))
+
+/// The hash a trait name resolved to, if it resolved. Same shape as `resolvedType`, and the
+/// unresolved case is not this function's to report: the resolver already failed it.
+let resolvedTrait
+  (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTraitName.FQTraitName>)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
+  match name.resolved with
+  | Ok resolved ->
+    match resolved.name with
+    | Package hash -> Stdlib.Option.Option.Some hash
+  | Error _ -> Stdlib.Option.Option.None
+
 /// Convert a declared type reference, adding conversion problems to found.
 /// Look up type parameters in mapping: a generic definition uses TRigid types,
 /// while a use of that definition supplies its type arguments. Unresolved names
@@ -923,7 +942,12 @@ let implApplies (self: Model.Ty) (subject: Model.Ty) : Bool =
   | (TError, _) -> true
   | (TRigid _, _) -> true
   // The subject's own type is not decided yet, so it cannot disagree.
-  | (_, TVar _) -> true
+  // NOT a match when the subject is still undecided. `Traits.argsAgree` is permissive about
+  // an unknown because at RUN TIME it has a value in hand and an untracked value type must
+  // not block dispatch. At CHECK time an undecided type means "not yet", and answering `true`
+  // here made `Option<Int64>` match an `impl for Option<String>`, so the save pinned by
+  // timestamp and a green save raised on its first call. Callers WAIT instead; see
+  // `fullyResolved`.
   | (_, TError) -> true
 
   | (TList a, TList b) -> implApplies a b

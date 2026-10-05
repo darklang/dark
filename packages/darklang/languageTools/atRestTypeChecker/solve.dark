@@ -476,6 +476,8 @@ let mapConstraintTypes
     Model.Constraint.Operand(at, operation, mapType operand, subject)
   | TraitCall(at, trait_, method_, self) ->
     Model.Constraint.TraitCall(at, trait_, method_, mapType self)
+  | CallerBound(at, param, trait_, supplied) ->
+    Model.Constraint.CallerBound(at, param, trait_, mapType supplied)
   | Negate(at, operand) -> Model.Constraint.Negate(at, mapType operand)
   | BitwiseNot(at, operand) -> Model.Constraint.BitwiseNot(at, mapType operand)
   | DictKey(at, key) -> Model.Constraint.DictKey(at, mapType key)
@@ -515,6 +517,7 @@ let constraintVars (s: State) (c: Model.Constraint) : Dict<Model.Var, Bool> =
     Stdlib.List.fold fields (into Dict {} scrutinee) (fun found t -> into found t)
   | Operand(_, _, operand, _) -> into Dict {} operand
   | TraitCall(_, _, _, self) -> into Dict {} self
+  | CallerBound(_, _, _, supplied) -> into Dict {} supplied
   | Negate(_, operand) -> into Dict {} operand
   | BitwiseNot(_, operand) -> into Dict {} operand
   | DictKey(_, key) -> into Dict {} key
@@ -970,6 +973,8 @@ let trySolveDeferred (s: State) (c: Model.Constraint) : Stdlib.Option.Option<Sta
     enumPattern s at scrutinee caseName fields
   | Operand(at, operation, operand, _) -> operandFor s at operation operand
   | TraitCall(at, trait_, method_, self) -> traitCallFor s at trait_ method_ self
+  | CallerBound(at, param, trait_, supplied) ->
+    callerBoundFor s at param trait_ supplied
   | Negate(at, operand) -> negate s at operand
   | BitwiseNot(at, operand) -> bitwiseNot s at operand
   | Unwrap(at, fn, arg, result) -> unwrap s at fn arg result
@@ -1217,6 +1222,22 @@ let useFunction
       // The trait's own parameters come first in the template and the self type is the first
       // of those (`resolveCallable`), so the unknown it took at THIS use is what `mapping`
       // holds for that name. No second lookup of the trait is needed.
+      // What this call gave each of the callee's bounds. The callee's body defers to its own
+      // type parameter and cannot know; this is the half that says what the parameter meant
+      // here, and without it a call into a bounded generic records nothing at save.
+      let s =
+        t.bounds
+        |> Stdlib.List.fold s (fun s bound ->
+          match Types.resolvedTrait bound.trait_.trait_ with
+          | Some traitHash ->
+            match Stdlib.Dict.get mapping bound.param with
+            | Some supplied ->
+              solve
+                s
+                (Model.Constraint.CallerBound(at, bound.param, traitHash, supplied))
+            | None -> s
+          | None -> s)
+
       let s =
         match fn with
         | TraitMethod method ->
@@ -2082,6 +2103,12 @@ let traitCallFor
   let nodeId = Stdlib.Option.Option.Some at
   let (subject, s) = expand s nodeId self
 
+  // Not just the head: an undecided type ARGUMENT cannot choose between two implementations
+  // that differ only there, so wait for the whole thing.
+  if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
+    Stdlib.Option.Option.None
+  else
+
   match subject with
   // The arguments have not decided the self type yet.
   | TVar _ -> Stdlib.Option.Option.None
@@ -2102,6 +2129,76 @@ let traitCallFor
         subject
         (Environment.implsOfTrait s.env traitHash)
     )
+
+/// What this call gave one of the callee's bounds, once the supplied type is known.
+///
+/// The other half of a bounded generic. The callee's body records that it defers to its own
+/// type parameter (`Resolution.Deferred`); this records what the parameter MEANT at this call,
+/// so the body can find a function without reading an implementation at run time.
+let callerBoundFor
+  (s: State)
+  (at: Int64)
+  (param: String)
+  (traitHash: LanguageTools.ProgramTypes.Hash)
+  (supplied: Model.Ty)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId supplied
+
+  // Not just the head: an undecided type ARGUMENT cannot choose between two implementations
+  // that differ only there, so wait for the whole thing.
+  if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
+    Stdlib.Option.Option.None
+  else
+
+  match subject with
+  // The arguments have not decided the type argument yet.
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some s
+  // The type argument is one of THIS item's own parameters, so the obligation is passed along
+  // rather than discharged. That is what threads a bound through a generic calling a generic.
+  | TRigid fromParam ->
+    Stdlib.Option.Option.Some(
+      addResolution
+        s
+        (Model.Resolution.CallerBoundDeferred(at, param, traitHash, fromParam))
+    )
+  | _ ->
+    let candidates = Environment.implsOfTrait s.env traitHash
+
+    let applies =
+      candidates
+      |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+
+    if Stdlib.List.isEmpty candidates then
+      // No implementations anywhere: a store they have not reached, not a bound that cannot
+      // be met. Same reasoning as `recordImplChoice`.
+      Stdlib.Option.Option.Some s
+    else if Stdlib.List.isEmpty applies then
+      // The type argument does not meet the callee's bound, which is a definite error and the
+      // reason a call into a bounded function can now be refused at save rather than at run
+      // time.
+      Stdlib.Option.Option.Some(
+        addFinding
+          s
+          (Types.definiteError
+            IssueCode.MissingImpl
+            nodeId
+            (none ())
+            (some subject)
+            (Context.TraitNeeded(traitHash, Stdlib.Option.Option.None)))
+      )
+    else
+      Stdlib.Option.Option.Some(
+        addResolution
+          s
+          (Model.Resolution.CallerBound(
+            at,
+            param,
+            traitHash,
+            applies |> Stdlib.List.map (fun (_, source) -> source)
+          ))
+      )
 
 /// Check a numeric operator's operand after resolving aliases. Wait for an
 /// inference variable; report a definite error for a known unsupported type.

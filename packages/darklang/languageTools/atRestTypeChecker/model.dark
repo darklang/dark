@@ -160,6 +160,17 @@ type Constraint =
     operation: LanguageTools.ProgramTypes.InfixFnName *
     operand: Ty *
     subject: AmbiguousSubject
+  /// What a CALL owes for one of the callee's bounds: the callee's parameter <param param>
+  /// owes <param trait_>, and <param supplied> is the type this call gave it.
+  ///
+  /// Deferred like the others, because the supplied type is often an unknown the arguments
+  /// have not filled in. Resolving it is what makes a call into a bounded generic static: the
+  /// callee's body defers to its parameter and this says what the parameter meant here.
+  | CallerBound of
+    at: Int64 *
+    param: String *
+    trait_: LanguageTools.ProgramTypes.Hash *
+    supplied: Ty
   /// A named trait method call (`Show.show p`), as opposed to an operator.
   ///
   /// Deferred for the same reason `Operand` is: which implementation applies depends on the
@@ -283,7 +294,12 @@ type Template =
     dictKeyTypes: List<Ty>
     /// Problems found while converting or validating the signature. Report them
     /// at each call that relies on this signature.
-    problems: List<Finding> }
+    problems: List<Finding>
+    /// What this function's type parameters owe. A CALL has to record which implementation
+    /// each one turned out to mean, because the callee's body defers to the parameter and
+    /// cannot know. Discarded before this existed, which is why a bounded call recorded
+    /// nothing at save.
+    bounds: List<LanguageTools.ProgramTypes.Bound> }
 
 /// A function's parameter and return types before conversion to the checker's Ty
 /// representation. Package and builtin functions both supply signatures in this form.
@@ -293,7 +309,9 @@ type Signature =
     returnType: LanguageTools.ProgramTypes.TypeReference
     /// True when the caller must supply explicit type arguments to determine the
     /// result type, as required for Builtin.jsonParse.
-    needsTypeArgs: Bool }
+    needsTypeArgs: Bool
+    /// What the function's type parameters owe, carried through to the template.
+    bounds: List<LanguageTools.ProgramTypes.Bound> }
 
 /// A type declaration's validation problems and the types it directly references.
 /// Cache this information so other declarations in the batch can reuse it.

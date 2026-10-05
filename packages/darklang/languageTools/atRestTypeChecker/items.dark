@@ -356,7 +356,8 @@ let addFunctionSignature
       { typeParams = fn.typeParams
         parameters = Stdlib.List.map fn.parameters (fun p -> p.typ)
         returnType = fn.returnType
-        needsTypeArgs = false }
+        needsTypeArgs = false
+        bounds = fn.bounds }
 
   { env with
       functions =

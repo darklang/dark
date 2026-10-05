@@ -128,7 +128,8 @@ let signatureTemplate
         returnType = ret
         needsTypeArgs = signature.needsTypeArgs
         dictKeyTypes = Declarations.dictKeyTypes env (Model.Ty.TFn(parameters, ret))
-        problems = Stdlib.List.reverse found }
+        problems = Stdlib.List.reverse found
+        bounds = signature.bounds }
    ),
    env)
 
@@ -173,7 +174,9 @@ let builtinCallable
         { typeParams = Stdlib.List.append fn.typeParams undeclared
           parameters = Stdlib.List.map parameterTypes (fun t -> fromRuntimeType t)
           returnType = fromRuntimeType fn.returnType
-          needsTypeArgs = Stdlib.Bool.not (Stdlib.List.isEmpty resultOnly) })
+          needsTypeArgs = Stdlib.Bool.not (Stdlib.List.isEmpty resultOnly)
+          // A builtin has no bounds: it is not written in Dark and names no trait.
+          bounds = [] })
   else
     (Model.Callable.Untrusted UntrustedBuiltin.ResultTypeUnconstrained, env)
 
@@ -218,7 +221,11 @@ let resolveCallable
               returnType = declared.returnType
               // The self type comes from the argument, not from a type argument the
               // caller has to write.
-              needsTypeArgs = false })
+              needsTypeArgs = false
+              // The trait's own bound on the self type is not a caller's obligation: which
+              // implementation this call means is settled by `TraitCall` from the self type
+              // directly. A method's OWN bounds would belong here and none are written yet.
+              bounds = [] })
 
 /// Fetch one builtin value's declared type and convert it to a package-style type
 /// reference. Return None for missing builtins or package values, whose types
