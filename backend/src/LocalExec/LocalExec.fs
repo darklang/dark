@@ -100,7 +100,8 @@ module HandleCommand =
               LibExecution.Permissions.Access.start
                 LibExecution.Permissions.Policy.allowAll }
 
-      let! resolved =
+      let checkTimer = System.Diagnostics.Stopwatch.StartNew()
+      let! pinned =
         Builtins.Matter.Libs.PM.TraitCalls.resolveTraitCalls
           exeState
           BranchId.Main
@@ -109,12 +110,21 @@ module HandleCommand =
           ops
       // The pins are written at the hashes in hand, then moved by the rehash, exactly as the
       // authoring path does it.
-      let resolved = LibDB.HashStabilization.computeRealHashes resolved
+      let resolved = LibDB.HashStabilization.computeRealHashes pinned
       // Ops, not items: recording the implementation changes the item's content hash, and every
       // caller's hash moves with it, so the count is larger than the number of calls pinned.
-      let moved =
-        List.zip ops resolved |> List.filter (fun (a, b) -> a <> b) |> List.length
-      print $"Resolved trait calls: {moved} op(s) moved"
+      let changed (after : List<PackageOp>) =
+        List.zip ops after |> List.filter (fun (a, b) -> a <> b) |> List.length
+      let bodies =
+        ops
+        |> List.filter (fun op ->
+          match op with
+          | PackageOp.AddFn _
+          | PackageOp.AddValue _ -> true
+          | _ -> false)
+        |> List.length
+      print
+        $"Resolved trait calls: {changed resolved} op(s) moved; {changed pinned} of {bodies} bodies pinned in {checkTimer.Elapsed.TotalSeconds:F1}s"
       if resolved <> ops then
         do! fill true resolved
       else
