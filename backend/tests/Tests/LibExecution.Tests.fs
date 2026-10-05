@@ -218,7 +218,23 @@ let t
           | Ok actual, Ok expected ->
             return
               Expect.RT.equalDval actual expected (msg (Some expected) (Some actual))
-          | _ -> return Expect.equal actual expected (msg None None)
+          | _ ->
+            // SAY WHAT THE ERROR WAS. `msg None None` renders both sides as "(no Dval --
+            // error we couldn't handle)" and drops the RuntimeError entirely, so a test whose
+            // expression RAISED reported an empty Expecto message and a dump of its own
+            // source. 61 errored tests in one run were all unreadable for this reason, and
+            // the error each one needed was sitting in `actual` the whole time.
+            let side (label : string) (r : RT.ExecutionResult) : string =
+              match r with
+              | Ok dv -> $"{label} evaluated to: {dv}"
+              | Error(rte, _) -> $"{label} RAISED: {rte}"
+            let lhsDetail = side "left-hand side" actual
+            let rhsDetail = side "right-hand side" expected
+            return
+              Expect.equal
+                actual
+                expected
+                $"{msg None None}\n\n{lhsDetail}\n{rhsDetail}"
 
       | LibParser.TestModule.PTExpected.PTExpectedError expectedError ->
         match actual with

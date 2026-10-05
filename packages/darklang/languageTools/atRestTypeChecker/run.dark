@@ -258,7 +258,15 @@ let checkQuery
   (branchId: Uuid)
   (query: LanguageTools.ProgramTypes.Search.SearchQuery)
   : Report =
-  let (_, types, values, fns) =
+  // SIX lists, not four. The search returns submodules, types, values, fns, TRAITS and IMPLS;
+  // this destructured four and so matched nothing, which raised and took `dark typecheck` with
+  // it: the whole command, not one declaration. The guard turned that into an empty report, so
+  // `typecheck <module>` answered "nothing to audit" about a module full of declarations.
+  //
+  // Traits and impls are deliberately not audited here yet: `loadCandidate` below can only turn
+  // a type, a value or a fn back into an op, so naming one would raise the same way one level
+  // down. Auditing them is worth doing and is not this change.
+  let (_, types, values, fns, _traits, _impls) =
     LanguageTools.PackageManager.Search.searchNamesAndHashes branchId query
   let references =
     Stdlib.List.flatten

@@ -94,6 +94,19 @@ you think produced it actually ran.
     rundir/logs/packages.log        # .dark reload
     rundir/logs/watch.log           # a detached watcher
 
+**`scripts/dev/status` is the only thing that knows whether a build is running.** Waiting on a
+host-side process pattern does not work: the build execs into the container, so `pgrep -f dev/build`
+finds nothing while `status` still says `running`, and a waiter keyed on the pattern falls straight
+through and reads the PREVIOUS build's result. That previous result is a timestamp, so it looks
+current. Three builds in a row were misread this way in one session, twice as "my fix did not
+apply" when the source on disk was already correct. Wait on `status`, not on `ps`.
+
+The same session also met the build REFUSING, correctly, which is the opposite and reads the same
+if you only check the exit code: "Tests are running in this clone (pid N). Building now would
+overwrite the binaries they're executing." A test run I had started myself was still holding them.
+It is `rundir/test.lock` with a liveness check, so it clears itself; the point is that a refusal and
+a failure are different things and only the message says which.
+
 **Read the FIRST compiler error, not the last.** F# reports an unclosed construct as a
 cascade: one real error, then an `FS0058` "offside of context started at position (N,c)"
 for every following definition. `tail` on the log shows you the end of that cascade,
@@ -876,6 +889,16 @@ minutes is `scripts/build/build-release-cli-exes.sh && scripts/testing/gates all
 **`branch create` while standing on a branch creates a CHILD of that branch.** Switch to main
 first if you meant a sibling.
 
+**A TUPLE pattern that loses an element is the same defect as a DU case that loses a field, and
+nothing catches it either.** `searchNamesAndHashes` returns six lists on a branch that added traits
+and impls; the at-rest checker destructured four of them. That raises, the per-batch guard converts
+the raise into an empty report, and `dark typecheck <module>` then answers "nothing to audit" about
+a module full of declarations. The tell is the same as every other instance: a confident zero. An
+earlier probe of `checkModule` in that session returned `items=0` and was written off as "finds
+nothing" rather than "crashed and the guard ate it". So when a search or any wide tuple grows, sweep
+the destructures, and treat a zero from a guarded path as unexplained until you have seen the guard
+not fire.
+
 **A wildcard doesn't match a multi-field DU case.** `| ExportPath _ ->` silently fails to match
 `ExportPath of String * TextField.State`; you need `| ExportPath(_ext, _field) ->`. It's a
 runtime error ("No matching case found") at the moment that case comes up, not a load
@@ -1122,6 +1145,19 @@ Three things make the next one findable, all in place:
     .circleci/config.yml             `when: always` on store_artifacts, so a failing step
                                      still uploads rundir, and `timeout 20m` on the test
                                      step so it dies somewhere known
+
+## The testfile runner throws the error away
+
+`LibExecution.Tests.fs` compares a testfile's two sides. When either side RAISES, it used to call
+`msg None None`, which renders both as "(no Dval -- error we couldn't handle)" and discards the
+`RuntimeError`, so the test reported an empty Expecto message plus a multi-hundred-line dump of its
+own source AST. 61 errored tests in one run were all unreadable for this reason, and the error each
+one needed was sitting in the result value the whole time. It now says `left-hand side RAISED: <rte>`.
+
+Its sibling, found independently in the same session and NOT yet fixed: the same runner PASSES a
+line when both sides raise the SAME error. So both raise and it says pass and tells you nothing;
+one raises and it says fail and tells you nothing. If you are reading an errored or suspiciously
+passing testfile line, suspect the runner before the test.
 
 ## Testing code that moved from F# to Dark
 
