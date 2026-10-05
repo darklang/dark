@@ -127,7 +127,7 @@ let dictionaryKeyReferences =
         1UL,
         [ PT.EApply(
             2UL,
-            PT.EFnName(3UL, PT.NameResolution.ok (PT.FQFnName.Package(hash "fn"))),
+            PT.EFnName(3UL, PT.NameResolution.ok (PT.FQFnName.Package(hash "fn")), []),
             [ PT.TCustomType(
                 PT.NameResolution.ok (PT.FQTypeName.Package(hash "type")),
                 []
