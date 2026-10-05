@@ -211,6 +211,36 @@ let printShowWith (branchId: Uuid) (prefix: String) (full: Bool) : Bool =
 
 let printShow (branchId: Uuid) (prefix: String) : Bool = printShowWith branchId prefix false
 
+/// The Dark process on this machine with pid <param target>, if it is one. A
+/// target no registered pid matches is left to the id prefix, since a short id
+/// can be all digits too.
+let machineByPid
+  (target: String)
+  : Stdlib.Option.Option<Stdlib.Exec.MachineProcess> =
+  match Stdlib.Int.parse target with
+  | Ok pid ->
+    Stdlib.Exec.machineList ()
+    |> Stdlib.List.filter (fun m -> (Stdlib.Int.fromInt64 m.pid) == pid)
+    |> Stdlib.List.head
+  | Error _ -> Stdlib.Option.Option.None
+
+/// Another Dark process in full, from the registry: the whole command line the
+/// table cuts. Its own processes and stacks live in it, so this is what can be
+/// known from outside.
+let printMachineShow (target: String) (json: Bool) : Bool =
+  match machineByPid target with
+  | Some m ->
+    if json then
+      Stdlib.printLine (Stdlib.Json.serialize<Stdlib.Exec.MachineProcess> m)
+    else
+      Stdlib.printLine $"{Stdlib.toString m.pid}  {m.title}"
+      Stdlib.printLine $"  command       {m.command}"
+      let branch = if m.branch == "" then "main" else m.branch
+      Stdlib.printLine $"  branch        {branch}"
+      Stdlib.printLine $"  started       {startedAgoText m.started}"
+    true
+  | None -> false
+
 /// The table, then every process in full: `dark eval 'Darklang.Cli.Ps.printAll ()'` from inside an
 /// eval is the one line that shows a parent and its child with both stacks.
 let printAll () : Unit =
@@ -316,6 +346,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Error e ->
       Cli.printErr e
       { state with exitCode = 1 }
+  | [ "show", pid ] when (Stdlib.Option.isSome (machineByPid pid)) ->
+    Cli.exitWith state (printMachineShow pid wantsJson)
   | [ "show", prefix ] ->
     let ok =
       if wantsJson then
