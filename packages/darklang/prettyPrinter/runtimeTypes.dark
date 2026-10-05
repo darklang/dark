@@ -887,7 +887,7 @@ let capForDisplay
     (maxChars: Int)
     (dv: LanguageTools.RuntimeTypes.Dval)
   : LanguageTools.RuntimeTypes.Dval =
-  let enough = Stdlib.Int.max ((maxChars / 3) + 2) 64
+  let enough = Stdlib.max ((maxChars / 3) + 2) 64
 
   match dv with
   | DList(t, items) ->

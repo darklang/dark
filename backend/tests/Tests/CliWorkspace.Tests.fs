@@ -634,7 +634,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version one\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.Int.toString m), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version one\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ]"
 
         let view =
           "Darklang.Cli.Apps.Model.View { name = \"live\"; title = \"Live\"; init = \"Tests.LiveView.init\"; update = \"Tests.LiveView.update\"; render = \"Tests.LiveView.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
@@ -683,7 +683,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version two\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.Int.toString m) ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version two\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m) ]"
         pushTick ()
         let! session = step session
         let! afterEdit = rowsOf session
@@ -719,7 +719,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version three\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.Int.toString m) ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version three\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m) ]"
         pushTick ()
         let! session = step session
         let! afterFix = rowsOf session
@@ -793,7 +793,7 @@ let private modelSavesAndResumes =
       do!
         author
           "Tests.LiveSave.render"
-          "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.Int.toString m)"
+          "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.toString m)"
 
       let view =
         "Darklang.Cli.Apps.Model.View { name = \"s\"; title = \"S\"; init = \"Tests.LiveSave.init\"; update = \"Tests.LiveSave.update\"; render = \"Tests.LiveSave.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
@@ -1069,7 +1069,7 @@ let private devErrorPageCarriesTheListener =
         do!
           author
             "Tests.LiveDev.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Stdlib.Int.toString (Stdlib.Int.divide 1 0)) 200"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText (Stdlib.toString (1 / 0)) 200"
         do!
           withLiveServer
             state
@@ -1248,12 +1248,12 @@ let private hintsLandOnTheRightIdenticalLine =
             "Tests.Dup.twice"
             ("(n: Int64): Int64 =\n"
              + "  let a =\n"
-             + "    let v = Stdlib.Int64.multiply n 2L\n"
+             + "    let v = (n * 2L)\n"
              + "    v\n"
              + "  let b =\n"
-             + "    let v = Stdlib.Int64.multiply n 2L\n"
+             + "    let v = (n * 2L)\n"
              + "    v\n"
-             + "  Stdlib.Int64.add a b")
+             + "  (a + b)")
         let! ran = runCli target [ "eval"; "Tests.Dup.twice 5L" ]
         Expect.stringContains ran "20" "the run happened"
 
@@ -1269,7 +1269,7 @@ let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.
 r.fns
 |> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
 |> Darklang.Stdlib.List.flatten
-|> Darklang.Stdlib.List.map (fun h -> Darklang.Stdlib.UInt64.toString h.position.line)"""
+|> Darklang.Stdlib.List.map (fun h -> Darklang.Stdlib.toString h.position.line)"""
         let lines =
           match hints with
           | RT.DList(_, items) ->
@@ -1300,7 +1300,7 @@ let private liveValuesReplayTheLastCall =
         do!
           author
             "Tests.LiveVals.double"
-            "(n: Int64): Int64 = Stdlib.Int64.multiply n 2L"
+            "(n: Int64): Int64 = (n * 2L)"
         do!
           author
             "Tests.LiveVals.greet"
@@ -1313,7 +1313,7 @@ let private liveValuesReplayTheLastCall =
              + "  let up = Stdlib.String.toUppercase name\n"
              + "  let n = Tests.LiveVals.double 21L\n"
              + "  let m = n + 1L\n"
-             + "  $\"hi {up} {Stdlib.Int64.toString m}\"")
+             + "  $\"hi {up} {Stdlib.toString m}\"")
 
         // Nothing recorded yet: no values, and no error.
         let! before = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
@@ -1359,7 +1359,7 @@ let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.
 r.fns
 |> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
 |> Darklang.Stdlib.List.flatten
-|> Darklang.Stdlib.List.map (fun h -> (Darklang.Stdlib.UInt64.toString h.position.line) + ":" + (Darklang.Stdlib.UInt64.toString h.position.character) + " " + h.label)"""
+|> Darklang.Stdlib.List.map (fun h -> (Darklang.Stdlib.toString h.position.line) + ":" + (Darklang.Stdlib.toString h.position.character) + " " + h.label)"""
         let hints =
           match hints with
           | RT.DList(_, items) ->
@@ -1383,7 +1383,7 @@ r.fns
         do!
           author
             "Tests.LiveVals.double"
-            "(n: Int64): Int64 = Stdlib.Int64.multiply n 3L"
+            "(n: Int64): Int64 = (n * 3L)"
         let! edited = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
         match edited with
         | RT.DString printed ->
@@ -1397,7 +1397,7 @@ r.fns
         do!
           author
             "Tests.LiveVals.double"
-            "(n: Int64): Int64 = Stdlib.Int64.divide n 0L"
+            "(n: Int64): Int64 = (n / 0L)"
         let! failed =
           evalUnder
             state
@@ -1459,7 +1459,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.bold \"Obs\", Stdlib.Cli.UI.Node.table [ \"k\", \"v\" ] [ [ \"count\", Stdlib.Int64.toString m ] ], Stdlib.Cli.UI.Node.row [ Stdlib.Cli.UI.Node.text \"a\", Stdlib.Cli.UI.Node.Node.Button(\"go\", 1L) ], Stdlib.Cli.UI.Node.band Stdlib.Cli.UI.Node.Severity.Error \"boom\" ]"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.bold \"Obs\", Stdlib.Cli.UI.Node.table [ \"k\", \"v\" ] [ [ \"count\", Stdlib.toString m ] ], Stdlib.Cli.UI.Node.row [ Stdlib.Cli.UI.Node.text \"a\", Stdlib.Cli.UI.Node.Node.Button(\"go\", 1L) ], Stdlib.Cli.UI.Node.band Stdlib.Cli.UI.Node.Severity.Error \"boom\" ]"
 
         let! first = observe ()
         let (hasReport, rte, render) = unpack first
@@ -1488,7 +1488,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (Stdlib.Int64.toString (Stdlib.Int64.divide m 0L))"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (Stdlib.toString (m / 0L))"
         let! raised = observe ()
         let (hasReport, rte, render) = unpack raised
         Expect.isFalse hasReport "this version passes its checks"
@@ -1537,7 +1537,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (\"count \" + Stdlib.Int64.toString m)"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (\"count \" + Stdlib.toString m)"
         let! _ = evalUnder state $"Darklang.Stdlib.Live.show {viewLoc}"
         let! shown = evalUnder state "Darklang.Stdlib.Live.shown ()"
         match shown with

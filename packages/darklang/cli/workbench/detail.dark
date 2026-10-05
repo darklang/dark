@@ -406,7 +406,7 @@ let traceDetail (state: State) : String =
       let lineage =
         match trace.parent with
         | Some((parent, at)) ->
-          [ $"forked from {Cli.Text.shortIdText parent} at position {Stdlib.Int64.toString at}" ]
+          [ $"forked from {Cli.Text.shortIdText parent} at position {Stdlib.toString at}" ]
         | None -> []
       let pinned =
         if trace.pinned then [ "pinned: kept, whatever else is dropped to make room" ] else []
@@ -422,7 +422,7 @@ let traceDetail (state: State) : String =
               [ $"log: {Cli.Text.plural (Stdlib.List.length logged) "call"} with effects" ]
               (Stdlib.List.take logged 12
                |> Stdlib.List.map (fun c ->
-                 $"  {Stdlib.Int64.toString c.seq}  {c.fnName}"))
+                 $"  {Stdlib.toString c.seq}  {c.fnName}"))
       let header =
         [ Stdlib.Cli.UI.Colors.boldText trace.entry
           ""

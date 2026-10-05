@@ -523,11 +523,11 @@ let private sharedStateAcrossWorkers =
       instrsFor
         """(let step (i: Int64) : Int64 =
               let r = Stdlib.Result.Result.Ok i
-              let o = Stdlib.Option.Option.Some (Stdlib.Int64.add i 1L)
-              let xs = Stdlib.List.map [ 1L; 2L; 3L ] (fun x -> Stdlib.Int64.multiply x i)
-              let sum = Stdlib.List.fold xs 0L (fun acc x -> Stdlib.Int64.add acc x)
+              let o = Stdlib.Option.Option.Some (i + 1L)
+              let xs = Stdlib.List.map [ 1L; 2L; 3L ] (fun x -> x * i)
+              let sum = Stdlib.List.fold xs 0L (fun acc x -> acc + x)
               match r, o with
-              | Ok a, Some b -> Stdlib.Int64.add (Stdlib.Int64.add a b) sum
+              | Ok a, Some b -> (a + b) + sum
               | _, _ -> 0L
             let loop (n: Int64) (acc: Int64) : Int64 =
               if n == 0L then acc else loop (n - 1L) (acc + step n)
@@ -583,7 +583,7 @@ let private traceCarriesProcessAndSeq =
       instrsFor
         // Impure on purpose: only impure calls are recorded, so a pure loop would write a
         // trace with no rows in it and prove nothing about which process wrote what.
-        """(let shout (n: Int64) : Unit = Stdlib.printLine (Stdlib.Int64.toString n)
+        """(let shout (n: Int64) : Unit = Stdlib.printLine (Stdlib.toString n)
             let loop (n: Int64) : Unit =
               if n == 0L then () else (shout n
                                        loop (n - 1L))
@@ -653,7 +653,7 @@ let private readsRunAtOnce =
         state
         """let xs = Stdlib.List.map [ 1L; 2L; 3L ] (fun n -> Builtin.testRead n)
 let _ = Builtin.testTrace "mapped"
-let total = Stdlib.List.fold xs 0L (fun a b -> Stdlib.Int64.add a b)
+let total = Stdlib.List.fold xs 0L (fun a b -> a + b)
 let _ = Builtin.testTrace "forced"
 total"""
     let running = runOnThread s p
@@ -689,7 +689,7 @@ let private writesKeepOrder =
 let _ = Builtin.testTrace "w1"
 let b = Builtin.testRead 12L
 let _ = Builtin.testTrace "w2"
-Stdlib.Int64.add a b"""
+(a + b)"""
     let running = runOnThread s p
     waitFor "both reads in flight" (fun () -> Gates.waiting () = [ 11L; 12L ])
     waitForTrace
@@ -815,7 +815,7 @@ let private inflightBoundHolds =
           state
           """let xs = Stdlib.List.map [ 41L; 42L; 43L; 44L ] (fun n -> (let _ = Builtin.testTrace "start" in let r = Builtin.testRead n in let _ = Builtin.testTrace "end" in r))
 let _ = Builtin.testTrace "mapped"
-Stdlib.List.fold xs 0L (fun a b -> Stdlib.Int64.add a b)"""
+Stdlib.List.fold xs 0L (fun a b -> a + b)"""
       let running = runOnThread s p
       // Two in flight, and the third awaited before the fourth is even called.
       waitFor "three reads started" (fun () -> Gates.waiting () = [ 41L; 42L; 43L ])
@@ -931,7 +931,7 @@ let private execDoneAnswersAFinishedProcess =
               state
               """let done_ = Stdlib.Exec.spawn (fun () -> 1L)
 let _ = Stdlib.Exec.await done_
-let bad = Stdlib.Exec.spawn (fun () -> Stdlib.Int64.divide 1L 0L)
+let bad = Stdlib.Exec.spawn (fun () -> 1L / 0L)
 let first = Stdlib.Host.await [ Stdlib.Host.EventSpec.ExecDone done_.id ]
 let second = Stdlib.Host.await [ Stdlib.Host.EventSpec.ExecDone bad.id ]
 match (first, second) with
@@ -1001,7 +1001,7 @@ let private mapped =
 let private parkedInsideMapShowsTheLambda =
   parkedInsideShowsTheLambda
     "a process parked inside List.map f shows f's frame, and resumes"
-    """Stdlib.List.map [ 1L; 2L ] (fun x -> (let _ = Builtin.testGateWait 91L in Stdlib.Int64.add x 1L))"""
+    """Stdlib.List.map [ 1L; 2L ] (fun x -> (let _ = Builtin.testGateWait 91L in (x + 1L)))"""
     91L
     mapped
 
@@ -1049,7 +1049,7 @@ let private errorInsideMapNamesTheLambda =
     let! state = executionStateFor pmPT false Map.empty
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
-      spawn s state """Stdlib.List.map [ 1L ] (fun x -> Stdlib.Int64.divide x 0L)"""
+      spawn s state """Stdlib.List.map [ 1L ] (fun x -> x / 0L)"""
     let! result = runOnThread s p
     match result with
     | Error(_, stack) ->
@@ -1068,7 +1068,7 @@ let private errorInsideMapNamesTheLambda =
 let private parkedInsideStreamMapShowsTheLambda =
   parkedInsideShowsTheLambda
     "a process parked inside a stream transform shows the lambda's frame"
-    """Stdlib.Stream.toList (Stdlib.Stream.map (Stdlib.Stream.fromList [ 1L; 2L ]) (fun x -> (let _ = Builtin.testGateWait 93L in Stdlib.Int64.add x 1L)))"""
+    """Stdlib.Stream.toList (Stdlib.Stream.map (Stdlib.Stream.fromList [ 1L; 2L ]) (fun x -> (let _ = Builtin.testGateWait 93L in (x + 1L))))"""
     93L
     mapped
 

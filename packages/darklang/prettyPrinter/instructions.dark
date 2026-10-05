@@ -215,7 +215,7 @@ let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instru
   | RaiseNRE(names, _) -> Stdlib.String.join names "."
   | VarNotFound(t, name) -> $"{register t} <- ${name}"
   | CheckIfFirstExprIsUnit r -> register r
-  | TraceExpr(exprId, r) -> $"expr {Stdlib.UInt64.toString exprId} = {register r}"
+  | TraceExpr(exprId, r) -> $"expr {Stdlib.toString exprId} = {register r}"
 
 
 /// Every lambda defined inside these instructions, flattened, so a listing isn't a dead end at

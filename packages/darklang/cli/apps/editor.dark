@@ -333,7 +333,7 @@ let toggleDaemon (state: State) (app: Model.App) : State =
     | Error e -> { state with message = Stdlib.Cli.UI.Colors.error e }
   else
     match Command.launchDaemon (SCM.PackageOps.currentBranch ()) app with
-    | Ok pid -> { state with message = Stdlib.Cli.UI.Colors.success $"started {app.name} (pid {Stdlib.Int.toString pid})" }
+    | Ok pid -> { state with message = Stdlib.Cli.UI.Colors.success $"started {app.name} (pid {Stdlib.toString pid})" }
     | Error e -> { state with message = Stdlib.Cli.UI.Colors.error e }
 
 /// enter — the primary action: run a foreground app (hand it the screen) / toggle a daemon.

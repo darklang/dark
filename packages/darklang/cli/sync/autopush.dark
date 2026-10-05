@@ -28,7 +28,7 @@ let messageFor (branchId: Uuid) : String =
     | b :: _ -> $", {SCM.Conflicts.fqn b.owner b.modules b.name}"
     | [] -> ""
 
-  $"auto: {Stdlib.Int64.toString ops} ops{first}"
+  $"auto: {Stdlib.toString ops} ops{first}"
 
 /// Commit the draft as it stands, checks or no checks. The same rows `SCM.PackageOps.commitDraft`
 /// writes, without its refusals.
@@ -86,7 +86,7 @@ let pushDraft (state: AppState) : Outcome =
               if SCM.Branch.isMain branchId then
                 Cli.Sync.executePush state relay
               else
-                Cli.Branch.executePush state (Stdlib.Uuid.toString branchId) relay)
+                Cli.Branch.executePush state (Stdlib.toString branchId) relay)
 
           if pushWentThrough story then
             Outcome.Pushed hash

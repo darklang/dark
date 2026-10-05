@@ -30,7 +30,7 @@ let waitForRelayHead (url: String) (waitMs: Int) : Bool =
     | count :: _ -> count
     | [] -> ""
 
-  let ms = Stdlib.Int.toString waitMs
+  let ms = Stdlib.toString waitMs
 
   match relayGet $"{url}/sync/head?knownCount={knownCount}&waitMs={ms}" with
   | Ok body ->

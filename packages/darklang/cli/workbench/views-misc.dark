@@ -295,8 +295,8 @@ let renderProcesses (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<
             line)
       // Enough scroll to keep the cursor on screen. Without it, selecting past the pane's
       // height moves a cursor nobody can see.
-      let visible = Stdlib.Int.max 1 (r.rows - 1)
-      let scroll = Stdlib.Int.max 0 ((cursorRow + 1) - visible)
+      let visible = Stdlib.max 1 (r.rows - 1)
+      let scroll = Stdlib.max 0 ((cursorRow + 1) - visible)
       renderScrollableLines r 0 lines marked scroll)
     (paneTitle "Stack" [] detailFocused)
     (fun r -> renderPreview state r)

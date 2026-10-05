@@ -9,7 +9,7 @@ module Darklang.Cli.Apps.Examples
 // re-resolves it between calls, so editing this while the daemon runs changes the next line it logs.
 let beat (count: Int) : Int =
   let pid = Stdlib.Cli.Sys.currentPid ()
-  Stdlib.printLine $"heartbeat: beat {Stdlib.Int.toString count} (pid {Stdlib.Int.toString pid})"
+  Stdlib.printLine $"heartbeat: beat {Stdlib.toString count} (pid {Stdlib.toString pid})"
   count + 1
 
 

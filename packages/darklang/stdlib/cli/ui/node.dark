@@ -100,7 +100,7 @@ let tableWidths (columns: List<String>) (rows: List<List<String>>) : List<Int> =
     rows
     |> Stdlib.List.fold headerWidth (fun widest r ->
       match Stdlib.List.getAt r i with
-      | Some cell -> Stdlib.Int.max widest (Stdlib.String.displayWidth cell)
+      | Some cell -> Stdlib.max widest (Stdlib.String.displayWidth cell)
       | None -> widest))
 
 /// The size a node would take if nothing constrained it: (rows, cols).
@@ -113,16 +113,16 @@ let measure (node: Node<'msg>) : (Int * Int) =
     |> Stdlib.List.fold (0, 0) (fun acc child ->
       let (rows, cols) = acc
       let (r, c) = measure child
-      (Stdlib.Int.max rows r, cols + c))
+      (Stdlib.max rows r, cols + c))
   | Column children ->
     children
     |> Stdlib.List.fold (0, 0) (fun acc child ->
       let (rows, cols) = acc
       let (r, c) = measure child
-      (rows + r, Stdlib.Int.max cols c))
+      (rows + r, Stdlib.max cols c))
   | Table(columns, rows) ->
     let widths = tableWidths columns rows
-    let gaps = 2 * (Stdlib.Int.max 0 ((Stdlib.List.length widths) - 1))
+    let gaps = 2 * (Stdlib.max 0 ((Stdlib.List.length widths) - 1))
     let width = (Stdlib.List.fold widths 0 (fun acc w -> acc + w)) + gaps
     // Header, rule, rows.
     (2 + (Stdlib.List.length rows), width)
@@ -131,7 +131,7 @@ let measure (node: Node<'msg>) : (Int * Int) =
     |> Stdlib.List.fold (0, 0) (fun acc child ->
       let (rows, cols) = acc
       let (r, c) = measure child
-      (rows + r, Stdlib.Int.max cols (c + 2)))
+      (rows + r, Stdlib.max cols (c + 2)))
   | Input spec ->
     let shown = if spec.value == "" then spec.placeholder else spec.value
     (1, (Stdlib.String.displayWidth shown) + 4)
@@ -141,7 +141,7 @@ let measure (node: Node<'msg>) : (Int * Int) =
   | Band(_, message) -> (1, Stdlib.String.displayWidth message)
   | Rows rows ->
     (Stdlib.List.length rows,
-     rows |> Stdlib.List.fold 0 (fun w r -> Stdlib.Int.max w (Stdlib.String.displayWidth r)))
+     rows |> Stdlib.List.fold 0 (fun w r -> Stdlib.max w (Stdlib.String.displayWidth r)))
   | Empty -> (0, 0)
 
 
@@ -206,8 +206,8 @@ let sub (region: Layout.Region) (top: Int) (left: Int) (rows: Int) (cols: Int) :
   Layout.Region
     { top = region.top + top
       left = region.left + left
-      rows = Stdlib.Int.max 0 (Stdlib.Int.min rows (region.rows - top))
-      cols = Stdlib.Int.max 0 (Stdlib.Int.min cols (region.cols - left)) }
+      rows = Stdlib.max 0 (Stdlib.min rows (region.rows - top))
+      cols = Stdlib.max 0 (Stdlib.min cols (region.cols - left)) }
 
 /// Does every cell in column <param i> read as a number? Those columns right-align, the way a
 /// person lines up figures; text stays left.
@@ -280,7 +280,7 @@ let paint
     | Styled(inner, child) -> paint child region focus (style + (styleCode inner))
     | Band(severity, message) ->
       let code = severityCode severity
-      let lines = Tui.Text.wrapAtWords message (Stdlib.Int.max 1 (region.cols - 2))
+      let lines = Tui.Text.wrapAtWords message (Stdlib.max 1 (region.cols - 2))
       // At most two rows: a band is a headline, not a page.
       Stdlib.List.take lines 2
       |> Stdlib.List.indexedMap (fun i line ->
@@ -333,7 +333,7 @@ let toSpans (node: Node<'msg>) (region: Layout.Region) (focus: String) : List<La
 /// marked: what a host windows when the tree is taller than its pane.
 let toRows (node: Node<'msg>) (width: Int) (focus: String) : List<String> =
   let (rows, _) = measure node
-  let w = Stdlib.Int.max 1 width
+  let w = Stdlib.max 1 width
   let region = Layout.Region { top = 1; left = 1; rows = rows; cols = w }
   Canvas.compose w rows (toSpans node region focus) |> Stdlib.List.map Stdlib.String.trimEnd
 

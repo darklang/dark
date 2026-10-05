@@ -46,7 +46,7 @@ let lines (node: Node.Node<'msg>) : List<String> =
         (width, lines c))
 
     let height =
-      columns |> Stdlib.List.fold 0 (fun h col -> Stdlib.Int.max h (Stdlib.List.length (Stdlib.Tuple2.second col)))
+      columns |> Stdlib.List.fold 0 (fun h col -> Stdlib.max h (Stdlib.List.length (Stdlib.Tuple2.second col)))
 
     if height == 0 then
       []

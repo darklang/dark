@@ -519,7 +519,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         | Some true -> Cli.jsonStr "on"
         | Some false -> Cli.jsonStr "off"
         | None -> "null"
-      let onText = Stdlib.Bool.toString on
+      let onText = Stdlib.toString on
       Stdlib.printLine $"{{{recordingKey}: {onText}, {storedKey}: {storedValue}}}"
     else
       Stdlib.printLine $"recording: {text}"
@@ -980,7 +980,7 @@ let executeFnCounts
         |> Stdlib.List.fold 2 (fun acc n -> if n > acc then n else acc)
 
       Stdlib.printLine
-        $"functions the last {Stdlib.Int.toString traceLimit} runs went through, most first:"
+        $"functions the last {Stdlib.toString traceLimit} runs went through, most first:"
 
       Stdlib.printLine ""
 
@@ -988,7 +988,7 @@ let executeFnCounts
       |> Stdlib.List.iter (fun row ->
         let (name, runs) = row
         let padded = Stdlib.String.padEndToWidth (display name) width
-        let n = Stdlib.Int64.toString runs
+        let n = Stdlib.toString runs
         let word = if runs == 1L then "run" else "runs"
         Stdlib.printLine $"  {padded}  {n} {word}")
 
@@ -1001,7 +1001,7 @@ let executeFnCounts
       if hidden > 0 then
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.dimText
-            $"  dark traces fns --all    with the {Stdlib.Int.toString hidden} from the bundled library")
+            $"  dark traces fns --all    with the {Stdlib.toString hidden} from the bundled library")
 
       state
 
@@ -1227,7 +1227,7 @@ let executeTail
       let msg =
         if n == 1 then $"nothing has run yet{suffix}"
         else
-          let nStr = Stdlib.Int.toString n
+          let nStr = Stdlib.toString n
           $"there is no {nStr}{ordinalSuffix n}-most-recent trace{suffix}"
       Stdlib.printLine msg
       state
@@ -1251,7 +1251,7 @@ let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
       state
     | _ ->
       Stdlib.printLine
-        $"per entry, over the last {Stdlib.Int.toString limit} traces:"
+        $"per entry, over the last {Stdlib.toString limit} traces:"
       Stdlib.printLine ""
       // The same table widget every other listing uses, so the columns line up with them and
       // a wide entry does not push the numbers off the screen.
@@ -1261,9 +1261,9 @@ let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
          |> Stdlib.List.map (fun row ->
            let (entry, count, total, max) = row
            [ Cli.Text.oneLineAt 40 entry,
-             Stdlib.Int.toString count,
-             Stdlib.Int.toString total,
-             Stdlib.Int.toString max ]))
+             Stdlib.toString count,
+             Stdlib.toString total,
+             Stdlib.toString max ]))
       Stdlib.printLine ""
       // The route hint only makes sense with served requests in the result; an eval-only store
       // gets no help from `--route`. A served entry is `<METHOD> <path>`, so a `/` is the tell.
@@ -1486,7 +1486,7 @@ let formatFnCalls
     let processes =
       fnCalls
       |> Stdlib.List.filterMap (fun call -> call.processId)
-      |> Stdlib.List.map (fun pid -> Stdlib.Uuid.toString pid)
+      |> Stdlib.List.map (fun pid -> Stdlib.toString pid)
       |> Stdlib.List.unique
 
     let letterFor (call: FnCall) : String =
@@ -1496,7 +1496,7 @@ let formatFnCalls
         match call.processId with
         | None -> "   "
         | Some pid ->
-          match Stdlib.List.findFirstIndex processes (fun p -> p == (Stdlib.Uuid.toString pid)) with
+          match Stdlib.List.findFirstIndex processes (fun p -> p == (Stdlib.toString pid)) with
           | Some i ->
             $" {Stdlib.String.slice "ABCDEFGHIJKLMNOPQRSTUVWXYZ" (i % 26) ((i % 26) + 1)} "
           | None -> "   "
@@ -1505,12 +1505,12 @@ let formatFnCalls
       fnCalls
       |> Stdlib.List.filter (fun call -> isVisible opts call)
       |> Stdlib.List.map (fun call ->
-        let pos = Stdlib.String.padStartToWidth (Stdlib.Int64.toString call.seq) 5
+        let pos = Stdlib.String.padStartToWidth (Stdlib.toString call.seq) 5
         let who = letterFor call
         let resultRepr = compactDval branchId call.result
         let took =
           if call.durationMs > 0 then
-            $"  ({Stdlib.Int.toString call.durationMs}ms)"
+            $"  ({Stdlib.toString call.durationMs}ms)"
           else
             ""
         let argsRepr =
@@ -1529,7 +1529,7 @@ let formatFnCalls
         Stdlib.String.join lines "\n"
       else
         let shown = Stdlib.List.take lines 40
-        let rest = Stdlib.Int.toString (count - 40)
+        let rest = Stdlib.toString (count - 40)
         Stdlib.String.join
           (Stdlib.List.pushBack
             shown
@@ -1576,7 +1576,7 @@ let executeInspect
     // Wall clock for the trace itself, which is not the sum of its calls: the gaps between them
     // are its own work. 0 for a trace still going, and for one recorded before this was kept.
     if run.durationMs > 0L then
-      let ms = Stdlib.Int64.toString run.durationMs
+      let ms = Stdlib.toString run.durationMs
       Stdlib.printLine $"  took      {ms}ms"
     else
       ()
@@ -1586,7 +1586,7 @@ let executeInspect
       ()
     match run.parent with
     | Some((id, at)) ->
-      let pos = Stdlib.Int64.toString at
+      let pos = Stdlib.toString at
       Stdlib.printLine
         $"  forked    from {Cli.Text.shortIdText id}, keeping its log before position {pos}"
     | None -> ()
@@ -1610,7 +1610,7 @@ let executeInspect
       Stdlib.printLine $"  ran       {Stdlib.String.join shown ", "}"
 
       if (Stdlib.List.length went) > 6 then
-        let more = Stdlib.Int.toString ((Stdlib.List.length went) - 6)
+        let more = Stdlib.toString ((Stdlib.List.length went) - 6)
         Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"            and {more} more")
 
       Stdlib.printLine
@@ -1642,7 +1642,7 @@ let executeInspect
         let procs =
           logged
           |> Stdlib.List.filterMap (fun c -> c.processId)
-          |> Stdlib.List.map (fun p -> Stdlib.Uuid.toString p)
+          |> Stdlib.List.map (fun p -> Stdlib.toString p)
           |> Stdlib.List.unique
           |> Stdlib.List.length
 
@@ -1650,7 +1650,7 @@ let executeInspect
           if procs < 2 then
             ""
           else
-            $", across {Stdlib.Int.toString procs} processes (the letter column)"
+            $", across {Stdlib.toString procs} processes (the letter column)"
 
         Stdlib.printLine
           $"  did       {Cli.Text.plural (Stdlib.List.length logged) "call"} with effects{across}"
@@ -1774,13 +1774,13 @@ let executePruneKeep (state: Cli.AppState) (keepN: Int) : Cli.AppState =
     match deleted with
     | 0 ->
       Stdlib.printLine
-        $"already at or below {Stdlib.Int.toString keepN} traces; nothing to delete"
+        $"already at or below {Stdlib.toString keepN} traces; nothing to delete"
       state
     | _ ->
       let keptPhrase =
         if keepN == 0 then "none kept"
         else if keepN == 1 then "kept the most-recent"
-        else $"kept the {Stdlib.Int.toString keepN} most-recent"
+        else $"kept the {Stdlib.toString keepN} most-recent"
       Stdlib.printLine $"deleted {Cli.Text.plural deleted "trace"}; {keptPhrase}"
       state
 

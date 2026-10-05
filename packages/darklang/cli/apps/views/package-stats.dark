@@ -34,35 +34,35 @@ let update (m: Model) (event: Host.Event<Msg>) : Model =
 
 /// A proportion as a run of blocks, a cell in the table.
 let bar (value: Int) (maxVal: Int) (width: Int) : String =
-  let filled = if maxVal == 0 then 0 else Stdlib.Int.divide (value * width) maxVal
+  let filled = if maxVal == 0 then 0 else (value * width) / maxVal
   (Stdlib.String.repeat "█" filled) + (Stdlib.String.repeat "░" (width - filled))
 
 let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
   let stats = m.stats
   let total (f: ModuleStats -> Int) : Int = stats |> Stdlib.List.fold 0 (fun acc s -> acc + (f s))
-  let maxFns = stats |> Stdlib.List.fold 0 (fun acc s -> Stdlib.Int.max acc s.fnCount)
+  let maxFns = stats |> Stdlib.List.fold 0 (fun acc s -> Stdlib.max acc s.fnCount)
 
   let summary =
     Stdlib.Cli.UI.Node.row
-      [ Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Success (Stdlib.Cli.UI.Node.text $" {Stdlib.Int.toString (total (fun s -> s.fnCount))} fns ")
-        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Info (Stdlib.Cli.UI.Node.text $" {Stdlib.Int.toString (total (fun s -> s.typeCount))} types ")
-        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Highlight (Stdlib.Cli.UI.Node.text $" {Stdlib.Int.toString (total (fun s -> s.valueCount))} values ")
-        Stdlib.Cli.UI.Node.dim $" {Stdlib.Int.toString (total (fun s -> s.submodules))} modules " ]
+      [ Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Success (Stdlib.Cli.UI.Node.text $" {Stdlib.toString (total (fun s -> s.fnCount))} fns ")
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Info (Stdlib.Cli.UI.Node.text $" {Stdlib.toString (total (fun s -> s.typeCount))} types ")
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Highlight (Stdlib.Cli.UI.Node.text $" {Stdlib.toString (total (fun s -> s.valueCount))} values ")
+        Stdlib.Cli.UI.Node.dim $" {Stdlib.toString (total (fun s -> s.submodules))} modules " ]
 
   let rows =
     stats
     |> Stdlib.List.map (fun s ->
       [ s.name
-        Stdlib.Int.toString s.fnCount
-        Stdlib.Int.toString s.typeCount
-        Stdlib.Int.toString s.valueCount
-        Stdlib.Int.toString s.submodules
+        Stdlib.toString s.fnCount
+        Stdlib.toString s.typeCount
+        Stdlib.toString s.valueCount
+        Stdlib.toString s.submodules
         bar s.fnCount maxFns 20 ])
 
   Stdlib.Cli.UI.Node.column
     [ Stdlib.Cli.UI.Node.row
         [ Stdlib.Cli.UI.Node.bold "Package Statistics"
-          Stdlib.Cli.UI.Node.dim $"{Stdlib.Int.toString (Stdlib.List.length stats)} top-level modules" ]
+          Stdlib.Cli.UI.Node.dim $"{Stdlib.toString (Stdlib.List.length stats)} top-level modules" ]
       Stdlib.Cli.UI.Node.text ""
       summary
       Stdlib.Cli.UI.Node.text ""

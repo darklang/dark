@@ -35,13 +35,13 @@ let sizeHint (dv: LanguageTools.RuntimeTypes.Dval) : Stdlib.Option.Option<String
   match dv with
   | DList(_, items) ->
     Stdlib.Option.Option.Some
-      $"{Stdlib.Int.toString (Stdlib.List.length items)} items"
+      $"{Stdlib.toString (Stdlib.List.length items)} items"
   | DDict(_, _, entries) ->
     Stdlib.Option.Option.Some
-      $"{Stdlib.Int.toString (Stdlib.List.length (Stdlib.Dict.keys entries))} entries"
+      $"{Stdlib.toString (Stdlib.List.length (Stdlib.Dict.keys entries))} entries"
   | DString s ->
     Stdlib.Option.Option.Some
-      $"{Stdlib.Int.toString (Stdlib.String.length s)} characters"
+      $"{Stdlib.toString (Stdlib.String.length s)} characters"
   | _ -> Stdlib.Option.Option.None
 
 

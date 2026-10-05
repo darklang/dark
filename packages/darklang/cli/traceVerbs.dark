@@ -307,7 +307,7 @@ let callJson (branchId: Uuid) (call: Darklang.Tracing.FnCall) : CallJson =
         |> Stdlib.List.map (fun a -> Darklang.Tracing.Format.compactDval branchId a)
       result = Darklang.Tracing.Format.compactDval branchId call.result
       durationMs = call.durationMs
-      process = call.processId |> Stdlib.Option.map (fun p -> Stdlib.Uuid.toString p) }
+      process = call.processId |> Stdlib.Option.map (fun p -> Stdlib.toString p) }
 
 
 /// A list of traces, as JSON. Every listing verb prints through this.
@@ -573,7 +573,7 @@ let showCodeJson
       collected
       |> Stdlib.List.map (fun pair ->
         let (id, dv) = pair
-        (Stdlib.Int64.toString id, Darklang.Tracing.Format.compactDvalTo branchId budget dv))
+        (Stdlib.toString id, Darklang.Tracing.Format.compactDvalTo branchId budget dv))
       |> Stdlib.Dict.fromListOverwritingDuplicates
 
     // Which frames carry anything. Built once for the whole trace, not once per loop.
@@ -613,11 +613,11 @@ let showCodeJson
               |> Stdlib.List.map (fun row ->
                 let (_, exprId, dv) = row
 
-                (Stdlib.Int64.toString exprId,
+                (Stdlib.toString exprId,
                  Darklang.Tracing.Format.compactDvalTo branchId budget dv))
               |> Stdlib.Dict.fromListOverwritingDuplicates
 
-            let p = Stdlib.Int.toString (i + 1)
+            let p = Stdlib.toString (i + 1)
 
             LoopIterationJson
               { at = i + 1
@@ -741,7 +741,7 @@ let loopsOf
   let siteIsOurs =
     lambdaFrames
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc f ->
-      let k = Stdlib.Int64.toString f.callSite
+      let k = Stdlib.toString f.callSite
 
       if (Stdlib.Dict.get acc k) != Stdlib.Option.Option.None then
         acc
@@ -754,7 +754,7 @@ let loopsOf
   let lambdas =
     lambdaFrames
     |> Stdlib.List.filter (fun f ->
-      Stdlib.Dict.get siteIsOurs (Stdlib.Int64.toString f.callSite)
+      Stdlib.Dict.get siteIsOurs (Stdlib.toString f.callSite)
       |> Stdlib.Option.withDefault false)
 
   // Every frame by id, built once. `ownerOf` below is called per lambda and used to scan the
@@ -805,11 +805,11 @@ let loopsOf
       (frames
        |> Stdlib.List.filter (fun f -> (f.kind == "function") && (f.callee == selfHash))
        |> Stdlib.List.map (fun f ->
-         (Stdlib.Int64.toString f.callSite, selfName, selfHash, f)))
+         (Stdlib.toString f.callSite, selfName, selfHash, f)))
       (lambdas
        |> Stdlib.List.map (fun f ->
          let (nm, hash) = ownerOf f.parent
-         (Stdlib.Int64.toString f.callSite, nm, hash, f)))
+         (Stdlib.toString f.callSite, nm, hash, f)))
 
   // Grouped in ONE pass. Scanning `sited` once per site is sites times iterations, and `sited`
   // holds a frame per iteration, so a 2000-iteration loop re-walked 2000 frames for every site
@@ -876,7 +876,7 @@ let loopsOf
         (l.name == nm) || (Stdlib.String.startsWith l.name $"{nm}#"))
       |> Stdlib.List.length
 
-    let name = if seen == 0 then nm else $"{nm}#{Stdlib.Int.toString (seen + 1)}"
+    let name = if seen == 0 then nm else $"{nm}#{Stdlib.toString (seen + 1)}"
 
     Stdlib.List.append
       acc
@@ -990,7 +990,7 @@ let valuesOfFrame
       (Stdlib.Dict.get loopFrames fid) != Stdlib.Option.Option.None)
     |> Stdlib.List.map (fun row ->
       let (_, exprId, _) = row
-      Stdlib.Int64.toString exprId)
+      Stdlib.toString exprId)
 
   let mine =
     frameValues
@@ -1000,7 +1000,7 @@ let valuesOfFrame
     |> Stdlib.List.map (fun row ->
       let (_, exprId, dv) = row
 
-      (Stdlib.Int64.toString exprId,
+      (Stdlib.toString exprId,
        PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
 
   // Clear the loop's own lines BEFORE laying the chosen iteration over them.
@@ -1130,7 +1130,7 @@ let showCode
         let positionOf (loop: Loop) (frame: Darklang.Tracing.Store.ViewFrame) : String =
           loop.iterations
           |> Stdlib.List.findFirstIndex (fun f -> f.id == frame.id)
-          |> Stdlib.Option.map (fun i -> Stdlib.Int.toString (i + 1))
+          |> Stdlib.Option.map (fun i -> Stdlib.toString (i + 1))
           |> Stdlib.Option.withDefault "1"
 
         let chosenOf (loop: Loop) = chosenIteration requested loop
@@ -1201,7 +1201,7 @@ let showCode
 
           { state with exitCode = 1 }
         | (_, loop :: _) ->
-          let n = Stdlib.Int.toString (Stdlib.List.length loop.iterations)
+          let n = Stdlib.toString (Stdlib.List.length loop.iterations)
           Cli.printErr $"`{loop.name}` ran {n} times, so that iteration does not exist"
           { state with exitCode = 1 }
         | _ ->
@@ -1209,7 +1209,7 @@ let showCode
             collected
             |> Stdlib.List.map (fun pair ->
               let (id, dv) = pair
-              (Stdlib.Int64.toString id, PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
+              (Stdlib.toString id, PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
             |> Stdlib.Dict.fromListOverwritingDuplicates
 
           // A chosen iteration replaces the values on the lines inside that loop.
@@ -1312,16 +1312,16 @@ let showCode
               // stopped early has fewer iterations than happened, and reporting its count would say
               // "iteration 2 of 2" about a loop that went round seven times.
               let total = if loop.recorded > reached then loop.recorded else reached
-              let n = Stdlib.Int.toString total
+              let n = Stdlib.toString total
 
               let p =
                 match chosenOf loop with
-                | None -> Stdlib.Int.toString reached
+                | None -> Stdlib.toString reached
                 | Some frame -> positionOf loop frame
 
               let short =
                 if total > reached then
-                  $", the view only reached {Stdlib.Int.toString reached}"
+                  $", the view only reached {Stdlib.toString reached}"
                 else
                   ""
 
@@ -1345,7 +1345,7 @@ let showCode
                     |> Stdlib.List.filter (fun f -> frameHasValues frameValues f.id)
                     |> Stdlib.List.length
 
-                  let kept = Stdlib.Int.toString withValues
+                  let kept = Stdlib.toString withValues
 
                   Stdlib.printLine
                     (Stdlib.Cli.UI.Colors.dimText

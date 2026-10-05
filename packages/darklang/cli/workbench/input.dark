@@ -382,10 +382,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
           let reloaded = { cleared with items = reloadItems cleared }
           // The list shortens, so the cursor can be past its end.
           let selected =
-            Stdlib.Int.min state.selected ((Stdlib.List.length reloaded.items) - 1)
+            Stdlib.min state.selected ((Stdlib.List.length reloaded.items) - 1)
           Step.Continue
             { reloaded with
-                selected = Stdlib.Int.max selected 0
+                selected = Stdlib.max selected 0
                 message =
                   if deleted > 0 then
                     $"deleted {Cli.Text.shortIdText run.id}"

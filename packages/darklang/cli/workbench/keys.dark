@@ -151,7 +151,7 @@ let handleReaderKey
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
   // Reader mode: ↑↓ scroll a line, PgUp/PgDn a screenful, Esc/q closes it.
-  let scrollUp = Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - 1) }
+  let scrollUp = Step.Continue { state with detailScroll = Stdlib.max 0 (state.detailScroll - 1) }
   let scrollDown = Step.Continue { state with detailScroll = state.detailScroll + 1 }
   let close = Step.Continue { state with reading = Stdlib.Option.Option.None; detailScroll = 0 }
   // A page is the terminal height less the chrome, so it lands roughly where your eye already is. Reading a

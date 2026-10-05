@@ -59,7 +59,7 @@ let executeImport (state: AppState) (path: String) : AppState =
         SCM.PackageOps.recordSyncBases source
 
         Cli.printOk
-          $"Imported {Cli.Text.plural outcome.imported "new op"}, of {Stdlib.Int.toString (Stdlib.List.length ops)} in file."
+          $"Imported {Cli.Text.plural outcome.imported "new op"}, of {Stdlib.toString (Stdlib.List.length ops)} in file."
 
         reportDetection outcome.bulk outcome.detected
         reportConflicts outcome.conflicts
@@ -156,7 +156,7 @@ module Status =
             | Error _ -> []
             | Ok body ->
               let knownIds =
-                SCM.Branches.list () |> Stdlib.List.map (fun b -> Stdlib.Uuid.toString b.id)
+                SCM.Branches.list () |> Stdlib.List.map (fun b -> Stdlib.toString b.id)
 
               let me = SCM.PackageOps.identity ()
 
@@ -232,8 +232,8 @@ module Status =
 
       Stdlib.Cli.UI.Node.column
         (Stdlib.List.flatten
-          [ [ ok $"local: {Stdlib.Int64.toString m.local} ops"
-              ok $"relay: {Stdlib.Int64.toString m.relay} ops"
+          [ [ ok $"local: {Stdlib.toString m.local} ops"
+              ok $"relay: {Stdlib.toString m.relay} ops"
               verdict ]
             branchHints
             replaced ])

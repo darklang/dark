@@ -464,7 +464,7 @@ let reportText (report: LanguageTools.AtRestTypeChecker.Report) : String =
     | issue :: _ -> issueText issue
     | [] -> "it failed the type check"
 
-  let more = if count > 1 then $" (and {Stdlib.Int.toString (count - 1)} more)" else ""
+  let more = if count > 1 then $" (and {Stdlib.toString (count - 1)} more)" else ""
   first + more
 
 /// One line for a band or a log: why the host is not on the newest version, if it is not.
@@ -771,7 +771,7 @@ module Values =
         collected
         |> Stdlib.List.map (fun pair ->
           let (id, v) = pair
-          (Stdlib.Int64.toString id, v))
+          (Stdlib.toString id, v))
         |> Stdlib.Dict.fromListOverwritingDuplicates
 
       Stdlib.Option.Option.Some(Values { byExpr = byExpr; problem = problem })

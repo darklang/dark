@@ -679,7 +679,7 @@ let applyArg (ctx: Context) (arg: LanguageTools.ProgramTypes.Expr) : Stdlib.Pret
 /// Zero columns wide for layout (`Styled` measures only its middle), so adding one
 /// never moves the code it sits after.
 let valueSuffix (ctx: Context) (id: Int64) : Stdlib.Pretty.Doc =
-  match Stdlib.Dict.get ctx.liveValues (Stdlib.Int64.toString id) with
+  match Stdlib.Dict.get ctx.liveValues (Stdlib.toString id) with
   | Some value -> Stdlib.Pretty.styled $" // = {value}" "" ""
   | None -> Stdlib.Pretty.text ""
 
@@ -1003,7 +1003,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
       ctx.breakForValues
       && (pipeExprs
           |> Stdlib.List.any (fun pe ->
-            let key = Stdlib.Int64.toString (pipeExprId pe)
+            let key = Stdlib.toString (pipeExprId pe)
             Stdlib.Option.isSome (Stdlib.Dict.get ctx.liveValues key)))
 
     let stages =

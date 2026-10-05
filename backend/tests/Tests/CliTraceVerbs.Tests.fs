@@ -39,7 +39,7 @@ let private latestPrefix () : Task<string> =
 
 /// Two uuids, so a replay is told apart from a rerun by its output.
 let private twoUuids =
-  "let a = Stdlib.Uuid.generate ()\nlet b = Stdlib.Uuid.generate ()\nStdlib.String.join [ Stdlib.Uuid.toString a, Stdlib.Uuid.toString b ] \" \""
+  "let a = Stdlib.Uuid.generate ()\nlet b = Stdlib.Uuid.generate ()\nStdlib.String.join [ Stdlib.toString a, Stdlib.toString b ] \" \""
 
 let private words (s : string) : string list =
   s.Split(' ', System.StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
@@ -107,7 +107,7 @@ let private suspendThenResume =
       task {
         // The second uuid comes after a pause long enough to suspend during.
         let program =
-          "let a = Stdlib.Uuid.generate ()\nlet _ = Stdlib.Cli.Posix.sleep 800.0\nlet b = Stdlib.Uuid.generate ()\nStdlib.String.join [ Stdlib.Uuid.toString a, Stdlib.Uuid.toString b ] \" \""
+          "let a = Stdlib.Uuid.generate ()\nlet _ = Stdlib.Cli.Posix.sleep 800.0\nlet b = Stdlib.Uuid.generate ()\nStdlib.String.join [ Stdlib.toString a, Stdlib.toString b ] \" \""
         let running = runCli state [ "eval"; program ]
         // Until the run is in the foreground, then a moment more for the first uuid (made in
         // the first few milliseconds; the tracer holds it until a flush, so there is nothing
@@ -156,7 +156,7 @@ let private replayAfterAnEdit =
           runCli
             state
             [ "eval"
-              "Tests.Exec.shape (Stdlib.Uuid.toString (Stdlib.Uuid.generate ()))" ]
+              "Tests.Exec.shape (Stdlib.toString (Stdlib.Uuid.generate ()))" ]
         Expect.stringStarts first "v1:" "the first run went through v1"
         do! fn state "Tests.Exec.shape" "(s: String) : String = \"v2:\" + s"
         do! commit state "shape v2"
@@ -425,9 +425,9 @@ let private spawnedChildReplays =
     (fun state ->
       task {
         let program =
-          "let h = Stdlib.Exec.spawn (fun () -> Stdlib.Uuid.toString (Stdlib.Uuid.generate ()))\n"
+          "let h = Stdlib.Exec.spawn (fun () -> Stdlib.toString (Stdlib.Uuid.generate ()))\n"
           + "let child = Stdlib.Exec.await h\n"
-          + "let mine = Stdlib.Uuid.toString (Stdlib.Uuid.generate ())\n"
+          + "let mine = Stdlib.toString (Stdlib.Uuid.generate ())\n"
           + "Stdlib.printLine $\"{child} {mine}\""
         // The resume echoes a logged print with a `[replayed]` prefix, and prints its own
         // progress above it; the two uuids are the last non-empty line either way.
@@ -853,8 +853,8 @@ let private identicalCallsKeepTheirOwnValues =
             state
             "Tests.Prev.two"
             ("() : String =\n"
-             + "  let a = Stdlib.Uuid.toString (Stdlib.Uuid.generate ())\n"
-             + "  let b = Stdlib.Uuid.toString (Stdlib.Uuid.generate ())\n"
+             + "  let a = Stdlib.toString (Stdlib.Uuid.generate ())\n"
+             + "  let b = Stdlib.toString (Stdlib.Uuid.generate ())\n"
              + "  $\"{a} {b}\"")
         do! commit state "two"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.two" ]
@@ -915,7 +915,7 @@ let private previewOfASpawnServesTheChildFromTheLog =
             state
             "Tests.Prev.conc"
             ("() : String =\n"
-             + "  let h = Stdlib.Exec.spawn (fun () -> Stdlib.Uuid.toString (Stdlib.Uuid.generate ()))\n"
+             + "  let h = Stdlib.Exec.spawn (fun () -> Stdlib.toString (Stdlib.Uuid.generate ()))\n"
              + "  Stdlib.Exec.await h")
         do! commit state "conc"
         let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.conc" ]
@@ -1001,7 +1001,7 @@ let private secretsAreNotInTheLog =
             runCli
               state
               [ "eval"
-                "match Stdlib.Env.get \"DARK_TEST_SECRET\" with | Some v -> Stdlib.printLine (Stdlib.Int.toString (Stdlib.String.length v)) | None -> Stdlib.printLine \"unset\"" ]
+                "match Stdlib.Env.get \"DARK_TEST_SECRET\" with | Some v -> Stdlib.printLine (Stdlib.toString (Stdlib.String.length v)) | None -> Stdlib.printLine \"unset\"" ]
           let! e = latest ()
           let! rows =
             Sql.query
