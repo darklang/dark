@@ -750,10 +750,8 @@ let private getDeprecatedTraitImplHashesOnMain () : Task<Set<string>> =
 /// overlay and so does this, so an impl retired on a branch stops being a candidate THERE and
 /// stays one on main, and an impl main retired can be revived on a branch with `Undeprecate`.
 ///
-/// This was wrong until it was fixed: the candidate path read main's answer while the display path
-/// read the branch's, so `dark view` on a branch called an impl deprecated while a call on that
-/// same branch still dispatched to it. Main is an ordinary id with an empty chain, so main
-/// collapses to the plain read.
+/// The candidate path and the display path both read this, so `dark view` and dispatch agree on a
+/// branch. Main is an ordinary id with an empty chain, so main collapses to the plain read.
 let getDeprecatedTraitImplHashesFor (branchId : PT.BranchId) : Task<Set<string>> =
   task {
     let! onMain = getDeprecatedTraitImplHashesOnMain ()

@@ -64,6 +64,17 @@ let private extract (roots : List<Work>) : List<Dependency> =
     for dependency in extractFromNameResolution nr itemKind getPackageHash do
       dependencies <- dependency :: dependencies
 
+  /// A chosen implementation is an ordinary fn edge; one deferred to a type param, or not yet
+  /// known, names no fn of its own.
+  let addChoice (choice : PT.FQFnName.ImplChoice) : unit =
+    match choice with
+    | PT.FQFnName.Chosen r ->
+      dependencies <-
+        { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
+        :: dependencies
+    | PT.FQFnName.FromTypeParam _
+    | PT.FQFnName.Unknown -> ()
+
   pushInOrder roots
 
   while work.Count > 0 do
@@ -167,13 +178,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.EPipeLambda(_, _, body) -> work.Push(Expr body)
 
       | PT.EPipeInfix(_, _, body, implFn) ->
-        match implFn with
-        | PT.FQFnName.Chosen r ->
-          dependencies <-
-            { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
-            :: dependencies
-        | PT.FQFnName.FromTypeParam _
-        | PT.FQFnName.Unknown -> ()
+        addChoice implFn
         work.Push(Expr body)
 
       | PT.EPipeFnCall(_, nr, typeArgs, args) ->
@@ -254,13 +259,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
         // that edge is what offers a newer implementation through `propagate` rather than
         // letting it change under the call.
         for b in boundImpls do
-          match b.choice with
-          | PT.FQFnName.Chosen r ->
-            dependencies <-
-              { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
-              :: dependencies
-          | PT.FQFnName.FromTypeParam _
-          | PT.FQFnName.Unknown -> ()
+          addChoice b.choice
         // `Show.show` depends on the trait: editing the trait repoints every
         // caller, which is what makes a changed method signature visible.
         match nr.resolved with
@@ -277,13 +276,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
           // Only a CHOSEN implementation is an edge. A call that defers to a type param names
           // no fn of its own; the edge for that one belongs to the CALLER, which recorded what
           // its type argument implied.
-          match implFn with
-          | PT.FQFnName.Chosen r ->
-            dependencies <-
-              { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
-              :: dependencies
-          | PT.FQFnName.FromTypeParam _
-          | PT.FQFnName.Unknown -> ()
+          addChoice implFn
         | _ -> ()
 
       | PT.ELambda(_, _, body) -> work.Push(Expr body)
@@ -291,13 +284,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.EInfix(_, _, lhs, rhs, implFn) ->
         // An operator that resolved to one of your implementations depends on it, exactly as a
         // written-out call does: that edge is how a newer implementation is offered to you.
-        match implFn with
-        | PT.FQFnName.Chosen r ->
-          dependencies <-
-            { hash = r.name; itemKind = PT.ItemKind.Fn; location = r.location }
-            :: dependencies
-        | PT.FQFnName.FromTypeParam _
-        | PT.FQFnName.Unknown -> ()
+        addChoice implFn
         work.Push(Expr rhs)
         work.Push(Expr lhs)
 
@@ -351,19 +338,6 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
     :: (fn.parameters
         |> NEList.toList
         |> List.map (fun parameter -> TypeRef parameter.typ))
-    @ [ TypeRef fn.returnType ]
-  )
-  @ boundDeps fn.bounds
-  |> List.distinct
-
-
-/// Extract references from a function's signature only (parameters and return
-/// type), not its body. Enough to type-check a call to it.
-let extractFromFnSignature (fn : PT.PackageFn.PackageFn) : List<Dependency> =
-  extract (
-    (fn.parameters
-     |> NEList.toList
-     |> List.map (fun parameter -> TypeRef parameter.typ))
     @ [ TypeRef fn.returnType ]
   )
   @ boundDeps fn.bounds

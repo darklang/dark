@@ -55,8 +55,6 @@ impl Power for Int32 =
     Builtin.int32Power ``base`` exponent
 
 
-
-
 impl Negate for Int32 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
   let negate (a: Int32) : Int32 = Builtin.int32Negate a

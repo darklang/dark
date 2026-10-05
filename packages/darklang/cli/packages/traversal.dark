@@ -82,21 +82,8 @@ let applySegment
     | Module modules ->
       let newModules = Stdlib.List.dropLast modules
       Stdlib.Result.Result.Ok (PackageLocation.Module newModules)
-    | Type name ->
-      let parentModules = Stdlib.List.append [name.owner] name.modules
-      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
-    | Value name ->
-      let parentModules = Stdlib.List.append [name.owner] name.modules
-      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
-    | Function name ->
-      let parentModules = Stdlib.List.append [name.owner] name.modules
-      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
-    | Trait name ->
-      let parentModules = Stdlib.List.append [name.owner] name.modules
-      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
-    | Impl name ->
-      let parentModules = Stdlib.List.append [name.owner] name.modules
-      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
+    // An item's parent is the module it lives in.
+    | item -> Stdlib.Result.Result.Ok (PackageLocation.Module (modulePathOf item))
 
   | Into name ->
     let currentPath = getCurrentModulePath location

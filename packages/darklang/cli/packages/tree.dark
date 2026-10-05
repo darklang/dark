@@ -205,14 +205,7 @@ let displayTree
   if remainingDepth <= 0 then
     ()
   else
-    let modulePath =
-      match location with
-      | Module path -> path
-      | Type t -> Stdlib.List.append [t.owner] t.modules
-      | Value v -> Stdlib.List.append [v.owner] v.modules
-      | Function f -> Stdlib.List.append [f.owner] f.modules
-      | Trait t -> Stdlib.List.append [t.owner] t.modules
-      | Impl i -> Stdlib.List.append [i.owner] i.modules
+    let modulePath = modulePathOf location
 
     // Names and hashes only. This runs once per module *per level* of the walk, so materializing every
     // item's full definition to read its name compounded: `tree Darklang.Stdlib` was 547 ms.

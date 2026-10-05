@@ -55,8 +55,6 @@ impl Divide for Int8 =
   let divide (a: Int8) (b: Int8) : Int8 = Builtin.int8Divide a b
 
 
-
-
 impl Negate for Int8 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
   let negate (a: Int8) : Int8 = Builtin.int8Negate a

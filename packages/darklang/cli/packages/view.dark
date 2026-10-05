@@ -149,64 +149,13 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
     let submodules =
       LanguageTools.PackageManager.Search.readerSubmodules directSubmodules implNames
 
-    let submoduleRows =
-      if Stdlib.List.isEmpty submodules then
+    let sectionRows (header: String) (suffix: String) (names: List<String>) : List<String> =
+      if Stdlib.List.isEmpty names then
         []
       else
         Stdlib.List.flatten [
-          [ Display.getSectionHeader "submodule" ]
-          submodules
-          |> Stdlib.List.map (fun name -> $"  {name}/")
-          [ "" ]
-        ]
-
-    let typeRows =
-      if Stdlib.List.isEmpty typeNames then
-        []
-      else
-        Stdlib.List.flatten [
-          [ Display.getSectionHeader "type" ]
-          typeNames |> Stdlib.List.map (fun name -> $"  {name}")
-          [ "" ]
-        ]
-
-    let valueRows =
-      if Stdlib.List.isEmpty valueNames then
-        []
-      else
-        Stdlib.List.flatten [
-          [ Display.getSectionHeader "value" ]
-          valueNames |> Stdlib.List.map (fun name -> $"  {name}")
-          [ "" ]
-        ]
-
-    let functionRows =
-      if Stdlib.List.isEmpty fnNames then
-        []
-      else
-        Stdlib.List.flatten [
-          [ Display.getSectionHeader "function" ]
-          fnNames |> Stdlib.List.map (fun name -> $"  {name}")
-          [ "" ]
-        ]
-
-    let traitRows =
-      if Stdlib.List.isEmpty traitNames then
-        []
-      else
-        Stdlib.List.flatten [
-          [ Display.getSectionHeader "trait" ]
-          traitNames |> Stdlib.List.map (fun name -> $"  {name}")
-          [ "" ]
-        ]
-
-    let implRows =
-      if Stdlib.List.isEmpty implNames then
-        []
-      else
-        Stdlib.List.flatten [
-          [ Display.getSectionHeader "impl" ]
-          implNames |> Stdlib.List.map (fun name -> $"  {name}")
+          [ Display.getSectionHeader header ]
+          names |> Stdlib.List.map (fun name -> $"  {name}{suffix}")
           [ "" ]
         ]
 
@@ -244,12 +193,12 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
         Stdlib.String.repeat "=" (Stdlib.String.length locationStr)
         "" ]
       sameNamedTypeRows
-      submoduleRows
-      typeRows
-      traitRows
-      valueRows
-      functionRows
-      implRows
+      sectionRows "submodule" "/" submodules
+      sectionRows "type" "" typeNames
+      sectionRows "trait" "" traitNames
+      sectionRows "value" "" valueNames
+      sectionRows "function" "" fnNames
+      sectionRows "impl" "" implNames
     ]
 
   | Type name ->

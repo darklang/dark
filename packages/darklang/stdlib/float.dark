@@ -36,8 +36,6 @@ let roundTowardsZero (a: Float) : Int = Builtin.floatRoundTowardsZero a
 let truncate (a: Float) : Int = Builtin.floatTruncate a
 
 
-
-
 impl Negate for Float =
   /// Returns the negation of <param a>, {{-a}}
   let negate (a: Float) : Float = a * -1.0

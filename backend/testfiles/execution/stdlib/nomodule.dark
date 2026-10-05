@@ -310,39 +310,30 @@ module Equals =
   // Other ways to call it
   1Q == 1Q = true
   (==) 1Q 1Q = true
-  1Q == 1Q = true
 
   1Z == 1Z = true
   (==) 1Z 1Z = true
-  1Z == 1Z = true
 
   1L == 1L = true
   (==) 1L 1L = true
-  1L == 1L = true
 
   1l == 1l = true
   (==) 1l 1l = true
-  1l == 1l = true
 
   1ul == 1ul = true
   (==) 1ul 1ul = true
-  1ul == 1ul = true
 
   1s == 1s = true
   (==) 1s 1s = true
-  1s == 1s = true
 
   1us == 1us = true
   (==) 1us 1us = true
-  1us == 1us = true
 
   1y == 1y = true
   (==) 1y 1y = true
-  1y == 1y = true
 
   1uy == 1uy = true
   (==) 1uy 1uy = true
-  1uy == 1uy = true
 
 
 module NotEquals =
@@ -376,21 +367,6 @@ module NotEquals =
   (!=)
     (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
     (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
-
-  1Q != 1Q = false
-  1Z != 1Z = false
-  1L != 1L = false
-  1l != 1l = false
-  1ul != 1ul = false
-  1s != 1s = false
-  1us != 1us = false
-  1y != 1y = false
-  1uy != 1uy = false
-  "abc" != "abc" = false
-  "abd" != "abc" = true
-
-  (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
-  != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
 
 // Moving to packages

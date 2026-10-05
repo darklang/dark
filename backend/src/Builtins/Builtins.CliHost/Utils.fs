@@ -1,8 +1,5 @@
-/// The shape `Cli.fs` carries a parsed script in, between parsing it and authoring it.
-///
-/// It used to carry a `toDT`/`fromDT` pair for it as well, 150 lines of codec with no caller: Dark
-/// parses scripts itself and builds its own `Parser.CliScript.PTCliScriptModule`. This branch
-/// extended both halves of that codec with trait and impl arms before anyone noticed.
+/// The shape `Cli.fs` carries a parsed script in, between parsing it and authoring it. There is
+/// no Dark codec for it: Dark parses scripts itself and builds `Parser.CliScript.PTCliScriptModule`.
 module Builtins.CliHost.Utils
 
 open Prelude

@@ -590,26 +590,6 @@ module Trait =
       let bitwiseNot = p [] "BitwiseNot"
       let shiftLeft = p [] "ShiftLeft"
       let shiftRight = p [] "ShiftRight"
-      // Not an operator, but in the same set for the same reason: `x.toString` is a method call
-      // nothing names, and the checker needs the trait in hand to say "this type needs a
-      // ToString implementation" rather than "no such field".
-      let toString = p [] "ToString"
-      let all () =
-        [ add ()
-          subtract ()
-          multiply ()
-          divide ()
-          modulo ()
-          power ()
-          negate ()
-          compare ()
-          bitwiseAnd ()
-          bitwiseOr ()
-          bitwiseXor ()
-          bitwiseNot ()
-          shiftLeft ()
-          shiftRight ()
-          toString () ]
 
 
 module Fn =

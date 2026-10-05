@@ -322,6 +322,24 @@ let stabilizedHash
 
 /// Name-resolves + lowers an ALREADY-PARSED WrittenTypes file. The LSP parses
 /// and feeds the result here directly (no re-parse).
+/// The second pass's items with the hashes their first-pass counterparts stabilized to, matched
+/// by position. When the two passes disagree on how many there are, the second pass's stand.
+let restamp
+  (second: List<'a>)
+  (first: List<'a>)
+  (reference: 'a -> ProgramTypes.Reference)
+  (withHash: 'a -> ProgramTypes.Hash -> 'a)
+  (provisionalOps: List<ProgramTypes.PackageOp>)
+  (stabilizedOps: List<ProgramTypes.PackageOp>)
+  : List<'a> =
+  (Stdlib.List.zip second first)
+  |> Stdlib.Option.mapWithDefault second (fun zipped ->
+    zipped
+    |> Stdlib.List.map (fun pair ->
+      let (newItem, original) = pair
+      withHash newItem (stabilizedHash (reference original) provisionalOps stabilizedOps)))
+
+
 let parseFromWT
   (ctx: NameResolver.NRContext)
   (scriptName: String)
@@ -344,158 +362,33 @@ let parseFromWT
       // Second pass: re-parse with updated PackageManager
       let (result, _, unresolvedNames) = toPT { ctx with pm = pm } moduleWT
 
-      let adjustedTypes =
-        (Stdlib.List.zip result.types initialParse.types)
-        |> Stdlib.Option.mapWithDefault result.types (fun zipped ->
-          zipped
-          |> Stdlib.List.map (fun tuple ->
-            let (newType, originalType) = tuple
-            { newType with
-                hash =
-                  stabilizedHash
-                    (ProgramTypes.Reference.PackageType originalType.hash)
-                    provisionalFirstPassOps
-                    firstPassOps }))
+      let ops = provisionalFirstPassOps
+      let stable = firstPassOps
 
-      let adjustedValues =
-        (Stdlib.List.zip result.values initialParse.values)
-        |> Stdlib.Option.mapWithDefault result.values (fun zipped ->
-          zipped
-          |> Stdlib.List.map (fun tuple ->
-            let (newValue, originalValue) = tuple
-            { newValue with
-                hash =
-                  stabilizedHash
-                    (ProgramTypes.Reference.PackageValue originalValue.hash)
-                    provisionalFirstPassOps
-                    firstPassOps }))
-
-      let adjustedFns =
-        (Stdlib.List.zip result.fns initialParse.fns)
-        |> Stdlib.Option.mapWithDefault result.fns (fun zipped ->
-          zipped
-          |> Stdlib.List.map (fun tuple ->
-            let (newFn, originalFn) = tuple
-            { newFn with
-                hash =
-                  stabilizedHash
-                    (ProgramTypes.Reference.PackageFn originalFn.hash)
-                    provisionalFirstPassOps
-                    firstPassOps }))
-
-      let adjustedTraits =
-        (Stdlib.List.zip result.traits initialParse.traits)
-        |> Stdlib.Option.mapWithDefault result.traits (fun zipped ->
-          zipped
-          |> Stdlib.List.map (fun tuple ->
-            let (newTrait, originalTrait) = tuple
-            { newTrait with
-                hash =
-                  stabilizedHash
-                    (ProgramTypes.Reference.PackageTrait originalTrait.hash)
-                    provisionalFirstPassOps
-                    firstPassOps }))
-
-      let adjustedImpls =
-        (Stdlib.List.zip result.impls initialParse.impls)
-        |> Stdlib.Option.mapWithDefault result.impls (fun zipped ->
-          zipped
-          |> Stdlib.List.map (fun tuple ->
-            let (newImpl, originalImpl) = tuple
-            { newImpl with
-                hash =
-                  stabilizedHash
-                    (ProgramTypes.Reference.PackageTraitImpl originalImpl.hash)
-                    provisionalFirstPassOps
-                    firstPassOps }))
+      let restampDefs (newDefs: ProgramTypes.Definitions) (originalDefs: ProgramTypes.Definitions) : ProgramTypes.Definitions =
+        ProgramTypes.Definitions
+          { types = restamp newDefs.types originalDefs.types (fun t -> ProgramTypes.Reference.PackageType t.hash) (fun t h -> { t with hash = h }) ops stable
+            values = restamp newDefs.values originalDefs.values (fun v -> ProgramTypes.Reference.PackageValue v.hash) (fun v h -> { v with hash = h }) ops stable
+            fns = restamp newDefs.fns originalDefs.fns (fun f -> ProgramTypes.Reference.PackageFn f.hash) (fun f h -> { f with hash = h }) ops stable
+            traits = restamp newDefs.traits originalDefs.traits (fun t -> ProgramTypes.Reference.PackageTrait t.hash) (fun t h -> { t with hash = h }) ops stable
+            impls = restamp newDefs.impls originalDefs.impls (fun i -> ProgramTypes.Reference.PackageTraitImpl i.hash) (fun i h -> { i with hash = h }) ops stable
+            exprs = newDefs.exprs }
 
       let adjustedSubmodules =
         (Stdlib.List.zip result.submodules initialParse.submodules)
         |> Stdlib.Option.mapWithDefault result.submodules (fun zipped ->
           zipped
-          |> Stdlib.List.map (fun tuple ->
-            let (newSub, originalSub) = tuple
-
-            let subTypes =
-              (Stdlib.List.zip newSub.types originalSub.types)
-              |> Stdlib.Option.mapWithDefault newSub.types (fun z ->
-                z
-                |> Stdlib.List.map (fun t ->
-                  let (newT, origT) = t
-                  { newT with
-                      hash =
-                        stabilizedHash
-                          (ProgramTypes.Reference.PackageType origT.hash)
-                          provisionalFirstPassOps
-                          firstPassOps }))
-
-            let subValues =
-              (Stdlib.List.zip newSub.values originalSub.values)
-              |> Stdlib.Option.mapWithDefault newSub.values (fun z ->
-                z
-                |> Stdlib.List.map (fun v ->
-                  let (newV, origV) = v
-                  { newV with
-                      hash =
-                        stabilizedHash
-                          (ProgramTypes.Reference.PackageValue origV.hash)
-                          provisionalFirstPassOps
-                          firstPassOps }))
-
-            let subFns =
-              (Stdlib.List.zip newSub.fns originalSub.fns)
-              |> Stdlib.Option.mapWithDefault newSub.fns (fun z ->
-                z
-                |> Stdlib.List.map (fun f ->
-                  let (newF, origF) = f
-                  { newF with
-                      hash =
-                        stabilizedHash
-                          (ProgramTypes.Reference.PackageFn origF.hash)
-                          provisionalFirstPassOps
-                          firstPassOps }))
-
-            let subTraits =
-              (Stdlib.List.zip newSub.traits originalSub.traits)
-              |> Stdlib.Option.mapWithDefault newSub.traits (fun z ->
-                z
-                |> Stdlib.List.map (fun t ->
-                  let (newT, origT) = t
-                  { newT with
-                      hash =
-                        stabilizedHash
-                          (ProgramTypes.Reference.PackageTrait origT.hash)
-                          provisionalFirstPassOps
-                          firstPassOps }))
-
-            let subImpls =
-              (Stdlib.List.zip newSub.impls originalSub.impls)
-              |> Stdlib.Option.mapWithDefault newSub.impls (fun z ->
-                z
-                |> Stdlib.List.map (fun i ->
-                  let (newI, origI) = i
-                  { newI with
-                      hash =
-                        stabilizedHash
-                          (ProgramTypes.Reference.PackageTraitImpl origI.hash)
-                          provisionalFirstPassOps
-                          firstPassOps }))
-
-            ProgramTypes.Definitions
-              { types = subTypes
-                values = subValues
-                fns = subFns
-                traits = subTraits
-                impls = subImpls
-                exprs = newSub.exprs }))
+          |> Stdlib.List.map (fun pair ->
+            let (newSub, originalSub) = pair
+            restampDefs newSub originalSub))
 
       let adjusted =
         PTCliScriptModule
-          { types = adjustedTypes
-            values = adjustedValues
-            fns = adjustedFns
-            traits = adjustedTraits
-            impls = adjustedImpls
+          { types = restamp result.types initialParse.types (fun t -> ProgramTypes.Reference.PackageType t.hash) (fun t h -> { t with hash = h }) ops stable
+            values = restamp result.values initialParse.values (fun v -> ProgramTypes.Reference.PackageValue v.hash) (fun v h -> { v with hash = h }) ops stable
+            fns = restamp result.fns initialParse.fns (fun f -> ProgramTypes.Reference.PackageFn f.hash) (fun f h -> { f with hash = h }) ops stable
+            traits = restamp result.traits initialParse.traits (fun t -> ProgramTypes.Reference.PackageTrait t.hash) (fun t h -> { t with hash = h }) ops stable
+            impls = restamp result.impls initialParse.impls (fun i -> ProgramTypes.Reference.PackageTraitImpl i.hash) (fun i h -> { i with hash = h }) ops stable
             submodules = adjustedSubmodules
             exprs = result.exprs }
 

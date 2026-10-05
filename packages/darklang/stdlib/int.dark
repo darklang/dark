@@ -56,8 +56,6 @@ impl Power for Int =
     Builtin.intPower ``base`` exponent
 
 
-
-
 impl Negate for Int =
   /// Returns the negation of <param a>, {{-a}}
   let negate (a: Int) : Int = Builtin.intNegate a

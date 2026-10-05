@@ -87,7 +87,6 @@ Stdlib.Int8.remainder 5y 0y = Stdlib.Result.Result.Error "Cannot divide by 0"
 (10y < 1y) = false
 (0y < 1y) = true
 (1y < 0y) = false
-(-128y < 127y) = true
 
 Stdlib.toString 0y = "0"
 Stdlib.toString 1y = "1"

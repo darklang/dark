@@ -26,7 +26,7 @@ let private overlayFirst
     | None -> return! fallback k
   }
 
-/// Layer two location lookups: the overlay's locations first, then the fallback's.
+/// Layer two list lookups (locations, impls): the overlay's answers first, then the fallback's.
 /// Per call site, only which pair of getters is composed varies.
 let private concatLocs
   (overlay : 'k -> Ply<List<'v>>)
@@ -670,20 +670,8 @@ let combine
     getTraitImplLocations =
       concatLocs overlay.getTraitImplLocations fallback.getTraitImplLocations
 
-    impls =
-      fun traitHash ->
-        uply {
-          let! o = overlay.impls traitHash
-          let! f = fallback.impls traitHash
-          return o @ f
-        }
-    implsWithMethod =
-      fun methodName ->
-        uply {
-          let! o = overlay.implsWithMethod methodName
-          let! f = fallback.implsWithMethod methodName
-          return o @ f
-        }
+    impls = concatLocs overlay.impls fallback.impls
+    implsWithMethod = concatLocs overlay.implsWithMethod fallback.implsWithMethod
 
     search =
       fun query ->

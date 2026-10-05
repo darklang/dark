@@ -39,17 +39,13 @@ let resolveTrait
       | Ok h -> Stdlib.Result.Result.Ok h
       | Error _ -> Stdlib.Result.Result.Error msg
 
-let locToString (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
-  Stdlib.String.join (Stdlib.List.flatten [ [ loc.owner ], loc.modules, [ loc.name ] ]) "."
-
-
 /// The name of the implementation, or its short hash when nothing binds it.
 let sourceNameOf
   (branchId: Uuid)
   (source: LanguageTools.ProgramTypes.Hash)
   : String =
   match LanguageTools.PackageManager.TraitImpl.locations branchId source with
-  | loc :: _ -> locToString loc
+  | loc :: _ -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
   | [] -> LanguageTools.ProgramTypes.hashToShort source
 
 
@@ -140,7 +136,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       if json then
         let traitName =
           match LanguageTools.PackageManager.Trait.locations state.currentBranchId traitHash with
-          | loc :: _ -> locToString loc
+          | loc :: _ -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
           | [] -> traitPath
 
         printJson state.currentBranchId traitName candidates

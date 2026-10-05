@@ -46,14 +46,7 @@ let listModule
   (includeDeprecated: Bool)
   (showVersions: Bool)
   : Unit =
-  let modulePath =
-    match location with
-    | Module path -> path
-    | Type t -> Stdlib.List.append [t.owner] t.modules
-    | Value v -> Stdlib.List.append [v.owner] v.modules
-    | Function f -> Stdlib.List.append [f.owner] f.modules
-    | Trait t -> Stdlib.List.append [t.owner] t.modules
-    | Impl i -> Stdlib.List.append [i.owner] i.modules
+  let modulePath = modulePathOf location
 
   // Names and hashes only: a listing shows a name and a deprecation mark, and materializing each item's
   // full definition to read those was most of the command's cost once startup got cheap.
@@ -225,10 +218,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         // answers it. Without this line you find that command in the docs or by accident.
         match newLocation with
         | Trait t ->
-          let traitName =
-            Stdlib.String.join
-              (Stdlib.List.append (Stdlib.List.append [ t.owner ] t.modules) [ t.name ])
-              "."
+          let traitName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation t
 
           Stdlib.printLine $"`dark impls {traitName}` lists the types that implement it."
         | _ -> ()
