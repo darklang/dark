@@ -140,7 +140,10 @@ module TheLogIsCut =
   (logOf 40 Darklang.Cli.Tracing.defaultViewOptions) = 40
 
   // Forty-one are cut to forty, and the forty-first line is the count of what was left out.
-  (logOf 41 Darklang.Cli.Tracing.defaultViewOptions) = 41
+  // Counted at 100 rather than 41: at 41 the capped form is also 41 lines, so `= 41` there
+  // holds whether or not the cap works. At 100 it still prints forty plus one summary line,
+  // which is the same 41 and is now a number the uncapped form cannot produce.
+  (logOf 100 Darklang.Cli.Tracing.defaultViewOptions) = 41
 
   (Stdlib.String.contains
     (textOf 41 Darklang.Cli.Tracing.defaultViewOptions)
@@ -157,8 +160,6 @@ module TheLogIsCut =
   (Stdlib.String.contains
     (textOf 41 { Darklang.Cli.Tracing.defaultViewOptions with all = true })
     "more") = false
-
-  (logOf 41 { Darklang.Cli.Tracing.defaultViewOptions with all = true }) = 41
 
   (logOf 100 { Darklang.Cli.Tracing.defaultViewOptions with all = true }) = 100
 

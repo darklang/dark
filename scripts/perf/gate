@@ -106,9 +106,12 @@ if mode == "debug" and update:
     sys.exit(2)
 
 if mode == "debug":
+    # Exit 2, not 0. This run measured something and checked it against nothing, and a caller
+    # reading only the exit code would take a 0 for a budget that held. 2 is what the rest of
+    # this script uses for "could not do the job", as against 1 for "over budget".
     print(f"steady.dark (debug) allocated {mb(measured)}; not budgeted, so this does not gate.")
     print("The published build is what is budgeted: `scripts/perf/gate --published`.")
-    sys.exit(0)
+    sys.exit(2)
 
 if update:
     budget["steady"][mode] = measured

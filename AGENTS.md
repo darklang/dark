@@ -107,7 +107,8 @@ you think produced it actually ran.
     ./scripts/testing/gates ci                        the subset CI runs, each bounded by 5m
     ./scripts/testing/gates all                       every gate except gates-are-clean, the slow
                                                       meta-gate that re-runs the rest itself
-    ./scripts/perf/gate                               reference workload, allocation vs budget
+    ./scripts/perf/gate --published                   reference workload, allocation vs budget
+    ./scripts/perf/gate                               the same, debug: reports, does NOT gate
     ./scripts/perf/suite                              six workloads, allocation per iteration
     ./scripts/perf/checks                             by-hand interpreter and error-message checks
 
@@ -250,7 +251,9 @@ Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
     docs/perf/roadmap.md     what's worth doing next, ranked, with measured vs estimated marked
     docs/perf/history.md     the numbers round by round, and facts not worth re-deriving
 
-    scripts/perf/gate        the CI assertion: one workload, allocation against a checked-in budget
+    scripts/perf/gate --published   the CI assertion: one workload, allocation against a budget.
+                             Bare (debug) there is no budget, so it reports and exits 2 rather
+                             than looking like a check that passed
     scripts/perf/suite       six workloads, allocation and time per iteration
     scripts/perf/checks      by-hand interpreter and error-message checks
     scripts/perf/http        a real server under concurrent load
