@@ -585,7 +585,7 @@ let pipeRefs
   | EPipeVariable(_, _, args) -> many args
   | EPipeLambda(_, _, body) -> exprRefs env body
   | EPipeInfix(_, _, rhs, _) -> exprRefs env rhs
-  | EPipeFnCall(_, name, typeArgs, args) ->
+  | EPipeFnCall(_, name, typeArgs, args, _) ->
     Stdlib.List.flatten
       [ functionNameRefs env name, typeListRefs typeArgs, many args ]
   | EPipeEnum(_, name, _, fields) ->

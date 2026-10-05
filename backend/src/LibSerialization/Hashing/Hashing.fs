@@ -258,8 +258,8 @@ module Hashing =
       )
     | PT.EPipeInfix(id, op, expr, implFn) ->
       PT.EPipeInfix(id, op, norm c env expr, implFn)
-    | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
-      PT.EPipeFnCall(id, fnName, typeArgs, List.map (norm c env) args)
+    | PT.EPipeFnCall(id, fnName, typeArgs, args, boundImpls) ->
+      PT.EPipeFnCall(id, fnName, typeArgs, List.map (norm c env) args, boundImpls)
     | PT.EPipeEnum(id, typeName, caseName, fields) ->
       PT.EPipeEnum(id, typeName, caseName, List.map (norm c env) fields)
 

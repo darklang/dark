@@ -176,7 +176,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
         | PT.FQFnName.Unknown -> ()
         work.Push(Expr body)
 
-      | PT.EPipeFnCall(_, nr, typeArgs, args) ->
+      | PT.EPipeFnCall(_, nr, typeArgs, args, _) ->
         addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
         pushExprsInOrder args
         pushTypesInOrder typeArgs

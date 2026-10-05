@@ -62,7 +62,7 @@ let rec private kidsE (e : PT.Expr) : List<PT.Expr> =
         |> List.collect (function
           | PT.EPipeLambda(_, _, b) -> [ b ]
           | PT.EPipeInfix(_, _, e, _) -> [ e ]
-          | PT.EPipeFnCall(_, _, _, args) -> args
+          | PT.EPipeFnCall(_, _, _, args, _) -> args
           | PT.EPipeEnum(_, _, _, fields) -> fields
           | PT.EPipeVariable(_, _, args) -> args))
   | PT.EMatch(_, arg, cases) ->
@@ -117,7 +117,7 @@ let private nodeDetail (e : PT.Expr) : string =
   | PT.EPipe(_, _, parts) ->
     parts
     |> List.map (function
-      | PT.EPipeFnCall(_, nr, tas, _) ->
+      | PT.EPipeFnCall(_, nr, tas, _, _) ->
         $"EPipeFnCall {fqFnStr nr} tas={List.length tas}"
       | PT.EPipeVariable(_, v, _) -> $"EPipeVariable {v}"
       | PT.EPipeLambda _ -> "EPipeLambda"

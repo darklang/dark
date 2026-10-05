@@ -130,7 +130,7 @@ let pFnCall
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : PipeExpr =
-  EPipeFnCall(id, NameResolution.ok fn, typeArgs, args)
+  EPipeFnCall(id, NameResolution.ok fn, typeArgs, args, [])
 
 let pEnum
   id

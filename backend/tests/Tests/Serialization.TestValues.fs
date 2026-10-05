@@ -467,7 +467,8 @@ module ProgramTypes =
                                        { name = "int64Add"; version = 0 }
                                    ),
                                    [],
-                                   [ (EInt64(id, 6L)); (EInt64(id, 2L)) ]
+                                   [ (EInt64(id, 6L)); (EInt64(id, 2L)) ],
+                                   []
                                  ) ]
                              ))
                             ("enum",

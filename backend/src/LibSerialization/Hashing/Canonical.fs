@@ -408,11 +408,23 @@ let writePipeExpr (mode : HashRefMode) (w : BinaryWriter) (pipeExpr : PT.PipeExp
     ExprS.Infix.write w infix
     writeExpr mode w expr
     writeImplChoice mode w implFn
-  | PT.EPipeFnCall(_id, fnName, typeArgs, args) ->
+  | PT.EPipeFnCall(_id, fnName, typeArgs, args, boundImpls) ->
     w.Write 3uy
     writeNameResolution (writeFQFnName mode) w fnName
     Common.List.write w (writeTypeReference mode) typeArgs
     Common.List.write w (writeExpr mode) args
+    // As `EFnName`, including writing nothing when there are none, so a piped call that owes
+    // no bounds keeps the hash it had.
+    if not (List.isEmpty boundImpls) then
+      w.Write(0xB1uy)
+      Common.List.write
+        w
+        (fun w (b : PT.FQFnName.BoundImpl) ->
+          Common.String.write w b.param
+          writeFQTraitName mode w None (PT.FQTraitName.Package b.trait_)
+          Common.String.write w b.method_
+          writeImplChoice mode w b.choice)
+        boundImpls
   | PT.EPipeEnum(_id, typeName, caseName, fields) ->
     w.Write 4uy
     writeNameResolution (writeFQTypeName mode) w typeName

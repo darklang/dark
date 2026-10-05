@@ -633,7 +633,7 @@ module Expr =
 
           match resolvedFn.resolved with
           | Ok _ ->
-            (ProgramTypes.PipeExpr.EPipeFnCall(gid (), resolvedFn, [], []), [])
+            (ProgramTypes.PipeExpr.EPipeFnCall(gid (), resolvedFn, [], [], []), [])
           | Error _ ->
             (ProgramTypes.PipeExpr.EPipeVariable(gid (), name, []), [])
 
@@ -674,7 +674,7 @@ module Expr =
 
             match resolvedFn.resolved with
             | Ok _ ->
-              (ProgramTypes.PipeExpr.EPipeFnCall(gid (), resolvedFn, typeArgs, args),
+              (ProgramTypes.PipeExpr.EPipeFnCall(gid (), resolvedFn, typeArgs, args, []),
                 unresolvedNames)
             | Error _ ->
               (ProgramTypes.PipeExpr.EPipeVariable(gid (), fn.fn.name, args),
@@ -686,13 +686,13 @@ module Expr =
 
           match fnName.resolved with
           | Ok _ ->
-            (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
+            (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args, []),
               unresolvedNames)
           | Error e ->
             let unresolvedNames =
               Stdlib.List.append unresolvedNames [ (fn.range, fnName.originalName, e) ]
 
-            (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
+            (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args, []),
               unresolvedNames)
 
   let toPT
