@@ -359,6 +359,18 @@ DARK
   fi
 
   # The checker must now say the same thing, at save time.
+  # The call saved while the implementation was live holds a recorded choice and still runs, so
+  # `commit` must take it. It used to refuse with MissingImpl, which is the walkthrough's own
+  # ending and what the PR's GIF shows. Committed here, before the refused save below, because
+  # that one is meant to hold the draft back.
+  committed=$($CLI commit -m 'gate: recorded choice' --yes 2>&1 | clean || true)
+  if [[ "$committed" == *MissingImpl* ]]; then
+    echo "trait-checker-vs-dispatch: commit refused a call that holds a recorded implementation."
+    echo "  It runs, and the run time uses the choice it recorded, so the check must accept it."
+    echo "    ${committed//$'\n'/$'\n'    }"
+    exit 1
+  fi
+
   saved=$($CLI fn Stachu.Dep.sumDeprecated - 2>&1 <<'DARK' | clean || true
 (a: Stachu.Dep.Dt) (b: Stachu.Dep.Dt) : Int64 =
   (a + b).gateDeprecatedOnly
