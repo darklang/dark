@@ -356,6 +356,8 @@ let private editDoesNotReachAParkedProcess =
         [ oldFn, { location with name = "entry-old" }
           newFn, { location with name = "entry-new" }
           current, location ]
+        []
+        []
     let callEntry (pm : PT.PackageManager) : Task<RT.Instructions> =
       task {
         let! hash = pm.findFn location |> Ply.toTask
