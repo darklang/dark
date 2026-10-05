@@ -627,8 +627,8 @@ let refreshLiveValues (next: State) : State =
       | Some item when (Stdlib.Bool.not item.isModule) && (item.kind == "fn") ->
         let entry =
           LanguageTools.ProgramTypes.PackageLocation
-            { owner = Stdlib.List.head (modulePathOf next.location) |> Stdlib.Option.withDefault ""
-              modules = Stdlib.List.drop (modulePathOf next.location) 1
+            { owner = Stdlib.List.head (Packages.modulePathOf next.location) |> Stdlib.Option.withDefault ""
+              modules = Stdlib.List.drop (Packages.modulePathOf next.location) 1
               name = item.name }
 
         match Stdlib.Live.Values.replay next.branchId entry with
