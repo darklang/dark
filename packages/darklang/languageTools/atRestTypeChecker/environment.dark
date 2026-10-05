@@ -180,6 +180,16 @@ let builtinCallable
   else
     (Model.Callable.Untrusted UntrustedBuiltin.ResultTypeUnconstrained, env)
 
+/// The trait behind <param hash>: one this batch declares, else the store's.
+let traitFor
+  (env: Model.Environment)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Trait.Trait> =
+  match Stdlib.Dict.get env.batchTraits (LanguageTools.ProgramTypes.hashToString hash) with
+  | Some trait_ -> Stdlib.Option.Option.Some trait_
+  | None -> LanguageTools.PackageManager.Trait.get hash
+
+
 /// Look up a package signature in env or fetch one builtin's metadata, then
 /// convert it for checking. Return Unavailable if the signature cannot be found.
 /// Solve.callableFor caches the result, including unavailable or untrusted signatures.
@@ -201,7 +211,7 @@ let resolveCallable
   // inference unifies it with the argument the caller passes: that is what decides which type
   // the call is for, and the implementation is chosen from it afterwards.
   | TraitMethod method ->
-    match LanguageTools.PackageManager.Trait.get method.trait_ with
+    match traitFor env method.trait_ with
     | None -> (Model.Callable.Unavailable, env)
     | Some trait_ ->
       match
@@ -398,6 +408,7 @@ let builtins (branchId: Uuid) : Model.Environment =
       values = Dict {}
       declarationFacts = Dict {}
       traitImpls = traitImpls branchId
+      batchTraits = Dict {}
       infixTrait = infixTrait branchId
       valueTypeParameters = Dict {}
       dictKeyParameters = Dict {}
@@ -405,6 +416,52 @@ let builtins (branchId: Uuid) : Model.Environment =
       declarationProblems = Dict {}
       optionType = typeHashOf Stdlib.Option.Option.None
       resultType = typeHashOf (Stdlib.Result.Result.Ok ()) }
+
+
+/// <param env> with the batch's own traits and implementations visible.
+///
+/// `traitImpls` comes from the store, and the store does not hold a batch's items until after
+/// the check, so an implementation saved together with the calls that need it was invisible to
+/// them: the calls were left to resolve at run time, where a later rival could take them over,
+/// and nothing said so. An implementation already in the store (an identical re-save) is not
+/// added twice, which would make it its own rival.
+let withBatch
+  (env: Model.Environment)
+  (traits: List<LanguageTools.ProgramTypes.Trait.Trait>)
+  (impls: List<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>)
+  : Model.Environment =
+  let batchTraits =
+    Stdlib.List.fold traits env.batchTraits (fun found t ->
+      Stdlib.Dict.setOverridingDuplicates
+        found
+        (LanguageTools.ProgramTypes.hashToString t.hash)
+        t)
+
+  let traitImpls =
+    Stdlib.List.fold impls env.traitImpls (fun found i ->
+      match i.trait_.resolved with
+      | Ok resolved ->
+        match resolved.name with
+        | Package traitHash ->
+          let key = LanguageTools.ProgramTypes.hashToString traitHash
+          let existing =
+            match Stdlib.Dict.get found key with
+            | Some impls -> impls
+            | None -> []
+
+          if Stdlib.List.any existing (fun (_, h) -> h == i.hash) then
+            found
+          else
+            let (self, _) =
+              Types.fromReference (Dict {}) (Stdlib.Option.Option.None) i.self
+
+            Stdlib.Dict.setOverridingDuplicates
+              found
+              key
+              (Stdlib.List.pushBack existing (self, i.hash))
+      | Error _ -> found)
+
+  { env with batchTraits = batchTraits; traitImpls = traitImpls }
 
 
 // --------------------
@@ -688,8 +745,8 @@ let loadDependency
     | None -> ([], closure)
   // A trait method call contributes a reference to its TRAIT (`functionNameRefs`), so this is
   // reached. The closure holds types, values and fns and not traits, and it does not need to:
-  // `resolveCallable` reads a trait straight from the store, because a trait's signature is
-  // not something a batch can shadow. Nothing to load, and no further references to follow.
+  // `resolveCallable` reads a trait from the batch (`withBatch`) or else straight from the
+  // store. Nothing to load, and no further references to follow.
   //
   // Without an arm here it RAISED, the per-item guard turned that into an Incomplete verdict,
   // and `dark typecheck` reported this very function as incomplete. Which is how it was found.

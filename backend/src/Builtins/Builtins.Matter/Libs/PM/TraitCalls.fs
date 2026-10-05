@@ -310,7 +310,7 @@ let private worthChecking
 ///
 /// <param branchId> separately from <param pm>, because `pm` carries the branch's names and
 /// not its deprecations. <param storeHoldsOps> lets a large batch be checked in parallel.
-let resolveTraitCalls
+let private resolveIn
   (exeState : RT.ExecutionState)
   (branchId : PT.BranchId)
   (pm : PT.PackageManager)
@@ -326,7 +326,40 @@ let resolveTraitCalls
       // here either: `dark constraints` tells you to deprecate one of two rivals, and pinning
       // the one you just retired would make that advice a trap.
       let! deprecated = LibDB.Queries.getDeprecatedTraitImplHashesFor branchId
-      let! stamps = LibDB.Queries.getTraitImplStamps ()
+      let! storedStamps = LibDB.Queries.getTraitImplStamps ()
+
+      // The batch's own traits and implementations, which the store does not hold until after
+      // this. A call saved together with the implementation it resolved to is pinned to it, and
+      // that implementation is the newest there is, so it carries a stamp from now.
+      let batchTraits =
+        ops
+        |> List.choose (function
+          | PT.PackageOp.AddTrait t -> Some(t.hash, t)
+          | _ -> None)
+        |> Map.ofList
+      let batchImpls =
+        ops
+        |> List.choose (function
+          | PT.PackageOp.AddTraitImpl i -> Some(i.hash, i)
+          | _ -> None)
+        |> Map.ofList
+      let getTrait (h : PT.FQTraitName.Package) : Ply<Option<PT.Trait.Trait>> =
+        match Map.tryFind h batchTraits with
+        | Some t -> Ply(Some t)
+        | None -> pm.getTrait h
+      let getTraitImpl (h : PT.Hash) : Ply<Option<PT.TraitImpl.TraitImpl>> =
+        match Map.tryFind h batchImpls with
+        | Some i -> Ply(Some i)
+        | None -> pm.getTraitImpl h
+      let stamps =
+        batchImpls
+        |> Map.fold
+          (fun found (PT.Hash h) _ ->
+            if Map.containsKey h found then
+              found
+            else
+              Map.add h (LibDB.OriginTs.next ()) found)
+          storedStamps
 
       // Chunks load what they do not carry from the store, so only a caller whose batch is
       // already in the store can split it; an authoring batch is not, and stays whole. The
@@ -374,7 +407,7 @@ let resolveTraitCalls
             match winner with
             | None -> return None
             | Some winner ->
-              let! impl = pm.getTraitImpl winner
+              let! impl = getTraitImpl winner
               // The implementation's own reference to the fn, location and all, which is why
               // the edge this produces reads like any other and a rename reaches it.
               return
@@ -425,7 +458,7 @@ let resolveTraitCalls
           for resolution in resolutions do
             match resolution with
             | CallerBound(at, param, traitHash, implHashes) ->
-              match! pm.getTrait traitHash with
+              match! getTrait traitHash with
               | Some trait_ ->
                 // One entry per method of the trait, so the callee's body finds a fn for
                 // whichever method it calls without reading the implementation item at run time.
@@ -442,7 +475,7 @@ let resolveTraitCalls
                   | None -> ()
               | None -> ()
             | CallerBoundDeferred(at, param, traitHash, fromParam) ->
-              match! pm.getTrait traitHash with
+              match! getTrait traitHash with
               | Some trait_ ->
                 for m in NEList.toList trait_.methods do
                   let entry : PT.FQFnName.BoundImpl =
@@ -492,4 +525,136 @@ let resolveTraitCalls
                 )
               | None -> op
             | _ -> op)
+  }
+
+
+// --------------------
+// Saying what was left unpinned.
+// --------------------
+
+/// The calls in <param expr> that will be decided at run time rather than by this save: a trait
+/// method or a trait operator still `Unknown`, and a call into a BOUNDED fn that recorded nothing
+/// for its bounds (so the callee's deferral has nothing to read). <param isBounded> answers for a
+/// callee by hash.
+let rec private unpinned (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int =
+  let traitOperator (infix : PT.Infix) =
+    match infix with
+    | PT.InfixFnCall name -> Option.isSome (LibExecution.NumericTraits.ofInfix name)
+    | PT.BinOp _ -> false
+  let named (nr : PT.NameResolution<PT.FQFnName.FQFnName>) (recorded : bool) =
+    match nr.resolved with
+    | Ok { name = PT.FQFnName.TraitMethod { implFn = PT.FQFnName.Unknown } } -> 1
+    | Ok { name = PT.FQFnName.Package h } when not recorded && isBounded h -> 1
+    | _ -> 0
+  let here =
+    match expr with
+    | PT.EFnName(_, nr, boundImpls) -> named nr (not (List.isEmpty boundImpls))
+    | PT.EInfix(_, infix, _, _, PT.FQFnName.Unknown) when traitOperator infix -> 1
+    | PT.EPipe(_, _, parts) ->
+      parts
+      |> List.sumBy (fun part ->
+        match part with
+        // A piped call has no field to record a bound in, so a bounded one is never pinned.
+        | PT.EPipeFnCall(_, nr, _, _) -> named nr false
+        | PT.EPipeInfix(_, infix, _, PT.FQFnName.Unknown) when traitOperator infix ->
+          1
+        | _ -> 0)
+    | _ -> 0
+  here + (PTAst.subExprs expr |> List.sumBy (unpinned isBounded))
+
+
+/// Write onto each trait-method call in <param ops> the implementation it resolves to, and on an
+/// authoring save, say how many calls it could not.
+///
+/// The count is what makes a partly pinned save visible. A save the checker could not settle at
+/// all printed a line; one it settled partly printed nothing, and its unsettled calls ran whichever
+/// implementation was newest, which a later rival could change without anyone being told.
+let resolveTraitCalls
+  (exeState : RT.ExecutionState)
+  (branchId : PT.BranchId)
+  (pm : PT.PackageManager)
+  (storeHoldsOps : bool)
+  (ops : List<PT.PackageOp>)
+  : Ply<List<PT.PackageOp>> =
+  uply {
+    let! resolved = resolveIn exeState branchId pm storeHoldsOps ops
+
+    // A reload has its own report (`Resolved trait calls: ...`); this is for a person saving.
+    if not storeHoldsOps then
+      let batchFns =
+        resolved
+        |> List.choose (function
+          | PT.PackageOp.AddFn fn -> Some(fn.hash, fn)
+          | _ -> None)
+        |> Map.ofList
+      let names =
+        resolved
+        |> List.choose (function
+          | PT.PackageOp.SetName(loc, PT.Reference.PackageFn h, _)
+          | PT.PackageOp.SetName(loc, PT.Reference.PackageValue h, _) ->
+            Some(h, String.concat "." (loc.owner :: loc.modules @ [ loc.name ]))
+          | _ -> None)
+        |> Map.ofList
+
+      // Which callees are bounded, looked up once each. Piped callees too, which
+      // `calledPackageFns` does not collect.
+      let rec piped (expr : PT.Expr) : List<PT.Hash> =
+        let here =
+          match expr with
+          | PT.EPipe(_, _, parts) ->
+            parts
+            |> List.choose (function
+              | PT.EPipeFnCall(_,
+                               { resolved = Ok { name = PT.FQFnName.Package h } },
+                               _,
+                               _) -> Some h
+              | _ -> None)
+          | _ -> []
+        here @ (PTAst.subExprs expr |> List.collect piped)
+      let callees =
+        resolved
+        |> List.collect (function
+          | PT.PackageOp.AddFn fn -> calledPackageFns fn.body @ piped fn.body
+          | PT.PackageOp.AddValue v -> calledPackageFns v.body @ piped v.body
+          | _ -> [])
+        |> List.distinct
+      let mutable bounded = Set.empty
+      for h in callees do
+        match Map.tryFind h batchFns with
+        | Some fn ->
+          if not (List.isEmpty fn.bounds) then bounded <- Set.add h bounded
+        | None ->
+          match! pm.getFn h with
+          | Some fn ->
+            if not (List.isEmpty fn.bounds) then bounded <- Set.add h bounded
+          | None -> ()
+      let isBounded h = Set.contains h bounded
+
+      let left =
+        resolved
+        |> List.choose (fun op ->
+          let hash, count =
+            match op with
+            | PT.PackageOp.AddFn fn -> fn.hash, unpinned isBounded fn.body
+            | PT.PackageOp.AddValue v -> v.hash, unpinned isBounded v.body
+            | _ -> PT.Hash "", 0
+          if count = 0 then
+            None
+          else
+            // A name when the save carries one; `dark fn` saves the body before its name.
+            let (PT.Hash h) = hash
+            let name =
+              Map.tryFind hash names
+              |> Option.defaultValue (
+                if h.Length > 8 then h.Substring(0, 8) else "an item"
+              )
+            Some $"{name} ({count})")
+
+      if not (List.isEmpty left) then
+        let total = List.length left
+        let which = String.concat ", " left
+        print
+          $"  [traitcalls] trait calls this save could not pin, in {total} item(s), will run whichever implementation is newest when they run: {which}"
+
+    return resolved
   }

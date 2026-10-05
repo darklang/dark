@@ -32,6 +32,7 @@ GATES=(
   backups-restore
   reload-is-reproducible
   trait-choice-survives-rival
+  trait-choice-any-batching
   trait-checker-vs-dispatch
   trait-deprecation-is-per-branch
   trait-pin-across-branches
@@ -58,7 +59,7 @@ GATES=(
 # while another clone was running perf experiments. Treat them as orders of magnitude against the
 # 5m bound, not as a budget. A gate reporting 0s has not run at all.
 CI_GATES=(relay-routes workbench-scm workbench-views lsp-branches
-          trait-choice-survives-rival trait-checker-vs-dispatch
+          trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
           trait-deprecation-is-per-branch trait-pin-across-branches)
 
 describe() {
@@ -75,6 +76,7 @@ describe() {
     backups-restore)        echo 'backup, wipe, restore; the destructive verbs ask first' ;;
     reload-is-reproducible) echo 'two reloads of one tree agree on every op id' ;;
     trait-choice-survives-rival) echo 'a saved call keeps its implementation when a newer rival lands' ;;
+    trait-choice-any-batching) echo 'the choice is recorded whether trait, impls and callers are saved together or apart' ;;
     trait-checker-vs-dispatch) echo 'the at-rest checker and dispatch agree on which impls apply' ;;
     trait-deprecation-is-per-branch) echo 'deprecating an implementation is branch-aware, display and dispatch' ;;
     trait-pin-across-branches) echo 'a saved call keeps its implementation across a branch boundary' ;;

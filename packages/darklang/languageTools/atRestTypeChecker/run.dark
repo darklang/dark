@@ -8,16 +8,23 @@ type Candidates =
   { types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageType.PackageType>
     values: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageValue.PackageValue>
     fns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn>
-    impls: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.TraitImpl.TraitImpl> }
+    impls: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.TraitImpl.TraitImpl>
+    /// Not checked themselves, but their methods are what calls in this batch are typed against
+    traits: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.Trait.Trait> }
 
-/// Collect declarations from AddType, AddValue, AddFn and AddTraitImpl operations.
+/// Collect declarations from AddType, AddValue, AddFn, AddTrait and AddTraitImpl operations.
 /// Ignore operations that do not supply a declaration to check.
 let candidatesFromOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Candidates =
   Stdlib.List.fold
     ops
-    (Candidates { types = Dict {}; values = Dict {}; fns = Dict {}; impls = Dict {} })
+    (Candidates
+      { types = Dict {}
+        values = Dict {}
+        fns = Dict {}
+        impls = Dict {}
+        traits = Dict {} })
     (fun found op ->
       match op with
       | AddType t ->
@@ -30,6 +37,8 @@ let candidatesFromOps
         { found with fns = Stdlib.Dict.setOverridingDuplicates found.fns fn.hash fn }
       | AddTraitImpl i ->
         { found with impls = Stdlib.Dict.setOverridingDuplicates found.impls i.hash i }
+      | AddTrait t ->
+        { found with traits = Stdlib.Dict.setOverridingDuplicates found.traits t.hash t }
       | _ -> found)
 
 /// Report only the declarations requested by the caller. Dependency values may
@@ -116,6 +125,7 @@ let checkPackageOpsOn
   let values = Stdlib.Dict.values candidates.values
   let fns = Stdlib.Dict.values candidates.fns
   let impls = Stdlib.Dict.values candidates.impls
+  let traits = Stdlib.Dict.values candidates.traits
 
   let candidateRefs =
     Stdlib.List.flatten
@@ -124,7 +134,10 @@ let checkPackageOpsOn
         Stdlib.List.map fns (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
         Stdlib.List.map impls (fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash) ]
 
-  let builtins = Environment.builtins branchId
+  // The batch's own traits and implementations, beside the store's: the store does not
+  // hold them until after this check, and a call saved with the trait or the impl it needs
+  // must still be typed against it and pinned to it.
+  let builtins = Environment.withBatch (Environment.builtins branchId) traits impls
 
   // If inspecting a type declaration or function signature fails, leave it out
   // of the checking environment and record an Incomplete result for it.
@@ -172,7 +185,7 @@ let checkPackageOpsOn
       impls
       (fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash)
       (fun _ -> Stdlib.Option.Option.None)
-      (fun i -> Impls.refsOf i)
+      (fun i -> Impls.refsOf candidates.traits i)
 
   let dependencyRefs =
     Stdlib.List.flatten [ typeRefs, signatureRefs, valueBodyRefs, fnBodyRefs, implRefs ]
