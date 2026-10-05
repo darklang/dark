@@ -397,9 +397,43 @@ let saveAuthored
 
       // The save's own type check: an error in what was just written. Saved anyway (WIP is yours
       // to break); `dark commit` is the gate. Said on the second line, with the issue itself.
+      // Named, not hashed. A trait diagnostic carries the CONTENT HASH of the type and of the
+      // trait, and turning one into a name needs a branch to look it up on.
+      // `Stdlib.Live.reportText` takes the report and nothing else, so it renders
+      // `type #bf494e2a has no implementation of #d4222cbd155f`, which is the least useful
+      // thing to say at the moment a save is refused. `AtRestCheck.customTypeName` is the
+      // lookup `dark commit` uses, and the branch is already in hand here.
+      //
+      // Same shape `reportText` produces, the first issue and a count of the rest, so the save
+      // stays two lines.
       let ownIssue =
         match report.verdict with
-        | Failed -> Stdlib.Option.Option.Some(Stdlib.Live.reportText report)
+        | Failed ->
+          let issues = Stdlib.List.append report.warnings report.diagnostics
+
+          match issues with
+          | [] -> Stdlib.Option.Option.Some "it failed the type check"
+          | issue :: rest ->
+            // The CODE as well as the message. `dark docs traits` names these codes, they are
+            // what somebody searches for, and `dark module` prints them through
+            // `AtRestCheck.printSaveReport`, so a `fn` or an `impl` dropping them made the two
+            // paths disagree about what a refused save says. It costs one bracketed word on a
+            // line that already exists, so the save is still two lines.
+            let first =
+              "["
+              + (LanguageTools.AtRestTypeChecker.issueCodeToString issue.code)
+              + "] "
+              + (LanguageTools.AtRestTypeChecker.issueToStringWith
+                  (AtRestCheck.customTypeName state.currentBranchId)
+                  issue)
+
+            let more =
+              if Stdlib.List.isEmpty rest then
+                ""
+              else
+                " (and " + (Stdlib.toString (Stdlib.List.length rest)) + " more)"
+
+            Stdlib.Option.Option.Some(first + more)
         | _ -> Stdlib.Option.Option.None
 
       // A save is at most two lines. Line one: what happened, with a check when all is well and a
