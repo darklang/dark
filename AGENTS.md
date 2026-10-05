@@ -858,6 +858,28 @@ Empty is tolerated; non-empty with a missing key crashes at startup with "Packag
 hash not found". After adding a ref:
 `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`
 
+**And the FIRST build after truncating that file reports a legitimate zero for trait
+resolution.** Switching branches makes the hash file stale, the documented fix is to truncate it,
+and the build that regenerates it runs the whole reload with the trait hashes still empty. So
+`NumericTraits` maps no operator to any trait, the at-rest checker correctly finds nothing to
+resolve, and the reload prints `Resolved trait calls: 0 op(s) moved` where the same tree prints
+4,586 once the file is populated. The second build is the one to believe. Two tells separate the
+artifact from a real regression, and the duration is the clearer of them: the reload takes about
+20 seconds instead of about 100, because the expensive whole-tree check is finding nothing rather
+than not running.
+
+This cost an hour, most of it spent bisecting four innocent checker files, and it was only
+settled by putting a probe on a branch known to pin 4,586 and watching it report zero as well. A
+branch cannot regress against itself, so the moment both trees agreed the cause had to be
+environmental. When a number collapses, test the instrument against a known-good tree BEFORE
+reading any diffs.
+
+If you need to tell a real zero from this one, the three counts inside `Decode.report` in
+`Builtins.Matter/Libs/PM/TraitCalls.fs` are what distinguish them: `rawItems` is what the checker
+returned, `decoded` is what matched the item pattern, and `withResolutions` is what carried
+anything. `rawItems=0` means the checker reported nothing; `rawItems=6817 decoded=5874
+withResolutions=916` is a healthy run.
+
 **Name resolution in test files.** `backend/testfiles/` is parsed with owner "Tests", so
 `Darklang.*` names need full qualification or the `Stdlib.` shortcut. `Stdlib.Json.ParseError.toString`
 and `Darklang.SCM.Branch.mainBranchId` resolve; `SCM.Branch.mainBranchId` doesn't. Impl:
@@ -919,6 +941,20 @@ minutes is `scripts/build/build-release-cli-exes.sh && scripts/testing/gates all
 
 **`branch create` while standing on a branch creates a CHILD of that branch.** Switch to main
 first if you meant a sibling.
+
+**A Dark record literal written inside an F# STRING is invisible to every tool you would sweep
+with.** A test that drives Dark through `evalDarkExpr` holds its Dark source as an F# string, so
+the F# compiler sees string contents and a sweep over `packages/**/*.dark` never reads the file at
+all. Two such literals built `ProgramTypes.Definitions` with four fields after traits widened it
+to six, and they raised `Missing field \`traits\`` at run time in tests whose names are about
+live values. A `record_fields` sweep run over the same rebase reported nothing. What finds them is
+grepping the F# for the Dark constructor:
+
+    grep -rn 'ProgramTypes.Definitions {' backend/ --include=*.fs
+
+So when you widen a record, sweep `backend/**/*.fs` for its CONSTRUCTOR as well as the Dark tree,
+and remember the same applies to testfiles, demo tapes and walkthrough prose. Same family as the
+escape-sequence entry: a tool reporting success over something it had no way to read.
 
 **A TUPLE pattern that loses an element is the same defect as a DU case that loses a field, and
 nothing catches it either.** `searchNamesAndHashes` returns six lists on a branch that added traits
