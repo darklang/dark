@@ -1371,12 +1371,16 @@ module Reload =
 
       // ...while the reference made before the edit, and the hash-keyed caches behind it, still
       // run the old body. Nothing overwrote it.
-      let! after = call state held
-      Expect.equal after (RT.DInt64 one) "the held reference still answers as before"
+      // Checked BEFORE calling the held reference again. Calling it re-populates this entry,
+      // so asserting it afterwards held whether or not the edit had evicted it; the property
+      // is that the edit left it alone.
       let (PT.Hash h1s) = h1
       Expect.isTrue
         (state.packageFnCallCache.ContainsKey(RT.Hash h1s))
         "the hash-keyed call cache kept the old version's entry"
+
+      let! after = call state held
+      Expect.equal after (RT.DInt64 one) "the held reference still answers as before"
     }
 
   let tests = testList "Reload" [ heldReferencesKeepTheirHash ]

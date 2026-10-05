@@ -1165,7 +1165,10 @@ let private testTracesViewToleratesCorruptedRow =
     "traces inspect <id> renders the rest of the log on a corrupted row"
     (fun state ->
       task {
-        let! _ = runCli state [ "eval"; "Stdlib.Int64.add 1L 2L" ]
+        // An EFFECTFUL call, because only impure calls are recorded: with a pure eval this
+        // trace has no rows at all, and the render assertion below passed on the echoed
+        // input rather than on anything rendered.
+        let! _ = runCli state [ "eval"; "Stdlib.printLine \"kept\"" ]
         let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
         let tid = parseTraceID listJson
 
@@ -1189,7 +1192,9 @@ let private testTracesViewToleratesCorruptedRow =
         Expect.isFalse
           (out.Contains "corrupt-test")
           "corrupt row dropped from the rendered log"
-        Expect.stringContains out "Stdlib" "non-corrupt rows still render"
+        // `->` is the row separator and appears nowhere else in this output; "Stdlib" was
+        // satisfied by the `input` line whether or not a single row rendered.
+        Expect.stringContains out "->" "non-corrupt rows still render"
       })
 
 let private testTracesRejectsFlagAsTraceId =

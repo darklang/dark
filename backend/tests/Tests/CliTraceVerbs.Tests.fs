@@ -174,9 +174,12 @@ let private replayAfterAnEdit =
           resumed
           "edited since this ran"
           "the resume says what moved"
+        // Indented, because the resume header echoes the input and the input CALLS this
+        // function, so an unindented substring check passed on the header whether or not
+        // the moved list named anything. The moved names are printed four spaces in.
         Expect.stringContains
           resumed
-          "Tests.Exec.shape"
+          "    Tests.Exec.shape"
           "and names the function that moved"
       })
 
