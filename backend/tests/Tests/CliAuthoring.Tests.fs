@@ -138,6 +138,56 @@ let renameOntoALiveNameIsRefusedAndBothSurvive =
         do! clean state "a refused rename authors nothing"
       })
 
+/// A rename must not lose track of what depends on the renamed item. An edge keeps the name its
+/// dependent typed, so after a rename the lookup by the new name found nothing, and `delete`
+/// deprecated a fn with a live caller, and a trait with a live implementation, instead of refusing.
+let deleteStillRefusesAfterARename =
+  instanceTest
+    "after a rename, delete still sees what depends on the item"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.RenDep.callee" "() : Int64 = 7431L"
+        do! fn state "Tests.RenDep.caller" "() : Int64 = Tests.RenDep.callee ()"
+        do! run state [ "type"; "Tests.RenDep.Crate"; "{ renDepWidth: Int64 }" ]
+        do!
+          run
+            state
+            [ "trait"
+              "Tests.RenDep.Label"
+              "<'a> =\n  let label (v: 'a) : String" ]
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.RenDep"
+              "Label for Crate =\n  let label (c: Crate) : String = \"crate\"" ]
+        do! commit state "rename dependents fixture"
+
+        do!
+          run
+            state
+            [ "rename"; "Tests.RenDep.callee"; "Tests.RenDep.calleeRenamed" ]
+        do! run state [ "rename"; "Tests.RenDep.Label"; "Tests.RenDep.Tag" ]
+
+        do!
+          refuses
+            state
+            [ "delete"; "fn"; "Tests.RenDep.calleeRenamed"; "-y" ]
+            "live dependent"
+            "Deprecated"
+            "a renamed fn's caller still blocks delete"
+        do!
+          refuses
+            state
+            [ "delete"; "trait"; "Tests.RenDep.Tag"; "-y" ]
+            "live dependent"
+            "Deprecated"
+            "a renamed trait's implementation still blocks delete"
+        do! evals state "Tests.RenDep.caller ()" "7431" "and the caller still runs"
+        do! discardAll state
+      })
+
 /// `delete` with a live caller. The refusal names how many, and `--ignore-dependents` is the
 /// documented way past it -- which retires the name without breaking the caller, because the caller
 /// references content and content does not go anywhere.
@@ -733,6 +783,7 @@ let tests : List<Test> =
     aNameThatDisagreesWithTheDeclarationIsRefused
     renameOntoALiveNameIsRefusedAndBothSurvive
     deleteRefusesWhileSomethingStillCallsIt
+    deleteStillRefusesAfterARename
     undoStepsBackAndStopsAtTheFirstVersion
     authoringIdenticalSourceReportsUnchanged
     aRivalCannotReachABoundedCall
