@@ -209,6 +209,18 @@ let loadCandidate
   | PackageFn hash ->
     (LanguageTools.PackageManager.Function.get hash)
     |> Stdlib.Option.map (fun fn -> LanguageTools.ProgramTypes.PackageOp.AddFn fn)
+  // Both kinds have an op, so they load the same way as the other three. Nothing currently
+  // ASKS for them: `checkQuery` above passes types, values and fns only, so auditing traits
+  // and impls is still a separate piece of work. These arms exist because the match must cover
+  // the type, and because the day something does ask, this is the right answer rather than a
+  // raise the guard converts into an empty report.
+  | PackageTrait hash ->
+    (LanguageTools.PackageManager.Trait.get hash)
+    |> Stdlib.Option.map (fun t -> LanguageTools.ProgramTypes.PackageOp.AddTrait t)
+  | PackageTraitImpl hash ->
+    (LanguageTools.PackageManager.TraitImpl.get hash)
+    |> Stdlib.Option.map (fun i ->
+      LanguageTools.ProgramTypes.PackageOp.AddTraitImpl i)
 
 /// Check <param ops> against main's implementations.
 ///

@@ -154,6 +154,12 @@ let scriptReport
         | PackageType hash -> ("Type", LanguageTools.PackageManager.Type.locations branchId hash)
         | PackageValue hash -> ("Value", LanguageTools.PackageManager.Value.locations branchId hash)
         | PackageFn hash -> ("Function", LanguageTools.PackageManager.Function.locations branchId hash)
+        // Five item kinds, and a report that handled three. `dark typecheck` named this one.
+        | PackageTrait hash ->
+          ("Trait", LanguageTools.PackageManager.Trait.locations branchId hash)
+        | PackageTraitImpl hash ->
+          ("Implementation",
+           LanguageTools.PackageManager.TraitImpl.locations branchId hash)
       let label =
         match sourceName locations with
         | Some name -> kind + " " + name

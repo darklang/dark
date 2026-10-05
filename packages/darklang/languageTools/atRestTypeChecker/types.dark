@@ -513,6 +513,9 @@ let fnNameRef (name: LanguageTools.ProgramTypes.FQFnName.FQFnName) : NameRef =
   match name with
   | Builtin b -> NameRef.Builtin(b.name, Stdlib.Int64.fromInt32 b.version)
   | Package hash -> NameRef.Package hash
+  // `NameRef` has carried this case all along; nothing filled it in, so naming a trait method
+  // in a diagnostic raised instead of printing `Show.show`.
+  | TraitMethod method -> NameRef.TraitMethod(method.trait_, method.method_)
 
 /// Represent a resolved value in the report by its builtin name or package hash.
 let valueNameRef

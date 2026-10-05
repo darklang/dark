@@ -404,6 +404,117 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // The trait a UNARY operator is, and that trait's impls on a branch.
+    //
+    // Separate from `pmInfixImplCandidates` because `InfixFnName` has no case for either of
+    // these: `-x` and `~x` are not infix. Same one table in `NumericTraits`, same reason.
+    { name = fn "pmNegateImplCandidates" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "branchId"
+            TUuid
+            "The branch whose bindings decide what is visible" ]
+      returnType =
+        TypeReference.option (
+          TTuple(
+            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
+            TString,
+            [ TList(TCustomType(NR.ok (RT2DT.ImplCandidate.typeName ()), [])) ]
+          )
+        )
+      description =
+        "The trait unary minus is, the method it maps to, and the impls of that trait bound "
+        + "on <param branchId>. None while the trait hashes are not generated."
+      fn =
+        (function
+        | exeState, _, _, [| DUuid branchId |] ->
+          uply {
+            let innerType =
+              KTTuple(
+                VT.known (KTCustomType(PT2DT.Hash.typeName (), [])),
+                VT.known KTString,
+                [ VT.known (KTList(VT.known (RT2DT.ImplCandidate.knownType ()))) ]
+              )
+            match LibExecution.NumericTraits.ofNegate () with
+            | None -> return Dval.optionNone innerType
+            | Some(traitHash, methodName) ->
+              let! candidates =
+                exeState.fns.implCandidates
+                  (LibExecution.Branching.BranchId.Id branchId)
+                  (LibExecution.RuntimeTypes.Hash traitHash)
+              return
+                Dval.optionSome
+                  innerType
+                  (DTuple(
+                    PT2DT.Hash.toDT (PT.Hash traitHash),
+                    DString methodName,
+                    [ DList(
+                        VT.known (RT2DT.ImplCandidate.knownType ()),
+                        candidates |> List.map RT2DT.ImplCandidate.toDT
+                      ) ]
+                  ))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmBitwiseNotImplCandidates" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "branchId"
+            TUuid
+            "The branch whose bindings decide what is visible" ]
+      returnType =
+        TypeReference.option (
+          TTuple(
+            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
+            TString,
+            [ TList(TCustomType(NR.ok (RT2DT.ImplCandidate.typeName ()), [])) ]
+          )
+        )
+      description =
+        "The same for `~x`: the trait bitwise NOT is, its method, and that trait's impls."
+      fn =
+        (function
+        | exeState, _, _, [| DUuid branchId |] ->
+          uply {
+            let innerType =
+              KTTuple(
+                VT.known (KTCustomType(PT2DT.Hash.typeName (), [])),
+                VT.known KTString,
+                [ VT.known (KTList(VT.known (RT2DT.ImplCandidate.knownType ()))) ]
+              )
+            match LibExecution.NumericTraits.ofBitwiseNot () with
+            | None -> return Dval.optionNone innerType
+            | Some(traitHash, methodName) ->
+              let! candidates =
+                exeState.fns.implCandidates
+                  (LibExecution.Branching.BranchId.Id branchId)
+                  (LibExecution.RuntimeTypes.Hash traitHash)
+              return
+                Dval.optionSome
+                  innerType
+                  (DTuple(
+                    PT2DT.Hash.toDT (PT.Hash traitHash),
+                    DString methodName,
+                    [ DList(
+                        VT.known (RT2DT.ImplCandidate.knownType ()),
+                        candidates |> List.map RT2DT.ImplCandidate.toDT
+                      ) ]
+                  ))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
     // Evaluate a package value by its UUID
     { name = fn "pmEvaluateValue" 0
       typeParams = []

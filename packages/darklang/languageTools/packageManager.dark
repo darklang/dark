@@ -162,6 +162,18 @@ module Trait =
     : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
     Builtin.pmInfixImplCandidates branchId operation
 
+  /// The same for unary minus, which `InfixFnName` has no case for because it is not infix.
+  let forNegate
+    (branchId: Uuid)
+    : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
+    Builtin.pmNegateImplCandidates branchId
+
+  /// And for `~x`.
+  let forBitwiseNot
+    (branchId: Uuid)
+    : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
+    Builtin.pmBitwiseNotImplCandidates branchId
+
 
 module TraitImpl =
   let find

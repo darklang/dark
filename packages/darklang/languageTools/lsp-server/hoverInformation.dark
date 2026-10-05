@@ -224,6 +224,12 @@ let tryGetFnAndCollectHoverInfo
 
       | None -> Stdlib.Option.Option.None
 
+    // Hovering a trait method shows nothing yet, rather than raising. It would want the
+    // TRAIT's method signature, which is a different lookup from `getFn`, and that is worth
+    // doing properly rather than at the end of a night. `dark typecheck` named this function
+    // for the missing arm, which is how it was found.
+    | TraitMethod _ -> Stdlib.Option.Option.None
+
   | _ -> Stdlib.Option.Option.None
 
 

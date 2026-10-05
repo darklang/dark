@@ -2240,43 +2240,52 @@ let operandFor
 
 /// Require a signed integer or Float for unary minus, waiting if its type is unknown.
 let negate (s: State) (at: Int64) (operand: Model.Ty) : Stdlib.Option.Option<State> =
-  unaryOperand s at operand isSignedNumeric Context.UnaryMinusOperandNotSignedNumeric
+  unaryOperand s at operand "unary -"
 
-/// Require an integer for bitwise NOT, waiting if its type is unknown.
+/// `~x`, the same way.
 let bitwiseNot (s: State) (at: Int64) (operand: Model.Ty) : Stdlib.Option.Option<State> =
-  unaryOperand s at operand
-    (fun t -> isNumeric t && t != Model.Ty.TFloat)
-    Context.BitwiseNotOperandNotInteger
+  unaryOperand s at operand "unary ~"
 
-/// Resolve a unary operand and check it with accepts. Unknown inference variables
-/// wait; error placeholders add no finding; known rejected types use the supplied context.
+/// Resolve a unary operator's operand against the implementations of its trait.
+///
+/// This used to take a PREDICATE over types, `isSignedNumeric` for `-x` and an integer test
+/// for `~x`, left behind when the binary operators moved to implementation lookup. That is
+/// what made `dark typecheck` fail `Stdlib.abs`: its operand is `'a` under a `Negate` bound,
+/// a predicate asks "is this a signed numeric" and a rigid type variable is not one, so it
+/// refused the very thing the bound guarantees. A bound is a promise to be deferred, not a
+/// type to be recognised.
 let unaryOperand
   (s: State)
   (at: Int64)
   (operand: Model.Ty)
-  (accepts: Model.Ty -> Bool)
-  (context: Context)
+  (key: String)
   : Stdlib.Option.Option<State> =
   let nodeId = Stdlib.Option.Option.Some at
   let (subject, s) = expand s nodeId operand
 
+  if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
+    Stdlib.Option.Option.None
+  else
+
   match subject with
   | TVar _ -> Stdlib.Option.Option.None
   | TError -> Stdlib.Option.Option.Some s
+  // The enclosing item's own type parameter: its caller decides, and the bound is the promise
+  // that something will. Exactly what `operandFor` does for the binary operators.
+  | TRigid param ->
+    Stdlib.Option.Option.Some(
+      addResolution s (Model.Resolution.Deferred(at, param))
+    )
   | _ ->
-    if accepts subject then
-      Stdlib.Option.Option.Some s
-    else
+    match Environment.unaryImplsFor s.env key with
+    // Not a trait yet, or the refs are not generated: say nothing rather than refuse
+    // everything.
+    | None -> Stdlib.Option.Option.Some s
+    | Some((traitHash, method_, candidates)) ->
       Stdlib.Option.Option.Some(
-        addFinding
-          s
-          (Types.definiteError
-            IssueCode.InvalidInfixOperand
-            nodeId
-            (none ())
-            (some subject)
-            context)
+        recordImplChoice s at traitHash method_ subject candidates
       )
+
 
 /// Determine builtin unwrap's result from the Some payload of standard Option
 /// or the Ok payload of standard Result. Wait for an unknown argument type;
