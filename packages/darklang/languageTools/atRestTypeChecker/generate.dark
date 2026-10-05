@@ -240,7 +240,7 @@ let isNonExpansive (expr: LanguageTools.ProgramTypes.Expr) : Bool =
   | EInt(_, _) -> true
   | EFloat(_, _, _, _) -> true
   | EChar(_, _) -> true
-  | EFnName(_, _) -> true
+  | EFnName(_, _, _) -> true
   | EValue(_, _) -> true
   | EArg(_, _) -> true
   | EVariable(_, _) -> true
@@ -267,7 +267,7 @@ let isNonExpansive (expr: LanguageTools.ProgramTypes.Expr) : Bool =
   | EMatch(_, _, _) -> false
   | ELet(_, _, _, _) -> false
   | EApply(_, _, _, _) -> false
-  | EInfix(_, _, _, _) -> false
+  | EInfix(_, _, _, _, _) -> false
   | ERecordFieldAccess(_, _, _) -> false
   | ERecordUpdate(_, _, _) -> false
   | EStatement(_, _, _) -> false
@@ -545,7 +545,7 @@ let infer (scope: Scope) (expr: LanguageTools.ProgramTypes.Expr) : (Model.Ty * M
   | EVariable(id, name) -> inferVariable scope id name
   | EApply(id, callee, typeArgs, args) -> inferApply scope id callee typeArgs args
   | EArg(id, index) -> inferArg scope id index
-  | EFnName(id, name) -> useFunction scope id name [] (resultOf id)
+  | EFnName(id, name, _) -> useFunction scope id name [] (resultOf id)
   | EString(_, segments) -> inferString scope segments
   | ELet(id, pattern, value, body) -> inferLet scope id pattern value body
   | EPipe(_, lhs, parts) -> inferPipe scope lhs parts
@@ -561,7 +561,7 @@ let infer (scope: Scope) (expr: LanguageTools.ProgramTypes.Expr) : (Model.Ty * M
   | ERecord(id, typeName, typeArgs, fields) ->
     inferRecord scope id typeName typeArgs fields
   | ELambda(id, patterns, body) -> inferLambda scope id patterns body
-  | EInfix(id, infix, lhs, rhs) -> inferInfix scope id infix lhs rhs
+  | EInfix(id, infix, lhs, rhs, _) -> inferInfix scope id infix lhs rhs
   | ETuple(_, first, second, rest) -> inferTuple scope first second rest
   | EStatement(_, first, next) -> inferStatement scope first next
   | EBool(_, _) -> (Model.Ty.TBool, nothing ())
@@ -633,7 +633,7 @@ let inferApply
   | None ->
     let (calleeType, calleeConstraints) =
       match callee with
-      | EFnName(nameId, name) ->
+      | EFnName(nameId, name, _) ->
         useFunction scope nameId name typeArgs (resultOf nameId)
       | _ ->
         let (t, constraints) = infer scope callee
@@ -1126,7 +1126,7 @@ let specialApplication
   (args: List<LanguageTools.ProgramTypes.Expr>)
   : Stdlib.Option.Option<(Model.Ty * Model.Constraint)> =
   match callee with
-  | EFnName(_, name) ->
+  | EFnName(_, name, _) ->
     match resolvedFn name with
     | Some fn ->
       if Stdlib.List.isEmpty typeArgs then
@@ -1330,7 +1330,7 @@ let inferPipePart
          bodyConstraints
          constrainLambdaReturn id bodyType ])
 
-  | EPipeInfix(id, infix, rhs) ->
+  | EPipeInfix(id, infix, rhs, _) ->
     let (rhsType, rhsConstraints) = infer scope rhs
 
     match infix with
@@ -1401,7 +1401,8 @@ let inferPipePart
                   (LanguageTools.ProgramTypes.PipeExpr.EPipeInfix(
                     id,
                     LanguageTools.ProgramTypes.Infix.InfixFnCall operation,
-                    rhs
+                    rhs,
+                    LanguageTools.ProgramTypes.FQFnName.ImplChoice.Unknown
                   ))
               )
             | None -> Stdlib.Option.Option.None

@@ -156,15 +156,15 @@ let scriptReport
         | PackageFn hash -> ("Function", LanguageTools.PackageManager.Function.locations branchId hash)
       let label =
         match sourceName locations with
-        | Some name -> kind ++ " " ++ name
+        | Some name -> kind + " " + name
         | None -> "Top-level expression"
       let issues =
         deduplicate item.diagnostics
         |> Stdlib.List.map (fun issue ->
           let code = LanguageTools.AtRestTypeChecker.issueCodeToString issue.code
           let message = LanguageTools.AtRestTypeChecker.issueToStringWith typeName issue
-          "  - [" ++ code ++ "] " ++ message)
-      Stdlib.List.push issues (label ++ ":")
+          "  - [" + code + "] " + message)
+      Stdlib.List.push issues (label + ":")
 
   let lines = Stdlib.List.flatten (Stdlib.List.map report.items itemLines)
   Stdlib.String.join (Stdlib.List.push lines "Static type check failed:") "\n"

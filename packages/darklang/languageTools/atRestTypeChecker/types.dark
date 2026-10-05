@@ -17,6 +17,10 @@ let isWarning (code: IssueCode) : Bool =
   | UnresolvedTypeName
   | UnresolvedFunctionName
   | UnresolvedValueName
+  // A trait name that does not resolve is the same kind of thing as a type or fn name that
+  // does not: the declaration cannot be proved either way, so it is Incomplete rather than
+  // Failed.
+  | UnresolvedTraitName
   | MissingTypeDeclaration
   | MissingFunctionSignature
   | MissingValueSignature
@@ -43,7 +47,21 @@ let isWarning (code: IssueCode) : Bool =
   | DuplicateTypeParameter
   | DuplicateTypeMember
   | InvalidUnwrap
-  | UnsupportedDictKeyType -> false
+  | UnsupportedDictKeyType
+  // The trait codes are definite errors, not warnings: an operand with no implementation, two
+  // that both fit, an impl that misses a method or mismatches its signature or exceeds the
+  // trait's ceiling, and a bound on a type param the enclosing fn never declared, are each
+  // something the checker PROVED rather than something it could not finish.
+  //
+  // They were absent here, and `isWarning` has no catch-all, so producing any trait
+  // diagnostic raised inside the per-item guard and came back as `UnsupportedConstruct`
+  // Incomplete instead. 4,359 items in one reload.
+  | MissingImpl
+  | AmbiguousImpl
+  | ImplMethodSet
+  | ImplMethodSignature
+  | ImplExceedsCeiling
+  | UnboundTypeParameter -> false
 
 /// Create an error finding whose expected or actual types may still be unknown.
 /// Items decides whether those unknowns make the error too uncertain to report
@@ -882,6 +900,62 @@ let isUsableDictKeyReference
 // --------------------
 // Convert internal types to the public report format.
 // --------------------
+
+/// Does an implementation's self type apply to <param subject>?
+///
+/// MIRRORS `LibExecution.Traits.argsAgree`, which is what the RUNTIME uses to decide the same
+/// question, and the two must not disagree. If the checker is looser than dispatch it pins a
+/// call to an implementation that will refuse it at run time; `gates trait-checker-vs-dispatch`
+/// is the agreement test, and it walks both authoring orders because the symptom of getting
+/// this wrong is an answer that depends on which implementation was written last.
+///
+/// Matching the head alone is NOT enough, and that was a real defect once: with
+/// `impl T for Option<Int64>` and `impl T for Option<String>` both counted as candidates, the
+/// save picked between them by timestamp and pinned whichever was newer, so a green save raised
+/// on its first call.
+///
+/// A type variable in the implementation's self type applies to anything, which is how
+/// `impl Add for List<'a>` covers every list. It arrives as a placeholder rather than a variable
+/// because the conversion that produced it had no mapping to bind one.
+let implApplies (self: Model.Ty) (subject: Model.Ty) : Bool =
+  match (self, subject) with
+  // `impl T for List<'a>`: the variable agrees with whatever the subject has there.
+  | (TError, _) -> true
+  | (TRigid _, _) -> true
+  // The subject's own type is not decided yet, so it cannot disagree.
+  | (_, TVar _) -> true
+  | (_, TError) -> true
+
+  | (TList a, TList b) -> implApplies a b
+  | (TStream a, TStream b) -> implApplies a b
+  | (TDB a, TDB b) -> implApplies a b
+  | (TDict(ak, av), TDict(bk, bv)) -> (implApplies ak bk) && (implApplies av bv)
+
+  | (TTuple(a1, a2, aRest), TTuple(b1, b2, bRest)) ->
+    (implApplies a1 b1)
+    && (implApplies a2 b2)
+    && (Stdlib.List.length aRest == Stdlib.List.length bRest)
+    && (Stdlib.List.all
+          (Stdlib.List.zipShortest aRest bRest)
+          (fun (a, b) -> implApplies a b))
+
+  | (TFn(aArgs, aRet), TFn(bArgs, bRet)) ->
+    (Stdlib.List.length aArgs == Stdlib.List.length bArgs)
+    && (Stdlib.List.all
+          (Stdlib.List.zipShortest aArgs bArgs)
+          (fun (a, b) -> implApplies a b))
+    && (implApplies aRet bRet)
+
+  | (TCustom(aHash, aArgs), TCustom(bHash, bArgs)) ->
+    (aHash == bHash)
+    && ((Stdlib.List.isEmpty aArgs)
+        || ((Stdlib.List.length aArgs == Stdlib.List.length bArgs)
+            && (Stdlib.List.all
+                  (Stdlib.List.zipShortest aArgs bArgs)
+                  (fun (a, b) -> implApplies a b))))
+
+  // Every type with no arguments, which is why the nineteen primitives need no arms.
+  | _ -> self == subject
 
 /// Convert an internal type to StaticType for diagnostics. Apply substitutions
 /// before calling so inferred types appear in the report. Keep declared parameter

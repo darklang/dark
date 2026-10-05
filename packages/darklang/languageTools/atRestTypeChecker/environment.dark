@@ -193,6 +193,32 @@ let resolveCallable
     match LanguageTools.findBuiltinFn name.name name.version with
     | Some builtin -> builtinCallable env builtin
     | None -> (Model.Callable.Unavailable, env)
+  // A trait method call (`Show.show v`), whose signature is the TRAIT's rather than any one
+  // implementation's. The trait's first type param is the self type and stays rigid here, so
+  // inference unifies it with the argument the caller passes: that is what decides which type
+  // the call is for, and the implementation is chosen from it afterwards.
+  | TraitMethod method ->
+    match LanguageTools.PackageManager.Trait.get method.trait_ with
+    | None -> (Model.Callable.Unavailable, env)
+    | Some trait_ ->
+      match
+        trait_.methods
+        |> Stdlib.List.findFirst (fun m -> m.name == method.method_)
+      with
+      | None -> (Model.Callable.Unavailable, env)
+      | Some declared ->
+        signatureTemplate
+          env
+          (Model.Signature
+            { // The trait's params first, self among them, then the method's own.
+              typeParams =
+                Stdlib.List.append trait_.typeParams declared.typeParams
+              parameters =
+                declared.parameters |> Stdlib.List.map (fun p -> p.typ)
+              returnType = declared.returnType
+              // The self type comes from the argument, not from a type argument the
+              // caller has to write.
+              needsTypeArgs = false })
 
 /// Fetch one builtin value's declared type and convert it to a package-style type
 /// reference. Return None for missing builtins or package values, whose types
@@ -206,15 +232,107 @@ let builtinValueType
     |> Stdlib.Option.map (fun value -> fromRuntimeType value.``type``)
   | Package _ -> Stdlib.Option.Option.None
 
+/// A runtime type reference as the checker's own type, for comparing against one it inferred.
+///
+/// Findings are discarded on purpose: a type variable in an implementation's self type
+/// (`impl Add for List<'a>`) has no mapping here and converts to a placeholder, which is
+/// correct, because the only question asked of the result is what its HEAD is.
+let tyOfRuntimeType (typ: LanguageTools.RuntimeTypes.TypeReference) : Model.Ty =
+  let (ty, _) =
+    Types.fromReference (Dict {}) (Stdlib.Option.Option.None) (fromRuntimeType typ)
+
+  ty
+
+/// A cache key for an operator. Spelled out rather than borrowed from the pretty printer,
+/// which the checker has no business depending on.
+let infixKey (operation: LanguageTools.ProgramTypes.InfixFnName) : String =
+  match operation with
+  | ArithmeticPlus -> "+"
+  | ArithmeticMinus -> "-"
+  | ArithmeticMultiply -> "*"
+  | ArithmeticDivide -> "/"
+  | ArithmeticModulo -> "%"
+  | ArithmeticPower -> "^"
+  | BitwiseAnd -> "&&&"
+  | BitwiseOr -> "|||"
+  | BitwiseXor -> "^^^"
+  | ShiftLeft -> "<<"
+  | ShiftRight -> ">>"
+  | ComparisonGreaterThan -> ">"
+  | ComparisonGreaterThanOrEqual -> ">="
+  | ComparisonLessThan -> "<"
+  | ComparisonLessThanOrEqual -> "<="
+  | ComparisonEquals -> "=="
+  | ComparisonNotEquals -> "!="
+  | StringConcat -> "++"
+
+/// Every operator, so the cache below can be filled without waiting to meet one.
+let allInfixOperations () : List<LanguageTools.ProgramTypes.InfixFnName> =
+  [ LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticMinus
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticMultiply
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticDivide
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticModulo
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticPower
+    LanguageTools.ProgramTypes.InfixFnName.BitwiseAnd
+    LanguageTools.ProgramTypes.InfixFnName.BitwiseOr
+    LanguageTools.ProgramTypes.InfixFnName.BitwiseXor
+    LanguageTools.ProgramTypes.InfixFnName.ShiftLeft
+    LanguageTools.ProgramTypes.InfixFnName.ShiftRight
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThan
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThan
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonEquals
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonNotEquals
+    LanguageTools.ProgramTypes.InfixFnName.StringConcat ]
+
+/// What each operator's trait method is and which implementations apply, converted once.
+///
+/// Filled for the whole BATCH rather than per declaration, and that distinction is the whole
+/// point: a declaration gets a fresh solver state, so a cache that filled itself on first use
+/// would reset at every declaration and almost never be read twice. Converting per operator
+/// node instead of per batch cost 79 of the 85 seconds a whole-tree check took.
+let infixImpls
+  (branchId: Uuid)
+  : Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)>> =
+  (allInfixOperations ())
+  |> Stdlib.List.fold (Dict {}) (fun acc operation ->
+    let found =
+      match LanguageTools.PackageManager.Trait.forInfix branchId operation with
+      | None -> Stdlib.Option.Option.None
+      | Some((traitHash, method_, candidates)) ->
+        let converted =
+          candidates
+          |> Stdlib.List.map (fun candidate ->
+            ((tyOfRuntimeType candidate.self), candidate.source))
+
+        Stdlib.Option.Option.Some((traitHash, method_, converted))
+
+    Stdlib.Dict.setOverridingDuplicates acc (infixKey operation) found)
+
+/// The cached answer for one operator. `None` both for an operator that is not a trait
+/// (`==`, `!=`) and for one the cache was built without, which answer the same way: do not
+/// check it against implementations.
+let infixImplsFor
+  (env: Model.Environment)
+  (operation: LanguageTools.ProgramTypes.InfixFnName)
+  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)> =
+  match Stdlib.Dict.get env.infixImpls (infixKey operation) with
+  | Some cached -> cached
+  | None -> Stdlib.Option.Option.None
+
 /// Create an empty environment with the standard Option and Result type hashes.
 /// Declarations are loaded later; builtin signatures are fetched as needed and
 /// their converted templates are cached when the solver first uses them.
-let builtins () : Model.Environment =
+let builtins (branchId: Uuid) : Model.Environment =
   Model.Environment
-    { types = Dict {}
+    { branchId = branchId
+      types = Dict {}
       functions = Dict {}
       values = Dict {}
       declarationFacts = Dict {}
+      infixImpls = infixImpls branchId
       valueTypeParameters = Dict {}
       dictKeyParameters = Dict {}
       callables = Dict {}
@@ -363,11 +481,11 @@ let exprRefs
     Stdlib.List.append
       (exprRefs env lhs)
       (Stdlib.List.flatten (Stdlib.List.map parts (fun p -> pipeRefs env p)))
-  | EInfix(_, _, lhs, rhs) -> many [ lhs, rhs ]
+  | EInfix(_, _, lhs, rhs, _) -> many [ lhs, rhs ]
   | ELambda(_, _, body) -> exprRefs env body
   | EApply(_, callee, typeArgs, args) ->
     Stdlib.List.flatten [ exprRefs env callee, typeListRefs typeArgs, many args ]
-  | EFnName(_, name) -> functionNameRefs env name
+  | EFnName(_, name, _) -> functionNameRefs env name
   | ERecordUpdate(_, record, updates) ->
     Stdlib.List.append
       (exprRefs env record)
@@ -395,7 +513,7 @@ let pipeRefs
   match pipePart with
   | EPipeVariable(_, _, args) -> many args
   | EPipeLambda(_, _, body) -> exprRefs env body
-  | EPipeInfix(_, _, rhs) -> exprRefs env rhs
+  | EPipeInfix(_, _, rhs, _) -> exprRefs env rhs
   | EPipeFnCall(_, name, typeArgs, args) ->
     Stdlib.List.flatten
       [ functionNameRefs env name, typeListRefs typeArgs, many args ]

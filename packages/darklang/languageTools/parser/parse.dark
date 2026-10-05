@@ -188,4 +188,4 @@ let packageSourceToOps
         unresolvedNames
         |> Stdlib.List.map (fun (_, parts, _) -> Stdlib.String.join parts ".")
         |> Stdlib.List.unique
-      Stdlib.Result.Result.Error("unresolved: " ++ Stdlib.String.join names ", ")
+      Stdlib.Result.Result.Error("unresolved: " + Stdlib.String.join names ", ")

@@ -59,7 +59,7 @@ let addAuthored
     match add branchId stabilizedOps with
     | Ok _ ->
       Stdlib.Result.Result.Ok(
-        LanguageTools.AtRestTypeChecker.checkPackageOps stabilizedOps)
+        LanguageTools.AtRestTypeChecker.checkPackageOpsOn branchId stabilizedOps)
     | Error message -> Stdlib.Result.Result.Error message
 
 

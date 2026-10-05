@@ -206,6 +206,47 @@ type Scheme =
     /// Deferred typing and match-coverage checks to repeat for each use.
     constraints: List<Constraint> }
 
+/// Which implementation a trait call resolved to, at one syntax node.
+///
+/// Accumulated the way coverage is: worked out during inference, consumed after it by
+/// whoever asked for the check rather than by the solver itself. The declaration's
+/// verdict does not depend on any of this; a call nobody could resolve is not an error,
+/// because the runtime can still dispatch on the value it is handed.
+///
+/// Four cases, because a call can be answered outright, or deferred to one of the
+/// item's own type parameters for its caller to decide, and because a call that NAMES a
+/// bounded function also reports what that function's bound turned into, which is itself
+/// either answered or deferred.
+type Resolution =
+  /// A trait method call: the method, and the implementations that apply to it. One
+  /// implementation is the answer; several are an ordering question for the store, which
+  /// knows which is newer, and none leaves the call to resolve at run time.
+  | Call of
+    at: Int64 *
+    method_: String *
+    impls: List<LanguageTools.ProgramTypes.Hash>
+
+  /// The call's self type is one of the item's own type parameters, so this item cannot
+  /// decide: it records which parameter, and the caller supplies the rest.
+  | Deferred of at: Int64 * param: String
+
+  /// This call names a function with a bound, and here is what the bound came to for the
+  /// type argument supplied. One of these per bound on the callee.
+  | CallerBound of
+    at: Int64 *
+    param: String *
+    trait_: LanguageTools.ProgramTypes.Hash *
+    impls: List<LanguageTools.ProgramTypes.Hash>
+
+  /// The same, except the type argument is one of THIS item's parameters, so the bound is
+  /// passed along rather than discharged. This is what threads a bound through a generic
+  /// that calls another generic.
+  | CallerBoundDeferred of
+    at: Int64 *
+    param: String *
+    trait_: LanguageTools.ProgramTypes.Hash *
+    fromParam: String
+
 /// Whether a named function has a signature the checker can use.
 type Callable =
   /// A converted signature, ready to be used with this call's type arguments.
@@ -256,13 +297,29 @@ type DeclarationFacts =
 /// It contains loaded types, function signatures, inferred value types, and cached
 /// validation results. Checking returns an updated copy when it learns more.
 type Environment =
-  { types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration>
+  { /// The branch whose bindings decide which implementations are visible.
+    ///
+    /// The only branch-dependent thing the checker needs. Everything else it loads is
+    /// content-addressed, so it needs no branch to find a type or a signature by hash; but
+    /// "which implementations of `Add` exist" is a question about what is BOUND, and two
+    /// branches answer it differently.
+    branchId: Uuid
+    types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration>
     /// Declared signatures for package functions. Builtin signatures are looked up separately.
     functions: Dict<LanguageTools.ProgramTypes.FQFnName.FQFnName, Signature>
     /// Reusable inferred types for package values that received a Checked verdict.
     values: Dict<LanguageTools.ProgramTypes.Hash, Scheme>
     /// Cached validation problems and direct references for types already inspected.
     declarationFacts: Dict<LanguageTools.ProgramTypes.Hash, DeclarationFacts>
+    /// Each operator's trait method and the implementations that apply, converted to the
+    /// checker's own types once and reused.
+    ///
+    /// Keyed by operator rather than by trait, so a hit costs nothing at all: without it the
+    /// rule asked the package manager and then converted every candidate's self type at EVERY
+    /// operator node, which is the same thirteen answers for every `+` in the tree. That was
+    /// 79 of the 85 seconds a whole-tree check took. `None` is cached too, for `==` and `!=`,
+    /// which are not traits and must not be asked about twice either.
+    infixImpls: Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Ty * LanguageTools.ProgramTypes.Hash)>)>>
     /// Parameters whose type arguments can appear in a stored field or payload.
     /// Excludes phantom parameters that appear only in type names and store no value.
     valueTypeParameters: Dict<LanguageTools.ProgramTypes.Hash, List<String>>

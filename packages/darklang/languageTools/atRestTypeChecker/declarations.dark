@@ -437,7 +437,7 @@ let connectSuccessors
         // A newly visited dependency may reach an earlier active declaration.
         // Carry that information back to the declaration that depends on it.
         let lowLink =
-          Stdlib.Int.min
+          Stdlib.min
             (indexOrZero components.lowLink node)
             (indexOrZero components.lowLink successor)
         { components with
@@ -447,7 +447,7 @@ let connectSuccessors
         // This dependency is still in an unfinished group. Use its discovery
         // index, as required for an edge to an already visited node in Tarjan's algorithm.
         let lowLink =
-          Stdlib.Int.min
+          Stdlib.min
             (indexOrZero components.lowLink node)
             (indexOrZero components.index successor)
         { components with

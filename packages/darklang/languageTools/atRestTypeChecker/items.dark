@@ -10,7 +10,17 @@ type Outcome =
     warnings: List<Issue>
     /// Present only for Checked declarations. The batch saves package values'
     /// schemes so later declarations can use their inferred types.
-    scheme: Stdlib.Option.Option<Model.Scheme> }
+    scheme: Stdlib.Option.Option<Model.Scheme>
+
+    /// Which implementation each trait call in this declaration resolved to, in the
+    /// order the solver saw them. Empty unless the declaration is Checked, for the same
+    /// reason scheme is: these come off a type assignment, and one the checker rejected
+    /// is not something to pin a stored call to.
+    ///
+    /// That gate is deliberate and predates this field under another name. Relaxing it so
+    /// that Incomplete declarations pin too would make the checker's own uncertainty
+    /// permanent, which is the opposite of what pinning is for.
+    resolutions: List<Model.Resolution> }
 
 /// Wrap a type in a scheme without making any of its unknowns generic.
 /// Those unknowns must be resolved before the declaration can be Checked.
@@ -28,7 +38,8 @@ let checkerFailureOutcome
       diagnostics = []
       warnings =
         [ failureIssue (Stdlib.Option.map at (fun id -> toUInt64 id)) failure ]
-      scheme = Stdlib.Option.Option.None }
+      scheme = Stdlib.Option.Option.None
+      resolutions = [] }
 
 /// Catch errors from checking one declaration so the rest of the batch can continue.
 /// On failure, return Incomplete and keep the environment from before this check.
@@ -184,11 +195,18 @@ let finish
       Stdlib.Option.Option.Some({ scheme with typ = Solve.zonk s scheme.typ })
     | _ -> Stdlib.Option.Option.None
 
+  // Same gate as the scheme above, and the same reason.
+  let resolutions =
+    match verdict with
+    | Checked -> Stdlib.List.reverse s.resolutions
+    | _ -> []
+
   Outcome
     { verdict = verdict
       diagnostics = Stdlib.List.map diagnostics (fun f -> toIssue s f)
       warnings = Stdlib.List.map warnings (fun f -> toIssue s f)
-      scheme = checkedScheme }
+      scheme = checkedScheme
+      resolutions = resolutions }
 
 
 // --------------------

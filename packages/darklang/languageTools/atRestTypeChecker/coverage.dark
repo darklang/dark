@@ -46,9 +46,9 @@ let render (missing: Missing) : String =
       | [ Anything, Anything ] -> "a non-empty list"
       | [ head, tail ] -> $"a list matching {render head} :: {render tail}"
       | _ -> joined ()
-    | TupleOf _ -> "(" ++ joined () ++ ")"
+    | TupleOf _ -> "(" + joined () + ")"
     | EnumCase name ->
-      if Stdlib.List.isEmpty fields then name else name ++ "(" ++ joined () ++ ")"
+      if Stdlib.List.isEmpty fields then name else name + "(" + joined () + ")"
 
 /// Flatten nested or-patterns at this position into separate alternatives.
 /// Leave patterns inside constructor fields for later checks of those fields.

@@ -77,6 +77,38 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "pmResolveTraitCalls" 0
+      typeParams = []
+      parameters =
+        [ Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
+      returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
+      description =
+        "Writes onto each trait-method call in <param ops> the implementation it resolves "
+        + "to, so a saved item goes on running what it was written against. Runs BEFORE "
+        + "<fn pmStabilizeHashes>, because the choice is part of what the item is and has to "
+        + "be hashed with it. A call whose self type is only known at run time comes back "
+        + "unchanged."
+      fn =
+        (function
+        | exeState, _, _, [| DList(_vt, ops) |] ->
+          uply {
+            let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
+            let! resolved =
+              // No cache on the authoring path: it checks the one item just written, not a
+              // tree, so there is nothing to reuse and a stale entry would be a risk for no gain.
+              TraitCalls.resolveTraitCalls None exeState exeState.branchId pm ptOps
+            return
+              Dval.list (packageOpKT ()) (resolved |> List.map PT2DT.PackageOp.toDT)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      // Reads the store's implementations and stamps, so two calls on either side of someone
+      // else's `impl` do not agree.
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmDuplicateDeclarations" 0
       typeParams = []
       parameters =

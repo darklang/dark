@@ -148,6 +148,20 @@ module Trait =
     : List<RuntimeTypes.ImplCandidate> =
     Builtin.pmImplCandidates branchId traitHash
 
+  /// The trait an operator is, the method it maps to, and the impls bound on <param branchId>.
+  ///
+  /// None for an operator that is not a trait: `==` and `!=` are structural equality for
+  /// every value, and `++` is no longer in the language.
+  ///
+  /// The operator-to-trait table is not duplicated here on purpose. It lives once in F#
+  /// (`NumericTraits.ofInfix`), which is also what the lowering uses, so the checker and the
+  /// runtime cannot come to disagree about what `+` means.
+  let forInfix
+    (branchId: Uuid)
+    (operation: ProgramTypes.InfixFnName)
+    : Stdlib.Option.Option<(ProgramTypes.FQTraitName.Package * String * List<RuntimeTypes.ImplCandidate>)> =
+    Builtin.pmInfixImplCandidates branchId operation
+
 
 module TraitImpl =
   let find

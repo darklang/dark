@@ -23,7 +23,12 @@ type State =
     /// Set once the depth warning has been recorded, so siblings do not repeat it.
     gaveUpOnDepth: Bool
     /// Errors and warnings accumulated so far, with new findings prepended.
-    findings: List<Model.Finding> }
+    findings: List<Model.Finding>
+
+    /// Which implementation each trait call resolved to, most recent first. Unlike
+    /// findings these do not affect the verdict: they are what the caller asked the
+    /// check FOR, when that caller is save-time pinning rather than a person.
+    resolutions: List<Model.Resolution> }
 
 /// Begin checking a declaration with fresh inference state and the supplied environment.
 let start (env: Model.Environment) : State =
@@ -36,7 +41,8 @@ let start (env: Model.Environment) : State =
       coverage = []
       unifyDepth = 0L
       gaveUpOnDepth = false
-      findings = [] }
+      findings = []
+      resolutions = [] }
 
 
 // --------------------
@@ -52,6 +58,11 @@ let addFindings (s: State) (findings: List<Model.Finding>) : State =
   match findings with
   | [] -> s
   | _ -> { s with findings = Stdlib.List.append findings s.findings }
+
+/// Record which implementation a trait call resolved to. Prepended like a finding, and
+/// read back by Items in the order the solver saw the calls.
+let addResolution (s: State) (resolution: Model.Resolution) : State =
+  { s with resolutions = Stdlib.List.push s.resolutions resolution }
 
 /// Allocate an inference variable distinct from all earlier Fresh variables in this state.
 let fresh (s: State) : (Model.Ty * State) =
@@ -1977,33 +1988,6 @@ let isSignedNumeric (t: Model.Ty) : Bool =
   | TFloat -> true
   | _ -> false
 
-/// Identify bitwise and shift operators, whose operands must be integers.
-let isBitwise (operation: LanguageTools.ProgramTypes.InfixFnName) : Bool =
-  match operation with
-  | BitwiseAnd
-  | BitwiseOr
-  | BitwiseXor
-  | ShiftLeft
-  | ShiftRight -> true
-  | _ -> false
-
-/// Check which numeric types this operator supports at runtime. Exponentiation
-/// excludes 128-bit integers, and bitwise operators exclude Float.
-let supports (operation: LanguageTools.ProgramTypes.InfixFnName) (t: Model.Ty) : Bool =
-  match operation with
-  | ArithmeticPower ->
-    match t with
-    | TInt128 -> false
-    | TUInt128 -> false
-    | _ -> isNumeric t
-  | _ ->
-    if isBitwise operation then
-      match t with
-      | TFloat -> false
-      | _ -> isNumeric t
-    else
-      isNumeric t
-
 /// Check a numeric operator's operand after resolving aliases. Wait for an
 /// inference variable; report a definite error for a known unsupported type.
 let operandFor
@@ -2018,20 +2002,64 @@ let operandFor
   match subject with
   | TVar _ -> Stdlib.Option.Option.None
   | TError -> Stdlib.Option.Option.Some s
-  | _ ->
-    if supports operation subject then
-      Stdlib.Option.Option.Some s
-    else
+  // The operand is one of the enclosing item's OWN type parameters, so this item cannot say
+  // which implementation runs and it is not supposed to: the bound on that parameter is the
+  // promise that one exists, and the caller's type argument decides which. Record the
+  // deferral rather than looking for an implementation of a rigid type, which would find none
+  // and report every bounded generic in the tree as missing one.
+  | TRigid param ->
+    match Environment.infixImplsFor s.env operation with
+    | None -> Stdlib.Option.Option.Some s
+    | Some _ ->
       Stdlib.Option.Option.Some(
-        addFinding
-          s
-          (Types.definiteError
-            IssueCode.InvalidInfixOperand
-            nodeId
-            (none ())
-            (some subject)
-            (Context.InfixOperandUnsupported operation))
+        addResolution s (Model.Resolution.Deferred(at, param))
       )
+  | _ ->
+    match Environment.infixImplsFor s.env operation with
+    // Not a trait, so there is nothing to look up and nothing to record. `==` and `!=` are
+    // structural equality for every value, and an operator whose trait hash is not generated
+    // yet answers the same way, which is what keeps a tree whose refs are missing from
+    // reporting every operator as an error.
+    | None -> Stdlib.Option.Option.Some s
+    | Some((traitHash, method_, candidates)) ->
+      let applies =
+        candidates
+        |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+
+      if Stdlib.List.isEmpty candidates then
+        // The trait exists and has no implementations at all, anywhere. That is a store the
+        // implementations have not reached rather than a type that cannot add, so it is not
+        // this check's business to call it an error: saying otherwise would report every `+`
+        // in the tree at once, which is the loudest possible way to be wrong.
+        Stdlib.Option.Option.Some s
+      else if Stdlib.List.isEmpty applies then
+        // `MissingImpl`, not `InvalidInfixOperand`: under traits an operator this type cannot
+        // take is not a special rule about operators, it is the ordinary absence of an
+        // implementation, and it reads the same way as a trait method call that finds none.
+        // Dispatch refuses it with the same reason, which is what `trait-checker-vs-dispatch`
+        // holds the two to.
+        Stdlib.Option.Option.Some(
+          addFinding
+            s
+            (Types.definiteError
+              IssueCode.MissingImpl
+              nodeId
+              (none ())
+              (some subject)
+              (Context.TraitNeeded(traitHash, Stdlib.Option.Option.Some method_)))
+        )
+      else
+        // The implementations that apply, rather than the one that wins: which of two rivals
+        // is newer is a question about the op log, and the store answers it at save time.
+        Stdlib.Option.Option.Some(
+          addResolution
+            s
+            (Model.Resolution.Call(
+              at,
+              method_,
+              applies |> Stdlib.List.map (fun (_, source) -> source)
+            ))
+        )
 
 /// Require a signed integer or Float for unary minus, waiting if its type is unknown.
 let negate (s: State) (at: Int64) (operand: Model.Ty) : Stdlib.Option.Option<State> =

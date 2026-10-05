@@ -47,7 +47,8 @@ let reportCandidates
         { item = item
           verdict = outcome.verdict
           diagnostics = outcome.diagnostics
-          warnings = outcome.warnings })
+          warnings = outcome.warnings
+          resolutions = outcome.resolutions })
 
   reportItems items
 
@@ -98,7 +99,15 @@ let collectItemReferences
 /// Check the declarations in the supplied operations without changing the store.
 /// Load referenced declarations and their dependencies to obtain the type
 /// information needed for checking.
-let checkPackageOps (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Report =
+/// Check <param ops> against the implementations bound on <param branchId>.
+///
+/// The branch matters only for implementations: everything else the checker loads is
+/// content-addressed. A caller that has no branch in hand goes through `checkPackageOps`
+/// below, which answers about main.
+let checkPackageOpsOn
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Report =
   let candidates = candidatesFromOps ops
   let types = Stdlib.Dict.values candidates.types
   let values = Stdlib.Dict.values candidates.values
@@ -110,7 +119,7 @@ let checkPackageOps (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Report =
         Stdlib.List.map values (fun v -> LanguageTools.ProgramTypes.Reference.PackageValue v.hash)
         Stdlib.List.map fns (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash) ]
 
-  let builtins = Environment.builtins ()
+  let builtins = Environment.builtins branchId
 
   // If inspecting a type declaration or function signature fails, leave it out
   // of the checking environment and record an Incomplete result for it.
@@ -201,10 +210,22 @@ let loadCandidate
     (LanguageTools.PackageManager.Function.get hash)
     |> Stdlib.Option.map (fun fn -> LanguageTools.ProgramTypes.PackageOp.AddFn fn)
 
+/// Check <param ops> against main's implementations.
+///
+/// For a caller with no branch in hand: the LSP checking an unsaved buffer, and the checker's
+/// own tests. An implementation bound only on a branch is invisible here, which is the same
+/// answer this gave before it could see implementations at all. Anything that PINS a call
+/// passes its branch explicitly through `checkPackageOpsOn`, because pinning against the wrong
+/// branch's implementations would store the wrong answer.
+let checkPackageOps (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Report =
+  checkPackageOpsOn Darklang.SCM.Branch.mainBranchId ops
+
+
 /// Load and check each distinct declaration reference. A missing declaration or
 /// a load error produces an Incomplete result for that item; successfully loaded
 /// declarations are checked together and keep their individual results.
 let checkReferences
+  (branchId: Uuid)
   (load: LanguageTools.ProgramTypes.Reference -> Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp>)
   (references: List<LanguageTools.ProgramTypes.Reference>)
   : Report =
@@ -224,9 +245,10 @@ let checkReferences
             { item = reference
               verdict = outcome.verdict
               diagnostics = outcome.diagnostics
-              warnings = outcome.warnings }
+              warnings = outcome.warnings
+              resolutions = outcome.resolutions }
         (ops, Stdlib.List.push failures item))
-  let checked = checkPackageOps (Stdlib.List.reverse ops)
+  let checked = checkPackageOpsOn branchId (Stdlib.List.reverse ops)
   reportItems (Stdlib.List.append checked.items (Stdlib.List.reverse failures))
 
 /// Check the declarations a search query selects. Fetch their hashes before loading their
@@ -243,7 +265,7 @@ let checkQuery
       [ Stdlib.List.map types (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageType hash)
         Stdlib.List.map values (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageValue hash)
         Stdlib.List.map fns (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageFn hash) ]
-  checkReferences loadCandidate references
+  checkReferences branchId loadCandidate references
 
 /// A query that selects everything on the branch.
 let everything () : LanguageTools.ProgramTypes.Search.SearchQuery =

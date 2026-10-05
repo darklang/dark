@@ -305,6 +305,18 @@ trusting a measurement nobody had checked.
 
 ## Rebasing onto main
 
+**A rebase that REMOVES a syntax form merges silently where main added uses of it.** Git marks a
+conflict only where both sides touched the same lines, so where main added `++` uses while this
+branch was deleting the operator, the branch has no text there: it merged with no marker, no
+warning and a clean F# build, then failed as a package-load PARSE error in a file the branch never
+touched. Sweep for the form across `packages/` and `backend/testfiles/` after the rebase instead of
+fixing the first one that fails; they cluster in whatever main wrote while the form was still legal.
+When the fix is mechanical, make the script ASSERT it converted every occurrence in each file it
+touches, so a string literal spelled the same way (`"++"` in a parser for another language, `" ++ "`
+in a printer, "C/C++" in prose) fails the run loudly rather than being corrupted quietly. Same root
+cause as the deleted-public-fn case below, one level earlier: that one breaks name resolution, this
+one breaks the parse.
+
 **A clean rebase can still fail at run time, and git cannot tell you.** Dark resolves names
 when a call EXECUTES, so deleting a public fn breaks every caller silently. Git only marks a
 conflict where both sides changed the same lines; where main ADDED a call to a fn your branch

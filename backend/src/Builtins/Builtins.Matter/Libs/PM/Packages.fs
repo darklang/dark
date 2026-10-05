@@ -21,6 +21,7 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 module RTPM = LibDB.RuntimeTypes
 module PMPT = LibDB.ProgramTypes
 module Execution = LibExecution.Execution
+module PackageRefs = LibExecution.PackageRefs
 
 
 let private repointListKT =
@@ -321,6 +322,80 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 VT.known (RT2DT.ImplCandidate.knownType ()),
                 candidates |> List.map RT2DT.ImplCandidate.toDT
               )
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
+    // The trait an operator IS, and that trait's impls on a branch.
+    //
+    // One table, in `NumericTraits.ofInfix`, which is also what the lowering uses: the at-rest
+    // checker asking a second copy "which types support `+`" is how the checker and the runtime
+    // come to disagree about what an operator means. Same reason `Lww` has exactly one copy.
+    { name = fn "pmInfixImplCandidates" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "branchId"
+            TUuid
+            "The branch whose bindings decide what is visible"
+          Param.make
+            "operation"
+            (TCustomType(
+              NR.ok (
+                FQTypeName.fqPackage (
+                  PackageRefs.Type.LanguageTools.ProgramTypes.infixFnName ()
+                )
+              ),
+              []
+            ))
+            "The operator" ]
+      returnType =
+        TypeReference.option (
+          TTuple(
+            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
+            TString,
+            [ TList(TCustomType(NR.ok (RT2DT.ImplCandidate.typeName ()), [])) ]
+          )
+        )
+      description =
+        "The trait an operator is, the method name it maps to, and the impls of that trait bound on "
+        + "<param branchId>. None for an operator that is not a trait: `==` and `!=` are "
+        + "structural equality, and `++` is no longer in the language."
+      fn =
+        (function
+        | exeState, _, _, [| DUuid branchId; operation |] ->
+          uply {
+            let op = PT2DT.InfixFnName.fromDT operation
+            let innerType =
+              KTTuple(
+                VT.known (KTCustomType(PT2DT.Hash.typeName (), [])),
+                VT.known KTString,
+                [ VT.known (KTList(VT.known (RT2DT.ImplCandidate.knownType ()))) ]
+              )
+            match LibExecution.NumericTraits.ofInfix op with
+            | None -> return Dval.optionNone innerType
+            | Some(traitHash, methodName) ->
+              let! candidates =
+                exeState.fns.implCandidates
+                  (LibExecution.Branching.BranchId.Id branchId)
+                  (LibExecution.RuntimeTypes.Hash traitHash)
+              let candidates =
+                DList(
+                  VT.known (RT2DT.ImplCandidate.knownType ()),
+                  candidates |> List.map RT2DT.ImplCandidate.toDT
+                )
+              return
+                Dval.optionSome
+                  innerType
+                  (DTuple(
+                    PT2DT.Hash.toDT (PT.Hash traitHash),
+                    DString methodName,
+                    [ candidates ]
+                  ))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -25,8 +25,8 @@ let codesOf (issues: List<Darklang.LanguageTools.AtRestTypeChecker.Issue>) : Str
 
 let summary (report: Darklang.LanguageTools.AtRestTypeChecker.Report) : String =
   (verdictWord report.verdict)
-  ++ ":"
-  ++ (codesOf (Stdlib.List.append report.diagnostics report.warnings))
+  + ":"
+  + (codesOf (Stdlib.List.append report.diagnostics report.warnings))
 
 let src (lines: List<String>) : String = Stdlib.String.join lines "\n"
 
@@ -62,8 +62,8 @@ let itemSummary
     match Stdlib.List.findFirst report.items (fun i -> i.item == target) with
     | Some i ->
       (verdictWord i.verdict)
-      ++ ":"
-      ++ (codesOf (Stdlib.List.append i.diagnostics i.warnings))
+      + ":"
+      + (codesOf (Stdlib.List.append i.diagnostics i.warnings))
     | None -> "no report for the declaration"
 
 /// Parse and check the source, then return the verdict and issue codes for `name`.
@@ -90,8 +90,8 @@ let issues (source: String) (name: String) : List<String> =
         (Stdlib.List.append i.diagnostics i.warnings)
         |> Stdlib.List.map (fun issue ->
           (Darklang.LanguageTools.AtRestTypeChecker.issueCodeToString issue.code)
-          ++ ": "
-          ++ (Darklang.LanguageTools.AtRestTypeChecker.issueToString issue))
+          + ": "
+          + (Darklang.LanguageTools.AtRestTypeChecker.issueToString issue))
       | None -> [ "no report for the declaration" ]
 
 // ---- Helpers for constructing syntax trees directly -----------------------------------
@@ -177,14 +177,14 @@ let environmentWith
   let env =
     Stdlib.List.fold
       types
-      (Darklang.LanguageTools.AtRestTypeChecker.Environment.builtins ())
+      (Darklang.LanguageTools.AtRestTypeChecker.Environment.builtins Darklang.SCM.Branch.mainBranchId)
       (fun env t -> Darklang.LanguageTools.AtRestTypeChecker.Items.addType env t)
   Darklang.LanguageTools.AtRestTypeChecker.Declarations.prepareDeclarations env
 
 let outcomeSummary (outcome: Darklang.LanguageTools.AtRestTypeChecker.Items.Outcome) : String =
   (verdictWord outcome.verdict)
-  ++ ":"
-  ++ (codesOf (Stdlib.List.append outcome.diagnostics outcome.warnings))
+  + ":"
+  + (codesOf (Stdlib.List.append outcome.diagnostics outcome.warnings))
 
 /// Check `fn` with the supplied type declarations available as dependencies.
 /// Return only the function's verdict and issue codes.
@@ -434,7 +434,7 @@ module Basics =
 
   (check "let f (value: Int) : String = value" "f") = "failed:TypeMismatch"
 
-  (check "let f (x: Int) : String = x |> Stdlib.Int.toString" "f") = "checked:"
+  (check "let f (x: Int) : String = x |> Stdlib.toString" "f") = "checked:"
 
   (check "let f (x: Int) : Int = Stdlib.String.length x" "f") = "failed:TypeMismatch"
 
@@ -919,7 +919,8 @@ module Builtins =
               Darklang.LanguageTools.ProgramTypes.FQFnName.Builtin
                 { name = "missing"; version = 0l }
             )
-          )
+          ),
+          []
         ),
         [],
         [ intExpr 12L 1 ]
@@ -949,7 +950,7 @@ module PostfixUnwrap =
     Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
       resolved (
         Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package(
-          (Darklang.LanguageTools.AtRestTypeChecker.Environment.builtins ()).optionType
+          (Darklang.LanguageTools.AtRestTypeChecker.Environment.builtins Darklang.SCM.Branch.mainBranchId).optionType
         )
       ),
       [ inner ]
@@ -1344,7 +1345,11 @@ module Unresolved =
     (oneArg
       (tUnit ())
       (tInt ())
-      (Darklang.LanguageTools.ProgramTypes.Expr.EFnName(1L, unresolved [ "Missing", "fn" ])))) = "incomplete:UnresolvedFunctionName"
+      (Darklang.LanguageTools.ProgramTypes.Expr.EFnName(
+        1L,
+        unresolved [ "Missing", "fn" ],
+        []
+      )))) = "incomplete:UnresolvedFunctionName"
 
   (checkFunctionAst
     []
@@ -1676,7 +1681,7 @@ module ProvisionalDiagnostics =
   // LSP output, even when a separate definite error makes the function Failed.
   let displayed (last: String) : String =
     let source =
-      src [ "let f () : Int =", "  let g = fun y -> y y", "  " ++ last ]
+      src [ "let f () : Int =", "  let g = fun y -> y y", "  " + last ]
     match parsePackageOps source with
     | Error message -> message
     | Ok ops ->
@@ -1697,8 +1702,8 @@ module ProvisionalDiagnostics =
             | _ -> "unexpected severity")
           |> Stdlib.List.sort
           |> Stdlib.String.join ","
-        (verdictWord item.verdict) ++ ":" ++ (codesOf item.diagnostics)
-        ++ "/" ++ (codesOf item.warnings) ++ "/" ++ severities
+        (verdictWord item.verdict) + ":" + (codesOf item.diagnostics)
+        + "/" + (codesOf item.warnings) + "/" + severities
       | _ -> "expected one item"
 
   (displayed "1") =
@@ -2136,8 +2141,8 @@ module Batches =
     Stdlib.List.map (Stdlib.List.range 0 1999) (fun i ->
       let field =
         if i == 1999 then tInt ()
-        else custom $"link-{Stdlib.Int.toString (i + 1)}" []
-      declared $"link-{Stdlib.Int.toString i}" [] (recordOf [ ("next", field) ]))
+        else custom $"link-{Stdlib.toString (i + 1)}" []
+      declared $"link-{Stdlib.toString i}" [] (recordOf [ ("next", field) ]))
    let holder =
      declared
        "holder"
@@ -2193,9 +2198,9 @@ module Batches =
     Stdlib.List.map (Stdlib.List.range 0 99) (fun i ->
       let target =
         if i == 99 then tInt ()
-        else tList (custom $"alias-{Stdlib.Int.toString (i + 1)}" [])
+        else tList (custom $"alias-{Stdlib.toString (i + 1)}" [])
       declared
-        $"alias-{Stdlib.Int.toString i}"
+        $"alias-{Stdlib.toString i}"
         []
         (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias target))
    checkPackageOpsSummary
@@ -2205,9 +2210,9 @@ module Batches =
     Stdlib.List.map (Stdlib.List.range 0 4999) (fun i ->
       let target =
         if i == 4999 then tInt ()
-        else tList (custom $"alias-{Stdlib.Int.toString (i + 1)}" [])
+        else tList (custom $"alias-{Stdlib.toString (i + 1)}" [])
       declared
-        $"alias-{Stdlib.Int.toString i}"
+        $"alias-{Stdlib.toString i}"
         []
         (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias target))
    let answer =
@@ -2228,7 +2233,7 @@ module Batches =
    let fns =
      Stdlib.List.map (Stdlib.List.range 1 300) (fun i ->
        fnNamed
-         $"batch-{Stdlib.Int.toString i}"
+         $"batch-{Stdlib.toString i}"
          []
          [ ("payload", custom "batch-payload" []) ]
          (custom "batch-payload" [])
@@ -2474,7 +2479,7 @@ module DictKeysWithUnsupportedValues =
   let key (expression: String) : String =
     check
       (src [ "let f () : Unit ="
-             "  let _ = Dict { " ++ expression ++ ": 1 }"
+             "  let _ = Dict { " + expression + ": 1 }"
              "  ()" ])
       "f"
 

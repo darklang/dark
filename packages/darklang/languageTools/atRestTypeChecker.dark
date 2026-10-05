@@ -208,7 +208,16 @@ type ItemReport =
   { item: LanguageTools.ProgramTypes.Reference
     verdict: Verdict
     diagnostics: List<Issue>
-    warnings: List<Issue> }
+    warnings: List<Issue>
+
+    /// Which implementation each trait call in this item resolved to. Save-time pinning
+    /// is the only caller that reads it; everything that reports to a PERSON reads the
+    /// three fields above and ignores this one.
+    ///
+    /// It is on the item rather than on the Report because pinning rewrites one stored
+    /// item at a time, and a resolution is only meaningful against the node ids of the
+    /// item it came from.
+    resolutions: List<Model.Resolution> }
 
 type Report =
   { verdict: Verdict
@@ -236,6 +245,17 @@ let checkPackageOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Report =
   guarded Run.checkPackageOps ops
+
+/// Check package operations against the implementations bound on <param branchId>.
+///
+/// What authoring uses, and what save-time pinning reads: a call is pinned to the
+/// implementation that is live on the branch being saved to, so the branch is not optional
+/// there the way it is for an editor buffer.
+let checkPackageOpsOn
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Report =
+  guarded (fun (b, o) -> Run.checkPackageOpsOn b o) ((branchId, ops))
 
 /// Type-check all declarations visible on the selected branch.
 let checkBranch (branchId: Uuid) : Report = guarded Run.checkBranch branchId

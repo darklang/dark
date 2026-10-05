@@ -73,11 +73,36 @@ module HandleCommand =
 
       do! fill false ops
 
+      // The checker is written in Dark, so resolving a call means executing Dark, which needs
+      // a state. Safe to build here and nowhere earlier: this is after the first `fill`, which
+      // is why the fill is done twice at all -- the checker's own package items, the ref hashes
+      // and the impl stamps have to be in the store before anything can ask it a question.
+      let exeState =
+        let notify _ _ _ _ = uply { return () }
+        let reportException _ _ _ _ = uply { return () }
+        // `allowAll`, for the same reason `evaluateAllValues` runs as `TrustedSeed` a few lines
+        // below: this is the one trusted producer. The code being checked is the checked-in
+        // `packages/` tree that was just parsed off disk, not a guest's, and the checker has to
+        // read the package store to answer which implementations exist. Without this the
+        // reload's own policy refuses `package-read` and 795 items come back Incomplete, with
+        // the pins silently absent rather than any error.
+        { Execution.createState
+            (Builtins.all ())
+            PM.rt
+            Execution.noTracing
+            reportException
+            notify
+            { dbs = Map.empty } with
+            access =
+              LibExecution.Permissions.Access.start
+                LibExecution.Permissions.Policy.allowAll }
+
       let! resolved =
-        Builtins.Matter.Libs.PM.AtRestTypeChecker.resolveTraitCalls
+        Builtins.Matter.Libs.PM.TraitCalls.resolveTraitCalls
+          (Some(System.IO.Path.Combine(LibConfig.Config.runDir, "trait-pins.cache")))
+          exeState
           BranchId.Main
           PM.pt
-          (Builtins.all ())
           ops
       // The pins are written at the hashes in hand, then moved by the rehash, exactly as the
       // authoring path does it.
