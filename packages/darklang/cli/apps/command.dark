@@ -104,6 +104,9 @@ let runApp (state: Cli.AppState) (slug: String) : Cli.AppState =
     | Daemon _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a daemon — start it with `apps start {slug}`")
       state
+    | Views _ ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a set of views; open one with `apps view {slug}`")
+      state
 
 /// `apps daemon-main <slug>` — the body of a daemon process: what `apps start` launches
 /// detached, and what a unit file supervises. A CLI verb rather than `eval '<entrypoint>
@@ -172,6 +175,8 @@ let startDaemon (state: Cli.AppState) (slug: String) (live: Bool) : Cli.AppState
       | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
     | Foreground _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a foreground app — run it with `apps run {slug}`")
+    | Views _ ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a set of views; open one with `apps view {slug}`")
 
   state
 
@@ -299,6 +304,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           | Error e ->
             Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  (couldn't write shell shim: {e}) — run it with `apps run {slug}`")
         | Daemon _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  start it with `apps start {slug}`")
+        | Views _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  open it with `apps view {slug}`")
         state
 
   | [ "remove", slug ] ->

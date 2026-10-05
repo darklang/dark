@@ -29,6 +29,8 @@ let update (m: Model) (event: Host.Event<Msg>) : Model =
   match event with
   | Msg Refresh -> init ()
   | Key _ -> m
+  // Same as Refresh, and unreachable until this view declares an `every`.
+  | Tick -> init ()
 
 /// A proportion as a run of blocks, a cell in the table.
 let bar (value: Int) (maxVal: Int) (width: Int) : String =

@@ -126,6 +126,7 @@ let clockFreeTime (created: String) : String =
   match Stdlib.String.split created "T" with
   | [ _, rest ] ->
     (match Stdlib.String.split rest "." with
+     | [] -> created
      | [ hms ] -> hms
      | hms :: _ -> hms)
   | _ -> created

@@ -32,6 +32,9 @@ let update (m: Model) (event: Host.Event<Msg>) : Model =
   | Msg Refresh -> { init () with presses = m.presses; note = m.note }
   | Msg(Noted text) -> { m with note = text }
   | Key _ -> { m with presses = m.presses + 1 }
+  // Unreachable while this view declares no `every`, which is what `Model.viewAt` gives it.
+  // A tick is "refresh whatever moves on its own", so it is the Refresh above.
+  | Tick -> { init () with presses = m.presses; note = m.note }
 
 let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
   Stdlib.Cli.UI.Node.column
