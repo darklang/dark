@@ -365,6 +365,8 @@ let private executeHandler
       match p.stopReason with
       | null ->
         let! errorStr = Execution.runtimeErrorMessage exeState rte
+        // The terminal is where the 500 page sends you, so the error has to be there too.
+        print $"[HttpServer] the handler failed: {errorStr}"
         return Direct(textResponse 500 $"The handler failed: {errorStr}")
       | reason ->
         return Direct(textResponse 503 $"The request was stopped: {reason}.")
@@ -479,7 +481,7 @@ let private withLiveScript
 
 
 /// Process a single request: parse → dispatch → write response. Errors
-/// surface as 500s; full detail goes to `logRequest` rather than the wire.
+/// surface as 500s; full detail goes to the serve terminal rather than the wire.
 let private handleRequest
   (exeState : ExecutionState)
   (invokerAccess : LibExecution.Permissions.Access)
@@ -636,11 +638,11 @@ let private handleRequest
 
             ctx.Response.ContentLength64 <- int64 body.Length
             do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
-      with _ex ->
-        // Don't leak ex.Message — can carry stack hints / sensitive
-        // strings. Detail goes to `logRequest` (which sees the 500
-        // status). 4xx + handler-set codes flow through
+      with ex ->
+        // Don't leak ex.Message to the client: it can carry stack hints or sensitive
+        // strings. It goes to the serve terminal instead. 4xx + handler-set codes flow through
         // `Response.toHttpResponse`; this path is F#-side failures only.
+        print $"[HttpServer] internal error: {ex.Message}"
         ctx.Response.StatusCode <- 500
         let errorBytes = UTF8.toBytes "Internal server error"
         ctx.Response.ContentLength64 <- int64 errorBytes.Length

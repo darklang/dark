@@ -946,6 +946,26 @@ type Scheduler(quantum : int64) =
       true
     | false, _ -> false
 
+  /// Detached processes anywhere in the group that have not finished: what a host about to exit
+  /// takes down with it.
+  member this.UnfinishedDetached() : int =
+    let schedulers =
+      match group with
+      | Some g -> g.All
+      | None -> [ this ]
+    schedulers |> List.sumBy (fun s -> s.UnfinishedDetachedHere())
+
+  member internal _.UnfinishedDetachedHere() : int =
+    lock sync (fun () ->
+      processes.Values
+      |> Seq.filter (fun p ->
+        p.detached
+        && (match p.status with
+            | Done _
+            | Failed _ -> false
+            | _ -> true))
+      |> Seq.length)
+
   /// Every process the group knows, as copies.
   member this.Snapshot() : list<ProcessSummary> =
     match group with
@@ -1039,4 +1059,12 @@ let executeFunction
   : RT.ExecutionResult =
   let s = Scheduler(defaultQuantum)
   let p = s.SpawnFunction(exeState, name, typeArgs, args, None)
-  s.RunUntil p
+  let result = s.RunUntil p
+  // A detached process outlives its parent, but not the OS process: the CLI exits next.
+  match s.UnfinishedDetached() with
+  | 0 -> ()
+  | n ->
+    System.Console.Error.WriteLine(
+      $"{n} detached process(es) still running, stopped as the program exits"
+    )
+  result

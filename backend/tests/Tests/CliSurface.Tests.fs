@@ -1099,6 +1099,26 @@ let private aDashLedArgumentIsNeverAName =
         Expect.equal after before "and the instance identity is unchanged"
       })
 
+/// `serve` and `apps` are not swept, because their success binds a port or takes the screen, so
+/// their refusals are checked here. A refusal that exits 0 is one a script cannot see, and these
+/// all did; `apps view <slug> --dev` also opened the view, taking the flag as its name.
+let private unsweptCommandsRefuseWithExit1 =
+  cliTestOnMain "serve and apps view refusals exit 1" (fun state ->
+    task {
+      let cases =
+        [ [ "serve" ], "Usage: serve"
+          [ "serve"; "--live" ], "Missing router path"
+          [ "serve"; "Tests.NoSuch.router"; "--live" ], "is it defined"
+          [ "apps"; "view"; "Tests.NoSuch"; "--dev" ], "--dev is --live"
+          [ "apps"; "view"; "Tests.NoSuch"; "--zzz" ], "apps view has no --zzz" ]
+
+      for args, expected in cases do
+        let printed = String.concat " " args
+        let! output, exitCode = runCliWithExit state args
+        Expect.stringContains output expected $"dark {printed} names what is wrong"
+        Expect.equal exitCode 1L $"dark {printed} exits 1"
+    })
+
 /// Two names with byte-identical bodies are ONE item, and a `PackageFn` carries no name, so showing one
 /// means resolving its hash back to a name. With several to choose from, the scoring picked whichever it
 /// liked and `dark view Tests.SharedBody.alpha` printed a definition headed `beta`.
@@ -1174,6 +1194,7 @@ let tests : List<Test> =
     everyHelpLeadsWithASummary
     permissionsRefusesAnEmptyRule
     aDashLedArgumentIsNeverAName
+    unsweptCommandsRefuseWithExit1
     viewHeadsWithTheNameYouAskedFor
     headerKeepsTheBranchWhenNarrow
     hintRowKeepsTheWayOut
