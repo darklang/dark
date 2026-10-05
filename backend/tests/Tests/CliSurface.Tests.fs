@@ -769,7 +769,10 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "permissions", [ "show"; seed.fn ]
       "typecheck", []
       "workbench", []
-      "commit", [ "--json" ] ]
+      "commit", [ "--json" ]
+      // Reads the implementations of a trait on the branch. Fully qualified, like `nav` and
+      // `find-values` above, rather than relying on the bare-name fallback to the stdlib.
+      "impls", [ "Darklang.Stdlib.Add" ] ]
 
 /// Commands that are safe to run BARE and must not be given real arguments, with the reason.
 ///
@@ -794,6 +797,8 @@ let private unsafeWithArguments : Map<string, string> =
       "val", "ditto"
       "type", "ditto"
       "module", "ditto"
+      "trait", "ditto"
+      "impl", "ditto"
       "rename", "moves an item other tests may be naming"
       "edit", "without a file argument it spawns $EDITOR as an interactive child"
       "discard",
