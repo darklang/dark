@@ -102,8 +102,9 @@ let private prepare (dir : string) (args : string list) : unit =
 /// SQLite rather than copied. It is an OP LOG, so the first command against a cold store
 /// materialises every package from it -- seconds, paid once here instead of in each
 /// instance's first command. And a fresh install's policy denies guests `package-write`,
-/// so anything a test does through `dark eval` would be refused; the in-process harness
-/// grants the same thing in `buildState`, for the same reason.
+/// so anything a test does through `dark eval` would be refused, and it denies `concurrency`,
+/// which the spawn tests need; the in-process harness grants both in `buildState`, for the
+/// same reason.
 ///
 /// `branches` rather than `version` for the warming command: `version` checks GitHub for a
 /// newer release, deliberately, so it is a network round trip rather than a cheap way to
@@ -118,6 +119,9 @@ let private template : Lazy<string * string> =
 
      prepare warm [ "branches" ]
      prepare warm [ "permissions"; "allow"; "package-write" ]
+     // `Stdlib.Exec.spawn` is a guest effect too, and the trace tests drive spawn through
+     // `dark eval`, so an instance needs it for the same reason it needs package-write.
+     prepare warm [ "permissions"; "allow"; "concurrency" ]
 
      // Through SQLite again: the warming run left its work in that store's own WAL.
      let db = System.IO.Path.Combine(root, "template.db")

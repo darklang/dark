@@ -71,16 +71,21 @@ let buildState () : Task<RT.ExecutionState> =
     LibExecution.HostSecurity.policyDirectoryForTesting policyDir
     |> ignore<System.IDisposable>
 
-    // `defaultInstance` PLUS package-write, granted once here for every test.
+    // `defaultInstance` PLUS package-write and concurrency, granted once here for every test.
     //
     // These tests drive authoring through `dark eval`, which is guest code, and a guest has no
     // package-write by default. Granting it inside a single test instead would leak into every
     // test after it in the same store, so a later test would pass or fail on runner order.
     //
+    // Concurrency for the same reason: `Stdlib.Exec.spawn` is a guest effect a guest does not
+    // have by default, and the trace tests drive spawn through `dark eval`.
+    //
     // What a GUEST may do without the grant is still tested, in `PermissionEscape.Tests`.
     let testInstancePolicy =
       LibExecution.Permissions.Policy.allowEffects (
         Set.add
+          LibExecution.Effects.Effect.Concurrency
+        <| Set.add
           LibExecution.Effects.Effect.PackageWrite
           (LibExecution.Permissions.Policy.coverableEffects
             LibExecution.Permissions.Policy.defaultInstance

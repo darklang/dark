@@ -2115,10 +2115,20 @@ module Batches =
     [ fnNamed "deep-signature" [] [ ("value", nestedTupleType 3000) ] (tInt ()) (intExpr 5L 1)
       fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:TypeMismatch,UnsupportedConstruct"
 
-  (checkPackageOpsSummary
-    [ declared "deep-declaration" [] (recordOf [ ("field", nestedTupleType 3000) ]) ]
-    [ fnNamed "uses-deep" [] [ ("value", custom "deep-declaration" []) ] (tInt ()) (intExpr 6L 1)
-      fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:MissingTypeDeclaration,TypeMismatch,UnsupportedConstruct"
+  // Whether the deep declaration is also reported MISSING depends on the build, so this
+  // accepts either, the way the 2,000-link case below does and for the same reason. The
+  // depth limit refuses the declaration and leaves it in the environment, so a user of it
+  // resolves; a build whose native stack also runs out loses the declaration's facts
+  // entirely and the user reports MissingTypeDeclaration on top. Debug does the second,
+  // published does the first. What matters either way is the property the test was written
+  // for: the other function's definite return-type error still gets reported.
+  (let answer =
+     checkPackageOpsSummary
+       [ declared "deep-declaration" [] (recordOf [ ("field", nestedTupleType 3000) ]) ]
+       [ fnNamed "uses-deep" [] [ ("value", custom "deep-declaration" []) ] (tInt ()) (intExpr 6L 1)
+         fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]
+   answer == "failed:TypeMismatch,UnsupportedConstruct"
+   || answer == "failed:MissingTypeDeclaration,TypeMismatch,UnsupportedConstruct") = true
 
   // Checking a key through 2,000 linked record declarations may complete or reach
   // the stack limit. In either case, preserve the separate wrong-return error.

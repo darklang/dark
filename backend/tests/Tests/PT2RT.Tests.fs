@@ -1949,8 +1949,14 @@ module MarkerStripping =
                   let mutable want = landing
                   while want < n && isMarker want do
                     want <- want + 1
+                  // The jump occupies a slot too, so a jump whose landing point IS its own
+                  // slot (offset -1, which `landing = jumpAt` produces) lands on the JumpBy
+                  // rather than on a landmark. Name that slot instead of comparing values,
+                  // since the JumpBy's own offset is what stripping rewrites.
                   let wantInstr =
-                    if want >= n then "one past the end" else string (landmark want)
+                    if want >= n then "one past the end"
+                    elif want = jumpAt then "the jump's own slot"
+                    else string (landmark want)
 
                   let jumpIdx =
                     kept
@@ -1970,6 +1976,7 @@ module MarkerStripping =
                       if landedAt = List.length kept then "one past the end"
                       elif landedAt < 0 || landedAt > List.length kept then
                         $"out of range ({landedAt})"
+                      elif landedAt = idx then "the jump's own slot"
                       else string kept[landedAt]
                     if wantInstr <> gotInstr then
                       yield (mask, jumpAt, landing, wantInstr, gotInstr) ]

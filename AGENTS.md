@@ -673,6 +673,14 @@ default: package loading, computation, local storage, and printing work, while
 filesystem, network, process, and environment access are denied. Missing or corrupt
 policy data fails closed. `permissions allow all` is available for development.
 
+**A change to what the test harness grants does not reach an existing `rundir`.**
+`CliTestHarness` seeds its policy with `seedInstanceIfMissing`, into
+`rundir/test-policy`, which persists. So adding a capability to the harness is a no-op
+on any clone whose rundir already has one, and the tests go on failing with
+`permission denied by instance policy` while the code that grants it is right there.
+CI never sees this, because CI's rundir is fresh. `rm -rf rundir/test-policy` and
+re-run. Cost an hour of believing a correct fix had not worked.
+
 **`run-in-docker` ignores stdin unless something's on it.** Fd 0 is forwarded through a `cat`
 that needs an EOF, and an agent harness hands you a socket that never gives one, which used to
 hang the call well past its timeout. If you pipe real input and it gets dropped, `DARK_STDIN=1`

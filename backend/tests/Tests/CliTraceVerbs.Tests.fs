@@ -429,10 +429,17 @@ let private spawnedChildReplays =
         // The resume echoes a logged print with a `[replayed]` prefix, and prints its own
         // progress above it; the two uuids are the last non-empty line either way.
         let uuidLine (out : string) : string =
-          out.Split('\n')
-          |> Array.map (fun l -> l.Replace("[replayed]", "").Trim())
-          |> Array.filter (fun l -> l.Contains "-" && l.Length > 60)
-          |> Array.last
+          let candidates =
+            out.Split('\n')
+            |> Array.map (fun l -> l.Replace("[replayed]", "").Trim())
+            |> Array.filter (fun l -> l.Contains "-" && l.Length > 60)
+
+          if Array.isEmpty candidates then
+            // `Array.last` on empty threw away the output and reported "the input array was
+            // empty", which says nothing about what the command actually printed.
+            failtest $"no line held two uuids. The command printed:\n{out}"
+          else
+            Array.last candidates
         let! first = runCli state [ "eval"; program ]
         let line = uuidLine first
         let! e = latest ()
