@@ -265,6 +265,7 @@ type Scheduler(quantum : int64) =
        let thread =
          Thread(
            (fun () -> s.RunUntilStopped()),
+           HE.threadStackBytes,
            IsBackground = true,
            Name = "dark-shared"
          )
@@ -984,6 +985,7 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
       let thread =
         Thread(
           (fun () -> w.RunUntilStopped()),
+          HE.threadStackBytes,
           IsBackground = true,
           Name = $"dark-worker-{i}"
         )

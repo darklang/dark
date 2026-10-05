@@ -119,6 +119,21 @@ type Queue() =
 /// outstanding; the next request, from any queue, takes that key rather than queueing a second
 /// read, so the thread never holds more than one key's worth of the console. Requests are served
 /// oldest first.
+/// Stack size, in bytes, for every thread this module and `Scheduler` start.
+///
+/// A thread we create gets the platform default, and musl's is about 128 KB against glibc's 8 MB.
+/// The interpreter calls `RuntimeHelpers.EnsureSufficientExecutionStack()` before recursing over
+/// nested types (`ValueType.mergeKnownTypes`, `Dval.equals`), and that throws on how much stack is
+/// LEFT rather than on depth, so on a 128 KB thread it throws at once and every command dies
+/// before doing anything. Execution used to run on whatever thread called in, which for the CLI is
+/// the main thread, whose stack the OS and the PE header decide; it runs on threads we start now,
+/// so the size is ours to pick.
+///
+/// 16 MB rather than glibc's 8: how deep that recursion goes is a function of how deeply a user
+/// nests a type, which is not ours to bound, and recursing on type structure is exactly what the
+/// check above exists for.
+let threadStackBytes = 16 * 1024 * 1024
+
 type private KeyReader(readKey : unit -> RT.Dval) =
   let requests = new SemaphoreSlim(0)
   let waiting = ConcurrentQueue<Queue>()
@@ -150,6 +165,7 @@ type private KeyReader(readKey : unit -> RT.Dval) =
               && Interlocked.CompareExchange(&inFlight, 1, 0) = 0
             then
               requests.Release() |> ignore<int>),
+        threadStackBytes,
         IsBackground = true,
         Name = "dark-stdin-reader"
       )
