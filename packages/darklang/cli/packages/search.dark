@@ -395,6 +395,23 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         let depSets = Query.loadDeprecationSets state.currentBranchId
         let results = Query.filterDeprecated rawResults depSets parsed.includeDeprecated
 
+        // An implementation is one result. Its method fns live under it and its path reads as a
+        // module, so without this each one was listed three times.
+        let implPaths =
+          results.impls
+          |> Stdlib.List.map (fun i ->
+            Stdlib.List.flatten [ [ i.location.owner ], i.location.modules, [ i.location.name ] ])
+        let results =
+          { results with
+              fns =
+                results.fns
+                |> Stdlib.List.filter (fun f ->
+                  Stdlib.Bool.not
+                    (Stdlib.List.member implPaths (Stdlib.List.append [ f.location.owner ] f.location.modules)))
+              submodules =
+                results.submodules
+                |> Stdlib.List.filter (fun m -> Stdlib.Bool.not (Stdlib.List.member implPaths m)) }
+
         // Only count submodules when no entity type filter is specified
         let submodulesCount =
           if Stdlib.List.isEmpty parsed.entityTypes then
