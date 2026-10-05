@@ -1353,6 +1353,9 @@ let fns () : List<BuiltInFn> =
                         match name with
                         | RT.FQFnName.Package h -> string h
                         | RT.FQFnName.Builtin b -> b.name
+                        // Not reached: a frame runs the impl fn dispatch picked, never the
+                        // method itself. Named the way the tracer names one.
+                        | RT.FQFnName.TraitMethod tm -> $"{string tm.trait_}.{tm.method_}"
                       "function", callee
                   DTuple(
                     DString(string kv.Key),
@@ -1486,7 +1489,8 @@ let fns () : List<BuiltInFn> =
                           typeSymbolTable = TST.empty
                           typeArgs = []
                           access = None
-                          argsSoFar = [] }
+                          argsSoFar = []
+                          boundImpls = [] }
                     let viewState =
                       { PolicyStore.rootState exeState exeState.access [ Hash hash ] with
                           tracing = tracer.executionTracing }

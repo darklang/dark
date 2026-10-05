@@ -685,6 +685,18 @@ type Scheduler(quantum : int64) =
             match fn.name with
             | RT.FQFnName.Builtin b -> OnBuiltin b
             | RT.FQFnName.Package h -> OnPackageFn h
+            // A trait method waits as the impl fn dispatch called, so name that one when the
+            // save recorded it or the caller's frame did. An unrecorded pick is not looked up here.
+            | RT.FQFnName.TraitMethod tm ->
+              match tm.implFn with
+              | RT.FQFnName.Chosen impl -> OnPackageFn impl
+              | RT.FQFnName.FromTypeParam param ->
+                frame.boundImpls
+                |> List.tryPick (fun struct (p, t, m, impl) ->
+                  if p = param && t = tm.trait_ && m = tm.method_ then Some impl else None)
+                |> Option.map OnPackageFn
+                |> Option.defaultValue OnRareOpcode
+              | RT.FQFnName.Unknown -> OnRareOpcode
           | RT.DApplicable(RT.AppLambda _) -> OnLambda
           | _ -> OnRareOpcode
         | _ -> OnRareOpcode

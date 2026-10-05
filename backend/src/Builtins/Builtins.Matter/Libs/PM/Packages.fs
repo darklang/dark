@@ -660,7 +660,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   typeArgs = []
                   // As in `applicableByName`: whoever applies this supplies the frame access.
                   access = None
-                  argsSoFar = [] }
+                  argsSoFar = []
+                  boundImpls = [] }
               return Dval.resultOk okKT KTString (DApplicable(AppNamedFn namedFn))
             | None -> return err $"No function with hash {hash}"
           }

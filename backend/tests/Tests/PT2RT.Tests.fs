@@ -1838,7 +1838,7 @@ module LiveValues =
       let expr = E.Infix.Add.simple
       let exprId =
         match expr with
-        | PT.EInfix(id, _, _, _) -> id
+        | PT.EInfix(id, _, _, _, _) -> id
         | other -> failtest $"expected an EInfix, got {other}"
       let actual = PT2RT.Expr.toRT Map.empty 0 None expr
       let hook =
@@ -1864,7 +1864,7 @@ module LiveValues =
       let expr = E.Infix.And.mixed
       let exprId =
         match expr with
-        | PT.EInfix(id, _, _, _) -> id
+        | PT.EInfix(id, _, _, _, _) -> id
         | other -> failtest $"expected an EInfix, got {other}"
       let actual = PT2RT.Expr.toRT Map.empty 0 None expr
       let hook =

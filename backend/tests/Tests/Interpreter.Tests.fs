@@ -1332,7 +1332,8 @@ module Reload =
         typeSymbolTable = RT.TST.empty
         typeArgs = []
         access = None
-        argsSoFar = [] }
+        argsSoFar = []
+        boundImpls = [] }
 
   let private call (state : RT.ExecutionState) (app : RT.Applicable) =
     task {
