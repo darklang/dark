@@ -273,6 +273,13 @@ let guarded (check: 'a -> Report) (input: 'a) : Report =
   | Error failure ->
     let warning = failureIssue Stdlib.Option.Option.None failure
 
+    // This arm empties the WHOLE batch, so say why; callers read `items`, not this.
+    Stdlib.printLine
+      ("the at-rest checker failed over a whole batch and reported nothing: "
+       + (match failure with
+          | TooDeep -> "a declaration nests too deep to check"
+          | Failed message -> message))
+
     Report
       { verdict = Verdict.Incomplete
         items = []

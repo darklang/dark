@@ -153,7 +153,9 @@ let markAllUnknownsAsError (s: State) (tys: List<Model.Ty>) : State =
 /// How deep a type comparison may go before the declaration is reported Incomplete.
 /// Comparing walks both types in lockstep, so nesting costs a call per level. Bounded here
 /// rather than by the native stack running out. `NodeIds.maxDeclarationDepth` bounds input.
-val maxUnifyDepth = 1000L
+/// A function, not a `val`: the checker runs during `reloadPackages`, before
+/// `evaluateAllValues`, so reading a package value there raises `ValueNotFound`.
+let maxUnifyDepth () : Int64 = 1000L
 
 /// Require actual to agree with expected, assigning unknowns where possible.
 /// Use at and site to locate and explain any mismatch.
@@ -172,7 +174,7 @@ let unify
 
   if expected == actual then
     s
-  else if s.unifyDepth >= maxUnifyDepth then
+  else if s.unifyDepth >= maxUnifyDepth () then
     // Recorded once: every sibling comparison below here is also too deep.
     if s.gaveUpOnDepth then
       s

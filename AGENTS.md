@@ -1027,6 +1027,11 @@ each level and can fail with "Out of stack". Use direct recursion or an explicit
 **`let f () = <a literal>` rebuilds it on every call.** A nullary function whose body is a constant is
 not a constant; `val` is evaluated once. If the body doesn't depend on anything, make it a `val`.
 
+**Except on the at-rest checker's path, where a `val` is a bug.** The checker runs inside
+`reloadPackages` before `evaluateAllValues`, so reading a package value raises `ValueNotFound`,
+`guarded` empties the whole batch, and the reload records no trait-call resolutions and still
+prints Success. Use a function there.
+
 **Value bindings take no type annotation.** `let xs = [...]`, not `let xs : List<String> = [...]`,
 which fails with "Value annotations are not supported". Function bindings do take them, and
 nested functions require them.

@@ -185,7 +185,22 @@ let private askChecker
         (DUuid branchId.Guid)
         [ Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT) ]
     match! Exe.executeFunction exeState (checkPackageOpsName ()) [] args with
-    | Ok report -> return Decode.report report
+    | Ok report ->
+      let decoded = Decode.report report
+      // An empty report and an empty answer are the same zero here; `guarded` puts the
+      // reason in `warnings`, which this decoder otherwise drops.
+      if Map.isEmpty decoded then
+        let warnings =
+          match report with
+          | DRecord(_, _, _, fields) ->
+            match Map.tryFind "warnings" fields with
+            | Some(DList(_, ws)) -> List.length ws
+            | _ -> 0
+          | _ -> 0
+        if warnings > 0 then
+          print
+            $"  [traitcalls] the checker reported no resolutions and {warnings} warning(s); the batch was not checked"
+      return decoded
     | Error(rte, _) ->
       // A swallowed checker failure and a checker with nothing to say are the same zero, and
       // the zero is what nobody re-checks, so say which one happened. Kept deliberately: the

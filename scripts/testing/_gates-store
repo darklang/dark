@@ -260,10 +260,29 @@ gate_reload_is_reproducible() {
       "SELECT id FROM package_ops WHERE id NOT IN (SELECT op_id FROM op_branches) ORDER BY id"
   }
 
-  ./scripts/build/reload-packages > /dev/null 2>&1
+  ./scripts/build/reload-packages > "$WORK/logs/reload-1.log" 2>&1
   first=$(ids)
-  ./scripts/build/reload-packages > /dev/null 2>&1
+  ./scripts/build/reload-packages > "$WORK/logs/reload-2.log" 2>&1
   second=$(ids)
+
+  # The reload must have RECORDED something, not merely finished: resolution fails for the
+  # whole batch and still prints Success, and nothing else asserts the pre-pass ran. A floor,
+  # since the count moves with the tree.
+  # The line goes to the reload's OWN log under this gate's rundir, not to its stdout.
+  moved=$(grep -oE 'Resolved trait calls: [0-9]+ op' "$WORK/logs/packages.log" \
+            | tail -1 | grep -oE '[0-9]+' || true)
+  if [[ -z "$moved" ]]; then
+    echo "reload-is-reproducible: the reload printed no 'Resolved trait calls:' line at all."
+    echo "  Either the pre-pass did not run or its output moved; both want looking at."
+    exit 1
+  fi
+  if [[ "$moved" -lt 100 ]]; then
+    echo "reload-is-reproducible: the reload pinned $moved trait call op(s), which is too few."
+    echo "  A whole-tree reload resolves thousands. Zero or a handful means the checker failed"
+    echo "  over the batch and reported nothing. Look in $WORK/logs/packages.log for the line"
+    echo "  saying the at-rest checker failed over a whole batch."
+    exit 1
+  fi
 
   n=$(wc -l <<<"$second")
   differ=$(comm -3 <(echo "$first") <(echo "$second") | wc -l)
@@ -271,7 +290,8 @@ gate_reload_is_reproducible() {
     echo "reload-is-reproducible: $differ of $n op ids differ between two reloads of one tree"
     exit 1
   fi
-  echo "reload-is-reproducible: two reloads of one tree agree on all $n op ids."
+  echo "reload-is-reproducible: two reloads of one tree agree on all $n op ids,"
+  echo "  and the second pinned $moved trait call op(s)."
 }
 
 # --- trait-checker-vs-dispatch: the checker and dispatch agree on which impls exist ---
