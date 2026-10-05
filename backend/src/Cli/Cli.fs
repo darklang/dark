@@ -408,8 +408,8 @@ let private processTitle (args : string list) : string =
   | "run" :: path :: _ -> $"dark {System.IO.Path.GetFileNameWithoutExtension path}"
   | cmd :: _ -> $"dark {cmd}"
 
-[<EntryPoint>]
-let main (args : string[]) =
+/// Everything the CLI does. Called on a thread of our own; see `main`.
+let private runCli (args : string[]) : int =
   try
     // Sampled before anything else in the process, including the environment read below. It is one
     // half of `cli.preMain`, and the other half -- the process start time -- costs milliseconds to
@@ -989,3 +989,44 @@ let main (args : string[]) =
       System.Console.Error.WriteLine "Error starting Darklang CLI:"
       describe 0 e
       1
+
+
+[<EntryPoint>]
+let main (args : string[]) : int =
+  // Run on a thread we start, for its STACK SIZE, and not for concurrency.
+  //
+  // The interpreter recurses over nested types behind
+  // `RuntimeHelpers.EnsureSufficientExecutionStack()`, which throws on how much stack is LEFT
+  // rather than on how deep you already are, and on musl the runtime does not see the main
+  // thread's real stack. Every command died at trivial depth on Alpine while glibc, macOS and arm
+  // were green.
+  //
+  // Measured in Alpine: the main thread and a default-size thread both throw, while 8 MB and 16 MB
+  // recurse 100,000 frames. `ulimit -s` is 8192 on BOTH platforms and 256 KB throws on both, so it
+  // is neither the limit nor explicitness. It is that nothing sizes those two.
+  //
+  // `Scheduler.executeFunction` runs its loop on the CALLING thread, which is why sizing the
+  // scheduler's own threads did not fix a plain `dark eval`. They still need their sizes, for
+  // `serve` and for a worker group, so do not revert that.
+  //
+  // Threadpool threads are unsized, the runtime making them. No interpreter work runs on one today.
+  let mutable exitCode = 1
+
+  let thread =
+    System.Threading.Thread(
+      (fun () ->
+        exitCode <-
+          try
+            runCli args
+          with e ->
+            System.Console.Error.WriteLine
+              $"Error starting Darklang CLI: {e.Message}"
+            1),
+      LibExecution.HostEvents.threadStackBytes,
+      IsBackground = false,
+      Name = "dark-main"
+    )
+
+  thread.Start()
+  thread.Join()
+  exitCode
