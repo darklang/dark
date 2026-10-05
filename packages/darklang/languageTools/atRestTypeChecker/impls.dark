@@ -1,0 +1,290 @@
+/// Check an implementation against its trait: exactly the trait's methods, each with the trait
+/// method's signature at the implementation's type.
+module Darklang.LanguageTools.AtRestTypeChecker.Impls
+
+/// What checking an implementation needs loaded first: its method fns, the types its self type
+/// and type args name, and the types its trait's methods name.
+let refsOf
+  (implementation: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
+  : List<LanguageTools.ProgramTypes.Reference> =
+  let methodFns =
+    implementation.methods
+    |> Stdlib.List.filterMap (fun (_, nr) ->
+      match nr.resolved with
+      | Ok resolved ->
+        match resolved.name with
+        | Package hash ->
+          Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn hash)
+        | _ -> Stdlib.Option.Option.None
+      | Error _ -> Stdlib.Option.Option.None)
+
+  let traitTypes =
+    match traitOf implementation with
+    | Some found ->
+      let (_, trait_) = found
+
+      trait_.methods
+      |> Stdlib.List.map (fun m ->
+        Environment.typeListRefs
+          (Stdlib.List.push (Stdlib.List.map m.parameters (fun p -> p.typ)) m.returnType))
+      |> Stdlib.List.flatten
+    | None -> []
+
+  Stdlib.List.flatten
+    [ methodFns
+      Environment.typeRefs implementation.self
+      Environment.typeListRefs implementation.traitTypeArgs
+      traitTypes ]
+
+/// The trait an implementation names, when it names one the store has.
+let traitOf
+  (implementation: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
+  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.Trait.Trait)> =
+  match implementation.trait_.resolved with
+  | Ok resolved ->
+    match resolved.name with
+    | Package hash ->
+      LanguageTools.PackageManager.Trait.get hash
+      |> Stdlib.Option.map (fun t -> (hash, t))
+  | Error _ -> Stdlib.Option.Option.None
+
+/// The type variables a written type names.
+let variablesIn (typ: LanguageTools.ProgramTypes.TypeReference) : List<String> =
+  match typ with
+  | TVariable name -> [ name ]
+  | TStream inner -> variablesIn inner
+  | TList inner -> variablesIn inner
+  | TDB inner -> variablesIn inner
+  | TDict(key, value) -> Stdlib.List.append (variablesIn key) (variablesIn value)
+  | TTuple(first, second, rest) ->
+    Stdlib.List.flatten
+      (Stdlib.List.map (Stdlib.List.append [ first, second ] rest) variablesIn)
+  | TFn(parameters, ret) ->
+    Stdlib.List.flatten (Stdlib.List.map (Stdlib.List.push parameters ret) variablesIn)
+  | TCustomType(_, args) -> Stdlib.List.flatten (Stdlib.List.map args variablesIn)
+  | _ -> []
+
+/// The implementation's params: the ones it declares, and the ones its self type and type args
+/// name without declaring. `impl Zero for Dict<'k, 'v>` declares none and has two.
+let implParamsOf
+  (implementation: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
+  : List<String> =
+  Stdlib.List.flatten
+    [ implementation.typeParams
+      variablesIn implementation.self
+      Stdlib.List.flatten (Stdlib.List.map implementation.traitTypeArgs variablesIn) ]
+  |> Stdlib.List.unique
+
+/// The trait method's signature at the implementation's type, as one fn type. The method's and
+/// the implementation's own params stay rigid: the method fn may not pick a type for them.
+let expectedType
+  (implementation: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
+  (trait_: LanguageTools.ProgramTypes.Trait.Trait)
+  (method_: LanguageTools.ProgramTypes.Trait.Method)
+  : (Model.Ty * List<Model.Finding>) =
+  let none = Stdlib.Option.Option.None
+  let implParams = Types.rigid (implParamsOf implementation)
+  let (selfTy, found) = Types.fromReferenceInto implParams none [] implementation.self
+  let (args, found) = Types.fromReferencesInto implParams none found implementation.traitTypeArgs
+
+  let mapping =
+    Stdlib.List.fold
+      (Stdlib.List.zip trait_.typeParams (Stdlib.List.push args selfTy)
+       |> Stdlib.Option.withDefault [])
+      (Types.rigid method_.typeParams)
+      (fun mapping (name, t) -> Stdlib.Dict.setOverridingDuplicates mapping name t)
+
+  let (parameters, found) =
+    Types.fromReferencesInto
+      mapping
+      none
+      found
+      (Stdlib.List.map method_.parameters (fun p -> p.typ))
+
+  let (ret, found) = Types.fromReferenceInto mapping none found method_.returnType
+  (Model.Ty.TFn(parameters, ret), found)
+
+/// The method fn's signature, its type params fresh. None when no signature is available.
+let actualType
+  (s: Solve.State)
+  (batchFns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+  (implParams: List<String>)
+  (fnName: LanguageTools.ProgramTypes.FQFnName.FQFnName)
+  : Stdlib.Option.Option<(Model.Ty * Solve.State)> =
+  let callable =
+    match fnName with
+    | Package hash ->
+      let found =
+        match Stdlib.Dict.get batchFns hash with
+        | Some fn -> Stdlib.Option.Option.Some fn
+        | None -> LanguageTools.PackageManager.Function.get hash
+
+      match found with
+      | Some fn ->
+        let (callable, _) =
+          Environment.signatureTemplate
+            s.env
+            (Model.Signature
+              { // A method fn can name the implementation's params without declaring them
+                // (`impl Zero for List<'a> = let zero () : List<'a>`), so those count as its own.
+                typeParams =
+                  Stdlib.List.append
+                    fn.typeParams
+                    (implParams
+                     |> Stdlib.List.filter (fun p ->
+                       Stdlib.Bool.not (Stdlib.List.member fn.typeParams p)))
+                parameters = Stdlib.List.map fn.parameters (fun p -> p.typ)
+                returnType = fn.returnType
+                needsTypeArgs = false
+                bounds = fn.bounds })
+
+        callable
+      | None -> Model.Callable.Unavailable
+    | _ ->
+      let (callable, _) = Environment.resolveCallable s.env fnName
+      callable
+
+  match callable with
+  | Declared template ->
+    let (_, mapping, s) = Solve.instantiateFrom s template.typeParams [] [] Dict {}
+
+    Stdlib.Option.Option.Some(
+      (Types.substituteRigid
+        mapping
+        (Model.Ty.TFn(template.parameters, template.returnType)),
+       s)
+    )
+  | _ -> Stdlib.Option.Option.None
+
+/// Which part differs; the expected and actual types follow it in the message.
+let signatureDetail (expected: Model.Ty) (actual: Model.Ty) : String =
+  match (expected, actual) with
+  | (TFn(expectedParams, expectedRet), TFn(actualParams, actualRet)) ->
+    let e = Stdlib.List.length expectedParams
+    let a = Stdlib.List.length actualParams
+
+    if e != a then
+      $"it takes {Stdlib.toString a} parameter(s), the trait's takes {Stdlib.toString e}"
+    else if expectedRet != actualRet then
+      "the return type differs"
+    else
+      "a parameter's type differs"
+  | _ -> "its type differs"
+
+/// Failed when a method is missing, extra, or has the wrong signature; Incomplete, saying why,
+/// when something could not be compared.
+let check
+  (env: Model.Environment)
+  (batchFns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+  (implementation: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
+  : Items.Outcome =
+  let none = Stdlib.Option.Option.None
+  let s = Solve.start env
+
+  match traitOf implementation with
+  | None ->
+    // An unresolved trait name is the unresolved-names check's to report.
+    Items.Outcome
+      { verdict = Verdict.Incomplete
+        diagnostics = []
+        warnings = []
+        scheme = none
+        resolutions = [] }
+  | Some named ->
+    // Not `Some(a, b)`: that pattern never matches an Option holding a pair.
+    let (traitHash, trait_) = named
+    let declared = trait_.methods |> Stdlib.List.map (fun m -> m.name)
+    let given = implementation.methods |> Stdlib.List.map (fun (name, _) -> name)
+
+    let missing =
+      declared
+      |> Stdlib.List.filter (fun name -> Stdlib.Bool.not (Stdlib.List.member given name))
+      |> Stdlib.List.map (fun name ->
+        Types.definiteError
+          IssueCode.ImplMethodSet
+          none
+          none
+          none
+          (Context.ImplMethod(traitHash, name, "missing")))
+
+    let extra =
+      given
+      |> Stdlib.List.filter (fun name -> Stdlib.Bool.not (Stdlib.List.member declared name))
+      |> Stdlib.List.map (fun name ->
+        Types.definiteError
+          IssueCode.ImplMethodSet
+          none
+          none
+          none
+          (Context.ImplMethod(traitHash, name, "extra")))
+
+    // One finding per method, in the trait's terms rather than the unifier's. A method that
+    // could not be compared says why: an empty Incomplete reads like a check that never ran.
+    let couldNot (name: String) (why: String) : Model.Finding =
+      Types.warning
+        IssueCode.UnsupportedConstruct
+        none
+        (Context.ImplMethod(traitHash, name, $"not compared: {why}"))
+
+    let (signatures, unreadable) =
+      Stdlib.List.fold implementation.methods ([], []) (fun (found, unreadable) (name, nr) ->
+        match trait_.methods |> Stdlib.List.findFirst (fun m -> m.name == name) with
+        | None -> (found, unreadable)
+        | Some method_ ->
+          match nr.resolved with
+          | Error _ ->
+            (found, Stdlib.List.push unreadable (couldNot name "its fn does not resolve"))
+          | Ok resolved ->
+            let (expected, problems) = expectedType implementation trait_ method_
+
+            match actualType s batchFns (implParamsOf implementation) resolved.name with
+            | None ->
+              (found,
+               Stdlib.List.push unreadable (couldNot name "its fn's signature is unavailable"))
+            | Some instantiated ->
+              let (actual, s) = instantiated
+
+              if Stdlib.Bool.not (Stdlib.List.isEmpty problems) then
+                (found,
+                 Stdlib.List.push
+                   unreadable
+                   (couldNot name "the trait's signature does not convert at this type"))
+              else
+                let after = Solve.unify s none Site.ImplMethodSignatureSite expected actual
+
+                if after.findings |> Stdlib.List.any (fun f -> f.definite) then
+                  let finding =
+                    Types.definiteError
+                      IssueCode.ImplMethodSignature
+                      none
+                      (Stdlib.Option.Option.Some(Solve.zonk after expected))
+                      (Stdlib.Option.Option.Some(Solve.zonk after actual))
+                      (Context.ImplMethod(
+                        traitHash,
+                        name,
+                        signatureDetail (Solve.zonk after expected) (Solve.zonk after actual)
+                      ))
+
+                  (Stdlib.List.push found finding, unreadable)
+                else
+                  match after.findings with
+                  | [] -> (found, unreadable)
+                  | first :: _ ->
+                    let code = LanguageTools.AtRestTypeChecker.issueCodeToString first.code
+                    (found, Stdlib.List.push unreadable (couldNot name $"the comparison gave {code}")))
+
+    let findings =
+      Stdlib.List.flatten [ missing, extra, Stdlib.List.reverse signatures ]
+
+    let verdict =
+      if Stdlib.Bool.not (Stdlib.List.isEmpty findings) then Verdict.Failed
+      else if Stdlib.Bool.not (Stdlib.List.isEmpty unreadable) then Verdict.Incomplete
+      else Verdict.Checked
+
+    Items.Outcome
+      { verdict = verdict
+        diagnostics = findings |> Stdlib.List.map (fun f -> Items.toIssue s f)
+        warnings =
+          unreadable |> Stdlib.List.reverse |> Stdlib.List.map (fun f -> Items.toIssue s f)
+        scheme = none
+        resolutions = [] }

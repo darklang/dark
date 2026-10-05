@@ -545,6 +545,187 @@ let aRivalCannotReachABoundedCall =
       })
 
 
+/// A refusal that writes the thing anyway. `impl` naming a trait that does not exist, or naming a
+/// TYPE or a FUNCTION where the trait goes, printed "There is no trait called X" in red and then
+/// "Created implementation", exit 0. A bound naming a non-trait did the same, even after
+/// explaining that the thing it named is a type. The draft was left holding an implementation of
+/// nothing, which `commit` then refused with a list of names nobody had meant to write.
+let aRefusedImplementationOrBoundSavesNothing =
+  instanceTest
+    "an implementation or a bound naming no trait is refused, exits 1, and saves nothing"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "type"; "Tests.Rfz.Pt"; "{ rfzField: Int64 }" ]
+        do! fn state "Tests.Rfz.describe" "(i: Int64) : String = \"d\""
+
+        let refusedImpls =
+          [ "Nope", "Nope for Int64 = let nope (p: Int64) : String = \"x\""
+            "Tests.Rfz.Pt",
+            "Tests.Rfz.Pt for Int64 = let pt (p: Int64) : String = \"x\""
+            "Tests.Rfz.describe",
+            "Tests.Rfz.describe for Int64 = let describe (p: Int64) : String = \"x\"" ]
+
+        for (named, source) in refusedImpls do
+          do!
+            refuses
+              state
+              [ "impl"; "Tests.RfzBad"; source ]
+              $"There is no trait called {named}"
+              "Created"
+              $"impl naming {named}"
+          do!
+            exits
+              state
+              [ "impl"; "Tests.RfzBad"; source ]
+              1L
+              $"impl naming {named} is a failed command"
+
+        do!
+          lacks
+            state
+            [ "ls"; "Tests.RfzBad.Int64" ]
+            "implementation of trait"
+            "and none of the three was written"
+
+        do!
+          refuses
+            state
+            [ "fn"
+              "Tests.RfzBnd.ghost"
+              "<'a: Tests.Nope.Trait> (v: 'a) : String = \"x\"" ]
+            "There is no trait called Tests.Nope.Trait"
+            "Created"
+            "a bound on a trait that does not exist"
+        do!
+          refuses
+            state
+            [ "fn"
+              "Tests.RfzBnd.onAType"
+              "<'a: Tests.Rfz.Pt> (v: 'a) : String = \"x\"" ]
+            "Tests.Rfz.Pt is a type"
+            "Created"
+            "a bound naming a type says so"
+        do!
+          exits
+            state
+            [ "fn"
+              "Tests.RfzBnd.onAType"
+              "<'a: Tests.Rfz.Pt> (v: 'a) : String = \"x\"" ]
+            1L
+            "and is a failed command"
+        do!
+          lacks
+            state
+            [ "ls"; "Tests.RfzBnd" ]
+            "ghost"
+            "neither bounded fn was written"
+
+        // The control, so the assertions above are not passing on an `impl` that refuses
+        // everything: a real trait, the same command, written.
+        do!
+          run
+            state
+            [ "trait"; "Tests.Rfz.Show"; "<'a> = let show (v: 'a) : String" ]
+        do!
+          shows
+            state
+            [ "impl"
+              "Tests.RfzOk"
+              "Tests.Rfz.Show for Int64 = let show (p: Int64) : String = \"ok\"" ]
+            "Created implementation"
+            "an implementation of a trait that exists is still written"
+      })
+
+
+/// A commit took a function whose bound names a trait that does not exist: the unresolved-names
+/// check read a function's body and signature and not its bounds. `fn` refuses such a bound now,
+/// so this goes in through `module`, which is the other way an item arrives.
+let commitRefusesABoundThatNamesNothing =
+  instanceTest "commit refuses a bound on a trait that does not exist" (fun state ->
+    task {
+      do! start state
+      let file =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-ghost-bound-{System.Guid.NewGuid()}.dark"
+        )
+      System.IO.File.WriteAllText(
+        file,
+        "let ghost<'a: Tests.NoSuch.Trait> (v: 'a) : String = \"x\"\n"
+      )
+      do! run state [ "module"; "Tests.GhostBnd"; file ]
+      do!
+        showsAll
+          state
+          [ "commit"; "ghost"; "-y" ]
+          [ "don't resolve"; "Tests.NoSuch.Trait" ]
+          "the commit is refused and names the bound's trait"
+      do!
+        lacks
+          state
+          [ "log" ]
+          "ghost"
+          "and nothing was committed (the message would be in the log)"
+    })
+
+
+/// An implementation that does not match its trait saved with a check mark and failed at the
+/// first call, naming the method fn and never the trait. `ImplMethodSet` and
+/// `ImplMethodSignature` were declared and never produced. Now the save says which, the commit
+/// refuses it, and a corrected implementation goes through.
+let aMismatchedImplementationIsReportedAtSave =
+  instanceTest
+    "an implementation that does not match its trait is reported at save and refused at commit"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          run
+            state
+            [ "trait"; "Tests.Mism.Show"; "<'a> = let show (v: 'a) : String" ]
+
+        let impl (body : string) =
+          [ "impl"; "Tests.MismBad"; $"Tests.Mism.Show for Int64 = {body}" ]
+
+        do!
+          showsAll
+            state
+            (impl "let wrong (p: Int64) : String = \"x\"")
+            [ "[ImplMethodSet]"; "does not provide `show`" ]
+            "a method the trait does not declare, and one it does left out"
+        do!
+          showsAll
+            state
+            (impl "let show (p: Int64) : Int64 = 1L")
+            [ "[ImplMethodSignature]"
+              "the return type differs"
+              "expected (Int64) -> String, got (Int64) -> Int64" ]
+            "the wrong return type, at the implementation's type"
+        do!
+          showsAll
+            state
+            (impl "let show (p: String) : String = p")
+            [ "[ImplMethodSignature]"; "got (String) -> String" ]
+            "the wrong parameter type"
+        do!
+          showsAll
+            state
+            [ "commit"; "mismatched"; "-y" ]
+            [ "cannot commit"; "Tests.MismBad.Int64.Show" ]
+            "commit refuses the draft and names the implementation"
+
+        do!
+          lacks
+            state
+            (impl "let show (p: Int64) : String = \"ok\"")
+            "type error"
+            "a matching implementation reports nothing"
+        do! shows state [ "commit"; "matched"; "-y" ] " ops." "and commits"
+        do! evals state "Tests.Mism.Show.show 5L" "ok" "and dispatches"
+      })
+
+
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
     traitsAreAuthoredListedAndDisambiguated
@@ -554,4 +735,7 @@ let tests : List<Test> =
     deleteRefusesWhileSomethingStillCallsIt
     undoStepsBackAndStopsAtTheFirstVersion
     authoringIdenticalSourceReportsUnchanged
-    aRivalCannotReachABoundedCall ]
+    aRivalCannotReachABoundedCall
+    aRefusedImplementationOrBoundSavesNothing
+    commitRefusesABoundThatNamesNothing
+    aMismatchedImplementationIsReportedAtSave ]

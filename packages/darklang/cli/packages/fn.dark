@@ -149,18 +149,14 @@ let createFnInline
 
               Stdlib.printLine "")
 
-            let unresolvedNames =
-              unresolvedNames
-              |> Stdlib.List.filter (fun triple ->
-                let (_, originalName, _) = triple
-                Stdlib.Bool.not
-                  (Stdlib.List.member unresolvedBoundNames (Stdlib.String.join originalName ".")))
+            if Stdlib.Bool.not (Stdlib.List.isEmpty unresolvedBoundNames) then
+              Stdlib.Option.Option.None
+            else
+              let ops =
+                [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
+                  LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash, Stdlib.Option.Option.None) ]
 
-            let ops =
-              [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-                LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash, Stdlib.Option.Option.None) ]
-
-            (ops, packageFn.hash, unresolvedNames))
+              Stdlib.Option.Option.Some((ops, packageFn.hash, unresolvedNames)))
 
       | _ ->
         // a precise parse error was already printed above; don't stack the

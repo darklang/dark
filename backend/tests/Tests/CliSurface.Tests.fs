@@ -994,6 +994,53 @@ let private missingTargetsAreNamed =
             detail
       })
 
+/// Refusals that printed their reason and exited 0. A refusal is a failed command: that is the one
+/// part of it a shell `&&`, a CI step or an agent's authoring loop can read, and the rest of the
+/// CLI already exits 1 for a parse error or a name collision.
+///
+/// Each entry is a refusal a person meets on the traits side in their first hour. Read-only, so
+/// it runs against the shared store; on main, because `ack` refuses on a branch for a different
+/// reason and that is not what this is checking.
+let private traitRefusals : List<string * List<string>> =
+  [ "trait, no definition", [ "trait"; "Tests.ExitT.T" ]
+    "impl, no definition", [ "impl"; "Tests.ExitT" ]
+    "impls, no such trait", [ "impls"; "Zzz.Nope.Trait" ]
+    "impls, not a trait", [ "impls"; "Darklang.Stdlib.Option.Option" ]
+    "impls, an extra argument", [ "impls"; "Darklang.Stdlib.Add"; "extra" ]
+    "impls --json, no such trait", [ "impls"; "Zzz.Nope.Trait"; "--json" ]
+    "constraints, an argument it does not take", [ "constraints"; "zzznope" ]
+    "constraints resolve, no such id", [ "constraints"; "resolve"; "#deadbeef" ]
+    "ack, no such id", [ "ack"; "#deadbeef" ]
+    "ack, no id", [ "ack" ] ]
+
+let private traitRefusalsExitNonZero =
+  cliTestOnMain "a refusal on the traits side exits non-zero" (fun state ->
+    task {
+      let! _ = runCli state [ "switch"; "main" ]
+
+      let mutable failures : List<string * string> = []
+      let mutable examined = 0
+
+      for (label, args) in traitRefusals do
+        let! (output, code) = runCliWithExit state args
+        examined <- examined + 1
+        if code = 0L then
+          let firstLine = (CliDsl.plain output).Trim().Split('\n')[0]
+          failures <- (label, firstLine) :: failures
+
+      // Every entry ran, so a pass is a statement about ten refusals rather than about none.
+      Expect.equal examined (List.length traitRefusals) "every refusal was run"
+
+      if not (List.isEmpty failures) then
+        let detail =
+          failures
+          |> List.rev
+          |> List.map (fun (c, firstLine) -> $"  {c} -> exit 0: {firstLine}")
+          |> String.concat "\n"
+
+        Tests.failtestf "refusals that exit 0:\n%s" detail
+    })
+
 /// Every `dark <word>` the in-CLI docs mention has to be a real command.
 ///
 /// A doc that confidently describes a command that is not there is worse than no doc, and nothing
@@ -1181,5 +1228,6 @@ let tests : List<Test> =
     noWorkbenchRowOverflowsItsFrame
     workbenchContextRowSaysWhereYouAre
     missingTargetsAreNamed
+    traitRefusalsExitNonZero
     documentedCommandsAreReal ]
   @ workbenchNavigationRegressions

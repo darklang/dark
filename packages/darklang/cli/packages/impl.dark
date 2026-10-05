@@ -38,7 +38,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ""
       ] |> Stdlib.printLines
 
-      state
+      { state with exitCode = 1 }
     else
       createImplInline
         state.packageData.currentLocation
@@ -168,8 +168,7 @@ let createImplInline
               // An implementation of a trait that does not exist is not a forward reference
               // worth waiting on: without the trait there is nothing to implement, and the
               // generic "will resolve when dependencies are added" sends you looking for a
-              // missing dependency rather than a missing trait. Say which it is, and take the
-              // trait's name out of the generic list so it is reported once.
+              // missing dependency rather than a missing trait. Say which it is, and refuse.
               let traitName =
                 Stdlib.String.join packageImpl.trait_.originalName "."
 
@@ -186,15 +185,9 @@ let createImplInline
                   (Stdlib.Cli.UI.Colors.hint
                     "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")
 
-                Stdlib.printLine ""
-
-              let remaining =
-                unresolvedNames
-                |> Stdlib.List.filter (fun triple ->
-                  let (_, originalName, _) = triple
-                  (Stdlib.String.join originalName ".") != traitName)
-
-              (ops, packageImpl.hash, remaining))
+                Stdlib.Option.Option.None
+              else
+                Stdlib.Option.Option.Some((ops, packageImpl.hash, unresolvedNames)))
 
       | None ->
         if hasParseError then
