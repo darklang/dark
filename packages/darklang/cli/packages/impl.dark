@@ -111,49 +111,90 @@ let createImplInline
 
         let failState = { state with exitCode = 1 }
 
-        Packages.saveAuthored
-          state
-          location
-          LanguageTools.ProgramTypes.ItemKind.TraitImpl
-          "implementation"
+        // One name holds ONE item here, and an implementation written in a module named for
+        // its type lands on `<module>.<Trait>`, which is exactly where a trait DECLARED in
+        // that module already sits. Binding over it unlists the trait, and the trait then
+        // cannot be reached by name at all: `dark view <that name>` answers with the
+        // implementation, and resolving the trait for any other type fails.
+        //
+        // That used to be dodged by naming the implementation `<module>.<Type>.<Trait>`
+        // unconditionally, so it never collided. The cost was a name nobody wants to read or
+        // type, and `dark constraints` prints these. A real name conflict told to the author
+        // beats a verbose name that silently avoids it, so this refuses instead. The author
+        // moves either one; both are one command.
+        let traitAlreadyHere =
+          match LanguageTools.PackageManager.Trait.find state.currentBranchId location with
+          | Some _ -> true
+          | None -> false
+
+        if traitAlreadyHere then
+          let fullName =
+            Stdlib.String.join
+              (Stdlib.List.append
+                (Stdlib.List.append [ location.owner ] location.modules)
+                [ location.name ])
+              "."
+
+          [ ""
+            (Stdlib.Cli.UI.Colors.error
+              $"A trait is already called {fullName}, so this implementation cannot take that name.")
+            ""
+            ("An implementation written in this module is named for its trait, which is "
+             + "where the trait itself already is.")
+            ""
+            (Stdlib.Cli.UI.Colors.hint
+              "  Move either one: write the implementation from the module above, or declare the trait there.")
+            (Stdlib.Cli.UI.Colors.hint
+              $"  `dark view {fullName}` shows what holds the name now.")
+            "" ]
+          |> Stdlib.printLines
+
           failState
-          (fun ctx ->
-            // Lower from the MODULE the impl is written in; `implWithOps` builds
-            // the member path and lowers the method fns beneath it.
-            let moduleCtx = { ctx with currentModule = baseLocation.modules }
-            let (packageImpl, _fns, ops, unresolvedNames) =
-              LanguageTools.WrittenTypesToProgramTypes.implWithOps moduleCtx implDecl
+        else
 
-            // An implementation of a trait that does not exist is not a forward reference
-            // worth waiting on: without the trait there is nothing to implement, and the
-            // generic "will resolve when dependencies are added" sends you looking for a
-            // missing dependency rather than a missing trait. Say which it is, and take the
-            // trait's name out of the generic list so it is reported once.
-            let traitName =
-              Stdlib.String.join packageImpl.trait_.originalName "."
+          Packages.saveAuthored
+            state
+            location
+            LanguageTools.ProgramTypes.ItemKind.TraitImpl
+            "implementation"
+            failState
+            (fun ctx ->
+              // Lower from the MODULE the impl is written in; `implWithOps` builds
+              // the member path and lowers the method fns beneath it.
+              let moduleCtx = { ctx with currentModule = baseLocation.modules }
+              let (packageImpl, _fns, ops, unresolvedNames) =
+                LanguageTools.WrittenTypesToProgramTypes.implWithOps moduleCtx implDecl
 
-            let traitUnresolved =
-              match packageImpl.trait_.resolved with
-              | Ok _ -> false
-              | Error _ -> true
+              // An implementation of a trait that does not exist is not a forward reference
+              // worth waiting on: without the trait there is nothing to implement, and the
+              // generic "will resolve when dependencies are added" sends you looking for a
+              // missing dependency rather than a missing trait. Say which it is, and take the
+              // trait's name out of the generic list so it is reported once.
+              let traitName =
+                Stdlib.String.join packageImpl.trait_.originalName "."
 
-            if traitUnresolved then
-              Stdlib.printLine
-                (Stdlib.Cli.UI.Colors.error $"There is no trait called {traitName}.")
+              let traitUnresolved =
+                match packageImpl.trait_.resolved with
+                | Ok _ -> false
+                | Error _ -> true
 
-              Stdlib.printLine
-                (Stdlib.Cli.UI.Colors.hint
-                  "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")
+              if traitUnresolved then
+                Stdlib.printLine
+                  (Stdlib.Cli.UI.Colors.error $"There is no trait called {traitName}.")
 
-              Stdlib.printLine ""
+                Stdlib.printLine
+                  (Stdlib.Cli.UI.Colors.hint
+                    "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")
 
-            let remaining =
-              unresolvedNames
-              |> Stdlib.List.filter (fun triple ->
-                let (_, originalName, _) = triple
-                (Stdlib.String.join originalName ".") != traitName)
+                Stdlib.printLine ""
 
-            (ops, packageImpl.hash, remaining))
+              let remaining =
+                unresolvedNames
+                |> Stdlib.List.filter (fun triple ->
+                  let (_, originalName, _) = triple
+                  (Stdlib.String.join originalName ".") != traitName)
+
+              (ops, packageImpl.hash, remaining))
 
       | None ->
         if hasParseError then

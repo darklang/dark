@@ -1642,27 +1642,37 @@ module ImplDeclaration =
       | TDB(_, _, _, _, _) -> "DB"
       | TVariable(_, _, (_, name)) -> name
 
-  /// The impl's own module path: `<module>.<Type>.<Trait>`, always, even when the module is
-  /// already named for the type. So `impl Add for Int64` in `Darklang.Stdlib.Int64` is
-  /// `Darklang.Stdlib.Int64.Int64.Add`, which is verbose and correct.
+  /// The impl's own module path: `<module>.<Type>.<Trait>`, with the type segment dropped when
+  /// the module is already named for the type. So `impl Add for Int64` in `Darklang.Stdlib.Int64`
+  /// is `Darklang.Stdlib.Int64.Add`, not `...Int64.Int64.Add`.
   ///
-  /// It used to drop the type segment in exactly that case, and that is a collision generator.
-  /// One name holds ONE item here (`LibDB/PackageOpPlayback.fs` says so at the `SetName` fold:
-  /// binding over a name replaces what held it, and it does not filter on kind). So in a module
-  /// named for its type, an impl was assigned the same name as a trait declared beside it, the
-  /// second binding unlisted the first, and the trait became unreachable: `Show.show p` answered
-  /// `MissingImpl` for a trait that was right there. A name that depends on what else is in the
-  /// store is worse than a long name, and the same source would otherwise produce different
-  /// names in different stores.
+  /// This used to be unconditional, and the reason was real: one name holds ONE item here
+  /// (`LibDB/PackageOpPlayback.fs` says so at the `SetName` fold, which rebinds without
+  /// filtering on kind), so in a module named for its type an impl could be handed the same name
+  /// as a trait declared beside it, the second binding unlisted the first, and the trait went
+  /// unreachable. `Show.show p` answered `MissingImpl` for a trait that was right there.
   ///
-  /// Nobody types this name. You write `impl Add for Int64` and you call `Stdlib.Add.add x` or
-  /// `x.add`, so the doubled segment appears in listings and hashes and nowhere else.
+  /// The doubled name dodged that by never colliding, at the cost of a name nobody wants to read
+  /// or type: `dark deprecate impl Darklang.Stdlib.Int64.Int64.Add` is the shape of it, and
+  /// `dark constraints` prints these. So the collision is now REFUSED at the save instead of
+  /// being designed around, by `implNameCollision` in the at-rest checker. A genuine name
+  /// conflict told to the author beats a verbose name that avoids it silently.
+  ///
+  /// The F# parser in `LibParser/WrittenTypes.fs` (`implMemberPath`) has always dropped the
+  /// segment, which is why the stdlib's 204 impls already carry the short form. These two agree
+  /// now; they did not before, and nothing caught it because the two paths are never exercised
+  /// against each other.
   let memberPath
     (currentModule: List<String>)
     (implDecl: WrittenTypes.ImplDeclaration.ImplDeclaration)
     : List<String> =
     let typeName = typeReferenceHeadName implDecl.forType
-    let withType = Stdlib.List.append currentModule [ typeName ]
+
+    let withType =
+      match Stdlib.List.last currentModule with
+      | Some last when last == typeName -> currentModule
+      | _ -> Stdlib.List.append currentModule [ typeName ]
+
     Stdlib.List.append withType [ implDecl.trait_.typ.name ]
 
   /// The method fns declared in the block, with the impl's type params and
