@@ -65,10 +65,68 @@ let branchOverlayBindings
       (b.hash, locationOf b.owner b.modules b.name, kindOf b.itemType))
 
 
-/// Items that reference any of <param targets> (reverse dependencies), as (hash, location, kind).
-/// Matches on the target's NAME rather than its hash, so a dependent pointing at an older version of the
-/// name is still found -- which is the case propagation cares about.
-let dependentsOf
+/// The hash <param loc> holds as a <param kind> on the current branch, if anything.
+let hashAt
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  : Stdlib.Option.Option<String> =
+  let branchId = SCM.PackageOps.currentBranch ()
+
+  let found =
+    match kind with
+    | Fn -> LanguageTools.PackageManager.Function.find branchId loc
+    | Type -> LanguageTools.PackageManager.Type.find branchId loc
+    | Value -> LanguageTools.PackageManager.Value.find branchId loc
+    | Trait -> LanguageTools.PackageManager.Trait.find branchId loc
+    | TraitImpl -> LanguageTools.PackageManager.TraitImpl.find branchId loc
+
+  found |> Stdlib.Option.map LanguageTools.ProgramTypes.hashToString
+
+
+/// Names that dependents wrote for what <param loc> holds now, and that no longer hold it: what a
+/// rename leaves on every edge written before it, since an edge keeps the name its dependent typed.
+///
+/// A name that still holds the same content is NOT one of these. Identical content is one item, so
+/// it can be live at another name too, and an edge written against that name belongs to it; counting
+/// it here would let one name's callers block deleting the other.
+///
+/// Follows only the content <param loc> holds NOW, so an edge written against an older version
+/// under the old name (renamed, then edited) is still not found.
+let renamedAwayNames
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  : List<LanguageTools.ProgramTypes.PackageLocation> =
+  match hashAt loc kind with
+  | None -> []
+  | Some h ->
+    Stdlib.Sqlite.rowsP
+      (localDb ())
+      "SELECT DISTINCT depends_on_owner, depends_on_modules, depends_on_name
+       FROM package_dependencies
+       WHERE depends_on_hash = @p0
+         AND depends_on_item_type = @p1
+         AND depends_on_owner IS NOT NULL
+         AND NOT (depends_on_owner = @p2
+                  AND depends_on_modules = @p3
+                  AND depends_on_name = @p4)"
+      [ h
+        LanguageTools.ProgramTypes.ItemKind.toString kind
+        loc.owner
+        Stdlib.String.join loc.modules "."
+        loc.name ]
+      (fun row ->
+        match
+          (Stdlib.Sqlite.textField row "depends_on_owner",
+           Stdlib.Sqlite.textField row "depends_on_modules",
+           Stdlib.Sqlite.textField row "depends_on_name")
+        with
+        | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(locationOf o m n)
+        | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.filter (fun old -> hashAt old kind != Stdlib.Option.Option.Some h)
+
+
+/// `dependentsOf` for exactly the names given, by the name each edge recorded.
+let dependentsByName
   (targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
   : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
   let overlay = branchOverlayBindings ()
@@ -169,6 +227,25 @@ let dependentsOf
 
       Stdlib.List.append mainResolved fromOverlay)
   |> Stdlib.List.flatten
+
+
+/// Items that reference any of <param targets> (reverse dependencies), as (hash, location, kind).
+/// Matches on the target's NAME rather than its hash, so a dependent pointing at an older version of the
+/// name is still found -- which is the case propagation cares about. A name the target's content was
+/// renamed away from counts as the target's (`renamedAwayNames`), or a rename would orphan every
+/// dependent written before it.
+let dependentsOf
+  (targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
+  : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
+  targets
+  |> Stdlib.List.map (fun target ->
+    let (loc, kind) = target
+    Stdlib.List.push
+      (renamedAwayNames loc kind |> Stdlib.List.map (fun old -> (old, kind)))
+      (loc, kind))
+  |> Stdlib.List.flatten
+  |> dependentsByName
+
 
 /// The name `locations` gives this hash, if any.
 let mainLocationOf

@@ -222,7 +222,7 @@ val walkAtMost = 2000
 /// Everything that depends, transitively, on any of <param touched>, as names. Over-approximates: a
 /// dependent through a branch that never runs is still a dependent. Never misses.
 ///
-/// Reverse edges from `package_dependencies`, matched by NAME (`SCM.Deps.dependentsOf`), so a caller
+/// Reverse edges from `package_dependencies`, matched by NAME (`SCM.Deps.dependentsByName`), so a caller
 /// still pointing at the previous version of the name is found, which is exactly the caller a live host
 /// is.
 let dependents
@@ -234,8 +234,12 @@ let dependents
     : (List<Touched> * List<LanguageTools.ProgramTypes.PackageLocation>) =
     let targets = frontier |> Stdlib.List.map (fun t -> (t.location, t.kind))
 
+    // By name only, not `dependentsOf`: following renamed-away names costs a lookup per target,
+    // which a walk of up to `walkAtMost` pays thousands of times, and buys a walk nothing. It
+    // starts from what an EDIT changed, and an edit gives the target new content, which no edge
+    // written before a rename recorded.
     let found =
-      SCM.Deps.dependentsOf targets
+      SCM.Deps.dependentsByName targets
       |> Stdlib.List.filterMap (fun d ->
         match d with
         | (_hash, location, kind) ->
