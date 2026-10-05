@@ -372,7 +372,7 @@ let private replayEchoesAndRefuses =
           runCli
             state
             [ "eval"
-              "let _ = Stdlib.printLine \"hello from the log\"\nStdlib.Uuid.toString (Stdlib.Uuid.generate ())" ]
+              "let _ = Stdlib.printLine \"hello from the log\"\nStdlib.toString (Stdlib.Uuid.generate ())" ]
         let! prefix = latestPrefix ()
         let! resumed = runCli state [ "exec"; "resume"; prefix ]
         Expect.stringContains
