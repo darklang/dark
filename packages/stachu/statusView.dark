@@ -1,0 +1,484 @@
+/// A status board for a workspace of branches: what is tracked, whose turn it is, and what CI says
+/// about each pull request, kept by a daemon and served as text so a person and an agent read the
+/// same thing.
+///
+/// Two processes:
+///   - the watcher, `watch`, a daemon step run every minute: it reads the board, looks up the head
+///     of each pull request on it, asks CircleCI about that head, and records every change of
+///     state as an event.
+///   - the server, `router`, which answers from what the watcher recorded and never fetches.
+///
+/// The board and the tabs come from outside (a script on the host posts them), because the host's
+/// tmux and its other checkouts are not visible from here.
+module Stachu.StatusView
+
+val stateDir = "/home/dark/app/rundir/status-view"
+
+val repo = "darklang/dark"
+
+
+// --- files -------------------------------------------------------------------------------------
+
+let pathOf (name: String) : String = stateDir + "/" + name
+
+let readOr (name: String) (fallback: String) : String =
+  match Stdlib.Cli.FileSystem.readFileAsString (pathOf name) with
+  | Ok s -> s
+  | Error _ -> fallback
+
+let write (name: String) (content: String) : Unit =
+  let _ = Stdlib.Cli.FileSystem.overwriteFile (pathOf name) (Stdlib.String.toBlob content)
+  ()
+
+let nonEmptyLines (s: String) : List<String> =
+  s
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")
+
+
+// --- the board ---------------------------------------------------------------------------------
+
+/// One tracked thing. `ref` is `#<pr>`, `branch:<name>`, or free text. `eta` is the owner's
+/// estimate as `<n>m@<seconds when given>` (or `h`), "" for none; `workspace-tools/board` writes it.
+type Row =
+  { what: String
+    turn: String
+    next: String
+    eta: String
+    ref: String }
+
+let parseRow (line: String) : Stdlib.Option.Option<Row> =
+  if Stdlib.String.startsWith (Stdlib.String.trim line) "#" then
+    Stdlib.Option.Option.None
+  else
+    match Stdlib.String.split line "|" |> Stdlib.List.map Stdlib.String.trim with
+    | [ what, turn, next, ref ] ->
+      Stdlib.Option.Option.Some(Row { what = what; turn = turn; next = next; eta = ""; ref = ref })
+    | [ what, turn, next, eta, ref ] ->
+      Stdlib.Option.Option.Some(Row { what = what; turn = turn; next = next; eta = eta; ref = ref })
+    | _ -> Stdlib.Option.Option.None
+
+let boardRows () : List<Row> =
+  readOr "board" "" |> nonEmptyLines |> Stdlib.List.filterMap parseRow
+
+let prOfRef (ref: String) : Stdlib.Option.Option<Int> =
+  if Stdlib.String.startsWith ref "#" then
+    match Stdlib.Int.parse (Stdlib.String.dropFirst ref 1) with
+    | Ok n -> Stdlib.Option.Option.Some n
+    | Error _ -> Stdlib.Option.Option.None
+  else
+    Stdlib.Option.Option.None
+
+
+// --- CI ----------------------------------------------------------------------------------------
+
+/// What CI says about one pull request's head. `state` is green, red, running, none, or `?`
+/// when CircleCI could not be asked; `detail` names the jobs that are red or still going.
+type Ci =
+  { pr: Int
+    sha: String
+    state: String
+    detail: String }
+
+let field (j: Stdlib.AltJson.Json) (key: String) : Stdlib.AltJson.Json =
+  match j with
+  | Object fields ->
+    match Stdlib.List.findFirst fields (fun (k, _) -> k == key) with
+    | Some((_, v)) -> v
+    | None -> Stdlib.AltJson.Json.Null
+  | _ -> Stdlib.AltJson.Json.Null
+
+let text (j: Stdlib.AltJson.Json) : String =
+  match j with
+  | String s -> s
+  | _ -> ""
+
+/// The heads of these pull requests, from `git ls-remote`, which costs no API budget.
+let headsOf (prs: List<Int>) : List<(Int * String)> =
+  if prs == [] then
+    []
+  else
+    let refs = prs |> Stdlib.List.map (fun n -> $"refs/pull/{Stdlib.toString n}/head")
+    let args = Stdlib.List.append [ "ls-remote", $"https://github.com/{repo}" ] refs
+
+    match Stdlib.Cli.Process.run "git" args with
+    | Ok out ->
+      out.stdout
+      |> nonEmptyLines
+      |> Stdlib.List.filterMap (fun line ->
+        match Stdlib.String.split line "\t" with
+        | [ sha, ref ] ->
+          let n =
+            ref
+            |> Stdlib.String.replaceAll "refs/pull/" ""
+            |> Stdlib.String.replaceAll "/head" ""
+            |> Stdlib.Int.parse
+
+          match n with
+          | Ok n -> Stdlib.Option.Option.Some((n, sha))
+          | Error _ -> Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None)
+    | Error _ -> []
+
+/// The newest build of each job, from a newest-first list of builds.
+let newestPerJob (builds: List<Stdlib.AltJson.Json>) : List<(String * String)> =
+  builds
+  |> Stdlib.List.fold [] (fun acc b ->
+    let job = text (field (field b "workflows") "job_name")
+
+    if Stdlib.List.any acc (fun (j, _) -> j == job) then
+      acc
+    else
+      Stdlib.List.push acc (job, text (field b "status")))
+
+let summarise (pr: Int) (sha: String) (builds: List<Stdlib.AltJson.Json>) : Ci =
+  let jobs =
+    builds
+    |> Stdlib.List.filter (fun b -> (text (field b "vcs_revision")) == sha)
+    |> newestPerJob
+
+  let named (statuses: List<String>) : List<String> =
+    jobs
+    |> Stdlib.List.filter (fun (_, s) -> Stdlib.List.member statuses s)
+    |> Stdlib.List.map (fun (j, _) -> j)
+
+  let bad = named [ "failed", "infrastructure_fail", "timedout", "canceled" ]
+  let busy = named [ "running", "queued", "not_running", "scheduled" ]
+  let ok = Stdlib.List.any jobs (fun (j, s) -> j == "ok-to-deploy" && (s == "success" || s == "fixed"))
+
+  let (state, detail) =
+    if jobs == [] then ("none", "no build for this head yet")
+    else if bad != [] then ("red", Stdlib.String.join bad ", ")
+    else if busy != [] then ("running", Stdlib.String.join busy ", ")
+    else if ok then ("green", "")
+    else ("running", "waiting on ok-to-deploy")
+
+  Ci { pr = pr; sha = sha; state = state; detail = detail }
+
+/// Ask CircleCI's public API about one pull request's head. No GitHub budget, no token.
+let ciFor (pr: Int) (sha: String) : Ci =
+  let url =
+    $"https://circleci.com/api/v1.1/project/github/{repo}/tree/pull%2F{Stdlib.toString pr}?shallow=true&limit=40"
+
+  let unknown (why: String) : Ci = Ci { pr = pr; sha = sha; state = "?"; detail = why }
+
+  match Stdlib.HttpClient.get url [ ("Accept", "application/json") ] with
+  | Ok resp ->
+    match Stdlib.AltJson.parse (Stdlib.String.fromBlobWithReplacement resp.body) with
+    | Ok(Array builds) -> summarise pr sha builds
+    | Ok _ -> unknown $"CircleCI answered {Stdlib.toString resp.statusCode} without a list"
+    | Error _ -> unknown "CircleCI's answer was not JSON"
+  | Error e -> unknown (Stdlib.HttpClient.toString e)
+
+let isFinished (c: Ci) : Bool = c.state == "green" || c.state == "red"
+
+let ciToLine (c: Ci) : String =
+  $"{Stdlib.toString c.pr}\t{c.sha}\t{c.state}\t{c.detail}"
+
+let ciOfLine (line: String) : Stdlib.Option.Option<Ci> =
+  match Stdlib.String.split line "\t" with
+  | [ pr, sha, state, detail ] ->
+    match Stdlib.Int.parse pr with
+    | Ok n -> Stdlib.Option.Option.Some(Ci { pr = n; sha = sha; state = state; detail = detail })
+    | Error _ -> Stdlib.Option.Option.None
+  | _ -> Stdlib.Option.Option.None
+
+let savedCi () : List<Ci> =
+  readOr "ci" "" |> nonEmptyLines |> Stdlib.List.filterMap ciOfLine
+
+let ciOf (all: List<Ci>) (pr: Int) : Stdlib.Option.Option<Ci> =
+  Stdlib.List.findFirst all (fun c -> c.pr == pr)
+
+
+// --- time --------------------------------------------------------------------------------------
+
+/// Seconds since the epoch, as the files store it.
+let nowSeconds () : Int = Stdlib.DateTime.toSeconds (Stdlib.DateTime.now ())
+
+/// How long ago a stored time was, the way a person says it: 40s, 4m, 2h.
+let ago (stored: String) : String =
+  match Stdlib.Int.parse (Stdlib.String.trim stored) with
+  | Error _ -> "never"
+  | Ok then_ ->
+    let s = (nowSeconds ()) - then_
+    if s < 90 then $"{Stdlib.toString s}s ago"
+    else if s < 5400 then $"{Stdlib.toString (s / 60)}m ago"
+    else $"{Stdlib.toString (s / 3600)}h ago"
+
+
+let minutesText (m: Int) : String =
+  if m < 90 then $"{Stdlib.toString m}m" else $"{Stdlib.toString ((m + 30) / 60)}h"
+
+/// Within the estimate, what's left; past it, what was promised and when, so an old guess never
+/// reads as a current one.
+let etaCell (now: Int) (raw: String) : String =
+  match Stdlib.String.split raw "@" with
+  | [ amount, said ] ->
+    let unitIsHours = Stdlib.String.endsWith amount "h"
+    let digits = Stdlib.String.dropLast amount 1
+
+    match (Stdlib.Int.parse digits, Stdlib.Int.parse said) with
+    | (Ok n, Ok at) ->
+      let mins = if unitIsHours then n * 60 else n
+      let gone = (now - at) / 60
+
+      if gone <= mins then $"~{minutesText (mins - gone)}"
+      else $"OVERDUE: said ~{minutesText mins}, {minutesText gone} ago"
+    | _ -> "-"
+  | _ -> "-"
+
+
+// --- events ------------------------------------------------------------------------------------
+
+/// Every change of state the watcher saw, one per line: `<seq>\t<time>\t<what happened>`.
+let events () : List<(Int * String * String)> =
+  readOr "events" ""
+  |> nonEmptyLines
+  |> Stdlib.List.filterMap (fun line ->
+    match Stdlib.String.split line "\t" with
+    | [ seq, at, what ] ->
+      match Stdlib.Int.parse seq with
+      | Ok n -> Stdlib.Option.Option.Some((n, at, what))
+      | Error _ -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+
+let lastSeq () : Int =
+  events () |> Stdlib.List.fold 0 (fun acc (n, _, _) -> if n > acc then n else acc)
+
+let ciPhrase (c: Ci) : String =
+  match c.state with
+  | "green" -> "CI green"
+  | "red" -> $"CI RED in {c.detail}"
+  | "running" -> "CI running"
+  | "none" -> "no CI build yet"
+  | _ -> $"CI unknown ({c.detail})"
+
+/// What changed between two readings of one pull request, if anything worth a line.
+let transition (before: Stdlib.Option.Option<Ci>) (after: Ci) : Stdlib.Option.Option<String> =
+  let pr = $"#{Stdlib.toString after.pr}"
+
+  match before with
+  | None -> Stdlib.Option.Option.Some $"{pr}: {ciPhrase after}"
+  | Some b ->
+    if b.sha != after.sha then
+      Stdlib.Option.Option.Some $"{pr}: new push, {ciPhrase after}"
+    else if b.state != after.state then
+      Stdlib.Option.Option.Some $"{pr}: {ciPhrase after}"
+    else
+      Stdlib.Option.Option.None
+
+let record (lines: List<String>) : Unit =
+  let start = lastSeq ()
+  let at = Stdlib.toString (nowSeconds ())
+
+  let _ =
+    lines
+    |> Stdlib.List.indexedMap (fun i line ->
+      Stdlib.Cli.FileSystem.appendToFile
+        (pathOf "events")
+        $"{Stdlib.toString (start + i + 1)}\t{at}\t{line}\n")
+
+  ()
+
+
+// --- the watcher -------------------------------------------------------------------------------
+
+/// One look at everything on the board. A head already known green or red is not asked about
+/// again; the rest are asked about at once, one process each.
+let pollOnce () : List<String> =
+  let prs = boardRows () |> Stdlib.List.filterMap (fun r -> prOfRef r.ref)
+  let before = savedCi ()
+
+  let after =
+    headsOf prs
+    |> Stdlib.List.parallelMap (fun (pr, sha) ->
+      match ciOf before pr with
+      | Some c when c.sha == sha && isFinished c -> c
+      | _ -> ciFor pr sha)
+
+  let changes =
+    after |> Stdlib.List.filterMap (fun c -> transition (ciOf before c.pr) c)
+
+  write "ci" (after |> Stdlib.List.map ciToLine |> (fun ls -> Stdlib.String.join ls "\n"))
+  record changes
+  write "polled" (Stdlib.toString (nowSeconds ()))
+  changes
+
+/// The daemon's step: `Apps.Runner` calls it once a tick, and under `--live` an edit here or in
+/// anything it calls takes effect on the next tick.
+let step (count: Int) : Int =
+  let changes = pollOnce ()
+  let said = if changes == [] then "nothing changed" else Stdlib.String.join changes "; "
+  Stdlib.printLine $"status-view: tick {Stdlib.toString count}: {said}"
+  count + 1
+
+/// Run the watcher in the foreground, following edits.
+let watch (intervalMs: Int) : Int =
+  Darklang.Cli.Apps.Runner.run "status-view" "Stachu.StatusView.step" 0 intervalMs true
+
+/// The watcher without following edits: a tick, a sleep, forever. Restart it to pick up a change.
+let watchPinned (intervalMs: Int) (count: Int) : Int =
+  let next = step count
+  Stdlib.Cli.Posix.sleep (Stdlib.Int.toFloat intervalMs)
+  watchPinned intervalMs next
+
+
+// --- rendering ---------------------------------------------------------------------------------
+
+let pad (s: String) (n: Int) : String =
+  Stdlib.String.padEnd s " " n |> Stdlib.Result.withDefault s
+
+let ciCell (all: List<Ci>) (ref: String) : String =
+  match prOfRef ref with
+  | None -> "-"
+  | Some n ->
+    match ciOf all n with
+    | None -> "?"
+    | Some c ->
+      match c.state with
+      | "red" -> $"RED: {c.detail}"
+      | "running" -> $"running: {c.detail}"
+      | "none" -> "no build yet"
+      | s -> s
+
+let whereCell (ref: String) : String =
+  match prOfRef ref with
+  | Some n -> $".../pull/{Stdlib.toString n}"
+  | None -> ref
+
+let boardText () : String =
+  let all = savedCi ()
+  let rows = boardRows ()
+  let w (title: String) (f: Row -> String) : Int =
+    rows
+    |> Stdlib.List.fold (Stdlib.String.length title) (fun acc r ->
+      let n = Stdlib.String.length (f r)
+      if n > acc then n else acc)
+
+  let ww = w "WHAT" (fun r -> r.what)
+  let wt = w "WHOSE TURN" (fun r -> r.turn)
+  let wn = w "NEXT" (fun r -> r.next)
+  let wc = w "CI" (fun r -> ciCell all r.ref)
+  let now = nowSeconds ()
+  let we = w "DONE IN" (fun r -> etaCell now r.eta)
+
+  let header = $"{pad "WHAT" ww}  {pad "WHOSE TURN" wt}  {pad "NEXT" wn}  {pad "DONE IN" we}  {pad "CI" wc}  LINK"
+
+  let lines =
+    rows
+    |> Stdlib.List.map (fun r ->
+      $"{pad r.what ww}  {pad r.turn wt}  {pad r.next wn}  {pad (etaCell now r.eta) we}  {pad (ciCell all r.ref) wc}  {whereCell r.ref}")
+
+  Stdlib.String.join (Stdlib.List.append [ header ] lines) "\n"
+
+let statusText () : String =
+  let tabs = readOr "tabs" "(nothing posted yet)"
+
+  let lines =
+    readOr "board" ""
+    |> nonEmptyLines
+    |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "#"))
+
+  let unread = (Stdlib.List.length lines) - (Stdlib.List.length (boardRows ()))
+
+  let warning =
+    if unread > 0 then
+      $"-- {Stdlib.toString unread} board line(s) could not be read; each needs 4 or 5 fields split by |\n"
+    else
+      ""
+
+  $"{boardText ()}\n\nCLAUDE TABS (as of {ago (readOr "pushed" "")})\n{tabs}\n\n-- CI checked {ago (readOr "polled" "")}; ask /changes?since={Stdlib.toString (lastSeq ())} for what moves next\n{warning}"
+
+
+// --- the server --------------------------------------------------------------------------------
+
+let query (req: Stdlib.Http.Request) (key: String) : Stdlib.Option.Option<String> =
+  Stdlib.Dict.get (Stdlib.Http.parseQueryString req.url) key
+
+let statusHandler (_req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText (statusText ()) 200
+
+/// `/changes?since=<n>`: the events after n, then the number to ask from next time.
+let changesHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let since =
+    match query req "since" with
+    | Some s -> Stdlib.Int.parse s |> Stdlib.Result.withDefault 0
+    | None -> 0
+
+  let newer =
+    events ()
+    |> Stdlib.List.filter (fun (n, _, _) -> n > since)
+    |> Stdlib.List.map (fun (n, at, what) -> $"{Stdlib.toString n}  {ago at}  {what}")
+
+  let body =
+    if newer == [] then "nothing" else Stdlib.String.join newer "\n"
+
+  Stdlib.Http.responseWithText $"{body}\nnext: /changes?since={Stdlib.toString (lastSeq ())}\n" 200
+
+let prHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getPathParam req "/pr/:n" "n" |> Stdlib.Option.andThen (fun s -> Stdlib.Int.parse s |> Stdlib.Result.toOption) with
+  | None -> Stdlib.Http.responseWithText "which pull request?\n" 400
+  | Some n ->
+    match ciOf (savedCi ()) n with
+    | None -> Stdlib.Http.responseWithText $"#{Stdlib.toString n}: not on the board\n" 404
+    | Some c -> Stdlib.Http.responseWithText $"#{Stdlib.toString n}: {ciPhrase c}\n" 200
+
+/// `/wait?pr=<n>`: hold the request until that pull request's CI finishes, checking what the
+/// watcher recorded every few seconds; past `maxMs` it answers "still running" and the caller
+/// asks again.
+let waitHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let pr = query req "pr" |> Stdlib.Option.andThen (fun s -> Stdlib.Int.parse s |> Stdlib.Result.toOption)
+  let maxMs = query req "max" |> Stdlib.Option.andThen (fun s -> Stdlib.Int.parse s |> Stdlib.Result.toOption) |> Stdlib.Option.withDefault 25000
+
+  let loop (waited: Int) : Stdlib.Http.Response =
+    match pr |> Stdlib.Option.andThen (fun n -> ciOf (savedCi ()) n) with
+    | Some c when isFinished c ->
+      Stdlib.Http.responseWithText $"#{Stdlib.toString c.pr}: {ciPhrase c}\n" 200
+    | _ ->
+      if waited >= maxMs then
+        Stdlib.Http.responseWithText "still running\n" 200
+      else
+        Stdlib.Cli.Posix.sleep 3000.0
+        loop (waited + 3000)
+
+  match pr with
+  | None -> Stdlib.Http.responseWithText "wait for which pull request? /wait?pr=<n>\n" 400
+  | Some n ->
+    match ciOf (savedCi ()) n with
+    | None ->
+      Stdlib.Http.responseWithText
+        $"#{Stdlib.toString n}: not on the board, so nothing is watching it\n"
+        404
+    | Some _ -> loop 0
+
+/// The host posts its board and its tabs here, since neither is visible from inside.
+let postFile (name: String) (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  write name (Stdlib.String.fromBlobWithReplacement req.body)
+  write "pushed" (Stdlib.toString (nowSeconds ()))
+  Stdlib.Http.responseWithText "ok\n" 200
+
+let postBoard (req: Stdlib.Http.Request) : Stdlib.Http.Response = postFile "board" req
+let postTabs (req: Stdlib.Http.Request) : Stdlib.Http.Response = postFile "tabs" req
+
+val handlers =
+  [ Stdlib.HttpServer.get "/" statusHandler
+    Stdlib.HttpServer.get "/status.txt" statusHandler
+    Stdlib.HttpServer.get "/changes" changesHandler
+    Stdlib.HttpServer.get "/pr/:n" prHandler
+    Stdlib.HttpServer.get "/wait" waitHandler
+    Stdlib.HttpServer.post "/host/board" postBoard
+    Stdlib.HttpServer.post "/host/tabs" postTabs ]
+
+let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.HttpServer.routeRequest handlers req
+
+/// Serve `router` on a port, pinned to the version running now.
+let serve (port: Int) : Int =
+  let announce () : Unit =
+    Stdlib.printLine $"status-view: serving on container port {Stdlib.toString port}"
+
+  match Stdlib.HttpServer.serve (Stdlib.HttpServer.Config.defaults port) router announce with
+  | Ok _ -> 0
+  | Error msg ->
+    Stdlib.printLine msg
+    1
