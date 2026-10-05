@@ -380,6 +380,17 @@ let private editDoesNotReachAParkedProcess =
       (expectOk freshResult "the fresh process")
       (RT.DString "new")
       "new code"
+    // What this test does and does not prove, because the halves are not equal.
+    //
+    // It PROVES that the edit does not break a process that is parked across it: the status
+    // check below, and the completion after `Gates.release`, both fail if the name moving
+    // leaves the parked process unable to finish.
+    //
+    // It does NOT prove that a parked process cannot pick up the new body. `callEntry`
+    // resolves the name to a hash and bakes that hash into the instructions BEFORE the
+    // process spawns, so "the parked one answers old" holds by construction and no change to
+    // the reload path could make it fail. Testing the redirect case needs a process whose
+    // callee is resolved by NAME at call time, which is a different test than this one.
     match parked.status with
     | Scheduler.Parked _ -> ()
     | other -> failtest $"the first process should still be parked, was {other}"
