@@ -825,7 +825,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.TraceRead ]
+      callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
 
 

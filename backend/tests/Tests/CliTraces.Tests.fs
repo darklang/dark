@@ -1140,6 +1140,73 @@ let private testTracesPinRoundTrip =
       })
 
 
+/// A `show` must not perform: the key keeps the value the store had before the show.
+let private testTracesShowDoesNotPerform =
+  cliTestWithFreshTraces
+    "a show of a function that writes leaves the store alone"
+    (fun state ->
+      task {
+        let! _ =
+          runCli
+            state
+            [ "fn"
+              "Test.ShowPerform.mark"
+              "(v: String) : Unit = Stdlib.LocalStore.configSet \"show.perform.probe\" v" ]
+
+        let! _ = runCli state [ "eval"; "Test.ShowPerform.mark \"recorded\"" ]
+        let! _ =
+          runCli
+            state
+            [ "eval"
+              "Stdlib.LocalStore.configSet \"show.perform.probe\" \"after\"" ]
+
+        let! _ = runCli state [ "traces"; "show"; "Test.ShowPerform.mark" ]
+
+        let! now =
+          runCli
+            state
+            [ "eval"; "Stdlib.LocalStore.configGet \"show.perform.probe\"" ]
+
+        Expect.stringContains
+          now
+          "after"
+          "looking at the trace must not have re-run the write"
+        Expect.isFalse
+          (now.Contains "recorded")
+          "the recorded value must not have been written back by the show"
+      })
+
+
+/// Separate from the test above, which passes as soon as `configSet` has an honest effect and so
+/// does not notice the fail-closed guard being reverted (measured). `posixGetpid` is `Impure` with
+/// an empty effect set; if somebody gives it one, pick another that still has none.
+let private testImpureWithoutEffectsIsStillLogged =
+  cliTestWithFreshTraces
+    "a builtin that is Impure with no declared effect is still logged"
+    (fun state ->
+      task {
+        let! _ =
+          runCli
+            state
+            [ "fn"
+              "Test.NoEffects.pid"
+              "() : Int = Stdlib.Cli.Sys.currentPid ()" ]
+
+        let! _ = runCli state [ "eval"; "Test.NoEffects.pid ()" ]
+        let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
+        let tid = parseTraceID listJson
+        let! inspected = runCli state [ "traces"; "inspect"; tid.Substring(0, 8) ]
+
+        Expect.stringContains
+          inspected
+          "with effects"
+          "the call is in the log, so the trace is not reported as pure"
+        Expect.isFalse
+          (inspected.Contains "every call this trace made was pure")
+          "an unannotated Impure builtin must not make a trace look effect-free"
+      })
+
+
 let private testTracesLargeTraceListSurvives =
   cliTestWithFreshTraces
     "traces list survives a 50-trace store; find still returns banner"
@@ -1463,6 +1530,8 @@ let tests =
          testTracesReplayReruns
          testTracesPruneIdempotent
          testTracesPinRoundTrip
+         testTracesShowDoesNotPerform
+         testImpureWithoutEffectsIsStillLogged
          testRecordingSettings
          testRecordingSetting
          testEmptyAnswersNameTheirCause
