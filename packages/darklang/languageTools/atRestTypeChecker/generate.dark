@@ -55,6 +55,15 @@ let nothing () : Model.Constraint = Model.Constraint.All []
 let all (constraints: List<Model.Constraint>) : Model.Constraint =
   Model.Constraint.All constraints
 
+/// Whether this call already recorded the implementation it runs.
+///
+/// The run time uses that recorded choice, deprecated or not, so demanding a LIVE implementation
+/// here makes the check disagree with the call's own behaviour.
+let decided (choice: LanguageTools.ProgramTypes.FQFnName.ImplChoice) : Bool =
+  match choice with
+  | Chosen _ -> true
+  | _ -> false
+
 /// Include a problem already found from syntax in the solver's findings.
 let report (finding: Model.Finding) : Model.Constraint = Model.Constraint.Report finding
 
@@ -564,7 +573,7 @@ let infer (scope: Scope) (expr: LanguageTools.ProgramTypes.Expr) : (Model.Ty * M
   | ERecord(id, typeName, typeArgs, fields) ->
     inferRecord scope id typeName typeArgs fields
   | ELambda(id, patterns, body) -> inferLambda scope id patterns body
-  | EInfix(id, infix, lhs, rhs, _) -> inferInfix scope id infix lhs rhs
+  | EInfix(id, infix, lhs, rhs, choice) -> inferInfix scope id infix lhs rhs choice
   | ETuple(_, first, second, rest) -> inferTuple scope first second rest
   | EStatement(_, first, next) -> inferStatement scope first next
   | EBool(_, _) -> (Model.Ty.TBool, nothing ())
@@ -1168,6 +1177,7 @@ let specialApplication
                 (LanguageTools.ProgramTypes.Infix.InfixFnCall operation)
                 lhs
                 rhs
+                LanguageTools.ProgramTypes.FQFnName.ImplChoice.Unknown
             )
           | None -> Stdlib.Option.Option.None
         | _ -> Stdlib.Option.Option.None
@@ -1260,6 +1270,7 @@ let inferInfix
   (infix: LanguageTools.ProgramTypes.Infix)
   (lhs: LanguageTools.ProgramTypes.Expr)
   (rhs: LanguageTools.ProgramTypes.Expr)
+  (choice: LanguageTools.ProgramTypes.FQFnName.ImplChoice)
   : (Model.Ty * Model.Constraint) =
   match infix with
   | BinOp _ ->
@@ -1290,12 +1301,15 @@ let inferInfix
        all
          [ lhsConstraints
            check scope lhsType Site.Expression rhs
-           Model.Constraint.Operand(
-             id,
-             operation,
-             lhsType,
-             AmbiguousSubject.NumericOperand
-           ) ])
+           if decided choice then
+             all []
+           else
+             Model.Constraint.Operand(
+               id,
+               operation,
+               lhsType,
+               AmbiguousSubject.NumericOperand
+             ) ])
 
 /// Infer one pipeline step from the type produced by the previous step. Treat
 /// input as the first function argument, operator operand, or enum payload field,
@@ -1333,7 +1347,7 @@ let inferPipePart
          bodyConstraints
          constrainLambdaReturn id bodyType ])
 
-  | EPipeInfix(id, infix, rhs, _) ->
+  | EPipeInfix(id, infix, rhs, pipeChoice) ->
     let (rhsType, rhsConstraints) = infer scope rhs
 
     match infix with
@@ -1364,12 +1378,15 @@ let inferPipePart
          all
            [ rhsConstraints
              equal id Site.PipelineNumericOperator input rhsType
-             Model.Constraint.Operand(
-               id,
-               operation,
-               input,
-               AmbiguousSubject.PipelineNumericOperand
-             ) ])
+             if decided pipeChoice then
+               all []
+             else
+               Model.Constraint.Operand(
+                 id,
+                 operation,
+                 input,
+                 AmbiguousSubject.PipelineNumericOperand
+               ) ])
 
   | EPipeFnCall(id, name, typeArgs, args) ->
     // The pipeline input already supplies one argument. Recognize special builtin
