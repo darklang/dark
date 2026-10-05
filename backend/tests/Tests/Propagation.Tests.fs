@@ -163,7 +163,7 @@ let dictionaryKeyFollows =
   testTask "a function called only in a dictionary key follows edits" {
     let m = "PropTestDictionaryKey"
     do! cleanup m
-    let! v1 = authorIn m "let key (x: Int64) : Int64 = Stdlib.Int64.add x 61L"
+    let! v1 = authorIn m "let key (x: Int64) : Int64 = x + 61L"
     let! pairOps =
       authorIn
         m
@@ -180,7 +180,7 @@ let dictionaryKeyFollows =
       keyV1
       "the call in the key records the function's current hash"
 
-    let! v2 = authorIn m "let key (x: Int64) : Int64 = Stdlib.Int64.add x 62L"
+    let! v2 = authorIn m "let key (x: Int64) : Int64 = x + 62L"
     let! repointed = cascade (loc m "key") keyV1 (hashBoundTo v2 "key")
     Expect.contains repointed "pairs" "a call in a key records a propagation edge"
     let! pairsAfter = liveBoundHash (loc m "pairs")
