@@ -241,7 +241,7 @@ let printFollowed (followed: Followed) : Unit =
       |> Stdlib.List.iter (fun pair ->
         let (name, why) = pair
         let line = $"{name} no longer type-checks: {why}"
-        let withHint = line ++ "; `dark typecheck --failed` lists them"
+        let withHint = line + "; `dark typecheck --failed` lists them"
         // The way to the full list only when it fits; the diagnostic is the part that matters.
         let text = if (Stdlib.String.length withHint) + 2 <= 80 then withHint else line
         Cli.Text.printWrapped Stdlib.Cli.UI.Colors.error "  " text)

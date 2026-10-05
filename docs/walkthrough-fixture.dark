@@ -25,7 +25,7 @@ let total (xs: List<Int>) : Int =
 let reportCall (xs: List<Int>) : String =
   let scaled = Stdlib.List.map xs (fun x -> scale x)
   let sum = total scaled
-  "sum=" ++ (Stdlib.Int.toString sum)
+  "sum=" + (Stdlib.Int.toString sum)
 
 /// A multi-line lambda, so `--iteration` visibly changes the lines.
 let reportInline (xs: List<Int>) : String =
@@ -34,7 +34,7 @@ let reportInline (xs: List<Int>) : String =
       let doubled = x * 2
       doubled + 1)
 
-  "sum=" ++ (Stdlib.Int.toString (Stdlib.List.length scaled))
+  "sum=" + (Stdlib.Int.toString (Stdlib.List.length scaled))
 
 /// Two loops in one body, for `--iteration map:2,fold:2`.
 let reportTwo (xs: List<Int>) : String =
@@ -48,7 +48,7 @@ let reportTwo (xs: List<Int>) : String =
       let step = acc + x
       step)
 
-  "sum=" ++ (Stdlib.Int.toString summed)
+  "sum=" + (Stdlib.Int.toString summed)
 
 /// NOT tail-recursive: the multiply happens after the call returns.
 let fact (n: Int) : Int =

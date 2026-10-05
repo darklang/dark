@@ -31,9 +31,9 @@ let viewAt (name: String) (title: String) (path: String) : View =
   View
     { name = name
       title = title
-      init = path ++ ".init"
-      update = path ++ ".update"
-      render = path ++ ".render"
+      init = path + ".init"
+      update = path + ".update"
+      render = path + ".render"
       every = Stdlib.Option.Option.None
       keys = Stdlib.Option.Option.None }
 

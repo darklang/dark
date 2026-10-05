@@ -193,8 +193,8 @@ let idsLandedSince (branchId: Uuid) (since: String) (andAtSince: Bool) : List<St
   Stdlib.Sqlite.rowsP
     (localDb ())
     ("SELECT id FROM package_ops WHERE "
-     ++ visibleWhere branchId
-     ++ $" AND {complete} AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid")
+     + visibleWhere branchId
+     + $" AND {complete} AND created_at {comparison} {sinceParam} ORDER BY created_at, rowid")
     (Stdlib.List.append (visibleParams branchId) [ since ])
     (fun row -> Stdlib.Sqlite.textField row "id")
 
@@ -209,7 +209,7 @@ let summariesByIds (ids: List<String>) : List<OpSummary> =
       ids
       |> Stdlib.List.filter (fun id -> Stdlib.Uuid.parse id |> Stdlib.Result.isOk)
 
-    let quoted = safe |> Stdlib.List.map (fun id -> "'" ++ id ++ "'")
+    let quoted = safe |> Stdlib.List.map (fun id -> "'" + id + "'")
     let inList = Stdlib.String.join quoted ","
 
     let found =
@@ -253,7 +253,7 @@ let landedWhere () : String =
 let newestInsert () : String =
   Stdlib.Sqlite.queryOneP
     (localDb ())
-    ("SELECT COALESCE(max(created_at), '') AS newest FROM package_ops WHERE " ++ (landedWhere ()))
+    ("SELECT COALESCE(max(created_at), '') AS newest FROM package_ops WHERE " + (landedWhere ()))
     []
   |> Stdlib.Option.andThen (fun row -> Stdlib.Sqlite.textField row "newest")
   |> Stdlib.Option.withDefault ""
@@ -264,7 +264,7 @@ let newestInsert () : String =
 let idsInsertedAt (at: String) : List<String> =
   Stdlib.Sqlite.rowsP
     (localDb ())
-    ("SELECT id FROM package_ops WHERE created_at = @p0 AND " ++ (landedWhere ()))
+    ("SELECT id FROM package_ops WHERE created_at = @p0 AND " + (landedWhere ()))
     [ at ]
     (fun row -> Stdlib.Sqlite.textField row "id")
 

@@ -204,7 +204,7 @@ module Status =
         Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Success (Stdlib.Cli.UI.Node.text s)
 
       let hint (s: String) : Stdlib.Cli.UI.Node.Node<Msg> =
-        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Muted (Stdlib.Cli.UI.Node.text ("  " ++ s))
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Muted (Stdlib.Cli.UI.Node.text ("  " + s))
 
       let verdict =
         match m.verdict with

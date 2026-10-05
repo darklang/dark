@@ -34,7 +34,7 @@ let unitPath (slug: String) : String =
 /// body `apps start` launches (a command, not an `eval`, so the daemon has the host's state).
 let daemonCommand (app: Model.App) : String =
   match app.target with
-  | Daemon _ -> (Stdlib.Cli.Daemon.launcher ()) ++ " apps daemon-main " ++ app.slug
+  | Daemon _ -> (Stdlib.Cli.Daemon.launcher ()) + " apps daemon-main " + app.slug
   | _ -> ""
 
 /// Can this string go into a unit file or a plist without changing its structure?

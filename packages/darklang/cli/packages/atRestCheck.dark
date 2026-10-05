@@ -116,7 +116,7 @@ let printSaveReport
       [ ""
         (Stdlib.Cli.UI.Colors.error
           ("Type check failed. Saved as a draft; "
-           ++ "`dark commit` will refuse it until it is fixed:")) ]
+           + "`dark commit` will refuse it until it is fixed:")) ]
       details
     |> Stdlib.printLines
   | Incomplete ->

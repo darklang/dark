@@ -192,13 +192,13 @@ let styleCode (style: Style) : String =
   | Warning -> Colors.warningColor
   | Info -> Colors.infoColor
   | Muted -> Colors.muted
-  | Highlight -> Colors.grayBg ++ Colors.white
+  | Highlight -> Colors.grayBg + Colors.white
 
 let severityCode (severity: Severity) : String =
   match severity with
-  | Info -> Colors.bgBlue ++ Colors.white
-  | Warning -> Colors.bgYellow ++ Colors.black
-  | Error -> Colors.bgRed ++ Colors.brightWhite
+  | Info -> Colors.bgBlue + Colors.white
+  | Warning -> Colors.bgYellow + Colors.black
+  | Error -> Colors.bgRed + Colors.brightWhite
 
 /// A sub-region: `rows` rows starting `top` rows down and `left` columns in, `cols` wide, never
 /// reaching outside the parent.
@@ -277,14 +277,14 @@ let paint
     | Empty -> []
     | Text s -> textAt 0 s
     | Rows rows -> rows |> Stdlib.List.indexedMap (fun i r -> textAt i r) |> Stdlib.List.flatten
-    | Styled(inner, child) -> paint child region focus (style ++ (styleCode inner))
+    | Styled(inner, child) -> paint child region focus (style + (styleCode inner))
     | Band(severity, message) ->
       let code = severityCode severity
       let lines = Tui.Text.wrapAtWords message (Stdlib.Int.max 1 (region.cols - 2))
       // At most two rows: a band is a headline, not a page.
       Stdlib.List.take lines 2
       |> Stdlib.List.indexedMap (fun i line ->
-        let padded = Stdlib.String.padEndToWidth (" " ++ line) region.cols
+        let padded = Stdlib.String.padEndToWidth (" " + line) region.cols
         Layout.at region i 0 (Colors.colorize code padded))
       |> Stdlib.List.flatten
     | Table(columns, rows) ->
@@ -294,12 +294,12 @@ let paint
     | Input spec ->
       let shown =
         if spec.value == "" then Colors.dimText spec.placeholder else spec.value
-      let box = if focus == spec.id then Colors.colorize (Colors.grayBg ++ Colors.white) $"[ {shown} ]" else $"[ {shown} ]"
+      let box = if focus == spec.id then Colors.colorize (Colors.grayBg + Colors.white) $"[ {shown} ]" else $"[ {shown} ]"
       Layout.at region 0 0 box
     | Button(label, _) ->
       let box =
         if focus == label then
-          Colors.colorize (Colors.greenBg ++ Colors.black ++ Colors.bold) $"[ {label} ]"
+          Colors.colorize (Colors.greenBg + Colors.black + Colors.bold) $"[ {label} ]"
         else
           Colors.colorize Colors.bold $"[ {label} ]"
       Layout.at region 0 0 box

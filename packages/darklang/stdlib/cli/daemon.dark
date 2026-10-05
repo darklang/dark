@@ -20,9 +20,9 @@ let runDirCandidates () : List<String> =
   let home = Stdlib.Option.withDefault (Env.home ()) "/tmp"
 
   Stdlib.List.flatten
-    [ [ home ++ "/.darklang/run" ]
+    [ [ home + "/.darklang/run" ]
       (match Env.get "DARK_CONFIG_RUNDIR" with
-       | Some rundir -> [ rundir ++ "/run" ]
+       | Some rundir -> [ rundir + "/run" ]
        | None -> [])
       [ "/tmp/darklang-run" ] ]
 
@@ -33,9 +33,9 @@ let writableDir (dir: String) : Bool =
   match Posix.mkdirRecursive dir with
   | Error _ -> false
   | Ok _ ->
-    match File.writeText (dir ++ "/.probe") "" with
+    match File.writeText (dir + "/.probe") "" with
     | Ok _ ->
-      let _ = Stdlib.Cli.FileSystem.deleteFile (dir ++ "/.probe")
+      let _ = Stdlib.Cli.FileSystem.deleteFile (dir + "/.probe")
       true
     | Error _ -> false
 
@@ -159,7 +159,7 @@ let launchDetachedWith (name: String) (args: List<String>) : Stdlib.Result.Resul
 
   let quoted =
     args
-    |> Stdlib.List.map (fun a -> "'" ++ (Stdlib.String.replaceAll a "'" "'\\''") ++ "'")
+    |> Stdlib.List.map (fun a -> "'" + (Stdlib.String.replaceAll a "'" "'\\''") + "'")
     |> Stdlib.String.join " "
 
   let cmd =

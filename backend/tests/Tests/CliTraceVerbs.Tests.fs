@@ -150,7 +150,7 @@ let private replayAfterAnEdit =
     (fun state ->
       task {
         do! start state
-        do! fn state "Tests.Exec.shape" "(s: String) : String = \"v1:\" ++ s"
+        do! fn state "Tests.Exec.shape" "(s: String) : String = \"v1:\" + s"
         do! commit state "shape v1"
         let! first =
           runCli
@@ -158,7 +158,7 @@ let private replayAfterAnEdit =
             [ "eval"
               "Tests.Exec.shape (Stdlib.Uuid.toString (Stdlib.Uuid.generate ()))" ]
         Expect.stringStarts first "v1:" "the first run went through v1"
-        do! fn state "Tests.Exec.shape" "(s: String) : String = \"v2:\" ++ s"
+        do! fn state "Tests.Exec.shape" "(s: String) : String = \"v2:\" + s"
         do! commit state "shape v2"
         let! prefix = latestPrefix ()
         let! resumed = runCli state [ "exec"; "resume"; prefix ]
@@ -195,7 +195,7 @@ let private replayWithoutAnEdit =
         // A body nothing else in these tests has: a package hash is structural, so two functions
         // with identical bodies share one, and `trace_fns` would name whichever of them the
         // store resolves that hash to.
-        do! fn state "Tests.Exec.steady" "(s: String) : String = \"steady:\" ++ s"
+        do! fn state "Tests.Exec.steady" "(s: String) : String = \"steady:\" + s"
         do! commit state "steady"
         let! _ = runCli state [ "eval"; "Tests.Exec.steady \"x\"" ]
         let! prefix = latestPrefix ()

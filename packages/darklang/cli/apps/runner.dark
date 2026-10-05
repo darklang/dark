@@ -78,7 +78,7 @@ let run
     match lg.hash with
     | None ->
       let why =
-        Stdlib.Option.withDefault (Stdlib.Live.diagnostic lg) (stepName ++ " does not resolve")
+        Stdlib.Option.withDefault (Stdlib.Live.diagnostic lg) (stepName + " does not resolve")
 
       Stdlib.printLine $"{name}: {why}"
       1

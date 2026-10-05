@@ -9,9 +9,9 @@ let wrap (width: Int) (indent: String) (text: String) : List<String> =
   let room = Stdlib.Int.max 20 (width - (Stdlib.String.length indent))
 
   match Stdlib.Cli.Tui.Text.wrapAtWords text room with
-  | [] -> [ indent ++ text ]
+  | [] -> [ indent + text ]
   | first :: rest ->
-    Stdlib.List.append [ indent ++ first ] (rest |> Stdlib.List.map (fun l -> indent ++ l))
+    Stdlib.List.append [ indent + first ] (rest |> Stdlib.List.map (fun l -> indent + l))
 
 /// Print <param text> wrapped at 80 columns, indented by <param indent>, in <param colour>.
 let printWrapped (colour: String -> String) (indent: String) (text: String) : Unit =
@@ -30,7 +30,7 @@ let shortId (id: Uuid) : String = shortIdText (Stdlib.Uuid.toString id)
 let oneLineAt (width: Int) (text: String) : String =
   let flat = Stdlib.String.replaceAll text "\n" " "
   if Stdlib.String.length flat > width then
-    (Stdlib.String.slice flat 0 (width - 3)) ++ "..."
+    (Stdlib.String.slice flat 0 (width - 3)) + "..."
   else
     flat
 

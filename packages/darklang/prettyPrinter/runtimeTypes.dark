@@ -917,7 +917,7 @@ let dvalOneLine
     text |> Stdlib.String.split "\n" |> Stdlib.List.map Stdlib.String.trim |> Stdlib.String.join " "
 
   if (Stdlib.String.length oneLine) > maxChars then
-    (Stdlib.String.slice oneLine 0 (maxChars - 3)) ++ "..."
+    (Stdlib.String.slice oneLine 0 (maxChars - 3)) + "..."
   else
     oneLine
 

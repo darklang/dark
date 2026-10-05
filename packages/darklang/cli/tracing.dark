@@ -128,7 +128,7 @@ let parseViewOptions
   | "--no-stdlib" :: _ ->
     Stdlib.Result.Result.Error
       ("--no-builtins and --no-stdlib are gone: every logged call is an impure builtin, so "
-       ++ "hiding them hides the log. `--filter` and `--exclude` narrow it by name")
+       + "hiding them hides the log. `--filter` and `--exclude` narrow it by name")
   | "--filter" :: pattern :: rest ->
     if Stdlib.String.startsWith pattern "-" then
       Stdlib.Result.Result.Error $"unknown flag: {pattern}"
@@ -531,7 +531,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.dimText
             ($"  for this command only; the stored setting is "
-             ++ (if s then "on" else "off")))
+             + (if s then "on" else "off")))
       | None ->
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.dimText
@@ -568,7 +568,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           Stdlib.printLine
             (Stdlib.Cli.UI.Colors.dimText
               ("  nothing from here on is kept, so `resume`, `fork` and `show` will have "
-               ++ "nothing to work with"))
+               + "nothing to work with"))
       state
     else
       Cli.printErr $"'{value}' is not a recording setting; it is on or off"
@@ -1637,7 +1637,7 @@ let executeInspect
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.dimText
             ("            so there is nothing to replay; `dark traces show <fn>` still has its "
-             ++ "values, which are recomputed"))
+             + "values, which are recomputed"))
       | _ ->
         let procs =
           logged

@@ -444,9 +444,9 @@ let issueText (issue: LanguageTools.AtRestTypeChecker.Issue) : String =
     | (Some expected, Some actual) ->
       Stdlib.Option.Option.Some
         ("expected "
-         ++ (LanguageTools.AtRestTypeChecker.staticTypeToString expected)
-         ++ ", got "
-         ++ (LanguageTools.AtRestTypeChecker.staticTypeToString actual))
+         + (LanguageTools.AtRestTypeChecker.staticTypeToString expected)
+         + ", got "
+         + (LanguageTools.AtRestTypeChecker.staticTypeToString actual))
     | _ -> Stdlib.Option.Option.None
 
   match (detail, site) with
@@ -465,7 +465,7 @@ let reportText (report: LanguageTools.AtRestTypeChecker.Report) : String =
     | [] -> "it failed the type check"
 
   let more = if count > 1 then $" (and {Stdlib.Int.toString (count - 1)} more)" else ""
-  first ++ more
+  first + more
 
 /// One line for a band or a log: why the host is not on the newest version, if it is not.
 let diagnostic (lg: LastGood) : Stdlib.Option.Option<String> =

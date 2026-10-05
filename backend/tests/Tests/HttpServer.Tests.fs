@@ -585,11 +585,11 @@ let private stampedRouter =
       | url when Darklang.Stdlib.String.contains url "/slow" ->
         let _ = Darklang.Stdlib.Cli.Posix.sleep 400.0
         Darklang.Stdlib.Http.responseWithText
-          ("slow " ++ Darklang.Stdlib.Int.toString (Darklang.Stdlib.DateTime.toMilliseconds (Darklang.Stdlib.DateTime.now ())))
+          ("slow " + Darklang.Stdlib.Int.toString (Darklang.Stdlib.DateTime.toMilliseconds (Darklang.Stdlib.DateTime.now ())))
           200
       | _ ->
         Darklang.Stdlib.Http.responseWithText
-          ("fast " ++ Darklang.Stdlib.Int.toString (Darklang.Stdlib.DateTime.toMilliseconds (Darklang.Stdlib.DateTime.now ())))
+          ("fast " + Darklang.Stdlib.Int.toString (Darklang.Stdlib.DateTime.toMilliseconds (Darklang.Stdlib.DateTime.now ())))
           200)"""
 
 // Sequenced: the timeout test lowers the process-wide `requestTimeoutMs` for its own server.

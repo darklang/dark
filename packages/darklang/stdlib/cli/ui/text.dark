@@ -17,7 +17,7 @@ let lines (node: Node.Node<'msg>) : List<String> =
   | Band(severity, message) ->
     match severity with
     | Info -> [ message ]
-    | _ -> [ "! " ++ message ]
+    | _ -> [ "! " + message ]
   | Table(columns, rows) ->
     // The terminal's rows, with the header's bold and the rule's dim taken off.
     Node.tableRows columns rows |> Stdlib.List.map (fun r -> Tui.Text.stripSgr r)
@@ -35,7 +35,7 @@ let lines (node: Node.Node<'msg>) : List<String> =
     children
     |> Stdlib.List.map (fun c ->
       lines c
-      |> Stdlib.List.indexedMap (fun i l -> if i == 0 then "- " ++ l else "  " ++ l))
+      |> Stdlib.List.indexedMap (fun i l -> if i == 0 then "- " + l else "  " + l))
     |> Stdlib.List.flatten
   | Row children ->
     // Side by side at natural widths, one column of gap, as the terminal lays a row out.

@@ -86,7 +86,7 @@ let whenText (created: String) : String =
     match Stdlib.String.split created "." with
     | [] -> created
     | [ s ] -> s
-    | s :: _ -> s ++ "Z"
+    | s :: _ -> s + "Z"
   match Stdlib.DateTime.parse whole with
   | Ok t -> Cli.RelativeTime.ago t
   | Error _ -> created
@@ -1350,7 +1350,7 @@ let showCode
                   Stdlib.printLine
                     (Stdlib.Cli.UI.Colors.dimText
                       ("       nothing to show for this one: it returned before those lines "
-                       ++ $"ran, or it is past the {kept} the view keeps values for")))
+                       + $"ran, or it is past the {kept} the view keeps values for")))
 
             Stdlib.printLine
               (Stdlib.Cli.UI.Colors.dimText

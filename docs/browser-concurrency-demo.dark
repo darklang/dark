@@ -61,7 +61,7 @@ let oneAtATime () : String =
 let bothWays () : String =
   let slow = oneAtATime ()
   let fast = overlapping ()
-  slow ++ "\n" ++ fast
+  slow + "\n" + fast
 
 /// Is a read eager in this runtime? Two one-second reads of two different hosts, timed at the
 /// call and again after forcing.

@@ -277,7 +277,7 @@ let onKey (s: Session<'model, 'msg>) (k: Stdlib.Cli.UI.Widget.KeyPress) : Sessio
       | Enter -> applyUpdate s (Event.Key k)
       | _ ->
         match k.char with
-        | Some c -> applyUpdate s (Event.Msg(spec.edited (spec.value ++ c)))
+        | Some c -> applyUpdate s (Event.Msg(spec.edited (spec.value + c)))
         | None -> applyUpdate s (Event.Key k)
     | _ -> applyUpdate s (Event.Key k)
 
@@ -336,7 +336,7 @@ let sessionLocation (view: Model.View) : Stdlib.Option.Option<LanguageTools.Prog
     LanguageTools.ProgramTypes.PackageLocation
       { owner = entry.owner
         modules = Stdlib.List.append entry.modules [ "Sessions" ]
-        name = "s" ++ stamp })
+        name = "s" + stamp })
 
 /// Snapshot the model as a `val` in the store, so a later `--resume <name>` starts from it, on
 /// another machine after a sync if you like. A value that cannot be stored (a stream, a lambda)

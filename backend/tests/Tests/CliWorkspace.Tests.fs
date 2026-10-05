@@ -634,7 +634,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version one\", Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version one\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.Int.toString m), Stdlib.Cli.UI.Node.Node.Button (\"ten\", 10) ]"
 
         let view =
           "Darklang.Cli.Apps.Model.View { name = \"live\"; title = \"Live\"; init = \"Tests.LiveView.init\"; update = \"Tests.LiveView.update\"; render = \"Tests.LiveView.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
@@ -683,7 +683,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version two\", Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m) ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version two\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.Int.toString m) ]"
         pushTick ()
         let! session = step session
         let! afterEdit = rowsOf session
@@ -719,7 +719,7 @@ let private viewFollowsEdits =
         do!
           author
             "Tests.LiveView.render"
-            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version three\", Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m) ]"
+            "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.column [ Stdlib.Cli.UI.Node.text \"version three\", Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.Int.toString m) ]"
         pushTick ()
         let! session = step session
         let! afterFix = rowsOf session
@@ -793,7 +793,7 @@ let private modelSavesAndResumes =
       do!
         author
           "Tests.LiveSave.render"
-          "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text (\"keys: \" ++ Stdlib.Int.toString m)"
+          "(m: Int): Stdlib.Cli.UI.Node.Node<Int> = Stdlib.Cli.UI.Node.text (\"keys: \" + Stdlib.Int.toString m)"
 
       let view =
         "Darklang.Cli.Apps.Model.View { name = \"s\"; title = \"S\"; init = \"Tests.LiveSave.init\"; update = \"Tests.LiveSave.update\"; render = \"Tests.LiveSave.render\"; every = Stdlib.Option.Option.None; keys = Stdlib.Option.Option.None }"
@@ -1132,8 +1132,8 @@ match Darklang.LanguageTools.PackageManager.Function.find bid loc with
   match Darklang.LanguageTools.PackageManager.Function.get hash with
   | Some fn ->
     (Darklang.PrettyPrinter.ProgramTypes.packageFn ctx fn)
-    ++ "@@@"
-    ++ (Darklang.PrettyPrinter.ProgramTypes.packageFn {{ ctx with liveValues = values }} fn)
+    + "@@@"
+    + (Darklang.PrettyPrinter.ProgramTypes.packageFn {{ ctx with liveValues = values }} fn)
   | None -> "no fn"
 | None -> "no hash"
 """
@@ -1359,7 +1359,7 @@ let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.
 r.fns
 |> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
 |> Darklang.Stdlib.List.flatten
-|> Darklang.Stdlib.List.map (fun h -> (Darklang.Stdlib.UInt64.toString h.position.line) ++ ":" ++ (Darklang.Stdlib.UInt64.toString h.position.character) ++ " " ++ h.label)"""
+|> Darklang.Stdlib.List.map (fun h -> (Darklang.Stdlib.UInt64.toString h.position.line) + ":" + (Darklang.Stdlib.UInt64.toString h.position.character) + " " + h.label)"""
         let hints =
           match hints with
           | RT.DList(_, items) ->
@@ -1537,7 +1537,7 @@ let private observeAndShow =
         do!
           author
             "Tests.LiveObs.render"
-            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (\"count \" ++ Stdlib.Int64.toString m)"
+            "(m: Int64): Stdlib.Cli.UI.Node.Node<Int64> = Stdlib.Cli.UI.Node.text (\"count \" + Stdlib.Int64.toString m)"
         let! _ = evalUnder state $"Darklang.Stdlib.Live.show {viewLoc}"
         let! shown = evalUnder state "Darklang.Stdlib.Live.shown ()"
         match shown with

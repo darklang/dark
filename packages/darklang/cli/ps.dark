@@ -458,7 +458,7 @@ module Watch =
   let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
     let mark (i: Int) (cells: List<String>) : List<String> =
       match cells with
-      | first :: rest -> Stdlib.List.push rest ((if i == m.cursor then "> " else "  ") ++ first)
+      | first :: rest -> Stdlib.List.push rest ((if i == m.cursor then "> " else "  ") + first)
       | [] -> []
     let indexed = Stdlib.List.indexedMap m.rows (fun i r -> (i, r))
     let machineRows =

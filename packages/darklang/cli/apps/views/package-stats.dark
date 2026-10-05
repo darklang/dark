@@ -35,7 +35,7 @@ let update (m: Model) (event: Host.Event<Msg>) : Model =
 /// A proportion as a run of blocks, a cell in the table.
 let bar (value: Int) (maxVal: Int) (width: Int) : String =
   let filled = if maxVal == 0 then 0 else Stdlib.Int.divide (value * width) maxVal
-  (Stdlib.String.repeat "█" filled) ++ (Stdlib.String.repeat "░" (width - filled))
+  (Stdlib.String.repeat "█" filled) + (Stdlib.String.repeat "░" (width - filled))
 
 let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
   let stats = m.stats

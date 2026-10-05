@@ -30,14 +30,14 @@ let heartbeat (name: String) : Int =
   // The step is a NAME, and yours to point elsewhere (`apps.<name>.step`): a step under your own
   // owner is one you can edit while the daemon runs, which is what the runner is for.
   let step =
-    match Config.get ("apps." ++ name ++ ".step") with
+    match Config.get ("apps." + name + ".step") with
     | Some name when name != "" -> name
     | _ -> "Darklang.Cli.Apps.Examples.beat"
 
   // Following edits is opt-in, and `apps start <slug> --live` is how it is asked for: the flag
   // writes this key before the daemon launches, so a daemon started from a unit file carries
   // the same answer.
-  let live = (Config.get ("apps." ++ name ++ ".live")) == (Stdlib.Option.Option.Some "on")
+  let live = (Config.get ("apps." + name + ".live")) == (Stdlib.Option.Option.Some "on")
 
   Runner.run name step 0 intervalMs live
 

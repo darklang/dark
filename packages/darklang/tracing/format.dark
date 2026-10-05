@@ -76,7 +76,7 @@ let compactDvalTo
         | Some size -> $"... ({size}, use --full)"
         | None -> "..."
 
-      (Stdlib.String.slice oneLine 0 (budget - (Stdlib.String.length note))) ++ note
+      (Stdlib.String.slice oneLine 0 (budget - (Stdlib.String.length note))) + note
     else
       oneLine
 

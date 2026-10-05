@@ -387,9 +387,9 @@ let appDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
     item.name
-    ++ "\n\n"
-    ++ "⏎ inspect    i install/uninstall    r start    s stop\n\n"
-    ++ "(each traces the matching `apps` subcommand in-frame - output opens in the reader)"
+    + "\n\n"
+    + "⏎ inspect    i install/uninstall    r start    s stop\n\n"
+    + "(each traces the matching `apps` subcommand in-frame - output opens in the reader)"
   | None -> "(no app selected)"
 
 /// The selected run: where it stands, what it was given, and what it did to the world. The same
@@ -500,7 +500,7 @@ let tracesText (state: State) : String =
     // `dark traces calls <fn>` uses and what this pane means.
     let rows =
       Darklang.Tracing.Store.wentThroughNamed state.branchId fullName 30L
-      |> Stdlib.List.map (fun t -> "  " ++ t.entry ++ "  ·  " ++ t.created)
+      |> Stdlib.List.map (fun t -> "  " + t.entry + "  ·  " + t.created)
     // Empty means one of two things, and `traces list` already knows which:
     // nothing has called it, or recording is off (the default) so nothing
     // would show whatever ran. Say the same thing it says.
