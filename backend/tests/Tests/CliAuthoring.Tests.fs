@@ -280,7 +280,7 @@ let traitsAreAuthoredListedAndDisambiguated =
             [ "trait"
               "Tests.Tr.Describe"
               "<'a> =\n  let describe (v: 'a) : String\n  let short (v: 'a) : String" ]
-            "Created trait: Tests.Tr.Describe"
+            "Created trait Tests.Tr.Describe"
             "trait authors a trait item"
         do!
           shows
@@ -288,7 +288,7 @@ let traitsAreAuthoredListedAndDisambiguated =
             [ "impl"
               "Tests.Tr"
               "Describe for Point =\n  let describe (p: Point) : String = \"alpha\"\n  let short (p: Point) : String = \"t\"" ]
-            "Created implementation: Tests.Tr.Point.Describe"
+            "Created implementation Tests.Tr.Point.Describe"
             "impl authors an implementation at <module>.<Type>.<Trait>"
         do!
           evals
