@@ -86,8 +86,11 @@ module HandleCommand =
         // read the package store to answer which implementations exist. Without this the
         // reload's own policy refuses `package-read` and 795 items come back Incomplete, with
         // the pins silently absent rather than any error.
+        //
+        // The real package manager, not `Builtins.all`'s empty one: the checker loads from the
+        // store whatever a body uses that the batch does not carry.
         { Execution.createState
-            (Builtins.all ())
+            (Builtins.allWith PM.pt)
             PM.rt
             Execution.noTracing
             reportException
