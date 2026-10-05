@@ -42,7 +42,10 @@ type Model =
     ///
     /// Already resolved, for the same reason `traceLines` is: rendering a runtime error reads
     /// the package store to spell names, and a render may not. `annotate` does it.
-    problem: Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson> }
+    problem: Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson>
+    /// The store's change counter when this was built. A tick that finds it unmoved has
+    /// nothing new to show, so it skips the replay rather than redoing it twice a second.
+    storeVersion: Int }
 
 
 type Msg = | Refresh
@@ -141,6 +144,8 @@ let reload
   (cursor: Int)
   (keep: Stdlib.Option.Option<String>)
   : Model =
+  // Read first, so a write that lands while this runs moves it past what was read.
+  let storeVersion = Stdlib.Live.version ()
   let traces = Darklang.Tracing.Store.wentThroughNamed branchId fn 25L
   let cursor = pickCursor (traces |> Stdlib.List.map (fun r -> r.id)) cursor keep
   let (source, problem) = annotate branchId fn (Stdlib.List.getAt traces cursor)
@@ -161,7 +166,8 @@ let reload
       traceLines = traceLines
       cursor = cursor
       source = source
-      problem = problem }
+      problem = problem
+      storeVersion = storeVersion }
 
 
 let init () : Model =
@@ -175,7 +181,9 @@ let init () : Model =
 let update (m: Model) (event: Apps.Host.Event<Msg>) : Model =
   match event with
   // A tick reloads BOTH halves: a new trace may have arrived, and the code may have been saved
-  // since the last paint. That is the whole live-programming property, and it costs one replay.
+  // since the last paint. That is the whole live-programming property, and it costs one replay,
+  // so a tick pays it only when the store has moved: both arrive as a write.
+  | Tick when (Stdlib.Live.version ()) == m.storeVersion -> m
   | Tick
   | Msg Refresh ->
     // Stay on the trace being read, not on its position in a list that grows from the top.
