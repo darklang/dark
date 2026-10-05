@@ -294,16 +294,6 @@ let entryName (entry: LanguageTools.ProgramTypes.PackageLocation) : String =
   let path = Stdlib.List.append [ entry.owner ] (Stdlib.List.append entry.modules [ entry.name ])
   Stdlib.String.join path "."
 
-/// The declarations a change added, as candidate ops for the checker.
-let declarationsIn (ops: List<SCM.PackageOps.OpSummary>) : List<LanguageTools.ProgramTypes.PackageOp> =
-  ops
-  |> Stdlib.List.filterMap (fun s ->
-    match s.op with
-    | Some(AddFn _) -> s.op
-    | Some(AddType _) -> s.op
-    | Some(AddValue _) -> s.op
-    | _ -> Stdlib.Option.Option.None)
-
 /// Never chase callees further than this. A version that calls more than this many things is
 /// checked as far as the walk got; the rest is what the runtime says on the first call.
 val calleesAtMost = 200

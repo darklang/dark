@@ -2689,23 +2689,12 @@ module Tracing =
 
   type StoreFnResult = FQFnName.FQFnName -> CallMeta -> NEList<Dval> -> Dval -> unit
 
-  /// Fired when a new call frame is pushed (Function or Lambda).
-  /// Carries the frame's uuid, the executionPoint of the new frame, and
-  /// the args bound into it. The uuid lets the tracer associate this entry
-  /// with the matching exit (storeFnResult for fns, storeLambdaResult for
-  /// lambdas).
-  /// (frame, its parent, what the frame runs).
+  /// A frame was entered: its id, its parent's, where it is, and what it was given.
   ///
   /// The parent is what makes these a TREE rather than a bag. `ExecutionPoint.Lambda` carries
   /// the lambda's own expression id, so sibling frames sharing a parent and a lambda id are the
   /// passes of one loop, in the order the interpreter ran them -- which is what a reader is
   /// choosing between when they pick a pass.
-  ///
-  /// No arguments. They were here for a design where a view started from a frame instead of
-  /// from the top, which is not how it works: a view replays the whole run, which is fast
-  /// enough that starting in the middle buys nothing. Passing them cost a list allocation per
-  /// frame push, on every traced run, for something neither tracer read.
-  /// A frame was entered: its id, its parent's, where it is, and what it was given.
   ///
   /// The arguments are here because this is the only place they exist as a unit. By the time
   /// the body runs they are registers, and which register holds which parameter is a question

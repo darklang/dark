@@ -826,9 +826,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
 
+/// The refusal every verb here that takes a count gives for a count below one, and there are
+/// twelve of them. One string, so a reworded message cannot land in one verb and not the other
+/// eleven. `tail` has its own wording, because it takes which trace back to open rather than
+/// how many to list.
+val limitTooSmall = "a limit is a number of traces, so it has to be 1 or more"
+
+
 let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     printMatches "" (Darklang.Tracing.Store.list limit)
@@ -840,7 +847,7 @@ let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
 /// footers. Designed for piping into jq / scripts. Empty store prints `[]`.
 let executeListJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     Cli.TraceVerbs.printTracesJson
@@ -859,7 +866,7 @@ let executeListByFn
     Cli.printErr "--fn takes a function name, or part of one"
     { state with exitCode = 1 }
   else if limit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     // A no-op on a PARTIAL name, which this verb also takes: nothing resolves it, so
@@ -915,7 +922,7 @@ let executeFnCounts
   (showAll: Bool)
   : Cli.AppState =
   if traceLimit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     // `Int` is arbitrary-precision, so this conversion really can fail. Refused by name rather
@@ -1020,7 +1027,7 @@ let executeFnCountsJson
   (showAll: Bool)
   : Cli.AppState =
   if traceLimit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     match Stdlib.Int.toInt64 traceLimit with
@@ -1051,7 +1058,7 @@ let executeHotspots
   (traceLimit: Int)
   : Cli.AppState =
   if traceLimit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.hotspots traceLimit
@@ -1085,7 +1092,7 @@ let executeHotspotsJson
   (traceLimit: Int)
   : Cli.AppState =
   if traceLimit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.hotspots traceLimit
@@ -1122,7 +1129,7 @@ let executeFind
     Cli.printErr "find takes something to look for: part of an id, or of what was run"
     { state with exitCode = 1 }
   else if limit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     printMatches
@@ -1143,7 +1150,7 @@ let executeFindJson
     Cli.printErr "find takes something to look for: part of an id, or of what was run"
     { state with exitCode = 1 }
   else if limit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.find pattern limit
@@ -1233,7 +1240,7 @@ let executeTail
 /// for "which routes are heavy?" vs "which fns are heavy?".
 let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.statsByHandler limit
@@ -1277,7 +1284,7 @@ let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
 /// for piping. Empty store prints `[]`.
 let executeStatsJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     let rows = Darklang.Tracing.Store.statsByHandler limit
@@ -1390,7 +1397,7 @@ let executeListByRoute
     Cli.printErr "--route takes part of a path or a method, like /orders or GET"
     { state with exitCode = 1 }
   else if limit < 1 then
-    Cli.printErr "a limit is a number of traces, so it has to be 1 or more"
+    Cli.printErr limitTooSmall
     { state with exitCode = 1 }
   else
     // Over-fetch then filter; tracesList returns the most-recent N rows
