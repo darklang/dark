@@ -13,14 +13,14 @@ let stringify
   (value: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<String, String> =
   let number = value?
-  Ok (Stdlib.Int.toString number)
+  Ok (Stdlib.toString number)
 
 stringify (Ok 4) = Ok "4"
 stringify (Error "missing") = Error "missing"
 
 let optionString (value: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<String> =
   let number = value?
-  Some (Stdlib.Int.toString number)
+  Some (Stdlib.toString number)
 
 optionString (Some 4) = Some "4"
 optionString None = None
@@ -37,7 +37,7 @@ let bomb () : Int = Builtin.unwrap (Error "should not execute")
 let argumentOrder
   (first: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<Int, String> =
-  Ok (Stdlib.Int.add first? (bomb ()))
+  Ok ((+) first? (bomb ()))
 
 argumentOrder (Error "first") = Error "first"
 
@@ -229,7 +229,7 @@ let notted (v: Stdlib.Option.Option<Bool>) : Stdlib.Option.Option<Bool> = Some (
 notted (Some true) = Some false
 
 let literals (v: Stdlib.Option.Option<String>) : Stdlib.Option.Option<String> =
-  Some (v? ++ "what?" ++ (Stdlib.Char.toString '?'))
+  Some (v? + "what?" + (Stdlib.toString '?'))
 literals (Some "a") = Some "awhat??"
 
 type AliasR = Stdlib.Result.Result<Int, String>
@@ -241,9 +241,9 @@ viaAlias (Error "x") = Error "x"
 let str
   (v: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<String, String> =
-  Ok (Stdlib.Int.toString v?)
+  Ok (Stdlib.toString v?)
 [str (Error "a"), Ok "b"] = [Error "a", Ok "b"]
-Stdlib.Result.map (str (Error "a")) (fun s -> s ++ "!") = Error "a"
+Stdlib.Result.map (str (Error "a")) (fun s -> s + "!") = Error "a"
 Stdlib.Result.withDefault (str (Error "a")) "d" = "d"
 
 // `?` still works when the function receives its arguments in separate calls.

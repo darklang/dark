@@ -18,14 +18,14 @@
 (let t = ((1L, 2L), 3L) in t.1.2) = 2L
 (let t = ((1L, (2L, 3L)), 4L) in t.1.2.1) = 2L
 (let t = (1L, 2L) in t.1 + t.2) = 3L
-(let t = (1L, 2L) in Stdlib.Int64.add t.1 t.2) = 3L
+(let t = (1L, 2L) in (t.1 + t.2)) = 3L
 (let t = (1L, 2L) in t.3) = error="Tried to access element .3 of a tuple with 2 elements; tuple elements are numbered from .1"
 (let t = (1L, 2L) in t.0) = error="Tried to access element .0 of a tuple with 2 elements; tuple elements are numbered from .1"
 (let t = (1L, 2L) in t.name) = error="Tried to access element .name of a tuple with 2 elements; tuple elements are numbered from .1"
 (let x = 6L in x.1) = error="Attempting to perform field access of an Int64, but this only works with records and tuples"
 (1L, 2L) .1 = 1L
-(let t = (1L, (2L, 3L)) in t.2.2 |> Stdlib.Int64.add 10L) = 13L
-(let t = (1L, 2L) in $"{Stdlib.Int64.toString t.1}-{Stdlib.Int64.toString t.2}") = "1-2"
+(let t = (1L, (2L, 3L)) in t.2.2 |> (+) 10L) = 13L
+(let t = (1L, 2L) in $"{Stdlib.toString t.1}-{Stdlib.toString t.2}") = "1-2"
 (Stdlib.List.map [ (1L, "a"), (2L, "b") ] (fun p -> p.2)) = [ "a", "b" ]
 (let first = fun t -> t.1 in (first (1L, "a"), first ("b", 2L, true))) = (1L, "b")
 (let t = (1L, 2L) in t.01) = error="Tried to access element .01 of a tuple with 2 elements; tuple elements are numbered from .1"

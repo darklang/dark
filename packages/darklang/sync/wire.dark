@@ -244,7 +244,7 @@ let exportOwnedSince
     Stdlib.Sqlite.rowsOrEmptyP
       (SCM.localDb ())
       sql
-      [ owner, Stdlib.Int64.toString sinceSeq, Stdlib.Int64.toString relayPageSize ]
+      [ owner, Stdlib.toString sinceSeq, Stdlib.toString relayPageSize ]
 
   let maxSeq =
     rows
@@ -270,7 +270,7 @@ let pullCursor (sourceId: String) : Int64 =
   | Error _ -> 0L
 
 let setPullCursor (sourceId: String) (cursor: Int64) : Unit =
-  let _ = Stdlib.LocalStore.configSet $"sync.cursor.{sourceId}" (Stdlib.Int64.toString cursor)
+  let _ = Stdlib.LocalStore.configSet $"sync.cursor.{sourceId}" (Stdlib.toString cursor)
   ()
 
 
@@ -325,7 +325,7 @@ let rememberHead (sourceId: String) (head: SyncHead) : Unit =
 
 /// The head as `lastSeenHead` stores and compares it.
 let headStamp (head: SyncHead) : String =
-  $"{Stdlib.Int64.toString head.count}@{head.maxTs}"
+  $"{Stdlib.toString head.count}@{head.maxTs}"
 
 /// Do we hold everything <param theirs> has? The one definition of that question, because `pull` skipping
 /// and `sync status` saying "in sync" must never disagree.
@@ -450,7 +450,7 @@ let reviewImportTo
     PackageOps.stageOpsOnBranch
       queueId
       reviewBranch
-      (Stdlib.Uuid.toString SCM.Branch.mainBranchId)
+      (Stdlib.toString SCM.Branch.mainBranchId)
       records
   with
   | Ok _newlyStored ->
@@ -535,14 +535,14 @@ let wireDecode (body: Blob) : Stdlib.Result.Result<SyncBundle, String> =
   match Stdlib.Json.parse<SyncBundleVersionProbe> text with
   | Error _ ->
     Stdlib.Result.Result.Error
-      $"unparseable sync bundle (this build speaks v{Stdlib.Int64.toString currentWireVersion})"
+      $"unparseable sync bundle (this build speaks v{Stdlib.toString currentWireVersion})"
   | Ok probe ->
     if probe.formatVersion == currentWireVersion then
       match Stdlib.Json.parse<SyncBundle> text with
       | Ok bundle -> Stdlib.Result.Result.Ok bundle
       | Error _ ->
         Stdlib.Result.Result.Error
-          $"sync bundle claims v{Stdlib.Int64.toString probe.formatVersion} but does not have that shape"
+          $"sync bundle claims v{Stdlib.toString probe.formatVersion} but does not have that shape"
     else
       Stdlib.Result.Result.Error
-        $"sync format v{Stdlib.Int64.toString probe.formatVersion} not understood by this build, which speaks v{Stdlib.Int64.toString currentWireVersion}"
+        $"sync format v{Stdlib.toString probe.formatVersion} not understood by this build, which speaks v{Stdlib.toString currentWireVersion}"

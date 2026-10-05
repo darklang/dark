@@ -160,6 +160,28 @@ type Constraint =
     operation: LanguageTools.ProgramTypes.InfixFnName *
     operand: Ty *
     subject: AmbiguousSubject
+  /// What a CALL owes for one of the callee's bounds: the callee's parameter <param param>
+  /// owes <param trait_>, and <param supplied> is the type this call gave it.
+  ///
+  /// Deferred like the others, because the supplied type is often an unknown the arguments
+  /// have not filled in. Resolving it is what makes a call into a bounded generic static: the
+  /// callee's body defers to its parameter and this says what the parameter meant here.
+  | CallerBound of
+    at: Int64 *
+    param: String *
+    trait_: LanguageTools.ProgramTypes.Hash *
+    supplied: Ty
+  /// A named trait method call (`Show.show p`), as opposed to an operator.
+  ///
+  /// Deferred for the same reason `Operand` is: which implementation applies depends on the
+  /// self type, and at the point the call is generated that type is an unknown the arguments
+  /// have not filled in yet. `self` is the type the trait's own self parameter took at this
+  /// use, so resolving it is what identifies the implementation.
+  | TraitCall of
+    at: Int64 *
+    trait_: LanguageTools.ProgramTypes.Hash *
+    method_: String *
+    self: Ty
   /// Require a signed integer or Float for unary minus. Defer while its type is unknown.
   | Negate of at: Int64 * operand: Ty
   /// Require an integer for bitwise NOT. Defer while its type is unknown.
@@ -206,6 +228,47 @@ type Scheme =
     /// Deferred typing and match-coverage checks to repeat for each use.
     constraints: List<Constraint> }
 
+/// Which implementation a trait call resolved to, at one syntax node.
+///
+/// Accumulated the way coverage is: worked out during inference, consumed after it by
+/// whoever asked for the check rather than by the solver itself. The declaration's
+/// verdict does not depend on any of this; a call nobody could resolve is not an error,
+/// because the runtime can still dispatch on the value it is handed.
+///
+/// Four cases, because a call can be answered outright, or deferred to one of the
+/// item's own type parameters for its caller to decide, and because a call that NAMES a
+/// bounded function also reports what that function's bound turned into, which is itself
+/// either answered or deferred.
+type Resolution =
+  /// A trait method call: the method, and the implementations that apply to it. One
+  /// implementation is the answer; several are an ordering question for the store, which
+  /// knows which is newer, and none leaves the call to resolve at run time.
+  | Call of
+    at: Int64 *
+    method_: String *
+    impls: List<LanguageTools.ProgramTypes.Hash>
+
+  /// The call's self type is one of the item's own type parameters, so this item cannot
+  /// decide: it records which parameter, and the caller supplies the rest.
+  | Deferred of at: Int64 * param: String
+
+  /// This call names a function with a bound, and here is what the bound came to for the
+  /// type argument supplied. One of these per bound on the callee.
+  | CallerBound of
+    at: Int64 *
+    param: String *
+    trait_: LanguageTools.ProgramTypes.Hash *
+    impls: List<LanguageTools.ProgramTypes.Hash>
+
+  /// The same, except the type argument is one of THIS item's parameters, so the bound is
+  /// passed along rather than discharged. This is what threads a bound through a generic
+  /// that calls another generic.
+  | CallerBoundDeferred of
+    at: Int64 *
+    param: String *
+    trait_: LanguageTools.ProgramTypes.Hash *
+    fromParam: String
+
 /// Whether a named function has a signature the checker can use.
 type Callable =
   /// A converted signature, ready to be used with this call's type arguments.
@@ -231,7 +294,12 @@ type Template =
     dictKeyTypes: List<Ty>
     /// Problems found while converting or validating the signature. Report them
     /// at each call that relies on this signature.
-    problems: List<Finding> }
+    problems: List<Finding>
+    /// What this function's type parameters owe. A CALL has to record which implementation
+    /// each one turned out to mean, because the callee's body defers to the parameter and
+    /// cannot know. Discarded before this existed, which is why a bounded call recorded
+    /// nothing at save.
+    bounds: List<LanguageTools.ProgramTypes.Bound> }
 
 /// A function's parameter and return types before conversion to the checker's Ty
 /// representation. Package and builtin functions both supply signatures in this form.
@@ -241,7 +309,9 @@ type Signature =
     returnType: LanguageTools.ProgramTypes.TypeReference
     /// True when the caller must supply explicit type arguments to determine the
     /// result type, as required for Builtin.jsonParse.
-    needsTypeArgs: Bool }
+    needsTypeArgs: Bool
+    /// What the function's type parameters owe, carried through to the template.
+    bounds: List<LanguageTools.ProgramTypes.Bound> }
 
 /// A type declaration's validation problems and the types it directly references.
 /// Cache this information so other declarations in the batch can reuse it.
@@ -256,13 +326,37 @@ type DeclarationFacts =
 /// It contains loaded types, function signatures, inferred value types, and cached
 /// validation results. Checking returns an updated copy when it learns more.
 type Environment =
-  { types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration>
+  { /// The branch whose bindings decide which implementations are visible.
+    ///
+    /// The only branch-dependent thing the checker needs. Everything else it loads is
+    /// content-addressed, so it needs no branch to find a type or a signature by hash; but
+    /// "which implementations of `Add` exist" is a question about what is BOUND, and two
+    /// branches answer it differently.
+    branchId: Uuid
+    types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration>
     /// Declared signatures for package functions. Builtin signatures are looked up separately.
     functions: Dict<LanguageTools.ProgramTypes.FQFnName.FQFnName, Signature>
     /// Reusable inferred types for package values that received a Checked verdict.
     values: Dict<LanguageTools.ProgramTypes.Hash, Scheme>
     /// Cached validation problems and direct references for types already inspected.
     declarationFacts: Dict<LanguageTools.ProgramTypes.Hash, DeclarationFacts>
+    /// Every visible trait's implementations, with each self type converted to the checker's
+    /// own types once and reused. Keyed by the trait's hash as a string.
+    ///
+    /// Filled for the whole BATCH, which is the point: a declaration gets a fresh solver
+    /// state, so a cache that filled itself on first use would reset at every declaration and
+    /// almost never be read twice. Converting a candidate's self type per CALL NODE rather
+    /// than per trait is most of what a whole-tree check costs.
+    ///
+    /// There are a handful of traits and the underlying read is cached per (branch, trait),
+    /// so taking all of them up front is cheaper than deciding which ones will be needed.
+    traitImpls: Dict<String, List<(Ty * LanguageTools.ProgramTypes.Hash)>>
+
+    /// Which trait and method each operator IS, keyed by the operator. `None` for one that is
+    /// not a trait: `==` and `!=` are structural equality for every value, and `++` is no
+    /// longer in the language. Also `None` while the trait hashes are not generated, which is
+    /// what stops a tree whose refs are missing from reporting every operator as an error.
+    infixTrait: Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String)>>
     /// Parameters whose type arguments can appear in a stored field or payload.
     /// Excludes phantom parameters that appear only in type names and store no value.
     valueTypeParameters: Dict<LanguageTools.ProgramTypes.Hash, List<String>>

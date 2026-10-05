@@ -7,7 +7,7 @@ val pi = 3.141592653589793
 
 
 /// Returns an approximation for the mathematical constant {{τ}}, the number of
-/// radians in one turn. Equivalent to {{Float.multiply Stdlib.Math.pi 2}}.
+/// radians in one turn. Equivalent to {{Stdlib.Math.pi * 2.0}}.
 val tau = 6.283185307179586
 
 
@@ -18,19 +18,19 @@ val e = 2.718281828459045
 /// Returns the equivalent of <param angleInDegrees> in radians, the unit used
 /// by all of Dark's trigonometry functions.
 let degrees (angleInDegrees: Float) : Float =
-  (Stdlib.Float.multiply angleInDegrees Stdlib.Math.pi)
-  |> Stdlib.Float.divide 180.0
+  (angleInDegrees * Stdlib.Math.pi)
+  |> (/) 180.0
 
 
 /// Returns the equivalent of <param angleInTurns> in radians, the unit used by all of
 /// Dark's trigonometry functions.
 let turns (angleInTurns: Float) : Float =
-  Stdlib.Float.multiply Stdlib.Math.tau angleInTurns
+  Stdlib.Math.tau * angleInTurns
 
 
 /// Returns <param angleInRadians> in radians, the unit used by all of Dark's
 /// trigonometry functions.
-/// There are {{Float.multiply 2 Math.pi}} radians in a circle.
+/// There are {{2.0 * Stdlib.Math.pi}} radians in a circle.
 let radians (angleInRadians: Float) : Float = angleInRadians
 
 

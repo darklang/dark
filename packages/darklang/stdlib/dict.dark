@@ -4,6 +4,10 @@ module Darklang.Stdlib.Dict
 /// Returns an empty dictionary
 val empty = Dict { }
 
+/// The empty dict, for the same reason an empty list is a zero
+impl Stdlib.Zero for Dict<'k, 'v> =
+  let zero () : Dict<'k, 'v> = Dict { }
+
 /// Returns {{true}} if the <param dict> contains no entries
 let isEmpty (dict: Dict<'k, 'v>) : Bool = dict == Dict.empty
 

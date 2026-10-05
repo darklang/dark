@@ -141,7 +141,7 @@ let describeRequirements
   match requirements with
   | (effects, true) -> Command.requirementSummary effects
   | ([], false) -> "depends on its callbacks"
-  | (effects, false) -> Command.requirementSummary effects ++ ", plus its callbacks"
+  | (effects, false) -> Command.requirementSummary effects + ", plus its callbacks"
 
 let requirementDisplay (hash: String) : String =
   Command.describeRequirements (Command.permissionRequirementsForHash hash)
@@ -149,7 +149,7 @@ let requirementDisplay (hash: String) : String =
 /// The bracketed requirements badge listings show next to a function,
 /// e.g. `[file-read]`; callers colour it for their view.
 let requirementBadge (hash: LanguageTools.ProgramTypes.Hash) : String =
-  "[" ++ Command.requirementDisplay (LanguageTools.ProgramTypes.hashToString hash) ++ "]"
+  "[" + Command.requirementDisplay (LanguageTools.ProgramTypes.hashToString hash) + "]"
 
 /// The author's `:{…}` ceiling for a function, when it declares one.
 let ceilingForHash
@@ -176,8 +176,8 @@ let policyLinesForHash (hash: String) : List<String> =
     let warning =
       if complete && Stdlib.Bool.not (Stdlib.List.isEmpty exceeding) then
         [ "  warning: the body requires "
-          ++ Command.requirementSummary exceeding
-          ++ ", which the ceiling denies at runtime" ]
+          + Command.requirementSummary exceeding
+          + ", which the ceiling denies at runtime" ]
       else []
     Stdlib.List.append [ requirementsLine, $"function ceiling: {row}" ] warning
 
@@ -194,7 +194,7 @@ let instancePolicyLines () : List<String> =
 let indentedPolicyLines
   (policy: LanguageTools.Permissions.Policy)
   : List<String> =
-  Command.policyLines policy |> Stdlib.List.map (fun line -> "    " ++ line)
+  Command.policyLines policy |> Stdlib.List.map (fun line -> "    " + line)
 
 /// Pure rendering for the layered access explanation. Kept separate from the
 /// host reads so its wording and security distinctions have executable tests.
@@ -287,7 +287,7 @@ let accessFacts
 // Instance policy edits.
 
 let invalidRule (args: List<String>) : String =
-  "invalid permission rule: " ++ Stdlib.String.join args " "
+  "invalid permission rule: " + Stdlib.String.join args " "
 
 /// External shells have already grouped quoted arguments, while the
 /// interactive CLI's general command splitter leaves quote fragments in the
@@ -468,7 +468,7 @@ let approvalFailureText (failure: LanguageTools.Permissions.ApprovalFailure) : S
   | ContractChanged diffs ->
     Stdlib.Cli.UI.Colors.warning
       ("the permission contract changed — review required:\n"
-       ++ (diffs |> Stdlib.List.map (fun diff -> $"    {diff}") |> Stdlib.String.join "\n"))
+       + (diffs |> Stdlib.List.map (fun diff -> $"    {diff}") |> Stdlib.String.join "\n"))
 
 /// Approve <param hash> for <param name> and report: <param accepted> on success, the refusal (then
 /// <param kept>) when it cannot be approved. Some diffs when approving wants a second review of a
@@ -758,7 +758,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | _ ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        ("unknown permissions command: " ++ Stdlib.String.join args " "))
+        ("unknown permissions command: " + Stdlib.String.join args " "))
     Stdlib.printLine (Command.help state)
   state
 
@@ -769,6 +769,8 @@ let complete
   match args with
   | [ "profile" ] ->
     Profiles.all |> Stdlib.List.map (fun profile -> Cli.Completion.simple profile.name)
+  // Wildcards, not `_root`: every branch of an or-pattern has to bind the same names, and the
+  // first one binds nothing. Nothing here reads the root anyway.
   | [ "profile", "default" ]
   | [ "profile", "read-only", _ ]
   | [ "profile", "local-dev", _ ] -> [ Cli.Completion.simple "--yes" ]

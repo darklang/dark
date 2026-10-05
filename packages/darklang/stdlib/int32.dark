@@ -6,11 +6,12 @@ type ParseError =
   | OutOfRange
 
 
-/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-/// The modulus <param b> must be greater than 0
-/// Use <fn Int32.remainder> if you want the remainder after division, which has
-/// a different behavior for negative numbers.
-let ``mod`` (a: Int32) (b: Int32) : Int32 = Builtin.int32Mod a b
+impl Modulo for Int32 =
+  /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+  /// The modulus <param b> must be greater than 0
+  /// Use <fn Int32.remainder> if you want the remainder after division, which has
+  /// a different behavior for negative numbers.
+  let modulo (a: Int32) (b: Int32) : Int32 = Builtin.int32Mod a b
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -26,56 +27,52 @@ let remainder
   Builtin.int32Remainder value divisor
 
 
-/// Adds two integers together (wraps on overflow)
-let add (a: Int32) (b: Int32) : Int32 = Builtin.int32Add a b
+impl Add for Int32 =
+  /// Adds two integers together (wraps on overflow)
+  let add (a: Int32) (b: Int32) : Int32 = Builtin.int32Add a b
 
 
-/// Subtracts two integers (wraps on overflow)
-let subtract (a: Int32) (b: Int32) : Int32 = Builtin.int32Subtract a b
+impl Subtract for Int32 =
+  /// Subtracts two integers (wraps on overflow)
+  let subtract (a: Int32) (b: Int32) : Int32 = Builtin.int32Subtract a b
 
 
-/// Multiplies two integers (wraps on overflow)
-let multiply (a: Int32) (b: Int32) : Int32 = Builtin.int32Multiply a b
+impl Multiply for Int32 =
+  /// Multiplies two integers (wraps on overflow)
+  let multiply (a: Int32) (b: Int32) : Int32 = Builtin.int32Multiply a b
 
 
-/// Divides two integers
-let divide (a: Int32) (b: Int32) : Int32 = Builtin.int32Divide a b
+impl Divide for Int32 =
+  /// Divides two integers
+  let divide (a: Int32) (b: Int32) : Int32 = Builtin.int32Divide a b
 
 
-/// Raise <param base> to the power of <param exponent>.
-/// Overflow wraps around.
-/// Raises an error if <param exponent> is negative.
-let power (``base``: Int32) (exponent: Int32) : Int32 =
-  Builtin.int32Power ``base`` exponent
+impl Power for Int32 =
+  /// Raise <param base> to the power of <param exponent>.
+  /// Overflow wraps around.
+  /// Raises an error if <param exponent> is negative.
+  let power (``base``: Int32) (exponent: Int32) : Int32 =
+    Builtin.int32Power ``base`` exponent
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
-let absoluteValue (a: Int32) : Int32 =
-  if lessThan a 0l then
-    negate a
-  else
-    a
 
 
-/// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-let negate (a: Int32) : Int32 = Builtin.int32Negate a
+impl Negate for Int32 =
+  /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
+  let negate (a: Int32) : Int32 = Builtin.int32Negate a
 
 
-/// Returns {{true}} if <param a> is greater than <param b>
-let greaterThan (a: Int32) (b: Int32) : Bool = Builtin.int32GreaterThan a b
-
-
-/// Returns {{true}} if <param a> is greater than or equal to <param b>
-let greaterThanOrEqualTo (a: Int32) (b: Int32) : Bool =
-  Builtin.int32GreaterThanOrEqualTo a b
-
-
-/// Returns {{true}} if <param a> is less than <param b>
-let lessThan (a: Int32) (b: Int32) : Bool = Builtin.int32LessThan a b
-
-/// Returns {{true}} if <param a> is less than or equal to <param b>
-let lessThanOrEqualTo (a: Int32) (b: Int32) : Bool =
-  Builtin.int32LessThanOrEqualTo a b
+impl Compare for Int32 =
+  /// Returns {{true}} if <param a> is less than <param b>
+  let lessThan (a: Int32) (b: Int32) : Bool = Builtin.int32LessThan a b
+  /// Returns {{true}} if <param a> is less than or equal to <param b>
+  let lessThanOrEqualTo (a: Int32) (b: Int32) : Bool =
+    Builtin.int32LessThanOrEqualTo a b
+  /// Returns {{true}} if <param a> is greater than <param b>
+  let greaterThan (a: Int32) (b: Int32) : Bool = Builtin.int32GreaterThan a b
+  /// Returns {{true}} if <param a> is greater than or equal to <param b>
+  let greaterThanOrEqualTo (a: Int32) (b: Int32) : Bool =
+    Builtin.int32GreaterThanOrEqualTo a b
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
@@ -91,54 +88,12 @@ let sqrt (a: Int32) : Float = Builtin.int32Sqrt a
 let toFloat (a: Int32) : Float = Builtin.int32ToFloat a
 
 
-/// Returns the sum of all the ints in the list
-let sum (lst: List<Int32>) : Int32 =
-  Stdlib.List.fold lst 0l (fun acc x -> add acc x)
-
-
-/// Returns the higher of <param a> and <param b>
-let max (a: Int32) (b: Int32) : Int32 =
-  if greaterThan a b then a else b
-
-
-/// Returns the lower of <param a> and <param b>
-let min (a: Int32) (b: Int32) : Int32 =
-  if lessThan a b then a else b
-
-
-/// If <param value> is within the range given by <param limitA> and <param
-/// limitB>, returns <param value>.
-/// If <param value> is outside the range, returns <param limitA> or <param
-/// limitB>, whichever is closer to <param value>.
-/// <param limitA> and <param limitB> can be provided in any order.
-let clamp (value: Int32) (limitA: Int32) (limitB: Int32) : Int32 =
-  let min =
-    if lessThan limitA limitB then
-      limitA
-    else
-      limitB
-
-  let max =
-    if greaterThan limitA limitB then
-      limitA
-    else
-      limitB
-
-  if lessThan value min then min
-  else if greaterThan value max then max
-  else value
-
-
 /// Parses a <type String> into an <type Int32>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int32> range).
 let parse (s: String) : Stdlib.Result.Result<Int32, Stdlib.Int32.ParseError> =
   Builtin.int32Parse s
-
-
-/// Stringify <param int>
-let toString (int: Int32) : String = Builtin.int32ToString int
 
 
 /// Converts an <type Int8> to a <type Int32>.
@@ -182,25 +137,41 @@ let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int32> =
   Builtin.int32FromUInt128 i
 
 
-/// Bitwise AND on two <type Int32> values
-let bitwiseAnd (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseAnd a b
+impl BitwiseAnd for Int32 =
+  /// Bitwise AND on two <type Int32> values
+  let bitwiseAnd (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseAnd a b
 
 
-/// Bitwise OR on two <type Int32> values
-let bitwiseOr (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseOr a b
+impl BitwiseOr for Int32 =
+  /// Bitwise OR on two <type Int32> values
+  let bitwiseOr (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseOr a b
 
 
-/// Bitwise XOR on two <type Int32> values
-let bitwiseXor (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseXor a b
+impl BitwiseXor for Int32 =
+  /// Bitwise XOR on two <type Int32> values
+  let bitwiseXor (a: Int32) (b: Int32) : Int32 = Builtin.int32BitwiseXor a b
 
 
-/// Bitwise NOT on an <type Int32> value
-let bitwiseNot (a: Int32) : Int32 = Builtin.int32BitwiseNot a
+impl BitwiseNot for Int32 =
+  /// Bitwise NOT on an <type Int32> value
+  let bitwiseNot (a: Int32) : Int32 = Builtin.int32BitwiseNot a
 
 
-/// Bitwise left shift of an <type Int32> value
-let shiftLeft (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftLeft a b
+impl ShiftLeft for Int32 =
+  /// Bitwise left shift of an <type Int32> value
+  let shiftLeft (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftLeft a b
 
 
-/// Bitwise right shift of an <type Int32> value
-let shiftRight (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftRight a b
+impl ShiftRight for Int32 =
+  /// Bitwise right shift of an <type Int32> value
+  let shiftRight (a: Int32) (b: Int32) : Int32 = Builtin.int32ShiftRight a b
+
+impl ToString for Int32 =
+  /// Stringify <param int>
+  let toString (int: Int32) : String = Builtin.int32ToString int
+
+impl Zero for Int32 =
+  let zero () : Int32 = 0l
+
+impl One for Int32 =
+  let one () : Int32 = 1l

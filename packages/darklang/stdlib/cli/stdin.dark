@@ -44,7 +44,7 @@ let readSecret () : String =
           // A paste arrives as ONE coalesced read whose text can carry the terminating
           // newline; without this check the loop would wait for an Enter that was already
           // consumed. Anything pasted after the newline is not secret material and is dropped.
-          match Stdlib.String.split (acc ++ chunk) "\n" with
+          match Stdlib.String.split (acc + chunk) "\n" with
           | [ whole ] -> go whole
           | beforeNewline :: _rest ->
             Stdlib.printLine ""
@@ -540,7 +540,7 @@ module Modifiers =
       | true -> "SHIFT+"
       | false ->  ""
 
-    altPart ++ ctrlPart ++ shiftPart
+    altPart + ctrlPart + shiftPart
 
 
 module KeyRead =
@@ -562,7 +562,7 @@ module KeyRead =
       repeat: Int}
 
   let toString (k: KeyRead): String =
-    (Modifiers.toString k.modifiers) ++ (Key.toString k.key)
+    (Modifiers.toString k.modifiers) + (Key.toString k.key)
 
 let readKey () : KeyRead.KeyRead =
   Builtin.stdinReadKey ()

@@ -1,12 +1,17 @@
 // The last-writer-wins rule, pinned on the DARK side.
 //
-// `SCM.Conflicts.incomingWins` decides which side a recorded conflict names as the winner. The op-fold
-// decides the same question in F# (`LibDB.Lww`, called from `PackageOpPlayback`). If the two disagree, a
-// conflict names a winner the fold did not pick, and two instances converge on different content with
-// nothing to say so.
+// `SCM.Conflicts.incomingWins` decides which side a recorded conflict names as the winner. The
+// op-fold decides the same question in F# (`LibExecution.Lww`, called from `PackageOpPlayback`).
+// If the two disagree, a conflict names a winner the fold did not pick, and two instances
+// converge on different content with nothing to say so.
 //
 // The rows below are the SAME rows as `backend/tests/Tests/Lww.Tests.fs`, case for case.
 // Change one, change both.
+//
+// What actually holds the two implementations together is `Tests.Lww`, which runs the Dark rule
+// below over its own table through `evalDarkExpr`. These rows are a second statement of the same
+// table: they prove the rule from inside Dark, and they are the ones to read to see what the rule
+// IS, but they are not what would catch the two sides drifting apart.
 
 module Wins =
   let b (ts: String) (h: String) : Darklang.SCM.Conflicts.Binding =

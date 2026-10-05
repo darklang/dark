@@ -77,9 +77,17 @@ let isGreaterThan (c1: Char) (c2: Char) : Bool =
 let isGreaterThanOrEqualTo (c1: Char) (c2: Char) : Bool =
   Builtin.charIsGreaterThanOrEqualTo c1 c2
 
+/// `a < b` on Chars: ordinal, the rule the four comparisons above already use.
+impl Compare for Char =
+  let lessThan = Stdlib.Char.isLessThan
+  let lessThanOrEqualTo = Stdlib.Char.isLessThanOrEqualTo
+  let greaterThan = Stdlib.Char.isGreaterThan
+  let greaterThanOrEqualTo = Stdlib.Char.isGreaterThanOrEqualTo
 
-/// Stringify <param c>
-let toString (c: Char) : String = Builtin.charToString c
+
+impl ToString for Char =
+  /// Stringify <param c>
+  let toString (c: Char) : String = Builtin.charToString c
 
 
 /// Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,

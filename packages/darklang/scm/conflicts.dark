@@ -122,9 +122,14 @@ let stringGt (a: String) (b: String) : Bool =
 
 // the auto-resolution rule (must mirror the fold exactly)
 
-/// Does the INCOMING binding beat the LOCAL one?
+/// Does the thing stamped <param aTs> / hashed <param aHash> beat the one stamped
+/// <param bTs> / hashed <param bHash>?
 ///
-/// THIS RULE EXISTS TWICE. `LibDB.Lww.isStale` decides the same question during the fold (the fold reaches
+/// The rule itself, over stamps and hashes alone, so everything that has to agree can ask it:
+/// bindings of one name (`incomingWins`, below) and two implementations of one trait for one type
+/// (`SCM.Constraints`, which reports the pair the runtime already picked between).
+///
+/// THIS RULE EXISTS TWICE. `LibExecution.Lww.isStale` decides the same question during the fold (the fold reaches
 /// it through `PackageOpPlayback.applySetNameFrom`), and the two must agree or a recorded conflict names a
 /// winner the fold did not pick. Change one, change both.
 /// Both say: later stamp wins, an exact tie goes to the higher hash (portable, so every instance
@@ -132,13 +137,17 @@ let stringGt (a: String) (b: String) : Bool =
 ///
 /// No equal-hash case here: `detect` returns None when the hashes match. The F# side needs that case,
 /// since the fold sees every op.
-let incomingWins (incoming: Binding) (local: Binding) : Bool =
-  if local.originTs == "" then
+let beats (aTs: String) (aHash: String) (bTs: String) (bHash: String) : Bool =
+  if bTs == "" then
     true
-  else if incoming.originTs == local.originTs then
-    stringGt incoming.hash local.hash
+  else if aTs == bTs then
+    stringGt aHash bHash
   else
-    stringGt incoming.originTs local.originTs
+    stringGt aTs bTs
+
+/// Does the INCOMING binding beat the LOCAL one? The rule above, at a binding.
+let incomingWins (incoming: Binding) (local: Binding) : Bool =
+  beats incoming.originTs incoming.hash local.originTs local.hash
 
 /// Why the auto-resolution picked what it did.
 let resolutionReason (incoming: Binding) (local: Binding) : String =
@@ -156,7 +165,7 @@ let conflictId
   (hashes: List<String>)
   : String =
   let sorted = Stdlib.List.sort hashes
-  let material = $"{owner}/{modules}/{name}|" ++ (Stdlib.String.join sorted ",")
+  let material = $"{owner}/{modules}/{name}|" + (Stdlib.String.join sorted ",")
   let digest = Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob material))
   Stdlib.String.toLowercase (Stdlib.String.first digest 8)
 
@@ -360,7 +369,7 @@ let detectRemovals
 let inPlaceholders (values: List<String>) : String =
   let ps =
     values
-    |> Stdlib.List.indexedMap (fun i _ -> $"@p{Stdlib.Int.toString i}")
+    |> Stdlib.List.indexedMap (fun i _ -> $"@p{Stdlib.toString i}")
 
   Stdlib.String.join ps ", "
 
@@ -424,8 +433,8 @@ let localBindingsFor (names: List<String>) : List<Binding> =
                 previous
          FROM locations
          WHERE unlisted_at IS NULL AND name IN ("
-        ++ (inPlaceholders chunk)
-        ++ ")"
+        + (inPlaceholders chunk)
+        + ")"
 
       Stdlib.Sqlite.rowsP (localDb ()) sql chunk bindingFromRow)
     |> Stdlib.List.flatten
@@ -454,7 +463,7 @@ let branchBases (branchId: Uuid) : List<NameBase> =
   Stdlib.Sqlite.rowsP
     (localDb ())
     "SELECT owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @p0"
-    [ Stdlib.Uuid.toString branchId ]
+    [ Stdlib.toString branchId ]
     baseFromRow
 
 /// The bases recorded for a SYNC SOURCE: the hashes this instance and that source last agreed on.
@@ -558,9 +567,9 @@ let record (branchId: Uuid) (conflicts: List<Conflict>) : Int =
                Stdlib.Json.serialize<List<Candidate>> c.candidates
                c.autoResolvedTo
                c.reason
-               Stdlib.Uuid.toString branchId ] ])
+               Stdlib.toString branchId ] ])
           ("UPDATE conflicts SET branch_id = @p0 WHERE id = @p1 AND status = 'pending'",
-           [ [ Stdlib.Uuid.toString branchId, c.id ] ]) ]
+           [ [ Stdlib.toString branchId, c.id ] ]) ]
     with
     | Ok _ -> written + 1
     | Error _ -> written)
@@ -633,7 +642,7 @@ let pending () : List<Conflict> =
       "SELECT id, owner, modules, name, item_type, COALESCE(part,'') AS part, kind, candidates,
               auto_resolved_to, reason, status, COALESCE(resolved_by,'') AS resolved_by
        FROM conflicts WHERE status = 'pending' AND branch_id = @p0 ORDER BY created_at"
-      [ Stdlib.Uuid.toString (onBranch ()) ]
+      [ Stdlib.toString (onBranch ()) ]
       conflictFromRow
 
   // A conflict whose name has since been bound to something that is NEITHER candidate was settled by
@@ -702,7 +711,7 @@ let getByIdPrefix (rawPrefix: String) : Stdlib.Option.Option<Conflict> =
        -- rather than filtering: `show <id>` of a settled conflict should still find it.
        ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, created_at
        LIMIT 1"
-      [ idPrefix, Stdlib.Uuid.toString (onBranch ()) ]
+      [ idPrefix, Stdlib.toString (onBranch ()) ]
   with
   | Ok [ row ] -> conflictFromRow row
   | _ -> Stdlib.Option.Option.None

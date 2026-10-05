@@ -54,7 +54,7 @@ let runServerCliLoop (state: State.BuilderServerState) : Int =
 
       | BatchOfRequests items ->
           // Handle batch requests by processing each one in sequence
-          let len = (Stdlib.List.length items) |> Stdlib.Int.toString
+          let len = (Stdlib.List.length items) |> Stdlib.toString
           logWithPath state.logFilePath $"Got batch request with {len} items"
 
           let processedState =
@@ -221,12 +221,12 @@ let run (server: McpServerBuilder) : Int =
   let _deleted = Stdlib.Cli.FileSystem.deleteFile logFilePath
 
   (Stdlib.DateTime.now ())
-  |> Stdlib.DateTime.toString
+  |> Stdlib.toString
   |> fun nowStr -> logWithPath logFilePath $"Running {server.name} MCP Server {nowStr}"
 
-  let toolCount = (Stdlib.Dict.size server.tools) |> Stdlib.Int.toString
-  let resourceCount = (Stdlib.Dict.size server.resources) |> Stdlib.Int.toString
-  let promptCount = (Stdlib.Dict.size server.prompts) |> Stdlib.Int.toString
+  let toolCount = (Stdlib.Dict.size server.tools) |> Stdlib.toString
+  let resourceCount = (Stdlib.Dict.size server.resources) |> Stdlib.toString
+  let promptCount = (Stdlib.Dict.size server.prompts) |> Stdlib.toString
 
   logWithPath logFilePath $"Server '{server.name}' features:"
   logWithPath logFilePath $"  - Tools: {toolCount} registered"

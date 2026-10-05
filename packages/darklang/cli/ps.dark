@@ -31,7 +31,7 @@ let eventSpecText (spec: Stdlib.Host.EventSpec) : String =
   match spec with
   | Key -> "a key"
   | StoreChanged -> "a store change"
-  | Timer ms -> $"a timer ({Stdlib.Int64.toString ms} ms)"
+  | Timer ms -> $"a timer ({Stdlib.toString ms} ms)"
   | ExecDone id -> $"process {Cli.Text.shortId id} to finish"
 
 
@@ -103,7 +103,7 @@ let executionPointText (branchId: Uuid) (ep: Stdlib.Exec.ExecutionPoint) : Strin
 let find (prefix: String) : Stdlib.Result.Result<Stdlib.Exec.Summary, String> =
   let matches =
     Stdlib.Exec.list ()
-    |> Stdlib.List.filter (fun p -> Stdlib.String.startsWith (Stdlib.Uuid.toString p.id) prefix)
+    |> Stdlib.List.filter (fun p -> Stdlib.String.startsWith (Stdlib.toString p.id) prefix)
   match matches with
   | [ one ] -> Stdlib.Result.Result.Ok one
   | [] -> Stdlib.Result.Result.Error $"no process whose id starts with {prefix} -- `dark ps` lists them"
@@ -116,12 +116,12 @@ let startedAgoText (started: DateTime) : String =
   let ms = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) started
 
   if ms < 10000 then
-    let tenths = Stdlib.Int.divide ms 100
-    $"{Stdlib.Int.toString (Stdlib.Int.divide tenths 10)}.{Stdlib.Int.toString (Stdlib.Int.``mod`` tenths 10)} s ago"
+    let tenths = ms / 100
+    $"{Stdlib.toString (tenths / 10)}.{Stdlib.toString (tenths % 10)} s ago"
   else if ms < 60000 then
-    $"{Stdlib.Int.toString (Stdlib.Int.divide ms 1000)} s ago"
+    $"{Stdlib.toString (ms / 1000)} s ago"
   else if ms < 3600000 then
-    $"{Stdlib.Int.toString (Stdlib.Int.divide ms 60000)} min ago"
+    $"{Stdlib.toString (ms / 60000)} min ago"
   else
     Cli.RelativeTime.ago started
 
@@ -135,7 +135,7 @@ let machineEntries () : List<(Int * List<String>)> =
   |> Stdlib.List.filter (fun m -> (Stdlib.Int.fromInt64 m.pid) != me)
   |> Stdlib.List.map (fun m ->
     (Stdlib.Int.fromInt64 m.pid,
-     [ Stdlib.Int64.toString m.pid
+     [ Stdlib.toString m.pid
        Cli.Text.oneLineAt 28 m.title
        (if m.branch == "" then "main" else m.branch)
        startedAgoText m.started ]))
@@ -163,7 +163,7 @@ let printMachine () : Unit =
 /// This instance first: it is the one the reader is standing in, and the one whose rows the
 /// other verbs take. The machine follows, as context.
 let printList (branchId: Uuid) : Unit =
-  let me = Stdlib.Int.toString (Stdlib.Cli.Sys.currentPid ())
+  let me = Stdlib.toString (Stdlib.Cli.Sys.currentPid ())
   Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"this instance (pid {me})")
   match treeRows branchId (Stdlib.Exec.list ()) with
   | [] -> Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText "  (nothing running)")
@@ -187,18 +187,18 @@ let printShowWith (branchId: Uuid) (prefix: String) (full: Bool) : Bool =
       false
     | Some detail ->
       let s = detail.summary
-      let id = if full then Stdlib.Uuid.toString s.id else Cli.Text.shortId s.id
+      let id = if full then Stdlib.toString s.id else Cli.Text.shortId s.id
       Stdlib.printLine $"{id}  {entryText branchId s.entry}"
       Stdlib.printLine $"  status        {statusText branchId s.status}"
       Stdlib.printLine $"  started       {startedAgoText s.started}"
-      Stdlib.printLine $"  instructions  {Stdlib.Int64.toString s.instructionsTaken}"
+      Stdlib.printLine $"  instructions  {Stdlib.toString s.instructionsTaken}"
       Stdlib.printLine $"  memory        {Cli.Text.bytes (Stdlib.Int.fromInt64 s.allocated)} allocated"
       if s.inflight > 0L then
-        Stdlib.printLine $"  inflight      {Stdlib.Int64.toString s.inflight} reads"
+        Stdlib.printLine $"  inflight      {Stdlib.toString s.inflight} reads"
       else
         ()
       match s.parent with
-      | Some pid -> Stdlib.printLine $"  parent        {if full then Stdlib.Uuid.toString pid else Cli.Text.shortId pid}"
+      | Some pid -> Stdlib.printLine $"  parent        {if full then Stdlib.toString pid else Cli.Text.shortId pid}"
       | None -> ()
       match detail.frames with
       | [] -> ()
@@ -234,7 +234,7 @@ let signalMachine
   (hard: Bool)
   : Stdlib.Result.Result<String, String> =
   let known = Stdlib.Exec.machineList () |> Stdlib.List.filter (fun m -> (Stdlib.Int.fromInt64 m.pid) == pid)
-  let pidText = Stdlib.Int.toString pid
+  let pidText = Stdlib.toString pid
   match known with
   | [] ->
     Stdlib.Result.Result.Error
@@ -425,7 +425,7 @@ module Watch =
 
   let clamp (m: Model) : Model =
     let n = Stdlib.List.length m.rows
-    { m with cursor = Stdlib.Int.max 0 (Stdlib.Int.min m.cursor (n - 1)) }
+    { m with cursor = Stdlib.max 0 (Stdlib.min m.cursor (n - 1)) }
 
   /// The panel shows one line either way, so a refusal becomes the note in the colour it
   /// used to be printed in. `cancel` and `kill` on the command line exit non-zero instead;
@@ -458,7 +458,7 @@ module Watch =
   let render (m: Model) : Stdlib.Cli.UI.Node.Node<Msg> =
     let mark (i: Int) (cells: List<String>) : List<String> =
       match cells with
-      | first :: rest -> Stdlib.List.push rest ((if i == m.cursor then "> " else "  ") ++ first)
+      | first :: rest -> Stdlib.List.push rest ((if i == m.cursor then "> " else "  ") + first)
       | [] -> []
     let indexed = Stdlib.List.indexedMap m.rows (fun i r -> (i, r))
     let machineRows =
@@ -473,7 +473,7 @@ module Watch =
         match r with
         | Local(_, cells) -> Stdlib.Option.Option.Some(mark i cells)
         | _ -> Stdlib.Option.Option.None)
-    let me = Stdlib.Int.toString (Stdlib.Cli.Sys.currentPid ())
+    let me = Stdlib.toString (Stdlib.Cli.Sys.currentPid ())
     Stdlib.Cli.UI.Node.column
       [ Stdlib.Cli.UI.Node.dim $"this instance (pid {me})"
         (if Stdlib.List.isEmpty localRows then Stdlib.Cli.UI.Node.dim "  none"

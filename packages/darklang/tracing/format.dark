@@ -6,7 +6,7 @@ module Darklang.Tracing.Format
 
 /// Right-align a number in a field `width` columns wide by prepending spaces.
 let padNum (n: Int) (width: Int) : String =
-  Stdlib.String.padStartToWidth (Stdlib.Int.toString n) width
+  Stdlib.String.padStartToWidth (Stdlib.toString n) width
 
 
 /// Escape a string for embedding in JSON. Handles backslash and double-
@@ -35,13 +35,13 @@ let sizeHint (dv: LanguageTools.RuntimeTypes.Dval) : Stdlib.Option.Option<String
   match dv with
   | DList(_, items) ->
     Stdlib.Option.Option.Some
-      $"{Stdlib.Int.toString (Stdlib.List.length items)} items"
+      $"{Stdlib.toString (Stdlib.List.length items)} items"
   | DDict(_, _, entries) ->
     Stdlib.Option.Option.Some
-      $"{Stdlib.Int.toString (Stdlib.List.length (Stdlib.Dict.keys entries))} entries"
+      $"{Stdlib.toString (Stdlib.List.length (Stdlib.Dict.keys entries))} entries"
   | DString s ->
     Stdlib.Option.Option.Some
-      $"{Stdlib.Int.toString (Stdlib.String.length s)} characters"
+      $"{Stdlib.toString (Stdlib.String.length s)} characters"
   | _ -> Stdlib.Option.Option.None
 
 
@@ -76,7 +76,7 @@ let compactDvalTo
         | Some size -> $"... ({size}, use --full)"
         | None -> "..."
 
-      (Stdlib.String.slice oneLine 0 (budget - (Stdlib.String.length note))) ++ note
+      (Stdlib.String.slice oneLine 0 (budget - (Stdlib.String.length note))) + note
     else
       oneLine
 

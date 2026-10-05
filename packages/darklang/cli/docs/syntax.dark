@@ -45,16 +45,22 @@ completed effects. `?` requires a function or lambda and is unsupported in SQL q
   [1, 2, 3]
 
 ## Strings
-  "hello" ++ " world"    # concat
-  $"value: {x}"          # interpolation
+  "hello" + " world"     // concat
+  $"value: {x}"          // interpolation
 
 ## Lambda
   fun x -> x + 1
   fun (a, b) -> a + b
 
 ## Unit
-  ()     # value
-  Unit   # type
+  ()     // value
+  Unit   // type
+
+## Traits (docs traits)
+  trait Area<'a> = let area (s: 'a) : Float
+  impl Area for Circle = let area (c: Circle) : Float = ...
+  impl ToString for Point = let toString (p: Point) : String = ...
+  let f<'a: ToString> (v: 'a) : String = v.toString
 
 ## Printing multiple lines
   // When printing 3+ lines, prefer printLines over repeated printLine:

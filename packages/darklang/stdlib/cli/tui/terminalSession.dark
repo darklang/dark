@@ -36,14 +36,14 @@ module Ansi =
   val restoreInlineModes =
     // Inline sessions do not own an enclosing application's scroll region.
     // Normal cleanup restores only modes the inline renderer changes.
-    resetStyle ++ showCursor
+    resetStyle + showCursor
 
   val restoreFullscreenModes =
     resetStyle
-    ++ resetScrollRegion
-    ++ showCursor
-    ++ exitAlternateScreen
-    ++ showCursor
+    + resetScrollRegion
+    + showCursor
+    + exitAlternateScreen
+    + showCursor
 
   // Fallback restoration always ends a possibly interrupted synchronized
   // update before resetting terminal state.
@@ -51,11 +51,11 @@ module Ansi =
   // have left an unknown scroll region behind.
   val restoreInline =
     endSynchronizedOutput
-    ++ resetStyle
-    ++ resetScrollRegion
-    ++ showCursor
+    + resetStyle
+    + resetScrollRegion
+    + showCursor
 
-  val restoreFullscreen = endSynchronizedOutput ++ restoreFullscreenModes
+  val restoreFullscreen = endSynchronizedOutput + restoreFullscreenModes
 
   /// Wrap a non-empty update in synchronized-output markers.
   ///
@@ -65,7 +65,7 @@ module Ansi =
     if output == "" then
       ""
     else
-      beginSynchronizedOutput ++ output ++ endSynchronizedOutput
+      beginSynchronizedOutput + output + endSynchronizedOutput
 
 
 /// Create a stopped session with no retained view.
@@ -128,8 +128,8 @@ let transitionOutput (status: Status) (mode: Tui.ViewMode) : String =
 let currentSize () : Tui.Size =
   let (width, height) = Darklang.Cli.Terminal.getSize ()
   Tui.Size {
-    width = Stdlib.Int.max 1 width
-    height = Stdlib.Int.max 1 height
+    width = Stdlib.max 1 width
+    height = Stdlib.max 1 height
   }
 
 
@@ -146,8 +146,8 @@ let normalizeView
   (size: Tui.Size)
   (view: Tui.View)
   : Tui.View =
-  let width = Stdlib.Int.max 1 size.width
-  let height = Stdlib.Int.max 1 size.height
+  let width = Stdlib.max 1 size.width
+  let height = Stdlib.max 1 size.height
 
   match view.mode with
   | Fullscreen ->
@@ -161,22 +161,22 @@ let normalizeView
       | Hidden -> Tui.Cursor.Hidden
       | Visible(row, column) ->
         Tui.Cursor.Visible(
-          Stdlib.Int.min (height - 1) (Stdlib.Int.max 0 row),
-          Stdlib.Int.min (width - 1) (Stdlib.Int.max 0 column))
+          Stdlib.min (height - 1) (Stdlib.max 0 row),
+          Stdlib.min (width - 1) (Stdlib.max 0 column))
 
     { view with
         rows = rows
         cursor = cursor }
   | Inline ->
     let rowCount = Stdlib.List.length view.rows
-    let maxOffset = Stdlib.Int.max 0 (rowCount - height)
+    let maxOffset = Stdlib.max 0 (rowCount - height)
     let desiredOffset =
       match view.cursor with
       | Hidden -> 0
       | Visible(row, _) ->
         if row >= height then row - height + 1 else 0
     let offset =
-      Stdlib.Int.min maxOffset (Stdlib.Int.max 0 desiredOffset)
+      Stdlib.min maxOffset (Stdlib.max 0 desiredOffset)
     let visibleRows =
       view.rows
       |> Stdlib.List.drop offset
@@ -186,10 +186,10 @@ let normalizeView
       | Hidden -> Tui.Cursor.Hidden
       | Visible(row, column) ->
         Tui.Cursor.Visible(
-          Stdlib.Int.min
+          Stdlib.min
             (height - 1)
-            (Stdlib.Int.max 0 (row - offset)),
-          Stdlib.Int.min (width - 1) (Stdlib.Int.max 0 column))
+            (Stdlib.max 0 (row - offset)),
+          Stdlib.min (width - 1) (Stdlib.max 0 column))
 
     { view with rows = visibleRows; cursor = cursor }
 
@@ -234,7 +234,7 @@ let preparePresentAtSize
 
   let output =
     Ansi.wrapUpdate
-      (transitionOutput state.status next.mode ++ frameOutput)
+      (transitionOutput state.status next.mode + frameOutput)
 
   Prepared {
     state =
@@ -379,13 +379,13 @@ let prepareStopInlineWithView
   | RunningInline ->
     let (width, final) =
       match state.terminalSize with
-      | Some size -> (Stdlib.Int.max 1 size.width, normalizeView size final)
+      | Some size -> (Stdlib.max 1 size.width, normalizeView size final)
       | None ->
         // Unreachable: a running session always recorded a size. Sampling beats the old `1`, which would
         // have clipped every row to a single column, so the defensive path degrades to "maybe a stale
         // width" rather than "definitely shredded output".
         let size = currentSize ()
-        (Stdlib.Int.max 1 size.width, normalizeView size final)
+        (Stdlib.max 1 size.width, normalizeView size final)
     let parked = { final with cursor = Tui.Cursor.Hidden }
     let parkOutput =
       InlineFrame.renderAtWidth width state.previousView parked
@@ -394,7 +394,7 @@ let prepareStopInlineWithView
       state = init ()
       output =
         Ansi.wrapUpdate
-          (parkOutput ++ Ansi.restoreInlineModes)
+          (parkOutput + Ansi.restoreInlineModes)
     }
   | Stopped
   | RunningFullscreen ->

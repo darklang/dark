@@ -94,14 +94,14 @@ let renderStatic (node: Node.Node<'msg>) : String = render node (fun _ -> "")
 let page (title: String) (node: Node.Node<'msg>) (toJson: 'msg -> String) : String =
   let css =
     "body{font-family:ui-monospace,monospace;margin:1.5rem;background:#fff;color:#111}"
-    ++ ".dark-vstack-item{margin:.15rem 0}.dark-hstack{display:flex;gap:.5rem}"
-    ++ ".dark-bold{font-weight:bold}.dark-dim,.dark-muted{opacity:.6}.dark-italic{font-style:italic}"
-    ++ ".dark-underline{text-decoration:underline}.dark-success{color:#1a7f37}.dark-error{color:#b91c1c}"
-    ++ ".dark-warning{color:#b45309}.dark-info{color:#1d4ed8}.dark-highlight{background:#eee}"
-    ++ ".dark-table{border-collapse:collapse}.dark-table th,.dark-table td{text-align:left;padding:.1rem .8rem .1rem 0}"
-    ++ ".dark-table th{border-bottom:1px solid #999}.dark-table .dark-num{text-align:right}"
-    ++ ".dark-band{padding:.4rem .6rem;margin:.5rem 0;border-radius:3px}"
-    ++ ".dark-band-info{background:#dbeafe}.dark-band-warning{background:#fef3c7}.dark-band-error{background:#fee2e2}"
-    ++ ".dark-rows{margin:0}.dark-list{padding-left:1.2rem}"
+    + ".dark-vstack-item{margin:.15rem 0}.dark-hstack{display:flex;gap:.5rem}"
+    + ".dark-bold{font-weight:bold}.dark-dim,.dark-muted{opacity:.6}.dark-italic{font-style:italic}"
+    + ".dark-underline{text-decoration:underline}.dark-success{color:#1a7f37}.dark-error{color:#b91c1c}"
+    + ".dark-warning{color:#b45309}.dark-info{color:#1d4ed8}.dark-highlight{background:#eee}"
+    + ".dark-table{border-collapse:collapse}.dark-table th,.dark-table td{text-align:left;padding:.1rem .8rem .1rem 0}"
+    + ".dark-table th{border-bottom:1px solid #999}.dark-table .dark-num{text-align:right}"
+    + ".dark-band{padding:.4rem .6rem;margin:.5rem 0;border-radius:3px}"
+    + ".dark-band-info{background:#dbeafe}.dark-band-warning{background:#fef3c7}.dark-band-error{background:#fee2e2}"
+    + ".dark-rows{margin:0}.dark-list{padding-left:1.2rem}"
 
   $"<!doctype html><html><head><meta charset=\"utf-8\"><title>{escape title}</title><style>{css}</style></head><body>{render node toJson}</body></html>"

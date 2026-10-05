@@ -45,14 +45,14 @@ let elapsed = (Darklang.Cli.Telemetry.now ()) - t0
 
 let _ =
   Stdlib.printLine
-    ((Stdlib.Int.toString iterations)
-     ++ " routes, "
-     ++ (Stdlib.Int.toString elapsed)
-     ++ " ms, "
-     ++ (Stdlib.Int.toString (Stdlib.Int.divide (elapsed * 1000) iterations))
-     ++ " us each (checksum "
-     ++ (Stdlib.Int.toString total)
-     ++ ")")
+    ((Stdlib.toString iterations)
+     + " routes, "
+     + (Stdlib.toString elapsed)
+     + " ms, "
+     + (Stdlib.toString ((elapsed * 1000) / iterations))
+     + " us each (checksum "
+     + (Stdlib.toString total)
+     + ")")
 
 // Per-fn profile, over fifty routes. Last, because enabling detailed timing perturbs what follows.
 let _on = Darklang.LanguageTools.InterpreterStats.enableDetailedTiming true

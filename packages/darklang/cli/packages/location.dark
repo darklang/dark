@@ -45,8 +45,8 @@ let parseRelativeTo
     | Some bad ->
       Stdlib.Result.Result.Error
         ($"module names must start with a capital, and \"{bad}\" does not. "
-         ++ "A lowercase segment is read as the item's NAME, so nothing could refer "
-         ++ "to what this would create.")
+         + "A lowercase segment is read as the item's NAME, so nothing could refer "
+         + "to what this would create.")
     | None ->
       Stdlib.Result.Result.Ok
         (LanguageTools.ProgramTypes.PackageLocation

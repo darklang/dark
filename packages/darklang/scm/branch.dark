@@ -59,7 +59,7 @@ type Branch =
 let toBranch (row: SCM.Branches.BranchRow) : Branch =
   Branch
     { id = row.id
-      name = if row.name == "" then Stdlib.Uuid.toString row.id else row.name
+      name = if row.name == "" then Stdlib.toString row.id else row.name
       parentBranchId =
         if isMain row.parent then
           Stdlib.Option.Option.None

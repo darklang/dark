@@ -110,6 +110,8 @@ let kindOf (target: LanguageTools.ProgramTypes.Reference) : LanguageTools.Progra
   | PackageType _ -> LanguageTools.ProgramTypes.ItemKind.Type
   | PackageValue _ -> LanguageTools.ProgramTypes.ItemKind.Value
   | PackageFn _ -> LanguageTools.ProgramTypes.ItemKind.Fn
+  | PackageTrait _ -> LanguageTools.ProgramTypes.ItemKind.Trait
+  | PackageTraitImpl _ -> LanguageTools.ProgramTypes.ItemKind.TraitImpl
 
 /// The names an op binds or unbinds, if it does one of those.
 let touchedBy (op: LanguageTools.ProgramTypes.PackageOp) : List<Touched> =
@@ -117,10 +119,12 @@ let touchedBy (op: LanguageTools.ProgramTypes.PackageOp) : List<Touched> =
   | SetName(location, target, _previous) ->
     [ Touched { location = location; kind = kindOf target } ]
   | Unbind(location, _previous) ->
-    // The kind is not on the op, and dependents are matched by kind, so all three are walked.
+    // The kind is not on the op, and dependents are matched by kind, so every kind is walked.
     [ Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Fn }
       Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Type }
-      Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Value } ]
+      Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Value }
+      Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.Trait }
+      Touched { location = location; kind = LanguageTools.ProgramTypes.ItemKind.TraitImpl } ]
   // A name put back on a version it held before: content-addressed, a second `SetName` would be the
   // op that already exists, so the revert is a decision. It binds the name all the same.
   | Decision(_id, location, _reason, Override target) ->
@@ -444,9 +448,9 @@ let issueText (issue: LanguageTools.AtRestTypeChecker.Issue) : String =
     | (Some expected, Some actual) ->
       Stdlib.Option.Option.Some
         ("expected "
-         ++ (LanguageTools.AtRestTypeChecker.staticTypeToString expected)
-         ++ ", got "
-         ++ (LanguageTools.AtRestTypeChecker.staticTypeToString actual))
+         + (LanguageTools.AtRestTypeChecker.staticTypeToString expected)
+         + ", got "
+         + (LanguageTools.AtRestTypeChecker.staticTypeToString actual))
     | _ -> Stdlib.Option.Option.None
 
   match (detail, site) with
@@ -464,8 +468,8 @@ let reportText (report: LanguageTools.AtRestTypeChecker.Report) : String =
     | issue :: _ -> issueText issue
     | [] -> "it failed the type check"
 
-  let more = if count > 1 then $" (and {Stdlib.Int.toString (count - 1)} more)" else ""
-  first ++ more
+  let more = if count > 1 then $" (and {Stdlib.toString (count - 1)} more)" else ""
+  first + more
 
 /// One line for a band or a log: why the host is not on the newest version, if it is not.
 let diagnostic (lg: LastGood) : Stdlib.Option.Option<String> =
@@ -771,7 +775,7 @@ module Values =
         collected
         |> Stdlib.List.map (fun pair ->
           let (id, v) = pair
-          (Stdlib.Int64.toString id, v))
+          (Stdlib.toString id, v))
         |> Stdlib.Dict.fromListOverwritingDuplicates
 
       Stdlib.Option.Option.Some(Values { byExpr = byExpr; problem = problem })

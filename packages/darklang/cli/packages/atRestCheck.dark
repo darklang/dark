@@ -10,15 +10,23 @@ let checkModule
   : LanguageTools.AtRestTypeChecker.Report =
   LanguageTools.AtRestTypeChecker.checkModule branchId modules
 
+/// The name behind a hash in a diagnostic. Types and traits both appear in them -- "no
+/// implementation of X for Y" names a trait and a type -- and a hash in a message a person reads
+/// is no help, so both are looked up.
 let customTypeName
   (branchId: Uuid)
   (hash: LanguageTools.ProgramTypes.Hash)
   : Stdlib.Option.Option<String> =
-  LanguageTools.PackageManager.pickLocation
-    LanguageTools.PackageManager.PickContext.empty
-    (LanguageTools.PackageManager.Type.locations branchId hash)
-  |> Stdlib.Option.map
-       PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
+  let nameAt (locations: List<LanguageTools.ProgramTypes.PackageLocation>) =
+    LanguageTools.PackageManager.pickLocation
+      LanguageTools.PackageManager.PickContext.empty
+      locations
+    |> Stdlib.Option.map
+         PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
+
+  match nameAt (LanguageTools.PackageManager.Type.locations branchId hash) with
+  | Some name -> Stdlib.Option.Option.Some name
+  | None -> nameAt (LanguageTools.PackageManager.Trait.locations branchId hash)
 
 let staticType
   (branchId: Uuid)
@@ -37,7 +45,7 @@ let issueLine
     LanguageTools.AtRestTypeChecker.issueToStringWith
       (customTypeName branchId)
       issue
-  "  - [" ++ code ++ "] " ++ message
+  "  - [" + code + "] " + message
 
 let sameOrMirrored
   (first: LanguageTools.AtRestTypeChecker.Issue)
@@ -81,7 +89,7 @@ let issueLines
   |> Stdlib.List.map (fun (line, occurrences) ->
     let count = Stdlib.List.length occurrences
     if count == 1 then line
-    else line ++ " (" ++ Stdlib.Int.toString count ++ " occurrences)")
+    else line + " (" + Stdlib.toString count + " occurrences)")
 
 let summary
   (report: LanguageTools.AtRestTypeChecker.Report)
@@ -108,7 +116,7 @@ let printSaveReport
       [ ""
         (Stdlib.Cli.UI.Colors.error
           ("Type check failed. Saved as a draft; "
-           ++ "`dark commit` will refuse it until it is fixed:")) ]
+           + "`dark commit` will refuse it until it is fixed:")) ]
       details
     |> Stdlib.printLines
   | Incomplete ->
@@ -146,17 +154,23 @@ let scriptReport
         | PackageType hash -> ("Type", LanguageTools.PackageManager.Type.locations branchId hash)
         | PackageValue hash -> ("Value", LanguageTools.PackageManager.Value.locations branchId hash)
         | PackageFn hash -> ("Function", LanguageTools.PackageManager.Function.locations branchId hash)
+        // Five item kinds, and a report that handled three. `dark typecheck` named this one.
+        | PackageTrait hash ->
+          ("Trait", LanguageTools.PackageManager.Trait.locations branchId hash)
+        | PackageTraitImpl hash ->
+          ("Implementation",
+           LanguageTools.PackageManager.TraitImpl.locations branchId hash)
       let label =
         match sourceName locations with
-        | Some name -> kind ++ " " ++ name
+        | Some name -> kind + " " + name
         | None -> "Top-level expression"
       let issues =
         deduplicate item.diagnostics
         |> Stdlib.List.map (fun issue ->
           let code = LanguageTools.AtRestTypeChecker.issueCodeToString issue.code
           let message = LanguageTools.AtRestTypeChecker.issueToStringWith typeName issue
-          "  - [" ++ code ++ "] " ++ message)
-      Stdlib.List.push issues (label ++ ":")
+          "  - [" + code + "] " + message)
+      Stdlib.List.push issues (label + ":")
 
   let lines = Stdlib.List.flatten (Stdlib.List.map report.items itemLines)
   Stdlib.String.join (Stdlib.List.push lines "Static type check failed:") "\n"

@@ -1,7 +1,7 @@
 /// The last-writer-wins rule, pinned on the F# side.
 ///
 /// The rule exists in two languages because two different things ask it: the op-fold decides which binding
-/// survives (`LibDB.Lww`, called from `PackageOpPlayback`), and conflict recording decides which side to
+/// survives (`LibExecution.Lww`, called from `PackageOpPlayback`), and conflict recording decides which side to
 /// name as the winner (`SCM.Conflicts.incomingWins`, in Dark). If those disagree, a recorded conflict names
 /// a winner the fold did not pick, and two instances converge on different content with nothing to say so.
 ///
@@ -18,10 +18,11 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 
-module Lww = LibDB.Lww
+module Lww = LibExecution.Lww
 module PT = LibExecution.ProgramTypes
 module Inserts = LibDB.Inserts
 module Queries = LibDB.Queries
+module RT = LibExecution.RuntimeTypes
 
 
 /// (newTs, newHash, curTs, curHash, incoming wins?) -- the same rows as the Dark testfile.
@@ -60,6 +61,43 @@ let private agreesWithTheTable =
         (Lww.incomingWins newTs newHash curTs curHash)
         expected
         $"incoming ({newTs}, {newHash}) vs live ({curTs}, {curHash})")
+  }
+
+
+/// The DARK copy of the rule, driven over the SAME rows.
+///
+/// The two tables used to be held in step by a comment telling the next person to change both.
+/// Each suite proved its own side matched its own table, and nothing compared the tables, which
+/// is the one case the pair exists for: change the rule, update the table beside the code you
+/// touched, and the fold and the conflict recorder disagree about who wins with both suites
+/// green. That is the failure this module's header describes, so it is asserted here rather
+/// than asked for in prose.
+///
+/// `Darklang.` in full because this file is parsed with owner `Tests`, and the error goes IN the
+/// failure message because a name-resolution failure names the exact missing module and that is
+/// the whole diagnostic.
+let private darkBinding (ts : string) (hash : string) : string =
+  "(Darklang.SCM.Conflicts.Binding { owner = \"Zz\"; modules = \"Lww\"; "
+  + $"name = \"n\"; itemType = \"fn\"; hash = \"{hash}\"; originTs = \"{ts}\"; "
+  + "author = \"\"; previous = Stdlib.Option.Option.None })"
+
+let private darkAgreesWithTheSameTable =
+  testTask "the Dark rule answers the same table, row for row" {
+    for (newTs, newHash, curTs, curHash, expected) in cases do
+      let code =
+        "Darklang.SCM.Conflicts.incomingWins "
+        + darkBinding newTs newHash
+        + " "
+        + darkBinding curTs curHash
+
+      match! evalDarkExpr code with
+      | Ok(RT.DBool actual) ->
+        Expect.equal
+          actual
+          expected
+          $"Dark: incoming ({newTs}, {newHash}) vs live ({curTs}, {curHash})"
+      | Ok other -> failtest $"expected a Bool from the Dark rule, got: {other}"
+      | Error(rte, _) -> failtest $"the Dark call raised: {rte}"
   }
 
 
@@ -196,10 +234,41 @@ let private deprecationsSettleByWhenTheyWereSaid =
           "and it is still harmful when the older op arrives second"
       } ]
 
+/// Two impls of one trait for one type are chosen by the same rule, over the stamp of the op that
+/// added each (`LibExecution.Traits.select`). A pair that carries no stamps at all is the one case
+/// that has no winner: it is not a tie, it is an absence of provenance, and the call reports both.
+let private winnerAmongRivals =
+  test "the newest rival wins, and unstamped rivals have no winner" {
+    let a = ("a", "2026-01-01T00:00:00.000Z", "aaaa")
+    let b = ("b", "2026-01-02T00:00:00.000Z", "bbbb")
+    Expect.equal (Lww.winnerOf [ a; b ]) (Some "b") "the later stamp wins"
+    Expect.equal (Lww.winnerOf [ b; a ]) (Some "b") "whatever order they come in"
+
+    let tieLow = ("low", "2026-01-01T00:00:00.000Z", "aaaa")
+    let tieHigh = ("high", "2026-01-01T00:00:00.000Z", "ffff")
+    Expect.equal
+      (Lww.winnerOf [ tieLow; tieHigh ])
+      (Some "high")
+      "an exact tie goes to the higher hash, as everywhere else"
+
+    Expect.equal
+      (Lww.winnerOf [ ("unstamped", "", "aaaa"); b ])
+      (Some "b")
+      "one with no stamp loses to one with a stamp"
+
+    Expect.equal
+      (Lww.winnerOf [ ("x", "", "aaaa"); ("y", "", "ffff") ])
+      None
+      "nothing orders two unstamped rivals, so neither wins"
+  }
+
+
 let tests =
   testList
     "Lww"
     [ agreesWithTheTable
+      darkAgreesWithTheSameTable
+      winnerAmongRivals
       isStaleAgreesWithTheTable
       theRuleIsAntisymmetric
       unbindTies

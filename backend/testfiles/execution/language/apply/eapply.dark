@@ -1,10 +1,10 @@
 (let fn = (fun x -> x + 1L)
  fn 6L) = 7L
 
-(let fn = Stdlib.Int64.add
+(let fn = (+)
  fn 3L 4L) = 7L
 
-(let fn = Stdlib.Int64.max
+(let fn = (fun a b -> Stdlib.max a b)
  fn 3L 7L) = 7L
 
 ([ 1L, 2L, 3L, 4L, 5L ]
@@ -21,12 +21,12 @@
 //      (error="Unknown error")
 
 
-let stringFn (key: String) : String = key ++ " appended string"
+let stringFn (key: String) : String = key + " appended string"
 
 let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = arg
 
 let twoStringFn (str1: String) (str2: String) : String =
-  str1 ++ " appended " ++ str2
+  str1 + " appended " + str2
 
 let returnsInt () : Int64 = 5L
 
@@ -45,7 +45,7 @@ let returnsResultOk () : Stdlib.Result.Result<Int64, 'err> =
 let throwsException () : 'a =
   Builtin.testRaiseException "throwsException message"
 
-let derrorFn (msg: String) : String = msg ++ Builtin.testRuntimeError msg
+let derrorFn (msg: String) : String = msg + Builtin.testRuntimeError msg
 
 let fnWithTypeArgs<'a, 'b> (a: 'a) (b: 'b) : 'a = a
 

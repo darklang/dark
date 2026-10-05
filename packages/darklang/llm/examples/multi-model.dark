@@ -36,7 +36,7 @@ let askModel
 /// Format a model result for display
 let formatResult (name: String) (result: Stdlib.Result.Result<ModelResponse, String>) : String =
   match result with
-  | Ok r -> $"## {name} ({r.model})\n{r.response}\n\n*Tokens: {Stdlib.Int.toString r.inputTokens} in / {Stdlib.Int.toString r.outputTokens} out*"
+  | Ok r -> $"## {name} ({r.model})\n{r.response}\n\n*Tokens: {Stdlib.toString r.inputTokens} in / {Stdlib.toString r.outputTokens} out*"
   | Error e -> $"## {name}\nError: {e}"
 
 

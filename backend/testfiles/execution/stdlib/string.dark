@@ -8,13 +8,13 @@ module Equality =
   "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
 module Append =
-  "" ++ "" = ""
-  "a" ++ "̂" = "â"
-  "hello" ++ " world" = "hello world"
-  "ᄀ" ++ "ᅡᆨ" = "각"
-  "" ++ "a" = "a"
-  "a" ++ "" = "a"
-  "a" ++ "̂" = "â"
+  "" + "" = ""
+  "a" + "̂" = "â"
+  "hello" + " world" = "hello world"
+  "ᄀ" + "ᅡᆨ" = "각"
+  "" + "a" = "a"
+  "a" + "" = "a"
+  "a" + "̂" = "â"
 
   //Stdlib.String.append "a" "̂" = "â"
   Stdlib.String.append "" "" = ""

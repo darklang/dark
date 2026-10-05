@@ -4,4 +4,6 @@ module Darklang.DarkPackages
 type Stats =
   { types: Int
     values: Int
-    fns: Int }
+    fns: Int
+    traits: Int
+    impls: Int }

@@ -43,7 +43,7 @@ let fromTextAtStart (text: String) : State =
 
 let clampCursor (state: State) : State =
   let len = Stdlib.String.length state.text
-  { state with cursor = Stdlib.Int.max 0 (Stdlib.Int.min len state.cursor) }
+  { state with cursor = Stdlib.max 0 (Stdlib.min len state.cursor) }
 
 /// Insert a string of any length at the cursor, and move past all of it.
 let insert (state: State) (s: String) : State =
@@ -51,7 +51,7 @@ let insert (state: State) (s: String) : State =
   let after = Stdlib.String.dropFirst state.text state.cursor
 
   State
-    { text = before ++ s ++ after
+    { text = before + s + after
       cursor = state.cursor + (Stdlib.String.length s) }
 
 let backspace (state: State) : State =
@@ -60,7 +60,7 @@ let backspace (state: State) : State =
   else
     let before = Stdlib.String.slice state.text 0 (state.cursor - 1)
     let after = Stdlib.String.dropFirst state.text state.cursor
-    State { text = before ++ after; cursor = state.cursor - 1 }
+    State { text = before + after; cursor = state.cursor - 1 }
 
 /// Delete the character to the right of the cursor.
 let deleteForward (state: State) : State =
@@ -69,18 +69,18 @@ let deleteForward (state: State) : State =
   else
     let before = Stdlib.String.slice state.text 0 state.cursor
     let after = Stdlib.String.dropFirst state.text (state.cursor + 1)
-    { state with text = before ++ after }
+    { state with text = before + after }
 
 /// Drop everything from the cursor to the end (readline's ^k), so replacing a line is two keys.
 let killToEnd (state: State) : State =
   { state with text = Stdlib.String.slice state.text 0 state.cursor }
 
 let moveLeft (state: State) : State =
-  { state with cursor = Stdlib.Int.max 0 (state.cursor - 1) }
+  { state with cursor = Stdlib.max 0 (state.cursor - 1) }
 
 let moveRight (state: State) : State =
   { state with
-      cursor = Stdlib.Int.min (Stdlib.String.length state.text) (state.cursor + 1) }
+      cursor = Stdlib.min (Stdlib.String.length state.text) (state.cursor + 1) }
 
 let moveToStart (state: State) : State =
   { state with cursor = 0 }
@@ -133,7 +133,7 @@ let onKey (state: State) (kp: Widget.KeyPress) : Widget.Outcome<State, Msg> =
 
 /// The first grapheme to show, so that the cursor is inside a window `width` wide.
 let windowFor (state: State) (width: Int) : Int =
-  let w = Stdlib.Int.max 1 width
+  let w = Stdlib.max 1 width
   let len = Stdlib.String.length state.text
   // Keep the window anchored at the end when the text is short enough to fit whole.
   if len < w then
@@ -148,10 +148,10 @@ let windowFor (state: State) (width: Int) : Int =
 /// Returns a styled string for embedding in a row the caller is already building (an outline item, say).
 /// The cursor is drawn on the character it sits before, or on a trailing space at the end of the line.
 let renderInline (state: State) (width: Int) : String =
-  let w = Stdlib.Int.max 1 width
+  let w = Stdlib.max 1 width
   let start = windowFor state w
   let len = Stdlib.String.length state.text
-  let stop = Stdlib.Int.min len (start + w)
+  let stop = Stdlib.min len (start + w)
   let visible = Stdlib.String.slice state.text start stop
   let cursorAt = state.cursor - start
 
@@ -169,7 +169,7 @@ let renderInline (state: State) (width: Int) : String =
     else
       ""
 
-  before ++ (Colors.colorize Colors.reverse cursorChar) ++ after
+  before + (Colors.colorize Colors.reverse cursorChar) + after
 
 /// Render a field that may not have focus, with a placeholder for when it's empty and unfocused.
 ///

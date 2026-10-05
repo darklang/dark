@@ -10,17 +10,14 @@ module Darklang.SCM.Deps
 // IS one item, so a hash routinely lives at several names, and collapsing them loses dependents.
 
 
+/// The `item_type` column, which only ever holds what `ItemKind.toString` wrote.
+// CLEANUP: a string `toString` would not have written reads as `Fn`, which is a guess. It should
+// either raise, or this should return a `Result` or an `Option` and make the six callers say what
+// they want done. Left as a default for now because the column has one writer, so it cannot
+// currently fire; this is the one place to change when that stops being true.
 let kindOf (s: String) : LanguageTools.ProgramTypes.ItemKind =
-  match s with
-  | "type" -> LanguageTools.ProgramTypes.ItemKind.Type
-  | "value" -> LanguageTools.ProgramTypes.ItemKind.Value
-  | _ -> LanguageTools.ProgramTypes.ItemKind.Fn
-
-let kindString (k: LanguageTools.ProgramTypes.ItemKind) : String =
-  match k with
-  | Type -> "type"
-  | Value -> "value"
-  | Fn -> "fn"
+  LanguageTools.ProgramTypes.ItemKind.fromString s
+  |> Stdlib.Option.withDefault LanguageTools.ProgramTypes.ItemKind.Fn
 
 let locationOf
   (owner: String)
@@ -103,7 +100,7 @@ let dependentsOf
            AND pd.depends_on_modules = @p2
            AND pd.depends_on_name = @p3
          ORDER BY l.item_hash"
-        [ kindString kind, loc.owner, modules, loc.name ]
+        [ LanguageTools.ProgramTypes.ItemKind.toString kind, loc.owner, modules, loc.name ]
         (fun row ->
           match
             (Stdlib.Sqlite.textField row "item_hash",
@@ -153,7 +150,7 @@ let dependentsOf
              AND pd.depends_on_modules = @p2
              AND pd.depends_on_name = @p3
            ORDER BY pd.item_hash"
-          [ kindString kind, loc.owner, modules, loc.name ]
+          [ LanguageTools.ProgramTypes.ItemKind.toString kind, loc.owner, modules, loc.name ]
           (fun row ->
             match Stdlib.Sqlite.textField row "item_hash" with
             | Some h ->

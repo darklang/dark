@@ -11,13 +11,13 @@ let render (region: Layout.Region) (displayLines: List<String>) (selected: Int) 
   else
     // Bottom-anchored viewport: once the selection passes the last visible row, scroll so it stays on screen.
     let visible = region.rows
-    let scrollOffset = Stdlib.Int.max 0 (selected - visible + 1)
+    let scrollOffset = Stdlib.max 0 (selected - visible + 1)
 
     // The scrollbar owns the last column when there is one, so a full-width row does not sit under
     // the thumb.
     let textWidth =
       if total > region.rows then
-        Stdlib.Int.max 0 (region.cols - 1)
+        Stdlib.max 0 (region.cols - 1)
       else
         region.cols
 
@@ -40,7 +40,7 @@ let render (region: Layout.Region) (displayLines: List<String>) (selected: Int) 
     let thumb =
       if total > region.rows then
         let thumbRow =
-          Stdlib.Int.divide (selected * (region.rows - 1)) (Stdlib.Int.max 1 (total - 1))
+          (selected * (region.rows - 1)) / (Stdlib.max 1 (total - 1))
         Layout.at region thumbRow (region.cols - 1) (Colors.colorize Colors.cyan "▐")
       else
         []

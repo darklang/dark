@@ -26,10 +26,19 @@ type WTModule =
     values : List<WT.PackageValue.PackageValue>
     dbs : List<WT.DB.T>
     fns : List<WT.PackageFn.PackageFn>
+    traits : List<WT.PackageTrait.PackageTrait>
+    impls : List<WT.PackageTraitImpl.PackageTraitImpl>
     tests : List<WTTest> }
 
 let emptyWTModule =
-  { name = []; types = []; values = []; fns = []; dbs = []; tests = [] }
+  { name = []
+    types = []
+    values = []
+    fns = []
+    traits = []
+    impls = []
+    dbs = []
+    tests = [] }
 
 type PTExpected =
   | PTExpectedExpr of PT.Expr
@@ -90,6 +99,7 @@ let parseFile (owner : string) (source : string) : List<WTModule> =
       let fns = ResizeArray()
       let values = ResizeArray()
       let types = ResizeArray()
+      let traits = ResizeArray()
       let dbs = ResizeArray parentDBs // seeded with the parent module's DBs
       let tests = ResizeArray()
       let nested = ResizeArray()
@@ -98,6 +108,17 @@ let parseFile (owner : string) (source : string) : List<WTModule> =
         | WT.DFunction fn -> fns.Add(WT.packageFn owner currentModule fn)
         | WT.DValue v -> values.Add(WT.packageValue owner currentModule v)
         | WT.DType t -> types.Add(WT.packageType owner currentModule t)
+        | WT.DTrait t -> traits.Add(WT.packageTrait owner currentModule t)
+        | WT.DImpl impl ->
+          // Members live at their own (deeper) module path, and names inside them
+          // resolve from there, so they form a nested module of their own.
+          let memberPath = WT.implMemberPath currentModule impl
+          nested.Add
+            { emptyWTModule with
+                name = memberPath
+                fns = WT.implMethodFns owner memberPath impl
+                impls = [ WT.packageImpl owner memberPath impl ]
+                dbs = List.ofSeq dbs }
         | WT.DTypeDB t -> dbs.Add(dbFromTypeDecl t)
         | WT.DTest test -> tests.Add(wtTest test)
         // Testfiles evaluate `actual = expected` assertions. A bare expression
@@ -120,6 +141,7 @@ let parseFile (owner : string) (source : string) : List<WTModule> =
           fns = List.ofSeq fns
           values = List.ofSeq values
           types = List.ofSeq types
+          traits = List.ofSeq traits
           dbs = List.ofSeq dbs
           tests = List.ofSeq tests }
       :: List.ofSeq nested
@@ -193,6 +215,39 @@ let toPT
         })
       |> Ply.map List.flatten
 
+    let! traitOps =
+      m.traits
+      |> Ply.List.mapSequentially (fun wtTrait ->
+        uply {
+          let! ptTrait = WT2PT.Trait.toPT pm onMissing currentModule wtTrait
+          let hash = Hashing.computeTraitHash Hashing.Normal ptTrait
+          return
+            [ PT.PackageOp.AddTrait ptTrait
+              PT.PackageOp.SetName(
+                WT2PT.Trait.Name.toLocation wtTrait.name,
+                PT.PackageTrait hash,
+                None
+              ) ]
+        })
+      |> Ply.map List.flatten
+
+    let! implOps =
+      m.impls
+      |> Ply.List.mapSequentially (fun wtImpl ->
+        uply {
+          let! ptImpl =
+            WT2PT.TraitImpl.toPT builtins pm onMissing currentModule wtImpl
+          let hash = Hashing.computeImplHash Hashing.Normal ptImpl
+          return
+            [ PT.PackageOp.AddTraitImpl ptImpl
+              PT.PackageOp.SetName(
+                WT2PT.TraitImpl.Name.toLocation wtImpl.name,
+                PT.PackageTraitImpl hash,
+                None
+              ) ]
+        })
+      |> Ply.map List.flatten
+
     let! dbs =
       m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing currentModule)
 
@@ -222,7 +277,7 @@ let toPT
               name = test.name }
         })
 
-    let allOps = typeOps @ valueOps @ fnOps
+    let allOps = typeOps @ traitOps @ valueOps @ fnOps @ implOps
 
     return { name = m.name; ops = allOps; dbs = dbs; tests = tests }
   }

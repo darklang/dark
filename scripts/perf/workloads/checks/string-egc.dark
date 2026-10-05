@@ -15,7 +15,7 @@
 // part either way, which is the thing this file is checking.
 
 let show (label: String) (parts: List<String>) : Unit =
-  Builtin.debug label (Stdlib.String.join (Stdlib.List.map parts (fun p -> "[" ++ p ++ "]")) "|")
+  Builtin.debug label (Stdlib.String.join (Stdlib.List.map parts (fun p -> "[" + p + "]")) "|")
 
 let main () : Int64 =
   show "a" (Stdlib.String.split "/hello/world" "/")

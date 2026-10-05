@@ -19,7 +19,7 @@ let echoFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
 // How much this process has allocated so far. The load driver reads it before and after the
 // measured run, which is the only way to get a per-request number out of a server that never exits.
 let allocFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  Stdlib.Http.responseWithText (Stdlib.Int64.toString (Darklang.LanguageTools.InterpreterStats.allocatedBytes ())) 200
+  Stdlib.Http.responseWithText (Stdlib.toString (Darklang.LanguageTools.InterpreterStats.allocatedBytes ())) 200
 
 // Interpreter counters for the VM that ran this request. Each request gets its own VM, so this is
 // per-request work: how many instructions, builtin calls and package calls a request costs.
@@ -61,7 +61,7 @@ let main () : Int64 =
   with
   | Ok _ -> 0L
   | Error e ->
-    Stdlib.printLine ("serve failed: " ++ e)
+    Stdlib.printLine ("serve failed: " + e)
     1L
 
 main ()

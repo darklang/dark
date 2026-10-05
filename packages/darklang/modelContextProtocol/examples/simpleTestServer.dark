@@ -3,7 +3,7 @@ let echoTool () : ServerBuilder.Tool =
   ServerBuilder.Tool {
     name = "echo"
     description = "Echo back the input text"
-    handler = fun input -> "Echo: " ++ input
+    handler = fun input -> "Echo: " + input
   }
 
 let uppercaseTool () : ServerBuilder.Tool =

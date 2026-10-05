@@ -77,6 +77,36 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "pmResolveTraitCalls" 0
+      typeParams = []
+      parameters =
+        [ Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
+      returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
+      description =
+        "Writes onto each trait-method call in <param ops> the implementation it resolves "
+        + "to, so a saved item goes on running what it was written against. Runs BEFORE "
+        + "<fn pmStabilizeHashes>, because the choice is part of what the item is and has to "
+        + "be hashed with it. A call whose self type is only known at run time comes back "
+        + "unchanged."
+      fn =
+        (function
+        | exeState, _, _, [| DList(_vt, ops) |] ->
+          uply {
+            let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
+            let! resolved =
+              TraitCalls.resolveTraitCalls exeState exeState.branchId pm ptOps
+            return
+              Dval.list (packageOpKT ()) (resolved |> List.map PT2DT.PackageOp.toDT)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      // Reads the store's implementations and stamps, so two calls on either side of someone
+      // else's `impl` do not agree.
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmDuplicateDeclarations" 0
       typeParams = []
       parameters =
@@ -84,8 +114,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       returnType = TList TString
       description =
         "The names that more than one declaration in this batch would bind, as "
-        + "\"fn Owner.Module.name\" strings. Stabilizing such a batch would store one "
-        + "body under the other's hash, so authoring surfaces refuse it."
+        + "\"<kind> Owner.Module.name\" strings, for any of the five kinds. Stabilizing "
+        + "such a batch would store one body under the other's hash, so authoring "
+        + "surfaces refuse it."
       fn =
         (function
         | _, _, _, [| DList(_vt, ops) |] ->
@@ -193,7 +224,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                       match op with
                       | PT.PackageOp.AddValue _
                       | PT.PackageOp.AddFn _
-                      | PT.PackageOp.AddType _ -> true
+                      | PT.PackageOp.AddType _
+                      | PT.PackageOp.AddTrait _
+                      | PT.PackageOp.AddTraitImpl _ -> true
                       | _ -> false)
                   if not (List.isEmpty contentOps) then
                     do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
@@ -780,7 +813,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmContentOpId" 0
       typeParams = []
       parameters =
-        [ Param.make "kind" TString "'fn', 'type' or 'value'"
+        [ Param.make "kind" TString "'fn', 'type', 'value', 'trait' or 'impl'"
           Param.make "hash" TString "the content hash" ]
       returnType = TUuid
       description =
@@ -789,10 +822,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [| DString kind; DString hash |] ->
           let tag =
+            // The tags `Hashing.contentOpHash` documents, all five of them: a branch holding
+            // a trait or an impl raised here on export.
             match kind with
             | "fn" -> 0uy
             | "type" -> 1uy
             | "value" -> 2uy
+            | "trait" -> 3uy
+            | "impl" -> 4uy
             | other ->
               Exception.raiseInternal
                 "scmContentOpId: unknown kind"
@@ -973,7 +1010,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     match op with
                     | PT.PackageOp.AddValue _
                     | PT.PackageOp.AddFn _
-                    | PT.PackageOp.AddType _ -> true
+                    | PT.PackageOp.AddType _
+                    | PT.PackageOp.AddTrait _
+                    | PT.PackageOp.AddTraitImpl _ -> true
                     | _ -> false)
                 if not (List.isEmpty contentOps) then
                   do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps

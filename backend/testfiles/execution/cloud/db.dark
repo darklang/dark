@@ -659,7 +659,7 @@ module FindAll =
   (friends (fun p -> let x = p.height in true && x > 32L)) = [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining package functions
-  (friends (fun p -> let x = p.height in true && Stdlib.Int64.greaterThan x 32L)) = [ " Chandler ", "Rachel", "Ross" ]
+  (friends (fun p -> let x = p.height in true && (x > 32L))) = [ " Chandler ", "Rachel", "Ross" ]
 
   // inlining user functions
   let userAnd (a: Bool) (b: Bool) : Bool = Stdlib.Bool.``and`` a b
@@ -668,7 +668,7 @@ module FindAll =
     Stdlib.String.contains user.name str
 
   let userLessThan (a: Int64) (b: Int64) : Bool =
-    Stdlib.Int64.lessThan a b
+    a < b
 
   let userAdd (a: Int64) (b: Int64) : Int64 = a + b
 
@@ -716,7 +716,7 @@ module FindAll =
   let anotherNestedUserFn (user: Person) (height: Int64) : Bool =
     userAnd
       user.human
-      (Stdlib.Int64.lessThan user.height (Stdlib.Int64.add height 1L))
+      (user.height < (height + 1L))
 
 
   (friends (fun p -> nestedUserFn p 68L)) = [ "Rachel" ]
@@ -781,49 +781,49 @@ module FindAll =
 
 
 module CompiledFunctions =
-  (friends (fun p -> Stdlib.Float.lessThan 90.0 p.income)) = [ "Ross" ]
+  (friends (fun p -> 90.0 < p.income)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Float.lessThanOrEqualTo p.income 82.10)) = [ "GrumpyCat"
+  (friends (fun p -> p.income <= 82.10)) = [ "GrumpyCat"
                                                                          "Rachel" ]
 
-  (friends (fun p -> Stdlib.Float.greaterThan p.income 90.0)) = [ "Ross" ]
+  (friends (fun p -> p.income > 90.0)) = [ "Ross" ]
 
 
-  (friends (fun p -> Stdlib.Float.divide p.income 2.0 == 50.0)) = [ "Ross" ]
+  (friends (fun p -> (p.income / 2.0) == 50.0)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Float.multiply p.income 2.0 == 200.0)) = [ "Ross" ]
+  (friends (fun p -> (p.income * 2.0) == 200.0)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Float.power p.income 2.0 == 10000.0)) = [ "Ross" ]
+  (friends (fun p -> (p.income ** 2.0) == 10000.0)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Float.add p.income 0.0 == 0.0)) = [ "GrumpyCat" ]
+  (friends (fun p -> (p.income + 0.0) == 0.0)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.Float.subtract p.income 3.0 == 80.0)) = [ " Chandler " ]
+  (friends (fun p -> (p.income - 3.0) == 80.0)) = [ " Chandler " ]
 
 
-  (friends (fun p -> Stdlib.Float.greaterThanOrEqualTo 82.10 p.income)) = [ "GrumpyCat"
+  (friends (fun p -> 82.10 >= p.income)) = [ "GrumpyCat"
                                                                             "Rachel" ]
 
-  (friends (fun p -> Stdlib.Int64.lessThanOrEqualTo p.height 65L)) = [ "GrumpyCat"
+  (friends (fun p -> p.height <= 65L)) = [ "GrumpyCat"
                                                                        "Rachel" ]
 
-  (friends (fun p -> Stdlib.Int64.lessThan p.height 65L)) = [ "GrumpyCat" ]
+  (friends (fun p -> p.height < 65L)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.Int64.greaterThanOrEqualTo p.height 65L)) = [ " Chandler "
+  (friends (fun p -> p.height >= 65L)) = [ " Chandler "
                                                                           "Rachel"
                                                                           "Ross" ]
 
-  (friends (fun p -> Stdlib.Int64.greaterThan p.height 65L)) = [ " Chandler "
+  (friends (fun p -> p.height > 65L)) = [ " Chandler "
                                                                  "Ross" ]
 
-  (friends (fun p -> Stdlib.Int64.add p.height 1L == 11L)) = [ "GrumpyCat" ]
+  (friends (fun p -> (p.height + 1L) == 11L)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.Int64.subtract p.height 3L == 69L)) = [ " Chandler " ]
+  (friends (fun p -> (p.height - 3L) == 69L)) = [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.Int64.multiply p.height 2L == 146L)) = [ "Ross" ]
+  (friends (fun p -> (p.height * 2L) == 146L)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Int64.divide p.height 2L == 5L)) = [ "GrumpyCat" ]
+  (friends (fun p -> (p.height / 2L) == 5L)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.Int64.power p.height 2L == 100L)) = [ "GrumpyCat" ]
+  (friends (fun p -> (p.height ** 2L) == 100L)) = [ "GrumpyCat" ]
 
   (friends (fun p -> Stdlib.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
   (friends (fun p -> Stdlib.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
@@ -944,15 +944,11 @@ module CompiledFunctions =
 
   // Float
   (friends (fun p ->
-    Stdlib.Float.lessThanOrEqualTo
-      p.income
-      Darklang.Test.Values.floatValue)) = [ "GrumpyCat" ]
+    p.income <= Darklang.Test.Values.floatValue)) = [ "GrumpyCat" ]
 
   // Int64
   (friends (fun p ->
-    Stdlib.Int64.greaterThanOrEqualTo
-      p.height
-      Darklang.Test.Values.int64Value)) = [ " Chandler "
+    p.height >= Darklang.Test.Values.int64Value)) = [ " Chandler "
                                             "GrumpyCat"
                                             "Rachel"
                                             "Ross" ]

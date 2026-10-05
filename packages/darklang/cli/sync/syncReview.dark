@@ -16,7 +16,7 @@ let executeReviewImport (state: AppState) (path: String) (queue: String) : AppSt
       match SCM.Wire.reviewImportTo queue bundle.ops bundle.commits with
       | Ok n ->
         Cli.printOk
-          $"Staged {Stdlib.Int.toString n} op(s) on branch \"{queue}\" (pending). Inspect: `dark diff {queue}` / `dark log {queue}` / `dark conflicts branch {queue}`. Then `dark review approve {queue}`, or `dark review reject {queue}`."
+          $"Staged {Stdlib.toString n} op(s) on branch \"{queue}\" (pending). Inspect: `dark diff {queue}` / `dark log {queue}` / `dark conflicts branch {queue}`. Then `dark review approve {queue}`, or `dark review reject {queue}`."
       | Error e -> Cli.printErr $"Review import failed: {e}"
 
       state
@@ -45,10 +45,10 @@ let executeReviewPullPages
   (page: Int64)
   : Int =
   match
-    relayGet $"{url}/sync/pull?{ownerParam}sinceSeq={Stdlib.Int64.toString since}"
+    relayGet $"{url}/sync/pull?{ownerParam}sinceSeq={Stdlib.toString since}"
   with
   | Error e ->
-    Cli.printErr $"  page {Stdlib.Int64.toString (page + 1L)} failed: {e}"
+    Cli.printErr $"  page {Stdlib.toString (page + 1L)} failed: {e}"
     -1
   | Ok body ->
     match SCM.Wire.wireDecode body with
@@ -81,7 +81,7 @@ let executeReviewPullPages
             let _ =
               if n > 0 then
                 Cli.printOk
-                  $"  +{Stdlib.Int.toString n} op(s) staged (page {Stdlib.Int64.toString (page + 1L)})"
+                  $"  +{Stdlib.toString n} op(s) staged (page {Stdlib.toString (page + 1L)})"
               else
                 ()
 
@@ -127,7 +127,7 @@ let executeReviewPullFrom
         "  `review pull` stages only what has not arrived yet, and an ordinary `dark pull` consumes the same cursor."
     | n ->
       Cli.printOk
-        $"Staged {Stdlib.Int.toString n} op(s) from {url} on branch \"{queue}\" (pending). `dark diff {queue}` then `dark review approve {queue}`."
+        $"Staged {Stdlib.toString n} op(s) from {url} on branch \"{queue}\" (pending). `dark diff {queue}` then `dark review approve {queue}`."
 
   state
 
@@ -146,7 +146,7 @@ let executeApprove (state: AppState) (queue: String) : AppState =
 
   match SCM.PackageOps.mergeBranch queueId with
   | Ok outcome ->
-    Cli.printOk $"Approved {Stdlib.Int.toString outcome.merged} op(s) from \"{queue}\" into main."
+    Cli.printOk $"Approved {Stdlib.toString outcome.merged} op(s) from \"{queue}\" into main."
     reportConflicts outcome.conflicts
   // An empty queue isn't a failure -- it means everything was already approved, rejected, or
   // resolved-to-theirs. Report it plainly so agents don't read it as an error.

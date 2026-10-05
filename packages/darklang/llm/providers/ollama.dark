@@ -15,7 +15,7 @@ type Provider = Darklang.LLM.Provider.Provider
 let configWithUrl (baseUrl: String) : Providers.OpenAI.Config =
   Providers.OpenAI.Config
     { apiKey = Stdlib.Option.Option.None
-      baseUrl = baseUrl ++ "/v1/chat/completions"
+      baseUrl = baseUrl + "/v1/chat/completions"
       providerId = "ollama"
       providerName = "Ollama (Local)"
       maxContextTokens = 128000 }

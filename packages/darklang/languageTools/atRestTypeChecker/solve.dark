@@ -23,7 +23,12 @@ type State =
     /// Set once the depth warning has been recorded, so siblings do not repeat it.
     gaveUpOnDepth: Bool
     /// Errors and warnings accumulated so far, with new findings prepended.
-    findings: List<Model.Finding> }
+    findings: List<Model.Finding>
+
+    /// Which implementation each trait call resolved to, most recent first. Unlike
+    /// findings these do not affect the verdict: they are what the caller asked the
+    /// check FOR, when that caller is save-time pinning rather than a person.
+    resolutions: List<Model.Resolution> }
 
 /// Begin checking a declaration with fresh inference state and the supplied environment.
 let start (env: Model.Environment) : State =
@@ -36,7 +41,8 @@ let start (env: Model.Environment) : State =
       coverage = []
       unifyDepth = 0L
       gaveUpOnDepth = false
-      findings = [] }
+      findings = []
+      resolutions = [] }
 
 
 // --------------------
@@ -52,6 +58,11 @@ let addFindings (s: State) (findings: List<Model.Finding>) : State =
   match findings with
   | [] -> s
   | _ -> { s with findings = Stdlib.List.append findings s.findings }
+
+/// Record which implementation a trait call resolved to. Prepended like a finding, and
+/// read back by Items in the order the solver saw the calls.
+let addResolution (s: State) (resolution: Model.Resolution) : State =
+  { s with resolutions = Stdlib.List.push s.resolutions resolution }
 
 /// Allocate an inference variable distinct from all earlier Fresh variables in this state.
 let fresh (s: State) : (Model.Ty * State) =
@@ -463,6 +474,10 @@ let mapConstraintTypes
     )
   | Operand(at, operation, operand, subject) ->
     Model.Constraint.Operand(at, operation, mapType operand, subject)
+  | TraitCall(at, trait_, method_, self) ->
+    Model.Constraint.TraitCall(at, trait_, method_, mapType self)
+  | CallerBound(at, param, trait_, supplied) ->
+    Model.Constraint.CallerBound(at, param, trait_, mapType supplied)
   | Negate(at, operand) -> Model.Constraint.Negate(at, mapType operand)
   | BitwiseNot(at, operand) -> Model.Constraint.BitwiseNot(at, mapType operand)
   | DictKey(at, key) -> Model.Constraint.DictKey(at, mapType key)
@@ -501,6 +516,8 @@ let constraintVars (s: State) (c: Model.Constraint) : Dict<Model.Var, Bool> =
   | EnumPattern(_, scrutinee, _, fields) ->
     Stdlib.List.fold fields (into Dict {} scrutinee) (fun found t -> into found t)
   | Operand(_, _, operand, _) -> into Dict {} operand
+  | TraitCall(_, _, _, self) -> into Dict {} self
+  | CallerBound(_, _, _, supplied) -> into Dict {} supplied
   | Negate(_, operand) -> into Dict {} operand
   | BitwiseNot(_, operand) -> into Dict {} operand
   | DictKey(_, key) -> into Dict {} key
@@ -955,6 +972,9 @@ let trySolveDeferred (s: State) (c: Model.Constraint) : Stdlib.Option.Option<Sta
   | EnumPattern(at, scrutinee, caseName, fields) ->
     enumPattern s at scrutinee caseName fields
   | Operand(at, operation, operand, _) -> operandFor s at operation operand
+  | TraitCall(at, trait_, method_, self) -> traitCallFor s at trait_ method_ self
+  | CallerBound(at, param, trait_, supplied) ->
+    callerBoundFor s at param trait_ supplied
   | Negate(at, operand) -> negate s at operand
   | BitwiseNot(at, operand) -> bitwiseNot s at operand
   | Unwrap(at, fn, arg, result) -> unwrap s at fn arg result
@@ -1194,6 +1214,48 @@ let useFunction
 
       let fnType =
         Types.substituteRigid mapping (Model.Ty.TFn(t.parameters, t.returnType))
+
+      // A named trait method call has an implementation to record, and which one depends on
+      // the self type, which the arguments have not filled in at this point. So queue the
+      // question rather than answering it: `traitCallFor` is reached once the type is known.
+      //
+      // The trait's own parameters come first in the template and the self type is the first
+      // of those (`resolveCallable`), so the unknown it took at THIS use is what `mapping`
+      // holds for that name. No second lookup of the trait is needed.
+      // What this call gave each of the callee's bounds. The callee's body defers to its own
+      // type parameter and cannot know; this is the half that says what the parameter meant
+      // here, and without it a call into a bounded generic records nothing at save.
+      let s =
+        t.bounds
+        |> Stdlib.List.fold s (fun s bound ->
+          match Types.resolvedTrait bound.trait_.trait_ with
+          | Some traitHash ->
+            match Stdlib.Dict.get mapping bound.param with
+            | Some supplied ->
+              solve
+                s
+                (Model.Constraint.CallerBound(at, bound.param, traitHash, supplied))
+            | None -> s
+          | None -> s)
+
+      let s =
+        match fn with
+        | TraitMethod method ->
+          match Stdlib.List.head t.typeParams with
+          | Some selfParam ->
+            match Stdlib.Dict.get mapping selfParam with
+            | Some selfTy ->
+              solve
+                s
+                (Model.Constraint.TraitCall(
+                  at,
+                  method.trait_,
+                  method.method_,
+                  selfTy
+                ))
+            | None -> s
+          | None -> s
+        | _ -> s
 
       let s =
         Stdlib.List.fold t.problems s (fun s problem ->
@@ -1977,32 +2039,191 @@ let isSignedNumeric (t: Model.Ty) : Bool =
   | TFloat -> true
   | _ -> false
 
-/// Identify bitwise and shift operators, whose operands must be integers.
-let isBitwise (operation: LanguageTools.ProgramTypes.InfixFnName) : Bool =
-  match operation with
-  | BitwiseAnd
-  | BitwiseOr
-  | BitwiseXor
-  | ShiftLeft
-  | ShiftRight -> true
-  | _ -> false
+/// Record which implementation a call at <param at> resolves to, or report that none applies,
+/// or say WAIT because the answer depends on a type that is not decided yet.
+///
+/// ONE RULE FOR EVERY SHAPE. An operator, a named call and a unary operator are all trait
+/// method calls; the only difference is how the trait got named. Them answering this question
+/// differently is how `+` and `Add.add` would come to mean different things.
+///
+/// The three-way split matters and the middle case is the subtle one:
+///  - nothing of this SHAPE implements the trait: refuse now. Waiting for an undecided
+///    argument would turn a definite error into "cannot tell", and an Incomplete verdict
+///    passes the commit gate where a Failed one does not. `-[]` is this case.
+///  - something of this shape does, but an argument is undecided: WAIT. Deciding here picks
+///    between `impl for Option<Int64>` and `impl for Option<String>` by timestamp, which is
+///    the defect `gates trait-checker-vs-dispatch` exists to catch.
+///  - decided: record the implementations that apply. Which of two rivals is newer is a
+///    question about the op log, and the store answers it at save time.
+let recordImplChoice
+  (s: State)
+  (at: Int64)
+  (traitHash: LanguageTools.ProgramTypes.Hash)
+  (method_: String)
+  (subject: Model.Ty)
+  (candidates: List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
 
-/// Check which numeric types this operator supports at runtime. Exponentiation
-/// excludes 128-bit integers, and bitwise operators exclude Float.
-let supports (operation: LanguageTools.ProgramTypes.InfixFnName) (t: Model.Ty) : Bool =
-  match operation with
-  | ArithmeticPower ->
-    match t with
-    | TInt128 -> false
-    | TUInt128 -> false
-    | _ -> isNumeric t
-  | _ ->
-    if isBitwise operation then
-      match t with
-      | TFloat -> false
-      | _ -> isNumeric t
+  let missing () : State =
+    // `MissingImpl` rather than anything operator-specific: under traits an operand a type
+    // cannot take is the ordinary absence of an implementation, and it reads the same way as
+    // a named call that finds none. Dispatch refuses it for the same reason.
+    addFinding
+      s
+      (Types.definiteError
+        IssueCode.MissingImpl
+        nodeId
+        (none ())
+        (some subject)
+        (Context.TraitNeeded(traitHash, Stdlib.Option.Option.Some method_)))
+
+  if Stdlib.List.isEmpty candidates then
+    // The trait has no implementations at all, anywhere. That is a store they have not
+    // reached rather than a type that cannot do this, and saying otherwise would report every
+    // `+` in the tree at once.
+    Stdlib.Option.Option.Some s
+  else
+    let byHead =
+      candidates
+      |> Stdlib.List.filter (fun (self, _) -> Types.headMatches self subject)
+
+    if Stdlib.List.isEmpty byHead then
+      Stdlib.Option.Option.Some(missing ())
+    else if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
+      Stdlib.Option.Option.None
     else
-      isNumeric t
+      let applies =
+        byHead |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+
+      if Stdlib.List.isEmpty applies then
+        Stdlib.Option.Option.Some(missing ())
+      else
+        Stdlib.Option.Option.Some(
+          addResolution
+            s
+            (Model.Resolution.Call(
+              at,
+              method_,
+              applies |> Stdlib.List.map (fun (_, source) -> source)
+            ))
+        )
+
+/// A named trait method call (`Show.show p`). Waits while the self type is unknown.
+///
+/// The counterpart to `operandFor`, and the half that was missing: without it a saved named
+/// call keeps no record of what it resolved to, so a newer implementation changes it
+/// underneath, which is what `trait-choice-survives-rival` is for.
+let traitCallFor
+  (s: State)
+  (at: Int64)
+  (traitHash: LanguageTools.ProgramTypes.Hash)
+  (method_: String)
+  (self: Model.Ty)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId self
+
+  match subject with
+  // The arguments have not decided the self type yet.
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some s
+  // Inside a bounded generic: the caller's type argument decides, and the bound is the
+  // promise that something will.
+  | TRigid param ->
+    Stdlib.Option.Option.Some(
+      addResolution s (Model.Resolution.Deferred(at, param))
+    )
+  | _ ->
+    recordImplChoice
+      s
+      at
+      traitHash
+      method_
+      subject
+      (Environment.implsOfTrait s.env traitHash)
+
+/// What this call gave one of the callee's bounds, once the supplied type is known.
+///
+/// The other half of a bounded generic. The callee's body records that it defers to its own
+/// type parameter (`Resolution.Deferred`); this records what the parameter MEANT at this call,
+/// so the body can find a function without reading an implementation at run time.
+let callerBoundFor
+  (s: State)
+  (at: Int64)
+  (param: String)
+  (traitHash: LanguageTools.ProgramTypes.Hash)
+  (supplied: Model.Ty)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId supplied
+
+  match subject with
+  // The arguments have not decided the type argument yet.
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some s
+  // The type argument is one of THIS item's own parameters, so the obligation is passed along
+  // rather than discharged. That is what threads a bound through a generic calling a generic.
+  | TRigid fromParam ->
+    Stdlib.Option.Option.Some(
+      addResolution
+        s
+        (Model.Resolution.CallerBoundDeferred(at, param, traitHash, fromParam))
+    )
+  | _ ->
+    let candidates = Environment.implsOfTrait s.env traitHash
+
+    let byHead =
+      candidates
+      |> Stdlib.List.filter (fun (self, _) -> Types.headMatches self subject)
+
+    let applies =
+      byHead |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+
+    // The same three-way split `recordImplChoice` makes, and for the same reasons. Not shared
+    // with it because what gets recorded differs: a bound records which implementation the
+    // type ARGUMENT implied, not which one the call runs.
+    if Stdlib.List.isEmpty candidates then
+      Stdlib.Option.Option.Some s
+    else if Stdlib.List.isEmpty byHead then
+      // Nothing of this shape meets the bound, and no argument can change that, so refuse now
+      // rather than waiting and downgrading a definite error to Incomplete.
+      Stdlib.Option.Option.Some(
+        addFinding
+          s
+          (Types.definiteError
+            IssueCode.MissingImpl
+            nodeId
+            (none ())
+            (some subject)
+            (Context.TraitNeeded(traitHash, Stdlib.Option.Option.None)))
+      )
+    else if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
+      Stdlib.Option.Option.None
+    else if Stdlib.List.isEmpty applies then
+      // The right shape but the wrong arguments: the type argument does not meet the callee's
+      // bound, which is why a call INTO a bounded function can be refused at save now.
+      Stdlib.Option.Option.Some(
+        addFinding
+          s
+          (Types.definiteError
+            IssueCode.MissingImpl
+            nodeId
+            (none ())
+            (some subject)
+            (Context.TraitNeeded(traitHash, Stdlib.Option.Option.None)))
+      )
+    else
+      Stdlib.Option.Option.Some(
+        addResolution
+          s
+          (Model.Resolution.CallerBound(
+            at,
+            param,
+            traitHash,
+            applies |> Stdlib.List.map (fun (_, source) -> source)
+          ))
+      )
 
 /// Check a numeric operator's operand after resolving aliases. Wait for an
 /// inference variable; report a definite error for a known unsupported type.
@@ -2018,39 +2239,49 @@ let operandFor
   match subject with
   | TVar _ -> Stdlib.Option.Option.None
   | TError -> Stdlib.Option.Option.Some s
-  | _ ->
-    if supports operation subject then
-      Stdlib.Option.Option.Some s
-    else
+  // The operand is one of the enclosing item's OWN type parameters, so this item cannot say
+  // which implementation runs and it is not supposed to: the bound on that parameter is the
+  // promise that one exists, and the caller's type argument decides which. Record the
+  // deferral rather than looking for an implementation of a rigid type, which would find none
+  // and report every bounded generic in the tree as missing one.
+  | TRigid param ->
+    match Environment.infixImplsFor s.env operation with
+    | None -> Stdlib.Option.Option.Some s
+    | Some _ ->
       Stdlib.Option.Option.Some(
-        addFinding
-          s
-          (Types.definiteError
-            IssueCode.InvalidInfixOperand
-            nodeId
-            (none ())
-            (some subject)
-            (Context.InfixOperandUnsupported operation))
+        addResolution s (Model.Resolution.Deferred(at, param))
       )
+  | _ ->
+    match Environment.infixImplsFor s.env operation with
+    // Not a trait, so there is nothing to look up and nothing to record. `==` and `!=` are
+    // structural equality for every value, and an operator whose trait hash is not generated
+    // yet answers the same way, which is what keeps a tree whose refs are missing from
+    // reporting every operator as an error.
+    | None -> Stdlib.Option.Option.Some s
+    | Some((traitHash, method_, candidates)) ->
+      recordImplChoice s at traitHash method_ subject candidates
 
 /// Require a signed integer or Float for unary minus, waiting if its type is unknown.
 let negate (s: State) (at: Int64) (operand: Model.Ty) : Stdlib.Option.Option<State> =
-  unaryOperand s at operand isSignedNumeric Context.UnaryMinusOperandNotSignedNumeric
+  unaryOperand s at operand "unary -"
 
-/// Require an integer for bitwise NOT, waiting if its type is unknown.
+/// `~x`, the same way.
 let bitwiseNot (s: State) (at: Int64) (operand: Model.Ty) : Stdlib.Option.Option<State> =
-  unaryOperand s at operand
-    (fun t -> isNumeric t && t != Model.Ty.TFloat)
-    Context.BitwiseNotOperandNotInteger
+  unaryOperand s at operand "unary ~"
 
-/// Resolve a unary operand and check it with accepts. Unknown inference variables
-/// wait; error placeholders add no finding; known rejected types use the supplied context.
+/// Resolve a unary operator's operand against the implementations of its trait.
+///
+/// This used to take a PREDICATE over types, `isSignedNumeric` for `-x` and an integer test
+/// for `~x`, left behind when the binary operators moved to implementation lookup. That is
+/// what made `dark typecheck` fail `Stdlib.abs`: its operand is `'a` under a `Negate` bound,
+/// a predicate asks "is this a signed numeric" and a rigid type variable is not one, so it
+/// refused the very thing the bound guarantees. A bound is a promise to be deferred, not a
+/// type to be recognised.
 let unaryOperand
   (s: State)
   (at: Int64)
   (operand: Model.Ty)
-  (accepts: Model.Ty -> Bool)
-  (context: Context)
+  (key: String)
   : Stdlib.Option.Option<State> =
   let nodeId = Stdlib.Option.Option.Some at
   let (subject, s) = expand s nodeId operand
@@ -2058,20 +2289,20 @@ let unaryOperand
   match subject with
   | TVar _ -> Stdlib.Option.Option.None
   | TError -> Stdlib.Option.Option.Some s
+  // The enclosing item's own type parameter: its caller decides, and the bound is the promise
+  // that something will. Exactly what `operandFor` does for the binary operators.
+  | TRigid param ->
+    Stdlib.Option.Option.Some(
+      addResolution s (Model.Resolution.Deferred(at, param))
+    )
   | _ ->
-    if accepts subject then
-      Stdlib.Option.Option.Some s
-    else
-      Stdlib.Option.Option.Some(
-        addFinding
-          s
-          (Types.definiteError
-            IssueCode.InvalidInfixOperand
-            nodeId
-            (none ())
-            (some subject)
-            context)
-      )
+    match Environment.unaryImplsFor s.env key with
+    // Not a trait yet, or the refs are not generated: say nothing rather than refuse
+    // everything.
+    | None -> Stdlib.Option.Option.Some s
+    | Some((traitHash, method_, candidates)) ->
+      recordImplChoice s at traitHash method_ subject candidates
+
 
 /// Determine builtin unwrap's result from the Some payload of standard Option
 /// or the Ok payload of standard Result. Wait for an unknown argument type;

@@ -45,9 +45,9 @@ let syncPushSummary (facts: SyncFacts) : String =
   else
     let branches = Stdlib.List.length facts.branchesUnpushed
     if facts.mainUnpushed > 0L then
-      "↑ " ++ (Stdlib.Int64.toString facts.mainUnpushed) ++ " main ops to push"
-      ++ (if branches == 0 then "" else " · " ++ (plural branches "branch"))
-    else if branches > 0 then "↑ " ++ (plural branches "branch") ++ " to push"
+      "↑ " + (Stdlib.toString facts.mainUnpushed) + " main ops to push"
+      + (if branches == 0 then "" else " · " + (plural branches "branch"))
+    else if branches > 0 then "↑ " + (plural branches "branch") + " to push"
     else "nothing to push"
 
 let syncBranchStanding (facts: SyncFacts) (name: String) (isMain: Bool) : String =

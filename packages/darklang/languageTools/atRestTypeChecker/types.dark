@@ -17,6 +17,10 @@ let isWarning (code: IssueCode) : Bool =
   | UnresolvedTypeName
   | UnresolvedFunctionName
   | UnresolvedValueName
+  // A trait name that does not resolve is the same kind of thing as a type or fn name that
+  // does not: the declaration cannot be proved either way, so it is Incomplete rather than
+  // Failed.
+  | UnresolvedTraitName
   | MissingTypeDeclaration
   | MissingFunctionSignature
   | MissingValueSignature
@@ -43,7 +47,21 @@ let isWarning (code: IssueCode) : Bool =
   | DuplicateTypeParameter
   | DuplicateTypeMember
   | InvalidUnwrap
-  | UnsupportedDictKeyType -> false
+  | UnsupportedDictKeyType
+  // The trait codes are definite errors, not warnings: an operand with no implementation, two
+  // that both fit, an impl that misses a method or mismatches its signature or exceeds the
+  // trait's ceiling, and a bound on a type param the enclosing fn never declared, are each
+  // something the checker PROVED rather than something it could not finish.
+  //
+  // They were absent here, and `isWarning` has no catch-all, so producing any trait
+  // diagnostic raised inside the per-item guard and came back as `UnsupportedConstruct`
+  // Incomplete instead. 4,359 items in one reload.
+  | MissingImpl
+  | AmbiguousImpl
+  | ImplMethodSet
+  | ImplMethodSignature
+  | ImplExceedsCeiling
+  | UnboundTypeParameter -> false
 
 /// Create an error finding whose expected or actual types may still be unknown.
 /// Items decides whether those unknowns make the error too uncertain to report
@@ -311,6 +329,48 @@ let resolvedType
     | Package hash -> Stdlib.Option.Option.Some hash
   | Error _ -> Stdlib.Option.Option.None
 
+/// Do these two types agree on their HEAD alone, ignoring arguments entirely?
+///
+/// TRIAGE ONLY, never the matching rule: `implApplies` is the rule. This answers the narrower
+/// question "could any implementation of this shape apply", which is what lets a definite
+/// refusal be made before the arguments are known. `-[]` has an undecided element type and no
+/// implementation of `Negate` is for a list at all, so waiting for the element type would
+/// turn a definite error into "cannot tell", and an Incomplete verdict passes the commit gate
+/// where a Failed one does not.
+let headMatches (a: Model.Ty) (b: Model.Ty) : Bool =
+  match (a, b) with
+  | (TError, _) -> true
+  | (TRigid _, _) -> true
+  | (_, TError) -> true
+  | (_, TVar _) -> true
+  | (TCustom(aHash, _), TCustom(bHash, _)) -> aHash == bHash
+  | (TList _, TList _) -> true
+  | (TStream _, TStream _) -> true
+  | (TDict(_, _), TDict(_, _)) -> true
+  | (TTuple(_, _, _), TTuple(_, _, _)) -> true
+  | (TFn(_, _), TFn(_, _)) -> true
+  | (TDB _, TDB _) -> true
+  | _ -> a == b
+
+/// Is every part of <param ty> decided, so an implementation can be chosen against it?
+///
+/// The head being known is not enough: `Option<?>` has a known head and cannot tell
+/// `impl for Option<Int64>` from `impl for Option<String>`. A choice made against an
+/// undecided argument is a choice made by timestamp.
+let fullyResolved (subst: Dict<Model.Var, Model.Ty>) (ty: Model.Ty) : Bool =
+  Stdlib.List.isEmpty (Stdlib.Dict.keys (freeVars subst ty))
+
+/// The hash a trait name resolved to, if it resolved. Same shape as `resolvedType`, and the
+/// unresolved case is not this function's to report: the resolver already failed it.
+let resolvedTrait
+  (name: LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTraitName.FQTraitName>)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
+  match name.resolved with
+  | Ok resolved ->
+    match resolved.name with
+    | Package hash -> Stdlib.Option.Option.Some hash
+  | Error _ -> Stdlib.Option.Option.None
+
 /// Convert a declared type reference, adding conversion problems to found.
 /// Look up type parameters in mapping: a generic definition uses TRigid types,
 /// while a use of that definition supplies its type arguments. Unresolved names
@@ -476,6 +536,9 @@ let fnNameRef (name: LanguageTools.ProgramTypes.FQFnName.FQFnName) : NameRef =
   match name with
   | Builtin b -> NameRef.Builtin(b.name, Stdlib.Int64.fromInt32 b.version)
   | Package hash -> NameRef.Package hash
+  // `NameRef` has carried this case all along; nothing filled it in, so naming a trait method
+  // in a diagnostic raised instead of printing `Show.show`.
+  | TraitMethod method -> NameRef.TraitMethod(method.trait_, method.method_)
 
 /// Represent a resolved value in the report by its builtin name or package hash.
 let valueNameRef
@@ -882,6 +945,67 @@ let isUsableDictKeyReference
 // --------------------
 // Convert internal types to the public report format.
 // --------------------
+
+/// Does an implementation's self type apply to <param subject>?
+///
+/// MIRRORS `LibExecution.Traits.argsAgree`, which is what the RUNTIME uses to decide the same
+/// question, and the two must not disagree. If the checker is looser than dispatch it pins a
+/// call to an implementation that will refuse it at run time; `gates trait-checker-vs-dispatch`
+/// is the agreement test, and it walks both authoring orders because the symptom of getting
+/// this wrong is an answer that depends on which implementation was written last.
+///
+/// Matching the head alone is NOT enough, and that was a real defect once: with
+/// `impl T for Option<Int64>` and `impl T for Option<String>` both counted as candidates, the
+/// save picked between them by timestamp and pinned whichever was newer, so a green save raised
+/// on its first call.
+///
+/// A type variable in the implementation's self type applies to anything, which is how
+/// `impl Add for List<'a>` covers every list. It arrives as a placeholder rather than a variable
+/// because the conversion that produced it had no mapping to bind one.
+let implApplies (self: Model.Ty) (subject: Model.Ty) : Bool =
+  match (self, subject) with
+  // `impl T for List<'a>`: the variable agrees with whatever the subject has there.
+  | (TError, _) -> true
+  | (TRigid _, _) -> true
+  // The subject's own type is not decided yet, so it cannot disagree.
+  // NOT a match when the subject is still undecided. `Traits.argsAgree` is permissive about
+  // an unknown because at RUN TIME it has a value in hand and an untracked value type must
+  // not block dispatch. At CHECK time an undecided type means "not yet", and answering `true`
+  // here made `Option<Int64>` match an `impl for Option<String>`, so the save pinned by
+  // timestamp and a green save raised on its first call. Callers WAIT instead; see
+  // `fullyResolved`.
+  | (_, TError) -> true
+
+  | (TList a, TList b) -> implApplies a b
+  | (TStream a, TStream b) -> implApplies a b
+  | (TDB a, TDB b) -> implApplies a b
+  | (TDict(ak, av), TDict(bk, bv)) -> (implApplies ak bk) && (implApplies av bv)
+
+  | (TTuple(a1, a2, aRest), TTuple(b1, b2, bRest)) ->
+    (implApplies a1 b1)
+    && (implApplies a2 b2)
+    && (Stdlib.List.length aRest == Stdlib.List.length bRest)
+    && (Stdlib.List.all
+          (Stdlib.List.zipShortest aRest bRest)
+          (fun (a, b) -> implApplies a b))
+
+  | (TFn(aArgs, aRet), TFn(bArgs, bRet)) ->
+    (Stdlib.List.length aArgs == Stdlib.List.length bArgs)
+    && (Stdlib.List.all
+          (Stdlib.List.zipShortest aArgs bArgs)
+          (fun (a, b) -> implApplies a b))
+    && (implApplies aRet bRet)
+
+  | (TCustom(aHash, aArgs), TCustom(bHash, bArgs)) ->
+    (aHash == bHash)
+    && ((Stdlib.List.isEmpty aArgs)
+        || ((Stdlib.List.length aArgs == Stdlib.List.length bArgs)
+            && (Stdlib.List.all
+                  (Stdlib.List.zipShortest aArgs bArgs)
+                  (fun (a, b) -> implApplies a b))))
+
+  // Every type with no arguments, which is why the nineteen primitives need no arms.
+  | _ -> self == subject
 
 /// Convert an internal type to StaticType for diagnostics. Apply substitutions
 /// before calling so inferred types appear in the report. Keep declared parameter

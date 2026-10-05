@@ -15,6 +15,10 @@ module FQTypeName =
   type Package = Hash
   type FQTypeName = Package of Package
 
+module FQTraitName =
+  type Package = Hash
+  type FQTraitName = Package of Package
+
 module FQValueName =
   type Builtin = { name: String; version: Int32 }
   type Package = Hash
@@ -27,9 +31,27 @@ module FQFnName =
   type Builtin = { name: String; version: Int32 }
   type Package = Hash
 
+  /// How much of a trait call's implementation is decided; the runtime's half of
+  /// `ProgramTypes.FQFnName.ImplChoice`.
+  type ImplChoice =
+    /// That fn runs
+    | Chosen of Package
+    /// Read from the frame the caller filled, rather than asked of the store
+    | FromTypeParam of String
+    /// Resolve at the call; the only path that asks the store
+    | Unknown
+
+  /// A trait method call: the trait, the method name (`ToString.toString`), and how
+  /// much the save could say about which implementation runs.
+  type TraitMethod =
+    { trait_: FQTraitName.Package
+      method_: String
+      implFn: ImplChoice }
+
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
+    | TraitMethod of TraitMethod
 
 type NameResolutionError =
   | NotFound
@@ -247,6 +269,17 @@ type Applicable =
   | AppLambda of ApplicableLambda
   | AppNamedFn of ApplicableNamedFn
 
+
+/// One impl of a trait as dispatch sees it: what it is for, and the fn behind each method
+type ImplCandidate =
+  { trait_: FQTraitName.Package
+    self: TypeReference
+    methods: Dict<String, Hash>
+    source: Hash
+    /// When the op that added this implementation was written. Two implementations of
+    /// one trait for one type are ordered by it: the newer one runs. Empty for an
+    /// implementation that never came from an op, and then neither one wins.
+    stamp: String }
 
 type Dval =
   | DUnit

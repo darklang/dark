@@ -28,6 +28,8 @@ let applyResolution
     match c.itemType with
     | "type" -> LanguageTools.ProgramTypes.Reference.PackageType h
     | "value" -> LanguageTools.ProgramTypes.Reference.PackageValue h
+    | "trait" -> LanguageTools.ProgramTypes.Reference.PackageTrait h
+    | "impl" -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl h
     | _ -> LanguageTools.ProgramTypes.Reference.PackageFn h
 
   add
@@ -137,8 +139,8 @@ let commitDraft
         (Stdlib.List.append typeReport.diagnostics typeReport.warnings)
 
     Stdlib.Result.Result.Error(
-      $"the at-rest type check found {Stdlib.Int.toString count} definite error(s); "
-      ++ "`dark constraints` and `dark typecheck` show them")
+      $"the at-rest type check found {Stdlib.toString count} definite error(s); "
+      + "`dark constraints` and `dark typecheck` show them")
   | Checked
   | Incomplete ->
 
@@ -295,8 +297,8 @@ let mergeBranch (branchId: Uuid) : Stdlib.Result.Result<MergeOutcome, MergeError
       if SCM.Branch.isMain parent then
         let landed =
           Stdlib.List.append
-            (moved |> Stdlib.List.map (fun id -> Stdlib.Uuid.toString id))
-            [ Stdlib.Uuid.toString eventId ]
+            (moved |> Stdlib.List.map (fun id -> Stdlib.toString id))
+            [ Stdlib.toString eventId ]
 
         commitMainOps $"merged branch \"{branchName branchId}\"" "merge" landed
       else
@@ -331,7 +333,7 @@ let rebaseMessage (parentId: Uuid) (rebased: Branches.Rebased) : String =
     match rebased.diverged with
     | [] -> []
     | names ->
-      let n = Stdlib.Int.toString (Stdlib.List.length names)
+      let n = Stdlib.toString (Stdlib.List.length names)
       let listed = Stdlib.String.join names "\n  "
       [ $"it had changed {n} name(s) you also touched:\n  {listed}\nyour branch's versions win by recency on merge -- re-author any you want to take the parent's version of." ]
 
@@ -339,7 +341,7 @@ let rebaseMessage (parentId: Uuid) (rebased: Branches.Rebased) : String =
     match rebased.repointed with
     | [] -> []
     | names ->
-      let n = Stdlib.Int.toString (Stdlib.List.length names)
+      let n = Stdlib.toString (Stdlib.List.length names)
       let listed = Stdlib.String.join names "\n  "
       [ $"it had moved names this branch calls; {n} caller(s) now point at the parent's version:\n  {listed}" ]
 
@@ -347,7 +349,7 @@ let rebaseMessage (parentId: Uuid) (rebased: Branches.Rebased) : String =
   | [] ->
     $"already current with \"{parentName}\" -- nothing to reconcile; merge is ready"
   | parts ->
-    $"rebased onto \"{parentName}\". " ++ (Stdlib.String.join parts "\n")
+    $"rebased onto \"{parentName}\". " + (Stdlib.String.join parts "\n")
 
 
 /// Rebase a branch: accept the parent's current state as the new base; reports the names the parent changed
@@ -382,7 +384,7 @@ let branchList (includeMerged: Bool) : String =
     if hidden == 0L then
       ""
     else
-      $"\n\n{Stdlib.Int64.toString hidden} merged -- `dark branches --all` shows them."
+      $"\n\n{Stdlib.toString hidden} merged -- `dark branches --all` shows them."
 
   match Branches.listLines includeMerged with
   | [] ->
@@ -403,9 +405,9 @@ let branchList (includeMerged: Bool) : String =
 
         Stdlib.List.append
           (Stdlib.List.take lines cap)
-          [ $"+ {Stdlib.Int.toString more} more -- `dark branches --all` lists every branch." ]
+          [ $"+ {Stdlib.toString more} more -- `dark branches --all` lists every branch." ]
 
-    (Stdlib.String.join shown "\n") ++ footer
+    (Stdlib.String.join shown "\n") + footer
 
 
 /// Present everything a branch changes vs its parent (+ new, ~ changed) -- the review-before-merge diff.
@@ -413,7 +415,7 @@ let branchDiff (branchId: Uuid) : String =
   match branchDiffLines branchId with
   | [] -> $"\"{branchName branchId}\" changes nothing vs its parent."
   | lines ->
-    let n = Stdlib.Int.toString (Stdlib.List.length lines)
+    let n = Stdlib.toString (Stdlib.List.length lines)
     let body = Stdlib.String.join lines "\n"
     $"\"{branchName branchId}\" changes {n} name(s) vs its parent:\n\n{body}"
 
@@ -468,7 +470,7 @@ let archiveBranch (branchId: Uuid) : Stdlib.Result.Result<String, String> =
     // Exactly this event, by id. Committing "whatever is uncommitted" would sweep up a half-written fn
     // that has nothing to do with archiving a branch.
     let _ =
-      commitMainOps $"archived branch \"{handle}\"" "archive" [ Stdlib.Uuid.toString eventId ]
+      commitMainOps $"archived branch \"{handle}\"" "archive" [ Stdlib.toString eventId ]
 
     Stdlib.Result.Result.Ok $"archived branch \"{handle}\"."
 

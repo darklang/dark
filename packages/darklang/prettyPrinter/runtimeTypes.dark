@@ -163,6 +163,35 @@ let typeName
   | Package p -> FQTypeName.package branchId p
 
 
+/// A trait's full name, by the name its hash is bound to on the branch.
+let traitName
+    (branchId: Uuid)
+    (t: LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
+  : String =
+  match t with
+  | Package hash ->
+    resolvePackageHash
+      LanguageTools.PackageManager.PickContext.empty
+      (LanguageTools.PackageManager.Trait.locations branchId (ptHash hash))
+      hash
+
+/// Just the trait's own name.
+let shortTraitName
+    (branchId: Uuid)
+    (t: LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
+  : String =
+  match t with
+  | Package hash ->
+    let locations = Darklang.LanguageTools.PackageManager.Trait.locations branchId (ptHash hash)
+    match
+      Darklang.LanguageTools.PackageManager.pickLocation
+        LanguageTools.PackageManager.PickContext.empty
+        locations
+    with
+    | Some l -> l.name
+    | None -> Darklang.LanguageTools.RuntimeTypes.hashToString hash
+
+
 /// Just the type's own name, without the module path that leads to it.
 ///
 /// For error messages, where the surrounding sentence already says what kind of thing is being talked
@@ -192,7 +221,7 @@ module FQValueName =
       if t.version == 0l then
         ""
       else
-        $"_v{Stdlib.Int32.toString t.version}"
+        $"_v{Stdlib.toString t.version}"
 
     $"{namePart}{versionPart}"
 
@@ -220,7 +249,7 @@ module FQFnName =
       if t.version == 0l then
         ""
       else
-        $"_v{Stdlib.Int32.toString t.version}"
+        $"_v{Stdlib.toString t.version}"
 
     $"Builtin.{namePart}{versionPart}"
 
@@ -239,6 +268,20 @@ let fnName
   match t with
   | Builtin b -> FQFnName.builtIn b
   | Package p -> FQFnName.package branchId p
+  // A trait's hash is not a type's, so it needs the trait's own locations: without this a trait
+  // method prints as a 64-character hash wherever a fn name is printed, arity errors and
+  // partial applications included.
+  | TraitMethod tm ->
+    let traitHash = tm.trait_
+    let method = tm.method_
+
+    let traitName =
+      resolvePackageHash
+        LanguageTools.PackageManager.PickContext.empty
+        (LanguageTools.PackageManager.Trait.locations branchId (ptHash traitHash))
+        traitHash
+
+    $"{traitName}.{method}"
 
 
 
@@ -279,7 +322,7 @@ let typeReference
     (Stdlib.List.append [ first, second ] theRest)
     |> Stdlib.List.map (fun item -> typeReference branchId item)
     |> Stdlib.String.join " * "
-    |> fun parts -> "(" ++ parts ++ ")"
+    |> fun parts -> "(" + parts + ")"
 
   | TList inner -> $"List<{typeReference branchId inner}>"
 
@@ -315,14 +358,14 @@ let typeReference
       args
       |> Stdlib.List.map (fun arg -> typeReference branchId arg)
       |> Stdlib.String.join ", "
-      |> fun parts -> "(" ++ parts ++ ")"
+      |> fun parts -> "(" + parts + ")"
 
     $"{argPart} -> {typeReference branchId ret}"
 
 
   | TDB inner -> $"DB<{typeReference branchId inner}>"
 
-  | TVariable varName -> "'" ++ varName
+  | TVariable varName -> "'" + varName
 
 
 let knownType
@@ -381,9 +424,9 @@ let knownType
         args
         |> Stdlib.List.map (fun t -> valueType branchId t)
         |> Stdlib.String.join ", "
-        |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+        |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
-    (typeName branchId name) ++ typeArgsPortion
+    (typeName branchId name) + typeArgsPortion
 
   | KTDB typ -> $"Datastore<{valueType branchId typ}>"
 
@@ -487,7 +530,7 @@ let declaredKnownType
         |> Stdlib.List.indexedMap (fun i arg ->
           declaredValueType branchId (nth dTypeArgs i) arg)
         |> Stdlib.String.join ", "
-        |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+        |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
     let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId (ptHash hash)
 
@@ -498,7 +541,7 @@ let declaredKnownType
         dName.originalName
         hash
 
-    namePart ++ typeArgsPortion
+    namePart + typeArgsPortion
 
   | _, _ -> knownType branchId kt
 
@@ -550,7 +593,7 @@ module Dval =
       types
       |> Stdlib.List.map (fun item -> valueTypeName branchId item)
       |> Stdlib.String.join " * "
-      |> fun parts -> "(" ++ parts ++ ")"
+      |> fun parts -> "(" + parts + ")"
     | DList (vt, _) -> $"List<{valueType branchId vt}>"
     | DDict(kt, vt, _) ->
       let k = valueType branchId kt
@@ -565,7 +608,7 @@ module Dval =
           |> Stdlib.List.map (fun t -> valueType branchId t)
           |> Stdlib.String.join ", "
           |> fun parts -> $"<{parts}>"
-      (RuntimeTypes.typeName branchId typeName) ++ typeArgsPart
+      (RuntimeTypes.typeName branchId typeName) + typeArgsPart
     | DEnum (_, typeName, typeArgs, _, _) ->
       let typeArgsPart =
         match typeArgs with
@@ -575,7 +618,7 @@ module Dval =
           |> Stdlib.List.map (fun t -> valueType branchId t)
           |> Stdlib.String.join ", "
           |> fun parts -> $"<{parts}>"
-      (RuntimeTypes.typeName branchId typeName) ++ typeArgsPart
+      (RuntimeTypes.typeName branchId typeName) + typeArgsPart
     | DDB _ -> "Datastore"
     | DApplicable (AppNamedFn _) -> "Function"
     | DApplicable (AppLambda _) -> "Lambda"
@@ -693,25 +736,25 @@ module Dval =
     | DBool true -> paint opts.palette.keyword "true"
     | DBool false -> paint opts.palette.keyword "false"
 
-    | DChar c -> paint opts.palette.string_ $"'{PrettyPrinter.escapeCharLiteral (Stdlib.Char.toString c)}'"
+    | DChar c -> paint opts.palette.string_ $"'{PrettyPrinter.escapeCharLiteral (Stdlib.toString c)}'"
     | DString s -> paint opts.palette.string_ $"\"{PrettyPrinter.escapeSpecialCharacters s}\""
 
-    | DInt8 i -> paint opts.palette.number (Stdlib.Int8.toString i)
-    | DUInt8 i -> paint opts.palette.number (Stdlib.UInt8.toString i)
-    | DInt16 i -> paint opts.palette.number (Stdlib.Int16.toString i)
-    | DUInt16 i -> paint opts.palette.number (Stdlib.UInt16.toString i)
-    | DInt32 i -> paint opts.palette.number (Stdlib.Int32.toString i)
-    | DUInt32 i -> paint opts.palette.number (Stdlib.UInt32.toString i)
-    | DInt64 i -> paint opts.palette.number (Stdlib.Int64.toString i)
-    | DUInt64 i -> paint opts.palette.number (Stdlib.UInt64.toString i)
-    | DInt128 i -> paint opts.palette.number (Stdlib.Int128.toString i)
-    | DUInt128 i -> paint opts.palette.number (Stdlib.UInt128.toString i)
-    | DInt i -> paint opts.palette.number (Stdlib.Int.toString i)
+    | DInt8 i -> paint opts.palette.number (Stdlib.toString i)
+    | DUInt8 i -> paint opts.palette.number (Stdlib.toString i)
+    | DInt16 i -> paint opts.palette.number (Stdlib.toString i)
+    | DUInt16 i -> paint opts.palette.number (Stdlib.toString i)
+    | DInt32 i -> paint opts.palette.number (Stdlib.toString i)
+    | DUInt32 i -> paint opts.palette.number (Stdlib.toString i)
+    | DInt64 i -> paint opts.palette.number (Stdlib.toString i)
+    | DUInt64 i -> paint opts.palette.number (Stdlib.toString i)
+    | DInt128 i -> paint opts.palette.number (Stdlib.toString i)
+    | DUInt128 i -> paint opts.palette.number (Stdlib.toString i)
+    | DInt i -> paint opts.palette.number (Stdlib.toString i)
 
-    | DFloat f -> paint opts.palette.number (Stdlib.Float.toString f)
+    | DFloat f -> paint opts.palette.number (Stdlib.toString f)
 
-    | DDateTime d -> txt $"<{valueTypeName branchId dv}: {Stdlib.DateTime.toString d}>"
-    | DUuid uuid -> txt $"<{valueTypeName branchId dv}: {Stdlib.Uuid.toString uuid}>"
+    | DDateTime d -> txt $"<{valueTypeName branchId dv}: {Stdlib.toString d}>"
+    | DUuid uuid -> txt $"<{valueTypeName branchId dv}: {Stdlib.toString uuid}>"
 
     | DTuple(first, second, theRest) ->
       let parts =
@@ -743,7 +786,7 @@ module Dval =
     // Don't fetch the bytes for rendering -- payloads can be many MB.
     | DBlobPersistent(hash, length) ->
       let short = Stdlib.String.first hash 8
-      txt $"<Blob: {short}… {Stdlib.Int.toString length} bytes>"
+      txt $"<Blob: {short}… {Stdlib.toString length} bytes>"
     | DBlobEphemeral _ -> txt "<Blob: ephemeral>"
 
     | DStreamStub _ -> txt "<stream: stub>"
@@ -766,7 +809,7 @@ module Dval =
         if caseNameStandsAlone branchId opts.currentModule typeName then
           ""
         else
-          (typeNameWith branchId opts typeName) ++ typeArgsPart ++ "."
+          (typeNameWith branchId opts typeName) + typeArgsPart + "."
 
       match fields with
       | [] -> txt $"{prefix}{caseName}"
@@ -788,7 +831,7 @@ module Dval =
             args
             |> Stdlib.List.map (fun t -> valueType branchId t)
             |> Stdlib.String.join ", "
-            |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+            |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
       let parts =
         o
@@ -844,7 +887,7 @@ let capForDisplay
     (maxChars: Int)
     (dv: LanguageTools.RuntimeTypes.Dval)
   : LanguageTools.RuntimeTypes.Dval =
-  let enough = Stdlib.Int.max ((maxChars / 3) + 2) 64
+  let enough = Stdlib.max ((maxChars / 3) + 2) 64
 
   match dv with
   | DList(t, items) ->
@@ -874,7 +917,7 @@ let dvalOneLine
     text |> Stdlib.String.split "\n" |> Stdlib.List.map Stdlib.String.trim |> Stdlib.String.join " "
 
   if (Stdlib.String.length oneLine) > maxChars then
-    (Stdlib.String.slice oneLine 0 (maxChars - 3)) ++ "..."
+    (Stdlib.String.slice oneLine 0 (maxChars - 3)) + "..."
   else
     oneLine
 

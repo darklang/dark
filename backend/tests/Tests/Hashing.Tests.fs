@@ -20,7 +20,7 @@ let private makeType
   (def : PT.TypeDeclaration.Definition)
   : PT.PackageType.PackageType =
   { hash = PT.Hash ""
-    declaration = { typeParams = []; definition = def }
+    declaration = { typeParams = []; bounds = []; definition = def }
     description = "" }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
@@ -263,10 +263,126 @@ let private fnHashTests =
           let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
             { originalName = names
               resolved = Error PT.NameResolutionError.NotFound }
-          PT.EApply(gid (), PT.EFnName(gid (), nr), [], NEList.singleton (eVar "x"))
+          PT.EApply(
+            gid (),
+            PT.EFnName(gid (), nr, []),
+            [],
+            NEList.singleton (eVar "x")
+          )
         let h1 = h [ "x" ] (callUnresolved [ "Tests"; "UnresT"; "missing" ])
         let h2 = h [ "x" ] (callUnresolved [ "TwoStore"; "Cascade"; "base" ])
         Expect.notEqual h1 h2 "the name is all an unresolved reference has"
+      }
+
+      // Bounds are a contract on the caller, so they hash; but they are written only
+      // when present, so every fn and type that has none keeps the hash it had
+      // before bounds existed. Both halves matter: the first for correctness, the
+      // second so adding the field did not repoint the whole store.
+      test "bounds hash, and an absent bounds list adds no bytes" {
+        let traitHash = PT.Hash "trait-show"
+        let bound : PT.Bound =
+          { param = "a"
+            trait_ =
+              { trait_ = PT.NameResolution.ok (PT.FQTraitName.Package traitHash)
+                typeArgs = [] } }
+        let plain = makeFn (eInt64 42)
+        let bounded = { plain with bounds = [ bound ] }
+        let hPlain = Hashing.computeFnHash Hashing.Normal plain
+        let hBounded = Hashing.computeFnHash Hashing.Normal bounded
+        Expect.notEqual hPlain hBounded "a bound is part of the fn's identity"
+        // The pre-bounds writer ended after the ceiling byte, and an empty list must not
+        // append a length byte, or adding the field would have repointed the whole store.
+        // The literal is the pin: it is what `makeFn (eInt64 42)` hashed to before `bounds`
+        // existed, so if the writer starts emitting anything for an empty list, this fails
+        // loudly rather than agreeing with itself.
+        let (PT.Hash asHex) = hPlain
+        Expect.equal
+          asHex
+          "37d6123e78e0dd93b49abcbca87e56528993f9f84731256f16a20bc2325bb391"
+          "a fn with no bounds hashes as it did before bounds existed"
+      }
+
+      test "a TraitMethod call hashes by trait hash and method name" {
+        let call (traitHash : string) (m : string) : PT.Expr =
+          let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
+            PT.NameResolution.ok (
+              PT.FQFnName.TraitMethod
+                { trait_ = PT.Hash traitHash
+                  method_ = m
+                  implFn = PT.FQFnName.Unknown }
+            )
+          PT.EApply(
+            gid (),
+            PT.EFnName(gid (), nr, []),
+            [],
+            NEList.singleton (eVar "x")
+          )
+        let h1 = h [ "x" ] (call "trait-show" "show")
+        let h2 = h [ "x" ] (call "trait-show" "describe")
+        let h3 = h [ "x" ] (call "trait-repr" "show")
+        Expect.notEqual h1 h2 "method name is meaning"
+        Expect.notEqual h1 h3 "trait identity is meaning"
+        Expect.equal h1 (h [ "x" ] (call "trait-show" "show")) "deterministic"
+      }
+
+      // The implementation a call resolved to is part of what the call MEANS, so it is part of
+      // the hash: that is what makes a newer implementation an ordinary version move that
+      // propagation can offer, rather than something that changes the same item's behaviour.
+      test "the implementation a call pins is part of its hash" {
+        let call (pinned : PT.FQFnName.ImplChoice) : PT.Expr =
+          let nr : PT.NameResolution<PT.FQFnName.FQFnName> =
+            PT.NameResolution.ok (
+              PT.FQFnName.TraitMethod
+                { trait_ = PT.Hash "trait-show"; method_ = "show"; implFn = pinned }
+            )
+          PT.EApply(
+            gid (),
+            PT.EFnName(gid (), nr, []),
+            [],
+            NEList.singleton (eVar "x")
+          )
+        let unpinned = h [ "x" ] (call PT.FQFnName.Unknown)
+        let onFirst =
+          h
+            [ "x" ]
+            (call (
+              PT.FQFnName.Chosen
+                { name = PT.Hash "impl-fn-1"
+                  location =
+                    Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } }
+            ))
+        let onSecond =
+          h
+            [ "x" ]
+            (call (
+              PT.FQFnName.Chosen
+                { name = PT.Hash "impl-fn-2"
+                  location =
+                    Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } }
+            ))
+        Expect.notEqual unpinned onFirst "resolving the call changes what it is"
+        Expect.notEqual
+          onFirst
+          onSecond
+          "and so does resolving it to another implementation"
+        Expect.equal
+          onFirst
+          (h
+            [ "x" ]
+            (call (
+              PT.FQFnName.Chosen
+                { name = PT.Hash "impl-fn-1"
+                  location =
+                    Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } }
+            )))
+          "the same implementation hashes the same"
+        // And deferring to a type param is its own state: not the same as unknown, and not the
+        // same as deferring to a different param.
+        let onParamA = h [ "x" ] (call (PT.FQFnName.FromTypeParam "a"))
+        let onParamB = h [ "x" ] (call (PT.FQFnName.FromTypeParam "b"))
+        Expect.notEqual unpinned onParamA "deferring is not the same as unknown"
+        Expect.notEqual onFirst onParamA "nor the same as choosing one"
+        Expect.notEqual onParamA onParamB "and which param is part of it"
       } ]
 
 
@@ -355,7 +471,7 @@ let private placeholderHashTests =
     "placeholder hashes (toFQN-based)"
     [ test "same location gives same FQN" {
         let loc : PT.PackageLocation =
-          { owner = "Test"; modules = [ "Mod" ]; name = "Foo" }
+          { owner = "Test"; modules = [ "Modulo" ]; name = "Foo" }
         Expect.equal
           (PackageLocation.toFQN loc)
           (PackageLocation.toFQN loc)
@@ -364,9 +480,9 @@ let private placeholderHashTests =
 
       test "different locations give different FQNs" {
         let loc1 : PT.PackageLocation =
-          { owner = "Test"; modules = [ "Mod" ]; name = "Foo" }
+          { owner = "Test"; modules = [ "Modulo" ]; name = "Foo" }
         let loc2 : PT.PackageLocation =
-          { owner = "Test"; modules = [ "Mod" ]; name = "Bar" }
+          { owner = "Test"; modules = [ "Modulo" ]; name = "Bar" }
         Expect.notEqual
           (PackageLocation.toFQN loc1)
           (PackageLocation.toFQN loc2)
@@ -384,7 +500,7 @@ let private placeholderHashTests =
 
       test "FQN-based SHA-256 produces valid hash" {
         let loc : PT.PackageLocation =
-          { owner = "Test"; modules = [ "Mod" ]; name = "Foo" }
+          { owner = "Test"; modules = [ "Modulo" ]; name = "Foo" }
         let nameKey = PackageLocation.toFQN loc
         let nameBytes =
           System.Security.Cryptography.SHA256.HashData(
@@ -398,7 +514,17 @@ let private placeholderHashTests =
               .ToLowerInvariant()
           )
         let (PT.Hash h) = hash
-        Expect.isTrue (h.Length = 64) "should be 64 hex chars (SHA-256)"
+        // The exact digest, not its length. Every SHA-256 is 64 hex characters
+        // by construction, so a length assertion passes whatever `toFQN` returned
+        // and whatever case the hex came out in; it tests
+        // `System.Security.Cryptography` rather than anything of ours. This vector
+        // is the SHA-256 of the string `toFQN` should produce for that location,
+        // encoded as lowercase hex, so it fails if the name, the separator or the
+        // case changes.
+        Expect.equal
+          h
+          "190a5ec0f6b1f322ac0e88809af69c4142aab838abd67481633f5fb8cda305dc"
+          "the SHA-256 of `Test.Modulo.Foo`, lowercase hex"
       } ]
 
 
@@ -429,11 +555,15 @@ let private sccBatchTests =
             types
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -504,11 +634,15 @@ let private sccBatchTests =
             types
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -560,11 +694,15 @@ let private sccBatchTests =
             types1
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types2
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -616,11 +754,15 @@ let private sccBatchTests =
             types
             Map.empty
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
+            Map.empty
+            Map.empty
             Map.empty
             Map.empty
             getDeps
@@ -659,12 +801,16 @@ let private sccBatchTests =
             types
             fns
             Map.empty
+            Map.empty
+            Map.empty
             getDeps
         let hashes2 =
           Hashing.computeHashesWithSCCs
             Canonical.emptySubstitution
             types
             fns
+            Map.empty
+            Map.empty
             Map.empty
             getDeps
 

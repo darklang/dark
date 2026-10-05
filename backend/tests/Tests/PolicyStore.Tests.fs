@@ -44,7 +44,8 @@ let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
     parameters = NEList.singleton { name = "unit"; typ = PT.TUnit; description = "" }
     returnType = PT.TInt
     description = ""
-    permissionCeiling = None }
+    permissionCeiling = None
+    bounds = [] }
 
 /// Builtin effects for the review tests: `timeNowMs` is clock-only and
 /// `fileRead` reads files; anything else is unknown (incomplete).

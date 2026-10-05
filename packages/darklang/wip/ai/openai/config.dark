@@ -6,5 +6,5 @@ module Darklang.WIP.AI.OpenAI.Config
 val baseUrl = "https://api.openai.com/v1"
 
 let getHeaders (apiKey: String) : List<(String * String)> =
-  [ ("Authorization", "Bearer " ++ apiKey)
+  [ ("Authorization", "Bearer " + apiKey)
     ("Content-Type", "application/json") ]

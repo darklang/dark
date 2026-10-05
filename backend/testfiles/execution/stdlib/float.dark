@@ -1,4 +1,4 @@
-Stdlib.Float.add 1.2 1.3 = 2.5
+(1.2 + 1.3) = 2.5
 
 Stdlib.Float.ceiling 1.3 = 2
 Stdlib.Float.ceiling 1.0000001 = 2
@@ -61,56 +61,56 @@ Stdlib.Float.isFinite Builtin.testNan = false
 Stdlib.Float.isFinite Builtin.testInfinity = false
 Stdlib.Float.isFinite Builtin.testNegativeInfinity = false
 
-Stdlib.Float.absoluteValue Builtin.testNegativeInfinity = Builtin.testInfinity
-Stdlib.Float.absoluteValue Builtin.testNan = Builtin.testNan
-Stdlib.Float.absoluteValue -5.6 = 5.6
-Stdlib.Float.absoluteValue -0.0 = 0.0
-Stdlib.Float.absoluteValue -0.0 = 0.0
+Stdlib.abs Builtin.testNegativeInfinity = Builtin.testInfinity
+Stdlib.abs Builtin.testNan = Builtin.testNan
+Stdlib.abs -5.6 = 5.6
+Stdlib.abs -0.0 = 0.0
+Stdlib.abs -0.0 = 0.0
 
-Stdlib.Float.negate Builtin.testNan = Builtin.testNan
-Stdlib.Float.negate Builtin.testInfinity = Builtin.testNegativeInfinity
-Stdlib.Float.negate -5.6 = 5.6
-Stdlib.Float.negate 5.6 = -5.6
-Stdlib.Float.negate 0.0 = -0.0
-Stdlib.Float.negate -0.0 = 0.0
+(-Builtin.testNan) = Builtin.testNan
+(-Builtin.testInfinity) = Builtin.testNegativeInfinity
+(--5.6) = 5.6
+(-5.6) = -5.6
+(-0.0) = -0.0
+(--0.0) = 0.0
 
-Stdlib.Float.clamp Builtin.testInfinity -1.0 0.5 = Stdlib.Result.Result.Ok 0.5
+Stdlib.Float.clampRefusingNaN Builtin.testInfinity -1.0 0.5 = Stdlib.Result.Result.Ok 0.5
 
-Stdlib.Float.clamp Builtin.testNegativeInfinity -1.0 0.5 = Stdlib.Result.Result.Ok
+Stdlib.Float.clampRefusingNaN Builtin.testNegativeInfinity -1.0 0.5 = Stdlib.Result.Result.Ok
   -1.0
 
-Stdlib.Float.clamp Builtin.testNan -1.0 1.0 = Stdlib.Result.Result.Ok
+Stdlib.Float.clampRefusingNaN Builtin.testNan -1.0 1.0 = Stdlib.Result.Result.Ok
   Builtin.testNan
 
-Stdlib.Float.clamp 0.5 Builtin.testInfinity 1.0 = Stdlib.Result.Result.Ok 1.0
+Stdlib.Float.clampRefusingNaN 0.5 Builtin.testInfinity 1.0 = Stdlib.Result.Result.Ok 1.0
 
-Stdlib.Float.clamp 0.5 Builtin.testNegativeInfinity 1.0 = Stdlib.Result.Result.Ok
+Stdlib.Float.clampRefusingNaN 0.5 Builtin.testNegativeInfinity 1.0 = Stdlib.Result.Result.Ok
   0.5
 
-Stdlib.Float.clamp 0.5 Builtin.testNan 1.0 = Stdlib.Result.Result.Error
-  "clamp requires arguments to be valid numbers"
+Stdlib.Float.clampRefusingNaN 0.5 Builtin.testNan 1.0 = Stdlib.Result.Result.Error
+  "clampRefusingNaN requires limits that are numbers"
 
-Stdlib.Float.clamp -1.0 0.5 Builtin.testInfinity = Stdlib.Result.Result.Ok 0.5
+Stdlib.Float.clampRefusingNaN -1.0 0.5 Builtin.testInfinity = Stdlib.Result.Result.Ok 0.5
 
-Stdlib.Float.clamp -1.0 0.5 Builtin.testNegativeInfinity = Stdlib.Result.Result.Ok
+Stdlib.Float.clampRefusingNaN -1.0 0.5 Builtin.testNegativeInfinity = Stdlib.Result.Result.Ok
   -1.0
 
-Stdlib.Float.clamp 0.5 1.0 Builtin.testNan = Stdlib.Result.Result.Error
-  "clamp requires arguments to be valid numbers"
+Stdlib.Float.clampRefusingNaN 0.5 1.0 Builtin.testNan = Stdlib.Result.Result.Error
+  "clampRefusingNaN requires limits that are numbers"
 
-Stdlib.Float.clamp -2.0 -5.0 5.0 = Stdlib.Result.Result.Ok -2.0
+Stdlib.Float.clampRefusingNaN -2.0 -5.0 5.0 = Stdlib.Result.Result.Ok -2.0
 
-Stdlib.Float.clamp -3.0 -2.0 1.0 = Stdlib.Result.Result.Ok -2.0
+Stdlib.Float.clampRefusingNaN -3.0 -2.0 1.0 = Stdlib.Result.Result.Ok -2.0
 
-Stdlib.Float.clamp -5.0 1.0 1.0 = Stdlib.Result.Result.Ok 1.0
+Stdlib.Float.clampRefusingNaN -5.0 1.0 1.0 = Stdlib.Result.Result.Ok 1.0
 
-Stdlib.Float.clamp 1.0 2.0 1.0 = Stdlib.Result.Result.Ok 1.0
+Stdlib.Float.clampRefusingNaN 1.0 2.0 1.0 = Stdlib.Result.Result.Ok 1.0
 
-Stdlib.Float.clamp 3.0 0.0 2.0 = Stdlib.Result.Result.Ok 2.0
+Stdlib.Float.clampRefusingNaN 3.0 0.0 2.0 = Stdlib.Result.Result.Ok 2.0
 
-Stdlib.Float.divide 9.0 2.0 = 4.5
-Stdlib.Float.divide 9.0 0.0 = Builtin.testInfinity
-Stdlib.Float.divide 9.0 -0.0 = Builtin.testNegativeInfinity
+(9.0 / 2.0) = 4.5
+(9.0 / 0.0) = Builtin.testInfinity
+(9.0 / -0.0) = Builtin.testNegativeInfinity
 
 9.0 / 2.0 = 4.5
 17.0 / 3.3 = 5.151515152
@@ -119,33 +119,33 @@ Stdlib.Float.divide 9.0 -0.0 = Builtin.testNegativeInfinity
 1.0 / 0.0 = Builtin.testInfinity
 
 
-Stdlib.Float.greaterThanOrEqualTo 0.1 0.1 = true
+(0.1 >= 0.1) = true
 
-Stdlib.Float.greaterThan 0.2 0.1 = true
+(0.2 > 0.1) = true
 
-Stdlib.Float.lessThanOrEqualTo 0.1 0.1 = true
+(0.1 <= 0.1) = true
 
-Stdlib.Float.lessThan 0.2 0.1 = false
+(0.2 < 0.1) = false
 
-Stdlib.Float.max Builtin.testInfinity 1.0 = Builtin.testInfinity
-Stdlib.Float.max Builtin.testNegativeInfinity 1.0 = 1.0
-Stdlib.Float.max -10.0 1.0 = 1.0
-Stdlib.Float.max 10.0 Builtin.testNan = Builtin.testNan
-Stdlib.Float.max 10.0 1.0 = 10.0
-Stdlib.Float.max 0.0 0.00 = 0.0
-Stdlib.Float.max -2147483647.8 -00000000.000 = 0.0
-Stdlib.Float.max 2147483647.0 00000000.000 = 2147483647.0
+Stdlib.max Builtin.testInfinity 1.0 = Builtin.testInfinity
+Stdlib.max Builtin.testNegativeInfinity 1.0 = 1.0
+Stdlib.max -10.0 1.0 = 1.0
+Stdlib.max 10.0 Builtin.testNan = Builtin.testNan
+Stdlib.max 10.0 1.0 = 10.0
+Stdlib.max 0.0 0.00 = 0.0
+Stdlib.max -2147483647.8 -00000000.000 = 0.0
+Stdlib.max 2147483647.0 00000000.000 = 2147483647.0
 
-Stdlib.Float.min Builtin.testInfinity 1.0 = 1.0
-Stdlib.Float.min Builtin.testNegativeInfinity 1.0 = Builtin.testNegativeInfinity
-Stdlib.Float.min -10.0 1.0 = -10.0
-Stdlib.Float.min 10.0 Builtin.testNan = Builtin.testNan
-Stdlib.Float.min 10.0 1.0 = 1.0
-Stdlib.Float.min 0.0 0.00 = 0.0
-Stdlib.Float.min -2147483647.8 -00000000.000 = -2147483647.8
-Stdlib.Float.min 2147483647.0 00000000.000 = 0.0
+Stdlib.min Builtin.testInfinity 1.0 = 1.0
+Stdlib.min Builtin.testNegativeInfinity 1.0 = Builtin.testNegativeInfinity
+Stdlib.min -10.0 1.0 = -10.0
+Stdlib.min 10.0 Builtin.testNan = Builtin.testNan
+Stdlib.min 10.0 1.0 = 1.0
+Stdlib.min 0.0 0.00 = 0.0
+Stdlib.min -2147483647.8 -00000000.000 = -2147483647.8
+Stdlib.min 2147483647.0 00000000.000 = 0.0
 
-Stdlib.Float.multiply 26.0 0.5 = 13.0
+(26.0 * 0.5) = 13.0
 
 Stdlib.Float.parse "1.5" = Stdlib.Result.Result.Ok 1.5
 
@@ -184,8 +184,8 @@ Stdlib.Float.parse "-1.8E+308" = Stdlib.Result.Result.Ok
 
 Stdlib.Float.parse "1.8E+308" = Stdlib.Result.Result.Ok Builtin.testInfinity
 
-Stdlib.Float.power 4.0 -0.5 = 0.5
-Stdlib.Float.power 4.0 0.5 = 2.0
+(4.0 ** -0.5) = 0.5
+(4.0 ** 0.5) = 2.0
 
 Stdlib.Float.roundTowardsZero -2367.9267 = -2367
 Stdlib.Float.roundTowardsZero 000000.9 = 0
@@ -196,34 +196,34 @@ Stdlib.Float.roundTowardsZero 2147483647.000009 = 2147483647
 Stdlib.Float.sqrt 25.0 = 5.0
 Stdlib.Float.sqrt 0.0 = 0.0
 
-Stdlib.Float.subtract 1.0 0.2 = 0.8
+(1.0 - 0.2) = 0.8
 
-Stdlib.Float.sum [ 1.0, 0.2 ] = 1.2
+Stdlib.sum 0.0 [ 1.0, 0.2 ] = 1.2
 
 Builtin.testNan == Builtin.testNan = false
 
-Stdlib.Float.toString 1.5 = "1.5"
-Stdlib.Float.toString 0.0 = "0.0"
-Stdlib.Float.toString -0.5 = "-0.5"
-Stdlib.Float.toString 0.5 = "0.5"
-Stdlib.Float.toString -55555555555555555555555555555.5 = "-5.555555555555555e+28"
+Stdlib.toString 1.5 = "1.5"
+Stdlib.toString 0.0 = "0.0"
+Stdlib.toString -0.5 = "-0.5"
+Stdlib.toString 0.5 = "0.5"
+Stdlib.toString -55555555555555555555555555555.5 = "-5.555555555555555e+28"
 // Shortest round-trip: what prints is the number, not a twelve-digit rounding of it.
-Stdlib.Float.toString (0.1 + 0.2) = "0.30000000000000004"
-Stdlib.Float.toString (1.0 / 3.0) = "0.3333333333333333"
-Stdlib.Float.toString 1.0000000000000002 = "1.0000000000000002"
-(Stdlib.Float.toString (1.0 / 3.0) |> Stdlib.Float.parse) = Stdlib.Result.Result.Ok (1.0 / 3.0)
+Stdlib.toString (0.1 + 0.2) = "0.30000000000000004"
+Stdlib.toString (1.0 / 3.0) = "0.3333333333333333"
+Stdlib.toString 1.0000000000000002 = "1.0000000000000002"
+(Stdlib.toString (1.0 / 3.0) |> Stdlib.Float.parse) = Stdlib.Result.Result.Ok (1.0 / 3.0)
 // Fixed notation from 1e-4 up to 1e16, scientific outside, no zero padding, and no `.0` on scientific
 // (it used to print `1e+17.0`, which Float.parse refuses). Same layout as the compiler's Float.toString.
-Stdlib.Float.toString 0.0001 = "0.0001"
-Stdlib.Float.toString 0.00001 = "1e-5"
-Stdlib.Float.toString -0.00001 = "-1e-5"
-Stdlib.Float.toString 123456789012345.0 = "123456789012345.0"
-Stdlib.Float.toString 9007199254740992.0 = "9007199254740992.0"
-Stdlib.Float.toString 10000000000000000.0 = "1e+16"
-Stdlib.Float.toString 123456789012345678.0 = "1.2345678901234568e+17"
-(Stdlib.Float.toString 123456789012345678.0 |> Stdlib.Float.parse) = Stdlib.Result.Result.Ok 123456789012345678.0
-(Stdlib.Float.toString -0.00001 |> Stdlib.Float.parse) = Stdlib.Result.Result.Ok -0.00001
-(Stdlib.Float.parse "5e-324" |> Stdlib.Result.map (fun f -> Stdlib.Float.toString f)) = Stdlib.Result.Result.Ok "5e-324"
+Stdlib.toString 0.0001 = "0.0001"
+Stdlib.toString 0.00001 = "1e-5"
+Stdlib.toString -0.00001 = "-1e-5"
+Stdlib.toString 123456789012345.0 = "123456789012345.0"
+Stdlib.toString 9007199254740992.0 = "9007199254740992.0"
+Stdlib.toString 10000000000000000.0 = "1e+16"
+Stdlib.toString 123456789012345678.0 = "1.2345678901234568e+17"
+(Stdlib.toString 123456789012345678.0 |> Stdlib.Float.parse) = Stdlib.Result.Result.Ok 123456789012345678.0
+(Stdlib.toString -0.00001 |> Stdlib.Float.parse) = Stdlib.Result.Result.Ok -0.00001
+(Stdlib.Float.parse "5e-324" |> Stdlib.Result.map (fun f -> Stdlib.toString f)) = Stdlib.Result.Result.Ok "5e-324"
 
 
 // toInt truncates toward zero.

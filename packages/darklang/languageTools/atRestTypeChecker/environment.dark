@@ -128,7 +128,8 @@ let signatureTemplate
         returnType = ret
         needsTypeArgs = signature.needsTypeArgs
         dictKeyTypes = Declarations.dictKeyTypes env (Model.Ty.TFn(parameters, ret))
-        problems = Stdlib.List.reverse found }
+        problems = Stdlib.List.reverse found
+        bounds = signature.bounds }
    ),
    env)
 
@@ -173,7 +174,9 @@ let builtinCallable
         { typeParams = Stdlib.List.append fn.typeParams undeclared
           parameters = Stdlib.List.map parameterTypes (fun t -> fromRuntimeType t)
           returnType = fromRuntimeType fn.returnType
-          needsTypeArgs = Stdlib.Bool.not (Stdlib.List.isEmpty resultOnly) })
+          needsTypeArgs = Stdlib.Bool.not (Stdlib.List.isEmpty resultOnly)
+          // A builtin has no bounds: it is not written in Dark and names no trait.
+          bounds = [] })
   else
     (Model.Callable.Untrusted UntrustedBuiltin.ResultTypeUnconstrained, env)
 
@@ -193,6 +196,36 @@ let resolveCallable
     match LanguageTools.findBuiltinFn name.name name.version with
     | Some builtin -> builtinCallable env builtin
     | None -> (Model.Callable.Unavailable, env)
+  // A trait method call (`Show.show v`), whose signature is the TRAIT's rather than any one
+  // implementation's. The trait's first type param is the self type and stays rigid here, so
+  // inference unifies it with the argument the caller passes: that is what decides which type
+  // the call is for, and the implementation is chosen from it afterwards.
+  | TraitMethod method ->
+    match LanguageTools.PackageManager.Trait.get method.trait_ with
+    | None -> (Model.Callable.Unavailable, env)
+    | Some trait_ ->
+      match
+        trait_.methods
+        |> Stdlib.List.findFirst (fun m -> m.name == method.method_)
+      with
+      | None -> (Model.Callable.Unavailable, env)
+      | Some declared ->
+        signatureTemplate
+          env
+          (Model.Signature
+            { // The trait's params first, self among them, then the method's own.
+              typeParams =
+                Stdlib.List.append trait_.typeParams declared.typeParams
+              parameters =
+                declared.parameters |> Stdlib.List.map (fun p -> p.typ)
+              returnType = declared.returnType
+              // The self type comes from the argument, not from a type argument the
+              // caller has to write.
+              needsTypeArgs = false
+              // The trait's own bound on the self type is not a caller's obligation: which
+              // implementation this call means is settled by `TraitCall` from the self type
+              // directly. A method's OWN bounds would belong here and none are written yet.
+              bounds = [] })
 
 /// Fetch one builtin value's declared type and convert it to a package-style type
 /// reference. Return None for missing builtins or package values, whose types
@@ -206,15 +239,166 @@ let builtinValueType
     |> Stdlib.Option.map (fun value -> fromRuntimeType value.``type``)
   | Package _ -> Stdlib.Option.Option.None
 
+/// A runtime type reference as the checker's own type, for comparing against one it inferred.
+///
+/// Findings are discarded on purpose: a type variable in an implementation's self type
+/// (`impl Add for List<'a>`) has no mapping here and converts to a placeholder, which is
+/// correct, because the only question asked of the result is what its HEAD is.
+let tyOfRuntimeType (typ: LanguageTools.RuntimeTypes.TypeReference) : Model.Ty =
+  let (ty, _) =
+    Types.fromReference (Dict {}) (Stdlib.Option.Option.None) (fromRuntimeType typ)
+
+  ty
+
+/// A cache key for an operator. Spelled out rather than borrowed from the pretty printer,
+/// which the checker has no business depending on.
+let infixKey (operation: LanguageTools.ProgramTypes.InfixFnName) : String =
+  match operation with
+  | ArithmeticPlus -> "+"
+  | ArithmeticMinus -> "-"
+  | ArithmeticMultiply -> "*"
+  | ArithmeticDivide -> "/"
+  | ArithmeticModulo -> "%"
+  | ArithmeticPower -> "^"
+  | BitwiseAnd -> "&&&"
+  | BitwiseOr -> "|||"
+  | BitwiseXor -> "^^^"
+  | ShiftLeft -> "<<"
+  | ShiftRight -> ">>"
+  | ComparisonGreaterThan -> ">"
+  | ComparisonGreaterThanOrEqual -> ">="
+  | ComparisonLessThan -> "<"
+  | ComparisonLessThanOrEqual -> "<="
+  | ComparisonEquals -> "=="
+  | ComparisonNotEquals -> "!="
+  | StringConcat -> "++"
+
+/// Every operator, so the cache below can be filled without waiting to meet one.
+let allInfixOperations () : List<LanguageTools.ProgramTypes.InfixFnName> =
+  [ LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticMinus
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticMultiply
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticDivide
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticModulo
+    LanguageTools.ProgramTypes.InfixFnName.ArithmeticPower
+    LanguageTools.ProgramTypes.InfixFnName.BitwiseAnd
+    LanguageTools.ProgramTypes.InfixFnName.BitwiseOr
+    LanguageTools.ProgramTypes.InfixFnName.BitwiseXor
+    LanguageTools.ProgramTypes.InfixFnName.ShiftLeft
+    LanguageTools.ProgramTypes.InfixFnName.ShiftRight
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThan
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThan
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonEquals
+    LanguageTools.ProgramTypes.InfixFnName.ComparisonNotEquals
+    LanguageTools.ProgramTypes.InfixFnName.StringConcat ]
+
+/// Every visible trait's implementations, self types converted to the checker's own.
+///
+/// Taken for the whole batch up front. See `Model.Environment.traitImpls` for why that is
+/// the point rather than an optimisation.
+let traitImpls (branchId: Uuid) : Dict<String, List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>> =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Trait ]
+        exactMatch = false }
+
+  (LanguageTools.PackageManager.Search.search branchId query).traits
+  |> Stdlib.List.fold (Dict {}) (fun acc t ->
+    let converted =
+      (LanguageTools.PackageManager.Trait.impls branchId t.entity.hash)
+      |> Stdlib.List.map (fun candidate ->
+        ((tyOfRuntimeType candidate.self), candidate.source))
+
+    Stdlib.Dict.setOverridingDuplicates
+      acc
+      (LanguageTools.ProgramTypes.hashToString t.entity.hash)
+      converted)
+
+/// Which trait and method each operator is. One table, in F#, shared with the lowering, so
+/// the checker and the runtime cannot come to disagree about what `+` means.
+let infixTrait
+  (branchId: Uuid)
+  : Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String)>> =
+  (allInfixOperations ())
+  |> Stdlib.List.fold (Dict {}) (fun acc operation ->
+    let found =
+      match LanguageTools.PackageManager.Trait.forInfix branchId operation with
+      | None -> Stdlib.Option.Option.None
+      | Some((traitHash, method_, _)) ->
+        Stdlib.Option.Option.Some((traitHash, method_))
+
+    Stdlib.Dict.setOverridingDuplicates acc (infixKey operation) found)
+  |> (fun acc ->
+    // The two UNARY operators, under keys no infix operator can collide with. They were left
+    // on hand-written type predicates when the binary ones moved to implementation lookup,
+    // which is why `dark typecheck` found `Stdlib.abs` failing: a bounded generic's operand is
+    // a rigid type variable, and a predicate asking "is this a signed numeric" says no to the
+    // very thing the bound guarantees.
+    let withNegate =
+      Stdlib.Dict.setOverridingDuplicates
+        acc
+        "unary -"
+        (match LanguageTools.PackageManager.Trait.forNegate branchId with
+         | None -> Stdlib.Option.Option.None
+         | Some((h, m, _)) -> Stdlib.Option.Option.Some((h, m)))
+
+    Stdlib.Dict.setOverridingDuplicates
+      withNegate
+      "unary ~"
+      (match LanguageTools.PackageManager.Trait.forBitwiseNot branchId with
+       | None -> Stdlib.Option.Option.None
+       | Some((h, m, _)) -> Stdlib.Option.Option.Some((h, m))))
+
+/// The implementations of <param traitHash> that this batch knows about.
+let implsOfTrait
+  (env: Model.Environment)
+  (traitHash: LanguageTools.ProgramTypes.Hash)
+  : List<(Model.Ty * LanguageTools.ProgramTypes.Hash)> =
+  match
+    Stdlib.Dict.get env.traitImpls (LanguageTools.ProgramTypes.hashToString traitHash)
+  with
+  | Some impls -> impls
+  | None -> []
+
+/// The trait and method a UNARY operator is, and that trait's implementations.
+let unaryImplsFor
+  (env: Model.Environment)
+  (key: String)
+  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)> =
+  match Stdlib.Dict.get env.infixTrait key with
+  | Some(Some((traitHash, method_))) ->
+    Stdlib.Option.Option.Some((traitHash, method_, implsOfTrait env traitHash))
+  | _ -> Stdlib.Option.Option.None
+
+/// The trait and method an operator is, and that trait's implementations.
+let infixImplsFor
+  (env: Model.Environment)
+  (operation: LanguageTools.ProgramTypes.InfixFnName)
+  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)> =
+  match Stdlib.Dict.get env.infixTrait (infixKey operation) with
+  | Some(Some((traitHash, method_))) ->
+    Stdlib.Option.Option.Some(
+      (traitHash, method_, implsOfTrait env traitHash)
+    )
+  | _ -> Stdlib.Option.Option.None
+
 /// Create an empty environment with the standard Option and Result type hashes.
 /// Declarations are loaded later; builtin signatures are fetched as needed and
 /// their converted templates are cached when the solver first uses them.
-let builtins () : Model.Environment =
+let builtins (branchId: Uuid) : Model.Environment =
   Model.Environment
-    { types = Dict {}
+    { branchId = branchId
+      types = Dict {}
       functions = Dict {}
       values = Dict {}
       declarationFacts = Dict {}
+      traitImpls = traitImpls branchId
+      infixTrait = infixTrait branchId
       valueTypeParameters = Dict {}
       dictKeyParameters = Dict {}
       callables = Dict {}
@@ -261,6 +445,11 @@ let functionNameRefs
           |> Stdlib.List.map (fun t -> fromRuntimeType t)
           |> typeListRefs
         | None -> []
+    // A trait method call needs the TRAIT, which is where its signature lives. Not the
+    // implementation: which one applies is decided from the self type after inference, and an
+    // implementation is not needed to type the call.
+    | TraitMethod method ->
+      [ LanguageTools.ProgramTypes.Reference.PackageTrait method.trait_ ]
   | Error _ -> []
 
 /// Find the package declarations needed to check a value reference: the value
@@ -363,11 +552,11 @@ let exprRefs
     Stdlib.List.append
       (exprRefs env lhs)
       (Stdlib.List.flatten (Stdlib.List.map parts (fun p -> pipeRefs env p)))
-  | EInfix(_, _, lhs, rhs) -> many [ lhs, rhs ]
+  | EInfix(_, _, lhs, rhs, _) -> many [ lhs, rhs ]
   | ELambda(_, _, body) -> exprRefs env body
   | EApply(_, callee, typeArgs, args) ->
     Stdlib.List.flatten [ exprRefs env callee, typeListRefs typeArgs, many args ]
-  | EFnName(_, name) -> functionNameRefs env name
+  | EFnName(_, name, _) -> functionNameRefs env name
   | ERecordUpdate(_, record, updates) ->
     Stdlib.List.append
       (exprRefs env record)
@@ -395,7 +584,7 @@ let pipeRefs
   match pipePart with
   | EPipeVariable(_, _, args) -> many args
   | EPipeLambda(_, _, body) -> exprRefs env body
-  | EPipeInfix(_, _, rhs) -> exprRefs env rhs
+  | EPipeInfix(_, _, rhs, _) -> exprRefs env rhs
   | EPipeFnCall(_, name, typeArgs, args) ->
     Stdlib.List.flatten
       [ functionNameRefs env name, typeListRefs typeArgs, many args ]
@@ -497,3 +686,12 @@ let loadDependency
        { closure with
            fns = Stdlib.Dict.setOverridingDuplicates closure.fns hash fn })
     | None -> ([], closure)
+  // A trait method call contributes a reference to its TRAIT (`functionNameRefs`), so this is
+  // reached. The closure holds types, values and fns and not traits, and it does not need to:
+  // `resolveCallable` reads a trait straight from the store, because a trait's signature is
+  // not something a batch can shadow. Nothing to load, and no further references to follow.
+  //
+  // Without an arm here it RAISED, the per-item guard turned that into an Incomplete verdict,
+  // and `dark typecheck` reported this very function as incomplete. Which is how it was found.
+  | PackageTrait _
+  | PackageTraitImpl _ -> ([], closure)

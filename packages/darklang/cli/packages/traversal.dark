@@ -54,6 +54,13 @@ let getCurrentModulePath (location: PackageLocation) : List<String> =
   | Type t -> Stdlib.List.append [t.owner] t.modules
   | Value v -> Stdlib.List.append [v.owner] v.modules
   | Function f -> Stdlib.List.append [f.owner] f.modules
+  | Trait t -> Stdlib.List.append [t.owner] t.modules
+  // An implementation's methods are ordinary fns in a module named for the implementation, so
+  // the module you are "in" when you are at one INCLUDES its name. Without this, descending a
+  // path past an implementation silently dropped that segment and `view Stdlib.Int64.Add.add`
+  // reported "Not found: Stdlib.Int64.add", a name nobody typed.
+  | Impl i ->
+    Stdlib.List.append (Stdlib.List.append [i.owner] i.modules) [i.name]
 
 
 let applySegment
@@ -84,6 +91,12 @@ let applySegment
     | Function name ->
       let parentModules = Stdlib.List.append [name.owner] name.modules
       Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
+    | Trait name ->
+      let parentModules = Stdlib.List.append [name.owner] name.modules
+      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
+    | Impl name ->
+      let parentModules = Stdlib.List.append [name.owner] name.modules
+      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
 
   | Into name ->
     let currentPath = getCurrentModulePath location
@@ -102,6 +115,19 @@ let resolveEntity
 
   let isAModule = Query.hasContent moduleResults
 
+  // An implementation wins over the module of the same name, because that module IS the
+  // implementation: its methods are ordinary fns beneath the impl's member path. Letting the
+  // module win would make `view Acme.Point.Show` print the implementation and then list its
+  // own method fns underneath, the same thing twice.
+  let implHere =
+    match (Query.searchExactMatch branchId basePath name).impls with
+    | item :: _ -> Stdlib.Option.Option.Some item.location
+    | [] -> Stdlib.Option.Option.None
+
+  match implHere with
+  | Some loc -> Stdlib.Result.Result.Ok(PackageLocation.Impl loc)
+  | None ->
+
   if isAModule then
     Stdlib.Result.Result.Ok (PackageLocation.Module modulePath)
   // Not a module -- check if it's a type/value/fn
@@ -118,12 +144,18 @@ let resolveEntity
         match entityResults.values with
         | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Value item.location)
         | [] ->
-          // The path, not just "Not found": that same sentence otherwise covers a
-          // typo, an unauthored name, and a path resolved from somewhere unexpected.
-          let looked =
-            Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
+          match entityResults.traits with
+          | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Trait item.location)
+          | [] ->
+            match entityResults.impls with
+            | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Impl item.location)
+            | [] ->
+              // The path, not just "Not found": that same sentence otherwise covers a
+              // typo, an unauthored name, and a path resolved from somewhere unexpected.
+              let looked =
+                Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
 
-          Stdlib.Result.Result.Error $"Not found: {looked}"
+              Stdlib.Result.Result.Error $"Not found: {looked}"
 
 
 let applyPath
@@ -183,7 +215,7 @@ let getAvailableItems
   let currentPath = getCurrentModulePath location
   // Names only: completion shows a name and an icon, and materializing each item's full definition to
   // read `.location.name` was the single worst hitch while typing (115 ms at the store root).
-  let (submoduleNames, typeNames, valueNames, fnNames) =
+  let (submoduleNames, typeNames, valueNames, fnNames, traitNames, implNames) =
     Query.allDirectDescendantNames branchId currentPath
 
   let moduleItems =
@@ -202,7 +234,16 @@ let getAvailableItems
     valueNames
     |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Value name)
 
-  let flatItems = Stdlib.List.flatten [moduleItems, typeItems, fnItems, valueItems]
+  let traitItems =
+    traitNames
+    |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Trait name)
+
+  let implItems =
+    implNames
+    |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Impl name)
+
+  let flatItems =
+    Stdlib.List.flatten [moduleItems, typeItems, fnItems, valueItems, traitItems, implItems]
   let allItems = flatItems |> Stdlib.List.sortBy (fun item -> item.value)
 
   // Primary results: filter by prefix if we have search text
@@ -272,14 +313,14 @@ let completePartialPath
             )
             |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
             |> Stdlib.String.join separator
-          pathStr ++ separator
+          pathStr + separator
 
       // Add prefix to both display and value
       completionItems
       |> Stdlib.List.map (fun item ->
         Cli.Completion.CompletionItem
           { display = item.display
-            value = prefix ++ item.value })
+            value = prefix + item.value })
 
   | _ ->
     // Last segment is Root, Here, or Up - no fuzzy completion

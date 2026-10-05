@@ -148,6 +148,19 @@ let private reResolveValueName
     parseFnOrValueName
 
 
+let private reResolveTraitName
+  (contextModules : List<string>)
+  (findTrait : PT.PackageLocation -> Ply<Option<Hash>>)
+  (nr : PT.NameResolution<PT.FQTraitName.FQTraitName>)
+  : Ply<PT.NameResolution<PT.FQTraitName.FQTraitName>> =
+  reResolveNameResolution
+    contextModules
+    nr
+    findTrait
+    PT.FQTraitName.Package
+    parseTypeName
+
+
 // -- TypeReference walker --
 
 let rec private reResolveTypeRef
@@ -266,9 +279,9 @@ and private reResolvePipeExpr
       let! body = reResolveExpr contextModules pm body
       return PT.EPipeLambda(id, pats, body)
 
-    | PT.EPipeInfix(id, infix, rhs) ->
+    | PT.EPipeInfix(id, infix, rhs, implFn) ->
       let! rhs = reResolveExpr contextModules pm rhs
-      return PT.EPipeInfix(id, infix, rhs)
+      return PT.EPipeInfix(id, infix, rhs, implFn)
 
     | PT.EPipeFnCall(id, nr, typeArgs, args) ->
       let! nr = reResolveFnName contextModules pm.findFn nr
@@ -379,18 +392,22 @@ and private reResolveExpr
       let! args = Ply.NEList.mapSequentially (reResolveExpr contextModules pm) args
       return PT.EApply(id, fnExpr, typeArgs, args)
 
-    | PT.EFnName(id, nr) ->
+    | PT.EFnName(id, nr, boundImpls) ->
       let! nr = reResolveFnName contextModules pm.findFn nr
-      return PT.EFnName(id, nr)
+      // Carry the bounds the CALL worked out. Re-resolution is about names that could not be
+      // resolved at parse time; what this call decided for the callee's bounds was decided
+      // once, by the checker, and dropping it here silently un-decides it -- the item is
+      // re-hashed without it and every bounded call falls back to resolving at run time.
+      return PT.EFnName(id, nr, boundImpls)
 
     | PT.ELambda(id, pats, body) ->
       let! body = reResolveExpr contextModules pm body
       return PT.ELambda(id, pats, body)
 
-    | PT.EInfix(id, infix, lhs, rhs) ->
+    | PT.EInfix(id, infix, lhs, rhs, implFn) ->
       let! lhs = reResolveExpr contextModules pm lhs
       let! rhs = reResolveExpr contextModules pm rhs
-      return PT.EInfix(id, infix, lhs, rhs)
+      return PT.EInfix(id, infix, lhs, rhs, implFn)
 
     | PT.ERecord(id, nr, typeArgs, fields) ->
       let! nr = reResolveTypeName contextModules pm.findType nr
@@ -442,7 +459,7 @@ and private reResolveExpr
             resolved = Error PT.NameResolutionError.NotFound }
         let! fnNr = reResolveFnName contextModules pm.findFn fnNr
         match fnNr.resolved with
-        | Ok _ -> return PT.EFnName(id, fnNr)
+        | Ok _ -> return PT.EFnName(id, fnNr, [])
         | Error _ -> return PT.EValue(id, nr)
       | _ -> return PT.EValue(id, nr)
 
@@ -505,6 +522,44 @@ let private reResolveTypeDefinition
 // --------------------------------------------------------------------------
 
 /// Re-resolve all unresolved NameResolutions in a PackageType
+let private reResolveTraitRef
+  (contextModules : List<string>)
+  (pm : PT.PackageManager)
+  (r : PT.TraitRef)
+  : Ply<PT.TraitRef> =
+  uply {
+    let! trait_ = reResolveTraitName contextModules pm.findTrait r.trait_
+    let! typeArgs =
+      Ply.List.mapSequentially (reResolveTypeRef contextModules pm) r.typeArgs
+    return { trait_ = trait_; typeArgs = typeArgs }
+  }
+
+/// The parameter walk `reResolveFn` and `reResolveTrait` share.
+let private reResolveParams
+  (contextModules : List<string>)
+  (pm : PT.PackageManager)
+  (ps : NEList<PT.PackageFn.Parameter>)
+  : Ply<NEList<PT.PackageFn.Parameter>> =
+  ps
+  |> Ply.NEList.mapSequentially (fun (p : PT.PackageFn.Parameter) ->
+    uply {
+      let! typ = reResolveTypeRef contextModules pm p.typ
+      return { p with typ = typ }
+    })
+
+
+let private reResolveBounds
+  (contextModules : List<string>)
+  (pm : PT.PackageManager)
+  (bounds : List<PT.Bound>)
+  : Ply<List<PT.Bound>> =
+  bounds
+  |> Ply.List.mapSequentially (fun (b : PT.Bound) ->
+    uply {
+      let! trait_ = reResolveTraitRef contextModules pm b.trait_
+      return { b with trait_ = trait_ }
+    })
+
 let reResolveType
   (pm : PT.PackageManager)
   (owner : string)
@@ -516,8 +571,12 @@ let reResolveType
   uply {
     let! definition =
       reResolveTypeDefinition contextModules pm t.declaration.definition
+    let! bounds = reResolveBounds contextModules pm t.declaration.bounds
 
-    return { t with declaration = { t.declaration with definition = definition } }
+    return
+      { t with
+          declaration =
+            { t.declaration with definition = definition; bounds = bounds } }
   }
 
 
@@ -533,18 +592,83 @@ let reResolveFn
   uply {
     let! body = reResolveExpr contextModules pm f.body
 
-    let! parameters =
-      Ply.NEList.mapSequentially
-        (fun (p : PT.PackageFn.Parameter) ->
-          uply {
-            let! typ = reResolveTypeRef contextModules pm p.typ
-            return { p with typ = typ }
-          })
-        f.parameters
+    let! parameters = reResolveParams contextModules pm f.parameters
 
     let! returnType = reResolveTypeRef contextModules pm f.returnType
+    let! bounds = reResolveBounds contextModules pm f.bounds
 
-    return { f with body = body; parameters = parameters; returnType = returnType }
+    return
+      { f with
+          body = body
+          parameters = parameters
+          returnType = returnType
+          bounds = bounds }
+  }
+
+
+/// Re-resolve a trait's bounds and method signatures
+let reResolveTrait
+  (pm : PT.PackageManager)
+  (owner : string)
+  (modules : List<string>)
+  (t : PT.Trait.Trait)
+  : Ply<PT.Trait.Trait> =
+  let contextModules = owner :: modules
+
+  uply {
+    let! bounds = reResolveBounds contextModules pm t.bounds
+    let! methods =
+      Ply.NEList.mapSequentially
+        (fun (m : PT.Trait.Method) ->
+          uply {
+            let! parameters = reResolveParams contextModules pm m.parameters
+            let! returnType = reResolveTypeRef contextModules pm m.returnType
+            // A method's OWN bounds are hashed and read by the checker like the trait's,
+            // so a forward-referenced trait in one has to be repaired here too.
+            let! methodBounds = reResolveBounds contextModules pm m.bounds
+            return
+              { m with
+                  parameters = parameters
+                  returnType = returnType
+                  bounds = methodBounds }
+          })
+        t.methods
+    return { t with bounds = bounds; methods = methods }
+  }
+
+
+/// Re-resolve an impl's trait, self type, bounds and method targets. The
+/// context is the impl's own module (its member path), which is where a
+/// method declared in the block resolves from.
+let reResolveImpl
+  (pm : PT.PackageManager)
+  (owner : string)
+  (modules : List<string>)
+  (name : string)
+  (i : PT.TraitImpl.TraitImpl)
+  : Ply<PT.TraitImpl.TraitImpl> =
+  let contextModules = owner :: modules @ [ name ]
+
+  uply {
+    let! trait_ = reResolveTraitName contextModules pm.findTrait i.trait_
+    let! traitTypeArgs =
+      Ply.List.mapSequentially (reResolveTypeRef contextModules pm) i.traitTypeArgs
+    let! self = reResolveTypeRef contextModules pm i.self
+    let! bounds = reResolveBounds contextModules pm i.bounds
+    let! methods =
+      i.methods
+      |> Ply.List.mapSequentially (fun (m, nr) ->
+        uply {
+          let! nr = reResolveFnName contextModules pm.findFn nr
+          return (m, nr)
+        })
+    return
+      { i with
+          trait_ = trait_
+          traitTypeArgs = traitTypeArgs
+          self = self
+          bounds = bounds
+          methods = methods }
   }
 
 

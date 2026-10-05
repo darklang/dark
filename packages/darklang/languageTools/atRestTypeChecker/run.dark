@@ -47,7 +47,8 @@ let reportCandidates
         { item = item
           verdict = outcome.verdict
           diagnostics = outcome.diagnostics
-          warnings = outcome.warnings })
+          warnings = outcome.warnings
+          resolutions = outcome.resolutions })
 
   reportItems items
 
@@ -98,7 +99,15 @@ let collectItemReferences
 /// Check the declarations in the supplied operations without changing the store.
 /// Load referenced declarations and their dependencies to obtain the type
 /// information needed for checking.
-let checkPackageOps (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Report =
+/// Check <param ops> against the implementations bound on <param branchId>.
+///
+/// The branch matters only for implementations: everything else the checker loads is
+/// content-addressed. A caller that has no branch in hand goes through `checkPackageOps`
+/// below, which answers about main.
+let checkPackageOpsOn
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Report =
   let candidates = candidatesFromOps ops
   let types = Stdlib.Dict.values candidates.types
   let values = Stdlib.Dict.values candidates.values
@@ -110,7 +119,7 @@ let checkPackageOps (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Report =
         Stdlib.List.map values (fun v -> LanguageTools.ProgramTypes.Reference.PackageValue v.hash)
         Stdlib.List.map fns (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash) ]
 
-  let builtins = Environment.builtins ()
+  let builtins = Environment.builtins branchId
 
   // If inspecting a type declaration or function signature fails, leave it out
   // of the checking environment and record an Incomplete result for it.
@@ -200,11 +209,35 @@ let loadCandidate
   | PackageFn hash ->
     (LanguageTools.PackageManager.Function.get hash)
     |> Stdlib.Option.map (fun fn -> LanguageTools.ProgramTypes.PackageOp.AddFn fn)
+  // Both kinds have an op, so they load the same way as the other three. Nothing currently
+  // ASKS for them: `checkQuery` above passes types, values and fns only, so auditing traits
+  // and impls is still a separate piece of work. These arms exist because the match must cover
+  // the type, and because the day something does ask, this is the right answer rather than a
+  // raise the guard converts into an empty report.
+  | PackageTrait hash ->
+    (LanguageTools.PackageManager.Trait.get hash)
+    |> Stdlib.Option.map (fun t -> LanguageTools.ProgramTypes.PackageOp.AddTrait t)
+  | PackageTraitImpl hash ->
+    (LanguageTools.PackageManager.TraitImpl.get hash)
+    |> Stdlib.Option.map (fun i ->
+      LanguageTools.ProgramTypes.PackageOp.AddTraitImpl i)
+
+/// Check <param ops> against main's implementations.
+///
+/// For a caller with no branch in hand: the LSP checking an unsaved buffer, and the checker's
+/// own tests. An implementation bound only on a branch is invisible here, which is the same
+/// answer this gave before it could see implementations at all. Anything that PINS a call
+/// passes its branch explicitly through `checkPackageOpsOn`, because pinning against the wrong
+/// branch's implementations would store the wrong answer.
+let checkPackageOps (ops: List<LanguageTools.ProgramTypes.PackageOp>) : Report =
+  checkPackageOpsOn Darklang.SCM.Branch.mainBranchId ops
+
 
 /// Load and check each distinct declaration reference. A missing declaration or
 /// a load error produces an Incomplete result for that item; successfully loaded
 /// declarations are checked together and keep their individual results.
 let checkReferences
+  (branchId: Uuid)
   (load: LanguageTools.ProgramTypes.Reference -> Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp>)
   (references: List<LanguageTools.ProgramTypes.Reference>)
   : Report =
@@ -224,9 +257,10 @@ let checkReferences
             { item = reference
               verdict = outcome.verdict
               diagnostics = outcome.diagnostics
-              warnings = outcome.warnings }
+              warnings = outcome.warnings
+              resolutions = outcome.resolutions }
         (ops, Stdlib.List.push failures item))
-  let checked = checkPackageOps (Stdlib.List.reverse ops)
+  let checked = checkPackageOpsOn branchId (Stdlib.List.reverse ops)
   reportItems (Stdlib.List.append checked.items (Stdlib.List.reverse failures))
 
 /// Check the declarations a search query selects. Fetch their hashes before loading their
@@ -236,14 +270,22 @@ let checkQuery
   (branchId: Uuid)
   (query: LanguageTools.ProgramTypes.Search.SearchQuery)
   : Report =
-  let (_, types, values, fns) =
+  // SIX lists, not four. The search returns submodules, types, values, fns, TRAITS and IMPLS;
+  // this destructured four and so matched nothing, which raised and took `dark typecheck` with
+  // it: the whole command, not one declaration. The guard turned that into an empty report, so
+  // `typecheck <module>` answered "nothing to audit" about a module full of declarations.
+  //
+  // Traits and impls are deliberately not audited here yet: `loadCandidate` below can only turn
+  // a type, a value or a fn back into an op, so naming one would raise the same way one level
+  // down. Auditing them is worth doing and is not this change.
+  let (_, types, values, fns, _traits, _impls) =
     LanguageTools.PackageManager.Search.searchNamesAndHashes branchId query
   let references =
     Stdlib.List.flatten
       [ Stdlib.List.map types (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageType hash)
         Stdlib.List.map values (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageValue hash)
         Stdlib.List.map fns (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageFn hash) ]
-  checkReferences loadCandidate references
+  checkReferences branchId loadCandidate references
 
 /// A query that selects everything on the branch.
 let everything () : LanguageTools.ProgramTypes.Search.SearchQuery =

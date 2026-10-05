@@ -75,13 +75,13 @@ module EncodeSemanticTokens =
         let aStart = a.range.start
         let bStart = b.range.start
 
-        if Stdlib.Int.lessThan aStart.row bStart.row then
+        if (aStart.row < bStart.row) then
           -1
-        elif Stdlib.Int.greaterThan aStart.row bStart.row then
+        elif (aStart.row > bStart.row) then
           1
-        else if Stdlib.Int.lessThan aStart.column bStart.column then
+        else if (aStart.column < bStart.column) then
           -1
-        else if Stdlib.Int.greaterThan aStart.column bStart.column then
+        else if (aStart.column > bStart.column) then
           1
         else
           0)

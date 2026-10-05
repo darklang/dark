@@ -615,7 +615,8 @@ module Fns =
               typeSymbolTable = RT.TST.empty
               typeArgs = []
               access = allowAllAccess
-              argsSoFar = [] }
+              argsSoFar = []
+              boundImpls = [] }
         ))
 
     let partiallyApplied =
@@ -628,7 +629,8 @@ module Fns =
               typeSymbolTable = RT.TST.empty
               typeArgs = []
               access = allowAllAccess
-              argsSoFar = [ RT.DInt64 1 ] }
+              argsSoFar = [ RT.DInt64 1 ]
+              boundImpls = [] }
         ))
 
     let fullyApplied =
@@ -656,7 +658,8 @@ module Fns =
                 typeSymbolTable = RT.TST.empty
                 typeArgs = []
                 access = allowAllAccess
-                argsSoFar = [] }
+                argsSoFar = []
+                boundImpls = [] }
           ))
 
       let partiallyApplied =
@@ -669,7 +672,8 @@ module Fns =
                 typeSymbolTable = RT.TST.empty
                 typeArgs = []
                 access = allowAllAccess
-                argsSoFar = [ RT.DInt64 1 ] }
+                argsSoFar = [ RT.DInt64 1 ]
+                boundImpls = [] }
           ))
 
       let fullyApplied =
@@ -690,7 +694,8 @@ module Fns =
                 typeSymbolTable = RT.TST.empty
                 typeArgs = []
                 access = allowAllAccess
-                argsSoFar = [] }
+                argsSoFar = []
+                boundImpls = [] }
           ))
 
       let appliedWith2 =
@@ -1327,7 +1332,8 @@ module Reload =
         typeSymbolTable = RT.TST.empty
         typeArgs = []
         access = None
-        argsSoFar = [] }
+        argsSoFar = []
+        boundImpls = [] }
 
   let private call (state : RT.ExecutionState) (app : RT.Applicable) =
     task {

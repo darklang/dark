@@ -96,7 +96,7 @@ let packHelpRows
   | section :: remaining ->
     let candidate =
       if current == "" then section
-      else current ++ " • " ++ section
+      else current + " • " + section
 
     if Stdlib.String.displayWidth candidate <= width then
       packHelpRows width remaining candidate rows
@@ -123,19 +123,64 @@ let helpRowsAtWidth
   (width: Int)
   : List<String> =
   packHelpRows
-    (Stdlib.Int.max 1 width)
+    (Stdlib.max 1 width)
     (helpSections mode display)
     ""
     []
 
 
-// Helper functions
-let modulePathOf (location: PackageLocation) : List<String> =
-  match location with
-  | Module path -> path
-  | Type t -> Stdlib.List.append [t.owner] t.modules
-  | Value v -> Stdlib.List.append [v.owner] v.modules
-  | Function f -> Stdlib.List.append [f.owner] f.modules
+/// `Darklang.Stdlib.List.map`, the spelling a search result needs when the row could be from
+/// anywhere in the tree.
+let buildFullPath (owner: String) (modules: List<String>) (name: String) : String =
+  [ [ owner ], modules, [ name ] ]
+  |> Stdlib.List.flatten
+  |> Stdlib.String.join "."
+
+
+/// The five leaf kinds of a result set as nav items, in `Glyphs.kindOrder`. `shortNames` is the
+/// only thing a listing of one module and a search across the tree disagree about: a listing shows
+/// `map`, a search shows `Darklang.Stdlib.List.map`. Two copies of this is how search came to drop
+/// traits and impls while a listing of the same module showed them; the submodule row is still each
+/// caller's own, because they genuinely ask different questions of `results`.
+let leafNavItems
+  (results: LanguageTools.ProgramTypes.Search.SearchResults)
+  (shortNames: Bool)
+  : List<NavItem> =
+  let nameOf
+    (location: LanguageTools.ProgramTypes.PackageLocation)
+    : String =
+    if shortNames then
+      location.name
+    else
+      buildFullPath location.owner location.modules location.name
+
+  let types =
+    results.types
+    |> Stdlib.List.map (fun t ->
+      NavItem { name = nameOf t.location; entityType = EntityType.Type; location = PackageLocation.Type t.location })
+
+  let functions =
+    results.fns
+    |> Stdlib.List.map (fun fn ->
+      NavItem { name = nameOf fn.location; entityType = EntityType.Function; location = PackageLocation.Function fn.location })
+
+  let values =
+    results.values
+    |> Stdlib.List.map (fun v ->
+      NavItem { name = nameOf v.location; entityType = EntityType.Value; location = PackageLocation.Value v.location })
+
+  let traits =
+    results.traits
+    |> Stdlib.List.map (fun t ->
+      NavItem { name = nameOf t.location; entityType = EntityType.Trait; location = PackageLocation.Trait t.location })
+
+  let impls =
+    results.impls
+    |> Stdlib.List.map (fun i ->
+      NavItem { name = nameOf i.location; entityType = EntityType.Impl; location = PackageLocation.Impl i.location })
+
+  Stdlib.List.flatten [ types, functions, values, traits, impls ]
+
 
 let buildNavItemsFromResults
   (results: LanguageTools.ProgramTypes.Search.SearchResults)
@@ -148,22 +193,7 @@ let buildNavItemsFromResults
     |> Stdlib.List.map (fun name ->
       NavItem { name = name; entityType = EntityType.Module; location = PackageLocation.Module (Stdlib.List.append modulePath [name]) })
 
-  let types =
-    results.types
-    |> Stdlib.List.map (fun t ->
-      NavItem { name = t.location.name; entityType = EntityType.Type; location = PackageLocation.Type t.location })
-
-  let values =
-    results.values
-    |> Stdlib.List.map (fun v ->
-      NavItem { name = v.location.name; entityType = EntityType.Value; location = PackageLocation.Value v.location })
-
-  let functions =
-    results.fns
-    |> Stdlib.List.map (fun fn ->
-      NavItem { name = fn.location.name; entityType = EntityType.Function; location = PackageLocation.Function fn.location })
-
-  Stdlib.List.flatten [ submodules, types, values, functions ]
+  Stdlib.List.flatten [ submodules, leafNavItems results true ]
 
 
 // Create interactive navigation state for a location
@@ -211,7 +241,7 @@ let loadFocusRows
 
         let remainingRows =
           if remaining > 0 then
-            [ $"  ... and {Stdlib.Int.toString remaining} more modules" ]
+            [ $"  ... and {Stdlib.toString remaining} more modules" ]
           else
             []
 
@@ -229,7 +259,7 @@ let loadFocusRows
     let typeRows =
       if lineCount < maxTotalLines then
         let remainingLines = maxTotalLines - lineCount
-        let itemsPerRemaining = Stdlib.Int.min 2 remainingLines
+        let itemsPerRemaining = Stdlib.min 2 remainingLines
 
         if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) && itemsPerRemaining > 0 then
           let typesToShow = Stdlib.List.take results.types itemsPerRemaining
@@ -237,7 +267,7 @@ let loadFocusRows
           let remaining = (Stdlib.List.length results.types) - itemsPerRemaining
           let remainingRows =
             if remaining > 0 then
-              [ $"  ... and {Stdlib.Int.toString remaining} more types" ]
+              [ $"  ... and {Stdlib.toString remaining} more types" ]
             else
               []
 
@@ -281,8 +311,8 @@ let layout
   (navState: State)
   (size: Darklang.Stdlib.Cli.Tui.Size)
   : Layout =
-  let width = Stdlib.Int.max 1 size.width
-  let contentHeight = Stdlib.Int.max 1 size.height
+  let width = Stdlib.max 1 size.width
+  let contentHeight = Stdlib.max 1 size.height
 
   let headerHeight =
     match navState.mode with
@@ -298,7 +328,7 @@ let layout
     && Stdlib.Bool.not (Stdlib.List.isEmpty navState.focusRows)
 
   let availableBodyHeight =
-    Stdlib.Int.max
+    Stdlib.max
       0
       (contentHeight - headerHeight - helpHeight)
 
@@ -312,22 +342,22 @@ let layout
     if hasFocus then Stdlib.List.length navState.focusRows + 1 else 0
 
   let maximumStackedFocusHeight =
-    Stdlib.Int.divide (bodyHeight * 60) 100
+    (bodyHeight * 60) / 100
 
   let focusHeight =
     if sideBySide then
       bodyHeight
     else
-      Stdlib.Int.min desiredFocusHeight maximumStackedFocusHeight
+      Stdlib.min desiredFocusHeight maximumStackedFocusHeight
 
   let itemViewportHeight =
     if sideBySide then bodyHeight else bodyHeight - focusHeight
 
   let listWidth =
     if sideBySide then
-      Stdlib.Int.max
+      Stdlib.max
         30
-        (Stdlib.Int.divide ((width - 1) * 2) 5)
+        (((width - 1) * 2) / 5)
     else
       width
 
@@ -341,7 +371,7 @@ let layout
     helpHeight = helpHeight
     itemViewportHeight = itemViewportHeight
     focusHeight = focusHeight
-    focusContentHeight = Stdlib.Int.max 0 (focusHeight - 1)
+    focusContentHeight = Stdlib.max 0 (focusHeight - 1)
     sideBySide = sideBySide
     listWidth = listWidth
     focusWidth = focusWidth
@@ -395,7 +425,7 @@ let viewAtSize
       [ "  (empty directory)" ]
     else
       let maxOffset =
-        Stdlib.Int.max 0 (totalItems - regions.itemViewportHeight)
+        Stdlib.max 0 (totalItems - regions.itemViewportHeight)
       let desiredOffset =
         if navState.selectedIndex < navState.scrollOffset then
           navState.selectedIndex
@@ -407,9 +437,9 @@ let viewAtSize
         else
           navState.scrollOffset
       let startIndex =
-        Stdlib.Int.min maxOffset (Stdlib.Int.max 0 desiredOffset)
+        Stdlib.min maxOffset (Stdlib.max 0 desiredOffset)
       let endIndex =
-        Stdlib.Int.min
+        Stdlib.min
           (startIndex + regions.itemViewportHeight)
           totalItems
 
@@ -424,7 +454,7 @@ let viewAtSize
         let cursor = if isSelected then "> " else "  "
         let nameDisplay =
           match item.entityType with
-          | Module -> item.name ++ "/"
+          | Module -> item.name + "/"
           | _ -> item.name
 
         let line =
@@ -432,12 +462,12 @@ let viewAtSize
           | Module ->
             if isSelected then
               Stdlib.Cli.UI.Colors.info cursor
-              ++ icon
-              ++ Stdlib.Cli.UI.Colors.info (" " ++ nameDisplay)
+              + icon
+              + Stdlib.Cli.UI.Colors.info (" " + nameDisplay)
             else
-              cursor ++ icon ++ " " ++ nameDisplay
+              cursor + icon + " " + nameDisplay
           | _ ->
-            let line = cursor ++ icon ++ " " ++ nameDisplay
+            let line = cursor + icon + " " + nameDisplay
             if isSelected then Stdlib.Cli.UI.Colors.info line else line
 
         itemClip line)
@@ -448,11 +478,11 @@ let viewAtSize
     else
       let totalRows = Stdlib.List.length navState.focusRows
       let maxOffset =
-        Stdlib.Int.max 0 (totalRows - regions.focusContentHeight)
+        Stdlib.max 0 (totalRows - regions.focusContentHeight)
       let offset =
-        Stdlib.Int.min
+        Stdlib.min
           maxOffset
-          (Stdlib.Int.max 0 navState.focusScrollOffset)
+          (Stdlib.max 0 navState.focusScrollOffset)
       let visibleRows =
         navState.focusRows
         |> Stdlib.List.drop offset
@@ -460,20 +490,20 @@ let viewAtSize
         |> Stdlib.List.map focusClip
       let startRow = if totalRows == 0 then 0 else offset + 1
       let endRow =
-        Stdlib.Int.min totalRows (offset + Stdlib.List.length visibleRows)
+        Stdlib.min totalRows (offset + Stdlib.List.length visibleRows)
       let position =
         if totalRows > regions.focusContentHeight then
-          let startText = Stdlib.Int.toString startRow
-          let endText = Stdlib.Int.toString endRow
-          let totalText = Stdlib.Int.toString totalRows
+          let startText = Stdlib.toString startRow
+          let endText = Stdlib.toString endRow
+          let totalText = Stdlib.toString totalRows
           $"Preview {startText}-{endText} of {totalText} • PgUp/PgDn scroll"
         else
-          $"Preview • {Stdlib.Int.toString totalRows} rows"
+          $"Preview • {Stdlib.toString totalRows} rows"
       let heading =
         if regions.sideBySide then
           Stdlib.Cli.UI.Colors.hint (focusClip position)
         else
-          Stdlib.Cli.UI.Colors.hint (focusClip ("─ " ++ position))
+          Stdlib.Cli.UI.Colors.hint (focusClip ("─ " + position))
       Stdlib.List.push visibleRows heading
 
   let helpRows =
@@ -504,8 +534,8 @@ let viewAtSize
           Darklang.Stdlib.Cli.Tui.Text.fitToWidth
             itemRow
             regions.listWidth
-          ++ Stdlib.Cli.UI.Colors.dimText "│"
-          ++ focusClip (" " ++ focusRow))
+          + Stdlib.Cli.UI.Colors.dimText "│"
+          + focusClip (" " + focusRow))
     else
       Stdlib.List.append fittedItemRows fittedFocusRows
 
@@ -606,8 +636,8 @@ let scrollOffsetForSelection
       else
         scrollOffset
 
-    let maxOffset = Stdlib.Int.max 0 (totalItems - viewportHeight)
-    Stdlib.Int.min maxOffset (Stdlib.Int.max 0 offset)
+    let maxOffset = Stdlib.max 0 (totalItems - viewportHeight)
+    Stdlib.min maxOffset (Stdlib.max 0 offset)
 
 
 let withFocusScrollOffset
@@ -616,12 +646,12 @@ let withFocusScrollOffset
   (offset: Int)
   : State =
   let maxOffset =
-    Stdlib.Int.max
+    Stdlib.max
       0
       (Stdlib.List.length navState.focusRows - focusContentHeight)
   { navState with
       focusScrollOffset =
-        Stdlib.Int.min maxOffset (Stdlib.Int.max 0 offset) }
+        Stdlib.min maxOffset (Stdlib.max 0 offset) }
 
 
 // Navigation helper functions
@@ -737,12 +767,6 @@ let navigateToParent
     show newState session newNavState
   | Error _ -> state
 
-// Helper for building full paths in search results
-let buildFullPath (owner: String) (modules: List<String>) (name: String) : String =
-  [ [ owner ], modules, [ name ] ]
-  |> Stdlib.List.flatten
-  |> Stdlib.String.join "."
-
 // Perform search and update items based on query
 let performSearch (navState: State) : State =
   if Stdlib.String.isEmpty navState.searchQuery then
@@ -772,22 +796,7 @@ let performSearch (navState: State) : State =
       |> Stdlib.List.map (fun modulePath ->
         NavItem { name = Stdlib.String.join modulePath "."; entityType = EntityType.Module; location = PackageLocation.Module modulePath })
 
-    let typeItems =
-      results.types
-      |> Stdlib.List.map (fun t ->
-        NavItem { name = buildFullPath t.location.owner t.location.modules t.location.name; entityType = EntityType.Type; location = PackageLocation.Type t.location })
-
-    let valueItems =
-      results.values
-      |> Stdlib.List.map (fun v ->
-        NavItem { name = buildFullPath v.location.owner v.location.modules v.location.name; entityType = EntityType.Value; location = PackageLocation.Value v.location })
-
-    let fnItems =
-      results.fns
-      |> Stdlib.List.map (fun fn ->
-        NavItem { name = buildFullPath fn.location.owner fn.location.modules fn.location.name; entityType = EntityType.Function; location = PackageLocation.Function fn.location })
-
-    let searchItems = Stdlib.List.flatten [ moduleItems, typeItems, valueItems, fnItems ]
+    let searchItems = Stdlib.List.flatten [ moduleItems, leafNavItems results false ]
 
     { navState with
         items = searchItems
@@ -855,7 +864,7 @@ let handleSearchKeys
   | _ ->
     match keyChar with
     | Some char ->
-      let newQuery = navState.searchQuery ++ char
+      let newQuery = navState.searchQuery + char
       let newNavState = { navState with searchQuery = newQuery }
       let searchedNavState = performSearch newNavState
       Stdlib.Option.Option.Some (show state session searchedNavState)
@@ -900,7 +909,7 @@ let handleKey
   let regions = layout navState size
   let viewportHeight = regions.itemViewportHeight
   let previewPageSize =
-    Stdlib.Int.max 1 (regions.focusContentHeight - 1)
+    Stdlib.max 1 (regions.focusContentHeight - 1)
 
   let previewResult =
     match navState.display, key with

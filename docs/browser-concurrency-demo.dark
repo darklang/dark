@@ -40,8 +40,8 @@ let overlapping () : String =
   let pages = hosts |> Stdlib.List.map (fun u -> Stdlib.HttpClient.get u [])
   let ok = pages |> Stdlib.List.filter (fun r -> Stdlib.Result.isOk r) |> Stdlib.List.length
   let ms = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) t0
-  let n = Stdlib.Int.toString ok
-  $"{n} reads of a 1s endpoint in {Stdlib.Int.toString ms} ms, overlapping"
+  let n = Stdlib.toString ok
+  $"{n} reads of a 1s endpoint in {Stdlib.toString ms} ms, overlapping"
 
 /// The same five, each forced where it is made. One `await` is the whole difference.
 ///
@@ -53,15 +53,15 @@ let oneAtATime () : String =
   let pages = hosts |> Stdlib.List.map (fun u -> Stdlib.await (Stdlib.HttpClient.get u []))
   let ok = pages |> Stdlib.List.filter (fun r -> Stdlib.Result.isOk r) |> Stdlib.List.length
   let ms = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) t0
-  let n = Stdlib.Int.toString ok
-  $"{n} reads of a 1s endpoint in {Stdlib.Int.toString ms} ms, one at a time"
+  let n = Stdlib.toString ok
+  $"{n} reads of a 1s endpoint in {Stdlib.toString ms} ms, one at a time"
 
 /// Both, slow first, so the second line is the punchline. Same five reads, same ordinary `map`;
 /// the only difference is one `Stdlib.await`.
 let bothWays () : String =
   let slow = oneAtATime ()
   let fast = overlapping ()
-  slow ++ "\n" ++ fast
+  slow + "\n" + fast
 
 /// Is a read eager in this runtime? Two one-second reads of two different hosts, timed at the
 /// call and again after forcing.
@@ -77,8 +77,8 @@ let twoReads () : String =
   let afterTwo = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) t0
   let bothOk = (Stdlib.Result.isOk a) && (Stdlib.Result.isOk b)
   let forced = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) t0
-  let one = Stdlib.Int.toString afterOne
-  let two = Stdlib.Int.toString afterTwo
-  let f = Stdlib.Int.toString forced
-  let ok = Stdlib.Bool.toString bothOk
+  let one = Stdlib.toString afterOne
+  let two = Stdlib.toString afterTwo
+  let f = Stdlib.toString forced
+  let ok = Stdlib.toString bothOk
   $"call1 at {one} ms, call2 at {two} ms, both forced at {f} ms, ok={ok}"

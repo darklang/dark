@@ -42,7 +42,7 @@ let addAlias
 
   (readZshrc ())
   |> Result.andThen (fun content ->
-    let updatedContent = content ++ "\n" ++ aliasDefinition
+    let updatedContent = content + "\n" + aliasDefinition
 
     match overwriteZshrc updatedContent with
     | Ok() -> applyZshConfigChanges ()
@@ -59,7 +59,7 @@ let addToPath (dir: String) : Result.Result<Unit, String> =
     if String.contains content exportLine then
       Result.Result.Ok()
     else
-      let updatedContent = content ++ "\n" ++ exportLine
+      let updatedContent = content + "\n" + exportLine
 
       match overwriteZshrc updatedContent with
       | Ok() -> applyZshConfigChanges ()

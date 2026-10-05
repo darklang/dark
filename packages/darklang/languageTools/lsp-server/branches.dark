@@ -14,7 +14,7 @@ module Darklang.LanguageTools.LspServer.Branches
 
 /// A branch id on the wire. Ids are uuids in the store and strings in JSON, and `Json.String` takes a
 /// String, so every id crossing this boundary goes through here rather than being handed over raw.
-let idJson (id: Uuid) : Json = Json.String(Stdlib.Uuid.toString id)
+let idJson (id: Uuid) : Json = Json.String(Stdlib.toString id)
 
 
 /// What the client sent, as an id. The editor echoes back whatever `dark/getBranches` gave it, and a
@@ -34,7 +34,7 @@ let branchToJson (b: SCM.Branches.BranchRow) (activeBranchId: Uuid) : Json =
   Json.Object
     [ ("id", idJson b.id)
       ("name",
-       Json.String(if b.name == "" then Stdlib.Uuid.toString b.id else b.name))
+       Json.String(if b.name == "" then Stdlib.toString b.id else b.name))
       ("parentBranchId", idJson b.parent)
       ("ops", Json.Integer(Stdlib.Int.fromInt64 b.ops))
       ("merged", Json.Bool b.merged)
@@ -90,7 +90,7 @@ let activeBranch () : Uuid = SCM.PackageOps.currentBranch ()
 /// Put this process on <param branchId>, and remember it for the next one. The overlay and the two
 /// config keys are three writes to one fact, so they only ever happen together.
 let moveTo (branchId: Uuid) (name: String) : Unit =
-  Stdlib.LocalStore.configSet "current_branch" (Stdlib.Uuid.toString branchId)
+  Stdlib.LocalStore.configSet "current_branch" (Stdlib.toString branchId)
   Stdlib.LocalStore.configSet "current_branch_name" name
   let _ = SCM.PackageOps.selectBranch branchId
   ()
@@ -158,7 +158,7 @@ let handleGetCurrentBranchRequest
         // registered it locally). Report what's true rather than falling back to main.
         Json.Object
           [ ("id", idJson active)
-            ("name", Json.String(Stdlib.Uuid.toString active))
+            ("name", Json.String(Stdlib.toString active))
             ("parentBranchId", Json.String "")
             ("isActive", Json.Bool true) ]
 
@@ -372,7 +372,7 @@ let handleRebaseStatusRequest
 /// The branch this editor session is on, as the string the request handlers take. What a request
 /// that names no branch means.
 let activeBranchId () : String =
-  Stdlib.Uuid.toString (activeBranch ())
+  Stdlib.toString (activeBranch ())
 
 
 /// `dark/scm/commit`: seal the draft, exactly as `dark commit` does -- same author, same gates
@@ -430,7 +430,7 @@ let handleGetCommitsRequest
           ("message", Json.String c.message)
           ("author", Json.String c.author)
           ("createdAt", Json.String c.createdAt)
-          ("opCount", Json.String(Stdlib.Int64.toString (SCM.PackageOps.opCountIn c.hash))) ])
+          ("opCount", Json.String(Stdlib.toString (SCM.PackageOps.opCountIn c.hash))) ])
   respondOk requestID (Json.Array commits)
   state
 

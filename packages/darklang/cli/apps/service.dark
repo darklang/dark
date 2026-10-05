@@ -26,15 +26,15 @@ let home () : String =
 /// Where the OS service file lives for `slug` on this platform ("" if unsupported).
 let unitPath (slug: String) : String =
   match platform () with
-  | Linux -> (home ()) ++ "/.config/systemd/user/dark-" ++ slug ++ ".service"
-  | Mac -> (home ()) ++ "/Library/LaunchAgents/com.darklang." ++ slug ++ ".plist"
+  | Linux -> (home ()) + "/.config/systemd/user/dark-" + slug + ".service"
+  | Mac -> (home ()) + "/Library/LaunchAgents/com.darklang." + slug + ".plist"
   | Unsupported -> ""
 
 /// The foreground command the OS service supervises: `dark apps daemon-main <slug>`, the same
 /// body `apps start` launches (a command, not an `eval`, so the daemon has the host's state).
 let daemonCommand (app: Model.App) : String =
   match app.target with
-  | Daemon _ -> (Stdlib.Cli.Daemon.launcher ()) ++ " apps daemon-main " ++ app.slug
+  | Daemon _ -> (Stdlib.Cli.Daemon.launcher ()) + " apps daemon-main " + app.slug
   | _ -> ""
 
 /// Can this string go into a unit file or a plist without changing its structure?
@@ -84,7 +84,7 @@ let enable (app: Model.App) : EnableResult =
       EnableResult.Failed "auto-start isn't supported on this platform (Linux / macOS only)"
     | Linux ->
       let path = unitPath app.slug
-      let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) ++ "/.config/systemd/user")
+      let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) + "/.config/systemd/user")
       match Stdlib.Cli.File.writeText path (systemdUnit app) with
       | Error e -> EnableResult.Failed e.message
       | Ok _ ->
@@ -94,7 +94,7 @@ let enable (app: Model.App) : EnableResult =
           EnableResult.WroteOnly $"wrote {path}, but couldn't activate it -- run: systemctl --user enable --now dark-{app.slug}.service"
     | Mac ->
       let path = unitPath app.slug
-      let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) ++ "/Library/LaunchAgents")
+      let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) + "/Library/LaunchAgents")
       match Stdlib.Cli.File.writeText path (launchdPlist app) with
       | Error e -> EnableResult.Failed e.message
       | Ok _ ->

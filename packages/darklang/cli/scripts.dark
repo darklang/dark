@@ -48,7 +48,7 @@ let add (name: String) (text: String) : Stdlib.Result.Result<Script, String> =
   | Some _ ->
     Stdlib.Result.Result.Error $"Script with name '{name}' already exists"
   | None ->
-    let id = Stdlib.Uuid.toString (Stdlib.Uuid.generate ())
+    let id = Stdlib.toString (Stdlib.Uuid.generate ())
 
     match
       Stdlib.Sqlite.execP

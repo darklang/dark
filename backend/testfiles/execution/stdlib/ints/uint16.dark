@@ -1,80 +1,72 @@
-Stdlib.UInt16.max 5us 6us = 6us
-Stdlib.UInt16.max 10us 1us = 10us
-Stdlib.UInt16.max 0us 6us = 6us
-Stdlib.UInt16.max 65535us 0us = 65535us
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check that it
+// reaches this type and that the type's own comparison holds at its extremes.
+Stdlib.max 65535us 0us = 65535us
 
-Stdlib.UInt16.min 5us 6us = 5us
-Stdlib.UInt16.min 10us 10us = 10us
-Stdlib.UInt16.min 65535us 0us = 0us
+Stdlib.min 65535us 0us = 0us
 
-Stdlib.UInt16.clamp 1us 2us 1us = 1us
-Stdlib.UInt16.clamp 3us 0us 2us = 2us
-Stdlib.UInt16.clamp 100us 0us 0us = 0us
-Stdlib.UInt16.clamp 100us 0us 1us = 1us
-Stdlib.UInt16.clamp 100us 1us 0us = 1us
+Stdlib.clamp 100us 0us 0us = 0us
 
+(10us + 9us) = 19us
+(88us + 9us) = 97us
+(1us + 0us) = 1us
+(65534us + 1us) = 65535us
 
-Stdlib.UInt16.add 10us 9us = 19us
-Stdlib.UInt16.add 88us 9us = 97us
-Stdlib.UInt16.add 1us 0us = 1us
-Stdlib.UInt16.add 65534us 1us = 65535us
+(65535us + 1us) = 0us
+(10us - 9us) = 1us
+(88us - 9us) = 79us
 
-Stdlib.UInt16.add 65535us 1us = 0us
-Stdlib.UInt16.subtract 10us 9us = 1us
-Stdlib.UInt16.subtract 88us 9us = 79us
+(0us - 1us) = 65535us
+(1us - 0us) = 1us
+(65535us - 1us) = 65534us
 
-Stdlib.UInt16.subtract 0us 1us = 65535us
-Stdlib.UInt16.subtract 1us 0us = 1us
-Stdlib.UInt16.subtract 65535us 1us = 65534us
+(8us * 8us) = 64us
+(8us * 0us) = 0us
+(32767us * 2us) = 65534us
 
-Stdlib.UInt16.multiply 8us 8us = 64us
-Stdlib.UInt16.multiply 8us 0us = 0us
-Stdlib.UInt16.multiply 32767us 2us = 65534us
+(32768us * 2us) = 0us
+(65535us * 2us) = 65534us
+(2us ** 3us) = 8us
+(0us ** 1us) = 0us
+(1us ** 0us) = 1us
+(0us ** 0us) = 1us
+(1us ** 255us) = 1us
 
-Stdlib.UInt16.multiply 32768us 2us = 0us
-Stdlib.UInt16.multiply 65535us 2us = 65534us
-Stdlib.UInt16.power 2us 3us = 8us
-Stdlib.UInt16.power 0us 1us = 0us
-Stdlib.UInt16.power 1us 0us = 1us
-Stdlib.UInt16.power 0us 0us = 1us
-Stdlib.UInt16.power 1us 255us = 1us
+(256us ** 2us) = 0us
+(10us / 5us) = 2us
+(17us / 3us) = 5us
+(8us / 5us) = 1us
+(0us / 1us) = 0us
+(65535us / 2us) = 32767us
 
-Stdlib.UInt16.power 256us 2us = 0us
-Stdlib.UInt16.divide 10us 5us = 2us
-Stdlib.UInt16.divide 17us 3us = 5us
-Stdlib.UInt16.divide 8us 5us = 1us
-Stdlib.UInt16.divide 0us 1us = 0us
-Stdlib.UInt16.divide 65535us 2us = 32767us
+(1us / 0us) = error="Cannot divide by 0"
+(20us > 1us) = true
 
-Stdlib.UInt16.divide 1us 0us = error="Cannot divide by 0"
-Stdlib.UInt16.greaterThan 20us 1us = true
+(0us >= 1us) = false
+(1us >= 0us) = true
+(6us >= 1us) = true
+(6us >= 8us) = false
+(65535us >= 0us) = true
+(0us >= 65535us) = false
 
-Stdlib.UInt16.greaterThanOrEqualTo 0us 1us = false
-Stdlib.UInt16.greaterThanOrEqualTo 1us 0us = true
-Stdlib.UInt16.greaterThanOrEqualTo 6us 1us = true
-Stdlib.UInt16.greaterThanOrEqualTo 6us 8us = false
-Stdlib.UInt16.greaterThanOrEqualTo 65535us 0us = true
-Stdlib.UInt16.greaterThanOrEqualTo 0us 65535us = false
+(6us <= 8us) = true
+(10us <= 1us) = false
+(0us <= 1us) = true
+(1us <= 0us) = false
+(65535us <= 0us) = false
+(0us <= 65535us) = true
+(65535us <= 65535us) = true
 
-Stdlib.UInt16.lessThanOrEqualTo 6us 8us = true
-Stdlib.UInt16.lessThanOrEqualTo 10us 1us = false
-Stdlib.UInt16.lessThanOrEqualTo 0us 1us = true
-Stdlib.UInt16.lessThanOrEqualTo 1us 0us = false
-Stdlib.UInt16.lessThanOrEqualTo 65535us 0us = false
-Stdlib.UInt16.lessThanOrEqualTo 0us 65535us = true
-Stdlib.UInt16.lessThanOrEqualTo 65535us 65535us = true
+(6us < 8us) = true
+(10us < 1us) = false
+(0us < 1us) = true
+(1us < 0us) = false
+(0us < 65535us) = true
+(65535us < 65535us) = false
 
-Stdlib.UInt16.lessThan 6us 8us = true
-Stdlib.UInt16.lessThan 10us 1us = false
-Stdlib.UInt16.lessThan 0us 1us = true
-Stdlib.UInt16.lessThan 1us 0us = false
-Stdlib.UInt16.lessThan 0us 65535us = true
-Stdlib.UInt16.lessThan 65535us 65535us = false
-
-Stdlib.UInt16.toString 120us = "120"
-Stdlib.UInt16.toString 1us = "1"
-Stdlib.UInt16.toString 0us = "0" // UInt16 lower limit
-Stdlib.UInt16.toString 65535us = "65535" // UInt16 upper limit
+Stdlib.toString 120us = "120"
+Stdlib.toString 1us = "1"
+Stdlib.toString 0us = "0" // UInt16 lower limit
+Stdlib.toString 65535us = "65535" // UInt16 upper limit
 
 Stdlib.UInt16.toFloat 2us = 2.0
 Stdlib.UInt16.toFloat 0us = 0.0
@@ -83,37 +75,37 @@ Stdlib.UInt16.sqrt 4us = 2.0
 Stdlib.UInt16.sqrt 100us = 10.0
 Stdlib.UInt16.sqrt 86us = 9.273618495495704
 
-Stdlib.UInt16.mod 15us 5us = 0us
-Stdlib.UInt16.mod 15us 6us = 3us
-Stdlib.UInt16.mod 0us 15us = 0us
-Stdlib.UInt16.mod 1us 2us = 1us
-Stdlib.UInt16.mod 32768us 53us = 14us
-Stdlib.UInt16.mod 65535us 3us = 0us
+(15us % 5us) = 0us
+(15us % 6us) = 3us
+(0us % 15us) = 0us
+(1us % 2us) = 1us
+(32768us % 53us) = 14us
+(65535us % 3us) = 0us
 
-Stdlib.UInt16.mod 5us 0us = error="Cannot evaluate modulus against 0"
+(5us % 0us) = error="Cannot evaluate modulus against 0"
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 1us 2us)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.UInt16.greaterThanOrEqualTo x 1us)
-  && (Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true, true, true, true, true ]
+  (x >= 1us)
+  && (x <= 2us)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 10us 20us)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.UInt16.greaterThanOrEqualTo x 10us)
-  && (Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true, true, true, true, true ]
+  (x >= 10us)
+  && (x <= 20us)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 2us 1us)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.UInt16.greaterThanOrEqualTo x 1us)
-  && (Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true, true, true, true, true ]
+  (x >= 1us)
+  && (x <= 2us)) = [ true, true, true, true, true ]
 
 (Stdlib.List.range 1 5)
 |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 20us 10us)
 |> Stdlib.List.map (fun x ->
-  (Stdlib.UInt16.greaterThanOrEqualTo x 10us)
-  && (Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true, true, true, true, true ]
+  (x >= 10us)
+  && (x <= 20us)) = [ true, true, true, true, true ]
 
 ((Stdlib.List.range 1 100)
  |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 0us 1us)
@@ -123,9 +115,9 @@ Stdlib.UInt16.mod 5us 0us = error="Cannot evaluate modulus against 0"
  |> Stdlib.List.map (fun x -> Stdlib.UInt16.random 0us 2us)
  |> Stdlib.List.unique) = [ 0us, 1us, 2us ]
 
-Stdlib.UInt16.sum [ 1us, 2us ] = 3us
+Stdlib.sum 0us [ 1us, 2us ] = 3us
 
-Stdlib.UInt16.sum [ 1us, 65535us ] = 0us // wraps on overflow
+Stdlib.sum 0us [ 1us, 65535us ] = 0us // wraps on overflow
 Stdlib.UInt16.parse "-129" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.OutOfRange
 Stdlib.UInt16.parse "65536" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.OutOfRange
 
@@ -144,7 +136,6 @@ Stdlib.UInt16.parse "" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.Bad
 Stdlib.UInt16.parse "1I" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
 Stdlib.UInt16.parse "one" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
 Stdlib.UInt16.parse "XIV" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
-
 
 Stdlib.UInt16.fromInt8 0y = Stdlib.Option.Option.Some 0us
 Stdlib.UInt16.fromInt8 1y = Stdlib.Option.Option.Some 1us
@@ -195,31 +186,31 @@ Stdlib.UInt16.fromUInt128 1Z = Stdlib.Option.Option.Some 1us
 Stdlib.UInt16.fromUInt128 65535Z = Stdlib.Option.Option.Some 65535us
 Stdlib.UInt16.fromUInt128 65536Z = Stdlib.Option.Option.None
 
-Stdlib.UInt16.bitwiseAnd 12us 10us = 8us
-Stdlib.UInt16.bitwiseAnd 0us 0us = 0us
-Stdlib.UInt16.bitwiseAnd 65535us 0us = 0us
-Stdlib.UInt16.bitwiseAnd 65535us 65535us = 65535us
+(12us & 10us) = 8us
+(0us & 0us) = 0us
+(65535us & 0us) = 0us
+(65535us & 65535us) = 65535us
 
-Stdlib.UInt16.bitwiseOr 12us 10us = 14us
-Stdlib.UInt16.bitwiseOr 0us 0us = 0us
-Stdlib.UInt16.bitwiseOr 65535us 0us = 65535us
+(12us | 10us) = 14us
+(0us | 0us) = 0us
+(65535us | 0us) = 65535us
 
-Stdlib.UInt16.bitwiseXor 12us 10us = 6us
-Stdlib.UInt16.bitwiseXor 0us 0us = 0us
-Stdlib.UInt16.bitwiseXor 65535us 65535us = 0us
+(12us ^ 10us) = 6us
+(0us ^ 0us) = 0us
+(65535us ^ 65535us) = 0us
 
-Stdlib.UInt16.bitwiseNot 0us = 65535us
-Stdlib.UInt16.bitwiseNot 65535us = 0us
-Stdlib.UInt16.bitwiseNot 1us = 65534us
+(~0us) = 65535us
+(~65535us) = 0us
+(~1us) = 65534us
 
-Stdlib.UInt16.shiftLeft 1us 2us = 4us
-Stdlib.UInt16.shiftLeft 0us 5us = 0us
-Stdlib.UInt16.shiftLeft 1us 0us = 1us
-Stdlib.UInt16.shiftLeft 1us 15us = 32768us
-Stdlib.UInt16.shiftLeft 5us 3us = 40us
+(1us << 2us) = 4us
+(0us << 5us) = 0us
+(1us << 0us) = 1us
+(1us << 15us) = 32768us
+(5us << 3us) = 40us
 
-Stdlib.UInt16.shiftRight 8us 2us = 2us
-Stdlib.UInt16.shiftRight 0us 5us = 0us
-Stdlib.UInt16.shiftRight 1us 0us = 1us
-Stdlib.UInt16.shiftRight 32768us 15us = 1us
-Stdlib.UInt16.shiftRight 40us 3us = 5us
+(8us >> 2us) = 2us
+(0us >> 5us) = 0us
+(1us >> 0us) = 1us
+(32768us >> 15us) = 1us
+(40us >> 3us) = 5us

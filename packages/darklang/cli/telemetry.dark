@@ -12,7 +12,7 @@ module Darklang.Cli.Telemetry
 ///   Telemetry.logWithContext "completionHint" t0 [("input", promptText)]
 
 val logFilePath =
-  (Builtin.cliGetLogDir ()) ++ "/telemetry.jsonl"
+  (Builtin.cliGetLogDir ()) + "/telemetry.jsonl"
 
 /// Returns monotonic millisecond timestamp (only differences are meaningful)
 let now () : Int = Builtin.timeNowMs ()
@@ -40,12 +40,12 @@ let logWithContext
   let ctxJson =
     match ctxPairs with
     | [] -> "{}"
-    | pairs -> "{" ++ (Stdlib.String.join pairs ",") ++ "}"
+    | pairs -> "{" + (Stdlib.String.join pairs ",") + "}"
 
-  let wall = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
-  let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.Int.toString elapsed},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
+  let wall = Stdlib.toString (Stdlib.DateTime.now ())
+  let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.toString elapsed},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
 
-  let _ = Stdlib.Cli.FileSystem.appendToFile logFilePath (line ++ "\n")
+  let _ = Stdlib.Cli.FileSystem.appendToFile logFilePath (line + "\n")
   ()
 
 /// Shorthand: log a timing event with no extra context
@@ -54,17 +54,17 @@ let log (label: String) (startMs: Int) : Unit =
 
 /// Log a raw message (not a timing span) — useful for one-off markers
 let logMessage (label: String) (message: String) : Unit =
-  let wall = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
+  let wall = Stdlib.toString (Stdlib.DateTime.now ())
   let escaped = Stdlib.String.replaceAll message "\"" "\\\""
   let line = $"{{\"event\":\"{label}\",\"msg\":\"{escaped}\",\"wall\":\"{wall}\"}}"
 
-  let _ = Stdlib.Cli.FileSystem.appendToFile logFilePath (line ++ "\n")
+  let _ = Stdlib.Cli.FileSystem.appendToFile logFilePath (line + "\n")
   ()
 
 /// Log the start of a session so we can separate runs in the log
 let logSessionStart () : Unit =
-  let wall = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
+  let wall = Stdlib.toString (Stdlib.DateTime.now ())
   let line = $"{{\"event\":\"session_start\",\"wall\":\"{wall}\"}}"
 
-  let _ = Stdlib.Cli.FileSystem.appendToFile logFilePath (line ++ "\n")
+  let _ = Stdlib.Cli.FileSystem.appendToFile logFilePath (line + "\n")
   ()

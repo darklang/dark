@@ -101,7 +101,7 @@ let regex (pattern: String) : Parser<String> =
     { run =
         (fun input ->
           // Anchor the pattern to the start of the input
-          let anchoredPattern = "^(" ++ pattern ++ ")"
+          let anchoredPattern = "^(" + pattern + ")"
 
           match Stdlib.Regex.find input anchoredPattern with
           | Some matched ->
@@ -109,7 +109,7 @@ let regex (pattern: String) : Parser<String> =
               Stdlib.String.dropFirst input (Stdlib.String.length matched)
 
             ParseResult.Success(matched, remaining)
-          | None -> ParseResult.Failure("Expected pattern: " ++ pattern)) }
+          | None -> ParseResult.Failure("Expected pattern: " + pattern)) }
 
 
 /// Parse an exact string
@@ -123,7 +123,7 @@ let string (expected: String) : Parser<String> =
 
             ParseResult.Success(expected, remaining)
           else
-            ParseResult.Failure("Expected: \"" ++ expected ++ "\"")) }
+            ParseResult.Failure("Expected: \"" + expected + "\"")) }
 
 
 /// Parse a single character that matches a predicate
@@ -137,7 +137,7 @@ let charWhere (predicate: Char -> Bool) (description: String) : Parser<Char> =
               let remaining = Stdlib.String.dropFirst input 1
               ParseResult.Success(c, remaining)
             else
-              ParseResult.Failure("Expected: " ++ description)
+              ParseResult.Failure("Expected: " + description)
           | None -> ParseResult.Failure("Unexpected end of input")) }
 
 

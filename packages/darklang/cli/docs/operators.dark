@@ -5,7 +5,9 @@ let content () : String =
 
 ## Comparison
   == != < > <= >=
-  (< > <= >= are polymorphic over numeric types — Int8..Int128, UInt*, Float)
+  `==` and `!=` are structural on every type and are not traits, so no type can
+  change what they mean. `< > <= >=` are `Stdlib.Compare`: every numeric type
+  implements it, and so can yours. `docs traits` has how.
 
 ## Boolean
   && ||   and unary !x
@@ -19,19 +21,27 @@ let content () : String =
 
 ## Numeric (all int types + Float)
   + - * / % **   and unary -x
-  Polymorphic at runtime: both operands must be the same numeric type.
-  `1 + 2`, `1.0 + 2.0`, and `1y * 2y` all work.
+  Each is a trait: `+` is `Stdlib.Add`, then Subtract, Multiply, Divide, Modulo, Power, and `-x`
+  is `Negate`. Both operands must be the same type: `1 + 2`, `1.0 + 2.0` and
+  `1y * 2y` all work; `1L + 2.0` is "Cannot perform numeric operation on Int64
+  and Float". `"a" + "b"` is `"ab"`, since String implements Add.
+  A type of your own joins with `impl Add for Vec = ...`.
   `/` is integer division on ints, float division on floats.
-  `%` works on all numeric types (the modulus must be > 0).
-  `**` (power) works on all integer types and Float (not Int128/UInt128),
-  and nests right: `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
-  Unary `-x` negates signed ints and Float (not unsigned types).
-  Integer overflow (+ - * / ** and unary -) raises a runtime error.
+  `%` is integer-only (the modulus must be > 0). Float has no Modulo implementation.
+  `**` (power) works on every integer type and Float, and nests right:
+  `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
+  Unary `-x` negates signed ints and Float; an unsigned type has no Negate
+  implementation, and `-x` on one says so.
+  A fixed-width integer WRAPS on overflow, it does not raise: `9223372036854775807L + 1L`
+  is `-9223372036854775808L`, and `-x` on a type's minimum is that minimum again.
+  `Int` is arbitrary-precision and does not wrap. Dividing by zero raises.
   Float arithmetic follows IEEE (overflow -> infinity).
 
-## Bitwise (all int types, NOT Float)
+## Bitwise (every integer type; Float has no implementation)
   & | ^ << >>   and unary ~x
   `&` and, `|` or, `^` xor, `<<`/`>>` shift, `~x` NOT (two's complement).
+  Traits like the rest: `&` is `BitwiseAnd`, `|` `BitwiseOr`, `^` `BitwiseXor`, `~` `BitwiseNot`,
+  `<<` `ShiftLeft`, `>>` `ShiftRight`, so your own type can implement them.
   Both operands must be the same integer type, including the shift count:
   `1L << 4L`, not `1L << 4`.
   Fixed-width results wrap. `Int` is arbitrary-precision, so a shift count
@@ -43,7 +53,7 @@ let content () : String =
     | A -> (a | b)
 
 ## String
-  ++   concat
+  +    concat
   NO @ operator
 
 ## List
@@ -51,7 +61,7 @@ let content () : String =
 
 ## Pipe
   value |> fn
-  (complex expr) |> fn   # parens needed
+  (complex expr) |> fn   // parens needed
 
 ## Precedence
   Loosest to tightest. `**` and `@` nest right; everything else groups left.
@@ -63,7 +73,7 @@ let content () : String =
     &
     << >>
     @
-    + - ++
+    + -
     * / %
     **
     f a b           (application)

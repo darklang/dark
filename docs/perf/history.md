@@ -5,6 +5,12 @@ The durable record. Method is in `docs/perf/playbook.md`, what's next in `docs/p
 Rounds: **1** (#5696) and **2** (#5700) were interpreter allocation campaigns, **3** (#5699) was
 NativeAOT, **4** is the current branch.
 
+Keep entries SHORT: a label for the round, the numbers, and the few sentences nobody should have to
+re-derive. One entry per round, and a round is a branch -- a later change on the same branch edits
+that entry's numbers rather than adding a second one. A budget that drifts up because a feature
+loads more is a clause, not a section. Anything longer belongs in `playbook.md` (method) or in the
+"Things established" section below (facts).
+
 ---
 
 ## 2026-10-05: published budget set from a measurement, on the scheduler branch
@@ -482,3 +488,41 @@ remains is a large FIXED per-process cost, still unexplained; that is the open q
 1.6x release (701ms vs 438ms for `status`); measure the release binary, and a true `--aot` build has
 never been measured. Where `status` scales with the store: `Constraints.pending`'s three-way join
 and the per-binding recursive CTE in `draftRepoints`.
+
+## Traits (2026-09): debug 9.29 -> 9.54 MB, published 9.74 -> 9.77 MB
+
+The operators are trait methods now (`+` is `Stdlib.Add.add`), with `FastOps.evalNumeric` in front
+for two operands of one builtin numeric type, and each call storing the implementation it resolved
+to. Both budgets went up a little, and the cost is at LOAD rather than per operation: about ninety
+more package items, the `PackageRefs.Trait` table, and a resolved reference per call site.
+`traitDispatches` reads 0 on the reference workload, because every call it makes was resolved when
+it was saved. A dispatch that does happen costs 77 bytes over the fast path, and about 3 KB the
+first time for a given (branch, trait, method, self type).
+
+## 2026-09-30, a budget RAISED on purpose: one way to stringify
+
+Both budgets go up, debug 9.54 -> 10.35 MB and published 9.77 -> 10.75 MB, about 8 and 10 per
+cent. This is the case the rule above does not cover: a deliberate increase to accommodate a
+change, not a number the tree earned down. It was Stachu's call, made knowing the cost, and the
+reason is here so the next person to meet a 10% step finds one.
+
+What changed: the sixteen per-type `toString` fns (`Stdlib.Int.toString` and its siblings) are
+gone, each type's `ToString` impl carries the function itself, and 829 call sites now say
+`Stdlib.toString`. The codebase is 46 lines shorter for it.
+
+Where the cost is, because it is not where you would look first: NOT run-time dispatch.
+`traitDispatches` reads 1 on the reference workload, the same as before. `Stdlib.toString v` is a
+call into a BOUNDED GENERIC, so each of those 829 call sites now carries the bound-impl metadata
+that makes a bounded call static, and all of it deserializes at startup. `Stdlib.Int.toString v`
+was a plain call and carried none. So the step is load-time, it scales with the number of call
+sites rather than with how often they run, and a workload that calls `toString` in a loop pays no
+more per call than it did.
+
+Taken as the minimum of four runs a side (debug 10,353,536 of 10.3-10.4 MB; published 10,747,488
+of 10.7-10.8), not a single reading, for the reason the 2026-08-27 entry gives.
+
+Then partly handed back. Removing the per-type arithmetic fns the same way took published to
+10,475,584, a 2.5% improvement, and the budget went down with it in the same commit. Debug did not
+move. Nothing was tuned for it: 1,069 call sites stopped being package calls and became operators,
+which `FastOps` answers without entering a frame, so the saving is call sites that no longer load a
+fn reference rather than anything the interpreter does differently.

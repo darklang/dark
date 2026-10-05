@@ -118,7 +118,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       // Handle tab completion
       let tTab = Telemetry.now ()
       let completions = Registry.getCompletions state state.prompt.text
-      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.Int.toString (Stdlib.List.length completions)), ("input", state.prompt.text)]
+      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.toString (Stdlib.List.length completions)), ("input", state.prompt.text)]
 
       // CLEANUP: When there are multiple completions with a common prefix (e.g. "filter" and "filterMap"),
       // Tab should complete up to the common part ("filter") rather than just showing options
@@ -376,7 +376,7 @@ let computeCompletionHint
         prevPartial
         prevItems
   if state.telemetryEnabled then
-    Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int.toString (Stdlib.String.length state.prompt.text)), ("cached", Stdlib.Bool.toString hintCached), ("contextCached", Stdlib.Bool.toString contextCached)]
+    Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.toString (Stdlib.String.length state.prompt.text)), ("cached", Stdlib.toString hintCached), ("contextCached", Stdlib.toString contextCached)]
   (hint, contextKey, contextItems, filterPartial, filterItems)
 
 
@@ -441,7 +441,7 @@ let burstTimes (keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead) : Int =
   // Cap the burst. `repeat` is however many events the terminal had buffered, and while the reader bounds
   // how long it drains, it doesn't bound how many it counts; a pathological producer shouldn't turn one
   // keypress into an unbounded interpreter loop.
-  if repeatable then Stdlib.Int.min maxKeyRepeat (Stdlib.Int.max 1 keyInput.repeat) else 1
+  if repeatable then Stdlib.min maxKeyRepeat (Stdlib.max 1 keyInput.repeat) else 1
 
 
 /// Apply one read's worth of input to the state: a paste with embedded newlines runs line by
@@ -580,10 +580,10 @@ let runInteractiveLoop (state: AppState) : Int =
 
           if renderedState.telemetryEnabled then
             Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
-            Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar), ("repeats", Stdlib.Int.toString times)]
+            Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar), ("repeats", Stdlib.toString times)]
             let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
             let interpStats = LanguageTools.InterpreterStats.get ()
-            Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs), ("interp", interpStats)]
+            Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.toString loopWorkMs), ("interp", interpStats)]
 
           newState
         | StoreChanged change ->

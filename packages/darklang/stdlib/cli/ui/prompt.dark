@@ -21,7 +21,7 @@ let select (question: String) (choices: List<String>) : String =
   let _ =
     choices
     |> Stdlib.List.indexedMap (fun i choice ->
-      Stdlib.printLine ($"  {Stdlib.Cli.UI.Colors.boldText (Stdlib.Int.toString (i + 1))}. {choice}"))
+      Stdlib.printLine ($"  {Stdlib.Cli.UI.Colors.boldText (Stdlib.toString (i + 1))}. {choice}"))
 
   Stdlib.print "Enter number: "
   let input = Stdlib.Cli.Stdin.readLine ()

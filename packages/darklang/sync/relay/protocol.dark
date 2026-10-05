@@ -108,13 +108,13 @@ let headHandlerFn (req: HttpRequest) : HttpResponse =
     match Stdlib.Http.Request.queryParam req "waitMs" with
     | Some raw ->
       match Stdlib.Int.parse raw with
-      | Ok n -> Stdlib.Int.clamp n 0 headWaitCapMs
+      | Ok n -> Stdlib.clamp n 0 headWaitCapMs
       | Error _ -> 0
     | None -> 0
 
   // Only when the caller is CURRENT. Anyone behind gets the answer at once: they have work to do
   // and waiting would delay it.
-  if (waitMs > 0) && (knownCount == Stdlib.Int64.toString head.count) then
+  if (waitMs > 0) && (knownCount == Stdlib.toString head.count) then
     Stdlib.Host.begin ()
     let woken = waitForCount head.count ((Cli.Telemetry.now ()) + waitMs)
     Stdlib.Http.responseWithJson (SCM.Wire.headEncode woken) 200
@@ -200,7 +200,7 @@ let pushHandlerFn (req: HttpRequest) : HttpResponse =
       // A JSON body, not a sentence: the client acts on this count, and a protocol a client
       // parses out of English is one wording change from silent breakage.
       Stdlib.Http.responseWithText
-        $"{{\"stored\": {Stdlib.Int.toString n}, \"owner\": \"{owner}\"}}"
+        $"{{\"stored\": {Stdlib.toString n}, \"owner\": \"{owner}\"}}"
         200
     | Error e -> Stdlib.Http.serverError e
   | Error _ ->

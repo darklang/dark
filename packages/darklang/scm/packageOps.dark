@@ -34,8 +34,10 @@ let add
 ///
 /// Ordered deliberately. Duplicate names are checked FIRST, because `stabilizeHashes` keys by name: a
 /// batch declaring one name twice would store one body under the other's hash, and whichever landed
-/// second would silently become the first. Then the at-rest check runs over what was actually stored,
-/// so its report describes the store rather than the request.
+/// second would silently become the first. Then each trait-method call is resolved to an
+/// implementation and that choice is written onto the call, BEFORE hashing, because it is part of
+/// what the item is. Then the at-rest check runs over what was actually stored, so its report
+/// describes the store rather than the request.
 ///
 /// Every authoring surface goes through here rather than calling `add`: the CLI's fn/type/value/module
 /// commands, the workbench, and the LSP's file provider.
@@ -47,14 +49,17 @@ let addAuthored
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty duplicates) then
     Stdlib.Result.Result.Error(
-      "Declared more than once: " ++ (Stdlib.String.join duplicates ", "))
+      "Declared more than once: " + (Stdlib.String.join duplicates ", "))
   else
-    let stabilizedOps = LanguageTools.PackageManager.stabilizeHashes ops
+    let stabilizedOps =
+      ops
+      |> LanguageTools.PackageManager.resolveTraitCalls
+      |> LanguageTools.PackageManager.stabilizeHashes
 
     match add branchId stabilizedOps with
     | Ok _ ->
       Stdlib.Result.Result.Ok(
-        LanguageTools.AtRestTypeChecker.checkPackageOps stabilizedOps)
+        LanguageTools.AtRestTypeChecker.checkPackageOpsOn branchId stabilizedOps)
     | Error message -> Stdlib.Result.Result.Error message
 
 
@@ -88,7 +93,7 @@ let identity () : String =
   if (stored != "") && ((mintedAt == here) || (autoMinted |> Stdlib.Bool.not)) then
     stored
   else
-    let generated = $"inst-{Stdlib.Uuid.toString (Stdlib.Uuid.generate ())}"
+    let generated = $"inst-{Stdlib.toString (Stdlib.Uuid.generate ())}"
     Stdlib.LocalStore.configSet "sync.identity" generated
     Stdlib.LocalStore.configSet "sync.identity.origin" here
     generated
@@ -122,7 +127,7 @@ let identityProblem (name: String) : Stdlib.Option.Option<String> =
     match bad with
     | [] -> Stdlib.Option.Option.None
     | c :: _ ->
-      let shown = Stdlib.Char.toString c
+      let shown = Stdlib.toString c
       Stdlib.Option.Option.Some
         $"an identity can't contain \"{shown}\" -- letters, digits, dot, dash and underscore only, because it travels in a url and comes back in the relay's owner list"
 

@@ -44,8 +44,8 @@ let branchLine (state: AppState) : Unit =
     // "On branch " with nothing after it is worse than an id you can act on.
     let handle =
       match SCM.Branch.get id with
-      | Some b -> if b.name == "" then Stdlib.Uuid.toString id else b.name
-      | None -> Stdlib.Uuid.toString id
+      | Some b -> if b.name == "" then Stdlib.toString id else b.name
+      | None -> Stdlib.toString id
 
     Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"On branch {handle}")
 
@@ -88,7 +88,7 @@ let executePretty (state: AppState) : AppState =
              [ $"{Cli.Text.plural s.followed "item"} followed" ]
            else
              // What you did and what followed, separately; see `Summary.followed`.
-             [ $"{Cli.Text.plural (s.changed - s.followed) "item"} changed, {Stdlib.Int.toString s.followed} followed" ])
+             [ $"{Cli.Text.plural (s.changed - s.followed) "item"} changed, {Stdlib.toString s.followed} followed" ])
           (if s.removed == 0 then [] else [ $"{Cli.Text.plural s.removed "item"} removed" ]))
         (Stdlib.List.append
           (if s.repoints == 0 then
@@ -120,7 +120,7 @@ let executePretty (state: AppState) : AppState =
         if s.constraintsFromDraft == 0 then
           "none from this draft"
         else
-          $"{Stdlib.Int.toString s.constraintsFromDraft} from this draft"
+          $"{Stdlib.toString s.constraintsFromDraft} from this draft"
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.hint
           $"""  {Cli.Text.plural s.constraints "constraint"} outstanding, {mine} -> `dark constraints`""")

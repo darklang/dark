@@ -33,7 +33,7 @@ let executeExport (state: AppState) (path: String) : AppState =
   let ops = SCM.Wire.exportOps ()
 
   match Stdlib.Cli.File.writeText path (SCM.Wire.wireEncode ops) with
-  | Ok _ -> Cli.printOk $"Exported {Stdlib.Int.toString (Stdlib.List.length ops)} ops to {path}"
+  | Ok _ -> Cli.printOk $"Exported {Stdlib.toString (Stdlib.List.length ops)} ops to {path}"
   | Error _ -> Cli.printErr $"Couldn't write {path}"
 
   state
@@ -59,7 +59,7 @@ let executeImport (state: AppState) (path: String) : AppState =
         SCM.PackageOps.recordSyncBases source
 
         Cli.printOk
-          $"Imported {Cli.Text.plural outcome.imported "new op"}, of {Stdlib.Int.toString (Stdlib.List.length ops)} in file."
+          $"Imported {Cli.Text.plural outcome.imported "new op"}, of {Stdlib.toString (Stdlib.List.length ops)} in file."
 
         reportDetection outcome.bulk outcome.detected
         reportConflicts outcome.conflicts
@@ -156,7 +156,7 @@ module Status =
             | Error _ -> []
             | Ok body ->
               let knownIds =
-                SCM.Branches.list () |> Stdlib.List.map (fun b -> Stdlib.Uuid.toString b.id)
+                SCM.Branches.list () |> Stdlib.List.map (fun b -> Stdlib.toString b.id)
 
               let me = SCM.PackageOps.identity ()
 
@@ -204,7 +204,7 @@ module Status =
         Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Success (Stdlib.Cli.UI.Node.text s)
 
       let hint (s: String) : Stdlib.Cli.UI.Node.Node<Msg> =
-        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Muted (Stdlib.Cli.UI.Node.text ("  " ++ s))
+        Stdlib.Cli.UI.Node.styled Stdlib.Cli.UI.Node.Style.Muted (Stdlib.Cli.UI.Node.text ("  " + s))
 
       let verdict =
         match m.verdict with
@@ -232,8 +232,8 @@ module Status =
 
       Stdlib.Cli.UI.Node.column
         (Stdlib.List.flatten
-          [ [ ok $"local: {Stdlib.Int64.toString m.local} ops"
-              ok $"relay: {Stdlib.Int64.toString m.relay} ops"
+          [ [ ok $"local: {Stdlib.toString m.local} ops"
+              ok $"relay: {Stdlib.toString m.relay} ops"
               verdict ]
             branchHints
             replaced ])

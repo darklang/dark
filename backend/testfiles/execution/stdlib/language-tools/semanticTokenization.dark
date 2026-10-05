@@ -685,15 +685,15 @@ module TokenizePipeExpression =
       (TokenType.Symbol, (0, 26), (0, 27))
       (TokenType.EnumMember, (0, 27), (0, 29)) ]
 
-  ("1L |> Stdlib.Int64.add 2L" |> tokenize) =
+  ("1L |> Stdlib.List.map 2L" |> tokenize) =
     [ (TokenType.Number, (0, 0), (0, 1))
       (TokenType.Symbol, (0, 1), (0, 2))
       (TokenType.Operator, (0, 3), (0, 5))
       (TokenType.ModuleName, (0, 6), (0, 12))
-      (TokenType.ModuleName, (0, 13), (0, 18))
-      (TokenType.FunctionName, (0, 19), (0, 22))
-      (TokenType.Number, (0, 23), (0, 24))
-      (TokenType.Symbol, (0, 24), (0, 25)) ]
+      (TokenType.ModuleName, (0, 13), (0, 17))
+      (TokenType.FunctionName, (0, 18), (0, 21))
+      (TokenType.Number, (0, 22), (0, 23))
+      (TokenType.Symbol, (0, 23), (0, 24)) ]
 
   ("\"true\" |> Builtin.jsonParse<Bool>" |> tokenize) =
     [ (TokenType.Symbol, (0, 0), (0, 1))

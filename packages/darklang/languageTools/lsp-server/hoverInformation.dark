@@ -38,25 +38,31 @@ let hoverInfoForThingAtPosition
   let ppCtx = PrettyPrinter.ProgramTypes.Context.forBranch ctx.branchId
   match thingAtPosition with
   | Keyword keywordName ->
-    let metadata = Stdlib.Option.Option.Some("Keyword: " ++ keywordName)
+    let metadata = Stdlib.Option.Option.Some("Keyword: " + keywordName)
     let description = KeywordDescription.getKeywordDescription keywordName
     createHoverInfo range description metadata
 
   | ModuleName moduleName description ->
     let metadata =
-      Stdlib.Option.Option.Some("Module: " ++ moduleName ++ "\n\n")
+      Stdlib.Option.Option.Some("Module: " + moduleName + "\n\n")
 
     createHoverInfo range description metadata
 
   | SubModuleName fqName description ->
     let metadata =
-      Stdlib.Option.Option.Some("Fully qualified name: " ++ fqName)
+      Stdlib.Option.Option.Some("Fully qualified name: " + fqName)
 
     createHoverInfo range description metadata
 
   | FnName fnName description ->
     let metadata =
-      Stdlib.Option.Option.Some("Fully qualified name: " ++ fnName)
+      Stdlib.Option.Option.Some("Fully qualified name: " + fnName)
+
+    createHoverInfo range description metadata
+
+  | TraitName traitName description ->
+    let metadata =
+      Stdlib.Option.Option.Some("Trait: " + traitName)
 
     createHoverInfo range description metadata
 
@@ -67,14 +73,14 @@ let hoverInfoForThingAtPosition
 
     let metadata =
       Stdlib.Option.Option.Some(
-        "Fully qualified name: " ++ fqName ++ "\n\n" ++ (createCodeSnippet prettyVal)
+        "Fully qualified name: " + fqName + "\n\n" + (createCodeSnippet prettyVal)
       )
 
     createHoverInfo range description metadata
 
   | BuiltinFn signature description ->
     let metadata =
-      Stdlib.Option.Option.Some("Builtin Function: " ++ signature)
+      Stdlib.Option.Option.Some("Builtin Function: " + signature)
 
     createHoverInfo range description metadata
 
@@ -86,15 +92,15 @@ let hoverInfoForThingAtPosition
     let metadata =
       Stdlib.Option.Option.Some(
         "Fully qualified name: "
-        ++ fqName
-        ++ "\n\n"
-        ++ (createCodeSnippet signature)
+        + fqName
+        + "\n\n"
+        + (createCodeSnippet signature)
       )
 
     createHoverInfo range description metadata
 
   | BuiltinType typeName description ->
-    let metadata = Stdlib.Option.Option.Some("Builtin Type: " ++ typeName)
+    let metadata = Stdlib.Option.Option.Some("Builtin Type: " + typeName)
     createHoverInfo range description metadata
 
 
@@ -106,14 +112,14 @@ let hoverInfoForThingAtPosition
     let metadata =
       Stdlib.Option.Option.Some(
         createCodeSnippet prettyType
-        ++ "\n\n"
-        ++ $"Fully qualified name: {fqName}"
+        + "\n\n"
+        + $"Fully qualified name: {fqName}"
       )
 
     createHoverInfo range description metadata
 
   | Variable variableName description ->
-    let metadata = Stdlib.Option.Option.Some("Variable: " ++ variableName)
+    let metadata = Stdlib.Option.Option.Some("Variable: " + variableName)
     createHoverInfo range description metadata
 
   | Operator description ->
@@ -124,7 +130,7 @@ let hoverInfoForThingAtPosition
     createHoverInfo range description metadata
 
   | EnumCase caseName description ->
-    let metadata = Stdlib.Option.Option.Some("Enum case: " ++ caseName)
+    let metadata = Stdlib.Option.Option.Some("Enum case: " + caseName)
 
     createHoverInfo range description metadata
 
@@ -133,11 +139,11 @@ let hoverInfoForThingAtPosition
     createHoverInfo range description metadata
 
   | FieldName fieldName description ->
-    let metadata = Stdlib.Option.Option.Some("Field: " ++ fieldName)
+    let metadata = Stdlib.Option.Option.Some("Field: " + fieldName)
     createHoverInfo range description metadata
 
   | Parameter name typ description ->
-    let metadata = Stdlib.Option.Option.Some(name ++ ": " ++ typ)
+    let metadata = Stdlib.Option.Option.Some(name + ": " + typ)
     createHoverInfo range description metadata
 
   | TypeParameter description ->
@@ -217,6 +223,12 @@ let tryGetFnAndCollectHoverInfo
         |> Stdlib.Option.Option.Some
 
       | None -> Stdlib.Option.Option.None
+
+    // Hovering a trait method shows nothing yet, rather than raising. It would want the
+    // TRAIT's method signature, which is a different lookup from `getFn`, and that is worth
+    // doing properly rather than at the end of a night. `dark typecheck` named this function
+    // for the missing arm, which is how it was found.
+    | TraitMethod _ -> Stdlib.Option.Option.None
 
   | _ -> Stdlib.Option.Option.None
 
@@ -846,7 +858,7 @@ let collectFnHoverInfoAtPos
           if currentModules == "" then
             f.name.name
           else
-            currentModules ++ "." ++ f.name.name)
+            currentModules + "." + f.name.name)
 
       let description =
         if f.description == "" then
@@ -1097,7 +1109,8 @@ let collectInfixFnNameHoverInfoAtPos
   match i with
   | ArithmeticPlus ->
     let thingAtPosition =
-      CursorPosition.ThingAtPosition.Operator("Arithmetic plus")
+      CursorPosition.ThingAtPosition.Operator(
+        "Add (`+`): numbers add, Strings concatenate")
 
     (hoverInfoForThingAtPosition ctx thingAtPosition range)
     |> Stdlib.Option.Option.Some
@@ -1214,13 +1227,6 @@ let collectInfixFnNameHoverInfoAtPos
   | ComparisonNotEquals ->
     let thingAtPosition =
       CursorPosition.ThingAtPosition.Operator("Comparison not equals")
-
-    (hoverInfoForThingAtPosition ctx thingAtPosition range)
-    |> Stdlib.Option.Option.Some
-
-  | StringConcat ->
-    let thingAtPosition =
-      CursorPosition.ThingAtPosition.Operator("String concat")
 
     (hoverInfoForThingAtPosition ctx thingAtPosition range)
     |> Stdlib.Option.Option.Some
@@ -2021,6 +2027,101 @@ let collectExpressionHoverInfoAtPos
   | _ -> Stdlib.Option.Option.None
 
 
+/// Hover inside `trait Show<'a> = ...`: the keyword, the trait's name, or a
+/// method's name/parameter types.
+let collectTraitHoverInfoAtPos
+  (ctx: Context)
+  (t: WrittenTypes.TraitDeclaration.TraitDeclaration)
+  (position: LanguageServerProtocol.Position.Position)
+  : Stdlib.Option.Option<Info> =
+  match CursorPosition.checkIfPositionWithinRange position t.keywordTrait with
+  | Some r ->
+    (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.Keyword("trait")) r)
+    |> Stdlib.Option.Option.Some
+  | None ->
+    match CursorPosition.checkIfPositionWithinRange position t.name.range with
+    | Some r ->
+      let fqName =
+        (Stdlib.String.join ctx.currentModules ".")
+        |> (fun currentModules ->
+          if currentModules == "" then t.name.name
+          else currentModules + "." + t.name.name)
+      let description =
+        if t.description == "" then Stdlib.Option.Option.None
+        else Stdlib.Option.Option.Some t.description
+      (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.TraitName(fqName, description)) r)
+      |> Stdlib.Option.Option.Some
+    | None ->
+      t.methods
+      |> Stdlib.List.filterMap (fun m ->
+        match CursorPosition.checkIfPositionWithinRange position m.keywordLet with
+        | Some r ->
+          (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.Keyword("let")) r)
+          |> Stdlib.Option.Option.Some
+        | None ->
+          match CursorPosition.checkIfPositionWithinRange position m.name.range with
+          | Some r ->
+            let description =
+              if m.description == "" then Stdlib.Option.Option.None
+              else Stdlib.Option.Option.Some m.description
+            (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.FnName(m.name.name, description)) r)
+            |> Stdlib.Option.Option.Some
+          | None ->
+            let paramTypes =
+              m.parameters
+              |> Stdlib.List.filterMap (fun p ->
+                match p with
+                | Normal np -> collectTypeRefHoverInfoAtPos ctx np.typ position
+                | Unit _ -> Stdlib.Option.Option.None)
+            match paramTypes with
+            | info :: _ -> Stdlib.Option.Option.Some info
+            | [] -> collectTypeRefHoverInfoAtPos ctx m.returnType position)
+      |> Stdlib.List.head
+
+
+/// Hover inside `impl Show for Point = ...`: the keywords, or a member, which
+/// hovers like the fn or value it is, at the impl's member path.
+let collectImplHoverInfoAtPos
+  (ctx: Context)
+  (i: WrittenTypes.ImplDeclaration.ImplDeclaration)
+  (position: LanguageServerProtocol.Position.Position)
+  : Stdlib.Option.Option<Info> =
+  match CursorPosition.checkIfPositionWithinRange position i.keywordImpl with
+  | Some r ->
+    (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.Keyword("impl")) r)
+    |> Stdlib.Option.Option.Some
+  | None ->
+    match CursorPosition.checkIfPositionWithinRange position i.keywordFor with
+    | Some r ->
+      (hoverInfoForThingAtPosition ctx (CursorPosition.ThingAtPosition.Keyword("for")) r)
+      |> Stdlib.Option.Option.Some
+    | None ->
+      match collectTypeRefHoverInfoAtPos ctx i.forType position with
+      | Some info -> Stdlib.Option.Option.Some info
+      | None ->
+        let memberCtx =
+          Context
+            { branchId = ctx.branchId
+              pm = ctx.pm
+              owner = ctx.owner
+              currentModules =
+                WrittenTypesToProgramTypes.ImplDeclaration.memberPath ctx.currentModules i }
+        i.members
+        |> Stdlib.List.filterMap (fun m ->
+          match m with
+          | Method f ->
+            if CursorPosition.isLineNumberInRange position f.range then
+              collectFnHoverInfoAtPos memberCtx f position
+            else
+              Stdlib.Option.Option.None
+          | Alias a ->
+            if CursorPosition.isLineNumberInRange position a.range then
+              collectValueHoverInfoAtPos memberCtx a position
+            else
+              Stdlib.Option.Option.None)
+        |> Stdlib.List.head
+
+
 // ---------------------------
 // Source File Hover Info
 // ---------------------------
@@ -2056,6 +2157,18 @@ let collectModuleDeclHoverInfoAtPos
         else
           Stdlib.Option.Option.None
 
+      | Trait t ->
+        if CursorPosition.isLineNumberInRange position t.range then
+          collectTraitHoverInfoAtPos ctx t position
+        else
+          Stdlib.Option.Option.None
+
+      | Impl i ->
+        if CursorPosition.isLineNumberInRange position i.range then
+          collectImplHoverInfoAtPos ctx i position
+        else
+          Stdlib.Option.Option.None
+
       | SubModule m ->
         // Check if position is within submodule range for early escape
         if CursorPosition.isLineNumberInRange position m.range then
@@ -2084,7 +2197,7 @@ let collectModuleDeclHoverInfoAtPos
                   if currentModules == "" then
                     subModuleName
                   else
-                    currentModules ++ "." ++ subModuleName)
+                    currentModules + "." + subModuleName)
 
               let description =
                 Stdlib.Option.Option.Some(
@@ -2147,6 +2260,18 @@ let collectNodeHoverInfoAtPos
         // Check if position is within function range for early escape
         if CursorPosition.isLineNumberInRange position f.range then
           collectFnHoverInfoAtPos ctx f position
+        else
+          Stdlib.Option.Option.None
+
+      | Trait t ->
+        if CursorPosition.isLineNumberInRange position t.range then
+          collectTraitHoverInfoAtPos ctx t position
+        else
+          Stdlib.Option.Option.None
+
+      | Impl i ->
+        if CursorPosition.isLineNumberInRange position i.range then
+          collectImplHoverInfoAtPos ctx i position
         else
           Stdlib.Option.Option.None
 

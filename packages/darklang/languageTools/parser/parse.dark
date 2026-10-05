@@ -120,6 +120,11 @@ let toModuleDeclaration
   | Type typ -> WrittenTypes.ModuleDeclaration.Declaration.Type typ
   | Function fn -> WrittenTypes.ModuleDeclaration.Declaration.Function fn
   | Value value -> WrittenTypes.ModuleDeclaration.Declaration.Value value
+  // The branch carried its own copy of this mapping in `cli/packages/module.dark`; main moved
+  // the mapping here and calls it from both of that file's sites, so the trait and impl arms
+  // have to live here now or a source file declaring either lowers to nothing.
+  | Trait t -> WrittenTypes.ModuleDeclaration.Declaration.Trait t
+  | Impl i -> WrittenTypes.ModuleDeclaration.Declaration.Impl i
   | Module modul -> WrittenTypes.ModuleDeclaration.Declaration.SubModule modul
 
 
@@ -183,4 +188,4 @@ let packageSourceToOps
         unresolvedNames
         |> Stdlib.List.map (fun (_, parts, _) -> Stdlib.String.join parts ".")
         |> Stdlib.List.unique
-      Stdlib.Result.Result.Error("unresolved: " ++ Stdlib.String.join names ", ")
+      Stdlib.Result.Result.Error("unresolved: " + Stdlib.String.join names ", ")

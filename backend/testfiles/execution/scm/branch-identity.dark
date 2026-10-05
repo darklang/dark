@@ -11,10 +11,10 @@ Darklang.SCM.PackageOps.currentBranch () = Darklang.SCM.Branch.mainBranchId
 // An ID is not a NAME. That is the property the type carries: while an id spells the same as a name,
 // passing one where the other belongs is correct by accident. With a uuid, anything printing the id
 // where it means the name reads as a raw uuid, visibly.
-(Stdlib.Uuid.toString Darklang.SCM.Branch.mainBranchId == Darklang.SCM.Branch.mainBranchName) = false
+(Stdlib.toString Darklang.SCM.Branch.mainBranchId == Darklang.SCM.Branch.mainBranchName) = false
 
 // ...and it is a Uuid, which is a different TYPE from a name, not merely a differently-shaped string.
-Stdlib.String.length (Stdlib.Uuid.toString Darklang.SCM.Branch.mainBranchId) = 36
+Stdlib.String.length (Stdlib.toString Darklang.SCM.Branch.mainBranchId) = 36
 
 // Main is not a row in `branches`: it needs no registration, so `get` finds nothing for it.
 Darklang.SCM.Branch.get Darklang.SCM.Branch.mainBranchId = Stdlib.Option.Option.None
@@ -29,4 +29,4 @@ Darklang.SCM.PackageOps.branchName Darklang.SCM.Branch.mainBranchId = "main"
 // And it resolves by name, from both boundaries, since neither the `branches` table nor an id-prefix
 // search can find a branch that has no row.
 Darklang.Cli.Branch.lookupRef "main" = Stdlib.Option.Option.Some Darklang.SCM.Branch.mainBranchId
-Darklang.Cli.Branch.lookupRef (Stdlib.Uuid.toString Darklang.SCM.Branch.mainBranchId) = Stdlib.Option.Option.Some Darklang.SCM.Branch.mainBranchId
+Darklang.Cli.Branch.lookupRef (Stdlib.toString Darklang.SCM.Branch.mainBranchId) = Stdlib.Option.Option.Some Darklang.SCM.Branch.mainBranchId

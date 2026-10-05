@@ -47,7 +47,7 @@ let highlightLine (line: String) (lineTokens: List<LanguageTools.SemanticTokens.
         if pos >= 0 && pos <= Stdlib.String.length currentLine then
           let before = Stdlib.String.slice currentLine 0 pos
           let after = Stdlib.String.dropFirst currentLine pos
-          before ++ colorCode ++ after
+          before + colorCode + after
         else
           currentLine)
 
@@ -55,7 +55,7 @@ let highlightLine (line: String) (lineTokens: List<LanguageTools.SemanticTokens.
   // color opened but not closed at line end, which then bleeds into whatever prints next. This kills the
   // bleed; it doesn't fix the overlap itself (that needs token de-overlap) — the token colors within the
   // line are still whatever the overlap produced, just no longer leaking past it.
-  highlighted ++ Stdlib.Cli.UI.Colors.reset
+  highlighted + Stdlib.Cli.UI.Colors.reset
 
 
 /// Splits a token that spans multiple rows into one single-line token per row it

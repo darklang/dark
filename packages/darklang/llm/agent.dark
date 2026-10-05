@@ -178,7 +178,7 @@ let withShellTool
         Stdlib.Result.Result.Ok(ToolOutput.Text output)
       else
         Stdlib.Result.Result.Error
-          $"Command failed (exit {Stdlib.Int.toString result.exitCode}): {result.stderr}")
+          $"Command failed (exit {Stdlib.toString result.exitCode}): {result.stderr}")
   { agent with tools = Stdlib.List.append agent.tools [ tool ] }
 
 

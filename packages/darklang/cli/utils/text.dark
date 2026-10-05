@@ -6,12 +6,12 @@ module Darklang.Cli.Text
 /// carrying <param indent>. What every line a person reads at a save goes through: an 80-column
 /// terminal is the floor, and a wrapped line keeps its shape.
 let wrap (width: Int) (indent: String) (text: String) : List<String> =
-  let room = Stdlib.Int.max 20 (width - (Stdlib.String.length indent))
+  let room = Stdlib.max 20 (width - (Stdlib.String.length indent))
 
   match Stdlib.Cli.Tui.Text.wrapAtWords text room with
-  | [] -> [ indent ++ text ]
+  | [] -> [ indent + text ]
   | first :: rest ->
-    Stdlib.List.append [ indent ++ first ] (rest |> Stdlib.List.map (fun l -> indent ++ l))
+    Stdlib.List.append [ indent + first ] (rest |> Stdlib.List.map (fun l -> indent + l))
 
 /// Print <param text> wrapped at 80 columns, indented by <param indent>, in <param colour>.
 let printWrapped (colour: String -> String) (indent: String) (text: String) : Unit =
@@ -22,7 +22,7 @@ let printWrapped (colour: String -> String) (indent: String) (text: String) : Un
 let shortIdText (id: String) : String = Stdlib.String.slice id 0 8
 
 /// <fn shortIdText> for an id that is already a `Uuid`.
-let shortId (id: Uuid) : String = shortIdText (Stdlib.Uuid.toString id)
+let shortId (id: Uuid) : String = shortIdText (Stdlib.toString id)
 
 /// <param text> on one line, at most <param width> characters: for a table cell that must not
 /// break the row. `Table.print` pads to the widest cell and never wraps, so a cell that is
@@ -30,7 +30,7 @@ let shortId (id: Uuid) : String = shortIdText (Stdlib.Uuid.toString id)
 let oneLineAt (width: Int) (text: String) : String =
   let flat = Stdlib.String.replaceAll text "\n" " "
   if Stdlib.String.length flat > width then
-    (Stdlib.String.slice flat 0 (width - 3)) ++ "..."
+    (Stdlib.String.slice flat 0 (width - 3)) + "..."
   else
     flat
 
@@ -40,25 +40,25 @@ let oneLine (text: String) : String = oneLineAt 40 text
 /// "9,999", "48k", "3.2M": a count at a glance, for a column where the exact number is not the
 /// point and the magnitude is.
 let count (n: Int64) : String =
-  if n < 10000L then Stdlib.Int64.toString n
-  else if n < 1000000L then $"{Stdlib.Int64.toString (Stdlib.Int64.divide n 1000L)}k"
+  if n < 10000L then Stdlib.toString n
+  else if n < 1000000L then $"{Stdlib.toString (n / 1000L)}k"
   else
-    let tenths = Stdlib.Int64.divide n 100000L
-    $"{Stdlib.Int64.toString (Stdlib.Int64.divide tenths 10L)}.{Stdlib.Int64.toString (Stdlib.Int64.``mod`` tenths 10L)}M"
+    let tenths = n / 100000L
+    $"{Stdlib.toString (tenths / 10L)}.{Stdlib.toString (tenths % 10L)}M"
 
 /// "812 B", "34 KB", "2.1 MB": bytes at a glance.
 let bytes (n: Int) : String =
-  if n < 1024 then $"{Stdlib.Int.toString n} B"
-  else if n < 1048576 then $"{Stdlib.Int.toString (Stdlib.Int.divide n 1024)} KB"
+  if n < 1024 then $"{Stdlib.toString n} B"
+  else if n < 1048576 then $"{Stdlib.toString (n / 1024)} KB"
   else
-    let tenths = Stdlib.Int.divide n 104858
-    $"{Stdlib.Int.toString (Stdlib.Int.divide tenths 10)}.{Stdlib.Int.toString (Stdlib.Int.``mod`` tenths 10)} MB"
+    let tenths = n / 104858
+    $"{Stdlib.toString (tenths / 10)}.{Stdlib.toString (tenths % 10)} MB"
 
 // "1 value" / "2 values": a count with its noun pluralized by the English rule in
 // `Stdlib.String.pluralize`, so no CLI message reads "1 value(s)". The linguistic rule lives in
 // stdlib; this just pairs it with a count.
 let plural (n: Int) (noun: String) : String =
   if n == 1 then
-    $"{Stdlib.Int.toString n} {noun}"
+    $"{Stdlib.toString n} {noun}"
   else
-    $"{Stdlib.Int.toString n} {Stdlib.String.pluralize noun}"
+    $"{Stdlib.toString n} {Stdlib.String.pluralize noun}"

@@ -8,12 +8,30 @@ type PackageLocation =
   | Type of location: LanguageTools.ProgramTypes.PackageLocation
   | Value of location: LanguageTools.ProgramTypes.PackageLocation
   | Function of location: LanguageTools.ProgramTypes.PackageLocation
+  | Trait of location: LanguageTools.ProgramTypes.PackageLocation
+  | Impl of location: LanguageTools.ProgramTypes.PackageLocation
+
+/// The module path a location sits in: the module itself, or the module an item lives in.
+///
+/// One definition. There were five, under three different names, and every one of them had to
+/// grow a `Trait` and an `Impl` arm when those kinds arrived.
+let modulePathOf (location: PackageLocation) : List<String> =
+  match location with
+  | Module path -> path
+  | Type t -> Stdlib.List.append [ t.owner ] t.modules
+  | Value v -> Stdlib.List.append [ v.owner ] v.modules
+  | Function f -> Stdlib.List.append [ f.owner ] f.modules
+  | Trait t -> Stdlib.List.append [ t.owner ] t.modules
+  | Impl i -> Stdlib.List.append [ i.owner ] i.modules
+
 
 type EntityType =
   | Module
   | Type
   | Function
   | Value
+  | Trait
+  | Impl
 
 type State =
   { currentLocation: PackageLocation
@@ -38,6 +56,10 @@ let formatLocation (location: PackageLocation) : String =
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (value)"
   | Function loc ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (fn)"
+  | Trait loc ->
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (trait)"
+  | Impl loc ->
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (impl)"
 
 
 /// The definition a person typed, from the arguments after the item's name.
@@ -91,11 +113,11 @@ let peerHeadsUpLine
 
     let age =
       if mins < 120L then
-        (Stdlib.Int64.toString mins) ++ "m"
+        (Stdlib.toString mins) + "m"
       else if mins < 2880L then
-        (Stdlib.Int64.toString (Stdlib.Int64.divide mins 60L)) ++ "h"
+        (Stdlib.toString (mins / 60L)) + "h"
       else
-        (Stdlib.Int64.toString (Stdlib.Int64.divide mins 1440L)) ++ "d"
+        (Stdlib.toString (mins / 1440L)) + "d"
 
     let subject = if message == "" then "no message" else message
 
@@ -157,6 +179,17 @@ let authoredDocs
       Stdlib.Option.Option.Some(
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ]
       )
+    | AddTrait t ->
+      Stdlib.Option.Option.Some(
+        Stdlib.List.push
+          (t.methods
+           |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
+          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)
+      )
+    | AddTraitImpl i ->
+      Stdlib.Option.Option.Some(
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ]
+      )
     | _ -> Stdlib.Option.Option.None)
   |> Stdlib.List.flatten
 
@@ -183,6 +216,19 @@ let currentDocs
       LanguageTools.PackageManager.Value.get hash
       |> Stdlib.Option.map (fun v ->
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ])
+      |> Stdlib.Option.withDefault []
+    | Trait ->
+      LanguageTools.PackageManager.Trait.get hash
+      |> Stdlib.Option.map (fun t ->
+        Stdlib.List.push
+          (t.methods
+           |> Stdlib.List.map (fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField m.name, m.description)))
+          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
+      |> Stdlib.Option.withDefault []
+    | TraitImpl ->
+      LanguageTools.PackageManager.TraitImpl.get hash
+      |> Stdlib.Option.map (fun i ->
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ])
       |> Stdlib.Option.withDefault []
 
   SCM.Docs.overlay branchId location declared
@@ -351,9 +397,43 @@ let saveAuthored
 
       // The save's own type check: an error in what was just written. Saved anyway (WIP is yours
       // to break); `dark commit` is the gate. Said on the second line, with the issue itself.
+      // Named, not hashed. A trait diagnostic carries the CONTENT HASH of the type and of the
+      // trait, and turning one into a name needs a branch to look it up on.
+      // `Stdlib.Live.reportText` takes the report and nothing else, so it renders
+      // `type #bf494e2a has no implementation of #d4222cbd155f`, which is the least useful
+      // thing to say at the moment a save is refused. `AtRestCheck.customTypeName` is the
+      // lookup `dark commit` uses, and the branch is already in hand here.
+      //
+      // Same shape `reportText` produces, the first issue and a count of the rest, so the save
+      // stays two lines.
       let ownIssue =
         match report.verdict with
-        | Failed -> Stdlib.Option.Option.Some(Stdlib.Live.reportText report)
+        | Failed ->
+          let issues = Stdlib.List.append report.warnings report.diagnostics
+
+          match issues with
+          | [] -> Stdlib.Option.Option.Some "it failed the type check"
+          | issue :: rest ->
+            // The CODE as well as the message. `dark docs traits` names these codes, they are
+            // what somebody searches for, and `dark module` prints them through
+            // `AtRestCheck.printSaveReport`, so a `fn` or an `impl` dropping them made the two
+            // paths disagree about what a refused save says. It costs one bracketed word on a
+            // line that already exists, so the save is still two lines.
+            let first =
+              "["
+              + (LanguageTools.AtRestTypeChecker.issueCodeToString issue.code)
+              + "] "
+              + (LanguageTools.AtRestTypeChecker.issueToStringWith
+                  (AtRestCheck.customTypeName state.currentBranchId)
+                  issue)
+
+            let more =
+              if Stdlib.List.isEmpty rest then
+                ""
+              else
+                " (and " + (Stdlib.toString (Stdlib.List.length rest)) + " more)"
+
+            Stdlib.Option.Option.Some(first + more)
         | _ -> Stdlib.Option.Option.None
 
       // A save is at most two lines. Line one: what happened, with a check when all is well and a

@@ -73,6 +73,8 @@ let createCompletions
   let keywords =
     [ "module"
       "type"
+      "trait"
+      "impl"
       "val"
       "let"
       "if"
@@ -146,6 +148,24 @@ let createCompletions
         "function"
         currentPrefix
 
+  // `Interface` for a trait and `Struct` for one of its implementations: the two LSP kinds whose
+  // icons an editor already draws for "a contract" and "a thing satisfying one".
+  let traits =
+    searchResults.traits
+    |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation t.location)
+    |> processSearchResults
+        LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Interface
+        "trait"
+        currentPrefix
+
+  let impls =
+    searchResults.impls
+    |> Stdlib.List.map (fun i -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation i.location)
+    |> processSearchResults
+        LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Struct
+        "impl"
+        currentPrefix
+
   let submodules =
     searchResults.submodules
     |> Stdlib.List.map (fun m -> Stdlib.String.join m ".")
@@ -155,7 +175,8 @@ let createCompletions
         currentPrefix
 
 
-  let completions = Stdlib.List.flatten [ keywords, functions, types, values , submodules ]
+  let completions =
+    Stdlib.List.flatten [ keywords, functions, types, values, traits, impls, submodules ]
 
   completions
 

@@ -24,6 +24,17 @@ proc fail {msg} { puts "FAIL: $msg"; exit 1 }
 # key: the digit that selects the view. These numbers are taken from the nav strip the workbench
 # actually draws, not from the view indices: AI has no item (sample data only), and Devices is gated
 # to the two people building it, so neither shifts the digits here.
+# The Docs pattern is the DESCRIPTION of the first topic, not a topic name, and both halves of
+# that matter. It used to name `deprecation`, `signatures` and `interactive-testing`, which are
+# the LAST three topics; traits adds one and scheduler added two, about twenty rows fit at CI's
+# pty size, so the combination pushed all three past the fold and the gate failed for a list that
+# grew rather than a view that broke. Anchoring at the TOP of `allTopics` cannot be pushed off by
+# a later addition. And it has to be a string the Docs view ALONE draws: Home's first frame is
+# still in expect's buffer when the digit is sent, so anything the nav strip or another view also
+# renders matches the OLD frame and passes without Docs ever drawing. `types` fails that test, 28
+# times in `workbench/authoring.dark` alone; "AI agent guide" appears only in `docs/command.dark`.
+#
+# Do not reorder `allTopics` to suit this: the list order is a product decision.
 set views {
   {1 "Home"     "(?i)(needs attention|this branch|recent commits|branches)"}
   {2 "Code"     "(?i)(darklang|packages)"}
@@ -31,7 +42,7 @@ set views {
   {4 "REPL"     "(?i)(starts typing)"}
   {5 "Apps"     "(?i)(app|install)"}
   {6 "Traces"   "(?i)(trace|recent)"}
-  {7 "Docs"     "(?i)(deprecation|signatures|interactive-testing)"}
+  {7 "Docs"     "(?i)(AI agent guide)"}
   {8 "Sync"     "(?i)(this machine|identity|relay)"}
 }
 

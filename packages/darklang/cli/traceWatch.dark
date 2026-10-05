@@ -81,7 +81,7 @@ let annotate
           collected
           |> Stdlib.List.map (fun pair ->
             let (id, dv) = pair
-            (Stdlib.Int64.toString id,
+            (Stdlib.toString id,
              PrettyPrinter.RuntimeTypes.dvalOneLine branchId 60 dv))
           |> Stdlib.Dict.fromListOverwritingDuplicates
 
@@ -112,7 +112,7 @@ let pickCursor
 
   match found with
   | Some i -> i
-  | None -> Stdlib.Int.max 0 (Stdlib.Int.min cursor ((Stdlib.List.length ids) - 1))
+  | None -> Stdlib.max 0 (Stdlib.min cursor ((Stdlib.List.length ids) - 1))
 
 
 /// When a trace ran, without asking what time it is now.

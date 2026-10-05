@@ -15,7 +15,7 @@ let path (name: String) : String =
 // `<exe> <command> "$@"` — forward to the running dark binary (resolved at install time, so the shim
 // keeps working wherever the binary lives) and pass the caller's args straight through.
 let script (command: String) : String =
-  "#!/bin/sh\nexec " ++ (Daemon.launcher ()) ++ " " ++ command ++ " \"$@\"\n"
+  "#!/bin/sh\nexec " + (Daemon.launcher ()) + " " + command + " \"$@\"\n"
 
 /// Write an executable shim `~/.darklang/bin/<name>` that runs `dark <command>`. Returns the path written.
 let install (name: String) (command: String) : Stdlib.Result.Result<String, String> =

@@ -60,7 +60,7 @@ let hintsFor
           |> Stdlib.Option.withDefault 0
 
         let base = PrettyPrinter.ProgramTypes.Context.forBranch branchId
-        let ctx = { base with width = Stdlib.Int.max 1 (base.width - indent) }
+        let ctx = { base with width = Stdlib.max 1 (base.width - indent) }
         let plain =
           (PrettyPrinter.ProgramTypes.packageFn ctx item.entity)
           |> Stdlib.String.split "\n"

@@ -21,6 +21,7 @@
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Lww.fs" />
     <Compile Include="DarkDateTime.fs" />
     <Compile Include="Branching.fs" />
     <Compile Include="PackageRefs.fs" />
@@ -44,6 +45,7 @@
     <Compile Include="Blob.fs" />
     <Compile Include="Stream.fs" />
     <Compile Include="Dval.fs" />
+    <Compile Include="Traits.fs" />
     <Compile Include="Builtin.fs" />
     <Compile Include="TypeChecker.fs" />
     <Compile Include="FastOps.fs" />
@@ -51,6 +53,7 @@
     <Compile Include="AnalysisTypes.fs" />
     <!-- Dev-time, Language Design, Mental Model /-->
     <Compile Include="ProgramTypes.fs" />
+    <Compile Include="NumericTraits.fs" />
     <Compile Include="ProgramTypesAst.fs" />
     <Compile Include="CallGraph.fs" />
     <Compile Include="RTQueryCompiler.fs" />

@@ -78,14 +78,14 @@ let truncate (s: String) (maxLen: Int) : String =
   else if maxLen == 1 then
     "…"
   else
-    Darklang.Stdlib.Cli.Tui.Text.clipToWidth s (maxLen - 1) ++ "…"
+    Darklang.Stdlib.Cli.Tui.Text.clipToWidth s (maxLen - 1) + "…"
 
 
 let appRow (state: State) (width: Int) (idx: Int) (app: Model.App) : String =
   let presentation = presentationAt state idx
   let pointer =
     if idx == state.selected then
-      Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) "▸ "
+      Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.cyan) "▸ "
     else
       "  "
   let installGlyph =
@@ -117,11 +117,11 @@ let appRow (state: State) (width: Int) (idx: Int) (app: Model.App) : String =
 
   let name = Stdlib.String.padEndToWidth app.name 26
   // prefix (▸ + install glyph + run glyph + space) = 5 cols, name column = 26, gap before description = 2
-  let descBudget = Stdlib.Int.max (width - 5 - 26 - 2 - stateWidth) 8
+  let descBudget = Stdlib.max (width - 5 - 26 - 2 - stateWidth) 8
   let desc = truncate app.description descBudget
 
-  let trailing = if stateText == "" then "" else "   " ++ stateText
-  pointer ++ installGlyph ++ runGlyph ++ " " ++ name ++ "  " ++ (Stdlib.Cli.UI.Colors.dimText desc) ++ trailing
+  let trailing = if stateText == "" then "" else "   " + stateText
+  pointer + installGlyph + runGlyph + " " + name + "  " + (Stdlib.Cli.UI.Colors.dimText desc) + trailing
 
 
 type LogicalRow =
@@ -142,7 +142,7 @@ let sectionRows
     let heading =
       LogicalRow {
         appIndex = Stdlib.Option.Option.None
-        content = Stdlib.Cli.UI.Colors.dimText ("  " ++ title)
+        content = Stdlib.Cli.UI.Colors.dimText ("  " + title)
       }
     let appRows =
       rows
@@ -196,9 +196,9 @@ let detailRows (state: State) : List<String> =
       let summary =
         Stdlib.Cli.UI.Colors.dimText
           ("  slug: "
-           ++ app.slug
-           ++ "   target: "
-           ++ Model.reference app.target)
+           + app.slug
+           + "   target: "
+           + Model.reference app.target)
       let logs =
         if Stdlib.List.isEmpty presentation.recentLogs then
           []
@@ -207,7 +207,7 @@ let detailRows (state: State) : List<String> =
             [ Stdlib.Cli.UI.Colors.dimText "  recent logs:" ]
             (presentation.recentLogs
              |> Stdlib.List.map (fun line ->
-               "    " ++ Stdlib.Cli.UI.Colors.dimText line))
+               "    " + Stdlib.Cli.UI.Colors.dimText line))
       Stdlib.List.flatten [ [ "", summary ], logs ]
     | None -> []
   else
@@ -217,15 +217,15 @@ let messageRows (state: State) : List<String> =
   if state.message == "" then
     []
   else
-    [ "", "  " ++ state.message ]
+    [ "", "  " + state.message ]
 
 let legendRow () : String =
   let legend =
     "  "
-    ++ (Stdlib.Cli.UI.Colors.success "✓") ++ (Stdlib.Cli.UI.Colors.dimText " installed    ")
-    ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "●") ++ (Stdlib.Cli.UI.Colors.dimText " running    ")
-    ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "●") ++ (Stdlib.Cli.UI.Colors.dimText " stale    ")
-    ++ (Stdlib.Cli.UI.Colors.dimText "○ stopped")
+    + (Stdlib.Cli.UI.Colors.success "✓") + (Stdlib.Cli.UI.Colors.dimText " installed    ")
+    + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "●") + (Stdlib.Cli.UI.Colors.dimText " running    ")
+    + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "●") + (Stdlib.Cli.UI.Colors.dimText " stale    ")
+    + (Stdlib.Cli.UI.Colors.dimText "○ stopped")
   legend
 
 /// Build the complete apps-browser view without terminal I/O.
@@ -233,15 +233,15 @@ let viewAtSize
   (state: State)
   (size: Darklang.Stdlib.Cli.Tui.Size)
   : Darklang.Stdlib.Cli.Tui.View =
-  let width = Stdlib.Int.max 1 size.width
-  let contentHeight = Stdlib.Int.max 1 size.height
+  let width = Stdlib.max 1 size.width
+  let contentHeight = Stdlib.max 1 size.height
   let titleHeight = if contentHeight >= 3 then 2 else 1
   let footerHeight =
     if contentHeight >= 4 then 2
     else if contentHeight >= 2 then 1
     else 0
   let bodyHeight =
-    Stdlib.Int.max 0 (contentHeight - titleHeight - footerHeight)
+    Stdlib.max 0 (contentHeight - titleHeight - footerHeight)
 
   let grouped = catalogRows state width
   let selectedPhysicalRow =
@@ -253,10 +253,10 @@ let viewAtSize
   let supplement =
     Stdlib.List.append (detailRows state) (messageRows state)
   let supplementHeight =
-    Stdlib.Int.min
+    Stdlib.min
       (Stdlib.List.length supplement)
-      (Stdlib.Int.max 0 (bodyHeight - 1))
-  let listHeight = Stdlib.Int.max 0 (bodyHeight - supplementHeight)
+      (Stdlib.max 0 (bodyHeight - 1))
+  let listHeight = Stdlib.max 0 (bodyHeight - supplementHeight)
   let listRows =
     grouped
     |> Stdlib.List.map (fun row -> row.content)
@@ -333,7 +333,7 @@ let toggleDaemon (state: State) (app: Model.App) : State =
     | Error e -> { state with message = Stdlib.Cli.UI.Colors.error e }
   else
     match Command.launchDaemon (SCM.PackageOps.currentBranch ()) app with
-    | Ok pid -> { state with message = Stdlib.Cli.UI.Colors.success $"started {app.name} (pid {Stdlib.Int.toString pid})" }
+    | Ok pid -> { state with message = Stdlib.Cli.UI.Colors.success $"started {app.name} (pid {Stdlib.toString pid})" }
     | Error e -> { state with message = Stdlib.Cli.UI.Colors.error e }
 
 /// enter — the primary action: run a foreground app (hand it the screen) / toggle a daemon.
@@ -360,7 +360,7 @@ let handleKey
     let s = if state.selected > 0 then state.selected - 1 else 0
     Action.Continue { state with selected = s }
   | DownArrow ->
-    let maxIdx = Stdlib.Int.max 0 (count - 1)
+    let maxIdx = Stdlib.max 0 (count - 1)
     let s = if state.selected < maxIdx then state.selected + 1 else maxIdx
     Action.Continue { state with selected = s }
   | Enter -> activate state

@@ -1,7 +1,7 @@
 module Darklang.Stdlib.Int
 
 // `Int` is the default, arbitrary-precision integer (a bare literal like `1`).
-// The polymorphic operators (`+`, `-`, `<`, ...) work on it directly; this
+// The operators (`+`, `-`, `<`, ...) work on it; this
 // module provides the same operations as named functions, plus parse/stringify
 // and conversions to/from the fixed-width integer types.
 //
@@ -11,11 +11,12 @@ module Darklang.Stdlib.Int
 type ParseError = | BadFormat
 
 
-/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-/// The modulus <param b> must be greater than 0.
-/// Use <fn Int.remainder> if you want the remainder after division, which has
-/// a different behavior for negative numbers.
-let ``mod`` (a: Int) (b: Int) : Int = Builtin.intMod a b
+impl Modulo for Int =
+  /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+  /// The modulus <param b> must be greater than 0.
+  /// Use <fn Int.remainder> if you want the remainder after division, which has
+  /// a different behavior for negative numbers.
+  let modulo (a: Int) (b: Int) : Int = Builtin.intMod a b
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -28,51 +29,50 @@ let remainder (value: Int) (divisor: Int) : Stdlib.Result.Result<Int, String> =
   Builtin.intRemainder value divisor
 
 
-/// Adds two integers together
-let add (a: Int) (b: Int) : Int = Builtin.intAdd a b
+impl Add for Int =
+  /// Adds two integers together
+  let add (a: Int) (b: Int) : Int = Builtin.intAdd a b
 
 
-/// Subtracts two integers
-let subtract (a: Int) (b: Int) : Int = Builtin.intSubtract a b
+impl Subtract for Int =
+  /// Subtracts two integers
+  let subtract (a: Int) (b: Int) : Int = Builtin.intSubtract a b
 
 
-/// Multiplies two integers
-let multiply (a: Int) (b: Int) : Int = Builtin.intMultiply a b
+impl Multiply for Int =
+  /// Multiplies two integers
+  let multiply (a: Int) (b: Int) : Int = Builtin.intMultiply a b
 
 
-/// Divides two integers, rounding towards zero
-let divide (a: Int) (b: Int) : Int = Builtin.intDivide a b
+impl Divide for Int =
+  /// Divides two integers, rounding towards zero
+  let divide (a: Int) (b: Int) : Int = Builtin.intDivide a b
 
 
-/// Raise <param base> to the power of <param exponent>.
-/// Raises an error if <param exponent> is negative.
-let power (``base``: Int) (exponent: Int) : Int =
-  Builtin.intPower ``base`` exponent
+impl Power for Int =
+  /// Raise <param base> to the power of <param exponent>.
+  /// Raises an error if <param exponent> is negative.
+  let power (``base``: Int) (exponent: Int) : Int =
+    Builtin.intPower ``base`` exponent
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-let absoluteValue (a: Int) : Int = if lessThan a 0 then negate a else a
 
 
-/// Returns the negation of <param a>, {{-a}}
-let negate (a: Int) : Int = Builtin.intNegate a
+impl Negate for Int =
+  /// Returns the negation of <param a>, {{-a}}
+  let negate (a: Int) : Int = Builtin.intNegate a
 
 
-/// Returns {{true}} if <param a> is greater than <param b>
-let greaterThan (a: Int) (b: Int) : Bool = Builtin.intGreaterThan a b
-
-
-/// Returns {{true}} if <param a> is greater than or equal to <param b>
-let greaterThanOrEqualTo (a: Int) (b: Int) : Bool =
-  Builtin.intGreaterThanOrEqualTo a b
-
-
-/// Returns {{true}} if <param a> is less than <param b>
-let lessThan (a: Int) (b: Int) : Bool = Builtin.intLessThan a b
-
-
-/// Returns {{true}} if <param a> is less than or equal to <param b>
-let lessThanOrEqualTo (a: Int) (b: Int) : Bool = Builtin.intLessThanOrEqualTo a b
+impl Compare for Int =
+  /// Returns {{true}} if <param a> is less than <param b>
+  let lessThan (a: Int) (b: Int) : Bool = Builtin.intLessThan a b
+  /// Returns {{true}} if <param a> is less than or equal to <param b>
+  let lessThanOrEqualTo (a: Int) (b: Int) : Bool = Builtin.intLessThanOrEqualTo a b
+  /// Returns {{true}} if <param a> is greater than <param b>
+  let greaterThan (a: Int) (b: Int) : Bool = Builtin.intGreaterThan a b
+  /// Returns {{true}} if <param a> is greater than or equal to <param b>
+  let greaterThanOrEqualTo (a: Int) (b: Int) : Bool =
+    Builtin.intGreaterThanOrEqualTo a b
 
 
 /// Get the square root of an <type Int>
@@ -87,41 +87,10 @@ let toFloat (a: Int) : Float = Builtin.intToFloat a
 let fromFloat (a: Float) : Int = Builtin.intFromFloat a
 
 
-/// Returns the sum of all the ints in the list
-let sum (lst: List<Int>) : Int =
-  Stdlib.List.fold lst 0 (fun acc x -> add acc x)
-
-
-/// Returns the higher of <param a> and <param b>
-let max (a: Int) (b: Int) : Int = if greaterThan a b then a else b
-
-
-/// Returns the lower of <param a> and <param b>
-let min (a: Int) (b: Int) : Int = if greaterThan a b then b else a
-
-
-/// If <param value> is within the range given by <param limitA> and <param
-/// limitB>, returns <param value>.
-/// If <param value> is outside the range, returns <param limitA> or <param
-/// limitB>, whichever is closer to <param value>.
-/// <param limitA> and <param limitB> can be provided in any order.
-let clamp (value: Int) (limitA: Int) (limitB: Int) : Int =
-  let min = if lessThan limitA limitB then limitA else limitB
-  let max = if greaterThan limitA limitB then limitA else limitB
-
-  if lessThan value min then min
-  else if greaterThan value max then max
-  else value
-
-
 /// Returns the <type Int> value of a <type String>. Because <type Int> is
 /// arbitrary-precision, the only failure is a badly-formatted string.
 let parse (s: String) : Stdlib.Result.Result<Int, ParseError> =
   Builtin.intParse s
-
-
-/// Stringify <param int>
-let toString (int: Int) : String = Builtin.intToString int
 
 
 // Conversions from the fixed-width integer types into `Int` (always succeed).
@@ -192,19 +161,35 @@ let toInt128 (a: Int) : Stdlib.Option.Option<Int128> = Builtin.intToInt128 a
 let toUInt128 (a: Int) : Stdlib.Option.Option<UInt128> = Builtin.intToUInt128 a
 
 
-let bitwiseAnd (a: Int) (b: Int) : Int = Builtin.intBitwiseAnd a b
+impl BitwiseAnd for Int =
+  let bitwiseAnd (a: Int) (b: Int) : Int = Builtin.intBitwiseAnd a b
 
-let bitwiseOr (a: Int) (b: Int) : Int = Builtin.intBitwiseOr a b
+impl BitwiseOr for Int =
+  let bitwiseOr (a: Int) (b: Int) : Int = Builtin.intBitwiseOr a b
 
-let bitwiseXor (a: Int) (b: Int) : Int = Builtin.intBitwiseXor a b
+impl BitwiseXor for Int =
+  let bitwiseXor (a: Int) (b: Int) : Int = Builtin.intBitwiseXor a b
 
-let bitwiseNot (a: Int) : Int = Builtin.intBitwiseNot a
+impl BitwiseNot for Int =
+  let bitwiseNot (a: Int) : Int = Builtin.intBitwiseNot a
 
-let shiftLeft (a: Int) (b: Int) : Int = Builtin.intShiftLeft a b
+impl ShiftLeft for Int =
+  let shiftLeft (a: Int) (b: Int) : Int = Builtin.intShiftLeft a b
 
-let shiftRight (a: Int) (b: Int) : Int = Builtin.intShiftRight a b
+impl ShiftRight for Int =
+  let shiftRight (a: Int) (b: Int) : Int = Builtin.intShiftRight a b
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
 let random (start: Int) (``end``: Int) : Int =
   Builtin.intRandom start ``end``
+
+impl ToString for Int =
+  /// Stringify <param int>
+  let toString (int: Int) : String = Builtin.intToString int
+
+impl Zero for Int =
+  let zero () : Int = 0
+
+impl One for Int =
+  let one () : Int = 1

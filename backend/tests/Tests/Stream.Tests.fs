@@ -357,7 +357,8 @@ let toValueTypeWalksTransforms =
           typeSymbolTable = RT.TST.empty
           typeArgs = []
           access = None
-          argsSoFar = [] }
+          argsSoFar = []
+          boundImpls = [] }
     let s = wrap (RT.Mapped(src, toString, VT.string))
     Expect.equal
       (RT.Dval.toValueType s)

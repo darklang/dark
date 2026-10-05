@@ -1,48 +1,46 @@
 module Darklang =
   module Test =
     let factorial (n: Int): Int =
-      if Stdlib.Int.lessThanOrEqualTo n 1 then
+      if (n <= 1) then
         1
       else
-      Stdlib.Int.multiply n (Test.factorial (Stdlib.Int.subtract n 1))
+      n * (Test.factorial (n - 1))
 
 
     let fibonacci (n: Int): Int =
-      if Stdlib.Int.lessThanOrEqualTo n 1 then
+      if (n <= 1) then
         n
       else
-        Stdlib.Int.add
-          (Test.fibonacci (Stdlib.Int.subtract n 1))
-          (Test.fibonacci (Stdlib.Int.subtract n 2))
+        (Test.fibonacci (n - 1)) + (Test.fibonacci (n - 2))
 
 
     let sumUpTo (n: Int): Int =
-      if Stdlib.Int.lessThanOrEqualTo n 0 then
+      if (n <= 0) then
         0
       else
-        Stdlib.Int.add n (Test.sumUpTo (Stdlib.Int.subtract n 1))
+        n + (Test.sumUpTo (n - 1))
 
 
   module ShadowingTest =
     let incrementWithShadowing (y: Int) (z: Int): Int =
-      if Stdlib.Int.lessThanOrEqualTo z 0 then
+      if (z <= 0) then
         y
       else
         let result =
-          incrementWithShadowing y (Stdlib.Int.subtract z 1)
+          incrementWithShadowing y (z - 1)
 
         let incrementWithShadowing =
-          (fun x -> Stdlib.Int.add x 2)
+          (fun x -> x + 2)
 
-        Stdlib.Int.add result (incrementWithShadowing z)
+        result + (incrementWithShadowing z)
 
 
     let factorialWithShadowing (n: Int): (String * Int) =
-      if Stdlib.Int.lessThanOrEqualTo n 1 then
+      if (n <= 1) then
         ("base_case", 1)
       else
         let factorialWithShadowing = "shadowed"
-        let result = Stdlib.Int.multiply n ((Darklang.ShadowingTest.factorialWithShadowing (Stdlib.Int.subtract n 1)) |> Stdlib.Tuple2.second)
+        let result = n * ((Darklang.ShadowingTest.factorialWithShadowing (n - 1)) |> Stdlib.Tuple2.second)
         (factorialWithShadowing , result)
 
 
@@ -93,7 +91,7 @@ module Darklang =
       | 2 ->
         let pipeWithShadowing = (fun v -> v * 6)
         x |> pipeWithShadowing
-      | pipeWithShadowing -> x |> Stdlib.Int.add pipeWithShadowing
+      | pipeWithShadowing -> x |> (+) pipeWithShadowing
 
 
     val valueShadowing = 120

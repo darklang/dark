@@ -19,11 +19,11 @@
  ) = Stdlib.Option.Option.None
 
 Stdlib.Option.andThen (Stdlib.Option.Option.Some 8L) (fun x ->
-  Stdlib.Option.Option.Some(Stdlib.Int64.divide x 2L)) =
+  Stdlib.Option.Option.Some(x / 2L)) =
   (Stdlib.Option.Option.Some 4L)
 
 Stdlib.Option.andThen (Stdlib.Option.Option.Some 8L) (fun x ->
-  Stdlib.Option.Option.Some(Stdlib.Int64.divide x 0L)) = error="Cannot divide by 0"
+  Stdlib.Option.Option.Some(x / 0L)) = error="Cannot divide by 0"
 
 
 Stdlib.Option.andThen2
@@ -125,9 +125,9 @@ Stdlib.Option.andThen4
 
 
 Stdlib.Option.map (Stdlib.Option.Option.Some 4L) (fun x ->
-  Stdlib.Int64.divide x 2L) = Stdlib.Option.Option.Some 2L
+  (x / 2L)) = Stdlib.Option.Option.Some 2L
 
-Stdlib.Option.map Stdlib.Option.Option.None (fun x -> Stdlib.Int64.divide x 2L) = Stdlib.Option.Option.None
+Stdlib.Option.map Stdlib.Option.Option.None (fun x -> x / 2L) = Stdlib.Option.Option.None
 
 
 Stdlib.Option.map2

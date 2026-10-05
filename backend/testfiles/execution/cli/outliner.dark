@@ -305,8 +305,8 @@ module Persistence =
   // the file with the demo documents on the next save.
   let v1 () : String =
     "{\"activeDocId\":1,\"nextDocId\":2,\"documents\":[{\"id\":1,\"title\":\"Old\",\"outline\":"
-    ++ "{\"nextId\":3,\"rootChildren\":[1],\"nodes\":{\"1\":{\"text\":\"parent\"},\"2\":{\"text\":\"child\"}},"
-    ++ "\"structure\":{\"1\":{\"children\":[2],\"collapsed\":false},\"2\":{\"children\":[],\"collapsed\":false}}}}]}"
+    + "{\"nextId\":3,\"rootChildren\":[1],\"nodes\":{\"1\":{\"text\":\"parent\"},\"2\":{\"text\":\"child\"}},"
+    + "\"structure\":{\"1\":{\"children\":[2],\"collapsed\":false},\"2\":{\"children\":[],\"collapsed\":false}}}}]}"
 
   (match Darklang.Cli.Outliner.Store.parse (v1 ()) with
    | Loaded data -> (Stdlib.List.length data.documents, data.version)

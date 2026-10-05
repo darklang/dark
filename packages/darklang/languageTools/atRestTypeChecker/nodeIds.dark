@@ -28,7 +28,7 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     let id = Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Expr.toID e)
     match e with
     | EVariable(_, _)
-    | EFnName(_, _)
+    | EFnName(_, _, _)
     | EValue(_, _) -> (id, [])
     | ELambda(_, parameters, body) ->
       (id, Stdlib.List.append (lets parameters) [ Node.Expression body ])
@@ -62,7 +62,7 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
       (none, [ Node.LetPattern pattern, Node.Expression value, Node.Expression body ])
     | ETuple(_, first, second, rest) ->
       (none, exprs (Stdlib.List.append [ first, second ] rest))
-    | EInfix(_, _, first, next) -> (none, exprs [ first, next ])
+    | EInfix(_, _, first, next, _) -> (none, exprs [ first, next ])
     | EStatement(_, first, next) -> (none, exprs [ first, next ])
     | EPipe(_, lhs, parts) ->
       (none, Stdlib.List.push (Stdlib.List.map parts (fun p -> Node.Pipe p)) (Node.Expression lhs))
@@ -127,7 +127,7 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     | EPipeVariable(id, _, args) -> (Some id, exprs args)
     | EPipeFnCall(id, _, _, args) -> (Some id, exprs args)
     | EPipeEnum(id, _, _, args) -> (Some id, exprs args)
-    | EPipeInfix(_, _, rhs) -> (none, [ Node.Expression rhs ])
+    | EPipeInfix(_, _, rhs, _) -> (none, [ Node.Expression rhs ])
 
 /// Return the first inference ID encountered twice, or None if all are unique.
 /// Keep the nodes still to visit in a list, so a deeply nested syntax tree does

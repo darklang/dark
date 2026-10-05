@@ -84,7 +84,7 @@ let private testRunCases =
   testCliEquals
     "run smoke"
     [ "Bool.and", [ "eval"; "Stdlib.Bool.and true false" ], "false"
-      "Int64.add", [ "eval"; "Stdlib.Int64.add 5L 3L" ], "8" ]
+      "Int64.add", [ "eval"; "5L + 3L" ], "8" ]
 
 let private testEvalCases =
   testCliEquals
@@ -92,7 +92,7 @@ let private testEvalCases =
     [ "String.length", [ "eval"; "Stdlib.String.length \"hello\"" ], "5"
       "List.length", [ "eval"; "[1L, 2L, 3L] |> Stdlib.List.length" ], "3"
       "simple expr", [ "eval"; "2L + 3L" ], "5"
-      "string concat", [ "eval"; "\"hello\" ++ \"world\"" ], "helloworld" ]
+      "string concat", [ "eval"; "\"hello\" + \"world\"" ], "helloworld" ]
 
 // ─── Script declaration identity ────────────────────────────────────
 
@@ -920,7 +920,7 @@ let private testExitCodes =
         path
 
       let good = script "exit-ok.dark" "Stdlib.printLine \"fine\"\n"
-      let raises = script "exit-raise.dark" "Stdlib.Int64.divide 1L 0L\n"
+      let raises = script "exit-raise.dark" "(1L / 0L)\n"
 
       try
         let cases =
@@ -934,7 +934,7 @@ let private testExitCodes =
             1,
             "a script that is not there"
             [ "eval"; "1L + 1L" ], 0, "an expression that answered"
-            [ "eval"; "Stdlib.Int64.divide 1L 0L" ], 1, "an expression that raised"
+            [ "eval"; "(1L / 0L)" ], 1, "an expression that raised"
 
             // Naming something that is not there is a refusal, whatever printed.
             [ "traces"; "inspect"; "zzzzzzzz" ], 1, "a run id nothing matches"
@@ -1023,10 +1023,7 @@ let private testReplayDistinguishesDriftFromARaise =
         let author = author target
 
         // Drift: a function that ran, then got deprecated as harmful. The recording is intact.
-        do!
-          author
-            "Tests.DriftT.inner"
-            "(n: Int64): Int64 = Stdlib.Int64.multiply n 2L"
+        do! author "Tests.DriftT.inner" "(n: Int64): Int64 = (n * 2L)"
         do! author "Tests.DriftT.outer" "(n: Int64): Int64 = Tests.DriftT.inner n"
 
         let! _ = runCli state [ "eval"; "Tests.DriftT.outer 5L" ]
@@ -1091,8 +1088,7 @@ let private testReplayDistinguishesDriftFromARaise =
           "`show <trace> --json` answers in JSON, and says the same thing"
 
         // A genuine raise must NOT be called drift, or the label means nothing.
-        do!
-          author "Tests.RaiseT.boom" "(n: Int64): Int64 = Stdlib.Int64.divide n 0L"
+        do! author "Tests.RaiseT.boom" "(n: Int64): Int64 = (n / 0L)"
         let! _ = runCli state [ "eval"; "Tests.RaiseT.boom 5L" ]
         let! raiseList = runCli state [ "traces"; "list"; "1"; "--json" ]
         let rid = (parseTraceID raiseList).Substring(0, 8)
@@ -1150,13 +1146,18 @@ let private testTracesLargeTraceListSurvives =
     (fun state ->
       task {
         // Not the multi-MB stress case, but enough to OOM or time out.
+        //
+        // A builtin call rather than `1L + 2L`, because `find` searches recorded fn-call args and
+        // results and an operator on two builtin numerics no longer leaves one: it is answered
+        // directly whether or not tracing is on, so that the number a program gives does not
+        // depend on whether anything is watching.
         for _ in 1..50 do
-          let! _ = runCli state [ "eval"; "1L + 2L" ]
+          let! _ = runCli state [ "eval"; "Stdlib.String.length \"abc\"" ]
           ()
         let! listOut = runCli state [ "traces"; "list"; "20" ]
         Expect.stringContains listOut "what ran" "list returns the run table"
         let! findOut = runCli state [ "traces"; "find"; "3" ]
-        // 50 evals of `1L + 2L` all produce DInt64 3.
+        // 50 calls of `String.length "abc"` all record a result of 3.
         Expect.stringContains findOut "what ran" "find returns the run table"
       })
 
@@ -1229,7 +1230,7 @@ let private testTracesTruncatedStillShowsRoot =
               runCli
                 state
                 [ "eval"
-                  "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 40) (fun x -> Stdlib.printLine (Stdlib.Int.toString x)))" ]
+                  "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 40) (fun x -> Stdlib.printLine (Stdlib.toString x)))" ]
             Expect.stringContains evalOut "40" "the eval itself succeeded"
             let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
             let tid = parseTraceID listJson

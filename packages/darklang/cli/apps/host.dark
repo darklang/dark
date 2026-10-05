@@ -91,7 +91,7 @@ let resolveAll
 
 /// The band's rows at this width: at most two.
 let bandRows (band: String) (width: Int) : Int =
-  Stdlib.Int.min 2 (Stdlib.List.length (Stdlib.Cli.Tui.Text.wrapAtWords band (Stdlib.Int.max 1 (width - 2))))
+  Stdlib.min 2 (Stdlib.List.length (Stdlib.Cli.Tui.Text.wrapAtWords band (Stdlib.max 1 (width - 2))))
 
 /// The whole screen for a session at a size. Pure: everything it needs is on the session.
 let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
@@ -117,7 +117,7 @@ let viewAtSize (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Stdlib.C
       Stdlib.Cli.UI.Layout.Region
         { top = region.top
           left = region.left
-          rows = Stdlib.Int.max 0 (region.rows - bandHeight)
+          rows = Stdlib.max 0 (region.rows - bandHeight)
           cols = region.cols }
 
     // The tree paints at its own height and the pane shows a window of it from `scroll`
@@ -177,7 +177,7 @@ let treeRowsAt (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Int =
     | Some band -> bandRows band region.cols
     | None -> 0
 
-  Stdlib.Int.max 1 (region.rows - bandHeight)
+  Stdlib.max 1 (region.rows - bandHeight)
 
 /// Clamp the window to the tree, and pull it so the focused node is on screen.
 let settleScroll (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Session<'model, 'msg> =
@@ -186,7 +186,7 @@ let settleScroll (s: Session<'model, 'msg>) (size: Stdlib.Cli.Tui.Size) : Sessio
   | Some tree ->
     let paneRows = treeRowsAt s size
     let (total, _) = Stdlib.Cli.UI.Node.measure tree
-    let wanted = Stdlib.Int.max 0 (Stdlib.Int.min s.scroll (total - paneRows))
+    let wanted = Stdlib.max 0 (Stdlib.min s.scroll (total - paneRows))
 
     let scroll =
       match Stdlib.Cli.UI.Node.rowOf tree s.focus with
@@ -236,7 +236,7 @@ let moveFocus (s: Session<'model, 'msg>) (forward: Bool) : Session<'model, 'msg>
     let next =
       match current with
       | None -> if forward then 0 else count - 1
-      | Some i -> Stdlib.Int.``mod`` (if forward then i + 1 else i + count - 1) count
+      | Some i -> (if forward then i + 1 else i + count - 1) % count
 
     { s with focus = Stdlib.List.getAt ids next |> Stdlib.Option.withDefault "" }
 
@@ -260,7 +260,7 @@ let onKey (s: Session<'model, 'msg>) (k: Stdlib.Cli.UI.Widget.KeyPress) : Sessio
   else if k.key == Stdlib.Cli.Stdin.Key.Key.PageDown then
     { s with scroll = s.scroll + 10; focus = "" }
   else if k.key == Stdlib.Cli.Stdin.Key.Key.PageUp then
-    { s with scroll = Stdlib.Int.max 0 (s.scroll - 10); focus = "" }
+    { s with scroll = Stdlib.max 0 (s.scroll - 10); focus = "" }
   else
     let focused =
       match s.lastFrame with
@@ -277,7 +277,7 @@ let onKey (s: Session<'model, 'msg>) (k: Stdlib.Cli.UI.Widget.KeyPress) : Sessio
       | Enter -> applyUpdate s (Event.Key k)
       | _ ->
         match k.char with
-        | Some c -> applyUpdate s (Event.Msg(spec.edited (spec.value ++ c)))
+        | Some c -> applyUpdate s (Event.Msg(spec.edited (spec.value + c)))
         | None -> applyUpdate s (Event.Key k)
     | _ -> applyUpdate s (Event.Key k)
 
@@ -336,7 +336,7 @@ let sessionLocation (view: Model.View) : Stdlib.Option.Option<LanguageTools.Prog
     LanguageTools.ProgramTypes.PackageLocation
       { owner = entry.owner
         modules = Stdlib.List.append entry.modules [ "Sessions" ]
-        name = "s" ++ stamp })
+        name = "s" + stamp })
 
 /// Snapshot the model as a `val` in the store, so a later `--resume <name>` starts from it, on
 /// another machine after a sync if you like. A value that cannot be stored (a stream, a lambda)
@@ -460,7 +460,7 @@ let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
       | UpArrow | DownArrow | LeftArrow | RightArrow | PageUp | PageDown -> true
       | _ -> false
 
-    let times = if repeatable then Stdlib.Int.min 64 (Stdlib.Int.max 1 read.repeat) else 1
+    let times = if repeatable then Stdlib.min 64 (Stdlib.max 1 read.repeat) else 1
     let k = press read
 
     // Keys typed while a render ran arrive as one read whose text is all of them (the runtime's

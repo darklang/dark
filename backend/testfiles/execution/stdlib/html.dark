@@ -257,8 +257,8 @@ Stdlib.Html.dataAttr "user-id" "123" =
         Stdlib.Html.label [] [ stringNode "Bio:" ]
         Stdlib.Html.textarea [] [] ] ])
 |> nodeToString = ("<form><fieldset><legend>User Info</legend>"
-                   ++ "<label>Name:</label><input type=\"text\">"
-                   ++ "<label>Bio:</label><textarea></textarea></fieldset></form>")
+                   + "<label>Name:</label><input type=\"text\">"
+                   + "<label>Bio:</label><textarea></textarea></fieldset></form>")
 
 // Definition list
 (Stdlib.Html.dl
@@ -284,7 +284,7 @@ Stdlib.Html.dataAttr "user-id" "123" =
     Stdlib.Html.p [] [ stringNode "Article content" ]
     Stdlib.Html.footer [] [ stringNode "By Author" ] ])
 |> nodeToString = ("<article><header><h1>Article Title</h1></header>"
-                   ++ "<p>Article content</p><footer>By Author</footer></article>")
+                   + "<p>Article content</p><footer>By Author</footer></article>")
 
 // -- test writing out a full document
 

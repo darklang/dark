@@ -6,8 +6,24 @@ module ModuleDeclaration =
       types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
       fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
       values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+      traits: List<LanguageTools.ProgramTypes.Trait.Trait>
+      impls: List<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>
       exprs: List<LanguageTools.ProgramTypes.Expr * List<String>>
       submodules: List<Module> }
+
+  /// A module with nothing in it. Sixteen places spelled out eight empty fields each, so
+  /// adding a kind meant editing all sixteen.
+  val emptyModule =
+    Module
+      { name = ""
+        types = []
+        fns = []
+        values = []
+        traits = []
+        impls = []
+        exprs = []
+        submodules = [] }
+
 
   /// Add an item that has no module path to the sentinel module `name`, creating it at the end
   /// of `ms` if it isn't there yet. Everything already in `ms` is kept.
@@ -18,68 +34,42 @@ module ModuleDeclaration =
       match found with
       | m :: _ -> m
       | [] ->
-        Module
-          { name = name
-            types = []
-            fns = []
-            values = []
-            exprs = []
-            submodules = [] }
+        { emptyModule with name = name }
 
     Stdlib.List.append others [ add target ]
 
-  let withTypeHelper
+  /// Put an item in the module tree at `modulePath`, creating the modules it names. `add` is
+  /// what the item does to the module it lands in, which is the only thing that differs between
+  /// the kinds; `rootless` names the sentinel for an item with no module path at all.
+  ///
+  /// One walk. There were five, one per kind, identical but for those two arguments, so a new
+  /// kind meant a sixth copy; traits and impls were the fifth and sixth.
+  let placeAt
     (ms: List<Module>)
-    (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     (modulePath: List<String>)
+    (rootless: String)
+    (add: Module -> Module)
     : List<Module> =
     match modulePath with
-    // An item with no module path (`Owner.name`) has nowhere in the tree to go. Keep the modules
-    // accumulated so far and add it under a sentinel, rather than replacing them with it.
-    | [] -> ModuleDeclaration.intoRootless ms "type has no modules" (fun m -> { m with types = Stdlib.List.append m.types [ t ] })
+    | [] -> ModuleDeclaration.intoRootless ms rootless add
 
     | firstModuleNamePart :: submoduleNames ->
       let (foundModuleMaybe, otherModules) =
         ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
 
-      match (foundModuleMaybe, submoduleNames) with
-      | [], [] ->
-        let newModule =
-          Module
-            { name = firstModuleNamePart
-              types = [ t ]
-              fns = []
-              values = []
-              exprs = []
-              submodules = [] }
+      let target =
+        match foundModuleMaybe with
+        | found :: _ -> found
+        | [] -> { emptyModule with name = firstModuleNamePart }
 
-        Stdlib.List.append otherModules [ newModule ]
+      let updated =
+        match submoduleNames with
+        | [] -> add target
+        | submoduleNames ->
+          { target with
+              submodules = placeAt target.submodules submoduleNames rootless add }
 
-      | [], submoduleNames ->
-        let newModuleWithSubmodule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              exprs = []
-              submodules = withTypeHelper [] t submoduleNames }
-
-        Stdlib.List.append otherModules [ newModuleWithSubmodule ]
-
-      | foundModule :: _, [] ->
-        let updatedModule =
-          { foundModule with
-              types = Stdlib.List.append foundModule.types [ t ] }
-
-        Stdlib.List.append otherModules [ updatedModule ]
-
-      | foundModule :: _, submoduleNames ->
-        let updatedModule =
-          { foundModule with
-              submodules = withTypeHelper foundModule.submodules t submoduleNames }
-
-        Stdlib.List.append otherModules [ updatedModule ]
+      Stdlib.List.append otherModules [ updated ]
 
   let withType
     (branchId: Uuid)
@@ -92,69 +82,18 @@ module ModuleDeclaration =
       // means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
       // with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
       let fullPath = location.modules
-      withTypeHelper ms t fullPath
+      placeAt ms fullPath "type has no modules" (fun m -> { m with types = Stdlib.List.append m.types [ t ] })
     | None ->
       [ Module
           { name = "type with unknown location"
             types = [ t ]
             fns = []
             values = []
+            traits = []
+            impls = []
             exprs = []
             submodules = [] } ]
 
-
-  let withFnHelper
-    (ms: List<Module>)
-    (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
-    (modulePath: List<String>)
-    : List<Module> =
-    match modulePath with
-    // An item with no module path (`Owner.name`) has nowhere in the tree to go. Keep the modules
-    // accumulated so far and add it under a sentinel, rather than replacing them with it.
-    | [] -> ModuleDeclaration.intoRootless ms "fn has no modules" (fun m -> { m with fns = Stdlib.List.append m.fns [ f ] })
-
-    | firstModuleNamePart :: submoduleNames ->
-      let (foundModuleMaybe, otherModules) =
-        ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
-
-      match (foundModuleMaybe, submoduleNames) with
-      | [], [] ->
-        let newModule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = [ f ]
-              values = []
-              exprs = []
-              submodules = [] }
-
-        Stdlib.List.append otherModules [ newModule ]
-
-      | [], submoduleNames ->
-        let newModuleWithSubmodule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              exprs = []
-              submodules = withFnHelper [] f submoduleNames }
-
-        Stdlib.List.append otherModules [ newModuleWithSubmodule ]
-
-      | foundModule :: _, [] ->
-        let updatedModule =
-          { foundModule with
-              fns = Stdlib.List.append foundModule.fns [ f ] }
-
-        Stdlib.List.append otherModules [ updatedModule ]
-
-      | foundModule :: _, submoduleNames ->
-        let updatedModule =
-          { foundModule with
-              submodules = withFnHelper foundModule.submodules f submoduleNames }
-
-        Stdlib.List.append otherModules [ updatedModule ]
 
   let withFn
     (branchId: Uuid)
@@ -167,68 +106,17 @@ module ModuleDeclaration =
       // means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
       // with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
       let fullPath = location.modules
-      withFnHelper ms f fullPath
+      placeAt ms fullPath "fn has no modules" (fun m -> { m with fns = Stdlib.List.append m.fns [ f ] })
     | None ->
       [ Module
           { name = "fn with unknown location"
             types = []
             fns = [ f ]
             values = []
+            traits = []
+            impls = []
             exprs = []
             submodules = [] } ]
-
-  let withValueHelper
-    (ms: List<Module>)
-    (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
-    (modulePath: List<String>)
-    : List<Module> =
-    match modulePath with
-    // An item with no module path (`Owner.name`) has nowhere in the tree to go. Keep the modules
-    // accumulated so far and add it under a sentinel, rather than replacing them with it.
-    | [] -> ModuleDeclaration.intoRootless ms "value has no modules" (fun m -> { m with values = Stdlib.List.append m.values [ v ] })
-
-    | firstModuleNamePart :: submoduleNames ->
-      let (foundModuleMaybe, otherModules) =
-        ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
-
-      match (foundModuleMaybe, submoduleNames) with
-      | [], [] ->
-        let newModule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = [ v ]
-              exprs = []
-              submodules = [] }
-
-        Stdlib.List.append otherModules [ newModule ]
-
-      | [], submoduleNames ->
-        let newModuleWithSubmodule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              exprs = []
-              submodules = withValueHelper [] v submoduleNames }
-
-        Stdlib.List.append otherModules [ newModuleWithSubmodule ]
-
-      | foundModule :: _, [] ->
-        let updatedModule =
-          { foundModule with
-              values = Stdlib.List.append foundModule.values [ v ] }
-
-        Stdlib.List.append otherModules [ updatedModule ]
-
-      | foundModule :: _, submoduleNames ->
-        let updatedModule =
-          { foundModule with
-              submodules = withValueHelper foundModule.submodules v submoduleNames }
-
-        Stdlib.List.append otherModules [ updatedModule ]
 
   let withValue
     (branchId: Uuid)
@@ -241,15 +129,91 @@ module ModuleDeclaration =
       // means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
       // with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
       let fullPath = location.modules
-      withValueHelper ms v fullPath
+      placeAt ms fullPath "value has no modules" (fun m -> { m with values = Stdlib.List.append m.values [ v ] })
     | None ->
       [ Module
           { name = "value with unknown location"
             types = []
             fns = []
             values = [ v ]
+            traits = []
+            impls = []
             exprs = []
             submodules = [] } ]
+
+  let withTrait
+    (branchId: Uuid)
+    (ms: List<Module>)
+    (t: LanguageTools.ProgramTypes.Trait.Trait)
+    : List<Module> =
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Trait.locations branchId t.hash) with
+    | Some location ->
+      placeAt ms location.modules "trait has no modules" (fun m -> { m with traits = Stdlib.List.append m.traits [ t ] })
+    | None ->
+      [ Module
+          { name = "trait with unknown location"
+            types = []
+            fns = []
+            values = []
+            traits = [ t ]
+            impls = []
+            exprs = []
+            submodules = [] } ]
+
+  /// An impl is named at `<module>[.<Type>].<Trait>`; printed at its location it
+  /// would sit inside a module named for the trait, so it prints one level up, where
+  /// the `impl ... for Type` header carries the type. Its method fns are the `let m =
+  /// Fn` lines of that block, so `toModules` leaves them out of the fns.
+  let withImpl
+    (branchId: Uuid)
+    (ms: List<Module>)
+    (i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
+    : List<Module> =
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.TraitImpl.locations branchId i.hash) with
+    | Some location ->
+      // `<module>[.<Type>].<Trait>` names the impl. Drop the type segment when it
+      // is there: `impl Show for Point` inside `Shapes` re-lowers to
+      // `Shapes.Point.Show` either way, so this always round-trips.
+      let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+      let selfHead =
+        PrettyPrinter.ProgramTypes.typeReference ctx i.self
+        |> Stdlib.String.split "<"
+        |> Stdlib.List.head
+        |> Stdlib.Option.withDefault ""
+        |> Stdlib.String.split "."
+        |> Stdlib.List.last
+        |> Stdlib.Option.withDefault ""
+      let path =
+        match Stdlib.List.reverse location.modules with
+        | last :: rest when last == selfHead -> Stdlib.List.reverse rest
+        | _ -> location.modules
+      placeAt ms path "impl has no modules" (fun m -> { m with impls = Stdlib.List.append m.impls [ i ] })
+    | None ->
+      [ Module
+          { name = "impl with unknown location"
+            types = []
+            fns = []
+            values = []
+            traits = []
+            impls = [ i ]
+            exprs = []
+            submodules = [] } ]
+
+  /// The fns an impl's `let m = Fn` lines already print
+  let implMethodFnHashes
+    (impls: List<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>)
+    : List<LanguageTools.ProgramTypes.Hash> =
+    impls
+    |> Stdlib.List.map (fun i ->
+      i.methods
+      |> Stdlib.List.filterMap (fun (_, fn) ->
+        match fn.resolved with
+        | Ok resolved ->
+          (match resolved.name with
+           | Package h -> Stdlib.Option.Option.Some h
+           | _ -> Stdlib.Option.Option.None)
+        | Error _ -> Stdlib.Option.Option.None))
+    |> Stdlib.List.flatten
 
 
   let withExpr
@@ -268,24 +232,16 @@ module ModuleDeclaration =
       match (foundModuleMaybe, submoduleNames) with
       | [], [] ->
         let newModule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              exprs = [ (expr, []) ]
-              submodules = [] }
+          { emptyModule with
+              name = firstModuleNamePart
+              exprs = [ (expr, []) ] }
 
         Stdlib.List.append otherModules [ newModule ]
 
       | [], submoduleNames ->
         let newModuleWithSubmodule =
-          Module
-            { name = firstModuleNamePart
-              types = []
-              fns = []
-              values = []
-              exprs = []
+          { emptyModule with
+              name = firstModuleNamePart
               submodules = withExpr [] (expr, submoduleNames) }
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
@@ -316,18 +272,31 @@ module ModuleDeclaration =
       Stdlib.List.fold p.types empty (fun modules t ->
         ModuleDeclaration.withType branchId modules t)
 
+    // An impl's method fns print as its `let m = Fn` lines, not as fns of their own
+    let implMethods = ModuleDeclaration.implMethodFnHashes p.impls
+    let ownFns =
+      p.fns |> Stdlib.List.filter (fun f -> Stdlib.Bool.not (Stdlib.List.``member`` implMethods f.hash))
+
     let modulesWithTypesAndFns =
-      Stdlib.List.fold p.fns modulesAfterTypes (fun modules f ->
+      Stdlib.List.fold ownFns modulesAfterTypes (fun modules f ->
         ModuleDeclaration.withFn branchId modules f)
 
     let modulesWithTypesAndFnsAndValues =
       Stdlib.List.fold p.values modulesWithTypesAndFns (fun modules v ->
         ModuleDeclaration.withValue branchId modules v)
 
+    let modulesWithTraits =
+      Stdlib.List.fold p.traits modulesWithTypesAndFnsAndValues (fun modules t ->
+        ModuleDeclaration.withTrait branchId modules t)
+
+    let modulesWithImpls =
+      Stdlib.List.fold p.impls modulesWithTraits (fun modules i ->
+        ModuleDeclaration.withImpl branchId modules i)
+
     let modulesWithTypesAndFnsAndValuesAndExprs =
       Stdlib.List.fold
         p.exprs
-        modulesWithTypesAndFnsAndValues
+        modulesWithImpls
         (fun modules e ->
           // Same rule as the declarations above: the owner is not a module. An expr's path arrives
           // from the parser owner-first, so drop that segment before nesting it.
@@ -347,7 +316,7 @@ let moduleDeclaration
   (m: ModuleDeclaration.Module)
   : String =
   // Account for the indentation added after rendering.
-  let ctx = { ctx with width = Stdlib.Int.max 1 (ctx.width - 2) }
+  let ctx = { ctx with width = Stdlib.max 1 (ctx.width - 2) }
 
   let typesPart =
     match m.types with
@@ -376,6 +345,24 @@ let moduleDeclaration
       |> Stdlib.String.join "\n\n"
       |> Stdlib.Option.Option.Some
 
+  let traitsPart =
+    match m.traits with
+    | [] -> Stdlib.Option.Option.None
+    | traits ->
+      traits
+      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageTrait ctx t)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
+
+  let implsPart =
+    match m.impls with
+    | [] -> Stdlib.Option.Option.None
+    | impls ->
+      impls
+      |> Stdlib.List.map (fun i -> PrettyPrinter.ProgramTypes.packageImpl ctx i)
+      |> Stdlib.String.join "\n\n"
+      |> Stdlib.Option.Option.Some
+
   let exprsPart =
     match m.exprs with
     | [] -> Stdlib.Option.Option.None
@@ -396,7 +383,7 @@ let moduleDeclaration
       |> Stdlib.Option.Option.Some
 
   let parts =
-    [ typesPart, fnsPart, valuesPart, exprsPart, submodulesPart ]
+    [ typesPart, traitsPart, fnsPart, valuesPart, implsPart, exprsPart, submodulesPart ]
     |> Stdlib.List.filterMap (fun s -> s)
 
   match parts with

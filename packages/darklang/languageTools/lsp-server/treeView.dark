@@ -70,18 +70,24 @@ let handleGetRootNodesRequest
           ProgramTypes.Search.EntityType.Fn
           ProgramTypes.Search.EntityType.Type
           ProgramTypes.Search.EntityType.Value
+          ProgramTypes.Search.EntityType.Trait
+          ProgramTypes.Search.EntityType.TraitImpl
         ]
         exactMatch = false }
 
   let searchResults = PackageManager.Search.search state.currentBranchId searchQuery
 
-  // Extract unique owners from all results
+  // Every owner any item belongs to, all five kinds: a package that holds only traits still has
+  // a row in the editor's tree.
   let owners =
     let fnOwners = searchResults.fns |> Stdlib.List.map (fun item -> item.location.owner)
     let typeOwners = searchResults.types |> Stdlib.List.map (fun item -> item.location.owner)
     let valueOwners = searchResults.values |> Stdlib.List.map (fun item -> item.location.owner)
+    let traitOwners = searchResults.traits |> Stdlib.List.map (fun item -> item.location.owner)
+    let implOwners = searchResults.impls |> Stdlib.List.map (fun item -> item.location.owner)
 
-    (Stdlib.List.flatten [ fnOwners, typeOwners, valueOwners ])
+    (Stdlib.List.flatten
+      [ fnOwners, typeOwners, valueOwners, traitOwners, implOwners ])
     |> Stdlib.List.unique
     |> Stdlib.List.sort
 
@@ -106,7 +112,8 @@ let isModuleParentOf (parentPath: List<String>) (childPath: List<String>) : Bool
   else Stdlib.List.take childPath parentPathLength == parentPath
 
 
-/// Helper to create tree items for entities (fns, types, values)
+/// Tree items for the leaf items at `currentPath`. Generic over the kind, so all five go through
+/// it; the label the editor shows comes from `entityType`.
 let makeEntityTreeItems
   (entities: List<ProgramTypes.LocatedItem<'a>>)
   (currentPath: List<String>)
@@ -128,6 +135,12 @@ let buildTreeItems
   : List<TreeItem> =
   let currentDepth = Stdlib.List.length currentPath
 
+  let implNames =
+    results.impls
+    |> Stdlib.List.filter (fun item ->
+      Stdlib.List.push item.location.modules item.location.owner == currentPath)
+    |> Stdlib.List.map (fun item -> item.location.name)
+
   let submodules =
     results.submodules
     |> Stdlib.List.filter (fun modulePath ->
@@ -139,15 +152,23 @@ let buildTreeItems
       | None -> "")
     |> Stdlib.List.filter (fun name -> name != "")
     |> Stdlib.List.unique
+    // The module an impl's methods live in is not a folder a reader wants, and it shares the
+    // impl's name: without this, `uniqueBy` below kept the folder and dropped the impl, so
+    // `Stdlib.Int64` showed seventeen empty folders and no implementations.
+    |> (fun names ->
+      LanguageTools.PackageManager.Search.readerSubmodules names implNames)
     |> Stdlib.List.map (fun childName ->
       let childId = $"{nodeId}.{childName}"
       makeTreeItem childId childName TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None)
 
-  let fnItems = makeEntityTreeItems results.fns currentPath "fn"
   let typeItems = makeEntityTreeItems results.types currentPath "type"
+  let fnItems = makeEntityTreeItems results.fns currentPath "fn"
   let valueItems = makeEntityTreeItems results.values currentPath "value"
+  let traitItems = makeEntityTreeItems results.traits currentPath "trait"
+  let implItems = makeEntityTreeItems results.impls currentPath "impl"
 
-  (Stdlib.List.flatten [submodules, fnItems, typeItems, valueItems])
+  (Stdlib.List.flatten
+    [ submodules, typeItems, fnItems, valueItems, traitItems, implItems ])
   |> Stdlib.List.uniqueBy (fun item ->
     match item.id with
     | Some id -> id
@@ -175,6 +196,8 @@ let handleGetChildNodesRequest
           ProgramTypes.Search.EntityType.Fn
           ProgramTypes.Search.EntityType.Type
           ProgramTypes.Search.EntityType.Value
+          ProgramTypes.Search.EntityType.Trait
+          ProgramTypes.Search.EntityType.TraitImpl
         ]
         exactMatch = false }
 
