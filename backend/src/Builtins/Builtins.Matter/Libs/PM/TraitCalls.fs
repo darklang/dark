@@ -309,11 +309,12 @@ let private worthChecking
 /// Write onto each trait-method call in <param ops> the implementation it resolves to.
 ///
 /// <param branchId> separately from <param pm>, because `pm` carries the branch's names and
-/// not its deprecations.
+/// not its deprecations. <param storeHoldsOps> lets a large batch be checked in parallel.
 let resolveTraitCalls
   (exeState : RT.ExecutionState)
   (branchId : PT.BranchId)
   (pm : PT.PackageManager)
+  (storeHoldsOps : bool)
   (ops : List<PT.PackageOp>)
   : Ply<List<PT.PackageOp>> =
   uply {
@@ -327,7 +328,23 @@ let resolveTraitCalls
       let! deprecated = LibDB.Queries.getDeprecatedTraitImplHashesFor branchId
       let! stamps = LibDB.Queries.getTraitImplStamps ()
 
-      let! resolved = askChecker exeState branchId ops
+      // Chunks load what they do not carry from the store, so only a caller whose batch is
+      // already in the store can split it; an authoring batch is not, and stays whole. The
+      // count is fixed rather than per-core so every machine pins the same tree: two items
+      // with one hash get only one copy pinned, and which one depends on the split.
+      let size =
+        if storeHoldsOps then
+          max 256 (List.length ops / 32 + 1)
+        else
+          max 1 (List.length ops)
+      let! chunks =
+        ops
+        |> List.chunkBySize size
+        |> List.map (fun chunk ->
+          System.Threading.Tasks.Task.Run<Map<PT.Hash, List<Resolution>>>(fun () ->
+            Ply.toTask (askChecker exeState branchId chunk)))
+        |> System.Threading.Tasks.Task.WhenAll
+      let resolved = chunks |> Array.fold (Map.foldBack Map.add) Map.empty
 
       if Map.isEmpty resolved then
         return ops
