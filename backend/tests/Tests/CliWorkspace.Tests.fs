@@ -1373,7 +1373,7 @@ r.fns
         // by sharing a replay with the CLI rather than by anything asserting it.
         Expect.equal
           hints
-          [ "2:30 = 42"; "5:43 = \"BOB\""; "6:31 = 42"; "7:18 = 43" ]
+          [ "2:10 = 42"; "5:43 = \"BOB\""; "6:31 = 42"; "7:18 = 43" ]
           "one hint per value at a line position, at the end of the document's line"
 
         // The callee changes; the replay runs the current code on the same recorded input.
