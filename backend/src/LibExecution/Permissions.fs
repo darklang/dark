@@ -61,6 +61,8 @@ type Request =
   | Trace of access : AccessKind
   /// Spawning a process, `Exec.spawn`. Ambient, like `Stdout`.
   | Concurrency
+  /// The runtime's own in-memory state (`Effect.Runtime`). Ambient.
+  | Runtime
   | Native of operation : string
 
 module Request =
@@ -92,6 +94,7 @@ module Request =
     | Request.Trace AccessKind.Read -> Effect.Effect.TraceRead
     | Request.Trace AccessKind.Write -> Effect.Effect.TraceWrite
     | Request.Concurrency -> Effect.Effect.Concurrency
+    | Request.Runtime -> Effect.Effect.Runtime
     | Request.Native _ -> Effect.Effect.Native
 
   /// Return the narrow `permissions allow <rule>` text that covers this
@@ -126,6 +129,7 @@ module Request =
     | Request.Trace AccessKind.Read -> Some "trace-read"
     | Request.Trace AccessKind.Write -> Some "trace-write"
     | Request.Concurrency -> Some "concurrency"
+    | Request.Runtime -> Some "runtime"
     | Request.Native _ -> None
 
   let httpServer (port : int) : Result<Request, string> =
@@ -222,6 +226,7 @@ module Request =
     | Effect.Effect.TraceRead -> Request.Trace AccessKind.Read
     | Effect.Effect.TraceWrite -> Request.Trace AccessKind.Write
     | Effect.Effect.Concurrency -> Request.Concurrency
+    | Effect.Effect.Runtime -> Request.Runtime
     | Effect.Effect.Native -> Request.Native builtinName
     | scoped ->
       Exception.raiseInternal

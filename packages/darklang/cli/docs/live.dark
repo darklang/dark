@@ -22,6 +22,10 @@ Any module with these three is a view:
   apps view My.Counter --live   open it, following your edits to `render` or anything it calls
                                 from another terminal and it repaints
 
+Following an edit means this process drops its own caches, and that is off
+until you allow it, once: `dark permissions allow runtime`. Without it a live
+view or a live server says so and names that command.
+
 The tree `render` returns paints to the terminal, to a page, or to text, so
 the same view is a pane and a web page. Ctrl-S saves the model as a `val`;
 `apps view My.Counter --resume <val>` starts from it.
