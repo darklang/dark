@@ -466,7 +466,7 @@ let issueText (issue: LanguageTools.AtRestTypeChecker.Issue) : String =
 
 /// The report's first issue as text, and how many more there are.
 let reportText (report: LanguageTools.AtRestTypeChecker.Report) : String =
-  let issues = Stdlib.List.append report.blockers report.diagnostics
+  let issues = Stdlib.List.append report.warnings report.diagnostics
   let count = Stdlib.List.length issues
 
   let first =

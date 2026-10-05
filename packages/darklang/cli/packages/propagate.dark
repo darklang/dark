@@ -223,7 +223,7 @@ let repointNow
             byHash
             |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == h)
             |> Stdlib.Option.map (fun pair ->
-              let issues = Stdlib.List.append ir.blockers ir.diagnostics
+              let issues = Stdlib.List.append ir.warnings ir.diagnostics
 
               let text =
                 match issues with
