@@ -1642,17 +1642,27 @@ module ImplDeclaration =
       | TDB(_, _, _, _, _) -> "DB"
       | TVariable(_, _, (_, name)) -> name
 
-  /// The impl's own module path: `<module>[.<Type>].<Trait>`, the type segment
-  /// dropped when the module is already named for the type.
+  /// The impl's own module path: `<module>.<Type>.<Trait>`, always, even when the module is
+  /// already named for the type. So `impl Add for Int64` in `Darklang.Stdlib.Int64` is
+  /// `Darklang.Stdlib.Int64.Int64.Add`, which is verbose and correct.
+  ///
+  /// It used to drop the type segment in exactly that case, and that is a collision generator.
+  /// One name holds ONE item here (`LibDB/PackageOpPlayback.fs` says so at the `SetName` fold:
+  /// binding over a name replaces what held it, and it does not filter on kind). So in a module
+  /// named for its type, an impl was assigned the same name as a trait declared beside it, the
+  /// second binding unlisted the first, and the trait became unreachable: `Show.show p` answered
+  /// `MissingImpl` for a trait that was right there. A name that depends on what else is in the
+  /// store is worse than a long name, and the same source would otherwise produce different
+  /// names in different stores.
+  ///
+  /// Nobody types this name. You write `impl Add for Int64` and you call `Stdlib.Add.add x` or
+  /// `x.add`, so the doubled segment appears in listings and hashes and nowhere else.
   let memberPath
     (currentModule: List<String>)
     (implDecl: WrittenTypes.ImplDeclaration.ImplDeclaration)
     : List<String> =
     let typeName = typeReferenceHeadName implDecl.forType
-    let withType =
-      match Stdlib.List.last currentModule with
-      | Some last when last == typeName -> currentModule
-      | _ -> Stdlib.List.append currentModule [ typeName ]
+    let withType = Stdlib.List.append currentModule [ typeName ]
     Stdlib.List.append withType [ implDecl.trait_.typ.name ]
 
   /// The method fns declared in the block, with the impl's type params and
