@@ -175,7 +175,7 @@ process-wide (`HostEvents.Shared`) and deliver to whichever queue asked:
   disposed when something else satisfies the subscription; a late fire posts
   an id nobody wants and is dropped.
 - `StoreChanged`: a poll of `PRAGMA data_version` every `Scheduler.storePollMs`
-  (200 ms) on a connection of its own (the pragma answers per connection),
+  (25 ms) on a connection of its own (the pragma answers per connection),
   posted to every queue watching. It carries nothing: which ops landed is
   Dark's question, answered by `Stdlib.Live.poll` inside `Stdlib.Host.await`
   before the loop sees the event. Latched per process: a process that

@@ -388,7 +388,7 @@ demo 1, TUI follows edits
 
 demo 2, prod follows a branch
   host:        dark --branch <b> apps enable sync
-               dark --branch <b> serve Site.router --port 8080
+               dark --branch <b> serve Site.router --port 8080 --live
   local:       dark config set live.autopush on
                edit Site.page, save
   ~2 s later:  curl http://<host>:8080/  -> new page
