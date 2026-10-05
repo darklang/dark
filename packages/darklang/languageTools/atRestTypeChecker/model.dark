@@ -160,6 +160,17 @@ type Constraint =
     operation: LanguageTools.ProgramTypes.InfixFnName *
     operand: Ty *
     subject: AmbiguousSubject
+  /// A named trait method call (`Show.show p`), as opposed to an operator.
+  ///
+  /// Deferred for the same reason `Operand` is: which implementation applies depends on the
+  /// self type, and at the point the call is generated that type is an unknown the arguments
+  /// have not filled in yet. `self` is the type the trait's own self parameter took at this
+  /// use, so resolving it is what identifies the implementation.
+  | TraitCall of
+    at: Int64 *
+    trait_: LanguageTools.ProgramTypes.Hash *
+    method_: String *
+    self: Ty
   /// Require a signed integer or Float for unary minus. Defer while its type is unknown.
   | Negate of at: Int64 * operand: Ty
   /// Require an integer for bitwise NOT. Defer while its type is unknown.
@@ -311,15 +322,23 @@ type Environment =
     values: Dict<LanguageTools.ProgramTypes.Hash, Scheme>
     /// Cached validation problems and direct references for types already inspected.
     declarationFacts: Dict<LanguageTools.ProgramTypes.Hash, DeclarationFacts>
-    /// Each operator's trait method and the implementations that apply, converted to the
-    /// checker's own types once and reused.
+    /// Every visible trait's implementations, with each self type converted to the checker's
+    /// own types once and reused. Keyed by the trait's hash as a string.
     ///
-    /// Keyed by operator rather than by trait, so a hit costs nothing at all: without it the
-    /// rule asked the package manager and then converted every candidate's self type at EVERY
-    /// operator node, which is the same thirteen answers for every `+` in the tree. That was
-    /// 79 of the 85 seconds a whole-tree check took. `None` is cached too, for `==` and `!=`,
-    /// which are not traits and must not be asked about twice either.
-    infixImpls: Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Ty * LanguageTools.ProgramTypes.Hash)>)>>
+    /// Filled for the whole BATCH, which is the point: a declaration gets a fresh solver
+    /// state, so a cache that filled itself on first use would reset at every declaration and
+    /// almost never be read twice. Converting a candidate's self type per CALL NODE rather
+    /// than per trait is most of what a whole-tree check costs.
+    ///
+    /// There are a handful of traits and the underlying read is cached per (branch, trait),
+    /// so taking all of them up front is cheaper than deciding which ones will be needed.
+    traitImpls: Dict<String, List<(Ty * LanguageTools.ProgramTypes.Hash)>>
+
+    /// Which trait and method each operator IS, keyed by the operator. `None` for one that is
+    /// not a trait: `==` and `!=` are structural equality for every value, and `++` is no
+    /// longer in the language. Also `None` while the trait hashes are not generated, which is
+    /// what stops a tree whose refs are missing from reporting every operator as an error.
+    infixTrait: Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String)>>
     /// Parameters whose type arguments can appear in a stored field or payload.
     /// Excludes phantom parameters that appear only in type names and store no value.
     valueTypeParameters: Dict<LanguageTools.ProgramTypes.Hash, List<String>>

@@ -287,40 +287,68 @@ let allInfixOperations () : List<LanguageTools.ProgramTypes.InfixFnName> =
     LanguageTools.ProgramTypes.InfixFnName.ComparisonNotEquals
     LanguageTools.ProgramTypes.InfixFnName.StringConcat ]
 
-/// What each operator's trait method is and which implementations apply, converted once.
+/// Every visible trait's implementations, self types converted to the checker's own.
 ///
-/// Filled for the whole BATCH rather than per declaration, and that distinction is the whole
-/// point: a declaration gets a fresh solver state, so a cache that filled itself on first use
-/// would reset at every declaration and almost never be read twice. Converting per operator
-/// node instead of per batch cost 79 of the 85 seconds a whole-tree check took.
-let infixImpls
+/// Taken for the whole batch up front. See `Model.Environment.traitImpls` for why that is
+/// the point rather than an optimisation.
+let traitImpls (branchId: Uuid) : Dict<String, List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>> =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Trait ]
+        exactMatch = false }
+
+  (LanguageTools.PackageManager.Search.search branchId query).traits
+  |> Stdlib.List.fold (Dict {}) (fun acc t ->
+    let converted =
+      (LanguageTools.PackageManager.Trait.impls branchId t.entity.hash)
+      |> Stdlib.List.map (fun candidate ->
+        ((tyOfRuntimeType candidate.self), candidate.source))
+
+    Stdlib.Dict.setOverridingDuplicates
+      acc
+      (LanguageTools.ProgramTypes.hashToString t.entity.hash)
+      converted)
+
+/// Which trait and method each operator is. One table, in F#, shared with the lowering, so
+/// the checker and the runtime cannot come to disagree about what `+` means.
+let infixTrait
   (branchId: Uuid)
-  : Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)>> =
+  : Dict<String, Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String)>> =
   (allInfixOperations ())
   |> Stdlib.List.fold (Dict {}) (fun acc operation ->
     let found =
       match LanguageTools.PackageManager.Trait.forInfix branchId operation with
       | None -> Stdlib.Option.Option.None
-      | Some((traitHash, method_, candidates)) ->
-        let converted =
-          candidates
-          |> Stdlib.List.map (fun candidate ->
-            ((tyOfRuntimeType candidate.self), candidate.source))
-
-        Stdlib.Option.Option.Some((traitHash, method_, converted))
+      | Some((traitHash, method_, _)) ->
+        Stdlib.Option.Option.Some((traitHash, method_))
 
     Stdlib.Dict.setOverridingDuplicates acc (infixKey operation) found)
 
-/// The cached answer for one operator. `None` both for an operator that is not a trait
-/// (`==`, `!=`) and for one the cache was built without, which answer the same way: do not
-/// check it against implementations.
+/// The implementations of <param traitHash> that this batch knows about.
+let implsOfTrait
+  (env: Model.Environment)
+  (traitHash: LanguageTools.ProgramTypes.Hash)
+  : List<(Model.Ty * LanguageTools.ProgramTypes.Hash)> =
+  match
+    Stdlib.Dict.get env.traitImpls (LanguageTools.ProgramTypes.hashToString traitHash)
+  with
+  | Some impls -> impls
+  | None -> []
+
+/// The trait and method an operator is, and that trait's implementations.
 let infixImplsFor
   (env: Model.Environment)
   (operation: LanguageTools.ProgramTypes.InfixFnName)
   : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * String * List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)> =
-  match Stdlib.Dict.get env.infixImpls (infixKey operation) with
-  | Some cached -> cached
-  | None -> Stdlib.Option.Option.None
+  match Stdlib.Dict.get env.infixTrait (infixKey operation) with
+  | Some(Some((traitHash, method_))) ->
+    Stdlib.Option.Option.Some(
+      (traitHash, method_, implsOfTrait env traitHash)
+    )
+  | _ -> Stdlib.Option.Option.None
 
 /// Create an empty environment with the standard Option and Result type hashes.
 /// Declarations are loaded later; builtin signatures are fetched as needed and
@@ -332,7 +360,8 @@ let builtins (branchId: Uuid) : Model.Environment =
       functions = Dict {}
       values = Dict {}
       declarationFacts = Dict {}
-      infixImpls = infixImpls branchId
+      traitImpls = traitImpls branchId
+      infixTrait = infixTrait branchId
       valueTypeParameters = Dict {}
       dictKeyParameters = Dict {}
       callables = Dict {}
@@ -379,6 +408,11 @@ let functionNameRefs
           |> Stdlib.List.map (fun t -> fromRuntimeType t)
           |> typeListRefs
         | None -> []
+    // A trait method call needs the TRAIT, which is where its signature lives. Not the
+    // implementation: which one applies is decided from the self type after inference, and an
+    // implementation is not needed to type the call.
+    | TraitMethod method ->
+      [ LanguageTools.ProgramTypes.Reference.PackageTrait method.trait_ ]
   | Error _ -> []
 
 /// Find the package declarations needed to check a value reference: the value

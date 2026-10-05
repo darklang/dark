@@ -160,6 +160,9 @@ let builtinName (fn: LanguageTools.ProgramTypes.FQFnName.FQFnName) : String =
   match fn with
   | Builtin b -> if b.version == 0l then b.name else ""
   | Package _ -> ""
+  // Not a builtin, so it has no builtin name. Callers use this to recognise the operator
+  // builtins and a trait method is never one of those.
+  | TraitMethod _ -> ""
 
 /// Map a builtin name to the operator rule that checks its accepted operand types.
 /// Their generic signatures alone would allow unsupported operands. Keep this map

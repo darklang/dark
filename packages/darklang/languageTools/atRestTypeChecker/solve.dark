@@ -474,6 +474,8 @@ let mapConstraintTypes
     )
   | Operand(at, operation, operand, subject) ->
     Model.Constraint.Operand(at, operation, mapType operand, subject)
+  | TraitCall(at, trait_, method_, self) ->
+    Model.Constraint.TraitCall(at, trait_, method_, mapType self)
   | Negate(at, operand) -> Model.Constraint.Negate(at, mapType operand)
   | BitwiseNot(at, operand) -> Model.Constraint.BitwiseNot(at, mapType operand)
   | DictKey(at, key) -> Model.Constraint.DictKey(at, mapType key)
@@ -512,6 +514,7 @@ let constraintVars (s: State) (c: Model.Constraint) : Dict<Model.Var, Bool> =
   | EnumPattern(_, scrutinee, _, fields) ->
     Stdlib.List.fold fields (into Dict {} scrutinee) (fun found t -> into found t)
   | Operand(_, _, operand, _) -> into Dict {} operand
+  | TraitCall(_, _, _, self) -> into Dict {} self
   | Negate(_, operand) -> into Dict {} operand
   | BitwiseNot(_, operand) -> into Dict {} operand
   | DictKey(_, key) -> into Dict {} key
@@ -966,6 +969,7 @@ let trySolveDeferred (s: State) (c: Model.Constraint) : Stdlib.Option.Option<Sta
   | EnumPattern(at, scrutinee, caseName, fields) ->
     enumPattern s at scrutinee caseName fields
   | Operand(at, operation, operand, _) -> operandFor s at operation operand
+  | TraitCall(at, trait_, method_, self) -> traitCallFor s at trait_ method_ self
   | Negate(at, operand) -> negate s at operand
   | BitwiseNot(at, operand) -> bitwiseNot s at operand
   | Unwrap(at, fn, arg, result) -> unwrap s at fn arg result
@@ -1205,6 +1209,32 @@ let useFunction
 
       let fnType =
         Types.substituteRigid mapping (Model.Ty.TFn(t.parameters, t.returnType))
+
+      // A named trait method call has an implementation to record, and which one depends on
+      // the self type, which the arguments have not filled in at this point. So queue the
+      // question rather than answering it: `traitCallFor` is reached once the type is known.
+      //
+      // The trait's own parameters come first in the template and the self type is the first
+      // of those (`resolveCallable`), so the unknown it took at THIS use is what `mapping`
+      // holds for that name. No second lookup of the trait is needed.
+      let s =
+        match fn with
+        | TraitMethod method ->
+          match Stdlib.List.head t.typeParams with
+          | Some selfParam ->
+            match Stdlib.Dict.get mapping selfParam with
+            | Some selfTy ->
+              solve
+                s
+                (Model.Constraint.TraitCall(
+                  at,
+                  method.trait_,
+                  method.method_,
+                  selfTy
+                ))
+            | None -> s
+          | None -> s
+        | _ -> s
 
       let s =
         Stdlib.List.fold t.problems s (fun s problem ->
@@ -1988,6 +2018,91 @@ let isSignedNumeric (t: Model.Ty) : Bool =
   | TFloat -> true
   | _ -> false
 
+/// Record which implementation a call at <param at> resolves to, or report that none applies.
+///
+/// ONE RULE FOR BOTH SHAPES. An operator IS a trait method call; the only difference is how
+/// the trait got named. Operators and named calls answering this question differently is how
+/// `+` and `Add.add` would come to mean different things, so they share this.
+let recordImplChoice
+  (s: State)
+  (at: Int64)
+  (traitHash: LanguageTools.ProgramTypes.Hash)
+  (method_: String)
+  (subject: Model.Ty)
+  (candidates: List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)
+  : State =
+  let nodeId = Stdlib.Option.Option.Some at
+
+  let applies =
+    candidates
+    |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+
+  if Stdlib.List.isEmpty candidates then
+    // The trait has no implementations at all, anywhere. That is a store the implementations
+    // have not reached rather than a type that cannot do this, so it is not this check's
+    // business to call it an error: saying otherwise would report every `+` in the tree at
+    // once, which is the loudest possible way to be wrong.
+    s
+  else if Stdlib.List.isEmpty applies then
+    // `MissingImpl` rather than anything operator-specific: under traits an operand a type
+    // cannot take is the ordinary absence of an implementation, and it reads the same way as
+    // a named call that finds none. Dispatch refuses it for the same reason, which is what
+    // `trait-checker-vs-dispatch` holds the two to.
+    addFinding
+      s
+      (Types.definiteError
+        IssueCode.MissingImpl
+        nodeId
+        (none ())
+        (some subject)
+        (Context.TraitNeeded(traitHash, Stdlib.Option.Option.Some method_)))
+  else
+    // The implementations that APPLY, rather than the one that wins: which of two rivals is
+    // newer is a question about the op log, and the store answers it at save time.
+    addResolution
+      s
+      (Model.Resolution.Call(
+        at,
+        method_,
+        applies |> Stdlib.List.map (fun (_, source) -> source)
+      ))
+
+/// A named trait method call (`Show.show p`). Waits while the self type is unknown.
+///
+/// The counterpart to `operandFor`, and the half that was missing: without it a saved named
+/// call keeps no record of what it resolved to, so a newer implementation changes it
+/// underneath, which is what `trait-choice-survives-rival` is for.
+let traitCallFor
+  (s: State)
+  (at: Int64)
+  (traitHash: LanguageTools.ProgramTypes.Hash)
+  (method_: String)
+  (self: Model.Ty)
+  : Stdlib.Option.Option<State> =
+  let nodeId = Stdlib.Option.Option.Some at
+  let (subject, s) = expand s nodeId self
+
+  match subject with
+  // The arguments have not decided the self type yet.
+  | TVar _ -> Stdlib.Option.Option.None
+  | TError -> Stdlib.Option.Option.Some s
+  // Inside a bounded generic: the caller's type argument decides, and the bound is the
+  // promise that something will.
+  | TRigid param ->
+    Stdlib.Option.Option.Some(
+      addResolution s (Model.Resolution.Deferred(at, param))
+    )
+  | _ ->
+    Stdlib.Option.Option.Some(
+      recordImplChoice
+        s
+        at
+        traitHash
+        method_
+        subject
+        (Environment.implsOfTrait s.env traitHash)
+    )
+
 /// Check a numeric operator's operand after resolving aliases. Wait for an
 /// inference variable; report a definite error for a known unsupported type.
 let operandFor
@@ -2022,44 +2137,9 @@ let operandFor
     // reporting every operator as an error.
     | None -> Stdlib.Option.Option.Some s
     | Some((traitHash, method_, candidates)) ->
-      let applies =
-        candidates
-        |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
-
-      if Stdlib.List.isEmpty candidates then
-        // The trait exists and has no implementations at all, anywhere. That is a store the
-        // implementations have not reached rather than a type that cannot add, so it is not
-        // this check's business to call it an error: saying otherwise would report every `+`
-        // in the tree at once, which is the loudest possible way to be wrong.
-        Stdlib.Option.Option.Some s
-      else if Stdlib.List.isEmpty applies then
-        // `MissingImpl`, not `InvalidInfixOperand`: under traits an operator this type cannot
-        // take is not a special rule about operators, it is the ordinary absence of an
-        // implementation, and it reads the same way as a trait method call that finds none.
-        // Dispatch refuses it with the same reason, which is what `trait-checker-vs-dispatch`
-        // holds the two to.
-        Stdlib.Option.Option.Some(
-          addFinding
-            s
-            (Types.definiteError
-              IssueCode.MissingImpl
-              nodeId
-              (none ())
-              (some subject)
-              (Context.TraitNeeded(traitHash, Stdlib.Option.Option.Some method_)))
-        )
-      else
-        // The implementations that apply, rather than the one that wins: which of two rivals
-        // is newer is a question about the op log, and the store answers it at save time.
-        Stdlib.Option.Option.Some(
-          addResolution
-            s
-            (Model.Resolution.Call(
-              at,
-              method_,
-              applies |> Stdlib.List.map (fun (_, source) -> source)
-            ))
-        )
+      Stdlib.Option.Option.Some(
+        recordImplChoice s at traitHash method_ subject candidates
+      )
 
 /// Require a signed integer or Float for unary minus, waiting if its type is unknown.
 let negate (s: State) (at: Int64) (operand: Model.Ty) : Stdlib.Option.Option<State> =
