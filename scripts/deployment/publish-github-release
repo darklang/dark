@@ -71,11 +71,12 @@ fi
 ## Extract the upload URL from the response: remove the {?name,label} part
 upload_url=$(echo $response | jq -r .upload_url | sed -e "s/{?name,label}//")
 
-## Upload all files in the clis directory
+## Upload the gzipped binaries in the clis directory. Only those: the `.mode` file
+## beside each one records how it was built, for the perf tooling, and is not a download.
 FILES_DIR="/home/dark/app/clis"
 FILES_FOUND=false
 
-for FILE_PATH in "$FILES_DIR"/*; do
+for FILE_PATH in "$FILES_DIR"/*.gz; do
   if [[ -f "$FILE_PATH" ]]; then
     FILES_FOUND=true
     FILE_NAME=$(basename "$FILE_PATH")
