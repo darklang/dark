@@ -767,7 +767,9 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "backups", [ "list" ]
       "whoami", []
       "permissions", [ "show"; seed.fn ]
-      "typecheck", []
+      // Scoped to a module that is clean. The shared store holds failing fixtures other tests
+      // leave on purpose, so an audit of all of it rightly exits 1.
+      "typecheck", [ "Darklang.Stdlib.List" ]
       "workbench", []
       "commit", [ "--json" ]
       // Reads the implementations of a trait on the branch. Fully qualified, like `nav` and

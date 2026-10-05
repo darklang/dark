@@ -404,6 +404,41 @@ let typecheckAnswersWithItsCounts =
     })
 
 
+/// At save, a name that resolves to nothing is "not decided yet": a caller may be written before
+/// its callee. In an audit of what is stored it means the item calls something that is not
+/// there, so the audit fails it rather than calling it incomplete.
+let typecheckFailsACallToNothing =
+  instanceTest
+    "typecheck fails a stored item that calls a function which does not exist"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          fn
+            state
+            "Tests.TcGone.callsGone"
+            "(n: Int64) : String = Stdlib.Int.toString n"
+
+        let! root = parsed state [ "typecheck"; "Tests.TcGone"; "--json" ]
+        Expect.equal
+          (root.GetProperty("failed").GetInt32())
+          1
+          "the call to nothing is failed"
+        Expect.equal
+          (root.GetProperty("incomplete").GetInt32())
+          0
+          "and not reported as incomplete"
+
+        do!
+          exits
+            state
+            [ "typecheck"; "Tests.TcGone" ]
+            1L
+            "an audit that fails exits non-zero"
+        do! discardAll state
+      })
+
+
 // ─── the ones that do NOT take --json ─────────────────────────────────────
 
 /// A command that does not answer in JSON has to SAY so and exit nonzero, rather than printing its
@@ -469,5 +504,6 @@ let tests : List<Test> =
     branchesIsAnArrayOfBranches
     typecheckScopesToAModule
     typecheckAnswersWithItsCounts
+    typecheckFailsACallToNothing
     emptyListingsAreStillArrays
     aCommandWithoutJsonRefusesTheFlag ]

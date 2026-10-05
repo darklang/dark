@@ -4,7 +4,9 @@ module Darklang.Cli.Packages.Typecheck
 type Counts =
   { checkedCount: Int
     failedCount: Int
-    incompleteCount: Int }
+    incompleteCount: Int
+    /// Of the failed, how many name something that resolves to nothing.
+    unresolvedCount: Int }
 
 type OutputFilter =
   { showChecked: Bool
@@ -87,17 +89,44 @@ let itemLabel
   | [ path ] -> path
   | _ -> Stdlib.String.join paths ", "
 
+/// Whether the item names something that resolves to nothing. At save that means "not decided
+/// yet", since a caller may be written before its callee; in an audit of what is stored it means
+/// the item calls something that is not there.
+let namesNothing (item: LanguageTools.AtRestTypeChecker.ItemReport) : Bool =
+  item.warnings
+  |> Stdlib.List.findFirst (fun w ->
+    match w.code with
+    | UnresolvedFunctionName
+    | UnresolvedValueName
+    | UnresolvedTypeName
+    | UnresolvedTraitName -> true
+    | _ -> false)
+  |> Stdlib.Option.isSome
+
+/// The checker's verdict, except that an item it could not prove because it names something
+/// that does not exist is failed here.
+let auditVerdict
+  (item: LanguageTools.AtRestTypeChecker.ItemReport)
+  : LanguageTools.AtRestTypeChecker.Verdict =
+  match item.verdict with
+  | Incomplete when namesNothing item -> LanguageTools.AtRestTypeChecker.Verdict.Failed
+  | v -> v
+
 let counts
   (items: List<LanguageTools.AtRestTypeChecker.ItemReport>)
   : Counts =
   items
   |> Stdlib.List.fold
-       (Counts { checkedCount = 0; failedCount = 0; incompleteCount = 0 })
+       (Counts { checkedCount = 0; failedCount = 0; incompleteCount = 0; unresolvedCount = 0 })
        (fun acc item ->
-         match item.verdict with
-         | Checked -> { acc with checkedCount = acc.checkedCount + 1 }
-         | Failed -> { acc with failedCount = acc.failedCount + 1 }
-         | Incomplete -> { acc with incompleteCount = acc.incompleteCount + 1 })
+         match (auditVerdict item, item.verdict) with
+         | (Checked, _) -> { acc with checkedCount = acc.checkedCount + 1 }
+         | (Failed, Incomplete) ->
+           { acc with
+               failedCount = acc.failedCount + 1
+               unresolvedCount = acc.unresolvedCount + 1 }
+         | (Failed, _) -> { acc with failedCount = acc.failedCount + 1 }
+         | (Incomplete, _) -> { acc with incompleteCount = acc.incompleteCount + 1 })
 
 let printItem
   (branchId: Uuid)
@@ -105,7 +134,7 @@ let printItem
   (item: LanguageTools.AtRestTypeChecker.ItemReport)
   : Unit =
   let label = itemLabel branchId item.item
-  match item.verdict with
+  match auditVerdict item with
   | Checked ->
     if outputFilter.showChecked then
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"checked: {label}")
@@ -141,7 +170,7 @@ let jsonReport
     | Incomplete -> "incomplete"
 
   let wanted (item: LanguageTools.AtRestTypeChecker.ItemReport) : Bool =
-    match item.verdict with
+    match auditVerdict item with
     | Checked -> outputFilter.showChecked
     | Failed -> outputFilter.showFailed
     | Incomplete -> outputFilter.showIncomplete
@@ -159,12 +188,14 @@ let jsonReport
 
       Stdlib.AltJson.Json.Object
         [ ("name", Stdlib.AltJson.Json.String(itemLabel branchId item.item))
-          ("verdict", Stdlib.AltJson.Json.String(verdictWord item.verdict))
+          ("verdict", Stdlib.AltJson.Json.String(verdictWord (auditVerdict item)))
           ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l))) ])
 
   Stdlib.AltJson.format (
     Stdlib.AltJson.Json.Object
-      [ ("verdict", Stdlib.AltJson.Json.String(verdictWord report.verdict))
+      [ ("verdict",
+         Stdlib.AltJson.Json.String(
+           if totals.failedCount > 0 then "failed" else verdictWord report.verdict))
         ("checked", Stdlib.AltJson.Json.Integer(totals.checkedCount))
         ("failed", Stdlib.AltJson.Json.Integer(totals.failedCount))
         ("incomplete", Stdlib.AltJson.Json.Integer(totals.incompleteCount))
@@ -205,14 +236,21 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let totals = counts report.items
     let total = Stdlib.List.length report.items
 
+    // An audit that found failures says so in its exit code, so a script or a gate can tell.
+    let finished = if totals.failedCount > 0 then { state with exitCode = 1 } else state
+
     if parsed.asJson then
       Stdlib.printLine
         (jsonReport state.currentBranchId parsed.outputFilter report totals total)
-      state
+      finished
     else
 
     let checkedCount = Stdlib.toString totals.checkedCount
-    let failedCount = Stdlib.toString totals.failedCount
+    let failedCount =
+      if totals.unresolvedCount > 0 then
+        $"{Stdlib.toString totals.failedCount} ({Stdlib.toString totals.unresolvedCount} name something that does not exist)"
+      else
+        Stdlib.toString totals.failedCount
     let incompleteCount = Stdlib.toString totals.incompleteCount
     let totalCount = Stdlib.toString total
 
@@ -234,7 +272,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | Checked
       | Failed -> ()
 
-    state
+    finished
 
 let help (_state: Cli.AppState) : String =
   [ "Audit all visible package types, values, and functions on the current branch."
