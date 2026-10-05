@@ -693,7 +693,10 @@ type Scheduler(quantum : int64) =
               | RT.FQFnName.FromTypeParam param ->
                 frame.boundImpls
                 |> List.tryPick (fun struct (p, t, m, impl) ->
-                  if p = param && t = tm.trait_ && m = tm.method_ then Some impl else None)
+                  if p = param && t = tm.trait_ && m = tm.method_ then
+                    Some impl
+                  else
+                    None)
                 |> Option.map OnPackageFn
                 |> Option.defaultValue OnRareOpcode
               | RT.FQFnName.Unknown -> OnRareOpcode

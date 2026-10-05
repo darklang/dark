@@ -1355,7 +1355,8 @@ let fns () : List<BuiltInFn> =
                         | RT.FQFnName.Builtin b -> b.name
                         // Not reached: a frame runs the impl fn dispatch picked, never the
                         // method itself. Named the way the tracer names one.
-                        | RT.FQFnName.TraitMethod tm -> $"{string tm.trait_}.{tm.method_}"
+                        | RT.FQFnName.TraitMethod tm ->
+                          $"{string tm.trait_}.{tm.method_}"
                       "function", callee
                   DTuple(
                     DString(string kv.Key),

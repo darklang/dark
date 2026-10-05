@@ -1297,10 +1297,7 @@ let private liveValuesReplayTheLastCall =
       task {
         let state = executionState target
         let author = author target
-        do!
-          author
-            "Tests.LiveVals.double"
-            "(n: Int64): Int64 = (n * 2L)"
+        do! author "Tests.LiveVals.double" "(n: Int64): Int64 = (n * 2L)"
         do!
           author
             "Tests.LiveVals.greet"
@@ -1380,10 +1377,7 @@ r.fns
           "one hint per value at a line position, at the end of the document's line"
 
         // The callee changes; the replay runs the current code on the same recorded input.
-        do!
-          author
-            "Tests.LiveVals.double"
-            "(n: Int64): Int64 = (n * 3L)"
+        do! author "Tests.LiveVals.double" "(n: Int64): Int64 = (n * 3L)"
         let! edited = evalUnder state (annotatedPrint "Tests" "LiveVals" "greet")
         match edited with
         | RT.DString printed ->
@@ -1394,10 +1388,7 @@ r.fns
         | other -> failtest $"expected the print, got {other}"
 
         // A version that fails at run time reports the failure and keeps what ran before it.
-        do!
-          author
-            "Tests.LiveVals.double"
-            "(n: Int64): Int64 = (n / 0L)"
+        do! author "Tests.LiveVals.double" "(n: Int64): Int64 = (n / 0L)"
         let! failed =
           evalUnder
             state

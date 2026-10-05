@@ -83,7 +83,11 @@ module private Decode =
       match nodeId at, hash trait_ with
       | Some at, Some trait_ -> Some(CallerBound(at, param, trait_, hashes impls))
       | _ -> None
-    | DEnum(_, _, _, "CallerBoundDeferred", [ at; DString param; trait_; DString from ]) ->
+    | DEnum(_,
+            _,
+            _,
+            "CallerBoundDeferred",
+            [ at; DString param; trait_; DString from ]) ->
       match nodeId at, hash trait_ with
       | Some at, Some trait_ -> Some(CallerBoundDeferred(at, param, trait_, from))
       | _ -> None
@@ -314,145 +318,146 @@ let resolveTraitCalls
         return ops
       else
 
-      /// The winner among the implementations that apply, and the fn it names for the method.
-      let implFnFor
-        (method_ : string)
-        (implHashes : List<PT.Hash>)
-        : Ply<Option<PT.ResolvedName<PT.FQFnName.Package>>> =
-        uply {
-          let implHashes =
-            implHashes
-            |> List.filter (fun (PT.Hash h) -> not (Set.contains h deprecated))
-          // One implementation is not an ordering question: it is the answer. Several are,
-          // and an unstamped pair has no answer, so the call is left to resolve at run time
-          // and `dark constraints` reports the pair.
-          let winner =
-            match implHashes with
-            | [] -> None
-            | [ only ] -> Some only
-            | several ->
-              several
-              |> List.map (fun (PT.Hash h as hash) ->
-                (hash, stamps |> Map.tryFind h |> Option.defaultValue "", h))
-              |> LibExecution.Lww.winnerOf
-          match winner with
-          | None -> return None
-          | Some winner ->
-            let! impl = pm.getTraitImpl winner
-            // The implementation's own reference to the fn, location and all, which is why
-            // the edge this produces reads like any other and a rename reaches it.
-            return
-              impl
-              |> Option.bind (fun i ->
-                i.methods
-                |> List.tryPick (fun (name, nr) ->
-                  if name <> method_ then
-                    None
-                  else
-                    match nr.resolved with
-                    | Ok { name = PT.FQFnName.Package h; location = loc } ->
-                      Some { name = h; location = loc }
-                    | _ -> None))
-        }
+        /// The winner among the implementations that apply, and the fn it names for the method.
+        let implFnFor
+          (method_ : string)
+          (implHashes : List<PT.Hash>)
+          : Ply<Option<PT.ResolvedName<PT.FQFnName.Package>>> =
+          uply {
+            let implHashes =
+              implHashes
+              |> List.filter (fun (PT.Hash h) -> not (Set.contains h deprecated))
+            // One implementation is not an ordering question: it is the answer. Several are,
+            // and an unstamped pair has no answer, so the call is left to resolve at run time
+            // and `dark constraints` reports the pair.
+            let winner =
+              match implHashes with
+              | [] -> None
+              | [ only ] -> Some only
+              | several ->
+                several
+                |> List.map (fun (PT.Hash h as hash) ->
+                  (hash, stamps |> Map.tryFind h |> Option.defaultValue "", h))
+                |> LibExecution.Lww.winnerOf
+            match winner with
+            | None -> return None
+            | Some winner ->
+              let! impl = pm.getTraitImpl winner
+              // The implementation's own reference to the fn, location and all, which is why
+              // the edge this produces reads like any other and a rename reaches it.
+              return
+                impl
+                |> Option.bind (fun i ->
+                  i.methods
+                  |> List.tryPick (fun (name, nr) ->
+                    if name <> method_ then
+                      None
+                    else
+                      match nr.resolved with
+                      | Ok { name = PT.FQFnName.Package h; location = loc } ->
+                        Some { name = h; location = loc }
+                      | _ -> None))
+          }
 
-      let pinsByItem = Dictionary<PT.Hash, Map<id, PT.FQFnName.ImplChoice>>()
-      let boundsByItem = Dictionary<PT.Hash, Map<id, List<PT.FQFnName.BoundImpl>>>()
+        let pinsByItem = Dictionary<PT.Hash, Map<id, PT.FQFnName.ImplChoice>>()
+        let boundsByItem =
+          Dictionary<PT.Hash, Map<id, List<PT.FQFnName.BoundImpl>>>()
 
-      for KeyValue(itemHash, resolutions) in resolved do
-        // Accumulated in loops rather than folds: the trait and the impl fn are both awaited,
-        // so the fold version is three nested `uply` continuations deep.
-        let mutable pins = Map.empty
-        let mutable bounds = Map.empty
+        for KeyValue(itemHash, resolutions) in resolved do
+          // Accumulated in loops rather than folds: the trait and the impl fn are both awaited,
+          // so the fold version is three nested `uply` continuations deep.
+          let mutable pins = Map.empty
+          let mutable bounds = Map.empty
 
-        for resolution in resolutions do
-          match resolution with
-          | Call(at, method_, implHashes) ->
-            match! implFnFor method_ implHashes with
-            | Some implFn -> pins <- Map.add at (PT.FQFnName.Chosen implFn) pins
-            | None -> ()
-          | _ -> ()
+          for resolution in resolutions do
+            match resolution with
+            | Call(at, method_, implHashes) ->
+              match! implFnFor method_ implHashes with
+              | Some implFn -> pins <- Map.add at (PT.FQFnName.Chosen implFn) pins
+              | None -> ()
+            | _ -> ()
 
-        // A call whose self type is one of the item's own type params is not a call nobody
-        // could work out: it is waiting for its caller, and it says so. Second, so that a
-        // call the checker actually resolved wins over a deferral at the same node.
-        for resolution in resolutions do
-          match resolution with
-          | Deferred(at, param) ->
-            if not (Map.containsKey at pins) then
-              pins <- Map.add at (PT.FQFnName.FromTypeParam param) pins
-          | _ -> ()
+          // A call whose self type is one of the item's own type params is not a call nobody
+          // could work out: it is waiting for its caller, and it says so. Second, so that a
+          // call the checker actually resolved wins over a deferral at the same node.
+          for resolution in resolutions do
+            match resolution with
+            | Deferred(at, param) ->
+              if not (Map.containsKey at pins) then
+                pins <- Map.add at (PT.FQFnName.FromTypeParam param) pins
+            | _ -> ()
 
-        // The other half: what this item's CALLS worked out for the bounds of the fns they
-        // name. That is what makes a call into a bounded fn static: the callee's body defers
-        // to its type param, and the call says which implementation that param implied.
-        for resolution in resolutions do
-          match resolution with
-          | CallerBound(at, param, traitHash, implHashes) ->
-            match! pm.getTrait traitHash with
-            | Some trait_ ->
-              // One entry per method of the trait, so the callee's body finds a fn for
-              // whichever method it calls without reading the implementation item at run time.
-              for m in NEList.toList trait_.methods do
-                match! implFnFor m.name implHashes with
-                | Some implFn ->
+          // The other half: what this item's CALLS worked out for the bounds of the fns they
+          // name. That is what makes a call into a bounded fn static: the callee's body defers
+          // to its type param, and the call says which implementation that param implied.
+          for resolution in resolutions do
+            match resolution with
+            | CallerBound(at, param, traitHash, implHashes) ->
+              match! pm.getTrait traitHash with
+              | Some trait_ ->
+                // One entry per method of the trait, so the callee's body finds a fn for
+                // whichever method it calls without reading the implementation item at run time.
+                for m in NEList.toList trait_.methods do
+                  match! implFnFor m.name implHashes with
+                  | Some implFn ->
+                    let entry : PT.FQFnName.BoundImpl =
+                      { param = param
+                        trait_ = traitHash
+                        method_ = m.name
+                        choice = PT.FQFnName.Chosen implFn }
+                    let existing = Map.tryFind at bounds |> Option.defaultValue []
+                    bounds <- Map.add at (entry :: existing) bounds
+                  | None -> ()
+              | None -> ()
+            | CallerBoundDeferred(at, param, traitHash, fromParam) ->
+              match! pm.getTrait traitHash with
+              | Some trait_ ->
+                for m in NEList.toList trait_.methods do
                   let entry : PT.FQFnName.BoundImpl =
                     { param = param
                       trait_ = traitHash
                       method_ = m.name
-                      choice = PT.FQFnName.Chosen implFn }
+                      choice = PT.FQFnName.FromTypeParam fromParam }
                   let existing = Map.tryFind at bounds |> Option.defaultValue []
                   bounds <- Map.add at (entry :: existing) bounds
-                | None -> ()
-            | None -> ()
-          | CallerBoundDeferred(at, param, traitHash, fromParam) ->
-            match! pm.getTrait traitHash with
-            | Some trait_ ->
-              for m in NEList.toList trait_.methods do
-                let entry : PT.FQFnName.BoundImpl =
-                  { param = param
-                    trait_ = traitHash
-                    method_ = m.name
-                    choice = PT.FQFnName.FromTypeParam fromParam }
-                let existing = Map.tryFind at bounds |> Option.defaultValue []
-                bounds <- Map.add at (entry :: existing) bounds
-            | None -> ()
-          | _ -> ()
+              | None -> ()
+            | _ -> ()
 
-        if not (Map.isEmpty pins) then pinsByItem[itemHash] <- pins
-        if not (Map.isEmpty bounds) then boundsByItem[itemHash] <- bounds
+          if not (Map.isEmpty pins) then pinsByItem[itemHash] <- pins
+          if not (Map.isEmpty bounds) then boundsByItem[itemHash] <- bounds
 
-      let mappingFor (hash : PT.Hash) : Option<LibDB.AstTransformer.HashMapping> =
-        let pins =
-          match pinsByItem.TryGetValue hash with
-          | true, pins -> pins
-          | _ -> Map.empty
-        let bounds =
-          match boundsByItem.TryGetValue hash with
-          | true, bounds -> bounds
-          | _ -> Map.empty
-        if Map.isEmpty pins && Map.isEmpty bounds then
-          None
-        else
-          Some
-            { LibDB.AstTransformer.emptyMapping with
-                pins = pins
-                boundImpls = bounds }
+        let mappingFor (hash : PT.Hash) : Option<LibDB.AstTransformer.HashMapping> =
+          let pins =
+            match pinsByItem.TryGetValue hash with
+            | true, pins -> pins
+            | _ -> Map.empty
+          let bounds =
+            match boundsByItem.TryGetValue hash with
+            | true, bounds -> bounds
+            | _ -> Map.empty
+          if Map.isEmpty pins && Map.isEmpty bounds then
+            None
+          else
+            Some
+              { LibDB.AstTransformer.emptyMapping with
+                  pins = pins
+                  boundImpls = bounds }
 
-      return
-        ops
-        |> List.map (fun op ->
-          match op with
-          | PT.PackageOp.AddFn fn ->
-            match mappingFor fn.hash with
-            | Some mapping ->
-              PT.PackageOp.AddFn(LibDB.AstTransformer.transformFn mapping fn)
-            | None -> op
-          | PT.PackageOp.AddValue value ->
-            match mappingFor value.hash with
-            | Some mapping ->
-              PT.PackageOp.AddValue(
-                LibDB.AstTransformer.transformValue mapping value
-              )
-            | None -> op
-          | _ -> op)
+        return
+          ops
+          |> List.map (fun op ->
+            match op with
+            | PT.PackageOp.AddFn fn ->
+              match mappingFor fn.hash with
+              | Some mapping ->
+                PT.PackageOp.AddFn(LibDB.AstTransformer.transformFn mapping fn)
+              | None -> op
+            | PT.PackageOp.AddValue value ->
+              match mappingFor value.hash with
+              | Some mapping ->
+                PT.PackageOp.AddValue(
+                  LibDB.AstTransformer.transformValue mapping value
+                )
+              | None -> op
+            | _ -> op)
   }

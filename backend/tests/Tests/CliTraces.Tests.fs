@@ -1023,10 +1023,7 @@ let private testReplayDistinguishesDriftFromARaise =
         let author = author target
 
         // Drift: a function that ran, then got deprecated as harmful. The recording is intact.
-        do!
-          author
-            "Tests.DriftT.inner"
-            "(n: Int64): Int64 = (n * 2L)"
+        do! author "Tests.DriftT.inner" "(n: Int64): Int64 = (n * 2L)"
         do! author "Tests.DriftT.outer" "(n: Int64): Int64 = Tests.DriftT.inner n"
 
         let! _ = runCli state [ "eval"; "Tests.DriftT.outer 5L" ]
@@ -1091,8 +1088,7 @@ let private testReplayDistinguishesDriftFromARaise =
           "`show <trace> --json` answers in JSON, and says the same thing"
 
         // A genuine raise must NOT be called drift, or the label means nothing.
-        do!
-          author "Tests.RaiseT.boom" "(n: Int64): Int64 = (n / 0L)"
+        do! author "Tests.RaiseT.boom" "(n: Int64): Int64 = (n / 0L)"
         let! _ = runCli state [ "eval"; "Tests.RaiseT.boom 5L" ]
         let! raiseList = runCli state [ "traces"; "list"; "1"; "--json" ]
         let rid = (parseTraceID raiseList).Substring(0, 8)
