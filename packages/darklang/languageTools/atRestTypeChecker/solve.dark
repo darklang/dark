@@ -18,6 +18,10 @@ type State =
     /// Match-coverage requirements saved for Items to check after type inference.
     /// Some may move into a generic scheme to be checked at each use instead.
     coverage: List<Model.Constraint>
+    /// How deep `unify` currently is; nesting, not a running total.
+    unifyDepth: Int64
+    /// Set once the depth warning has been recorded, so siblings do not repeat it.
+    gaveUpOnDepth: Bool
     /// Errors and warnings accumulated so far, with new findings prepended.
     findings: List<Model.Finding> }
 
@@ -30,6 +34,8 @@ let start (env: Model.Environment) : State =
       schemes = Dict {}
       waiting = []
       coverage = []
+      unifyDepth = 0L
+      gaveUpOnDepth = false
       findings = [] }
 
 
@@ -133,6 +139,11 @@ let markUnknownsAsError (s: State) (ty: Model.Ty) : State =
 let markAllUnknownsAsError (s: State) (tys: List<Model.Ty>) : State =
   Stdlib.List.fold tys s (fun s t -> markUnknownsAsError s t)
 
+/// How deep a type comparison may go before the declaration is reported Incomplete.
+/// Comparing walks both types in lockstep, so nesting costs a call per level. Bounded here
+/// rather than by the native stack running out. `NodeIds.maxDeclarationDepth` bounds input.
+val maxUnifyDepth = 1000L
+
 /// Require actual to agree with expected, assigning unknowns where possible.
 /// Use at and site to locate and explain any mismatch.
 ///
@@ -148,7 +159,22 @@ let unify
   let expected = Types.walk s.subst expected
   let actual = Types.walk s.subst actual
 
-  if expected == actual then s else unifyDifferent s at site expected actual
+  if expected == actual then
+    s
+  else if s.unifyDepth >= maxUnifyDepth then
+    // Recorded once: every sibling comparison below here is also too deep.
+    if s.gaveUpOnDepth then
+      s
+    else
+      addFinding
+        { s with gaveUpOnDepth = true }
+        (Types.warning IssueCode.UnsupportedConstruct at Context.DeclarationTooDeep)
+  else
+    let deeper =
+      unifyDifferent { s with unifyDepth = s.unifyDepth + 1L } at site expected actual
+
+    // Nesting, so many shallow comparisons are not refused for being numerous.
+    { deeper with unifyDepth = s.unifyDepth }
 
 /// Compare types after following assignments and ruling out exact equality.
 /// Unknowns can be assigned, matching containers compare their components, and

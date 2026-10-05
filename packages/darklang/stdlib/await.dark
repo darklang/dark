@@ -1,0 +1,9 @@
+module Darklang.Stdlib
+
+
+/// Wait here for a value that may still be a read in flight, rather than at its first use.
+/// `await x` is `x`: calling anything with a value waits for it, and this is the smallest thing
+/// to call. (`Exec.await` is the one for a handle from `Exec.spawn`.)
+let await (x: 'a) : 'a =
+  x
+

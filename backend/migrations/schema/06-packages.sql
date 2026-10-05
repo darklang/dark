@@ -23,10 +23,27 @@ CREATE TABLE IF NOT EXISTS package_values (
 );
 CREATE INDEX IF NOT EXISTS idx_package_values_type ON package_values(value_type);
 
+-- Three things per function, from the two halves of the compiler.
+--
+--   pt_def        the code as written, for the editor and the pretty-printer
+--   rt_instrs     the register machine, for the interpreter
+--   debug_symbols which instruction produced which expression's value, for anything mapping
+--                 the machine back to the source: a trace's `// = 140`, and later an error
+--                 that can say which expression rather than which instruction
+--
+-- The third is its own column because running code never reads it and reading code always
+-- does, so a run should not pay to carry it. It is nullable and read lazily for the same
+-- reason.
+--
+-- What it deliberately does NOT hold, so nobody goes looking: source SPANS (the editor places
+-- hints by counting lines from the function's header, so it needs none) and VARIABLE NAMES (a
+-- frame already carries its arguments, and the names belong to the parameter list, which is
+-- the better source because shadowing can give two registers one name).
 CREATE TABLE IF NOT EXISTS package_functions (
   hash TEXT PRIMARY KEY,
   pt_def BLOB NOT NULL,
   rt_instrs BLOB NOT NULL,
+  debug_symbols BLOB,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   description TEXT NOT NULL DEFAULT ''         -- plain-text doc comment for SQL package search
 );

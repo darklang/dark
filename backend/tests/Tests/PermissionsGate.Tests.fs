@@ -525,7 +525,8 @@ let builtinCallbackAllowedByPermittingCeiling =
 
 let builtinCallbackArity2KeepsCeiling =
   testTask "a two-argument callback (fold) runs under the calling fn's ceiling" {
-    // `executeApplicable2` is a separate entry point from the one-argument path.
+    // A two-argument callback takes the same `requestApply` path as a one-argument one; the
+    // ceiling has to survive the extra argument.
     let producerHash = "permissions-callback-producer2"
     let runnerHash = "permissions-callback-fold-runner"
     let lambda2 = eLambda (gid ()) [ lpVar "acc"; lpVar "unit" ] clockBody

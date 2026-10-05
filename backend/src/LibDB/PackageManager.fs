@@ -648,6 +648,15 @@ let private otherBranchOps =
 // SQLite directly, so this guards the in-process readers only.
 Caching.register (fun () -> otherBranchOps.Clear())
 
+// The ACTIVE branch's overlay too: it is loaded once by `selectBranch` and refreshed by this
+// process's own authoring, but a branch op that lands from outside (a sync daemon's pull into the
+// store a `serve --branch` process is reading) reaches it only through an invalidation. Without
+// this a long-lived process on a branch served the overlay it booted with for the rest of its life.
+Caching.register (fun () ->
+  match currentBranchIdOpt with
+  | Some id -> branchOverlayOps <- (Branches.loadDeltaOps id).Result
+  | None -> ())
+
 /// Select the active branch's delta ops for this process (empty = main/core only). Prefer
 /// `selectBranch`, which loads them; this is for callers already holding an explicit op list.
 let setBranchOverlay (ops : List<PT.PackageOp>) : unit = branchOverlayOps <- ops

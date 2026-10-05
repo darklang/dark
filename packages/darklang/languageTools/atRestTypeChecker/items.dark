@@ -384,7 +384,12 @@ let prepareValue
   let (t, constraints) =
     match NodeIds.problem value.body with
     | Some problem -> (Model.Ty.TError, Generate.report problem)
-    | None -> Generate.infer (Generate.emptyScope ()) value.body
+    | None ->
+      // Too deep is skipped here for the same reason duplicate IDs are: inferring would
+      // produce a requirement per level, and the result could not be trusted anyway.
+      match NodeIds.tooDeep value.body with
+      | Some problem -> (Model.Ty.TError, Generate.report problem)
+      | None -> Generate.infer (Generate.emptyScope ()) value.body
 
   PendingValue
     { value = value
@@ -489,8 +494,24 @@ let checkBatch
 
   let (_, fnResults) =
     Stdlib.List.fold fns (env, []) (fun (env, results) fn ->
+      let signatureTypes =
+        Stdlib.List.push
+          (Stdlib.List.map fn.parameters (fun p -> p.typ))
+          fn.returnType
+
       let (outcome, env) =
-        guardItem (bodyNodeId fn.body) env (fun env -> checkFunction env fn)
+        // Refused before inference rather than during it. `checkFunction` would otherwise
+        // generate a requirement per level of the body and then solve all of them, and
+        // converting a deep signature to the checker's own types costs the same whether or
+        // not anything ever compares it.
+        match NodeIds.tooDeep fn.body with
+        | Some _ ->
+          (checkerFailureOutcome (bodyNodeId fn.body) CheckFailure.TooDeep, env)
+        | None ->
+          match NodeIds.typeTooDeep signatureTypes with
+          | Some _ ->
+            (checkerFailureOutcome (bodyNodeId fn.body) CheckFailure.TooDeep, env)
+          | None -> guardItem (bodyNodeId fn.body) env (fun env -> checkFunction env fn)
       let item = LanguageTools.ProgramTypes.Reference.PackageFn fn.hash
       (env, Stdlib.List.push results (item, outcome)))
 

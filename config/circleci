@@ -17,6 +17,5 @@ DARK_CONFIG_ENV_DISPLAY_NAME=circleci
 DARK_CONFIG_DEFAULT_LOGGER=console
 
 # Feature flag defaults
-DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT=sample-all
-# Trace storage on in dev/CI (shipped binary defaults OFF — traces are un-GC'd, can fill disk)
+# CI is a dev environment: record, so a gate can assert on what a command actually did.
 DARK_CONFIG_TRACE_DETAIL=on

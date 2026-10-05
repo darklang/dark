@@ -149,6 +149,96 @@ let findDuplicate
       else
         findDuplicate pending (Stdlib.Dict.set seen id true)
 
+/// How deeply a declaration's body or declared types may nest before it is reported
+/// Incomplete. The shape a declaration may HAVE; `Solve.maxUnifyDepth` is how far the
+/// solver will chase one.
+val maxDeclarationDepth = 1000L
+
+/// Whether the tree nests deeper than <param limit>, a level at a time so that measuring
+/// cannot exhaust the stack the limit protects.
+let deeperThan (limit: Int64) (depth: Int64) (level: List<Node>) : Bool =
+  if Stdlib.List.isEmpty level then
+    false
+  else if depth > limit then
+    true
+  else
+    let next =
+      Stdlib.List.flatten (
+        Stdlib.List.map level (fun node ->
+          let (_, children) = children node
+          children))
+
+    deeperThan limit (depth + 1L) next
+
+/// A body too deep to infer from, so callers can skip inference as they do for duplicate IDs.
+let tooDeep
+  (body: LanguageTools.ProgramTypes.Expr)
+  : Stdlib.Option.Option<Model.Finding> =
+  if deeperThan maxDeclarationDepth 0L [ Node.Expression body ] then
+    Stdlib.Option.Option.Some(
+      Types.warning
+        IssueCode.UnsupportedConstruct
+        (Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Expr.toID body))
+        Context.DeclarationTooDeep)
+  else
+    Stdlib.Option.Option.None
+
+/// The immediate type arguments of a type. Multi-field cases are listed individually
+/// because a `Case _` pattern does not match a case with several fields.
+let typeChildren
+  (typ: LanguageTools.ProgramTypes.TypeReference)
+  : List<LanguageTools.ProgramTypes.TypeReference> =
+  match typ with
+  | TStream inner -> [ inner ]
+  | TList inner -> [ inner ]
+  | TDB inner -> [ inner ]
+  | TDict(key, value) -> [ key, value ]
+  | TTuple(first, second, rest) -> Stdlib.List.append [ first, second ] rest
+  | TCustomType(_, typeArgs) -> typeArgs
+  | TFn(parameters, ret) -> Stdlib.List.push parameters ret
+  | _ -> []
+
+/// Whether any of these types nests deeper than <param limit>, a level at a time.
+let typeDeeperThan
+  (limit: Int64)
+  (depth: Int64)
+  (level: List<LanguageTools.ProgramTypes.TypeReference>)
+  : Bool =
+  if Stdlib.List.isEmpty level then
+    false
+  else if depth > limit then
+    true
+  else
+    let next =
+      Stdlib.List.flatten (Stdlib.List.map level (fun typ -> typeChildren typ))
+
+    typeDeeperThan limit (depth + 1L) next
+
+/// A declared type too deep to work on. Applies wherever the type sits, which it did not
+/// before: it used to depend on whether that shape's walk recursed through a builtin callback.
+let typeTooDeep
+  (types: List<LanguageTools.ProgramTypes.TypeReference>)
+  : Stdlib.Option.Option<Model.Finding> =
+  if typeDeeperThan maxDeclarationDepth 0L types then
+    Stdlib.Option.Option.Some(
+      Types.warning
+        IssueCode.UnsupportedConstruct
+        Stdlib.Option.Option.None
+        Context.DeclarationTooDeep)
+  else
+    Stdlib.Option.Option.None
+
+/// The types a declaration states directly, which is what the depth limit applies to.
+let declaredTypes
+  (decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  : List<LanguageTools.ProgramTypes.TypeReference> =
+  match decl.definition with
+  | Alias t -> [ t ]
+  | Record fields -> Stdlib.List.map fields (fun f -> f.typ)
+  | Enum cases ->
+    Stdlib.List.flatten (
+      Stdlib.List.map cases (fun c -> Stdlib.List.map c.fields (fun f -> f.typ)))
+
 /// Convert a duplicate inference ID into a warning.
 /// Callers use this warning to skip checking the affected body, avoiding
 /// incorrect results caused by treating separate nodes as the same node.

@@ -179,6 +179,7 @@ module RuntimeTypes =
         parameters = NEList.singleton { name = "x"; typ = RT.TInt64 }
         returnType = RT.TInt64
         body = instructions[0]
+        symbols = RT.DebugSymbols.emptyLazy
         permissionCeiling = None }
       { hash = RT.Hash "fn2"
         typeParams = [ "T" ]
@@ -188,6 +189,7 @@ module RuntimeTypes =
             [ { name = "param2"; typ = RT.TString } ]
         returnType = RT.TString
         body = instructions[0]
+        symbols = RT.DebugSymbols.emptyLazy
         permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock) } ]
 
 

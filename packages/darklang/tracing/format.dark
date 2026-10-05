@@ -18,12 +18,94 @@ let jsonEscape (s: String) : String =
   |> Stdlib.String.replaceAll "\"" "\\\""
 
 
-/// Pretty-print a Dval as a single compact line (no indentation, no
-/// embedded newlines). Used wherever we need a Dval inline — e.g. the
-/// trace tree's `fn(args) → result` rows.
+/// How much of a value an agent gets by default, in characters.
+///
+/// Far larger than the sixty characters a line of the page gets, because an agent reading a
+/// value has more use for it than someone skimming a column does. `--full` lifts it.
+val defaultValueBudget = 2000
+
+
+/// How big the WHOLE value is, in its own terms, for the note on a truncated one.
+///
+/// Its shape, not its character count. Counting characters means formatting the whole thing,
+/// which is the 1.3 seconds the budget exists to avoid, so this asks the value how many
+/// elements it has and stops. That is also the more useful number: "2,000 items" tells you
+/// whether `--full` is worth asking for in a way "14,208 characters" does not.
+let sizeHint (dv: LanguageTools.RuntimeTypes.Dval) : Stdlib.Option.Option<String> =
+  match dv with
+  | DList(_, items) ->
+    Stdlib.Option.Option.Some
+      $"{Stdlib.Int.toString (Stdlib.List.length items)} items"
+  | DDict(_, _, entries) ->
+    Stdlib.Option.Option.Some
+      $"{Stdlib.Int.toString (Stdlib.List.length (Stdlib.Dict.keys entries))} entries"
+  | DString s ->
+    Stdlib.Option.Option.Some
+      $"{Stdlib.Int.toString (Stdlib.String.length s)} characters"
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Pretty-print a Dval as a single compact line (no indentation, no embedded newlines), to a
+/// given budget in characters. `0` means no budget, which is what `--full` passes.
+///
+/// NOT through `dvalOneLine`, which caps depth at two as well. Doing that here would quietly
+/// start eliding the inside of any nested value an agent reads, which is a different and worse
+/// kind of loss than a long list being cut short. Full depth, as this has always had.
+let compactDvalTo
+  (branchId: Uuid)
+  (budget: Int)
+  (dv: LanguageTools.RuntimeTypes.Dval)
+  : String =
+  let oneLineOf (d: LanguageTools.RuntimeTypes.Dval) : String =
+    PrettyPrinter.RuntimeTypes.dval branchId d
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+    |> Stdlib.String.join ""
+
+  if budget == 0 then
+    oneLineOf dv
+  else
+    let oneLine = oneLineOf (PrettyPrinter.RuntimeTypes.capForDisplay budget dv)
+
+    if (Stdlib.String.length oneLine) > budget then
+      // The note says what was cut, so a reader knows whether to ask for the rest rather than
+      // guessing from a bare `...`. That was the whole of Stachu's worry here: an agent that
+      // cannot see how much it is missing either asks for everything or misses something.
+      let note =
+        match sizeHint dv with
+        | Some size -> $"... ({size}, use --full)"
+        | None -> "..."
+
+      (Stdlib.String.slice oneLine 0 (budget - (Stdlib.String.length note))) ++ note
+    else
+      oneLine
+
+
+/// Pretty-print a Dval as a single compact line, to the default budget.
 let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
-  let pretty = PrettyPrinter.RuntimeTypes.dval branchId dv
-  pretty
-  |> Stdlib.String.split "\n"
-  |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
-  |> Stdlib.String.join ""
+  compactDvalTo branchId defaultValueBudget dv
+
+
+/// What to tell a person about a replay that stopped, as (what happened, what to do about it).
+///
+/// The second half is the point. "The view stopped here: <error>" told a reader nothing they
+/// could act on, and worse, a drift error carries advice for a different command: a harmful
+/// deprecation says "pass --allow-harmful to run/eval", which is not what the reader is doing.
+///
+/// What to DO about it is left to the caller, because the answer names a command and this module
+/// is not CLI-specific.
+let replayStop
+  (branchId: Uuid)
+  (stop: Darklang.Tracing.ReplayStop)
+  : (String * Stdlib.Option.Option<String>) =
+  match stop with
+  | Unreplayable message -> (message, Stdlib.Option.Option.None)
+  | Raised err ->
+    let rendered = PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId err
+
+    if Darklang.Tracing.ReplayStop.isDrift stop then
+      (rendered,
+       Stdlib.Option.Option.Some
+         "the store has changed since this ran, so the replay no longer resolves")
+    else
+      (rendered, Stdlib.Option.Option.None)

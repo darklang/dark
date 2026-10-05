@@ -124,8 +124,12 @@ let private writeHash (hash : string) : unit =
   |> Sql.executeStatementSync
 
 
-let private runSchemaBootstrap () : unit =
-  let sql = schemaSql ()
+/// The TABLES from the schema, and the hash dance around them. Indexes are NOT applied here:
+/// they go in a pass of their own after the release steps, because an index may name a column a
+/// step has just added. `Releases` splits the file for exactly this, and the shipped CLI's
+/// bootstrap (`Cli/EmbeddedResources.fs`) has always done it in three passes; this one used to
+/// run the whole file at once, which made a schema file unable to index anything the steps own.
+let private runSchemaBootstrap (sql : string) : unit =
   let want = computeHash sql
 
   match storedHash () with
@@ -142,7 +146,7 @@ let private runSchemaBootstrap () : unit =
     // A canonical-table shape change surfaces here as a raw SQLite error; say what
     // it means and how to recover instead of the bare error.
     try
-      Sql.query sql |> Sql.executeStatementSync
+      LibDB.Releases.applySchemaTables sql
     with e ->
       print
         "the schema changed the SHAPE of a canonical table, which this bootstrap can't apply in place."
@@ -154,9 +158,9 @@ let private runSchemaBootstrap () : unit =
     markOpsUnapplied ()
     writeHash want
   | None ->
-    // A store with no schema-hash stamp (fresh, or predates hash tracking): run the schema
-    // (CREATE TABLE IF NOT EXISTS creates missing tables and no-ops existing ones), then stamp.
-    Sql.query sql |> Sql.executeStatementSync
+    // A store with no schema-hash stamp (fresh, or predates hash tracking): create the missing
+    // tables (`IF NOT EXISTS` no-ops the ones already there), then stamp.
+    LibDB.Releases.applySchemaTables sql
     writeHash want
 
 
@@ -165,8 +169,10 @@ let private runSchemaBootstrap () : unit =
 // ---------------------
 
 let run () : unit =
-  runSchemaBootstrap ()
-  // Release steps come after the bootstrap, because they need the tables to exist and a fresh store
-  // to have been given the current shape already -- every step is written to be a no-op against
-  // exactly that.
+  let sql = schemaSql ()
+  // Three passes, and the order is the whole point. Tables first, so everything exists. Then the
+  // release steps, which are the only thing that can add a COLUMN to a table that already exists.
+  // Then the indexes, which may name a column a step has just added.
+  runSchemaBootstrap sql
   LibDB.Releases.runPending ()
+  LibDB.Releases.applySchemaIndexes sql

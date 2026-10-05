@@ -12,6 +12,35 @@ RELEASE_EXE_PATHS=(
   backend/Build/out/Cli/Release/net10.0/*/publish/Cli
 )
 
+# Which publish mode produced a released binary: `aot`, `r2r`, or `unknown` for one built before
+# the marker existed.
+#
+# It matters because the two are not comparable. AOT starts about five times faster than R2R and
+# allocates a different amount, so a budget recorded against one is meaningless against the other,
+# and nothing in the filename says which you have. `build-release-cli-exes.sh` writes the marker.
+release_exe_mode() {
+  local exe="$1"
+  if [[ -f "$exe.mode" ]]; then cat "$exe.mode"; else echo "unknown"; fi
+}
+
+# Refuse rather than report a number that compares across modes.
+#
+# Same shape as `assert_release_exe_fresh`, and the same reason: a measurement that looks fine and
+# means nothing is worse than no measurement.
+assert_release_exe_mode() {
+  local exe="$1" want="$2" who="$3"
+  local have
+  have="$(release_exe_mode "$exe")"
+  if [[ "$have" == "$want" ]]; then return 0; fi
+  {
+    echo "$who: $(basename "$exe") was published as $have, and the budget is $want."
+    echo "  AOT and R2R are not comparable -- about 5x apart on startup alone -- so this would"
+    echo "  report a number that means nothing. Build the mode the budget is in:"
+    echo "    scripts/build/build-release-cli-exes.sh --mode=$want"
+  } >&2
+  return 1
+}
+
 # The newest published CLI, or empty if there isn't one.
 release_exe() {
   # shellcheck disable=SC2012 # need mtime order, and no filename here has a space in it

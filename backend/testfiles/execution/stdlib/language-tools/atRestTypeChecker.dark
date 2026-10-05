@@ -2078,12 +2078,20 @@ module Batches =
     "let f (x: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<Int> = Stdlib.Option.map x (fun y -> y + 1)"
     "f") = "checked:"
 
-  // These nested types and values are valid. Check them successfully where
-  // possible, or return Incomplete when traversal reaches the stack limit.
-  // Builtin callbacks nest on the .NET stack; direct Dark recursion uses heap
-  // frames, so different traversals can handle different nesting depths.
+  // These nested types and values are valid Dark. What decides the verdict is whether the
+  // checker is willing to work on something nested this deeply, and that is a limit it
+  // chooses: `NodeIds.maxDeclarationDepth`, applied wherever the type sits.
+  //
+  // The first of these expected "checked:" until that limit existed, and the reason was an
+  // accident rather than an intention. A 5,000-deep LIST type was accepted while the
+  // 3,000-deep TUPLE type below was refused, because walking a tuple calls back through
+  // List.map at each level and so nests on the .NET stack, while walking a list does not.
+  // Deeper and fine, shallower and refused, decided by the shape of the traversal. So this
+  // line is a TIGHTENING: the checker now refuses a 5,000-deep type here where it used to
+  // accept one, and the rule is sayable without reference to how the walk is written.
   (checkPackageOpsSummary
-    [] [ oneArg (nestedListType 5000) (tUnit ()) (unitExpr 1L) ]) = "checked:"
+    [] [ oneArg (nestedListType 5000) (tUnit ()) (unitExpr 1L) ]) =
+    "incomplete:UnsupportedConstruct"
 
   (checkPackageOpsSummary
     [] [ oneArg (tUnit ()) (nestedListType 200) (nestedListExpr 200) ]) = "checked:"
@@ -2107,10 +2115,20 @@ module Batches =
     [ fnNamed "deep-signature" [] [ ("value", nestedTupleType 3000) ] (tInt ()) (intExpr 5L 1)
       fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:TypeMismatch,UnsupportedConstruct"
 
-  (checkPackageOpsSummary
-    [ declared "deep-declaration" [] (recordOf [ ("field", nestedTupleType 3000) ]) ]
-    [ fnNamed "uses-deep" [] [ ("value", custom "deep-declaration" []) ] (tInt ()) (intExpr 6L 1)
-      fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]) = "failed:MissingTypeDeclaration,TypeMismatch,UnsupportedConstruct"
+  // Whether the deep declaration is also reported MISSING depends on the build, so this
+  // accepts either, the way the 2,000-link case below does and for the same reason. The
+  // depth limit refuses the declaration and leaves it in the environment, so a user of it
+  // resolves; a build whose native stack also runs out loses the declaration's facts
+  // entirely and the user reports MissingTypeDeclaration on top. Debug does the second,
+  // published does the first. What matters either way is the property the test was written
+  // for: the other function's definite return-type error still gets reported.
+  (let answer =
+     checkPackageOpsSummary
+       [ declared "deep-declaration" [] (recordOf [ ("field", nestedTupleType 3000) ]) ]
+       [ fnNamed "uses-deep" [] [ ("value", custom "deep-declaration" []) ] (tInt ()) (intExpr 6L 1)
+         fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]
+   answer == "failed:TypeMismatch,UnsupportedConstruct"
+   || answer == "failed:MissingTypeDeclaration,TypeMismatch,UnsupportedConstruct") = true
 
   // Checking a key through 2,000 linked record declarations may complete or reach
   // the stack limit. In either case, preserve the separate wrong-return error.
@@ -2136,6 +2154,33 @@ module Batches =
        [ fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]
    answer == "failed:TypeMismatch"
    || answer == "failed:TypeMismatch,UnsupportedConstruct") = true
+
+  // The guard's own coverage, asserted ON the guard rather than through the checker.
+  //
+  // `TooDeep` does not mean "this type is too complicated for the checker". It means the check
+  // exhausted the NATIVE stack: `Builtin.atRestCheckGuarded` catches
+  // `InsufficientExecutionStackException`, returns `CheckFailure.TooDeep`, and `failureIssue`
+  // reports that as `UnsupportedConstruct` with `Context.DeclarationTooDeep`.
+  //
+  // Every other test above that reaches `TooDeep` reaches it as a SIDE EFFECT of the checker
+  // outrunning a limit nobody chose. So when the interpreter's stack use per Dark-level call
+  // changes, those tests stop covering the guard without saying that is what happened, and a
+  // guard whose only coverage is incidental is a guard somebody deletes as dead code.
+  //
+  // Comparing a deeply nested value recurses in F# rather than in the interpreter, so it does
+  // not depend on how the interpreter lays out frames. It DOES depend on the build: measured,
+  // Debug runs out of stack at about 5,000 and Release not until about 35,000, so the depth
+  // here is chosen for the stricter of the two with room to spare rather than for Debug.
+  (Darklang.LanguageTools.AtRestTypeChecker.guard
+    (fun t -> t == (nestedListType 200000))
+    (nestedListType 200000)) =
+    Stdlib.Result.Result.Error
+      Darklang.LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep
+
+  // And it is not simply always failing: the same shape, shallow, comes back Ok.
+  (Darklang.LanguageTools.AtRestTypeChecker.guard
+    (fun t -> t == (nestedListType 2))
+    (nestedListType 2)) = Stdlib.Result.Result.Ok true
 
   (checkValueAsts
     [ valueNamed "deep-value" (nestedListExpr 5000)

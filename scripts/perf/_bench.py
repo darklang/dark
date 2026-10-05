@@ -6,8 +6,9 @@ bitten this project:
 
   - The store drifts. Traces and ops accumulate run over run, so the same command gets slower for reasons
     that have nothing to do with the code. Every run here starts from a byte-identical fixture.
-  - `config/dev` sets DARK_CONFIG_TRACE_DETAIL=on, so a dev run records a full execution trace and a user's
-    never does. Inherited silently, it lands in every number. Pinned explicitly here, and reported.
+  - DARK_CONFIG_TRACE_DETAIL turns recording on or off (`off` by default, `on` in our dev
+    containers and in CI), and a trace per run lands in every number. Pinned explicitly here,
+    and reported.
   - The box is shared. Four dark containers have been live at once on this machine, and the historical
     cli.execute spread is 5x on runs doing identical work. A datapoint taken while a neighbour compiles is
     noise wearing a number's clothes, so we refuse to record one.
@@ -81,6 +82,10 @@ SCENARIOS = {
     "interp-arith": ["run", "rundir/perf-workloads/arith.dark"],
     "eval-flatten": ["eval",
         "Stdlib.List.length (Stdlib.List.flatten (Stdlib.List.map (Stdlib.List.range 1 400) (fun x -> Stdlib.List.range 1 20)))"],
+    # A stream pipeline: every element crosses a map and a filter callable, so this is the cost
+    # of a transform per element (the callables run as frames of the pulling process).
+    "eval-stream": ["eval",
+        "Stdlib.List.length (Stdlib.Stream.toList (Stdlib.Stream.filter (Stdlib.Stream.map (Stdlib.Stream.fromList (Stdlib.List.range 1 3000)) (fun x -> x + 1)) (fun x -> x > 5)))"],
 }
 
 # Interpreter workloads, kept as source here rather than as .dark files in the tree: anything under
@@ -348,7 +353,15 @@ def run_once(binary, argv, trace, telemetry, fixture="UNSET"):
         [binary] + argv, capture_output=True, text=True, env=env, cwd=ROOT
     )
     wall_ms = (time.perf_counter() - t0) * 1000.0
-    return wall_ms, proc.returncode, read_telemetry(tel_path) if telemetry else {}
+    # `dark run` exits 0 when the SCRIPT fails (a permission denial, a runtime error), and a failing
+    # run is fast, so it would pass as a good measurement. This cost an hour once: an older binary
+    # could not read a policy file a newer one had written, denied the workload's clock call on
+    # every run, and looked 4% faster for it.
+    rc = proc.returncode
+    if rc == 0 and ("Error when executing Script" in proc.stdout or "Script error:" in proc.stdout
+                    or "Error when executing Script" in proc.stderr):
+        rc = 1
+    return wall_ms, rc, read_telemetry(tel_path) if telemetry else {}
 
 
 def read_telemetry(path):

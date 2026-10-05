@@ -16,11 +16,35 @@ module PM = TestValues.PM
 open TestUtils.PTShortcuts
 
 
+/// Every call is followed by `TraceExpr(exprId, resultReg)`, the live-values hook
+/// (`docs/live.md`, "Live values"). The expectations below were written for the
+/// instruction stream without it and are about everything else, so it is dropped
+/// before comparing; `LiveValues.traceExprFollowsACall` checks it on its own. A
+/// jump that spans a call counts the hook too, so those offsets are one more than
+/// the plain stream would have.
+let rec withoutTraceExpr (instrs : List<RT.Instruction>) : List<RT.Instruction> =
+  instrs
+  |> List.choose (fun i ->
+    match i with
+    | RT.TraceExpr _ -> None
+    | RT.CreateLambda(reg, lambda) ->
+      Some(
+        RT.CreateLambda(
+          reg,
+          { lambda with
+              instructions =
+                { lambda.instructions with
+                    instructions = withoutTraceExpr lambda.instructions.instructions } }
+        )
+      )
+    | i -> Some i)
+
 module Expr =
   let t name expr expected =
     testTask name {
       let actual = PT2RT.Expr.toRT Map.empty 0 None expr
-      let actual = (actual.registerCount, actual.instructions, actual.resultIn)
+      let actual =
+        (actual.registerCount, withoutTraceExpr actual.instructions, actual.resultIn)
       return Expect.equal actual expected ""
     }
 
@@ -364,10 +388,10 @@ module Expr =
            RT.CheckMatchPatternAndExtractVars(0, RT.MPInt64 1L, 3)
            RT.LoadVal(2, RT.DString "first branch")
            RT.CopyVal(1, 2)
-           RT.JumpBy 12
+           RT.JumpBy 14
 
            // second branch
-           RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable 2, 10)
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable 2, 12)
            RT.LoadVal(3, RT.DInt64 2L)
            RT.LoadVal(
              4,
@@ -520,7 +544,7 @@ module Expr =
                  (RT.MPTuple(RT.MPVariable 4, RT.MPInt64 2L, []))
                  [ RT.MPTuple(RT.MPInt64 2L, RT.MPVariable 4, []) ]
              )),
-             7
+             8
            )
            RT.LoadVal(5, RT.DInt64 1L)
            RT.LoadVal(
@@ -1687,7 +1711,8 @@ module PackageFn =
           permissionCeiling = None }
 
       let actual = PT2RT.PackageFn.toRT fn |> _.body
-      let actual = (actual.registerCount, actual.instructions, actual.resultIn)
+      let actual =
+        (actual.registerCount, withoutTraceExpr actual.instructions, actual.resultIn)
       return Expect.equal actual expected ""
     }
 
@@ -1731,4 +1756,258 @@ module PackageFn =
   let tests = testList "PackageFn" [ Basic.tests ]
 
 
-let tests = testList "ProgramTypesToRuntimeTypes" [ Expr.tests; PackageFn.tests ]
+module LiveValues =
+  /// The hook the live values ride on: right after a call's `Apply`, a `TraceExpr`
+  /// carrying the `EApply`'s own id and the register the result landed in.
+  let traceExprFollowsACall =
+    testTask "an EApply is followed by TraceExpr with its id and result register" {
+      let expr = E.Fns.Builtin.fullyApplied
+      let exprId =
+        match expr with
+        | PT.EApply(id, _, _, _) -> id
+        | other -> failtest $"expected an EApply, got {other}"
+      let actual = PT2RT.Expr.toRT Map.empty 0 None expr
+      let hook =
+        actual.instructions
+        |> List.pairwise
+        |> List.tryPick (fun pair ->
+          match pair with
+          | RT.Apply(resultReg, _, _, _), RT.TraceExpr(id, reg) ->
+            Some(id, reg, resultReg)
+          | _ -> None)
+      match hook with
+      | Some(id, reg, resultReg) ->
+        Expect.equal id exprId "the hook names the EApply"
+        Expect.equal reg resultReg "and the register the call's result is in"
+      | None -> failtest "no TraceExpr followed the Apply"
+    }
+
+  /// `a + b` compiles its own `Apply` by hand rather than going through the `EApply` case, and
+  /// for a long time that meant no hook and no recorded value: every piece of arithmetic in a
+  /// program was invisible to a trace. It discarded the expression id as well, so there was
+  /// nothing to key a value by even in principle.
+  let traceExprFollowsAnInfixCall =
+    testTask
+      "an EInfix call is followed by TraceExpr with its id and result register" {
+      let expr = E.Infix.Add.simple
+      let exprId =
+        match expr with
+        | PT.EInfix(id, _, _, _) -> id
+        | other -> failtest $"expected an EInfix, got {other}"
+      let actual = PT2RT.Expr.toRT Map.empty 0 None expr
+      let hook =
+        actual.instructions
+        |> List.pairwise
+        |> List.tryPick (fun pair ->
+          match pair with
+          | RT.Apply(resultReg, _, _, _), RT.TraceExpr(id, reg) ->
+            Some(id, reg, resultReg)
+          | _ -> None)
+      match hook with
+      | Some(id, reg, resultReg) ->
+        Expect.equal id exprId "the hook names the EInfix"
+        Expect.equal reg resultReg "and the register the result is in"
+      | None -> failtest "no TraceExpr followed the infix Apply"
+    }
+
+  /// `&&` and `||` are their own instruction rather than a call, so the pairing above does not
+  /// apply; the hook still has to be there, naming the expression and the register `And` wrote.
+  let traceExprFollowsABinOp =
+    testTask
+      "an EInfix BinOp is followed by TraceExpr with its id and result register" {
+      let expr = E.Infix.And.mixed
+      let exprId =
+        match expr with
+        | PT.EInfix(id, _, _, _) -> id
+        | other -> failtest $"expected an EInfix, got {other}"
+      let actual = PT2RT.Expr.toRT Map.empty 0 None expr
+      let hook =
+        actual.instructions
+        |> List.pairwise
+        |> List.tryPick (fun pair ->
+          match pair with
+          | RT.And(resultReg, _, _), RT.TraceExpr(id, reg) ->
+            Some(id, reg, resultReg)
+          | RT.Or(resultReg, _, _), RT.TraceExpr(id, reg) ->
+            Some(id, reg, resultReg)
+          | _ -> None)
+      match hook with
+      | Some(id, reg, resultReg) ->
+        Expect.equal id exprId "the hook names the EInfix"
+        Expect.equal reg resultReg "and the register the operator wrote"
+      | None -> failtest "no TraceExpr followed the BinOp"
+    }
+
+  let tests =
+    testList
+      "LiveValues"
+      [ traceExprFollowsACall; traceExprFollowsAnInfixCall; traceExprFollowsABinOp ]
+
+
+module MarkerStripping =
+  /// `DebugSymbols.split` takes the `TraceExpr` markers back out of the stream that actually
+  /// runs, and jumps are RELATIVE, so removing an instruction has to rewrite every jump that
+  /// spans it. Nothing asserted that until this test. The expectations above drop the markers
+  /// with their own `withoutTraceExpr` helper and never call `split`, so the rewriting was the
+  /// one part of the marker design with no test over it -- which is why a whole suite can pass
+  /// while a conditional lands on the wrong instruction.
+  ///
+  /// The convention being asserted is the interpreter's, from `Interpreter.fs`: a jump sets
+  /// `counter <- counter + jumpBy`, and the loop then advances `counter <- counter + 1`, so the
+  /// instruction that runs next is at `indexOfJump + jumpBy + 1`. The offsets themselves are not
+  /// interesting and are deliberately not asserted; what must hold is that the jump lands on the
+  /// SAME instruction it landed on before stripping.
+  let private landmark (n : int) : RT.Instruction = RT.LoadVal(n, RT.DInt64(int64 n))
+
+  /// A stream of `n` landmarks with a forward jump at `jumpAt` aimed at the landmark at
+  /// `landAt`, and one marker inserted at `markerAt`. The jump's offset is computed against the
+  /// positions things occupy WITH the marker present, which is what PT2RT emits.
+  let private build (n : int) (jumpAt : int) (landAt : int) (markerAt : int) =
+    let shift (i : int) = if markerAt <= i then i + 1 else i
+    let offset = shift landAt - shift jumpAt - 1
+    let withJump =
+      [ 0 .. n - 1 ]
+      |> List.map (fun i -> if i = jumpAt then RT.JumpBy offset else landmark i)
+    let before, after = List.splitAt markerAt withJump
+    before @ [ RT.TraceExpr(1UL, 0) ] @ after
+
+  let jumpsLandWhereTheyDid =
+    testTask "stripping markers leaves every jump landing on the same instruction" {
+      let n = 6
+      // Exhaustive over a small stream on purpose. An off-by-one here only bites for one
+      // particular position of the marker relative to the jump, so a single hand-picked case
+      // proves very little and sixty cheap ones settle it.
+      let failures =
+        [ for jumpAt in 0 .. n - 1 do
+            // Forward jumps only. `landAt = n` is a jump to one past the end, which is how a
+            // block ends and is the case `rejump`'s extra `newIndex` slot exists for.
+            for landAt in jumpAt + 1 .. n do
+              for markerAt in 0..n do
+                let instrs = build n jumpAt landAt markerAt
+                let struct (kept, _) = RT.DebugSymbols.split instrs
+                let jumpIdx =
+                  kept
+                  |> List.tryFindIndex (fun i ->
+                    match i with
+                    | RT.JumpBy _ -> true
+                    | _ -> false)
+                match jumpIdx with
+                | None ->
+                  yield (jumpAt, landAt, markerAt, "the jump was dropped", "")
+                | Some idx ->
+                  let offset =
+                    match kept[idx] with
+                    | RT.JumpBy o -> o
+                    | _ -> 0
+                  let landedAt = idx + offset + 1
+                  // After stripping, every instruction is back at its original index, so the
+                  // landmark aimed at is at `landAt` and a block-end jump lands at `n`.
+                  let expected =
+                    if landAt >= n then
+                      "one past the end"
+                    else
+                      string (landmark landAt)
+                  let actual =
+                    if landedAt = List.length kept then
+                      "one past the end"
+                    elif landedAt < 0 || landedAt > List.length kept then
+                      $"out of range ({landedAt})"
+                    else
+                      string kept[landedAt]
+                  if expected <> actual then
+                    yield (jumpAt, landAt, markerAt, expected, actual) ]
+
+      if not (List.isEmpty failures) then
+        let detail =
+          failures
+          |> List.map (fun (j, l, m, e, a) ->
+            $"  jump at %d{j} aimed at %d{l}, marker at %d{m}: expected to land on %s{e}, landed on %s{a}")
+          |> String.concat "\n"
+        failtest
+          $"%d{List.length failures} of the stripped jumps land somewhere else:\n%s{detail}"
+    }
+
+  /// The exhaustive grid above moves ONE marker through a stream and only jumps forward. Real
+  /// instruction streams carry a marker after every call and every infix, so several of them sit
+  /// between a jump and its target, and `MatchUnmatched` and the case jumps go both ways. This
+  /// covers both: every subset of marker positions, every jump position, every landing including
+  /// backwards and one past the end.
+  let jumpsSurviveSeveralMarkers =
+    testTask
+      "jumps land where they did with any number of markers, in either direction" {
+      let n = 5
+      let failures =
+        [ for mask in 0 .. (1 <<< n) - 1 do
+            let isMarker i = (mask >>> i) &&& 1 = 1
+            for jumpAt in 0 .. n - 1 do
+              if not (isMarker jumpAt) then
+                for landing in 0..n do
+                  let slots =
+                    [ 0 .. n - 1 ]
+                    |> List.map (fun i ->
+                      if i = jumpAt then RT.JumpBy(landing - jumpAt - 1)
+                      elif isMarker i then RT.TraceExpr(uint64 i + 1UL, 0)
+                      else landmark i)
+                  let struct (kept, _) = RT.DebugSymbols.split slots
+
+                  // Where it SHOULD end up: the first instruction at or after `landing` that
+                  // survives stripping, which is what "a jump onto a marker lands on what
+                  // follows it" means.
+                  let mutable want = landing
+                  while want < n && isMarker want do
+                    want <- want + 1
+                  // The jump occupies a slot too, so a jump whose landing point IS its own
+                  // slot (offset -1, which `landing = jumpAt` produces) lands on the JumpBy
+                  // rather than on a landmark. Name that slot instead of comparing values,
+                  // since the JumpBy's own offset is what stripping rewrites.
+                  let wantInstr =
+                    if want >= n then "one past the end"
+                    elif want = jumpAt then "the jump's own slot"
+                    else string (landmark want)
+
+                  let jumpIdx =
+                    kept
+                    |> List.tryFindIndex (fun i ->
+                      match i with
+                      | RT.JumpBy _ -> true
+                      | _ -> false)
+                  match jumpIdx with
+                  | None ->
+                    yield (mask, jumpAt, landing, wantInstr, "the jump was dropped")
+                  | Some idx ->
+                    let offset =
+                      match kept[idx] with
+                      | RT.JumpBy o -> o
+                      | _ -> 0
+                    let landedAt = idx + offset + 1
+                    let gotInstr =
+                      if landedAt = List.length kept then
+                        "one past the end"
+                      elif landedAt < 0 || landedAt > List.length kept then
+                        $"out of range ({landedAt})"
+                      elif landedAt = idx then
+                        "the jump's own slot"
+                      else
+                        string kept[landedAt]
+                    if wantInstr <> gotInstr then
+                      yield (mask, jumpAt, landing, wantInstr, gotInstr) ]
+
+      if not (List.isEmpty failures) then
+        let detail =
+          failures
+          |> List.truncate 15
+          |> List.map (fun (mask, j, l, e, a) ->
+            $"  markers %B{mask}, jump at %d{j}, landing %d{l}: expected %s{e}, got %s{a}")
+          |> String.concat "\n"
+        failtest
+          $"%d{List.length failures} stripped jumps land somewhere else:\n%s{detail}"
+    }
+
+  let tests =
+    testList "MarkerStripping" [ jumpsLandWhereTheyDid; jumpsSurviveSeveralMarkers ]
+
+
+let tests =
+  testList
+    "ProgramTypesToRuntimeTypes"
+    [ Expr.tests; PackageFn.tests; LiveValues.tests; MarkerStripping.tests ]

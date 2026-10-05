@@ -51,6 +51,17 @@ A filter that matches nothing was not an error. Expecto reports it as
 a suite that passed. `run-backend-tests` now fails when a filter you supplied matched
 nothing.
 
+A filter that matches LESS than you meant is still not an error, and cannot be. It is a
+substring match, so `--filter-test-case "stripping markers"` matches the test called
+"stripping markers leaves every jump landing on the same instruction" and not the one
+called "jumps land where they did with any number of markers", which was the sibling test
+in the same module added in the same commit. The run passed, honestly, about a subset.
+Two tests were written, one was verified, and the other reached a commit unexecuted; the
+full published suite is what found it.
+
+So read the COUNT the run prints, not just its colour. One test when you wrote two is the
+tell, and `--find <substring>` lists what a filter will match before you trust it.
+
 `--list-tests`, the obvious way out, ignores every filter and prints ten thousand lines
 after a slow startup. That's what `--groups` and `--find` are for.
 

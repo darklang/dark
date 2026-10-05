@@ -507,7 +507,7 @@ gate_sync_multi_instance() {
   x A --branch feat commit "feat work" -y > /dev/null
   # Branch ops never travel by `sync`, so `sync status` reports them apart from its verdict rather than
   # saying "in sync" over a branch that exists on one machine only; a push clears the line.
-  want "sync status names the unpushed branch" "^  branch \"feat\": [1-9][0-9]* op\(s\) not on the relay" "$(x A sync status)"
+  want "sync status names the unpushed branch" "^  branch \"feat\": [1-9][0-9]* ops? not on the relay" "$(x A sync status)"
   want "A pushes the branch" "^pushed branch \"feat\" to " "$(x A branch push feat)"
   wantnot "and the line is gone" "branch \"feat\"" "$(x A sync status)"
   AID=$(x A whoami | sed 's/.*: //' | tr -d ' ')

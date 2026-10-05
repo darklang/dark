@@ -378,6 +378,125 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // The by-hash twin of `applicableByName`, for a host that follows edits (`Stdlib.Live`). A name
+    // resolves to whatever is bound NOW; a host that wants to keep running the last version that passed
+    // its checks while a broken edit sits at the name needs to call by hash. Every version is still in
+    // the store, so this is a lookup, not a resurrection.
+    { name = fn "applicableByHash" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "hash"
+            TString
+            "a package fn's content hash, as `Hash` carries it" ]
+      returnType =
+        TypeReference.result
+          (TFn(NEList.singleton (TVariable "a"), TVariable "b"))
+          TString
+      description =
+        "Resolves a package function by its content <param hash> to a callable value, "
+        + "as a Result -- Error if no function has that hash."
+      fn =
+        (function
+        | _, _, _, [| DString hash |] ->
+          uply {
+            let okKT = KTFn(NEList.singleton ValueType.Unknown, ValueType.Unknown)
+            let err (msg : string) = Dval.resultError okKT KTString (DString msg)
+            match! pm.getFn (PT.Hash hash) with
+            | Some _ ->
+              let namedFn : ApplicableNamedFn =
+                { name = FQFnName.Package(Hash hash)
+                  typeSymbolTable = TST.empty
+                  typeArgs = []
+                  // As in `applicableByName`: whoever applies this supplies the frame access.
+                  access = None
+                  argsSoFar = [] }
+              return Dval.resultOk okKT KTString (DApplicable(AppNamedFn namedFn))
+            | None -> return err $"No function with hash {hash}"
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
+    // Apply a fn a host resolved live, and get its failure back as a value. A host loop that shows
+    // the last good frame with the error under it cannot let an RTE from user code unwind the loop;
+    // this is the one place an RTE from an applied fn becomes a `Result`.
+    //
+    // The fn is the APPROVAL ROOT of the call, as a router handed to `serve` is: the host chose it
+    // by name, and every version the name resolves to is the same choice, so a fresh version is not
+    // asked to be approved again before it may print. The caller's own access still bounds it
+    // (`constrainBy`), and the instance policy is the ceiling as everywhere. A lambda has no root
+    // and runs under the caller's policies alone.
+    { name = fn "applicableTryApply" 0
+      typeParams = []
+      parameters =
+        [ Param.makeWithArgs
+            "fn"
+            (TFn(NEList.singleton (TVariable "a"), TVariable "b"))
+            "what to call"
+            [ "arg" ]
+          Param.make "arg" (TVariable "a") "" ]
+      returnType = TypeReference.result (TVariable "b") TString
+      description =
+        "Calls <param fn> with <param arg>; `Error` with the failure's message instead of "
+        + "raising, whatever the failure was."
+      fn =
+        (function
+        | exeState, vm, _, [| DApplicable applicable; arg |] ->
+          uply {
+            let asRoot =
+              LibDB.PolicyStore.rootState
+                exeState
+                vm.activeAccess
+                (LibDB.PolicyStore.rootOf applicable)
+            let ok (dv : Dval) =
+              DEnum(
+                Dval.resultType (),
+                Dval.resultType (),
+                [ ValueType.Unknown; ValueType.Known KTString ],
+                "Ok",
+                [ dv ]
+              )
+            let err (message : string) =
+              DEnum(
+                Dval.resultType (),
+                Dval.resultType (),
+                [ ValueType.Unknown; ValueType.Known KTString ],
+                "Error",
+                [ DString message ]
+              )
+            // Two kinds of failure, and both have to come back as a value. A runtime error is
+            // the expected one. An F#-side raise -- `Exception.raiseInternal` from a builtin,
+            // say, reporting a store that cannot answer -- is not, and it used to unwind
+            // whoever called this: a live view whose `update` hit one lost the whole host loop
+            // and the terminal with it, instead of showing the error in a band. The callers of
+            // this builtin are precisely the ones that cannot let user code unwind them
+            // (`Stdlib.Live.call`), so it catches both.
+            try
+              match!
+                Execution.executeApplicable
+                  asRoot
+                  asRoot.access
+                  applicable
+                  (NEList.singleton arg)
+              with
+              | Ok dv -> return ok dv
+              | Error(rte, _) ->
+                let! message = Execution.runtimeErrorMessage asRoot rte
+                return err message
+            with e ->
+              return err e.Message
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmSearch" 0
       typeParams = []
       parameters =

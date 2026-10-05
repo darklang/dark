@@ -38,3 +38,30 @@ CREATE TABLE IF NOT EXISTS trace_fn_calls (
 );
 CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_trace_id ON trace_fn_calls(trace_id);
 CREATE INDEX IF NOT EXISTS idx_trace_fn_calls_fn_hash  ON trace_fn_calls(fn_hash);
+
+
+-- How many times each loop in a run went round.
+--
+-- One row per loop, keyed by the lambda's own expression id. Not a tree, and not a row per
+-- pass: this answers exactly one question, and it exists for exactly one reason.
+--
+-- A view recomputes what every line evaluated to by REPLAYING the run with its effects answered
+-- from the log, so it can only show the passes it reaches. A run whose log was capped, or which
+-- was suspended mid-loop, has passes that happened and that no re-running will show. Without
+-- this the view reports "pass 3 of 3" about a loop that went round five times, which is a
+-- confident lie in a debugging tool.
+--
+-- Every pass is counted, including passes that made no impure call. An earlier version stored a
+-- row per FRAME and kept only the frames an effectful call sat under, which wrote thousands of
+-- rows for one loop AND silently counted zero for a pure one.
+--
+-- Values are not here, and neither is the tree. Both come from the replay. If something ever
+-- needs to read a trace's shape WITHOUT replaying it, this table is where that would go; traces
+-- are transient, so widening it later costs nothing.
+CREATE TABLE IF NOT EXISTS trace_loops (
+  trace_id  TEXT NOT NULL,
+  -- The lambda's own expression id. Sibling passes share it, which is what makes them one loop.
+  call_site TEXT NOT NULL,
+  passes    INTEGER NOT NULL,
+  PRIMARY KEY (trace_id, call_site)
+);

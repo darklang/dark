@@ -52,10 +52,74 @@ let pullHandlerFn (req: HttpRequest) : HttpResponse =
     let (ops, cursor) = SCM.Wire.exportOwnedSince owner sinceSeq
     Stdlib.Http.responseWithJson (SCM.Wire.wireEncodeAt cursor ops) 200
 
+/// Park until the op count moves, or until <param deadlineMs>. The head as of waking.
+///
+/// A poll of our OWN store, deliberately, rather than the `StoreChanged` event a live view uses.
+/// That event is built on `PRAGMA data_version`, which reports what OTHER connections committed
+/// and says nothing about a write this process made itself -- and a push to this relay is exactly
+/// that: the handler next door writing through the same connection. A relay waiting on
+/// `StoreChanged` waits the full timeout every time, which is how this was found.
+///
+/// So it checks the count itself, parking between checks (`Timer`, not a thread sleep, so the
+/// scheduler keeps serving everyone else). A quarter second is the resolution: the wait exists to
+/// turn a thirty-second poll into a fast one, and 250 ms of slack inside a sub-second budget is
+/// not what anybody will notice.
+let waitForCount (startCount: Int64) (deadlineMs: Int) : SCM.Wire.SyncHead =
+  let head = SCM.Wire.localHead ()
+
+  if head.count != startCount then
+    head
+  else if (Cli.Telemetry.now ()) >= deadlineMs then
+    head
+  else
+    let _ = Stdlib.Host.await [ Stdlib.Host.EventSpec.Timer 250L ]
+    waitForCount startCount deadlineMs
+
+
+/// The longest a held request will wait before answering anyway. Under `http.requestTimeoutMs`
+/// (30 s unset), which would otherwise cancel the handler and answer 504.
+val headWaitCapMs = 25000
+
 /// Cheap "what do you hold?" summary (op count + cursor) -- no full-log transfer. Powers
 /// `dark sync status <url>`.
-let headHandlerFn (_req: HttpRequest) : HttpResponse =
-  Stdlib.Http.responseWithJson (SCM.Wire.headEncode (SCM.Wire.localHead ())) 200
+///
+/// With `?known=<stamp>&waitMs=<n>` it also answers the question a syncing peer actually has,
+/// which is "tell me when this changes". If the caller's stamp matches what this relay holds, the
+/// request is HELD until an op lands or the wait runs out, and the answer is the head as of
+/// waking. A peer that would have polled every thirty seconds hears in milliseconds instead, and
+/// holds one request rather than making a hundred and twenty an hour.
+///
+/// This costs a held request and nothing else: a request is a process here, and a parked process
+/// is a row in `ps` and a few hundred bytes. It is the same machinery `serve --live` uses to tell
+/// a browser tab to reload.
+///
+/// Backward compatible in both directions. An old relay ignores the parameters and answers at
+/// once, so a new peer falls back to its own timer; an old peer sends no parameters and gets the
+/// summary it always got.
+let headHandlerFn (req: HttpRequest) : HttpResponse =
+  let head = SCM.Wire.localHead ()
+
+  // The count, not the whole stamp: an integer needs no escaping, and ops are only ever added, so
+  // "your count is mine" is the same question as "have you got everything".
+  let knownCount =
+    Stdlib.Http.Request.queryParam req "knownCount" |> Stdlib.Option.withDefault ""
+
+  let waitMs =
+    match Stdlib.Http.Request.queryParam req "waitMs" with
+    | Some raw ->
+      match Stdlib.Int.parse raw with
+      | Ok n -> Stdlib.Int.clamp n 0 headWaitCapMs
+      | Error _ -> 0
+    | None -> 0
+
+  // Only when the caller is CURRENT. Anyone behind gets the answer at once: they have work to do
+  // and waiting would delay it.
+  if (waitMs > 0) && (knownCount == Stdlib.Int64.toString head.count) then
+    Stdlib.Host.begin ()
+    let woken = waitForCount head.count ((Cli.Telemetry.now ()) + waitMs)
+    Stdlib.Http.responseWithJson (SCM.Wire.headEncode woken) 200
+  else
+    Stdlib.Http.responseWithJson (SCM.Wire.headEncode head) 200
 
 
 /// May this request write?

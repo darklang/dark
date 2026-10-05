@@ -488,6 +488,32 @@ let resolveHashArg
 
 
 // VIEW command - view modules, functions, types, or constants, as source, AST, or instructions
+/// "3 traces went through this", under a function you are looking at.
+///
+/// The one bridge from the package viewer to `dark traces`. Silent when there are none, since a
+/// line saying nothing has run is noise on every function you ever look at, and silent for a type
+/// or a value, which do not run.
+let printTraceHint (branchId: Uuid) (location: PackageLocation) : Unit =
+  match location with
+  | Module _ -> ()
+  | Type _ -> ()
+  | Value _ -> ()
+  | Function loc ->
+    let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+
+    match Darklang.Tracing.Store.wentThroughNamed branchId name 25L with
+    | [] -> ()
+    | traces ->
+      let n = Stdlib.List.length traces
+      let count = if n == 25 then "25 or more traces" else Cli.Text.plural n "trace"
+
+      Stdlib.printLine ""
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.dimText
+          $"{count} went through this: dark traces show {name}")
+
+
+
 let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
 
@@ -520,6 +546,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | Source -> viewEntity branchId location
       | Raw -> printRaw branchId location
       | _ -> viewCompiled branchId location mode
+
+      // You are looking at a function, and somewhere there are traces of it having run. Nothing
+      // said so before this: `dark traces` was reachable only if you already knew to go there.
+      // One index read, and only when it has something to say.
+      match mode with
+      | Source -> printTraceHint branchId location
+      | _ -> ()
 
       state
 

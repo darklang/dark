@@ -38,7 +38,7 @@ let refresh (previous: State) (next: State) : State =
   // SCM status FIRST: the tree's wip badges read it rather than doing their own draft query, so
   // refreshing them against last frame's status would draw a dot one keypress behind the truth.
   fixSelection (
-    refreshPeek (refreshBadges previous (refreshScmStatus previous next))
+    refreshLiveValues (refreshPeek (refreshBadges previous (refreshScmStatus previous next)))
   )
 
 let onKey
@@ -54,6 +54,33 @@ let onKey
   | Launch(s, cmd) -> Darklang.Cli.Component.Step.Launch(s, cmd)
   | ToPrompt s -> Darklang.Cli.Component.Step.ToPrompt s
 
+/// The store changed under the workbench: an edit from another process (the LSP, an agent, a
+/// colleague's pull).
+///
+/// Under `--live` this re-reads the item list, so the detail pane shows the version that is
+/// there now, and the SCM picture. Without it, nothing: you did not ask to follow, and a footer
+/// announcing someone else's edit interrupts you just as much as the reload would. `R` re-reads
+/// when you want it.
+///
+/// The name caches were dropped by the poll that reported the change either way, so the reads
+/// see the store as it is. Your own saves take the authoring path (`authoring.dark`), which
+/// reloads on its own.
+let onStoreChanged (state: State) (change: Stdlib.Live.Change) : State =
+  if state.live then
+    let names =
+      if change.unknown then
+        "more than 500 ops (everything re-run)"
+      else
+        Stdlib.String.join (Stdlib.Live.touchedNames change) ", "
+
+    forceScmRefresh
+      { state with items = reloadItems state; message = $"changed elsewhere: {names}" }
+  else
+    // Quiet. Without `--live` you did not ask to hear about someone else's edit, and a footer
+    // that keeps announcing one is the same interruption as the reload, minus the usefulness.
+    // `R` re-reads whenever you want it.
+    state
+
 /// A FUNCTION, not a `val`: a component holds lambdas, and a lambda cannot be stored. Its
 /// instructions live in the execution that created it, so a stored one is a dangling reference that
 /// dies when applied in a later process. Rebuilt per call instead.
@@ -62,7 +89,8 @@ let component () : Cli.Component.Component<Cli.Workbench.State> =
     { view = viewAtSize
       onKey = onKey
       save = Darklang.Cli.Component.noSave
-      refresh = refresh }
+      refresh = refresh
+      onStoreChanged = onStoreChanged }
 
 
 // ── CLI command entry ──
@@ -77,11 +105,13 @@ let initialState
   (accountName: String)
   (instanceName: String)
   (enabledGatedViews: List<Int>)
+  (live: Bool)
   : State =
   let rootLoc = Packages.PackageLocation.Module []
   let homeItems = loadHomeItems branchId
   State
       { activeView = vHome
+        live = live
         location = rootLoc
         items = homeItems
         selected = selectableRow homeItems 0 1
@@ -110,10 +140,11 @@ let initialState
         deprecatedNames = []
         scmStatus = emptyScmStatus ()
         renderPeek = ""
+        liveValues = Stdlib.Dict.empty
         branchId = branchId }
 
 
-let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
+let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cli.AppState =
   match Darklang.Stdlib.Cli.Tui.TerminalSupport.current () with
   | Unavailable reason ->
     // Don't seize the alternate screen when there's no terminal -- piping `dark` would
@@ -149,7 +180,14 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
       match Stdlib.Cli.Sys.hostname () with
       | Ok h -> h
       | Error _ -> "this-machine"
-  let state = initialState branchId cliState.accountID cliState.accountName instanceName enabledGatedViews
+  let state =
+    initialState
+      branchId
+      cliState.accountID
+      cliState.accountName
+      instanceName
+      enabledGatedViews
+      (Stdlib.List.member args "--live")
   // Seed the badge cache for the first frame; `presentState` keeps it fresh after that. The view peek needs no
   // seeding - the first frame is Home, which has no `render` fn to peek at.
   let (wip, deprecated) = readBadges state
@@ -161,8 +199,11 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
   Darklang.Cli.Component.launchOrExit cliState (component ()) state
 
 let help (_state: Darklang.Cli.AppState) : String =
-  [ "Usage: workbench"
+  [ "Usage: workbench [--live]"
     "Open the workbench - a framed, navigable view of your package tree."
+    ""
+    "  --live  reload when something else changes the store. Without it a change is named in"
+    "          the footer and `R` reloads when you are ready."
     ""
     "  The strip along the top is every place you can go: Left/Right walk it, Enter goes, Esc backs out."
     "  1-9 jump to a workspace    S switch branch    tab next pane    ` nav    / find    : command    ? keys    q quit" ]

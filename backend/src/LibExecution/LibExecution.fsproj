@@ -35,6 +35,7 @@
     <Compile Include="Host/HostLibc.fs" />
     <Compile Include="Host/HostHttp.fs" />
     <Compile Include="Host/HostProcess.fs" />
+    <Compile Include="Host/HostRegistry.fs" />
     <Compile Include="Host/Host.fs" />
     <!-- Runtime /-->
     <Compile Include="RuntimeTypes.fs" />
@@ -63,6 +64,8 @@
     <Compile Include="ProgramTypesToDarkTypes.fs" />
     <!-- Expose the runtime to the outside world /-->
     <Compile Include="Execution.fs" />
+    <Compile Include="HostEvents.fs" />
+    <Compile Include="Scheduler.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

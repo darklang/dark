@@ -1,0 +1,175 @@
+module Darklang.Cli.Docs.Processes
+
+let content () : String =
+  """# Processes: things run at once, pause, and resume
+
+Every trace is a process the runtime owns: it can run beside others, be paused,
+looked at, stopped, and picked up again later. You mostly meet this without
+writing anything.
+
+## Concurrency, without writing anything
+
+Reads run at the same time. Writes keep program order. `await x` waits for a
+value here instead of wherever it is first used.
+
+  let pages = Stdlib.List.map urls (fun u -> Stdlib.HttpClient.get u [])  // all in flight
+  Stdlib.printLine "fetching"                                             // a write: now, in order
+  let count = Stdlib.List.length pages                                    // looks: waits for all
+
+A read is a call whose effects are all reads (a file, env, db or package
+read, an HTTP GET or HEAD). Anything else runs in order.
+
+## When you want control
+
+  let h = Stdlib.Exec.spawn (fun () -> Stdlib.Cli.File.writeText log "done")  // in the background
+  Stdlib.Exec.await h                                    // wait for it
+  Stdlib.Exec.awaitWithin 500L h                         // ... or give up after 500 ms: None
+  Stdlib.Exec.select [ h1; h2 ]                          // the first to finish
+  Stdlib.Exec.cancel h                                   // stop it, and its children
+  Stdlib.List.parallelMap items fib                      // CPU-bound work across the cores
+
+A process spawned this way dies with its parent unless `Exec.spawnDetached`.
+Spawning is the `concurrency` effect; a policy can forbid it.
+
+## See what is running
+
+  ps                     every Dark process on this machine, then this one's own tree
+  ps --watch             the same, repainting; up/down, c cancel, k kill, esc
+  ps show <id> [--full]  one process: status, instructions, memory, call stack
+  ps cancel <id> | <pid> stop it politely (what it has on the host finishes first)
+  ps kill <id> | <pid>   stop it now (for a process stuck in a call that never returns)
+
+A tight loop cannot freeze a TUI or a server: it gets a turn, then others
+run. In a system monitor a Dark process shows as what it runs: `dark serve
+:9090`, `dark eval`, `dark <daemon>`.
+
+## Read your code through a run, and pick one back up
+
+With recording on, every `eval`, every `run` and every served request is kept as
+a trace (only its effects: what it read, wrote, sent and got back), so you can
+look at what happened, and so Ctrl-C does not lose it. It is off by default;
+`traces record` below says how to turn it on.
+
+The one to learn first is `show`. It takes a FUNCTION, not an id, and uses that
+function's newest run, so there is nothing to look up:
+
+  traces show <fn> [<id>]       that function's code, with a run's values beside
+                                each line, what the run was given, and what this
+                                time round the loop was given
+  traces show <fn> --iteration map:2
+                                a particular time round a loop. Recursion counts
+                                as a loop, and so does a function a loop called
+                                once per iteration
+  traces show <fn> --watch      the same as a panel, repainting as runs arrive
+                                and as you edit the code
+  traces show <fn> --json       the same for an agent, `--iteration` included
+  traces show <fn> --json --full
+                                ... with no cap on a value's length. By default each value
+                                is capped at 2,000 characters and says what it cut, as
+                                `... (2000 items, use --full)`, so an agent can see how
+                                much it is missing before asking for all of it
+
+A `show` RE-RUNS the function, answering every effect from the log and performing
+none, so the values are recomputed rather than stored. That means the page shows
+the code as it is NOW, which is what makes it useful while you edit, and it also
+means a replay can stop on something the recorded run sailed through: a callee
+deleted since, a name that moved, something deprecated as harmful. The page says
+which of the two happened, because they want opposite next steps:
+
+  the replay stopped here: <error>        the code raised. Debug it
+  the replay stopped: the store has ...   it ran once and the world moved. The
+                                          page then names `traces inspect <id>`,
+                                          which reads the log and re-runs
+                                          nothing, so it still has what the run
+                                          answered
+
+`--json` carries the same judgement as `problem.drift`, so an agent does not have
+to read the prose to tell them apart.
+
+A view holds the first five times round each loop and the last five, and goes
+and gets any other one you ask for, so nothing in a loop is out of reach however
+long it ran. The page always shows ONE iteration at a time and says which:
+several values on one line are several answers to one question.
+
+A big loop does NOT cost the same to open as a short one, and RECURSION is the
+expensive case. The count stays honest by keeping a marker per entry, and the
+cost of opening a page grows faster than the number of entries. Measured on a
+published build:
+
+  List.map over 2,000           0.6 s
+  the same 2,000 in two loops   5.8 s
+  fib 12   (465 calls)          0.8 s
+  fib 14 (1,219 calls)          3.7 s
+  fib 16 (3,193 calls)         23.5 s
+
+So a flat loop is fine at a few thousand, and a recursive function is not. This
+is a known problem rather than a surprise; see the follow-ups.
+
+Finding your way to a function, from either direction:
+
+  traces calls <fn>             the runs that went through one function
+  traces fns [n]                ... and the other way: which functions recent
+                                runs went through, most first
+  dark view <fn>                ends with how many runs went through it
+
+And the rest:
+
+  traces                        the traces kept here, newest first
+  traces inspect <id>           one trace: what it ran, where it stands, what
+                                it did to the world, in order
+  traces resume <id>            carry on where it stopped: the log answers what
+                                already happened, then the trace goes live
+  traces fork <id> [--at <n>]   a new trace from any point of an old one
+  traces pin <id>               keep it, whatever else is dropped to make room
+
+A resume echoes what the old trace printed (dimmed), stops if the log holds
+something it cannot have again (an OS subprocess, an open stream), and warns
+when a file it read has changed since. The oldest are dropped once there are
+more than `trace.keep` traces (a served request is one) or `trace.maxMb` of
+log; a suspended trace's never.
+
+What the log holds: what each effect was given and returned. Secret request
+headers (`authorization`, `cookie`, `set-cookie`, `x-api-key`) are stored as
+`[redacted]`, and an environment read's value is not stored at all (a resume
+reads the environment again). Everything else is in the clear: a key file a run
+read, a response body, what it printed.
+
+What the log does NOT hold: the value of anything pure. `traces show` does not
+read values off a disk, it RE-RUNS the function with every effectful call
+answered from the log, collecting each expression's value as it goes. Three
+things follow from that, and they surprise people in both directions. Values
+follow an edit, so fixing a callee and looking again shows the new numbers
+against the old recorded effects, with no new run. A function that did nothing
+impure still has values, because they are computed rather than stored. And
+arithmetic is shown for the same reason everything else is: the replay watches
+it happen.
+
+How a replay knows which expression an instruction belongs to: each package
+function carries a table of it, built when the code was compiled and stored
+beside the instructions. It is read only when something replays, so an ordinary
+run never pays for it, and it is about 3% of what the code itself takes.
+
+Which runs count as "this function's" is asked two ways, because each alone is
+wrong. Dark is content-addressed, so two byte-identical functions in different
+modules are ONE function and both names find the same runs. But editing anything
+a function calls changes its hash too, so by hash alone a view would go blank
+the moment you edited anything. Both: the hash finds runs of this CODE under any
+name, the name finds runs of this FUNCTION under any code.
+
+Nothing is recorded until you ask for it. Three ways: `dark traces record on`
+for this instance, `config set trace.record on` for the same setting by the
+other door, and `dark --trace <command>` for one command (`--no-trace` for the
+opposite).
+
+## Knobs, all optional
+
+  config set trace.record on|off       keep a record of every trace (default: off)
+  config set exec.workers <n>          worker threads (default: one per core)
+  config set http.requestTimeoutMs <n> a server cancels a handler past this: 504 (30 s)
+  config set trace.keep <n>            traces kept (200); trace.maxMb, MB of log kept (256)
+  config set exec.maxInstructions <n>  expert: stop a process past this many instructions
+  config set exec.maxBytes <n>         expert: ... or this many bytes allocated
+
+The design is `docs/processes.md` in the repository; the live half of the
+story is `docs live`.
+"""

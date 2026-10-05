@@ -347,27 +347,33 @@ let emptyListingsAreStillArrays =
 /// Compares a narrow scope against a wider one, not against the whole branch: auditing the branch
 /// here would reintroduce the cost the scoping exists to avoid.
 let typecheckScopesToAModule =
-  instanceTest "typecheck <module> audits that module rather than everything" (fun state ->
-    task {
-      do! start state
+  instanceTest
+    "typecheck <module> audits that module rather than everything"
+    (fun state ->
+      task {
+        do! start state
 
-      let total (root : System.Text.Json.JsonElement) : int =
-        root.GetProperty("total").GetInt32()
+        let total (root : System.Text.Json.JsonElement) : int =
+          root.GetProperty("total").GetInt32()
 
-      let! narrow = parsed state [ "typecheck"; "Darklang.Stdlib.List"; "--json" ]
-      let! wider = parsed state [ "typecheck"; "Darklang.Stdlib"; "--json" ]
+        let! narrow = parsed state [ "typecheck"; "Darklang.Stdlib.List"; "--json" ]
+        let! wider = parsed state [ "typecheck"; "Darklang.Stdlib"; "--json" ]
 
-      Expect.isGreaterThan (total narrow) 0 "a real module has declarations to audit"
-      Expect.isLessThan
-        (total narrow)
-        (total wider)
-        "a narrower scope audits fewer declarations than the module containing it"
+        Expect.isGreaterThan
+          (total narrow)
+          0
+          "a real module has declarations to audit"
+        Expect.isLessThan
+          (total narrow)
+          (total wider)
+          "a narrower scope audits fewer declarations than the module containing it"
 
-      // A module nobody has defined is not an error, it is an empty audit. A caller scoping to
-      // a name it got wrong should see zero rather than a refusal it has to special-case.
-      let! missing = parsed state [ "typecheck"; "Darklang.NoSuchModule"; "--json" ]
-      Expect.equal (total missing) 0 "an unknown module audits nothing"
-    })
+        // A module nobody has defined is not an error, it is an empty audit. A caller scoping to
+        // a name it got wrong should see zero rather than a refusal it has to special-case.
+        let! missing =
+          parsed state [ "typecheck"; "Darklang.NoSuchModule"; "--json" ]
+        Expect.equal (total missing) 0 "an unknown module audits nothing"
+      })
 
 
 let typecheckAnswersWithItsCounts =

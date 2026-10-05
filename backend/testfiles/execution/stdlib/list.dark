@@ -11,6 +11,25 @@ Stdlib.List.isEmpty [] = true
 
 Stdlib.List.map [ 1L, 2L ] (fun x -> x + 1L) = [ 2L, 3L ]
 
+// A run nobody scheduled (this harness) spawns onto the shared scheduler.
+Stdlib.List.parallelMap [ 1L, 2L, 3L ] (fun x -> x * 2L) = [ 2L, 4L, 6L ]
+Stdlib.List.parallelMap [] (fun x -> x) = []
+
+// More children than the process table keeps (`Scheduler.keepFinished`), so the early ones are
+// long gone by the time the awaits reach them: their answers have to outlive their rows.
+(Stdlib.List.parallelMap (Stdlib.List.range 1L 500L) (fun x -> x * 2L)) = (Stdlib.List.map (Stdlib.List.range 1L 500L) (fun x -> x * 2L))
+
+// Every assertion above passes if `parallelMap` were `List.map` renamed, which is what the name
+// is for. This one cannot: each item counts the processes that have NOT finished, and serial
+// execution only ever sees itself and the CLI. Observed concurrency rather than wall clock, so a
+// loaded machine cannot fail it. Measured both ways: against `List.map` every item reports
+// exactly 2, and against `parallelMap` the counts run 3 to 10.
+(Stdlib.List.member
+   (Stdlib.List.parallelMap (Stdlib.List.range 1 8) (fun i ->
+      let burn = Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 30000) (fun x -> x + 1))
+      (Stdlib.List.length (Stdlib.List.filter (Stdlib.Exec.list ()) (fun p -> p.status != Stdlib.Exec.Status.Done))) > 2))
+   true) = true
+
 
 Stdlib.List.append [ 1L, 2L, 3L ] [ 4L, 5L, 6L ] = [ 1L, 2L, 3L, 4L, 5L, 6L ]
 Stdlib.List.append [ 3L, 4L ] [ 5L, 6L ] = [ 3L, 4L, 5L, 6L ]

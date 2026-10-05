@@ -107,8 +107,8 @@ let printSaveReport
     Stdlib.List.append
       [ ""
         (Stdlib.Cli.UI.Colors.error
-          ("At-rest type check failed "
-           ++ "(saved as WIP; `commit` will refuse it until fixed):")) ]
+          ("Type check failed. Saved as a draft; "
+           ++ "`dark commit` will refuse it until it is fixed:")) ]
       details
     |> Stdlib.printLines
   | Incomplete ->
@@ -119,7 +119,7 @@ let printSaveReport
     Stdlib.List.append
       [ ""
         (Stdlib.Cli.UI.Colors.warning
-          "At-rest type check was incomplete (save continued):") ]
+          "Type check was incomplete; saved anyway:") ]
       details
     |> Stdlib.printLines
 

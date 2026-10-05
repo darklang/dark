@@ -1,0 +1,84 @@
+// The concurrency demo the browser build boots into, and the one worth showing first.
+//
+//   dark module /Demo.Browser - < docs/browser-concurrency-demo.dark
+//
+// In a tab: open `/?cmd=eval Demo.Browser.bothWays ()`.
+//
+// Not under `packages/`, for the same reason as the walkthrough fixture: everything there is
+// authored into the store on every build, and these are demo data rather than library code.
+//
+// ONE READ PER HOST, FIVE DISTINCT HOSTS, on purpose. A browser puts every request to the same
+// host on one HTTP/2 connection, and a delay endpoint serves that connection serially, so ten
+// reads of one host look exactly like no concurrency at all even when all ten were issued
+// together. A host each gives a connection each and the overlap becomes visible. Natively it
+// does not matter, because .NET's handler keeps a connection pool.
+//
+// All five support `/delay/1`, which sleeps for a second, and all five answer with
+// `access-control-allow-origin`, so a tab is allowed to call them.
+//
+// They are other people's servers and they throttle. The timings in the comments below are
+// real measurements, not promises: the sequential one moved from 5.5 s to 28 s to 34 s in a
+// single evening of repeated runs. What survives a bad minute is that the five requests are
+// ISSUED within about 2 ms of each other, which is the thing being demonstrated. If the wall
+// clock looks wrong, it is the endpoints, and `/delay/1` from a terminal will show it.
+
+val hosts =
+  [ "https://httpbin.org/delay/1",
+    "https://httpbun.com/delay/1",
+    "https://httpbingo.org/delay/1",
+    "https://httpbin.dev/delay/1",
+    "https://nghttp2.org/httpbin/delay/1" ]
+
+/// Five reads of a one-second endpoint, through the ORDINARY map. Nothing in this function says
+/// "concurrent": a read hands back a promise and nothing forces one until the count asks.
+///
+/// Five one-second reads in a tab: 1,426 / 1,288 / 1,302 ms over three consecutive runs.
+/// Natively 2,005 ms on the same five hosts, slower only because one of them was having a
+/// slow minute, which is the hazard described above rather than a difference between runtimes.
+let overlapping () : String =
+  let t0 = Stdlib.DateTime.now ()
+  let pages = hosts |> Stdlib.List.map (fun u -> Stdlib.HttpClient.get u [])
+  let ok = pages |> Stdlib.List.filter (fun r -> Stdlib.Result.isOk r) |> Stdlib.List.length
+  let ms = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) t0
+  let n = Stdlib.Int.toString ok
+  $"{n} reads of a 1s endpoint in {Stdlib.Int.toString ms} ms, overlapping"
+
+/// The same five, each forced where it is made. One `await` is the whole difference.
+///
+/// Five one-second reads in a tab: 5,461 ms, then 28 s and 34 s later the same evening once
+/// the endpoints started throttling. Natively 5,851 ms. Expect roughly five seconds and do not
+/// be surprised by much worse.
+let oneAtATime () : String =
+  let t0 = Stdlib.DateTime.now ()
+  let pages = hosts |> Stdlib.List.map (fun u -> Stdlib.await (Stdlib.HttpClient.get u []))
+  let ok = pages |> Stdlib.List.filter (fun r -> Stdlib.Result.isOk r) |> Stdlib.List.length
+  let ms = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) t0
+  let n = Stdlib.Int.toString ok
+  $"{n} reads of a 1s endpoint in {Stdlib.Int.toString ms} ms, one at a time"
+
+/// Both, slow first, so the second line is the punchline. Same five reads, same ordinary `map`;
+/// the only difference is one `Stdlib.await`.
+let bothWays () : String =
+  let slow = oneAtATime ()
+  let fast = overlapping ()
+  slow ++ "\n" ++ fast
+
+/// Is a read eager in this runtime? Two one-second reads of two different hosts, timed at the
+/// call and again after forcing.
+///
+/// Eager: both calls return in a few milliseconds and the forcing costs about one second,
+/// because the two requests were in flight together. Serialised: the forcing costs about two.
+/// Measured eager in both runtimes, which is what the rest of this file rests on.
+let twoReads () : String =
+  let t0 = Stdlib.DateTime.now ()
+  let a = Stdlib.HttpClient.get "https://httpbin.org/delay/1" []
+  let afterOne = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) t0
+  let b = Stdlib.HttpClient.get "https://httpbun.com/delay/1" []
+  let afterTwo = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) t0
+  let bothOk = (Stdlib.Result.isOk a) && (Stdlib.Result.isOk b)
+  let forced = Stdlib.DateTime.subtractMs (Stdlib.DateTime.now ()) t0
+  let one = Stdlib.Int.toString afterOne
+  let two = Stdlib.Int.toString afterTwo
+  let f = Stdlib.Int.toString forced
+  let ok = Stdlib.Bool.toString bothOk
+  $"call1 at {one} ms, call2 at {two} ms, both forced at {f} ms, ok={ok}"

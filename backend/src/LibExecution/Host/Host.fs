@@ -208,6 +208,15 @@ let private classify (e : exn) : Failure =
 
 // ── input normalization ───────────────────────────────────────────────────────
 
+/// Whether the file at `path` has been written since `since`. For a resume's stale-read warning
+/// (`Interpreter.ReplayPolicy`); a path that is not a file answers false.
+let fileChangedSince (path : string) (since : System.DateTime) : bool =
+  try
+    System.IO.File.Exists path && System.IO.File.GetLastWriteTimeUtc path > since
+  with _ ->
+    false
+
+
 /// The path used by both the permission check and the filesystem call:
 /// lexically resolved, then with every symlinked ancestor replaced by its
 /// target (`Permissions.FilePath`), so `/tmp/x` on macOS is checked and
@@ -397,6 +406,14 @@ let private produce (make : unit -> Response) : Execute =
 /// libc call, or a spawn that can time out.
 let private attempt (call : unit -> Result<Response, int * string>) : Execute =
   fun () -> Task.FromResult(call () |> Result.mapError failureOfErrno)
+
+/// An execution that waits on another OS process (a run to completion, a
+/// round of input and output): on the pool, so the thread that asked, which
+/// is a scheduler's when a Dark process asked, is free to run its other
+/// processes meanwhile. A file or libc call is not moved: those finish in
+/// microseconds and the hop would cost more than the wait.
+let private blocking (call : unit -> Result<Response, int * string>) : Execute =
+  fun () -> Task.Run(fun () -> call () |> Result.mapError failureOfErrno)
 
 let private unitOk
   (result : Result<unit, int * string>)
@@ -778,7 +795,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       (attempt (fun () -> bindHttpServer port))
   | Operation.ProcessRun(program, args, timeoutMs) ->
     resolveProcess program args (fun program args ->
-      attempt (fun () -> HostProcess.run program args timeoutMs |> processOutcome))
+      blocking (fun () -> HostProcess.run program args timeoutMs |> processOutcome))
   | Operation.ProcessRunInteractive(program, args) ->
     resolveProcess program args (fun program args ->
       attempt (fun () ->
@@ -790,7 +807,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       produce (fun () -> Response.ProcessHandle(HostProcess.spawn program args)))
   | Operation.ProcessIO(handle, input) ->
     unchecked (
-      produce (fun () -> Response.ProcessOutcome(HostProcess.io handle input))
+      blocking (fun () -> Ok(Response.ProcessOutcome(HostProcess.io handle input)))
     )
   | Operation.ProcessTerminate handle ->
     unchecked (

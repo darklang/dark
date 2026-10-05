@@ -16,6 +16,10 @@
     button:disabled { opacity:.5; }
     .status { font-size:12px; margin-top:14px; }
     main a { color:var(--muted); font-size:12px; text-decoration:none; }
+    #demo { margin-top:22px; border-top:1px solid var(--muted); padding-top:14px; }
+    #demo p { margin:8px 0; }
+    button.demo { background:none; color:var(--accent); border:1px solid var(--accent);
+                  font-weight:400; margin-right:6px; }
   </style>
 </head>
 <body>
@@ -26,6 +30,23 @@
     </form>
     <pre id="out"></pre>
     <p class="status muted" id="status">loading</p>
+    <section id="demo">
+      <p class="muted">Concurrency, in this tab. The same five reads of a one-second endpoint
+      through an ordinary <code>List.map</code>; the only difference is one
+      <code>Stdlib.await</code>. Expect about 1.3 s overlapping against about 5.5 s one at a
+      time.</p>
+      <p class="muted">Five different hosts, one read each, because a browser puts every request
+      to the same host on one connection and a delay endpoint serves that connection serially.
+      They are other people's servers and they throttle, so the wall clock varies; what holds is
+      that the five requests go out together.</p>
+      <p>
+        <button type="button" class="demo" data-expr="Demo.Browser.oneAtATime ()">one at a time</button>
+        <button type="button" class="demo" data-expr="Demo.Browser.overlapping ()">overlapping</button>
+        <button type="button" class="demo" data-expr="Demo.Browser.bothWays ()">both, slow first</button>
+      </p>
+      <p class="muted">Each runs ONE expression. There is no session and no history: the
+      interactive CLI does not come up in a browser yet, so this is a box rather than a REPL.</p>
+    </section>
     <p><a href="./">everything else</a></p>
   </main>
   <script src="_framework/blazor.webassembly.js" autostart="false"></script>
@@ -49,6 +70,12 @@
       finally { run.disabled = false; }
     }
     document.getElementById("form").addEventListener("submit", (ev) => { ev.preventDefault(); if (ready && input.value.trim()) evaluate(input.value); });
+    // The demo lines live in docs/browser-concurrency-demo.dark, so what goes in the box is a
+    // bare call with no string literal in it. The URL stays in the .dark file where no paste can
+    // mangle its quotes.
+    for (const b of document.querySelectorAll("button.demo")) {
+      b.addEventListener("click", () => { input.value = b.dataset.expr; if (ready) evaluate(b.dataset.expr); });
+    }
     input.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); document.getElementById("form").requestSubmit(); } });
     (async () => {
       try {

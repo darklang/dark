@@ -265,7 +265,10 @@ let detailLines (state: State) : List<String> =
       // Wrapping in `renderScrollableLines` stays as the floor under a line no layout could shorten.
       let ctx =
         { PrettyPrinter.ProgramTypes.Context.forModule state.branchId modulePath with
-            width = previewInnerWidth state }
+            width = previewInnerWidth state
+            // The values beside the calls, from the last time this fn ran (`refreshLiveValues`).
+            liveValues = state.liveValues
+            breakForValues = true }
 
       let (src, accessReport) =
         match item.kind with
@@ -363,31 +366,63 @@ let appDetail (state: State) : String =
     item.name
     ++ "\n\n"
     ++ "⏎ inspect    i install/uninstall    r start    s stop\n\n"
-    ++ "(each runs the matching `apps` subcommand in-frame - output opens in the reader)"
+    ++ "(each traces the matching `apps` subcommand in-frame - output opens in the reader)"
   | None -> "(no app selected)"
 
-/// The selected trace's detail. Placeholder - the walkable trace tree + live values come later.
+/// The selected run: where it stands, what it was given, and what it did to the world. The same
+/// answer `dark traces inspect <id>` gives, because it is the same row.
 let traceDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
+  | None ->
+    Stdlib.Cli.UI.Colors.dimText
+      "nothing has run yet -- every `dark eval`, `dark run` and served request is kept here"
   | Some item ->
-    // The list is real whenever anything has been recorded (see `loadTraceBodyItems`); only the fallback
-    // rows are invented. Saying "mock data" over a run that genuinely happened undersells what works.
-    let provenance =
-      if item.kind == "trace-sample" then
-        Stdlib.Cli.UI.Colors.dimText "(mock data) - nothing recorded in this environment yet"
-      else
-        Stdlib.Cli.UI.Colors.dimText "this run is real; what it recorded is not stored yet"
-    (Stdlib.Cli.UI.Colors.boldText item.name)
-    ++ "\n\n"
-    ++ provenance
-    ++ "\n\n"
-    ++ "A real trace carries the inputs, the return value, and the value\n"
-    ++ "that flowed through every sub-expression. From here you'll:\n\n"
-    ++ "  r  replay this run\n"
-    ++ "  t  turn it into a test\n"
-    ++ "  j  jump to the source of a value\n"
-    ++ "  ⏎  walk the trace tree"
-  | None -> "(no trace recorded yet - eval something or run an app)"
+    match Cli.TraceVerbs.find item.name with
+    | Error e -> Stdlib.Cli.UI.Colors.dimText e
+    | Ok trace ->
+      let lineage =
+        match trace.parent with
+        | Some((parent, at)) ->
+          [ $"forked from {Cli.Text.shortIdText parent} at position {Stdlib.Int64.toString at}" ]
+        | None -> []
+      let pinned =
+        if trace.pinned then [ "pinned: kept, whatever else is dropped to make room" ] else []
+      let calls =
+        match Darklang.Tracing.Store.view trace.id with
+        | None -> [ "log: not kept (dropped to make room, or recording was off)" ]
+        | Some data ->
+          let logged = data.functionCalls |> Stdlib.List.filter (fun c -> c.ord >= 0L)
+          match logged with
+          | [] -> [ "log: this trace touched nothing outside itself" ]
+          | _ ->
+            Stdlib.List.append
+              [ $"log: {Cli.Text.plural (Stdlib.List.length logged) "call"} with effects" ]
+              (Stdlib.List.take logged 12
+               |> Stdlib.List.map (fun c ->
+                 $"  {Stdlib.Int64.toString c.seq}  {c.fnName}"))
+      let header =
+        [ Stdlib.Cli.UI.Colors.boldText trace.entry
+          ""
+          $"id      {trace.id}"
+          $"status  {Cli.TraceVerbs.statusText trace.status}"
+          $"input   {Cli.Text.oneLineAt 60 trace.input}"
+          $"started {Cli.TraceVerbs.whenText trace.created}" ]
+      // The keys this pane answers to, then the two things it deliberately does not do. Forking
+      // wants a position, and the position comes from reading the log, so it belongs to the
+      // command and not to a key on a list. Putting a trace's values beside the code wants a
+      // function to read them through, which a trace does not have just one of.
+      let footer =
+        [ ""
+          Stdlib.Cli.UI.Colors.dimText "r resume    p pin    x delete"
+          ""
+          Stdlib.Cli.UI.Colors.dimText
+            $"dark traces fork {Cli.Text.shortIdText trace.id} --at <n>   branch from a position"
+          Stdlib.Cli.UI.Colors.dimText
+            "dark traces show <fn>   that function's code, with this trace's values beside it" ]
+      [ header, lineage, pinned, [ "" ], calls, footer ]
+      |> Stdlib.List.flatten
+      |> Stdlib.String.join "\n"
+
 
 /// The item page's first line: the kind with its glyph, the short content
 /// hash, and a deprecation mark only when it is deprecated. Nothing that is
@@ -420,7 +455,7 @@ let itemMeta (state: State) : String =
         | None -> ""
       (Stdlib.Cli.UI.Colors.dimText ((changeIcon kindLabel) ++ " " ++ kindLabel ++ " · " ++ short)) ++ deprecation
 
-/// The runs that called the selected fn, for the `x` reader: one row per
+/// The traces that called the selected fn, for the `x` reader: one row per
 /// trace, newest first, or a line saying nothing has called it yet and how to
 /// change that.
 let tracesText (state: State) : String =
@@ -428,9 +463,14 @@ let tracesText (state: State) : String =
   | None -> "(nothing selected)"
   | Some item ->
     let fullName = Stdlib.String.join (Stdlib.List.append (modulePathOf state.location) [ item.name ]) "."
+    // `wentThrough`, not `listByFn`. The latter matches `trace_fn_calls.fn_hash`, which only
+    // ever holds the name of an effectful BUILTIN, so it answers "no recorded calls" for every
+    // function anyone writes: 26 traces went through `Demo.Orders.settle` and it found 0.
+    // `wentThrough` reads the names-only index every recorded trace writes, which is what
+    // `dark traces calls <fn>` uses and what this pane means.
     let rows =
-      Darklang.Tracing.Store.listByFn fullName 30
-      |> Stdlib.List.map (fun t -> "  " ++ t.handler ++ "  ·  " ++ t.timestamp)
+      Darklang.Tracing.Store.wentThroughNamed state.branchId fullName 30L
+      |> Stdlib.List.map (fun t -> "  " ++ t.entry ++ "  ·  " ++ t.created)
     // Empty means one of two things, and `traces list` already knows which:
     // nothing has called it, or recording is off (the default) so nothing
     // would show whatever ran. Say the same thing it says.
@@ -443,7 +483,7 @@ let tracesText (state: State) : String =
       (Stdlib.List.flatten
         [ [ Stdlib.Cli.UI.Colors.boldText ("Traces calling " ++ fullName), "" ]
           body
-          [ "", Stdlib.Cli.UI.Colors.dimText "  6 › Traces lists every run" ] ])
+          [ "", Stdlib.Cli.UI.Colors.dimText "  6 › Traces lists every trace" ] ])
       "\n"
 
 let inspectPageLines (state: State) : List<String> =

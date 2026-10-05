@@ -12,6 +12,7 @@ open Fumble
 open LibDB.Sqlite
 
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module Dval = LibExecution.Dval
 
@@ -70,16 +71,20 @@ let buildState () : Task<RT.ExecutionState> =
     LibExecution.HostSecurity.policyDirectoryForTesting policyDir
     |> ignore<System.IDisposable>
 
-    // `defaultInstance` PLUS package-write, granted once here for every test.
+    // `defaultInstance` PLUS package-write and concurrency, granted once here for every test.
     //
     // These tests drive authoring through `dark eval`, which is guest code, and a guest has no
     // package-write by default. Granting it inside a single test instead would leak into every
     // test after it in the same store, so a later test would pass or fail on runner order.
     //
+    // Concurrency for the same reason: `Stdlib.Exec.spawn` is a guest effect a guest does not
+    // have by default, and the trace tests drive spawn through `dark eval`.
+    //
     // What a GUEST may do without the grant is still tested, in `PermissionEscape.Tests`.
     let testInstancePolicy =
       LibExecution.Permissions.Policy.allowEffects (
-        Set.add
+        Set.add LibExecution.Effects.Effect.Concurrency
+        <| Set.add
           LibExecution.Effects.Effect.PackageWrite
           (LibExecution.Permissions.Policy.coverableEffects
             LibExecution.Permissions.Policy.defaultInstance
@@ -163,14 +168,31 @@ let runWithTimeout
 /// printed while it was open, which is why these tests had to be sequenced against every
 /// other test rather than only against each other.
 let rec runCli (target : Target) (args : string list) : Task<string> =
+  task {
+    let! (out, _status) = runCliWithStatus target args
+    return out
+  }
+
+/// `runCli`, and the exit code the command would have given a shell.
+///
+/// The status is the only part of a failure a script can read -- an agent, a CI step, a shell
+/// `&&` -- and it was invisible to every test here, so a command could print a reason and then
+/// report success and nothing would notice. `executeCliCommand` has returned it all along
+/// (`cli/entry.dark`); this stops throwing it away.
+and runCliWithStatus (target : Target) (args : string list) : Task<string * int> =
   match target with
-  | Instance i -> Tests.CliInstance.run i args
+  | Instance i ->
+    task {
+      let! (code, out, err) = Tests.CliInstance.runRaw i args
+      let out = out.Trim()
+      return ((if out <> "" then out else err.Trim()), code)
+    }
   | InProcess state -> runCliInProcess state args
 
 and private runCliInProcess
   (state : RT.ExecutionState)
   (args : string list)
-  : Task<string> =
+  : Task<string * int> =
   task {
     let argsDval = args |> List.map RT.DString |> Dval.list RT.KTString
     let fnName =
@@ -186,13 +208,16 @@ and private runCliInProcess
       let! completed =
         runWithTimeout runCliTimeout (fun () ->
           Exe.executeFunction state fnName [] (NEList.singleton argsDval))
+
       match completed with
       | None ->
-        // The interpreter cannot cancel this command. Stop the suite before
-        // another test uses its store, and print the failure outside output capture.
+        // The interpreter cannot cancel this command, so failing the test and carrying on
+        // would leave it running while later tests use the same store. Stop the suite, and
+        // print outside the capture so the message survives.
         let command = String.concat " " args
         let message =
-          $"runCli timed out after {runCliTimeout}: dark {command}. Stopping the suite because the command cannot be cancelled."
+          $"runCli timed out after {runCliTimeout}: dark {command}. Stopping the "
+          + "suite because the command cannot be cancelled."
         System.Console.Error.WriteLine message
         System.Environment.Exit 1
         return Tests.failtest message
@@ -201,7 +226,15 @@ and private runCliInProcess
         // reading the buffer or we capture nothing.
         NonBlockingConsole.wait ()
         match result with
-        | Ok _ -> return (NonBlockingConsole.stopCapture ()).Trim()
+        | Ok(RT.DInt status) ->
+          return
+            ((NonBlockingConsole.stopCapture ()).Trim(),
+             int (RT.DarkInt.toBigInt status))
+        | Ok other ->
+          return
+            Tests.failtestf
+              "runCli: expected an exit code from executeCliCommand, got %A"
+              other
         | Error(rte, _) -> return Tests.failtestf "runCli errored: %A" rte
     finally
       NonBlockingConsole.stopCapture () |> ignore<string>
@@ -219,6 +252,24 @@ let runCliCatching
     try
       let! output = runCli target args
       return Ok output
+    with e ->
+      return Error(e.Message.Split('\n')[0])
+  }
+
+/// `runCliCatching`, keeping the exit code.
+///
+/// The sweeps judge a command by what it printed AND by what it told the shell, and those are two
+/// different findings: a command that prints an answer and exits 1 is as wrong as one that
+/// refuses and exits 0. `runCliCatching` threw the status away, so every sweep built on it could
+/// only see half of what it was looking at.
+let runCliCatchingWithStatus
+  (target : Target)
+  (args : string list)
+  : Task<Result<string * int, string>> =
+  task {
+    try
+      let! outcome = runCliWithStatus target args
+      return Ok outcome
     with e ->
       return Error(e.Message.Split('\n')[0])
   }
@@ -244,7 +295,7 @@ let archiveBranches (target : Target) (names : List<string>) : Task<unit> =
 
 /// The trace id in a `traces list 1 --json` output.
 let parseTraceID (json : string) : string =
-  let split = json.Split("\"traceId\":\"")
+  let split = json.Split("\"id\":\"")
   if split.Length < 2 then
     Tests.failtestf "Couldn't parse trace id from %s" json
   else
@@ -253,6 +304,144 @@ let parseTraceID (json : string) : string =
       Tests.failtestf "Couldn't parse trace id from %s" json
     else
       parts[0]
+
+
+/// The package fn at dotted <param name> (`Darklang.Stdlib.Live.poll`), or a failed test.
+let findPackageFn (name : string) : Task<LibExecution.ProgramTypes.Hash> =
+  task {
+    let location : LibExecution.ProgramTypes.PackageLocation =
+      match name.Split('.') |> Array.toList |> List.rev with
+      | fnName :: revRest ->
+        match List.rev revRest with
+        | owner :: modules -> { owner = owner; modules = modules; name = fnName }
+        | [] -> Tests.failtestf "not a package fn name: %s" name
+      | [] -> Tests.failtestf "not a package fn name: %s" name
+    let! found = pmPT.findFn location |> Ply.toTask
+    match found with
+    | None -> return Tests.failtestf "no fn named %s" name
+    | Some hash -> return hash
+  }
+
+/// Call the package fn at dotted <param name> with <param args>, under <param state>. For handing a
+/// Dark VALUE from one evaluation to the next, which source text cannot do: a `Watch` polled after
+/// an edit, a `Change` asked about.
+let callByName
+  (state : RT.ExecutionState)
+  (name : string)
+  (args : List<RT.Dval>)
+  : Task<RT.Dval> =
+  task {
+    let! (LibExecution.ProgramTypes.Hash hash) = findPackageFn name
+    match!
+      Exe.executeFunction
+        state
+        (RT.FQFnName.fqPackage hash)
+        []
+        (NEList.ofListUnsafe "callByName: no args" [] args)
+    with
+    | Ok dval -> return dval
+    | Error(rte, _) ->
+      let! why = Exe.runtimeErrorMessage state rte
+      return Tests.failtestf "%s raised: %s" name why
+  }
+
+/// Poll <param watch> (`Stdlib.Live.poll`): the watch back and the change, failing the test
+/// with <param what> when nothing landed.
+let pollChange
+  (state : RT.ExecutionState)
+  (watch : RT.Dval)
+  (what : string)
+  : Task<RT.Dval * RT.Dval> =
+  task {
+    let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+    match polled with
+    | RT.DTuple(w, RT.DEnum(_, _, _, "Some", [ change ]), []) -> return w, change
+    | other -> return Tests.failtestf "%s, but the poll returned %A" what other
+  }
+
+/// Poll <param watch>: the watch back, failing the test when something landed.
+let pollQuiet (state : RT.ExecutionState) (watch : RT.Dval) : Task<RT.Dval> =
+  task {
+    let! polled = callByName state "Darklang.Stdlib.Live.poll" [ watch ]
+    match polled with
+    | RT.DTuple(w, RT.DEnum(_, _, _, "None", []), []) -> return w
+    | other -> return Tests.failtestf "expected a quiet poll, got %A" other
+  }
+
+/// Run Dark source under <param state>. Owner "Tests", so every name is fully qualified.
+let evalUnder (state : RT.ExecutionState) (code : string) : Task<RT.Dval> =
+  task {
+    let! ptExpr = parsePTExpr code
+    let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
+    match! Exe.executeExpr state rtInstrs with
+    | Ok dval -> return dval
+    | Error(rte, _) ->
+      let! why = Exe.runtimeErrorMessage state rte
+      return Tests.failtestf "the Dark expression raised: %s\n  code: %s" why code
+  }
+
+
+/// A scheduler a test drives a host loop on, one turn at a time.
+///
+/// `stepOn` runs one turn as a process on it (`Scheduler.executeFunction` would make a fresh
+/// scheduler per call and forget what the store poll has seen); `pushKey` and `pushTick` post to
+/// its queue what the next `Host.await` answers with, which is what the reader thread and the
+/// store poll post in the CLI. The store poll is installed too, so an edit made between turns is
+/// reported by itself; `pushTick` makes that prompt and deterministic.
+type LoopDriver =
+  { scheduler : LibExecution.Scheduler.Scheduler; state : RT.ExecutionState }
+
+let loopDriver (state : RT.ExecutionState) : LoopDriver =
+  LibExecution.HostEvents.sources.storeVersion <-
+    Some LibDB.Sqlite.DataVersion.current
+  { scheduler =
+      LibExecution.Scheduler.Scheduler(LibExecution.Scheduler.defaultQuantum)
+    state = state }
+
+/// Run the package fn at dotted <param name> as a process on the driver's scheduler.
+let stepOn (d : LoopDriver) (name : string) (args : List<RT.Dval>) : Task<RT.Dval> =
+  task {
+    let! (LibExecution.ProgramTypes.Hash hash) = findPackageFn name
+    let p =
+      d.scheduler.SpawnFunction(
+        d.state,
+        RT.FQFnName.fqPackage hash,
+        [],
+        NEList.ofListUnsafe "stepOn: no args" [] args,
+        None
+      )
+    // Bounds the wait: a turn that never returns is the loop waiting for an event nobody
+    // pushed, which should read as that rather than hang the suite.
+    let run = Task.Run(fun () -> d.scheduler.RunUntil p)
+    let! finished = Task.WhenAny(run, Task.Delay 20_000)
+    if not (System.Object.ReferenceEquals(finished, run :> Task)) then
+      return
+        Tests.failtestf
+          "%s did not return within 20s: nothing it waited for happened"
+          name
+    else
+      match run.Result with
+      | Ok dval -> return dval
+      | Error(rte, _) ->
+        let! why = Exe.runtimeErrorMessage d.state rte
+        return Tests.failtestf "%s raised: %s" name why
+  }
+
+/// Press a key: what the reader thread would post. <param key> is a `Stdlib.Cli.Stdin.Key` case
+/// name (`Tab`, `Enter`, `A`); <param char> is what it typed, "" for none.
+let pushKey (d : LoopDriver) (key : string) (char : string) : Task<unit> =
+  task {
+    let! read =
+      evalUnder
+        d.state
+        $"Darklang.Stdlib.Cli.Stdin.KeyRead.KeyRead {{ key = Darklang.Stdlib.Cli.Stdin.Key.Key.{key}; modifiers = Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers {{ alt = false; shift = false; ctrl = false }}; keyChar = \"{char}\"; repeat = 1 }}"
+    d.scheduler.PushEvent(LibExecution.HostEvents.HostEvent.Key read)
+  }
+
+/// Say the store moved: what the store poll would post. `Host.await` then asks the op log what
+/// landed, so a tick with nothing new is absorbed and the loop keeps waiting.
+let pushTick (d : LoopDriver) : unit =
+  d.scheduler.PushEvent LibExecution.HostEvents.HostEvent.StoreChanged
 
 
 // ─── Test builders ────────────────────────────────────────────────────────
