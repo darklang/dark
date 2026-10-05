@@ -264,24 +264,6 @@ Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
 The playbook is the one to read cold. Its recurring lesson: nearly all wasted effort came from
 trusting a measurement nobody had checked.
 
-Decide with allocation, not time. Allocation for a fixed workload is far steadier than time and
-doesn't care how loaded the box is; time drifts by more than most individual wins are worth. It is
-not byte-identical though, and the store it runs against matters as much as the binary --
-`docs/perf/playbook.md` has the measured noise floor. So
-`gate` asserts allocation and only allocation, against `scripts/perf/budget.json`, and CI runs it
-after the backend tests. When a change earns a lower number, lower the budget in the same commit
-with `scripts/perf/gate --update`, or it stops being a gate and becomes a ceiling to drift up to.
-
-`suite` is the wider view and asserts nothing -- it is for seeing whether a change that helped one
-shape of program hurt another. The six differ by more than an order of magnitude per iteration, so
-tuning against any one of them proves little.
-
-Two runs in the same clone destroy each other, so `run-backend-tests` takes a lock.
-Two runs in different clones are fine; each has its own container, so its own PID
-namespace, network and `rundir`.
-
-Logs go to `rundir/logs/fsharp-tests.log`.
-
 ## Directories
 
     backend/src/          # F# source
@@ -796,56 +778,6 @@ to copy from.
 while nobody waits for the next `Key` subscriber, but the terminal `expect` drives does not: wait a beat
 after the text you matched before sending the next key, or the key lands mid-render and is dropped. The
 symptom is not "that key did nothing", it's the NEXT assertion timing out, which reads as a broken view.
-`fixtures/_workbench-scm.expect`
-has a `press` helper for this.
-
-The interactive CLI (`run-cli` with no args) needs a real TTY. Use `expect`:
-
-    ./scripts/run-in-docker expect scripts/testing/fixtures/test-interactive.expect
-    ./scripts/run-in-docker expect scripts/testing/fixtures/test-workbench.expect
-
-`run-cli` with no args opens the WORKBENCH, so that second one covers the default experience:
-switching views, resize, the too-small guard, and quitting cleanly. None of it is reachable from
-the test suite -- the views render fine when called directly; what needs a terminal is the keyboard,
-the alternate screen and SIGWINCH.
-
-Telemetry lands in `rundir/logs/telemetry.jsonl`. Full guide: `docs interactive-testing`.
-
-For poking at it by hand, or driving something `expect` would be awkward for -- an editor,
-a pager, anything that takes over the screen -- `tmux` is more reliable:
-
-    tmux new-session -d -s work -x 200 -y 50
-    tmux send-keys -t work:0 'scripts/run-in-docker bash' Enter
-    tmux send-keys -t work:0 './scripts/run-cli ...' Enter
-    tmux capture-pane -t work:0 -p          # read the screen
-    tmux kill-session -t work
-
-Inside a pane, stdin IS a terminal, so `run-in-docker` allocates a TTY and everything that
-needs one works: `dark edit` really opens `$EDITOR`, and you drive it with more `send-keys`
-(`:%s/a/b/` then `:wq`, or `:cq` to exit non-zero and test the cancel path).
-
-Poll `capture-pane` in a loop rather than sleeping between steps; a command that shells out
-per invocation takes a second or more, and the pane is the only thing that tells you it is done.
-
-For a command that just asks QUESTIONS (`dark sync setup`, `dark conflicts walk`), reach for `script`
-before `expect`. It gives a pty and takes the answers on stdin, so there is no pattern matching
-to get wrong:
-
-    printf 'name\nhttp://localhost:9099\n<secret>\n' \
-      | script -qec "$CLI sync setup" /dev/null
-
-`expect` is worth it only when you must react to what comes back. Used for a plain question list it
-is easy to get subtly wrong, and the failure looks like the program hanging: an `expect` block with
-no `eof` branch returns IMMEDIATELY when the spawned process ends, matching nothing and printing
-nothing, so a script that exits 0 in silence means the process died, not that it hung. Give every
-block an `eof` branch, and don't call `wait` after one has already fired.
-
-A command that reads a line still reads a line under a pty: `Stdlib.Cli.Stdin.readLine` returns ""
-on a bare Enter. If Enter appears not to advance a prompt, suspect the harness first.
-
-**A key pressed while a frame is painting is lost.** In an `expect` script, wait a beat after the text you
-matched before sending the next key, or the key lands mid-render and is dropped. The symptom is not "that
-key did nothing", it's the NEXT assertion timing out, which reads as a broken view.
 `fixtures/_workbench-scm.expect`
 has a `press` helper for this.
 
