@@ -134,7 +134,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine
           (Stdlib.Cli.UI.Colors.dimText
             $"  `dark search {traitPath} --trait` looks for a trait by name")
-      state
+      { state with exitCode = 1 }
     | Ok traitHash ->
       let candidates = LanguageTools.PackageManager.Trait.impls state.currentBranchId traitHash
       if json then
@@ -192,7 +192,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.hint
           "  `dark ls Stdlib` has a Traits section; `dark search <name> --trait` finds one anywhere")
-    state
+    { state with exitCode = 1 }
 
 
 let help (_state: Cli.AppState) : String =

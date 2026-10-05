@@ -85,7 +85,7 @@ let createTypeInline
               [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
                 LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash, Stdlib.Option.Option.None) ]
 
-            (ops, packageType.hash, unresolvedNames))
+            Stdlib.Option.Option.Some((ops, packageType.hash, unresolvedNames)))
 
       | _ ->
         // a precise parse error was already printed above; don't stack the

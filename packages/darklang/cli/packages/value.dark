@@ -87,7 +87,7 @@ let createValueInline
               [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
                 LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue packageValue.hash, Stdlib.Option.Option.None) ]
 
-            (ops, packageValue.hash, unresolvedNames))
+            Stdlib.Option.Option.Some((ops, packageValue.hash, unresolvedNames)))
 
       | _ ->
         // a precise parse error was already printed above; don't stack the

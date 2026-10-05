@@ -266,7 +266,7 @@ let executeAck (state: AppState) (args: List<String>) : AppState =
   if onBranch () then
     Cli.printErr "constraints are a property of the store, not of a branch -- switch to main to ack."
     Cli.printHint "  detection runs over main's bindings, so there's nothing branch-local here to answer."
-    state
+    Cli.exitWith state false
   else
     let (targets, missing) = selectTargets args
     let why = whyFrom args
@@ -274,6 +274,7 @@ let executeAck (state: AppState) (args: List<String>) : AppState =
     missing
     |> Stdlib.List.iter (fun m -> Cli.printErr $"no constraint matching \"{m}\" -- skipped.")
 
+    // A skipped id fails the command, once the rest of the batch has run.
     match targets with
     | [] ->
       if Stdlib.List.isEmpty missing then
@@ -281,18 +282,23 @@ let executeAck (state: AppState) (args: List<String>) : AppState =
       else
         ()
 
-      state
+      Cli.exitWith state (Stdlib.List.isEmpty missing)
     | _ ->
-      targets
-      |> Stdlib.List.iter (fun f ->
-        match SCM.Constraints.ack state.currentBranchId f why with
-        | Ok _ -> Cli.printOk $"acked #{f.id}  {SCM.Constraints.fqnOf f.usage}"
-        | Error e -> Cli.printErr $"couldn't ack #{f.id}: {e}")
+      let failed =
+        targets
+        |> Stdlib.List.filter (fun f ->
+          match SCM.Constraints.ack state.currentBranchId f why with
+          | Ok _ ->
+            Cli.printOk $"acked #{f.id}  {SCM.Constraints.fqnOf f.usage}"
+            false
+          | Error e ->
+            Cli.printErr $"couldn't ack #{f.id}: {e}"
+            true)
 
       // Both lines are about REFERENCES, which is what every finding here describes.
       Cli.printHint "  an ack comes back if that item later moves to some other old version."
       Cli.printHint "  `dark propagate pin` instead, if it's deliberate for good."
-      state
+      Cli.exitWith state ((Stdlib.List.isEmpty missing) && (Stdlib.List.isEmpty failed))
 
 
 /// `--as <choice>`, naming which resolution to apply.
@@ -375,7 +381,7 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
   if onBranch () then
     Cli.printErr "constraints are a property of the store, not of a branch -- switch to main to resolve."
     Cli.printHint "  detection runs over main's bindings, so there's nothing branch-local here to answer."
-    state
+    Cli.exitWith state false
   else
 
   let (targets, missing) = selectTargets args
@@ -383,6 +389,7 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
   missing
   |> Stdlib.List.iter (fun m -> Cli.printErr $"no constraint matching \"{m}\" -- skipped.")
 
+  // A skipped id fails the command, once the rest of the batch has run.
   match targets with
   | [] ->
     if Stdlib.List.isEmpty missing then
@@ -390,15 +397,19 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
     else
       ()
 
-    state
+    Cli.exitWith state (Stdlib.List.isEmpty missing)
   | _ ->
 
   match resolutionFor targets args with
   | Error e ->
     Cli.printErr e
     Cli.printHint "  `dark ack <id>...` leaves them for now, which needs no choice."
-    state
+    Cli.exitWith state false
   | Ok resolution ->
+    let pinned =
+      targets
+      |> Stdlib.List.filter (fun f -> (SCM.Propagation.shouldFollow f.usage) |> Stdlib.Bool.not)
+
     targets
     |> Stdlib.List.iter (fun f ->
       // A pinned item would be repointed and then held by the pin on the next change, which reads as the
@@ -421,7 +432,7 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
         Cli.printOk
           $"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf f.usage}")
 
-    state
+    Cli.exitWith state ((Stdlib.List.isEmpty missing) && (Stdlib.List.isEmpty pinned))
 
 
 let help (_state: AppState) : String =
@@ -470,7 +481,7 @@ let executeAckCmd (state: AppState) (args: List<String>) : AppState =
   | [] ->
     Cli.printErr "which findings? `dark ack <id>...`, or `dark ack --all`."
     Cli.printHint "  `dark constraints` lists them."
-    state
+    Cli.exitWith state false
   | _ -> executeAck state args
 
 /// The arguments the listing understands. Anything else is refused rather than listed past: `dark
@@ -494,13 +505,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
     if Stdlib.Bool.not (listingUnderstands args) then
       Cli.printErr $"`dark constraints` doesn't take \"{Stdlib.String.join args " "}\"."
       Cli.printHint "  dark constraints [--kind <kind>] [--json]   list; `resolve` and `ack` take ids"
-      state
+      Cli.exitWith state false
     else
 
     match kindArgChecked args with
     | Error why ->
       Cli.printErr why
-      state
+      Cli.exitWith state false
     | Ok _ ->
 
     if Stdlib.List.member args "--json" then

@@ -35,7 +35,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ""
       ] |> Stdlib.printLines
 
-      state
+      { state with exitCode = 1 }
     else
       createTraitInline
         state.packageData.currentLocation
@@ -98,7 +98,7 @@ let createTraitInline
           (fun ctx ->
             let (packageTrait, ops, unresolvedNames) =
               LanguageTools.WrittenTypesToProgramTypes.traitWithOps ctx t
-            (ops, packageTrait.hash, unresolvedNames))
+            Stdlib.Option.Option.Some((ops, packageTrait.hash, unresolvedNames)))
 
       | _ ->
         if hasParseError then

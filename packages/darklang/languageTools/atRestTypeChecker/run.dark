@@ -7,16 +7,17 @@ module Darklang.LanguageTools.AtRestTypeChecker.Run
 type Candidates =
   { types: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageType.PackageType>
     values: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageValue.PackageValue>
-    fns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn> }
+    fns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn>
+    impls: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.TraitImpl.TraitImpl> }
 
-/// Collect declarations from AddType, AddValue, and AddFn operations.
+/// Collect declarations from AddType, AddValue, AddFn and AddTraitImpl operations.
 /// Ignore operations that do not supply a declaration to check.
 let candidatesFromOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Candidates =
   Stdlib.List.fold
     ops
-    (Candidates { types = Dict {}; values = Dict {}; fns = Dict {} })
+    (Candidates { types = Dict {}; values = Dict {}; fns = Dict {}; impls = Dict {} })
     (fun found op ->
       match op with
       | AddType t ->
@@ -27,6 +28,8 @@ let candidatesFromOps
             values = Stdlib.Dict.setOverridingDuplicates found.values v.hash v }
       | AddFn fn ->
         { found with fns = Stdlib.Dict.setOverridingDuplicates found.fns fn.hash fn }
+      | AddTraitImpl i ->
+        { found with impls = Stdlib.Dict.setOverridingDuplicates found.impls i.hash i }
       | _ -> found)
 
 /// Report only the declarations requested by the caller. Dependency values may
@@ -112,12 +115,14 @@ let checkPackageOpsOn
   let types = Stdlib.Dict.values candidates.types
   let values = Stdlib.Dict.values candidates.values
   let fns = Stdlib.Dict.values candidates.fns
+  let impls = Stdlib.Dict.values candidates.impls
 
   let candidateRefs =
     Stdlib.List.flatten
       [ Stdlib.List.map types (fun t -> LanguageTools.ProgramTypes.Reference.PackageType t.hash)
         Stdlib.List.map values (fun v -> LanguageTools.ProgramTypes.Reference.PackageValue v.hash)
-        Stdlib.List.map fns (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash) ]
+        Stdlib.List.map fns (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
+        Stdlib.List.map impls (fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash) ]
 
   let builtins = Environment.builtins branchId
 
@@ -162,8 +167,15 @@ let checkPackageOpsOn
       (fun found (item, outcome) ->
         Stdlib.Dict.setOverridingDuplicates found item outcome)
 
+  let (impls, implRefs, implFailures) =
+    collectItemReferences
+      impls
+      (fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash)
+      (fun _ -> Stdlib.Option.Option.None)
+      (fun i -> Impls.refsOf i)
+
   let dependencyRefs =
-    Stdlib.List.flatten [ typeRefs, signatureRefs, valueBodyRefs, fnBodyRefs ]
+    Stdlib.List.flatten [ typeRefs, signatureRefs, valueBodyRefs, fnBodyRefs, implRefs ]
 
   let dependencies = Environment.loadClosure builtins candidateRefs dependencyRefs
 
@@ -188,8 +200,27 @@ let checkPackageOpsOn
       | Some failed -> (item, failed)
       | None -> (item, outcome))
 
+  // Checked against its trait, not inferred: it needs the batch's types (for aliases) and fns
+  // (its methods usually arrive in the same batch).
+  let implEnv = Stdlib.List.fold types env (fun env t -> Items.addType env t)
+
+  let batchFns =
+    Stdlib.List.fold fns dependencies.fns (fun found fn ->
+      Stdlib.Dict.setOverridingDuplicates found fn.hash fn)
+
+  let implChecked =
+    impls
+    |> Stdlib.List.map (fun i ->
+      let reference = LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash
+
+      match guard (fun i -> Impls.check implEnv batchFns i) i with
+      | Ok outcome -> (reference, outcome)
+      | Error failure ->
+        (reference, Items.checkerFailureOutcome Stdlib.Option.Option.None failure))
+
   let results =
-    Stdlib.List.flatten [ checked, typeFailures, signatureFailures ]
+    Stdlib.List.flatten
+      [ checked, implChecked, typeFailures, signatureFailures, implFailures ]
 
   reportCandidates candidateRefs results
 
@@ -209,11 +240,9 @@ let loadCandidate
   | PackageFn hash ->
     (LanguageTools.PackageManager.Function.get hash)
     |> Stdlib.Option.map (fun fn -> LanguageTools.ProgramTypes.PackageOp.AddFn fn)
-  // Both kinds have an op, so they load the same way as the other three. Nothing currently
-  // ASKS for them: `checkQuery` above passes types, values and fns only, so auditing traits
-  // and impls is still a separate piece of work. These arms exist because the match must cover
-  // the type, and because the day something does ask, this is the right answer rather than a
-  // raise the guard converts into an empty report.
+  // Both kinds have an op, so they load the same way as the other three. `checkQuery` asks for
+  // implementations; nothing asks for traits yet, and this arm is the right answer the day
+  // something does, rather than a raise the guard converts into an empty report.
   | PackageTrait hash ->
     (LanguageTools.PackageManager.Trait.get hash)
     |> Stdlib.Option.map (fun t -> LanguageTools.ProgramTypes.PackageOp.AddTrait t)
@@ -275,16 +304,15 @@ let checkQuery
   // it: the whole command, not one declaration. The guard turned that into an empty report, so
   // `typecheck <module>` answered "nothing to audit" about a module full of declarations.
   //
-  // Traits and impls are deliberately not audited here yet: `loadCandidate` below can only turn
-  // a type, a value or a fn back into an op, so naming one would raise the same way one level
-  // down. Auditing them is worth doing and is not this change.
-  let (_, types, values, fns, _traits, _impls) =
+  // Traits themselves are not audited yet; implementations are, against their traits.
+  let (_, types, values, fns, _traits, impls) =
     LanguageTools.PackageManager.Search.searchNamesAndHashes branchId query
   let references =
     Stdlib.List.flatten
       [ Stdlib.List.map types (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageType hash)
         Stdlib.List.map values (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageValue hash)
-        Stdlib.List.map fns (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageFn hash) ]
+        Stdlib.List.map fns (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageFn hash)
+        Stdlib.List.map impls (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl hash) ]
   checkReferences branchId loadCandidate references
 
 /// A query that selects everything on the branch.

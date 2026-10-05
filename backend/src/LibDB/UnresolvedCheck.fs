@@ -163,15 +163,22 @@ and private inPipeExpr (pe : PT.PipeExpr) : List<string> =
   | PT.EPipeVariable(_, _, args) -> List.collect inExpr args
 
 
+/// A bound's trait, and any types its type args name.
+let private inBound (b : PT.Bound) : List<string> =
+  fromNR b.trait_.trait_ @ List.collect inTypeRef b.trait_.typeArgs
+
+
 let private inTypeDeclaration (d : PT.TypeDeclaration.T) : List<string> =
-  match d.definition with
-  | PT.TypeDeclaration.Alias t -> inTypeRef t
-  | PT.TypeDeclaration.Record fields ->
-    fields |> NEList.toList |> List.collect (fun f -> inTypeRef f.typ)
-  | PT.TypeDeclaration.Enum cases ->
-    cases
-    |> NEList.toList
-    |> List.collect (fun c -> c.fields |> List.collect (fun f -> inTypeRef f.typ))
+  let inDefinition =
+    match d.definition with
+    | PT.TypeDeclaration.Alias t -> inTypeRef t
+    | PT.TypeDeclaration.Record fields ->
+      fields |> NEList.toList |> List.collect (fun f -> inTypeRef f.typ)
+    | PT.TypeDeclaration.Enum cases ->
+      cases
+      |> NEList.toList
+      |> List.collect (fun c -> c.fields |> List.collect (fun f -> inTypeRef f.typ))
+  List.collect inBound d.bounds @ inDefinition
 
 
 /// What one op leaves unresolved, with a label for the thing it is talking about.
@@ -188,6 +195,7 @@ let inOp (op : PT.PackageOp) : Option<string * List<string>> =
         inExpr fn.body
         @ (fn.parameters |> NEList.toList |> List.collect (fun p -> inTypeRef p.typ))
         @ inTypeRef fn.returnType
+        @ List.collect inBound fn.bounds
       )
     | PT.PackageOp.AddValue v ->
       let (PT.Hash hash) = v.hash
@@ -203,8 +211,8 @@ let inOp (op : PT.PackageOp) : Option<string * List<string>> =
         |> List.collect (fun (m : PT.Trait.Method) ->
           (m.parameters |> NEList.toList |> List.collect (fun p -> inTypeRef p.typ))
           @ inTypeRef m.returnType
-          @ (m.bounds |> List.collect (fun b -> fromNR b.trait_.trait_)))
-      let inBounds = t.bounds |> List.collect (fun b -> fromNR b.trait_.trait_)
+          @ List.collect inBound m.bounds)
+      let inBounds = List.collect inBound t.bounds
       Some(hash, inMethods @ inBounds)
     | PT.PackageOp.AddTraitImpl i ->
       let (PT.Hash hash) = i.hash
@@ -214,7 +222,7 @@ let inOp (op : PT.PackageOp) : Option<string * List<string>> =
         @ inTypeRef i.self
         @ (i.traitTypeArgs |> List.collect inTypeRef)
         @ (i.methods |> List.collect (fun (_, nr) -> fromNR nr))
-        @ (i.bounds |> List.collect (fun b -> fromNR b.trait_.trait_))
+        @ List.collect inBound i.bounds
       )
     | PT.PackageOp.SetName _
     | PT.PackageOp.Unbind _

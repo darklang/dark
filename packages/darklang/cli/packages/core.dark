@@ -312,7 +312,8 @@ let updateDocsThatChanged
 /// context, convert the written declaration, check unresolved names, take the
 /// previous hashes, save, report, and repoint dependents. `kindWord` fills the
 /// output lines ("function" | "type" | "value"); `failState` is what a failed
-/// save returns (fn sets the exit code, type/val historically don't).
+/// save returns (fn sets the exit code, type/val historically don't). `convert` answers None
+/// to refuse, having said why; nothing is written.
 let saveAuthored
   (state: Cli.AppState)
   (location: LanguageTools.ProgramTypes.PackageLocation)
@@ -321,11 +322,11 @@ let saveAuthored
   (failState: Cli.AppState)
   (convert:
     LanguageTools.NameResolver.NRContext
-      -> (List<LanguageTools.ProgramTypes.PackageOp>
+      -> Stdlib.Option.Option<(List<LanguageTools.ProgramTypes.PackageOp>
           * LanguageTools.ProgramTypes.Hash
           * List<LanguageTools.Parser.Range
               * List<String>
-              * LanguageTools.ProgramTypes.NameResolutionError>))
+              * LanguageTools.ProgramTypes.NameResolutionError>)>)
   : Cli.AppState =
   let pm = LanguageTools.PackageManager.pm ()
 
@@ -337,10 +338,14 @@ let saveAuthored
         owner = location.owner
         currentModule = location.modules }
 
-  let (ops, hash, unresolvedNames) = convert ctx
+  match convert ctx with
+  | None -> failState
+  | Some converted ->
+  // Not `Some(a, b, c)`: that pattern never matches an Option holding a 3-tuple.
+  let (ops, hash, unresolvedNames) = converted
 
   if Errors.reportUnresolvedNames state.currentBranchId unresolvedNames then
-    state
+    failState
   else
     let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location kind
     let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
