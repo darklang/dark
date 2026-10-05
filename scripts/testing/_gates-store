@@ -56,17 +56,19 @@ gate_first_day() {
   dark() { ( cd "$HOMEDIR" && HOME="$HOMEDIR" DARK_CONFIG_RUNDIR="$HOMEDIR/rundir" "$ARTIFACT" "$@" 2>&1 ); }
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
+  # A failure prints its first four lines through a process substitution: `| head` here dies on
+  # SIGPIPE under pipefail and takes the gate with it, and a store's release steps are noise.
   wantnot() {  # wantnot <name> <pattern> <command...> -- the pattern must NOT appear
     local name="$1" pat="$2"; shift 2
     local out
     out=$(dark "$@" | clean) || true
     if grep -qE "Encountered a Runtime Error|No matching case found|couldn't be found" <<<"$out"; then
       echo "  FAIL $name: the command errored:"
-      while IFS= read -r line; do printf '         %s\n' "$line"; done <<<"$out" | head -4
+      while IFS= read -r line; do printf '         %s\n' "$line"; done < <(grep -vE 'Running release step|release: adding' <<<"$out" | head -4)
       failures=$((failures + 1))
     elif grep -qE "$pat" <<<"$out"; then
       echo "  FAIL $name: /$pat/ appeared:"
-      while IFS= read -r line; do printf '         %s\n' "$line"; done <<<"$out" | head -4
+      while IFS= read -r line; do printf '         %s\n' "$line"; done < <(grep -vE 'Running release step|release: adding' <<<"$out" | head -4)
       failures=$((failures + 1))
     else
       echo "  ok   $name"
@@ -82,13 +84,13 @@ gate_first_day() {
     # backstop for the ones that cannot be.
     if grep -qE "Encountered a Runtime Error|No matching case found|couldn't be found" <<<"$out"; then
       echo "  FAIL $name: the command errored:"
-      while IFS= read -r line; do printf '         %s\n' "$line"; done <<<"$out" | head -4
+      while IFS= read -r line; do printf '         %s\n' "$line"; done < <(grep -vE 'Running release step|release: adding' <<<"$out" | head -4)
       failures=$((failures + 1))
     elif grep -qE "$pat" <<<"$out"; then
       echo "  ok   $name"
     else
       echo "  FAIL $name: wanted /$pat/, got:"
-      while IFS= read -r line; do printf '         %s\n' "$line"; done <<<"$out" | head -4
+      while IFS= read -r line; do printf '         %s\n' "$line"; done < <(grep -vE 'Running release step|release: adding' <<<"$out" | head -4)
       failures=$((failures + 1))
     fi
   }
@@ -177,11 +179,24 @@ gate_first_day() {
   # The point of the whole step: p2 is back on the OLD p1, so 0 -> 2, not 0 -> 51.
   want "the pin actually holds"   "^2$"                 eval 'FirstDay.Chain.p2 0L'
 
+  # 9. The installed layout: the binary in `<home>/.darklang/bin`, a directory `install.sh` has already
+  # made, and no DARK_CONFIG_RUNDIR. Everything above starts from a rundir that does not exist yet,
+  # which is not the state a person who ran the installer is in; a store directory that already
+  # exists once shipped unseeded, and every command died with FnNotFound.
+  INSTALLED=$(mktemp -d)
+  trap 'rm -rf "$HOMEDIR" "$INSTALLED"' EXIT
+  mkdir -p "$INSTALLED/.darklang/bin"
+  cp "$ARTIFACT" "$INSTALLED/.darklang/bin/dark"
+  # shellcheck disable=SC2317  # reached through want, which calls `dark`
+  dark() { ( cd "$INSTALLED" && env -u DARK_CONFIG_RUNDIR HOME="$INSTALLED" "$INSTALLED/.darklang/bin/dark" "$@" 2>&1 ); }
+  want "installed: first run seeds the store" "^2$"  eval '1L + 1L'
+  want "installed: and it stays seeded"       "^(clean:|draft:)" status
+
   if [[ "$failures" -gt 0 ]]; then
     echo "$failures first-day step(s) failed."
     exit 1
   fi
-  echo "first day: author, run, commit, branch, merge, conflict, discard and pinning all work from an empty home."
+  echo "first day: author, run, commit, branch, merge, conflict, discard and pinning all work from an empty home, and an installed binary seeds its store."
 }
 
 # --- backups-restore: a backup holds what the store holds, and a wiped store comes back ---------
