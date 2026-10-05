@@ -101,6 +101,12 @@ let executionPointText (branchId: Uuid) (ep: Stdlib.Exec.ExecutionPoint) : Strin
 
 /// The process whose id starts with `prefix`, when exactly one does.
 let find (prefix: String) : Stdlib.Result.Result<Stdlib.Exec.Summary, String> =
+  // Every id starts with "", so an empty prefix would quietly take whichever process came first.
+  // A shell variable that came back empty is how a person meets this.
+  if prefix == "" then
+    Stdlib.Result.Result.Error "that id is empty -- `dark ps` lists the ids"
+  else
+
   let matches =
     Stdlib.Exec.list ()
     |> Stdlib.List.filter (fun p -> Stdlib.String.startsWith (Stdlib.toString p.id) prefix)

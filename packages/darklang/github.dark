@@ -79,6 +79,20 @@ module Releases =
       Stdlib.Result.Result.Error "Couldn't fetch releases list from GitHub API"
 
 
+  /// The asset for one platform id, matched by SUFFIX.
+  ///
+  /// `install.sh` matches `-<rid>.gz` for the same reason: `contains` lets `linux-arm` match the
+  /// `linux-arm64` asset, so an armv7l machine is handed an arm64 binary.
+  let assetUrlFor
+    (assets: List<Asset>)
+    (platformId: String)
+    : Stdlib.Option.Option<String> =
+    assets
+    |> Stdlib.List.findFirst (fun a ->
+      Stdlib.String.endsWith a.name $"-{platformId}.gz")
+    |> Stdlib.Option.map (fun a -> a.browser_download_url)
+
+
   /// Get the appropriate URL to download the latest release of the `darklang` cli exe,
   /// corresponding to the current OS and Architecture
   ///
@@ -107,15 +121,10 @@ module Releases =
       | Ok releaseJsonString ->
         match Stdlib.Json.parse<Release> releaseJsonString with
         | Ok release ->
-          let matchingAssetMaybe =
-            release.assets
-            |> Stdlib.List.findFirst (fun a ->
-              Stdlib.String.contains a.name hostStr)
-
-          match matchingAssetMaybe with
-          | Some asset -> asset.browser_download_url |> Stdlib.Result.Result.Ok
-
-          | None -> Stdlib.Result.Result.Error "No matching asset found"
+          match assetUrlFor release.assets hostStr with
+          | Some url -> url |> Stdlib.Result.Result.Ok
+          | None ->
+            Stdlib.Result.Result.Error $"No asset named `-{hostStr}.gz` in this release"
         | Error _e ->
           Stdlib.Result.Result.Error "Couldn't parse release JSON string"
       | Error _e ->

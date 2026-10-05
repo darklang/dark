@@ -1043,6 +1043,41 @@ let private traitRefusalsExitNonZero =
         Tests.failtestf "refusals that exit 0:\n%s" detail
     })
 
+/// Refusals outside the traits side, same rule: a refusal reports failure or no script can tell.
+///
+/// `ps show ""` is here because an empty prefix matches every id, so it used to take whichever
+/// process came first and exit 0; a shell variable that came back empty is how a person meets it.
+let private otherRefusals : List<string * List<string>> =
+  [ "ps show, an empty id", [ "ps"; "show"; "" ]
+    "ps cancel, an empty id", [ "ps"; "cancel"; "" ]
+    "ps show, no such id", [ "ps"; "show"; "zzznope" ]
+    "commit, a flag it does not take", [ "commit"; "--zzznope" ] ]
+
+let private otherRefusalsExitNonZero =
+  cliTestOnMain "a refusal outside the traits side exits non-zero" (fun state ->
+    task {
+      let mutable failures : List<string * string> = []
+      let mutable examined = 0
+
+      for (label, args) in otherRefusals do
+        let! (output, code) = runCliWithExit state args
+        examined <- examined + 1
+        if code = 0L then
+          let firstLine = (CliDsl.plain output).Trim().Split('\n')[0]
+          failures <- (label, firstLine) :: failures
+
+      Expect.equal examined (List.length otherRefusals) "every refusal was run"
+
+      if not (List.isEmpty failures) then
+        let detail =
+          failures
+          |> List.rev
+          |> List.map (fun (c, firstLine) -> $"  {c} -> exit 0: {firstLine}")
+          |> String.concat "\n"
+
+        Tests.failtestf "refusals that exit 0:\n%s" detail
+    })
+
 /// Every `dark <word>` the in-CLI docs mention has to be a real command.
 ///
 /// A doc that confidently describes a command that is not there is worse than no doc, and nothing
@@ -1252,5 +1287,6 @@ let tests : List<Test> =
     workbenchContextRowSaysWhereYouAre
     missingTargetsAreNamed
     traitRefusalsExitNonZero
+    otherRefusalsExitNonZero
     documentedCommandsAreReal ]
   @ workbenchNavigationRegressions
