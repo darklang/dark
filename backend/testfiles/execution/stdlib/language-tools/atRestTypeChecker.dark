@@ -141,6 +141,11 @@ let fnNamed
             { name = n; typ = t; description = "" })
       returnType = returnType
       description = ""
+      // This branch gives a fn BOUNDS (`'a: Compare`). The helper predates that and built a
+      // record without the field, so every test through it raised
+      // `Record (CreationMissingField "bounds")`, which the runner then reported as an empty
+      // message. Nothing here declares one, so the empty list is the honest value.
+      bounds = []
       permissionCeiling = Stdlib.Option.Option.None }
 
 let oneArg
