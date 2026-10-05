@@ -164,7 +164,9 @@ let declared
     { hash = hash name
       declaration =
         Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
-          { typeParams = typeParams; definition = definition }
+          // A type takes bounds on this branch too (`type Set<'a: Compare>`), and this helper
+          // predates that. Same omission as `fnNamed` above.
+          { typeParams = typeParams; bounds = []; definition = definition }
       description = "" }
 
 let recordOf
@@ -814,22 +816,27 @@ module Operators =
   (check (src [ "let f () : Int =", "  let flip = fun x -> ~x", "  flip 1" ]) "f") = "checked:"
   (check "val f = fun x -> (~x, x.field)" "f") = "failed:TypeMismatch"
 
-  (check "let f (x: String) : String = x + x" "f") = "failed:InvalidInfixOperand"
+  // String implements Add, which is what made `++` redundant, so `+` joins Strings and the
+  // checker accepts it. It used to refuse, from a table that did not know.
+  (check "let f (x: String) : String = x + x" "f") = "checked:"
 
-  // Exponentiation (**) does not support Int128 or UInt128, even though other
-  // arithmetic operators support those types.
-  (check "let f (value: Int128) : Int128 = value ** value" "f") = "failed:InvalidInfixOperand"
+  // Exponentiation on 128-bit integers is ACCEPTED now, and the old expectation was
+  // asserting a checker bug: `Power` has implementations for all twelve numeric types,
+  // including these two, and the runtime has always answered `Int128 ** Int128`. The rule
+  // that refused them was a hand-written table in the checker that disagreed with dispatch.
+  (check "let f (value: Int128) : Int128 = value ** value" "f") = "checked:"
 
-  (check "let f (value: UInt128) : UInt128 = value ** value" "f") = "failed:InvalidInfixOperand"
+  (check "let f (value: UInt128) : UInt128 = value ** value" "f") = "checked:"
 
   (check "let f (value: Int128) : Int128 = value + value" "f") = "checked:"
   (check "let f (value: UInt128) : UInt128 = value * value" "f") = "checked:"
 
-  // Bitwise operators require integer operands. Accept 128-bit integers and
-  // reject Float for both bitwise operations and shifts.
-  (check "let f (value: Float) : Float = value & value" "f") = "failed:InvalidInfixOperand"
+  // Bitwise operators still refuse Float, but as the ABSENCE of an implementation rather
+  // than a predicate in the checker: there is no `impl BitwiseAnd for Float`. Same answer,
+  // and now it is the same answer dispatch gives.
+  (check "let f (value: Float) : Float = value & value" "f") = "failed:MissingImpl"
 
-  (check "let f (value: Float) : Float = value << value" "f") = "failed:InvalidInfixOperand"
+  (check "let f (value: Float) : Float = value << value" "f") = "failed:MissingImpl"
 
   (check "let f (value: Int128) : Int128 = value ^ value" "f") = "checked:"
   (check "let f (value: Int64) : Int64 = value >> value" "f") = "checked:"
@@ -842,7 +849,9 @@ module Operators =
 
   (check "let f (u: Unit) : String = Builtin.add 1 2" "f") = "failed:TypeMismatch"
 
-  (check "let f (u: Unit) : Bool = Builtin.greaterThan \"x\" \"x\"" "f") = "failed:InvalidInfixOperand"
+  // `Compare` has an implementation for String, so comparing two Strings is accepted. The
+  // old table allowed only numerics.
+  (check "let f (u: Unit) : Bool = Builtin.greaterThan \"x\" \"x\"" "f") = "checked:"
 
   (check "let f (u: Unit) : Bool = Builtin.equals \"x\" \"x\"" "f") = "checked:"
 
@@ -850,13 +859,13 @@ module Operators =
   // passed around or partially applied. Report Incomplete for Builtin.add 1.
   (check "let f (u: Unit) : Int -> Int = Builtin.add 1" "f") = "incomplete:UnsupportedConstruct"
 
-  // A pipeline supplies the operator's first argument. Apply the same operand-type
-  // restrictions as a direct call, including power's rejection of UInt128.
+  // A pipeline supplies the operator's first argument, and gets the same answer as a direct
+  // call. Power on UInt128 is accepted through both, for the reason above.
   (check "let f (value: Int) : Int = value |> Builtin.subtract 1" "f") = "checked:"
 
-  (check "let f (value: UInt128) : UInt128 = value |> Builtin.power value" "f") = "failed:InvalidInfixOperand"
+  (check "let f (value: UInt128) : UInt128 = value |> Builtin.power value" "f") = "checked:"
 
-  (check "let f (value: UInt128) : UInt128 = Builtin.power value value" "f") = "failed:InvalidInfixOperand"
+  (check "let f (value: UInt128) : UInt128 = Builtin.power value value" "f") = "checked:"
 
   // Unary minus accepts signed integers and Float. Reject unsigned integers
   // and nonnumeric values, and check the resulting type against the return type.
@@ -1887,7 +1896,7 @@ module Lets =
   (check "val f = fun r -> (r.field + 1, { r with field = true })" "f") = "failed:TypeMismatch"
   // When the update comes first, it fixes field's type to Bool. The later addition
   // then reports both the invalid numeric operand and the conflicting field type.
-  (check "val f = fun r -> ({ r with field = true }, r.field + 1)" "f") = "failed:InvalidInfixOperand,TypeMismatch"
+  (check "val f = fun r -> ({ r with field = true }, r.field + 1)" "f") = "failed:MissingImpl,TypeMismatch"
   (check "val f = fun r -> (r.field + 1, { r with field = 2 })" "f") = "checked:"
   (check "val f = fun x -> (Builtin.unwrap x + 1, if Builtin.unwrap x then 1 else 0)" "f") = "failed:TypeMismatch"
   (check "val f = fun x -> (Builtin.unwrap x + 1, Builtin.unwrap x + 2)" "f") = "checked:"
@@ -2424,7 +2433,12 @@ module Invariants =
         Stdlib.Option.Option.Some(Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn fn)
 
   let branchReport () : Darklang.LanguageTools.AtRestTypeChecker.Report =
-    Darklang.LanguageTools.AtRestTypeChecker.Run.checkReferences loadCandidate
+    // `checkReferences` takes the BRANCH first now, because which implementations are visible
+    // is the one branch-dependent thing the checker needs. A Dark call with the old arity
+    // raises `Apply` when it runs and nothing catches it at build time.
+    Darklang.LanguageTools.AtRestTypeChecker.Run.checkReferences
+      Darklang.SCM.Branch.mainBranchId
+      loadCandidate
       [ Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "broken-type")
         Darklang.LanguageTools.ProgramTypes.Reference.PackageValue(hash "missing-value")
         Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "broken")
@@ -2454,7 +2468,7 @@ module DefiniteShapes =
   (check (src [ "let f () : Unit =", "  let _ = if true then [] else Dict {}", "  ()" ]) "f") = "failed:AmbiguousType,TypeMismatch"
   (check (src [ "let f () : Unit =", "  let (x, y, z) = ([], [])", "  ()" ]) "f") = "failed:TypeMismatch"
   (check (src [ "let takes (g: Int -> Int) : Unit = ()", "let f () : Unit = takes (fun x y -> x)" ]) "f") = "failed:TypeMismatch"
-  (check (src [ "let f () : Unit =", "  let _ = [] + []", "  ()" ]) "f") = "failed:InvalidInfixOperand"
+  (check (src [ "let f () : Unit =", "  let _ = [] + []", "  ()" ]) "f") = "failed:MissingImpl"
   (check (src [ "let f () : Unit =", "  let _ = -[]", "  ()" ]) "f") = "failed:InvalidInfixOperand"
 
 module RigidCustomOperations =
