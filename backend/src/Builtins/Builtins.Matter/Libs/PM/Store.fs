@@ -229,7 +229,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
     // The store-change signal for a process that stays up (a TUI, `serve`, a daemon). See
@@ -309,7 +309,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
+      // Not a read: `Effects.readsOnly` would let a resume serve it instead of arming the watch.
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated } ]
 
 

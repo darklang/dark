@@ -889,6 +889,33 @@ let inline private recordsCall (tracing : Tracing.Tracing) (ord : int64) : bool 
   ord >= 0L && tracing.traceEffects
 
 
+/// Builtins that WAIT on work done elsewhere. Their parameter is a process handle, whose type
+/// this module cannot resolve, so they are named. One missing from here is intercepted, which
+/// stops a preview visibly rather than letting anything perform.
+let private awaitsElsewhere : Set<string> =
+  set [ "execAwait"; "execAwaitWithin"; "execSelect" ]
+
+/// Whether this builtin's call is logged, and so intercepted on a resume or a preview.
+///
+/// A builtin that declares an effect always is. One that is `Impure` with no declared effect is
+/// too, so an unannotated writer cannot perform while somebody looks at a trace: 59 builtins are
+/// in that state and some of them write.
+///
+/// Unless it only ORCHESTRATES. Applying a callable or awaiting a process performs nothing itself,
+/// and the callee's own calls are logged, so interception there would serve `List.map`'s result
+/// instead of running the lambda (losing every per-iteration value) or stop a preview at an await.
+/// An orchestrator that declares an effect of its own is still intercepted.
+let private isLogged (fn : BuiltInFn) : bool =
+  if not (Set.isEmpty fn.callEffects) then
+    true
+  else
+    fn.previewable = Impure
+    && not (
+      Set.contains fn.name.name awaitsElsewhere
+      || List.exists (fun (p : BuiltInParam) -> p.typ.isFn ()) fn.parameters
+    )
+
+
 /// Record a builtin's result in the trace, and hand it back.
 ///
 /// Top-level for the same reason as `finishBuiltin` below it: a local here is captured by that
@@ -1238,11 +1265,7 @@ let private invokeBuiltin
   // a read that lands late keeps it. -1 for a pure call, or when nothing records.
   let recording = exeState.tracing.traceEffects
 
-  let ord =
-    if recording && not (Set.isEmpty fn.callEffects) then
-      exeState.tracing.nextEffect ()
-    else
-      -1L
+  let ord = if recording && isLogged fn then exeState.tracing.nextEffect () else -1L
 
   // Wall clock for the log, and only for a call that will actually be recorded. At the shipped
   // the effectful calls, about one in a hundred of a real program's builtin calls,
@@ -1263,7 +1286,7 @@ let private invokeBuiltin
   // call stopped it.
   let viewed =
     match exeState.tracing.viewEffect with
-    | Some lookup when not (Set.isEmpty fn.callEffects) ->
+    | Some lookup when isLogged fn ->
       match lookup fn.name.name allArgs with
       | ValueSome step -> ValueSome step
       | ValueNone ->

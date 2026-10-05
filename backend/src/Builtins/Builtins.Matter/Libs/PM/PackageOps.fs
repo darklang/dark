@@ -425,7 +425,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
 
@@ -734,7 +734,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = set [ Effect.PackageRead ]
+      callEffects = set [ Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
     // ARCHIVING a branch travels, for the same reason merging does: on the other machine the branch is
