@@ -26,6 +26,14 @@ let sourceFileAtWidth
 
       | Function fnDecl ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx fnDecl
+        acc |> Stdlib.List.push prettyPrinted
+
+      | Trait traitDecl ->
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageTrait ctx traitDecl
+        acc |> Stdlib.List.push prettyPrinted
+
+      | Impl implDecl ->
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageImpl ctx implDecl
         acc |> Stdlib.List.push prettyPrinted))
     |> Stdlib.List.reverse
 

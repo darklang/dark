@@ -300,7 +300,9 @@ module FQFnName =
     | Package p ->
       FQFnName.Package.fullForReference ctx p
     | TraitMethod tm ->
-      $"{FQTypeName.Package.fullForReference ctx tm.trait_}.{tm.method_}"
+      // A trait's hash is not a type's, so it needs the trait's own locations. The RT printer
+      // already knew this; without it a trait method prints as a 64-character hash.
+      $"{FQTraitName.Package.fullForReference ctx tm.trait_}.{tm.method_}"
 
 
 /// Display helpers for NameResolution.
