@@ -2120,6 +2120,41 @@ let private completePackage
     PushFrame frame
 
 
+/// The method name a satisfied bound is remembered under in `implSelectionMemo`. No trait
+/// method is called "", so it cannot collide with a dispatch entry, and it shares that memo's
+/// lifetime and its `implGeneration` invalidation exactly.
+[<Literal>]
+let private boundMemoMethod = ""
+
+/// Whether every bound on a fn is already known to hold for these type args, under the current
+/// generation, so entry can skip proving them again. Proving one scans every candidate of the
+/// trait, which on a bounded generic like `Stdlib.toString` was most of the cost of each call.
+/// False means "prove them": a miss, a stale entry, or a bound not yet seen.
+let rec private boundsRemembered
+  (exeState : ExecutionState)
+  (generation : int)
+  (bounds : List<Bound>)
+  (tst : TypeSymbolTable)
+  : bool =
+  match bounds with
+  | [] -> true
+  | b :: rest ->
+    // Nested rather than `match a, b with`: that pair is allocated on every call.
+    let held =
+      match b.trait_.trait_.resolved with
+      | Ok(FQTraitName.Package traitHash) ->
+        match TST.tryFind b.param tst with
+        | ValueSome(ValueType.Known self) ->
+          let mutable hit = Unchecked.defaultof<struct (int * FQFnName.Package)>
+          exeState.fns.implSelectionMemo.TryGetValue(
+            struct (exeState.branchId, traitHash, boundMemoMethod, self),
+            &hit
+          )
+          && (let struct (g, _) = hit in g = generation)
+        | _ -> true
+      | _ -> true
+    held && boundsRemembered exeState generation rest tst
+
 /// `'a: Show` on a fn, checked when the fn is entered with every argument in
 /// hand: each bound whose type param is bound to a Known type must have an impl
 /// visible on this branch. Checked at the boundary, like the parameter types, so
@@ -2136,9 +2171,18 @@ let private checkBoundsAtEntry
     uply {
       match b.trait_.trait_.resolved, TST.tryFind b.param tst with
       | Ok(FQTraitName.Package traitHash), ValueSome(ValueType.Known self) ->
+        // Read before the candidates, as dispatch does, so a fold in between cannot stamp a
+        // stale answer with the new generation.
+        let generation = exeState.fns.implGeneration ()
         let! candidates = exeState.fns.implCandidates exeState.branchId traitHash
         match Traits.select candidates self with
-        | Traits.Selected _ -> return ()
+        | Traits.Selected c ->
+          exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                                 traitHash,
+                                                 boundMemoMethod,
+                                                 self)] <-
+            struct (generation, c.source)
+          return ()
         | Traits.NoImpl ->
           return
             RTE.Trait(
@@ -2251,6 +2295,24 @@ let private callPackageViaFrame
   // Same as in `callBuiltinResolved`: two `isEmpty` checks, no pair.
   if List.isEmpty pkgRestPs || ArgSeq.isEmpty pkgRestArgs then
     if List.isEmpty fn.bounds || argCount < paramCount then
+      Ply(
+        completePackage
+          exeState
+          vm
+          currentFrame
+          ctx
+          fn
+          implicitTypeParams
+          newlyBound
+          allArgs
+          argCount
+          paramCount
+          tst
+      )
+    else if
+      boundsRemembered exeState (exeState.fns.implGeneration ()) fn.bounds tst
+    then
+      // Every bound already proved for these type args: no candidate scan, and no `uply`.
       Ply(
         completePackage
           exeState

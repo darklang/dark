@@ -1392,6 +1392,166 @@ module Reload =
   let tests = testList "Reload" [ heldReferencesKeepTheirHash ]
 
 
+/// A bounded fn remembers that its bounds held, so it does not prove them again on every call.
+/// What it remembered has to be forgotten when the implementations change.
+module BoundMemo =
+  let private m = "InterpBoundMemo"
+
+  /// One state for every call, over the store's own package manager: the memo lives there, and
+  /// only it has a generation that moves when the store changes. A state per call, or one over
+  /// `PT2RT.PackageManager.toRT`, would start empty each time and could not go stale.
+  let private sharedState () : RT.ExecutionState =
+    LibExecution.Execution.createState
+      (localBuiltIns pmPT)
+      pmRT
+      LibExecution.Execution.noTracing
+      (fun _ _ _ _ -> uply { return () })
+      (fun _ _ _ _ -> uply { return () })
+      { dbs = Map.empty }
+    |> LibExecution.Execution.setInstancePolicy
+      LibExecution.Permissions.Policy.allowAll
+
+  let private call (state : RT.ExecutionState) (hash : PT.Hash) =
+    task {
+      let (PT.Hash h) = hash
+      let app =
+        RT.AppNamedFn
+          { name = RT.FQFnName.fqPackage h
+            typeSymbolTable = RT.TST.empty
+            typeArgs = []
+            access = None
+            argsSoFar = []
+            boundImpls = [] }
+      return!
+        LibExecution.Execution.executeApplicable
+          state
+          state.access
+          app
+          (NEList.singleton RT.DUnit)
+        |> Ply.toTask
+    }
+
+  let private entered (state : RT.ExecutionState) (hash : PT.Hash) (why : string) =
+    task {
+      match! call state hash with
+      | Ok dv -> Expect.equal dv (RT.DString "entered") why
+      | Error(rte, _) -> return failtest $"{why}: the call raised {rte}"
+    }
+
+  let private refusedForNoImpl
+    (state : RT.ExecutionState)
+    (hash : PT.Hash)
+    (why : string)
+    =
+    task {
+      match! call state hash with
+      | Error(RT.RuntimeError.Trait(RT.RuntimeError.Traits.MissingImpl _), _) ->
+        return ()
+      | other -> return failtest $"{why}: expected MissingImpl, got %A{other}"
+    }
+
+  /// `authorIntoMain`, but leaving a name the parser cannot resolve yet for the refresh, as
+  /// the authoring builtin does. `ThrowError` refuses an implementation's own methods.
+  let private authorStep (label : string) (source : string) =
+    task {
+      let! parsed =
+        LibParser.Package.parse
+          (localBuiltIns pmPT)
+          pmPT
+          LibParser.NameResolver.OnMissing.Allow
+          source
+        |> Ply.toTask
+      match parsed with
+      | Error errs -> return failtest $"authoring {label} failed to parse: {errs}"
+      | Ok ops ->
+        let stabilized = LibDB.HashStabilization.computeRealHashes ops
+        let! _ = LibDB.Inserts.insertAndApplyOpsAsWip stabilized
+        let! _ = LibDB.WipRefresh.refresh pmPT
+        return stabilized
+    }
+
+  let boundCheckFollowsImplementations =
+    testTask
+      "a bounded fn's remembered bound follows implementations added and deprecated" {
+      // Fresh field names per run: a type is content-addressed, so a shape left in the store by
+      // an earlier run would already carry this run's implementations.
+      let r = System.Random.Shared.Next(1_000, 1_000_000_000)
+      let q = $"Darklang.{m}"
+      // One item kind per authoring, each resolving against what the step before stored.
+      let! _ =
+        authorStep
+          "types"
+          $"module {q}\n\ntype Box = {{ boxWidth{r}: Int64 }}\n\ntype Crate = {{ crateDepth{r}: Int64 }}"
+      let! _ =
+        authorStep
+          "trait"
+          $"module {q}\n\ntrait Lbl<'a> =\n  let lbl (v: 'a) : String"
+      let! boxOps =
+        authorStep
+          "box impl"
+          $"module {q}\n\nimpl {q}.Lbl for {q}.Box =\n  let lbl (b: {q}.Box) : String = \"box\""
+      let! _ =
+        authorStep
+          "fns"
+          $"module {q}
+
+let guarded<'a: {q}.Lbl> (v: 'a) : String = \"entered\"
+
+let callBox () : String = {q}.guarded ({q}.Box {{ boxWidth{r} = 1L }})
+
+let callCrate () : String = {q}.guarded ({q}.Crate {{ crateDepth{r} = 1L }})"
+      // Read back from the store: the refresh may have re-hashed what the parse returned.
+      let current
+        (find : PT.PackageLocation -> Ply<Option<PT.Hash>>)
+        (l : PT.PackageLocation)
+        =
+        task {
+          match! find l |> Ply.toTask with
+          | Some h -> return h
+          | None -> return failtest $"nothing bound at {l}"
+        }
+      let at (name : string) : PT.PackageLocation =
+        { owner = "Darklang"; modules = [ m ]; name = name }
+      let! callBox = current pmPT.findFn (at "callBox")
+      let! callCrate = current pmPT.findFn (at "callCrate")
+      let boxImplAt =
+        boxOps
+        |> List.pick (fun op ->
+          match op with
+          | PT.PackageOp.SetName(l, PT.Reference.PackageTraitImpl _, _) -> Some l
+          | _ -> None)
+      let! boxImpl = current pmPT.findTraitImpl boxImplAt
+
+      // `guarded` never calls the trait's method, so only the check at entry can refuse it.
+      let state = sharedState ()
+      do! entered state callBox "the bound holds, and is remembered"
+      do! entered state callBox "and holds again from what was remembered"
+      do! refusedForNoImpl state callCrate "a type with no implementation is refused"
+
+      let! _ =
+        authorStep
+          "crate impl"
+          $"module {q}\n\nimpl {q}.Lbl for {q}.Crate =\n  let lbl (c: {q}.Crate) : String = \"crate\""
+      do! entered state callCrate "a new implementation is seen at once"
+
+      let! _ =
+        LibDB.Inserts.insertAndApplyOpsAsWip
+          [ PT.PackageOp.Deprecate(
+              PT.Reference.PackageTraitImpl boxImpl,
+              PT.DeprecationKind.Obsolete,
+              "bound memo test",
+              None
+            ) ]
+      do!
+        refusedForNoImpl
+          state
+          callBox
+          "a deprecated implementation no longer satisfies the remembered bound"
+    }
+
+  let tests = testList "BoundMemo" [ boundCheckFollowsImplementations ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -1418,4 +1578,5 @@ let tests =
       AliasChecks.tests
       DictKeyOrdering.tests
       DeepValues.tests
-      Reload.tests ]
+      Reload.tests
+      BoundMemo.tests ]
