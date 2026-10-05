@@ -427,11 +427,20 @@ module Watch =
     let n = Stdlib.List.length m.rows
     { m with cursor = Stdlib.Int.max 0 (Stdlib.Int.min m.cursor (n - 1)) }
 
+  /// The panel shows one line either way, so a refusal becomes the note in the colour it
+  /// used to be printed in. `cancel` and `kill` on the command line exit non-zero instead;
+  /// a panel has no exit code to carry it.
+  let noteOf (r: Stdlib.Result.Result<String, String>) : String =
+    match r with
+    | Ok msg -> msg
+    | Error e -> Stdlib.Cli.UI.Colors.error e
+
   let act (m: Model) (hard: Bool) : Model =
     match Stdlib.List.getAt m.rows m.cursor with
     | None -> m
-    | Some(Machine(pid, _)) -> { m with note = signalMachine pid hard }
-    | Some(Local(id, _)) -> { m with note = stopLocal (Cli.Text.shortId id) hard }
+    | Some(Machine(pid, _)) -> { m with note = noteOf (signalMachine pid hard) }
+    | Some(Local(id, _)) ->
+      { m with note = noteOf (stopLocal (Cli.Text.shortId id) hard) }
 
   let update (m: Model) (event: Apps.Host.Event<Msg>) : Model =
     match event with

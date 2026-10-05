@@ -565,7 +565,9 @@ let private testTracesFiltersAreCaseInsensitive =
       Expect.stringContains listLower "eval" "lower matches"
       let! listUpper = runCli state [ "traces"; "list"; "--route"; "EVAL" ]
       Expect.stringContains listUpper "eval" "upper matches"
-      Expect.isFalse (listUpper.Contains "no kept run") "upper still finds"
+      // "no kept trace", not "run": the noun changed, and asserting the absence of a string
+      // nothing prints any more cannot fail.
+      Expect.isFalse (listUpper.Contains "no kept trace") "upper still finds"
       let! listMixed = runCli state [ "traces"; "list"; "--route"; "Eval" ]
       Expect.stringContains listMixed "eval" "mixed matches"
     })
@@ -878,8 +880,8 @@ let private testTracesTakeTheShortNameForm =
           runCli state [ "traces"; "calls"; "Darklang.Stdlib.List.length" ]
         let! short = runCli state [ "traces"; "calls"; "Stdlib.List.length" ]
         Expect.isFalse
-          (short.Contains "no recorded run")
-          "the short form finds the same runs the long one does"
+          (short.Contains "no recorded trace")
+          "the short form finds the same traces the long one does"
         Expect.equal
           (short.Split('\n').Length)
           (full.Split('\n').Length)
