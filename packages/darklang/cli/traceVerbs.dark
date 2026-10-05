@@ -84,6 +84,7 @@ let find (prefix: String) : Stdlib.Result.Result<Darklang.Tracing.Trace, String>
 let whenText (created: String) : String =
   let whole =
     match Stdlib.String.split created "." with
+    | [] -> created
     | [ s ] -> s
     | s :: _ -> s ++ "Z"
   match Stdlib.DateTime.parse whole with
