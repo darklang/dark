@@ -611,6 +611,8 @@ let printTraceHint (branchId: Uuid) (location: PackageLocation) : Unit =
   | Module _ -> ()
   | Type _ -> ()
   | Value _ -> ()
+  | Trait _ -> ()
+  | Impl _ -> ()
   | Function loc ->
     let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
 
