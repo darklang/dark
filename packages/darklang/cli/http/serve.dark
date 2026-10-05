@@ -103,7 +103,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Some err ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error err)
       printUsage ()
-      state
+      { state with exitCode = 1 }
     | None ->
       if parsed.routerPath == "" then
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Missing router path.")

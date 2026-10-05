@@ -229,35 +229,47 @@ let killById (id: Uuid) : Bool = Builtin.execKill id
 
 /// Signal another Dark process on this machine. `cancel` is INT, the Ctrl-C path: a traced run
 /// is suspended (`dark traces` keeps it), a daemon or a serve ends. `kill` is KILL.
-let signalMachine (pid: Int) (hard: Bool) : String =
+let signalMachine
+  (pid: Int)
+  (hard: Bool)
+  : Stdlib.Result.Result<String, String> =
   let known = Stdlib.Exec.machineList () |> Stdlib.List.filter (fun m -> (Stdlib.Int.fromInt64 m.pid) == pid)
   let pidText = Stdlib.Int.toString pid
   match known with
-  | [] -> Stdlib.Cli.UI.Colors.error $"no Dark process on this machine has pid {pidText} -- `dark ps` lists them"
+  | [] ->
+    Stdlib.Result.Result.Error
+      $"no Dark process on this machine has pid {pidText} -- `dark ps` lists them"
   | m :: _ ->
     let signal = if hard then Stdlib.Cli.Posix.sigkill else Stdlib.Cli.Posix.sigint
     match Stdlib.Cli.Posix.kill pid signal with
     | Ok () ->
-      if hard then $"killed {m.title} (pid {pidText})"
-      else $"asked {m.title} (pid {pidText}) to stop"
-    | Error _ -> Stdlib.Cli.UI.Colors.error $"could not signal pid {pidText}"
+      if hard then Stdlib.Result.Result.Ok $"killed {m.title} (pid {pidText})"
+      else Stdlib.Result.Result.Ok $"asked {m.title} (pid {pidText}) to stop"
+    | Error _ ->
+      Stdlib.Result.Result.Error $"could not signal pid {pidText}"
 
 /// Stop a process in this instance by id prefix: `cancel` at its next turn, `kill` now.
-let stopLocal (prefix: String) (hard: Bool) : String =
+let stopLocal
+  (prefix: String)
+  (hard: Bool)
+  : Stdlib.Result.Result<String, String> =
   match find prefix with
-  | Error e -> Stdlib.Cli.UI.Colors.error e
+  | Error e -> Stdlib.Result.Result.Error e
   | Ok p ->
     let ok = if hard then killById p.id else Stdlib.Exec.cancel (Stdlib.Exec.Handle { id = p.id })
     if ok then
-      if hard then $"killed {Cli.Text.shortId p.id} without waiting for what it was doing"
+      if hard then
+        Stdlib.Result.Result.Ok
+          $"killed {Cli.Text.shortId p.id} without waiting for what it was doing"
       else
-        $"asked {Cli.Text.shortId p.id} to stop; it will, as soon as the work it is doing finishes"
+        Stdlib.Result.Result.Ok
+          $"asked {Cli.Text.shortId p.id} to stop; it will, as soon as the work it is doing finishes"
     else
-      Stdlib.Cli.UI.Colors.error
+      Stdlib.Result.Result.Error
         $"{Cli.Text.shortId p.id} finished while you were asking -- `dark ps` for what is left"
 
 /// A pid names another Dark process on this machine; anything else is an id prefix in this one.
-let stop (target: String) (hard: Bool) : String =
+let stop (target: String) (hard: Bool) : Stdlib.Result.Result<String, String> =
   match Stdlib.Int.parse target with
   | Ok pid -> signalMachine pid hard
   | Error _ -> stopLocal target hard
@@ -326,11 +338,21 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "show", prefix, "--full" ] ->
     Cli.exitWith state (printShowWith state.currentBranchId prefix true)
   | [ "cancel", target ] ->
-    Stdlib.printLine (stop target false)
-    state
+    match stop target false with
+    | Ok msg ->
+      Stdlib.printLine msg
+      state
+    | Error e ->
+      Cli.printErr e
+      { state with exitCode = 1 }
   | [ "kill", target ] ->
-    Stdlib.printLine (stop target true)
-    state
+    match stop target true with
+    | Ok msg ->
+      Stdlib.printLine msg
+      state
+    | Error e ->
+      Cli.printErr e
+      { state with exitCode = 1 }
   | [ verb ] when (Stdlib.List.member [ "show", "cancel", "kill" ] verb) ->
     Cli.printErr $"ps {verb} needs an id prefix (or a pid) -- `dark ps` lists them"
     { state with exitCode = 1 }

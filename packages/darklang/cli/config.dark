@@ -86,11 +86,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | ["set", key, value] when isStoreKey key ->
     match checkValue key value with
-    | Some problem -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error problem)
+    | Some problem ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error problem)
+      { state with exitCode = 1 }
     | None ->
       let _ = Stdlib.LocalStore.configSet key value
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} = {value}")
-    state
+      state
 
   | ["get", key] ->
     let config = readConfig ()
@@ -105,7 +107,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | ["set", key, value] when Stdlib.Option.isSome (checkValue key value) ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Stdlib.Option.withDefault (checkValue key value) ""))
-    state
+    { state with exitCode = 1 }
 
   | ["set", key, value] ->
     let config = readConfig ()
@@ -178,7 +180,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Invalid arguments")
     Stdlib.printLine ""
     Stdlib.printLine (help state)
-    state
+    { state with exitCode = 1 }
 
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =

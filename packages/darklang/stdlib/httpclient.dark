@@ -76,6 +76,10 @@ let read
 /// wrapped in {{ Ok }} if a response was successfully received and parsed, and is
 /// wrapped in {{ Error }} otherwise. A GET or HEAD is a `read` (concurrent); any other
 /// method is a write and runs in program order.
+///
+/// <param body> is IGNORED for GET and HEAD. A read goes through `httpClientRead`, which
+/// takes no body, and carrying one would mean deciding whether a GET with a body is still
+/// a read. Use a method that is a write if you need the body sent.
 let request
   (method: String)
   (uri: String)

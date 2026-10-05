@@ -184,7 +184,7 @@ let parseViewOptions
 /// cancelled, printed one line nobody was reading, and reported success. An agent cleaning up
 /// after itself would have believed it every time.
 let confirmDestructive (autoConfirm: Bool) (action: String) : Bool =
-  Cli.Prompt.confirm autoConfirm $"{action} (y/n): "
+  Cli.Prompt.confirmExplicit autoConfirm $"{action} [y/N]: "
 
 
 /// Does this argument look like a TRACE id rather than a function name?
@@ -674,7 +674,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "rerun", traceID ] ->
     match resolveTraceID traceID with
     | Some full -> executeReplay state full
-    | None -> state
+    | None -> { state with exitCode = 1 }
 
   // `delete` covers all four shapes: by ID, --keep N, --before <duration>, and --all.
   | [ "delete", "--all" ] ->
@@ -715,7 +715,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       else
         Stdlib.printLine "Cancelled."
         { state with exitCode = 1 }
-    | None -> state
+    | None -> { state with exitCode = 1 }
 
   // Focused usage messages for the remaining "flag without arg" cases
   // that don't conflict with positional-catching arms higher up
@@ -1871,7 +1871,7 @@ let help (_state: Cli.AppState) : String =
     ""
     "Look around"
     "  list [n] [--json]             the traces, newest first"
-    "  list --fn <substring> [n]     ... only the ones that called a matching function"
+    "  list --fn <substring> [n]     ... only the ones whose effectful calls match"
     "  list --route <substring> [n]  ... only the served requests matching a path or method"
     "  find <pattern> [n]            ... only the ones whose recorded values contain it"
     "  find <pattern> --inspect      ... and open the newest of them"
