@@ -94,7 +94,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
     printUsage ()
-    state
+    { state with exitCode = 1 }
 
   | _ ->
     let parsed = parseArgs args (defaultArgs ())
@@ -108,7 +108,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       if parsed.routerPath == "" then
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Missing router path.")
         printUsage ()
-        state
+        { state with exitCode = 1 }
       else
         let portStr = Stdlib.toString parsed.port
         let maxBytesStr = Stdlib.toString parsed.maxBodyBytes
@@ -190,14 +190,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             | _ -> Stdlib.HttpServer.serve config router announce
 
           match served with
-          | Ok _ -> ()
-          | Error msg -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-          state
+          | Ok _ -> state
+          | Error msg ->
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
+            { state with exitCode = 1 }
         | Error msg ->
           Stdlib.printLine (
             Stdlib.Cli.UI.Colors.error $"{msg} -- is it defined and committed on this branch?")
 
-          state
+          { state with exitCode = 1 }
 
 
 let help (_state: Cli.AppState) : String =

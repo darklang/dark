@@ -339,17 +339,33 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // two flags is eight arms saying the same thing, and the one you forget is the bug.
   | "view" :: rest ->
     let live = Stdlib.List.member rest "--live"
-    match rest |> Stdlib.List.filter (fun a -> a != "--live") with
-    | [ slug ] -> viewApp state slug "" Stdlib.Option.Option.None live
-    | [ slug, "--resume", saved ] ->
-      viewApp state slug "" (Stdlib.Option.Option.Some saved) live
-    | [ slug, name ] -> viewApp state slug name Stdlib.Option.Option.None live
-    | [ slug, name, "--resume", saved ] ->
-      viewApp state slug name (Stdlib.Option.Option.Some saved) live
-    | _ ->
-      Cli.printErr
-        "Usage: apps view <slug> [<name>] [--resume <val>] [--live]"
+    let rest = rest |> Stdlib.List.filter (fun a -> a != "--live")
+    // A flag in the name slot would otherwise be taken as the view's name and open it.
+    let unknownFlag =
+      rest
+      |> Stdlib.List.findFirst (fun a -> Stdlib.String.startsWith a "--" && a != "--resume")
+    match unknownFlag with
+    | Some "--dev" ->
+      Cli.printErr "--dev is --live: the view follows edits."
       { state with exitCode = 1 }
+    | Some "--no-live" ->
+      Cli.printErr "--no-live is what happens anyway: a view follows edits only with --live."
+      { state with exitCode = 1 }
+    | Some flag ->
+      Cli.printErr $"apps view has no {flag}. Usage: apps view <slug> [<name>] [--resume <val>] [--live]"
+      { state with exitCode = 1 }
+    | None ->
+      match rest with
+      | [ slug ] -> viewApp state slug "" Stdlib.Option.Option.None live
+      | [ slug, "--resume", saved ] ->
+        viewApp state slug "" (Stdlib.Option.Option.Some saved) live
+      | [ slug, name ] -> viewApp state slug name Stdlib.Option.Option.None live
+      | [ slug, name, "--resume", saved ] ->
+        viewApp state slug name (Stdlib.Option.Option.Some saved) live
+      | _ ->
+        Cli.printErr
+          "Usage: apps view <slug> [<name>] [--resume <val>] [--live]"
+        { state with exitCode = 1 }
 
   // `spawn` is an alias for `start` (the verb for bringing a daemon to life).
   | [ "start", slug ] | [ "spawn", slug ] -> startDaemon state slug false
