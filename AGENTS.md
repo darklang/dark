@@ -104,8 +104,39 @@ apply" when the source on disk was already correct. Wait on `status`, not on `ps
 The same session also met the build REFUSING, correctly, which is the opposite and reads the same
 if you only check the exit code: "Tests are running in this clone (pid N). Building now would
 overwrite the binaries they're executing." A test run I had started myself was still holding them.
-It is `rundir/test.lock` with a liveness check, so it clears itself; the point is that a refusal and
-a failure are different things and only the message says which.
+It is `rundir/test.lock` with a liveness check; the point is that a refusal and a failure are
+different things and only the message says which.
+
+That liveness check is not as reliable as the line above used to claim. A run killed mid-flight
+left `test.lock` naming a dead pid and the build refused for it repeatedly, while
+`[ -d /proc/<pid> ]` said plainly that it was gone. Check `/proc` before believing the lock, then
+`--force` or delete it.
+
+And never send the build's own output to `/dev/null`. A refusal there is invisible, the next
+`dev/status` answers from the LAST successful build, and that answer is a timestamp, so it looks
+current. Several builds in a row never ran tonight and every check agreed they had. Compare the
+timestamp against when you started, not against nothing.
+
+**Change detection is by CONTENT over the whole repo, so `touch` does nothing, and deleting the
+store does not make the build rebuild it.** `rundir/data.db` is not among the outputs
+`missing_outputs()` watches, so deleting it to force a package reload gets "nothing has changed
+since the last successful build" with no store on disk at all. Removing `rundir/build-state.json`
+does not help either. To force a genuine full build, hand it the path the script itself uses for
+one:
+
+    scripts/dev/build backend/global.json
+
+**A stale binary against a re-authored store fails as `FnNotFound` on a hash that exists
+nowhere.** The hash is computed at run time, so grepping the tree AND querying `locations` both
+answer "absent", which reads like a missing function rather than a mismatched pair. Every `eval`
+failed, `1L + 1L` included, and the error could not even be stringified because rendering it
+needed a second unresolvable fn. Compare the two mtimes before theorising (in-container paths):
+
+    stat -c %y backend/Build/out/Cli/Debug/net10.0/Cli
+    stat -c %y rundir/data.db
+
+If the binary is older than the store, that is the bug, whatever `dev/status` says. The full build
+above relinks the two together.
 
 **Read the FIRST compiler error, not the last.** F# reports an unclosed construct as a
 cascade: one real error, then an `FS0058` "offside of context started at position (N,c)"

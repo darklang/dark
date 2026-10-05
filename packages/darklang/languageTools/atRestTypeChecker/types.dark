@@ -329,6 +329,29 @@ let resolvedType
     | Package hash -> Stdlib.Option.Option.Some hash
   | Error _ -> Stdlib.Option.Option.None
 
+/// Do these two types agree on their HEAD alone, ignoring arguments entirely?
+///
+/// TRIAGE ONLY, never the matching rule: `implApplies` is the rule. This answers the narrower
+/// question "could any implementation of this shape apply", which is what lets a definite
+/// refusal be made before the arguments are known. `-[]` has an undecided element type and no
+/// implementation of `Negate` is for a list at all, so waiting for the element type would
+/// turn a definite error into "cannot tell", and an Incomplete verdict passes the commit gate
+/// where a Failed one does not.
+let headMatches (a: Model.Ty) (b: Model.Ty) : Bool =
+  match (a, b) with
+  | (TError, _) -> true
+  | (TRigid _, _) -> true
+  | (_, TError) -> true
+  | (_, TVar _) -> true
+  | (TCustom(aHash, _), TCustom(bHash, _)) -> aHash == bHash
+  | (TList _, TList _) -> true
+  | (TStream _, TStream _) -> true
+  | (TDict(_, _), TDict(_, _)) -> true
+  | (TTuple(_, _, _), TTuple(_, _, _)) -> true
+  | (TFn(_, _), TFn(_, _)) -> true
+  | (TDB _, TDB _) -> true
+  | _ -> a == b
+
 /// Is every part of <param ty> decided, so an implementation can be chosen against it?
 ///
 /// The head being known is not enough: `Option<?>` has a known head and cannot tell

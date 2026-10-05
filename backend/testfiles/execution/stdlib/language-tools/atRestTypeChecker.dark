@@ -798,21 +798,23 @@ module InstantiatedDictKeys =
 // ---------------------------------------------------------------------------------------
 
 module Operators =
-  // Bitwise NOT (~) accepts every integer type. Reject Bool, Float, and String,
-  // matching the builtin's runtime checks.
+  // Bitwise NOT (~) is `BitwiseNot.bitwiseNot`, and which types it accepts is which types
+  // implement it rather than a list the checker carries. Bool, Float and String have no
+  // implementation, so they are refused as a missing one, the same way a named call is.
+  // The runtime refuses them for the same reason, which is the point.
   (Stdlib.List.map
     [ "Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32", "Int64",
       "UInt64", "Int128", "UInt128", "Int" ]
     (fun typ -> check $"let f (x: {typ}) : {typ} = ~x" "f")) =
     [ "checked:", "checked:", "checked:", "checked:", "checked:", "checked:",
       "checked:", "checked:", "checked:", "checked:", "checked:" ]
-  (check "let f (x: Bool) : Bool = ~x" "f") = "failed:InvalidInfixOperand"
-  (check "let f (x: Float) : Float = ~x" "f") = "failed:InvalidInfixOperand"
-  (check "let f (x: String) : String = Builtin.bitwiseNot x" "f") = "failed:InvalidInfixOperand"
-  (check "let f (x: Bool) : Bool = x |> Builtin.bitwiseNot" "f") = "failed:InvalidInfixOperand"
+  (check "let f (x: Bool) : Bool = ~x" "f") = "failed:MissingImpl"
+  (check "let f (x: Float) : Float = ~x" "f") = "failed:MissingImpl"
+  (check "let f (x: String) : String = Builtin.bitwiseNot x" "f") = "failed:MissingImpl"
+  (check "let f (x: Bool) : Bool = x |> Builtin.bitwiseNot" "f") = "failed:MissingImpl"
   (check "let f (x: UInt128) : UInt128 = x |> Builtin.bitwiseNot" "f") = "checked:"
   (check "let f () : Bool -> Bool = Builtin.bitwiseNot" "f") = "incomplete:UnsupportedConstruct"
-  (check (src [ "let f () : Bool =", "  let flip = fun x -> ~x", "  flip true" ]) "f") = "failed:InvalidInfixOperand"
+  (check (src [ "let f () : Bool =", "  let flip = fun x -> ~x", "  flip true" ]) "f") = "failed:MissingImpl"
   (check (src [ "let f () : Int =", "  let flip = fun x -> ~x", "  flip 1" ]) "f") = "checked:"
   (check "val f = fun x -> (~x, x.field)" "f") = "failed:TypeMismatch"
 
@@ -867,15 +869,16 @@ module Operators =
 
   (check "let f (value: UInt128) : UInt128 = Builtin.power value value" "f") = "checked:"
 
-  // Unary minus accepts signed integers and Float. Reject unsigned integers
-  // and nonnumeric values, and check the resulting type against the return type.
+  // Unary minus is `Negate.negate`, so the unsigned integers are refused because nothing
+  // implements it for them, not because a predicate knows they are unsigned. The resulting
+  // type is still checked against the return type.
   (check "let f (value: Int) : Int = -value" "f") = "checked:"
   (check "let f (value: Float) : Float = -value" "f") = "checked:"
   (check "let f (value: Int) : String = -value" "f") = "failed:TypeMismatch"
 
-  (check "let f (value: UInt8) : UInt8 = -value" "f") = "failed:InvalidInfixOperand"
+  (check "let f (value: UInt8) : UInt8 = -value" "f") = "failed:MissingImpl"
 
-  (check "let f (value: String) : String = -value" "f") = "failed:InvalidInfixOperand"
+  (check "let f (value: String) : String = -value" "f") = "failed:MissingImpl"
 
 
 // ---------------------------------------------------------------------------------------
@@ -2469,7 +2472,10 @@ module DefiniteShapes =
   (check (src [ "let f () : Unit =", "  let (x, y, z) = ([], [])", "  ()" ]) "f") = "failed:TypeMismatch"
   (check (src [ "let takes (g: Int -> Int) : Unit = ()", "let f () : Unit = takes (fun x y -> x)" ]) "f") = "failed:TypeMismatch"
   (check (src [ "let f () : Unit =", "  let _ = [] + []", "  ()" ]) "f") = "failed:MissingImpl"
-  (check (src [ "let f () : Unit =", "  let _ = -[]", "  ()" ]) "f") = "failed:InvalidInfixOperand"
+  // `-[]` has an undecided ELEMENT type and is still a definite error: nothing implements
+    // `Negate` for a list whatever the element is, so the head alone settles it. Deciding this
+    // by waiting would downgrade it to Incomplete, and Incomplete passes the commit gate.
+    (check (src [ "let f () : Unit =", "  let _ = -[]", "  ()" ]) "f") = "failed:MissingImpl"
 
 module RigidCustomOperations =
   (check "let f<'a> (x: 'a) : 'a = { x with field = 1 }" "f") = "failed:TypeMismatch"

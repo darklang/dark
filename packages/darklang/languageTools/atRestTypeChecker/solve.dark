@@ -2039,11 +2039,22 @@ let isSignedNumeric (t: Model.Ty) : Bool =
   | TFloat -> true
   | _ -> false
 
-/// Record which implementation a call at <param at> resolves to, or report that none applies.
+/// Record which implementation a call at <param at> resolves to, or report that none applies,
+/// or say WAIT because the answer depends on a type that is not decided yet.
 ///
-/// ONE RULE FOR BOTH SHAPES. An operator IS a trait method call; the only difference is how
-/// the trait got named. Operators and named calls answering this question differently is how
-/// `+` and `Add.add` would come to mean different things, so they share this.
+/// ONE RULE FOR EVERY SHAPE. An operator, a named call and a unary operator are all trait
+/// method calls; the only difference is how the trait got named. Them answering this question
+/// differently is how `+` and `Add.add` would come to mean different things.
+///
+/// The three-way split matters and the middle case is the subtle one:
+///  - nothing of this SHAPE implements the trait: refuse now. Waiting for an undecided
+///    argument would turn a definite error into "cannot tell", and an Incomplete verdict
+///    passes the commit gate where a Failed one does not. `-[]` is this case.
+///  - something of this shape does, but an argument is undecided: WAIT. Deciding here picks
+///    between `impl for Option<Int64>` and `impl for Option<String>` by timestamp, which is
+///    the defect `gates trait-checker-vs-dispatch` exists to catch.
+///  - decided: record the implementations that apply. Which of two rivals is newer is a
+///    question about the op log, and the store answers it at save time.
 let recordImplChoice
   (s: State)
   (at: Int64)
@@ -2051,24 +2062,13 @@ let recordImplChoice
   (method_: String)
   (subject: Model.Ty)
   (candidates: List<(Model.Ty * LanguageTools.ProgramTypes.Hash)>)
-  : State =
+  : Stdlib.Option.Option<State> =
   let nodeId = Stdlib.Option.Option.Some at
 
-  let applies =
-    candidates
-    |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
-
-  if Stdlib.List.isEmpty candidates then
-    // The trait has no implementations at all, anywhere. That is a store the implementations
-    // have not reached rather than a type that cannot do this, so it is not this check's
-    // business to call it an error: saying otherwise would report every `+` in the tree at
-    // once, which is the loudest possible way to be wrong.
-    s
-  else if Stdlib.List.isEmpty applies then
+  let missing () : State =
     // `MissingImpl` rather than anything operator-specific: under traits an operand a type
     // cannot take is the ordinary absence of an implementation, and it reads the same way as
-    // a named call that finds none. Dispatch refuses it for the same reason, which is what
-    // `trait-checker-vs-dispatch` holds the two to.
+    // a named call that finds none. Dispatch refuses it for the same reason.
     addFinding
       s
       (Types.definiteError
@@ -2077,16 +2077,37 @@ let recordImplChoice
         (none ())
         (some subject)
         (Context.TraitNeeded(traitHash, Stdlib.Option.Option.Some method_)))
+
+  if Stdlib.List.isEmpty candidates then
+    // The trait has no implementations at all, anywhere. That is a store they have not
+    // reached rather than a type that cannot do this, and saying otherwise would report every
+    // `+` in the tree at once.
+    Stdlib.Option.Option.Some s
   else
-    // The implementations that APPLY, rather than the one that wins: which of two rivals is
-    // newer is a question about the op log, and the store answers it at save time.
-    addResolution
-      s
-      (Model.Resolution.Call(
-        at,
-        method_,
-        applies |> Stdlib.List.map (fun (_, source) -> source)
-      ))
+    let byHead =
+      candidates
+      |> Stdlib.List.filter (fun (self, _) -> Types.headMatches self subject)
+
+    if Stdlib.List.isEmpty byHead then
+      Stdlib.Option.Option.Some(missing ())
+    else if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
+      Stdlib.Option.Option.None
+    else
+      let applies =
+        byHead |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+
+      if Stdlib.List.isEmpty applies then
+        Stdlib.Option.Option.Some(missing ())
+      else
+        Stdlib.Option.Option.Some(
+          addResolution
+            s
+            (Model.Resolution.Call(
+              at,
+              method_,
+              applies |> Stdlib.List.map (fun (_, source) -> source)
+            ))
+        )
 
 /// A named trait method call (`Show.show p`). Waits while the self type is unknown.
 ///
@@ -2103,12 +2124,6 @@ let traitCallFor
   let nodeId = Stdlib.Option.Option.Some at
   let (subject, s) = expand s nodeId self
 
-  // Not just the head: an undecided type ARGUMENT cannot choose between two implementations
-  // that differ only there, so wait for the whole thing.
-  if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
-    Stdlib.Option.Option.None
-  else
-
   match subject with
   // The arguments have not decided the self type yet.
   | TVar _ -> Stdlib.Option.Option.None
@@ -2120,15 +2135,13 @@ let traitCallFor
       addResolution s (Model.Resolution.Deferred(at, param))
     )
   | _ ->
-    Stdlib.Option.Option.Some(
-      recordImplChoice
-        s
-        at
-        traitHash
-        method_
-        subject
-        (Environment.implsOfTrait s.env traitHash)
-    )
+    recordImplChoice
+      s
+      at
+      traitHash
+      method_
+      subject
+      (Environment.implsOfTrait s.env traitHash)
 
 /// What this call gave one of the callee's bounds, once the supplied type is known.
 ///
@@ -2145,12 +2158,6 @@ let callerBoundFor
   let nodeId = Stdlib.Option.Option.Some at
   let (subject, s) = expand s nodeId supplied
 
-  // Not just the head: an undecided type ARGUMENT cannot choose between two implementations
-  // that differ only there, so wait for the whole thing.
-  if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
-    Stdlib.Option.Option.None
-  else
-
   match subject with
   // The arguments have not decided the type argument yet.
   | TVar _ -> Stdlib.Option.Option.None
@@ -2166,18 +2173,36 @@ let callerBoundFor
   | _ ->
     let candidates = Environment.implsOfTrait s.env traitHash
 
-    let applies =
+    let byHead =
       candidates
-      |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+      |> Stdlib.List.filter (fun (self, _) -> Types.headMatches self subject)
 
+    let applies =
+      byHead |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+
+    // The same three-way split `recordImplChoice` makes, and for the same reasons. Not shared
+    // with it because what gets recorded differs: a bound records which implementation the
+    // type ARGUMENT implied, not which one the call runs.
     if Stdlib.List.isEmpty candidates then
-      // No implementations anywhere: a store they have not reached, not a bound that cannot
-      // be met. Same reasoning as `recordImplChoice`.
       Stdlib.Option.Option.Some s
+    else if Stdlib.List.isEmpty byHead then
+      // Nothing of this shape meets the bound, and no argument can change that, so refuse now
+      // rather than waiting and downgrading a definite error to Incomplete.
+      Stdlib.Option.Option.Some(
+        addFinding
+          s
+          (Types.definiteError
+            IssueCode.MissingImpl
+            nodeId
+            (none ())
+            (some subject)
+            (Context.TraitNeeded(traitHash, Stdlib.Option.Option.None)))
+      )
+    else if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
+      Stdlib.Option.Option.None
     else if Stdlib.List.isEmpty applies then
-      // The type argument does not meet the callee's bound, which is a definite error and the
-      // reason a call into a bounded function can now be refused at save rather than at run
-      // time.
+      // The right shape but the wrong arguments: the type argument does not meet the callee's
+      // bound, which is why a call INTO a bounded function can be refused at save now.
       Stdlib.Option.Option.Some(
         addFinding
           s
@@ -2234,9 +2259,7 @@ let operandFor
     // reporting every operator as an error.
     | None -> Stdlib.Option.Option.Some s
     | Some((traitHash, method_, candidates)) ->
-      Stdlib.Option.Option.Some(
-        recordImplChoice s at traitHash method_ subject candidates
-      )
+      recordImplChoice s at traitHash method_ subject candidates
 
 /// Require a signed integer or Float for unary minus, waiting if its type is unknown.
 let negate (s: State) (at: Int64) (operand: Model.Ty) : Stdlib.Option.Option<State> =
@@ -2263,10 +2286,6 @@ let unaryOperand
   let nodeId = Stdlib.Option.Option.Some at
   let (subject, s) = expand s nodeId operand
 
-  if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
-    Stdlib.Option.Option.None
-  else
-
   match subject with
   | TVar _ -> Stdlib.Option.Option.None
   | TError -> Stdlib.Option.Option.Some s
@@ -2282,9 +2301,7 @@ let unaryOperand
     // everything.
     | None -> Stdlib.Option.Option.Some s
     | Some((traitHash, method_, candidates)) ->
-      Stdlib.Option.Option.Some(
-        recordImplChoice s at traitHash method_ subject candidates
-      )
+      recordImplChoice s at traitHash method_ subject candidates
 
 
 /// Determine builtin unwrap's result from the Some payload of standard Option
