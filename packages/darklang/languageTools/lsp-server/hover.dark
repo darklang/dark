@@ -26,8 +26,10 @@ let handleHoverRequest
   (requestId: JsonRPC.RequestID)
   (params: LanguageServerProtocol.Hover.HoverRequest.HoverParams.HoverParams)
   : LspState =
-  /// Find the document in scope
-  match Stdlib.Dict.get state.documentsInScope params.textDocument.uri with
+  /// Find the document in scope, analysed once for this version of its text
+  let (state, found) = DocSync.analysed state params.textDocument.uri
+
+  match found with
   | None ->
     log $"WARNING: document not found in scope for hover: {params.textDocument.uri}"
 
@@ -43,15 +45,12 @@ let handleHoverRequest
     logAndSendToClient response
     state
 
-  | Some doc ->
+  | Some((doc, analysis)) ->
     //get position
     let position = params.position
 
     /// Get the parsed document
-    let parsed = doc |> (fun doc -> doc.parsed)
-
-    let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-    let pm = LanguageTools.PackageManager.pm ()
+    let parsed = analysis.parsed
 
     // Extract owner and modules from URI to provide correct parsing context
     let (owner, scriptName) =
@@ -77,18 +76,32 @@ let handleHoverRequest
       else
         ("LspHover", "")
 
-    let nrCtx =
-      LanguageTools.NameResolver.NRContext
-        { onMissing = onMissing
-          pm = pm
-          branchId = state.currentBranchId
-          owner = owner
-          currentModule = if scriptName == "" then [] else [ scriptName ] }
+    // The document's own declarations layered on the package manager. Building it
+    // parses and lowers the whole document, which was nearly all of a hover's cost
+    // (485 ms on a blank line, 487 on a call, for a 555-line file), so it is built
+    // once per version of the text and kept on the analysis.
+    let (pmWithExtras, state) =
+      match analysis.hoverPM with
+      | Some pm -> (pm, state)
+      | None ->
+        let pm = LanguageTools.PackageManager.pm ()
 
-    let pmWithExtras =
-      match Parser.CliScript.pmWithExtras nrCtx scriptName "" doc.text with
-      | Ok pm -> pm
-      | Error _ -> pm // fallback to original pm on error
+        let nrCtx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = pm
+              branchId = state.currentBranchId
+              owner = owner
+              currentModule = if scriptName == "" then [] else [ scriptName ] }
+
+        let built =
+          match Parser.CliScript.pmWithExtras nrCtx scriptName "" doc.text with
+          | Ok pm -> pm
+          | Error _ -> pm // fallback to original pm on error
+
+        let analysis = { analysis with hoverPM = Stdlib.Option.Option.Some built }
+        let doc = { doc with analysis = Stdlib.Option.Option.Some analysis }
+        (built, DocSync.remember state doc)
 
     /// Find the node at the hover position, and get the hover information
     let currentModules =

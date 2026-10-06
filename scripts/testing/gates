@@ -26,6 +26,7 @@ GATES=(
   sync-hostile-relay
   sync-multi-instance
   lsp-branches
+  lsp-typing
   workbench-scm
   workbench-views
   first-day
@@ -58,7 +59,7 @@ GATES=(
 # These are durations, so they drift with whatever else is on the box; the trait four were taken
 # while another clone was running perf experiments. Treat them as orders of magnitude against the
 # 5m bound, not as a budget. A gate reporting 0s has not run at all.
-CI_GATES=(relay-routes workbench-scm workbench-views lsp-branches
+CI_GATES=(relay-routes workbench-scm workbench-views lsp-branches lsp-typing
           trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
           trait-deprecation-is-per-branch trait-pin-across-branches)
 
@@ -70,6 +71,7 @@ describe() {
     sync-hostile-relay)     echo 'the sync/branch CLIENTS, given a relay that lies' ;;
     sync-multi-instance)    echo 'four instances, branches, review queues, agents' ;;
     lsp-branches)           echo 'the `dark/*` branch surface, as an editor drives it' ;;
+    lsp-typing)             echo 'keystrokes are stored; the next request analyses once' ;;
     workbench-scm)          echo 'the workbench SCM views with real work in the store' ;;
     workbench-views)        echo 'every workbench view, one session each' ;;
     first-day)              echo 'a published binary, empty home, whole SCM workflow' ;;

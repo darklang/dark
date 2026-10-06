@@ -282,3 +282,70 @@ gate_lsp_branches() {
   rm -rf "$WORK"
   echo "dark/* branch surface: answers by name and by id, and reports main as a uuid plus a name; non-ASCII text does not desynchronise the stream."
 }
+
+# --- lsp-typing: keystrokes are stored, not analysed ----------------------------------------------
+# Every `didChange` used to parse, resolve and check the whole document before the server read the
+# next message. Ten keystrokes 80 ms apart then a hover took 33 s on a 541-line file, and nothing
+# noticed, because each request on its own was merely slow. The server now analyses once per
+# version, on first need (`DocSync.analysed`).
+#
+# This asserts a COUNT rather than a time. A document small enough for a gate analyses in
+# milliseconds either way, so a timing floor on it proves nothing, and a large one makes the gate
+# slow and dependent on the box. What separates the two designs exactly is how often diagnostics
+# are published: once per analysis. Ten keystrokes then two hovers publish once if analysis is
+# lazy (the first hover) and ten times if it is eager. `notes/tools/lsp-burst.py` measures the time.
+gate_lsp_typing() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/lsp-typing-test
+
+  fail() { echo "FAIL: $1" >&2; exit 1; }
+
+  [[ -x "$PWD/$CLI" ]] || {
+    echo "lsp-typing: no CLI at $CLI" >&2
+    echo "  scripts/dev/build, and note that --optimize leaves no debug tree" >&2
+    exit 2
+  }
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK"
+  scripts/testing/_copy-store "$WORK/data.db"
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  # The server writes its log under the rundir; see lsp-branches.
+  "$PWD/$CLI" permissions allow all >/dev/null 2>&1 || true
+
+  req() { local body="$1"; printf 'Content-Length: %d\r\n\r\n%s' "${#body}" "$body"; }
+  URI='file:///home/dark/app/lsp-typing-gate.dark'
+  # ASCII on purpose: the length above counts characters, the protocol counts bytes. The
+  # `\\n` reach the output as the two characters of a JSON `\n` escape.
+  doc() { printf '%s' "let double (x: Int64) : Int64 =\\n  x * 2L$1\\n"; }
+
+  OUT="$WORK/out.txt"
+  {
+    req '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+    req "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"$URI\",\"languageId\":\"darklang\",\"version\":1,\"text\":\"$(doc '')\"}}}"
+    pad=""
+    for v in 2 3 4 5 6 7 8 9 10 11; do
+      pad="$pad "
+      req "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"$URI\",\"version\":$v},\"contentChanges\":[{\"text\":\"$(doc "$pad")\"}]}}"
+    done
+    req "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"$URI\"},\"position\":{\"line\":0,\"character\":5}}}"
+    req "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"$URI\"},\"position\":{\"line\":0,\"character\":5}}}"
+    sleep 3
+  } | timeout --kill-after=5 120 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' > "$OUT" 2> "$WORK/server-log.txt" || true
+
+  # Both hovers must have been answered, or the counts below describe a server that died early.
+  grep -q '"id":2,"result":{"contents"' "$OUT" || fail "the hover after the keystrokes was not answered"
+  grep -q '"id":3,"result":{"contents"' "$OUT" || fail "the second hover was not answered"
+
+  # stdout only: the server also logs every reply to stderr, which would double this.
+  PUBLISHES=$(grep -o 'textDocument/publishDiagnostics' "$OUT" | wc -l)
+  # One for the open, which analyses at once, and one for the first hover after the keystrokes.
+  [[ "$PUBLISHES" -eq 2 ]] \
+    || fail "expected 2 diagnostics publishes (open, then one analysis for ten keystrokes); got $PUBLISHES"
+
+  rm -rf "$WORK"
+  echo "ten keystrokes, two hovers: one analysis, not ten ($PUBLISHES publishes in all, counting the open)."
+}

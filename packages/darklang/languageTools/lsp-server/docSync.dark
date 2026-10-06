@@ -127,45 +127,84 @@ let parseAndReportDiagnostics
     log $"Parse error: {err}"
     Stdlib.Result.Result.Error err
 
+
+// -- analysis, once per version of a document
+
+/// Store `doc` as the current version of its document.
+let remember (state: LspState) (doc: DocumentInScope) : LspState =
+  { state with
+      documentsInScope =
+        state.documentsInScope
+        |> Stdlib.Dict.setOverridingDuplicates doc.uri doc }
+
+
+/// The document at `uri` and its analysis, current for this branch, with the state that
+/// remembers it. None when no such document is open.
+///
+/// A keystroke only stores the new text (`handleTextDocumentDidChange`), and the parse,
+/// name resolution and checking happen here, the first time a request needs them, once
+/// per version. Typing ten characters used to queue ten full analyses, 2 to 3 s each on a
+/// 500-line file, ahead of the next hover; now the hover pays for one.
+///
+/// No request can see a half-applied change: the loop handles each message to completion
+/// before it reads the next, so whatever this fills in belongs to the text it is stored
+/// beside. If requests ever run concurrently (spawned against a snapshot of the state),
+/// that stops being true, and an analysis must then be stored only if the document still
+/// holds the text it was made from.
+let analysed
+  (state: LspState)
+  (uri: String)
+  : (LspState * Stdlib.Option.Option<(DocumentInScope * DocumentAnalysis)>) =
+  match Stdlib.Dict.get state.documentsInScope uri with
+  | None -> (state, Stdlib.Option.Option.None)
+  | Some doc ->
+    let current =
+      match doc.analysis with
+      | Some a ->
+        if a.branchId == state.currentBranchId then
+          doc.analysis
+        else
+          Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+
+    match current with
+    | Some a -> (state, Stdlib.Option.Option.Some((doc, a)))
+    | None ->
+      let analysis =
+        LanguageTools.LspServer.DocumentAnalysis
+          { branchId = state.currentBranchId
+            parsed = parseAndReportDiagnostics state.currentBranchId uri doc.text
+            hoverPM = Stdlib.Option.Option.None }
+
+      let doc = { doc with analysis = Stdlib.Option.Option.Some analysis }
+      (remember state doc, Stdlib.Option.Option.Some((doc, analysis)))
+
+
 // -- message-handling
 
+/// A document as the editor just sent it, not yet analysed.
+let unanalysed (uri: String) (text: String) : DocumentInScope =
+  LanguageTools.LspServer.DocumentInScope
+    { uri = uri
+      text = text
+      analysis = Stdlib.Option.Option.None }
+
+
+/// Opening analyses at once: the editor wants diagnostics and colour straight away.
 let handleTextDocumentDidOpen
   (state: LspState)
   (request:
     LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
   : LspState =
-
-  let parsed =
-    parseAndReportDiagnostics
-      state.currentBranchId
-      request.textDocument.uri
-      request.textDocument.text
-
-  let parsedToPT =
-    match parsed with
-    | Ok parsedFile ->
-      // Do not publish a recovered tree with `EError` holes as clean.
-      if Stdlib.List.isEmpty (Parser.Parse.diagnostics request.textDocument.text) then
-        (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
-        |> Stdlib.Tuple3.first
-        |> Stdlib.Option.Option.Some
-      else
-        Stdlib.Option.Option.None
-
-    | _ -> Stdlib.Option.Option.None
-
-  { state with
-      documentsInScope =
-        Stdlib.Dict.set
-          state.documentsInScope
-          request.textDocument.uri
-          (LanguageTools.LspServer.DocumentInScope
-            { uri = request.textDocument.uri
-              text = request.textDocument.text
-              parsed = parsed
-              parsedToPT = parsedToPT }) }
+  let uri = request.textDocument.uri
+  let state = remember state (unanalysed uri request.textDocument.text)
+  let (state, _doc) = analysed state uri
+  state
 
 
+/// A keystroke: store the text, analyse nothing. The next request that needs the
+/// analysis (semantic tokens, hover, inlay hints, a save) does it once, and publishes
+/// the diagnostics then.
 let handleTextDocumentDidChange
   (state: LspState)
   (request:
@@ -175,41 +214,16 @@ let handleTextDocumentDidChange
   | None ->
     log "no content changes in didChange request"
     state
-  | Some text ->
+  | Some change ->
     match Stdlib.Dict.get state.documentsInScope request.textDocument.uri with
     | None ->
       log $"document not found in scope: {request.textDocument.uri}"
       state
     | Some _existingDoc ->
-      let parsed =
-        parseAndReportDiagnostics
-          state.currentBranchId
-          request.textDocument.uri
-          text.text
-
-      let parsedToPT =
-        match parsed with
-        | Ok parsedFile ->
-          if Stdlib.List.isEmpty (Parser.Parse.diagnostics text.text) then
-            (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
-            |> Stdlib.Tuple3.first
-            |> Stdlib.Option.Option.Some
-          else
-            Stdlib.Option.Option.None
-        | Error _ -> Stdlib.Option.Option.None
-
-      { state with
-          documentsInScope =
-            state.documentsInScope
-            |> Stdlib.Dict.setOverridingDuplicates
-                  request.textDocument.uri
-                  (LanguageTools.LspServer.DocumentInScope
-                    { uri = request.textDocument.uri
-                      text = text.text
-                      parsed = parsed
-                      parsedToPT = parsedToPT }) }
+      remember state (unanalysed request.textDocument.uri change.text)
 
 
+/// Saving analyses at once, so the diagnostics match what was written.
 let handleTextDocumentDidSave
   (state: LspState)
   (request:
@@ -224,32 +238,10 @@ let handleTextDocumentDidSave
     state
 
   | Some text ->
-    let parsed =
-      parseAndReportDiagnostics state.currentBranchId request.textDocument.uri text
-
-    let parsedToPT =
-      match parsed with
-      | Ok parsedFile ->
-        // Same guard as didOpen: never lower a tree with parse-error holes.
-        if Stdlib.List.isEmpty (Parser.Parse.diagnostics text) then
-          (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
-          |> Stdlib.Tuple3.first
-          |> Stdlib.Option.Option.Some
-        else
-          Stdlib.Option.Option.None
-
-      | _ -> Stdlib.Option.Option.None
-
-    { state with
-        documentsInScope =
-          state.documentsInScope
-          |> Stdlib.Dict.setOverridingDuplicates
-                request.textDocument.uri
-                (LanguageTools.LspServer.DocumentInScope
-                  { uri = request.textDocument.uri
-                    text = text
-                    parsed = parsed
-                    parsedToPT = parsedToPT }) }
+    let uri = request.textDocument.uri
+    let state = remember state (unanalysed uri text)
+    let (state, _doc) = analysed state uri
+    state
 
 
 let handleTextDocumentDidClose
