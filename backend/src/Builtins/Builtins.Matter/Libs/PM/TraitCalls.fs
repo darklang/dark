@@ -555,7 +555,7 @@ let rec private unpinned (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int =
       |> List.sumBy (fun part ->
         match part with
         // A piped call has no field to record a bound in, so a bounded one is never pinned.
-        | PT.EPipeFnCall(_, nr, _, _) -> named nr false
+        | PT.EPipeFnCall(_, nr, _, _, _) -> named nr false
         | PT.EPipeInfix(_, infix, _, PT.FQFnName.Unknown) when traitOperator infix ->
           1
         | _ -> 0)
@@ -606,6 +606,7 @@ let resolveTraitCalls
             |> List.choose (function
               | PT.EPipeFnCall(_,
                                { resolved = Ok { name = PT.FQFnName.Package h } },
+                               _,
                                _,
                                _) -> Some h
               | _ -> None)
