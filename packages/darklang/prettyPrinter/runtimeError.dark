@@ -574,9 +574,15 @@ module RuntimeError =
           ES.String "type you mean. Name it: `"
           ES.ShortTraitName trait_
           ES.String $".{method_}<Int64> ...`" ]
+      // Raised from one place only: an implementation WAS chosen, and it lacks the method. Saying
+      // the trait has no such method sent people looking at a trait that declares it, typically
+      // one just given a new method that its existing implementations don't have yet.
       | NoSuchMethod(trait_, method_) ->
-        [ ES.TraitName trait_
-          ES.String $" has no method named {method_}" ]
+        [ ES.String "The implementation of "
+          ES.TraitName trait_
+          ES.String $" chosen here has no `{method_}`. Add it to that implementation; `dark impls "
+          ES.ShortTraitName trait_
+          ES.String "` lists them" ]
       | TraitNotFound trait_ ->
         [ ES.String "Trait "
           ES.TraitName trait_

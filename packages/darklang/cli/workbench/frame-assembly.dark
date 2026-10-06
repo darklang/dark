@@ -135,6 +135,8 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
               (Stdlib.String.contains state.message "fail")
               || (Stdlib.String.contains state.message "conflict")
               || (Stdlib.String.contains state.message "descend")
+              // A save that left something it repointed broken: saved, but not a success to tick.
+              || (Stdlib.String.contains state.message "no longer type-checks")
             (if bad then " ✗ " else " ✓ ") + state.message + " "
         let toastWidth = Stdlib.String.displayWidth toastPlain
         let toast =

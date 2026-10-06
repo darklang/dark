@@ -1262,9 +1262,216 @@ let private unwrapErrorsAreReadable =
     })
 
 
+// Editing from the workbench, the way a person does it: `e` on an item, change some text, `^s`.
+// Driven through `openEditExisting` and `saveEditing` rather than keystrokes, so what is under test
+// is the save and not the renderer. The editor is prefilled by the pretty-printer, which is where
+// the impl's qualified names come from.
+
+/// A Dark string literal holding <param s>.
+let private darkString (s : string) : string =
+  "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n") + "\""
+
+/// Open <param item> in <param modules> in the editor, replace <param find> with <param replace> in
+/// what it prefilled, save, and answer the footer (or what went wrong instead).
+let private workbenchEdit
+  (modules : List<string>)
+  (item : string)
+  (find : string)
+  (replace : string)
+  : string =
+  let path = modules |> List.map darkString |> String.concat ", "
+  "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"i\" [] false in\n"
+  + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in\n"
+  + "let items = Darklang.Cli.Workbench.reloadItems st in\n"
+  + $"match Stdlib.List.findFirst items (fun i -> i.name == {darkString item}) with\n"
+  + "| None -> \"no item to edit\"\n"
+  + "| Some item ->\n"
+  + "  match Darklang.Cli.Workbench.openEditExisting st item with\n"
+  + "  | Continue opened ->\n"
+  + "    match opened.editing with\n"
+  + "    | None -> \"did not open: \" + opened.message\n"
+  + "    | Some es ->\n"
+  + $"      let edited = Stdlib.String.replaceAll (Stdlib.Cli.UI.Editor.toText es.buf) {darkString find} {darkString replace} in\n"
+  + "      match Darklang.Cli.Workbench.saveEditing opened { es with buf = Stdlib.Cli.UI.Editor.fromText edited } with\n"
+  + "      | Continue saved ->\n"
+  + "        match saved.editing with\n"
+  + "        | Some still -> \"save refused: \" + still.err\n"
+  + "        | None -> \"footer: \" + saved.message\n"
+  + "      | _ -> \"save did not continue\"\n"
+  + "  | _ -> \"open did not continue\""
+
+/// <fn workbenchEdit>, run with the CLI's own authority rather than as a guest `eval`: the
+/// workbench is a CLI command, so its save may read the CLI's config, which the instance policy
+/// rightly refuses to code typed at `dark eval`.
+let private editInWorkbench
+  (target : Target)
+  (modules : List<string>)
+  (item : string)
+  (find : string)
+  (replace : string)
+  : Task<string> =
+  task {
+    match!
+      evalUnder (executionState target) (workbenchEdit modules item find replace)
+    with
+    | RT.DString footer -> return footer
+    | other -> return Tests.failtestf "the workbench edit answered %A" other
+  }
+
+/// Editing an implementation updates it in place.
+///
+/// The save used to take the impl's location from the first name on its `impl` line, which is the
+/// TRAIT, printed qualified, and resolve it under the module being edited in. So the edit landed as
+/// a second implementation at `Box.WbEdit.Box.WbShout`, newer than the original, and the original
+/// went "not used". The call still answered with the new text, which is why it looked fine.
+let private workbenchImplEditUpdatesInPlace =
+  cliTest
+    "editing an implementation in the workbench leaves exactly one"
+    (fun state ->
+      task {
+        let! _ =
+          runCli
+            state
+            [ "type"; "/Tests.WbImplEdit.Box"; "{ wbImplEditMark: Int64 }" ]
+        let! _ =
+          runCli
+            state
+            [ "trait"
+              "/Tests.WbImplEdit.WbShout"
+              "<'a> = let shout (v: 'a) : String" ]
+        let! _ =
+          runCli
+            state
+            [ "impl"
+              "/Tests.WbImplEdit"
+              "WbShout for Box = let shout (b: Box) : String = \"box\"" ]
+
+        let! saved =
+          editInWorkbench
+            state
+            [ "Tests"; "WbImplEdit"; "Box" ]
+            "WbShout"
+            "\"box\""
+            "\"box2\""
+        Expect.stringContains saved "footer: saved" "the edit saved"
+
+        let! impls = runCli state [ "impls"; "Tests.WbImplEdit.WbShout" ]
+        let rows =
+          impls.Split('\n')
+          |> Array.filter (fun l -> l.Contains "Tests.WbImplEdit.Box")
+        Expect.equal
+          rows.Length
+          1
+          $"one implementation after the edit, not a rival beside it:\n{impls}"
+        Expect.isFalse
+          (impls.Contains "not used")
+          $"and nothing it left behind is marked unused:\n{impls}"
+
+        let! answer =
+          runCli
+            state
+            [ "eval"
+              "Tests.WbImplEdit.WbShout.shout (Tests.WbImplEdit.Box { wbImplEditMark = 1L })" ]
+        Expect.stringContains answer "box2" "the call answers with the edited body"
+      })
+
+/// Editing a trait carries its implementations along, as `dark trait` does.
+///
+/// The workbench saved straight through `addAuthored` and never propagated, so the trait's hash
+/// moved and every implementation stayed on the old one: none of them counted any more, and even
+/// the ORIGINAL method stopped answering.
+let private workbenchTraitEditKeepsImplementations =
+  cliTest
+    "editing a trait in the workbench keeps its implementations working"
+    (fun state ->
+      task {
+        let! _ =
+          runCli
+            state
+            [ "type"; "/Tests.WbTraitEdit.Box"; "{ wbTraitEditMark: Int64 }" ]
+        let! _ =
+          runCli
+            state
+            [ "trait"
+              "/Tests.WbTraitEdit.WbWave"
+              "<'a> = let shout (v: 'a) : String" ]
+        let! _ =
+          runCli
+            state
+            [ "impl"
+              "/Tests.WbTraitEdit"
+              "WbWave for Box = let shout (b: Box) : String = \"box\"" ]
+
+        let! saved =
+          editInWorkbench
+            state
+            [ "Tests"; "WbTraitEdit" ]
+            "WbWave"
+            "let shout (v: 'a) : String"
+            "let shout (v: 'a) : String\n  let wave (v: 'a) : String"
+        Expect.stringContains saved "footer: saved" "the edit saved"
+
+        let! answer =
+          runCli
+            state
+            [ "eval"
+              "Tests.WbTraitEdit.WbWave.shout (Tests.WbTraitEdit.Box { wbTraitEditMark = 1L })" ]
+        Expect.stringContains
+          answer
+          "box"
+          "the existing implementation still answers the method it has"
+
+        let! impls = runCli state [ "impls"; "Tests.WbTraitEdit.WbWave" ]
+        Expect.stringContains
+          impls
+          "Tests.WbTraitEdit.Box"
+          "and the implementation is still listed against the trait"
+
+        // It follows the trait without the new method, and the save says so rather than "saved" alone.
+        Expect.stringContains
+          saved
+          "no longer type-checks"
+          "the footer names the implementation the new method left incomplete"
+
+        let! missing =
+          runCli
+            state
+            [ "eval"
+              "Tests.WbTraitEdit.WbWave.wave (Tests.WbTraitEdit.Box { wbTraitEditMark = 1L })" ]
+        Expect.stringContains
+          missing
+          "chosen here has no `wave`"
+          "calling the new method blames the implementation, not the trait that declares it"
+      })
+
+/// The same omission, for the plainest case: a caller of an edited fn moves to the new version.
+let private workbenchFnEditCarriesCallers =
+  cliTest
+    "editing a function in the workbench carries its callers along"
+    (fun state ->
+      task {
+        let! _ =
+          runCli state [ "fn"; "/Tests.WbFnEdit.g"; "(x: Int64) : Int64 = x + 1L" ]
+        let! _ =
+          runCli
+            state
+            [ "fn"; "/Tests.WbFnEdit.f"; "(x: Int64) : Int64 = Tests.WbFnEdit.g x" ]
+
+        let! saved =
+          editInWorkbench state [ "Tests"; "WbFnEdit" ] "g" "x + 1L" "x + 5L"
+        Expect.stringContains saved "footer: saved" "the edit saved"
+
+        let! answer = runCli state [ "eval"; "Tests.WbFnEdit.f 1L" ]
+        Expect.stringContains answer "6" "the caller runs the edited body"
+      })
+
+
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
 let tests : List<Test> =
   [ unwrapErrorsAreReadable
+    workbenchImplEditUpdatesInPlace
+    workbenchTraitEditKeepsImplementations
+    workbenchFnEditCarriesCallers
     reusesCompiledFunctions
     timeoutBoundsSynchronousWork
     timeoutPreservesCapture

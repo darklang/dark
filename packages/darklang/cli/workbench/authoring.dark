@@ -41,7 +41,17 @@ let saveEditing (state: State) (es: EditingState) : Step =
       else
         (es.targetModule, rawSource)
     | [] -> (es.targetModule, rawSource)
-  let leaf = leafNameOf fullSource
+  // An implementation's first name is its TRAIT's, and the editor prints it qualified
+  // (`impl Stachu.Wb.NewTrait for ...`). Placing the save by that name resolved it under the module
+  // being edited in, so the edit landed as a second implementation at `Box.Stachu.Wb.Box.NewTrait`
+  // and the original went unused. Only the trait's own name is wanted here: `implWithOps` derives
+  // where an implementation lives from the module, the type and the trait, as `dark impl` does.
+  let written = leafNameOf fullSource
+  let leaf =
+    if es.kind == "impl" then
+      (Stdlib.String.split written "." |> Stdlib.List.last) |> Stdlib.Option.withDefault written
+    else
+      written
   if leaf == "" then
     keepErr "add a name after the keyword, then ^s"
   else
@@ -117,8 +127,43 @@ let saveEditing (state: State) (es: EditingState) : Step =
             | _ -> Stdlib.Result.Result.Error "not a function definition"
         match opsResult with
         | Ok ops ->
+          // What the save is about: the last name it binds, which for an implementation is the
+          // implementation itself, after its method fns. Its versions are read BEFORE the save,
+          // since afterwards the name holds the new one.
+          let saved =
+            ops
+            |> Stdlib.List.filterMap (fun op ->
+              match op with
+              | SetName(loc, reference, _) ->
+                Stdlib.Option.Option.Some((loc, LanguageTools.ProgramTypes.Reference.kind reference))
+              | _ -> Stdlib.Option.Option.None)
+            |> Stdlib.List.last
+
+          let previousHashes =
+            match saved with
+            | Some((loc, kind)) -> Packages.Propagate.getAllPreviousHashes state.branchId loc kind
+            | None -> []
+
           match SCM.PackageOps.addAuthored state.branchId ops with
           | Ok report ->
+            // Repoint what depends on the old version, as `dark fn`/`trait`/`impl` do through
+            // `saveAuthored`. Without it a workbench edit left every dependent on the version it
+            // was written against: an edited fn's callers ran the old body, and an edited trait's
+            // implementations stopped counting, so even the methods they DID have stopped answering.
+            let followed =
+              match saved with
+              | Some((loc, kind)) ->
+                match Packages.Rename.referenceAt state.branchId loc with
+                | Some reference ->
+                  Packages.Propagate.repointNow
+                    state.branchId
+                    loc
+                    previousHashes
+                    (LanguageTools.ProgramTypes.Reference.hash reference)
+                    kind
+                | None -> Packages.Propagate.nothingFollowed ()
+              | None -> Packages.Propagate.nothingFollowed ()
+
             // Land on what you just saved rather than index 0, which lost your place in the list.
             let reloaded = reloadItems state
             let landed =
@@ -139,9 +184,12 @@ let saveEditing (state: State) (es: EditingState) : Step =
                   selected = landed
                   detailScroll = 0
                   message =
+                    let followedNote = Packages.Propagate.followedNote followed
+
                     match Packages.AtRestCheck.summary report with
-                    | Some summary -> "saved " + leaf + " (" + summary + ")" + pushedNote
-                    | None -> "saved " + leaf + pushedNote }
+                    | Some summary ->
+                      "saved " + leaf + " (" + summary + ")" + followedNote + pushedNote
+                    | None -> "saved " + leaf + followedNote + pushedNote }
           | Error m -> keepErr ("save failed: " + m)
         | Error m -> keepErr m
       | None -> keepErr "could not parse"

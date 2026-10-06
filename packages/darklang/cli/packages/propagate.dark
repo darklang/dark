@@ -247,6 +247,26 @@ let printFollowed (followed: Followed) : Unit =
         Cli.Text.printWrapped Stdlib.Cli.UI.Colors.error "  " text)
 
 
+/// <fn printFollowed> as one clause for a footer that already says what was saved (the workbench's):
+/// "" when nothing followed, else `; ` and the same news, shortest first.
+let followedNote (followed: Followed) : String =
+  match followed.failure with
+  | Some e -> $"; propagation failed: {e}"
+  | None ->
+    match followed.broken with
+    | [] ->
+      match followed.names with
+      | [] -> ""
+      | [ one ] -> $"; {one} follows"
+      | names -> $"; {Stdlib.toString (Stdlib.List.length names)} dependents follow"
+    | (name, why) :: rest ->
+      let more =
+        match rest with
+        | [] -> ""
+        | _ -> $" (and {Stdlib.toString (Stdlib.List.length rest)} more)"
+      $"; {name} no longer type-checks: {why}{more}"
+
+
 /// THE call into propagation. Repoint everything that still references an older version of
 /// <param location> at <param currentHash>, transitively, and hand back the repoints so the caller can
 /// report them however it likes. One wrapper so the eager path and `dark commit` can't drift apart on what
