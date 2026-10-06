@@ -763,7 +763,16 @@ type Scheduler(quantum : int64) =
             p.allocated
             + (System.GC.GetAllocatedBytesForCurrentThread() - allocBefore)
           match outcome with
-          | Interpreter.StepDone dv -> this.Finish(p, Ok dv)
+          | Interpreter.StepDone dv ->
+            // A stop that arrived during the slice is honoured even though the work got to
+            // the end: one long builtin call is a single instruction, so a cancel can land
+            // while it runs and find nothing left to stop. Reporting `Ok` would say the cancel
+            // never happened.
+            if isNull p.stopReason then
+              this.Finish(p, Ok dv)
+            else
+              // No stack: the run has returned from every frame.
+              this.Finish(p, Error(RTE.UncaughtException(p.stopReason, []), []))
           | Interpreter.StepBudget ->
             p.status <- Runnable
             lock sync (fun () -> runnable.Enqueue p)
@@ -863,7 +872,8 @@ type Scheduler(quantum : int64) =
   /// (`Exec.cancel`, `ps cancel`) lets a wait on the host or on another process complete
   /// first, so a write in flight finishes; a wait on events (`Host.await`, `readKey`) is cut
   /// either way, since nothing is in flight there. A running process finishes its slice
-  /// first; one that completes within it completes. Any scheduler in the group finds it. Its
+  /// first; one that completes within it still ends `Failed(reason)`, not `Done`, so a stop is
+  /// never reported as a success. Any scheduler in the group finds it. Its
   /// undetached children are stopped the same way, now (so a parent waiting on one is not
   /// kept waiting) and again when it finishes (for any spawned in between).
   member private this.StopProcess
