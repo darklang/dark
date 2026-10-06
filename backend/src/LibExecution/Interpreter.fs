@@ -4626,9 +4626,18 @@ let private runFrame
   let mutable step = FrameBlockEnded
   let mutable running = true
 
+  // Every turn of a frame costs one unit of budget, not only its instructions. A lambda with an
+  // empty body (`fun x -> x`) runs none, so `List.map` applying it over a long list pushed and
+  // returned a frame per element without the budget moving, and the process could be neither
+  // preempted nor cancelled until the list was done. Charged before anything else here, so a
+  // frame stopped on it re-enters exactly as it was.
+  if vm.budget > 0L then vm.budget <- vm.budget - 1L
+  if vm.budget = 0L then
+    step <- FrameBudget
+    running <- false
   // The block was already finished when this frame was re-entered: its last instruction was a
   // call, and the callee has just returned with the result now in the register.
-  if currentFrame.programCounter >= instrData.instructions.Length then
+  elif currentFrame.programCounter >= instrData.instructions.Length then
     noteFinishedValue
       exeState
       vm
