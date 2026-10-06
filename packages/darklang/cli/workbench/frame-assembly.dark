@@ -127,21 +127,19 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
         // cost the shortcuts exactly when a new arrival needs them. Failure reads pink
         // with an x-mark, success green with a check, drawn as a segment like the
         // status row's.
+        let bad =
+          match state.messageKind with
+          | Succeeded -> false
+          | Refused -> true
+          | Failed -> true
         let toastPlain =
-          if state.message == "" then
-            ""
-          else
-            let bad =
-              (Stdlib.String.contains state.message "fail")
-              || (Stdlib.String.contains state.message "conflict")
-              || (Stdlib.String.contains state.message "descend")
-            (if bad then " ✗ " else " ✓ ") + state.message + " "
+          if state.message == "" then ""
+          else (if bad then " ✗ " else " ✓ ") + state.message + " "
         let toastWidth = Stdlib.String.displayWidth toastPlain
         let toast =
           if toastPlain == "" then
             []
           else
-            let bad = Stdlib.String.startsWith toastPlain " ✗"
             let colored =
               Stdlib.Cli.UI.Colors.colorize ((if bad then Stdlib.Cli.UI.Colors.pinkBg else Stdlib.Cli.UI.Colors.greenBg) + Stdlib.Cli.UI.Colors.black) toastPlain
             Stdlib.Cli.UI.Layout.at r 0 (Stdlib.max 0 (r.cols - toastWidth - 1)) colored

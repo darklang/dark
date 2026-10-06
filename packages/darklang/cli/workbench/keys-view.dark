@@ -174,6 +174,7 @@ let handleViewKey
         // where it lives rather than pretending a key can do it.
         Step.Continue
           { state with
+              messageKind = MessageKind.Refused
               message = "run `dark sync setup` from a shell to point this instance at a relay" }
       else Step.Continue state
     | Some "e" ->
@@ -200,6 +201,7 @@ let handleViewKey
         Step.Continue
           { state with
               items = loadSyncItemsWith (Stdlib.Option.Option.Some (syncPeerItems ()))
+              messageKind = MessageKind.Succeeded
               message = "asked the relay" }
       else Step.Continue state
     | Some "v" ->
@@ -283,6 +285,7 @@ let handleViewKey
         Step.Continue
           { state with
               repl = { state.repl with bindings = [] }
+              messageKind = MessageKind.Succeeded
               message = "session bindings cleared" }
       else if homeRowIs state "home-branch" then
         match selectedBranch state with
@@ -346,7 +349,7 @@ let handleViewKey
       // something to reload, and pressing it when there is not costs one re-read.
       Step.Continue
         (forceScmRefresh
-          { state with items = reloadItems state; message = "reloaded" })
+          { state with items = reloadItems state; messageKind = MessageKind.Succeeded; message = "reloaded" })
     | Some "p" ->
       // Traces: pin the run under the cursor, or unpin it. Retention drops the oldest runs as
       // they pile up, and the one you are reading is the one you least want dropped. In place,
@@ -359,7 +362,7 @@ let handleViewKey
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->
           match Cli.TraceVerbs.find item.name with
-          | Error m -> Step.Continue { state with message = m }
+          | Error m -> Step.Continue { state with messageKind = MessageKind.Refused; message = m }
           | Ok run ->
             let wanted = Stdlib.Bool.not run.pinned
             if Darklang.Tracing.Store.setPinned run.id wanted then
@@ -367,10 +370,11 @@ let handleViewKey
               let reloaded = { state with items = reloadItems state }
               Step.Continue
                 { reloaded with
+                    messageKind = MessageKind.Succeeded
                     message = $"{verb} {Cli.Text.shortIdText run.id}" }
             else
               Step.Continue
-                { state with message = "that run is gone: it was dropped while you looked at it" }
+                { state with messageKind = MessageKind.Refused; message = "that run is gone: it was dropped while you looked at it" }
         | None -> Step.Continue state
       else Step.Continue state
     | Some "r" ->
@@ -427,7 +431,7 @@ let handleKey
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
   // A transient toast lives for exactly one keypress: clear it here, so any key dismisses the last message.
-  let state = if state.message == "" then state else { state with message = "" }
+  let state = if state.message == "" then state else { state with messageKind = MessageKind.Succeeded; message = "" }
 
   // An overlay is modal: it takes the key before anything else acts on it.
   match state.overlay with

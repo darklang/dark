@@ -5,9 +5,16 @@ module Darklang.Cli.Workbench
 
 /// Pull the leaf name out of a full declaration's first line: the token right after the `let`/`type`/`val`
 /// keyword, stripped of anything from a `(` or `:` (so `let f(x: Int)` -> `f`). "" if none.
+///
+/// The first line of the DECLARATION, past any doc comment or blank line above it. Taking the buffer's
+/// first line made `/// Adds a number` above `let docme` save a new item named `Adds`.
 let leafNameOf (src: String) : String =
   let firstLine =
-    Stdlib.String.split src "\n" |> Stdlib.List.head |> Stdlib.Option.withDefault ""
+    Stdlib.String.split src "\n"
+    |> Stdlib.List.findFirst (fun l ->
+      let t = Stdlib.String.trim l
+      t != "" && Stdlib.Bool.not (Stdlib.String.startsWith t "//"))
+    |> Stdlib.Option.withDefault ""
   let toks =
     (Stdlib.String.split (Stdlib.String.trim firstLine) " ")
     |> Stdlib.List.filter (fun t -> t != "")
@@ -22,6 +29,31 @@ let leafNameOf (src: String) : String =
 /// from it, resolve the target location relative to the current tree spot, then parse → WrittenTypes → PT →
 /// Add*+SetName WIP ops. On any failure keep the editor open with an error line (a port of the create-inline
 /// core without the stdout/AppState coupling).
+/// The last name <param ops> bind, its kind and its placeholder hash: for an implementation that is
+/// the implementation itself, after its method fns.
+let boundBy
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind * LanguageTools.ProgramTypes.Hash)> =
+  ops
+  |> Stdlib.List.filterMap (fun op ->
+    match op with
+    | SetName(loc, reference, _) ->
+      Stdlib.Option.Option.Some(
+        (loc,
+         LanguageTools.ProgramTypes.Reference.kind reference,
+         LanguageTools.ProgramTypes.Reference.hash reference))
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.last
+
+/// The footer's refusal for names that don't resolve, naming them, where the CLI prints a list.
+let unresolvedMessage
+  (unresolved:
+    List<LanguageTools.Parser.Range
+      * List<String>
+      * LanguageTools.ProgramTypes.NameResolutionError>)
+  : String =
+  "unresolved names: " + (Packages.Errors.unresolvedNamesText unresolved)
+
 let saveEditing (state: State) (es: EditingState) : Step =
   let keepErr (msg: String) : Step =
     Step.Continue { state with editing = Stdlib.Option.Option.Some { es with err = msg } }
@@ -41,7 +73,17 @@ let saveEditing (state: State) (es: EditingState) : Step =
       else
         (es.targetModule, rawSource)
     | [] -> (es.targetModule, rawSource)
-  let leaf = leafNameOf fullSource
+  // An implementation's first name is its TRAIT's, and the editor prints it qualified
+  // (`impl Stachu.Wb.NewTrait for ...`). Placing the save by that name resolved it under the module
+  // being edited in, so the edit landed as a second implementation at `Box.Stachu.Wb.Box.NewTrait`
+  // and the original went unused. Only the trait's own name is wanted here: `implWithOps` derives
+  // where an implementation lives from the module, the type and the trait, as `dark impl` does.
+  let written = leafNameOf fullSource
+  let leaf =
+    if es.kind == "impl" then
+      (Stdlib.String.split written "." |> Stdlib.List.last) |> Stdlib.Option.withDefault written
+    else
+      written
   if leaf == "" then
     keepErr "add a name after the keyword, then ^s"
   else
@@ -69,7 +111,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
             match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Type _ -> true | _ -> false) with
             | Some(Type wt) ->
               let (pt, unresolved) = LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT ctx wt
-              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error (unresolvedMessage unresolved)
               else
                 Stdlib.Result.Result.Ok
                   [ LanguageTools.ProgramTypes.PackageOp.AddType pt
@@ -79,7 +121,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
             match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Value _ -> true | _ -> false) with
             | Some(Value wv) ->
               let (pv, unresolved) = LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT ctx wv
-              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error (unresolvedMessage unresolved)
               else
                 Stdlib.Result.Result.Ok
                   [ LanguageTools.ProgramTypes.PackageOp.AddValue pv
@@ -95,21 +137,41 @@ let saveEditing (state: State) (es: EditingState) : Step =
             match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Trait _ -> true | _ -> false) with
             | Some(Trait wt) ->
               let (_pt, ops, unresolved) = LanguageTools.WrittenTypesToProgramTypes.traitWithOps ctx wt
-              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error (unresolvedMessage unresolved)
               else Stdlib.Result.Result.Ok ops
             | _ -> Stdlib.Result.Result.Error "not a trait definition"
           else if es.kind == "impl" then
             match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Impl _ -> true | _ -> false) with
             | Some(Impl wi) ->
-              let (_pi, _fns, ops, unresolved) = LanguageTools.WrittenTypesToProgramTypes.implWithOps ctx wi
-              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
-              else Stdlib.Result.Result.Ok ops
+              let (pi, _fns, ops, unresolved) = LanguageTools.WrittenTypesToProgramTypes.implWithOps ctx wi
+              // The two refusals `dark impl` makes, in its words: an implementation of a trait that
+              // does not exist, and one that would bind over a trait declared where it lands (one
+              // name holds one item, so the trait would be unlisted).
+              let traitName = Stdlib.String.join pi.trait_.originalName "."
+              match pi.trait_.resolved with
+              | Error _ ->
+                Stdlib.Result.Result.Error
+                  $"there is no trait called {traitName}; `dark search <name> --trait` finds one"
+              | Ok _ ->
+                if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then
+                  Stdlib.Result.Result.Error (unresolvedMessage unresolved)
+                else
+                  let taken =
+                    boundBy ops
+                    |> Stdlib.Option.andThen (fun bound ->
+                      let (loc, _kind, _hash) = bound
+                      Packages.ImplCommand.traitTakesTheName state.branchId loc)
+                  match taken with
+                  | Some fullName ->
+                    Stdlib.Result.Result.Error
+                      $"a trait is already called {fullName}, so this implementation cannot take that name; write it from the module above, or declare the trait there"
+                  | None -> Stdlib.Result.Result.Ok ops
             | _ -> Stdlib.Result.Result.Error "not an implementation"
           else
             match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Function _ -> true | _ -> false) with
             | Some(Function wf) ->
               let (pf, unresolved) = LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT ctx wf
-              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error (unresolvedMessage unresolved)
               else
                 Stdlib.Result.Result.Ok
                   [ LanguageTools.ProgramTypes.PackageOp.AddFn pf
@@ -117,32 +179,56 @@ let saveEditing (state: State) (es: EditingState) : Step =
             | _ -> Stdlib.Result.Result.Error "not a function definition"
         match opsResult with
         | Ok ops ->
-          match SCM.PackageOps.addAuthored state.branchId ops with
-          | Ok report ->
-            // Land on what you just saved rather than index 0, which lost your place in the list.
-            let reloaded = reloadItems state
-            let landed =
-              reloaded
-              |> Stdlib.List.indexedMap (fun i it -> (i, it))
-              |> Stdlib.List.findFirst (fun pair -> let (_i, it) = pair in it.name == leaf)
-              |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
-              |> Stdlib.Option.withDefault 0
-            // `live.autopush`: the save is a commit and a push when the mode is on; its one line
-            // joins the footer. `Nothing` when the mode is off.
-            let pushed = Cli.Sync.Autopush.describe (Cli.Sync.Autopush.pushDraftOn state.branchId)
-            let pushedNote = if pushed == "" then "" else "; " + pushed
+          match boundBy ops with
+          | None -> keepErr "nothing to save"
+          | Some((loc, kind, hash)) ->
+            // The CLI's save, not a copy of it: the copy this replaced never propagated, said
+            // "saved" over a save that changed nothing, and dropped doc-only edits. What it does
+            // is in `Packages.commitAuthored`; only the wording is the footer's own.
+            match Packages.commitAuthored state.branchId loc kind hash ops with
+            | Ok committed ->
+              // Land on what you just saved, in the module it went to, which is not always where
+              // you were: a new item can be saved into a module below the one on screen.
+              let there =
+                { state with
+                    location = Packages.PackageLocation.Module(Stdlib.List.append [ loc.owner ] loc.modules) }
+              let reloaded = reloadItems there
+              let landed =
+                reloaded
+                |> Stdlib.List.indexedMap (fun i it -> (i, it))
+                |> Stdlib.List.findFirst (fun pair -> let (_i, it) = pair in it.name == loc.name)
+                |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
+                |> Stdlib.Option.withDefault 0
+              // `live.autopush`: the save is a commit and a push when the mode is on; its one line
+              // joins the footer. `Nothing` when the mode is off.
+              let pushed = Cli.Sync.Autopush.describe (Cli.Sync.Autopush.pushDraftOn state.branchId)
+              let pushedNote = if pushed == "" then "" else "; " + pushed
 
-            Step.Continue
-              { state with
-                  editing = Stdlib.Option.Option.None
-                  items = reloaded
-                  selected = landed
-                  detailScroll = 0
-                  message =
-                    match Packages.AtRestCheck.summary report with
-                    | Some summary -> "saved " + leaf + " (" + summary + ")" + pushedNote
-                    | None -> "saved " + leaf + pushedNote }
-          | Error m -> keepErr ("save failed: " + m)
+              let what =
+                if Stdlib.Bool.not committed.landed then "unchanged; nothing was saved"
+                else if committed.reverted then "put " + leaf + " back to an earlier version"
+                else "saved " + leaf
+
+              let checked =
+                match Packages.AtRestCheck.summary committed.report with
+                | Some summary -> " (" + summary + ")"
+                | None -> ""
+
+              Step.Continue
+                { there with
+                    editing = Stdlib.Option.Option.None
+                    items = reloaded
+                    selected = landed
+                    detailScroll = 0
+                    // Saved, but not a success to tick when something it repointed no longer works.
+                    messageKind =
+                      if (Stdlib.List.isEmpty committed.followed.broken) && (Stdlib.Option.isNone committed.followed.failure) then
+                        MessageKind.Succeeded
+                      else
+                        MessageKind.Failed
+                    message =
+                      what + checked + (Packages.Propagate.followedNote committed.followed) + pushedNote }
+            | Error m -> keepErr ("save failed: " + m)
         | Error m -> keepErr m
       | None -> keepErr "could not parse"
 
@@ -235,4 +321,4 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
           editing =
             Stdlib.Option.Option.Some
               (EditingState { kind = kind; nameStr = "Editing " + fullName; targetModule = modules; buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src); err = "" }) }
-  | None -> Step.Continue { state with message = $"nothing to edit at {fullName}" }
+  | None -> Step.Continue { state with messageKind = MessageKind.Refused; message = $"nothing to edit at {fullName}" }

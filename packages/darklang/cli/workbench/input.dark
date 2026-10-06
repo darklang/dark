@@ -15,6 +15,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
               input = Stdlib.Option.Option.None
               items = reloadItems state
               selected = 0
+              messageKind = MessageKind.Succeeded
               message = "committed" }
       | Error e ->
         // `commitDraft`'s error IS the message; there is nothing to unwrap.
@@ -36,6 +37,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
             input = Stdlib.Option.Option.None
             items = reloadItems state
             selected = 0
+            messageKind = MessageKind.Succeeded
             message = "discarded all changes" }
     else
       Step.Continue { state with input = Stdlib.Option.Option.None }
@@ -47,7 +49,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
     | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
     | Some item ->
       if item.isModule then
-        Step.Continue { state with input = Stdlib.Option.Option.None; message = "rename failed: can't rename a module" }
+        Step.Continue { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Refused; message = "rename failed: can't rename a module" }
       else
         let modules = Packages.modulePathOf state.location
         let results = Packages.Query.searchExactMatch state.branchId modules item.name
@@ -73,10 +75,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
             | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn i.entity.hash)
             | [] -> Stdlib.Option.Option.None
         match refOpt with
-        | None -> Step.Continue { state with input = Stdlib.Option.Option.None; message = "rename failed: item not found" }
+        | None -> Step.Continue { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Refused; message = "rename failed: item not found" }
         | Some reference ->
           match Packages.Location.parseRelativeTo state.location inp.field.text with
-          | Error e -> Step.Continue { state with input = Stdlib.Option.Option.None; message = "rename failed: " + e }
+          | Error e -> Step.Continue { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Failed; message = "rename failed: " + e }
           | Ok newLoc ->
             // Three separate fields, never one tuple: `SetName((a, b, c))` passes a single tuple and
             // fails at runtime with "Expected 3 fields ... but got 1", which takes the CLI down.
@@ -100,8 +102,9 @@ let performInputAction (state: State) (inp: InputState) : Step =
                     items = reloadItems state
                     selected = 0
                     detailScroll = 0
+                    messageKind = MessageKind.Succeeded
                     message = "renamed to " + inp.field.text }
-            | Error m -> Step.Continue { state with input = Stdlib.Option.Option.None; message = "rename failed: " + m }
+            | Error m -> Step.Continue { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Failed; message = "rename failed: " + m }
   else if inp.action == "merge" then
     if inp.field.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
@@ -131,11 +134,13 @@ let performInputAction (state: State) (inp: InputState) : Step =
               items = itemsForView state.activeView parentId state.location state.ai.section state.matter.lens
               selected = 0
               filter = ""
+              messageKind = MessageKind.Succeeded
               message = "merged into parent" }
       | Error e ->
         Step.Continue
           { state with
               input = Stdlib.Option.Option.None
+              messageKind = MessageKind.Failed
               message = "merge failed: " + (SCM.PackageOps.mergeErrorMessage e) }
   else if inp.action == "rebase" then
     if inp.field.text != "y" then
@@ -152,24 +157,25 @@ let performInputAction (state: State) (inp: InputState) : Step =
               input = Stdlib.Option.Option.None
               items = reloadItems state
               selected = 0
+              messageKind = MessageKind.Succeeded
               message = "rebased onto parent" }
       | Error e ->
         Step.Continue
-          { state with input = Stdlib.Option.Option.None; message = "rebase failed: " + e }
+          { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Failed; message = "rebase failed: " + e }
   else if Stdlib.String.startsWith inp.action "author-" then
     // A new item's target module was asked for (shallow tree location): parse it, then open the editor.
     let kind = Stdlib.String.dropFirst inp.action (Stdlib.String.length "author-")
     let modParts =
       Stdlib.String.split (Stdlib.String.trim inp.field.text) "." |> Stdlib.List.filter (fun p -> p != "")
     if Stdlib.List.length modParts < 2 then
-      Step.Continue { state with input = Stdlib.Option.Option.None; message = "need at least owner.Module" }
+      Step.Continue { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Refused; message = "need at least owner.Module" }
     else
       openNewEditor { state with input = Stdlib.Option.Option.None } kind modParts
   else if inp.action == "search" then
     // Global `/` search - open the matches in the jumpable search-results mode (empty -> a toast, no mode).
     let hits = runSearch state.branchId inp.field.text
     if Stdlib.List.isEmpty hits then
-      Step.Continue { state with input = Stdlib.Option.Option.None; message = "no matches for \"" + inp.field.text + "\"" }
+      Step.Continue { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Refused; message = "no matches for \"" + inp.field.text + "\"" }
     else
       Step.Continue
         { state with
@@ -320,23 +326,25 @@ let performInputAction (state: State) (inp: InputState) : Step =
       Step.Continue
         { state with
             input = Stdlib.Option.Option.None
+            messageKind = MessageKind.Failed
             message = "couldn't start a branch called \"" + inp.field.text + "\"" }
     | Some b ->
 
     let switched = switchWorkbenchBranch state b.id b.name
-    Step.Continue { switched with message = "on branch " + b.name }
+    Step.Continue { switched with messageKind = MessageKind.Succeeded; message = "on branch " + b.name }
   else if inp.action == "branch-rename" then
     let newName = Stdlib.String.trim inp.field.text
     match selectedBranch state with
     | Some b ->
-      let msg =
+      let (msg, kind) =
         match Darklang.SCM.Branch.rename b.id newName with
-        | Ok _ -> "renamed to " + newName
-        | Error m -> "rename failed: " + m
+        | Ok _ -> ("renamed to " + newName, MessageKind.Succeeded)
+        | Error m -> ("rename failed: " + m, MessageKind.Failed)
       Step.Continue
         { state with
             input = Stdlib.Option.Option.None
             items = reloadItems state
+            messageKind = kind
             message = msg }
     | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
   else if inp.action == "branch-delete" then
@@ -348,7 +356,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         match Darklang.SCM.Branch.delete b.id with
         | Error m ->
           Step.Continue
-            { state with input = Stdlib.Option.Option.None; message = "delete failed: " + m }
+            { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Failed; message = "delete failed: " + m }
         | Ok _ ->
           // Deleting the branch you're standing on has to move you off it, or `branchId` keeps pointing at an
           // archived branch and every later commit lands there. The classic `branch delete` does the same
@@ -364,6 +372,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
                 input = Stdlib.Option.Option.None
                 items = reloadItems moved
                 selected = 0
+                messageKind = MessageKind.Succeeded
                 message = msg }
       | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
   else if inp.action == "trace-delete" then
@@ -374,11 +383,11 @@ let performInputAction (state: State) (inp: InputState) : Step =
       | Some item ->
         match Cli.TraceVerbs.find item.name with
         | Error m ->
-          Step.Continue { state with input = Stdlib.Option.Option.None; message = m }
+          Step.Continue { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Refused; message = m }
         | Ok run ->
           let deleted = Darklang.Tracing.Store.delete run.id
           let cleared =
-            { state with input = Stdlib.Option.Option.None; message = "" }
+            { state with input = Stdlib.Option.Option.None; messageKind = MessageKind.Succeeded; message = "" }
           let reloaded = { cleared with items = reloadItems cleared }
           // The list shortens, so the cursor can be past its end.
           let selected =
@@ -386,6 +395,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
           Step.Continue
             { reloaded with
                 selected = Stdlib.max selected 0
+                messageKind = if deleted > 0 then MessageKind.Succeeded else MessageKind.Refused
                 message =
                   if deleted > 0 then
                     $"deleted {Cli.Text.shortIdText run.id}"

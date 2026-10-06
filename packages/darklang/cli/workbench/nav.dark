@@ -242,7 +242,7 @@ let openReader (state: State) (content: String) (isCode: Bool) : Step =
 /// Resolve the selected conflict (Conflicts view): keep ours (local), theirs (incoming), or just acknowledge.
 let resolveConflict (state: State) (which: String) : Step =
   match selectedConflict state with
-  | None -> Step.Continue { state with message = "no conflict selected" }
+  | None -> Step.Continue { state with messageKind = MessageKind.Refused; message = "no conflict selected" }
   | Some c ->
     // `Candidate.side` holds "local" / "incoming", so those are the only two labels that match. A label
     // that matches nothing yields "", and an empty hash reaching the resolver binds a live name to
@@ -263,17 +263,17 @@ let resolveConflict (state: State) (which: String) : Step =
 
     let label = if which == "ok" then "acknowledged" else "kept " + which
 
-    let message =
+    let (message, kind) =
       match outcome with
-      | Ok _ -> "resolved: " + label
-      | Error e -> "resolve failed: " + e
+      | Ok _ -> ("resolved: " + label, MessageKind.Succeeded)
+      | Error e -> ("resolve failed: " + e, MessageKind.Failed)
 
     // Forced: an ack writes no op, so the comparison in `refreshScmStatus` would carry the old
     // "N need you" forward over a conflict you just answered.
     let refreshed = forceScmRefresh state
 
     Step.Continue
-      { refreshed with items = reloadItems refreshed; selected = 0; message = message }
+      { refreshed with items = reloadItems refreshed; selected = 0; messageKind = kind; message = message }
 
 /// The app the cursor is on, resolved by name rather than by position.
 ///
@@ -307,6 +307,7 @@ let toggleInstall (state: State) : Step =
     Step.Continue
       { state with
           items = itemsForView vApps state.branchId state.location state.ai.section state.matter.lens
+          messageKind = MessageKind.Succeeded
           message = msg }
   | None -> Step.Continue state
 
@@ -359,7 +360,7 @@ let runCommandInFrame (state: State) (command: String) (args: List<String>) : St
 let syncInFrame (state: State) (verb: String) : Step =
   if SCM.PackageOps.relay () == "" then
     Step.Continue
-      { state with message = "no relay yet - run `dark sync setup` from a shell to point this instance at one" }
+      { state with messageKind = MessageKind.Refused; message = "no relay yet - run `dark sync setup` from a shell to point this instance at one" }
   else
     runCommandInFrame state verb []
 
@@ -399,4 +400,5 @@ let jumpToHit (state: State) (hit: SearchHit) : Step =
         items = items
         selected = idx
         search = emptySearch ()
+        messageKind = MessageKind.Succeeded
         message = "jumped to " + hit.name }
