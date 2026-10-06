@@ -159,7 +159,15 @@ let dispose (i : T) : unit =
 let private commandTimeout = System.TimeSpan.FromMinutes 2.0
 
 /// Run one command and return (exitCode, stdout, stderr).
-let runRaw (i : T) (args : string list) : Task<int * string * string> =
+let rec runRaw (i : T) (args : string list) : Task<int * string * string> =
+  runRawWithInput i args None
+
+/// `runRaw`, with `input` written to the command's stdin before it is closed.
+and runRawWithInput
+  (i : T)
+  (args : string list)
+  (input : Option<string>)
+  : Task<int * string * string> =
   task {
     let psi = System.Diagnostics.ProcessStartInfo()
     psi.FileName <- i.cli
@@ -172,8 +180,11 @@ let runRaw (i : T) (args : string list) : Task<int * string * string> =
     childEnv i.dir psi
 
     use p = System.Diagnostics.Process.Start psi
-    // Closed immediately: a command that asks must find nothing there and refuse, which is
-    // what several of these tests assert. An open pipe would make it wait instead.
+    // Closed straight after any input: a command that asks must find nothing there and
+    // refuse, which is what several of these tests assert. An open pipe would make it wait.
+    match input with
+    | Some text -> p.StandardInput.Write text
+    | None -> ()
     p.StandardInput.Close()
 
     // Both streams drained concurrently: a child that fills one pipe while we read the

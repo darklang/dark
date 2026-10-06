@@ -9,8 +9,8 @@ state resets between calls; package changes persist.
 ## Workflow
 
   search --batch "List.map" "Json.serialize" --fn # related searches
-  module /Darklang.Example -                     # declarations from stdin
-  eval Darklang.Example.main "arg"               # test an expression
+  module /Me.Example -                           # declarations from stdin
+  eval 'Me.Example.main 21'                      # test an expression
   typecheck                                       # audit declarations on the branch
   status                                          # inspect changes
   commit "message" -y                            # save them
@@ -36,9 +36,12 @@ Batch search caps each result section at three items. Use `--fn`, `--type`, or
 
 ## Authoring
 
+Names have three parts, Owner.Module.name. Use an owner of your own, such as
+`Me`: `Darklang` is reserved for the standard library and refuses a save.
+
 Create several declarations atomically:
 
-  module /Darklang.Example - <<'EOF'
+  module /Me.Example - <<'EOF'
   type State = { count: Int }
   let double (n: Int) : Int = n * 2
   let main (n: Int) : Int = double n
@@ -47,7 +50,7 @@ Create several declarations atomically:
 For one function, stdin accepts a complete declaration; the shorter signature
 and body fragment remains valid:
 
-  fn /Darklang.Example.double - <<'EOF'
+  fn /Me.Example.double - <<'EOF'
   let double (n: Int) : Int = n * 2
   EOF
 
@@ -131,10 +134,10 @@ package approvals and its own approved version per logical function name. The
 normal workflow uses the logical function name; immutable hashes stay behind
 the approval:
 
-  permissions approve Darklang.Vendor.Package.function
-  permissions update Darklang.Vendor.Package.function
+  permissions approve Vendor.Package.function
+  permissions update Vendor.Package.function
   permissions approved                  # name  shorthash
-  permissions unapprove Darklang.Vendor.Package.function
+  permissions unapprove Vendor.Package.function
   permissions approvals                 # approved hashes; revoke-package <hash> drops one
 
 Approval computes the function's inferred transitive needs; changing the code

@@ -295,7 +295,7 @@ module Registry =
     // gets to and the first thing they needed: what the loop is, and where an agent should go instead of
     // reading a hundred command names.
     let header =
-      "Workflow: fn <name> → run <name> → status → commit\nhelp <command> for details. AI agents: docs for-ai"
+      "Workflow: fn Me.Demo.f <body> → eval 'Me.Demo.f 2' → status → commit\nhelp <command> for details. AI agents: docs for-ai"
 
     header + "\n\n" + groupsText
 
