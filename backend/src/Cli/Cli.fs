@@ -170,6 +170,8 @@ let private startupSettings () : Map<string, string> =
         "exec.maxInstructions"
         "exec.maxBytes"
         "exec.storePollMs"
+        "exec.spreadCrossover"
+        "exec.spreadMinChunk"
         "trace.keep"
         "trace.maxMb"
         "trace.record" ])
@@ -278,6 +280,31 @@ let execute
         | true, n when n >= 10 -> LibExecution.Scheduler.storePollMs <- n
         | _ -> ()
       | None -> ()
+      // List ops spreading across cores (`LibExecution.Spread`): interpreted instructions of
+      // projected serial work before a spread pays, and the least a chunk should carry. Expert
+      // settings, for measuring; a negative crossover turns spreading off.
+      match Map.tryFind "exec.spreadCrossover" settings with
+      | Some v ->
+        match System.Int64.TryParse v with
+        | true, n -> LibExecution.Spread.crossover <- (if n < 0L then -1L else n)
+        | _ -> ()
+      | None -> ()
+      match Map.tryFind "exec.spreadMinChunk" settings with
+      | Some v ->
+        match System.Int64.TryParse v with
+        | true, n when n >= 0L -> LibExecution.Spread.minChunk <- n
+        | _ -> ()
+      | None -> ()
+      // `DARK_SPREAD_REPORT=1` says at exit how many spreads ran and how many fell back: the way to
+      // tell a run that spread from one that matched serial without spreading. A diagnostic
+      // switch like `DARK_SCHEDULER`, not a setting.
+      if System.Environment.GetEnvironmentVariable "DARK_SPREAD_REPORT" = "1" then
+        // Not `eprintfn`: printf formats by reflection, which the AOT binary does not have.
+        System.AppDomain.CurrentDomain.ProcessExit.Add(fun _ ->
+          System.Console.Error.WriteLine(
+            $"spread: {LibExecution.Spread.spreads} spreads, "
+            + $"{LibExecution.Spread.fallbacks} fell back"
+          ))
       LibExecution.Scheduler.maxInstructions <- cap "exec.maxInstructions"
       LibExecution.Scheduler.maxBytes <- cap "exec.maxBytes"
       LibDB.Tracing.TraceRetention.configure

@@ -8,6 +8,7 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
+module Spread = LibExecution.Spread
 module RTE = RuntimeError
 
 
@@ -284,24 +285,55 @@ let fns () : List<BuiltInFn> =
         + "results"
       fn =
         (function
-        | _, vm, [], [| DList(_, items); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Built back to front and reversed once. A read a lambda hands back stays in flight and
-          // the list comes back as one promise (`mappedListOrPromise`).
+          // the list comes back as one promise (`mappedListOrPromise`). Spread as `listMap` is; a
+          // chunk is `listMap2shortest` over its indices and its elements, which is the same call.
           match items with
           | [] -> Ply(mappedList vm [])
           | first :: tail ->
             let mutable acc = []
             let mutable rest = tail
             let mutable i = 1L
+            let probe = Spread.probe state vm app
             let rec next (mapped : Dval) : Ply<Dval> =
               acc <- mapped :: acc
               match rest with
               | [] -> Ply(mappedListOrPromise vm (List.rev acc))
               | elem :: elemTail ->
-                rest <- elemTail
-                let index = Dval.int (bigint i)
-                i <- i + 1L
-                Interpreter.requestApply vm app index [ elem ] next
+                if not (isNull probe) && probe.Ask rest then
+                  probe.Stop()
+                  let start = i
+                  uply {
+                    let! spread =
+                      Spread.run
+                        state
+                        vm
+                        "listMap2shortest"
+                        (fun offset chunk ->
+                          let first = start + int64 offset
+                          let indices =
+                            List.init (List.length chunk) (fun k ->
+                              Dval.int (bigint (first + int64 k)))
+                          [ DList(VT.int, indices); DList(vt, chunk) ])
+                        app
+                        probe.PerElement
+                        rest
+                    acc <- List.rev spread.results @ acc
+                    i <- start + int64 spread.leftoverIndex
+                    match spread.leftover with
+                    | [] -> return mappedListOrPromise vm (List.rev acc)
+                    | elem :: elemTail ->
+                      rest <- elemTail
+                      let index = Dval.int (bigint i)
+                      i <- i + 1L
+                      return! Interpreter.requestApply vm app index [ elem ] next
+                  }
+                else
+                  rest <- elemTail
+                  let index = Dval.int (bigint i)
+                  i <- i + 1L
+                  Interpreter.requestApply vm app index [ elem ] next
             Interpreter.requestApply vm app (Dval.int (bigint 0)) [ first ] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -366,17 +398,18 @@ let fns () : List<BuiltInFn> =
         + "{{Some}} for and dropping the rest"
       fn =
         (function
-        | _, vm, [], [| DList(_, items); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // The Dark version recursed a package call, an Option match and a `push` per element on
           // top of the lambda application, and it is used widely enough for that to show up in a
           // profile of anything.
           //
-          // Built back to front and reversed once, as `listMap` does.
+          // Built back to front and reversed once, and spread as `listMap` is.
           match items with
           | [] -> Ply(mappedList vm [])
           | first :: tail ->
             let mutable acc = []
             let mutable rest = tail
+            let probe = Spread.probe state vm app
             let rec next (answer : Dval) : Ply<Dval> =
               Interpreter.withValue vm answer (fun answer ->
                 match answer with
@@ -386,8 +419,28 @@ let fns () : List<BuiltInFn> =
                 match rest with
                 | [] -> Ply(mappedList vm (List.rev acc))
                 | elem :: elemTail ->
-                  rest <- elemTail
-                  Interpreter.requestApply vm app elem [] next)
+                  if not (isNull probe) && probe.Ask rest then
+                    probe.Stop()
+                    uply {
+                      let! spread =
+                        Spread.run
+                          state
+                          vm
+                          "listFilterMap"
+                          (fun _ chunk -> [ DList(vt, chunk) ])
+                          app
+                          probe.PerElement
+                          rest
+                      acc <- List.rev spread.results @ acc
+                      match spread.leftover with
+                      | [] -> return mappedList vm (List.rev acc)
+                      | elem :: elemTail ->
+                        rest <- elemTail
+                        return! Interpreter.requestApply vm app elem [] next
+                    }
+                  else
+                    rest <- elemTail
+                    Interpreter.requestApply vm app elem [] next)
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -484,23 +537,47 @@ let fns () : List<BuiltInFn> =
         "Calls <param fn> on every value in <param list>, returning a list of the results"
       fn =
         (function
-        | _, vm, [], [| DList(_, items); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Built back to front and reversed once at the end. A lambda that
           // returns a read still in flight hands it back as it is, and the list comes back as one
           // promise (`mappedListOrPromise`). One continuation for the whole list, over two
           // mutable cells, rather than a closure per element.
+          //
+          // Once the rest looks worth it, it is spread across cores (`LibExecution.Spread`), and
+          // whatever a spread could not finish carries on here exactly as before.
           match items with
           | [] -> Ply(mappedList vm [])
           | first :: tail ->
             let mutable acc = []
             let mutable rest = tail
+            let probe = Spread.probe state vm app
             let rec next (mapped : Dval) : Ply<Dval> =
               acc <- mapped :: acc
               match rest with
               | [] -> Ply(mappedListOrPromise vm (List.rev acc))
               | elem :: elemTail ->
-                rest <- elemTail
-                Interpreter.requestApply vm app elem [] next
+                if not (isNull probe) && probe.Ask rest then
+                  probe.Stop()
+                  uply {
+                    let! spread =
+                      Spread.run
+                        state
+                        vm
+                        "listMap"
+                        (fun _ chunk -> [ DList(vt, chunk) ])
+                        app
+                        probe.PerElement
+                        rest
+                    acc <- List.rev spread.results @ acc
+                    match spread.leftover with
+                    | [] -> return mappedListOrPromise vm (List.rev acc)
+                    | elem :: elemTail ->
+                      rest <- elemTail
+                      return! Interpreter.requestApply vm app elem [] next
+                  }
+                else
+                  rest <- elemTail
+                  Interpreter.requestApply vm app elem [] next
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -520,15 +597,16 @@ let fns () : List<BuiltInFn> =
         + "it returned true"
       fn =
         (function
-        | _, vm, [], [| DList(vt, items); DApplicable app |] ->
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // The result holds a subset of the values that came in, so it keeps their ValueType
-          // exactly. Nothing to merge, and nothing that can fail to.
+          // exactly. Nothing to merge, and nothing that can fail to. Spread as `listMap` is.
           match items with
           | [] -> Ply(DList(vt, []))
           | first :: tail ->
             let mutable acc = []
             let mutable current = first
             let mutable rest = tail
+            let probe = Spread.probe state vm app
             let rec next (answer : Dval) : Ply<Dval> =
               Interpreter.withValue vm answer (fun answer ->
                 match answer with
@@ -537,9 +615,30 @@ let fns () : List<BuiltInFn> =
                 match rest with
                 | [] -> Ply(DList(vt, List.rev acc))
                 | elem :: elemTail ->
-                  current <- elem
-                  rest <- elemTail
-                  Interpreter.requestApply vm app elem [] next)
+                  if not (isNull probe) && probe.Ask rest then
+                    probe.Stop()
+                    uply {
+                      let! spread =
+                        Spread.run
+                          state
+                          vm
+                          "listFilter"
+                          (fun _ chunk -> [ DList(vt, chunk) ])
+                          app
+                          probe.PerElement
+                          rest
+                      acc <- List.rev spread.results @ acc
+                      match spread.leftover with
+                      | [] -> return DList(vt, List.rev acc)
+                      | elem :: elemTail ->
+                        current <- elem
+                        rest <- elemTail
+                        return! Interpreter.requestApply vm app elem [] next
+                    }
+                  else
+                    current <- elem
+                    rest <- elemTail
+                    Interpreter.requestApply vm app elem [] next)
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -1,0 +1,29 @@
+// `Canvas.compose`, unedited, over a 50-row frame of six styled spans a row: the per-row
+// `List.map` the concurrency surveys named, as a keystroke repaints it. Run serial and spread
+// as `spread.dark` says. Prints (frames, total milliseconds, total bytes).
+
+let frame =
+  Stdlib.List.range 0 49
+  |> Stdlib.List.map (fun row ->
+    Stdlib.List.range 0 5
+    |> Stdlib.List.map (fun k ->
+      Darklang.Stdlib.Cli.UI.Layout.Span
+        { row = row
+          col = k * 20
+          text = "\u001b[1mcell\u001b[0m and some ordinary text" }))
+  |> Stdlib.List.flatten
+
+let draw (n: Int) : Int =
+  Stdlib.List.fold (Stdlib.List.range 1 n) 0 (fun acc _ ->
+    acc + Stdlib.List.length (Darklang.Stdlib.Cli.UI.Canvas.compose 160 50 frame))
+
+let main () : Unit =
+  let _warm = draw 5
+  let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
+  let t0 = Stdlib.DateTime.now ()
+  let _r = draw 200
+  let t1 = Stdlib.DateTime.now ()
+  let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
+  Builtin.debug "canvas" (200, Stdlib.DateTime.subtractMs t1 t0, after - before)
+
+main ()

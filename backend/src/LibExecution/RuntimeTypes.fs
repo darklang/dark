@@ -3924,6 +3924,13 @@ and ExecutionState =
     /// toggle it for one-offs.
     allowHarmful : bool
 
+    /// A process running part of a list op spread across cores (`List.map` and its siblings
+    /// deciding for themselves). Such a process may not make any call that would take an effect
+    /// ordinal (`Interpreter.isLogged`): the call is refused before it does anything, the
+    /// process fails, and the spreader runs that part again serially in the original process,
+    /// where the effect happens in its proper order. Also stops a spread inside a spread.
+    spreadChild : bool
+
     /// The account this run is attributed to (the developer behind a
     /// commit / script run / handler invocation). `None` means
     /// unattributed — outer-CLI bootstrapping, tests, anonymous

@@ -1247,6 +1247,21 @@ let private invokeBuiltin
         0L
     else
       0L
+  // A spread child computes and nothing else. Anything that would take an effect ordinal stops
+  // it here, before the permission check (so no denial is recorded) and before the call; the
+  // spreader sees the failure and runs this part again in the original process, in order.
+  // The awaits are not logged but are order-sensitive all the same: an answer is TAKEN once its
+  // row has gone (`Scheduler.TakeResult`), so two elements awaiting one handle would swap which
+  // of them finds it gone.
+  if
+    exeState.spreadChild
+    && (isLogged fn || Set.contains fn.name.name awaitsElsewhere)
+  then
+    RTE.UncaughtException(
+      $"`{fn.name.name}` has effects, which a spread list op leaves to the original process",
+      []
+    )
+    |> raiseRTE vm.threadID
   if not (Set.isEmpty fn.callEffects) then
     // `Native` names what no rule can scope, so a policy grants it whole or not at all --
     // which would put `dark status` behind `permissions allow native` on a stock install,

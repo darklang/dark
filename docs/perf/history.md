@@ -13,6 +13,54 @@ loads more is a clause, not a section. Anything longer belongs in `playbook.md` 
 
 ---
 
+## 2026-10-06: List ops spread across cores by themselves, and where it pays
+
+`List.map`, `filter`, `filterMap` and `indexedMap` spread when the rest of the list is projected at
+10,000 interpreted instructions or more, in chunks of at least 2,000 (`LibExecution/Spread.fs`,
+`docs/processes.md`). The gate does not move: steady.dark is fifty-element maps of a
+three-instruction body, nothing in it spreads, and it read 10.7-10.8 MB over five fresh-store runs,
+the same as the base commit's own AOT binary on the same box (10.7, 10.7, 10.8). Budget unchanged.
+
+All AOT, on this 48-core box at load average 8 to 13, so the times are relative only.
+
+The grid (`scripts/perf/workloads/spread.dark`), body cost by element count, with spreading FORCED
+and no minimum chunk, against serial:
+
+- a 3-instruction body never paid at any length: 64 elements went from 47 to 408 us a map
+- 26 a body x 16 elements (about 420 instructions) lost; 26 x 64 (about 1,700) was the first win,
+  at 1.24x
+- from 6,000 to 13,000 instructions up it won 1.6 to 2.6x, and stayed there; about three times was
+  the best this box gave on any cell
+
+With the defaults, every cell that stays serial was unchanged inside noise and allocated 56 bytes
+more a map (the probe object). Cells that spread:
+
+    body x count       serial      spread    allocation
+    26 x 1024          10.1 ms     3.9 ms    +8.6%
+    206 x 256          19.9 ms     6.6 ms    +2.1%
+    206 x 1024         75.0 ms    28.1 ms    +2.0%
+    2006 x 256          183 ms     123 ms    +0.8%
+
+What a spread costs: 3.3 to 5 KB a chunk, from the grid's allocation (forced, up to 96 chunks).
+Another tab measured `List.parallelMap` at about 6.7 KB a SPAWN by different means, which is the
+same order; the difference is that a chunk carries many elements. Serial work allocates about 90 B
+an instruction, which is what put the minimum chunk at 2,000: about 3% of a chunk's own
+allocation goes on starting it.
+
+`Canvas.compose`, unedited (`scripts/perf/workloads/spread-canvas.dark`, 50 rows of six styled
+spans, 200 frames, two runs a side): 10.4 ms a frame serial, 5.5 spread, 1.97 -> 2.06 MB a frame
+(+4.6%). Every compose spread, none fell back.
+
+The six-workload suite, spreading off against default: no difference outside the run-to-run spread,
+which on this box and store was 4 to 10% per workload within one mode (recursion read 0.70 KB and
+0.14 KB on two runs with spreading off). Nothing in it is a long map of an expensive body.
+
+Two things that went wrong first and are worth not repeating. A probe that timed elements with the
+clock spread a cheap map whenever a GC pause landed in the elements it timed, so the gate read
+anywhere from 10.7 to 11.6 MB on the same binary; the probe counts instructions now, from the VM's
+own budget, and the decision is the same on any box. And it timed the FIRST element, which is the
+one that loads what the body calls: the first element is not counted any more.
+
 ## 2026-10-05: published budget set from a measurement, on the scheduler branch
 
 `steady.dark` published, six runs on a NativeAOT build of this branch: 11.4, 11.4, 11.5,
