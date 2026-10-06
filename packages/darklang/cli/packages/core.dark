@@ -305,6 +305,139 @@ let updateDocsThatChanged
     | Error _ -> false
 
 
+/// What a save did, decided without printing anything: the CLI's authoring commands print from it
+/// (`saveAuthored`), and so does the workbench's editor, so the two cannot drift apart on what a
+/// save means. They did once: the workbench kept its own copy of this, and the copy never
+/// propagated.
+type Committed =
+  { isUpdate: Bool
+    /// Anything happened at all: a new item, a new version, a doc change, or a revert.
+    landed: Bool
+    /// The name went back to a version it held before.
+    reverted: Bool
+    boundHash: LanguageTools.ProgramTypes.Hash
+    followed: Propagate.Followed
+    /// The save's own type error, named, if it has one.
+    ownIssue: Stdlib.Option.Option<String>
+    /// One line when the version replaced was a colleague's.
+    peerHeadsUp: Stdlib.Option.Option<String>
+    report: LanguageTools.AtRestTypeChecker.Report }
+
+
+/// Save <param ops>, which bind <param location> (a <param kind>) at the placeholder <param hash>,
+/// repoint what depended on the version it replaces, and say what happened. Prints nothing.
+let commitAuthored
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Stdlib.Result.Result<Committed, String> =
+  let previousHashes = Propagate.getAllPreviousHashes branchId location kind
+  let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
+
+  // Read BEFORE the save: after it, the live binding IS the new version.
+  let peerHeadsUp =
+    if isUpdate then peerHeadsUpLine location
+    else Stdlib.Option.Option.None
+
+  match SCM.PackageOps.addAuthored branchId ops with
+  | Ok report ->
+    // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
+    // stabilized inside the save, so the value in hand until now is a placeholder. Everything
+    // below that names a version -- the permission summary, the doc-only note -- needs the
+    // real one.
+    let boundHash =
+      match Packages.Rename.referenceAt branchId location with
+      | Some reference -> LanguageTools.ProgramTypes.Reference.hash reference
+      | None -> hash
+
+    // Decided here rather than before the save, because this is where the stabilized hash is
+    // finally known: the one in hand until now is the parser's placeholder.
+    let movedVersion =
+      Stdlib.Bool.not (Stdlib.List.member previousHashes boundHash)
+
+    let docOnly =
+      (isUpdate && (Stdlib.Bool.not movedVersion))
+      && (updateDocsThatChanged branchId location kind boundHash ops)
+
+    // A body the name held BEFORE, not the one it holds now: the save put the name back on an
+    // earlier version (as a decision, since the SetName already exists). A change, and one a live
+    // host follows; not "unchanged".
+    let reverted =
+      isUpdate
+      && (Stdlib.Bool.not movedVersion)
+      && ((Stdlib.List.head previousHashes) != (Stdlib.Option.Option.Some boundHash))
+
+    // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
+    // it already had and carries no new text saved NOTHING, and re-running the same authoring
+    // command does exactly that. Reporting it as an update is how a dropped edit stays hidden.
+    let landed = (Stdlib.Bool.not isUpdate) || docOnly || movedVersion || reverted
+
+    // Repoint dependents NOW, into the draft, so you can run them against this change before
+    // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing. A
+    // revert repoints too: the dependents follow the name to the version it holds now. Done
+    // BEFORE anything prints: whether a dependent broke decides the first line's glyph.
+    let followed =
+      if isUpdate && (Stdlib.Bool.not docOnly) then
+        Propagate.repointNow branchId location previousHashes boundHash kind
+      else
+        Propagate.nothingFollowed ()
+
+    // The save's own type check: an error in what was just written. Saved anyway (WIP is yours
+    // to break); `dark commit` is the gate. Said on the second line, with the issue itself.
+    // Named, not hashed. A trait diagnostic carries the CONTENT HASH of the type and of the
+    // trait, and turning one into a name needs a branch to look it up on.
+    // `Stdlib.Live.reportText` takes the report and nothing else, so it renders
+    // `type #bf494e2a has no implementation of #d4222cbd155f`, which is the least useful
+    // thing to say at the moment a save is refused. `AtRestCheck.customTypeName` is the
+    // lookup `dark commit` uses, and the branch is already in hand here.
+    //
+    // Same shape `reportText` produces, the first issue and a count of the rest, so the save
+    // stays two lines.
+    let ownIssue =
+      match report.verdict with
+      | Failed ->
+        let issues = Stdlib.List.append report.warnings report.diagnostics
+
+        match issues with
+        | [] -> Stdlib.Option.Option.Some "it failed the type check"
+        | issue :: rest ->
+          // The CODE as well as the message. `dark docs traits` names these codes, they are
+          // what somebody searches for, and `dark module` prints them through
+          // `AtRestCheck.printSaveReport`, so a `fn` or an `impl` dropping them made the two
+          // paths disagree about what a refused save says. It costs one bracketed word on a
+          // line that already exists, so the save is still two lines.
+          let first =
+            "["
+            + (LanguageTools.AtRestTypeChecker.issueCodeToString issue.code)
+            + "] "
+            + (LanguageTools.AtRestTypeChecker.issueToStringWith
+                (AtRestCheck.customTypeName branchId)
+                issue)
+
+          let more =
+            if Stdlib.List.isEmpty rest then
+              ""
+            else
+              " (and " + (Stdlib.toString (Stdlib.List.length rest)) + " more)"
+
+          Stdlib.Option.Option.Some(first + more)
+      | _ -> Stdlib.Option.Option.None
+
+    Stdlib.Result.Result.Ok(
+      Committed
+        { isUpdate = isUpdate
+          landed = landed
+          reverted = reverted
+          boundHash = boundHash
+          followed = followed
+          ownIssue = ownIssue
+          peerHeadsUp = peerHeadsUp
+          report = report })
+  | Error msg -> Stdlib.Result.Result.Error msg
+
+
 /// Shared tail of the fn/type/val authoring flow: build the name-resolution
 /// context, convert the written declaration, check unresolved names, take the
 /// previous hashes, save, report, and repoint dependents. `kindWord` fills the
@@ -344,99 +477,15 @@ let saveAuthored
   if Errors.reportUnresolvedNames state.currentBranchId unresolvedNames then
     failState
   else
-    let previousHashes = Propagate.getAllPreviousHashes state.currentBranchId location kind
-    let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
-
-    // Read BEFORE the save: after it, the live binding IS the new version.
-    let peerHeadsUp =
-      if isUpdate then peerHeadsUpLine location
-      else Stdlib.Option.Option.None
-
-    match SCM.PackageOps.addAuthored state.currentBranchId ops with
-    | Ok report ->
-      // Read the hash BACK, rather than trusting the one the parser handed us: hashes are
-      // stabilized inside the save, so the value in hand until now is a placeholder. Everything
-      // below that names a version -- the permission summary, the doc-only note -- needs the
-      // real one.
-      let boundHash =
-        match Packages.Rename.referenceAt state.currentBranchId location with
-        | Some reference -> LanguageTools.ProgramTypes.Reference.hash reference
-        | None -> hash
-
+    match commitAuthored state.currentBranchId location kind hash ops with
+    | Ok committed ->
+      let isUpdate = committed.isUpdate
+      let landed = committed.landed
+      let reverted = committed.reverted
+      let followed = committed.followed
+      let ownIssue = committed.ownIssue
+      let peerHeadsUp = committed.peerHeadsUp
       let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
-
-      // Decided here rather than before the save, because this is where the stabilized hash is
-      // finally known: the one in hand until now is the parser's placeholder.
-      let movedVersion =
-        Stdlib.Bool.not (Stdlib.List.member previousHashes boundHash)
-
-      let docOnly =
-        (isUpdate && (Stdlib.Bool.not movedVersion))
-        && (updateDocsThatChanged state.currentBranchId location kind boundHash ops)
-
-      // A body the name held BEFORE, not the one it holds now: the save put the name back on an
-      // earlier version (as a decision, since the SetName already exists). A change, and one a live
-      // host follows; not "unchanged".
-      let reverted =
-        isUpdate
-        && (Stdlib.Bool.not movedVersion)
-        && ((Stdlib.List.head previousHashes) != (Stdlib.Option.Option.Some boundHash))
-
-      // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
-      // it already had and carries no new text saved NOTHING, and re-running the same authoring
-      // command does exactly that. Reporting it as an update is how a dropped edit stays hidden.
-      let landed = (Stdlib.Bool.not isUpdate) || docOnly || movedVersion || reverted
-
-      // Repoint dependents NOW, into the draft, so you can run them against this change before
-      // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing. A
-      // revert repoints too: the dependents follow the name to the version it holds now. Done
-      // BEFORE anything prints: whether a dependent broke decides the first line's glyph.
-      let followed =
-        if isUpdate && (Stdlib.Bool.not docOnly) then
-          Propagate.repointNow state.currentBranchId location previousHashes boundHash kind
-        else
-          Propagate.nothingFollowed ()
-
-      // The save's own type check: an error in what was just written. Saved anyway (WIP is yours
-      // to break); `dark commit` is the gate. Said on the second line, with the issue itself.
-      // Named, not hashed. A trait diagnostic carries the CONTENT HASH of the type and of the
-      // trait, and turning one into a name needs a branch to look it up on.
-      // `Stdlib.Live.reportText` takes the report and nothing else, so it renders
-      // `type #bf494e2a has no implementation of #d4222cbd155f`, which is the least useful
-      // thing to say at the moment a save is refused. `AtRestCheck.customTypeName` is the
-      // lookup `dark commit` uses, and the branch is already in hand here.
-      //
-      // Same shape `reportText` produces, the first issue and a count of the rest, so the save
-      // stays two lines.
-      let ownIssue =
-        match report.verdict with
-        | Failed ->
-          let issues = Stdlib.List.append report.warnings report.diagnostics
-
-          match issues with
-          | [] -> Stdlib.Option.Option.Some "it failed the type check"
-          | issue :: rest ->
-            // The CODE as well as the message. `dark docs traits` names these codes, they are
-            // what somebody searches for, and `dark module` prints them through
-            // `AtRestCheck.printSaveReport`, so a `fn` or an `impl` dropping them made the two
-            // paths disagree about what a refused save says. It costs one bracketed word on a
-            // line that already exists, so the save is still two lines.
-            let first =
-              "["
-              + (LanguageTools.AtRestTypeChecker.issueCodeToString issue.code)
-              + "] "
-              + (LanguageTools.AtRestTypeChecker.issueToStringWith
-                  (AtRestCheck.customTypeName state.currentBranchId)
-                  issue)
-
-            let more =
-              if Stdlib.List.isEmpty rest then
-                ""
-              else
-                " (and " + (Stdlib.toString (Stdlib.List.length rest)) + " more)"
-
-            Stdlib.Option.Option.Some(first + more)
-        | _ -> Stdlib.Option.Option.None
 
       // A save is at most two lines. Line one: what happened, with a check when all is well and a
       // `!` when something no longer type-checks. Line two: who follows, or what broke.
