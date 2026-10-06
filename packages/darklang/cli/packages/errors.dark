@@ -71,6 +71,21 @@ let reportParseErrors
     true
 
 
+/// The unresolved names in one line, `Nope.missing (line 1), Other.thing (line 3)`, for a surface with no
+/// room for <fn reportUnresolvedNames>'s list: the workbench's footer.
+let unresolvedNamesText
+  (unresolvedNames:
+    List<LanguageTools.Parser.Range
+      * List<String>
+      * LanguageTools.ProgramTypes.NameResolutionError>)
+  : String =
+  unresolvedNames
+  |> Stdlib.List.map (fun (range, originalName, _err) ->
+    let lineNum = (range.start.row + 1) |> Stdlib.toString
+    $"{Stdlib.String.join originalName "."} (line {lineNum})")
+  |> Stdlib.String.join ", "
+
+
 /// Checks for invalid names (hard errors) and unresolved names (warnings).
 /// Returns true if there are invalid names (which block creation).
 /// Unresolved names are allowed in WIP — they'll be resolved by WipRefresh when

@@ -1318,6 +1318,180 @@ let private editInWorkbench
     | other -> return Tests.failtestf "the workbench edit answered %A" other
   }
 
+/// Write a NEW item in the workbench, as `n`/`t`/`v`/`T`/`I` does: open the editor on <param kind>
+/// at <param location> saving into <param target>, put <param source> in it, save. Answers the
+/// footer, where the view ended up and the selected row, or why the save was refused.
+let private workbenchNew
+  (location : List<string>)
+  (kind : string)
+  (target : List<string>)
+  (source : string)
+  : string =
+  let path xs = xs |> List.map darkString |> String.concat ", "
+  "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"i\" [] false in\n"
+  + $"let st = {{ st0 with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module [ {path location} ] }} in\n"
+  + $"match Darklang.Cli.Workbench.openNewEditor st {darkString kind} [ {path target} ] with\n"
+  + "| Continue opened ->\n"
+  + "  match opened.editing with\n"
+  + "  | None -> \"did not open: \" + opened.message\n"
+  + "  | Some es ->\n"
+  + $"    match Darklang.Cli.Workbench.saveEditing opened {{ es with buf = Stdlib.Cli.UI.Editor.fromText {darkString source} }} with\n"
+  + "    | Continue saved ->\n"
+  + "      match saved.editing with\n"
+  + "      | Some still -> \"save refused: \" + still.err\n"
+  + "      | None ->\n"
+  + "        let on = (Stdlib.List.getAt saved.items saved.selected) |> Stdlib.Option.map (fun i -> i.name) |> Stdlib.Option.withDefault \"\" in\n"
+  + "        \"footer: \" + saved.message + \" | at: \" + (Stdlib.String.join (Darklang.Cli.Packages.modulePathOf saved.location) \".\") + \" | on: \" + on\n"
+  + "    | _ -> \"save did not continue\"\n"
+  + "| _ -> \"open did not continue\""
+
+let private newInWorkbench
+  (target : Target)
+  (location : List<string>)
+  (kind : string)
+  (into : List<string>)
+  (source : string)
+  : Task<string> =
+  task {
+    match!
+      evalUnder (executionState target) (workbenchNew location kind into source)
+    with
+    | RT.DString answer -> return answer
+    | other -> return Tests.failtestf "the workbench save answered %A" other
+  }
+
+/// An implementation that would take a trait's name is refused, as `dark impl` refuses it.
+///
+/// Written in a module named for its type, an implementation lands on `<module>.<Trait>`, which is
+/// where a trait declared in that module already is. One name holds one item, so binding the
+/// implementation there unlisted the trait and nothing could reach it by name.
+let private workbenchRefusesImplOverTrait =
+  cliTest
+    "the workbench refuses an implementation that would take a trait's name"
+    (fun state ->
+      task {
+        let! _ = runCli state [ "type"; "/Tests.WbPt.WbPt"; "{ wbPtMark: Int64 }" ]
+        let! _ =
+          runCli
+            state
+            [ "trait"; "/Tests.WbPt.WbSh"; "<'a> = let sh (v: 'a) : String" ]
+
+        let! answer =
+          newInWorkbench
+            state
+            [ "Tests"; "WbPt" ]
+            "impl"
+            [ "Tests"; "WbPt" ]
+            "impl WbSh for WbPt =\n  let sh (p: WbPt) : String = \"p\""
+        Expect.stringContains answer "save refused" "the save is refused"
+        Expect.stringContains
+          answer
+          "already called Tests.WbPt.WbSh"
+          "and says which name is taken"
+
+        let! view = runCli state [ "view"; "Tests.WbPt.WbSh" ]
+        Expect.stringContains view "trait" "the trait is still there under its name"
+      })
+
+/// The workbench's refusals say what is wrong, as the CLI's do.
+let private workbenchRefusalsNameTheProblem =
+  cliTest "the workbench names an unresolved name and a missing trait" (fun state ->
+    task {
+      let! unresolved =
+        newInWorkbench
+          state
+          [ "Tests"; "WbRefuse" ]
+          "fn"
+          [ "Tests"; "WbRefuse" ]
+          "let wbQ (x: Int64) : Int64 = Nope.wbZzz x"
+      Expect.stringContains
+        unresolved
+        "save refused"
+        "an unresolved name refuses the save"
+      Expect.stringContains unresolved "Nope.wbZzz" "and names the name"
+
+      let! noTrait =
+        newInWorkbench
+          state
+          [ "Tests"; "WbRefuse" ]
+          "impl"
+          [ "Tests"; "WbRefuse" ]
+          "impl WbNoSuchTrait for Int64 =\n  let m (x: Int64) : String = \"\""
+      Expect.stringContains
+        noTrait
+        "save refused"
+        "an impl of a missing trait is refused"
+      Expect.stringContains
+        noTrait
+        "no trait called WbNoSuchTrait"
+        "and says it is the trait that is missing"
+    })
+
+/// A save that changes nothing says so, and a new item is where the view lands.
+let private workbenchSaysUnchangedAndLands =
+  cliTest
+    "the workbench says when a save changed nothing, and lands on what it saved"
+    (fun state ->
+      task {
+        // A body no other test writes: content-addressing makes `x + 1L` in two modules one item.
+        let! _ =
+          runCli
+            state
+            [ "fn"; "/Tests.WbSame.same"; "(x: Int64) : Int64 = x + 7311L" ]
+
+        let! same =
+          editInWorkbench state [ "Tests"; "WbSame" ] "same" "x + 7311L" "x + 7311L"
+        Expect.stringContains
+          same
+          "unchanged"
+          "an edit that changes nothing says so"
+
+        let! landed =
+          newInWorkbench
+            state
+            [ "Tests" ]
+            "fn"
+            [ "Tests"; "WbLand" ]
+            "let landedHere (x: Int64) : Int64 = x"
+        Expect.stringContains
+          landed
+          "at: Tests.WbLand"
+          "the view moves to the module saved into"
+        Expect.stringContains landed "on: landedHere" "with the new item selected"
+      })
+
+/// A doc comment written above a declaration documents it, rather than naming a new item.
+///
+/// The save took the name from the editor's FIRST line, so `/// Adds a number` above `let docme`
+/// saved a new function called `Adds` with docme's body, and docme kept no doc.
+let private workbenchDocCommentDocuments =
+  cliTest
+    "a doc comment added in the workbench documents the item it sits on"
+    (fun state ->
+      task {
+        let! _ =
+          runCli
+            state
+            [ "fn"; "/Tests.WbDoc.docme"; "(x: Int64) : Int64 = x + 9137L" ]
+
+        let! saved =
+          editInWorkbench
+            state
+            [ "Tests"; "WbDoc" ]
+            "docme"
+            "let docme"
+            "/// Adds a number nobody else uses.\nlet docme"
+        Expect.stringContains saved "saved docme" "the save is of docme"
+
+        let! view = runCli state [ "view"; "Tests.WbDoc.docme" ]
+        Expect.stringContains view "nobody else uses" "and docme carries the doc"
+
+        let! stray = runCli state [ "view"; "Tests.WbDoc.Adds" ]
+        Expect.isFalse
+          (stray.Contains "9137")
+          $"and no item was made from the doc's first word:\n{stray}"
+      })
+
 /// Editing an implementation updates it in place.
 ///
 /// The save used to take the impl's location from the first name on its `impl` line, which is the
@@ -1472,6 +1646,10 @@ let tests : List<Test> =
     workbenchImplEditUpdatesInPlace
     workbenchTraitEditKeepsImplementations
     workbenchFnEditCarriesCallers
+    workbenchRefusesImplOverTrait
+    workbenchRefusalsNameTheProblem
+    workbenchSaysUnchangedAndLands
+    workbenchDocCommentDocuments
     reusesCompiledFunctions
     timeoutBoundsSynchronousWork
     timeoutPreservesCapture

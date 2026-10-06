@@ -6,6 +6,23 @@ module Darklang.Cli.Packages.ImplCommand
 // with its method fns beneath it, exactly as `impl ... for ...` inside a `dark
 // module` block would.
 
+
+/// The full name of the trait already at <param location>, where an implementation is about to be
+/// bound: one name holds one item, so binding there would unlist the trait. `dark impl` and the
+/// workbench's editor both refuse on it.
+let traitTakesTheName
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  : Stdlib.Option.Option<String> =
+  match LanguageTools.PackageManager.Trait.find branchId location with
+  | Some _ ->
+    Stdlib.Option.Option.Some(
+      Stdlib.String.join
+        (Stdlib.List.append (Stdlib.List.append [ location.owner ] location.modules) [ location.name ])
+        "."
+    )
+  | None -> Stdlib.Option.Option.None
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
@@ -123,9 +140,7 @@ let createImplInline
         // beats a verbose name that silently avoids it, so this refuses instead. The author
         // moves either one; both are one command.
         let traitAlreadyHere =
-          match LanguageTools.PackageManager.Trait.find state.currentBranchId location with
-          | Some _ -> true
-          | None -> false
+          Stdlib.Option.isSome (traitTakesTheName state.currentBranchId location)
 
         if traitAlreadyHere then
           let fullName =
