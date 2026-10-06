@@ -187,7 +187,7 @@ let handleCompletionRequest
   (requestId: JsonRPC.RequestID)
   (requestParams:
     LanguageServerProtocol.Completions.CompletionRequest.CompletionParams.CompletionParams)
-  : LspState =
+  : (LspState * String) =
   match state.documentsInScope |> Stdlib.Dict.get requestParams.textDocument.uri with
   | Some content ->
     let wordUnderCursor =
@@ -216,9 +216,7 @@ let handleCompletionRequest
         JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
       |> Stdlib.AltJson.format
 
-    logAndSendToClient responseJson
-
-    state
+    (state, responseJson)
   | None ->
     // Document not found, return empty completions
     let response =
@@ -234,6 +232,4 @@ let handleCompletionRequest
         JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
       |> Stdlib.AltJson.format
 
-    logAndSendToClient responseJson
-
-    state
+    (state, responseJson)

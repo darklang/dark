@@ -25,7 +25,7 @@ let handleHoverRequest
   (state: LspState)
   (requestId: JsonRPC.RequestID)
   (params: LanguageServerProtocol.Hover.HoverRequest.HoverParams.HoverParams)
-  : LspState =
+  : (LspState * String) =
   /// Find the document in scope, analysed once for this version of its text
   let (state, found) = DocSync.analysed state params.textDocument.uri
 
@@ -42,8 +42,7 @@ let handleHoverRequest
         Stdlib.Option.Option.None)
       |> Stdlib.AltJson.format
 
-    logAndSendToClient response
-    state
+    (state, response)
 
   | Some((doc, analysis)) ->
     //get position
@@ -179,5 +178,4 @@ let handleHoverRequest
         JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
       |> Stdlib.AltJson.format
 
-    logAndSendToClient response
-    state
+    (state, response)

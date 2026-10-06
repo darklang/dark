@@ -49,7 +49,8 @@ let runServerCliInit (incomingMessageRaw: String) : Int =
             accountID = Stdlib.Option.Option.None
             accountName = ""
             currentBranchId = SCM.Branch.mainBranchId
-            documentsInScope = Dict { } }
+            documentsInScope = Dict { }
+            inFlight = [] }
 
     | _ ->
       log "Error: expected initialize request as first message"
@@ -60,7 +61,8 @@ let runServerCliInit (incomingMessageRaw: String) : Int =
           accountID = Stdlib.Option.Option.None
           accountName = ""
           currentBranchId = SCM.Branch.mainBranchId
-          documentsInScope = Dict { } }
+          documentsInScope = Dict { }
+          inFlight = [] }
 
 
   // now that _that_ is out of the way, we can start responding to normal requests
@@ -72,10 +74,10 @@ let runServerCliLoop (state: LspState) : Int =
   log "---"
 
   // No readable message means the client has gone. Stop, rather than reading
-  // again forever.
-  match readMessageFromClient () with
-  | None -> 0
-  | Some incomingMessageRaw -> runServerCliStep state incomingMessageRaw
+  // again forever. Requests still in flight stop with the loop.
+  match nextMessage state with
+  | (_, None) -> 0
+  | (state, Some incomingMessageRaw) -> runServerCliStep state incomingMessageRaw
 
 
 /// One message, handled: parse it, act on it, then stop or wait for the next one.
@@ -196,11 +198,70 @@ let runServerCliStep (state: LspState) (incomingMessageRaw: String) : Int =
       state
 
 
+  // An analysis this message made (an open, a save) is published here, by the loop, the
+  // one writer; one a spawned request made is published when the loop keeps it.
+  DocSync.publishNewAnalyses state updatedState
+
   // shut down if instructed, or listen for the next message
   if updatedState.shouldShutdown then
     0
   else
     runServerCliLoop updatedState
+
+
+/// Wait for the next piece of input, `spec` (a line, or a body), and meanwhile write the reply
+/// of every request that finishes. None when input has ended.
+///
+/// This is why reading stdin parks rather than blocks: the loop is the only writer, so it has
+/// to wake for a reply as well as for a message. Waking for a reply leaves the read
+/// outstanding, and the next wait asks for the same thing, which takes it.
+let awaitInput
+  (state: LspState)
+  (spec: Stdlib.Host.EventSpec)
+  : (LspState * Stdlib.Option.Option<String>) =
+  match Stdlib.Host.await (Stdlib.List.push (Concurrent.waits state) spec) with
+  | Stdin text -> (state, Stdlib.Option.Option.Some text)
+  | StdinClosed -> (state, Stdlib.Option.Option.None)
+  | ExecDone id -> awaitInput (Concurrent.finish state id) spec
+  | _ -> awaitInput state spec
+
+
+/// `tryReadHeader`, waking for replies while it waits.
+let readHeader
+  (state: LspState)
+  (contentLength: Stdlib.Option.Option<Int>)
+  : (LspState * Stdlib.Result.Result<Int, String>) =
+  let (state, read) = awaitInput state Stdlib.Host.EventSpec.StdinLine
+  // End of input reads as a blank line, as `Stdin.readLine` reports it.
+  let line = read |> Stdlib.Option.withDefault ""
+
+  if line == "" then
+    (state, contentLength |> Stdlib.Option.toResult "No Content-Length header found")
+  else if Stdlib.String.startsWith line "Content-Length: " then
+    let lengthStr = Stdlib.String.dropFirst line 16
+
+    match Stdlib.Int.parse lengthStr with
+    | Ok length -> readHeader state (Stdlib.Option.Option.Some length)
+    | Error _ -> (state, Stdlib.Result.Result.Error "Invalid Content-Length value")
+  else
+    readHeader state contentLength
+
+
+/// `readMessageFromClient`, for the loop: the same framing, but the wait for each piece wakes
+/// to write the replies of requests that finish meanwhile.
+let nextMessage
+  (state: LspState)
+  : (LspState * Stdlib.Option.Option<String>) =
+  match readHeader state Stdlib.Option.Option.None with
+  | (state, Ok contentLength) ->
+    match Stdlib.Int.toInt64 contentLength with
+    | Some bytes -> awaitInput state (Stdlib.Host.EventSpec.StdinBytes bytes)
+    | None ->
+      log "Content-Length is out of range; treating the client as gone, shutting down"
+      (state, Stdlib.Option.Option.None)
+  | (state, Error err) ->
+    log $"No message to read ({err}); treating the client as gone, shutting down"
+    (state, Stdlib.Option.Option.None)
 
 
 let tryReadHeader

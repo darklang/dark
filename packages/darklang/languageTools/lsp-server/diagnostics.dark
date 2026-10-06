@@ -322,12 +322,13 @@ let atRestDiagnostics
       []
   Stdlib.List.append itemResults aggregateWarnings
 
-let gatherAndReportDiagnostics
-  (requestUri: String)
+/// Everything an analysis found, as the editor shows it. Publishing is the loop's job
+/// (`DocSync.publishNewAnalyses`).
+let gatherDiagnostics
   (unresolvedNames: List<WrittenTypes.UnresolvedName>)
   (parseDiagnostics: List<(Parser.Range * String)>)
   (checkerDiagnostics: List<LanguageServerProtocol.Diagnostic.Diagnostic>)
-  : Unit =
+  : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
   let warningDiagnostics =
     unresolvedNames
     |> Stdlib.List.map (fun (range, originalName, error) ->
@@ -339,8 +340,5 @@ let gatherAndReportDiagnostics
     parseDiagnostics
     |> Stdlib.List.map (fun (range, message) -> createErrorDiagnostic range message)
 
-  let diagnostics =
-    Stdlib.List.flatten
-      [ warningDiagnostics, syntaxErrorDiagnostics, checkerDiagnostics ]
-
-  sendDiagnostic requestUri diagnostics
+  Stdlib.List.flatten
+    [ warningDiagnostics, syntaxErrorDiagnostics, checkerDiagnostics ]

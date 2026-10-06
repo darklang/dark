@@ -7,6 +7,11 @@ type DocumentAnalysis =
   { /// The branch it was resolved against. A branch switch makes it stale.
     branchId: Uuid
     parsed: Stdlib.Result.Result<WrittenTypes.ParsedFile, String>
+    /// What this analysis found, for the editor to show. Published by the loop when it keeps
+    /// the analysis (`DocSync.publishNewAnalyses`), never by whoever worked it out: an
+    /// analysis made in a request's own process may be stale by the time it lands. None when
+    /// the text did not tokenize, which publishes nothing.
+    diagnostics: Stdlib.Option.Option<List<LanguageServerProtocol.Diagnostic.Diagnostic>>
     /// The package manager plus this document's own declarations, which hover resolves
     /// names against. Filled on the first hover, since nothing else needs it.
     hoverPM: Stdlib.Option.Option<ProgramTypes.PackageManager.PackageManager> }
@@ -18,6 +23,21 @@ type DocumentInScope =
     /// new DocumentInScope with this empty, so the text and its analysis are one value and
     /// an analysis can never be read against text it was not made from.
     analysis: Stdlib.Option.Option<DocumentAnalysis> }
+
+/// What a request answered in a process of its own hands back to the loop.
+type Answer =
+  { /// The message for the client: the response, or the error in its place.
+    reply: String
+    /// The request's document as the request left it, with any analysis it worked out, for
+    /// the loop to keep if the document still holds that text.
+    document: Stdlib.Option.Option<DocumentInScope> }
+
+/// A request being answered in a process of its own (`Concurrent.spawnRequest`).
+type InFlight =
+  { requestId: JsonRPC.RequestID
+    method: String
+    uri: String
+    handle: Stdlib.Exec.Handle<Answer> }
 
 type LspState =
   {
@@ -38,4 +58,8 @@ type LspState =
     /// (i.e. have been `textDocument/didOpen`ed, and not yet `textDocument/didClose`d)
     /// note: the string key here is the URI
     documentsInScope: Dict<String, DocumentInScope>
+
+    /// Requests being answered right now, each in a process of its own. Their replies are
+    /// written by the loop, which is the only thing that writes to stdout.
+    inFlight: List<InFlight>
   }

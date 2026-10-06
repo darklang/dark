@@ -220,6 +220,13 @@ type Scheduler(quantum : int64) =
   let subscriptions = ResizeArray<Subscription>()
   /// Keys that arrived while nobody was waiting for one, for the next `Key` subscriber.
   let pendingKeys = System.Collections.Generic.Queue<RT.Dval>()
+  /// Stdin reads that landed while nobody was waiting (a timer beat the wait that asked), for
+  /// the next stdin subscriber. Under `sync`, like everything about subscriptions.
+  let pendingStdin =
+    System.Collections.Generic.Queue<HE.StdinRequest * HE.StdinResult>()
+  /// The read this queue has asked the stdin reader for and not yet been answered, so a wait
+  /// that re-subscribes after a timer does not ask for a second one.
+  let mutable stdinOutstanding : Option<HE.StdinRequest> = None
   /// How many store changes have been seen. A process subscribing to `StoreChanged` that has not
   /// been told about the latest one is woken at once: a change that lands while a host loop is
   /// rendering is not lost.
@@ -507,11 +514,49 @@ type Scheduler(quantum : int64) =
           | Some _ -> None
         | _ -> None)
       |> Set.ofList
+    let stdinWanted =
+      specs
+      |> List.choose (fun spec ->
+        match spec with
+        | HE.EventSpec.StdinLine -> Some HE.StdinRequest.Line
+        | HE.EventSpec.StdinBytes n -> Some(HE.StdinRequest.Bytes n)
+        | _ -> None)
+    // A Dark error, not an internal one: asking for the wrong read is the program's mistake.
+    let stdinRefusal (msg : string) : exn =
+      RT.RuntimeErrorException(None, RTE.UncaughtException(msg, []))
+    let refuse (msg : string) = wake.SetException(stdinRefusal msg)
     lock sync (fun () ->
       let wantsKey = List.contains HE.EventSpec.Key specs
       let wantsStore = List.contains HE.EventSpec.StoreChanged specs
-      if wantsKey && pendingKeys.Count > 0 then
+      // One read of stdin per wait: two would race each other for the same input.
+      let stdinProblem =
+        match stdinWanted with
+        | []
+        | [ _ ] -> None
+        | _ -> Some "a wait can ask for one read of stdin, not several"
+      // A read already decided (landed, or in flight) is the next input; a wait for something
+      // else would take it as the wrong thing.
+      let stdinMismatch =
+        match stdinWanted with
+        | [ wanted ] ->
+          let ahead =
+            if pendingStdin.Count > 0 then
+              Some(fst (pendingStdin.Peek()))
+            else
+              stdinOutstanding
+          match ahead with
+          | Some other when other <> wanted ->
+            Some
+              $"a stdin wait asked for {wanted} while a read for {other} is already outstanding"
+          | _ -> None
+        | _ -> None
+      let problem = stdinProblem |> Option.orElse stdinMismatch
+      if problem.IsSome then
+        refuse problem.Value
+      elif wantsKey && pendingKeys.Count > 0 then
         wake.SetResult(HE.HostEvent.Key(pendingKeys.Dequeue()))
+      elif not stdinWanted.IsEmpty && pendingStdin.Count > 0 then
+        wake.SetResult(HE.HostEvent.Stdin(pendingStdin.Dequeue()))
       elif wantsStore && p.storeGenSeen < storeGen then
         p.storeGenSeen <- storeGen
         wake.SetResult HE.HostEvent.StoreChanged
@@ -529,6 +574,19 @@ type Scheduler(quantum : int64) =
           | HE.EventSpec.Timer ms ->
             let id = Interlocked.Increment &nextTimerId
             sub.timers <- (id, queue.ArmTimer(id, ms)) :: sub.timers
+          | HE.EventSpec.StdinLine
+          | HE.EventSpec.StdinBytes _ ->
+            match stdinOutstanding, stdinWanted with
+            | Some _, _ -> ()
+            | None, [ wanted ] ->
+              match HE.Shared.requestStdin queue wanted with
+              | Ok() -> stdinOutstanding <- Some wanted
+              | Error e ->
+                subscriptions.Remove sub |> ignore<bool>
+                for (_, timer) in sub.timers do
+                  timer.Dispose()
+                wake.TrySetException(stdinRefusal e) |> ignore<bool>
+            | None, _ -> ()
           | HE.EventSpec.ExecDone pid ->
             execDoneWatchers.AddOrUpdate(pid, [ this ], (fun _ ws -> this :: ws))
             |> ignore<Scheduler list>
@@ -584,6 +642,21 @@ type Scheduler(quantum : int64) =
         for sub in waiting do
           sub.proc.storeGenSeen <- storeGen
           this.Satisfy(sub, ev))
+    | HE.HostEvent.Stdin(request, result) ->
+      lock sync (fun () ->
+        stdinOutstanding <- None
+        let waiting =
+          subscriptions
+          |> Seq.tryFind (fun s ->
+            s.specs
+            |> List.exists (fun spec ->
+              match spec with
+              | HE.EventSpec.StdinLine -> request = HE.StdinRequest.Line
+              | HE.EventSpec.StdinBytes n -> request = HE.StdinRequest.Bytes n
+              | _ -> false))
+        match waiting with
+        | Some sub -> this.Satisfy(sub, ev)
+        | None -> pendingStdin.Enqueue((request, result)))
     | HE.HostEvent.Wake -> ()
     | HE.HostEvent.ExecDone pid ->
       lock sync (fun () ->

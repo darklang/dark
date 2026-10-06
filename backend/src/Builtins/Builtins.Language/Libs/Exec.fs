@@ -41,6 +41,8 @@ let private eventSpecToDT (spec : HE.EventSpec) : Dval =
   | HE.EventSpec.StoreChanged -> case "StoreChanged" []
   | HE.EventSpec.Timer ms -> case "Timer" [ DInt64 ms ]
   | HE.EventSpec.ExecDone id -> case "ExecDone" [ DUuid id ]
+  | HE.EventSpec.StdinLine -> case "StdinLine" []
+  | HE.EventSpec.StdinBytes n -> case "StdinBytes" [ DInt64(int64 n) ]
 
 let private parkedToDT (parked : Scheduler.Parked) : Dval =
   let case = enumOf PackageRefs.Type.Stdlib.Exec.parkedOn

@@ -30,11 +30,14 @@ let hardcodedServerCapabilities
             ) }
     )
 
-let parseAndReportDiagnostics
+/// Parse, resolve and check a document, and say what was found. Publishes nothing: the loop
+/// does that when it keeps the analysis.
+let parseAndDiagnose
   (branchId: Uuid)
   (requestUri: String)
   (requestText: String)
-  : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+  : (Stdlib.Result.Result<WrittenTypes.ParsedFile, String> *
+    Stdlib.Option.Option<List<LanguageServerProtocol.Diagnostic.Diagnostic>>) =
 
   let onMissing = LanguageTools.NameResolver.OnMissing.Allow
   let pm = LanguageTools.PackageManager.pm ()
@@ -116,16 +119,16 @@ let parseAndReportDiagnostics
         log $"Name resolution error: {Parser.CliScript.ParseError.toString err}"
         ([], [])
 
-    Diagnostics.gatherAndReportDiagnostics
-      requestUri
-      unresolvedNames
-      parseDiagnostics
-      checkerDiagnostics
+    let diagnostics =
+      Diagnostics.gatherDiagnostics
+        unresolvedNames
+        parseDiagnostics
+        checkerDiagnostics
 
-    parsed
+    (parsed, Stdlib.Option.Option.Some diagnostics)
   | Error err ->
     log $"Parse error: {err}"
-    Stdlib.Result.Result.Error err
+    (Stdlib.Result.Result.Error err, Stdlib.Option.Option.None)
 
 
 // -- analysis, once per version of a document
@@ -146,11 +149,10 @@ let remember (state: LspState) (doc: DocumentInScope) : LspState =
 /// per version. Typing ten characters used to queue ten full analyses, 2 to 3 s each on a
 /// 500-line file, ahead of the next hover; now the hover pays for one.
 ///
-/// No request can see a half-applied change: the loop handles each message to completion
-/// before it reads the next, so whatever this fills in belongs to the text it is stored
-/// beside. If requests ever run concurrently (spawned against a snapshot of the state),
-/// that stops being true, and an analysis must then be stored only if the document still
-/// holds the text it was made from.
+/// A request answered in a process of its own calls this on the snapshot it was spawned
+/// with, so what it fills in belongs to that snapshot's text. The loop keeps it only if the
+/// document still holds that text (`Concurrent.keepAnalysis`), and only the loop publishes
+/// its diagnostics.
 let analysed
   (state: LspState)
   (uri: String)
@@ -170,14 +172,49 @@ let analysed
     match current with
     | Some a -> (state, Stdlib.Option.Option.Some((doc, a)))
     | None ->
+      let (parsed, diagnostics) =
+        parseAndDiagnose state.currentBranchId uri doc.text
+
       let analysis =
         LanguageTools.LspServer.DocumentAnalysis
           { branchId = state.currentBranchId
-            parsed = parseAndReportDiagnostics state.currentBranchId uri doc.text
+            parsed = parsed
+            diagnostics = diagnostics
             hoverPM = Stdlib.Option.Option.None }
+
+      // Said once per analysis, so a log shows how many there were and whether one that
+      // was cancelled ever finished.
+      log $"analysed {uri}"
 
       let doc = { doc with analysis = Stdlib.Option.Option.Some analysis }
       (remember state doc, Stdlib.Option.Option.Some((doc, analysis)))
+
+
+/// Publish the diagnostics of every analysis `after` holds that `before` did not: a document
+/// opened or saved, or an analysis a request worked out and the loop kept. Called by the loop
+/// after each step, so an analysis is published once, by the only writer, whoever made it.
+let publishNewAnalyses (before: LspState) (after: LspState) : Unit =
+  after.documentsInScope
+  |> Stdlib.Dict.toList
+  |> Stdlib.List.iter (fun (uri, doc) ->
+    match doc.analysis with
+    | None -> ()
+    | Some analysis ->
+      let alreadyPublished =
+        match Stdlib.Dict.get before.documentsInScope uri with
+        | Some old ->
+          match old.analysis with
+          | Some oldAnalysis ->
+            old.text == doc.text && oldAnalysis.branchId == analysis.branchId
+          | None -> false
+        | None -> false
+
+      if alreadyPublished then
+        ()
+      else
+        match analysis.diagnostics with
+        | Some diagnostics -> sendDiagnostic uri diagnostics
+        | None -> ())
 
 
 // -- message-handling

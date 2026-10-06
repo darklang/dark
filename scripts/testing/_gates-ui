@@ -349,3 +349,110 @@ gate_lsp_typing() {
   rm -rf "$WORK"
   echo "ten keystrokes, two hovers: one analysis, not ten ($PUBLISHES publishes in all, counting the open)."
 }
+
+
+# --- lsp-concurrent: a read does not wait behind a slow one, and a cancel stops the work -----------
+# Hover, completion, semantic tokens and inlay hints are answered in processes of their own, and the
+# loop that reads messages is the only thing that writes replies (`LspServer.Concurrent`).
+#
+# Like lsp-typing, this asserts an ORDER and a COUNT rather than a time, and one more ORDER: the
+# hover is on a function only the change in front of it adds, so it must see that change. The document is a real
+# 541-line package file, because a slow request is the point: its hover has to analyse the whole
+# file, which takes seconds, and a completion sent straight behind it must come back FIRST. A
+# serial server answers in arrival order. Then a cancelled semantic-tokens request must be answered
+# -32800 and its analysis must never finish: the server logs "analysed <uri>" once per analysis,
+# so the count is two (the open, the hover) when the cancel stopped the work, and three when it
+# ran on and was thrown away, which looks identical from the client.
+gate_lsp_concurrent() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/lsp-concurrent-test
+
+  [[ -x "$PWD/$CLI" ]] || {
+    echo "lsp-concurrent: no CLI at $CLI" >&2
+    echo "  scripts/dev/build, and note that --optimize leaves no debug tree" >&2
+    exit 2
+  }
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK"
+  scripts/testing/_copy-store "$WORK/data.db"
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  "$PWD/$CLI" permissions allow all >/dev/null 2>&1 || true
+
+  # The messages, written by python so the lengths are bytes and the text is JSON-escaped. The
+  # sleeps are for the server, not the protocol: the open has to land before the change, and
+  # the tail leaves a cancelled analysis time to finish if the cancel did not stop it.
+  python3 - "$WORK/in.py" <<'EOF'
+import sys
+open(sys.argv[1], "w").write(r"""
+import json, sys, time
+text = open("packages/darklang/llm/agent.dark").read()
+uri = "file:///home/dark/app/lsp-concurrent-gate.dark"
+def send(m):
+    b = json.dumps(m).encode()
+    sys.stdout.buffer.write(b"Content-Length: %d\r\n\r\n" % len(b) + b); sys.stdout.buffer.flush()
+def change(v, extra):
+    send({"jsonrpc": "2.0", "method": "textDocument/didChange", "params": {
+        "textDocument": {"uri": uri, "version": v}, "contentChanges": [{"text": text + extra}]}})
+lines = text.split("\n")
+blank = next(k for k, l in enumerate(lines) if l.strip() == "")
+send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+send({"jsonrpc": "2.0", "method": "textDocument/didOpen", "params": {"textDocument":
+      {"uri": uri, "languageId": "darklang", "version": 1, "text": text}}})
+# A function only this change adds, which the hover is on, so the hover can only name it if
+# the change was applied before the hover was spawned. Then a prefix inside a comment, so the
+# document stays syntax-clean and the hover's analysis is the full, slow one.
+change(2, "\nlet zzGateProbe (x: Int64) : Int64 = x\n// Stdlib.List.ma")
+send({"jsonrpc": "2.0", "id": 2, "method": "textDocument/hover", "params": {
+    "textDocument": {"uri": uri}, "position": {"line": len(lines), "character": 6}}})
+send({"jsonrpc": "2.0", "id": 3, "method": "textDocument/completion", "params": {
+    "textDocument": {"uri": uri}, "position": {"line": len(lines) + 1, "character": 17}}})
+time.sleep(15)
+change(3, "\n// a second version")
+send({"jsonrpc": "2.0", "id": 4, "method": "textDocument/semanticTokens/full",
+      "params": {"textDocument": {"uri": uri}}})
+send({"jsonrpc": "2.0", "method": "$/cancelRequest", "params": {"id": 4}})
+time.sleep(15)
+""")
+EOF
+
+  OUT="$WORK/out.bin"
+  python3 "$WORK/in.py" \
+    | timeout --kill-after=5 180 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' \
+      > "$OUT" 2> "$WORK/log.txt" || true
+
+  # The replies in the order they were written, framed by byte count.
+  python3 - "$OUT" "$WORK/log.txt" <<'EOF'
+import json, sys
+data = open(sys.argv[1], "rb").read()
+replies, i = [], 0
+# Frames until there are no more: `eval` prints the server's exit value after the last one.
+while data.startswith(b"Content-Length:", i):
+    end = data.index(b"\r\n\r\n", i)
+    n = int(data[i:end].split(b":")[1])
+    replies.append(json.loads(data[end + 4:end + 4 + n])); i = end + 4 + n
+order = [r["id"] for r in replies if "id" in r]
+def fail(msg):
+    print(f"FAIL: {msg} (replies by id, in order: {order})", file=sys.stderr); sys.exit(1)
+by = {r["id"]: r for r in replies if "id" in r}
+for rid, what in ((2, "the hover"), (3, "the completion")):
+    if rid not in by or "result" not in by[rid]:
+        fail(f"{what} was not answered with a result")
+if "zzGateProbe" not in json.dumps(by[2]["result"]):
+    fail("the hover did not see the function the change before it added: "
+         + json.dumps(by[2]["result"])[:200])
+if order.index(3) > order.index(2):
+    fail("the completion came back after the slow hover in front of it: requests ran one at a time")
+if 4 not in by or by[4].get("error", {}).get("code") != -32800:
+    fail("the cancelled request was not answered -32800 (RequestCancelled)")
+analyses = sum(1 for l in open(sys.argv[2]) if l.startswith("analysed "))
+if analyses != 2:
+    fail(f"expected 2 analyses (the open, the hover), the cancelled one never finishing; got {analyses}")
+print(f"a hover saw the change before it; a completion overtook it; a cancel stopped its analysis ({analyses} analyses).")
+EOF
+
+  rm -rf "$WORK"
+}
