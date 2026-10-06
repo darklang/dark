@@ -629,6 +629,14 @@ their choices, so a dispatch-cost measurement against them is measuring the reso
 "a saved call goes on meaning what it meant" holds for the tree, not just for what somebody
 typed at the CLI.
 
+**`EPipeFnCall` and friends exist on BOTH `WrittenTypes.PipeExpr` and `ProgramTypes.PipeExpr`,
+with different arities, and only the enclosing signature tells you which one a match is over.**
+Widening the PT case and then updating every `EPipeFnCall` pattern by name broke three matches
+that were over the WT type, with no build-time signal: one surfaced as a raise the authoring
+guard converted into "not found", and two waited for somebody to hover or to look at syntax
+highlighting. Check `(pe: WrittenTypes.PipeExpr)` against
+`(p: LanguageTools.ProgramTypes.PipeExpr)` at the top of each function before touching its arms.
+
 **Every switch over item kinds has five arms.** Types, values, fns, traits, impls.
 A new listing, codec, or CLI command that handles three of them silently drops the
 other two; `ls`, `tree`, `search`, completion, the workbench, the relay browser and

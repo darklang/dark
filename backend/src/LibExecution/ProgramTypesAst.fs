@@ -66,7 +66,7 @@ and pipeSubExprs (pe : PipeExpr) : List<Expr> =
   match pe with
   | EPipeLambda(_, _, body) -> [ body ]
   | EPipeInfix(_, _, rhs, _) -> [ rhs ]
-  | EPipeFnCall(_, _, _, args) -> args
+  | EPipeFnCall(_, _, _, args, _) -> args
   | EPipeEnum(_, _, _, fields) -> fields
   | EPipeVariable(_, _, args) -> args
 
@@ -175,7 +175,7 @@ and symbolsUsedInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
   match pipeExpr with
   | EPipeLambda(_, _, body) -> r body
   | EPipeInfix(_, _, expr, _) -> r expr
-  | EPipeFnCall(_, _, _, args) -> args |> List.map r |> Set.unionMany
+  | EPipeFnCall(_, _, _, args, _) -> args |> List.map r |> Set.unionMany
   | EPipeEnum(_, _, _, fields) -> fields |> List.map r |> Set.unionMany
   | EPipeVariable(_, _, args) -> args |> List.map r |> Set.unionMany
 
@@ -287,8 +287,8 @@ and unqualifiedResolvedNamesInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
   match pipeExpr with
   | EPipeLambda(_, _, body) -> r body
   | EPipeInfix(_, _, expr, _) -> r expr
-  | EPipeFnCall(_, { originalName = [ name ]; resolved = Ok _ }, _, args) ->
+  | EPipeFnCall(_, { originalName = [ name ]; resolved = Ok _ }, _, args, _) ->
     Set.add name (args |> List.map r |> Set.unionMany)
-  | EPipeFnCall(_, _, _, args) -> args |> List.map r |> Set.unionMany
+  | EPipeFnCall(_, _, _, args, _) -> args |> List.map r |> Set.unionMany
   | EPipeEnum(_, _, _, fields) -> fields |> List.map r |> Set.unionMany
   | EPipeVariable(_, _, args) -> args |> List.map r |> Set.unionMany

@@ -548,11 +548,16 @@ and PipeExpr =
   | EPipeInfix of id * Infix * Expr * implFn : FQFnName.ImplChoice
 
   /// `1 |> Json.serialize<Int64>`
+  ///
+  /// `boundImpls` for the same reason `EFnName` carries one: a piped call into a bounded
+  /// generic owes the callee an implementation per bound, and without somewhere to record it
+  /// the callee resolves at run time and a later implementation wins.
   | EPipeFnCall of
     id *
     NameResolution<FQFnName.FQFnName> *
     typeArgs : List<TypeReference> *
-    args : List<Expr>
+    args : List<Expr> *
+    boundImpls : List<FQFnName.BoundImpl>
 
   /// `1 |> Option.Some`
   | EPipeEnum of

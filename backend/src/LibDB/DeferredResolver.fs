@@ -283,12 +283,14 @@ and private reResolvePipeExpr
       let! rhs = reResolveExpr contextModules pm rhs
       return PT.EPipeInfix(id, infix, rhs, implFn)
 
-    | PT.EPipeFnCall(id, nr, typeArgs, args) ->
+    | PT.EPipeFnCall(id, nr, typeArgs, args, boundImpls) ->
       let! nr = reResolveFnName contextModules pm.findFn nr
       let! typeArgs =
         Ply.List.mapSequentially (reResolveTypeRef contextModules pm) typeArgs
       let! args = Ply.List.mapSequentially (reResolveExpr contextModules pm) args
-      return PT.EPipeFnCall(id, nr, typeArgs, args)
+      // Carried, for the reason AGENTS.md gives about `EFnName`: every authoring through
+      // `WipRefresh` comes down here, and dropping it re-hashes the item without its bounds.
+      return PT.EPipeFnCall(id, nr, typeArgs, args, boundImpls)
 
     | PT.EPipeEnum(id, nr, caseName, fields) ->
       let! nr = reResolveTypeName contextModules pm.findType nr

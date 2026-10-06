@@ -219,7 +219,9 @@ type PipeExpr =
     ID *
     NameResolution<FQFnName.FQFnName> *
     typeArgs: List<TypeReference> *
-    args: List<Expr>
+    args: List<Expr> *
+    /// As `EFnName`: what this call worked out for the callee's bounds.
+    boundImpls: List<FQFnName.BoundImpl>
 
   | EPipeEnum of
     ID *

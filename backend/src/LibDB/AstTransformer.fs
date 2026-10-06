@@ -258,14 +258,22 @@ and private transformPipeExpr
        | None -> moveChoice mapping implFn)
     )
 
-  | PT.EPipeFnCall(id, nr, typeArgs, args) ->
+  | PT.EPipeFnCall(id, nr, typeArgs, args, boundImpls) ->
     PT.EPipeFnCall(
       id,
       // `pinAt` as well as the move: `xs |> Show.show` is a trait method call like any
       // other, and the save picked an implementation for it.
       transformFnName mapping nr |> pinAt mapping id,
       typeArgs |> List.map (transformTypeRef mapping),
-      args |> List.map (transformExpr mapping)
+      args |> List.map (transformExpr mapping),
+      // And the same as `EFnName`: what this call owes the callee's bounds. Without this a
+      // piped call into a bounded generic has nothing recorded and resolves at run time.
+      (match Map.tryFind id mapping.boundImpls with
+       | Some resolved -> resolved
+       | None ->
+         boundImpls
+         |> List.map (fun (b : PT.FQFnName.BoundImpl) ->
+           { b with choice = moveChoice mapping b.choice }))
     )
 
   | PT.EPipeEnum(id, nr, caseName, fields) ->

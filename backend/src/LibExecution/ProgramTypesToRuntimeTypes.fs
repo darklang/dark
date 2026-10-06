@@ -961,10 +961,12 @@ module Expr =
             PT.EInfix(id, infix, lhs, rhs, implFn)
 
           // `1 |> Json.serialize<Int64>`
-          | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
+          | PT.EPipeFnCall(id, fnName, typeArgs, args, boundImpls) ->
             PT.EApply(
               id,
-              PT.EFnName(id, fnName, []),
+              // Carried, not dropped: this is what the save recorded for a piped call into a
+              // bounded generic, and the callee reads it to find the implementation.
+              PT.EFnName(id, fnName, boundImpls),
               typeArgs,
               NEList.ofList lhs args
             )

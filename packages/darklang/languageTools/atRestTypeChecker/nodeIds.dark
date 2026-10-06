@@ -125,7 +125,7 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     | EPipeLambda(id, parameters, body) ->
       (Some id, Stdlib.List.append (lets parameters) [ Node.Expression body ])
     | EPipeVariable(id, _, args) -> (Some id, exprs args)
-    | EPipeFnCall(id, _, _, args) -> (Some id, exprs args)
+    | EPipeFnCall(id, _, _, args, _) -> (Some id, exprs args)
     | EPipeEnum(id, _, _, args) -> (Some id, exprs args)
     | EPipeInfix(_, _, rhs, _) -> (none, [ Node.Expression rhs ])
 

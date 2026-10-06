@@ -1388,7 +1388,7 @@ let inferPipePart
                  AmbiguousSubject.PipelineNumericOperand
                ) ])
 
-  | EPipeFnCall(id, name, typeArgs, args) ->
+  | EPipeFnCall(id, name, typeArgs, args, _) ->
     // The pipeline input already supplies one argument. Recognize special builtin
     // calls using only the remaining written arguments, just as specialApplication
     // does for ordinary calls.

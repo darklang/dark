@@ -810,7 +810,7 @@ module Expr =
               (WT.Name.Unresolved(NEList.singleton name))
           return
             match resolved.resolved with
-            | Ok _ -> PT.EPipeFnCall(id, resolved, [], [])
+            | Ok _ -> PT.EPipeFnCall(id, resolved, [], [], [])
             | Error _ -> PT.EPipeVariable(id, name, [])
 
       | WT.EPipeLambda(_, pats, body, _, _) ->
@@ -855,7 +855,7 @@ module Expr =
           else
             let! fnName = resolveFnAllow builtins pm currentModule name
             match fnName.resolved with
-            | Ok _ -> return PT.EPipeFnCall(id, fnName, [], args)
+            | Ok _ -> return PT.EPipeFnCall(id, fnName, [], args, [])
             | Error _ -> return PT.EPipeVariable(id, varName, args)
         | _ ->
           // Missing names use Allow here, like other fn-name lowering. Package
@@ -866,7 +866,8 @@ module Expr =
               (TypeReference.toPT pm onMissing currentModule)
               typeArgs
           let! args = Ply.List.mapSequentially (toPT context) args
-          return PT.EPipeFnCall(id, fnName, typeArgs, args)
+          // `[]`, as the parser's `EFnName` sites do: the checker has not run yet.
+          return PT.EPipeFnCall(id, fnName, typeArgs, args, [])
 
       | WT.EPipeEnum(_, tn, (_, caseName), fields, _) ->
         let id = gid ()

@@ -692,7 +692,7 @@ let pipeExprId (p: LanguageTools.ProgramTypes.PipeExpr) : Int64 =
   | EPipeVariable(id, _, _) -> id
   | EPipeLambda(id, _, _) -> id
   | EPipeInfix(id, _, _, _) -> id
-  | EPipeFnCall(id, _, _, _) -> id
+  | EPipeFnCall(id, _, _, _, _) -> id
   | EPipeEnum(id, _, _, _) -> id
 
 
@@ -723,7 +723,7 @@ let pipeExprDoc (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : Stdlib
   | EPipeInfix(_id, infixOp, e, _) ->
     Stdlib.Pretty.concat (txt $"({infix infixOp}) ") (applyArg ctx e)
 
-  | EPipeFnCall(_id, fnName, typeArgs, args) ->
+  | EPipeFnCall(_id, fnName, typeArgs, args, _) ->
     let fnNamePart = NameResolution.fnName ctx fnName
     let head =
       Stdlib.Pretty.concat (txt fnNamePart) (typeArgumentsDoc ctx typeArgs)

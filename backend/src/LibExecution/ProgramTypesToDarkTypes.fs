@@ -801,7 +801,7 @@ module PipeExpr =
           exprToDT expr
           FQFnName.ImplChoice.toDT implFn ]
 
-      | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
+      | PT.EPipeFnCall(id, fnName, typeArgs, args, boundImpls) ->
         "EPipeFnCall",
         [ DInt64(int64 id)
           NameResolution.toDT (FQFnName.knownType ()) FQFnName.toDT fnName
@@ -809,7 +809,11 @@ module PipeExpr =
             VT.known (TypeReference.knownType ()),
             List.map TypeReference.toDT typeArgs
           )
-          DList(VT.known exprKT, List.map exprToDT args) ]
+          DList(VT.known exprKT, List.map exprToDT args)
+          DList(
+            VT.known (FQFnName.BoundImpl.knownType ()),
+            List.map FQFnName.BoundImpl.toDT boundImpls
+          ) ]
 
       | PT.EPipeEnum(id, typeName, caseName, fields) ->
         "EPipeEnum",
@@ -855,12 +859,17 @@ module PipeExpr =
             _,
             [],
             "EPipeFnCall",
-            [ DInt64 id; fnName; DList(_vtTODO1, typeArgs); DList(_vtTODO2, args) ]) ->
+            [ DInt64 id
+              fnName
+              DList(_vtTODO1, typeArgs)
+              DList(_vtTODO2, args)
+              DList(_, boundImpls) ]) ->
       PT.EPipeFnCall(
         uint64 id,
         NameResolution.fromDT FQFnName.fromDT fnName,
         List.map TypeReference.fromDT typeArgs,
-        List.map exprFromDT args
+        List.map exprFromDT args,
+        List.map FQFnName.BoundImpl.fromDT boundImpls
       )
 
     | DEnum(_,

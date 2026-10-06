@@ -156,7 +156,7 @@ and private inPipeExpr (pe : PT.PipeExpr) : List<string> =
   match pe with
   | PT.EPipeLambda(_, _, body) -> inExpr body
   | PT.EPipeInfix(_, _, rhs, _) -> inExpr rhs
-  | PT.EPipeFnCall(_, name, typeArgs, args) ->
+  | PT.EPipeFnCall(_, name, typeArgs, args, _) ->
     fromNR name @ List.collect inTypeRef typeArgs @ List.collect inExpr args
   | PT.EPipeEnum(_, typeName, _, fields) ->
     fromNR typeName @ List.collect inExpr fields

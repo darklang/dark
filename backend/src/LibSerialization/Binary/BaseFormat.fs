@@ -15,8 +15,11 @@ open System
 /// from a type param, or unknown) rather than an option, on `FQFnName.TraitMethod`, `EInfix` and
 /// `EPipeInfix`, and `EFnName` carries what the caller worked out for the callee's bounds. A v3
 /// blob's option reads as `Chosen` or `Unknown`; a v1 or v2 blob had no field and reads `Unknown`.
+/// v5 (2026-10): `EPipeFnCall` carries what the caller worked out for the callee's bounds, as
+/// `EFnName` has since v4. A v4 blob ends after the args and reads `boundImpls = []`, so a piped
+/// call into a bounded generic resolves at run time until it is re-authored.
 [<Literal>]
-let CurrentVersion = 4u
+let CurrentVersion = 5u
 
 /// The oldest version this binary still reads.
 [<Literal>]

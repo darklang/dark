@@ -58,7 +58,7 @@ let private nameRef (nr : PT.NameResolution<PT.FQFnName.FQFnName>) : Analysis =
 /// What a pipe part itself references, beyond its nested expressions.
 let private pipeOwnRefs (pe : PT.PipeExpr) : Analysis =
   match pe with
-  | PT.EPipeFnCall(_, nr, _, _) -> nameRef nr
+  | PT.EPipeFnCall(_, nr, _, _, _) -> nameRef nr
   // A function held in a variable can be an effectful callback whose target
   // is not statically known here.
   | PT.EPipeVariable _ -> Analysis.unresolved

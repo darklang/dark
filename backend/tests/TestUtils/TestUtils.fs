@@ -653,7 +653,8 @@ module Expect =
         check path op op'
         exprEqualityBaseFn checkIDs ("expr" :: path) e e' errorFn
 
-      | EPipeFnCall(_, name, typeArgs, args), EPipeFnCall(_, name', typeArgs', args') ->
+      | EPipeFnCall(_, name, typeArgs, args, _),
+        EPipeFnCall(_, name', typeArgs', args', _) ->
         let path = (string name :: path)
         // resolver-derived `location` is stripped; see stripNRLocation.
         check path (stripNRLocation name) (stripNRLocation name')

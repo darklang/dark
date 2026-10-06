@@ -290,7 +290,7 @@ let pipeExpr (ctx: PrettyPrinter.ProgramTypes.Context) (depth: Int) (p: Language
       [ line depth "PipeInfix" opStr ]
       (expr ctx (depth + 1) e)
 
-  | EPipeFnCall(_, name, typeArgs, args) ->
+  | EPipeFnCall(_, name, typeArgs, args, _) ->
     let n = PrettyPrinter.ProgramTypes.NameResolution.fnName ctx name
     let argLines =
       (Stdlib.List.map args (fun a -> expr ctx (depth + 1) a))

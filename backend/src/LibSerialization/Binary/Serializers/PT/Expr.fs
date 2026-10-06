@@ -370,12 +370,21 @@ module PipeExpr =
       Infix.write w infix
       Expr.write w expr
       FQFnName.ImplChoice.write w implFn
-    | EPipeFnCall(id, fnName, typeArgs, args) ->
+    | EPipeFnCall(id, fnName, typeArgs, args, boundImpls) ->
       w.Write 3uy
       w.Write id
       NameResolution.write FQFnName.write w fnName
       List.write w TypeReference.write typeArgs
       List.write w Expr.write args
+      // What this piped call worked out for the callee's bounds: v5 and later.
+      List.write
+        w
+        (fun w (b : FQFnName.BoundImpl) ->
+          String.write w b.param
+          FQTraitName.Package.write w b.trait_
+          String.write w b.method_
+          FQFnName.ImplChoice.write w b.choice)
+        boundImpls
     | EPipeEnum(id, typeName, caseName, fields) ->
       w.Write 4uy
       w.Write id
@@ -406,7 +415,19 @@ module PipeExpr =
       let fnName = NameResolution.read (FQFnName.read version) r
       let typeArgs = List.read r TypeReference.read
       let args = List.read r (Expr.read version)
-      EPipeFnCall(id, fnName, typeArgs, args)
+      // A v4 blob ends after the args; reading the list byte there would eat the next tag.
+      let boundImpls =
+        if version >= 5u then
+          List.read r (fun r ->
+            let param = String.read r
+            let trait_ = FQTraitName.Package.read r
+            let method_ = String.read r
+            let impl = FQFnName.ImplChoice.read version r
+            ({ param = param; trait_ = trait_; method_ = method_; choice = impl }
+            : FQFnName.BoundImpl))
+        else
+          []
+      EPipeFnCall(id, fnName, typeArgs, args, boundImpls)
     | 4uy ->
       let id = r.ReadUInt64()
       let typeName = NameResolution.read FQTypeName.read r
