@@ -23,15 +23,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         "  trait <location> <source-file>"
         "  trait <location> -    (read from stdin)"
         ""
-        "Examples:"
-        "  trait Show \"<'a> = let show (v: 'a) : String\""
-        ""
-        "  # Several methods via stdin (run from shell, not the REPL):"
-        "  ./scripts/run-cli trait Shape - <<'EOF'"
-        "  trait Shape<'a> ="
-        "    let area (s: 'a) : Float"
-        "    let name (s: 'a) : String"
-        "  EOF"
+        "Example:"
+        "  dark trait Me.Demo.Show \"<'a> = let show (v: 'a) : String\""
         ""
       ] |> Stdlib.printLines
 
@@ -108,7 +101,7 @@ let createTraitInline
             (Stdlib.Cli.UI.Colors.error "Expected exactly one trait declaration")
             ""
             "Example:"
-            "  trait Show \"<'a> = let show (v: 'a) : String\""
+            "  dark trait Me.Demo.Show \"<'a> = let show (v: 'a) : String\""
             ""
           ] |> Stdlib.printLines
           { state with exitCode = 1 }
@@ -117,7 +110,7 @@ let createTraitInline
         (Stdlib.Cli.UI.Colors.error "Failed to parse trait definition")
         ""
         "Example:"
-        "  trait Show \"<'a> = let show (v: 'a) : String\""
+        "  dark trait Me.Demo.Show \"<'a> = let show (v: 'a) : String\""
         ""
       ] |> Stdlib.printLines
       { state with exitCode = 1 }
@@ -139,16 +132,16 @@ let help (_state: Cli.AppState) : String =
     "implementations with `impls <trait>`, and see `docs traits`."
     ""
     "Examples:"
-    "  trait Show \"<'a> = let show (v: 'a) : String\""
-    "  trait /Acme.Shape \"<'a> = let area (s: 'a) : Float\""
+    "  dark trait Me.Demo.Show \"<'a> = let show (v: 'a) : String\""
     ""
-    "  # Several methods via stdin (run from shell, not the REPL):"
-    "  ./scripts/run-cli trait Shape - <<'EOF'"
+    "  # Several methods, from stdin:"
+    "  dark trait Me.Demo.Shape - <<'EOF'"
     "  /// What a shape can do"
     "  trait Shape<'a> ="
     "    let area (s: 'a) : Float"
     "    let name (s: 'a) : String"
     "  EOF"
+    "  dark impls Me.Demo.Shape"
     ""
   ] |> Stdlib.String.join "\n"
 

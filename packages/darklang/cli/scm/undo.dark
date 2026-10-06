@@ -21,9 +21,8 @@ module Darklang.Cli.Undo
 // never touches main.
 
 let execute (state: AppState) (args: List<String>) : AppState =
-  // A `--flag` is not a name. Without this it reaches the location parser, which answers "Location must
-  // have at least owner, module, and name" -- a complaint about the name rather than the flag. `undo`
-  // takes no flags at all.
+  // A `--flag` is not a name. Without this it reaches the location parser, which answers that a name
+  // has three parts -- a complaint about the name rather than the flag. `undo` takes no flags at all.
   let flags = args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--")
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty flags) then

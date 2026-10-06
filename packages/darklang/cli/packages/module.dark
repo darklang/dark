@@ -277,11 +277,12 @@ let help (_state: Cli.AppState) : String =
     "type check is reported and `commit` refuses definite type errors."
     ""
     "Example:"
-    "  ./scripts/run-cli module /Darklang.Example - <<'EOF'"
+    "  dark module /Me.Example - <<'EOF'"
     "  val greeting = \"hello\""
     "  let double (n: Int) : Int = n * 2"
     "  let quadruple (n: Int) : Int = double (double n)"
     "  EOF"
+    "  dark eval 'Me.Example.quadruple 5'"
   ] |> Stdlib.String.join "\n"
 
 

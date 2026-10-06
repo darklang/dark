@@ -844,6 +844,134 @@ let aFailedModuleSaveDoesNotEndOnATick =
     })
 
 
+/// Every example in the authoring help pages and the agent guide RUNS.
+///
+/// Each of these used to be refused as printed: bare names where three parts are needed, the
+/// reserved `Darklang` owner, and `./scripts/run-cli`, which nobody who installed the CLI has.
+/// An example nobody executed is how that happened, so this executes them: every `dark ...` line
+/// in a page, and every `<<'EOF'` block with its body on stdin, in order, in a fresh store, and
+/// fails on a nonzero exit or anything that reads as a refusal.
+module private HelpExamples =
+  /// Split one shell line into arguments: whitespace, '...' verbatim, "..." with \" and \\.
+  let words (line : string) : List<string> =
+    let out = ResizeArray<string>()
+    let cur = System.Text.StringBuilder()
+    let mutable quote = ' '
+    let mutable started = false
+    let mutable i = 0
+    while i < line.Length do
+      let c = line[i]
+      if quote = '\'' then
+        if c = '\'' then
+          quote <- ' '
+        else
+          cur.Append c |> ignore<System.Text.StringBuilder>
+      elif quote = '"' then
+        if
+          c = '\\'
+          && i + 1 < line.Length
+          && (line[i + 1] = '"' || line[i + 1] = '\\')
+        then
+          i <- i + 1
+          cur.Append line[i] |> ignore<System.Text.StringBuilder>
+        elif c = '"' then
+          quote <- ' '
+        else
+          cur.Append c |> ignore<System.Text.StringBuilder>
+      elif c = '\'' || c = '"' then
+        quote <- c
+        started <- true
+      elif System.Char.IsWhiteSpace c then
+        if started || cur.Length > 0 then out.Add(cur.ToString())
+        cur.Clear() |> ignore<System.Text.StringBuilder>
+        started <- false
+      else
+        cur.Append c |> ignore<System.Text.StringBuilder>
+      i <- i + 1
+    if started || cur.Length > 0 then out.Add(cur.ToString())
+    List.ofSeq out
+
+  /// The runnable examples in a page, as (args, stdin). `heredocsOnly` is for the agent guide,
+  /// which writes commands without `dark` and uses `dark <cmd>` lines as placeholders.
+  let examples
+    (page : string)
+    (heredocsOnly : bool)
+    : List<List<string> * Option<string>> =
+    let lines = page.Replace("\r", "").Split('\n')
+    let found = ResizeArray()
+    let mutable i = 0
+    while i < lines.Length do
+      let line = lines[i].Trim()
+      let heredoc = line.EndsWith "<<'EOF'"
+      let command =
+        if heredocsOnly then
+          if heredoc then
+            Some(if line.StartsWith "dark " then line.Substring 5 else line)
+          else
+            None
+        elif line.StartsWith "dark " then
+          Some(line.Substring 5)
+        else
+          None
+      match command with
+      | Some command when heredoc ->
+        let indent = lines[i].Length - lines[i].TrimStart().Length
+        let body = ResizeArray<string>()
+        i <- i + 1
+        while i < lines.Length && lines[i].Trim() <> "EOF" do
+          let l = lines[i]
+          body.Add(if l.Length >= indent then l.Substring indent else l.TrimStart())
+          i <- i + 1
+        let args = words (command.Substring(0, command.Length - "<<'EOF'".Length))
+        found.Add((args, Some(String.concat "\n" body + "\n")))
+      | Some command -> found.Add((words command, None))
+      | None -> ()
+      i <- i + 1
+    List.ofSeq found
+
+  let refusal =
+    System.Text.RegularExpressions.Regex(
+      "Encountered a Runtime Error|couldn't be found|Parse error|Invalid location|"
+      + "not found|Not found|type error|Unresolved|Error:|reserved owner|Could not save"
+    )
+
+  let runPage (page : List<string>) (heredocsOnly : bool) (floor : int) =
+    instanceTest
+      $"""every example in `dark {String.concat " " page}` runs as written"""
+      (fun state ->
+        task {
+          let i =
+            match state with
+            | Instance i -> i
+            | _ -> Tests.failtestf "%s" "an instance test was handed something else"
+          let! (_, text, _) = Tests.CliInstance.runRaw i page
+          let found = examples (plain text) heredocsOnly
+          // A count of what was RUN, so a page whose examples stopped parsing cannot pass by
+          // running none of them.
+          Expect.isGreaterThanOrEqual
+            (List.length found)
+            floor
+            $"examples found in the page, got: {found}"
+          for (args, input) in found do
+            let! (code, out, err) = Tests.CliInstance.runRawWithInput i args input
+            let shown = plain (out + err)
+            let printed = $"""dark {String.concat " " args}"""
+            Expect.equal code 0 $"{printed} exited {code}: {shown}"
+            Expect.isFalse
+              (refusal.IsMatch shown)
+              $"{printed} printed a refusal: {shown}"
+        })
+
+let helpExamplesRun : List<Test> =
+  [ HelpExamples.runPage [ "fn"; "--help" ] false 6
+    HelpExamples.runPage [ "type"; "--help" ] false 6
+    HelpExamples.runPage [ "val"; "--help" ] false 6
+    HelpExamples.runPage [ "trait"; "--help" ] false 3
+    HelpExamples.runPage [ "impl"; "--help" ] false 12
+    HelpExamples.runPage [ "module"; "--help" ] false 2
+    HelpExamples.runPage [ "docs"; "for-ai" ] true 2 ]
+
+
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
     traitsAreAuthoredListedAndDisambiguated
@@ -859,3 +987,4 @@ let tests : List<Test> =
     commitRefusesABoundThatNamesNothing
     aMismatchedImplementationIsReportedAtSave
     aFailedModuleSaveDoesNotEndOnATick ]
+  @ helpExamplesRun
