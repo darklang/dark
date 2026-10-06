@@ -14,6 +14,29 @@ is not in this repo. Since Feb 2023, the Darklang team has been working on a new
 which is in this repo -- temporarily, we're referring to this as "dark-next".
 Dark-next isn't yet ready for production use.
 
+## Install
+
+On Linux or macOS:
+
+```
+curl -fsSL https://wip.darklang.com/install | sh
+```
+
+That puts `dark` in `~/.darklang/bin` and adds it to your PATH.
+
+Or by hand, which is the way on Windows: download the file for your platform from the
+[latest release](https://github.com/darklang/dark/releases) (the release notes say which is
+which), decompress it, and run it from wherever you put it. On Linux x64:
+
+```
+gunzip darklang-alpha-*-linux-x64.gz
+chmod +x darklang-alpha-*-linux-x64
+./darklang-alpha-*-linux-x64
+```
+
+A fresh install can't touch files, the network, processes or environment variables until you
+allow it; the refusal names the `dark permissions allow ...` command that does.
+
 See also:
 
 - The [Discord](https://darklang.com/discord-invite), where most of our communication happens - join and say hi!

@@ -1,13 +1,16 @@
 #!/bin/sh
 # Darklang CLI installer.
 #
-#   curl -fsSL https://darklang.com/install | sh
+#   curl -fsSL https://wip.darklang.com/install | sh
 #
 # Installs the latest release to ~/.darklang/bin/dark and adds it to your PATH.
 # Afterwards, the CLI manages itself (`dark update`, `dark uninstall`).
 #
 # To pin a release (tags at https://github.com/darklang/dark/releases):
-#   curl -fsSL https://darklang.com/install | DARKLANG_VERSION=vX.Y.Z sh
+#   curl -fsSL https://wip.darklang.com/install | DARKLANG_VERSION=vX.Y.Z sh
+#
+# darklang.com/install will serve this same file once the new site is live there; until then it
+# 404s, so the URL above is the one to give people. Moving or renaming this file breaks it.
 
 set -eu
 
