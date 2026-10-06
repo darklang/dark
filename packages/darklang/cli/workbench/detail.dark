@@ -135,7 +135,7 @@ let accessSummaryLines (state: State) (hash: String) : List<String> =
   let requires =
     Stdlib.List.flatten
       [ [ factRow "requires" (effectsText (Permissions.Command.describeRequirements (facts.effects, facts.complete))) ]
-        (if facts.complete then [] else [ factNote "incomplete · it runs code it is given" ]) ]
+        (if facts.complete then [] else [ factNote "incomplete · some calls not followed" ]) ]
   let ceiling =
     match facts.ceiling with
     | None -> []

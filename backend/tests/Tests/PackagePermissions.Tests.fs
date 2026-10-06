@@ -347,6 +347,143 @@ let dictionaryKeysAreAnalyzed =
       "the clock call in the key is reachable"
   }
 
+/// An operator runs the implementation its save recorded (`Add.add` for the
+/// operand type), not just its two operands. Analyzing only the operands
+/// reported `a + b` as complete and effect-free when `add` read a file.
+module private Operators =
+  let plus = PT.InfixFnCall PT.ArithmeticPlus
+
+  let chosen (hash : string) : PT.FQFnName.ImplChoice =
+    PT.FQFnName.Chosen { name = PT.Hash hash; location = None }
+
+  /// An `add` implementation with an effect of its own.
+  let effectfulAdd = unitFn "effectful-add" (callBuiltin "fileRead")
+
+  let requirementsOf (fns : List<PT.PackageFn.PackageFn>) (root : string) =
+    Requirements.forFunction testEffects (closureOf fns) (PT.Hash root)
+
+  /// `display<'a: Show> v = Show.show v`: the call's implementation is the
+  /// caller's type argument's.
+  let showTrait = PT.Hash "show-trait"
+  let deferringDisplay =
+    unitFn
+      "deferring-display"
+      (eApply
+        (PT.EFnName(
+          gid (),
+          PT.NameResolution.ok (
+            PT.FQFnName.TraitMethod
+              { trait_ = showTrait
+                method_ = "show"
+                implFn = PT.FQFnName.FromTypeParam "a" }
+          ),
+          []
+        ))
+        []
+        [ eArg 0 ])
+
+  let callDisplay (bounds : List<PT.FQFnName.BoundImpl>) =
+    eApply
+      (PT.EFnName(
+        gid (),
+        PT.NameResolution.ok (PT.FQFnName.fqPackage "deferring-display"),
+        bounds
+      ))
+      []
+      [ eUnit () ]
+
+  let tests =
+    [ test "an operator's chosen implementation is part of the analysis" {
+        let caller =
+          unitFn
+            "adds"
+            (PT.EInfix(gid (), plus, eInt64 1L, eInt64 2L, chosen "effectful-add"))
+        let result = requirementsOf [ effectfulAdd; caller ] "adds"
+        Expect.isTrue result.complete "the implementation was recorded at save"
+        Expect.equal
+          result.requiredEffects
+          (Set.singleton Effect.Effect.FileRead)
+          "the implementation's file read is required"
+      }
+
+      test "a piped operator's chosen implementation is part of the analysis" {
+        let caller =
+          unitFn
+            "pipes-add"
+            (ePipe
+              (eInt64 1L)
+              [ PT.EPipeInfix(gid (), plus, eInt64 2L, chosen "effectful-add") ])
+        let result = requirementsOf [ effectfulAdd; caller ] "pipes-add"
+        Expect.isTrue result.complete "the implementation was recorded at save"
+        Expect.equal
+          result.requiredEffects
+          (Set.singleton Effect.Effect.FileRead)
+          "the implementation's file read is required"
+      }
+
+      test "an operator whose implementation is unknown is incomplete" {
+        // Resolved by the operand type at run time, so nothing here says what runs.
+        let caller = unitFn "adds-unknown" (eInfix plus (eInt64 1L) (eInt64 2L))
+        let result = requirementsOf [ caller ] "adds-unknown"
+        Expect.isFalse result.complete "the store decides at run time"
+      }
+
+      test "a named trait call follows its chosen implementation" {
+        // The same rule as the operator: `Add.add a b` and `a + b` must agree.
+        let caller =
+          unitFn
+            "names-add"
+            (eApply
+              (PT.EFnName(
+                gid (),
+                PT.NameResolution.ok (
+                  PT.FQFnName.TraitMethod
+                    { trait_ = PT.Hash "add-trait"
+                      method_ = "add"
+                      implFn = chosen "effectful-add" }
+                ),
+                []
+              ))
+              []
+              [ eInt64 1L; eInt64 2L ])
+        let result = requirementsOf [ effectfulAdd; caller ] "names-add"
+        Expect.isTrue result.complete "the implementation was recorded at save"
+        Expect.equal
+          result.requiredEffects
+          (Set.singleton Effect.Effect.FileRead)
+          "the implementation's file read is required"
+      }
+
+      test "a trait call deferred to a type param is the root's caller's to supply" {
+        let result = requirementsOf [ deferringDisplay ] "deferring-display"
+        Expect.isFalse result.complete "the caller's type argument decides"
+      }
+
+      test "a caller that recorded the bound supplies the implementation" {
+        let caller =
+          unitFn
+            "displays-pinned"
+            (callDisplay
+              [ { param = "a"
+                  trait_ = showTrait
+                  method_ = "show"
+                  choice = chosen "effectful-add" } ])
+        let result =
+          requirementsOf [ effectfulAdd; deferringDisplay; caller ] "displays-pinned"
+        Expect.isTrue result.complete "the bound is recorded at the call"
+        Expect.equal
+          result.requiredEffects
+          (Set.singleton Effect.Effect.FileRead)
+          "the recorded implementation's file read is required"
+      }
+
+      test "a caller that recorded no bound leaves the deferred call unresolved" {
+        // Nothing in the frame, so the callee asks the store at run time.
+        let caller = unitFn "displays-unpinned" (callDisplay [])
+        let result = requirementsOf [ deferringDisplay; caller ] "displays-unpinned"
+        Expect.isFalse result.complete "the store decides at run time"
+      } ]
+
 let tests =
   testList
     "packagePermissions"
@@ -362,4 +499,5 @@ let tests =
       reviewApprovesTheRootUnderExplicitRules
       reviewRefusesRulesThatCannotCoverTheRequirements
       reviewRefusesAWidenedContractWithoutAcknowledgment
-      reviewRejectsAnIncompleteClosure ]
+      reviewRejectsAnIncompleteClosure
+      testList "operators and trait calls" Operators.tests ]

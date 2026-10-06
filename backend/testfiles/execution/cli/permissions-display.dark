@@ -73,8 +73,8 @@ module PermissionsDisplay =
   (Darklang.Cli.Permissions.Command.renderAccessReport (unapproved ()))
   = [ "access"
       "  version: 12345678"
-      "  requires: depends on its callbacks"
-      "  analysis: incomplete: it runs code it is given, whose effects are not known here"
+      "  requires: not fully known"
+      "  analysis: incomplete: some calls could not be followed, so their effects are not known here"
       "  author ceiling: not declared (inherits caller limits)"
       "  consumer approval: not approved for dependency use"
       "  approved as: none"

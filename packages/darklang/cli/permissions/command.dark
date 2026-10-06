@@ -132,16 +132,16 @@ let requirementSummary (requirements: List<LanguageTools.Permissions.Effect>) : 
       ", "
 
 /// One line for a `permissionRequirementsForHash` result. When the analysis
-/// could not follow everything (the function runs code it is given, e.g. the
-/// callback in `List.map`), the effects it did find are shown and the
-/// unknown remainder is named as its callbacks.
+/// could not follow everything, the effects it did find are shown and the
+/// remainder is called unknown. It does not say why: a callback, a package
+/// value, and an implementation picked at run time all look the same here.
 let describeRequirements
   (requirements: (List<LanguageTools.Permissions.Effect> * Bool))
   : String =
   match requirements with
   | (effects, true) -> Command.requirementSummary effects
-  | ([], false) -> "depends on its callbacks"
-  | (effects, false) -> Command.requirementSummary effects + ", plus its callbacks"
+  | ([], false) -> "not fully known"
+  | (effects, false) -> Command.requirementSummary effects + ", possibly more"
 
 let requirementDisplay (hash: String) : String =
   Command.describeRequirements (Command.permissionRequirementsForHash hash)
@@ -202,7 +202,7 @@ let renderAccessReport (facts: Command.AccessReportFacts) : List<String> =
   let requirements = Command.describeRequirements (facts.effects, facts.complete)
   let analysis =
     if facts.complete then "complete"
-    else "incomplete: it runs code it is given, whose effects are not known here"
+    else "incomplete: some calls could not be followed, so their effects are not known here"
   let ceilingText =
     match facts.ceiling with
     | None -> "not declared (inherits caller limits)"
@@ -400,7 +400,7 @@ let showVersionRequirements (heading: String) (hash: String) : Bool =
   if Stdlib.Bool.not complete then
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.warning
-        "  this function runs code it is given (a callback), and those effects are not known here, so the list above may be short. The instance and run policies still bound whatever it does.")
+        "  some calls in this function could not be followed (a callback, a package value, or an implementation picked at run time), so the list above may be short. The instance and run policies still bound whatever it does.")
   else
     ()
   complete
