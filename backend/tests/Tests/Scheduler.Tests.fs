@@ -451,59 +451,30 @@ let private timeAll
 
 
 let private workersUseCores =
-  testTask "four CPU-bound processes on four workers finish well ahead of one thread" {
+  testTask "four CPU-bound processes are spread across four workers" {
     let! state = executionStateFor pmPT false Map.empty
-    // About half a second per spinner in Debug (measured: 300k iterations took 3.0 s); two
-    // orders of magnitude over the scheduling itself, which is what the ratio needs.
+    // Long enough (about half a second each in Debug) that all four are still running when
+    // the last is placed, so placement has four busy workers to choose between.
     let! instrs = instrsFor (spinProgram 40_000L)
     do!
       withWorkers 4 (fun root ->
         task {
-          // Serial: all four on one worker, one thread.
-          let one : Scheduler.Scheduler = root.Workers.Members[0]
-          // Warm first: the JIT tiers the interpreter up during the first few hundred
-          // milliseconds, and a serial batch measured cold is slower for that reason alone.
           let! _ =
-            timeAll
-              (fun i -> one.Spawn(state, (None, i), Scheduler.EntryExpr, None))
-              one.Await
-              instrs
-              2
-          let! serial =
-            timeAll
-              (fun i -> one.Spawn(state, (None, i), Scheduler.EntryExpr, None))
-              one.Await
-              instrs
-              4
-          // Parallel: placed across the four workers.
-          let! spread =
             timeAll
               (fun i -> root.SpawnOn(state, (None, i), Scheduler.EntryExpr, None))
               root.Await
               instrs
               4
-          // Measured, published, warm: 0.59 to 0.65 (Debug: 0.34). Not the plan's
-          // 1/4: the interpreter allocates per value and this box's allocator gives
-          // four threads about 1.6x, which a plain F# allocation loop reproduces
-          // with no interpreter at all (`docs/processes.md`). The bound is loose
-          // because the box is shared; anything under 0.9 still takes more than one
-          // core.
+          // The claim is that the work is spread, and that is asserted structurally: every
+          // worker ran one of the four.
           //
-          // It was 0.8, which is too tight for a busy box. On a 48-core desktop at
-          // load average 6, running its own builds, this measured 0.81 (spread 473
-          // ms against serial 581 ms) and failed by 1.6%; it passes with room on an
-          // idle one. Four contended threads drift towards the serial time, so under
-          // contention the ceiling is nearer 1.0 than the 0.65 an idle box gives.
-          //
-          // If it goes red again, don't widen it a third time: the ratio is the
-          // wrong thing to assert. The structural half of the claim is the assertion
-          // below, that every worker ran one of the four, and that doesn't care how
-          // loaded the box is.
-          Expect.isLessThan
-            spread.TotalMilliseconds
-            (serial.TotalMilliseconds * 0.9)
-            $"spread {spread.TotalMilliseconds:F0} ms vs serial {serial.TotalMilliseconds:F0} ms"
-          // Every worker took at least one of the four spread ones.
+          // This test used to assert a speedup too, spread under 0.9 of serial. It was
+          // widened once from 0.8 and still failed in full-suite runs on a busy box (641 ms
+          // spread against 645 ms serial), while passing alone, including at load average
+          // 88 from outside CPU load. A wall-clock ratio measures the box as much as the
+          // scheduler. Measured on an idle box it was 0.59 to 0.65 published (Debug 0.34),
+          // not 1/4, because the interpreter allocates per value and the allocator gives four
+          // threads about 1.6x (`docs/processes.md`).
           for w in root.Workers.Members do
             Expect.isGreaterThan
               (w.SnapshotHere()
