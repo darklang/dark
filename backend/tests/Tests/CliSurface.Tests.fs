@@ -1520,9 +1520,15 @@ let private workbenchRefusalsAreMarkedAsRefusals =
       for (line, text) in
         Array.zip
           lines
-          [| "need at least owner.Module"; "no matches for"; "no conflict selected"; "no relay yet" |] do
+          [| "need at least owner.Module"
+             "no matches for"
+             "no conflict selected"
+             "no relay yet" |] do
         Expect.stringContains line text $"the message is the one meant:\n{answer}"
-        Expect.stringContains line "=> Refused" $"and it is marked as a refusal:\n{answer}"
+        Expect.stringContains
+          line
+          "=> Refused"
+          $"and it is marked as a refusal:\n{answer}"
     })
 
 /// Editing an implementation updates it in place.
