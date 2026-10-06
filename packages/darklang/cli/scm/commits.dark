@@ -160,7 +160,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Cli.printErr "`dark commits` takes a count, not a branch name."
     Cli.printHint "  this branch's commits:  dark commits"
     Cli.printHint $"  that branch's history:  dark log {n}"
-    state
+    Cli.exitWith state false
   | (_, _) ->
 
   let limit = limit |> Stdlib.Option.withDefault 20L

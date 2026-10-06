@@ -39,7 +39,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match Packages.Location.parseRelativeTo state.packageData.currentLocation arg with
     | Error e ->
       Cli.printErr e
-      state
+      Cli.exitWith state false
     | Ok loc ->
       let dotted = PropagateCmd.dotted loc
       let mods = Stdlib.String.join loc.modules "."
@@ -70,11 +70,11 @@ let execute (state: AppState) (args: List<String>) : AppState =
           state
         | Error e ->
           Cli.printErr $"couldn't drop {dotted}: {e}"
-          state
+          Cli.exitWith state false
   | _ :: _ :: _ ->
     Cli.printErr "dark discard takes at most one name."
     Cli.printHint "  `dark discard` drops the whole draft; `dark discard <name>` drops one item."
-    state
+    Cli.exitWith state false
   | [] ->
 
   let changed = SCM.PackageOps.draftBindings ()
@@ -132,7 +132,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
   | Error e ->
     Cli.printErr $"couldn't discard: {e}"
-    state
+    Cli.exitWith state false
 
 let complete
   (_state: AppState)

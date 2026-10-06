@@ -16,7 +16,7 @@ let moduleOf (dotted: String) : String =
 /// WHAT changed without opening another command per name.
 let executeDiff (state: AppState) (branchRef: String) (withSource: Bool) : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId ->
     match SCM.PackageOps.branchDiffEntries branchId with
     | [] ->
@@ -76,7 +76,7 @@ let executeDiff (state: AppState) (branchRef: String) (withSource: Bool) : AppSt
 /// complementary to `diff`'s net effect).
 let executeLog (state: AppState) (branchRef: String) : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId ->
     let ops = SCM.PackageOps.branchOps branchId
     // A merged branch's tags are gone; its merge events still say what it carried.
@@ -145,7 +145,7 @@ let executeDiffCmd (state: AppState) (args: List<String>) : AppState =
   | [ id ] ->
     if ScmJson.wantsJson args then
       match resolveRef id with
-      | None -> state
+      | None -> Cli.exitWith state false
       | Some branchId ->
         Stdlib.printLine (
           ScmJson.branchDiffJson (SCM.PackageOps.branchDiffEntries branchId)
@@ -157,7 +157,7 @@ let executeDiffCmd (state: AppState) (args: List<String>) : AppState =
   | _ ->
     Cli.printErr "usage: dark diff <branch> [--source] [--json]"
     Cli.printHint "  `dark branches` lists them."
-    state
+    Cli.exitWith state false
 
 /// The branch's ops as JSON, oldest first -- the same sequence the human view prints.
 let branchOpsAsJson (branchRef: String) : Unit =
@@ -207,4 +207,4 @@ let executeLogCmd (state: AppState) (args: List<String>) : AppState =
         executeLog state branchRef
   | _ ->
     Cli.printErr "usage: dark log [<branch>] [--json]"
-    state
+    Cli.exitWith state false

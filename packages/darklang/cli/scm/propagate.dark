@@ -291,7 +291,7 @@ let executeShow (state: AppState) (arg: String) : AppState =
   match resolve state arg with
   | Error e ->
     Cli.printErr e
-    state
+    Cli.exitWith state false
   | Ok loc when
     Stdlib.Bool.not
       (SCM.Propagation.targetExists loc.owner (SCM.Propagation.modulesOf loc) loc.name)
@@ -300,7 +300,7 @@ let executeShow (state: AppState) (arg: String) : AppState =
     // "follows (nothing set)" about a name nobody has, which reads as confirmation that it exists.
     Cli.printErr $"nothing at {dotted loc}."
     Cli.printHint "  `dark ls <module>` lists what's there; a name only on another branch needs `dark switch` first."
-    state
+    Cli.exitWith state false
   | Ok loc ->
     match SCM.Propagation.explicitPolicyFor loc with
     | Some c ->
@@ -352,7 +352,7 @@ let executePin (state: AppState) (arg: String) (note: String) : AppState =
   match target state arg with
   | Error e ->
     Cli.printErr e
-    state
+    Cli.exitWith state false
   | Ok parts ->
     let (owner, modules, name) = parts
 
@@ -369,7 +369,7 @@ let executePin (state: AppState) (arg: String) (note: String) : AppState =
       with
       | Error e ->
         Cli.printErr $"couldn't record the pin: {e}"
-        state
+        Cli.exitWith state false
       | Ok _ ->
         Cli.printOk
           $"pinned {describeTarget owner modules name} -- it won't follow its dependencies."
@@ -388,7 +388,7 @@ let executePin (state: AppState) (arg: String) (note: String) : AppState =
     | None ->
       Cli.printErr $"nothing at {describeTarget owner modules name}."
       Cli.printHint "  `dark ls <module>` lists what's there; a name only on another branch needs `dark switch` first."
-      state
+      Cli.exitWith state false
     | Some kind ->
       // ONE implementation of what pinning means, shared with the interactive screen; see `applyPin`.
       Cli.printOk (applyPin state.currentBranchId loc kind note)
@@ -400,7 +400,7 @@ let executeFollow (state: AppState) (arg: String) (note: String) : AppState =
   match target state arg with
   | Error e ->
     Cli.printErr e
-    state
+    Cli.exitWith state false
   | Ok parts ->
     let (owner, modules, name) = parts
 
@@ -413,7 +413,7 @@ let executeFollow (state: AppState) (arg: String) (note: String) : AppState =
     with
     | Error e ->
       Cli.printErr $"couldn't record the choice: {e}"
-      state
+      Cli.exitWith state false
     | Ok _ ->
       Cli.printOk
         $"{describeTarget owner modules name} follows its dependencies again."
@@ -458,7 +458,7 @@ let executeUnset (state: AppState) (arg: String) : AppState =
   match target state arg with
   | Error e ->
     Cli.printErr e
-    state
+    Cli.exitWith state false
   | Ok parts ->
     let (owner, modules, name) = parts
 
@@ -481,7 +481,7 @@ let executeUnset (state: AppState) (arg: String) : AppState =
     match SCM.Propagation.clearPolicy state.currentBranchId owner modules name with
     | Error e ->
       Cli.printErr $"couldn't clear it: {e}"
-      state
+      Cli.exitWith state false
     | Ok _ ->
       Cli.printOk $"cleared the choice on {describeTarget owner modules name}."
       Cli.printHint "  whatever covers it more broadly (or the default, follow) applies now."
@@ -585,7 +585,7 @@ let executeMany
   match names with
   | [] ->
     Cli.printErr $"{verb} needs at least one name."
-    state
+    Cli.exitWith state false
   | _ ->
     names
     |> Stdlib.List.iter (fun n ->
@@ -629,7 +629,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | "follow" :: rest -> executeMany state "follow" rest
   | _ ->
     Cli.printErr "unrecognized -- `dark propagate help`."
-    state
+    Cli.exitWith state false
 
 
 let complete

@@ -1051,7 +1051,16 @@ let private otherRefusals : List<string * List<string>> =
   [ "ps show, an empty id", [ "ps"; "show"; "" ]
     "ps cancel, an empty id", [ "ps"; "cancel"; "" ]
     "ps show, no such id", [ "ps"; "show"; "zzznope" ]
-    "commit, a flag it does not take", [ "commit"; "--zzznope" ] ]
+    "commit, a flag it does not take", [ "commit"; "--zzznope" ]
+    // An argument the command understood well enough to refuse. These printed a reason and then
+    // returned the state unchanged, so they reported success: the two shapes are a refusal that
+    // returns a bare `state`, and a caller that gets None from a helper which already said why.
+    "commits, a branch name where a count goes", [ "commits"; "zzznope" ]
+    "backups restore, no name", [ "backups"; "restore" ]
+    "propagate pin, no names", [ "propagate"; "pin" ]
+    "diff, a branch that does not exist", [ "diff"; "zzznope" ]
+    "log, a branch that does not exist", [ "log"; "zzznope" ]
+    "rebase, a branch that does not exist", [ "rebase"; "zzznope" ] ]
 
 let private otherRefusalsExitNonZero =
   cliTestOnMain "a refusal outside the traits side exits non-zero" (fun state ->

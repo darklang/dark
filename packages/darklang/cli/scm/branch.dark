@@ -204,11 +204,11 @@ let parentOf (branchId: Uuid) : (Uuid * String) =
 /// name WAS the id.
 let executeRename (state: AppState) (branchRef: String) (newName: String) : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId ->
     if SCM.Branch.isMain branchId then
       Cli.printErr "main is the trunk; it has no name to change."
-      state
+      Cli.exitWith state false
     else
       let was = SCM.PackageOps.branchName branchId
 
@@ -225,7 +225,7 @@ let executeRename (state: AppState) (branchRef: String) (newName: String) : AppS
         state
       | Error e ->
         Cli.printErr e
-        state
+        Cli.exitWith state false
 
 /// Archive (soft-delete) a branch: its unmerged ops are discarded and it leaves every listing, `--all`
 /// included. So it asks the same way `discard` and `merge` do: say what would go, then take an explicit
@@ -239,7 +239,7 @@ let executeArchive
   (autoConfirm: Bool)
   : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   // A child resolves names through its parent chain, so archiving a parent takes the parent's work
   // out from under it: the child's code stops resolving, its listing shows a parent "not in this
   // store", and merging it lands ops whose dependencies are gone. Merge has refused this since it
@@ -306,12 +306,12 @@ let executeArchive
         state
     | Error e ->
       Cli.printErr $"couldn't archive: {e}"
-      state
+      Cli.exitWith state false
 
 /// Export a branch as a portable bundle file (registry + frontier ops) -- move it to another machine.
 let executeExport (state: AppState) (branchRef: String) (path: String) : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId ->
     match Stdlib.Cli.File.writeText path (SCM.PackageOps.exportBranch branchId) with
     | Ok _ -> Cli.printOk $"exported branch \"{branchRef}\" to {path}."
@@ -334,10 +334,10 @@ let executeImport (state: AppState) (path: String) : AppState =
 let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
   if url == "" then
     Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
-    state
+    Cli.exitWith state false
   else
     match resolveRef branchRef with
-    | None -> state
+    | None -> Cli.exitWith state false
     | Some branchId ->
       // No identity gate: an instance mints its own id on first use, so this can't be empty.
       let id = SCM.PackageOps.identity ()
@@ -550,7 +550,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Cli.printHint "  your own branches back from the relay:  dark branch pull"
       Cli.printHint "  a colleague's:                          dark branch pull --from <who>"
       Cli.printHint $"  switch to a branch you already have:    dark branch {arg}"
-      state
+      Cli.exitWith state false
   | [ id ] ->
     if Stdlib.List.member knownSubcommands id then
       // A subcommand with its arguments left off, which the typo check below deliberately does not catch
@@ -573,7 +573,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | Some sub ->
         Cli.printErr $"`dark branch {id}` isn't a subcommand. Did you mean `dark branch {sub}`?"
         Cli.printHint $"  to start or switch to a branch actually named \"{id}\": dark switch {id}"
-        state
+        Cli.exitWith state false
       | None -> executeSwitch state id
   | _ ->
     // Printing help alone reads as though nothing happened, so say what was not understood first.
@@ -637,7 +637,7 @@ let executeSwitchCmd (state: AppState) (args: List<String>) : AppState =
   | [ id ] -> executeSwitch state id
   | _ ->
     Cli.printErr "usage: dark switch <branch>   (`dark switch main` returns to main)"
-    state
+    Cli.exitWith state false
 
 /// One `complete` is shared by branch/switch/merge/rebase/branches/resolve, so it can't tell which
 /// word was typed. Branch names are the right answer for nearly all of them, so offer those plus the

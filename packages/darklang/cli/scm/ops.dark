@@ -48,7 +48,7 @@ let executeShow (state: AppState) (idPrefix: String) : AppState =
   // had asked for it.
   if idPrefix == "" then
     Cli.printErr "which op? `dark ops` lists them, then `dark ops show <id>`."
-    state
+    Cli.exitWith state false
   else
 
   let ops = SCM.PackageOps.getByIdPrefix idPrefix
@@ -145,7 +145,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     let f = Stdlib.String.join flags " "
     Cli.printErr $"ops takes no flags, and doesn't understand {f}."
     Cli.printHint "  `dark ops help` says what it does."
-    state
+    Cli.exitWith state false
   else
 
   // A count has to be a positive number: `ops -5` read as a count of -5 used to print the whole
@@ -164,23 +164,23 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Ok l -> executeList state l
     | Error why ->
       Cli.printErr why
-      state
+      Cli.exitWith state false
   | [ "show" ] ->
     Cli.printErr "`ops show` needs an op id. `dark ops` lists them."
-    state
+    Cli.exitWith state false
   | [ "show", id ] -> executeShow state id
   | verb :: _ ->
     match movedFromOps verb with
     | Some target ->
       Cli.printErr $"`ops` only reads the log -- {verb} is `{target}`."
-      state
+      Cli.exitWith state false
     | None ->
       match countOf verb with
       | Ok l -> executeList state l
       | Error why ->
         Cli.printErr why
         Cli.printHint "  `dark ops help` says what it does."
-        state
+        Cli.exitWith state false
 
 let complete
   (_state: AppState)

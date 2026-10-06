@@ -70,10 +70,10 @@ let executeImport (state: AppState) (path: String) : AppState =
     // "these bytes are damaged", and only the first is fixed by rebuilding one side.
     | Error e ->
       Cli.printErr $"Couldn't read the sync file: {e}"
-      state
+      Cli.exitWith state false
   | Error _ ->
     Cli.printErr $"Couldn't read {path}"
-    state
+    Cli.exitWith state false
 
 
 /// "Am I in sync with a relay?" -- answered from the SAME two cursors `sync` itself skips on, so the two

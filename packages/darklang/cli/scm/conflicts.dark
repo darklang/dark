@@ -398,7 +398,7 @@ let executeOverride
       match pickCandidate c choice with
       | None ->
         Cli.printErr $"no candidate \"{choice}\" on #{c.id} -- use A, B, a hash prefix, or - to hand-author."
-        state
+        Cli.exitWith state false
       | Some cand when cand.removed ->
         // Taking the removal ends the name again rather than binding anything.
         // `settleConflictByRemoval` authors the `Unbind`, so the choice travels like any other
@@ -430,7 +430,7 @@ let executeOverride
             state
           | Error e ->
             Cli.printErr $"override failed: {e}"
-            state
+            Cli.exitWith state false
 
 /// PREVIEW a branch: what a merge WOULD reconcile. Nothing is recorded by looking; a conflict is only written
 /// when a reconciliation actually happens.
@@ -438,7 +438,7 @@ let executeBranchPreview (state: AppState) (branchRef: String) : AppState =
   // "would merge cleanly" for a branch that doesn't exist is the sentence a real, clean branch gets, so a
   // typo has to be refused rather than answered.
   match Cli.Branch.resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId ->
     match SCM.PackageOps.branchPreview branchId with
     | [] ->
@@ -525,7 +525,7 @@ let executeJson (state: AppState) (args: List<String>) : AppState =
   | [ "branch", branchRef ] ->
     // Same name-to-id crossing the human-readable arm does; a name is what every command prints.
     match Cli.Branch.resolveRef branchRef with
-    | None -> state
+    | None -> Cli.exitWith state false
     | Some branchId ->
       printConflictList (SCM.PackageOps.branchPreview branchId)
       state
@@ -710,23 +710,23 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
   | [ "show" ] ->
     Cli.printErr "show needs a conflict id."
     Cli.printHint "  `dark conflicts` lists them, ids first."
-    state
+    Cli.exitWith state false
   | [ "ack" ] ->
     Cli.printErr "ack needs a conflict id."
     Cli.printHint "  `dark conflicts` lists them, ids first."
-    state
+    Cli.exitWith state false
   | [ "override", _id ] ->
     Cli.printErr "override needs a side: A, B, or a hash prefix."
     Cli.printHint "  `dark conflicts show <id>` prints both versions with their hashes."
-    state
+    Cli.exitWith state false
   | [ "override" ] ->
     Cli.printErr "override needs a conflict id and a side."
     Cli.printHint "  `dark conflicts` lists them; `show <id>` prints both versions."
-    state
+    Cli.exitWith state false
   | [ "branch" ] ->
     Cli.printErr "branch needs a branch to preview."
     Cli.printHint "  `dark branches` lists them."
-    state
+    Cli.exitWith state false
 
   // Printing help alone reads as an answer: a typo would look exactly like `conflicts --help`, a
   // command that ran and found nothing.
