@@ -154,6 +154,18 @@ let private readsOnlyByName : Set<string> = set [ "httpClientRead" ]
 let readsOnly (builtinName : string) (effects : Set<Effect>) : bool =
   allReads effects || Set.contains builtinName readsOnlyByName
 
+/// Builtins whose declared effects are the worst case over arguments the interpreter cannot see,
+/// and whose body checks the exact effect itself. The interpreter skips its up-front check for
+/// them: the declaration is what analysis and approval read, and checking all of it before the
+/// body would ask a write to someone's own database for package-write as well as native.
+/// This belongs on `BuiltInFn` beside `callEffects`; a list until a change that touches every
+/// builtin literal anyway.
+let private checkedInBodyByName : Set<string> =
+  set [ "sqliteExec"; "sqliteExecBatch"; "sqliteQuery" ]
+
+let checkedInBody (builtinName : string) : bool =
+  Set.contains builtinName checkedInBodyByName
+
 /// A scoped effect names a resource (a path, a URL, a table, an executable),
 /// so its exact request can only be built by the builtin body — or, for the
 /// OS-facing ones, by the checked host boundary from the `Operation`. An

@@ -173,6 +173,33 @@ let packagePolicyDenies =
     expectDenied [ "package policy" ] actual
   }
 
+/// The sqlite builtins declare the worst case over every database, which includes the store's
+/// package-write. Checking that declaration before the body would ask a write to someone's own
+/// file for package-write, under an instance that has granted native for exactly that; the body's
+/// exact check is the only one that may run.
+let sqliteOwnDatabaseWriteNeedsOnlyNative =
+  testTask "a sqlite write to your own database needs native, not package-write" {
+    let hash = "permissions-sqlite-own-db"
+    let path =
+      System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dark-own-db-probe.db")
+    let body =
+      eApply
+        (eBuiltinFn "sqliteExec" 0)
+        []
+        [ eStr [ strText path ]
+          eStr [ strText "create table if not exists t (x int)" ]
+          eList [] ]
+    let fn = ceilingFn hash None body
+    let nativeOnly =
+      LibExecution.Execution.setInstancePolicy (
+        LibExecution.Permissions.Policy.allowEffects (
+          Set.singleton Effects.Effect.Native
+        )
+      )
+    let! actual = runPackageFnWith nativeOnly (pmWith [ fn ]) hash
+    expectNotDenied actual
+  }
+
 let escapedLambdaKeepsAccess =
   testTask "a returned lambda keeps its creator's package access" {
     let producerHash = "permissions-lambda-producer"
@@ -823,6 +850,7 @@ let tests =
       nativeAllowedByAllowAll
       newRunPolicyDenies
       packagePolicyDenies
+      sqliteOwnDatabaseWriteNeedsOnlyNative
       escapedLambdaKeepsAccess
       evaluatedNamedFnInContainerCannotWidenReentry
       partiallyAppliedNamedFnCapturesAccess

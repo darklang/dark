@@ -1247,7 +1247,7 @@ let private invokeBuiltin
         0L
     else
       0L
-  if not (Set.isEmpty fn.callEffects) then
+  if not (Set.isEmpty fn.callEffects || Effects.checkedInBody fn.name.name) then
     // `Native` names what no rule can scope, so a policy grants it whole or not at all --
     // which would put `dark status` behind `permissions allow native` on a stock install,
     // since the SCM reads its own store through raw SQLite. Bundled first-party code is
