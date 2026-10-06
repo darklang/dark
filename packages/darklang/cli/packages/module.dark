@@ -194,10 +194,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 (Stdlib.Cli.UI.Colors.error $"Failed to define module: {message}")
               state
             | Ok report ->
-              // main's at-rest type check reports on every save; keep it ahead of propagation
-              // so a type error is on screen before anything follows the change.
-              AtRestCheck.printSaveReport branchId report
-
               updates
               |> Stdlib.List.iter (fun update ->
                 Propagate.autoPropagateAfterUpdate
@@ -225,9 +221,20 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               // case rather than an edge one.
               let what = if count == 1 then "declaration" else "declarations"
 
+              // `!` rather than a tick when the check did not pass, and the report AFTER this
+              // line, both matching a single-item save in `core.dark`. A tick printed under the
+              // reasons a save is broken is read as success by anybody who reads the last line.
+              let glyph =
+                match report.verdict with
+                | Checked -> Stdlib.Cli.UI.Colors.success "✓"
+                | Failed | Incomplete -> Stdlib.Cli.UI.Colors.warning "!"
+
               Stdlib.printLine
-                (Stdlib.Cli.UI.Colors.success
-                  $"✓ Defined {Stdlib.toString count} {what} in {modulePath}")
+                $"{glyph} Defined {Stdlib.toString count} {what} in {modulePath}"
+
+              // main's at-rest type check reports on every save; keep it ahead of propagation
+              // so a type error is on screen before anything follows the change.
+              AtRestCheck.printSaveReport branchId report
 
               // Name what did not, so a rejected declaration is something you find out now rather than
               // the next time you call it.
