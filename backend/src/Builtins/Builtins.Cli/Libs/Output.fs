@@ -1,5 +1,5 @@
 /// Standard libraries for printing and output
-/// TODO create equivalent for stderr, and rename these fns...
+/// TODO rename these fns...
 module Builtins.Cli.Libs.Output
 
 open System.Threading.Tasks
@@ -30,6 +30,28 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      callEffects = set [ Effect.Stdout ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "printErrorLine" 0
+      typeParams = []
+      parameters = [ Param.make "value" TString "The value to be printed." ]
+      returnType = TUnit
+      description =
+        "Prints the given <param value> to the standard error, followed by a newline. For "
+        + "diagnostics that must stay off stdout: a refusal under `--json`, or the log of a "
+        + "server whose stdout is a protocol channel."
+      fn =
+        (function
+        | _, _, _, [| DString str |] ->
+          System.Console.Error.WriteLine str
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      // Printing, like stdout: output to the person's own terminal, which the default policy
+      // allows. A separate effect would put a log line behind a grant.
       callEffects = set [ Effect.Stdout ]
       deprecated = NotDeprecated }
 

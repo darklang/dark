@@ -155,11 +155,19 @@ gate_lsp_branches() {
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   export DARK_CONFIG_RUNDIR="$PWD/$WORK"
-  # A fresh rundir seeds the default instance policy, which denies file and store writes; the
-  # server logs every request to rundir/logs/lsp-server.log and renames branches through the
-  # store, so under the default the first such request kills the process and every check below
-  # reads a dead one. The editor runs with the operator's own grants; give this throwaway rundir
-  # the same.
+
+  # First, the default instance policy a fresh install has: the server must answer `initialize`
+  # with no grants at all, and stdout must carry only the protocol. Its log goes to stderr; when it
+  # went to a file, the denied write raised and the server died before answering.
+  INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}'
+  DEFAULT_OUT=$(printf 'Content-Length: %d\r\n\r\n%s' "${#INIT}" "$INIT" \
+    | timeout --kill-after=5 60 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' 2>/dev/null) || true
+  grep -q '"capabilities"' <<<"$DEFAULT_OUT" \
+    || fail "the server did not answer initialize under the default instance policy"
+  ! grep -q 'From client' <<<"$DEFAULT_OUT" || fail "the server's log is on stdout, the protocol channel"
+
+  # The rest renames branches through the store, which the default policy does not grant. The
+  # editor runs with the operator's own grants; give this throwaway rundir the same.
   "$PWD/$CLI" permissions allow all >/dev/null 2>&1 || true
   "$PWD/$CLI" branch create lsp-gate >/dev/null 2>&1
   "$PWD/$CLI" --branch lsp-gate fn LspGate.T.f '() : Int64 = 5L' >/dev/null 2>&1

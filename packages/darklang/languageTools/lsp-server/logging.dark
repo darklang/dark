@@ -1,13 +1,11 @@
 module Darklang.LanguageTools.LspServer
 
 
-val logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
-
-let log (input: String) : Unit =
-  // returns Result -- ignored
-  let _logged = Stdlib.Cli.FileSystem.appendToFile logFilePath (input + "\n")
-
-  ()
+/// The server's log goes to stderr, which an editor shows as the server's output (VS Code's
+/// "Darklang LSP - Server" channel). Stdout is the JSON-RPC channel and must carry nothing else,
+/// and a log file would need a filesystem grant the default policy does not give: a denied write
+/// raises, so the server died before answering `initialize`.
+let log (input: String) : Unit = Stdlib.printErrorLine input
 
 
 let logIncomingRequest (request: String) : Unit = log $"From client: {request}"
