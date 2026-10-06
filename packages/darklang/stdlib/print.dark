@@ -9,6 +9,12 @@ let printLine (str: String): Unit =
   Builtin.printLine str
 
 
+/// Print <param str> to stderr, followed by a newline: for diagnostics that must stay off
+/// stdout, such as a refusal under `--json` or the log of a server whose stdout is its protocol.
+let printErrorLine (str: String): Unit =
+  Builtin.printErrorLine str
+
+
 let printLines (lines: List<String>): Unit =
   lines
   |> List.iter(fun l -> printLine l)

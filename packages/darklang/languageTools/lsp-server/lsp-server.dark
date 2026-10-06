@@ -13,12 +13,9 @@ type Json = Stdlib.AltJson.Json
 /// This is the main entrypoint for the Darklang LSP server.
 ///
 /// It reads incoming messages from stdin, and writes responses to stdout,
-/// following the LSP spec. It also logs all incoming and outgoing messages
-/// to `rundir/logs/lsp-server.log`, for local debugging.
+/// following the LSP spec. It also logs all incoming and outgoing messages to
+/// stderr (`log`), which the editor shows as the server's output.
 let runServerCli (u: Unit) : Int =
-  // clear `lsp-server.log`, and write a timestamp of the start-up
-  let _deleted = Stdlib.Cli.FileSystem.deleteFile logFilePath
-
   (Stdlib.DateTime.now ())
   |> Stdlib.toString
   |> fun nowStr -> log $"Running Darklang LSP Server {nowStr}"
