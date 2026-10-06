@@ -224,6 +224,9 @@ type private LiveRouting =
     /// The guest state built for the router hash last handed out. Rebuilt when the hash moves, since
     /// the router is the approval root and the root is a hash.
     mutable guest : Option<Hash * ExecutionState>
+    /// The state the routing step runs under: the caller of `serve`, whose code the step is.
+    /// `None` until `serve` sets it; the router's guest state is no place to run it.
+    mutable stepState : Option<ExecutionState>
     /// `serve --live`: an open page reloads when the router it came from moves. `GET /__live` is an
     /// event stream that says so, and every HTML response carries the six-line script that listens.
     dev : bool
@@ -267,10 +270,11 @@ let private resolveRouting
     match routing with
     | Fixed handler -> return Ok(serverState, handler)
     | Live live ->
+      let stepState = defaultArg live.stepState serverState
       let! stepped =
         Execution.executeApplicable
-          serverState
-          serverState.access
+          stepState
+          stepState.access
           live.step
           (NEList.singleton live.state)
         |> Ply.toTask
@@ -792,7 +796,7 @@ let runListenerLive
     exeState.access
     listener
     port
-    (Live { step = step; state = init; guest = None; dev = dev })
+    (Live { step = step; state = init; guest = None; stepState = None; dev = dev })
     maxBodyBytes
     injectStandardHeaders
     canonicalizeFromForwardedProto
@@ -829,6 +833,9 @@ let private serve
     // A live server re-derives this per router hash (`resolveRouting`); the one built here is for
     // the bind, the announce, and the routing step itself.
     let invokerAccess = vm.activeAccess
+    match routing with
+    | Live live -> live.stepState <- Some { exeState with access = invokerAccess }
+    | Fixed _ -> ()
     let exeState = guestStateFor exeState invokerAccess approvalRoot
     // maxBodyBytes is a comparison threshold; a negative limit would
     // reject every request (treated as over-limit), so reject it. 0 is
@@ -1052,7 +1059,12 @@ let fns () : List<BuiltInFn> =
             exeState
             vm
             portArg
-            (Live { step = step; state = init; guest = None; dev = dev })
+            (Live
+              { step = step
+                state = init
+                guest = None
+                stepState = None
+                dev = dev })
             first
             maxBodyBytesArg
             injectStandardHeaders

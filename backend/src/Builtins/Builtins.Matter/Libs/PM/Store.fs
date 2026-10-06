@@ -310,7 +310,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       // Not a read: `Effects.readsOnly` would let a resume serve it instead of arming the watch.
-      callEffects = set [ Effect.PackageWrite ]
+      callEffects = set [ Effect.Runtime ]
       deprecated = NotDeprecated } ]
 
 

@@ -32,6 +32,11 @@ type Effect =
   /// the spawner's access, so what it may do is already decided; this names only that it runs at
   /// all, on another core if one is free.
   | Concurrency
+  /// Changing this process's own in-memory state: dropping its package caches, arming its store
+  /// watch. Nothing persistent, nothing another process sees, but it is what a live host does to
+  /// take up an edit, so it is named rather than slipped in as a store write. Off by default, like
+  /// every other class: a person turns it on with `dark permissions allow runtime`.
+  | Runtime
   /// The effect for a builtin nobody can scope: it can reach anything on the
   /// host, and no rule could honestly say otherwise. `Sqlite.query` is the
   /// canonical case: it is given one database path, but the SQL it runs can
@@ -65,7 +70,16 @@ let name (effect : Effect) : string =
   | Effect.TraceRead -> "trace-read"
   | Effect.TraceWrite -> "trace-write"
   | Effect.Concurrency -> "concurrency"
+  | Effect.Runtime -> "runtime"
   | Effect.Native -> "native"
+
+/// What a refusal of this effect is refusing, in words, where the name alone does not say.
+let plainWords (effect : Effect) : Option<string> =
+  match effect with
+  | Effect.Runtime ->
+    Some
+      "changing this process's own caches and store watch, which following an edit needs"
+  | _ -> None
 
 /// Every effect, in declaration order.
 let all : List<Effect> =
@@ -87,6 +101,7 @@ let all : List<Effect> =
     Effect.TraceRead
     Effect.TraceWrite
     Effect.Concurrency
+    Effect.Runtime
     Effect.Native ]
 
 let fromName (wanted : string) : Option<Effect> =
@@ -120,6 +135,7 @@ let isRead (effect : Effect) : bool =
   | Effect.PackageWrite
   | Effect.TraceWrite
   | Effect.Concurrency
+  | Effect.Runtime
   | Effect.Native -> false
 
 /// Non-empty, and nothing but reads.
@@ -163,4 +179,5 @@ let isScoped (effect : Effect) : bool =
   | Effect.TraceRead
   | Effect.TraceWrite
   | Effect.Concurrency
+  | Effect.Runtime
   | Effect.Native -> false

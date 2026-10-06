@@ -39,7 +39,7 @@ let private denialMessage
   let remedy =
     match layer, suggestion with
     | Permission.Layer.Instance, Some rule ->
-      $"To allow: `permissions allow {rule}`."
+      $"To allow: `dark permissions allow {rule}`."
     | Permission.Layer.Instance, None -> "Configure the instance policy."
     | Permission.Layer.Run, _ -> "Start the run with a broader permission policy."
     | Permission.Layer.Package _, _ ->
@@ -216,7 +216,10 @@ let requireBuiltinEffectsWithAccess
         state
         vm
         access
-        (fun () -> $"`{builtinName}` ({Effect.name effect})")
+        (fun () ->
+          match Effect.plainWords effect with
+          | Some words -> $"`{builtinName}` ({Effect.name effect}: {words})"
+          | None -> $"`{builtinName}` ({Effect.name effect})")
         (Permission.Request.ofAmbientEffect effect builtinName)
 
 /// Check a builtin's ambient effects — the ones with no resource parameter —

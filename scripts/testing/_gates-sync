@@ -13,6 +13,7 @@ relay_grants() {
   "$1" permissions allow env read DARK_MATTER_WRITE_SECRET > /dev/null 2>&1
   "$1" permissions allow package-read > /dev/null 2>&1
   "$1" permissions allow package-write > /dev/null 2>&1
+  "$1" permissions allow runtime > /dev/null 2>&1
 }
 
 # --- setup: `dark sync setup`, driven end to end ------------------------------------------------

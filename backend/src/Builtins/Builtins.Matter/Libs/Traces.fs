@@ -263,7 +263,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = Set.empty
+      // Turning recording off hides what this process does, so it is a trace write, not nothing.
+      callEffects = set [ Effect.TraceWrite ]
       deprecated = NotDeprecated }
 
     { name = fn "tracesList" 0

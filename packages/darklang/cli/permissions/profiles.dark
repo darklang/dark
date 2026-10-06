@@ -21,7 +21,7 @@ val all =
     Profile
       { name = "local-dev"
         description =
-          "read/write a directory and local stores; HTTPS GET and HTTP serving"
+          "read/write a directory and local stores; HTTPS GET, HTTP serving, following edits"
         needsRoot = true } ]
 
 val readEffects =
@@ -105,7 +105,9 @@ let resolve
               LanguageTools.Permissions.Rule.HttpServer
                 LanguageTools.Permissions.Scope.All
               LanguageTools.Permissions.Rule.Effect
-                LanguageTools.Permissions.Effect.PackageWrite ]
+                LanguageTools.Permissions.Effect.PackageWrite
+              LanguageTools.Permissions.Rule.Effect
+                LanguageTools.Permissions.Effect.Runtime ]
         Stdlib.Result.Result.Ok
           { policy with allow = Stdlib.List.append policy.allow rules }
     | _ -> Stdlib.Result.Result.Error ("usage: " + Profiles.usage profile)
