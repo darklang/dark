@@ -743,7 +743,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -807,7 +807,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 

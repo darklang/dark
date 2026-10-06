@@ -1203,6 +1203,62 @@ let private testTracesShowDoesNotPerform =
       })
 
 
+/// The same, with the write inside a lambda handed to `List.map`. The higher-order builtins are
+/// labelled `Pure` ("pure given a pure callback"), and a callback-taking builtin is never logged
+/// itself, so the preview runs `listMap` live; what must hold is that the lambda's own effectful
+/// call is still answered from the log rather than performed.
+let private testTracesShowThroughMapDoesNotPerform =
+  cliTestWithFreshTraces
+    "a show of a write inside List.map leaves the store alone"
+    (fun state ->
+      task {
+        let! defined =
+          runCli
+            state
+            [ "fn"
+              "Test.ShowPerformMap.markAll"
+              "(vs: List<String>) : List<Unit> =\n  Stdlib.List.map vs (fun v -> Stdlib.LocalStore.configSet \"show.perform.map\" v)" ]
+
+        // The lambda makes the analysis incomplete, so its write needs an explicit approval.
+        let! _ =
+          runCli
+            state
+            [ "permissions"; "approve"; "Test.ShowPerformMap.markAll"; "--yes" ]
+        let! ran =
+          runCli state [ "eval"; "Test.ShowPerformMap.markAll [\"recorded\"]" ]
+        let! before =
+          runCli
+            state
+            [ "eval"; "Stdlib.LocalStore.configGet \"show.perform.map\"" ]
+        Expect.stringContains
+          before
+          "recorded"
+          $"the run itself wrote (fn said: {defined}; eval said: {ran})"
+
+        let! _ =
+          runCli
+            state
+            [ "eval"; "Stdlib.LocalStore.configSet \"show.perform.map\" \"after\"" ]
+
+        let! shown =
+          runCli state [ "traces"; "show"; "Test.ShowPerformMap.markAll" ]
+        Expect.stringContains shown "List.map" "the show reached the function"
+
+        let! now =
+          runCli
+            state
+            [ "eval"; "Stdlib.LocalStore.configGet \"show.perform.map\"" ]
+
+        Expect.stringContains
+          now
+          "after"
+          "looking at the trace must not have re-run the write inside the lambda"
+        Expect.isFalse
+          (now.Contains "recorded")
+          "the recorded value must not have been written back by the show"
+      })
+
+
 /// Separate from the test above, which passes as soon as `configSet` has an honest effect and so
 /// does not notice the fail-closed guard being reverted (measured). `posixGetpid` is `Impure` with
 /// an empty effect set; if somebody gives it one, pick another that still has none.
@@ -1557,6 +1613,7 @@ let tests =
          testTracesPruneIdempotent
          testTracesPinRoundTrip
          testTracesShowDoesNotPerform
+         testTracesShowThroughMapDoesNotPerform
          testImpureWithoutEffectsIsStillLogged
          testRecordingSettings
          testRecordingSetting

@@ -208,6 +208,22 @@ runtime rule. Effect rows on function *types* (so that a callback's effects
 flow through `List.map`) are later type-system work; see docs/permissions-todos.md. The
 declaration-level row above is the runtime half of that design, available now.
 
+A builtin's `previewable` label answers the other question, whether the same
+arguments give the same answer, and the two are independent. `Impure` with no
+declared effect is a real state, not a missing declaration. It means the call
+needs no grant but its answer is not a function of its arguments, for one of
+two reasons:
+
+- it varies in TIME: a pid, the terminal size, this VM's counters, a stream
+  pull. The run saw one answer and a later look would see another.
+- it varies across BUILDS: the builtin table, the parser, the op decoder. One
+  process always answers the same way; another release answers differently.
+  The parsers become `Pure` once parsers are versioned.
+
+A builtin that takes a callback is labelled `Pure` when it does nothing of its
+own, meaning pure given a pure callback; the callback's effects reach the
+analysis through the call graph, not through the label.
+
 ## Requests and policies
 
 A `Request` is exact and already normalized by the checked host boundary. A

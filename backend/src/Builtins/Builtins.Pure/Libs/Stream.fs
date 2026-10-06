@@ -171,7 +171,7 @@ let fns () : List<BuiltInFn> =
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -345,7 +345,7 @@ let fns () : List<BuiltInFn> =
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -371,7 +371,7 @@ let fns () : List<BuiltInFn> =
           Stream.wrapImpl (Filtered(src, narrowedBy vm.activeAccess app)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 

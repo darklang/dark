@@ -1350,6 +1350,8 @@ module WrittenTypesToDarkTypes =
     let elemVT = VT.tuple (VT.customType (rangeTypeName ()) []) VT.string []
     DList(elemVT, diagnostics |> List.map (fun d -> rangedString d.range d.message))
 
+// Impure though they perform nothing: the answer is this binary's parser, which changes between
+// releases. They become Pure once parsers are versioned.
 let fns () : List<BuiltInFn> =
   [ { name = fn "parserParseToWrittenTypes" 0
       typeParams = []

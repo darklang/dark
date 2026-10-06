@@ -52,7 +52,10 @@ let fns () : List<BuiltInFn> =
             resultError (DString "No certificates") |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      // Pure, with one caveat: .NET does not read DSA keys on every platform, so a DSA cert can
+      // answer differently by host. Kept Pure on the same footing as the builtins that lean on
+      // .NET's Unicode tables, which vary the same way and are Pure.
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
 

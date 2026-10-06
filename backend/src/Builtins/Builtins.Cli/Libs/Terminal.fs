@@ -109,6 +109,8 @@ let terminalSize () : int64 * int64 =
     (width, height)
 
 
+// The terminal probes declare no effect on purpose: they read the tty and its environment, and
+// have to work under deny-all so the TUI can draw the permission prompt itself.
 let fns () : List<BuiltInFn> =
   [ { name = fn "cliTerminalSize" 0
       typeParams = []

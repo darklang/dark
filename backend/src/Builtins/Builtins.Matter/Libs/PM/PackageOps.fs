@@ -103,7 +103,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       // Reads the store's implementations and stamps, so two calls on either side of someone
       // else's `impl` do not agree.
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 
@@ -451,6 +451,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
+      // Impure though it performs nothing, like `packageOpFromBlobOption` below: the decoder
+      // is this binary's, and a synced store holds ops some builds cannot read.
       previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
@@ -649,7 +651,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = Set.empty
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
     // The REBUILD half of a draft rewrite, and the reason it is not in Dark: it re-mints every surviving
     // op's id (hashing) and re-inserts with the original stamps, then re-folds. The delete it performs

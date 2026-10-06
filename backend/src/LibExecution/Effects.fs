@@ -45,9 +45,9 @@ type Effect =
   /// something the runtime cannot see, so the builtin declares `Native`
   /// instead, which means "granting this hands over the keys". The same
   /// applies to raw descriptors and process handles (the operation names a
-  /// number, not a resource) and to plain host facts such as `uname`, which
-  /// have nothing to scope. There is deliberately no scoped form: a policy
-  /// grants it whole, with `allow native`, or not at all.
+  /// number, not a resource). Plain host facts such as `uname` are not this:
+  /// they name nothing and declare no effect at all. There is deliberately no
+  /// scoped form: a policy grants it whole, with `allow native`, or not at all.
   | Native
 
 let name (effect : Effect) : string =
