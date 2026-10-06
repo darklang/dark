@@ -10,20 +10,44 @@ open Prelude
 
 module PT = LibExecution.ProgramTypes
 module P = LibExecution.Permissions
+module RT = LibExecution.RuntimeTypes
 module Calls = LibExecution.CallGraph
 module Requirements = LibExecution.CallGraph.Requirements
 
 type CallEffectsFor = string * int -> Option<Set<LibExecution.Effects.Effect>>
 
 /// How a package fn is fetched by hash. A parameter (rather than the package
-/// DB directly) so review logic is testable against in-memory fns; production
-/// passes `LibDB.ProgramTypes.Fn.get`.
+/// DB directly) so review logic is testable against in-memory fns.
 type LoadFn = PT.Hash -> Ply<Option<PT.PackageFn.PackageFn>>
+
+/// How a package value's stored, evaluated value is fetched by hash. `None`
+/// when there is no such value, when it has not been evaluated yet, or when it
+/// could not be read; all three leave a reference to it incomplete.
+type LoadValue = PT.Hash -> Ply<Option<RT.Dval>>
+
+/// Everything the analysis reads from the store.
+type Load = { fn : LoadFn; value : LoadValue }
+
+module Load =
+  /// The package store. A value's stored row is read as it is, so the answer
+  /// for one fn can differ before and after `Seed.evaluateAllValues` has run:
+  /// unevaluated, a value reference is incomplete.
+  let fromStore : Load =
+    { fn = LibDB.ProgramTypes.Fn.get
+      value =
+        fun (PT.Hash h) ->
+          uply {
+            try
+              let! found = LibDB.RuntimeTypes.Value.get (RT.Hash h)
+              return found |> Option.map (fun v -> v.body)
+            with _ ->
+              return None
+          } }
 
 /// Load every package function reachable from `root`, analyze each body once,
 /// and return the closure keyed by hash. Approval covers this whole closure so
 /// dependencies remain available when entered at runtime.
-let loadClosure (loadFn : LoadFn) (root : PT.Hash) : Ply<Requirements.Closure> =
+let loadClosure (load : Load) (root : PT.Hash) : Ply<Requirements.Closure> =
   uply {
     let loaded =
       System.Collections.Generic.Dictionary<PT.Hash, PT.PackageFn.PackageFn *
@@ -31,37 +55,61 @@ let loadClosure (loadFn : LoadFn) (root : PT.Hash) : Ply<Requirements.Closure> =
     // Also holds hashes that failed to load, so a missing dependency shared
     // by several members is fetched once.
     let visited = System.Collections.Generic.HashSet<PT.Hash>()
+    // Whether each value referenced so far holds only data, read once.
+    let valueIsInert = System.Collections.Generic.Dictionary<PT.Hash, bool>()
 
-    let rec load (h : PT.Hash) : Ply<unit> =
+    let inertValuesOf (fn : PT.PackageFn.PackageFn) : Ply<Set<PT.Hash>> =
+      uply {
+        let mutable inert = Set.empty
+        for value in Calls.valueRefs fn.body do
+          let! isInert =
+            match valueIsInert.TryGetValue value with
+            | true, known -> Ply known
+            | false, _ ->
+              uply {
+                let! stored = load.value value
+                let isInert =
+                  match stored with
+                  | Some dval -> LibExecution.Dval.isInertData dval
+                  | None -> false
+                valueIsInert[value] <- isInert
+                return isInert
+              }
+          if isInert then inert <- Set.add value inert
+        return inert
+      }
+
+    let rec loadMember (h : PT.Hash) : Ply<unit> =
       uply {
         if visited.Add h then
-          match! loadFn h with
+          match! load.fn h with
           | None -> ()
           | Some fn ->
-            let calls = Calls.analyzeFn fn
+            let! inertValues = inertValuesOf fn
+            let calls = Calls.analyzeFn inertValues fn
             loaded[h] <- (fn, calls)
             for callee in calls.names do
               match callee with
-              | PT.FQFnName.Package dependency -> do! load dependency
+              | PT.FQFnName.Package dependency -> do! loadMember dependency
               | PT.FQFnName.Builtin _ -> ()
               // CallGraph reports a trait call as the implementation it resolved
               // to, or marks the analysis incomplete; none reach here.
               | PT.FQFnName.TraitMethod _ -> ()
       }
 
-    do! load root
+    do! loadMember root
     return loaded |> Seq.map (fun (KeyValue(h, entry)) -> h, entry) |> Map.ofSeq
   }
 
 /// Analyze one immutable function using the explicit effect vocabulary.
 let permissionRequirements
-  (loadFn : LoadFn)
+  (load : Load)
   (callEffectsFor : CallEffectsFor)
   (hashStr : string)
   : Ply<Requirements.Result> =
   uply {
     let root = PT.Hash hashStr
-    let! closure = loadClosure loadFn root
+    let! closure = loadClosure load root
     return Requirements.forFunction callEffectsFor closure root
   }
 
@@ -77,13 +125,13 @@ type ClosureAnalysis =
 /// Analyze every member of a root's closure from one load. `None` when the
 /// root itself does not exist.
 let analyzeClosure
-  (loadFn : LoadFn)
+  (load : Load)
   (callEffectsFor : CallEffectsFor)
   (rootHash : string)
   : Ply<Option<ClosureAnalysis>> =
   uply {
     let root = PT.Hash rootHash
-    let! closure = loadClosure loadFn root
+    let! closure = loadClosure load root
     match Map.tryFind root closure with
     | None -> return None
     | Some(rootFn, _) ->
@@ -128,14 +176,14 @@ let private describeEffects (effects : Set<LibExecution.Effects.Effect>) : strin
 /// type, author ceiling, and complete transitive requirements. Both versions
 /// are content-addressed, so this comparison is stable for the two hashes.
 let compareContracts
-  (loadFn : LoadFn)
+  (load : Load)
   (callEffectsFor : CallEffectsFor)
   (oldHash : string)
   (candidate : ClosureAnalysis)
   : Ply<ContractComparison> =
   uply {
     let oldRoot = PT.Hash oldHash
-    let! oldClosure = loadClosure loadFn oldRoot
+    let! oldClosure = loadClosure load oldRoot
     match Map.tryFind oldRoot oldClosure with
     | None ->
       return
@@ -210,7 +258,7 @@ type Review =
 /// the root uses that policy while dependencies keep their own policies. The
 /// explicit rules must cover the root's required effects.
 let reviewVersion
-  (loadFn : LoadFn)
+  (load : Load)
   (callEffectsFor : CallEffectsFor)
   (currentPin : Option<string>)
   (hash : string)
@@ -219,7 +267,7 @@ let reviewVersion
   (acknowledgeContractChange : bool)
   : Ply<Result<Review, string>> =
   uply {
-    match! analyzeClosure loadFn callEffectsFor hash with
+    match! analyzeClosure load callEffectsFor hash with
     | None -> return Error $"cannot approve unknown package-function hash: {hash}"
     | Some candidate ->
       // Check completeness for the approved root, not each dependency. A
@@ -253,7 +301,7 @@ let reviewVersion
         let! comparison =
           match currentPin with
           | Some existing when existing <> hash ->
-            compareContracts loadFn callEffectsFor existing candidate
+            compareContracts load callEffectsFor existing candidate
           | _ -> Ply ContractComparison.Match
         match comparison with
         | ContractComparison.Changed differences when not acknowledgeContractChange ->
@@ -281,7 +329,7 @@ type ApprovalOutcome =
 /// Review a named immutable version and, if it passes, approve it for that name -- atomically.
 /// Analysis and contract checks happen before storage installs the closure approval.
 let approveVersionForName
-  (loadFn : LoadFn)
+  (load : Load)
   (callEffectsFor : CallEffectsFor)
   (accountID : Option<System.Guid>)
   (location : string)
@@ -295,7 +343,7 @@ let approveVersionForName
     let current = LibDB.PolicyStore.approvedVersion accountID location
     match!
       reviewVersion
-        loadFn
+        load
         callEffectsFor
         current
         hash

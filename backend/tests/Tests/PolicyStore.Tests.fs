@@ -74,8 +74,9 @@ let private reviewUniverse =
   |> List.map (fun fn -> fn.hash, fn)
   |> Map.ofList
 
-let private loadFromUniverse : PackagePermissions.LoadFn =
-  fun hash -> Ply(Map.tryFind hash reviewUniverse)
+let private loadFromUniverse : PackagePermissions.Load =
+  { fn = fun hash -> Ply(Map.tryFind hash reviewUniverse)
+    value = fun _ -> Ply None }
 
 let private reviewUnder
   explicitPolicy
