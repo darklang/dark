@@ -77,6 +77,30 @@ let itemQuery (query: String) : String =
     |> Stdlib.Option.withDefault query
 
 
+// The query's words run together, which is how a person spells a camelCase name
+// out loud: `read file` is asking for `readFile`. For a one-word query this is
+// the word itself, so it changes nothing there.
+let joinedQuery (query: String) : String =
+  query
+    |> Stdlib.String.toLowercase
+    |> Stdlib.String.replaceAll "." " "
+    |> Stdlib.String.split " "
+    |> Stdlib.List.filter (fun token ->
+      Stdlib.Bool.not (Stdlib.String.isEmpty token))
+    |> Stdlib.String.join ""
+
+
+// A name's rank against the item token or the joined words, whichever is better.
+// The item token alone gives `read file` nothing but "file" to rank by, so
+// `overwriteFile` ties with `readFile`, and a type called `ReadFileParams` beats
+// both. Taking the better of the two never lowers a name's rank, so an exact or
+// prefix match on the item token keeps the rank it had.
+let nameRank (query: String) (name: String) : Int =
+  let byItem = matchRank (itemQuery query) name
+  let byWords = matchRank (joinedQuery query) name
+  if byWords < byItem then byWords else byItem
+
+
 // Sort key: match quality first, then Stdlib-first, and finally the full path
 // for deterministic ordering. Both ranks are a single digit, so plain string
 // ordering under `sortBy` gives the intended result.
@@ -86,7 +110,7 @@ let sortKey
   (modules: List<String>)
   (name: String)
   : String =
-  let mr = Stdlib.toString (matchRank (itemQuery query) name)
+  let mr = Stdlib.toString (nameRank query name)
   let st = if isStdlib owner modules then "0" else "1"
   let path =
     [ [owner], modules, [name] ]
@@ -102,7 +126,7 @@ let bestItemRank
   : Int =
   items
   |> Stdlib.List.fold 9 (fun acc item ->
-    let r = matchRank (itemQuery query) item.location.name
+    let r = nameRank query item.location.name
     if r < acc then r else acc)
 
 
