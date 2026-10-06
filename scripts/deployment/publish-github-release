@@ -8,7 +8,28 @@ OWNER="darklang"
 REPO="dark"
 TARGET_COMMITISH="main"
 NAME="cli-pre-release"
-BODY="Pre-release of darklang executable"
+# What a person landing on the release page needs: how to install, and which of the eight files
+# is theirs. Keep the URL in step with install.sh's header.
+read -r -d '' BODY <<'END_BODY' || true
+Install on Linux or macOS:
+
+    curl -fsSL https://wip.darklang.com/install | sh
+
+Or download the file for your platform below, and run it from wherever you put it:
+
+- Linux x64: `linux-x64` (Alpine and other musl distros: `linux-musl-x64`)
+- Linux ARM: `linux-arm64`, or `linux-arm` for 32-bit
+- macOS: `osx-arm64` on Apple silicon, `osx-x64` on Intel
+- Windows: `win-x64`, or `win-arm64`
+
+For example, on Linux x64:
+
+    gunzip darklang-alpha-*-linux-x64.gz
+    chmod +x darklang-alpha-*-linux-x64
+    ./darklang-alpha-*-linux-x64
+
+A fresh install can't touch files, the network, processes or environment variables until you allow it; the refusal names the `dark permissions allow ...` command that does.
+END_BODY
 
 # Function to delete a release by ID
 delete_release() {
@@ -52,7 +73,9 @@ response=$(curl -s -L \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   "https://api.github.com/repos/$OWNER/$REPO/releases" \
-  -d "{\"tag_name\":\"$TAG\",\"target_commitish\":\"$TARGET_COMMITISH\",\"name\":\"$NAME\",\"body\":\"$BODY\",\"draft\":false,\"prerelease\":true,\"generate_release_notes\":false}")
+  -d "$(jq -n --arg tag "$TAG" --arg target "$TARGET_COMMITISH" --arg name "$NAME" --arg body "$BODY" \
+    '{tag_name: $tag, target_commitish: $target, name: $name, body: $body,
+      draft: false, prerelease: true, generate_release_notes: false}')")
 
 echo "Release creation response: $response"
 
