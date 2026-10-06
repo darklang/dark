@@ -680,7 +680,9 @@ let applyArg (ctx: Context) (arg: LanguageTools.ProgramTypes.Expr) : Stdlib.Pret
 /// never moves the code it sits after.
 let valueSuffix (ctx: Context) (id: Int64) : Stdlib.Pretty.Doc =
   match Stdlib.Dict.get ctx.liveValues (Stdlib.toString id) with
-  | Some value -> Stdlib.Pretty.styled $" // = {value}" "" ""
+  // A line suffix, not inline text: a `)` or `,` the enclosing expression prints after this
+  // call has to land before the comment, not inside it.
+  | Some value -> Stdlib.Pretty.lineSuffix $" // = {value}"
   | None -> Stdlib.Pretty.text ""
 
 

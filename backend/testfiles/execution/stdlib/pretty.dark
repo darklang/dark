@@ -206,3 +206,26 @@ module Styled =
   r 5 (g (Darklang.Stdlib.Pretty.vsep [ t "ab", t "cd" ])) = "ab cd"
   r 3 (g (Darklang.Stdlib.Pretty.vsep [ red "ab", red "cd" ])) = "<<ab>>\n<<cd>>"
   r 3 (g (Darklang.Stdlib.Pretty.vsep [ t "ab", t "cd" ])) = "ab\ncd"
+
+
+// ========================================
+// A line suffix waits for the line to end
+//
+// What a trailing `// comment` needs: printed after everything else on its line, so a `)` or `,`
+// laid out after it still lands before it, and zero columns wide, so it never moves a break.
+// ========================================
+module LineSuffix =
+  let note (x: String) : Darklang.Stdlib.Pretty.Doc = Darklang.Stdlib.Pretty.lineSuffix x
+
+  // After the rest of the line, not where it was placed.
+  r 80 (Darklang.Stdlib.Pretty.concatAll [ t "x", note " // a", t ")" ]) = "x) // a"
+
+  // Before the newline that ends its line, and not carried onto the next one.
+  r 80 (Darklang.Stdlib.Pretty.concatAll [ t "x", note " // a", Darklang.Stdlib.Pretty.hardLine, t "y" ]) = "x // a\ny"
+
+  // Two on one line keep their order.
+  r 80 (Darklang.Stdlib.Pretty.concatAll [ t "x", note " // 1", t ")", note " // 2" ]) = "x) // 1 // 2"
+
+  // Zero columns: a group that fits without it still fits with it.
+  r 5 (g (Darklang.Stdlib.Pretty.vsep [ Darklang.Stdlib.Pretty.concat (t "ab") (note " // long"), t "cd" ])) = "ab cd // long"
+
