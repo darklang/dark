@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Hand every registered command an argument that means nothing, and report which ones refuse it
+# and still exit 0.
+#
+# A refusal that prints a reason and reports success is detectable only by a person reading the
+# screen: a shell `&&`, a CI step and an agent all read the exit code. `Cli.exitWith` exists for
+# this, and the drift is one-directional -- a new command that forgets it looks fine.
+#
+# This measures BEHAVIOUR rather than counting call sites. A static sweep for `printErr` followed
+# by a bare `state` over-reports: it catches a `printErr` inside a lambda whose nearby `state`
+# belongs to a success path, and it misses refusals printed by a helper that returns None. Two
+# such sweeps were wrong by a third and by fifteen sites respectively, so what this answers is
+# the only claim worth making: did the command tell a script that it failed.
+#
+# Not every exit 0 here is a bug, and the output does not pretend otherwise:
+#   - a command that found nothing gave an empty ANSWER, which is a success. `search` is one.
+#   - a command that IGNORED the argument is a different bug, which
+#     `CliSurface.Tests.fs`'s bogus-argument sweep covers.
+# So read the first line beside each name before filing anything.
+#
+# Its own rundir and a copy of the store, so it changes nothing you are standing on.
+#
+#   scripts/testing/refusal-exit-codes          every command, one bogus argument
+#   scripts/testing/refusal-exit-codes --all    also list the ones that reported failure
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+set -uo pipefail
+
+SHOW_ALL=false
+[[ "${1:-}" == "--all" ]] && SHOW_ALL=true
+
+WORK=rundir/refusal-exit-codes
+rm -rf "$WORK"
+mkdir -p "$WORK/logs" "$WORK/home"
+scripts/testing/_copy-store "$WORK/data.db" >/dev/null
+# A copied store carries the real relay and its write secret. See the AGENTS.md note.
+sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+CLI="${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+if [[ ! -x "$CLI" ]]; then
+  echo "no CLI at $CLI; build it with scripts/dev/build" >&2
+  exit 2
+fi
+
+export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+export HOME="$PWD/$WORK/home"
+clean() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+# Mirrors `notSweepable` and `unsafeWithArguments` in `backend/tests/Tests/CliSurface.Tests.fs`,
+# which carry the reason for each. Keep them in step: a command that takes over the screen, binds
+# a port, reaches the network or writes to the shared store must not be handed a real argument.
+SKIP="quit install uninstall update install-status serve outliner views text-editor apps login
+logout typecheck export-seed devices clear agent push pull sync connect review identity run-script
+fn val type module trait impl rename edit discard delete deprecate undeprecate undo resolve ack"
+
+COMMANDS=$("$CLI" help 2>/dev/null | clean | grep -oE '^  [a-z][a-z-]+' | tr -d ' ' | sort -u)
+if [[ -z "$COMMANDS" ]]; then
+  echo "could not read the command registry from \`dark help\`" >&2
+  exit 2
+fi
+
+silent=0
+reported=0
+examined=0
+
+for cmd in $COMMANDS; do
+  skip=false
+  for s in $SKIP; do [[ "$cmd" == "$s" ]] && skip=true && break; done
+  $skip && continue
+
+  examined=$((examined + 1))
+  # A token per command, because `dark branch <token>` CREATES that branch: with one shared
+  # token every later command asking about it finds a real branch and answers rather than
+  # refusing, which reads as a pass.
+  junk="zzz-no-such-$cmd-zzz"
+  first=$("$CLI" "$cmd" "$junk" 2>&1 | clean | head -1)
+  "$CLI" "$cmd" "$junk" >/dev/null 2>&1
+  code=$?
+
+  # `branch <junk>` and `switch <junk>` START that branch and move the store onto it, so every
+  # command after them would be measured on a junk branch. The same guard the sweep test has.
+  if [[ "$cmd" == "branch" || "$cmd" == "switch" ]]; then
+    "$CLI" switch main >/dev/null 2>&1
+  fi
+
+  if [[ "$code" == "0" ]]; then
+    silent=$((silent + 1))
+    printf 'exit 0   %-16s %s\n' "$cmd" "${first:0:60}"
+  else
+    reported=$((reported + 1))
+    $SHOW_ALL && printf 'exit %-2s  %-16s %s\n' "$code" "$cmd" "${first:0:60}"
+  fi
+done
+
+echo
+echo "examined $examined command(s): $reported reported failure, $silent exited 0."
+echo "An exit 0 above is a bug only if the first line is a refusal; see the header."

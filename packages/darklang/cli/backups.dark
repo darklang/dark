@@ -84,7 +84,7 @@ let executeRestore (state: AppState) (name: String) (autoConfirm: Bool) : AppSta
   if Stdlib.Bool.not (Stdlib.List.``member`` (list ()) name) then
     Cli.printErr $"no backup named \"{name}\"."
     Cli.printHint "  `dark backups` lists them."
-    state
+    Cli.exitWith state false
   else
 
   // Warning like DISCARDING: green on "replaces the store" reads as "already fine".
@@ -133,11 +133,11 @@ let executePrune (state: AppState) (keepArg: String) (autoConfirm: Bool) : AppSt
   match Stdlib.Int.parse keepArg with
   | Error _ ->
     Cli.printErr $"\"{keepArg}\" isn't a number of backups to keep."
-    state
+    Cli.exitWith state false
   | Ok keep ->
     if keep < 0 then
       Cli.printErr "keep a non-negative number of backups."
-      state
+      Cli.exitWith state false
     else
       let all = list ()
       let doomed = Stdlib.List.drop all keep
@@ -189,14 +189,14 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "restore" ] ->
     Cli.printErr "restore needs a backup's name: `dark backups restore <name>`."
     Cli.printHint "  `dark backups` lists them."
-    state
+    Cli.exitWith state false
   | [ "prune" ] ->
     Cli.printErr "prune needs how many to keep: `dark backups prune 3`."
-    state
+    Cli.exitWith state false
   | _ ->
     Cli.printErr $"""`dark backups {Stdlib.String.join args " "}` isn't a form of this command."""
     Cli.printHint "  dark backups | dark backups now | dark backups restore <name> | dark backups prune <n>"
-    state
+    Cli.exitWith state false
 
 
 let help (_state: AppState) : String =

@@ -28,7 +28,7 @@ let execute (state: AppState) (_args: List<String>) : AppState =
   if Stdlib.Bool.not (Cli.Prompt.interactive ()) then
     Cli.printErr "dark sync setup asks questions, so it needs a terminal."
     Cli.printHint "  non-interactive: dark identity <name> && dark connect <url> --secret <secret>"
-    state
+    Cli.exitWith state false
   else
 
   Stdlib.printLine ""
@@ -45,14 +45,14 @@ let execute (state: AppState) (_args: List<String>) : AppState =
   match SCM.PackageOps.identityProblem identity with
   | Some why ->
     Cli.printErr why
-    state
+    Cli.exitWith state false
   | None ->
 
   let relay = askWithCurrent "Relay url" (SCM.PackageOps.relay ())
 
   if relay == "" then
     Cli.printErr "a relay url is needed to sync."
-    state
+    Cli.exitWith state false
   else
 
   // Asked for, never echoed, and only stored when one is given: a relay you only READ from needs none,

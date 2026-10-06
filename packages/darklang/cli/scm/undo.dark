@@ -29,7 +29,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     let f = Stdlib.String.join flags " "
     Cli.printErr $"undo takes no flags, and {f} isn't a name."
     Cli.printHint "  usage: dark undo <name>"
-    state
+    Cli.exitWith state false
   else
 
   match args with
@@ -37,13 +37,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match Packages.Location.parseRelativeTo state.packageData.currentLocation arg with
     | Error e ->
       Cli.printErr e
-      state
+      Cli.exitWith state false
     | Ok loc ->
       match SCM.Propagation.kindAt loc with
       | None ->
         Cli.printErr $"nothing named {PropagateCmd.dotted loc}."
         Cli.printHint "  `dark ls <module>` lists what's there; `dark status` shows what you've changed."
-        state
+        Cli.exitWith state false
       | Some kind ->
         // Captured BEFORE the rebind: what anything above is pointed at, and so what the cascade back
         // down has to move them from.
@@ -68,7 +68,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
             match SCM.Propagation.rebind loc kind prev with
             | Error e ->
               Cli.printErr $"couldn't undo: {e}"
-              state
+              Cli.exitWith state false
             | Ok _ ->
               Cli.printOk
                 $"{PropagateCmd.dotted loc} is back on the version before that edit ({Cli.shortHash prev})."
@@ -85,7 +85,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | _ ->
     Cli.printErr "usage: dark undo <name>"
     Cli.printHint "  steps that item back to the version it had before your last change."
-    state
+    Cli.exitWith state false
 
 
 let help (_state: AppState) : String =

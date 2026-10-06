@@ -79,7 +79,7 @@ let executePushCmd (state: AppState) (args: List<String>) : AppState =
     if refuseIfNotARelayUrl url then { state with exitCode = 1 } else executePush state url
   | _ ->
     Cli.printErr "usage: dark push [url]"
-    state
+    Cli.exitWith state false
 
 /// `dark pull [url] [--all]`
 ///
@@ -107,7 +107,7 @@ let executePullCmd (state: AppState) (args: List<String>) : AppState =
       pullMaybeAll state url all
   | _ ->
     Cli.printErr "usage: dark pull [url] [--all]"
-    state
+    Cli.exitWith state false
 
 /// `dark connect <url>`
 let executeConnectCmd (state: AppState) (args: List<String>) : AppState =
@@ -138,7 +138,7 @@ let executeConnectCmd (state: AppState) (args: List<String>) : AppState =
     Cli.printErr "usage: dark connect <url> [--secret <secret>]"
     Cli.printHint "  the url of a relay, e.g. https://matter.darklang.com"
     Cli.printHint "  --secret is needed to WRITE; reading a relay never needs one"
-    state
+    Cli.exitWith state false
 
 /// `dark whoami`
 let executeWhoamiCmd (state: AppState) (_args: List<String>) : AppState =
@@ -154,11 +154,11 @@ let executeIdentityCmd (state: AppState) (args: List<String>) : AppState =
   | [ name ] when Stdlib.String.startsWith name "-" ->
     Cli.printErr $"\"{name}\" starts with a dash, so it's a flag rather than an instance name."
     Cli.printHint "  `dark identity <name>`, or bare `dark identity` to see the current one."
-    state
+    Cli.exitWith state false
   | [ name ] -> setIdentity state name
   | _ ->
     Cli.printErr "usage: dark identity <name>"
-    state
+    Cli.exitWith state false
 
 /// `dark review ...`
 let executeReviewCmd (state: AppState) (args: List<String>) : AppState =
@@ -197,7 +197,7 @@ let executeReviewCmd (state: AppState) (args: List<String>) : AppState =
   // `import` has no default queue to fall back on: it takes a file, so refuse a missing one here.
   | [ "import" ] ->
     Cli.printErr "dark review import <file> [queue] -- which file?"
-    state
+    Cli.exitWith state false
   | [ queue ] ->
     match Cli.Branch.resolveRef queue with
     | Some queueId -> Cli.printOk (SCM.PackageOps.branchDiff queueId)

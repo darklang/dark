@@ -22,10 +22,10 @@ let executeReviewImport (state: AppState) (path: String) (queue: String) : AppSt
       state
     | Error e ->
       Cli.printErr $"Couldn't read the sync file: {e}"
-      state
+      Cli.exitWith state false
   | Error _ ->
     Cli.printErr $"Couldn't read {path}"
-    state
+    Cli.exitWith state false
 
 /// Drain every page, staging each on <param queue>. Returns the total staged, or -1 if a page failed.
 ///
@@ -141,7 +141,7 @@ let executeApprove (state: AppState) (queue: String) : AppState =
   // A queue is a branch, named the way any branch is; `reviewImportTo` stages it under a minted id, so
   // the typed name has to be resolved to that id.
   match Cli.Branch.resolveRef queue with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some queueId ->
 
   match SCM.PackageOps.mergeBranch queueId with

@@ -492,7 +492,7 @@ let syncAllBranches (state: AppState) (url: String) : AppState =
 let executeSyncWith (state: AppState) (url: String) (allBranches: Bool) : AppState =
   if url == "" then
     Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
-    state
+    Cli.exitWith state false
   else
     let synced = executePull (executePush state url) url
 

@@ -30,7 +30,7 @@ let executeMergePreview
   (standalone: Bool)
   : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId when SCM.PackageOps.branchIsMerged branchId ->
     Cli.printOk $"\"{branchRef}\" is already merged into its parent."
     state
@@ -40,7 +40,7 @@ let executeMergePreview
     match SCM.Branches.canMerge branchId with
     | Error r ->
       Cli.printErr $"would NOT merge: {SCM.Branches.refusalMessage r}"
-      state
+      Cli.exitWith state false
     | Ok _ ->
       Cli.printOk $"\"{branchRef}\" would merge into \"{parentName}\"."
 
@@ -136,7 +136,7 @@ let executeMerge
   (allowTypeErrors: Bool)
   : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId when SCM.PackageOps.branchIsMerged branchId ->
     // Merging it again would flip nothing and report "Merged 0 op(s)", which reads as a broken merge
     // rather than as "there was nothing to do".
@@ -152,7 +152,7 @@ let executeMerge
   match SCM.Branches.canMerge branchId with
   | Error r ->
     Cli.printErr $"couldn't merge: {SCM.Branches.refusalMessage r}"
-    state
+    Cli.exitWith state false
   | Ok _ ->
 
   if
@@ -197,7 +197,7 @@ let executeMerge
       { state with currentBranchId = landedOn }
     | Error e ->
       Cli.printErr $"couldn't merge: {SCM.PackageOps.mergeErrorMessage e}"
-      state
+      Cli.exitWith state false
 
 /// What a rebase would reconcile, and nothing recorded.
 ///
@@ -208,12 +208,12 @@ let executeMerge
 /// than printing "nothing to worry about" over changes it cannot see.
 let executeRebaseDryRun (state: AppState) (branchRef: String) : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId when SCM.Branch.isMain branchId ->
     // Reachable only when main is NAMED: the bare form goes through `bareTargetBranch`, which has its
     // own message for standing on main. So this describes the ARGUMENT, not where you are.
     Cli.printErr "main is the trunk -- rebase moves a BRANCH onto its parent, and main has none."
-    state
+    Cli.exitWith state false
   | Some branchId ->
     let (_, parentName) = parentOf branchId
 
@@ -243,7 +243,7 @@ let executeRebaseDryRun (state: AppState) (branchRef: String) : AppState =
 /// parent moved a name the branch also moved. Reports what moved.
 let executeRebase (state: AppState) (branchRef: String) : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId ->
     match SCM.PackageOps.rebaseBranch branchId with
     | Ok outcome ->
@@ -262,7 +262,7 @@ let executeResolve
   (choice: String)
   : AppState =
   match resolveRef branchRef with
-  | None -> state
+  | None -> Cli.exitWith state false
   | Some branchId ->
     match SCM.PackageOps.resolveConflict branchId name choice with
     | Ok msg -> Cli.printOk msg
@@ -371,7 +371,7 @@ let executeMergeCmd (state: AppState) (args: List<String>) : AppState =
   | _ ->
     Cli.printErr "usage: dark merge <branch>"
     Cli.printHint "  `dark branches` lists them."
-    state
+    Cli.exitWith state false
 
 /// `dark rebase <id>`, or bare on the branch you are standing on.
 let executeRebaseCmd (state: AppState) (args: List<String>) : AppState =
@@ -390,7 +390,7 @@ let executeRebaseCmd (state: AppState) (args: List<String>) : AppState =
   | _ ->
     Cli.printErr "usage: dark rebase <branch>"
     Cli.printHint "  `dark branches` lists them."
-    state
+    Cli.exitWith state false
 
 /// `dark resolve <id> <name> mine|theirs`
 let executeResolveCmd (state: AppState) (args: List<String>) : AppState =
@@ -399,4 +399,4 @@ let executeResolveCmd (state: AppState) (args: List<String>) : AppState =
   | _ ->
     Cli.printErr "usage: dark resolve <branch> <name> mine|theirs"
     Cli.printHint "  `dark conflicts branch <branch>` shows what's conflicted."
-    state
+    Cli.exitWith state false
