@@ -133,7 +133,7 @@ let private backupBeforeUpgrade (dbPath : string) : unit =
 
       if not (File.Exists target) then
         File.Copy(dbPath, target)
-        printfn $"Backed up your store to {target} before upgrading it."
+        eprintfn $"Backed up your store to {target} before upgrading it."
   with e ->
     System.Console.Error.WriteLine($"could not back up the store: {e.Message}")
 
@@ -387,7 +387,7 @@ let extract () : unit =
         )
 
     if not (File.Exists(dbPath)) then
-      printfn $"Setting up Darklang CLI data directory at {darklangDir}"
+      eprintfn $"Setting up Darklang CLI data directory at {darklangDir}"
 
       if not (Directory.Exists(darklangDir)) then
         Directory.CreateDirectory(darklangDir) |> ignore
@@ -419,7 +419,7 @@ let extract () : unit =
       // A store just written from this binary's own seed is by definition reconciled with it.
       recordStoreStamp dbPath LibConfig.Config.buildHash
 
-      printfn "CLI data directory setup complete"
+      eprintfn "CLI data directory setup complete"
     // Top up an existing store with this binary's own package code (see
     // `reseedFromEmbedded`: additive, content-addressed), then `growIfNeeded` folds
     // it; without this, upgrading the binary would mean wiping the store.
