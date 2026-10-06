@@ -324,7 +324,10 @@ tuning against any one of them proves little.
 
 Two runs in the same clone destroy each other, so `run-backend-tests` takes a lock.
 Two runs in different clones are fine; each has its own container, so its own PID
-namespace, network and `rundir`.
+namespace, network and `rundir`. That is a statement about CORRECTNESS, not about the box: four
+clones publishing Release at once put 42 build processes on the machine and took it to zero free
+memory, which killed two suite runs. The lock protects a clone from itself and nothing protects the
+host. `~/code/dark/CLAUDE.md` has the measured version.
 
 Logs go to `rundir/logs/fsharp-tests.log`.
 
