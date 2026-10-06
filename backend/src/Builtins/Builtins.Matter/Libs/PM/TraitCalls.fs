@@ -240,11 +240,22 @@ let rec private namesATraitMethod (expr : PT.Expr) : bool =
 /// Whether this batch could have anything to resolve at all.
 ///
 /// An ordinary save of a fn with no trait call and no operator pays only these AST walks.
-/// The package functions an expression calls by name.
+/// The package functions an expression calls by name, piped calls included: `n |> Stdlib.toString`
+/// names its fn in the pipe part rather than in an `EFnName`, and a save whose only bounded call is
+/// piped decides on this whether it reaches the checker at all.
 let rec private calledPackageFns (expr : PT.Expr) : List<PT.Hash> =
   let here =
     match expr with
     | PT.EFnName(_, { resolved = Ok { name = PT.FQFnName.Package h } }, _) -> [ h ]
+    | PT.EPipe(_, _, parts) ->
+      parts
+      |> List.choose (function
+        | PT.EPipeFnCall(_,
+                         { resolved = Ok { name = PT.FQFnName.Package h } },
+                         _,
+                         _,
+                         _) -> Some h
+        | _ -> None)
     | _ -> []
   here @ (PTAst.subExprs expr |> List.collect calledPackageFns)
 
@@ -554,8 +565,8 @@ let rec private unpinned (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int =
       parts
       |> List.sumBy (fun part ->
         match part with
-        // A piped call has no field to record a bound in, so a bounded one is never pinned.
-        | PT.EPipeFnCall(_, nr, _, _, _) -> named nr false
+        | PT.EPipeFnCall(_, nr, _, _, boundImpls) ->
+          named nr (not (List.isEmpty boundImpls))
         | PT.EPipeInfix(_, infix, _, PT.FQFnName.Unknown) when traitOperator infix ->
           1
         | _ -> 0)
@@ -596,27 +607,12 @@ let resolveTraitCalls
           | _ -> None)
         |> Map.ofList
 
-      // Which callees are bounded, looked up once each. Piped callees too, which
-      // `calledPackageFns` does not collect.
-      let rec piped (expr : PT.Expr) : List<PT.Hash> =
-        let here =
-          match expr with
-          | PT.EPipe(_, _, parts) ->
-            parts
-            |> List.choose (function
-              | PT.EPipeFnCall(_,
-                               { resolved = Ok { name = PT.FQFnName.Package h } },
-                               _,
-                               _,
-                               _) -> Some h
-              | _ -> None)
-          | _ -> []
-        here @ (PTAst.subExprs expr |> List.collect piped)
+      // Which callees are bounded, looked up once each.
       let callees =
         resolved
         |> List.collect (function
-          | PT.PackageOp.AddFn fn -> calledPackageFns fn.body @ piped fn.body
-          | PT.PackageOp.AddValue v -> calledPackageFns v.body @ piped v.body
+          | PT.PackageOp.AddFn fn -> calledPackageFns fn.body
+          | PT.PackageOp.AddValue v -> calledPackageFns v.body
           | _ -> [])
         |> List.distinct
       let mutable bounded = Set.empty

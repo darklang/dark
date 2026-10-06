@@ -532,6 +532,55 @@ let traitsAreAuthoredListedAndDisambiguated =
 /// a third implementation for another test's type would change what that test's later steps see.
 /// `gates trait-choice-survives-rival` covers the same property against a built CLI; this is the
 /// copy that runs in the F# suite, and therefore in CI.
+/// The same property for a PIPED call into a bounded generic, saved on its own. A save whose only
+/// bounded call is piped has no operator and names no trait, so whether it reaches the checker at
+/// all rests on seeing that its piped callee is bounded; it did not, and the call recorded nothing.
+let aRivalCannotReachAPipedBoundedCall =
+  instanceTest
+    "a newer implementation does not reach a piped call into a bounded generic"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "type"; "Tests.PipeBnd.Tok"; "{ pipeBndWidth: Int64 }" ]
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.PipeBnd"
+              "Stdlib.ToString for Tok = let toString (t: Tok) : String = \"first\"" ]
+        do!
+          run
+            state
+            [ "fn"
+              "Tests.PipeBnd.piped"
+              "(t: Tok) : String = t |> Stdlib.toString" ]
+        do!
+          evals
+            state
+            "Tests.PipeBnd.piped (Tests.PipeBnd.Tok { pipeBndWidth = 1L })"
+            "first"
+            "the piped call runs what its argument's type implied"
+
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.PipeBndRival"
+              "Stdlib.ToString for Tests.PipeBnd.Tok = let toString (t: Tests.PipeBnd.Tok) : String = \"rival\"" ]
+        do!
+          evals
+            state
+            "Tests.PipeBnd.piped (Tests.PipeBnd.Tok { pipeBndWidth = 1L })"
+            "first"
+            "and the saved piped call is untouched by it"
+        do!
+          evals
+            state
+            "Stdlib.toString (Tests.PipeBnd.Tok { pipeBndWidth = 1L })"
+            "rival"
+            "while a fresh call takes the newer one, so the rival really is the winner"
+      })
+
 let aRivalCannotReachABoundedCall =
   instanceTest
     "a newer implementation does not reach a call inside a bounded generic"
@@ -855,6 +904,7 @@ let tests : List<Test> =
     undoStepsBackAndStopsAtTheFirstVersion
     authoringIdenticalSourceReportsUnchanged
     aRivalCannotReachABoundedCall
+    aRivalCannotReachAPipedBoundedCall
     aRefusedImplementationOrBoundSavesNothing
     commitRefusesABoundThatNamesNothing
     aMismatchedImplementationIsReportedAtSave
