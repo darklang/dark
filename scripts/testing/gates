@@ -184,6 +184,16 @@ cmd=${1:-}
 [[ -n "$cmd" ]] || { echo "usage: gates list|all|ci|<name>  (gates list names them)" >&2; exit 2; }
 shift
 
+# The gates run the binary through `CLI=`, not `run-cli`, so they skip the check `run-cli` makes:
+# a build in flight or a failed one refuses, and a tree edited since the last build warns. Once
+# per invocation, not once per gate, since `all` and `ci` re-exec this script for every gate.
+# What it cannot see: a build that starts after this line, and a bare
+# `scripts/build/reload-packages`, which records no build state at all.
+if [[ "$cmd" != "list" && "${CI:-}" != "true" && -z "${GATES_BUILD_CHECKED:-}" ]]; then
+  python3.12 scripts/build/_dev.py check || exit 1
+  export GATES_BUILD_CHECKED=1
+fi
+
 case "$cmd" in
   list)
     echo "gates (scripts/testing/gates <name>):"
