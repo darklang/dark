@@ -24,6 +24,137 @@ open Tests.CliDsl
 /// Ocean #9. A cascade on a branch discovered dependents through MAIN's version of a name the branch
 /// had rebound, then rewrote that name with main's body: the branch's own work, replaced by
 /// propagation.
+/// `dark squash` collapses a run of my own unpushed commits, and STOPS at a peer's.
+///
+/// The second half is the safety property and the reason the command has the shape it does. An op
+/// that arrived over the wire carries its AUTHOR's commit hash, deliberately, so the receiver files
+/// it under that rather than under its own import. A squash selecting its range any other way (a
+/// stamp window, a parent walk over ops, "everything since X") would re-stamp a peer's op under
+/// mine. That does not LOSE the op; it silently reattributes somebody else's work, which is worse,
+/// because nothing afterwards contradicts it.
+///
+/// The peer's commit is built with `PackageOps.adoptCommits`, which is what a pull uses for exactly
+/// this, rather than with hand-written SQL: a test that fabricates the state itself can be wrong
+/// about the state.
+/// The other half of the selection: a squash stops at a commit the relay already has.
+///
+/// Separate from the peer test beside it, and deliberately so: removing the pushed gate leaves that
+/// one green, which I measured. `sync_pushed` records per OP, and an op's id is its content hash, so
+/// a squash does not make a pushed op un-pushed; it changes which commit the op NAMES, and the relay
+/// has already filed it under the old one and will never hear again, because a pushed op does not
+/// travel twice. Squashing across that line leaves the two permanently disagreeing.
+let private squashStopsAtAPushedCommit =
+  instanceTest "squash stops at a commit whose ops have been pushed" (fun state ->
+    task {
+      do! start state
+
+      do! fn state "Tests.Sqp.a" "() : Int64 = 1L"
+      do! commit state "mine a"
+      do! fn state "Tests.Sqp.b" "() : Int64 = 2L"
+      do! commit state "mine b"
+      do! fn state "Tests.Sqp.c" "() : Int64 = 3L"
+      do! commit state "mine c"
+      do! fn state "Tests.Sqp.d" "() : Int64 = 4L"
+      do! commit state "mine d"
+
+      // Mark `mine b`'s op as gone to a relay, which is all `sync_pushed` is.
+      let markPushed =
+        "Darklang.SCM.Commits.recent 4L "
+        + "|> Stdlib.List.filter (fun c -> c.message == \"mine b\") "
+        + "|> Stdlib.List.map (fun c -> Darklang.SCM.Commits.opIdsIn c.hash) "
+        + "|> Stdlib.List.flatten "
+        + "|> Stdlib.List.map (fun o -> "
+        + "Stdlib.Sqlite.mustExec (Darklang.SCM.localDb ()) "
+        + "\"INSERT OR IGNORE INTO sync_pushed (relay, op_id) VALUES (@p0, @p1)\" "
+        + "[ \"http://test-relay\", o ])"
+
+      let! _ = runCliPlain state [ "eval"; markPushed ]
+
+      let! out = runCliPlain state [ "squash"; "the unpushed ones" ]
+
+      Expect.stringContains
+        out
+        "squashed 2 commits"
+        $"it collapses `mine d` and `mine c` and stops at the pushed one, got: {out}"
+
+      let! after = runCliPlain state [ "commits" ]
+      Expect.stringContains
+        after
+        "mine b"
+        $"the pushed commit survives, got: {after}"
+      Expect.stringContains
+        after
+        "mine a"
+        $"and so does everything under it, got: {after}"
+    })
+
+
+let private squashStopsAtAPeersCommit =
+  instanceTest
+    "squash collapses my unpushed commits and stops at a peer's"
+    (fun state ->
+      task {
+        do! start state
+
+        // Authored and left in the draft, which is the state a pull's ops arrive in:
+        // `adoptCommits` only files an op that has no commit yet.
+        do! fn state "Tests.Sq.peerWork" "() : Int64 = 1L"
+
+        // Hand my op to a commit somebody else wrote, the way a pull does.
+        let peerHash = "peer0000000000ff"
+
+        let adopt =
+          "Darklang.SCM.PackageOps.adoptCommits "
+          + "[ Darklang.SCM.PackageOps.BranchBundleCommit { hash = \""
+          + peerHash
+          + "\""
+          + ", message = \"peer work\", author = \"peer-instance\""
+          + ", originTs = \"2020-01-01T00:00:00.000Z\", parent = \"\" } ] "
+          + "(Darklang.SCM.PackageOps.draftOpIdsFor Darklang.SCM.Branch.mainBranchId "
+          + "|> Stdlib.List.map (fun o -> (o, \""
+          + peerHash
+          + "\")))"
+
+        let! _ = runCliPlain state [ "eval"; adopt ]
+
+        do! fn state "Tests.Sq.a" "() : Int64 = 2L"
+        do! commit state "mine a"
+        do! fn state "Tests.Sq.b" "() : Int64 = 3L"
+        do! commit state "mine b"
+
+        let! out = runCliPlain state [ "squash"; "just mine" ]
+
+        Expect.stringContains
+          out
+          "squashed 2 commits"
+          $"it collapses my two and stops at the peer's, got: {out}"
+
+        let! after = runCliPlain state [ "commits" ]
+        Expect.stringContains
+          after
+          "peer work"
+          $"the peer's commit survives, got: {after}"
+
+        let! stillOwned =
+          runCliPlain
+            state
+            [ "eval"
+              "Darklang.SCM.Commits.opIdsIn \""
+              + peerHash
+              + "\""
+              + " |> Stdlib.List.length" ]
+
+        Expect.stringContains
+          (stillOwned.Trim())
+          "1"
+          $"and its op was not re-stamped under mine, got: {stillOwned}"
+
+        do! evals state "Tests.Sq.a ()" "2" "the ops the squash moved still answer"
+        do! evals state "Tests.Sq.b ()" "3" "both of them"
+        do! evals state "Tests.Sq.peerWork ()" "1" "and so does the peer's"
+      })
+
+
 let private propagationLeavesBranchWorkAlone =
   instanceTest
     "a cascade on a branch does not overwrite what the branch rebound"
@@ -516,7 +647,9 @@ let private theCommonRefusals =
 
 
 let tests : List<Test> =
-  [ propagationLeavesBranchWorkAlone
+  [ squashStopsAtAPeersCommit
+    squashStopsAtAPushedCommit
+    propagationLeavesBranchWorkAlone
     rebaseIgnoresMainsDraft
     archiveRefusesToOrphanAChild
     mergeCarriesPins
