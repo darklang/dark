@@ -79,7 +79,7 @@ let fns : List<BuiltInFn> =
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
 

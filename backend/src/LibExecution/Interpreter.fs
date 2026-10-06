@@ -898,8 +898,8 @@ let private awaitsElsewhere : Set<string> =
 /// Whether this builtin's call is logged, and so intercepted on a resume or a preview.
 ///
 /// A builtin that declares an effect always is. One that is `Impure` with no declared effect is
-/// too, so an unannotated writer cannot perform while somebody looks at a trace: 59 builtins are
-/// in that state and some of them write.
+/// too: that is a real state (a host fact, a terminal probe, a stream pull) whose answer the run
+/// saw once and a look at it must not ask for again.
 ///
 /// Unless it only ORCHESTRATES. Applying a callable or awaiting a process performs nothing itself,
 /// and the callee's own calls are logged, so interception there would serve `List.map`'s result

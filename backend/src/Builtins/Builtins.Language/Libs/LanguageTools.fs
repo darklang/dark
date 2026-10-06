@@ -57,6 +57,8 @@ let private builtinFnToDT (name : FQFnName.Builtin) (data : BuiltInFn) =
       "purity", purityToDT data.previewable ]
   DRecord(builtinFn (), builtinFn (), [], Map fields)
 
+// Impure though they perform nothing: the builtin table is this binary's, so another release
+// answers differently.
 let fns () : List<BuiltInFn> =
   [ { name = fn "getAllBuiltinValues" 0
       typeParams = []

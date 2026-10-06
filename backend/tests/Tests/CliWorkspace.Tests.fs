@@ -135,6 +135,26 @@ let permissionsLists =
           "the policy lists what it covers"
     })
 
+/// Three store reads used to declare no effect, so `requirements` answered "effect-free" for
+/// every Dark function that reached the store through them. Each wrapper is the one Dark caller
+/// of its builtin, so asking about the wrapper is asking about the declaration.
+let storeReadsRequirePackageRead =
+  instanceTest
+    "permissions requirements names package-read for the store reads"
+    (fun state ->
+      task {
+        for name in
+          [ "Darklang.LanguageTools.PackageManager.ownerHasItems"
+            "Darklang.LanguageTools.PackageManager.resolveTraitCalls"
+            "Darklang.SCM.PackageOps.getCommitNamedOps" ] do
+          do!
+            shows
+              state
+              [ "permissions"; "requirements"; name ]
+              "package-read"
+              $"{name} reads the package store"
+      })
+
 /// An approved version is the point of the whole permissions surface: it says "when I call this
 /// name, I mean the body I reviewed", and it has to hold when code actually RUNS.
 ///
@@ -1610,6 +1630,7 @@ let tests : List<Test> =
     appsCatalogLists
     appsInstalledLists
     permissionsLists
+    storeReadsRequirePackageRead
     anApprovedVersionIsWhatRuns
     unapprovingAnUnapprovedNameSaysSo
     dbAndTracesAnswer

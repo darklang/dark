@@ -219,7 +219,7 @@ let fns () : List<BuiltInFn> =
             Interpreter.requestApply vm app init [ first ] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -305,7 +305,7 @@ let fns () : List<BuiltInFn> =
             Interpreter.requestApply vm app (Dval.int (bigint 0)) [ first ] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -346,7 +346,7 @@ let fns () : List<BuiltInFn> =
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -391,7 +391,7 @@ let fns () : List<BuiltInFn> =
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -469,7 +469,7 @@ let fns () : List<BuiltInFn> =
           | _ -> Ply(mappedList vm [])
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -504,7 +504,7 @@ let fns () : List<BuiltInFn> =
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -543,7 +543,7 @@ let fns () : List<BuiltInFn> =
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -624,7 +624,7 @@ let fns () : List<BuiltInFn> =
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
@@ -697,7 +697,7 @@ let fns () : List<BuiltInFn> =
             Interpreter.requestApply vm app first [] next
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
-      previewable = Impure
+      previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
