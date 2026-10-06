@@ -135,6 +135,37 @@ let permissionsLists =
           "the policy lists what it covers"
     })
 
+/// The sqlite builtins declared nothing, so an approval of a function using them installed an
+/// empty policy, and the body's own check then asked that policy for package-read: the function
+/// could not run, and re-approving installed the same empty policy again.
+let approvedSqliteOnTheStoreRuns =
+  instanceTest
+    "an approved function querying the store with sqlite runs"
+    (fun state ->
+      task {
+        do!
+          shows
+            state
+            [ "permissions"; "requirements"; "Darklang.Stdlib.Sqlite.query" ]
+            "native"
+            "arbitrary SQL can reach any file, so the worst case is declared"
+        do!
+          fn
+            state
+            "Tests.SqliteAppr.probe"
+            "() : Bool = Stdlib.Result.isOk (Stdlib.Sqlite.query (Stdlib.LocalStore.path ()) \"select 1 as x\")"
+        do!
+          run state [ "permissions"; "approve"; "Tests.SqliteAppr.probe"; "--yes" ]
+        do!
+          evals
+            state
+            "Tests.SqliteAppr.probe ()"
+            "true"
+            "the approval covers what the body asks for"
+        do! run state [ "permissions"; "unapprove"; "Tests.SqliteAppr.probe" ]
+        do! discardAll state
+      })
+
 /// Three store reads used to declare no effect, so `requirements` answered "effect-free" for
 /// every Dark function that reached the store through them. Each wrapper is the one Dark caller
 /// of its builtin, so asking about the wrapper is asking about the declaration.
@@ -1631,6 +1662,7 @@ let tests : List<Test> =
     appsInstalledLists
     permissionsLists
     storeReadsRequirePackageRead
+    approvedSqliteOnTheStoreRuns
     anApprovedVersionIsWhatRuns
     unapprovingAnUnapprovedNameSaysSo
     dbAndTracesAnswer

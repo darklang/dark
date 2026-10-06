@@ -213,9 +213,9 @@ let private effectsFor (write : bool) (path : string) (sql : string) : Set<Effec
   else
     set [ Effect.Native ]
 
-/// Check the call's real effects before running it. Declared `callEffects` are static, so the
-/// interpreter's up-front check cannot see the path; these builtins declare nothing there and
-/// ask here instead, where both arguments are in hand.
+/// Check the call's real effects before running it. Declared `callEffects` are static, so they
+/// can only say the worst case; the interpreter leaves these builtins to this check
+/// (`Effects.checkedInBody`), where both arguments are in hand.
 let private requireSqlite
   (state : ExecutionState)
   (vm : VMState)
@@ -258,9 +258,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      // Declared empty on purpose: the real effects depend on WHICH database and
-      // whether the SQL can leave it, so `requireSqlite` decides in the body.
-      callEffects = Set.empty
+      callEffects = set [ Effect.Native; Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
     { name = fn "sqliteExecBatch" 0
@@ -315,9 +313,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      // Declared empty on purpose: the real effects depend on WHICH database and
-      // whether the SQL can leave it, so `requireSqlite` decides in the body.
-      callEffects = Set.empty
+      callEffects = set [ Effect.Native; Effect.PackageRead; Effect.PackageWrite ]
       deprecated = NotDeprecated }
 
     { name = fn "sqliteQuery" 0
@@ -345,9 +341,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      // Declared empty on purpose: the real effects depend on WHICH database and
-      // whether the SQL can leave it, so `requireSqlite` decides in the body.
-      callEffects = Set.empty
+      callEffects = set [ Effect.Native; Effect.PackageRead ]
       deprecated = NotDeprecated } ]
 
 
