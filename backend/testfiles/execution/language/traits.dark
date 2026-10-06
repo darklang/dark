@@ -143,6 +143,30 @@ module MethodBounds =
   // the trait it is declared in, this would ask for a `Pair` impl for Bool instead.
 
 
+module SortOrder =
+  // `List.sort` orders a type that has its own `Compare` the way `<` does. This one's order is
+  // the reverse of its structural order, and the tag is ignored by `Compare`.
+  type Desc = { descKey: Int64; descTag: String }
+
+  impl Compare for Desc =
+    let lessThan (a: Desc) (b: Desc) : Bool = a.descKey > b.descKey
+    let lessThanOrEqualTo (a: Desc) (b: Desc) : Bool = a.descKey >= b.descKey
+    let greaterThan (a: Desc) (b: Desc) : Bool = a.descKey < b.descKey
+    let greaterThanOrEqualTo (a: Desc) (b: Desc) : Bool = a.descKey <= b.descKey
+
+  (SortOrder.Desc { descKey = 1L; descTag = "" } < SortOrder.Desc { descKey = 2L; descTag = "" }) = false
+
+  Stdlib.List.sort [ SortOrder.Desc { descKey = 1L; descTag = "" }, SortOrder.Desc { descKey = 3L; descTag = "" }, SortOrder.Desc { descKey = 2L; descTag = "" } ] = [ SortOrder.Desc { descKey = 3L; descTag = "" }, SortOrder.Desc { descKey = 2L; descTag = "" }, SortOrder.Desc { descKey = 1L; descTag = "" } ]
+
+  // Stable: values equal under `Compare` keep the order they came in, whatever their structure.
+  Stdlib.List.sort [ SortOrder.Desc { descKey = 1L; descTag = "b" }, SortOrder.Desc { descKey = 2L; descTag = "x" }, SortOrder.Desc { descKey = 1L; descTag = "a" } ] = [ SortOrder.Desc { descKey = 2L; descTag = "x" }, SortOrder.Desc { descKey = 1L; descTag = "b" }, SortOrder.Desc { descKey = 1L; descTag = "a" } ]
+
+  // A type with no `Compare` of its own sorts structurally, as before.
+  type Plain = { plainKey: Int64 }
+  Stdlib.List.sort [ SortOrder.Plain { plainKey = 2L }, SortOrder.Plain { plainKey = 1L } ] = [ SortOrder.Plain { plainKey = 1L }, SortOrder.Plain { plainKey = 2L } ]
+
+
+
 module Equality =
   // `==` is NOT a trait: equality is structural, for every value, always. A type cannot
   // say what equal means for it, which is what keeps `List.member`, `List.unique`,

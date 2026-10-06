@@ -143,6 +143,48 @@ let private predicateNotBool (actual : Dval) =
 // it, and a read in it parks the process. Where the builtin looks at the answer (a predicate,
 // a key, the value built so far) the answer is forced; where it only collects it (`map`), a
 // read still in flight stays in flight and the list comes back as one promise.
+/// A stable merge sort that asks `lessThan` for every comparison: `List.sort` for an element type
+/// with its own `Compare`, so the order is the one `<` gives. Written as continuations because each
+/// comparison is an interpreted call (`requestApply`), which also keeps a long sort preemptible and
+/// visible in `ps`. The sorted list exists only in the last continuation, so a sort stopped halfway
+/// stops with its process rather than answering a half-sorted list.
+let private sortByLessThan
+  (vm : VMState)
+  (lessThan : Applicable)
+  (vt : ValueType)
+  (items : List<Dval>)
+  : Ply<Dval> =
+  let rec sortK (xs : List<Dval>) (k : List<Dval> -> Ply<Dval>) : Ply<Dval> =
+    match xs with
+    | []
+    | [ _ ] -> k xs
+    | _ ->
+      let (left, right) = List.splitAt (List.length xs / 2) xs
+      sortK left (fun sortedLeft ->
+        sortK right (fun sortedRight -> mergeK sortedLeft sortedRight [] k))
+  and mergeK
+    (left : List<Dval>)
+    (right : List<Dval>)
+    (acc : List<Dval>)
+    (k : List<Dval> -> Ply<Dval>)
+    : Ply<Dval> =
+    match left, right with
+    | [], rest
+    | rest, [] -> k (List.rev acc @ rest)
+    | l :: lt, r :: rt ->
+      // The right one goes first only when it is strictly less, which keeps equal values in order.
+      Interpreter.requestApply vm lessThan r [ l ] (fun answer ->
+        Interpreter.withValue vm answer (fun answer ->
+          match answer with
+          | DBool true -> mergeK left rt (r :: acc) k
+          | DBool false -> mergeK lt right (l :: acc) k
+          | other ->
+            Exception.raiseInternal
+              "Compare.lessThan answered a non-Bool during List.sort"
+              [ "answer", other ]))
+  sortK items (fun sorted -> Ply(DList(vt, sorted)))
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "listFold" 0
       typeParams = []
@@ -711,10 +753,10 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO inconsistent with `<`, which dispatches on the type's `Compare` impl; this sorts
-    // structurally, so a type can order one way under `<` and another under `List.sort`.
-    // Fixing it means a dispatched call per comparison on a path that was moved into F# to
-    // avoid exactly that, so it wants a measurement first.
+    // Consistent with `<`: a custom element type with its own `Compare` is sorted by that
+    // implementation's `lessThan`, one interpreted call per comparison, a cost only such a type
+    // pays. Every other list keeps the native structural sort, which builtin types' `Compare`
+    // agrees with, and which is the only order a type without an implementation has.
     { name = fn "listSort" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
@@ -726,14 +768,50 @@ let fns () : List<BuiltInFn> =
         + "you need more control over the sorting process."
       fn =
         (function
-        | _, _, _, [| DList(vt, list) |] ->
-          list
-          |> List.sortWith DvalComparator.compareDvalInt
-          |> (fun l -> DList(vt, l))
-          |> Ply
+        | exeState, vm, _, [| DList(vt, list) |] ->
+          let structural () =
+            list
+            |> List.sortWith DvalComparator.compareDvalInt
+            |> (fun l -> DList(vt, l))
+            |> Ply
+          match vt, list with
+          | ValueType.Known(KTCustomType _ as self), _ :: _ :: _ ->
+            uply {
+              let compareTrait =
+                Hash(LibExecution.PackageRefs.Trait.Stdlib.Traits.compare ())
+              let! candidates =
+                exeState.fns.implCandidates exeState.branchId compareTrait
+              match LibExecution.Traits.select candidates self with
+              | LibExecution.Traits.Selected c ->
+                match Map.tryFind "lessThan" c.methods with
+                | Some fnHash ->
+                  let lessThan =
+                    AppNamedFn
+                      { name = FQFnName.Package fnHash
+                        typeSymbolTable = TST.empty
+                        typeArgs = []
+                        access = None
+                        argsSoFar = []
+                        boundImpls = [] }
+                  return! sortByLessThan vm lessThan vt list
+                | None -> return! structural ()
+              | LibExecution.Traits.NoImpl -> return! structural ()
+              | LibExecution.Traits.Ambiguous cs ->
+                return
+                  RTE.Trait(
+                    RTE.Traits.DispatchAmbiguous(
+                      FQTraitName.Package compareTrait,
+                      vt,
+                      cs |> List.map (fun c -> c.source)
+                    )
+                  )
+                  |> raiseRTE vm.threadID
+            }
+          | _ -> structural ()
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      previewable = Pure
+      // Impure, like `sortBy`: it can call a person's `Compare` implementation.
+      previewable = Impure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
