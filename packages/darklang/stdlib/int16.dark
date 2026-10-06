@@ -55,8 +55,6 @@ impl Divide for Int16 =
   let divide (a: Int16) (b: Int16) : Int16 = Builtin.int16Divide a b
 
 
-
-
 impl Negate for Int16 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
   let negate (a: Int16) : Int16 = Builtin.int16Negate a

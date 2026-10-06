@@ -129,19 +129,10 @@ let helpRowsAtWidth
     []
 
 
-/// `Darklang.Stdlib.List.map`, the spelling a search result needs when the row could be from
-/// anywhere in the tree.
-let buildFullPath (owner: String) (modules: List<String>) (name: String) : String =
-  [ [ owner ], modules, [ name ] ]
-  |> Stdlib.List.flatten
-  |> Stdlib.String.join "."
-
-
 /// The five leaf kinds of a result set as nav items, in `Glyphs.kindOrder`. `shortNames` is the
 /// only thing a listing of one module and a search across the tree disagree about: a listing shows
-/// `map`, a search shows `Darklang.Stdlib.List.map`. Two copies of this is how search came to drop
-/// traits and impls while a listing of the same module showed them; the submodule row is still each
-/// caller's own, because they genuinely ask different questions of `results`.
+/// `map`, a search shows `Darklang.Stdlib.List.map`. The submodule row is each caller's own, because
+/// they ask different questions of `results`.
 let leafNavItems
   (results: LanguageTools.ProgramTypes.Search.SearchResults)
   (shortNames: Bool)
@@ -152,7 +143,7 @@ let leafNavItems
     if shortNames then
       location.name
     else
-      buildFullPath location.owner location.modules location.name
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
 
   let types =
     results.types

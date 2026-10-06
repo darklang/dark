@@ -53,11 +53,8 @@ let line (f: SCM.Constraints.Finding) : String =
   | (RivalImplementations, Rivals(self, rival, choice)) ->
     let r = SCM.Constraints.fqnOf rival
 
-    // Both ways out and what each one does, never a recommendation. This used to name the single
-    // implementation that does NOT run and call deprecating it "make it permanent"; that is the
-    // OLDER of the two, so for anything somebody wrote over the stdlib's it read "deprecate
-    // `Darklang.Stdlib.Int64.ToString`", which is advice to retire the standard library. Which of
-    // two implementations should win is not something this report can know.
+    // Both ways out and what each one does, never a recommendation: which of two implementations
+    // should win is not something this report can know, and the older one is often the stdlib's.
     match choice with
     | Mine ->
       $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Calls run {u}, the later of the two.\n             Two implementations, not an out-of-date one, so `dark propagate follow` leaves it alone.\n             Retire one to settle it:\n               `dark deprecate impl {r}` leaves {u} running\n               `dark deprecate impl {u}` hands it to {r}\n             Leave both: `dark ack #{f.id}`"

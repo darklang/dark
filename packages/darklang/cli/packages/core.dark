@@ -12,9 +12,6 @@ type PackageLocation =
   | Impl of location: LanguageTools.ProgramTypes.PackageLocation
 
 /// The module path a location sits in: the module itself, or the module an item lives in.
-///
-/// One definition. There were five, under three different names, and every one of them had to
-/// grow a `Trait` and an `Impl` arm when those kinds arrived.
 let modulePathOf (location: PackageLocation) : List<String> =
   match location with
   | Module path -> path

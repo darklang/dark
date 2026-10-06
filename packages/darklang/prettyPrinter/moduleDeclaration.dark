@@ -11,8 +11,7 @@ module ModuleDeclaration =
       exprs: List<LanguageTools.ProgramTypes.Expr * List<String>>
       submodules: List<Module> }
 
-  /// A module with nothing in it. Sixteen places spelled out eight empty fields each, so
-  /// adding a kind meant editing all sixteen.
+  /// A module with nothing in it.
   val emptyModule =
     Module
       { name = ""
@@ -41,9 +40,6 @@ module ModuleDeclaration =
   /// Put an item in the module tree at `modulePath`, creating the modules it names. `add` is
   /// what the item does to the module it lands in, which is the only thing that differs between
   /// the kinds; `rootless` names the sentinel for an item with no module path at all.
-  ///
-  /// One walk. There were five, one per kind, identical but for those two arguments, so a new
-  /// kind meant a sixth copy; traits and impls were the fifth and sixth.
   let placeAt
     (ms: List<Module>)
     (modulePath: List<String>)
@@ -71,133 +67,78 @@ module ModuleDeclaration =
 
       Stdlib.List.append otherModules [ updated ]
 
+  /// Put an item at the location its name has, or in a sentinel module when it has none.
+  /// `kind` names the sentinels, `path` is the module path a location prints at, and `add` is
+  /// what the item does to its module.
+  ///
+  /// The owner is NOT a module. The parser takes it as a separate input, so printing it as one
+  /// means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
+  /// with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
+  let withItem
+    (ms: List<Module>)
+    (locations: List<LanguageTools.ProgramTypes.PackageLocation>)
+    (kind: String)
+    (path: LanguageTools.ProgramTypes.PackageLocation -> List<String>)
+    (add: Module -> Module)
+    : List<Module> =
+    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty locations with
+    | Some location -> placeAt ms (path location) $"{kind} has no modules" add
+    | None -> [ add { emptyModule with name = $"{kind} with unknown location" } ]
+
   let withType
     (branchId: Uuid)
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Type.locations branchId t.hash) with
-    | Some location ->
-      // The owner is NOT a module. The parser takes it as a separate input, so printing it as one
-      // means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
-      // with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
-      let fullPath = location.modules
-      placeAt ms fullPath "type has no modules" (fun m -> { m with types = Stdlib.List.append m.types [ t ] })
-    | None ->
-      [ Module
-          { name = "type with unknown location"
-            types = [ t ]
-            fns = []
-            values = []
-            traits = []
-            impls = []
-            exprs = []
-            submodules = [] } ]
-
+    withItem ms (LanguageTools.PackageManager.Type.locations branchId t.hash) "type" (fun l -> l.modules) (fun m -> { m with types = Stdlib.List.append m.types [ t ] })
 
   let withFn
     (branchId: Uuid)
     (ms: List<Module>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Function.locations branchId f.hash) with
-    | Some location ->
-      // The owner is NOT a module. The parser takes it as a separate input, so printing it as one
-      // means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
-      // with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
-      let fullPath = location.modules
-      placeAt ms fullPath "fn has no modules" (fun m -> { m with fns = Stdlib.List.append m.fns [ f ] })
-    | None ->
-      [ Module
-          { name = "fn with unknown location"
-            types = []
-            fns = [ f ]
-            values = []
-            traits = []
-            impls = []
-            exprs = []
-            submodules = [] } ]
+    withItem ms (LanguageTools.PackageManager.Function.locations branchId f.hash) "fn" (fun l -> l.modules) (fun m -> { m with fns = Stdlib.List.append m.fns [ f ] })
 
   let withValue
     (branchId: Uuid)
     (ms: List<Module>)
     (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Value.locations branchId v.hash) with
-    | Some location ->
-      // The owner is NOT a module. The parser takes it as a separate input, so printing it as one
-      // means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
-      // with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
-      let fullPath = location.modules
-      placeAt ms fullPath "value has no modules" (fun m -> { m with values = Stdlib.List.append m.values [ v ] })
-    | None ->
-      [ Module
-          { name = "value with unknown location"
-            types = []
-            fns = []
-            values = [ v ]
-            traits = []
-            impls = []
-            exprs = []
-            submodules = [] } ]
+    withItem ms (LanguageTools.PackageManager.Value.locations branchId v.hash) "value" (fun l -> l.modules) (fun m -> { m with values = Stdlib.List.append m.values [ v ] })
 
   let withTrait
     (branchId: Uuid)
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.Trait.Trait)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Trait.locations branchId t.hash) with
-    | Some location ->
-      placeAt ms location.modules "trait has no modules" (fun m -> { m with traits = Stdlib.List.append m.traits [ t ] })
-    | None ->
-      [ Module
-          { name = "trait with unknown location"
-            types = []
-            fns = []
-            values = []
-            traits = [ t ]
-            impls = []
-            exprs = []
-            submodules = [] } ]
+    withItem ms (LanguageTools.PackageManager.Trait.locations branchId t.hash) "trait" (fun l -> l.modules) (fun m -> { m with traits = Stdlib.List.append m.traits [ t ] })
 
   /// An impl is named at `<module>[.<Type>].<Trait>`; printed at its location it
   /// would sit inside a module named for the trait, so it prints one level up, where
   /// the `impl ... for Type` header carries the type. Its method fns are the `let m =
   /// Fn` lines of that block, so `toModules` leaves them out of the fns.
+  ///
+  /// The type segment is dropped when it is there: `impl Show for Point` inside `Shapes`
+  /// re-lowers to `Shapes.Point.Show` either way, so this always round-trips.
   let withImpl
     (branchId: Uuid)
     (ms: List<Module>)
     (i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.TraitImpl.locations branchId i.hash) with
-    | Some location ->
-      // `<module>[.<Type>].<Trait>` names the impl. Drop the type segment when it
-      // is there: `impl Show for Point` inside `Shapes` re-lowers to
-      // `Shapes.Point.Show` either way, so this always round-trips.
-      let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
-      let selfHead =
-        PrettyPrinter.ProgramTypes.typeReference ctx i.self
-        |> Stdlib.String.split "<"
-        |> Stdlib.List.head
-        |> Stdlib.Option.withDefault ""
-        |> Stdlib.String.split "."
-        |> Stdlib.List.last
-        |> Stdlib.Option.withDefault ""
-      let path =
-        match Stdlib.List.reverse location.modules with
-        | last :: rest when last == selfHead -> Stdlib.List.reverse rest
-        | _ -> location.modules
-      placeAt ms path "impl has no modules" (fun m -> { m with impls = Stdlib.List.append m.impls [ i ] })
-    | None ->
-      [ Module
-          { name = "impl with unknown location"
-            types = []
-            fns = []
-            values = []
-            traits = []
-            impls = [ i ]
-            exprs = []
-            submodules = [] } ]
+    let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+    let selfHead =
+      PrettyPrinter.ProgramTypes.typeReference ctx i.self
+      |> Stdlib.String.split "<"
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault ""
+      |> Stdlib.String.split "."
+      |> Stdlib.List.last
+      |> Stdlib.Option.withDefault ""
+    let path (location: LanguageTools.ProgramTypes.PackageLocation) : List<String> =
+      match Stdlib.List.reverse location.modules with
+      | last :: rest when last == selfHead -> Stdlib.List.reverse rest
+      | _ -> location.modules
+    withItem ms (LanguageTools.PackageManager.TraitImpl.locations branchId i.hash) "impl" path (fun m -> { m with impls = Stdlib.List.append m.impls [ i ] })
 
   /// The fns an impl's `let m = Fn` lines already print
   let implMethodFnHashes
@@ -318,72 +259,19 @@ let moduleDeclaration
   // Account for the indentation added after rendering.
   let ctx = { ctx with width = Stdlib.max 1 (ctx.width - 2) }
 
-  let typesPart =
-    match m.types with
+  let section (rendered: List<String>) : Stdlib.Option.Option<String> =
+    match rendered with
     | [] -> Stdlib.Option.Option.None
-    | types ->
-      m.types
-      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx t)
-      |> Stdlib.String.join "\n\n"
-      |> Stdlib.Option.Option.Some
-
-  let fnsPart =
-    match m.fns with
-    | [] -> Stdlib.Option.Option.None
-    | fns ->
-      m.fns
-      |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn ctx f)
-      |> Stdlib.String.join "\n\n"
-      |> Stdlib.Option.Option.Some
-
-  let valuesPart =
-    match m.values with
-    | [] -> Stdlib.Option.Option.None
-    | values ->
-      m.values
-      |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue ctx v)
-      |> Stdlib.String.join "\n\n"
-      |> Stdlib.Option.Option.Some
-
-  let traitsPart =
-    match m.traits with
-    | [] -> Stdlib.Option.Option.None
-    | traits ->
-      traits
-      |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageTrait ctx t)
-      |> Stdlib.String.join "\n\n"
-      |> Stdlib.Option.Option.Some
-
-  let implsPart =
-    match m.impls with
-    | [] -> Stdlib.Option.Option.None
-    | impls ->
-      impls
-      |> Stdlib.List.map (fun i -> PrettyPrinter.ProgramTypes.packageImpl ctx i)
-      |> Stdlib.String.join "\n\n"
-      |> Stdlib.Option.Option.Some
-
-  let exprsPart =
-    match m.exprs with
-    | [] -> Stdlib.Option.Option.None
-    | exprs ->
-      m.exprs
-      |> Stdlib.List.map (fun (e, _) -> PrettyPrinter.ProgramTypes.expr ctx e)
-      |> Stdlib.String.join "\n\n"
-      |> Stdlib.Option.Option.Some
-
-
-  let submodulesPart =
-    match m.submodules with
-    | [] -> Stdlib.Option.Option.None
-    | submodules ->
-      submodules
-      |> Stdlib.List.map (fun m -> PrettyPrinter.moduleDeclaration ctx m)
-      |> Stdlib.String.join "\n\n"
-      |> Stdlib.Option.Option.Some
+    | rendered -> Stdlib.Option.Option.Some(Stdlib.String.join rendered "\n\n")
 
   let parts =
-    [ typesPart, traitsPart, fnsPart, valuesPart, implsPart, exprsPart, submodulesPart ]
+    [ section (m.types |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx t))
+      section (m.traits |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageTrait ctx t))
+      section (m.fns |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn ctx f))
+      section (m.values |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue ctx v))
+      section (m.impls |> Stdlib.List.map (fun i -> PrettyPrinter.ProgramTypes.packageImpl ctx i))
+      section (m.exprs |> Stdlib.List.map (fun (e, _) -> PrettyPrinter.ProgramTypes.expr ctx e))
+      section (m.submodules |> Stdlib.List.map (fun sub -> PrettyPrinter.moduleDeclaration ctx sub)) ]
     |> Stdlib.List.filterMap (fun s -> s)
 
   match parts with

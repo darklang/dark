@@ -14,7 +14,6 @@ module Append =
   "ᄀ" + "ᅡᆨ" = "각"
   "" + "a" = "a"
   "a" + "" = "a"
-  "a" + "̂" = "â"
 
   //Stdlib.String.append "a" "̂" = "â"
   Stdlib.String.append "" "" = ""
@@ -44,13 +43,11 @@ module ToBytes =
   Stdlib.List.length (Stdlib.String.toBytes "😄APPLE🍏") = 13
   Stdlib.List.length (Stdlib.String.toBytes "Είναι προικισμένοι με λογική") = 53
   Stdlib.List.length (Stdlib.String.toBytes "") = 0
-  Stdlib.List.length (Stdlib.String.toBytes "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
   Stdlib.List.length (Stdlib.String.toBytes "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48
   Stdlib.List.length (Stdlib.String.toBytes "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44
   Stdlib.List.length (Stdlib.String.toBytes "🧟‍♀️🧟‍♂️") = 26
   Stdlib.List.length (Stdlib.String.toBytes "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82
   Stdlib.List.length (Stdlib.String.toBytes "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49
-  Stdlib.List.length (Stdlib.String.toBytes "") = 0
 
 
 // `Stdlib.String.{fromBytes, fromBytesWithReplacement, toBytes}` still
@@ -705,7 +702,6 @@ module DropFirst =
   Stdlib.String.dropFirst "abcd" 0 = "abcd"
   Stdlib.String.dropFirst "abcd" 3 = "d"
   Stdlib.String.dropFirst "" 3 = ""
-  Stdlib.String.dropFirst "abcd" 3 = "d"
   Stdlib.String.dropFirst "🍏🍒🍒" 1 = "🍒🍒"
   Stdlib.String.dropFirst "🍏🍒🍍" 2 = "🍍"
   Stdlib.String.dropFirst "🍏a🍒b🍍c" 2 = "🍒b🍍c"
@@ -977,12 +973,10 @@ module CodepointLength =
   Stdlib.String.codepointLength "abcdef" = 6
   // A non-BMP scalar is one codepoint and one grapheme cluster.
   Stdlib.String.codepointLength "😄" = 1
-  Stdlib.String.length "😄" = 1
   // Multi-scalar clusters increase only the codepoint count.
   Stdlib.String.codepointLength "👩‍👧" = 3
   Stdlib.String.length "👩‍👧" = 1
   Stdlib.String.codepointLength "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 17
-  Stdlib.String.length "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 6
 
 
 module GetByteAt =

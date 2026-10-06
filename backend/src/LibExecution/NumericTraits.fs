@@ -98,8 +98,3 @@ let tryInfix (traitHash : string) (methodName : string) : Option<InfixFnName> =
   match table.TryGetValue(struct (traitHash, methodName)) with
   | true, op -> Some op
   | false, _ -> None
-
-/// The hashes of the operator traits, for loading their impls into a checker
-/// environment: every `+` needs `Add`'s impls visible, and no item names `Add`.
-let traitHashes () : List<FQTypeName.Package> =
-  Traits.all () |> List.filter (fun h -> h <> "") |> List.map Hash

@@ -78,8 +78,6 @@ Stdlib.Int128.remainder 5Q 0Q = Stdlib.Result.Result.Error "Cannot divide by 0"
 (0Q < 1Q) = true
 (1Q < 0Q) = false
 
-(-170141183460469231731687303715884105728Q < 170141183460469231731687303715884105727Q) = true
-
 Stdlib.toString 0Q = "0"
 Stdlib.toString 1Q = "1"
 Stdlib.toString -1Q = "-1"

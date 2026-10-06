@@ -55,7 +55,6 @@ impl Power for Int64 =
     Builtin.int64Power ``base`` exponent
 
 
-
 impl Negate for Int64 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
   let negate (a: Int64) : Int64 = Builtin.int64Negate a
