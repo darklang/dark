@@ -451,7 +451,14 @@ let step (s: Session<'model, 'msg>) : Session<'model, 'msg> =
   | Timer ->
     let cleared = { s with toast = Stdlib.Option.Option.None }
     match s.view.every with
-    | Some _ -> present (render (applyUpdate cleared Event.Tick))
+    | Some _ ->
+      let next = applyUpdate cleared Event.Tick
+      // A render is pure, so an unchanged model is an unchanged frame: an idle view's tick
+      // stops here instead of composing and diffing a frame identical to the one on screen.
+      if next.model == s.model && next.band == s.band && Stdlib.Option.isNone s.toast then
+        next
+      else
+        present (render next)
     | None -> present cleared
   | Key read ->
     // A coalesced burst (a wheel, a held key) is one read with a repeat count; movement keys are
