@@ -746,6 +746,10 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "hash", [ seed.fn ]
       "status", [ "--json" ]
       "commits", [ "3"; "--json" ]
+      // Bare, because on the seed there is nothing of this instance's own that is unpushed, and
+      // "nothing to squash" is an ANSWER rather than a refusal. Giving it a message would be a
+      // fair question too; it would just do the same thing.
+      "squash", []
       "show", [ seed.commit ]
       "branch", [ "list" ]
       "branches", [ "--json" ]

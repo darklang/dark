@@ -546,3 +546,21 @@ let wireDecode (body: Blob) : Stdlib.Result.Result<SyncBundle, String> =
     else
       Stdlib.Result.Result.Error
         $"sync format v{Stdlib.toString probe.formatVersion} not understood by this build, which speaks v{Stdlib.toString currentWireVersion}"
+
+
+/// Whether any op of <param commitHash> has already gone to a relay.
+///
+/// Per-op, because that is what `sync_pushed` records, and an op's id is its content hash so it
+/// never moves. A squash changes which commit an op NAMES; the relay has already filed that op
+/// under the old commit and will never hear again, because a pushed op does not travel twice. So
+/// squashing a pushed commit leaves the two permanently disagreeing about where an op belongs,
+/// which is why `dark squash` refuses it rather than trying to reconcile it.
+let commitHasPushedOps (commitHash: String) : Bool =
+  (Stdlib.Sqlite.scalarIntP
+    (SCM.localDb ())
+    "SELECT count(*) AS n FROM package_ops p
+       JOIN sync_pushed s ON s.op_id = p.id
+      WHERE p.commit_hash = @p0"
+    [ commitHash ]
+    "n"
+   |> Stdlib.Option.withDefault 0L) > 0L

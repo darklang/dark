@@ -49,6 +49,7 @@ module Registry =
       // `log` only reads as "commits" if you've used git. `log` is its own command, meaning whichever
       // history you're standing in.
       ("commits", "Your commits, newest first", [ "history" ], Cli.Commits.execute, Cli.Commits.help, Cli.Commits.complete)
+      ("squash", "Collapse your unpushed commits at the tip into one", [], Cli.Squash.execute, Cli.Squash.help, Cli.Squash.complete)
       ("commit", "Review your draft, propagate, and commit it", [], Cli.Commit.execute, Cli.Commit.help, Cli.Commit.complete)
       ("discard", "Drop your draft: everything authored since the last commit", [ "reset" ], Cli.Discard.execute, Cli.Discard.help, Cli.Discard.complete)
       ("show", "Show what a commit contains, or what one op does", [], Cli.Commits.executeShow, Cli.Commits.helpShow, Cli.Commits.complete)
@@ -203,7 +204,7 @@ module Registry =
   let commandGroups () : List<(String * List<String>)> =
     [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "deps", "val", "fn", "type", "trait", "impl", "impls", "module", "edit", "rename", "hash", "db", "deprecate", "delete", "undeprecate" ])
       ("Changes",
-       [ "status", "commit", "commits", "show", "discard", "undo", "propagate", "conflicts", "constraints", "ack", "ops" ])
+       [ "status", "commit", "commits", "squash", "show", "discard", "undo", "propagate", "conflicts", "constraints", "ack", "ops" ])
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
       ("Sync", [ "sync", "push", "pull", "connect", "review", "whoami", "identity", "backups" ])
       ("Execution", [ "run-script", "eval", "scripts", "ps", "traces" ])

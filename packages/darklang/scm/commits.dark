@@ -118,3 +118,89 @@ let byHashPrefix (prefix: String) : Stdlib.Option.Option<Commit> =
   with
   | Some row -> commitFromRow row
   | None -> Stdlib.Option.Option.None
+
+
+/// The commits that follow <param hash> on some line. Empty when nothing does, which is what makes a
+/// commit the tip of its own chain.
+let children (hash: String) : List<String> =
+  Stdlib.Sqlite.rowsOrEmptyP
+    (localDb ())
+    "SELECT hash FROM commits WHERE parent = @p0"
+    [ hash ]
+  |> Stdlib.List.filterMap (fun row ->
+    match Stdlib.Dict.get row "hash" with
+    | Some(Text h) -> Stdlib.Option.Option.Some h
+    | _ -> Stdlib.Option.Option.None)
+
+/// The op ids a commit holds.
+let opIdsIn (hash: String) : List<String> =
+  Stdlib.Sqlite.rowsOrEmptyP
+    (localDb ())
+    "SELECT id FROM package_ops WHERE commit_hash = @p0 ORDER BY origin_ts, rowid"
+    [ hash ]
+  |> Stdlib.List.filterMap (fun row ->
+    match Stdlib.Dict.get row "id" with
+    | Some(Text id) -> Stdlib.Option.Option.Some id
+    | _ -> Stdlib.Option.Option.None)
+
+/// Collapse a run of commits into one.
+///
+/// Mints no op, deletes no op, re-inserts no op. An op's id IS its content hash and does not move;
+/// membership is `package_ops.commit_hash`, so this is an UPDATE of one column plus a row swap. That
+/// is why it is safe where `WipRefresh`'s delete-and-re-insert needs its symmetry argument: there is
+/// nothing here for a peer's op to fall out of.
+///
+/// <param run> is OLDEST FIRST and must be a parent chain whose newest member has no children, so
+/// nothing outside it points at a hash this deletes. The caller selects the run; the one thing this
+/// will not do is work out for itself which commits are yours, because that is the decision that
+/// keeps a pulled peer's commit out of it.
+let squashRun
+  (run: List<Commit>)
+  (message: String)
+  (author: String)
+  : Stdlib.Result.Result<String, String> =
+  match run with
+  | [] -> Stdlib.Result.Result.Error "nothing to squash"
+  | [ _ ] -> Stdlib.Result.Result.Error "one commit is already one commit"
+  | oldest :: _ ->
+    let newest =
+      run |> Stdlib.List.last |> Stdlib.Option.withDefault oldest
+
+    let hashes = run |> Stdlib.List.map (fun c -> c.hash)
+
+    // Anything outside the run pointing at its tip would be orphaned by the delete below.
+    let outsiders =
+      children newest.hash
+      |> Stdlib.List.filter (fun h ->
+        Stdlib.Bool.not (Stdlib.List.member hashes h))
+
+    if Stdlib.Bool.not (Stdlib.List.isEmpty outsiders) then
+      Stdlib.Result.Result.Error
+        "that run is not the tip of its line; something newer follows it"
+    else
+      let opIds =
+        hashes |> Stdlib.List.map (fun h -> opIdsIn h) |> Stdlib.List.flatten
+
+      if Stdlib.List.isEmpty opIds then
+        Stdlib.Result.Result.Error "those commits hold no ops"
+      else
+        let newHash = create message author opIds oldest.parent
+
+        // By commit hash, one commit at a time. NOT by op id, not by a stamp window, and not by a
+        // parent walk over ops: an op that arrived over the wire carries its AUTHOR's commit hash
+        // so the receiver files it under that rather than under its own import, and any selection
+        // that ignores the commit column would re-stamp a peer's op under mine. It would not lose
+        // it; it would silently reattribute it.
+        hashes
+        |> Stdlib.List.iter (fun h ->
+          let _ =
+            Stdlib.Sqlite.mustExec
+              (localDb ())
+              "UPDATE package_ops SET commit_hash = @p0 WHERE commit_hash = @p1"
+              [ newHash, h ]
+
+          ())
+
+        hashes |> Stdlib.List.iter (fun h -> delete h)
+
+        Stdlib.Result.Result.Ok newHash
