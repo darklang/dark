@@ -32,7 +32,7 @@ let readSecret () : String =
 
       match k.key with
       | Enter ->
-        Stdlib.printLine ""
+        Stdlib.printErrorLine ""
         acc
       | Backspace -> go (Stdlib.String.dropLast acc 1)
       | _ ->
@@ -47,7 +47,7 @@ let readSecret () : String =
           match Stdlib.String.split (acc + chunk) "\n" with
           | [ whole ] -> go whole
           | beforeNewline :: _rest ->
-            Stdlib.printLine ""
+            Stdlib.printErrorLine ""
             beforeNewline
           | [] -> go acc
 

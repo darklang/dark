@@ -88,19 +88,19 @@ let executeRestore (state: AppState) (name: String) (autoConfirm: Bool) : AppSta
   else
 
   // Warning like DISCARDING: green on "replaces the store" reads as "already fine".
-  Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"  RESTORING {name} replaces the store.")
-  Cli.printHint "  the store as it is now is copied aside first, so this is undoable."
+  Cli.Stderr.line (Stdlib.Cli.UI.Colors.warning $"  RESTORING {name} replaces the store.")
+  Cli.Stderr.hint "  the store as it is now is copied aside first, so this is undoable."
 
   // Credentials are deliberately not in a backup: it is a file people copy around. The cost is
   // this sentence, because a restore onto a fresh machine cannot bring the secret back.
-  Cli.printHint "  a backup holds no credentials; re-set a relay secret with `dark connect <url> --secret ...`"
+  Cli.Stderr.hint "  a backup holds no credentials; re-set a relay secret with `dark connect <url> --secret ...`"
 
   let confirmed =
     Cli.Prompt.confirmExplicit autoConfirm (Stdlib.Cli.UI.Colors.warning "\n  Restore it? [y/N]: ")
 
   if Stdlib.Bool.not confirmed then
-    Cli.printOk "  kept. (`dark backups restore <name> -y` if you mean it -- a piped stdin can't answer this.)"
-    state
+    Cli.Stderr.ok "  kept. (`dark backups restore <name> -y` if you mean it -- a piped stdin can't answer this.)"
+    Cli.exitWith state false
   else
     let stamp = Stdlib.DateTime.toStringISO8601BasicDateTime (Stdlib.DateTime.now ())
     let aside = $"{backupDir ()}/data.db.pre-restore-{stamp}"
@@ -148,18 +148,18 @@ let executePrune (state: AppState) (keepArg: String) (autoConfirm: Bool) : AppSt
         state
       else
 
-      Stdlib.printLine (
+      Cli.Stderr.line (
         Stdlib.Cli.UI.Colors.warning
           $"""  PRUNING deletes {Cli.Text.plural (Stdlib.List.length doomed) "backup"}:"""
       )
-      doomed |> Stdlib.List.iter (fun name -> Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"    - {name}"))
+      doomed |> Stdlib.List.iter (fun name -> Cli.Stderr.line (Stdlib.Cli.UI.Colors.dimText $"    - {name}"))
 
       let confirmed =
         Cli.Prompt.confirmExplicit autoConfirm (Stdlib.Cli.UI.Colors.warning "\n  Delete them? [y/N]: ")
 
       if Stdlib.Bool.not confirmed then
-        Cli.printOk "  kept. (`dark backups prune <n> -y` if you mean it -- a piped stdin can't answer this.)"
-        state
+        Cli.Stderr.ok "  kept. (`dark backups prune <n> -y` if you mean it -- a piped stdin can't answer this.)"
+        Cli.exitWith state false
       else
         let deleted =
           doomed
@@ -172,7 +172,7 @@ let executePrune (state: AppState) (keepArg: String) (autoConfirm: Bool) : AppSt
 
         Cli.printOk
           $"""deleted {Cli.Text.plural (Stdlib.List.length deleted) "backup"}, kept {keepArg}."""
-        state
+        Cli.exitWith state (Stdlib.List.length deleted == Stdlib.List.length doomed)
 
 
 let execute (state: AppState) (args: List<String>) : AppState =

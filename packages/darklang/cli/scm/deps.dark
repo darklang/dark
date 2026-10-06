@@ -322,9 +322,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty unknownFlags) then
     let f = Stdlib.String.join unknownFlags " "
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error $"deps doesn't understand {f}. The flags are --deep and --json.")
-    state
+    Cli.printErr $"deps doesn't understand {f}. The flags are --deep and --json."
+    Cli.exitWith state false
   else
 
   match filteredArgs with
@@ -338,16 +337,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
       "Options:"
       "  --deep              - Show transitive dependents (everything that could break)"
       "  --all               - Show every row; listings are capped at 20 otherwise" ]
-    |> Stdlib.printLines
-    state
+    |> Stdlib.List.iter (fun l -> Stdlib.printErrorLine l)
+    Cli.exitWith state false
 
   | ["uses", pathArg] ->
     match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
       // Name what you ASKED for, not just where the path stopped resolving: "Not found: Zzz" is true and
       // unhelpful when you typed `Zzz.Nope.nope`, and both together tell a typo from a missing name.
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot show deps for {pathArg}: {errMsg}")
-      state
+      Cli.printErr $"Cannot show deps for {pathArg}: {errMsg}"
+      Cli.exitWith state false
     | Ok result ->
       let (hash, loc, name, entityType) = result
 
@@ -363,8 +362,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
       // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot show deps for {pathArg}: {errMsg}")
-      state
+      Cli.printErr $"Cannot show deps for {pathArg}: {errMsg}"
+      Cli.exitWith state false
     | Ok result ->
       let (hash, loc, name, entityType) = result
 
@@ -385,8 +384,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
       // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot show deps for {pathArg}: {errMsg}")
-      state
+      Cli.printErr $"Cannot show deps for {pathArg}: {errMsg}"
+      Cli.exitWith state false
     | Ok result ->
       let (hash, loc, name, entityType) = result
 
@@ -405,8 +404,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | _ ->
-    Stdlib.printLine (help state)
-    state
+    Stdlib.printErrorLine (help state)
+    Cli.exitWith state false
 
 
 let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =

@@ -45,9 +45,9 @@ let executeMergePreview
       Cli.printOk $"\"{branchRef}\" would merge into \"{parentName}\"."
 
       match SCM.PackageOps.branchDiffEntries branchId with
-      | [] -> Cli.printHint "  it changes nothing vs its parent."
+      | [] -> Cli.printQuiet "  it changes nothing vs its parent."
       | entries ->
-        Cli.printHint $"  {Cli.Text.plural (Stdlib.List.length entries) "name"} would land:"
+        Cli.printQuiet $"  {Cli.Text.plural (Stdlib.List.length entries) "name"} would land:"
 
         entries
         |> Stdlib.List.iter (fun e ->
@@ -57,9 +57,9 @@ let executeMergePreview
       // The conflicts a merge WOULD auto-resolve. Nothing is recorded by looking, which is the whole
       // point of asking first.
       match SCM.PackageOps.branchPreview branchId with
-      | [] -> Cli.printHint "  no conflicts: neither side moved a name the other did."
+      | [] -> Cli.printQuiet "  no conflicts: neither side moved a name the other did."
       | cs ->
-        Cli.printHint
+        Cli.printQuiet
           $"  {Cli.Text.plural (Stdlib.List.length cs) "conflict"} would be auto-resolved by recency, and recorded for review."
 
       // Only when this IS the whole command. In the confirm flow the next line is the question, and
@@ -142,7 +142,7 @@ let executeMerge
     // rather than as "there was nothing to do".
     Cli.printOk $"\"{branchRef}\" is already merged into its parent."
     state
-  | Some branchId when mergeRefusal branchId branchRef allowTypeErrors -> state
+  | Some branchId when mergeRefusal branchId branchRef allowTypeErrors -> Cli.exitWith state false
   | Some branchId ->
 
   // The structural gate runs BEFORE the question. Asking "merge it?" about a branch that cannot
@@ -163,10 +163,10 @@ let executeMerge
           $"\n  Merge \"{branchRef}\" into its parent? [y/N]: ")
     )
   then
-    Cli.printOk
+    Cli.Stderr.ok
       $"  not merged. (`dark merge {branchRef} -y` if you mean it -- a piped stdin can't answer this.)"
 
-    state
+    Cli.exitWith state false
   else
 
     match SCM.PackageOps.mergeBranch branchId with
@@ -249,9 +249,10 @@ let executeRebase (state: AppState) (branchRef: String) : AppState =
     | Ok outcome ->
       Cli.printOk outcome.message
       reportConflicts outcome.conflicts
-    | Error e -> Cli.printErr e
-
-    state
+      state
+    | Error e ->
+      Cli.printErr e
+      Cli.exitWith state false
 
 /// Resolve one conflicted name on a branch: `mine` keeps the branch's version (wins on merge),
 /// `theirs` takes the parent's (drops the branch's binding). Anything else is re-authoring on the branch.
@@ -265,10 +266,12 @@ let executeResolve
   | None -> Cli.exitWith state false
   | Some branchId ->
     match SCM.PackageOps.resolveConflict branchId name choice with
-    | Ok msg -> Cli.printOk msg
-    | Error e -> Cli.printErr e
-
-    state
+    | Ok msg ->
+      Cli.printOk msg
+      state
+    | Error e ->
+      Cli.printErr e
+      Cli.exitWith state false
 
 /// `dark merge`'s own page, rather than `dark branch`'s: that one never mentions merging, so the two
 /// questions a person actually has here -- what does this take, and what will it do to a conflict --
@@ -311,7 +314,7 @@ let bareTargetBranch
 /// An explicit yes, not a default-yes: a stray Return or a piped stdin must not move work into main.
 let executeMergeBare (state: AppState) (autoConfirm: Bool) (allowTypeErrors: Bool) : AppState =
   match bareTargetBranch "merge" with
-  | Error _ -> state
+  | Error _ -> Cli.exitWith state false
   | Ok name ->
     let previewed = executeMergePreview state name false
 
@@ -322,10 +325,10 @@ let executeMergeBare (state: AppState) (autoConfirm: Bool) (allowTypeErrors: Boo
           (Stdlib.Cli.UI.Colors.warning "\n  Merge it? [y/N]: ")
       )
     then
-      Cli.printOk
+      Cli.Stderr.ok
         "  not merged. (`dark merge -y` if you mean it -- a piped stdin can't answer this.)"
 
-      previewed
+      Cli.exitWith previewed false
     else
       executeMerge previewed name true allowTypeErrors
 
@@ -360,7 +363,7 @@ let executeMergeCmd (state: AppState) (args: List<String>) : AppState =
     if dryRun then
       match bareTargetBranch "merge" with
       | Ok name -> executeMergeDryRun state name
-      | Error _ -> state
+      | Error _ -> Cli.exitWith state false
     else
       executeMergeBare state autoConfirm allowTypeErrors
   | [ id ] ->
@@ -379,11 +382,11 @@ let executeRebaseCmd (state: AppState) (args: List<String>) : AppState =
   | [] ->
     match bareTargetBranch "rebase" with
     | Ok name -> executeRebase state name
-    | Error _ -> state
+    | Error _ -> Cli.exitWith state false
   | [ "--dry-run" ] ->
     match bareTargetBranch "rebase" with
     | Ok name -> executeRebaseDryRun state name
-    | Error _ -> state
+    | Error _ -> Cli.exitWith state false
   | [ id ] -> executeRebase state id
   | [ id, "--dry-run" ] -> executeRebaseDryRun state id
   | [ "--dry-run", id ] -> executeRebaseDryRun state id

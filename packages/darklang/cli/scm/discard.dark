@@ -60,9 +60,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
             (Stdlib.Cli.UI.Colors.warning $"\n  Drop {dotted} from your draft? [y/N]: ")
         )
       then
-        Cli.printOk
+        Cli.Stderr.ok
           $"  kept. (`dark discard {dotted} -y` if you mean it -- a piped stdin can't answer this.)"
-        state
+        Cli.exitWith state false
       else
         match SCM.PackageOps.discardDraftName loc.owner loc.modules loc.name with
         | Ok n ->
@@ -91,7 +91,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   // A WARNING header, not a green one: this listing is what is about to be destroyed, and green
   // reads as "already fine".
-  Stdlib.printLine (
+  Cli.Stderr.line (
     Stdlib.Cli.UI.Colors.warning
       $"  DISCARDING ({Stdlib.toString (Stdlib.List.length changed)}) on {scope}, {Cli.Text.plural (Stdlib.Int.fromInt64 ops) "op"}"
   )
@@ -100,7 +100,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // empty listing under a header that promises one.
   let _ =
     if Stdlib.List.isEmpty changed then
-      Stdlib.printLine
+      Cli.Stderr.line
         (Stdlib.Cli.UI.Colors.dimText
           "    (no changed names -- no new version: pins, deprecations, docs, acks)")
     else
@@ -111,7 +111,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     // The FULL name, as `status` and the JSON spell it; a listing of what dies is the wrong place
     // to abbreviate.
     let name = SCM.Conflicts.fqn b.owner b.modules b.name
-    Stdlib.printLine $"    - {name}")
+    Cli.Stderr.line $"    - {name}")
 
   // An explicit yes, not the usual default-yes: this is the one command here that destroys work, so a
   // stray Return or a piped stdin must not answer for you.
@@ -122,8 +122,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
         (Stdlib.Cli.UI.Colors.warning "\n  Drop these? [y/N]: ")
     )
   then
-    Cli.printOk "  kept. (`dark discard -y` if you mean it -- a piped stdin can't answer this.)"
-    state
+    Cli.Stderr.ok "  kept. (`dark discard -y` if you mean it -- a piped stdin can't answer this.)"
+    Cli.exitWith state false
   else
 
   match SCM.PackageOps.discardDraft () with

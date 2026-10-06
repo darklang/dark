@@ -135,7 +135,7 @@ let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : 
         if autoConfirm then
           "fresh"
         else
-          Stdlib.printLine "Would you like to copy the data from this portable directory to the installation, or start fresh? (copy/fresh, default: fresh): "
+          Stdlib.printErrorLine "Would you like to copy the data from this portable directory to the installation, or start fresh? (copy/fresh, default: fresh): "
           (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
 
       if migrateChoice == "copy" then
@@ -161,11 +161,11 @@ let install (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Res
     if autoConfirm then
       "1"
     else
-      Stdlib.printLine "Found existing portable installation with data."
-      Stdlib.printLine "Installation options:"
-      Stdlib.printLine "1. Fresh install (start with clean database)"
-      Stdlib.printLine "2. Migrate current data to global installation"
-      Stdlib.printLine "Choose option (1 or 2, default: 1): "
+      Stdlib.printErrorLine "Found existing portable installation with data."
+      Stdlib.printErrorLine "Installation options:"
+      Stdlib.printErrorLine "1. Fresh install (start with clean database)"
+      Stdlib.printErrorLine "2. Migrate current data to global installation"
+      Stdlib.printErrorLine "Choose option (1 or 2, default: 1): "
       (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
 
   match Download.installOrUpdateLatestRelease host with
@@ -212,9 +212,10 @@ let uninstallWithConfirmation (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) :
   if Cli.Prompt.confirmExplicit
        autoConfirm
        "Are you sure you want to uninstall the CLI? (y/n): " then
-    Stdlib.printLine "Uninstalling..."
+    Stdlib.printErrorLine "Uninstalling..."
     match Uninstall.runUninstall host with
     | Ok _ -> Stdlib.Result.Result.Ok("Uninstall complete")
     | Error e -> Stdlib.Result.Result.Error e
   else
-    Stdlib.Result.Result.Ok("Uninstall cancelled")
+    // An Error: the Ok arm reports success and exits the CLI as though the binary were gone.
+    Stdlib.Result.Result.Error("Uninstall cancelled")

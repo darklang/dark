@@ -40,12 +40,13 @@ let fns () : List<BuiltInFn> =
       returnType = TUnit
       description =
         "Prints the given <param value> to the standard error, followed by a newline. For "
-        + "diagnostics that must stay off stdout: a refusal under `--json`, or the log of a "
-        + "server whose stdout is a protocol channel."
+        + "everything that is not the answer to what was asked: errors, refusals, warnings, "
+        + "hints, progress, prompts. Ordered with stdout, so it never overtakes a line printed "
+        + "before it."
       fn =
         (function
         | _, _, _, [| DString str |] ->
-          System.Console.Error.WriteLine str
+          NonBlockingConsole.writeErrLine str
           Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -65,6 +66,25 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString str |] ->
           printInline str
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Stdout ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "printError" 0
+      typeParams = []
+      parameters = [ Param.make "value" TString "The value to be printed." ]
+      returnType = TUnit
+      description =
+        "Prints the given <param value> to the standard error, with no newline. For a question "
+        + "whose answer is typed on the same line."
+      fn =
+        (function
+        | _, _, _, [| DString str |] ->
+          NonBlockingConsole.writeErrInline str
           Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -98,7 +118,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "A unit" ]
       returnType = TBool
       description =
-        "Start capturing standard output into an in-memory buffer instead of printing it. Pair with <fn stdoutCaptureStop>. Used to run a command and show its output in-frame. Returns false if a capture was already open, in which case the existing one is left untouched and this call captured nothing."
+        "Start capturing standard output and standard error into an in-memory buffer instead of printing them. Pair with <fn stdoutCaptureStop>. Used to run a command and show its output in-frame. Returns false if a capture was already open, in which case the existing one is left untouched and this call captured nothing."
       fn =
         (function
         | _, _, _, [| DUnit |] -> DBool(NonBlockingConsole.startCapture ()) |> Ply
@@ -114,7 +134,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "A unit" ]
       returnType = TString
       description =
-        "Stop capturing standard output and return everything written since <fn stdoutCaptureStart>."
+        "Stop capturing and return everything written to either stream since <fn stdoutCaptureStart>, in the order it was written."
       fn =
         (function
         | _, _, _, [| DUnit |] ->

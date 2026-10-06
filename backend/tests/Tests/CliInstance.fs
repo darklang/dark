@@ -211,18 +211,25 @@ and runRawWithInput
 /// What a command printed. A failure EXITS NONZERO and explains itself on stdout, so
 /// dropping stdout on a nonzero exit would hide the very text these tests read; stderr is
 /// only surfaced when stdout said nothing.
+/// Both streams, stdout then stderr. Not stdout alone: a refusal's reason is on stderr, often beside
+/// stdout lines, and dropping it hides what the test asserts on. Two pipes cannot be interleaved after
+/// the fact; a test about order or about which stream a line is on wants `runRaw`.
+let bothStreams (out : string) (err : string) : string =
+  match out.Trim(), err.Trim() with
+  | "", e -> e
+  | o, "" -> o
+  | o, e -> o + "\n" + e
+
 let run (i : T) (args : string list) : Task<string> =
   task {
     let! (_code, out, err) = runRaw i args
-    let out = out.Trim()
-    if out <> "" then return out else return err.Trim()
+    return bothStreams out err
   }
 
 let runWithExit (i : T) (args : string list) : Task<string * int64> =
   task {
     let! (code, out, err) = runRaw i args
-    let out = out.Trim()
-    return ((if out <> "" then out else err.Trim()), int64 code)
+    return (bothStreams out err, int64 code)
   }
 
 /// A test with an install of its own, disposed whether it passed or not.

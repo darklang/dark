@@ -56,6 +56,7 @@ let pushTailNotes (url: String) : Unit =
 let executePush (state: AppState) (url: String) : AppState =
   if url == "" then
     Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
+    Cli.exitWith state false
   else
     let id = SCM.PackageOps.identity ()
     // MAIN-ONLY: a branch's ops are effective=0 and must NOT sync into another machine's main (that
@@ -70,6 +71,7 @@ let executePush (state: AppState) (url: String) : AppState =
     if alreadyPushed then
       Cli.printOk $"Already up to date with {url} -- nothing new to push."
       pushTailNotes url
+      state
     else
 
     // Whether we hold everything the relay had BEFORE we add to it -- afterwards our own ops have moved
@@ -178,15 +180,18 @@ let executePush (state: AppState) (url: String) : AppState =
 
       // Push is main-only (see the top of this function), and the success line looks the same from a
       // branch whether or not your day's work is in it -- so say which it was.
-      match SCM.PackageOps.currentBranch () with
-      | branch when SCM.Branch.isMain branch -> ()
-      | branchId ->
-        // `current_branch_name` is kept beside the id purely for display, which is what this is.
-        let named = Stdlib.LocalStore.configGet "current_branch_name"
-        let shown = if named == "" then Stdlib.toString branchId else named
+      let _ =
+        match SCM.PackageOps.currentBranch () with
+        | branch when SCM.Branch.isMain branch -> ()
+        | branchId ->
+          // `current_branch_name` is kept beside the id purely for display, which is what this is.
+          let named = Stdlib.LocalStore.configGet "current_branch_name"
+          let shown = if named == "" then Stdlib.toString branchId else named
 
-        Cli.printHint
-          $"  that was main. You're on \"{shown}\" -- `dark branch push {shown}` sends the branch."
+          Cli.printHint
+            $"  that was main. You're on \"{shown}\" -- `dark branch push {shown}` sends the branch."
+
+      state
     | Error e ->
       recordActivity "push failed" $"{url}: {e}"
       Cli.printErr $"Push to {url} failed: {e}"
@@ -199,7 +204,7 @@ let executePush (state: AppState) (url: String) : AppState =
       else
         ()
 
-  state
+      Cli.exitWith state false
 
 /// Drain the remaining pages after the first one, returning how many ops they imported between them.
 /// Recursive rather than a fold because each page's cursor decides whether there IS a next page.
@@ -266,6 +271,7 @@ let executePullPages
 let executePull (state: AppState) (url: String) : AppState =
   if url == "" then
     Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
+    Cli.exitWith state false
   else
     // No identity GATE and no owner FILTER: pull everything the relay holds. Reaching the relay is the
     // trust boundary; an `?owner={id}` filter would hide two machines' work from each other.
@@ -296,10 +302,9 @@ let executePull (state: AppState) (url: String) : AppState =
           (SCM.Wire.localHead ())
       | None -> false
 
-    // No `state` here: this whole `if` sits in statement position -- the function ends with a trailing
-    // `state` -- so returning AppState from one branch makes the next expression illegal.
     if unchanged then
       Cli.printOk $"Nothing new at {url}."
+      state
     else
 
     match
@@ -428,24 +433,26 @@ let executePull (state: AppState) (url: String) : AppState =
 
               arrived
               |> Stdlib.List.iter (fun c ->
-                Cli.printHint $"  {Stdlib.String.first c.hash 8}  {c.author}  {c.message}")
+                Cli.printQuiet $"  {Stdlib.String.first c.hash 8}  {c.author}  {c.message}")
             else
               ()
 
           reportDetection outcome.bulk outcome.detected
           reportConflicts outcome.conflicts
+          Cli.exitWith state (laterPages >= 0)
         | Error e ->
           recordActivity "pull failed" $"import: {e}"
           Cli.printErr $"Pull import failed: {e}"
+          Cli.exitWith state false
       // Surface what the decoder said; see `executeImport`.
       | Error e ->
         recordActivity "pull failed" $"unreadable reply from {url}: {e}"
         Cli.printErr $"Couldn't read what {url} sent: {e}"
+        Cli.exitWith state false
     | Error e ->
       recordActivity "pull failed" $"{url}: {e}"
       Cli.printErr $"Pull from {url} failed: {e}"
-
-  state
+      Cli.exitWith state false
 
 /// The all-branches sweep `sync.branches = all` turns on: push every local branch the relay
 /// lacks ops for, then pull every owner's hosted branches -- yours follow you between machines,

@@ -179,8 +179,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ _n ] -> executeList state limit showAll
   | _ ->
     Cli.printErr "`dark commits` takes at most a count."
-    Stdlib.printLine (help state)
-    state
+    Stdlib.printErrorLine (help state)
+    Cli.exitWith state false
 
 /// Print a commit: its metadata, then the ops it committed.
 let showCommit (state: AppState) (c: SCM.Commits.Commit) : Unit =
@@ -233,8 +233,8 @@ let helpShow (_state: AppState) : String =
 let executeShow (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
-    Stdlib.printLine (helpShow state)
-    state
+    Stdlib.printErrorLine (helpShow state)
+    Cli.exitWith state false
   | [ prefix ] ->
     match SCM.Commits.byHashPrefix prefix with
     | Some c ->
@@ -252,7 +252,7 @@ let executeShow (state: AppState) (args: List<String>) : AppState =
         else
           Cli.printHint "  `dark commits` lists commits, `dark ops` lists ops."
 
-        state
+        Cli.exitWith state false
       | ops ->
         ops
         |> Stdlib.List.iter (fun op ->
@@ -261,8 +261,8 @@ let executeShow (state: AppState) (args: List<String>) : AppState =
 
         state
   | _ ->
-    Stdlib.printLine (helpShow state)
-    state
+    Stdlib.printErrorLine (helpShow state)
+    Cli.exitWith state false
 
 /// Shared by `commits` and `show`, whose arguments are a count and a hash. Neither is worth offering:
 /// a count has no candidates, and a hash prefix is what `dark commits` just printed.

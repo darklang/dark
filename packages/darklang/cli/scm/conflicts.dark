@@ -581,8 +581,8 @@ let executeJson (state: AppState) (args: List<String>) : AppState =
 let walkOne (state: AppState) (c: SCM.Conflicts.Conflict) (n: Int) (total: Int) : Bool =
   let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
   let pos = $"{Stdlib.toString n}/{Stdlib.toString total}"
-  Stdlib.printLine ""
-  Cli.printOk $"  [{pos}]  {dotted}  [{c.itemType}]"
+  Cli.Stderr.line ""
+  Cli.Stderr.ok $"  [{pos}]  {dotted}  [{c.itemType}]"
 
   // Once for both candidates; see `whoseCandidate`.
   let me = SCM.PackageOps.identity ()
@@ -594,11 +594,11 @@ let walkOne (state: AppState) (c: SCM.Conflicts.Conflict) (n: Int) (total: Int) 
     let who = whoseCandidate me cand
     let header = $"    {label} ({mark})  {who}  stamped {cand.originTs}"
     $"{header}\n{indentBlock (renderItem state.currentBranchId c.itemType cand.hash c.name)}")
-  |> Stdlib.List.iter (fun block -> Stdlib.printLine block)
+  |> Stdlib.List.iter (fun block -> Cli.Stderr.line block)
 
   // A and B are SIDES, not verbs: the auto-pick is whichever of them won on recency, and it can be
   // either. Labelling `a` as "keep" would read as though yours always was the kept one.
-  Stdlib.print (
+  Stdlib.printError (
     Stdlib.Cli.UI.Colors.hint
       "    [a] take yours / [b] take theirs / [enter] keep the auto-pick / [s] skip / [q] quit: "
   )

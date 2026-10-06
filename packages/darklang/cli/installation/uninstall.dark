@@ -54,8 +54,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
       // Exit after successful uninstall since the executable is being removed
       { state with isExiting = true }
     | Error e ->
-      Stdlib.printLine (View.formatError e)
-      state
+      Stdlib.printErrorLine (View.formatError e)
+      Cli.exitWith state false
   | Portable ->
     Stdlib.printLine (View.formatError "Cannot uninstall - running in portable mode")
     Stdlib.printLine "To remove this portable installation, simply delete the current directory"

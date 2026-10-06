@@ -67,10 +67,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
         if autoConfirm then
           "1" // Default to copying current binary with --yes
         else
-          Stdlib.printLine "Choose installation method:"
-          Stdlib.printLine "1. Copy this binary (for testing local changes)"
-          Stdlib.printLine "2. Download latest release from GitHub"
-          Stdlib.printLine "Choose option (1 or 2): "
+          Stdlib.printErrorLine "Choose installation method:"
+          Stdlib.printErrorLine "1. Copy this binary (for testing local changes)"
+          Stdlib.printErrorLine "2. Download latest release from GitHub"
+          Stdlib.printErrorLine "Choose option (1 or 2): "
           (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
 
       if choice == "1" then

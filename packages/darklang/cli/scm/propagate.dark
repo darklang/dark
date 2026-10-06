@@ -256,12 +256,12 @@ let executeList (state: AppState) : AppState =
       if Stdlib.List.isEmpty followed then
         ()
       else
-        Cli.printHint
+        Cli.printQuiet
           $"""  {Cli.Text.plural (Stdlib.List.length followed) "draft item"} followed your edits:"""
 
         followed
         |> Stdlib.List.iter (fun b ->
-          Cli.printHint $"    > {SCM.Conflicts.fqn b.owner b.modules b.name}")
+          Cli.printQuiet $"    > {SCM.Conflicts.fqn b.owner b.modules b.name}")
 
     Cli.printHint "  dark propagate pin <name>   stop it following, and undo the repoint you just got"
     state
@@ -319,10 +319,10 @@ let executeShow (state: AppState) (arg: String) : AppState =
       Cli.printOk $"{dotted loc}: follows (nothing set -- that's the default)"
 
     match SCM.Propagation.staleDependencies loc with
-    | [] -> Cli.printHint "  it's on the current version of everything it uses."
+    | [] -> Cli.printQuiet "  it's on the current version of everything it uses."
     | stale ->
       let n = Stdlib.toString (Stdlib.List.length stale)
-      Cli.printHint $"  behind on {n} of its dependencies:"
+      Cli.printQuiet $"  behind on {n} of its dependencies:"
 
       stale
       |> Stdlib.List.iter (fun s ->
@@ -357,7 +357,7 @@ let executePin (state: AppState) (arg: String) (note: String) : AppState =
     let (owner, modules, name) = parts
 
     if refuseMissingTarget owner modules name then
-      state
+      Cli.exitWith state false
     else
 
     // A MODULE-level pin is forward-looking only. Rolling back everything under a module would be a
@@ -405,7 +405,7 @@ let executeFollow (state: AppState) (arg: String) (note: String) : AppState =
     let (owner, modules, name) = parts
 
     if refuseMissingTarget owner modules name then
-      state
+      Cli.exitWith state false
     else
 
     match
@@ -437,7 +437,7 @@ let executeFollow (state: AppState) (arg: String) (note: String) : AppState =
           // rival implementation of the same trait is a different item, so `constraints` can
           // report something while this correctly reports nothing, and the two read as a
           // contradiction unless each says what it looked at.
-          Cli.printHint
+          Cli.printQuiet
             "  already on the current version of every item it uses."
 
           Cli.printHint
@@ -463,7 +463,7 @@ let executeUnset (state: AppState) (arg: String) : AppState =
     let (owner, modules, name) = parts
 
     if refuseMissingTarget owner modules name then
-      state
+      Cli.exitWith state false
     else
 
     // Nothing to clear is said as that, not as a clearance: "cleared" on a name with no choice
@@ -587,19 +587,20 @@ let executeMany
     Cli.printErr $"{verb} needs at least one name."
     Cli.exitWith state false
   | _ ->
-    names
-    |> Stdlib.List.iter (fun n ->
-      // Each name is applied against the ORIGINAL state: these verbs report and write to the store
-      // rather than threading state, so what comes back is the same state handed in.
-      let _applied =
-        if verb == "pin" then
-          executePin state n why
-        else
-          executeFollow state n why
+    // Each name runs against the ORIGINAL state (these verbs write to the store, not to state), but its
+    // exit code still counts: a batch with one failed name has failed.
+    let failed =
+      names
+      |> Stdlib.List.filter (fun n ->
+        let applied =
+          if verb == "pin" then
+            executePin state n why
+          else
+            executeFollow state n why
 
-      ())
+        applied.exitCode != 0)
 
-    state
+    Cli.exitWith state (Stdlib.List.isEmpty failed)
 
 
 let execute (state: AppState) (args: List<String>) : AppState =

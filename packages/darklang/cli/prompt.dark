@@ -9,13 +9,17 @@ let interactive () : Bool = Stdlib.Cli.Stdin.isInteractive ()
 /// in: an unattended run that meant to go ahead can say `-y`, and one that did not meant to be
 /// stopped. CI gets a pty, so `interactive ()` answers YES there and this waits for a person who
 /// is not coming; pass `-y` for anything unattended.
+///
+/// Every caller exits 1 on a no, including the no that nobody gave. The action did not happen, and a
+/// script, a CI step or an agent reads exit 0 as "done". Don't turn a declined confirm back into a
+/// polite exit 0.
 let confirm (autoConfirm: Bool) (question: String) : Bool =
   if autoConfirm then
     true
   else if Stdlib.Bool.not (interactive ()) then
     false
   else
-    Stdlib.printLine question
+    Stdlib.printErrorLine question
     let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
     (response == "") || (response == "y") || (response == "Y")
 
@@ -27,7 +31,7 @@ let confirmExplicit (autoConfirm: Bool) (question: String) : Bool =
   else if Stdlib.Bool.not (interactive ()) then
     false
   else
-    Stdlib.printLine question
+    Stdlib.printErrorLine question
     let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
     (response == "y") || (response == "Y")
 

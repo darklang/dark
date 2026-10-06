@@ -355,8 +355,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Deprecation failed: {e}")
                 state
             else
-              Stdlib.printLine "Deprecation cancelled."
-              state
+              Cli.Stderr.line "Deprecation cancelled."
+              Cli.exitWith state false
 
 
 /// `dark undeprecate <name>` -- put something back on the shelf.

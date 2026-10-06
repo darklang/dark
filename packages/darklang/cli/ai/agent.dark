@@ -150,7 +150,7 @@ let findCliExecutable () : Stdlib.Option.Option<String> =
   else Stdlib.Option.Option.None
 
 let confirmCommand (cmd: String) : Bool =
-  Stdlib.print (Stdlib.Cli.UI.Colors.warning $"Allow: {cmd}? (y/n): ")
+  Stdlib.printError (Stdlib.Cli.UI.Colors.warning $"Allow: {cmd}? (y/n): ")
   let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
   response == "y" || response == "Y"
 
@@ -310,7 +310,7 @@ let runInteractiveLoop
   (agent: Darklang.LLM.Agent.Agent)
   (history: List<Darklang.LLM.Provider.Message>)
   : Unit =
-  Stdlib.print (Stdlib.Cli.UI.Colors.dimText "you> ")
+  Stdlib.printError (Stdlib.Cli.UI.Colors.dimText "you> ")
   let input = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
 
   if Stdlib.String.isEmpty input then

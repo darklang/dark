@@ -190,15 +190,35 @@ and runCliWithStatus (target : Target) (args : string list) : Task<string * int>
   | Instance i ->
     task {
       let! (code, out, err) = Tests.CliInstance.runRaw i args
-      let out = out.Trim()
-      return ((if out <> "" then out else err.Trim()), code)
+      return (Tests.CliInstance.bothStreams out err, code)
     }
-  | InProcess state -> runCliInProcess state args
+  | InProcess state ->
+    task {
+      let! (all, _out, _err, status) = runCliInProcess state args
+      return (all, status)
+    }
+
+/// `(stdout, stderr, status)`, for a test about which stream a line is on. `runCli` gives both in order.
+and runCliStreams
+  (target : Target)
+  (args : string list)
+  : Task<string * string * int> =
+  match target with
+  | Instance i ->
+    task {
+      let! (code, out, err) = Tests.CliInstance.runRaw i args
+      return (out.Trim(), err.Trim(), code)
+    }
+  | InProcess state ->
+    task {
+      let! (_all, out, err, status) = runCliInProcess state args
+      return (out, err, status)
+    }
 
 and private runCliInProcess
   (state : RT.ExecutionState)
   (args : string list)
-  : Task<string * int> =
+  : Task<string * string * string * int> =
   task {
     let argsDval = args |> List.map RT.DString |> Dval.list RT.KTString
     let fnName =
@@ -233,9 +253,9 @@ and private runCliInProcess
         NonBlockingConsole.wait ()
         match result with
         | Ok(RT.DInt status) ->
+          let (all, out, err) = NonBlockingConsole.stopCaptureEach ()
           return
-            ((NonBlockingConsole.stopCapture ()).Trim(),
-             int (RT.DarkInt.toBigInt status))
+            (all.Trim(), out.Trim(), err.Trim(), int (RT.DarkInt.toBigInt status))
         | Ok other ->
           return
             Tests.failtestf

@@ -10,8 +10,8 @@ module Darklang.Cli.Setup
 /// Ask, and hand back what was typed with the surrounding space removed. An empty answer means "keep
 /// what's there", which is what makes re-running this safe.
 let ask (question: String) : String =
-  // `print`, not `printLine`: a prompt that ends its own line puts the answer underneath it.
-  Stdlib.print (Stdlib.Cli.UI.Colors.hint question)
+  // `printError`, not `printErrorLine`: a prompt that ends its own line puts the answer underneath it.
+  Stdlib.printError (Stdlib.Cli.UI.Colors.hint question)
   Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
 
 /// Ask for one setting, showing what is stored now. Empty keeps it, which is what makes re-running this
@@ -31,13 +31,13 @@ let execute (state: AppState) (_args: List<String>) : AppState =
     Cli.exitWith state false
   else
 
-  Stdlib.printLine ""
-  Cli.printOk "Setting up sync."
+  Cli.Stderr.line ""
+  Cli.Stderr.ok "Setting up sync."
 
-  Cli.printHint
+  Cli.Stderr.hint
     "  A relay is where your ops go so your other machines can have them. Enter to keep a value."
 
-  Stdlib.printLine ""
+  Cli.Stderr.line ""
 
   // The name a colleague sees your ops arrive under.
   let identity = askWithCurrent "This instance's name" (SCM.PackageOps.identity ())
@@ -65,7 +65,7 @@ let execute (state: AppState) (_args: List<String>) : AppState =
     else
       "  Write secret (not shown; Enter to keep the stored one): "
 
-  Stdlib.print (Stdlib.Cli.UI.Colors.hint secretPrompt)
+  Stdlib.printError (Stdlib.Cli.UI.Colors.hint secretPrompt)
   let typedSecret = Stdlib.String.trim (Stdlib.Cli.Stdin.readSecret ())
 
   let secretOutcome =
@@ -92,7 +92,7 @@ let execute (state: AppState) (_args: List<String>) : AppState =
 
     Cli.printHint "  cannot tell a real leak from a coincidence, so every push would be refused."
 
-    state
+    Cli.exitWith state false
   | Ok secretNote ->
     let _ = SCM.PackageOps.setIdentity identity
     let _ = SCM.PackageOps.setRelay relay
@@ -105,8 +105,9 @@ let execute (state: AppState) (_args: List<String>) : AppState =
 
     // Push once, so setup ends with the instance actually synced rather than merely configured. A
     // failure here is reported and kept: connecting while offline is legitimate, and `dark push` retries.
-    Cli.printHint "  Pushing your ops..."
-    let after = Cli.Sync.executePush state relay
+    Cli.Stderr.hint "  Pushing your ops..."
+    // Deliberately exit 0 on a failed push: setup's job is the settings, and they are stored.
+    let after = { (Cli.Sync.executePush state relay) with exitCode = state.exitCode }
 
     Stdlib.printLine ""
     Cli.printOk "Set up. `dark sync` from now on; `dark sync setup` again to change any of it."
