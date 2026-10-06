@@ -129,9 +129,20 @@ run_many() {  # run_many <bound|unbound> <name...> -- serial, with per-gate timi
   echo "all $total gate(s) passed."
 }
 
-run_parallel() {  # run_parallel <name...> -- every gate at once; safe because each takes its own
-  # process, rundir and random ports, and nothing pkills beyond what it started. Wall time is the
-  # slowest gate instead of the sum. Output is buffered per gate so logs don't interleave.
+run_parallel() {  # run_parallel <bound|unbound> <name...> -- every gate at once
+  # Wall time is the slowest gate instead of the sum. Output is buffered per gate so logs don't
+  # interleave, and each gate's own time is kept, since 0s is how a gate that never ran shows.
+  #
+  # What makes this safe is that a gate shares NOTHING it writes with another gate: its own
+  # process, its own rundir under rundir/, its own HOME where it touches `caps`, and ports that
+  # are random or its alone (the hostile relay's 9081-9089, relay-routes' 9095, sync-multi's
+  # random 9200-9499). That list is the whole claim, so a new gate that writes anywhere else has
+  # to be added to it or it breaks this mode. The one that did was not a rundir or a port but a
+  # file in the SOURCE TREE: a package reload rewrote `package-ref-hashes.txt`, which every CLI
+  # in the checkout reads at startup, and every gate running beside reload-is-reproducible
+  # failed with FnNotFound. The reload no longer writes that file unless its contents changed;
+  # see `PackageRefsGenerator.generate`.
+  local bound="$1"; shift
   local total=$#
   local failed=()
   local g started took
@@ -140,16 +151,20 @@ run_parallel() {  # run_parallel <name...> -- every gate at once; safe because e
   declare -A pids
   started=$SECONDS
   for g in "$@"; do
-    "$0" "$g" >"$outdir/$g.log" 2>&1 &
+    (
+      s=$SECONDS
+      if [[ "$bound" == "bound" ]]; then timeout 5m "$0" "$g"; else "$0" "$g"; fi
+      rc=$?
+      echo $((SECONDS - s)) > "$outdir/$g.time"
+      exit $rc
+    ) >"$outdir/$g.log" 2>&1 &
     pids[$g]=$!
   done
   for g in "$@"; do
-    if wait "${pids[$g]}"; then
-      printf '  ok    %s\n' "$g"
-    else
-      printf '  FAIL  %s\n' "$g"
-      failed+=("$g")
-    fi
+    local verdict=ok
+    wait "${pids[$g]}" || { verdict=FAIL; failed+=("$g"); }
+    took=$(cat "$outdir/$g.time" 2>/dev/null || echo 0)
+    printf '  %-5s %-32s %dm%02ds\n' "$verdict" "$g" $((took / 60)) $((took % 60))
   done
   took=$((SECONDS - started))
   for g in "${failed[@]+"${failed[@]}"}"; do
@@ -180,9 +195,10 @@ case "$cmd" in
     echo
     echo "  ci  = ${CI_GATES[*]}" | fold -sw 84 | sed -e '2,$s/^/        /' -e 's/ *$//'
     echo "        (first-day also runs in CI, in build-cli, on the binary that job builds)"
-    echo "  all = every gate except gates-are-clean, SERIAL, with per-gate timings."
-    echo "        --parallel is four times faster and currently reports failures that are not"
-    echo "        there. Run gates-are-clean only when a gate itself changes."
+    echo "  all = every gate except gates-are-clean, all at once, with per-gate timings."
+    echo "        --serial runs them one after another (the sum, not the slowest)."
+    echo "  ci  runs serial; --parallel for the same thing at once, still each bounded by 5m."
+    echo "  Run gates-are-clean only when a gate itself changes."
     echo
     echo "hand tools, not gates: scripts/testing/matter-render-diff (render the relay's pages,"
     echo "diff against golden HTML), scripts/testing/cross-machine (two real machines and a relay)."
@@ -190,16 +206,23 @@ case "$cmd" in
   all)
     NAMES=()
     for g in "${GATES[@]}"; do [[ "$g" == "gates-are-clean" ]] || NAMES+=("$g"); done
-    # Serial by default: `--parallel` is four times faster and reports failures that are not
-    # there (six of ten here, two of ten on main, all passing on their own straight after).
-    if [[ "${1:-}" == "--parallel" ]]; then
-      run_parallel "${NAMES[@]}"
-    else
+    # Parallel by default. `--serial` is for reading one gate's output as it happens, or for a
+    # box too small to run them all at once.
+    if [[ "${1:-}" == "--serial" ]]; then
       run_many unbound "${NAMES[@]}"
+    else
+      run_parallel unbound "${NAMES[@]}"
     fi
     ;;
   ci)
-    run_many bound "${CI_GATES[@]}"
+    # Serial by default, because that is what CI wants: the gates run on node 1 of build-backend
+    # beside the suite on node 0, and finish minutes before it, so running them at once would
+    # shorten nothing a pull request waits on and would put nine CLIs on one xlarge node.
+    if [[ "${1:-}" == "--parallel" ]]; then
+      run_parallel bound "${CI_GATES[@]}"
+    else
+      run_many bound "${CI_GATES[@]}"
+    fi
     ;;
   *)
     if ! known "$cmd"; then

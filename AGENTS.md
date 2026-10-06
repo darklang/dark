@@ -157,11 +157,12 @@ only line that named the real place was the first one, `offside of context start
     ./scripts/testing/test-build-planning.py          tests of the build itself
     ./scripts/testing/gates list                      the gate scripts, one line each
     ./scripts/testing/gates <name>                    one gate (setup, relay-routes, first-day, ...)
-    ./scripts/testing/gates ci                        the subset CI runs, each bounded by 5m
+    ./scripts/testing/gates ci                        the subset CI runs, each bounded by 5m. Serial;
+                                                      `--parallel` locally (2m50 -> 41s, measured)
     ./scripts/testing/gates all                       every gate except gates-are-clean, the slow
-                                                      meta-gate that re-runs the rest itself. Serial;
-                                                      `--parallel` is four times faster and currently
-                                                      reports failures that are not there
+                                                      meta-gate that re-runs the rest itself. All at
+                                                      once (10m32 -> 4m20, measured; sync-multi-instance
+                                                      alone is 4m); `--serial` for the old way
     ./scripts/perf/gate --published                   reference workload, allocation vs budget
     ./scripts/perf/gate                               the same, debug: reports, does NOT gate
     ./scripts/perf/suite                              six workloads, allocation per iteration
@@ -189,6 +190,14 @@ the only thing that separates them: four trait gates reported `0m00s` and `0m01s
 stale published artifact meant nothing they invoked could start. Read the per-gate times before
 believing a gate tested anything, and read the FIRST failure rather than the list at the end,
 because one broken prerequisite reports as a dozen unrelated gates.
+
+**A gate may write nothing another gate reads, and the source tree counts.** `gates all` runs
+every gate at once, which is safe only because each has its own rundir, HOME and ports. It was
+off because of a file nobody had listed: a package reload rewrote
+`backend/src/LibExecution/package-ref-hashes.txt`, which every CLI in the checkout reads at
+startup whatever its `DARK_CONFIG_RUNDIR`, so every gate beside `reload-is-reproducible` died with
+`FnNotFound`. A reload now leaves that file alone unless its contents change. A new gate that
+writes anywhere outside its own rundir breaks the parallel mode the same way.
 
 `gates all` re-execs `$0 <name>` once per gate, so editing `scripts/testing/gates` or a
 `_gates-*` file while a run is in flight breaks every invocation that starts after the edit,
