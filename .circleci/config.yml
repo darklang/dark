@@ -340,6 +340,15 @@ jobs:
           name: Check the reference workload is within its allocation budget
           command: scripts/perf/gate --published
 
+      # A fresh install of the binary just built: empty home, the whole SCM workflow, then the
+      # layout the installer leaves. Here and not in `gates ci` because this is the only job with
+      # the single-file binary people download; see CI_GATES in scripts/testing/gates. Nothing in
+      # this workflow gzips clis/ (only the release matrix's package-clis does), so the bare
+      # binary is there.
+      - run:
+          name: First-day gate on the built CLI
+          command: timeout 5m scripts/testing/gates first-day "$(ls clis/darklang-*-linux-x64)"
+
       - persist_to_workspace:
           root: "."
           paths:

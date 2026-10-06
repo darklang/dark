@@ -45,11 +45,11 @@ GATES=(
 # leaking an LSP server that reached 42.6 GB over 28 hours. A gate nobody runs is not a gate, and
 # fixing it without running it leaves the next one to rot the same way. It costs 12s.
 #
-# first-day is still out, and not for its runtime, which is 24s. It takes its artifact as a
-# POSITIONAL argument and `run_many` passes only names, so in CI it would fall back to globbing
-# `clis/darklang-alpha-*-linux-x64` -- which CI has gzipped by then -- and exit 2 on "no published
-# CLI". Putting it in CI means teaching the runner to pass that node's artifact, which is a change
-# to the CI wiring rather than a name in this list. The sync gates stay out for their minutes.
+# first-day runs in CI but not from this list: it has its own step in the `build-cli` job, on the
+# binary that job builds. This list runs on the `build-backend` gates node, which has no clis/ and
+# only a plain `dotnet publish`, whose apphost cannot be copied into `~/.darklang/bin` on its own
+# the way first-day's installed-layout step copies the real single-file binary. Same reason the
+# allocation gate lives there. The sync gates stay out for their minutes.
 #
 # Measured locally, for comparison with the 5m per-gate bound CI applies:
 #   relay-routes 5s, workbench-views 14s, first-day 24s, workbench-scm 35s, lsp-branches 12s
@@ -179,6 +179,7 @@ case "$cmd" in
     for g in "${GATES[@]}"; do printf "  %-$((w + 2))s%s\n" "$g" "$(describe "$g")"; done
     echo
     echo "  ci  = ${CI_GATES[*]}" | fold -sw 84 | sed -e '2,$s/^/        /' -e 's/ *$//'
+    echo "        (first-day also runs in CI, in build-cli, on the binary that job builds)"
     echo "  all = every gate except gates-are-clean, SERIAL, with per-gate timings."
     echo "        --parallel is four times faster and currently reports failures that are not"
     echo "        there. Run gates-are-clean only when a gate itself changes."
