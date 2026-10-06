@@ -783,6 +783,14 @@ available conclusion was equally "not a working instrument". A real browser with
 front of it gets a prompt in seconds. A control agreeing with your negative only rules out one of
 the two explanations, and the instrument is the one nobody suspects.
 
+**A `while read` loop over a heredoc loses every line after the first if the body calls
+`run-cli`.** `run-cli` forwards stdin, so it consumes the rest of the heredoc the loop was reading
+from, and the loop ends after one iteration. It prints no error and exits 0, so a sweep written this
+way reports confidently on one item while looking like it covered all of them: a fourteen-query
+ranking sweep examined ONE and its diff read as complete. Feed the inner command `< /dev/null`. Only
+counting what the loop actually examined caught it, which is the general rule, and this is a
+particularly quiet instance of it.
+
 **Bracket every pattern you hand to `pgrep -f` / `pkill -f`.** The pattern appears in your own
 shell's command line, so an unbracketed one matches the process doing the matching. A waiter waits
 on itself forever; a `pkill -f "serve Foo"` kills the backgrounded shell whose command line
