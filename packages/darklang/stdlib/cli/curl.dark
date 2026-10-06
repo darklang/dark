@@ -4,4 +4,5 @@ let downloadFileToPath
   (url: String)
   (downloadTo: String)
   : Stdlib.Result.Result<Unit, String> =
-  Stdlib.Cli.executeWithUnitOrStdErr $"curl -s -L -o \"{downloadTo}\" {url}"
+  // `-f`, so a 404 is an error rather than an HTML page saved under the name we asked for.
+  Stdlib.Cli.executeWithUnitOrStdErr $"curl -fsSL -o \"{downloadTo}\" \"{url}\""

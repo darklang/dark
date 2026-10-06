@@ -6,23 +6,33 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let currentMode = Installation.System.getInstallationMode ()
   let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
 
-  // Parse flags
-  let autoConfirm =
-    (Stdlib.List.member args "--yes") || (Stdlib.List.member args "-y")
+  let parsed =
+    Cli.FlagParser.parse
+      (Cli.FlagParser.Spec { flags = [ ("--yes", [ "-y" ]) ]; valueFlags = [ ("--to", []) ] })
+      args
 
-  match currentMode with
-  | Installed ->
-    Stdlib.printLine $"Checking for updates from Darklang CLI {currentVersion}..."
-    match Installation.System.updateIfAvailable currentVersion host autoConfirm with
-    | Ok message ->
-      Stdlib.printLine (View.formatSuccess message)
-      state
-    | Error e ->
-      Stdlib.printLine (View.formatError e)
-      state
-  | Portable ->
-    let message = $"Running in portable mode from {Stdlib.Cli.FileSystem.currentDirectory ()}/.darklang\n\nTo update this portable executable, please download the latest release manually from:\nhttps://github.com/darklang/dark/releases\n\nFor automatic updates, consider running 'install' to set up global installation."
+  match parsed.errors with
+  | _ :: _ ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.FlagParser.parseErrorsMessage parsed.errors))
+    Stdlib.printLine (help state)
+    state
+  | [] ->
+
+  let pinned = Cli.FlagParser.getOption parsed "--to"
+
+  let replace =
+    match currentMode with
+    | Installed -> fun () -> Installation.Download.installRelease host pinned
+    | Portable -> fun () -> Installation.Download.updatePortableInPlace host pinned
+
+  Stdlib.printLine $"Checking for updates from Darklang CLI {currentVersion}..."
+
+  match Installation.System.updateIfAvailable currentVersion pinned replace with
+  | Ok message ->
     Stdlib.printLine (View.formatSuccess message)
+    state
+  | Error e ->
+    Stdlib.printLine (View.formatError e)
     state
 
 
@@ -31,12 +41,16 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 
 let help (_state: AppState) : String =
-  [ "Usage: update [--yes|-y]"
+  [ "Usage: update [--to <tag>] [--yes|-y]"
     "Update Darklang CLI to the latest version."
     ""
-    "Checks GitHub for the latest release and updates the globally"
-    "installed CLI. Only works for global installations."
+    "Checks GitHub for the latest release and replaces this binary with it,"
+    "after checking the new one runs against a copy of your store."
+    "An installed CLI (~/.darklang/bin/dark) also records the new version"
+    "and keeps its PATH entry; a portable one is replaced where it is."
     ""
     "Flags:"
-    "  --yes, -y  Skip confirmation prompt" ]
+    "  --to <tag>  Install this release instead of the latest (e.g. v0.0.42),"
+    "              even an older one. Refused if it can't read your store."
+    "  --yes, -y   Accepted for scripts; update never prompts" ]
   |> Stdlib.String.join "\n"
