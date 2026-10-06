@@ -334,12 +334,13 @@ gate_lsp_typing() {
     req "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"$URI\"},\"position\":{\"line\":0,\"character\":5}}}"
     req "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"$URI\"},\"position\":{\"line\":0,\"character\":5}}}"
     sleep 3
-  } | timeout --kill-after=5 120 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' > "$OUT" 2>&1 || true
+  } | timeout --kill-after=5 120 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' > "$OUT" 2> "$WORK/server-log.txt" || true
 
   # Both hovers must have been answered, or the counts below describe a server that died early.
   grep -q '"id":2,"result":{"contents"' "$OUT" || fail "the hover after the keystrokes was not answered"
   grep -q '"id":3,"result":{"contents"' "$OUT" || fail "the second hover was not answered"
 
+  # stdout only: the server also logs every reply to stderr, which would double this.
   PUBLISHES=$(grep -o 'textDocument/publishDiagnostics' "$OUT" | wc -l)
   # One for the open, which analyses at once, and one for the first hover after the keystrokes.
   [[ "$PUBLISHES" -eq 2 ]] \
