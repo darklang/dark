@@ -164,8 +164,8 @@ let handleSemanticTokensRequest
   (requestParams:
     LanguageServerProtocol.SemanticTokens.SemanticTokensRequest.SemanticTokensParams.SemanticTokensParams)
   : LspState =
-  let relevantDoc =
-    Stdlib.Dict.get state.documentsInScope requestParams.textDocument.uri
+  let (state, relevantDoc) =
+    DocSync.analysed state requestParams.textDocument.uri
 
   match relevantDoc with
   | None ->
@@ -177,8 +177,8 @@ let handleSemanticTokensRequest
     |> Stdlib.AltJson.format
     |> logAndSendToClient
 
-  | Some docText ->
-    let parsed = docText.parsed
+  | Some((_doc, analysis)) ->
+    let parsed = analysis.parsed
 
     match parsed with
     | Ok parsedFile ->

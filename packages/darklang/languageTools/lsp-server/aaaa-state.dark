@@ -1,11 +1,23 @@
 module Darklang.LanguageTools.LspServer
 
 
+/// What a document's text means: parsed, names resolved, checked, diagnostics published.
+/// Worked out the first time a request needs it, not on every keystroke (`DocSync.analysed`).
+type DocumentAnalysis =
+  { /// The branch it was resolved against. A branch switch makes it stale.
+    branchId: Uuid
+    parsed: Stdlib.Result.Result<WrittenTypes.ParsedFile, String>
+    /// The package manager plus this document's own declarations, which hover resolves
+    /// names against. Filled on the first hover, since nothing else needs it.
+    hoverPM: Stdlib.Option.Option<ProgramTypes.PackageManager.PackageManager> }
+
 type DocumentInScope =
   { uri: String
     text: String
-    parsed: Stdlib.Result.Result<WrittenTypes.ParsedFile, String>
-    parsedToPT: Stdlib.Option.Option<ProgramTypes.SourceFile.SourceFile> }
+    /// The analysis of exactly `text`, or None until something asks. A change builds a
+    /// new DocumentInScope with this empty, so the text and its analysis are one value and
+    /// an analysis can never be read against text it was not made from.
+    analysis: Stdlib.Option.Option<DocumentAnalysis> }
 
 type LspState =
   {
