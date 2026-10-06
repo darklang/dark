@@ -1830,6 +1830,13 @@ module DvalCreator =
       List.zip typeArgsBeforeUpdate resolvedTypeArgs
       |> List.map (fun (beforeUpdate, (name, _)) -> (name, beforeUpdate))
 
+    // The record type's parameters shadow the caller's, as in `recordAfterResolve`. Without this
+    // a type parameter the function happens to share a name with fills the record's: an update
+    // of a `NameResolution<_>` inside a frame where some caller bound `'a` came out typed with
+    // that caller's `'a`, and the return check raised.
+    let tst =
+      resolvedTypeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
+
     let updated =
       updateRecordFields
         types
