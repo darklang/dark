@@ -1,5 +1,10 @@
 /// Helps to download the latest release of the Darklang CLI,
 /// and replace the current version with it.
+///
+/// The order matters, and is the same one `install.sh` follows: download beside the target under a
+/// temporary name, check the new binary runs, rename it over the target, and only then record the new
+/// version. A failure at any step before the rename leaves the old binary in place and the old version
+/// recorded, which is the only safe direction for a self-updater to fail in.
 module Darklang.Cli.Installation.Download
 
 
@@ -11,93 +16,182 @@ let basename (url: String) : Stdlib.Result.Result<String, String> =
   | None -> Stdlib.Result.Result.Error "Failed to get asset name"
 
 
-// CLEANUP delete old version of the executable,
-//  if/when the new version is working correctly
-let installOrUpdateLatestRelease
+/// A release to install: its tag (`v0.0.54`) and the URL of the asset for this host.
+type ReleaseAsset = { tag: String; assetUrl: String }
+
+
+/// The release to install, <param pinned> or else the latest, and its asset for this OS and
+/// architecture.
+let releaseToInstall
   (host: Stdlib.Cli.Host.Host)
+  (pinned: Stdlib.Option.Option<String>)
+  : Stdlib.Result.Result<ReleaseAsset, String> =
+  let tag =
+    match pinned with
+    | Some tag -> Stdlib.Result.Result.Ok tag
+    | None -> Darklang.GitHub.Releases.getLatestReleaseTag ()
+
+  tag
+  |> Stdlib.Result.andThen (fun tag ->
+    Darklang.GitHub.Releases.getDownloadUrl host tag
+    |> Stdlib.Result.map (fun url -> ReleaseAsset { tag = tag; assetUrl = url }))
+
+
+/// Run a freshly downloaded binary against a COPY of this instance's store, and check it can evaluate
+/// something.
+///
+/// A copy, because the question is whether the new binary works for this person, with their data:
+/// an older release can't read a store a newer one has written, and a release with a seeding bug
+/// fails only in a data directory that already exists (v0.0.50 to v0.0.54 did, every command). An
+/// empty store answers neither. `DARK_CONFIG_RUNDIR` keeps the run off the live store, which the new
+/// binary would otherwise open and migrate before we know whether we're keeping it.
+let smokeTest (binaryPath: String) : Stdlib.Result.Result<Unit, String> =
+  match Stdlib.Cli.executeWithStdOutOrStdErr "mktemp -d" with
+  | Error e -> Stdlib.Result.Result.Error $"Couldn't make a directory to test the new binary in: {e}"
+  | Ok tmp ->
+    let tmp = Stdlib.String.trim tmp
+    let rundir = $"{tmp}/.darklang"
+    let store = Stdlib.LocalStore.path ()
+
+    // The WAL holds committed pages not yet folded into data.db, so it comes too when it's there.
+    let copyStore =
+      $"for f in '{store}' '{store}-wal'; do if [ -f \"$f\" ]; then cp \"$f\" '{rundir}/'; fi; done"
+
+    let result =
+      Stdlib.Cli.execute
+        $"mkdir -p '{rundir}' && {copyStore} && DARK_CONFIG_RUNDIR='{rundir}' '{binaryPath}' eval '1L + 2L' </dev/null 2>&1"
+
+    let _cleaned = Stdlib.Cli.execute $"rm -rf '{tmp}'"
+
+    let lines = result.stdout |> Stdlib.String.trim |> Stdlib.String.split "\n"
+    let lastLine = (Stdlib.List.last lines) |> Stdlib.Option.withDefault ""
+
+    // What to quote on failure: the first line naming an error, since the last is often a stack frame.
+    let errorLine =
+      (lines
+       |> Stdlib.List.findFirst (fun l ->
+         Stdlib.String.contains l "Error" || Stdlib.String.contains l "Exception"))
+      |> Stdlib.Option.withDefault lastLine
+
+    if result.exitCode == 0 && Stdlib.String.trim lastLine == "3" then
+      Stdlib.Result.Result.Ok()
+    else
+      Stdlib.Result.Result.Error
+        $"The downloaded release failed a test run against a copy of your store ({Stdlib.String.trim errorLine}, exit {Stdlib.toString result.exitCode}). Nothing was changed. Please report this at https://github.com/darklang/dark/issues"
+
+
+/// Download the asset at <param url> and put the binary it holds at <param target>.
+///
+/// Leaves <param target> untouched unless every step succeeded.
+let replaceBinary
+  (host: Stdlib.Cli.Host.Host)
+  (url: String)
+  (target: String)
   : Stdlib.Result.Result<Unit, String> =
+  let downloadTo = $"{target}.download.gz"
+  let fresh = $"{target}.new"
+  let dir = Stdlib.Cli.Path.parent target
 
-  let latestReleaseTag =
-    (Darklang.GitHub.Releases.getLatestReleaseTag ()) |> Builtin.unwrap
+  match host.os with
+  | Windows ->
+    // Windows won't overwrite a running executable, but it will rename one, so the old binary steps
+    // aside to `.old` rather than being replaced in place.
+    //
+    // CLEANUP: no smoke test here yet, and this branch hasn't been run on Windows.
+    let old = $"{target}.old"
 
-  let downloadUrl = // will be something like `darklang-linux-x64.gz`
-    (Darklang.GitHub.Releases.getDownloadUrl host latestReleaseTag)
-    |> Builtin.unwrap
+    let steps =
+      Stdlib.Cli.PowerShell.ensureDirectoryExists dir
+      |> Stdlib.Result.andThen (fun _ -> Stdlib.Cli.Curl.downloadFileToPath url downloadTo)
+      |> Stdlib.Result.andThen (fun _ -> Stdlib.Cli.PowerShell.Gzip.unzipToFile downloadTo fresh)
+      |> Stdlib.Result.andThen (fun _ ->
+        Stdlib.Cli.executeWithUnitOrStdErr
+          $"powershell.exe -Command \"if (Test-Path -Path '{target}') {{ Move-Item -Force -Path '{target}' -Destination '{old}' }}; Move-Item -Force -Path '{fresh}' -Destination '{target}'\"")
 
-  let assetName = (basename downloadUrl) |> Builtin.unwrap
+    let _cleaned = Stdlib.Cli.PowerShell.removeFile downloadTo
+    steps
 
-  if Stdlib.Bool.not (Stdlib.String.endsWith assetName ".gz") then
-    Stdlib.Result.Result.Error
-      $"Expected a .gz release asset, got: {assetName}"
-  else
-    // the executable's name: the asset name minus its `.gz` suffix
-    let extractedName = Stdlib.String.dropLast assetName 3
+  | Linux | MacOS ->
+    let steps =
+      Stdlib.Cli.executeWithUnitOrStdErr $"mkdir -p '{dir}'"
+      |> Stdlib.Result.andThen (fun _ -> Stdlib.Cli.Curl.downloadFileToPath url downloadTo)
+      |> Stdlib.Result.andThen (fun _ ->
+        Stdlib.Cli.executeWithUnitOrStdErr
+          $"gunzip -c '{downloadTo}' > '{fresh}' && chmod +x '{fresh}'")
+      |> Stdlib.Result.andThen (fun _ -> smokeTest fresh)
+      // A rename within one directory is atomic, and a running binary keeps its own inode, so the
+      // process doing this carries on unaffected.
+      |> Stdlib.Result.andThen (fun _ ->
+        Stdlib.Cli.executeWithUnitOrStdErr $"mv -f '{fresh}' '{target}'")
 
+    let _cleaned = Stdlib.Cli.execute $"rm -f '{downloadTo}' '{fresh}'"
+    steps
+
+  | _ -> Stdlib.Result.Result.Error "Unsupported OS"
+
+
+/// Install a release (<param pinned>, or else the latest) to `~/.darklang/bin/dark`, record its
+/// version, and put it on the PATH. Returns the tag installed.
+///
+/// The version is written after the binary is in place, never before: a failed update must not leave
+/// `config.json` naming a version that isn't installed.
+let installRelease
+  (host: Stdlib.Cli.Host.Host)
+  (pinned: Stdlib.Option.Option<String>)
+  : Stdlib.Result.Result<String, String> =
+  let darklangHomeDir = Config.getDarklangHomeDir host
+
+  let (binDir, target, configPath) =
     match host.os with
     | Windows ->
-      let darklangHomeDir = Config.getDarklangHomeDir host
+      ($"{darklangHomeDir}\\bin\\", $"{darklangHomeDir}\\bin\\dark.exe", $"{darklangHomeDir}\\config.json")
+    | _ ->
+      ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark", $"{darklangHomeDir}/config.json")
 
-      let executableDir = $"{darklangHomeDir}\\bin\\"
-      let configPath = $"{darklangHomeDir}\\config.json"
+  match releaseToInstall host pinned with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok release ->
+    match replaceBinary host release.assetUrl target with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok _ ->
+      match Config.updateVersion configPath release.tag with
+      | Error e ->
+        Stdlib.Result.Result.Error
+          $"Installed {release.tag}, but couldn't record it in {configPath}: {e}"
+      | Ok _ ->
+        // The binary is in place by now, so a PATH we couldn't edit is worth a line, not a failure.
+        let pathResult =
+          match host.os with
+          | Windows -> Stdlib.Cli.PowerShell.addToPath binDir
+          // Unexpanded on purpose: the line must match what `install.sh` writes, byte for byte.
+          | _ -> Stdlib.Cli.Unix.addToPath host.defaultShell "$HOME/.darklang/bin/"
 
-      let ensureDirectoryExists =
-        Stdlib.Cli.PowerShell.ensureDirectoryExists executableDir
+        match pathResult with
+        | Ok _ -> ()
+        | Error e ->
+          Stdlib.printLine
+            $"Couldn't add {binDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere."
 
-      let downloadTo = $"{executableDir}{assetName}"
+        Stdlib.Result.Result.Ok release.tag
 
-      let downloadFileToPath =
-        Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo
 
-      let extractedExecutablePath = $"{executableDir}{extractedName}"
+/// <fn installRelease> for the latest release.
+let installOrUpdateLatestRelease
+  (host: Stdlib.Cli.Host.Host)
+  : Stdlib.Result.Result<String, String> =
+  installRelease host Stdlib.Option.Option.None
 
-      (Stdlib.Cli.PowerShell.Gzip.unzipToFile
-        downloadTo
-        extractedExecutablePath)
-      |> Builtin.unwrap
 
-      (Stdlib.Cli.PowerShell.createFile configPath) |> Builtin.unwrap
+/// Replace the binary that is running with a release (<param pinned>, or else the latest), wherever
+/// it is. For a portable binary, which has no `config.json` and no PATH entry to keep up to date.
+/// Returns the tag installed.
+let updatePortableInPlace
+  (host: Stdlib.Cli.Host.Host)
+  (pinned: Stdlib.Option.Option<String>)
+  : Stdlib.Result.Result<String, String> =
+  let target = Stdlib.Cli.Sys.currentExecutablePath ()
 
-      (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
-
-      (Stdlib.Cli.PowerShell.removeFile downloadTo) |> Builtin.unwrap
-
-      (Stdlib.Cli.PowerShell.grantExecutePermission extractedExecutablePath)
-      |> Builtin.unwrap
-
-      // Add bin directory to PATH (works in non-interactive processes)
-      (Stdlib.Cli.PowerShell.addToPath executableDir)
-      |> Builtin.unwrap
-
-      Stdlib.Result.Result.Ok()
-
-    | Linux | MacOS ->
-      let configPath = "$HOME/.darklang/config.json"
-      let executableDir = "$HOME/.darklang/bin/"
-
-      (Stdlib.Cli.Unix.ensureDirectoryExists executableDir) |> Builtin.unwrap
-
-      let downloadTo = $"{executableDir}{assetName}"
-
-      (Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo)
-      |> Builtin.unwrap
-
-      // unzip the .gz file
-      let extractedExecutablePath = $"{executableDir}{extractedName}"
-
-      (Stdlib.Cli.Gunzip.unzipToFile downloadTo extractedExecutablePath)
-      |> Builtin.unwrap
-
-      (Stdlib.Cli.Unix.removeFile downloadTo) |> Builtin.unwrap
-
-      (Stdlib.Cli.Unix.grantExecutePermission extractedExecutablePath)
-      |> Builtin.unwrap
-
-      (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
-
-      // Add bin directory to PATH (works in non-interactive shells like VS Code)
-      (Stdlib.Cli.Unix.addToPath host.defaultShell executableDir)
-      |> Builtin.unwrap
-
-      Stdlib.Result.Result.Ok()
-
-    | _ -> Stdlib.Result.Result.Error "Unsupported OS"
+  releaseToInstall host pinned
+  |> Stdlib.Result.andThen (fun release ->
+    replaceBinary host release.assetUrl target
+    |> Stdlib.Result.map (fun _ -> release.tag))

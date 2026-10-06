@@ -59,7 +59,13 @@ let addAlias
 let addToPath (dir: String) : Result.Result<Unit, String> =
   let exportLine = $"export PATH=\"{dir}:$PATH\""
 
-  match readBashrc () with
+  // A missing rc file is an empty one: a fresh account often has none, and refusing here used to
+  // fail an install after the binary was already in place.
+  let existing =
+    if Stdlib.Cli.FileSystem.pathExists "$HOME/.bashrc" then readBashrc ()
+    else Result.Result.Ok ""
+
+  match existing with
   | Ok content ->
     // Check if PATH export for this dir already exists (not just any reference to the dir)
     if String.contains content exportLine then

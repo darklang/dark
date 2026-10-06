@@ -37,22 +37,14 @@ let getInstallationMode () : InstallationMode =
     InstallationMode.Portable
 
 
-/// Check if the latest version of the Darklang CLI is installed,
-/// by comparing:
-/// - the latest release on GitHub,
-/// (against)
-/// - the locally-installed version, as recorded in the `config.json` file
-let isAtLatestVersion
-  (configPath: String)
-  : Stdlib.Result.Result<Bool, String> =
-  match Darklang.GitHub.Releases.getLatestReleaseTag () with
-  | Ok latestVersion ->
-    match Config.readLocallyInstalledDarklangVersion configPath with
-    | Ok localVersion -> Stdlib.Result.Result.Ok(localVersion == latestVersion)
-    | Error _e -> Stdlib.Result.Result.Error "Couldn't determine local version"
-  | Error _e ->
-    Stdlib.Result.Result.Error
-      "Couldn't determine latest version -- whatever you're about to try probably won't work"
+/// Is this binary the latest release?
+///
+/// Compares build hashes, the one identity a binary and a release share. The tag (`v0.0.54`) appears
+/// nowhere in the binary, so comparing the two never matched and every update re-downloaded; and
+/// `config.json` only says what was last recorded, which a failed update used to get wrong.
+let isLatestBuild (currentVersion: String) : Stdlib.Result.Result<Bool, String> =
+  Darklang.GitHub.Releases.getLatestReleaseBuildHash ()
+  |> Stdlib.Result.map (fun latest -> latest == currentVersion)
 
 
 /// Migrate portable database to global installation
@@ -188,38 +180,29 @@ let install (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Res
   | Error e -> Stdlib.Result.Result.Error e
 
 
-/// Update the CLI if a newer version is available
-/// If autoConfirm is true, skips prompts and auto-accepts update
-let updateIfAvailable (currentVersion: String) (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Result<String, String> =
-  match Darklang.GitHub.Releases.getLatestReleaseTag () with
-  | Ok latestVersion ->
-    // Handle local-binary specially
-    if currentVersion == "local-binary" then
-      let choice =
-        if autoConfirm then
-          true
-        else
-          Stdlib.printLine "You're currently running a locally-installed binary (from development)."
-          Stdlib.printLine $"Latest official release is {latestVersion}."
+/// Update the CLI if a newer version is available. Never prompts, so `--yes` changes nothing here.
+///
+/// <param pinned> names a release to install instead of the latest. <param replace> does the work: the global install and a portable binary keep different things
+/// up to date, but decide whether to update the same way.
+let updateIfAvailable
+  (currentVersion: String)
+  (pinned: Stdlib.Option.Option<String>)
+  (replace: Unit -> Stdlib.Result.Result<String, String>)
+  : Stdlib.Result.Result<String, String> =
+  // A pinned tag is installed whatever is current: it is how you roll back.
+  let check =
+    match pinned with
+    | Some _ -> Stdlib.Result.Result.Ok false
+    | None -> isLatestBuild currentVersion
 
-          Cli.Prompt.confirmExplicit false "Update to the official release? (y/n): "
-
-      if choice then
-        match Download.installOrUpdateLatestRelease host with
-        | Ok _ -> Stdlib.Result.Result.Ok($"Successfully updated to official release {latestVersion}")
-        | Error e -> Stdlib.Result.Result.Error e
-      else
-        Stdlib.Result.Result.Ok("Update cancelled - keeping local binary")
-    else if currentVersion == latestVersion then
-      Stdlib.Result.Result.Ok("Already up to date!")
-    else
-      match Download.installOrUpdateLatestRelease host with
-      | Ok _ -> Stdlib.Result.Result.Ok($"Successfully updated to {latestVersion}")
-      | Error e -> Stdlib.Result.Result.Error e
+  match check with
   | Error _ ->
-    // Unable to check for updates, proceed with installation
-    match Download.installOrUpdateLatestRelease host with
-    | Ok _ -> Stdlib.Result.Result.Ok("Update complete")
+    Stdlib.Result.Result.Error
+      "Couldn't reach GitHub to find the latest release. Nothing was changed."
+  | Ok true -> Stdlib.Result.Result.Ok "Already up to date!"
+  | Ok false ->
+    match replace () with
+    | Ok tag -> Stdlib.Result.Result.Ok $"Updated to {tag}."
     | Error e -> Stdlib.Result.Result.Error e
 
 
