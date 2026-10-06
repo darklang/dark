@@ -85,6 +85,20 @@ module Update =
    { myRec with z = 3L; x = 42L; y = 11L }) =
     (RecordForUpdateMultiple { x = 42L; y = 11L; z = 3L })
 
+  // An update of a record whose type argument is still unknown, inside a fn with no type
+  // parameters, called from a fn whose type parameter has the record's parameter's name. The
+  // caller's `'a` must not fill the record's.
+  module UnderAGenericCaller =
+    type UpdBox<'a> = { updItems: List<'a> }
+
+    let emptyUpdBox () : UpdBox<String> =
+      let b = UpdBox { updItems = [] }
+      { b with updItems = [] }
+
+    let viaGeneric<'a> (xs: List<'a>) : UpdBox<String> = emptyUpdBox ()
+
+    Stdlib.List.length (viaGeneric [ 1L ]).updItems = 0
+
   module Invalid =
     (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
      { myRec with z = 3L; x = 42L; y = 11L; p = 10L }) = error="No field named `p`"

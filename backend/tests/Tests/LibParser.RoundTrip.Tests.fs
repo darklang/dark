@@ -587,6 +587,20 @@ let tParseErrorNote (name : string) (input : string) (expectedNote : string) =
   }
 
 
+/// Asserts `input` parses on the editor's path. A call whose module part is one capitalised
+/// segment (`List.map`, `Builtin.x`, `Stdlib.toString`) makes the resolver probe that segment as
+/// a trait, and the probe's miss used to come back typed with whatever `'a` a caller had bound,
+/// so the parse raised and took the language server down with it.
+let tParsesOk (name : string) (input : string) =
+  testTask name {
+    let! parseDval = parseForCliDval input
+
+    match parseDval with
+    | RT.DEnum(tn, _, _, "Ok", _) when tn = Dval.resultType () -> return ()
+    | _ -> return failtest $"Expected Result.Ok; got {parseDval}"
+  }
+
+
 let person : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
     { hash = PT.Hash ""
@@ -2969,7 +2983,15 @@ two"""
       (RT.DList(
         LibExecution.ValueType.int64,
         [ RT.DInt64 3L; RT.DInt64 2L; RT.DInt64 1L ]
-      )) ]
+      ))
+
+    tParsesOk
+      "module-relative calls parse on the editor's path"
+      "let bumped (xs: List<Int64>): List<Int64> =
+  List.map xs (fun y -> y + 1L)
+
+let shown (n: Int64): String =
+  Stdlib.toString n" ]
   |> testList "cli scripts"
 
 let tests =
