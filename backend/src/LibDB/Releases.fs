@@ -46,7 +46,7 @@ let private tableExists (table : string) : bool =
 /// declared it). The statement carries its own `IF NOT EXISTS`, so this is about the print.
 let createTableIfMissing (table : string) (ddl : string) : unit =
   if not (tableExists table) then
-    print $"  release: adding {table}"
+    System.Console.Error.WriteLine $"  release: adding {table}"
     Sql.query ddl |> Sql.executeStatementSync
 
 
@@ -58,7 +58,7 @@ let addColumnIfMissing
   (declaration : string)
   : unit =
   if tableExists table && not (hasColumn table column) then
-    print $"  release: adding {table}.{column}"
+    System.Console.Error.WriteLine $"  release: adding {table}.{column}"
     Sql.query $"ALTER TABLE {table} ADD COLUMN {column} {declaration}"
     |> Sql.executeStatementSync
 
@@ -436,7 +436,9 @@ let runPending () : unit =
 
   for step in steps do
     if not (Set.contains step.name done_) then
-      print $"Running release step: {step.name}"
+      // Progress, not output. On a first run this is the first thing a language server
+      // would send its editor, where stdout is the protocol channel.
+      System.Console.Error.WriteLine $"Running release step: {step.name}"
       step.run ()
 
       Sql.query
