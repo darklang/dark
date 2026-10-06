@@ -214,7 +214,8 @@ let isEmpty (list: List<'a>) : Bool = Builtin.listIsEmpty list
 
 
 /// Returns a copy of <param list> with every value sorted in ascending order.
-/// Use this if the values have types Dark knows how to sort.
+/// A type with its own `Compare` implementation is ordered the way `<` orders it, and values
+/// equal under it keep their order; every other value is sorted structurally.
 /// Consider <fn sortBy> or <fn sortByComparator> if you need more
 /// control over the sorting process.
 let sort (list: List<'a>) : List<'a> = Builtin.listSort list
