@@ -189,8 +189,15 @@ runtime reads its dispatch candidates. `validateImpl` checks the method set
   the type is exhausted (`dischargeConstraints`).
 - `x.m`, where `x` is a record without a field `m`, falls back to the one visible impl
   carrying a method `m` for `x`'s head type; no such impl keeps `UnknownRecordField`.
-- Visible means in `TypeEnvironment.impls`: what the adapter loaded for the types the batch
-  names, plus the operator traits always (`addVisibleImpls`).
+- Visible means in `Environment.traitImpls`: every implementation bound on the branch in the
+  store, plus the batch's own (`Environment.withBatch`). A trait the batch declares is read
+  from the batch too (`batchTraits`), so a trait, its implementations and their callers can be
+  saved in one `dark module` and pin exactly as they would saved one at a time. Without the
+  batch's own, the same code pinned or not depending on how its saves were batched, and nothing
+  reported it (`gates trait-choice-any-batching`).
+- An authoring save that leaves any call unpinned says so, naming the items: a trait call still
+  `Unknown`, or a call into a bounded fn with no recorded bounds, which includes every piped one
+  (`EPipeFnCall` has no field for them).
 
 ## Where this should live
 

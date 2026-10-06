@@ -536,6 +536,140 @@ DARK
 }
 
 
+# --- trait-choice-any-batching: the choice is recorded however the saves were batched ---
+# `trait-choice-survives-rival` saves the implementation first and the calls after. A person
+# writing one file saves the trait, its implementations and their callers in ONE `dark module`,
+# and the checker used to see only what the store held before that save. So the same code was
+# protected or not depending on how it was batched: saved with its trait, every trait call in
+# the batch was left to run-time dispatch (`toString` included); saved with its implementations,
+# the CALLER recorded nothing. Both saved cleanly, `typecheck` passed both, and re-saving was a
+# no-op, so the only way to find out was to author a rival and watch the code change meaning.
+#
+# One trait, two implementations, a bounded generic and a caller, saved three ways. Each way gets
+# its own method name, so no two share a content hash. Each must record its caller's choice and
+# keep its answer when a newer rival for String lands.
+gate_trait_choice_any_batching() {
+  set -euo pipefail
+
+  WORK=rundir/trait-batching
+  rm -rf "$WORK"
+  mkdir -p "$WORK/logs"
+  scripts/testing/_copy-store "$WORK/data.db"
+  # A copied store carries the real relay and its write secret. See the AGENTS.md note.
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+  # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  clean() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+  local src="$WORK/src"
+  mkdir -p "$src"
+
+  traitSrc() { printf '%s\n' "trait Gauge<'c> =" "  let $1 (c: 'c) : Int"; }
+  implsSrc() {
+    printf '%s\n' \
+      "impl $1 for List<'a> =" \
+      "  let $2 (xs: List<'a>) : Int = Stdlib.List.length xs" \
+      "" \
+      "impl $1 for String =" \
+      "  let $2 (s: String) : Int = Stdlib.String.length s"
+  }
+  usersSrc() {
+    printf '%s\n' \
+      "let describe<'c: $1> (c: 'c) : String =" \
+      "  (Stdlib.toString ($1.$2 c)) + \" items\"" \
+      "" \
+      "let tryIt () : List<String> = [ describe [ 1, 2, 3 ], describe \"hello\" ]"
+  }
+
+  # How many choices a stored fn's body records, `Unknown` aside: what pinning wrote.
+  recorded() {
+    $CLI eval "match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Stachu\"; modules = [\"$1\"]; name = \"$2\" }) with
+| Some h ->
+  (match Darklang.LanguageTools.PackageManager.Function.get h with
+   | Some f -> Stdlib.toRepr f.body
+   | None -> \"\")
+| None -> \"\"" | tr -s ' \n' ' ' | { grep -oE 'ImplChoice\.(Chosen|FromTypeParam)' || true; } | wc -l
+  }
+
+  save() {
+    local out
+    out=$($CLI module "/$1" - < "$2" 2>&1 | clean)
+    if [[ "$out" != *"Defined"* ]]; then
+      echo "trait-choice-any-batching: saving /$1 failed:"
+      echo "$out"
+      exit 1
+    fi
+  }
+
+  # $1 the way, $2 the module tryIt lives in, $3 the trait's path, $4 the method
+  check() {
+    local way=$1 mod=$2 traitPath=$3 method=$4
+
+    local pinned
+    pinned=$(recorded "$mod" tryIt)
+    if [[ "$pinned" -lt 2 ]]; then
+      echo "trait-choice-any-batching: saved $way, the caller recorded $pinned choice(s) for"
+      echo "  its two calls into the bounded generic, so both are left to run-time dispatch"
+      exit 1
+    fi
+
+    local before after direct
+    before=$($CLI eval "Stachu.$mod.tryIt ()" | clean)
+    if [[ "$before" != *'"3 items", "5 items"'* ]]; then
+      echo "trait-choice-any-batching: saved $way, the calls did not work before any rival: $before"
+      exit 1
+    fi
+
+    $CLI impl "Stachu.${mod}Rival" \
+      "$traitPath for String = let $method (s: String) : Int = 777" >/dev/null
+
+    after=$($CLI eval "Stachu.$mod.tryIt ()" | clean)
+    direct=$($CLI eval "$traitPath.$method \"hello\"" | clean)
+    if [[ "$direct" != *777* ]]; then
+      echo "trait-choice-any-batching: saved $way, the rival never became the newest"
+      echo "  implementation, so nothing was tested. A fresh call answered: $direct"
+      exit 1
+    fi
+    if [[ "$after" != "$before" ]]; then
+      echo "trait-choice-any-batching: saved $way, a newer implementation changed a saved call"
+      echo "  before the rival: $before"
+      echo "  after  the rival: $after"
+      exit 1
+    fi
+    echo "  $way: $pinned choices recorded, saved calls kept $after"
+  }
+
+  # One save: the trait, its implementations and their callers together.
+  { traitSrc gaugeOne; echo; implsSrc Gauge gaugeOne; echo; usersSrc Gauge gaugeOne; } \
+    > "$src/one.dark"
+  save Stachu.BatchOne "$src/one.dark"
+  check "in one batch" BatchOne Stachu.BatchOne.Gauge gaugeOne
+
+  # Two saves: the trait, then the implementations with their callers.
+  traitSrc gaugeTwo > "$src/two-trait.dark"
+  { implsSrc Stachu.BatchTwoT.Gauge gaugeTwo; echo; usersSrc Stachu.BatchTwoT.Gauge gaugeTwo; } \
+    > "$src/two-rest.dark"
+  save Stachu.BatchTwoT "$src/two-trait.dark"
+  save Stachu.BatchTwoU "$src/two-rest.dark"
+  check "in two batches" BatchTwoU Stachu.BatchTwoT.Gauge gaugeTwo
+
+  # Three saves: the shape that always worked, kept as the control.
+  traitSrc gaugeThree > "$src/three-trait.dark"
+  implsSrc Stachu.BatchThreeT.Gauge gaugeThree > "$src/three-impls.dark"
+  usersSrc Stachu.BatchThreeT.Gauge gaugeThree > "$src/three-users.dark"
+  save Stachu.BatchThreeT "$src/three-trait.dark"
+  save Stachu.BatchThreeI "$src/three-impls.dark"
+  save Stachu.BatchThreeU "$src/three-users.dark"
+  check "in three batches" BatchThreeU Stachu.BatchThreeT.Gauge gaugeThree
+
+  echo "trait-choice-any-batching: a trait, its implementations and their callers record the"
+  echo "  same choices saved together or apart, and a newer rival changes none of them."
+}
+
+
 # --- trait-deprecation-is-per-branch: deprecating an implementation is branch-aware ---
 # `deprecations` has no `branch_id`: a branch's `Deprecate` op sits inert in the op log the same
 # way its names do, and names answer that with an in-memory overlay. The impl-candidate read did

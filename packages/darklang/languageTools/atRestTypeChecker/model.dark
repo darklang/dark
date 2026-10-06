@@ -352,6 +352,12 @@ type Environment =
     /// so taking all of them up front is cheaper than deciding which ones will be needed.
     traitImpls: Dict<String, List<(Ty * LanguageTools.ProgramTypes.Hash)>>
 
+    /// The traits this batch declares, keyed by hash as a string. A trait is otherwise read
+    /// from the store, which does not hold a batch's own items until after the check: without
+    /// these, a call to a trait saved in the same batch had no signature, and the whole batch
+    /// went unchecked and unpinned.
+    batchTraits: Dict<String, LanguageTools.ProgramTypes.Trait.Trait>
+
     /// Which trait and method each operator IS, keyed by the operator. `None` for one that is
     /// not a trait: `==` and `!=` are structural equality for every value, and `++` is no
     /// longer in the language. Also `None` while the trait hashes are not generated, which is

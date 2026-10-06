@@ -5,6 +5,7 @@ module Darklang.LanguageTools.AtRestTypeChecker.Impls
 /// What checking an implementation needs loaded first: its method fns, the types its self type
 /// and type args name, and the types its trait's methods name.
 let refsOf
+  (batchTraits: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.Trait.Trait>)
   (implementation: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
   : List<LanguageTools.ProgramTypes.Reference> =
   let methodFns =
@@ -19,7 +20,7 @@ let refsOf
       | Error _ -> Stdlib.Option.Option.None)
 
   let traitTypes =
-    match traitOf implementation with
+    match traitOf (fun h -> Stdlib.Dict.get batchTraits h) implementation with
     | Some found ->
       let (_, trait_) = found
 
@@ -36,16 +37,22 @@ let refsOf
       Environment.typeListRefs implementation.traitTypeArgs
       traitTypes ]
 
-/// The trait an implementation names, when it names one the store has.
+/// The trait an implementation names: one <param inBatch> answers for (a trait saved in the
+/// same batch), else the store's.
 let traitOf
+  (inBatch: LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<LanguageTools.ProgramTypes.Trait.Trait>)
   (implementation: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
   : Stdlib.Option.Option<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.Trait.Trait)> =
   match implementation.trait_.resolved with
   | Ok resolved ->
     match resolved.name with
     | Package hash ->
-      LanguageTools.PackageManager.Trait.get hash
-      |> Stdlib.Option.map (fun t -> (hash, t))
+      let found =
+        match inBatch hash with
+        | Some t -> Stdlib.Option.Option.Some t
+        | None -> LanguageTools.PackageManager.Trait.get hash
+
+      found |> Stdlib.Option.map (fun t -> (hash, t))
   | Error _ -> Stdlib.Option.Option.None
 
 /// The type variables a written type names.
@@ -181,7 +188,7 @@ let check
   let none = Stdlib.Option.Option.None
   let s = Solve.start env
 
-  match traitOf implementation with
+  match traitOf (fun h -> Environment.traitFor env h) implementation with
   | None ->
     // An unresolved trait name is the unresolved-names check's to report.
     Items.Outcome
