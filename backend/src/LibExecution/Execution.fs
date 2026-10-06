@@ -84,6 +84,8 @@ let createState
 
     packagePolicy = fun _ -> LibExecution.Permissions.Policy.allowAll
 
+    packagePolicyOrigin = fun _ -> None
+
     canManagePolicies = false
 
     canUsePrivateNetworkHttp = false

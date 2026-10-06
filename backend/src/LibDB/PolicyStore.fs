@@ -351,6 +351,56 @@ let seedInstanceIfMissing (instance : P.Policy) : unit =
 // approval. A changed fingerprint marks that root for re-review; it is a
 // signal, not an additional enforcement layer.
 
+/// This binary's builtin declarations, hashed with the analyzer version. An approval records
+/// it, and a different one marks the approval stale.
+let builtinFingerprint
+  (builtIn : System.Collections.Generic.Dictionary<RT.FQFnName.Builtin, RT.BuiltInFn>)
+  : string =
+  let lines =
+    $"analysis={LibExecution.CallGraph.analysisVersion}"
+    :: (builtIn
+        |> Dictionary.toSortedList
+        |> List.map (fun (k, b) ->
+          let effects =
+            b.callEffects
+            |> Set.toList
+            |> List.map LibExecution.Effects.name
+            |> List.sort
+            |> String.concat ","
+          $"{k.name}@{k.version}={effects}"))
+  use sha = System.Security.Cryptography.SHA256.Create()
+  sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(String.concat "\n" lines))
+  |> Array.take 8
+  |> Array.map (fun b -> b.ToString("x2"))
+  |> String.concat ""
+
+/// The approved roots whose closure installed the package policy `policyId`, named as they
+/// were approved (or by short hash), and whether any of them is stale.
+let originOfIn
+  (store : Store)
+  (accountID : Option<Guid>)
+  (current : string)
+  (policyId : string)
+  : Option<RT.PackagePolicyOrigin> =
+  let roots =
+    scopedEntries accountID store.approvedRoots
+    |> Map.filter (fun approval -> Set.contains policyId approval.closure)
+  if Map.isEmpty roots then
+    None
+  else
+    let names = scopedEntries accountID store.approvedVersions
+    let nameOf (root : string) =
+      names
+      |> Map.toList
+      |> List.choose (fun (name, hash) -> if hash = root then Some name else None)
+      |> List.sort
+      |> List.tryHead
+      |> Option.defaultValue (root.Substring(0, min 8 root.Length))
+    Some
+      { approvedAs = roots |> Map.keys |> List.map nameOf |> List.sort
+        stale =
+          roots |> Map.exists (fun _ approval -> approval.fingerprint <> current) }
+
 /// Pure staleness check behind [approvalsAreStale]. True when any approved
 /// root's fingerprint differs from `current`. Per-root, so re-approving one
 /// root leaves the others' staleness intact.
@@ -598,10 +648,13 @@ let guestState
     match Map.tryFind hash approved with
     | Some policy -> Some policy
     | None -> if bundled hash then Some P.Policy.allowAll else None
+  let fingerprint = lazy (builtinFingerprint state.fns.builtIn)
   { state with
       accountID = accountID
       canManagePolicies = false
-      canUsePrivateNetworkHttp = false }
+      canUsePrivateNetworkHttp = false
+      packagePolicyOrigin =
+        fun policyId -> originOfIn (get ()) accountID (fingerprint.Force()) policyId }
   |> Execution.setInstancePolicy instance
   |> Execution.restrictRun runPolicy
   |> Execution.setPackagePolicies lookup

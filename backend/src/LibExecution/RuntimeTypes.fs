@@ -2798,6 +2798,11 @@ module DB =
 // A bunch of tangled things we need to `and` together
 // ------------
 
+/// The approvals that installed a package policy, and whether any was reviewed under different
+/// builtin declarations than this binary's: how a policy that was enough stops being enough.
+type PackagePolicyOrigin = { approvedAs : List<string>; stale : bool }
+
+
 /// Whether a builtin always answers the same way, for a reader who wants to know.
 ///
 /// This is a LABEL, not a decision: nothing in the runtime branches on it. What decides
@@ -3866,6 +3871,9 @@ and ExecutionState =
     /// Consumer approval policy for an immutable package function. Missing
     /// approvals return deny-all.
     packagePolicy : FQFnName.Package -> Permissions.Policy
+
+    /// For a denial to name the approval behind a package policy. `None` where none covers it.
+    packagePolicyOrigin : string -> Option<PackagePolicyOrigin>
 
     /// Host-only permission to modify stored policies. Guest executions never
     /// receive it.
