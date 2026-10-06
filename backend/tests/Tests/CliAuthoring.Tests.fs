@@ -776,6 +776,74 @@ let aMismatchedImplementationIsReportedAtSave =
       })
 
 
+/// A failed module save must not end on a check mark.
+///
+/// `module` printed `✓ Defined N declarations` as its LAST line, underneath the reasons the save was
+/// broken, where a single-item save through `core.dark` has always printed `!` and put the reason
+/// after it. Anybody who reads the last line of a failed save read success.
+let aFailedModuleSaveDoesNotEndOnATick =
+  instanceTest "a failed module save says `!` and not a check mark" (fun state ->
+    task {
+      do! start state
+
+      let source =
+        "type Tick = { n: Int64 }\n\n"
+        + "impl Compare for Tick =\n"
+        + "  let compare (a: Tick) (b: Tick) : Int64 = 0L\n"
+
+      let path =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          "tick-under-errors.dark"
+        )
+
+      System.IO.File.WriteAllText(path, source)
+
+      try
+        let! out = runCliPlain state [ "module"; "/Tests.TickBad"; path ]
+
+        Expect.stringContains
+          out
+          "Type check failed"
+          $"the save explains itself, got: {out}"
+        Expect.stringContains
+          out
+          "! Defined"
+          $"and the count line carries `!`, got: {out}"
+        Expect.isFalse
+          (out.Contains "✓")
+          $"a failed save must not print a check mark anywhere, got: {out}"
+      finally
+        try
+          System.IO.File.Delete path
+        with _ ->
+          ()
+
+      // The good path still ticks, so the fix is not "never tick".
+      let goodSource =
+        "type TickOk = { n: Int64 }\n\n"
+        + "impl Add for TickOk =\n"
+        + "  let add (a: TickOk) (b: TickOk) : TickOk = TickOk { n = a.n + b.n }\n"
+
+      let goodPath =
+        System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tick-clean.dark")
+
+      System.IO.File.WriteAllText(goodPath, goodSource)
+
+      try
+        let! out = runCliPlain state [ "module"; "/Tests.TickGood"; goodPath ]
+        Expect.stringContains
+          out
+          "✓ Defined"
+          $"a clean save still ticks, got: {out}"
+      finally
+        try
+          System.IO.File.Delete goodPath
+        with _ ->
+          ()
+    })
+
+
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
     traitsAreAuthoredListedAndDisambiguated
@@ -789,4 +857,5 @@ let tests : List<Test> =
     aRivalCannotReachABoundedCall
     aRefusedImplementationOrBoundSavesNothing
     commitRefusesABoundThatNamesNothing
-    aMismatchedImplementationIsReportedAtSave ]
+    aMismatchedImplementationIsReportedAtSave
+    aFailedModuleSaveDoesNotEndOnATick ]
