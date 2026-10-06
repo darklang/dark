@@ -388,6 +388,96 @@ program order with a write between them: the write runs before either lands;
 a failed read raises at `await` with "after the call" already run; the bound
 holds (`Scheduler.Tests.fs`, the reads group).
 
+## Computation spreads by itself
+
+`List.map`, `filter`, `filterMap` and `indexedMap` decide for themselves
+whether to spread across cores. Nobody writes anything for it. A list op
+starts serially, as it always did, and after 2, 4, 8... elements it asks
+whether the rest is worth spreading: the interpreted instructions the elements
+so far took, times how many are left, against a crossover (`Spread.crossover`).
+Instructions rather than time, so the decision, and what a run allocates, is
+the same on a loaded box as on an idle one. The first element is not counted,
+since the first call of a body is the one that loads what it calls. So the decision
+depends on the body's cost as well as the count, and a short or cheap map
+never spreads.
+
+It can predict before it spreads, with `exec.spreadPredict on`; the shipped
+default is off, which observes: try, and fall back on an effect. The A/B is in
+`docs/perf/history.md`. Predicting, the callable is asked whether anything it
+can reach would be refused in a chunk (`Interpreter.spreadRefuses`, below): the
+lambda's own instructions and the values it closed over are walked at the call
+(`Spread.predict`), and every package fn it reaches is answered by the
+permission analysis over the store, by hash, memoised for the life of the
+process (`LibDB.PackagePermissions.purity`). Not stored with the item: the
+answer depends on this host's builtins, which a release can change. A trait
+call nobody decided at save is pure when every implementation of that method
+is. Predicted impure, the list runs serially and no chunk starts. Predicted
+pure or unknown, it spreads.
+
+What the prediction is for, honestly: it does not make pure code faster. A
+pure body spreads the same either way. It saves the one wasted spread a
+callable known to be impure would otherwise pay (about 15 ms and 2.2 MB over
+1,024 elements, once per callable per process), and it makes the decision
+knowable before the call. Its cost is the other side of that: a body that CAN
+reach an effect but does not on this run, a print on an error say, is
+predicted impure and runs serially where observing would have spread it.
+
+A spread hands the rest out in contiguous chunks (`LibExecution/Spread.fs`),
+as many as there are cores to keep busy and none smaller than
+`Spread.minChunk` instructions of work. Each chunk is a process running the same
+builtin serially over its slice, and the chunks are collected in input order.
+What keeps it from changing any program:
+
+- A chunk only computes, whatever was predicted. It runs with `spreadChild`,
+  under which any call that would take an effect ordinal
+  (`Interpreter.spreadRefuses`, the same rule the prediction uses, so the two
+  cannot disagree) is refused before it does anything, before the permission
+  check, so no denial is recorded. A wrong prediction therefore costs a spread
+  and never an effect out of order. The
+  three `Exec.await*` are refused too: an answer is taken once its row has
+  gone, so two elements awaiting one handle would swap which one finds it
+  gone. Purity is observed rather than predicted, over everything the
+  callable reaches: package fns, trait dispatch, operators on user types,
+  callbacks.
+- The first chunk that did not finish runs again here. At the first chunk
+  that failed, for any reason, the later ones are cancelled and the original
+  process carries on serially from that chunk's first element. Everything
+  before it was pure, so its results are what a serial run computes; from
+  there on it IS a serial run. An effect happens in its place in the order,
+  and an error is raised by the element that raises it serially, under the
+  same frames. A callable that made a spread fall back is not spread again in
+  this process.
+- A stop wins. A process asked to stop while its chunks run answers the stop
+  rather than falling back, and its chunks go with it.
+- A chunk never spreads again, so a map inside a spread map runs serially in
+  its chunk and nesting cannot multiply out. One level, not a depth limit.
+- Nothing spreads while somebody watches. A recorded or viewed run
+  (`collectFrames`) stays serial. This is about the frame tree, not safety: a
+  chunk takes no ordinals whether or not recording is on, so a resume would
+  be fine, but a chunk's lambda passes would sit under the chunk's process
+  instead of under the `List.map` frame. The follow-up is to parent a chunk's
+  root frame onto the frame that spread it (`Tracing.fs`) and stitch it in
+  the view; viewing itself stays serial, since a view is a replay. Until
+  then, `trace.record on` means no spreading, and `config/dev` sets it, so a
+  dev container shows no speedup unless `DARK_CONFIG_TRACE_DETAIL=off`.
+
+What it does not make consistent: package-store reads and the impl-selection
+memo are not builtins. A store change mid-map can already flip a name's
+resolution between two serial elements; under a spread the switch can land
+on chunks out of order.
+
+Knobs, for measuring: `dark config set exec.spreadCrossover <instructions>`
+(negative turns spreading off, 0 spreads anything with two elements left) and
+`exec.spreadMinChunk`, beside the other `exec.*` settings. And
+`exec.spreadPredict on`, which makes a map skip code known to reach an effect
+instead of trying it and falling back. The analysis it uses is kept for what
+it is better at: saying, about code, whether it can run across cores and why
+not. And
+`DARK_SPREAD_REPORT=1`, a diagnostic switch like `DARK_SCHEDULER`, which
+prints at exit how many spreads ran, fell back, and were predicted each way: the way to tell a run that
+spread from one that matched serial without spreading. `scripts/perf/workloads/spread.dark` is the grid the
+defaults came from.
+
 ## `Exec.spawn`, `await`, `awaitWithin`, `select`, `cancel`
 
 `Exec.spawn f` starts `f ()` as a process of its own on a worker (the least
@@ -402,8 +492,9 @@ the "`dark ps`" section). `spawn` carries the
 spawned process can do nothing the spawner could not. An install whose policy
 was seeded before this effect existed needs `dark permissions allow
 concurrency` once. `List.parallelMap` is `spawn` per element then `await` in
-order, for work that computes; reads run concurrently under plain `List.map`
-already.
+order. It is redundant now: plain `List.map` spreads computation by itself
+(the next section), in chunks rather than a process per element, and reads
+run concurrently under it already.
 
 From a trace nobody scheduled (a test's `execute`, the LSP, an HTTP handler)
 `spawn` uses a process-wide scheduler with workers of its own

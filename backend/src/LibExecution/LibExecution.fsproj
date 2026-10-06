@@ -69,6 +69,7 @@
     <Compile Include="Execution.fs" />
     <Compile Include="HostEvents.fs" />
     <Compile Include="Scheduler.fs" />
+    <Compile Include="Spread.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

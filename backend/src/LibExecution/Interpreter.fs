@@ -916,6 +916,18 @@ let private isLogged (fn : BuiltInFn) : bool =
     )
 
 
+/// What a spread chunk may not call (`ExecutionState.spreadChild`), and so what makes a callable
+/// impure for a list op deciding whether to spread it: anything that takes an effect ordinal, and
+/// the three awaits. Those are not logged but are order-sensitive all the same: an answer is
+/// TAKEN once its row has gone (`Scheduler.TakeResult`), so two elements awaiting one handle
+/// would swap which of them finds it gone.
+///
+/// One rule for both the refusal and the prediction (`Spread`, `LibDB.PackagePermissions.purity`),
+/// so the two cannot disagree. Not `callEffects`: that is about permission, this is about order.
+let spreadRefuses (fn : BuiltInFn) : bool =
+  isLogged fn || Set.contains fn.name.name awaitsElsewhere
+
+
 /// Record a builtin's result in the trace, and hand it back.
 ///
 /// Top-level for the same reason as `finishBuiltin` below it: a local here is captured by that
@@ -1247,6 +1259,15 @@ let private invokeBuiltin
         0L
     else
       0L
+  // A spread child computes and nothing else. Anything that would take an effect ordinal stops
+  // it here, before the permission check (so no denial is recorded) and before the call; the
+  // spreader sees the failure and runs this part again in the original process, in order.
+  if exeState.spreadChild && spreadRefuses fn then
+    RTE.UncaughtException(
+      $"`{fn.name.name}` has effects, which a spread list op leaves to the original process",
+      []
+    )
+    |> raiseRTE vm.threadID
   if not (Set.isEmpty fn.callEffects || Effects.checkedInBody fn.name.name) then
     // `Native` names what no rule can scope, so a policy grants it whole or not at all --
     // which would put `dark status` behind `permissions allow native` on a stock install,

@@ -75,6 +75,10 @@ let createState
 
     allowHarmful = false
 
+    spreadChild = false
+
+    fnPurity = fun _ -> Ply RT.Purity.Unknown
+
     // Fail-safe default: deny all host effects. An embedder that forgets to
     // install a policy gets a confined execution, not an unrestricted one. The
     // CLI host seeds `dark run`/`eval` from `PolicyStore`; trusted internal

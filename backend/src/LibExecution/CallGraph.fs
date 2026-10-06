@@ -258,10 +258,12 @@ module Requirements =
   /// from it is one that could not be loaded.
   type Closure = Map<PT.FQFnName.Package, PT.PackageFn.PackageFn * Analysis>
 
-  /// The requirements of `root`, walking `closure`. Because everything reachable
-  /// from a member of a closure is reachable from its root, one loaded closure
-  /// serves every member's analysis, and no body is analyzed again here.
-  let forFunction
+  /// `forFunction`, for a caller that has already accounted for the callables it hands the root:
+  /// with `callbacksSupplied`, the root passing one of its own fn parameters on does not make it
+  /// incomplete. A list op deciding whether to spread does this, since it checks the arguments
+  /// it applies the root to. A bound implementation the caller owes is still incomplete.
+  let forFunctionWith
+    (callbacksSupplied : bool)
     // Keyed by full builtin identity (name, version): two versions of a builtin
     // can carry different effects, and collapsing them by name alone would let a
     // requirement display or upgrade comparison use the wrong effect set.
@@ -313,7 +315,19 @@ module Requirements =
     // supplied by its caller.
     let rootOwesCaller =
       match Map.tryFind root closure with
-      | Some(_, calls) -> calls.escapesOwnCallback || calls.defersToTypeParam
+      | Some(_, calls) ->
+        (calls.escapesOwnCallback && not callbacksSupplied)
+        || calls.defersToTypeParam
       | None -> false
 
     { requiredEffects = requiredEffects; complete = complete && not rootOwesCaller }
+
+  /// The requirements of `root`, walking `closure`. Because everything reachable
+  /// from a member of a closure is reachable from its root, one loaded closure
+  /// serves every member's analysis, and no body is analyzed again here.
+  let forFunction
+    (callEffectsFor : string * int -> Option<Set<E.Effect>>)
+    (closure : Closure)
+    (root : PT.FQFnName.Package)
+    : Result =
+    forFunctionWith false callEffectsFor closure root
