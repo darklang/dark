@@ -220,6 +220,12 @@ let saveEditing (state: State) (es: EditingState) : Step =
                     items = reloaded
                     selected = landed
                     detailScroll = 0
+                    // Saved, but not a success to tick when something it repointed no longer works.
+                    messageKind =
+                      if (Stdlib.List.isEmpty committed.followed.broken) && (Stdlib.Option.isNone committed.followed.failure) then
+                        MessageKind.Succeeded
+                      else
+                        MessageKind.Failed
                     message =
                       what + checked + (Packages.Propagate.followedNote committed.followed) + pushedNote }
             | Error m -> keepErr ("save failed: " + m)
@@ -315,4 +321,4 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
           editing =
             Stdlib.Option.Option.Some
               (EditingState { kind = kind; nameStr = "Editing " + fullName; targetModule = modules; buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src); err = "" }) }
-  | None -> Step.Continue { state with message = $"nothing to edit at {fullName}" }
+  | None -> Step.Continue { state with messageKind = MessageKind.Refused; message = $"nothing to edit at {fullName}" }

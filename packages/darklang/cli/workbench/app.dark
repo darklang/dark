@@ -74,7 +74,7 @@ let onStoreChanged (state: State) (change: Stdlib.Live.Change) : State =
         Stdlib.String.join (Stdlib.Live.touchedNames change) ", "
 
     forceScmRefresh
-      { state with items = reloadItems state; message = $"changed elsewhere: {names}" }
+      { state with items = reloadItems state; messageKind = MessageKind.Succeeded; message = $"changed elsewhere: {names}" }
   else
     // Quiet. Without `--live` you did not ask to hear about someone else's edit, and a footer
     // that keeps announcing one is the same interruption as the reload, minus the usefulness.
@@ -125,6 +125,7 @@ let initialState
         accountName = accountName
         instanceName = instanceName
         message = ""
+        messageKind = MessageKind.Succeeded
         search = emptySearch ()
         overlay = Overlay.NoOverlay
         navbarSel = 0

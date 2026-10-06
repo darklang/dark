@@ -1492,6 +1492,39 @@ let private workbenchDocCommentDocuments =
           $"and no item was made from the doc's first word:\n{stray}"
       })
 
+/// A refusal is marked as one in the footer, not with a success tick.
+///
+/// The mark used to be chosen by substring ("fail", "conflict"), so each of these four went out
+/// behind a green tick. Driven through the functions that produce them, each asserted on the text
+/// AND the kind: the substring test also looked like it worked.
+let private workbenchRefusalsAreMarkedAsRefusals =
+  cliTest "the workbench marks a refusal as a refusal, not a success" (fun state ->
+    task {
+      let code =
+        "let st0 = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId (Stdlib.Option.Option.None) \"Tester\" \"i\" [] false in\n"
+        + "let st = { st0 with activeView = Darklang.Cli.Workbench.vMatter } in\n"
+        + "let kindOf = fun step -> match step with | Continue s -> s.message + \" => \" + (match s.messageKind with | Succeeded -> \"Succeeded\" | Refused -> \"Refused\" | Failed -> \"Failed\") | _ -> \"(no state)\" in\n"
+        + "let input = fun action text -> Darklang.Cli.Workbench.InputState { prompt = \"\"; field = Stdlib.Cli.UI.TextField.fromText text; action = action } in\n"
+        + "Stdlib.String.join [ kindOf (Darklang.Cli.Workbench.performInputAction st (input \"author-fn\" \"Tests.\")), kindOf (Darklang.Cli.Workbench.performInputAction st (input \"search\" \"zzzWbNothingIsCalledThis\")), kindOf (Darklang.Cli.Workbench.resolveConflict st \"ok\"), kindOf (Darklang.Cli.Workbench.syncInFrame st \"push\") ] \"\\n\""
+
+      let! answer =
+        task {
+          match! evalUnder (executionState state) code with
+          | RT.DString lines -> return lines
+          | other -> return Tests.failtestf "the workbench answered %A" other
+        }
+
+      let lines = answer.Split('\n')
+      Expect.equal lines.Length 4 $"four answers:\n{answer}"
+
+      for (line, text) in
+        Array.zip
+          lines
+          [| "need at least owner.Module"; "no matches for"; "no conflict selected"; "no relay yet" |] do
+        Expect.stringContains line text $"the message is the one meant:\n{answer}"
+        Expect.stringContains line "=> Refused" $"and it is marked as a refusal:\n{answer}"
+    })
+
 /// Editing an implementation updates it in place.
 ///
 /// The save used to take the impl's location from the first name on its `impl` line, which is the
@@ -1650,6 +1683,7 @@ let tests : List<Test> =
     workbenchRefusalsNameTheProblem
     workbenchSaysUnchangedAndLands
     workbenchDocCommentDocuments
+    workbenchRefusalsAreMarkedAsRefusals
     reusesCompiledFunctions
     timeoutBoundsSynchronousWork
     timeoutPreservesCapture

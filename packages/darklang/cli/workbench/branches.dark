@@ -59,6 +59,7 @@ let switchWorkbenchBranch (state: State) (id: Uuid) (name: String) : State =
   forceScmRefresh
     (focusContent (fixSelection
       { moved with items = items; selected = selected
+                   messageKind = MessageKind.Succeeded
                    message = "switched to " + name }))
 
 let handleBranchPickerKey

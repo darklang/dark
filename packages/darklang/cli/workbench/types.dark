@@ -152,6 +152,18 @@ let emptyRepl () : ReplState =
   ReplState { log = []; bindings = []; last = ""; pending = "" }
 
 
+/// What the footer's message reports. Its own value rather than read off the text: the footer used
+/// to pick its mark by substring ("fail", "conflict"), so "need at least owner.Module", "no matches
+/// for ..." and "no relay yet" all went out behind a green tick. Not `Ok`, which would collide with
+/// `Result`'s case in a bare pattern.
+type MessageKind =
+  /// It did what was asked.
+  | Succeeded
+  /// It did not, by design, and the message says why: nothing selected, nothing found, a name too short.
+  | Refused
+  /// It tried and something went wrong.
+  | Failed
+
 type State =
   { activeView: Int
     /// `--live`: reload when something changes the store under you. Off, the change is NOTICED
@@ -182,6 +194,8 @@ type State =
     /// A transient status message (e.g. "committed", "saved foo") shown in the footer after a write action,
     /// then cleared on the next keypress. "" = nothing to show.
     message: String
+    /// What <field message> reports, which decides its mark in the footer.
+    messageKind: MessageKind
     /// The search-results mode: open when it has hits, with its own cursor.
     search: SearchState
     /// The overlay drawn over the frame, if any.
