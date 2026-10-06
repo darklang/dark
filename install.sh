@@ -176,7 +176,8 @@ main() {
   # data store before dispatching `version`; pointing it at the user's live
   # ~/.darklang here would make a later executable rollback incomplete.
   test_home="$tmpdir/home"
-  mkdir -p "$test_home"
+  # The real ~/.darklang exists by now (bin/ is in it), so the smoke test's must too.
+  mkdir -p "$test_home/.darklang"
   if ! HOME="$test_home" \
     XDG_CONFIG_HOME="$test_home/.config" \
     XDG_DATA_HOME="$test_home/.local/share" \

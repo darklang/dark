@@ -363,7 +363,10 @@ let extract () : unit =
     let build = LibConfig.Config.buildHash
     // A build with no hash of its own cannot claim anything, so it does the work every time,
     // which is what every build did before.
-    let reconciled = build <> "dev" && storeStamp dbPath = Some build
+    // `File.Exists` first: reading the stamp opens the db, which CREATES it, and an empty file
+    // here reads as a store that needs no seed.
+    let reconciled =
+      build <> "dev" && File.Exists(dbPath) && storeStamp dbPath = Some build
 
     // An EXISTING store keeps whatever shape the seed it was born from had: the schema never runs
     // against it, so a table or column added since is simply absent, and the top-up below is the first
