@@ -324,7 +324,10 @@ tuning against any one of them proves little.
 
 Two runs in the same clone destroy each other, so `run-backend-tests` takes a lock.
 Two runs in different clones are fine; each has its own container, so its own PID
-namespace, network and `rundir`.
+namespace, network and `rundir`. That is a statement about CORRECTNESS, not about the box: four
+clones publishing Release at once put 42 build processes on the machine and took it to zero free
+memory, which killed two suite runs. The lock protects a clone from itself and nothing protects the
+host. `~/code/dark/CLAUDE.md` has the measured version.
 
 Logs go to `rundir/logs/fsharp-tests.log`.
 
@@ -782,6 +785,14 @@ build; the deployed site did not either, so the conclusion drawn was "not a regr
 available conclusion was equally "not a working instrument". A real browser with a person in
 front of it gets a prompt in seconds. A control agreeing with your negative only rules out one of
 the two explanations, and the instrument is the one nobody suspects.
+
+**A `while read` loop over a heredoc loses every line after the first if the body calls
+`run-cli`.** `run-cli` forwards stdin, so it consumes the rest of the heredoc the loop was reading
+from, and the loop ends after one iteration. It prints no error and exits 0, so a sweep written this
+way reports confidently on one item while looking like it covered all of them: a fourteen-query
+ranking sweep examined ONE and its diff read as complete. Feed the inner command `< /dev/null`. Only
+counting what the loop actually examined caught it, which is the general rule, and this is a
+particularly quiet instance of it.
 
 **Bracket every pattern you hand to `pgrep -f` / `pkill -f`.** The pattern appears in your own
 shell's command line, so an unbracketed one matches the process doing the matching. A waiter waits
