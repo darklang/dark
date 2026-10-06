@@ -1435,6 +1435,38 @@ let private cancelCascadesSoftly =
   }
 
 
+// -- Cancelling a process that is busy, not parked --
+
+let private cancelStopsAnEmptyLambdaMap =
+  testTask "a cancel stops a map whose lambda runs no instructions" {
+    let! state = executionStateFor pmPT false Map.empty
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    // `fun x -> x` compiles to no instructions: each element is a frame pushed and returned. Long
+    // enough to take seconds if nothing preempts it.
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 0 5000000) (fun x -> x))"
+    let running = runOnThread s p
+    // Preempted at least once, so it is mid-map rather than still building the range.
+    let deadline = System.DateTime.UtcNow.AddSeconds 60.
+    while p.slices < 2L
+          && not running.IsCompleted
+          && System.DateTime.UtcNow < deadline do
+      Thread.Sleep 1
+    if running.IsCompleted then
+      failtest $"the map finished in {p.slices} slice(s), never preempted"
+    Expect.isTrue (s.Cancel p.id) "cancel found it"
+    let sw = System.Diagnostics.Stopwatch.StartNew()
+    let! result = running
+    match result with
+    | Error(RTE.UncaughtException("cancelled", _), _) -> ()
+    | other -> failtest $"expected cancelled, got {other}"
+    Expect.isLessThan sw.ElapsedMilliseconds 1000L "it stopped within a slice or so"
+  }
+
+
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
 let tests =
@@ -1476,5 +1508,6 @@ let tests =
         capsEndARunaway
         byteCapEndsARunaway
         cancelCascadesSoftly
+        cancelStopsAnEmptyLambdaMap
         registryListsAndForgets ]
   )
