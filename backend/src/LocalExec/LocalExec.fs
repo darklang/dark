@@ -64,10 +64,11 @@ module HandleCommand =
             // work. Only the last fill needs it.
             let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
             ()
-          // Generate hash file BEFORE evaluating values, so that PackageRefs
-          // lookups resolve correctly during value evaluation.
-          do! LibDB.PackageRefsGenerator.generate ()
-          LibExecution.PackageRefs.reloadHashes ()
+          // Generate hashes BEFORE evaluating values, so that PackageRefs
+          // lookups resolve correctly during value evaluation. The first fill's are
+          // pre-resolution hashes, so only the last fill writes the shared file;
+          // see `PackageRefsGenerator.generate`.
+          do! LibDB.PackageRefsGenerator.generate commitBaseline
           return ()
         }
 
@@ -128,9 +129,10 @@ module HandleCommand =
       if resolved <> ops then
         do! fill true resolved
       else
-        // Nothing to pin, so the first fill is the final one; it still needs the baseline commit.
+        // Nothing to pin, so the first fill is the final one; it still needs the baseline commit,
+        // and the hash file it did not write.
         let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
-        ()
+        do! LibDB.PackageRefsGenerator.generate true
 
       // Evaluate all values now that all definitions are in the DB
       // The one trusted producer: these bodies come from the checked-in

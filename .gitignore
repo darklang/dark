@@ -28,6 +28,8 @@ darklang-repl.zip
 # produce conflicting hashes, and a rebase on GitHub cannot regenerate it -- you would have to pull,
 # reload and commit by hand every time.
 backend/src/LibExecution/package-ref-hashes.txt
+# ...and the temp file it is written through, left behind only if a reload dies mid-write.
+backend/src/LibExecution/package-ref-hashes.txt.*.tmp
 
 # Native SQLite archives for AOT — built by scripts/build/build-sqlite.sh
 # from the amalgamation, cached locally + in CI.

@@ -51,9 +51,12 @@ let private readExistingFile () : Map<string, string> =
     Map.empty
 
 
-/// Query the DB for all current Darklang-owned locations and write
-/// `package-ref-hashes.txt` in the source tree.
-let generate () : Ply<unit> =
+/// Query the DB for all current Darklang-owned locations, make them this process's
+/// hashes, and, when `writeSourceFile`, write `package-ref-hashes.txt` in the source
+/// tree. Only a reload's FINAL state belongs in that file: every process in the
+/// checkout reads it at startup, so an intermediate state written there is a wrong
+/// answer for whoever starts next.
+let generate (writeSourceFile : bool) : Ply<unit> =
   uply {
     // Collect all referenced items from PackageRefs _lookup maps
     let typeRefKeys =
@@ -167,12 +170,35 @@ let generate () : Ply<unit> =
     PackageRefs.setHashes hashMap
 
     // Write the source-tree file (skip if the directory doesn't exist,
-    // e.g. on installed CLIs where the source tree isn't available)
+    // e.g. on installed CLIs where the source tree isn't available).
+    //
+    // Every process in this checkout reads this one file at startup, whatever its
+    // DARK_CONFIG_RUNDIR, so a reload into a private rundir still writes shared state.
+    // It used to be written from both fills, truncating first, so a CLI starting during
+    // any reload anywhere in the checkout could load an empty map, a half-written one,
+    // or the pre-resolution hashes, and raise FnNotFound on its first kernel call. That
+    // was every false failure `gates all --parallel` reported: reload-is-reproducible
+    // reloads twice while the other gates start dozens of CLIs. So: only the final fill
+    // writes, an identical file is left alone, and a changed one is replaced by rename,
+    // which readers see whole or not at all.
     let dir = System.IO.Path.GetDirectoryName(sourceTreePath)
-    if System.IO.Directory.Exists(dir) then
-      System.IO.File.WriteAllLines(sourceTreePath, lines |> Array.ofList)
-      let totalWritten = List.length lines
-      print $"  Wrote {totalWritten} package ref hashes to {sourceTreePath}"
+    if writeSourceFile && System.IO.Directory.Exists(dir) then
+      let newLines = lines |> Array.ofList
+      let existingLines =
+        try
+          if System.IO.File.Exists(sourceTreePath) then
+            System.IO.File.ReadAllLines(sourceTreePath)
+          else
+            [||]
+        with _ ->
+          [||]
+      if existingLines = newLines then
+        print $"  {newLines.Length} package ref hashes unchanged in {sourceTreePath}"
+      else
+        let tmp = $"{sourceTreePath}.{System.Environment.ProcessId}.tmp"
+        System.IO.File.WriteAllLines(tmp, newLines)
+        System.IO.File.Move(tmp, sourceTreePath, true)
+        print $"  Wrote {newLines.Length} package ref hashes to {sourceTreePath}"
 
     // Report any items referenced but not found anywhere
     let foundKeys = merged |> List.map fst |> Set.ofList
