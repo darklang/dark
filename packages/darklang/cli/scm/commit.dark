@@ -465,7 +465,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
   // one is nearly always a slipped Enter, so it is refused rather than recorded forever.
   else if parsed.message == "" then
     Cli.printErr "a commit needs a message: `dark commit \"what changed\"`."
-    state
+    { state with exitCode = 1 }
   // An `--include` naming nothing in the draft is a typo, and the review screen would otherwise show
   // the WHOLE draft over a selection that commits none of it -- the one dishonesty a review screen
   // cannot afford.
@@ -478,11 +478,11 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
 
     Cli.printErr $"--include names things not in your draft: {unknown}."
     Cli.printHint "  names are exact item names; `dark status` lists what the draft holds."
-    state
+    { state with exitCode = 1 }
   else if refuseUnresolved parsed then
-    state
+    { state with exitCode = 1 }
   else if refuseTypeErrors parsed then
-    state
+    { state with exitCode = 1 }
   else
     let withPrevious = r.withPrevious
 
@@ -584,7 +584,9 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
           commitSelected state r parsed.message parsed.include
 
       match outcome with
-      | Error e -> Cli.printErr e
+      | Error e ->
+        Cli.printErr e
+        { state with exitCode = 1 }
       | Ok((hash, committed, moved)) ->
         let movedNote =
           if moved == 0 then "" else $", {Cli.Text.plural moved "dependent"} repointed"
@@ -601,14 +603,13 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
 
         let stamped = Cli.Text.plural (Stdlib.Int.fromInt64 committed) "op"
         Cli.printOk $"  commit {Stdlib.String.first hash 8} -- {stamped}{movedNote}{heldNote}."
-
-      state
+        state
 
 let execute (state: AppState) (args: List<String>) : AppState =
   // Before anything: a flag we don't understand means we don't know what was asked for, and this command
   // commits history.
   if refuseUnknownFlags args then
-    state
+    { state with exitCode = 1 }
   else if ScmJson.wantsJson args then
     executeJson state args
   else
