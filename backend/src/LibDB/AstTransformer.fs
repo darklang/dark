@@ -119,6 +119,58 @@ let private pinAt
   | _ -> nr
 
 
+/// `-x` and `~x`, pinned. The parser stores them as `Builtin.negate x` and
+/// `Builtin.bitwiseNot x`, and lowering runs them as `Negate.negate` and
+/// `BitwiseNot.bitwiseNot` with nothing recorded, so the store picked the
+/// implementation on every run. The checker resolves them like any operator, but
+/// at the APPLY node, since the builtin name is not a trait method `pinAt` could
+/// rewrite. With a pin there, the name becomes the trait method it runs as,
+/// carrying the choice, which is how a named `Negate.negate x` is stored.
+let private pinUnary
+  (mapping : HashMapping)
+  (applyId : id)
+  (fnExpr : PT.Expr)
+  : PT.Expr =
+  match Map.tryFind applyId mapping.pins, fnExpr with
+  | Some choice,
+    PT.EFnName(nameId,
+               ({ resolved = Ok { name = PT.FQFnName.Builtin { name = builtin
+                                                               version = 0 } } } as nr),
+               boundImpls) ->
+    // Where the trait lives, as `PackageRefs` names it, so the stored call prints as
+    // `Stdlib.Negate.negate x` rather than as the trait's hash.
+    let traitMethod =
+      if builtin = PT.InfixFnName.negateBuiltinName then
+        LibExecution.NumericTraits.ofNegate ()
+        |> Option.map (fun found -> found, "Negate")
+      else if builtin = PT.InfixFnName.bitwiseNotBuiltinName then
+        LibExecution.NumericTraits.ofBitwiseNot ()
+        |> Option.map (fun found -> found, "BitwiseNot")
+      else
+        None
+    match traitMethod with
+    | Some((traitHash, methodName), traitName) ->
+      PT.EFnName(
+        nameId,
+        { nr with
+            resolved =
+              Ok
+                { name =
+                    PT.FQFnName.TraitMethod
+                      { trait_ = Hash traitHash
+                        method_ = methodName
+                        implFn = choice }
+                  location =
+                    Some
+                      { owner = "Darklang"
+                        modules = [ "Stdlib" ]
+                        name = traitName } } },
+        boundImpls
+      )
+    | None -> fnExpr
+  | _ -> fnExpr
+
+
 /// A recorded implementation moves like any other fn reference: it is usually a fn being saved
 /// in the same batch, whose placeholder hash stabilizes here, and it carries a location so a
 /// rename reaches it too. The other two states name no fn and pass through.
@@ -360,7 +412,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EApply(id, fnExpr, typeArgs, args) ->
     PT.EApply(
       id,
-      transformExpr mapping fnExpr,
+      transformExpr mapping (pinUnary mapping id fnExpr),
       typeArgs |> List.map (transformTypeRef mapping),
       args |> NEList.map (transformExpr mapping)
     )

@@ -215,10 +215,21 @@ let private askChecker
 ///
 /// An ordinary save of a fn with no trait call and no operator pays only these AST walks: the
 /// checker is not cheap, and on a whole-tree reload it is most of the work. An operator IS a
-/// trait method, so the cheap test is "does this mention a trait, or any infix at all".
+/// trait method, so the cheap test is "does this mention a trait, or any operator at all".
+///
+/// A unary operator counts: `-x` and `~x` are stored as their builtins and run as `Negate` and
+/// `BitwiseNot`, and a body whose only operator was one of them never reached the checker.
+let private isUnaryOperator (nr : PT.NameResolution<PT.FQFnName.FQFnName>) : bool =
+  match nr.resolved with
+  | Ok { name = PT.FQFnName.Builtin { name = name; version = 0 } } ->
+    name = PT.InfixFnName.negateBuiltinName
+    || name = PT.InfixFnName.bitwiseNotBuiltinName
+  | _ -> false
+
 let rec private hasInfix (expr : PT.Expr) : bool =
   match expr with
   | PT.EInfix _ -> true
+  | PT.EFnName(_, nr, _) when isUnaryOperator nr -> true
   | PT.EPipe(_, first, parts) ->
     hasInfix first
     || parts
@@ -556,6 +567,11 @@ let rec private unpinned (isBounded : PT.Hash -> bool) (expr : PT.Expr) : int =
     match nr.resolved with
     | Ok { name = PT.FQFnName.TraitMethod { implFn = PT.FQFnName.Unknown } } -> 1
     | Ok { name = PT.FQFnName.Package h } when not recorded && isBounded h -> 1
+    // A pinned `-x` names the trait method, so one still naming the builtin was not pinned.
+    | _ when
+      isUnaryOperator nr && Option.isSome (LibExecution.NumericTraits.ofNegate ())
+      ->
+      1
     | _ -> 0
   let here =
     match expr with

@@ -581,6 +581,69 @@ let aRivalCannotReachAPipedBoundedCall =
             "while a fresh call takes the newer one, so the rival really is the winner"
       })
 
+/// `-t` and `~t` are operators like `+`, and a saved one keeps the implementation it was written
+/// against. They were stored as their builtins and dispatched from the store on every run, so the
+/// checker's answer for them was worked out and then dropped, and a rival changed them underneath.
+let aRivalCannotReachAUnaryOperator =
+  instanceTest
+    "a newer implementation does not reach a saved unary operator"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "type"; "Tests.Unary.Tok"; "{ unaryN: Int64 }" ]
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.Unary"
+              "Negate for Tok = let negate (t: Tok) : Tok = Tok { unaryN = 1L }" ]
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.Unary"
+              "BitwiseNot for Tok = let bitwiseNot (t: Tok) : Tok = Tok { unaryN = 1L }" ]
+        do! run state [ "fn"; "Tests.Unary.neg"; "(t: Tok) : Tok = -t" ]
+        do! run state [ "fn"; "Tests.Unary.flip"; "(t: Tok) : Tok = ~t" ]
+        do!
+          shows
+            state
+            [ "view"; "Tests.Unary.neg" ]
+            "Negate.negate t"
+            "the saved `-t` names the trait method it runs, not a hash"
+
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.UnaryRival"
+              "Negate for Tests.Unary.Tok = let negate (t: Tests.Unary.Tok) : Tests.Unary.Tok = Tests.Unary.Tok { unaryN = 2L }" ]
+        do!
+          run
+            state
+            [ "impl"
+              "Tests.UnaryRival"
+              "BitwiseNot for Tests.Unary.Tok = let bitwiseNot (t: Tests.Unary.Tok) : Tests.Unary.Tok = Tests.Unary.Tok { unaryN = 2L }" ]
+        do!
+          evals
+            state
+            "(Tests.Unary.neg (Tests.Unary.Tok { unaryN = 0L })).unaryN"
+            "1"
+            "the saved `-t` is untouched by an implementation written after it"
+        do!
+          evals
+            state
+            "(Tests.Unary.flip (Tests.Unary.Tok { unaryN = 0L })).unaryN"
+            "1"
+            "and so is the saved `~t`"
+        do!
+          evals
+            state
+            "(-(Tests.Unary.Tok { unaryN = 0L })).unaryN"
+            "2"
+            "while a fresh `-` takes the newer one, so the rival really is the winner"
+      })
+
 let aRivalCannotReachABoundedCall =
   instanceTest
     "a newer implementation does not reach a call inside a bounded generic"
@@ -1032,6 +1095,7 @@ let tests : List<Test> =
     undoStepsBackAndStopsAtTheFirstVersion
     authoringIdenticalSourceReportsUnchanged
     aRivalCannotReachABoundedCall
+    aRivalCannotReachAUnaryOperator
     aRivalCannotReachAPipedBoundedCall
     aRefusedImplementationOrBoundSavesNothing
     commitRefusesABoundThatNamesNothing
