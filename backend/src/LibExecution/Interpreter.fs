@@ -1147,6 +1147,13 @@ module ReplayPolicy =
 
   let private warned = System.Collections.Generic.HashSet<string>()
 
+  /// Stop the resume at this step, leaving the run as it was, the same way a handle it
+  /// cannot reproduce does.
+  let refuse (vm : VMState) (ord : int64) (message : string) : 'a =
+    refusedAt <- Some ord
+    RuntimeError.UncaughtException($"cannot resume past step {ord}: {message}", [])
+    |> raiseRTE vm.threadID
+
   /// The old run's output, told apart from the new run's: dimmed on a terminal, marked where
   /// dimming would be lost.
   let private dim (s : string) : string =
@@ -1306,11 +1313,12 @@ let private invokeBuiltin
     | ValueSome p -> p
     | ValueNone ->
       if ord >= 0L then
-        exeState.tracing.replayEffect ord
+        exeState.tracing.replayEffect ord fn.name.name allArgs
       else
         Tracing.ReplayStep.PerformOnwards
 
   match replayed with
+  | Tracing.ReplayStep.Diverged message -> ReplayPolicy.refuse vm ord message
   | Tracing.ReplayStep.Serve result ->
     // Not for a view: the echo of a logged print, the refusal at an unreproducible handle
     // and the stale-file warning are all about a RESUME, where the person is taking a run

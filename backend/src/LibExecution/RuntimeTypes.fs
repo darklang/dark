@@ -2898,10 +2898,16 @@ module Tracing =
   /// `PerformOnce` is for a call the log deliberately has no answer for (a read whose result
   /// was redacted out of it), and the rest of the log is still good. `PerformOnwards` is the
   /// end of the log, and it is also what a run that is not replaying at all answers.
+  ///
+  /// `Diverged` is a call the log has an answer for, made by a program that no longer makes
+  /// it: a different builtin, or the same one with different arguments. The old run's effect
+  /// happened in the world, so neither serving it nor performing this one is right; the
+  /// resume stops, and the message says what the log holds and what was asked.
   type ReplayStep =
     | Serve of Dval
     | PerformOnce
     | PerformOnwards
+    | Diverged of message : string
 
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
@@ -2943,8 +2949,10 @@ module Tracing =
       /// few hundred bytes per run. It is what answers "which runs went through this function"
       /// at the shipped recording level, where a package call is otherwise not recorded at all.
       noteFunction : Hash -> unit
-      /// Replay: what to do with the effectful call about to be made at this ordinal.
-      replayEffect : int64 -> ReplayStep
+      /// Replay: what to do with the effectful call about to be made at this ordinal, given
+      /// the builtin's name and its arguments, so a call the log did not record there is not
+      /// handed another call's answer.
+      replayEffect : int64 -> string -> Dval[] -> ReplayStep
       /// VIEWING a run rather than resuming it, which is classic's Preview: an effectful call
       /// is answered by its name and arguments from the log, and one the log cannot answer is
       /// NOT performed -- the run stops there instead. `None` when this is an ordinary run.
