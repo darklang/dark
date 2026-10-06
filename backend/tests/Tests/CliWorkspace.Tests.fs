@@ -1139,6 +1139,56 @@ match Darklang.LanguageTools.PackageManager.Function.find bid loc with
 """
 
 
+/// A stage's `// = value` is a comment, so nothing the enclosing expression prints after it on the
+/// same line may follow it: a `)` or `,` there would be commented out, and the source shown could
+/// not be pasted back.
+let private pipeStageValuesStayOutsideTheirDelimiters =
+  cliTestWithFreshTraces
+    "a pipe's stage values sit after the delimiter that closes it, not around it"
+    (fun target ->
+      task {
+        let author = author target
+        do!
+          author
+            "Tests.PipeVals.asArg"
+            "(xs: List<Int>): String =\n  Stdlib.toString (xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length)"
+        do!
+          author
+            "Tests.PipeVals.inTuple"
+            "(xs: List<Int>): (Int * Int) =\n  (xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length, 7)"
+        do!
+          author
+            "Tests.PipeVals.inList"
+            "(xs: List<Int>): List<Int> =\n  [ xs |> Stdlib.List.map (fun x -> x + 1) |> Stdlib.List.length ]"
+
+        for fn in [ "asArg"; "inTuple"; "inList" ] do
+          let! _ = runCli target [ "eval"; $"Tests.PipeVals.{fn} [1, 2]" ]
+          ()
+
+        let! asArg = runCli target [ "traces"; "show"; "Tests.PipeVals.asArg" ]
+        Expect.stringContains
+          asArg
+          "|> Stdlib.List.length) // = 2"
+          "the paren closes before the value"
+        Expect.isFalse (asArg.Contains "// = 2)") "and is not inside the comment"
+
+        let! inTuple = runCli target [ "traces"; "show"; "Tests.PipeVals.inTuple" ]
+        Expect.stringContains
+          inTuple
+          "|> Stdlib.List.length, // = 2"
+          "the comma comes before the value"
+        Expect.isFalse (inTuple.Contains "// = 2,") "and is not inside the comment"
+
+        // Already right before the change, since the bracket goes on a line of its own: kept so
+        // it stays right.
+        let! inList = runCli target [ "traces"; "show"; "Tests.PipeVals.inList" ]
+        Expect.stringContains
+          inList
+          "|> Stdlib.List.length // = 2"
+          "the last stage keeps its value"
+      })
+
+
 /// Live values: a function's last recorded call, run again through the code as it is NOW, with
 /// the value of every call inside it put beside the code. The trace names the call by the
 /// function's dotted name; the current version's hash is what runs. So an edit to a callee shows
@@ -1585,5 +1635,6 @@ let tests : List<Test> =
           hintsLandOnTheRightIdenticalLine
           pipeStagesCarryTheirValues
           previewPicksWhichRunToShow
+          pipeStageValuesStayOutsideTheirDelimiters
           observeAndShow ]
     ) ]
