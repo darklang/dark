@@ -6,6 +6,7 @@ open TestUtils.TestUtils
 
 module TerminalRestoreGuard = Builtins.Cli.Libs.Terminal.TerminalRestoreGuard
 module TerminalText = Builtins.Cli.Libs.TerminalText
+module Stdin = Builtins.Cli.Libs.Stdin
 module HostLibc = LibExecution.HostLibc
 
 
@@ -87,6 +88,45 @@ let terminalTextTests =
           "界界", 4, (1, 0) ] ]
 
 
+/// The LSP's `Content-Length` counts bytes. Every case reads a framed body and
+/// then checks what is LEFT on the reader, because over-reading never breaks the
+/// body you asked for: it eats the start of the next message.
+let readExactlyBytesTests =
+  let read (input : string) (length : int) =
+    let reader = new System.IO.StringReader(input)
+    let result = Stdin.readExactlyBytes reader System.Text.Encoding.UTF8 length
+    (result, reader.ReadToEnd())
+
+  testList
+    "readExactlyBytes"
+    [ test "ascii reads its length and no further" {
+        Expect.equal (read "abcdeNEXT" 5) (Ok "abcde", "NEXT") ""
+      }
+      test "a multi-byte char counts as its bytes, so the next header survives" {
+        // the shape that killed the server: a body with "café", then a header
+        Expect.equal
+          (read "// café\nContent-Length: 2" 9)
+          (Ok "// café\n", "Content-Length: 2")
+          ""
+      }
+      test "a surrogate pair is four bytes and is never split" {
+        Expect.equal (read "a\U0001F600bNEXT" 6) (Ok "a\U0001F600b", "NEXT") ""
+      }
+      test "a long body of two-byte chars" {
+        let body = System.String('é', 10000)
+        Expect.equal (read (body + "NEXT") 20000) (Ok body, "NEXT") ""
+      }
+      test "zero bytes reads nothing" {
+        Expect.equal (read "NEXT" 0) (Ok "", "NEXT") ""
+      }
+      test "input ending early is an error, not a short body" {
+        Expect.isError (fst (read "ab" 5)) ""
+      }
+      test "a length ending inside a character is an error, not mangled text" {
+        Expect.isError (fst (read "éNEXT" 1)) ""
+      } ]
+
+
 let tests =
   testList
     "Terminal"
@@ -147,4 +187,5 @@ let tests =
         finally
           System.IO.File.Delete path
       }
-      terminalTextTests ]
+      terminalTextTests
+      readExactlyBytesTests ]

@@ -192,7 +192,8 @@ gate_lsp_branches() {
   BRANCH_ID=$(sqlite3 "$WORK/data.db" "SELECT id FROM branches WHERE name = 'lsp-gate' LIMIT 1;")
   [[ -n "$BRANCH_ID" ]] || fail "could not find the test branch's id"
 
-  req() { local body="$1"; printf 'Content-Length: %d\r\n\r\n%s' "${#body}" "$body"; }
+  # Content-Length is BYTES. `${#body}` counts characters, which agrees only while the body is ASCII.
+  req() { local body="$1"; printf 'Content-Length: %d\r\n\r\n%s' "$(printf '%s' "$body" | wc -c)" "$body"; }
 
   OUT="$WORK/out.txt"
   {
@@ -259,6 +260,25 @@ gate_lsp_branches() {
   grep -q '"name":"LspGate.W.caller","itemType":"fn","hash":"[0-9a-f]*","followed":true' "$OUT" \
     || fail "wip summary did not mark the propagated entry as followed"
 
+  # Non-ASCII in a document, then another message. A body with a multi-byte character used to be
+  # read as that many CHARACTERS, one past its end per such character, into the next header; the
+  # server took the broken header for the client leaving and shut down. A lone message parses fine
+  # either way, so the check is that the message AFTER it is answered. Stdout only: the log on stderr
+  # echoes every request, the hover included.
+  URI='file:///tmp/lsp-gate-utf8.dark'
+  UTF8_OUT="$WORK/utf8-out.txt"
+  {
+    req '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+    req '{"jsonrpc":"2.0","method":"initialized","params":{}}'
+    req "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didOpen\",\"params\":{\"textDocument\":{\"uri\":\"$URI\",\"languageId\":\"darklang\",\"version\":1,\"text\":\"let x () : Int64 = 1L\\n\"}}}"
+    req "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\"$URI\",\"version\":2},\"contentChanges\":[{\"text\":\"// café -> naïve über\\nlet x () : Int64 = 1L\\n\"}]}}"
+    req "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"textDocument/hover\",\"params\":{\"textDocument\":{\"uri\":\"$URI\"},\"position\":{\"line\":1,\"character\":4}}}"
+    sleep 3
+  } | timeout --kill-after=5 120 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' > "$UTF8_OUT" 2> "$WORK/utf8-err.txt" || true
+
+  ! grep -q '"Parse error"' "$UTF8_OUT" || fail "a message after non-ASCII text did not parse"
+  grep -q '"id":2' "$UTF8_OUT" || fail "a hover after a didChange holding non-ASCII text was not answered"
+
   rm -rf "$WORK"
-  echo "dark/* branch surface: answers by name and by id, and reports main as a uuid plus a name."
+  echo "dark/* branch surface: answers by name and by id, and reports main as a uuid plus a name; non-ASCII text does not desynchronise the stream."
 }

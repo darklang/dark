@@ -456,6 +456,50 @@ let private awaitBlocking (specs : HE.EventSpec list) : HE.HostEvent =
   Option.get result
 
 
+/// Read exactly `byteLength` BYTES of input from `reader`, as text.
+///
+/// The LSP frames each message with a `Content-Length` in bytes, and the header
+/// before it is read a line at a time through the same buffered `Console.In`. So
+/// the body has to come through that reader too (a raw-stream read would miss
+/// whatever it already buffered), and its chars are counted back into the bytes
+/// `encoding` decoded them from. Reading chars against a byte count instead read
+/// one char past the end per multi-byte char, into the next message's header,
+/// and the server took the broken header for the client hanging up.
+///
+/// Never asks for more chars than could fit in the bytes left, so it cannot
+/// over-read. An `Error` when input ends early, or when the length ends inside a
+/// character, which means the sender's count was wrong: the text would be mangled
+/// and the stream is already out of step.
+let readExactlyBytes
+  (reader : IO.TextReader)
+  (encoding : Text.Encoding)
+  (byteLength : int)
+  : Result<string, string> =
+  let maxBytesPerChar = encoding.GetMaxByteCount 1
+  let sb = Text.StringBuilder()
+  let buffer = Array.zeroCreate<char> (max 2 (byteLength / maxBytesPerChar + 1))
+  let mutable consumed = 0
+  let mutable error = None
+  while consumed < byteLength && Option.isNone error do
+    let want = max 1 ((byteLength - consumed) / maxBytesPerChar)
+    let mutable n = reader.Read(buffer, 0, want)
+    // A surrogate pair is one character and encodes as a unit; never count half.
+    if n > 0 && Char.IsHighSurrogate buffer[n - 1] then
+      if reader.Read(buffer, n, 1) = 1 then n <- n + 1
+    if n = 0 then
+      error <- Some $"input ended after {consumed} of {byteLength} bytes"
+    else
+      consumed <- consumed + encoding.GetByteCount(buffer, 0, n)
+      sb.Append(buffer, 0, n) |> ignore<Text.StringBuilder>
+      if consumed > byteLength then
+        error <-
+          Some
+            $"a length of {byteLength} bytes ends inside a character (read {consumed})"
+  match error with
+  | Some e -> Error e
+  | None -> Ok(sb.ToString())
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "stdinReadKey" 0
       typeParams = []
@@ -536,9 +580,15 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "stdinReadExactly" 0
       typeParams = []
-      parameters = [ Param.make "length" TInt "The number of characters to read." ]
+      parameters =
+        [ Param.make
+            "length"
+            TInt
+            "The number of BYTES to read, as the input encodes them." ]
       returnType = TString
-      description = "Reads a specified number of characters from the standard input."
+      description =
+        "Reads exactly <param length> bytes from the standard input and returns them as text. "
+        + "Raises if input ends first, or if the length ends inside a character."
       fn =
         (function
         | _, vm, _, [| DInt lengthArg |] ->
@@ -548,10 +598,11 @@ let fns () : List<BuiltInFn> =
           if length < 0 then
             RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
           else
-            let buffer = Array.zeroCreate length
-            let bytesRead = System.Console.In.Read(buffer, 0, length)
-            let input = System.String(buffer, 0, bytesRead)
-            Ply(DString input)
+            match readExactlyBytes Console.In Console.InputEncoding length with
+            | Ok input -> Ply(DString input)
+            | Error e ->
+              RuntimeError.UncaughtException($"stdinReadExactly: {e}", [])
+              |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
