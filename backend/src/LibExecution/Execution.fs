@@ -19,7 +19,7 @@ let rec noTracing : RT.Tracing.Tracing =
     traceEffects = false
     nextEffect = fun () -> -1L
     noteFunction = fun _ -> ()
-    replayEffect = fun _ -> RT.Tracing.ReplayStep.PerformOnwards
+    replayEffect = fun _ _ _ -> RT.Tracing.ReplayStep.PerformOnwards
     viewEffect = None
     forProcess = fun _ -> noTracing }
 

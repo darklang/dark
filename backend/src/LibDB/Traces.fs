@@ -204,35 +204,47 @@ let recordedAt (e : Trace) : Task<string> =
     return current.created
   }
 
-/// The effectful calls a trace recorded, as `(process, ordinal, answer)`, in completion order.
-/// What a replay tracer answers from. A row whose builtin is in `Tracing.Redact.performAgain`
-/// (an environment read, whose result is the secret; a spawn, whose result is a handle to a
-/// process that no longer exists) answers `PerformOnce`, so the replay performs that one call
-/// again for real and goes on replaying.
+/// The effectful calls a trace recorded, as `(process, ordinal, answer, what was called)`, in
+/// completion order. What a replay tracer answers from, and what it checks each call against
+/// before answering it. A row whose builtin is in `Tracing.Redact.performAgain` (an environment
+/// read, whose result is the secret; a spawn, whose result is a handle to a process that no
+/// longer exists) answers `PerformOnce`, so the replay performs that one call again for real
+/// and goes on replaying.
 let log
   (id : System.Guid)
-  : Task<List<System.Guid * int64 * RT.Tracing.ReplayStep>> =
+  : Task<List<System.Guid * int64 * RT.Tracing.ReplayStep * Tracing.RecordedCall>> =
   task {
     let! rows =
       Sql.query
-        "SELECT process_id, ord, fn_hash, result FROM trace_fn_calls
+        "SELECT process_id, ord, fn_hash, args, result FROM trace_fn_calls
          WHERE trace_id = @t AND ord >= 0 ORDER BY seq"
       |> Sql.parameters [ "t", Sql.uuid id ]
       |> Sql.executeAsync (fun read ->
         read.string "process_id",
         read.int64 "ord",
         (read.stringOrNone "fn_hash" |> Option.defaultValue ""),
+        read.bytes "args",
         read.bytes "result")
     return
       rows
-      |> List.choose (fun (pid, ord, builtin, bytes) ->
+      |> List.choose (fun (pid, ord, builtin, argBytes, bytes) ->
         // '' is a run nobody scheduled (a plain `execute`): its process is `Guid.Empty`.
         let g =
           match System.Guid.TryParse pid with
           | true, g -> g
           | _ -> System.Guid.Empty
+        // Arguments that cannot be read back still leave the builtin's name to check; the
+        // check is weaker there and nothing is refused for it.
+        let args =
+          try
+            match BinarySer.RT.Dval.deserialize "trace_fn_calls.args" argBytes with
+            | RT.DList(_, items) -> Some items
+            | _ -> None
+          with _ ->
+            None
+        let call : Tracing.RecordedCall = { builtin = builtin; args = args }
         if Set.contains builtin Tracing.Redact.performAgain then
-          Some(g, ord, RT.Tracing.ReplayStep.PerformOnce)
+          Some(g, ord, RT.Tracing.ReplayStep.PerformOnce, call)
         else
           try
             Some(
@@ -240,7 +252,8 @@ let log
               ord,
               RT.Tracing.ReplayStep.Serve(
                 BinarySer.RT.Dval.deserialize "trace_fn_calls.result" bytes
-              )
+              ),
+              call
             )
           with e ->
             // Dropping the row quietly is what makes this dangerous: the ordinal then has no
@@ -401,7 +414,7 @@ module Replay =
   type T =
     {
       run : Trace
-      log : List<System.Guid * int64 * RT.Tracing.ReplayStep>
+      log : List<System.Guid * int64 * RT.Tracing.ReplayStep * Tracing.RecordedCall>
       /// When the log was recorded (`recordedAt`), for the stale-file warning.
       recordedAt : string
     }

@@ -671,7 +671,20 @@ position it branched from. Its calls are `trace_fn_calls` under the same id.
     resuming the trace.
 
   Either of the last two performs the call and goes on replaying everything
-  else (`ReplayStep.PerformOnce`; the set is `Tracing.Redact.performAgain`). A logged file read whose file has changed
+  else (`ReplayStep.PerformOnce`; the set is `Tracing.Redact.performAgain`).
+
+  Before any step is answered, the call is checked against the row: the same
+  builtin, with the same arguments, compared as the recorder stores them
+  (redacted, a blob by its hash). A package edit since the run can change what
+  an effect is called with, and the log's answer then belongs to an effect this
+  program is not making: a `httpPost` to staging answering one to prod, a write
+  reported done that never happened. So the resume stops there
+  (`ReplayStep.Diverged`), names the step and the arguments that differ, and
+  leaves the run as it was, as it does at a handle. An edit that left the
+  effects alone resumes as before. One consequence: an environment read is
+  performed again on resume, so a value derived from it on another machine
+  can change a later call's arguments, and that resume is refused rather than
+  answered with the first machine's effects. A logged file read whose file has changed
   since the trace was recorded warns and continues on what it read then. The
   first ordinal a process asks for that the log lacks ends that process's
   replay for good, so nothing later in the log can be handed to it after a

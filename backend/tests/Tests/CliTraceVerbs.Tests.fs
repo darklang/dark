@@ -184,6 +184,53 @@ let private replayAfterAnEdit =
       })
 
 
+/// An edit that changes what the run DID: the first effect now gets different arguments. The
+/// log holds what the old program did at that step, so serving it to the new call answers an
+/// effect that never happened. The resume refuses there, says what differs, and leaves the run
+/// as it was.
+let private replayRefusesADivergedEffect =
+  cliTestWithFreshTraces
+    "a resume refuses when an edit changed what an effect was called with"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.Exec.target" "() : String = \"divergeStaging\""
+        do! commit state "target v1"
+        let! _ =
+          runCli
+            state
+            [ "eval"; "Stdlib.printLine (\"to \" + Tests.Exec.target ())" ]
+        let! recorded = latest ()
+        let! logBefore = Traces.log recorded.id
+        do! fn state "Tests.Exec.target" "() : String = \"divergeProd\""
+        do! commit state "target v2"
+        let! refused = runCli state [ "exec"; "resume"; prefixOf recorded ]
+        Expect.stringContains refused "cannot resume past step" "the resume stops"
+        Expect.stringContains
+          refused
+          "divergeStaging"
+          "naming what the log recorded"
+        Expect.stringContains
+          refused
+          "divergeProd"
+          "and what this program asked for"
+        Expect.stringContains refused "rerun" "and offering a rerun"
+        Expect.isFalse
+          (refused.Contains "[replayed] to divergeProd")
+          "and never echoes output the old run did not produce"
+        let! after = Traces.get recorded.id
+        Expect.equal
+          (after |> Option.map (fun e -> e.status))
+          (Some recorded.status)
+          "the run is left with the status it had"
+        let! logAfter = Traces.log recorded.id
+        Expect.equal
+          (List.length logAfter)
+          (List.length logBefore)
+          "with its log as it was"
+      })
+
+
 /// The other half of `replayAfterAnEdit`: a resume against code nobody touched must not
 /// warn, or the warning means nothing on the run that has it.
 let private replayWithoutAnEdit =
@@ -1080,6 +1127,7 @@ let tests =
     suspendThenResume
     replayAfterAnEdit
     replayWithoutAnEdit
+    replayRefusesADivergedEffect
     previewShowsValuesAndPerformsNothing
     previewOfASpawnServesTheChildFromTheLog
     identicalCallsKeepTheirOwnValues

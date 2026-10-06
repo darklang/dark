@@ -240,6 +240,13 @@ module TraceLimits =
 /// One trace, many processes: a script's expressions and anything they spawn write here from
 /// whichever scheduler thread steps them, so every touch is under `sync`. Uncontended in the
 /// one-process case, which is nearly every run.
+/// What the log recorded at one step of a run: which builtin, with what arguments. A resume
+/// checks the call it is about to answer against it, so a program that has changed since the
+/// run is not handed the old program's answers. `args` is None when the row's arguments could
+/// not be read back; the builtin's name is still checked.
+type RecordedCall = { builtin : string; args : Option<List<RT.Dval>> }
+
+
 type TracerState =
   {
     events : System.Collections.Generic.List<CompletedEvent>
@@ -269,6 +276,11 @@ type TracerState =
     /// so they are live from there and nothing later in the log may be handed to them (a fork
     /// cut by position can leave a later ordinal without its earlier ones).
     replayEnded : System.Collections.Generic.HashSet<System.Guid>
+    /// What the log recorded at each step a replay answers, by the same key as `replay`.
+    expected :
+      System.Collections.Generic.Dictionary<struct (System.Guid * int64), RecordedCall>
+    /// The run being resumed, for the message a refusal prints. Empty for a fresh run.
+    mutable resuming : string
     /// Wall clock for the whole run, started when the tracer was made. What `traces inspect` prints
     /// as `took`, and the only honest source for it: the row's `timestamp` and `updated` are
     /// both the store instant for a served request, and on a resumed run they span however long
@@ -286,6 +298,8 @@ let private newState () : TracerState =
     ordinals = System.Collections.Generic.Dictionary()
     replay = System.Collections.Generic.Dictionary()
     replayEnded = System.Collections.Generic.HashSet()
+    expected = System.Collections.Generic.Dictionary()
+    resuming = ""
     loopPasses = System.Collections.Generic.Dictionary()
     elapsed = System.Diagnostics.Stopwatch.StartNew()
     sync = obj () }
@@ -399,6 +413,74 @@ let private makeStoreFnResult
 /// wrappers, which no reader wants a frame for. What it buys is the SHAPE, which a replay cannot
 /// always recover -- a run suspended mid-loop has passes the replay will never reach. Pruned at
 /// store time to the frames a recorded call actually sits under.
+/// Whether the call a resume is about to answer is the call the log recorded at that step.
+module ReplayCheck =
+  /// The arguments as the recorder would have stored them, so the two sides compare like for
+  /// like: redacted the same way, an ephemeral blob by the hash its stored form names (nothing
+  /// is persisted), a stream as its stub. A function value compares equal to any other: what
+  /// it closes over is not something the log can be held to.
+  let private asStored (builtin : string) (args : List<RT.Dval>) : List<RT.Dval> =
+    let leaf (dv : RT.Dval) : Ply.Ply<RT.Dval option> =
+      uply {
+        match dv with
+        | RT.DBlob(RT.Ephemeral eph) ->
+          let n : int64 = System.Convert.ToInt64 eph.bytes.Length
+          return Some(RT.DBlob(RT.Persistent(Blob.sha256Hex eph.bytes, n)))
+        | RT.DStream(impl, _, _) -> return Some(RTToDT.Dval.streamStubDT impl)
+        | RT.DApplicable _ -> return Some RT.DUnit
+        | _ -> return None
+      }
+    Redact.args builtin args
+    |> List.map (fun dv ->
+      match Ply.trySync (RT.Dval.rewriteWith leaf dv) with
+      | ValueSome dv -> dv
+      // Every arm above returns without waiting, so this cannot happen; if it ever does, the
+      // argument is kept as it was rather than guessed at, and may then fail to match.
+      | ValueNone -> dv)
+
+  let private brief (dv : RT.Dval) : string =
+    let s =
+      match dv with
+      | RT.DString s -> $"\"{s}\""
+      | other -> string other
+    if s.Length > 80 then s.Substring(0, 77) + "..." else s
+
+  /// None when the call is the one recorded; otherwise what differs, for the refusal.
+  let difference
+    (recorded : RecordedCall)
+    (builtin : string)
+    (args : RT.Dval[])
+    : Option<string> =
+    if recorded.builtin <> builtin then
+      Some
+        $"this program calls `{builtin}` where the run called `{recorded.builtin}`"
+    else
+      match recorded.args with
+      | None -> None
+      | Some recordedArgs ->
+        let now = asStored builtin (List.ofArray args)
+        let was = asStored builtin recordedArgs
+        if List.length now <> List.length was then
+          Some(
+            $"this program calls `{builtin}` with {List.length now} arguments where the run "
+            + $"gave it {List.length was}"
+          )
+        else
+          let differing =
+            List.zip was now
+            |> List.indexed
+            |> List.filter (fun (_, (w, n)) -> not (LibExecution.Dval.equals w n))
+          match differing with
+          | [] -> None
+          | _ ->
+            let lines =
+              differing
+              |> List.map (fun (i, (w, n)) ->
+                $"argument {i + 1} was {brief w}, now {brief n}")
+              |> String.concat "; "
+            Some $"this program calls `{builtin}` differently from the run: {lines}"
+
+
 let rec private executionTracingFor
   (state : TracerState)
   (pid : System.Guid)
@@ -428,13 +510,32 @@ let rec private executionTracingFor
           | _ -> ())
       nextEffect = (fun () -> lock state.sync (fun () -> nextOrdinal state pid))
       replayEffect =
-        (fun ord ->
+        (fun ord builtin args ->
           lock state.sync (fun () ->
             if state.replayEnded.Contains pid then
               RT.Tracing.ReplayStep.PerformOnwards
             else
               match state.replay.TryGetValue(struct (pid, ord)) with
-              | true, answer -> answer
+              | true, answer ->
+                // The log's answer belongs to the call the old program made at this step. A
+                // program edited since may make a different one here; answering it from the log
+                // would report an effect that never happened as done.
+                let difference =
+                  match state.expected.TryGetValue(struct (pid, ord)) with
+                  | true, recorded -> ReplayCheck.difference recorded builtin args
+                  | false, _ -> None
+                match difference with
+                | None -> answer
+                | Some what ->
+                  RT.Tracing.ReplayStep.Diverged(
+                    $"{what}. The log answers what that program did, not this one, so the "
+                    + "run is left as it was."
+                    + (if state.resuming = "" then
+                         ""
+                       else
+                         $" `dark traces rerun {state.resuming}` runs it again from the start, "
+                         + "performing every effect again, the ones already done included.")
+                  )
               | false, _ ->
                 state.replayEnded.Add pid |> ignore<bool>
                 RT.Tracing.ReplayStep.PerformOnwards))
@@ -888,9 +989,10 @@ let createReplayTracer
   (description : string)
   (inputVarName : string)
   (inputDval : RT.Dval)
-  (log : List<System.Guid * int64 * RT.Tracing.ReplayStep>)
+  (log : List<System.Guid * int64 * RT.Tracing.ReplayStep * RecordedCall>)
   : T =
   let state = newState ()
+  state.resuming <- (string (AT.TraceID.toUUID traceID)).Substring(0, 8)
   // The recorded processes, in the order they first appear in the log. `Guid.Empty` is NOT one
   // of them: those rows are the unscheduled root's, seeded below and answered through the root
   // hooks. Leaving it in the list would hand the FIRST spawned child the root's rows, and the
@@ -898,22 +1000,25 @@ let createReplayTracer
   // answer, which is how a replayed spawn came back with a fresh uuid).
   let mutable unmatched =
     log
-    |> List.map (fun (pid, _, _) -> pid)
+    |> List.map (fun (pid, _, _, _) -> pid)
     |> List.distinct
     |> List.filter (fun pid -> pid <> System.Guid.Empty)
   // A run nobody scheduled recorded under `Guid.Empty`, and a resume nobody schedules asks
   // under it too, through the root hooks below, so those rows answer directly as well as
   // through the matching.
-  for (pid, ord, answer) in log do
+  for (pid, ord, answer, recorded) in log do
     if pid = System.Guid.Empty then
       state.replay[struct (System.Guid.Empty, ord)] <- answer
+      state.expected[struct (System.Guid.Empty, ord)] <- recorded
   let rec tracingFor (pid : System.Guid) : RT.Tracing.Tracing =
     lock state.sync (fun () ->
       match unmatched with
       | recorded :: rest ->
         unmatched <- rest
-        for (rpid, ord, answer) in log do
-          if rpid = recorded then state.replay[struct (pid, ord)] <- answer
+        for (rpid, ord, answer, call) in log do
+          if rpid = recorded then
+            state.replay[struct (pid, ord)] <- answer
+            state.expected[struct (pid, ord)] <- call
       | [] -> ())
     { executionTracingFor state pid with forProcess = tracingFor }
   { enabled = true
