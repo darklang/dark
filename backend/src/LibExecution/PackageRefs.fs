@@ -96,11 +96,17 @@ let hardened : Set<string> =
   Set.ofList
     [ "type/Stdlib.Option.Option"
       "type/Stdlib.Result.Result"
-      "type/LanguageTools.ProgramTypes.PackageOp"
       "type/LanguageTools.ProgramTypes.PackageLocation" ]
 
+// Each of these three refers only to builtins and its own type parameters, so its hash moves only if its own
+// declaration changes or hashing itself does.
+//
 // Deliberately NOT hardened: `fn/Cli.executeCliCommand`. It moves whenever the CLI changes, and hardening
 // a pin that moves routinely just teaches everyone the override flag.
+//
+// Deliberately NOT hardened either: `type/LanguageTools.ProgramTypes.PackageOp`. It reaches every expression
+// form through `AddFn`, so adding a field to any AST case moves it. That is routine, and `PackageLocation`,
+// which it contains, still trips on the alarming kind of move.
 
 /// Mutable hash cache. Loaded on first access, can be reloaded after
 /// the hash file is regenerated (e.g. during reload-packages in CI).
