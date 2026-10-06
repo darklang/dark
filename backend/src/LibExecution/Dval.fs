@@ -261,6 +261,47 @@ let rec nonPersistableReason (dv : Dval) : Option<string> =
   | _ -> None
 
 
+/// True when nothing in `dv` can run code or reach a resource: no function or
+/// lambda, no DB handle, no stream, no pending read, at any depth. Reading such
+/// a value performs no effect and hands the reader nothing to call, which is
+/// what lets permission analysis follow a reference to a stored `val` holding
+/// it. Every case is listed so a new Dval case has to be decided here.
+let rec isInertData (dv : Dval) : bool =
+  match dv with
+  | DApplicable _
+  | DDB _
+  | DStream _
+  | DPromise _ -> false
+
+  | DUnit
+  | DBool _
+  | DInt8 _
+  | DUInt8 _
+  | DInt16 _
+  | DUInt16 _
+  | DInt32 _
+  | DUInt32 _
+  | DInt64 _
+  | DUInt64 _
+  | DInt128 _
+  | DUInt128 _
+  | DInt _
+  | DFloat _
+  | DChar _
+  | DString _
+  | DDateTime _
+  | DUuid _
+  | DBlob _ -> true
+
+  | DList(_, items) -> items |> List.forall isInertData
+  | DTuple(a, b, rest) ->
+    isInertData a && isInertData b && List.forall isInertData rest
+  | DDict(_, _, entries) ->
+    entries |> Map.forall (fun k v -> isInertData k.Dval && isInertData v)
+  | DRecord(_, _, _, fields) -> fields |> Map.values |> Seq.forall isInertData
+  | DEnum(_, _, _, _, fields) -> fields |> List.forall isInertData
+
+
 let byteArrayToDvalList (bytes : byte[]) : Dval =
   bytes
   |> Array.toList

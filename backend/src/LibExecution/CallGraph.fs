@@ -30,7 +30,9 @@ type Analysis =
 /// Version 3 traverses dictionary keys; skipping them hid calls from analysis.
 /// Version 4 follows the implementation an operator or trait call resolved to;
 /// operators were analyzed as their operands alone.
-let analysisVersion = 4
+/// Version 5 follows a reference to a package value whose stored value holds
+/// only data; every value reference was incomplete before.
+let analysisVersion = 5
 
 module private Analysis =
   let empty : Analysis =
@@ -162,17 +164,33 @@ let callbackParams (fn : PT.PackageFn.PackageFn) : Set<int> =
 ///
 /// `callbacks` is `callbackParams` of the enclosing package fn; a reference to
 /// one of those positions is unknowable wherever it appears.
-let rec analyze (callbacks : Set<int>) (expr : PT.Expr) : Analysis =
+///
+/// `inertValues` are the package values whose stored value is known to hold
+/// only data (`Dval.isInertData`). The caller decides that from the store; an
+/// empty set is always safe.
+let rec analyze
+  (callbacks : Set<int>)
+  (inertValues : Set<PT.FQValueName.Package>)
+  (expr : PT.Expr)
+  : Analysis =
   let own =
     match expr with
     | PT.EFnName(_, nr, bounds) -> nameRef nr bounds
     | PT.EInfix(_, infix, _, _, implFn) -> infixRef infix implFn
     // A passed callback may be called by the receiving function.
     | PT.EArg(_, index) when Set.contains index callbacks -> Analysis.callbackEscape
-    // A package value may contain named functions or lambdas in an arbitrarily
-    // nested runtime value. Until value bodies participate in closure analysis,
-    // treating the reference as complete would let returned executable code be
-    // approved as effect-free.
+    // A value is evaluated once and stored, so reading it runs nothing. What
+    // it can do is hand back code: a named fn or lambda nested anywhere in it,
+    // which the reader may then call without this analysis seeing the call.
+    // So a reference is followed only when the store has shown the value is
+    // data all the way down. Anything else (a value holding code, one not yet
+    // evaluated, one that could not be read, a builtin value) stays
+    // incomplete, since treating it as complete would let returned executable
+    // code be approved as effect-free.
+    | PT.EValue(_, { resolved = Ok { name = PT.FQValueName.Package value } }) when
+      Set.contains value inertValues
+      ->
+      Analysis.empty
     | PT.EValue _ -> Analysis.unresolved
     | PT.EPipe(_, _, parts) -> Analysis.collect pipeOwnRefs parts
     | PT.EApply(_, fnExpr, _, _) ->
@@ -186,13 +204,29 @@ let rec analyze (callbacks : Set<int>) (expr : PT.Expr) : Analysis =
       // callback. Its target is not statically known here.
       | _ -> Analysis.unresolved
     | _ -> Analysis.empty
-  Analysis.combine own (Analysis.collect (analyze callbacks) (Ast.subExprs expr))
+  Analysis.combine
+    own
+    (Analysis.collect (analyze callbacks inertValues) (Ast.subExprs expr))
+
+
+/// Every package value an expression references, so the caller can ask the
+/// store which of them hold only data before analyzing.
+let rec valueRefs (expr : PT.Expr) : Set<PT.FQValueName.Package> =
+  let own =
+    match expr with
+    | PT.EValue(_, { resolved = Ok { name = PT.FQValueName.Package value } }) ->
+      Set.singleton value
+    | _ -> Set.empty
+  Ast.subExprs expr |> List.map valueRefs |> Set.unionMany |> Set.union own
 
 
 /// Analyze a package function with its function-typed parameters marked as
-/// caller-supplied callbacks.
-let analyzeFn (fn : PT.PackageFn.PackageFn) : Analysis =
-  analyze (callbackParams fn) fn.body
+/// caller-supplied callbacks, following references to `inertValues`.
+let analyzeFn
+  (inertValues : Set<PT.FQValueName.Package>)
+  (fn : PT.PackageFn.PackageFn)
+  : Analysis =
+  analyze (callbackParams fn) inertValues fn.body
 
 
 /// Conservative permission requirements of a package function: the union of

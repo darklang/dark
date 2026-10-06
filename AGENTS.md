@@ -1082,7 +1082,7 @@ driver must call the producer and pass the value into a separate restricted runn
 otherwise the producer inherits the restriction and the test proves nothing. Load partial-
 application references in the driver's value position so they are stamped broad first.
 
-**Seeded package values are code, not captured authority.** A function reference stored in a seeded `val` must use `access = None` (`Seed.stripCapturedAccess`); otherwise it can decode as deny-all. Static approval treats opaque `EValue` bodies as incomplete.
+**Seeded package values are code, not captured authority.** A function reference stored in a seeded `val` must use `access = None` (`Seed.stripCapturedAccess`); otherwise it can decode as deny-all. Static approval follows a reference to a package value only when its stored value holds no code (`Dval.isInertData`); a value holding a function, or one not evaluated yet, stays incomplete.
 
 **Compiled function references are serialized code.** `EFnName` becomes a serialized
 `DApplicable(AppNamedFn …)` in package instructions. Keep code constants distinct from

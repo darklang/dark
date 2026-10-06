@@ -316,7 +316,7 @@ let fns : List<BuiltInFn> =
               | _ -> incorrectArgs ()
             match!
               PackagePermissions.approveVersionForName
-                LibDB.ProgramTypes.Fn.get
+                PackagePermissions.Load.fromStore
                 effects.callEffectsFor
                 (accountIDOf accountIDDval)
                 location
@@ -372,7 +372,7 @@ let fns : List<BuiltInFn> =
           uply {
             let! result =
               PackagePermissions.permissionRequirements
-                LibDB.ProgramTypes.Fn.get
+                PackagePermissions.Load.fromStore
                 (builtinEffects state).callEffectsFor
                 hashStr
             return

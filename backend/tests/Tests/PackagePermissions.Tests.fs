@@ -11,6 +11,7 @@ module Permission = LibExecution.Permissions
 module Requirements = LibExecution.CallGraph.Requirements
 module PT = LibExecution.ProgramTypes
 module PackagePermissions = LibDB.PackagePermissions
+module RT = LibExecution.RuntimeTypes
 
 let private only (item : 'a) : Permission.Scope<'a> = Permission.Scope.Only item
 
@@ -46,7 +47,8 @@ let private higherOrderFn (hash : string) (body : PT.Expr) : PT.PackageFn.Packag
 /// `PackagePermissions.loadClosure` produces.
 let private closureOf (fns : List<PT.PackageFn.PackageFn>) =
   fns
-  |> List.map (fun fn -> fn.hash, (fn, LibExecution.CallGraph.analyzeFn fn))
+  |> List.map (fun fn ->
+    fn.hash, (fn, LibExecution.CallGraph.analyzeFn Set.empty fn))
   |> Map.ofList
 
 /// Builtin effects for the review tests: `timeNowMs` is clock-only and
@@ -90,8 +92,9 @@ let private reviewUniverse =
   |> List.map (fun fn -> fn.hash, fn)
   |> Map.ofList
 
-let private loadFromUniverse : PackagePermissions.LoadFn =
-  fun hash -> Ply(Map.tryFind hash reviewUniverse)
+let private loadFromUniverse : PackagePermissions.Load =
+  { fn = fun hash -> Ply(Map.tryFind hash reviewUniverse)
+    value = fun _ -> Ply None }
 
 let private reviewUnder
   explicitPolicy
@@ -159,6 +162,112 @@ let packageValuesMakeAnalysisIncomplete =
       result.requiredEffects
       "unknown effects are not invented, but the result is not effect-free"
   }
+
+/// A reference to a package value is followed only when the value the store
+/// holds is data all the way down. These go through `loadClosure`, so they
+/// cover the store read as well as the rule.
+module ValueReferences =
+  let private typeName =
+    RT.FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.option ())
+
+  let private namedFn : RT.Dval =
+    RT.DApplicable(
+      RT.AppNamedFn
+        { name = RT.FQFnName.fqBuiltin "fileRead" 0
+          typeSymbolTable = RT.TST.empty
+          typeArgs = []
+          access = None
+          argsSoFar = []
+          boundImpls = [] }
+    )
+
+  /// A record of strings, `reset = "\u001b[0m"` and the like.
+  let private colors : RT.Dval =
+    RT.DRecord(
+      typeName,
+      typeName,
+      [],
+      Map.ofList [ "reset", RT.DString "\u001b[0m"; "red", RT.DString "\u001b[31m" ]
+    )
+
+  /// A list in a record in an enum: data, three levels down.
+  let private nestedData : RT.Dval =
+    RT.DEnum(
+      typeName,
+      typeName,
+      [],
+      "Some",
+      [ RT.DRecord(
+          typeName,
+          typeName,
+          [],
+          Map.ofList
+            [ "names",
+              RT.DList(RT.ValueType.Unknown, [ RT.DString "a"; RT.DString "b" ]) ]
+        ) ]
+    )
+
+  /// The same shape with a fn in place of one of the strings.
+  let private nestedFn : RT.Dval =
+    RT.DEnum(
+      typeName,
+      typeName,
+      [],
+      "Some",
+      [ RT.DRecord(
+          typeName,
+          typeName,
+          [],
+          Map.ofList
+            [ "names", RT.DList(RT.ValueType.Unknown, [ RT.DString "a"; namedFn ]) ]
+        ) ]
+    )
+
+  let private values : Map<PT.Hash, RT.Dval> =
+    Map.ofList
+      [ PT.Hash "colors", colors
+        PT.Hash "nested-data", nestedData
+        PT.Hash "handler", namedFn
+        PT.Hash "nested-fn", nestedFn ]
+
+  /// The requirements of a fn whose body reads one package value. A hash not
+  /// in `values` reads as unevaluated.
+  let private readingValue (valueHash : string) : Requirements.Result =
+    let root = unitFn "reads-value" (ePackageValue valueHash)
+    let load : PackagePermissions.Load =
+      { fn = fun h -> Ply(if h = root.hash then Some root else None)
+        value = fun h -> Ply(Map.tryFind h values) }
+    let closure =
+      PackagePermissions.loadClosure load root.hash
+      |> Ply.toTask
+      |> Async.AwaitTask
+      |> Async.RunSynchronously
+    Requirements.forFunction testEffects closure root.hash
+
+  let tests =
+    [ test "a value holding a record of strings is followed" {
+        let result = readingValue "colors"
+        Expect.isTrue result.complete "a record of strings holds nothing to call"
+        Expect.isEmpty result.requiredEffects "reading a stored value does nothing"
+      }
+      test "a value holding a list in a record in an enum is followed" {
+        Expect.isTrue (readingValue "nested-data").complete "data at every depth"
+      }
+      test "a value holding a function stays incomplete" {
+        Expect.isFalse
+          (readingValue "handler").complete
+          "the reader can call what the value hands back"
+      }
+      test "a function two levels down in a value still makes it incomplete" {
+        Expect.isFalse
+          (readingValue "nested-fn").complete
+          "a shallow check would miss this one"
+      }
+      test "a value that has not been evaluated stays incomplete" {
+        Expect.isFalse
+          (readingValue "not-evaluated").complete
+          "an unknown value is never treated as data"
+      } ]
 
 let passedCallbacksMakeAnalysisIncomplete =
   test "handing a callback parameter to another fn is not effect-free" {
@@ -337,7 +446,7 @@ let dictionaryKeysAreAnalyzed =
       unitFn
         "dict-key-effect"
         (eDictOf [ (eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ], eInt64 1L) ])
-    let names = (LibExecution.CallGraph.analyzeFn fn).names
+    let names = (LibExecution.CallGraph.analyzeFn Set.empty fn).names
     Expect.isTrue
       (names
        |> List.exists (fun name ->
@@ -500,4 +609,5 @@ let tests =
       reviewRefusesRulesThatCannotCoverTheRequirements
       reviewRefusesAWidenedContractWithoutAcknowledgment
       reviewRejectsAnIncompleteClosure
-      testList "operators and trait calls" Operators.tests ]
+      testList "operators and trait calls" Operators.tests
+      testList "package value references" ValueReferences.tests ]
