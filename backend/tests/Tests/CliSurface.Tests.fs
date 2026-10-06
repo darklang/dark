@@ -77,6 +77,28 @@ let private timeoutPreservesCapture =
       NonBlockingConsole.stopCapture () |> ignore<string>
   }
 
+/// stderr shares stdout's queue and capture window. Written straight to the console, an error could
+/// print above the output that led to it and escaped the workbench's in-frame capture.
+let private stderrIsCapturedInOrder =
+  cliTest "stderr is captured apart from stdout, and in order with it" (fun target ->
+    task {
+      let program =
+        "let _ = Stdlib.printLine \"first\" in "
+        + "let _ = Stdlib.printErrorLine \"second\" in "
+        + "let _ = Stdlib.printLine \"third\" in 4L"
+
+      let! (out, err, status) = runCliStreams target [ "eval"; program ]
+      Expect.equal status 0 "the eval succeeded"
+      Expect.equal out "first\nthird\n4" "stdout holds the answer and nothing else"
+      Expect.equal err "second" "stderr holds the one line written to it"
+
+      let! both = runCli target [ "eval"; program ]
+      Expect.equal
+        both
+        "first\nsecond\nthird\n4"
+        "runCli keeps both streams, in order"
+    })
+
 let private testHelpCommand =
   cliTest "help command" (fun state ->
     task {
@@ -1706,6 +1728,7 @@ let tests : List<Test> =
     reusesCompiledFunctions
     timeoutBoundsSynchronousWork
     timeoutPreservesCapture
+    stderrIsCapturedInOrder
     testHelpCommand
     everyCommandAnswersHelp
     workbenchViewsRender

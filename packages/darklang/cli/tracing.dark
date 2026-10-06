@@ -283,18 +283,19 @@ let showFromTrace
     | [] ->
       Cli.printErr
         $"{Cli.Text.shortIdText id} went through no package function, so there is no code to show"
-      Stdlib.printLine
+      Stdlib.printErrorLine
         (Stdlib.Cli.UI.Colors.dimText
           $"  dark traces inspect {Cli.Text.shortIdText id}   what it was and what it did")
       { state with exitCode = 1 }
     | many ->
-      Stdlib.printLine
+      // No code was shown, so this is a refusal, and it must stay off `--json`'s stdout.
+      Stdlib.printErrorLine
         $"{Cli.Text.shortIdText id} went through {Cli.Text.plural (Stdlib.List.length many) "function"}:"
       Stdlib.List.iter many (fun fn ->
-        Stdlib.printLine
+        Stdlib.printErrorLine
           (Stdlib.Cli.UI.Colors.dimText
             $"  dark traces show {fn} {Cli.Text.shortIdText id}"))
-      state
+      Cli.exitWith state false
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -687,7 +688,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     if confirmDestructive autoConfirm "Delete all traces?" then
       executeClear state
     else
-      Stdlib.printLine "Cancelled."
+      Cli.Stderr.line "Cancelled."
       { state with exitCode = 1 }
 
   | [ "delete", "--before", durationStr ] ->
@@ -696,7 +697,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
          $"Delete traces older than {durationStr}?" then
       executeClearBefore state durationStr
     else
-      Stdlib.printLine "Cancelled."
+      Cli.Stderr.line "Cancelled."
       { state with exitCode = 1 }
 
   | [ "delete", "--keep", nStr ] ->
@@ -707,7 +708,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
            $"Keep the {Stdlib.toString n} most-recent traces and drop the rest?" then
         executePruneKeep state n
       else
-        Stdlib.printLine "Cancelled."
+        Cli.Stderr.line "Cancelled."
         { state with exitCode = 1 }
     | Error _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "--keep N"))
@@ -719,7 +720,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       if confirmDestructive autoConfirm $"Delete trace {full}?" then
         executeDelete state full
       else
-        Stdlib.printLine "Cancelled."
+        Cli.Stderr.line "Cancelled."
         { state with exitCode = 1 }
     | None -> { state with exitCode = 1 }
 
@@ -1675,10 +1676,10 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
   | None ->
     Cli.printErr
       $"no kept trace has the id {traceID}, or its input is not something to evaluate"
-    Stdlib.printLine
+    Stdlib.printErrorLine
       (Stdlib.Cli.UI.Colors.dimText
         "  a served request's input is a record, not source: `traces show <fn>` reads one instead")
-    state
+    Cli.exitWith state false
   | Some code ->
     Stdlib.printLine
       $"rerunning {Cli.Text.shortIdText traceID}: {Cli.Text.oneLine code}"

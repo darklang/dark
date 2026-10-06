@@ -131,9 +131,7 @@ let refuseUnknownArgs
 /// found and archived.
 let refuseDashLedName (kind: String) (name: String) : Bool =
   if Stdlib.String.startsWith name "-" then
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error
-        $"\"{name}\" starts with a dash, so it's a flag rather than a {kind} name.")
+    printErr $"\"{name}\" starts with a dash, so it's a flag rather than a {kind} name."
 
     true
   else
@@ -141,9 +139,20 @@ let refuseDashLedName (kind: String) (name: String) : Bool =
 
 
 // One colored line each: the shared voice of the SCM-era commands' output.
+//
+// Which stream: would someone piping this command into another program want the line? An error or a
+// hint never is, so those go to stderr.
 let printOk (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.success msg)
-let printErr (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-let printHint (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.hint msg)
+let printErr (msg: String) : Unit = Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error msg)
+let printHint (msg: String) : Unit = Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.hint msg)
+
+/// A line of the ANSWER in hint colour. Not `printHint`, which would take it off stdout.
+let printQuiet (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.hint msg)
+
+module Stderr =
+  let line (msg: String) : Unit = Stdlib.printErrorLine msg
+  let ok (msg: String) : Unit = Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.success msg)
+  let hint (msg: String) : Unit = Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.hint msg)
 
 /// The state a command hands back, given whether it did what it was asked.
 ///

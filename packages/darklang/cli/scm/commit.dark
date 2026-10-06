@@ -265,7 +265,8 @@ let commitSelected
           if Stdlib.List.isEmpty pulledIn then
             ()
           else
-            Cli.printOk
+            // stderr: `commit --json -y --include` reaches this, and its stdout is the JSON alone.
+            Cli.Stderr.ok
               $"  also committed (needed by what you named): {Stdlib.String.join pulledIn ", "}"
 
         Stdlib.Result.Result.Ok((hash, committed, moved))
@@ -379,10 +380,10 @@ let refuseUnresolved (parsed: Args) : Bool =
 
       broken
       |> Stdlib.List.iter (fun (label, names) ->
-        Stdlib.printLine $"  {label}"
+        Stdlib.printErrorLine $"  {label}"
 
         names
-        |> Stdlib.List.iter (fun n -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    - {n}")))
+        |> Stdlib.List.iter (fun n -> Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"    - {n}")))
 
       Cli.printHint
         "  author what's missing, or `dark commit --allow-unresolved` to record it as-is."
@@ -423,13 +424,13 @@ let refuseTypeErrors (parsed: Args) : Bool =
         | Failed ->
           let label = Packages.Typecheck.itemLabel branchId item.item
 
-          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    {label}:")
+          Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"    {label}:")
 
           Stdlib.List.append
             (Packages.AtRestCheck.issueLines branchId item.diagnostics)
             (Packages.AtRestCheck.issueLines branchId item.warnings)
           |> Stdlib.List.iter (fun line ->
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    {line}"))
+            Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"    {line}"))
         | _ -> ())
 
       // The report's own lists are the union of the items' -- printing both doubles every line. They
@@ -440,7 +441,7 @@ let refuseTypeErrors (parsed: Args) : Bool =
             (Packages.AtRestCheck.issueLines branchId report.diagnostics)
             (Packages.AtRestCheck.issueLines branchId report.warnings)
           |> Stdlib.List.iter (fun line ->
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    {line}"))
+            Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"    {line}"))
         else
           ()
 
@@ -486,20 +487,20 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
   else
     let withPrevious = r.withPrevious
 
-    Cli.printOk $"  CHANGED ({Stdlib.toString (Stdlib.List.length changed)})"
+    Cli.Stderr.ok $"  CHANGED ({Stdlib.toString (Stdlib.List.length changed)})"
 
     let nameWidth = widest (r.items |> Stdlib.List.map (fun i -> i.name))
 
     r.items
-    |> Stdlib.List.iter (fun item -> Stdlib.printLine (changedLine nameWidth item))
+    |> Stdlib.List.iter (fun item -> Cli.Stderr.line (changedLine nameWidth item))
 
     // REMOVED -- names this commit takes away. Their content stays reachable by hash.
     if Stdlib.List.isEmpty r.removed then
       ()
     else
-      Stdlib.printLine ""
-      Cli.printOk $"  REMOVED ({Stdlib.toString (Stdlib.List.length r.removed)})"
-      r.removed |> Stdlib.List.iter (fun name -> Stdlib.printLine $"    - {name}")
+      Cli.Stderr.line ""
+      Cli.Stderr.ok $"  REMOVED ({Stdlib.toString (Stdlib.List.length r.removed)})"
+      r.removed |> Stdlib.List.iter (fun name -> Cli.Stderr.line $"    - {name}")
 
     // PROPAGATES TO -- outcomes, not ops. This is a PREVIEW; nothing is authored until you say yes.
     let repoints = r.propagates
@@ -507,8 +508,8 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
     if Stdlib.List.isEmpty repoints then
       ()
     else
-      Stdlib.printLine ""
-      Cli.printOk
+      Cli.Stderr.line ""
+      Cli.Stderr.ok
         $"  PROPAGATES TO ({Stdlib.toString (Stdlib.List.length repoints)})   (auto, reduced to final versions)"
 
       let repointWidth = widest (repoints |> Stdlib.List.map (fun rp -> rp.name))
@@ -516,7 +517,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
       repoints
       |> Stdlib.List.iter (fun rp ->
         let name = ScmJson.pad rp.name repointWidth
-        Stdlib.printLine $"    ~ {name}  -> uses {rp.uses}")
+        Cli.Stderr.line $"    ~ {name}  -> uses {rp.uses}")
 
     // STAYING BEHIND -- what your pins are holding on an older version. Shown next to what moved, since
     // the two are the same decision from either side, and a deliberate one should read as deliberate.
@@ -525,9 +526,9 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
     if Stdlib.List.isEmpty behind then
       ()
     else
-      Stdlib.printLine ""
+      Cli.Stderr.line ""
 
-      Cli.printOk
+      Cli.Stderr.ok
         $"  STAYING BEHIND ({Stdlib.toString (Stdlib.List.length behind)})   (pinned, so they keep the version they have)"
 
       let behindWidth = widest (behind |> Stdlib.List.map (fun rp -> rp.name))
@@ -535,7 +536,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
       behind
       |> Stdlib.List.iter (fun rp ->
         let name = ScmJson.pad rp.name behindWidth
-        Stdlib.printLine $"    . {name}  still on the old {rp.uses}")
+        Cli.Stderr.line $"    . {name}  still on the old {rp.uses}")
 
     // CONFLICTS -- already auto-resolved; this is the "and you should know" line.
     let conflicts = r.conflicts
@@ -543,14 +544,14 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
     if Stdlib.List.isEmpty conflicts then
       ()
     else
-      Stdlib.printLine ""
-      Cli.printOk
+      Cli.Stderr.line ""
+      Cli.Stderr.ok
         $"  CONFLICTS ({Stdlib.toString (Stdlib.List.length conflicts)})   auto-resolved, needs your ok"
 
       conflicts
-      |> Stdlib.List.iter (fun c -> Stdlib.printLine (SCM.Conflicts.summaryLine c))
+      |> Stdlib.List.iter (fun c -> Cli.Stderr.line (SCM.Conflicts.summaryLine c))
 
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "    -> `dark conflicts` to inspect / override")
+      Cli.Stderr.line (Stdlib.Cli.UI.Colors.hint "    -> `dark conflicts` to inspect / override")
 
     // The review above always shows the whole draft; when a selection is in force, say what will
     // actually commit before asking.
@@ -558,7 +559,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
       if Stdlib.List.isEmpty parsed.include then
         ()
       else
-        Cli.printHint
+        Cli.Stderr.hint
           $"""  --include: only {Stdlib.String.join parsed.include ", "} (and what they pull in) will commit; the rest stays a draft."""
 
     // `confirmExplicit`, so a piped stdin is a NO: docs promise a review-then-ask, and a script
@@ -572,10 +573,10 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
       )
     then
       if Cli.Prompt.interactive () || parsed.autoConfirm then
-        Cli.printOk "  left as a draft."
+        Cli.Stderr.ok "  left as a draft."
       else
-        Cli.printOk "  left as a draft. (`dark commit <message> -y` commits without the prompt -- a piped stdin can't answer it.)"
-      state
+        Cli.Stderr.ok "  left as a draft. (`dark commit <message> -y` commits without the prompt -- a piped stdin can't answer it.)"
+      Cli.exitWith state false
     else
       let outcome =
         if Stdlib.List.isEmpty parsed.include then

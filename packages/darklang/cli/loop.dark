@@ -291,7 +291,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
         // a confirm, an $EDITOR -- see `Registry.promptsForInput`), or bailed before starting its
         // TUI. Either way its output is about to be covered by the alternate screen, so hold
         // until acknowledged rather than flashing it away.
-        let _ = Stdlib.print (Stdlib.Cli.UI.Colors.dimText "\n-- Enter to return to the workbench --")
+        let _ = Stdlib.printError (Stdlib.Cli.UI.Colors.dimText "\n-- Enter to return to the workbench --")
         let _ = Stdlib.Cli.Stdin.readLine ()
         // Undo the push and resume this page, rather than stranding the user at a
         // prompt they didn't ask for. Only pop when the stack is the length we left it: a command that

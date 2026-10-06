@@ -33,10 +33,12 @@ let executeExport (state: AppState) (path: String) : AppState =
   let ops = SCM.Wire.exportOps ()
 
   match Stdlib.Cli.File.writeText path (SCM.Wire.wireEncode ops) with
-  | Ok _ -> Cli.printOk $"Exported {Stdlib.toString (Stdlib.List.length ops)} ops to {path}"
-  | Error _ -> Cli.printErr $"Couldn't write {path}"
-
-  state
+  | Ok _ ->
+    Cli.printOk $"Exported {Stdlib.toString (Stdlib.List.length ops)} ops to {path}"
+    state
+  | Error _ ->
+    Cli.printErr $"Couldn't write {path}"
+    Cli.exitWith state false
 
 /// Import ops from a file into the log; they take effect.
 let executeImport (state: AppState) (path: String) : AppState =
@@ -63,9 +65,10 @@ let executeImport (state: AppState) (path: String) : AppState =
 
         reportDetection outcome.bulk outcome.detected
         reportConflicts outcome.conflicts
-      | Error e -> Cli.printErr $"Import failed: {e}"
-
-      state
+        state
+      | Error e ->
+        Cli.printErr $"Import failed: {e}"
+        Cli.exitWith state false
     // Print the decoder's reason, not a generic one: it distinguishes "a version I don't speak" from
     // "these bytes are damaged", and only the first is fixed by rebuilding one side.
     | Error e ->
@@ -275,7 +278,8 @@ let executeConnect (state: AppState) (url: String) : AppState =
   else
     SCM.PackageOps.setRelay url
     Cli.printOk $"relay remembered: {url}. Uploading your ops..."
-    let after = executePush state url
+    // Deliberately exit 0 on a failed push: remembering the relay is `connect`'s job, and it did that.
+    let after = { (executePush state url) with exitCode = state.exitCode }
 
     // The url is kept even when the push fails: connecting while offline is legitimate, and `dark push` is
     // then the retry. But a TYPO looks exactly like a relay that's down, so say what is stored and how to

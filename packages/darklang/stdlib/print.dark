@@ -9,10 +9,14 @@ let printLine (str: String): Unit =
   Builtin.printLine str
 
 
-/// Print <param str> to stderr, followed by a newline: for diagnostics that must stay off
-/// stdout, such as a refusal under `--json` or the log of a server whose stdout is its protocol.
+/// Print <param str> to stderr, followed by a newline: for everything that is not the answer to what
+/// was asked, so `dark cmd | next` carries only the answer.
 let printErrorLine (str: String): Unit =
   Builtin.printErrorLine str
+
+
+let printError (str: String): Unit =
+  Builtin.printError str
 
 
 let printLines (lines: List<String>): Unit =

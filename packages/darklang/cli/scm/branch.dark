@@ -93,6 +93,18 @@ let executeList (state: AppState) (includeMerged: Bool) : AppState =
 /// Both halves are needed: the interactive REPL is one long-lived process, so writing only the config key
 /// leaves it on whatever branch it booted on while the status bar says otherwise.
 let executeSwitch (state: AppState) (branchRef: String) : AppState =
+  // Decided BEFORE the switch, which can create a branch and change what the name resolves to.
+  let refused =
+    if Stdlib.String.startsWith branchRef "-" then
+      true
+    else if (branchRef == "") || (branchRef == SCM.Branch.mainBranchName) then
+      false
+    else
+      match SCM.PackageOps.resolveBranchRef branchRef with
+      | UnknownId _ -> true
+      | Ambiguous -> true
+      | _ -> false
+
   // The branch a switch lands on, RETURNED rather than assumed, so the REPL's state moves with the process
   // overlay instead of drifting from it for the rest of the session.
   let landedOn =
@@ -188,7 +200,7 @@ let executeSwitch (state: AppState) (branchRef: String) : AppState =
 
       branchId
 
-  { state with currentBranchId = landedOn }
+  Cli.exitWith { state with currentBranchId = landedOn } (Stdlib.Bool.not refused)
 
 /// Where merging <branchId> leaves you: its parent, as (id, name). A branch with no row is treated as
 /// parented to main, which is what an imported branch that arrived as tagged ops looks like.
@@ -250,7 +262,7 @@ let executeArchive
       $"cannot archive \"{branchRef}\": {Cli.Text.plural (Stdlib.List.length kids) "branch"} still branch off it."
     kids |> Stdlib.List.iter (fun k -> Cli.printHint $"    - {k}")
     Cli.printHint "  merge or archive them first, and this one can go."
-    state
+    Cli.exitWith state false
   | Some branchId ->
     let entries = SCM.PackageOps.branchDiffEntries branchId
 
@@ -260,27 +272,27 @@ let executeArchive
       else
         // Warning-colored like DISCARDING: this listing is what is about to be destroyed, and
         // green reads as "already fine".
-        Stdlib.printLine (
+        Cli.Stderr.line (
           Stdlib.Cli.UI.Colors.warning
             $"  ARCHIVING \"{branchRef}\" discards {Cli.Text.plural (Stdlib.List.length entries) "unmerged name"}:"
         )
 
         entries
         |> Stdlib.List.iter (fun e ->
-          Stdlib.printLine
+          Cli.Stderr.line
             (Stdlib.Cli.UI.Colors.dimText $"    - {e.name}  [{e.kind}]"))
 
-        Cli.printHint "  `dark merge` first if you meant to keep them."
+        Cli.Stderr.hint "  `dark merge` first if you meant to keep them."
 
         Cli.Prompt.confirmExplicit
           autoConfirm
           (Stdlib.Cli.UI.Colors.warning "\n  Archive it? [y/N]: ")
 
     if Stdlib.Bool.not confirmed then
-      Cli.printOk
+      Cli.Stderr.ok
         "  kept. (`dark branch archive <name> -y` if you mean it -- a piped stdin can't answer this.)"
 
-      state
+      Cli.exitWith state false
     else
 
     // The parent, read BEFORE the archive: an archived branch drops out of the listing `parentOf`
@@ -314,21 +326,27 @@ let executeExport (state: AppState) (branchRef: String) (path: String) : AppStat
   | None -> Cli.exitWith state false
   | Some branchId ->
     match Stdlib.Cli.File.writeText path (SCM.PackageOps.exportBranch branchId) with
-    | Ok _ -> Cli.printOk $"exported branch \"{branchRef}\" to {path}."
-    | Error _ -> Cli.printErr $"couldn't write {path}."
-
-    state
+    | Ok _ ->
+      Cli.printOk $"exported branch \"{branchRef}\" to {path}."
+      state
+    | Error _ ->
+      Cli.printErr $"couldn't write {path}."
+      Cli.exitWith state false
 
 /// Import a branch bundle file (from another machine): recreates the branch here (isolated from main).
 let executeImport (state: AppState) (path: String) : AppState =
   match Stdlib.Cli.File.readText path with
   | Ok json ->
     match SCM.PackageOps.importBranch json with
-    | Ok msg -> Cli.printOk msg
-    | Error e -> Cli.printErr $"couldn't import: {e}"
-  | Error _ -> Cli.printErr $"couldn't read {path}."
-
-  state
+    | Ok msg ->
+      Cli.printOk msg
+      state
+    | Error e ->
+      Cli.printErr $"couldn't import: {e}"
+      Cli.exitWith state false
+  | Error _ ->
+    Cli.printErr $"couldn't read {path}."
+    Cli.exitWith state false
 
 /// Push a branch to a relay under your identity, so you can pull it on another machine.
 let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
@@ -361,6 +379,7 @@ let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
           // see `Wire.branchChannel`.
           SCM.Wire.rememberPushed (SCM.Wire.branchChannel url) (SCM.PackageOps.branchOpIds branchId)
           Cli.printOk $"pushed branch \"{branchRef}\" to {url} as \"{id}\"."
+          state
         else if Stdlib.String.startsWith text "kept the newer copy" then
           // Not an error: the relay is holding a NEWER copy of this branch than the one just sent,
           // which happens when another machine pushed and this one has not pulled yet. Replacing it
@@ -370,14 +389,16 @@ let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
 
           Cli.printHint
             "  `dark branch pull` to take it, then push again if you still have something to add."
+          state
         else
           Cli.printErr
             $"{url} answered, but not with anything this build can read as a confirmation, so the branch may not be there."
 
           Cli.printHint "  `dark branch push` again once the relay is healthy."
-      | Error e -> Cli.printErr $"branch push failed: {e}"
-
-      state
+          Cli.exitWith state false
+      | Error e ->
+        Cli.printErr $"branch push failed: {e}"
+        Cli.exitWith state false
 
 /// Pull branches from a relay, yours by default or someone else's with <param owner>.
 ///
@@ -390,6 +411,7 @@ let executePush (state: AppState) (branchRef: String) (url: String) : AppState =
 let executePullFrom (state: AppState) (url: String) (owner: String) : AppState =
   if url == "" then
     Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
+    Cli.exitWith state false
   else
     match Sync.relayGetAuthed url $"/branch/list?owner={owner}" with
     | Ok listBody ->
@@ -422,32 +444,41 @@ let executePullFrom (state: AppState) (url: String) (owner: String) : AppState =
 
       if Stdlib.List.isEmpty ids then
         Cli.printOk $"no branches for \"{owner}\" on {url}."
+        state
       else
-        ids
-        |> Stdlib.List.iter (fun bid ->
-          match Sync.relayGetAuthed url $"/branch/pull?owner={owner}&branch={bid}" with
-          | Ok bundleBody ->
-            match
-              SCM.PackageOps.importBranch
-                (Stdlib.String.fromBlobWithReplacement bundleBody)
-            with
-            | Ok msg ->
-              // What came from the relay's bundle channel, that channel holds -- the ops that
-              // were IN the bundle, not every op the local branch happens to hold. Marking the
-              // whole branch told `sync status` the relay had work it had never been sent, and
-              // the next `branch push` skipped it: the colleague pulling that branch got a
-              // truncated history until someone pushed again by hand.
-              let _ =
-                SCM.Wire.rememberPushed
-                  (SCM.Wire.branchChannel url)
-                  (SCM.PackageOps.bundleOpIds
-                    (Stdlib.String.fromBlobWithReplacement bundleBody))
-              Cli.printOk msg
-            | Error e -> Cli.printErr $"import {bid} failed: {e}"
-          | Error e -> Cli.printErr $"pull {bid} failed: {e}")
-    | Error e -> Cli.printErr $"branch list failed: {e}"
+        let failed =
+          ids
+          |> Stdlib.List.filter (fun bid ->
+            match Sync.relayGetAuthed url $"/branch/pull?owner={owner}&branch={bid}" with
+            | Ok bundleBody ->
+              match
+                SCM.PackageOps.importBranch
+                  (Stdlib.String.fromBlobWithReplacement bundleBody)
+              with
+              | Ok msg ->
+                // What came from the relay's bundle channel, that channel holds -- the ops that
+                // were IN the bundle, not every op the local branch happens to hold. Marking the
+                // whole branch told `sync status` the relay had work it had never been sent, and
+                // the next `branch push` skipped it: the colleague pulling that branch got a
+                // truncated history until someone pushed again by hand.
+                let _ =
+                  SCM.Wire.rememberPushed
+                    (SCM.Wire.branchChannel url)
+                    (SCM.PackageOps.bundleOpIds
+                      (Stdlib.String.fromBlobWithReplacement bundleBody))
+                Cli.printOk msg
+                false
+              | Error e ->
+                Cli.printErr $"import {bid} failed: {e}"
+                true
+            | Error e ->
+              Cli.printErr $"pull {bid} failed: {e}"
+              true)
 
-  state
+        Cli.exitWith state (Stdlib.List.isEmpty failed)
+    | Error e ->
+      Cli.printErr $"branch list failed: {e}"
+      Cli.exitWith state false
 
 /// Pull ALL your own branches from a relay.
 let executePull (state: AppState) (url: String) : AppState =
@@ -559,8 +590,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
       // thing this arm must not do.
       Cli.printErr $"`dark branch {id}` is missing its arguments."
       Cli.printHint $"  to start or switch to a branch actually named \"{id}\": dark switch {id}"
-      Stdlib.printLine (help state)
-      state
+      // Help because the arguments were wrong is the refusal; only help someone ASKED for is an answer.
+      Stdlib.printErrorLine (help state)
+      Cli.exitWith state false
     else if Stdlib.List.member commandShapedWords id then
       // A question-shaped word must not CHANGE STATE: `dark branch status` from a git reflex would
       // otherwise start a branch named "status" and switch onto it.
@@ -578,8 +610,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | _ ->
     // Printing help alone reads as though nothing happened, so say what was not understood first.
     Cli.printErr $"`dark branch {Stdlib.String.join args " "}` isn't a form of this command."
-    Stdlib.printLine (help state)
-    state
+    Stdlib.printErrorLine (help state)
+    Cli.exitWith state false
 
 /// Subcommands `dark branch` knows, for telling a typo from a branch name.
 val knownSubcommands =

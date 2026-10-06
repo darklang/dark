@@ -1,6 +1,16 @@
 module NonBlockingConsole
 
-type BlockingCollection = System.Collections.Concurrent.BlockingCollection<string>
+type Stream =
+  | Out
+  | Err
+
+type BlockingCollection =
+  System.Collections.Concurrent.BlockingCollection<struct (Stream * string)>
+
+type private Capture() =
+  member val All = System.Text.StringBuilder()
+  member val Out = System.Text.StringBuilder()
+  member val Err = System.Text.StringBuilder()
 
 type private Private() =
 
@@ -15,6 +25,10 @@ type private Private() =
 
   // This adds a collection which receives all output from WriteLine. Then, a
   // background thread writes the output to Console.
+  //
+  // Both streams go through the one queue. A stderr write that went straight to the console
+  // would overtake stdout lines still waiting in the queue, so an error could print above the
+  // output that led to it; it would also escape a capture window and the browser sink below.
   static let isWasm = System.OperatingSystem.IsBrowser()
 
   // Where output goes in the browser, when the host has said. `System.Console.Out` there is a
@@ -41,8 +55,7 @@ type private Private() =
   // buffer still goes through `captureLock`.
   static let captureLock : obj = obj ()
 
-  static let captureBuffer =
-    new System.Threading.AsyncLocal<System.Text.StringBuilder>()
+  static let captureBuffer = new System.Threading.AsyncLocal<Capture>()
 
   // Use a lock so that wait() doesn't return until the thread has actually printed
   // (it would finish once it was removed from the queue)
@@ -55,13 +68,15 @@ type private Private() =
 
         lock mLock (fun () ->
           try
-            let mutable v = null
+            let mutable v = struct (Out, null)
             // Don't block (eg with `Take`) while holding the lock
             if mQueue.TryTake(&v) then
-              System.Console.Write(v)
+              match v with
+              | struct (Out, text) -> System.Console.Out.Write(text)
+              | struct (Err, text) -> System.Console.Error.Write(text)
               wrote <- true
           with e ->
-            System.Console.WriteLine(
+            System.Console.Error.WriteLine(
               $"Exception in blocking queue thread: {e.Message}"
             ))
 
@@ -88,55 +103,76 @@ type private Private() =
   static member SetBrowserSink(sink : string -> unit) : unit =
     browserSink <- Some sink
 
-  static member Write(value : string) : unit =
+  static member Write(stream : Stream, value : string) : unit =
     if isWasm then
-      match browserSink with
-      | Some sink -> sink value
-      | None -> System.Console.Write value
+      // The browser's terminal is the person's screen for both streams. Its `Console.Error` is
+      // the devtools console, where a refusal would never be seen.
+      match browserSink, stream with
+      | Some sink, _ -> sink value
+      | None, Out -> System.Console.Out.Write value
+      | None, Err -> System.Console.Error.Write value
     else
       // Take the capture decision and the append atomically, so a concurrent Stop can't leave a write
       // appended to a buffer nobody will read, or tear the StringBuilder.
       let captured =
         lock captureLock (fun () ->
-          let cb = captureBuffer.Value
-          if isNull cb then
+          let c = captureBuffer.Value
+          if isNull (box c) then
             false
           else
-            cb.Append(value) |> ignore
+            c.All.Append(value) |> ignore
+            (match stream with
+             | Out -> c.Out
+             | Err -> c.Err)
+              .Append(value)
+            |> ignore
             true)
 
-      if not captured then mQueue.Add(value)
+      if not captured then mQueue.Add(struct (stream, value))
 
   /// Begin a capture window for THIS flow. Returns false if one was already open here, in which case
   /// nothing changes: the caller must not assume it owns the buffer. Nesting isn't supported;
   /// refusing is better than silently discarding the outer capture's output.
   static member StartCapture() : bool =
     lock captureLock (fun () ->
-      if isNull captureBuffer.Value then
-        captureBuffer.Value <- System.Text.StringBuilder()
+      if isNull (box captureBuffer.Value) then
+        captureBuffer.Value <- Capture()
         true
       else
         false)
 
-  static member StopCapture() : string =
+  static member StopCapture() : string * string * string =
     lock captureLock (fun () ->
-      let sb = captureBuffer.Value
-      captureBuffer.Value <- null
-      if isNull sb then "" else sb.ToString())
+      let c = captureBuffer.Value
+      captureBuffer.Value <- Unchecked.defaultof<Capture>
+      if isNull (box c) then
+        ("", "", "")
+      else
+        (c.All.ToString(), c.Out.ToString(), c.Err.ToString()))
 
 
 let wait () : unit = Private.wait ()
 
-let writeInline (value : string) : unit = Private.Write value
+let writeInline (value : string) : unit = Private.Write(Out, value)
 
-let writeLine (value : string) : unit = Private.Write(value + "\n")
+let writeLine (value : string) : unit = Private.Write(Out, value + "\n")
 
-/// Route subsequent `print`/`printLine` output into an in-memory buffer instead of the console.
+let writeErrInline (value : string) : unit = Private.Write(Err, value)
+
+/// In order with everything already queued for stdout; see the queue's comment.
+let writeErrLine (value : string) : unit = Private.Write(Err, value + "\n")
+
+/// Route subsequent output on BOTH streams into an in-memory buffer instead of the console.
 /// Returns false if a capture window was already open (the existing one is left untouched).
 let startCapture () : bool = Private.StartCapture()
 
-/// Stop capturing and return everything written since `startCapture`.
-let stopCapture () : string = Private.StopCapture()
+/// Stop capturing and return everything written since `startCapture`, both streams in order.
+let stopCapture () : string =
+  let (all, _, _) = Private.StopCapture()
+  all
+
+/// `(both, stdout, stderr)`.
+let stopCaptureEach () : string * string * string = Private.StopCapture()
 
 /// Browser host only: route every write to <param sink> instead of `System.Console`.
 let setBrowserSink (sink : string -> unit) : unit = Private.SetBrowserSink sink

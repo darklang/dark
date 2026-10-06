@@ -203,7 +203,7 @@ let runScript
     | Some rule when canAsk ->
       match LanguageTools.Permissions.parseRuleText rule with
       | Some rules ->
-        Stdlib.printLine
+        Stdlib.printErrorLine
           (Stdlib.Cli.UI.Colors.warning
             $"The script wants {denied.resource}, which the instance policy does not allow.")
         let choice =

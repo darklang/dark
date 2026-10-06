@@ -274,7 +274,9 @@ let guarded (check: 'a -> Report) (input: 'a) : Report =
     let warning = failureIssue Stdlib.Option.Option.None failure
 
     // This arm empties the WHOLE batch, so say why; callers read `items`, not this.
-    Stdlib.printLine
+    // stderr, never stdout: the language server reaches this from its diagnostics, and its stdout
+    // is the JSON-RPC channel, where a line of prose is a malformed frame.
+    Stdlib.printErrorLine
       ("the at-rest checker failed over a whole batch and reported nothing: "
        + (match failure with
           | TooDeep -> "a declaration nests too deep to check"

@@ -55,13 +55,14 @@ let executeShow (state: AppState) (idPrefix: String) : AppState =
 
   if Stdlib.List.isEmpty ops then
     Cli.printErr $"No op found matching {idPrefix}"
+    Cli.exitWith state false
   else
     ops
     |> Stdlib.List.iter (fun op ->
       Stdlib.printLine
         (PrettyPrinter.ProgramTypes.PackageOp.packageOp state.currentBranchId op))
 
-  state
+    state
 
 /// The most recent <param limit> ops this branch can see, newest first.
 let executeList (state: AppState) (limit: Int64) : AppState =

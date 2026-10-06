@@ -160,9 +160,10 @@ let executeDiffCmd (state: AppState) (args: List<String>) : AppState =
     Cli.exitWith state false
 
 /// The branch's ops as JSON, oldest first -- the same sequence the human view prints.
-let branchOpsAsJson (branchRef: String) : Unit =
+/// False when the branch is not found, so `log --json` exits 1 rather than reading as an empty log.
+let branchOpsAsJson (branchRef: String) : Bool =
   match resolveRef branchRef with
-  | None -> ()
+  | None -> false
   | Some branchId ->
     let rendered =
       SCM.PackageOps.branchOps branchId
@@ -172,6 +173,7 @@ let branchOpsAsJson (branchRef: String) : Unit =
             op = PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op })
 
     Stdlib.printLine (ScmJson.branchOpsJson rendered)
+    true
 
 /// `dark log [<id>]` -- history, meaning whichever history you're standing in. On a BRANCH that's the
 /// branch's own ops, oldest first; on MAIN there is no delta, so it's the commits.
@@ -182,8 +184,7 @@ let executeLogCmd (state: AppState) (args: List<String>) : AppState =
   match refs with
   | [ id ] ->
     if wantsJson then
-      let _ = branchOpsAsJson id
-      state
+      Cli.exitWith state (branchOpsAsJson id)
     else
       executeLog state id
   | [] ->
@@ -201,8 +202,7 @@ let executeLogCmd (state: AppState) (args: List<String>) : AppState =
       let branchRef = SCM.PackageOps.branchName id
 
       if wantsJson then
-        let _ = branchOpsAsJson branchRef
-        state
+        Cli.exitWith state (branchOpsAsJson branchRef)
       else
         executeLog state branchRef
   | _ ->

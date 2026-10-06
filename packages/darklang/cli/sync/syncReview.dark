@@ -17,9 +17,10 @@ let executeReviewImport (state: AppState) (path: String) (queue: String) : AppSt
       | Ok n ->
         Cli.printOk
           $"Staged {Stdlib.toString n} op(s) on branch \"{queue}\" (pending). Inspect: `dark diff {queue}` / `dark log {queue}` / `dark conflicts branch {queue}`. Then `dark review approve {queue}`, or `dark review reject {queue}`."
-      | Error e -> Cli.printErr $"Review import failed: {e}"
-
-      state
+        state
+      | Error e ->
+        Cli.printErr $"Review import failed: {e}"
+        Cli.exitWith state false
     | Error e ->
       Cli.printErr $"Couldn't read the sync file: {e}"
       Cli.exitWith state false
@@ -102,6 +103,7 @@ let executeReviewPullFrom
   : AppState =
   if url == "" then
     Cli.printErr "no relay -- `dark connect <url>` first, or pass a url."
+    Cli.exitWith state false
   else
     // No `owner=` unless one was asked for: the point is staging what a PEER sent. `--from you` is how
     // you review your own other machine.
@@ -116,7 +118,7 @@ let executeReviewPullFrom
         (SCM.Wire.pullCursor url)
         0L
     with
-    | -1 -> ()
+    | -1 -> Cli.exitWith state false
     // Nothing staged is not the same shape of answer as something staged, and it has one cause
     // worth naming: `pull` and `review pull` share ONE cursor per relay, so anything an ordinary
     // pull has already applied can never be staged for review afterwards. Reported as "Staged 0",
@@ -125,11 +127,11 @@ let executeReviewPullFrom
       Cli.printOk $"Nothing new to stage from {url}."
       Cli.printHint
         "  `review pull` stages only what has not arrived yet, and an ordinary `dark pull` consumes the same cursor."
+      state
     | n ->
       Cli.printOk
         $"Staged {Stdlib.toString n} op(s) from {url} on branch \"{queue}\" (pending). `dark diff {queue}` then `dark review approve {queue}`."
-
-  state
+      state
 
 /// Stage whatever is new on a review queue, whoever wrote it.
 let executeReviewPull (state: AppState) (url: String) (queue: String) : AppState =
@@ -148,14 +150,16 @@ let executeApprove (state: AppState) (queue: String) : AppState =
   | Ok outcome ->
     Cli.printOk $"Approved {Stdlib.toString outcome.merged} op(s) from \"{queue}\" into main."
     reportConflicts outcome.conflicts
+    state
   // An empty queue isn't a failure -- it means everything was already approved, rejected, or
   // resolved-to-theirs. Report it plainly so agents don't read it as an error.
   | Error(Refused NothingToMerge) ->
     Cli.printOk
       $"Nothing to approve in \"{queue}\" -- no pending changes (all reviewed ops were approved, rejected, or reconciled to the local version)."
-  | Error e -> Cli.printErr $"Approve failed: {SCM.PackageOps.mergeErrorMessage e}"
-
-  state
+    state
+  | Error e ->
+    Cli.printErr $"Approve failed: {SCM.PackageOps.mergeErrorMessage e}"
+    Cli.exitWith state false
 
 /// REJECT a review queue: discard its staged (unapproved) ops.
 ///
