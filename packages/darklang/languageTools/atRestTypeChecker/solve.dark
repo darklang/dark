@@ -2041,6 +2041,14 @@ let isSignedNumeric (t: Model.Ty) : Bool =
   | TFloat -> true
   | _ -> false
 
+/// <param subject> as `implApplies` needs it: every inference variable and alias resolved at
+/// every depth. `expand` only decides the head, so `Box { f = 1L }` is still `Box<?t>` there.
+/// An expansion that fails leaves the aliases, which can only cost a match, never invent one.
+let decidedSubject (s: State) (subject: Model.Ty) : Model.Ty =
+  match Types.expandDeep s.env s.subst Stdlib.Option.Option.None [] subject with
+  | Ok expanded -> expanded
+  | Error _ -> zonk s subject
+
 /// Record which implementation a call at <param at> resolves to, or report that none applies,
 /// or say WAIT because the answer depends on a type that is not decided yet.
 ///
@@ -2095,8 +2103,10 @@ let recordImplChoice
     else if Stdlib.Bool.not (Types.fullyResolved s.subst subject) then
       Stdlib.Option.Option.None
     else
+      let decided = decidedSubject s subject
+
       let applies =
-        byHead |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+        byHead |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self decided)
 
       if Stdlib.List.isEmpty applies then
         Stdlib.Option.Option.Some(missing ())
@@ -2179,8 +2189,10 @@ let callerBoundFor
       candidates
       |> Stdlib.List.filter (fun (self, _) -> Types.headMatches self subject)
 
+    let decided = decidedSubject s subject
+
     let applies =
-      byHead |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self subject)
+      byHead |> Stdlib.List.filter (fun (self, _) -> Types.implApplies self decided)
 
     // The same three-way split `recordImplChoice` makes, and for the same reasons. Not shared
     // with it because what gets recorded differs: a bound records which implementation the
