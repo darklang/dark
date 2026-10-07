@@ -391,22 +391,25 @@ let getDependentHashesByTargets
 /// hash-stabilization it feeds keys items by name and keeps ONE version per name. That is right for
 /// a draft, whose newest edit is the one that counts, and it destroys history the moment committed
 /// ops go through it: every earlier committed version of every name disappears from the log.
-let getDraftOps () : Task<List<PT.PackageOp>> =
+///
+/// Also returns the id of every row read, decodable or not, which is what
+/// `Inserts.rewriteDraftIfUnchanged` checks the draft against.
+let getDraftOpsWithIds () : Task<List<System.Guid> * List<PT.PackageOp>> =
   task {
     let! rows =
       Sql.query
-        """
-        SELECT id, op_blob
-        FROM package_ops
-        -- effective = 1: excludes client-pushed inert ops; see Inserts.draftDeletes.
-        WHERE effective = 1
-          AND commit_hash IS NULL
-          AND id NOT IN (SELECT op_id FROM op_branches)
-        ORDER BY created_at ASC, rowid ASC
-        """
+        $"SELECT id, op_blob FROM package_ops WHERE {Inserts.draftWhere}
+          ORDER BY created_at ASC, rowid ASC"
       |> Sql.executeAsync (fun read ->
-        BS.PT.PackageOp.tryDeserialize (read.uuid "id") (read.bytes "op_blob"))
-    return rows |> List.choose (fun o -> o)
+        let id = read.uuid "id"
+        (id, BS.PT.PackageOp.tryDeserialize id (read.bytes "op_blob")))
+    return (List.map fst rows, List.choose snd rows)
+  }
+
+let getDraftOps () : Task<List<PT.PackageOp>> =
+  task {
+    let! (_, ops) = getDraftOpsWithIds ()
+    return ops
   }
 
 
@@ -454,60 +457,43 @@ let mainDraftMaskOps () : Task<List<PT.PackageOp>> =
   }
 
 
-/// Every op NOT tagged to a branch, committed or not. Branch ops are branch-pending rather
-/// than main WIP.
+/// One row of main's log as `getMainOpsWithIds` read it. `op` is None when this build cannot decode it.
+type MainOpRow =
+  { id : System.Guid
+    op : Option<PT.PackageOp>
+    originTs : Option<string>
+    commitHash : Option<string> }
+
+/// Every op NOT tagged to a branch, committed or not, decodable or not, from one SELECT over
+/// `Inserts.mainWhere`. Branch ops are branch-pending rather than main WIP.
 ///
-/// "WIP" does NOT mean "uncommitted": there is a `commit_hash` column and this deliberately
-/// ignores it. `Draft.rebuild` re-inserts what this returns, so filtering to the draft here
-/// would delete all of history and put back only the uncommitted part.
-let getWipOps () : Task<List<PT.PackageOp>> =
+/// "WIP" does NOT mean "uncommitted": `Draft.rebuild` re-inserts what this returns, so filtering to the
+/// draft here would delete all of history and put back only the uncommitted part. And it reads the
+/// stamps, the commits and what it could not decode from the same rows, because the rebuild deletes by
+/// that clause and four separate reads could each see a different log.
+let getMainOpsWithIds () : Task<List<MainOpRow>> =
   task {
-    let! rows =
+    return!
       Sql.query
-        """
-        SELECT id, op_blob
-        FROM package_ops
-        -- Branch (op_branches-tagged) ops are effective=0 branch-pending state, NOT main WIP.
-        -- Excluding them keeps main authoring's WIP-refresh from sweeping a branch's ops into
-        -- main (re-inserting them effective=1 + folding). Branch isolation.
-        --
-        -- effective = 1: excludes client-pushed inert ops; see Inserts.draftDeletes.
-        WHERE effective = 1
-          AND id NOT IN (SELECT op_id FROM op_branches)
-        -- rowid breaks ties: created_at is second-resolution and a batch shares it, and the pairing
-        -- downstream (HashStabilization) is by adjacency.
-        ORDER BY created_at ASC, rowid ASC
-        """
+        // rowid breaks ties: created_at is second-resolution and a batch shares it, and the pairing
+        // downstream (HashStabilization) is by adjacency.
+        $"SELECT id, op_blob, origin_ts, commit_hash FROM package_ops
+          WHERE {Inserts.mainWhere}
+          ORDER BY created_at ASC, rowid ASC"
       |> Sql.executeAsync (fun read ->
-        let opId = read.uuid "id"
-        let opBlob = read.bytes "op_blob"
-
-        // Skips what this build cannot decode. A synced store holds ops it did not write, kept
-        // unapplied on purpose so a later build can read them, so every reader of the main log
-        // meets them. `Inserts.wholeMainDeletes` excludes the same ops from its DELETE, so skipping
-        // one for reading never becomes deleting it for writing.
-        BS.PT.PackageOp.tryDeserialize opId opBlob)
-
-    return rows |> List.choose (fun o -> o)
+        let id = read.uuid "id"
+        { id = id
+          op = BS.PT.PackageOp.tryDeserialize id (read.bytes "op_blob")
+          originTs = read.stringOrNone "origin_ts"
+          commitHash = read.stringOrNone "commit_hash" })
   }
 
-
-/// The COMMIT each main op was committed into, for ops that have one.
-///
-/// WipRefresh deletes and re-inserts the whole main log when a hash changes, so without
-/// carrying this forward a refresh would un-commit the entire history.
-let getWipOpCommits () : Task<Map<System.Guid, string>> =
+/// Main's decodable ops, committed or not. See `getMainOpsWithIds`. Skipping an op for reading never
+/// becomes deleting it for writing, because `Inserts.wholeMainDeletes` spares the same ops by id.
+let getWipOps () : Task<List<PT.PackageOp>> =
   task {
-    let! rows =
-      Sql.query
-        """
-        SELECT id, commit_hash
-        FROM package_ops
-        WHERE id NOT IN (SELECT op_id FROM op_branches)
-          AND commit_hash IS NOT NULL
-        """
-      |> Sql.executeAsync (fun read -> (read.uuid "id", read.string "commit_hash"))
-    return Map.ofList rows
+    let! rows = getMainOpsWithIds ()
+    return rows |> List.choose _.op
   }
 
 

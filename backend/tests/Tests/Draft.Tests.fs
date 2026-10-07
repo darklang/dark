@@ -517,6 +517,180 @@ let aFailedRewriteLeavesTheDraftIntact =
     do! cleanup m
   }
 
+/// `WipRefresh.refresh` reads the draft, works on it, then deletes and re-inserts it. Another author
+/// (another process on the same store, or the parallel test phase) can land in between, and its op is
+/// in the set the delete covers but not in the set that was read. The window is opened by hand here:
+/// a whole second author, insert and refresh, runs after the first refresh's read.
+let aRefreshDoesNotEatAnAuthorThatLandedMidway =
+  testTask "an author that lands inside another refresh's window survives it" {
+    let m = "DraftTestRefreshWindow"
+    do! cleanup m
+
+    let! _ =
+      authorIntoMain
+        $"module Darklang.{m}\n\nlet caller () : Int64 = Darklang.{m}.callee () + 1L"
+
+    let mutable opened = 0
+    let! _ =
+      LibDB.WipRefresh.refreshWith
+        (fun () ->
+          task {
+            opened <- opened + 1
+            if opened = 1 then
+              let! _ =
+                authorIntoMain $"module Darklang.{m}\n\nlet callee () : Int64 = 41L"
+              ()
+          })
+        pmPT
+    Expect.equal
+      opened
+      2
+      "the first attempt saw the draft move, and went round again"
+
+    let! callee = liveHash m "callee"
+    Expect.isSome callee "the author that landed midway is still bound"
+    let! r = evalDarkExpr $"Darklang.{m}.caller ()"
+    match r with
+    | Ok(RT.DInt64 n) -> Expect.equal n 42L "and the caller runs"
+    | Ok other -> failtest $"the caller answered {other}"
+    | Error(rte, _) -> failtest $"the caller did not run: %A{rte}"
+
+    do! cleanup m
+  }
+
+/// The draft as `SCM.Draft.mainDraftOps` reads it, which is what `rewriteBy` hands the rebuild.
+let private draftAsDarkReadsIt () : Task<Set<System.Guid>> =
+  task {
+    let! rows = LibDB.Queries.getMainOpsWithIds ()
+    return
+      rows
+      |> List.filter (fun r -> Option.isSome r.op && Option.isNone r.commitHash)
+      |> List.map _.id
+      |> Set.ofList
+  }
+
+let private opIsInTheLog (id : System.Guid) : Task<bool> =
+  task {
+    let! n =
+      countSql
+        "SELECT COUNT(*) AS n FROM package_ops WHERE id = @id"
+        [ "id", Sql.uuid id ]
+    return n = 1L
+  }
+
+/// `Draft.rebuild` deletes the whole of main and re-inserts what it read. A pull landing between the
+/// read and the delete brings ops that are in the set deleted and not in the set read: a peer's
+/// committed work, and an op from a newer build that the delete is meant to spare by id. The window is
+/// opened by hand through `rebuildWith`.
+let aPullInsideARebuildsWindowSurvivesIt =
+  testTask "a pull that lands inside a rebuild's window survives it, readable or not" {
+    let m = "DraftTestRebuildPull"
+    do! cleanup m
+
+    let! mine = authorIntoMain $"module Darklang.{m}\n\nlet mine () : Int64 = 1L"
+    let! peerOps = parsePackageOps $"module Darklang.{m}\n\nlet peer () : Int64 = 2L"
+
+    // An op kind this build has no tag for, which is what a newer build's op looks like here.
+    let alienId = System.Guid.NewGuid()
+    let peerOp =
+      match peerOps with
+      | op :: _ -> op
+      | [] -> failtest "the peer source authored nothing"
+    let alienBlob =
+      LibSerialization.Binary.Serialization.PT.PackageOp.serialize alienId peerOp
+    alienBlob[8] <- 200uy
+    Expect.isNone
+      (LibSerialization.Binary.Serialization.PT.PackageOp.tryDeserialize
+        alienId
+        alienBlob)
+      "the alien op really is undecodable"
+
+    let records =
+      (peerOps
+       |> List.map (fun op ->
+         let id = Inserts.computeOpHash op
+         (string id,
+          System.Convert.ToHexString(
+            LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
+          ),
+          Inserts.nextOriginTs ())))
+      @ [ (string alienId,
+           System.Convert.ToHexString alienBlob,
+           Inserts.nextOriginTs ()) ]
+
+    // `scmImportOps`, which is what a pull runs.
+    let pull () =
+      task {
+        let! _ = Inserts.importOpsBulk "draft-test-pull" records
+        let! _ = LibDB.Seed.applyUnappliedOps ()
+        return ()
+      }
+
+    let! draft = draftAsDarkReadsIt ()
+    let mutable opened = 0
+    let! rebuilt =
+      LibDB.Draft.rebuildWith
+        (fun () ->
+          task {
+            opened <- opened + 1
+            if opened = 1 then do! pull ()
+          })
+        draft
+        Set.empty
+
+    let! peer = liveHash m "peer"
+    Expect.isSome peer "the pulled, committed fn is still bound"
+    let! alienKept = opIsInTheLog alienId
+    Expect.isTrue alienKept "the op this build cannot decode is still in the log"
+    Expect.isFalse rebuilt "main moved under the rebuild, so it wrote nothing"
+    let! mineBefore = liveHash m "mine"
+    let (PT.Hash mineHash) = hashBoundTo mine "mine"
+    Expect.equal mineBefore (Some mineHash) "and nothing of the draft went"
+
+    // From a fresh read, as `rewriteBy` goes round again, the rebuild does its job and spares both.
+    let! draft = draftAsDarkReadsIt ()
+    let! rebuilt = LibDB.Draft.rebuild draft Set.empty
+    Expect.isTrue rebuilt "the second read matches, so the rebuild writes"
+    let! mineAfter = liveHash m "mine"
+    Expect.isNone mineAfter "the draft is gone"
+    let! peerAfter = liveHash m "peer"
+    Expect.equal peerAfter peer "the pulled fn is still bound after a real rebuild"
+    let! alienAfter = opIsInTheLog alienId
+    Expect.isTrue alienAfter "and so is the alien op"
+
+    let! _ =
+      Sql.query "DELETE FROM package_ops WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.uuid alienId ]
+      |> Sql.executeNonQueryAsync
+    do! cleanup m
+  }
+
+/// `rewriteBy` chooses `keptIds` from its own read of the draft, before the rebuild reads anything, so
+/// an author landing in between is not kept and would be deleted. The rebuild refuses instead.
+let anAuthorAfterTheDraftWasChosenFromSurvivesARebuild =
+  testTask
+    "an author that lands after the draft was chosen from survives the rebuild" {
+    let m = "DraftTestRebuildAuthor"
+    do! cleanup m
+
+    let! _ = authorIntoMain $"module Darklang.{m}\n\nlet early () : Int64 = 1L"
+    let! draft = draftAsDarkReadsIt ()
+    let! late = authorIntoMain $"module Darklang.{m}\n\nlet late () : Int64 = 2L"
+
+    let! rebuilt = LibDB.Draft.rebuild draft Set.empty
+
+    let! lateBound = liveHash m "late"
+    let (PT.Hash lateHash) = hashBoundTo late "late"
+    Expect.equal
+      lateBound
+      (Some lateHash)
+      "the author nobody chose to drop is still bound"
+    Expect.isFalse rebuilt "the draft is not the one the caller chose from"
+
+    do! cleanup m
+  }
+
+
 let tests =
   // The draft is SHARED: `discard` drops every uncommitted op on main, which includes whatever a
   // concurrently-running test just authored. Anything that drops the draft has to run alone, so
@@ -534,4 +708,7 @@ let tests =
       keepsAnOpItCannotRead
       discardNameDropsOneAndKeepsTheRest
       discardNameKeepsContentSomethingElseNeeds
-      aFailedRewriteLeavesTheDraftIntact ]
+      aFailedRewriteLeavesTheDraftIntact
+      aRefreshDoesNotEatAnAuthorThatLandedMidway
+      aPullInsideARebuildsWindowSurvivesIt
+      anAuthorAfterTheDraftWasChosenFromSurvivesARebuild ]

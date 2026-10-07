@@ -417,16 +417,25 @@ let insertUntrustedOps (ops : List<PT.PackageOp>) : Task<Result<int64, string>> 
       return Ok count
   }
 
+/// Which `package_ops` rows are main's draft. The read (`Queries.getDraftOps`), the delete
+/// (`draftDeletes`) and the check between them (`rewriteDraftIfUnchanged`) all use this one clause:
+/// if the set read and the set deleted ever differ, the difference is deleted and never put back.
+let draftWhere =
+  "effective = 1 AND commit_hash IS NULL AND id NOT IN (SELECT op_id FROM op_branches)"
+
+/// Which `package_ops` rows are main's whole log, committed or not. The read
+/// (`Queries.getMainOpsWithIds`), the delete (`wholeMainDeletes`) and the check between them
+/// (`rewriteMainIfUnchanged`) all use this one clause, for the same reason as `draftWhere`.
+///
+/// Branch-tagged ops are a branch's pending state, and sweeping them in would re-insert them into main
+/// effective and fold them. `effective = 1` leaves out the ops a client pushed to this store, which it
+/// only holds for someone else.
+let mainWhere = "effective = 1 AND id NOT IN (SELECT op_id FROM op_branches)"
+
 let draftDeletes : List<string> =
-  [ "DELETE FROM locations WHERE source <> 'resolution'
-     AND op_id IN (SELECT id FROM package_ops
-                   WHERE effective = 1
-                     AND commit_hash IS NULL
-                     AND id NOT IN (SELECT op_id FROM op_branches))"
-    "DELETE FROM package_ops
-     WHERE effective = 1
-       AND commit_hash IS NULL
-       AND id NOT IN (SELECT op_id FROM op_branches)" ]
+  [ $"DELETE FROM locations WHERE source <> 'resolution'
+      AND op_id IN (SELECT id FROM package_ops WHERE {draftWhere})"
+    $"DELETE FROM package_ops WHERE {draftWhere}" ]
 
 /// Every main op and what it wrote, EXCEPT the ids in `keep`: the ops this build cannot decode, which
 /// the caller has read by id. Deleting those would delete a peer's committed op for good because this
@@ -451,28 +460,7 @@ let wholeMainDeletes (keep : Set<System.Guid>) : List<string> =
     //
     // Main only. A branch's rows are keyed by its own id, and no main rewrite may touch them.
     $"DELETE FROM propagation_policy WHERE branch_id = '{PT.BranchId.Main}'"
-    // `effective = 1`: excludes client-pushed inert ops; see `draftDeletes`.
-    $"DELETE FROM package_ops WHERE effective = 1 AND id NOT IN (SELECT op_id FROM op_branches){keepUnreadable}" ]
-
-/// Main's op ids this build cannot decode. What `wholeMainDeletes` keeps.
-let unreadableMainOpIds () : Task<Set<System.Guid>> =
-  task {
-    let! rows =
-      Sql.query
-        """
-        SELECT id, op_blob
-        FROM package_ops
-        WHERE effective = 1
-          AND id NOT IN (SELECT op_id FROM op_branches)
-        """
-      |> Sql.executeAsync (fun read ->
-        let opId = read.uuid "id"
-        let readable =
-          (BS.PT.PackageOp.tryDeserialize opId (read.bytes "op_blob"))
-          |> Option.isSome
-        (opId, readable))
-    return rows |> List.filter (snd >> not) |> List.map fst |> Set.ofList
-  }
+    $"DELETE FROM package_ops WHERE {mainWhere}{keepUnreadable}" ]
 
 /// Delete, re-insert and re-fold as ONE transaction. `deletes` run first, in order; then every op is
 /// inserted (or, if its row survived the deletes at `effective = 0`, flipped effective and untagged, as
@@ -484,13 +472,14 @@ let unreadableMainOpIds () : Task<Set<System.Guid>> =
 /// all of it back and the store is exactly as it was. The fold opens nothing of its own on a connection
 /// it is handed, which is what lets it run inside this transaction; a Fumble call in here would open a
 /// second connection and wait on the lock this one holds.
-let rewriteOpsAtomically
+let private rewriteOpsAtomicallyIf
+  (asRead : Option<string * List<System.Guid>>)
   (deletes : List<string>)
   (tsFor : System.Guid -> string)
   (commitFor : System.Guid -> string option)
   (source : string)
   (ops : List<PT.PackageOp>)
-  : Task<int64> =
+  : Task<Option<int64>> =
   task {
     use conn = new Microsoft.Data.Sqlite.SqliteConnection(LibDB.Sqlite.connString)
     do! conn.OpenAsync()
@@ -503,39 +492,110 @@ let rewriteOpsAtomically
     // After BeginTransaction: a command created on the connection now carries the transaction.
     let ctx = PreparedBatch.newCtx conn
     try
-      for d in deletes do
-        do! PreparedBatch.exec ctx d (fun _ -> ())
+      let! unchanged =
+        match asRead with
+        | None -> Task.FromResult true
+        | Some(where, expected) ->
+          task {
+            use cmd = conn.CreateCommand()
+            cmd.CommandText <-
+              $"SELECT id FROM package_ops WHERE {where}
+                ORDER BY created_at ASC, rowid ASC"
+            use! reader = cmd.ExecuteReaderAsync()
+            let current = ResizeArray<System.Guid>()
+            while reader.Read() do
+              current.Add(System.Guid.Parse(reader.GetString 0))
+            return List.ofSeq current = expected
+          }
+      if not unchanged then
+        return None
+      else
+        for d in deletes do
+          do! PreparedBatch.exec ctx d (fun _ -> ())
 
-      let inserted = ResizeArray<PT.PackageOp>()
-      for op in ops do
-        let opId = computeOpHash op
-        let blob = BS.PT.PackageOp.serialize opId op
-        let! n =
-          PreparedBatch.execRows ctx "INSERT INTO package_ops (id, op_blob, applied, origin_ts, commit_hash)
+        let inserted = ResizeArray<PT.PackageOp>()
+        for op in ops do
+          let opId = computeOpHash op
+          let blob = BS.PT.PackageOp.serialize opId op
+          let! n =
+            PreparedBatch.execRows ctx "INSERT INTO package_ops (id, op_blob, applied, origin_ts, commit_hash)
              VALUES ($id, $blob, 1, $ts, $commit)
              ON CONFLICT(id) DO UPDATE
                SET effective = 1, applied = 1,
                    origin_ts = excluded.origin_ts, commit_hash = excluded.commit_hash
                WHERE package_ops.effective = 0" (fun cmd ->
-            PreparedBatch.pUuid cmd "$id" opId
-            PreparedBatch.p cmd "$blob" blob
-            PreparedBatch.p cmd "$ts" (tsFor opId)
-            PreparedBatch.pOpt cmd "$commit" (commitFor opId))
-        do!
-          PreparedBatch.exec
-            ctx
-            "DELETE FROM op_branches WHERE op_id = $id"
-            (fun cmd -> PreparedBatch.pUuid cmd "$id" opId)
-        if n > 0 then inserted.Add op
+              PreparedBatch.pUuid cmd "$id" opId
+              PreparedBatch.p cmd "$blob" blob
+              PreparedBatch.p cmd "$ts" (tsFor opId)
+              PreparedBatch.pOpt cmd "$commit" (commitFor opId))
+          do!
+            PreparedBatch.exec
+              ctx
+              "DELETE FROM op_branches WHERE op_id = $id"
+              (fun cmd -> PreparedBatch.pUuid cmd "$id" opId)
+          if n > 0 then inserted.Add op
 
-      do!
-        PackageOpPlayback.applyOpsOnConnectionFrom conn source (List.ofSeq inserted)
-      tx.Commit()
-      Caching.invalidateAll ()
-      return int64 inserted.Count
+        do!
+          PackageOpPlayback.applyOpsOnConnectionFrom
+            conn
+            source
+            (List.ofSeq inserted)
+        tx.Commit()
+        Caching.invalidateAll ()
+        return Some(int64 inserted.Count)
     finally
       PreparedBatch.disposeCtx ctx
   }
+
+let rewriteOpsAtomically
+  (deletes : List<string>)
+  (tsFor : System.Guid -> string)
+  (commitFor : System.Guid -> string option)
+  (source : string)
+  (ops : List<PT.PackageOp>)
+  : Task<int64> =
+  task {
+    let! n = rewriteOpsAtomicallyIf None deletes tsFor commitFor source ops
+    return Option.defaultValue 0L n
+  }
+
+/// Replace main's draft with `ops`, but only if the draft still holds exactly the rows `draftAsRead`
+/// lists, checked under the write lock. A caller that read the draft, worked on it, and then deleted it
+/// would otherwise delete whatever another author added in between and never put it back. `None` means
+/// the draft moved and nothing was written; read it again.
+let rewriteDraftIfUnchanged
+  (draftAsRead : List<System.Guid>)
+  (tsFor : System.Guid -> string)
+  (ops : List<PT.PackageOp>)
+  : Task<Option<int64>> =
+  rewriteOpsAtomicallyIf
+    (Some(draftWhere, draftAsRead))
+    draftDeletes
+    tsFor
+    (fun _ -> None)
+    "op"
+    ops
+
+/// Replace main's whole log with `ops`, sparing `unreadable` by id, but only if main still holds
+/// exactly the rows `mainAsRead` lists, checked under the write lock. The draft version's reasoning,
+/// over the whole log: a pull or an author landing after the read would otherwise be deleted and
+/// never put back, committed or undecodable alike. `None` means main moved and nothing was written.
+let rewriteMainIfUnchanged
+  (mainAsRead : List<System.Guid>)
+  (unreadable : Set<System.Guid>)
+  (tsFor : System.Guid -> string)
+  (commitFor : System.Guid -> string option)
+  (ops : List<PT.PackageOp>)
+  : Task<Option<int64>> =
+  // A whole-main rewrite re-folds bindings that were authored, propagated or resolved alike, and the
+  // op alone does not say which. 'op' is the honest default.
+  rewriteOpsAtomicallyIf
+    (Some(mainWhere, mainAsRead))
+    (wholeMainDeletes unreadable)
+    tsFor
+    commitFor
+    "op"
+    ops
 
 
 /// Bulk-import synced ops (id, op_blob-as-hex, origin_ts) in ONE transaction, committed into

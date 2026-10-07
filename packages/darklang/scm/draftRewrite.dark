@@ -187,17 +187,10 @@ let surgicalDrop (dropped: List<DraftOp>) : Stdlib.Result.Result<Unit, String> =
   | Error e -> Stdlib.Result.Result.Error e
 
 
-/// Rewrite the draft to whatever <param keep> returns, and report how many ops went.
-///
-/// `keep` gets the draft in authoring order and returns the subset that remains: it SELECTS, it does not
-/// author. That contract is what makes every caller one operation.
-///
-/// Falls back to the F# rebuild when any dropped op is not surgically undoable. That path deletes main's
-/// log and re-inserts the survivors, and it stays in F# because it re-mints op ids and re-folds -- and
-/// because ops this build cannot decode are invisible here, so the only safe rule is that the delete
-/// never touches them, which `Inserts.wholeMainDeletes` enforces by id.
-let rewriteBy
+/// One go at `rewriteBy`; see there.
+let rewriteByAttempt
   (keep: List<DraftOp> -> List<DraftOp>)
+  (attempt: Int)
   : Stdlib.Result.Result<Int, String> =
   let draft = mainDraftOps ()
 
@@ -223,9 +216,40 @@ let rewriteBy
         | Ok _ -> Stdlib.Result.Result.Ok count
         | Error e -> Stdlib.Result.Result.Error e
       else
-        match Builtin.scmRebuildDraftKeeping keptIds with
-        | Ok _ -> Stdlib.Result.Result.Ok count
+        let draftIds = draft |> Stdlib.List.map (fun d -> d.id)
+
+        match Builtin.scmRebuildDraftKeeping draftIds keptIds with
+        | Ok true -> Stdlib.Result.Result.Ok count
+        | Ok false ->
+          // An attempt is short, so ten misses in a row is not ordinary contention.
+          if attempt < 10 then
+            rewriteByAttempt keep (attempt + 1)
+          else
+            Stdlib.Result.Result.Error(
+              "the draft kept changing while it was being rewritten ("
+              + Stdlib.toString attempt
+              + " tries), usually another save, a pull, or your own editor, so nothing "
+              + "was changed. Run it again.")
         | Error e -> Stdlib.Result.Result.Error e
+
+
+/// Rewrite the draft to whatever <param keep> returns, and report how many ops went.
+///
+/// `keep` gets the draft in authoring order and returns the subset that remains: it SELECTS, it does not
+/// author. That contract is what makes every caller one operation.
+///
+/// Falls back to the F# rebuild when any dropped op is not surgically undoable. That path deletes main's
+/// log and re-inserts the survivors, and it stays in F# because it re-mints op ids and re-folds -- and
+/// because ops this build cannot decode are invisible here, so the only safe rule is that the delete
+/// never touches them, which `Inserts.wholeMainDeletes` enforces by id.
+///
+/// The rebuild also refuses when the draft is no longer the one `keep` chose from, or main moved while it
+/// read: an author or a pull landing after `mainDraftOps` is in what the rebuild deletes and not in
+/// `keptIds`. Then nothing was written, and this reads again and lets `keep` choose again.
+let rewriteBy
+  (keep: List<DraftOp> -> List<DraftOp>)
+  : Stdlib.Result.Result<Int, String> =
+  rewriteByAttempt keep 1
 
 
 /// Drop ONE name's uncommitted bindings, leaving the rest of the draft alone.

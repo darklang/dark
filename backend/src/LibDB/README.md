@@ -7,7 +7,7 @@ The model: `package_ops` is the source of truth, and everything else here is a p
 Surface (most relevant first):
 
 - `PackageOpPlayback.fs`: the fold. Applies each `PackageOp` to the projection tables, and is where timestamp-LWW decides which of two bindings for a name wins.
-- `Inserts.fs`: the write path, which inserts ops, folds them, then marks them applied. `rewriteOpsAtomically` is the delete-and-reinsert one, used by the draft rewrite.
+- `Inserts.fs`: the write path, which inserts ops, folds them, then marks them applied. `rewriteDraftIfUnchanged` and `rewriteMainIfUnchanged` are the delete-and-reinsert ones, used by the draft refresh and the draft rebuild; each writes only if what it deletes is still what its caller read.
 - `Branches.fs`: the branch store. Registry rows, the `op_branches` frontier, per-name bases, and the chain walk that overlays a branch on its parents.
 - `BranchSelection.fs`: which branch a process runs on, in order: `--branch`, then `DARK_BRANCH`, then the stored `current_branch`.
 - `Queries.fs`: reads over the log and the projections. The draft, a commit's ops, dependents, deprecations, propagation policy.
