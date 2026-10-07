@@ -258,6 +258,11 @@ type State =
     /// by the call's expression id, rendered. Runs user code, so it is refreshed on transitions
     /// (`refreshLiveValues`) and read by the printer, never computed while drawing.
     liveValues: Dict<String, String>
+    /// The fn and draft op count `liveValues` were built for, so a key that moves neither does not
+    /// replay again. "" whenever the store may have moved under them.
+    liveFor: String
+    /// Why a fn with a recorded run shows no values (`Values.skipped`); "" otherwise.
+    liveNote: String
     /// The REPL view's own state. Everything in here belongs to that one view, so it lives in one field
     /// rather than as four more on the workbench: a view you can hand a record to is a view you could mount
     /// somewhere else, and the parent stops being the place every view keeps its things.

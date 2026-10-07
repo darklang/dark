@@ -598,7 +598,7 @@ let refreshScmStatus (previous: State) (next: State) : State =
 /// Re-read the SCM picture whatever the counts say. For the actions that change it without moving an op
 /// count: an ack, and any command run in a frame (a pull lands other people's commits).
 let forceScmRefresh (state: State) : State =
-  { state with scmStatus = readScmStatus state.branchId; preview = Stdlib.Option.Option.None }
+  { state with scmStatus = readScmStatus state.branchId; preview = Stdlib.Option.Option.None; liveFor = "" }
 
 /// Run the selected `render` fn and hold its output, for the tree-native view peek.
 ///
@@ -618,29 +618,41 @@ let forceScmRefresh (state: State) : State =
 /// so it happens here on the transition. Nothing recorded, or a run that fails, leaves the pane as
 /// it was: the source, with no values beside it.
 let refreshLiveValues (next: State) : State =
-  let values =
+  let selectedFn =
     if next.activeView != vMatter then
-      Stdlib.Dict.empty
+      Stdlib.Option.Option.None
     else
       match Stdlib.List.getAt next.items next.selected with
       | Some item when (Stdlib.Bool.not item.isModule) && (item.kind == "fn") ->
-        let entry =
+        Stdlib.Option.Option.Some(
           LanguageTools.ProgramTypes.PackageLocation
             { owner = Stdlib.List.head (Packages.modulePathOf next.location) |> Stdlib.Option.withDefault ""
               modules = Stdlib.List.drop (Packages.modulePathOf next.location) 1
               name = item.name }
+        )
+      | _ -> Stdlib.Option.Option.None
 
+  match selectedFn with
+  | None -> { next with liveValues = Stdlib.Dict.empty; liveFor = ""; liveNote = "" }
+  | Some entry ->
+    // A scroll or a command-bar key moves neither, and a replay costs a whole recorded run.
+    let key =
+      $"{Stdlib.toString next.branchId} {Stdlib.Live.entryName entry} {Stdlib.toString next.scmStatus.ops}"
+    if key == next.liveFor then
+      next
+    else
+      let (values, note) =
         match Stdlib.Live.Values.replay next.branchId entry with
         | Some v ->
           // One line each, and short: a value beside a call is a glance, and the pane's width
           // is the code's. `dark traces inspect` has the whole value.
-          v.byExpr
-          |> Stdlib.Dict.map (fun _ dv ->
-            PrettyPrinter.RuntimeTypes.dvalOneLine next.branchId 40 dv)
-        | None -> Stdlib.Dict.empty
-      | _ -> Stdlib.Dict.empty
+          (v.byExpr
+           |> Stdlib.Dict.map (fun _ dv ->
+             PrettyPrinter.RuntimeTypes.dvalOneLine next.branchId 40 dv),
+           Stdlib.Option.withDefault v.skipped "")
+        | None -> (Stdlib.Dict.empty, "")
 
-  { next with liveValues = values }
+      { next with liveValues = values; liveFor = key; liveNote = note }
 
 let refreshPeek (next: State) : State =
   let peek =

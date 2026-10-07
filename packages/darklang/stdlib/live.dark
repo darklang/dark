@@ -740,7 +740,10 @@ module Values =
       /// The replay stopped early; the values up to that point are still above. Says what
       /// moved first when the store has changed under the recording, since the error itself
       /// is about running code and reads as the reader's own bug.
-      problem: Stdlib.Option.Option<String> }
+      problem: Stdlib.Option.Option<String>
+      /// The replay was not run, and why: the recorded run is past `replayWithin`'s limits.
+      /// `byExpr` is empty.
+      skipped: Stdlib.Option.Option<String> }
 
 
   /// The live values for <param entry>: the newest recorded trace that went through it, replayed
@@ -758,9 +761,37 @@ module Values =
     (branchId: Uuid)
     (entry: LanguageTools.ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Values> =
+    replayWithin 1000L 500 branchId entry
+
+
+  /// `replay`, refusing a recorded run that took longer than <param maxDurationMs> or went
+  /// through more than <param maxFns> functions.
+  ///
+  /// The replay re-runs the WHOLE recorded run in this process, on the caller's thread, with
+  /// nothing bounding it but the run itself: it holds a frame for every call the run made, so
+  /// its memory is linear in the run's size. An editor or a workbench asks on a keystroke, and
+  /// on a store that records everything the newest run through `List.map` is whatever script
+  /// ran last. Both limits, because `durationMs` is 0 for a run recorded before it was kept.
+  let replayWithin
+    (maxDurationMs: Int64)
+    (maxFns: Int)
+    (branchId: Uuid)
+    (entry: LanguageTools.ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<Values> =
     match Darklang.Tracing.Store.wentThroughNamed branchId (entryName entry) 1L with
     | [] -> Stdlib.Option.Option.None
     | newest :: _ ->
+      let fns = Stdlib.List.length (Darklang.Tracing.Store.fnsOf newest.id)
+      if (newest.durationMs > maxDurationMs) || (fns > maxFns) then
+        let why =
+          $"too large to show live values: its last run took {Stdlib.toString newest.durationMs} ms through {Stdlib.toString fns} fns (dark traces inspect {Stdlib.String.slice newest.id 0 8})"
+        Stdlib.Option.Option.Some(
+          Values
+            { byExpr = Stdlib.Dict.empty
+              problem = Stdlib.Option.Option.None
+              skipped = Stdlib.Option.Option.Some why }
+        )
+      else
       let (collected, stop) = Darklang.Tracing.Store.viewTrace branchId newest.id
 
       // Rendered here, not stored as the stop: this is stdlib, so it cannot reach the CLI's
@@ -782,5 +813,7 @@ module Values =
           (Stdlib.toString id, v))
         |> Stdlib.Dict.fromListOverwritingDuplicates
 
-      Stdlib.Option.Option.Some(Values { byExpr = byExpr; problem = problem })
+      Stdlib.Option.Option.Some(
+        Values { byExpr = byExpr; problem = problem; skipped = Stdlib.Option.Option.None }
+      )
 

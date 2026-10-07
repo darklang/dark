@@ -1537,6 +1537,73 @@ r.fns
       })
 
 
+/// A replay re-runs the whole recorded run, so a run past the limits is refused rather than
+/// replayed on a keystroke, and the workbench replays once per fn rather than once per key.
+let private liveValuesStayBounded =
+  cliTestWithFreshTraces
+    "live values refuse a run past the limits, and replay once per selected fn"
+    (fun target ->
+      task {
+        let state = executionState target
+        do! author target "Tests.LiveBound.inc" "(n: Int64): Int64 = (n + 1L)"
+        let! out = runCli target [ "eval"; "Tests.LiveBound.inc 41L" ]
+        Expect.stringContains out "42" "the call ran"
+
+        let within (ms : string) (fns : string) =
+          $"""match Darklang.Stdlib.Live.Values.replayWithin {ms} {fns} Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests"; modules = ["LiveBound"]; name = "inc" }}) with
+| Some v -> (Darklang.Stdlib.Dict.size v.byExpr, Darklang.Stdlib.Option.withDefault v.skipped "")
+| None -> (-1, "no trace")"""
+        let expectSkipped (label : string) (ms : string) (fns : string) =
+          task {
+            match! evalUnder state (within ms fns) with
+            | RT.DTuple(RT.DInt n, RT.DString why, []) ->
+              Expect.equal (RT.DarkInt.toBigInt n) 0I $"{label}: nothing replayed"
+              Expect.stringContains
+                why
+                "too large to show live values"
+                $"{label}: and says why"
+            | other -> failtest $"{label}: expected (0, why), got {other}"
+          }
+        match! evalUnder state (within "1000L" "500") with
+        | RT.DTuple(RT.DInt n, RT.DString "", []) ->
+          Expect.isGreaterThan (RT.DarkInt.toBigInt n) 0I "a small run is replayed"
+        | other -> failtest $"expected (n, \"\"), got {other}"
+        do! expectSkipped "over the time limit" "-1L" "500"
+        do! expectSkipped "over the fn limit" "1000L" "0"
+
+        // A sentinel in the values survives a refresh that moved nothing, so that refresh did not
+        // replay; the reload a store change forces does, and puts the real values back.
+        let! wb =
+          evalUnder
+            state
+            """let base = Darklang.Cli.Workbench.initialState Darklang.SCM.Branch.mainBranchId Darklang.Stdlib.Option.Option.None "t" "t" [] false
+let s0 = { base with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module ["Tests", "LiveBound"] }
+let items = Darklang.Cli.Workbench.reloadItems s0
+let idx = (Darklang.Stdlib.List.findFirstIndex items (fun i -> i.name == "inc")) |> Darklang.Stdlib.Option.withDefault 0
+let s = Darklang.Cli.Workbench.refresh base { s0 with items = items; selected = idx }
+let marked = { s with liveValues = Darklang.Stdlib.Dict.singleton "sentinel" "x" }
+let kept = Darklang.Cli.Workbench.refresh marked { marked with detailScroll = 1 }
+let reloaded = Darklang.Cli.Workbench.refresh kept (Darklang.Cli.Workbench.forceScmRefresh kept)
+(Darklang.Stdlib.Dict.size s.liveValues, Darklang.Stdlib.Dict.keys kept.liveValues, Darklang.Stdlib.Dict.keys reloaded.liveValues)"""
+        match wb with
+        | RT.DTuple(RT.DInt first,
+                    RT.DList(_, [ RT.DString "sentinel" ]),
+                    [ RT.DList(_, again) ]) ->
+          Expect.isGreaterThan
+            (RT.DarkInt.toBigInt first)
+            0I
+            "the fn shows its values"
+          Expect.equal
+            (bigint (List.length again))
+            (RT.DarkInt.toBigInt first)
+            "a forced reload replays again"
+          Expect.isFalse
+            (List.contains (RT.DString "sentinel") again)
+            "and the sentinel is gone"
+        | other -> failtest $"expected (n, [sentinel], keys), got {other}"
+      })
+
+
 /// The agent's side of the live loop, without the agent: `Live.observe` renders a view headless
 /// through `Ui.Text` (the third renderer), taking each fn at its newest version that passes its
 /// checks and, when that one raises, the picture from the version before it; `Live.show` names
@@ -1707,6 +1774,7 @@ let tests : List<Test> =
           devErrorPageCarriesTheListener
           devStreamReportsAnEditAfterTheServe
           liveValuesReplayTheLastCall
+          liveValuesStayBounded
           hintsLandOnTheRightIdenticalLine
           pipeStagesCarryTheirValues
           previewPicksWhichRunToShow
