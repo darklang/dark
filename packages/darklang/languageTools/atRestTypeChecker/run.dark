@@ -137,7 +137,11 @@ let checkPackageOpsOn
   // The batch's own traits and implementations, beside the store's: the store does not
   // hold them until after this check, and a call saved with the trait or the impl it needs
   // must still be typed against it and pinned to it.
-  let builtins = Environment.withBatch (Environment.builtins branchId) traits impls
+  let builtins =
+    Environment.withoutReplaced
+      (Environment.withBatch (Environment.builtins branchId) traits impls)
+      branchId
+      ops
 
   // If inspecting a type declaration or function signature fails, leave it out
   // of the checking environment and record an Incomplete result for it.
