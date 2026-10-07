@@ -170,6 +170,9 @@ let private startupSettings () : Map<string, string> =
         "exec.maxInstructions"
         "exec.maxBytes"
         "exec.storePollMs"
+        "exec.spreadCrossover"
+        "exec.spreadMinChunk"
+        "exec.spreadPredict"
         "trace.keep"
         "trace.maxMb"
         "trace.record" ])
@@ -235,7 +238,12 @@ let execute
           // flag: `PolicyStore.guestState` always clears it, and `requireBundledCaller`
           // additionally demands every frame be bundled Darklang code.
           canUsePrivateNetworkHttp = true
-          isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
+          isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h
+          // What a list op asks before spreading a package fn across cores (`LibExecution.Spread`).
+          fnPurity =
+            LibDB.PackagePermissions.purity
+              LibDB.PackagePermissions.Load.fromStore
+              state.fns.builtIn }
     // `--safe` is the recovery floor: ignore the stored `entry_point` and run the shipped default
     // CLI, so a custom root that resolves-but-misbehaves can always be escaped. (A bad pointer
     // already falls back on its own.)
@@ -278,6 +286,39 @@ let execute
         | true, n when n >= 10 -> LibExecution.Scheduler.storePollMs <- n
         | _ -> ()
       | None -> ()
+      // List ops spreading across cores (`LibExecution.Spread`): interpreted instructions of
+      // projected serial work before a spread pays, and the least a chunk should carry. Expert
+      // settings, for measuring; a negative crossover turns spreading off.
+      match Map.tryFind "exec.spreadCrossover" settings with
+      | Some v ->
+        match System.Int64.TryParse v with
+        | true, n -> LibExecution.Spread.crossover <- (if n < 0L then -1L else n)
+        | _ -> ()
+      | None -> ()
+      match Map.tryFind "exec.spreadPredict" settings with
+      | Some "on" -> LibExecution.Spread.predicting <- true
+      | Some "off" -> LibExecution.Spread.predicting <- false
+      | _ -> ()
+      match Map.tryFind "exec.spreadMinChunk" settings with
+      | Some v ->
+        match System.Int64.TryParse v with
+        | true, n when n >= 0L -> LibExecution.Spread.minChunk <- n
+        | _ -> ()
+      | None -> ()
+      // `DARK_SPREAD_REPORT=1` says at exit how many spreads ran and how many fell back: the way to
+      // tell a run that spread from one that matched serial without spreading. A diagnostic
+      // switch like `DARK_SCHEDULER`, not a setting.
+      if System.Environment.GetEnvironmentVariable "DARK_SPREAD_REPORT" = "1" then
+        // Not `eprintfn`: printf formats by reflection, which the AOT binary does not have.
+        System.AppDomain.CurrentDomain.ProcessExit.Add(fun _ ->
+          System.Console.Error.WriteLine(
+            $"spread: {LibExecution.Spread.spreads} spreads, "
+            + $"{LibExecution.Spread.fallbacks} fell back; predicted "
+            + $"{LibExecution.Spread.predictedPure} pure, "
+            + $"{LibExecution.Spread.predictedImpure} impure, "
+            + $"{LibExecution.Spread.predictedUnknown} unknown, "
+            + $"{LibExecution.Spread.predictionFailures} analyses failed"
+          ))
       LibExecution.Scheduler.maxInstructions <- cap "exec.maxInstructions"
       LibExecution.Scheduler.maxBytes <- cap "exec.maxBytes"
       LibDB.Tracing.TraceRetention.configure

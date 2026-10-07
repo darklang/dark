@@ -113,6 +113,57 @@ let permissionRequirements
     return Requirements.forFunction callEffectsFor closure root
   }
 
+/// Whether a package fn is pure for a list op deciding to spread it (`RT.Purity`), over its
+/// whole closure: impure if anything it can reach is a builtin `Interpreter.spreadRefuses`, pure
+/// if nothing is and the analysis is complete, unknown otherwise. The same classifier the spread
+/// chunk refuses by, so a prediction and the refusal under it cannot disagree.
+///
+/// Its fn parameters do not make it unknown (`forFunctionWith true`): the list op checks the
+/// arguments it applies the fn to.
+///
+/// Answered against this host's builtins and memoised by hash for the life of the process. Not
+/// stored with the item, for the reason at the top of this module: a host upgrade can change a
+/// builtin, and a verdict hashed into the item would go stale.
+let purity
+  (load : Load)
+  (builtins :
+    System.Collections.Generic.Dictionary<RT.FQFnName.Builtin, RT.BuiltInFn>)
+  : RT.FQFnName.Package -> Ply<RT.Purity> =
+  let memo =
+    System.Collections.Concurrent.ConcurrentDictionary<RT.FQFnName.Package, RT.Purity>()
+  // Any non-empty set stands for "refused"; which effect it names is not the question here.
+  let refused = Set.singleton LibExecution.Effects.Effect.Native
+  let classify (name : string, version : int) =
+    let mutable found = Unchecked.defaultof<RT.BuiltInFn>
+    if builtins.TryGetValue({ name = name; version = version }, &found) then
+      Some(
+        if LibExecution.Interpreter.spreadRefuses found then refused else Set.empty
+      )
+    else
+      None
+  fun (RT.Hash h as hash) ->
+    match memo.TryGetValue hash with
+    | true, known -> Ply known
+    | false, _ ->
+      uply {
+        let root = PT.Hash h
+        let! answer =
+          uply {
+            try
+              let! closure = loadClosure load root
+              let result = Requirements.forFunctionWith true classify closure root
+              return
+                if not (Set.isEmpty result.requiredEffects) then RT.Purity.Impure
+                elif result.complete then RT.Purity.Pure
+                else RT.Purity.Unknown
+            with _ ->
+              LibExecution.Spread.notePredictionFailure ()
+              return RT.Purity.Unknown
+          }
+        memo[hash] <- answer
+        return answer
+      }
+
 /// One root's closure, analyzed: what an approval reviews.
 type ClosureAnalysis =
   {

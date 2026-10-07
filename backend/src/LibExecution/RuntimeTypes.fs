@@ -3826,6 +3826,20 @@ and Notifier = ExecutionState -> VMState -> string -> Metadata -> Ply<unit>
 
 /// All state set when starting an execution; non-changing
 /// (as opposed to the VMState, which changes as the execution progresses)
+/// What can be known about a callable, before it runs, for a list op deciding whether to spread
+/// it: would anything it reaches take an effect ordinal (`Interpreter.spreadRefuses`)? Only a
+/// prediction. A spread chunk refuses such a call whatever was predicted, so a wrong `Pure`
+/// costs one wasted spread and never a reordered effect.
+and [<RequireQualifiedAccess>] Purity =
+  /// Nothing it can reach takes an ordinal.
+  | Pure
+  /// Something it can reach does. Not necessarily on every path: a body that prints only on
+  /// an error is `Impure` too.
+  | Impure
+  /// The analysis could not tell: a callable it cannot see the target of, a trait call decided
+  /// at run time, code it could not load.
+  | Unknown
+
 and ExecutionState =
   { // -- Set consistently across a runtime --
     tracing : Tracing.Tracing
@@ -3931,6 +3945,18 @@ and ExecutionState =
     /// research set this; `run --allow-harmful` / `eval --allow-harmful`
     /// toggle it for one-offs.
     allowHarmful : bool
+
+    /// A process running part of a list op spread across cores (`List.map` and its siblings
+    /// deciding for themselves). Such a process may not make any call that would take an effect
+    /// ordinal (`Interpreter.isLogged`): the call is refused before it does anything, the
+    /// process fails, and the spreader runs that part again serially in the original process,
+    /// where the effect happens in its proper order. Also stops a spread inside a spread.
+    spreadChild : bool
+
+    /// Whether a package fn is pure in the sense of `Purity`, over everything it can reach.
+    /// Supplied by the host, which can read the store (`LibDB.PackagePermissions.purity`);
+    /// `Unknown` for everything by default, which is always safe.
+    fnPurity : FQFnName.Package -> Ply<Purity>
 
     /// The account this run is attributed to (the developer behind a
     /// commit / script run / handler invocation). `None` means

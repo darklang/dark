@@ -13,6 +13,90 @@ loads more is a clause, not a section. Anything longer belongs in `playbook.md` 
 
 ---
 
+## 2026-10-06: List ops spread across cores by themselves, and where it pays
+
+`List.map`, `filter`, `filterMap` and `indexedMap` spread when the rest of the list is projected at
+10,000 interpreted instructions or more, in chunks of at least 2,000 (`LibExecution/Spread.fs`,
+`docs/processes.md`). The gate does not move: steady.dark is fifty-element maps of a
+three-instruction body, nothing in it spreads, and it read 10.7-10.8 MB over five fresh-store runs,
+the same as the base commit's own AOT binary on the same box (10.7, 10.7, 10.8). Budget unchanged.
+
+All AOT, on this 48-core box at load average 8 to 13, so the times are relative only.
+
+The grid (`scripts/perf/workloads/spread.dark`), body cost by element count, with spreading FORCED
+and no minimum chunk, against serial:
+
+- a 3-instruction body never paid at any length: 64 elements went from 47 to 408 us a map
+- 26 a body x 16 elements (about 420 instructions) lost; 26 x 64 (about 1,700) was the first win,
+  at 1.24x
+- from 6,000 to 13,000 instructions up it won 1.6 to 2.6x, and stayed there; about three times was
+  the best this box gave on any cell
+
+With the defaults, every cell that stays serial was unchanged inside noise and allocated 56 bytes
+more a map (the probe object). Cells that spread:
+
+    body x count       serial      spread    allocation
+    26 x 1024          10.1 ms     3.9 ms    +8.6%
+    206 x 256          19.9 ms     6.6 ms    +2.1%
+    206 x 1024         75.0 ms    28.1 ms    +2.0%
+    2006 x 256          183 ms     123 ms    +0.8%
+
+What a spread costs: 3.3 to 5 KB a chunk, from the grid's allocation (forced, up to 96 chunks).
+Another tab measured `List.parallelMap` at about 6.7 KB a SPAWN by different means, which is the
+same order; the difference is that a chunk carries many elements. Serial work allocates about 90 B
+an instruction, which is what put the minimum chunk at 2,000: about 3% of a chunk's own
+allocation goes on starting it.
+
+`Canvas.compose`, unedited (`scripts/perf/workloads/spread-canvas.dark`, 50 rows of six styled
+spans, 200 frames, two runs a side): 10.4 ms a frame serial, 5.5 spread, 1.97 -> 2.06 MB a frame
+(+4.6%). Every compose spread, none fell back.
+
+The six-workload suite, spreading off against default: no difference outside the run-to-run spread,
+which on this box and store was 4 to 10% per workload within one mode (recursion read 0.70 KB and
+0.14 KB on two runs with spreading off). Nothing in it is a long map of an expensive body.
+
+Then predict-then-observe, on a base that had meanwhile taken the permission analysis's three
+fixes and the scheduler's frame-turn charge. A spread is now preceded by a prediction (the store's
+analysis for package fns, a walk of the lambda and what it closed over), and a callable predicted
+impure never starts a chunk. What that costs and buys, AOT:
+
+- `Canvas.compose`: 205 of 205 predicted pure, none fell back. 11.2 -> 6.0 ms a frame, 1.97 ->
+  2.19 MB (+11%, against +4.6% before). The difference is the prediction itself, about 120 KB a
+  frame: on one binary with `exec.spreadPredict off`, the same workload allocates +4.9%. (An
+  earlier reading here put part of it on chunk count; that was measured on the predicting binary
+  and was wrong. A larger minimum chunk does take 13 MB off 200 frames either way.) That is after
+  taking a per-record allocation out of the check for code in captured values (37 KB a frame).
+- The loss, stated as one: a body that CAN print, on a branch no element takes, is predicted
+  impure and stays serial. Ten maps of 1,024 elements: its pure twin went 830-875 -> 246-278 ms,
+  and it stayed at 778-859. Observing alone would have spread it like the twin.
+- The gain on impure code: the one wasted spread it no longer pays, measured before this as about
+  15 ms and 2.2 MB over 1,024 elements, once per callable per process. For scale, another
+  measurement today put an AOT binary's fixed startup at about 50 ms.
+- The gate: 10.8 MB over five fresh stores, and current main's own binary 10.7, 10.8, 10.8, 10.8,
+  10.8 by the same method.
+
+Observe-only against predict-then-observe on ONE AOT binary, `exec.spreadPredict` off and on,
+same store, alternated twice, load average 23 to 29 (so read allocation first; the times are
+noisy, the second "on" pass doubled everything):
+
+    workload                          observe only           predict, then observe
+    Canvas.compose, 200 frames        412.9 MB, 1141/1153 ms  437.2 MB, 1181/1504 ms
+    pure body, 10 maps of 1,024       254.6 MB, 284/245 ms    255.3 MB, 251/1106 ms
+    can print, never does             254.0 MB, 275/225 ms    248.9 MB, 857/1280 ms
+    reads the clock, every element    259.1 MB, 963/870 ms    251.3 MB, 874/1347 ms
+
+Observing spread the can-print body (about 3.5x on these runs) and paid one fallback for the
+clock body, then stopped trying it. Predicting kept the can-print body serial, saved the clock
+body 7.8 MB over ten maps with no time difference that stands above this box's noise, and cost
+Canvas about 6 points of allocation for no speed. Neither is ever wrong about a result: a wrong
+guess in either costs a spread.
+
+Two things that went wrong first and are worth not repeating. A probe that timed elements with the
+clock spread a cheap map whenever a GC pause landed in the elements it timed, so the gate read
+anywhere from 10.7 to 11.6 MB on the same binary; the probe counts instructions now, from the VM's
+own budget, and the decision is the same on any box. And it timed the FIRST element, which is the
+one that loads what the body calls: the first element is not counted any more.
+
 ## 2026-10-05: published budget set from a measurement, on the scheduler branch
 
 `steady.dark` published, six runs on a NativeAOT build of this branch: 11.4, 11.4, 11.5,

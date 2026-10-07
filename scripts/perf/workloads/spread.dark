@@ -1,0 +1,63 @@
+// Where spreading a list op across cores starts to pay: a grid of body cost by element count.
+//
+// Run it twice, serial and forced, and compare cells:
+//
+//   dark config set exec.spreadCrossover -1     (then 0)
+//   DARK_CONFIG_TRACE_DETAIL=off dark run scripts/perf/workloads/spread.dark
+//
+// Recording has to be off: nothing spreads while a run is recorded. Each cell prints
+// (cost, count, reps, total milliseconds, total bytes); divide by reps, with bytes counted process-wide, so a
+// chunk's allocation on another core is in it.
+//
+// `cost` is the length of a fold inside the body, so a body is about three interpreted operations
+// per unit of cost; 0 is `i + 1`.
+
+let body (cost: Int) : Int -> Int =
+  if cost == 0 then
+    (fun i -> i + 1)
+  else
+    (fun i -> Stdlib.List.fold (Stdlib.List.range 1 cost) i (fun a x -> a + x))
+
+let cell (cost: Int) (count: Int) : Unit =
+  let items = Stdlib.List.range 1 count
+  let f = body cost
+  let work = count * (if cost == 0 then 1 else cost)
+  let wanted = 3000000 / work
+  let reps = if wanted < 3 then 3 else if wanted > 5000 then 5000 else wanted
+  let run (n: Int) : Int =
+    Stdlib.List.fold (Stdlib.List.range 1 n) 0 (fun acc _ ->
+      acc + Stdlib.List.length (Stdlib.List.map items f))
+  let _warm = run 2
+  let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
+  let t0 = Stdlib.DateTime.now ()
+  let _r = run reps
+  let t1 = Stdlib.DateTime.now ()
+  let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
+  let ms = Stdlib.DateTime.subtractMs t1 t0
+  Builtin.debug "cell" (cost, count, reps, ms, after - before)
+
+/// Instructions per element for one body, from the interpreter's own counter, in the original
+/// process only: run it with spreading off. Last, because turning the counter on slows every
+/// cell after it.
+let perElement (cost: Int) : Unit =
+  let items = Stdlib.List.range 1 64
+  let f = body cost
+  let _warm = Stdlib.List.map items f
+  let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
+  let _r = Stdlib.List.map items f
+  let stats = Darklang.LanguageTools.InterpreterStats.get ()
+  let count =
+    match Stdlib.String.split stats "\"instructions\":" with
+    | [ _, rest ] ->
+      match Stdlib.String.split rest "," with
+      | n :: _ -> n
+      | [] -> "?"
+    | _ -> "?"
+  Builtin.debug "instructions for 64 elements" (cost, count)
+
+let main () : Unit =
+  Stdlib.List.iter [ 0, 10, 100, 1000, 10000 ] (fun cost ->
+    Stdlib.List.iter [ 2, 4, 8, 16, 64, 256, 1024 ] (fun count -> cell cost count))
+  Stdlib.List.iter [ 0, 10, 100, 1000, 10000 ] (fun cost -> perElement cost)
+
+main ()
