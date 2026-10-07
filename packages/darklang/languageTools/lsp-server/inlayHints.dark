@@ -160,7 +160,7 @@ let handleInlayHintRequest
   (state: LspState)
   (requestId: JsonRPC.RequestID)
   (params: LanguageServerProtocol.InlayHint.InlayHintRequest.InlayHintParams.InlayHintParams)
-  : LspState =
+  : (LspState * String) =
   let uri = params.textDocument.uri
 
   // Hints read only the text, but the editor asks for them once it has settled after an
@@ -184,8 +184,7 @@ let handleInlayHintRequest
     |> (fun r -> JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
     |> Stdlib.AltJson.format
 
-  logAndSendToClient response
-  state
+  (state, response)
 
 
 /// Ask the client to fetch every document's hints again: a save landed, so the values a

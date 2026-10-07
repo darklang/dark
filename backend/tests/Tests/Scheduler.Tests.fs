@@ -265,6 +265,106 @@ Builtin.testTrace "slept"
   }
 
 
+/// A fake stdin for the stdin tests: each read waits on a gate, then answers a line or that many
+/// `x`s, and counts itself, so a test can say how many reads the runtime actually made.
+let private fakeStdin (gate : int64) (reads : int ref) =
+  fun (request : HE.StdinRequest) ->
+    Gates.wait gate |> fun t -> t.Wait()
+    Interlocked.Increment(&reads.contents) |> ignore<int>
+    match request with
+    | HE.StdinRequest.Line -> Ok(Some $"line {reads.Value}")
+    | HE.StdinRequest.Bytes n -> Ok(Some(System.String('x', n)))
+
+
+let private readLineDoesNotBlock =
+  testTask
+    "readLine in one process parks it, and a sleep in another finishes meanwhile" {
+    Gates.reset ()
+    Trace.take () |> ignore<List<string>>
+    let! state = executionStateFor pmPT false Map.empty
+    let reads = ref 0
+    HE.sources.readStdin <- Some(fakeStdin 50L reads)
+    try
+      let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+      let! (reader : Scheduler.Process) =
+        spawn
+          s
+          state
+          """let l = Stdlib.Cli.Stdin.readLine ()
+let _ = Builtin.testTrace "line"
+l"""
+      let! (sleeper : Scheduler.Process) =
+        spawn
+          s
+          state
+          """let _ = Stdlib.Cli.Posix.sleep 20.0
+Builtin.testTrace "slept"
+"""
+      let running = runOnThread s reader
+      let! sleptResult = s.Await sleeper
+      expectOk sleptResult "the sleeper" |> ignore<RT.Dval>
+      Expect.equal
+        (Trace.take ())
+        [ "slept" ]
+        "the sleeper finished while readLine waited"
+      match reader.status with
+      | Scheduler.Parked(Scheduler.OnEvent [ HE.EventSpec.StdinLine ]) -> ()
+      | other -> failtest $"the reader should be parked on a line, was {other}"
+      Gates.release 50L
+      let! result = running
+      Expect.equal (expectOk result "the reader") (RT.DString "line 1") "the line"
+    finally
+      HE.sources.readStdin <- None
+  }
+
+
+let private stdinTimerLeavesReadOutstanding =
+  testTask
+    "a stdin wait a timer beat leaves its read for the next wait, which reads nothing more" {
+    Gates.reset ()
+    let! state = executionStateFor pmPT false Map.empty
+    let reads = ref 0
+    HE.sources.readStdin <- Some(fakeStdin 51L reads)
+    try
+      let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+      let! (timedOut : Scheduler.Process) =
+        spawn
+          s
+          state
+          "Stdlib.Host.await [ Stdlib.Host.EventSpec.StdinLine; Stdlib.Host.EventSpec.Timer 10L ]"
+      let! result = runOnThread s timedOut
+      match expectOk result "the timed wait" with
+      | RT.DEnum(_, _, _, "Timer", []) -> ()
+      | other -> failtest $"expected Timer, got {other}"
+
+      // A body asked for now would take the line already on its way: refused, not misread.
+      let! (wrongKind : Scheduler.Process) =
+        spawn s state "Builtin.stdinReadExactly 3"
+      let! result = runOnThread s wrongKind
+      match result with
+      | Error(RTE.UncaughtException(msg, _), _) when msg.Contains "outstanding" -> ()
+      | other ->
+        failtest $"expected a refusal naming the outstanding read, got {other}"
+
+      let! (line : Scheduler.Process) = spawn s state "Stdlib.Cli.Stdin.readLine ()"
+      let running = runOnThread s line
+      Gates.release 51L
+      let! result = running
+      Expect.equal
+        (expectOk result "the line")
+        (RT.DString "line 1")
+        "the outstanding read"
+      Expect.equal reads.Value 1 "one read, not one per wait"
+
+      let! (body : Scheduler.Process) = spawn s state "Builtin.stdinReadExactly 3"
+      let! result = runOnThread s body
+      Expect.equal (expectOk result "the body") (RT.DString "xxx") "a byte count"
+      Expect.equal reads.Value 2 "the body was a read of its own"
+    finally
+      HE.sources.readStdin <- None
+  }
+
+
 let private accessIsPerProcess =
   testTask
     "a process runs under its state's access and a denial fails that process only" {
@@ -1499,6 +1599,8 @@ let tests =
         budgetYields
         hostAwaitTimerOrKey
         readKeyDoesNotBlock
+        readLineDoesNotBlock
+        stdinTimerLeavesReadOutstanding
         accessIsPerProcess
         killWakesAParkedProcess
         editDoesNotReachAParkedProcess

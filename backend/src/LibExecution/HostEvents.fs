@@ -36,6 +36,22 @@ type EventSpec =
   | Timer of ms : int64
   /// A process finished.
   | ExecDone of ProcessId
+  /// The next line of stdin, without its line ending.
+  | StdinLine
+  /// The next this-many BYTES of stdin, as text (a `Content-Length` body).
+  | StdinBytes of bytes : int
+
+/// What one read of stdin asked for. Lines and byte counts come off the same reader in the order
+/// they were asked for, so a wait that something else beat leaves its read outstanding, and the
+/// next stdin wait has to ask for the same thing (`StdinReader`).
+type StdinRequest =
+  | Line
+  | Bytes of int
+
+/// What one read of stdin came back with: the text, `None` at end of input, or an error that
+/// means the stream is out of step (a byte count that ends inside a character, input that ends
+/// partway through a body).
+type StdinResult = Result<Option<string>, string>
 
 /// What arrives on the queue.
 type HostEvent =
@@ -54,6 +70,8 @@ type HostEvent =
   /// `Exec.await` how; F# callers await the process directly. Posted to the schedulers with a
   /// subscriber for it (`Scheduler.Finish`), which may not be the one that ran it.
   | ExecDone of ProcessId
+  /// One read of stdin, answering the request it names.
+  | Stdin of StdinRequest * StdinResult
   /// Nothing to route: a process became runnable from outside the loop (a spawn from another
   /// thread), or the loop was asked to stop, and the loop, blocked on the queue with nothing
   /// runnable, has to look again.
@@ -72,9 +90,12 @@ type Sources =
     mutable readKey : Option<unit -> RT.Dval>
     /// The store's current data version, cheap enough to call five times a second.
     mutable storeVersion : Option<unit -> int64>
+    /// Block until one line, or one byte count, of stdin has been read. Called only from the
+    /// stdin reader thread, so two reads never interleave.
+    mutable readStdin : Option<StdinRequest -> StdinResult>
   }
 
-let sources : Sources = { readKey = None; storeVersion = None }
+let sources : Sources = { readKey = None; storeVersion = None; readStdin = None }
 
 
 /// One scheduler's queue, plus the one-shot timers it arms.
@@ -177,6 +198,86 @@ type private KeyReader(readKey : unit -> RT.Dval) =
       requests.Release() |> ignore<int>
 
 
+/// The stdin reader thread, for one `readStdin` source: what lets a process park on its next line
+/// of input instead of holding its scheduler's thread inside a blocking read.
+///
+/// The same discipline as `KeyReader`: demand-driven, so nothing is read that nobody asked for (a
+/// later synchronous read would find it gone), and at most one read in flight. A wait that a
+/// timer or another process beat leaves its read outstanding; the next request takes that read's
+/// answer rather than starting a second one. Because the answer is already decided by the request
+/// that started it, a request for something ELSE while one is outstanding is refused: it would get
+/// a line where it asked for a body.
+type private StdinReader(readStdin : StdinRequest -> StdinResult) =
+  let sync = obj ()
+  let requests = new SemaphoreSlim(0)
+  /// Who asked, oldest first, and for what. Each entry is one read.
+  let waiting = System.Collections.Generic.Queue<Queue * StdinRequest>()
+  let mutable inFlight : Option<StdinRequest> = None
+  /// End of input was read: every later request is answered at once, without a read.
+  let mutable ended = false
+
+  do
+    let thread =
+      Thread(
+        (fun () ->
+          while not ended do
+            requests.Wait()
+            let (q, request) = lock sync (fun () -> waiting.Peek())
+            let result =
+              try
+                readStdin request
+              with e ->
+                Error $"reading stdin failed: {e.Message}"
+            let rest =
+              lock sync (fun () ->
+                waiting.Dequeue() |> ignore<Queue * StdinRequest>
+                match result with
+                | Ok None -> ended <- true
+                | _ -> ()
+                if ended then
+                  // Nobody else gets a read; they all get the end.
+                  inFlight <- None
+                  let rest = List.ofSeq waiting
+                  waiting.Clear()
+                  rest
+                else
+                  match Seq.tryHead waiting with
+                  | Some(_, next) ->
+                    inFlight <- Some next
+                    requests.Release() |> ignore<int>
+                    []
+                  | None ->
+                    inFlight <- None
+                    [])
+            q.Post(HostEvent.Stdin(request, result))
+            for (q, request) in rest do
+              q.Post(HostEvent.Stdin(request, Ok None))),
+        threadStackBytes,
+        IsBackground = true,
+        Name = "dark-stdin-line-reader"
+      )
+    thread.Start()
+
+  /// Ask for one read, delivered to `q`. `Error` when a read of a different kind is queued
+  /// ahead of it: its answer is already decided, and it would arrive where this one is expected.
+  member _.Request(q : Queue, request : StdinRequest) : Result<unit, string> =
+    lock sync (fun () ->
+      if ended then
+        q.Post(HostEvent.Stdin(request, Ok None))
+        Ok()
+      else
+        match inFlight with
+        | Some other when other <> request ->
+          Error
+            $"a stdin wait asked for {request} while a read for {other} is still outstanding"
+        | _ ->
+          waiting.Enqueue((q, request))
+          if inFlight.IsNone then
+            inFlight <- Some request
+            requests.Release() |> ignore<int>
+          Ok())
+
+
 /// The store poll: `PRAGMA data_version` on a timer, posting `StoreChanged` to every watching
 /// queue once it has STOPPED moving. One per `storeVersion` source.
 ///
@@ -244,6 +345,9 @@ module Shared =
   let private sync = obj ()
   let mutable private reader : Option<(unit -> RT.Dval) * KeyReader> = None
   let mutable private poll : Option<(unit -> int64) * StorePoll> = None
+  let mutable private stdinReader
+    : Option<(StdinRequest -> StdinResult) * StdinReader> =
+    None
 
   /// Ask for one key, delivered to `q`. No-op when stdin is not a terminal (no source installed),
   /// in which case nothing will ever post `Key`.
@@ -260,6 +364,22 @@ module Shared =
             reader <- Some(readKey, r)
             r)
       r.Request q
+
+  /// Ask for one read of stdin, delivered to `q` as `Stdin`. `Error` without a source (nothing
+  /// would ever answer), or when a read of a different kind is outstanding.
+  let requestStdin (q : Queue) (request : StdinRequest) : Result<unit, string> =
+    match sources.readStdin with
+    | None -> Error "no stdin source is installed"
+    | Some readStdin ->
+      let r =
+        lock sync (fun () ->
+          match stdinReader with
+          | Some(source, r) when obj.ReferenceEquals(source, readStdin) -> r
+          | _ ->
+            let r = StdinReader readStdin
+            stdinReader <- Some(readStdin, r)
+            r)
+      r.Request(q, request)
 
   /// Start delivering `StoreChanged` to `q` every time the store's data version moves, polling
   /// every `intervalMs`. Idempotent. No-op without a version source.

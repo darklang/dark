@@ -390,72 +390,6 @@ let private installKeySource () : unit =
     HE.sources.readKey <- Some readOneKey
 
 
-/// `Stdlib.Host.EventSpec`, as F#.
-let private eventSpecOfDval (vm : VMState) (d : Dval) : HE.EventSpec =
-  match d with
-  | DEnum(_, _, _, "Key", []) -> HE.EventSpec.Key
-  | DEnum(_, _, _, "StoreChanged", []) -> HE.EventSpec.StoreChanged
-  | DEnum(_, _, _, "Timer", [ DInt64 ms ]) -> HE.EventSpec.Timer ms
-  | DEnum(_, _, _, "ExecDone", [ DUuid id ]) -> HE.EventSpec.ExecDone id
-  | _ ->
-    RuntimeError.UncaughtException("hostAwait: not an EventSpec", [ "spec", d ])
-    |> raiseRTE vm.threadID
-
-
-/// `Stdlib.Host.RawEvent`, from what the queue delivered. `Stdlib.Host.await` turns it into an
-/// `Event`, describing a store change on the way.
-let private eventToDval (ev : HE.HostEvent) : Dval =
-  let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.rawEvent ())
-  let case name fields = DEnum(typeName, typeName, [], name, fields)
-  match ev with
-  | HE.HostEvent.Key k -> case "Key" [ k ]
-  | HE.HostEvent.StoreChanged -> case "StoreChanged" []
-  | HE.HostEvent.Timer _ -> case "Timer" []
-  | HE.HostEvent.ExecDone id -> case "ExecDone" [ DUuid id ]
-  | HE.HostEvent.Completed _
-  | HE.HostEvent.Wake ->
-    Exception.raiseInternal
-      "an internal event reached a Dark subscriber"
-      [ "event", ev ]
-
-
-/// Wait for the first of `specs` without a scheduler: the thread is held, polling, exactly
-/// as `readKey` held it. `ExecDone` can never fire here (no scheduler, no processes) and is
-/// ignored; a list of only `ExecDone` specs is an internal error rather than a hang.
-let private awaitBlocking (specs : HE.EventSpec list) : HE.HostEvent =
-  let wantsKey = List.contains HE.EventSpec.Key specs
-  let wantsStore = List.contains HE.EventSpec.StoreChanged specs
-  let timer =
-    specs
-    |> List.tryPick (fun spec ->
-      match spec with
-      | HE.EventSpec.Timer ms -> Some ms
-      | _ -> None)
-  if not wantsKey && not wantsStore && timer.IsNone then
-    Exception.raiseInternal
-      "hostAwait outside the scheduler with nothing that can fire"
-      []
-  let started = Diagnostics.Stopwatch.StartNew()
-  let versionAt = HE.sources.storeVersion |> Option.map (fun v -> v ())
-  let mutable result = None
-  while result.IsNone do
-    if
-      wantsKey
-      && (Console.IsInputRedirected || pushedBack.IsSome || Console.KeyAvailable)
-    then
-      result <- Some(HE.HostEvent.Key(readOneKey ()))
-    else
-      match timer with
-      | Some ms when started.ElapsedMilliseconds >= ms ->
-        result <- Some(HE.HostEvent.Timer 0L)
-      | _ ->
-        match wantsStore, versionAt, HE.sources.storeVersion with
-        | true, Some before, Some version when version () <> before ->
-          result <- Some HE.HostEvent.StoreChanged
-        | _ -> Threading.Thread.Sleep 15
-  Option.get result
-
-
 /// Read exactly `byteLength` BYTES of input from `reader`, as text.
 ///
 /// The LSP frames each message with a `Content-Length` in bytes, and the header
@@ -498,6 +432,147 @@ let readExactlyBytes
   match error with
   | Some e -> Error e
   | None -> Ok(sb.ToString())
+
+
+/// One read of stdin, as the stdin reader thread does it: a line, or a byte count read through
+/// the same buffered reader (`readExactlyBytes`). The only place either is read once a scheduler
+/// is running, so a header line and the body after it come off one reader in order.
+let private readStdinFor (request : HE.StdinRequest) : HE.StdinResult =
+  match request with
+  | HE.StdinRequest.Line ->
+    match Console.In.ReadLine() with
+    | null -> Ok None
+    | line -> Ok(Some line)
+  | HE.StdinRequest.Bytes 0 -> Ok(Some "")
+  | HE.StdinRequest.Bytes n ->
+    readExactlyBytes Console.In Console.InputEncoding n |> Result.map Some
+
+/// Installed on the first wait for stdin, like the key source. Unlike keys it is installed for
+/// redirected stdin too: a pipe is exactly what a language server reads.
+let private installStdinSource () : unit =
+  if HE.sources.readStdin.IsNone then HE.sources.readStdin <- Some readStdinFor
+
+/// Park the calling process on one read of stdin, when there is a scheduler to park under.
+/// `None` outside one: the caller reads synchronously, as it always did.
+let private parkOnStdin (spec : HE.EventSpec) : Option<Ply<HE.StdinResult>> =
+  match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
+  | Some s, Some p ->
+    installStdinSource ()
+    let wake = s.Subscribe(p, [ spec ])
+    Some(
+      uply {
+        let! ev = wake
+        match ev with
+        | HE.HostEvent.Stdin(_, result) -> return result
+        | other ->
+          return
+            Exception.raiseInternal
+              "a stdin read woke on something that is not stdin"
+              [ "event", other ]
+      }
+    )
+  | _ -> None
+
+
+/// `Stdlib.Host.EventSpec`, as F#.
+let private eventSpecOfDval (vm : VMState) (d : Dval) : HE.EventSpec =
+  match d with
+  | DEnum(_, _, _, "Key", []) -> HE.EventSpec.Key
+  | DEnum(_, _, _, "StoreChanged", []) -> HE.EventSpec.StoreChanged
+  | DEnum(_, _, _, "Timer", [ DInt64 ms ]) -> HE.EventSpec.Timer ms
+  | DEnum(_, _, _, "ExecDone", [ DUuid id ]) -> HE.EventSpec.ExecDone id
+  | DEnum(_, _, _, "StdinLine", []) -> HE.EventSpec.StdinLine
+  | DEnum(_, _, _, "StdinBytes", [ DInt64 n ]) when
+    n >= 0L && n <= int64 Int32.MaxValue
+    ->
+    HE.EventSpec.StdinBytes(int n)
+  | _ ->
+    RuntimeError.UncaughtException("hostAwait: not an EventSpec", [ "spec", d ])
+    |> raiseRTE vm.threadID
+
+
+/// `Stdlib.Host.RawEvent`, from what the queue delivered. `Stdlib.Host.await` turns it into an
+/// `Event`, describing a store change on the way.
+let private eventToDval (vm : VMState) (ev : HE.HostEvent) : Dval =
+  let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.rawEvent ())
+  let case name fields = DEnum(typeName, typeName, [], name, fields)
+  match ev with
+  | HE.HostEvent.Key k -> case "Key" [ k ]
+  | HE.HostEvent.StoreChanged -> case "StoreChanged" []
+  | HE.HostEvent.Timer _ -> case "Timer" []
+  | HE.HostEvent.ExecDone id -> case "ExecDone" [ DUuid id ]
+  | HE.HostEvent.Stdin(_, Ok(Some text)) -> case "Stdin" [ DString text ]
+  | HE.HostEvent.Stdin(_, Ok None) -> case "StdinClosed" []
+  // Out of step: what comes next cannot be trusted, and a guess would be read as a message.
+  | HE.HostEvent.Stdin(_, Error e) ->
+    RuntimeError.UncaughtException($"reading stdin: {e}", [])
+    |> raiseRTE vm.threadID
+  | HE.HostEvent.Completed _
+  | HE.HostEvent.Wake ->
+    Exception.raiseInternal
+      "an internal event reached a Dark subscriber"
+      [ "event", ev ]
+
+
+/// Wait for the first of `specs` without a scheduler: the thread is held, polling, exactly
+/// as `readKey` held it. `ExecDone` can never fire here (no scheduler, no processes) and is
+/// ignored; a list of only `ExecDone` specs is an internal error rather than a hang.
+let private awaitBlockingPolling (specs : HE.EventSpec list) : HE.HostEvent =
+  let wantsKey = List.contains HE.EventSpec.Key specs
+  let wantsStore = List.contains HE.EventSpec.StoreChanged specs
+  let timer =
+    specs
+    |> List.tryPick (fun spec ->
+      match spec with
+      | HE.EventSpec.Timer ms -> Some ms
+      | _ -> None)
+  if not wantsKey && not wantsStore && timer.IsNone then
+    Exception.raiseInternal
+      "hostAwait outside the scheduler with nothing that can fire"
+      []
+  let started = Diagnostics.Stopwatch.StartNew()
+  let versionAt = HE.sources.storeVersion |> Option.map (fun v -> v ())
+  let mutable result = None
+  while result.IsNone do
+    if
+      wantsKey
+      && (Console.IsInputRedirected || pushedBack.IsSome || Console.KeyAvailable)
+    then
+      result <- Some(HE.HostEvent.Key(readOneKey ()))
+    else
+      match timer with
+      | Some ms when started.ElapsedMilliseconds >= ms ->
+        result <- Some(HE.HostEvent.Timer 0L)
+      | _ ->
+        match wantsStore, versionAt, HE.sources.storeVersion with
+        | true, Some before, Some version when version () <> before ->
+          result <- Some HE.HostEvent.StoreChanged
+        | _ -> Threading.Thread.Sleep 15
+  Option.get result
+
+
+/// `awaitBlockingPolling`, except that stdin on its own is a plain blocking read. Mixed with
+/// anything else it would need the reader thread, which only a scheduler drains, and nothing
+/// outside one asks for that.
+let private awaitBlocking (specs : HE.EventSpec list) : HE.HostEvent =
+  let isStdin (spec : HE.EventSpec) =
+    match spec with
+    | HE.EventSpec.StdinLine
+    | HE.EventSpec.StdinBytes _ -> true
+    | _ -> false
+  match specs with
+  | [ HE.EventSpec.StdinLine ] ->
+    HE.HostEvent.Stdin(HE.StdinRequest.Line, readStdinFor HE.StdinRequest.Line)
+  | [ HE.EventSpec.StdinBytes n ] ->
+    HE.HostEvent.Stdin(
+      HE.StdinRequest.Bytes n,
+      readStdinFor (HE.StdinRequest.Bytes n)
+    )
+  | _ when List.exists isStdin specs ->
+    Exception.raiseInternal
+      "hostAwait outside the scheduler can wait for stdin only on its own"
+      [ "specs", specs ]
+  | _ -> awaitBlockingPolling specs
 
 
 let fns () : List<BuiltInFn> =
@@ -547,12 +622,26 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString
-      description = "Reads a single line from the standard input."
+      description =
+        "Reads a single line from the standard input, or \"\" at its end. Under the scheduler "
+        + "the process parks until the line arrives."
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
-          let input = System.Console.ReadLine()
-          if input = null then Ply(DString "") else Ply(DString input)
+        | _, vm, _, [| DUnit |] ->
+          let ofResult (result : HE.StdinResult) : Dval =
+            match result with
+            | Ok(Some line) -> DString line
+            | Ok None -> DString ""
+            | Error e ->
+              RuntimeError.UncaughtException($"stdinReadLine: {e}", [])
+              |> raiseRTE vm.threadID
+          match parkOnStdin HE.EventSpec.StdinLine with
+          | Some wait ->
+            uply {
+              let! result = wait
+              return ofResult result
+            }
+          | None -> Ply(ofResult (readStdinFor HE.StdinRequest.Line))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -598,11 +687,25 @@ let fns () : List<BuiltInFn> =
           if length < 0 then
             RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
           else
-            match readExactlyBytes Console.In Console.InputEncoding length with
-            | Ok input -> Ply(DString input)
-            | Error e ->
-              RuntimeError.UncaughtException($"stdinReadExactly: {e}", [])
-              |> raiseRTE vm.threadID
+            let ofResult (result : HE.StdinResult) : Dval =
+              match result with
+              | Ok(Some input) -> DString input
+              | Ok None ->
+                RuntimeError.UncaughtException(
+                  $"stdinReadExactly: input ended after 0 of {length} bytes",
+                  []
+                )
+                |> raiseRTE vm.threadID
+              | Error e ->
+                RuntimeError.UncaughtException($"stdinReadExactly: {e}", [])
+                |> raiseRTE vm.threadID
+            match parkOnStdin (HE.EventSpec.StdinBytes length) with
+            | Some wait ->
+              uply {
+                let! result = wait
+                return ofResult result
+              }
+            | None -> Ply(ofResult (readStdinFor (HE.StdinRequest.Bytes length)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -656,14 +759,23 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DList(_, specs) |] ->
           let specs = specs |> List.map (eventSpecOfDval vm)
           if List.contains HE.EventSpec.Key specs then installKeySource ()
+          if
+            specs
+            |> List.exists (fun spec ->
+              match spec with
+              | HE.EventSpec.StdinLine
+              | HE.EventSpec.StdinBytes _ -> true
+              | _ -> false)
+          then
+            installStdinSource ()
           match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
           | Some s, Some p ->
             let wake = s.Subscribe(p, specs)
             uply {
               let! ev = wake
-              return eventToDval ev
+              return eventToDval vm ev
             }
-          | _ -> Ply(eventToDval (awaitBlocking specs))
+          | _ -> Ply(eventToDval vm (awaitBlocking specs))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       // Static, so the union of what any spec could need: a key is stdin, a store change is a

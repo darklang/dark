@@ -33,6 +33,8 @@ let eventSpecText (spec: Stdlib.Host.EventSpec) : String =
   | StoreChanged -> "a store change"
   | Timer ms -> $"a timer ({Stdlib.toString ms} ms)"
   | ExecDone id -> $"process {Cli.Text.shortId id} to finish"
+  | StdinLine -> "a line of input"
+  | StdinBytes n -> $"{Stdlib.toString n} bytes of input"
 
 
 let parkedText (branchId: Uuid) (parked: Stdlib.Exec.ParkedOn) : String =

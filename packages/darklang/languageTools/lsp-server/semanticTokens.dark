@@ -163,7 +163,7 @@ let handleSemanticTokensRequest
   (requestId: JsonRPC.RequestID)
   (requestParams:
     LanguageServerProtocol.SemanticTokens.SemanticTokensRequest.SemanticTokensParams.SemanticTokensParams)
-  : LspState =
+  : (LspState * String) =
   let (state, relevantDoc) =
     DocSync.analysed state requestParams.textDocument.uri
 
@@ -175,7 +175,7 @@ let handleSemanticTokensRequest
       $"Failed to find document text in language server's cache: {requestParams.textDocument.uri}"
       Stdlib.Option.Option.None)
     |> Stdlib.AltJson.format
-    |> logAndSendToClient
+    |> (fun reply -> (state, reply))
 
   | Some((_doc, analysis)) ->
     let parsed = analysis.parsed
@@ -207,7 +207,7 @@ let handleSemanticTokensRequest
           JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
         |> Stdlib.AltJson.format
 
-      logAndSendToClient resultJson
+      (state, resultJson)
 
     | Error parseError ->
       (JsonRPC.Response.Error.make
@@ -216,6 +216,4 @@ let handleSemanticTokensRequest
         $"Couldn't parse code for syntax highlighting: {requestParams.textDocument.uri}"
         Stdlib.Option.Option.None)
       |> Stdlib.AltJson.format
-      |> logAndSendToClient
-
-  state
+      |> (fun reply -> (state, reply))

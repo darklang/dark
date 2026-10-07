@@ -1,0 +1,162 @@
+/// Requests answered beside the loop rather than in it.
+///
+/// The loop reads one message at a time, and anything that changes what the server knows (a
+/// document opened, changed, saved or closed, a branch switched) is handled right there, in
+/// order. A request that only READS (hover, completion, semantic tokens, inlay hints) is
+/// spawned instead, against the state as it stands when the request arrives, and the loop goes
+/// straight back to reading. So a slow hover no longer holds up the completion typed after it,
+/// and a `$/cancelRequest` is read while the work it cancels is still running.
+///
+/// Three rules make this safe, and each is here rather than left to timing:
+/// - ORDER. A request sees every notification that arrived before it, because the loop applied
+///   them before spawning it; the state it gets is a value, so nothing that arrives later can
+///   change it underneath. It answers about the document as it was when it was asked, which is
+///   what the protocol means by processing messages in order. Two reads need no order between
+///   them, and their replies may go out in either order, which the protocol allows.
+/// - ONE WRITER. A spawned request never writes to stdout. It hands its reply back
+///   (`Answer`), and the loop writes it. So two replies cannot interleave, and a request that
+///   was cancelled cannot also answer: the loop forgets it when it cancels, and drops whatever
+///   it finishes with.
+/// - ONE ANALYSIS KEPT PER TEXT. An analysis a request works out is kept only if the document
+///   still holds the text it was made from (`keepAnalysis`), and its diagnostics are published
+///   by the loop when it is kept (`DocSync.publishNewAnalyses`), so a stale analysis never
+///   reaches the editor.
+module Darklang.LanguageTools.LspServer.Concurrent
+
+
+/// The LSP's code for a request the client cancelled.
+val requestCancelled = -32800
+
+
+/// Answer `answer` in a process of its own, against `state` as it is now, and remember it.
+let spawnRequest
+  (state: LspState)
+  (requestId: JsonRPC.RequestID)
+  (method: String)
+  (uri: String)
+  (answer: LspState -> (LspState * String))
+  : LspState =
+  let handle =
+    Stdlib.Exec.spawn (fun _ ->
+      let (after, reply) = answer state
+
+      LanguageTools.LspServer.Answer
+        { reply = reply
+          document = Stdlib.Dict.get after.documentsInScope uri })
+
+  let request =
+    LanguageTools.LspServer.InFlight
+      { requestId = requestId
+        method = method
+        uri = uri
+        handle = handle }
+
+  { state with inFlight = Stdlib.List.push state.inFlight request }
+
+
+/// What the loop waits for besides the next message: each request in flight finishing.
+let waits (state: LspState) : List<Stdlib.Host.EventSpec> =
+  state.inFlight
+  |> Stdlib.List.map (fun r -> Stdlib.Host.EventSpec.ExecDone r.handle.id)
+
+
+/// Keep the analysis a request worked out, if the document still holds the text it was made
+/// from, on the branch it was made for, and the loop does not already have it.
+let keepAnalysis
+  (state: LspState)
+  (answered: Stdlib.Option.Option<DocumentInScope>)
+  : LspState =
+  match answered with
+  | None -> state
+  | Some answeredDoc ->
+    match (Stdlib.Dict.get state.documentsInScope answeredDoc.uri, answeredDoc.analysis) with
+    | (Some current, Some analysis) ->
+      let sameText = current.text == answeredDoc.text
+      let sameBranch = analysis.branchId == state.currentBranchId
+
+      // Better than what the loop has: none at all, one for another branch, or the same one
+      // without the hover package manager the request went on to build.
+      let better =
+        match current.analysis with
+        | None -> true
+        | Some held ->
+          if held.branchId != analysis.branchId then
+            true
+          else
+            Stdlib.Option.isNone held.hoverPM && Stdlib.Option.isSome analysis.hoverPM
+
+      if sameText && sameBranch && better then
+        DocSync.remember state answeredDoc
+      else
+        state
+    | _ -> state
+
+
+/// The request behind `id` finished: keep what it learned, write its reply.
+///
+/// A process that failed has no answer to take, and `Exec.await` would raise its error in the
+/// loop and take the server down with it. So it is asked how it ended first, and a failure
+/// becomes an error reply to that one request.
+let finish (state: LspState) (id: Uuid) : LspState =
+  match state.inFlight |> Stdlib.List.findFirst (fun r -> r.handle.id == id) with
+  // Cancelled, and already answered as such.
+  | None -> state
+  | Some request ->
+    let state =
+      { state with
+          inFlight = state.inFlight |> Stdlib.List.filter (fun r -> r.handle.id != id) }
+
+    let failure =
+      match Stdlib.Exec.inspect id with
+      | Some detail ->
+        match detail.summary.status with
+        | Failed rte ->
+          Stdlib.Option.Option.Some(
+            PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId rte
+          )
+        | _ -> Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+
+    match failure with
+    | Some message ->
+      log $"{request.method} failed: {message}"
+
+      (JsonRPC.Response.Error.make
+        (Stdlib.Option.Option.Some request.requestId)
+        JsonRPC.Response.Error.KnownErrorCodes.internalError
+        $"{request.method} failed: {message}"
+        Stdlib.Option.Option.None)
+      |> Stdlib.AltJson.format
+      |> logAndSendToClient
+
+      state
+    | None ->
+      let answer = Stdlib.Exec.await request.handle
+      let kept = keepAnalysis state answer.document
+      DocSync.publishNewAnalyses state kept
+      logAndSendToClient answer.reply
+      kept
+
+
+/// `$/cancelRequest`: stop the request with this id, if it is still running, and tell the
+/// client it was cancelled. One that has already answered is not mentioned again, as the
+/// protocol asks.
+let cancel (state: LspState) (requestId: JsonRPC.RequestID) : LspState =
+  match state.inFlight |> Stdlib.List.findFirst (fun r -> r.requestId == requestId) with
+  | None -> state
+  | Some request ->
+    let _ = Stdlib.Exec.cancel request.handle
+    log $"cancelled {request.method}"
+
+    (JsonRPC.Response.Error.make
+      (Stdlib.Option.Option.Some requestId)
+      requestCancelled
+      "Request cancelled"
+      Stdlib.Option.Option.None)
+    |> Stdlib.AltJson.format
+    |> logAndSendToClient
+
+    { state with
+        inFlight =
+          state.inFlight
+          |> Stdlib.List.filter (fun r -> r.handle.id != request.handle.id) }

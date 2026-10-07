@@ -21,6 +21,12 @@ type EventSpec =
   | Timer of ms: Int64
   /// A process (`Exec.list` shows their ids) finished.
   | ExecDone of id: Uuid
+  /// The next line of stdin, without its line ending.
+  | StdinLine
+  /// The next this-many BYTES of stdin, as text: a body framed by a `Content-Length`. A wait for
+  /// stdin that something else beat leaves its read outstanding, and the next stdin wait must
+  /// ask for the same thing, since that read's answer is already on its way.
+  | StdinBytes of bytes: Int64
 
 
 /// What the runtime delivers: the first of the requested specs to happen, before `await` has
@@ -30,6 +36,8 @@ type RawEvent =
   | StoreChanged
   | Timer
   | ExecDone of id: Uuid
+  | Stdin of text: String
+  | StdinClosed
 
 
 /// What `Host.await` came back with: the first of the requested specs to happen.
@@ -42,6 +50,11 @@ type Event =
   | StoreChanged of Stdlib.Live.Change
   | Timer
   | ExecDone of id: Uuid
+  /// What a `StdinLine` or `StdinBytes` read. A stream that went out of step (a byte count that
+  /// ends inside a character) raises rather than arriving here.
+  | Stdin of text: String
+  /// Stdin ended: nothing more will arrive.
+  | StdinClosed
 
 
 /// The watch behind `await`: where its last look at the op log left off. The runtime posts that
@@ -81,6 +94,8 @@ let await (specs: List<EventSpec>) : Event =
   | Key k -> Event.Key k
   | Timer -> Event.Timer
   | ExecDone id -> Event.ExecDone id
+  | Stdin text -> Event.Stdin text
+  | StdinClosed -> Event.StdinClosed
   | StoreChanged ->
     match describeChange () with
     | Some change -> Event.StoreChanged change
