@@ -43,7 +43,9 @@ type Test =
 
 
 // Bind test listeners through the production host boundary; test setup is trusted.
-let bindListener (port : int) : Task<System.Net.HttpListener> =
+let private tryBindListener
+  (port : int)
+  : Task<Result<System.Net.HttpListener, LibExecution.Host.Outcome>> =
   task {
     let access =
       LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
@@ -58,9 +60,8 @@ let bindListener (port : int) : Task<System.Net.HttpListener> =
         response
         |> LibExecution.Host.expectHttpServerHandle
         |> LibExecution.Host.takeHttpServerListener
-    | other ->
-      return
-        Exception.raiseInternal "could not bind test listener" [ "outcome", other ]
+        |> Ok
+    | other -> return Error other
   }
 
 
@@ -182,15 +183,34 @@ module ParseTest =
             request = Array.take (test.request.Length - 2) test.request }
 
 
-/// Allocate a free TCP port on loopback. Brief race: another process could
-/// grab the port between Stop() and the listener using it, but in practice
-/// loopback ephemeral ports are fine for in-process tests.
+/// Ask the kernel for a free loopback port, then release it.
 let allocateFreePort () : int =
   let listener = new TcpListener(IPAddress.Loopback, 0)
   listener.Start()
   let port = (listener.LocalEndpoint :?> IPEndPoint).Port
   listener.Stop()
   port
+
+
+/// `HttpListener` cannot bind port 0, so the port is probed and released first, and in a
+/// full suite another socket can take it in between: that is the "could not bind test
+/// listener" flake. A failed bind tries a fresh port instead of failing the test.
+let bindListenerWith (allocate : unit -> int) : Task<int * System.Net.HttpListener> =
+  let rec attempt (triesLeft : int) =
+    task {
+      let port = allocate ()
+      match! tryBindListener port with
+      | Ok listener -> return (port, listener)
+      | Error _ when triesLeft > 1 -> return! attempt (triesLeft - 1)
+      | Error outcome ->
+        return
+          Exception.raiseInternal
+            "could not bind test listener"
+            [ "port", port; "outcome", outcome ]
+    }
+  attempt 5
+
+let bindFreshListener () = bindListenerWith allocateFreePort
 
 
 /// Build a router DApplicable from the test's parsed handlers. Compiles
@@ -433,10 +453,9 @@ let private runFixture (test : Test) : Task<unit> =
 
     let! handler = buildRouterForTest exeState test
 
-    let port = allocateFreePort ()
     let cts = new CancellationTokenSource()
 
-    let! listener = bindListener port
+    let! port, listener = bindFreshListener ()
 
     let listenerTask =
       HttpServer.runListener
@@ -485,9 +504,8 @@ let private runRequestsAgainst
         request = [||]
         expectedResponse = [||] }
     let! handler = buildRouterForTest exeState test
-    let port = allocateFreePort ()
     let cts = new CancellationTokenSource()
-    let! listener = bindListener port
+    let! port, listener = bindFreshListener ()
     let listenerTask =
       HttpServer.runListener
         exeState
@@ -690,6 +708,27 @@ let private serveRejectsOutOfRangeArgs =
   }
 
 
+let private bindRetriesATakenPort =
+  testTask "a test listener whose probed port is taken binds on another" {
+    let squatter = new TcpListener(IPAddress.Any, 0)
+    squatter.Start()
+    let taken = (squatter.LocalEndpoint :?> IPEndPoint).Port
+    try
+      let mutable offered = []
+      let allocate () =
+        let port = if List.isEmpty offered then taken else allocateFreePort ()
+        offered <- port :: offered
+        port
+      let! (port : int), (listener : System.Net.HttpListener) =
+        bindListenerWith allocate
+      listener.Close()
+      Expect.notEqual port taken "it moved off the taken port"
+      Expect.equal (List.last offered) (Some taken) "the taken port was tried first"
+    finally
+      squatter.Stop()
+  }
+
+
 let tests =
   let t rootDir (filename : string) =
     testTask $"Http files: {filename}" {
@@ -721,6 +760,7 @@ let tests =
   testList
     "HttpServer"
     (serveRejectsOutOfRangeArgs
+     :: bindRetriesATakenPort
      :: concurrentEphemeralBlobRequests
      :: requestsAreProcesses
      :: fileTestLists)
