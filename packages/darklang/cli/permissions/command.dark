@@ -77,7 +77,10 @@ let approvedVersions
 
 /// The approved hashes, each labelled with the name that resolves to it when there is one. A hash
 /// with no name is a dependency approved inside another root's closure.
-let namedApprovals (accountID: Stdlib.Option.Option<Uuid>) : List<String> =
+let namedApprovals
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
+  : List<String> =
   let byName = Command.approvedVersions accountID
   Command.approvedHashes accountID
   |> Stdlib.List.map (fun hash ->
@@ -90,7 +93,30 @@ let namedApprovals (accountID: Stdlib.Option.Option<Uuid>) : List<String> =
       |> Stdlib.List.head
     match named with
     | Some name -> $"{hash}  {name}"
-    | None -> hash)
+    | None ->
+      match Command.dependencyName branchId hash with
+      | Some name -> $"{hash}  {name} (dependency)"
+      | None -> hash)
+
+/// The store's name for an approved dependency's hash, when it has one on <param branchId>.
+let dependencyName
+  (branchId: Uuid)
+  (hash: String)
+  : Stdlib.Option.Option<String> =
+  let locations =
+    LanguageTools.PackageManager.Function.locations
+      branchId
+      (LanguageTools.ProgramTypes.Hash.Hash hash)
+  match
+    LanguageTools.PackageManager.pickLocation
+      LanguageTools.PackageManager.PickContext.empty
+      locations
+  with
+  | Some l ->
+    Stdlib.Option.Option.Some(
+      PrettyPrinter.RuntimeTypes.packageName l.owner l.modules l.name
+    )
+  | None -> Stdlib.Option.Option.None
 
 /// Approve an immutable closure and point its logical name at that version, atomically. The builtin
 /// compares the contract before storing approval; a changed contract returns diffs for explicit
@@ -748,7 +774,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // Name the ones an approved version points at. The rest are dependencies approved as part of
     // some root's closure and have no name of their own, but a page of bare hashes gave no way to
     // tell those two apart.
-    Command.printListOrNone (Command.namedApprovals state.accountID)
+    Command.printListOrNone (Command.namedApprovals state.accountID state.currentBranchId)
     if Command.approvalsStale () then
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.warning

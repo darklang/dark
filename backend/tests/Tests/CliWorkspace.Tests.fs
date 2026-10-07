@@ -165,6 +165,27 @@ let approvedSqliteOnTheStoreRuns =
         do! run state [ "permissions"; "unapprove"; "Tests.SqliteAppr.probe" ]
         do! discardAll state
       })
+/// A dependency approved as part of a root's closure has no approved name, and it used to be
+/// listed as a bare hash. That listing is where the stale-approvals warning sends people, so a
+/// row nobody can identify was most of the problem.
+let approvalsNameTheirDependencies =
+  instanceTest "permissions approvals names the dependencies it lists" (fun state ->
+    task {
+      do!
+        fn
+          state
+          "Tests.DepName.measure"
+          "() : Int64 = Stdlib.String.length \"probe\""
+      do! run state [ "permissions"; "approve"; "Tests.DepName.measure"; "--yes" ]
+      do!
+        shows
+          state
+          [ "permissions"; "approvals" ]
+          "Darklang.Stdlib.String.length (dependency)"
+          "a closure member is shown by its store name"
+      do! run state [ "permissions"; "unapprove"; "Tests.DepName.measure" ]
+      do! discardAll state
+    })
 
 /// Three store reads used to declare no effect, so `requirements` answered "effect-free" for
 /// every Dark function that reached the store through them. Each wrapper is the one Dark caller
@@ -1663,6 +1684,7 @@ let tests : List<Test> =
     permissionsLists
     storeReadsRequirePackageRead
     approvedSqliteOnTheStoreRuns
+    approvalsNameTheirDependencies
     anApprovedVersionIsWhatRuns
     unapprovingAnUnapprovedNameSaysSo
     dbAndTracesAnswer

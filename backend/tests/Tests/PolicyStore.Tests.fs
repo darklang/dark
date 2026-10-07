@@ -503,6 +503,49 @@ let reapprovingOneRootLeavesOthersStale =
       "every root now reviewed under f2"
   }
 
+/// A denial asks which approvals installed a member's policy. The answer is every root whose
+/// closure holds it, named the way it was approved, and stale if any of them predates the
+/// running binary's builtin declarations.
+let originNamesTheApprovingRoots =
+  test "a member policy's origin names its approving roots and their staleness" {
+    let approval fp hashes : PolicyStore.RootApproval =
+      { closure = Set.ofList hashes; fingerprint = fp; explicitPolicy = None }
+    let rootA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    let rootB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    let store : PolicyStore.Store =
+      { PolicyStore.empty with
+          approvedRoots =
+            Map.ofList
+              [ scoped rootA, approval "f1" [ rootA; "dep" ]
+                scoped rootB, approval "f2" [ rootB; "dep" ] ]
+          approvedVersions = Map.ofList [ scoped "Tests.Probe.a", rootA ] }
+
+    let origin = PolicyStore.originOfIn store None "f2" "dep"
+    Expect.equal
+      origin
+      (Some(
+        { approvedAs = [ "Tests.Probe.a"; "bbbbbbbb" ]; stale = true }
+        : LibExecution.RuntimeTypes.PackagePolicyOrigin
+      ))
+      "both roots, A by its name and B by short hash; A predates f2"
+
+    Expect.equal
+      (PolicyStore.originOfIn store None "f2" rootB)
+      (Some(
+        { approvedAs = [ "bbbbbbbb" ]; stale = false }
+        : LibExecution.RuntimeTypes.PackagePolicyOrigin
+      ))
+      "B alone, reviewed under the current fingerprint"
+
+    Expect.isNone
+      (PolicyStore.originOfIn store None "f2" "nobody")
+      "a policy no approval installed has no origin"
+
+    Expect.isNone
+      (PolicyStore.originOfIn store (Some(System.Guid.NewGuid())) "f2" "dep")
+      "another account's approvals are not this account's origin"
+  }
+
 let tests =
   testList
     "policyStore"
@@ -517,4 +560,5 @@ let tests =
       reapprovingWithSmallerClosureDropsObsoleteDeps
       approvingADependencyKeepsItsOwnRootApproval
       approvalAndPinAreOneTransaction
-      reapprovingOneRootLeavesOthersStale ]
+      reapprovingOneRootLeavesOthersStale
+      originNamesTheApprovingRoots ]

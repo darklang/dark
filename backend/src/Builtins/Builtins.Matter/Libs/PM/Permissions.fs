@@ -49,23 +49,7 @@ let private builtinEffects (state : ExecutionState) : BuiltinEffects =
     sorted
     |> List.map (fun (k, b) -> (k.name, k.version), b.callEffects)
     |> Map.ofList
-  let lines =
-    $"analysis={LibExecution.CallGraph.analysisVersion}"
-    :: (sorted
-        |> List.map (fun (k, b) ->
-          let effects =
-            b.callEffects
-            |> Set.toList
-            |> List.map LibExecution.Effects.name
-            |> List.sort
-            |> String.concat ","
-          $"{k.name}@{k.version}={effects}"))
-  use sha = System.Security.Cryptography.SHA256.Create()
-  let fingerprint =
-    sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(String.concat "\n" lines))
-    |> Array.take 8
-    |> Array.map (fun b -> b.ToString("x2"))
-    |> String.concat ""
+  let fingerprint = PolicyStore.builtinFingerprint state.fns.builtIn
   { callEffectsFor = (fun key -> Map.tryFind key byIdentity)
     fingerprint = fingerprint }
 

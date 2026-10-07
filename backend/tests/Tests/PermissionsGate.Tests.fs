@@ -200,6 +200,42 @@ let sqliteOwnDatabaseWriteNeedsOnlyNative =
     expectNotDenied actual
   }
 
+/// After an upgrade changes what a builtin declares, a policy installed by an older approval can
+/// stop covering a call it used to cover. The denial has to say which approval that was and why it
+/// stopped being enough, not just print a policy hash nobody has seen.
+let packageDenialNamesStaleApproval =
+  testTask "a package denial names the approval and says when it is stale" {
+    let hash = "permissions-package-stale"
+    let fn = ceilingFn hash None clockBody
+    let withOrigin (stale : bool) (state : RT.ExecutionState) =
+      { denyPackage hash state with
+          packagePolicyOrigin =
+            fun id ->
+              if id = hash then
+                Some(
+                  { approvedAs = [ "Tests.Probe.run" ]; stale = stale }
+                  : RT.PackagePolicyOrigin
+                )
+              else
+                None }
+
+    let! stale = runPackageFnWith (withOrigin true) (pmWith [ fn ]) hash
+    expectDenied
+      [ "came from approving `Tests.Probe.run`"
+        "before this version of Dark changed what its builtins declare"
+        "`permissions approve Tests.Probe.run`" ]
+      stale
+
+    let! fresh = runPackageFnWith (withOrigin false) (pmWith [ fn ]) hash
+    expectDenied [ "came from approving `Tests.Probe.run`" ] fresh
+    match fresh with
+    | Error(RTE.Error.UncaughtException(msg, _), _) ->
+      Expect.isFalse
+        (msg.Contains "before this version of Dark")
+        $"a current approval is not called stale, got: {msg}"
+    | _ -> ()
+  }
+
 let escapedLambdaKeepsAccess =
   testTask "a returned lambda keeps its creator's package access" {
     let producerHash = "permissions-lambda-producer"
@@ -851,6 +887,7 @@ let tests =
       newRunPolicyDenies
       packagePolicyDenies
       sqliteOwnDatabaseWriteNeedsOnlyNative
+      packageDenialNamesStaleApproval
       escapedLambdaKeepsAccess
       evaluatedNamedFnInContainerCannotWidenReentry
       partiallyAppliedNamedFnCapturesAccess

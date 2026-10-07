@@ -35,18 +35,29 @@ let private denialMessage
   (reason : Permission.PolicyDenial)
   (layer : Permission.Layer)
   (suggestion : Option<string>)
+  (origin : Option<PackagePolicyOrigin>)
   : string =
+  let quoted (names : List<string>) =
+    names |> List.map (fun n -> $"`{n}`") |> String.concat ", "
   let remedy =
-    match layer, suggestion with
-    | Permission.Layer.Instance, Some rule ->
+    match layer, suggestion, origin with
+    | Permission.Layer.Instance, Some rule, _ ->
       $"To allow: `dark permissions allow {rule}`."
-    | Permission.Layer.Instance, None -> "Configure the instance policy."
-    | Permission.Layer.Run, _ -> "Start the run with a broader permission policy."
-    | Permission.Layer.Package _, _ ->
+    | Permission.Layer.Instance, None, _ -> "Configure the instance policy."
+    | Permission.Layer.Run, _, _ -> "Start the run with a broader permission policy."
+    | Permission.Layer.Package _, _, Some({ stale = true } as o) ->
+      let first = List.tryHead o.approvedAs |> Option.defaultValue "<fn>"
+      $"That policy came from approving {quoted o.approvedAs}, which was reviewed "
+      + "before this version of Dark changed what its builtins declare, so it never "
+      + $"covered this. To re-review: `permissions approve {first}`."
+    | Permission.Layer.Package _, _, Some o ->
+      $"That policy came from approving {quoted o.approvedAs}. To approve: "
+      + "`permissions approve <fn>`, naming the function that needs it."
+    | Permission.Layer.Package _, _, None ->
       // Approval is by logical name, not by the policy id printed above: the
       // id names the immutable version, and the name is what a person has.
       "To approve: `permissions approve <fn>`, naming the function that needs it."
-    | Permission.Layer.Function _, _ ->
+    | Permission.Layer.Function _, _, _ ->
       "The function's declared ceiling does not allow this operation."
   $"permission denied by {layerName layer}: {resource} is {reasonText reason}. {remedy}"
 
@@ -62,7 +73,14 @@ let private raiseDenial
   lock state.deniedRequests (fun () ->
     state.deniedRequests.Add
       { layer = layer; resource = resource; suggestion = suggestion })
-  RuntimeError.UncaughtException(denialMessage resource reason layer suggestion, [])
+  let origin =
+    match layer with
+    | Permission.Layer.Package id -> state.packagePolicyOrigin id
+    | _ -> None
+  RuntimeError.UncaughtException(
+    denialMessage resource reason layer suggestion origin,
+    []
+  )
   |> raiseUntargetedRTE
 
 let private raiseRejected (message : string) : 'a =
