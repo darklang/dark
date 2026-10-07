@@ -40,9 +40,11 @@ runs one command with its output captured. `Browser` is the seam to the page: ke
 session info, clear); everything else is the real `Builtins.Cli`/`CliHost`/`Matter`.
 `site.js` holds the pages' shared boot and helpers.
 
-`RunAOTCompilation` is on because the interpreter's F# `task` loop could not suspend a second
-time under the mono interpreter. A few big leaf assemblies stay interpreted; interpreting the
-BCL wholesale asserts when compiled F# generics call into it. `InvariantGlobalization` drops ICU.
+`RunAOTCompilation` is on for what ships, because it runs faster. To iterate, publish with
+`-p:RunAOTCompilation=false`: about two minutes against four to eight, and the interactive prompt
+works under the mono interpreter now that `driveToEnd` has no `task` state machine to block in. A
+few big leaf assemblies stay interpreted in the AOT build; interpreting the BCL wholesale asserts
+when compiled F# generics call into it. `InvariantGlobalization` drops ICU.
 
 ## The store, and the secret
 

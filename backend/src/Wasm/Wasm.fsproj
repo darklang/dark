@@ -13,9 +13,8 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);publish/**</DefaultItemExcludes>
     <!-- size levers; AOT is slower to build but shrinks/speeds the result -->
     <PublishTrimmed>true</PublishTrimmed>
-    <!-- AOT: the interpreter's F# task state machines could not suspend a second time under
-         the mono interpreter (a blocking wait on the browser's one thread). Compiled, they can.
-         Slower to build, faster to run. -->
+    <!-- AOT: slower to build, faster to run. Not required: `-p:RunAOTCompilation=false`
+         publishes in about two minutes and runs the interactive prompt (see README). -->
     <RunAOTCompilation>true</RunAOTCompilation>
     <!-- No ICU: the CLI's string work is ordinal/invariant, and the ICU data is ~1 MB gz plus
          load time on every cold start. -->
