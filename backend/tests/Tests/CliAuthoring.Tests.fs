@@ -1084,6 +1084,88 @@ let helpExamplesRun : List<Test> =
     HelpExamples.runPage [ "docs"; "for-ai" ] true 2 ]
 
 
+/// A save that REPLACES an implementation must not pin its own calls to the one it replaces.
+///
+/// An implementation is named by its module, the head name of its self type and its trait, so
+/// `impl Tag for B.Box` in module `M` lands on the name `impl Tag for A.Box` held, and replaces it.
+/// Save-time pinning runs before the batch is stored and read implementations by name, so it still
+/// saw the old one: `h` below was pinned to it, propagation moved that name to the new
+/// implementation's fn, and `h` raised a parameter mismatch at run time.
+///
+/// The other half is what must not break, and it fails as a `MissingImpl` at save rather than at
+/// run time: a call to an implementation the batch does not replace, including one the batch
+/// re-saves unchanged, still sees it.
+let aReplacedImplementationIsNotPinned =
+  instanceTest
+    "a save does not pin its calls to an implementation it replaces"
+    (fun state ->
+      task {
+        do! start state
+        let modul (name : string) (source : string) =
+          let file =
+            System.IO.Path.Combine(
+              System.IO.Path.GetTempPath(),
+              $"dark-{name}.dark"
+            )
+          System.IO.File.WriteAllText(file, source)
+          [ "module"; name; file ]
+
+        do! run state (modul "Tests.ReplA" "type Box = { replA: Int64 }\n")
+        do! run state (modul "Tests.ReplB" "type Box = { replB: Int64 }\n")
+        do!
+          run
+            state
+            (modul "Tests.ReplT" "trait Tag<'a> =\n  let replTag (v: 'a) : String\n")
+        let aImpl =
+          "impl Tests.ReplT.Tag for Tests.ReplA.Box =\n  let replTag (b: Tests.ReplA.Box) : String = \"a\"\n"
+        do! run state (modul "Tests.ReplM" aImpl)
+
+        do!
+          lacks
+            state
+            (modul
+              "Tests.ReplO"
+              ("type Mark = { replM: Int64 }\n\n"
+               + "impl Tests.ReplT.Tag for Mark =\n  let replTag (m: Mark) : String = \"mark\"\n\n"
+               + "let usesExisting () : String = Tests.ReplT.Tag.replTag (Tests.ReplA.Box { replA = 1L })\n"))
+            "MissingImpl"
+            "a batch binding an unrelated implementation still sees the existing one"
+        do! evals state "Tests.ReplO.usesExisting ()" "a" "and the call runs it"
+
+        do!
+          lacks
+            state
+            (modul
+              "Tests.ReplM"
+              (aImpl
+               + "\nlet sameAgain () : String = Tests.ReplT.Tag.replTag (Tests.ReplA.Box { replA = 2L })\n"))
+            "MissingImpl"
+            "re-saving an implementation unchanged does not count as replacing it"
+
+        do!
+          shows
+            state
+            (modul
+              "Tests.ReplM"
+              ("impl Tests.ReplT.Tag for Tests.ReplB.Box =\n  let replTag (b: Tests.ReplB.Box) : String = \"b\"\n\n"
+               + "let h (x: Tests.ReplA.Box) : String = Tests.ReplT.Tag.replTag x\n\n"
+               + "let g (x: Tests.ReplB.Box) : String = Tests.ReplT.Tag.replTag x\n"))
+            "MissingImpl"
+            "the save says the A.Box call has nothing left to run"
+        do!
+          evals
+            state
+            "Tests.ReplM.g (Tests.ReplB.Box { replB = 1L })"
+            "b"
+            "the call the new implementation applies to runs it"
+        do!
+          evals
+            state
+            "Tests.ReplM.h (Tests.ReplA.Box { replA = 1L })"
+            "has no implementation"
+            "and the other was not pinned to the implementation the save replaced"
+      })
+
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
     traitsAreAuthoredListedAndDisambiguated
@@ -1100,5 +1182,6 @@ let tests : List<Test> =
     aRefusedImplementationOrBoundSavesNothing
     commitRefusesABoundThatNamesNothing
     aMismatchedImplementationIsReportedAtSave
-    aFailedModuleSaveDoesNotEndOnATick ]
+    aFailedModuleSaveDoesNotEndOnATick
+    aReplacedImplementationIsNotPinned ]
   @ helpExamplesRun

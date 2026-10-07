@@ -464,6 +464,56 @@ let withBatch
   { env with batchTraits = batchTraits; traitImpls = traitImpls }
 
 
+/// <param env> without the store's implementations that <param ops> rebind to something else.
+///
+/// Implementations are read by NAME on the branch, and a save rebinds names. Before the batch is
+/// stored, which is when save-time pinning asks, an implementation the batch re-declares under a
+/// different hash is still bound, so a call saved beside its replacement was pinned to the one
+/// being replaced, and the report after the save disagreed with the pin. Without it, the check
+/// sees the store as it will be once the batch lands. An implementation also bound somewhere the
+/// batch does not touch stays, and so does one the batch binds itself.
+let withoutReplaced
+  (env: Model.Environment)
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Model.Environment =
+  let rebound =
+    ops
+    |> Stdlib.List.filterMap (fun op ->
+      match op with
+      | SetName(location, PackageTraitImpl hash, _) ->
+        Stdlib.Option.Option.Some((location, hash))
+      | _ -> Stdlib.Option.Option.None)
+
+  let reboundLocations = rebound |> Stdlib.List.map (fun (location, _) -> location)
+  let batchHashes = rebound |> Stdlib.List.map (fun (_, hash) -> hash)
+
+  let replaced =
+    rebound
+    |> Stdlib.List.filterMap (fun (location, _) ->
+      match LanguageTools.PackageManager.TraitImpl.find branchId location with
+      | Some old ->
+        let keptElsewhere =
+          (LanguageTools.PackageManager.TraitImpl.locations branchId old)
+          |> Stdlib.List.any (fun l -> Stdlib.Bool.not (Stdlib.List.member reboundLocations l))
+
+        if (Stdlib.List.member batchHashes old) || keptElsewhere then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some old
+      | None -> Stdlib.Option.Option.None)
+
+  if Stdlib.List.isEmpty replaced then
+    env
+  else
+    { env with
+        traitImpls =
+          Stdlib.Dict.map env.traitImpls (fun _ impls ->
+            impls
+            |> Stdlib.List.filter (fun (_, hash) ->
+              Stdlib.Bool.not (Stdlib.List.member replaced hash))) }
+
+
 // --------------------
 // Find package dependencies in names, types, and expression syntax.
 // --------------------
