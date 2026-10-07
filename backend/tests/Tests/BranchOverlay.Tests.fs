@@ -1848,6 +1848,95 @@ let liveBindingReadsTheBranchThenMain =
   }
 
 
+/// `liveBindingsFor` answers every name as `liveBindingFor` does, from main and
+/// from a branch: a name the branch binds, one only main binds, one the branch
+/// unbinds, one in main's uncommitted draft (which a branch must not see), one
+/// nobody binds, and a repeat.
+let liveBindingsForAgreesWithTheOneNameRead =
+  testTask "liveBindingsFor gives the same binding as liveBindingFor, name by name" {
+    let! branchId = freshBranch "test-branch-live-bindings" "live-bindings-proof"
+
+    let! branchOps = parsePackageOps (namedSource "LiveBindMany" 42)
+    let! _ = Branches.storeDeltaOps branchId branchOps
+    let filterLoc : PT.PackageLocation =
+      { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "filter" }
+    let! _ = Branches.storeDeltaOps branchId [ PT.PackageOp.Unbind(filterLoc, None) ]
+
+    let! draftOps = parsePackageOps (namedSource "LiveBindManyMainDraft" 7)
+    let draftIds =
+      draftOps |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
+    let! _ = LibDB.Inserts.insertAndApplyOps draftOps
+    LibDB.Caching.invalidateAll ()
+
+    let loc (modules : string) (name : string) =
+      let mods =
+        modules.Split('.') |> Array.map (fun m -> $"\"{m}\"") |> String.concat ", "
+      "Darklang.LanguageTools.ProgramTypes.PackageLocation "
+      + $"{{ owner = \"Darklang\"; modules = [ {mods} ]; name = \"{name}\" }}"
+
+    let locs =
+      [ loc "LiveBindMany" "foo"
+        loc "Stdlib.List" "map"
+        loc "Stdlib.List" "filter"
+        loc "LiveBindManyMainDraft" "foo"
+        loc "LiveBindManyNobody" "foo"
+        loc "Stdlib.List" "map" ]
+      |> String.concat ", "
+
+    // "<one-name hash> <batch hash>" per location, in order.
+    let answersFrom (branch : string) =
+      darkStringList (
+        $"Stdlib.List.map [ {locs} ] (fun l ->\n"
+        + "  let hashOf (b: Stdlib.Option.Option<Darklang.SCM.Conflicts.Binding>)\n"
+        + "    : String =\n"
+        + "    match b with\n"
+        + "    | Some b -> b.hash\n"
+        + "    | None -> \"none\"\n"
+        + $"  let one = Darklang.SCM.PackageOps.liveBindingFor {branch} l\n"
+        + $"  let many = Darklang.SCM.PackageOps.liveBindingsFor {branch} [ {locs} ]\n"
+        + "  let mods = Stdlib.String.join l.modules \".\"\n"
+        + "  let key = Darklang.SCM.Conflicts.bindingKey l.owner mods l.name\n"
+        + "  let fromMany = Stdlib.Dict.get many key\n"
+        + "  if one == fromMany then (hashOf one) + \" same\"\n"
+        + "  else (hashOf one) + \" \" + (hashOf fromMany))"
+      )
+
+    let! onBranch = answersFrom (darkBranch branchId)
+    let! onMain = answersFrom (darkBranch PT.BranchId.Main)
+
+    LibDB.Caching.invalidateAll ()
+    do!
+      execSqlP
+        "DELETE FROM locations WHERE op_id IN (SELECT value FROM json_each(@ids))"
+        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize draftIds) ]
+    do!
+      execSqlP
+        "DELETE FROM package_ops WHERE id IN (SELECT value FROM json_each(@ids))"
+        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize draftIds) ]
+    LibDB.Caching.invalidateAll ()
+    do! cleanupBranch branchId
+
+    let isNone (a : string) = a = "none same"
+    let isSome (a : string) = a.EndsWith " same" && not (isNone a)
+
+    match onBranch, onMain with
+    | [ bFoo; bMap; bFilter; bDraft; bNobody; bMapAgain ],
+      [ mFoo; mMap; mFilter; mDraft; mNobody; mMapAgain ] ->
+      Expect.isTrue (isSome bFoo) $"the branch's own name, from the branch: {bFoo}"
+      Expect.isTrue (isNone mFoo) $"and not from main: {mFoo}"
+      Expect.isTrue (isSome bMap) $"a main name, from the branch: {bMap}"
+      Expect.equal bMap mMap "and the same answer from main"
+      Expect.isTrue (isNone bFilter) $"the branch's unbind hides main's: {bFilter}"
+      Expect.isTrue (isSome mFilter) $"which main still holds: {mFilter}"
+      Expect.isTrue (isNone bDraft) $"main's draft, unseen from the branch: {bDraft}"
+      Expect.isTrue (isSome mDraft) $"and live on main: {mDraft}"
+      Expect.isTrue (isNone bNobody && isNone mNobody) "a name nobody binds"
+      Expect.equal bMapAgain bMap "a repeated name, from the branch"
+      Expect.equal mMapAgain mMap "and from main"
+    | b, m -> failtest $"expected six answers each, got {b} and {m}"
+  }
+
+
 /// The other half of `mainRetakesABranchsOp`: storing on a branch an op main already runs must not tag it.
 /// Every draft query excludes tagged ids, so a tag on main's own op hid it from `status` and `commit`.
 let aBranchNeverTagsWhatMainRuns =
@@ -2573,6 +2662,7 @@ let tests =
       mainRetakesABranchsOp
       authoringOnAFinishedBranchRefuses
       liveBindingReadsTheBranchThenMain
+      liveBindingsForAgreesWithTheOneNameRead
       aBranchNeverTagsWhatMainRuns
       retagMovesTheBasesToo
       refLookupSaysWhyItMissed

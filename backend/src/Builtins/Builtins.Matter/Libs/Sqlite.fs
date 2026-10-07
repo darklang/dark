@@ -80,6 +80,7 @@ let private execImpl
   (parameters : List<string>)
   : Ply<Dval> =
   uply {
+    Telemetry.count "sql.dark.exec"
     try
       use conn = new SqliteConnection(connStr path)
       do! conn.OpenAsync()
@@ -106,6 +107,7 @@ let private queryImpl
     )
 
   uply {
+    Telemetry.count "sql.dark.query"
     try
       use conn = new SqliteConnection(connStr path)
       do! conn.OpenAsync()
@@ -156,6 +158,7 @@ let private execBatchImpl
   let retKT = KTList(ValueType.Known KTInt)
 
   uply {
+    Telemetry.count "sql.dark.batch"
     try
       use conn = new SqliteConnection(connStr path)
       do! conn.OpenAsync()

@@ -651,10 +651,15 @@ let pending () : List<Conflict> =
   // it is noticed, and recorded under what superseded it.
   let branchId = onBranch ()
 
+  let liveByName =
+    PackageOps.liveBindingsFor
+      branchId
+      (recorded
+       |> Stdlib.List.filter (fun c -> aboutABinding c.kind)
+       |> Stdlib.List.map (fun c -> Deps.locationOf c.owner c.modules c.name))
+
   recorded
   |> Stdlib.List.filter (fun c ->
-    let loc = Deps.locationOf c.owner c.modules c.name
-
     // The sweep asks "does the name still hold one of these versions", so it only applies to a
     // conflict that is ABOUT which version a name holds. A `doc-divergence` is about the prose on a
     // piece of content: its candidates are hashes of TEXT, which no binding will ever equal, so
@@ -662,7 +667,7 @@ let pending () : List<Conflict> =
     if Stdlib.Bool.not (aboutABinding c.kind) then
       true
     else
-      match PackageOps.liveBindingFor branchId loc with
+      match Stdlib.Dict.get liveByName (bindingKey c.owner c.modules c.name) with
       | Some live ->
         let stillACandidate =
           c.candidates |> Stdlib.List.any (fun cand -> cand.hash == live.hash)
