@@ -202,10 +202,11 @@ let private isX64 = RuntimeInformation.ProcessArchitecture = Architecture.X64
 /// and time_t are 32 bits here, so struct stat's size and mtime fields are
 /// half the width they are everywhere else.
 let private isArm32 = RuntimeInformation.ProcessArchitecture = Architecture.Arm
-/// The browser (wasm32 under emscripten). `DllImport("libc")` cannot resolve there, so every
-/// wrapper below answers first: the few with a one-line .NET equivalent through `Managed`,
-/// the rest with ENOSYS. `Host.fs` already takes its own .NET path for file reads, writes,
-/// stats and listings when `isPosix` is false, which is what the CLI actually uses.
+/// The browser (wasm32 under emscripten). `DllImport("libc")` cannot resolve there, so
+/// every wrapper below answers first: those with a .NET equivalent through `Managed`
+/// (including open/read/write/seek/close, over `FileStream`), the rest with ENOSYS.
+/// `Host.fs` already takes its own .NET path for file reads, writes, stats and listings
+/// when `isPosix` is false.
 let private isWasm = System.OperatingSystem.IsBrowser()
 
 do
@@ -298,6 +299,78 @@ module private Managed =
     else
       Error(2, "No such file or directory")
   let enosys () = Error(38, "not available in the browser")
+
+  /// Descriptors over `FileStream`, so the descriptor half of the Posix builtins
+  /// works against the in-memory filesystem. `Stdlib.Cli.File.readText` reads through
+  /// open/read/close; with these refusing, `dark run <file>` and `dark module <file>`
+  /// could not see a file the same tab had just written through
+  /// `Stdlib.Cli.FileSystem`. 0 to 2 are the terminal's and stay refused; the browser
+  /// builtins own stdin and output.
+  let private files = Collections.Generic.Dictionary<int, IO.FileStream>()
+  let mutable private nextFd = 3
+
+  let openFile (path : string) (flags : int) : Result<int, int * string> =
+    let access =
+      match flags &&& 3 with
+      | 1 -> IO.FileAccess.Write
+      | 2 -> IO.FileAccess.ReadWrite
+      | _ -> IO.FileAccess.Read
+    let creates = flags &&& O_CREAT <> 0
+    let mode =
+      if flags &&& O_APPEND <> 0 then
+        IO.FileMode.Append
+      elif flags &&& O_TRUNC <> 0 then
+        (if creates then IO.FileMode.Create else IO.FileMode.Truncate)
+      elif creates then
+        IO.FileMode.OpenOrCreate
+      else
+        IO.FileMode.Open
+    try
+      let stream = new IO.FileStream(path, mode, access)
+      let fd = nextFd
+      nextFd <- nextFd + 1
+      files[fd] <- stream
+      Ok fd
+    with
+    | :? IO.FileNotFoundException
+    | :? IO.DirectoryNotFoundException -> Error(2, "No such file or directory")
+    | :? UnauthorizedAccessException -> Error(13, "Permission denied")
+    | e -> Error(5, e.Message)
+
+  let private withFile
+    (fd : int)
+    (f : IO.FileStream -> 'a)
+    : Result<'a, int * string> =
+    match files.TryGetValue fd with
+    | true, stream -> attempt (fun () -> f stream)
+    | _ -> Error(9, "Bad file descriptor")
+
+  let fdRead (fd : int) (count : int) =
+    withFile fd (fun s ->
+      let buf = Array.zeroCreate<byte> count
+      let n = s.Read(buf, 0, count)
+      buf[0 .. n - 1])
+
+  let fdWrite (fd : int) (data : byte[]) =
+    withFile fd (fun s ->
+      s.Write(data, 0, data.Length)
+      data.Length)
+
+  let fdSeek (fd : int) (offset : int64) (whence : int) =
+    withFile fd (fun s ->
+      let origin =
+        match whence with
+        | 1 -> IO.SeekOrigin.Current
+        | 2 -> IO.SeekOrigin.End
+        | _ -> IO.SeekOrigin.Begin
+      s.Seek(offset, origin))
+
+  let fdClose (fd : int) =
+    match files.TryGetValue fd with
+    | true, stream ->
+      files.Remove fd |> ignore<bool>
+      attempt (fun () -> stream.Dispose())
+    | _ -> Error(9, "Bad file descriptor")
 
 // -- Wrappers -----------------------------------------------------
 
@@ -513,7 +586,7 @@ let mkdtemp (prefix : string) : Result<string, int * string> =
 
 let openFile (path : string) (flags : int) (mode : int) : Result<int, int * string> =
   if isWasm then
-    Managed.enosys ()
+    Managed.openFile path flags
   else
     withParent path (fun d n ->
       let fd = openat_raw (d, n, flags ||| O_NOFOLLOW, mode)
@@ -778,10 +851,10 @@ let kill (pid : int) (signal : int) : Result<unit, int * string> =
   else Ok()
 
 let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
-  if isWasm then
-    Managed.enosys ()
-  else if count < 0 then
+  if count < 0 then
     Error(22, "Invalid argument") // EINVAL
+  else if isWasm then
+    Managed.fdRead fd count
   else
     let buf = Array.zeroCreate<byte> count
     let n = read_raw (fd, buf, count)
@@ -789,7 +862,7 @@ let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
 
 let fdSeek (fd : int) (offset : int64) (whence : int) : Result<int64, int * string> =
   if isWasm then
-    Managed.enosys ()
+    Managed.fdSeek fd offset whence
   else
     let position = lseek_raw (fd, offset, whence)
     if position < 0L then Error(lastError ()) else Ok position
@@ -821,7 +894,7 @@ let tryTerminalWindowSize (fd : int) : Option<int64 * int64> =
 
 let fdWrite (fd : int) (data : byte[]) : Result<int, int * string> =
   if isWasm then
-    Managed.enosys ()
+    Managed.fdWrite fd data
   else
     let mutable offset = 0
     let mutable error = None
@@ -836,7 +909,7 @@ let fdWrite (fd : int) (data : byte[]) : Result<int, int * string> =
     | None -> Ok offset
 
 let fdClose (fd : int) : Result<unit, int * string> =
-  if isWasm then Managed.enosys ()
+  if isWasm then Managed.fdClose fd
   else if close_raw (fd) < 0 then Error(lastError ())
   else Ok()
 

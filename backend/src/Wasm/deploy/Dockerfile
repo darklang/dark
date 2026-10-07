@@ -1,9 +1,14 @@
 # The published site, and nothing else. Build context: deploy.sh stages `site/` from
-# rundir/wasm-repl/wwwroot. gzip_static serves the .gz beside each file (the publish writes
-# .br too, but stock nginx has no brotli module). Everything unfingerprinted is no-cache: a
-# cached cli.html outliving a deploy ran an old page against a new runtime.
-FROM nginx:1.27-alpine
+# rundir/wasm-repl/wwwroot. brotli_static serves the publish's own quality-11 .br beside each
+# file, gzip_static the .gz for a client without brotli. Alpine's nginx rather than the stock
+# image, because only Alpine packages the brotli module; without it the .br went unused and
+# Fly's edge re-compressed the gzip on the fly, 12 to 13 MB for a wasm that is 7.4 MB at
+# quality 11. Everything unfingerprinted is no-cache: a cached cli.html outliving a deploy ran
+# an old page against a new runtime.
+FROM alpine:3.20
+RUN apk add --no-cache nginx nginx-mod-http-brotli
 RUN cat > /etc/nginx/nginx.conf <<'NGINX'
+include /etc/nginx/modules/*.conf;
 worker_processes 1;
 events { worker_connections 256; }
 http {
@@ -11,6 +16,7 @@ http {
   types { application/wasm wasm; application/octet-stream db br dat blat; application/json json; }
   default_type application/octet-stream;
   sendfile on;
+  brotli_static on;
   gzip_static on;
   gzip_vary on;
   server {
@@ -24,3 +30,4 @@ http {
 NGINX
 COPY site /site
 EXPOSE 8080
+CMD ["nginx", "-g", "daemon off;"]

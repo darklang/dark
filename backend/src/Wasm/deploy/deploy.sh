@@ -20,11 +20,14 @@ CTX="$(mktemp -d)"
 trap 'rm -rf "$CTX"' EXIT
 cp "$HERE/Dockerfile" "$HERE/fly.toml" "$CTX/"
 mkdir -p "$CTX/site"
-# The site minus symbols, the publish's brotli variants (stock nginx has no brotli module),
-# stale gzips, and the raw store (the page fetches data.db.br). Then gzip everything worth it
-# so gzip_static has a fresh .gz beside each file.
+# The site minus symbols, stale gzips, the raw store (the page fetches data.db.br), and the
+# brotli variants of anything unfingerprinted, which go stale the moment a page is edited after
+# the publish. `_framework/*.br` stay, and brotli_static serves them: a fingerprinted file
+# cannot change under its name. Then gzip everything worth it so gzip_static has a fresh .gz
+# beside each file, for a client without brotli.
 cp -r "$SITE/." "$CTX/site/"
-find "$CTX/site" \( -name '*.pdb' -o -name '*.gz' -o -path '*/_framework/*.br' \) -delete
+find "$CTX/site" \( -name '*.pdb' -o -name '*.gz' \
+  -o \( -name '*.br' ! -path '*/_framework/*' ! -name 'data.db.br' \) \) -delete
 rm -f "$CTX/site/data.db"
 find "$CTX/site" -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.json' -o -name '*.html' \
   -o -name '*.css' -o -name '*.dat' -o -name '*.snapshot' \) -size +1k -exec gzip -k -f -6 {} +

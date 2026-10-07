@@ -181,6 +181,15 @@
         console.error("Darklang CLI boot failed:", e);
         return;
       }
+      // What a tab can and cannot do, said once, before anyone finds it by hitting it. The
+      // refusals in `Host.fs` say the same per call; this is the page saying it up front.
+      term.write([
+        "\x1b[90mThis is the real CLI and package store, running in your browser tab.",
+        "  works: eval, packages, branches and commits, and HTTP requests to hosts that allow",
+        "         other sites to call them (CORS). Files and env vars live in the tab.",
+        "  not here: running programs, `dark serve`, background `Exec.spawn`, push.",
+        "  nothing is saved: reloading the page starts from a fresh store.\x1b[0m",
+        "", ""].join("\r\n"));
       drainTimer = setInterval(drain, 25);
       const argv = argvFromUrl();
       const params = new URLSearchParams(location.search);
