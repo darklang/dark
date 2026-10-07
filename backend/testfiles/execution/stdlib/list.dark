@@ -418,6 +418,13 @@ module GroupByWithKey =
 
   Stdlib.List.groupByWithKey [] (fun x -> x) = []
 
+  // Keys come out in the order first seen, not sorted.
+  Stdlib.List.groupByWithKey [ 3L, 1L, 3L, 2L, 1L, 3L ] (fun x -> x) =
+    [ (3L, [ 3L, 3L, 3L ]), (1L, [ 1L, 1L ]), (2L, [ 2L ]) ]
+
+  Stdlib.List.groupByWithKey [ "b2", "a1", "b1", "c1", "a2" ] (fun s -> Stdlib.String.first s 1) =
+    [ ("b", [ "b2", "b1" ]), ("a", [ "a1", "a2" ]), ("c", [ "c1" ]) ]
+
 
 Stdlib.List.dropLast [ 1L, 2L, 3L, 4L, 5L ] = [ 1L, 2L, 3L, 4L ]
 Stdlib.List.dropLast [ 1L ] = []

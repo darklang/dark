@@ -5,65 +5,123 @@ type DiffLine =
   | Added of String
   | Removed of String
 
-/// Helper to safely index into a 2D list
-let tableGet (table: List<List<Int>>) (row: Int) (col: Int) : Int =
-  let r = Stdlib.Option.withDefault (Stdlib.List.getAt table row) []
-  Stdlib.Option.withDefault (Stdlib.List.getAt r col) 0
-
-/// Build the LCS length table
+/// The rows of the LCS length table, last row first, each row last column first.
+///
+/// Row j, column i is the LCS length of the first i old lines and the first j new lines.
+/// Rows are stored back to front because the walk in `trace` starts at the far corner.
 let buildTable (oldLines: List<String>) (newLines: List<String>) : List<List<Int>> =
   let zeroRow =
     Stdlib.List.map
       (Stdlib.List.range 0 (Stdlib.List.length oldLines))
       (fun _i -> 0)
-  Stdlib.List.fold newLines [zeroRow] (fun table newLine ->
-    let prevRow = Stdlib.Option.withDefault (Stdlib.List.last table) []
-    let pairs = Stdlib.List.indexedMap oldLines (fun i oldLine -> (i, oldLine))
-    let nextRow =
-      Stdlib.List.fold pairs [0] (fun row pair ->
-        let (i, oldLine) = pair
-        let above = Stdlib.Option.withDefault (Stdlib.List.getAt prevRow (i + 1)) 0
-        let diag = Stdlib.Option.withDefault (Stdlib.List.getAt prevRow i) 0
-        let left = Stdlib.Option.withDefault (Stdlib.List.last row) 0
-        let cell =
-          if oldLine == newLine then diag + 1
-          else if above >= left then above
-          else left
-        Stdlib.List.append row [cell])
-    Stdlib.List.append table [nextRow])
 
-/// Walk the table backwards to produce diff lines
+  let (_, rows) =
+    Stdlib.List.fold newLines (zeroRow, [ zeroRow ]) (fun (prevRow, rows) newLine ->
+      // Walks the previous row alongside the old lines: its head is the cell diagonally
+      // up-left of the one being filled, and the cell after that is the one above.
+      let (_, _, row) =
+        Stdlib.List.fold oldLines (prevRow, 0, [ 0 ]) (fun (prev, left, row) oldLine ->
+          match prev with
+          | diag :: rest ->
+            let above =
+              match rest with
+              | above :: _ -> above
+              | [] -> 0
+
+            let cell =
+              if oldLine == newLine then diag + 1
+              else if above >= left then above
+              else left
+
+            (rest, cell, Stdlib.List.push row cell)
+          | [] -> (prev, left, row))
+
+      (Stdlib.List.reverse row, Stdlib.List.push rows row))
+
+  rows
+
+/// Walk the table back from the far corner, emitting diff lines front to back.
+///
+/// At (i, j): `oldRev` and `newRev` start at old line i and new line j (1-based, counting
+/// back), `row` is row j from column i, `prevRow` row j-1 from column i, and `rest` the rows
+/// before that in full. Prefers Added over Removed on a tie.
 let trace
-  (oldLines: List<String>)
-  (newLines: List<String>)
-  (table: List<List<Int>>)
+  (width: Int)
+  (oldRev: List<String>)
+  (newRev: List<String>)
   (i: Int)
-  (j: Int)
+  (row: List<Int>)
+  (prevRow: List<Int>)
+  (rest: List<List<Int>>)
+  (acc: List<DiffLine>)
   : List<DiffLine> =
-  if (i == 0) && (j == 0) then
-    []
-  else if (i > 0) && (j > 0) then
-    let o = Stdlib.Option.withDefault (Stdlib.List.getAt oldLines (i - 1)) ""
-    let n = Stdlib.Option.withDefault (Stdlib.List.getAt newLines (j - 1)) ""
+  // Row j-2 from column c, for when the walk moves up a row and lands on column c.
+  let rowAbove (c: Int) : List<Int> =
+    match rest with
+    | r :: _ -> Stdlib.List.drop r (width - c)
+    | [] -> []
+
+  match (oldRev, newRev) with
+  | ([], []) -> acc
+  | ([], _) ->
+    Stdlib.List.fold newRev acc (fun acc n -> Stdlib.List.push acc (DiffLine.Added n))
+  | (_, []) ->
+    Stdlib.List.fold oldRev acc (fun acc o -> Stdlib.List.push acc (DiffLine.Removed o))
+  | (o :: oldRest, n :: newRest) ->
+    let restRest = Stdlib.List.drop rest 1
+
     if o == n then
-      Stdlib.List.append (trace oldLines newLines table (i - 1) (j - 1)) [DiffLine.Same o]
+      trace
+        width
+        oldRest
+        newRest
+        (i - 1)
+        (Stdlib.List.drop prevRow 1)
+        (rowAbove (i - 1))
+        restRest
+        (Stdlib.List.push acc (DiffLine.Same o))
     else
-      let up = tableGet table (j - 1) i
-      let left = tableGet table j (i - 1)
+      let up = Stdlib.Option.withDefault (Stdlib.List.head prevRow) 0
+      let left = Stdlib.Option.withDefault (Stdlib.List.getAt row 1) 0
+
       if up >= left then
-        Stdlib.List.append (trace oldLines newLines table i (j - 1)) [DiffLine.Added n]
+        trace
+          width
+          oldRev
+          newRest
+          i
+          prevRow
+          (rowAbove i)
+          restRest
+          (Stdlib.List.push acc (DiffLine.Added n))
       else
-        Stdlib.List.append (trace oldLines newLines table (i - 1) j) [DiffLine.Removed o]
-  else if j > 0 then
-    let n = Stdlib.Option.withDefault (Stdlib.List.getAt newLines (j - 1)) ""
-    Stdlib.List.append (trace oldLines newLines table i (j - 1)) [DiffLine.Added n]
-  else
-    let o = Stdlib.Option.withDefault (Stdlib.List.getAt oldLines (i - 1)) ""
-    Stdlib.List.append (trace oldLines newLines table (i - 1) j) [DiffLine.Removed o]
+        trace
+          width
+          oldRest
+          newRev
+          (i - 1)
+          (Stdlib.List.drop row 1)
+          (Stdlib.List.drop prevRow 1)
+          rest
+          (Stdlib.List.push acc (DiffLine.Removed o))
 
 /// Compute a line-based diff between two strings.
 let lines (oldText: String) (newText: String) : List<DiffLine> =
   let oldLines = Stdlib.String.split oldText "\n"
   let newLines = Stdlib.String.split newText "\n"
-  let table = buildTable oldLines newLines
-  trace oldLines newLines table (Stdlib.List.length oldLines) (Stdlib.List.length newLines)
+  let width = Stdlib.List.length oldLines
+
+  match buildTable oldLines newLines with
+  | row :: rest ->
+    let prevRow = Stdlib.Option.withDefault (Stdlib.List.head rest) []
+
+    trace
+      width
+      (Stdlib.List.reverse oldLines)
+      (Stdlib.List.reverse newLines)
+      width
+      row
+      prevRow
+      (Stdlib.List.drop rest 1)
+      []
+  | [] -> []

@@ -244,12 +244,18 @@ let join
 let combine
   (results: List<Stdlib.Result.Result<'t, 'e>>)
   : Stdlib.Result.Result<List<'t>, 'e> =
-  results
-  |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
-    match (acc, result) with
-    | (Ok acc, Ok result) ->
-      Stdlib.Result.Result.Ok(Stdlib.List.pushBack acc result)
-    | (Ok _, Error err) | (Error err, _) -> Stdlib.Result.Result.Error err)
+  // Built back to front and reversed once, as `Option.combine` is: `pushBack` copies the
+  // accumulator every element, so this was quadratic in the list length.
+  let folded =
+    results
+    |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
+      match (acc, result) with
+      | (Ok acc, Ok result) -> Stdlib.Result.Result.Ok(Stdlib.List.push acc result)
+      | (Ok _, Error err) | (Error err, _) -> Stdlib.Result.Result.Error err)
+
+  match folded with
+  | Ok list -> Stdlib.Result.Result.Ok(Stdlib.List.reverse list)
+  | Error err -> Stdlib.Result.Result.Error err
 
 
 /// Returns a list of all the values that are {{Ok <var value>}}, and ignores any values that are {{Error <var msg>}}.

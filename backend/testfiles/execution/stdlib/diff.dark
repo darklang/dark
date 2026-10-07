@@ -1,0 +1,144 @@
+// `Diff.lines` against the implementation it replaced, which is kept below as the reference.
+// It indexed into cons lists per cell; the answers, including which side wins a tie, are
+// what the new one has to reproduce.
+
+let refTableGet (table: List<List<Int>>) (row: Int) (col: Int) : Int =
+  let r = Stdlib.Option.withDefault (Stdlib.List.getAt table row) []
+  Stdlib.Option.withDefault (Stdlib.List.getAt r col) 0
+
+let refBuildTable (oldLines: List<String>) (newLines: List<String>) : List<List<Int>> =
+  let zeroRow =
+    Stdlib.List.map (Stdlib.List.range 0 (Stdlib.List.length oldLines)) (fun _i -> 0)
+
+  Stdlib.List.fold newLines [ zeroRow ] (fun table newLine ->
+    let prevRow = Stdlib.Option.withDefault (Stdlib.List.last table) []
+    let pairs = Stdlib.List.indexedMap oldLines (fun i oldLine -> (i, oldLine))
+
+    let nextRow =
+      Stdlib.List.fold pairs [ 0 ] (fun row pair ->
+        let (i, oldLine) = pair
+        let above = Stdlib.Option.withDefault (Stdlib.List.getAt prevRow (i + 1)) 0
+        let diag = Stdlib.Option.withDefault (Stdlib.List.getAt prevRow i) 0
+        let left = Stdlib.Option.withDefault (Stdlib.List.last row) 0
+
+        let cell =
+          if oldLine == newLine then diag + 1
+          else if above >= left then above
+          else left
+
+        Stdlib.List.append row [ cell ])
+
+    Stdlib.List.append table [ nextRow ])
+
+let refTrace
+  (oldLines: List<String>)
+  (newLines: List<String>)
+  (table: List<List<Int>>)
+  (i: Int)
+  (j: Int)
+  : List<Stdlib.Diff.DiffLine> =
+  if (i == 0) && (j == 0) then
+    []
+  else if (i > 0) && (j > 0) then
+    let o = Stdlib.Option.withDefault (Stdlib.List.getAt oldLines (i - 1)) ""
+    let n = Stdlib.Option.withDefault (Stdlib.List.getAt newLines (j - 1)) ""
+
+    if o == n then
+      Stdlib.List.append
+        (refTrace oldLines newLines table (i - 1) (j - 1))
+        [ Stdlib.Diff.DiffLine.Same o ]
+    else
+      let up = refTableGet table (j - 1) i
+      let left = refTableGet table j (i - 1)
+
+      if up >= left then
+        Stdlib.List.append
+          (refTrace oldLines newLines table i (j - 1))
+          [ Stdlib.Diff.DiffLine.Added n ]
+      else
+        Stdlib.List.append
+          (refTrace oldLines newLines table (i - 1) j)
+          [ Stdlib.Diff.DiffLine.Removed o ]
+  else if j > 0 then
+    let n = Stdlib.Option.withDefault (Stdlib.List.getAt newLines (j - 1)) ""
+    Stdlib.List.append (refTrace oldLines newLines table i (j - 1)) [ Stdlib.Diff.DiffLine.Added n ]
+  else
+    let o = Stdlib.Option.withDefault (Stdlib.List.getAt oldLines (i - 1)) ""
+    Stdlib.List.append (refTrace oldLines newLines table (i - 1) j) [ Stdlib.Diff.DiffLine.Removed o ]
+
+let refLines (oldText: String) (newText: String) : List<Stdlib.Diff.DiffLine> =
+  let oldLines = Stdlib.String.split oldText "\n"
+  let newLines = Stdlib.String.split newText "\n"
+  let table = refBuildTable oldLines newLines
+  refTrace oldLines newLines table (Stdlib.List.length oldLines) (Stdlib.List.length newLines)
+
+// A text of `len` lines drawn from a three-word alphabet, so most pairs share lines and tie
+// often, which is where two LCS walks can disagree.
+let genText (seed: Int) (len: Int) : String =
+  Stdlib.List.range 1 len
+  |> Stdlib.List.map (fun k ->
+    match ((seed * 31 + k * 17 + (seed * k) % 7) % 4) with
+    | 0 -> "a"
+    | 1 -> "b"
+    | 2 -> "c"
+    | _ -> "")
+  |> Stdlib.String.join "\n"
+
+// Every (old, new) pair over 18 seeds of lengths 0 to 8: how many were compared, and how
+// many came out differently.
+let compareAll () : (Int * Int) =
+  let texts =
+    Stdlib.List.range 0 17
+    |> Stdlib.List.map (fun seed -> genText seed (seed % 9))
+
+  Stdlib.List.fold texts (0, 0) (fun acc a ->
+    Stdlib.List.fold texts acc (fun (examined, differing) b ->
+      if Stdlib.Diff.lines a b == refLines a b then (examined + 1, differing)
+      else (examined + 1, differing + 1)))
+
+let matchesOnEdit () : Bool =
+  let before = genText 5 60
+  let after = Stdlib.String.join [ genText 5 25, "x", genText 6 30, genText 5 10 ] "\n"
+  Stdlib.Diff.lines before after == refLines before after
+
+
+module MatchesReference =
+  compareAll () = (324, 0)
+
+  // Longer, mostly shared texts, the shape of an edited function body.
+  matchesOnEdit () = true
+
+
+module Lines =
+  Stdlib.Diff.lines "a\nb\nc" "a\nb\nc" =
+    [ Stdlib.Diff.DiffLine.Same "a"
+      Stdlib.Diff.DiffLine.Same "b"
+      Stdlib.Diff.DiffLine.Same "c" ]
+
+  Stdlib.Diff.lines "a\nb\nc" "a\nx\nc" =
+    [ Stdlib.Diff.DiffLine.Same "a"
+      Stdlib.Diff.DiffLine.Removed "b"
+      Stdlib.Diff.DiffLine.Added "x"
+      Stdlib.Diff.DiffLine.Same "c" ]
+
+  // A tie: either line could be kept. The removal comes first.
+  Stdlib.Diff.lines "a\nb" "b\na" =
+    [ Stdlib.Diff.DiffLine.Removed "a"
+      Stdlib.Diff.DiffLine.Same "b"
+      Stdlib.Diff.DiffLine.Added "a" ]
+
+  Stdlib.Diff.lines "" "a\nb" =
+    [ Stdlib.Diff.DiffLine.Removed ""
+      Stdlib.Diff.DiffLine.Added "a"
+      Stdlib.Diff.DiffLine.Added "b" ]
+
+  Stdlib.Diff.lines "a\nb" "" =
+    [ Stdlib.Diff.DiffLine.Removed "a"
+      Stdlib.Diff.DiffLine.Removed "b"
+      Stdlib.Diff.DiffLine.Added "" ]
+
+  Stdlib.Diff.lines "x\na\nb" "a\nb\ny" =
+    [ Stdlib.Diff.DiffLine.Removed "x"
+      Stdlib.Diff.DiffLine.Same "a"
+      Stdlib.Diff.DiffLine.Same "b"
+      Stdlib.Diff.DiffLine.Added "y" ]
