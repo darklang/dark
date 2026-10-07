@@ -599,15 +599,69 @@ let everBoundHashes
   : List<LanguageTools.ProgramTypes.Hash> =
   let itemType = LanguageTools.ProgramTypes.ItemKind.toString itemKind
 
-  // main-scoped, on purpose: every hash ever bound on MAIN is this fn's contract.
-  Stdlib.Sqlite.rowsP
-    (localDb ())
-    "SELECT item_hash FROM locations
-     WHERE owner = @p0 AND modules = @p1 AND name = @p2 AND item_type = @p3
-       AND source <> 'unbind'
-     GROUP BY item_hash
-     ORDER BY MAX(CASE WHEN unlisted_at IS NULL THEN '9999-12-31' ELSE unlisted_at END) DESC"
-    [ loc.owner, modulesOf loc, loc.name, itemType ]
-    (fun row ->
-      Stdlib.Sqlite.textField row "item_hash"
-      |> Stdlib.Option.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h))
+  everBoundHashesFor [ (loc, itemKind) ]
+  |> Stdlib.Dict.get (everBoundKey loc.owner (modulesOf loc) loc.name itemType)
+  |> Stdlib.Option.withDefault []
+
+
+/// The key <fn everBoundHashesFor> answers under.
+let everBoundKey
+  (owner: String)
+  (modules: String)
+  (name: String)
+  (itemType: String)
+  : String =
+  $"{SCM.Conflicts.bindingKey owner modules name}/{itemType}"
+
+
+/// <fn everBoundHashes> for many names in one query, keyed by <fn everBoundKey>; a name that was never
+/// bound is absent.
+let everBoundHashesFor
+  (names:
+    List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
+  : Dict<String, List<LanguageTools.ProgramTypes.Hash>> =
+  let keys =
+    names
+    |> Stdlib.List.map (fun (loc, kind) ->
+      [ loc.owner
+        modulesOf loc
+        loc.name
+        LanguageTools.ProgramTypes.ItemKind.toString kind ])
+    |> Stdlib.List.unique
+
+  if Stdlib.List.isEmpty keys then
+    Dict {}
+  else
+    // main-scoped, on purpose: every hash ever bound on MAIN is this fn's contract.
+    Stdlib.Sqlite.rowsOrEmptyP
+      (localDb ())
+      "SELECT l.owner, l.modules, l.name, l.item_type, l.item_hash
+       FROM json_each(@p0) j
+       JOIN locations l
+         ON l.owner = json_extract(j.value, '$[0]')
+        AND l.modules = json_extract(j.value, '$[1]')
+        AND l.name = json_extract(j.value, '$[2]')
+        AND l.item_type = json_extract(j.value, '$[3]')
+       WHERE l.source <> 'unbind'
+       GROUP BY l.owner, l.modules, l.name, l.item_type, l.item_hash
+       ORDER BY l.owner, l.modules, l.name, l.item_type,
+         MAX(CASE WHEN l.unlisted_at IS NULL THEN '9999-12-31' ELSE l.unlisted_at END) DESC"
+      [ Stdlib.Json.serialize<List<List<String>>> keys ]
+    |> Stdlib.List.filterMap (fun row ->
+      match
+        (Stdlib.Sqlite.textField row "owner",
+         Stdlib.Sqlite.textField row "modules",
+         Stdlib.Sqlite.textField row "name",
+         Stdlib.Sqlite.textField row "item_type",
+         Stdlib.Sqlite.textField row "item_hash")
+      with
+      | (Some owner, Some modules, Some name, Some itemType, Some hash) ->
+        Stdlib.Option.Option.Some(
+          (everBoundKey owner modules name itemType,
+           LanguageTools.ProgramTypes.Hash.Hash hash)
+        )
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.groupByWithKey (fun (key, _) -> key)
+    |> Stdlib.List.map (fun (key, rows) ->
+      (key, rows |> Stdlib.List.map (fun (_, hash) -> hash)))
+    |> Stdlib.Dict.fromListOverwritingDuplicates

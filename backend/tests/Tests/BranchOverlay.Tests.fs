@@ -1937,6 +1937,97 @@ let liveBindingsForAgreesWithTheOneNameRead =
   }
 
 
+/// `previousHashesOfAll` gives each changed name the history `previousHashesOf` gives it: a name
+/// edited twice on main and three times more on a branch (the branch's versions newest-first, ahead of
+/// main's), a name only main has edited, one only the branch has, and a repeat.
+let previousHashesOfAllAgreesWithTheOneNameRead =
+  testTask
+    "previousHashesOfAll gives each name the history previousHashesOf gives it" {
+    let! branchId = freshBranch "test-branch-prev-hashes" "prev-hashes-proof"
+
+    let fooHash (ops : List<PT.PackageOp>) =
+      ops
+      |> List.tryPick (fun op ->
+        match op with
+        | PT.PackageOp.SetName(l, target, _) when l.name = "foo" ->
+          let (PT.Hash h) = target.hash
+          Some h
+        | _ -> None)
+      |> Option.get
+
+    let! main1 = parsePackageOps (namedSource "PrevHashesBoth" 1)
+    let! main2 = parsePackageOps (namedSource "PrevHashesBoth" 2)
+    let! onlyMain1 = parsePackageOps (namedSource "PrevHashesMainOnly" 1)
+    let! onlyMain2 = parsePackageOps (namedSource "PrevHashesMainOnly" 2)
+    let mainOps = main1 @ main2 @ onlyMain1 @ onlyMain2
+    for ops in [ main1; main2; onlyMain1; onlyMain2 ] do
+      let! _ = LibDB.Inserts.insertAndApplyOps ops
+      ()
+
+    let! branch3 = parsePackageOps (namedSource "PrevHashesBoth" 3)
+    let! branch4 = parsePackageOps (namedSource "PrevHashesBoth" 4)
+    let! branch5 = parsePackageOps (namedSource "PrevHashesBoth" 5)
+    let! branchOnly = parsePackageOps (namedSource "PrevHashesBranchOnly" 1)
+    for ops in [ branch3; branch4; branch5; branchOnly ] do
+      let! _ = Branches.storeDeltaOps branchId ops
+      ()
+    LibDB.Caching.invalidateAll ()
+
+    let loc (modName : string) =
+      "Darklang.LanguageTools.ProgramTypes.PackageLocation "
+      + $"{{ owner = \"Darklang\"; modules = [ \"{modName}\" ]; name = \"foo\" }}"
+
+    // "<batch history> same" per name, or both histories when they differ.
+    let historiesFrom (branch : string) (modNames : List<string>) =
+      let locs = modNames |> List.map loc |> String.concat ", "
+      darkStringList (
+        $"let bindings = Stdlib.List.filterMap [ {locs} ] (fun l ->\n"
+        + $"  Darklang.SCM.PackageOps.liveBindingFor {branch} l)\n"
+        + "let show (hs: List<Darklang.LanguageTools.ProgramTypes.Hash>) : String =\n"
+        + "  hs |> Stdlib.List.map Darklang.LanguageTools.ProgramTypes.hashToString\n"
+        + "  |> Stdlib.String.join \",\"\n"
+        + $"Stdlib.List.map (Darklang.Cli.Commit.previousHashesOfAll {branch} bindings) (fun entry ->\n"
+        + "  let (b, many) = entry\n"
+        + $"  let one = Darklang.Cli.Commit.previousHashesOf {branch} b\n"
+        + "  if one == many then (show many) + \" same\"\n"
+        + "  else (show one) + \" one, many \" + (show many))"
+      )
+
+    let! onBranch =
+      historiesFrom
+        (darkBranch branchId)
+        [ "PrevHashesBoth"; "PrevHashesBranchOnly"; "PrevHashesBoth" ]
+    let! onMain =
+      historiesFrom (darkBranch PT.BranchId.Main) [ "PrevHashesMainOnly" ]
+
+    let mainIds =
+      mainOps |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
+    LibDB.Caching.invalidateAll ()
+    do!
+      execSqlP
+        "DELETE FROM locations WHERE op_id IN (SELECT value FROM json_each(@ids))"
+        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize mainIds) ]
+    do!
+      execSqlP
+        "DELETE FROM package_ops WHERE id IN (SELECT value FROM json_each(@ids))"
+        [ "ids", Sql.string (System.Text.Json.JsonSerializer.Serialize mainIds) ]
+    LibDB.Caching.invalidateAll ()
+    do! cleanupBranch branchId
+
+    // Three on the branch, so the two left besides the live one have an order to get wrong.
+    let both =
+      $"{fooHash branch4},{fooHash branch3},{fooHash main2},{fooHash main1} same"
+    Expect.equal
+      onBranch
+      [ both; " same"; both ]
+      "the branch's earlier version, then main's newest-first; nothing for a name only the branch has"
+    Expect.equal
+      onMain
+      [ $"{fooHash onlyMain1} same" ]
+      "main's earlier version of a main name"
+  }
+
+
 /// The other half of `mainRetakesABranchsOp`: storing on a branch an op main already runs must not tag it.
 /// Every draft query excludes tagged ids, so a tag on main's own op hid it from `status` and `commit`.
 let aBranchNeverTagsWhatMainRuns =
@@ -2663,6 +2754,7 @@ let tests =
       authoringOnAFinishedBranchRefuses
       liveBindingReadsTheBranchThenMain
       liveBindingsForAgreesWithTheOneNameRead
+      previousHashesOfAllAgreesWithTheOneNameRead
       aBranchNeverTagsWhatMainRuns
       retagMovesTheBasesToo
       refLookupSaysWhyItMissed
