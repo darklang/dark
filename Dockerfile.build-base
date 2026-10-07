@@ -8,7 +8,7 @@
 # Carries clang and cross sysroots because ilc links through a C compiler and
 # gcc can't cross-target, so one x64 runner covers every linux artifact. macOS
 # still needs a Mac.
-FROM ubuntu:20.04
+FROM ubuntu:25.10
 
 ENV DEBIAN_FRONTEND=noninteractive
 
