@@ -64,18 +64,13 @@ let private loadHarmful () : Set<string> =
   match harmfulCache with
   | Some cached -> cached
   | None ->
-    let harmful =
-      Queries.getHarmfulFnHashes ()
-      |> Async.AwaitTask
-      |> Async.RunSynchronously
-      |> Set.map (fun (PT.Hash h) -> h)
+    let harmful = Queries.getHarmfulFnHashesSync () |> Set.map (fun (PT.Hash h) -> h)
     harmfulCache <- Some harmful
     harmful
 
-/// Fill the Harmful cache without blocking. `isHarmful` is synchronous by contract (the
-/// interpreter asks it before every package call), so the miss path above waits on the
-/// query. A host with one thread and no blocking wait, the browser, calls this once at boot
-/// instead, and every later lookup is a cache hit.
+/// Fill the Harmful cache ahead of the first lookup. `isHarmful` is synchronous by contract
+/// (the interpreter asks it before every package call); its miss path reads synchronously, so
+/// this is a warm-up, not a workaround: nothing blocks without it.
 let preloadHarmful () : System.Threading.Tasks.Task<unit> =
   task {
     let! harmful = Queries.getHarmfulFnHashes ()
