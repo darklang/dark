@@ -112,8 +112,28 @@ let initialState
   (enabledGatedViews: List<Int>)
   (live: Bool)
   : State =
+  initialStateFrom
+    branchId
+    accountId
+    accountName
+    instanceName
+    enabledGatedViews
+    live
+    (SCM.Draft.read ())
+
+/// `initialState` over a draft already read. `execute` reads the draft once and hands the same
+/// picture to Home and to the SCM status row; reading it per consumer ran constraint detection twice.
+let initialStateFrom
+  (branchId: Uuid)
+  (accountId: Stdlib.Option.Option<Uuid>)
+  (accountName: String)
+  (instanceName: String)
+  (enabledGatedViews: List<Int>)
+  (live: Bool)
+  (draft: SCM.Draft.Picture)
+  : State =
   let rootLoc = Packages.PackageLocation.Module []
-  let homeItems = loadHomeItems branchId
+  let homeItems = loadHomeItemsFrom branchId draft
   State
       { activeView = vHome
         live = live
@@ -189,20 +209,22 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
       match Stdlib.Cli.Sys.hostname () with
       | Ok h -> h
       | Error _ -> "this-machine"
+  let draft = SCM.Draft.read ()
   let state =
-    initialState
+    initialStateFrom
       branchId
       cliState.accountID
       cliState.accountName
       instanceName
       enabledGatedViews
       (Stdlib.List.member args "--live")
+      draft
   // Seed the badge cache for the first frame; `presentState` keeps it fresh after that. The view peek needs no
   // seeding - the first frame is Home, which has no `render` fn to peek at.
   let (wip, deprecated) = readBadges state
   let state = { state with wipNames = wip; deprecatedNames = deprecated }
-  // Seed the context row and badges before the first frame.
-  let state = refreshScmStatus state state
+  // Seed the context row from the same draft Home was built from.
+  let state = { state with scmStatus = scmStatusFrom branchId draft }
   // Launching is what enters the alternate screen and paints the first frame; from here on the renderer
   // diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
   Darklang.Cli.Component.launchOrExit cliState (component ()) state

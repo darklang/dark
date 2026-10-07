@@ -186,23 +186,38 @@ let findingId
 /// main-scoped, on purpose: this is a property of the STORE, of what main's log binds and depends on,
 /// not of the branch the process stands on.
 let detectOutdatedUsages () : List<Finding> =
+  // Stale (name, version) pairs first, then the edges and live usages behind them. The obvious
+  // join, from each live usage to its edges, looks every edge's name up: one lookup per edge in
+  // the store, on the common path where none is stale. MATERIALIZED and CROSS JOIN hold that
+  // order against the planner, which otherwise drives from the ORDER BY. The ORDER BY's tail
+  // restates the order the obvious join produced, so ties come out as they always did.
   Stdlib.Sqlite.rowsP
     (localDb ())
-    "SELECT l.owner, l.modules, l.name, l.item_type,
+    "WITH stale AS MATERIALIZED (
+       SELECT t.depends_on_owner AS o, t.depends_on_modules AS m, t.depends_on_name AS n,
+              t.depends_on_hash AS h, cur.item_hash AS ch, cur.item_type AS ct, cur.rowid AS crow
+       FROM (SELECT DISTINCT depends_on_owner, depends_on_modules, depends_on_name, depends_on_hash
+             FROM package_dependencies WHERE depends_on_owner IS NOT NULL) t
+       JOIN locations cur
+         ON cur.owner = t.depends_on_owner
+        AND cur.modules = t.depends_on_modules
+        AND cur.name = t.depends_on_name
+        AND cur.unlisted_at IS NULL
+       WHERE cur.item_hash <> t.depends_on_hash)
+     SELECT l.owner, l.modules, l.name, l.item_type,
             pd.depends_on_owner AS d_owner, pd.depends_on_modules AS d_modules,
             pd.depends_on_name AS d_name, pd.depends_on_item_type AS d_type,
-            pd.depends_on_hash AS using_hash, cur.item_hash AS current_hash,
-            cur.item_type AS current_type
-     FROM locations l
-     JOIN package_dependencies pd ON pd.item_hash = l.item_hash
-     JOIN locations cur
-       ON cur.owner = pd.depends_on_owner
-      AND cur.modules = pd.depends_on_modules
-      AND cur.name = pd.depends_on_name
-      AND cur.unlisted_at IS NULL
-     WHERE l.unlisted_at IS NULL
-       AND cur.item_hash <> pd.depends_on_hash
-     ORDER BY l.owner, l.modules, l.name"
+            pd.depends_on_hash AS using_hash, s.ch AS current_hash,
+            s.ct AS current_type
+     FROM stale s
+     CROSS JOIN package_dependencies pd
+     CROSS JOIN locations l
+     WHERE pd.depends_on_owner = s.o AND pd.depends_on_modules = s.m
+       AND pd.depends_on_name = s.n AND pd.depends_on_hash = s.h
+       AND l.item_hash = pd.item_hash AND l.unlisted_at IS NULL
+     ORDER BY l.owner, l.modules, l.name, l.item_type, l.rowid,
+              pd.depends_on_hash, pd.depends_on_item_type,
+              pd.depends_on_owner, pd.depends_on_modules, pd.depends_on_name, s.ct, s.crow"
     []
     (fun row ->
       let txt (col: String) : String =
