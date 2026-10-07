@@ -298,6 +298,12 @@ let prepareShellCommand (command : string) : string * List<string> =
       |> Option.ofObj
       |> Option.defaultValue "/bin/bash"
     shell, [ "-c"; command ]
+  else if System.OperatingSystem.IsBrowser() then
+    // Nothing here will run: `perform` refuses every process operation in the browser.
+    // It has to BUILD one though, because raising here produced an internal error with
+    // a .NET stack before an Operation existed, so the refusal that carries the readable
+    // message never got the chance to fire.
+    "sh", [ "-c"; command ]
   else
     Exception.raiseInternal
       "Executing CLI commands is not supported for your operating system"
@@ -854,6 +860,46 @@ let private execute (run : Execute) : Task<Outcome> =
       return Outcome.Failed(classify e)
   }
 
+/// A tab has no processes and no listening sockets, and the .NET exceptions for both are
+/// unreadable: `dark serve` reported `SystemNetHttpListener_PlatformNotSupported`, a resource
+/// KEY rather than a sentence because `UseSystemResourceKeys` is on, and running a program
+/// surfaced an internal error with a .NET stack. Refuse here instead, with the text a person
+/// should read. `HostLibc` already does this for libc calls it cannot make (errno 38,
+/// "not available in the browser").
+///
+/// Only what genuinely cannot work. Files, directories and environment variables work in the
+/// browser against emscripten's in-memory filesystem (descriptor calls through `HostLibc`'s
+/// managed table, the rest through `System.IO`), nothing of it survives a reload, and HTTP
+/// requests work over `fetch` for hosts that allow it.
+let private browserRefusal (op : Operation) : Option<Outcome> =
+  if not (System.OperatingSystem.IsBrowser()) then
+    None
+  else
+    match op with
+    | Operation.ProcessRun _
+    | Operation.ProcessRunInteractive _
+    | Operation.ProcessSpawn _
+    | Operation.ProcessIO _
+    | Operation.ProcessTerminate _ ->
+      Some(
+        Outcome.Rejected
+          "running another program is not available in the browser: a tab has no processes"
+      )
+    // A failure rather than a rejection: `serve` already answers a failed bind with a
+    // Result error, which the CLI prints. A rejection raises, and at the interactive
+    // prompt a raise from a command ends the session, so the refusal took the tab with it.
+    | Operation.HttpServerBind _ ->
+      Some(
+        Outcome.Failed
+          { kind = FailureKind.Other
+            errno = 38
+            message =
+              "serving HTTP is not available in the browser: a tab cannot listen on a "
+              + "port. A page can still make requests, so Http client calls do work here." }
+      )
+    | _ -> None
+
+
 /// Check and perform one host operation, then audit it exactly once. Derives
 /// the requests from the operation itself, checks them against the access,
 /// and executes.
@@ -864,12 +910,15 @@ let perform
   : Task<Outcome> =
   task {
     let! outcome =
-      match resolve op with
-      | Error message -> Task.FromResult(Outcome.Rejected message)
-      | Ok resolved ->
-        match firstDenial relax access resolved.checks with
-        | Some denied -> Task.FromResult denied
-        | None -> execute resolved.execute
+      match browserRefusal op with
+      | Some refused -> Task.FromResult refused
+      | None ->
+        match resolve op with
+        | Error message -> Task.FromResult(Outcome.Rejected message)
+        | Ok resolved ->
+          match firstDenial relax access resolved.checks with
+          | Some denied -> Task.FromResult denied
+          | None -> execute resolved.execute
     try
       auditSink op outcome
     with _ ->

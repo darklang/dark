@@ -32,10 +32,15 @@
   <!-- Partial AOT. Only leaves nothing F#-generic calls into stay interpreted: mixed
        AOT/interpreter mode asserts ("should not be reached") when compiled generic code
        crosses into an interpreted assembly, which excluding the BCL wholesale triggered.
-       These are big, self-contained, and barely used at runtime. -->
+       These are big, self-contained, and barely used at runtime.
+
+       Naming an assembly here also ROOTS it, so the trimmer keeps it. Expecto and
+       Mono.Cecil were listed, and therefore shipped, because
+       `LibParser/paket.references` carried an unused `Expecto` that put them in the
+       graph at all. Both are gone now. Before adding an assembly here to silence an
+       AOT error, check that it belongs in the graph. -->
   <ItemGroup>
     <_AOT_InternalForceInterpretAssemblies Include="System.Private.Xml.dll;System.Private.Xml.Linq.dll;System.Xml.Linq.dll;System.Xml.ReaderWriter.dll;System.Xml.XDocument.dll" />
-    <_AOT_InternalForceInterpretAssemblies Include="Expecto.dll;Mono.Cecil.dll;Mono.Cecil.Mdb.dll;Mono.Cecil.Pdb.dll;Mono.Cecil.Rocks.dll" />
     <_AOT_InternalForceInterpretAssemblies Include="System.Linq.Expressions.dll;System.Linq.Queryable.dll;System.ComponentModel.TypeConverter.dll;System.Net.HttpListener.dll;System.Diagnostics.Process.dll" />
     <_AOT_InternalForceInterpretAssemblies Include="Microsoft.AspNetCore.Components.dll;Microsoft.AspNetCore.Components.Web.dll" />
   </ItemGroup>

@@ -299,7 +299,16 @@ type Scheduler(quantum : int64) =
   static member CurrentOrShared : Scheduler =
     match Scheduler.Current with
     | Some s -> s
-    | None -> shared.Value
+    | None ->
+      // The browser has one thread, so the shared scheduler cannot have its own and
+      // `thread.Start()` throws `PlatformNotSupportedException` here. That reached people as a
+      // .NET type name from `Exec.spawn`. A store condition rather than an internal error:
+      // nothing is broken, this runtime simply cannot run two things at once.
+      if System.OperatingSystem.IsBrowser() then
+        Exception.raiseStoreCondition
+          "running work beside the caller is not available in the browser: a tab has one thread"
+          []
+      shared.Value
 
   member _.Queue = queue
 

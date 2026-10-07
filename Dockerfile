@@ -172,7 +172,7 @@ COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
 # Pip packages
 ############################
 RUN python3 -m venv /home/dark/.local \
-  && /home/dark/.local/bin/pip install --no-cache-dir setuptools yq yamllint watchfiles yapf==0.40.1
+  && /home/dark/.local/bin/pip install --no-cache-dir setuptools yq yamllint watchfiles yapf==0.40.1 brotli
 ENV PATH="/home/dark/.local/bin:$PATH"
 
 ####################################
