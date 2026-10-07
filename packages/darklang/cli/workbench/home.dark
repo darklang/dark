@@ -39,7 +39,10 @@ val homeBranchCap = 8
 /// else you could be. Load only on transitions; rendering Home does not
 /// query the store.
 let loadHomeItems (branchId: Uuid) : List<BodyItem> =
-  let draft = SCM.Draft.read ()
+  loadHomeItemsFrom branchId (SCM.Draft.read ())
+
+/// `loadHomeItems` over a draft already read, so opening the workbench reads it once.
+let loadHomeItemsFrom (branchId: Uuid) (draft: SCM.Draft.Picture) : List<BodyItem> =
   let row (name: String) (kind: String) (desc: String) : BodyItem =
     BodyItem { name = name; kind = kind; isModule = false; desc = desc }
   let conflictCount = Stdlib.List.length draft.conflicts

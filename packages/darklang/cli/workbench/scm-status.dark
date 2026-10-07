@@ -110,8 +110,10 @@ let emptyScmStatus () : ScmStatus =
       loaded = false }
 
 /// Read the whole SCM picture for <param branchId>.
-let readScmStatus (branchId: Uuid) : ScmStatus =
-  let p = SCM.Draft.read ()
+let readScmStatus (branchId: Uuid) : ScmStatus = scmStatusFrom branchId (SCM.Draft.read ())
+
+/// `readScmStatus` over a draft already read.
+let scmStatusFrom (branchId: Uuid) (p: SCM.Draft.Picture) : ScmStatus =
   // This branch's commits, not the store's: the row says "N commits on this branch", and a store-wide
   // count is the same number everywhere and right only on main.
   let recent = SCM.PackageOps.commitsOnBranch branchId 1000L

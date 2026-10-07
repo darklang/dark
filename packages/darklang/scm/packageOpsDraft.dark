@@ -227,13 +227,16 @@ let supersededPolicies
     Stdlib.Result.Result.Error "couldn't count propagation choices (the store did not answer)"
   | Some 0L -> Stdlib.Result.Result.Ok []
   | Some _ ->
+    // Byte 9 of the blob is the op tag; 0x0B is Decision, the only op the fold below reads. One pin
+    // is enough to get here, and without the filter every status read the whole log into Dark.
     match
       Stdlib.Sqlite.query
         (localDb ())
         "SELECT p.id, p.op_blob,
                 (SELECT o.owner FROM op_owners o WHERE o.op_id = p.id LIMIT 1) AS author
          FROM package_ops p
-         WHERE p.effective = 1 ORDER BY p.origin_ts, p.rowid"
+         WHERE p.effective = 1 AND substr(p.op_blob, 9, 1) = X'0B'
+         ORDER BY p.origin_ts, p.rowid"
     with
     | Error e ->
       Stdlib.Result.Result.Error $"couldn't read the op log for superseded choices: {e}"
