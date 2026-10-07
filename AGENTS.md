@@ -50,7 +50,8 @@ Builds are explicit. Edit as many files as you like, then:
     scripts/dev/status           # did it work, and is the tree ahead of it?
 
 `build` blocks, prints the steps it chose, and exits nonzero if any fails. Measured on
-an idle machine:
+an idle machine in August 2026, and again in October on a box at load ~20, where the
+reload came out at 28-39s and a `.fs` change at 78-97s:
 
     .dark change    ~34s   the whole package set reloads, not just your file
     .fs change      ~74s   39s compiling, then that same ~34s reload
@@ -61,6 +62,13 @@ that usually didn't need reloading. It's unconditional because a `.fs` change *c
 alter the serialized package format, and there's no cheap way to ask whether this one
 did. Narrowing it is the biggest remaining win in the loop, and it's entangled with
 `package-ref-hashes.txt`, so coordinate before starting.
+
+The figure has moved in between, which is why it is worth re-measuring before acting on
+it. Pinning trait calls added a whole-tree type check to the reload and took it to about
+128s; splitting that check into 32 pieces across the cores (`TraitCalls.resolveIn`)
+brought it back to about 31s. The check is now about a quarter of the reload (the
+`Resolved trait calls: ... in Ns` line), so what is left to win is reloading less, not
+checking faster.
 
 The container builds once when it starts. Rebuild-on-save is available but off by
 default, because a five-file change under a watcher pays for five rebuilds, four of them
