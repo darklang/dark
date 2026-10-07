@@ -336,7 +336,9 @@ with every impure call answered from its own log and none performed, and returns
 `byExpr`, the value of every call keyed by the id of the `EApply` that made it -- calls inside
 callees too, under their own ids -- and `problem`, the reason the replay stopped early if it did,
 with the values up to that point still in `byExpr`. `None` means no recorded trace went through
-the function, which is not an error: there is nothing to show yet.
+the function, which is not an error: there is nothing to show yet. `skipped` says the newest run
+was too large to replay at all (over a second, or through more than 500 functions); `byExpr` is
+then empty, and `replayWithin` takes other limits.
 
 Two consequences worth stating, because they are the point. Because the whole run is replayed
 rather than one function called, **nothing is performed**: a handler that charges a card does not
@@ -358,7 +360,8 @@ Where they show:
   The annotation is zero columns wide for layout (a `Styled` with an empty middle), so
   the code breaks exactly as it does without the values.
 - The workbench. The Matter view's detail pane refreshes the values whenever the
-  selected function changes (`refreshLiveValues`) and prints with them. `dark traces show
+  selected function or the draft changes (`refreshLiveValues`), not on every key, and prints
+  with them; a skipped run is a comment line under the code. `dark traces show
   <fn> --watch` is the same thing as a panel of its own, with the traces to pick from and
   up/down to move between them (`cli/traceWatch.dark`).
 - The LSP. `textDocument/inlayHint` answers one hint per annotated line, placed at the
@@ -371,7 +374,10 @@ others do not, and any recorded trace will do: there is no second setting to tur
 
 The cost to know about: a hint request replays once per function in the document that has a
 recorded trace, and there is no cache shared between them. A big file with many recorded functions
-pays many replays. Each performs nothing, so it is CPU and not risk.
+pays many replays. Each performs nothing, so it is CPU and not risk, up to a point: a replay holds
+a frame for every call the recorded run made, so its memory grows with that run, and nothing but
+the limits above stops it. A store that records every run (`config/dev` does) makes the newest run
+through `List.map` whatever script or `eval` ran last, and dev stores hold runs of a minute or more.
 
 ## The demos
 

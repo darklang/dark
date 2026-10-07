@@ -318,7 +318,10 @@ let itemLines
         match results.values with
         | i :: _ -> (PrettyPrinter.ProgramTypes.packageValue ctx i.entity, [])
         | [] -> ("(not found)", [])
-    let sourceLines = Stdlib.String.split src "\n"
+    // A comment, so the highlighter above the access block colours it like the values.
+    let sourceLines =
+      if state.liveNote == "" then Stdlib.String.split src "\n"
+      else Stdlib.List.append (Stdlib.String.split src "\n") [ "", "// " + state.liveNote ]
     match accessReport with
     | [] -> sourceLines
     | report -> Stdlib.List.flatten [ sourceLines, [ "" ], report ]

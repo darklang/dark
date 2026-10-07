@@ -148,6 +148,8 @@ let initialState
         renderPeek = ""
         liveValues = Stdlib.Dict.empty
         preview = Stdlib.Option.Option.None
+        liveFor = ""
+        liveNote = ""
         branchId = branchId }
 
 
