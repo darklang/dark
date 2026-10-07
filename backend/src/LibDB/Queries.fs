@@ -758,47 +758,54 @@ let getDeprecatedTraitImplHashesFor (branchId : PT.BranchId) : Task<Set<string>>
   }
 
 
+/// The fns marked Harmful, read synchronously.
+///
+/// Synchronous on purpose: `PackageManager.isHarmful` answers before every package call and
+/// cannot wait. It used to block on the async form below with `Async.RunSynchronously`, which
+/// never returns in a browser tab, where there is one thread and nothing else to run the wait.
+/// Boot preloaded the cache to dodge that, but authoring invalidates every cache, so the first
+/// package call after any `dark fn` in a tab hung there for good.
+let getHarmfulFnHashesSync () : Set<Hash> =
+  // F# decides whether the annotation is Harmful, which keeps the SQL schema simple.
+  let rows =
+    Sql.query
+      """
+      SELECT item_hash, state, annotation_blob
+      FROM deprecations
+      WHERE item_kind = 'fn'
+        AND unlisted_at IS NULL
+      """
+    |> Sql.execute (fun read ->
+      (read.string "item_hash",
+       read.string "state",
+       read.bytesOrNone "annotation_blob"))
+    |> Result.unwrap
+
+  let isHarmful (blob : byte array) : bool =
+    try
+      use ms = new System.IO.MemoryStream(blob)
+      use r = new System.IO.BinaryReader(ms)
+      let kind =
+        LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
+      match kind with
+      | PT.Harmful -> true
+      | PT.SupersededBy _
+      | PT.Obsolete -> false
+    with _ ->
+      // A blob we cannot read means we cannot tell whether it says Harmful, and this answers "not
+      // harmful", so the fn RUNS. That is failing open on a safety marking: chosen so one corrupt row
+      // cannot brick a function, but it is a choice, and the opposite is defensible.
+      false
+
+  rows
+  |> List.choose (fun (hashStr, state, blobOpt) ->
+    match state, blobOpt with
+    | "deprecated", Some blob when isHarmful blob -> Some(Hash hashStr)
+    | _ -> None)
+  |> Set.ofList
+
 let getHarmfulFnHashes () : Task<Set<Hash>> =
-  task {
-    // F# decides whether the annotation is Harmful, which keeps the SQL schema simple.
-    let! rows =
-      Sql.query
-        """
-        SELECT item_hash, state, annotation_blob
-        FROM deprecations
-        WHERE item_kind = 'fn'
-          AND unlisted_at IS NULL
-        """
-      |> Sql.executeAsync (fun read ->
-        (read.string "item_hash",
-         read.string "state",
-         read.bytesOrNone "annotation_blob"))
-
-    let isHarmful (blob : byte array) : bool =
-      try
-        use ms = new System.IO.MemoryStream(blob)
-        use r = new System.IO.BinaryReader(ms)
-        let kind =
-          LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
-        match kind with
-        | PT.Harmful -> true
-        | PT.SupersededBy _
-        | PT.Obsolete -> false
-      with _ ->
-        // A blob we cannot read means we cannot tell whether it says Harmful, and this answers "not
-        // harmful", so the fn RUNS. That is failing open on a safety marking: chosen so one corrupt row
-        // cannot brick a function, but it is a choice, and the opposite is defensible.
-        false
-
-    let harmfulHashes =
-      rows
-      |> List.choose (fun (hashStr, state, blobOpt) ->
-        match state, blobOpt with
-        | "deprecated", Some blob when isHarmful blob -> Some(Hash hashStr)
-        | _ -> None)
-
-    return Set.ofList harmfulHashes
-  }
+  Task.FromResult(getHarmfulFnHashesSync ())
 
 
 /// The explicit propagation choices of one kind that apply on <param branchId>: the
