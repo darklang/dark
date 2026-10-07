@@ -155,32 +155,3 @@ let appliedFlag (opId : string) : Task<int64> =
   Sql.query "SELECT applied AS a FROM package_ops WHERE id = @id"
   |> Sql.parameters [ "id", Sql.string opId ]
   |> Sql.executeRowAsync (fun read -> read.int64 "a")
-
-
-/// A propagation decision as an op: `pin` this location, with the author's words attached.
-///
-/// `decidedAt` is what makes each decision a DISTINCT op. Passed in for the same reason `originTs` is:
-/// letting it default would make the test depend on the wall clock.
-let pin (name : string) (reason : string) (decidedAt : string) : PT.PackageOp =
-  PT.PackageOp.Decision(
-    $"pin:{name}:{decidedAt}",
-    loc name,
-    reason,
-    PT.DecisionKind.Propagation PT.PropagationPolicy.Pin
-  )
-
-/// The policy this store holds for a name on main, as (policy, note).
-let policyFor (name : string) : Task<Option<string * string>> =
-  let l = loc name
-  Sql.query
-    // Main's id comes from the product's own constant, never a literal: a hand-spelled one asks for
-    // a branch nothing writes, so the query answers None and the test passes while asserting nothing.
-    "SELECT policy, COALESCE(note, '') AS note FROM propagation_policy
-     WHERE branch_id = @main AND owner = @o AND modules = @m AND name = @n"
-  |> Sql.parameters
-    [ "main", Sql.string (string PT.BranchId.Main)
-      "o", Sql.string l.owner
-      "m", Sql.string (String.concat "." l.modules)
-      "n", Sql.string l.name ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    (read.string "policy", read.string "note"))

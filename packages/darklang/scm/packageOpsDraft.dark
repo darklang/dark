@@ -199,97 +199,6 @@ let decisionKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
   loc.owner + "|" + (Stdlib.String.join loc.modules ".") + "|" + loc.name
 
 
-/// Where a propagation choice of YOURS was replaced by one that arrived from somebody else.
-///
-/// This is the silent half of last-writer-wins: two people pin the same name, the later stamp wins, and
-/// nothing says so. The loser is kept and reviewable, but only if something surfaces it.
-///
-/// Answerable because an import records the author the wire hands it. A locally-authored op has
-/// no `op_owners` row and an arriving one does, so "mine, replaced by theirs" is exactly "no owner, then
-/// an owner". A choice you changed yourself is not reported: that is not a surprise.
-///
-/// Returns (location, the policy you chose, the policy in force now, who replaced it).
-///
-/// A `Result` because "none" and "could not look" are different answers. A failed query used to read
-/// as an empty list, so `dark constraints` reported no drift when it had not checked.
-let supersededPolicies
-  ()
-  : Stdlib.Result.Result<List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.PropagationPolicy * LanguageTools.ProgramTypes.PropagationPolicy * String)>, String> =
-  match
-    Stdlib.Sqlite.scalarInt
-      (localDb ())
-      // Not 'unset' rows: clearing a choice leaves a tombstone (see the fold), and a store whose
-      // every choice has been cleared has no choices.
-      "SELECT COUNT(*) AS n FROM propagation_policy WHERE policy <> 'unset'"
-      "n"
-  with
-  | None ->
-    Stdlib.Result.Result.Error "couldn't count propagation choices (the store did not answer)"
-  | Some 0L -> Stdlib.Result.Result.Ok []
-  | Some _ ->
-    // Byte 9 of the blob is the op tag; 0x0B is Decision, the only op the fold below reads. One pin
-    // is enough to get here, and without the filter every status read the whole log into Dark.
-    match
-      Stdlib.Sqlite.query
-        (localDb ())
-        "SELECT p.id, p.op_blob,
-                (SELECT o.owner FROM op_owners o WHERE o.op_id = p.id LIMIT 1) AS author
-         FROM package_ops p
-         WHERE p.effective = 1 AND substr(p.op_blob, 9, 1) = X'0B'
-         ORDER BY p.origin_ts, p.rowid"
-    with
-    | Error e ->
-      Stdlib.Result.Result.Error $"couldn't read the op log for superseded choices: {e}"
-    | Ok rows ->
-      // Per name: the last choice YOU made with nobody having replaced it yet, then whether a later one
-      // arrived from a peer with a different answer.
-      let step =
-        (fun acc row ->
-          match
-            (Stdlib.Sqlite.textField row "id", Stdlib.Sqlite.bytesField row "op_blob")
-          with
-          | (Some idStr, Some blob) ->
-            if Stdlib.Bool.not (opBindsAName blob) then
-              acc
-            else
-              let author =
-                Stdlib.Sqlite.textField row "author" |> Stdlib.Option.withDefault ""
-
-              match Stdlib.Uuid.parse idStr with
-              | Error _ -> acc
-              | Ok id ->
-                match tryDecodeOp id blob with
-                | Some(Decision(_, loc, _, Propagation policy)) ->
-                  let k = decisionKey loc
-
-                  match Stdlib.Dict.get acc k with
-                  | None ->
-                    // A peer's choice with no local one before it supersedes nothing of yours; only a
-                    // locally-authored choice (no `op_owners` row) starts the record of what is "yours".
-                    if author == "" then
-                      Stdlib.Dict.setOverridingDuplicates acc k (loc, policy, policy, "")
-                    else
-                      acc
-                  | Some entry ->
-                    let (l, mine, _now, _by) = entry
-                    // Only a PEER's later choice counts as superseding; changing your own mind is not a
-                    // finding, and it resets what "yours" is.
-                    if author == "" then
-                      Stdlib.Dict.setOverridingDuplicates acc k (l, policy, policy, "")
-                    else
-                      Stdlib.Dict.setOverridingDuplicates acc k (l, mine, policy, author)
-                | _ -> acc
-          | _ -> acc)
-
-      rows
-      |> Stdlib.List.fold Stdlib.Dict.empty step
-      |> Stdlib.Dict.values
-      |> Stdlib.List.filter (fun entry ->
-        let (_loc, mine, now, by) = entry
-        (by != "") && (mine != now))
-      |> Stdlib.Result.Result.Ok
-
-
 /// Where a human's OVERRIDE was later undone by an ordinary edit.
 ///
 /// Returns (location, the hash the override chose, the hash bound now) per name.
@@ -303,7 +212,7 @@ let supersededPolicies
 ///
 /// Guarded on the `conflicts` projection first, which is small and usually empty of overrides, so the
 /// op-log decode below costs nothing on the common path.
-/// A `Result` for the same reason as <fn supersededPolicies>: a failed query is not "none".
+/// A failed query is reported rather than mistaken for no findings.
 let supersededOverrides
   ()
   : Stdlib.Result.Result<List<(LanguageTools.ProgramTypes.PackageLocation * String * String)>, String> =
@@ -330,7 +239,7 @@ let supersededOverrides
     | Ok rows ->
       // Fold the log in order, remembering per location: the hash the last LOCAL override chose, and
       // the hash bound now. Order is the fold's own (origin_ts, rowid), so "later" means what the fold
-      // means. The same authorship rule as `supersededPolicies`: only YOUR override can be superseded
+      // means. Only YOUR override can be superseded
       // (a peer's is theirs to watch), and a later edit of YOURS is a change of mind, which closes the
       // record rather than reporting you to yourself.
       let hashOf =

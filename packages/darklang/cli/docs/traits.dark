@@ -109,9 +109,9 @@ builtin type already has implementations. Yours join with one `impl`.
   It is decided when you SAVE, not when the call runs. The checker knows the type
   the call is on, so the implementation is chosen then and stored with the call:
   the code goes on doing what it did when you wrote it, and an implementation
-  written later does not change it underneath you. It reaches you the way any
-  other update does, through `dark propagate` (and `pin` refuses it), because a
-  stored call depends on that implementation's fn like any other call.
+  written later does not change it underneath you. A stored call depends on that
+  implementation's method fn. Use `deps upgrade <caller> <method>` to adopt its
+  newer version explicitly.
 
   Operators are stored the same way, inside a pipeline too. A call in a bounded fn
   (`let display<'a: ToString> (v: 'a) = v.toString`) stores "whatever my caller's 'a

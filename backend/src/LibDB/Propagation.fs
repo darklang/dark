@@ -23,48 +23,6 @@ module HS = LibDB.HashStabilization
 type PropagationResult = { repoints : List<PT.PropagateRepoint> }
 
 
-/// The explicit choices that could cover <param loc>: the item itself, its module, then each parent
-/// module, then owner-wide. MOST SPECIFIC FIRST, so a caller just takes the first hit -- the same
-/// resolution shape names already have.
-///
-/// Mirrors `Darklang.SCM.Propagation.candidateKeys`, and is pinned case for case by matching tables in
-/// `backend/tests/Tests/PropagationPolicy.Tests.fs` and
-/// `backend/testfiles/execution/scm/propagationPolicy.dark`. **Change one, change both, and both
-/// tables.** The two copies exist because two different things ask: the cascade asks per dependent
-/// while rewriting ASTs (here), and `dark propagate policy` asks to tell a person what is in force
-/// (Dark). If they disagree, the report names a policy the cascade did not apply, silently.
-let candidateKeys (loc : PT.PackageLocation) : List<string * string> =
-  let modulesOf (ms : List<string>) = String.concat "." ms
-
-  // innermost module outward: "A.B.C", "A.B", "A", ""
-  let moduleChain =
-    [ for i in List.length loc.modules .. -1 .. 0 ->
-        modulesOf (List.truncate i loc.modules) ]
-
-  (modulesOf loc.modules, loc.name)
-  :: (moduleChain |> List.map (fun m -> (m, "")))
-
-
-/// Does an explicit `pin` cover this location?
-///
-/// Only explicit rows are consulted and the FIRST hit wins whatever it says, so an
-/// item marked `follow` inside a module marked `pin` still follows. No row anywhere
-/// means follow, which is why an explicit `follow` and silence look identical to the
-/// cascade and differ only as an override.
-let private isPinned
-  (pins : Set<string * string * string>)
-  (follows : Set<string * string * string>)
-  (loc : PT.PackageLocation)
-  : bool =
-  candidateKeys loc
-  |> List.tryPick (fun (m, n) ->
-    let k = (loc.owner, m, n)
-    if Set.contains k pins then Some true
-    elif Set.contains k follows then Some false
-    else None)
-  |> Option.defaultValue false
-
-
 /// Every item that transitively depends on the targets, filtered by FQN at each level so same-hash content
 /// at other locations does not enter the cascade.
 ///
@@ -72,11 +30,9 @@ let private isPinned
 /// have no `locations` row, so without it a branch-authored dependent never repoints, and a name the branch
 /// rebound would resolve to main's version and walk the cascade off the branch.
 ///
-/// Reports the full candidate set. WHICH of them repoint is the user's choice at commit time, not a rule
-/// inferred here from ownership or module.
+/// Stop at the owner boundary: external callers keep their exact references.
 let private discoverDependents
-  (pins : Set<string * string * string>)
-  (follows : Set<string * string * string>)
+  (owner : string)
   (branchBindings : Map<string, List<PT.ItemKind * PT.PackageLocation>>)
   (sourceLocations : List<PT.PackageLocation>)
   (sourceItemKind : PT.ItemKind)
@@ -166,11 +122,8 @@ let private discoverDependents
             batchDependents
             |> List.filter (fun d ->
               not (Set.contains (key (dependentTarget d)) newProcessed))
-            // A pinned dependent doesn't repoint -- and because `newPending` comes
-            // from this list, the cascade also stops THERE rather than stepping over
-            // it. That's the right shape: a pin means this item keeps calling the
-            // old version, so nothing above it sees a change either.
-            |> List.filter (fun d -> not (isPinned pins follows d.itemLocation))
+            // Stop here rather than traversing external callers back into this owner.
+            |> List.filter (fun d -> d.itemLocation.owner = owner)
             // See `liveOnThisBranch`: never repoint a name away from what the branch put there.
             |> List.filter liveOnThisBranch
             |> List.distinctBy (fun d -> key (dependentTarget d))
@@ -272,11 +225,11 @@ let private resolveCurrentHash
               (fun acc op ->
                 match op with
                 | PT.PackageOp.SetName(l, target, _) when l = loc ->
-                  Some(Some target.hash)
+                  Some(if target.kind = kind then Some target.hash else None)
                 | PT.PackageOp.Decision(_, l, _, PT.DecisionKind.Override target) when
                   l = loc
                   ->
-                  Some(Some target.hash)
+                  Some(if target.kind = kind then Some target.hash else None)
                 | PT.PackageOp.Unbind(l, _) when l = loc -> Some None
                 | _ -> acc)
               None
@@ -464,6 +417,7 @@ let private buildSeedMapping
 /// SCC hashing is required for mutually-recursive package items; location
 /// data lets stale refs be matched without relying only on old hashes.
 let private createAllItems
+  (includeSourceCycles : bool)
   (branch : PT.BranchId)
   (fromSourceHashes : List<Hash>)
   (toSourceHash : Hash)
@@ -499,8 +453,9 @@ let private createAllItems
         // with an affected item at another FQN. Make forward dependency
         // lookup location-aware too, then compare by (location, kind).
         let sourceInCycle =
-          sourceDeps
-          |> List.exists (fun dep -> Set.contains dep.itemHash dependentHashes)
+          includeSourceCycles
+          && (sourceDeps
+              |> List.exists (fun dep -> Set.contains dep.itemHash dependentHashes))
 
         let! affectedAndSource =
           if sourceInCycle then
@@ -579,19 +534,9 @@ let propagate
       else
         Branches.chainBindingsByHash branch
 
-    // The user's explicit choices about what follows what. Loaded once per cascade rather than per
-    // dependent: the table only ever holds things a person deliberately said, so it stays small.
-    // Scoped to where the cascade is running -- on a branch that is the branch's own choices layered
-    // over main's, on main it is main's alone, so another branch's experiment cannot reach it. Main
-    // is an id like any other here: its policy rows are stored under its id, and the inheritance
-    // clause compares real ids.
-    let! pins = PMQueries.getPropagationPins branch
-    let! follows = PMQueries.getPropagationFollows branch
-
     let! dependents =
       discoverDependents
-        pins
-        follows
+        sourceLocation.owner
         branchBindings
         sourceLocations
         sourceItemKind
@@ -602,6 +547,7 @@ let propagate
     | _ ->
       let! result =
         createAllItems
+          true
           branch
           fromSourceHashes
           toSourceHash
@@ -616,4 +562,70 @@ let propagate
         // No marker op: the Add + SetName ops ARE the propagation. Grouping comes from
         // the commit, and "this version lost" from a recorded conflict.
         return Ok(Some({ repoints = repoints }, ops))
+  }
+
+
+/// Upgrade a dependency of one selected caller, then its same-owner callers.
+/// Computes all ops before writing; unrelated consumers of the library stay unchanged.
+let upgrade
+  (branch : PT.BranchId)
+  (callerLocation : PT.PackageLocation)
+  (callerKind : PT.ItemKind)
+  (dependencyLocation : PT.PackageLocation)
+  (dependencyKind : PT.ItemKind)
+  (fromHash : Hash)
+  (toHash : Hash)
+  : Task<Result<Option<PropagationResult * List<PT.PackageOp>>, string>> =
+  task {
+    let! callerHash = resolveCurrentHash branch callerLocation callerKind (Hash "")
+    let! targetHash =
+      resolveCurrentHash branch dependencyLocation dependencyKind (Hash "")
+    if callerHash = Hash "" then
+      return Error "The selected caller is no longer bound on this branch"
+    elif targetHash <> toHash || targetHash = Hash "" then
+      return
+        Error "The dependency version changed; inspect it again before upgrading"
+    else
+      let! direct =
+        PMQueries.getDependentHashesByTargets
+          [ { itemKind = dependencyKind
+              location = dependencyLocation
+              hashes = [ fromHash ] } ]
+      if not (List.contains (let (Hash h) = callerHash in h) direct) then
+        return Error "The selected caller no longer uses that dependency version"
+      elif fromHash = toHash then
+        return Ok None
+      else
+        let! bindings =
+          if branch.IsMain then
+            Task.FromResult Map.empty
+          else
+            Branches.chainBindingsByHash branch
+        let! downstream =
+          discoverDependents
+            callerLocation.owner
+            bindings
+            [ callerLocation ]
+            callerKind
+            [ callerHash ]
+        let caller : PMQueries.LocationDependent =
+          { itemHash = callerHash
+            itemKind = callerKind
+            itemLocation = callerLocation }
+        let affected =
+          caller
+          :: (downstream |> List.filter (fun d -> d.itemLocation <> callerLocation))
+        let! result =
+          createAllItems
+            false
+            branch
+            [ fromHash ]
+            toHash
+            dependencyLocation
+            [ dependencyLocation ]
+            dependencyKind
+            affected
+        match result with
+        | Error e -> return Error e
+        | Ok(repoints, ops, _) -> return Ok(Some({ repoints = repoints }, ops))
   }

@@ -420,41 +420,6 @@ let mainSyncCarriesTheAuthorsCommit =
 ///
 /// The report reads only `Decision` ops out of the log, picked by tag byte in SQL, so a wrong byte
 /// reads nothing and every "0" below still passes. This is what notices.
-let aPeerReplacingYourChoiceIsAFinding =
-  oneStoreTest
-    "your propagation choice replaced by a peer's is a superseded-decision finding"
-    "a"
-    (fun a ->
-      task {
-        activate a
-        let decision (id : string) (policy : string) =
-          "let op = Darklang.LanguageTools.ProgramTypes.PackageOp.Decision(\""
-          + id
-          + "\", "
-          + "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"TwoStore\"; modules = [\"Sup\"]; name = \"h\" }, \"\", "
-          + "Darklang.LanguageTools.ProgramTypes.DecisionKind.Propagation Darklang.LanguageTools.ProgramTypes.PropagationPolicy."
-          + policy
-          + ") in Darklang.SCM.PackageOps.add Darklang.SCM.Branch.mainBranchId [ op ]"
-        // Yours: no `op_owners` row.
-        let! _ = darkOn (decision "minepin01" "Pin")
-        let! _ = darkOn (decision "peerfollow01" "Follow")
-        do!
-          execSql
-            "INSERT INTO op_owners (op_id, owner)
-             SELECT id, 'peer-1' FROM package_ops
-             WHERE id NOT IN (SELECT op_id FROM op_owners)
-               AND substr(op_blob, 9, 1) = X'0B'
-             ORDER BY origin_ts DESC, rowid DESC LIMIT 1"
-        let! (policies : string) =
-          darkOn
-            "Darklang.SCM.PackageOps.supersededPolicies () |> Stdlib.Result.withDefault [] |> Stdlib.List.length |> Stdlib.toString"
-        Expect.equal
-          policies
-          "DString \"1\""
-          $"your pin, then a peer's follow: {policies}"
-      })
-
-
 /// The two "your decision was superseded" reports check WHO acted, not only what happened.
 ///
 /// A peer's policy with no local one before it supersedes nothing of yours; your own later edit is a
@@ -468,43 +433,6 @@ let supersededReportsCheckAuthorship =
     (fun a ->
       task {
         activate a
-        // A peer's pin arrives with an author; no local choice preceded it.
-        let! _ =
-          darkOn (
-            "let op = Darklang.LanguageTools.ProgramTypes.PackageOp.Decision(\"peerpin01\", "
-            + "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"TwoStore\"; modules = [\"Sup\"]; name = \"f\" }, \"\", "
-            + "Darklang.LanguageTools.ProgramTypes.DecisionKind.Propagation Darklang.LanguageTools.ProgramTypes.PropagationPolicy.Pin) in "
-            + "Darklang.SCM.PackageOps.add Darklang.SCM.Branch.mainBranchId [ op ]"
-          )
-        do!
-          execSql
-            "INSERT INTO op_owners (op_id, owner)
-             SELECT id, 'peer-1' FROM package_ops
-             WHERE id NOT IN (SELECT op_id FROM op_owners)
-               AND substr(op_blob, 9, 1) = X'0B'"
-        // A second peer replaces the first: still nobody's surprise but theirs. This is the arm the
-        // authorship check exists for -- without it the first peer's choice is recorded as "yours".
-        let! _ =
-          darkOn (
-            "let op = Darklang.LanguageTools.ProgramTypes.PackageOp.Decision(\"peerpin02\", "
-            + "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"TwoStore\"; modules = [\"Sup\"]; name = \"f\" }, \"\", "
-            + "Darklang.LanguageTools.ProgramTypes.DecisionKind.Propagation Darklang.LanguageTools.ProgramTypes.PropagationPolicy.Follow) in "
-            + "Darklang.SCM.PackageOps.add Darklang.SCM.Branch.mainBranchId [ op ]"
-          )
-        do!
-          execSql
-            "INSERT INTO op_owners (op_id, owner)
-             SELECT id, 'peer-2' FROM package_ops
-             WHERE id NOT IN (SELECT op_id FROM op_owners)
-               AND substr(op_blob, 9, 1) = X'0B'"
-        let! (policies : string) =
-          darkOn
-            "Darklang.SCM.PackageOps.supersededPolicies () |> Stdlib.Result.withDefault [] |> Stdlib.List.length |> Stdlib.toString"
-        Expect.equal
-          policies
-          "DString \"0\""
-          $"a peer's first-and-only choice supersedes nothing of yours: {policies}"
-
         // Your own override, then your own edit: a change of mind, not a finding.
         let! ops =
           authorIntoMain
@@ -575,5 +503,4 @@ let tests =
       anOverrideRepointsCallers
       mainSyncCarriesTheAuthorsCommit
       supersededReportsCheckAuthorship
-      aPeerReplacingYourChoiceIsAFinding
       aFailedImportLeavesNoCommit ]

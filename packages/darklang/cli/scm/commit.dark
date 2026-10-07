@@ -231,7 +231,7 @@ type Review =
     /// Fully-qualified names the draft removes.
     removed: List<String>
     propagates: List<SCM.PackageOps.Repoint>
-    /// Names that reference an old version and WON'T follow, because they're pinned. An outcome, not a
+    /// Names that reference an old version and WON'T follow, because they belong to another owner. An outcome, not a
     /// warning: leaving a reference behind is a thing you decide, and this is where you see you decided it.
     leftBehind: List<SCM.PackageOps.Repoint>
     conflicts: List<SCM.Conflicts.Conflict>
@@ -567,7 +567,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
         let name = ScmJson.pad rp.name repointWidth
         Cli.Stderr.line $"    ~ {name}  -> uses {rp.uses}")
 
-    // STAYING BEHIND -- what your pins are holding on an older version. Shown next to what moved, since
+    // STAYING BEHIND -- external callers keeping their selected version. Shown next to what moved, since
     // the two are the same decision from either side, and a deliberate one should read as deliberate.
     let behind = r.leftBehind
 
@@ -577,7 +577,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
       Cli.Stderr.line ""
 
       Cli.Stderr.ok
-        $"  STAYING BEHIND ({Stdlib.toString (Stdlib.List.length behind)})   (pinned, so they keep the version they have)"
+        $"  STAYING BEHIND ({Stdlib.toString (Stdlib.List.length behind)})   (external callers keep their selected versions)"
 
       let behindWidth = widest (behind |> Stdlib.List.map (fun rp -> rp.name))
 
@@ -677,7 +677,7 @@ let help (_state: AppState) : String =
     "  REMOVED           names this commit takes away"
     "  PROPAGATES TO     what references an older version, and will be"
     "                    repointed"
-    "  STAYING BEHIND    pinned, so it keeps the version it has"
+    "  STAYING BEHIND    external callers keep their selected versions"
     "  CONFLICTS         what a merge, rebase or sync auto-resolved,"
     "                    waiting on your ok"
     ""

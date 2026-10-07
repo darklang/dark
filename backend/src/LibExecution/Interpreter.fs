@@ -4340,12 +4340,12 @@ let private runSyncInstructions
             | DEnum(_, typeName, _, caseName, fields) ->
               let isResult =
                 typeName = FQTypeName.Package(
-                             Hash(PackageRefs.Type.Stdlib.result ())
-                           )
+                  Hash(PackageRefs.Type.Stdlib.result ())
+                )
               let isOption =
                 typeName = FQTypeName.Package(
-                             Hash(PackageRefs.Type.Stdlib.option ())
-                           )
+                  Hash(PackageRefs.Type.Stdlib.option ())
+                )
               // Checked on success too, so a mismatch fails whatever the value.
               match returns with
               | Some expected when (isResult || isOption) && expected <> typeName ->

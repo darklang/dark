@@ -182,15 +182,6 @@ let conflictsKeepsItsShapeWhenThereAreNone =
         do! hasKeys state [ "conflicts"; "--json" ] [ "conflicts"; "pending" ]
       })
 
-let propagateKeepsItsShapeWhenThereIsNothingToChoose =
-  instanceTest
-    "propagate --json keeps its keys when there is nothing to choose"
-    (fun state ->
-      task {
-        do! start state
-        do! hasKeys state [ "propagate"; "--json" ] [ "choices" ]
-      })
-
 /// `findings: []` means "nothing is wrong" only when nothing stopped a detector from looking.
 let constraintsKeepsItsShape =
   instanceTest "constraints --json keeps its keys" (fun state ->
@@ -519,7 +510,6 @@ let tests : List<Test> =
   [ statusKeepsItsShapeWhenNothingChanged
     statusDescribesADraft
     conflictsKeepsItsShapeWhenThereAreNone
-    propagateKeepsItsShapeWhenThereIsNothingToChoose
     constraintsKeepsItsShape
     depsAnswersBothDirections
     searchAnswersWithItsQuery

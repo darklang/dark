@@ -41,8 +41,7 @@ let tables : List<string> =
     // replacement log as an older statement.
     "location_docs"
 
-    // Folded from `Decision` ops (main rows by the fold, branch rows by `Branches.refoldBranchDecides`),
-    // so it says what the log decided about a name, and a purged log decided nothing.
+    // Retired projection retained in the frozen schema; clear any historical rows.
     "propagation_policy"
 
     // Re-derived by the fold, and only meaningful against the log that produced them.

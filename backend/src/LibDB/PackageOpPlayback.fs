@@ -613,7 +613,7 @@ let private applyUndeprecate
 
 /// Fold the non-binding half of a `Decision` into whichever projection owns it.
 ///
-/// This is what makes `propagation_policy` and the Constraint acks in `conflicts` DERIVED tables rather
+/// This is what makes the constraint acks in `conflicts` a derived projection rather
 /// than a second source of truth. `Override` is not here: it binds a name, so it folds through
 /// `applySetNameFrom` alongside the other binding ops.
 ///
@@ -621,7 +621,7 @@ let private applyUndeprecate
 /// when it syncs -- which is what lets LWW agree across instances instead of "whoever imported last wins".
 let private applyDecision
   (ctx : Ctx)
-  (branchId : PT.BranchId)
+  (_branchId : PT.BranchId)
   (op : PT.PackageOp)
   (loc : PT.PackageLocation)
   (reason : string)
@@ -639,43 +639,9 @@ let private applyDecision
       // error in both places rather than a silent no-op in one of them.
       ()
 
-    | PT.DecisionKind.Propagation PT.PropagationPolicy.Unset ->
-      // A tombstone, not a delete: state 'unset' carrying the op's time. Deleting the row deletes
-      // the evidence a later-arriving OLDER pin has to lose to, so it would re-insert and undo an
-      // unset that postdates it. Readers already read 'unset' as "no policy".
-      do!
-        exec
-          ctx
-          "INSERT INTO propagation_policy (branch_id, owner, modules, name, policy, note, origin_ts)
-           VALUES ($branch, $owner, $modules, $name, $policy, $note, $ts)
-           ON CONFLICT(branch_id, owner, modules, name) DO UPDATE SET
-             policy = excluded.policy,
-             note = excluded.note,
-             origin_ts = excluded.origin_ts
-           WHERE COALESCE(propagation_policy.origin_ts, '') < excluded.origin_ts"
-          (fun cmd ->
-            p cmd "$branch" (string branchId)
-            pLoc cmd loc
-            p cmd "$policy" PT.PropagationPolicy.Unset.ToText
-            p cmd "$note" reason
-            p cmd "$ts" ts)
-
-    | PT.DecisionKind.Propagation policy ->
-      // Guarded by origin_ts so an older op arriving late can't undo a newer decision.
-      do!
-        exec
-          ctx
-          "INSERT INTO propagation_policy (branch_id, owner, modules, name, policy, note, origin_ts)
-           VALUES ($branch, $owner, $modules, $name, $policy, $note, $ts)
-           ON CONFLICT(branch_id, owner, modules, name) DO UPDATE SET
-             policy = excluded.policy, note = excluded.note, origin_ts = excluded.origin_ts
-           WHERE excluded.origin_ts > COALESCE(propagation_policy.origin_ts, '')"
-          (fun cmd ->
-            p cmd "$branch" (string branchId)
-            pLoc cmd loc
-            p cmd "$policy" policy.ToText
-            p cmd "$note" reason
-            p cmd "$ts" ts)
+    | PT.DecisionKind.Propagation _ ->
+      // Historical wire case: retain the op, but it has no update-policy effect.
+      ()
 
     | PT.DecisionKind.Ack findingId ->
       // A finding nobody has answered isn't stored at all -- only answers are rows, because detection
@@ -814,26 +780,6 @@ let private applyBranchEvent
             "INSERT OR IGNORE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
              SELECT $p, owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = $b"
             bindP
-
-      // The branch's PINS and FOLLOWS go where its ops go. A pin is a decision about a name --
-      // "this caller does not follow that dependency" -- and it is stored per branch, so a merge
-      // that moved the ops and left the decisions behind left the parent unable to see them: its
-      // next edit repointed a caller the child had deliberately pinned, and the pin was still
-      // there, under an id nothing consults any more.
-      //
-      // OR IGNORE, not REPLACE: the parent's own decision about a name is the parent's, and a
-      // child cannot overrule it by merging. Same rule the name bases above follow.
-      let mergeTarget =
-        match parent with
-        | Some pid when not parentIsMain -> pid
-        | _ -> string PT.BranchId.Main
-      do!
-        exec ctx "INSERT OR IGNORE INTO propagation_policy
-             (branch_id, owner, modules, name, policy, note, origin_ts)
-           SELECT $target, owner, modules, name, policy, note, origin_ts
-             FROM propagation_policy WHERE branch_id = $b" (fun cmd ->
-          p cmd "$b" b
-          p cmd "$target" mergeTarget)
 
       do!
         exec

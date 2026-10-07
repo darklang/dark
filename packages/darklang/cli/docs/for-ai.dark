@@ -153,7 +153,8 @@ Your edits are LIVE the moment you author them. `commit` doesn't make them
 real -- it reviews them and records them. Before that they're your draft: running,
 changeable, not yet anyone else's.
 
-Editing an item repoints everything that uses it, immediately. That's
+Editing an item repoints its same-owner callers, immediately. External callers
+keep their exact dependency versions until explicitly upgraded. That's
 PROPAGATION, and it's the one behaviour to know about, because it means a
 `status` after one edit can show two changed items.
 
@@ -163,7 +164,7 @@ PROPAGATION, and it's the one behaviour to know about, because it means a
   discard [-y]         drop the whole draft
   undo <name>          step ONE item back one version
   deps <name> --json   what it uses and what uses it, each flagged `behind`
-  propagate pin <name> stop something following, and undo the repoint it got
+  deps upgrade <caller> <dependency>  use the dependency’s current branch version
   ack --all            leave every constraint finding for now
 
 Every question-answering command takes `--json` (status, commit's dry review,

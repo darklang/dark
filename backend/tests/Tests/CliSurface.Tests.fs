@@ -781,7 +781,6 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "log", [ "--json" ]
       "rebase", [ seed.branch; "--dry-run" ]
       "merge", [ seed.branch; "--dry-run" ]
-      "propagate", [ "show"; seed.fn ]
       "constraints", [ "--json" ]
       "builtins", [ "listMap" ]
       "find-values", [ "Darklang.Stdlib.Option.Option" ]
@@ -848,7 +847,7 @@ let everyCommandWorksWithValidArguments =
         let branch = "cli-sweep-args"
         let fnName = "Tests.Sweep.f"
 
-        // Authored and committed, so `show`, `deps` and `propagate` have something real, and
+        // Authored and committed, so `show` and `deps` have something real, and
         // committed by NAME: `commit` with no `--include` would take whatever other tests left
         // in the draft.
         do! CliDsl.onMain state
@@ -978,9 +977,6 @@ let private nonexistentTargets : List<string * List<string>> =
     "review reject", [ "review"; "reject"; "zzznope" ]
     "conflicts show", [ "conflicts"; "show"; "zzznope" ]
     "conflicts branch", [ "conflicts"; "branch"; "zzznope" ]
-    "propagate show", [ "propagate"; "show"; "Zzz.Nope.nope" ]
-    "propagate pin", [ "propagate"; "pin"; "Zzz.Nope.nope" ]
-    "propagate follow", [ "propagate"; "follow"; "Zzz.Nope.nope" ]
     "constraints resolve", [ "constraints"; "resolve"; "zzznope" ]
     "ack", [ "ack"; "zzznope" ]
     "permissions requirements", [ "permissions"; "requirements"; "Zzz.Nope.nope" ]
@@ -1084,7 +1080,6 @@ let private otherRefusals : List<string * List<string>> =
     // returns a bare `state`, and a caller that gets None from a helper which already said why.
     "commits, a branch name where a count goes", [ "commits"; "zzznope" ]
     "backups restore, no name", [ "backups"; "restore" ]
-    "propagate pin, no names", [ "propagate"; "pin" ]
     "diff, a branch that does not exist", [ "diff"; "zzznope" ]
     "log, a branch that does not exist", [ "log"; "zzznope" ]
     "rebase, a branch that does not exist", [ "rebase"; "zzznope" ] ]

@@ -304,6 +304,52 @@ let executeJson
 
   state
 
+/// Upgrade only the selected dependency of this caller; other consumers stay put.
+let executeUpgrade
+  (state: AppState)
+  (callerArg: String)
+  (dependencyArg: String)
+  : AppState =
+  match resolvePath state.currentBranchId state.packageData.currentLocation callerArg with
+  | Error e ->
+    Cli.printErr e
+    Cli.exitWith state false
+  | Ok resolved ->
+    let (callerHash, caller, name, callerKind) = resolved
+    match resolvePath state.currentBranchId state.packageData.currentLocation dependencyArg with
+    | Error e ->
+      Cli.printErr e
+      Cli.exitWith state false
+    | Ok resolved ->
+      let (current, dependency, _, dependencyKind) = resolved
+      let used =
+        SCM.Deps.dependencyEdges callerHash
+        |> Stdlib.List.filterMap (fun (hash, kind, loc) ->
+          if loc == dependency && kind == dependencyKind then Some hash else None)
+        |> Stdlib.List.unique
+      match used with
+      | [using] ->
+        if using == current then
+          Cli.printOk $"{name} already uses the current version."
+          state
+        else
+          match SCM.Propagation.upgradeDependency state.currentBranchId
+                  caller callerKind dependency dependencyKind using current with
+          | Error e ->
+            Cli.printErr $"Upgrade failed: {e}"
+            Cli.exitWith state false
+          | Ok moved ->
+            let count = Stdlib.toString (Stdlib.List.length moved)
+            Cli.printOk $"Upgraded {name}; {count} items updated."
+            state
+      | [] ->
+        Cli.printErr $"{name} does not use that dependency."
+        Cli.exitWith state false
+      | _ ->
+        Cli.printErr "The caller uses multiple versions; edit its references explicitly."
+        Cli.exitWith state false
+
+
 let execute (state: AppState) (args: List<String>) : AppState =
   // Flags: --deep (transitive), --all (don't cap the listing), --json
   let wantsJson = ScmJson.wantsJson args
@@ -338,6 +384,17 @@ let execute (state: AppState) (args: List<String>) : AppState =
       "  --deep              - Show transitive dependents (everything that could break)"
       "  --all               - Show every row; listings are capped at 20 otherwise" ]
     |> Stdlib.List.iter (fun l -> Stdlib.printErrorLine l)
+    Cli.exitWith state false
+
+  | ["upgrade", caller, dependency] ->
+    if wantsJson || deep || all then
+      Cli.printErr "deps upgrade takes two names and no flags."
+      Cli.exitWith state false
+    else
+      executeUpgrade state caller dependency
+
+  | ["upgrade"] | ["upgrade", _] ->
+    Cli.printErr "usage: deps upgrade <caller> <dependency>"
     Cli.exitWith state false
 
   | ["uses", pathArg] ->
@@ -412,9 +469,15 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
   let branchId = state.currentBranchId
   match args with
   | [] ->
-    [Completion.CompletionItem { display = "uses"; value = "uses" }, Completion.CompletionItem { display = "usedby"; value = "usedby" }]
+    [Completion.CompletionItem { display = "uses"; value = "uses" }, Completion.CompletionItem { display = "usedby"; value = "usedby" }, Completion.CompletionItem { display = "upgrade"; value = "upgrade" }]
   | ["uses"] ->
     Packages.Traversal.completePartialPath branchId state.packageData.currentLocation ""
+  | ["upgrade"] ->
+    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation ""
+  | ["upgrade", _caller] ->
+    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation ""
+  | ["upgrade", _caller, partialPath] ->
+    Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
   | ["usedby"] ->
     Packages.Traversal.completePartialPath branchId state.packageData.currentLocation ""
   | ["uses", partialPath] ->
@@ -423,7 +486,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
     Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
   | [partialPath] ->
     let subcommands =
-      ["uses", "usedby"]
+      ["uses", "usedby", "upgrade"]
       |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd partialPath)
       |> Stdlib.List.map (fun cmd -> Completion.CompletionItem { display = cmd; value = cmd })
     let paths = Packages.Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
@@ -439,6 +502,7 @@ let help (_state: AppState) : String =
     "Subcommands:"
     "  uses <path>    - Show what the item uses (forward dependencies)"
     "  usedby <path>  - Show what uses the item (direct dependents)"
+    "  upgrade <caller> <dependency> - Use its current version on this branch"
     ""
     "Options:"
     "  --deep         - Show transitive dependents (everything that could break)"

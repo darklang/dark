@@ -66,7 +66,7 @@ Your edits are LIVE as soon as you write them. There is no build step.
   show <id>         what a commit committed, or what one op does
   discard           drop the whole draft
   undo <name>       step ONE item back a version
-  propagate         choose what follows what when a dependency changes
+  deps upgrade <caller> <dependency>   adopt a newer dependency version
   conflicts         review what a merge, rebase or sync auto-resolved
   constraints       standing checks over the store
   ack <id>...       leave a constraint finding for now (`ack --all`)

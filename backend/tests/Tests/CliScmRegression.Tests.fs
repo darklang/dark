@@ -254,36 +254,6 @@ let private archiveRefusesToOrphanAChild =
             "with the child gone, the parent archives"
       })
 
-/// Ocean #13. A merge moved a child's ops and name bases to the parent and left its propagation pins
-/// under the child's id, where nothing consults them, so the parent's next edit repointed a caller
-/// the child had deliberately pinned.
-let private mergeCarriesPins =
-  instanceTest "a merged branch's pins follow its ops to the parent" (fun state ->
-    task {
-      do! start state
-      do! fn state "Tests.Pin.base" "() : Int64 = 10L"
-      do! fn state "Tests.Pin.caller" "() : Int64 = Tests.Pin.base () + 1L"
-      do! commit state "pin base"
-
-      do! switch state "pinbr"
-      do! pin state "Tests.Pin.caller"
-      do! commit state "pin the caller"
-
-      do! onMain state
-      do! shows state [ "merge"; "pinbr"; "-y" ] "Merged" "the merge lands"
-
-      // The pin is the parent's now, so main's next edit leaves the caller where it is.
-      do! fn state "Tests.Pin.base" "() : Int64 = 20L"
-      do!
-        evals
-          state
-          "Tests.Pin.caller ()"
-          "11"
-          "a pinned caller keeps calling the version it was pinned to"
-
-      do! start state
-    })
-
 /// Not one of Ocean's, but the same family as her branch-isolation findings: a `Deprecate` authored
 /// on a branch never folded, so the branch went on calling the item live and only a merge made the
 /// deprecation visible anywhere.
@@ -427,7 +397,7 @@ let private discardCountsOpsNotNames =
       do! commit state "dec base"
 
       // A pin binds no name, so this draft has an op and no changed names.
-      do! pin state "Tests.Dec.f"
+      do! deprecate state "Tests.Dec.f"
       do!
         refuses
           state
@@ -652,7 +622,6 @@ let tests : List<Test> =
     propagationLeavesBranchWorkAlone
     rebaseIgnoresMainsDraft
     archiveRefusesToOrphanAChild
-    mergeCarriesPins
     deprecateIsVisibleOnItsBranch
     branchDiscardKeepsCommittedWork
     partialCommitTakesNamesNotBodies

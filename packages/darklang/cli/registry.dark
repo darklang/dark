@@ -61,7 +61,6 @@ module Registry =
       ("diff", "What a branch changes vs its parent", [], Cli.Branch.executeDiffCmd, Cli.Branch.help, Cli.Branch.complete)
       ("log", "History: commits on main, a branch's ops on a branch", [], Cli.Branch.executeLogCmd, Cli.Branch.help, Cli.Branch.complete)
       ("resolve", "Settle one conflicted name on a branch", [], Cli.Branch.executeResolveCmd, Cli.Branch.help, Cli.Branch.complete)
-      ("propagate", "Choose what follows what when a dependency changes", [], Cli.PropagateCmd.execute, Cli.PropagateCmd.help, Cli.PropagateCmd.complete)
       ("constraints", "Standing findings about the store: stale usages, kind changes, superseded overrides, rival implementations", [], Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("undeprecate", "Put a deprecated fn/type/value/trait/impl back on the shelf", [ "restore" ], Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, Packages.Deprecate.complete)

@@ -18,6 +18,13 @@ module Dval = LibExecution.Dval
 
 open TestUtils.TestUtils
 
+// Shared within this run, isolated from approvals and grants left by earlier runs.
+let private testPolicyDirectory =
+  System.IO.Path.Combine(
+    LibConfig.Config.runDir,
+    $"test-policy-{System.Guid.NewGuid():N}"
+  )
+
 /// Build an ExecutionState wired up with the same builtin set the CLI uses in
 /// production. Re-built per test so trace-store side effects don't leak across tests.
 /// The CLI's builtin table, built once for the whole file.
@@ -66,7 +73,7 @@ let buildState () : Task<RT.ExecutionState> =
     // developer's own policy, and in the container that path is not writable anyway. The
     // override is process-wide and deliberately never disposed -- every CLI test wants this
     // same policy, and restoring it per test would race the sequenced dispatch.
-    let policyDir = System.IO.Path.Combine(LibConfig.Config.runDir, "test-policy")
+    let policyDir = testPolicyDirectory
     System.IO.Directory.CreateDirectory policyDir |> ignore<System.IO.DirectoryInfo>
     LibExecution.HostSecurity.policyDirectoryForTesting policyDir
     |> ignore<System.IDisposable>

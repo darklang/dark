@@ -83,16 +83,7 @@ let rebase (state : Target) (branch : string) : Task<unit> =
 let deprecate (state : Target) (name : string) : Task<unit> =
   run state [ "deprecate"; "fn"; name; "--kind"; "obsolete"; "-y" ]
 
-let pin (state : Target) (name : string) : Task<unit> =
-  run state [ "propagate"; "pin"; name ]
 
-/// A clean slate on main: no draft, standing where every test expects to start.
-///
-/// Not a clean STORE, though: every CLI test runs against one store, and a committed
-/// fixture outlives the test that made it. So pick fixture names nobody else will
-/// (`Tests.<ThisTest>.<x>`) -- two tests sharing `Tests.Gone.f` meant one test's
-/// caller counted as a live dependent of the other's item, and the `delete` under
-/// test refused for a reason nothing in that test could explain.
 let start (state : Target) : Task<unit> =
   task {
     do! onMain state

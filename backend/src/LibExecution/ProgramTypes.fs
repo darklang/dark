@@ -1126,24 +1126,14 @@ and DecisionKind =
   /// what you are asked about, never what a name resolves to.
   | Ack of findingId : string
 
-  /// Whether this name follows its dependencies when they move, or stays where it is.
+  /// Retired wire case. Decodes historical ops; the fold gives it no effect.
   | Propagation of policy : PropagationPolicy
 
-/// Pin and follow are the two standing answers; `Unset` is the absence of one, which the fold deletes
-/// rather than stores, so "no policy" has a single spelling.
+/// Retired policy payload retained solely to preserve existing op bytes.
 and PropagationPolicy =
   | Pin
   | Follow
   | Unset
-
-  /// The spelling stored in `propagation_policy.policy`. Defined once because TWO folds write that
-  /// column -- main's in `PackageOpPlayback` and a branch's in `Branches` -- and a policy that spells
-  /// itself differently depending on which path folded it stops matching on read.
-  member this.ToText : string =
-    match this with
-    | Pin -> "pin"
-    | Follow -> "follow"
-    | Unset -> "unset"
 
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers (LSP, CLI, runtime) decide how loud to be.

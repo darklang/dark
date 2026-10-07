@@ -469,18 +469,20 @@ let traitsAreAuthoredListedAndDisambiguated =
             [ "constraints" ]
             "Tests.Tr.callsIt"
             "and the newer implementation shows up as an outdated usage"
-        // ...which `follow` catches up, which is the whole point of pinning to a fn: a newer
-        // implementation is offered through the machinery that already exists, not forced.
+        // Upgrade the method dependency explicitly; unrelated methods remain unchanged.
         do!
           run
             state
-            [ "propagate"; "follow"; "Tests.Tr.callsIt"; "catch up on the impl" ]
+            [ "deps"
+              "upgrade"
+              "Tests.Tr.callsIt"
+              "Tests.Tr.Point.Describe.describe" ]
         do!
           evals
             state
             "Tests.Tr.callsIt ()"
             "gamma"
-            "and following moves the caller onto the newer implementation"
+            "upgrading moves the caller onto the newer implementation"
 
         // Deprecating the one that RUNS leaves the other, which then runs.
         do!

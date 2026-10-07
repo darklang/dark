@@ -45,6 +45,48 @@ let private branchParam : Param =
     "the branch to resolve against; main is `SCM.Branch.mainBranchId`. Passed rather than ambient, so a caller can ask about a branch it is not sitting on"
 
 
+/// Persist a computed cascade on its branch and refresh the process overlay.
+let private persistPropagation
+  (branch : PT.BranchId)
+  (ops : List<PT.PackageOp>)
+  : Ply<unit> =
+  uply {
+    if branch.IsMain then
+      // Marked as PROPAGATED, not authored. It's the only point at which the difference is known.
+      let! _ = LibDB.Inserts.insertAndApplyPropagatedOps ops
+      return ()
+    else
+      // On a branch the repoints are BRANCH ops: stored effective=0 and tagged to the frontier,
+      // never folded into main's `locations`. That's the isolation guarantee -- a cascade that
+      // leaked into main would be worse than one that didn't happen.
+      //
+      // A repoint can create a branch-local version of a MAIN item (main's `dep` gets a branch
+      // copy pointing at the branch's `base`, main's copy untouched). Recording name bases for
+      // them is what lets a later merge tell that apart from a divergence.
+      // Marked as PROPAGATED on the branch's own record, as main's `locations.source` would be.
+      let! _ = LibDB.Branches.storeDeltaOpsFrom "propagation" branch ops
+      let! parentId = LibDB.Branches.parentOf branch
+      do! LibDB.Branches.recordNameBases branch parentId ops
+      // Fold the CONTENT (never the SetNames) so the new versions resolve and carry their
+      // dependency edges, exactly as branch authoring does.
+      let contentOps =
+        ops
+        |> List.filter (fun op ->
+          match op with
+          | PT.PackageOp.AddValue _
+          | PT.PackageOp.AddFn _
+          | PT.PackageOp.AddType _
+          | PT.PackageOp.AddTrait _
+          | PT.PackageOp.AddTraitImpl _ -> true
+          | _ -> false)
+      if not (List.isEmpty contentOps) then
+        do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
+      // Refresh the process overlay so a later eval in THIS process sees the repoints.
+      let! all = LibDB.Branches.loadDeltaOps branch
+      LibDB.PackageManager.setBranchOverlay all
+  }
+
+
 /// `pmGetLocationsBy{Type,Value,Fn}`: every name a hash is bound to, seen from <param branchId>.
 ///
 /// One shape, three item kinds. Three answers, in order, because a hash with no live name still has to
@@ -996,27 +1038,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       PMPT.TraitImpl.getLocationsEverNamed
 
 
-    // Bind a name back to content that ALREADY exists in the store.
-    //
-    // This is the primitive under the propagation toggle. Propagation runs on every edit, so pinning
-    // something is usually a request to UNDO a repoint that already happened -- and undoing it means
-    // pointing the name back at the version it had, which is still in the store because nothing is ever
-    // deleted.
-    //
-    // Despite the name, it emits a `Decision`/`Override` op rather than a `SetName`, and that is not an
-    // implementation detail. Ops are content-addressed, so `SetName(name -> the old hash)` is
-    // byte-identical to the op that first bound it: it INSERT-OR-IGNOREs and folds NOTHING, so the
-    // rollback silently doesn't happen. `Override` exists precisely to say "this binding again, but now I
-    // mean it", and a pin is the same act as a conflict override -- a human overruling what the machine
-    // picked.
-    //
-    // Emitting an op rather than touching `locations` is what makes the undo sync, audit and conflict like
-    // any other authoring. Deleting ops instead would do none of that, and would be unsafe besides: a pinned
-    // dependent may be the only thing still referencing the version being deleted.
+    // Restore a name to existing content with a distinct, stamped override op.
+    // A bare SetName would deduplicate against its original binding and do nothing.
     { name = fn "pmSetName" 0
       typeParams = []
       parameters =
-        [ Param.make
+        [ branchParam
+          Param.make
             "location"
             (TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []))
             "The name to bind"
@@ -1033,7 +1061,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Binds a name to content already in the store, as a Decision/Override op. Errors if the content isn't there."
       fn =
         (function
-        | _, _, _, [| locationDval; itemKindDval; hashDval |] ->
+        | _, _, _, [| DUuid branchGuid; locationDval; itemKindDval; hashDval |] ->
           uply {
             let loc = PT2DT.PackageLocation.fromDT locationDval
             let kind = PT2DT.ItemKind.fromDT itemKindDval
@@ -1068,33 +1096,21 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             else
               let reference = PT.Reference.fromHashAndKind (hash, kind)
 
-              // The decision id makes the op distinct from the SetName that originally created this
-              // binding. It's provenance, never a lookup key -- the fold ignores it.
-              //
-              // It carries a TIMESTAMP, so pinning the same name back to the same hash twice produces two
-              // ops rather than one. That's deliberate and it's where a pin differs from a conflict
-              // resolution: resolving conflict #7 the same way twice is one decision stated twice, but
-              // pin -> follow -> pin is genuinely three, and the third has to fold or the rollback silently
-              // doesn't happen.
+              // A repeated restore is a new binding decision, even if its hash existed before.
               let decisionId =
                 let mods = String.concat "." loc.modules
                 let now = System.DateTime.UtcNow.ToString("o")
-                $"pin:{loc.owner}.{mods}.{loc.name}:{hash}:{now}"
+                $"rebind:{loc.owner}.{mods}.{loc.name}:{hash}:{now}"
 
               let ops =
                 [ PT.PackageOp.Decision(
                     decisionId,
                     loc,
-                    "pinned",
+                    "restore version",
                     PT.DecisionKind.Override reference
                   ) ]
 
-              // Same branch source authoring uses, so a rebind lands where the edit that caused it landed.
-              //
-              // This one takes no branch parameter and uses the process default deliberately: `pmSetName`
-              // is called as part of authoring, which is already happening on whatever branch the caller is
-              // on. A parameter here would be a second way to say the same thing, and the two could differ.
-              let branchId = LibDB.PackageManager.currentBranchId ()
+              let branchId = branchOfParam branchGuid
 
               if branchId.IsMain then
                 let! _ = LibDB.Inserts.insertAndApplyOps ops
@@ -1178,41 +1194,103 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 |> List.map PT2DT.PropagateRepoint.toDT
                 |> Dval.list (PT2DT.PropagateRepoint.knownType ())
 
-              if branch.IsMain then
-                // Marked as PROPAGATED, not authored. It's the only point at which the difference is known.
-                let! _ = LibDB.Inserts.insertAndApplyPropagatedOps ops
-                return Dval.resultOk repointListKT KTString repointsDval
-              else
-                // On a branch the repoints are BRANCH ops: stored effective=0 and tagged to the frontier,
-                // never folded into main's `locations`. That's the isolation guarantee -- a cascade that
-                // leaked into main would be worse than one that didn't happen.
-                //
-                // A repoint can create a branch-local version of a MAIN item (main's `dep` gets a branch
-                // copy pointing at the branch's `base`, main's copy untouched). Recording name bases for
-                // them is what lets a later merge tell that apart from a divergence.
-                // Marked as PROPAGATED on the branch's own record, as main's `locations.source` would be.
-                let! _ = LibDB.Branches.storeDeltaOpsFrom "propagation" branch ops
-                let! parentId = LibDB.Branches.parentOf branch
-                do! LibDB.Branches.recordNameBases branch parentId ops
-                // Fold the CONTENT (never the SetNames) so the new versions resolve and carry their
-                // dependency edges, exactly as branch authoring does.
-                let contentOps =
-                  ops
-                  |> List.filter (fun op ->
-                    match op with
-                    | PT.PackageOp.AddValue _
-                    | PT.PackageOp.AddFn _
-                    | PT.PackageOp.AddType _
-                    | PT.PackageOp.AddTrait _
-                    | PT.PackageOp.AddTraitImpl _ -> true
-                    | _ -> false)
-                if not (List.isEmpty contentOps) then
-                  do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
-                // Refresh the process overlay so a later eval in THIS process sees the repoints.
-                let! all = LibDB.Branches.loadDeltaOps branch
-                LibDB.PackageManager.setBranchOverlay all
+              do! persistPropagation branch ops
+              return Dval.resultOk repointListKT KTString repointsDval
+            | Ok None ->
+              // No dependents: nothing moved, which is a result, not an error.
+              return
+                Dval.resultOk
+                  repointListKT
+                  KTString
+                  (Dval.list (PT2DT.PropagateRepoint.knownType ()) [])
+            | Error errMsg ->
+              return Dval.resultError repointListKT KTString (DString errMsg)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects =
+        set
+          [ Effect.PackageRead
+            Effect.PackageWrite
+            // Generates a revert id via Guid.NewGuid (non-deterministic).
+            Effect.Random ]
+      deprecated = NotDeprecated }
 
-                return Dval.resultOk repointListKT KTString repointsDval
+    { name = fn "pmUpgradeDependency" 0
+      typeParams = []
+      parameters =
+        [ branchParam
+          Param.make
+            "callerLocation"
+            (TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []))
+            "Caller to upgrade"
+          Param.make
+            "callerKind"
+            (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
+            "Caller kind"
+          Param.make
+            "sourceLocation"
+            (TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []))
+            "Location of the updated item"
+          Param.make
+            "sourceItemKind"
+            (TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []))
+            "fn, type, value, trait or impl"
+          Param.make
+            "fromSourceHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "All deprecated hashes at this location"
+          Param.make
+            "toSourceHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "New hash of the source item" ]
+      returnType =
+        TypeReference.result
+          (TList(TCustomType(NR.ok (PT2DT.PropagateRepoint.typeName ()), [])))
+          TString
+      description =
+        "Upgrades one caller dependency and propagates within the caller owner."
+      fn =
+        (function
+        | _,
+          _,
+          _,
+          [| DUuid branchId
+             callerLocationDval
+             callerKindDval
+             sourceLocation
+             sourceItemKindDval
+             fromSourceHashDval
+             toSourceHashDval |] ->
+          uply {
+            let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
+            let sourceItemKind = PT2DT.ItemKind.fromDT sourceItemKindDval
+
+            // The branch this propagation runs on, from the caller. Every Dark call site passes
+            // `state.currentBranchId`, which is what keeps a branch's cascade off main.
+            let branch = branchOfParam branchId
+
+            let! result =
+              LibDB.Propagation.upgrade
+                branch
+                (PT2DT.PackageLocation.fromDT callerLocationDval)
+                (PT2DT.ItemKind.fromDT callerKindDval)
+                sourceLocation
+                sourceItemKind
+                (PT2DT.Hash.fromDT fromSourceHashDval)
+                (PT2DT.Hash.fromDT toSourceHashDval)
+
+            match result with
+            | Ok(Some(propagationResult, ops)) ->
+              // The repoints are the answer either way; where the OPS land is what differs.
+              let repointsDval =
+                propagationResult.repoints
+                |> List.map PT2DT.PropagateRepoint.toDT
+                |> Dval.list (PT2DT.PropagateRepoint.knownType ())
+
+              do! persistPropagation branch ops
+              return Dval.resultOk repointListKT KTString repointsDval
             | Ok None ->
               // No dependents: nothing moved, which is a result, not an error.
               return

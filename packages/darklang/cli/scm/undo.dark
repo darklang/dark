@@ -4,7 +4,7 @@ module Darklang.Cli.Undo
 // undo three times from v4 and you are on v1, then it says there is nothing further.
 //
 // The question to ask is "where am I in the sequence things were WRITTEN in", never "what changed last".
-// `locations` keeps a row per binding and marks rebinds (undo, a pin rollback, a conflict override) as
+// `locations` keeps a row per binding and marks rebinds (undo or a conflict override) as
 // `source = 'resolution'` against `'op'` for ordinary authoring. Filter to 'op', order by rowid, and that
 // IS the authoring sequence -- a rebind appends a row, it never reorders existing ones. Locate the live
 // hash and step to its predecessor. Asking "what was most recently unlisted" instead oscillates, since
@@ -75,12 +75,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
               // Anything above it followed the version we just stepped off, so it comes back down too --
               // otherwise the undo fixes one item and leaves its callers on something you just undid.
-              PropagateCmd.cascadeAndForce state loc kind wasAt prev
+              let followed = PropagateCmd.cascadeAndForce state loc kind wasAt prev
 
               Cli.printHint
                 "  nothing is lost: every version stays in the store, and `dark undo` again steps back further."
 
-              state)
+              Cli.exitWith state followed)
 
   | _ ->
     Cli.printErr "usage: dark undo <name>"

@@ -21,7 +21,7 @@ type Picture =
     removed: List<String>
     /// What would repoint if you committed right now.
     repoints: List<SCM.PackageOps.Repoint>
-    /// What a pin is holding on an older version. An outcome, not a warning.
+    /// External callers retaining an older version. An outcome, not a warning.
     leftBehind: List<SCM.PackageOps.Repoint>
     conflicts: List<SCM.Conflicts.Conflict>
     /// A COUNT, never a list. Constraints are a standing property of the STORE rather than of this draft,

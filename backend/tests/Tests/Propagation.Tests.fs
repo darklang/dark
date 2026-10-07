@@ -252,8 +252,8 @@ let three (x: Int64) : Int64 = ({m}.shared x) + 30L"""
     do! cleanup m
   }
 
-let pinStopsIt =
-  testTask "an explicit pin holds a dependent where it is" {
+let legacyPinsDoNotAffectPropagation =
+  testTask "obsolete policy rows do not change same-owner propagation" {
     let m = "PropTestPin"
     do! cleanup m
 
@@ -284,17 +284,19 @@ let free (x: Int64) : Int64 = ({m}.base' x) + 20L"""
     let! repointed = cascade (loc m "base'") baseV1 (hashBoundTo v2 "base'")
 
     Expect.contains repointed "free" "the unpinned dependent follows"
-    Expect.isFalse (List.contains "held" repointed) "the pinned one does not"
+    Expect.contains
+      repointed
+      "held"
+      "legacy policy does not override owner propagation"
 
     let! heldAfter = liveBoundHash (loc m "held")
-    Expect.equal heldAfter heldBefore "and it really didn't move"
+    Expect.notEqual heldAfter heldBefore "same-owner dependent updates"
 
     do! cleanup m
   }
 
 let crossesOwners =
-  testTask
-    "the cascade crosses owners, because that is a person's call and not a rule" {
+  testTask "automatic propagation stops at the owner boundary" {
     let m = "PropTestOwner"
     do! cleanup m
     do! cleanupFor "Zz" m
@@ -316,20 +318,49 @@ let mine (x: Int64) : Int64 = ({m}.base' x) + 10L"""
 
 let theirs (x: Int64) : Int64 = (Darklang.{m}.base' x) + 20L"""
 
+    let theirs : PT.PackageLocation =
+      { owner = "Zz"; modules = [ m ]; name = "theirs" }
+    let! externalBefore = liveBoundHash theirs
+    let! _ = authorIn m $"let bridge (x: Int64) : Int64 = Zz.{m}.theirs x"
+    let! bridgeBefore = liveBoundHash (loc m "bridge")
+
     let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 5000L"""
 
     let! repointed = cascade (loc m "base'") baseV1 (hashBoundTo v2 "base'")
 
     Expect.contains repointed "mine" "same-owner dependents follow"
 
-    // The claim under test. `Propagation.propagate` reports the FULL candidate set
-    // and infers nothing from ownership: which of them actually move is chosen at
-    // commit time. Ownership is a fine default and a bad rule, so refusing here
-    // would be automating a decision that belongs to a person.
-    Expect.contains
-      repointed
-      "theirs"
-      "a dependent owned by someone else is a candidate like any other"
+    Expect.isFalse
+      (List.contains "theirs" repointed)
+      "external consumers retain their version"
+
+    let! held = liveBoundHash theirs
+    Expect.equal held externalBefore "external binding did not change"
+    let! bridgeAfter = liveBoundHash (loc m "bridge")
+    Expect.equal
+      bridgeAfter
+      bridgeBefore
+      "cascade does not traverse an external caller back into the owner"
+    match!
+      Propagation.upgrade
+        PT.BranchId.Main
+        theirs
+        PT.ItemKind.Fn
+        (loc m "base'")
+        PT.ItemKind.Fn
+        baseV1
+        (hashBoundTo v2 "base'")
+    with
+    | Error e -> failtest $"upgrade failed: {e}"
+    | Ok None -> failtest "upgrade did not compute a change"
+    | Ok(Some((result : Propagation.PropagationResult), ops)) ->
+      Expect.equal
+        (result.repoints |> List.map (fun (r : PT.PropagateRepoint) -> r.location))
+        [ theirs ]
+        "only selected caller upgrades"
+      let! _ = Inserts.insertAndApplyPropagatedOps ops
+      let! after = liveBoundHash theirs
+      Expect.notEqual after held "explicit upgrade changes caller version"
 
     do! cleanupFor "Zz" m
     do! cleanup m
@@ -719,7 +750,7 @@ let tests =
       dictionaryKeyFollows
       transitive
       multipleDependents
-      pinStopsIt
+      legacyPinsDoNotAffectPropagation
       crossesOwners
       noChangeNoCascade
       mutualRecursion

@@ -31,7 +31,7 @@ type StatusJson =
     /// Fully-qualified names the draft removes.
     removed: List<String>
     propagates: List<SCM.PackageOps.Repoint>
-    /// What a pin is holding on an older version. An outcome, not a warning.
+    /// External callers retaining an older version. An outcome, not a warning.
     leftBehind: List<SCM.PackageOps.Repoint>
     conflicts: List<SCM.Conflicts.Conflict>
     /// Outstanding Constraint findings. A COUNT here rather than the list, because they're a standing
@@ -57,7 +57,7 @@ type CommitJson =
     /// Fully-qualified names the draft removes.
     removed: List<String>
     propagates: List<SCM.PackageOps.Repoint>
-    /// What a pin is holding on an older version. An outcome, not a warning.
+    /// External callers retaining an older version. An outcome, not a warning.
     leftBehind: List<SCM.PackageOps.Repoint>
     conflicts: List<SCM.Conflicts.Conflict> }
 
