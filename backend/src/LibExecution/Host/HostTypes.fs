@@ -201,13 +201,13 @@ type Outcome =
   /// A policy layer denied the derived request. Carries exactly what the
   /// denial message needs — the layer, the reason, the human-readable
   /// description of what was attempted, and the narrow rule that would fix it
-  /// (derived structurally from the denied request, `None` where no scoped
-  /// rule fits) — so diagnostics do not need the original request.
+  /// (derived structurally from the denied request, or why there is none), so
+  /// diagnostics do not need the original request.
   | Denied of
     layer : Permission.Layer *
     reason : Permission.PolicyDenial *
     resource : string *
-    suggestion : Option<string>
+    suggestion : Permission.Suggestion
 
 /// Drop the query string from a URL for the audit summary — query parameters
 /// routinely carry secrets (tokens, signatures) and the log is default-on.

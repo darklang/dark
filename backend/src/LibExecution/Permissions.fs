@@ -65,6 +65,25 @@ type Request =
   | Runtime
   | Native of operation : string
 
+/// What a denial offers to paste.
+[<RequireQualifiedAccess>]
+type Suggestion =
+  /// `permissions allow` text that covers the refused request and no other.
+  | Paste of string
+  /// The narrowest rule would allow more than the refused request, so none is
+  /// offered; the reason is for the person reading the denial.
+  | Withheld of why : string
+  /// The effect has no rule a person could write (`Native`).
+  | NoRule
+
+module Suggestion =
+  /// The rule to record and to offer at an interactive prompt, if any.
+  let rule (suggestion : Suggestion) : Option<string> =
+    match suggestion with
+    | Suggestion.Paste rule -> Some rule
+    | Suggestion.Withheld _
+    | Suggestion.NoRule -> None
+
 module Request =
   /// One shell-safe token for an actionable `permissions allow` command.
   /// Always quote guest-controlled text: paths and URLs may contain spaces or
@@ -97,9 +116,11 @@ module Request =
     | Request.Runtime -> Effect.Effect.Runtime
     | Request.Native _ -> Effect.Effect.Native
 
-  /// Return the narrow `permissions allow <rule>` text that covers this
-  /// request, or `None` when the effect has no scoped rule (such as Native).
-  let suggestRule (request : Request) : Option<string> =
+  /// The rule for the requests whose narrowest rule names the same target the
+  /// request does. `http` and `file` rules still cover a path's subpaths, and an
+  /// `http` rule written without a query covers any query: that is the rule
+  /// language, which has no exact form for either.
+  let private suggestTargetRule (request : Request) : Option<string> =
     match request with
     | Request.Http r ->
       let host =
@@ -118,19 +139,51 @@ module Request =
     | Request.EnvList -> Some "env read"
     | Request.Db(AccessKind.Read, name) -> Some $"db read {quoteRuleToken name}"
     | Request.Db(AccessKind.Write, name) -> Some $"db write {quoteRuleToken name}"
-    | Request.DbList -> Some "db read"
     | Request.Stdin -> Some "stdin"
     | Request.Stdout -> Some "stdout"
     | Request.Clock -> Some "clock"
     | Request.Random -> Some "random"
-    | Request.Process(executable, _) -> Some $"process {quoteRuleToken executable}"
     | Request.Package AccessKind.Read -> Some "package-read"
     | Request.Package AccessKind.Write -> Some "package-write"
     | Request.Trace AccessKind.Read -> Some "trace-read"
     | Request.Trace AccessKind.Write -> Some "trace-write"
     | Request.Concurrency -> Some "concurrency"
     | Request.Runtime -> Some "runtime"
+    // Their narrowest rule covers more than the request; `suggestRule` says why.
+    | Request.Process _
+    | Request.DbList
     | Request.Native _ -> None
+
+  /// The `permissions allow <rule>` text that covers this request and no other
+  /// program, argument list or datastore, or why there is none to offer.
+  ///
+  /// A denial prints this, and an interactive `run` offers to save it, so a
+  /// suggestion broader than the refused call hands out access nobody asked
+  /// for. A process rule therefore carries the exact argument list: a bare
+  /// `process '/bin/bash'` would let any code run any shell command, and a
+  /// shell-mediated call (`Cli.execute "echo hi"`) is still `/bin/bash -c ...`
+  /// to the check, since the shell decides what the string runs.
+  let suggestRule (request : Request) : Suggestion =
+    match request with
+    | Request.Process(executable, []) ->
+      Suggestion.Withheld(
+        $"a `process {quoteRuleToken executable}` rule with no arguments allows every "
+        + "argument list, and no rule can say \"exactly none\"; write one "
+        + "deliberately if that is what you want"
+      )
+    | Request.Process(executable, args) ->
+      let tokens = executable :: args |> List.map quoteRuleToken |> String.concat " "
+      Suggestion.Paste $"process {tokens}"
+    | Request.DbList ->
+      Suggestion.Withheld(
+        "listing datastores needs `db read` with no name, which also allows "
+        + "reading every datastore's contents"
+      )
+    | request ->
+      match suggestTargetRule request with
+      | Some rule -> Suggestion.Paste rule
+      | None -> Suggestion.NoRule
+
 
   let httpServer (port : int) : Result<Request, string> =
     if port >= 0 && port <= 65535 then
