@@ -261,58 +261,67 @@ let detailLines (state: State) : List<String> =
   | Some item ->
     if item.isModule then
       modulePreviewLines state item
-    else if (state.activeView == vMatter) && item.kind == "fn" && item.name == "render" then
-      // Tree-native view peek: a `render` fn shows its rendered frame instead of source,
-      // just by cursoring onto it. The evaluation is `refreshPeek`'s, on the state
-      // transition -- never here: frame diffing is only sound if rendering is a pure
-      // function of state. This `vMatter` test must match the one `refreshPeek` applies,
-      // or this branch reads an unpopulated `renderPeek` and reports "no output".
-      if (Stdlib.String.trim state.renderPeek) == "" then [ Stdlib.Cli.UI.Colors.dimText "(view produced no output)" ]
-      else Stdlib.String.split state.renderPeek "\n"
     else
       let modulePath = Packages.modulePathOf state.location
-      let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
-      // Anchored at the module being browsed, so the Inspect pane spells references the way someone
-      // standing in that module would. `modulePath` is owner-first, which is what `forModule` wants.
-      //
-      // And laid out for the pane it is going into, rather than for the printers' default 80. Reading
-      // the pane width is the caller's job -- the printer can't, by design -- so it happens here.
-      // Wrapping in `renderScrollableLines` stays as the floor under a line no layout could shorten.
-      let ctx =
-        { PrettyPrinter.ProgramTypes.Context.forModule state.branchId modulePath with
-            width = previewInnerWidth state
-            // The values beside the calls, from the last time this fn ran (`refreshLiveValues`).
-            liveValues = state.liveValues
-            breakForValues = true }
+      itemLines state item (Packages.Query.searchExactMatch state.branchId modulePath item.name)
 
-      let (src, accessReport) =
-        match item.kind with
-        | "fn" ->
-          match results.fns with
-          | i :: _ ->
-            (PrettyPrinter.ProgramTypes.packageFn ctx i.entity,
-             accessSummaryLines state (LanguageTools.ProgramTypes.hashToString i.entity.hash))
-          | [] -> ("(not found)", [])
-        | "type" ->
-          match results.types with
-          | i :: _ -> (PrettyPrinter.ProgramTypes.packageType ctx i.entity, [])
-          | [] -> ("(not found)", [])
-        | "trait" ->
-          match results.traits with
-          | i :: _ -> (PrettyPrinter.ProgramTypes.packageTrait ctx i.entity, [])
-          | [] -> ("(not found)", [])
-        | "impl" ->
-          match results.impls with
-          | i :: _ -> (PrettyPrinter.ProgramTypes.packageImpl ctx i.entity, [])
-          | [] -> ("(not found)", [])
-        | _ ->
-          match results.values with
-          | i :: _ -> (PrettyPrinter.ProgramTypes.packageValue ctx i.entity, [])
-          | [] -> ("(not found)", [])
-      let sourceLines = Stdlib.String.split src "\n"
-      match accessReport with
-      | [] -> sourceLines
-      | report -> Stdlib.List.flatten [ sourceLines, [ "" ], report ]
+/// An item's source and access block, from the lookup the caller already made for it.
+let itemLines
+  (state: State)
+  (item: BodyItem)
+  (results: LanguageTools.ProgramTypes.Search.SearchResults)
+  : List<String> =
+  if (state.activeView == vMatter) && item.kind == "fn" && item.name == "render" then
+    // Tree-native view peek: a `render` fn shows its rendered frame instead of source,
+    // just by cursoring onto it. The evaluation is `refreshPeek`'s, on the state
+    // transition -- never here: frame diffing is only sound if rendering is a pure
+    // function of state. This `vMatter` test must match the one `refreshPeek` applies,
+    // or this branch reads an unpopulated `renderPeek` and reports "no output".
+    if (Stdlib.String.trim state.renderPeek) == "" then [ Stdlib.Cli.UI.Colors.dimText "(view produced no output)" ]
+    else Stdlib.String.split state.renderPeek "\n"
+  else
+    let modulePath = Packages.modulePathOf state.location
+    // Anchored at the module being browsed, so the Inspect pane spells references the way someone
+    // standing in that module would. `modulePath` is owner-first, which is what `forModule` wants.
+    //
+    // And laid out for the pane it is going into, rather than for the printers' default 80. Reading
+    // the pane width is the caller's job -- the printer can't, by design -- so it happens here.
+    // Wrapping in `renderScrollableLines` stays as the floor under a line no layout could shorten.
+    let ctx =
+      { PrettyPrinter.ProgramTypes.Context.forModule state.branchId modulePath with
+          width = previewInnerWidth state
+          // The values beside the calls, from the last time this fn ran (`refreshLiveValues`).
+          liveValues = state.liveValues
+          breakForValues = true }
+
+    let (src, accessReport) =
+      match item.kind with
+      | "fn" ->
+        match results.fns with
+        | i :: _ ->
+          (PrettyPrinter.ProgramTypes.packageFn ctx i.entity,
+           accessSummaryLines state (LanguageTools.ProgramTypes.hashToString i.entity.hash))
+        | [] -> ("(not found)", [])
+      | "type" ->
+        match results.types with
+        | i :: _ -> (PrettyPrinter.ProgramTypes.packageType ctx i.entity, [])
+        | [] -> ("(not found)", [])
+      | "trait" ->
+        match results.traits with
+        | i :: _ -> (PrettyPrinter.ProgramTypes.packageTrait ctx i.entity, [])
+        | [] -> ("(not found)", [])
+      | "impl" ->
+        match results.impls with
+        | i :: _ -> (PrettyPrinter.ProgramTypes.packageImpl ctx i.entity, [])
+        | [] -> ("(not found)", [])
+      | _ ->
+        match results.values with
+        | i :: _ -> (PrettyPrinter.ProgramTypes.packageValue ctx i.entity, [])
+        | [] -> ("(not found)", [])
+    let sourceLines = Stdlib.String.split src "\n"
+    match accessReport with
+    | [] -> sourceLines
+    | report -> Stdlib.List.flatten [ sourceLines, [ "" ], report ]
 
 /// The Docs topic the cursor is on, resolved by name rather than by position.
 ///
@@ -450,40 +459,37 @@ let traceDetail (state: State) : String =
 /// The item page's first line: the kind with its glyph, the short content
 /// hash, and a deprecation mark only when it is deprecated. Nothing that is
 /// true of every item earns a word here.
-let itemMeta (state: State) : String =
-  match Stdlib.List.getAt state.items state.selected with
-  | None -> ""
-  | Some item ->
-    if item.isModule then ""
-    else
-      let modulePath = Packages.modulePathOf state.location
-      let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
-      let hashOpt =
-        if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
-        else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
-        else if item.kind == "trait" then results.traits |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
-        else if item.kind == "impl" then results.impls |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
-        else results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
-      let short =
-        match hashOpt with
-        | Some h -> LanguageTools.ProgramTypes.hashToShort h
-        | None -> "?"
-      let kindLabel =
-        if item.kind == "fn" then "fn"
-        else if item.kind == "type" then "type"
-        else if item.kind == "trait" then "trait"
-        else if item.kind == "impl" then "impl"
-        else "value"
-      // Real deprecation status (same read path as the tree badge).
-      let deprecation =
-        match hashOpt with
-        | Some h ->
-          let sets = Packages.Query.loadDeprecationSets state.branchId
-          if Packages.Query.isDeprecated sets h then
-            "  " + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "⚠ deprecated")
-          else ""
-        | None -> ""
-      (Stdlib.Cli.UI.Colors.dimText ((changeIcon kindLabel) + " " + kindLabel + " · " + short)) + deprecation
+let itemMeta
+  (state: State)
+  (item: BodyItem)
+  (results: LanguageTools.ProgramTypes.Search.SearchResults)
+  : String =
+  let hashOpt =
+    if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+    else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+    else if item.kind == "trait" then results.traits |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+    else if item.kind == "impl" then results.impls |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+    else results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+  let short =
+    match hashOpt with
+    | Some h -> LanguageTools.ProgramTypes.hashToShort h
+    | None -> "?"
+  let kindLabel =
+    if item.kind == "fn" then "fn"
+    else if item.kind == "type" then "type"
+    else if item.kind == "trait" then "trait"
+    else if item.kind == "impl" then "impl"
+    else "value"
+  // Real deprecation status (same read path as the tree badge).
+  let deprecation =
+    match hashOpt with
+    | Some h ->
+      let sets = Packages.Query.loadDeprecationSets state.branchId
+      if Packages.Query.isDeprecated sets h then
+        "  " + (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "⚠ deprecated")
+      else ""
+    | None -> ""
+  (Stdlib.Cli.UI.Colors.dimText ((changeIcon kindLabel) + " " + kindLabel + " · " + short)) + deprecation
 
 /// The traces that called the selected fn, for the `x` reader: one row per
 /// trace, newest first, or a line saying nothing has called it yet and how to
@@ -532,7 +538,10 @@ let inspectPageLines (state: State) : List<String> =
       // `detailLines` is the source followed, for a fn, by the access block, which is already
       // coloured. Re-lexing a coloured line strips its escapes down to literal `[36m`, so the
       // block is split off at its heading and only the source above it is highlighted.
-      let page = detailLines state
+      // One lookup for the whole page: the source, the meta line and the references all want it.
+      let modulePath = Packages.modulePathOf state.location
+      let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
+      let page = itemLines state item results
       let srcCount =
         Stdlib.List.findFirstIndex page (fun l -> l == accessHeading)
         |> Stdlib.Option.withDefault (Stdlib.List.length page)
@@ -552,12 +561,46 @@ let inspectPageLines (state: State) : List<String> =
         Stdlib.List.append highlighted access
       // The order a reader wants: what this is, the code, what running it needs, who it touches.
       // The keys that act on it are in the footer, so they are not repeated here.
-      let refs = Stdlib.String.split (depsText state) "\n"
+      let refs = Stdlib.String.split (referencesFrom state modulePath item.name item.kind results) "\n"
       Stdlib.List.flatten
-        [ [ itemMeta state, "" ]
+        [ [ itemMeta state item results, "" ]
           src
           [ "" ]
           refs ]
+
+/// The key the Code view's item page is built against; see `PreviewKey`.
+let previewKey (state: State) : PreviewKey =
+  PreviewKey
+    { view = state.activeView
+      lens = state.matter.lens
+      branchId = state.branchId
+      location = state.location
+      items = state.items
+      selected = state.selected
+      accountId = state.accountId
+      liveValues = state.liveValues
+      renderPeek = state.renderPeek
+      width = previewInnerWidth state
+      draftOps = state.scmStatus.ops }
+
+let matterPageLines (state: State) : List<String> =
+  if (state.matter.lens == Lens.ValuesOnly) || (state.matter.lens == Lens.Changed) then
+    detailLines state
+  else
+    inspectPageLines state
+
+/// Build the item page when the Code view is showing one it was not built for. Kept on the
+/// state, so the frames in between draw it rather than reading the store again.
+let refreshPreview (next: State) : State =
+  if next.activeView != vMatter then
+    { next with preview = Stdlib.Option.Option.None }
+  else
+    let key = previewKey next
+    match next.preview with
+    | Some p when p.key == key -> next
+    | _ ->
+      { next with
+          preview = Stdlib.Option.Option.Some(PreviewCache { key = key; lines = matterPageLines next }) }
 
 /// The preview content for the selected item in the current view. One function so the preview pane, its
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
@@ -575,10 +618,9 @@ let previewLines (state: State) : List<String> =
     // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions).
     // The flat lenses are the exception: their items are full paths, and the item page resolves a leaf
     // against where you're standing, so it would report every one of them as missing.
-    if (state.matter.lens == Lens.ValuesOnly) || (state.matter.lens == Lens.Changed) then
-      detailLines state
-    else
-      inspectPageLines state
+    match state.preview with
+    | Some p when p.key == previewKey state -> p.lines
+    | _ -> matterPageLines state
   else if state.activeView == vAI then
     if state.ai.section == AiSection.Prompts then Stdlib.String.split (promptDetail state.selected) "\n"
     else Stdlib.String.split (aiThreadDetail state.selected) "\n"

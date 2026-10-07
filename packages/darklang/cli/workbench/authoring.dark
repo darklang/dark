@@ -220,6 +220,9 @@ let saveEditing (state: State) (es: EditingState) : Step =
                     items = reloaded
                     selected = landed
                     detailScroll = 0
+                    // Under `live.autopush` the save is also a commit, so the draft count it would
+                    // have moved can come back where it was; drop the page rather than trust it.
+                    preview = Stdlib.Option.Option.None
                     // Saved, but not a success to tick when something it repointed no longer works.
                     messageKind =
                       if (Stdlib.List.isEmpty committed.followed.broken) && (Stdlib.Option.isNone committed.followed.failure) then

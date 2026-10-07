@@ -109,6 +109,9 @@ let allTests (): List<String * TestFunction> =
       testWorkbenchDiffLinesRenderThroughPipe ())
     ("Workbench Module Inspect Previews Children", fun () ->
       testWorkbenchModuleInspectPreviewsChildren ())
+    ("Workbench Page Built Once Per Selection", fun () ->
+      testWorkbenchPageBuiltOncePerSelection ())
+    ("Workbench Page Follows Your Save", fun () -> testWorkbenchPageFollowsYourSave ())
 
     ("Workbench Sections Render", fun () -> testWorkbenchSectionsRender ())
     ("Workbench Previews Render", fun () -> testWorkbenchPreviewsRender ())

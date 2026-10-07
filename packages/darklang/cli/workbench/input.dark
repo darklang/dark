@@ -259,6 +259,8 @@ let performInputAction (state: State) (inp: InputState) : Step =
         Step.Continue
           { state with
               input = Stdlib.Option.Option.None
+              // Whatever ran may have changed what the item page shows, an approval for one.
+              preview = Stdlib.Option.Option.None
               enabledGatedViews = gated
               reading = Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.dimText ("$ " + text)) + "\n\n" + shown)
               readingIsCode = false

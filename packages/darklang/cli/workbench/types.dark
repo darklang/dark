@@ -164,6 +164,26 @@ type MessageKind =
   /// It tried and something went wrong.
   | Failed
 
+/// What the Code view's item page was built from. Everything it reads, and nothing a keystroke
+/// moves without moving the page: scrolling, focus, the command bar and the overlays are absent.
+type PreviewKey =
+  { view: Int
+    lens: Lens
+    branchId: Uuid
+    location: Packages.PackageLocation
+    items: List<BodyItem>
+    selected: Int
+    accountId: Stdlib.Option.Option<Uuid>
+    liveValues: Dict<String, String>
+    renderPeek: String
+    width: Int
+    /// The draft's op count, so your own save, discard or deprecation rebuilds the page.
+    draftOps: Int64 }
+
+type PreviewCache =
+  { key: PreviewKey
+    lines: List<String> }
+
 type State =
   { activeView: Int
     /// `--live`: reload when something changes the store under you. Off, the change is NOTICED
@@ -245,6 +265,10 @@ type State =
     matter: MatterState
     /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.
     filter: String
+    /// The Code view's item page, built on the transition (`refreshPreview`). It reads the store
+    /// several times over, so building it per frame cost every scroll and command-bar key the
+    /// same as moving to a new item. `None` whenever the store may have moved under it.
+    preview: Stdlib.Option.Option<PreviewCache>
     branchId: Uuid }
 
 /// A single-line text entry. `action` tags what Enter does (e.g. "commit").

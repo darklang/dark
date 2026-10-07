@@ -475,6 +475,77 @@ let testWorkbenchModuleInspectPreviewsChildren (): TestResult =
     TestResult.Fail "Expected Inspect to preview a module's immediate children, grouped by kind"
 
 
+/// The item page is built once per selection and drawn from `preview` after that: a scroll
+/// draws the page it already has, and a move to the next item builds a new one.
+let testWorkbenchPageBuiltOncePerSelection (): TestResult =
+  let location = Darklang.Cli.Packages.PackageLocation.Module [ "Darklang", "Stdlib", "List" ]
+  let start = workbenchState ()
+  let items = Darklang.Cli.Workbench.loadItems Darklang.SCM.Branch.mainBranchId location
+  let selected =
+    Stdlib.List.findFirstIndex items (fun item -> item.name == "map")
+    |> Stdlib.Option.withDefault 0
+  let onMap =
+    Darklang.Cli.Workbench.refresh
+      start
+      { start with
+          activeView = Darklang.Cli.Workbench.vMatter
+          location = location
+          items = items
+          selected = selected }
+  let planted =
+    { onMap with
+        preview =
+          Stdlib.Option.Option.Some(
+            Darklang.Cli.Workbench.PreviewCache
+              { key = Darklang.Cli.Workbench.previewKey onMap; lines = [ "planted" ] }
+          ) }
+  let scrolled =
+    Darklang.Cli.Workbench.refresh planted { planted with detailScroll = 3 }
+  let moved =
+    Darklang.Cli.Workbench.refresh planted { planted with selected = planted.selected + 1 }
+  if (Darklang.Cli.Workbench.previewLines scrolled) != [ "planted" ] then
+    TestResult.Fail "a scroll rebuilt the item page instead of drawing the one it had"
+  else if (Darklang.Cli.Workbench.previewLines moved) == [ "planted" ] then
+    TestResult.Fail "moving to the next item drew the previous item's page"
+  else
+    TestResult.Pass
+
+
+/// Saving from the workbench's editor shows the saved version on the next frame, though the
+/// item list (names only) is the same before and after.
+let testWorkbenchPageFollowsYourSave (): TestResult =
+  let start = { (workbenchState ()) with activeView = Darklang.Cli.Workbench.vMatter }
+  let save (state: Darklang.Cli.Workbench.State) (src: String) : Darklang.Cli.Workbench.State =
+    let editing =
+      Darklang.Cli.Workbench.EditingState
+        { kind = "fn"
+          nameStr = "answer"
+          targetModule = [ "Tests", "WorkbenchPage" ]
+          buf = Stdlib.Cli.UI.Editor.fromText src
+          err = "" }
+    match Darklang.Cli.Workbench.saveEditing state editing with
+    | Continue next -> Darklang.Cli.Workbench.refresh state next
+    | _ -> state
+  let page (state: Darklang.Cli.Workbench.State) : String =
+    Darklang.Cli.Workbench.previewLines state
+    |> Stdlib.List.map Stdlib.Cli.Tui.Text.stripSgr
+    |> Stdlib.String.join "\n"
+  // Fresh numbers each run: the store outlives the test, and saving a body the name has held
+  // before is a revert, which is a different path.
+  let n = Stdlib.Int.random 100000 999999
+  let before = (Stdlib.toString n) + "L"
+  let after = (Stdlib.toString (n + 1)) + "L"
+  let first = save start ("let answer () : Int64 = " + before)
+  let firstPage = page first
+  let secondPage = page (save first ("let answer () : Int64 = " + after))
+  if Stdlib.Bool.not (Stdlib.String.contains firstPage before) then
+    TestResult.Fail ("the first save's page did not show it: " + firstPage)
+  else if Stdlib.Bool.not (Stdlib.String.contains secondPage after) then
+    TestResult.Fail ("the page went on showing the version before the save: " + secondPage)
+  else
+    TestResult.Pass
+
+
 // ── Workbench: the nav walks ──
 
 /// What the workbench dispatcher decided to do with a simulated keypress.
