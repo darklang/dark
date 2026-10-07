@@ -72,6 +72,9 @@ let addColumnIfMissing
 
 type Step = { name : string; run : unit -> unit }
 
+/// A step that raised, by name. It is not recorded, so the next start runs it again.
+exception StepFailed of step : string * inner : exn
+
 
 let steps : List<Step> =
   [
@@ -439,7 +442,10 @@ let runPending () : unit =
       // Progress, not output. On a first run this is the first thing a language server
       // would send its editor, where stdout is the protocol channel.
       System.Console.Error.WriteLine $"Running release step: {step.name}"
-      step.run ()
+      try
+        step.run ()
+      with e ->
+        raise (StepFailed(step.name, e))
 
       Sql.query
         "INSERT INTO system_migrations_v0 (name, execution_date, sql)

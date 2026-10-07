@@ -118,24 +118,110 @@ let private hasEmbeddedResource (resourceName : string) : bool =
 
 
 
-/// Copy the store aside before an upgrade touches it. Kept next to the store, one per calendar day:
-/// three upgrades in an afternoon leave one copy, of the state before the day's first change.
+/// Copy the store aside before an upgrade changes anything in it, and say where.
 ///
-/// Best-effort. A failed backup does not stop the upgrade.
-let private backupBeforeUpgrade (dbPath : string) : unit =
-  try
-    if File.Exists dbPath then
-      let dir = Path.Combine(Path.GetDirectoryName(dbPath), "backups")
+/// Through SQLite's backup API rather than a file copy: the store runs in WAL mode, so `data.db` alone
+/// can be missing what was last committed. One per build it upgrades TO, and an existing one is kept:
+/// a start that retries after a failed step must not replace the store as it was with the store as
+/// the failure left it.
+let private backupBeforeUpgrade
+  (dbPath : string)
+  (build : string)
+  : Result<string, string> =
+  let dir = Path.Combine(Path.GetDirectoryName(dbPath), "backups")
+  let tag = if build.Length > 12 then build.Substring(0, 12) else build
+  let target = Path.Combine(dir, $"data.db.before-upgrade-to-{tag}")
+  if File.Exists target then
+    Ok target
+  else
+    let partial = target + ".partial"
+    try
       Directory.CreateDirectory(dir) |> ignore<DirectoryInfo>
+      if File.Exists partial then File.Delete partial
+      (use source =
+        new Microsoft.Data.Sqlite.SqliteConnection(
+          $"Data Source={dbPath};Pooling=False"
+        )
+       source.Open()
+       use destination =
+         new Microsoft.Data.Sqlite.SqliteConnection(
+           $"Data Source={partial};Pooling=False"
+         )
+       destination.Open()
+       source.BackupDatabase destination)
+      File.Move(partial, target)
+      eprintfn $"Backed up your store to {target} before upgrading it."
+      Ok target
+    with e ->
+      Error e.Message
 
-      let stamp = System.DateTime.UtcNow.ToString("yyyy-MM-dd")
-      let target = Path.Combine(dir, $"data.db.before-upgrade-{stamp}")
 
-      if not (File.Exists target) then
-        File.Copy(dbPath, target)
-        eprintfn $"Backed up your store to {target} before upgrading it."
-  with e ->
-    System.Console.Error.WriteLine($"could not back up the store: {e.Message}")
+/// Stop rather than run against a store an upgrade could not finish, and say how to get back.
+///
+/// Carrying on is what this replaces: one line on stderr, the command ran against a half-migrated
+/// store, and the build stamp went in anyway, so the same binary never tried again.
+let private refuseToOpen
+  (dbPath : string)
+  (backup : string option)
+  (what : string)
+  (reason : string)
+  : 'a =
+  let e = System.Console.Error
+  e.WriteLine ""
+  e.WriteLine "dark could not finish upgrading your store, so it has not opened it."
+  e.WriteLine $"  {what}"
+  // The first line: a database error carries its whole stack trace in its message.
+  let firstLine = (reason.Split '\n' |> Array.head).Trim()
+  e.WriteLine $"  error: {firstLine}"
+  match backup with
+  | Some backup ->
+    e.WriteLine $"  your store from before this upgrade: {backup}"
+    e.WriteLine ""
+    e.WriteLine
+      "Nothing was skipped: the next start of this dark tries the upgrade again from where it stopped."
+    e.WriteLine "To go back instead, stop every dark, then:"
+    e.WriteLine $"  rm -f '{dbPath}-wal' '{dbPath}-shm' && cp '{backup}' '{dbPath}'"
+    e.WriteLine "and use the dark you had before."
+  | None ->
+    e.WriteLine "  no backup was taken, so nothing in the store has been changed."
+  exit 3
+
+
+/// One dark at a time through an upgrade, and through the grow that folds what it brought. SQLite has
+/// no `ADD COLUMN IF NOT EXISTS`, so each step looks before it acts, and two processes that both look
+/// before either acts both try to add the column; and sixteen processes folding one upgrade's ops at
+/// once failed six of them with "database is locked".
+///
+/// An exclusive open of a file beside the store, which .NET holds as an OS lock (`flock` on Unix). The
+/// kernel drops it when the process exits however it exits, so a crash leaves no stale lock, and a
+/// leftover FILE is not a held lock. A waiter re-reads what it was about to do once it gets in, and
+/// gives up after five minutes.
+let upgradeLock (dbPath : string) : System.IDisposable =
+  let path = dbPath + ".upgrade-lock"
+  let deadline = System.DateTime.UtcNow.AddMinutes 5.0
+  let mutable said = false
+  let rec acquire () : System.IDisposable =
+    try
+      new FileStream(
+        path,
+        FileMode.OpenOrCreate,
+        FileAccess.ReadWrite,
+        FileShare.None
+      )
+      :> System.IDisposable
+    with :? IOException as e ->
+      if System.DateTime.UtcNow > deadline then
+        refuseToOpen
+          dbPath
+          None
+          "another dark has been upgrading this store for five minutes"
+          e.Message
+      if not said then
+        said <- true
+        eprintfn "Waiting for another dark to finish upgrading the store..."
+      System.Threading.Thread.Sleep 100
+      acquire ()
+  acquire ()
 
 
 /// Bindings this store holds that the embedded seed did not write, captured before an upgrade folds.
@@ -159,8 +245,9 @@ let mutable locallyAuthored
 /// content hash, so `INSERT OR IGNORE` skips everything this build shares with the store, and what lands
 /// is exactly what changed. The ops go in unapplied, the signal `Seed.growIfNeeded` looks for.
 ///
-/// Failure is not fatal on purpose: a store that could not be topped up is no worse off than before.
-let private reseedFromEmbedded (dbPath : string) : unit =
+/// Failure is not fatal on purpose: a store that could not be topped up is no worse off than before. It
+/// answers whether it worked, so a failure leaves the store unstamped and the next start tries again.
+let private reseedFromEmbedded (dbPath : string) : bool =
   let temp =
     Path.Combine(Path.GetTempPath(), $"dark-seed-{System.Guid.NewGuid()}.db")
 
@@ -189,8 +276,6 @@ let private reseedFromEmbedded (dbPath : string) : unit =
         detach.ExecuteNonQuery() |> ignore<int>
 
         if pending > 0 then
-          backupBeforeUpgrade dbPath
-
           // Captured while `seed` is still attached and before anything folds, because afterwards the
           // seed's own SetName may already have taken the name.
           //
@@ -271,10 +356,12 @@ let private reseedFromEmbedded (dbPath : string) : unit =
            DETACH DATABASE seed;"
         cmd.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
         cmd.ExecuteNonQuery() |> ignore<int>
+      true
     with e ->
       System.Console.Error.WriteLine(
         $"could not top up the package store: {e.Message}"
       )
+      false
   finally
     try
       if File.Exists temp then File.Delete temp
@@ -373,18 +460,47 @@ let extract () : unit =
     // thing to trip over it -- as a raw SQLite error ("table locations has no column named previous"),
     // on a store that is otherwise fine. Bring the shape forward first, in the order the statements
     // require.
+    //
+    // In this order, and each one only if the one before it worked: back up, run the steps, top up,
+    // stamp. A step that fails stops dark here (`refuseToOpen`), unstamped, so the next start tries
+    // again; carrying on would run every command against a half-upgraded store.
     if File.Exists(dbPath) && not reconciled then
-      try
-        match embeddedSchema () with
-        | Some sql ->
-          timed "extract.schema" (fun () -> LibDB.Releases.applySchemaTables sql)
-          timed "extract.releases" (fun () -> LibDB.Releases.runPending ())
-          timed "extract.indexes" (fun () -> LibDB.Releases.applySchemaIndexes sql)
-        | None -> ()
-      with e ->
-        System.Console.Error.WriteLine(
-          $"could not bring the store's schema up to date: {e.Message}"
-        )
+      use _upgrading = upgradeLock dbPath
+      // Another dark may have done all of this while this one waited for the lock.
+      if not (build <> "dev" && storeStamp dbPath = Some build) then
+        let backup =
+          match backupBeforeUpgrade dbPath build with
+          | Ok backup -> backup
+          | Error reason ->
+            refuseToOpen
+              dbPath
+              None
+              "the backup taken before upgrading failed"
+              reason
+
+        try
+          match embeddedSchema () with
+          | Some sql ->
+            timed "extract.schema" (fun () -> LibDB.Releases.applySchemaTables sql)
+            timed "extract.releases" (fun () -> LibDB.Releases.runPending ())
+            timed "extract.indexes" (fun () -> LibDB.Releases.applySchemaIndexes sql)
+          | None -> ()
+        with
+        | LibDB.Releases.StepFailed(step, inner) ->
+          refuseToOpen dbPath (Some backup) $"release step: {step}" inner.Message
+        | e ->
+          refuseToOpen
+            dbPath
+            (Some backup)
+            "bringing the store's tables up to date"
+            e.Message
+
+        // Top up an existing store with this binary's own package code (see
+        // `reseedFromEmbedded`: additive, content-addressed), then `growIfNeeded` folds
+        // it; without this, upgrading the binary would mean wiping the store.
+        let toppedUp =
+          timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
+        if toppedUp && build <> "dev" then recordStoreStamp dbPath build
 
     if not (File.Exists(dbPath)) then
       eprintfn $"Setting up Darklang CLI data directory at {darklangDir}"
@@ -420,10 +536,3 @@ let extract () : unit =
       recordStoreStamp dbPath LibConfig.Config.buildHash
 
       eprintfn "CLI data directory setup complete"
-    // Top up an existing store with this binary's own package code (see
-    // `reseedFromEmbedded`: additive, content-addressed), then `growIfNeeded` folds
-    // it; without this, upgrading the binary would mean wiping the store.
-    else if not reconciled then
-      // The backup happens inside the top-up, once it knows there is something to top up.
-      timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
-      if build <> "dev" then recordStoreStamp dbPath build

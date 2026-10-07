@@ -608,6 +608,10 @@ let private runCli (args : string[]) : int =
       | e -> isBinaryFormatFailure e.InnerException
 
     Telemetry.time "cli.growIfNeeded" [] (fun () ->
+      // Under the upgrade lock: right after an upgrade every dark started at once finds the same ops
+      // unapplied, and folding them side by side fails some with "database is locked". One folds;
+      // the rest find nothing left.
+      use _growing = EmbeddedResources.upgradeLock LibConfig.Config.dbPath
       try
         (LibDB.Seed.growIfNeeded
           // Bounded by the operator's instance policy. The store can hold values
