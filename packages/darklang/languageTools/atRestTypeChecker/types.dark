@@ -962,6 +962,9 @@ let isUsableDictKeyReference
 /// A type variable in the implementation's self type applies to anything, which is how
 /// `impl Add for List<'a>` covers every list. It arrives as a placeholder rather than a variable
 /// because the conversion that produced it had no mapping to bind one.
+///
+/// <param subject> must be resolved all the way down (`Solve.decidedSubject`): an inference
+/// variable or an alias left in an argument matches no concrete argument.
 let implApplies (self: Model.Ty) (subject: Model.Ty) : Bool =
   match (self, subject) with
   // `impl T for List<'a>`: the variable agrees with whatever the subject has there.

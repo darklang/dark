@@ -2477,6 +2477,32 @@ module DefiniteShapes =
     // by waiting would downgrade it to Incomplete, and Incomplete passes the commit gate.
     (check (src [ "let f () : Unit =", "  let _ = -[]", "  ()" ]) "f") = "failed:MissingImpl"
 
+// An implementation for a generic type with concrete arguments, met by a value built inline,
+// whose type arguments are inference variables the solver has already decided.
+module ConcreteTypeArgImpls =
+  let withImpl (body: List<String>) : String =
+    check
+      (src (
+        Stdlib.List.append
+          [ "trait Tag<'a> ="
+            "  let tag (v: 'a) : String"
+            "type Box<'a> = { concreteTypeArgImplsOnly: 'a }"
+            "impl Tag for Box<Int64> ="
+            "  let tag (v: Box<Int64>) : String = \"int\"" ]
+          body
+      ))
+      "f"
+
+  (withImpl [ "let f () : String = Tag.tag (Box { concreteTypeArgImplsOnly = 1L })" ]) = "checked:"
+  (withImpl [ "let f () : String = Tag.tag (Box { concreteTypeArgImplsOnly = \"s\" })" ]) = "failed:MissingImpl"
+  (withImpl [ "type Count = Int64", "let f (b: Box<Count>) : String = Tag.tag b" ]) = "checked:"
+  (withImpl
+    [ "let show<'a: Tag> (v: 'a) : String = Tag.tag v"
+      "let f () : String = show (Box { concreteTypeArgImplsOnly = 1L })" ]) = "checked:"
+  (withImpl
+    [ "let show<'a: Tag> (v: 'a) : String = Tag.tag v"
+      "let f () : String = show (Box { concreteTypeArgImplsOnly = \"s\" })" ]) = "failed:MissingImpl"
+
 module RigidCustomOperations =
   (check "let f<'a> (x: 'a) : 'a = { x with field = 1 }" "f") = "failed:TypeMismatch"
   (check "let f<'a> (x: 'a) : Int = match x with | Some _ -> 1 | None -> 0" "f") = "failed:InvalidPattern"

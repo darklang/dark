@@ -439,10 +439,19 @@ DARK
       intImpl
     fi
 
-    $CLI fn Stachu.Fit.callIt - >/dev/null <<'DARK'
+    saved=$($CLI fn Stachu.Fit.callIt - 2>&1 <<'DARK' | clean || true
 () : String =
   Stachu.Fit.Show.show (Stdlib.Option.Option.Some 1L)
 DARK
+)
+    # The save has to agree as well as the call. The checker compared the impl's Int64 against
+    # the literal's still-unwalked type variable, so it refused this save while the call ran.
+    if [[ "$saved" == *MissingImpl* || "$saved" == *"could not pin"* ]]; then
+      echo "trait-checker-vs-dispatch: the save refused or left unpinned a call that dispatch runs,"
+      echo "  with the implementations authored $order:"
+      echo "    ${saved//$'\n'/$'\n'    }"
+      exit 1
+    fi
 
     got=$($CLI eval 'Stachu.Fit.callIt ()' 2>&1 | clean || true)
     if [[ "$got" != *INT* ]]; then
