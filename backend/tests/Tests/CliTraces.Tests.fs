@@ -1325,18 +1325,21 @@ let private testTracesViewToleratesCorruptedRow =
         // Inject a corrupt fn_call row: bytes that aren't a valid
         // binary-serialized RT.Dval. The eval's own rows stay
         // valid; the bad one must be skipped, not abort the render.
+        // The result goes where every result goes, the trace's blobs, so the row is read
+        // and fails to decode rather than never being joined at all.
         let corruptBytes = [| 0x00uy; 0x01uy; 0x02uy |]
         let _ =
           Sql.executeTransactionSync
-            [ "INSERT INTO trace_fn_calls
+            [ "INSERT INTO trace_blobs (trace_id, hash, bytes)
+               VALUES (@traceId, 'corrupt-hash', @badResult)",
+              [ [ "traceId", Sql.string tid; "badResult", Sql.bytes corruptBytes ] ]
+              "INSERT INTO trace_fn_calls
                 (trace_id, call_id, parent_call_id, kind, fn_hash,
                  lambda_expr_id, args, result, duration_ms)
                VALUES
                 (@traceId, 'corrupt-test', NULL, 'fn', 'corrupt',
-                 NULL, @badArgs, @badResult, 0)",
-              [ [ "traceId", Sql.string tid
-                  "badArgs", Sql.bytes corruptBytes
-                  "badResult", Sql.bytes corruptBytes ] ] ]
+                 NULL, @badArgs, 'corrupt-hash', 0)",
+              [ [ "traceId", Sql.string tid; "badArgs", Sql.bytes corruptBytes ] ] ]
 
         let! out = runCli state [ "traces"; "inspect"; tid ]
         Expect.isFalse

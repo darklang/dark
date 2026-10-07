@@ -96,10 +96,10 @@ type T =
     /// The interpreter hooks for this run.
     executionTracing : RT.Tracing.Tracing
 
-    /// Write what was collected. Takes the live `ExecutionState` because an ephemeral blob ref
-    /// dies when the request scope pops, so the bytes are promoted to persistent ones before
-    /// they are serialized; without that a trace records refs to bytes that are gone and
-    /// `traces inspect` cannot reconstruct a request body.
+    /// Write what was collected, under the run's account (from the live `ExecutionState`). An
+    /// ephemeral blob ref dies when the request scope pops, so its bytes are kept with the trace
+    /// before anything is serialized; without that a trace records refs to bytes that are gone
+    /// and `traces inspect` cannot reconstruct a request body.
     storeTraceResults : RT.ExecutionState -> Ply.Ply<unit>
 
     /// Whether this run gets a row of its own. A view does not: looking at a run is not a run.
@@ -341,6 +341,15 @@ module Redact =
   let secretResults : Set<string> =
     Set.ofList [ "environmentGet"; "environmentGetAll" ]
 
+  /// Reads of a package item by its content hash. The answer is the item at that hash, and a
+  /// traced type check reads the same items over and over: on one dev store these five were
+  /// 571 MB of 795 MB of logged results, 20 MB of it distinct per trace. So each distinct
+  /// answer is serialized once (`TraceStorage`), and a replay gets exactly what the run got,
+  /// whether or not the store still holds the item.
+  let fromTheStore : Set<string> =
+    Set.ofList
+      [ "pmGetFn"; "pmGetType"; "pmGetValue"; "pmGetTrait"; "pmGetTraitImpl" ]
+
   /// Builtins a replay performs again instead of serving from the log, going on replaying
   /// after (`ReplayStep.PerformOnce`). Two reasons land a name here:
   ///
@@ -544,10 +553,10 @@ let rec private executionTracingFor
 
 /// Keeps the trace tables bounded: after a store, the oldest traces past the caps go, except
 /// one a RUNNING, suspended or pinned run needs (its log is what `resume` replays, and a
-/// running one is still being written) and the newest run of each entry, which the count cap
-/// alone never drops. `trace.keep` is
-/// how many traces to keep (200 unset; a served request is one), `trace.maxMb` how many
-/// megabytes of args and results (256 unset); 0 disables a cap. Both are store config keys the
+/// running one is still being written) and the newest run of each of the most recent entries,
+/// which the count cap alone never drops. `trace.keep` is how many traces to keep (200 unset;
+/// a served request is one), `trace.maxMb` how many megabytes they may hold, input, logged
+/// calls and captured blobs together (256 unset); 0 disables a cap. Both are store config keys the
 /// host reads at startup (`configure`). A pass runs at most every ten seconds, since a `serve`
 /// stores a trace per request. The manual `traces prune|delete|clear` go through here too, so
 /// a run and its log go together, always.
@@ -588,8 +597,14 @@ module TraceRetention =
           // Added with the table. Every other per-trace table is dropped here, and a loop row
           // outlives its trace with nothing that can ever read it again.
           "DELETE FROM trace_loops WHERE trace_id = @id", ps
+          "DELETE FROM trace_blobs WHERE trace_id = @id", ps
           "DELETE FROM traces WHERE id = @id", ps ]
       |> ignore<List<int>>
+
+  /// How many entries the floor protects. Without a bound the floor grows with every entry
+  /// there has ever been, and an entry is a concrete path: `keep = 20` kept 120 traces after a
+  /// server answered 100 distinct paths, every one of them the newest of its own entry.
+  let floorEntries = 20
 
   /// Drop the oldest traces past `keepTraces` and `bytes` (`None`: no cap on that axis), never
   /// one a running, suspended or pinned run needs, never the newest over the byte cap alone, and
@@ -599,32 +614,28 @@ module TraceRetention =
   /// a `serve` under load writes a trace per request and evicts the `eval` you were working on
   /// within `trace.keep` requests. The entry is the trace's `handler_desc` (`eval`,
   /// `run <file>`, `GET /path`) with any query string cut off, so `/search?q=a` and
-  /// `/search?q=b` are one entry rather than two -- otherwise the floor is unbounded, since
-  /// every distinct query string would be an entry of its own. The BYTE cap still applies to a
+  /// `/search?q=b` are one entry rather than two. A path is still an entry of its own, so the
+  /// floor covers only the `floorEntries` most recent entries. The BYTE cap still applies to a
   /// floored trace: one huge recording should not be kept forever because it is the newest of
   /// its kind.
   let prune (keepTraces : Option<int64>) (bytes : Option<int64>) : int =
-    // Newest first, with each trace's byte weight, whether it is suspended or pinned, and
-    // whether it is the newest of its entry.
+    // Newest first, with each trace's byte weight (its own `bytes` column), whether it is
+    // suspended or pinned, and its entry.
     let rows =
       Sql.query
-        "SELECT t.id AS id,
-                COALESCE((SELECT SUM(LENGTH(c.args) + LENGTH(c.result))
-                          FROM trace_fn_calls c WHERE c.trace_id = t.id), 0) AS bytes,
+        "SELECT t.id AS id, t.bytes AS bytes,
                 (t.status IN ('running', 'suspended') OR t.pinned = 1) AS needed,
-                ROW_NUMBER() OVER (
-                  PARTITION BY CASE
-                                 WHEN INSTR(t.handler_desc, '?') > 0
-                                 THEN SUBSTR(t.handler_desc, 1, INSTR(t.handler_desc, '?') - 1)
-                                 ELSE t.handler_desc
-                               END
-                  ORDER BY t.timestamp DESC, t.rowid DESC) AS entry_rank
+                CASE
+                  WHEN INSTR(t.handler_desc, '?') > 0
+                  THEN SUBSTR(t.handler_desc, 1, INSTR(t.handler_desc, '?') - 1)
+                  ELSE t.handler_desc
+                END AS entry
          FROM traces t ORDER BY t.timestamp DESC, t.rowid DESC"
       |> Sql.executeAsync (fun read ->
         read.string "id",
         read.int64 "bytes",
         read.int "needed" = 1,
-        read.int64 "entry_rank" = 1L)
+        read.string "entry")
       |> fun t -> t.Result
     // Walk newest to oldest, keeping until a cap is hit; everything older goes. The newest
     // stays even over the byte cap alone, so a run's own trace survives its own store.
@@ -635,11 +646,13 @@ module TraceRetention =
     // ordinary run behind them, forever, which is the opposite of what pinning one asks for.
     let mutable seenCount = 0L
     let mutable seenBytes = 0L
+    let entries = System.Collections.Generic.HashSet<string>()
     let doomed =
       rows
-      |> List.filter (fun (_, bytes', needed, newestOfEntry) ->
+      |> List.filter (fun (_, bytes', needed, entry) ->
         seenCount <- seenCount + 1L
         if not needed then seenBytes <- seenBytes + bytes'
+        let newestOfEntry = entries.Count < floorEntries && entries.Add entry
         let overCount =
           match keepTraces with
           | Some n -> seenCount > n && not newestOfEntry
@@ -652,8 +665,9 @@ module TraceRetention =
     deleteTraces (doomed |> List.map (fun (id, _, _, _) -> id))
     List.length doomed
 
-  /// The pass after a store: at most every ten seconds, and the byte scan only once there are
-  /// enough traces for the byte cap to matter (a count is one index read).
+  /// The pass after a store: at most every ten seconds, and only when a cap is exceeded. Both
+  /// caps are checked from one read of `traces`, whatever the trace count; an early version
+  /// skipped the byte check below 50 traces, so twelve traces held 790 MB under a 256 MB cap.
   let run () : int =
     if keep = 0L && maxBytes = 0L then
       0
@@ -662,12 +676,13 @@ module TraceRetention =
       if (now - lastPass).TotalSeconds < 10.0 then
         0
       else
-        let count =
-          Sql.query "SELECT COUNT(*) AS n FROM traces"
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+        let (count, total) =
+          Sql.query "SELECT COUNT(*) AS n, COALESCE(SUM(bytes), 0) AS b FROM traces"
+          |> Sql.executeRowAsync (fun read -> read.int64 "n", read.int64 "b")
           |> fun t -> t.Result
         let overCount = keep > 0L && count > keep
-        if not overCount && count < 50L then
+        let overBytes = maxBytes > 0L && total > maxBytes
+        if not overCount && not overBytes then
           0
         else
           lastPass <- now
@@ -678,6 +693,31 @@ module TraceRetention =
 /// Store trace data to SQLite.
 module TraceStorage =
   open LibDB.Sqlite
+
+  /// Where `prepareDvalForStorage` keeps a blob captured after its trace was stored, such as a
+  /// served response's body: in `trace_blobs` under that trace, counted in what it weighs. Only a
+  /// blob the trace did not already hold adds to the weight.
+  let keepBlobIn (traceId : System.Guid) : string -> byte[] -> Ply.Ply<unit> =
+    fun hash bytes ->
+      uply {
+        let! added =
+          Sql.query
+            "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
+             VALUES (@traceId, @hash, @bytes)"
+          |> Sql.parameters
+            [ "traceId", Sql.string (string traceId)
+              "hash", Sql.string hash
+              "bytes", Sql.bytes bytes ]
+          |> Sql.executeNonQueryAsync
+        if added > 0 then
+          do!
+            Sql.query "UPDATE traces SET bytes = bytes + @n WHERE id = @traceId"
+            |> Sql.parameters
+              [ "traceId", Sql.string (string traceId)
+                "n", Sql.int64 (int64 bytes.Length) ]
+            |> Sql.executeStatementAsync
+      }
+
 
   /// Serialize a list of args as a single Dval (DList Unknown args) so
   /// the binary writer can roundtrip the whole sequence in one blob.
@@ -695,6 +735,8 @@ module TraceStorage =
     (handlerDesc : string)
     (inputVarName : string)
     (inputDval : RT.Dval)
+    /// The blobs the trace captured, one per hash. Kept in `trace_blobs`, with the trace.
+    (blobs : List<string * byte[]>)
     (events : List<CompletedEvent>)
     (fns : List<RT.Hash>)
     /// How many times each loop went round, by the lambda's expression id.
@@ -713,6 +755,48 @@ module TraceStorage =
 
       let inputBytes = serializeDval "traces.input_value" inputDval
 
+      // Every result lives in the trace's blobs, once per distinct value, and its row holds
+      // the value's hash. A type check reads the same items and gets the same small answers
+      // over and over, so most rows of a heavy trace share a handful of values.
+      let results = System.Collections.Generic.Dictionary<string, byte[]>()
+      // A by-hash read that found its item is serialized once per hash asked: an item IS its
+      // hash, so a later `Some` for the same hash is the same item. Anything else is serialized
+      // every time, since a `None` can turn into the item later in the run.
+      let foundByAsk = System.Collections.Generic.Dictionary<string, string>()
+      let keep (ev : CompletedEvent) : string =
+        let bytes = serializeDval "trace_fn_calls.result" ev.result
+        let hash = Blob.sha256Hex bytes
+        results[hash] <- bytes
+        hash
+      let serializedEvents =
+        events
+        |> List.map (fun ev ->
+          let argsBytes = serializeArgs ev.args
+          let hash =
+            match ev.result with
+            | RT.DEnum(_, _, _, "Some", [ _ ]) when
+              Set.contains ev.fnName Redact.fromTheStore
+              ->
+              let ask = ev.fnName + ":" + System.Convert.ToBase64String argsBytes
+              match foundByAsk.TryGetValue ask with
+              | true, hash -> hash
+              | _ ->
+                let hash = keep ev
+                foundByAsk[ask] <- hash
+                hash
+            | _ -> keep ev
+          (ev, argsBytes, hash))
+      let blobs =
+        blobs @ (results |> Seq.map (fun kv -> kv.Key, kv.Value) |> List.ofSeq)
+
+      // What this trace weighs, kept on its row: retention applies `trace.maxMb` from this
+      // column, never by summing `trace_fn_calls`, the table it exists to bound.
+      let weight =
+        int64 inputBytes.Length
+        + (serializedEvents
+           |> List.sumBy (fun (_, a, h) -> int64 a.Length + int64 h.Length))
+        + (blobs |> List.sumBy (fun (_, b) -> int64 b.Length))
+
       let accountIDSql =
         match accountID with
         | Some a -> Sql.uuid a
@@ -730,27 +814,42 @@ module TraceStorage =
       let baseStatements =
         [ "INSERT INTO traces
           (id, root_tlid, handler_desc, timestamp,
-           input_name, input_value, account_id, status, updated, duration_ms)
+           input_name, input_value, account_id, status, updated, duration_ms, bytes)
          VALUES
           (@id, 0, @handlerDesc, @timestamp,
-           @inputName, @inputValue, @accountId, 'done', @timestamp, @durationMs)
+           @inputName, @inputValue, @accountId, 'done', @timestamp, @durationMs, @bytes)
          ON CONFLICT(id) DO UPDATE SET
            handler_desc = excluded.handler_desc,
            input_name = excluded.input_name,
            input_value = excluded.input_value,
            account_id = excluded.account_id,
            updated = excluded.updated,
-           duration_ms = excluded.duration_ms",
+           duration_ms = excluded.duration_ms,
+           bytes = excluded.bytes",
           [ [ "id", Sql.string traceIdStr
               "handlerDesc", Sql.string handlerDesc
               "timestamp", Sql.string timestamp
               "inputName", Sql.string inputVarName
               "inputValue", Sql.bytes inputBytes
               "accountId", accountIDSql
-              "durationMs", Sql.int64 durationMs ] ]
+              "durationMs", Sql.int64 durationMs
+              "bytes", Sql.int64 weight ] ]
 
           "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ]
-          "DELETE FROM trace_loops WHERE trace_id = @traceId", [ traceIdParam ] ]
+          "DELETE FROM trace_loops WHERE trace_id = @traceId", [ traceIdParam ]
+          "DELETE FROM trace_blobs WHERE trace_id = @traceId", [ traceIdParam ] ]
+
+      let blobStmt =
+        match blobs with
+        | [] -> []
+        | _ ->
+          [ "INSERT OR REPLACE INTO trace_blobs (trace_id, hash, bytes)
+             VALUES (@traceId, @hash, @bytes)",
+            blobs
+            |> List.map (fun (hash, bytes) ->
+              [ "traceId", Sql.string traceIdStr
+                "hash", Sql.string hash
+                "bytes", Sql.bytes bytes ]) ]
 
       // Skip the events INSERT when empty: fumble rejects zero-param-row
       // prepared statements, hit when a trace errors before any call fires.
@@ -768,15 +867,14 @@ module TraceStorage =
            VALUES
             (@traceId, @callId, NULL, 'builtin', @fnHash,
              NULL, @args, @result, @durationMs, @processId, @seq, @ord)",
-            events
-            |> List.map (fun ev ->
-              let argsBytes = serializeArgs ev.args
-              let resultBytes = serializeDval "trace_fn_calls.result" ev.result
+            serializedEvents
+            |> List.map (fun (ev, argsBytes, resultHash) ->
               [ "traceId", Sql.string traceIdStr
                 "callId", Sql.string ev.callId
                 "fnHash", Sql.string ev.fnName
                 "args", Sql.bytes argsBytes
-                "result", Sql.bytes resultBytes
+                // The hash of the result, which is in `trace_blobs`.
+                "result", Sql.string resultHash
                 "durationMs", Sql.int64 ev.durationMs
                 "processId",
                 (if ev.processId = System.Guid.Empty then
@@ -825,23 +923,26 @@ module TraceStorage =
                 "fnHash", Sql.string (string hash) ]) ]
 
       let _ =
-        Sql.executeTransactionSync (baseStatements @ eventStmt @ fnStmt @ loopStmt)
+        Sql.executeTransactionSync (
+          baseStatements @ eventStmt @ fnStmt @ loopStmt @ blobStmt
+        )
       TraceRetention.run () |> ignore<int>
 
 
 /// Rewrite a Dval for the trace-storage boundary:
 ///   - DStream → DStreamStub (the live pull fn closes over this VM's
 ///     exeState; draining would consume the user's stream).
-///   - DBlob(Ephemeral _) → DBlob(Persistent _), promoting bytes
-///     into package_blobs so the trace survives the producing VM.
+///   - DBlob(Ephemeral _) → DBlob(Persistent _), handing the bytes to <param keep> so the
+///     trace survives the producing VM. The trace keeps them (`trace_blobs`), not the shared
+///     `package_blobs`, which nothing collects.
 /// Recursion and container rebuilding are handled by `Dval.rewriteWith`,
 /// so nested DStream values (inside lists, records, closures, ...) are
 /// stubbed just like top-level ones.
 let prepareDvalForStorage
-  (exeState : RT.ExecutionState)
+  (keep : string -> byte[] -> Ply.Ply<unit>)
   (dv : RT.Dval)
   : Ply.Ply<RT.Dval> =
-  let promoteBlob = Blob.promoteEphemeralLeaf exeState.blobs.persist
+  let promoteBlob = Blob.promoteEphemeralLeaf keep
   dv
   |> RT.Dval.rewriteWith (fun dv ->
     uply {
@@ -852,14 +953,18 @@ let prepareDvalForStorage
 
 
 /// Walk every captured Dval through [prepareDvalForStorage]. Mutates
-/// `state.events` in place; returns the prepared input dval.
+/// `state.events` in place; returns the prepared input dval and the blobs the trace keeps,
+/// one per hash.
 let private prepareTraceForStorage
-  (exeState : RT.ExecutionState)
   (inputDval : RT.Dval)
   (events : CompletedEvent[])
-  : Ply.Ply<RT.Dval> =
+  : Ply.Ply<RT.Dval * List<string * byte[]>> =
   uply {
-    let prep = prepareDvalForStorage exeState
+    let blobs = System.Collections.Generic.Dictionary<string, byte[]>()
+    let keep (hash : string) (bytes : byte[]) : Ply.Ply<unit> =
+      blobs[hash] <- bytes
+      Ply.Ply(())
+    let prep = prepareDvalForStorage keep
     let! preparedInput = prep inputDval
     for i in 0 .. events.Length - 1 do
       let ev = events[i]
@@ -867,7 +972,8 @@ let private prepareTraceForStorage
       let! preparedResult = prep ev.result
       events[i] <- { ev with args = preparedArgs; result = preparedResult }
 
-    return preparedInput
+    return
+      (preparedInput, blobs |> Seq.map (fun kv -> kv.Key, kv.Value) |> List.ofSeq)
   }
 
 
@@ -884,10 +990,9 @@ let private storeTrace
   (exeState : RT.ExecutionState)
   : Ply.Ply<unit> =
   uply {
-    // Trace detail OFF must be a true no-op. `prepareTraceForStorage` (below) promotes captured ephemeral
-    // blobs into package_blobs before `TraceStorage.store`'s own off-check, so gating only the store still
-    // grows package_blobs on every traced request. Bail here so neither the promote nor the store runs. This
-    // is the single choke point for both the sqlite and CLI tracers (the serve uses the CLI one).
+    // Trace detail OFF must be a true no-op: `prepareTraceForStorage` (below) hashes every captured
+    // ephemeral blob, and a request body can be megabytes. Bail here so neither the walk nor the store
+    // runs. This is the single choke point for both the sqlite and CLI tracers (the serve uses the CLI one).
     if TraceDetail.current = TraceDetail.Off then
       return ()
     else
@@ -908,12 +1013,13 @@ let private storeTrace
           "trace.truncated"
           [ "kept", string events.Length; "dropped", string dropped ]
       try
-        let! preparedInput = prepareTraceForStorage exeState inputDval events
+        let! (preparedInput, blobs) = prepareTraceForStorage inputDval events
         TraceStorage.store
           traceID
           handlerDesc
           inputVarName
           preparedInput
+          blobs
           // A truncated trace carries a final marker row rather than just ending. Without it the trace
           // reads as complete, and "the call I'm looking for isn't here" is indistinguishable from "it
           // never happened" -- which is the one thing a debugging aid must never be ambiguous about.

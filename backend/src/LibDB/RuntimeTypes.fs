@@ -141,10 +141,13 @@ module Fn =
 /// Content-addressed blob storage — bytes keyed by SHA-256 hash.
 module Blob =
   /// Look up bytes by hash. Returns [None] when the row doesn't exist.
+  ///
+  /// A blob a trace captured lives in `trace_blobs`, owned by that trace, so a read that misses
+  /// `package_blobs` asks there too. Same content under the same hash either way.
   let get (hash : string) : Ply<Option<byte[]>> =
     uply {
       Telemetry.count "pkg.blob.get"
-      return!
+      let! shared =
         Sql.query
           """
           SELECT bytes
@@ -153,6 +156,13 @@ module Blob =
           """
         |> Sql.parameters [ "hash", Sql.string hash ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "bytes")
+      match shared with
+      | Some _ -> return shared
+      | None ->
+        return!
+          Sql.query "SELECT bytes FROM trace_blobs WHERE hash = @hash LIMIT 1"
+          |> Sql.parameters [ "hash", Sql.string hash ]
+          |> Sql.executeRowOptionAsync (fun read -> read.bytes "bytes")
     }
 
   /// Insert bytes under [hash]. If the row already exists (same hash

@@ -110,6 +110,10 @@ let private hashCoupledSurvivors =
     // say which of its callees have been edited since. A hash the store no longer has is the
     // interesting case, not a broken one -- the resume reads it as "gone" and says nothing.
     "trace_fns"
+    // A survivor because its hash names its OWN bytes, not anything in the log: no reload can
+    // make a row describe something that did not happen. And it belongs to a trace, which
+    // outlives its code like the rows above.
+    "trace_blobs"
     "type_checked" ] // content-addressed cache: a clean result stays clean
 
 

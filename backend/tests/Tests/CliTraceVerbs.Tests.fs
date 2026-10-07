@@ -349,7 +349,7 @@ let private byteCapSparesTheRunThatTrippedIt =
       task {
         // One byte: every stored log is over the cap on its own. The pass must keep the
         // newest trace, or a run's own log would go the moment it was written. Called
-        // directly: the pass after a store only scans bytes once there are fifty traces.
+        // directly, so the ten-second spacing between passes does not decide the result.
         let! _ = runCli state [ "eval"; "Stdlib.printLine \"one\"" ]
         let! _ = runCli state [ "eval"; "Stdlib.printLine \"two\"" ]
         let! newest = latest ()
@@ -406,6 +406,197 @@ let private retentionKeepsTheNewestOfEachEntry =
           left
           [ "t2"; "t4"; "t5" ]
           "the newest eval, the newest GET /a whatever its query string, and GET /b"
+      })
+
+
+/// The pass after a store used to look at bytes only once there were fifty traces, so a
+/// store holding a dozen enormous ones sat at 790 MB under a 256 MB cap and nothing ran.
+let private byteCapActsBelowFiftyTraces =
+  cliTestWithFreshTraces
+    "the byte cap applies however few traces there are"
+    (fun state ->
+      task {
+        let keep, bytes =
+          LibDB.Tracing.TraceRetention.keep, LibDB.Tracing.TraceRetention.maxBytes
+        try
+          LibDB.Tracing.TraceRetention.setForTesting 200L 1L
+          let! _ = runCli state [ "eval"; "Stdlib.printLine \"one\"" ]
+          LibDB.Tracing.TraceRetention.setForTesting 200L 1L
+          let! _ = runCli state [ "eval"; "Stdlib.printLine \"two\"" ]
+          let! newest = latest ()
+          let! traces =
+            Sql.query "SELECT id FROM traces"
+            |> Sql.executeAsync (fun read -> read.string "id")
+          Expect.equal
+            traces
+            [ string newest.id ]
+            "two traces over a one-byte cap: the pass after the second store took the first"
+        finally
+          LibDB.Tracing.TraceRetention.setForTesting keep bytes
+      })
+
+
+/// An entry is a concrete path, so a server answering many paths made the floor as large as
+/// the number of paths: `keep = 20` kept 120 traces after 100 distinct ones.
+let private theFloorIsBounded =
+  cliTestWithFreshTraces
+    "the newest-of-each-entry floor covers only the most recent entries"
+    (fun state ->
+      task {
+        let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
+        do!
+          [ 1..30 ]
+          |> List.map (fun i ->
+            Sql.query
+              "INSERT INTO traces (id, root_tlid, handler_desc, timestamp, input_name, input_value)
+               VALUES (@id, 0, @desc, @ts, 'request', x'')"
+            |> Sql.parameters
+              [ "id", Sql.string $"p{i:D2}"
+                "desc", Sql.string $"GET /hello/{i}"
+                "ts", Sql.string $"2026-09-01T00:00:{i:D2}Z" ]
+            |> Sql.executeStatementAsync
+            |> Task.map ignore<unit>)
+          |> Task.WhenAll
+          |> Task.map ignore<unit[]>
+
+        let went = LibDB.Tracing.TraceRetention.prune (Some 1L) None
+        let! left =
+          Sql.query "SELECT id FROM traces ORDER BY id"
+          |> Sql.executeAsync (fun read -> read.string "id")
+
+        Expect.equal
+          (List.length left)
+          LibDB.Tracing.TraceRetention.floorEntries
+          "thirty distinct paths, a count cap of one: the floor keeps the newest twenty"
+        Expect.equal
+          went
+          (30 - LibDB.Tracing.TraceRetention.floorEntries)
+          "the rest went"
+        Expect.contains left "p30" "the newest is among them"
+        Expect.isFalse (List.contains "p01" left) "the oldest is not"
+      })
+
+
+/// A read of a package item by its hash is kept once per trace, however often the run read it,
+/// and the rows refer to it. A replay then gets exactly what the run got even after the item
+/// has left the store, which a dev reload does to every edited fn's old hash.
+let private hashReadsAreKeptOnceAndOutliveTheStore =
+  cliTestWithFreshTraces
+    "a read of a package item by hash is kept once, and replays after the item is gone"
+    (fun state ->
+      task {
+        let expr =
+          "match Darklang.LanguageTools.PackageManager.Function.find Darklang.SCM.Branch.mainBranchId "
+          + "(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Darklang\"; "
+          + "modules = [ \"Stdlib\", \"Int128\" ]; name = \"sqrt\" }) with\n"
+          + "| Some h -> [ Stdlib.Option.isSome (Darklang.LanguageTools.PackageManager.Function.get h), "
+          + "Stdlib.Option.isSome (Darklang.LanguageTools.PackageManager.Function.get h) ]\n"
+          + "| None -> []"
+        let! out = runCli state [ "eval"; expr ]
+        Expect.stringContains out "true, true" "the eval read the fn twice"
+        let! e = latest ()
+        let! rows =
+          Sql.query
+            "SELECT result FROM trace_fn_calls WHERE trace_id = @t AND fn_hash = 'pmGetFn'"
+          |> Sql.parameters [ "t", Sql.uuid e.id ]
+          |> Sql.executeAsync (fun read -> read.string "result")
+        let referred = List.distinct rows
+        Expect.equal (List.length rows) 2 "both reads were logged"
+        Expect.equal (List.length referred) 1 "and both refer to one kept answer"
+        let! kept =
+          Sql.query
+            "SELECT COUNT(*) AS n FROM trace_blobs WHERE trace_id = @t AND hash = @h"
+          |> Sql.parameters
+            [ "t", Sql.string (string e.id)
+              "h", Sql.string (referred |> List.head |> Option.defaultValue "") ]
+          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+        Expect.equal kept 1L "kept once, with the trace"
+
+        // The item leaves the store, as a dev reload does to an edited fn's old hash. `Int128.sqrt`
+        // because nothing the CLI itself runs calls it, so only the replay can notice it is gone.
+        let! fnHash =
+          Sql.query
+            "SELECT item_hash FROM locations WHERE owner = 'Darklang' AND modules = 'Stdlib.Int128'
+             AND name = 'sqrt' AND item_type = 'fn' AND unlisted_at IS NULL"
+          |> Sql.executeRowAsync (fun read -> read.string "item_hash")
+        let saved = "test_saved_package_function"
+        do! Sql.query $"DROP TABLE IF EXISTS {saved}" |> Sql.executeStatementAsync
+        do!
+          Sql.query
+            $"CREATE TABLE {saved} AS SELECT * FROM package_functions WHERE hash = @h"
+          |> Sql.parameters [ "h", Sql.string fnHash ]
+          |> Sql.executeStatementAsync
+        do!
+          Sql.query "DELETE FROM package_functions WHERE hash = @h"
+          |> Sql.parameters [ "h", Sql.string fnHash ]
+          |> Sql.executeStatementAsync
+        LibDB.Caching.invalidateAll ()
+        let! prefix = latestPrefix ()
+        let! inspected = runCli state [ "traces"; "inspect"; prefix ]
+        let! viewed =
+          runCli
+            state
+            [ "traces"
+              "show"
+              "Darklang.LanguageTools.PackageManager.Function.get"
+              prefix ]
+        // Put it back before asserting, so a failure here leaves the next test a whole store.
+        do!
+          Sql.query $"INSERT OR IGNORE INTO package_functions SELECT * FROM {saved}"
+          |> Sql.executeStatementAsync
+        do! Sql.query $"DROP TABLE {saved}" |> Sql.executeStatementAsync
+        LibDB.Caching.invalidateAll ()
+
+        Expect.stringContains
+          inspected
+          "pmGetFn(Hash("
+          "the read is in the log, with what it was asked for"
+        Expect.stringContains
+          viewed
+          "Builtin.pmGetFn hash // = Some( Darklang.LanguageTools.ProgramTypes.PackageFn"
+          "the replay got the fn the run got, with the store no longer holding it"
+      })
+
+
+/// A captured blob belongs to its trace: kept in `trace_blobs`, never the shared
+/// `package_blobs`, readable by hash like any blob, and gone when the trace goes.
+let private aTracesBlobsGoWithIt =
+  cliTestWithFreshTraces
+    "a blob a trace captured is kept with the trace and deleted with it"
+    (fun state ->
+      task {
+        let! sharedBefore =
+          Sql.query "SELECT COUNT(*) AS n FROM package_blobs"
+          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+        let! _ =
+          runCli state [ "eval"; "Stdlib.String.toBlob \"held by the trace\"" ]
+        let! e = latest ()
+        let! kept =
+          Sql.query "SELECT hash, bytes FROM trace_blobs WHERE trace_id = @t"
+          |> Sql.parameters [ "t", Sql.string (string e.id) ]
+          |> Sql.executeAsync (fun read -> read.string "hash", read.bytes "bytes")
+        let! sharedAfter =
+          Sql.query "SELECT COUNT(*) AS n FROM package_blobs"
+          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+        match kept with
+        | [ (hash, bytes) ] ->
+          Expect.equal
+            (System.Text.Encoding.UTF8.GetString bytes)
+            "held by the trace"
+            "the answer's bytes are kept with the trace"
+          let! read = LibDB.RuntimeTypes.Blob.get hash |> Ply.toTask
+          Expect.equal read (Some bytes) "and a read by hash finds them there"
+        | other ->
+          failtest $"expected one blob kept with the trace, got {List.length other}"
+        Expect.equal sharedAfter sharedBefore "nothing went into package_blobs"
+
+        let! prefix = latestPrefix ()
+        let! _ = runCli state [ "traces"; "delete"; prefix; "--yes" ]
+        let! left =
+          Sql.query "SELECT COUNT(*) AS n FROM trace_blobs WHERE trace_id = @t"
+          |> Sql.parameters [ "t", Sql.string (string e.id) ]
+          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+        Expect.equal left 0L "deleting the trace took its blob"
       })
 
 
@@ -1052,7 +1243,9 @@ let private secretsAreNotInTheLog =
           let! e = latest ()
           let! rows =
             Sql.query
-              "SELECT fn_hash, args, result FROM trace_fn_calls WHERE trace_id = @t"
+              "SELECT c.fn_hash, c.args, r.bytes AS result FROM trace_fn_calls c
+               JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
+               WHERE c.trace_id = @t"
             |> Sql.parameters [ "t", Sql.string (string e.id) ]
             |> Sql.executeAsync (fun read ->
               (read.stringOrNone "fn_hash" |> Option.defaultValue ""),
@@ -1199,6 +1392,10 @@ let tests =
     retentionKeepsTheNewestAndTheSuspended
     retentionKeepsTheNewestOfEachEntry
     byteCapSparesTheRunThatTrippedIt
+    byteCapActsBelowFiftyTraces
+    theFloorIsBounded
+    hashReadsAreKeptOnceAndOutliveTheStore
+    aTracesBlobsGoWithIt
     replayEchoesAndRefuses
     secretsAreNotInTheLog
     spawnedChildReplays

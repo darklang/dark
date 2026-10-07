@@ -143,7 +143,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "  http.requestTimeoutMs    - serve cancels a handler past this and answers 504 (default: 30000; 0 = none)"
       "  trace.record             - Keep a record of every run (on/off; default: off)"
       "  trace.keep               - How many traces to keep (a served request is one; default: 200; 0 = all)"
-      "  trace.maxMb              - How many MB of logged args and results to keep (default: 256; 0 = all)"
+      "  trace.maxMb              - How many MB traces may hold, logs and captured bodies (default: 256; 0 = all)"
       ""
       "Use 'config get <key>' to read a value"
       "Use 'config set <key> <value>' to set a value" ]

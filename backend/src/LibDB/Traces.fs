@@ -175,10 +175,15 @@ let list (limit : int) : Task<List<Trace>> =
 /// Which handler served a request, recorded once the response is known.
 /// What the run answered. Written once, when the run ends well; a run that failed or was
 /// suspended leaves it alone, because there is no answer to record.
+/// The run's answer, counted in what the trace weighs (`bytes`): replacing an earlier answer
+/// takes the old one's length back out, so a run that answers twice is not counted twice.
 let setResult (id : System.Guid) (result : RT.Dval) : unit =
   let bytes = BinarySer.RT.Dval.serialize "traces.result_value" result
   Sql.query
-    "UPDATE traces SET result_value = @result, updated = @updated WHERE id = @id"
+    "UPDATE traces SET
+       bytes = bytes - COALESCE(LENGTH(result_value), 0) + LENGTH(@result),
+       result_value = @result, updated = @updated
+     WHERE id = @id"
   |> Sql.parameters
     [ "id", Sql.uuid id; "result", Sql.bytes bytes; "updated", Sql.string (now ()) ]
   |> Sql.executeStatementSync
@@ -216,8 +221,10 @@ let log
   task {
     let! rows =
       Sql.query
-        "SELECT process_id, ord, fn_hash, args, result FROM trace_fn_calls
-         WHERE trace_id = @t AND ord >= 0 ORDER BY seq"
+        "SELECT c.process_id, c.ord, c.fn_hash, c.args, r.bytes AS result
+         FROM trace_fn_calls c
+         JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
+         WHERE c.trace_id = @t AND c.ord >= 0 ORDER BY c.seq"
       |> Sql.parameters [ "t", Sql.uuid id ]
       |> Sql.executeAsync (fun read ->
         read.string "process_id",
@@ -294,9 +301,9 @@ let fork
         Sql.executeTransactionSync
           [ "INSERT INTO traces
               (id, root_tlid, handler_desc, timestamp, input_name, input_value, account_id,
-               status, parent_id, parent_seq, pinned, updated, entry_hash)
+               status, parent_id, parent_seq, pinned, updated, entry_hash, bytes)
              SELECT @child, root_tlid, handler_desc, @stamp, input_name, input_value,
-                    account_id, 'suspended', @parent, @cutoff, 0, @stamp, entry_hash
+                    account_id, 'suspended', @parent, @cutoff, 0, @stamp, entry_hash, bytes
              FROM traces WHERE id = @parent",
             [ [ "child", Sql.uuid childId
                 "parent", Sql.uuid id
@@ -319,6 +326,11 @@ let fork
             // reason.
             "INSERT OR IGNORE INTO trace_fns (trace_id, fn_name, fn_hash)
              SELECT @child, fn_name, fn_hash FROM trace_fns WHERE trace_id = @parent",
+            [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ]
+            // A captured body belongs to the trace that holds it, so the child takes its own
+            // copy: retention removing the parent must not take the child's request with it.
+            "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
+             SELECT @child, hash, bytes FROM trace_blobs WHERE trace_id = @parent",
             [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ] ]
       // `INSERT ... SELECT` inserts nothing when the parent has gone -- retention runs every
       // ten seconds -- and reporting a child that does not exist sends the person to a resume
@@ -385,8 +397,10 @@ let viewLog (id : System.Guid) : Task<List<string * byte[] * RT.Dval>> =
   task {
     let! rows =
       Sql.query
-        "SELECT fn_hash, args, result FROM trace_fn_calls
-         WHERE trace_id = @t AND ord >= 0 ORDER BY seq"
+        "SELECT c.fn_hash, c.args, r.bytes AS result
+         FROM trace_fn_calls c
+         JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
+         WHERE c.trace_id = @t AND c.ord >= 0 ORDER BY c.seq"
       |> Sql.parameters [ "t", Sql.uuid id ]
       |> Sql.executeAsync (fun read ->
         (read.stringOrNone "fn_hash" |> Option.defaultValue ""),

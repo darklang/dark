@@ -939,7 +939,8 @@ let executeWith
           // else stored: a script can hand back an ephemeral blob.
           match executionId, result with
           | Some id, Ok dv ->
-            let! prepared = Tracing.prepareDvalForStorage state dv
+            let! prepared =
+              Tracing.prepareDvalForStorage (Tracing.TraceStorage.keepBlobIn id) dv
             LibDB.Traces.setResult id prepared
             LibDB.Traces.setStatus id LibDB.Traces.Done
           | Some id, Error _ -> LibDB.Traces.setStatus id LibDB.Traces.Failed

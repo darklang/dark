@@ -702,8 +702,16 @@ a SEQUENCE of impure calls, not a tree of frames, so `parent_call_id`,
 
 The log is thin enough to leave on because retention keeps the tables
 bounded: after a store, the oldest traces past `trace.keep` (200 unset) or
-`trace.maxMb` (256 unset) of logged args and results go, except one a running,
-suspended or pinned run needs, and the newest run for each entry.
+`trace.maxMb` (256 unset) go, counting each trace's input, logged calls and
+captured blobs, except one a running, suspended or pinned run needs, and the
+newest run of each of the 20 most recent entries.
+
+Every logged result is kept in the trace's own `trace_blobs`, once per distinct
+value, and its row's `result` is that value's hash. A type check reads the same
+package items (`pmGetFn`, `pmGetType`, ...) and gets the same small answers over
+and over, so most rows of a heavy trace share a few values; and a replay serves
+what the run got even after an item has left the store. A blob a trace captured (a request body,
+a file's bytes) is kept in `trace_blobs` with the trace and goes when it goes.
 
 Two secrets are taken out of a row before it is written (`Tracing.Redact`),
 and nothing else is. A request header named `authorization`, `cookie`,
