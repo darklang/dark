@@ -892,3 +892,85 @@ DARK
   echo "  where a fresh call takes the branch's newer one ($fresh); and a deprecation made on main"
   echo "  is inherited by a branch, overridable there, and unaffected by that override."
 }
+
+# --- hosted-db: a served handler reads and writes a user DB, and its functions commit ---
+# Three things each stopped this on their own: `DB<T>` could not be written in saved code, the
+# at-rest checker read a DB's name as an unbound variable so nothing naming one could be
+# committed, and `serve` never loaded the DBs, so every request answered 500 "There is no variable
+# named". Each step below is the one that broke.
+gate_hosted_db() {
+  set -uo pipefail
+
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  ROOT=rundir/hosted-db
+  PORT=$(( 9200 + RANDOM % 300 ))
+  if command -v ss > /dev/null && ss -ltn 2>/dev/null | grep -q ":$PORT "; then
+    echo "port $PORT is already in use; re-run (the port is random per run)" >&2
+    exit 2
+  fi
+
+  rm -rf "$ROOT"; mkdir -p "$ROOT/home"
+  scripts/testing/_copy-store "$ROOT/data.db"
+  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
+  # The grants below go into the policy under HOME, so this gate has its own.
+  export DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home"
+
+  pass=0; fail=0
+  ok()   { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
+  bad()  { fail=$((fail+1)); printf '  FAIL %s\n       got: %s\n' "$1" "$(head -c 200 <<<"$2" | tr '\n' ' ')"; }
+  want() { if grep -qE "$2" <<<"$3"; then ok "$1"; else bad "$1" "$3"; fi; }
+  x()    { "$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
+
+  x type Stachu.HostedDb.Note "= { hostedDbGateNote: String }" > /dev/null
+  want "a DB is declared" "Created database" "$(x db HostedDbNotes Stachu.HostedDb.Note)"
+
+  saved=$(x module Stachu.HostedDb - <<'DARK'
+let countOf (book: DB<Note>) : Int = Stdlib.DB.count book
+
+let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  match Stdlib.HttpServer.getMethod req with
+  | "POST" ->
+    let note = Stdlib.String.fromBlobWithReplacement req.body
+    let _ = Stdlib.DB.set (Note { hostedDbGateNote = note }) note HostedDbNotes
+    Stdlib.Http.responseWithText $"signed, {Stdlib.toString (countOf HostedDbNotes)} so far" 201
+  | _ ->
+    Stdlib.DB.getAll HostedDbNotes
+    |> Stdlib.List.map (fun n -> n.hostedDbGateNote)
+    |> Stdlib.List.sort
+    |> (fun notes -> Stdlib.Http.responseWithText (Stdlib.String.join notes ",") 200)
+DARK
+)
+  want "a parameter typed DB<Note> saves" "Defined 2 declarations" "$saved"
+  want "the functions naming the DB type-check" '"verdict":"checked".*"failed":0' \
+    "$(x typecheck Stachu.HostedDb --json)"
+  want "and commit" "commit [0-9a-f]+ -- " "$(x commit 'hosted db' -y)"
+
+  x permissions allow http-server "$PORT" > /dev/null
+  x permissions approve Stachu.HostedDb.router -y > /dev/null
+
+  serve() {
+    "$CLI" serve Stachu.HostedDb.router --port "$PORT" > "$ROOT/serve$1.log" 2>&1 &
+    SPID=$!
+    trap 'kill $SPID 2>/dev/null' EXIT
+    for _ in $(seq 1 40); do
+      curl -s -o /dev/null --max-time 2 "http://localhost:$PORT/" && return 0
+      kill -0 $SPID 2>/dev/null || { echo "the server we started is not running"; cat "$ROOT/serve$1.log"; exit 2; }
+      sleep 1
+    done
+  }
+  get()  { curl -s --max-time 10 "http://localhost:$PORT/"; }
+  post() { curl -s --max-time 10 -X POST --data "$1" "http://localhost:$PORT/"; }
+
+  serve 1
+  want "a POST writes" "^signed, 1 so far$" "$(post alpha)"
+  want "a second one counts both" "^signed, 2 so far$" "$(post beta)"
+  want "a GET reads what was written" "^alpha,beta$" "$(get)"
+  kill $SPID; wait $SPID 2>/dev/null
+
+  serve 2
+  want "the rows outlive the server process" "^alpha,beta$" "$(get)"
+  kill $SPID; wait $SPID 2>/dev/null
+
+  echo "hosted-db: $pass ok, $fail failed"
+  [[ $fail -eq 0 ]]
+}

@@ -249,9 +249,16 @@ let checkFunction
   let (ret, returnProblems) = Types.fromReference rigid none fn.returnType
   let self = Model.Ty.TFn(parameters, ret)
 
+  // A DB is read by its name, so it starts in scope; a parameter of the same name shadows it.
+  let databases =
+    env.dbs
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.fold Dict {} (fun locals (name, t) ->
+      Stdlib.Dict.setOverridingDuplicates locals name (Model.Binder.Mono t))
+
   let locals =
     (Stdlib.List.zipShortest fn.parameters parameters)
-    |> Stdlib.List.fold Dict {} (fun locals (p, t) ->
+    |> Stdlib.List.fold databases (fun locals (p, t) ->
       Stdlib.Dict.setOverridingDuplicates locals p.name (Model.Binder.Mono t))
 
   // Named parameters and positional arguments use the signature's types. Self

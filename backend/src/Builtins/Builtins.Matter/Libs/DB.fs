@@ -218,6 +218,43 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "dbDeclarations" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType =
+        TList(
+          TTuple(
+            TString,
+            TCustomType(NR.ok (PT2DT.TypeReference.typeName ()), []),
+            []
+          )
+        )
+      description =
+        "Returns each declared DB's name and the type of its rows, for the at-rest type checker"
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            let! app = Toplevels.loadAllDBs ()
+            return
+              app.dbs
+              |> Map.values
+              |> List.map (fun (db : PT.DB.T) ->
+                DTuple(DString db.name, PT2DT.TypeReference.toDT db.typ, []))
+              |> Dval.list (
+                KTTuple(VT.string, VT.known (PT2DT.TypeReference.knownType ()), [])
+              )
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      // The declarations, never a row: what a DB holds is part of the program, like a type, and
+      // the checker reads it on every path that checks, including the LSP's. Under `DbRead` a
+      // policy without it would fail the whole batch rather than just this lookup.
+      callEffects = set [ Effect.PackageRead ]
+      deprecated = NotDeprecated }
+
+
     { name = fn "dbDrop" 0
       typeParams = []
       parameters = [ Param.make "dbName" TString "Name of the database to drop" ]

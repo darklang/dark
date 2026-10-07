@@ -304,11 +304,18 @@ module TypeReference =
     match t with
     | Builtin b -> Builtin.toPT ctx b
     | QualifiedName qn ->
-      let (typeName, typeArgs, unresolvedNames) =
-        Identifiers.QualifiedType.toPT ctx qn
+      // `DB<T>` reads like a custom type with an argument and is the DB type, as the F# lowering
+      // has it. Resolving `DB` as a name answers "Not found".
+      match qn.typeArgs with
+      | [ row ] when (Stdlib.List.isEmpty qn.modules) && (qn.typ.name == "DB") ->
+        let (rowType, unresolvedNames) = toPT ctx row
+        (ProgramTypes.TypeReference.TDB rowType, unresolvedNames)
+      | _ ->
+        let (typeName, typeArgs, unresolvedNames) =
+          Identifiers.QualifiedType.toPT ctx qn
 
-      (ProgramTypes.TypeReference.TCustomType(typeName, typeArgs),
-        unresolvedNames)
+        (ProgramTypes.TypeReference.TCustomType(typeName, typeArgs),
+          unresolvedNames)
 
 
 module TraitRef =
