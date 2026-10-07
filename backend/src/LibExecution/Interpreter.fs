@@ -5404,29 +5404,68 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
 
 
 /// An unscheduled run (a test's `execute`, the LSP, a host that runs a function itself): the
-/// same loop the scheduler steps, driven to the end here, each wait awaited in place. Nothing
-/// preempts it: its budget is negative, so `StepBudget` never comes.
+/// same loop the scheduler steps, driven to the end here. Nothing preempts it: its budget is
+/// negative, so `StepBudget` never comes.
+///
+/// No `task { }`: under the mono interpreter (the browser's non-AOT build) its state machine
+/// blocks on `Task.InternalWait` when it resumes, which is fatal on the browser's one thread
+/// ("Cannot wait on monitors on this runtime"). So a wait that has landed is consumed in place,
+/// and one that hasn't gets a continuation; nothing here waits.
 let private driveToEnd
   (exeState : ExecutionState)
   (vm : VMState)
   (first : StepOutcome)
-  : System.Threading.Tasks.Task<Dval> =
-  task {
-    let mutable outcome = first
-    let mutable result = ValueNone
-    while ValueOption.isNone result do
-      match outcome with
-      | StepDone dv -> result <- ValueSome dv
-      | StepBudget ->
-        Exception.raiseInternal
-          "budget bail outside the scheduler"
-          [ "vm", vm.threadID ]
-      | StepAwait(wait, resume) ->
-        do! wait
+  : Task<Dval> =
+  let finished = TaskCompletionSource<Dval>()
+  // What a `task` does with a throw: a cancellation cancels, anything else faults.
+  let fail (e : exn) =
+    match e with
+    | :? System.OperationCanceledException as oce ->
+      finished.TrySetCanceled oce.CancellationToken |> ignore<bool>
+    | _ -> finished.TrySetException e |> ignore<bool>
+  // One wait is outstanding at a time, so one continuation serves every suspension of the run, as
+  // the builder's did, rather than a closure per suspension.
+  let pendingWait = ref Unchecked.defaultof<Task>
+  let pendingResume = ref ignore<unit>
+  let landed = ref Unchecked.defaultof<System.Action>
+  let rec run (from : StepOutcome) : unit =
+    try
+      let mutable outcome = from
+      let mutable stop = false
+      while not stop do
+        match outcome with
+        | StepDone dv ->
+          finished.TrySetResult dv |> ignore<bool>
+          stop <- true
+        | StepBudget ->
+          Exception.raiseInternal
+            "budget bail outside the scheduler"
+            [ "vm", vm.threadID ]
+        | StepAwait(wait, resume) when wait.IsCompleted ->
+          // Rethrows a fault as itself, as `do!` did, rather than wrapped.
+          wait.GetAwaiter().GetResult()
+          resume ()
+          outcome <- executeSync exeState vm
+        | StepAwait(wait, resume) ->
+          stop <- true
+          pendingWait.Value <- wait
+          pendingResume.Value <- resume
+          // The registration `await` itself makes, without the state machine around it.
+          wait.GetAwaiter().UnsafeOnCompleted landed.Value
+    with e ->
+      fail e
+  landed.Value <-
+    System.Action(fun () ->
+      let wait = pendingWait.Value
+      let resume = pendingResume.Value
+      try
+        wait.GetAwaiter().GetResult()
         resume ()
-        outcome <- executeSync exeState vm
-    return result.Value
-  }
+        run (executeSync exeState vm)
+      with e ->
+        fail e)
+  run first
+  finished.Task
 
 
 /// Seed the root frame with the access the run starts under: what `executeUnder` does before
