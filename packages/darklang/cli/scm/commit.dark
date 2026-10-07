@@ -112,23 +112,73 @@ let previousHashesOf
   (branchId: Uuid)
   (b: SCM.Conflicts.Binding)
   : List<LanguageTools.ProgramTypes.Hash> =
-  let fromMain =
-    Packages.Propagate.getAllPreviousHashes branchId (locationOf b) (itemKindOf b.itemType)
-    |> Stdlib.List.map LanguageTools.ProgramTypes.hashToString
+  match previousHashesOfAll branchId [ b ] with
+  | [ (_, previous) ] -> previous
+  | _ -> []
 
-  let fromBranch =
-    match SCM.PackageOps.currentBranch () with
-    | id when SCM.Branch.isMain id -> []
-    | branch -> SCM.PackageOps.branchHashHistoryFor branch b.owner b.modules b.name
+/// <fn previousHashesOf> for every name in <param bindings>, in order: main's history in one query and the
+/// branch chain decoded once, where asking per name paid a query for each and decoded the chain twice.
+let previousHashesOfAll
+  (branchId: Uuid)
+  (bindings: List<SCM.Conflicts.Binding>)
+  : List<(SCM.Conflicts.Binding * List<LanguageTools.ProgramTypes.Hash>)> =
+  let everBound =
+    bindings
+    |> Stdlib.List.map (fun b -> (locationOf b, itemKindOf b.itemType))
+    |> SCM.Propagation.everBoundHashesFor
 
-  // NEWEST FIRST, and `dedup` rather than `unique`, because the order is load-bearing: `changeKind` takes
-  // the HEAD as "the version this edit replaced". `unique` sorts, which would make the head an arbitrary
-  // older version. `getAllPreviousHashes` is newest-first already; `branchHashHistoryFor` is oldest-first,
-  // hence the reverse.
-  Stdlib.List.append fromMain (Stdlib.List.reverse fromBranch)
-  |> Stdlib.List.dedup
-  |> Stdlib.List.filter (fun h -> h != b.hash)
-  |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
+  let historiesOn (id: Uuid) : Dict<String, List<String>> =
+    if SCM.Branch.isMain id then Dict {} else SCM.PackageOps.branchHashHistories id
+
+  let ofBranchId = historiesOn branchId
+
+  let current = SCM.PackageOps.currentBranch ()
+  let ofCurrent = if current == branchId then ofBranchId else historiesOn current
+
+  bindings
+  |> Stdlib.List.map (fun b ->
+    let key = SCM.Conflicts.bindingKey b.owner b.modules b.name
+
+    let historyIn (histories: Dict<String, List<String>>) : List<String> =
+      Stdlib.Dict.get histories key |> Stdlib.Option.withDefault []
+
+    let onMain =
+      Stdlib.Dict.get
+        everBound
+        (SCM.Propagation.everBoundKey
+          b.owner
+          b.modules
+          b.name
+          (LanguageTools.ProgramTypes.ItemKind.toString (itemKindOf b.itemType)))
+      |> Stdlib.Option.withDefault []
+
+    // What `Packages.Propagate.getAllPreviousHashes` returns: on a branch, the branch's own versions
+    // newest-first in front of main's, since they happened after the history it forked from.
+    let fromMain =
+      (if SCM.Branch.isMain branchId then
+         onMain
+       else
+         Stdlib.List.append
+           (historyIn ofBranchId
+            |> Stdlib.List.reverse
+            |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
+            |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.``member`` onMain h)))
+           onMain)
+      |> Stdlib.List.map LanguageTools.ProgramTypes.hashToString
+
+    let fromBranch = if SCM.Branch.isMain current then [] else historyIn ofCurrent
+
+    // NEWEST FIRST, and `dedup` rather than `unique`, because the order is load-bearing: `changeKind`
+    // takes the HEAD as "the version this edit replaced". `unique` sorts, which would make the head an
+    // arbitrary older version. `fromMain` is newest-first already; the chain history is oldest-first,
+    // hence the reverse.
+    let previous =
+      Stdlib.List.append fromMain (Stdlib.List.reverse fromBranch)
+      |> Stdlib.List.dedup
+      |> Stdlib.List.filter (fun h -> h != b.hash)
+      |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
+
+    (b, previous))
 
 /// One CHANGED line, from the SAME classification the JSON reports. The mark says what happened to the
 /// name: `+` new, `~` changed, `>` when it merely FOLLOWED your edit rather than being one. The note says
@@ -190,9 +240,7 @@ type Review =
 let review (state: AppState) : Review =
   let p = SCM.Draft.read ()
 
-  let withPrevious =
-    p.bindings
-    |> Stdlib.List.map (fun b -> (b, previousHashesOf state.currentBranchId b))
+  let withPrevious = previousHashesOfAll state.currentBranchId p.bindings
 
   Review
     { changed = p.bindings

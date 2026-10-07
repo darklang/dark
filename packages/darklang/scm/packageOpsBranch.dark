@@ -327,26 +327,34 @@ let branchHashHistoryFor
   (modules: String)
   (name: String)
   : List<String> =
+  branchHashHistories branchId
+  |> Stdlib.Dict.get (Conflicts.bindingKey owner modules name)
+  |> Stdlib.Option.withDefault []
+
+
+/// <fn branchHashHistoryFor> for every name the chain has bound, from one read of the chain, keyed by
+/// `Conflicts.bindingKey`.
+let branchHashHistories (branchId: Uuid) : Dict<String, List<String>> =
   // Deliberately SetName-only: an Override is a decision, not authoring history.
   decodeOpRows (chainOpRows branchId)
   |> Stdlib.List.filterMap (fun op ->
     match op with
     | SetName(location, target, _) ->
-      if
-        (location.owner == owner)
-        && ((Stdlib.String.join location.modules ".") == modules)
-        && (location.name == name)
-      then
-        Stdlib.Option.Option.Some(
-          LanguageTools.ProgramTypes.hashToString
-            (LanguageTools.ProgramTypes.Reference.hash target)
-        )
-      else
-        Stdlib.Option.Option.None
+      Stdlib.Option.Option.Some(
+        (Conflicts.bindingKey
+          location.owner
+          (Stdlib.String.join location.modules ".")
+          location.name,
+         LanguageTools.ProgramTypes.hashToString
+           (LanguageTools.ProgramTypes.Reference.hash target))
+      )
     | _ -> Stdlib.Option.Option.None)
-  // `dedup`, not `unique`/`uniqueBy`: both of those SORT, which would replace the authoring order this
-  // function exists to return with lexicographic HASH order.
-  |> Stdlib.List.dedup
+  |> Stdlib.List.groupByWithKey (fun (key, _) -> key)
+  |> Stdlib.List.map (fun (key, entries) ->
+    // `dedup`, not `unique`/`uniqueBy`: both of those SORT, which would replace the authoring order
+    // this function exists to return with lexicographic HASH order.
+    (key, entries |> Stdlib.List.map (fun (_, hash) -> hash) |> Stdlib.List.dedup))
+  |> Stdlib.Dict.fromListOverwritingDuplicates
 
 
 /// A branch's OWN frontier ops, oldest-first: its authoring history, for `dark log <branch>` (the

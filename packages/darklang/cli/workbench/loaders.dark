@@ -172,11 +172,9 @@ let loadChangedItems (branchId: Uuid) : List<BodyItem> =
     SCM.PackageOps.draftBindingsFor branchId
     |> Stdlib.List.filter (fun b ->
       Stdlib.Bool.not (Stdlib.List.member conflictNames (SCM.Conflicts.fqn b.owner b.modules b.name)))
-    |> Stdlib.List.map (fun b ->
+    |> (fun bindings -> Cli.Commit.previousHashesOfAll branchId bindings)
+    |> Stdlib.List.map (fun (b, previous) ->
       let fqn = SCM.Conflicts.fqn b.owner b.modules b.name
-      // Once per row: the diff below needs the same lookup, and `sourceDiffFor` would re-read
-      // the whole draft for each row on top of it.
-      let previous = Cli.Commit.previousHashesOf branchId b
       let change =
         if Stdlib.List.isEmpty previous then paint Stdlib.Cli.UI.Colors.green "added"
         else paint Stdlib.Cli.UI.Colors.yellow "edited"
