@@ -660,21 +660,24 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmRebuildDraftKeeping" 0
       typeParams = []
       parameters =
-        [ Param.make "keptIds" (TList TString) "op ids that survive the rewrite" ]
-      returnType = TypeReference.result TUnit TString
+        [ Param.make "draftIds" (TList TString) "the draft the caller read"
+          Param.make "keptIds" (TList TString) "op ids that survive the rewrite" ]
+      returnType = TypeReference.result TBool TString
       description =
         "Delete main's uncommitted ops and re-insert the ones named by <param "
         + "keptIds>, preserving their stamps, then re-fold. Ops this build cannot "
-        + "decode are never deleted. Ok on success; Error with the message otherwise."
+        + "decode are never deleted. Ok true on success; Ok false when the draft is "
+        + "no longer <param draftIds> or main moved meanwhile, and nothing was "
+        + "changed, so read the draft again; Error with the message otherwise."
       fn =
         (function
-        | _, _, _, [| DList(_, ids) |] ->
+        | _, _, _, [| DList(_, draftIds); DList(_, keptIds) |] ->
           uply {
             try
-              // Every id must parse. This list is what SURVIVES a delete of main's whole draft, so
+              // Every id must parse. These lists say what SURVIVES a delete of main's whole draft, so
               // dropping an unreadable one silently WIDENS the delete: one malformed id would be one
               // op deleted for good. Refuse the call instead.
-              let parsed =
+              let parse (ids : List<Dval>) =
                 ids
                 |> List.map (fun d ->
                   match d with
@@ -684,8 +687,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     | _ -> Error s
                   | other -> Error(string other))
 
+              let parsedDraft = parse draftIds
+              let parsedKept = parse keptIds
+
               match
-                parsed
+                parsedDraft @ parsedKept
                 |> List.tryPick (function
                   | Error s -> Some s
                   | Ok _ -> None)
@@ -693,22 +699,22 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               | Some bad ->
                 return
                   Dval.resultError
-                    KTUnit
+                    KTBool
                     KTString
                     (DString $"not an op id: {bad}; nothing was changed")
               | None ->
-
-                let kept =
+                let toSet parsed =
                   parsed
                   |> List.choose (function
                     | Ok g -> Some g
                     | Error _ -> None)
                   |> Set.ofList
 
-                do! LibDB.Draft.rebuild kept
-                return Dval.resultOk KTUnit KTString DUnit
+                let! rebuilt =
+                  LibDB.Draft.rebuild (toSet parsedDraft) (toSet parsedKept)
+                return Dval.resultOk KTBool KTString (DBool rebuilt)
             with e ->
-              return Dval.resultError KTUnit KTString (DString e.Message)
+              return Dval.resultError KTBool KTString (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
