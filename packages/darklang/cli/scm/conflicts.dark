@@ -137,13 +137,12 @@ let whoseCandidate (me: String) (cand: SCM.Conflicts.Candidate) : String =
 let candidateLabels
   (me: String)
   (hereName: String)
+  (localBranchNames: List<String>)
   (c: SCM.Conflicts.Conflict)
   : List<String> =
   // A merge conflict names the BRANCH as the incoming candidate's author (a sync conflict names a
   // peer identity there). When the other side is one of this store's own branches, both versions
   // are yours, and "yours vs tune" reads as three people; say WHERE instead: main vs the branch.
-  let localBranchNames = SCM.Branches.list () |> Stdlib.List.map (fun b -> b.name)
-
   let isMergeShaped =
     c.candidates
     |> Stdlib.List.any (fun cand ->
@@ -175,9 +174,10 @@ let executeList (state: AppState) : AppState =
     let n = Stdlib.toString (Stdlib.List.length cs)
     Cli.printOk $"{n} pending"
 
-    // Once for the whole list, not once per candidate row: both are store reads.
+    // Once for the whole list, not once per candidate row: all three are store reads.
     let me = SCM.PackageOps.identity ()
     let hereName = SCM.PackageOps.branchName (SCM.Conflicts.onBranch ())
+    let localBranchNames = SCM.Branches.list () |> Stdlib.List.map (fun b -> b.name)
 
     cs
     |> Stdlib.List.iter (fun c ->
@@ -186,7 +186,7 @@ let executeList (state: AppState) : AppState =
       // BOTH sides inline, in the order `override` takes them, so the list answers "does this matter"
       // without a second command. Each row says WHOSE and WHAT HAPPENED, rather than leaving both to a
       // legend printed after the rows it explains.
-      let whoseLabels = candidateLabels me hereName c
+      let whoseLabels = candidateLabels me hereName localBranchNames c
 
       // The previews exist to SHOW the difference. Clipping both at the same column cut them at an
       // identical prefix (identical text labeled kept/lost reads as a tool bug), so the pair is

@@ -2,9 +2,9 @@ module Darklang.SCM.Draft
 
 // The DRAFT, read once, for everyone who describes it.
 //
-// `dark status`, `dark status --json`, `dark commit`'s review and the workbench all describe the same five
-// reads -- `draftBindings`, `propagatedNames`, `draftRepoints`, `draftLeftBehind`, `Conflicts.pending`.
-// This module owns that picture; callers add presentation on top but never read the five again.
+// `dark status`, `dark status --json`, `dark commit`'s review and the workbench all describe the same four
+// reads -- `draftBindings`, `propagatedNames`, `draftRepointsSplit`, `Conflicts.pending`.
+// This module owns that picture; callers add presentation on top but never read the four again.
 //
 // Deliberately NOT branch-parameterised. Every read resolves the branch through
 // `SCM.PackageOps.currentBranch ()`, the process overlay -- a `branchId` parameter would invite callers to
@@ -32,13 +32,14 @@ type Picture =
 /// Read the whole picture. One call, five reads, and the only place they happen.
 let read (unit: Unit) : Picture =
   let bindings = SCM.PackageOps.draftBindings ()
+  let (repoints, leftBehind) = SCM.PackageOps.draftRepointsSplit bindings
 
   Picture
     { bindings = bindings
       removed = SCM.PackageOps.draftRemovals ()
       propagated = SCM.PackageOps.propagatedNames ()
-      repoints = SCM.PackageOps.draftRepoints bindings
-      leftBehind = SCM.PackageOps.draftLeftBehind bindings
+      repoints = repoints
+      leftBehind = leftBehind
       conflicts = SCM.Conflicts.pending ()
       constraints = Stdlib.List.length (SCM.Constraints.pending ()).findings
       ops = SCM.PackageOps.draftOpCount () }

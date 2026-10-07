@@ -435,49 +435,79 @@ let detectRivalImplementations (branchId: Uuid) : List<Finding> =
 /// no finding at all, and `rebase` answers "already current" because the branch never touched `f`
 /// itself: the branch goes on running main's old version with nothing saying so.
 ///
-/// One query per binding the chain holds, against the branch-aware read for what each dependency
-/// means now. A branch holds few bindings; this runs from `dark status`, and the whole chain's
-/// bindings are decoded once.
+/// Three reads whatever the branch holds: the chain, every edge out of what it binds, and what
+/// each dependency means now. Asked per binding and per edge, a branch re-decoded its whole chain
+/// once for every edge.
 let detectOutdatedUsagesOn (branchId: Uuid) : List<Finding> =
   if SCM.Branch.isMain branchId then
     []
   else
-    PackageOps.chainBindings branchId
-    |> Stdlib.List.map (fun b ->
-      Stdlib.Sqlite.rowsP
+    let chain = PackageOps.chainBindingEntries branchId
+    let bindings = chain |> Stdlib.List.filterMap (fun w -> w.binding)
+
+    let txt (row: Dict<String, Stdlib.Sqlite.Value>) (col: String) : String =
+      Stdlib.Sqlite.textField row col |> Stdlib.Option.withDefault ""
+
+    // Each binding's edges in rowid order, which is the order its own `item_hash = ?` read gave.
+    let edgesByHash =
+      Stdlib.Sqlite.rowsOrEmptyP
         (localDb ())
-        "SELECT depends_on_owner AS d_owner, depends_on_modules AS d_modules,
+        "SELECT item_hash, depends_on_owner AS d_owner, depends_on_modules AS d_modules,
                 depends_on_name AS d_name, depends_on_item_type AS d_type,
                 depends_on_hash AS using_hash
-         FROM package_dependencies WHERE item_hash = @p0"
-        [ b.hash ]
-        (fun row ->
-          let txt (col: String) : String =
-            Stdlib.Sqlite.textField row col |> Stdlib.Option.withDefault ""
+         FROM package_dependencies
+         WHERE item_hash IN (SELECT value FROM json_each(@p0))
+         ORDER BY rowid"
+        [ Stdlib.Json.serialize<List<String>> (
+            bindings |> Stdlib.List.map (fun b -> b.hash)
+          ) ]
+      |> Stdlib.List.reverse
+      |> Stdlib.List.fold Stdlib.Dict.empty (fun acc row ->
+        let h = txt row "item_hash"
+        let rest = Stdlib.Dict.get acc h |> Stdlib.Option.withDefault []
+        Stdlib.Dict.setOverridingDuplicates acc h (Stdlib.List.push rest row))
 
-          let dependency = Deps.locationOf (txt "d_owner") (txt "d_modules") (txt "d_name")
+    let edgesOf (b: Conflicts.Binding) : List<Dict<String, Stdlib.Sqlite.Value>> =
+      Stdlib.Dict.get edgesByHash b.hash |> Stdlib.Option.withDefault []
 
-          match PackageOps.liveBindingFor branchId dependency with
-          | None -> Stdlib.Option.Option.None
-          | Some cur ->
-            if cur.hash == (txt "using_hash") then
-              Stdlib.Option.Option.None
-            else
-              let usage = Deps.locationOf b.owner b.modules b.name
-              let using = LanguageTools.ProgramTypes.Hash.Hash(txt "using_hash")
+    let live =
+      PackageOps.liveBindingsOver
+        branchId
+        chain
+        (bindings
+         |> Stdlib.List.map (fun b -> edgesOf b)
+         |> Stdlib.List.flatten
+         |> Stdlib.List.map (fun row ->
+           Deps.locationOf (txt row "d_owner") (txt row "d_modules") (txt row "d_name")))
 
-              Stdlib.Option.Option.Some(
-                Finding
-                  { kind =
-                      if cur.itemType == (txt "d_type") then Kind.StaleUsage else Kind.KindChanged
-                    id = findingId usage dependency (txt "using_hash")
-                    usage = usage
-                    usageKind = Deps.kindOf b.itemType
-                    dependency = dependency
-                    dependencyKind = Deps.kindOf (txt "d_type")
-                    detail =
-                      FindingDetail.Versions(using, LanguageTools.ProgramTypes.Hash.Hash cur.hash) }
-              )))
+    bindings
+    |> Stdlib.List.map (fun b ->
+      edgesOf b
+      |> Stdlib.List.filterMap (fun row ->
+        let (owner, modules, name) = (txt row "d_owner", txt row "d_modules", txt row "d_name")
+        let dependency = Deps.locationOf owner modules name
+
+        match Stdlib.Dict.get live (Conflicts.bindingKey owner modules name) with
+        | None -> Stdlib.Option.Option.None
+        | Some cur ->
+          if cur.hash == (txt row "using_hash") then
+            Stdlib.Option.Option.None
+          else
+            let usage = Deps.locationOf b.owner b.modules b.name
+            let using = LanguageTools.ProgramTypes.Hash.Hash(txt row "using_hash")
+
+            Stdlib.Option.Option.Some(
+              Finding
+                { kind =
+                    if cur.itemType == (txt row "d_type") then Kind.StaleUsage else Kind.KindChanged
+                  id = findingId usage dependency (txt row "using_hash")
+                  usage = usage
+                  usageKind = Deps.kindOf b.itemType
+                  dependency = dependency
+                  dependencyKind = Deps.kindOf (txt row "d_type")
+                  detail =
+                    FindingDetail.Versions(using, LanguageTools.ProgramTypes.Hash.Hash cur.hash) }
+            )))
     |> Stdlib.List.flatten
 
 
