@@ -368,6 +368,31 @@ let typecheckScopesToAModule =
           (total wider)
           "a narrower scope audits fewer declarations than the module containing it"
 
+        // `Darklang.Stdlib` is checked in pieces across the cores. Every declaration under it
+        // comes back, whichever piece it was in: counted here by the search, not by the checker.
+        let! declared =
+          runCliPlain
+            state
+            [ "eval"
+              String.concat
+                "\n"
+                [ "let (_, types, values, fns, _, impls) ="
+                  "  Darklang.LanguageTools.PackageManager.Search.searchNamesAndHashes"
+                  "    Darklang.SCM.Branch.mainBranchId"
+                  "    (Darklang.LanguageTools.ProgramTypes.Search.SearchQuery"
+                  "      { currentModule = [ \"Darklang\", \"Stdlib\" ]"
+                  "        text = \"\""
+                  "        searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants"
+                  "        entityTypes = []"
+                  "        exactMatch = false })"
+                  "let distinct (found: List<(String * Darklang.LanguageTools.ProgramTypes.Hash)>) : Int ="
+                  "  Stdlib.List.length (Stdlib.List.unique (Stdlib.List.map found (fun (_, h) -> h)))"
+                  "(distinct types) + (distinct values) + (distinct fns) + (distinct impls)" ] ]
+        Expect.equal
+          (string (total wider))
+          (declared.Trim().Split('\n') |> Array.last)
+          "every declaration under the module is audited"
+
         // A module nobody has defined is not an error, it is an empty audit. A caller scoping to
         // a name it got wrong should see zero rather than a refusal it has to special-case.
         let! missing =

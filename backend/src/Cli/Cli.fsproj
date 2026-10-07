@@ -8,6 +8,10 @@
          command lives a second or two and exits, so it pays the instrumentation and never collects.
          Scoped to this project, not global: `darklang serve` is long-lived and should keep the default. -->
     <TieredPGO>false</TieredPGO>
+    <!-- The background collector off. With it on, work spread across the cores barely beats
+         doing it serially (a type check in 29 pieces: 1.2-1.4x, against 2-2.4x with it off).
+         A command's start and footprint are the same either way, measured at AOT. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <!-- Publishing configuration -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- Assembly linking - trim framework assemblies too -->

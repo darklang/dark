@@ -330,7 +330,20 @@ let checkQuery
         Stdlib.List.map values (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageValue hash)
         Stdlib.List.map fns (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageFn hash)
         Stdlib.List.map impls (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl hash) ]
-  checkReferences branchId loadCandidate references
+  let unique = Stdlib.List.unique references
+  // In pieces across the cores, the way the package reload splits the same check in
+  // `TraitCalls.resolveIn`. Safe because every piece loads from the store, so it sees what
+  // another piece holds. Explicit until `List.map` spreads by itself.
+  let size = Stdlib.max 64 ((Stdlib.List.length unique) / 32 + 1)
+
+  match Stdlib.List.chunkBySize unique size with
+  | Ok chunks ->
+    chunks
+    |> Stdlib.List.parallelMap (fun chunk -> checkReferences branchId loadCandidate chunk)
+    |> Stdlib.List.map (fun report -> report.items)
+    |> Stdlib.List.flatten
+    |> reportItems
+  | Error _ -> checkReferences branchId loadCandidate unique
 
 /// A query that selects everything on the branch.
 let everything () : LanguageTools.ProgramTypes.Search.SearchQuery =
