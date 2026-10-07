@@ -975,3 +975,45 @@ DARK
   echo "hosted-db: $pass ok, $fail failed"
   [[ $fail -eq 0 ]]
 }
+
+# --- shipped-tree-typechecks: every item in packages/ passes the at-rest checker -----------------
+# The checker gates what people commit, and nothing held the shipped tree to it, so one definite
+# error sat in `Cli.Registry.allCommands` and `dark typecheck --json` exited 1 on every branch: an
+# exit code nobody could use. The floor on what was CHECKED is the other half: a run that audited
+# nothing would also report no failures.
+gate_shipped_tree_typechecks() {
+  set -uo pipefail
+
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  ROOT=rundir/shipped-tree-typechecks
+  FLOOR=5000
+
+  rm -rf "$ROOT"; mkdir -p "$ROOT/home"
+  scripts/testing/_copy-store "$ROOT/data.db"
+  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
+  export DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home"
+
+  "$CLI" typecheck --json < /dev/null > "$ROOT/report.json" 2> "$ROOT/stderr.txt"
+  rc=$?
+
+  python3 - "$ROOT/report.json" "$rc" "$FLOOR" <<'EOF'
+import json, sys
+path, rc, floor = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+try:
+    report = json.load(open(path))
+except Exception as e:
+    print(f"shipped-tree-typechecks: no report to read ({e}); exit {rc}")
+    sys.exit(1)
+failed = [i for i in report["items"] if i["verdict"] == "failed"]
+print(f"shipped-tree-typechecks: checked {report['checked']} of {report['total']}, "
+      f"failed {report['failed']}, incomplete {report['incomplete']}; exit {rc}")
+for item in failed:
+    print(f"  {item['name']}")
+    for issue in item["issues"]:
+        print(f"    {issue}")
+if report["checked"] < floor:
+    print(f"  checked fewer than {floor}: the audit did not run over the tree")
+    sys.exit(1)
+sys.exit(0 if rc == 0 and not failed else 1)
+EOF
+}

@@ -64,7 +64,7 @@ let createTypeInline
           location
           LanguageTools.ProgramTypes.ItemKind.Type
           "type"
-          state
+          { state with exitCode = 1 }
           (fun ctx ->
             let (packageType, unresolvedNames) =
               LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT

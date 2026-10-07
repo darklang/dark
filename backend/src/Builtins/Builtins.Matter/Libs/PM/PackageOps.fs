@@ -51,6 +51,48 @@ let private opRecords (records : List<Dval>) : List<string * string * string> =
 
 
 // TODO: review/reconsider the accessibility of these fns
+
+/// The evaluation failures that belong to THIS call's values. Evaluation also sweeps unrelated
+/// pending values, so match on location as well as hash: a refresh may move a value's hash while
+/// its location stays put.
+let private ownEvaluationFailures
+  (ops : List<PT.PackageOp>)
+  (evaluated : Result<unit, List<LibDB.Seed.ValueEvaluationError>>)
+  : List<LibDB.Seed.ValueEvaluationError> =
+  let addedValueHashes =
+    ops
+    |> List.choose (fun op ->
+      match op with
+      | PT.PackageOp.AddValue value -> Some value.hash
+      | _ -> None)
+    |> Set.ofList
+
+  let addedValueLocations =
+    ops
+    |> List.choose (fun op ->
+      match op with
+      | PT.PackageOp.SetName(location, PT.PackageValue _, _) ->
+        Some(LibDB.PackageLocation.toFQN location)
+      | _ -> None)
+    |> Set.ofList
+
+  match evaluated with
+  | Ok() -> []
+  | Error errors ->
+    errors
+    |> List.filter (fun e ->
+      let byHash =
+        match e.hash with
+        | Some hash -> Set.contains hash addedValueHashes
+        | None -> false
+      byHash || Set.contains e.location addedValueLocations)
+
+let private failureText (failures : List<LibDB.Seed.ValueEvaluationError>) : Dval =
+  failures
+  |> List.map LibDB.Seed.ValueEvaluationError.toString
+  |> String.concat "\n"
+  |> Dval.string
+
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
   [ { name = fn "pmStabilizeHashes" 0
       typeParams = []
@@ -228,21 +270,26 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                       | PT.PackageOp.AddTrait _
                       | PT.PackageOp.AddTraitImpl _ -> true
                       | _ -> false)
-                  if not (List.isEmpty contentOps) then
-                    do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
-                    let builtins : Builtins =
-                      { values = exeState.values.builtIn
-                        fns = exeState.fns.builtIn }
-                    // A branch's own bodies, arriving from guest code: same bound as the
-                    // main-branch path below.
-                    let! _ =
-                      LibDB.Seed.evaluateAllValues
-                        (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
-                          exeState.accountID
-                          vm.activeAccess)
-                        builtins
-                        LibDB.PackageManager.rt
-                    ()
+                  let! branchFailures =
+                    uply {
+                      if List.isEmpty contentOps then
+                        return []
+                      else
+                        do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps
+                        let builtins : Builtins =
+                          { values = exeState.values.builtIn
+                            fns = exeState.fns.builtIn }
+                        // A branch's own bodies, arriving from guest code: same bound as the
+                        // main-branch path below.
+                        let! evaluated =
+                          LibDB.Seed.evaluateAllValues
+                            (LibDB.Seed.EvaluationAuthority.underInstancePolicyAnd
+                              exeState.accountID
+                              vm.activeAccess)
+                            builtins
+                            LibDB.PackageManager.rt
+                        return ownEvaluationFailures ops evaluated
+                    }
                   // Move the overlay only for the branch this process is on; writing to another branch
                   // must not change what this caller resolves against. Other branches are memoized, so
                   // forget them rather than leave a stale answer.
@@ -251,7 +298,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     LibDB.PackageManager.setBranchOverlay all
                   else
                     LibDB.PackageManager.forgetBranch branchId
-                  return resultOk (Dval.int (bigint (int n)))
+                  match branchFailures with
+                  | [] -> return resultOk (Dval.int (bigint (int n)))
+                  | failures -> return resultError (failureText failures)
 
               else
                 // Stabilize before inserting. Raw ops carry provisional hashes, so their SetName
@@ -286,50 +335,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                       exeState.builtins
                       LibDB.PackageManager.rt
 
-                  // Report only failures from this call; evaluation also sweeps
-                  // unrelated pending values. Match locations as well as hashes,
-                  // because refresh may resolve a name and recompute its hash
-                  // while its location remains stable.
-                  let addedValueHashes =
-                    ops
-                    |> List.choose (fun op ->
-                      match op with
-                      | PT.PackageOp.AddValue value -> Some value.hash
-                      | _ -> None)
-                    |> Set.ofList
-
-                  let addedValueLocations =
-                    ops
-                    |> List.choose (fun op ->
-                      match op with
-                      | PT.PackageOp.SetName(location, PT.PackageValue _, _) ->
-                        Some(LibDB.PackageLocation.toFQN location)
-                      | _ -> None)
-                    |> Set.ofList
-
-                  let ownFailures =
-                    match evaluated with
-                    | Ok() -> []
-                    | Error errors ->
-                      errors
-                      |> List.filter (fun e ->
-                        let byHash =
-                          match e.hash with
-                          | Some hash -> Set.contains hash addedValueHashes
-                          | None -> false
-                        byHash || Set.contains e.location addedValueLocations)
-
-                  match ownFailures with
+                  match ownEvaluationFailures ops evaluated with
                   | [] -> return resultOk (Dval.int (bigint insertedCount))
-                  | failures ->
-                    return
-                      resultError (
-                        Dval.string (
-                          failures
-                          |> List.map LibDB.Seed.ValueEvaluationError.toString
-                          |> String.concat "\n"
-                        )
-                      )
+                  | failures -> return resultError (failureText failures)
             with ex ->
               return resultError (Dval.string ex.Message)
           }
