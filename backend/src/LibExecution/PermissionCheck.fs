@@ -27,23 +27,27 @@ let private reasonText (reason : Permission.PolicyDenial) : string =
   | Permission.PolicyDenial.NotAllowed -> "not allowed"
 
 /// The one denial message. `suggestion` is the exact `permissions allow`
-/// argument that would cover the denied request; it is only actionable for an
-/// instance-layer denial, since that is the policy `permissions allow` edits.
-/// Other layers need the approve/ceiling changes the remedy names.
+/// argument that would cover the denied request, or why none is offered; it is
+/// only actionable for an instance-layer denial, since that is the policy
+/// `permissions allow` edits. Other layers need the approve/ceiling changes the
+/// remedy names.
 let private denialMessage
   (resource : string)
   (reason : Permission.PolicyDenial)
   (layer : Permission.Layer)
-  (suggestion : Option<string>)
+  (suggestion : Permission.Suggestion)
   (origin : Option<PackagePolicyOrigin>)
   : string =
   let quoted (names : List<string>) =
     names |> List.map (fun n -> $"`{n}`") |> String.concat ", "
   let remedy =
     match layer, suggestion, origin with
-    | Permission.Layer.Instance, Some rule, _ ->
+    | Permission.Layer.Instance, Permission.Suggestion.Paste rule, _ ->
       $"To allow: `dark permissions allow {rule}`."
-    | Permission.Layer.Instance, None, _ -> "Configure the instance policy."
+    | Permission.Layer.Instance, Permission.Suggestion.Withheld why, _ ->
+      $"No rule is suggested: {why}."
+    | Permission.Layer.Instance, Permission.Suggestion.NoRule, _ ->
+      "Configure the instance policy."
     | Permission.Layer.Run, _, _ -> "Start the run with a broader permission policy."
     | Permission.Layer.Package _, _, Some({ stale = true } as o) ->
       let first = List.tryHead o.approvedAs |> Option.defaultValue "<fn>"
@@ -66,13 +70,15 @@ let private raiseDenial
   (resource : string)
   (reason : Permission.PolicyDenial)
   (layer : Permission.Layer)
-  (suggestion : Option<string>)
+  (suggestion : Permission.Suggestion)
   : 'a =
   // Shared by every process spawned under this state, on any scheduler thread; the host reads
   // the list after the run, so a child's denial has to land in the parent's list, not a copy.
   lock state.deniedRequests (fun () ->
     state.deniedRequests.Add
-      { layer = layer; resource = resource; suggestion = suggestion })
+      { layer = layer
+        resource = resource
+        suggestion = Permission.Suggestion.rule suggestion })
   let origin =
     match layer with
     | Permission.Layer.Package id -> state.packagePolicyOrigin id

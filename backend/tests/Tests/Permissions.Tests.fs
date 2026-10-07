@@ -2,6 +2,9 @@
 /// `Access` conjunction, and the access captured on function values.
 module Tests.Permissions
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open Expecto
 open Prelude
 open TestUtils.PTShortcuts
@@ -423,22 +426,37 @@ let suggestRuleIsActionable =
       | Ok r -> r
       | Error e -> Exception.raiseInternal e []
     let suggest = Permission.Request.suggestRule
+    let rule (text : string) = Permission.Suggestion.Paste text
+    let withheld (s : Permission.Suggestion) =
+      match s with
+      | Permission.Suggestion.Withheld _ -> true
+      | _ -> false
     // Read vs write is exact because it comes from the request, not the op.
     Expect.equal
       (suggest (ok (Permission.Request.file Permission.AccessKind.Read "/tmp/x")))
-      (Some "file read '/tmp/x'")
+      (rule "file read '/tmp/x'")
       "a read request suggests a read rule"
     Expect.equal
       (suggest (ok (Permission.Request.file Permission.AccessKind.Write "/tmp/x")))
-      (Some "file write '/tmp/x'")
+      (rule "file write '/tmp/x'")
       "a write request suggests a write rule"
     Expect.equal
       (suggest (ok (Permission.Request.http "POST" "https://api.x/v1")))
-      (Some "http POST 'https://api.x:443/v1'")
+      (rule "http POST 'https://api.x:443/v1'")
       "http names the exact method and normalized origin"
     Expect.equal
+      (suggest (ok (Permission.Request.processSpawn "/bin/bash" [ "-c"; "echo hi" ])))
+      (rule "process '/bin/bash' '-c' 'echo hi'")
+      "a process rule carries the exact argument list, so a shell is not handed out"
+    Expect.isTrue
+      (withheld (suggest (ok (Permission.Request.processSpawn "/bin/date" []))))
+      "no arguments has no exact rule: a bare process rule allows every argument list"
+    Expect.isTrue
+      (withheld (suggest Permission.Request.dbList))
+      "listing datastores would need a rule that reads every datastore"
+    Expect.equal
       (suggest (ok (Permission.Request.native "cliProcessIO")))
-      None
+      Permission.Suggestion.NoRule
       "the all-or-nothing native boundary has no scoped rule to suggest"
   }
 
@@ -498,6 +516,143 @@ let materializedValuesCaptureCallablesRecursively =
     | other -> failtest $"unexpected captured lambda: {other}"
   }
 
+/// The words a POSIX shell makes of a pasted `permissions allow` line: single quotes
+/// are literal, a backslash outside them escapes one character. That is all a
+/// suggestion uses, since `quoteRuleToken` single-quotes every guest-controlled field.
+let private shellWords (line : string) : List<string> =
+  let words = ResizeArray<string>()
+  let current = System.Text.StringBuilder()
+  let mutable inWord = false
+  let mutable quoted = false
+  let mutable i = 0
+  while i < line.Length do
+    let c = line[i]
+    if quoted then
+      if c = '\'' then
+        quoted <- false
+      else
+        current.Append c |> ignore<System.Text.StringBuilder>
+    elif c = '\'' then
+      quoted <- true
+      inWord <- true
+    elif c = '\\' && i + 1 < line.Length then
+      i <- i + 1
+      current.Append line[i] |> ignore<System.Text.StringBuilder>
+      inWord <- true
+    elif c = ' ' then
+      if inWord then words.Add(current.ToString())
+      current.Clear() |> ignore<System.Text.StringBuilder>
+      inWord <- false
+    else
+      current.Append c |> ignore<System.Text.StringBuilder>
+      inWord <- true
+    i <- i + 1
+  if inWord then words.Add(current.ToString())
+  List.ofSeq words
+
+/// The rule a denial tells a person to paste, as the text between the backticks.
+let private suggestedRule (output : string) : Option<string> =
+  let marker = "To allow: `dark permissions allow "
+  match output.IndexOf marker with
+  | -1 -> None
+  | start ->
+    let from = start + marker.Length
+    Some(output.Substring(from, output.IndexOf("`.", from) - from))
+
+let private denied (output : string) : bool = output.Contains "permission denied"
+
+/// Refuse <param refused> under a fresh install's policy, paste the rule its denial
+/// suggests the way a shell would hand it to `dark`, then run <param refused> again and
+/// each of <param neighbours>. The rule has to let the one through and none of the others:
+/// a suggestion that only passed the first half would be one that hands out more than
+/// was asked for, which is the defect this exists to catch.
+let private pastedRuleAllowsOnlyTheRefusedCall
+  (i : CliInstance.T)
+  (refused : string)
+  (neighbours : List<string>)
+  : Task<string> =
+  task {
+    let! before = CliInstance.run i [ "eval"; refused ]
+    Expect.isTrue (denied before) $"a fresh install refuses it first:\n{before}"
+    let rule =
+      match suggestedRule before with
+      | Some rule -> rule
+      | None -> failtest $"the denial suggests no rule to paste:\n{before}"
+
+    let! saved = CliInstance.run i ("permissions" :: "allow" :: shellWords rule)
+    Expect.isFalse (denied saved) $"pasting `{rule}` is accepted:\n{saved}"
+
+    let! after = CliInstance.run i [ "eval"; refused ]
+    Expect.isFalse (denied after) $"`{rule}` allows the refused call:\n{after}"
+
+    for neighbour in neighbours do
+      let! other = CliInstance.run i [ "eval"; neighbour ]
+      Expect.isTrue
+        (denied other)
+        $"`{rule}` must not allow `{neighbour}` as well:\n{other}"
+    return rule
+  }
+
+let pastedShellRuleRunsOnlyThatCommand =
+  CliInstance.instanceTest
+    "a pasted process suggestion for a shell command allows that command and no other"
+    (fun i ->
+      task {
+        let! rule =
+          pastedRuleAllowsOnlyTheRefusedCall
+            i
+            "Stdlib.Cli.execute \"echo hi\""
+            [ "Stdlib.Cli.execute \"echo bye\""
+              "Stdlib.Cli.execute \"echo hi; id\"" ]
+        Expect.stringEnds rule "'-c' 'echo hi'" "the shell's whole argument list"
+      })
+
+let pastedProcessRuleKeepsItsArguments =
+  CliInstance.instanceTest
+    "a pasted process suggestion keeps its arguments, quotes and spaces included"
+    (fun i ->
+      task {
+        let! _ =
+          pastedRuleAllowsOnlyTheRefusedCall
+            i
+            "Stdlib.Cli.Process.run \"/bin/echo\" [\"it's\", \"a b\"]"
+            [ "Stdlib.Cli.Process.run \"/bin/echo\" [\"it's\", \"a c\"]"
+              "Stdlib.Cli.Process.run \"/bin/echo\" [\"it's\"]"
+              "Stdlib.Cli.Process.run \"/bin/echo\" []" ]
+        ()
+      })
+
+let pastedFileRuleReadsOnlyThatFile =
+  CliInstance.instanceTest
+    "a pasted file suggestion allows that file and not its sibling"
+    (fun i ->
+      task {
+        let path name =
+          let p = System.IO.Path.Combine(i.dir, name)
+          System.IO.File.WriteAllText(p, name)
+          p
+        let mine = path "mine.txt"
+        let sibling = path "sibling.txt"
+        let! _ =
+          pastedRuleAllowsOnlyTheRefusedCall
+            i
+            $"Stdlib.Cli.FileSystem.readFile \"{mine}\""
+            [ $"Stdlib.Cli.FileSystem.readFile \"{sibling}\"" ]
+        ()
+      })
+
+let noArgumentsGetsNoPasteableRule =
+  CliInstance.instanceTest
+    "a process run with no arguments says why it suggests no rule"
+    (fun i ->
+      task {
+        let! out =
+          CliInstance.run i [ "eval"; "Stdlib.Cli.Process.run \"/bin/true\" []" ]
+        Expect.isTrue (denied out) $"refused:\n{out}"
+        Expect.isNone (suggestedRule out) $"nothing to paste:\n{out}"
+        Expect.stringContains out "allows every argument list" "and it says why"
+      })
+
 let tests =
   testList
     "permissions"
@@ -515,5 +670,9 @@ let tests =
       processRulesPreserveArgumentOrder
       coverableEffectsFollowTheRules
       suggestRuleIsActionable
+      pastedShellRuleRunsOnlyThatCommand
+      pastedProcessRuleKeepsItsArguments
+      pastedFileRuleReadsOnlyThatFile
+      noArgumentsGetsNoPasteableRule
       capturedAccessCannotWidenCaller
       materializedValuesCaptureCallablesRecursively ]
