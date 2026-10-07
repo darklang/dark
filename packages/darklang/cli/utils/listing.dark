@@ -106,21 +106,20 @@ let splitLeaf (name: String) : (String * String) =
 /// Group qualified names under their module, so a long list reads as a few modules rather than as
 /// hundreds of near-identical paths whose only difference is the last segment.
 ///
-/// Each group is the module path and its leaves, in first-seen order.
+/// Each group is the module path and its leaves. The modules are sorted; the leaves keep the
+/// order they came in.
 let groupedByModule (names: List<String>) : List<(String * List<String>)> =
-  let modules =
-    names
-    |> Stdlib.List.map (fun n -> Stdlib.Tuple2.first (Listing.splitLeaf n))
-    |> Stdlib.List.unique
+  // One pass, splitting each name once. A Dict lists its keys sorted, which is the module
+  // order this has always had.
+  names
+  |> Stdlib.List.fold (Dict { }) (fun groups name ->
+    let (m, leaf) = Listing.splitLeaf name
 
-  modules
-  |> Stdlib.List.map (fun m ->
-    let leaves =
-      names
-      |> Stdlib.List.filter (fun n -> (Stdlib.Tuple2.first (Listing.splitLeaf n)) == m)
-      |> Stdlib.List.map (fun n -> Stdlib.Tuple2.second (Listing.splitLeaf n))
-
-    (m, leaves))
+    match Stdlib.Dict.get groups m with
+    | Some leaves -> Stdlib.Dict.setOverridingDuplicates groups m (Stdlib.List.push leaves leaf)
+    | None -> Stdlib.Dict.set groups m [ leaf ])
+  |> Stdlib.Dict.toList
+  |> Stdlib.List.map (fun (m, leaves) -> (m, Stdlib.List.reverse leaves))
 
 
 /// One group as its two rows: a dimmed header with the count, and the leaves on one line.

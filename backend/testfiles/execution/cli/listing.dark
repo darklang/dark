@@ -1,0 +1,6 @@
+module GroupedByModule =
+  // Modules sorted, leaves in the order they came.
+  Darklang.Cli.Listing.groupedByModule [ "B.y.f", "A.g", "B.y.e", "A.h", "top" ] =
+    [ ("", [ "top" ]), ("A", [ "g", "h" ]), ("B.y", [ "f", "e" ]) ]
+
+  Darklang.Cli.Listing.groupedByModule [] = []

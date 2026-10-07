@@ -539,20 +539,23 @@ let randomElement (list: List<'a>) : Option.Option<'a> =
 /// is {{fn item -> item % 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
 /// Preserves the order of values and of the keys.
 let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
-  list
-  // CLEANUP: improve performance
-  |> fold [] (fun groupCollector element ->
-    let key = fn element
-    let tryFindGroup = findFirst groupCollector (fun (k, _) -> k == key)
+  // Each group is looked up in a Dict rather than scanned for, and built back to front; the
+  // keys are kept separately, in the order first seen, since a Dict lists its own sorted.
+  let (groups, keys) =
+    fold list (Dict { }, []) (fun (groups, keys) element ->
+      let key = fn element
 
-    match tryFindGroup with
-    | Some _ ->
-      map groupCollector (fun (k, elements) ->
-        if k == key then
-          (k, pushBack elements element)
-        else
-          (k, elements))
-    | None -> pushBack groupCollector (key, [ element ]))
+      match Stdlib.Dict.get groups key with
+      | Some elements ->
+        (Stdlib.Dict.setOverridingDuplicates groups key (push elements element), keys)
+      | None -> (Stdlib.Dict.set groups key [ element ], push keys key))
+
+  keys
+  |> reverse
+  |> map (fun key ->
+    match Stdlib.Dict.get groups key with
+    | Some elements -> (key, reverse elements)
+    | None -> (key, []))
 
 
 /// Calls <param f> on every <var val> in <param list>, splitting the list into
