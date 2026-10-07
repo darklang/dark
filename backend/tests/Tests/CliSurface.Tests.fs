@@ -377,7 +377,8 @@ let private workbenchNavigationRegressions =
   [ "testWorkbenchHistoryRoundTrip"
     "testWorkbenchDocumentScroll"
     "testWorkbenchSyncStanding"
-    "testWorkbenchBranchPicker" ]
+    "testWorkbenchBranchPicker"
+    "testWorkbenchPageBuiltOncePerSelection" ]
   |> List.map (fun name ->
     cliTest $"workbench regression: {name}" (fun state ->
       task {
@@ -1395,6 +1396,20 @@ let private newInWorkbench
     | other -> return Tests.failtestf "the workbench save answered %A" other
   }
 
+/// The item page is cached on the workbench's state, so a save that leaves the item list as it was
+/// must still rebuild it. Under the CLI's authority for the same reason as `editInWorkbench`.
+let private workbenchPageFollowsYourSave =
+  cliTest "workbench: the item page shows a save made in its editor" (fun state ->
+    task {
+      match!
+        evalUnder
+          (executionState state)
+          "Darklang.Cli.Tests.testWorkbenchPageFollowsYourSave ()"
+      with
+      | RT.DEnum(_, _, _, "Pass", []) -> return ()
+      | other -> return Tests.failtestf "the page test answered %A" other
+    })
+
 /// An implementation that would take a trait's name is refused, as `dark impl` refuses it.
 ///
 /// Written in a module named for its type, an implementation lands on `<module>.<Trait>`, which is
@@ -1749,5 +1764,6 @@ let tests : List<Test> =
     missingTargetsAreNamed
     traitRefusalsExitNonZero
     otherRefusalsExitNonZero
-    documentedCommandsAreReal ]
+    documentedCommandsAreReal
+    workbenchPageFollowsYourSave ]
   @ workbenchNavigationRegressions

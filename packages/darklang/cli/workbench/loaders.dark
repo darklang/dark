@@ -452,16 +452,6 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
       r.impls |> Stdlib.List.map (fun i -> hit "impl" i.location) ]
   |> Stdlib.List.sortBy rank
 
-/// Dependencies of the selected Tree leaf (what it uses), formatted for the reader. `d` shows this.
-let depsText (state: State) : String =
-  match Stdlib.List.getAt state.items state.selected with
-  | None -> "(nothing selected)"
-  | Some item ->
-    if item.isModule then
-      "Modules have no dependencies - select a fn, type, value, trait or impl."
-    else
-      referencesText state (Packages.modulePathOf state.location) item.name item.kind
-
 /// How many references a list on the item page shows before pointing at `:deps`.
 val referenceCap = 12
 
@@ -469,7 +459,16 @@ val referenceCap = 12
 /// and the Changes preview both show this; the Changes list carries full paths, which is why the
 /// module path is a parameter rather than read off the location.
 let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kind: String) : String =
-  let results = Packages.Query.searchExactMatch state.branchId modulePath leaf
+  referencesFrom state modulePath leaf kind (Packages.Query.searchExactMatch state.branchId modulePath leaf)
+
+/// <fn referencesText>, from a lookup the caller already made.
+let referencesFrom
+  (state: State)
+  (modulePath: List<String>)
+  (leaf: String)
+  (kind: String)
+  (results: LanguageTools.ProgramTypes.Search.SearchResults)
+  : String =
   let item = BodyItem { name = leaf; kind = kind; isModule = false; desc = "" }
   let picked =
     if item.kind == "fn" then
@@ -504,15 +503,15 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
       else
         // Spelled from where the reader is standing, like everything else on this page.
         let here = Packages.modulePathOf state.location
-        dependents
+        // Only the rows `capped` keeps: `List.map` has hundreds, and each costs a render.
+        Stdlib.List.take dependents referenceCap
         |> Stdlib.List.map (fun t ->
           let (_h, sLoc, _rt) = t
           "  " + (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn here sLoc))
     // Capped: `List.map` has hundreds of dependents, and a page is for reading, not scrolling to
     // the end of. The command prints them all.
     let fqn = Stdlib.String.join (Stdlib.List.append modulePath [ leaf ]) "."
-    let capped (lines: List<String>) : List<String> =
-      let n = Stdlib.List.length lines
+    let capped (n: Int) (lines: List<String>) : List<String> =
       if n <= referenceCap then lines
       else
         Stdlib.List.append
@@ -525,9 +524,9 @@ let referencesText (state: State) (modulePath: List<String>) (leaf: String) (kin
     Stdlib.String.join
       (Stdlib.List.flatten
         [ [ heading "uses" (Stdlib.List.length deps) ]
-          capped depLines
+          capped (Stdlib.List.length deps) depLines
           [ "", heading "used by" (Stdlib.List.length dependents) ]
-          capped dependentLines ])
+          capped (Stdlib.List.length dependents) dependentLines ])
       "\n"
 
 /// AI threads for the AI view (the thread board - demo data for now, via the shared Views.AiChats source).
@@ -599,7 +598,7 @@ let refreshScmStatus (previous: State) (next: State) : State =
 /// Re-read the SCM picture whatever the counts say. For the actions that change it without moving an op
 /// count: an ack, and any command run in a frame (a pull lands other people's commits).
 let forceScmRefresh (state: State) : State =
-  { state with scmStatus = readScmStatus state.branchId }
+  { state with scmStatus = readScmStatus state.branchId; preview = Stdlib.Option.Option.None }
 
 /// Run the selected `render` fn and hold its output, for the tree-native view peek.
 ///
