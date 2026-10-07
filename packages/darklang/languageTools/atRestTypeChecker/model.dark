@@ -376,6 +376,9 @@ type Environment =
     /// Compute these in advance or on first use, then attach the current use's
     /// node ID when reporting them.
     declarationProblems: Dict<LanguageTools.ProgramTypes.Hash, List<Finding>>
+    /// Each declared DB by name, as the `DB<row>` a body naming it reads. A local of the same
+    /// name shadows one, as it does at run time.
+    dbs: Dict<String, Ty>
     /// The standard Option type's hash, used to recognize it in unwrap and ? checks.
     optionType: LanguageTools.ProgramTypes.Hash
     /// The standard Result type's hash, used to recognize it in unwrap and ? checks.

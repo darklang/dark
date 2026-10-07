@@ -228,6 +228,15 @@ module Value =
     | None -> Stdlib.Option.Option.None
 
 
+module DB =
+  /// Every declared DB, by name, with the type of the rows it holds.
+  ///
+  /// A DB is not a package item yet: `dark db` writes its declaration beside the store rather
+  /// than into it, so it has no hash and no name binding, and this is the only way to see one.
+  let declarations (_unit: Unit) : List<(String * ProgramTypes.TypeReference)> =
+    Builtin.dbDeclarations ()
+
+
 module Function =
   let find
     (branchId: Uuid)

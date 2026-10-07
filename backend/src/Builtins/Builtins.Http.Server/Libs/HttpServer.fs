@@ -833,6 +833,12 @@ let private serve
     // A live server re-derives this per router hash (`resolveRouting`); the one built here is for
     // the bind, the announce, and the routing step itself.
     let invokerAccess = vm.activeAccess
+    // The CLI's own state carries no DBs (`eval` and `run` load them per call), so a handler
+    // naming one failed with "There is no variable named". Read once, here: a DB declared while
+    // the server runs is not seen until it restarts, the same as plain `serve` pins its router.
+    let! declared = LibCloud.Toplevels.loadAllDBs ()
+    let! program = LibCloud.Toplevels.toProgram declared
+    let exeState = { exeState with program = program }
     match routing with
     | Live live -> live.stepState <- Some { exeState with access = invokerAccess }
     | Fixed _ -> ()

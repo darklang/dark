@@ -397,6 +397,14 @@ let infixImplsFor
     )
   | _ -> Stdlib.Option.Option.None
 
+/// Every declared DB, as the type a body naming it reads. A row type that does not convert
+/// still declares a DB, so it reads as `DB<error>` rather than as an unknown name.
+let databases (_unit: Unit) : Dict<String, Model.Ty> =
+  LanguageTools.PackageManager.DB.declarations ()
+  |> Stdlib.List.fold Dict {} (fun found (name, row) ->
+    let (rowType, _) = Types.fromReference Dict {} Stdlib.Option.Option.None row
+    Stdlib.Dict.setOverridingDuplicates found name (Model.Ty.TDB rowType))
+
 /// Create an empty environment with the standard Option and Result type hashes.
 /// Declarations are loaded later; builtin signatures are fetched as needed and
 /// their converted templates are cached when the solver first uses them.
@@ -414,6 +422,7 @@ let builtins (branchId: Uuid) : Model.Environment =
       dictKeyParameters = Dict {}
       callables = Dict {}
       declarationProblems = Dict {}
+      dbs = databases ()
       optionType = typeHashOf Stdlib.Option.Option.None
       resultType = typeHashOf (Stdlib.Result.Result.Ok ()) }
 
