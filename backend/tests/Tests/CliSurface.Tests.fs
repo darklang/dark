@@ -24,6 +24,48 @@ open Tests.CliTestHarness
 module CliDsl = Tests.CliDsl
 
 
+let private storedPermissionsAreIsolated =
+  testTask "CLI tests isolate stored permissions even after a failure" {
+    let originalDirectory = LibExecution.HostSecurity.policyDirectory ()
+    let mutable initial = LibDB.PolicyStore.empty
+    try
+      do!
+        withState (fun _ ->
+          task {
+            initial <- LibDB.PolicyStore.get ()
+            LibDB.PolicyStore.setInstancePolicy
+              LibExecution.Permissions.Policy.denyAll
+            let approved =
+              LibDB.PolicyStore.recordApprovalAndMoveVersion
+                None
+                "test-policy-root"
+                [ "test-policy-root", LibExecution.Permissions.Policy.denyAll ]
+                "test-fingerprint"
+                None
+                "Tests.PolicyIsolation.root"
+                None
+                "test-policy-root"
+            Expect.equal approved (Ok()) "the first test stored an approval"
+            Exception.raiseInternal "simulated test failure" []
+          })
+      failtest "the first test should have raised"
+    with e when e.Message = "simulated test failure" ->
+      ()
+    Expect.equal
+      (LibExecution.HostSecurity.policyDirectory ())
+      originalDirectory
+      "the failed test restored the policy directory"
+    do!
+      withState (fun _ ->
+        task {
+          Expect.equal
+            (LibDB.PolicyStore.get ())
+            initial
+            "the next test gets fresh instance permissions and no old approvals"
+        })
+  }
+
+
 let private reusesCompiledFunctions =
   cliTest "the CLI harness reuses compiled package functions" (fun target ->
     task {
@@ -1735,6 +1777,7 @@ let tests : List<Test> =
     workbenchSaysUnchangedAndLands
     workbenchDocCommentDocuments
     workbenchRefusalsAreMarkedAsRefusals
+    storedPermissionsAreIsolated
     reusesCompiledFunctions
     timeoutBoundsSynchronousWork
     timeoutPreservesCapture

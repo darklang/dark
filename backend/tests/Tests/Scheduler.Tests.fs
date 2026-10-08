@@ -652,14 +652,15 @@ let private psSeesTheWholeGroup =
 let private traceCarriesProcessAndSeq =
   testTask
     "a trace written by two processes on two workers keeps each one's calls apart" {
+    Trace.take () |> ignore<List<string>>
     let! state = executionStateFor pmPT false Map.empty
     let! instrs =
       instrsFor
         // Impure on purpose: only impure calls are recorded, so a pure loop would write a
         // trace with no rows in it and prove nothing about which process wrote what.
-        """(let shout (n: Int64) : Unit = Stdlib.printLine (Stdlib.toString n)
+        """(let record (n: Int64) : Unit = Builtin.testTrace (Stdlib.toString n)
             let loop (n: Int64) : Unit =
-              if n == 0L then () else (shout n
+              if n == 0L then () else (record n
                                        loop (n - 1L))
             loop 20L)"""
     LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
@@ -709,6 +710,7 @@ let private traceCarriesProcessAndSeq =
                 "each process's ordinals count from zero, on their own"
           })
     finally
+      Trace.take () |> ignore<List<string>>
       LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
   }
 

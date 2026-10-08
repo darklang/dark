@@ -18,13 +18,6 @@ module Dval = LibExecution.Dval
 
 open TestUtils.TestUtils
 
-// Shared within this run, isolated from approvals and grants left by earlier runs.
-let private testPolicyDirectory =
-  System.IO.Path.Combine(
-    LibConfig.Config.runDir,
-    $"test-policy-{System.Guid.NewGuid():N}"
-  )
-
 /// Build an ExecutionState wired up with the same builtin set the CLI uses in
 /// production. Re-built per test so trace-store side effects don't leak across tests.
 /// The CLI's builtin table, built once for the whole file.
@@ -35,7 +28,7 @@ let private testPolicyDirectory =
 let private cliBuiltins : Lazy<RT.Builtins> =
   lazy (Builtins.CliHost.Libs.Cli.builtinsToUse ())
 
-let buildState () : Task<RT.ExecutionState> =
+let private buildState () : Task<RT.ExecutionState> =
   task {
     let builtins = cliBuiltins.Force()
     // Reuse the CLI's compiled functions and evaluated values. The generic
@@ -69,27 +62,13 @@ let buildState () : Task<RT.ExecutionState> =
     // CLI seeds the same default on startup (`Cli.fs`), so seeding it here makes the harness
     // match an install rather than granting the tests anything an install does not have.
     //
-    // Into `rundir`, never the real `~/.darklang/policy`: the suite must not write the
-    // developer's own policy, and in the container that path is not writable anyway. The
-    // override is process-wide and deliberately never disposed -- every CLI test wants this
-    // same policy, and restoring it per test would race the sequenced dispatch.
-    let policyDir = testPolicyDirectory
-    System.IO.Directory.CreateDirectory policyDir |> ignore<System.IO.DirectoryInfo>
-    LibExecution.HostSecurity.policyDirectoryForTesting policyDir
-    |> ignore<System.IDisposable>
+    // `withState` supplies a fresh policy directory for this test. Approvals and instance
+    // policy edits must not survive into another test or a later run of the suite.
 
-    // `defaultInstance` PLUS package-write, concurrency and runtime, granted once here for every
-    // test.
+    // `defaultInstance` PLUS package-write, concurrency and runtime, granted for this test.
     //
-    // These tests drive authoring through `dark eval`, which is guest code, and a guest has no
-    // package-write by default. Granting it inside a single test instead would leak into every
-    // test after it in the same store, so a later test would pass or fail on runner order.
-    //
-    // Concurrency for the same reason: `Stdlib.Exec.spawn` is a guest effect a guest does not
-    // have by default, and the trace tests drive spawn through `dark eval`.
-    //
-    // Runtime because the live tests drive `serve --live` and the live views, which drop their own
-    // caches to take up an edit. CI gets its permissions set, rather than the class loosened.
+    // Tests author packages and spawn processes through guest `dark eval`, which needs
+    // package-write and concurrency. Live tests also need runtime to drop caches on edits.
     //
     // What a GUEST may do without the grant is still tested, in `PermissionEscape.Tests`.
     let testInstancePolicy =
@@ -479,11 +458,19 @@ let pushTick (d : LoopDriver) : unit =
 
 // ─── Test builders ────────────────────────────────────────────────────────
 
-/// Wrap a fresh ExecutionState in a task.
+/// Give each in-process test its own stored permissions as well as an ExecutionState.
+/// The policy-directory override is process-global, so callers must be sequenced.
 let withState (f : Target -> Task<unit>) : Task<unit> =
   task {
-    let! state = buildState ()
-    do! f (InProcess state)
+    let policyDir = System.IO.Directory.CreateTempSubdirectory("dark-cli-policy-")
+    let restore =
+      LibExecution.HostSecurity.policyDirectoryForTesting policyDir.FullName
+    try
+      let! state = buildState ()
+      do! f (InProcess state)
+    finally
+      restore.Dispose()
+      policyDir.Delete true
   }
 
 /// `cliTest "name" body` collapses the `testTask "..." { do! withState ... }`

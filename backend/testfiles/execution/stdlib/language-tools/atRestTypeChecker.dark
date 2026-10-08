@@ -2316,11 +2316,16 @@ module Guarded =
 
   // A runtime error inside the checker becomes an Incomplete report through the
   // same error-handling wrapper used by saves and commits.
-  (summary (
-    Darklang.LanguageTools.AtRestTypeChecker.guarded
-      (fun _ -> Builtin.unwrap Stdlib.Option.Option.None)
-      []
-  )) = "incomplete:UnsupportedConstruct"
+  (let capturing = Builtin.stdoutCaptureStart ()
+   let report =
+     Darklang.LanguageTools.AtRestTypeChecker.guarded
+       (fun _ -> Builtin.unwrap Stdlib.Option.Option.None)
+       []
+   let output = Builtin.stdoutCaptureStop ()
+   (capturing, summary report, output)) =
+    (true,
+     "incomplete:UnsupportedConstruct",
+     "the at-rest checker failed over a whole batch and reported nothing: Cannot unwrap None\n")
 
 
 // ---------------------------------------------------------------------------------------

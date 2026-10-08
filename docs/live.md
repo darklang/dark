@@ -330,8 +330,9 @@ Not from the recording: from running the current code again on the recorded inpu
 edit to a callee shows up in the caller's values without anyone calling it again, and a
 value beside a call is always the value of the code you are looking at.
 
-`Stdlib.Live.Values.replay branchId location` is the whole of it. It finds the newest recorded
-run that went through the function (`trace_fns`, the names-only index), replays THAT WHOLE RUN
+`Stdlib.Live.Values.replay accountID branchId location` uses the viewing account's current
+approvals (`None` selects anonymous approvals). It finds the newest recorded run that went
+through the function (`trace_fns`, the names-only index), replays THAT WHOLE RUN
 with every impure call answered from its own log and none performed, and returns `Values`:
 `byExpr`, the value of every call keyed by the id of the `EApply` that made it -- calls inside
 callees too, under their own ids -- and `problem`, the reason the replay stopped early if it did,

@@ -177,10 +177,38 @@ let deepRecursion =
       } ]
 
 
+let outputCaptureTests =
+  testList
+    "output capture"
+    [ testTask "a child can capture after its parent's window closes" {
+        use parent = new OutputCapture()
+        let released =
+          TaskCompletionSource<unit>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+          )
+        let child =
+          task {
+            do! released.Task
+            use output = new OutputCapture()
+            NonBlockingConsole.writeLine "child output"
+            output.Check(fun stdout stderr ->
+              Expect.equal stdout "child output\n" "the child owns a new capture"
+              Expect.equal stderr "" "no warnings")
+          }
+        try
+          parent.Check(fun stdout stderr ->
+            Expect.equal (stdout, stderr) ("", "") "the parent has not printed")
+        finally
+          released.TrySetResult() |> ignore<bool>
+        do! child
+      } ]
+
+
 let tests =
   testList
     "prelude"
-    [ asyncTests
+    [ outputCaptureTests
+      asyncTests
       mapTests
       floatTests
       dateTests

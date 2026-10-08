@@ -2023,12 +2023,18 @@ let private branchBundleKeepsWhatItCannotRead =
         let partialPath = $"{LibConfig.Config.runDir}/bundle-partial-bad.json"
         System.IO.File.WriteAllText(partialPath, partial)
 
-        do!
-          shows
-            state
-            [ "branch"; "import"; partialPath ]
-            "imported branch"
-            "the bundle imports"
+        let! stdout, stderr, status =
+          runCliStreams state [ "branch"; "import"; partialPath ]
+        Expect.equal status 0 "the readable part of the bundle imports"
+        Expect.stringContains stdout "imported branch" "the bundle imports"
+        Expect.stringContains
+          stderr
+          "1 op(s) in this bundle"
+          "the unreadable record is reported on stderr"
+        Expect.stringContains
+          stderr
+          "They are kept, not dropped"
+          "the warning explains that the record is preserved"
 
         let! listed = runCli state [ "branches" ]
         Expect.isTrue

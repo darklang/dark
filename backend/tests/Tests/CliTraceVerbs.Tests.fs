@@ -1095,7 +1095,12 @@ let private identicalCallsKeepTheirOwnValues =
              + "  let b = Stdlib.toString (Stdlib.Uuid.generate ())\n"
              + "  $\"{a} {b}\"")
         do! commit state "two"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.two" ]
+        do!
+          shows
+            state
+            [ "permissions"; "approve"; "Tests.Prev.two"; "--yes" ]
+            "approved Tests.Prev.two"
+            "the function is approved before viewing its trace"
         let! ran = runCli state [ "eval"; "Tests.Prev.two ()" ]
 
         // The run really did make two different uuids. If it did not, the rest proves nothing.
@@ -1121,7 +1126,7 @@ let private identicalCallsKeepTheirOwnValues =
             |> Array.filter (fun l ->
               l.Contains "Uuid.generate" && l.Contains "// =")
             |> Array.map (fun l -> l.Substring(l.IndexOf "// =").Trim())
-          Expect.equal shown.Length 2 "both calls carry a value"
+          Expect.equal shown.Length 2 $"both calls carry a value: {viewed}"
           Expect.notEqual
             shown[0]
             shown[1]
@@ -1147,6 +1152,27 @@ let private previewOfASpawnServesTheChildFromTheLog =
     "previewing a run that spawned a process serves the child from the log, not the world"
     (fun state ->
       task {
+        // Account-scoped approval must work even though the host ExecutionState is anonymous.
+        // Restore the CLI session afterward so this test does not log later tests in.
+        let configPath =
+          System.IO.Path.Combine(LibConfig.Config.runDir, "cli-config.json")
+        let savedConfig =
+          if System.IO.File.Exists configPath then
+            Some(System.IO.File.ReadAllBytes configPath)
+          else
+            None
+        use _restoreConfig =
+          { new System.IDisposable with
+              member _.Dispose() =
+                match savedConfig with
+                | Some bytes -> System.IO.File.WriteAllBytes(configPath, bytes)
+                | None -> System.IO.File.Delete configPath }
+        do!
+          shows
+            state
+            [ "login"; "Stachu" ]
+            "Logged in as Stachu"
+            "selected an account"
         do! start state
         do!
           fn
@@ -1156,7 +1182,17 @@ let private previewOfASpawnServesTheChildFromTheLog =
              + "  let h = Stdlib.Exec.spawn (fun () -> Stdlib.toString (Stdlib.Uuid.generate ()))\n"
              + "  Stdlib.Exec.await h")
         do! commit state "conc"
-        let! _ = runCli state [ "permissions"; "approve"; "Tests.Prev.conc" ]
+        do!
+          shows
+            state
+            [ "permissions"; "approve"; "Tests.Prev.conc"; "--yes" ]
+            "approved Tests.Prev.conc"
+            "the selected account approved the function"
+        let! (LibExecution.ProgramTypes.Hash rootHash) =
+          findPackageFn "Tests.Prev.conc"
+        Expect.isFalse
+          (LibDB.PolicyStore.packagePolicies None |> Map.containsKey rootHash)
+          "the anonymous account has no approval for this function"
 
         let! ran = runCli state [ "eval"; "Tests.Prev.conc ()" ]
         let uuidIn (out : string) : string option =
@@ -1176,6 +1212,18 @@ let private previewOfASpawnServesTheChildFromTheLog =
           viewed
           recorded
           "the child's value came from the log, so the spawned process previewed too"
+        let! json = runCli state [ "traces"; "show"; "Tests.Prev.conc"; "--json" ]
+        Expect.stringContains json recorded "JSON preview uses the same account"
+        let! trace = latest ()
+        let! anonymous =
+          evalUnder
+            (executionState state)
+            $"""let (_, problem) = Darklang.Tracing.Store.viewTrace Stdlib.Option.Option.None Darklang.SCM.Branch.mainBranchId "{trace.id}" in
+                match problem with | Some _ -> true | None -> false"""
+        Expect.equal
+          anonymous
+          (RT.DBool true)
+          "anonymous preview cannot borrow the account's approval"
       })
 
 
