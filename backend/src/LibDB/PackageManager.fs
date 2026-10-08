@@ -239,16 +239,19 @@ let narrowedToApprovedVersions
                 match Map.tryFind (PackageLocation.toFQN location) approved with
                 | Some approvedHash ->
                   // An approval whose hash disappeared after a reset or partial sync gets a clear
-                  // diagnostic instead of failing later as an unknown name.
+                  // diagnostic instead of failing later as an unknown name. A store CONDITION, not an
+                  // internal error: it is easy to reach (a build re-authors the store, so a hand-authored
+                  // function's hash moves while its approval stays) and the person can fix it in one
+                  // command, so it prints as that sentence and nothing else.
                   match! PMPT.Fn.get (Hash approvedHash) with
                   | Some _ -> return Some(Hash approvedHash)
                   | None ->
+                    let name = PackageLocation.toFQN location
                     return
-                      Exception.raiseInternal
-                        ("An approved version of this function is no longer in the package store. "
-                         + "Run `dark permissions unapprove <fn>` to release the approval.")
-                        [ "location", PackageLocation.toFQN location
-                          "approved", approvedHash ]
+                      Exception.raiseStoreCondition
+                        ($"An approved version of {name} is no longer in the package store, so it "
+                         + $"cannot run. Run `dark permissions unapprove {name}` to release the approval.")
+                        [ "location", name; "approved", approvedHash ]
                 | None -> return Some hash
             } }
 

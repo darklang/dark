@@ -158,6 +158,8 @@ module RuntimeError =
     | _ -> ""
 
 
+  // The only exhaustive match over RuntimeError on the Dark side. A new RuntimeError case needs an
+  // arm here, and Dark says nothing at build time: the first error of that kind raises right here.
   let toSegments
     (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : ErrorSegments =
@@ -612,6 +614,9 @@ module RuntimeError =
       Stdlib.List.append
         [ ES.String "Uncaught exception: ", ES.String msg ]
         withMetadata
+
+    // Its own sentence and nothing else: it is a refusal, written for whoever ran the command.
+    | Condition message -> [ ES.String message ]
 
     // CLEANUP when we bring lambda->sql compilation back
     // | SqlCompilerRuntimeError err ->

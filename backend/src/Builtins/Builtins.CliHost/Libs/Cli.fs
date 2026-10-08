@@ -630,12 +630,23 @@ let private guestTry
     | RuntimeErrorException(_, rte) ->
       return resultError (ExecutionError.toDT (toError rte))
     | e ->
-      return
-        resultError (
-          ExecutionError.toDT (
-            ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
+      // A store condition raised before the run starts (the approved-version check sits in
+      // lowering) is the same refusal it would be during the run, not an `Unhandled` crash.
+      match Exception.findStoreCondition e with
+      | Some condition ->
+        return
+          resultError (
+            ExecutionError.toDT (
+              toError (RT.RuntimeError.Condition condition.Message)
+            )
           )
-        )
+      | None ->
+        return
+          resultError (
+            ExecutionError.toDT (
+              ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
+            )
+          )
   }
 
 

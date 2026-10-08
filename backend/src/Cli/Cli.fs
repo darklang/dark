@@ -960,32 +960,37 @@ let private runCli (args : string[]) : int =
       let errorCallStackStr =
         (LibExecution.Execution.callStackString state callStack).Result
 
-      match (LibExecution.Execution.runtimeErrorToString state rte).Result with
-      | Ok(RT.DString s) ->
-        // "Function <64 hex chars> couldn't be found" almost always means the STORE is
-        // older than the binary: package code was reloaded, every hash moved, and this
-        // database still points at the old ones.
-        let staleStoreHint =
-          if
-            s.Contains "couldn't be found"
-            && System.Text.RegularExpressions.Regex.IsMatch(s, "[0-9a-f]{32}")
-          then
-            "\n\nThis usually means the store is older than the binary: package code was reloaded and the "
-            + "hashes moved.\n  Run `scripts/build/reload-packages` to bring the store up to this binary, "
-            + "or point DARK_CONFIG_RUNDIR at a freshly-cloned store."
-          else
-            ""
+      match rte with
+      // A condition is a refusal with the sentence that resolves it: print that and nothing else,
+      // with no header calling it a runtime error and no call stack under it.
+      | RT.RuntimeError.Condition message -> logError message
+      | _ ->
+        match (LibExecution.Execution.runtimeErrorToString state rte).Result with
+        | Ok(RT.DString s) ->
+          // "Function <64 hex chars> couldn't be found" almost always means the STORE is
+          // older than the binary: package code was reloaded, every hash moved, and this
+          // database still points at the old ones.
+          let staleStoreHint =
+            if
+              s.Contains "couldn't be found"
+              && System.Text.RegularExpressions.Regex.IsMatch(s, "[0-9a-f]{32}")
+            then
+              "\n\nThis usually means the store is older than the binary: package code was reloaded and the "
+              + "hashes moved.\n  Run `scripts/build/reload-packages` to bring the store up to this binary, "
+              + "or point DARK_CONFIG_RUNDIR at a freshly-cloned store."
+            else
+              ""
 
-        logError
-          $"Encountered a Runtime Error:\n{s}{staleStoreHint}\n\n{errorCallStackStr}\n  "
+          logError
+            $"Encountered a Runtime Error:\n{s}{staleStoreHint}\n\n{errorCallStackStr}\n  "
 
-      | Ok otherVal ->
-        logError
-          $"Encountered a Runtime Error, stringified it, but somehow a non-string was returned.\nRuntime Error: {rte}\n'Stringified':\n{otherVal}\n{errorCallStackStr}"
+        | Ok otherVal ->
+          logError
+            $"Encountered a Runtime Error, stringified it, but somehow a non-string was returned.\nRuntime Error: {rte}\n'Stringified':\n{otherVal}\n{errorCallStackStr}"
 
-      | Error newErr ->
-        logError
-          $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed.\nOriginal Error: {rte}\n{errorCallStackStr}\n\nError encountered when trying to stringify:\n{newErr}"
+        | Error newErr ->
+          logError
+            $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed.\nOriginal Error: {rte}\n{errorCallStackStr}\n\nError encountered when trying to stringify:\n{newErr}"
 
       1
     | Ok(RT.DInt64 i) -> intToExitCode (RT.DarkInt.Finite i)
@@ -1004,15 +1009,7 @@ let private runCli (args : string[]) : int =
     // A store that cannot be used is an ENVIRONMENT, not a bug: a read-only mount, a store owned by
     // another user, a full disk. `LibDB.Sqlite` raises a `StoreConditionException` carrying a
     // sentence written for whoever ran the command, so all that is left is to print it.
-    let rec storeCondition (ex : exn) : Exception.StoreConditionException option =
-      match ex with
-      | :? Exception.StoreConditionException as s -> Some s
-      | :? System.AggregateException as agg ->
-        agg.InnerExceptions |> Seq.tryPick storeCondition
-      | _ ->
-        if isNull ex.InnerException then None else storeCondition ex.InnerException
-
-    match storeCondition e with
+    match Exception.findStoreCondition e with
     | Some s ->
       System.Console.Error.WriteLine s.Message
       1

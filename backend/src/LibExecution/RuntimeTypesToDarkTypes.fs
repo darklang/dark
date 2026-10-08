@@ -1913,6 +1913,7 @@ module RuntimeError =
             VT.tuple VT.string (VT.known (Dval.knownType ())) [],
             metadata |> List.map (fun (k, v) -> DTuple(DString k, Dval.toDT v, []))
           ) ]
+      | RuntimeError.Condition message -> "Condition", [ DString message ]
       | e -> Exception.raiseInternal "Unhandled RuntimeError.Error" [ "e", e ]
 
     DEnum(typeName, typeName, [], caseName, fields)
@@ -1989,4 +1990,6 @@ module RuntimeError =
           | DTuple(DString k, v, []) -> (k, v)
           | _ -> Exception.raiseInternal "Invalid metadata" [])
       )
+    | DEnum(_, _, [], "Condition", [ DString message ]) ->
+      RuntimeError.Condition message
     | _ -> Exception.raiseInternal "Invalid RuntimeError.Error" [ "d", d ]

@@ -1906,6 +1906,11 @@ module RuntimeError =
     /// whatever, for (our) safety. Perhaps we can provide an opaque ID refer to
     /// the error in a support ticket.
     | UncaughtException of msg : string * metadata : List<string * Dval>
+    /// Something the person running the program can resolve once told, carrying the sentence that
+    /// tells them: an approval names a version the store no longer holds, the policy file cannot be
+    /// trusted. Raised as `Exception.StoreConditionException` and turned into this at the boundary,
+    /// so it prints as itself rather than as an uncaught exception or an internal error.
+    | Condition of message : string
 
 
 // CLEANUP the ThreadID isn't useful yet -- consider abandoning for now.
