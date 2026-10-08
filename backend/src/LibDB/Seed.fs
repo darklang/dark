@@ -386,10 +386,8 @@ let projectionTables : List<string> =
     "package_trait_impls"
     "locations"
     "package_dependencies"
-    "deprecations"
-    // Folded from `Decision` ops; nothing else writes it. Being here is what makes it genuinely derived
-    // rather than a second source of truth about the same decisions.
-    "propagation_policy" ]
+    "deprecations" ]
+
 
 
 /// Drop every projection table and re-fold the whole `package_ops` log to rebuild them.

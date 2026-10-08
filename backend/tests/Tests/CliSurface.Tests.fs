@@ -168,7 +168,7 @@ let private sweepFailure (outcome : Result<string, string>) : Option<string> =
 
 // The workbench renders. `initialState` builds a state without seizing the terminal, and this goes
 // through `dark eval` rather than a `.dark` testfile because building one reads the package tree,
-// and the execution testfiles are for pure functions (see `scm/propagation-policy.dark`).
+// and the execution testfiles are for pure functions.
 
 /// One line, because `eval` takes the expression as a single argument.
 let private renderExpr (body : string) : string =

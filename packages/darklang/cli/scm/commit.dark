@@ -204,7 +204,7 @@ let propagateOne
   | [] -> 0 // brand new, nothing can be pointing at an older version of it
   | _ ->
     match
-      Packages.Propagate.repointDependents
+      SCM.Propagation.repointDependents
         branchId
         (locationOf b)
         (itemKindOf b.itemType)
@@ -233,7 +233,6 @@ type Review =
     propagates: List<SCM.PackageOps.Repoint>
     /// Names that reference an old version and WON'T follow, because they belong to another owner. An outcome, not a
     /// warning: leaving a reference behind is a thing you decide, and this is where you see you decided it.
-    leftBehind: List<SCM.PackageOps.Repoint>
     conflicts: List<SCM.Conflicts.Conflict>
     branch: String }
 
@@ -252,7 +251,6 @@ let review (state: AppState) : Review =
           ScmJson.changedItem state.currentBranchId p.propagated b previous)
       removed = p.removed
       propagates = p.repoints
-      leftBehind = p.leftBehind
       conflicts = p.conflicts
       branch =
         // The NAME, like everywhere else user-facing: what `--json`'s reader can pass to another command.
@@ -404,7 +402,6 @@ let executeJson (state: AppState) (args: List<String>) : AppState =
           changed = r.items
           removed = r.removed
           propagates = r.propagates
-          leftBehind = r.leftBehind
           conflicts = r.conflicts }
     )
   )
@@ -567,25 +564,6 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
         let name = ScmJson.pad rp.name repointWidth
         Cli.Stderr.line $"    ~ {name}  -> uses {rp.uses}")
 
-    // STAYING BEHIND -- external callers keeping their selected version. Shown next to what moved, since
-    // the two are the same decision from either side, and a deliberate one should read as deliberate.
-    let behind = r.leftBehind
-
-    if Stdlib.List.isEmpty behind then
-      ()
-    else
-      Cli.Stderr.line ""
-
-      Cli.Stderr.ok
-        $"  STAYING BEHIND ({Stdlib.toString (Stdlib.List.length behind)})   (external callers keep their selected versions)"
-
-      let behindWidth = widest (behind |> Stdlib.List.map (fun rp -> rp.name))
-
-      behind
-      |> Stdlib.List.iter (fun rp ->
-        let name = ScmJson.pad rp.name behindWidth
-        Cli.Stderr.line $"    . {name}  still on the old {rp.uses}")
-
     // CONFLICTS -- already auto-resolved; this is the "and you should know" line.
     let conflicts = r.conflicts
 
@@ -677,7 +655,6 @@ let help (_state: AppState) : String =
     "  REMOVED           names this commit takes away"
     "  PROPAGATES TO     what references an older version, and will be"
     "                    repointed"
-    "  STAYING BEHIND    external callers keep their selected versions"
     "  CONFLICTS         what a merge, rebase or sync auto-resolved,"
     "                    waiting on your ok"
     ""

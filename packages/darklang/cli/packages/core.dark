@@ -334,6 +334,7 @@ let commitAuthored
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Committed, String> =
   let previousHashes = Propagate.getAllPreviousHashes branchId location kind
+  let updates = Propagate.updatedItems branchId ops
   let isUpdate = (Stdlib.List.isEmpty previousHashes) |> Stdlib.Bool.not
 
   // Read BEFORE the save: after it, the live binding IS the new version.
@@ -378,11 +379,7 @@ let commitAuthored
     // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing. A
     // revert repoints too: the dependents follow the name to the version it holds now. Done
     // BEFORE anything prints: whether a dependent broke decides the first line's glyph.
-    let followed =
-      if isUpdate && (Stdlib.Bool.not docOnly) then
-        Propagate.repointNow branchId location previousHashes boundHash kind
-      else
-        Propagate.nothingFollowed ()
+    let followed = Propagate.repointSaved branchId updates
 
     // The save's own type check: an error in what was just written. Saved anyway (WIP is yours
     // to break); `dark commit` is the gate. Said on the second line, with the issue itself.

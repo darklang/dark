@@ -682,16 +682,6 @@ type DecisionKind =
   | Override of target: Reference
   /// A standing finding has been seen and accepted. Closes it as `acked`, and binds nothing.
   | Ack of findingId: String
-  /// Whether this name follows its dependencies when they move, or stays where it is.
-  | Propagation of policy: PropagationPolicy
-
-/// Pin and follow are the two standing answers; `Unset` is the absence of one, which the fold deletes
-/// rather than stores, so "no policy" has a single spelling.
-type PropagationPolicy =
-  | Pin
-  | Follow
-  | Unset
-
 /// WHICH piece of prose an `UpdateDoc` sets: the declaration's own, or one named part of it.
 ///
 /// The nested parts are the point. A doc on a field, a case or a parameter is outside the identity
@@ -776,9 +766,9 @@ type PackageOp =
       text: String *
       previous: Stdlib.Option.Option<Hash> *
       restating: Stdlib.Option.Option<String>
-  /// A human's judgment about a NAME, recorded so that it travels. Overriding a binding, acking a
-  /// finding and choosing a propagation policy are one class of act -- someone decided something about
-  /// a location, and it has to hold on every machine -- so they are one op differing by `kind`. `id` is what makes each decision distinct,
+  /// A human's judgment about a NAME, recorded so that it travels. Overriding a binding and acking a
+  /// finding are one class of act -- someone decided something about a location, and it has to hold on
+  /// every machine -- so they are one op differing by `kind`. `id` is what makes each decision distinct,
   /// and idempotence is the caller's choice of what to put in it. `reason` is carried, never interpreted.
   | Decision of
       id: String *

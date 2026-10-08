@@ -200,78 +200,6 @@ let dropsOnlyWhatTheDraftWrote =
 let private loc (m : string) (name : string) : PT.PackageLocation =
   { owner = "Darklang"; modules = [ m ]; name = name }
 
-let unstagesARepointButNotAnEdit =
-  testTask "un-staging drops a repoint that followed, and refuses one you authored" {
-    let m = "DraftTestUnstage"
-    do! cleanup m
-
-    let! v1 =
-      authorIntoMain
-        $"""module Darklang.{m}
-
-let src (x: Int64) : Int64 = x + 8001L"""
-
-    let! _ =
-      authorIntoMain
-        $"""module Darklang.{m}
-
-let follower (x: Int64) : Int64 = Darklang.{m}.src x"""
-
-    let! _ = commitAll "draft test: unstage"
-    let! committedFollower = liveHash m "follower"
-
-    // Edit the source and let the cascade repoint the follower, as authoring does.
-    let! v2 =
-      authorIntoMain
-        $"""module Darklang.{m}
-
-let src (x: Int64) : Int64 = x + 8002L"""
-
-    let fromHash = hashBoundTo v1 "src"
-    let toHash = hashBoundTo v2 "src"
-
-    match!
-      Propagation.propagate
-        PT.BranchId.Main
-        (loc m "src")
-        PT.ItemKind.Fn
-        [ fromHash ]
-        toHash
-    with
-    | Ok(Some(_, ops)) ->
-      let! _ = Inserts.insertAndApplyPropagatedOps ops
-      ()
-    | _ -> Exception.raiseInternal "the cascade produced nothing to un-stage" []
-
-    let! movedFollower = liveHash m "follower"
-    Expect.notEqual movedFollower committedFollower "the follower moved"
-
-    // A pin before commit says the repoint never happened, rather than authoring a second op to put it
-    // back. The staged binding goes and the committed one underneath it comes back.
-    let! dropped =
-      runDarkResult ("Darklang.SCM.Draft.unstageRepoint " + darkLoc m "follower")
-    Expect.isGreaterThan (unwrap dropped) 0L "the staged repoint was dropped"
-
-    let! afterFollower = liveHash m "follower"
-    Expect.equal
-      afterFollower
-      committedFollower
-      "the follower is back where it was committed"
-
-    // The item YOU edited is not a repoint, and un-staging must refuse it -- otherwise a pin would throw
-    // away someone's work while reporting that it undid a consequence.
-    let! refused =
-      runDarkResult ("Darklang.SCM.Draft.unstageRepoint " + darkLoc m "src")
-    Expect.equal (unwrap refused) 0L "an authored edit is not something to un-stage"
-
-    let! srcAfter = liveHash m "src"
-    let (PT.Hash toStr) = toHash
-    Expect.equal srcAfter (Some toStr) "and your edit is still there"
-
-    do! cleanup m
-  }
-
-
 let private namingOpCount (m : string) (name : string) : Task<int64> =
   Sql.query
     "SELECT count(*) AS n FROM locations
@@ -703,7 +631,6 @@ let tests =
       restoresASupersededBinding
       emptyDraftIsANoOp
       dropsOnlyWhatTheDraftWrote
-      unstagesARepointButNotAnEdit
       collapseKeepsTheLastNamingOnly
       keepsAnOpItCannotRead
       discardNameDropsOneAndKeepsTheRest

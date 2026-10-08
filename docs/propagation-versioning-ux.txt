@@ -1,13 +1,8 @@
-- Same owner means your code for now; a project boundary can replace that later.
-- Editing your code automatically updates callers under the same owner.
-- The cascade stops at another owner, including transitive callers.
-- External library calls keep the exact versions selected when saved.
-- deps <caller> shows those references and whether newer branch versions exist.
-- deps upgrade <caller> <dependency> upgrades one selected dependency.
-- That upgrade updates the caller and its same-owner callers, not other consumers.
-- Branch upgrades stay on the branch; main and sibling branches stay unchanged.
-- undo restores a previous version without changing future update rules.
-- Remove pin/follow modes, module policies, and the propagation toggle screen.
-- Permission approval remains a separate decision about code and authority.
-- Keep summaries short; inspect deps and status for the detailed changes.
+- Editing an item automatically updates every caller, across owners.
+- Updates continue through the full dependency chain.
+- There are no pin/follow modes or explicit dependency upgrades.
+- Propagation stays on the edited branch; main and sibling branches stay unchanged.
+- Undo restores a previous version and updates its callers too.
+- deps shows dependencies and callers; status shows what changed.
+- Permission approval remains separate from code updates.
 - Historical content stays addressable by its hash.

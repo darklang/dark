@@ -1,6 +1,6 @@
 module Darklang.Cli.PropagateCmd
 
-// Shared helpers for restoring a version and updating its same-owner callers.
+// Shared helpers for restoring a version and updating its callers.
 
 let dotted (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
   let mods = SCM.Propagation.modulesOf loc
@@ -15,7 +15,7 @@ let resolve
   Packages.Location.parseRelativeTo state.packageData.currentLocation arg
 
 
-/// Restore same-owner callers and report any failure to the command.
+/// Restore callers and report any failure to the command.
 let cascadeAndForce
   (state: AppState)
   (loc: LanguageTools.ProgramTypes.PackageLocation)
@@ -23,7 +23,7 @@ let cascadeAndForce
   (fromHash: LanguageTools.ProgramTypes.Hash)
   (toHash: LanguageTools.ProgramTypes.Hash)
   : Bool =
-  match Packages.Propagate.repointDependents state.currentBranchId loc kind [fromHash] toHash with
+  match SCM.Propagation.repointDependents state.currentBranchId loc kind [fromHash] toHash with
   | Error e ->
     Cli.printErr $"  cascade failed: {e}"
     false

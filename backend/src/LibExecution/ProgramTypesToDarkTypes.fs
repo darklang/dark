@@ -2102,29 +2102,6 @@ module BranchEventKind =
     | _ -> Exception.raiseInternal "Invalid BranchEventKind" []
 
 
-module PropagationPolicy =
-  let typeName () =
-    FQTypeName.fqPackage (
-      PackageRefs.Type.LanguageTools.ProgramTypes.propagationPolicy ()
-    )
-  let knownType () = KTCustomType(typeName (), [])
-
-  let toDT (p : PT.PropagationPolicy) : Dval =
-    let caseName =
-      match p with
-      | PT.PropagationPolicy.Pin -> "Pin"
-      | PT.PropagationPolicy.Follow -> "Follow"
-      | PT.PropagationPolicy.Unset -> "Unset"
-    DEnum(typeName (), typeName (), [], caseName, [])
-
-  let fromDT (d : Dval) : PT.PropagationPolicy =
-    match d with
-    | DEnum(_, _, [], "Pin", []) -> PT.PropagationPolicy.Pin
-    | DEnum(_, _, [], "Follow", []) -> PT.PropagationPolicy.Follow
-    | DEnum(_, _, [], "Unset", []) -> PT.PropagationPolicy.Unset
-    | _ -> Exception.raiseInternal "Invalid PropagationPolicy" []
-
-
 module DecisionKind =
   let typeName () =
     FQTypeName.fqPackage (
@@ -2137,8 +2114,6 @@ module DecisionKind =
       match k with
       | PT.DecisionKind.Override target -> "Override", [ Reference.toDT target ]
       | PT.DecisionKind.Ack findingId -> "Ack", [ DString findingId ]
-      | PT.DecisionKind.Propagation policy ->
-        "Propagation", [ PropagationPolicy.toDT policy ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.DecisionKind =
@@ -2146,8 +2121,6 @@ module DecisionKind =
     | DEnum(_, _, [], "Override", [ target ]) ->
       PT.DecisionKind.Override(Reference.fromDT target)
     | DEnum(_, _, [], "Ack", [ DString findingId ]) -> PT.DecisionKind.Ack findingId
-    | DEnum(_, _, [], "Propagation", [ policy ]) ->
-      PT.DecisionKind.Propagation(PropagationPolicy.fromDT policy)
     | _ -> Exception.raiseInternal "Invalid DecisionKind" []
 
 

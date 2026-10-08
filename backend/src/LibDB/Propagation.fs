@@ -30,9 +30,8 @@ type PropagationResult = { repoints : List<PT.PropagateRepoint> }
 /// have no `locations` row, so without it a branch-authored dependent never repoints, and a name the branch
 /// rebound would resolve to main's version and walk the cascade off the branch.
 ///
-/// Stop at the owner boundary: external callers keep their exact references.
+/// Propagate the updated version to every caller on this branch, regardless of owner.
 let private discoverDependents
-  (owner : string)
   (branchBindings : Map<string, List<PT.ItemKind * PT.PackageLocation>>)
   (sourceLocations : List<PT.PackageLocation>)
   (sourceItemKind : PT.ItemKind)
@@ -122,8 +121,6 @@ let private discoverDependents
             batchDependents
             |> List.filter (fun d ->
               not (Set.contains (key (dependentTarget d)) newProcessed))
-            // Stop here rather than traversing external callers back into this owner.
-            |> List.filter (fun d -> d.itemLocation.owner = owner)
             // See `liveOnThisBranch`: never repoint a name away from what the branch put there.
             |> List.filter liveOnThisBranch
             |> List.distinctBy (fun d -> key (dependentTarget d))
@@ -417,7 +414,6 @@ let private buildSeedMapping
 /// SCC hashing is required for mutually-recursive package items; location
 /// data lets stale refs be matched without relying only on old hashes.
 let private createAllItems
-  (includeSourceCycles : bool)
   (branch : PT.BranchId)
   (fromSourceHashes : List<Hash>)
   (toSourceHash : Hash)
@@ -453,9 +449,8 @@ let private createAllItems
         // with an affected item at another FQN. Make forward dependency
         // lookup location-aware too, then compare by (location, kind).
         let sourceInCycle =
-          includeSourceCycles
-          && (sourceDeps
-              |> List.exists (fun dep -> Set.contains dep.itemHash dependentHashes))
+          sourceDeps
+          |> List.exists (fun dep -> Set.contains dep.itemHash dependentHashes)
 
         let! affectedAndSource =
           if sourceInCycle then
@@ -536,7 +531,6 @@ let propagate
 
     let! dependents =
       discoverDependents
-        sourceLocation.owner
         branchBindings
         sourceLocations
         sourceItemKind
@@ -547,7 +541,6 @@ let propagate
     | _ ->
       let! result =
         createAllItems
-          true
           branch
           fromSourceHashes
           toSourceHash
@@ -562,70 +555,4 @@ let propagate
         // No marker op: the Add + SetName ops ARE the propagation. Grouping comes from
         // the commit, and "this version lost" from a recorded conflict.
         return Ok(Some({ repoints = repoints }, ops))
-  }
-
-
-/// Upgrade a dependency of one selected caller, then its same-owner callers.
-/// Computes all ops before writing; unrelated consumers of the library stay unchanged.
-let upgrade
-  (branch : PT.BranchId)
-  (callerLocation : PT.PackageLocation)
-  (callerKind : PT.ItemKind)
-  (dependencyLocation : PT.PackageLocation)
-  (dependencyKind : PT.ItemKind)
-  (fromHash : Hash)
-  (toHash : Hash)
-  : Task<Result<Option<PropagationResult * List<PT.PackageOp>>, string>> =
-  task {
-    let! callerHash = resolveCurrentHash branch callerLocation callerKind (Hash "")
-    let! targetHash =
-      resolveCurrentHash branch dependencyLocation dependencyKind (Hash "")
-    if callerHash = Hash "" then
-      return Error "The selected caller is no longer bound on this branch"
-    elif targetHash <> toHash || targetHash = Hash "" then
-      return
-        Error "The dependency version changed; inspect it again before upgrading"
-    else
-      let! direct =
-        PMQueries.getDependentHashesByTargets
-          [ { itemKind = dependencyKind
-              location = dependencyLocation
-              hashes = [ fromHash ] } ]
-      if not (List.contains (let (Hash h) = callerHash in h) direct) then
-        return Error "The selected caller no longer uses that dependency version"
-      elif fromHash = toHash then
-        return Ok None
-      else
-        let! bindings =
-          if branch.IsMain then
-            Task.FromResult Map.empty
-          else
-            Branches.chainBindingsByHash branch
-        let! downstream =
-          discoverDependents
-            callerLocation.owner
-            bindings
-            [ callerLocation ]
-            callerKind
-            [ callerHash ]
-        let caller : PMQueries.LocationDependent =
-          { itemHash = callerHash
-            itemKind = callerKind
-            itemLocation = callerLocation }
-        let affected =
-          caller
-          :: (downstream |> List.filter (fun d -> d.itemLocation <> callerLocation))
-        let! result =
-          createAllItems
-            false
-            branch
-            [ fromHash ]
-            toHash
-            dependencyLocation
-            [ dependencyLocation ]
-            dependencyKind
-            affected
-        match result with
-        | Error e -> return Error e
-        | Ok(repoints, ops, _) -> return Ok(Some({ repoints = repoints }, ops))
   }

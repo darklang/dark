@@ -987,9 +987,8 @@ type PackageOp =
   /// `id` is what makes each decision a DISTINCT op, and idempotence is the CALLER's choice of what to
   /// put in it. Ops are content-addressed, so a decision that re-states an earlier one byte for byte IS
   /// that earlier op and folds nothing. A conflict override uses the conflict id, because resolving #7
-  /// the same way twice is one decision stated twice. A propagation policy stamps the id with a time,
-  /// because pin -> unset -> pin is three decisions and the third must not dedup into the first and so
-  /// lose to the second under LWW. The fold never LOOKS UP by `id`: it is provenance and uniqueness.
+  /// the same way twice is one decision stated twice. The fold never LOOKS UP by `id`: it is
+  /// provenance and uniqueness.
   ///
   /// `reason` is the author's words, carried and never interpreted.
   | Decision of
@@ -1125,15 +1124,6 @@ and DecisionKind =
   /// A standing finding has been seen and accepted. Closes it as `acked`. Binds nothing: an ack changes
   /// what you are asked about, never what a name resolves to.
   | Ack of findingId : string
-
-  /// Retired wire case. Decodes historical ops; the fold gives it no effect.
-  | Propagation of policy : PropagationPolicy
-
-/// Retired policy payload retained solely to preserve existing op bytes.
-and PropagationPolicy =
-  | Pin
-  | Follow
-  | Unset
 
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers (LSP, CLI, runtime) decide how loud to be.

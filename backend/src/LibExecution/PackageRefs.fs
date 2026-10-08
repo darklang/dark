@@ -528,7 +528,6 @@ module Type =
       let deprecationKind = p [] "DeprecationKind"
       let branchEventKind = p [] "BranchEventKind"
       let decisionKind = p [] "DecisionKind"
-      let propagationPolicy = p [] "PropagationPolicy"
       let propagateRepoint = p [] "PropagateRepoint"
       let db = p [] "DB"
 

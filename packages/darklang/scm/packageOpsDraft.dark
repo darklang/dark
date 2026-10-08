@@ -206,9 +206,7 @@ let decisionKey (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
 /// Last-writer-wins is working as designed here; what is missing is that the losing side goes silently.
 /// `SCM.Constraints` turns these into standing findings.
 ///
-/// Only an OVERRIDE counts. A propagation policy can only be displaced by another propagation decision,
-/// which is one deliberate act beating another and not a surprise; an override is the one an ordinary
-/// edit can undo without anyone deciding anything.
+/// Only an override counts: an ordinary edit can replace it without another explicit decision.
 ///
 /// Guarded on the `conflicts` projection first, which is small and usually empty of overrides, so the
 /// op-log decode below costs nothing on the common path.

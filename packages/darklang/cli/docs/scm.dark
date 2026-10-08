@@ -47,7 +47,6 @@ propagation, the next section -- and so does the commit review:
       ~ fn    Ux.Money.cents  updated          <- you did this
       > fn    Ux.Money.total  updated, followed <- propagation did this
 
-    STAYING BEHIND (1)   (external callers keep their selected versions)
       . Ux.Money.rate  still on the old Ux.Money.cents
 
 `discard` and `undo` are different tools. `discard` drops everything uncommitted;
@@ -60,18 +59,16 @@ not four. Intermediate versions you never showed anyone aren't history.
 
 ## Propagation: what follows what
 
-Edit `base`, and its same-owner callers update immediately in your draft.
-The cascade stops at another owner: external consumers keep their exact
-references and keep running the version they selected.
+Edit `base`, and every caller updates immediately in your draft, across owners
+and through the full dependency chain. There are no pin/follow modes or explicit
+upgrade commands.
 
-  deps <caller>                    inspect its exact dependency versions
-  deps upgrade <caller> <dependency>  use the current branch version
-  undo <name>                      restore the previous authored version
+  deps <caller>       inspect its dependencies and callers
+  undo <name>         restore the previous version
 
-An upgrade changes only the selected caller and its same-owner callers.
-Other consumers of that library stay unchanged. Undo restores a version;
-it does not set a policy about future edits. There is no pin/follow mode.
-Permission approval is separate: upgrading code never grants it authority.
+Undo also updates callers. Propagation stays on the branch you edited;
+main and sibling branches are unchanged. Permission approval remains separate
+from code updates.
 
 ## Branches
 
@@ -158,7 +155,7 @@ Three kinds today, and they want different things from you.
 STALE-USAGE -- a live item still using a version that isn't what the name means
 now. In a distributed store this is the NORMAL steady state, not a backlog:
 another machine's caller of your fn can't be propagated to, and must not
-silently repoint when you sync. Keep it, ack it, or explicitly upgrade it. It is
+silently repoint when you sync. Inspect it, ack it, or resolve it. It is
 the only kind `constraints resolve` can fix for you, as `--as repoint`.
 
   #a1b2c3d4  Ux.Money.total
@@ -229,7 +226,7 @@ Every command that answers a question speaks `--json`, and it's the same data
 the human view renders, never a subset:
 
   status --json        changed items, each flagged `followed` or not;
-                       `propagates`, `leftBehind`, conflicts, constraint count
+                       `propagates`, conflicts, constraint count
   commit --json        a dry review; add -y to commit and get the commit id back
   deps <name> --json   both directions, each edge flagged `behind`
   conflicts --json / constraints --json

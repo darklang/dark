@@ -21,8 +21,14 @@ gate_first_day() {
 
   ARTIFACT=${1:-}
   if [[ -z "$ARTIFACT" ]]; then
+    local runtime
+    case "$(uname -m)" in
+      aarch64|arm64) runtime=linux-arm64 ;;
+      armv7l) runtime=linux-arm ;;
+      *) runtime=linux-x64 ;;
+    esac
     # shellcheck disable=SC2012  # need mtime order; no filename here has a space
-    ARTIFACT=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1 || true)
+    ARTIFACT=$(ls -t clis/darklang-alpha-*-${runtime} 2>/dev/null | head -1 || true)
     AUTO_PICKED=1
   fi
   [[ -x "$ARTIFACT" ]] || { echo "first-day: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2; exit 2; }

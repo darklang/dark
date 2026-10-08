@@ -82,10 +82,6 @@ let private cleanupFor (owner : string) (m : string) : Task<unit> =
       execSqlP
         "DELETE FROM locations WHERE owner = @o AND modules = @m"
         [ "o", Sql.string owner; "m", Sql.string m ]
-    do!
-      execSqlP
-        "DELETE FROM propagation_policy WHERE owner = @o AND modules = @m"
-        [ "o", Sql.string owner; "m", Sql.string m ]
   }
 
 let private cleanup (m : string) : Task<unit> = cleanupFor "Darklang" m
@@ -252,49 +248,6 @@ let three (x: Int64) : Int64 = ({m}.shared x) + 30L"""
     do! cleanup m
   }
 
-let legacyPinsDoNotAffectPropagation =
-  testTask "obsolete policy rows do not change same-owner propagation" {
-    let m = "PropTestPin"
-    do! cleanup m
-
-    let! v1 =
-      authorIn
-        m
-        $"""let base' (x: Int64) : Int64 = x + 1L
-let held (x: Int64) : Int64 = ({m}.base' x) + 10L
-let free (x: Int64) : Int64 = ({m}.base' x) + 20L"""
-
-    let! heldBefore = liveBoundHash (loc m "held")
-    let baseV1 = hashBoundTo v1 "base'"
-
-    // A pin on main. This is what a propagation `Decision` op folds to, and it
-    // is the whole point of the policy table: the cascade is a rule the machine
-    // applies TO you until you can overrule it.
-    do!
-      execSqlP
-        // Main's id from the product's constant, never spelled by hand: the cascade looks the
-        // row up by that same id, so a hand-typed one would be a row nothing can find and a
-        // test that passes while asserting nothing.
-        "INSERT INTO propagation_policy (branch_id, owner, modules, name, policy, note, origin_ts)
-         VALUES (@branch, 'Darklang', @m, 'held', 'pin', 'test', '2026-01-02T00:00:00.000Z')"
-        [ "m", Sql.string m; "branch", Sql.string (string PT.BranchId.Main) ]
-
-    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 4000L"""
-
-    let! repointed = cascade (loc m "base'") baseV1 (hashBoundTo v2 "base'")
-
-    Expect.contains repointed "free" "the unpinned dependent follows"
-    Expect.contains
-      repointed
-      "held"
-      "legacy policy does not override owner propagation"
-
-    let! heldAfter = liveBoundHash (loc m "held")
-    Expect.notEqual heldAfter heldBefore "same-owner dependent updates"
-
-    do! cleanup m
-  }
-
 let crossesOwners =
   testTask "automatic propagation stops at the owner boundary" {
     let m = "PropTestOwner"
@@ -330,37 +283,12 @@ let theirs (x: Int64) : Int64 = (Darklang.{m}.base' x) + 20L"""
 
     Expect.contains repointed "mine" "same-owner dependents follow"
 
-    Expect.isFalse
-      (List.contains "theirs" repointed)
-      "external consumers retain their version"
-
-    let! held = liveBoundHash theirs
-    Expect.equal held externalBefore "external binding did not change"
+    Expect.contains repointed "theirs" "foreign callers follow automatically"
+    Expect.contains repointed "bridge" "cascade crosses owners transitively"
+    let! externalAfter = liveBoundHash theirs
+    Expect.notEqual externalAfter externalBefore "foreign binding changed"
     let! bridgeAfter = liveBoundHash (loc m "bridge")
-    Expect.equal
-      bridgeAfter
-      bridgeBefore
-      "cascade does not traverse an external caller back into the owner"
-    match!
-      Propagation.upgrade
-        PT.BranchId.Main
-        theirs
-        PT.ItemKind.Fn
-        (loc m "base'")
-        PT.ItemKind.Fn
-        baseV1
-        (hashBoundTo v2 "base'")
-    with
-    | Error e -> failtest $"upgrade failed: {e}"
-    | Ok None -> failtest "upgrade did not compute a change"
-    | Ok(Some((result : Propagation.PropagationResult), ops)) ->
-      Expect.equal
-        (result.repoints |> List.map (fun (r : PT.PropagateRepoint) -> r.location))
-        [ theirs ]
-        "only selected caller upgrades"
-      let! _ = Inserts.insertAndApplyPropagatedOps ops
-      let! after = liveBoundHash theirs
-      Expect.notEqual after held "explicit upgrade changes caller version"
+    Expect.notEqual bridgeAfter bridgeBefore "transitive caller changed"
 
     do! cleanupFor "Zz" m
     do! cleanup m
@@ -750,7 +678,6 @@ let tests =
       dictionaryKeyFollows
       transitive
       multipleDependents
-      legacyPinsDoNotAffectPropagation
       crossesOwners
       noChangeNoCascade
       mutualRecursion

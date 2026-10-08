@@ -41,9 +41,6 @@ let tables : List<string> =
     // replacement log as an older statement.
     "location_docs"
 
-    // Retired projection retained in the frozen schema; clear any historical rows.
-    "propagation_policy"
-
     // Re-derived by the fold, and only meaningful against the log that produced them.
     // A conflict naming two hashes the store no longer holds is unreviewable and
     // unresolvable, and `dark conflicts` presents it as neither.

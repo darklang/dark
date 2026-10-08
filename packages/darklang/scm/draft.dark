@@ -2,9 +2,9 @@ module Darklang.SCM.Draft
 
 // The DRAFT, read once, for everyone who describes it.
 //
-// `dark status`, `dark status --json`, `dark commit`'s review and the workbench all describe the same four
-// reads -- `draftBindings`, `propagatedNames`, `draftRepointsSplit`, `Conflicts.pending`.
-// This module owns that picture; callers add presentation on top but never read the four again.
+// `dark status`, `dark status --json`, `dark commit`'s review and the workbench all describe the same picture
+// reads: `draftBindings`, `propagatedNames`, `draftRepoints`, `Conflicts.pending`.
+// This module owns that picture; callers add presentation on top but never repeat those reads.
 //
 // Deliberately NOT branch-parameterised. Every read resolves the branch through
 // `SCM.PackageOps.currentBranch ()`, the process overlay -- a `branchId` parameter would invite callers to
@@ -21,8 +21,6 @@ type Picture =
     removed: List<String>
     /// What would repoint if you committed right now.
     repoints: List<SCM.PackageOps.Repoint>
-    /// External callers retaining an older version. An outcome, not a warning.
-    leftBehind: List<SCM.PackageOps.Repoint>
     conflicts: List<SCM.Conflicts.Conflict>
     /// A COUNT, never a list. Constraints are a standing property of the STORE rather than of this draft,
     /// so a list here is something you learn to scroll past while a count points at a command.
@@ -32,14 +30,12 @@ type Picture =
 /// Read the whole picture. One call, five reads, and the only place they happen.
 let read (unit: Unit) : Picture =
   let bindings = SCM.PackageOps.draftBindings ()
-  let (repoints, leftBehind) = SCM.PackageOps.draftRepointsSplit bindings
 
   Picture
     { bindings = bindings
       removed = SCM.PackageOps.draftRemovals ()
       propagated = SCM.PackageOps.propagatedNames ()
-      repoints = repoints
-      leftBehind = leftBehind
+      repoints = SCM.PackageOps.draftRepoints bindings
       conflicts = SCM.Conflicts.pending ()
       constraints = Stdlib.List.length (SCM.Constraints.pending ()).findings
       ops = SCM.PackageOps.draftOpCount () }
@@ -47,7 +43,7 @@ let read (unit: Unit) : Picture =
 /// Just the counts, for the hot path.
 ///
 /// `dark status` runs on every invocation, so it deliberately does NOT build a `Picture`: it asks for a
-/// count where a count will do, and skips `leftBehind` entirely.
+/// count where a count will do, and skips dependency details.
 type Counts =
   { changed: Int
     followed: Int
@@ -101,9 +97,6 @@ let followedCount (p: Picture) : Int =
 /// How many you actually authored.
 let authoredCount (p: Picture) : Int =
   (Stdlib.List.length p.bindings) - (followedCount p)
-
-/// How many references a pin is holding on an older version.
-let behindCount (p: Picture) : Int = Stdlib.List.length p.leftBehind
 
 /// Everything waiting on a person right now: divergences the fold settled and standing findings. One
 /// number, because they're one question ("is anything waiting on me?").

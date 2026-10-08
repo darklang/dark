@@ -161,11 +161,6 @@ let executeList (state: AppState) (args: List<String>) : AppState =
       (Stdlib.Cli.UI.Colors.hint
         "  dark constraints resolve <id>... [--as <how>]   fix it now, naming the fix")
 
-    // A pin says a REFERENCE is deliberate, which is what every finding here describes, so it belongs
-    // beside the other two verbs whenever there is anything on screen for it to answer.
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.hint
-        "  dark deps upgrade <caller> <dependency>  upgrade the selected reference")
 
     state
 
@@ -394,8 +389,8 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
       |> Stdlib.List.map (fun f ->
         match f.detail with
         | Versions(using, current) ->
-          match SCM.Propagation.upgradeDependency state.currentBranchId f.usage
-                  f.usageKind f.dependency f.dependencyKind using current with
+          match SCM.Propagation.repointDependents state.currentBranchId
+                  f.dependency f.dependencyKind [using] current with
           | Error e ->
             Cli.printErr $"#{f.id}: {e}"
             false
@@ -442,7 +437,7 @@ let help (_state: AppState) : String =
     "  finding. Resolve is not -- it means something different per kind,"
     "  so it asks you to name one with --as when there is a choice."
     ""
-    "  `dark deps upgrade <caller> <dependency>` updates one dependency." ]
+    "  Dependency edits automatically update all callers." ]
   |> Stdlib.String.join "\n"
 
 /// `dark ack` -- the bulk verb at the root, because acking is the boring high-volume case and burying it

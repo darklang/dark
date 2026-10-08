@@ -127,13 +127,12 @@ let statusKeepsItsShapeWhenNothingChanged =
             "conflicts"
             "constraints"
             "draftOps"
-            "leftBehind"
             "propagates"
             "removed" ]
 
       let! root = parsed state [ "status"; "--json" ]
 
-      for name in [ "changed"; "conflicts"; "leftBehind"; "propagates"; "removed" ] do
+      for name in [ "changed"; "conflicts"; "propagates"; "removed" ] do
         Expect.equal
           (root.GetProperty(name).ValueKind)
           System.Text.Json.JsonValueKind.Array
@@ -265,7 +264,6 @@ let commitDryRunAnswersInJson =
               "committed"
               "conflicts"
               "dependentsRepointed"
-              "leftBehind"
               "message"
               "opsCommitted"
               "propagates"

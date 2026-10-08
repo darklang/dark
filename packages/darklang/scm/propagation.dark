@@ -1,6 +1,6 @@
 module Darklang.SCM.Propagation
 
-// Same-owner edits propagate; external dependencies change only when explicitly upgraded.
+// Every edit propagates to all callers on its branch.
 
 
 /// Resolve a binding on an explicit branch, including all five item kinds.
@@ -56,21 +56,6 @@ let repointDependents
   let _ = (ensureBindings branchId moved)?
   Stdlib.Result.Result.Ok moved
 
-/// Upgrade one caller's dependency, then its same-owner callers on this branch.
-let upgradeDependency
-  (branchId: Uuid)
-  (caller: LanguageTools.ProgramTypes.PackageLocation)
-  (callerKind: LanguageTools.ProgramTypes.ItemKind)
-  (dependency: LanguageTools.ProgramTypes.PackageLocation)
-  (dependencyKind: LanguageTools.ProgramTypes.ItemKind)
-  (using: LanguageTools.ProgramTypes.Hash)
-  (current: LanguageTools.ProgramTypes.Hash)
-  : Stdlib.Result.Result<List<LanguageTools.ProgramTypes.PropagateRepoint>, String> =
-  let moved = (Builtin.pmUpgradeDependency branchId caller callerKind dependency dependencyKind using current)?
-  let _ = (ensureBindings branchId moved)?
-  Stdlib.Result.Result.Ok moved
-
-
 let modulesOf (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
   Stdlib.String.join loc.modules "."
 
@@ -114,11 +99,11 @@ let forkBaseOf
     |> Stdlib.Option.map (fun b -> b.baseHash)
 
 
-/// The versions created for this name, oldest first, including dependency upgrades.
+/// The versions created for this name, oldest first, including propagated versions.
 ///
 /// `locations` accumulates a row per binding; rebinds (undo or a conflict override) are
 /// marked `source = 'resolution'`. Authored and propagated versions both belong in
-/// the sequence, so an explicit dependency upgrade can be undone too.
+/// the sequence, so propagated changes can be undone too.
 ///
 /// Undo needs "where am I in the sequence", not "what was most recently unlisted", which after an undo is
 /// the version just stepped off.

@@ -79,20 +79,6 @@ module BranchEventKind =
 
 // -- DecisionKind --
 
-module PropagationPolicy =
-  let write (w : BinaryWriter) (p : PropagationPolicy) : unit =
-    match p with
-    | Pin -> w.Write(0uy)
-    | Follow -> w.Write(1uy)
-    | Unset -> w.Write(2uy)
-
-  let read (r : BinaryReader) : PropagationPolicy =
-    match r.ReadByte() with
-    | 0uy -> Pin
-    | 1uy -> Follow
-    | 2uy -> Unset
-    | b -> raiseFormatError $"Invalid PropagationPolicy tag: {b}"
-
 module DecisionKind =
   let write (w : BinaryWriter) (k : DecisionKind) : unit =
     match k with
@@ -102,15 +88,11 @@ module DecisionKind =
     | Ack findingId ->
       w.Write(1uy)
       String.write w findingId
-    | Propagation policy ->
-      w.Write(2uy)
-      PropagationPolicy.write w policy
 
   let read (r : BinaryReader) : DecisionKind =
     match r.ReadByte() with
     | 0uy -> Override(Reference.read r)
     | 1uy -> Ack(String.read r)
-    | 2uy -> Propagation(PropagationPolicy.read r)
     | b -> raiseFormatError $"Invalid DecisionKind tag: {b}"
 
 

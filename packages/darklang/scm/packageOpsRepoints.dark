@@ -1,8 +1,8 @@
 module Darklang.SCM.PackageOps
 
-// Which dependents an edit should repoint, and which it left behind.
+// Every dependent an edit should repoint.
 //
-// Propagation's read half. Same-owner callers move; external callers retain their versions.
+// Propagation's read half: all callers follow.
 
 /// Every name bound to <param hash>, as <param branchId> sees it: main's, plus the branch's own frontier.
 ///
@@ -93,16 +93,6 @@ let mainNamesForHashes (hashes: List<String>) : List<(String * String)> =
     |> Stdlib.List.flatten
 
 
-/// The location a fully-qualified name refers to, as `Conflicts.fqn` writes them: the first segment is the
-/// owner, the last is the name, everything between is the module path. None when there aren't enough
-/// segments to be an item.
-let locationOfFqn
-  (fqn: String)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-  (Branches.parseFqn fqn)
-  |> Stdlib.Option.map (fun (o, m, n) -> Deps.locationOf o m n)
-
-
 /// One knock-on repoint: <param name> moves because <param uses> did. Carrying the CAUSE is what lets the
 /// commit view read as an outcome ("Home.render -> uses User.format") instead of a bare list of names.
 type Repoint =
@@ -110,9 +100,9 @@ type Repoint =
     uses: String }
 
 
-/// Every name the draft would touch as a knock-on, before the owner boundary is applied: it references an old
+/// Every name the draft would touch as a knock-on, because it references an old
 /// version of something the draft changed. Never a name the draft itself changed, which is listed as a
-/// change rather than an effect. Split by `draftRepoints` (will follow) and `draftLeftBehind` (external callers).
+/// change rather than an effect.
 ///
 /// The recursion is the cascade: if X repoints it gets a new hash, so anything referencing X repoints
 /// too. A stale hash is named through the branch overlay first, then main; a branch's items have no
@@ -120,7 +110,7 @@ type Repoint =
 ///
 /// Three reads for the whole draft: the cascade, tagged with the binding it started from, the chain,
 /// and main's names. Asked per binding, a branch decoded its whole chain once per changed name.
-let draftRepointCandidates
+let draftRepoints
   (changed: List<Conflicts.Binding>)
   : List<Repoint> =
   let changedNames =
@@ -206,17 +196,3 @@ let draftRepointCandidates
     Stdlib.Bool.not (Stdlib.List.``member`` changedNames r.name))
   |> Stdlib.List.uniqueBy (fun r -> r.name)
   |> Stdlib.List.sortBy (fun r -> r.name)
-
-
-/// Owner is the current editing boundary; external callers retain their versions.
-let sameOwner (r: Repoint) : Bool =
-  match (locationOfFqn r.name, locationOfFqn r.uses) with
-  | (Some caller, Some dependency) -> caller.owner == dependency.owner
-  | _ -> false
-
-let draftRepoints (changed: List<Conflicts.Binding>) : List<Repoint> =
-  draftRepointCandidates changed |> Stdlib.List.filter sameOwner
-
-let draftLeftBehind (changed: List<Conflicts.Binding>) : List<Repoint> =
-  draftRepointCandidates changed
-  |> Stdlib.List.filter (fun r -> Stdlib.Bool.not (sameOwner r))

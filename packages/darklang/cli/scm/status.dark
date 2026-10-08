@@ -24,7 +24,6 @@ let statusJson (state: AppState) : ScmJson.StatusJson =
       changed = items
       removed = p.removed
       propagates = p.repoints
-      leftBehind = p.leftBehind
       conflicts = p.conflicts
       // A COUNT, never a list; see `Summary.constraints`.
       constraints = p.constraints }

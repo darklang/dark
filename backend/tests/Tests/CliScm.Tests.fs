@@ -1133,9 +1133,6 @@ let private resetWorkedExample () : Task<unit> =
 
     do! execSql "DELETE FROM locations WHERE owner = 'Ux' AND modules = 'Money'"
 
-    do!
-      execSql
-        "DELETE FROM propagation_policy WHERE owner = 'Ux' AND modules = 'Money'"
   }
 
 let private theWorkedExampleWorks =
@@ -1426,146 +1423,56 @@ let private otherBranchAnswersStayCurrent =
         do! archiveBranches state [ "cachebr" ]
       })
 
-/// Upgrading a dependency must not destroy a name that happens to share a hash.
-///
-/// `SCM.Propagation.rebind` catches a followed name up by emitting a bare `SetName`. The fold read a
-/// standalone SetName as a RENAME and deprecated every other location on that hash, so catching `x` up
-/// silently unlisted `y` when the two had identical bodies -- one command, no sync, and `status` reported
-/// "1 followed" without mentioning that a name was gone.
-///
-/// Identical bodies being one item is routine here, which is what made this reachable rather than exotic.
-let private upgradingOneConsumerLeavesSharedContentAlone =
-  cliTest
-    "upgrading one consumer leaves another with the same hash unchanged"
-    (fun state ->
-      task {
-        do! fn state "Vendor.Upgrade.dep" "() : Int64 = 1L"
-        let body = "() : Int64 = Vendor.Upgrade.dep () + 100L"
-        do! fn state "Tests.Upgrade.x" body
-        do! fn state "Tests.Upgrade.y" body
-        do! fn state "Tests.Upgrade.top" "() : Int64 = Tests.Upgrade.x () + 1000L"
-        do! fn state "Vendor.Upgrade.dep" "() : Int64 = 2L"
-        do!
-          evals
-            state
-            "Tests.Upgrade.x ()"
-            "101"
-            "external update retains old dependency"
-        let! output =
-          runCli
-            state
-            [ "deps"; "upgrade"; "Tests.Upgrade.x"; "Vendor.Upgrade.dep" ]
-        Expect.stringContains output "Upgraded" "explicit upgrade succeeds"
-        do!
-          evals
-            state
-            "Tests.Upgrade.x ()"
-            "102"
-            "selected caller uses current version"
-        do!
-          evals
-            state
-            "Tests.Upgrade.y ()"
-            "101"
-            "other consumer and alias remain unchanged"
-        do!
-          evals
-            state
-            "Tests.Upgrade.top ()"
-            "1102"
-            "same-owner callers follow upgrade"
-        do!
-          shows
-            state
-            [ "undo"; "Tests.Upgrade.x" ]
-            "back on the version"
-            "an upgrade can be undone"
-        do!
-          evals
-            state
-            "Tests.Upgrade.x ()"
-            "101"
-            "restore returns the previous dependency reference"
-        do!
-          evals
-            state
-            "Tests.Upgrade.top ()"
-            "1101"
-            "same-owner caller follows restore"
-        do!
-          shows
-            state
-            [ "deps"; "upgrade"; "Tests.Upgrade.x"; "Vendor.Upgrade.dep" ]
-            "Upgraded"
-            "a repeated upgrade reasserts existing content-addressed bindings"
-        do! evals state "Tests.Upgrade.x ()" "102" "repeated upgrade takes effect"
-        do!
-          evals state "Tests.Upgrade.top ()" "1102" "repeated cascade takes effect"
-        do!
-          evals state "Tests.Upgrade.y ()" "101" "other consumer is still unchanged"
-      })
-
-let private upgradingOnABranchIsIsolated =
-  cliTestOnMain "explicit dependency upgrades stay on their branch" (fun state ->
+/// Shared content must remain bound at every alias when propagation crosses owners.
+let private allConsumersFollowAcrossOwners =
+  cliTest "all consumers follow dependency edits across owners" (fun state ->
     task {
-      do! start state
-      do! fn state "Vendor.BranchUpgrade.dep" "() : Int64 = 41L"
-      do!
-        fn
-          state
-          "Tests.BranchUpgrade.caller"
-          "() : Int64 = Vendor.BranchUpgrade.dep () + 1L"
-      do! commit state "upgrade fixture"
-      do! switch state "explicit-upgrade"
-      do! fn state "Vendor.BranchUpgrade.dep" "() : Int64 = 51L"
-      do!
-        evals
-          state
-          "Tests.BranchUpgrade.caller ()"
-          "42"
-          "external save does not upgrade consumer"
+      do! fn state "Vendor.Auto.dep" "() : Int64 = 1L"
+      let body = "() : Int64 = Vendor.Auto.dep () + 100L"
+      do! fn state "Tests.Auto.x" body
+      do! fn state "Tests.Auto.y" body
+      do! fn state "Other.Auto.top" "() : Int64 = Tests.Auto.x () + 1000L"
+      do! fn state "Vendor.Auto.dep" "() : Int64 = 2L"
+      do! evals state "Tests.Auto.x ()" "102" "first caller updates"
+      do! evals state "Tests.Auto.y ()" "102" "shared alias also updates"
+      do! evals state "Other.Auto.top ()" "1102" "transitive foreign caller updates"
       do!
         shows
           state
-          [ "deps"
-            "upgrade"
-            "Tests.BranchUpgrade.caller"
-            "Vendor.BranchUpgrade.dep" ]
-          "Upgraded"
-          "upgrade succeeds on the branch"
+          [ "undo"; "Vendor.Auto.dep" ]
+          "back on the version"
+          "source can be restored"
+      do! evals state "Tests.Auto.x ()" "101" "caller follows restore"
+      do! evals state "Tests.Auto.y ()" "101" "alias follows restore"
+      do! evals state "Other.Auto.top ()" "1101" "transitive caller follows restore"
+      do! fn state "Vendor.Auto.dep" "() : Int64 = 2L"
+      do! evals state "Tests.Auto.x ()" "102" "replayed content propagates again"
+      do! evals state "Other.Auto.top ()" "1102" "replayed cascade takes effect"
+    })
+
+let private crossOwnerPropagationIsBranchLocal =
+  cliTestOnMain "cross-owner propagation stays on its branch" (fun state ->
+    task {
+      do! start state
+      do! fn state "Vendor.BranchAuto.dep" "() : Int64 = 41L"
+      do!
+        fn
+          state
+          "Tests.BranchAuto.caller"
+          "() : Int64 = Vendor.BranchAuto.dep () + 1L"
+      do! commit state "automatic propagation fixture"
+      do! switch state "auto-propagation"
+      do! fn state "Vendor.BranchAuto.dep" "() : Int64 = 51L"
       do!
         evals
           state
-          "Tests.BranchUpgrade.caller ()"
+          "Tests.BranchAuto.caller ()"
           "52"
-          "branch runs upgraded reference"
-      do!
-        refuses
-          state
-          [ "deps"; "upgrade"; "Tests.BranchUpgrade.caller"; "Stdlib.List.map" ]
-          "does not use"
-          "Upgraded"
-          "an unrelated dependency is refused"
-      do!
-        evals
-          state
-          "Tests.BranchUpgrade.caller ()"
-          "52"
-          "refused upgrade leaves caller unchanged"
+          "branch caller updates automatically"
       do! onMain state
-      do!
-        evals
-          state
-          "Tests.BranchUpgrade.caller ()"
-          "42"
-          "main consumer was not changed"
-      do!
-        evals
-          state
-          "Vendor.BranchUpgrade.dep ()"
-          "41"
-          "main dependency was not changed"
-      do! archiveBranches state [ "explicit-upgrade" ]
+      do! evals state "Tests.BranchAuto.caller ()" "42" "main caller is unchanged"
+      do! evals state "Vendor.BranchAuto.dep ()" "41" "main dependency is unchanged"
+      do! archiveBranches state [ "auto-propagation" ]
     })
 
 /// Every `--json` surface emits parseable JSON.
@@ -2820,8 +2727,8 @@ let tests : List<Test> =
     aNameHoldsOneItemWhateverItsKind
     editChangesAnItemWithoutRetypingIt
     everyJsonSurfaceParses
-    upgradingOneConsumerLeavesSharedContentAlone
-    upgradingOnABranchIsIsolated
+    allConsumersFollowAcrossOwners
+    crossOwnerPropagationIsBranchLocal
     aBranchNeverSeesMainsDraft
     discardSparesInertOps
     mergeCommitsWhatASiblingStillTags

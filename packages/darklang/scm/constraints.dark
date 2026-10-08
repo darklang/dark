@@ -3,10 +3,10 @@ module Darklang.SCM.Constraints
 // Standing findings about the store: which live items still call a version that is no longer the name's
 // current one.
 //
-// Un-propagated usages are the NORMAL STEADY STATE, not a failure. A caller written on another machine
-// cannot be known about when the callee is upgraded here, and must not silently repoint when the two sync;
-// external consumers also retain their selected versions. So this is a check you RUN, not a
-// warning at commit, which for a permanent condition just teaches you to stop reading it.
+// Imported usages can lag behind local edits. A caller written on another machine
+// may arrive after a callee edit. Local edits propagate automatically, but imported
+// references can still be outdated. So this is a check you RUN, not a
+// warning at every commit.
 //
 // Detection needs no storage, being derivable from the projections at any moment. Only a human's ANSWER is
 // durable, for the same reason `Resolve` is an op: an ack that lives only locally re-reports forever, and

@@ -291,15 +291,6 @@ let aBatchCatchesAnInstanceUp =
     })
 
 
-/// DECISIONS travel, not just code.
-///
-/// This is the claim that separates this sync from one that ships source. A pin is a `Decision` op, so it
-/// crosses the wire like any other op and lands in the receiving store's `propagation_policy` projection
-/// with the author's reason intact. If it did not, the same edit would cascade differently on each machine
-/// and the two would drift apart while both looked healthy.
-///
-/// The reason is asserted, not just the policy. A pin whose "why" is dropped in transit is a pin nobody on
-/// the far machine can evaluate, and it ages into an unexplained rule.
 /// A peer whose clock is ahead must not win your name forever.
 ///
 /// The stamp is a LOGICAL clock, not a wall clock: it advances past anything it observes. Without that

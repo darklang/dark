@@ -573,7 +573,7 @@ let refreshBadges (previous: State) (next: State) : State =
 /// Re-read the SCM picture when anything that could have moved it did.
 ///
 /// A WIDER rule than `refreshBadges` uses, and deliberately so. The badges depend on where you are; the SCM
-/// status depends on what you've DONE. Committing, discarding, pinning and settling a conflict all change it
+/// status depends on what you've DONE. Editing, committing, discarding and settling a conflict all change it
 /// without moving the branch, the location or the item list, so the badges' comparison would carry a stale
 /// answer forward. The extra input is the draft's op count, which is one indexed count and is the cheapest
 /// question the op log can answer.
