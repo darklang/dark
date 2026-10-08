@@ -1086,6 +1086,64 @@ let private secretsAreNotInTheLog =
       })
 
 
+/// Replay used to miss the CLI login and check approvals as an anonymous user.
+/// Check that it uses the logged-in account, even after switching accounts.
+let private replayUsesTheSelectedAccount =
+  instanceTest
+    "trace views use the logged-in account without sharing its approvals"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "traces"; "record"; "on" ]
+        do! run state [ "permissions"; "allow"; "concurrency" ]
+        do! run state [ "login"; "Stachu" ]
+        do!
+          fn
+            state
+            "Tests.AccountReplay.uuid"
+            ("() : String =\n"
+             + "  let h = Stdlib.Exec.spawn (fun () -> Stdlib.toString (Stdlib.Uuid.generate ()))\n"
+             + "  Stdlib.Exec.await h")
+        do! commit state "account replay"
+        let! approved, approvalStatus =
+          runCliWithStatus
+            state
+            [ "permissions"; "approve"; "Tests.AccountReplay.uuid"; "--yes" ]
+        Expect.equal approvalStatus 0 approved
+        let! ran, runStatus =
+          runCliWithStatus state [ "eval"; "Tests.AccountReplay.uuid ()" ]
+        Expect.equal runStatus 0 ran
+        let uuid =
+          plain ran
+          |> fun output -> output.Split('\n')
+          |> Array.map (fun line -> line.Trim().Trim('"'))
+          |> Array.find (fun line -> System.Guid.TryParse(line) |> fst)
+        for extra in [ []; [ "--json" ] ] do
+          let! viewed, status =
+            runCliWithStatus
+              state
+              ([ "traces"; "show"; "Tests.AccountReplay.uuid" ] @ extra)
+          Expect.equal status 0 viewed
+          Expect.stringContains
+            viewed
+            uuid
+            "the selected account can replay its approved run"
+        do! run state [ "login"; "Paul" ]
+        let! denied = runCli state [ "traces"; "show"; "Tests.AccountReplay.uuid" ]
+        Expect.stringContains
+          denied
+          "permission denied"
+          "another account has no approval"
+        do! run state [ "login"; "Stachu" ]
+        let! restored =
+          runCli state [ "traces"; "show"; "Tests.AccountReplay.uuid" ]
+        Expect.stringContains
+          restored
+          uuid
+          "switching back restores access to the approval"
+      })
+
+
 let private psListsTheTree =
   cliTestWithFreshTraces
     "ps prints this dark's table and refuses an unknown id by name"
@@ -1145,4 +1203,5 @@ let tests =
     secretsAreNotInTheLog
     spawnedChildReplays
     secretHeadersAreRedacted
+    replayUsesTheSelectedAccount
     psListsTheTree ]
