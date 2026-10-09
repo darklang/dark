@@ -38,7 +38,8 @@ let referenceAt
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.Reference> =
-  let results = Packages.Query.searchExactMatch branchId location.modules location.name
+  let modulePath = Stdlib.List.append [ location.owner ] location.modules
+  let results = Packages.Query.searchExactMatch branchId modulePath location.name
 
   match results.fns with
   | i :: _ ->

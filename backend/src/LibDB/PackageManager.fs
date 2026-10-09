@@ -535,7 +535,12 @@ let createInMemoryOver
           if text = "" then
             true
           elif query.exactMatch then
-            loc.name = text
+            // As main's SQL: a qualified query is the whole path, or a whole-segment suffix of it.
+            if text.Contains "." then
+              let q = qualified loc
+              q = text || q.EndsWith("." + text)
+            else
+              loc.name = text
           else
             let t = text.ToLowerInvariant()
             loc.name.ToLowerInvariant().Contains t
