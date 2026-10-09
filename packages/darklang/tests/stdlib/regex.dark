@@ -1,0 +1,144 @@
+/// Cases ported from `backend/testfiles/execution/stdlib/regex.dark`.
+module Darklang.Stdlib.Regex.Tests
+
+test isMatch =
+  Stdlib.Test.all
+    [ // Basic matching
+      Stdlib.Regex.isMatch "hello world" "hello" |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "hello world" "world" |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "hello world" "goodbye" |> Stdlib.Test.equal false
+      Stdlib.Regex.isMatch "" "" |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "test" "" |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "" "test" |> Stdlib.Test.equal false
+      // Pattern matching
+      Stdlib.Regex.isMatch "test123" "\\d+" |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "test" "\\d+" |> Stdlib.Test.equal false
+      Stdlib.Regex.isMatch "hello@example.com" "\\w+@\\w+\\.\\w+"
+      |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "hello.example.com" "\\w+@\\w+\\.\\w+"
+      |> Stdlib.Test.equal false
+      // Case sensitivity (default is case-sensitive)
+      Stdlib.Regex.isMatch "Hello" "hello" |> Stdlib.Test.equal false
+      Stdlib.Regex.isMatch "Hello" "Hello" |> Stdlib.Test.equal true
+      // Special characters
+      Stdlib.Regex.isMatch "test.txt" ".*\\.txt" |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "test-file" "test-file" |> Stdlib.Test.equal true ]
+
+test find =
+  Stdlib.Test.all
+    [ // Basic find
+      Stdlib.Regex.find "hello world" "world" |> Stdlib.Test.equal (Some "world")
+      Stdlib.Regex.find "hello world" "goodbye" |> Stdlib.Test.equal None
+      Stdlib.Regex.find "" "test" |> Stdlib.Test.equal None
+      Stdlib.Regex.find "test" "" |> Stdlib.Test.equal (Some "")
+      // Pattern matching - finds first match
+      Stdlib.Regex.find "test123abc456" "\\d+" |> Stdlib.Test.equal (Some "123")
+      Stdlib.Regex.find "hello world" "\\w+" |> Stdlib.Test.equal (Some "hello")
+      Stdlib.Regex.find "contact: email@example.com" "\\w+@\\w+\\.\\w+"
+      |> Stdlib.Test.equal (Some "email@example.com")
+      // No match returns None
+      Stdlib.Regex.find "hello" "\\d+" |> Stdlib.Test.equal None ]
+
+test findAll =
+  Stdlib.Test.all
+    [ // Basic findAll
+      Stdlib.Regex.findAll "hello world" "o" |> Stdlib.Test.equal [ "o", "o" ]
+      Stdlib.Regex.findAll "hello world" "x" |> Stdlib.Test.equal []
+      Stdlib.Regex.findAll "" "test" |> Stdlib.Test.equal []
+      Stdlib.Regex.findAll "test" "" |> Stdlib.Test.equal [ "", "", "", "", "" ]
+      // Pattern matching - finds all matches
+      Stdlib.Regex.findAll "test123abc456def789" "\\d+"
+      |> Stdlib.Test.equal [ "123", "456", "789" ]
+      Stdlib.Regex.findAll "hello world foo bar" "\\w+"
+      |> Stdlib.Test.equal [ "hello", "world", "foo", "bar" ]
+      Stdlib.Regex.findAll "one two three" "[a-z]+"
+      |> Stdlib.Test.equal [ "one", "two", "three" ]
+      // No matches returns empty list
+      Stdlib.Regex.findAll "hello" "\\d+" |> Stdlib.Test.equal [] ]
+
+test replace =
+  Stdlib.Test.all
+    [ // Basic replace - only first match
+      Stdlib.Regex.replace "hello world" "world" "universe"
+      |> Stdlib.Test.equal "hello universe"
+      Stdlib.Regex.replace "hello world" "goodbye" "universe"
+      |> Stdlib.Test.equal "hello world"
+      Stdlib.Regex.replace "test test test" "test" "result"
+      |> Stdlib.Test.equal "result test test"
+      // Empty string cases
+      Stdlib.Regex.replace "" "test" "result" |> Stdlib.Test.equal ""
+      Stdlib.Regex.replace "test" "test" "" |> Stdlib.Test.equal ""
+      // Pattern replacement
+      Stdlib.Regex.replace "test123abc" "\\d+" "NUM"
+      |> Stdlib.Test.equal "testNUMabc"
+      Stdlib.Regex.replace "hello123world456" "\\d+" "X"
+      |> Stdlib.Test.equal "helloXworld456" ]
+
+test replaceAll =
+  Stdlib.Test.all
+    [ // Basic replaceAll
+      Stdlib.Regex.replaceAll "hello world" "o" "0"
+      |> Stdlib.Test.equal "hell0 w0rld"
+      Stdlib.Regex.replaceAll "test test test" "test" "result"
+      |> Stdlib.Test.equal "result result result"
+      Stdlib.Regex.replaceAll "hello world" "x" "y"
+      |> Stdlib.Test.equal "hello world"
+      // Empty string cases
+      Stdlib.Regex.replaceAll "" "test" "result" |> Stdlib.Test.equal ""
+      Stdlib.Regex.replaceAll "test" "test" "" |> Stdlib.Test.equal ""
+      // Pattern replacement
+      Stdlib.Regex.replaceAll "test123abc456def789" "\\d+" "NUM"
+      |> Stdlib.Test.equal "testNUMabcNUMdefNUM"
+      Stdlib.Regex.replaceAll "hello world foo bar" "\\w+" "X"
+      |> Stdlib.Test.equal "X X X X"
+      // Remove all digits
+      Stdlib.Regex.replaceAll "abc123def456" "\\d" "" |> Stdlib.Test.equal "abcdef" ]
+
+test split =
+  Stdlib.Test.all
+    [ // Basic split
+      Stdlib.Regex.split "hello world foo bar" " "
+      |> Stdlib.Test.equal [ "hello", "world", "foo", "bar" ]
+      Stdlib.Regex.split "a,b,c,d" "," |> Stdlib.Test.equal [ "a", "b", "c", "d" ]
+      Stdlib.Regex.split "test" "x" |> Stdlib.Test.equal [ "test" ]
+      Stdlib.Regex.split "" "," |> Stdlib.Test.equal [ "" ]
+      // Pattern split
+      Stdlib.Regex.split "test123abc456def789" "\\d+"
+      |> Stdlib.Test.equal [ "test", "abc", "def", "" ]
+      Stdlib.Regex.split "one1two22three333four" "\\d+"
+      |> Stdlib.Test.equal [ "one", "two", "three", "four" ]
+      // Split by whitespace
+      Stdlib.Regex.split "hello  world\tfoo\nbar" "\\s+"
+      |> Stdlib.Test.equal [ "hello", "world", "foo", "bar" ] ]
+
+test realWorld =
+  Stdlib.Test.all
+    [ // Email validation
+      Stdlib.Regex.isMatch
+        "user@example.com"
+        "^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$"
+      |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "invalid.email" "^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$"
+      |> Stdlib.Test.equal false
+      // Extract domain from email
+      Stdlib.Regex.find "contact@example.com" "@([\\w\\.-]+)"
+      |> Stdlib.Test.equal (Some "@example.com")
+      // Phone number patterns
+      Stdlib.Regex.isMatch "123-456-7890" "\\d{3}-\\d{3}-\\d{4}"
+      |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "1234567890" "\\d{3}-\\d{3}-\\d{4}"
+      |> Stdlib.Test.equal false
+      // URL matching
+      Stdlib.Regex.isMatch "https://example.com" "https?://[\\w\\.-]+"
+      |> Stdlib.Test.equal true
+      Stdlib.Regex.isMatch "http://test.org" "https?://[\\w\\.-]+"
+      |> Stdlib.Test.equal true
+      // Extract all numbers from text
+      Stdlib.Regex.findAll "The price is 99.99 and quantity is 5" "\\d+\\.?\\d*"
+      |> Stdlib.Test.equal [ "99.99", "5" ]
+      // Clean up whitespace
+      Stdlib.Regex.replaceAll "hello    world   foo" "\\s+" " "
+      |> Stdlib.Test.equal "hello world foo"
+      // Remove HTML tags (simplified)
+      Stdlib.Regex.replaceAll "<div>Hello <b>world</b></div>" "<[^>]+>" ""
+      |> Stdlib.Test.equal "Hello world" ]

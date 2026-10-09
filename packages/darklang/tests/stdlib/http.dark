@@ -1,0 +1,247 @@
+/// Cases ported from `backend/testfiles/execution/stdlib/http.dark`.
+module Darklang.Stdlib.Http.Tests
+
+// TYPESCLEANUP - re-add all this with proper types
+// Stdlib.Http.setCookie "myCookie" "myVal" {}
+// |> Stdlib.Test.equal { ``Set-Cookie`` = "myCookie=myVal" }
+// Stdlib.Http.setCookie "myCookie" "myVal"
+//   { Expires = (Stdlib.DateTime.parse "2000-07-28T22:42:00Z") |> Builtin.unwrap
+//     ``Max-Age`` = -100
+//     Domain = "darklang.com"
+//     Path = "/my/path"
+//     Secure = true
+//     HttpOnly = false
+//     SameSite = "Strict" }
+// |> Stdlib.Test.equal
+//   { ``Set-Cookie`` =
+//       "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com" }
+//
+// date
+// (match Stdlib.DateTime.parse "2019-07-28T22:42:00Z" with
+//  | Ok date ->
+//    Stdlib.Http.setCookie "myCookie" "myVal"
+//      { Expires = date
+//        ``Max-Age`` = 3600
+//        Domain = "darklang.com"
+//        Path = "/my/path"
+//        Secure = true
+//        HttpOnly = true
+//        SameSite = "Strict" })
+// |> Stdlib.Test.equal
+//   { ``Set-Cookie`` =
+//       "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com" }
+//
+// module Errors =
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Expires = 5 }
+//   => raises "Expected `Expires` to be a date, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { ``Max-Age`` = "foo" }
+//   => raises "Expected `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Domain = 5 }
+//   => raises "Expected ``Path` or `Domain`` to be a String, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Path = 5 }
+//   => raises "Expected ``Path` or `Domain`` to be a String, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Secure = 5 }
+//   => raises "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { HttpOnly = 5 }
+//   => raises "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { SameSite = 5 }
+//   => raises "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" }
+//   => raises "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"}
+//   => raises "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
+
+// CLEANUP: Dark compares blobs by identity, not content, so a Response (its body
+// is a Blob) can't be compared directly. This turns it into plain values, the body
+// as a string. Legacy compared whole Response records, because its test runner
+// compared blobs by their bytes. Once blobs compare by content, compare whole
+// Responses again and drop this helper.
+let responseView
+  (response: Stdlib.Http.Response)
+  : (Int * List<String * String> * Stdlib.Result.Result<String, String>) =
+  (response.statusCode, response.headers, Stdlib.Blob.toString response.body)
+
+// Differs from legacy: legacy wrote each Request record out in full (always with
+// an empty body); this helper builds the same record.
+let request
+  (url: String)
+  (headers: List<String * String>)
+  : Stdlib.Http.Request =
+  Stdlib.Http.Request { url = url; headers = headers; body = Stdlib.Blob.empty }
+
+// Differs from legacy: legacy compared each builder with the call it stands for
+// (`notFound () = response Blob.empty 404`); these compare with the plain values.
+test responseBuilders =
+  Stdlib.Test.all
+    [ Stdlib.Http.badRequest "Your request resulted in an error"
+      |> responseView
+      |> Stdlib.Test.equal (400, [], Ok "Your request resulted in an error")
+      Stdlib.Http.response (Stdlib.Blob.fromString "test") 200
+      |> responseView
+      |> Stdlib.Test.equal (200, [], Ok "test")
+      Stdlib.Http.responseWithHeaders
+        (Stdlib.Blob.fromString "test")
+        [ ("Content-Type", "text/html; charset=utf-8") ]
+        200
+      |> responseView
+      |> Stdlib.Test.equal
+        (200, [ ("Content-Type", "text/html; charset=utf-8") ], Ok "test")
+      Stdlib.Http.notFound ()
+      |> responseView
+      |> Stdlib.Test.equal (404, [], Ok "")
+      Stdlib.Http.unauthorized ()
+      |> responseView
+      |> Stdlib.Test.equal (401, [], Ok "")
+      Stdlib.Http.forbidden ()
+      |> responseView
+      |> Stdlib.Test.equal (403, [], Ok "")
+      Stdlib.Http.success (Stdlib.Blob.fromString "test")
+      |> responseView
+      |> Stdlib.Test.equal (200, [], Ok "test")
+      Stdlib.Http.responseWithHtml "test" 200
+      |> responseView
+      |> Stdlib.Test.equal
+        (200, [ ("Content-Type", "text/html; charset=utf-8") ], Ok "test")
+      Stdlib.Http.responseWithText "test" 200
+      |> responseView
+      |> Stdlib.Test.equal
+        (200, [ ("Content-Type", "text/plain; charset=utf-8") ], Ok "test")
+      Stdlib.Http.responseWithJson "test" 200
+      |> responseView
+      |> Stdlib.Test.equal
+        (200, [ ("Content-Type", "application/json") ], Ok "test") ]
+
+test redirectTo =
+  Stdlib.Test.all
+    [ Stdlib.Http.redirectTo ""
+      |> responseView
+      |> Stdlib.Test.equal (302, [ ("Location", "") ], Ok "")
+      Stdlib.Http.redirectTo "bad url"
+      |> responseView
+      |> Stdlib.Test.equal (302, [ ("Location", "bad url") ], Ok "")
+      Stdlib.Http.redirectTo "http://someothersite.com"
+      |> responseView
+      |> Stdlib.Test.equal
+        (302, [ ("Location", "http://someothersite.com") ], Ok "")
+      Stdlib.Http.redirectTo "/relativeUrl"
+      |> responseView
+      |> Stdlib.Test.equal (302, [ ("Location", "/relativeUrl") ], Ok "") ]
+
+// parseQueryString: ports the old _middleware.dark fixture.
+test parseQueryString =
+  Stdlib.Test.all
+    [ Stdlib.Http.parseQueryString "https://darklang.com?x=6&x=7&myString=todo"
+      |> Stdlib.Test.equal
+        (Stdlib.Dict.fromListOverwritingDuplicates
+          [ ("x", "7"), ("myString", "todo") ])
+      // No query string → empty dict.
+      Stdlib.Http.parseQueryString "https://darklang.com"
+      |> Stdlib.Test.equal Stdlib.Dict.empty
+      // Empty query string → empty dict.
+      Stdlib.Http.parseQueryString "https://darklang.com?"
+      |> Stdlib.Test.equal Stdlib.Dict.empty
+      // Bare keys (no `=`) get empty-string values.
+      Stdlib.Http.parseQueryString "https://darklang.com?flag"
+      |> Stdlib.Test.equal
+        (Stdlib.Dict.fromListOverwritingDuplicates [ ("flag", "") ])
+      // `=` inside a value is preserved.
+      Stdlib.Http.parseQueryString "https://x?token=a=b"
+      |> Stdlib.Test.equal
+        (Stdlib.Dict.fromListOverwritingDuplicates [ ("token", "a=b") ])
+      // Keys and values are both decoded.
+      Stdlib.Http.parseQueryString "https://x?q=List+map&n=A%2FB"
+      |> Stdlib.Test.equal
+        (Stdlib.Dict.fromListOverwritingDuplicates
+          [ ("q", "List map"), ("n", "A/B") ]) ]
+
+test urlDecode =
+  Stdlib.Test.all
+    [ // What an HTML form sends for a space in a GET.
+      Stdlib.Http.urlDecode "List+map" |> Stdlib.Test.equal "List map"
+      Stdlib.Http.urlDecode "A%2FB" |> Stdlib.Test.equal "A/B"
+      Stdlib.Http.urlDecode "a%3Db" |> Stdlib.Test.equal "a=b"
+      // Decoding is byte-level, so a multi-byte character survives. Per character it
+      // would be two.
+      Stdlib.Http.urlDecode "caf%C3%A9" |> Stdlib.Test.equal "café"
+      // Double-encoded: the user typed a percent sign and the form encoded it.
+      Stdlib.Http.urlDecode "%2541" |> Stdlib.Test.equal "%41"
+      // A literal `+` travels as `%2B`, and survives the `+`-means-space
+      // substitution because that runs over the raw text, where an escape holds no
+      // `+` of its own. Searching for `C++` is the case that notices if those two
+      // steps are ever reordered.
+      Stdlib.Http.urlDecode "a%2Bb" |> Stdlib.Test.equal "a+b"
+      Stdlib.Http.urlDecode "C%2B%2B" |> Stdlib.Test.equal "C++"
+      Stdlib.Http.urlDecode "a%2Bb+c" |> Stdlib.Test.equal "a+b c"
+      // A `%` that starts no escape is itself. A search box may contain one,
+      // including at the end, where decoding an empty hex string succeeds and would
+      // otherwise contribute no bytes.
+      Stdlib.Http.urlDecode "100%" |> Stdlib.Test.equal "100%"
+      Stdlib.Http.urlDecode "%" |> Stdlib.Test.equal "%"
+      Stdlib.Http.urlDecode "a%2" |> Stdlib.Test.equal "a%2"
+      Stdlib.Http.urlDecode "50%zz" |> Stdlib.Test.equal "50%zz"
+      Stdlib.Http.urlDecode "" |> Stdlib.Test.equal "" ]
+
+test queryParams =
+  Stdlib.Test.all
+    [ Stdlib.Http.Request.queryParams (request "/s?q=List+map&n=A%2FB" [])
+      |> Stdlib.Test.equal [ ("q", "List map"), ("n", "A/B") ]
+      // A field splits at its FIRST `=` only, so a value may hold one: base64
+      // padding and a nested query string both do.
+      Stdlib.Http.Request.queryParam (request "/s?q=a=b" []) "q"
+      |> Stdlib.Test.equal (Some "a=b")
+      // Only the first `?` separates the query string; a later one is part of a
+      // value.
+      Stdlib.Http.Request.queryParams (request "/s?a=1?b=2" [])
+      |> Stdlib.Test.equal [ ("a", "1?b=2") ]
+      // An encoded separator stays inside its value. The server hands over the RAW
+      // url so `urlDecode` here is the only decoder; decoded twice, `%26` becomes a
+      // real `&` and this reads as two.
+      Stdlib.Http.Request.queryParams (request "/s?owner=a%26b" [])
+      |> Stdlib.Test.equal [ ("owner", "a&b") ]
+      // Same for an encoded `=`: it belongs to the value, not to the key/value
+      // split.
+      Stdlib.Http.Request.queryParam (request "/s?q=a%3Db" []) "q"
+      |> Stdlib.Test.equal (Some "a=b") ]
+
+test requestHeader =
+  Stdlib.Test.all
+    [ // Case-insensitive, as HTTP requires: one stored casing, three asked-for
+      // casings.
+      Stdlib.Http.Request.header
+        (request "/" [ ("Authorization", "Bearer t") ])
+        "authorization"
+      |> Stdlib.Test.equal (Some "Bearer t")
+      Stdlib.Http.Request.header
+        (request "/" [ ("authorization", "Bearer t") ])
+        "AUTHORIZATION"
+      |> Stdlib.Test.equal (Some "Bearer t")
+      Stdlib.Http.Request.header
+        (request "/" [ ("X-Thing", "v") ])
+        "x-other"
+      |> Stdlib.Test.equal None
+      // A repeated header is legal. The first wins, which is what `queryParam` does
+      // too.
+      Stdlib.Http.Request.header
+        (request "/" [ ("Accept", "one"), ("accept", "two") ])
+        "Accept"
+      |> Stdlib.Test.equal (Some "one") ]
+
+test parseHeaders =
+  Stdlib.Test.all
+    [ Stdlib.Http.parseHeaders "x: y"
+      |> Stdlib.Test.equal (Stdlib.Dict.fromListOverwritingDuplicates [ ("x", "y") ])
+      // Multi-line, CRLF-tolerant.
+      Stdlib.Http.parseHeaders "Content-Type: text/plain\r\nContent-Length: 42"
+      |> Stdlib.Test.equal
+        (Stdlib.Dict.fromListOverwritingDuplicates
+          [ ("Content-Type", "text/plain"), ("Content-Length", "42") ])
+      // `:` inside the value is preserved.
+      Stdlib.Http.parseHeaders "X-Url: https://x?a=b"
+      |> Stdlib.Test.equal
+        (Stdlib.Dict.fromListOverwritingDuplicates [ ("X-Url", "https://x?a=b") ])
+      // Blank lines + whitespace tolerance.
+      Stdlib.Http.parseHeaders "\n  Foo:  bar  \n\n"
+      |> Stdlib.Test.equal
+        (Stdlib.Dict.fromListOverwritingDuplicates [ ("Foo", "bar") ])
+      // Empty input → empty dict.
+      Stdlib.Http.parseHeaders "" |> Stdlib.Test.equal Stdlib.Dict.empty ]

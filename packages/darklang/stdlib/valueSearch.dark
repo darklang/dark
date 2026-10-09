@@ -65,7 +65,7 @@ let findByType
         [])
 
   // Use indexed query to find all value hashes with the target type
-  let valueHashes = Builtin.pmFindValuesByValueType valueType
+  let valueHashes = LanguageTools.PackageManager.Value.findByValueType valueType
 
   valueHashes
   |> Stdlib.List.filterMap (fun valueHash ->
@@ -88,4 +88,3 @@ let findByType
       else
         Stdlib.Option.Option.None
     | None -> Stdlib.Option.Option.None)
-

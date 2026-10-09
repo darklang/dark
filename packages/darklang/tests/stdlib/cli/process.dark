@@ -1,0 +1,20 @@
+/// Shell quoting cases from `backend/testfiles/execution/stdlib/cli-process.dark`.
+module Darklang.Stdlib.Cli.Process.Tests
+
+// Process.shellQuote
+test shellQuote =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Process.shellQuote "hello" |> Stdlib.Test.equal "'hello'"
+      Stdlib.Cli.Process.shellQuote "hello world"
+      |> Stdlib.Test.equal "'hello world'"
+      Stdlib.Cli.Process.shellQuote "" |> Stdlib.Test.equal "''"
+      Stdlib.Cli.Process.shellQuote "it's" |> Stdlib.Test.equal "'it'\\''s'"
+      Stdlib.Cli.Process.shellQuote "a'b'c" |> Stdlib.Test.equal "'a'\\''b'\\''c'"
+      Stdlib.Cli.Process.shellQuote "no-special" |> Stdlib.Test.equal "'no-special'"
+      Stdlib.Cli.Process.shellQuote "has spaces" |> Stdlib.Test.equal "'has spaces'"
+      Stdlib.Cli.Process.shellQuote "semi;colon" |> Stdlib.Test.equal "'semi;colon'"
+      Stdlib.Cli.Process.shellQuote "pipe|char" |> Stdlib.Test.equal "'pipe|char'"
+      Stdlib.Cli.Process.shellQuote "$(dangerous)"
+      |> Stdlib.Test.equal "'$(dangerous)'"
+      Stdlib.Cli.Process.shellQuote "`backtick`"
+      |> Stdlib.Test.equal "'`backtick`'" ]

@@ -1,0 +1,128 @@
+/// Cases ported from `backend/testfiles/execution/stdlib/base64.dark`.
+// Stdlib.Base64 — decode returns Result<Blob, String>;
+// encode / urlEncode take Blob.
+module Darklang.Stdlib.Base64.Tests
+
+// CLEANUP: Dark compares blobs by identity, not content, so these helpers turn
+// blobs into byte lists before comparing. Legacy compared `Ok(Blob.fromString …)`
+// directly, because its test runner compared blobs by their bytes. Once blobs
+// compare by content, compare the blobs again and drop these helpers.
+let decodeBytes (text: String) : Stdlib.Result.Result<List<UInt8>, String> =
+  Stdlib.Base64.decode text |> Stdlib.Result.map Stdlib.Blob.toList
+
+let bytesOf (text: String) : List<UInt8> =
+  Stdlib.Blob.toList (Stdlib.Blob.fromString text)
+
+// Base64.decode
+test decode =
+  Stdlib.Test.all
+    [ decodeBytes "" |> Stdlib.Test.equal (Ok (bytesOf ""))
+      decodeBytes "garbage text"
+      |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      decodeBytes "Kw" |> Stdlib.Test.equal (Ok (bytesOf "+"))
+      decodeBytes "yLo" |> Stdlib.Test.equal (Ok (bytesOf "Ⱥ"))
+      decodeBytes "xbzDs8WCdw" |> Stdlib.Test.equal (Ok (bytesOf "żółw"))
+      decodeBytes "LyotKygmQDk4NTIx"
+      |> Stdlib.Test.equal (Ok (bytesOf "/*-+(&@98521")) ]
+
+// some failures
+test decodeFailures =
+  Stdlib.Test.all
+    [ decodeBytes "illegal-chars&@:"
+      |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      decodeBytes "x" |> Stdlib.Test.equal (Error "Not a valid base64 string") ]
+
+// empty case
+// Test cases from the spec with padding added
+test decodeSpecCases =
+  Stdlib.Test.all
+    [ decodeBytes "Zg" |> Stdlib.Test.equal (Ok (bytesOf "f"))
+      decodeBytes "Zg==" |> Stdlib.Test.equal (Ok (bytesOf "f"))
+      decodeBytes "Zm8" |> Stdlib.Test.equal (Ok (bytesOf "fo"))
+      decodeBytes "Zm8=" |> Stdlib.Test.equal (Ok (bytesOf "fo"))
+      decodeBytes "Zm9v" |> Stdlib.Test.equal (Ok (bytesOf "foo"))
+      decodeBytes "Zm9vYg" |> Stdlib.Test.equal (Ok (bytesOf "foob"))
+      decodeBytes "Zm9vYg==" |> Stdlib.Test.equal (Ok (bytesOf "foob"))
+      decodeBytes "Zm9vYmE" |> Stdlib.Test.equal (Ok (bytesOf "fooba"))
+      decodeBytes "Zm9vYmE=" |> Stdlib.Test.equal (Ok (bytesOf "fooba"))
+      decodeBytes "Zm9vYmFy" |> Stdlib.Test.equal (Ok (bytesOf "foobar")) ]
+
+// "Impossible cases" from apache
+// https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
+test decodeImpossibleCases =
+  Stdlib.Test.all
+    [ decodeBytes "ZE==" |> Stdlib.Test.equal (Ok (bytesOf "d"))
+      decodeBytes "ZmC=" |> Stdlib.Test.equal (Ok (bytesOf "f`"))
+      decodeBytes "Zm9vYE==" |> Stdlib.Test.equal (Ok (bytesOf "foo`"))
+      decodeBytes "Zm9vYmC=" |> Stdlib.Test.equal (Ok (bytesOf "foob`")) ]
+
+// longer tests
+test decodeLongInputs =
+  Stdlib.Test.all
+    [ decodeBytes
+        "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
+      |> Stdlib.Test.equal (
+        Ok (bytesOf "from=06/07/2013 query=\"Καλώς ορίσατε\"")
+      )
+      decodeBytes "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
+      |> Stdlib.Test.equal (Ok (bytesOf "👱👱🏻👱🏼👱🏽👱🏾👱🏿")) ]
+
+// These produce strings of bytes which are technically legal it seems
+test decodeRawBytes =
+  Stdlib.Test.all
+    [ decodeBytes "-p" |> Stdlib.Test.equal (Ok [ 250uy ])
+      decodeBytes "lI" |> Stdlib.Test.equal (Ok [ 148uy ])
+      decodeBytes "5Sk" |> Stdlib.Test.equal (Ok [ 229uy, 41uy ])
+      decodeBytes "AA" |> Stdlib.Test.equal (Ok [ 0uy ])
+      decodeBytes "_w" |> Stdlib.Test.equal (Ok [ 255uy ]) ]
+
+// TODO: try decoding values with incorrect padding
+// Not a legacy assertion: the legacy file left this as the TODO above.
+test decodeRejectsIncorrectPadding =
+  Stdlib.Test.all
+    [ decodeBytes "=" |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      decodeBytes "====" |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      decodeBytes "Z=g=" |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      decodeBytes "Zg===" |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      decodeBytes "Zm=8" |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      decodeBytes "Zm9v=" |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      decodeBytes "A===" |> Stdlib.Test.equal (Error "Not a valid base64 string") ]
+
+// Base64.encode
+test encode =
+  Stdlib.Test.all
+    [ Stdlib.Base64.encode (Stdlib.Blob.fromString "abcdef")
+      |> Stdlib.Test.equal "YWJjZGVm"
+      Stdlib.Base64.encode (Stdlib.Blob.fromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
+      |> Stdlib.Test.equal
+        "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
+      Stdlib.Base64.encode (Stdlib.Blob.fromString "اختبار النص")
+      |> Stdlib.Test.equal "2KfYrtiq2KjYp9ixINin2YTZhti1"
+      Stdlib.Base64.encode (Stdlib.Blob.fromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+      |> Stdlib.Test.equal
+        "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
+      Stdlib.Base64.encode (Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+      |> Stdlib.Test.equal
+        "8J+RsfCfkbHwn4+78J+RsfCfj7zwn5Gx8J+PvfCfkbHwn4++8J+RsfCfj78="
+      Stdlib.Base64.encode (Stdlib.Blob.fromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷")
+      |> Stdlib.Test.equal
+        "8J+RqOKAjeKdpO+4j+KAjfCfkovigI3wn5Go8J+RqeKAjfCfkanigI3wn5Gn4oCN8J+RpvCfj7PvuI/igI3imqfvuI/wn4e18J+Htw==" ]
+
+test urlEncode =
+  Stdlib.Test.all
+    [ Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "abcdef")
+      |> Stdlib.Test.equal "YWJjZGVm"
+      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
+      |> Stdlib.Test.equal
+        "WsykzZTNp8yRzJPDpM2WzK3MiMyHbM2uzJLNq8enzJfNmsyab8yZzJTNrsyHzZDMhw=="
+      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "اختبار النص")
+      |> Stdlib.Test.equal "2KfYrtiq2KjYp9ixINin2YTZhti1"
+      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+      |> Stdlib.Test.equal
+        "77e977e977e977e977e977e977e977e977e977e977e977e977e977e977e977e9"
+      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+      |> Stdlib.Test.equal
+        "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78="
+      Stdlib.Base64.urlEncode (Stdlib.Blob.fromString "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷")
+      |> Stdlib.Test.equal
+        "8J-RqOKAjeKdpO-4j-KAjfCfkovigI3wn5Go8J-RqeKAjfCfkanigI3wn5Gn4oCN8J-RpvCfj7PvuI_igI3imqfvuI_wn4e18J-Htw==" ]

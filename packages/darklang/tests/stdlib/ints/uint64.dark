@@ -1,0 +1,349 @@
+/// UInt64 cases from backend/testfiles/execution/stdlib/ints/uint64.dark.
+module Darklang.Stdlib.UInt64.Tests
+
+// `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check
+// that it reaches this type and that the type's own comparison holds at its
+// extremes.
+
+test max =
+  Stdlib.max 10UL 1UL |> Stdlib.Test.equal 10UL
+
+test min =
+  Stdlib.min 18446744073709551615UL 0UL |> Stdlib.Test.equal 0UL
+
+test clamp =
+  Stdlib.clamp 100UL 0UL 0UL |> Stdlib.Test.equal 0UL
+
+/// `%` wraps into [0, b), and raises when b <= 0.
+test modulo =
+  Stdlib.Test.all
+    [ (15UL % 5UL) |> Stdlib.Test.equal 0UL
+      (15UL % 6UL) |> Stdlib.Test.equal 3UL
+      (0UL % 15UL) |> Stdlib.Test.equal 0UL
+      (9999999999998UL % 3UL) |> Stdlib.Test.equal 2UL ]
+
+test moduloRejectsZero =
+  (5UL % 0UL)
+  => raises "Cannot evaluate modulus against 0"
+
+/// Wraps on overflow.
+test power =
+  Stdlib.Test.all
+    [ (8UL ** 5UL) |> Stdlib.Test.equal 32768UL
+      (0UL ** 1UL) |> Stdlib.Test.equal 0UL
+      (0UL ** 0UL) |> Stdlib.Test.equal 1UL
+      (1UL ** 0UL) |> Stdlib.Test.equal 1UL
+      (1000UL ** 0UL) |> Stdlib.Test.equal 1UL
+      (200UL ** 20UL) |> Stdlib.Test.equal 1152921504606846976UL
+      (200UL ** 7UL) |> Stdlib.Test.equal 12800000000000000UL
+      (1UL ** 2147483649UL) |> Stdlib.Test.equal 1UL
+      // Non-trivial base with a huge (out-of-Int32-range) exponent wraps via modular
+      // exponentiation, which stays cheap instead of building an enormous bigint.
+      (2UL ** 2147483649UL) |> Stdlib.Test.equal 0UL
+      (2UL ** 64UL) |> Stdlib.Test.equal 0UL ]
+
+test greaterThan =
+  (20UL > 1UL) |> Stdlib.Test.equal true
+
+test greaterThanOrEqualTo =
+  Stdlib.Test.all
+    [ (0UL >= 1UL) |> Stdlib.Test.equal false
+      (1UL >= 0UL) |> Stdlib.Test.equal true
+      (6UL >= 1UL) |> Stdlib.Test.equal true
+      (6UL >= 8UL) |> Stdlib.Test.equal false ]
+
+test lessThanOrEqualTo =
+  Stdlib.Test.all
+    [ (6UL <= 8UL) |> Stdlib.Test.equal true
+      (10UL <= 1UL) |> Stdlib.Test.equal false
+      (0UL <= 1UL) |> Stdlib.Test.equal true
+      (1UL <= 0UL) |> Stdlib.Test.equal false ]
+
+test lessThan =
+  Stdlib.Test.all
+    [ (6UL < 8UL) |> Stdlib.Test.equal true
+      (10UL < 1UL) |> Stdlib.Test.equal false
+      (0UL < 1UL) |> Stdlib.Test.equal true
+      (1UL < 0UL) |> Stdlib.Test.equal false ]
+
+test sqrt =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.sqrt 4UL |> Stdlib.Test.equal 2.0
+      Stdlib.UInt64.sqrt 100UL |> Stdlib.Test.equal 10.0
+      Stdlib.UInt64.sqrt 86UL |> Stdlib.Test.equal 9.273618495495704 ]
+
+test toFloat =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.toFloat 2UL |> Stdlib.Test.equal 2.0
+      Stdlib.UInt64.toFloat 955656UL |> Stdlib.Test.equal 955656.0 ]
+
+test fromFloat =
+  Stdlib.Test.all
+    [ // fromFloat truncates toward zero, like Int.fromFloat; fromFloatRounded rounds
+      Stdlib.UInt64.fromFloat 3.9 |> Stdlib.Test.equal (Some 3UL)
+      Stdlib.UInt64.fromFloat -0.9 |> Stdlib.Test.equal (Some 0UL)
+      Stdlib.UInt64.fromFloat -1.0 |> Stdlib.Test.equal None
+      // Differs from legacy: NaN and the infinities are computed here; legacy used
+      // Builtin.testNan/testInfinity/testNegativeInfinity, which only the backend
+      // has.
+      Stdlib.UInt64.fromFloat (0.0 / 0.0) |> Stdlib.Test.equal None
+      Stdlib.UInt64.fromFloat (1.0 / 0.0) |> Stdlib.Test.equal None
+      Stdlib.UInt64.fromFloat (-1.0 / 0.0) |> Stdlib.Test.equal None
+      Stdlib.UInt64.fromFloat 18446744073709551616.0 |> Stdlib.Test.equal None ]
+
+test fromFloatRounded =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromFloatRounded 3.9 |> Stdlib.Test.equal (Some 4UL)
+      Stdlib.UInt64.fromFloatRounded -1.0 |> Stdlib.Test.equal None
+      // Differs from legacy: NaN and the infinities are computed here; legacy used
+      // Builtin.testNan/testInfinity/testNegativeInfinity, which only the backend
+      // has.
+      Stdlib.UInt64.fromFloatRounded (0.0 / 0.0) |> Stdlib.Test.equal None
+      Stdlib.UInt64.fromFloatRounded (1.0 / 0.0) |> Stdlib.Test.equal None
+      Stdlib.UInt64.fromFloatRounded (-1.0 / 0.0) |> Stdlib.Test.equal None
+      Stdlib.UInt64.fromFloatRounded 2.5 |> Stdlib.Test.equal (Some 2UL)
+      Stdlib.UInt64.fromFloatRounded 3.5 |> Stdlib.Test.equal (Some 4UL) ]
+
+/// Wraps on overflow.
+test add =
+  Stdlib.Test.all
+    [ (10UL + 9UL) |> Stdlib.Test.equal 19UL
+      (88UL + 9UL) |> Stdlib.Test.equal 97UL
+      (1UL + 0UL) |> Stdlib.Test.equal 1UL
+      (18446744073709551614UL + 1UL) |> Stdlib.Test.equal 18446744073709551615UL
+      // Overflow tests
+      (18446744073709551615UL + 1UL) |> Stdlib.Test.equal 0UL
+      (55UL + 18446744073709551615UL) |> Stdlib.Test.equal 54UL ]
+
+/// Wraps on overflow.
+test subtract =
+  Stdlib.Test.all
+    [ (10UL - 9UL) |> Stdlib.Test.equal 1UL
+      (88UL - 9UL) |> Stdlib.Test.equal 79UL
+      (1UL - 0UL) |> Stdlib.Test.equal 1UL ]
+
+/// Wraps on overflow.
+test multiply =
+  Stdlib.Test.all
+    [ (8UL * 8UL) |> Stdlib.Test.equal 64UL
+      (5145UL * 5145UL) |> Stdlib.Test.equal 26471025UL
+      (9223372036854775808UL * 2UL) |> Stdlib.Test.equal 0UL ]
+
+test divide =
+  Stdlib.Test.all
+    [ (10UL / 5UL) |> Stdlib.Test.equal 2UL
+      (17UL / 3UL) |> Stdlib.Test.equal 5UL
+      (0UL / 1UL) |> Stdlib.Test.equal 0UL ]
+
+test divideOfOneRejectsZero =
+  (1UL / 0UL)
+  => raises "Cannot divide by 0"
+
+/// Every result lands inside the bounds, whichever order they are given in.
+test randomStaysWithinBounds =
+  Stdlib.Test.all
+    [ ((Stdlib.List.range 1 5)
+       |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 1UL 2UL)
+       |> Stdlib.List.map (fun x -> (Stdlib.UInt64.Compare.greaterThanOrEqualTo x 1UL) &&
+         (Stdlib.UInt64.Compare.lessThanOrEqualTo x 2UL)))
+      |> Stdlib.Test.equal ([ true, true, true, true, true ])
+      ((Stdlib.List.range 1 5)
+       |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 10UL 20UL)
+       |> Stdlib.List.map (fun x -> (Stdlib.UInt64.Compare.greaterThanOrEqualTo x 10UL) &&
+         (Stdlib.UInt64.Compare.lessThanOrEqualTo x 20UL)))
+      |> Stdlib.Test.equal ([ true, true, true, true, true ])
+      ((Stdlib.List.range 1 5)
+       |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 2UL 1UL)
+       |> Stdlib.List.map (fun x -> (Stdlib.UInt64.Compare.greaterThanOrEqualTo x 1UL) &&
+         (Stdlib.UInt64.Compare.lessThanOrEqualTo x 2UL)))
+      |> Stdlib.Test.equal ([ true, true, true, true, true ])
+      ((Stdlib.List.range 1 5)
+       |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 20UL 10UL)
+       |> Stdlib.List.map (fun x -> (Stdlib.UInt64.Compare.greaterThanOrEqualTo x 10UL) &&
+         (Stdlib.UInt64.Compare.lessThanOrEqualTo x 20UL)))
+      |> Stdlib.Test.equal ([ true, true, true, true, true ]) ]
+
+/// Both ends of the range are reachable.
+test randomReachesEveryValue =
+  Stdlib.Test.all
+    [ (((Stdlib.List.range 1 100)
+       |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 0UL 1UL)
+       |> Stdlib.List.unique))
+      |> Stdlib.Test.equal ([ 0UL, 1UL ])
+      (((Stdlib.List.range 1 100)
+       |> Stdlib.List.map (fun x -> Stdlib.UInt64.random 0UL 2UL)
+       |> Stdlib.List.unique))
+      |> Stdlib.Test.equal ([ 0UL, 1UL, 2UL ]) ]
+
+test sum =
+  Stdlib.sum 0UL [ 1UL, 2UL ] |> Stdlib.Test.equal 3UL
+
+test parse =
+  Stdlib.Test.all
+    [ // parses OK
+      Stdlib.UInt64.parse "0" |> Stdlib.Test.equal (Ok 0UL)
+      Stdlib.UInt64.parse "1" |> Stdlib.Test.equal (Ok 1UL)
+      Stdlib.UInt64.parse " 1" |> Stdlib.Test.equal (Ok 1UL)
+      Stdlib.UInt64.parse "1 " |> Stdlib.Test.equal (Ok 1UL)
+      Stdlib.UInt64.parse "+1" |> Stdlib.Test.equal (Ok 1UL)
+      Stdlib.UInt64.parse " +1 " |> Stdlib.Test.equal (Ok 1UL)
+      // "octal" format ignored
+      Stdlib.UInt64.parse "078" |> Stdlib.Test.equal (Ok 78UL)
+      Stdlib.UInt64.parse "18446744073709551615"
+      |> Stdlib.Test.equal (Ok 18446744073709551615UL) ]
+
+test parseOutOfRange =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.parse "-1"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.OutOfRange)
+      Stdlib.UInt64.parse "-00001"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.OutOfRange)
+      Stdlib.UInt64.parse "-10001"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.OutOfRange)
+      Stdlib.UInt64.parse "18446744073709551616"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.OutOfRange) ]
+
+test parseBadFormat =
+  Stdlib.Test.all
+    [ // bad format
+      Stdlib.UInt64.parse "1 2 3"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "+ 1"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "- 1"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "0xA"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "0x123"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "0b0100"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "pi"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "Darklang.Stdlib.Math.pi"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "1.23E+04"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse ""
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "1I"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "one"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat)
+      Stdlib.UInt64.parse "XIV"
+      |> Stdlib.Test.equal (Error Stdlib.UInt64.ParseError.BadFormat) ]
+
+test toString =
+  Stdlib.Test.all
+    [ Stdlib.toString 0UL |> Stdlib.Test.equal "0"
+      Stdlib.toString 1UL |> Stdlib.Test.equal "1"
+      Stdlib.toString 18446744073709551615UL
+      |> Stdlib.Test.equal "18446744073709551615" ]
+
+test fromInt8 =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromInt8 0y |> Stdlib.Test.equal (Some 0UL)
+      Stdlib.UInt64.fromInt8 1y |> Stdlib.Test.equal (Some 1UL)
+      Stdlib.UInt64.fromInt8 127y |> Stdlib.Test.equal (Some 127UL)
+      Stdlib.UInt64.fromInt8 -128y |> Stdlib.Test.equal None ]
+
+test fromUInt8 =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromUInt8 0uy |> Stdlib.Test.equal 0UL
+      Stdlib.UInt64.fromUInt8 1uy |> Stdlib.Test.equal 1UL
+      Stdlib.UInt64.fromUInt8 255uy |> Stdlib.Test.equal 255UL ]
+
+test fromInt16 =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromInt16 0s |> Stdlib.Test.equal (Some 0UL)
+      Stdlib.UInt64.fromInt16 1s |> Stdlib.Test.equal (Some 1UL)
+      Stdlib.UInt64.fromInt16 32767s |> Stdlib.Test.equal (Some 32767UL)
+      Stdlib.UInt64.fromInt16 -32768s |> Stdlib.Test.equal None ]
+
+test fromUInt16 =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromUInt16 0us |> Stdlib.Test.equal 0UL
+      Stdlib.UInt64.fromUInt16 1us |> Stdlib.Test.equal 1UL
+      Stdlib.UInt64.fromUInt16 65535us |> Stdlib.Test.equal 65535UL ]
+
+test fromInt32 =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromInt32 0l |> Stdlib.Test.equal (Some 0UL)
+      Stdlib.UInt64.fromInt32 1l |> Stdlib.Test.equal (Some 1UL)
+      Stdlib.UInt64.fromInt32 2147483647l |> Stdlib.Test.equal (Some 2147483647UL)
+      Stdlib.UInt64.fromInt32 -1l |> Stdlib.Test.equal None ]
+
+test fromUInt32 =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromUInt32 0ul |> Stdlib.Test.equal 0UL
+      Stdlib.UInt64.fromUInt32 1ul |> Stdlib.Test.equal 1UL
+      Stdlib.UInt64.fromUInt32 4294967295ul |> Stdlib.Test.equal 4294967295UL ]
+
+test fromInt64 =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromInt64 0L |> Stdlib.Test.equal (Some 0UL)
+      Stdlib.UInt64.fromInt64 1L |> Stdlib.Test.equal (Some 1UL)
+      Stdlib.UInt64.fromInt64 9223372036854775807L
+      |> Stdlib.Test.equal (Some 9223372036854775807UL)
+      Stdlib.UInt64.fromInt64 -1L |> Stdlib.Test.equal None ]
+
+test fromInt128 =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromInt128 0Q |> Stdlib.Test.equal (Some 0UL)
+      Stdlib.UInt64.fromInt128 1Q |> Stdlib.Test.equal (Some 1UL)
+      Stdlib.UInt64.fromInt128 -1Q |> Stdlib.Test.equal None
+      Stdlib.UInt64.fromInt128 18446744073709551616Q |> Stdlib.Test.equal None
+      Stdlib.UInt64.fromInt128 170141183460469231731687303715884105727Q
+      |> Stdlib.Test.equal None ]
+
+test fromUInt128 =
+  Stdlib.Test.all
+    [ Stdlib.UInt64.fromUInt128 0Z |> Stdlib.Test.equal (Some 0UL)
+      Stdlib.UInt64.fromUInt128 1Z |> Stdlib.Test.equal (Some 1UL)
+      Stdlib.UInt64.fromUInt128 18446744073709551615Z
+      |> Stdlib.Test.equal (Some 18446744073709551615UL)
+      Stdlib.UInt64.fromUInt128 18446744073709551616Z |> Stdlib.Test.equal None
+      Stdlib.UInt64.fromUInt128 340282366920938463463374607431768211455Z
+      |> Stdlib.Test.equal None ]
+
+test bitwiseAnd =
+  Stdlib.Test.all
+    [ (12UL & 10UL) |> Stdlib.Test.equal 8UL
+      (0UL & 0UL) |> Stdlib.Test.equal 0UL
+      (18446744073709551615UL & 0UL) |> Stdlib.Test.equal 0UL
+      (18446744073709551615UL & 18446744073709551615UL)
+      |> Stdlib.Test.equal 18446744073709551615UL ]
+
+test bitwiseOr =
+  Stdlib.Test.all
+    [ (12UL | 10UL) |> Stdlib.Test.equal 14UL
+      (0UL | 0UL) |> Stdlib.Test.equal 0UL
+      (18446744073709551615UL | 0UL) |> Stdlib.Test.equal 18446744073709551615UL ]
+
+test bitwiseXor =
+  Stdlib.Test.all
+    [ (12UL ^ 10UL) |> Stdlib.Test.equal 6UL
+      (0UL ^ 0UL) |> Stdlib.Test.equal 0UL
+      (18446744073709551615UL ^ 18446744073709551615UL) |> Stdlib.Test.equal 0UL ]
+
+test bitwiseNot =
+  Stdlib.Test.all
+    [ (~0UL) |> Stdlib.Test.equal 18446744073709551615UL
+      (~18446744073709551615UL) |> Stdlib.Test.equal 0UL
+      (~1UL) |> Stdlib.Test.equal 18446744073709551614UL ]
+
+test shiftLeft =
+  Stdlib.Test.all
+    [ (1UL << 2UL) |> Stdlib.Test.equal 4UL
+      (0UL << 5UL) |> Stdlib.Test.equal 0UL
+      (1UL << 0UL) |> Stdlib.Test.equal 1UL
+      (1UL << 63UL) |> Stdlib.Test.equal 9223372036854775808UL
+      (5UL << 3UL) |> Stdlib.Test.equal 40UL ]
+
+test shiftRight =
+  Stdlib.Test.all
+    [ (8UL >> 2UL) |> Stdlib.Test.equal 2UL
+      (0UL >> 5UL) |> Stdlib.Test.equal 0UL
+      (1UL >> 0UL) |> Stdlib.Test.equal 1UL
+      (9223372036854775808UL >> 63UL) |> Stdlib.Test.equal 1UL
+      (40UL >> 3UL) |> Stdlib.Test.equal 5UL ]
