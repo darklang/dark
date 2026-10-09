@@ -1707,7 +1707,11 @@ let fns () : List<BuiltInFn> =
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
             let branchId = PT.BranchId.Id branchId
             let exeState =
-              { exeState with accountID = accountID; branchId = branchId }
+              { exeState with
+                  accountID = accountID
+                  branchId = branchId
+                  // The guest executes from this state, not the parsing state.
+                  allowHarmful = allowHarmful }
             // Branch-specific state for parsing, under the host's access — see
             // the note in `cliParseAndExecuteScript`.
             let branchState = createBranchState exeState allowHarmful
