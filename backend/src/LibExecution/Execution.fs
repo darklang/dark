@@ -24,7 +24,8 @@ let rec noTracing : RT.Tracing.Tracing =
     forProcess = fun _ -> noTracing }
 
 let noTestContext : RT.TestContext =
-  { sideEffectCount = 0
+  { isPackageTest = false
+    sideEffectCount = 0
 
     exceptionReports = []
     expectedExceptionCount = 0

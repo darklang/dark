@@ -76,6 +76,20 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "getBuildId" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description = "Returns the unique identity of this runtime build"
+      fn =
+        function
+        | _, _, [], [| DUnit |] -> uply { return DString LibConfig.Config.buildId }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

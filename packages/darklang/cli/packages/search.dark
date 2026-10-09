@@ -220,6 +220,7 @@ type ParsedArgs =
     withDocs: Bool
     shallow: Bool
     includeDeprecated: Bool
+    includeTests: Bool
     asJson: Bool
     parseErrors: List<FlagParser.ParseError> }
 
@@ -234,11 +235,13 @@ val argSpec =
           ("--val", [ "--value" ])
           ("--trait", [])
           ("--impl", [])
+          ("--test", [])
           ("--batch", [])
           ("--exact", [])
           ("--shallow", [])
           ("--with-docs", [])
           ("--include-deprecated", [])
+          ("--include-tests", [])
           ("--json", []) ]
       valueFlags = [] }
 
@@ -268,6 +271,8 @@ let parseArgs (args: List<String>) : ParsedArgs =
         Stdlib.List.append
           acc
           [ LanguageTools.ProgramTypes.Search.EntityType.TraitImpl ]
+      | "--test" ->
+        Stdlib.List.append acc [ LanguageTools.ProgramTypes.Search.EntityType.Test ]
       | _ -> acc)
 
   ParsedArgs
@@ -278,12 +283,13 @@ let parseArgs (args: List<String>) : ParsedArgs =
       withDocs = FlagParser.hasFlag p "--with-docs"
       shallow = FlagParser.hasFlag p "--shallow"
       includeDeprecated = FlagParser.hasFlag p "--include-deprecated"
+      includeTests = FlagParser.hasFlag p "--include-tests"
       asJson = FlagParser.hasFlag p "--json"
       parseErrors = p.errors }
 
 
 val usage =
-  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--trait] [--impl] [--exact] [--shallow] [--with-docs] [--include-deprecated]"
+  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--trait] [--impl] [--test] [--exact] [--shallow] [--with-docs] [--include-deprecated] [--include-tests]"
 
 
 // The --json rendering. Typed results for the command an agent runs most; the signatures are the
@@ -337,6 +343,14 @@ let jsonOutput
            Stdlib.AltJson.Json.String(
              $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName ctx item.entity.trait_} for {PrettyPrinter.ProgramTypes.typeReference ctx item.entity.self}")) ])
 
+  let testRows =
+    results.tests
+    |> Stdlib.List.map (fun item ->
+      Stdlib.AltJson.Json.Object
+        [ ("name", Stdlib.AltJson.Json.String(fullPathOf item))
+          ("kind", Stdlib.AltJson.Json.String "test")
+          ("signature", Stdlib.AltJson.Json.String "") ])
+
   let moduleRows =
     results.submodules
     |> Stdlib.List.map (fun modulePath ->
@@ -350,13 +364,25 @@ let jsonOutput
       [ ("query", Stdlib.AltJson.Json.String queryText)
         ("results",
          Stdlib.AltJson.Json.Array(
-           Stdlib.List.flatten [ fnRows, typeRows, valueRows, traitRows, implRows, moduleRows ]
+           Stdlib.List.flatten [ fnRows, typeRows, valueRows, traitRows, implRows, testRows, moduleRows ]
          )) ]
   )
 
 
 // Execute one query. `execute` below fans batch arguments out through this
 // function so ranking, filtering, and rendering stay identical in both modes.
+/// Says how many tests matched but were left out, so a search that hides them
+/// never looks like there were none. Prints nothing when none were.
+let hiddenTestsHint (count: Int) : Unit =
+  if count > 0 then
+    let noun = if count == 1 then "test" else "tests"
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        $"  ({Stdlib.toString count} {noun} matched; --include-tests shows them)")
+  else
+    ()
+
+
 let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
@@ -435,6 +461,17 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               submodules =
                 results.submodules
                 |> Stdlib.List.filter (fun m -> Stdlib.Bool.not (Stdlib.List.member implPaths m)) }
+        // Tests are left out unless asked for. A test is usually named after what
+        // it tests, so every search for a function would also list its tests;
+        // `dark test <filter>` and `view --include-tests` are where to find them.
+        // Searched for anyway, so the hint below can say how many were left out.
+        let showTests =
+          parsed.includeTests
+          || Stdlib.List.member
+            parsed.entityTypes
+            LanguageTools.ProgramTypes.Search.EntityType.Test
+        let hiddenTests = if showTests then 0 else Stdlib.List.length results.tests
+        let results = if showTests then results else { results with tests = [] }
 
         // Only count submodules when no entity type filter is specified
         let submodulesCount =
@@ -449,12 +486,14 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           + (Stdlib.List.length results.fns)
           + (Stdlib.List.length results.traits)
           + (Stdlib.List.length results.impls)
+          + (Stdlib.List.length results.tests)
           + submodulesCount
 
         if parsed.asJson then
           Stdlib.printLine (jsonOutput state.currentBranchId queryText results)
         else if totalResults == 0 then
           Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"No results found for: {queryText}")
+          hiddenTestsHint hiddenTests
           Stdlib.printLine ""
         else
           Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText $"Search results for: {queryText}")
@@ -483,7 +522,8 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               ($"{Stdlib.toString (bestItemRank queryText results.values)}2", "value")
               ($"{Stdlib.toString (bestItemRank queryText results.fns)}3", "function")
               ($"{Stdlib.toString (bestItemRank queryText results.traits)}0", "trait")
-              ($"{Stdlib.toString (bestItemRank queryText results.impls)}5", "impl") ]
+              ($"{Stdlib.toString (bestItemRank queryText results.impls)}5", "impl")
+              ($"{Stdlib.toString (bestItemRank queryText results.tests)}6", "test") ]
 
           let order =
             sectionKeys
@@ -525,6 +565,10 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 let header =
                   $"impl {PrettyPrinter.ProgramTypes.NameResolution.traitName ctx item.entity.trait_} for {PrettyPrinter.ProgramTypes.typeReference ctx item.entity.self}"
                 withOptionalDoc parsed.withDocs $"{fullPathOf item} {Stdlib.Cli.UI.Colors.dimText header}{mark}" item.entity.description)
+            | "test" ->
+              renderSection "test" queryText resultCap results.tests (fun item ->
+                let mark = Query.deprecationMarker depSets item.entity.hash
+                withOptionalDoc parsed.withDocs $"{fullPathOf item}{mark}" item.entity.description)
             | "module" ->
               if (Stdlib.List.isEmpty parsed.entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
                 Stdlib.printLine (Display.getSectionHeader "module")
@@ -546,6 +590,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 ()
             | _ -> ())
 
+          hiddenTestsHint hiddenTests
           if (Stdlib.Bool.not parsed.withDocs) && (Stdlib.Bool.not parsed.batch) then
             Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  (add --with-docs to show doc comments)")
           else
@@ -594,7 +639,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let help (state: Cli.AppState) : String =
   [
-    "Search modules, types, functions, and values"
+    "Search modules, types, functions, values, traits, implementations and tests"
     ""
     "Usage: search [query] [options]"
     ""
@@ -608,6 +653,8 @@ let help (state: Cli.AppState) : String =
     "  --val                  Search only values"
     "  --trait                Search only traits"
     "  --impl                 Search only implementations of traits"
+    "  --test                 Search only tests"
+    "  --include-tests        Also list tests (left out by default)"
     "  --exact                Require exact match (default: fuzzy)"
     "  --shallow              Search only direct descendants (default: all descendants)"
     "  --with-docs            Also show doc comments"
@@ -625,6 +672,8 @@ let help (state: Cli.AppState) : String =
     "  search String --type        # Find types matching 'String'"
     "  search parseJson --exact    # Find exact match for 'parseJson'"
     "  search Http --fn --val      # Find functions and values matching 'Http'"
+    "  search doubles --test       # Find tests matching 'doubles'"
+    "  search ceiling --include-tests  # Everything matching, tests too"
     ""
     "By default, search looks in the current module and ALL nested descendants recursively."
     "Use --shallow to search only direct children of the current module."
@@ -638,7 +687,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   match Stdlib.List.last args with
   | Some lastArg ->
     if Stdlib.String.startsWith lastArg "--" then
-      ["--batch", "--type", "--fn", "--val", "--trait", "--impl", "--exact", "--shallow", "--with-docs", "--include-deprecated"]
+      ["--batch", "--type", "--fn", "--val", "--trait", "--impl", "--test", "--exact", "--shallow", "--with-docs", "--include-deprecated", "--include-tests"]
       |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag lastArg)
       |> Stdlib.List.map Cli.Completion.simple
     else

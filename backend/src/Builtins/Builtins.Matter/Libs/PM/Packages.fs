@@ -890,11 +890,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         TTuple(
           TList TString,
           TList TString,
-          [ TList TString; TList TString; TList TString; TList TString ]
+          [ TList TString
+            TList TString
+            TList TString
+            TList TString
+            TList TString ]
         )
       description =
         "Search, returning only names: (direct submodules, types, values, fns, "
-        + "traits, impls). Submodules are already reduced to the direct children of "
+        + "traits, impls, tests). Submodules are already reduced to the direct children of "
         + "the query's module and sorted."
       fn =
         function
@@ -917,7 +921,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 [ toDList (names results.values)
                   toDList (names results.fns)
                   toDList (names results.traits)
-                  toDList (names results.impls) ]
+                  toDList (names results.impls)
+                  toDList (names results.tests) ]
               )
           }
         | _ -> incorrectArgs ()
@@ -941,10 +946,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         TTuple(
           TList TString,
           nameAndHash,
-          [ nameAndHash; nameAndHash; nameAndHash; nameAndHash ]
+          [ nameAndHash; nameAndHash; nameAndHash; nameAndHash; nameAndHash ]
         )
       description =
-        "Search, returning (direct submodules, types, values, fns, traits, impls) "
+        "Search, returning (direct submodules, types, values, fns, traits, impls, "
+        + "tests) "
         + "as (name, hash) pairs. Like pmSearchNames but keeps each item's hash, "
         + "which listings need for deprecation marks."
       fn =
@@ -982,7 +988,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     v.hash)
                   pairs results.fns (fun (f : PT.PackageFn.PackageFn) -> f.hash)
                   pairs results.traits (fun (t : PT.Trait.Trait) -> t.hash)
-                  pairs results.impls (fun (i : PT.TraitImpl.TraitImpl) -> i.hash) ]
+                  pairs results.impls (fun (i : PT.TraitImpl.TraitImpl) -> i.hash)
+                  pairs results.tests (fun (test : PT.PackageTest.PackageTest) ->
+                    test.hash) ]
               )
           }
         | _ -> incorrectArgs ()

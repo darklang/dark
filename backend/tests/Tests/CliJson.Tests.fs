@@ -365,7 +365,7 @@ let typecheckScopesToAModule =
             [ "eval"
               String.concat
                 "\n"
-                [ "let (_, types, values, fns, _, impls) ="
+                [ "let (_, types, values, fns, _, impls, tests) ="
                   "  Darklang.LanguageTools.PackageManager.Search.searchNamesAndHashes"
                   "    Darklang.SCM.Branch.mainBranchId"
                   "    (Darklang.LanguageTools.ProgramTypes.Search.SearchQuery"
@@ -376,7 +376,7 @@ let typecheckScopesToAModule =
                   "        exactMatch = false })"
                   "let distinct (found: List<(String * Darklang.LanguageTools.ProgramTypes.Hash)>) : Int ="
                   "  Stdlib.List.length (Stdlib.List.unique (Stdlib.List.map found (fun (_, h) -> h)))"
-                  "(distinct types) + (distinct values) + (distinct fns) + (distinct impls)" ] ]
+                  "(distinct types) + (distinct values) + (distinct fns) + (distinct impls) + (distinct tests)" ] ]
         Expect.equal
           (string (total wider))
           (declared.Trim().Split('\n') |> Array.last)

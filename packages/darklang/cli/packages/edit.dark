@@ -40,6 +40,7 @@ let itemLocation
   | Function loc -> Stdlib.Option.Option.Some loc
   | Trait loc -> Stdlib.Option.Option.Some loc
   | Impl loc -> Stdlib.Option.Option.Some loc
+  | Test loc -> Stdlib.Option.Option.Some loc
 
 
 /// Hand the file to `dark module`, which validates and applies it.
@@ -82,7 +83,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | None ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
-        $"{name} is a module. `dark edit` takes one fn, type, value, trait or impl.")
+        $"{name} is a module. `dark edit` takes one fn, type, value, trait, impl or test.")
 
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.dimText

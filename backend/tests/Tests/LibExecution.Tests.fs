@@ -259,12 +259,15 @@ let t
               (Some $"value: {actual}")
               None
               $"Expected SQL runtime error `{expectedSqlError}` but expression returned a value.\n\nTest location: {filename}:{lineNumber}"
+        | Error(RT.RuntimeError.SqlCompiler actualError, _) ->
+          return Expect.equal actualError expectedSqlError ""
         | Error(allegedRTE, callStack) ->
           let! actualError =
             runtimeErrorMessage state allegedRTE callStack |> Ply.toTask
-          let expected =
-            LibExecution.RTQueryCompiler.errorTemplate + expectedSqlError
-          return Expect.equal actualError expected ""
+          return
+            Expect.isTrue
+              false
+              $"Expected SQL compiler error `{expectedSqlError}`, got `{actualError}`"
     with
     | :? Expecto.AssertException as e -> Exception.reraise e
     | e ->

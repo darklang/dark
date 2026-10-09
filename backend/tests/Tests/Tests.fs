@@ -77,6 +77,7 @@ let main (args : string array) : int =
         // package manager
         Tests.Propagation.tests
         Tests.Draft.tests
+        Tests.PackageTests.tests
         Tests.Purge.tests
         Tests.Hashing.tests
         Tests.Config.tests

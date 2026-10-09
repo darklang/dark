@@ -1902,7 +1902,7 @@ module RuntimeError =
 
     | Statement of Statements.Error
 
-    /// SQL compiler errors when compiling lambdas to SQL queries
+    /// Raw SQL query-compiler message; the error printer adds context.
     | SqlCompiler of errMsg : string
 
     // punting these until DBs are supported again
@@ -3834,11 +3834,17 @@ and Program = { dbs : Map<string, DB.T> }
 // CLEANUP maybe this belongs in Execution rather than RuntimeTypes?
 // and taken out of ExecutionState, where it's not really used?
 and TestContext =
-  { mutable sideEffectCount : int
+  {
+    /// Set only while executing a package test, including its nested calls.
+    isPackageTest : bool
+    /// Package tests receive a fresh context. Observation builtins use atomic
+    /// access so explicitly spawned children may safely share their test's count.
+    mutable sideEffectCount : int
 
     mutable exceptionReports : List<string * string * Metadata>
     mutable expectedExceptionCount : int
-    postTestExecutionHook : TestContext -> unit }
+    postTestExecutionHook : TestContext -> unit
+  }
 
 
 and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> Ply<unit>

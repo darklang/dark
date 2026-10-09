@@ -220,12 +220,12 @@ let complete
   match args with
   | []
   | [ _ ] ->
-    let (_, _, _, _, here, _) =
+    let (_, _, _, _, here, _, _) =
       Query.allDirectDescendantNames
         state.currentBranchId
         (Traversal.getCurrentModulePath state.packageData.currentLocation)
 
-    let (_, _, _, _, stdlib, _) =
+    let (_, _, _, _, stdlib, _, _) =
       Query.allDirectDescendantNames state.currentBranchId [ "Darklang", "Stdlib" ]
 
     Stdlib.List.flatten [ here, stdlib ]

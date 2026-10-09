@@ -1,6 +1,6 @@
 module Darklang.Cli.Packages.Query
 
-/// Search for all contents (modules, types, values, functions) in a given module path
+/// Search for all contents (modules, types, values, functions, traits, impls, tests) in a given module path
 let allDirectDescendants
   (branchId: Uuid)
   (modulePath: List<String>)
@@ -17,14 +17,16 @@ let allDirectDescendants
 
 
 /// Names of everything directly under `modulePath`, grouped by kind:
-/// (direct submodules, types, values, fns, traits, impls). Submodules are already reduced and sorted.
+/// (direct submodules, types, values, fns, traits, impls, tests). Submodules are already
+/// reduced and sorted.
 ///
 /// This is what completion wants -- `allDirectDescendants` materializes every matched item's full
 /// definition to hand back names.
 let allDirectDescendantNames
   (branchId: Uuid)
   (modulePath: List<String>)
-  : (List<String> * List<String> * List<String> * List<String> * List<String> * List<String>) =
+  : (List<String> * List<String> * List<String> * List<String> * List<String> *
+     List<String> * List<String>) =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = modulePath
@@ -37,13 +39,15 @@ let allDirectDescendantNames
 
 
 /// Names and hashes of everything directly under `modulePath`:
-/// (direct submodules, types, values, fns, traits, impls). Submodules are already reduced and sorted.
+/// (direct submodules, types, values, fns, traits, impls, tests). Submodules are already
+/// reduced and sorted.
 ///
 /// For listings, which need the hash to render the deprecation mark but never the definition.
 let allDirectDescendantNamesAndHashes
   (branchId: Uuid)
   (modulePath: List<String>)
   : (List<String> *
+     List<(String * LanguageTools.ProgramTypes.Hash)> *
      List<(String * LanguageTools.ProgramTypes.Hash)> *
      List<(String * LanguageTools.ProgramTypes.Hash)> *
      List<(String * LanguageTools.ProgramTypes.Hash)> *
@@ -94,6 +98,7 @@ let searchExactMatch
 let hasContent (r: LanguageTools.ProgramTypes.Search.SearchResults) : Bool =
   (r.submodules != []) || (r.types != []) || (r.fns != []) || (r.values != [])
   || (r.traits != []) || (r.impls != [])
+  || (r.tests != [])
 
 
 /// Extract direct submodule names from the current module path

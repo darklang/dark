@@ -73,6 +73,7 @@
     <Compile Include="BranchOverlay.Tests.fs" />
     <Compile Include="Propagation.Tests.fs" />
     <Compile Include="Draft.Tests.fs" />
+    <Compile Include="PackageTests.Tests.fs" />
     <Compile Include="Purge.Tests.fs" />
     <Compile Include="OpsProjections.Tests.fs" />
     <Compile Include="Lww.Tests.fs" />
