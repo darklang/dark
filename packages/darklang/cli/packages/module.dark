@@ -149,7 +149,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             | Error message ->
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.error $"Failed to define module: {message}")
-              state
+              { state with exitCode = 1 }
             | Ok report ->
               Propagate.printFollowed (Propagate.repointSaved branchId updates)
 

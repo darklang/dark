@@ -105,5 +105,5 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let complete
   (_state: Cli.AppState)
   (_args: List<String>)
-  : List<String> =
+  : List<Cli.Completion.CompletionItem> =
   []

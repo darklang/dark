@@ -56,11 +56,128 @@ let addAuthored
       |> LanguageTools.PackageManager.resolveTraitCalls
       |> LanguageTools.PackageManager.stabilizeHashes
 
-    match add branchId stabilizedOps with
-    | Ok _ ->
-      Stdlib.Result.Result.Ok(
-        LanguageTools.AtRestTypeChecker.checkPackageOpsOn branchId stabilizedOps)
-    | Error message -> Stdlib.Result.Result.Error message
+    let added = add branchId stabilizedOps
+
+    // A value is evaluated after its ops are stored, so a value that fails has already landed. Take
+    // its binding back out, or "Could not save" is untrue: the value sits in the draft, and every
+    // later commit either refuses on it or commits a value nobody can read.
+    match unevaluatedValuesBoundBy branchId stabilizedOps with
+    | [] ->
+      match added with
+      | Ok _ ->
+        Stdlib.Result.Result.Ok(
+          LanguageTools.AtRestTypeChecker.checkPackageOpsOn branchId stabilizedOps)
+      | Error message -> Stdlib.Result.Result.Error message
+    | failed -> Stdlib.Result.Result.Error(takeBackFailedValues branchId stabilizedOps added failed)
+
+
+/// Unbind the values a save could not evaluate, and say what that left. A batch (`dark module`,
+/// the editor) can hold good items beside the bad value, and those stay.
+let takeBackFailedValues
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  (added: Stdlib.Result.Result<Int, String>)
+  (failed: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
+  : String =
+  let failedLocations = failed |> Stdlib.List.map (fun (loc, _) -> loc)
+
+  let names =
+    failedLocations
+    |> Stdlib.List.map PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
+    |> Stdlib.String.join ", "
+
+  let why =
+    match added with
+    | Error message -> message
+    | Ok _ -> $"{names} could not be evaluated"
+
+  let kept =
+    ops
+    |> Stdlib.List.filterMap (fun op ->
+      match op with
+      | SetName(loc, _, _) ->
+        if Stdlib.List.``member`` failedLocations loc then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some(
+            PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc)
+      | _ -> Stdlib.Option.Option.None)
+
+  let keptNote =
+    match kept with
+    | [] -> ""
+    | kept ->
+      let keptList = Stdlib.String.join kept ", "
+      $" The rest of this save was kept: {keptList}."
+
+  match unbind branchId failed with
+  | Ok _ -> $"{why}\nNothing was saved for {names}.{keptNote}"
+  | Error e ->
+    $"{why}\n{names} is still in your draft, and taking it back out failed: {e}. `dark discard {names}` removes it."
+
+
+/// The values <param ops> binds whose stored form never got a runtime value: what evaluation
+/// failed on. Asked of the store, by the hash each name holds now, because the save restabilizes
+/// and refreshes hashes after the ones in hand.
+let unevaluatedValuesBoundBy
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : List<(LanguageTools.ProgramTypes.PackageLocation * String)> =
+  ops
+  |> Stdlib.List.filterMap (fun op ->
+    match op with
+    | SetName(loc, PackageValue _, _) ->
+      match liveBindingFor branchId loc with
+      | Some b ->
+        if b.itemType == "value" && Stdlib.Bool.not (valueEvaluated b.hash) then
+          Stdlib.Option.Option.Some((loc, b.hash))
+        else
+          Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+
+
+let valueEvaluated (hash: String) : Bool =
+  Stdlib.Sqlite.queryOneP
+    (localDb ())
+    "SELECT 1 AS ok FROM package_values WHERE hash = @p0 AND rt_dval IS NOT NULL"
+    [ hash ]
+  |> Stdlib.Option.isSome
+
+
+/// Drop the bindings to exactly these (name, hash) pairs from the draft, leaving the name on
+/// whatever it held before, including an earlier uncommitted version, and the value content behind
+/// them: the commit's type check reads content as well as names, so content left behind with no name
+/// would go on refusing every commit. Anything else this save added that uses one of these values is
+/// left referencing nothing, and is refused as unresolved, which is what it is.
+let unbind
+  (branchId: Uuid)
+  (bindings: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
+  : Stdlib.Result.Result<Int, String> =
+  let hashes = bindings |> Stdlib.List.map (fun (_, hash) -> hash)
+
+  let isOneOf (op: LanguageTools.ProgramTypes.PackageOp) : Bool =
+    match op with
+    | SetName(loc, target, _) ->
+      let hash =
+        LanguageTools.ProgramTypes.hashToString
+          (LanguageTools.ProgramTypes.Reference.hash target)
+
+      Stdlib.List.``member`` bindings (loc, hash)
+    | AddValue v ->
+      Stdlib.List.``member`` hashes (LanguageTools.ProgramTypes.hashToString v.hash)
+    | _ -> false
+
+  if SCM.Branch.isMain branchId then
+    SCM.Draft.rewriteBy (fun draft ->
+      draft |> Stdlib.List.filter (fun d -> Stdlib.Bool.not (isOneOf d.op)))
+  else
+    let ids =
+      decodeOpRowEntries (Branches.ownOpRows branchId)
+      |> Stdlib.List.filterMap (fun (id, _, op) ->
+        if isOneOf op then Stdlib.Option.Option.Some id else Stdlib.Option.Option.None)
+
+    dropBranchOps branchId ids
 
 
 // the op-log DATA-ACCESS SILO

@@ -1027,6 +1027,61 @@ let private commitRefusesDefiniteTypeErrors =
           $"a fixed draft commits without --allow-type-errors: {fixed_}"
       })
 
+/// What a person sees after a save that failed, on a fresh install: it says so with a failing exit,
+/// it stored nothing, and the next commit of something else is not held up by it.
+let private failedValueSaveLeavesNothingBehind (onBranch : bool) =
+  CliInstance.instanceTest
+    (if onBranch then
+       "a value that fails on a branch is not saved, and unrelated work on the branch commits"
+     else
+       "a value that fails is not saved, and unrelated work commits")
+    (fun i ->
+      task {
+        if onBranch then
+          let! (made, code) =
+            CliInstance.runWithExit i [ "branch"; "create"; "honesty" ]
+          Expect.equal code 0L $"the branch exists: {made}"
+
+        let! (saved, code) =
+          CliInstance.runWithExit
+            i
+            [ "val"
+              "Tests.SaveHonesty.broken"
+              "Stdlib.List.head (noSuchSaveHonestyName)" ]
+        Expect.equal code 1L $"a failed save exits non-zero: {saved}"
+
+        let! _ =
+          CliInstance.run i [ "fn"; "Tests.SaveHonesty.fine"; "() : Int64 = 5150L" ]
+        let! committed = CliInstance.run i [ "commit"; "unrelated work"; "-y" ]
+        Expect.isFalse
+          (committed.Contains "cannot commit")
+          $"unrelated work commits, rather than being refused over the failed save: {committed}"
+        Expect.stringContains
+          committed
+          "Tests.SaveHonesty.fine"
+          "and it is the unrelated work"
+
+        // Wrapped to the terminal's width and coloured per line, so a phrase can break across
+        // lines with escape codes in between.
+        let unwrapped =
+          System.Text.RegularExpressions.Regex.Replace(
+            System.Text.RegularExpressions.Regex.Replace(
+              saved,
+              "\u001b\\[[0-9;]*m",
+              ""
+            ),
+            "\\s+",
+            " "
+          )
+        Expect.stringContains
+          unwrapped
+          "Nothing was saved"
+          "and says nothing was saved"
+
+        let! read = CliInstance.run i [ "eval"; "Tests.SaveHonesty.broken" ]
+        Expect.stringContains read "not found" $"the value was never stored: {read}"
+      })
+
 let private deprecationIsReversible =
   cliTest "delete can be undone" (fun state ->
     task {
@@ -2686,6 +2741,8 @@ let overrideByNameAnswersThePendingConflict =
 
 let tests : List<Test> =
   [ commitRefusesDefiniteTypeErrors
+    failedValueSaveLeavesNothingBehind false
+    failedValueSaveLeavesNothingBehind true
     deprecationIsReversible
     theWorkedExampleWorks
     editsAreVisibleInTheSameProcess
