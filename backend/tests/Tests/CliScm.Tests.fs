@@ -2657,6 +2657,10 @@ let aPartialCommitTakesItsDependencysName =
     (fun state ->
       task {
         do! start state
+        // The dependency's content already exists, but its branch-local name
+        // below still has to come along. Do not depend on seed/test run order.
+        do! fn state "Tests.Partial2.committed" "() : Int64 = 5L"
+        do! commit state "dependency content already committed"
         do! switch state "partialbr"
         do! fn state "Tests.Partial2.dep" "() : Int64 = 5L"
         do!

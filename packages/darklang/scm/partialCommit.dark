@@ -57,8 +57,8 @@ let draftNamings () : List<Selected> =
       )
     | _ -> Stdlib.Option.Option.None)
 
-/// The content hashes the draft ADDS. Only these participate in the dependency closure: a reference to
-/// something already committed needs nothing done about it.
+/// The content hashes the draft ADDS. The dependency closure also includes draft
+/// names for existing content: committing the content does not commit a new name.
 let draftAddedHashes () : List<String> =
   SCM.PackageOps.draftEntries ()
   |> Stdlib.List.filterMap (fun e ->
@@ -77,14 +77,14 @@ let draftAddedHashes () : List<String> =
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString test.hash)
     | _ -> Stdlib.Option.Option.None)
 
-/// What <param hashes> reference, restricted to <param added> (the hashes the draft adds).
+/// What <param hashes> reference, restricted to <param pending> (draft content or names).
 ///
 /// Reads the recorded edges rather than the bodies: `package_dependencies` is written by the same fold that
 /// wrote the content, so it can't disagree with what the item actually references.
 ///
-/// `added` is a parameter: computing it decodes every draft blob, and the set can't change mid-closure
+/// `pending` is a parameter: computing it decodes every draft blob, and the set can't change mid-closure
 /// (see `closeOverDeps`).
-let draftDepsOf (added: List<String>) (hashes: List<String>) : List<String> =
+let draftDepsOf (pending: List<String>) (hashes: List<String>) : List<String> =
   if Stdlib.List.isEmpty hashes then
     []
   else
@@ -97,12 +97,12 @@ let draftDepsOf (added: List<String>) (hashes: List<String>) : List<String> =
         WHERE item_hash IN ({quoted}) AND depends_on_hash != ''"
       []
       "h")
-    |> Stdlib.List.filter (fun h -> Stdlib.List.``member`` added h)
+    |> Stdlib.List.filter (fun h -> Stdlib.List.``member`` pending h)
 
-/// One round of closure: whatever <param acc> references that the draft adds and acc doesn't have yet.
-let closeStep (added: List<String>) (acc: List<String>) : List<String> =
+/// One round of closure: referenced hashes with draft content or names not yet in acc.
+let closeStep (pending: List<String>) (acc: List<String>) : List<String> =
   let next =
-    draftDepsOf added acc
+    draftDepsOf pending acc
     |> Stdlib.List.filter (fun h -> Stdlib.Bool.not (Stdlib.List.``member`` acc h))
 
   Stdlib.List.append acc next
@@ -115,11 +115,18 @@ let closeStep (added: List<String>) (acc: List<String>) : List<String> =
 let closeOverDeps (hashes: List<String>) : List<String> =
   // Read ONCE, then passed down: it decodes every blob in the draft, and both the round count and every
   // round need it, so asking per use is N+1 full decodes of the draft to commit a subset of it.
-  let added = draftAddedHashes ()
-  let rounds = Stdlib.List.length added + 1
+  // A new name may point at content already committed under another name. It
+  // still needs to travel with callers that refer to it. The name filter in
+  // `plan` keeps unrelated aliases of the same hash out of the selection.
+  let pending =
+    Stdlib.List.append
+      (draftAddedHashes ())
+      (draftNamings () |> Stdlib.List.map (fun s -> s.hash))
+    |> Stdlib.List.unique
+  let rounds = Stdlib.List.length pending + 1
 
   Stdlib.List.range 1 rounds
-  |> Stdlib.List.fold (Stdlib.List.unique hashes) (fun acc _ -> closeStep added acc)
+  |> Stdlib.List.fold (Stdlib.List.unique hashes) (fun acc _ -> closeStep pending acc)
 
 /// The names <param names> depend on, transitively, by NAME rather than by content hash.
 ///
