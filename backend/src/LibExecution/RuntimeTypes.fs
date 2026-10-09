@@ -3938,9 +3938,9 @@ and ExecutionState =
     ///
     /// Orphan reclaim TODOs (persistent blobs only):
     ///   - `package_blobs` orphan reclaim runs via the `pm-sweep-blobs`
-    ///     CLI command, which scans `package_values.rt_dval` only —
-    ///     `trace_data` and User DB rows don't hold blob refs today,
-    ///     but any new referencing table needs wiring into the sweep.
+    ///     CLI command, which scans `package_values.rt_dval` and retains hashes
+    ///     mentioned by User DB JSON. Trace blobs still need a collection pass;
+    ///     any new referencing table needs wiring into the sweep.
     ///     TODO turn the sweep into "scan a list of (table, column)
     ///     pairs" defined alongside the schema so new blob-holding
     ///     columns register themselves.
