@@ -492,6 +492,7 @@ let printCalls (branchId: Uuid) (typed: String) : Unit =
 /// The values `traces show` would print beside the code, as JSON: the ids and the values,
 /// with no source. What an agent wants, since it can read the code already.
 let showCodeJson
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
   (typed: String)
   (tracePrefix: Stdlib.Option.Option<String>)
@@ -553,7 +554,7 @@ let showCodeJson
 
     let viewWith (focus: List<(Int64 * Int64)>) =
       let (collected, frames, frameValues, problem) =
-        Darklang.Tracing.Store.viewTraceTree branchId trace.id focus
+        Darklang.Tracing.Store.viewTraceTree accountID branchId trace.id focus
 
       (collected, frames, frameValues, problem, loopsOf frames fnNames recordedIters selfHash)
 
@@ -1144,7 +1145,7 @@ let showCode
 
         let viewWith (focus: List<(Int64 * Int64)>) =
           let (collected, frames, frameValues, problem) =
-            Darklang.Tracing.Store.viewTraceTree branchId trace.id focus
+            Darklang.Tracing.Store.viewTraceTree state.accountID branchId trace.id focus
 
           (collected, frames, frameValues, problem, loopsOf frames fnNames recorded selfHash)
 

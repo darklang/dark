@@ -1,5 +1,4 @@
--- What a reconciliation could not decide by itself (`conflicts`) and what a person decided in
--- advance (`propagation_policy`). Both are folded from ops; neither is authoritative.
+-- Reconciliation findings (`conflicts`), folded from ops rather than authoritative.
 
 -- CONFLICTS: recorded at RECONCILIATION (merge / rebase / sync-import) when two divergent op sets
 -- both rebound the same name to DIFFERENT hashes since a common base. Reconciliation auto-resolves
@@ -30,30 +29,3 @@ CREATE TABLE IF NOT EXISTS conflicts (
 CREATE INDEX IF NOT EXISTS idx_conflicts_status ON conflicts(status);
 CREATE INDEX IF NOT EXISTS idx_conflicts_branch ON conflicts(branch_id);
 CREATE INDEX IF NOT EXISTS idx_conflicts_name ON conflicts(owner, modules, name);
-
-
---------------------
--- Propagation policy
---------------------
--- Which items follow a dependency when it moves, and which stay put. Ownership may inform the
--- DEFAULT, but an explicit row here always wins. Resolution is most-specific-first (item, then
--- module, then each parent module, then the default), the same shape name resolution has;
--- name = '' means a MODULE-level choice covering everything beneath it.
---
--- BRANCH-SCOPED, like everything else a branch can change. A branch inherits main's choices and can
--- override them. The default below is main's well-known uuid, which code spells as
--- `ProgramTypes.BranchId.Main` and never as a literal.
---
--- Derived: folded from `Decision` ops and nothing else writes here, so this is a projection listed
--- in `Seed.projectionTables`. Drop it and the log rebuilds it.
-CREATE TABLE IF NOT EXISTS propagation_policy (
-  branch_id TEXT NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
-  owner TEXT NOT NULL,
-  modules TEXT NOT NULL,
-  name TEXT NOT NULL,               -- '' = a module-level choice
-  policy TEXT NOT NULL,             -- 'follow' | 'pin'
-  note TEXT,                        -- why, in the author's words; a pin without a reason ages badly
-  origin_ts TEXT,                   -- cross-instance LWW, same as everything else
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  PRIMARY KEY (branch_id, owner, modules, name)
-);

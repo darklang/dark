@@ -3,10 +3,10 @@ module Darklang.SCM.Constraints
 // Standing findings about the store: which live items still call a version that is no longer the name's
 // current one.
 //
-// Un-propagated usages are the NORMAL STEADY STATE, not a failure. A caller written on another machine
-// cannot be known about when the callee is upgraded here, and must not silently repoint when the two sync;
-// an explicit `pin` is a second, deliberate source of the same thing. So this is a check you RUN, not a
-// warning at commit, which for a permanent condition just teaches you to stop reading it.
+// Imported usages can lag behind local edits. A caller written on another machine
+// may arrive after a callee edit. Local edits propagate automatically, but imported
+// references can still be outdated. So this is a check you RUN, not a
+// warning at every commit.
 //
 // Detection needs no storage, being derivable from the projections at any moment. Only a human's ANSWER is
 // durable, for the same reason `Resolve` is an op: an ack that lives only locally re-reports forever, and
@@ -87,22 +87,6 @@ let offersResolution (k: Kind) (choice: String) : Bool =
   Stdlib.List.member (resolutionsFor k) choice
 
 
-/// Does a `pin` on the usage already answer a finding of this kind?
-///
-/// Per kind, because a pin says one specific thing: "this REFERENCE is deliberate, I am on this version
-/// on purpose". That IS the answer to a stale usage, and no answer to a kind change, which is not about
-/// versions at all.
-let pinSuppresses (k: Kind) : Bool =
-  match k with
-  | StaleUsage -> true
-  | KindChanged -> false
-  // A pin says something about which VERSION a reference sits on. It says nothing about whether an
-  // override you made was later undone, so it must not hide one.
-  | DecisionSuperseded -> false
-  // Two implementations is not a version question either.
-  | RivalImplementations -> false
-
-
 /// Which of two implementations of one trait for one type a call runs.
 type RivalChoice =
   /// The finding's own implementation (`usage`): it was written later.
@@ -123,12 +107,6 @@ type FindingDetail =
   | Versions of
     using: LanguageTools.ProgramTypes.Hash *
     current: LanguageTools.ProgramTypes.Hash
-
-  /// A propagation choice that a later decision replaced, and who replaced it.
-  | PolicyReplaced of
-    was: LanguageTools.ProgramTypes.PropagationPolicy *
-    now: LanguageTools.ProgramTypes.PropagationPolicy *
-    by: String
 
   /// Two implementations of one trait for one type: the type, as printed, the other
   /// implementation (`usage` is this one, `dependency` the trait), and which of the two a call
@@ -161,10 +139,10 @@ let fqnOf (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
 ///
 /// Keyed on the version the usage is ON, not just the pair of names: "leave it, it's fine" survives the
 /// dependency getting further versions, but not the usage itself moving. It is the "not now" answer;
-/// "forever" is a `pin`.
+/// retaining a reference never needs an update policy.
 ///
 /// <param discriminator> is whatever makes this finding a DIFFERENT one from the next: the version a
-/// usage is on, or the choice a policy replaced. Kept as text so a kind with no hashes can key on
+/// usage is on, or another kind-specific discriminator. Kept as text so a kind with no hashes can key on
 /// something else and still get a stable id.
 let findingId
   (usage: LanguageTools.ProgramTypes.PackageLocation)
@@ -312,40 +290,6 @@ let detectSupersededDecisions () : Stdlib.Result.Result<List<Finding>, String> =
               LanguageTools.ProgramTypes.Hash.Hash chosen,
               LanguageTools.ProgramTypes.Hash.Hash live
             ) }))
-
-
-/// A propagation choice of yours that a peer's later choice replaced. The silent half of
-/// last-writer-wins, made visible; see `SCM.PackageOps.supersededPolicies` for why only a peer counts.
-let detectSupersededPolicies () : Stdlib.Result.Result<List<Finding>, String> =
-  SCM.PackageOps.supersededPolicies ()
-  |> Stdlib.Result.map (fun entries ->
-    entries
-    |> Stdlib.List.map (fun entry ->
-      let (loc, mine, now, by) = entry
-      // A policy row carries no kind, so ask what the name IS: main-scoped is right here, since a
-      // policy names a live binding. Fn only when nothing is bound (the finding still reads).
-      let kind =
-        match Stdlib.Sqlite.queryP
-                (SCM.localDb ())
-                "SELECT item_type FROM locations
-                 WHERE owner = @p0 AND modules = @p1 AND name = @p2
-                   AND unlisted_at IS NULL AND source <> 'unbind' LIMIT 1"
-                [ loc.owner, (Stdlib.String.join loc.modules "."), loc.name ]
-        with
-        | Ok [ row ] ->
-          (match Stdlib.Sqlite.textField row "item_type" with
-           | Some t -> Deps.kindOf t
-           | None -> LanguageTools.ProgramTypes.ItemKind.Fn)
-        | _ -> LanguageTools.ProgramTypes.ItemKind.Fn
-
-      Finding
-        { kind = Kind.DecisionSuperseded
-          id = findingId loc loc $"policy|{by}"
-          usage = loc
-          usageKind = kind
-          dependency = loc
-          dependencyKind = kind
-          detail = FindingDetail.PolicyReplaced(mine, now, by) }))
 
 
 /// Two visible implementations of one trait for one type, on <param branchId>, and which one a
@@ -521,16 +465,9 @@ type Detection =
     blocked: List<String> }
 
 let detectAll () : Detection =
-  // The ack lifecycle, the ids, the CLI and the `dark status` count are all kind-agnostic, so a kind
-  // appends here and needs nothing else. The one thing that is NOT kind-agnostic is pin-suppression, in
-  // `pending` below.
+  // Detection and acknowledgement are independent of dependency upgrades.
   let (decisions, decisionsBlocked) =
     match detectSupersededDecisions () with
-    | Ok fs -> (fs, [])
-    | Error e -> ([], [ e ])
-
-  let (policies, policiesBlocked) =
-    match detectSupersededPolicies () with
     | Ok fs -> (fs, [])
     | Error e -> ([], [ e ])
 
@@ -540,25 +477,17 @@ let detectAll () : Detection =
           [ detectOutdatedUsages ()
             detectOutdatedUsagesOn (PackageOps.currentBranch ())
             decisions
-            policies
             detectRivalImplementations (PackageOps.currentBranch ()) ]
-      blocked = Stdlib.List.append decisionsBlocked policiesBlocked }
+      blocked = decisionsBlocked }
 
 
-/// The findings a human still has to look at: detection minus the two ways of having already answered.
-///
-/// A `pin` suppresses, and is not a shortcut: a pin IS the durable, syncable ack, a row saying "this
-/// reference is deliberate" with the author's reason attached.
-///
-/// `dark status` calls this on every invocation, so it reads each table ONCE rather than per finding --
-/// `shouldFollow` re-queries `propagation_policy` every time it is asked.
+/// Findings that have not been acknowledged.
 let pending () : Detection =
   let ackedSet =
     ackedIds ()
     |> Stdlib.List.map (fun a -> (a, true))
     |> Stdlib.Dict.fromListOverwritingDuplicates
 
-  let choices = Propagation.allChoices ()
   let detected = detectAll ()
 
   // Blockers pass through: an ack answers a finding, and a detector that never ran produced none.
@@ -571,11 +500,7 @@ let pending () : Detection =
             | Some _ -> true
             | None -> false
 
-          let isPinned =
-            pinSuppresses s.kind
-            && (Propagation.shouldFollowIn choices s.usage |> Stdlib.Bool.not)
-
-          (isAcked || isPinned) |> Stdlib.Bool.not)
+          Stdlib.Bool.not isAcked)
       blocked = detected.blocked }
 
 

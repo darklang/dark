@@ -231,49 +231,6 @@ let resolveOrCreate
     | None -> return! mintBranch name parentId
   }
 
-/// Fold a branch-scoped propagation `Decision` into `propagation_policy`.
-///
-/// THIS RULE EXISTS TWICE: `PackageOpPlayback.applyDecision` folds the same op for MAIN, under
-/// `BranchId.Main`. Both must use the OP's stamp and both must guard on it, or the same decision
-/// lands differently depending on which path it took and two machines stop converging.
-///
-/// A branch's DECISIONS fold immediately, scoped to the branch; its SetNames do not, since those
-/// would leak into main's bindings. A decision is not a binding.
-let private foldBranchDecide
-  (branchId : PT.BranchId)
-  (loc : PT.PackageLocation)
-  (policy : PT.PropagationPolicy)
-  (reason : string)
-  (originTs : string)
-  : Task<unit> =
-  let modules = String.concat "." loc.modules
-  let key =
-    [ "branch", Sql.string (string branchId)
-      "owner", Sql.string loc.owner
-      "modules", Sql.string modules
-      "name", Sql.string loc.name
-      "origin_ts", Sql.string originTs ]
-  if policy = PT.PropagationPolicy.Unset then
-    // Clearing is a decision like any other, guarded the same way so a stale unset can't wipe a
-    // newer pin.
-    Sql.query
-      "DELETE FROM propagation_policy
-       WHERE branch_id = @branch AND owner = @owner AND modules = @modules AND name = @name
-         AND COALESCE(origin_ts, '') < @origin_ts"
-    |> Sql.parameters key
-    |> Sql.executeStatementAsync
-  else
-    Sql.query
-      "INSERT INTO propagation_policy (branch_id, owner, modules, name, policy, note, origin_ts)
-       VALUES (@branch, @owner, @modules, @name, @policy, @note, @origin_ts)
-       ON CONFLICT(branch_id, owner, modules, name) DO UPDATE SET
-         policy = excluded.policy, note = excluded.note, origin_ts = excluded.origin_ts
-       WHERE excluded.origin_ts > COALESCE(propagation_policy.origin_ts, '')"
-    |> Sql.parameters (
-      key @ [ "policy", Sql.string policy.ToText; "note", Sql.string reason ]
-    )
-    |> Sql.executeStatementAsync
-
 /// INSERT (id, blob, ts) rows into `package_ops` INERT (applied = 0, effective = 0: in
 /// the shared log, NOT folded into main) and tag them onto the branch, in ONE
 /// transaction. Content-addressed id -> re-store dedups; returns how many ops were
@@ -391,42 +348,7 @@ let storeDeltaOpsStampedFrom
         |> List.map (fun (id, blob, _, ts) -> (id, blob, ts))
         |> storeInertTagged branchId source
 
-      for (_, _, op, ts) in prepared do
-        match op with
-        | PT.PackageOp.Decision(_, loc, reason, PT.DecisionKind.Propagation policy) ->
-          do! foldBranchDecide branchId loc policy reason ts
-        | _ -> ()
-
       return stored
-  }
-
-/// Re-fold every BRANCH-scoped propagation decision straight from the log.
-///
-/// `propagation_policy` is listed in `Seed.projectionTables` as regenerable, which is true only
-/// for main: branch ops are `effective = 0` and the fold skips them, so a rebuild that clears the
-/// table and re-folds only effective ops would delete every branch pin without bringing it back.
-///
-/// Oldest-first, so `foldBranchDecide`'s origin_ts guard sees the same sequence authoring did.
-let refoldBranchDecides () : Task<unit> =
-  task {
-    let! rows =
-      Sql.query
-        "SELECT p.id, p.op_blob, p.origin_ts, ob.branch_id
-         FROM package_ops p JOIN op_branches ob ON ob.op_id = p.id
-         ORDER BY p.origin_ts, p.rowid"
-      |> Sql.executeAsync (fun read ->
-        (read.uuid "id",
-         read.bytes "op_blob",
-         read.string "origin_ts",
-         PT.BranchId.ParseUnsafe(read.string "branch_id")))
-
-    for (id, blob, ts, branchId) in rows do
-      // A blob this build can't read is somebody else's newer op format; skip it rather than fail
-      // the whole rebuild over one row we were never going to fold anyway.
-      match BS.PT.PackageOp.tryDeserialize id blob with
-      | Some(PT.PackageOp.Decision(_, loc, reason, PT.DecisionKind.Propagation policy)) ->
-        do! foldBranchDecide branchId loc policy reason ts
-      | _ -> ()
   }
 
 /// Store LOCALLY-AUTHORED branch ops, stamped from the process authoring clock -- the same

@@ -82,10 +82,6 @@ let private cleanupFor (owner : string) (m : string) : Task<unit> =
       execSqlP
         "DELETE FROM locations WHERE owner = @o AND modules = @m"
         [ "o", Sql.string owner; "m", Sql.string m ]
-    do!
-      execSqlP
-        "DELETE FROM propagation_policy WHERE owner = @o AND modules = @m"
-        [ "o", Sql.string owner; "m", Sql.string m ]
   }
 
 let private cleanup (m : string) : Task<unit> = cleanupFor "Darklang" m
@@ -252,49 +248,8 @@ let three (x: Int64) : Int64 = ({m}.shared x) + 30L"""
     do! cleanup m
   }
 
-let pinStopsIt =
-  testTask "an explicit pin holds a dependent where it is" {
-    let m = "PropTestPin"
-    do! cleanup m
-
-    let! v1 =
-      authorIn
-        m
-        $"""let base' (x: Int64) : Int64 = x + 1L
-let held (x: Int64) : Int64 = ({m}.base' x) + 10L
-let free (x: Int64) : Int64 = ({m}.base' x) + 20L"""
-
-    let! heldBefore = liveBoundHash (loc m "held")
-    let baseV1 = hashBoundTo v1 "base'"
-
-    // A pin on main. This is what a propagation `Decision` op folds to, and it
-    // is the whole point of the policy table: the cascade is a rule the machine
-    // applies TO you until you can overrule it.
-    do!
-      execSqlP
-        // Main's id from the product's constant, never spelled by hand: the cascade looks the
-        // row up by that same id, so a hand-typed one would be a row nothing can find and a
-        // test that passes while asserting nothing.
-        "INSERT INTO propagation_policy (branch_id, owner, modules, name, policy, note, origin_ts)
-         VALUES (@branch, 'Darklang', @m, 'held', 'pin', 'test', '2026-01-02T00:00:00.000Z')"
-        [ "m", Sql.string m; "branch", Sql.string (string PT.BranchId.Main) ]
-
-    let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 4000L"""
-
-    let! repointed = cascade (loc m "base'") baseV1 (hashBoundTo v2 "base'")
-
-    Expect.contains repointed "free" "the unpinned dependent follows"
-    Expect.isFalse (List.contains "held" repointed) "the pinned one does not"
-
-    let! heldAfter = liveBoundHash (loc m "held")
-    Expect.equal heldAfter heldBefore "and it really didn't move"
-
-    do! cleanup m
-  }
-
 let crossesOwners =
-  testTask
-    "the cascade crosses owners, because that is a person's call and not a rule" {
+  testTask "automatic propagation stops at the owner boundary" {
     let m = "PropTestOwner"
     do! cleanup m
     do! cleanupFor "Zz" m
@@ -316,20 +271,24 @@ let mine (x: Int64) : Int64 = ({m}.base' x) + 10L"""
 
 let theirs (x: Int64) : Int64 = (Darklang.{m}.base' x) + 20L"""
 
+    let theirs : PT.PackageLocation =
+      { owner = "Zz"; modules = [ m ]; name = "theirs" }
+    let! externalBefore = liveBoundHash theirs
+    let! _ = authorIn m $"let bridge (x: Int64) : Int64 = Zz.{m}.theirs x"
+    let! bridgeBefore = liveBoundHash (loc m "bridge")
+
     let! v2 = authorIn m """let base' (x: Int64) : Int64 = x + 5000L"""
 
     let! repointed = cascade (loc m "base'") baseV1 (hashBoundTo v2 "base'")
 
     Expect.contains repointed "mine" "same-owner dependents follow"
 
-    // The claim under test. `Propagation.propagate` reports the FULL candidate set
-    // and infers nothing from ownership: which of them actually move is chosen at
-    // commit time. Ownership is a fine default and a bad rule, so refusing here
-    // would be automating a decision that belongs to a person.
-    Expect.contains
-      repointed
-      "theirs"
-      "a dependent owned by someone else is a candidate like any other"
+    Expect.contains repointed "theirs" "foreign callers follow automatically"
+    Expect.contains repointed "bridge" "cascade crosses owners transitively"
+    let! externalAfter = liveBoundHash theirs
+    Expect.notEqual externalAfter externalBefore "foreign binding changed"
+    let! bridgeAfter = liveBoundHash (loc m "bridge")
+    Expect.notEqual bridgeAfter bridgeBefore "transitive caller changed"
 
     do! cleanupFor "Zz" m
     do! cleanup m
@@ -719,7 +678,6 @@ let tests =
       dictionaryKeyFollows
       transitive
       multipleDependents
-      pinStopsIt
       crossesOwners
       noChangeNoCascade
       mutualRecursion

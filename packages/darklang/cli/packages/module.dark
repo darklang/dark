@@ -1,13 +1,6 @@
 module Darklang.Cli.Packages.ModuleCommand
 
 
-type UpdatedItem =
-  { location: LanguageTools.ProgramTypes.PackageLocation
-    hash: LanguageTools.ProgramTypes.Hash
-    kind: LanguageTools.ProgramTypes.ItemKind }
-
-
-
 let collectDecls
   (modules: List<String>)
   (decls: List<LanguageTools.WrittenTypes.ModuleDeclaration.Declaration>)
@@ -65,42 +58,6 @@ let duplicateDeclarationNames
           (Stdlib.List.push seen path, duplicates))
 
   Stdlib.List.unique duplicates
-
-
-let updatedItem
-  (branchId: Uuid)
-  (location: LanguageTools.ProgramTypes.PackageLocation)
-  (hash: LanguageTools.ProgramTypes.Hash)
-  (kind: LanguageTools.ProgramTypes.ItemKind)
-  : Stdlib.Option.Option<UpdatedItem> =
-  let previous = Propagate.getAllPreviousHashes branchId location kind
-  if Stdlib.List.isEmpty previous then
-    Stdlib.Option.Option.None
-  else
-    Stdlib.Option.Option.Some
-      (UpdatedItem { location = location; hash = hash; kind = kind })
-
-
-/// Definitions that replace an existing location. Must run before storage, while
-/// history still distinguishes creates from updates. Hashes are placeholders.
-let updatedItems
-  (branchId: Uuid)
-  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : List<UpdatedItem> =
-  ops
-  |> Stdlib.List.filterMap (fun op ->
-    match op with
-    | SetName(location, PackageType hash, _) ->
-      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Type
-    | SetName(location, PackageValue hash, _) ->
-      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Value
-    | SetName(location, PackageFn hash, _) ->
-      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Fn
-    | SetName(location, PackageTrait hash, _) ->
-      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Trait
-    | SetName(location, PackageTraitImpl hash, _) ->
-      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.TraitImpl
-    | _ -> Stdlib.Option.Option.None)
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -182,7 +139,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
           let (ops, unresolvedNames) =
             LanguageTools.Parser.Parse.moduleToPackageOps ctx rootModule
-          let updates = updatedItems branchId ops
+          let updates = Propagate.updatedItems branchId ops
 
           if Errors.reportUnresolvedNames branchId unresolvedNames then
             state
@@ -194,13 +151,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 (Stdlib.Cli.UI.Colors.error $"Failed to define module: {message}")
               state
             | Ok report ->
-              updates
-              |> Stdlib.List.iter (fun update ->
-                Propagate.autoPropagateAfterUpdate
-                  branchId
-                  update.location
-                  update.hash
-                  update.kind)
+              Propagate.printFollowed (Propagate.repointSaved branchId updates)
 
               // Counted from the ops that were recorded, not from the declarations
               // that were parsed, so the number is what happened rather than what

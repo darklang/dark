@@ -44,12 +44,3 @@ module Naming =
   )
 
   (Darklang.SCM.Constraints.kindFromString "not-a-kind") = Stdlib.Option.Option.None
-
-
-module PinSuppression =
-  // A pin answers a stale usage: "I am on this version on purpose" is exactly what the finding asks
-  // about. It answers nothing about a kind change, which is not about which version you are on, so
-  // suppressing that one hides a finding behind a decision about something else.
-  (Darklang.SCM.Constraints.pinSuppresses Darklang.SCM.Constraints.Kind.StaleUsage) = true
-
-  (Darklang.SCM.Constraints.pinSuppresses Darklang.SCM.Constraints.Kind.KindChanged) = false

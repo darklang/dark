@@ -987,15 +987,6 @@ module ProgramTypes =
         DecisionKind.Override(Reference.PackageFn hashPT)
       )
       Decision("d2", loc, "", DecisionKind.Ack "finding-7")
-      Decision(
-        "d3",
-        otherLoc,
-        "pinned",
-        DecisionKind.Propagation PropagationPolicy.Pin
-      )
-      Decision("d4", otherLoc, "", DecisionKind.Propagation PropagationPolicy.Follow)
-      Decision("d5", otherLoc, "", DecisionKind.Propagation PropagationPolicy.Unset)
-
       BranchEvent(branchId, BranchEventKind.Archived, "2026-01-01T00:00:00.000Z")
       BranchEvent(branchId, BranchEventKind.Merged [], "2026-01-01T00:00:00.000Z")
       BranchEvent(

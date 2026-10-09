@@ -74,7 +74,6 @@ type ScmStatus =
     followed: Int
     /// References a pin is holding on an older version. On screen because it's the thing people forget they
     /// asked for.
-    behind: Int
     /// Conflicts plus standing findings: everything waiting on a person.
     needsYou: Int
     conflicts: List<SCM.Conflicts.Conflict>
@@ -100,7 +99,6 @@ let emptyScmStatus () : ScmStatus =
       changed = 0
       authored = 0
       followed = 0
-      behind = 0
       needsYou = 0
       conflicts = []
       commits = 0
@@ -126,7 +124,6 @@ let scmStatusFrom (branchId: Uuid) (p: SCM.Draft.Picture) : ScmStatus =
       changed = Stdlib.List.length p.bindings
       authored = SCM.Draft.authoredCount p
       followed = SCM.Draft.followedCount p
-      behind = SCM.Draft.behindCount p
       needsYou = SCM.Draft.needsYouCount p
       conflicts = p.conflicts
       commits = Stdlib.List.length recent

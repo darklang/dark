@@ -291,41 +291,6 @@ let aBatchCatchesAnInstanceUp =
     })
 
 
-/// DECISIONS travel, not just code.
-///
-/// This is the claim that separates this sync from one that ships source. A pin is a `Decision` op, so it
-/// crosses the wire like any other op and lands in the receiving store's `propagation_policy` projection
-/// with the author's reason intact. If it did not, the same edit would cascade differently on each machine
-/// and the two would drift apart while both looked healthy.
-///
-/// The reason is asserted, not just the policy. A pin whose "why" is dropped in transit is a pin nobody on
-/// the far machine can evaluate, and it ages into an unexplained rule.
-let decisionsCrossTheWire =
-  twoStoreTest "a pin authored on A holds on B, with its reason" (fun a b ->
-    task {
-      activate a
-      let op =
-        pin
-          "policyTravels"
-          "the signature moved; callers stay on the old one"
-          "2026-02-01T00:00:00.000Z"
-      let! _ = receive [ wireOp op "2026-02-01T00:00:00.000Z" ]
-      let! onA = policyFor "policyTravels"
-      Expect.equal
-        onA
-        (Some("pin", "the signature moved; callers stay on the old one"))
-        "A recorded the decision"
-
-      activate b
-      let! before = policyFor "policyTravels"
-      Expect.isNone before "B has no opinion about this name yet"
-
-      let! _ = receive [ wireOp op "2026-02-01T00:00:00.000Z" ]
-      let! onB = policyFor "policyTravels"
-      Expect.equal onB onA "B holds the same decision, for the same stated reason"
-    })
-
-
 /// A peer whose clock is ahead must not win your name forever.
 ///
 /// The stamp is a LOGICAL clock, not a wall clock: it advances past anything it observes. Without that
@@ -773,7 +738,6 @@ let tests =
       siblingNamesSurviveALoneSetName
       divergenceIsRecordedNotJustResolved
       aBatchCatchesAnInstanceUp
-      decisionsCrossTheWire
       localEditsBeatAFastPeer
       aWriteBetweenReadAndMarkIsNotLost
       aMergeEventLeavesUnpushedWorkOnTheBranch

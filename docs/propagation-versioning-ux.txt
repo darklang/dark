@@ -1,0 +1,8 @@
+- Editing an item automatically updates every caller, across owners.
+- Updates continue through the full dependency chain.
+- There are no pin/follow modes or explicit dependency upgrades.
+- Propagation stays on the edited branch; main and sibling branches stay unchanged.
+- Undo restores a previous version and updates its callers too.
+- deps shows dependencies and callers; status shows what changed.
+- Permission approval remains separate from code updates.
+- Historical content stays addressable by its hash.

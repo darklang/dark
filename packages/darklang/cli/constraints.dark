@@ -19,14 +19,6 @@ module Darklang.Cli.ConstraintsCmd
 //
 // All SQL is siloed in `SCM.Constraints`; this file writes NO SQL, it only formats.
 
-/// A propagation choice, as a word.
-let policyName (p: LanguageTools.ProgramTypes.PropagationPolicy) : String =
-  match p with
-  | Pin -> "pin"
-  | Follow -> "follow"
-  | Unset -> "unset"
-
-
 /// One finding, as two lines: who, and what about them.
 ///
 /// A kind change reads differently on purpose: the usage is not behind, it points at a different KIND
@@ -46,10 +38,6 @@ let line (f: SCM.Constraints.Finding) : String =
   // would read as if the name called itself.
   | (DecisionSuperseded, Versions(using, current)) ->
     $"  #{f.id}  {u}\n             you overrode this to the version you chose ({Cli.shortHash using}); a later edit rebound it to {Cli.shortHash current}"
-  | (DecisionSuperseded, PolicyReplaced(was, now, by)) ->
-    let whose = if by == "" then "a later choice" else by
-
-    $"  #{f.id}  {u}\n             you chose {policyName was} here; {whose} replaced it with {policyName now}"
   | (RivalImplementations, Rivals(self, rival, choice)) ->
     let r = SCM.Constraints.fqnOf rival
 
@@ -57,9 +45,9 @@ let line (f: SCM.Constraints.Finding) : String =
     // should win is not something this report can know, and the older one is often the stdlib's.
     match choice with
     | Mine ->
-      $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Calls run {u}, the later of the two.\n             Two implementations, not an out-of-date one, so `dark propagate follow` leaves it alone.\n             Retire one to settle it:\n               `dark deprecate impl {r}` leaves {u} running\n               `dark deprecate impl {u}` hands it to {r}\n             Leave both: `dark ack #{f.id}`"
+      $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Calls run {u}, the later of the two.\n             Two implementations, not an out-of-date one, so a dependency upgrade leaves it alone.\n             Retire one to settle it:\n               `dark deprecate impl {r}` leaves {u} running\n               `dark deprecate impl {u}` hands it to {r}\n             Leave both: `dark ack #{f.id}`"
     | Theirs ->
-      $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Calls run {r}, the later of the two.\n             Two implementations, not an out-of-date one, so `dark propagate follow` leaves it alone.\n             Retire one to settle it:\n               `dark deprecate impl {u}` leaves {r} running\n               `dark deprecate impl {r}` hands it to {u}\n             Leave both: `dark ack #{f.id}`"
+      $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Calls run {r}, the later of the two.\n             Two implementations, not an out-of-date one, so a dependency upgrade leaves it alone.\n             Retire one to settle it:\n               `dark deprecate impl {u}` leaves {r} running\n               `dark deprecate impl {r}` hands it to {u}\n             Leave both: `dark ack #{f.id}`"
     | Neither ->
       $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Neither came from a commit, so no call can choose.\n             Save one of them again, or retire one:\n               `dark deprecate impl {u}` or `dark deprecate impl {r}`"
   | (_, _) -> $"  #{f.id}  {u}"
@@ -82,8 +70,6 @@ let toJson (f: SCM.Constraints.Finding) : String =
       let usingStr = Cli.jsonStr (LanguageTools.ProgramTypes.hashToString using)
       let curStr = Cli.jsonStr (LanguageTools.ProgramTypes.hashToString current)
       $"\"using\":{usingStr},\"current\":{curStr}"
-    | PolicyReplaced(was, now, by) ->
-      $"\"was\":{Cli.jsonStr (policyName was)},\"now\":{Cli.jsonStr (policyName now)},\"replacedBy\":{Cli.jsonStr by}"
     | Rivals(self, rival, choice) ->
       let runs =
         match choice with
@@ -175,11 +161,6 @@ let executeList (state: AppState) (args: List<String>) : AppState =
       (Stdlib.Cli.UI.Colors.hint
         "  dark constraints resolve <id>... [--as <how>]   fix it now, naming the fix")
 
-    // A pin says a REFERENCE is deliberate, which is what every finding here describes, so it belongs
-    // beside the other two verbs whenever there is anything on screen for it to answer.
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.hint
-        "  dark propagate pin <name>          leave it for good; a pin is already a durable ack")
 
     state
 
@@ -294,7 +275,7 @@ let executeAck (state: AppState) (args: List<String>) : AppState =
 
       // Both lines are about REFERENCES, which is what every finding here describes.
       Cli.printHint "  an ack comes back if that item later moves to some other old version."
-      Cli.printHint "  `dark propagate pin` instead, if it's deliberate for good."
+      Cli.printHint "  Keep the current reference if the older version is deliberate."
       Cli.exitWith state ((Stdlib.List.isEmpty missing) && (Stdlib.List.isEmpty failed))
 
 
@@ -403,33 +384,23 @@ let executeResolve (state: AppState) (args: List<String>) : AppState =
     Cli.printHint "  `dark ack <id>...` leaves them for now, which needs no choice."
     Cli.exitWith state false
   | Ok resolution ->
-    let pinned =
+    let results =
       targets
-      |> Stdlib.List.filter (fun f -> (SCM.Propagation.shouldFollow f.usage) |> Stdlib.Bool.not)
-
-    targets
-    |> Stdlib.List.iter (fun f ->
-      // A pinned item would be repointed and then held by the pin on the next change, which reads as the
-      // command not working. Say so instead of doing something that won't stick.
-      if (SCM.Propagation.shouldFollow f.usage) |> Stdlib.Bool.not then
-        Cli.printErr
-          $"#{f.id}: {SCM.Constraints.fqnOf f.usage} is pinned -- `dark propagate follow` it first, which also catches it up."
-      else
+      |> Stdlib.List.map (fun f ->
         match f.detail with
         | Versions(using, current) ->
-          PropagateCmd.cascadeAndForce state f.dependency f.dependencyKind using current
-        | PolicyReplaced(_, _, _) ->
-          // Nothing to cascade: the finding is that a CHOICE was replaced, and the versions already
-          // agree. Acking it is the whole answer.
-          ()
-        | Rivals(_, _, _) ->
-          // `resolutionsFor` offers nothing here, so this arm is not reached; a call already runs
-          // the newer one, and making that permanent is `dark deprecate impl` on the other.
-          ()
-        Cli.printOk
-          $"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf f.usage}")
+          match SCM.Propagation.repointDependents state.currentBranchId
+                  f.dependency f.dependencyKind [using] current with
+          | Error e ->
+            Cli.printErr $"#{f.id}: {e}"
+            false
+          | Ok _ ->
+            Cli.printOk $"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf f.usage}"
+            true
+        | Rivals(_, _, _) -> false)
 
-    Cli.exitWith state ((Stdlib.List.isEmpty missing) && (Stdlib.List.isEmpty pinned))
+    Cli.exitWith state ((Stdlib.List.isEmpty missing) && (Stdlib.List.all results (fun ok -> ok)))
+
 
 
 let help (_state: AppState) : String =
@@ -440,7 +411,7 @@ let help (_state: AppState) : String =
     "                   what the name means now. NORMAL in a distributed"
     "                   store: another machine's caller of your fn cannot"
     "                   be propagated to, and must not silently repoint"
-    "                   when you sync. Usually you ack it, or pin it."
+    "                   when you sync. Keep it, ack it, or upgrade it."
     "                   The only kind resolve can fix: --as repoint."
     "    kind-changed   the name is a different KIND of thing now, so"
     "                   the usage cannot be repointed at all. Ack it, or"
@@ -466,9 +437,7 @@ let help (_state: AppState) : String =
     "  finding. Resolve is not -- it means something different per kind,"
     "  so it asks you to name one with --as when there is a choice."
     ""
-    "  `dark propagate pin <name>` is a durable, syncable way to say a"
-    "  REFERENCE is deliberate, and it suppresses a stale-usage finding"
-    "  for good." ]
+    "  Dependency edits automatically update all callers." ]
   |> Stdlib.String.join "\n"
 
 /// `dark ack` -- the bulk verb at the root, because acking is the boring high-volume case and burying it

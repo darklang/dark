@@ -88,21 +88,7 @@ let private bindingFingerprint () : Task<string> =
         let n = read.string "n"
         $"DEP {h} -> {o}.{m}.{n}")
 
-    let! pol =
-      Sql.query
-        """
-        SELECT owner, modules, name, policy
-        FROM propagation_policy
-        ORDER BY owner, modules, name
-        """
-      |> Sql.executeAsync (fun read ->
-        let o = read.string "owner"
-        let m = read.string "modules"
-        let n = read.string "name"
-        let p = read.string "policy"
-        $"POL {o}.{m}.{n}={p}")
-
-    return String.concat "\n" (locs @ deps @ pol)
+    return String.concat "\n" (locs @ deps)
   }
 
 
@@ -321,7 +307,7 @@ let durableReleaseCarriesForward =
 let registryCoversProjections =
   // The COUNT is in the name on purpose: adding a projection to the registry without adding it here
   // is exactly the drift this catches.
-  test "the projection registry covers exactly the 9 regenerable projections" {
+  test "the projection registry covers exactly the 8 regenerable projections" {
     Expect.equal
       (List.sort Seed.projectionTables)
       (List.sort
@@ -332,8 +318,7 @@ let registryCoversProjections =
           "package_trait_impls"
           "locations"
           "package_dependencies"
-          "deprecations"
-          "propagation_policy" ])
+          "deprecations" ])
       "the registry's tables are exactly Seed.export's stripped projections (incl. deprecations)"
   }
 

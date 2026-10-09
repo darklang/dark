@@ -160,8 +160,7 @@ let logStateProjectionsArePurged =
 
 
 /// Every table the fold regenerates is purged. Derived from `Seed.projectionTables` rather than listed,
-/// so it catches the next projection whatever its shape: `propagation_policy`, for one, carries neither
-/// an `op_id` nor a hash column, so neither guard above can see it.
+/// so it catches the next projection whatever its shape.
 let foldProjectionsArePurged =
   testTask "every table the fold regenerates is in Purge.tables" {
     for t in LibDB.Seed.projectionTables do

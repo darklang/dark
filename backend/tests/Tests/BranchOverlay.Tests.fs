@@ -1335,68 +1335,6 @@ let branchExists =
     do! cleanupBranch (testBranch "beY")
   }
 
-/// A child of a branch inherits its PARENT'S pins, not just main's.
-///
-/// `getPropagationPolicy` has to walk the whole chain, not just (this branch, main): stopping at one
-/// level makes a branch off a branch follow something its parent deliberately pinned. Nested branches
-/// are first-class everywhere else in the model -- the overlay chain, merge routing, name bases.
-let propagationPinsComeFromTheWholeChain =
-  testTask "a child branch inherits its parent's pins, not only main's" {
-    let! parent = freshBranch "pin-parent" "pin-parent"
-    let! child = freshBranchOff parent "pin-child" "pin-child"
-
-    let loc : PT.PackageLocation =
-      { owner = "Darklang"; modules = [ "ChainPin" ]; name = "target" }
-
-    // The parent pins it. Nobody else says anything.
-    do!
-      execSqlP
-        "INSERT INTO propagation_policy (branch_id, owner, modules, name, policy)
-         VALUES (@b, @o, @m, @n, 'pin')"
-        [ "b", Sql.string (string parent)
-          "o", Sql.string loc.owner
-          "m", Sql.string (String.concat "." loc.modules)
-          "n", Sql.string loc.name ]
-
-    let! childPins = Queries.getPropagationPins child
-    Expect.isTrue
-      (Set.contains (loc.owner, String.concat "." loc.modules, loc.name) childPins)
-      "the child sees its parent's pin"
-
-    // And the child can still say otherwise: nearest in the chain wins, whatever it says.
-    do!
-      execSqlP
-        "INSERT INTO propagation_policy (branch_id, owner, modules, name, policy)
-         VALUES (@b, @o, @m, @n, 'follow')"
-        [ "b", Sql.string (string child)
-          "o", Sql.string loc.owner
-          "m", Sql.string (String.concat "." loc.modules)
-          "n", Sql.string loc.name ]
-
-    let! overridden = Queries.getPropagationPins child
-    Expect.isFalse
-      (Set.contains (loc.owner, String.concat "." loc.modules, loc.name) overridden)
-      "and its own follow beats the parent's pin"
-
-    let! follows = Queries.getPropagationFollows child
-    Expect.isTrue
-      (Set.contains (loc.owner, String.concat "." loc.modules, loc.name) follows)
-      "which is where it went"
-
-    // An unrelated branch is unaffected: the chain is the scope, not the store.
-    let! mainPins = Queries.getPropagationPins PT.BranchId.Main
-    Expect.isFalse
-      (Set.contains (loc.owner, String.concat "." loc.modules, loc.name) mainPins)
-      "main never saw either decision"
-
-    do!
-      execSqlP
-        "DELETE FROM propagation_policy WHERE branch_id IN (@p, @c)"
-        [ "p", Sql.string (string parent); "c", Sql.string (string child) ]
-    do! cleanupBranch child
-    do! cleanupBranch parent
-  }
-
 let mergeCountsWhatItFlipped =
   testTask
     "markMergedEffective reports ops it flipped, not ops that were already effective" {
@@ -1447,54 +1385,6 @@ let importedOpsKeepTheirStamps =
        look like the author, so LWW resolves by who imported last rather than who edited last"
 
     do! cleanupBranch (testBranch "stX")
-  }
-
-let rebuildKeepsBranchPolicy =
-  testTask "a projection rebuild re-folds branch-scoped propagation decisions" {
-    do! cleanupBranch (testBranch "bpX")
-    do! Branches.createBranch (testBranch "bpX") "" PT.BranchId.Main
-
-    let loc : PT.PackageLocation =
-      { owner = "Zz"; modules = [ "RebuildTest" ]; name = "pinned" }
-    let decide =
-      PT.PackageOp.Decision(
-        "pin:RebuildTest.pinned:2026-01-02T00:00:00.000Z",
-        loc,
-        "deliberate",
-        PT.DecisionKind.Propagation PT.PropagationPolicy.Pin
-      )
-    let! _ = Branches.storeDeltaOps (testBranch "bpX") [ decide ]
-
-    let countPolicy () =
-      Sql.query
-        "SELECT count(*) AS n FROM propagation_policy
-         WHERE branch_id = @b AND owner = 'Zz' AND modules = 'RebuildTest' AND name = 'pinned'"
-      |> Sql.parameters [ "b", Sql.string (string (testBranch "bpX")) ]
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
-
-    let! stored = countPolicy ()
-    Expect.equal
-      stored
-      1L
-      "authoring the Decision on a branch folds a branch-scoped policy row"
-
-    // A projection rebuild clears this table and re-folds only `effective = 1` ops, and branch ops
-    // are `effective = 0` by design, so without an explicit re-fold the row never comes back.
-    do! Sql.query "DELETE FROM propagation_policy" |> Sql.executeStatementAsync
-    let! cleared = countPolicy ()
-    Expect.equal cleared 0L "cleared, as a rebuild would"
-
-    do! Branches.refoldBranchDecides ()
-    let! restored = countPolicy ()
-    Expect.equal
-      restored
-      1L
-      "the rebuild path re-folds branch decisions from the log"
-
-    do!
-      execSql
-        "DELETE FROM propagation_policy WHERE owner = 'Zz' AND modules = 'RebuildTest'"
-    do! cleanupBranch (testBranch "bpX")
   }
 
 let branchPMIsPerBranch =
@@ -2635,71 +2525,6 @@ let unknownBranchEventStampsNothing =
   }
 
 
-/// The migrations path defers its refold to `growIfNeeded`, which reads effective=1 only --
-/// so branch-scoped Decisions (a branch's pins, folded into `propagation_policy`) came back
-/// from a schema change as nothing. `growIfNeeded` now re-runs `refoldBranchDecides` whenever
-/// it folded anything; this walks the exact drop-then-grow sequence for one branch's pin.
-let migrationsRefoldKeepsBranchPins =
-  testTask "a branch's propagation pin survives the drop-and-grow migration sequence" {
-    let branchId = testBranch "pinRefold"
-    do! cleanupBranch branchId
-    do! Branches.createBranch branchId "pin-refold" PT.BranchId.Main
-
-    let pin =
-      PT.PackageOp.Decision(
-        "test-pin-refold",
-        fooLocIn "PinRefold",
-        "test",
-        PT.DecisionKind.Propagation PT.PropagationPolicy.Pin
-      )
-    let! _ = Branches.storeDeltaOps branchId [ pin ]
-    do! Branches.refoldBranchDecides ()
-
-    let! before =
-      countSql
-        "SELECT COUNT(*) as n FROM propagation_policy WHERE branch_id = @b"
-        [ "b", Sql.string (string branchId.Guid) ]
-    Expect.equal before 1L "the pin folded into propagation_policy"
-
-    // The migration's harm, scoped to what this test owns: the policy row gone, and one main
-    // op unapplied so growIfNeeded's fold actually runs.
-    do!
-      execSqlP
-        "DELETE FROM propagation_policy WHERE branch_id = @b"
-        [ "b", Sql.string (string branchId.Guid) ]
-    let! mainOps = parsePackageOps (namedSource "PinRefoldMain" 3)
-    let! _ = LibDB.Inserts.insertAndApplyOps mainOps
-    let mainIds =
-      mainOps |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
-    do!
-      execSql
-        $"""UPDATE package_ops SET applied = 0 WHERE id IN ({mainIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
-
-    let! _ =
-      Seed.growIfNeeded
-        Seed.TrustedSeed
-        (fun () -> localBuiltIns pmPT)
-        pmRT
-        (fun _ -> ())
-
-    let! after =
-      countSql
-        "SELECT COUNT(*) as n FROM propagation_policy WHERE branch_id = @b"
-        [ "b", Sql.string (string branchId.Guid) ]
-    Expect.equal after 1L "the pin is back after the grow"
-
-    do!
-      execSqlP
-        "DELETE FROM propagation_policy WHERE branch_id = @b"
-        [ "b", Sql.string (string branchId.Guid) ]
-    do! execSql "DELETE FROM locations WHERE modules = 'PinRefoldMain'"
-    do!
-      execSql
-        $"""DELETE FROM package_ops WHERE id IN ({mainIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "})"""
-    do! cleanupBranch branchId
-  }
-
-
 let tests =
   // These mutate the process-global branch overlay AND delete from `package_ops`, either of which
   // can make a concurrent reader see the store mid-change. testSequenced, NOT testSequencedGroup:
@@ -2711,11 +2536,9 @@ let tests =
     [ branchResolutionOrder
       isolationFromCore
       unbindHidesACoreNameOnTheBranchOnly
-      propagationPinsComeFromTheWholeChain
       branchExists
       mergeCountsWhatItFlipped
       importedOpsKeepTheirStamps
-      rebuildKeepsBranchPolicy
       branchPMIsPerBranch
       branchNamesResolveButDontShadowMain
       isolationBetweenBranches
@@ -2749,7 +2572,6 @@ let tests =
       branchIdsNeverReachAPerson
       overrideClosesOnlyItsOwnKind
       unknownBranchEventStampsNothing
-      migrationsRefoldKeepsBranchPins
       mainRetakesABranchsOp
       authoringOnAFinishedBranchRefuses
       liveBindingReadsTheBranchThenMain

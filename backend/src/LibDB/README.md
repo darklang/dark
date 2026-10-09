@@ -10,7 +10,7 @@ Surface (most relevant first):
 - `Inserts.fs`: the write path, which inserts ops, folds them, then marks them applied. `rewriteDraftIfUnchanged` and `rewriteMainIfUnchanged` are the delete-and-reinsert ones, used by the draft refresh and the draft rebuild; each writes only if what it deletes is still what its caller read.
 - `Branches.fs`: the branch store. Registry rows, the `op_branches` frontier, per-name bases, and the chain walk that overlays a branch on its parents.
 - `BranchSelection.fs`: which branch a process runs on, in order: `--branch`, then `DARK_BRANCH`, then the stored `current_branch`.
-- `Queries.fs`: reads over the log and the projections. The draft, a commit's ops, dependents, deprecations, propagation policy.
+- `Queries.fs`: reads over the log and the projections. The draft, a commit's ops, dependents and deprecations.
 - `ProgramTypes.fs`: the SQL behind name resolution and `search`, over `locations`.
 - `PackageManager.fs`: the `PT` and `RT` `PackageManager` records, plus `withExtraOps` and the branch overlays built from it.
 - `Propagation.fs`: the cascade. Which dependents follow a moved item, and the ops that repoint them.

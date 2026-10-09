@@ -449,8 +449,7 @@ let traitsAreAuthoredListedAndDisambiguated =
             "alpha"
             "an edit to another method of the implementation does not reach this call"
 
-        // An edit to the implementation this caller DOES use is an ordinary update: the caller
-        // stays on what it resolved to, and `constraints` offers the new version.
+        // Editing the selected method updates its callers automatically.
         do!
           run
             state
@@ -461,26 +460,8 @@ let traitsAreAuthoredListedAndDisambiguated =
           evals
             state
             "Tests.Tr.callsIt ()"
-            "alpha"
-            "the caller stays on the version it was written against"
-        do!
-          shows
-            state
-            [ "constraints" ]
-            "Tests.Tr.callsIt"
-            "and the newer implementation shows up as an outdated usage"
-        // ...which `follow` catches up, which is the whole point of pinning to a fn: a newer
-        // implementation is offered through the machinery that already exists, not forced.
-        do!
-          run
-            state
-            [ "propagate"; "follow"; "Tests.Tr.callsIt"; "catch up on the impl" ]
-        do!
-          evals
-            state
-            "Tests.Tr.callsIt ()"
             "gamma"
-            "and following moves the caller onto the newer implementation"
+            "editing the method updates the caller"
 
         // Deprecating the one that RUNS leaves the other, which then runs.
         do!
@@ -497,7 +478,7 @@ let traitsAreAuthoredListedAndDisambiguated =
             state
             "Tests.Tr.Describe.describe (Tests.Tr.Point { x = 1L; y = 2L })"
             // The surviving implementation was edited above, so a fresh call runs its current
-            // version. Only a SAVED caller stays on what it resolved to.
+            // version, which saved callers have followed automatically too.
             "gamma"
             "the surviving implementation dispatches again"
         do!

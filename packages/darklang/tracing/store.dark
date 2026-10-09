@@ -190,6 +190,8 @@ type ViewFrame =
 /// That key is what tells pass 3 from pass 7: keyed by expression alone, a loop's two hundred
 /// passes overwrite each other and only the last survives.
 let viewTraceTree
+  /// The CLI passes the logged-in account. None keeps the caller's account.
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
   (traceID: String)
   /// Extra iterations to keep, as (site, which one, counting from 0). A view holds the first
@@ -201,7 +203,7 @@ let viewTraceTree
     List<(String * Int64 * LanguageTools.RuntimeTypes.Dval)> *
     Stdlib.Option.Option<ReplayStop>) =
   let (values, frames, frameValues, problem) =
-    Builtin.cliViewTrace branchId traceID focus
+    Builtin.cliViewTrace accountID branchId traceID focus
 
   let frames =
     frames
@@ -233,7 +235,7 @@ let viewTrace
   : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> * Stdlib.Option.Option<ReplayStop>) =
   // Through `viewTraceTree` rather than the builtin: one Dark wrapper per builtin is the
   // rule, and a second reference to `cliViewTrace` is what the builtin-access test catches.
-  let (values, _frames, _frameValues, problem) = viewTraceTree branchId traceID []
+  let (values, _frames, _frameValues, problem) = viewTraceTree Stdlib.Option.Option.None branchId traceID []
 
   (values, problem)
 

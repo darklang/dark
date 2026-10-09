@@ -47,7 +47,6 @@ propagation, the next section -- and so does the commit review:
       ~ fn    Ux.Money.cents  updated          <- you did this
       > fn    Ux.Money.total  updated, followed <- propagation did this
 
-    STAYING BEHIND (1)   (pinned, so they keep the version they have)
       . Ux.Money.rate  still on the old Ux.Money.cents
 
 `discard` and `undo` are different tools. `discard` drops everything uncommitted;
@@ -60,29 +59,16 @@ not four. Intermediate versions you never showed anyone aren't history.
 
 ## Propagation: what follows what
 
-Edit `base`, and everything that uses it is repointed to your new version,
-immediately, in your draft. You see the effect right away -- run a dependent
-and it uses your change.
+Edit `base`, and every caller updates immediately in your draft, across owners
+and through the full dependency chain. There are no pin/follow modes or explicit
+upgrade commands.
 
-That default is right far more often than it's wrong. When it's wrong:
+  deps <caller>       inspect its dependencies and callers
+  undo <name>         restore the previous version
 
-  propagate                  the impact screen: what moved, toggle any of it
-  propagate pin <name>       keep it on the version it had (undoes the repoint a save gave it)
-  propagate follow <name>    follow again, AND catch up on what it missed
-  propagate show <name>      what governs it, and what it's behind on
-  propagate unset <name>     forget the choice entirely
-
-Both verbs are RETROACTIVE, and that's deliberate: by the time you decide
-something shouldn't have followed, it already has. A pin that only applied to
-the next edit would be useless for the thing you're actually doing.
-
-BEFORE COMMIT a pin un-stages the repoint -- it never happened, and nothing is
-recorded. AFTER commit it authors a rebinding, because committed history doesn't
-change. Same verb, and you don't have to know which one you're getting.
-
-A name can be a MODULE, in which case the choice covers everything under it.
-The most specific choice wins, so an item can follow inside a pinned module.
-Module pins are forward-looking only -- they don't roll anything back.
+Undo also updates callers. Propagation stays on the branch you edited;
+main and sibling branches are unchanged. Permission approval remains separate
+from code updates.
 
 ## Branches
 
@@ -169,7 +155,7 @@ Three kinds today, and they want different things from you.
 STALE-USAGE -- a live item still using a version that isn't what the name means
 now. In a distributed store this is the NORMAL steady state, not a backlog:
 another machine's caller of your fn can't be propagated to, and must not
-silently repoint when you sync. Usually you ack it, or pin it and mean it. It is
+silently repoint when you sync. Inspect it, ack it, or resolve it. It is
 the only kind `constraints resolve` can fix for you, as `--as repoint`.
 
   #a1b2c3d4  Ux.Money.total
@@ -187,8 +173,6 @@ Acking is bulk -- "seen it" means the same for every finding. Resolving isn't:
 it means something different per kind, so it asks you to name the resolution
 when there's more than one to choose from.
 
-A `propagate pin` is a DURABLE ack FOR A REFERENCE: it already says that
-reference is deliberate, with your reason, and it syncs.
 
 ## The op log
 
@@ -230,8 +214,8 @@ works on it: `diff <queue>`, `log <queue>`, `conflicts branch <queue>`. The
 staged count is what's actually pending, not how much of the bundle was new to
 you -- a whole-log bundle is mostly ops you already have.
 
-DECISIONS TRAVEL, not just code. A pin crosses the wire with its reason and
-holds on the far machine; so does a constraint ack. Both are ops.
+DECISIONS TRAVEL, not just code. Version restores and constraint acks are
+ops, so they travel with their reasons.
 
 Branches are keyed by owner, so a branch follows YOU across machines: give
 both instances the same `identity`.
@@ -242,13 +226,13 @@ Every command that answers a question speaks `--json`, and it's the same data
 the human view renders, never a subset:
 
   status --json        changed items, each flagged `followed` or not;
-                       `propagates`, `leftBehind`, conflicts, constraint count
+                       `propagates`, conflicts, constraint count
   commit --json        a dry review; add -y to commit and get the commit id back
   deps <name> --json   both directions, each edge flagged `behind`
-  conflicts --json / constraints --json / propagate --json
+  conflicts --json / constraints --json
   commits --json / branches --json
 
-Bulk where the decision is made: `ack --all`, `propagate pin A B C`,
+Bulk where the decision is made: `ack --all`,
 `constraints resolve --all --as repoint`. Partial failure reports per target
 and doesn't abort, so you never have to bisect a batch.
 
@@ -266,9 +250,9 @@ committing would do without committing.
   fn Ux.Money.cents "(d: Int64) : Int64 = (d * 1000L)"
   status                       # draft: 1 item changed, 1 followed
   eval "Ux.Money.total 3L"     # 3000 -- total followed
-  propagate pin Ux.Money.total # dropped the staged repoint
+  undo Ux.Money.cents          # back on the version -- restores the source
   eval "Ux.Money.total 3L"     # 300 -- back on the old cents
-  commit "cents in mills" -y   # CHANGED (1), STAYING BEHIND (1)
+  commit "cents in mills" -y
 
 ## What is not versioned here
 

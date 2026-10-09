@@ -127,13 +127,12 @@ let statusKeepsItsShapeWhenNothingChanged =
             "conflicts"
             "constraints"
             "draftOps"
-            "leftBehind"
             "propagates"
             "removed" ]
 
       let! root = parsed state [ "status"; "--json" ]
 
-      for name in [ "changed"; "conflicts"; "leftBehind"; "propagates"; "removed" ] do
+      for name in [ "changed"; "conflicts"; "propagates"; "removed" ] do
         Expect.equal
           (root.GetProperty(name).ValueKind)
           System.Text.Json.JsonValueKind.Array
@@ -180,15 +179,6 @@ let conflictsKeepsItsShapeWhenThereAreNone =
       task {
         do! start state
         do! hasKeys state [ "conflicts"; "--json" ] [ "conflicts"; "pending" ]
-      })
-
-let propagateKeepsItsShapeWhenThereIsNothingToChoose =
-  instanceTest
-    "propagate --json keeps its keys when there is nothing to choose"
-    (fun state ->
-      task {
-        do! start state
-        do! hasKeys state [ "propagate"; "--json" ] [ "choices" ]
       })
 
 /// `findings: []` means "nothing is wrong" only when nothing stopped a detector from looking.
@@ -274,7 +264,6 @@ let commitDryRunAnswersInJson =
               "committed"
               "conflicts"
               "dependentsRepointed"
-              "leftBehind"
               "message"
               "opsCommitted"
               "propagates"
@@ -519,7 +508,6 @@ let tests : List<Test> =
   [ statusKeepsItsShapeWhenNothingChanged
     statusDescribesADraft
     conflictsKeepsItsShapeWhenThereAreNone
-    propagateKeepsItsShapeWhenThereIsNothingToChoose
     constraintsKeepsItsShape
     depsAnswersBothDirections
     searchAnswersWithItsQuery

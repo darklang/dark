@@ -119,7 +119,7 @@ let executeDiffCmd (state: AppState) (args: List<String>) : AppState =
     let r = Cli.Commit.review state
 
     if Stdlib.List.isEmpty r.changed then
-      // Ops that bind no name (a deprecation, a pin, an ack) have nothing to show in a per-name
+      // Ops that bind no name (a deprecation, a restore, an ack) have nothing to show in a per-name
       // listing, but "clean" about them is a lie: they are uncommitted. Same fix as `status`.
       let ops = (SCM.Draft.counts ()).ops
 
@@ -127,7 +127,7 @@ let executeDiffCmd (state: AppState) (args: List<String>) : AppState =
         Cli.printOk "clean: nothing changed since your last commit."
       else
         Cli.printOk
-          $"""{Cli.Text.plural (Stdlib.Int.fromInt64 ops) "op"} to commit, no changed names (no new version: pins, deprecations, docs, acks)"""
+          $"""{Cli.Text.plural (Stdlib.Int.fromInt64 ops) "op"} to commit, no changed names (no new version: restores, deprecations, docs, acks)"""
 
       Cli.printHint "  `dark diff <branch>` compares a branch with its parent."
       state

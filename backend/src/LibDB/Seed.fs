@@ -386,10 +386,8 @@ let projectionTables : List<string> =
     "package_trait_impls"
     "locations"
     "package_dependencies"
-    "deprecations"
-    // Folded from `Decision` ops; nothing else writes it. Being here is what makes it genuinely derived
-    // rather than a second source of truth about the same decisions.
-    "propagation_policy" ]
+    "deprecations" ]
+
 
 
 /// Drop every projection table and re-fold the whole `package_ops` log to rebuild them.
@@ -415,8 +413,6 @@ let rebuildProjections () : Task<int64> =
     do! Sql.query "UPDATE package_ops SET applied = 0" |> Sql.executeStatementAsync
     // 3. re-fold ops -> projections via the existing playback path
     let! folded = applyUnappliedOps ()
-    // 4. branch-scoped propagation policy, which step 3 can't reach (effective = 0 by design)
-    do! Branches.refoldBranchDecides ()
     // Nothing extra to reapply for resolutions: an `Override` decision is an op, so re-folding the log
     // rebuilds the `source = 'resolution'` rows in `locations` along with everything else.
     return folded
@@ -685,7 +681,6 @@ let growIfNeeded
     // pins) never pass through it. After a projection drop (the migrations path defers here),
     // skipping this would silently delete every branch pin; refolding is idempotent and
     // origin_ts-guarded, so run it whenever the fold actually folded something.
-    if appliedCount > 0 then do! Branches.refoldBranchDecides ()
     // A store can have every op applied yet still hold unevaluated values (rt_dval NULL): after a
     // migration that re-marks ops applied without evaluating, or a store copied/built without a final grow
     // (the test seed does exactly this). Gating evaluation on `appliedCount > 0` alone leaves those values

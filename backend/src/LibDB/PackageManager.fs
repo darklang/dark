@@ -299,16 +299,13 @@ let createInMemoryOver
     | PT.PackageOp.AddTrait _
     | PT.PackageOp.AddTraitImpl _ -> ()
 
-    // None of these change what a name points at -- an ack or a policy records what a person decided ABOUT a
+    // None of these change what a name points at -- an ack records what a person decided ABOUT a
     // name, an UpdateDoc changes what a NAME says about itself (`LibDB.Docs` answers those), a
     // BranchEvent is about the branch -- so an overlay of bindings has nothing to do here.
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
     | PT.PackageOp.UpdateDoc _
-    | PT.PackageOp.Decision(_,
-                            _,
-                            _,
-                            (PT.DecisionKind.Ack _ | PT.DecisionKind.Propagation _))
+    | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Ack _)
     | PT.PackageOp.BranchEvent _ -> ()
 
     // An override binds a name like a SetName does; the overlay only cares about the binding.

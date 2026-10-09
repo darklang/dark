@@ -81,7 +81,9 @@ gate_setup() {
   grep -q 'keeping the stored write secret' <<<"$again" || fail "re-run did not keep the stored secret"
 
   # 3. A secret too short to survive the leak guard is refused, and the old one is left alone.
-  short=$(run_setup_typed "" "" "short")
+  if short=$(run_setup_typed "" "" "short"); then
+    fail "a short secret exited successfully"
+  fi
   grep -q 'too short' <<<"$short" || fail "a short secret was accepted"
   grep -q 'keeping the stored write secret' <<<"$(run_setup "\n\n\n")" \
     || fail "the refused short secret replaced the stored one"
@@ -597,7 +599,9 @@ gate_sync_multi_instance() {
   echo "== four agents at once, each on its own branch"
   AG=()
   for n in 1 2 3 4; do
-    ( x A branch create "agent-$n" > /dev/null 2>&1
+    # Branch creation switches the stored selection. Explicit main keeps concurrent agents
+    # from inheriting whichever branch another agent just selected.
+    ( x A --branch main branch create "agent-$n" > /dev/null 2>&1
       x A --branch "agent-$n" fn "/SM.Agents.a$n" "() : Int64 = ${n}0L" > /dev/null 2>&1
       x A --branch "agent-$n" commit "agent $n" -y > /dev/null 2>&1 ) &
     AG+=($!)
@@ -606,7 +610,13 @@ gate_sync_multi_instance() {
   allok=true
   for n in 1 2 3 4; do [[ "$(x A --branch "agent-$n" eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done
   if $allok; then ok "each agent's work is on its own branch"; else bad "each agent's work is on its own branch" "see above"; fi
-  for n in 1 2 3 4; do x A --branch "agent-$n" merge "agent-$n" -y > /dev/null 2>&1; done
+  for n in 1 2 3 4; do
+    if merged=$(x A --branch "agent-$n" merge "agent-$n" -y); then
+      :
+    else
+      bad "agent-$n merges into main" "$merged"
+    fi
+  done
   x A switch main > /dev/null
   allok=true
   for n in 1 2 3 4; do [[ "$(x A eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done

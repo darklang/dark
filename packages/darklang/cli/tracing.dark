@@ -266,6 +266,7 @@ let showFromTrace
         Cli.exitWith
           state
           (Cli.TraceVerbs.showCodeJson
+            state.accountID
             state.currentBranchId
             fn
             (Stdlib.Option.Option.Some arg)
@@ -641,6 +642,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Cli.exitWith
         state
         (Cli.TraceVerbs.showCodeJson
+          state.accountID
           state.currentBranchId
           fnName
           Stdlib.Option.Option.None
@@ -655,6 +657,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Cli.exitWith
         state
         (Cli.TraceVerbs.showCodeJson
+          state.accountID
           state.currentBranchId
           fnName
           (Stdlib.Option.Option.Some run)

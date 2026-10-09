@@ -6,8 +6,14 @@
 #   clis/                       `build-release-cli-exes.sh` *moves* it here, emptying the publish dir
 #   net10.0/publish/            `dotnet publish` with no runtime identifier, which is what CI runs
 #   net10.0/<rid>/publish/      `dotnet publish -r <rid>`, before the move above
+case "$(uname -m)" in
+  aarch64|arm64) RELEASE_RUNTIME=linux-arm64 ;;
+  armv7l) RELEASE_RUNTIME=linux-arm ;;
+  *) RELEASE_RUNTIME=linux-x64 ;;
+esac
+
 RELEASE_EXE_PATHS=(
-  clis/darklang-alpha-*-linux-x64
+  clis/darklang-alpha-*-"${RELEASE_RUNTIME}"
   backend/Build/out/Cli/Release/net10.0/publish/Cli
   backend/Build/out/Cli/Release/net10.0/*/publish/Cli
 )

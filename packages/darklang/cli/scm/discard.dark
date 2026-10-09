@@ -81,7 +81,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let ops = SCM.PackageOps.draftOpCount ()
 
   // Empty means NO OPS, not "no changed names". A draft can hold ops that bind nothing -- a
-  // propagation pin, a deprecation, an ack -- and deciding on the bindings alone reported those
+  // a version restore, a deprecation, an ack -- and deciding on the bindings alone reported those
   // as nothing to discard and then left them in place, which `dark propagate` promptly showed
   // still there. The listing below is per binding and stays that way; the count is the truth.
   if ops == 0L then
@@ -102,7 +102,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     if Stdlib.List.isEmpty changed then
       Cli.Stderr.line
         (Stdlib.Cli.UI.Colors.dimText
-          "    (no changed names -- no new version: pins, deprecations, docs, acks)")
+          "    (no changed names -- no new version: restores, deprecations, docs, acks)")
     else
       ()
 

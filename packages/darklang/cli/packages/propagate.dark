@@ -2,8 +2,8 @@ module Darklang.Cli.Packages.Propagate
 
 // Propagation helpers.
 //
-// Propagation itself runs on EDIT (`repointNow`), not at commit. What lives here is the one call into it
-// (`repointDependents`) plus the structural comparison helpers `dark commit` uses to say whether an
+// Saves invoke SCM.Propagation through `repointNow`. The structural comparison helpers here let
+// `dark commit` say whether an
 // update changed a SIGNATURE -- which matters because propagation does a blind hash swap with no
 // type-checking, so a signature change is the one thing callers can't absorb silently.
 
@@ -164,7 +164,7 @@ let nothingFollowed () : Followed =
 ///
 /// On EDIT rather than at commit, which is the whole point of propagating at all: you change `base` in
 /// order to find out what it does to the things above it, and you cannot find that out while `dep` is
-/// still pinned to the old version. Seeing the impact is how you decide whether to commit, so it has to
+/// still using the old version. Seeing the impact is how you decide whether to commit, so it has to
 /// happen first.
 ///
 /// Nothing is committed here. The repoints land in the DRAFT like any other edit, `dark status` counts
@@ -182,7 +182,7 @@ let repointNow
   match previousHashes with
   | [] -> nothingFollowed () // brand new: nothing can be pointing at an older version of it
   | _ ->
-    match repointDependents branchId location itemKind previousHashes currentHash with
+    match SCM.Propagation.repointDependents branchId location itemKind previousHashes currentHash with
     | Ok [] -> nothingFollowed ()
     | Ok repoints ->
       let nameOf (r: LanguageTools.ProgramTypes.PropagateRepoint) : String =
@@ -220,6 +220,49 @@ let repointNow
 
       Followed { names = names; broken = broken; failure = Stdlib.Option.Option.None }
     | Error e -> Followed { names = []; broken = []; failure = Stdlib.Option.Option.Some e }
+
+/// A binding that existed before this save. Method functions count too.
+type UpdatedItem =
+  { location: LanguageTools.ProgramTypes.PackageLocation
+    kind: LanguageTools.ProgramTypes.ItemKind
+    previous: List<LanguageTools.ProgramTypes.Hash> }
+
+/// Capture before storage, while the old bindings are still visible.
+let updatedItems
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : List<UpdatedItem> =
+  ops
+  |> Stdlib.List.filterMap (fun op ->
+    match op with
+    | SetName(location, reference, _) ->
+      let kind = LanguageTools.ProgramTypes.Reference.kind reference
+      let previous = getAllPreviousHashes branchId location kind
+      if Stdlib.List.isEmpty previous then None
+      else Some(UpdatedItem { location = location; kind = kind; previous = previous })
+    | _ -> None)
+  |> Stdlib.List.uniqueBy (fun item -> item.location)
+
+/// Every updated binding uses its final stored hash, shared by all authoring paths.
+let repointSaved (branchId: Uuid) (updates: List<UpdatedItem>) : Followed =
+  updates
+  |> Stdlib.List.fold (nothingFollowed ()) (fun combined update ->
+    let followed =
+      match SCM.Propagation.hashOn branchId update.location update.kind with
+      | Some current ->
+        repointNow branchId update.location
+          (update.previous |> Stdlib.List.filter (fun h -> h != current))
+          current update.kind
+      | None ->
+        Followed { names = []; broken = []; failure = Some "A saved binding could not be resolved." }
+    let failure =
+      match combined.failure with
+      | Some _ -> combined.failure
+      | None -> followed.failure
+    Followed
+      { names = Stdlib.List.unique (Stdlib.List.append combined.names followed.names)
+        broken = Stdlib.List.unique (Stdlib.List.append combined.broken followed.broken)
+        failure = failure })
 
 /// The save's second line, if it has one: who follows, or who broke. Wrapped at 80, indented.
 let printFollowed (followed: Followed) : Unit =
@@ -265,35 +308,3 @@ let followedNote (followed: Followed) : String =
         | [] -> ""
         | _ -> $" (and {Stdlib.toString (Stdlib.List.length rest)} more)"
       $"; {name} no longer type-checks: {why}{more}"
-
-
-/// THE call into propagation. Repoint everything that still references an older version of
-/// <param location> at <param currentHash>, transitively, and hand back the repoints so the caller can
-/// report them however it likes. One wrapper so the eager path and `dark commit` can't drift apart on what
-/// "propagate" means.
-let repointDependents
-  (branchId: Uuid)
-  (location: LanguageTools.ProgramTypes.PackageLocation)
-  (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  (previousHashes: List<LanguageTools.ProgramTypes.Hash>)
-  (currentHash: LanguageTools.ProgramTypes.Hash)
-  : Stdlib.Result.Result<List<LanguageTools.ProgramTypes.PropagateRepoint>, String> =
-  SCM.Propagation.repointDependents branchId location itemKind previousHashes currentHash
-
-
-/// Repoint everything that referenced an EARLIER version of <param location> at <param currentHash>.
-///
-/// The eager path used by the authoring commands: they know the location and the new hash, and the
-/// previous versions are whatever the store already holds under that name. `dark module` is the caller
-/// that needs it most, since one command can redefine many declarations at once.
-let autoPropagateAfterUpdate
-  (branchId: Uuid)
-  (location: LanguageTools.ProgramTypes.PackageLocation)
-  (currentHash: LanguageTools.ProgramTypes.Hash)
-  (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  : Unit =
-  let previousHashes =
-    getAllPreviousHashes branchId location itemKind
-    |> Stdlib.List.filter (fun h -> h != currentHash)
-
-  printFollowed (repointNow branchId location previousHashes currentHash itemKind)

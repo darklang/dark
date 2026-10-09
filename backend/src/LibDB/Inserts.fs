@@ -454,12 +454,6 @@ let wholeMainDeletes (keep : Set<System.Guid>) : List<string> =
       $" AND id NOT IN ({quoted})"
   [ "DELETE FROM locations WHERE source <> 'resolution'"
     "DELETE FROM deprecations"
-    // Decisions are folded from `Decision` ops like everything else, so a rewrite that re-folds
-    // the surviving ops clears them first: otherwise a discarded pin loses its op and keeps the
-    // pin, and the next edit honours a decision with nothing in the log behind it.
-    //
-    // Main only. A branch's rows are keyed by its own id, and no main rewrite may touch them.
-    $"DELETE FROM propagation_policy WHERE branch_id = '{PT.BranchId.Main}'"
     $"DELETE FROM package_ops WHERE {mainWhere}{keepUnreadable}" ]
 
 /// Delete, re-insert and re-fold as ONE transaction. `deletes` run first, in order; then every op is

@@ -8,7 +8,7 @@ module Darklang.SCM.PackageOps
 //
 //   packageOpsBindings   what an op says about a name, and what a name holds now
 //   packageOpsDraft      stamping a draft into a commit, and dropping one
-//   packageOpsRepoints   which dependents an edit would move, and which it left behind
+//   packageOpsRepoints   which dependents an edit would move
 //   packageOpsMerge      commit, merge, rebase, archive, settle a conflict
 //   packageOpsBundles    a branch as a bundle, for a relay to store and forward
 //   packageOpsBranch     branch registry and frontier reads

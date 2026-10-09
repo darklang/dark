@@ -193,7 +193,7 @@ let editingOnABranchRepointsItsCallers =
 /// reverting main -- and `status` on a branch reports main's followers as the branch's.
 let private aBranchKnowsWhatFollowed =
   cliTestOnMain
-    "status and pin on a branch act on the branch's own followers, not main's"
+    "status reports branch-local followers without changing main"
     (fun state ->
       task {
         // On main: a base, a caller, committed. Then an edit to the base on MAIN, uncommitted, so main's
@@ -236,21 +236,6 @@ let private aBranchKnowsWhatFollowed =
             [ "status" ]
             "1 followed"
             "the branch reports its own follower, from its own record"
-
-        // pin on the branch drops the BRANCH's staged repoint: the caller is back on v1's base.
-        let! pinned =
-          runCli state [ "propagate"; "pin"; "Tests.BranchFollow.caller" ]
-        Expect.stringContains
-          pinned
-          "dropped the staged repoint"
-          $"the branch's repoint was un-staged: {pinned}"
-        // The branch's own repoint is gone. What the caller resolves to now is what main's live projection
-        // says (an overlay over main, draft included), which is main's staged repoint, 21; the branch's
-        // 14 is what must be gone.
-        let! back = runCli state [ "eval"; "Tests.BranchFollow.caller ()" ]
-        Expect.isFalse
-          (back.Contains "7014")
-          $"the branch no longer holds its repoint: {back}"
 
         // Main's draft is exactly as it was: the edit and ITS follower.
         do! switch state "main"
@@ -1148,9 +1133,6 @@ let private resetWorkedExample () : Task<unit> =
 
     do! execSql "DELETE FROM locations WHERE owner = 'Ux' AND modules = 'Money'"
 
-    do!
-      execSql
-        "DELETE FROM propagation_policy WHERE owner = 'Ux' AND modules = 'Money'"
   }
 
 let private theWorkedExampleWorks =
@@ -1441,59 +1423,57 @@ let private otherBranchAnswersStayCurrent =
         do! archiveBranches state [ "cachebr" ]
       })
 
-/// `dark propagate follow` must not destroy a name that happens to share a hash.
-///
-/// `SCM.Propagation.rebind` catches a followed name up by emitting a bare `SetName`. The fold read a
-/// standalone SetName as a RENAME and deprecated every other location on that hash, so catching `x` up
-/// silently unlisted `y` when the two had identical bodies -- one command, no sync, and `status` reported
-/// "1 followed" without mentioning that a name was gone.
-///
-/// Identical bodies being one item is routine here, which is what made this reachable rather than exotic.
-let private followingDoesNotDestroyASharedName =
-  cliTest
-    "catching a pinned name up does not unlist a name sharing its hash"
-    (fun state ->
-      task {
-        do! fn state "Tests.Follow.dep" "() : Int64 = 1L"
+/// Shared content must remain bound at every alias when propagation crosses owners.
+let private allConsumersFollowAcrossOwners =
+  cliTest "all consumers follow dependency edits across owners" (fun state ->
+    task {
+      do! fn state "Vendor.Auto.dep" "() : Int64 = 1L"
+      let body = "() : Int64 = Vendor.Auto.dep () + 100L"
+      do! fn state "Tests.Auto.x" body
+      do! fn state "Tests.Auto.y" body
+      do! fn state "Other.Auto.top" "() : Int64 = Tests.Auto.x () + 1000L"
+      do! fn state "Vendor.Auto.dep" "() : Int64 = 2L"
+      do! evals state "Tests.Auto.x ()" "102" "first caller updates"
+      do! evals state "Tests.Auto.y ()" "102" "shared alias also updates"
+      do! evals state "Other.Auto.top ()" "1102" "transitive foreign caller updates"
+      do!
+        shows
+          state
+          [ "undo"; "Vendor.Auto.dep" ]
+          "back on the version"
+          "source can be restored"
+      do! evals state "Tests.Auto.x ()" "101" "caller follows restore"
+      do! evals state "Tests.Auto.y ()" "101" "alias follows restore"
+      do! evals state "Other.Auto.top ()" "1101" "transitive caller follows restore"
+      do! fn state "Vendor.Auto.dep" "() : Int64 = 2L"
+      do! evals state "Tests.Auto.x ()" "102" "replayed content propagates again"
+      do! evals state "Other.Auto.top ()" "1102" "replayed cascade takes effect"
+    })
 
-        // Identical bodies, so x and y are ONE content-addressed item sharing a hash.
-        let body = "() : Int64 = (Tests.Follow.dep ()) + 100L"
-        do! fn state "Tests.Follow.x" body
-        do! fn state "Tests.Follow.y" body
-
-        // Pin x, then move dep so only y follows and the two names diverge.
-        let! _ = runCli state [ "propagate"; "pin"; "Tests.Follow.x"; "held" ]
-        do! fn state "Tests.Follow.dep" "() : Int64 = 2L"
-
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Follow.y ()" ]
-            "102"
-            "y followed the moved dependency"
-
-        // Catch x up. It rebinds to the hash y already holds.
-        let! _ =
-          runCli state [ "propagate"; "follow"; "Tests.Follow.x"; "caught up" ]
-
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Follow.x ()" ]
-            "102"
-            "x caught up, which is what follow is for"
-
-        let! yAfter = runCli state [ "eval"; "Tests.Follow.y ()" ]
-        Expect.stringContains
-          yAfter
-          "102"
-          "and y still exists, having done nothing wrong"
-        Expect.isFalse
-          (yAfter.Contains "not found")
-          "catching one name up must not delete another that shares its hash"
-
-        return ()
-      })
+let private crossOwnerPropagationIsBranchLocal =
+  cliTestOnMain "cross-owner propagation stays on its branch" (fun state ->
+    task {
+      do! start state
+      do! fn state "Vendor.BranchAuto.dep" "() : Int64 = 41L"
+      do!
+        fn
+          state
+          "Tests.BranchAuto.caller"
+          "() : Int64 = Vendor.BranchAuto.dep () + 1L"
+      do! commit state "automatic propagation fixture"
+      do! switch state "auto-propagation"
+      do! fn state "Vendor.BranchAuto.dep" "() : Int64 = 51L"
+      do!
+        evals
+          state
+          "Tests.BranchAuto.caller ()"
+          "52"
+          "branch caller updates automatically"
+      do! onMain state
+      do! evals state "Tests.BranchAuto.caller ()" "42" "main caller is unchanged"
+      do! evals state "Vendor.BranchAuto.dep ()" "41" "main dependency is unchanged"
+      do! archiveBranches state [ "auto-propagation" ]
+    })
 
 /// Every `--json` surface emits parseable JSON.
 ///
@@ -1516,7 +1496,6 @@ let private everyJsonSurfaceParses =
           [ "branches" ]
           [ "conflicts" ]
           [ "constraints" ]
-          [ "propagate" ]
           [ "deps"; "Tests.Json.probe" ] ]
 
       for argv in surfaces do
@@ -2373,39 +2352,6 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
       do! archiveBranches state [ "confbr" ]
     })
 
-let private branchItemsArePolicyTargets =
-  cliTestOnMain
-    "a policy verb can name an item that only exists on a branch"
-    (fun state ->
-      task {
-        do! switch state "polbr"
-        let! _ =
-          runCli state [ "fn"; "Tests.Pol.only"; "(x: Int64) : Int64 = x + 5L" ]
-
-        // `locations` is main's projection and a branch's SetNames never fold into it, so
-        // a read that goes only to that table answers about MAIN while you're on a branch.
-        let! pinned =
-          runCli state [ "propagate"; "pin"; "Tests.Pol.only"; "on the branch" ]
-        Expect.stringContains pinned "pinned" "the branch item is a valid target"
-
-        do!
-          shows
-            state
-            [ "propagate" ]
-            "Tests.Pol.only"
-            "and the choice is visible from the branch"
-
-        do! switch state "main"
-        let! onMain = runCli state [ "propagate" ]
-        Expect.isFalse
-          (onMain.Contains "Tests.Pol.only")
-          "and stays branch-local, like every other branch decision"
-
-        do! archiveBranches state [ "polbr" ]
-      })
-
-
-
 /// Main's uncommitted draft never leaks into a branch's view: a draft-born name does not resolve
 /// there, and a draft edit over a committed version resolves to the committed one. The branch is an
 /// overlay on COMMITTED main; `dark commit` is what publishes work downstream.
@@ -2607,7 +2553,7 @@ let private mergeCommitsWhatASiblingStillTags =
 /// Ops are content-addressed, so re-binding a name to a hash it held before is byte-identical to
 /// the op that first bound it: it dedupes, folds nothing, and the revert silently does not happen
 /// while the CLI reports success. `Decision`/`Override` is the op that means "this binding again,
-/// and I mean it" -- it is what `propagate pin` already authors for exactly this reason.
+/// and I mean it" -- rebinding authors it for exactly this reason.
 let revertingToAnEarlierVersionTakesEffect =
   cliTestOnMain "going back to an earlier version actually goes back" (fun state ->
     task {
@@ -2707,36 +2653,6 @@ let commitsFollowTheCommitBeforeThem =
 /// A pin made on a parent branch APPLIES on a child (resolution walks the chain), but `propagate`
 /// listed only the child's own rows, so the child was told nothing was pinned while being governed
 /// by one.
-let aParentsPinIsListedOnTheChild =
-  cliTestOnMain "a child branch lists the pins that govern it" (fun state ->
-    task {
-      do! start state
-      do! switch state "pinpar"
-      do! fn state "Tests.Pin2.base" "() : Int64 = 10L"
-      do! fn state "Tests.Pin2.caller" "() : Int64 = Tests.Pin2.base () + 1L"
-      do! pin state "Tests.Pin2.caller"
-      do! commit state "par"
-
-      do! switch state "pinkid"
-      do!
-        shows
-          state
-          [ "propagate" ]
-          "Tests.Pin2.caller"
-          "the child lists the pin it inherits"
-
-      // And the pin is really in force here, which is what makes the listing's silence a lie.
-      do! fn state "Tests.Pin2.base" "() : Int64 = 20L"
-      do!
-        evals
-          state
-          "Tests.Pin2.caller ()"
-          "11"
-          "the inherited pin held the caller back"
-      do! onMain state
-    })
-
-
 /// `conflicts override <name>` took the OLDEST row for that name, resolved or not, while the
 /// listing shows only pending ones. With one name conflicted twice, answering by name acted on the
 /// settled conflict and left the open one open, reporting success either way.
@@ -2776,7 +2692,6 @@ let tests : List<Test> =
     deprecationTakesEffectInTheSameProcess
     otherBranchAnswersStayCurrent
     branchVerbsTakeTheNameYouSee
-    branchItemsArePolicyTargets
     committingOnABranchCommitsItsOps
     conflictsBelongToTheBranchTheyHappenedOn
     discardOnABranchLeavesMainAlone
@@ -2812,7 +2727,8 @@ let tests : List<Test> =
     aNameHoldsOneItemWhateverItsKind
     editChangesAnItemWithoutRetypingIt
     everyJsonSurfaceParses
-    followingDoesNotDestroyASharedName
+    allConsumersFollowAcrossOwners
+    crossOwnerPropagationIsBranchLocal
     aBranchNeverSeesMainsDraft
     discardSparesInertOps
     mergeCommitsWhatASiblingStillTags
@@ -2823,5 +2739,4 @@ let tests : List<Test> =
     revertingOnMainTakesEffect
     aPartialCommitTakesItsDependencysName
     commitsFollowTheCommitBeforeThem
-    aParentsPinIsListedOnTheChild
     overrideByNameAnswersThePendingConflict ]

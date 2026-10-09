@@ -1228,7 +1228,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "cliViewTrace" 0
       typeParams = []
       parameters =
-        [ Param.make "branchId" TUuid "the branch to resolve names against"
+        [ Param.make
+            "accountID"
+            (TypeReference.option TUuid)
+            "the account whose approvals apply"
+          Param.make "branchId" TUuid "the branch to resolve names against"
           Param.make "traceID" TString "the run to view"
           Param.make
             "focus"
@@ -1273,7 +1277,10 @@ let fns () : List<BuiltInFn> =
         + "once cannot take each other's log."
       fn =
         (function
-        | exeState, _, _, [| DUuid branchId; DString traceID; DList(_, focusRows) |] ->
+        | exeState,
+          _,
+          _,
+          [| accountIDDval; DUuid branchId; DString traceID; DList(_, focusRows) |] ->
           uply {
             // A view keeps the first and last few iterations of every site. Asking for one in
             // between is this: the same view again, keeping that one as well.
@@ -1406,7 +1413,13 @@ let fns () : List<BuiltInFn> =
                     System.Collections.Generic.Dictionary<int64, RT.Dval>()
                   let tracer =
                     Tracing.createViewTracer log collected frames lastByExpr focus
-                  let exeState = { exeState with branchId = PT.BranchId.Id branchId }
+                  let accountID =
+                    C2DT.Option.fromDT D.uuid accountIDDval
+                    |> Option.orElse exeState.accountID
+                  let exeState =
+                    { exeState with
+                        accountID = accountID
+                        branchId = PT.BranchId.Id branchId }
                   let branchState = createBranchState exeState false
                   let! parsed = parseCliExpr branchState source
                   let values () =
