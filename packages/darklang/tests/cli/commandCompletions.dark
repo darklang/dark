@@ -1,0 +1,81 @@
+/// Cases from
+/// `backend/testfiles/execution/cli/command-completions.dark`,
+/// in original assertion order.
+module Darklang.Cli.Tests.CommandCompletions
+
+// Every command's `complete` is called on a real AppState, because the failure mode here is a function that
+// parses and loads fine and only throws at the moment somebody presses Tab. Nothing but running it finds
+// bad code behind a branch nobody exercises.
+//
+// The assertion is deliberately "none of them threw" rather than a completion count. Counts move whenever a
+// command gains an option, and a test that has to be edited every time is a test people edit without reading.
+
+module CompletionSweep =
+  // forcing the length is what makes the lazy list actually run
+
+  let forced (c: Darklang.Cli.Registry.CommandHandler) (args: List<String>) : Bool =
+    let state = Darklang.Cli.initState ()
+    ((c.complete state args) |> Stdlib.List.length) >= 0
+
+  let sweep (args: List<String>) : Bool =
+    Darklang.Cli.Registry.allCommands ()
+    |> Stdlib.List.all (fun c -> forced c args)
+
+// no argument yet: the command was typed, then Tab
+test noArgument =
+  CompletionSweep.sweep [] |> Stdlib.Test.equal true
+
+// a partial first argument
+test partialFirstArgument =
+  Stdlib.Test.all
+    [ CompletionSweep.sweep [ "" ] |> Stdlib.Test.equal true
+      CompletionSweep.sweep [ "fea" ] |> Stdlib.Test.equal true ]
+
+// a subcommand, then Tab for its argument -- the arm that reads the store
+test subcommandArgument =
+  Stdlib.Test.all
+    [ CompletionSweep.sweep [ "show", "" ] |> Stdlib.Test.equal true
+      CompletionSweep.sweep [ "push", "fea" ] |> Stdlib.Test.equal true ]
+
+// more arguments than any command takes; nothing should throw reaching for a word that isn't there
+test tooManyArguments =
+  CompletionSweep.sweep [ "a", "b", "c", "d" ] |> Stdlib.Test.equal true
+
+// --- the SCM commands specifically offer branch names, since those are the ones typed daily ---
+
+module BranchCompletion =
+  let values (args: List<String>) : List<String> =
+    let state = Darklang.Cli.initState ()
+
+    (Darklang.Cli.Branch.complete state args)
+    |> Stdlib.List.map (fun i -> i.value)
+
+// a name that exists in no store: the filter runs and matches nothing, rather than the whole list coming back
+test unknownBranchMatchesNothing =
+  Stdlib.Test.all
+    [ BranchCompletion.values [ "zzz-no-such-branch" ] |> Stdlib.Test.equal []
+      BranchCompletion.values [ "switch", "zzz-no-such-branch" ]
+      |> Stdlib.Test.equal [] ]
+
+// `main` is always a legitimate target for the branch-taking subcommands
+test mainIsAlwaysOffered =
+  ((BranchCompletion.values [ "switch", "mai" ]) |> Stdlib.List.member "main")
+  |> Stdlib.Test.equal true
+
+// a subcommand that takes no branch gets no branch names
+test nonBranchSubcommand =
+  BranchCompletion.values [ "list", "" ] |> Stdlib.Test.equal []
+
+module PermissionProfiles =
+  let values (args: List<String>) : List<String> =
+    Darklang.Cli.Permissions.Command.complete (Darklang.Cli.initState ()) args
+    |> Stdlib.List.map (fun item -> item.value)
+
+test profileNames =
+  Stdlib.Test.all
+    [ PermissionProfiles.values [ "profile", "default" ]
+      |> Stdlib.Test.equal [ "--yes" ]
+      PermissionProfiles.values [ "profile", "read-only", "/tmp" ]
+      |> Stdlib.Test.equal [ "--yes" ]
+      PermissionProfiles.values [ "profile", "local-dev", "/tmp" ]
+      |> Stdlib.Test.equal [ "--yes" ] ]

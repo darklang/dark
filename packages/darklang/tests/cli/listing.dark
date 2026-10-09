@@ -1,0 +1,12 @@
+/// Cases from
+/// `backend/testfiles/execution/cli/listing.dark`, in original assertion order.
+module Darklang.Cli.Tests.Listing
+
+module GroupedByModule =
+  // Modules sorted, leaves in the order they came.
+  test groupedByModule =
+    Stdlib.Test.all
+      [ Darklang.Cli.Listing.groupedByModule [ "B.y.f", "A.g", "B.y.e", "A.h", "top" ]
+        |> Stdlib.Test.equal
+          [ ("", [ "top" ]), ("A", [ "g", "h" ]), ("B.y", [ "f", "e" ]) ]
+        Darklang.Cli.Listing.groupedByModule [] |> Stdlib.Test.equal [] ]

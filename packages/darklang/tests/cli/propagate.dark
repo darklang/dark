@@ -1,0 +1,24 @@
+/// Cases from
+/// `backend/testfiles/execution/cli/propagate.dark`, in original assertion order.
+module Darklang.Cli.Tests.Propagate
+
+module DictionarySignatures =
+  let same
+    (key: Darklang.LanguageTools.ProgramTypes.TypeReference)
+    (value: Darklang.LanguageTools.ProgramTypes.TypeReference)
+    : Bool =
+    Darklang.Cli.Packages.Propagate.typeReferenceEqual
+      Darklang.SCM.Branch.mainBranchId
+      (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TString,
+        Darklang.LanguageTools.ProgramTypes.TypeReference.TInt))
+      (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(key, value))
+
+test dictionarySignatures =
+  Stdlib.Test.all
+    [ DictionarySignatures.same Darklang.LanguageTools.ProgramTypes.TypeReference.TString Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+      |> Stdlib.Test.equal true
+      DictionarySignatures.same Darklang.LanguageTools.ProgramTypes.TypeReference.TInt Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+      |> Stdlib.Test.equal false
+      DictionarySignatures.same Darklang.LanguageTools.ProgramTypes.TypeReference.TString Darklang.LanguageTools.ProgramTypes.TypeReference.TBool
+      |> Stdlib.Test.equal false ]

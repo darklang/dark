@@ -1,0 +1,47 @@
+/// Cases from
+/// `backend/testfiles/execution/cli/app-service-safety.dark`,
+/// in original assertion order.
+module Darklang.Cli.Tests.AppServiceSafety
+
+// What an app is allowed to put into a generated OS service file.
+//
+// `Registry.catalog` is the curated set PLUS apps DISCOVERED from packages, and packages sync. So an
+// `App` record reaching `Service.enable` was not necessarily written on this machine, and its fields
+// are interpolated into a systemd unit and a launchd plist (the latter as an argument to `/bin/sh -c`).
+// The slug was already checked; these two were not.
+
+module Entrypoint =
+  // Goes inside `<launcher> eval '<entrypoint> "<slug>"'`. A quote closes the eval string and
+  // everything after it is a fresh command.
+  test entrypointRejectsShellQuotes =
+    Stdlib.Test.all
+      [ Darklang.Cli.Apps.Model.isValidEntrypoint
+          "Darklang.Cli.Apps.Examples.heartbeat"
+        |> Stdlib.Test.equal true
+        Darklang.Cli.Apps.Model.isValidEntrypoint "x'; touch /tmp/pwned; echo '"
+        |> Stdlib.Test.equal false
+        Darklang.Cli.Apps.Model.isValidEntrypoint "x\"; id; \""
+        |> Stdlib.Test.equal false
+        Darklang.Cli.Apps.Model.isValidEntrypoint "" |> Stdlib.Test.equal false ]
+
+module AppName =
+  // Goes into a systemd `Description=`, which is newline-delimited.
+  test appNameRejectsNewlines =
+    Stdlib.Test.all
+      [ Darklang.Cli.Apps.Model.isValidAppName "Dark Packages HTTP Server"
+        |> Stdlib.Test.equal true
+        Darklang.Cli.Apps.Model.isValidAppName
+          "evil\nExecStartPre=/bin/sh -c id"
+        |> Stdlib.Test.equal false
+        Darklang.Cli.Apps.Model.isValidAppName "" |> Stdlib.Test.equal false ]
+
+module Targets =
+  // A foreground app writes no unit file, so it has no entrypoint to constrain.
+  test foregroundHasNoEntrypoint =
+    Stdlib.Test.all
+      [ Darklang.Cli.Apps.Model.isValidEntrypointOf
+          (Darklang.Cli.Apps.Model.Target.Foreground "anything at all")
+        |> Stdlib.Test.equal true
+        Darklang.Cli.Apps.Model.isValidEntrypointOf
+          (Darklang.Cli.Apps.Model.Target.Daemon "x'; id; '")
+        |> Stdlib.Test.equal false ]
