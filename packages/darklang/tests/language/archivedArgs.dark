@@ -1,0 +1,89 @@
+/// Exact cases from the excluded legacy example packages/darklang/test/test_earg.dark.
+module Darklang.Language.Tests.ArchivedArgs
+
+module EArgTests =
+  let addTwo (earg1: Int) (earg2: Int): Int =
+    (earg1 + earg2)
+
+  let shadowTest (shadowedEarg: Int): Int =
+    let shadowedEarg = 42
+    shadowedEarg  // This should be EVariable, not EArg after shadowing
+
+  let argAndLocalVar (mixedEarg: Int): Int =
+    let localVarNotEarg = 10
+    (mixedEarg + localVarNotEarg)  // mixedEarg=EArg(0), localVarNotEarg=EVariable("localVarNotEarg")
+
+  let nestedShadowing (eargOne: Int) (eargTwo: Int): Int =
+    let a =
+      let eargOne = 100
+      (eargOne + eargTwo)
+    (a + eargOne)
+
+  let lambdaTest (eargX: Int) : Int =
+    let addX = (fun x -> (x + 1))
+    let result = eargX + (addX eargX)
+    result
+
+  let matchArgName (value: Int) : Int =
+    match value with
+    | 0 -> 100
+    | value -> value * 2
+
+  let matchWithNestedShadowing (x: Int) (y: Int) : Int =
+    match x with
+    | 0 -> y
+    | x -> // This 'x' shadows the parameter
+      let y = x * 3  // This 'y' shadows the second parameter
+      match y with
+      | 6 -> 600
+      | y -> y + 10  // This 'y' shadows both parameter and let binding
+
+  let matchWithNestedShadowing2 (x: Int) (y: Int) : Int =
+    match y with
+    | 0 -> y
+    | x -> x * 3  // This 'x' shadows the first parameter
+
+
+  let tupleMatchWithArgShadowing (data: (Int * String)) : String =
+    match data with
+    | (0, result) -> result
+    | (1, data) -> data + "_modified"  // 'data' shadows the parameter
+    | (data, text) -> (Stdlib.toString data) + "_" + text  // 'data' shadows parameter
+
+test addTwo =
+  EArgTests.addTwo 3 4 |> Stdlib.Test.equal 7
+
+test shadowTest =
+  EArgTests.shadowTest 999 |> Stdlib.Test.equal 42
+
+test argAndLocalVar =
+  EArgTests.argAndLocalVar 5 |> Stdlib.Test.equal 15
+
+test nestedShadowing =
+  EArgTests.nestedShadowing 1 2 |> Stdlib.Test.equal 103
+
+// Not a legacy assertion: legacy computed this case (`test5`) but left it out of
+// the `testList` it checked.
+test lambdaTest =
+  EArgTests.lambdaTest 10 |> Stdlib.Test.equal 21
+
+test matchArgName =
+  Stdlib.Test.all
+    [ EArgTests.matchArgName 0 |> Stdlib.Test.equal 100
+      EArgTests.matchArgName 5 |> Stdlib.Test.equal 10 ]
+
+test matchWithNestedShadowing =
+  Stdlib.Test.all
+    [ EArgTests.matchWithNestedShadowing 0 42 |> Stdlib.Test.equal 42
+      EArgTests.matchWithNestedShadowing 3 99 |> Stdlib.Test.equal 19 ]
+
+test matchWithNestedShadowing2 =
+  Stdlib.Test.all
+    [ EArgTests.matchWithNestedShadowing2 5 0 |> Stdlib.Test.equal 0
+      EArgTests.matchWithNestedShadowing2 5 4 |> Stdlib.Test.equal 12 ]
+
+test tupleMatchWithArgShadowing =
+  Stdlib.Test.all
+    [ EArgTests.tupleMatchWithArgShadowing (0, "hello") |> Stdlib.Test.equal "hello"
+      EArgTests.tupleMatchWithArgShadowing (1, "test") |> Stdlib.Test.equal "test_modified"
+      EArgTests.tupleMatchWithArgShadowing (42, "data") |> Stdlib.Test.equal "42_data" ]

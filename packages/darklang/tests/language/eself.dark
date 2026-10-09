@@ -1,0 +1,183 @@
+/// Cases ported from `backend/testfiles/execution/stdlib/eself.dark`.
+module Darklang.Language.Tests.ESelf
+
+// Tests for ESelf (recursive function calls)
+
+module ESelfTests =
+  let factorial (n: Int): Int =
+    if (n <= 1) then
+      1
+    else
+      n * (factorial (n - 1))
+
+  let fibonacci (n: Int): Int =
+    if (n <= 1) then
+      n
+    else
+      (ESelfTests.fibonacci (n - 1)) + (ESelfTests.fibonacci (n - 2))
+
+  let sumUpTo (n: Int): Int =
+    if (n <= 0) then
+      0
+    else
+      n + (ESelfTests.sumUpTo (n - 1))
+
+module ShadowingTest =
+  let factorialWithShadowing (n: Int): (String * Int) =
+    if (n <= 1) then
+      ("base_case", 1)
+    else
+      let factorialWithShadowing = "shadowed"
+      let result =
+        n * ((ShadowingTest.factorialWithShadowing (n - 1)) |> Stdlib.Tuple2.second)
+      (factorialWithShadowing , result)
+
+  let factorialWithShadowingError (n: Int): (String * Int) =
+    if (n <= 1) then
+      ("base_case", 1)
+    else
+      let factorialWithShadowingError = "shadowed"
+      let result =
+        n * ((factorialWithShadowingError (n - 1)) |> Stdlib.Tuple2.second)
+      (factorialWithShadowingError , result)
+
+  let incrementWithShadowing (y: Int) (z: Int): Int =
+    if (z <= 0) then
+      y
+    else
+      let result = incrementWithShadowing y (z - 1)
+      let incrementWithShadowing = (fun x -> x + 2)
+      let lambdaResult = incrementWithShadowing z
+      result + lambdaResult
+
+  let matchWithShadowing (x: Int) : Int =
+    match x with
+    | 0 -> 0
+    | 1 -> matchWithShadowing 0
+    | 2 ->
+      let matchWithShadowing = (fun v -> v * 4)
+      matchWithShadowing 2
+    | matchWithShadowing -> matchWithShadowing + 1
+
+  let tupleMatchWithShadowing (x: Int * Int) : Int =
+    match x with
+    | (0, _) -> 0
+    | (1, n) -> tupleMatchWithShadowing (0, n)
+    | (2, v) ->
+        let tupleMatchWithShadowing = (fun x -> x * 10)
+        tupleMatchWithShadowing v
+    | (a, tupleMatchWithShadowing) -> a + tupleMatchWithShadowing
+
+  let letBindingShadowing (x: Int) : List<Int> =
+    let letBindingShadowing = (fun v -> v * 3)
+    let letBindingShadowing = [ 10, letBindingShadowing x ]
+    let letBindingShadowing = Stdlib.List.reverse letBindingShadowing
+    letBindingShadowing
+
+  let conditionalShadowing (x: Int) : Int =
+    if x <= 0 then
+      0
+    elif x < 3 then
+      let conditionalShadowing = (fun v w -> v * 5 + w)
+      conditionalShadowing x 2
+    elif x < 5 then
+      let conditionalShadowing = (fun v -> v * 3)
+      conditionalShadowing x
+    else
+      x + conditionalShadowing (x - 1)
+
+  let pipeWithShadowing (x: Int) : Int =
+    match x with
+    | 0 -> 0
+    | 1 -> 0 |> pipeWithShadowing
+    | 2 ->
+      let pipeWithShadowing = (fun v -> v * 6)
+      x |> pipeWithShadowing
+    | pipeWithShadowing -> x |> (+) pipeWithShadowing
+
+  // A location holds ONE item, whatever its kind: `val valueShadowing` and
+  // `fn valueShadowing` would be one name bound twice, and the second binding
+  // replaces the first, in the store and in the in-memory package manager alike. So
+  // the val has its own name.
+  val valueShadowingBase = 120
+  let valueShadowing (x: Int) : Int =
+    if x <= 0 then
+      10
+    else if x == 1 then
+      (valueShadowing 0) + 1
+    else
+      let result = valueShadowingBase + 1
+      (valueShadowing (x - 1)) + result
+
+test factorial =
+  Stdlib.Test.all
+    [ ESelfTests.factorial 0 |> Stdlib.Test.equal 1
+      ESelfTests.factorial 1 |> Stdlib.Test.equal 1
+      ESelfTests.factorial 5 |> Stdlib.Test.equal 120
+      ESelfTests.factorial 10 |> Stdlib.Test.equal 3628800 ]
+
+test fibonacci =
+  Stdlib.Test.all
+    [ ESelfTests.fibonacci 0 |> Stdlib.Test.equal 0
+      ESelfTests.fibonacci 1 |> Stdlib.Test.equal 1
+      ESelfTests.fibonacci 5 |> Stdlib.Test.equal 5
+      ESelfTests.fibonacci 10 |> Stdlib.Test.equal 55 ]
+
+test sumUpTo =
+  Stdlib.Test.all
+    [ ESelfTests.sumUpTo 0 |> Stdlib.Test.equal 0
+      ESelfTests.sumUpTo 1 |> Stdlib.Test.equal 1
+      ESelfTests.sumUpTo 5 |> Stdlib.Test.equal 15
+      ESelfTests.sumUpTo 10 |> Stdlib.Test.equal 55 ]
+
+test factorialWithShadowing =
+  ShadowingTest.factorialWithShadowing 5 |> Stdlib.Test.equal ("shadowed", 120)
+
+test shadowedStringIsNotCallable =
+  ShadowingTest.factorialWithShadowingError 5
+  => raises "Expected something we could apply to, such as a lambda or function, but got a String (\"shadowed\")"
+
+test incrementWithShadowing =
+  ShadowingTest.incrementWithShadowing 3 1 |> Stdlib.Test.equal 6
+
+test matchWithShadowing =
+  Stdlib.Test.all
+    [ ShadowingTest.matchWithShadowing 0 |> Stdlib.Test.equal 0
+      ShadowingTest.matchWithShadowing 1 |> Stdlib.Test.equal 0
+      ShadowingTest.matchWithShadowing 2 |> Stdlib.Test.equal 8
+      ShadowingTest.matchWithShadowing 5 |> Stdlib.Test.equal 6 ]
+
+test tupleMatchWithShadowing =
+  Stdlib.Test.all
+    [ ShadowingTest.tupleMatchWithShadowing (0, 10) |> Stdlib.Test.equal 0
+      ShadowingTest.tupleMatchWithShadowing (1, 20) |> Stdlib.Test.equal 0
+      ShadowingTest.tupleMatchWithShadowing (2, 3) |> Stdlib.Test.equal 30
+      ShadowingTest.tupleMatchWithShadowing (4, 5) |> Stdlib.Test.equal 9 ]
+
+test letBindingShadowing =
+  Stdlib.Test.all
+    [ ShadowingTest.letBindingShadowing 4 |> Stdlib.Test.equal [ 12, 10 ]
+      ShadowingTest.letBindingShadowing 5 |> Stdlib.Test.equal [ 15, 10 ] ]
+
+test conditionalShadowing =
+  Stdlib.Test.all
+    [ ShadowingTest.conditionalShadowing 0 |> Stdlib.Test.equal 0
+      ShadowingTest.conditionalShadowing 1 |> Stdlib.Test.equal 7
+      ShadowingTest.conditionalShadowing 2 |> Stdlib.Test.equal 12
+      ShadowingTest.conditionalShadowing 3 |> Stdlib.Test.equal 9
+      ShadowingTest.conditionalShadowing 4 |> Stdlib.Test.equal 12
+      ShadowingTest.conditionalShadowing 5 |> Stdlib.Test.equal 17
+      ShadowingTest.conditionalShadowing 6 |> Stdlib.Test.equal 23 ]
+
+test pipeWithShadowing =
+  Stdlib.Test.all
+    [ ShadowingTest.pipeWithShadowing 0 |> Stdlib.Test.equal 0
+      ShadowingTest.pipeWithShadowing 1 |> Stdlib.Test.equal 0
+      ShadowingTest.pipeWithShadowing 2 |> Stdlib.Test.equal 12
+      ShadowingTest.pipeWithShadowing 5 |> Stdlib.Test.equal 10 ]
+
+test valueShadowing =
+  Stdlib.Test.all
+    [ ShadowingTest.valueShadowing 0 |> Stdlib.Test.equal 10
+      ShadowingTest.valueShadowing 1 |> Stdlib.Test.equal 11
+      ShadowingTest.valueShadowing 5 |> Stdlib.Test.equal 495 ]

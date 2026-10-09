@@ -1,0 +1,531 @@
+/// Equality and unwrap cases from backend/testfiles/execution/stdlib/nomodule.dark.
+module Darklang.Language.Tests.Equality
+
+type ERec = { x: Int64; y: Int64 }
+type ERec2 = ERec
+type ERecUInt64 = { x: UInt64; y: UInt64 }
+type ERec2UInt64 = ERecUInt64
+type ERecInt8 = { x: Int8; y: Int8 }
+type ERec2Int8 = ERecInt8
+type ERecUInt8 = { x: UInt8; y: UInt8 }
+type ERec2UInt8 = ERecUInt8
+type ERecInt16 = { x: Int16; y: Int16 }
+type ERec2Int16 = ERecInt16
+type ERecUInt16 = { x: UInt16; y: UInt16 }
+type ERec2UInt16 = ERecUInt16
+type ERecInt32 = { x: Int32; y: Int32 }
+type ERec2Int32 = ERecInt32
+type ERecUInt32 = { x: UInt32; y: UInt32 }
+type ERec2UInt32 = ERecUInt32
+type ERecInt128 = { x: Int128; y: Int128 }
+type ERec2Int128 = ERecInt128
+type ERecUInt128 = { x: UInt128; y: UInt128 }
+type ERec2UInt128 = ERecUInt128
+type EEnumInt8 = | E1 | E2 | E3 of Int8
+type EEnum2Int8 = EEnumInt8
+type EEnumUInt8 = | E1 | E2 | E3 of UInt8
+type EEnum2UInt8 = EEnumUInt8
+type EEnumInt16 = | E1 | E2 | E3 of Int16
+type EEnum2Int16 = EEnumInt16
+type EEnumUInt16 = | E1 | E2 | E3 of UInt16
+type EEnum2UInt16 = EEnumUInt16
+type EEnumInt32 = | E1 | E2 | E3 of Int32
+type EEnum2Int32 = EEnumInt32
+type EEnumUInt32 = | E1 | E2 | E3 of UInt32
+type EEnum2UInt32 = EEnumUInt32
+type EEnum = | E1 | E2 | E3 of Int64
+type EEnum2 = EEnum
+type EEnumUIn64 = | E1 | E2 | E3 of UInt64
+type EEnum2UIn64 = EEnumUIn64
+type EEnumInt128 = | E1 | E2 | E3 of Int128
+type EEnum2Int128 = EEnumInt128
+type EEnumUInt128 = | E1 | E2 | E3 of UInt128
+type EEnum2UInt128 = EEnumUInt128
+
+test scalars =
+  Stdlib.Test.all
+    [ (5Q == 5Q) |> Stdlib.Test.equal true
+      (5Q != 6Q) |> Stdlib.Test.equal true
+      (5Z == 5Z) |> Stdlib.Test.equal true
+      (5Z != 6Z) |> Stdlib.Test.equal true
+      (5L == 5L) |> Stdlib.Test.equal true
+      (5L != 6L) |> Stdlib.Test.equal true
+      (5l == 5l) |> Stdlib.Test.equal true
+      (5l != 6l) |> Stdlib.Test.equal true
+      (5ul == 5ul) |> Stdlib.Test.equal true
+      (5ul != 6ul) |> Stdlib.Test.equal true
+      (5y == 5y) |> Stdlib.Test.equal true
+      (5y != 6y) |> Stdlib.Test.equal true
+      (5uy == 5uy) |> Stdlib.Test.equal true
+      (5uy != 6uy) |> Stdlib.Test.equal true
+      (5s == 5s) |> Stdlib.Test.equal true
+      (5s != 6s) |> Stdlib.Test.equal true
+      (5us == 5us) |> Stdlib.Test.equal true
+      (5us != 6us) |> Stdlib.Test.equal true
+      (5.6 == 5.6) |> Stdlib.Test.equal true
+      (-55555555555555555555555555555.5 == -55555555555555555555555555555.5)
+      |> Stdlib.Test.equal true
+      (5.6 != 5.7) |> Stdlib.Test.equal true
+      ("asd" == "asd") |> Stdlib.Test.equal true
+      ("asd" != "sad") |> Stdlib.Test.equal true
+      (true == true) |> Stdlib.Test.equal true
+      (false == false) |> Stdlib.Test.equal true
+      (true != false) |> Stdlib.Test.equal true
+      (() == ()) |> Stdlib.Test.equal true ]
+
+test lists =
+  Stdlib.Test.all
+    [ ([ 1L, 2L, 3L ] == [ 1L, 2L, 3L ]) |> Stdlib.Test.equal true
+      ([ 1L, 2L, 3L ] != [ 3L, 2L, 1L ]) |> Stdlib.Test.equal true
+      ([ 1l, 2l, 3l ] == [ 1l, 2l, 3l ]) |> Stdlib.Test.equal true
+      ([ 1l, 2l, 3l ] != [ 3l, 2l, 1l ]) |> Stdlib.Test.equal true
+      ([ 1ul, 2ul, 3ul ] == [ 1ul, 2ul, 3ul ]) |> Stdlib.Test.equal true
+      ([ 1ul, 2ul, 3ul ] != [ 3ul, 2ul, 1ul ]) |> Stdlib.Test.equal true
+      ([ 1s, 2s, 3s ] == [ 1s, 2s, 3s ]) |> Stdlib.Test.equal true
+      ([ 1s, 2s, 3s ] != [ 3s, 2s, 1s ]) |> Stdlib.Test.equal true
+      ([ 1us, 2us, 3us ] == [ 1us, 2us, 3us ]) |> Stdlib.Test.equal true
+      ([ 1us, 2us, 3us ] != [ 3us, 2us, 1us ]) |> Stdlib.Test.equal true
+      ([ 1y, 2y, 3y ] == [ 1y, 2y, 3y ]) |> Stdlib.Test.equal true
+      ([ 1y, 2y, 3y ] != [ 3y, 2y, 1y ]) |> Stdlib.Test.equal true
+      ([ 1uy, 2uy, 3uy ] == [ 1uy, 2uy, 3uy ]) |> Stdlib.Test.equal true
+      ([ 1uy, 2uy, 3uy ] != [ 3uy, 2uy, 1uy ]) |> Stdlib.Test.equal true ]
+
+test bytesDatesAndUuids =
+  Stdlib.Test.all
+    [ ((Stdlib.String.toBytes "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
+       == (Stdlib.String.toBytes "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼"))
+      |> Stdlib.Test.equal true
+      ((Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
+       == (Stdlib.DateTime.parse "2019-07-28T22:42:36Z"))
+      |> Stdlib.Test.equal true
+      ((Stdlib.DateTime.parse "2019-07-28T22:42:37Z")
+       != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z"))
+      |> Stdlib.Test.equal true
+      (Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+       == Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
+      |> Stdlib.Test.equal true
+      (Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
+       != Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
+      |> Stdlib.Test.equal true ]
+
+// TODO revisit these
+//(fun x -> y) |> Stdlib.Test.equal (fun x -> y)
+// ((fun x -> let y = 1Q in y) == (fun x -> let y = 1Q in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1Q in y) != (fun x -> let y = 2Q in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1Z in y) == (fun x -> let y = 1Z in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1Z in y) != (fun x -> let y = 2Z in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1L in y) == (fun x -> let y = 1L in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1L in y) != (fun x -> let y = 2L in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1l in y) == (fun x -> let y = 1l in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1l in y) != (fun x -> let y = 2l in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1ul in y) == (fun x -> let y = 1ul in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1ul in y) != (fun x -> let y = 2ul in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1s in y) == (fun x -> let y = 1s in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1s in y) != (fun x -> let y = 2s in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1us in y) == (fun x -> let y = 1us in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1us in y) != (fun x -> let y = 2us in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1y in y) == (fun x -> let y = 1y in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1y in y) != (fun x -> let y = 2y in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1uy in y) == (fun x -> let y = 1uy in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1uy in y) != (fun x -> let y = 2uy in x))
+// |> Stdlib.Test.equal false
+
+// Not a legacy assertion: legacy has these commented out, expecting lambdas with
+// the same body to be equal. Here two lambdas are never equal, and comparing
+// them does not run their bodies (`y` is undefined).
+test lambdas =
+  Stdlib.Test.all
+    [ ((fun x -> y) == (fun x -> y)) |> Stdlib.Test.equal false
+      ((fun x -> let y = 1Q in y) == (fun x -> let y = 1Q in y))
+      |> Stdlib.Test.equal false
+      ((fun x -> let y = 1Q in y) != (fun x -> let y = 2Q in x))
+      |> Stdlib.Test.equal true
+      ((fun x -> let y = 1Z in y) == (fun x -> let y = 1Z in y))
+      |> Stdlib.Test.equal false
+      ((fun x -> let y = 1Z in y) != (fun x -> let y = 2Z in x))
+      |> Stdlib.Test.equal true
+      ((fun x -> let y = 1L in y) == (fun x -> let y = 1L in y))
+      |> Stdlib.Test.equal false
+      ((fun x -> let y = 1L in y) != (fun x -> let y = 2L in x))
+      |> Stdlib.Test.equal true
+      ((fun x -> let y = 1l in y) == (fun x -> let y = 1l in y))
+      |> Stdlib.Test.equal false
+      ((fun x -> let y = 1l in y) != (fun x -> let y = 2l in x))
+      |> Stdlib.Test.equal true
+      ((fun x -> let y = 1ul in y) == (fun x -> let y = 1ul in y))
+      |> Stdlib.Test.equal false
+      ((fun x -> let y = 1ul in y) != (fun x -> let y = 2ul in x))
+      |> Stdlib.Test.equal true
+      ((fun x -> let y = 1s in y) == (fun x -> let y = 1s in y))
+      |> Stdlib.Test.equal false
+      ((fun x -> let y = 1s in y) != (fun x -> let y = 2s in x))
+      |> Stdlib.Test.equal true
+      ((fun x -> let y = 1us in y) == (fun x -> let y = 1us in y))
+      |> Stdlib.Test.equal false
+      ((fun x -> let y = 1us in y) != (fun x -> let y = 2us in x))
+      |> Stdlib.Test.equal true
+      ((fun x -> let y = 1y in y) == (fun x -> let y = 1y in y))
+      |> Stdlib.Test.equal false
+      ((fun x -> let y = 1y in y) != (fun x -> let y = 2y in x))
+      |> Stdlib.Test.equal true
+      ((fun x -> let y = 1uy in y) == (fun x -> let y = 1uy in y))
+      |> Stdlib.Test.equal false
+      ((fun x -> let y = 1uy in y) != (fun x -> let y = 2uy in x))
+      |> Stdlib.Test.equal true ]
+
+test records =
+  Stdlib.Test.all
+    [ (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { x = 6Q; y = 7Q })
+      |> Stdlib.Test.equal true
+      (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { y = 7Q; x = 6Q })
+      |> Stdlib.Test.equal true
+      (ERecInt128 { x = 6Q; y = 7Q } != ERecInt128 { x = 7Q; y = 6Q })
+      |> Stdlib.Test.equal true
+      (ERecInt128 { x = 6Q; y = 7Q } == ERec2Int128 { y = 7Q; x = 6Q })
+      |> Stdlib.Test.equal true
+      (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { x = 6Z; y = 7Z })
+      |> Stdlib.Test.equal true
+      (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { y = 7Z; x = 6Z })
+      |> Stdlib.Test.equal true
+      (ERecUInt128 { x = 6Z; y = 7Z } != ERecUInt128 { x = 7Z; y = 6Z })
+      |> Stdlib.Test.equal true
+      (ERecUInt128 { x = 6Z; y = 7Z } == ERec2UInt128 { y = 7Z; x = 6Z })
+      |> Stdlib.Test.equal true
+      (ERec { x = 6L; y = 7L } == ERec { x = 6L; y = 7L })
+      |> Stdlib.Test.equal true
+      (ERec { x = 6L; y = 7L } == ERec { y = 7L; x = 6L })
+      |> Stdlib.Test.equal true
+      (ERec { x = 6L; y = 7L } != ERec { x = 7L; y = 6L })
+      |> Stdlib.Test.equal true
+      (ERec { x = 6L; y = 7L } == ERec2 { y = 7L; x = 6L })
+      |> Stdlib.Test.equal true
+      (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { x = 6UL; y = 7UL })
+      |> Stdlib.Test.equal true
+      (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { y = 7UL; x = 6UL })
+      |> Stdlib.Test.equal true
+      (ERecUInt64 { x = 6UL; y = 7UL } != ERecUInt64 { x = 7UL; y = 6UL })
+      |> Stdlib.Test.equal true
+      (ERecUInt64 { x = 6UL; y = 7UL } == ERec2UInt64 { y = 7UL; x = 6UL })
+      |> Stdlib.Test.equal true
+      (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { x = 6l; y = 7l })
+      |> Stdlib.Test.equal true
+      (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { y = 7l; x = 6l })
+      |> Stdlib.Test.equal true
+      (ERecInt32 { x = 6l; y = 7l } != ERecInt32 { x = 7l; y = 6l })
+      |> Stdlib.Test.equal true
+      (ERecInt32 { x = 6l; y = 7l } == ERec2Int32 { y = 7l; x = 6l })
+      |> Stdlib.Test.equal true
+      (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { x = 6ul; y = 7ul })
+      |> Stdlib.Test.equal true
+      (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { y = 7ul; x = 6ul })
+      |> Stdlib.Test.equal true
+      (ERecUInt32 { x = 6ul; y = 7ul } != ERecUInt32 { x = 7ul; y = 6ul })
+      |> Stdlib.Test.equal true
+      (ERecUInt32 { x = 6ul; y = 7ul } == ERec2UInt32 { y = 7ul; x = 6ul })
+      |> Stdlib.Test.equal true
+      (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { x = 6s; y = 7s })
+      |> Stdlib.Test.equal true
+      (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { y = 7s; x = 6s })
+      |> Stdlib.Test.equal true
+      (ERecInt16 { x = 6s; y = 7s } != ERecInt16 { x = 7s; y = 6s })
+      |> Stdlib.Test.equal true
+      (ERecInt16 { x = 6s; y = 7s } == ERec2Int16 { y = 7s; x = 6s })
+      |> Stdlib.Test.equal true
+      (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { x = 6us; y = 7us })
+      |> Stdlib.Test.equal true
+      (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { y = 7us; x = 6us })
+      |> Stdlib.Test.equal true
+      (ERecUInt16 { x = 6us; y = 7us } != ERecUInt16 { x = 7us; y = 6us })
+      |> Stdlib.Test.equal true
+      (ERecUInt16 { x = 6us; y = 7us } == ERec2UInt16 { y = 7us; x = 6us })
+      |> Stdlib.Test.equal true
+      (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { x = 6y; y = 7y })
+      |> Stdlib.Test.equal true
+      (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { y = 7y; x = 6y })
+      |> Stdlib.Test.equal true
+      (ERecInt8 { x = 6y; y = 7y } != ERecInt8 { x = 7y; y = 6y })
+      |> Stdlib.Test.equal true
+      (ERecInt8 { x = 6y; y = 7y } == ERec2Int8 { y = 7y; x = 6y })
+      |> Stdlib.Test.equal true
+      (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { x = 6uy; y = 7uy })
+      |> Stdlib.Test.equal true
+      (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { y = 7uy; x = 6uy })
+      |> Stdlib.Test.equal true
+      (ERecUInt8 { x = 6uy; y = 7uy } != ERecUInt8 { x = 7uy; y = 6uy })
+      |> Stdlib.Test.equal true ]
+
+test enums =
+  Stdlib.Test.all
+    [ (EEnumInt128.E1 == EEnumInt128.E1) |> Stdlib.Test.equal true
+      (EEnumInt128.E1 != EEnumInt128.E2) |> Stdlib.Test.equal true
+      (EEnumUInt128.E1 == EEnumUInt128.E1) |> Stdlib.Test.equal true
+      (EEnumUInt128.E1 != EEnumUInt128.E2) |> Stdlib.Test.equal true
+      (EEnumInt128.E3 5Q == EEnumInt128.E3 5Q) |> Stdlib.Test.equal true
+      (EEnumInt128.E3 5Q != EEnumInt128.E3 6Q) |> Stdlib.Test.equal true
+      (EEnum.E1 == EEnum.E1) |> Stdlib.Test.equal true
+      (EEnum.E1 != EEnum.E2) |> Stdlib.Test.equal true
+      (EEnum.E3 5L == EEnum.E3 5L) |> Stdlib.Test.equal true
+      (EEnum.E3 5L != EEnum.E3 6L) |> Stdlib.Test.equal true
+      (EEnumUIn64.E1 == EEnumUIn64.E1) |> Stdlib.Test.equal true
+      (EEnumUIn64.E1 != EEnumUIn64.E2) |> Stdlib.Test.equal true
+      (EEnumUIn64.E3 5UL == EEnumUIn64.E3 5UL) |> Stdlib.Test.equal true
+      (EEnumUIn64.E3 5UL != EEnumUIn64.E3 6UL) |> Stdlib.Test.equal true
+      (EEnumInt32.E1 == EEnumInt32.E1) |> Stdlib.Test.equal true
+      (EEnumInt32.E1 != EEnumInt32.E2) |> Stdlib.Test.equal true
+      (EEnumInt32.E3 5l == EEnumInt32.E3 5l) |> Stdlib.Test.equal true
+      (EEnumInt32.E3 5l != EEnumInt32.E3 6l) |> Stdlib.Test.equal true
+      (EEnumUInt32.E1 == EEnumUInt32.E1) |> Stdlib.Test.equal true
+      (EEnumUInt32.E1 != EEnumUInt32.E2) |> Stdlib.Test.equal true
+      (EEnumUInt32.E3 5ul == EEnumUInt32.E3 5ul) |> Stdlib.Test.equal true
+      (EEnumUInt32.E3 5ul != EEnumUInt32.E3 6ul) |> Stdlib.Test.equal true
+      (EEnumInt16.E1 == EEnumInt16.E1) |> Stdlib.Test.equal true
+      (EEnumInt16.E1 != EEnumInt16.E2) |> Stdlib.Test.equal true
+      (EEnumInt16.E3 5s == EEnumInt16.E3 5s) |> Stdlib.Test.equal true
+      (EEnumInt16.E3 5s != EEnumInt16.E3 6s) |> Stdlib.Test.equal true
+      (EEnumUInt16.E1 == EEnumUInt16.E1) |> Stdlib.Test.equal true
+      (EEnumUInt16.E1 != EEnumUInt16.E2) |> Stdlib.Test.equal true
+      (EEnumUInt16.E3 5us == EEnumUInt16.E3 5us) |> Stdlib.Test.equal true
+      (EEnumUInt16.E3 5us != EEnumUInt16.E3 6us) |> Stdlib.Test.equal true
+      (EEnumInt8.E1 == EEnumInt8.E1) |> Stdlib.Test.equal true
+      (EEnumInt8.E1 != EEnumInt8.E2) |> Stdlib.Test.equal true
+      (EEnumInt8.E3 5y == EEnumInt8.E3 5y) |> Stdlib.Test.equal true
+      (EEnumInt8.E3 5y != EEnumInt8.E3 6y) |> Stdlib.Test.equal true ]
+
+// aliases
+test enumAliases =
+  Stdlib.Test.all
+    [ (EEnum2Int128.E1 == EEnumInt128.E1) |> Stdlib.Test.equal true
+      (EEnum2Int128.E1 != EEnumInt128.E2) |> Stdlib.Test.equal true
+      (EEnum2UInt128.E1 == EEnumUInt128.E1) |> Stdlib.Test.equal true
+      (EEnum2UInt128.E1 != EEnumUInt128.E2) |> Stdlib.Test.equal true
+      (EEnum2.E1 == EEnum.E1) |> Stdlib.Test.equal true
+      (EEnum2.E1 != EEnum.E2) |> Stdlib.Test.equal true
+      (EEnum2UIn64.E1 == EEnumUIn64.E1) |> Stdlib.Test.equal true
+      (EEnum2UIn64.E1 != EEnumUIn64.E2) |> Stdlib.Test.equal true
+      (EEnum2Int32.E1 == EEnumInt32.E1) |> Stdlib.Test.equal true
+      (EEnum2Int32.E1 != EEnumInt32.E2) |> Stdlib.Test.equal true
+      (EEnum2UInt32.E1 == EEnumUInt32.E1) |> Stdlib.Test.equal true
+      (EEnum2UInt32.E1 != EEnumUInt32.E2) |> Stdlib.Test.equal true
+      (EEnum2Int16.E1 == EEnumInt16.E1) |> Stdlib.Test.equal true
+      (EEnum2Int16.E1 != EEnumInt16.E2) |> Stdlib.Test.equal true
+      (EEnum2UInt16.E1 == EEnumUInt16.E1) |> Stdlib.Test.equal true
+      (EEnum2UInt16.E1 != EEnumUInt16.E2) |> Stdlib.Test.equal true
+      (EEnum2Int8.E1 == EEnumInt8.E1) |> Stdlib.Test.equal true
+      (EEnum2Int8.E1 != EEnumInt8.E2) |> Stdlib.Test.equal true
+      (EEnum2UInt8.E1 == EEnumUInt8.E1) |> Stdlib.Test.equal true
+      (EEnum2UInt8.E1 != EEnumUInt8.E2) |> Stdlib.Test.equal true ]
+
+test optionsAndResults =
+  Stdlib.Test.all
+    [ (Stdlib.Option.Option.None == Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal true
+      (Stdlib.Option.Option.None
+       != Stdlib.Option.Option.Some Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal true
+      (Stdlib.Option.Option.Some 5L == Stdlib.Option.Option.Some 5L)
+      |> Stdlib.Test.equal true
+      (Stdlib.Option.Option.Some 5L != Stdlib.Option.Option.Some 6L)
+      |> Stdlib.Test.equal true
+      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
+       != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 1L))
+      |> Stdlib.Test.equal true
+      (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
+       == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L))
+      |> Stdlib.Test.equal true
+      (Stdlib.Result.Result.Error 0L == Stdlib.Result.Result.Error 0L)
+      |> Stdlib.Test.equal true
+      (Stdlib.Result.Result.Ok 0L == Stdlib.Result.Result.Ok 0L)
+      |> Stdlib.Test.equal true
+      (Stdlib.Result.Result.Ok 0L != Stdlib.Result.Result.Error 0L)
+      |> Stdlib.Test.equal true ]
+
+test floatEqualsInt64Raises =
+  (5.7 != 6L) => raises "Cannot perform equality check on Float and Int64"
+
+test floatEqualsSameValueInt64Raises =
+  (5.7 != 5L) => raises "Cannot perform equality check on Float and Int64"
+
+test uint16EqualsInt16Raises =
+  (5us == 5s) => raises "Cannot perform equality check on UInt16 and Int16"
+
+test int8EqualsInt32Raises =
+  (5y == 5l) => raises "Cannot perform equality check on Int8 and Int32"
+
+test int64EqualsInt32Raises =
+  (5L == 5l) => raises "Cannot perform equality check on Int64 and Int32"
+
+test uint16NotEqualsInt16Raises =
+  (5us != 6s) => raises "Cannot perform equality check on UInt16 and Int16"
+
+// Differs from legacy: legacy raised with the backend-only
+// Builtin.testRuntimeError.
+test leftOperandErrorRaisesFirst =
+  (Stdlib.Test.raiseRuntimeError "test"
+   != Stdlib.Test.raiseRuntimeError "different msg")
+  => raises "Uncaught exception: test"
+
+test unitEqualsOptionRaises =
+  (() != Stdlib.Option.Option.None)
+  => raises
+    "Cannot perform equality check on Unit and Darklang.Stdlib.Option.Option<_>"
+
+test unitEqualsBoolRaises =
+  (() != false) => raises "Cannot perform equality check on Unit and Bool"
+
+test unitEqualsInt32Raises =
+  (() != 0l) => raises "Cannot perform equality check on Unit and Int32"
+
+test unitEqualsFloatRaises =
+  (() != 0.0) => raises "Cannot perform equality check on Unit and Float"
+// CLEANUP follow up here when DB references are fully resolved at parse-time
+
+// Not a legacy assertion: the left operand's error is raised before the right
+// one is evaluated.
+test leftOperandErrorRaisesBeforeRight =
+  (1L / 0L) != (Builtin.unwrap None) => raises "Cannot divide by 0"
+
+// Other ways to call it
+test equalsForms =
+  Stdlib.Test.all
+    [ 1Q == 1Q |> Stdlib.Test.equal true
+      (==) 1Q 1Q |> Stdlib.Test.equal true
+      1Z == 1Z |> Stdlib.Test.equal true
+      (==) 1Z 1Z |> Stdlib.Test.equal true
+      1L == 1L |> Stdlib.Test.equal true
+      (==) 1L 1L |> Stdlib.Test.equal true
+      1l == 1l |> Stdlib.Test.equal true
+      (==) 1l 1l |> Stdlib.Test.equal true
+      1ul == 1ul |> Stdlib.Test.equal true
+      (==) 1ul 1ul |> Stdlib.Test.equal true
+      1s == 1s |> Stdlib.Test.equal true
+      (==) 1s 1s |> Stdlib.Test.equal true
+      1us == 1us |> Stdlib.Test.equal true
+      (==) 1us 1us |> Stdlib.Test.equal true
+      1y == 1y |> Stdlib.Test.equal true
+      (==) 1y 1y |> Stdlib.Test.equal true
+      1uy == 1uy |> Stdlib.Test.equal true
+      (==) 1uy 1uy |> Stdlib.Test.equal true ]
+
+// Not a legacy assertion: legacy called Stdlib.equals until the traits change
+// rewrote those cases as `==`.
+test stdlibEquals =
+  Stdlib.Test.all
+    [ Stdlib.equals 1Q 1Q |> Stdlib.Test.equal true
+      Stdlib.equals 1Z 1Z |> Stdlib.Test.equal true
+      Stdlib.equals 1L 1L |> Stdlib.Test.equal true
+      Stdlib.equals 1l 1l |> Stdlib.Test.equal true
+      Stdlib.equals 1ul 1ul |> Stdlib.Test.equal true
+      Stdlib.equals 1s 1s |> Stdlib.Test.equal true
+      Stdlib.equals 1us 1us |> Stdlib.Test.equal true
+      Stdlib.equals 1y 1y |> Stdlib.Test.equal true
+      Stdlib.equals 1uy 1uy |> Stdlib.Test.equal true ]
+
+test notEquals =
+  Stdlib.Test.all
+    [ 1Q != 1Q |> Stdlib.Test.equal false
+      1Z != 1Z |> Stdlib.Test.equal false
+      1L != 1L |> Stdlib.Test.equal false
+      1l != 1l |> Stdlib.Test.equal false
+      1ul != 1ul |> Stdlib.Test.equal false
+      1s != 1s |> Stdlib.Test.equal false
+      1us != 1us |> Stdlib.Test.equal false
+      1y != 1y |> Stdlib.Test.equal false
+      1uy != 1uy |> Stdlib.Test.equal false
+      "abc" != "abc" |> Stdlib.Test.equal false
+      "abd" != "abc" |> Stdlib.Test.equal true
+      ((Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+       != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z"))
+      |> Stdlib.Test.equal true
+      (!=) 1Q 1Q |> Stdlib.Test.equal false
+      (!=) 1Z 1Z |> Stdlib.Test.equal false
+      (!=) 1L 1L |> Stdlib.Test.equal false
+      (!=) 1l 1l |> Stdlib.Test.equal false
+      (!=) 1ul 1ul |> Stdlib.Test.equal false
+      (!=) 1s 1s |> Stdlib.Test.equal false
+      (!=) 1us 1us |> Stdlib.Test.equal false
+      (!=) 1y 1y |> Stdlib.Test.equal false
+      (!=) 1uy 1uy |> Stdlib.Test.equal false
+      (!=) "abc" "abc" |> Stdlib.Test.equal false
+      (!=) "abd" "abc" |> Stdlib.Test.equal true
+      ((!=)
+        (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+        (Stdlib.DateTime.parse "2019-07-28T22:42:36Z"))
+      |> Stdlib.Test.equal true ]
+
+// Not a legacy assertion: legacy called Stdlib.notEquals until the traits change
+// rewrote those cases as `!=`.
+test stdlibNotEquals =
+  Stdlib.Test.all
+    [ Stdlib.notEquals 1Q 1Q |> Stdlib.Test.equal false
+      Stdlib.notEquals 1Z 1Z |> Stdlib.Test.equal false
+      Stdlib.notEquals 1L 1L |> Stdlib.Test.equal false
+      Stdlib.notEquals 1l 1l |> Stdlib.Test.equal false
+      Stdlib.notEquals 1ul 1ul |> Stdlib.Test.equal false
+      Stdlib.notEquals 1s 1s |> Stdlib.Test.equal false
+      Stdlib.notEquals 1us 1us |> Stdlib.Test.equal false
+      Stdlib.notEquals 1y 1y |> Stdlib.Test.equal false
+      Stdlib.notEquals 1uy 1uy |> Stdlib.Test.equal false
+      Stdlib.notEquals "abc" "abc" |> Stdlib.Test.equal false
+      Stdlib.notEquals "abd" "abc" |> Stdlib.Test.equal true
+      (Stdlib.notEquals
+        (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+        (Stdlib.DateTime.parse "2019-07-28T22:42:36Z"))
+      |> Stdlib.Test.equal true ]
+
+// Moving to packages
+// AWS.urlencode "%" = ""
+// AWS.urlencode "%%" = ""
+// AWS.urlencode "%A" = "A"
+// AWS.urlencode "%AA" = "%AA"
+// AWS.urlencode "" = ""
+// AWS.urlencode "殢" = "%E6%AE%A2"
+// AWS.urlencode "https://google.com?q=left shark&l=en" = "https%3A//google.com%3Fq%3Dleft%20shark%26l%3Den" // Test fails without a comment here
+// AWS.urlencode "گچپژ" = "%DA%AF%DA%86%D9%BE%DA%98"
+// AWS.urlencode "<foo val=”bar“ />" = "%3Cfoo%20val%3D%E2%80%9Dbar%E2%80%9C%20/%3E"
+// AWS.urlencode "表ポあA鷗ŒéＢ逍Üßªąñ丂㐀𠀀" = "%E8%A1%A8%E3%83%9D%E3%81%82A%E9%B7%97%C5%92%C3%A9%EF%BC%A2%E9%80%8D%C3%9C%C3%9F%C2%AA%C4%85%C3%B1%E4%B8%82%E3%90%80%F0%A0%80%80"
+// Twitter.urlencode "https://google.com?q=left shark&l=en" = "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den" // URL percent encoding
+
+test unwrap =
+  Stdlib.Test.all
+    [ Stdlib.Option.Option.Some 5L |> Builtin.unwrap |> Stdlib.Test.equal 5L
+      Stdlib.Result.Result.Ok true |> Builtin.unwrap |> Stdlib.Test.equal true ]
+
+test unwrapNoneRaises =
+  Stdlib.Option.Option.None |> Builtin.unwrap => raises "Cannot unwrap None"
+
+test unwrapErrorRaises =
+  Stdlib.Result.Result.Error 5L |> Builtin.unwrap
+  => raises "Cannot unwrap Error: 5"
+
+test unwrapNonOptionRaises =
+  true |> Builtin.unwrap
+  => raises "Can only unwrap Options and Results, yet got true"
+
+test unwrapWrongArgCountRaises =
+  Builtin.unwrap 1 2
+  => raises "Builtin.unwrap expects 1 argument, but got 2 arguments"
