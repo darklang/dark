@@ -802,6 +802,28 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.ProcessRun(program, args, timeoutMs) ->
     resolveProcess program args (fun program args ->
       blocking (fun () -> HostProcess.run program args timeoutMs |> processOutcome))
+  | Operation.IsolatedTest(snapshot,
+                           branch,
+                           request,
+                           policyStore,
+                           access,
+                           timeoutMs,
+                           columns,
+                           rows) ->
+    withChecks
+      [ (Permission.Request.native "isolated test", "running an isolated test") ]
+      (blocking (fun () ->
+        HostProcess.runIsolatedTest
+          (HostProcess.currentExecutablePath ())
+          snapshot
+          branch
+          request
+          policyStore
+          access
+          timeoutMs
+          columns
+          rows
+        |> Result.map Response.IsolatedTestOutcome))
   | Operation.ProcessRunInteractive(program, args) ->
     resolveProcess program args (fun program args ->
       attempt (fun () ->

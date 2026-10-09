@@ -342,10 +342,155 @@ let rootDirectoryIsReadable =
       | other -> failtest $"mkdir of / must not succeed, got {other}"
   }
 
+// A worker can exit while its descendants keep running, with or without open
+// output pipes. Cleanup must stop those descendants in every completion path.
+let isolatedTestBoundsOutputCollection =
+  testSequenced
+  <| test "isolated test cleanup stops descendants after worker exit or timeout" {
+    if LibExecution.HostLibc.isPosix then
+      let launcher = System.Environment.GetEnvironmentVariable "DARK_TEST_CLI"
+      Expect.isFalse
+        (System.String.IsNullOrEmpty launcher)
+        "test runner supplies the CLI"
+      let processIsRunning pid =
+        try
+          use child = System.Diagnostics.Process.GetProcessById pid
+          if child.HasExited then
+            false
+          elif System.OperatingSystem.IsLinux() then
+            // Orphans are reaped by PID 1. A zombie has exited even if that
+            // reaper has not collected it yet (common in dev containers).
+            let stat = System.IO.File.ReadAllText $"/proc/{pid}/stat"
+            stat[stat.LastIndexOf(')') + 2] <> 'Z'
+          else
+            true
+        with
+        | :? System.ArgumentException
+        | :? System.IO.FileNotFoundException
+        | :? System.IO.DirectoryNotFoundException -> false
+      for label, redirect, ending, expectedCode in
+        [ "inherited output", "", "exit 0", None
+          "successful worker", ">/dev/null 2>&1", "exit 0", Some 0
+          "failed worker", ">/dev/null 2>&1", "exit 17", Some 17
+          "running worker", "", "wait", None
+          "nested worker group", "", "wait", None ] do
+        let dir =
+          System.IO.Directory.CreateTempSubdirectory("dark-worker-check-").FullName
+        let script = System.IO.Path.Combine(dir, "worker")
+        let pidFile = System.IO.Path.Combine(dir, "child.pid")
+        let previous =
+          System.Environment.GetEnvironmentVariable "DARK_CLI_UNDER_TEST"
+        try
+          let body =
+            if label = "nested worker group" then
+              let nested = System.IO.Path.Combine(dir, "nested-worker")
+              System.IO.File.WriteAllText(
+                nested,
+                $"echo $$ > '{pidFile}'\nsleep 30 &\necho $! >> '{pidFile}'\nwait\n"
+              )
+              let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
+              $"{quote launcher} --test-process-launch unused /bin/sh {quote nested} &\nwait\n"
+            else
+              $"sleep 30 {redirect} &\necho $! > '{pidFile}'\n{ending}\n"
+          System.IO.File.WriteAllText(script, "#!/bin/sh\n" + body)
+          System.IO.File.SetUnixFileMode(
+            script,
+            System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
+          )
+          System.Environment.SetEnvironmentVariable("DARK_CLI_UNDER_TEST", script)
+          let outcome =
+            LibExecution.HostProcess.runIsolatedTest
+              launcher
+              (fun _ -> Ok())
+              System.Guid.Empty
+              [||]
+              [||]
+              [||]
+              2000
+              80
+              24
+          match expectedCode, outcome with
+          | None, Error(110, message) ->
+            Expect.stringContains message "timed out" $"{label}: wait is bounded"
+          | Some expected, Ok(code, _, _, _, cleanupErrors) ->
+            Expect.equal code expected $"{label}: worker exit is preserved"
+            Expect.isEmpty cleanupErrors $"{label}: cleanup succeeded"
+          | _ -> failtest $"{label}: unexpected outcome {outcome}"
+          Expect.isTrue
+            (System.IO.File.Exists pidFile)
+            $"{label}: worker actually ran"
+          let pids =
+            System.IO.File.ReadAllLines pidFile |> Array.map System.Int32.Parse
+          Expect.equal
+            pids.Length
+            (if label = "nested worker group" then 2 else 1)
+            "all descendants started"
+          for pid in pids do
+            Expect.isTrue
+              (System.Threading.SpinWait.SpinUntil(
+                (fun () -> not (processIsRunning pid)),
+                5000
+              ))
+              $"{label}: descendant must stop without test-side cleanup"
+        finally
+          System.Environment.SetEnvironmentVariable("DARK_CLI_UNDER_TEST", previous)
+          // Failure-only safety net: the assertion above must pass before this
+          // cleanup runs, so it cannot hide a leaked descendant.
+          if System.IO.File.Exists pidFile then
+            for pidText in System.IO.File.ReadAllLines pidFile do
+              let pid = System.Int32.Parse pidText
+              if processIsRunning pid then
+                try
+                  use child = System.Diagnostics.Process.GetProcessById pid
+                  child.Kill()
+                with :? System.ArgumentException ->
+                  ()
+          System.IO.Directory.Delete(dir, true)
+  }
+
+let isolatedTestPreservesFailureWhenCleanupFails =
+  test "isolated test reports snapshot and cleanup failures together" {
+    let mutable directory = ""
+    let snapshot (path : string) =
+      directory <- System.IO.Path.GetDirectoryName path
+      // Replacing the directory with a file makes directory cleanup fail
+      // deterministically, including when the tests run as root.
+      System.IO.Directory.Delete directory
+      System.IO.File.WriteAllText(directory, "cleanup obstruction")
+      Error "original snapshot failure"
+    try
+      match
+        LibExecution.HostProcess.runIsolatedTest
+          "unused launcher"
+          snapshot
+          System.Guid.Empty
+          [||]
+          [||]
+          [||]
+          1000
+          80
+          24
+      with
+      | Error(_, message) ->
+        Expect.stringContains
+          message
+          "original snapshot failure"
+          "preserves the original failure"
+        Expect.stringContains
+          message
+          "Could not remove isolated test directory"
+          "also reports cleanup"
+      | other -> failtest $"expected both failures, got {other}"
+    finally
+      if directory <> "" then System.IO.File.Delete directory
+  }
+
 let tests =
   testList
     "host"
-    [ auditRecordsOperationsAndDecisions
+    [ isolatedTestBoundsOutputCollection
+      isolatedTestPreservesFailureWhenCleanupFails
+      auditRecordsOperationsAndDecisions
       httpServerBindUsesTheSuppliedAccess
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink

@@ -669,6 +669,11 @@ let testState
   guestState accountID P.Policy.allowAll [] [] state
   |> Execution.setInstancePolicy P.Policy.allowAll
 
+/// Disposable test workers and any CLI children they start use the same test
+/// instance policy. Only this serialized copy is widened; never write it back.
+let testWorkerStore () : byte[] =
+  { get () with instance = P.Policy.allowAll } |> toBytes
+
 /// The hash a named applicable calls, for the approval root. A lambda or a builtin has none.
 let rootOf (applicable : RT.Applicable) : List<RT.Hash> =
   match applicable with

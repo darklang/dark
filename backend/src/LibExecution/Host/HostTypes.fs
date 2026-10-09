@@ -104,6 +104,17 @@ type Operation =
   /// With a timeout, a child still running when it elapses is killed and the
   /// operation fails with ETIMEDOUT.
   | ProcessRun of program : string * args : List<string> * timeoutMs : Option<int>
+  /// Native test infrastructure. The store owner supplies the online backup;
+  /// the host owns the directory, process, bounded output and cleanup.
+  | IsolatedTest of
+    snapshot : (string -> Result<unit, string>) *
+    branch : System.Guid *
+    request : byte[] *
+    policyStore : byte[] *
+    access : byte[] *
+    timeoutMs : int *
+    columns : int *
+    rows : int
   /// Run to completion on THIS terminal: stdin, stdout and stderr are inherited
   /// rather than captured, and only the exit code comes back. For programs that
   /// draw, like an editor; a redirected one paints into a pipe.
@@ -159,6 +170,12 @@ type Response =
   | EnvValue of Option<string>
   | EnvEntries of List<string * string>
   | ProcessOutcome of exitCode : int * stdout : string * stderr : string
+  | IsolatedTestOutcome of
+    exitCode : int *
+    stdout : string *
+    stderr : string *
+    result : Option<byte[]> *
+    cleanupErrors : List<string>
   | ProcessHandle of int64
   | HttpServerHandle of int64
   /// Send-time failures (timeout, network, bad header) are guest-visible
@@ -265,6 +282,7 @@ let describeOperation (op : Operation) : string =
     $"http-stream {method} {redactUrl url}"
   | Operation.HttpServerBind port -> $"http-server-bind {port}"
   | Operation.ProcessRun(program, _, _) -> $"process-run {program}"
+  | Operation.IsolatedTest _ -> "isolated package test"
   | Operation.ProcessRunInteractive(program, _) ->
     $"process-run-interactive {program}"
   | Operation.ProcessSpawn(program, _) -> $"process-spawn {program}"

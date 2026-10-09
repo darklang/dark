@@ -1,0 +1,66 @@
+/// Typed process isolation for integration tests. The host snapshots the store,
+/// invokes a named function by hash, and reports any snapshot cleanup failures.
+module Darklang.Stdlib.Test.Process
+
+type Options =
+  { branch: Option<Uuid>
+    timeoutMs: Int
+    columns: Int
+    rows: Int }
+
+type Output<'a> =
+  { result: Stdlib.Result.Result<'a, String>
+    stdout: String
+    stderr: String
+    exitCode: Int
+    cleanupErrors: List<String> }
+
+let defaults () : Options =
+  Options
+    { branch = None; timeoutMs = 120000; columns = 80; rows = 24 }
+
+/// Run a named, unapplied package function with explicit arguments. The default
+/// branch is the current test's branch. Stdin is EOF; stdout and stderr are
+/// captured separately from the typed result. Requires Native and a running test.
+/// The timeout covers worker execution and output collection, after the store copy.
+let run<'a, 'b>
+  (options: Options)
+  (callback: 'a -> 'b)
+  (argument: 'a)
+  : Stdlib.Result.Result<Output<'b>, String> =
+  Builtin.testRunIsolated options.branch options.timeoutMs options.columns options.rows callback argument
+  |> Stdlib.Result.andThen (fun (result, stdout, stderr, exitCode, cleanupErrors) ->
+    match result with
+    | None ->
+      Stdlib.String.join
+        (Stdlib.List.append
+          [ $"Isolated test exited {Stdlib.toString exitCode} without a result:"
+            stdout
+            stderr ]
+          cleanupErrors)
+        "\n"
+      |> Error
+    | Some result ->
+      Ok (Output { result = result; stdout = stdout; stderr = stderr; exitCode = exitCode; cleanupErrors = cleanupErrors }))
+
+/// Run a test helper in its own store and home. A failed worker or cleanup fails
+/// the test too, without discarding the callback's assertion messages.
+let isolated (callback: Unit -> Stdlib.Test.Result) : Stdlib.Test.Result =
+  match run (defaults ()) callback () with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    let result =
+      match output.result with
+      | Ok result -> result
+      | Error message -> Stdlib.Test.fail message
+    let errors =
+      if output.exitCode == 0 then
+        output.cleanupErrors
+      else
+        Stdlib.List.append
+          [ $"Isolated test worker exited {Stdlib.toString output.exitCode}" ]
+          output.cleanupErrors
+    match (result, errors) with
+    | (result, []) -> result
+    | (Pass, errors) -> Stdlib.Test.Result.Fail errors
+    | (Fail messages, errors) -> Stdlib.Test.Result.Fail(Stdlib.List.append messages errors)

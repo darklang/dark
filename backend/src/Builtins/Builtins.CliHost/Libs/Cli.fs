@@ -1014,7 +1014,151 @@ let private printCallStack
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "cliParseAndExecuteScript" 0
+  [ { name = fn "testRunIsolated" 0
+      typeParams = [ "a"; "b" ]
+      parameters =
+        [ Param.make "branch" (TypeReference.option TUuid) ""
+          Param.make "timeoutMs" TInt ""
+          Param.make "columns" TInt ""
+          Param.make "rows" TInt ""
+          Param.makeWithArgs
+            "callback"
+            (TFn(NEList.singleton (TVariable "a"), TVariable "b"))
+            ""
+            [ "argument" ]
+          Param.make "argument" (TVariable "a") "" ]
+      returnType =
+        TypeReference.result
+          (TTuple(
+            TypeReference.option (TypeReference.result (TVariable "b") TString),
+            TString,
+            [ TString; TInt; TList TString ]
+          ))
+          TString
+      description =
+        "Execute a named test callback in a disposable process and store, with a separate result channel."
+      fn =
+        (function
+        | state,
+          vm,
+          _,
+          [| branch
+             DInt timeout
+             DInt columns
+             DInt rows
+             DApplicable(AppNamedFn callback)
+             argument |] ->
+          uply {
+            let wrap caseName value =
+              DEnum(
+                Dval.resultType (),
+                Dval.resultType (),
+                [ ValueType.Unknown; ValueType.Known KTString ],
+                caseName,
+                [ value ]
+              )
+            let fail message = wrap "Error" (DString message)
+            let timeout = DarkInt.toBigInt timeout
+            let columns = DarkInt.toBigInt columns
+            let rows = DarkInt.toBigInt rows
+            if not state.test.isPackageTest then
+              return fail "Test.Process.run is only available inside a package test"
+            elif
+              timeout < 1I
+              || timeout > 600000I
+              || columns < 1I
+              || columns > 10000I
+              || rows < 1I
+              || rows > 10000I
+            then
+              return
+                fail
+                  "Invalid isolated test options: timeout must be 1..600000 ms and dimensions 1..10000"
+            else
+              let branchId =
+                match branch with
+                | DEnum(_, _, _, "Some", [ DUuid id ]) -> id
+                | _ -> state.branchId.Guid
+              match callback.name, callback.argsSoFar, callback.typeArgs with
+              | FQFnName.Package(Hash hash), [], [] ->
+                try
+                  let request =
+                    LibSerialization.Binary.Serialization.RT.Dval.serialize
+                      "isolated test request"
+                      (DTuple(
+                        DString hash,
+                        argument,
+                        [ state.accountID |> Option.map DUuid |> Dval.option KTUuid ]
+                      ))
+                  let access =
+                    match callback.access with
+                    | None -> vm.activeAccess
+                    | Some captured ->
+                      vm.activeAccess
+                      |> LibExecution.Permissions.Access.constrainBy captured
+                  use buffer = new System.IO.MemoryStream()
+                  use writer = new System.IO.BinaryWriter(buffer)
+                  LibSerialization.Binary.Serializers.Permissions.writeExecutionAccess
+                    writer
+                    access
+                  writer.Flush()
+                  let! outcome =
+                    LibExecution.PermissionCheck.performHost
+                      state
+                      vm
+                      (LibExecution.HostTypes.Operation.IsolatedTest(
+                        LibDB.Sqlite.Backup.toFile,
+                        branchId,
+                        request,
+                        PolicyStore.testWorkerStore (),
+                        buffer.ToArray(),
+                        int timeout,
+                        int columns,
+                        int rows
+                      ))
+                  match outcome with
+                  | Error error -> return fail error.message
+                  | Ok(LibExecution.HostTypes.Response.IsolatedTestOutcome(code,
+                                                                           stdout,
+                                                                           stderr,
+                                                                           resultBytes,
+                                                                           cleanupErrors)) ->
+                    let result =
+                      resultBytes
+                      |> Option.map (
+                        LibSerialization.Binary.Serialization.RT.Dval.deserialize
+                          "isolated test result"
+                      )
+                      |> Dval.option (
+                        KTCustomType(
+                          Dval.resultType (),
+                          [ ValueType.Unknown; VT.string ]
+                        )
+                      )
+                    let output =
+                      DTuple(
+                        result,
+                        DString stdout,
+                        [ DString stderr
+                          Dval.int (bigint code)
+                          DList(VT.string, List.map DString cleanupErrors) ]
+                      )
+                    return wrap "Ok" output
+                  | _ -> return fail "Invalid isolated test response"
+                with e ->
+                  return fail $"Isolated test failed: {e.Message}"
+              | _ ->
+                return
+                  fail
+                    "Isolated tests require an unapplied, non-generic package function"
+          }
+        | _, _, _, _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Native ]
+      deprecated = NotDeprecated }
+
+    { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
         [ Param.make "accountID" (TypeReference.option TUuid) ""
