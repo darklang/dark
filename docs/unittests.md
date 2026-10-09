@@ -80,7 +80,26 @@ and four clones' runs really did land in one.
 `backend/testfiles/README.md` covers the `.dark` test files, which are a separate thing
 from the F# tests here.
 
-## Package test isolation
+## Isolated native package tests
+
+To run the repository's full package suite, use its disposable test installation:
+
+```sh
+scripts/testing/gates package-tests
+```
+
+Build Debug first with `scripts/dev/build`, or set `CLI` to a current published
+binary using a repository-relative path. The gate copies the store, configures
+a deny-all saved policy in that copy, and runs every test with
+`--force`. Its full output is `rundir/package-tests/test.log`.
+
+`./scripts/run-cli test --force` runs tests in the current installation. Test
+execution uses an allow-all instance policy in memory, so native workers,
+filesystem/environment access, HTTP and subprocesses need no installation grants.
+The saved installation policy is unchanged, and ordinary `eval`/`run` commands
+continue to use it. Package approvals, declared function ceilings and captured
+caller restrictions still apply. The gate starts from a deny-all saved policy to
+verify that tests need no setup grants.
 
 Every package test execution runs in its own disposable process and store.
 Use an ordinary test declaration, including when changing local state:
