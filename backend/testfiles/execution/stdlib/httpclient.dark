@@ -68,7 +68,8 @@ Stdlib.HttpClient.request "get" "" [] Stdlib.Blob.empty = Stdlib.Result.Result.E
 Stdlib.HttpClient.request "post" "{ ] nonsense ^#( :" [] Stdlib.Blob.empty = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri))
 
 // URLs we can't actually communicate with
-Stdlib.HttpClient.request "get" "http://google.com:79" [] Stdlib.Blob.empty = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.Timeout)
+// Timeout is covered deterministically by Tests.HttpClient.TimeoutTests; an
+// unreachable external port may fail with NetworkError instead of Timeout.
 
 
 // Check for banned urls in the host name
