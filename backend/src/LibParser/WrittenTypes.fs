@@ -459,7 +459,7 @@ type ValueDecl =
     symbolEquals : Range
     description : string }
 
-/// `test name :{Random} = body`, optionally followed by an expected error: a named
+/// `test name = body`, optionally followed by an expected error: a named
 /// package test. Unlike the legacy `actual = expected` testfile assertion,
 /// this is stored package content.
 type ExpectedError =

@@ -213,7 +213,7 @@ let private installPolicy
           "did not resolve to a function"
       )
 
-/// Private worker protocol for Test.Process.run. Invoked only against the
+/// Private worker protocol for package tests and Test.Process.run. Used only with the
 /// disposable snapshot created by HostProcess; output is never parsed as data.
 let private executeTestWorker
   (packageManager : RT.PackageManager)
@@ -235,14 +235,22 @@ let private executeTestWorker
       LibSerialization.Binary.Serialization.RT.Dval.deserialize
         "isolated test request"
         (System.IO.File.ReadAllBytes requestPath)
-    let hash, argument, accountID =
+    let hash, argument, accountID, isTest =
       match request with
       | RT.DTuple(RT.DString hash, argument, [ accountID ]) ->
         hash,
         argument,
         LibExecution.CommonToDarkTypes.Option.fromDT
           LibExecution.DvalDecoder.uuid
-          accountID
+          accountID,
+        false
+      | RT.DTuple(RT.DString hash, RT.DUnit, [ accountID; RT.DBool true ]) ->
+        hash,
+        RT.DUnit,
+        LibExecution.CommonToDarkTypes.Option.fromDT
+          LibExecution.DvalDecoder.uuid
+          accountID,
+        true
       | _ -> invalidOp "Invalid test worker request"
     let branch = LibDB.PackageManager.currentBranchId ()
     do! LibDB.Config.set "current_branch" (string branch)
@@ -266,11 +274,30 @@ let private executeTestWorker
           branchId = branch
           test = { guest.test with isPackageTest = true; sideEffectCount = 0 } }
     let! outcome =
-      Exe.executeFunction
-        workerState
-        (RT.FQFnName.fqPackage hash)
-        []
-        (NEList.singleton argument)
+      task {
+        if isTest then
+          let! test = LibDB.PackageManager.pt.getTest (PT.Hash hash) |> Ply.toTask
+          let! result =
+            match test with
+            | None ->
+              Ply(Error(RT.RuntimeError.VariableNotFound $"package test {hash}", []))
+              |> Ply.toTask
+            | Some test ->
+              // Execute the body directly: dispatching isolation again would recurse.
+              Builtins.Matter.Libs.PM.PackageTests.executeTestBody
+                workerState
+                workerState.access
+                test
+              |> Ply.toTask
+          return Ok(Builtins.Matter.Libs.PM.PackageTests.reflectOutcome result)
+        else
+          return!
+            Exe.executeFunction
+              workerState
+              (RT.FQFnName.fqPackage hash)
+              []
+              (NEList.singleton argument)
+      }
     let! value, code =
       task {
         match outcome with

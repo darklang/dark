@@ -292,6 +292,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 /// where it allows, print each one, and fail the command if any failed or
 /// nothing matched.
 let runTests (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  LanguageTools.PackageManager.Test.withSnapshot (fun () -> runTestsWithSnapshot state args)
+
+let runTestsWithSnapshot (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let force = Stdlib.List.member args "--force"
   let positionals = args |> Stdlib.List.filter (fun arg -> arg != "--force")
   let badFlags =

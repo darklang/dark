@@ -485,10 +485,82 @@ let isolatedTestPreservesFailureWhenCleanupFails =
       if directory <> "" then System.IO.File.Delete directory
   }
 
+let testRunSnapshot =
+  test "test run reuses an immutable baseline and closes its scope" {
+    let dir =
+      System.IO.Directory.CreateTempSubdirectory("test-baseline-check-").FullName
+    let mutable backups = 0
+    let mutable source = "initial store"
+    let mutable baselineDirectory = ""
+    let backup (path : string) =
+      backups <- backups + 1
+      baselineDirectory <- System.IO.Path.GetDirectoryName path
+      System.IO.File.WriteAllText(path, source)
+      Ok()
+    try
+      use baseline = LibExecution.HostProcess.testStoreSnapshot backup
+      Expect.equal backups 0 "cached-only runs do not back up the store"
+      let first = System.IO.Path.Combine(dir, "first.db")
+      let second = System.IO.Path.Combine(dir, "second.db")
+      Expect.equal (baseline.CopyTo first) (Ok()) "first worker"
+      source <- "parent changed"
+      System.IO.File.WriteAllText(first, "test wrote here")
+      Expect.equal (baseline.CopyTo second) (Ok()) "second worker"
+      Expect.equal backups 1 "only one online backup per run"
+      Expect.equal
+        (System.IO.File.ReadAllText second)
+        "initial store"
+        "neither parent edits nor sibling writes change the baseline"
+      baseline.Dispose()
+      Expect.isFalse
+        (System.IO.Directory.Exists baselineDirectory)
+        "baseline cleaned up"
+      Expect.isError
+        (baseline.CopyTo(System.IO.Path.Combine(dir, "late.db")))
+        "closed scope"
+      use nextRun = LibExecution.HostProcess.testStoreSnapshot backup
+      let next = System.IO.Path.Combine(dir, "next.db")
+      Expect.equal (nextRun.CopyTo next) (Ok()) "next run gets its own baseline"
+      Expect.equal backups 2 "a later run never reuses the old baseline"
+      Expect.equal
+        (System.IO.File.ReadAllText next)
+        "parent changed"
+        "fresh starting store"
+    finally
+      System.IO.Directory.Delete(dir, true)
+  }
+
+let failedTestRunSnapshot =
+  test "a failed baseline is not retried and its partial directory is removed" {
+    let mutable backups = 0
+    let mutable directory = ""
+    let backup (path : string) =
+      backups <- backups + 1
+      directory <- System.IO.Path.GetDirectoryName path
+      System.IO.File.WriteAllText(path, "partial backup")
+      Error "backup failed"
+    use baseline = LibExecution.HostProcess.testStoreSnapshot backup
+    Expect.equal
+      (baseline.CopyTo "unused")
+      (Error "backup failed")
+      "failure is preserved"
+    Expect.equal
+      (baseline.CopyTo "unused")
+      (Error "backup failed")
+      "same run, same failure"
+    Expect.equal backups 1 "never silently change the run's starting store"
+    baseline.Dispose()
+    Expect.isFalse
+      (System.IO.Directory.Exists directory)
+      "partial baseline cleaned up"
+  }
+
 let tests =
   testList
     "host"
-    [ isolatedTestBoundsOutputCollection
+    [ testRunSnapshot
+      failedTestRunSnapshot
+      isolatedTestBoundsOutputCollection
       isolatedTestPreservesFailureWhenCleanupFails
       auditRecordsOperationsAndDecisions
       httpServerBindUsesTheSuppliedAccess

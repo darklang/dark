@@ -57,6 +57,12 @@ module Backup =
   let toFile (target : string) : Result<unit, string> =
     copy connString (connStringFor target)
 
+  /// Create a complete database file to copy for each test.
+  /// Disable connection pooling so closing the backup flushes any WAL
+  /// contents into that file before returning.
+  let toTestBaseline (target : string) : Result<unit, string> =
+    copy connString $"Data Source={target};Mode=ReadWriteCreate;Pooling=false"
+
   /// Replace the live store's contents with `source`'s.
   ///
   /// Contents, not the file: connections already open keep working and see the

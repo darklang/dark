@@ -287,6 +287,57 @@ let run
     p.WaitForExit()
     Error(110, "Process timed out") // ETIMEDOUT
 
+/// One immutable baseline per run, created only when a test actually executes.
+/// File.Copy already uses filesystem cloning where supported, with a portable
+/// copy fallback. The store owner must finish and close its backup first.
+let testStoreSnapshot
+  (snapshot : string -> Result<unit, string>)
+  : HostTypes.TestStoreSnapshot =
+  let gate = obj ()
+  let mutable disposed = false
+  let mutable directory : Option<string> = None
+  let baseline =
+    lazy
+      (let dir = Directory.CreateTempSubdirectory("dark-test-run-").FullName
+       directory <- Some dir
+       let path = Path.Combine(dir, "data.db")
+       snapshot path |> Result.map (fun () -> path))
+  let close () =
+    lock gate (fun () ->
+      disposed <- true
+      match directory with
+      | None -> ()
+      | Some dir ->
+        Directory.Delete(dir, true)
+        directory <- None)
+  let onExit =
+    System.EventHandler(fun _ _ ->
+      try
+        close ()
+      with _ ->
+        ())
+  System.AppDomain.CurrentDomain.ProcessExit.AddHandler onExit
+  { new HostTypes.TestStoreSnapshot with
+      member _.CopyTo target =
+        lock gate (fun () ->
+          if disposed then
+            Error "The package test run has already ended"
+          else
+            try
+              match baseline.Value with
+              | Error message -> Error message
+              | Ok path ->
+                File.Copy(path, target)
+                Ok()
+            with e ->
+              Error e.Message)
+      member _.Dispose() =
+        try
+          close ()
+        finally
+          System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit }
+
+
 /// Run one typed test callback in a disposable copy of the current store.
 /// Request/result bytes use the runtime codec; stdout is never the protocol.
 /// The deadline covers worker execution and output, after snapshot preparation.

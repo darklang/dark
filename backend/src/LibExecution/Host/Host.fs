@@ -802,6 +802,11 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.ProcessRun(program, args, timeoutMs) ->
     resolveProcess program args (fun program args ->
       blocking (fun () -> HostProcess.run program args timeoutMs |> processOutcome))
+  | Operation.TestStoreSnapshot snapshot ->
+    withChecks
+      [ (Permission.Request.native "test baseline", "preparing a test baseline") ]
+      (attempt (fun () ->
+        Ok(Response.TestStoreSnapshot(HostProcess.testStoreSnapshot snapshot))))
   | Operation.IsolatedTest(snapshot,
                            branch,
                            request,

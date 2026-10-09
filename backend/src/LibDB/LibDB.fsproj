@@ -47,6 +47,7 @@
     <Compile Include="EphemeralPackages.fs" />
     <Compile Include="LocalFile.fs" />
     <Compile Include="PolicyStore.fs" />
+    <Compile Include="TestProcess.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="UpgradeKeep.fs" />

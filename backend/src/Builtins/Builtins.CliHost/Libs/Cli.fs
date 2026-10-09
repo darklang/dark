@@ -1081,72 +1081,51 @@ let fns () : List<BuiltInFn> =
                 | _ -> state.branchId.Guid
               match callback.name, callback.argsSoFar, callback.typeArgs with
               | FQFnName.Package(Hash hash), [], [] ->
-                try
-                  let request =
-                    LibSerialization.Binary.Serialization.RT.Dval.serialize
-                      "isolated test request"
-                      (DTuple(
-                        DString hash,
-                        argument,
-                        [ state.accountID |> Option.map DUuid |> Dval.option KTUuid ]
-                      ))
-                  let access =
-                    match callback.access with
-                    | None -> vm.activeAccess
-                    | Some captured ->
-                      vm.activeAccess
-                      |> LibExecution.Permissions.Access.constrainBy captured
-                  use buffer = new System.IO.MemoryStream()
-                  use writer = new System.IO.BinaryWriter(buffer)
-                  LibSerialization.Binary.Serializers.Permissions.writeExecutionAccess
-                    writer
+                let request =
+                  DTuple(
+                    DString hash,
+                    argument,
+                    [ state.accountID |> Option.map DUuid |> Dval.option KTUuid ]
+                  )
+                let access =
+                  match callback.access with
+                  | None -> vm.activeAccess
+                  | Some captured ->
+                    vm.activeAccess
+                    |> LibExecution.Permissions.Access.constrainBy captured
+                let! outcome =
+                  LibDB.TestProcess.run
+                    None
+                    state
+                    vm
                     access
-                  writer.Flush()
-                  let! outcome =
-                    LibExecution.PermissionCheck.performHost
-                      state
-                      vm
-                      (LibExecution.HostTypes.Operation.IsolatedTest(
-                        LibDB.Sqlite.Backup.toFile,
-                        branchId,
-                        request,
-                        PolicyStore.testWorkerStore (),
-                        buffer.ToArray(),
-                        int timeout,
-                        int columns,
-                        int rows
-                      ))
-                  match outcome with
-                  | Error error -> return fail error.message
-                  | Ok(LibExecution.HostTypes.Response.IsolatedTestOutcome(code,
-                                                                           stdout,
-                                                                           stderr,
-                                                                           resultBytes,
-                                                                           cleanupErrors)) ->
-                    let result =
-                      resultBytes
-                      |> Option.map (
-                        LibSerialization.Binary.Serialization.RT.Dval.deserialize
-                          "isolated test result"
+                    branchId
+                    request
+                    (int timeout)
+                    (int columns)
+                    (int rows)
+                match outcome with
+                | Error message -> return fail message
+                | Ok output ->
+                  let result =
+                    output.result
+                    |> Dval.option (
+                      KTCustomType(
+                        Dval.resultType (),
+                        [ ValueType.Unknown; VT.string ]
                       )
-                      |> Dval.option (
-                        KTCustomType(
-                          Dval.resultType (),
-                          [ ValueType.Unknown; VT.string ]
-                        )
-                      )
-                    let output =
-                      DTuple(
+                    )
+                  return
+                    wrap
+                      "Ok"
+                      (DTuple(
                         result,
-                        DString stdout,
-                        [ DString stderr
-                          Dval.int (bigint code)
-                          DList(VT.string, List.map DString cleanupErrors) ]
-                      )
-                    return wrap "Ok" output
-                  | _ -> return fail "Invalid isolated test response"
-                with e ->
-                  return fail $"Isolated test failed: {e.Message}"
+                        DString output.stdout,
+                        [ DString output.stderr
+                          Dval.int (bigint output.exitCode)
+                          DList(VT.string, List.map DString output.cleanupErrors) ]
+                      ))
+
               | _ ->
                 return
                   fail

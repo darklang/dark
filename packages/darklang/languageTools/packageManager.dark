@@ -279,6 +279,12 @@ module Function =
 
 
 module Test =
+  /// Share a starting store across the tests executed by <param run>. Every
+  /// test still gets a private writable copy and a fresh process. Cached-only
+  /// runs create no snapshot; the host cleans up even if the callback fails.
+  let withSnapshot (run: Unit -> 'a) : 'a =
+    Builtin.pmTestWithSnapshot run
+
   /// Conservative proof that a passing result is reusable. Dynamic calls and
   /// branch-dependent rendering are not treated as cache-safe.
   let isCacheSafe (hash: ProgramTypes.Hash) : Bool =

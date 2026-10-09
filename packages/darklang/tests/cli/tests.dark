@@ -1,13 +1,10 @@
 /// CLI tests: the command surface, driven by shelling out to the real binary.
 ///
-/// Split across files; the registry and runner are in tests-runner.dark.
-module Darklang.Cli.Tests
+/// Tests that launch commands run in disposable processes and stores.
+module Darklang.Cli.Tests.TestSuite
 
 
 
-type TestResult =
-  | Pass
-  | Fail of message: String
 
 
 /// The binary these tests drive.
@@ -36,20 +33,16 @@ let callOutput (result: Stdlib.Cli.ExecutionOutcome) : String =
     if err == "" then "" else $"ERROR: {err}"
 
 
+// Differs from legacy: every argument and the CLI path go through
+// `Stdlib.Cli.Process.shellQuote`. Legacy single-quoted only arguments holding a
+// space, `|` or `"`, and escaped the `"` inside them, which the shell then kept.
 let runWithCommand (args: List<String>): String =
-  let escapedArgs =
+  let argsString =
     args
-    |> Stdlib.List.map (fun arg ->
-      if Stdlib.String.contains arg " " ||
-          Stdlib.String.contains arg "|" ||
-          Stdlib.String.contains arg "\""
-      then
-        let escapedArg = Stdlib.String.replaceAll arg "\"" "\\\""
-        $"'{escapedArg}'"
-      else arg)
-
-  let argsString = Stdlib.String.join escapedArgs " "
-  let command = $"{cliUnderTest ()} {argsString}"
+    |> Stdlib.List.map Stdlib.Cli.Process.shellQuote
+    |> Stdlib.String.join " "
+  let command =
+    (Stdlib.Cli.Process.shellQuote (cliUnderTest ())) + " " + argsString
   let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput "." command
 
   callOutput result
@@ -57,26 +50,40 @@ let runWithCommand (args: List<String>): String =
 
 /// The same, but with <param input> on stdin. For the commands that ASK: `conflicts walk` reads a line
 /// per conflict, and nothing else in this suite can drive it.
+//
+// Differs from legacy: legacy used `printf '{input}'` and left the arguments
+// unquoted, so a `%` or `'` in the input, or a space in an argument, changed the
+// command. The input is now passed through `printf '%s'`, quoted, as are the
+// arguments and the CLI path.
 let runWithStdinAndCommand (input: String) (args: List<String>): String =
-  let argsString = Stdlib.String.join args " "
-  let command = $"printf '{input}' | {cliUnderTest ()} {argsString}"
+  let argsString =
+    args
+    |> Stdlib.List.map Stdlib.Cli.Process.shellQuote
+    |> Stdlib.String.join " "
+  let input = Stdlib.Cli.Process.shellQuote input
+  let cli = Stdlib.Cli.Process.shellQuote (cliUnderTest ())
+  let command = $"printf '%s' {input} | {cli} {argsString}"
   let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput "." command
   callOutput result
 
 
 /// Run a command and compare its whole output exactly.
-let expectExact (args: List<String>) (expected: String): TestResult =
+let expectExact (args: List<String>) (expected: String): Stdlib.Test.Result =
   let output = runWithCommand args
   if output == expected then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"Expected '{expected}', got '{output}'"
+    Stdlib.Test.fail $"Expected '{expected}', got '{output}'"
 
 
 /// `dark conflicts walk`, on a conflict this test makes for itself.
 ///
 /// Everything happens between a throwaway parent and its child, so main gains nothing.
-let testConflictWalkthrough (): TestResult =
+//
+// Differs from legacy: the shared base and each side's change are committed before the merge, and the merge passes
+// `-y`. Both are now required: a merge refuses a branch with uncommitted ops,
+// and without `-y` it asks for an explicit yes, which these runs cannot give.
+test conflictWalkthrough =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let parent = "cli-walk-parent-" + suffix
   let child = "cli-walk-child-" + suffix
@@ -85,11 +92,14 @@ let testConflictWalkthrough (): TestResult =
   let _ = runWithCommand [ "branch", "create", parent ]
   // A shared base for the name: both sides have to move it from something.
   let _ = runWithCommand [ "--branch", parent, "fn", "/" + fnName, "() : Int64 = 1L" ]
+  let _ = runWithCommand [ "--branch", parent, "commit", "shared base", "-y" ]
   let _ = runWithCommand [ "--branch", parent, "branch", "create", child ]
   let _ = runWithCommand [ "--branch", child, "fn", "/" + fnName, "() : Int64 = 222L" ]
+  let _ = runWithCommand [ "--branch", child, "commit", "child change", "-y" ]
   let _ = runWithCommand [ "--branch", parent, "fn", "/" + fnName, "() : Int64 = 111L" ]
+  let _ = runWithCommand [ "--branch", parent, "commit", "parent change", "-y" ]
 
-  let merged = runWithCommand [ "--branch", child, "merge", child ]
+  let merged = runWithCommand [ "--branch", child, "merge", child, "-y" ]
   let beforeJson = runWithCommand [ "--branch", parent, "conflicts", "--json" ]
   // `b` takes the other side, which is the answer that has to WRITE something.
   let walked = runWithStdinAndCommand "b\n" [ "--branch", parent, "conflicts", "walk" ]
@@ -102,23 +112,23 @@ let testConflictWalkthrough (): TestResult =
   let _ = runWithCommand [ "branch", "archive", parent, "-y" ]
 
   if Stdlib.Bool.not (Stdlib.String.contains merged "conflict") then
-    TestResult.Fail $"Expected the merge to record a conflict; got: {merged}"
+    Stdlib.Test.fail $"Expected the merge to record a conflict; got: {merged}"
   else if Stdlib.Bool.not (Stdlib.String.contains beforeJson "\"pending\":1") then
-    TestResult.Fail $"Expected one pending conflict before the walk; got: {beforeJson}"
+    Stdlib.Test.fail $"Expected one pending conflict before the walk; got: {beforeJson}"
   else if Stdlib.String.contains walked "ERROR:" then
-    TestResult.Fail $"`conflicts walk` failed: {walked}"
+    Stdlib.Test.fail $"`conflicts walk` failed: {walked}"
   else if Stdlib.Bool.not (Stdlib.String.contains walked "took theirs") then
-    TestResult.Fail $"Expected the walk to take the other side on `b`; got: {walked}"
+    Stdlib.Test.fail $"Expected the walk to take the other side on `b`; got: {walked}"
   else if Stdlib.Bool.not (Stdlib.String.contains afterJson "\"pending\":0") then
-    TestResult.Fail $"Expected nothing pending after the walk; got: {afterJson}"
+    Stdlib.Test.fail $"Expected nothing pending after the walk; got: {afterJson}"
   else if Stdlib.Bool.not (Stdlib.String.contains onMain "not found") then
-    TestResult.Fail
+    Stdlib.Test.fail
       $"A conflict resolved between two branches reached MAIN. Got: {onMain}"
   else
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
 
 
-let testHelpCommand (): TestResult =
+test helpCommand =
   let output = runWithCommand ["help"]
 
   // Assert on the groups and a command from a few of them.
@@ -132,47 +142,47 @@ let testHelpCommand (): TestResult =
       Stdlib.String.contains output "  ls (dir) -" &&
       Stdlib.String.contains output "  version (--version, -v) -" &&
       Stdlib.String.contains output "  status (wip, changes) -" then
-      TestResult.Pass
+      Stdlib.Test.Result.Pass
   else
-    TestResult.Fail "Expected help grouped by category, with the nav/ls/version/status rows rendered"
+    Stdlib.Test.fail "Expected help grouped by category, with the nav/ls/version/status rows rendered"
 
 
-let testVersionCommand (): TestResult =
+test versionCommand =
   let output = runWithCommand ["version"]
   if Stdlib.String.contains output "Darklang CLI" &&
       Stdlib.String.contains output "alpha-" then
-      TestResult.Pass
+      Stdlib.Test.Result.Pass
   else
-    TestResult.Fail "Expected version string with 'Darklang CLI alpha-'"
+    Stdlib.Test.fail "Expected version string with 'Darklang CLI alpha-'"
 
 
-let testStatusCommand (): TestResult =
+test statusCommand =
   // Two things, because `status` is the one signal you get while editing: WHERE you are, and WHAT you have.
   // The branch line matters most when several branches are in play, which is the normal case now.
   let output = runWithCommand ["status"]
   if Stdlib.String.contains output "On branch" &&
       (Stdlib.String.contains output "clean:" ||
        Stdlib.String.contains output "draft:") then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       $"Expected `status` to name the branch and summarise the draft; got: {output}"
 
 
-let testEvalBoolAnd (): TestResult =
+test evalBoolAnd =
   // `run` is for script files now; calling a package function is `eval`'s job, without the `@`.
   expectExact ["eval", "Stdlib.Bool.and true false"] "false"
 
 
-let testEvalInt64Add (): TestResult =
+test evalInt64Add =
   expectExact ["eval", "(5L + 3L)"] "8"
 
 
-let testEvalStringLength (): TestResult =
+test evalStringLength =
   expectExact ["eval", "Stdlib.String.length \"hello\""] "5"
 
 
-let testEvalListLength (): TestResult =
+test evalListLength =
   expectExact ["eval", "[1, 2, 3] |> Stdlib.List.length"] "3"
 
 
@@ -182,7 +192,7 @@ let testEvalListLength (): TestResult =
 /// at author time: a draft may be broken because you write the caller before the callee, a commit may
 /// not, because a commit is what other machines pull. So after an invalid module the item EXISTS, the
 /// message says it is WIP, and the definitions that were already there are untouched.
-let testModuleCommand (): TestResult =
+test moduleCommand =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-module-test-" + suffix
   let moduleName = "Tests.CliModule"
@@ -270,11 +280,12 @@ let testModuleCommand (): TestResult =
     && Stdlib.String.contains updateOutput "Defined 4 declarations"
     && updatedEval == "27"
     && Stdlib.String.contains invalidOutput "expects 1 field"
-    && Stdlib.String.contains invalidOutput "saved as WIP"
+    // Differs from legacy: "saved as WIP"; the CLI now says "Saved as a draft".
+    && Stdlib.String.contains invalidOutput "Saved as a draft"
     && Stdlib.String.contains searchOutput "shouldNotExist"
     && afterInvalidEval == "27"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
     let details =
       [ $"create: {moduleOutput}"
@@ -285,11 +296,11 @@ let testModuleCommand (): TestResult =
         $"invalid item search: {searchOutput}"
         $"eval after invalid: {afterInvalidEval}"
       ] |> Stdlib.String.join "; "
-    TestResult.Fail
+    Stdlib.Test.fail
       $"Expected atomic create, update, and rejection; got {details}"
 
 
-let testModuleRejectsDuplicateNames (): TestResult =
+test moduleRejectsDuplicateNames =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-module-duplicate-test-" + suffix
   let moduleName = "Tests.CliModuleDuplicate"
@@ -320,9 +331,9 @@ let testModuleRejectsDuplicateNames (): TestResult =
     && Stdlib.String.contains moduleOutput "duplicate"
     && Stdlib.String.contains searchOutput "No results found"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       ($"Expected duplicate declarations to be rejected without mutation; "
        + $"module={moduleOutput}; search={searchOutput}")
 
@@ -331,7 +342,11 @@ let testModuleRejectsDuplicateNames (): TestResult =
 ///
 /// So this drives the real binary. It merges a child into a THROWAWAY PARENT rather than into main, so a
 /// run leaves no fn behind on main.
-let testMergeRoundTrip (): TestResult =
+//
+// Differs from legacy: the child's change is committed before the merge, and the merge passes
+// `-y`. Both are now required: a merge refuses a branch with uncommitted ops,
+// and without `-y` it asks for an explicit yes, which these runs cannot give.
+test mergeRoundTrip =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let parent = "cli-merge-parent-" + suffix
   let child = "cli-merge-child-" + suffix
@@ -342,10 +357,11 @@ let testMergeRoundTrip (): TestResult =
   let _ =
     runWithCommand
       [ "--branch", child, "fn", "/" + fnName, "() : Int64 = 7L" ]
+  let _ = runWithCommand [ "--branch", child, "commit", "merge fixture", "-y" ]
 
   // --dry-run records nothing, so it has to answer the same question the merge does without doing it.
   let dryRun = runWithCommand [ "--branch", child, "merge", child, "--dry-run" ]
-  let merged = runWithCommand [ "--branch", child, "merge", child ]
+  let merged = runWithCommand [ "--branch", child, "merge", child, "-y" ]
   let onParent = runWithCommand [ "--branch", parent, "eval", fnName + " ()" ]
   let onMain = runWithCommand [ "--branch", "main", "eval", fnName + " ()" ]
 
@@ -355,23 +371,23 @@ let testMergeRoundTrip (): TestResult =
   let _ = runWithCommand [ "branch", "archive", parent, "-y" ]
 
   if Stdlib.String.contains dryRun "ERROR:" then
-    TestResult.Fail $"`merge --dry-run` failed: {dryRun}"
+    Stdlib.Test.fail $"`merge --dry-run` failed: {dryRun}"
   else if Stdlib.Bool.not (Stdlib.String.contains dryRun parent) then
-    TestResult.Fail $"Expected `merge --dry-run` to name the parent it would merge into; got: {dryRun}"
+    Stdlib.Test.fail $"Expected `merge --dry-run` to name the parent it would merge into; got: {dryRun}"
   else if Stdlib.Bool.not (Stdlib.String.contains dryRun fnName) then
-    TestResult.Fail $"Expected `merge --dry-run` to list the name that would land; got: {dryRun}"
+    Stdlib.Test.fail $"Expected `merge --dry-run` to list the name that would land; got: {dryRun}"
   else if Stdlib.Bool.not (Stdlib.String.contains merged "Merged") then
-    TestResult.Fail $"Expected `merge` to report what it merged; got: {merged}"
+    Stdlib.Test.fail $"Expected `merge` to report what it merged; got: {merged}"
   else if onParent != "7" then
-    TestResult.Fail $"Expected the merged fn to resolve on the parent as 7; got: {onParent}"
+    Stdlib.Test.fail $"Expected the merged fn to resolve on the parent as 7; got: {onParent}"
   else if onMain == "7" then
-    TestResult.Fail
+    Stdlib.Test.fail
       $"A merge into \"{parent}\" reached MAIN -- the branch overlay leaked. Got: {onMain}"
   else
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
 
 
-let testFnAcceptsCompleteDeclaration (): TestResult =
+test fnAcceptsCompleteDeclaration =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-authoring-test-" + suffix
   let moduleName = "Tests.CliAuthoring"
@@ -435,33 +451,33 @@ let testFnAcceptsCompleteDeclaration (): TestResult =
     && Stdlib.String.contains multipleOutput "exactly one function declaration"
     && Stdlib.Bool.not (Stdlib.String.contains multipleOutput "Created function")
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       ($"Expected complete and fragment fn input with target-name validation; "
        + $"fn={fnOutput}; eval={evalOutput}; fragment={fragmentOutput}; "
        + $"fragment eval={fragmentEval}; mismatch={mismatchOutput}; "
        + $"multiple={multipleOutput}")
 
 
-let testListFunctions (): TestResult =
+test listFunctions =
   let output = runWithCommand ["ls", "Stdlib.List"]
   if Stdlib.String.contains output "Functions" &&
       Stdlib.String.contains output "head" then
-      TestResult.Pass
+      Stdlib.Test.Result.Pass
   else
-    TestResult.Fail "Expected directory listing with functions"
+    Stdlib.Test.fail "Expected directory listing with functions"
 
 
-let testViewFunction (): TestResult =
+test viewFunction =
   let output = runWithCommand ["view", "Stdlib.List.head"]
   if Stdlib.String.contains output "head"
     && Stdlib.String.contains output "Option"
     && Stdlib.String.contains output "->"
   then
-      TestResult.Pass
+      Stdlib.Test.Result.Pass
   else
-    TestResult.Fail "Expected function signature for List.head"
+    Stdlib.Test.fail "Expected function signature for List.head"
 
 
 /// The harmful gate, end to end, through a real CLI process.
@@ -469,58 +485,63 @@ let testViewFunction (): TestResult =
 /// Tested via a real invocation because the gate lives in the CLI HOST: the RT default is
 /// permissive by design ("tests run permissive" in `Execution.createState`), so an in-harness
 /// RT-level test guards nothing.
-let testHarmfulGate (): TestResult =
+// Differs from legacy: every command passes `--branch main`. A deprecation folds
+// only on main; the old runner always put each test back on main, and the fixture
+// now runs on the caller's branch, so this test names main itself.
+test harmfulGate =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let fnName = $"Tests.HarmGate.g{suffix}"
+  let onMain (args: List<String>) : String =
+    runWithCommand (Stdlib.List.append [ "--branch", "main" ] args)
 
-  let _ = runWithCommand [ "fn", fnName, "(x: Int64) : Int64 = (x + 31L)" ]
+  let _ = onMain [ "fn", fnName, "(x: Int64) : Int64 = (x + 31L)" ]
 
   let _ =
-    runWithCommand
+    onMain
       [ "deprecate", "fn", fnName, "--kind", "harmful", "-m", "test", "--yes" ]
 
-  let halted = runWithCommand [ "eval", $"{fnName} 0L" ]
-  let allowed = runWithCommand [ "eval", $"{fnName} 0L", "--allow-harmful" ]
+  let halted = onMain [ "eval", $"{fnName} 0L" ]
+  let allowed = onMain [ "eval", $"{fnName} 0L", "--allow-harmful" ]
 
   if Stdlib.Bool.not (Stdlib.String.contains halted "Harmful") then
-    TestResult.Fail
+    Stdlib.Test.fail
       $"a fn marked harmful should refuse to run without the flag, got: {halted}"
   else if Stdlib.Bool.not (Stdlib.String.contains allowed "31") then
     // The halt message names `--allow-harmful`, so the flag has to do what the message promises.
-    TestResult.Fail $"--allow-harmful should run it anyway, got: {allowed}"
+    Stdlib.Test.fail $"--allow-harmful should run it anyway, got: {allowed}"
   else
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
 
 
-let testSearchMatchesModuleAndCamelCaseName (): TestResult =
+test searchMatchesModuleAndCamelCaseName =
   let output = runWithCommand ["search", "string toList", "--fn"]
   if Stdlib.String.contains output "Darklang.Stdlib.String.toList" then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       $"Expected `string toList` to find Stdlib.String.toList, got: {output}"
 
 
-let testSearchMatchesModuleAndOperationName (): TestResult =
+test searchMatchesModuleAndOperationName =
   let output = runWithCommand ["search", "json parse", "--fn"]
   if Stdlib.String.contains output "Darklang.Stdlib.Json.parse" then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       $"Expected `json parse` to find Stdlib.Json.parse, got: {output}"
 
 
-let testSearchFindsNestedHelpersFromParentModule (): TestResult =
+test searchFindsNestedHelpersFromParentModule =
   let output = runWithCommand ["search", "AltJson.get", "--fn"]
 
   if Stdlib.String.contains output "Darklang.Stdlib.AltJson.Helpers.getIntResult" then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       $"Expected `AltJson.get` to find nested AltJson helpers, got: {output}"
 
 
-let testBatchSearchKeepsQueriesIndependent (): TestResult =
+test batchSearchKeepsQueriesIndependent =
   let output =
     runWithCommand
       [ "search"
@@ -538,13 +559,13 @@ let testBatchSearchKeepsQueriesIndependent (): TestResult =
     && Stdlib.String.contains output "Search results for: list map"
     && Stdlib.String.contains output "Darklang.Stdlib.List.map"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       $"Expected three independent batch search results, got: {output}"
 
 
-let testUnresolvedNameGuidance (): TestResult =
+test unresolvedNameGuidance =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-name-guidance-test-" + suffix
   let moduleName = "Tests.CliNameGuidance"
@@ -576,47 +597,47 @@ let testUnresolvedNameGuidance (): TestResult =
     && Stdlib.String.contains packageOutput "write `Stdlib.List.map`"
     && Stdlib.Bool.not (Stdlib.String.contains packageOutput "Created function")
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       ($"Expected source-name guidance; stdlib={stdlibOutput}; "
        + $"PACKAGE={packageOutput}")
 
 
-let testListTypes (): TestResult =
+test listTypes =
   let output = runWithCommand ["ls", "Stdlib.Option"]
   if Stdlib.String.contains output "Types" &&
       Stdlib.String.contains output "Option" then
-      TestResult.Pass
+      Stdlib.Test.Result.Pass
   else
-    TestResult.Fail "Expected directory listing with types"
+    Stdlib.Test.fail "Expected directory listing with types"
 
 
-let testHelpForRun (): TestResult =
+test helpForRun =
   let output = runWithCommand ["help", "run"]
   // `contains output "run"` is satisfied by the unknown-command fallback ("No help available for command:
   // run"), so it can't tell "help worked" from "help failed". The usage line is topic-unique, and it also
   // proves the `run` alias resolved to `run-script`, which is the rename this branch made.
   if Stdlib.String.contains output "Usage: run-script" then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail "Expected `help run` to resolve the alias and print run-script's usage"
+    Stdlib.Test.fail "Expected `help run` to resolve the alias and print run-script's usage"
 
 
-let testHelpForLs (): TestResult =
+test helpForLs =
   let output = runWithCommand ["help", "ls"]
   // Same reasoning as `help run`: assert something only the real topic prints.
   if Stdlib.String.contains output "Usage: ls" then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail "Expected `help ls` to print ls's usage"
+    Stdlib.Test.fail "Expected `help ls` to print ls's usage"
 
 
-let testEvalSimpleExpression (): TestResult =
+test evalSimpleExpression =
   expectExact ["eval", "2L + 3L"] "5"
 
 
-let testEvalStringExpression (): TestResult =
+test evalStringExpression =
   expectExact ["eval", "\"hello\" + \"world\""] "helloworld"
 
 
@@ -625,7 +646,7 @@ let testEvalStringExpression (): TestResult =
 // register numbers and instruction counts change whenever the compiler does, and a test that pins them
 // fails on every unrelated codegen improvement.
 
-let testViewAst (): TestResult =
+test viewAst =
   let output = runWithCommand ["view", "Stdlib.List.last", "--ast"]
 
   // A signature line, then the body tree with its node kinds. `Match`/`Arg` are what `last` is made of.
@@ -636,12 +657,12 @@ let testViewAst (): TestResult =
     && Stdlib.String.contains output "on Arg #0, 2 cases"
     && Stdlib.String.contains output "head :: tail"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"Expected an AST tree with signature rows and node kinds, got: {output}"
+    Stdlib.Test.fail $"Expected an AST tree with signature rows and node kinds, got: {output}"
 
 
-let testViewInstructions (): TestResult =
+test viewInstructions =
   let output = runWithCommand ["view", "Stdlib.List.push", "--instructions"]
 
   // `push` is a thin wrapper over a builtin, so it must load the builtin and apply it.
@@ -651,12 +672,12 @@ let testViewInstructions (): TestResult =
     && Stdlib.String.contains output "Apply"
     && Stdlib.String.contains output "listPush"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"Expected an instruction listing for List.push, got: {output}"
+    Stdlib.Test.fail $"Expected an instruction listing for List.push, got: {output}"
 
 
-let testViewInstructionsShowsLambdas (): TestResult =
+test viewInstructionsShowsLambdas =
   // A listing that stopped at `CreateLambda` would be a dead end, so a lambda gets its own section
   // below the function that creates it.
   //
@@ -679,12 +700,12 @@ let testViewInstructionsShowsLambdas (): TestResult =
     && Stdlib.String.contains output "lambda#"
     && Stdlib.String.contains output "JumpByIfFalse"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"Expected the lambda's own listing under {name}'s, got: {output}"
+    Stdlib.Test.fail $"Expected the lambda's own listing under {name}'s, got: {output}"
 
 
-let testViewCompilerViewsRejectNonFunctions (): TestResult =
+test viewCompilerViewsRejectNonFunctions =
   // Both views are function-only, and saying which kind of thing you pointed at beats "not found".
   let typeOutput = runWithCommand ["view", "Stdlib.Option.Option", "--ast"]
   let moduleOutput = runWithCommand ["view", "Stdlib.List", "--instructions"]
@@ -692,36 +713,36 @@ let testViewCompilerViewsRejectNonFunctions (): TestResult =
   if Stdlib.String.contains typeOutput "type"
     && Stdlib.String.contains moduleOutput "module"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       $"Expected kind-specific refusals, got type: {typeOutput}, module: {moduleOutput}"
 
 
-let testViewFlagBeforePath (): TestResult =
+test viewFlagBeforePath =
   // Flags are position-independent; this is the ordering people actually type.
   let output = runWithCommand ["view", "--ast", "Stdlib.List.push"]
 
   if Stdlib.String.contains output "push" && Stdlib.String.contains output "->" then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"Expected --ast to work before the path, got: {output}"
+    Stdlib.Test.fail $"Expected --ast to work before the path, got: {output}"
 
 
-let testViewUnknownFlag (): TestResult =
+test viewUnknownFlag =
   let output = runWithCommand ["view", "Stdlib.List.push", "--nope"]
 
   if Stdlib.String.contains output "--nope" && Stdlib.String.contains output "Usage" then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"Expected an unknown-option error naming the flag plus usage, got: {output}"
+    Stdlib.Test.fail $"Expected an unknown-option error naming the flag plus usage, got: {output}"
 
 
 // ---------------------------------------------------------------- native list rewrites
 // These five moved from Dark to builtins for speed. The edge cases are the point: an out-of-bounds or
 // negative index, an empty list, and nested empties are exactly where a reimplementation drifts.
 
-let testNativeListEdgeCases (): TestResult =
+test nativeListEdgeCases =
   let cases =
     [ ("Stdlib.List.getAt [1,2,3] 0", "1")
       ("Stdlib.List.getAt [1,2,3] 2", "3")
@@ -750,8 +771,8 @@ let testNativeListEdgeCases (): TestResult =
         Stdlib.Option.Option.Some $"`{expr}` expected `{expected}`, got `{output}`")
 
   match failures with
-  | [] -> TestResult.Pass
-  | _ -> TestResult.Fail (Stdlib.String.join failures "; ")
+  | [] -> Stdlib.Test.Result.Pass
+  | _ -> Stdlib.Test.fail (Stdlib.String.join failures "; ")
 
 
 /// A `None` from `getAt` must still compare and match as a plain `None`. The native version threads the
@@ -765,7 +786,7 @@ let testNativeListEdgeCases (): TestResult =
 /// awaited and then retried the synchronous path, which never terminates for a type argument that isn't
 /// in the store, because cache misses aren't cached. A scalar type arg, a container one and a custom one
 /// each resolve differently, so all three are here.
-let testExplicitTypeArgs (): TestResult =
+test explicitTypeArgs =
   let scalar = runWithCommand ["eval", "Stdlib.Json.parse<Int64> \"3\""]
   let container = runWithCommand ["eval", "Stdlib.Json.parse<List<Int64>> \"[1,2]\""]
   let custom = runWithCommand ["eval", "Stdlib.Json.parse<Stdlib.Uuid.ParseError> \"{}\""]
@@ -776,20 +797,20 @@ let testExplicitTypeArgs (): TestResult =
       && Stdlib.String.contains container "[1, 2]"
       && Stdlib.String.contains custom "ParseError"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail
+    Stdlib.Test.fail
       $"Expected explicit type args to resolve; got scalar: {scalar}, container: {container}, custom: {custom}"
 
 
-let testGetAtNoneIsStillNone (): TestResult =
+test getAtNoneIsStillNone =
   let eq = runWithCommand ["eval", "(Stdlib.List.getAt [1,2,3] 99) == Stdlib.Option.Option.None"]
   let dflt = runWithCommand ["eval", "Stdlib.Option.withDefault (Stdlib.List.getAt [1,2,3] 99) 0"]
 
   if Stdlib.String.contains eq "true" && Stdlib.String.contains dflt "0" then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"Expected out-of-bounds None to behave as None, got eq: {eq}, default: {dflt}"
+    Stdlib.Test.fail $"Expected out-of-bounds None to behave as None, got eq: {eq}, default: {dflt}"
 
 
 /// `view --raw` prints the declaration and nothing else.
@@ -797,7 +818,7 @@ let testGetAtNoneIsStillNone (): TestResult =
 /// The point of `--raw` is that another program consumes it, so anything decorative
 /// in there is a bug rather than a cosmetic complaint: a colour code or a badge line
 /// ends up in whatever the output was piped into.
-let testViewRawIsUndecorated (): TestResult =
+test viewRawIsUndecorated =
   let esc = "\u001b"
   let raw = runWithCommand [ "view", "Stdlib.List.head", "--raw" ]
   let decorated = runWithCommand [ "view", "Stdlib.List.head" ]
@@ -807,9 +828,9 @@ let testViewRawIsUndecorated (): TestResult =
       && Stdlib.Bool.not (Stdlib.String.contains raw esc)
       && Stdlib.String.contains decorated esc
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"Expected an undecorated declaration, got: {raw}"
+    Stdlib.Test.fail $"Expected an undecorated declaration, got: {raw}"
 
 
 /// Reading an item and writing it straight back changes nothing.
@@ -817,7 +838,7 @@ let testViewRawIsUndecorated (): TestResult =
 /// This is the property that makes `view --raw` usable as a pipe: if the printer and
 /// the parser disagree anywhere, a round trip authors a second version of the item
 /// and the op log grows every time someone looks at it.
-let testEditRoundTripsThroughRaw (): TestResult =
+test editRoundTripsThroughRaw =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-edit-test-" + suffix
   let name = "Tests.CliEdit.tripled"
@@ -859,9 +880,9 @@ let testEditRoundTripsThroughRaw (): TestResult =
     before == after && hashBefore == hashAfter
       && Stdlib.String.contains evaluated "60"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail(
+    Stdlib.Test.fail(
       $"Expected a no-op round trip then a landed change; before: {before}, "
       + $"after: {after}, eval: {evaluated}"
     )
@@ -874,7 +895,7 @@ let testEditRoundTripsThroughRaw (): TestResult =
 /// than one candidate that resolution has to prefer the one that was typed;
 /// otherwise `view Zz.alpha` prints a definition headed `Zz.beta`, and `--raw` feeds
 /// that wrong name to whatever writes it back.
-let testViewHeadsWithTheNameYouAskedFor (): TestResult =
+test viewHeadsWithTheNameYouAskedFor =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-sharedbody-test-" + suffix
   let alpha = "Tests.CliShared.alpha"
@@ -910,9 +931,9 @@ let testViewHeadsWithTheNameYouAskedFor (): TestResult =
       && Stdlib.String.contains shownBeta "beta"
       && Stdlib.Bool.not (Stdlib.String.contains shownBeta "let alpha")
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail(
+    Stdlib.Test.fail(
       $"Expected each name to head its own declaration; alpha: {rawAlpha}, "
       + $"beta: {rawBeta}, shown: {shownAlpha} / {shownBeta}"
     )
@@ -924,7 +945,7 @@ let testViewHeadsWithTheNameYouAskedFor (): TestResult =
 /// layout is where they are likeliest to drift apart. A round trip that changes the
 /// item is worse than one that fails: nothing says so, and the store quietly holds
 /// something you did not write.
-let testEditRoundTripsTypesAndValues (): TestResult =
+test editRoundTripsTypesAndValues =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-edit-kinds-" + suffix
   let typeName = "Tests.CliEditKinds.Pair"
@@ -977,9 +998,9 @@ let testEditRoundTripsTypesAndValues (): TestResult =
       && Stdlib.String.contains typeBefore "type Pair"
       && Stdlib.String.contains valueBefore "val answer"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail(
+    Stdlib.Test.fail(
       $"Expected types and values to round-trip; type: {typeBefore} -> {typeAfter}, "
       + $"value: {valueBefore} -> {valueAfter}"
     )
@@ -990,7 +1011,7 @@ let testEditRoundTripsTypesAndValues (): TestResult =
 /// `edit` hands the file to the same validation `module` does, so a rejection has to
 /// be a rejection: half-applying it, or reporting a failure while the store moved,
 /// would make an editor round trip something you cannot trust.
-let testEditLeavesTheItemAloneOnABadFile (): TestResult =
+test editLeavesTheItemAloneOnABadFile =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-edit-bad-" + suffix
   let name = "Tests.CliEditBad.kept"
@@ -1025,9 +1046,9 @@ let testEditLeavesTheItemAloneOnABadFile (): TestResult =
       && Stdlib.String.contains refused "Parse error"
       && Stdlib.String.contains missing "Could not read"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail(
+    Stdlib.Test.fail(
       $"Expected a rejected file to change nothing; hashes {hashBefore} / "
       + $"{hashAfterBad} / {hashAfterMissing}, said: {refused} | {missing}"
     )
@@ -1038,7 +1059,7 @@ let testEditLeavesTheItemAloneOnABadFile (): TestResult =
 /// A module is the near miss worth naming: `dark edit Stdlib.List` is a reasonable
 /// thing to type, and the answer has to point at the command that does take one
 /// rather than leaving you to guess.
-let testEditRefusesWhatItCannotEdit (): TestResult =
+test editRefusesWhatItCannotEdit =
   let bare = runWithCommand [ "edit" ]
   let tooMany = runWithCommand [ "edit", "a", "b", "c" ]
   let aModule = runWithCommand [ "edit", "Stdlib.List" ]
@@ -1060,9 +1081,9 @@ let testEditRefusesWhatItCannotEdit (): TestResult =
       && Stdlib.String.contains unknown "Cannot edit Zz.NoSuch.thing"
       && Stdlib.String.contains rawModule "ONE declaration"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail(
+    Stdlib.Test.fail(
       $"Expected each refusal to name what to do instead; bare: {bare}, "
       + $"module: {aModule}, unknown: {unknown}, raw module: {rawModule}, "
       + $"no terminal: {noTerminal}"
@@ -1071,7 +1092,7 @@ let testEditRefusesWhatItCannotEdit (): TestResult =
 
 /// Every way of passing a definition authors the same item. The `=` is a separator:
 /// unquoted the shell splits it off, quoted it arrives attached, and both come off.
-let testAuthoringAcceptsAQuotedSeparator (): TestResult =
+test authoringAcceptsAQuotedSeparator =
   let branch = "cli-quoted-eq-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
@@ -1096,16 +1117,16 @@ let testAuthoringAcceptsAQuotedSeparator (): TestResult =
       && Stdlib.String.contains typed "Created type"
       && Stdlib.String.contains valued "Created value"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail(
+    Stdlib.Test.fail(
       $"hashes {quotedHash} / {splitHash}, eval {evaluated}, {typed}, {valued}"
     )
 
 
 /// A lowercase module segment is refused. It would be read as the item's NAME, so
 /// `Tests.lower.f` authors `Tests.lower` and nothing can refer to it afterwards.
-let testAuthoringRefusesALowercaseModule (): TestResult =
+test authoringRefusesALowercaseModule =
   let branch = "cli-lowercase-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
@@ -1120,14 +1141,14 @@ let testAuthoringRefusesALowercaseModule (): TestResult =
       && Stdlib.Bool.not (Stdlib.String.contains refused "Created")
       && Stdlib.String.contains listed "Not found"
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"refusal: {refused}, and listing said: {listed}"
+    Stdlib.Test.fail $"refusal: {refused}, and listing said: {listed}"
 
 
 /// "Not found" names the path, once. Naming it at the traversal covers every caller,
 /// which is why none of them adds it again.
-let testNotFoundNamesThePath (): TestResult =
+test notFoundNamesThePath =
   // A real prefix, so the traversal gets past it: it reports the FIRST missing segment,
   // and a wholly unknown path would only ever report its first.
   let missing = "Darklang.Stdlib.NoSuchModule.thing"
@@ -1140,14 +1161,14 @@ let testNotFoundNamesThePath (): TestResult =
   let twice = (Stdlib.List.length (Stdlib.String.split viewed "NoSuchModule")) > 2
 
   if names viewed && names listed && names navigated && Stdlib.Bool.not twice then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail $"view: {viewed}, ls: {listed}, nav: {navigated}"
+    Stdlib.Test.fail $"view: {viewed}, ls: {listed}, nav: {navigated}"
 
 
 /// `tree` refuses what it cannot show. Both arms used to answer instead: an unknown flag
 /// was dropped with the real ones, and an unresolvable path fell back to where you stood.
-let testTreeRefusesWhatItCannotShow (): TestResult =
+test treeRefusesWhatItCannotShow =
   let badFlag = runWithCommand [ "tree", "--zzbogus" ]
   let badPath = runWithCommand [ "tree", "Zz.NoSuchThing" ]
   let twoPaths = runWithCommand [ "tree", "Darklang.Stdlib", "Darklang.Cli" ]
@@ -1164,15 +1185,15 @@ let testTreeRefusesWhatItCannotShow (): TestResult =
       && Stdlib.String.contains twoPaths "at most one path"
       && shown withDepth
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail(
+    Stdlib.Test.fail(
       $"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {Stdlib.toString (shown withDepth)}"
     )
 
 /// `discard` throws the whole draft away, so an unanswerable prompt is not a yes: it
 /// refuses, and the work is still there. `-y` is how a script says yes.
-let testDiscardNeedsAnExplicitYes (): TestResult =
+test discardNeedsAnExplicitYes =
   let branch = "cli-discard-" + (Stdlib.toString (Stdlib.Int.random 1 999999))
   let run (args: List<String>) : String =
     runWithCommand (Stdlib.List.append [ "--branch", branch ] args)
@@ -1192,8 +1213,8 @@ let testDiscardNeedsAnExplicitYes (): TestResult =
       && Stdlib.String.contains discarded "discarded"
       && Stdlib.Bool.not (Stdlib.String.contains after "1 item")
   then
-    TestResult.Pass
+    Stdlib.Test.Result.Pass
   else
-    TestResult.Fail(
+    Stdlib.Test.fail(
       $"refused: {refused}, survived: {survived}, discarded: {discarded}, after: {after}"
     )

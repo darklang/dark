@@ -3851,6 +3851,10 @@ and ExecutionState =
     tracing : Tracing.Tracing
     test : TestContext
 
+    /// Scoped to one test run, separately from each test's mutable counters.
+    /// Worker processes start without it and snapshot their own current store.
+    testStoreSnapshot : Option<HostTypes.TestStoreSnapshot>
+
     /// Lambda instructions registered by `CreateLambda`, looked up on `Apply`.
     /// Shared across every VM spawned under this execution so that lambdas
     /// created in one VM (e.g. an `eval` expression) remain findable when
