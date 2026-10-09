@@ -149,6 +149,17 @@ type Operation =
   | ChildClosePort of handle : bigint * index : int
   | ChildBufferGet of handle : bigint * index : int
   | ChildBufferSet of handle : bigint * index : int * bytes : byte[]
+  /// Native test infrastructure. The store owner supplies the online backup;
+  /// the host owns the directory, process, bounded output and cleanup.
+  | IsolatedTest of
+    snapshot : (string -> Result<unit, string>) *
+    branch : System.Guid *
+    request : byte[] *
+    policyStore : byte[] *
+    access : byte[] *
+    timeoutMs : int *
+    columns : int *
+    rows : int
   | Posix of PosixOp
 
 // HTTP wire data. The error shape is inspired by Elm's HttpError
@@ -198,6 +209,12 @@ type Response =
   | ChildHandle of bigint
   | ChildDescriptors of List<bigint>
   | ChildStatus of Option<int>
+  | IsolatedTestOutcome of
+    exitCode : int *
+    stdout : string *
+    stderr : string *
+    result : Option<byte[]> *
+    cleanupErrors : List<string>
   | HttpServerHandle of int64
   /// Send-time failures (timeout, network, bad header) are guest-visible
   /// typed errors, not runtime errors, so they ride inside the response.
@@ -339,6 +356,7 @@ let describeOperation (op : Operation) : string =
   | Operation.ChildClosePort _ -> "child-close-port"
   | Operation.ChildBufferGet _ -> "child-buffer-get"
   | Operation.ChildBufferSet _ -> "child-buffer-set"
+  | Operation.IsolatedTest _ -> "isolated package test"
   | Operation.Posix p -> $"posix {posix p}"
 
 /// Remove secrets from outcome details before they reach the default audit

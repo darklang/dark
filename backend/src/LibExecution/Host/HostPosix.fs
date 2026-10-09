@@ -8,6 +8,12 @@ open Microsoft.Win32.SafeHandles
 open Prelude
 open LibExecution.HostKernel
 
+// Private worker launcher; the remaining host calls use HostKernel.
+[<DllImport("libc", EntryPoint = "setsid", SetLastError = true)>]
+extern int private setsid_raw()
+[<DllImport("libc", EntryPoint = "execv", SetLastError = true)>]
+extern int private execv_raw(IntPtr path, IntPtr argv)
+
 // -- Platform detection ---------------------------------------------
 let private isMac = RuntimeInformation.IsOSPlatform OSPlatform.OSX
 let private isArm64 = RuntimeInformation.ProcessArchitecture = Architecture.Arm64
@@ -796,6 +802,32 @@ let kill (pid : int) (signal : int) : Result<unit, int * string> =
   if isWasm then Managed.enosys ()
   else if kill_raw (pid, signal) < 0 then Error(lastError ())
   else Ok()
+
+/// Put the worker in its own process group so the parent can stop leftover
+/// descendants even after the worker exits.
+/// Replaces this launcher with the worker, keeping the same PID. That PID
+/// also identifies the process group the parent cleans up.
+let execInNewSession
+  (program : string)
+  (arguments : List<string>)
+  : Result<unit, int * string> =
+  if not isPosix then
+    Managed.enosys ()
+  elif setsid_raw () < 0 then
+    Error(lastError ())
+  else
+    let strings = (program :: arguments) |> List.map Marshal.StringToCoTaskMemUTF8
+    let argv = Marshal.AllocHGlobal((strings.Length + 1) * IntPtr.Size)
+    try
+      strings
+      |> List.iteri (fun i ptr -> Marshal.WriteIntPtr(argv, i * IntPtr.Size, ptr))
+      Marshal.WriteIntPtr(argv, strings.Length * IntPtr.Size, IntPtr.Zero)
+      execv_raw (strings[0], argv) |> ignore<int>
+      // A successful exec never returns.
+      Error(lastError ())
+    finally
+      Marshal.FreeHGlobal argv
+      strings |> List.iter Marshal.FreeCoTaskMem
 
 let fdRead (fd : int) (count : int) : Result<byte[], int * string> =
   if count < 0 then

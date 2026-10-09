@@ -471,6 +471,244 @@ let testAddAuthorsATest =
       do! discardAll state
     })
 
+let isolatedTestsRejectUnsuccessfulWorkers =
+  instanceTest
+    "isolated tests reject worker failures and missing results"
+    (fun state ->
+      task {
+        if LibExecution.HostLibc.isPosix then
+          do! start state
+          do! run state [ "permissions"; "allow"; "native" ]
+          let instance =
+            match state with
+            | Instance i -> i
+            | _ -> failtest "requires a disposable CLI instance"
+          let file = System.IO.Path.Combine(instance.dir, "worker-tests.dark")
+          System.IO.File.WriteAllText(
+            file,
+            """let stdinCheck () : Stdlib.Test.Result =
+  Stdlib.Cli.Stdin.isInteractive () |> Stdlib.Test.equal false
+let assertionFailure () : Stdlib.Test.Result =
+  Stdlib.printLine "{\"Pass\":[]}"
+  Stdlib.Test.fail "intentional isolation failure"
+test passes = Stdlib.Test.Process.isolated Tests.WorkerExit.stdinCheck
+test fails = Stdlib.Test.Process.isolated Tests.WorkerExit.assertionFailure
+"""
+          )
+          do! run state [ "module"; "Tests.WorkerExit"; file ]
+          for helper in [ "stdinCheck"; "assertionFailure" ] do
+            do!
+              run
+                state
+                [ "permissions"; "approve"; "Tests.WorkerExit." + helper; "--yes" ]
+          do!
+            exits
+              state
+              [ "test"; "--force"; "Tests.WorkerExit.passes" ]
+              0L
+              "the callback passes when its worker exits normally"
+          let wrapper = System.IO.Path.Combine(instance.dir, "worker-exits-17")
+          let witness = System.IO.Path.Combine(instance.dir, "worker-exits")
+          let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
+          System.IO.File.WriteAllText(
+            wrapper,
+            "#!/bin/sh\n"
+            + "export DARK_CLI_UNDER_TEST="
+            + quote wrapper
+            + "\n"
+            + quote (System.IO.Path.GetFullPath instance.cli)
+            + " \"$@\"\n"
+            + "rc=$?\n"
+            + "for arg in \"$@\"; do\n"
+            + "  if [ \"$arg\" = --test-worker ] && [ \"$rc\" -eq 0 ]; then\n"
+            + "    echo 17 >> "
+            + quote witness
+            + "\n"
+            + "    exit 17\n  fi\ndone\nexit \"$rc\"\n"
+          )
+          System.IO.File.SetUnixFileMode(
+            wrapper,
+            System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
+          )
+          let wrapped = Instance { instance with cli = wrapper }
+          let! (output, code) =
+            runCliWithStatus wrapped [ "test"; "--force"; "Tests.WorkerExit" ]
+          Expect.equal code 1 "a worker failure must fail the CLI command"
+          Expect.stringContains
+            output
+            "0 passed, 2 failed"
+            "neither result hides the exit"
+          Expect.stringContains
+            output
+            "Isolated test worker exited 17"
+            "exit is diagnosed"
+          Expect.stringContains
+            output
+            "intentional isolation failure"
+            "assertion failure is preserved"
+          Expect.equal
+            (System.IO.File.ReadAllLines witness)
+            [| "17"; "17" |]
+            "both workers produced a result and then exited unsuccessfully"
+          // A worker may exit before writing its result, even with exit code 0.
+          // Dark must reject both cases and preserve the diagnostic output.
+          for workerExit in [ 0; 23 ] do
+            System.IO.File.WriteAllText(
+              wrapper,
+              "#!/bin/sh\n"
+              + "export DARK_CLI_UNDER_TEST="
+              + quote wrapper
+              + "\nfor arg in \"$@\"; do\n"
+              + "  if [ \"$arg\" = --test-worker ]; then\n"
+              + "    echo 'worker stdout'\n    echo 'worker stderr' >&2\n"
+              + $"    exit {workerExit}\n  fi\ndone\n"
+              + "exec "
+              + quote (System.IO.Path.GetFullPath instance.cli)
+              + " \"$@\"\n"
+            )
+            let! (output, code) =
+              runCliWithStatus
+                wrapped
+                [ "test"; "--force"; "Tests.WorkerExit.passes" ]
+            Expect.equal code 1 "a missing result must fail the CLI command"
+            for message in
+              [ "0 passed, 1 failed"
+                $"Isolated test exited {workerExit} without a result:"
+                "worker stdout"
+                "worker stderr" ] do
+              Expect.stringContains output message "missing-result diagnostics"
+      })
+
+
+let testsUseInstanceAndFunctionPolicies =
+  instanceTest
+    "tests allow effects by default while preserving package and function policies"
+    (fun state ->
+      task {
+        do! start state
+        let source =
+          """let clock () : Bool =
+  let _ = Stdlib.DateTime.now ()
+  true
+let restricted () :{} Bool =
+  let _ = Stdlib.DateTime.now ()
+  true
+let caller () :{Native} Stdlib.Test.Result =
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) Tests.PermissionUse.clock () with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    match output.result with
+    | Ok _ -> Stdlib.Test.pass ()
+    | Error message -> Stdlib.Test.fail message
+test direct = Tests.PermissionUse.clock () |> Stdlib.Test.equal true
+test isolated =
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) Tests.PermissionUse.clock () with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    match output.result with
+    | Ok value -> value |> Stdlib.Test.equal true
+    | Error message -> Stdlib.Test.fail message
+test functionCeiling = Tests.PermissionUse.restricted () |> Stdlib.Test.equal true
+test callerCeiling = Tests.PermissionUse.caller ()
+"""
+        let sourceFile =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-test-permissions-{System.Guid.NewGuid():N}.dark"
+          )
+        try
+          System.IO.File.WriteAllText(sourceFile, source)
+          do!
+            exits
+              state
+              [ "module"; "Tests.PermissionUse"; sourceFile ]
+              0L
+              "author functions and their tests"
+        finally
+          System.IO.File.Delete sourceFile
+        let selected =
+          [ "test"
+            "--force"
+            "Tests.PermissionUse.direct"
+            "Tests.PermissionUse.isolated" ]
+        do!
+          shows
+            state
+            selected
+            "package policy"
+            "unapproved functions are denied in either execution mode"
+        do! exits state selected 1L "denials fail the test run"
+        do!
+          run
+            state
+            [ "permissions"; "approve"; "Tests.PermissionUse.clock"; "--yes" ]
+        do!
+          shows
+            state
+            selected
+            "2 passed, 0 failed"
+            "the same approval permits ordinary and isolated calls"
+        do!
+          exits
+            state
+            selected
+            0L
+            "approved functions run under the test instance policy"
+        do! run state [ "permissions"; "deny"; "clock" ]
+        let! savedPolicy = runCliPlain state [ "permissions"; "list" ]
+        do!
+          shows
+            state
+            selected
+            "2 passed, 0 failed"
+            "ordinary and isolated tests allow clock even when the installation denies it"
+        do! exits state selected 0L "tests have an allow-all instance boundary"
+        let! afterTests = runCliPlain state [ "permissions"; "list" ]
+        Expect.equal afterTests savedPolicy "tests do not rewrite the saved policy"
+        do!
+          shows
+            state
+            [ "eval"; "Tests.PermissionUse.clock ()" ]
+            "instance policy"
+            "ordinary eval still uses the installation's denial"
+        do!
+          exits
+            state
+            [ "eval"; "Tests.PermissionUse.clock ()" ]
+            1L
+            "eval stays denied"
+        for name in [ "restricted"; "caller" ] do
+          do!
+            run
+              state
+              [ "permissions"; "approve"; "Tests.PermissionUse." + name; "--yes" ]
+        do!
+          shows
+            state
+            [ "test"; "--force"; "Tests.PermissionUse.functionCeiling" ]
+            "function policy"
+            "the tested function's ceiling applies"
+        do!
+          exits
+            state
+            [ "test"; "--force"; "Tests.PermissionUse.functionCeiling" ]
+            1L
+            "an instance grant cannot widen a function"
+        do!
+          shows
+            state
+            [ "test"; "--force"; "Tests.PermissionUse.callerCeiling" ]
+            "function policy"
+            "captured caller restrictions survive isolation"
+        do!
+          exits
+            state
+            [ "test"; "--force"; "Tests.PermissionUse.callerCeiling" ]
+            1L
+            "isolating a callback cannot widen its caller"
+        do! discardAll state
+      })
+
 let searchFindsByText =
   instanceTest "search finds items by text" (fun state ->
     task {
@@ -1238,6 +1476,8 @@ let tests : List<Test> =
     assertionFailureMessagesAlwaysRun
     cachedPassesRequireTheSameBuildAndJudge
     testAddAuthorsATest
+    isolatedTestsRejectUnsuccessfulWorkers
+    testsUseInstanceAndFunctionPolicies
     searchFindsByText
     depsNamesWhatAnItemUses
     hashResolvesNamesLikeViewDoes

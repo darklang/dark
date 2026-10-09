@@ -545,6 +545,19 @@ type private Restriction = { layer : Layer; policy : Policy }
 type Access = private Access of List<Restriction>
 
 module Access =
+  /// Host transport preserves every existing restriction across a process boundary.
+  let layers (Access restrictions) : List<Layer * Policy> =
+    restrictions
+    |> List.map (fun restriction -> restriction.layer, restriction.policy)
+
+  let ofLayers (layers : List<Layer * Policy>) : Access =
+    match layers with
+    | [] -> Access [ { layer = Layer.Instance; policy = Policy.denyAll } ]
+    | _ ->
+      Access(
+        List.map (fun (layer, policy) -> { layer = layer; policy = policy }) layers
+      )
+
   let start (instancePolicy : Policy) : Access =
     Access [ { layer = Layer.Instance; policy = instancePolicy } ]
 

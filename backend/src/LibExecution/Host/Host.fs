@@ -942,6 +942,28 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.ChildBufferGet _
   | Operation.ChildBufferSet _ ->
     Error "child operation requires execution ownership"
+  | Operation.IsolatedTest(snapshot,
+                           branch,
+                           request,
+                           policyStore,
+                           access,
+                           timeoutMs,
+                           columns,
+                           rows) ->
+    withChecks
+      [ (Permission.Request.native "isolated test", "running an isolated test") ]
+      (blocking (fun () ->
+        HostProcess.runIsolatedTest
+          (HostProcess.currentExecutablePath ())
+          snapshot
+          branch
+          request
+          policyStore
+          access
+          timeoutMs
+          columns
+          rows
+        |> Result.map Response.IsolatedTestOutcome))
 
 // ── perform ───────────────────────────────────────────────────────────────────
 
