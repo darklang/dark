@@ -30,6 +30,7 @@ let leadingSpaces (line: String) : Int =
 
 /// The hints for one function of the document.
 let hintsFor
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
   (docLines: List<String>)
   (item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>)
@@ -44,7 +45,7 @@ let hintsFor
   match headerLine with
   | None -> []
   | Some headerLine ->
-    match Stdlib.Live.Values.replay branchId item.location with
+    match Stdlib.Live.Values.replay accountID branchId item.location with
     | None -> []
     | Some values ->
       let rendered =
@@ -176,7 +177,7 @@ let handleInlayHintRequest
       let docLines = Stdlib.String.split doc.text "\n"
 
       fnsIn state.currentBranchId uri
-      |> Stdlib.List.map (fun item -> hintsFor state.currentBranchId docLines item)
+      |> Stdlib.List.map (fun item -> hintsFor state.accountID state.currentBranchId docLines item)
       |> Stdlib.List.flatten
 
   let response =

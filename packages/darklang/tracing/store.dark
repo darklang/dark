@@ -230,12 +230,13 @@ let viewTraceTree
 /// This is the FLAT view: one value per expression, the last one executed, which is what puts
 /// `// = 140` beside a line. `viewTraceTree` is the same replay with the frames as well.
 let viewTrace
+  (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
   (traceID: String)
   : (List<(Int64 * LanguageTools.RuntimeTypes.Dval)> * Stdlib.Option.Option<ReplayStop>) =
   // Through `viewTraceTree` rather than the builtin: one Dark wrapper per builtin is the
   // rule, and a second reference to `cliViewTrace` is what the builtin-access test catches.
-  let (values, _frames, _frameValues, problem) = viewTraceTree Stdlib.Option.Option.None branchId traceID []
+  let (values, _frames, _frameValues, problem) = viewTraceTree accountID branchId traceID []
 
   (values, problem)
 

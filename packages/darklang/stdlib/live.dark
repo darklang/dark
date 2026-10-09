@@ -759,10 +759,11 @@ module Values =
   /// card. Replaying the whole run answers every effect from the log instead, and because the
   /// pure code is recomputed, the values follow an edit to a callee.
   let replay
+    (accountID: Option.Option<Uuid>)
     (branchId: Uuid)
     (entry: LanguageTools.ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Values> =
-    replayWithin 1000L 500 branchId entry
+    replayWithin 1000L 500 accountID branchId entry
 
 
   /// `replay`, refusing a recorded run that took longer than <param maxDurationMs> or went
@@ -776,6 +777,7 @@ module Values =
   let replayWithin
     (maxDurationMs: Int64)
     (maxFns: Int)
+    (accountID: Option.Option<Uuid>)
     (branchId: Uuid)
     (entry: LanguageTools.ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<Values> =
@@ -793,7 +795,7 @@ module Values =
               skipped = Stdlib.Option.Option.Some why }
         )
       else
-      let (collected, stop) = Darklang.Tracing.Store.viewTrace branchId newest.id
+      let (collected, stop) = Darklang.Tracing.Store.viewTrace accountID branchId newest.id
 
       // Rendered here, not stored as the stop: this is stdlib, so it cannot reach the CLI's
       // converter, and a caller holding a `ReplayStop` would have to render it anyway. The

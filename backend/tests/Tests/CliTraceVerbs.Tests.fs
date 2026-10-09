@@ -1372,6 +1372,47 @@ let private psListsTheTree =
       })
 
 
+let private previewUsesTheViewersApprovals =
+  instanceTest "trace previews use the viewer's account approvals" (fun state ->
+    task {
+      do! run state [ "login"; "Stachu" ]
+      do! run state [ "traces"; "record"; "on" ]
+      do!
+        fn
+          state
+          "Tests.PreviewAccount.value"
+          "() : String = Stdlib.toString (Stdlib.Uuid.generate ())"
+      do! run state [ "permissions"; "approve"; "Tests.PreviewAccount.value" ]
+      let! ran = runCliPlain state [ "eval"; "Tests.PreviewAccount.value ()" ]
+      let recorded = ran.Trim().Trim('"')
+      Expect.isTrue
+        (System.Guid.TryParse recorded |> fst)
+        $"the approved call produced a UUID: {ran}"
+
+      for flags in [ []; [ "--json" ] ] do
+        let! viewed =
+          runCliPlain
+            state
+            ([ "traces"; "show"; "Tests.PreviewAccount.value" ] @ flags)
+        Expect.stringContains
+          viewed
+          recorded
+          "the viewer's approval applies to replay"
+
+      // A trace owner's approval must not grant another viewer its effects.
+      do! run state [ "login"; "Paul" ]
+      let! denied =
+        runCliPlain state [ "traces"; "show"; "Tests.PreviewAccount.value" ]
+      Expect.stringContains
+        denied
+        "permission denied"
+        "another account has no approval"
+      Expect.isFalse
+        (denied.Contains recorded)
+        "the refused replay supplies no value"
+    })
+
+
 let tests =
   [ recordThenResume
     forkDivergesAfterThePosition
@@ -1382,6 +1423,7 @@ let tests =
     previewShowsValuesAndPerformsNothing
     previewOfASpawnServesTheChildFromTheLog
     identicalCallsKeepTheirOwnValues
+    previewUsesTheViewersApprovals
     pureLoopPassesAreCounted
     recursionIsALoopAndEmptyIterationsStaySilent
     everyIterationOfALoopIsReachable

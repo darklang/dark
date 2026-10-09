@@ -1174,7 +1174,7 @@ let private annotatedPrint (owner : string) (modul : string) (name : string) =
   $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}"; modules = ["{modul}"]; name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
-  match Darklang.Stdlib.Live.Values.replay bid loc with
+  match Darklang.Stdlib.Live.Values.replay None bid loc with
   | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map (fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval bid d)
   | None -> Darklang.Stdlib.Dict.empty
 let base = Darklang.PrettyPrinter.ProgramTypes.Context.forModule bid ["{owner}", "{modul}"]
@@ -1194,7 +1194,7 @@ let private plainAndAnnotated (owner : string) (modul : string) (name : string) 
   $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}"; modules = ["{modul}"]; name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
-  match Darklang.Stdlib.Live.Values.replay bid loc with
+  match Darklang.Stdlib.Live.Values.replay None bid loc with
   | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map (fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval bid d)
   | None -> Darklang.Stdlib.Dict.empty
 let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
@@ -1388,7 +1388,7 @@ let r = Darklang.LanguageTools.PackageManager.Search.search bid q
 let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; traits = []; impls = []; exprs = [] }
 let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
 r.fns
-|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
+|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor None bid docLines item)
 |> Darklang.Stdlib.List.flatten
 |> Darklang.Stdlib.List.map (fun h -> Darklang.Stdlib.toString h.position.line)"""
         let lines =
@@ -1475,7 +1475,7 @@ let r = Darklang.LanguageTools.PackageManager.Search.search bid q
 let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; traits = []; impls = []; exprs = [] }
 let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
 r.fns
-|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
+|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor None bid docLines item)
 |> Darklang.Stdlib.List.flatten
 |> Darklang.Stdlib.List.map (fun h -> (Darklang.Stdlib.toString h.position.line) + ":" + (Darklang.Stdlib.toString h.position.character) + " " + h.label)"""
         let hints =
@@ -1513,7 +1513,7 @@ r.fns
         let! failed =
           evalUnder
             state
-            """match Darklang.Stdlib.Live.Values.replay Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = "Tests"; modules = ["LiveVals"]; name = "greet" }) with
+            """match Darklang.Stdlib.Live.Values.replay None Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = "Tests"; modules = ["LiveVals"]; name = "greet" }) with
 | Some v -> (false, Darklang.Stdlib.Dict.size v.byExpr, v.problem)
 | None -> (false, 0, Darklang.Stdlib.Option.Option.Some "no trace")"""
         match failed with
@@ -1549,7 +1549,7 @@ let private liveValuesStayBounded =
         Expect.stringContains out "42" "the call ran"
 
         let within (ms : string) (fns : string) =
-          $"""match Darklang.Stdlib.Live.Values.replayWithin {ms} {fns} Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests"; modules = ["LiveBound"]; name = "inc" }}) with
+          $"""match Darklang.Stdlib.Live.Values.replayWithin {ms} {fns} None Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests"; modules = ["LiveBound"]; name = "inc" }}) with
 | Some v -> (Darklang.Stdlib.Dict.size v.byExpr, Darklang.Stdlib.Option.withDefault v.skipped "")
 | None -> (-1, "no trace")"""
         let expectSkipped (label : string) (ms : string) (fns : string) =
