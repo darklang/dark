@@ -290,6 +290,36 @@ let fileTests () : Test =
   // with the 'extra' things defined in the test modules.
   let pmPT = LibDB.PackageManager.pt
 
+  // Both legacy testfiles and migrated package tests define trait helpers,
+  // such as Shapes.Show for Int in language/traits.dark. Hide package-test
+  // implementations from the legacy runner so lookup uses its own fixtures
+  // without interference from migrated copies. Keep implementations also
+  // bound outside package tests.
+  // CLEANUP: Remove this filter when the legacy testfile runner is removed.
+  let withoutPackageTestImpls (impls : List<PT.TraitImpl.TraitImpl>) =
+    uply {
+      let! kept =
+        impls
+        |> Ply.List.mapSequentially (fun impl ->
+          uply {
+            let! locations = pmPT.getTraitImplLocations impl.hash
+            let onlyTestLocations =
+              not (List.isEmpty locations)
+              && List.forall
+                (fun (loc : PT.PackageLocation) ->
+                  loc.owner = "Darklang" && List.contains "Tests" loc.modules)
+                locations
+            return if onlyTestLocations then None else Some impl
+          })
+      return List.choose (fun impl -> impl) kept
+    }
+
+  let pmPT =
+    { pmPT with
+        impls = fun hash -> pmPT.impls hash |> Ply.bind withoutPackageTestImpls
+        implsWithMethod =
+          fun name -> pmPT.implsWithMethod name |> Ply.bind withoutPackageTestImpls }
+
   let parseTestFile fileName =
     LibParser.TestModule.parseTestFile "Tests" (localBuiltIns pmPT) pmPT fileName
 

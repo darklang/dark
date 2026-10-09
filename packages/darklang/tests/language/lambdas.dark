@@ -1,0 +1,183 @@
+/// Lambda cases from `backend/testfiles/execution/language/elambda.dark`.
+module Darklang.Language.Tests.Lambdas
+
+// CLEANUP fix equality checks of lambdas
+// Stdlib.List.push [] (fun x -> -4.611686018e+18)
+// |> Stdlib.Test.equal [ (fun x -> -4.611686018e+18) ]
+//
+// Not a legacy assertion: lambda equality compares expressions, not bodies, so
+// two separately written lambdas are not equal, and one lambda equals itself.
+test lambdaEquality =
+  Stdlib.Test.all
+    [ (Stdlib.List.push [] (fun x -> -4.611686018e+18)
+       == [ (fun x -> -4.611686018e+18) ])
+      |> Stdlib.Test.equal false
+      (let fn = fun x -> -4.611686018e+18
+       Stdlib.List.push [] fn == [ fn ])
+      |> Stdlib.Test.equal true ]
+
+test mapAndApply =
+  Stdlib.Test.all
+    [ // Test that empty parameters are removed
+      (let y = (fun x ___ -> x + 1L)
+       Stdlib.List.map [ 1L, 2L, 3L, 4L ] y)
+      |> Stdlib.Test.equal [ 2L, 3L, 4L, 5L ]
+      (let y = (fun x -> x + 1L)
+       Stdlib.List.map [ 1L, 2L, 3L, 4L ] y)
+      |> Stdlib.Test.equal [ 2L, 3L, 4L, 5L ]
+      (let y = (fun a b -> a + b) in y 2L 3L) |> Stdlib.Test.equal 5L
+      (let y = (fun (a, b) -> a + b) in y (2L, 3L)) |> Stdlib.Test.equal 5L
+      (let y = (fun msg -> Stdlib.Test.raiseRuntimeError msg)
+       Stdlib.List.map [] y)
+      |> Stdlib.Test.equal []
+      (let y = (fun a b -> a * b) in Stdlib.List.fold [ 1L, 2L, 3L, 4L ] 1L y)
+      |> Stdlib.Test.equal 24L ]
+
+// Differs from legacy: the `RuntimeError` cases in this file raise with
+// `Stdlib.Test.raiseRuntimeError`; legacy used the backend-only
+// `Builtin.testRuntimeError`.
+test mapRaisesFirstCallbackError =
+  (let y = (fun msg -> Stdlib.Test.raiseRuntimeError msg)
+   Stdlib.List.map [ "1", "2", "3", "4" ] y)
+  => raises "Uncaught exception: 1"
+
+test foldRaisesCallbackArgError =
+  (Stdlib.List.fold [ 4L ] 1L (Stdlib.Test.raiseRuntimeError "test"))
+  => raises "Uncaught exception: test"
+
+// Not a legacy assertion: an error inside the fold callback's body propagates.
+test foldRaisesCallbackBodyError =
+  Stdlib.List.fold [ 4 ] 1 (fun _ _ -> (1 / 0)) => raises "Cannot divide by 0"
+
+test capturedBindings =
+  (let x = 5L
+   let y = (fun c -> x + c)
+   let x = 6L
+   [ 1L, 2L, 3L, 4L ] |> Stdlib.List.map y)
+  |> Stdlib.Test.equal [ 6L, 7L, 8L, 9L ]
+
+test stringJoinOfMap =
+  (Stdlib.String.join
+    (Stdlib.List.map (Stdlib.String.toList "some string") (fun var ->
+      Stdlib.String.toUppercase (Stdlib.String.fromChar var)))
+    "")
+  |> Stdlib.Test.equal "SOME STRING"
+
+test mapRaisesWhenCallbackErrors =
+  (let y = (fun c -> if c > 2L then Stdlib.Test.raiseRuntimeError "err" else 18L)
+   [ 1L, 2L, 3L, 4L ] |> Stdlib.List.map y)
+  => raises "Uncaught exception: err"
+
+test mapSkipsErrorBranch =
+  (let y = (fun c -> if c > 2L then Stdlib.Test.raiseRuntimeError "err" else 18L)
+   [ 1L, 2L ] |> Stdlib.List.map y)
+  |> Stdlib.Test.equal [ 18L, 18L ]
+
+test closures =
+  Stdlib.Test.all
+    [ (let t = true in Stdlib.List.all [ 1L, 2L ] (fun _ -> t))
+      |> Stdlib.Test.equal true
+      (let f = false in Stdlib.List.all [ 1L, 2L ] (fun _ -> f))
+      |> Stdlib.Test.equal false
+      (let x = 1L
+       let f = fun _ -> x
+       let x = 2L
+       Stdlib.List.map [ 1L, 2L, 3L ] f)
+      |> Stdlib.Test.equal [ 1L, 1L, 1L ] ]
+
+test tuplePatterns =
+  Stdlib.Test.all
+    [ (let pairs = [ (1L, "one"), (2L, "two"), (3L, "three") ]
+       let transformer = fun (num, str) -> $"{Stdlib.toString num}:{str}"
+       Stdlib.List.map pairs transformer)
+      |> Stdlib.Test.equal [ "1:one", "2:two", "3:three" ]
+      (let triplets = [ (1L, "one", true), (2L, "two", false) ]
+
+       let transformer =
+         fun (num, str, flag) ->
+           if flag then
+             $"{Stdlib.toString num}:{str}:TRUE"
+           else
+             $"{Stdlib.toString num}:{str}:FALSE"
+
+       Stdlib.List.map triplets transformer)
+      |> Stdlib.Test.equal [ "1:one:TRUE", "2:two:FALSE" ]
+      // nested
+      (let sing = [ (("1"), "2"), (("3"), "4") ]
+
+       let transformer = fun ((str1), str2) -> str1 + str2
+       Stdlib.List.map sing transformer)
+      |> Stdlib.Test.equal [ "12", "34" ]
+      // Nested tuple lambda destructuring regression test.
+      // Keep this coverage in place to catch parser/lowering regressions.
+      (let triplets = [ ((1L, "one"), true), ((2L, "two"), false) ]
+
+       let transformer =
+         fun ((num, str), flag) ->
+           if flag then
+             $"{Stdlib.toString num}:{str}:TRUE"
+           else
+             $"{Stdlib.toString num}:{str}:FALSE"
+
+       Stdlib.List.map triplets transformer)
+      |> Stdlib.Test.equal [ "1:one:TRUE", "2:two:FALSE" ] ]
+
+test tuplePatternArityRaises =
+  (let triplets = [ (1L, "one", true), (2L, "two", false) ]
+   let transformer = fun (num, str) -> $"{Stdlib.toString num}:{str}"
+   Stdlib.List.map triplets transformer)
+  => raises
+    "Could not deconstruct value (1, \"one\", true) into pattern ([variable], [variable])"
+
+test dictMapPatterns =
+  Stdlib.Test.all
+    [ Stdlib.Dict.map
+        (Dict
+          { "key1": ("val11", "val12")
+            "key2": ("val21", "val22") })
+        (fun x (y, z) -> x + y + z)
+      |> Stdlib.Test.equal
+        (Dict { "key2": "key2val21val22"; "key1": "key1val11val12" })
+      (Stdlib.Dict.map
+        (Dict { "key1": ("val11", "val12"); "key2": ("val21", "val22") })
+        (fun x (_, z) -> x + z))
+      |> Stdlib.Test.equal (Dict { "key2": "key2val22"; "key1": "key1val12" }) ]
+
+// Regression check: applying a function directly from a record field.
+module LambdaInRecordField =
+  type RecordWithFn = { fn: Int64 -> Int64 }
+
+  // check: can we apply a function from a record field directly?
+  test applyRecordFieldFn =
+    (let record = RecordWithFn { fn = fun x -> x + 1L }
+     (record.fn 6L))
+    |> Stdlib.Test.equal 7L
+
+// Not a legacy assertion; from scripts/perf/checks. Assert the two
+// borrowed-VM lambda frames as well as the error: merely checking the division
+// error would miss a lost call stack.
+let nestedMapError () : Int64 =
+  let grid = [[1L, 2L], [3L, 4L]]
+  let ys = grid |> Stdlib.List.map (fun row ->
+    row |> Stdlib.List.map (fun x -> if x == 3L then x / 0L else x))
+  let _ = ys
+  0L
+
+test nestedMapErrorKeepsBothLambdaFrames =
+  match Stdlib.Test.Process.run (Stdlib.Test.Process.defaults ()) nestedMapError () with
+  | Error message -> Stdlib.Test.fail message
+  | Ok output ->
+    let rendered = output.stdout + output.stderr
+    let lambdaFrames =
+      rendered
+      |> Stdlib.String.split "\n"
+      |> Stdlib.List.filter (fun line -> Stdlib.String.startsWith line "- Lambda")
+    Stdlib.Test.all
+      [ output.exitCode |> Stdlib.Test.notEqual 0
+        Stdlib.List.length lambdaFrames |> Stdlib.Test.equal 2
+        (lambdaFrames
+         |> Stdlib.List.filter (fun line -> Stdlib.String.contains line "(×")
+         |> Stdlib.List.length)
+        |> Stdlib.Test.equal 0
+        Stdlib.String.contains rendered "Cannot divide by 0"
+        |> Stdlib.Test.equal true ]

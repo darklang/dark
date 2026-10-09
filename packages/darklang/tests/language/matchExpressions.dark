@@ -1,0 +1,922 @@
+/// Pattern-matching cases from
+/// `backend/testfiles/execution/language/flow-control/ematch.dark`.
+module Darklang.Language.Tests.MatchExpressions
+
+// One module for each type of pattern.
+// In each module, there should be at least 2 error tests, one checking the
+// incorrect dval for that pattern, and one checking the incorrect pattern for that
+// dval. (The error checking in the interpreter tests is at the pattern side, not
+// the dval side)
+
+test int64Patterns =
+  Stdlib.Test.all
+    [ (match 6L with
+       | 5L -> "fail"
+       | -6L -> "fail"
+       | 6L -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6L with
+       | 6L -> "pass"
+       | 5L -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6L with
+       | var -> "pass"
+       | 6L -> "fail"
+       | 5L -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 999999999999999L with
+       | 0L -> "fail"
+       | 999999999999999L -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test uint64Patterns =
+  Stdlib.Test.all
+    [ (match 6UL with
+       | 5UL -> "fail"
+       | 6UL -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6UL with
+       | 6UL -> "pass"
+       | 5UL -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6UL with
+       | var -> "pass"
+       | 6UL -> "fail"
+       | 5UL -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 18446744073709551615UL with
+       | 0UL -> "fail"
+       | 18446744073709551615UL -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test int8Patterns =
+  Stdlib.Test.all
+    [ (match 6y with
+       | 5y -> "fail"
+       | -6y -> "fail"
+       | 6y -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6y with
+       | 6y -> "pass"
+       | 5y -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6y with
+       | var -> "pass"
+       | 6y -> "fail"
+       | 5y -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 127y with
+       | 0y -> "fail"
+       | 127y -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test uint8Patterns =
+  Stdlib.Test.all
+    [ (match 6uy with
+       | 5uy -> "fail"
+       | 6uy -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6uy with
+       | 6uy -> "pass"
+       | 5uy -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6uy with
+       | var -> "pass"
+       | 6uy -> "fail"
+       | 5uy -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 255uy with
+       | 0uy -> "fail"
+       | 255uy -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test int16Patterns =
+  Stdlib.Test.all
+    [ (match 6s with
+       | 5s -> "fail"
+       | -6s -> "fail"
+       | 6s -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6s with
+       | 6s -> "pass"
+       | 5s -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6s with
+       | var -> "pass"
+       | 6s -> "fail"
+       | 5s -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 32767s with
+       | 0s -> "fail"
+       | 32767s -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test uint16Patterns =
+  Stdlib.Test.all
+    [ (match 6us with
+       | 5us -> "fail"
+       | 6us -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6us with
+       | 6us -> "pass"
+       | 5us -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6us with
+       | var -> "pass"
+       | 6us -> "fail"
+       | 5us -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 65535us with
+       | 0us -> "fail"
+       | 65535us -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test int32Patterns =
+  Stdlib.Test.all
+    [ (match 6l with
+       | 5l -> "fail"
+       | -6l -> "fail"
+       | 6l -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6l with
+       | 6l -> "pass"
+       | 5l -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6l with
+       | var -> "pass"
+       | 6l -> "fail"
+       | 5l -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 2147483647l with
+       | 0l -> "fail"
+       | 2147483647l -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test uint32Patterns =
+  Stdlib.Test.all
+    [ (match 6ul with
+       | 5ul -> "fail"
+       | 6ul -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6ul with
+       | 6ul -> "pass"
+       | 5ul -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6ul with
+       | var -> "pass"
+       | 6ul -> "fail"
+       | 5ul -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 4294967295ul with
+       | 0ul -> "fail"
+       | 4294967295ul -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test int128Patterns =
+  Stdlib.Test.all
+    [ (match 6Q with
+       | 5Q -> "fail"
+       | -6Q -> "fail"
+       | 6Q -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6Q with
+       | 6Q -> "pass"
+       | 5Q -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6Q with
+       | var -> "pass"
+       | 6Q -> "fail"
+       | 5Q -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 170141183460469231731687303715884105727Q with
+       | 0Q -> "fail"
+       | 170141183460469231731687303715884105727Q -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test uint128Patterns =
+  Stdlib.Test.all
+    [ (match 6Z with
+       | 5Z -> "fail"
+       | 6Z -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6Z with
+       | 6Z -> "pass"
+       | 5Z -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6Z with
+       | var -> "pass"
+       | 6Z -> "fail"
+       | 5Z -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 340282366920938463463374607431768211455Z with
+       | 0Z -> "fail"
+       | 340282366920938463463374607431768211455Z -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test stringPatterns =
+  Stdlib.Test.all
+    [ (match "x" with
+       | "y" -> "fail"
+       | "" -> "pass"
+       | "xx" -> "pass"
+       | "x" -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match "x" with
+       | "x" -> "pass"
+       | "y" -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match "x" with
+       | var -> $"pass: {var}"
+       | "x" -> "fail"
+       | "y" -> "fail")
+      |> Stdlib.Test.equal "pass: x" ]
+
+test boolPatterns =
+  Stdlib.Test.all
+    [ (match true with
+       | false -> "fail"
+       | true -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match true with
+       | true -> "pass"
+       | false -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match true with
+       | var -> if var then "pass" else "fail"
+       | true -> "fail"
+       | false -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match false with
+       | true -> "fail"
+       | false -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match false with
+       | var -> if var then "fail" else "pass"
+       | false -> "fail"
+       | true -> "fail")
+      |> Stdlib.Test.equal "pass" ]
+
+test floatPatterns =
+  Stdlib.Test.all
+    [ (match 6.5 with
+       | 5.5 -> "fail"
+       | -6.5 -> "fail"
+       | 6.5 -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6.5 with
+       | 6.5 -> "pass"
+       | 5.5 -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 6.5 with
+       | var -> $"pass: {Stdlib.toString var}"
+       | 6.5 -> "fail"
+       | 5.5 -> "fail")
+      |> Stdlib.Test.equal "pass: 6.5"
+      // CLEANUP negative -0.0 different from 0.0?
+      // (match 0.0 with
+      //  | -0.0 -> "fail1"
+      //  | 0.0 -> "pass"
+      //  | var -> "fail2")
+      // |> Stdlib.Test.equal "pass"
+      (match -4.7 with
+       | 4.7 -> "fail"
+       | -4.7 -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match -4.7 with
+       | var -> $"pass: {Stdlib.toString var}"
+       | -4.7 -> "fail"
+       | 4.7 -> "fail")
+      |> Stdlib.Test.equal "pass: -4.7" ]
+
+// Not a legacy assertion: float patterns use numeric equality, so either signed
+// zero matches whichever zero pattern comes first.
+test signedZeroPatterns =
+  Stdlib.Test.all
+    [ (match 0.0 with
+       | -0.0 -> "negative pattern first"
+       | 0.0 -> "positive pattern second"
+       | _ -> "neither")
+      |> Stdlib.Test.equal "negative pattern first"
+      (match -0.0 with
+       | 0.0 -> "positive pattern first"
+       | -0.0 -> "negative pattern second"
+       | _ -> "neither")
+      |> Stdlib.Test.equal "positive pattern first" ]
+
+test unitPatterns =
+  Stdlib.Test.all
+    [ (match () with
+       | () -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match () with
+       | var -> "pass"
+       | () -> "fail")
+      |> Stdlib.Test.equal "pass" ]
+
+test charPatterns =
+  Stdlib.Test.all
+    [ (match 'a' with
+       | 'b' -> "fail"
+       | 'a' -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 'a' with
+       | 'a' -> "pass"
+       | 'b' -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 'a' with
+       | var -> $"pass: {Stdlib.toString var}"
+       | 'a' -> "fail"
+       | 'b' -> "fail")
+      |> Stdlib.Test.equal "pass: a"
+      (match 'c' with
+       | 'd' -> "fail"
+       | 'c' -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match 'c' with
+       | var -> $"pass"
+       | 'c' -> "fail"
+       | 'd' -> "fail")
+      |> Stdlib.Test.equal "pass" ]
+
+test listPatterns =
+  Stdlib.Test.all
+    [ (match [ 1L, 2L, 3L ] with
+       | [] -> "fail"
+       | [ 1L, 2L, 3L ] -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match [ 1L, 2L, 3L ] with
+       | [ 1L, 2L, 3L ] -> "pass"
+       | [] -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match [ 1L, 2L, 3L ] with
+       | var ->
+         let length = (Stdlib.List.length var) |> Stdlib.toString
+
+         $"pass with length: {length}"
+       | [ 1L, 2L, 3L ] -> "fail"
+       | [] -> "fail")
+      |> Stdlib.Test.equal "pass with length: 3"
+      (match [] with
+       | [] -> "pass"
+       | [ 1L, 2L, 3L ] -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match [ 1L, 2L, 3L ] with
+       | [ 1L, 2L ] -> "fail"
+       | [ 1L, 2L, 3L, 4L ] -> "fail"
+       | [ 1L, 2L, 3L ] -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match [ 1L, 2L, 3L ] with
+       | head :: tail -> $"pass"
+       | [] -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match [] with
+       | head :: tail -> "fail"
+       | [] -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test nestedListPatterns =
+  Stdlib.Test.all
+    [ (match [ [ 1L, 2L ], [ 3L, 4L ] ] with
+       | [] -> "fail"
+       | [ [ 1L, 2L ], [ 3L, 4L ] ] -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match [ [ 1L, 2L ], [ 3L, 4L ] ] with
+       | [ [ 1L, 2L ], [ 3L, 4L ] ] -> "pass"
+       | [] -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match [ [ 1L, 2L ], [ 3L, 4L ] ] with
+       | [ a, b ] -> $"pass"
+       | [] -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match [ [ 1L, 2L ], [] ] with
+       | [ [], _ ] -> "fail"
+       | [ [ 1L, 2L ], _ ] -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match [ [ 1L, 2L ], [ 3L, 4L, 5L ] ] with
+       | [ [ 1L, 2L ], [ _ ] ] -> "fail"
+       | [ [ 1L, 2L ], [ _, _ ] ] -> "fail"
+       | [ [ 1L, 2L ], [ _, _, _ ] ] -> "pass")
+      |> Stdlib.Test.equal "pass"
+      (match [ [ 1L, 2L ], [ 3L, 4L ] ] with
+       | [ [ 1L, 2L, 3L ], [ 4L, 5L, 6L ] ] -> "fail"
+       | [ _, [ 3L, _ ] ] -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass" ]
+
+// head tail
+let headTail (list: List<Int64>) : (Int64 * List<Int64>) =
+  match list with
+  | head :: tail -> (head, tail)
+  | [] -> (0L, [])
+
+// heads tail
+let sequence (list: List<Int64>) : Int64 =
+  match list with
+  | a :: b :: c :: rest -> a + b + c
+  | a :: b :: rest -> a + b - 1L
+  | [] -> 0L
+  | _ -> -1L
+
+// nested
+let complexSum (list: List<List<Int64>>) : Int64 =
+  match list with
+  | (a1 :: a2 :: ar) :: (b1 :: b2 :: br) :: (c1 :: cr) :: rest ->
+    a1 + a2 + b1 + b2 + c1
+  | (a :: ar) :: (b :: brest) :: rest -> a + b
+  | _ -> 0L
+
+test consPatterns =
+  Stdlib.Test.all
+    [ (match [ 1L, 2L, 3L ] with
+       | 1L :: 2L :: [ 3L ] -> 42L)
+      |> Stdlib.Test.equal 42L
+      (match [ 1L, 2L, 3L ] with
+       | 1L :: 2L :: [ 3L ] -> 42L
+       | [] -> 4L
+       | _ -> 2L)
+      |> Stdlib.Test.equal 42L
+      (match [ 1L, 2L, 3L ] with
+       | [] -> 4L
+       | 1L :: 2L :: [ 3L ] -> 42L
+       | _ -> 2L)
+      |> Stdlib.Test.equal 42L
+      (match [ 1L, 2L, 3L ] with
+       | _ -> 2L
+       | 1L :: 2L :: [ 3L ] -> 42L
+       | [] -> 4L)
+      |> Stdlib.Test.equal 2L
+      (match [ 1L, 2L, 3L ] with
+       | head :: rest -> head + (rest |> Stdlib.List.head |> Builtin.unwrap))
+      |> Stdlib.Test.equal 3L
+      // head tail
+      (headTail [])
+      |> Stdlib.Test.equal (0L, [])
+      (headTail [ 1L ])
+      |> Stdlib.Test.equal (1L, [])
+      (headTail [ 1L, 2L ])
+      |> Stdlib.Test.equal (1L, [ 2L ])
+      (headTail [ 1L, 2L, 3L ])
+      |> Stdlib.Test.equal (1L, [ 2L, 3L ])
+      (match [ "dd", "aa", "fff", "gg" ] with
+       | head :: tail -> (head, tail))
+      |> Stdlib.Test.equal ("dd", [ "aa", "fff", "gg" ])
+      // heads tail
+      (sequence [])
+      |> Stdlib.Test.equal 0L
+      (sequence [ 1L ])
+      |> Stdlib.Test.equal -1L
+      (sequence [ 1L, 2L ])
+      |> Stdlib.Test.equal 2L
+      (sequence [ 1L, 2L, 3L ])
+      |> Stdlib.Test.equal 6L
+      (sequence [ 1L, 2L, 3L, 0L ])
+      |> Stdlib.Test.equal 6L
+      // nested
+      (complexSum [])
+      |> Stdlib.Test.equal 0L
+      (complexSum [ [ 1L, 2L ], [ 3L, 4L ] ])
+      |> Stdlib.Test.equal 4L
+      (complexSum [ [ 1L, 2L, 3L ], [ 3L, 4L, 5L ], [ 4L, 5L, 6L ] ])
+      |> Stdlib.Test.equal 14L
+      // wildcard
+      (match [ 1L, 2L, 3L, 4L ] with
+       | 1L :: a :: [ 4L, 3L ] -> a + 1L
+       | _ :: a :: _ -> a + 2L
+       | 1L :: a :: rest -> a + 3L)
+      |> Stdlib.Test.equal 4L
+      // misc
+      (match [ 1L, 2L, 3L, 4L ] with
+       | 2L :: a :: [ 3L, 4L ] -> a + 1L
+       | 1L :: a :: [ 4L, 3L ] -> a + 2L
+       | 1L :: a :: [ 3L, 4L ] -> a + 3L
+       | 1L :: a :: rest -> a + 4L)
+      |> Stdlib.Test.equal 5L
+      (match [ 1L, 2L, 3L, 4L ] with
+       | 2L :: a :: rest -> a - 1L
+       | 1L :: a :: rest -> a * 2L)
+      |> Stdlib.Test.equal 4L ]
+
+test tuplePatterns =
+  Stdlib.Test.all
+    [ (match (1L, 'a') with
+       | (2L, 'b') -> "fail"
+       | (1L, 'a') -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match (1L, 'a') with
+       | (1L, 'a') -> "pass"
+       | (2L, 'b') -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match (1L, 'a') with
+       | (x, y) -> $"pass"
+       | (2L, 'b') -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match (1L, 'a', true) with
+       | (1L, _, true) -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match (1L, 'a') with
+       | (1L, 'a', true) -> "fail"
+       | (1L, 'a') -> "pass")
+      |> Stdlib.Test.equal "pass"
+      (match (true, [ 1L, 2L ]) with
+       | (true, [ 1L, 2L, 3L ]) -> "fail"
+       | (false, _) -> "fail"
+       | (true, [ 1L, 2L ]) -> "pass")
+      |> Stdlib.Test.equal "pass" ]
+
+test nestedTuplePatterns =
+  Stdlib.Test.all
+    [ (match ((1L, 'a'), (true, 2.0)) with
+       | ((2L, 'b'), (false, 3.0)) -> "fail"
+       | ((1L, 'a'), (true, 2.0)) -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match ((1L, 'a'), (true, 2.0)) with
+       | ((1L, 'a'), _) -> "pass"
+       | ((2L, 'b'), _) -> "fail"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match ((1L, 'a'), (true, 2.0)) with
+       | (_, (true, _)) -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match ((1L, 'a'), (true, 2.0)) with
+       | ((_, 'a'), (true, _)) -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match ((1L, 'a'), (true, 2.0)) with
+       | ((1L, _), (_, 3.0)) -> "fail"
+       | ((1L, _), (_, 2.0)) -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match ((1L, 'a'), (true, 2.0)) with
+       | ((_, _), (_, _)) -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match ((1L, 'a'), (true, 2.0)) with
+       | ((_, _), _) -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass" ]
+
+test resultPatterns =
+  Stdlib.Test.all
+    [ (match Stdlib.Result.Result.Ok 5L with
+       | Ok 6L -> "fail"
+       | Error _ -> "fail"
+       | Ok 5L -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Result.Result.Ok 5L with
+       | Ok 5L -> "pass"
+       | Error _ -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Result.Result.Error "failure" with
+       | Ok _ -> "fail"
+       | Error "success" -> "fail"
+       | Error "failure" -> "pass")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Result.Result.Error "failure" with
+       | Ok var -> $"unexpected: {var}"
+       | Error msg -> $"pass: {msg}")
+      |> Stdlib.Test.equal "pass: failure"
+      (match Stdlib.Result.Result.Ok [ 1L, 2L, 3L ] with
+       | Ok [ 1L, 2L, 3L, 4L ] -> "fail"
+       | Error _ -> "fail"
+       | Ok [ 1L, 2L, 3L ] -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Result.Result.Ok((1L, 'a')) with
+       | Ok((2L, 'b')) -> "fail"
+       | Ok((1L, 'a')) -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Result.Result.Ok 5.0 with
+       | Ok 6.0 -> "fail"
+       | Error _ -> "fail"
+       | Ok 5.0 -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass" ]
+
+test optionPatterns =
+  Stdlib.Test.all
+    [ (match Stdlib.Option.Option.Some 5L with
+       | Some 6L -> "fail"
+       | None -> "fail"
+       | Some 5L -> "pass"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Option.Option.Some 5L with
+       | Some 5L -> "pass"
+       | None -> "fail"
+       | var -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Option.Option.None with
+       | Some _ -> "fail"
+       | None -> "pass")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Option.Option.Some "hello" with
+       | Some "world" -> "fail"
+       | None -> "fail"
+       | Some msg -> $"pass: {msg}")
+      |> Stdlib.Test.equal "pass: hello"
+      (match Stdlib.Option.Option.Some [ 1L, 2L, 3L ] with
+       | Some [ 1L, 2L, 3L, 4L ] -> "fail"
+       | None -> "fail"
+       | Some [ 1L, 2L, 3L ] -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Option.Option.Some((1L, 'a')) with
+       | Some((2L, 'b')) -> "fail"
+       | Some((1L, 'a')) -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass"
+      (match Stdlib.Option.Option.Some 5.0 with
+       | Some 6.0 -> "fail"
+       | None -> "fail"
+       | Some 5.0 -> "pass"
+       | _ -> "fail")
+      |> Stdlib.Test.equal "pass" ]
+
+module Errors =
+  test noMatchingCaseRaises =
+    (match "nothing matches" with
+     | "not this" -> "fail")
+    => raises
+      "No matching case found for value \"nothing matches\" in match expression"
+
+  // Differs from legacy: the `RuntimeError` cases in this file raise with
+  // `Stdlib.Test.raiseRuntimeError`; legacy used the backend-only
+  // `Builtin.testRuntimeError`.
+  test subjectErrorRaises =
+    (match Stdlib.Test.raiseRuntimeError "cond is error" with
+     | 5L -> "fail"
+     | 6L -> "pass"
+     | var -> "fail")
+    => raises "Uncaught exception: cond is error"
+
+  test subjectErrorWithWildcardRaises =
+    (match Stdlib.Test.raiseRuntimeError "cond is error, wildcard" with
+     | 5L -> 5L
+     | _ -> 6L)
+    => raises "Uncaught exception: cond is error, wildcard"
+
+  test selectedFirstArmErrorRaises =
+    (match 1L with
+     | 1L -> Stdlib.Test.raiseRuntimeError "a"
+     | 6L -> "pass"
+     | var -> "fail")
+    => raises "Uncaught exception: a"
+
+  test unselectedArmErrorsSkipped =
+    Stdlib.Test.all
+      [ (match 1L with
+         | 2L -> Stdlib.Test.raiseRuntimeError "Uncaught exception: a"
+         | 1L -> "pass"
+         | var -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match 1L with
+         | 1L -> "pass"
+         | 6L -> Stdlib.Test.raiseRuntimeError "a"
+         | var -> "fail")
+        |> Stdlib.Test.equal "pass" ]
+
+  test selectedLaterArmErrorRaises =
+    (match 1L with
+     | 2L -> "pass"
+     | 1L -> Stdlib.Test.raiseRuntimeError "a"
+     | var -> "fail")
+    => raises "Uncaught exception: a"
+
+  test fallbackArmSkipsError =
+    (match 3L with
+     | 2L -> "pass"
+     | 1L -> Stdlib.Test.raiseRuntimeError "a"
+     | var -> "pass")
+    |> Stdlib.Test.equal "pass"
+
+module TypeErrors =
+  // Differs from legacy: legacy's third case was `TwoArgs`. An identical type
+  // would share the legacy testfile's hash and the errors below would name
+  // whichever of the two wins. The errors name the type in full; legacy's said
+  // `TypeErrors.TestType`.
+  type TestType =
+    | NoArgs
+    | OneArg of Int64
+    | PortedTwoArgs of Int64 * Int64
+
+  // enum with more pattern params than actual args
+  test tooManyPatternParamsRaises =
+    (match TestType.NoArgs with
+     | NoArgs _ -> "wrong number")
+    => raises
+      "No matching case found for value Darklang.Language.Tests.MatchExpressions.TypeErrors.TestType.NoArgs in match expression"
+
+  // enum with fewer pattern params than actual args
+  test tooFewPatternParamsRaises =
+    (match TestType.OneArg 1L with
+     | OneArg -> "wrong number")
+    => raises
+      "No matching case found for value Darklang.Language.Tests.MatchExpressions.TypeErrors.TestType.OneArg(1) in match expression"
+
+  // TODO implement MPIgnored
+  // // enum with a single wildcard
+  // test singleWildcard =
+  //   (match TestType.TwoArgs(1L, 2L) with
+  //    | TwoArgs _ -> "wildcards allowed")
+  //   |> Stdlib.Test.equal "wildcards allowed"
+  //
+  // Not a legacy assertion: a single wildcard does not stand for several fields,
+  // so this raises; `(_, _)` matches.
+  test singleWildcardForTwoFieldsRaises =
+    (match TestType.PortedTwoArgs(1L, 2L) with
+     | PortedTwoArgs _ -> "wildcards allowed")
+    => raises
+      "No matching case found for value Darklang.Language.Tests.MatchExpressions.TypeErrors.TestType.PortedTwoArgs(1, 2) in match expression"
+
+  test oneWildcardPerField =
+    (match TestType.PortedTwoArgs(1L, 2L) with
+     | PortedTwoArgs(_, _) -> "wildcards allowed")
+    |> Stdlib.Test.equal "wildcards allowed"
+
+module GuardClause =
+  test guardClauses =
+    Stdlib.Test.all
+      [ (match 5L with
+         | x when x > 0L -> true
+         | _ -> false)
+        |> Stdlib.Test.equal true
+        (match -5L with
+         | x when x > 0L -> true
+         | _ -> false)
+        |> Stdlib.Test.equal false
+        (match 6L with
+         | x when x == 5L -> "fail"
+         | -6L -> "fail"
+         | 6L -> "pass"
+         | var -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match 5L with
+         | x when x > 0L -> "positive"
+         | x when x < 0L -> "negative"
+         | _ -> false)
+        |> Stdlib.Test.equal "positive"
+        (match (5L, "hello") with
+         | (x, y) when x > 0L && y == "hello" -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match (5L, "hello") with
+         | (x, y) when x > 0L && y == "hello" -> "first matching branch"
+         | (x, y) when x == 5L && y == "hello" -> "second matching branch"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "first matching branch"
+        (match (-5L, "hello") with
+         | (x, y) when x > 0L && y == "hello" -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "fail"
+        (match (5L, "hello") with
+         | (x, y) when x > 0L && Stdlib.String.length y == 5 -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass" ]
+
+  test unboundGuardVariableRaises =
+    (match -5L with
+     | x when y > 0L -> true
+     | _ -> false)
+    => raises "There is no variable named: y"
+
+  test guardEdgeCases =
+    Stdlib.Test.all
+      [ (match 5L with
+         | 5L -> false
+         | x when y > 0L -> true)
+        |> Stdlib.Test.equal false
+        (match 5L with
+         | x when (x + 1L) == 6L -> true
+         | 5L -> false)
+        |> Stdlib.Test.equal true
+        (match 5L with
+         | (x, y) when x > 0L -> true
+         | _ -> false)
+        |> Stdlib.Test.equal false
+        (match Stdlib.Result.Result.Error 5L with
+         | Ok x when x > 2L -> false
+         | Error _ -> true)
+        |> Stdlib.Test.equal true ]
+
+  test noArmMatchesRaises =
+    (match 5L with
+     | 2L when x > 2L -> false
+     | 3L -> true)
+    => raises "No matching case found for value 5 in match expression"
+
+module PatternGrouping =
+  test orPatterns =
+    Stdlib.Test.all
+      [ (match (1L,2L) with
+         | (1L,2L) | (2L,1L) -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match (1L,3L) with
+         | (1L,2L) | (2L,1L) -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "fail"
+        (match (1L,2L) with
+         | (1L,_) | (_,1L) -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match [1L,2L] with
+         | [1L,_] | [_,1L] -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match Stdlib.Option.Option.Some(1L) with
+         | Some(1L) | None -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match ([1L], Stdlib.Option.Option.Some(2L)) with
+         | ([1L], Some(_)) | ([_], Some(2L)) -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (let x = 4L
+         match x with
+         | 1L | 2L | 3L | 4L -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match 5L with
+         | 1L | 2L | 3L  -> "fail"
+         | 4L | 5L | 6L -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match 5L with
+         | 4L | 5L | 6L when true -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match (1L,2L) with
+         | (x,2L) | (2L,x) when x == 1L -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match (1L, 2L, 3L) with
+         | (x, 2L, y) | (y, x, 2L) when x + y == 4L -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match ([1L,2L], 3L) with
+         | ([x], y) | (x :: _, y) when x > 0L -> "pass"
+         | _ -> "fail")
+        |> Stdlib.Test.equal "pass"
+        (match [1L,2L] with
+         | [x,y] | x::y -> "fail"
+         | _ -> "pass")
+        |> Stdlib.Test.equal "fail"
+        (match (1L, "test") with
+         | (x, "test") | ("test", x) -> x
+         | _ -> "fail")
+        |> Stdlib.Test.equal 1L
+        (match (Stdlib.Result.Result.Ok 1L, Stdlib.Result.Result.Error "error") with
+         | (Ok _ , Ok _) -> "pass"
+         | (Error err, Ok _) | (Ok _, Error err)  -> err)
+        |> Stdlib.Test.equal "error"
+        (match (Stdlib.Result.Result.Error "error", Stdlib.Result.Result.Ok 1L) with
+         | (Ok _ , Ok _) -> "pass"
+         | (Error err, Ok _) | (Ok _, Error err)  -> err)
+        |> Stdlib.Test.equal "error" ]

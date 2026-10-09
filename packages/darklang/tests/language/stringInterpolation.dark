@@ -1,0 +1,44 @@
+/// Interpolation cases from
+/// `backend/testfiles/execution/language/basic/estring.dark`.
+module Darklang.Language.Tests.StringInterpolation
+
+test interpolation =
+  Stdlib.Test.all
+    [ $"test {"1"}" |> Stdlib.Test.equal "test 1"
+      (let one = "1" in $"test {one}") |> Stdlib.Test.equal "test 1"
+      (let name = "John"
+       let age = "30"
+       $"Name: {name}, Age: {age} years old.")
+      |> Stdlib.Test.equal "Name: John, Age: 30 years old."
+      (let one = 1L in $"test {Stdlib.toString one}")
+      |> Stdlib.Test.equal "test 1" ]
+
+test floatInterpolationRaises =
+  (let one = 1.0 in $"test {one}")
+  => raises
+    "Expected String in string interpolation, got a Float (1.0) instead. Try wrapping it with `Stdlib.toString`."
+
+test int64InterpolationRaises =
+  (let one = 1L in $"test {one}")
+  => raises
+    "Expected String in string interpolation, got an Int64 (1) instead. Try wrapping it with `Stdlib.toString`."
+
+test unboundVariableRaises =
+  (let two = 2L in "test 1" == $"test {one}")
+  => raises "There is no variable named: one"
+
+// --- interpolation scanner and brace escapes ---
+test bracesAndEscapes =
+  Stdlib.Test.all
+    [ // A brace inside a char literal in an interpolation should not end the
+      // interpolation.
+      $"{Stdlib.String.fromChar '}'}" |> Stdlib.Test.equal "}"
+      $"x{Stdlib.String.append "a" "}"}y" |> Stdlib.Test.equal "xa}y"
+      // An escaped-quote char literal should not affect later brace scanning.
+      $"{Stdlib.String.append (Stdlib.String.fromChar '\'') (Stdlib.String.fromChar '}')}"
+      |> Stdlib.Test.equal "'}"
+      // `\{` and `\}` are literal-brace escapes; `\{\{` yields `{{`.
+      "\{\}" |> Stdlib.Test.equal "{}"
+      $"\{\{" |> Stdlib.Test.equal "{{"
+      // `{{` and `}}` are interpolation escapes for literal braces.
+      $"a{{b}}c" |> Stdlib.Test.equal "a{b}c" ]
