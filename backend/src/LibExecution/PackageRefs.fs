@@ -156,21 +156,22 @@ let private makeRef
   (modules : string list)
   (name : string)
   : unit -> string =
-  let mutable cachedGen = -1
-  let mutable cached = ""
+  // Publish the generation and hash together: checker workers resolve refs concurrently.
+  // Separate writes let a reader see the new generation with an empty or stale hash.
+  let mutable cached = (-1, "")
 
   fun () ->
     let gen = currentGeneration ()
+    let (cachedGen, cachedHash) = System.Threading.Volatile.Read(&cached)
     if gen = cachedGen then
-      cached
+      cachedHash
     else
       let fqn = $"""{kind}/{String.concat "." modules}.{name}"""
       let h = getHashes ()
       match Map.tryFind fqn h with
       | Some hash ->
         record hash
-        cachedGen <- gen
-        cached <- hash
+        System.Threading.Volatile.Write(&cached, (gen, hash))
         hash
       | None ->
         if Map.isEmpty h then
