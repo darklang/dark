@@ -328,19 +328,12 @@ let parse
         raiseCantMatchWithType TInt64 j pathSoFar |> Ply
 
     | TUInt64, JsonValueKind.Number ->
-      let mutable ui64 = 0UL
-      let mutable d = 0.0
-      if j.TryGetUInt64(&ui64) then
-        DUInt64 ui64 |> Ply
-      else if
-        j.TryGetDouble(&d)
-        && d <= (float System.UInt64.MaxValue)
-        && d >= (float System.UInt64.MinValue)
-        && System.Double.IsInteger d
-      then
-        uint64 d |> DUInt64 |> Ply
-      else
-        raiseCantMatchWithType TUInt64 j pathSoFar |> Ply
+      // Parse decimal/exponent forms exactly. Double rounds UInt64.MaxValue
+      // up to 2^64, accepting overflow and losing low bits near the boundary.
+      match parseExactJsonInteger (j.GetRawText()) with
+      | Some n when n >= 0I && n <= bigint System.UInt64.MaxValue ->
+        DUInt64(uint64 n) |> Ply
+      | _ -> raiseCantMatchWithType TUInt64 j pathSoFar |> Ply
 
     | TInt8, JsonValueKind.Number ->
       let mutable i64 = 0L
