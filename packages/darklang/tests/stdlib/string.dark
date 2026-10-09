@@ -1,0 +1,1349 @@
+/// String cases ported from `backend/testfiles/execution/stdlib/string.dark`.
+module Darklang.Stdlib.String.Tests
+
+test stringEquality =
+  Stdlib.Test.all
+    [ "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" == "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      |> Stdlib.Test.equal true
+      "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" == "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" |> Stdlib.Test.equal true
+      "Είναι προικισμένοι με λογική" == "Είναι προικισμένοι με λογική"
+      |> Stdlib.Test.equal true
+      "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" == "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      |> Stdlib.Test.equal true ]
+
+// Differs from legacy: legacy built chars with its `c` helper, which used the
+// backend-only Builtin.testToChar. Here they are char literals or taken from the
+// string itself (`String.head`, `String.toList`).
+test fromChar =
+  Stdlib.Test.all
+    [ Stdlib.String.fromChar 'a' |> Stdlib.Test.equal "a"
+      Stdlib.String.toList "1" |> Stdlib.List.head
+      |> Stdlib.Option.map Stdlib.String.fromChar |> Stdlib.Test.equal (Some "1")
+      Stdlib.String.toList "👩‍👩‍👧‍👦" |> Stdlib.List.head
+      |> Stdlib.Option.map Stdlib.String.fromChar
+      |> Stdlib.Test.equal (Some "👩‍👩‍👧‍👦")
+      Stdlib.String.toList "🏳️‍⚧️‍️" |> Stdlib.List.head
+      |> Stdlib.Option.map Stdlib.String.fromChar
+      |> Stdlib.Test.equal (Some "🏳️‍⚧️‍️")
+      Stdlib.String.toList "👱🏾" |> Stdlib.List.head
+      |> Stdlib.Option.map Stdlib.String.fromChar |> Stdlib.Test.equal (Some "👱🏾")
+      Stdlib.String.toList "Z̤͔ͧ̑̓" |> Stdlib.List.head
+      |> Stdlib.Option.map Stdlib.String.fromChar
+      |> Stdlib.Test.equal (Some "Z̤͔ͧ̑̓") ]
+
+// Differs from legacy: chars as in `fromChar` above.
+test fromList =
+  Stdlib.Test.all
+    [ Stdlib.String.fromList [] |> Stdlib.Test.equal ""
+      Stdlib.String.fromList [ 'a' ] |> Stdlib.Test.equal "a"
+      [ "👩‍👩‍👧‍👦", "🏳️‍⚧️‍️", "👱🏾", "Z̤͔ͧ̑̓" ]
+      |> Stdlib.List.map (fun grapheme ->
+        Stdlib.String.head grapheme |> Builtin.unwrap)
+      |> Stdlib.String.fromList |> Stdlib.Test.equal "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓" ]
+
+test fromListRejectsStrings =
+  Stdlib.String.fromList [ "a" ]
+  => raises "Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<String> ([\"a\"])"
+
+// Differs from legacy: chars as in `fromChar` above.
+test toList =
+  Stdlib.Test.all
+    [ Stdlib.String.toList "" |> Stdlib.Test.equal []
+      Stdlib.String.toList "ab" |> Stdlib.Test.equal [ 'a', 'b' ]
+      Stdlib.String.toList "👨‍👩‍👧‍👦" |> Stdlib.List.map Stdlib.toString
+      |> Stdlib.Test.equal [ "👨‍👩‍👧‍👦" ]
+      Stdlib.String.toList "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" |> Stdlib.List.map Stdlib.toString
+      |> Stdlib.Test.equal [ "Z̤͔ͧ̑̓", "ä͖̭̈̇", "lͮ̒ͫ", "ǧ̗͚̚", "o̙̔ͮ̇͐̇" ]
+      Stdlib.String.toList "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" |> Stdlib.List.map Stdlib.toString
+
+     |> Stdlib.Test.equal [ "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽", "﷽" ]
+      Stdlib.String.toList "🧟‍♀️🧟‍♂️" |> Stdlib.List.map Stdlib.toString
+      |> Stdlib.Test.equal [ "🧟‍♀️", "🧟‍♂️" ]
+      Stdlib.String.toList "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.List.map Stdlib.toString
+      |> Stdlib.Test.equal [ "👱", "👱🏻", "👱🏼", "👱🏽", "👱🏾", "👱🏿" ]
+      Stdlib.String.toList "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" |> Stdlib.List.map Stdlib.toString
+
+     |> Stdlib.Test.equal [ "ż", "ó", "ł", "w", "🧑🏽‍🦰", "🧑🏻‍🍼", "✋", "✋🏻", "✋🏿" ]
+      (Stdlib.String.toList "ab1") |> Stdlib.String.fromList
+      |> Stdlib.Test.equal "ab1"
+      (Stdlib.String.toList "@Ǣá1") |> Stdlib.String.fromList
+      |> Stdlib.Test.equal "@Ǣá1"
+      (Stdlib.String.toList "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓") |> Stdlib.String.fromList
+      |> Stdlib.Test.equal "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓" ]
+
+test mapPreservesCharacters =
+  Stdlib.Test.all
+    [ Stdlib.String.map "a string" (fun x -> x) |> Stdlib.Test.equal "a string"
+      Stdlib.String.map "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x)
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.map "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x)
+      |> Stdlib.Test.equal "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      Stdlib.String.map "👱👱🏻👱🏼👱🏽👱🏾👱🏿" (fun x -> x)
+      |> Stdlib.Test.equal "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+      Stdlib.String.map "🧟‍♀️🧟‍♂️" (fun x -> x) |> Stdlib.Test.equal "🧟‍♀️🧟‍♂️"
+      Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> x)
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" ]
+
+test mapReplacesEveryCharacter =
+  Stdlib.Test.all
+    [ Stdlib.String.map "a string" (fun _ -> 'c') |> Stdlib.Test.equal "cccccccc"
+      Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun _ -> 'c')
+      |> Stdlib.Test.equal "cccc" ]
+
+// // CLEANUP: it should be a type error on the function not returning a Char
+// test mapRejectsNonCharResult =
+//   Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> 5L)
+//   => raises
+//     """Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Char>. However, a List<Int64> ([  5, 5, ...) was passed instead.
+//
+// Expected: (lst: List<Char>)
+// Actual: a List<Int64>: [
+//   5, 5, 5, 5
+// ]"""
+
+test appendOperator =
+  Stdlib.Test.all
+    [ ("" + "") |> Stdlib.Test.equal ""
+      // CLEANUP: Re-enable these NFC assertions after setting InvariantGlobalization=false
+      // in the CLI and Wasm builds and verifying ICU packaging. Invariant mode skips normalization.
+      // ("a" + "̂") |> Stdlib.Test.equal "â"
+      ("hello" + " world") |> Stdlib.Test.equal "hello world"
+      // ("ᄀ" + "ᅡᆨ") |> Stdlib.Test.equal "각"
+      ("" + "a") |> Stdlib.Test.equal "a"
+      ("a" + "") |> Stdlib.Test.equal "a" ]
+
+test append =
+  Stdlib.Test.all
+    [ //Stdlib.String.append "a" "̂" = "â"
+      Stdlib.String.append "" "" |> Stdlib.Test.equal ""
+      Stdlib.String.append "hello" " world" |> Stdlib.Test.equal "hello world"
+      // Stdlib.String.append works for ASCII range
+      Stdlib.String.append "hello" "world" |> Stdlib.Test.equal "helloworld"
+      //Stdlib.String.append "ᄀ" "ᅡᆨ" = "각"
+      // Stdlib.String.append works on non-ascii strings
+      Stdlib.String.append "żółw" "😄" |> Stdlib.Test.equal "żółw😄"
+      Stdlib.String.append "🧑🏼‍💻" "🧑🏻‍🍼" |> Stdlib.Test.equal "🧑🏼‍💻🧑🏻‍🍼"
+      Stdlib.String.append "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+      |> Stdlib.Test.equal "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+      Stdlib.String.append "🧟‍♂️🧟‍♀️" "🧟‍♂️"
+      |> Stdlib.Test.equal "🧟‍♂️🧟‍♀️🧟‍♂️"
+      Stdlib.String.append "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "👨‍❤️‍💋‍👨"
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇👨‍❤️‍💋‍👨" ]
+
+test join =
+  Stdlib.Test.all
+    [ Stdlib.String.join [ "a", "b", "c", "d" ] "|" |> Stdlib.Test.equal "a|b|c|d"
+      // CLEANUP: Re-enable after setting InvariantGlobalization=false in CLI and Wasm
+      // and verifying ICU packaging; this checks NFC composition across joined strings.
+      // Stdlib.String.join [ "a", "̂" ] ""
+      // |> Stdlib.String.base64UrlEncode |> Stdlib.Test.equal "w6I"
+      Stdlib.String.join [ "hello", " world" ] "" |> Stdlib.Test.equal "hello world"
+      Stdlib.String.join [ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽", "🧟‍♀️" ] ""
+      |> Stdlib.Test.equal "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
+      Stdlib.String.join [ "👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👨‍❤️‍💋‍👨", "﷽﷽﷽" ] ""
+      |> Stdlib.Test.equal "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨﷽﷽﷽"
+      Stdlib.String.join [ "🧟‍♀️🧟‍♂️", "🧟‍♀️🧑🏽‍🦰" ] ""
+      |> Stdlib.Test.equal "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰"
+      Stdlib.String.join [ "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️", "‍⚧️‍️🇵🇷" ] ""
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      Stdlib.String.join [ "🧟‍♀️🧟‍♂️‍", "🧟‍♀️🧑🏽‍🦰‍‍" ] ""
+      |> Stdlib.Test.equal "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
+      Stdlib.String.join [ "🧑🏽‍🦰‍", "🧑🏼‍💻‍‍" ] ""
+      |> Stdlib.Test.equal "🧑🏽‍🦰‍🧑🏼‍💻‍‍" ]
+
+test toBytesLength =
+  Stdlib.Test.all
+    [ Stdlib.List.length (Stdlib.String.toBytes "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿")
+      |> Stdlib.Test.equal 62
+      Stdlib.List.length (Stdlib.String.toBytes "😄APPLE🍏") |> Stdlib.Test.equal 13
+      Stdlib.List.length (Stdlib.String.toBytes "Είναι προικισμένοι με λογική")
+      |> Stdlib.Test.equal 53
+      Stdlib.List.length (Stdlib.String.toBytes "") |> Stdlib.Test.equal 0
+      Stdlib.List.length (Stdlib.String.toBytes "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+      |> Stdlib.Test.equal 48
+      Stdlib.List.length (Stdlib.String.toBytes "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+      |> Stdlib.Test.equal 44
+      Stdlib.List.length (Stdlib.String.toBytes "🧟‍♀️🧟‍♂️") |> Stdlib.Test.equal 26
+      Stdlib.List.length (Stdlib.String.toBytes "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷")
+      |> Stdlib.Test.equal 82
+      Stdlib.List.length (Stdlib.String.toBytes "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
+      |> Stdlib.Test.equal 49 ]
+
+test startsWith =
+  Stdlib.Test.all
+    [ Stdlib.String.startsWith "a string" "a s" |> Stdlib.Test.equal true
+      Stdlib.String.startsWith "a string" " s" |> Stdlib.Test.equal false
+      Stdlib.String.startsWith "żółw" "żó" |> Stdlib.Test.equal true
+      Stdlib.String.startsWith "żółw" "r22" |> Stdlib.Test.equal false
+      Stdlib.String.startsWith "👩🏻‍🚀🍇" "🍇" |> Stdlib.Test.equal false
+      Stdlib.String.startsWith "123456" "123" |> Stdlib.Test.equal true
+      Stdlib.String.startsWith "" "" |> Stdlib.Test.equal true
+      Stdlib.String.startsWith "E" "\u0014\u0004" |> Stdlib.Test.equal false
+      Stdlib.String.startsWith "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏾‍🦰"
+      |> Stdlib.Test.equal false
+      Stdlib.String.startsWith "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚"
+      |> Stdlib.Test.equal true
+      Stdlib.String.startsWith "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" |> Stdlib.Test.equal true
+      Stdlib.String.startsWith "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏿"
+      |> Stdlib.Test.equal false
+      Stdlib.String.startsWith "🧟‍♀️🧟‍♂️" "🧟‍♂️" |> Stdlib.Test.equal false
+      Stdlib.String.startsWith "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️"
+      |> Stdlib.Test.equal true
+      Stdlib.String.startsWith "a string" "" |> Stdlib.Test.equal true ]
+
+test endsWith =
+  Stdlib.Test.all
+    [ Stdlib.String.endsWith "a string" "in" |> Stdlib.Test.equal false
+      Stdlib.String.endsWith "a string" "ing" |> Stdlib.Test.equal true
+      Stdlib.String.endsWith "a string" "" |> Stdlib.Test.equal true
+      Stdlib.String.endsWith "żółw" "żó" |> Stdlib.Test.equal false
+      Stdlib.String.endsWith "żółw" "łw" |> Stdlib.Test.equal true
+      Stdlib.String.endsWith "👩🏻‍🚀🍇" "🍇" |> Stdlib.Test.equal true
+      Stdlib.String.endsWith "123456" "56" |> Stdlib.Test.equal true
+      Stdlib.String.endsWith "" "" |> Stdlib.Test.equal true
+      Stdlib.String.endsWith "E" "\u0014\u0004" |> Stdlib.Test.equal false
+      Stdlib.String.endsWith "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "✋✋🏿✋🏿"
+      |> Stdlib.Test.equal false
+      Stdlib.String.endsWith "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇"
+      |> Stdlib.Test.equal true
+      Stdlib.String.endsWith "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "12xsd" |> Stdlib.Test.equal false
+      Stdlib.String.endsWith "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" |> Stdlib.Test.equal false
+      Stdlib.String.endsWith "🧟‍♀️🧟‍♂️" "🧟‍♀️" |> Stdlib.Test.equal false
+      Stdlib.String.endsWith "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🏳️‍⚧️‍️🇵🇷"
+      |> Stdlib.Test.equal true ]
+
+// `Stdlib.String.{fromBytes, fromBytesWithReplacement, toBytes}` still operate on
+// `List<UInt8>` rather than `Blob` — Http, CLI file ops, and the LSP logger all
+// consume the List shape, and migrating them was out of scope. So we bridge from
+// Blob via `Stdlib.Blob.toList` here.
+// Differs from legacy: legacy unwrapped Base64.decode; this maps over the Result,
+// so a decode error fails the assertion instead of raising.
+test fromBytesWithReplacement =
+  Stdlib.Test.all
+    [ Stdlib.Base64.decode "w6I"
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytesWithReplacement)
+      |> Stdlib.Test.equal (Ok "â")
+      Stdlib.Base64.decode "aGVsbG8g8J+YgA=="
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytesWithReplacement)
+      |> Stdlib.Test.equal (Ok "hello 😀")
+      Stdlib.Base64.decode "ww=="
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytesWithReplacement)
+      |> Stdlib.Test.equal (Ok "�")
+      Stdlib.Base64.decode "7aCA"
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytesWithReplacement)
+      |> Stdlib.Test.equal (Ok "���")
+      Stdlib.Base64.decode "aMM="
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytesWithReplacement)
+      |> Stdlib.Test.equal (Ok "h�") ]
+
+// Differs from legacy: maps over the Result, as above.
+test fromBytes =
+  Stdlib.Test.all
+    [ Stdlib.Base64.decode "w6I"
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytes)
+      |> Stdlib.Test.equal (Ok (Some "â"))
+      Stdlib.Base64.decode "aGVsbG8g8J+YgA=="
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytes)
+      |> Stdlib.Test.equal (Ok (Some "hello 😀"))
+      Stdlib.Base64.decode "ww=="
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytes)
+      |> Stdlib.Test.equal (Ok None)
+      Stdlib.Base64.decode "7aCA"
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytes)
+      |> Stdlib.Test.equal (Ok None)
+      Stdlib.Base64.decode "aMM="
+      |> Stdlib.Result.map (fun blob ->
+        Stdlib.Blob.toList blob |> Stdlib.String.fromBytes)
+      |> Stdlib.Test.equal (Ok None) ]
+
+test base64Decode =
+  Stdlib.Test.all
+    [ // empty case
+      Stdlib.String.base64Decode "" |> Stdlib.Test.equal (Ok "")
+      Stdlib.String.base64Decode "Kw" |> Stdlib.Test.equal (Ok "+")
+      Stdlib.String.base64Decode "LyotKygmQDk4NTIx"
+      |> Stdlib.Test.equal (Ok "/*-+(&@98521")
+      Stdlib.String.base64Decode "yLo" |> Stdlib.Test.equal (Ok "Ⱥ")
+      Stdlib.String.base64Decode "xbzDs8WCdw" |> Stdlib.Test.equal (Ok "żółw")
+      Stdlib.String.base64Decode "random string"
+      |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      Stdlib.String.base64Decode "illegal chars&@:"
+      |> Stdlib.Test.equal (Error "Not a valid base64 string")
+      // Test cases from the spec with padding added
+      Stdlib.String.base64Decode "Zg" |> Stdlib.Test.equal (Ok "f")
+      Stdlib.String.base64Decode "Zg==" |> Stdlib.Test.equal (Ok "f")
+      Stdlib.String.base64Decode "Zm8" |> Stdlib.Test.equal (Ok "fo")
+      Stdlib.String.base64Decode "Zm8=" |> Stdlib.Test.equal (Ok "fo")
+      Stdlib.String.base64Decode "Zm9v" |> Stdlib.Test.equal (Ok "foo")
+      Stdlib.String.base64Decode "Zm9vYg" |> Stdlib.Test.equal (Ok "foob")
+      Stdlib.String.base64Decode "Zm9vYg==" |> Stdlib.Test.equal (Ok "foob")
+      Stdlib.String.base64Decode "Zm9vYmE" |> Stdlib.Test.equal (Ok "fooba")
+      Stdlib.String.base64Decode "Zm9vYmE=" |> Stdlib.Test.equal (Ok "fooba")
+      Stdlib.String.base64Decode "Zm9vYmFy" |> Stdlib.Test.equal (Ok "foobar")
+      // "Impossible cases" from apache
+      // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
+      Stdlib.String.base64Decode "ZE==" |> Stdlib.Test.equal (Ok "d")
+      Stdlib.String.base64Decode "ZmC=" |> Stdlib.Test.equal (Ok "f`")
+      Stdlib.String.base64Decode "Zm9vYE==" |> Stdlib.Test.equal (Ok "foo`")
+      Stdlib.String.base64Decode "Zm9vYmC=" |> Stdlib.Test.equal (Ok "foob`")
+      Stdlib.String.base64Decode "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
+      |> Stdlib.Test.equal (Ok "from=06/07/2013 query=\"Καλώς ορίσατε\"")
+      Stdlib.String.base64Decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
+      |> Stdlib.Test.equal (Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+      Stdlib.String.base64Decode "-p"
+      |> Stdlib.Test.equal (Error "Invalid UTF-8 string")
+      Stdlib.String.base64Decode "lI"
+      |> Stdlib.Test.equal (Error "Invalid UTF-8 string")
+      Stdlib.String.base64Decode "5Sk"
+      |> Stdlib.Test.equal (Error "Invalid UTF-8 string") ]
+
+test base64UrlEncode =
+  Stdlib.Test.all
+    [ Stdlib.String.base64UrlEncode "+" |> Stdlib.Test.equal "Kw"
+      Stdlib.String.base64UrlEncode "Ⱥ" |> Stdlib.Test.equal "yLo"
+      Stdlib.String.base64UrlEncode "żółw" |> Stdlib.Test.equal "xbzDs8WCdw"
+      Stdlib.String.base64UrlEncode "/*-+(&@98521"
+      |> Stdlib.Test.equal "LyotKygmQDk4NTIx"
+      Stdlib.String.base64UrlEncode "" |> Stdlib.Test.equal ""
+      Stdlib.String.base64UrlEncode "f" |> Stdlib.Test.equal "Zg"
+      Stdlib.String.base64UrlEncode "fo" |> Stdlib.Test.equal "Zm8"
+      Stdlib.String.base64UrlEncode "foo" |> Stdlib.Test.equal "Zm9v"
+      Stdlib.String.base64UrlEncode "foob" |> Stdlib.Test.equal "Zm9vYg"
+      Stdlib.String.base64UrlEncode "fooba" |> Stdlib.Test.equal "Zm9vYmE"
+      Stdlib.String.base64UrlEncode "foobar" |> Stdlib.Test.equal "Zm9vYmFy"
+      Stdlib.String.base64UrlEncode "Hello World"
+      |> Stdlib.Test.equal "SGVsbG8gV29ybGQ"
+      Stdlib.String.base64UrlEncode "from=06/07/2013 query=\"Καλώς ορίσατε\""
+
+     |> Stdlib.Test.equal "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
+      Stdlib.String.base64UrlEncode "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+
+     |> Stdlib.Test.equal "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" ]
+
+test base64Encode =
+  Stdlib.Test.all
+    [ Stdlib.String.base64Encode "+" |> Stdlib.Test.equal "Kw=="
+      Stdlib.String.base64Encode "Ⱥ" |> Stdlib.Test.equal "yLo="
+      Stdlib.String.base64Encode "żółw" |> Stdlib.Test.equal "xbzDs8WCdw=="
+      Stdlib.String.base64Encode "/*-+(&@98521"
+      |> Stdlib.Test.equal "LyotKygmQDk4NTIx"
+      Stdlib.String.base64Encode "" |> Stdlib.Test.equal ""
+      Stdlib.String.base64Encode "f" |> Stdlib.Test.equal "Zg=="
+      Stdlib.String.base64Encode "fo" |> Stdlib.Test.equal "Zm8="
+      Stdlib.String.base64Encode "foo" |> Stdlib.Test.equal "Zm9v"
+      Stdlib.String.base64Encode "foob" |> Stdlib.Test.equal "Zm9vYg=="
+      Stdlib.String.base64Encode "fooba" |> Stdlib.Test.equal "Zm9vYmE="
+      Stdlib.String.base64Encode "foobar" |> Stdlib.Test.equal "Zm9vYmFy"
+      Stdlib.String.base64Encode "Hello World"
+      |> Stdlib.Test.equal "SGVsbG8gV29ybGQ="
+      Stdlib.String.base64Encode "from=06/07/2013 query=\"Καλώς ορίσατε\""
+
+     |> Stdlib.Test.equal "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs+CIM6/z4HOr8+DzrHPhM61Ig=="
+      Stdlib.String.base64Encode "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+
+     |> Stdlib.Test.equal "8J+RsfCfkbHwn4+78J+RsfCfj7zwn5Gx8J+PvfCfkbHwn4++8J+RsfCfj78=" ]
+
+test digest =
+  Stdlib.Test.all
+    [ Stdlib.String.digest ""
+
+     |> Stdlib.Test.equal "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
+      Stdlib.String.digest "😄"
+
+     |> Stdlib.Test.equal "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
+      Stdlib.String.digest "ελπίδα"
+
+     |> Stdlib.Test.equal "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
+      Stdlib.String.digest "/*-+(&@98521"
+
+     |> Stdlib.Test.equal "wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr"
+      Stdlib.String.digest "👩🏻‍🚀🍇"
+
+     |> Stdlib.Test.equal "hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ"
+      Stdlib.String.digest "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
+
+     |> Stdlib.Test.equal "7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE"
+      Stdlib.String.digest "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+
+     |> Stdlib.Test.equal "U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k"
+      Stdlib.String.digest "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+
+     |> Stdlib.Test.equal "c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx"
+      Stdlib.String.digest "🧟‍♀️🧟‍♂️"
+
+     |> Stdlib.Test.equal "FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc"
+      Stdlib.String.digest "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+
+     |> Stdlib.Test.equal "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m" ]
+
+// Preserve the original two-call comparison independently of the sample test.
+test randomPairIsDifferent =
+  (Stdlib.String.random 5) == (Stdlib.String.random 5) |> Stdlib.Test.equal false
+
+// Differs from legacy: legacy unwrapped `random`; this maps over the Result.
+test randomLength =
+  Stdlib.Test.all
+    [ Stdlib.String.random 10
+      |> Stdlib.Result.map Stdlib.String.length |> Stdlib.Test.equal (Ok 10)
+      Stdlib.String.random 5
+      |> Stdlib.Result.map Stdlib.String.length |> Stdlib.Test.equal (Ok 5)
+      Stdlib.String.random 0
+      |> Stdlib.Result.map Stdlib.String.length |> Stdlib.Test.equal (Ok 0)
+      Stdlib.String.random -1
+      |> Stdlib.Test.equal
+        (Error "Expected `length` to be positive, but it was `-1`") ]
+
+test htmlEscape =
+  Stdlib.Test.all
+    [ // HTML escaping works reasonably
+      Stdlib.String.htmlEscape "test<>&\""
+      |> Stdlib.Test.equal "test&lt;&gt;&amp;&quot;"
+      // HTML escaping works reasonably
+      Stdlib.String.htmlEscape "<html><head></head><body><h1>This is f#</h1></body></html>"
+
+     |> Stdlib.Test.equal "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;This is f#&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
+      Stdlib.String.htmlEscape "<html><head><!-- head definitions go here --></head><body><!-- the content goes here --></body></html>"
+
+     |> Stdlib.Test.equal "&lt;html&gt;&lt;head&gt;&lt;!-- head definitions go here --&gt;&lt;/head&gt;&lt;body&gt;&lt;!-- the content goes here --&gt;&lt;/body&gt;&lt;/html&gt;"
+      Stdlib.String.htmlEscape "" |> Stdlib.Test.equal ""
+      Stdlib.String.htmlEscape "😄" |> Stdlib.Test.equal "😄"
+      Stdlib.String.htmlEscape "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.htmlEscape "<html><head></head><body><h1>﷽﷽﷽﷽﷽</h1></body></html>"
+
+     |> Stdlib.Test.equal "&lt;html&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;&lt;h1&gt;﷽﷽﷽﷽﷽&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
+      Stdlib.String.htmlEscape "<head>🧟‍♀️🧟‍♂️</head>"
+      |> Stdlib.Test.equal "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
+      Stdlib.String.htmlEscape "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" ]
+
+test isEmpty =
+  Stdlib.Test.all
+    [ Stdlib.String.isEmpty "" |> Stdlib.Test.equal true
+      Stdlib.String.isEmpty "a" |> Stdlib.Test.equal false
+      Stdlib.String.isEmpty "🧑🏼‍💻🧑🏻‍🍼" |> Stdlib.Test.equal false
+      Stdlib.String.isEmpty "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" |> Stdlib.Test.equal false
+      Stdlib.String.isEmpty "﷽﷽﷽﷽﷽" |> Stdlib.Test.equal false
+      Stdlib.String.isEmpty "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Test.equal false
+      Stdlib.String.isEmpty "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal false
+      Stdlib.String.isEmpty "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      |> Stdlib.Test.equal false ]
+
+test newline = Stdlib.String.newline |> Stdlib.Test.equal "\n"
+
+test length =
+  Stdlib.Test.all
+    [ Stdlib.String.length "😄" |> Stdlib.Test.equal 1
+      Stdlib.String.length "" |> Stdlib.Test.equal 0
+      Stdlib.String.length "abcdef" |> Stdlib.Test.equal 6
+      Stdlib.String.length "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" |> Stdlib.Test.equal 6
+      Stdlib.String.length "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" |> Stdlib.Test.equal 5
+      Stdlib.String.length "﷽﷽﷽﷽﷽" |> Stdlib.Test.equal 5
+      Stdlib.String.length "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Test.equal 6
+      Stdlib.String.length "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal 2
+      Stdlib.String.length "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" |> Stdlib.Test.equal 4 ]
+
+// The `length` half of the fast-path cases below (see `splitFastPath`).
+test lengthFastPath =
+  Stdlib.Test.all
+    [ Stdlib.String.length "hello" |> Stdlib.Test.equal 5
+      Stdlib.String.length "🎉a" |> Stdlib.Test.equal 2
+      Stdlib.String.length "é" |> Stdlib.Test.equal 1
+      Stdlib.String.length "a\r\nb" |> Stdlib.Test.equal 3
+      Stdlib.String.length "" |> Stdlib.Test.equal 0 ]
+
+test split =
+  Stdlib.Test.all
+    [ Stdlib.String.split "hello world" "notfound"
+      |> Stdlib.Test.equal [ "hello world" ]
+      Stdlib.String.split "hello😄world" "😄"
+      |> Stdlib.Test.equal [ "hello", "world" ]
+      Stdlib.String.split "hello&&&&world" "&&&&"
+      |> Stdlib.Test.equal [ "hello", "world" ]
+      Stdlib.String.split "hello34564world34564sun" "😄"
+      |> Stdlib.Test.equal [ "hello34564world34564sun" ]
+      Stdlib.String.split "hello34564world34564sun" "34564"
+      |> Stdlib.Test.equal [ "hello", "world", "sun" ]
+      Stdlib.String.split "" "34564" |> Stdlib.Test.equal [ "" ]
+      Stdlib.String.split "34564" "" |> Stdlib.Test.equal [ "3", "4", "5", "6", "4" ]
+      Stdlib.String.split "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼"
+      |> Stdlib.Test.equal [ "🧑🏽‍🦰🧑🏼‍💻", "✋✋🏻✋🏿" ]
+      Stdlib.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      |> Stdlib.Test.equal [ "", "" ]
+      Stdlib.String.split "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽"
+      |> Stdlib.Test.equal [ "", "", "", "", "" ]
+      Stdlib.String.split "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽"
+      |> Stdlib.Test.equal [ "👱👱🏻", "👱🏾👱🏿" ]
+      Stdlib.String.split "🧟‍♀️🧟‍♂️" "👱🏽" |> Stdlib.Test.equal [ "🧟‍♀️🧟‍♂️" ]
+      Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦"
+      |> Stdlib.Test.equal [ "👨‍❤️‍💋‍👨", "🏳️‍⚧️‍️🇵🇷" ]
+      Stdlib.String.split "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰"
+      |> Stdlib.Test.equal [ "żółw", "🧑🏻‍🍼✋✋🏻✋🏿" ]
+      Stdlib.String.split "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
+      |> Stdlib.Test.equal [ "", "ǧ̗͚̚o̙̔ͮ̇͐̇" ]
+      Stdlib.String.split "666666" "6"
+      |> Stdlib.Test.equal [ "", "", "", "", "", "", "" ]
+      Stdlib.String.split "55555" "5" |> Stdlib.Test.equal [ "", "", "", "", "", "" ]
+      Stdlib.String.split "4444" "4" |> Stdlib.Test.equal [ "", "", "", "", "" ]
+      Stdlib.String.split "333" "3" |> Stdlib.Test.equal [ "", "", "", "" ]
+      Stdlib.String.split "22" "2" |> Stdlib.Test.equal [ "", "", "" ]
+      Stdlib.String.split "1" "1" |> Stdlib.Test.equal [ "", "" ]
+      Stdlib.String.split "" "" |> Stdlib.Test.equal []
+      Stdlib.String.split "666666x" "6"
+      |> Stdlib.Test.equal [ "", "", "", "", "", "", "x" ]
+      Stdlib.String.split "55555x" "5"
+      |> Stdlib.Test.equal [ "", "", "", "", "", "x" ]
+      Stdlib.String.split "4444x" "4" |> Stdlib.Test.equal [ "", "", "", "", "x" ]
+      Stdlib.String.split "333x" "3" |> Stdlib.Test.equal [ "", "", "", "x" ]
+      Stdlib.String.split "22x" "2" |> Stdlib.Test.equal [ "", "", "x" ]
+      Stdlib.String.split "1x" "1" |> Stdlib.Test.equal [ "", "x" ]
+      Stdlib.String.split "x666666" "6"
+      |> Stdlib.Test.equal [ "x", "", "", "", "", "", "" ]
+      Stdlib.String.split "x55555" "5"
+      |> Stdlib.Test.equal [ "x", "", "", "", "", "" ]
+      Stdlib.String.split "x4444" "4" |> Stdlib.Test.equal [ "x", "", "", "", "" ]
+      Stdlib.String.split "x333" "3" |> Stdlib.Test.equal [ "x", "", "", "" ]
+      Stdlib.String.split "x22" "2" |> Stdlib.Test.equal [ "x", "", "" ]
+      Stdlib.String.split "x1" "1" |> Stdlib.Test.equal [ "x", "" ]
+      Stdlib.String.split "x666666y" "6"
+      |> Stdlib.Test.equal [ "x", "", "", "", "", "", "y" ]
+      Stdlib.String.split "x55555y" "5"
+      |> Stdlib.Test.equal [ "x", "", "", "", "", "y" ]
+      Stdlib.String.split "x4444y" "4" |> Stdlib.Test.equal [ "x", "", "", "", "y" ]
+      Stdlib.String.split "x333y" "3" |> Stdlib.Test.equal [ "x", "", "", "y" ]
+      Stdlib.String.split "x22y" "2" |> Stdlib.Test.equal [ "x", "", "y" ]
+      Stdlib.String.split "x1y" "1" |> Stdlib.Test.equal [ "x", "y" ]
+      Stdlib.String.split "6a6aa6aaa6aaaa" "a"
+      |> Stdlib.Test.equal [ "6", "6", "", "6", "", "", "6", "", "", "", "" ]
+      Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" ""
+      |> Stdlib.Test.equal [ "👨‍❤️‍💋‍👨", "👩‍👩‍👧‍👦", "🏳️‍⚧️‍️", "🇵🇷" ]
+      Stdlib.String.split "👨‍👩‍👧‍👦" "👩" |> Stdlib.Test.equal [ "👨‍👩‍👧‍👦" ] ]
+
+// `String.split` and `String.length` work in extended grapheme clusters, and have
+// a fast path for the strings whose clusters are exactly their chars. This checks
+// the two agree.
+//
+// The cases that matter are the ones the fast path must *decline*:
+//   j, l, m  non-ASCII, where a cluster can span several chars
+//   k        "a\r\nb" split on "\n" -- CRLF is ONE cluster, so the EGC answer is a
+//            single part, where an ordinary split would give two. This is why the
+//            fast path rejects any CR.
+//   i        an empty separator, which means "explode into clusters"
+//
+// Expected output is in checks/string-egc.expected; diff against it.
+//
+// `k` renders as "[a\rb]" and not with a raw carriage return in it. That changed
+// when terminal text measurement moved out of LibExecution and control characters
+// started being escaped rather than written through -- a raw CR in debug output
+// moves the cursor. The split itself is unchanged: one part either way, which is
+// the thing this file is checking.
+//
+// Not legacy assertions: the cases and expected values are those of the by-hand
+// perf check `scripts/perf/workloads/checks/string-egc.dark`, a to m in order.
+// Differs from that check: it printed each result with `Builtin.debug` for a diff
+// against `string-egc.expected`; these compare the values, so `k` is checked as
+// the list `[ "a\r\nb" ]` rather than as rendered text.
+test splitFastPath =
+  Stdlib.Test.all
+    [ Stdlib.String.split "/hello/world" "/"
+      |> Stdlib.Test.equal [ "", "hello", "world" ]
+      Stdlib.String.split "" "," |> Stdlib.Test.equal [ "" ]
+      Stdlib.String.split "," "," |> Stdlib.Test.equal [ "", "" ]
+      Stdlib.String.split "a,,b" "," |> Stdlib.Test.equal [ "a", "", "b" ]
+      Stdlib.String.split ",a," "," |> Stdlib.Test.equal [ "", "a", "" ]
+      Stdlib.String.split "abc" "," |> Stdlib.Test.equal [ "abc" ]
+      Stdlib.String.split "a,b,c" "," |> Stdlib.Test.equal [ "a", "b", "c" ]
+      Stdlib.String.split "aXXbXXc" "XX" |> Stdlib.Test.equal [ "a", "b", "c" ]
+      Stdlib.String.split "hello" "" |> Stdlib.Test.equal [ "h", "e", "l", "l", "o" ]
+      Stdlib.String.split "héllo" "l" |> Stdlib.Test.equal [ "hé", "", "o" ]
+      Stdlib.String.split "a\r\nb" "\n" |> Stdlib.Test.equal [ "a\r\nb" ]
+      Stdlib.String.split "🎉a🎉" "a" |> Stdlib.Test.equal [ "🎉", "🎉" ]
+      Stdlib.String.split "éx" "x" |> Stdlib.Test.equal [ "é", "" ] ]
+
+test splitFirst =
+  Stdlib.Test.all
+    [ Stdlib.String.splitFirst "a|b" "|" |> Stdlib.Test.equal (Some(("a", "b")))
+      Stdlib.String.splitFirst "a|b|c|d" "|"
+      |> Stdlib.Test.equal (Some(("a", "b|c|d")))
+      Stdlib.String.splitFirst "key=value" "="
+      |> Stdlib.Test.equal (Some(("key", "value")))
+      Stdlib.String.splitFirst "PATH=/usr/bin:/bin" "="
+      |> Stdlib.Test.equal (Some(("PATH", "/usr/bin:/bin")))
+      Stdlib.String.splitFirst "Date: Wed, 14 May 2026 09:00:00 GMT" ": "
+      |> Stdlib.Test.equal (Some(("Date", "Wed, 14 May 2026 09:00:00 GMT")))
+      Stdlib.String.splitFirst "abc" "|" |> Stdlib.Test.equal None
+      Stdlib.String.splitFirst "" "|" |> Stdlib.Test.equal None
+      Stdlib.String.splitFirst "|abc" "|" |> Stdlib.Test.equal (Some(("", "abc")))
+      Stdlib.String.splitFirst "abc|" "|" |> Stdlib.Test.equal (Some(("abc", "")))
+      Stdlib.String.splitFirst "||" "|" |> Stdlib.Test.equal (Some(("", "|")))
+      Stdlib.String.splitFirst "a==b==c" "=="
+      |> Stdlib.Test.equal (Some(("a", "b==c")))
+      Stdlib.String.splitFirst "no-sep-here" "==" |> Stdlib.Test.equal None
+      Stdlib.String.splitFirst "abc" "" |> Stdlib.Test.equal None
+      Stdlib.String.splitFirst "" "" |> Stdlib.Test.equal None
+      Stdlib.String.splitFirst "hello😄world" "😄"
+      |> Stdlib.Test.equal (Some(("hello", "world")))
+      Stdlib.String.splitFirst "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼" "🧑🏼‍💻"
+      |> Stdlib.Test.equal (Some(("🧑🏽‍🦰", "🧑🏻‍🍼")))
+      // ZWJ separator at start, end, and with non-BMP prefix.
+      Stdlib.String.splitFirst "🧑🏼‍💻rest" "🧑🏼‍💻"
+      |> Stdlib.Test.equal (Some(("", "rest")))
+      Stdlib.String.splitFirst "rest🧑🏼‍💻" "🧑🏼‍💻"
+      |> Stdlib.Test.equal (Some(("rest", "")))
+      Stdlib.String.splitFirst "żółw🧑🏼‍💻tail" "🧑🏼‍💻"
+      |> Stdlib.Test.equal (Some(("żółw", "tail")))
+      // BMP-but-multi-char-codepoint prefix (combining marks): "ą́" is "a" +
+      // combining acute.
+      Stdlib.String.splitFirst "ą́|b" "|" |> Stdlib.Test.equal (Some(("ą́", "b")))
+      // Mid-grapheme search returns None: 🧑 alone is not a complete EGC of 🧑🏼‍💻.
+      Stdlib.String.splitFirst "🧑🏼‍💻" "🧑" |> Stdlib.Test.equal None ]
+
+test splitN =
+  Stdlib.Test.all
+    [ Stdlib.String.splitN "a|b|c|d" "|" 2 |> Stdlib.Test.equal [ "a", "b|c|d" ]
+      Stdlib.String.splitN "a|b|c|d" "|" 3 |> Stdlib.Test.equal [ "a", "b", "c|d" ]
+      Stdlib.String.splitN "a|b|c|d" "|" 4
+      |> Stdlib.Test.equal [ "a", "b", "c", "d" ]
+      Stdlib.String.splitN "a|b|c|d" "|" 99
+      |> Stdlib.Test.equal [ "a", "b", "c", "d" ]
+      Stdlib.String.splitN "a|b|c|d" "|" 1 |> Stdlib.Test.equal [ "a|b|c|d" ]
+      Stdlib.String.splitN "a|b|c|d" "|" 0 |> Stdlib.Test.equal [ "a|b|c|d" ]
+      Stdlib.String.splitN "a|b|c|d" "|" -1 |> Stdlib.Test.equal [ "a|b|c|d" ]
+      Stdlib.String.splitN "abc" "|" 3 |> Stdlib.Test.equal [ "abc" ]
+      Stdlib.String.splitN "" "|" 3 |> Stdlib.Test.equal [ "" ]
+      Stdlib.String.splitN "abc" "" 3 |> Stdlib.Test.equal [ "abc" ]
+      Stdlib.String.splitN "a|b" "" 2 |> Stdlib.Test.equal [ "a|b" ]
+      Stdlib.String.splitN "hello😄world😄sun" "😄" 2
+      |> Stdlib.Test.equal [ "hello", "world😄sun" ]
+      Stdlib.String.splitN "a==b==c==d" "==" 3
+      |> Stdlib.Test.equal [ "a", "b", "c==d" ]
+      // ZWJ-bearing prefixes work because splitN routes through indexOfEgc.
+      Stdlib.String.splitN "🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼" "|" 2
+      |> Stdlib.Test.equal [ "🧑🏽‍🦰", "🧑🏼‍💻|🧑🏻‍🍼" ]
+      Stdlib.String.splitN "🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼" "|" 3
+      |> Stdlib.Test.equal [ "🧑🏽‍🦰", "🧑🏼‍💻", "🧑🏻‍🍼" ]
+      // ZWJ separator with mixed-width content on both sides.
+      Stdlib.String.splitN "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻" 2
+      |> Stdlib.Test.equal [ "a", "b🧑🏼‍💻c" ]
+      Stdlib.String.splitN "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻" 3
+      |> Stdlib.Test.equal [ "a", "b", "c" ]
+      Stdlib.String.splitN "żółw🧑🏼‍💻x🧑🏼‍💻y" "🧑🏼‍💻" 2
+      |> Stdlib.Test.equal [ "żółw", "x🧑🏼‍💻y" ]
+      // Adjacent separators yield empty pieces, with a ZWJ separator.
+      Stdlib.String.splitN "🧑🏼‍💻🧑🏼‍💻x" "🧑🏼‍💻" 3
+      |> Stdlib.Test.equal [ "", "", "x" ] ]
+
+test prepend =
+  Stdlib.Test.all
+    [ // Stdlib.String.prepend works for ASCII range
+      Stdlib.String.prepend "hello" "world" |> Stdlib.Test.equal "worldhello"
+      Stdlib.String.prepend "hello" "" |> Stdlib.Test.equal "hello"
+      Stdlib.String.prepend "" "hello" |> Stdlib.Test.equal "hello"
+      // Stdlib.String.prepend works on non-ascii strings
+      Stdlib.String.prepend "żółw" "😄" |> Stdlib.Test.equal "😄żółw"
+      Stdlib.String.prepend "123" "456" |> Stdlib.Test.equal "456123"
+      Stdlib.String.prepend "óñÜá" "abc" |> Stdlib.Test.equal "abcóñÜá"
+      Stdlib.String.prepend "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓"
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.prepend "﷽﷽﷽﷽﷽" "👨‍❤️‍💋‍👨"
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨﷽﷽﷽﷽﷽"
+      Stdlib.String.prepend "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽"
+      |> Stdlib.Test.equal "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      Stdlib.String.prepend "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "✋🏻"
+      |> Stdlib.Test.equal "✋🏻👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+      Stdlib.String.prepend "🧟‍♀️🧟‍♂️" "🧟‍♂️"
+      |> Stdlib.Test.equal "🧟‍♂️🧟‍♀️🧟‍♂️"
+      Stdlib.String.prepend "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨"
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      Stdlib.String.prepend "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧟‍♂️"
+      |> Stdlib.Test.equal "🧟‍♂️żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" ]
+
+test replaceAll =
+  Stdlib.Test.all
+    [ Stdlib.String.replaceAll "abcABCcbaCBA" "b" "x"
+      |> Stdlib.Test.equal "axcABCcxaCBA"
+      Stdlib.String.replaceAll "abcABCcbaCBA" "" "x"
+      |> Stdlib.Test.equal "xaxbxcxAxBxCxcxbxaxCxBxAx"
+      Stdlib.String.replaceAll "" "" "&" |> Stdlib.Test.equal "&"
+      Stdlib.String.replaceAll "abcABCcbaCBA" "b" ""
+      |> Stdlib.Test.equal "acABCcaCBA"
+      Stdlib.String.replaceAll "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ä͖̭̈̇" "$"
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓$lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.replaceAll "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽" "$"
+      |> Stdlib.Test.equal "$$$$$$$$"
+      Stdlib.String.replaceAll "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏽" "✋🏻"
+      |> Stdlib.Test.equal "👱👱🏻👱🏼✋🏻👱🏾👱🏿"
+      Stdlib.String.replaceAll "🧟‍♀️🧟‍♂️" "🧟‍♂️" "🧑🏽‍🦰"
+      |> Stdlib.Test.equal "🧟‍♀️🧑🏽‍🦰"
+      Stdlib.String.replaceAll "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨" "👨‍❤️‍💋‍👨"
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      Stdlib.String.replaceAll "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" "🧟‍♂️"
+      |> Stdlib.Test.equal "żółw🧑🏽‍🦰🧟‍♂️✋✋🏻✋🏿" ]
+
+test toLowercase =
+  Stdlib.Test.all
+    [ Stdlib.String.toLowercase "HELLO😄WORLD" |> Stdlib.Test.equal "hello😄world"
+      Stdlib.String.toLowercase "" |> Stdlib.Test.equal ""
+      // Stdlib.String.toLowercase works for ASCII range
+      Stdlib.String.toLowercase "ABCDEF" |> Stdlib.Test.equal "abcdef"
+      Stdlib.String.toLowercase "AB323CDEF" |> Stdlib.Test.equal "ab323cdef"
+      // not lowercase a
+      Stdlib.String.toLowercase "SÁNCHEZ" |> Stdlib.Test.equal "sánchez"
+      Stdlib.String.toLowercase "sánchez" |> Stdlib.Test.equal "sánchez"
+      // Stdlib.String.toLowercase works on non-ascii strings
+      Stdlib.String.toLowercase "ŻÓŁW" |> Stdlib.Test.equal "żółw"
+      Stdlib.String.toLowercase "😄ORANGE" |> Stdlib.Test.equal "😄orange"
+      Stdlib.String.toLowercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      |> Stdlib.Test.equal "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.toLowercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      |> Stdlib.Test.equal "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      Stdlib.String.toLowercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+      |> Stdlib.Test.equal "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+      Stdlib.String.toLowercase "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal "🧟‍♀️🧟‍♂️"
+      Stdlib.String.toLowercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      Stdlib.String.toLowercase "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      |> Stdlib.Test.equal "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.toLowercase "Ჾ" |> Stdlib.Test.equal "ჾ"
+      Stdlib.String.toLowercase "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇"
+      |> Stdlib.Test.equal "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" ]
+
+test toLowercaseCombiningMarks =
+  Stdlib.Test.all
+    [ Stdlib.String.toLowercase "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕"
+      |> Stdlib.Test.equal "h̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈w̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠b̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅt͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝w͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" ]
+
+test toUppercase =
+  Stdlib.Test.all
+    [ Stdlib.String.toUppercase "" |> Stdlib.Test.equal ""
+      Stdlib.String.toUppercase "hello😄world" |> Stdlib.Test.equal "HELLO😄WORLD"
+      Stdlib.String.toUppercase "abcdef" |> Stdlib.Test.equal "ABCDEF"
+      Stdlib.String.toUppercase "ab323cdef" |> Stdlib.Test.equal "AB323CDEF"
+      // not lowercase a
+      Stdlib.String.toUppercase "sánchez" |> Stdlib.Test.equal "SÁNCHEZ"
+      Stdlib.String.toUppercase "SÁNChEZ" |> Stdlib.Test.equal "SÁNCHEZ"
+      Stdlib.String.toUppercase "żółw" |> Stdlib.Test.equal "ŻÓŁW"
+      Stdlib.String.toUppercase "😄orange" |> Stdlib.Test.equal "😄ORANGE"
+      Stdlib.String.toUppercase "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      |> Stdlib.Test.equal "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.toUppercase "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      |> Stdlib.Test.equal "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      Stdlib.String.toUppercase "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+      |> Stdlib.Test.equal "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+      Stdlib.String.toUppercase "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal "🧟‍♀️🧟‍♂️"
+      Stdlib.String.toUppercase "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      Stdlib.String.toUppercase "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      |> Stdlib.Test.equal "ŻÓŁW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.toUppercase "ჾ" |> Stdlib.Test.equal "Ჾ"
+      // should be "FIFL"
+      // TODO: There are two types of unicode case "mapping" (conversion), "simple"
+      // and "full". .NET supports simple mapping, which maps a single character to a
+      // single character. It does not support "full" mapping, which maps a single
+      // character to multiple characters.
+      //
+      // Discussed at https://github.com/dotnet/runtime/issues/30960, specifially
+      // https://github.com/dotnet/runtime/issues/30960#issuecomment-535274401
+      //
+      // A possible solution is to write our own case mapper, or reuse an existing
+      // one. A potential candidate is
+      // https://github.com/dotnet/corefxlab/tree/archive/src/System.Text.CaseFolding
+      // (packaged at
+      // https://dnceng.visualstudio.com/public/_packaging?_a=package&feed=dotnet-experimental&view=overview&package=System.Text.CaseFolding&version=0.1.2-alpha.21059.1&protocolType=NuGet)
+      Stdlib.String.toUppercase "ﬁﬂ" |> Stdlib.Test.equal "ﬁﬂ"
+      // should be "ԵՒ"
+      Stdlib.String.toUppercase "և" |> Stdlib.Test.equal "և"
+      Stdlib.String.toUppercase "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇" ]
+
+test toUppercaseCombiningMarks =
+  Stdlib.Test.all
+    [ Stdlib.String.toUppercase "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕"
+      |> Stdlib.Test.equal "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍Į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ΙE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ΙT͖̼͓̪͢H͏͓̮̻E̬̝̟Ι ̤̹̝W͙̞̝͔͇͝ΙA͏͓͔̹̼̣L̴͔̰̤̟͔Ḽ̫.͕" ]
+
+test trimEnd =
+  Stdlib.Test.all
+    [ Stdlib.String.trimEnd "      " |> Stdlib.Test.equal ""
+      Stdlib.String.trimEnd "" |> Stdlib.Test.equal ""
+      Stdlib.String.trimEnd "  foo  " |> Stdlib.Test.equal "  foo"
+      Stdlib.String.trimEnd "  foo bar  " |> Stdlib.Test.equal "  foo bar"
+      Stdlib.String.trimEnd "  foo" |> Stdlib.Test.equal "  foo"
+      Stdlib.String.trimEnd " 😄foobar😄 " |> Stdlib.Test.equal " 😄foobar😄"
+      Stdlib.String.trimEnd "  foo bar  " |> Stdlib.Test.equal "  foo bar"
+      Stdlib.String.trimEnd "foo  " |> Stdlib.Test.equal "foo"
+      Stdlib.String.trimEnd "foo" |> Stdlib.Test.equal "foo"
+      Stdlib.String.trimEnd " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
+      |> Stdlib.Test.equal " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
+      Stdlib.String.trimEnd " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
+      |> Stdlib.Test.equal " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
+      Stdlib.String.trimEnd "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   "
+      |> Stdlib.Test.equal "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.trimEnd "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  "
+      |> Stdlib.Test.equal "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.trimEnd "       ﷽﷽  " |> Stdlib.Test.equal "       ﷽﷽"
+      Stdlib.String.trimEnd " 🧟‍♀️🧟‍♂️ " |> Stdlib.Test.equal " 🧟‍♀️🧟‍♂️"
+      Stdlib.String.trimEnd " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
+      |> Stdlib.Test.equal " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      Stdlib.String.trimEnd "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  "
+      |> Stdlib.Test.equal "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.trimEnd "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" |> Stdlib.Test.equal "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" ]
+
+test trimStart =
+  Stdlib.Test.all
+    [ Stdlib.String.trimStart " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
+      |> Stdlib.Test.equal "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
+      Stdlib.String.trimStart " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
+      |> Stdlib.Test.equal "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
+      Stdlib.String.trimStart "      " |> Stdlib.Test.equal ""
+      Stdlib.String.trimStart "" |> Stdlib.Test.equal ""
+      Stdlib.String.trimStart "  foo  " |> Stdlib.Test.equal "foo  "
+      Stdlib.String.trimStart "  foo bar  " |> Stdlib.Test.equal "foo bar  "
+      Stdlib.String.trimStart "  foo" |> Stdlib.Test.equal "foo"
+      Stdlib.String.trimStart " 😄foobar😄 " |> Stdlib.Test.equal "😄foobar😄 "
+      Stdlib.String.trimStart "  foo bar  " |> Stdlib.Test.equal "foo bar  "
+      Stdlib.String.trimStart "foo  " |> Stdlib.Test.equal "foo  "
+      Stdlib.String.trimStart "foo" |> Stdlib.Test.equal "foo"
+      Stdlib.String.trimStart "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   "
+      |> Stdlib.Test.equal "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   "
+      Stdlib.String.trimStart "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  "
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  "
+      Stdlib.String.trimStart "       ﷽﷽  " |> Stdlib.Test.equal "﷽﷽  "
+      Stdlib.String.trimStart " 🧟‍♀️🧟‍♂️ " |> Stdlib.Test.equal "🧟‍♀️🧟‍♂️ "
+      Stdlib.String.trimStart " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
+      Stdlib.String.trimStart "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  "
+      |> Stdlib.Test.equal "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " ]
+
+test trim =
+  Stdlib.Test.all
+    [ Stdlib.String.trim "      " |> Stdlib.Test.equal ""
+      Stdlib.String.trim "" |> Stdlib.Test.equal ""
+      // String trims both leading + trailing spaces
+      Stdlib.String.trim "  foo  " |> Stdlib.Test.equal "foo"
+      // String trims both leading + trailing spaces, leaving inner untouched
+      Stdlib.String.trim "  foo bar  " |> Stdlib.Test.equal "foo bar"
+      // String trims leading spaces
+      Stdlib.String.trim "  foo" |> Stdlib.Test.equal "foo"
+      // String trims both leading + trailing spaces, preserving emoji
+      Stdlib.String.trim " 😄foobar😄 " |> Stdlib.Test.equal "😄foobar😄"
+      // String trims both leading + trailing spaces, leaving inner untouched w/
+      // unicode spaces
+      Stdlib.String.trim "  foo bar " |> Stdlib.Test.equal "foo bar"
+      // String trims trailing spaces
+      Stdlib.String.trim "foo  " |> Stdlib.Test.equal "foo"
+      // String trim noops
+      Stdlib.String.trim "foo" |> Stdlib.Test.equal "foo"
+      Stdlib.String.trim "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   "
+      |> Stdlib.Test.equal "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.trim "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  "
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.trim "       ﷽﷽" |> Stdlib.Test.equal "﷽﷽"
+      Stdlib.String.trim " 🧟‍♀️🧟‍♂️ " |> Stdlib.Test.equal "🧟‍♀️🧟‍♂️"
+      Stdlib.String.trim " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      Stdlib.String.trim "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      |> Stdlib.Test.equal "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.trim " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
+      |> Stdlib.Test.equal "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
+      Stdlib.String.trim " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
+      |> Stdlib.Test.equal "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
+      Stdlib.String.trim "쉆ꥨ逴皪巌䖑ⱝዓ淋" |> Stdlib.Test.equal "쉆ꥨ逴皪巌䖑ⱝዓ淋" ]
+
+test reverse =
+  Stdlib.Test.all
+    [ Stdlib.String.reverse "abcde" |> Stdlib.Test.equal "edcba"
+      Stdlib.String.reverse "0abcde" |> Stdlib.Test.equal "edcba0"
+      Stdlib.String.reverse "a" |> Stdlib.Test.equal "a"
+      Stdlib.String.reverse "" |> Stdlib.Test.equal ""
+      Stdlib.String.reverse "ábc" |> Stdlib.Test.equal "cbá"
+      Stdlib.String.reverse "🎁🧸Ǆʠ123" |> Stdlib.Test.equal "321ʠǄ🧸🎁"
+      Stdlib.String.reverse "😄foobar👽" |> Stdlib.Test.equal "👽raboof😄"
+      Stdlib.String.reverse "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+      |> Stdlib.Test.equal "✋🏿✋🏻✋🧑🏻‍🍼🧑🏽‍🦰włóż"
+      Stdlib.String.reverse "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      |> Stdlib.Test.equal "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      Stdlib.String.reverse "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+      |> Stdlib.Test.equal "👱🏿👱🏾👱🏽👱🏼👱🏻👱"
+      Stdlib.String.reverse "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal "🧟‍♂️🧟‍♀️"
+      Stdlib.String.reverse "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+      |> Stdlib.Test.equal "🇵🇷🏳️‍⚧️‍️👩‍👩‍👧‍👦👨‍❤️‍💋‍👨"
+      Stdlib.String.reverse "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      |> Stdlib.Test.equal "o̙̔ͮ̇͐̇ǧ̗͚̚lͮ̒ͫä͖̭̈̇Z̤͔ͧ̑̓" ]
+
+test dropFirst =
+  Stdlib.Test.all
+    [ Stdlib.String.dropFirst "abcd" -3 |> Stdlib.Test.equal "abcd"
+      Stdlib.String.dropFirst "abcd" 0 |> Stdlib.Test.equal "abcd"
+      Stdlib.String.dropFirst "abcd" 3 |> Stdlib.Test.equal "d"
+      Stdlib.String.dropFirst "" 3 |> Stdlib.Test.equal ""
+      Stdlib.String.dropFirst "🍏🍒🍒" 1 |> Stdlib.Test.equal "🍒🍒"
+      Stdlib.String.dropFirst "🍏🍒🍍" 2 |> Stdlib.Test.equal "🍍"
+      Stdlib.String.dropFirst "🍏a🍒b🍍c" 2 |> Stdlib.Test.equal "🍒b🍍c"
+      Stdlib.String.dropFirst "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 5
+      |> Stdlib.Test.equal "🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.dropFirst "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1
+      |> Stdlib.Test.equal "ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.dropFirst "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2
+      |> Stdlib.Test.equal "lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.dropFirst "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3
+      |> Stdlib.Test.equal "ǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.dropFirst "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1
+      |> Stdlib.Test.equal "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      Stdlib.String.dropFirst "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 1
+      |> Stdlib.Test.equal "👱🏻👱🏼👱🏽👱🏾👱🏿"
+      Stdlib.String.dropFirst "🧟‍♀️🧟‍♂️" 20 |> Stdlib.Test.equal ""
+      Stdlib.String.dropFirst "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3
+      |> Stdlib.Test.equal "🇵🇷" ]
+
+test dropLast =
+  Stdlib.Test.all
+    [ Stdlib.String.dropLast "abcd" -3 |> Stdlib.Test.equal "abcd"
+      Stdlib.String.dropLast "abcd" 0 |> Stdlib.Test.equal "abcd"
+      Stdlib.String.dropLast "abcd" 3 |> Stdlib.Test.equal "a"
+      Stdlib.String.dropLast "" 3 |> Stdlib.Test.equal ""
+      Stdlib.String.dropLast "🍏🍒🍒" 1 |> Stdlib.Test.equal "🍏🍒"
+      Stdlib.String.dropLast "🍏🍒🍍" 2 |> Stdlib.Test.equal "🍏"
+      Stdlib.String.dropLast "🍏a🍒b🍍c" 2 |> Stdlib.Test.equal "🍏a🍒b"
+      Stdlib.String.dropLast "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
+      Stdlib.String.dropLast "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 10 |> Stdlib.Test.equal "﷽﷽﷽﷽﷽﷽"
+      Stdlib.String.dropLast "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3
+      |> Stdlib.Test.equal "👱👱🏻👱🏼"
+      Stdlib.String.dropLast "🧟‍♀️🧟‍♂️" 20 |> Stdlib.Test.equal ""
+      Stdlib.String.dropLast "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦"
+      Stdlib.String.dropLast "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4
+      |> Stdlib.Test.equal "żółw🧑🏽‍🦰" ]
+
+test last =
+  Stdlib.Test.all
+    [ Stdlib.String.last "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 4
+      |> Stdlib.Test.equal "🧑🏻‍🍼✋✋🏻✋🏿"
+      Stdlib.String.last "abcd" -3 |> Stdlib.Test.equal ""
+      Stdlib.String.last "abcd" 0 |> Stdlib.Test.equal ""
+      Stdlib.String.last "" 7 |> Stdlib.Test.equal ""
+      Stdlib.String.last "abcd" 1 |> Stdlib.Test.equal "d"
+      Stdlib.String.last "abcd" 2 |> Stdlib.Test.equal "cd"
+      Stdlib.String.last "abcd" 3 |> Stdlib.Test.equal "bcd"
+      Stdlib.String.last "🍍🍍🍏" 1 |> Stdlib.Test.equal "🍏"
+      Stdlib.String.last "🍊🍍🍏" 2 |> Stdlib.Test.equal "🍍🍏"
+      Stdlib.String.last "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿🧑🏻‍🍼" 1
+      |> Stdlib.Test.equal "🧑🏻‍🍼"
+      Stdlib.String.last "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2
+      |> Stdlib.Test.equal "ǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.last "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 |> Stdlib.Test.equal "﷽﷽"
+      Stdlib.String.last "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 3
+      |> Stdlib.Test.equal "👱🏽👱🏾👱🏿"
+      Stdlib.String.last "🧟‍♀️🧟‍♂️" 1 |> Stdlib.Test.equal "🧟‍♂️"
+      Stdlib.String.last "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 1
+      |> Stdlib.Test.equal "🇵🇷" ]
+
+test contains =
+  Stdlib.Test.all
+    [ Stdlib.String.contains "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "2223" |> Stdlib.Test.equal false
+      Stdlib.String.contains "👱👱🏻👱🏼👱🏽👱🏾" "👱🏿" |> Stdlib.Test.equal false
+      Stdlib.String.contains "🧟‍♀️🧟‍♂️" "🧟‍♂️" |> Stdlib.Test.equal true
+      Stdlib.String.contains "🧟‍♀️🧟‍♂️" "🧟‍♂️🧟‍♂️" |> Stdlib.Test.equal false
+      Stdlib.String.contains "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦"
+      |> Stdlib.Test.equal true
+      Stdlib.String.contains "اختبار" "اختبار" |> Stdlib.Test.equal true
+      Stdlib.String.contains "" "" |> Stdlib.Test.equal true
+      Stdlib.String.contains "a" "" |> Stdlib.Test.equal true
+      Stdlib.String.contains "" "a" |> Stdlib.Test.equal false ]
+
+test slice =
+  Stdlib.Test.all
+    [ Stdlib.String.slice "abcd" -2 4 |> Stdlib.Test.equal "cd"
+      Stdlib.String.slice "abcd" -5 -6 |> Stdlib.Test.equal ""
+      Stdlib.String.slice "abcd" -5 1 |> Stdlib.Test.equal "a"
+      Stdlib.String.slice "abcd" 0 -1 |> Stdlib.Test.equal "abc"
+      Stdlib.String.slice "abcd" 2 3 |> Stdlib.Test.equal "c"
+      Stdlib.String.slice "abcd" 2 6 |> Stdlib.Test.equal "cd"
+      Stdlib.String.slice "abcd" 3 2 |> Stdlib.Test.equal ""
+      Stdlib.String.slice "abcd" 5 6 |> Stdlib.Test.equal ""
+      Stdlib.String.slice "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 2 10
+      |> Stdlib.Test.equal "✋✋🏻✋🏿"
+      Stdlib.String.slice "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 1 3
+      |> Stdlib.Test.equal "ä͖̭̈̇lͮ̒ͫ"
+      Stdlib.String.slice "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 2 6 |> Stdlib.Test.equal "﷽﷽﷽﷽"
+      Stdlib.String.slice "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 6
+      |> Stdlib.Test.equal "👱🏼👱🏽👱🏾👱🏿"
+      Stdlib.String.slice "🧟‍♀️🧟‍♂️" 2 4 |> Stdlib.Test.equal ""
+      Stdlib.String.slice "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 2 10
+      |> Stdlib.Test.equal "🏳️‍⚧️‍️🇵🇷"
+      Stdlib.String.slice "abc" 0 4503599627370498 |> Stdlib.Test.equal "abc" ]
+
+test first =
+  Stdlib.Test.all
+    [ Stdlib.String.first "abcd" -3 |> Stdlib.Test.equal ""
+      Stdlib.String.first "abcd" 0 |> Stdlib.Test.equal ""
+      Stdlib.String.first "abcd" 1 |> Stdlib.Test.equal "a"
+      Stdlib.String.first "abcd" 2 |> Stdlib.Test.equal "ab"
+      Stdlib.String.first "abcd" 3 |> Stdlib.Test.equal "abc"
+      Stdlib.String.first "abcd" 3000000000000000 |> Stdlib.Test.equal "abcd"
+      Stdlib.String.first "" 7 |> Stdlib.Test.equal ""
+      Stdlib.String.first "🍊🍍🍏" 1 |> Stdlib.Test.equal "🍊"
+      Stdlib.String.first "🍊🍍🍏" 2 |> Stdlib.Test.equal "🍊🍍"
+      Stdlib.String.first "🍊🍍🍏" 3 |> Stdlib.Test.equal "🍊🍍🍏"
+      Stdlib.String.first "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" 1 |> Stdlib.Test.equal "🧑🏽‍🦰"
+      Stdlib.String.first "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 10
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+      Stdlib.String.first "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 2
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇"
+      Stdlib.String.first "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ"
+      Stdlib.String.first "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 4
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚"
+      Stdlib.String.first "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" 1 |> Stdlib.Test.equal "﷽"
+      Stdlib.String.first "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 2 |> Stdlib.Test.equal "👱👱🏻"
+      Stdlib.String.first "🧟‍♀️🧟‍♂️" 1 |> Stdlib.Test.equal "🧟‍♀️"
+      Stdlib.String.first "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️" ]
+
+test padStart =
+  Stdlib.Test.all
+    [ Stdlib.String.padStart "123" "0" 3 |> Stdlib.Test.equal (Ok "123")
+      Stdlib.String.padStart "123" "0" -3 |> Stdlib.Test.equal (Ok "123")
+      Stdlib.String.padStart "123" "0" 6 |> Stdlib.Test.equal (Ok "000123")
+      Stdlib.String.padStart "" "0" 0 |> Stdlib.Test.equal (Ok "")
+      Stdlib.String.padStart "123🍊🍊" "0" 3 |> Stdlib.Test.equal (Ok "123🍊🍊")
+      Stdlib.String.padStart "🍍🍍🍊🍊" "0" 7 |> Stdlib.Test.equal (Ok "000🍍🍍🍊🍊")
+      Stdlib.String.padStart "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10
+      |> Stdlib.Test.equal (Ok "0żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿")
+      Stdlib.String.padStart "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10
+      |> Stdlib.Test.equal (Ok "00000Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇")
+      Stdlib.String.padStart "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20
+      |> Stdlib.Test.equal (Ok "0000﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
+      Stdlib.String.padStart "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10
+      |> Stdlib.Test.equal (Ok "0000👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+      Stdlib.String.padStart "🧟‍♀️🧟‍♂️" "0" 5
+      |> Stdlib.Test.equal (Ok "000🧟‍♀️🧟‍♂️")
+      Stdlib.String.padStart "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10
+      |> Stdlib.Test.equal (Ok "000000👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷")
+      Stdlib.String.padStart "鷝" "觌഻" 0 |> Stdlib.Test.equal (Ok "鷝")
+      Stdlib.String.padStart "123" "_-" 4
+
+     |> Stdlib.Test.equal (Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`")
+      Stdlib.String.padStart "123" "" 10
+
+     |> Stdlib.Test.equal (Error "Expected `padWith` to be 1 character long, but it was `\"\"`") ]
+
+test padEnd =
+  Stdlib.Test.all
+    [ Stdlib.String.padEnd "" "0" 0 |> Stdlib.Test.equal (Ok "")
+      Stdlib.String.padEnd "123" "0" 3 |> Stdlib.Test.equal (Ok "123")
+      Stdlib.String.padEnd "123" "0" 6 |> Stdlib.Test.equal (Ok "123000")
+      Stdlib.String.padEnd "123" "0" -3 |> Stdlib.Test.equal (Ok "123")
+      Stdlib.String.padEnd "123🍊🍊" "0" 8 |> Stdlib.Test.equal (Ok "123🍊🍊000")
+      Stdlib.String.padEnd "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10
+      |> Stdlib.Test.equal (Ok "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿0")
+      Stdlib.String.padEnd "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10
+      |> Stdlib.Test.equal (Ok "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇00000")
+      Stdlib.String.padEnd "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20
+      |> Stdlib.Test.equal (Ok "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽0000")
+      Stdlib.String.padEnd "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10
+      |> Stdlib.Test.equal (Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿0000")
+      Stdlib.String.padEnd "🧟‍♀️🧟‍♂️" "0" 5
+      |> Stdlib.Test.equal (Ok "🧟‍♀️🧟‍♂️000")
+      Stdlib.String.padEnd "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10
+      |> Stdlib.Test.equal (Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000")
+      Stdlib.String.padEnd "鷝" "觌഻" 0 |> Stdlib.Test.equal (Ok "鷝")
+      Stdlib.String.padEnd "123" "_-" 3
+
+     |> Stdlib.Test.equal (Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`")
+      Stdlib.String.padEnd "123" "" 10
+
+     |> Stdlib.Test.equal (Error "Expected `padWith` to be 1 character long, but it was `\"\"`") ]
+
+// Columns, not characters. Contrast `PadEnd` above: `padEnd "界界界" "0" 6` adds
+// three zeroes to something already six columns wide.
+test padToWidth =
+  Stdlib.Test.all
+    [ Stdlib.String.padEndToWidth "" 0 |> Stdlib.Test.equal ""
+      Stdlib.String.padEndToWidth "abc" 3 |> Stdlib.Test.equal "abc"
+      Stdlib.String.padEndToWidth "abc" 6 |> Stdlib.Test.equal "abc   "
+      Stdlib.String.padEndToWidth "abc" -3 |> Stdlib.Test.equal "abc"
+      Stdlib.String.padEndToWidth "abcdef" 3 |> Stdlib.Test.equal "abcdef"
+      Stdlib.String.padEndToWidth "界" 4 |> Stdlib.Test.equal "界  "
+      Stdlib.String.padEndToWidth "界界界" 6 |> Stdlib.Test.equal "界界界"
+      Stdlib.String.padEndToWidth "🙂" 4 |> Stdlib.Test.equal "🙂  "
+      Stdlib.String.padEndToWidth "e\u0301" 3 |> Stdlib.Test.equal "e\u0301  "
+      Stdlib.String.padStartToWidth "" 0 |> Stdlib.Test.equal ""
+      Stdlib.String.padStartToWidth "abc" 6 |> Stdlib.Test.equal "   abc"
+      Stdlib.String.padStartToWidth "abc" 3 |> Stdlib.Test.equal "abc"
+      Stdlib.String.padStartToWidth "abcdef" 3 |> Stdlib.Test.equal "abcdef"
+      Stdlib.String.padStartToWidth "界" 4 |> Stdlib.Test.equal "  界"
+      Stdlib.String.padStartToWidth "界界界" 6 |> Stdlib.Test.equal "界界界" ]
+
+test indexOf =
+  Stdlib.Test.all
+    [ Stdlib.String.indexOf "hello world" "world" |> Stdlib.Test.equal (Some 6)
+      Stdlib.String.indexOf "hello world" "earth" |> Stdlib.Test.equal None
+      Stdlib.String.indexOf "" "" |> Stdlib.Test.equal (Some 0)
+      Stdlib.String.indexOf "hello" "" |> Stdlib.Test.equal (Some 0)
+      Stdlib.String.indexOf "" "hello" |> Stdlib.Test.equal None
+      Stdlib.String.indexOf "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽"
+      |> Stdlib.Test.equal (Some 6)
+      Stdlib.String.indexOf "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿"
+      |> Stdlib.Test.equal None
+      Stdlib.String.indexOf "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦"
+      |> Stdlib.Test.equal (Some 11)
+      Stdlib.String.indexOf "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰"
+      |> Stdlib.Test.equal (Some 4)
+      Stdlib.String.indexOf "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽"
+      |> Stdlib.Test.equal None
+      Stdlib.String.indexOf "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼"
+      |> Stdlib.Test.equal None ]
+
+test indexOfEgc =
+  Stdlib.Test.all
+    [ // Mirror of the IndexOf module above, but in EGC units. Pair with first /
+      // dropFirst / slice / length for correct emoji-safe slicing.
+      Stdlib.String.indexOfEgc "hello world" "world" |> Stdlib.Test.equal (Some 6)
+      Stdlib.String.indexOfEgc "hello world" "earth" |> Stdlib.Test.equal None
+      Stdlib.String.indexOfEgc "" "" |> Stdlib.Test.equal (Some 0)
+      Stdlib.String.indexOfEgc "hello" "" |> Stdlib.Test.equal (Some 0)
+      Stdlib.String.indexOfEgc "" "hello" |> Stdlib.Test.equal None
+      // "👱👱🏻" is 2 EGCs, "👨‍❤️‍💋‍👨" is 1 EGC, "żółw" is 4 EGCs.
+      Stdlib.String.indexOfEgc "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽"
+      |> Stdlib.Test.equal (Some 2)
+      Stdlib.String.indexOfEgc "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿"
+      |> Stdlib.Test.equal None
+      Stdlib.String.indexOfEgc "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦"
+      |> Stdlib.Test.equal (Some 1)
+      Stdlib.String.indexOfEgc "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰"
+      |> Stdlib.Test.equal (Some 4)
+      // Matches must align to EGC boundaries on both sides. Searching for a
+      // partial grapheme inside a full one returns None: 🧑 is not a complete EGC of
+      // 🧑🏼‍💻.
+      Stdlib.String.indexOfEgc "🧑🏼‍💻" "🧑" |> Stdlib.Test.equal None
+      // Standalone 🧑 at EGC index 0 is matchable when it stands on its own.
+      Stdlib.String.indexOfEgc "🧑🧑🏼‍💻" "🧑" |> Stdlib.Test.equal (Some 0) ]
+
+test lastIndexOfEgc =
+  Stdlib.Test.all
+    [ // Basic ASCII: last occurrence wins.
+      Stdlib.String.lastIndexOfEgc "hello world hello" "hello"
+      |> Stdlib.Test.equal (Some 12)
+      Stdlib.String.lastIndexOfEgc "hello world" "earth" |> Stdlib.Test.equal None
+      Stdlib.String.lastIndexOfEgc "" "hello" |> Stdlib.Test.equal None
+      // Empty-string searches return string length in EGCs.
+      Stdlib.String.lastIndexOfEgc "" "" |> Stdlib.Test.equal (Some 0)
+      Stdlib.String.lastIndexOfEgc "hello" "" |> Stdlib.Test.equal (Some 5)
+      // "👱👱🏻" is 2 EGCs even though it's 4 UTF-16 code units.
+      Stdlib.String.lastIndexOfEgc "👱👱🏻" "" |> Stdlib.Test.equal (Some 2)
+      // EGC offsets across multi-codepoint graphemes.
+      Stdlib.String.lastIndexOfEgc "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼"
+      |> Stdlib.Test.equal (Some 2)
+      Stdlib.String.lastIndexOfEgc "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻"
+      |> Stdlib.Test.equal (Some 3)
+      Stdlib.String.lastIndexOfEgc "żółw🧑🏽‍🦰🧑🏻‍🍼" "🧑🏻‍🍼"
+      |> Stdlib.Test.equal (Some 5)
+      // Partial-grapheme search returns None on both sides (start and end must
+      // align to EGC boundaries).
+      Stdlib.String.lastIndexOfEgc "🧑🏼‍💻🧑🏼‍💻" "🧑" |> Stdlib.Test.equal None
+      // Standalone 🧑 at the end is matchable when it stands on its own.
+      Stdlib.String.lastIndexOfEgc "🧑🏼‍💻🧑" "🧑" |> Stdlib.Test.equal (Some 1) ]
+
+test ellipsis =
+  Stdlib.Test.all
+    [ Stdlib.String.ellipsis "hello world" 5 |> Stdlib.Test.equal "hello..."
+      Stdlib.String.ellipsis "hello world" 9 |> Stdlib.Test.equal "hello wor..."
+      Stdlib.String.ellipsis "hello world" 11 |> Stdlib.Test.equal "hello world"
+      Stdlib.String.ellipsis "hello world" 12 |> Stdlib.Test.equal "hello world"
+      Stdlib.String.ellipsis "👱👱🏻👱🏼👱🏽👱🏾👱🏿" 5
+      |> Stdlib.Test.equal "👱👱🏻👱🏼👱🏽👱🏾..."
+      Stdlib.String.ellipsis "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" 3
+      |> Stdlib.Test.equal "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ..."
+      Stdlib.String.ellipsis "👩‍👩‍👧‍👦" 2 |> Stdlib.Test.equal "👩‍👩‍👧‍👦"
+      Stdlib.String.ellipsis "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷✋✋🏻✋🏿" 4
+      |> Stdlib.Test.equal "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷..." ]
+
+test head =
+  Stdlib.Test.all
+    [ Stdlib.String.head "hello world" |> Stdlib.Test.equal (Some 'h')
+      Stdlib.String.head "" |> Stdlib.Test.equal None ]
+
+// Commented out as F# parser doesn't like unicode "characters"
+// CLEANUP uncomment when switched to new parser
+// test headUsesWholeGraphemes =
+//   Stdlib.Test.all
+//     [ Stdlib.String.head "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Test.equal (Some '👱')
+//       Stdlib.String.head "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal (Some '🧟')
+//       Stdlib.String.head "👨‍❤️‍💋‍👨" |> Stdlib.Test.equal (Some '👨‍❤️‍💋‍👨') ]
+
+test articleFor =
+  Stdlib.Test.all
+    [ Stdlib.String.articleFor "apple" |> Stdlib.Test.equal "an"
+      Stdlib.String.articleFor "banana" |> Stdlib.Test.equal "a"
+      Stdlib.String.articleFor "🍍" |> Stdlib.Test.equal "a"
+      Stdlib.String.articleFor "🍊" |> Stdlib.Test.equal "a"
+      Stdlib.String.articleFor "" |> Stdlib.Test.equal "" ]
+
+test repeat =
+  Stdlib.Test.all
+    [ Stdlib.String.repeat "ab" 3 |> Stdlib.Test.equal "ababab"
+      Stdlib.String.repeat "x" 1 |> Stdlib.Test.equal "x"
+      Stdlib.String.repeat "" 5 |> Stdlib.Test.equal ""
+      Stdlib.String.repeat "ab" 0 |> Stdlib.Test.equal ""
+      Stdlib.String.repeat "ab" (0 - 1) |> Stdlib.Test.equal ""
+      // Grapheme clusters survive: repeat works on the string, not its code units.
+      Stdlib.String.repeat "é" 2 |> Stdlib.Test.equal "éé"
+      Stdlib.String.repeat "👨‍👩‍👧‍👦" 2
+      |> Stdlib.Test.equal "👨‍👩‍👧‍👦👨‍👩‍👧‍👦"
+      Stdlib.String.length (Stdlib.String.repeat "─" 80) |> Stdlib.Test.equal 80 ]
+
+test toCodepoints =
+  Stdlib.Test.all
+    [ Stdlib.String.toCodepoints "" |> Stdlib.Test.equal []
+      Stdlib.String.toCodepoints "abc" |> Stdlib.Test.equal [ 97, 98, 99 ]
+      Stdlib.String.toCodepoints "héllo"
+      |> Stdlib.Test.equal [ 104, 233, 108, 108, 111 ]
+      // One cluster containing three codepoints.
+      Stdlib.String.toCodepoints "👩‍👧"
+      |> Stdlib.Test.equal [ 128105, 8205, 128103 ] ]
+
+test codepointLength =
+  Stdlib.Test.all
+    [ Stdlib.String.codepointLength "" |> Stdlib.Test.equal 0
+      Stdlib.String.codepointLength "abcdef" |> Stdlib.Test.equal 6
+      // A non-BMP scalar is one codepoint and one grapheme cluster.
+      Stdlib.String.codepointLength "😄" |> Stdlib.Test.equal 1
+      // Multi-scalar clusters increase only the codepoint count.
+      Stdlib.String.codepointLength "👩‍👧" |> Stdlib.Test.equal 3
+      Stdlib.String.length "👩‍👧" |> Stdlib.Test.equal 1
+      Stdlib.String.codepointLength "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿"
+      |> Stdlib.Test.equal 17 ]
+
+test getByteAt =
+  Stdlib.Test.all
+    [ Stdlib.String.getByteAt "abc" 0 |> Stdlib.Test.equal (Some 97uy)
+      Stdlib.String.getByteAt "abc" 1 |> Stdlib.Test.equal (Some 98uy)
+      Stdlib.String.getByteAt "abc" 2 |> Stdlib.Test.equal (Some 99uy)
+      // UTF-8 encodes é as C3 A9.
+      Stdlib.String.getByteAt "é" 0 |> Stdlib.Test.equal (Some 195uy)
+      Stdlib.String.getByteAt "é" 1 |> Stdlib.Test.equal (Some 169uy)
+      Stdlib.String.getByteAt "é" 2 |> Stdlib.Test.equal None
+      Stdlib.String.getByteAt "abc" 3 |> Stdlib.Test.equal None
+      Stdlib.String.getByteAt "" 0 |> Stdlib.Test.equal None
+      Stdlib.String.getByteAt "abc" -1 |> Stdlib.Test.equal None
+      // Oversized indices return None.
+      Stdlib.String.getByteAt "abc" 4503599627370498 |> Stdlib.Test.equal None ]
+
+test getByteAtMatchesToBytes =
+  // Match the full UTF-8 encoding.
+  Stdlib.String.getByteAt "héllo" 2
+  |> Stdlib.Test.equal (Stdlib.List.getAt (Stdlib.String.toBytes "héllo") 2)
+
+test toOrdinal =
+  Stdlib.Test.all
+    [ Stdlib.String.toOrdinal 0 |> Stdlib.Test.equal "0th"
+      Stdlib.String.toOrdinal 1 |> Stdlib.Test.equal "1st"
+      Stdlib.String.toOrdinal 2 |> Stdlib.Test.equal "2nd"
+      Stdlib.String.toOrdinal 3 |> Stdlib.Test.equal "3rd"
+      Stdlib.String.toOrdinal 4 |> Stdlib.Test.equal "4th"
+      Stdlib.String.toOrdinal 11 |> Stdlib.Test.equal "11th"
+      Stdlib.String.toOrdinal 12 |> Stdlib.Test.equal "12th"
+      Stdlib.String.toOrdinal 13 |> Stdlib.Test.equal "13th"
+      Stdlib.String.toOrdinal 21 |> Stdlib.Test.equal "21st"
+      Stdlib.String.toOrdinal 22 |> Stdlib.Test.equal "22nd"
+      Stdlib.String.toOrdinal 23 |> Stdlib.Test.equal "23rd"
+      Stdlib.String.toOrdinal 101 |> Stdlib.Test.equal "101st"
+      Stdlib.String.toOrdinal 111 |> Stdlib.Test.equal "111th"
+      Stdlib.String.toOrdinal 112 |> Stdlib.Test.equal "112th"
+      Stdlib.String.toOrdinal 113 |> Stdlib.Test.equal "113th"
+      Stdlib.String.toOrdinal 1011 |> Stdlib.Test.equal "1011th"
+      Stdlib.String.toOrdinal -1 |> Stdlib.Test.equal "-1st"
+      Stdlib.String.toOrdinal -11 |> Stdlib.Test.equal "-11th" ]
+
+// Differs from legacy: legacy called Builtin.stringSlugify; this calls its one Dark
+// wrapper, Stdlib.String.slugify. Same inputs and expected slugs.
+test slugify =
+  Stdlib.Test.all
+    [ Stdlib.String.slugify
+          "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!"
+
+     |> Stdlib.Test.equal "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee"
+      Stdlib.String.slugify
+          "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!"
+
+     |> Stdlib.Test.equal "my-super-really-excellent-uber-amazing-very-clever-thing-coffee"
+      Stdlib.String.slugify "" |> Stdlib.Test.equal ""
+      Stdlib.String.slugify "ABCD-45646sassa" |> Stdlib.Test.equal "abcd-45646sassa"
+      Stdlib.String.slugify "ddsd516ds125sd12sd12Ü"
+      |> Stdlib.Test.equal "ddsd516ds125sd12sd12"
+      Stdlib.String.slugify "q=\u0002$\u001a<+MC" |> Stdlib.Test.equal "qmc"
+      Stdlib.String.slugify "🎁🎄Ǣʚ231" |> Stdlib.Test.equal "231"
+      Stdlib.String.slugify "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" |> Stdlib.Test.equal ""
+      Stdlib.String.slugify "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" |> Stdlib.Test.equal "zlo"
+      Stdlib.String.slugify "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Test.equal ""
+      Stdlib.String.slugify "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal ""
+      Stdlib.String.slugify "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" |> Stdlib.Test.equal ""
+      Stdlib.String.slugify
+          "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq"
+      |> Stdlib.Test.equal "bcdefghij-k-lm-n-opq"
+      Stdlib.String.slugify
+          "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq"
+      |> Stdlib.Test.equal "abcdefghijklmnopq"
+      Stdlib.String.slugify "!\"#$%&'()*+,-./" |> Stdlib.Test.equal "-"
+      Stdlib.String.slugify ":;<=>?@" |> Stdlib.Test.equal ""
+      Stdlib.String.slugify "[\\]^_`" |> Stdlib.Test.equal "-"
+      Stdlib.String.slugify "{|}~\x7F" |> Stdlib.Test.equal "" ]
+
+// Not a legacy assertion: a stronger form of `randomPairIsDifferent` above. More
+// than two samples makes accidental collisions negligible while still detecting a
+// generator that always returns the same string.
+test randomProducesDifferentStrings =
+  let samples =
+    Stdlib.List.range 1 16
+    |> Stdlib.List.map (fun _ -> Stdlib.String.random 5)
+    |> Stdlib.Result.collect
+  match samples with
+  | Error message -> Stdlib.Test.fail message
+  | Ok values ->
+    ((Stdlib.List.length (Stdlib.List.unique values)) > 1)
+    |> Stdlib.Test.expect "random returned the same string for all 16 samples"
+
+// Check that map executes the right number of times
+// Differs from legacy: Stdlib.Test.incrementCounter and counterValue stand in for the
+// backend-only Builtin.testIncrementSideEffectCounter and testSideEffectCount.
+module MapEffects =
+  test invokesCallbackOncePerCharacter =
+    let value =
+      Stdlib.String.map "a string" (fun _ ->
+        let _ = Stdlib.Test.incrementCounter ()
+        'c')
+    (value, Stdlib.Test.counterValue ()) |> Stdlib.Test.equal ("cccccccc", 8L)
+
+// CLEANUP: Re-enable after setting InvariantGlobalization=false in CLI and Wasm
+// and verifying ICU packaging. These byte assertions require NFC composition.
+// test appendComposesUnicode =
+//   Stdlib.Test.all
+//     [ Stdlib.String.append "a" "̂" |> Stdlib.Blob.fromString
+//       |> Stdlib.Blob.toList |> Stdlib.Test.equal [195uy, 162uy]
+//       Stdlib.String.append "ᄀ" "ᅡᆨ" |> Stdlib.Blob.fromString
+//       |> Stdlib.Blob.toList |> Stdlib.Test.equal [234uy, 176uy, 129uy] ]
+
+// Not a legacy assertion: legacy has these commented out (see `head` above), and
+// expected '🧟' for the second; `head` returns the whole cluster.
+test headUsesWholeGraphemes =
+  Stdlib.Test.all
+    [ Stdlib.String.head "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Test.equal (Some '👱')
+      Stdlib.String.head "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal (Some '🧟‍♀️')
+      Stdlib.String.head "👨‍❤️‍💋‍👨" |> Stdlib.Test.equal (Some '👨‍❤️‍💋‍👨') ]
+
+// Not a legacy assertion: legacy has this case commented out (see
+// `mapReplacesEveryCharacter` above), expecting the older wording of the same
+// `fromList` error.
+test mapRejectsNonCharResult =
+  Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun _ -> 5L)
+  => raises "Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<Int64> ([5, 5, 5, 5])"
