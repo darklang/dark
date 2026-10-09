@@ -1,0 +1,30 @@
+/// File cases from `backend/testfiles/execution/cli/file.dark`.
+module Darklang.Cli.Tests.File
+
+// Differs from legacy: these use `Stdlib.Cli.File.withTemp`, which deletes the
+// temporary file afterwards; legacy called `createTemp` and left it behind.
+module WriteReadRoundtrip =
+  let testContents () : String = "Test conrents"
+
+  // Not a legacy assertion: the write's own result, `Ok ()`, is checked too.
+  test roundtrip =
+    Stdlib.Cli.File.withTemp (fun filename ->
+      let blob = Stdlib.Blob.fromString (testContents ())
+      let written = Stdlib.Cli.FileSystem.writeFile filename blob
+      let readBack = Stdlib.Cli.FileSystem.readFile filename |> Builtin.unwrap
+      Stdlib.Test.all
+        [ written |> Stdlib.Test.equal (Stdlib.Result.Result.Ok())
+          Stdlib.Blob.toString readBack
+          |> Stdlib.Test.equal (Stdlib.Result.Result.Ok(testContents ())) ])
+    |> Builtin.unwrap
+
+module MissingFile =
+  // A missing file is `NotFound`, not `Other`: on Linux the open fails inside
+  // libc, and the errno has to survive the trip through the host boundary.
+  test missingFileIsNotFound =
+    Stdlib.Cli.File.withTemp (fun filename ->
+      let missing = filename + "-does-not-exist"
+      Stdlib.Cli.FileSystem.readFile missing
+      |> Stdlib.Test.equal
+        (Stdlib.Result.Result.Error Stdlib.Cli.FileSystem.FileError.NotFound))
+    |> Builtin.unwrap
