@@ -206,11 +206,13 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
       if child.isModule then Stdlib.Cli.UI.Colors.boldText padded
       else if child.kind == "type" then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan padded
       else if child.kind == "val" then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.purple padded
+      else if child.kind == "test" then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green padded
       else padded
     let desc =
       if child.desc == "" then ""
       else if child.kind == "fn" then fnDesc child.desc
       else if child.kind == "type" then Stdlib.Cli.UI.Colors.dimText child.desc
+      else if child.kind == "test" then testStatusText child.desc
       else Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow child.desc
     "    " + name + desc
   let group (label: String) (rows: List<BodyItem>) : List<String> =
@@ -236,6 +238,7 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
           | "val" -> "values"
           | "trait" -> "traits"
           | "impl" -> "trait implementations"
+          | "test" -> "tests"
           | other -> other
         group label (ofKind kind))
       |> Stdlib.List.flatten
@@ -245,6 +248,48 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
         "" ]
       contents
       [ Stdlib.Cli.UI.Colors.dimText "⏎ enter" ] ]
+
+/// A test row's description ("passed", "failed", ...) in its colour.
+let testStatusText (status: String) : String =
+  if status == "passed" then Stdlib.Cli.UI.Colors.success status
+  else if (status == "failed") || (status == "error") then Stdlib.Cli.UI.Colors.error status
+  else Stdlib.Cli.UI.Colors.dimText status
+
+let testOutcomeLines
+  (branchId: Uuid)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : List<String> =
+  match Packages.Test.lastOutcome branchId hash with
+  | Some Passed -> [ Stdlib.Cli.UI.Colors.success "✓ passed (this build)" ]
+  | Some(Failed messages) ->
+    Stdlib.List.append
+      [ Stdlib.Cli.UI.Colors.error "✗ failed (this build)" ]
+      (messages |> Stdlib.List.map (fun m -> Stdlib.Cli.UI.Colors.dimText ("  " + m)))
+  | Some(RuntimeFailed message) ->
+    [ Stdlib.Cli.UI.Colors.error "✗ error (this build)"
+      Stdlib.Cli.UI.Colors.dimText ("  " + message) ]
+  | None ->
+    [ Stdlib.Cli.UI.Colors.dimText "no result for this build -- `:test` runs it" ]
+
+/// Tests that exercise the selected function. Kept separate from `detailLines`
+/// so the Inspect page can put the action after source, access, and references.
+let selectedFunctionTestRows (state: State) : List<String> =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item when item.kind == "fn" ->
+    let modulePath = Packages.modulePathOf state.location
+    let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
+    match results.fns with
+    | i :: _ ->
+      // ":" not "dark ": the workbench owns the terminal, and its command
+      // bar runs registered commands in-frame.
+      Packages.View.testRows
+        state.branchId
+        i.location
+        LanguageTools.ProgramTypes.ItemKind.Fn
+        ":"
+        (sectionHeading "tests")
+    | [] -> []
+  | _ -> []
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines (state: State) : List<String> =
@@ -313,6 +358,12 @@ let itemLines
       | "impl" ->
         match results.impls with
         | i :: _ -> (PrettyPrinter.ProgramTypes.packageImpl ctx i.entity, [])
+        | [] -> ("(not found)", [])
+      | "test" ->
+        match results.tests with
+        | i :: _ ->
+          (PrettyPrinter.ProgramTypes.packageTest ctx i.entity,
+           testOutcomeLines state.branchId i.entity.hash)
         | [] -> ("(not found)", [])
       | _ ->
         match results.values with
@@ -472,6 +523,7 @@ let itemMeta
     else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
     else if item.kind == "trait" then results.traits |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
     else if item.kind == "impl" then results.impls |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+    else if item.kind == "test" then results.tests |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
     else results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
   let short =
     match hashOpt with
@@ -482,6 +534,7 @@ let itemMeta
     else if item.kind == "type" then "type"
     else if item.kind == "trait" then "trait"
     else if item.kind == "impl" then "impl"
+    else if item.kind == "test" then "test"
     else "value"
   // Real deprecation status (same read path as the tree badge).
   let deprecation =
@@ -565,11 +618,13 @@ let inspectPageLines (state: State) : List<String> =
       // The order a reader wants: what this is, the code, what running it needs, who it touches.
       // The keys that act on it are in the footer, so they are not repeated here.
       let refs = Stdlib.String.split (referencesFrom state modulePath item.name item.kind results) "\n"
+      let tests = selectedFunctionTestRows state
       Stdlib.List.flatten
         [ [ itemMeta state item results, "" ]
           src
           [ "" ]
-          refs ]
+          refs
+          tests ]
 
 /// The key the Code view's item page is built against; see `PreviewKey`.
 let previewKey (state: State) : PreviewKey =

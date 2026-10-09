@@ -10,6 +10,7 @@ type PackageLocation =
   | Function of location: LanguageTools.ProgramTypes.PackageLocation
   | Trait of location: LanguageTools.ProgramTypes.PackageLocation
   | Impl of location: LanguageTools.ProgramTypes.PackageLocation
+  | Test of location: LanguageTools.ProgramTypes.PackageLocation
 
 /// The module path a location sits in: the module itself, or the module an item lives in.
 let modulePathOf (location: PackageLocation) : List<String> =
@@ -20,6 +21,7 @@ let modulePathOf (location: PackageLocation) : List<String> =
   | Function f -> Stdlib.List.append [ f.owner ] f.modules
   | Trait t -> Stdlib.List.append [ t.owner ] t.modules
   | Impl i -> Stdlib.List.append [ i.owner ] i.modules
+  | Test t -> Stdlib.List.append [ t.owner ] t.modules
 
 
 type EntityType =
@@ -29,6 +31,7 @@ type EntityType =
   | Value
   | Trait
   | Impl
+  | Test
 
 type State =
   { currentLocation: PackageLocation
@@ -57,6 +60,8 @@ let formatLocation (location: PackageLocation) : String =
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (trait)"
   | Impl loc ->
     $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (impl)"
+  | Test loc ->
+    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc} (test)"
 
 
 /// The definition a person typed, from the arguments after the item's name.

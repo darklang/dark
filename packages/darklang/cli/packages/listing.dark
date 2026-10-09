@@ -50,7 +50,7 @@ let listModule
 
   // Names and hashes only: a listing shows a name and a deprecation mark, and materializing each item's
   // full definition to read those was most of the command's cost once startup got cheap.
-  let (allSubmodules, rawTypes, rawValues, rawFns, rawTraits, rawImpls) =
+  let (allSubmodules, rawTypes, rawValues, rawFns, rawTraits, rawImpls, rawTests) =
     Query.allDirectDescendantNamesAndHashes branchId modulePath
   let depSets = Query.loadDeprecationSets branchId
   let types = Query.filterDeprecatedPairs rawTypes depSets includeDeprecated
@@ -58,6 +58,7 @@ let listModule
   let fns = Query.filterDeprecatedPairs rawFns depSets includeDeprecated
   let traits = Query.filterDeprecatedPairs rawTraits depSets includeDeprecated
   let impls = Query.filterDeprecatedPairs rawImpls depSets includeDeprecated
+  let tests = Query.filterDeprecatedPairs rawTests depSets includeDeprecated
 
   let locationStr = Packages.formatLocation location
   Stdlib.printLine $"Contents of {locationStr}:"
@@ -78,7 +79,7 @@ let listModule
     (typeName: String)
     : List<(String * String * LanguageTools.ProgramTypes.Hash * List<String>)> =
     let childPath = Stdlib.List.append modulePath [ typeName ]
-    let (_subs, _t, _v, _f, _tr, childImpls) =
+    let (_subs, _t, _v, _f, _tr, childImpls, _te) =
       Query.allDirectDescendantNamesAndHashes branchId childPath
 
     Query.filterDeprecatedPairs childImpls depSets includeDeprecated
@@ -174,6 +175,7 @@ let listModule
     | "val" -> printSection "val" values
     | "trait" -> printSection "trait" traits
     | "impl" -> printImplSection implEntries
+    | "test" -> printSection "test" tests
     | _ -> ())
 
 
@@ -201,7 +203,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         listModule branchId newLocation includeDeprecated showVersions
         state
       // An implementation's methods are fns in a module named for it, so listing one is a real
-      // question with a real answer; the other four kinds are leaves.
+      // question with a real answer; the other kinds are leaves.
       | Impl i ->
         let asModule =
           PackageLocation.Module
@@ -209,7 +211,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
         listModule branchId asModule includeDeprecated showVersions
         state
-      | Type _ | Value _ | Function _ | Trait _ ->
+      | Type _ | Value _ | Function _ | Trait _ | Test _ ->
         let locationStr = Packages.formatLocation newLocation
         Stdlib.printLine $"'{locationStr}' is not a module."
         Stdlib.printLine "`dark view` shows one item; `dark ls` lists a module."
@@ -246,7 +248,7 @@ let help (_state: AppState) : String =
     "Usage: ls [path] [--include-deprecated] [--versions]"
     "List contents of the current location or specified path with icons."
     ""
-    "Shows modules, types, functions, values, traits and trait implementations, by kind."
+    "Shows modules, types, functions, values, traits, trait implementations and tests, by kind."
     "Deprecated items with no live callers are hidden by default; pass"
     "--include-deprecated to show them. Visible deprecated items are marked ⚠."
     ""

@@ -74,7 +74,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 let help (_state: AppState) : String =
   [
     "Usage: nav [path]"
-    "Navigate package space - modules, types, values, and functions ."
+    "Navigate package space - modules, types, values, functions, and tests."
     ""
     "With path: Navigate directly to the specified location."
     "Without path: Enter interactive navigation mode."

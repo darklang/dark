@@ -70,6 +70,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
             match results.impls with
             | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.entity.hash)
             | [] -> Stdlib.Option.Option.None
+          else if item.kind == "test" then
+            match results.tests with
+            | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageTest i.entity.hash)
+            | [] -> Stdlib.Option.Option.None
           else
             match results.fns with
             | i :: _ -> Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn i.entity.hash)

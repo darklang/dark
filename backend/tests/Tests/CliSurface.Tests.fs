@@ -539,6 +539,13 @@ let private notSweepable =
       "devices" // shells out to `tailscale`
       "clear" ] // clears the screen, taking the sweep's own output with it
 
+/// Commands swept everywhere EXCEPT bare, with the reason bare is out of reach. Checked for
+/// registration with `notSweepable`, for the same reason.
+let private notSweepableBare : Map<string, string> =
+  Map.ofList
+    [ "test",
+      "bare, it runs every package test in the store, which is minutes; swept with a filter in the valid-argument table" ]
+
 /// Every `--help` opens with a sentence saying what the command IS.
 ///
 /// Not `Usage:`, which is syntax before purpose, and not `dark <name> - ...`, which repeats the name
@@ -579,7 +586,11 @@ let private everyExclusionIsReal =
       Expect.isGreaterThan (List.length commands) 20 "the registry was read"
 
       let stale =
-        Set.difference (Set.add "agent" notSweepable) (Set.ofList commands)
+        Set.difference
+          (Set.unionMany
+            [ Set.add "agent" notSweepable
+              notSweepableBare |> Map.keys |> Set.ofSeq ])
+          (Set.ofList commands)
 
       if not (Set.isEmpty stale) then
         Tests.failtestf
@@ -606,7 +617,10 @@ let everyCommandAnswersWhenBare =
         let mutable failures : List<string * string> = []
 
         for cmd in commands do
-          if not (Set.contains cmd notSweepable) then
+          if
+            not (Set.contains cmd notSweepable)
+            && not (Map.containsKey cmd notSweepableBare)
+          then
             let! outcome = runCliCatching state [ cmd ]
             match sweepFailure outcome with
             | Some why -> failures <- (cmd, why) :: failures
@@ -692,7 +706,12 @@ let everyCommandSurvivesABranch =
         let sweep (label : string) (extra : List<string>) =
           task {
             for cmd in commands do
-              if not (Set.contains cmd (Set.add "agent" notSweepable)) then
+              let skipBare =
+                List.isEmpty extra && Map.containsKey cmd notSweepableBare
+              if
+                not (Set.contains cmd (Set.add "agent" notSweepable))
+                && not skipBare
+              then
                 let! outcome = runCliCatching state (cmd :: extra)
                 match sweepFailure outcome with
                 | Some why -> failures <- ($"{cmd} {label}", why) :: failures
@@ -800,7 +819,9 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "commit", [ "--json" ]
       // Reads the implementations of a trait on the branch. Fully qualified, like `nav` and
       // `find-values` above, rather than relying on the bare-name fallback to the stdlib.
-      "impls", [ "Darklang.Stdlib.Add" ] ]
+      "impls", [ "Darklang.Stdlib.Add" ]
+      // The sweep's own test, so this check does not depend on migrated suites.
+      "test", [ "Tests.Sweep.passes" ] ]
 
 /// Commands that are safe to run BARE and must not be given real arguments, with the reason.
 ///
@@ -854,10 +875,14 @@ let everyCommandWorksWithValidArguments =
         do! CliDsl.fn state "Tests.Sweep.dep" "() : Int64 = 1L"
         do! CliDsl.fn state fnName "() : Int64 = Tests.Sweep.dep ()"
         do!
+          CliDsl.run
+            state
+            [ "test"; "add"; "Tests.Sweep.passes"; "Stdlib.Test.pass ()" ]
+        do!
           CliDsl.commitOnly
             state
             "cli-sweep fixture"
-            "Tests.Sweep.dep,Tests.Sweep.f"
+            "Tests.Sweep.dep,Tests.Sweep.f,Tests.Sweep.passes"
 
         // A branch that differs from main, for `diff` / `merge --dry-run` / `rebase --dry-run`.
         do! CliDsl.switch state branch

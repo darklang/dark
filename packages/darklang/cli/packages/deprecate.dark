@@ -1,6 +1,6 @@
 module Darklang.Cli.Packages.Deprecate
 
-// `deprecate` marks a fn/type/value/trait/impl as deprecated.
+// `deprecate` marks a fn/type/value/trait/impl/test as deprecated.
 //
 // TODO (v1.5): interactive kind picker when stdin is a TTY and --kind is
 //   missing (reuse CompletionPicker).
@@ -79,6 +79,12 @@ let resolveTarget
       match LanguageTools.PackageManager.TraitImpl.find branchId location with
       | Some h -> Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageTraitImpl h)
       | None -> Stdlib.Option.Option.None
+    | Test ->
+      match LanguageTools.PackageManager.Test.find branchId location with
+      | Some h ->
+        Stdlib.Option.Option.Some
+          (LanguageTools.ProgramTypes.Reference.PackageTest h)
+      | None -> Stdlib.Option.Option.None
   | Error _ -> Stdlib.Option.Option.None
 
 
@@ -96,7 +102,8 @@ val allItemKinds =
     (LanguageTools.ProgramTypes.ItemKind.Type, "type")
     (LanguageTools.ProgramTypes.ItemKind.Value, "value")
     (LanguageTools.ProgramTypes.ItemKind.Trait, "trait")
-    (LanguageTools.ProgramTypes.ItemKind.TraitImpl, "impl") ]
+    (LanguageTools.ProgramTypes.ItemKind.TraitImpl, "impl")
+    (LanguageTools.ProgramTypes.ItemKind.Test, "test") ]
 
 
 /// The kind and the target, whether or not the kind was typed.
@@ -184,7 +191,7 @@ let parseKind
     | Fn -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.DeprecationKind.Harmful
     | _ ->
       Stdlib.Result.Result.Error
-        "--kind harmful only applies to fns: the runtime halts at a CALL, so a type or value has no point to halt at. Use --kind obsolete to take it off the shelf."
+        "--kind harmful only applies to fns: the runtime halts at a CALL, so another item kind has no point to halt at. Use --kind obsolete to take it off the shelf."
   | "obsolete" -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.DeprecationKind.Obsolete
   | other ->
     Stdlib.Result.Result.Error
@@ -383,7 +390,7 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
     Stdlib.printLine "usage: dark undeprecate <name>   (also `dark restore <name>`)"
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.hint
-        "  puts a deprecated fn, type, value, trait or impl back on the shelf. `dark ls --include-deprecated` finds them.")
+        "  puts a deprecated fn, type, value, trait, impl or test back on the shelf. `dark ls --include-deprecated` finds them.")
     state
   | [] ->
     Stdlib.printLine
@@ -391,7 +398,7 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
         "usage: dark undeprecate <name>   (also `dark restore <name>`)")
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.hint
-        "  puts a deprecated fn, type, value, trait or impl back on the shelf. `dark ls --include-deprecated` finds them.")
+        "  puts a deprecated fn, type, value, trait, impl or test back on the shelf. `dark ls --include-deprecated` finds them.")
     state
   | [ target ] ->
     let currentLoc = state.packageData.currentLocation
@@ -480,9 +487,9 @@ let undeprecateHelp (_state: Cli.AppState) : String =
   |> Stdlib.String.join "\n"
 
 let help (_state: Cli.AppState) : String =
-  [ "Mark a function, type, value, trait or implementation as deprecated."
+  [ "Mark a function, type, value, trait, implementation or test as deprecated."
     ""
-    "Usage: deprecate [<fn|type|value|trait|impl>] <name-or-hash> --kind <k> [options]"
+    "Usage: deprecate [<fn|type|value|trait|impl|test>] <name-or-hash> --kind <k> [options]"
     ""
     "  The kind is optional: `deprecate Acme.Point.Show --kind obsolete` infers it. Name it"
     "  when one name holds two kinds, which is the only case inference refuses."
@@ -523,5 +530,5 @@ let complete
   : List<Cli.Completion.CompletionItem> =
   match args with
   | [] ->
-    ["fn", "type", "value", "trait", "impl"] |> Stdlib.List.map Cli.Completion.simple
+    ["fn", "type", "value", "trait", "impl", "test"] |> Stdlib.List.map Cli.Completion.simple
   | _ -> []

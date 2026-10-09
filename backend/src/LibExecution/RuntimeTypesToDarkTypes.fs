@@ -1905,6 +1905,8 @@ module RuntimeError =
       | RuntimeError.Json e -> "Json", [ Jsons.toDT e ]
       | RuntimeError.Trait e -> "Trait", [ Traits.toDT e ]
       | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
+      | RuntimeError.DBSetOfWrongType(expected, actual) ->
+        "DBSetOfWrongType", [ TypeReference.toDT expected; ValueType.toDT actual ]
       | RuntimeError.SqlCompiler errMsg -> "SqlCompiler", [ DString errMsg ]
       | RuntimeError.UncaughtException(msg, metadata) ->
         "UncaughtException",
@@ -1913,7 +1915,6 @@ module RuntimeError =
             VT.tuple VT.string (VT.known (Dval.knownType ())) [],
             metadata |> List.map (fun (k, v) -> DTuple(DString k, Dval.toDT v, []))
           ) ]
-      | e -> Exception.raiseInternal "Unhandled RuntimeError.Error" [ "e", e ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1978,6 +1979,11 @@ module RuntimeError =
     | DEnum(_, _, [], "Json", [ e ]) -> RuntimeError.Json(Jsons.fromDT e)
     | DEnum(_, _, [], "Trait", [ e ]) -> RuntimeError.Trait(Traits.fromDT e)
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
+    | DEnum(_, _, [], "DBSetOfWrongType", [ expected; actual ]) ->
+      RuntimeError.DBSetOfWrongType(
+        TypeReference.fromDT expected,
+        ValueType.fromDT actual
+      )
     | DEnum(_, _, [], "SqlCompiler", [ DString errMsg ]) ->
       RuntimeError.SqlCompiler errMsg
     | DEnum(_, _, [], "UncaughtException", [ DString msg; DList(_, metadata) ]) ->

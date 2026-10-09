@@ -103,9 +103,7 @@ let compileQueryLambda
         appLambda.closedRegisters
         resolvedValues
     with
-    | Error err ->
-      let fullMessage = RTQueryCompiler.errorTemplate + err
-      return raiseUntargetedRTE (RuntimeError.Error.SqlCompiler fullMessage)
+    | Error err -> return raiseUntargetedRTE (RuntimeError.Error.SqlCompiler err)
     | Ok compiled -> return compiled
   }
 

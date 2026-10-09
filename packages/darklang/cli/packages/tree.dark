@@ -209,7 +209,7 @@ let displayTree
 
     // Names and hashes only. This runs once per module *per level* of the walk, so materializing every
     // item's full definition to read its name compounded: `tree Darklang.Stdlib` was 547 ms.
-    let (submoduleNames, rawTypes, rawValues, rawFns, rawTraits, rawImpls) =
+    let (submoduleNames, rawTypes, rawValues, rawFns, rawTraits, rawImpls, rawTests) =
       Query.allDirectDescendantNamesAndHashes branchId modulePath
 
     // Entity names paired with their hash, so we can mark deprecated rows.
@@ -218,6 +218,7 @@ let displayTree
     let valueEntries = Query.filterDeprecatedPairs rawValues depSets includeDeprecated
     let traitEntries = Query.filterDeprecatedPairs rawTraits depSets includeDeprecated
     let implEntries = Query.filterDeprecatedPairs rawImpls depSets includeDeprecated
+    let testEntries = Query.filterDeprecatedPairs rawTests depSets includeDeprecated
 
     // Combine all entities with their types in proper order: modules, types, values, functions.
     // Modules have no hash, use an empty-string placeholder.
@@ -248,6 +249,10 @@ let displayTree
         implEntries
         |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Impl, hash))
         |> Stdlib.List.sortBy (fun (name, _, _) -> name)
+      let testEntities =
+        testEntries
+        |> Stdlib.List.map (fun (name, hash) -> (name, EntityType.Test, hash))
+        |> Stdlib.List.sortBy (fun (name, _, _) -> name)
 
       moduleEntities
       |> Stdlib.List.append typeEntities
@@ -255,6 +260,7 @@ let displayTree
       |> Stdlib.List.append valueEntities
       |> Stdlib.List.append functionEntities
       |> Stdlib.List.append implEntities
+      |> Stdlib.List.append testEntities
 
     // Display entities with appropriate icons
     let entitiesCount = Stdlib.List.length allEntities

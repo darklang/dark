@@ -26,6 +26,21 @@ let buildHash : string =
   with _ ->
     "dev"
 
+/// Identifies this compilation, including builds from the same git commit.
+/// Without embedded metadata, a process-local ID prevents persisted cache reuse.
+let buildId : string =
+  use stream =
+    System.Reflection.Assembly
+      .GetExecutingAssembly()
+      .GetManifestResourceStream("LibConfig.build-id.txt")
+  if stream = null then
+    System.Guid.NewGuid().ToString("N")
+  else
+    use reader = new System.IO.StreamReader(stream)
+    match System.Guid.TryParse(reader.ReadToEnd().Trim()) with
+    | true, id -> id.ToString("N")
+    | false, _ -> System.Guid.NewGuid().ToString("N")
+
 // runDir is for runtime data (DB, logs, etc.) - separate from source code paths
 let runDir = absoluteDirOrCurrent "DARK_CONFIG_RUNDIR"
 

@@ -10,6 +10,23 @@ let pass () : Result = Result.Pass
 
 let fail (message: String) : Result = Result.Fail [ message ]
 
+/// Inject an uncaught runtime exception to test propagation and rendering.
+/// Available only inside a running package test; never returns a value.
+let raiseRuntimeError (message: String) : Int64 =
+  Builtin.pmTestRaiseRuntimeError message
+
+/// Increment this test's counter and return the value unchanged. Use to check
+/// how often a callback or expression runs. The counter starts at zero for each
+/// test run and is shared with its helper calls. Only available in package tests.
+let incrementCounter (value: 'a) : 'a =
+  Builtin.testIncrementCounter value
+
+/// Return this test's counter, which starts at zero for each test run.
+/// Tests using the counter rerun rather than reuse a cached pass.
+/// Only available in package tests; no database or host permissions needed.
+let counterValue () : Int64 =
+  Builtin.testCounterValue ()
+
 let expect (condition: Bool) (message: String) : Result =
   if condition then Result.Pass else Result.Fail [ message ]
 

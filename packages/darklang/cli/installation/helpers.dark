@@ -6,6 +6,9 @@ module Darklang.Cli.Installation.Helpers
 /// the sync wire stamps it, and both mean the same thing by it.
 let buildHash () : String = Builtin.getBuildHash ()
 
+/// Changes on every runtime rebuild, even when the git commit is unchanged.
+let buildId () : String = Builtin.getBuildId ()
+
 let cliVersion () : String = "alpha-" + (buildHash ())
 
 /// The local version plus a check against the latest published release.

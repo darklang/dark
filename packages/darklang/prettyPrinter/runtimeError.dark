@@ -12,6 +12,9 @@ type LetPattern = LanguageTools.RuntimeTypes.LetPattern
 // </aliases>
 
 module RuntimeError =
+  /// Human-facing context for a structured SQL compiler error.
+  val sqlErrorPrefix = "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
+
   /// Error pretty printing
   /// ---------------
   /// Segments allow us to build error messages where the UI and CLI can both
@@ -596,7 +599,18 @@ module RuntimeError =
         [ ES.String "Script must return an Int (exit code); got "
           ES.FullValue returnedValue ]
 
-    | SqlCompiler errMsg -> [ ES.String errMsg ]
+    | DBSetOfWrongType(expected, actual) ->
+      [ ES.String "DB value expects "
+        ES.TypeReference expected
+        ES.String ", but got "
+        ES.ValueType actual ]
+
+    | SqlCompiler errMsg ->
+      // Older serialized errors already contain the preamble.
+      if Stdlib.String.startsWith errMsg sqlErrorPrefix then
+        [ ES.String errMsg ]
+      else
+        [ ES.String (sqlErrorPrefix + errMsg) ]
 
     | UncaughtException (msg, metadata) ->
       let withMetadata =

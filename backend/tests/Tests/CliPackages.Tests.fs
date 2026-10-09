@@ -88,6 +88,389 @@ let viewRefusesWhatIsNotThere =
           "a failed view is a failed command"
     })
 
+/// Package tests follow production edits across owners, just like other callers.
+let testsFollowEditsAcrossOwners =
+  instanceTest "tests follow production edits across owners" (fun state ->
+    task {
+      do! start state
+      do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 2L)"
+      do!
+        run
+          state
+          [ "test"
+            "add"
+            "Tests.TestFollow.halfOf8"
+            "Vendor.TestFollow.half 8L |> Stdlib.Test.equal 4L" ]
+      do!
+        shows
+          state
+          [ "test"; "Tests.TestFollow" ]
+          "PASS Tests.TestFollow.halfOf8"
+          "the test starts against the current function"
+      do! fn state "Vendor.TestFollow.half" "(n: Int64) : Int64 = (n / 3L)"
+      do!
+        showsAll
+          state
+          [ "test"; "Tests.TestFollow" ]
+          [ "FAIL Tests.TestFollow.halfOf8"; "expected 4, got 2" ]
+          "the test follows the edited function across owners"
+      do!
+        exits
+          state
+          [ "test"; "Tests.TestFollow" ]
+          1L
+          "the changed result fails the command"
+      do! discardAll state
+    })
+
+/// The cache key includes the test's hash, but not a list of what the test uses.
+/// Propagation must therefore give it a new hash when a dependency changes,
+/// however deep. An edit two calls away must rerun it, not reuse the old pass.
+let cachedTestsRerunWhenWhatTheyUseChanges =
+  instanceTest "a cached test reruns when anything it uses changes" (fun state ->
+    task {
+      do! start state
+      let file =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-cache-test-{System.Guid.NewGuid():N}.dark"
+        )
+      System.IO.File.WriteAllText(
+        file,
+        "let inner (n: Int64) : Int64 = (n + 1L)\n\n"
+        + "let outer (n: Int64) : Int64 = Tests.CacheT.inner n\n\n"
+        + "test outerOf1 =\n"
+        + "  Stdlib.Test.expect (Tests.CacheT.outer 1L == 2L) \"expected 2, got 3\"\n"
+      )
+      do! run state [ "module"; "Tests.CacheT"; file ]
+      System.IO.File.Delete file
+
+      do!
+        shows
+          state
+          [ "view"; "Tests.CacheT.outerOf1"; "--raw" ]
+          "test outerOf1 ="
+          "a test needs no effect annotation to be cached"
+
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheT" ]
+          "1 ran, 0 cached"
+          "the first run runs it"
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheT" ]
+          "0 ran, 1 cached"
+          "an unchanged test is answered from the cache"
+
+      // Two calls away: the test names `outer`, and only `inner` changes.
+      do! fn state "Tests.CacheT.inner" "(n: Int64) : Int64 = (n + 2L)"
+      do!
+        showsAll
+          state
+          [ "test"; "Tests.CacheT" ]
+          [ "FAIL Tests.CacheT.outerOf1"; "expected 2, got 3"; "1 ran, 0 cached" ]
+          "a change to something the test reaches indirectly reruns it"
+      do!
+        shows
+          state
+          [ "view"; "Tests.CacheT.outer"; "--include-tests" ]
+          "expected 2, got 3"
+          "views still show the last failure"
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheT" ]
+          "1 ran, 0 cached"
+          "a failed result is shown but never reused"
+
+      // And directly: `outer 1` is now `inner 0`, which is 2 again, so the
+      // stored FAIL must not be handed back.
+      do!
+        fn
+          state
+          "Tests.CacheT.outer"
+          "(n: Int64) : Int64 = Tests.CacheT.inner (n - 1L)"
+      do!
+        showsAll
+          state
+          [ "test"; "Tests.CacheT" ]
+          [ "PASS Tests.CacheT.outerOf1"; "1 ran, 0 cached" ]
+          "a change to something the test calls directly reruns it"
+      do! discardAll state
+    })
+
+/// The same content hash can be visible on two branches, but the result was
+/// judged under one branch's bindings. Never borrow that pass for another.
+let cachedPassesStayOnTheirBranch =
+  instanceTest "cached passes are scoped to the current branch" (fun state ->
+    task {
+      do! start state
+      let file =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-cache-branch-{System.Guid.NewGuid():N}.dark"
+        )
+      System.IO.File.WriteAllText(file, "test passes = Stdlib.Test.pass ()\n")
+      do! run state [ "module"; "Tests.CacheBranch"; file ]
+      System.IO.File.Delete file
+      do! commit state "cacheable branch test"
+
+      do!
+        shows state [ "test"; "Tests.CacheBranch" ] "1 ran, 0 cached" "main runs it"
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheBranch" ]
+          "0 ran, 1 cached"
+          "main reuses it"
+      do! switch state "cachebranch"
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheBranch" ]
+          "1 ran, 0 cached"
+          "the branch runs its own copy"
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheBranch" ]
+          "0 ran, 1 cached"
+          "the branch can reuse its own pass"
+      do! onMain state
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheBranch" ]
+          "0 ran, 1 cached"
+          "main's pass remains"
+      do! discardAll state
+    })
+
+/// Effectful and dynamically-called code cannot be proved pure, even when a
+/// particular run happens to return the same result twice.
+let testsWithoutPurityProofAlwaysRun =
+  instanceTest "test caching fails closed on effects and dynamic calls" (fun state ->
+    task {
+      do! start state
+      let file =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-cache-safety-{System.Guid.NewGuid():N}.dark"
+        )
+      System.IO.File.WriteAllText(
+        file,
+        "test randomKey = Stdlib.DB.generateKey () |> Stdlib.String.length |> Stdlib.Test.equal 36\n\n"
+        + "test dynamicCall =\n"
+        + "  (let fn = (+)\n"
+        + "   fn 1L 1L) |> Stdlib.Test.equal 2L\n"
+        + "\ntest renderedValue =\n"
+        + "  let text = Stdlib.toRepr 1L\n"
+        + "  Stdlib.Test.equal text text\n"
+        + "\ntest expectedError =\n"
+        + "  (1L / 0L)\n"
+        + "  => raises \"Cannot divide by 0\"\n"
+      )
+      do! run state [ "module"; "Tests.CacheSafety"; file ]
+      System.IO.File.Delete file
+
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheSafety" ]
+          "4 ran, 0 cached"
+          "none of the tests is cached initially"
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheSafety" ]
+          "4 ran, 0 cached"
+          "effectful, incomplete, rendered, and expected-error tests run again"
+      do! discardAll state
+    })
+
+let assertionFailureMessagesAlwaysRun =
+  instanceTest
+    "assertion failure messages are never cached across a type rename"
+    (fun state ->
+      task {
+        do! start state
+        let file =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-assertion-cache-{System.Guid.NewGuid():N}.dark"
+          )
+        System.IO.File.WriteAllText(
+          file,
+          """type First = { cacheSafetyField: Int64 }
+test equalMessage =
+  match
+    Stdlib.Test.equal
+      (First { cacheSafetyField = 1L })
+      (First { cacheSafetyField = 2L })
+  with
+  | Pass -> Stdlib.Test.fail "expected an assertion failure"
+  | Fail messages ->
+    let text = Stdlib.String.join messages " "
+    Stdlib.Test.expect (Stdlib.String.contains text "First") "type name changed"
+test notEqualMessage =
+  match
+    Stdlib.Test.notEqual
+      (First { cacheSafetyField = 1L })
+      (First { cacheSafetyField = 1L })
+  with
+  | Pass -> Stdlib.Test.fail "expected an assertion failure"
+  | Fail messages ->
+    let text = Stdlib.String.join messages " "
+    Stdlib.Test.expect (Stdlib.String.contains text "First") "type name changed"
+"""
+        )
+        do! run state [ "module"; "Tests.AssertionCache"; file ]
+        System.IO.File.Delete file
+        for _ in 1..2 do
+          do!
+            showsAll
+              state
+              [ "test"; "Tests.AssertionCache" ]
+              [ "2 passed, 0 failed"; "2 ran, 0 cached" ]
+              "a passing test can have inspected a failed assertion"
+        do!
+          run
+            state
+            [ "rename"
+              "Tests.AssertionCache.First"
+              "Tests.AssertionCache.Second" ]
+        do!
+          showsAll
+            state
+            [ "test"; "Tests.AssertionCache" ]
+            [ "0 passed, 2 failed"; "type name changed"; "2 ran, 0 cached" ]
+            "the renamed type must change both assertion messages"
+        do!
+          exits
+            state
+            [ "test"; "Tests.AssertionCache" ]
+            1L
+            "the failures exit nonzero"
+        do! discardAll state
+      })
+
+let cachedPassesRequireTheSameBuildAndJudge =
+  instanceTest "cached passes from another build or judge rerun" (fun state ->
+    task {
+      do! start state
+      do!
+        run
+          state
+          [ "test"; "add"; "Tests.CacheIdentity.passes"; "Stdlib.Test.pass ()" ]
+      do!
+        shows state [ "test"; "Tests.CacheIdentity" ] "1 ran, 0 cached" "first run"
+      do!
+        shows
+          state
+          [ "test"; "Tests.CacheIdentity" ]
+          "0 ran, 1 cached"
+          "same build and judge"
+      let! key =
+        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
+      let parts = key.Trim().Split(':')
+      Expect.equal parts.Length 2 $"build and judge identities: {key}"
+      let validId, _ = System.Guid.TryParse parts[0]
+      Expect.isTrue validId "the runtime identity is a build UUID, not a git commit"
+      let! again =
+        runCliPlain state [ "eval"; "Darklang.Cli.Packages.Test.cacheRuntime ()" ]
+      Expect.equal again key "the build identity survives a new CLI process"
+      // Keep a real stored pass, but associate it with another runtime or judge.
+      for oldKey in [ "old-build:" + parts[1]; parts[0] + ":old-judge" ] do
+        let sql =
+          "UPDATE package_test_results_v1 "
+          + $"SET runtime_hash = '{oldKey}' "
+          + $"WHERE runtime_hash = '{key.Trim()}'"
+        do!
+          exits
+            state
+            [ "eval"
+              "Stdlib.Sqlite.mustExec (Stdlib.LocalStore.path ()) "
+              + $"\"{sql}\" []" ]
+            0L
+            "move the stored pass to an older cache identity"
+        do!
+          shows
+            state
+            [ "test"; "Tests.CacheIdentity" ]
+            "1 ran, 0 cached"
+            "the old pass cannot be reused"
+      do! discardAll state
+    })
+
+/// `test add` authors one test the way `fn` authors one function: a bare body or a whole
+/// declaration, into the draft, and it refuses a name that disagrees with its target rather
+/// than saving the test under the wrong one.
+let testAddAuthorsATest =
+  instanceTest "test add authors a test into the draft" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.AddT.double" "(n: Int64) : Int64 = (n + n)"
+      do!
+        shows
+          state
+          [ "test"
+            "add"
+            "Tests.AddT.doubles"
+            "Tests.AddT.double 4L |> Stdlib.Test.equal 8L" ]
+          "Created test Tests.AddT.doubles"
+          "a bare body becomes `test doubles = ...`"
+      do!
+        showsAll
+          state
+          [ "test"; "Tests.AddT" ]
+          [ "PASS Tests.AddT.doubles"; "1 passed" ]
+          "and it runs"
+      do!
+        shows
+          state
+          [ "test"; "Tests.AddT" ]
+          "1 ran, 0 cached"
+          "assertion formatting is conservatively rerun"
+      do!
+        exits
+          state
+          [ "test"
+            "add"
+            "Tests.AddT.doubles"
+            "test doubles :{} = Tests.AddT.double 4L |> Stdlib.Test.equal 8L" ]
+          1L
+          "a test cannot declare its own permission ceiling"
+      do!
+        exits
+          state
+          [ "test"
+            "add"
+            "Tests.AddT.doubles"
+            "test doubles = Tests.AddT.double 4L |> Stdlib.Test.equal 8L" ]
+          0L
+          "a complete test declaration is accepted"
+      do!
+        lacks
+          state
+          [ "view"; "Tests.AddT.doubles"; "--raw" ]
+          ":{}"
+          "tests are displayed without independent permission rows"
+      do!
+        exits
+          state
+          [ "test"
+            "add"
+            "Tests.AddT.other"
+            "test doubles = Stdlib.Test.pass ()" ]
+          1L
+          "a declaration named differently from its target is refused"
+      do! exits state [ "test"; "add" ] 1L "and so is a bare `test add`"
+      do! discardAll state
+    })
+
 let searchFindsByText =
   instanceTest "search finds items by text" (fun state ->
     task {
@@ -848,6 +1231,13 @@ let tests : List<Test> =
     treeShowsDescendants
     viewPrintsSource
     viewRefusesWhatIsNotThere
+    testsFollowEditsAcrossOwners
+    cachedTestsRerunWhenWhatTheyUseChanges
+    cachedPassesStayOnTheirBranch
+    testsWithoutPurityProofAlwaysRun
+    assertionFailureMessagesAlwaysRun
+    cachedPassesRequireTheSameBuildAndJudge
+    testAddAuthorsATest
     searchFindsByText
     depsNamesWhatAnItemUses
     hashResolvesNamesLikeViewDoes
