@@ -99,74 +99,60 @@ module WriteAuth =
   // can write to.
   //
   // Differs from legacy: each of these runs in a fresh child process through
-  // `Stdlib.Test.Process.isolated`, which guarantees no relay secret is set;
+  // the test runner, which clears the relay secret in each worker;
   // legacy relied on the test environment having none.
-  let syncPushRefusedCheck () : Stdlib.Test.Result =
+  test syncPushRefused =
     (Darklang.SCM.Tests.MatterRoutes.Helpers.status "/sync/push" Darklang.Matter.Relay.pushHandlerFn) == 401
     |> Stdlib.Test.equal true
 
-  test syncPushRefused =
-    Stdlib.Test.Process.isolated syncPushRefusedCheck
 
-  let syncPushSaysNoWritesCheck () : Stdlib.Test.Result =
+  test syncPushSaysNoWrites =
     (Darklang.SCM.Tests.MatterRoutes.Helpers.bodyHas "/sync/push" Darklang.Matter.Relay.pushHandlerFn "accepts no writes") == true
     |> Stdlib.Test.equal true
 
-  test syncPushSaysNoWrites =
-    Stdlib.Test.Process.isolated syncPushSaysNoWritesCheck
 
   // Branch push is the other write, and it is easy to guard one and forget the
   // other.
-  let branchPushRefusedCheck () : Stdlib.Test.Result =
+  test branchPushRefused =
     (Darklang.SCM.Tests.MatterRoutes.Helpers.status "/branch/push" Darklang.Matter.Relay.branchPushHandlerFn) == 401
     |> Stdlib.Test.equal true
 
-  test branchPushRefused =
-    Stdlib.Test.Process.isolated branchPushRefusedCheck
 
   // Branch READS are not public either. A branch is unmerged work that has never
   // been published, so listing or pulling one takes the same secret as writing.
   // The package log stays open, since `/m` and `/p` already serve it as HTML and
   // gating it would protect nothing.
-  let branchListRefusedCheck () : Stdlib.Test.Result =
+  test branchListRefused =
     (Darklang.SCM.Tests.MatterRoutes.Helpers.status "/branch/list?owner=someone" Darklang.Matter.Relay.branchListHandlerFn) == 401
     |> Stdlib.Test.equal true
 
-  test branchListRefused =
-    Stdlib.Test.Process.isolated branchListRefusedCheck
 
-  let branchPullRefusedCheck () : Stdlib.Test.Result =
+  test branchPullRefused =
     (Darklang.SCM.Tests.MatterRoutes.Helpers.status "/branch/pull?owner=someone&branch=x" Darklang.Matter.Relay.branchPullHandlerFn) == 401
     |> Stdlib.Test.equal true
 
-  test branchPullRefused =
-    Stdlib.Test.Process.isolated branchPullRefusedCheck
 
   // No DARK_MATTER_WRITE_SECRET in this harness, so the refusal is the
   // relay-misconfigured one, passed through verbatim: telling the client "connect
   // with the secret" would send it chasing a credential that cannot exist. The
   // "branches are not public" wording is the credential case, which needs a
   // configured secret to reach.
-  let branchListSaysNoWritesCheck () : Stdlib.Test.Result =
+  test branchListSaysNoWrites =
     (Darklang.SCM.Tests.MatterRoutes.Helpers.bodyHas
         "/branch/list?owner=someone"
         Darklang.Matter.Relay.branchListHandlerFn
         "accepts no writes") == true
     |> Stdlib.Test.equal true
 
-  test branchListSaysNoWrites =
-    Stdlib.Test.Process.isolated branchListSaysNoWritesCheck
 
   // A refused branch read must not leak what it was asked about.
-  let branchListHidesOwnerCheck () : Stdlib.Test.Result =
+  test branchListHidesOwner =
     (Darklang.SCM.Tests.MatterRoutes.Helpers.bodyHas
         "/branch/list?owner=someone"
         Darklang.Matter.Relay.branchListHandlerFn
         "someone") == false
     |> Stdlib.Test.equal true
 
-  test branchListHidesOwner =
-    Stdlib.Test.Process.isolated branchListHidesOwnerCheck
 
 module Search =
   test searchOk =

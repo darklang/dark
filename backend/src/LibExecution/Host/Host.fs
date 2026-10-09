@@ -942,6 +942,11 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.ChildBufferGet _
   | Operation.ChildBufferSet _ ->
     Error "child operation requires execution ownership"
+  | Operation.TestStoreSnapshot snapshot ->
+    withChecks
+      [ (Permission.Request.native "test baseline", "preparing a test baseline") ]
+      (attempt (fun () ->
+        Ok(Response.TestStoreSnapshot(HostProcess.testStoreSnapshot snapshot))))
   | Operation.IsolatedTest(snapshot,
                            branch,
                            request,

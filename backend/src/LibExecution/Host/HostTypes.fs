@@ -6,6 +6,12 @@ open Prelude
 
 module Permission = LibExecution.Permissions
 
+/// A run's private baseline. Only the host can create it; callers can copy it
+/// into a worker directory and release it, without seeing its path.
+type TestStoreSnapshot =
+  inherit System.IDisposable
+  abstract CopyTo : target : string -> Result<unit, string>
+
 /// OS numbers require Native; scoped tokens are owned by one execution.
 [<RequireQualifiedAccess>]
 type FileDescriptor =
@@ -149,6 +155,8 @@ type Operation =
   | ChildClosePort of handle : bigint * index : int
   | ChildBufferGet of handle : bigint * index : int
   | ChildBufferSet of handle : bigint * index : int * bytes : byte[]
+  /// Prepare a lazy baseline shared by this run's isolated tests.
+  | TestStoreSnapshot of snapshot : (string -> Result<unit, string>)
   /// Native test infrastructure. The store owner supplies the online backup;
   /// the host owns the directory, process, bounded output and cleanup.
   | IsolatedTest of
@@ -209,6 +217,7 @@ type Response =
   | ChildHandle of bigint
   | ChildDescriptors of List<bigint>
   | ChildStatus of Option<int>
+  | TestStoreSnapshot of TestStoreSnapshot
   | IsolatedTestOutcome of
     exitCode : int *
     stdout : string *
@@ -357,6 +366,7 @@ let describeOperation (op : Operation) : string =
   | Operation.ChildBufferGet _ -> "child-buffer-get"
   | Operation.ChildBufferSet _ -> "child-buffer-set"
   | Operation.IsolatedTest _ -> "isolated package test"
+  | Operation.TestStoreSnapshot _ -> "package test baseline"
   | Operation.Posix p -> $"posix {posix p}"
 
 /// Remove secrets from outcome details before they reach the default audit

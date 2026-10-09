@@ -46,7 +46,7 @@ let private cleanupTestDBs (dbs : List<PT.DB.T>) : Ply<unit> =
 
 /// Give the test fresh DBs and a counter, then clean up after execution.
 /// The caller handles conversion to Dark values and decides whether the test passed.
-let private executeTestBody
+let executeTestBody
   (caller : ExecutionState)
   (callerAccess : Permissions.Access)
   (test : PT.PackageTest.PackageTest)
@@ -82,8 +82,149 @@ let private executeTestBody
   }
 
 
+/// Convert a test outcome into a Dark Result. Keep runtime errors structured
+/// so expected-error assertions can compare their kind and fields.
+let reflectOutcome (result : ExecutionResult) : Dval =
+  let dvalKT =
+    KTCustomType(
+      FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()),
+      []
+    )
+  let errorKT =
+    KTCustomType(
+      FQTypeName.fqPackage (
+        PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.error ()
+      ),
+      []
+    )
+  match result with
+  | Ok value -> Dval.resultOk dvalKT errorKT (RT2DT.Dval.toDT value)
+  | Error(rte, _) -> Dval.resultError dvalKT errorKT (RT2DT.RuntimeError.toDT rte)
+
+/// Every package test executes its own hash in a fresh worker and store snapshot.
+let private executeIsolatedTest
+  (caller : ExecutionState)
+  (vm : VMState)
+  (hash : string)
+  : Ply<Dval> =
+  uply {
+    let guest = LibDB.PolicyStore.testState caller.accountID caller
+    let access = guest.access |> Permissions.Access.constrainBy vm.activeAccess
+    let request =
+      DTuple(
+        DString hash,
+        DUnit,
+        [ caller.accountID |> Option.map DUuid |> Dval.option KTUuid; DBool true ]
+      )
+    let! outcome =
+      LibDB.TestProcess.run
+        caller.testStoreSnapshot
+        guest
+        vm
+        access
+        caller.branchId.Guid
+        request
+        120000
+        80
+        24
+    let fail message =
+      // A broken worker is a failed test, never an expected error from its body.
+      let resultType = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.test ())
+      Ok(
+        DEnum(
+          resultType,
+          resultType,
+          [],
+          "Fail",
+          [ DList(ValueType.Known KTString, [ DString message ]) ]
+        )
+      )
+      |> reflectOutcome
+    match outcome with
+    | Error message -> return fail message
+    | Ok output ->
+      match output.exitCode, output.cleanupErrors, output.result with
+      | 0, [], Some(DEnum(_, _, _, "Ok", [ result ])) -> return result
+      | _ ->
+        return
+          fail (
+            let assertionMessages =
+              match output.result with
+              | Some(DEnum(_, _, _, "Ok", [ DEnum(_, _, _, "Ok", [ value ]) ])) ->
+                match RT2DT.Dval.fromDT value with
+                | DEnum(_, _, _, "Fail", [ DList(_, messages) ]) ->
+                  messages
+                  |> List.choose (function
+                    | DString s -> Some s
+                    | _ -> None)
+                | _ -> []
+              | _ -> []
+            String.concat
+              "\n"
+              (assertionMessages
+               @ [ $"Isolated test worker exited {output.exitCode} without a successful result"
+                   output.stdout
+                   output.stderr ]
+               @ output.cleanupErrors)
+          )
+  }
+
+
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
-  [ { name = fn "pmTestIsCacheSafe" 0
+  [ { name = fn "pmTestWithSnapshot" 0
+      typeParams = [ "a" ]
+      parameters =
+        [ Param.makeWithArgs
+            "run"
+            (TFn(NEList.singleton TUnit, TVariable "a"))
+            "The test run"
+            [ "unit" ] ]
+      returnType = TVariable "a"
+      description =
+        "Shares one starting store snapshot across a test run and cleans it up afterward."
+      fn =
+        (function
+        | state, vm, _, [| DApplicable callback |] ->
+          uply {
+            let guest = LibDB.PolicyStore.testState state.accountID state
+            let access =
+              guest.access |> Permissions.Access.constrainBy vm.activeAccess
+            let! prepared =
+              LibExecution.PermissionCheck.performHostWithAccess
+                state
+                vm
+                access
+                (LibExecution.HostTypes.Operation.TestStoreSnapshot
+                  LibDB.Sqlite.Backup.toTestBaseline)
+            match prepared with
+            | Ok(LibExecution.HostTypes.Response.TestStoreSnapshot snapshot) ->
+              use snapshot = snapshot
+              let scoped = { state with testStoreSnapshot = Some snapshot }
+              // The callback keeps the caller's permissions. Only worker setup
+              // uses the test instance policy, just as standalone execution does.
+              match!
+                Execution.executeApplicable1 scoped vm.activeAccess callback DUnit
+              with
+              | Ok value -> return value
+              | Error(error, stack) ->
+                vm.nestedCallStack <- stack
+                return raiseRTE vm.threadID error
+            | Error error ->
+              return
+                raiseRTE
+                  vm.threadID
+                  (RuntimeError.UncaughtException(error.message, []))
+            | _ -> return Exception.raiseInternal "Invalid test snapshot response" []
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      // The callback may write. Keep it in program order, rather than letting
+      // the interpreter defer this scope as an asynchronous package read.
+      callEffects = set [ Effect.Native ]
+      deprecated = NotDeprecated }
+
+    { name = fn "pmTestIsCacheSafe" 0
       typeParams = []
       parameters =
         [ Param.make
@@ -215,41 +356,21 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             []
           ))
       description =
-        "Runs a package test with private DBs and test permissions. "
-        + "Cleans up its DB rows and returns the value or runtime error. "
+        "Runs a package test in a fresh process and store with test permissions. "
+        + "Cleans up after execution and returns the value or runtime error. "
         + "The Dark caller decides whether it passed."
       fn =
         (function
         | exeState, vm, _, [| hashDval |] ->
           uply {
             let (PT.Hash hashStr as hash) = PT2DT.Hash.fromDT hashDval
-            let dvalKT =
-              KTCustomType(
-                FQTypeName.fqPackage (
-                  PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()
-                ),
-                []
-              )
-            let errorKT =
-              KTCustomType(
-                FQTypeName.fqPackage (
-                  PackageRefs.Type.LanguageTools.RuntimeTypes.RuntimeError.error ()
-                ),
-                []
-              )
             match! pm.getTest hash with
             | None ->
               return
-                RuntimeError.VariableNotFound $"package test {hashStr}"
-                |> RT2DT.RuntimeError.toDT
-                |> Dval.resultError dvalKT errorKT
-            | Some test ->
-              let! result = executeTestBody exeState vm.activeAccess test
-              match result with
-              | Ok value ->
-                return Dval.resultOk dvalKT errorKT (RT2DT.Dval.toDT value)
-              | Error(rte, _) ->
-                return Dval.resultError dvalKT errorKT (RT2DT.RuntimeError.toDT rte)
+                reflectOutcome (
+                  Error(RuntimeError.VariableNotFound $"package test {hashStr}", [])
+                )
+            | Some _ -> return! executeIsolatedTest exeState vm hashStr
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

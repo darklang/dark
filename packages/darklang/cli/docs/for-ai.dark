@@ -30,8 +30,8 @@ NOW. Edit a callee and look again: the values move. Nothing is performed while y
 look -- the effects are answered from the log -- so it is safe on a function that
 writes.
 
-Batch search caps each result section at three items. Use `--fn`, `--type`, or
-`--val` to focus results; `--with-docs` shows full comments, `docs signatures
+Batch search caps each result section at three items. Use `--fn`, `--type`,
+`--val`, or `--test` to focus results; `--with-docs` shows full comments, `docs signatures
 <module>` browses a known module, and `view <name>` shows source.
 
 ## Authoring
@@ -69,6 +69,71 @@ errors that already existed.
 never blocks: it means the checker lacked evidence, not that the declaration is
 wrong. `typecheck` summarizes the whole branch; `--all` also lists successful
 items, `--failed` or `--incomplete` lists only that verdict.
+
+## Package tests
+
+Tests are ordinary Dark declarations stored separately from production
+functions. They must return `Stdlib.Test.Result`:
+
+  module /Me.Example.Tests - <<'EOF'
+  test doubles =
+    Me.Example.double 4
+    |> Stdlib.Test.equal 8
+  EOF
+
+One test at a time, quoting the body so the shell leaves `|>` alone:
+
+  test add Me.Example.Tests.doubles 'Me.Example.double 4 |> Stdlib.Test.equal 8'
+
+Run all tests with `test`, or filter by name/module with `test Example`.
+`search` leaves tests out; add `--include-tests`, or `--test` for tests only.
+Tests use an allow-all instance policy for the test run and its disposable
+workers; the installation's saved policy is unchanged. Each called function's
+ordinary package approval and permission ceiling still applies. Tests have no
+permission rows or grants of their own. A passing
+ordinary test is reused when its calls are proven safe to reuse, on the same
+branch with the same `Stdlib.Test.Result` binding, until the test body, one of
+its followed dependencies, the runtime build, or the judging code changes.
+Failed tests and expected-error tests rerun; so do tests with incomplete
+cache-safety analysis.
+`equal` and `notEqual` use branch-dependent formatting and rerun conservatively;
+use `expect` with a fixed message for checks that can be cached.
+`test --force` reruns cached tests.
+
+Tests with private `[<DB>]` tables may use DbRead and DbWrite when the called
+functions allow them. Tests with private DBs are not cached.
+
+Every test execution runs in its own disposable process and store snapshot.
+Ordinary `test name = ...` declarations provide isolation automatically, including
+for tests that change the local store, branches, or environment. Safe cached
+passes can still be reused; a rerun always gets a fresh process and store.
+One starting snapshot is shared per `test` command, with a private writable
+copy for each executed test. A command answered entirely from cache creates
+no snapshot. Nested workers start from their calling test's current store.
+Use `Stdlib.Test.Process.run` only when a test needs custom process options or
+must inspect a child's output, result, or exit status.
+
+To count evaluations or callbacks, use `Stdlib.Test.incrementCounter value` (returns
+the value unchanged) and `Stdlib.Test.counterValue ()`. The counter is
+in memory and starts at zero for each test execution, including reruns.
+These helpers work only in package tests, need no DB or host permissions,
+and make the test rerun rather than reuse a cached pass.
+
+`[<DB>] type Items = { name: String }` defines both a private DB and its row
+type. Use `Items { name = "first" }` for a row and bare `Items` as the DB.
+The existing form `type Item = { name: String }; [<DB>] type Items = Item`
+remains valid when the row type needs a separate name.
+
+A test that expects a runtime error declares the expected outcome after its
+body; the body may be any expression and passes only when the rendered message
+matches exactly:
+
+  test divisionByZero =
+    (1L / 0L)
+    => raises "Cannot divide by 0"
+
+Use `=> sqlerror "message"` for a DB query-compiler error; it compares that
+specific compiler message exactly, while the standard preamble is only display text.
 
 ## Changing something that exists
 

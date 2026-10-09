@@ -471,6 +471,98 @@ let testAddAuthorsATest =
       do! discardAll state
     })
 
+let testRunUsesOneStartingStore =
+  instanceTest
+    "a test run shares its starting store but never its writes"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "permissions"; "allow"; "native" ]
+        let definition =
+          """test startingStore =
+  let before = Stdlib.LocalStore.configGet "baseline-witness"
+  let _ = Stdlib.LocalStore.configSet "baseline-witness" "child"
+  Stdlib.Test.expect (before == "before") "starting store changed"
+"""
+        do! run state [ "test"; "add"; "Tests.Baseline.startingStore"; definition ]
+        let! hashOutput =
+          runCli state [ "hash"; "Tests.Baseline.startingStore"; "--full" ]
+        let hash = hashOutput.Trim().Split(' ') |> Array.last
+        let expression =
+          $"""let hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash "{hash}"
+let branch = Darklang.SCM.Branch.mainBranchId
+let _ = Stdlib.LocalStore.configSet "baseline-witness" "before"
+let (first, second) = Darklang.LanguageTools.PackageManager.Test.withSnapshot (fun () ->
+  let first = Darklang.LanguageTools.PackageManager.Test.execute branch hash
+  let _ = Stdlib.LocalStore.configSet "baseline-witness" "after"
+  let second = Darklang.LanguageTools.PackageManager.Test.execute branch hash
+  (first, second))
+let later = Darklang.LanguageTools.PackageManager.Test.withSnapshot (fun () ->
+  Darklang.LanguageTools.PackageManager.Test.execute branch hash)
+first == Ok (Stdlib.Test.pass ())
+&& second == Ok (Stdlib.Test.pass ())
+&& later == Ok (Stdlib.Test.fail "starting store changed")
+&& Stdlib.LocalStore.configGet "baseline-witness" == "after"
+"""
+        do!
+          evals
+            state
+            expression
+            "true"
+            "one frozen baseline per callback, private writes per test"
+        do! discardAll state
+      })
+
+let isolatedTestDeclarations =
+  instanceTest
+    "package tests run in fresh stores by default and retain safe caching"
+    (fun state ->
+      task {
+        do! start state
+        let add name body =
+          run state [ "test"; "add"; $"Tests.IsolatedDeclaration.{name}"; body ]
+        do!
+          add
+            "writes"
+            """test writes =
+  let before = Stdlib.LocalStore.configGet "isolated-declaration-witness"
+  let _ = Stdlib.LocalStore.configSet "isolated-declaration-witness" "child"
+  Stdlib.Test.equal before ""
+"""
+        do!
+          add
+            "expected"
+            """test expected =
+  1L / 0L => raises "Cannot divide by 0"
+"""
+        do!
+          add
+            "fails"
+            """test fails = Stdlib.Test.fail "isolated assertion detail"
+"""
+        do! add "pure" """test pure = Stdlib.Test.pass ()"""
+        do!
+          shows
+            state
+            [ "view"; "Tests.IsolatedDeclaration.expected"; "--raw" ]
+            "test expected"
+            "isolation needs no extra syntax"
+        for counts in [ "4 ran, 0 cached"; "3 ran, 1 cached" ] do
+          do!
+            showsAll
+              state
+              [ "test"; "Tests.IsolatedDeclaration" ]
+              [ "3 passed, 1 failed"; counts; "isolated assertion detail" ]
+              "stateful tests rerun in fresh stores while pure passes may be cached"
+        do!
+          evals
+            state
+            "Stdlib.LocalStore.configGet \"isolated-declaration-witness\" == \"\""
+            "true"
+            "the child's config did not leak into the parent"
+        do! discardAll state
+      })
+
 let isolatedTestsRejectUnsuccessfulWorkers =
   instanceTest
     "isolated tests reject worker failures and missing results"
@@ -486,27 +578,21 @@ let isolatedTestsRejectUnsuccessfulWorkers =
           let file = System.IO.Path.Combine(instance.dir, "worker-tests.dark")
           System.IO.File.WriteAllText(
             file,
-            """let stdinCheck () : Stdlib.Test.Result =
+            """test passes =
   Stdlib.Cli.Stdin.isInteractive () |> Stdlib.Test.equal false
-let assertionFailure () : Stdlib.Test.Result =
+test fails =
   Stdlib.printLine "{\"Pass\":[]}"
   Stdlib.Test.fail "intentional isolation failure"
-test passes = Stdlib.Test.Process.isolated Tests.WorkerExit.stdinCheck
-test fails = Stdlib.Test.Process.isolated Tests.WorkerExit.assertionFailure
+test expected = 1L / 0L => raises "Cannot divide by 0"
 """
           )
           do! run state [ "module"; "Tests.WorkerExit"; file ]
-          for helper in [ "stdinCheck"; "assertionFailure" ] do
-            do!
-              run
-                state
-                [ "permissions"; "approve"; "Tests.WorkerExit." + helper; "--yes" ]
           do!
             exits
               state
               [ "test"; "--force"; "Tests.WorkerExit.passes" ]
               0L
-              "the callback passes when its worker exits normally"
+              "the test passes when its worker exits normally"
           let wrapper = System.IO.Path.Combine(instance.dir, "worker-exits-17")
           let witness = System.IO.Path.Combine(instance.dir, "worker-exits")
           let quote (value : string) = "'" + value.Replace("'", "'\"'\"'") + "'"
@@ -536,8 +622,8 @@ test fails = Stdlib.Test.Process.isolated Tests.WorkerExit.assertionFailure
           Expect.equal code 1 "a worker failure must fail the CLI command"
           Expect.stringContains
             output
-            "0 passed, 2 failed"
-            "neither result hides the exit"
+            "0 passed, 3 failed"
+            "passing, failing, and expected-error bodies cannot hide the worker exit"
           Expect.stringContains
             output
             "Isolated test worker exited 17"
@@ -548,8 +634,8 @@ test fails = Stdlib.Test.Process.isolated Tests.WorkerExit.assertionFailure
             "assertion failure is preserved"
           Expect.equal
             (System.IO.File.ReadAllLines witness)
-            [| "17"; "17" |]
-            "both workers produced a result and then exited unsuccessfully"
+            [| "17"; "17"; "17" |]
+            "all workers produced a result and then exited unsuccessfully"
           // A worker may exit before writing its result, even with exit code 0.
           // Dark must reject both cases and preserve the diagnostic output.
           for workerExit in [ 0; 23 ] do
@@ -566,17 +652,16 @@ test fails = Stdlib.Test.Process.isolated Tests.WorkerExit.assertionFailure
               + quote (System.IO.Path.GetFullPath instance.cli)
               + " \"$@\"\n"
             )
-            let! (output, code) =
-              runCliWithStatus
-                wrapped
-                [ "test"; "--force"; "Tests.WorkerExit.passes" ]
-            Expect.equal code 1 "a missing result must fail the CLI command"
-            for message in
-              [ "0 passed, 1 failed"
-                $"Isolated test exited {workerExit} without a result:"
-                "worker stdout"
-                "worker stderr" ] do
-              Expect.stringContains output message "missing-result diagnostics"
+            for target in [ "passes"; "expected" ] do
+              let! (output, code) =
+                runCliWithStatus
+                  wrapped
+                  [ "test"; "--force"; "Tests.WorkerExit." + target ]
+              Expect.equal code 1 "a missing result must fail the CLI command"
+              for message in
+                [ "0 passed, 1 failed"; "worker stdout"; "worker stderr" ] do
+                Expect.stringContains output message "missing-result diagnostics"
+
       })
 
 
@@ -1476,6 +1561,8 @@ let tests : List<Test> =
     assertionFailureMessagesAlwaysRun
     cachedPassesRequireTheSameBuildAndJudge
     testAddAuthorsATest
+    testRunUsesOneStartingStore
+    isolatedTestDeclarations
     isolatedTestsRejectUnsuccessfulWorkers
     testsUseInstanceAndFunctionPolicies
     searchFindsByText
