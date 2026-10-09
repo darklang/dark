@@ -687,3 +687,23 @@ let reResolveValue
     let! body = reResolveExpr contextModules pm v.body
     return { v with body = body }
   }
+
+
+/// Re-resolve all unresolved names in a PackageTest body.
+let reResolveTest
+  (pm : PT.PackageManager)
+  (owner : string)
+  (modules : List<string>)
+  (test : PT.PackageTest.PackageTest)
+  : Ply<PT.PackageTest.PackageTest> =
+  uply {
+    let! body = reResolveExpr (owner :: modules) pm test.body
+    let! testDBs =
+      test.testDBs
+      |> Ply.List.mapSequentially (fun (name, typ) ->
+        uply {
+          let! typ = reResolveTypeRef (owner :: modules) pm typ
+          return name, typ
+        })
+    return { test with body = body; testDBs = testDBs }
+  }

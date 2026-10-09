@@ -190,7 +190,8 @@ let filterDeprecated
         values = results.values |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
         fns = results.fns |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
         traits = results.traits |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
-        impls = results.impls |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash)) }
+        impls = results.impls |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash))
+        tests = results.tests |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (isHidden sets i.entity.hash)) }
 
 
 /// Deprecation marker rendered after an item name when it's shown despite

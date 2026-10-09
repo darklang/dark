@@ -61,6 +61,7 @@ let locationsFor
   | PackageFn hash -> LanguageTools.PackageManager.Function.locations branchId hash
   | PackageTrait hash -> LanguageTools.PackageManager.Trait.locations branchId hash
   | PackageTraitImpl hash -> LanguageTools.PackageManager.TraitImpl.locations branchId hash
+  | PackageTest hash -> LanguageTools.PackageManager.Test.locations branchId hash
 
 let fallbackLabel (reference: LanguageTools.ProgramTypes.Reference) : String =
   let kind =
@@ -70,6 +71,7 @@ let fallbackLabel (reference: LanguageTools.ProgramTypes.Reference) : String =
     | PackageFn _ -> "function"
     | PackageTrait _ -> "trait"
     | PackageTraitImpl _ -> "impl"
+    | PackageTest _ -> "test"
   let hash =
     LanguageTools.ProgramTypes.hashToShort (
       LanguageTools.ProgramTypes.Reference.hash reference)
@@ -275,7 +277,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     finished
 
 let help (_state: Cli.AppState) : String =
-  [ "Audit all visible package types, values, and functions on the current branch."
+  [ "Audit all visible package types, values, functions, and tests on the current branch."
     "The command is read-only and reports definite errors separately from checks"
     "that are incomplete because the checker cannot yet prove them."
     ""

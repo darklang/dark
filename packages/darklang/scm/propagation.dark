@@ -3,7 +3,7 @@ module Darklang.SCM.Propagation
 // Every edit propagates to all callers on its branch.
 
 
-/// Resolve a binding on an explicit branch, including all five item kinds.
+/// Resolve a binding on an explicit branch, including package tests.
 let hashOn
   (branchId: Uuid)
   (loc: LanguageTools.ProgramTypes.PackageLocation)
@@ -15,6 +15,7 @@ let hashOn
   | Value -> LanguageTools.PackageManager.Value.find branchId loc
   | Trait -> LanguageTools.PackageManager.Trait.find branchId loc
   | TraitImpl -> LanguageTools.PackageManager.TraitImpl.find branchId loc
+  | Test -> LanguageTools.PackageManager.Test.find branchId loc
 
 /// Rebind exactly this branch, including when it is not the process's branch.
 let rebindOn

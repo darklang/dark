@@ -169,6 +169,11 @@ type private Affected =
     item : PT.TraitImpl.TraitImpl *
     currentHash : Hash *
     location : PT.PackageLocation
+  | AffectedTest of
+    fqn : string *
+    item : PT.PackageTest.PackageTest *
+    currentHash : Hash *
+    location : PT.PackageLocation
 
 let private affectedFqn =
   function
@@ -177,6 +182,7 @@ let private affectedFqn =
   | AffectedValue(fqn, _, _, _) -> fqn
   | AffectedTrait(fqn, _, _, _) -> fqn
   | AffectedTraitImpl(fqn, _, _, _) -> fqn
+  | AffectedTest(fqn, _, _, _) -> fqn
 
 let private affectedCurrentHash =
   function
@@ -185,6 +191,7 @@ let private affectedCurrentHash =
   | AffectedValue(_, _, currentHash, _) -> currentHash
   | AffectedTrait(_, _, currentHash, _) -> currentHash
   | AffectedTraitImpl(_, _, currentHash, _) -> currentHash
+  | AffectedTest(_, _, currentHash, _) -> currentHash
 
 
 /// Resolve an item's authoritative hash from its location. The caller's
@@ -243,6 +250,7 @@ let private resolveCurrentHash
         | PT.ItemKind.Value -> PMTypes.Value.find loc
         | PT.ItemKind.Trait -> PMTypes.Trait.find loc
         | PT.ItemKind.TraitImpl -> PMTypes.TraitImpl.find loc
+        | PT.ItemKind.Test -> PMTypes.Test.find loc
       let! resolved = Ply.toTask find
       return resolved |> Option.defaultValue fallback
   }
@@ -282,6 +290,11 @@ let private fetchAffected
       match item with
       | Some i -> return Ok(AffectedTraitImpl(fqn, i, hash, loc))
       | None -> return Error $"Impl at {hash} not found"
+    | PT.ItemKind.Test ->
+      let! item = Ply.toTask (PMTypes.Test.get hash)
+      match item with
+      | Some test -> return Ok(AffectedTest(fqn, test, hash, loc))
+      | None -> return Error $"Test at {hash} not found"
   }
 
 
@@ -321,7 +334,10 @@ let private stabilizationFromAffected
       | AffectedTrait(fqn, t, h, loc) ->
         { input with traits = Map.add fqn (t, h, loc) input.traits }
       | AffectedTraitImpl(fqn, i, h, loc) ->
-        { input with impls = Map.add fqn (i, h, loc) input.impls })
+        { input with impls = Map.add fqn (i, h, loc) input.impls }
+      // Left out: nothing refers to a test, so it is never part of a cycle. Each
+      // is hashed on its own below, once the others' hashes are final.
+      | AffectedTest _ -> input)
     HS.emptyInput
   |> HS.stabilize seedMapping
 
@@ -342,7 +358,14 @@ let private applyStabilization
   (a : Affected)
   : List<PT.PackageOp> * Option<PT.PropagateRepoint> =
   let fqn = affectedFqn a
-  let newHash = Map.findUnsafe fqn s.fqnHashes
+  let transformedTest =
+    match a with
+    | AffectedTest(_, test, _, _) -> Some(AT.transformTest s.mapping test)
+    | _ -> None
+  let newHash =
+    match transformedTest with
+    | Some test -> Hashing.computeTestHash Hashing.Normal test
+    | None -> Map.findUnsafe fqn s.fqnHashes
   // Past the guard below, `newHash` differs from `currentHash` by construction, so every
   // item that gets here repoints.
   let mkRepoint loc currentHash newRef =
@@ -384,6 +407,16 @@ let private applyStabilization
         [ PT.PackageOp.AddTraitImpl transformed
           PT.PackageOp.SetName(loc, PT.PackageTraitImpl newHash, Some currentHash) ]
       ops, mkRepoint loc currentHash PT.PackageTraitImpl
+    | AffectedTest(_, _, currentHash, loc) ->
+      let transformed =
+        transformedTest
+        |> Option.defaultWith (fun () ->
+          Exception.raiseInternal "missing transformed package test" [ "fqn", fqn ])
+        |> fun test -> { test with hash = newHash }
+      let ops =
+        [ PT.PackageOp.AddTest transformed
+          PT.PackageOp.SetName(loc, PT.PackageTest newHash, Some currentHash) ]
+      ops, mkRepoint loc currentHash PT.PackageTest
 
 
 let private buildSeedMapping

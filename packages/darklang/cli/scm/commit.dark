@@ -92,6 +92,7 @@ let itemKindOf
   | "value" -> LanguageTools.ProgramTypes.ItemKind.Value
   | "trait" -> LanguageTools.ProgramTypes.ItemKind.Trait
   | "impl" -> LanguageTools.ProgramTypes.ItemKind.TraitImpl
+  | "test" -> LanguageTools.ProgramTypes.ItemKind.Test
   | _ -> LanguageTools.ProgramTypes.ItemKind.Fn
 
 let locationOf

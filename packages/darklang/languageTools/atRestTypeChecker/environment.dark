@@ -811,3 +811,6 @@ let loadDependency
   // and `dark typecheck` reported this very function as incomplete. Which is how it was found.
   | PackageTrait _
   | PackageTraitImpl _ -> ([], closure)
+  // Expressions cannot reference tests; only candidate tests are checked, and
+  // their dependencies are queued by the caller.
+  | PackageTest _ -> ([], closure)

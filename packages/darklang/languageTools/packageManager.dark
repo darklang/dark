@@ -272,6 +272,25 @@ module Function =
     | None -> Stdlib.Option.Option.None
 
 
+module Test =
+  let find
+    (branchId: Uuid)
+    (location: ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<ProgramTypes.Hash> =
+    Builtin.pmFindTest branchId location
+
+  let get
+    (hash: ProgramTypes.Hash)
+    : Stdlib.Option.Option<ProgramTypes.PackageTest.PackageTest> =
+    Builtin.pmGetTest hash
+
+  let locations
+    (branchId: Uuid)
+    (hash: ProgramTypes.Hash)
+    : List<ProgramTypes.PackageLocation> =
+    Builtin.pmGetLocationsByTest branchId hash
+
+
 /// Replace provisional hashes with SCC-aware content hashes, including references
 /// between items in the batch.
 let stabilizeHashes
@@ -366,7 +385,8 @@ module Search =
         values = searchResults.values
         fns = searchResults.fns
         traits = searchResults.traits
-        impls = searchResults.impls }
+        impls = searchResults.impls
+        tests = searchResults.tests }
 
 
   /// The submodules a READER should see.

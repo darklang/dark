@@ -130,6 +130,10 @@ let private classify (sf : WT.SourceFile) : Classified =
         { acc with types = acc.types @ [ WT.packageType replOwner path t ] }
       | WTSourceFile.Value(path, v) ->
         { acc with values = acc.values @ [ WT.packageValue replOwner path v ] }
+      | WTSourceFile.Test _ ->
+        { acc with
+            errors =
+              acc.errors @ [ "named package tests are not supported in the REPL" ] }
       | WTSourceFile.Expr(_, e) -> { acc with exprs = acc.exprs @ [ e ] }
       | WTSourceFile.Trait(path, t) ->
         { acc with traits = acc.traits @ [ WT.packageTrait replOwner path t ] }
@@ -142,7 +146,7 @@ let private classify (sf : WT.SourceFile) : Classified =
         { acc with
             errors =
               acc.errors @ [ "[<DB>] declarations are not supported in the REPL" ] }
-      | WTSourceFile.Test _ ->
+      | WTSourceFile.Assertion _ ->
         { acc with
             errors =
               acc.errors @ [ "test assertions are not supported in the REPL" ] })

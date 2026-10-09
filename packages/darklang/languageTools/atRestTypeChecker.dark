@@ -97,6 +97,7 @@ type Site =
   | FunctionReturnValue
   | UnwrappedError
   | ValueBody
+  | TestBody
   | Expression
   | StatementBeforeFinalExpression
   | FunctionApplication
@@ -444,6 +445,7 @@ let siteToString (site: Site) : String =
   | FunctionReturnValue -> "the function's return value"
   | UnwrappedError -> "the error returned by ?"
   | ValueBody -> "the value's body"
+  | TestBody -> "the test's body"
   | Expression -> "this expression"
   | StatementBeforeFinalExpression -> "the statement before the final expression"
   | FunctionApplication -> "this function application"

@@ -190,6 +190,12 @@ module Fn =
       return System.Collections.Generic.HashSet<string>(hashes)
     }
 
+module Test =
+  let find = findItem "test"
+  let get = getItem "package_tests" "hash" BS.PT.PackageTest.deserialize
+  let getLocations = getItemLocations "test"
+  let getLocationsEverNamed = getItemLocationsEverNamed "test"
+
 
 
 /// Split a search query into lowercase tokens for name/doc matching.
@@ -436,11 +442,18 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
       else
         Task.FromResult<List<PT.LocatedItem<PT.PackageFn.PackageFn>>> []
 
+    let! tests =
+      if isEntityRequested PT.Search.EntityType.Test then
+        makeEntityQuery "test" "package_tests" "hash" BS.PT.PackageTest.deserialize
+      else
+        Task.FromResult<List<PT.LocatedItem<PT.PackageTest.PackageTest>>> []
+
     return
       { submodules = submodules
         types = types
         values = values
         fns = fns
         traits = traits
-        impls = impls }
+        impls = impls
+        tests = tests }
   }

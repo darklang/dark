@@ -1,4 +1,4 @@
-/// Check each function, value, or type declaration and produce its report.
+/// Check each function, value, type, or test declaration and produce its report.
 /// Definite errors make a declaration Failed. Warnings or unresolved checks make
 /// it Incomplete when there are no definite errors. Otherwise it is Checked.
 module Darklang.LanguageTools.AtRestTypeChecker.Items
@@ -499,6 +499,17 @@ let checkBatch
   (values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>)
   (fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>)
   : List<(LanguageTools.ProgramTypes.Reference * Outcome)> =
+  let (_, results) = checkBatchWithEnv env types values fns
+  results
+
+/// checkBatch, also returning the environment it ended with, which holds the
+/// schemes of the values that Checked. Tests are checked against it afterwards.
+let checkBatchWithEnv
+  (env: Model.Environment)
+  (types: List<LanguageTools.ProgramTypes.PackageType.PackageType>)
+  (values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>)
+  (fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+  : (Model.Environment * List<(LanguageTools.ProgramTypes.Reference * Outcome)>) =
   let env = Stdlib.List.fold types env (fun env t -> addType env t)
   let env = Stdlib.List.fold fns env (fun env fn -> addFunctionSignature env fn)
   let env = Declarations.prepareDeclarations env
@@ -518,7 +529,7 @@ let checkBatch
       |> Stdlib.Option.map (fun outcome ->
         (LanguageTools.ProgramTypes.Reference.PackageValue v.hash, outcome)))
 
-  let (_, fnResults) =
+  let (env, fnResults) =
     Stdlib.List.fold fns (env, []) (fun (env, results) fn ->
       let signatureTypes =
         Stdlib.List.push
@@ -541,4 +552,57 @@ let checkBatch
       let item = LanguageTools.ProgramTypes.Reference.PackageFn fn.hash
       (env, Stdlib.List.push results (item, outcome)))
 
-  Stdlib.List.flatten [ typeResults, valueResults, Stdlib.List.reverse fnResults ]
+  (env,
+   Stdlib.List.flatten
+     [ typeResults, valueResults, Stdlib.List.reverse fnResults ])
+
+/// Check a package test's body. An ordinary test must return <param testResult>
+/// (`Stdlib.Test.Result`). A test that declares an expected runtime error may
+/// return any type, because only the error it raises is observed.
+let checkTest
+  (env: Model.Environment)
+  (testResult: LanguageTools.ProgramTypes.Hash)
+  (test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
+  : (Outcome * Model.Environment) =
+  let (scope, dbProblems) =
+    Stdlib.List.fold test.testDBs (Generate.emptyScope (), []) (fun (scope, found) (name, typ) ->
+      let (inner, problems) =
+        Types.fromReference (Dict {}) Stdlib.Option.Option.None typ
+      let locals =
+        Stdlib.Dict.setOverridingDuplicates
+          scope.locals
+          name
+          (Model.Binder.Mono(Model.Ty.TDB inner))
+      ({ scope with locals = locals }, Stdlib.List.append found problems))
+  let (typ, constraints) =
+    match NodeIds.problem test.body with
+    | Some problem -> (Model.Ty.TError, Generate.report problem)
+    | None ->
+      // Too deep is skipped for the same reason as in `prepareValue`.
+      match NodeIds.tooDeep test.body with
+      | Some problem -> (Model.Ty.TError, Generate.report problem)
+      | None ->
+        match test.expectedError with
+        | Some _ -> Generate.infer scope test.body
+        | None ->
+          let expected = Model.Ty.TCustom(testResult, [])
+          (expected,
+           Generate.check scope expected Site.TestBody test.body)
+
+  let constraints = Generate.all [ Generate.reports dbProblems, constraints ]
+  let s = Solve.solve (Solve.start env) constraints
+  let bodyId = LanguageTools.ProgramTypes.Expr.toID test.body
+  (finish s (Stdlib.Option.Option.Some bodyId) (monomorphic typ), s.env)
+
+/// Check each test against env. Nothing can reference a test, so no test's
+/// result feeds another declaration's check.
+let checkTests
+  (env: Model.Environment)
+  (testResult: LanguageTools.ProgramTypes.Hash)
+  (tests: List<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
+  : List<(LanguageTools.ProgramTypes.Reference * Outcome)> =
+  Stdlib.List.map tests (fun test ->
+    let (outcome, _) =
+      guardItem (bodyNodeId test.body) env (fun env ->
+        checkTest env testResult test)
+    (LanguageTools.ProgramTypes.Reference.PackageTest test.hash, outcome))

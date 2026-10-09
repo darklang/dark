@@ -307,6 +307,108 @@ let private parserStructureTests =
           | other -> failtest $"value decl: {other}"
         | other -> failtest $"value decl: {other}")
 
+      testCase
+        "parses a named package test without reserving test in expressions"
+        (fun _ ->
+          let parsed = P.parse "module M =\n  test doubles = Stdlib.Test.equal 8 8"
+          Expect.isEmpty parsed.diagnostics "no diagnostics"
+          match parsed.parsed with
+          | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
+            match m.declarations with
+            | [ WT.DTest test ] ->
+              Expect.equal test.name.name "doubles" "test name"
+              expectColumns "test keyword" (2, 6) test.keywordTest
+              expectColumns "test equals" (15, 16) test.symbolEquals
+            | other -> failtest $"test decl: {other}"
+          | other -> failtest $"test decl: {other}"
+
+          match (P.parse "let test = 1 in test").parsed with
+          | Some(WT.SourceFile { exprsToEval = [ WT.ELet _ ] }) -> ()
+          | other ->
+            failtest $"test should remain an expression identifier: {other}")
+
+      testCase "parses a named package test with an expected runtime error" (fun _ ->
+        let parsed =
+          P.parse
+            "module M =\n  test divisionByZero =\n    1L / 0L\n    => raises \"Cannot divide by 0\""
+        Expect.isEmpty parsed.diagnostics "no diagnostics"
+        match parsed.parsed with
+        | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
+          match m.declarations with
+          | [ WT.DTest test ] ->
+            Expect.equal test.name.name "divisionByZero" "test name"
+            Expect.isNone test.effects "tests have no independent effect row"
+            Expect.equal
+              (test.expectedError |> Option.map snd)
+              (Some(WT.RuntimeError "Cannot divide by 0"))
+              "expected runtime error"
+            Expect.isSome test.errorKindRange "expected-error kind range"
+            Expect.isSome test.symbolOutcome "outcome symbol range"
+          | other -> failtest $"test decl: {other}"
+        | other -> failtest $"test decl: {other}")
+
+      testCase "sqlerror retains its distinct expected-error kind" (fun _ ->
+        let parsed =
+          P.parse
+            "module M =\n  test badQuery =\n    1\n    => sqlerror \"unsupported\""
+        Expect.isEmpty parsed.diagnostics "no diagnostics"
+        match parsed.parsed with
+        | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
+          match m.declarations with
+          | [ WT.DTest test ] ->
+            Expect.equal
+              (test.expectedError |> Option.map snd)
+              (Some(WT.SqlCompilerError "unsupported"))
+              "sqlerror stores only the specific compiler message"
+          | other -> failtest $"test decl: {other}"
+        | other -> failtest $"test decl: {other}")
+
+      testCase "raises does not infer SQL errors from message text" (fun _ ->
+        let parsed =
+          P.parse
+            "module M =\n  test badQuery =\n    1\n    => raises \"SQL compiler error: unsupported\""
+        Expect.isEmpty parsed.diagnostics "no diagnostics"
+        match parsed.parsed with
+        | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
+          match m.declarations with
+          | [ WT.DTest test ] ->
+            Expect.equal
+              (test.expectedError |> Option.map snd)
+              (Some(WT.RuntimeError "SQL compiler error: unsupported"))
+              "raises remains a runtime-error assertion"
+          | other -> failtest $"test decl: {other}"
+        | other -> failtest $"test decl: {other}")
+
+      testCase
+        "tests use existing policies instead of declaring effect ceilings"
+        (fun _ ->
+          for row in [ "{Random}"; "{}"; "{NoSuchEffect}" ] do
+            let parsed =
+              P.parse $"module M =\n  test key :{row} = Stdlib.Test.pass ()"
+            Expect.isNonEmpty parsed.diagnostics "test effect rows are refused")
+
+      testCase "rejects the removed test-header raises syntax" (fun _ ->
+        let parsed =
+          P.parse
+            "module M =\n  test divisionByZero raises \"Cannot divide by 0\" = 1L / 0L"
+        Expect.isNonEmpty parsed.diagnostics "the old syntax is rejected")
+
+      testCase "raises remains an ordinary function name in a test body" (fun _ ->
+        let parsed =
+          P.parse
+            "module M =\n  test callsRaises = 1 |> raises \"message\" |> Stdlib.Test.equal 1"
+        Expect.isEmpty parsed.diagnostics "no diagnostics"
+        match parsed.parsed with
+        | Some(WT.SourceFile { declarations = [ WT.DModule m ] }) ->
+          match m.declarations with
+          | [ WT.DTest test ] ->
+            Expect.isNone test.expectedError "no outcome clause"
+            match test.body with
+            | WT.EPipe(_, _, [ _; _ ]) -> ()
+            | other -> failtest $"test body: {other}"
+          | other -> failtest $"test decl: {other}"
+        | other -> failtest $"test decl: {other}")
+
       testCase "module value declarations require val" (fun _ ->
         let result = P.parse "module M =\n  let pi = 3"
         match result.diagnostics with
@@ -942,6 +1044,19 @@ let private validationTests =
             diagnostics
             (fun diagnostic -> diagnostic.code = packageExpressionCode)
             "package purpose diagnostic")
+      testCase "named tests are package declarations only" (fun _ ->
+        let source = "test passes = true"
+        Expect.isOk
+          (P.parseFor Validation.Package source)
+          "package mode accepts a named test"
+        match P.parseFor Validation.Script source with
+        | Ok _ -> failtest "script mode accepted a named package test"
+        | Error diagnostics ->
+          Expect.exists
+            diagnostics
+            (fun diagnostic ->
+              diagnostic.code = Validation.IssueCode.toString Validation.TestMode)
+            "script purpose diagnostic")
       testCase "parseFor does not validate syntax-recovery trees" (fun _ ->
         let recoveryHoleCode = Validation.IssueCode.toString Validation.RecoveryHole
         match P.parseFor Validation.Script "let x =" with
@@ -1070,7 +1185,37 @@ let private validationTests =
           "script classification rejects DB declarations"
         Expect.isEmpty
           (validationIssues Validation.Test sf)
-          "test classification accepts DB declarations")
+          "test classification accepts DB declarations"
+        Expect.isEmpty
+          (validationIssues Validation.Package sf)
+          "package classification accepts test DB declarations")
+      testCase "inline DB records are accepted in tests and packages" (fun _ ->
+        let sf = sourceFile "[<DB>] type Items = { name: String }"
+        Expect.isEmpty
+          (validationIssues Validation.Test sf)
+          "test classification accepts an inline DB record"
+        Expect.isEmpty
+          (validationIssues Validation.Package sf)
+          "package classification accepts an inline DB record"
+        let modules =
+          LibParser.TestModule.parseFile
+            "Tests"
+            "[<DB>] type Items = { name: String }\n1L = 1L"
+        match modules with
+        | [ modul ] ->
+          Expect.equal
+            (List.length modul.types)
+            1
+            "legacy testfile gets the row type"
+          match modul.dbs with
+          | [ { typ = WT.TCustom rowType } ] ->
+            Expect.equal
+              (rowType.modules |> List.map (fun (id, _) -> id.name))
+              [ "Tests" ]
+              "the DB points to the testfile owner"
+            Expect.equal rowType.typ.name "Items" "the DB points to its row type"
+          | other -> failtest $"unexpected inline DBs: {other}"
+        | _ -> failtest $"unexpected legacy testfile modules: {modules}")
       testCase
         "test classification rejects bare expressions and script lets"
         (fun _ ->
@@ -1570,13 +1715,20 @@ let private lexicalFailureTests =
       mustDiagnose "empty lambda parameter list" "fun -> 1L"
       mustDiagnose "empty module body" "module X =\nlet y = 1L"
       mustDiagnose "anonymous record" "{ a = 1L }"
-      testCase "DB declarations must be aliases" (fun _ ->
-        let result = P.parseTestFile "[<DB>] type X = { a: Int64 }"
+      testCase "DB declarations reject enum schemas" (fun _ ->
+        let result = P.parseTestFile "[<DB>] type X = | A"
         Expect.exists
           result.diagnostics
           (fun diagnostic ->
-            diagnostic.message = "[<DB>] type must be a type alias")
-          "alias diagnostic")
+            diagnostic.message = "[<DB>] type must be a type alias or record")
+          "DB shape diagnostic")
+      testCase "inline DB records cannot have type parameters" (fun _ ->
+        let result = P.parseTestFile "[<DB>] type X<'a> = { value: 'a }"
+        Expect.exists
+          result.diagnostics
+          (fun diagnostic ->
+            diagnostic.message = "[<DB>] inline record cannot have type parameters")
+          "DB type-parameter diagnostic")
       mustDiagnose
         "misaligned match arm"
         "match x with\n  | Some x -> x\n    | None -> 0L"
@@ -1863,6 +2015,7 @@ let private rangeInvariantTests =
     match d with
     | WT.DFunction f -> [ f.body ]
     | WT.DValue v -> [ v.body ]
+    | WT.DTest t -> [ t.body ]
     | WT.DExpr e -> [ e ]
     | WT.DModule m -> m.declarations |> List.collect declExprs
     | WT.DType _
@@ -1874,7 +2027,7 @@ let private rangeInvariantTests =
         match m with
         | WT.IMethod f -> Some f.body
         | WT.IAlias _ -> None)
-    | WT.DTest t -> [ t.actual ]
+    | WT.DAssertion t -> [ t.actual ]
   testList
     "range-invariants"
     [ testCase

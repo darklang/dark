@@ -153,7 +153,8 @@ let packageStats () : Darklang.DarkPackages.Stats =
       values = Stdlib.Int.fromInt64 (countOf "package_values")
       fns = Stdlib.Int.fromInt64 (countOf "package_functions")
       traits = Stdlib.Int.fromInt64 (countOf "package_traits")
-      impls = Stdlib.Int.fromInt64 (countOf "package_trait_impls") }
+      impls = Stdlib.Int.fromInt64 (countOf "package_trait_impls")
+      tests = Stdlib.Int.fromInt64 (countOf "package_tests") }
 
 let statsHandlerFn (req: HttpRequest) : HttpResponse =
   let stats = packageStats ()
@@ -163,7 +164,8 @@ let statsHandlerFn (req: HttpRequest) : HttpResponse =
 - fns: {stats.fns |> Stdlib.toString}
 - values: {stats.values |> Stdlib.toString}
 - traits: {stats.traits |> Stdlib.toString}
-- impls: {stats.impls |> Stdlib.toString}"
+- impls: {stats.impls |> Stdlib.toString}
+- tests: {stats.tests |> Stdlib.toString}"
   Stdlib.Http.responseWithText body 200
 
 val statsHandler =
@@ -289,6 +291,14 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
             match LanguageTools.PackageManager.TraitImpl.get hash with
             | Some i ->
               let json = i |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>
+              Stdlib.Http.responseWithJson json 200
+            | None -> Stdlib.Http.notFound ()
+          | Test ->
+            match LanguageTools.PackageManager.Test.get hash with
+            | Some test ->
+              let json =
+                test
+                |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageTest.PackageTest>
               Stdlib.Http.responseWithJson json 200
             | None -> Stdlib.Http.notFound ()
         | None ->

@@ -187,6 +187,10 @@ let authoredDocs
       Stdlib.Option.Option.Some(
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ]
       )
+    | AddTest test ->
+      Stdlib.Option.Option.Some(
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, test.description) ]
+      )
     | _ -> Stdlib.Option.Option.None)
   |> Stdlib.List.flatten
 
@@ -226,6 +230,11 @@ let currentDocs
       LanguageTools.PackageManager.TraitImpl.get hash
       |> Stdlib.Option.map (fun i ->
         [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ])
+      |> Stdlib.Option.withDefault []
+    | Test ->
+      LanguageTools.PackageManager.Test.get hash
+      |> Stdlib.Option.map (fun test ->
+        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, test.description) ])
       |> Stdlib.Option.withDefault []
 
   SCM.Docs.overlay branchId location declared

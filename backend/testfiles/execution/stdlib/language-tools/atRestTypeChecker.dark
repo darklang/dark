@@ -2189,20 +2189,20 @@ module Batches =
   // changes, those tests stop covering the guard without saying that is what happened, and a
   // guard whose only coverage is incidental is a guard somebody deletes as dead code.
   //
-  // Comparing a deeply nested value recurses in F# rather than in the interpreter, so it does
-  // not depend on how the interpreter lays out frames. It DOES depend on the build: measured,
-  // Debug runs out of stack at about 5,000 and Release not until about 35,000, so the depth
-  // here is chosen for the stricter of the two with room to spare rather than for Debug.
+  // Stress the native-stack guard on the CLI's 16 MiB stack.
+  // In the tested Release build, 200,000 tuple levels returned Ok(true),
+  // while one million reached TooDeep. This is a test input, not a language limit.
+  // Revisit it if stack size or comparison code changes.
   (Darklang.LanguageTools.AtRestTypeChecker.guard
-    (fun t -> t == (nestedListType 200000))
-    (nestedListType 200000)) =
+    (fun t -> t == (nestedTupleType 1000000))
+    (nestedTupleType 1000000)) =
     Stdlib.Result.Result.Error
       Darklang.LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep
 
   // And it is not simply always failing: the same shape, shallow, comes back Ok.
   (Darklang.LanguageTools.AtRestTypeChecker.guard
-    (fun t -> t == (nestedListType 2))
-    (nestedListType 2)) = Stdlib.Result.Result.Ok true
+    (fun t -> t == (nestedTupleType 2))
+    (nestedTupleType 2)) = Stdlib.Result.Result.Ok true
 
   (checkValueAsts
     [ valueNamed "deep-value" (nestedListExpr 5000)
@@ -2546,3 +2546,36 @@ module DictKeysWithUnsupportedValues =
     "failed:UnsupportedConstruct,UnsupportedDictKeyType"
   (key "(1, Builtin.add)") = "incomplete:UnsupportedConstruct"
   (key "(1, true)") = "checked:"
+
+// ---------------------------------------------------------------------------------------
+// Package tests
+// ---------------------------------------------------------------------------------------
+
+// An ordinary test must return Stdlib.Test.Result, even when its body never names it.
+check (src [ "test passes = 8L |> Stdlib.Test.equal 8L" ]) "passes" = "checked:"
+
+check (src [ "test literal = 8L" ]) "literal" = "failed:TypeMismatch"
+
+// Values and functions in the same batch are visible to the test.
+check
+  (src
+    [ "let double (x: Int64) : Int64 = x * 2L"
+      "val four = 4L"
+      "test doubles = double four |> Stdlib.Test.equal 8L" ])
+  "doubles" = "checked:"
+
+check
+  (src
+    [ "let double (x: Int64) : Int64 = x * 2L"
+      "test wrongArg = double \"four\" |> Stdlib.Test.equal 8L" ])
+  "wrongArg" = "failed:TypeMismatch"
+
+// A `raises` test is observed only through its runtime error, so its body may
+// have any type; it is still checked.
+check
+  (src [ "test raisesAny = 8L => raises \"anything\"" ])
+  "raisesAny" = "checked:"
+
+check
+  (src [ "test raisesIllTyped = 8L + \"x\" => raises \"anything\"" ])
+  "raisesIllTyped" = "failed:TypeMismatch"

@@ -209,6 +209,7 @@ module ModuleDeclaration =
     | Value v -> ValueDeclaration.tokenize v
     | Trait t -> TraitDeclaration.tokenize t
     | Impl i -> ImplDeclaration.tokenize i
+    | Test test -> TestDeclaration.tokenize test
     | SubModule sm -> ModuleDeclaration.tokenize sm
     | Expr e -> Expr.tokenize e
 
@@ -440,6 +441,28 @@ module ImplDeclaration =
          | Method f -> FnDeclaration.tokenize f
          | Alias a -> ValueDeclaration.tokenize a)
        |> Stdlib.List.flatten) ]
+    |> Stdlib.List.flatten
+
+
+module TestDeclaration =
+  let tokenize
+    (test: WrittenTypes.TestDeclaration.TestDeclaration)
+    : List<SemanticToken> =
+    [ [ makeToken test.keywordTest TokenType.Keyword ]
+      ValueIdentifier.tokenize test.name
+      [ makeToken test.symbolEquals TokenType.Symbol ]
+      Expr.tokenize test.body
+      (match test.symbolOutcome with
+       | Some symbol -> [ makeToken symbol TokenType.Symbol ]
+       | None -> [])
+      (match test.errorKindRange with
+       | Some keyword -> [ makeToken keyword TokenType.Keyword ]
+       | None -> [])
+      (match test.expectedError with
+       | Some expected ->
+         let (range, _) = expected
+         [ makeToken range TokenType.String ]
+       | None -> []) ]
     |> Stdlib.List.flatten
 
 
@@ -1098,6 +1121,7 @@ module ParsedFile =
           | Value v -> ValueDeclaration.tokenize v
           | Trait t -> TraitDeclaration.tokenize t
           | Impl i -> ImplDeclaration.tokenize i
+          | Test test -> TestDeclaration.tokenize test
           | Module m -> ModuleDeclaration.tokenize m)
         |> Stdlib.List.flatten
 

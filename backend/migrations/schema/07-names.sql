@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS locations (
   owner TEXT NOT NULL,
   modules TEXT NOT NULL,
   name TEXT NOT NULL,
-  item_type TEXT NOT NULL,                -- 'fn' | 'type' | 'value'
+  item_type TEXT NOT NULL,                -- 'fn' | 'type' | 'value' | 'trait' | 'impl' | 'test'
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
   unlisted_at TIMESTAMP NULL,             -- set when a later row supersedes this one
   -- The origin_ts of the op that set THIS binding, so playback orders by CREATION rather than
@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_locations_item_hash
 CREATE TABLE IF NOT EXISTS deprecations (
   deprecation_id TEXT PRIMARY KEY,
   item_hash TEXT NOT NULL,
-  item_kind TEXT NOT NULL,                    -- 'fn' | 'type' | 'value'
+  item_kind TEXT NOT NULL,                    -- 'fn' | 'type' | 'value' | 'trait' | 'impl' | 'test'
 
   -- 'deprecated' (annotation_blob has kind + message + optional replacement ref)
   -- 'undeprecated' (annotation_blob NULL), used for ancestor-override on child branches

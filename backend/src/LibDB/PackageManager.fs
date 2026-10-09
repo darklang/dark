@@ -113,6 +113,7 @@ let withLocationDocs
               @ (r.fns |> List.map _.location)
               @ (r.traits |> List.map _.location)
               @ (r.impls |> List.map _.location)
+              @ (r.tests |> List.map _.location)
 
             let! docs = Docs.docsForLocations branchId locations
 
@@ -139,7 +140,8 @@ let withLocationDocs
                     values = r.values |> List.map (patch Docs.onValue)
                     fns = r.fns |> List.map (patch Docs.onFn)
                     traits = r.traits |> List.map (patch Docs.onTrait)
-                    impls = r.impls |> List.map (patch Docs.onImpl) }
+                    impls = r.impls |> List.map (patch Docs.onImpl)
+                    tests = r.tests |> List.map (patch Docs.Test.set) }
           } }
 
 
@@ -151,6 +153,7 @@ let pt : PT.PackageManager =
   let findTypeCached = withCache (fun location -> PMPT.Type.find location)
   let findValueCached = withCache (fun location -> PMPT.Value.find location)
   let findFnCached = withCache (fun location -> PMPT.Fn.find location)
+  let findTestCached = withCache (fun location -> PMPT.Test.find location)
 
   let findTraitCached =
     Caching.withNegativeCache (fun location -> PMPT.Trait.find location)
@@ -177,12 +180,14 @@ let pt : PT.PackageManager =
     findTrait = findTraitCached
     findTraitImpl = findImplCached
     traitNames = traitNamesCached
+    findTest = findTestCached
 
     getType = withCache PMPT.Type.get
     getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
     getTrait = withCache PMPT.Trait.get
     getTraitImpl = withCache PMPT.TraitImpl.get
+    getTest = withCache PMPT.Test.get
 
     // A CLI script's declarations are never in the store, so without a fallback
     // they render as hashes. Only as a fallback, though: hashes are content
@@ -201,6 +206,7 @@ let pt : PT.PackageManager =
       storedOrEphemeral PMPT.Trait.getLocations EphemeralPackages.traitLocations
     getTraitImplLocations =
       storedOrEphemeral PMPT.TraitImpl.getLocations EphemeralPackages.implLocations
+    getTestLocations = PMPT.Test.getLocations
 
     search = fun query -> PMPT.search query
 
@@ -274,12 +280,14 @@ let createInMemoryOver
   let fnLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
   let traitLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
   let implLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
+  let testLocs = System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>()
   let unbind loc =
     typeLocs.Remove loc |> ignore<bool>
     valueLocs.Remove loc |> ignore<bool>
     fnLocs.Remove loc |> ignore<bool>
     traitLocs.Remove loc |> ignore<bool>
     implLocs.Remove loc |> ignore<bool>
+    testLocs.Remove loc |> ignore<bool>
   let bind loc target =
     unbind loc
     match target with
@@ -288,6 +296,7 @@ let createInMemoryOver
     | PT.PackageFn h -> fnLocs[loc] <- h
     | PT.PackageTrait h -> traitLocs[loc] <- h
     | PT.PackageTraitImpl h -> implLocs[loc] <- h
+    | PT.PackageTest h -> testLocs[loc] <- h
 
   for op in ops do
     match op with
@@ -297,7 +306,8 @@ let createInMemoryOver
     | PT.PackageOp.AddValue _
     | PT.PackageOp.AddFn _
     | PT.PackageOp.AddTrait _
-    | PT.PackageOp.AddTraitImpl _ -> ()
+    | PT.PackageOp.AddTraitImpl _
+    | PT.PackageOp.AddTest _ -> ()
 
     // None of these change what a name points at -- an ack records what a person decided ABOUT a
     // name, an UpdateDoc changes what a NAME says about itself (`LibDB.Docs` answers those), a
@@ -400,6 +410,17 @@ let createInMemoryOver
        | PT.PackageOp.SetName(_, PT.PackageTraitImpl h, _) -> Some h
        | _ -> None)
 
+  let testMap =
+    pairItems
+      (function
+      | PT.PackageOp.AddTest test -> Some test
+      | _ -> None)
+      (fun test -> test.hash)
+      (fun test h -> { test with hash = h })
+      (function
+       | PT.PackageOp.SetName(_, PT.PackageTest h, _) -> Some h
+       | _ -> None)
+
   let toMap (d : System.Collections.Generic.Dictionary<PT.PackageLocation, Hash>) =
     d |> Seq.map (fun (KeyValue(k, v)) -> (k, v)) |> Map.ofSeq
   let typeLocMap = toMap typeLocs
@@ -407,6 +428,7 @@ let createInMemoryOver
   let fnLocMap = toMap fnLocs
   let traitLocMap = toMap traitLocs
   let implLocMap = toMap implLocs
+  let testLocMap = toMap testLocs
 
   // Reverse multi-maps (hash -> every location still bound to it).
   let invert
@@ -428,6 +450,7 @@ let createInMemoryOver
   let ownTraitNames =
     HashSet<string>(traitLocMap |> Map.toSeq |> Seq.map (fun (l, _) -> l.name))
   let ownImpls = implMap |> Map.toList |> List.map snd
+  let testIdToLocs = invert testLocMap
 
   { findType = fun loc -> Ply(Map.tryFind loc typeLocMap)
     findValue = fun loc -> Ply(Map.tryFind loc valueLocMap)
@@ -439,12 +462,14 @@ let createInMemoryOver
       | None -> fun () -> Ply ownTraitNames
       | Some below ->
         PT.PackageManager.unionTraitNames ownTraitNames below.traitNames
+    findTest = fun loc -> Ply(Map.tryFind loc testLocMap)
 
     getType = fun id -> Ply(Map.tryFind id typeMap)
     getValue = fun id -> Ply(Map.tryFind id valueMap)
     getFn = fun id -> Ply(Map.tryFind id fnMap)
     getTrait = fun id -> Ply(Map.tryFind id traitMap)
     getTraitImpl = fun id -> Ply(Map.tryFind id implMap)
+    getTest = fun id -> Ply(Map.tryFind id testMap)
 
     getTypeLocations =
       fun id -> Ply(Map.tryFind id typeIdToLocs |> Option.defaultValue [])
@@ -474,6 +499,8 @@ let createInMemoryOver
           |> List.filter (fun i ->
             i.methods |> List.exists (fun (m, _) -> m = methodName))
         )
+    getTestLocations =
+      fun id -> Ply(Map.tryFind id testIdToLocs |> Option.defaultValue [])
 
     search =
       fun query ->
@@ -560,6 +587,10 @@ let createInMemoryOver
           match below with
           | Some b -> (fun (h : Hash) -> b.getTraitImpl h)
           | None -> none
+        let getTestBelow =
+          match below with
+          | Some b -> (fun (h : Hash) -> b.getTest h)
+          | None -> none
 
         uply {
           let! typesWithLocs = liveAt typeLocMap typeMap getTypeBelow
@@ -567,6 +598,7 @@ let createInMemoryOver
           let! fnsWithLocs = liveAt fnLocMap fnMap getFnBelow
           let! traitsWithLocs = liveAt traitLocMap traitMap getTraitBelow
           let! implsWithLocs = liveAt implLocMap implMap getImplBelow
+          let! testsWithLocs = liveAt testLocMap testMap getTestBelow
 
           // Submodules = the direct child module (cm ++ next segment) of any overlay item strictly
           // below cm. Only surfaced when browsing (empty text): a text search returns items, not
@@ -577,6 +609,7 @@ let createInMemoryOver
             @ (fnsWithLocs |> List.map (fun i -> i.location))
             @ (traitsWithLocs |> List.map (fun i -> i.location))
             @ (implsWithLocs |> List.map (fun i -> i.location))
+            @ (testsWithLocs |> List.map (fun i -> i.location))
           let submodules =
             if text <> "" then
               []
@@ -604,7 +637,8 @@ let createInMemoryOver
               values = wanted PT.Search.EntityType.Value valuesWithLocs
               fns = wanted PT.Search.EntityType.Fn fnsWithLocs
               traits = wanted PT.Search.EntityType.Trait traitsWithLocs
-              impls = wanted PT.Search.EntityType.TraitImpl implsWithLocs }
+              impls = wanted PT.Search.EntityType.TraitImpl implsWithLocs
+              tests = wanted PT.Search.EntityType.Test testsWithLocs }
         }
 
     init = uply { return () } }
@@ -646,12 +680,14 @@ let combine
             last <- Some(o, f, u)
             return u
         }
+    findTest = overlayFirst overlay.findTest fallback.findTest
 
     getType = overlayFirst overlay.getType fallback.getType
     getValue = overlayFirst overlay.getValue fallback.getValue
     getFn = overlayFirst overlay.getFn fallback.getFn
     getTrait = overlayFirst overlay.getTrait fallback.getTrait
     getTraitImpl = overlayFirst overlay.getTraitImpl fallback.getTraitImpl
+    getTest = overlayFirst overlay.getTest fallback.getTest
 
     getTypeLocations = concatLocs overlay.getTypeLocations fallback.getTypeLocations
     getValueLocations =
@@ -664,6 +700,7 @@ let combine
 
     impls = concatLocs overlay.impls fallback.impls
     implsWithMethod = concatLocs overlay.implsWithMethod fallback.implsWithMethod
+    getTestLocations = concatLocs overlay.getTestLocations fallback.getTestLocations
 
     search =
       fun query ->
@@ -686,7 +723,8 @@ let combine
               fns = dedup (List.append overlayResults.fns fallbackResults.fns)
               traits =
                 dedup (List.append overlayResults.traits fallbackResults.traits)
-              impls = dedup (List.append overlayResults.impls fallbackResults.impls) }
+              impls = dedup (List.append overlayResults.impls fallbackResults.impls)
+              tests = dedup (List.append overlayResults.tests fallbackResults.tests) }
         }
 
     init =
@@ -741,6 +779,8 @@ let hide
         getFnLocations = locs pm.getFnLocations
         getTraitLocations = locs pm.getTraitLocations
         getTraitImplLocations = locs pm.getTraitImplLocations
+        findTest = find pm.findTest
+        getTestLocations = locs pm.getTestLocations
         search =
           fun query ->
             uply {
@@ -751,7 +791,8 @@ let hide
                     values = shown r.values
                     fns = shown r.fns
                     traits = shown r.traits
-                    impls = shown r.impls }
+                    impls = shown r.impls
+                    tests = shown r.tests }
             } }
 
 /// `basePM` with `ops` overlaid on top: the branch overlay, and the parse-time PM for tests and

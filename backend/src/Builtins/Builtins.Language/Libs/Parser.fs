@@ -1119,6 +1119,55 @@ module WrittenTypesToDarkTypes =
           "symbolEquals", rangeToDT impl.symbolEquals ]
     )
 
+  let private testDeclToDT (test : WT.TestDecl) : Dval =
+    let t = tn WTRefs.testDeclaration
+    let errorType = tn WTRefs.testExpectedError
+    let errorToDT (expected : WT.ExpectedError) : Dval =
+      match expected with
+      | WT.RuntimeError message ->
+        DEnum(errorType, errorType, [], "RuntimeError", [ DString message ])
+      | WT.SqlCompilerError message ->
+        DEnum(errorType, errorType, [], "SqlCompilerError", [ DString message ])
+    DRecord(
+      t,
+      t,
+      [],
+      Map
+        [ "range", rangeToDT test.range
+          "name", identifierToDT WTRefs.valueIdentifier test.name
+          "effects",
+          test.effects
+          |> Option.map (List.map (fun id -> id.name, id.range) >> rangedNamesToDT)
+          |> Dval.option (KTList(rangedNamesVT ()))
+          "body", exprToDT test.body
+          "expectedError",
+          (let contentsKT =
+            KTTuple(
+              VT.customType (rangeTypeName ()) [],
+              VT.customType errorType [],
+              []
+            )
+           match test.expectedError with
+           | Some(range, expected) ->
+             Dval.optionSome
+               contentsKT
+               (DTuple(rangeToDT range, errorToDT expected, []))
+           | None -> Dval.optionNone contentsKT)
+          "description", DString test.description
+          "keywordTest", rangeToDT test.keywordTest
+          "errorKindRange",
+          (let rangeKT = KTCustomType(rangeTypeName (), [])
+           match test.errorKindRange with
+           | Some range -> Dval.optionSome rangeKT (rangeToDT range)
+           | None -> Dval.optionNone rangeKT)
+          "symbolOutcome",
+          (let rangeKT = KTCustomType(rangeTypeName (), [])
+           match test.symbolOutcome with
+           | Some range -> Dval.optionSome rangeKT (rangeToDT range)
+           | None -> Dval.optionNone rangeKT)
+          "symbolEquals", rangeToDT test.symbolEquals ]
+    )
+
   let private recordFieldToDT (f : WT.RecordFieldSyntax) : Dval =
     let t = tn WTRefs.typeDeclRecordField
     let (nr, nm) = f.name
@@ -1268,8 +1317,9 @@ module WrittenTypesToDarkTypes =
     // `[<DB>] type X = ...` is a type as far as anything reading this cares; the attribute sits outside the
     // declaration's range anyway.
     | WT.DTypeDB td -> [ DEnum(t, t, [], "Type", [ typeDeclToDT td ]) ]
+    | WT.DTest test -> [ DEnum(t, t, [], "Test", [ testDeclToDT test ]) ]
     // Both sides of the assertion, so the highlighter still colours the whole line.
-    | WT.DTest t ->
+    | WT.DAssertion t ->
       match t.expected with
       | WT.TEExpr e -> [ expr t.actual; expr e ]
       | WT.TEError _
@@ -1277,7 +1327,7 @@ module WrittenTypesToDarkTypes =
 
   /// A declaration the `SourceFileDeclaration` DT has a case for, or None.
   ///
-  /// `DExpr` / `DTypeDB` / `DTest` have no case; returning None DROPS them rather
+  /// `DExpr` / `DTypeDB` / `DAssertion` have no case; returning None DROPS them rather
   /// than raising: this feeds the highlighter and LSP, which are best-effort -- an
   /// uncoloured span beats an internal exception.
   let private sourceFileDeclarationToDT (d : WT.Declaration) : Option<Dval> =
@@ -1289,9 +1339,10 @@ module WrittenTypesToDarkTypes =
     | WT.DType td -> Some(DEnum(t, t, [], "Type", [ typeDeclToDT td ]))
     | WT.DTrait tr -> Some(DEnum(t, t, [], "Trait", [ traitDeclToDT tr ]))
     | WT.DImpl impl -> Some(DEnum(t, t, [], "Impl", [ implDeclToDT impl ]))
+    | WT.DTest test -> Some(DEnum(t, t, [], "Test", [ testDeclToDT test ]))
     | WT.DExpr _
     | WT.DTypeDB _
-    | WT.DTest _ -> None
+    | WT.DAssertion _ -> None
 
   let parsedFileToDT (pf : WT.ParsedFile) : Dval =
     match pf with
@@ -1300,12 +1351,12 @@ module WrittenTypesToDarkTypes =
       // to the nearest thing the Dark type holds instead of raising (why they reach
       // here: see `moduleItemsToDT`):
       //   DExpr   -> exprsToEval
-      //   DTest   -> both sides as exprs
+      //   DAssertion -> both sides as exprs
       //   DTypeDB -> its type declaration
       let asExprs (d : WT.Declaration) : List<WT.Expr> =
         match d with
         | WT.DExpr e -> [ e ]
-        | WT.DTest t ->
+        | WT.DAssertion t ->
           match t.expected with
           | WT.TEExpr e -> [ t.actual; e ]
           | WT.TEError _
@@ -1316,7 +1367,7 @@ module WrittenTypesToDarkTypes =
         |> List.choose (fun d ->
           match d with
           | WT.DExpr _
-          | WT.DTest _ -> None
+          | WT.DAssertion _ -> None
           | WT.DTypeDB td -> Some(WT.DType td)
           | d -> Some d)
       let liftedExprs = sf.declarations |> List.collect asExprs

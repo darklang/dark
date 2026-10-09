@@ -1403,6 +1403,37 @@ module ValueDeclaration =
       unresolvedNames)
 
 
+module TestDeclaration =
+  let toTestPT
+    (ctx: NameResolver.NRContext)
+    (test: WrittenTypes.TestDeclaration.TestDeclaration)
+    : (ProgramTypes.PackageTest.PackageTest *
+      List<WrittenTypes.UnresolvedName>)
+    =
+    let (body, unresolvedNames) = Expr.toPT ctx defaultContext test.body
+
+    (ProgramTypes.PackageTest.PackageTest
+      { hash = ProgramTypes.Hash.Hash ""
+        body = body
+        description = test.description
+        expectedError =
+          test.expectedError
+          |> Stdlib.Option.map (fun (_, expected) ->
+            match expected with
+            | RuntimeError message ->
+              ProgramTypes.PackageTest.ExpectedError.RuntimeError message
+            | SqlCompilerError message ->
+              ProgramTypes.PackageTest.ExpectedError.SqlCompilerError message)
+        testDBs = []
+        permissionCeiling =
+          test.effects
+          |> Stdlib.Option.map (fun names ->
+            names
+            |> Stdlib.List.filterMap (fun (_range, case) ->
+              LanguageTools.Permissions.effectOfCase case)) },
+      unresolvedNames)
+
+
 module FunctionDeclaration =
   module Parameter =
     let toPackageFnParamPT
@@ -1997,6 +2028,38 @@ let moduleDeclarationWithOpsHelper
   let implUnresolvedNames =
     implResults |> Stdlib.List.map (fun (_, _, _, unresolved) -> unresolved)
 
+  // Process tests. They become ops like everything else, but stay out of
+  // `Definitions`, which has no field for them. Nothing reads a module's
+  // `Definitions` today; if something starts to, give it a `tests` field.
+  let testResults =
+    m.declarations
+    |> Stdlib.List.filterMap (fun d ->
+      match d with
+      | Test test ->
+        let testName = test.name.name
+        let (pt, unresolvedNames) =
+          TestDeclaration.toTestPT ctx test
+        let pt =
+          { pt with
+              hash =
+                locationPlaceholderHash ctx.owner ctx.currentModule testName }
+        let location =
+          ProgramTypes.PackageLocation
+            { owner = ctx.owner
+              modules = ctx.currentModule
+              name = testName }
+        let ops =
+          [ ProgramTypes.PackageOp.AddTest pt
+            ProgramTypes.PackageOp.SetName(
+              location,
+              ProgramTypes.Reference.PackageTest pt.hash,
+              Stdlib.Option.Option.None) ]
+        Stdlib.Option.Option.Some((ops, unresolvedNames))
+      | _ -> Stdlib.Option.Option.None)
+
+  let testOps = testResults |> Stdlib.List.map Stdlib.Tuple2.first
+  let testUnresolvedNames = testResults |> Stdlib.List.map Stdlib.Tuple2.second
+
   // Process expressions
   let (exprs, exprUnresolvedNames) =
     m.declarations
@@ -2057,6 +2120,7 @@ let moduleDeclarationWithOpsHelper
         fnOps |> Stdlib.List.flatten
         traitOps |> Stdlib.List.flatten
         implOps |> Stdlib.List.flatten
+        testOps |> Stdlib.List.flatten
         submoduleOps |> Stdlib.List.flatten ]
 
   let allUnresolvedNames =
@@ -2066,6 +2130,7 @@ let moduleDeclarationWithOpsHelper
         fnUnresolvedNames |> Stdlib.List.flatten
         traitUnresolvedNames |> Stdlib.List.flatten
         implUnresolvedNames |> Stdlib.List.flatten
+        testUnresolvedNames |> Stdlib.List.flatten
         exprUnresolvedNames |> Stdlib.List.flatten
         submoduleUnresolvedNames |> Stdlib.List.flatten ]
 
@@ -2152,6 +2217,25 @@ let declarationsToPT
   | Impl i ->
     let (i, _fns, ops, unresolvedNames) = implWithOps ctx i
     (ProgramTypes.SourceFile.Declaration.Impl i, ops, unresolvedNames)
+
+  | Test test ->
+    let testName = test.name.name
+    let (test, unresolvedNames) =
+      TestDeclaration.toTestPT ctx test
+    let test =
+      { test with
+          hash =
+            locationPlaceholderHash ctx.owner ctx.currentModule testName }
+    let location =
+      ProgramTypes.PackageLocation
+        { owner = ctx.owner; modules = ctx.currentModule; name = testName }
+    let ops =
+      [ ProgramTypes.PackageOp.AddTest test
+        ProgramTypes.PackageOp.SetName(
+          location,
+          ProgramTypes.Reference.PackageTest test.hash,
+          Stdlib.Option.Option.None) ]
+    (ProgramTypes.SourceFile.Declaration.Test test, ops, unresolvedNames)
 
   | Module m ->
     let (_, moduleName) = m.name

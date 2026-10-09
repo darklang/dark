@@ -10,9 +10,11 @@ type Candidates =
     fns: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageFn.PackageFn>
     impls: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.TraitImpl.TraitImpl>
     /// Not checked themselves, but their methods are what calls in this batch are typed against
-    traits: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.Trait.Trait> }
+    traits: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.Trait.Trait>
+    tests: Dict<LanguageTools.ProgramTypes.Hash, LanguageTools.ProgramTypes.PackageTest.PackageTest> }
 
-/// Collect declarations from AddType, AddValue, AddFn, AddTrait and AddTraitImpl operations.
+/// Collect declarations from AddType, AddValue, AddFn, AddTrait, AddTraitImpl and AddTest
+/// operations.
 /// Ignore operations that do not supply a declaration to check.
 let candidatesFromOps
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
@@ -24,7 +26,8 @@ let candidatesFromOps
         values = Dict {}
         fns = Dict {}
         impls = Dict {}
-        traits = Dict {} })
+        traits = Dict {}
+        tests = Dict {} })
     (fun found op ->
       match op with
       | AddType t ->
@@ -39,6 +42,9 @@ let candidatesFromOps
         { found with impls = Stdlib.Dict.setOverridingDuplicates found.impls i.hash i }
       | AddTrait t ->
         { found with traits = Stdlib.Dict.setOverridingDuplicates found.traits t.hash t }
+      | AddTest test ->
+        { found with
+            tests = Stdlib.Dict.setOverridingDuplicates found.tests test.hash test }
       | _ -> found)
 
 /// Report only the declarations requested by the caller. Dependency values may
@@ -126,13 +132,15 @@ let checkPackageOpsOn
   let fns = Stdlib.Dict.values candidates.fns
   let impls = Stdlib.Dict.values candidates.impls
   let traits = Stdlib.Dict.values candidates.traits
+  let tests = Stdlib.Dict.values candidates.tests
 
   let candidateRefs =
     Stdlib.List.flatten
       [ Stdlib.List.map types (fun t -> LanguageTools.ProgramTypes.Reference.PackageType t.hash)
         Stdlib.List.map values (fun v -> LanguageTools.ProgramTypes.Reference.PackageValue v.hash)
         Stdlib.List.map fns (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
-        Stdlib.List.map impls (fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash) ]
+        Stdlib.List.map impls (fun i -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.hash)
+        Stdlib.List.map tests (fun test -> LanguageTools.ProgramTypes.Reference.PackageTest test.hash) ]
 
   // The batch's own traits and implementations, beside the store's: the store does not
   // hold them until after this check, and a call saved with the trait or the impl it needs
@@ -177,9 +185,24 @@ let checkPackageOpsOn
       (fun fn -> Items.bodyNodeId fn.body)
       (fun fn -> Environment.exprRefs builtins fn.body)
 
+  let (_, testBodyRefs, testBodyFailures) =
+    collectItemReferences
+      tests
+      (fun test -> LanguageTools.ProgramTypes.Reference.PackageTest test.hash)
+      (fun test -> Items.bodyNodeId test.body)
+      (fun test -> Environment.exprRefs builtins test.body)
+
+  // An ordinary test's expected result type is part of its contract even when
+  // the body never names it (or is ill-typed), so load the declaration
+  // explicitly rather than relying on the body walk to find it.
+  let testResult = Environment.typeHashOf Stdlib.Test.Result.Pass
+  let testResultRefs =
+    if Stdlib.List.isEmpty tests then []
+    else [ LanguageTools.ProgramTypes.Reference.PackageType testResult ]
+
   let bodyFailuresByItem =
     Stdlib.List.fold
-      (Stdlib.List.append valueBodyFailures fnBodyFailures)
+      (Stdlib.List.flatten [ valueBodyFailures, fnBodyFailures, testBodyFailures ])
       Dict {}
       (fun found (item, outcome) ->
         Stdlib.Dict.setOverridingDuplicates found item outcome)
@@ -192,7 +215,14 @@ let checkPackageOpsOn
       (fun i -> Impls.refsOf candidates.traits i)
 
   let dependencyRefs =
-    Stdlib.List.flatten [ typeRefs, signatureRefs, valueBodyRefs, fnBodyRefs, implRefs ]
+    Stdlib.List.flatten
+      [ typeRefs
+        signatureRefs
+        valueBodyRefs
+        fnBodyRefs
+        implRefs
+        testBodyRefs
+        testResultRefs ]
 
   let dependencies = Environment.loadClosure builtins candidateRefs dependencyRefs
 
@@ -210,8 +240,13 @@ let checkPackageOpsOn
   let batchValues =
     Stdlib.List.append (Stdlib.Dict.values dependencies.values) values
 
+  // Tests are checked against the environment the batch ended with, which holds the
+  // schemes of the values that Checked. `env` itself stays as it was for the impl check.
+  let (testEnv, batchResults) = Items.checkBatchWithEnv env types batchValues fns
+  let testResults = Items.checkTests testEnv testResult tests
+
   let checked =
-    (Items.checkBatch env types batchValues fns)
+    (Stdlib.List.append batchResults testResults)
     |> Stdlib.List.map (fun (item, outcome) ->
       match Stdlib.Dict.get bodyFailuresByItem item with
       | Some failed -> (item, failed)
@@ -267,6 +302,9 @@ let loadCandidate
     (LanguageTools.PackageManager.TraitImpl.get hash)
     |> Stdlib.Option.map (fun i ->
       LanguageTools.ProgramTypes.PackageOp.AddTraitImpl i)
+  | PackageTest hash ->
+    (LanguageTools.PackageManager.Test.get hash)
+    |> Stdlib.Option.map (fun test -> LanguageTools.ProgramTypes.PackageOp.AddTest test)
 
 /// Check <param ops> against main's implementations.
 ///
@@ -316,20 +354,21 @@ let checkQuery
   (branchId: Uuid)
   (query: LanguageTools.ProgramTypes.Search.SearchQuery)
   : Report =
-  // SIX lists, not four. The search returns submodules, types, values, fns, TRAITS and IMPLS;
-  // this destructured four and so matched nothing, which raised and took `dark typecheck` with
+  // SEVEN lists, not four. The search returns submodules, types, values, fns, TRAITS, IMPLS
+  // and TESTS; this once destructured four and so matched nothing, which raised and took `dark typecheck` with
   // it: the whole command, not one declaration. The guard turned that into an empty report, so
   // `typecheck <module>` answered "nothing to audit" about a module full of declarations.
   //
   // Traits themselves are not audited yet; implementations are, against their traits.
-  let (_, types, values, fns, _traits, impls) =
+  let (_, types, values, fns, _traits, impls, tests) =
     LanguageTools.PackageManager.Search.searchNamesAndHashes branchId query
   let references =
     Stdlib.List.flatten
       [ Stdlib.List.map types (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageType hash)
         Stdlib.List.map values (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageValue hash)
         Stdlib.List.map fns (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageFn hash)
-        Stdlib.List.map impls (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl hash) ]
+        Stdlib.List.map impls (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl hash)
+        Stdlib.List.map tests (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageTest hash) ]
   let unique = Stdlib.List.unique references
   // In pieces across the cores, the way the package reload splits the same check in
   // `TraitCalls.resolveIn`. Safe because every piece loads from the store, so it sees what

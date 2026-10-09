@@ -154,8 +154,9 @@ module HandleCommand =
         let! types = countDistinct "package_types"
         let! values = countDistinct "package_values"
         let! fns = countDistinct "package_functions"
+        let! tests = countDistinct "package_tests"
         print "Loaded packages from disk "
-        print $"{types} types, {values} values, and {fns} fns"
+        print $"{types} types, {values} values, {fns} fns, and {tests} tests"
 
         // Exact, not an estimate: the log now holds what `packages/` produces, so whatever the
         // count fell by is what a disk reload cannot reproduce.

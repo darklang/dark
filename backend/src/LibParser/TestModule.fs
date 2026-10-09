@@ -70,17 +70,11 @@ let parseFile (owner : string) (source : string) : List<WTModule> =
   | Ok validated ->
     let sf = Validation.ValidatedSourceFile.toWrittenTypes validated
 
-    let dbFromTypeDecl (t : WT.TypeDecl) : WT.DB.T =
-      let typ =
-        match t.definition with
-        | WT.TDAlias tr -> tr
-        | _ ->
-          Exception.raiseInternal
-            "[<DB>] type must be a type alias"
-            [ "name", t.name.name ]
+    let dbFromTypeDecl (modulePath : List<string>) (t : WT.TypeDecl) : WT.DB.T =
+      let typ = WT.dbRowTypeReference (owner :: modulePath) t
       { name = t.name.name; version = 0; typ = typ }
 
-    let wtTest (test : WT.Test) : WTTest =
+    let wtTest (test : WT.Assertion) : WTTest =
       let expected =
         match test.expected with
         | WT.TEExpr e -> WTExpectedExpr e
@@ -119,8 +113,16 @@ let parseFile (owner : string) (source : string) : List<WTModule> =
                 fns = WT.implMethodFns owner memberPath impl
                 impls = [ WT.packageImpl owner memberPath impl ]
                 dbs = List.ofSeq dbs }
-        | WT.DTypeDB t -> dbs.Add(dbFromTypeDecl t)
-        | WT.DTest test -> tests.Add(wtTest test)
+        | WT.DTest test ->
+          Exception.raiseInternal
+            "Named package tests are not allowed in legacy test files"
+            [ "line", box (test.range.start.row + 1) ]
+        | WT.DTypeDB t ->
+          dbs.Add(dbFromTypeDecl currentModule t)
+          match t.definition with
+          | WT.TDRecord _ -> types.Add(WT.packageType owner currentModule t)
+          | _ -> ()
+        | WT.DAssertion test -> tests.Add(wtTest test)
         // Testfiles evaluate `actual = expected` assertions. A bare expression
         // is a broken assertion, so report it instead of skipping it.
         | WT.DExpr e ->

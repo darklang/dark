@@ -268,7 +268,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                       | PT.PackageOp.AddFn _
                       | PT.PackageOp.AddType _
                       | PT.PackageOp.AddTrait _
-                      | PT.PackageOp.AddTraitImpl _ -> true
+                      | PT.PackageOp.AddTraitImpl _
+                      | PT.PackageOp.AddTest _ -> true
                       | _ -> false)
                   let! branchFailures =
                     uply {
@@ -829,7 +830,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmContentOpId" 0
       typeParams = []
       parameters =
-        [ Param.make "kind" TString "'fn', 'type', 'value', 'trait' or 'impl'"
+        [ Param.make
+            "kind"
+            TString
+            "'fn', 'type', 'value', 'trait', 'impl' or 'test'"
           Param.make "hash" TString "the content hash" ]
       returnType = TUuid
       description =
@@ -846,6 +850,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             | "value" -> 2uy
             | "trait" -> 3uy
             | "impl" -> 4uy
+            | "test" -> 5uy
             | other ->
               Exception.raiseInternal
                 "scmContentOpId: unknown kind"
@@ -1028,7 +1033,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     | PT.PackageOp.AddFn _
                     | PT.PackageOp.AddType _
                     | PT.PackageOp.AddTrait _
-                    | PT.PackageOp.AddTraitImpl _ -> true
+                    | PT.PackageOp.AddTraitImpl _
+                    | PT.PackageOp.AddTest _ -> true
                     | _ -> false)
                 if not (List.isEmpty contentOps) then
                   do! LibDB.PackageOpPlayback.applyBranchContentOps contentOps

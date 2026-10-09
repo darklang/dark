@@ -367,6 +367,19 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
         (PT.PackageOp.SetName(loc, PT.PackageTraitImpl newHash, previous)
          :: PT.PackageOp.AddTraitImpl transformed
          :: acc)
+    // Nothing can refer to a test, so a test is never part of a cycle and needs
+    // no group hashing. Hash each one on its own, once `s.mapping` has everything
+    // it refers to at its final hash.
+    | PT.PackageOp.AddTest test :: PT.PackageOp.SetName(loc,
+                                                        PT.PackageTest _,
+                                                        previous) :: rest ->
+      let transformed = AT.transformTest s.mapping test
+      let newHash = Hashing.computeTestHash Hashing.Normal transformed
+      processOps
+        rest
+        (PT.PackageOp.SetName(loc, PT.PackageTest newHash, previous)
+         :: PT.PackageOp.AddTest { transformed with hash = newHash }
+         :: acc)
     | op :: rest -> processOps rest (op :: acc)
     | [] -> List.rev acc
 

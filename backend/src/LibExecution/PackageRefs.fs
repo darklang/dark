@@ -202,6 +202,7 @@ module Type =
 
     let result = p [ "Result" ] "Result"
     let option = p [ "Option" ] "Option"
+    let test = p [ "Test" ] "Result"
 
 
     let sqliteValue = p [ "Sqlite" ] "Value"
@@ -348,6 +349,8 @@ module Type =
       let fnNormalParameter = p [ "FnDeclaration" ] "NormalParameter"
       let fnUnitParameter = p [ "FnDeclaration" ] "UnitParameter"
       let valueDeclaration = p [ "ValueDeclaration" ] "ValueDeclaration"
+      let testDeclaration = p [ "TestDeclaration" ] "TestDeclaration"
+      let testExpectedError = p [ "TestDeclaration" ] "ExpectedError"
       let moduleDeclaration = p [ "ModuleDeclaration" ] "ModuleDeclaration"
       let moduleDeclarationDeclaration = p [ "ModuleDeclaration" ] "Declaration"
       let typeDeclaration = p [ "TypeDeclaration" ] "TypeDeclaration"
@@ -513,6 +516,11 @@ module Type =
         let private p addl = p ("PackageFn" :: addl)
         let parameter = p [] "Parameter"
         let packageFn = p [] "PackageFn"
+
+      module PackageTest =
+        let private p addl = p ("PackageTest" :: addl)
+        let packageTest = p [] "PackageTest"
+        let expectedError = p [] "ExpectedError"
 
       module Search =
         let private p addl = p ("Search" :: addl)

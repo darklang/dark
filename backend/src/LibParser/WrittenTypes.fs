@@ -459,6 +459,25 @@ type ValueDecl =
     symbolEquals : Range
     description : string }
 
+/// `test name :{Random} = body`, optionally followed by an expected error: a named
+/// package test. Unlike the legacy `actual = expected` testfile assertion,
+/// this is stored package content.
+type ExpectedError =
+  | RuntimeError of string
+  | SqlCompilerError of string
+
+type TestDecl =
+  { range : Range
+    name : Identifier
+    effects : Option<List<Identifier>>
+    body : Expr
+    expectedError : Option<Range * ExpectedError>
+    keywordTest : Range
+    errorKindRange : Option<Range>
+    symbolOutcome : Option<Range>
+    symbolEquals : Range
+    description : string }
+
 // --- type declarations ---
 
 type RecordFieldSyntax =
@@ -576,7 +595,7 @@ and TestExpected =
   | TESqlError of string
 
 /// A test assertion `actual = expected`; post-parse validation restricts it to Test source.
-and Test = { range : Range; actual : Expr; expected : TestExpected }
+and Assertion = { range : Range; actual : Expr; expected : TestExpected }
 
 and Declaration =
   | DFunction of FnDecl
@@ -585,12 +604,13 @@ and Declaration =
   | DType of TypeDecl
   | DTrait of TraitDecl
   | DImpl of ImplDecl
+  | DTest of TestDecl
   /// A trailing expression inside a module body (`module M = … \n expr`).
   | DExpr of Expr
-  /// `[<DB>] type Name = AliasedType` — a Test-only user DB.
+  /// `[<DB>] type Name = RowType` — a test DB; an inline record also defines its row type.
   | DTypeDB of TypeDecl
   /// `actual = expected` assertion accepted only by Test validation.
-  | DTest of Test
+  | DAssertion of Assertion
 
 /// The whole file: top-level declarations + trailing expressions to eval.
 type SourceFile =
@@ -727,6 +747,15 @@ module PackageFn =
       description : string
     }
 
+module PackageTest =
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  type PackageTest =
+    { name : Name
+      description : string
+      effects : Option<List<string>>
+      body : Expr
+      expectedError : Option<ExpectedError> }
 
 /// A trait in package form: its own item, like a type.
 module PackageTrait =
@@ -861,6 +890,24 @@ let packageType
         bounds = t.bounds |> List.map boundNorm
         definition = typeDefinitionNorm t.definition }
     description = t.description }
+
+/// The schema type for a `[<DB>]` declaration. An inline record defines a
+/// same-named row type, while an alias uses the referenced type unchanged.
+let dbRowTypeReference (modulePath : List<string>) (t : TypeDecl) : TypeReference =
+  match t.definition with
+  | TDAlias typ -> typ
+  | TDRecord _ ->
+    TCustom
+      { range = t.name.range
+        modules =
+          modulePath
+          |> List.map (fun name -> ({ range = synthRange; name = name }, synthRange))
+        typ = t.name
+        typeArgs = [] }
+  | TDEnum _ ->
+    Exception.raiseInternal
+      "[<DB>] type must be a type alias or record"
+      [ "name", t.name.name ]
 
 let packageValue
   (owner : string)
@@ -1005,3 +1052,13 @@ let packageImpl
     bounds = impl.bounds |> List.map boundNorm
     methods = members
     description = impl.description }
+let packageTest
+  (owner : string)
+  (modules : List<string>)
+  (test : TestDecl)
+  : PackageTest.PackageTest =
+  { name = { owner = owner; modules = modules; name = test.name.name }
+    description = test.description
+    effects = test.effects |> Option.map (List.map _.name)
+    body = test.body
+    expectedError = test.expectedError |> Option.map snd }

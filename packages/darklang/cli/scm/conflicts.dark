@@ -53,12 +53,17 @@ let renderItem
     LanguageTools.PackageManager.Value.get h
     |> Stdlib.Option.map (fun v -> named (PrettyPrinter.ProgramTypes.packageValue ctx v))
 
+  let asTest () : Stdlib.Option.Option<String> =
+    LanguageTools.PackageManager.Test.get h
+    |> Stdlib.Option.map (fun t -> named (PrettyPrinter.ProgramTypes.packageTest ctx t))
+
   let attempts =
     match itemType with
-    | "fn" -> [ ("fn", asFn ()), ("type", asType ()), ("value", asValue ()) ]
-    | "type" -> [ ("type", asType ()), ("fn", asFn ()), ("value", asValue ()) ]
-    | "value" -> [ ("value", asValue ()), ("fn", asFn ()), ("type", asType ()) ]
-    | _ -> [ ("fn", asFn ()), ("type", asType ()), ("value", asValue ()) ]
+    | "fn" -> [ ("fn", asFn ()), ("type", asType ()), ("value", asValue ()), ("test", asTest ()) ]
+    | "type" -> [ ("type", asType ()), ("fn", asFn ()), ("value", asValue ()), ("test", asTest ()) ]
+    | "value" -> [ ("value", asValue ()), ("fn", asFn ()), ("type", asType ()), ("test", asTest ()) ]
+    | "test" -> [ ("test", asTest ()), ("fn", asFn ()), ("type", asType ()), ("value", asValue ()) ]
+    | _ -> [ ("fn", asFn ()), ("type", asType ()), ("value", asValue ()), ("test", asTest ()) ]
 
   let found =
     attempts
