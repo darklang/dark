@@ -1,0 +1,983 @@
+/// Semantic-token cases from
+/// `backend/testfiles/execution/stdlib/language-tools/semanticTokenization.dark`.
+module Darklang.LanguageTools.SemanticTokens.Tests
+
+// TODO: Add additional tests to cover all cases
+
+type TokenType = Darklang.LanguageTools.SemanticTokens.TokenType
+
+// Differs from legacy: legacy called `Builtin.parserParseToWrittenTypes`; a
+// builtin may have only one Dark caller, so this calls its wrapper.
+let tokenize
+  (text: String)
+  : List<(TokenType * (Int * Int) * (Int * Int))> =
+  text
+  |> Darklang.LanguageTools.Parser.Parse.toWrittenTypes
+  |> Builtin.unwrap
+  |> Darklang.LanguageTools.SemanticTokens.ParsedFile.tokenize
+  |> Stdlib.List.map (fun token ->
+    let rangeStart = (token.range.start.row, token.range.start.column)
+    let rangeEnd = (token.range.end_.row, token.range.end_.column)
+    (token.tokenType, rangeStart, rangeEnd))
+
+test tokenizeTypeReference =
+  Stdlib.Test.all
+    [ "type MyUnit = Unit" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.TypeName, (0, 14), (0, 18)) ]
+      "type MyBool = Bool" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.TypeName, (0, 14), (0, 18)) ]
+      "type MyInt8 = Int8" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.TypeName, (0, 14), (0, 18)) ]
+      "type MyUInt8 = UInt8" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 12))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.TypeName, (0, 15), (0, 20)) ]
+      "type MyInt16 = Int16" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 12))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.TypeName, (0, 15), (0, 20)) ]
+      "type MyUInt16 = UInt16" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.TypeName, (0, 16), (0, 22)) ]
+      "type MyInt32 = Int32" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 12))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.TypeName, (0, 15), (0, 20)) ]
+      "type MyUInt32 = UInt32" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.TypeName, (0, 16), (0, 22)) ]
+      "type MyInt64 = Int64" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 12))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.TypeName, (0, 15), (0, 20)) ]
+      "type MyUInt64 = UInt64" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.TypeName, (0, 16), (0, 22)) ]
+      "type MyInt128 = Int128" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.TypeName, (0, 16), (0, 22)) ]
+      "type MyUInt128 = UInt128" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 14))
+          (TokenType.Symbol, (0, 15), (0, 16))
+          (TokenType.TypeName, (0, 17), (0, 24)) ]
+      "type MyFloat = Float" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 12))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.TypeName, (0, 15), (0, 20)) ]
+      "type MyChar = Char" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.TypeName, (0, 14), (0, 18)) ]
+      "type MyString = String" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.TypeName, (0, 16), (0, 22)) ]
+      "type MyUUID = UUID" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.TypeName, (0, 14), (0, 18)) ]
+      "type MyDateTime = DateTime" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 15))
+          (TokenType.Symbol, (0, 16), (0, 17))
+          (TokenType.TypeName, (0, 18), (0, 26)) ]
+      "type MyList = List<String>" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.Keyword, (0, 14), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.TypeName, (0, 19), (0, 25))
+          (TokenType.Symbol, (0, 25), (0, 26)) ]
+      "type MyDict = Dict<String, Int64>" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.Keyword, (0, 14), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.TypeName, (0, 19), (0, 25))
+          (TokenType.Symbol, (0, 25), (0, 26))
+          (TokenType.TypeName, (0, 27), (0, 32))
+          (TokenType.Symbol, (0, 32), (0, 33)) ]
+      "type MyTuple2 = (String * Int64)" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.Symbol, (0, 16), (0, 17))
+          (TokenType.TypeName, (0, 17), (0, 23))
+          (TokenType.Symbol, (0, 24), (0, 25))
+          (TokenType.TypeName, (0, 26), (0, 31))
+          (TokenType.Symbol, (0, 31), (0, 32)) ]
+      "type MyTuple3 = (String * Int64 * Bool)" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.Symbol, (0, 16), (0, 17))
+          (TokenType.TypeName, (0, 17), (0, 23))
+          (TokenType.Symbol, (0, 24), (0, 25))
+          (TokenType.TypeName, (0, 26), (0, 31))
+          (TokenType.Symbol, (0, 32), (0, 33))
+          (TokenType.TypeName, (0, 34), (0, 38))
+          (TokenType.Symbol, (0, 38), (0, 39)) ]
+      "type MyFn = 'a -> String" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 9))
+          (TokenType.Symbol, (0, 10), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.TypeName, (0, 13), (0, 14))
+          (TokenType.Symbol, (0, 15), (0, 17))
+          (TokenType.TypeName, (0, 18), (0, 24)) ]
+      "type MyDB = DB<'a>" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 9))
+          (TokenType.Symbol, (0, 10), (0, 11))
+          (TokenType.TypeName, (0, 12), (0, 14))
+          (TokenType.Symbol, (0, 15), (0, 16))
+          (TokenType.TypeName, (0, 16), (0, 17)) ]
+      "type MyVar = 'a" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 10))
+          (TokenType.Symbol, (0, 11), (0, 12))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.TypeName, (0, 14), (0, 15)) ]
+      "type MyFullyQualifiedTypeAlias = Stdlib.Option.Option" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 30))
+          (TokenType.Symbol, (0, 31), (0, 32))
+          (TokenType.ModuleName, (0, 33), (0, 39))
+          (TokenType.ModuleName, (0, 40), (0, 46))
+          (TokenType.TypeName, (0, 47), (0, 53)) ] ]
+
+test tokenizeTypeDeclaration =
+  Stdlib.Test.all
+    [ "type MyAlias = Int64" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 12))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.TypeName, (0, 15), (0, 20)) ]
+      "type MyType<'a> = List<'a>" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 11))
+          (TokenType.TypeParameter, (0, 12), (0, 14))
+          (TokenType.Symbol, (0, 16), (0, 17))
+          (TokenType.Keyword, (0, 18), (0, 22))
+          (TokenType.Symbol, (0, 22), (0, 23))
+          (TokenType.Symbol, (0, 23), (0, 24))
+          (TokenType.TypeName, (0, 24), (0, 25))
+          (TokenType.Symbol, (0, 25), (0, 26)) ]
+      "type MyRecord = { x: Int64; y: String }" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.Property, (0, 18), (0, 19))
+          (TokenType.Symbol, (0, 19), (0, 20))
+          (TokenType.TypeName, (0, 21), (0, 26))
+          (TokenType.Symbol, (0, 26), (0, 27))
+          (TokenType.Property, (0, 28), (0, 29))
+          (TokenType.Symbol, (0, 29), (0, 30))
+          (TokenType.TypeName, (0, 31), (0, 37)) ]
+      "type MyEnum =\n  | A of Int64\n  | B of y: String" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.TypeName, (0, 5), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.Symbol, (1, 2), (1, 3))
+          (TokenType.EnumMember, (1, 4), (1, 5))
+          (TokenType.Keyword, (1, 6), (1, 8))
+          (TokenType.TypeName, (1, 9), (1, 14))
+          (TokenType.Symbol, (2, 2), (2, 3))
+          (TokenType.EnumMember, (2, 4), (2, 5))
+          (TokenType.Keyword, (2, 6), (2, 8))
+          (TokenType.Property, (2, 9), (2, 10))
+          (TokenType.Symbol, (2, 10), (2, 11))
+          (TokenType.TypeName, (2, 12), (2, 18)) ] ]
+
+test tokenizeFunctionDeclaration =
+  Stdlib.Test.all
+    [ "let myFn () : Int64 = 1L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.FunctionName, (0, 4), (0, 8))
+          (TokenType.Symbol, (0, 9), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.TypeName, (0, 14), (0, 19))
+          (TokenType.Symbol, (0, 20), (0, 21))
+          (TokenType.Number, (0, 22), (0, 23))
+          (TokenType.Symbol, (0, 23), (0, 24)) ]
+      "let myFn (a: Int64) : Int64 = a" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.FunctionName, (0, 4), (0, 8))
+          (TokenType.Symbol, (0, 9), (0, 10))
+          (TokenType.ParameterName, (0, 10), (0, 11))
+          (TokenType.Symbol, (0, 11), (0, 12))
+          (TokenType.TypeName, (0, 13), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.Symbol, (0, 20), (0, 21))
+          (TokenType.TypeName, (0, 22), (0, 27))
+          (TokenType.Symbol, (0, 28), (0, 29))
+          (TokenType.VariableName, (0, 30), (0, 31)) ]
+      "let add (a: Int64) (b: Int64) : Int64 = (a + b)" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.FunctionName, (0, 4), (0, 7))
+          (TokenType.Symbol, (0, 8), (0, 9))
+          (TokenType.ParameterName, (0, 9), (0, 10))
+          (TokenType.Symbol, (0, 10), (0, 11))
+          (TokenType.TypeName, (0, 12), (0, 17))
+          (TokenType.Symbol, (0, 17), (0, 18))
+          (TokenType.Symbol, (0, 19), (0, 20))
+          (TokenType.ParameterName, (0, 20), (0, 21))
+          (TokenType.Symbol, (0, 21), (0, 22))
+          (TokenType.TypeName, (0, 23), (0, 28))
+          (TokenType.Symbol, (0, 28), (0, 29))
+          (TokenType.Symbol, (0, 30), (0, 31))
+          (TokenType.TypeName, (0, 32), (0, 37))
+          (TokenType.Symbol, (0, 38), (0, 39))
+          (TokenType.VariableName, (0, 41), (0, 42))
+          (TokenType.Operator, (0, 43), (0, 44))
+          (TokenType.VariableName, (0, 45), (0, 46)) ]
+      "let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit = ()" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.FunctionName, (0, 4), (0, 8))
+          (TokenType.TypeParameter, (0, 9), (0, 11))
+          (TokenType.TypeParameter, (0, 13), (0, 15))
+          (TokenType.Symbol, (0, 17), (0, 18))
+          (TokenType.ParameterName, (0, 18), (0, 26))
+          (TokenType.Symbol, (0, 26), (0, 27))
+          (TokenType.Symbol, (0, 28), (0, 29))
+          (TokenType.TypeName, (0, 29), (0, 30))
+          (TokenType.Symbol, (0, 30), (0, 31))
+          (TokenType.Symbol, (0, 32), (0, 33))
+          (TokenType.ParameterName, (0, 33), (0, 41))
+          (TokenType.Symbol, (0, 41), (0, 42))
+          (TokenType.Symbol, (0, 43), (0, 44))
+          (TokenType.TypeName, (0, 44), (0, 45))
+          (TokenType.Symbol, (0, 45), (0, 46))
+          (TokenType.Symbol, (0, 46), (0, 47))
+          (TokenType.TypeName, (0, 48), (0, 52))
+          (TokenType.Symbol, (0, 53), (0, 54))
+          (TokenType.Symbol, (0, 55), (0, 57)) ] ]
+
+test tokenizeValueDeclaration =
+  Stdlib.Test.all
+    [ "val unitValue = ()" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.Symbol, (0, 16), (0, 18)) ]
+      "val myIntValue = 1L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 14))
+          (TokenType.Symbol, (0, 15), (0, 16))
+          (TokenType.Number, (0, 17), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19)) ]
+      "val boolValue = true" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.Keyword, (0, 16), (0, 20)) ]
+      "val stringValue = \"hello\"" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 15))
+          (TokenType.Symbol, (0, 16), (0, 17))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.String, (0, 19), (0, 24))
+          (TokenType.Symbol, (0, 24), (0, 25)) ]
+      "val charValue = 'a'" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.Symbol, (0, 16), (0, 17))
+          (TokenType.String, (0, 17), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19)) ]
+      "val floatValue = 1.0" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 14))
+          (TokenType.Symbol, (0, 15), (0, 16))
+          (TokenType.Number, (0, 17), (0, 20)) ]
+      "val listValue = [1L, 2L, 3L]" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.Symbol, (0, 16), (0, 17))
+          (TokenType.Number, (0, 17), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.Number, (0, 21), (0, 22))
+          (TokenType.Symbol, (0, 22), (0, 23))
+          (TokenType.Number, (0, 25), (0, 26))
+          (TokenType.Symbol, (0, 26), (0, 27))
+          (TokenType.Symbol, (0, 27), (0, 28)) ]
+      "val tupleValue = (1L, 2L, 3L)" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 14))
+          (TokenType.Symbol, (0, 15), (0, 16))
+          (TokenType.Symbol, (0, 17), (0, 18))
+          (TokenType.Number, (0, 18), (0, 19))
+          (TokenType.Symbol, (0, 19), (0, 20))
+          (TokenType.Symbol, (0, 20), (0, 21))
+          (TokenType.Number, (0, 22), (0, 23))
+          (TokenType.Symbol, (0, 23), (0, 24))
+          (TokenType.Symbol, (0, 24), (0, 25))
+          (TokenType.Number, (0, 26), (0, 27))
+          (TokenType.Symbol, (0, 27), (0, 28))
+          (TokenType.Symbol, (0, 28), (0, 29)) ]
+      "val dictValue = Dict { \"a\": 1L; \"b\": 2L }" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.Keyword, (0, 16), (0, 20))
+          (TokenType.Symbol, (0, 21), (0, 22))
+          (TokenType.Symbol, (0, 23), (0, 24))
+          (TokenType.String, (0, 24), (0, 25))
+          (TokenType.Symbol, (0, 25), (0, 26))
+          (TokenType.Symbol, (0, 26), (0, 27))
+          (TokenType.Number, (0, 28), (0, 29))
+          (TokenType.Symbol, (0, 29), (0, 30))
+          (TokenType.Symbol, (0, 32), (0, 33))
+          (TokenType.String, (0, 33), (0, 34))
+          (TokenType.Symbol, (0, 34), (0, 35))
+          (TokenType.Symbol, (0, 35), (0, 36))
+          (TokenType.Number, (0, 37), (0, 38))
+          (TokenType.Symbol, (0, 38), (0, 39))
+          (TokenType.Symbol, (0, 40), (0, 41)) ]
+      "val enumValue = Stdlib.Option.Option.Some(1L)" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.ModuleName, (0, 16), (0, 22))
+          (TokenType.ModuleName, (0, 23), (0, 29))
+          (TokenType.TypeName, (0, 30), (0, 36))
+          (TokenType.Symbol, (0, 36), (0, 37))
+          (TokenType.EnumMember, (0, 37), (0, 41))
+          (TokenType.Number, (0, 42), (0, 43))
+          (TokenType.Symbol, (0, 43), (0, 44)) ]
+      "val enumValue = MyEnum.A(1L, 2L)" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 13))
+          (TokenType.Symbol, (0, 14), (0, 15))
+          (TokenType.TypeName, (0, 16), (0, 22))
+          (TokenType.Symbol, (0, 22), (0, 23))
+          (TokenType.EnumMember, (0, 23), (0, 24))
+          (TokenType.Number, (0, 25), (0, 26))
+          (TokenType.Symbol, (0, 26), (0, 27))
+          (TokenType.Number, (0, 29), (0, 30))
+          (TokenType.Symbol, (0, 30), (0, 31)) ] ]
+
+test tokenizeExpression =
+  Stdlib.Test.all
+    [ "()" |> tokenize |> Stdlib.Test.equal [ (TokenType.Symbol, (0, 0), (0, 2)) ]
+      "true" |> tokenize |> Stdlib.Test.equal [ (TokenType.Keyword, (0, 0), (0, 4)) ]
+      "1y" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2)) ]
+      "1uy" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 3)) ]
+      "1s" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2)) ]
+      "1us" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 3)) ]
+      "1l" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2)) ]
+      "1ul" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 3)) ]
+      "1L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2)) ]
+      "1UL" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 3)) ]
+      "1Q" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2)) ]
+      "1Z" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2)) ]
+      // suffixless Int literal: just a Number token, no suffix Symbol
+      "1" |> tokenize |> Stdlib.Test.equal [ (TokenType.Number, (0, 0), (0, 1)) ]
+      "12345678901234567890" |> tokenize
+      |> Stdlib.Test.equal [ (TokenType.Number, (0, 0), (0, 20)) ]
+      "1.0" |> tokenize |> Stdlib.Test.equal [ (TokenType.Number, (0, 0), (0, 3)) ]
+      "\"hello\"" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Symbol, (0, 0), (0, 1))
+          (TokenType.String, (0, 1), (0, 6))
+          (TokenType.Symbol, (0, 6), (0, 7)) ]
+      "$\"hello {name}\"" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Symbol, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2))
+          (TokenType.String, (0, 2), (0, 8))
+          (TokenType.Symbol, (0, 8), (0, 9))
+          (TokenType.VariableName, (0, 9), (0, 13))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.Symbol, (0, 14), (0, 15)) ]
+      "$\"Name: {name}, Age: {age}\"" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Symbol, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2))
+          (TokenType.String, (0, 2), (0, 8))
+          (TokenType.Symbol, (0, 8), (0, 9))
+          (TokenType.VariableName, (0, 9), (0, 13))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.String, (0, 14), (0, 21))
+          (TokenType.Symbol, (0, 21), (0, 22))
+          (TokenType.VariableName, (0, 22), (0, 25))
+          (TokenType.Symbol, (0, 25), (0, 26))
+          (TokenType.Symbol, (0, 26), (0, 27)) ]
+      "[true, false, true]" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Symbol, (0, 0), (0, 1))
+          (TokenType.Keyword, (0, 1), (0, 5))
+          (TokenType.Keyword, (0, 7), (0, 12))
+          (TokenType.Keyword, (0, 14), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19)) ]
+      "Dict { \"a\": 1L; \"b\": 2L }" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.Symbol, (0, 5), (0, 6))
+          (TokenType.Symbol, (0, 7), (0, 8))
+          (TokenType.String, (0, 8), (0, 9))
+          (TokenType.Symbol, (0, 9), (0, 10))
+          (TokenType.Symbol, (0, 10), (0, 11))
+          (TokenType.Number, (0, 12), (0, 13))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.Symbol, (0, 16), (0, 17))
+          (TokenType.String, (0, 17), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.Symbol, (0, 19), (0, 20))
+          (TokenType.Number, (0, 21), (0, 22))
+          (TokenType.Symbol, (0, 22), (0, 23))
+          (TokenType.Symbol, (0, 24), (0, 25)) ]
+      "(true, false, true)" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Symbol, (0, 0), (0, 1))
+          (TokenType.Keyword, (0, 1), (0, 5))
+          (TokenType.Symbol, (0, 5), (0, 6))
+          (TokenType.Keyword, (0, 7), (0, 12))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.Keyword, (0, 14), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19)) ]
+      // Record/record-update tokenization regression coverage.
+      // A previous .range-related RTE in this area makes this worth keeping
+      // explicit.
+      "MyRecord {fieldOne = 1L; fieldTwo = 2L} " |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.TypeName, (0, 0), (0, 8))
+          (TokenType.Symbol, (0, 9), (0, 10))
+          (TokenType.Property, (0, 10), (0, 18))
+          (TokenType.Symbol, (0, 10), (0, 23))
+          (TokenType.Number, (0, 21), (0, 22))
+          (TokenType.Symbol, (0, 22), (0, 23))
+          (TokenType.Property, (0, 25), (0, 33))
+          (TokenType.Symbol, (0, 25), (0, 38))
+          (TokenType.Number, (0, 36), (0, 37))
+          (TokenType.Symbol, (0, 37), (0, 38))
+          (TokenType.Symbol, (0, 38), (0, 39)) ]
+      "{ RecordForUpdate { x = true; y = false } with y = true }" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.TypeName, (0, 2), (0, 17))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.Property, (0, 20), (0, 21))
+          (TokenType.Symbol, (0, 20), (0, 28))
+          (TokenType.Keyword, (0, 24), (0, 28))
+          (TokenType.Property, (0, 30), (0, 31))
+          (TokenType.Symbol, (0, 30), (0, 39))
+          (TokenType.Keyword, (0, 34), (0, 39))
+          (TokenType.Symbol, (0, 40), (0, 41))
+          (TokenType.Keyword, (0, 42), (0, 46))
+          (TokenType.Property, (0, 47), (0, 48))
+          (TokenType.Symbol, (0, 49), (0, 50))
+          (TokenType.Keyword, (0, 51), (0, 55)) ]
+      "MyEnum.A(1L)" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.TypeName, (0, 0), (0, 6))
+          (TokenType.Symbol, (0, 6), (0, 7))
+          (TokenType.EnumMember, (0, 7), (0, 8))
+          (TokenType.Number, (0, 9), (0, 10))
+          (TokenType.Symbol, (0, 10), (0, 11)) ]
+      "let x = true\n  x" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 5))
+          (TokenType.Symbol, (0, 6), (0, 7))
+          (TokenType.Keyword, (0, 8), (0, 12))
+          (TokenType.VariableName, (1, 2), (1, 3)) ]
+      "myVar" |> tokenize
+      |> Stdlib.Test.equal [ (TokenType.VariableName, (0, 0), (0, 5)) ]
+      "myRecordVar.field" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.VariableName, (0, 0), (0, 11))
+          (TokenType.Symbol, (0, 11), (0, 12))
+          (TokenType.Property, (0, 12), (0, 17)) ]
+      "1L + 2L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2))
+          (TokenType.Operator, (0, 3), (0, 4))
+          (TokenType.Number, (0, 5), (0, 6))
+          (TokenType.Symbol, (0, 6), (0, 7)) ]
+      "fun x -> x" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 5))
+          (TokenType.Symbol, (0, 6), (0, 8))
+          (TokenType.VariableName, (0, 9), (0, 10)) ]
+      "Stdlib.Bool.and true false" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.ModuleName, (0, 0), (0, 6))
+          (TokenType.ModuleName, (0, 7), (0, 11))
+          (TokenType.FunctionName, (0, 12), (0, 15))
+          (TokenType.Keyword, (0, 16), (0, 20))
+          (TokenType.Keyword, (0, 21), (0, 26)) ]
+      // call-site type args (`<Bool>`) tokenize between the fn name and the args
+      "Builtin.jsonParse<Bool> \"true\"" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.ModuleName, (0, 0), (0, 7))
+          (TokenType.FunctionName, (0, 8), (0, 17))
+          (TokenType.TypeName, (0, 18), (0, 22))
+          (TokenType.Symbol, (0, 24), (0, 25))
+          (TokenType.String, (0, 25), (0, 29))
+          (TokenType.Symbol, (0, 29), (0, 30)) ]
+      // each postfix `?` is its own symbol, in order with the field access
+      "fun x -> x??.a" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 3))
+          (TokenType.VariableName, (0, 4), (0, 5))
+          (TokenType.Symbol, (0, 6), (0, 8))
+          (TokenType.VariableName, (0, 9), (0, 10))
+          (TokenType.Symbol, (0, 10), (0, 11))
+          (TokenType.Symbol, (0, 11), (0, 12))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.Property, (0, 13), (0, 14)) ]
+      "if true then true else false" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 2))
+          (TokenType.Keyword, (0, 3), (0, 7))
+          (TokenType.Keyword, (0, 8), (0, 12))
+          (TokenType.Keyword, (0, 13), (0, 17))
+          (TokenType.Keyword, (0, 18), (0, 22))
+          (TokenType.Keyword, (0, 23), (0, 28)) ]
+      "match true with\n| true -> true" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Keyword, (0, 6), (0, 10))
+          (TokenType.Keyword, (0, 11), (0, 15))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Keyword, (1, 2), (1, 6))
+          (TokenType.Symbol, (1, 7), (1, 9))
+          (TokenType.Keyword, (1, 10), (1, 14)) ]
+      "Stdlib.List.empty" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.ModuleName, (0, 0), (0, 6))
+          (TokenType.ModuleName, (0, 7), (0, 11))
+          (TokenType.FunctionName, (0, 12), (0, 17)) ] ]
+
+test tokenizePipeExpression =
+  Stdlib.Test.all
+    [ "1L |> (+) 2L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2))
+          (TokenType.Operator, (0, 3), (0, 5))
+          (TokenType.Operator, (0, 7), (0, 8))
+          (TokenType.Number, (0, 10), (0, 11))
+          (TokenType.Symbol, (0, 11), (0, 12)) ]
+      "1L |> (fun x -> x + 1L)" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2))
+          (TokenType.Operator, (0, 3), (0, 5))
+          (TokenType.Keyword, (0, 7), (0, 10))
+          (TokenType.VariableName, (0, 11), (0, 12))
+          (TokenType.Symbol, (0, 13), (0, 15))
+          (TokenType.VariableName, (0, 16), (0, 17))
+          (TokenType.Operator, (0, 18), (0, 19))
+          (TokenType.Number, (0, 20), (0, 21))
+          (TokenType.Symbol, (0, 21), (0, 22)) ]
+      "1L |> MyEnum.A" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2))
+          (TokenType.Operator, (0, 3), (0, 5))
+          (TokenType.TypeName, (0, 6), (0, 12))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.EnumMember, (0, 13), (0, 14)) ]
+      "1L |> Stdlib.Result.Result.Ok" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2))
+          (TokenType.Operator, (0, 3), (0, 5))
+          (TokenType.ModuleName, (0, 6), (0, 12))
+          (TokenType.ModuleName, (0, 13), (0, 19))
+          (TokenType.TypeName, (0, 20), (0, 26))
+          (TokenType.Symbol, (0, 26), (0, 27))
+          (TokenType.EnumMember, (0, 27), (0, 29)) ]
+      "1L |> Stdlib.List.map 2L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2))
+          (TokenType.Operator, (0, 3), (0, 5))
+          (TokenType.ModuleName, (0, 6), (0, 12))
+          (TokenType.ModuleName, (0, 13), (0, 17))
+          (TokenType.FunctionName, (0, 18), (0, 21))
+          (TokenType.Number, (0, 22), (0, 23))
+          (TokenType.Symbol, (0, 23), (0, 24)) ]
+      "\"true\" |> Builtin.jsonParse<Bool>" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Symbol, (0, 0), (0, 1))
+          (TokenType.String, (0, 1), (0, 5))
+          (TokenType.Symbol, (0, 5), (0, 6))
+          (TokenType.Operator, (0, 7), (0, 9))
+          (TokenType.ModuleName, (0, 10), (0, 17))
+          (TokenType.FunctionName, (0, 18), (0, 27))
+          (TokenType.TypeName, (0, 28), (0, 32)) ]
+      "1L |> x" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Number, (0, 0), (0, 1))
+          (TokenType.Symbol, (0, 1), (0, 2))
+          (TokenType.Operator, (0, 3), (0, 5))
+          (TokenType.VariableName, (0, 6), (0, 7)) ] ]
+
+test tokenizeMatchExpression =
+  Stdlib.Test.all
+    [ "match () with\n| () -> true" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Symbol, (0, 6), (0, 8))
+          (TokenType.Keyword, (0, 9), (0, 13))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Symbol, (1, 2), (1, 4))
+          (TokenType.Symbol, (1, 5), (1, 7))
+          (TokenType.Keyword, (1, 8), (1, 12)) ]
+      "match x with\n| x -> 1L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.VariableName, (0, 6), (0, 7))
+          (TokenType.Keyword, (0, 8), (0, 12))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.VariableName, (1, 2), (1, 3))
+          (TokenType.Symbol, (1, 4), (1, 6))
+          (TokenType.Number, (1, 7), (1, 8))
+          (TokenType.Symbol, (1, 8), (1, 9)) ]
+      // suffixless Int in both pattern and rhs: Number tokens with no suffix Symbol
+      "match x with\n| 1 -> 2" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.VariableName, (0, 6), (0, 7))
+          (TokenType.Keyword, (0, 8), (0, 12))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Number, (1, 2), (1, 3))
+          (TokenType.Symbol, (1, 4), (1, 6))
+          (TokenType.Number, (1, 7), (1, 8)) ]
+      "match 1L with\n| 1L -> 1L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Number, (0, 6), (0, 7))
+          (TokenType.Symbol, (0, 7), (0, 8))
+          (TokenType.Keyword, (0, 9), (0, 13))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Number, (1, 2), (1, 3))
+          (TokenType.Symbol, (1, 3), (1, 4))
+          (TokenType.Symbol, (1, 5), (1, 7))
+          (TokenType.Number, (1, 8), (1, 9))
+          (TokenType.Symbol, (1, 9), (1, 10)) ]
+      "match 1.0 with\n| 1.0 -> 1.0" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Number, (0, 6), (0, 9))
+          (TokenType.Keyword, (0, 10), (0, 14))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Number, (1, 2), (1, 5))
+          (TokenType.Symbol, (1, 6), (1, 8))
+          (TokenType.Number, (1, 9), (1, 12)) ]
+      "match true with\n| true -> true\n| false -> false" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Keyword, (0, 6), (0, 10))
+          (TokenType.Keyword, (0, 11), (0, 15))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Keyword, (1, 2), (1, 6))
+          (TokenType.Symbol, (1, 7), (1, 9))
+          (TokenType.Keyword, (1, 10), (1, 14))
+          (TokenType.Symbol, (2, 0), (2, 1))
+          (TokenType.Keyword, (2, 2), (2, 7))
+          (TokenType.Symbol, (2, 8), (2, 10))
+          (TokenType.Keyword, (2, 11), (2, 16)) ]
+      "match \"str\" with\n| \"str\" -> true" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Symbol, (0, 6), (0, 7))
+          (TokenType.String, (0, 7), (0, 10))
+          (TokenType.Symbol, (0, 10), (0, 11))
+          (TokenType.Keyword, (0, 12), (0, 16))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Symbol, (1, 2), (1, 3))
+          (TokenType.String, (1, 3), (1, 6))
+          (TokenType.Symbol, (1, 6), (1, 7))
+          (TokenType.Symbol, (1, 8), (1, 10))
+          (TokenType.Keyword, (1, 11), (1, 15)) ]
+      "match 'a' with\n| 'a' -> true" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Symbol, (0, 6), (0, 7))
+          (TokenType.String, (0, 7), (0, 8))
+          (TokenType.Symbol, (0, 8), (0, 9))
+          (TokenType.Keyword, (0, 10), (0, 14))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Symbol, (1, 2), (1, 3))
+          (TokenType.String, (1, 3), (1, 4))
+          (TokenType.Symbol, (1, 4), (1, 5))
+          (TokenType.Symbol, (1, 6), (1, 8))
+          (TokenType.Keyword, (1, 9), (1, 13)) ]
+      "match [true, false] with\n| [true, false] -> true" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Symbol, (0, 6), (0, 7))
+          (TokenType.Keyword, (0, 7), (0, 11))
+          (TokenType.Keyword, (0, 13), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.Keyword, (0, 20), (0, 24))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Symbol, (1, 2), (1, 3))
+          (TokenType.Keyword, (1, 3), (1, 7))
+          (TokenType.Keyword, (1, 9), (1, 14))
+          (TokenType.Symbol, (1, 14), (1, 15))
+          (TokenType.Symbol, (1, 16), (1, 18))
+          (TokenType.Keyword, (1, 19), (1, 23)) ]
+      "match [1L, 2L] with\n| head :: tail -> true" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Symbol, (0, 6), (0, 7))
+          (TokenType.Number, (0, 7), (0, 8))
+          (TokenType.Symbol, (0, 8), (0, 9))
+          (TokenType.Number, (0, 11), (0, 12))
+          (TokenType.Symbol, (0, 12), (0, 13))
+          (TokenType.Symbol, (0, 13), (0, 14))
+          (TokenType.Keyword, (0, 15), (0, 19))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.VariableName, (1, 2), (1, 6))
+          (TokenType.Symbol, (1, 7), (1, 9))
+          (TokenType.VariableName, (1, 10), (1, 14))
+          (TokenType.Symbol, (1, 15), (1, 17))
+          (TokenType.Keyword, (1, 18), (1, 22)) ]
+      "match (true, false) with\n| (true, false) -> true" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.Symbol, (0, 6), (0, 7))
+          (TokenType.Keyword, (0, 7), (0, 11))
+          (TokenType.Symbol, (0, 11), (0, 12))
+          (TokenType.Keyword, (0, 13), (0, 18))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.Keyword, (0, 20), (0, 24))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Symbol, (1, 2), (1, 3))
+          (TokenType.Keyword, (1, 3), (1, 7))
+          (TokenType.Symbol, (1, 7), (1, 8))
+          (TokenType.Keyword, (1, 9), (1, 14))
+          (TokenType.Symbol, (1, 14), (1, 15))
+          (TokenType.Symbol, (1, 16), (1, 18))
+          (TokenType.Keyword, (1, 19), (1, 23)) ]
+      "match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
+      |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.ModuleName, (0, 6), (0, 12))
+          (TokenType.ModuleName, (0, 13), (0, 19))
+          (TokenType.TypeName, (0, 20), (0, 26))
+          (TokenType.Symbol, (0, 26), (0, 27))
+          (TokenType.EnumMember, (0, 27), (0, 29))
+          (TokenType.Number, (0, 30), (0, 31))
+          (TokenType.Symbol, (0, 31), (0, 32))
+          (TokenType.Keyword, (0, 34), (0, 38))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.EnumMember, (1, 2), (1, 4))
+          (TokenType.Number, (1, 5), (1, 6))
+          (TokenType.Symbol, (1, 6), (1, 7))
+          (TokenType.Symbol, (1, 9), (1, 11))
+          (TokenType.Keyword, (1, 12), (1, 16))
+          (TokenType.Symbol, (2, 0), (2, 1))
+          (TokenType.EnumMember, (2, 2), (2, 7))
+          (TokenType.VariableName, (2, 8), (2, 9))
+          (TokenType.Symbol, (2, 11), (2, 13))
+          (TokenType.Keyword, (2, 14), (2, 19)) ]
+      "match x with\n| 1L | 2L | 3L -> true \n| _ -> false" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 5))
+          (TokenType.VariableName, (0, 6), (0, 7))
+          (TokenType.Keyword, (0, 8), (0, 12))
+          (TokenType.Symbol, (1, 0), (1, 1))
+          (TokenType.Number, (1, 2), (1, 3))
+          (TokenType.Symbol, (1, 3), (1, 4))
+          (TokenType.Number, (1, 7), (1, 8))
+          (TokenType.Symbol, (1, 8), (1, 9))
+          (TokenType.Number, (1, 12), (1, 13))
+          (TokenType.Symbol, (1, 13), (1, 14))
+          (TokenType.Symbol, (1, 15), (1, 17))
+          (TokenType.Keyword, (1, 18), (1, 22))
+          (TokenType.Symbol, (2, 0), (2, 1))
+          (TokenType.VariableName, (2, 2), (2, 3))
+          (TokenType.Symbol, (2, 4), (2, 6))
+          (TokenType.Keyword, (2, 7), (2, 12)) ]
+      "Builtin.printLine \"hey\"\n0L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.ModuleName, (0, 0), (0, 7))
+          (TokenType.FunctionName, (0, 8), (0, 17))
+          (TokenType.Symbol, (0, 18), (0, 19))
+          (TokenType.String, (0, 19), (0, 22))
+          (TokenType.Symbol, (0, 22), (0, 23))
+          (TokenType.Number, (1, 0), (1, 1))
+          (TokenType.Symbol, (1, 1), (1, 2)) ] ]
+
+test tokenizeModuleDeclaration =
+  Stdlib.Test.all
+    [ "module MyModule =\n  type ID = Int64" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 6))
+          (TokenType.ModuleName, (0, 7), (0, 15))
+          (TokenType.Keyword, (1, 2), (1, 6))
+          (TokenType.TypeName, (1, 7), (1, 9))
+          (TokenType.Symbol, (1, 10), (1, 11))
+          (TokenType.TypeName, (1, 12), (1, 17)) ]
+      "module MyModule =\n  type ID = Int64\n  let myFn (i: Int64): Int64 = 1L\n  val x = 100L\n  1L"
+      |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 6))
+          (TokenType.ModuleName, (0, 7), (0, 15))
+          (TokenType.Keyword, (1, 2), (1, 6))
+          (TokenType.TypeName, (1, 7), (1, 9))
+          (TokenType.Symbol, (1, 10), (1, 11))
+          (TokenType.TypeName, (1, 12), (1, 17))
+          (TokenType.Keyword, (2, 2), (2, 5))
+          (TokenType.FunctionName, (2, 6), (2, 10))
+          (TokenType.Symbol, (2, 11), (2, 12))
+          (TokenType.ParameterName, (2, 12), (2, 13))
+          (TokenType.Symbol, (2, 13), (2, 14))
+          (TokenType.TypeName, (2, 15), (2, 20))
+          (TokenType.Symbol, (2, 20), (2, 21))
+          (TokenType.Symbol, (2, 21), (2, 22))
+          (TokenType.TypeName, (2, 23), (2, 28))
+          (TokenType.Symbol, (2, 29), (2, 30))
+          (TokenType.Number, (2, 31), (2, 32))
+          (TokenType.Symbol, (2, 32), (2, 33))
+          (TokenType.Keyword, (3, 2), (3, 5))
+          (TokenType.VariableName, (3, 6), (3, 7))
+          (TokenType.Symbol, (3, 8), (3, 9))
+          (TokenType.Number, (3, 10), (3, 13))
+          (TokenType.Symbol, (3, 13), (3, 14))
+          (TokenType.Number, (4, 2), (4, 3))
+          (TokenType.Symbol, (4, 3), (4, 4)) ]
+      "module MyModule1 =\n  module MyModule2 =\n    module MyModule3 =\n      1L"
+      |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 6))
+          (TokenType.ModuleName, (0, 7), (0, 16))
+          (TokenType.Keyword, (1, 2), (1, 8))
+          (TokenType.ModuleName, (1, 9), (1, 18))
+          (TokenType.Keyword, (2, 4), (2, 10))
+          (TokenType.ModuleName, (2, 11), (2, 20))
+          (TokenType.Number, (3, 6), (3, 7))
+          (TokenType.Symbol, (3, 7), (3, 8)) ] ]
+
+test tokenizeTestDeclaration =
+  Stdlib.Test.all
+    [ "test t = 1L" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.VariableName, (0, 5), (0, 6))
+          (TokenType.Symbol, (0, 7), (0, 8))
+          (TokenType.Number, (0, 9), (0, 10))
+          (TokenType.Symbol, (0, 10), (0, 11)) ]
+      // The expected error of a `raises` test is a string token, after `=>` and
+      // the `raises` keyword.
+      "test t = 1L => raises \"boom\"" |> tokenize
+      |> Stdlib.Test.equal
+        [ (TokenType.Keyword, (0, 0), (0, 4))
+          (TokenType.VariableName, (0, 5), (0, 6))
+          (TokenType.Symbol, (0, 7), (0, 8))
+          (TokenType.Number, (0, 9), (0, 10))
+          (TokenType.Symbol, (0, 10), (0, 11))
+          (TokenType.Symbol, (0, 12), (0, 14))
+          (TokenType.Keyword, (0, 15), (0, 21))
+          (TokenType.String, (0, 22), (0, 28)) ] ]

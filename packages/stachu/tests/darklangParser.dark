@@ -1,0 +1,194 @@
+/// Cases from
+/// `backend/testfiles/execution/stachu/darklangParser.dark`,
+/// in original assertion order.
+module Stachu.Tests.DarklangParser
+
+// Tests for the Stachu.DarklangParser - full Darklang parser using combinators
+
+module Literals =
+  // Unit
+  test unit =
+    Stachu.DarklangParser.parse "()"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EUnit, ""))
+
+  // Booleans
+  test booleans =
+    Stdlib.Test.all
+      [ Stachu.DarklangParser.parse "true"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EBool true, ""))
+        Stachu.DarklangParser.parse "false"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EBool false, "")) ]
+
+  // Int64
+  test int64 =
+    Stdlib.Test.all
+      [ Stachu.DarklangParser.parse "42L"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EInt64 42L, ""))
+        Stachu.DarklangParser.parse "-123L"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EInt64 (-123L), "")) ]
+
+  // Int8
+  test int8 =
+    Stachu.DarklangParser.parse "42y"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EInt8 42y, ""))
+
+  // UInt8
+  test uint8 =
+    Stachu.DarklangParser.parse "255uy"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EUInt8 255uy, ""))
+
+  // Float
+  test float =
+    Stdlib.Test.all
+      [ Stachu.DarklangParser.parse "3.14"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EFloat(Stachu.DarklangParser.Sign.Positive, "3", "14"), ""))
+        Stachu.DarklangParser.parse "-2.5"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EFloat(Stachu.DarklangParser.Sign.Negative, "2", "5"), "")) ]
+
+module Variables =
+  // Simple variable
+  test simpleVariable =
+    Stdlib.Test.all
+      [ Stachu.DarklangParser.parse "x"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EVariable "x", ""))
+        Stachu.DarklangParser.parse "myVar123"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EVariable "myVar123", "")) ]
+
+module QualifiedNames =
+  // Qualified function reference
+  test qualifiedFunctionReference =
+    Stdlib.Test.all
+      [ Stachu.DarklangParser.parse "Stdlib.List.map"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EFnName(Stachu.DarklangParser.QualifiedName { modules = ["Stdlib", "List"]; name = "map" }), ""))
+        Stachu.DarklangParser.parse "MyModule.myFn"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EFnName(Stachu.DarklangParser.QualifiedName { modules = ["MyModule"]; name = "myFn" }), "")) ]
+
+module Enums =
+  // Simple enum
+  test simpleEnum =
+    Stdlib.Test.all
+      [ Stachu.DarklangParser.parse "Option.Some"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EEnum(Stachu.DarklangParser.QualifiedName { modules = []; name = "Option" }, "Some", []), ""))
+        Stachu.DarklangParser.parse "Option.None"
+        |> Stdlib.Test.equal
+          (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EEnum(Stachu.DarklangParser.QualifiedName { modules = []; name = "Option" }, "None", []), "")) ]
+
+  // Enum with argument
+  test enumWithArgument =
+    Stachu.DarklangParser.parse "Option.Some(42L)"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EEnum(Stachu.DarklangParser.QualifiedName { modules = []; name = "Option" }, "Some", [Stachu.DarklangParser.Expr.EInt64 42L]), ""))
+
+module Lists =
+  // Empty list
+  test emptyList =
+    Stachu.DarklangParser.parse "[]"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EList [], ""))
+
+  // List with elements
+  test listWithElements =
+    Stachu.DarklangParser.parse "[1L, 2L, 3L]"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EList [Stachu.DarklangParser.Expr.EInt64 1L, Stachu.DarklangParser.Expr.EInt64 2L, Stachu.DarklangParser.Expr.EInt64 3L], ""))
+
+module Tuples =
+  // Simple tuple
+  test simpleTuple =
+    Stachu.DarklangParser.parse "(1L, 2L)"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.ETuple(Stachu.DarklangParser.Expr.EInt64 1L, Stachu.DarklangParser.Expr.EInt64 2L, []), ""))
+
+  // Triple
+  test triple =
+    Stachu.DarklangParser.parse "(1L, 2L, 3L)"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.ETuple(Stachu.DarklangParser.Expr.EInt64 1L, Stachu.DarklangParser.Expr.EInt64 2L, [Stachu.DarklangParser.Expr.EInt64 3L]), ""))
+
+module Dicts =
+  // Dict literal
+  test dictLiteral =
+    Stachu.DarklangParser.parse "Dict { \"x\": 1L }"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EDict [(Stachu.DarklangParser.Expr.EString [ Stachu.DarklangParser.StringSegment.StringText "x" ], Stachu.DarklangParser.Expr.EInt64 1L)], ""))
+
+module InfixOperators =
+  // Addition
+  test additionOperator =
+    Stachu.DarklangParser.parse "1L + 2L"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EInfix(Stachu.DarklangParser.InfixOp.ArithmeticPlus, Stachu.DarklangParser.Expr.EInt64 1L, Stachu.DarklangParser.Expr.EInt64 2L), ""))
+
+  // Comparison
+  test comparisonOperator =
+    Stachu.DarklangParser.parse "x == y"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EInfix(Stachu.DarklangParser.InfixOp.ComparisonEquals, Stachu.DarklangParser.Expr.EVariable "x", Stachu.DarklangParser.Expr.EVariable "y"), ""))
+
+  // Boolean
+  test booleanOperators =
+    Stachu.DarklangParser.parse "true && false"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EInfix(Stachu.DarklangParser.InfixOp.BooleanAnd, Stachu.DarklangParser.Expr.EBool true, Stachu.DarklangParser.Expr.EBool false), ""))
+
+module LetExpressions =
+  // Simple let
+  test simpleLet =
+    Stachu.DarklangParser.parse "let x = 5L x"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.ELet(Stachu.DarklangParser.LetPattern.LPVariable "x", Stachu.DarklangParser.Expr.EInt64 5L, Stachu.DarklangParser.Expr.EVariable "x"), ""))
+
+module IfExpressions =
+  // If-then-else
+  test ifThenElse =
+    Stachu.DarklangParser.parse "if true then 1L else 2L"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EIf(Stachu.DarklangParser.Expr.EBool true, Stachu.DarklangParser.Expr.EInt64 1L, Stdlib.Option.Option.Some(Stachu.DarklangParser.Expr.EInt64 2L)), ""))
+
+module LambdaExpressions =
+  // Simple lambda
+  test simpleLambda =
+    Stachu.DarklangParser.parse "fun x -> x"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.ELambda([Stachu.DarklangParser.LetPattern.LPVariable "x"], Stachu.DarklangParser.Expr.EVariable "x"), ""))
+
+module MatchExpressions =
+  // Match with two cases
+  test matchWithTwoCases =
+    Stachu.DarklangParser.parse "match x with | true -> 1L | false -> 0L"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EMatch(Stachu.DarklangParser.Expr.EVariable "x", [Stachu.DarklangParser.MatchCase { pattern = Stachu.DarklangParser.MatchPattern.MPBool true; whenCondition = Stdlib.Option.Option.None; rhs = Stachu.DarklangParser.Expr.EInt64 1L }, Stachu.DarklangParser.MatchCase { pattern = Stachu.DarklangParser.MatchPattern.MPBool false; whenCondition = Stdlib.Option.Option.None; rhs = Stachu.DarklangParser.Expr.EInt64 0L }]), ""))
+
+module PipeExpressions =
+  // Simple pipe
+  test simplePipe =
+    Stachu.DarklangParser.parse "x |> Stdlib.List.map"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.EPipe(Stachu.DarklangParser.Expr.EVariable "x", [Stachu.DarklangParser.PipeExpr.PipeFnCall(Stachu.DarklangParser.QualifiedName { modules = ["Stdlib", "List"]; name = "map" }, [])]), ""))
+
+module FieldAccess =
+  // Simple field access
+  test simpleFieldAccess =
+    Stachu.DarklangParser.parse "x.foo"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.ERecordFieldAccess(Stachu.DarklangParser.Expr.EVariable "x", "foo"), ""))
+
+  // Chained field access
+  test chainedFieldAccess =
+    Stachu.DarklangParser.parse "x.foo.bar"
+    |> Stdlib.Test.equal
+      (Stachu.Parser.ParseResult.Success(Stachu.DarklangParser.Expr.ERecordFieldAccess(Stachu.DarklangParser.Expr.ERecordFieldAccess(Stachu.DarklangParser.Expr.EVariable "x", "foo"), "bar"), ""))

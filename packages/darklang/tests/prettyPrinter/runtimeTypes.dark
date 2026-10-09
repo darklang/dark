@@ -1,0 +1,314 @@
+/// Pretty-printer cases from backend/testfiles/execution/stdlib/prettyPrinter.dark.
+module Darklang.PrettyPrinter.Tests
+
+// Tests for the value pretty-printer, `PrettyPrinter.RuntimeTypes.dval`.
+//
+// This is what `eval` shows you, what a trace records, and what a runtime error
+// quotes a value with, so it is worth pinning precisely. `Builtin.reflect` turns
+// an ordinary value into the RuntimeTypes.Dval the printer takes, which is how
+// these cases stay readable.
+//
+// Note when reading the expectations: they are Dark source, so `"\"a\\nb\""` is
+// the eleven characters `"a\nb"` with a real backslash in the middle. That is the
+// point of most of the escaping cases.
+
+// --- helpers ---
+// Differs from legacy: legacy called `Builtin.reflect`; a builtin may have only one
+// Dark caller, so these call its wrapper `LanguageTools.RuntimeTypes.reflect`.
+let pp (value: 'a) : String =
+  Darklang.PrettyPrinter.RuntimeTypes.dval
+    Darklang.SCM.Branch.mainBranchId
+    (Darklang.LanguageTools.RuntimeTypes.reflect value)
+
+let emptyInts () : List<Int> = []
+
+let loc
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+  Darklang.LanguageTools.ProgramTypes.PackageLocation
+    { owner = owner; modules = modules; name = name }
+
+let short
+  (currentModule: List<String>)
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : String =
+  Darklang.PrettyPrinter.shortenName currentModule owner modules name
+
+let at (width: Int) (value: 'a) : String =
+  Darklang.PrettyPrinter.RuntimeTypes.dvalWith
+    Darklang.SCM.Branch.mainBranchId
+    (Darklang.PrettyPrinter.DisplayOptions.atWidth width)
+    (Darklang.LanguageTools.RuntimeTypes.reflect value)
+
+let big () : List<Int> =
+  Stdlib.List.range 1 2000 |> Stdlib.List.map (fun i -> i * 37)
+
+// Scalars
+test scalars =
+  Stdlib.Test.all
+    [ pp () |> Stdlib.Test.equal "()"
+      pp true |> Stdlib.Test.equal "true"
+      pp false |> Stdlib.Test.equal "false"
+      pp 42 |> Stdlib.Test.equal "42"
+      pp (-7) |> Stdlib.Test.equal "-7"
+      pp "" |> Stdlib.Test.equal "\"\""
+      pp "plain" |> Stdlib.Test.equal "\"plain\""
+      pp 'a' |> Stdlib.Test.equal "'a'"
+      // Floats print every digit the value has, and exponent form when that's
+      // shorter.
+      pp 1.5 |> Stdlib.Test.equal "1.5"
+      pp (0.1 + 0.2) |> Stdlib.Test.equal "0.30000000000000004"
+      pp 0.00001 |> Stdlib.Test.equal "1e-5" ]
+
+// Float literals in source
+//
+// `processRemainder` is what the ProgramTypes printer runs a float literal's
+// fraction through, to drop trailing zeros. It parses and reprints the fraction,
+// which comes back in exponent form when small enough; that used to print
+// `0.00001` as `0.-05`.
+test floatLiterals =
+  Stdlib.Test.all
+    [ Darklang.PrettyPrinter.processRemainder "5" |> Stdlib.Test.equal "5"
+      Darklang.PrettyPrinter.processRemainder "50" |> Stdlib.Test.equal "5"
+      Darklang.PrettyPrinter.processRemainder "00001" |> Stdlib.Test.equal "00001"
+      Darklang.PrettyPrinter.processRemainder "1234567890123456"
+      |> Stdlib.Test.equal "1234567890123456" ]
+
+// Escaping
+//
+// Strings and chars used to be wrapped in their quotes unescaped, so a value
+// holding a newline printed as a real line break inside its own literal and one
+// holding a quote closed it early.
+test escaping =
+  Stdlib.Test.all
+    [ pp "a\nb" |> Stdlib.Test.equal "\"a\\nb\""
+      pp "say \"hi\"" |> Stdlib.Test.equal "\"say \\\"hi\\\"\""
+      pp "tab\there" |> Stdlib.Test.equal "\"tab\\there\""
+      pp "back\\slash" |> Stdlib.Test.equal "\"back\\\\slash\""
+      pp "car\rriage" |> Stdlib.Test.equal "\"car\\rriage\""
+      pp '\n' |> Stdlib.Test.equal "'\\n'"
+      pp '\'' |> Stdlib.Test.equal "'\\''"
+      pp '\\' |> Stdlib.Test.equal "'\\\\'"
+      // Non-ASCII is not a control character and passes through as itself.
+      pp "héllo" |> Stdlib.Test.equal "\"héllo\""
+      pp "日本" |> Stdlib.Test.equal "\"日本\""
+      // Escape special characters inside a grapheme without losing its other
+      // characters: the combining accent after a backslash, or the LF in CRLF.
+      pp "a\\́b" |> Stdlib.Test.equal "\"a\\\\́b\""
+      pp "a\r\nb" |> Stdlib.Test.equal "\"a\\r\\nb\""
+      // Escaping happens at every depth, not just the top level.
+      pp [ "a\nb" ] |> Stdlib.Test.equal "[\"a\\nb\"]" ]
+
+// Collections
+test collections =
+  Stdlib.Test.all
+    [ // `List<_>`, not `List<Int>`, even though `emptyInts` is annotated: an empty
+      // list carries no element type at runtime, so there is nothing for the
+      // printer to report. See the note in Records below.
+      pp (emptyInts ()) |> Stdlib.Test.equal "List<_> []"
+      pp [ 1, 2, 3 ] |> Stdlib.Test.equal "[1, 2, 3]"
+      pp [ [ 1, 2 ], [ 3 ] ] |> Stdlib.Test.equal "[[1, 2], [3]]"
+      pp (1, 2) |> Stdlib.Test.equal "(1, 2)"
+      pp (1, "two", true) |> Stdlib.Test.equal "(1, \"two\", true)"
+      pp Stdlib.Dict.empty |> Stdlib.Test.equal "{}"
+      pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1), ("b", 2) ])
+      |> Stdlib.Test.equal "{ \"a\": 1, \"b\": 2 }"
+      pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("has-hyphen", 1) ])
+      |> Stdlib.Test.equal "{ \"has-hyphen\": 1 }"
+      pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("type", 1) ])
+      |> Stdlib.Test.equal "{ \"type\": 1 }"
+      pp (Dict { 1L: "one"; 2L: "two" })
+      |> Stdlib.Test.equal "{ 1: \"one\", 2: \"two\" }"
+      pp (Dict { (1L, "a"): true }) |> Stdlib.Test.equal "{ (1, \"a\"): true }" ]
+
+// Records
+//
+// Fields print in the order the type declares them. They live in a Dict, which
+// iterates alphabetically, so without the reordering `PackageLocation` came out
+// modules/name/owner.
+test records =
+  Stdlib.Test.all
+    [ // Breaks, because the whole line is measured: the type name in front counts
+      // toward the fit. The string version measured the joined fields alone, so a
+      // 51-character name didn't count and this printed as one 118-column line
+      // while reporting that it fitted in 80.
+      pp (loc "Darklang" [ "Stdlib", "List" ] "map")
+      |> Stdlib.Test.equal
+        "Darklang.LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: [\"Stdlib\", \"List\"],\n  name: \"map\"\n}"
+      // `List<_>`, not `List<String>`: an empty list carries no element type at
+      // runtime, and the printer doesn't consult the field's declared type to
+      // recover one. Recorded as-is because it is what happens; the `_` is the
+      // same gap that shows up as `Option<_>.None`, and belongs with the
+      // type-args work.
+      pp (loc "Darklang" [] "x")
+      |> Stdlib.Test.equal
+        "Darklang.LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: List<_> [],\n  name: \"x\"\n}" ]
+
+// Enums
+//
+// Option and Result print their case alone: `Some`, `None`, `Ok`, `Error` are
+// unambiguous everywhere and resolve unqualified, so naming their type in front
+// of them is noise. Any other enum keeps its type name, because a bare `Red`
+// doesn't tell you it came from `Color`.
+test enums =
+  Stdlib.Test.all
+    [ pp (Stdlib.Option.Option.Some 1) |> Stdlib.Test.equal "Some(1)"
+      pp (Stdlib.Result.Result.Ok 1) |> Stdlib.Test.equal "Ok(1)" ]
+
+// Name shortening
+//
+// The rule mirrors `LibDB.NameLookup.namesToTry`, which tries a given name with
+// progressively shorter prefixes of the current module glued on. So the shortest
+// spelling that still resolves is the target's path minus its longest common
+// prefix with the current module. These cases are the shapes that matter.
+test shortening =
+  Stdlib.Test.all
+    [ // Same module: the leaf name alone.
+      short
+        [ "Darklang", "LanguageTools", "ProgramTypes", "PackageFn" ]
+        "Darklang"
+        [ "LanguageTools", "ProgramTypes", "PackageFn" ]
+        "Parameter"
+      |> Stdlib.Test.equal "Parameter"
+      // Parent module: still just the leaf, because the resolver walks up.
+      short
+        [ "Darklang", "LanguageTools", "ProgramTypes", "PackageFn" ]
+        "Darklang"
+        [ "LanguageTools", "ProgramTypes" ]
+        "TypeReference"
+      |> Stdlib.Test.equal "TypeReference"
+      // Sibling module: keep the part that differs.
+      short [ "Darklang", "Stdlib", "Option" ] "Darklang" [ "Stdlib", "List" ] "map"
+      |> Stdlib.Test.equal "List.map"
+      // No context at all: `Stdlib.` resolves with `Darklang` implied, so the
+      // owner comes off.
+      short [] "Darklang" [ "Stdlib", "List" ] "map"
+      |> Stdlib.Test.equal "Stdlib.List.map"
+      // Someone else's package stays fully qualified.
+      short [ "Darklang", "Stdlib" ] "Stachu" [ "Parser" ] "map"
+      |> Stdlib.Test.equal "Stachu.Parser.map"
+      // Option and Result resolve unqualified from anywhere.
+      short
+        [ "Darklang", "Stdlib", "List" ]
+        "Darklang"
+        [ "Stdlib", "Option" ]
+        "Option"
+      |> Stdlib.Test.equal "Option"
+      short [ "Stachu", "Whatever" ] "Darklang" [ "Stdlib", "Result" ] "Result"
+      |> Stdlib.Test.equal "Result"
+      // Prefixes are compared segment-wise. The old rule compared strings, so
+      // from `...List` a reference to `...ListView.render` was shortened to
+      // `iew.render`.
+      short
+        [ "Darklang", "Stdlib", "List" ]
+        "Darklang"
+        [ "Stdlib", "ListView" ]
+        "render"
+      |> Stdlib.Test.equal "ListView.render"
+      // A partial segment match is not a match.
+      short [ "Darklang", "Stdlib", "Li" ] "Darklang" [ "Stdlib", "List" ] "map"
+      |> Stdlib.Test.equal "List.map" ]
+
+// Options
+//
+// The same value, rendered against different constraints. This is the property
+// the printers are supposed to have: nothing is read from the environment, so the
+// caller decides and the output follows.
+test widths =
+  Stdlib.Test.all
+    [ // Wide enough: one line.
+      at 200 [ 1, 2, 3 ] |> Stdlib.Test.equal "[1, 2, 3]"
+      // Narrow enough that the same list has to break.
+      at 8 [ 100, 200, 300 ] |> Stdlib.Test.equal "[\n  100,\n  200,\n  300\n]"
+      // The default is 80 columns, and `dval` is the default-options wrapper, so
+      // the two agree.
+      (at 80 [ 1, 2, 3 ]) == (pp [ 1, 2, 3 ]) |> Stdlib.Test.equal true
+      // The same record at a width that fits it: one line, so the break above is
+      // the width deciding, not a record always breaking.
+      Darklang.PrettyPrinter.RuntimeTypes.dvalWith
+        Darklang.SCM.Branch.mainBranchId
+        (Darklang.PrettyPrinter.DisplayOptions.atWidth 200)
+        (Darklang.LanguageTools.RuntimeTypes.reflect
+          (loc "Darklang" [ "Stdlib" ] "map"))
+      |> Stdlib.Test.equal
+        "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner: \"Darklang\", modules: [\"Stdlib\"], name: \"map\" }" ]
+
+test enumTypeNames =
+  Stdlib.Test.all
+    [ // Nested wrappers, which is where the old output was worst: this used to be
+      // three lines of
+      // `Darklang.Stdlib.Option.Option<Darklang.Stdlib.Option.Option<List<Int>>>.Some(...)`.
+      pp (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some [ 1, 2, 3 ]))
+      |> Stdlib.Test.equal "Some(Some([1, 2, 3]))"
+      // A non-wrapper enum keeps its type name.
+      pp (Stdlib.List.chunkBySize [ 1, 2, 3 ] 0)
+      |> Stdlib.Test.equal
+        "Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"
+      // Unless the type has several names and nothing says which.
+      // `Stdlib.Int.ParseError`, `Stdlib.Float.ParseError` and
+      // `Stdlib.Uuid.ParseError` are all `| BadFormat`, so content-addressing
+      // makes them one type with three names; naming one is guessing, and it
+      // used to guess wrong often enough that `Stdlib.Int.parse` would report a
+      // `Stdlib.Uuid.ParseError`. The case alone is honest.
+      pp (Stdlib.Int.parse "abc") |> Stdlib.Test.equal "Error(BadFormat)" ]
+
+// `dvalOneLine` renders only as much as it can show
+//
+// It formats a value and then cuts the result to a character budget, so a long
+// list used to be formatted in full to produce sixty characters of it. A
+// 2000-element list cost 2.1 seconds of a 2.6 second trace page, and it scaled
+// with the DATA rather than with the trace, which is the wrong axis entirely.
+//
+// Only a prefix is rendered now. These pin that the prefix is
+// character-for-character what the whole value would have produced. The second
+// case is the one that caught the subtle half: cut a list down far enough and the
+// printer lays it out INLINE instead of wrapped, and the two differ by the space
+// after the bracket, so the cut has to stay above the width where that flips.
+test oneLineRendersPrefix =
+  Stdlib.Test.all
+    [ Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine
+        Darklang.SCM.Branch.mainBranchId
+        60
+        (Darklang.LanguageTools.RuntimeTypes.reflect (big ()))
+      |> Stdlib.Test.equal
+        "[ 37, 74, 111, 148, 185, 222, 259, 296, 333, 370, 407, 44..."
+      // A budget small enough that a naive prefix would fit on one line and lose
+      // the space.
+      Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine
+        Darklang.SCM.Branch.mainBranchId
+        10
+        (Darklang.LanguageTools.RuntimeTypes.reflect (big ()))
+      |> Stdlib.Test.equal "[ 37, 7..."
+      // Short enough to need no cut at all: inline, and untouched.
+      Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine
+        Darklang.SCM.Branch.mainBranchId
+        60
+        (Darklang.LanguageTools.RuntimeTypes.reflect [ 1, 2, 3 ])
+      |> Stdlib.Test.equal "[1, 2, 3]" ]
+
+// The trace JSON's renderer bounds length, not depth
+//
+// `compactDval` is what `--json` and the effect log hand an agent. It was routed
+// through the page's one-line renderer while making big values cheap to format,
+// which quietly brought the page's depth limit with it: every nested value an
+// agent read would have been hollowed out two levels down. A long list cut short
+// is a visible loss; that is not.
+test compactDvalKeepsDepth =
+  Stdlib.Test.all
+    [ // Four levels, which the page elides and this must not.
+      Darklang.Tracing.Format.compactDval
+        Darklang.SCM.Branch.mainBranchId
+        (Darklang.LanguageTools.RuntimeTypes.reflect
+          [ [ [ [ 1, 2 ], [ 3, 4 ] ], [ [ 5, 6 ] ] ], [ [ [ 7, 8 ] ] ] ])
+      |> Stdlib.Test.equal "[[[[1, 2], [3, 4]], [[5, 6]]], [[[7, 8]]]]"
+      // The page, for contrast: same value, elided.
+      Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine
+        Darklang.SCM.Branch.mainBranchId
+        2000
+        (Darklang.LanguageTools.RuntimeTypes.reflect
+          [ [ [ [ 1, 2 ], [ 3, 4 ] ], [ [ 5, 6 ] ] ], [ [ [ 7, 8 ] ] ] ])
+      |> Stdlib.Test.equal "[[[..., ...], [...]], [[...]]]" ]
