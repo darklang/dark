@@ -30,6 +30,9 @@ module Reference =
     | PackageTraitImpl h ->
       w.Write(4uy)
       Hash.write w h
+    | PackageTest h ->
+      w.Write(5uy)
+      Hash.write w h
 
   let read (r : BinaryReader) : Reference =
     match r.ReadByte() with
@@ -38,6 +41,7 @@ module Reference =
     | 2uy -> PackageFn(Hash.read r)
     | 3uy -> PackageTrait(Hash.read r)
     | 4uy -> PackageTraitImpl(Hash.read r)
+    | 5uy -> PackageTest(Hash.read r)
     | b -> raiseFormatError $"Invalid Reference tag: {b}"
 
 
@@ -176,6 +180,10 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
   | PackageOp.AddTraitImpl i ->
     w.Write(16uy)
     LibSerialization.Binary.Serializers.PT.Trait.TraitImpl.write w i
+  | PackageOp.AddTest test ->
+    // New op kinds never recycle retired tags; 15 and 16 are traits'.
+    w.Write(17uy)
+    LibSerialization.Binary.Serializers.PT.PackageTest.write w test
   | PackageOp.SetName(location, target, previous) ->
     w.Write(3uy)
     PackageLocation.write w location
@@ -255,6 +263,9 @@ let read (version : uint32) (r : BinaryReader) : PackageOp =
     PackageOp.AddTraitImpl(
       LibSerialization.Binary.Serializers.PT.Trait.TraitImpl.read version r
     )
+  | 17uy ->
+    let test = LibSerialization.Binary.Serializers.PT.PackageTest.read version r
+    PackageOp.AddTest test
   | 3uy ->
     let location = PackageLocation.read r
     let target = Reference.read r

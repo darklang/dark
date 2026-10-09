@@ -957,3 +957,24 @@ module TokenizeModuleDeclaration =
       (TokenType.ModuleName, (2, 11), (2, 20))
       (TokenType.Number, (3, 6), (3, 7))
       (TokenType.Symbol, (3, 7), (3, 8)) ]
+
+
+module TokenizeTestDeclaration =
+  ("test t = 1L" |> tokenize) =
+    [ (TokenType.Keyword, (0, 0), (0, 4))
+      (TokenType.VariableName, (0, 5), (0, 6))
+      (TokenType.Symbol, (0, 7), (0, 8))
+      (TokenType.Number, (0, 9), (0, 10))
+      (TokenType.Symbol, (0, 10), (0, 11)) ]
+
+  // The expected error of a `raises` test is a string token, after `=>` and
+  // the `raises` keyword.
+  ("test t = 1L => raises \"boom\"" |> tokenize) =
+    [ (TokenType.Keyword, (0, 0), (0, 4))
+      (TokenType.VariableName, (0, 5), (0, 6))
+      (TokenType.Symbol, (0, 7), (0, 8))
+      (TokenType.Number, (0, 9), (0, 10))
+      (TokenType.Symbol, (0, 10), (0, 11))
+      (TokenType.Symbol, (0, 12), (0, 14))
+      (TokenType.Keyword, (0, 15), (0, 21))
+      (TokenType.String, (0, 22), (0, 28)) ]

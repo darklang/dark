@@ -1,5 +1,5 @@
 /// Applies PackageOps to the DB projection tables.
-/// These tables (package_types, package_values, package_functions, locations) are projections
+/// These tables (package_types, package_values, package_functions, package_tests, locations) are projections
 /// of the source-of-truth package_ops table.
 ///
 /// All writes go through a caller-provided SqliteConnection so the entire op
@@ -373,6 +373,41 @@ let private applyAddFn
           |> Hashing.computeFnHash Hashing.Normal)
 
     let refs = DE.extractFromFn fn
+    do! updateDependencies ctx hashStr refs
+  }
+
+/// Apply a single AddTest op. Unlike a function, a test is stored as source
+/// only: it is compiled when `dark test` runs it, and the runtime package
+/// manager has no way to look one up, so nothing can call a test.
+let private applyAddTest
+  (ctx : Ctx)
+  (mayRewriteExisting : bool)
+  (test : PT.PackageTest.PackageTest)
+  : Task<unit> =
+  task {
+    let hash =
+      match test.hash with
+      | Hash "" -> Hashing.computeTestHash Hashing.Normal test
+      | h -> h
+    let test = { test with hash = hash }
+    let (Hash hashStr) = hash
+
+    do!
+      upsertContentAddressed
+        ctx
+        "test"
+        "package_tests"
+        hash
+        [ "pt_def", box (BS.PT.PackageTest.serialize hashStr test)
+          "description", box test.description ]
+        []
+        mayRewriteExisting
+        (Hashing.computeTestHash Hashing.Normal test)
+        (fun bytes ->
+          BS.PT.PackageTest.deserialize hash bytes
+          |> Hashing.computeTestHash Hashing.Normal)
+
+    let refs = DE.extractFromTest test
     do! updateDependencies ctx hashStr refs
   }
 
@@ -889,6 +924,7 @@ let private applyOp
       // The op's own time, so two rival impls order the same way wherever they land.
       let! ts = originTsOf ctx (Hashing.computeOpRowId op)
       do! applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" ts) i
+    | PT.PackageOp.AddTest test -> do! applyAddTest ctx mayRewriteExisting test
     | PT.PackageOp.SetName(loc, target, _) ->
       do! applySetNameFrom ctx source op target.hash loc target.kind
     | PT.PackageOp.Unbind(loc, previous) -> do! applyUnbind ctx op loc previous
@@ -1047,6 +1083,9 @@ let recordDependenciesOnly (ops : List<PT.PackageOp>) : Task<unit> =
         | PT.PackageOp.AddTraitImpl i when i.hash <> Hash "" ->
           let (Hash h) = i.hash
           Some(h, DE.extractFromImpl i)
+        | PT.PackageOp.AddTest test when test.hash <> Hash "" ->
+          let (Hash h) = test.hash
+          Some(h, DE.extractFromTest test)
         | _ -> None)
 
     if not (List.isEmpty adds) then

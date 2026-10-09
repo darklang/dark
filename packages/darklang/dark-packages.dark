@@ -6,4 +6,5 @@ type Stats =
     values: Int
     fns: Int
     traits: Int
-    impls: Int }
+    impls: Int
+    tests: Int }

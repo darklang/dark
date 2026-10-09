@@ -526,6 +526,16 @@ let transformValue
   : PT.PackageValue.PackageValue =
   { value with body = transformExpr mapping value.body }
 
+let transformTest
+  (mapping : HashMapping)
+  (test : PT.PackageTest.PackageTest)
+  : PT.PackageTest.PackageTest =
+  { test with
+      body = transformExpr mapping test.body
+      testDBs =
+        test.testDBs
+        |> List.map (fun (name, typ) -> name, transformTypeRef mapping typ) }
+
 let private transformTypeDefinition
   (mapping : HashMapping)
   (def : PT.TypeDeclaration.Definition)

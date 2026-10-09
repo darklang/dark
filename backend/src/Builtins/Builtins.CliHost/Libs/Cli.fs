@@ -131,7 +131,8 @@ let private declarationsToModule
       | WTSourceFile.Expr(declPath, e) -> wtExprs.Add(baseModules @ declPath, e)
       // DB/test decls are produced only by test-mode parsing, not the CLI path.
       | WTSourceFile.TypeDB _
-      | WTSourceFile.Test _ -> ()
+      | WTSourceFile.Test _
+      | WTSourceFile.Assertion _ -> ()
 
     let onMissing = NRslv.OnMissing.Allow
     let fnList = List.ofSeq wtFns

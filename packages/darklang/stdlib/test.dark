@@ -1,0 +1,47 @@
+module Darklang.Stdlib.Test
+
+/// What a test returns: `Pass`, or `Fail` with what went wrong. `all`
+/// combines several checks into one; the test still runs and caches as a whole.
+type Result =
+  | Pass
+  | Fail of messages: List<String>
+
+let pass () : Result = Result.Pass
+
+let fail (message: String) : Result = Result.Fail [ message ]
+
+let expect (condition: Bool) (message: String) : Result =
+  if condition then Result.Pass else Result.Fail [ message ]
+
+/// Compare two Dark values. Written value-first so pipeline style reads:
+/// `actual |> Stdlib.Test.equal expected`.
+let equal (actual: 'a) (expected: 'a) : Result =
+  if actual == expected then
+    Result.Pass
+  else
+    Result.Fail [ $"expected {Stdlib.toRepr expected}, got {Stdlib.toRepr actual}" ]
+
+let notEqual (actual: 'a) (unexpected: 'a) : Result =
+  if actual != unexpected then
+    Result.Pass
+  else
+    Result.Fail [ $"did not expect {Stdlib.toRepr unexpected}" ]
+
+/// Combine assertions without stopping at the first failure.
+let all (tests: List<Result>) : Result =
+  let failures =
+    tests
+    |> Stdlib.List.indexedMap (fun index test ->
+      match test with
+      | Pass -> []
+      | Fail messages ->
+        let assertion = Stdlib.toString (index + 1)
+        match messages with
+        | [] -> [ $"assertion {assertion}: failed without a message" ]
+        | _ ->
+          messages
+          |> Stdlib.List.map (fun message ->
+            $"assertion {assertion}: {message}"))
+    |> Stdlib.List.flatten
+
+  if Stdlib.List.isEmpty failures then Result.Pass else Result.Fail failures

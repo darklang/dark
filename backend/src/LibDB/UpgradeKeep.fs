@@ -106,6 +106,7 @@ let restore
               | PT.ItemKind.Value -> PT.Reference.PackageValue k.hash
               | PT.ItemKind.Trait -> PT.Reference.PackageTrait k.hash
               | PT.ItemKind.TraitImpl -> PT.Reference.PackageTraitImpl k.hash
+              | PT.ItemKind.Test -> PT.Reference.PackageTest k.hash
 
             let mods = String.concat "." k.location.modules
             let (PT.Hash h) = k.hash

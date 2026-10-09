@@ -224,6 +224,9 @@ let inOp (op : PT.PackageOp) : Option<string * List<string>> =
         @ (i.methods |> List.collect (fun (_, nr) -> fromNR nr))
         @ List.collect inBound i.bounds
       )
+    | PT.PackageOp.AddTest test ->
+      let (PT.Hash hash) = test.hash
+      Some(hash, inExpr test.body)
     | PT.PackageOp.SetName _
     | PT.PackageOp.Unbind _
     | PT.PackageOp.Deprecate _

@@ -87,20 +87,26 @@ let private fsharpTypesByName () : Map<string, System.Type> =
   |> Map.ofList
 
 
-/// The F# type a Dark name refers to, allowing for two conventions that differ deliberately:
+/// Namespace differences that still require a full shape comparison. Unlike
+/// `accepted`, this maps a counterpart; it does not skip the ABI check.
+let private fsharpNames = Map.ofList [ "PackageTest.ExpectedError", "ExpectedError" ]
+
+
+/// The F# type a Dark name refers to, allowing for conventions that differ deliberately:
 ///   - F# writes a module's principal type as `Module.T`; Dark writes the bare name, or `Module.Module`
 ///   - F# type ABBREVIATIONS are erased at compile time, so an alias legitimately has no F# type at all
 let private findFsharp
   (types : Map<string, System.Type>)
   (darkName : string)
   : Option<System.Type> =
+  let fsharpName = Map.tryFind darkName fsharpNames |> Option.defaultValue darkName
   let principal =
     match darkName.Split('.') |> Array.toList with
     | [ outer; inner ] when outer = inner -> [ outer + ".T" ]
     | _ -> []
 
   let found =
-    (darkName :: (darkName + ".T") :: principal)
+    (fsharpName :: (fsharpName + ".T") :: principal)
     |> List.choose (fun c -> Map.tryFind c types)
 
   // Prefer one that carries a shape: `DB` resolves to the module's static class as well as to `DB.T`,
@@ -226,4 +232,24 @@ let conformance =
   }
 
 
-let tests = testList "PTConformance" [ conformance ]
+let expectedErrorCounterpart =
+  test "ExpectedError namespace mapping still checks its complete shape" {
+    let counterpart = findFsharp (fsharpTypesByName ()) "PackageTest.ExpectedError"
+    Expect.equal counterpart (Some typeof<PT.ExpectedError>) "the mapped F# type"
+    let fs = fsharpShape typeof<PT.ExpectedError>
+    let matching =
+      { kind = "union"
+        members = Map.ofList [ "RuntimeError", 1; "SqlCompilerError", 1 ] }
+    Expect.equal (drift "ExpectedError" fs matching) None "matching cases"
+    let missingCase =
+      { matching with members = Map.remove "SqlCompilerError" matching.members }
+    Expect.isSome (drift "ExpectedError" fs missingCase) "a missing case still fails"
+    let wrongArity =
+      { matching with members = Map.add "RuntimeError" 2 matching.members }
+    Expect.isSome
+      (drift "ExpectedError" fs wrongArity)
+      "a changed payload still fails"
+  }
+
+
+let tests = testList "PTConformance" [ conformance; expectedErrorCounterpart ]

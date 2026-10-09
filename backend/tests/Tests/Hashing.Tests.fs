@@ -397,6 +397,59 @@ let private valueHashTests =
       } ]
 
 
+let private testHashTests =
+  testList
+    "computeTestHash"
+    [ test "body, expected error, and permission ceiling are identity; docs are not" {
+        let baseTest : PT.PackageTest.PackageTest =
+          { hash = PT.Hash ""
+            body = eInt64 7L
+            description = "first wording"
+            expectedError = None
+            testDBs = []
+            permissionCeiling = Some Set.empty }
+        let hash = Hashing.computeTestHash Hashing.Normal baseTest
+        let docHash =
+          Hashing.computeTestHash
+            Hashing.Normal
+            { baseTest with description = "new wording" }
+        let bodyHash =
+          Hashing.computeTestHash Hashing.Normal { baseTest with body = eInt64 8L }
+        let expectedErrorHash =
+          Hashing.computeTestHash
+            Hashing.Normal
+            { baseTest with
+                expectedError = Some(PT.ExpectedError.RuntimeError "boom") }
+        let sqlErrorHash =
+          Hashing.computeTestHash
+            Hashing.Normal
+            { baseTest with
+                expectedError = Some(PT.ExpectedError.SqlCompilerError "boom") }
+        let effectHash =
+          Hashing.computeTestHash
+            Hashing.Normal
+            { baseTest with
+                permissionCeiling =
+                  Some(Set.singleton LibExecution.Effects.Effect.Clock) }
+        let dbHash =
+          Hashing.computeTestHash
+            Hashing.Normal
+            { baseTest with testDBs = [ "Items", PT.TString ] }
+        Expect.equal hash docHash "documentation does not invalidate a test result"
+        Expect.notEqual hash bodyHash "body changes invalidate a test result"
+        Expect.notEqual
+          hash
+          expectedErrorHash
+          "expected errors invalidate a test result"
+        Expect.notEqual
+          expectedErrorHash
+          sqlErrorHash
+          "the expected error kind is part of the test identity"
+        Expect.notEqual hash effectHash "permission changes invalidate a test result"
+        Expect.notEqual hash dbHash "test DB schemas invalidate a test result"
+      } ]
+
+
 let private opHashTests =
   testList
     "computeOpHash"
@@ -833,6 +886,7 @@ let tests =
     [ typeHashTests
       fnHashTests
       valueHashTests
+      testHashTests
       opHashTests
       sccTests
       placeholderHashTests

@@ -73,6 +73,8 @@ let draftAddedHashes () : List<String> =
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString t.hash)
     | AddTraitImpl i ->
       Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString i.hash)
+    | AddTest test ->
+      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString test.hash)
     | _ -> Stdlib.Option.Option.None)
 
 /// What <param hashes> reference, restricted to <param added> (the hashes the draft adds).
@@ -197,6 +199,7 @@ let contentIdIfWanted
     | AddValue v -> Stdlib.Option.Option.Some(hashOf v.hash)
     | AddTrait t -> Stdlib.Option.Option.Some(hashOf t.hash)
     | AddTraitImpl i -> Stdlib.Option.Option.Some(hashOf i.hash)
+    | AddTest test -> Stdlib.Option.Option.Some(hashOf test.hash)
     // A `Reference`, not a `Hash`: deprecations key on content, and the hash is inside the reference.
     | Deprecate(target, _, _, _) ->
       Stdlib.Option.Option.Some(hashOf (LanguageTools.ProgramTypes.Reference.hash target))
