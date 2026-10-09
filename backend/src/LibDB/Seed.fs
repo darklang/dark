@@ -124,6 +124,7 @@ let export (outputPath : string) : Task<unit> =
       DELETE FROM trace_fn_calls;
       DELETE FROM trace_fns;
       DELETE FROM trace_loops;
+      DELETE FROM trace_blobs;
       DELETE FROM traces;
 
       -- ALL of it: `config_v0` is per-install by construction, and nothing needs a

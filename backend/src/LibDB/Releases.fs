@@ -343,6 +343,61 @@ let steps : List<Step> =
     { name = "20260930_000002_package_functions_debug_symbols"
       run = fun () -> addColumnIfMissing "package_functions" "debug_symbols" "BLOB" }
 
+    // What each trace weighs, on its own row, so retention can apply `trace.maxMb` from one
+    // read of `traces` rather than summing `trace_fn_calls`, the table it exists to bound.
+    //
+    // The backfill only touches rows still at 0, so a run cut off halfway (or before the
+    // UPDATE, after the ALTER) is finished by the next one rather than skipped. One statement,
+    // so an interruption rolls it back whole. Measured on a 989 MB dev store, 12 traces over
+    // 82,390 logged calls: 90 ms, and 6 ms to run again over a finished backfill.
+    { name = "20261007_000001_traces_bytes"
+      run =
+        fun () ->
+          if tableExists "traces" then
+            addColumnIfMissing "traces" "bytes" "INTEGER NOT NULL DEFAULT 0"
+            Sql.query
+              "UPDATE traces SET bytes =
+                 COALESCE(LENGTH(input_value), 0) + COALESCE(LENGTH(result_value), 0)
+                 + COALESCE((SELECT SUM(LENGTH(c.args) + LENGTH(c.result))
+                             FROM trace_fn_calls c WHERE c.trace_id = traces.id), 0)
+               WHERE bytes = 0"
+            |> Sql.executeStatementSync }
+
+    // A logged result lives in the trace's `trace_blobs`, once per distinct value, and its row's
+    // `result` holds the value's hash as TEXT. A store from before keeps the value itself there,
+    // a BLOB, so this moves each one across. `typeof` is what tells the two apart, which makes
+    // the step finish what an interrupted run started: each batch is one transaction, and a
+    // row it converted is TEXT and is not picked up again.
+    { name = "20261008_000001_trace_results_in_trace_blobs"
+      run =
+        fun () ->
+          let rec moveBatch () =
+            let rows =
+              Sql.query
+                "SELECT rowid AS rid, trace_id, result FROM trace_fn_calls
+                 WHERE typeof(result) = 'blob' LIMIT 5000"
+              |> Sql.execute (fun read ->
+                read.int64 "rid", read.string "trace_id", read.bytes "result")
+              |> Result.unwrap
+            if not (List.isEmpty rows) then
+              let hashed =
+                rows
+                |> List.map (fun (rid, traceId, bytes) ->
+                  (rid, traceId, bytes, LibExecution.Blob.sha256Hex bytes))
+              Sql.executeTransactionSync
+                [ "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
+                   VALUES (@t, @h, @b)",
+                  hashed
+                  |> List.map (fun (_, t, b, h) ->
+                    [ "t", Sql.string t; "h", Sql.string h; "b", Sql.bytes b ])
+                  "UPDATE trace_fn_calls SET result = @h WHERE rowid = @rid",
+                  hashed
+                  |> List.map (fun (rid, _, _, h) ->
+                    [ "h", Sql.string h; "rid", Sql.int64 rid ]) ]
+              |> ignore<List<int>>
+              moveBatch ()
+          if tableExists "trace_fn_calls" then moveBatch () }
+
     // NEW STEPS GO ABOVE THIS LINE -- `scripts/migrations/new` appends here, and edits nothing else.
     ]
 

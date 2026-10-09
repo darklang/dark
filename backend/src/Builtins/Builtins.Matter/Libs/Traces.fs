@@ -161,11 +161,12 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
   uply {
     let! events =
       Sql.query
-        "SELECT call_id, fn_hash,
-                args, result, duration_ms, process_id, seq, ord
-         FROM trace_fn_calls
-         WHERE trace_id = @traceId
-         ORDER BY seq, rowid"
+        "SELECT c.call_id, c.fn_hash,
+                c.args, r.bytes AS result, c.duration_ms, c.process_id, c.seq, c.ord
+         FROM trace_fn_calls c
+         JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
+         WHERE c.trace_id = @traceId
+         ORDER BY c.seq, c.rowid"
       |> Sql.parameters [ "traceId", Sql.string traceId ]
       |> Sql.executeAsync (fun read ->
         {| callId = read.string "call_id"
@@ -571,8 +572,11 @@ let fns () : List<BuiltInFn> =
                   uply {
                     let! callRows =
                       Sql.query
-                        "SELECT args, result FROM trace_fn_calls
-                         WHERE trace_id = @traceId"
+                        "SELECT c.args, r.bytes AS result
+                         FROM trace_fn_calls c
+                         JOIN trace_blobs r
+                           ON r.trace_id = c.trace_id AND r.hash = c.result
+                         WHERE c.trace_id = @traceId"
                       |> Sql.parameters [ "traceId", Sql.string t.id ]
                       |> Sql.executeAsync (fun read ->
                         {| argsBytes = read.bytes "args"

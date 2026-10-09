@@ -794,7 +794,9 @@ let private isStubInt64 (dv : RT.Dval) : bool =
 let prepareStubsTopLevelStream =
   testTask "prepareDvalForStorage: top-level DStream becomes DStreamStub" {
     let state = freshState ()
-    let! result = Tracing.prepareDvalForStorage state (freshStream ()) |> Ply.toTask
+    let! result =
+      Tracing.prepareDvalForStorage state.blobs.persist (freshStream ())
+      |> Ply.toTask
     Expect.isTrue (isStubInt64 result) $"expected stub, got {result}"
   }
 
@@ -803,7 +805,7 @@ let prepareStubsStreamInsideList =
     let state = freshState ()
     let dv =
       RT.DList(RT.ValueType.Unknown, [ RT.DInt64 1L; freshStream (); RT.DInt64 2L ])
-    let! result = Tracing.prepareDvalForStorage state dv |> Ply.toTask
+    let! result = Tracing.prepareDvalForStorage state.blobs.persist dv |> Ply.toTask
     match result with
     | RT.DList(_, [ a; b; c ]) ->
       Expect.equal a (RT.DInt64 1L) "leading sibling preserved"
@@ -824,7 +826,7 @@ let prepareStubsStreamInsideRecord =
         [],
         Map.ofList [ ("body", freshStream ()); ("count", RT.DInt64 5L) ]
       )
-    let! result = Tracing.prepareDvalForStorage state dv |> Ply.toTask
+    let! result = Tracing.prepareDvalForStorage state.blobs.persist dv |> Ply.toTask
     match result with
     | RT.DRecord(_, _, _, fields) ->
       let body = fields["body"]
@@ -837,7 +839,7 @@ let prepareStubsStreamInsideClosure =
   testTask "prepareDvalForStorage: DStream captured by AppLambda is stubbed" {
     let state = freshState ()
     let dv = fakeAppLambda [ (1, freshStream ()) ] []
-    let! result = Tracing.prepareDvalForStorage state dv |> Ply.toTask
+    let! result = Tracing.prepareDvalForStorage state.blobs.persist dv |> Ply.toTask
     match result with
     | RT.DApplicable(RT.AppLambda lambda) ->
       match lambda.closedRegisters with

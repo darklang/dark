@@ -586,11 +586,14 @@ let private handleRequest
               // What the handler answered, for the same reason an `eval`'s result is recorded.
               // Through `prepareDvalForStorage` first: a response body is an EPHEMERAL blob,
               // whose bytes die with the request scope, so storing the ref as it stands leaves
-              // a row pointing at nothing.
+              // a row pointing at nothing. The trace keeps the bytes, and they go with it.
               match outcome with
               | Value dv ->
                 let! prepared =
-                  Tracing.prepareDvalForStorage perRequestState dv |> Ply.toTask
+                  Tracing.prepareDvalForStorage
+                    (Tracing.TraceStorage.keepBlobIn runId)
+                    dv
+                  |> Ply.toTask
                 LibDB.Traces.setResult runId prepared
               | Direct _ -> ()
               if response.statusCode >= 500 then
