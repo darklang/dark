@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Which release a build is, for LibConfig to embed (read by `dark version`). Two lines:
+#   1. the release tag when this commit is one: CircleCI's CIRCLE_TAG on the release pipeline, else an
+#      exact `v*` tag on HEAD
+#   2. the newest `v*` tag at or before HEAD, the release this build comes after
+# Either may be empty, as in a clone that never fetched tags. Never fails the build.
+echo "${CIRCLE_TAG:-$(git describe --tags --exact-match --match 'v*' HEAD 2>/dev/null)}"
+git describe --tags --abbrev=0 --match 'v*' HEAD 2>/dev/null || echo

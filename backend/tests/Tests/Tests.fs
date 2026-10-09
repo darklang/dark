@@ -78,6 +78,7 @@ let main (args : string array) : int =
         Tests.Propagation.tests
         Tests.Draft.tests
         Tests.Purge.tests
+        Tests.Upgrades.tests
         Tests.Hashing.tests
         Tests.Config.tests
 

@@ -150,7 +150,6 @@ let private backupBeforeUpgrade
        destination.Open()
        source.BackupDatabase destination)
       File.Move(partial, target)
-      eprintfn $"Backed up your store to {target} before upgrading it."
       Ok target
     with e ->
       Error e.Message
@@ -160,6 +159,24 @@ let private backupBeforeUpgrade
 ///
 /// Carrying on is what this replaces: one line on stderr, the command ran against a half-migrated
 /// store, and the build stamp went in anyway, so the same binary never tried again.
+/// Put the store back to the copy taken before the upgrade touched it. Every connection is closed first,
+/// and the WAL and shared-memory files go with the store they belong to, or SQLite would replay them
+/// over the restored copy.
+let private restoreBackup
+  (dbPath : string)
+  (backup : string)
+  : Result<unit, string> =
+  try
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools()
+    for suffix in [ "-wal"; "-shm"; "-journal" ] do
+      let f = dbPath + suffix
+      if File.Exists f then File.Delete f
+    File.Copy(backup, dbPath, true)
+    Ok()
+  with e ->
+    Error e.Message
+
+
 let private refuseToOpen
   (dbPath : string)
   (backup : string option)
@@ -167,14 +184,41 @@ let private refuseToOpen
   (reason : string)
   : 'a =
   let e = System.Console.Error
+  // Try, and roll back fully if it fails: a half-upgraded store is worse than the old one, which the
+  // previous dark can still open.
+  let restored =
+    match backup with
+    | Some b -> restoreBackup dbPath b
+    | None -> Error "no backup"
   e.WriteLine ""
-  e.WriteLine "dark could not finish upgrading your store, so it has not opened it."
+  match restored with
+  | Ok() ->
+    e.WriteLine
+      "dark could not upgrade your store, so it has put your data back as it was."
+  | Error _ ->
+    e.WriteLine
+      "dark could not finish upgrading your store, so it has not opened it."
   e.WriteLine $"  {what}"
   // The first line: a database error carries its whole stack trace in its message.
   let firstLine = (reason.Split '\n' |> Array.head).Trim()
   e.WriteLine $"  error: {firstLine}"
-  match backup with
-  | Some backup ->
+  match backup, restored with
+  | Some backup, Ok() ->
+    e.WriteLine
+      "  the dark you used before can still open it; a copy is also kept at:"
+    e.WriteLine $"    {backup}"
+    e.WriteLine ""
+    // Not "try again": the same dark meets the same store the same way. What helps is the old dark, or
+    // a newer one that fixes the cause, so that is what comes first.
+    e.WriteLine
+      "Nothing was stamped. This dark will refuse the same way on every start until the cause"
+    e.WriteLine
+      "is fixed, so keep using the dark you had before, and report the error above."
+    e.WriteLine
+      "To start this dark with an empty store instead, move this one aside; your work stays in"
+    e.WriteLine "the moved copy, which the dark you had before can still open:"
+    e.WriteLine $"  mv '{dbPath}' '{dbPath}.old'"
+  | Some backup, Error _ ->
     e.WriteLine $"  your store from before this upgrade: {backup}"
     e.WriteLine ""
     e.WriteLine
@@ -182,7 +226,7 @@ let private refuseToOpen
     e.WriteLine "To go back instead, stop every dark, then:"
     e.WriteLine $"  rm -f '{dbPath}-wal' '{dbPath}-shm' && cp '{backup}' '{dbPath}'"
     e.WriteLine "and use the dark you had before."
-  | None ->
+  | None, _ ->
     e.WriteLine "  no backup was taken, so nothing in the store has been changed."
   exit 3
 
@@ -247,7 +291,7 @@ let mutable locallyAuthored
 ///
 /// Failure is not fatal on purpose: a store that could not be topped up is no worse off than before. It
 /// answers whether it worked, so a failure leaves the store unstamped and the next start tries again.
-let private reseedFromEmbedded (dbPath : string) : bool =
+let private reseedFromEmbedded (dbPath : string) : Result<unit, string> =
   let temp =
     Path.Combine(Path.GetTempPath(), $"dark-seed-{System.Guid.NewGuid()}.db")
 
@@ -356,12 +400,33 @@ let private reseedFromEmbedded (dbPath : string) : bool =
            DETACH DATABASE seed;"
         cmd.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
         cmd.ExecuteNonQuery() |> ignore<int>
-      true
+
+        // Every op of this release has to be IN the store now, and nothing above says so: `INSERT OR
+        // IGNORE` also ignores a row that breaks a NOT NULL constraint. A July store's `package_ops`
+        // has a `branch_id NOT NULL` this insert does not fill, so all 15,194 release ops were dropped
+        // without a word, the ledger above recorded them anyway, and the store was stamped holding
+        // 10,918.
+        use landed = conn.CreateCommand()
+        landed.CommandText <-
+          "ATTACH DATABASE $seed AS seed3;
+           SELECT (SELECT COUNT(*) FROM seed3.package_ops s
+                     WHERE NOT EXISTS (SELECT 1 FROM package_ops o WHERE o.id = s.id)),
+                  (SELECT COUNT(*) FROM seed3.package_ops);"
+        landed.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
+        use r = landed.ExecuteReader()
+        r.Read() |> ignore<bool>
+        let missing, total = r.GetInt64 0, r.GetInt64 1
+        r.Close()
+        use detach3 = conn.CreateCommand()
+        detach3.CommandText <- "DETACH DATABASE seed3;"
+        detach3.ExecuteNonQuery() |> ignore<int>
+        if missing > 0L then
+          Exception.raiseInternal
+            $"{missing} of this release's {total} package ops did not go into the store; its tables have a shape this release cannot write to"
+            []
+      Ok()
     with e ->
-      System.Console.Error.WriteLine(
-        $"could not top up the package store: {e.Message}"
-      )
-      false
+      Error e.Message
   finally
     try
       if File.Exists temp then File.Delete temp
@@ -400,13 +465,15 @@ let private storeStamp (dbPath : string) : string option =
   try
     use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
     conn.Open()
-    use cmd = conn.CreateCommand()
-    cmd.CommandText <- stampTable
-    cmd.ExecuteNonQuery() |> ignore<int>
+    // Read-only: asking whether a store is current must not change it. Creating the table here put an
+    // empty `store_stamp_v0` into a store that the upgrade then refused, so "put back as it was" was not.
     use read = conn.CreateCommand()
-    read.CommandText <- "SELECT build FROM store_stamp_v0 WHERE id = 0"
+    read.CommandText <-
+      "SELECT CASE WHEN EXISTS (SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'store_stamp_v0')
+              THEN (SELECT build FROM store_stamp_v0 WHERE id = 0) END"
     match read.ExecuteScalar() with
     | null -> None
+    | :? System.DBNull -> None
     | v -> Some(string v)
   with _ ->
     None // an unreadable store is not one we should claim is up to date
@@ -424,6 +491,74 @@ let private recordStoreStamp (dbPath : string) (build : string) : unit =
     cmd.ExecuteNonQuery() |> ignore<int>
   with _ ->
     () // failing to record it costs the next run the top-up it just did, nothing worse
+
+/// An upgrade this start has run but not yet certified: the build it is for, and the backup it took.
+/// `extract` sets it; `finishUpgrade` stamps or rolls back.
+let mutable private pendingUpgrade : Option<string * string> = None
+
+/// What the upgrade did, line by line, while it runs: the units, the fold. Said as one line once it has
+/// finished, or not at all if it is refused (the refusal says what failed).
+let private upgradeNotes = ResizeArray<string>()
+
+/// A progress line from the fold. During an upgrade it joins the upgrade's notes; otherwise it is said.
+let progress (line : string) : unit =
+  if Option.isSome pendingUpgrade then
+    upgradeNotes.Add line
+  else
+    eprintfn "%s" line
+
+/// Which dark this is, as `dark version` names it: the release, or the build.
+let private thisDark () : string =
+  match LibConfig.Config.releaseTags with
+  | Some tag, _ -> tag
+  | None, _ -> $"alpha-{LibConfig.Config.buildHash}"
+
+/// Whether this start upgraded the store and has not yet certified it.
+let upgradePending () : bool = Option.isSome pendingUpgrade
+
+/// Certify the upgrade `extract` ran, once the fold has: stamp the store if it holds every package item
+/// this binary pins, or put it back and refuse. Called under the upgrade lock, straight after the fold.
+///
+/// The stamp used to be written at the end of `extract`, BEFORE the fold, which certified a store nothing
+/// had yet shown could run anything.
+let finishUpgrade (dbPath : string) : unit =
+  match pendingUpgrade with
+  | None -> ()
+  | Some(build, backup) ->
+    match LibDB.Seed.missingPins () with
+    | [] ->
+      recordStoreStamp dbPath build
+      pendingUpgrade <- None
+      let units =
+        upgradeNotes
+        |> Seq.filter (fun l -> l.StartsWith "Running upgrade:")
+        |> Seq.length
+      let changes =
+        match units with
+        | 0 -> ""
+        | 1 -> " (1 change to its shape or data)"
+        | n -> $" ({n} changes to its shape or data)"
+      // One line on stderr, so stdout is still only what the command printed: an agent reading the output
+      // of `dark eval` gets its answer, and a person sees that something happened once.
+      eprintfn
+        $"Upgraded this store for {thisDark ()}{changes}. The store as it was is kept at {backup}; `dark store` says more."
+    | missing ->
+      let n = List.length missing
+      let total = List.length (LibExecution.PackageRefs.pinned ())
+      let some = missing |> List.truncate 3 |> String.concat ", "
+      refuseToOpen
+        dbPath
+        (Some backup)
+        "after the upgrade, the store does not hold what this dark needs to run"
+        $"{n} of the {total} package items it relies on are missing ({some})"
+
+/// The fold failed part way through an upgrade: put the store back and refuse.
+let abandonUpgrade (dbPath : string) (reason : string) : unit =
+  match pendingUpgrade with
+  | None -> ()
+  | Some(_, backup) ->
+    refuseToOpen dbPath (Some backup) "folding the upgraded store failed" reason
+
 
 let extract () : unit =
   // On first run, decompress the embedded seed db to `~/.darklang/data.db`; afterwards the
@@ -468,6 +603,8 @@ let extract () : unit =
       use _upgrading = upgradeLock dbPath
       // Another dark may have done all of this while this one waited for the lock.
       if not (build <> "dev" && storeStamp dbPath = Some build) then
+        // Collected rather than printed, and said as one line when the upgrade finishes.
+        if build <> "dev" then LibDB.Upgrades.say <- upgradeNotes.Add
         let backup =
           match backupBeforeUpgrade dbPath build with
           | Ok backup -> backup
@@ -481,12 +618,12 @@ let extract () : unit =
         try
           match embeddedSchema () with
           | Some sql ->
-            timed "extract.schema" (fun () -> LibDB.Releases.applySchemaTables sql)
-            timed "extract.releases" (fun () -> LibDB.Releases.runPending ())
-            timed "extract.indexes" (fun () -> LibDB.Releases.applySchemaIndexes sql)
+            timed "extract.upgrade" (fun () -> LibDB.Releases.upgrade sql)
           | None -> ()
         with
-        | LibDB.Releases.StepFailed(step, inner) ->
+        // The runner's own exception, named where it is declared. Not re-exported from `Releases`: Fantomas
+        // rewrites an exception abbreviation (`exception X = Y.X`) into a new exception with no fields.
+        | LibDB.Upgrades.StepFailed(step, inner) ->
           refuseToOpen dbPath (Some backup) $"release step: {step}" inner.Message
         | e ->
           refuseToOpen
@@ -498,9 +635,17 @@ let extract () : unit =
         // Top up an existing store with this binary's own package code (see
         // `reseedFromEmbedded`: additive, content-addressed), then `growIfNeeded` folds
         // it; without this, upgrading the binary would mean wiping the store.
-        let toppedUp =
-          timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)
-        if toppedUp && build <> "dev" then recordStoreStamp dbPath build
+        match timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath) with
+        | Error reason ->
+          refuseToOpen
+            dbPath
+            (Some backup)
+            "adding this release's packages to the store"
+            reason
+        | Ok() -> ()
+        // Not stamped yet: the store is current only once the fold has run and it holds what this
+        // binary needs, which only `finishUpgrade` can tell, after `Cli.fs` has folded it.
+        if build <> "dev" then pendingUpgrade <- Some(build, backup)
 
     if not (File.Exists(dbPath)) then
       eprintfn $"Setting up Darklang CLI data directory at {darklangDir}"

@@ -1,0 +1,10 @@
+# The write secret out of the store, into the credential database beside it. A plain SELECT on
+# `config_v0` used to read it with a grant every install has; see `LibDB.Config.credentialsPath`.
+#
+# Copy first, delete only what copied: a store that still has the row is recoverable, one that
+# lost it means re-running `dark connect --secret`.
+
+kind = "data"
+after = ["20260909_000002_conflicts_part"]
+touches = ["config_v0"]
+transactional = false

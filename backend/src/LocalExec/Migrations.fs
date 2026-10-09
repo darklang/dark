@@ -170,9 +170,7 @@ let private runSchemaBootstrap (sql : string) : unit =
 
 let run () : unit =
   let sql = schemaSql ()
-  // Three passes, and the order is the whole point. Tables first, so everything exists. Then the
-  // release steps, which are the only thing that can add a COLUMN to a table that already exists.
-  // Then the indexes, which may name a column a step has just added.
+  // The dev-only part first: a moved schema hash drops and re-folds the projections. Then the same
+  // upgrade every published binary runs (its tables pass is a no-op after this one).
   runSchemaBootstrap sql
-  LibDB.Releases.runPending ()
-  LibDB.Releases.applySchemaIndexes sql
+  LibDB.Releases.upgrade sql

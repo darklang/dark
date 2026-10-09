@@ -1017,3 +1017,157 @@ if report["checked"] < floor:
 sys.exit(0 if rc == 0 and not failed else 1)
 EOF
 }
+
+
+# --- old-release-stores: a store made by a real old release, opened by this tree's published binary ---
+# The upgrade path only runs in a published binary against a store some OTHER binary wrote, and nothing
+# else in the tree has either. So: download pinned old releases, let each make a store and author into
+# it, then open that store with this tree's CLI. Each release says what must happen: `upgrades` (the work
+# survives, and the old release can still open the store afterwards) or `refuses` (exit 3, the data put
+# back, the old release still opens it). A store from before the source-control rewrite cannot be carried
+# yet; it must refuse cleanly rather than be stamped and brick, which is what a release once did to it.
+#
+# Pinned by URL and the binary's sha256, so the gate does not change meaning when a release ships.
+# Downloads are cached in rundir/old-releases. The first line it prints is how many stores it examined:
+# "0 problems in 0 stores" is not a result.
+#
+# Gate, not a test: the thing under test is two published artifacts, one of them from GitHub.
+gate_old_release_stores() {
+  set -euo pipefail
+
+  local releases=(
+    # tag      expect   sha256 of the unzipped linux-x64 binary                            asset
+    "v0.0.25 refuses 545ebb7608247987951444ba5d9a13a809b5f19fdd80dc747fd10688a9ca8279 darklang-alpha-9a54538074-linux-x64.gz"
+    # The build on the main desktop install (d5076d632c). Its store predates both the stamp table and the
+    # source-control rewrite (d4cf37a55f, 2026-09-06: `branch_ops`, and a `package_ops` with a
+    # `branch_id NOT NULL`), so today it refuses; the pre-rewrite backfill is what makes it upgrade.
+    "v0.0.34 refuses eee1f7bbaea6737318d7ecdb7a7e2ce238860cd34a3d1fb62724359a5a6d35fd darklang-alpha-d5076d632c-linux-x64.gz no-stamp"
+    "v0.0.35 upgrades 9e51fce0807956c217709d4e07469fd667b14d6d99d0c67d5fc4f7d57dd6942b darklang-alpha-0b3888d8e4-linux-x64.gz"
+    "v0.0.36 upgrades 49af8d12c2629c9994eefd51909b0e5de6846666ad244330392d8b11ad85f4d9 darklang-alpha-95b09c9a01-linux-x64.gz"
+    "v0.0.40 upgrades 4a2f0aa4835e4cc72b7ad47d84d58f09b69d4c330245256b41d6e3502a043203 darklang-alpha-27a12dbeaa-linux-x64.gz"
+    "v0.0.50 upgrades 040ac5ed0a0b7cd1dd7a4bfc3251cf0d1c88523ee9ae0dbbfbb6e0431e51748d darklang-alpha-3d4976268a-linux-x64.gz"
+    "v0.0.66 upgrades a2ae4e447d4e4c329ca59a5c223437fde9494ea7d833868058eb35fa17b32db0 darklang-alpha-dcfea635b3-linux-x64.gz"
+  )
+
+  [[ "$(uname -m)" == "x86_64" ]] || { echo "old-release-stores: the pinned releases are linux-x64 only" >&2; exit 2; }
+
+  ARTIFACT=${1:-}
+  if [[ -z "$ARTIFACT" ]]; then
+    # shellcheck disable=SC2012  # need mtime order; no filename here has a space
+    ARTIFACT=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1 || true)
+  fi
+  [[ -x "$ARTIFACT" ]] || { echo "old-release-stores: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2; exit 2; }
+  ARTIFACT=$(readlink -f "$ARTIFACT")
+
+  local cache=rundir/old-releases
+  mkdir -p "$cache"
+  WORK=$(mktemp -d)
+  trap 'rm -rf "$WORK"' EXIT
+
+  # Every binary runs with an empty environment from a directory of its own: a release keeps its store
+  # beside its executable (portable mode), and the container's DARK_CONFIG_RUNDIR would otherwise send
+  # them all to the shared dev store.
+  run() {  # run <dir> <binary> <args...>; prints output, returns the exit code
+    local dir="$1" bin="$2"; shift 2
+    env -i HOME="$dir" PATH=/usr/bin:/bin TERM=dumb timeout 300 "$dir/$bin" "$@" < /dev/null 2>&1 \
+      | sed 's/\x1b\[[0-9;]*[A-Za-z]//g'
+    return "${PIPESTATUS[0]}"
+  }
+  dump_hash() { sqlite3 "$1" .dump | sha256sum | cut -c1-16; }
+
+  # A fresh store from this tree's binary: what an upgraded one is compared with.
+  mkdir -p "$WORK/fresh"; cp "$ARTIFACT" "$WORK/fresh/new"
+  run "$WORK/fresh" new eval '1L' > /dev/null || { echo "old-release-stores: this tree's binary could not make a fresh store" >&2; exit 1; }
+  local current_format
+  current_format=$(run "$WORK/fresh" new eval 'Darklang.Stdlib.LocalStore.formatCurrent ()' | grep -oE '^[0-9]+' | tail -1)
+  [[ -n "$current_format" ]] || { echo "old-release-stores: could not read this binary's format" >&2; exit 1; }
+
+  local examined=0 failures=0 rewritten=0 tag expect sha asset shape bin dir out code before formats drift identity
+  for entry in "${releases[@]}"; do
+    shape=""
+    read -r tag expect sha asset shape <<<"$entry"
+    bin="$cache/$tag"
+    if [[ ! -x "$bin" ]] || [[ "$(sha256sum "$bin" | cut -c1-64)" != "$sha" ]]; then
+      curl -fsSL "https://github.com/darklang/dark/releases/download/$tag/$asset" | gunzip > "$bin.tmp"
+      chmod +x "$bin.tmp"; mv "$bin.tmp" "$bin"
+    fi
+    [[ "$(sha256sum "$bin" | cut -c1-64)" == "$sha" ]] || { echo "  FAIL $tag: the download does not match its pinned sha256"; failures=$((failures + 1)); continue; }
+
+    dir="$WORK/$tag"; mkdir -p "$dir"
+    cp "$bin" "$dir/old"; cp "$ARTIFACT" "$dir/new"
+    # A release reads `package-ref-hashes.txt` from the source path baked in at its build before it falls
+    # back to its embedded copy, and early releases were built at /home/dark/app, which in a dev container
+    # is THIS clone: v0.0.25 loads today's pins and dies at startup. Blind this copy to the tree by
+    # renaming the baked path, same length, so it reads its own pins as it would on anyone's machine.
+    python3 -c 'import sys
+p = sys.argv[1]; d = open(p, "rb").read()
+for a, b in ((b"/home/dark/app/", b"/home/dark/zzz/"), ("/home/dark/app/".encode("utf-16-le"), "/home/dark/zzz/".encode("utf-16-le"))):
+    d = d.replace(a, b)
+open(p, "wb").write(d)' "$dir/old"
+    run "$dir" old fn Me.OldStore.answer '() : Int64 = 42L' > /dev/null || true
+    run "$dir" old config set oldstore.kept yes > /dev/null || true
+    out=$(run "$dir" old eval 'Me.OldStore.answer ()') || true
+    [[ "$out" == *42* ]] || { echo "  FAIL $tag: the old release could not set up its own store"; failures=$((failures + 1)); continue; }
+    before=$(dump_hash "$dir/.darklang/data.db")
+    python3 scripts/testing/_op-identity snapshot "$dir/.darklang/data.db" "$dir/ops-before.tsv"
+    if [[ "$shape" == "no-stamp" ]] && sqlite3 "$dir/.darklang/data.db" "SELECT 1 FROM sqlite_master WHERE name = 'store_stamp_v0'" | grep -q 1; then
+      echo "  FAIL $tag: expected a store with no stamp table, the shape of a store this release left; it has one"
+      failures=$((failures + 1)); continue
+    fi
+    examined=$((examined + 1))
+
+    code=0; out=$(run "$dir" new eval 'Me.OldStore.answer ()') || code=$?
+    case "$expect" in
+      upgrades)
+        if [[ $code -ne 0 || "$out" != *42* ]]; then
+          echo "  FAIL $tag: expected the store to upgrade, got exit $code:"; grep -vE 'Running release step|release: adding' <<<"$out" | tail -4 | sed 's/^/         /'
+          failures=$((failures + 1)); continue
+        fi
+        out=$(run "$dir" new config get oldstore.kept) || true
+        [[ "$out" == *yes* ]] || { echo "  FAIL $tag: the config value did not survive"; failures=$((failures + 1)); continue; }
+        # Every op this dark can read is in its format now; an older one means the rewrite did not run.
+        out=$(run "$dir" new store) || true
+        formats=$(grep '^formats' <<<"$out" || true)
+        if [[ "$(grep -oE 'at format [0-9]+' <<<"$formats" | sort -u)" != "at format $current_format" ]]; then
+          echo "  FAIL $tag: after the upgrade, ops are not all at format $current_format: ${formats:-no formats line}"
+          failures=$((failures + 1)); continue
+        fi
+        # Every op keeps its id through the upgrade, and the rewrite moved the old ones in place: an op's id is
+        # its content hash, and nothing can regenerate the op log if one moves.
+        if ! identity=$(python3 scripts/testing/_op-identity check "$dir/ops-before.tsv" "$dir/.darklang/data.db" "$current_format"); then
+          echo "  FAIL $tag: op identity did not survive the upgrade:"; printf '%s\n' "$identity" | sed 's/^/         /'
+          failures=$((failures + 1)); continue
+        fi
+        # The upgraded store's shape equals a fresh one's: tables, columns (type, NOT NULL, default) and
+        # indexes. A difference means a merged base schema file was edited (it changes fresh stores only)
+        # or an upgrade unit is missing.
+        if ! drift=$(python3 scripts/testing/_schema-diff "$WORK/fresh/.darklang/data.db" "$dir/.darklang/data.db"); then
+          echo "  FAIL $tag: the upgraded store's shape differs from a fresh store's:"; printf '%s\n' "$drift" | sed 's/^/         /'
+          failures=$((failures + 1)); continue
+        fi
+        out=$(run "$dir" old eval 'Me.OldStore.answer ()') || true
+        [[ "$out" == *42* ]] || { echo "  FAIL $tag: after the upgrade, $tag can no longer open its own store"; failures=$((failures + 1)); continue; }
+        echo "  ok   $tag upgrades: the work survives, every op is at format $current_format, and $tag still opens the store"
+        echo "         ops: $identity"
+        rewritten=$((rewritten + $(grep -oE '[0-9]+ rewritten in place' <<<"$identity" | grep -oE '^[0-9]+')))
+        printf '%s\n' "$drift" | sed 's/^/         schema: /' ;;
+      refuses)
+        if [[ $code -ne 3 || "$out" != *"put your data back as it was"* ]]; then
+          echo "  FAIL $tag: expected a clean refusal (exit 3), got exit $code:"; grep -vE 'Running release step|release: adding' <<<"$out" | tail -4 | sed 's/^/         /'
+          failures=$((failures + 1)); continue
+        fi
+        [[ "$(dump_hash "$dir/.darklang/data.db")" == "$before" ]] || { echo "  FAIL $tag: refused, but the store's contents changed"; failures=$((failures + 1)); continue; }
+        [[ -z "$(sqlite3 "$dir/.darklang/data.db" 'SELECT build FROM store_stamp_v0' 2>/dev/null)" ]] || { echo "  FAIL $tag: refused, but the store was stamped"; failures=$((failures + 1)); continue; }
+        out=$(run "$dir" old eval 'Me.OldStore.answer ()') || true
+        [[ "$out" == *42* ]] || { echo "  FAIL $tag: after the refusal, $tag can no longer open its own store"; failures=$((failures + 1)); continue; }
+        echo "  ok   $tag refuses: exit 3, the data put back, unstamped, and $tag still opens it" ;;
+    esac
+  done
+
+  echo "old-release-stores: examined $examined of ${#releases[@]} pinned release stores, $failures failed"
+  [[ $examined -eq ${#releases[@]} ]] || { echo "  FAIL: not every pinned release produced a store to examine"; exit 1; }
+  # The blob rewrite has to have moved something somewhere, or every "unchanged" above is a no-op's.
+  echo "old-release-stores: $rewritten op(s) rewritten to format $current_format across the upgraded stores"
+  [[ $rewritten -gt 0 ]] || { echo "  FAIL: no pinned store had an op older than format $current_format, so the rewrite was never exercised"; exit 1; }
+  [[ $failures -eq 0 ]] || exit 1
+}

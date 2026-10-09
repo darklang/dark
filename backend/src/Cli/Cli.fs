@@ -619,21 +619,28 @@ let private runCli (args : string[]) : int =
           LibDB.Seed.EvaluationAuthority.underInstancePolicy
           (fun () -> builtinsLazy.Force())
           cliPackageManager
-          (fun msg -> System.Console.Error.WriteLine msg))
+          EmbeddedResources.progress)
           .Result
         |> ignore<bool>
-      with ex when isBinaryFormatFailure ex ->
+        // Still under the lock: the stamp says "this store is current", so it is written only after the
+        // fold, and only if the folded store holds what this build needs.
+        EmbeddedResources.finishUpgrade LibConfig.Config.dbPath
+      with
+      | ex when EmbeddedResources.upgradePending () ->
+        EmbeddedResources.abandonUpgrade LibConfig.Config.dbPath ex.Message
+      | ex when isBinaryFormatFailure ex ->
         let path = LibConfig.Config.dbPath
 
-        [ "This store was written by a build whose serialization format differs from this one, so"
-          "none of it can be read. Retrying will not help."
+        // The dark that wrote it comes first: after an upgrade rewrites every blob it can read, a store
+        // this dark cannot read is most likely one a NEWER dark wrote, and moving it aside would leave
+        // that work where this dark cannot see it.
+        [ "This store was written in a format this dark cannot read, so it has not been opened."
+          "  The dark that wrote it still can. If that was a newer dark, `dark update` gets you back to it."
           ""
-          "  Move it aside and a fresh store grows from this build's seed:"
+          "  To start this dark with an empty store instead, move this one aside; your work stays in"
+          "  the moved copy, which the dark that wrote it can open:"
           ""
-          $"    mv {path} {path}.old"
-          ""
-          "  Anything only in that store is still in the `.old` copy, readable by the build that"
-          "  wrote it." ]
+          $"    mv '{path}' '{path}.old'" ]
         |> List.iter System.Console.Error.WriteLine
 
         exit 1)
@@ -989,8 +996,22 @@ let private runCli (args : string[]) : int =
             $"Encountered a Runtime Error, stringified it, but somehow a non-string was returned.\nRuntime Error: {rte}\n'Stringified':\n{otherVal}\n{errorCallStackStr}"
 
         | Error newErr ->
-          logError
-            $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed.\nOriginal Error: {rte}\n{errorCallStackStr}\n\nError encountered when trying to stringify:\n{newErr}"
+          // The code that describes errors is package code too, so when it fails as well the usual reason is
+          // a store that does not hold what this binary needs. Say THAT, which a person can act on, before
+          // anything raw.
+          match LibDB.Seed.missingPins () with
+          | [] ->
+            logError
+              $"dark hit an error, and the code that describes errors failed as well.\n  error: {rte}\n  describing it failed with: {newErr}\n{errorCallStackStr}"
+          | missing ->
+            let path = LibConfig.Config.dbPath
+            let total = List.length (LibExecution.PackageRefs.pinned ())
+            let some = missing |> List.truncate 3 |> String.concat ", "
+            logError (
+              $"dark could not run: this store does not hold {List.length missing} of the {total} package items this dark needs ({some}).\n"
+              + "  It was most likely written by a different version of Darklang; the one that wrote it can still open it.\n"
+              + $"  To start fresh with this version instead, move it aside:  mv '{path}' '{path}.old'"
+            )
 
       1
     | Ok(RT.DInt64 i) -> intToExitCode (RT.DarkInt.Finite i)

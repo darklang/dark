@@ -1,0 +1,6 @@
+# ...and then keyed on the LOCATION instead, because content is shared and ten names holding one
+# declaration do not mean one thing. `item_docs` never reached a released build; it goes.
+
+kind = "shape"
+after = ["20260908_000002_item_docs"]
+touches = ["item_docs", "location_docs"]

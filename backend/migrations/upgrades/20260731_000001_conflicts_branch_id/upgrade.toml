@@ -1,0 +1,8 @@
+# A conflict is recorded against a name; this scopes it to a BRANCH too. Note the default here is
+# '' while the schema declares main's uuid, so a conflict row that predates the column is
+# scoped to no branch at all and no listing shows it. Deliberate: a conflict is a finding about a
+# log this store has since replaced, and re-detection produces it again under a real branch id.
+
+kind = "shape"
+after = []
+touches = ["conflicts"]

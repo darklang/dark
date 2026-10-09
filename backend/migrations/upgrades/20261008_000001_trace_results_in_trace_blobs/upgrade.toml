@@ -1,0 +1,10 @@
+# A logged result lives in the trace's `trace_blobs`, once per distinct value, and its row's
+# `result` holds the value's hash as TEXT. A store from before keeps the value itself there,
+# a BLOB, so this moves each one across. `typeof` is what tells the two apart, which makes
+# the step finish what an interrupted run started: each batch is one transaction, and a
+# row it converted is TEXT and is not picked up again.
+
+kind = "data"
+after = ["20261007_000001_traces_bytes"]
+touches = ["trace_fn_calls", "trace_blobs"]
+transactional = false

@@ -44,3 +44,17 @@ let backupTo (path: String) : Stdlib.Result.Result<Unit, String> =
 /// memory is still the OLD store, though, so the caller should say to restart.
 let restoreFrom (path: String) : Stdlib.Result.Result<Unit, String> =
   Builtin.localDbRestoreFrom path
+
+
+/// The store upgrades this binary carries (`backend/migrations/upgrades/`), in the order it runs them. A
+/// store records each by name once it has run, so a recorded name missing from here was run by a newer
+/// dark.
+let upgradesKnown () : List<String> = Builtin.storeUpgradesKnown ()
+
+
+/// The blob format this binary writes.
+let formatCurrent () : Int64 = Builtin.storeFormatCurrent ()
+
+
+/// The oldest blob format this binary still reads.
+let formatOldestReadable () : Int64 = Builtin.storeFormatOldestReadable ()

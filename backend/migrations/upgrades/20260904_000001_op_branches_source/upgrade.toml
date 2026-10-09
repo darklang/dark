@@ -1,0 +1,6 @@
+# The branch twin of `locations.source`; see `migrations/schema/`. Without it a branch records no
+# provenance.
+
+kind = "shape"
+after = ["20260828_000006_locations_previous"]
+touches = ["op_branches"]

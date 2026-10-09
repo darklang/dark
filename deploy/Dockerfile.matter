@@ -28,4 +28,9 @@ EXPOSE 9090
 # write secret arrives in, and the store it stores into. The operator here IS the image -- this
 # container exists to serve 9090 and nothing else. What the relay refuses is unchanged: it still
 # never folds what it hosts, and the write secret still gates every write.
-CMD ["/bin/sh", "-c", "for g in 'http-server 9090' 'env read DARK_MATTER_WRITE_SECRET' 'package-read' 'package-write'; do /home/dark/bin/Cli permissions allow $g >/dev/null 2>&1; done; exec /home/dark/bin/Cli serve --port 9090 Darklang.Matter.router"]
+#
+# The first command a start runs is the one that upgrades the store, if a deploy brought a newer binary:
+# so it is a visible one. Its backup line, or a refusal and how to recover, lands in the deploy log
+# rather than in a `permissions allow` whose output is thrown away, and a refused upgrade stops the start
+# there (exit 3) instead of four silent commands later.
+CMD ["/bin/sh", "-c", "/home/dark/bin/Cli --version || exit $?; for g in 'http-server 9090' 'env read DARK_MATTER_WRITE_SECRET' 'package-read' 'package-write'; do /home/dark/bin/Cli permissions allow $g >/dev/null 2>&1; done; exec /home/dark/bin/Cli serve --port 9090 Darklang.Matter.router"]

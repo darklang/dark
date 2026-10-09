@@ -309,6 +309,7 @@ let createInMemoryOver
     | PT.PackageOp.Undeprecate _
     | PT.PackageOp.UpdateDoc _
     | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Ack _)
+    | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Propagation _)
     | PT.PackageOp.BranchEvent _ -> ()
 
     // An override binds a name like a SetName does; the overlay only cares about the binding.

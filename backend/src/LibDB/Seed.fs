@@ -668,6 +668,37 @@ let evaluateAllValues
 /// values are evaluated by exactly this call — so a startup that trusted its own
 /// store would run guest code with the host's authority. Callers pass the
 /// instance policy; only build-time seed construction passes `TrustedSeed`.
+/// The package items this binary pins (`PackageRefs.pinned`) that the store does not hold, by name.
+/// Empty when the store can run this binary.
+///
+/// The question an upgrade has to answer before it calls a store current. The kernel resolves each pin by
+/// hash, so a store missing one fails on its first command, whatever its schema says: a July store passed
+/// every release step, took none of the new release's ops (its `package_ops` had a NOT NULL column the
+/// top-up does not fill, and `INSERT OR IGNORE` drops such a row without a word), and was stamped current
+/// with nothing in it that resolved.
+///
+/// A binary that pins nothing is reported as missing everything, rather than as carrying it all: a check
+/// that examined nothing must not pass.
+let missingPins () : List<string> =
+  match LibExecution.PackageRefs.pinned () with
+  | [] -> [ "(this build pins no package items, so nothing could be checked)" ]
+  | pins ->
+    pins
+    |> List.filter (fun (name, hash) ->
+      let table =
+        match (name.Split '/' |> Array.head) with
+        | "fn" -> "package_functions"
+        | "type" -> "package_types"
+        | "value" -> "package_values"
+        | "trait" -> "package_traits"
+        | _ -> "package_functions"
+      Sql.query $"SELECT 1 FROM {table} WHERE hash = @hash"
+      |> Sql.parameters [ "hash", Sql.string hash ]
+      |> Sql.executeExistsSync
+      |> not)
+    |> List.map fst
+
+
 let growIfNeeded
   (authority : EvaluationAuthority)
   (getBuiltins : unit -> RT.Builtins)

@@ -71,7 +71,14 @@ module RuntimeTypes =
 
       RT.TBlob
 
-      RT.TVariable "test" ]
+      RT.TVariable "test"
+
+      RT.TChar
+      RT.TUuid
+      RT.TDateTime
+      RT.TStream RT.TInt64
+      // a failed resolution, so the NameResolution error tag is written too (via `Apply` below)
+      RT.TCustomType({ originalName = [ "Nope" ]; resolved = Error RT.NotFound }, []) ]
 
 
   let valueTypes : List<RT.ValueType> =
@@ -108,7 +115,9 @@ module RuntimeTypes =
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
 
       known (RT.KnownType.KTDB ktUnit)
-      known RT.KnownType.KTBlob ]
+      known RT.KnownType.KTBlob
+      known (RT.KnownType.KTCustomType(RT.FQTypeName.Package hashRT, [ ktUnit ]))
+      known (RT.KnownType.KTStream ktUnit) ]
 
   let dvals () : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
@@ -147,7 +156,9 @@ module RuntimeTypes =
   // RT test values for binary serialization
   let packageTypes : List<RT.PackageType.PackageType> =
     [ { hash = RT.Hash "abc123"; declaration = typeDeclarations[0] }
-      { hash = RT.Hash "def456"; declaration = typeDeclarations[1] } ]
+      { hash = RT.Hash "def456"; declaration = typeDeclarations[1] }
+      { hash = RT.Hash "rec789"; declaration = typeDeclarations[2] }
+      { hash = RT.Hash "enum012"; declaration = typeDeclarations[3] } ]
 
   let packageValues : List<RT.PackageValue.PackageValue> =
     [ { hash = RT.Hash "val1"; body = RT.DString "Hello RT PackageValue" }
@@ -165,13 +176,89 @@ module RuntimeTypes =
             RT.Unwrap(
               2,
               0,
-              Some(
-                RT.FQTypeName.Package(
-                  RT.Hash(LibExecution.PackageRefs.Type.Stdlib.option ())
-                )
-              )
+              // A fixed hash, not the stdlib Option's: that one comes from the gitignored pins file
+              // and moves whenever Option does, which would turn this golden red with no format change.
+              Some(RT.FQTypeName.Package hashRT)
             ) ]
-        resultIn = 1 } ]
+        resultIn = 1 }
+
+      // Every instruction the two above miss, and through them every let and match pattern, so the
+      // golden corpus covers each tag the instruction writer can emit. Registers are arbitrary.
+      { registerCount = 4
+        instructions =
+          [ RT.Or(0, 1, 2)
+            RT.And(0, 1, 2)
+            RT.CreateString(0, [ RT.Interpolated 1 ])
+            RT.CheckLetPatternAndExtractVars(
+              0,
+              RT.LPTuple(RT.LPVariable 1, RT.LPUnit, [ RT.LPWildcard ])
+            )
+            RT.JumpByIfFalse(2, 0)
+            RT.CheckMatchPatternAndExtractVars(
+              0,
+              RT.MPOr(
+                NEList.ofList
+                  RT.MPUnit
+                  [ RT.MPBool true
+                    RT.MPInt8 127y
+                    RT.MPUInt8 255uy
+                    RT.MPInt16 32767s
+                    RT.MPUInt16 65535us
+                    RT.MPInt32 2147483647l
+                    RT.MPUInt32 4294967295ul
+                    RT.MPInt64 9223372036854775807L
+                    RT.MPUInt64 18446744073709551615UL
+                    RT.MPInt128 170141183460469231731687303715884105727Q
+                    RT.MPUInt128 340282366920938463463374607431768211455Z
+                    RT.MPInt(
+                      System.Numerics.BigInteger.Parse
+                        "123456789012345678901234567890"
+                    )
+                    RT.MPFloat 1.5
+                    RT.MPChar "c"
+                    RT.MPString "s"
+                    RT.MPList [ RT.MPUnit ]
+                    RT.MPListCons(RT.MPVariable 1, RT.MPList [])
+                    RT.MPTuple(RT.MPUnit, RT.MPUnit, [ RT.MPUnit ])
+                    RT.MPEnum("Some", [ RT.MPVariable 2 ])
+                    RT.MPVariable 3 ]
+              ),
+              5
+            )
+            RT.MatchUnmatched 0
+            RT.CreateTuple(0, 1, 2, [ 3 ])
+            RT.CreateList(0, [ 1; 2 ])
+            RT.CreateDict(0, [ (1, 2) ])
+            RT.CreateRecord(
+              0,
+              RT.FQTypeName.Package hashRT,
+              [ RT.TInt64 ],
+              [ ("f", 1) ]
+            )
+            RT.CloneRecordWithUpdates(0, 1, [ ("f", 2) ])
+            RT.GetRecordField(0, 1, "f")
+            RT.CreateEnum(0, RT.FQTypeName.Package hashRT, [], "Some", [ 1 ])
+            RT.LoadValue(0, RT.FQValueName.Builtin { name = "pi"; version = 0 })
+            RT.LoadValue(0, RT.FQValueName.Package hashRT)
+            RT.CreateLambda(
+              0,
+              { exprId = 9UL
+                patterns = NEList.singleton (RT.LPVariable 1)
+                registersToCloseOver = [ (2, 3) ]
+                selfRegister = Some 0
+                instructions =
+                  { registerCount = 1
+                    instructions = [ RT.CopyVal(0, 0) ]
+                    resultIn = 0 } }
+            )
+            // Every type reference, through the one instruction that carries a list of them.
+            RT.Apply(0, 1, typeReferences, NEList.ofList 2 [ 3 ])
+            RT.RaiseNRE([ "Nope" ], RT.NotFound)
+            RT.RaiseNRE([ "not a name" ], RT.InvalidName)
+            RT.VarNotFound(0, "x")
+            RT.CheckIfFirstExprIsUnit 0
+            RT.TraceExpr(11UL, 0) ]
+        resultIn = 0 } ]
 
   let packageFns : List<RT.PackageFn.PackageFn> =
     [ { hash = RT.Hash "fn1"
@@ -192,7 +279,18 @@ module RuntimeTypes =
         body = instructions[0]
         symbols = RT.DebugSymbols.emptyLazy
         permissionCeiling = Some(Set.singleton LibExecution.Effects.Effect.Clock)
-        bounds = [] } ]
+        bounds =
+          [ { param = "T"
+              trait_ =
+                { trait_ = RTNR.ok (RT.FQTraitName.Package hashRT)
+                  typeArgs = [ RT.TInt64 ] } } ] } ]
+
+
+  /// A function's symbol table, which travels in its own column. Index 300 takes a varint of two
+  /// bytes, so the golden pins the multi-byte form too.
+  let debugSymbols : List<RT.DebugSymbols> =
+    [ { exprAt = Map [ 300, struct (7UL, 1) ]
+        lambdas = Map [ 7UL, Map [ 0, struct (8UL, 2) ] ] } ]
 
 
   let vals : List<RT.Dval> =
@@ -225,10 +323,138 @@ module RuntimeTypes =
                 LibExecution.Permissions.Policy.denyAll
             argsSoFar = [] }
       )
-      // RT.CUuid and RT.CDateTime don't exist in RT.Const
-      // RT.CUuid uuid
-      // RT.CDateTime instant
-      ]
+      RT.DUuid uuid
+      RT.DDateTime(LibExecution.DarkDateTime.fromInstant instant)
+      RT.DList(RT.ValueType.Known RT.KnownType.KTInt64, [ RT.DInt64 1L ])
+      RT.DTuple(RT.DUnit, RT.DBool true, [ RT.DString "t" ])
+      RT.DDict(
+        RT.ValueType.Known RT.KnownType.KTString,
+        RT.ValueType.Known(
+          RT.KnownType.KTList(RT.ValueType.Known RT.KnownType.KTUuid)
+        ),
+        Map [ RT.DictKey(RT.DString "k"), RT.DList(RT.ValueType.Unknown, []) ]
+      )
+      RT.DRecord(
+        RT.FQTypeName.Package hashRT,
+        RT.FQTypeName.Package hashRT,
+        [ RT.ValueType.Known(
+            RT.KnownType.KTDict(RT.ValueType.Unknown, RT.ValueType.Unknown)
+          ) ],
+        Map [ "f", RT.DInt64 1L ]
+      )
+      RT.DEnum(
+        RT.FQTypeName.Package hashRT,
+        RT.FQTypeName.Package hashRT,
+        [ RT.ValueType.Known(
+            RT.KnownType.KTFn(
+              NEList.singleton RT.ValueType.Unknown,
+              RT.ValueType.Unknown
+            )
+          )
+          RT.ValueType.Known(
+            RT.KnownType.KTCustomType(RT.FQTypeName.Package hashRT, [])
+          )
+          RT.ValueType.Known(
+            RT.KnownType.KTTuple(RT.ValueType.Unknown, RT.ValueType.Unknown, [])
+          )
+          RT.ValueType.Known(RT.KnownType.KTDB RT.ValueType.Unknown)
+          RT.ValueType.Known RT.KnownType.KTBlob
+          RT.ValueType.Known(RT.KnownType.KTStream RT.ValueType.Unknown)
+          RT.ValueType.Known RT.KnownType.KTUnit
+          RT.ValueType.Known RT.KnownType.KTBool
+          RT.ValueType.Known RT.KnownType.KTInt8
+          RT.ValueType.Known RT.KnownType.KTUInt8
+          RT.ValueType.Known RT.KnownType.KTInt16
+          RT.ValueType.Known RT.KnownType.KTUInt16
+          RT.ValueType.Known RT.KnownType.KTInt32
+          RT.ValueType.Known RT.KnownType.KTUInt32
+          RT.ValueType.Known RT.KnownType.KTUInt64
+          RT.ValueType.Known RT.KnownType.KTInt128
+          RT.ValueType.Known RT.KnownType.KTUInt128
+          RT.ValueType.Known RT.KnownType.KTInt
+          RT.ValueType.Known RT.KnownType.KTFloat
+          RT.ValueType.Known RT.KnownType.KTChar
+          RT.ValueType.Known RT.KnownType.KTString
+          RT.ValueType.Known RT.KnownType.KTDateTime ],
+        "Some",
+        [ RT.DUnit ]
+      )
+      RT.DDB "db"
+      RT.DBlob(RT.Persistent("blobhash", 3L))
+      RT.DFloat System.Double.PositiveInfinity
+      RT.DFloat System.Double.NegativeInfinity
+      // NaN is not here: it never equals itself, so it cannot read back equal.
+      RT.DApplicable(
+        RT.AppLambda
+          { exprId = 8UL
+            closedRegisters = [ (1, RT.DInt64 2L) ]
+            typeSymbolTable =
+              RT.TST.empty
+              |> RT.TST.add "a" (RT.ValueType.Known RT.KnownType.KTInt64)
+            access =
+              LibExecution.Permissions.Access.start
+                LibExecution.Permissions.Policy.denyAll
+            argsSoFar = [ RT.DUnit ] }
+      )
+      RT.DApplicable(
+        RT.AppNamedFn
+          { name = RT.FQFnName.Builtin { name = "someFn"; version = 0 }
+            typeSymbolTable = RT.TST.empty
+            typeArgs = [ RT.TInt64 ]
+            access = None
+            argsSoFar = [ RT.DUnit ]
+            boundImpls =
+              [ struct ("a", hashRT, "show", RT.FQFnName.Chosen hashRT)
+                struct ("a", hashRT, "show", RT.FQFnName.FromTypeParam "b")
+                struct ("a", hashRT, "show", RT.FQFnName.Unknown) ] }
+      )
+      RT.DApplicable(
+        RT.AppNamedFn
+          { name = RT.FQFnName.Package hashRT
+            typeSymbolTable = RT.TST.empty
+            typeArgs = []
+            access = None
+            argsSoFar = []
+            boundImpls = [] }
+      )
+      // A trait method per implementation choice: its `implFn` has a writer of its own.
+      RT.DApplicable(
+        RT.AppNamedFn
+          { name =
+              RT.FQFnName.TraitMethod
+                { trait_ = hashRT; method_ = "show"; implFn = RT.FQFnName.Unknown }
+            typeSymbolTable = RT.TST.empty
+            typeArgs = []
+            access = None
+            argsSoFar = []
+            boundImpls = [] }
+      )
+      RT.DApplicable(
+        RT.AppNamedFn
+          { name =
+              RT.FQFnName.TraitMethod
+                { trait_ = hashRT
+                  method_ = "show"
+                  implFn = RT.FQFnName.Chosen hashRT }
+            typeSymbolTable = RT.TST.empty
+            typeArgs = []
+            access = None
+            argsSoFar = []
+            boundImpls = [] }
+      )
+      RT.DApplicable(
+        RT.AppNamedFn
+          { name =
+              RT.FQFnName.TraitMethod
+                { trait_ = hashRT
+                  method_ = "show"
+                  implFn = RT.FQFnName.FromTypeParam "a" }
+            typeSymbolTable = RT.TST.empty
+            typeArgs = []
+            access = None
+            argsSoFar = []
+            boundImpls = [] }
+      ) ]
 
 module ProgramTypes =
   open PT
@@ -761,9 +987,9 @@ module ProgramTypes =
         typeArgs = [ TInt ] }
     let traitCall =
       EApply(
-        gid (),
+        7001UL,
         EFnName(
-          gid (),
+          7002UL,
           NameResolution.ok (
             // With an implementation chosen, which is what a saved call carries.
             FQFnName.TraitMethod
@@ -786,7 +1012,7 @@ module ProgramTypes =
                       Some { owner = "Tests"; modules = [ "Show" ]; name = "show" } } } ]
         ),
         [],
-        NEList.singleton (EArg(gid (), 0))
+        NEList.singleton (EArg(7003UL, 0))
       )
     { hash = Hash "bounded-fn"
       body = traitCall
@@ -798,7 +1024,118 @@ module ProgramTypes =
       permissionCeiling = None
       bounds = [ { param = "a"; trait_ = showRef }; { param = "a"; trait_ = eqRef } ] }
 
-  let packageFns = [ packageFn; boundedPackageFn ]
+  /// The cases `expr`, `typeReference` and the lists above do not reach, in one function, so the golden
+  /// corpus covers every tag a live PT writer can emit (the `Deprecation` writer has no caller). Found by auditing each writer against these values;
+  /// add here rather than to `expr`, whose own golden bytes would otherwise move.
+  let coveragePackageFn : PackageFn.PackageFn =
+    let at = Some { owner = "Tests"; modules = [ "Cover" ]; name = "it" }
+    let failed
+      (originalName : List<string>)
+      (e : NameResolutionError)
+      : NameResolution<'a> =
+      { originalName = originalName; resolved = Error e }
+    let infixes =
+      [ ArithmeticPlus
+        ArithmeticMinus
+        ArithmeticMultiply
+        ArithmeticDivide
+        ArithmeticModulo
+        ArithmeticPower
+        BitwiseAnd
+        BitwiseOr
+        BitwiseXor
+        ShiftLeft
+        ShiftRight
+        ComparisonGreaterThan
+        ComparisonGreaterThanOrEqual
+        ComparisonLessThan
+        ComparisonLessThanOrEqual
+        ComparisonEquals
+        ComparisonNotEquals
+        StringConcat ]
+      |> List.map (fun f ->
+        EInfix(id, InfixFnCall f, EInt64(id, 1L), EInt64(id, 2L), FQFnName.Unknown))
+    let body =
+      EList(
+        id,
+        infixes
+        @ [ EInfix(
+              id,
+              BinOp BinOpAnd,
+              EBool(id, true),
+              EBool(id, false),
+              FQFnName.Unknown
+            )
+            EInfix(
+              id,
+              BinOp BinOpOr,
+              EBool(id, true),
+              EBool(id, false),
+              FQFnName.FromTypeParam "a"
+            )
+            ELet(
+              id,
+              LPUnit id,
+              EUnit id,
+              ELet(id, LPWildcard id, EUnit id, EUnit id)
+            )
+            EMatch(
+              id,
+              EUnit id,
+              matchPatterns
+              |> List.map (fun p ->
+                { pat = p; whenCondition = None; rhs = EUnit id })
+            )
+            EIf(id, EBool(id, true), EUnit id, None)
+            EValue(
+              id,
+              NameResolution.ok (FQValueName.Builtin { name = "pi"; version = 0 })
+            )
+            EValue(
+              id,
+              { originalName = [ "Tests"; "v" ]
+                resolved = Ok { name = FQValueName.Package hashPT; location = at } }
+            )
+            ESelf id
+            EFnName(id, failed [ "Nope"; "missing" ] NotFound, [])
+            EFnName(id, failed [ "not a name" ] InvalidName, [])
+            EPipe(
+              id,
+              EUnit id,
+              [ EPipeEnum(
+                  id,
+                  NameResolution.ok (FQTypeName.Package hashPT),
+                  "Some",
+                  [ EUnit id ]
+                )
+                EPipeFnCall(
+                  id,
+                  NameResolution.ok (FQFnName.Package hashPT),
+                  [],
+                  [],
+                  [ { param = "a"
+                      trait_ = Hash "trait-show"
+                      method_ = "show"
+                      choice =
+                        FQFnName.Chosen
+                          { name = Hash "impl-show-fn"; location = None } } ]
+                ) ]
+            ) ]
+      )
+    { hash = Hash "coverage-fn"
+      body = body
+      typeParams = [ "a" ]
+      parameters =
+        NEList.singleton
+          { name = "x"
+            typ = TTuple(TDateTime, TChar, [ TUuid; TBlob; TStream TInt64 ])
+            description = "" }
+      returnType = TUnit
+      description = "every PT tag the other values miss"
+      permissionCeiling = None
+      bounds = [] }
+
+  let packageFns = [ packageFn; boundedPackageFn; coveragePackageFn ]
 
   let packageType : PackageType.PackageType =
     { hash = hashPT
@@ -831,7 +1168,34 @@ module ProgramTypes =
           definition = TypeDeclaration.Alias(TList(TVariable "a")) }
       description = "bounded" }
 
-  let packageTypes = [ packageType; boundedPackageType ]
+  /// A record, and an enum field with no label: the two type shapes the others miss.
+  let recordPackageType : PackageType.PackageType =
+    { hash = Hash "record-type"
+      declaration =
+        { typeParams = []
+          bounds = []
+          definition =
+            TypeDeclaration.Record(
+              NEList.singleton { name = "f"; typ = TInt64; description = "" }
+            ) }
+      description = "record" }
+
+  let unlabelledEnumPackageType : PackageType.PackageType =
+    { hash = Hash "unlabelled-enum-type"
+      declaration =
+        { typeParams = []
+          bounds = []
+          definition =
+            TypeDeclaration.Enum(
+              NEList.singleton
+                { name = "only"
+                  fields = [ { typ = TInt64; label = None; description = "" } ]
+                  description = "" }
+            ) }
+      description = "unlabelled" }
+
+  let packageTypes =
+    [ packageType; boundedPackageType; recordPackageType; unlabelledEnumPackageType ]
 
   let packageValue : PT.PackageValue.PackageValue =
     { hash = Hash ""; body = constValue; description = "test" }
@@ -995,6 +1359,10 @@ module ProgramTypes =
           [ System.Guid.Parse "7c9e6679-7425-40de-944b-e07fc1f90ae7"
             System.Guid.Parse "3f2504e0-4f89-11d3-9a0c-0305e82c3300" ],
         "2026-01-01T00:00:00.000Z"
-      ) ]
+      )
+      // The retired pin/follow decisions, one per policy: real stores hold them, so they must decode.
+      Decision("p1", loc, "", DecisionKind.Propagation PropagationPolicy.Pin)
+      Decision("p2", loc, "", DecisionKind.Propagation PropagationPolicy.Follow)
+      Decision("p3", loc, "", DecisionKind.Propagation PropagationPolicy.Unset) ]
 
   let toplevels : List<DB.T> = [ userDB ]

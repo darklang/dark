@@ -1,0 +1,9 @@
+# Every package op and toplevel written in an older blob format, rewritten in this one, so a store's
+# oldest blob is the current format afterwards (`dark store` shows it). Format 5 is current here; the
+# next format bump adds a unit like this one, after it, calling the same `Upgrades.rewriteBlobsToCurrentFormat`.
+#
+# Ops keep their row ids, and an op this dark cannot read stays exactly as it was.
+
+kind = "format"
+after = ["20261008_000001_trace_results_in_trace_blobs"]
+touches = ["package_ops", "toplevels_v0"]

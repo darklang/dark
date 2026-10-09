@@ -1125,6 +1125,17 @@ and DecisionKind =
   /// what you are asked about, never what a name resolves to.
   | Ack of findingId : string
 
+  /// Retired wire case, decoded and never written. Pin/follow decisions authored before the
+  /// propagation rewrite are in real stores' logs as this; the fold gives it no effect. Removing it
+  /// made those ops unreadable without a format bump, which is why it is back and stays.
+  | Propagation of policy : PropagationPolicy
+
+/// Retired policy payload, kept solely so existing op bytes still decode.
+and PropagationPolicy =
+  | Pin
+  | Follow
+  | Unset
+
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers (LSP, CLI, runtime) decide how loud to be.
 /// TODO: `Harmful` is the only kind SCM can't already express via rebinding;

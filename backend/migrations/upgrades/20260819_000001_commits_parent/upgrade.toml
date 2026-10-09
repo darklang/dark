@@ -1,0 +1,6 @@
+# A commit names the commit it follows, so the graph is a chain. Existing rows get '', which reads
+# as "nothing before this one": true of the first, a lie about the rest, and unrecoverable.
+
+kind = "shape"
+after = ["20260731_000001_conflicts_branch_id"]
+touches = ["commits"]

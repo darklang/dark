@@ -48,12 +48,31 @@ let private warnOnce =
 let private warn (msg : string) : unit =
   if warnOnce.TryAdd(msg, true) then System.Console.Error.WriteLine msg
 
+/// Whether this binary is running from inside the source tree it was built from: a dev build, whose pins
+/// a package reload rewrites on disk after the binary was built. Anywhere else (an install, a copy, a
+/// container that happens to have a checkout at the same path) it is a published binary and must use the
+/// pins it carries.
+let private runningFromOwnTree () : bool =
+  let treeRoot =
+    System.IO.Path.GetFullPath(
+      System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "..")
+    )
+  let exe =
+    match System.Environment.ProcessPath with
+    | null -> System.AppContext.BaseDirectory
+    | p -> p
+  let sep = System.IO.Path.DirectorySeparatorChar
+  System.IO.Path.GetFullPath(exe).StartsWith(treeRoot.TrimEnd(sep) + string sep)
+
 let private loadHashes () : Map<string, string> =
   let sourceTreePath =
     System.IO.Path.Combine(__SOURCE_DIRECTORY__, "package-ref-hashes.txt")
     |> System.IO.Path.GetFullPath
   try
-    if System.IO.File.Exists(sourceTreePath) then
+    // The source path is baked in at build time, so a release built at /home/dark/app reads whatever is at
+    // that path on the machine running it: in a dev container, another checkout's pins. v0.0.25 did exactly
+    // that and died at startup. Only a binary running from its own tree reads the file on disk.
+    if runningFromOwnTree () && System.IO.File.Exists(sourceTreePath) then
       let content = System.IO.File.ReadAllLines(sourceTreePath)
       if content.Length = 0 then
         warn
@@ -124,6 +143,10 @@ let private getHashes () : Map<string, string> =
     hashCache <- Some h
     hashGeneration <- hashGeneration + 1
     h
+
+/// Every package item this binary pins, as (`kind/Module.Name`, hash). The kernel resolves each by hash,
+/// so a store missing any of them cannot run this binary at all.
+let pinned () : List<string * string> = getHashes () |> Map.toList
 
 let currentGeneration () : int =
   // Touch the cache first, so a lazy first load is reflected in the generation the caller records.
@@ -528,6 +551,7 @@ module Type =
       let deprecationKind = p [] "DeprecationKind"
       let branchEventKind = p [] "BranchEventKind"
       let decisionKind = p [] "DecisionKind"
+      let propagationPolicy = p [] "PropagationPolicy"
       let propagateRepoint = p [] "PropagateRepoint"
       let db = p [] "DB"
 

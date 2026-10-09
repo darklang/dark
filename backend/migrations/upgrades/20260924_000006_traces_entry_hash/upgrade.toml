@@ -1,0 +1,5 @@
+# Which handler served a request, so a recorded request can be replayed against it.
+
+kind = "shape"
+after = ["20260924_000005_traces_updated"]
+touches = ["traces"]

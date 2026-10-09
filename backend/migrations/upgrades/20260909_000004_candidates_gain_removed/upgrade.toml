@@ -1,0 +1,7 @@
+# `Candidate` gained `removed`, and a stored candidate JSON without it fails the parse -- which
+# reads as a conflict with no sides rather than as an error. Add it where it is missing.
+
+kind = "data"
+after = ["20260909_000003_secrets_leave_the_store"]
+touches = ["conflicts"]
+transactional = false

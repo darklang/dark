@@ -1,0 +1,14 @@
+# A store made under the previous SCM has `branch_ops`, its separate op log for branch structure.
+# Nothing reads it now, and NOTHING in it carries over -- not the branches, and not main's ops
+# either: its `package_ops` has a `branch_id NOT NULL` that this release's ops cannot be written
+# into. So the upgrade stops here, and `extract` puts the store back and says how to start fresh.
+#
+# It used to print "Wipe the store (`rm ~/.darklang/data.db*`)" and carry on, which stamped a store
+# that could run nothing; and once a failed upgrade restores the store, advice to delete it is the
+# one thing a person in a hurry must not be told first. Starting over is the person's call, and the
+# refusal offers it as a move, not a delete.
+
+kind = "data"
+after = ["20260904_000001_op_branches_source"]
+touches = ["branch_ops"]
+transactional = false

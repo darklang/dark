@@ -1,0 +1,8 @@
+# What a relay's stored bundle CONTAINS, so a push can be compared with it rather than replacing
+# it blind. `relay_branches` is hosted data, not a projection, so nothing else brings these to a
+# store that already exists -- and a relay that has them missing does not degrade quietly, it
+# fails every branch push with "no column named max_ts".
+
+kind = "shape"
+after = ["20260904_000002_previous_scm_store"]
+touches = ["relay_branches"]

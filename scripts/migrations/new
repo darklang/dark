@@ -3,85 +3,54 @@
 
 set -euo pipefail
 
-# Start a schema change, scaffolding BOTH halves of it.
+# Start a store upgrade: a directory of its own under backend/migrations/upgrades/.
 #
-#   scripts/migrations/new add_thing
+#   scripts/migrations/new add_trace_duration
 #
-# A schema change is always two things, and forgetting the second is the whole reason this
-# script exists:
+# One upgrade is one directory, and a store records it by the directory's name once it has run, so
+# fresh stores and existing ones get it the same way and there is nothing else to edit:
 #
-#   1. backend/migrations/schema/<YYYYMMDD-HHMMSS>-<tag>.sql -- the shape a NEW store is born
-#      with. Hyphens, to match the numbered subsystem files beside it.
-#      Read in filename order and concatenated, so a stamped file applies after the numbered
-#      subsystem files, which is the right order for anything that builds on them.
+#   upgrade.toml   kind, what it comes after, the tables it touches
+#   shape.sql      for a table or column change: `add-column <table> <column> <declaration>`
+#                  (SQLite cannot say "if missing"), or any statement safe to run twice
+#   step.fs        instead, when the upgrade is code (rewriting rows, moving data)
 #
-#   2. a step in backend/src/LibDB/Releases.fs -- how the change reaches a store that ALREADY
-#      exists. `CREATE TABLE IF NOT EXISTS` no-ops against a table that is already there, so
-#      nothing in (1) ever reaches an existing store on its own.
+# `after` is how order is decided, not the name. Two upgrades that touch the same table must be
+# ordered, or the build refuses and says which line to add; upgrades on different tables need
+# nothing. Usually `after` names the last upgrade to touch your table:
 #
-# Each names the other in a comment, so the two halves of one change are greppable as a pair.
+#   grep -l '"<table>"' backend/migrations/upgrades/*/upgrade.toml
 #
-# Where to put WHAT:
-#   - a new TABLE or INDEX          -> the stamped .sql, and create it in the step too
-#   - a new COLUMN on an existing table -> that table's numbered subsystem file, so the table
-#     stays defined in one place, and `addColumnIfMissing` in the step
-#
-# The step's name is its identity in system_migrations_v0: renaming one re-runs it, and the
-# list is append-only for that reason.
+# The base schema files (backend/migrations/schema/*.sql) are frozen; a new table is an upgrade too.
 
 case "${1:-}" in
-  -h|--help) sed -n '6,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-  # A tag is a name, not a flag. Without this, `new --help` cheerfully created
-  # <stamp>---help.sql.
+  -h|--help) sed -n '6,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  # A tag is a name, not a flag.
   -*) echo "Not a tag: $1. Try --help" >&2; exit 1 ;;
   "") echo "usage: $0 <short_tag>" >&2; exit 1 ;;
 esac
 [[ "$#" -eq 1 ]] || { echo "usage: $0 <short_tag>" >&2; exit 1; }
+[[ "$1" =~ ^[a-z0-9_]+$ ]] || { echo "A tag is lowercase letters, digits and _ only: $1" >&2; exit 1; }
 
-NAME="$1"
-STAMP=$(date -u +%Y%m%d-%H%M%S)
-# Hyphens in the filename, to match the numbered subsystem files beside it; underscores in the
-# step name, to match the fourteen already in the list. Each names the other, so the pair greps.
-STEP="$(date -u +%Y%m%d_%H%M%S)_${NAME}"
-TAG="${NAME//_/-}"
-SQL="backend/migrations/schema/${STAMP}-${TAG}.sql"
-RELEASES="backend/src/LibDB/Releases.fs"
-ANCHOR="    // NEW STEPS GO ABOVE THIS LINE"
+NAME="$(date -u +%Y%m%d_%H%M%S)_$1"
+DIR="backend/migrations/upgrades/${NAME}"
+mkdir -p "$DIR"
 
-grep -q "$ANCHOR" "$RELEASES" || {
-  echo "Can't find the anchor comment in $RELEASES; add it back or edit the list by hand." >&2
-  exit 1
-}
+cat > "$DIR/upgrade.toml" <<'EOF'
+# <what this upgrade is, and why it is safe against a store that already has it>
 
-cat > "$SQL" <<EOF
--- <what this change is, in a line>
---
--- The from-scratch half. A new store gets this; an existing one gets the matching step
--- "${STEP}" in backend/src/LibDB/Releases.fs.
---
--- A new COLUMN belongs in its table's numbered file instead, so the table stays defined in one
--- place. This file is for a new table or index.
+kind = "shape"
+after = []
+touches = []
 EOF
 
-# Inserted above the anchor, so the list stays append-only and nothing else in the file moves.
-python3 - "$RELEASES" "$ANCHOR" "$STEP" "$SQL" <<'PY'
-import sys
-path, anchor, name, sql = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-src = open(path).read()
-step = (
-    '    // <what this change is, and why it is safe against a store that already has it>\n'
-    f'    // Declared for a fresh store in {sql}.\n'
-    f'    {{ name = "{name}"\n'
-    '      run = fun () -> () }\n\n'
-)
-assert anchor in src
-open(path, 'w').write(src.replace(anchor, step + anchor, 1))
-PY
+cat > "$DIR/shape.sql" <<'EOF'
+-- add-column <table> <column> <declaration>
+EOF
 
-git add "$SQL" "$RELEASES"
+git add "$DIR"
 
-echo "Created ${SQL}"
-echo "Added step \"${STEP}\" to ${RELEASES}"
-echo
-echo "Fill in both. The .sql is what a fresh store is born with; the step is how an existing"
-echo "store gets there. They run on the next scripts/dev/build."
+echo "Created ${DIR}/"
+echo "  upgrade.toml  say why, which tables it touches, and what it comes after"
+echo "  shape.sql     the change; or replace it with step.fs if this is code"
+echo "It runs on the next scripts/dev/build, against the dev store, and on every store a release opens."

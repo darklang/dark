@@ -1,0 +1,8 @@
+# The LWW register for doc comments. A whole table rather than a column, so `IF NOT EXISTS`
+# WOULD have reached an existing store from the schema -- but only because the bootstrap
+# replays it, which it does not promise to. Named here so the store records having got it, and
+# so the answer to "how does a shape change reach an existing store" stays one answer.
+
+kind = "shape"
+after = ["20260908_000001_relay_branch_freshness"]
+touches = ["item_docs"]

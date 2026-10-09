@@ -37,14 +37,48 @@ let private testVersionCommand =
       Expect.stringContains output "Darklang CLI" "CLI banner"
       Expect.stringContains output "alpha-" "version prefix"
       Expect.isFalse
-        (output.Contains "update available" || output.Contains "unable to check")
+        (output.Contains "latest release" || output.Contains "could not check")
         "and says nothing about updates, since it did not look"
+      // Which release it is, or comes after, as the build recorded it (none in a clone with no tags).
+      match LibConfig.Config.releaseTags with
+      | Some tag, _ -> Expect.stringContains output tag "names the release it is"
+      | None, Some before ->
+        Expect.stringContains output $"after {before} (not a release)" "or follows"
+      | None, None ->
+        Expect.isFalse
+          (output.Contains "release")
+          "and claims nothing it was not told"
 
       // A near miss must not silently fall through to the network check, which is the
       // one thing the caller was trying to avoid.
       let! typo = runCli state [ "version"; "--locl" ]
       Expect.stringContains typo "unknown option" "a mistyped flag is named"
-      Expect.isFalse (typo.Contains "update available") "and nothing was fetched"
+      Expect.isFalse (typo.Contains "latest release") "and nothing was fetched"
+    })
+
+/// `store` against the facts it reports on, read independently: every upgrade this binary carries has run
+/// on the test store, and nothing else has, and the store's ops are all in the current format.
+let private testStoreCommand =
+  cliTest "store command" (fun state ->
+    task {
+      let! output = runCli state [ "store" ]
+      let carried = List.length LibDB.UpgradeRegistry.sources
+      Expect.stringContains
+        output
+        $"{carried} upgrades run, of the {carried} this dark carries"
+        "every upgrade carried has run, and no other"
+      Expect.isFalse
+        (output.Contains "run by a newer dark")
+        "nothing unknown recorded"
+      Expect.stringContains
+        output
+        $"at format {LibSerialization.Binary.BaseFormat.CurrentVersion} (this dark writes"
+        "the ops are in the format this binary writes"
+      let! bad = runCli state [ "store"; "--wat" ]
+      Expect.stringContains
+        bad
+        "isn't a form of this command"
+        "an argument is refused, not ignored"
     })
 
 let private testStatusCommand =
@@ -1591,6 +1625,7 @@ let tests =
     (Tests.CliSurface.tests
      @ Tests.CliScm.tests
      @ [ testVersionCommand
+         testStoreCommand
          testStatusCommand
          testRunCases
          testEvalCases

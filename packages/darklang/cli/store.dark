@@ -1,0 +1,175 @@
+module Darklang.Cli.Store
+
+// `dark store`: what this store is, as against what this binary expects. The questions every upgrade
+// diagnosis has started with: which dark last brought it up to date, which upgrades it has had, what
+// format its blobs are in, and what it can go back to. Read-only.
+
+
+/// The build that last brought this store up to date, as recorded once its upgrade finished. None for a
+/// store no release has upgraded: a dev build never stamps, and neither did releases before the stamp.
+let stamp () : Stdlib.Option.Option<String> =
+  Stdlib.Sqlite.column
+    (Stdlib.LocalStore.path ())
+    "SELECT build FROM store_stamp_v0 WHERE id = 0"
+    "build"
+  |> Stdlib.List.head
+
+/// Every upgrade this store records, newest first, with when it ran (UTC, as SQLite records it).
+let upgradesWithDates () : List<(String * String)> =
+  match
+    Stdlib.Sqlite.query
+      (Stdlib.LocalStore.path ())
+      "SELECT name, execution_date FROM system_migrations_v0 ORDER BY rowid DESC"
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun row ->
+      match (Stdlib.Sqlite.textField row "name", Stdlib.Sqlite.textField row "execution_date") with
+      | (Some name, Some at) -> Stdlib.Option.Option.Some((name, at))
+      | _ -> Stdlib.Option.Option.None)
+  | Error _ -> []
+
+/// The upgrades this store records having run, oldest first.
+let upgradesRun () : List<String> =
+  Stdlib.Sqlite.column
+    (Stdlib.LocalStore.path ())
+    "SELECT name FROM system_migrations_v0 ORDER BY rowid"
+    "name"
+
+/// How many package ops are at each blob format, oldest format first. The header is the blob's first
+/// four bytes, little-endian; every version so far fits in the first.
+let opFormats () : List<(Int64 * Int64)> =
+  match
+    Stdlib.Sqlite.query
+      (Stdlib.LocalStore.path ())
+      "SELECT (instr('0123456789ABCDEF', substr(hex(substr(op_blob, 1, 1)), 1, 1)) - 1) * 16
+              + (instr('0123456789ABCDEF', substr(hex(substr(op_blob, 1, 1)), 2, 1)) - 1) AS v,
+              count(*) AS n
+       FROM package_ops GROUP BY v ORDER BY v"
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun row ->
+      match (Stdlib.Sqlite.intField row "v", Stdlib.Sqlite.intField row "n") with
+      | (Some v, Some n) -> Stdlib.Option.Option.Some((v, n))
+      | _ -> Stdlib.Option.Option.None)
+  | Error _ -> []
+
+/// The store's size on disk, from SQLite's own page count: the file builtins refuse the store's path.
+let sizeBytes () : Int64 =
+  Stdlib.Sqlite.scalarInt
+    (Stdlib.LocalStore.path ())
+    "SELECT page_count * page_size AS n FROM pragma_page_count(), pragma_page_size()"
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+
+/// `dark store upgrades`: every upgrade, newest first, with when it ran. What each one does is in its
+/// `upgrade.toml`.
+let executeUpgrades (state: AppState) : AppState =
+  match upgradesWithDates () with
+  | [] ->
+    Stdlib.printLine "no upgrades recorded"
+    state
+  | all ->
+    all |> Stdlib.List.iter (fun (name, at) -> Stdlib.printLine $"{at}  {name}")
+    state
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] ->
+    let label (l: String) : String = Stdlib.String.padEndToWidth l 10
+
+    Stdlib.printLine
+      $"{label "store"}{Stdlib.LocalStore.path ()} ({Cli.Text.bytes (Stdlib.Int.fromInt64 (sizeBytes ()))})"
+
+    let thisBuild = Installation.Helpers.cliVersion ()
+
+    let stamped =
+      match stamp () with
+      | Some build ->
+        if $"alpha-{build}" == thisBuild then
+          $"by this dark, {Installation.Helpers.describeBuild ()}"
+        else
+          $"by alpha-{build}, not this dark ({Installation.Helpers.describeBuild ()})"
+      | None -> "never stamped (a dev build, or a release from before the stamp)"
+
+    Stdlib.printLine $"{label "upgraded"}{stamped}"
+
+    let known = Stdlib.LocalStore.upgradesKnown ()
+    let run = upgradesRun ()
+    let unknown = run |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.member known n))
+    let pending = known |> Stdlib.List.filter (fun n -> Stdlib.Bool.not (Stdlib.List.member run n))
+
+    // When the newest ran, which an upgrade's one line leaves out. Not "how many ran then": one upgrade's
+    // units span more than one clock second, so counting by timestamp undercounts (it said 2 of 18).
+    let latest =
+      match upgradesWithDates () with
+      | (_, at) :: _ -> $"; the latest at {at} UTC (`dark store upgrades`)"
+      | [] -> ""
+
+    Stdlib.printLine
+      $"""{label "upgrades"}{Cli.Text.plural (Stdlib.List.length run) "upgrade"} run, of the {Stdlib.toString (Stdlib.List.length known)} this dark carries{latest}"""
+
+    (match unknown with
+     | [] -> ()
+     | names ->
+       Stdlib.printLine
+         $"""{label ""}{Stdlib.toString (Stdlib.List.length names)} run by a newer dark: {Stdlib.String.join names ", "}""")
+
+    (match pending with
+     | [] -> ()
+     | names ->
+       Stdlib.printLine
+         $"""{label ""}{Stdlib.toString (Stdlib.List.length names)} not run yet: {Stdlib.String.join names ", "}""")
+
+    let current = Stdlib.LocalStore.formatCurrent ()
+    let oldest = Stdlib.LocalStore.formatOldestReadable ()
+
+    let formats =
+      match opFormats () with
+      | [] -> "no package ops"
+      | counts ->
+        counts
+        |> Stdlib.List.map (fun (v, n) ->
+          $"""{Cli.Text.plural (Stdlib.Int.fromInt64 n) "package op"} at format {Stdlib.toString v}""")
+        |> Stdlib.String.join ", "
+
+    Stdlib.printLine
+      $"{label "formats"}{formats} (this dark writes {Stdlib.toString current}, reads {Stdlib.toString oldest} and up)"
+
+    let backups = Backups.list ()
+
+    let backupLine =
+      match backups with
+      | [] -> "none"
+      | newest :: _ ->
+        $"""{Cli.Text.plural (Stdlib.List.length backups) "backup"}, newest {newest} (`dark backups`)"""
+
+    Stdlib.printLine $"{label "backups"}{backupLine}"
+    state
+
+  | [ "upgrades" ] -> executeUpgrades state
+
+  | _ ->
+    Cli.printErr $"""`dark store {Stdlib.String.join args " "}` isn't a form of this command."""
+    Cli.printHint "  dark store | dark store upgrades"
+    Cli.exitWith state false
+
+
+let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
+  []
+
+
+let help (_state: AppState) : String =
+  [ "Usage: store [upgrades]"
+    "What this store is, against what this dark expects."
+    ""
+    "  upgraded  which dark last brought it up to date"
+    "  upgrades  how many it has had, and any this dark does not know (a newer dark ran them)"
+    "  formats   how many package ops are in each blob format"
+    "  backups   what it can go back to"
+    ""
+    "  dark store upgrades   every upgrade this store has had, newest first, with when it ran" ]
+  |> Stdlib.String.join "\n"

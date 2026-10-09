@@ -799,6 +799,8 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "config", [ "list" ]
       // Bare asks GitHub for the latest release, which is a network call on a timeout.
       "version", [ "--local" ]
+      // Reads the store and the binary; bare is the whole report. `upgrades` is the one form that lists.
+      "store", []
       "nav", [ "Darklang.Stdlib.List" ]
       "ls", [ "Darklang.Stdlib.List" ]
       "back", []

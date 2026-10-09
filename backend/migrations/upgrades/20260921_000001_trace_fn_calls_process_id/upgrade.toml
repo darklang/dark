@@ -1,0 +1,7 @@
+# A trace is written by every process that ran under it, from whichever scheduler thread stepped
+# each; `process_id` says which, and `seq` is the completion order across all of them. Old rows
+# get '' and 0: one process, order unknown, which is what they were.
+
+kind = "shape"
+after = ["20260909_000004_candidates_gain_removed"]
+touches = ["trace_fn_calls"]
