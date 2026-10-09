@@ -1,0 +1,255 @@
+/// Cases ported from `backend/testfiles/execution/stdlib/httpclient.dark`.
+// Most of the httpclient tests are in testfiles/httpclient
+// , but we test a few more explicit cases here.
+module Darklang.Stdlib.HttpClient.Tests
+
+// Tests that don't use the internet
+test contentTypes =
+  Stdlib.Test.all
+    [ Stdlib.HttpClient.ContentType.form
+      |> Stdlib.Test.equal ("content-type", "application/x-www-form-urlencoded")
+      Stdlib.HttpClient.ContentType.json
+      |> Stdlib.Test.equal ("content-type", "application/json")
+      Stdlib.HttpClient.ContentType.plainText
+      |> Stdlib.Test.equal ("content-type", "text/plain; charset=utf-8")
+      Stdlib.HttpClient.ContentType.html
+      |> Stdlib.Test.equal ("content-type", "text/html; charset=utf-8") ]
+
+test bearerToken =
+  Stdlib.HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l"
+  |> Stdlib.Test.equal ("authorization", "bearer YWxhZGRpbjpvcGVuc2VzYW1l")
+
+test basicAuth =
+  Stdlib.Test.all
+    [ Stdlib.HttpClient.basicAuth "username" "password"
+      |> Stdlib.Test.equal (Ok(("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ=")))
+      Stdlib.HttpClient.basicAuth "" ""
+      |> Stdlib.Test.equal (Ok(("authorization", "basic Og==")))
+      Stdlib.HttpClient.basicAuth "" "-"
+      |> Stdlib.Test.equal (Ok(("authorization", "basic Oi0=")))
+      Stdlib.HttpClient.basicAuth ":" ""
+      |> Stdlib.Test.equal (Ok(("authorization", "basic Ojo=")))
+      Stdlib.HttpClient.basicAuth "" ":"
+      |> Stdlib.Test.equal (Ok(("authorization", "basic Ojo=")))
+      Stdlib.HttpClient.basicAuth "hello>" "world"
+      |> Stdlib.Test.equal (Ok(("authorization", "basic aGVsbG8+Ondvcmxk")))
+      Stdlib.HttpClient.basicAuth "hello" "world?"
+      |> Stdlib.Test.equal (Ok(("authorization", "basic aGVsbG86d29ybGQ/"))) ]
+
+test basicAuthRejectsHyphenInUsername =
+  Stdlib.HttpClient.basicAuth "-" ""
+  |> Stdlib.Test.equal (Error "Username cannot contain a hyphen")
+
+// Tests that try to make requests to the internet
+
+// ... but first, some helpers
+// Differs from legacy: the return type is named once, as GetResult, where legacy
+// spelled it out on `get`.
+type GetResult =
+  Stdlib.Result.Result<Stdlib.HttpClient.Response, Stdlib.HttpClient.RequestError>
+
+let get (url: String) (headers: List<String * String>) : GetResult =
+  Stdlib.HttpClient.get url headers
+
+// Differs from legacy: legacy declared these as `val`s. A `val` holding a custom
+// type can go stale across package reloads, so they are functions here.
+let errInvalidHost () : GetResult =
+  Error(
+    Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidHost)
+  )
+
+let errInvalidUri () : GetResult =
+  Error(
+    Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri)
+  )
+
+let errInvalidRequest () : GetResult =
+  Error(
+    Stdlib.HttpClient.RequestError.BadUrl(
+      Stdlib.HttpClient.BadUrlDetails.InvalidRequest
+    )
+  )
+
+let errNetworkError () : GetResult =
+  Error(Stdlib.HttpClient.RequestError.NetworkError)
+
+let errBadHeaderEmptyKey () : GetResult =
+  Error(
+    Stdlib.HttpClient.RequestError.BadHeader(Stdlib.HttpClient.BadHeader.EmptyKey)
+  )
+
+let errBadMethod () : GetResult = Error(Stdlib.HttpClient.RequestError.BadMethod)
+
+let errUnsupportedProtocol () : GetResult =
+  Error(
+    Stdlib.HttpClient.RequestError.BadUrl(
+      Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+    )
+  )
+
+// basic requests work
+// TODO: these tests are flaky – replace httpbin.org call with a local server
+// test basicRequests =
+//   Stdlib.Test.all
+//     [ (get "https://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)
+//       |> Stdlib.Test.equal (Ok 200L)
+//       (get "http://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)
+//       |> Stdlib.Test.equal (Ok 200L) ]
+
+// test rejectsWrongHeaderType =
+//   Stdlib.HttpClient.request "get" "https://darklang.com" [ 1L ] []
+//   => raises
+//     """Darklang.Stdlib.HttpClient.request's 3rd argument (`headers`) should be a List<(String * String)>. However, a List<Int64> ([  1]) was passed instead.
+// Expected: (headers: List<(String * String)>)
+// Actual: a List<Int64>: [\n  1\n]"""
+
+// Not a legacy assertion: the commented-out bad-headers case above, made live with
+// today's message.
+test rejectsWrongHeaderType =
+  Stdlib.HttpClient.request "get" "https://darklang.com" [1L] Stdlib.Blob.empty
+  => raises "Darklang.Stdlib.HttpClient.request's 3rd parameter `headers` expects List<(String * String)>, but got List<Int64> ([1])"
+
+test rejectsEmptyHeaderKey =
+  get "https://darklang.com" [ ("", "") ]
+  |> Stdlib.Test.equal (errBadHeaderEmptyKey ())
+
+// type errors for bad `method` are OK
+test rejectsBadMethods =
+  Stdlib.Test.all
+    [ Stdlib.HttpClient.request "" "https://darklang.com" [] Stdlib.Blob.empty
+      |> Stdlib.Test.equal (errBadMethod ())
+      Stdlib.HttpClient.request " get " "https://darklang.com" [] Stdlib.Blob.empty
+      |> Stdlib.Test.equal (errBadMethod ())
+      Stdlib.HttpClient.request "🇵🇷" "https://darklang.com" [] Stdlib.Blob.empty
+      |> Stdlib.Test.equal (errBadMethod ()) ]
+
+// unsupported protocols
+test rejectsUnsupportedProtocols =
+  Stdlib.Test.all
+    [ Stdlib.HttpClient.request "get" "ftp://darklang.com" [] Stdlib.Blob.empty
+      |> Stdlib.Test.equal (errUnsupportedProtocol ())
+      Stdlib.HttpClient.request "put" "file:///etc/passwd" [] Stdlib.Blob.empty
+      |> Stdlib.Test.equal (errUnsupportedProtocol ())
+      Stdlib.HttpClient.request "put" "/just-a-path" [] Stdlib.Blob.empty
+      |> Stdlib.Test.equal (errUnsupportedProtocol ()) ]
+
+// totally bogus URLs
+test rejectsBogusUrls =
+  Stdlib.Test.all
+    [ Stdlib.HttpClient.request "get" "" [] Stdlib.Blob.empty
+      |> Stdlib.Test.equal
+        (Error(
+          Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri)
+        ))
+      Stdlib.HttpClient.request "post" "{ ] nonsense ^#( :" [] Stdlib.Blob.empty
+      |> Stdlib.Test.equal
+        (Error(
+          Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri)
+        )) ]
+
+// Timeout coverage lives in Tests.HttpClient.TimeoutTests: a controlled transport
+// waits for the real request deadline. An external unreachable port may instead
+// fail with NetworkError, and package HTTP deliberately blocks local fixtures.
+// The backend fixture asserts Timeout for both GET and POST without internet access.
+
+// Check for banned urls in the host name
+// SSRF guard tests for the strict HTTP client config
+// (see Builtins.Http.Client.Libs.HttpClient.LocalAccess + strictConfig).
+
+// invalid host
+test disallowedHosts =
+  Stdlib.Test.all
+    [ get "http://0.0.0.0" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://0" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://localhost" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://127.0.0.1" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[::1]" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0:0:0:0:0:0:0:1]" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0000:0000:0000:0000:0000:0000:0000:0001]" []
+      |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://127.0.0.17" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[::ffff:7f00:11]" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0:0:0:0:0:ffff:7f00:0011]" []
+      |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]" []
+      |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://127.255.174.17" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://metadata.google.internal" []
+      |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://metadata" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://169.254.169.254" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[::ffff:a9fe:a9fe]" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0:0:0:0:0:ffff:a9fe:a9fe]" []
+      |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]" []
+      |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://169.254.0.0" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://172.16.0.1" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[::ffff:ac10:1]" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0:0:0:0:0:ffff:ac10:0001]" []
+      |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]" []
+      |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://192.168.1.1" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[::ffff:c0a8:101]" [] |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0:0:0:0:0:ffff:c0a8:0101]" []
+      |> Stdlib.Test.equal (errInvalidHost ())
+      get "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]" []
+      |> Stdlib.Test.equal (errInvalidHost ()) ]
+
+// invalid uri
+test disallowedUri =
+  get "localhost" [] |> Stdlib.Test.equal (errInvalidUri ())
+
+// network error
+test unspecifiedAddressIsNetworkError =
+  get "http://[0:0:0:0:0:0:0:0]" [] |> Stdlib.Test.equal (errNetworkError ())
+
+// Sneaky banned urls: a hostname that looks fine but resolves somewhere banned.
+// Blocked in the connect callback, after resolution, rather than by the URL
+// validation above. This is the case that actually matters for SSRF.
+//
+// These names are in the container's /etc/hosts (scripts/devcontainer/_setup-hosts).
+// They used to be borrowed third-party domains, localtest.me and c.cx, until c.cx
+// stopped resolving to 0.0.0.0 and started answering for real.
+//
+// Caveat: a name that doesn't resolve at all also gives NetworkError, so without
+// those /etc/hosts entries these three pass without testing anything. That was
+// true of the third-party version too. Nothing in the public API distinguishes
+// "blocked at connect" from "never resolved".
+test sneakyBannedHosts =
+  Stdlib.Test.all
+    [ // 127.0.0.1
+      get "http://banned-loopback.dark.test" []
+      |> Stdlib.Test.equal (errNetworkError ())
+      // 0.0.0.0
+      get "http://banned-zero.dark.test" [] |> Stdlib.Test.equal (errNetworkError ())
+      // 10.0.0.1
+      get "http://banned-private.dark.test" []
+      |> Stdlib.Test.equal (errNetworkError ()) ]
+
+// invalid headers (we just happen to know that google will fail this way if we
+// provide these headers..)
+test disallowedHeaders =
+  Stdlib.Test.all
+    [ get "http://google.com" [ ("Metadata-Flavor", "Google") ]
+      |> Stdlib.Test.equal (errInvalidRequest ())
+      get "http://google.com" [ ("metadata-flavor", "Google") ]
+      |> Stdlib.Test.equal (errInvalidRequest ())
+      get "http://google.com" [ ("Metadata-Flavor", " Google ") ]
+      |> Stdlib.Test.equal (errInvalidRequest ())
+      get "http://google.com" [ ("X-Google-Metadata-Request", " True ") ]
+      |> Stdlib.Test.equal (errInvalidRequest ())
+      get "http://google.com" [ (" x-Google-metaData-Request", " True ") ]
+      |> Stdlib.Test.equal (errInvalidRequest ()) ]
+
+// `.test` cannot resolve publicly. Depending on the DNS environment, that is
+// reported immediately as NetworkError or when the request times out.
+test missingHostFails =
+  (match get "http://no-such-host.dark.test" [] with
+   | Error NetworkError -> true
+   | Error Timeout -> true
+   | _ -> false)
+  |> Stdlib.Test.equal true
+
+// TODO: http2, http3

@@ -194,6 +194,12 @@ module TraitImpl =
 
 
 module Value =
+  /// Find stored values whose runtime value type matches exactly.
+  let findByValueType
+    (valueType: RuntimeTypes.ValueType)
+    : List<ProgramTypes.Hash> =
+    Builtin.pmFindValuesByValueType valueType
+
   let find
     (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)

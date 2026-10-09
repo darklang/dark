@@ -1,0 +1,65 @@
+/// Tests for the assertion values package tests return.
+module Darklang.Stdlib.Test.Tests
+
+// Compare results with plain `==` so a broken Stdlib.Test.equal cannot pass
+// its own tests.
+let is
+  (actual: Stdlib.Test.Result)
+  (expected: Stdlib.Test.Result)
+  : Stdlib.Test.Result =
+  if actual == expected then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.Result.Fail
+      [ $"expected {Stdlib.toRepr expected}, got {Stdlib.toRepr actual}" ]
+
+test pass =
+  Stdlib.Test.pass () |> is Stdlib.Test.Result.Pass
+
+test fail =
+  Stdlib.Test.fail "nope" |> is (Stdlib.Test.Result.Fail [ "nope" ])
+
+test expect =
+  Stdlib.Test.all
+    [ Stdlib.Test.expect true "unused" |> is Stdlib.Test.Result.Pass
+      Stdlib.Test.expect false "it was false"
+      |> is (Stdlib.Test.Result.Fail [ "it was false" ]) ]
+
+test equal =
+  Stdlib.Test.all
+    [ Stdlib.Test.equal 8L 8L |> is Stdlib.Test.Result.Pass
+      Stdlib.Test.equal 8L 9L
+      |> is (Stdlib.Test.Result.Fail [ "expected 9, got 8" ])
+      (8L |> Stdlib.Test.equal 8L) |> is Stdlib.Test.Result.Pass ]
+
+test notEqual =
+  Stdlib.Test.all
+    [ Stdlib.Test.notEqual 1L 2L |> is Stdlib.Test.Result.Pass
+      Stdlib.Test.notEqual 1L 1L
+      |> is (Stdlib.Test.Result.Fail [ "did not expect 1" ]) ]
+
+test all =
+  Stdlib.Test.all
+    [ Stdlib.Test.all [] |> is Stdlib.Test.Result.Pass
+      Stdlib.Test.all [ Stdlib.Test.pass (), Stdlib.Test.pass () ]
+      |> is Stdlib.Test.Result.Pass
+      // Every failure is kept, in order, not just the first.
+      Stdlib.Test.all
+        [ Stdlib.Test.fail "a"
+          Stdlib.Test.pass ()
+          Stdlib.Test.Result.Fail [ "b", "c" ] ]
+      |> is
+        (Stdlib.Test.Result.Fail
+          [ "assertion 1: a", "assertion 3: b", "assertion 3: c" ]) ]
+
+test emptyFailureIsPreserved =
+  Stdlib.Test.all
+    [ Stdlib.Test.all [ Stdlib.Test.Result.Fail [] ]
+      |> is (Stdlib.Test.Result.Fail [ "assertion 1: failed without a message" ])
+      Stdlib.Test.all
+        [ Stdlib.Test.pass ()
+          Stdlib.Test.Result.Fail []
+          Stdlib.Test.fail "another failure" ]
+      |> is
+        (Stdlib.Test.Result.Fail
+          [ "assertion 2: failed without a message", "assertion 3: another failure" ]) ]

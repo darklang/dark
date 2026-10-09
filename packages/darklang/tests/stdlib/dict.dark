@@ -1,0 +1,513 @@
+/// Dict cases from `backend/testfiles/execution/stdlib/dict.dark`.
+module Darklang.Stdlib.Dict.Tests
+
+type Point = { x: Int64; y: Int64 }
+
+type PointAlias = Point
+
+type SameShape = { x: Int64; y: Int64 }
+
+type DifferentShape = { a: Int64; b: Int64 }
+
+type Colour =
+  | Red
+  | Blue of Int64
+
+type ColourAlias = Colour
+
+val valDict = Dict { 1L: "a"; 2L: "b" }
+
+test valDictKeys =
+  Stdlib.Dict.keys valDict |> Stdlib.Test.equal [ 1L, 2L ]
+
+test valDictSetRejectsWrongKeyType =
+  Stdlib.Dict.set valDict "notAnInt" "c"
+  => raises "Darklang.Stdlib.Dict.set's 2nd parameter `key` expects Int64, but got String (\"notAnInt\")"
+
+test empty =
+  Stdlib.Dict.empty |> Stdlib.Test.equal (Dict { })
+
+test literalRejectsDuplicateKeys =
+  Dict { "a": 1; "a": 2 }
+  => raises "Cannot add two dictionary entries with the same key \"a\""
+
+test literalRejectsMixedValueTypes =
+  Dict { "a": 1l; "b": "two" }
+  => raises "Cannot add a String (\"two\") to a dict of Int32. Failed at key \"b\"."
+
+test filterMap =
+  Stdlib.Test.all
+    [ Stdlib.Dict.filterMap (Dict { }) (fun key value -> 0L)
+      |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.filterMap
+        (Dict { "a": "x"; "b": "y"; "c": "z" })
+        (fun key value ->
+          if value == "y" then
+            None
+          else
+            Some(key + value))
+      |> Stdlib.Test.equal (Dict { "c": "cz"; "a": "ax" }) ]
+
+// CLEANUP figure out why this isn't failing on the `false` not being an option
+// test filterMapRejectsNonOptionResult =
+//   Stdlib.Dict.filterMap
+//     (fun key value ->
+//       if value == "y" then
+//         false
+//       else
+//         Some(key + value))
+//   => raises
+//     "Darklang.Stdlib.Option.map's 1st argument (`option`) should be a Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
+
+test filter =
+  Stdlib.Test.all
+    [ Stdlib.Dict.filter
+        (Dict { "key1": "val1"; "key2": "val2" })
+        (fun k v -> k == "key1")
+      |> Stdlib.Test.equal (Dict { "key1": "val1" })
+      Stdlib.Dict.filter (Dict { "key1": 1L; "key2": 3L }) (fun k v -> v < 2L)
+      |> Stdlib.Test.equal (Dict { "key1": 1L })
+      Stdlib.Dict.filter (Dict { }) (fun k v -> 0L) |> Stdlib.Test.equal (Dict { }) ]
+
+test filterRejectsNonBoolPredicate =
+  Stdlib.Dict.filter (Dict { "a": 1L; "b": 2L; "c": 3L }) (fun k v -> 2L)
+  => raises "Encountered a condition that must be a Bool, but got an Int64 (2)"
+
+test fromListOverwritingDuplicates =
+  Stdlib.Test.all
+    [ Stdlib.Dict.fromListOverwritingDuplicates [] |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.fromListOverwritingDuplicates
+        [ ("duplicate_key", 1L), ("b", 2L), ("duplicate_key", 3L) ]
+      |> Stdlib.Test.equal (Dict { "b": 2L; "duplicate_key": 3L })
+      Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1L), ("b", 2L), ("c", 3L) ]
+      |> Stdlib.Test.equal (Dict { "c": 3L; "b": 2L; "a": 1L })
+      Stdlib.Dict.fromListOverwritingDuplicates [ (1L, 2L) ]
+      |> Stdlib.Test.equal (Dict { 1L: 2L }) ]
+
+test fromListOverwritingDuplicatesRejectsNonTuples =
+  Stdlib.Dict.fromListOverwritingDuplicates [ 1L ]
+  => raises "Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(_ * _)>, but got List<Int64> ([1])"
+
+test fromList =
+  Stdlib.Test.all
+    [ Stdlib.Dict.fromList [] |> Stdlib.Test.equal Some(Dict { })
+      Stdlib.Dict.fromList [ ("a", 1L), ("b", 2L), ("c", 3L) ]
+      |> Stdlib.Test.equal Some(Dict { "c": 3L; "b": 2L; "a": 1L })
+      // CLEANUP this test feels surprising - should it error or something?
+      Stdlib.Dict.fromList
+        [ ("duplicate_key", 1L), ("b", 2L), ("duplicate_key", 3L) ]
+      |> Stdlib.Test.equal None
+      Stdlib.Dict.fromList [ ("Content-Length", "0"), ("Server", "dark") ]
+      |> Stdlib.Test.equal Some(Dict { "Content-Length": "0"; "Server": "dark" })
+      Stdlib.Dict.fromList [ (1L, 1L) ] |> Stdlib.Test.equal Some(Dict { 1L: 1L }) ]
+
+test get =
+  Stdlib.Test.all
+    [ Stdlib.Dict.get (Dict { "key1": "val1" }) "key1"
+      |> Stdlib.Test.equal (Some "val1")
+      Stdlib.Dict.get (Dict { "key1": "val1" }) "" |> Stdlib.Test.equal None ]
+
+test isEmpty =
+  Stdlib.Test.all
+    [ Stdlib.Dict.isEmpty (Dict { "a": 1L }) |> Stdlib.Test.equal false
+      Stdlib.Dict.isEmpty (Dict { }) |> Stdlib.Test.equal true ]
+
+test keys =
+  Stdlib.Dict.keys (Dict { "key1": "val1" }) |> Stdlib.Test.equal [ "key1" ]
+
+test map =
+  Stdlib.Test.all
+    [ Stdlib.Dict.map (Dict { }) (fun key value -> 0L)
+      |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.map
+        (Dict { "key1": "val1"; "key2": "val2" })
+        (fun k x -> k + x)
+      |> Stdlib.Test.equal (Dict { "key2": "key2val2"; "key1": "key1val1" })
+      Stdlib.Dict.map
+        (Dict { "key1": 5L; "key2": 3L; "key3": 3L })
+        (fun k x ->
+          Stdlib.Bool.and
+            (x >= 1L)
+            (x <= 4L)
+        )
+      |> Stdlib.Test.equal (Dict { "key3": true; "key2": true; "key1": false })
+      Stdlib.Dict.map (Dict { "a": 1L; "b": 2L }) (fun k x -> x + 1L)
+      |> Stdlib.Test.equal (Dict { "b": 3L; "a": 2L }) ]
+
+test member =
+  Stdlib.Test.all
+    [ Stdlib.Dict.member (Dict { "otherKey": 5L; "someKey": 5L }) "someKey"
+      |> Stdlib.Test.equal true
+      Stdlib.Dict.member (Dict { "otherKey": 5L }) "someKey"
+      |> Stdlib.Test.equal false ]
+
+test merge =
+  Stdlib.Test.all
+    [ Stdlib.Dict.merge (Dict { }) (Dict { }) |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.merge (Dict { "key1": "val1" }) (Dict { "key2": "val2" })
+      |> Stdlib.Test.equal (Dict { "key2": "val2"; "key1": "val1" })
+      Stdlib.Dict.merge (Dict { "key1": "val_l" }) (Dict { "key1": "val_r" })
+      |> Stdlib.Test.equal (Dict { "key1": "val_r" }) ]
+
+test set =
+  Stdlib.Test.all
+    [ Stdlib.Dict.set (Dict { "key1": "val1" }) "key2" "val2"
+      |> Stdlib.Test.equal (Dict { "key1": "val1"; "key2": "val2" })
+      Stdlib.Dict.set (Dict { }) "key1" "val1"
+      |> Stdlib.Test.equal (Dict { "key1": "val1" })
+      Stdlib.Dict.set (Dict { }) "key1" 2L
+      |> Stdlib.Test.equal (Dict { "key1": 2L }) ]
+
+test setRejectsExistingKey =
+  Stdlib.Dict.set (Dict { "key1": "val1before" }) "key1" "val1after"
+  => raises "Cannot add two dictionary entries with the same key \"key1\""
+
+test setRejectsExistingKeyAmongOthers =
+  Stdlib.Dict.set (Dict { "key1": "val1"; "key2": "val2" }) "key2" "newVal2"
+  => raises "Cannot add two dictionary entries with the same key \"key2\""
+
+test literalRejectsValueOfAnotherType =
+  Dict { "key1": "val1"; "key2": 2L }
+  => raises "Cannot add an Int64 (2) to a dict of String. Failed at key \"key2\"."
+
+test setRejectsWrongValueType =
+  Stdlib.Dict.set (Dict { "key1": "val1" }) "key2" 2L
+  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
+
+test setOverridingDuplicates =
+  Stdlib.Test.all
+    [ Stdlib.Dict.setOverridingDuplicates (Dict { "key1": "val1" }) "key2" "val2"
+      |> Stdlib.Test.equal (Dict { "key1": "val1"; "key2": "val2" })
+      // (where this differs from .set)
+      Stdlib.Dict.setOverridingDuplicates
+        (Dict { "key1": "val1before" })
+        "key1"
+        "val1after"
+      |> Stdlib.Test.equal (Dict { "key1": "val1after" })
+      Stdlib.Dict.setOverridingDuplicates
+        (Dict { "key1": "val1"; "key2": "val2" })
+        "key2"
+        "newVal2"
+      |> Stdlib.Test.equal (Dict { "key1": "val1"; "key2": "newVal2" }) ]
+
+test setOverridingDuplicatesRejectsWrongValueType =
+  Stdlib.Dict.setOverridingDuplicates (Dict { "key1": "val1" }) "key2" 2L
+  => raises "Darklang.Stdlib.Dict.setOverridingDuplicates's 3rd parameter `val` expects String, but got Int64 (2)"
+
+test singleton =
+  Stdlib.Test.all
+    [ Stdlib.Dict.singleton "one" 1L |> Stdlib.Test.equal (Dict { "one": 1L })
+      Stdlib.Dict.singleton "Content-Length" 1L
+      |> Stdlib.Test.equal (Dict { "Content-Length": 1L }) ]
+
+test size =
+  Stdlib.Test.all
+    [ Stdlib.Dict.size (Dict { "a": 3L; "b": 1L; "c": 1L }) |> Stdlib.Test.equal 3
+      Stdlib.Dict.size (Dict { }) |> Stdlib.Test.equal 0 ]
+
+test toList =
+  Stdlib.Test.all
+    [ Stdlib.Dict.toList (Dict { }) |> Stdlib.Test.equal []
+      Stdlib.Dict.toList (Dict { "a": 1L; "b": 2L; "c": 3L })
+      |> Stdlib.Test.equal [ ("a", 1L), ("b", 2L), ("c", 3L) ] ]
+
+test values =
+  Stdlib.Dict.values (Dict { "key1": "val1" }) |> Stdlib.Test.equal [ "val1" ]
+
+test remove =
+  Stdlib.Test.all
+    [ Stdlib.Dict.remove (Dict { "key1": "val1"; "key2": "val2" }) "key1"
+      |> Stdlib.Test.equal (Dict { "key2": "val2" })
+      Stdlib.Dict.remove (Dict { "key1": "val1" }) "key1"
+      |> Stdlib.Test.equal (Dict { })
+      Stdlib.Dict.remove (Dict { "key1": "val1" }) "key2"
+      |> Stdlib.Test.equal (Dict { "key1": "val1" })
+      Stdlib.Dict.remove (Dict { }) "key1" |> Stdlib.Test.equal (Dict { }) ]
+
+test nonStringKeysInt =
+  Stdlib.Test.all
+    [ Stdlib.Dict.get (Dict { 1L: "one"; 2L: "two" }) 2L
+      |> Stdlib.Test.equal (Some "two")
+      Stdlib.Dict.get (Dict { 1L: "one" }) 9L |> Stdlib.Test.equal None
+      Stdlib.Dict.``member`` (Dict { 1L: "one" }) 1L |> Stdlib.Test.equal true
+      Stdlib.Dict.remove (Dict { 1L: "one"; 2L: "two" }) 1L
+      |> Stdlib.Test.equal (Dict { 2L: "two" })
+      Stdlib.Dict.keys (Dict { 2L: "two"; 1L: "one" })
+      |> Stdlib.Test.equal [ 1L, 2L ] ]
+
+test nonStringKeysTuple =
+  Stdlib.Test.all
+    [ Stdlib.Dict.get (Dict { (1L, "a"): "first" }) ((1L, "a"))
+      |> Stdlib.Test.equal (Some "first")
+      Stdlib.Dict.get (Dict { (1L, "a"): "first" }) ((1L, "b"))
+      |> Stdlib.Test.equal None ]
+
+test nonStringKeysList =
+  Stdlib.Dict.get (Dict { [ 1L, 2L ]: "onetwo" }) [ 1L, 2L ]
+  |> Stdlib.Test.equal (Some "onetwo")
+
+test nonStringKeysEnum =
+  Stdlib.Dict.get
+    (Dict { Some 1L: "some" })
+    (Some 1L)
+  |> Stdlib.Test.equal (Some "some")
+
+test nonStringKeysOrdering =
+  Stdlib.Dict.keys (Dict { 10L: "a"; 9L: "b"; 100L: "c" })
+  |> Stdlib.Test.equal [ 9L, 10L, 100L ]
+
+test nonStringKeysComputedKeys =
+  Stdlib.Test.all
+    [ Stdlib.Dict.get (Dict { (1L + 1L): "two" }) 2L
+      |> Stdlib.Test.equal (Some "two")
+      (let x = "hello"
+       Stdlib.Dict.keys (Dict { x: 1L }))
+      |> Stdlib.Test.equal [ "hello" ]
+      (let ``type`` = "a value"
+       Stdlib.Dict.keys (Dict { ``type``: 1L }))
+      |> Stdlib.Test.equal [ "a value" ] ]
+
+test nonStringKeysFloatKeys =
+  Stdlib.Test.all
+    [ Stdlib.Dict.get (Dict { 0.0: "zero" }) -0.0 |> Stdlib.Test.equal (Some "zero")
+      (let nan = Stdlib.Float.sqrt -1.0
+       nan == nan)
+      |> Stdlib.Test.equal false
+      (let nan = Stdlib.Float.sqrt -1.0
+       Stdlib.Dict.get (Dict { nan: "nan" }) nan)
+      |> Stdlib.Test.equal (Some "nan")
+      (let nan = Stdlib.Float.sqrt -1.0
+       Stdlib.Dict.size
+         (Stdlib.Dict.setOverridingDuplicates (Dict { nan: "a" }) nan "b"))
+      |> Stdlib.Test.equal 1
+      (let inf = 1.0 / 0.0
+       Stdlib.Dict.get (Dict { inf: "inf" }) inf)
+      |> Stdlib.Test.equal (Some "inf")
+      // Differs from legacy: legacy compared the keys to a list holding NaN. NaN
+      // never equals itself here, so each key is mapped to a label and the labels
+      // compared.
+      (let inf = 1.0 / 0.0
+       let ninf = -1.0 / 0.0
+       let nan = Stdlib.Float.sqrt -1.0
+       Stdlib.Dict.keys (Dict { inf: 1L; ninf: 2L; 0.0: 3L; nan: 4L }))
+      |> Stdlib.List.map (fun value ->
+        if Stdlib.Float.isNaN value then "nan"
+        else if value == (-1.0 / 0.0) then "negative infinity"
+        else if value == 0.0 then "zero"
+        else if value == (1.0 / 0.0) then "positive infinity"
+        else "other")
+      |> Stdlib.Test.equal
+        [ "nan", "negative infinity", "zero", "positive infinity" ] ]
+
+test nonStringKeysEveryKeyType =
+  Stdlib.Test.all
+    [ Stdlib.Dict.get (Dict { (): "unit" }) () |> Stdlib.Test.equal (Some "unit")
+      Stdlib.Dict.get (Dict { true: "t"; false: "f" }) true
+      |> Stdlib.Test.equal (Some "t")
+      Stdlib.Dict.get (Dict { 1y: "i8" }) 1y |> Stdlib.Test.equal (Some "i8")
+      Stdlib.Dict.get (Dict { 1uy: "u8" }) 1uy |> Stdlib.Test.equal (Some "u8")
+      Stdlib.Dict.get (Dict { 1s: "i16" }) 1s |> Stdlib.Test.equal (Some "i16")
+      Stdlib.Dict.get (Dict { 1us: "u16" }) 1us |> Stdlib.Test.equal (Some "u16")
+      Stdlib.Dict.get (Dict { 1l: "i32" }) 1l |> Stdlib.Test.equal (Some "i32")
+      Stdlib.Dict.get (Dict { 1ul: "u32" }) 1ul |> Stdlib.Test.equal (Some "u32")
+      Stdlib.Dict.get (Dict { 1L: "i64" }) 1L |> Stdlib.Test.equal (Some "i64")
+      Stdlib.Dict.get (Dict { 1UL: "u64" }) 1UL |> Stdlib.Test.equal (Some "u64")
+      Stdlib.Dict.get (Dict { 1Q: "i128" }) 1Q |> Stdlib.Test.equal (Some "i128")
+      Stdlib.Dict.get (Dict { 1Z: "u128" }) 1Z |> Stdlib.Test.equal (Some "u128")
+      Stdlib.Dict.get (Dict { 1: "int" }) 1 |> Stdlib.Test.equal (Some "int")
+      Stdlib.Dict.get (Dict { 1.5: "float" }) 1.5 |> Stdlib.Test.equal (Some "float")
+      Stdlib.Dict.get (Dict { 'a': "char" }) 'a' |> Stdlib.Test.equal (Some "char")
+      Stdlib.Dict.get (Dict { "s": "string" }) "s"
+      |> Stdlib.Test.equal (Some "string")
+      (let u =
+         Builtin.unwrap (Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
+       Stdlib.Dict.get (Dict { u: "uuid" }) u)
+      |> Stdlib.Test.equal (Some "uuid")
+      (let d = Builtin.unwrap (Stdlib.DateTime.parse "2026-08-31T00:00:00Z")
+       Stdlib.Dict.get (Dict { d: "datetime" }) d)
+      |> Stdlib.Test.equal (Some "datetime")
+      Stdlib.Dict.get (Dict { [ 1L, 2L ]: "list" }) [ 1L, 2L ]
+      |> Stdlib.Test.equal (Some "list")
+      Stdlib.Dict.get (Dict { (1L, 'c', "s"): "tuple" }) ((1L, 'c', "s"))
+      |> Stdlib.Test.equal (Some "tuple")
+      Stdlib.Dict.get
+        (Dict { Some 1L: "enum" })
+        (Some 1L)
+      |> Stdlib.Test.equal (Some "enum")
+      Stdlib.Dict.get
+        (Dict { Point { x = 1L; y = 2L }: "record" })
+        (Point { x = 1L; y = 2L })
+      |> Stdlib.Test.equal (Some "record")
+      Stdlib.Dict.get
+        (Dict { Point { x = 1L; y = 2L }: "record" })
+        (Point { x = 1L; y = 9L })
+      |> Stdlib.Test.equal None
+      Stdlib.Dict.get
+        (Dict { (Dict { 1L: "inner" }): "dict" })
+        (Dict { 1L: "inner" })
+      |> Stdlib.Test.equal (Some "dict") ]
+
+test nonStringKeysKeyOrdering =
+  Stdlib.Test.all
+    [ Stdlib.Dict.keys (Dict { true: 1L; false: 2L })
+      |> Stdlib.Test.equal [ false, true ]
+      Stdlib.Dict.keys (Dict { 'c': 1L; 'a': 2L }) |> Stdlib.Test.equal [ 'a', 'c' ]
+      Stdlib.Dict.keys (Dict { 2L: 1L; -3L: 2L; 0L: 3L })
+      |> Stdlib.Test.equal [ -3L, 0L, 2L ]
+      Stdlib.Dict.keys
+        (Dict { 9223372036854775808: 1L; 9223372036854775807: 2L; 0: 3L })
+      |> Stdlib.Test.equal [ 0, 9223372036854775807, 9223372036854775808 ]
+      Stdlib.Dict.keys (Dict { -9223372036854775809: 1L; 0: 2L })
+      |> Stdlib.Test.equal [ -9223372036854775809, 0 ]
+      Stdlib.Dict.keys (Dict { [ 2L ]: 1L; [ 1L, 9L ]: 2L; []: 3L })
+      |> Stdlib.Test.equal [ [], [ 1L, 9L ], [ 2L ] ] ]
+
+test nonStringKeysFromListInfersTypes =
+  Stdlib.Test.all
+    [ Stdlib.Dict.fromList [ (1L, "a"), (1L, "b") ] |> Stdlib.Test.equal None
+      Stdlib.Dict.fromList [ (2L, "b"), (1L, "a") ]
+      |> Stdlib.Test.equal Some(Dict { 1L: "a"; 2L: "b" }) ]
+
+test nonStringKeysFromListInfersKeyType =
+  Stdlib.Dict.set
+    (Builtin.unwrap (Stdlib.Dict.fromList [ (1L, "a") ]))
+    "b"
+    "c"
+  => raises "Darklang.Stdlib.Dict.set's 2nd parameter `key` expects Int64, but got String (\"b\")"
+
+test nonStringKeysFromListOverwritingDuplicatesInfersKeyType =
+  Stdlib.Dict.set
+    (Stdlib.Dict.fromListOverwritingDuplicates [ (1L, "a") ])
+    "b"
+    "c"
+  => raises "Darklang.Stdlib.Dict.set's 2nd parameter `key` expects Int64, but got String (\"b\")"
+
+test nonStringKeysFromListInfersValueType =
+  Stdlib.Dict.set (Builtin.unwrap (Stdlib.Dict.fromList [ (1L, "a") ])) 2L 3L
+  => raises "Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (3)"
+
+test nonStringKeysFromListRejectsLambdaKey =
+  Stdlib.Dict.fromList [ (1L, "a"), ((fun x -> x), "b") ]
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysIdentityMatchesEquality =
+  Stdlib.Test.all
+    [ (Point { x = 1L; y = 2L }) == (PointAlias { x = 1L; y = 2L })
+      |> Stdlib.Test.equal true
+      Stdlib.Dict.``member``
+        (Dict { Point { x = 1L; y = 2L }: "p" })
+        (PointAlias { x = 1L; y = 2L })
+      |> Stdlib.Test.equal true
+      (Colour.Blue 1L) == (ColourAlias.Blue 1L) |> Stdlib.Test.equal true
+      Stdlib.Dict.``member`` (Dict { Colour.Blue 1L: "c" }) (ColourAlias.Blue 1L)
+      |> Stdlib.Test.equal true
+      (Point { x = 1L; y = 2L }) == (SameShape { x = 1L; y = 2L })
+      |> Stdlib.Test.equal true
+      Stdlib.Dict.``member``
+        (Dict { Point { x = 1L; y = 2L }: "p" })
+        (SameShape { x = 1L; y = 2L })
+      |> Stdlib.Test.equal true ]
+
+// Differs from legacy: the type names in the error are qualified with this test
+// module; legacy's were bare (`SameShape`, `DifferentShape`).
+test nonStringKeysDifferentShapesCannotBeCompared =
+  (Point { x = 1L; y = 2L }) == (DifferentShape { a = 1L; b = 2L })
+  => raises "Cannot perform equality check on Darklang.Stdlib.Dict.Tests.SameShape and Darklang.Stdlib.Dict.Tests.DifferentShape"
+
+test nonStringKeysRecordFieldOrder =
+  Stdlib.Test.all
+    [ (Point { x = 1L; y = 2L }) == (Point { y = 2L; x = 1L })
+      |> Stdlib.Test.equal true
+      Stdlib.Dict.``member``
+        (Dict { Point { x = 1L; y = 2L }: "p" })
+        (Point { y = 2L; x = 1L })
+      |> Stdlib.Test.equal true ]
+
+test nonStringKeysNestedDictOrder =
+  Stdlib.Dict.``member``
+    (Dict {
+      (Stdlib.Dict.set (Stdlib.Dict.set Stdlib.Dict.empty "a" 1L) "b" 2L): "x" })
+    (Stdlib.Dict.set (Stdlib.Dict.set Stdlib.Dict.empty "b" 2L) "a" 1L)
+  |> Stdlib.Test.equal true
+
+test nonStringKeysDeepComposites =
+  Stdlib.Test.all
+    [ Stdlib.Dict.``member``
+        (Dict { ([ Point { x = 1L; y = 2L } ], "s"): "d" })
+        (([ Point { x = 1L; y = 2L } ], "s"))
+      |> Stdlib.Test.equal true
+      Stdlib.Dict.``member``
+        (Dict { ([ Point { x = 1L; y = 2L } ], "s"): "d" })
+        (([ Point { x = 1L; y = 9L } ], "s"))
+      |> Stdlib.Test.equal false
+      Stdlib.Dict.``member`` (Dict { [ [ 1L ] ]: "a" }) [ [ 1L ], [] ]
+      |> Stdlib.Test.equal false
+      Stdlib.Dict.``member`` (Dict { [ [ 1L ], [] ]: "a" }) [ [ 1L ] ]
+      |> Stdlib.Test.equal false
+      Stdlib.Dict.keys (Dict { [ [ 2L ] ]: 1L; [ [ 1L ], [ 3L ] ]: 2L })
+      |> Stdlib.Test.equal [ [ [ 1L ], [ 3L ] ], [ [ 2L ] ] ] ]
+
+test nonStringKeysRejectsLambdaInList =
+  Dict { [ (fun x -> x) ]: 1L }
+  => raises "Cannot use [(lambda)] as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysRejectsLambdaInTuple =
+  Dict { (1L, (fun x -> x)): 1L }
+  => raises "Cannot use (1, (lambda)) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysRejectsLambdaInEnum =
+  Dict { (Stdlib.Option.Option.Some (fun x -> x)): 1L }
+  => raises "Cannot use Some((lambda)) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysLiteralRejectsMixedKeyTypes =
+  Dict { 1L: "a"; "b": "c" }
+  => raises "This dict uses keys of type Int64, but \"b\" has type String."
+
+test nonStringKeysLiteralRejectsLambdaKey =
+  Dict { (fun x -> x): 1L }
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysGetRejectsLambdaKey =
+  Stdlib.Dict.get (Dict { 1L: "a" }) (fun x -> x)
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysSetRejectsLambdaKeyOnEmptyDict =
+  Stdlib.Dict.set (Dict { }) (fun x -> x) 1L
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysSetRejectsLambdaKey =
+  Stdlib.Dict.set (Dict { 1L: "a" }) (fun x -> x) "b"
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysSetOverridingDuplicatesRejectsLambdaKey =
+  Stdlib.Dict.setOverridingDuplicates (Dict { 1L: "a" }) (fun x -> x) "b"
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysMemberRejectsLambdaKey =
+  Stdlib.Dict.``member`` (Dict { 1L: "a" }) (fun x -> x)
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test nonStringKeysRemoveRejectsLambdaKey =
+  Stdlib.Dict.remove (Dict { 1L: "a" }) (fun x -> x)
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+// Not a legacy assertion: the commented-out filterMap case above, made live. It
+// never failed because its call left out the dict: a partial application, so the
+// lambda never ran. Given a dict, the `false` is rejected, though not with the
+// error legacy expected (an Option.map argument-type error).
+test filterMapRejectsNonOptionResult =
+  Stdlib.Dict.filterMap
+    (Dict { "a": "x"; "b": "y"; "c": "z" })
+    (fun key value -> if value == "y" then false else Some(key + value))
+  => raises "No matching case found for value false in match expression"
+
+// Differs from legacy: Stdlib.Test.raiseRuntimeError stands in for the backend-only
+// Builtin.testRuntimeError (same "Uncaught exception: err").
+test fromListOverwritingDuplicatesPropagatesElementError =
+  Stdlib.Dict.fromListOverwritingDuplicates [ Stdlib.Test.raiseRuntimeError "err" ]
+  => raises "Uncaught exception: err"
+
+// Differs from legacy: Stdlib.Test.raiseRuntimeError, as above.
+test fromListPropagatesElementError =
+  Stdlib.Dict.fromList [ Stdlib.Test.raiseRuntimeError "err" ]
+  => raises "Uncaught exception: err"

@@ -1,0 +1,180 @@
+/// Arbitrary-precision `Int` cases from
+/// `backend/testfiles/execution/stdlib/ints/int.dark`.
+module Darklang.Stdlib.Int.Tests
+
+// Arbitrary-precision `Int` — the small/big representation split.
+//
+// `Int` is stored as a small (Int64-backed) value when it fits, and only
+// promotes to a big representation on overflow. Values are NORMALIZED: any
+// result that fits Int64 always uses the small representation. These tests
+// exercise the boundary, promotion, demotion, normalization, and finite/infinite
+// ordering — the properties that break if normalization is wrong. Literals use
+// the F# `I` suffix because these testfiles are parsed by the F# parser.
+//
+// The representation itself is not visible from Dark, so these check the VALUES
+// on both sides of the Int64 range, where a representation bug would show.
+
+// --- boundary: largest small value vs first big value ---
+test int64Boundary =
+  Stdlib.Test.all
+    [ // Int64.MAX stays small
+      (9223372036854775807 + 0) |> Stdlib.Test.equal 9223372036854775807
+      // promotes past Int64.MAX
+      (9223372036854775807 + 1) |> Stdlib.Test.equal 9223372036854775808
+      // promotes past Int64.MIN
+      (-9223372036854775808 - 1) |> Stdlib.Test.equal -9223372036854775809
+      // computed up to Int64.MAX, it equals the literal
+      (9223372036854775807 == (9223372036854775806 + 1))
+      |> Stdlib.Test.equal true ]
+
+// --- demotion: a big-arithmetic result that fits Int64 collapses to small ---
+test bigResultsBackInInt64Range =
+  Stdlib.Test.all
+    [ (9223372036854775808 - 1) |> Stdlib.Test.equal 9223372036854775807
+      ((2 ** 100) - (2 ** 100)) |> Stdlib.Test.equal 0
+      ((2 ** 100) / (2 ** 100)) |> Stdlib.Test.equal 1
+      // --- normalization: a promoted-then-demoted result equals the small
+      // literal ---
+      // (this is the property that fails if a small value is left as the big rep)
+      ((9223372036854775808 - 9223372036854775808) == 0)
+      |> Stdlib.Test.equal true ]
+
+// --- equality and ordering across representations ---
+test equalityAndOrdering =
+  Stdlib.Test.all
+    [ ((2 ** 64) == (2 ** 64)) |> Stdlib.Test.equal true
+      (9223372036854775808 > 5) |> Stdlib.Test.equal true
+      (5 < 9223372036854775808) |> Stdlib.Test.equal true
+      (9223372036854775808 == 5) |> Stdlib.Test.equal false ]
+
+// --- arithmetic correctness at scale ---
+test largePowers =
+  Stdlib.Test.all
+    [ (2 ** 64) |> Stdlib.Test.equal 18446744073709551616
+      (2 ** 200)
+      |> Stdlib.Test.equal 1606938044258990275541962092341162602522202993782792835301376 ]
+
+// --- round-trips (stringify / parse / Int64 conversions) ---
+test toStringAndParse =
+  Stdlib.Test.all
+    [ Stdlib.toString 5 |> Stdlib.Test.equal "5"
+      Stdlib.toString 9223372036854775808
+      |> Stdlib.Test.equal "9223372036854775808"
+      Stdlib.Int.parse "9223372036854775808"
+      |> Stdlib.Test.equal (Ok 9223372036854775808)
+      Stdlib.Int.parse "5" |> Stdlib.Test.equal (Ok 5)
+      Stdlib.Int.parse "not a number"
+      |> Stdlib.Test.equal (Error Stdlib.Int.ParseError.BadFormat)
+      Stdlib.Int.parse ""
+      |> Stdlib.Test.equal (Error Stdlib.Int.ParseError.BadFormat)
+      Stdlib.Int.parse "5.0"
+      |> Stdlib.Test.equal (Error Stdlib.Int.ParseError.BadFormat)
+      Stdlib.Int.parse "5_000"
+      |> Stdlib.Test.equal (Error Stdlib.Int.ParseError.BadFormat)
+      // arbitrary precision: a value past Int64.MinValue still parses
+      Stdlib.Int.parse "-9223372036854775809"
+      |> Stdlib.Test.equal (Ok -9223372036854775809) ]
+
+// toInt64 relies on the invariant: a small Int always fits, a big Int never does
+test int64Conversions =
+  Stdlib.Test.all
+    [ Stdlib.Int.fromInt64 5L |> Stdlib.Test.equal 5
+      Stdlib.Int.toInt64 5 |> Stdlib.Test.equal (Some 5L)
+      Stdlib.Int.toInt64 9223372036854775808 |> Stdlib.Test.equal None ]
+
+// --- conversions from the fixed-width types (always succeed) ---
+test fromFixedWidth =
+  Stdlib.Test.all
+    [ Stdlib.Int.fromInt8 127y |> Stdlib.Test.equal 127
+      Stdlib.Int.fromUInt8 255uy |> Stdlib.Test.equal 255
+      Stdlib.Int.fromInt16 32767s |> Stdlib.Test.equal 32767
+      Stdlib.Int.fromUInt32 4294967295ul |> Stdlib.Test.equal 4294967295
+      // values past Int64 still convert exactly
+      Stdlib.Int.fromUInt64 18446744073709551615UL
+      |> Stdlib.Test.equal 18446744073709551615
+      Stdlib.Int.fromUInt128 340282366920938463463374607431768211455Z
+      |> Stdlib.Test.equal 340282366920938463463374607431768211455 ]
+
+// --- conversions into the fixed-width types (Some if it fits, else None) ---
+test toFixedWidth =
+  Stdlib.Test.all
+    [ Stdlib.Int.toInt8 100 |> Stdlib.Test.equal (Some 100y)
+      Stdlib.Int.toInt8 200 |> Stdlib.Test.equal None
+      Stdlib.Int.toUInt8 (-1) |> Stdlib.Test.equal None
+      Stdlib.Int.toInt32 (2 ** 40) |> Stdlib.Test.equal None
+      Stdlib.Int.toInt128 (2 ** 100)
+      |> Stdlib.Test.equal (Some 1267650600228229401496703205376Q)
+      Stdlib.Int.toInt128 (2 ** 200) |> Stdlib.Test.equal None
+      Stdlib.Int.toUInt128 (2 ** 200) |> Stdlib.Test.equal None ]
+
+// --- fromFloat: truncates toward zero; NaN/Infinity have no Int, so OutOfRange ---
+test fromFloatTruncatesTowardZero =
+  Stdlib.Test.all
+    [ Stdlib.Int.fromFloat 3.9 |> Stdlib.Test.equal 3
+      Stdlib.Int.fromFloat -3.9 |> Stdlib.Test.equal -3 ]
+
+// NaN and the infinities have no Int, so they are out of range.
+
+test fromFloatRejectsNaN =
+  Stdlib.Int.fromFloat (0.0 / 0.0)
+  => raises "Encountered out-of-range value for type of Int"
+
+test fromFloatRejectsInfinity =
+  Stdlib.Int.fromFloat (1.0 / 0.0)
+  => raises "Encountered out-of-range value for type of Int"
+
+test fromFloatRejectsNegativeInfinity =
+  Stdlib.Int.fromFloat (-1.0 / 0.0)
+  => raises "Encountered out-of-range value for type of Int"
+
+// --- remainder: Result<Int>; sign follows the dividend; Error only if divisor
+// is 0 ---
+test remainder =
+  Stdlib.Test.all
+    [ Stdlib.Int.remainder 15 6 |> Stdlib.Test.equal (Ok 3)
+      Stdlib.Int.remainder 20 8 |> Stdlib.Test.equal (Ok 4)
+      Stdlib.Int.remainder -20 8 |> Stdlib.Test.equal (Ok -4)
+      Stdlib.Int.remainder -20 -8 |> Stdlib.Test.equal (Ok -4)
+      Stdlib.Int.remainder -15 6 |> Stdlib.Test.equal (Ok -3)
+      Stdlib.Int.remainder 5 0 |> Stdlib.Test.equal (Error "Cannot divide by 0")
+      // arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
+      Stdlib.Int.remainder (2 ** 100) 7 |> Stdlib.Test.equal (Ok 2) ]
+
+// --- mod: wraps into [0, b); RTE if b <= 0 ---
+//
+// the % operator dispatches to mod
+//
+// Differs from legacy: legacy checks `15 % 5`, `5 % 0` and `5 % -5` twice, as
+// `Stdlib.Int.mod` used to be spelled and as the operator; both are the
+// operator now, so each is checked once here.
+test modulo =
+  Stdlib.Test.all
+    [ (15 % 5) |> Stdlib.Test.equal 0
+      (15 % 6) |> Stdlib.Test.equal 3
+      (0 % 15) |> Stdlib.Test.equal 0
+      (-1 % 2) |> Stdlib.Test.equal 1
+      (-754 % 53) |> Stdlib.Test.equal 41
+      ((2 ** 100) % 7) |> Stdlib.Test.equal 2 ]
+
+test moduloRejectsZero =
+  (5 % 0)
+  => raises "Cannot evaluate modulus against 0"
+
+test moduloRejectsNegativeDivisor =
+  (5 % -5)
+  => raises "Cannot evaluate modulus against a negative number"
+
+// --- shiftLeft / shiftRight: count must fit Int32, else OutOfRange ---
+test shifts =
+  Stdlib.Test.all
+    [ (1 << 4) |> Stdlib.Test.equal 16
+      (1 << 64) |> Stdlib.Test.equal 18446744073709551616
+      (256 >> 4) |> Stdlib.Test.equal 16 ]
+
+test shiftLeftRejectsHugeCount =
+  (1 << (2 ** 40))
+  => raises "Encountered out-of-range value for type of Int"
+
+test shiftRightRejectsHugeCount =
+  (1 >> (2 ** 40))
+  => raises "Encountered out-of-range value for type of Int"

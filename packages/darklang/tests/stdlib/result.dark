@@ -1,0 +1,249 @@
+/// Cases ported from `backend/testfiles/execution/stdlib/result.dark`.
+module Darklang.Stdlib.Result.Tests
+
+test andThen =
+  Stdlib.Test.all
+    [ Stdlib.Result.andThen (Error "test") (fun _ -> Error "test")
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.andThen (Error "test") (fun _ -> Ok 5L)
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.andThen (Ok 5L) (fun _ -> Error "test")
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.andThen (Ok 5L) (fun x -> Ok (1L + x))
+      |> Stdlib.Test.equal (Ok 6L) ]
+
+test collect =
+  Stdlib.Test.all
+    [ Stdlib.Result.collect [ Ok 5L, Ok 6L, Ok 7L ]
+      |> Stdlib.Test.equal (Ok [ 5L, 6L, 7L ])
+      Stdlib.Result.collect [ Ok 5L, Error "test", Ok 7L ]
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.collect [ Ok 5L, Error "test", Error "test2" ]
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.collect [ Error "test", Error "test2" ]
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.collect []
+      |> Stdlib.Test.equal (Ok []) ]
+
+test fromOption =
+  Stdlib.Test.all
+    [ Stdlib.Result.fromOption (Some 6L) "test"
+      |> Stdlib.Test.equal (Ok 6L)
+      Stdlib.Result.fromOption None "test"
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.fromOption (Some (Error "test")) "test"
+      |> Stdlib.Test.equal (Ok (Error "test"))
+      Stdlib.Result.fromOption None (1L, 2L, 3L)
+      |> Stdlib.Test.equal (Error ((1L, 2L, 3L)))
+      Stdlib.Result.fromOption None None
+      |> Stdlib.Test.equal (Error None) ]
+
+test map2 =
+  Stdlib.Test.all
+    [ Stdlib.Result.map2 (Error "error1") (Error "error2") (fun x y -> x - y)
+      |> Stdlib.Test.equal (Error "error1")
+      Stdlib.Result.map2 (Error "error1") (Ok 1L) (fun x y -> x - y)
+      |> Stdlib.Test.equal (Error "error1")
+      Stdlib.Result.map2 (Ok 10L) (Error "error2") (fun x y -> x - y)
+      |> Stdlib.Test.equal (Error "error2")
+      Stdlib.Result.map2 (Ok 10L) (Ok 1L) (fun x y -> x - y)
+      |> Stdlib.Test.equal (Ok 9L) ]
+
+test map3 =
+  Stdlib.Test.all
+    [ Stdlib.Result.map3
+        (Error "error1")
+        (Error "error2")
+        (Error "error3")
+        (fun x y z -> x - y - z)
+      |> Stdlib.Test.equal (Error "error1")
+      Stdlib.Result.map3
+        (Error "error1")
+        (Error "error2")
+        (Ok 1L)
+        (fun x y z -> x - y - z)
+      |> Stdlib.Test.equal (Error "error1")
+      Stdlib.Result.map3
+        (Ok 10L)
+        (Error "error2")
+        (Error "error3")
+        (fun x y z -> x - y - z)
+      |> Stdlib.Test.equal (Error "error2")
+      Stdlib.Result.map3 (Ok 10L) (Ok 1L) (Error "error3") (fun x y z -> x - y - z)
+      |> Stdlib.Test.equal (Error "error3")
+      Stdlib.Result.map3 (Ok 10L) (Ok 1L) (Ok 1L) (fun x y z -> x - y - z)
+      |> Stdlib.Test.equal (Ok 8L) ]
+
+test map4 =
+  Stdlib.Test.all
+    [ Stdlib.Result.map4
+        (Error "error1")
+        (Error "error2")
+        (Error "error3")
+        (Error "error4")
+        (fun w x y z -> w - x - y - z)
+      |> Stdlib.Test.equal (Error "error1")
+      Stdlib.Result.map4
+        (Error "error1")
+        (Error "error2")
+        (Error "error3")
+        (Ok 1L)
+        (fun w x y z -> w - x - y - z)
+      |> Stdlib.Test.equal (Error "error1")
+      Stdlib.Result.map4
+        (Ok 10L)
+        (Ok 1L)
+        (Ok 1L)
+        (Error "error4")
+        (fun w x y z -> w - x - y - z)
+      |> Stdlib.Test.equal (Error "error4")
+      Stdlib.Result.map4
+        (Ok 10L)
+        (Ok 1L)
+        (Ok 1L)
+        (Ok 2L)
+        (fun w x y z -> w - x - y - z)
+      |> Stdlib.Test.equal (Ok 6L) ]
+
+test map5 =
+  Stdlib.Test.all
+    [ Stdlib.Result.map5
+        (Error "error1")
+        (Error "error2")
+        (Error "error3")
+        (Error "error4")
+        (Error "error5")
+        (fun v w x y z -> v - w - x - y - z)
+      |> Stdlib.Test.equal (Error "error1")
+      Stdlib.Result.map5
+        (Error "error1")
+        (Error "error2")
+        (Error "error3")
+        (Error "error4")
+        (Ok 1L)
+        (fun v w x y z -> v - w - x - y - z)
+      |> Stdlib.Test.equal (Error "error1")
+      Stdlib.Result.map5
+        (Ok 10L)
+        (Ok 1L)
+        (Ok 1L)
+        (Ok 2L)
+        (Error "error5")
+        (fun v w x y z -> v - w - x - y - z)
+      |> Stdlib.Test.equal (Error "error5")
+      Stdlib.Result.map5
+        (Ok 10L)
+        (Ok 1L)
+        (Ok 1L)
+        (Ok 2L)
+        (Ok 3L)
+        (fun v w x y z -> v - w - x - y - z)
+      |> Stdlib.Test.equal (Ok 3L) ]
+
+test mapWithDefault =
+  Stdlib.Test.all
+    [ Stdlib.Result.mapWithDefault (Error "test") 5L (fun x -> x + 1L)
+      |> Stdlib.Test.equal 5L
+      Stdlib.Result.mapWithDefault (Ok 6L) 5L (fun x -> x + 1L)
+      |> Stdlib.Test.equal 7L
+      Stdlib.Result.mapWithDefault
+        (Error "test1")
+        (Error "test2")
+        (fun x -> x + 1L)
+      |> Stdlib.Test.equal (Error "test2") ]
+
+test mapError =
+  Stdlib.Test.all
+    [ Stdlib.Result.mapError
+        (Error "test")
+        (fun x -> Stdlib.String.append x "-appended")
+      |> Stdlib.Test.equal (Error "test-appended")
+      Stdlib.Result.mapError (Ok 4L) (fun x -> (x / 2L))
+      |> Stdlib.Test.equal (Ok 4L) ]
+
+test map =
+  Stdlib.Test.all
+    [ Stdlib.Result.map (Error "test") (fun x -> (x / 2L))
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.map (Ok 4L) (fun x -> (x / 2L))
+      |> Stdlib.Test.equal (Ok 2L) ]
+
+test withDefault =
+  Stdlib.Test.all
+    [ Stdlib.Result.withDefault (Error "test") 5L
+      |> Stdlib.Test.equal 5L
+      Stdlib.Result.withDefault (Ok 6L) 5L
+      |> Stdlib.Test.equal 6L ]
+
+test toOption =
+  Stdlib.Test.all
+    [ Stdlib.Result.toOption (Ok "test") |> Stdlib.Test.equal (Some "test")
+      Stdlib.Result.toOption (Error "test") |> Stdlib.Test.equal None ]
+
+test isOk =
+  Stdlib.Test.all
+    [ Stdlib.Result.isOk (Ok "test") |> Stdlib.Test.equal true
+      Stdlib.Result.isOk (Error "test") |> Stdlib.Test.equal false ]
+
+test isError =
+  Stdlib.Test.all
+    [ Stdlib.Result.isError (Ok "test") |> Stdlib.Test.equal false
+      Stdlib.Result.isError (Error "test") |> Stdlib.Test.equal true ]
+
+test toList =
+  Stdlib.Test.all
+    [ Stdlib.Result.toList (Ok "test") |> Stdlib.Test.equal [ "test" ]
+      Stdlib.Result.toList (Error "test") |> Stdlib.Test.equal [] ]
+
+test and =
+  Stdlib.Test.all
+    [ Stdlib.Result.and (Ok "test1") (Ok "test2")
+      |> Stdlib.Test.equal (Ok "test2")
+      Stdlib.Result.and (Ok "test1") (Error "test2")
+      |> Stdlib.Test.equal (Error "test2")
+      Stdlib.Result.and (Error "test1") (Ok "test2")
+      |> Stdlib.Test.equal (Error "test1")
+      Stdlib.Result.and (Error "test1") (Error "test2")
+      |> Stdlib.Test.equal (Error "test1") ]
+
+test or =
+  Stdlib.Test.all
+    [ Stdlib.Result.or (Ok "test1") (Ok "test2")
+      |> Stdlib.Test.equal (Ok "test1")
+      Stdlib.Result.or (Ok "test1") (Error "test2")
+      |> Stdlib.Test.equal (Ok "test1")
+      Stdlib.Result.or (Error "test1") (Ok "test2")
+      |> Stdlib.Test.equal (Ok "test2")
+      Stdlib.Result.or (Error "test1") (Error "test2")
+      |> Stdlib.Test.equal (Error "test2") ]
+
+test join =
+  Stdlib.Test.all
+    [ Stdlib.Result.join (Ok (Ok "test"))
+      |> Stdlib.Test.equal (Ok "test")
+      Stdlib.Result.join (Ok (Error "test"))
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.join (Error "test")
+      |> Stdlib.Test.equal (Error "test") ]
+
+test combine =
+  Stdlib.Test.all
+    [ Stdlib.Result.combine [ Ok 1L, Ok 2L, Ok 3L ]
+      |> Stdlib.Test.equal (Ok [ 1L, 2L, 3L ])
+      Stdlib.Result.combine [ Ok 1L, Error "test", Ok 3L ]
+      |> Stdlib.Test.equal (Error "test")
+      Stdlib.Result.combine [ Error "test1", Error "test2" ]
+      |> Stdlib.Test.equal (Error "test1")
+      Stdlib.Result.combine []
+      |> Stdlib.Test.equal (Ok []) ]
+
+test values =
+  Stdlib.Test.all
+    [ Stdlib.Result.values [ Ok 1L, Ok 2L, Ok 3L ]
+      |> Stdlib.Test.equal (Ok [ 1L, 2L, 3L ])
+      Stdlib.Result.values [ Ok 1L, Error "test", Ok 3L ]
+      |> Stdlib.Test.equal (Ok [ 1L, 3L ])
+      Stdlib.Result.values [ Error "test1", Error "test2" ]
+      |> Stdlib.Test.equal (Ok [])
+      Stdlib.Result.values []
+      |> Stdlib.Test.equal (Ok []) ]

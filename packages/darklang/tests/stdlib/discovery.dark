@@ -1,0 +1,19 @@
+/// Cases ported from `backend/testfiles/execution/stdlib/discovery.dark`.
+// Differs from legacy: these call the Dark wrapper of each builtin
+// (`PackageManager.Value.findByValueType`, `ValueSearch.evaluate`) where legacy called
+// `Builtin.pmFindValuesByValueType` and `Builtin.pmEvaluateValue` directly, since a
+// builtin may have only one Dark caller.
+module Darklang.Stdlib.ValueSearch.Tests
+
+// pmFindValuesByValueType returns empty list for unknown type
+test unknownValueTypeFindsNoValues =
+  Darklang.LanguageTools.PackageManager.Value.findByValueType
+    Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown
+  |> Stdlib.Test.equal []
+
+// pmEvaluateValue returns None for unknown value
+test missingValueEvaluatesToNone =
+  Darklang.Stdlib.ValueSearch.evaluate
+    (Darklang.LanguageTools.ProgramTypes.Hash.Hash
+      "0000000000000000000000000000000000000000000000000000000000000000")
+  |> Stdlib.Test.equal None
