@@ -213,13 +213,23 @@ let rec symbolicToSql
   | DBRow -> Error "Cannot use the entire row directly; access its fields"
 
   | DBField path ->
-    // Strip any non-alphanumeric characters to prevent SQL injection via field names
-    let safePath =
-      path
-      |> List.map (fun s ->
-        System.Text.RegularExpressions.Regex.Replace(s, "[^a-zA-Z0-9_]", ""))
-    let jsonPath = "$." + (safePath |> String.concat ".")
-    Ok($"json_extract(data, '{jsonPath}')", state)
+    // Quote each JSON path component and then escape the SQL literal. Removing
+    // punctuation changes field identity (e.g. `ALL CAPS` became `ALLCAPS`).
+    let jsonPath =
+      "$"
+      + (path
+         |> List.map (fun field ->
+           let encoded =
+             System.Text.Json.JsonEncodedText
+               .Encode(
+                 field,
+                 System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+               )
+               .ToString()
+           ".\"" + encoded + "\"")
+         |> String.concat "")
+    let sqlPath = jsonPath.Replace("'", "''")
+    Ok($"json_extract(data, '{sqlPath}')", state)
 
   | Literal dv ->
     match dv with
@@ -437,14 +447,9 @@ and executeInstruction
                 args
             with
             | Ok resultSv -> Ok(state.withReg (createTo, resultSv))
-            | Error _ ->
-              Ok(
-                state.withReg (createTo, Unknown $"Cannot inline function: {fnName}")
-              )
+            | Error error -> Error error
           | RT.FQFnName.Builtin { name = n } ->
-            Ok(
-              state.withReg (createTo, Unknown $"Unsupported builtin function: {n}")
-            )
+            Error $"Function {n} is not supported in SQL queries"
           | RT.FQFnName.TraitMethod { trait_ = _; method_ = m; implFn = _ } ->
             Ok(state.withReg (createTo, Unknown $"Cannot inline trait method: {m}"))
 
@@ -587,9 +592,65 @@ and executeInstruction
   | RT.TraceExpr _ -> Ok state
 
 
+/// Check field/literal comparisons against the DB schema before SQLite can
+/// silently compare unlike storage classes. Resolve aliases and nested fields.
+let private validateFieldComparisons
+  (types : RT.Types)
+  (rowType : RT.TypeReference)
+  (value : SymbolicValue)
+  : Result<unit, CompileError> =
+  let sync p = (Ply.toTask p).Result
+  let rec fieldType typ path =
+    let typ = RT.TypeReference.unwrapAlias types typ |> sync
+    match path, typ with
+    | [], _ -> Some typ
+    | name :: rest, RT.TCustomType({ resolved = Ok typeName }, typeArgs) ->
+      match RT.Types.find types typeName |> sync with
+      | Some({ definition = RT.TypeDeclaration.Record fields } as declaration) ->
+        fields
+        |> NEList.toList
+        |> List.tryFind (fun field -> field.name = name)
+        |> Option.bind (fun field ->
+          fieldType
+            (RT.Types.substitute declaration.typeParams typeArgs field.typ)
+            rest)
+      | _ -> None
+    | _ -> None
+
+  let check path actual =
+    let name = String.concat "." path
+    match fieldType rowType path with
+    | None -> Error $"Unknown DB field: {name}"
+    | Some expected ->
+      match TypeChecker.unify types RT.TST.empty expected actual |> sync with
+      | Ok _ -> Ok()
+      | Error _ ->
+        Error $"Query comparison for field `{name}` has an incompatible value"
+
+  let rec validate value =
+    let validateAll values =
+      values
+      |> List.fold
+        (fun result item -> Result.bind (fun () -> validate item) result)
+        (Ok())
+    match value with
+    | SqlFnCall(RT.SqlBinOp op, [ DBField path; Literal actual ])
+    | SqlFnCall(RT.SqlBinOp op, [ Literal actual; DBField path ]) when
+      List.contains op [ "="; "=="; "!="; "<>"; "<"; ">"; "<="; ">=" ]
+      ->
+      check path actual
+    | SqlFnCall(_, args) -> validateAll args
+    | BoolAnd(a, b)
+    | BoolOr(a, b) -> validateAll [ a; b ]
+    | BoolNot inner -> validate inner
+    | _ -> Ok()
+  validate value
+
+
 /// Compile a lambda's instructions to SQL
 let compileLambda
   (exeState : RT.ExecutionState)
+  (rowType : RT.TypeReference)
   (lambdaImpl : RT.LambdaImpl)
   (closedValues : List<RT.Register * RT.Dval>)
   (resolvedValues : Map<RT.FQValueName.FQValueName, RT.Dval>)
@@ -690,7 +751,10 @@ let compileLambda
     let resultVal = finalState.getReg resultReg
 
     // Validate the result is a boolean expression
-    match validateBoolResult resultVal with
+    match
+      validateFieldComparisons exeState.types rowType resultVal
+      |> Result.bind (fun () -> validateBoolResult resultVal)
+    with
     | Error e -> Error e
     | Ok() ->
       // Convert to SQL

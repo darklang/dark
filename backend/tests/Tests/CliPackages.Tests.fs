@@ -69,6 +69,31 @@ let viewPrintsSource =
           "and --raw prints it without the trimmings"
     })
 
+let viewPrintsTestDefaultsAndSqlErrors =
+  instanceTest "view prints inherited test access and short SQL errors" (fun state ->
+    task {
+      do!
+        shows
+          state
+          [ "view"
+            "Darklang.Stdlib.DB.Tests.generatedKeyHas36Characters"
+            "--raw" ]
+          "test generatedKeyHas36Characters ="
+          "an unannotated test has no printed effect row"
+      do!
+        shows
+          state
+          [ "view"; "Darklang.Stdlib.DB.Tests.FindAll.rejectsInt8Query"; "--raw" ]
+          "=> sqlerror \"Only Int64 integer fields"
+          "SQL errors retain their short source form"
+      do!
+        lacks
+          state
+          [ "view"; "Darklang.Stdlib.DB.Tests.FindAll.rejectsInt8Query"; "--raw" ]
+          "You're using our new experimental Datastore query compiler"
+          "the display-only SQL preamble is absent from source"
+    })
+
 let viewRefusesWhatIsNotThere =
   instanceTest "view refuses a name that holds nothing" (fun state ->
     task {
@@ -1553,6 +1578,7 @@ let tests : List<Test> =
   [ lsNamesWhatIsThere
     treeShowsDescendants
     viewPrintsSource
+    viewPrintsTestDefaultsAndSqlErrors
     viewRefusesWhatIsNotThere
     testsFollowEditsAcrossOwners
     cachedTestsRerunWhenWhatTheyUseChanges
