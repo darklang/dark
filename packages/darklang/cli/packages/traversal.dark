@@ -58,7 +58,7 @@ let getCurrentModulePath (location: PackageLocation) : List<String> =
   // An implementation's methods are ordinary fns in a module named for the implementation, so
   // the module you are "in" when you are at one INCLUDES its name. Without this, descending a
   // path past an implementation silently dropped that segment and `view Stdlib.Int64.Add.add`
-  // reported "Not found: Stdlib.Int64.add", a name nobody typed.
+  // reported "Not found: (+)", a name nobody typed.
   | Impl i ->
     Stdlib.List.append (Stdlib.List.append [i.owner] i.modules) [i.name]
   | Test test -> Stdlib.List.append [test.owner] test.modules

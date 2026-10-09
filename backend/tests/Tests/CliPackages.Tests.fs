@@ -113,6 +113,59 @@ let viewRefusesWhatIsNotThere =
           "a failed view is a failed command"
     })
 
+/// `view --include-tests` ends a function's view with the tests that call it, read from the result
+/// cache and never run. `Stdlib.Float.sqrt` has a package test in every store (`Stdlib.Float.Tests.sqrt`),
+/// and a fresh instance has never run `dark test`, so this is also the path where the cache table does
+/// not exist yet -- which `view` must answer without creating it. Without the flag there is no section.
+let viewListsAFunctionsTests =
+  instanceTest
+    "view --include-tests lists the tests that call a function"
+    (fun state ->
+      task {
+        do!
+          showsAll
+            state
+            [ "view"; "Darklang.Stdlib.Float.sqrt"; "--include-tests" ]
+            [ "Tests:"
+              "Darklang.Stdlib.Float.Tests.sqrt"
+              "no result for this build"
+              "`dark test` runs them" ]
+            "view names the function's tests, with no result before any run"
+        do!
+          lacks
+            state
+            [ "view"; "Darklang.Stdlib.Float.sqrt" ]
+            "Tests:"
+            "without the flag, view shows no tests"
+        do!
+          showsAll
+            state
+            [ "view"; "Darklang.Stdlib.List.head"; "--include-tests" ]
+            [ "Tests:"; "Darklang.Stdlib.List.Tests.head" ]
+            "view includes the ported tests for List.head"
+        // A stdlib function can gain tests at any time. Use a local fixture
+        // with a distinct body so it cannot share a tested function's hash.
+        do!
+          fn
+            state
+            "Tests.ViewTests.unreferenced"
+            "() : String = \"view --include-tests unreferenced fixture\""
+        let! withoutTests =
+          runCliPlain
+            state
+            [ "view"; "Tests.ViewTests.unreferenced"; "--include-tests" ]
+        Expect.stringContains withoutTests "let unreferenced" "the fixture exists"
+        Expect.isFalse
+          (withoutTests.Contains "Tests:")
+          $"a function no test calls has no tests section, got: {withoutTests}"
+        do!
+          exits
+            state
+            [ "view"; "Darklang.Stdlib.Float.sqrt"; "--raw"; "--include-tests" ]
+            1L
+            "--include-tests is refused alongside --raw"
+      })
+
 /// Package tests follow production edits across owners, just like other callers.
 let testsFollowEditsAcrossOwners =
   instanceTest "tests follow production edits across owners" (fun state ->
@@ -818,6 +871,107 @@ test callerCeiling = Tests.PermissionUse.caller ()
             "isolating a callback cannot widen its caller"
         do! discardAll state
       })
+
+/// Search leaves tests out unless asked: a test is usually named after what it tests, so
+/// every search for a function would list its tests too. Left out is not hidden, though:
+/// the output says how many matched, so a search with only test hits never reads as empty.
+let searchLeavesTestsOutUnlessAsked =
+  instanceTest "search leaves tests out unless asked" (fun state ->
+    task {
+      do!
+        lacks
+          state
+          [ "search"; "ceiling" ]
+          "Float.Tests.ceiling"
+          "a plain search lists no tests"
+      do!
+        shows
+          state
+          [ "search"; "ceilingRejectsNan" ]
+          "1 test matched; --include-tests shows them"
+          "and says what it left out"
+      do!
+        shows
+          state
+          [ "search"; "ceiling"; "--include-tests" ]
+          "Darklang.Stdlib.Float.Tests.ceilingRejectsNan"
+          "--include-tests lists them"
+      do!
+        shows
+          state
+          [ "search"; "ceiling"; "--test" ]
+          "Darklang.Stdlib.Float.Tests.ceilingRejectsNan"
+          "and --test asks for them by itself"
+    })
+
+/// A Code-view workbench state standing in <paramref name="modules"/>, with the cursor on the row named
+/// <paramref name="row"/>, as one line of Dark for `eval`. Built from `initialState`, so no terminal.
+let private workbenchAt (modules : List<string>) (row : string) : string =
+  let path = modules |> List.map (fun m -> $"\"{m}\"") |> String.concat ", "
+  "let st = Darklang.Cli.Workbench.initialState (Darklang.SCM.PackageOps.currentBranch ()) (Stdlib.Option.Option.None) \"T\" \"i\" [] false in "
+  + $"let s0 = {{ st with activeView = Darklang.Cli.Workbench.vMatter; location = Darklang.Cli.Packages.PackageLocation.Module [ {path} ] }} in "
+  + "let s1 = { s0 with items = Darklang.Cli.Workbench.reloadItems s0 } in "
+  + $"let s = {{ s1 with selected = (Stdlib.List.indexedMap s1.items (fun i it -> (i, it.name)) |> Stdlib.List.findFirst (fun (_, nm) -> nm == \"{row}\") |> Stdlib.Option.map (fun (i, _) -> i) |> Stdlib.Option.withDefault 0) }} in "
+
+/// The Code view lists a module's tests as rows of their own, and the Inspect pane shows a test's
+/// source and result, and a function's tests. Every row kind here used to fall through to "value",
+/// so a test row would have looked itself up as a value and shown "(not found)".
+let workbenchShowsTests =
+  instanceTest "the workbench lists and inspects tests" (fun state ->
+    task {
+      let floatTests = [ "Darklang"; "Stdlib"; "Float"; "Tests" ]
+      do!
+        evals
+          state
+          ((workbenchAt floatTests "ceiling")
+           + "Stdlib.List.map s.items (fun it -> it.kind + \":\" + it.name)")
+          "test:ceiling"
+          "a module's tests are rows of kind test"
+      do!
+        evals
+          state
+          ((workbenchAt floatTests "ceiling")
+           + "Stdlib.String.join (Darklang.Cli.Workbench.detailLines s) \"\\n\"")
+          "test ceiling ="
+          "the Inspect pane shows a test's source"
+      do!
+        evals
+          state
+          ((workbenchAt floatTests "ceiling")
+           + "match Stdlib.List.getAt s.items s.selected with "
+           + "| Some item -> Darklang.Cli.Workbench.itemMeta s item "
+           + "(Darklang.Cli.Packages.Query.searchExactMatch s.branchId "
+           + "(Darklang.Cli.Packages.modulePathOf s.location) item.name) "
+           + "| None -> \"\"")
+          "test ·"
+          "and the meta line calls it a test"
+      do!
+        evals
+          state
+          ((workbenchAt [ "Darklang"; "Stdlib"; "Float" ] "ceiling")
+           + "Stdlib.String.join (Darklang.Cli.Workbench.inspectPageLines s) \"\\n\"")
+          "Darklang.Stdlib.Float.Tests.ceiling"
+          "a function's Inspect pane lists the tests that call it"
+    })
+
+/// Renaming from the workbench ends the old name. It used to build the old location from the
+/// owner-first module path, so it unbound a name that did not exist and both names stayed bound.
+let workbenchRenameEndsTheOldName =
+  instanceTest "a workbench rename leaves one name, not two" (fun state ->
+    task {
+      do! start state
+      do! fn state "Tests.WbRename.before" "() : Int64 = 7L"
+      do!
+        evals
+          state
+          ((workbenchAt [ "Tests"; "WbRename" ] "before")
+           + "match Darklang.Cli.Workbench.performInputAction s (Darklang.Cli.Workbench.InputState { prompt = \"\"; field = Stdlib.Cli.UI.TextField.fromText \"after\"; action = \"rename\" }) with | Continue s2 -> s2.message | _ -> \"no\"")
+          "renamed to after"
+          "the workbench says it renamed"
+      do! evals state "Tests.WbRename.after ()" "7" "the new name resolves"
+      do! notFound state "Tests.WbRename.before ()" "and the old name is gone"
+      do! discardAll state
+    })
 
 let searchFindsByText =
   instanceTest "search finds items by text" (fun state ->
@@ -1580,6 +1734,7 @@ let tests : List<Test> =
     viewPrintsSource
     viewPrintsTestDefaultsAndSqlErrors
     viewRefusesWhatIsNotThere
+    viewListsAFunctionsTests
     testsFollowEditsAcrossOwners
     cachedTestsRerunWhenWhatTheyUseChanges
     cachedPassesStayOnTheirBranch
@@ -1591,7 +1746,10 @@ let tests : List<Test> =
     isolatedTestDeclarations
     isolatedTestsRejectUnsuccessfulWorkers
     testsUseInstanceAndFunctionPolicies
+    workbenchShowsTests
+    workbenchRenameEndsTheOldName
     searchFindsByText
+    searchLeavesTestsOutUnlessAsked
     depsNamesWhatAnItemUses
     hashResolvesNamesLikeViewDoes
     hashLongIsTheShortOneSpelledOut

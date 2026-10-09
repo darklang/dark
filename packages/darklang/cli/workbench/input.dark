@@ -90,9 +90,16 @@ let performInputAction (state: State) (inp: InputState) : Step =
             // The predecessor is None because a rename binds this content at a name that was not in use:
             // "no predecessor known" is the honest answer, and the divergence detector only concludes
             // anything when BOTH sides claim one.
+            // `modules` is `modulePathOf`, owner first; a location keeps the owner apart. Using the whole
+            // path here unbound a name that does not exist, so the old name stayed bound.
             let oldLoc =
-              LanguageTools.ProgramTypes.PackageLocation
-                { owner = newLoc.owner; modules = modules; name = item.name }
+              match modules with
+              | owner :: rest ->
+                LanguageTools.ProgramTypes.PackageLocation
+                  { owner = owner; modules = rest; name = item.name }
+              | [] ->
+                LanguageTools.ProgramTypes.PackageLocation
+                  { owner = newLoc.owner; modules = []; name = item.name }
 
             match
               SCM.PackageOps.add
