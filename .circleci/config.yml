@@ -258,6 +258,20 @@ jobs:
             fi
             timeout 20m scripts/run-backend-tests --published
 
+      # Every package test in packages/, through `dark test` on a copy of the store
+      - run:
+          name: Run package tests
+          command: |
+            if [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then
+              echo "node 1 runs the gates instead"
+              exit 0
+            fi
+            # Backend tests reload test-data.db and can update the shared package hashes.
+            # Refresh data.db with the published loader before the gate copies it.
+            scripts/build/reload-packages --published
+            CLI=backend/Build/out/Cli/Release/net10.0/publish/Cli \
+              timeout 20m scripts/testing/gates package-tests
+
       # Gate scripts covering what the F# suite structurally cannot
       - run:
           name: Gate scripts (the CI subset)

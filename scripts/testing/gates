@@ -39,6 +39,7 @@ GATES=(
   trait-deprecation-is-per-branch
   trait-pin-across-branches
   hosted-db
+  package-tests
   shipped-tree-typechecks
   gates-are-clean
 )
@@ -88,6 +89,7 @@ describe() {
     trait-deprecation-is-per-branch) echo 'deprecating an implementation is branch-aware, display and dispatch' ;;
     trait-pin-across-branches) echo 'a saved call keeps its implementation across a branch boundary' ;;
     hosted-db)              echo 'a served handler reads and writes a user DB, and its functions commit' ;;
+    package-tests)          echo 'every package test in packages/, through `dark test` (CI: own step)' ;;
     shipped-tree-typechecks) echo 'every item in packages/ passes the at-rest checker, and enough were checked' ;;
     gates-are-clean)        echo 'no gate touches the shared dev store (slow: re-runs the rest)' ;;
     *)                      echo '?' ;;
