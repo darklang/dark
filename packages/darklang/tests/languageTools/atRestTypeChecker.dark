@@ -1,0 +1,3198 @@
+/// Native cases ported from
+/// `backend/testfiles/execution/stdlib/language-tools/atRestTypeChecker.dark`.
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// Test the at-rest type checker through its public API and individual checking
+// rules. `check source name` parses source and returns the named declaration's
+// verdict and issue codes. `checkFunctionAst types fn` accepts a manually
+// constructed syntax tree, allowing tests of invalid input that the parser would
+// reject. Checked means the check succeeded; Failed means a definite type error was
+// found; Incomplete means the checker could not finish proving the declaration's
+// types. The CLI's `typecheck` command separately checks all declarations on a
+// branch.
+
+// ----------------------------------------------------------------------------------
+// Test helpers
+// ----------------------------------------------------------------------------------
+
+let verdictWord (v: Darklang.LanguageTools.AtRestTypeChecker.Verdict) : String =
+  match v with
+  | Checked -> "checked"
+  | Failed -> "failed"
+  | Incomplete -> "incomplete"
+
+let codesOf (issues: List<Darklang.LanguageTools.AtRestTypeChecker.Issue>) : String =
+  issues
+  |> Stdlib.List.map (fun i ->
+    Darklang.LanguageTools.AtRestTypeChecker.issueCodeToString i.code)
+  |> Stdlib.List.unique
+  |> Stdlib.List.sort
+  |> Stdlib.String.join ","
+
+let summary (report: Darklang.LanguageTools.AtRestTypeChecker.Report) : String =
+  (verdictWord report.verdict)
+  + ":"
+  + (codesOf (Stdlib.List.append report.diagnostics report.warnings))
+
+let src (lines: List<String>) : String = Stdlib.String.join lines "\n"
+
+let parsePackageOps
+  (source: String)
+  : Stdlib.Result.Result<List<Darklang.LanguageTools.ProgramTypes.PackageOp>, String> =
+  Darklang.LanguageTools.Parser.Parse.packageSourceToOps
+    Darklang.SCM.Branch.mainBranchId
+    "Tests"
+    [ "AtRest" ]
+    source
+
+let itemNamed
+  (ops: List<Darklang.LanguageTools.ProgramTypes.PackageOp>)
+  (name: String)
+  : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Reference> =
+  ops
+  |> Stdlib.List.filterMap (fun op ->
+    match op with
+    | SetName(location, target, _) ->
+      if location.name == name then Stdlib.Option.Option.Some target
+      else Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.head
+
+let itemSummary
+  (report: Darklang.LanguageTools.AtRestTypeChecker.Report)
+  (item: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Reference>)
+  : String =
+  match item with
+  | None -> "no such declaration"
+  | Some target ->
+    match Stdlib.List.findFirst report.items (fun i -> i.item == target) with
+    | Some i ->
+      (verdictWord i.verdict)
+      + ":"
+      + (codesOf (Stdlib.List.append i.diagnostics i.warnings))
+    | None -> "no report for the declaration"
+
+/// Parse and check the source, then return the verdict and issue codes for `name`.
+let check (source: String) (name: String) : String =
+  match parsePackageOps source with
+  | Error e -> e
+  | Ok ops ->
+    itemSummary
+      (Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops)
+      (itemNamed ops name)
+
+/// Return the named declaration's errors and warnings as `Code: message` strings.
+let issues (source: String) (name: String) : List<String> =
+  match parsePackageOps source with
+  | Error e -> [ e ]
+  | Ok ops ->
+    let report = Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops
+
+    match itemNamed ops name with
+    | None -> [ "no such declaration" ]
+    | Some target ->
+      match Stdlib.List.findFirst report.items (fun i -> i.item == target) with
+      | Some i ->
+        (Stdlib.List.append i.diagnostics i.warnings)
+        |> Stdlib.List.map (fun issue ->
+          (Darklang.LanguageTools.AtRestTypeChecker.issueCodeToString issue.code)
+          + ": "
+          + (Darklang.LanguageTools.AtRestTypeChecker.issueToString issue))
+      | None -> [ "no report for the declaration" ]
+
+// ---- Helpers for constructing syntax trees directly ------------------------------
+
+let hash (text: String) : Darklang.LanguageTools.ProgramTypes.Hash =
+  Darklang.LanguageTools.ProgramTypes.Hash.Hash text
+
+let resolved (name: 'a) : Darklang.LanguageTools.ProgramTypes.NameResolution<'a> =
+  Darklang.LanguageTools.ProgramTypes.NameResolution
+    { originalName = []
+      resolved =
+        Stdlib.Result.Result.Ok(
+          Darklang.LanguageTools.ProgramTypes.ResolvedName
+            { name = name; location = Stdlib.Option.Option.None }
+        ) }
+
+let unresolved
+  (parts: List<String>)
+  : Darklang.LanguageTools.ProgramTypes.NameResolution<'a> =
+  Darklang.LanguageTools.ProgramTypes.NameResolution
+    { originalName = parts
+      resolved =
+        Stdlib.Result.Result.Error
+          Darklang.LanguageTools.ProgramTypes.NameResolutionError.NotFound }
+
+let custom
+  (name: String)
+  (args: List<Darklang.LanguageTools.ProgramTypes.TypeReference>)
+  : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+    resolved (
+      Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package(
+        hash name)),
+    args
+  )
+
+let fnNamed
+  (name: String)
+  (typeParams: List<String>)
+  (parameters: List<(String * Darklang.LanguageTools.ProgramTypes.TypeReference)>)
+  (returnType: Darklang.LanguageTools.ProgramTypes.TypeReference)
+  (body: Darklang.LanguageTools.ProgramTypes.Expr)
+  : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+  Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+    { hash = hash name
+      body = body
+      typeParams = typeParams
+      parameters =
+        Stdlib.List.map parameters (fun (n, t) ->
+          Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+            { name = n; typ = t; description = "" })
+      returnType = returnType
+      description = ""
+      // This branch gives a fn BOUNDS (`'a: Compare`). The helper predates that
+      // and built a record without the field, so every test through it raised
+      // `Record (CreationMissingField "bounds")`, which the runner then reported
+      // as an empty message. Nothing here declares one, so the empty list is the
+      // honest value.
+      bounds = []
+      permissionCeiling = Stdlib.Option.Option.None }
+
+let oneArg
+  (parameterType: Darklang.LanguageTools.ProgramTypes.TypeReference)
+  (returnType: Darklang.LanguageTools.ProgramTypes.TypeReference)
+  (body: Darklang.LanguageTools.ProgramTypes.Expr)
+  : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+  fnNamed "function-under-test" [] [ ("value", parameterType) ] returnType body
+
+let declared
+  (name: String)
+  (typeParams: List<String>)
+  (definition: Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition)
+  : Darklang.LanguageTools.ProgramTypes.PackageType.PackageType =
+  Darklang.LanguageTools.ProgramTypes.PackageType.PackageType
+    { hash = hash name
+      declaration =
+        Darklang.LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+          // A type takes bounds on this branch too (`type Set<'a: Compare>`), and
+          // this helper predates that. Same omission as `fnNamed` above.
+          { typeParams = typeParams; bounds = []; definition = definition }
+      description = "" }
+
+let recordOf
+  (fields: List<(String * Darklang.LanguageTools.ProgramTypes.TypeReference)>)
+  : Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition =
+  Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record(
+    Stdlib.List.map fields (fun (n, t) ->
+      Darklang.LanguageTools.ProgramTypes.TypeDeclaration.RecordField
+        { name = n; typ = t; description = "" })
+  )
+
+let environmentWith
+  (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
+  : Darklang.LanguageTools.AtRestTypeChecker.Model.Environment =
+  let env =
+    Stdlib.List.fold
+      types
+      (Darklang.LanguageTools.AtRestTypeChecker.Environment.builtins
+        Darklang.SCM.Branch.mainBranchId)
+      (fun env t -> Darklang.LanguageTools.AtRestTypeChecker.Items.addType env t)
+  Darklang.LanguageTools.AtRestTypeChecker.Declarations.prepareDeclarations env
+
+let outcomeSummary
+  (outcome: Darklang.LanguageTools.AtRestTypeChecker.Items.Outcome)
+  : String =
+  (verdictWord outcome.verdict)
+  + ":"
+  + (codesOf (Stdlib.List.append outcome.diagnostics outcome.warnings))
+
+/// Check `fn` with the supplied type declarations available as dependencies.
+/// Return only the function's verdict and issue codes.
+let checkFunctionAst
+  (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
+  (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : String =
+  let (outcome, _) =
+    Darklang.LanguageTools.AtRestTypeChecker.Items.checkFunction
+      (environmentWith types)
+      fn
+  outcomeSummary outcome
+
+let checkFunctionAstOutcome
+  (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
+  (fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : Darklang.LanguageTools.AtRestTypeChecker.Items.Outcome =
+  let (outcome, _) =
+    Darklang.LanguageTools.AtRestTypeChecker.Items.checkFunction
+      (environmentWith types)
+      fn
+  outcome
+
+/// Check the supplied types and functions through the public API used by saves
+/// and commits. That API converts checker failures into Incomplete reports.
+let checkPackageOpsSummary
+  (types: List<Darklang.LanguageTools.ProgramTypes.PackageType.PackageType>)
+  (fns: List<Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+  : String =
+  let ops =
+    Stdlib.List.append
+      (Stdlib.List.map types (fun t ->
+        Darklang.LanguageTools.ProgramTypes.PackageOp.AddType t))
+      (Stdlib.List.map fns (fun f ->
+        Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn f))
+  summary (Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops)
+
+/// Check values together so they can refer to each other. Return their summaries
+/// in input order, even if dependency checking requires a different order.
+let checkValueAsts
+  (values: List<Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue>)
+  : List<String> =
+  (Darklang.LanguageTools.AtRestTypeChecker.Items.checkBatch
+    (environmentWith [])
+    []
+    values
+    [])
+  |> Stdlib.List.map (fun (_, outcome) -> outcomeSummary outcome)
+
+let valueNamed
+  (name: String)
+  (body: Darklang.LanguageTools.ProgramTypes.Expr)
+  : Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue =
+  Darklang.LanguageTools.ProgramTypes.PackageValue.PackageValue
+    { hash = hash name; body = body; description = "" }
+
+let useValue (id: Int64) (name: String) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EValue(
+    id,
+    resolved (
+      Darklang.LanguageTools.ProgramTypes.FQValueName.FQValueName.Package(
+        hash name))
+  )
+
+let arg (id: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EArg(id, 0)
+
+let unitExpr (id: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EUnit id
+
+let intExpr (id: Int64) (n: Int) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Darklang.LanguageTools.ProgramTypes.Expr.EInt(id, n)
+
+let tInt () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+
+let tUnit () : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
+
+let tList
+  (inner: Darklang.LanguageTools.ProgramTypes.TypeReference)
+  : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Darklang.LanguageTools.ProgramTypes.TypeReference.TList inner
+
+let nestedListType (depth: Int) : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Stdlib.List.fold (Stdlib.List.range 1 depth) (tInt ()) (fun t _ -> tList t)
+
+/// Build a tuple type with `depth` nested tuples. Checking its elements calls
+/// back through List.map at each level, exercising the native stack limit.
+let nestedTupleType
+  (depth: Int)
+  : Darklang.LanguageTools.ProgramTypes.TypeReference =
+  Stdlib.List.fold (Stdlib.List.range 1 depth) (tInt ()) (fun t _ ->
+    Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(tInt (), t, []))
+
+let nestedListExpr (depth: Int) : Darklang.LanguageTools.ProgramTypes.Expr =
+  Stdlib.List.fold (Stdlib.List.range 1 depth) (intExpr 1L 0) (fun e i ->
+    Darklang.LanguageTools.ProgramTypes.Expr.EList(
+      Builtin.unwrap (Stdlib.Int.toInt64 (i + 1)),
+      [ e ]))
+
+
+// ----------------------------------------------------------------------------------
+// Syntax-node IDs, function arguments, and return types
+// ----------------------------------------------------------------------------------
+
+module BindingIds =
+  // Build `let x = 1; let y = "s"; x`. The caller chooses y's binding ID
+  // so a test can make it collide with x's ID.
+  let body (secondId: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
+    Darklang.LanguageTools.ProgramTypes.Expr.ELet(
+      1L,
+      Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(2L, "x"),
+      intExpr 3L 1,
+      Darklang.LanguageTools.ProgramTypes.Expr.ELet(
+        4L,
+        Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(secondId, "y"),
+        Darklang.LanguageTools.ProgramTypes.Expr.EString(
+          6L, [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText "s" ]),
+        Darklang.LanguageTools.ProgramTypes.Expr.EVariable(7L, "x")))
+
+  // Duplicate binding IDs make the result Incomplete because the checker cannot
+  // distinguish the bindings. With unique IDs, returning x is valid only as Int.
+  test duplicateBindingIdsAreIncomplete =
+    Stdlib.Test.all
+      [ checkPackageOpsSummary []
+          [ oneArg
+              (tUnit ())
+              Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+              (body 2L) ]
+        |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+        checkPackageOpsSummary []
+          [ oneArg (tUnit ()) (tInt ()) (body 2L) ]
+        |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+        checkPackageOpsSummary []
+          [ oneArg
+              (tUnit ())
+              Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+              (body 5L) ]
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        checkPackageOpsSummary []
+          [ oneArg (tUnit ()) (tInt ()) (body 5L) ]
+        |> Stdlib.Test.equal "checked:" ]
+
+  // A duplicate-ID warning in one function must preserve the definite return-type
+  // error reported for a different function in the same batch.
+  test duplicateIdFindings =
+    Stdlib.Test.all
+      [ checkPackageOpsSummary []
+          [ oneArg (tUnit ()) (tInt ()) (body 2L)
+            fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 8L) ]
+        |> Stdlib.Test.equal "failed:TypeMismatch,UnsupportedConstruct"
+        (let outcome =
+           checkFunctionAstOutcome [] (oneArg (tUnit ()) (tInt ()) (body 2L))
+         Stdlib.List.map outcome.warnings (fun issue ->
+           (issue.nodeId,
+            Darklang.LanguageTools.AtRestTypeChecker.issueToString issue)))
+        |> Stdlib.Test.equal
+          [ (Some 2UL,
+             "Multiple let bindings share a pattern node ID; their types cannot be checked") ] ]
+
+module InferenceIds =
+  let projection (id: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
+    Darklang.LanguageTools.ProgramTypes.Expr.ELambda(
+      id,
+      [ Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(id + 1L, "x") ],
+      Darklang.LanguageTools.ProgramTypes.Expr.ERecordFieldAccess(
+        id + 2L,
+        Darklang.LanguageTools.ProgramTypes.Expr.EVariable(id + 3L, "x"),
+        "field"))
+
+  // Build `let (a, b) = (fun x -> x.field, fun x -> x.field); b 1`.
+  // If both lambdas share an ID, the checker can mistakenly attach b's field
+  // requirement to a and miss the invalid call b 1. Reject the duplicate IDs.
+  let body (secondId: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
+    Darklang.LanguageTools.ProgramTypes.Expr.ELet(
+      1L,
+      Darklang.LanguageTools.ProgramTypes.LetPattern.LPTuple(
+        2L,
+        Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(3L, "a"),
+        Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(4L, "b"), []),
+      Darklang.LanguageTools.ProgramTypes.Expr.ETuple(
+        5L, projection 10L, projection secondId, []),
+      Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+        6L,
+        Darklang.LanguageTools.ProgramTypes.Expr.EVariable(7L, "b"),
+        [],
+        [ intExpr 8L 1 ]))
+
+  test duplicateLambdaIdsAreRejected =
+    Stdlib.Test.all
+      [ checkPackageOpsSummary [] [ oneArg (tUnit ()) (tInt ()) (body 10L) ]
+        |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+        checkPackageOpsSummary [] [ oneArg (tUnit ()) (tInt ()) (body 20L) ]
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        checkValueAsts [ valueNamed "duplicate-inference" (body 10L) ]
+        |> Stdlib.Test.equal [ "incomplete:UnsupportedConstruct" ]
+        (let outcome =
+           checkFunctionAstOutcome [] (oneArg (tUnit ()) (tInt ()) (body 10L))
+         Stdlib.List.map outcome.warnings (fun issue ->
+           (issue.nodeId,
+            Darklang.LanguageTools.AtRestTypeChecker.issueToString issue)))
+        |> Stdlib.Test.equal
+          [ (Some 10UL,
+             "Multiple inference nodes share an ID; their types cannot be checked") ] ]
+
+module ConstructorDeclarations =
+  test constructingCaseChecksWholeDeclaration =
+    Stdlib.Test.all
+      [ check
+          (src [ "type E = | A | B of Dict<(Int -> Int), Int>"
+                 "let f () : Int ="
+                 "  let e = E.A"
+                 "  1" ]) "f"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        check
+          (src [ "type Bad = Dict<(Int -> Int), Int>"
+                 "type R = { xs: List<Bad> }"
+                 "let f () : Int ="
+                 "  let r = R { xs = [] }"
+                 "  1" ]) "f"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        check
+          (src [ "type Bad = List<Bad>"
+                 "type E = | A | B of Bad"
+                 "let f () : Int ="
+                 "  let e = E.A"
+                 "  1" ]) "f"
+        |> Stdlib.Test.equal "incomplete:AliasCycle"
+        check
+          (src [ "type R<'a> = { xs: List<'a> }"
+                 "let f () : Int ="
+                 "  let r = R { xs = [1] }"
+                 "  1" ]) "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Only the function receives a report here; the record type is a dependency.
+  // Its unavailable field type makes the function's check Incomplete, even when
+  // the function constructs the record with an empty list.
+  test unavailableFieldTypeIsIncomplete =
+    (let typ = declared "record" [] (recordOf [ ("xs", tList (custom "missing" [])) ])
+     let construction =
+       Darklang.LanguageTools.ProgramTypes.Expr.ERecord(
+         1L,
+         resolved (
+           Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package(
+             hash "record")),
+         [],
+         [ ("xs", Darklang.LanguageTools.ProgramTypes.Expr.EList(2L, [])) ])
+     let body =
+       Darklang.LanguageTools.ProgramTypes.Expr.ELet(
+         3L, Darklang.LanguageTools.ProgramTypes.LetPattern.LPWildcard 4L,
+         construction, intExpr 5L 1)
+     checkFunctionAst [ typ ] (oneArg (tUnit ()) (tInt ()) body))
+    |> Stdlib.Test.equal "incomplete:MissingTypeDeclaration"
+
+module LambdaArgumentSlots =
+  // EArg refers to a package function's parameter by position. Inside a lambda,
+  // it must be rejected rather than mistaken for the outer function's Int argument.
+  // Differs from legacy: legacy held this in a `val`; a `val` holding a custom
+  // type can go stale across package reloads, so this is a function.
+  let parameters () : List<Darklang.LanguageTools.ProgramTypes.LetPattern> =
+    [ Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(11L, "text") ]
+
+  let lambda () : Darklang.LanguageTools.ProgramTypes.Expr =
+    Darklang.LanguageTools.ProgramTypes.Expr.ELambda(10L, parameters (), arg 12L)
+
+  // Reject the invalid EArg when checking a lambda against a declared type,
+  // inferring a discarded lambda's type, or checking a lambda in a pipeline.
+  test invalidLambdaArgIsRejected =
+    Stdlib.Test.all
+      [ checkFunctionAst []
+          (oneArg (tInt ())
+            (Darklang.LanguageTools.ProgramTypes.TypeReference.TFn(
+              [ Darklang.LanguageTools.ProgramTypes.TypeReference.TString ],
+              tInt ()))
+            (lambda ()))
+        |> Stdlib.Test.equal "failed:InvalidArgumentIndex"
+        checkFunctionAst []
+          (oneArg (tInt ()) (tUnit ())
+            (Darklang.LanguageTools.ProgramTypes.Expr.ELet(
+              13L, Darklang.LanguageTools.ProgramTypes.LetPattern.LPWildcard 14L,
+              lambda (), unitExpr 15L)))
+        |> Stdlib.Test.equal "failed:InvalidArgumentIndex"
+        checkFunctionAst []
+          (oneArg (tInt ()) (tInt ())
+            (Darklang.LanguageTools.ProgramTypes.Expr.EPipe(
+              13L, unitExpr 14L,
+              [ Darklang.LanguageTools.ProgramTypes.PipeExpr.EPipeLambda(
+                  10L, parameters (), arg 12L) ])))
+        |> Stdlib.Test.equal "failed:InvalidArgumentIndex" ]
+
+  // Valid source refers to captured outer parameters by name, so these lambdas pass.
+  test capturedParametersPass =
+    Stdlib.Test.all
+      [ check "let f (x: Int) : String -> Int = fun text -> x" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (x: Int) : Int = x |> (fun y -> x + y)" "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+module Basics =
+  test argumentAndReturnTypes =
+    Stdlib.Test.all
+      [ check "let f (value: Int) : Int = value" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (value: Int) : String = value" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "let f (x: Int) : String = x |> Stdlib.toString" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (x: Int) : Int = Stdlib.String.length x" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // Looking up `other` by name must use its declared String type.
+  test lookupUsesDeclaredType =
+    check "let f (value: Int) (other: String) : String = other" "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Calling an Int as though it were a function must report NotCallable.
+  test callingIntIsNotCallable =
+    check "let f (x: Int) : Int = x 1" "f"
+    |> Stdlib.Test.equal "failed:NotCallable"
+
+  // Check builtin calls using their declared parameter and return types;
+  // builtin implementations are not Dark bodies the checker can inspect.
+  test builtinCallsUseSignatures =
+    check "let f (u: Unit) : Int64 = Builtin.int64Add 1L 2L" "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Reject an argument index outside the function's parameter list. Construct
+  // the syntax tree directly because source code cannot express this invalid index.
+  test argIndexOutOfRangeIsRejected =
+    checkFunctionAst
+      []
+      (oneArg
+        (tInt ())
+        (tInt ())
+        (Darklang.LanguageTools.ProgramTypes.Expr.EArg(2L, 5)))
+    |> Stdlib.Test.equal "failed:InvalidArgumentIndex"
+
+// ----------------------------------------------------------------------------------
+// Records and enums
+// ----------------------------------------------------------------------------------
+
+module Constructors =
+  val pair = "type Pair = | None | Some of (Int * String)"
+
+  // Pair.Some takes one tuple field. Some(1, "url") supplies two fields;
+  // Some((1, "url")) supplies the single tuple the declaration requires.
+  test constructorsAndFields =
+    Stdlib.Test.all
+      [ check
+          (src [ pair, "let f (u: Unit) : Pair = Pair.Some(1, \"url\")" ])
+          "f"
+        |> Stdlib.Test.equal "failed:EnumFieldCountMismatch"
+        check
+          (src [ pair, "let f (u: Unit) : Pair = Pair.Some((1, \"url\"))" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src
+            [ "type Target = | Only"
+              "type Aliased = Target"
+              "let f (u: Unit) : Aliased = Aliased.Only" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (x: Int) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.Nope x" "f"
+        |> Stdlib.Test.equal "failed:UnknownEnumCase"
+        check
+          (src [ "type R = { a: Int; b: Int }", "let f (u: Unit) : R = R { a = 1 }" ])
+          "f"
+        |> Stdlib.Test.equal "failed:MissingRecordField"
+        check
+          (src [ "type R = { a: Int }", "let f (u: Unit) : R = R { a = 1; nope = 2 }" ])
+          "f"
+        |> Stdlib.Test.equal "failed:UnknownRecordField"
+        check
+          (src [ "type R = { a: Int }", "let f (u: Unit) : R = R { a = 1; a = 2 }" ])
+          "f"
+        |> Stdlib.Test.equal "failed:DuplicateRecordField"
+        check
+          (src [ "type R = { a: Int }", "let f (r: R) : Int = r.nope" ])
+          "f"
+        |> Stdlib.Test.equal "failed:UnknownRecordField"
+        check
+          (src [ "type R = { a: Int }", "let f (r: R) : R = { r with a = \"x\" }" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // Resolve 'a in Box<'a>.Box using the enclosing function's type parameters.
+  test constructorUsesFunctionTypeParams =
+    check
+      (src
+        [ "type Box<'item> = | Box of 'item"
+          "let f (x: 'a) : Box<'a> = Box<'a>.Box x" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+// ----------------------------------------------------------------------------------
+// Type declarations, aliases, and missing dependencies
+// ----------------------------------------------------------------------------------
+
+module Declarations =
+  test duplicateMembersAndTypeParams =
+    Stdlib.Test.all
+      [ check "type T = { field: Int; field: String }" "T"
+        |> Stdlib.Test.equal "failed:DuplicateTypeMember"
+        check "type E = | A | A" "E"
+        |> Stdlib.Test.equal "failed:DuplicateTypeMember"
+        check "let f<'a, 'a> (x: 'a) : 'a = x" "f"
+        |> Stdlib.Test.equal "failed:DuplicateTypeParameter" ]
+
+  // Expanding A<'a> repeatedly adds another List layer. Detect this alias cycle
+  // and return Incomplete instead of expanding it forever.
+  test growingAliasCycleIsIncomplete =
+    check
+      (src [ "type A<'a> = A<List<'a>>", "let f (x: A<Int>) : Int = x" ])
+      "f"
+    |> Stdlib.Test.equal "incomplete:AliasCycle"
+
+  // Loop still refers to itself when the reference passes through Identity.
+  // Detect the cycle after substituting Identity's type argument.
+  test aliasCycleThroughIdentity =
+    check
+      (src
+        [ "type Identity<'a> = 'a"
+          "type Loop = Identity<Loop>"
+          "let f (x: Loop) : Int = x" ])
+      "f"
+    |> Stdlib.Test.equal "incomplete:AliasCycle"
+
+  // Identity<Identity<Int>> expands to Int and terminates. Reusing an alias in
+  // nested type arguments is valid when the alias definition is not recursive.
+  test nestedNonRecursiveAliasesExpand =
+    Stdlib.Test.all
+      [ check
+          (src [ "type Identity<'a> = 'a", "let f (x: Identity<Identity<Int>>) : Int = x" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src [ "type Identity<'a> = 'a", "let f (x: Identity<Identity<Int>>) : String = x" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // Forward<Forward<Int>> also expands to Int through Identity. Accept an Int
+  // return, reject a String return, and still detect the actual Loop cycle below.
+  test aliasThroughAliasExpands =
+    Stdlib.Test.all
+      [ check
+          (src
+            [ "type Identity<'a> = 'a"
+              "type Forward<'a> = Identity<'a>"
+              "let f (x: Forward<Forward<Int>>) : Int = x" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src
+            [ "type Identity<'a> = 'a"
+              "type Forward<'a> = Identity<'a>"
+              "let f (x: Forward<Forward<Int>>) : String = x" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (src
+            [ "type Identity<'a> = 'a"
+              "type Forward<'a> = Identity<'a>"
+              "type Loop = Forward<Loop>"
+              "let f (x: Loop) : Int = x" ])
+          "f"
+        |> Stdlib.Test.equal "incomplete:AliasCycle" ]
+
+  // An unavailable type might be an alias for Int. Report a missing declaration
+  // instead of claiming its value cannot satisfy an Int return type.
+  test unavailableTypeIsMissingNotMismatch =
+    checkFunctionAst
+      []
+      (oneArg (custom "not-available" []) (tInt ()) (arg 1L))
+    |> Stdlib.Test.equal "incomplete:MissingTypeDeclaration"
+
+  // This syntax tree uses 'b without declaring it as a type parameter. Construct
+  // it directly because the parser normally adds referenced type parameters.
+  test undeclaredParamsAndRecursiveTypes =
+    Stdlib.Test.all
+      [ checkFunctionAst
+          []
+          (fnNamed
+            "undeclared-variable"
+            []
+            [ ("x", Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "b") ]
+            (tUnit ())
+            (unitExpr 1L))
+        |> Stdlib.Test.equal "incomplete:UnknownDeclaredTypeVariable"
+        check
+          (src [ "type AliasA = AliasB", "type AliasB = AliasA", "let f (x: AliasA) : AliasA = x" ])
+          "f"
+        |> Stdlib.Test.equal "incomplete:AliasCycle"
+        check (src [ "type Rec = List<Rec>", "let f (x: Rec) : Unit = ()" ]) "f"
+        |> Stdlib.Test.equal "incomplete:AliasCycle"
+        check
+          (src [ "type Rows<'a> = List<'a>", "let f (x: Rows<Rows<Int>>) : Unit = ()" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src [ "type Node = { children: List<Node> }", "let f (x: Node) : Unit = ()" ])
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  val pair = "type Pair<'a, 'b> = { first: 'a; second: 'b }"
+
+  test wrongTypeArgCount =
+    Stdlib.Test.all
+      [ check (src [ pair, "let f (x: (Int * List<Pair<String>>)) : Unit = ()" ]) "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check (src [ pair, "let f (x: (Int * List<Pair<String, Bool>>)) : Unit = ()" ]) "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Pair requires two type arguments. Supplying one should report the type error
+  // without crashing or adding a misleading warning about x.first's type.
+  test tooFewTypeArgsReportsCleanly =
+    check (src [ pair, "let f (x: Pair<Int>) : Int = x.first" ]) "f"
+    |> Stdlib.Test.equal "failed:TypeMismatch"
+
+  // Find unavailable types even when nested inside a function parameter's type
+  // or reached by expanding an alias.
+  test unavailableNestedTypesAreFound =
+    Stdlib.Test.all
+      [ checkFunctionAst
+          []
+          (oneArg
+            (tList
+              (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+                Darklang.LanguageTools.ProgramTypes.TypeReference.TString,
+                custom "nowhere" []
+              )))
+            (tUnit ())
+            (unitExpr 1L))
+        |> Stdlib.Test.equal "incomplete:MissingTypeDeclaration"
+        checkFunctionAst
+          [ declared
+              "alias-to-nowhere"
+              []
+              (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
+                tList (custom "nowhere" [])
+              )) ]
+          (oneArg (custom "alias-to-nowhere" []) (tUnit ()) (unitExpr 1L))
+        |> Stdlib.Test.equal "incomplete:MissingTypeDeclaration" ]
+
+  // Inspect the fields of dependency types too. An unavailable field type makes
+  // this function's check Incomplete even though its body does not read the field.
+  test dependencyFieldsAreChecked =
+    checkFunctionAst
+      [ declared "box-with-missing-field" [] (recordOf [ ("hidden", custom "nowhere" []) ]) ]
+      (oneArg (custom "box-with-missing-field" []) (tUnit ()) (unitExpr 1L))
+    |> Stdlib.Test.equal "incomplete:MissingTypeDeclaration"
+
+// ----------------------------------------------------------------------------------
+// Types allowed as dictionary keys
+// ----------------------------------------------------------------------------------
+
+module DictKeys =
+  let key (declarations: List<String>) (keyType: String) : String =
+    check
+      (src (Stdlib.List.append declarations [ $"let f (x: Dict<{keyType}, String>) : Unit = ()" ]))
+      "f"
+
+  val rejected = "failed:UnsupportedDictKeyType"
+
+  val accepted = "checked:"
+
+  test functionAndBlobKeysRejected =
+    Stdlib.Test.all
+      [ key [] "Int -> Int"
+        |> Stdlib.Test.equal rejected
+        key [] "Blob"
+        |> Stdlib.Test.equal rejected ]
+
+  // Construct TStream directly because the parser has no source syntax for it.
+  test structuredKeyTypes =
+    Stdlib.Test.all
+      [ checkFunctionAst
+          []
+          (oneArg
+            (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+              Darklang.LanguageTools.ProgramTypes.TypeReference.TStream(tInt ()),
+              Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+            ))
+            (tUnit ())
+            (unitExpr 1L))
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        checkFunctionAst
+          []
+          (oneArg
+            (Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+              Darklang.LanguageTools.ProgramTypes.TypeReference.TDB(tInt ()),
+              Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+            ))
+            (tUnit ())
+            (unitExpr 1L))
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        key [] "(String * (Int -> Int))"
+        |> Stdlib.Test.equal rejected
+        key [] "(Int * String)"
+        |> Stdlib.Test.equal accepted
+        key [] "'k"
+        |> Stdlib.Test.equal accepted
+        key [ "type Handler = { name: String; run: Int -> Int }" ] "Handler"
+        |> Stdlib.Test.equal rejected
+        key [ "type Plain = { x: Int }" ] "Plain"
+        |> Stdlib.Test.equal accepted
+        key [ "type Node = { kids: List<Node> }" ] "Node"
+        |> Stdlib.Test.equal accepted ]
+
+  // A type argument affects key validity only when a field can contain a value
+  // of that type. Box stores its argument; Phantom has only a String field.
+  test typeArgsMatterOnlyWhenStored =
+    Stdlib.Test.all
+      [ key [ "type Box<'a> = { v: 'a }" ] "Box<Int -> Int>"
+        |> Stdlib.Test.equal rejected
+        key [ "type Box<'a> = { v: 'a }" ] "Box<Box<Int -> Int>>"
+        |> Stdlib.Test.equal rejected
+        key [ "type Box<'a> = { v: 'a }" ] "Box<Box<Int>>"
+        |> Stdlib.Test.equal accepted
+        key [ "type Identity<'a> = 'a" ] "Identity<Identity<Int -> Int>>"
+        |> Stdlib.Test.equal rejected
+        key [ "type Phantom<'a> = { x: String }" ] "Phantom<Int -> Int>"
+        |> Stdlib.Test.equal accepted
+        key
+          [ "type Box<'a> = { v: 'a }", "type Phantom<'a> = { x: String }" ]
+          "Box<Box<Phantom<Int -> Int>>>"
+        |> Stdlib.Test.equal accepted
+        key [] "((Int -> Int) * 'a)"
+        |> Stdlib.Test.equal rejected
+        key
+          [ "type Inner<'a> = { v: 'a; run: Int -> Int }", "type Outer = { i: Inner<Int> }" ]
+          "Outer"
+        |> Stdlib.Test.equal rejected
+        key
+          [ "type Phantom<'a> = { x: String }", "type Holder = { p: Phantom<Int -> Int> }" ]
+          "Holder"
+        |> Stdlib.Test.equal accepted
+        key
+          [ "type Phantom<'a> = { x: String }", "type Wrapper<'a> = { p: Phantom<'a> }" ]
+          "Wrapper<Int -> Int>"
+        |> Stdlib.Test.equal accepted ]
+
+module RecursivePhantomKeys =
+  test phantomRecursionAllowsFunctionArgs =
+    Stdlib.Test.all
+      [ DictKeys.key [ "type P<'a> = End | Next of P<'a>" ] "P<Int -> Int>"
+        |> Stdlib.Test.equal "checked:"
+        DictKeys.key [ "type P<'a> = End | Next of P<List<'a>>" ] "P<Int -> Int>"
+        |> Stdlib.Test.equal "checked:"
+        DictKeys.key [ "type P<'a> = End | Next of P<'a -> Int>" ] "P<Int -> Int>"
+        |> Stdlib.Test.equal "checked:"
+        DictKeys.key [ "type P<'a> = { children: List<P<'a>> }" ] "P<Int -> Int>"
+        |> Stdlib.Test.equal "checked:"
+        DictKeys.key
+          [ "type P<'a> = End | Next of Q<'a>", "type Q<'a> = { p: P<'a> }" ]
+          "P<Int -> Int>"
+        |> Stdlib.Test.equal "checked:"
+        DictKeys.key
+          [ "type P<'a> = End | Next of Alias<'a>", "type Alias<'a> = P<'a>" ]
+          "P<Int -> Int>"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // A's second type argument becomes B's `value` field. Track the argument swap
+  // through the recursive declarations: only that argument must be a valid key type.
+  let swapped (typ: String) : String =
+    DictKeys.key
+      [ "type A<'a, 'b> = End | Next of B<'b, 'a>"
+        "type B<'a, 'b> = { value: 'a; next: List<A<'b, 'a>> }" ] typ
+
+  test swappedAndStoredTypeArgs =
+    Stdlib.Test.all
+      [ swapped "A<Int -> Int, Int>"
+        |> Stdlib.Test.equal "checked:"
+        swapped "A<Int, Int -> Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        DictKeys.key
+          [ "type P<'a> = End | Next of P<'a> | Value of 'a" ]
+          "P<Int -> Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        DictKeys.key
+          [ "type P<'a> = End | Next of P<'a> | Run of (Int -> Int)" ]
+          "P<Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
+
+  // In the first P declaration, 'a never appears in a stored payload, so P can
+  // be a key even when 'a is a function. Adding Value of 'a makes that invalid.
+  // Preserve this distinction when the dictionary is hidden behind alias D.
+  test aliasedDictKeepsPhantomDistinction =
+    Stdlib.Test.all
+      [ check
+          (src [ "type P<'a> = End | Next of P<'a>"
+                 "type D<'a> = Dict<P<'a>, Int>"
+                 "let f (d: D<Int -> Int>) : Unit = ()" ]) "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src [ "type P<'a> = End | Next of P<'a> | Value of 'a"
+                 "type D<'a> = Dict<P<'a>, Int>"
+                 "let f (d: D<Int -> Int>) : Unit = ()" ]) "f"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
+
+module InstantiatedDictKeys =
+  let signature (declarations: List<String>) (typ: String) : String =
+    check (src (Stdlib.List.append declarations [ $"let f (x: {typ}) : Unit = ()" ])) "f"
+
+  test instantiatedSignatures =
+    Stdlib.Test.all
+      [ signature [ "type D<'a> = Dict<'a, Int>" ] "D<Int -> Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        signature [ "type D<'a> = Dict<'a, Int>" ] "D<Int>"
+        |> Stdlib.Test.equal "checked:"
+        signature [ "type R<'a> = { items: Dict<'a, Int> }" ] "R<Int -> Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        signature [ "type E<'a> = | E of Dict<'a, Int>" ] "E<Int -> Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        signature [ "type R<'a> = { items: Dict<'a, Int> }", "type W<'a> = { wrapped: R<List<'a>> }" ] "W<Int -> Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        signature [ "type R<'a> = { items: Dict<'a, Int> }", "type W<'a> = { wrapped: R<List<'a>> }" ] "W<Int>"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Phantom stores no value of type 'a, so D can use a function as its type
+  // argument.
+  test phantomArgAllowsFunction =
+    signature [ "type Phantom<'a> = { label: String }", "type D<'a> = Dict<Phantom<'a>, Int>" ] "D<Int -> Int>"
+    |> Stdlib.Test.equal "checked:"
+
+  // Follow dictionary-key requirements through recursive declarations, including
+  // references that wrap the next type argument in List or in a function type.
+  test recursiveDeclarations =
+    Stdlib.Test.all
+      [ signature [ "type A<'a> = { next: List<B<'a>> }", "type B<'b> = { next: List<A<'b>>; items: Dict<'b, Int> }" ] "A<Int -> Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        signature [ "type A<'a> = { next: List<B<'a>> }", "type B<'b> = { next: List<A<'b>>; items: Dict<'b, Int> }" ] "A<Int>"
+        |> Stdlib.Test.equal "checked:"
+        signature [ "type Node<'a> = { next: List<Node<List<'a>>>; items: Dict<'a, Int> }" ] "Node<Int -> Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        signature [ "type Node<'a> = { next: List<Node<List<'a>>>; items: Dict<'a, Int> }" ] "Node<Int>"
+        |> Stdlib.Test.equal "checked:"
+        signature [ "type Node<'a> = { next: List<Node<'a -> Int>>; items: Dict<'a, Int> }" ] "Node<Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
+
+  let call (body: List<String>) : String =
+    check (src (Stdlib.List.append
+      [ "let make<'a> (x: 'a) : Dict<'a, Int> = Dict { x: 1 }", "let f () : Unit =" ] body)) "f"
+
+  test genericCallKeys =
+    Stdlib.Test.all
+      [ call [ "  let _ = make (fun y -> y + 1)", "  ()" ]
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        call [ "  let _ = make<Int -> Int> (fun y -> y + 1)", "  ()" ]
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        call [ "  let _ = make 1", "  let _ = make \"ok\"", "  ()" ]
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Calls through a local alias or lambda must still enforce make's key requirement.
+  // Check each use of g separately, allowing Int and String but rejecting functions.
+  test localAliasAndLambdaCalls =
+    Stdlib.Test.all
+      [ call [ "  let g = make", "  let _ = g (fun y -> y + 1)", "  ()" ]
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        call [ "  let g = fun x -> make x", "  let _ = g (fun y -> y + 1)", "  ()" ]
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        call [ "  let g = fun x -> make x", "  let _ = g 1", "  let _ = g \"ok\"", "  ()" ]
+        |> Stdlib.Test.equal "checked:"
+        check (src [ "type R<'a> = { items: Dict<'a, Int>; value: 'a }", "let f () : Unit =", "  let _ = R { items = Dict {}; value = fun x -> x + 1 }", "  ()" ]) "f"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
+
+// ----------------------------------------------------------------------------------
+// Operators
+// ----------------------------------------------------------------------------------
+
+module Operators =
+  // Bitwise NOT (~) is `BitwiseNot.bitwiseNot`, and which types it accepts is which
+  // types implement it rather than a list the checker carries. Bool, Float and
+  // String have no implementation, so they are refused as a missing one, the same
+  // way a named call is. The runtime refuses them for the same reason, which is the
+  // point.
+  test bitwiseNot =
+    Stdlib.Test.all
+      [ Stdlib.List.map
+          [ "Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32", "Int64",
+            "UInt64", "Int128", "UInt128", "Int" ]
+          (fun typ -> check $"let f (x: {typ}) : {typ} = ~x" "f")
+        |> Stdlib.Test.equal
+          [ "checked:", "checked:", "checked:", "checked:", "checked:", "checked:",
+            "checked:", "checked:", "checked:", "checked:", "checked:" ]
+        check "let f (x: Bool) : Bool = ~x" "f"
+        |> Stdlib.Test.equal "failed:MissingImpl"
+        check "let f (x: Float) : Float = ~x" "f"
+        |> Stdlib.Test.equal "failed:MissingImpl"
+        check "let f (x: String) : String = Builtin.bitwiseNot x" "f"
+        |> Stdlib.Test.equal "failed:MissingImpl"
+        check "let f (x: Bool) : Bool = x |> Builtin.bitwiseNot" "f"
+        |> Stdlib.Test.equal "failed:MissingImpl"
+        check "let f (x: UInt128) : UInt128 = x |> Builtin.bitwiseNot" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f () : Bool -> Bool = Builtin.bitwiseNot" "f"
+        |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+        check (src [ "let f () : Bool =", "  let flip = fun x -> ~x", "  flip true" ]) "f"
+        |> Stdlib.Test.equal "failed:MissingImpl"
+        check (src [ "let f () : Int =", "  let flip = fun x -> ~x", "  flip 1" ]) "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun x -> (~x, x.field)" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // String implements Add, which is what made `++` redundant, so `+` joins Strings
+  // and the checker accepts it. It used to refuse, from a table that did not know.
+  test stringAddition =
+    check "let f (x: String) : String = x + x" "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Exponentiation on 128-bit integers is ACCEPTED now, and the old expectation was
+  // asserting a checker bug: `Power` has implementations for all twelve numeric
+  // types, including these two, and the runtime has always answered `Int128 **
+  // Int128`. The rule that refused them was a hand-written table in the checker that
+  // disagreed with dispatch.
+  test int128Arithmetic =
+    Stdlib.Test.all
+      [ check "let f (value: Int128) : Int128 = value ** value" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (value: UInt128) : UInt128 = value ** value" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (value: Int128) : Int128 = value + value" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (value: UInt128) : UInt128 = value * value" "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Bitwise operators still refuse Float, but as the ABSENCE of an implementation
+  // rather than a predicate in the checker: there is no `impl BitwiseAnd for Float`.
+  // Same answer, and now it is the same answer dispatch gives.
+  test bitwiseOperators =
+    Stdlib.Test.all
+      [ check "let f (value: Float) : Float = value & value" "f"
+        |> Stdlib.Test.equal "failed:MissingImpl"
+        check "let f (value: Float) : Float = value << value" "f"
+        |> Stdlib.Test.equal "failed:MissingImpl"
+        check "let f (value: Int128) : Int128 = value ^ value" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (value: Int64) : Int64 = value >> value" "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Direct calls such as Builtin.add must follow the operator's typing rules.
+  // Their generic builtin signatures alone would allow invalid operand types.
+  test directBuiltinCallsFollowOperatorRules =
+    Stdlib.Test.all
+      [ check "let f (u: Unit) : Bool = Builtin.lessThan 1 \"x\"" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "let f (u: Unit) : Int = Builtin.add 1 2" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (u: Unit) : String = Builtin.add 1 2" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // `Compare` has an implementation for String, so comparing two Strings is
+  // accepted. The old table allowed only numerics.
+  test stringComparison =
+    Stdlib.Test.all
+      [ check "let f (u: Unit) : Bool = Builtin.greaterThan \"x\" \"x\"" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (u: Unit) : Bool = Builtin.equals \"x\" \"x\"" "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // The checker cannot fully describe an operator's type restrictions when it is
+  // passed around or partially applied. Report Incomplete for Builtin.add 1.
+  test partialOperatorIsIncomplete =
+    check "let f (u: Unit) : Int -> Int = Builtin.add 1" "f"
+    |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+
+  // A pipeline supplies the operator's first argument, and gets the same answer as a
+  // direct call. Power on UInt128 is accepted through both, for the reason above.
+  test pipedOperators =
+    Stdlib.Test.all
+      [ check "let f (value: Int) : Int = value |> Builtin.subtract 1" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (value: UInt128) : UInt128 = value |> Builtin.power value" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (value: UInt128) : UInt128 = Builtin.power value value" "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Unary minus is `Negate.negate`, so the unsigned integers are refused because
+  // nothing implements it for them, not because a predicate knows they are unsigned.
+  // The resulting type is still checked against the return type.
+  test unaryMinus =
+    Stdlib.Test.all
+      [ check "let f (value: Int) : Int = -value" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (value: Float) : Float = -value" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (value: Int) : String = -value" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "let f (value: UInt8) : UInt8 = -value" "f"
+        |> Stdlib.Test.equal "failed:MissingImpl"
+        check "let f (value: String) : String = -value" "f"
+        |> Stdlib.Test.equal "failed:MissingImpl" ]
+
+// ----------------------------------------------------------------------------------
+// Builtins requiring special typing rules
+// ----------------------------------------------------------------------------------
+
+module Builtins =
+  // Infer Builtin.unwrap's result from an Option or Result payload. For other
+  // input types, report Incomplete because its result type cannot be established.
+  test unwrapResultType =
+    Stdlib.Test.all
+      [ check "let f (x: Stdlib.Option.Option<Int>) : Int = Builtin.unwrap x" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (u: Unit) : Int = Builtin.unwrap 1" "f"
+        |> Stdlib.Test.equal "incomplete:UnsupportedConstruct" ]
+
+  // jsonParse needs an explicit type argument to determine the parsed value's type.
+  test jsonParseNeedsTypeArg =
+    check "let f (u: Unit) : Int = Builtin.jsonParse \"1\"" "f"
+    |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+
+  // jsonParse<Int> supplies the missing type information. Also load the types
+  // named in its signature, including Result and the ParseError error type.
+  test jsonParseWithTypeArg =
+    check
+      (src
+        [ "let f (u: Unit) : Int ="
+          "  match Builtin.jsonParse<Int> \"1\" with"
+          "  | Ok x -> x"
+          "  | Error _ -> 0" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Load Option from listGetAt's return type so the checker can validate these
+  // Some and None patterns, even though the function's own signature omits Option.
+  test listGetAtLoadsOption =
+    check
+      (src
+        [ "let f (x: List<Int>) : Int ="
+          "  match Builtin.listGetAt x 0 with"
+          "  | Some y -> y"
+          "  | None -> 0" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // applicableByName returns a type variable that its inputs do not determine
+  // and its signature does not declare. Report Incomplete for that unknown result.
+  test undeterminedResultIsIncomplete =
+    check
+      "let f (b: Uuid) : Int = match Builtin.applicableByName b \"x\" with | Ok _ -> 1 | Error _ -> 0"
+      "f"
+    |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+
+  // A builtin missing from the registry makes the check Incomplete.
+  test missingBuiltinIsIncomplete =
+    checkFunctionAst
+      []
+      (oneArg
+        (tUnit ())
+        (tInt ())
+        (Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+          10L,
+          Darklang.LanguageTools.ProgramTypes.Expr.EFnName(
+            11L,
+            resolved (
+              Darklang.LanguageTools.ProgramTypes.FQFnName.FQFnName.Builtin(
+                Darklang.LanguageTools.ProgramTypes.FQFnName.Builtin
+                  { name = "missing"; version = 0l }
+              )
+            ),
+            []
+          ),
+          [],
+          [ intExpr 12L 1 ]
+        )))
+    |> Stdlib.Test.equal "incomplete:MissingFunctionSignature"
+
+  // Accept the required number of explicit type arguments, including type parameters
+  // from the calling function. Reject calls supplying too many type arguments.
+  test explicitTypeArgCount =
+    Stdlib.Test.all
+      [ check
+          (src [ "let same (x: 'a) : 'a = x", "let f (u: Unit) : Int = same<Int> 1" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src [ "let same (x: 'a) : 'a = x", "let f (x: 'b) : 'b = same<'b> x" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (u: Unit) : Int = Stdlib.List.length<Int, Int, Int> []" "f"
+        |> Stdlib.Test.equal "failed:ExplicitTypeArgumentCountMismatch" ]
+
+// ----------------------------------------------------------------------------------
+// Postfix `?`
+// ----------------------------------------------------------------------------------
+
+module PostfixUnwrap =
+  let optionOf
+    (inner: Darklang.LanguageTools.ProgramTypes.TypeReference)
+    : Darklang.LanguageTools.ProgramTypes.TypeReference =
+    Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+      resolved (
+        Darklang.LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package(
+          (Darklang.LanguageTools.AtRestTypeChecker.Environment.builtins
+            Darklang.SCM.Branch.mainBranchId).optionType
+        )
+      ),
+      [ inner ]
+    )
+
+  let unwrapArg (id: Int64) : Darklang.LanguageTools.ProgramTypes.Expr =
+    Darklang.LanguageTools.ProgramTypes.Expr.EUnwrap(id, arg (id + 1L))
+
+  /// Build a function that applies ? to an `input` parameter, then returns
+  /// `success "success"` with declared type `output`. `success` is Ok or Some.
+  let returning (input: String) (output: String) (success: String) : String =
+    src
+      [ $"let f (r: {input}) : {output} ="
+        "  let _ = r?"
+        $"  {success} \"success\"" ]
+
+  // ? requires its operand and the enclosing return type to both be Option or
+  // both be Result. For Result, their error types must also match; their success
+  // types may differ.
+  test operandMatchesReturnType =
+    Stdlib.Test.all
+      [ check
+          (returning
+            "Stdlib.Result.Result<Int, String>"
+            "Stdlib.Result.Result<String, String>"
+            "Ok")
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (returning "Stdlib.Option.Option<Int>" "Stdlib.Option.Option<String>" "Some")
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (returning
+            "Stdlib.Result.Result<Int, String>"
+            "Stdlib.Result.Result<String, Bool>"
+            "Ok")
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (returning
+            "Stdlib.Result.Result<Int, String>"
+            "Stdlib.Option.Option<String>"
+            "Some")
+          "f"
+        |> Stdlib.Test.equal "failed:InvalidUnwrap"
+        check
+          (returning
+            "Stdlib.Option.Option<Int>"
+            "Stdlib.Result.Result<String, String>"
+            "Ok")
+          "f"
+        |> Stdlib.Test.equal "failed:InvalidUnwrap"
+        check
+          (returning "Int" "Stdlib.Result.Result<String, String>" "Ok")
+          "f"
+        |> Stdlib.Test.equal "failed:InvalidUnwrap"
+        check
+          "let f (r: Stdlib.Result.Result<Int, String>) : Int = r?"
+          "f"
+        |> Stdlib.Test.equal "failed:InvalidUnwrap" ]
+
+  // r? produces the unwrapped Int. The function must explicitly wrap its success
+  // value in Ok to satisfy its declared Result return type.
+  test successValueMustBeWrapped =
+    check
+      "let f (r: Stdlib.Result.Result<Int, String>) : Stdlib.Result.Result<Int, String> = r?"
+      "f"
+    |> Stdlib.Test.equal "failed:TypeMismatch"
+
+  // Report a Result error-type mismatch at the ? expression and name both types.
+  test errorTypeMismatchNamesBothTypes =
+    issues
+      (returning
+        "Stdlib.Result.Result<Int, Bool>"
+        "Stdlib.Result.Result<String, String>"
+        "Ok")
+      "f"
+    |> Stdlib.Test.equal [ "TypeMismatch: In the error returned by ?: expected String, got Bool" ]
+
+  // Apply the same ? rules when the operand uses a type alias or the Result
+  // error type is a declared type parameter.
+  test aliasesAndTypeParams =
+    Stdlib.Test.all
+      [ check
+          (src
+            [ "type Checked = Stdlib.Result.Result<Int, String>"
+              "let f (r: Checked) : Stdlib.Result.Result<String, String> ="
+              "  let _ = r?"
+              "  Ok \"success\"" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (returning
+            "Stdlib.Result.Result<Int, 'e>"
+            "Stdlib.Result.Result<String, 'e>"
+            "Ok")
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Unwrapping Option<Int> tells the checker that n is Int before checking n + n.
+  test unwrapRefinesType =
+    check
+      (src
+        [ "let f (o: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<Int> ="
+          "  let n = o?"
+          "  Some(n + n)" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // ? returns from the nearest lambda. Check against that lambda's return type;
+  // the outer function's return type does not determine whether the ? is valid.
+  test nearestLambdaReturn =
+    Stdlib.Test.all
+      [ check
+          (src
+            [ "let f (r: Stdlib.Result.Result<Int, String>) : Int ="
+              "  let g = fun u -> Ok(r? + 1)"
+              "  1" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src
+            [ "let f (r: Stdlib.Result.Result<Int, String>) : Stdlib.Result.Result<String, String> ="
+              "  let g = fun u -> r?"
+              "  Ok \"success\"" ])
+          "f"
+        |> Stdlib.Test.equal "failed:InvalidUnwrap"
+        check
+          (src
+            [ "let f (o: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<Int> ="
+              "  o |> fun x -> Some(x? + 1)" ])
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Returning Some tells the checker that x? needs an Option operand. Accept
+  // Some 4 as the argument and reject the plain Int 4.
+  test lambdaReturnDecidesOperand =
+    Stdlib.Test.all
+      [ check
+          "let f (u: Unit) : Stdlib.Option.Option<Int> = (fun x -> Some(x? + 1)) (Some 4)"
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          "let f (u: Unit) : Stdlib.Option.Option<Int> = (fun x -> Some(x? + 1)) 4"
+          "f"
+        |> Stdlib.Test.equal "failed:InvalidUnwrap" ]
+
+  // Infer get's field and ? requirements separately for each call. It can accept
+  // both IntRow and StringRow, while each result must match the caller's return
+  // type.
+  let rows (body: List<String>) : String =
+    src
+      (Stdlib.List.append
+        [ "type IntRow = { item: Stdlib.Option.Option<Int> }"
+          "type StringRow = { item: Stdlib.Option.Option<String> }"
+          "type NestedRow = { item: Stdlib.Option.Option<Stdlib.Option.Option<Int>> }" ]
+        body)
+
+  test rowsPerCall =
+    Stdlib.Test.all
+      [ check
+          (rows
+            [ "let f (a: IntRow) : Stdlib.Option.Option<String> ="
+              "  let get = fun row -> Some(row.item?)"
+              "  get a" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (rows
+            [ "let f (a: IntRow) : Stdlib.Option.Option<Int> ="
+              "  let get = fun row -> Some(row.item?)"
+              "  get a" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (rows
+            [ "let f (a: IntRow) (b: StringRow) : Stdlib.Option.Option<String> ="
+              "  let get = fun row -> Some(row.item?)"
+              "  let _ = get a"
+              "  get b" ])
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Infer the ? operand from row.item after the call supplies the row's type.
+  // Here unwrapping Option<Option<Int>> leaves the Option<Int> the lambda returns.
+  test nestedOptionRow =
+    check
+      (rows
+        [ "let f (a: NestedRow) : Stdlib.Option.Option<Int> ="
+          "  let get = fun row -> row.item?"
+          "  get a" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Keep the field type and ? requirement together when checking each call to get.
+  // Calling it with NestedIntRow must not fix the type used for NestedStringRow.
+  let nestedRows (body: List<String>) : String =
+    src
+      (Stdlib.List.append
+        [ "type NestedIntRow = { item: Stdlib.Option.Option<Stdlib.Option.Option<Int>> }"
+          "type NestedStringRow = { item: Stdlib.Option.Option<Stdlib.Option.Option<String>> }" ]
+        body)
+
+  test nestedRowsPerCall =
+    Stdlib.Test.all
+      [ check
+          (nestedRows
+            [ "let f (a: NestedIntRow) (b: NestedStringRow) : (Stdlib.Option.Option<Int> * Stdlib.Option.Option<String>) ="
+              "  let get = fun row -> row.item?"
+              "  (get a, get b)" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (nestedRows
+            [ "let f (a: NestedIntRow) : Stdlib.Option.Option<String> ="
+              "  let get = fun row -> row.item?"
+              "  get a" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // Reject row.item? when the caller supplies a record whose item field is Int.
+  test scalarFieldRejected =
+    check
+      (src
+        [ "type ScalarRow = { item: Int }"
+          "let f (a: ScalarRow) : Stdlib.Option.Option<Int> ="
+          "  let get = fun row -> row.item?"
+          "  get a" ])
+      "f"
+    |> Stdlib.Test.equal "failed:InvalidUnwrap"
+
+  // An unavailable operand type might be an alias for Option. Report Incomplete
+  // for the missing declaration instead of assuming the ? is invalid.
+  test unavailableOperandIsIncomplete =
+    checkFunctionAst
+      []
+      (oneArg (custom "unwrap-missing-alias" []) (optionOf (tInt ())) (unwrapArg 30L))
+    |> Stdlib.Test.equal "incomplete:MissingTypeDeclaration"
+
+  // An Int operand is definitely invalid for ?, even if an unavailable return
+  // type also makes part of the check incomplete. Keep both findings.
+  test intOperandStaysInvalid =
+    checkFunctionAst
+      []
+      (oneArg (tInt ()) (custom "unwrap-missing-alias" []) (unwrapArg 32L))
+    |> Stdlib.Test.equal "failed:InvalidUnwrap,MissingTypeDeclaration"
+
+  // Reject ? outside a function because there is no enclosing call to return from.
+  // Construct this invalid value directly to test the checker independently of
+  // the parser, which also rejects it.
+  test outsideFunctionRejected =
+    checkValueAsts
+      [ valueNamed
+          "unwrap-outside"
+          (Darklang.LanguageTools.ProgramTypes.Expr.EUnwrap(34L, intExpr 35L 1)) ]
+    |> Stdlib.Test.equal [ "failed:InvalidUnwrap" ]
+
+// ----------------------------------------------------------------------------------
+// Tuple element access
+// ----------------------------------------------------------------------------------
+
+module TupleAccess =
+  test indexWithinTuple =
+    Stdlib.Test.all
+      [ check "let f (x: (Int * String * Bool)) : String = x.2" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (x: (Int * String)) : Int = x.3" "f"
+        |> Stdlib.Test.equal "failed:UnknownTupleElement" ]
+
+  // Tuple indexes start at 1, so x.0 is invalid.
+  test indexStartsAtOne =
+    Stdlib.Test.all
+      [ check "let f (x: (Int * String)) : Int = x.0" "f"
+        |> Stdlib.Test.equal "failed:UnknownTupleElement"
+        check "let f (x: (Int * String)) : String = x.1" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // Int64 has no tuple elements. Reject x.1 both directly and through a lambda
+  // whose parameter type becomes known only when the lambda is called.
+  test intHasNoElements =
+    Stdlib.Test.all
+      [ check "let f (x: Int64) : Int = x.1" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "let f (x: Int64) : Int = (fun t -> t.1) x" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // A function declared for every 'a cannot assume that x has a field or tuple
+  // element. Reject that assumption even when the access occurs in a local helper.
+  test genericAndAliasedTuples =
+    Stdlib.Test.all
+      [ check "let f<'a> (x: 'a) : Int = x.1" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (src [ "let f<'a> (x: 'a) : Int =", "  let get = fun t -> t.field", "  get x" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (src [ "let f<'a> (x: 'a) : Int =", "  let get = fun t -> t.1", "  get x" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (src [ "type Pair = (Int * String)", "let f (x: Pair) : String = x.2" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f<'a, 'b> (x: ('a * 'b)) : 'b = x.2" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f<'a, 'b> (x: ('a * 'b)) : 'b = x.1" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // Defer checking t.1 until first x supplies the tuple type for t.
+  test deferredUntilCall =
+    check
+      (src
+        [ "let f (x: (Int * String)) : Int ="
+          "  let first = fun t -> t.1"
+          "  first x" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Infer a separate tuple type for each use of first, allowing different element
+  // types and tuple lengths in the two calls.
+  test separateTypePerCall =
+    check
+      (src
+        [ "let f (u: Unit) : (Int * String) ="
+          "  let first = fun t -> t.1"
+          "  (first (1, \"a\"), first (\"b\", 2, true))" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Once t.1 is known to be a pair, accept its second element and reject its
+  // third. Report the invalid index rather than an unresolved-type warning.
+  test nestedPairAccess =
+    Stdlib.Test.all
+      [ check "let f (u: Unit) : Int = (fun t -> t.1.2) ((1, 2), 3)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "let f (u: Unit) : Int = (fun t -> t.1.3) ((1, 2), 3)" "f"
+        |> Stdlib.Test.equal "failed:UnknownTupleElement" ]
+
+  // Each use of f must get a separate type for the intermediate t.1 too.
+  // That type appears only in the deferred field checks, not in f's parameter
+  // or return type, so copying only the function type would lose it.
+  let letBoundChain (index: String) (returnType: String) (call: String) : String =
+    check
+      (src
+        [ $"let g (u: Unit) : {returnType} ="
+          $"  let f = fun t -> t.1.{index}"
+          $"  {call}" ])
+      "g"
+
+  test letBoundChains =
+    Stdlib.Test.all
+      [ letBoundChain "2" "Int" "f ((1, 2), 3)"
+        |> Stdlib.Test.equal "checked:"
+        letBoundChain "3" "Int" "f ((1, 2), 3)"
+        |> Stdlib.Test.equal "failed:UnknownTupleElement" ]
+
+  // Calling f on Int tuples must not force a later call's String elements to be Int.
+  test callsDoNotShareElementTypes =
+    letBoundChain "2" "(Int * String)" "(f ((1, 2), 3), f ((\"a\", \"b\"), 3))"
+    |> Stdlib.Test.equal "checked:"
+
+  // inner captures t from outer. Its tuple accesses must use the type supplied
+  // to outer, even though inner's own parameter is unrelated to t.
+  let capturedChain (index: String) : String =
+    check
+      (src
+        [ "let g (u: Unit) : Int ="
+          "  let outer ="
+          "    fun t ->"
+          $"      let inner = fun v -> t.1.{index}"
+          "      inner ()"
+          "  outer ((1, 2), 3)" ])
+      "g"
+
+  test capturedChains =
+    Stdlib.Test.all
+      [ capturedChain "2"
+        |> Stdlib.Test.equal "checked:"
+        capturedChain "3"
+        |> Stdlib.Test.equal "failed:UnknownTupleElement" ]
+
+  // Resolve t.1 to the Counted record before checking its count field.
+  test resolvesToRecord =
+    check
+      (src
+        [ "type Counted = { count: Int }"
+          "let f (r: Counted) : Int = (fun t -> t.1.count) (r, 3)" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+// ----------------------------------------------------------------------------------
+// Dictionary keys and reusing inferred types
+// ----------------------------------------------------------------------------------
+
+module DictGeneralization =
+  // ? in a dictionary key returns from the enclosing lambda. It is invalid if
+  // that lambda returns a plain Dict, and valid with a matching Option or Result.
+  // Use an anonymous lambda so a separate self-reference cannot accidentally
+  // preserve the return-type constraint and hide a bug in checking the key.
+  test unwrapInDictKey =
+    Stdlib.Test.all
+      [ check
+          (src
+            [ "let f () : Dict<Int, Int> ="
+              "  (fun () ->"
+              "    let entries = Dict { (None?) : 1 }"
+              "    entries) ()" ])
+          "f"
+        |> Stdlib.Test.equal "failed:InvalidUnwrap"
+        check
+          (src
+            [ "let f () : Dict<Int, Int> ="
+              "  (fun () ->"
+              "    let entries = Dict { ((Error \"stop\")?) : 1 }"
+              "    entries) ()" ])
+          "f"
+        |> Stdlib.Test.equal "failed:InvalidUnwrap"
+        check
+          (src
+            [ "let f () : Stdlib.Option.Option<Dict<Int, Int>> ="
+              "  (fun () ->"
+              "    let entries = Dict { ((Some 1)?) : 1 }"
+              "    Some entries) ()" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src
+            [ "let f () : Stdlib.Result.Result<Dict<Int, Int>, String> ="
+              "  (fun () ->"
+              "    let entries = Dict { ((Error \"stop\")?) : 1 }"
+              "    Ok entries) ()" ])
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // With a literal key, the dictionary's empty-list values can be used as both
+  // List<Int> and List<String>. A key containing a function call prevents that
+  // generalization, so both uses must agree on one element type.
+  let dictionaryUses (key: String) : String =
+    src
+      [ "let identity (x: Int) : Int = x"
+        "let ints (d: Dict<Int, List<Int>>) : Unit = ()"
+        "let strings (d: Dict<Int, List<String>>) : Unit = ()"
+        "let f () : Unit ="
+        $"  let entries = Dict {{ {key}: [] }}"
+        "  ints entries"
+        "  strings entries" ]
+
+  test keyGeneralization =
+    Stdlib.Test.all
+      [ check (dictionaryUses "1") "f"
+        |> Stdlib.Test.equal "checked:"
+        check (dictionaryUses "(identity 1)") "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+// ----------------------------------------------------------------------------------
+// Unresolved names
+// ----------------------------------------------------------------------------------
+
+module Unresolved =
+  test unresolvedNamesAreIncomplete =
+    Stdlib.Test.all
+      [ checkFunctionAst
+          []
+          (oneArg
+            (tUnit ())
+            (tInt ())
+            (Darklang.LanguageTools.ProgramTypes.Expr.EValue(
+              1L, unresolved [ "Missing", "value" ])))
+        |> Stdlib.Test.equal "incomplete:UnresolvedValueName"
+        checkFunctionAst
+          []
+          (oneArg
+            (tUnit ())
+            (tInt ())
+            (Darklang.LanguageTools.ProgramTypes.Expr.EFnName(
+              1L, unresolved [ "Missing", "fn" ], [])))
+        |> Stdlib.Test.equal "incomplete:UnresolvedFunctionName"
+        checkFunctionAst
+          []
+          (oneArg
+            (Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+              unresolved [ "Missing", "Type" ],
+              []
+            ))
+            (tUnit ())
+            (unitExpr 1L))
+        |> Stdlib.Test.equal "incomplete:UnresolvedTypeName" ]
+
+  // Without a package value's definition, the checker cannot infer its type.
+  // Report MissingValueSignature and return Incomplete.
+  test missingValueSignature =
+    checkFunctionAst
+      []
+      (oneArg (tUnit ()) (tInt ()) (useValue 1L "no-such-value"))
+    |> Stdlib.Test.equal "incomplete:MissingValueSignature"
+
+  // When the value being matched has an unresolved name, report that problem
+  // without adding warnings about pattern types that depend on the missing value.
+  test unresolvedMatchSkipsPatternWarnings =
+    checkFunctionAst
+      []
+      (oneArg
+        (tUnit ())
+        (tInt ())
+        (Darklang.LanguageTools.ProgramTypes.Expr.EMatch(
+          170L,
+          Darklang.LanguageTools.ProgramTypes.Expr.EValue(
+            171L, unresolved [ "Missing", "value" ]),
+          [ Darklang.LanguageTools.ProgramTypes.MatchCase
+              { pat =
+                  Darklang.LanguageTools.ProgramTypes.MatchPattern.MPEnum(
+                    172L,
+                    "Some",
+                    [ Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                        173L, "value") ]
+                  )
+                whenCondition = Stdlib.Option.Option.None
+                rhs =
+                  Darklang.LanguageTools.ProgramTypes.Expr.EVariable(174L, "value") } ]
+        )))
+    |> Stdlib.Test.equal "incomplete:UnresolvedValueName"
+
+// ----------------------------------------------------------------------------------
+// Pattern types and whether matches cover every possible value
+// ----------------------------------------------------------------------------------
+
+module Patterns =
+  test exhaustiveMatches =
+    Stdlib.Test.all
+      [ check
+          "let f (value: Bool) : String = match value with | true -> \"yes\" | false -> \"no\""
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          "let f (value: (Int * String)) : Int = match value with | (_, _) -> 1"
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src
+            [ "let f (value: List<String>) : Int ="
+              "  match value with"
+              "  | [] -> 0"
+              "  | [ _ ] -> 1"
+              "  | _ :: _ :: _ -> 2" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src
+            [ "let f (value: (List<String> * List<String>)) : Int ="
+              "  match value with"
+              "  | ([], []) -> 0"
+              "  | (_ :: _, []) -> 1"
+              "  | ([], _ :: _) -> 2"
+              "  | (_ :: _, _ :: _) -> 3" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          "let f (value: (Bool * Bool)) : Int = match value with | (true, _) -> 1 | (false, _) -> 0"
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  let nested () : String =
+    src
+      [ "type Inner = | SourceFile of String"
+        "type Outer = | Nothing | Something of Inner"
+        "let f (value: Outer) : Int ="
+        "  match value with"
+        "  | Nothing -> 0"
+        "  | Something(SourceFile _) -> 1" ]
+
+  test nestedEnumPatterns =
+    check (nested ()) "f"
+    |> Stdlib.Test.equal "checked:"
+
+  let restrictive () : String =
+    src
+      [ "type E = | A of Bool | B"
+        "let f (value: E) : Int ="
+        "  match value with"
+        "  | A true -> 1"
+        "  | B -> 2" ]
+
+  // Matching A true leaves A false uncovered. Report Incomplete and include
+  // A(false) as an example of the missing input.
+  test missingCaseExample =
+    Stdlib.Test.all
+      [ check (restrictive ()) "f"
+        |> Stdlib.Test.equal "incomplete:NonExhaustiveMatch"
+        issues (restrictive ()) "f"
+        |> Stdlib.Test.equal [ "NonExhaustiveMatch: Match is not exhaustive; an uncovered pattern is A(false)" ]
+        check
+          "let f (x: Stdlib.Option.Option<Int>) : Int = match x with | Some y -> y"
+          "f"
+        |> Stdlib.Test.equal "incomplete:NonExhaustiveMatch" ]
+
+  // Identify missing Tree cases without following Node's recursive field forever.
+  // Use an abbreviated example such as Node(…) in the diagnostic.
+  let tree (cases: List<String>) : String =
+    src
+      (Stdlib.List.append
+        [ "type Tree = | Node of Tree | Leaf", "let f (t: Tree) : Int =", "  match t with" ]
+        cases)
+
+  test recursiveTreeCoverage =
+    Stdlib.Test.all
+      [ check (tree [ "  | Leaf -> 0" ]) "f"
+        |> Stdlib.Test.equal "incomplete:NonExhaustiveMatch"
+        issues (tree [ "  | Leaf -> 0" ]) "f"
+        |> Stdlib.Test.equal [ "NonExhaustiveMatch: Match is not exhaustive; an uncovered pattern is Node(…)" ]
+        check (tree [ "  | Leaf -> 0", "  | Node Leaf -> 1" ]) "f"
+        |> Stdlib.Test.equal "incomplete:NonExhaustiveMatch"
+        check (tree [ "  | Leaf -> 0", "  | Node _ -> 1" ]) "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // In (_, true), the wildcard covers every Tree. Check the Bool element without
+  // repeatedly expanding the recursive Tree type, then check the false cases.
+  let treeAndBool (cases: List<String>) : String =
+    src
+      (Stdlib.List.append
+        [ "type Tree = | Node of Tree | Leaf"
+          "let f (x: (Tree * Bool)) : Int ="
+          "  match x with" ]
+        cases)
+
+  test wildcardCoversRecursiveType =
+    Stdlib.Test.all
+      [ check (treeAndBool [ "  | (_, true) -> 1" ]) "f"
+        |> Stdlib.Test.equal "incomplete:NonExhaustiveMatch"
+        check
+          (treeAndBool [ "  | (_, true) -> 1", "  | (Leaf, false) -> 2", "  | (Node _, false) -> 3" ])
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // A when condition may be false. The checker does not evaluate it, so a guarded
+  // case cannot prove that its input is covered, even for the constant condition
+  // here.
+  test whenConditionDoesNotCover =
+    check
+      "let f (x: Bool) : Int = match x with | true -> 1 | false when 1 == 1 -> 0"
+      "f"
+    |> Stdlib.Test.equal "incomplete:NonExhaustiveMatch"
+
+  // An Int is not a record: reject field access and record updates on it.
+  test intIsNotRecord =
+    Stdlib.Test.all
+      [ check "let f (x: Int) : Int = x.field" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "let f (x: Int) : Int = { x with field = 1 }" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // An empty list's element type may be unknown, but it is still a list.
+  // Record operations and enum patterns on that list are definite errors.
+  test emptyListAndIntShapes =
+    Stdlib.Test.all
+      [ check
+          (src [ "let f (u: Unit) : Int =", "  let xs = []", "  xs.field" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (src [ "let f (u: Unit) : Unit =", "  let xs = []", "  let _ = { xs with field = 1 }", "  ()" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (src [ "let f (u: Unit) : Int =", "  let xs = []", "  match xs with | Missing -> 1 | _ -> 2" ])
+          "f"
+        |> Stdlib.Test.equal "failed:InvalidPattern"
+        check "let f (x: Int) : Int = match x with | Some y -> y | _ -> 0" "f"
+        |> Stdlib.Test.equal "failed:InvalidPattern" ]
+
+  // f must work for every possible 'a, so it cannot assume that x has a field.
+  test genericParamHasNoFields =
+    check "let f<'a> (x: 'a) : Int = x.field" "f"
+    |> Stdlib.Test.equal "failed:TypeMismatch"
+
+  // Reject an enum-case pattern when the matched value is a record.
+  test enumPatternOnRecord =
+    check
+      (src [ "type R = { a: Int }", "let f (r: R) : Int = match r with | Foo -> 1" ])
+      "f"
+    |> Stdlib.Test.equal "failed:InvalidPattern"
+
+  // Report the unknown case Missing. Still recognize its binding x, and skip
+  // coverage checking so this one mistake does not cause extra diagnostics.
+  test unknownCaseReportedOnce =
+    check
+      (src
+        [ "type Only = | Valid"
+          "let f (value: Only) : Int = match value with | Missing x -> x" ])
+      "f"
+    |> Stdlib.Test.equal "failed:UnknownEnumCase"
+
+  // Reject (x, x) within an or-pattern because it binds x twice. Construct the
+  // syntax tree directly because the parser would reject this source pattern.
+  test orPatternBindsTwice =
+    checkFunctionAst
+      []
+      (oneArg
+        (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(
+          tInt (), tInt (), []))
+        (tInt ())
+        (Darklang.LanguageTools.ProgramTypes.Expr.EMatch(
+          47L,
+          arg 48L,
+          [ Darklang.LanguageTools.ProgramTypes.MatchCase
+              { pat =
+                  Darklang.LanguageTools.ProgramTypes.MatchPattern.MPOr(
+                    49L,
+                    [ Darklang.LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                        50L,
+                        Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          51L, "x"),
+                        Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          52L, "x"),
+                        []
+                      )
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                        60L,
+                        Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          61L, "x"),
+                        Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          62L, "x"),
+                        []
+                      ) ]
+                  )
+                whenCondition = Stdlib.Option.Option.None
+                rhs = Darklang.LanguageTools.ProgramTypes.Expr.EVariable(70L, "x") } ]
+        )))
+    |> Stdlib.Test.equal "failed:DuplicatePatternBinding"
+
+  // Every alternative in an or-pattern must bind the same names. Check that the
+  // checker rejects (x, _) | (_, y), independently of the parser's own rejection.
+  test orPatternBindingsDiffer =
+    checkFunctionAst
+      []
+      (oneArg
+        (Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(
+          tInt (), tInt (), []))
+        (tInt ())
+        (Darklang.LanguageTools.ProgramTypes.Expr.EMatch(
+          47L,
+          arg 48L,
+          [ Darklang.LanguageTools.ProgramTypes.MatchCase
+              { pat =
+                  Darklang.LanguageTools.ProgramTypes.MatchPattern.MPOr(
+                    49L,
+                    [ Darklang.LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                        50L,
+                        Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          51L, "x"),
+                        Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          52L, "_"),
+                        []
+                      )
+                      Darklang.LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                        60L,
+                        Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          61L, "_"),
+                        Darklang.LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          62L, "y"),
+                        []
+                      ) ]
+                  )
+                whenCondition = Stdlib.Option.Option.None
+                rhs = intExpr 70L 1 } ]
+        )))
+    |> Stdlib.Test.equal "failed:InvalidPattern"
+
+// ----------------------------------------------------------------------------------
+// Unknown types and avoiding misleading extra diagnostics
+// ----------------------------------------------------------------------------------
+
+module Ambiguity =
+  // The discarded empty list's element type does not affect the function's result,
+  // so leaving it unknown must not make the check Incomplete.
+  test discardedEmptyListChecks =
+    check (src [ "let f (u: Unit) : Int =", "  let _ = []", "  1" ]) "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // The unknown element type of a discarded list must not hide a wrong return type.
+  test discardedListKeepsReturnError =
+    check (src [ "let f (u: Unit) : Int =", "  let _ = []", "  \"wrong\"" ]) "f"
+    |> Stdlib.Test.equal "failed:TypeMismatch"
+
+  // A list cannot satisfy a Blob return type, regardless of its unknown element
+  // type.
+  test listIsNotBlob =
+    check "let f (u: Unit) : Blob = []" "f"
+    |> Stdlib.Test.equal "failed:TypeMismatch"
+
+  // Preserve the definite return-type error alongside the warning that the match
+  // does not handle false. The overall verdict remains Failed.
+  test returnErrorWithMissingCase =
+    check "let f (value: Bool) : String = match value with | true -> 1" "f"
+    |> Stdlib.Test.equal "failed:NonExhaustiveMatch,TypeMismatch"
+
+  // The unused lambda never receives a record type, so the checker cannot verify
+  // that its parameter has a path field. Report Incomplete.
+  test unusedLambdaFieldIsIncomplete =
+    check (src [ "let f (u: Unit) : Unit =", "  let _ = (fun record -> record.path)", "  ()" ]) "f"
+    |> Stdlib.Test.equal "incomplete:AmbiguousType"
+
+  // f reads only the known String field path, so its result can be checked while
+  // the unused value field's type remains unknown. Binding the whole record as
+  // unfixed leaves an unknown in the value's public type and is Incomplete.
+  let found () : String =
+    src
+      [ "type FoundValue<'a> = { path: String; value: 'a }"
+        "let source (u: Unit) : FoundValue<'a> = source u"
+        "let f (u: Unit) : String ="
+        "  let discovered = source ()"
+        "  discovered.path"
+        "val unfixed = source ()" ]
+
+  test unusedRecordField =
+    Stdlib.Test.all
+      [ check (found ()) "f"
+        |> Stdlib.Test.equal "checked:"
+        check (found ()) "unfixed"
+        |> Stdlib.Test.equal "incomplete:AmbiguousType" ]
+
+  // Passing an empty list through identity and discarding the result does not
+  // require the checker to determine the list's element type.
+  test discardedIdentityCall =
+    (let outcome =
+      checkFunctionAstOutcome
+        []
+        (oneArg
+          (tUnit ())
+          (tUnit ())
+          (Darklang.LanguageTools.ProgramTypes.Expr.ELet(
+            1L,
+            Darklang.LanguageTools.ProgramTypes.LetPattern.LPWildcard 2L,
+            Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+              3L,
+              Darklang.LanguageTools.ProgramTypes.Expr.ELambda(
+                4L,
+                [ Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(
+                    5L, "x") ],
+                Darklang.LanguageTools.ProgramTypes.Expr.EVariable(6L, "x")
+              ),
+              [],
+              [ Darklang.LanguageTools.ProgramTypes.Expr.EList(100L, []) ]
+            ),
+            Darklang.LanguageTools.ProgramTypes.Expr.EUnit 7L
+          )))
+     outcomeSummary outcome)
+    |> Stdlib.Test.equal "checked:"
+
+  // Calling the Unit parameter is an error at the application node (3), not
+  // at the empty-list argument (100), whose element type is still unknown.
+  test errorAtApplicationNode =
+    (let outcome =
+      checkFunctionAstOutcome
+        []
+        (oneArg
+          (tUnit ())
+          (tList (tInt ()))
+          (Darklang.LanguageTools.ProgramTypes.Expr.EApply(
+            3L,
+            Darklang.LanguageTools.ProgramTypes.Expr.EVariable(4L, "value"),
+            [],
+            [ Darklang.LanguageTools.ProgramTypes.Expr.EList(100L, []) ]
+          )))
+     Stdlib.List.map outcome.diagnostics (fun i -> i.nodeId))
+    |> Stdlib.Test.equal [ Stdlib.Option.Option.Some 3UL ]
+
+  // y y would require y's function type to contain itself. With the unused local
+  // helper's types unresolved, retain this finding as a warning and return
+  // Incomplete.
+  test selfApplicationIsWarning =
+    check (src [ "let f (u: Unit) : Int =", "  let g = (fun y -> y y)", "  1" ]) "f"
+    |> Stdlib.Test.equal "incomplete:AmbiguousType,OccursCheckFailed"
+
+// ----------------------------------------------------------------------------------
+// Local bindings, lambdas, and generalization (checking each use at its own type)
+// ----------------------------------------------------------------------------------
+
+module ProvisionalDiagnostics =
+  // Findings that still depend on unresolved types must remain warnings in the
+  // LSP output, even when a separate definite error makes the function Failed.
+  let displayed (last: String) : String =
+    let source =
+      src [ "let f () : Int =", "  let g = fun y -> y y", "  " + last ]
+    match parsePackageOps source with
+    | Error message -> message
+    | Ok ops ->
+      let report = Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps ops
+      match report.items with
+      | [ item ] ->
+        let point = Darklang.LanguageTools.Parser.Point { row = 0; column = 0 }
+        let range =
+          Darklang.LanguageTools.Parser.Range { start = point; end_ = point }
+        let rendered =
+          Darklang.LanguageTools.LspServer.Diagnostics.itemDiagnostics range [] item
+        let severities =
+          rendered
+          |> Stdlib.List.map (fun diagnostic ->
+            match diagnostic.severity with
+            | Some Error -> "error"
+            | Some Warning -> "warning"
+            | _ -> "unexpected severity")
+          |> Stdlib.List.sort
+          |> Stdlib.String.join ","
+        (verdictWord item.verdict) + ":" + (codesOf item.diagnostics)
+        + "/" + (codesOf item.warnings) + "/" + severities
+      | _ -> "expected one item"
+
+  test warningsStayWarnings =
+    Stdlib.Test.all
+      [ displayed "1"
+        |> Stdlib.Test.equal "incomplete:/AmbiguousType,OccursCheckFailed/warning,warning"
+        displayed "\"wrong\""
+        |> Stdlib.Test.equal "failed:TypeMismatch/AmbiguousType,OccursCheckFailed/error,warning,warning" ]
+
+module Lets =
+  // Generalizing the local identity lambda lets one call use Int and another use
+  // String. Neither call should fix the parameter type for the other.
+  test genericLocalLambda =
+    check
+      (src [ "let f (u: Unit) : (Int * String) =", "  let identity = (fun x -> x)", "  (identity 1, identity \"ok\")" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Recognize loop's recursive call and check its two arguments against loop's
+  // parameters, independently of the outer function's single parameter.
+  test recursiveLocalCall =
+    check
+      (src
+        [ "let f (value: Int) : Int ="
+          "  let loop (n: Int) (step: Int) : Int = if n == 0 then 0 else loop (n - step) step"
+          "  loop value 1" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // A recursive call to loop must use its declared Int parameter; reject the String.
+  test recursiveCallArgType =
+    check
+      (src
+        [ "let f (value: Int) : Int ="
+          "  let loop (n: Int) : Int = loop \"wrong\""
+          "  loop value" ])
+      "f"
+    |> Stdlib.Test.equal "failed:TypeMismatch"
+
+  // If f is already in scope, the new lambda's body refers to that existing Int
+  // binding. Do not mistake the captured f for a recursive call to the new lambda.
+  test capturedNameIsNotRecursion =
+    check
+      (src
+        [ "let g (value: Int) : Int ="
+          "  let f = 1"
+          "  let f = (fun x -> f + x)"
+          "  f value" ])
+      "g"
+    |> Stdlib.Test.equal "checked:"
+
+  // Defer checking record.count until getCount is called with the Counted type.
+  val counted = "type Counted = { count: Int }"
+
+  test deferredRecordField =
+    check
+      (src
+        [ counted
+          "let f (value: Counted) : Int ="
+          "  let getCount = (fun record -> record.count)"
+          "  getCount value" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Check record.value separately for each call to getValue, allowing an Int field
+  // in RowInt and a String field in RowString.
+  test fieldPerCall =
+    check
+      (src
+        [ "type RowInt = { value: Int }"
+          "type RowString = { value: String }"
+          "let f (a: RowInt) (b: RowString) : (Int * String) ="
+          "  let getValue = (fun record -> record.value)"
+          "  (getValue a, getValue b)" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // List.map supplies Option<Int> as get's parameter type. Use it to check the
+  // lambda's Some and None patterns and infer the payload as Int.
+  test mapSuppliesParamType =
+    check
+      (src
+        [ "let f (xs: List<Stdlib.Option.Option<Int>>) : List<Int> ="
+          "  let get = (fun o -> match o with | Some x -> x | None -> 0)"
+          "  Stdlib.List.map xs get" ])
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // g calls the captured x.field, whose Box declaration requires Int -> Int.
+  // Reject a String argument to g whether requireBox fixes x's type before or
+  // after g is defined.
+  let boxed (lines: List<String>) : String =
+    src
+      (Stdlib.List.flatten
+        [ [ "type Box = { field: Int -> Int }"
+            "let requireBox (b: Box) : Unit = ()"
+            "let f (u: Unit) : Unit ="
+            "  let outer = fun x ->" ]
+          lines
+          [ "    ()", "  outer (Box { field = (fun y -> y) })" ] ])
+
+  test capturedFieldCall =
+    Stdlib.Test.all
+      [ check
+          (boxed
+            [ "    let g = fun y -> x.field y"
+              "    let _ = requireBox x"
+              "    let _ = g \"wrong\"" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (boxed
+            [ "    let _ = requireBox x"
+              "    let g = fun y -> x.field y"
+              "    let _ = g \"wrong\"" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (boxed
+            [ "    let g = fun y -> x.field y", "    let _ = requireBox x", "    let _ = g 1" ])
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // g 1 2 can call a two-parameter function or a one-parameter function that
+  // returns another function. Wait for invoke's argument to determine which.
+  let invoked (callee: String) (declarations: List<String>) : String =
+    src
+      (Stdlib.List.append
+        declarations
+        [ "let f (u: Unit) : Int ="
+          "  let invoke = fun g -> g 1 2"
+          $"  invoke {callee}" ])
+
+  test curriedOrTwoParam =
+    Stdlib.Test.all
+      [ check (invoked "add" [ "let add (a: Int) (b: Int) : Int = a + b" ]) "f"
+        |> Stdlib.Test.equal "checked:"
+        check (invoked "(fun a b -> a + b)" []) "f"
+        |> Stdlib.Test.equal "checked:"
+        check (invoked "add" [ "let add (a: Int) (b: String) : Int = a" ]) "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check (invoked "inc" [ "let inc (a: Int) : Int = a" ]) "f"
+        |> Stdlib.Test.equal "failed:NotCallable"
+        check
+          (invoked "adder" [ "let adder (a: Int) : Int -> Int = fun b -> a + b" ])
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Calling both forms with two arguments works, but their function types differ:
+  // a two-parameter function cannot stand in for a function returning a function.
+  // Preserve this distinction inside custom type arguments too.
+  test curriedAndTwoParamDiffer =
+    Stdlib.Test.all
+      [ check
+          (src
+            [ "let add (a: Int) (b: Int) : Int = a + b"
+              "let takes (f: Int -> (Int -> Int)) : Int = 1"
+              "let f (u: Unit) : Int = takes add" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check
+          (src
+            [ "type Tag<'a> = { value: Unit }"
+              "let f (x: Tag<Int -> Int -> Int>) : Tag<Int -> (Int -> Int)> = x" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // Expanding Identity<'a> yields 'a, so comparing x with identity x introduces
+  // no recursive type. Expand the alias before deciding whether there is a cycle.
+  test selfApplicationCycles =
+    Stdlib.Test.all
+      [ check
+          (src
+            [ "type Identity<'a> = 'a"
+              "let identity<'a> (x: 'a) : Identity<'a> = x"
+              "val f = fun x -> if true then x else identity x" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun x -> x x" "f"
+        |> Stdlib.Test.equal "failed:OccursCheckFailed" ]
+
+  // In a b and b a, each function's type would contain the other's type, creating
+  // a cycle. Independent calls and ordinary function composition have no such cycle.
+  test mutualApplicationCycle =
+    Stdlib.Test.all
+      [ check "val f = fun a b -> (a b, b a)" "f"
+        |> Stdlib.Test.equal "failed:OccursCheckFailed"
+        check "val f = fun a b -> (a 1, b 2)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun a b -> a (b 1)" "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // The parameter g has one type throughout the lambda, even before its number
+  // of parameters is known. Its calls must agree on argument and result types.
+  test parameterHasOneType =
+    Stdlib.Test.all
+      [ check "val f = fun g -> (g 1, g true)" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "val f = fun g -> (g 1, g 2)" "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // All uses of x must be compatible: it cannot be both a record and a function, and
+  // a function cannot be a dictionary key. Detect this in either expression order.
+  test incompatibleUses =
+    Stdlib.Test.all
+      [ check "val f = fun x -> (x.field, x 1)" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "val f = fun x -> (x 1, x.field)" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "val f = fun x -> (x 1, Dict { x: 1 })" "f"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        check "val f = fun x -> (Dict { x: 1 }, x 1)" "f"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        check "val f = fun g -> (g 1 + 1, if g 2 then 1 else 0)" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // Repeated uses of a field or payload must agree on its type, even before its
+  // record or enum declaration is known. Compare reads, updates, unwraps, and
+  // patterns before allowing the helper to be reused at different types.
+  test fieldUsesAgree =
+    Stdlib.Test.all
+      [ check "val f = fun r -> (r.field + 1, if r.field then 1 else 0)" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "val f = fun r -> (r.field + 1, r.field + 2)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun r -> (r.first + 1, if r.second then 1 else 0)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun r -> ({ r with field = 1 }, { r with field = true })" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "val f = fun r -> (r.field + 1, { r with field = true })" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // When the update comes first, it fixes field's type to Bool. The later addition
+  // then reports both the invalid numeric operand and the conflicting field type.
+  test updateAndPayloadUses =
+    Stdlib.Test.all
+      [ check "val f = fun r -> ({ r with field = true }, r.field + 1)" "f"
+        |> Stdlib.Test.equal "failed:MissingImpl,TypeMismatch"
+        check "val f = fun r -> (r.field + 1, { r with field = 2 })" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun x -> (Builtin.unwrap x + 1, if Builtin.unwrap x then 1 else 0)" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "val f = fun x -> (Builtin.unwrap x + 1, Builtin.unwrap x + 2)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src
+            [ "val f = fun x ->"
+              "  let first = match x with | Some y -> y + 1 | _ -> 0"
+              "  let second = match x with | Some y -> if y then 1 else 0 | _ -> 0"
+              "  (first, second)" ])
+          "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "val f = fun x -> match x with | C a -> 1 | C(a, b) -> 2 | _ -> 0" "f"
+        |> Stdlib.Test.equal "failed:EnumFieldCountMismatch" ]
+
+  // The final if requires a and b to have the same type. Revisit their earlier
+  // field uses and detect that one requires Int while the other requires Bool.
+  test ifJoinsFieldUses =
+    check
+      (src
+        [ "val f = fun a b ->"
+          "  let first = a.field + 1"
+          "  let second = if b.field then 1 else 0"
+          "  let _ = if true then a else b"
+          "  (first, second)" ])
+      "f"
+    |> Stdlib.Test.equal "failed:TypeMismatch"
+
+  // Once get is called with R, report both accesses to its nonexistent missing
+  // field. Combining their type requirements must not lose either source location.
+  test bothMissingFieldsReported =
+    Stdlib.List.length
+      (issues
+        (src
+          [ "type R = { value: Int }"
+            "let f (u: Unit) : Unit ="
+            "  let get = fun r -> (r.missing, r.missing)"
+            "  let _ = get (R { value = 1 })"
+            "  ()" ])
+        "f")
+    |> Stdlib.Test.equal 2
+
+  // g 1 2 applies the result of g 1 to another argument. Preserve that relationship
+  // while allowing g to be either a two-parameter function or a function returning
+  // a function. If g 1 is required to be Int, the longer call is invalid.
+  test partialApplicationChain =
+    Stdlib.Test.all
+      [ check "val f = fun g -> (g 1, g 1 2)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun g -> (g 1 2, g 1)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun g -> (g 1 + 1, g 1 2)" "f"
+        |> Stdlib.Test.equal "failed:NotCallable"
+        check
+          (src
+            [ "let add (a: Int) (b: Int) : Int = a + b"
+              "let f (u: Unit) : Int ="
+              "  let calls = fun g -> (g 1, g 1 2)"
+              "  let (partial, full) = calls add"
+              "  partial full" ])
+          "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src
+            [ "let curried (a: Int) : Int -> Int = fun b -> a + b"
+              "let f (u: Unit) : Int ="
+              "  let calls = fun g -> (g 1, g 1 2)"
+              "  let (partial, full) = calls curried"
+              "  partial full" ])
+          "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // takes establishes that g accepts an Int first. Checking that argument in g 1 a
+  // exposes a cycle with a g. Keep solving after an argument is consumed, even if no
+  // new type is inferred and the number of deferred checks stays the same.
+  test consumedArgumentCycle =
+    Stdlib.Test.all
+      [ check
+          (src
+            [ "let takes<'a> (g: Int -> 'a) : Unit = ()"
+              "val f = fun a g ->"
+              "  let first = a g"
+              "  let second = g 1 a"
+              "  let _ = takes g"
+              "  (first, second)" ])
+          "f"
+        |> Stdlib.Test.equal "failed:OccursCheckFailed"
+        check
+          (src
+            [ "let takes<'a> (g: Int -> 'a) : Unit = ()"
+              "val f = fun a g ->"
+              "  let first = g 1 a"
+              "  let second = a g"
+              "  let _ = takes g"
+              "  (first, second)" ])
+          "f"
+        |> Stdlib.Test.equal "failed:OccursCheckFailed" ]
+
+  // Validate keys in dictionary literals even when the dictionary is only local.
+  // If a key's type is initially unknown, retain the check until a call supplies it.
+  test localDictKeys =
+    check
+      (src [ "let f (u: Unit) : Unit =", "  let bad = Dict { (fun () -> ()): 1 }", "  ()" ])
+      "f"
+    |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+
+  let single (key: String) : String =
+    src
+      [ "let f (u: Unit) : Int ="
+        "  let single = fun k -> Dict { k: 1 }"
+        $"  let _ = single {key}"
+        "  1" ]
+
+  test keyFromHelperCall =
+    check (single "\"a\"") "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // Knowing that a key is a function is enough to reject it; its parameter type
+  // does not need to be known. Apply this rule to literals and helper calls.
+  test functionKeysRejected =
+    Stdlib.Test.all
+      [ check
+          (src [ "let f (u: Unit) : Unit =", "  let bad = Dict { (fun x -> x): 1 }", "  ()" ])
+          "f"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        check (single "(fun () -> ())") "f"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
+
+  // Reject let (x, x) regardless of whether the bound expression is generalized.
+  // Construct the syntax tree directly because the parser rejects duplicate names.
+  let bindsTwice
+    (value: Darklang.LanguageTools.ProgramTypes.Expr)
+    : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    oneArg
+      (tInt ())
+      (tInt ())
+      (Darklang.LanguageTools.ProgramTypes.Expr.ELet(
+        80L,
+        Darklang.LanguageTools.ProgramTypes.LetPattern.LPTuple(
+          81L,
+          Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(82L, "x"),
+          Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(83L, "x"),
+          []
+        ),
+        value,
+        Darklang.LanguageTools.ProgramTypes.Expr.EVariable(84L, "x")
+      ))
+
+  // A tuple of existing arguments is eligible for generalization. Duplicate
+  // names in its binding pattern must still be rejected.
+  test tupleBindingDuplicates =
+    checkFunctionAst
+      []
+      (bindsTwice
+        (Darklang.LanguageTools.ProgramTypes.Expr.ETuple(85L, arg 86L, arg 87L, [])))
+    |> Stdlib.Test.equal "failed:DuplicatePatternBinding"
+
+  // The checker does not generalize if expressions. This takes the other binding
+  // path, which must also reject the duplicate name x.
+  test ifBindingDuplicates =
+    checkFunctionAst
+      []
+      (bindsTwice
+        (Darklang.LanguageTools.ProgramTypes.Expr.EIf(
+          88L,
+          Darklang.LanguageTools.ProgramTypes.Expr.EBool(89L, true),
+          Darklang.LanguageTools.ProgramTypes.Expr.ETuple(85L, arg 86L, arg 87L, []),
+          Stdlib.Option.Option.Some(
+            Darklang.LanguageTools.ProgramTypes.Expr.ETuple(
+              90L, arg 91L, arg 92L, [])
+          )
+        )))
+    |> Stdlib.Test.equal "failed:DuplicatePatternBinding"
+
+// ----------------------------------------------------------------------------------
+// Package values
+// ----------------------------------------------------------------------------------
+
+module Values =
+  // Infer second-value's String type before checking first-value, even though
+  // first-value appears earlier in the input batch.
+  test dependencyOrder =
+    checkValueAsts
+      [ valueNamed "first-value" (useValue 24L "second-value")
+        valueNamed
+          "second-value"
+          (Darklang.LanguageTools.ProgramTypes.Expr.EString(
+            25L,
+            [ Darklang.LanguageTools.ProgramTypes.StringSegment.StringText "ready" ]
+          )) ]
+    |> Stdlib.Test.equal [ "checked:", "checked:" ]
+
+  // Each value depends on the other's inferred type. With no independent type
+  // information to break the cycle, both checks are Incomplete.
+  test mutualValueCycle =
+    checkValueAsts
+      [ valueNamed "recursive-first" (useValue 26L "recursive-second")
+        valueNamed "recursive-second" (useValue 27L "recursive-first") ]
+    |> Stdlib.Test.equal
+      [ "incomplete:MissingValueSignature"
+        "incomplete:MissingValueSignature" ]
+
+  // Generalize the package value's empty-list element type so functions can use
+  // the same value as List<Int> and List<String>.
+  let empties () : String =
+    src
+      [ "val empty = []"
+        "let ints (u: Unit) : List<Int> = empty"
+        "let strings (u: Unit) : List<String> = empty" ]
+
+  test genericValue =
+    Stdlib.Test.all
+      [ check (empties ()) "empty"
+        |> Stdlib.Test.equal "checked:"
+        check (empties ()) "ints"
+        |> Stdlib.Test.equal "checked:"
+        check (empties ()) "strings"
+        |> Stdlib.Test.equal "checked:" ]
+
+// ----------------------------------------------------------------------------------
+// Batch results, dependency loading, and deeply nested input
+// ----------------------------------------------------------------------------------
+
+module Batches =
+  // Give each declaration its own verdict. The invalid function's return type
+  // must not change the valid function's Checked result.
+  let pair () : String =
+    src [ "let valid (x: Int) : Int = x", "let invalid (x: Int) : String = x" ]
+
+  test separateVerdicts =
+    Stdlib.Test.all
+      [ check (pair ()) "valid"
+        |> Stdlib.Test.equal "checked:"
+        check (pair ()) "invalid"
+        |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+  // Load Option.map's signature and the types it references from the package
+  // store, then use them to check the call and its lambda argument.
+  test loadsDependencySignatures =
+    check
+      "let f (x: Stdlib.Option.Option<Int>) : Stdlib.Option.Option<Int> = Stdlib.Option.map x (fun y -> y + 1)"
+      "f"
+    |> Stdlib.Test.equal "checked:"
+
+  // These nested types and values are valid Dark. What decides the verdict is
+  // whether the checker is willing to work on something nested this deeply, and that
+  // is a limit it chooses: `NodeIds.maxDeclarationDepth`, applied wherever the type
+  // sits.
+  //
+  // The first of these expected "checked:" until that limit existed, and the reason
+  // was an accident rather than an intention. A 5,000-deep LIST type was accepted
+  // while the 3,000-deep TUPLE type below was refused, because walking a tuple calls
+  // back through List.map at each level and so nests on the .NET stack, while
+  // walking a list does not. Deeper and fine, shallower and refused, decided by the
+  // shape of the traversal. So this line is a TIGHTENING: the checker now refuses a
+  // 5,000-deep type here where it used to accept one, and the rule is sayable
+  // without reference to how the walk is written.
+  test depthLimit =
+    Stdlib.Test.all
+      [ checkPackageOpsSummary
+          [] [ oneArg (nestedListType 5000) (tUnit ()) (unitExpr 1L) ]
+        |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+        checkPackageOpsSummary
+          [] [ oneArg (tUnit ()) (nestedListType 200) (nestedListExpr 200) ]
+        |> Stdlib.Test.equal "checked:"
+        checkPackageOpsSummary
+          []
+          [ oneArg (tUnit ()) (nestedListType 5000) (nestedListExpr 5000) ]
+        |> Stdlib.Test.equal "incomplete:UnsupportedConstruct" ]
+
+  // A stack-depth failure in one function must leave another function's definite
+  // return-type error visible. The batch reports both findings and remains Failed.
+  test deepFunctionKeepsOtherError =
+    checkPackageOpsSummary
+      []
+      [ oneArg (tUnit ()) (nestedListType 5000) (nestedListExpr 5000)
+        fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]
+    |> Stdlib.Test.equal "failed:TypeMismatch,UnsupportedConstruct"
+
+  // A signature or type declaration that is too deep makes its check and dependent
+  // checks Incomplete. Continue checking unrelated functions for definite errors.
+  test deepSignatureIsIncomplete =
+    checkPackageOpsSummary
+      []
+      [ fnNamed "deep-signature" [] [ ("value", nestedTupleType 3000) ] (tInt ()) (intExpr 5L 1)
+        fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]
+    |> Stdlib.Test.equal "failed:TypeMismatch,UnsupportedConstruct"
+
+  // Whether the deep declaration is also reported MISSING depends on the build, so
+  // this accepts either, the way the 2,000-link case below does and for the same
+  // reason. The depth limit refuses the declaration and leaves it in the
+  // environment, so a user of it resolves; a build whose native stack also runs out
+  // loses the declaration's facts entirely and the user reports
+  // MissingTypeDeclaration on top. Debug does the second, published does the first.
+  // What matters either way is the property the test was written for: the other
+  // function's definite return-type error still gets reported.
+  test deepDeclaration =
+    (let answer =
+       checkPackageOpsSummary
+         [ declared "deep-declaration" [] (recordOf [ ("field", nestedTupleType 3000) ]) ]
+         [ fnNamed "uses-deep" [] [ ("value", custom "deep-declaration" []) ] (tInt ()) (intExpr 6L 1)
+           fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]
+     answer == "failed:TypeMismatch,UnsupportedConstruct"
+     || answer == "failed:MissingTypeDeclaration,TypeMismatch,UnsupportedConstruct")
+    |> Stdlib.Test.equal true
+
+  // Checking a key through 2,000 linked record declarations may complete or reach
+  // the stack limit. In either case, preserve the separate wrong-return error.
+  test longRecordChain =
+    (let chain =
+      Stdlib.List.map (Stdlib.List.range 0 1999) (fun i ->
+        let field =
+          if i == 1999 then tInt ()
+          else custom $"link-{Stdlib.toString (i + 1)}" []
+        declared $"link-{Stdlib.toString i}" [] (recordOf [ ("next", field) ]))
+     let holder =
+       declared
+         "holder"
+         []
+         (recordOf
+           [ ("d",
+              Darklang.LanguageTools.ProgramTypes.TypeReference.TDict(
+                custom "link-0" [],
+                tInt ()
+              )) ])
+     let answer =
+       checkPackageOpsSummary
+         (Stdlib.List.push chain holder)
+         [ fnNamed "wrong-return" [] [ ("value", tInt ()) ] (tUnit ()) (arg 2L) ]
+     answer == "failed:TypeMismatch"
+     || answer == "failed:TypeMismatch,UnsupportedConstruct")
+    |> Stdlib.Test.equal true
+
+  // The guard's own coverage, asserted ON the guard rather than through the checker.
+  //
+  // `TooDeep` does not mean "this type is too complicated for the checker". It means
+  // the check exhausted the NATIVE stack: `Builtin.atRestCheckGuarded` catches
+  // `InsufficientExecutionStackException`, returns `CheckFailure.TooDeep`, and
+  // `failureIssue` reports that as `UnsupportedConstruct` with
+  // `Context.DeclarationTooDeep`.
+  //
+  // Every other test above that reaches `TooDeep` reaches it as a SIDE EFFECT of the
+  // checker outrunning a limit nobody chose. So when the interpreter's stack use per
+  // Dark-level call changes, those tests stop covering the guard without saying that
+  // is what happened, and a guard whose only coverage is incidental is a guard
+  // somebody deletes as dead code.
+  //
+  // Stress the native-stack guard on the CLI's 16 MiB stack.
+  // In the tested Release build, 200,000 tuple levels returned Ok(true),
+  // while one million reached TooDeep. This is a test input, not a language limit.
+  // Revisit it if stack size or comparison code changes.
+  test guardCatchesStackOverflow =
+    Darklang.LanguageTools.AtRestTypeChecker.guard
+      (fun t -> t == (nestedTupleType 1000000))
+      (nestedTupleType 1000000)
+    |> Stdlib.Test.equal
+      (Stdlib.Result.Result.Error
+        Darklang.LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep)
+
+  // And it is not simply always failing: the same shape, shallow, comes back Ok.
+  test shallowAndDeepInputs =
+    Stdlib.Test.all
+      [ Darklang.LanguageTools.AtRestTypeChecker.guard
+          (fun t -> t == (nestedTupleType 2))
+          (nestedTupleType 2)
+        |> Stdlib.Test.equal (Stdlib.Result.Result.Ok true)
+        checkValueAsts
+          [ valueNamed "deep-value" (nestedListExpr 5000)
+            valueNamed "shallow-value" (intExpr 3L 1)
+            valueNamed "uses-deep-value" (useValue 4L "deep-value") ]
+        |> Stdlib.Test.equal
+          [ "incomplete:UnsupportedConstruct"
+            "checked:"
+            "incomplete:MissingValueSignature" ]
+        (let chain =
+          Stdlib.List.map (Stdlib.List.range 0 99) (fun i ->
+            let target =
+              if i == 99 then tInt ()
+              else tList (custom $"alias-{Stdlib.toString (i + 1)}" [])
+            declared
+              $"alias-{Stdlib.toString i}"
+              []
+              (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias
+                target))
+         checkPackageOpsSummary
+           chain [ oneArg (custom "alias-0" []) (tUnit ()) (unitExpr 1L) ])
+        |> Stdlib.Test.equal "checked:"
+        (let chain =
+          Stdlib.List.map (Stdlib.List.range 0 4999) (fun i ->
+            let target =
+              if i == 4999 then tInt ()
+              else tList (custom $"alias-{Stdlib.toString (i + 1)}" [])
+            declared
+              $"alias-{Stdlib.toString i}"
+              []
+              (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias
+                target))
+         let answer =
+           checkPackageOpsSummary
+             chain [ oneArg (custom "alias-0" []) (tUnit ()) (unitExpr 1L) ]
+         answer == "checked:" || answer == "incomplete:UnsupportedConstruct")
+        |> Stdlib.Test.equal true ]
+
+  // Check 300 functions sharing one enum declaration in a single batch.
+  // All 301 declarations must receive Checked results.
+  test largeBatch =
+    (let payload =
+      declared
+        "batch-payload"
+        []
+        (Darklang.LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum(
+          [ Darklang.LanguageTools.ProgramTypes.TypeDeclaration.EnumCase
+              { name = "Payload"; fields = []; description = "" } ]
+        ))
+     let fns =
+       Stdlib.List.map (Stdlib.List.range 1 300) (fun i ->
+         fnNamed
+           $"batch-{Stdlib.toString i}"
+           []
+           [ ("payload", custom "batch-payload" []) ]
+           (custom "batch-payload" [])
+           (arg (Builtin.unwrap (Stdlib.Int.toInt64 i))))
+     let results =
+       Darklang.LanguageTools.AtRestTypeChecker.Items.checkBatch
+         (environmentWith [])
+         [ payload ]
+         []
+         fns
+     Stdlib.List.length (
+       Stdlib.List.filter results (fun (_, o) ->
+         o.verdict == Darklang.LanguageTools.AtRestTypeChecker.Verdict.Checked)))
+    |> Stdlib.Test.equal 301
+
+// ----------------------------------------------------------------------------------
+// Failure of the checker itself
+// ----------------------------------------------------------------------------------
+
+module Guarded =
+  // Catch failures while fetching or converting dependencies. A failed load
+  // must preserve previously loaded declarations and continue with the remaining
+  // queue. This loader deliberately fails on the dependency named broken.
+  let loadDependency
+    (closure: Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure)
+    (reference: Darklang.LanguageTools.ProgramTypes.Reference)
+    : (List<Darklang.LanguageTools.ProgramTypes.Reference> * Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure) =
+    match reference with
+    | PackageType h ->
+      if h == hash "broken" then
+        Builtin.unwrap Stdlib.Option.Option.None
+      else
+        let name = if h == hash "first" then "first" else "last"
+        let typ = declared name [] (recordOf [ ("value", tInt ()) ])
+        let refs =
+          if name == "first" then
+            [ Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "broken")
+              reference ]
+          else
+            []
+        (refs,
+         { closure with
+             types = Stdlib.Dict.setOverridingDuplicates closure.types h typ })
+    | _ -> ([], closure)
+
+  let loaded () : Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure =
+    Darklang.LanguageTools.AtRestTypeChecker.Environment.loadPendingDependencies
+      loadDependency
+      Dict {}
+      [ Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "first")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "last") ]
+      (Darklang.LanguageTools.AtRestTypeChecker.Environment.Closure
+        { types = Dict {}; values = Dict {}; fns = Dict {} })
+
+  test loadsPendingDependencies =
+    Stdlib.Test.all
+      [ (let closure = loaded ()
+         Stdlib.Dict.size closure.types)
+        |> Stdlib.Test.equal 2
+        (let closure = loaded ()
+         let env = environmentWith (Stdlib.Dict.values closure.types)
+         let results =
+           Darklang.LanguageTools.AtRestTypeChecker.Items.checkBatch
+             env
+             []
+             []
+             [ fnNamed "uses-unavailable" [] [ ("x", custom "broken" []) ] (tUnit ()) (unitExpr 1L)
+               fnNamed "wrong-return" [] [ ("x", tInt ()) ] (tUnit ()) (arg 2L) ]
+         Stdlib.List.map results (fun (_, outcome) -> outcomeSummary outcome))
+        |> Stdlib.Test.equal [ "incomplete:MissingTypeDeclaration", "failed:TypeMismatch" ] ]
+
+  // A runtime error inside the checker becomes an Incomplete report through the
+  // same error-handling wrapper used by saves and commits.
+  test checkerErrorIsIncomplete =
+    summary (
+      Darklang.LanguageTools.AtRestTypeChecker.guarded
+        (fun _ -> Builtin.unwrap Stdlib.Option.Option.None)
+        []
+    )
+    |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+
+// ----------------------------------------------------------------------------------
+// Interactions between typing rules and recovery from checker failures
+// ----------------------------------------------------------------------------------
+
+module Invariants =
+  // Each pair requires incompatible types for x, such as a record and a function.
+  // Check both expression orders. Use x + x rather than x + 1 so x's exact numeric
+  // type stays unknown and the test exercises checks that must wait for more
+  // information.
+  val shapePairs =
+    [ ("x.field", "x 1")
+      ("{ x with field = 1 }", "x 1")
+      ("x.field", "x + x")
+      ("x.field", "-x")
+      ("x.field", "(match x with | C y -> y | _ -> 0)")
+      ("x.field", "Builtin.unwrap x")
+      ("x 1", "x + x")
+      ("x 1", "-x")
+      ("x 1", "(match x with | C y -> y | _ -> 0)")
+      ("x 1", "Builtin.unwrap x")
+      ("x + x", "(match x with | C y -> y | _ -> 0)")
+      ("-x", "Builtin.unwrap x") ]
+
+  test incompatibleShapePairs =
+    Stdlib.List.all shapePairs (fun (first, second) ->
+      check $"val f = fun x -> ({first}, {second})" "f" == "failed:TypeMismatch"
+      && check $"val f = fun x -> ({second}, {first})" "f" == "failed:TypeMismatch")
+    |> Stdlib.Test.equal true
+
+  // The final if makes x and y have the same type. Revisit the deferred checks
+  // and reject the combined requirement for both a record field and a function call.
+  test ifJoinsRecordAndFunction =
+    check
+      (src [ "val f = fun x y ->"
+             "  let a = x.field"
+             "  let b = y 1"
+             "  let _ = if true then x else y"
+             "  (a, b)" ]) "f"
+    |> Stdlib.Test.equal "failed:TypeMismatch"
+
+  // Accept combinations that some type can satisfy: signed integers support all
+  // three numeric operations, and a record can support both field access and updates
+  // or be a dictionary key when its contents are valid key types.
+  test compatibleCombinations =
+    Stdlib.Test.all
+      [ check "val f = fun x -> (x + x, -x, x & x)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun x -> (x.field, { x with field = 1 })" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun x -> (x.field, Dict { x: 1 })" "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // A dictionary key cannot contain a function, including inside a list, record
+  // field, enum payload, or alias. Infer this from how those contents are used.
+  // A phantom type argument stores no payload, so using its container as a key
+  // must not impose key restrictions on that unused argument.
+  val badKeys =
+    [ "(x 1, Dict { [x]: 1 })"
+      "(x.field 1, Dict { x: 1 })"
+      "(Dict { x: 1 }, x.field 1)"
+      "({ x with field = (fun y -> y) }, Dict { x: 1 })"
+      "((Builtin.unwrap x) 1, Dict { x: 1 })"
+      "((match x with | C y -> y 1 | _ -> 0), Dict { x: 1 })"
+      "(x.field.next 1, Dict { x: 1 })" ]
+
+  test inferredKeyRestrictions =
+    Stdlib.Test.all
+      [ Stdlib.List.map badKeys (fun body ->
+          check $"val f = fun x -> {body}" "f")
+        |> Stdlib.Test.equal
+          [ "failed:UnsupportedDictKeyType", "failed:UnsupportedDictKeyType"
+            "failed:UnsupportedDictKeyType", "failed:UnsupportedDictKeyType"
+            "failed:UnsupportedDictKeyType", "failed:UnsupportedDictKeyType"
+            "failed:UnsupportedDictKeyType" ]
+        check
+          (src [ "type Phantom<'a> = { value: Int }"
+                 "let tag<'a> (x: 'a) : Phantom<'a> = Phantom { value = 1 }"
+                 "val f = fun x -> (x 1, Dict { tag x: 1 })" ]) "f"
+        |> Stdlib.Test.equal "checked:"
+        check
+          (src [ "type Identity<'a> = 'a"
+                 "let wrap<'a> (x: 'a) : Identity<'a> = x"
+                 "val f = fun x -> (x 1, Dict { wrap x: 1 })" ]) "f"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        check "val f = fun x -> (if true then x else x.next, Dict { x: 1 })" "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+  // Builtin.unwrap and a Some or Ok pattern must agree on the success payload's
+  // type. Error patterns describe Result's separate error payload. These case
+  // names also determine Option versus Result; an unrelated case C is invalid.
+  test unwrapAndPatternsAgree =
+    Stdlib.Test.all
+      [ check "val f = fun x -> (Builtin.unwrap x + 1, match x with | Some y -> if y then 1 else 0 | _ -> 0)" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "val f = fun x -> ((match x with | Ok y -> if y then 1 else 0 | _ -> 0), Builtin.unwrap x + 1)" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "val f = fun x -> (Builtin.unwrap x + 1, match x with | Some y -> y + 1 | _ -> 0)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun x -> (Builtin.unwrap x + 1, match x with | Error y -> if y then 1 else 0 | _ -> 0)" "f"
+        |> Stdlib.Test.equal "checked:"
+        check "val f = fun x -> (Builtin.unwrap x, match x with | C y -> y | _ -> 0)" "f"
+        |> Stdlib.Test.equal "failed:UnknownEnumCase" ]
+
+  // The duplicate arity errors contain a deeply nested type. Removing duplicate
+  // findings must not overflow the .NET stack while hashing or comparing them,
+  // or prevent the separate wrong-return error from being reported.
+  test dedupDeepFindings =
+    (let bad = custom "arity-one" [ nestedListType 5000, tInt () ]
+     let env =
+       environmentWith
+         [ declared "arity-one" [ "a" ] (recordOf [ ("value", tInt ()) ])
+           declared "duplicates" [] (recordOf [ ("first", bad), ("second", bad) ]) ]
+     let results =
+       Darklang.LanguageTools.AtRestTypeChecker.Items.checkBatch env [] []
+         [ fnNamed "wrong-return" [] [ ("x", tInt ()) ] (tUnit ()) (arg 2L) ]
+     Stdlib.List.map results (fun (_, outcome) -> outcomeSummary outcome))
+    |> Stdlib.Test.equal [ "failed:TypeMismatch" ]
+
+  // Exercise the branch checker with failed type and function loads, a missing
+  // value, and a repeated function reference. Preserve the good and bad functions'
+  // individual results, and report the repeated reference only once.
+  let loadCandidate
+    (reference: Darklang.LanguageTools.ProgramTypes.Reference)
+    : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.PackageOp> =
+    match reference with
+    | PackageType h -> Builtin.unwrap Stdlib.Option.Option.None
+    | PackageValue h -> Stdlib.Option.Option.None
+    | PackageFn h ->
+      if h == hash "broken" then Builtin.unwrap Stdlib.Option.Option.None
+      else
+        let fn =
+          if h == hash "good" then
+            fnNamed "good" [] [ ("x", tInt ()) ] (tInt ()) (arg 2L)
+          else
+            fnNamed "bad" [] [ ("x", tInt ()) ] (tUnit ()) (arg 2L)
+        Stdlib.Option.Option.Some(
+          Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn fn)
+
+  let branchReport () : Darklang.LanguageTools.AtRestTypeChecker.Report =
+    // `checkReferences` takes the BRANCH first now, because which implementations
+    // are visible is the one branch-dependent thing the checker needs. A Dark call
+    // with the old arity raises `Apply` when it runs and nothing catches it at build
+    // time.
+    Darklang.LanguageTools.AtRestTypeChecker.Run.checkReferences
+      Darklang.SCM.Branch.mainBranchId
+      loadCandidate
+      [ Darklang.LanguageTools.ProgramTypes.Reference.PackageType(hash "broken-type")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageValue(hash "missing-value")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "broken")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "good")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "good")
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "bad") ]
+
+  test checkReferences =
+    Stdlib.Test.all
+      [ summary (branchReport ())
+        |> Stdlib.Test.equal "failed:TypeMismatch,UnsupportedConstruct"
+        Stdlib.List.length (branchReport ()).items
+        |> Stdlib.Test.equal 5
+        itemSummary
+          (branchReport ())
+          (Stdlib.Option.Option.Some(
+            Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash "good")))
+        |> Stdlib.Test.equal "checked:" ]
+
+  // An Option or Result cannot have the same type as its own success payload.
+  // Detect these type cycles through unwraps and calls. Named recursive records
+  // are valid; separately check whether their fields make them usable as keys.
+  test payloadCycles =
+    Stdlib.Test.all
+      [ check "val f = fun x -> if true then x else Builtin.unwrap x" "f"
+        |> Stdlib.Test.equal "failed:OccursCheckFailed"
+        check "val f = fun x y -> (x y, if true then x else Builtin.unwrap y)" "f"
+        |> Stdlib.Test.equal "failed:OccursCheckFailed"
+        check "val f = fun x y -> ((if true then x else Builtin.unwrap y), x y)" "f"
+        |> Stdlib.Test.equal "failed:OccursCheckFailed"
+        DictKeys.key [ "type Node<'a> = { value: 'a; kids: List<Node<'a>> }" ] "Node<Int>"
+        |> Stdlib.Test.equal "checked:"
+        DictKeys.key [ "type Node<'a> = { value: 'a; kids: List<Node<'a>> }" ] "Node<Int -> Int>"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType"
+        DictKeys.key [ "type A = { next: List<B> }", "type B = { previous: List<A> }" ] "A"
+        |> Stdlib.Test.equal "checked:"
+        DictKeys.key [ "type A = { next: List<B> }", "type B = { previous: List<A>; run: Int -> Int }" ] "A"
+        |> Stdlib.Test.equal "failed:UnsupportedDictKeyType" ]
+
+module DefiniteShapes =
+  test definiteShapeErrors =
+    Stdlib.Test.all
+      [ check "let f () : Int = Stdlib.List.length \"bad\"" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check (src [ "let f () : Unit =", "  let _ = if true then [] else 1", "  ()" ]) "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check (src [ "let f () : Unit =", "  let _ = if true then [] else Dict {}", "  ()" ]) "f"
+        |> Stdlib.Test.equal "failed:AmbiguousType,TypeMismatch"
+        check (src [ "let f () : Unit =", "  let (x, y, z) = ([], [])", "  ()" ]) "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check (src [ "let takes (g: Int -> Int) : Unit = ()", "let f () : Unit = takes (fun x y -> x)" ]) "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check (src [ "let f () : Unit =", "  let _ = [] + []", "  ()" ]) "f"
+        |> Stdlib.Test.equal "failed:MissingImpl" ]
+
+  // `-[]` has an undecided ELEMENT type and is still a definite error: nothing
+  // implements `Negate` for a list whatever the element is, so the head alone
+  // settles it. Deciding this by waiting would downgrade it to Incomplete, and
+  // Incomplete passes the commit gate.
+  test negateEmptyList =
+    check (src [ "let f () : Unit =", "  let _ = -[]", "  ()" ]) "f"
+    |> Stdlib.Test.equal "failed:MissingImpl"
+
+// An implementation for a generic type with concrete arguments, met by a value built
+// inline, whose type arguments are inference variables the solver has already
+// decided.
+
+module ConcreteTypeArgImpls =
+  let withImpl (body: List<String>) : String =
+    check
+      (src (
+        Stdlib.List.append
+          [ "trait Tag<'a> ="
+            "  let tag (v: 'a) : String"
+            "type Box<'a> = { concreteTypeArgImplsOnly: 'a }"
+            "impl Tag for Box<Int64> ="
+            "  let tag (v: Box<Int64>) : String = \"int\"" ]
+          body
+      ))
+      "f"
+
+  test implForConcreteTypeArg =
+    Stdlib.Test.all
+      [ withImpl [ "let f () : String = Tag.tag (Box { concreteTypeArgImplsOnly = 1L })" ]
+        |> Stdlib.Test.equal "checked:"
+        withImpl [ "let f () : String = Tag.tag (Box { concreteTypeArgImplsOnly = \"s\" })" ]
+        |> Stdlib.Test.equal "failed:MissingImpl"
+        withImpl [ "type Count = Int64", "let f (b: Box<Count>) : String = Tag.tag b" ]
+        |> Stdlib.Test.equal "checked:"
+        withImpl
+          [ "let show<'a: Tag> (v: 'a) : String = Tag.tag v"
+            "let f () : String = show (Box { concreteTypeArgImplsOnly = 1L })" ]
+        |> Stdlib.Test.equal "checked:"
+        withImpl
+          [ "let show<'a: Tag> (v: 'a) : String = Tag.tag v"
+            "let f () : String = show (Box { concreteTypeArgImplsOnly = \"s\" })" ]
+        |> Stdlib.Test.equal "failed:MissingImpl" ]
+
+module RigidCustomOperations =
+  test rigidTypeParam =
+    Stdlib.Test.all
+      [ check "let f<'a> (x: 'a) : 'a = { x with field = 1 }" "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check "let f<'a> (x: 'a) : Int = match x with | Some _ -> 1 | None -> 0" "f"
+        |> Stdlib.Test.equal "failed:InvalidPattern"
+        check (src [ "let f<'a> (x: 'a) : 'a =", "  let update = fun row -> { row with field = 1 }", "  update x" ]) "f"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        check (src [ "let f<'a> (x: 'a) : Int =", "  let get = fun v -> match v with | Some _ -> 1 | None -> 0", "  get x" ]) "f"
+        |> Stdlib.Test.equal "failed:InvalidPattern"
+        check (src [ "type Row = { field: Int }", "let f (x: Row) : Row =", "  let update = fun row -> { row with field = 1 }", "  update x" ]) "f"
+        |> Stdlib.Test.equal "checked:"
+        check (src [ "let f (x: Stdlib.Option.Option<Int>) : Int =", "  let get = fun v -> match v with | Some y -> y | None -> 0", "  get x" ]) "f"
+        |> Stdlib.Test.equal "checked:" ]
+
+module DefiniteConstructorErrors =
+  let construct (declaration: String) (expression: String) : String =
+    check
+      (src [ declaration, "let f () : Unit =", $"  let _ = {expression}", "  ()" ])
+      "f"
+
+  test constructorErrors =
+    Stdlib.Test.all
+      [ construct "type E<'a> = A of 'a" "E.B"
+        |> Stdlib.Test.equal "failed:UnknownEnumCase"
+        construct "type R<'a> = { value: 'a }" "R.B"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        construct "type E<'a> = A of 'a" "E { value = 1 }"
+        |> Stdlib.Test.equal "failed:TypeMismatch"
+        construct "type E<'a> = A of 'a" "E.A"
+        |> Stdlib.Test.equal "failed:EnumFieldCountMismatch"
+        construct "type E<'a> = A of 'a" "E.A 1"
+        |> Stdlib.Test.equal "checked:"
+        construct "type R<'a> = { value: 'a }" "R { value = 1 }"
+        |> Stdlib.Test.equal "checked:" ]
+
+module DictKeysWithUnsupportedValues =
+  let key (expression: String) : String =
+    check
+      (src [ "let f () : Unit ="
+             "  let _ = Dict { " + expression + ": 1 }"
+             "  ()" ])
+      "f"
+
+  test unsupportedKeyValues =
+    Stdlib.Test.all
+      [ key "((fun x -> x), Builtin.add)"
+        |> Stdlib.Test.equal "failed:UnsupportedConstruct,UnsupportedDictKeyType"
+        key "(Builtin.add, (fun x -> x))"
+        |> Stdlib.Test.equal "failed:UnsupportedConstruct,UnsupportedDictKeyType"
+        key "((fun x -> x), Builtin.add 1)"
+        |> Stdlib.Test.equal "failed:UnsupportedConstruct,UnsupportedDictKeyType"
+        key "((fun x -> x), Builtin.unwrap)"
+        |> Stdlib.Test.equal "failed:UnsupportedConstruct,UnsupportedDictKeyType"
+        key "((fun x -> x), [Builtin.add])"
+        |> Stdlib.Test.equal "failed:UnsupportedConstruct,UnsupportedDictKeyType"
+        key "(1, Builtin.add)"
+        |> Stdlib.Test.equal "incomplete:UnsupportedConstruct"
+        key "(1, true)"
+        |> Stdlib.Test.equal "checked:" ]
+
+// ----------------------------------------------------------------------------------
+// Package tests
+// ----------------------------------------------------------------------------------
+
+// An ordinary test must return Stdlib.Test.Result, even when its body never names
+// it.
+test testsMustReturnResult =
+  Stdlib.Test.all
+    [ check (src [ "test passes = 8L |> Stdlib.Test.equal 8L" ]) "passes"
+      |> Stdlib.Test.equal "checked:"
+      check (src [ "test literal = 8L" ]) "literal"
+      |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+// Values and functions in the same batch are visible to the test.
+test batchIsVisibleToTests =
+  Stdlib.Test.all
+    [ check
+        (src
+          [ "let double (x: Int64) : Int64 = x * 2L"
+            "val four = 4L"
+            "test doubles = double four |> Stdlib.Test.equal 8L" ])
+        "doubles"
+      |> Stdlib.Test.equal "checked:"
+      check
+        (src
+          [ "let double (x: Int64) : Int64 = x * 2L"
+            "test wrongArg = double \"four\" |> Stdlib.Test.equal 8L" ])
+        "wrongArg"
+      |> Stdlib.Test.equal "failed:TypeMismatch" ]
+
+// A `raises` test is observed only through its runtime error, so its body may
+// have any type; it is still checked.
+test raisesTestsAreChecked =
+  Stdlib.Test.all
+    [ check (src [ "test raisesAny = 8L => raises \"anything\"" ]) "raisesAny"
+      |> Stdlib.Test.equal "checked:"
+      check
+        (src [ "test raisesIllTyped = 8L + \"x\" => raises \"anything\"" ])
+        "raisesIllTyped"
+      |> Stdlib.Test.equal "failed:TypeMismatch" ]
