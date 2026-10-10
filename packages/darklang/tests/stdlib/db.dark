@@ -1315,7 +1315,7 @@ module RestoredSchemaCases =
 
   test rejectsDifferentRecordShape =
     Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB
-    => raises "DB value expects Darklang.Stdlib.DB.Tests.X, but got Darklang.Stdlib.DB.Tests.XY"
+    => raises "This datastore holds Darklang.Stdlib.DB.Tests.X (version 47dbe919) and was given Darklang.Stdlib.DB.Tests.XY (version 7376072b). If that type changed after the datastore was made, the datastore is still on the old version: `dark status` says which"
 
   test rejectsNestedComparisonType =
     Stdlib.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age > "bad")

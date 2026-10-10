@@ -31,14 +31,15 @@ let private cleanup (m : string) : Task<unit> =
 
 /// How a test run came out, as a string an assertion can compare.
 let private evalAsCli (code : string) : Task<RT.ExecutionResult> =
-  task {
-    let! state = Tests.CliTestHarness.buildState ()
-    let! expr = parsePTExpr code
-    return!
-      LibExecution.Execution.executeExpr
-        state
-        (LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None expr)
-  }
+  Tests.CliTestHarness.withState (fun target ->
+    task {
+      let state = Tests.CliTestHarness.executionState target
+      let! expr = parsePTExpr code
+      return!
+        LibExecution.Execution.executeExpr
+          state
+          (LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None expr)
+    })
 
 let private runHash (h : string) : Task<string> =
   task {

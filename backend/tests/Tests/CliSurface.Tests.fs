@@ -1961,10 +1961,19 @@ let private staleApprovalIsARefusal =
       task {
         let name = "Tests.HonestApproval.stale"
         let! _ = runCli state [ "fn"; "/" + name; "(x: Int64) : Int64 = x + 6143L" ]
-        let! _ = runCli state [ "permissions"; "approve"; name ]
+        let! approved, approvalStatus =
+          runCliWithStatus state [ "permissions"; "approve"; name ]
+        Expect.equal approvalStatus 0 approved
 
         // Move the approval to a version this store never held: what a store reset leaves behind.
-        let account = (executionState state).accountID
+        // CLI commands restore the logged-in account; the host state may be anonymous.
+        let! viewer =
+          evalUnder (executionState state) "(Darklang.Cli.initState ()).accountID"
+        let account =
+          match viewer with
+          | RT.DEnum(_, _, _, "Some", [ RT.DUuid id ]) -> Some id
+          | RT.DEnum(_, _, _, "None", []) -> None
+          | other -> failtestf "unexpected CLI account: %A" other
         let current = LibDB.PolicyStore.approvedVersion account name
         Expect.isSome current "the approval landed"
         let gone = String.replicate 64 "e"
