@@ -127,7 +127,10 @@ let handleViewKey
 
           openReader
             state
-            (title + "\n\n" + (detailLines state |> Stdlib.String.join "\n"))
+            (title
+             + "\n\n"
+             + (Stdlib.List.append (detailLines state) (selectedFunctionTestRows state)
+                |> Stdlib.String.join "\n"))
             true
       | None -> descend state
     else

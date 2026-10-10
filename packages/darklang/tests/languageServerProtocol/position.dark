@@ -1,0 +1,28 @@
+module Darklang.LanguageServerProtocol.Tests.Position
+
+module PositionTests =
+  type Json = Stdlib.AltJson.Json
+
+  let acceptedPosition (line: Json) (character: Json) : Bool =
+    let json =
+      Stdlib.AltJson.Json.Object
+        [ ("line", line)
+          ("character", character) ]
+
+    match Darklang.LanguageServerProtocol.Position.fromJson json with
+    | Ok _ -> true
+    | Error _ -> false
+
+  test integerFieldsOnly =
+    Stdlib.Test.all
+      [ acceptedPosition (Json.Integer 0) (Json.Integer 0) |> Stdlib.Test.equal true
+        acceptedPosition (Json.Integer 12) (Json.Integer 3) |> Stdlib.Test.equal true
+        acceptedPosition (Json.Float 1.5) (Json.Integer 0) |> Stdlib.Test.equal false
+        acceptedPosition (Json.Float 0.0) (Json.Integer 0) |> Stdlib.Test.equal false
+        acceptedPosition (Json.Integer 0) (Json.Float 2.5) |> Stdlib.Test.equal false
+        acceptedPosition (Json.Float -0.5) (Json.Integer 0)
+        |> Stdlib.Test.equal false
+        acceptedPosition (Json.Float (0.0 / 0.0)) (Json.Integer 0)
+        |> Stdlib.Test.equal false
+        acceptedPosition (Json.Integer 0) (Json.Float (1.0 / 0.0))
+        |> Stdlib.Test.equal false ]

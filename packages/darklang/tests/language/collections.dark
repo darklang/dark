@@ -1,0 +1,23 @@
+module Darklang.Language.Tests.Collections
+
+test listLiterals =
+  Stdlib.Test.all
+    [ [] |> Stdlib.Test.equal []
+      [ 1L ] |> Stdlib.Test.equal [ 1L ]
+      [ 1L, 2L ] |> Stdlib.Test.equal [ 1L, 2L ]
+      [ 5L, 1L + 5L, 0L ] |> Stdlib.Test.equal [ 5L, 6L, 0L ] ]
+
+test listRaisesElementError =
+  [ 5L, Stdlib.Test.raiseRuntimeError "test", 0L ]
+  => raises "Uncaught exception: test"
+
+test listRaisesFirstElementError =
+  [ 5L, Stdlib.Test.raiseRuntimeError "1", Stdlib.Test.raiseRuntimeError "2" ]
+  => raises "Uncaught exception: 1"
+// TODO mixed data attempts
+
+test dictLiterals =
+  Stdlib.Test.all
+    [ (Dict { "a": 5L } |> Stdlib.Dict.get "a") |> Stdlib.Test.equal (Some 5L)
+      (Dict { "": 5L } |> Stdlib.Dict.get "") |> Stdlib.Test.equal (Some 5L)
+      (Dict { "a": 5L } |> Stdlib.Dict.get "b") |> Stdlib.Test.equal None ]

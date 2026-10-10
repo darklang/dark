@@ -306,7 +306,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString s |] ->
           String.toEgcSeq s |> Seq.rev |> String.concat "" |> DString |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "reverse"
+      sqlSpec = NotYetImplemented // SQLite has no EGC-aware reverse function
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }

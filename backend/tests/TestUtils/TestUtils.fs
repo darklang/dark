@@ -165,7 +165,8 @@ let executionStateFor
     let program : RT.Program = { dbs = dbs }
 
     let testContext : RT.TestContext =
-      { sideEffectCount = 0
+      { isPackageTest = false
+        sideEffectCount = 0
         exceptionReports = []
         expectedExceptionCount = 0
         postTestExecutionHook =

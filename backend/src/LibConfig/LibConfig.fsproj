@@ -14,8 +14,14 @@
   <Target Name="EmbedGitHash" BeforeTargets="BeforeBuild">
     <MakeDir Directories="$(IntermediateOutputPath)" />
     <Exec Command="git rev-parse --short=7 HEAD > $(IntermediateOutputPath)build-hash.txt" />
+    <!-- A rebuild of uncommitted runtime changes must invalidate test results. -->
+    <!-- CLEANUP: Replace the per-build random ID with a runtime content fingerprint
+         so identical rebuilds preserve cached test results. -->
+    <WriteLinesToFile File="$(IntermediateOutputPath)build-id.txt"
+                      Lines="$([System.Guid]::NewGuid())" Overwrite="true" />
     <ItemGroup>
       <EmbeddedResource Include="$(IntermediateOutputPath)build-hash.txt" />
+      <EmbeddedResource Include="$(IntermediateOutputPath)build-id.txt" />
     </ItemGroup>
   </Target>
   <ItemGroup>

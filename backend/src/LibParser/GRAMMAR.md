@@ -309,6 +309,23 @@ Declaration forms:
   (`Http`, `FileRead`, `Clock`, …; an unknown name is a parse error).
   `:{}` declares effect-free; no row declares no ceiling.
 - `val x = e` defines a module or test-setup value.
+- `test name = body` defines a package test whose body returns
+  `Stdlib.Test.Result`. Tests use an allow-all test instance policy; called
+  functions retain their approvals and permission ceilings. Tests cannot declare
+  an effect row of their own.
+  Each execution runs in a disposable process and store snapshot.
+- `test name = body => raises "message"` defines a package test that
+  passes only when evaluating the whole body raises that exact rendered runtime
+  error. The `=> raises` clause is test syntax, not an expression or function
+  call.
+- `test name = body => sqlerror "message"` expects exactly that specific
+  query-compiler message. Its standard preamble is only for display.
+- `[<DB>] type Name = T` declares a private DB schema for package tests in
+  that module and its descendants. Each test run gets a fresh empty DB, and
+  its rows are removed when execution ends. Such tests are never cached.
+- `[<DB>] type Name = { field: T }` also defines a same-named record type for
+  the rows: `Name { field = value }` constructs one, while bare `Name` refers
+  to the DB. The alias form above remains available for a separate row type.
 - `let x = e` is a local/script binding. At declaration scope it is rejected;
   use `val` for a value declaration.
 - `module A.B` is a file header and wraps the rest of the file.
@@ -361,11 +378,18 @@ methods becoming ordinary fns beneath that name and an alias naming the fn it
 points at. The type segment is dropped when the enclosing module is already named
 for the type. Duplicate member names are `VALIDATION-IMPL-METHODS`.
 
+Every package test execution starts in a fresh process and store snapshot.
+Isolation is runner behavior, with no declaration modifier or stored setting.
+Expected outcomes (`=> raises` and `=> sqlerror`) work across the worker boundary.
+Proven-safe passing results may still be cached; `test --force` executes every
+selected test again.
+
 ### Test classification
 
 The parser represents test assertions and DB declarations in the same syntax
-tree for every caller. `Parser.parseFor Validation.Test` accepts them; Script
-and Package modes reject them. Successful validation returns a
+tree for every caller. `Parser.parseFor Validation.Test` accepts both;
+Package mode accepts DB declarations but not assertions, and Script mode
+rejects both. Successful validation returns a
 `ValidatedSourceFile`, which package, test, and CLI entry points require before
 lowering. `Parser.parse` remains mode-neutral for tooling.
 
@@ -375,7 +399,8 @@ At the top level:
   expression meaning
 - `actual = expected` is a test assertion
 - expected forms may be `error "msg"` or `sqlerror "msg"`
-- `[<DB>] type X = T` declares a user DB
+- `[<DB>] type X = T` declares a user DB; an inline record also defines the
+  same-named row type
 
 ## Diagnostics
 
@@ -412,7 +437,7 @@ Post-parse validation uses these stable codes:
 | `VALIDATION-PACKAGE-EXPR` | a package contains an executable expression |
 | `VALIDATION-TEST-ASSERTION` | a test expression is not an assertion |
 | `VALIDATION-DB-MODE` | a DB declaration occurs outside Test mode |
-| `VALIDATION-DB-SHAPE` | a DB declaration is not a type alias |
+| `VALIDATION-DB-SHAPE` | a DB declaration is neither a type alias nor a non-generic record |
 | `VALIDATION-TEST-MODE` | a test assertion occurs outside Test mode |
 | `VALIDATION-IMPL-METHODS` | an impl names the same member twice |
 

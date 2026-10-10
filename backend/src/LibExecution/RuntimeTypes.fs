@@ -1888,7 +1888,7 @@ module RuntimeError =
 
     | Statement of Statements.Error
 
-    /// SQL compiler errors when compiling lambdas to SQL queries
+    /// Raw SQL query-compiler message; the error printer adds context.
     | SqlCompiler of errMsg : string
 
     // punting these until DBs are supported again
@@ -3813,11 +3813,17 @@ and Program = { dbs : Map<string, DB.T> }
 // CLEANUP maybe this belongs in Execution rather than RuntimeTypes?
 // and taken out of ExecutionState, where it's not really used?
 and TestContext =
-  { mutable sideEffectCount : int
+  {
+    /// Set only while executing a package test, including its nested calls.
+    isPackageTest : bool
+    /// Package tests receive a fresh context. Observation builtins use atomic
+    /// access so explicitly spawned children may safely share their test's count.
+    mutable sideEffectCount : int
 
     mutable exceptionReports : List<string * string * Metadata>
     mutable expectedExceptionCount : int
-    postTestExecutionHook : TestContext -> unit }
+    postTestExecutionHook : TestContext -> unit
+  }
 
 
 and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> Ply<unit>
@@ -3844,6 +3850,10 @@ and ExecutionState =
   { // -- Set consistently across a runtime --
     tracing : Tracing.Tracing
     test : TestContext
+
+    /// Scoped to one test run, separately from each test's mutable counters.
+    /// Worker processes start without it and snapshot their own current store.
+    testStoreSnapshot : Option<HostTypes.TestStoreSnapshot>
 
     /// Lambda instructions registered by `CreateLambda`, looked up on `Apply`.
     /// Shared across every VM spawned under this execution so that lambdas
@@ -3928,9 +3938,9 @@ and ExecutionState =
     ///
     /// Orphan reclaim TODOs (persistent blobs only):
     ///   - `package_blobs` orphan reclaim runs via the `pm-sweep-blobs`
-    ///     CLI command, which scans `package_values.rt_dval` only —
-    ///     `trace_data` and User DB rows don't hold blob refs today,
-    ///     but any new referencing table needs wiring into the sweep.
+    ///     CLI command, which scans `package_values.rt_dval` and retains hashes
+    ///     mentioned by User DB JSON. Trace blobs still need a collection pass;
+    ///     any new referencing table needs wiring into the sweep.
     ///     TODO turn the sweep into "scan a list of (table, column)
     ///     pairs" defined alongside the schema so new blob-holding
     ///     columns register themselves.

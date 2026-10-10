@@ -40,7 +40,6 @@
     <Compile Include="LibParser.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />
     <Compile Include="Terminal.Tests.fs" />
-    <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Hashing.Tests.fs" />
     <Compile Include="Config.Tests.fs" />
 
@@ -73,6 +72,7 @@
     <Compile Include="BranchOverlay.Tests.fs" />
     <Compile Include="Propagation.Tests.fs" />
     <Compile Include="Draft.Tests.fs" />
+    <Compile Include="PackageTests.Tests.fs" />
     <Compile Include="Purge.Tests.fs" />
     <Compile Include="OpsProjections.Tests.fs" />
     <Compile Include="Lww.Tests.fs" />

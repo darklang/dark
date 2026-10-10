@@ -1017,3 +1017,52 @@ if report["checked"] < floor:
 sys.exit(0 if rc == 0 and not failed else 1)
 EOF
 }
+
+# --- package-tests: every package test in packages/, through `dark test` ---------------------
+# The package suite as a person runs it, on a copy of the store, so a red package test fails CI
+# instead of waiting for someone to run `dark test` by hand. Gate, not an F# test: it is one long
+# command (about 8 minutes, most of it the CLI fixtures starting processes) with nothing to
+# assert but its own verdict, and the F# harness bounds every command at 2 minutes. CI runs it as
+# its own step with its own timeout, not from CI_GATES, whose per-gate bound is 5 minutes.
+#
+# `--force`: the result cache lives in the store, so a copied store brings its cached passes
+# along (24 of them on a dev store, measured). Configure this disposable instance
+# with a deny-all saved policy; tests and workers supply their allow-all instance boundary.
+gate_package_tests() {
+  set -euo pipefail
+
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  ROOT=rundir/package-tests
+
+  rm -rf "$ROOT"; mkdir -p "$ROOT/home"
+  scripts/testing/_copy-store "$ROOT/data.db"
+  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
+  # This disposable installation has its own policy and home. Tests must
+  # succeed without grants on the saved installation policy.
+  export DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home"
+  # The CLI fixtures start the binary themselves; their default path is relative to the repo
+  # root, which is not where every caller runs.
+  export DARK_CLI_UNDER_TEST="$CLI"
+
+  "$CLI" permissions clear
+
+  set +e
+  "$CLI" test --force < /dev/null 2>&1 | sed 's/\x1b\[[0-9;]*m//g' > "$ROOT/test.log"
+  status=${PIPESTATUS[0]}
+  set -e
+
+  # The failures, then the verdict line. All of it is in the log.
+  grep -E '^(FAIL|ERROR) ' "$ROOT/test.log" || true
+  verdict=$(grep -E '[0-9,]+ passed, [0-9,]+ failed' "$ROOT/test.log" | tail -1 || true)
+  if [[ -z "$verdict" ]]; then
+    echo "package-tests: no verdict line; last output from $ROOT/test.log:" >&2
+    tail -80 "$ROOT/test.log" >&2
+  else
+    echo "$verdict"
+  fi
+
+  if [[ "$status" -ne 0 ]] || ! grep -q ' 0 failed' <<<"$verdict"; then
+    echo "package-tests: dark test exited $status; full output in $ROOT/test.log" >&2
+    exit 1
+  fi
+}

@@ -1,0 +1,783 @@
+module Darklang.Stdlib.List.Tests
+
+test empty =
+  Stdlib.List.empty |> Stdlib.Test.equal []
+
+test singleton =
+  Stdlib.List.singleton 1L |> Stdlib.Test.equal [ 1L ]
+
+test length =
+  Stdlib.Test.all
+    [ Stdlib.List.length [ 1L, 2L, 3L ] |> Stdlib.Test.equal 3
+      Stdlib.List.length [] |> Stdlib.Test.equal 0 ]
+
+test isEmpty =
+  Stdlib.Test.all
+    [ Stdlib.List.isEmpty [ 1L ] |> Stdlib.Test.equal false
+      Stdlib.List.isEmpty [] |> Stdlib.Test.equal true ]
+
+test map =
+  Stdlib.Test.all
+    [ Stdlib.List.map [ 1L, 2L ] (fun x -> x + 1L) |> Stdlib.Test.equal [ 2L, 3L ]
+      Stdlib.List.map (Stdlib.List.range 1 5) (fun x -> x + 1)
+      |> Stdlib.Test.equal [ 2, 3, 4, 5, 6 ]
+      Stdlib.List.map [ 1L, 2L, 3L ] (fun x ->
+        Stdlib.Bool.and
+          (x >= 0L)
+          (x <= 4L))
+      |> Stdlib.Test.equal [ true, true, true ]
+      Stdlib.List.map [] (fun x -> x + 1L) |> Stdlib.Test.equal [] ]
+
+// A run nobody scheduled (this harness) spawns onto the shared scheduler.
+test parallelMap =
+  Stdlib.Test.all
+    [ Stdlib.List.parallelMap [ 1L, 2L, 3L ] (fun x -> x * 2L)
+      |> Stdlib.Test.equal [ 2L, 4L, 6L ]
+      Stdlib.List.parallelMap [] (fun x -> x) |> Stdlib.Test.equal [] ]
+
+// Create more children than Scheduler.keepFinished retains. Their answers must
+// outlive their process rows so late awaits still succeed.
+test parallelMapOutlivesProcessTable =
+  (Stdlib.List.parallelMap (Stdlib.List.range 1 500) (fun x -> x * 2))
+  |> Stdlib.Test.equal
+    (Stdlib.List.map (Stdlib.List.range 1 500) (fun x -> x * 2))
+
+// Every assertion above passes if `parallelMap` were `List.map` renamed, which is
+// what the name is for. This one cannot: each item counts the processes that have
+// NOT finished, and serial execution only ever sees itself and the CLI. Observed
+// concurrency rather than wall clock, so a loaded machine cannot fail it. Measured
+// both ways: against `List.map` every item reports exactly 2, and against
+// `parallelMap` the counts run 3 to 10.
+test parallelMapRunsConcurrently =
+  (Stdlib.List.member
+    (Stdlib.List.parallelMap (Stdlib.List.range 1 8) (fun i ->
+      let burn =
+        Stdlib.List.map (Stdlib.List.range 1 30000) (fun x -> x + 1)
+        |> Stdlib.List.length
+      let running =
+        Stdlib.List.filter (Stdlib.Exec.list ()) (fun p ->
+          p.status != Stdlib.Exec.Status.Done)
+      (Stdlib.List.length running) > 2))
+    true)
+  |> Stdlib.Test.equal true
+
+test append =
+  Stdlib.Test.all
+    [ Stdlib.List.append [ 1L, 2L, 3L ] [ 4L, 5L, 6L ]
+      |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L, 5L, 6L ]
+      Stdlib.List.append [ 3L, 4L ] [ 5L, 6L ]
+      |> Stdlib.Test.equal [ 3L, 4L, 5L, 6L ]
+      Stdlib.List.append [ 1L ] [ 2L ]
+      |> Stdlib.Test.equal [ 1L, 2L ]
+      Stdlib.List.append [] [] |> Stdlib.Test.equal [] ]
+
+test all =
+  Stdlib.Test.all
+    [ Stdlib.List.all [] (fun item -> item < 3L)
+      |> Stdlib.Test.equal true
+      Stdlib.List.all [ 2L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal true
+      Stdlib.List.all [ 1L, 2L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal true
+      Stdlib.List.all [ 4L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal false
+      Stdlib.List.all [ 1L, 4L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal false ]
+
+test any =
+  Stdlib.Test.all
+    [ Stdlib.List.any [] (fun item -> item < 3L)
+      |> Stdlib.Test.equal false
+      Stdlib.List.any [ 2L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal true
+      Stdlib.List.any [ 4L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal false
+      Stdlib.List.any [ 1L, 2L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal true
+      Stdlib.List.any [ 4L, 5L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal false
+      Stdlib.List.any [ 4L, 1L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal true ]
+
+test drop =
+  Stdlib.Test.all
+    [ Stdlib.List.drop [ "a", "b", "c", "d" ] -3
+      |> Stdlib.Test.equal [ "a", "b", "c", "d" ]
+      Stdlib.List.drop [ "a", "b", "c", "d" ] 3
+      |> Stdlib.Test.equal [ "d" ]
+      Stdlib.List.drop [ 1L, 2L, 3L, 4L ] -1
+      |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L ]
+      Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 0
+      |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L ]
+      Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 440737095
+      |> Stdlib.Test.equal []
+      Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 1184467440737095
+      |> Stdlib.Test.equal []
+      Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 2
+      |> Stdlib.Test.equal [ 3L, 4L ]
+      Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 4
+      |> Stdlib.Test.equal []
+      Stdlib.List.drop [ 1L, 2L, 3L, 4L ] 5
+      |> Stdlib.Test.equal []
+      Stdlib.List.drop [ 3L, 3L, 3L ] 0
+      |> Stdlib.Test.equal [ 3L, 3L, 3L ]
+      Stdlib.List.drop [ 5L, 4L, 3L, 2L, 1L ] 5
+      |> Stdlib.Test.equal []
+      Stdlib.List.drop [ 5L ] 4
+      |> Stdlib.Test.equal []
+      Stdlib.List.drop [] 4
+      |> Stdlib.Test.equal [] ]
+
+test dropWhile =
+  Stdlib.Test.all
+    [ Stdlib.List.dropWhile [ 1L, 2L, 3L, 4L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal [ 3L, 4L ]
+      Stdlib.List.dropWhile [ 1L, 2L, 3L, 4L ] (fun item -> item >= 1L)
+      |> Stdlib.Test.equal []
+      Stdlib.List.dropWhile [ 1L, 5L, 2L, 2L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal [ 5L, 2L, 2L ]
+      Stdlib.List.dropWhile [] (fun item -> item < 3L)
+      |> Stdlib.Test.equal [] ]
+
+test filter =
+  Stdlib.Test.all
+    [ Stdlib.List.filter [ 1L, 2L, 3L ] (fun item ->
+        match item with
+        | 1L -> true
+        | 2L -> false
+        | 3L -> true)
+      |> Stdlib.Test.equal [ 1L, 3L ]
+      Stdlib.List.filter [] (fun item -> true)
+      |> Stdlib.Test.equal []
+      Stdlib.List.filter [ -20L, 5L, 9L ] (fun x -> x > 20L)
+      |> Stdlib.Test.equal []
+      Stdlib.List.filter [] (fun _ -> "a")
+      |> Stdlib.Test.equal [] ]
+
+test filterMap =
+  Stdlib.Test.all
+    [ Stdlib.List.filterMap [ 1L, 2L, 3L ] (fun item ->
+        if item == 2L then None else Some (item * 2L))
+      |> Stdlib.Test.equal [ 2L, 6L ]
+      Stdlib.List.filterMap [] (fun _ -> 0L)
+      |> Stdlib.Test.equal [] ]
+
+test findFirst =
+  Stdlib.Test.all
+    [ Stdlib.List.findFirst [ 1L, 2L, 3L ] (fun x -> x > 5L)
+      |> Stdlib.Test.equal None
+      Stdlib.List.findFirst [] (fun x -> x)
+      |> Stdlib.Test.equal None
+      Stdlib.List.findFirst [ 1L, 2L, 3L, 1L, 4L ] (fun x -> x > 1L)
+      |> Stdlib.Test.equal (Some 2L)
+      Stdlib.List.findFirst [ 0L, 5L, -6L, -10L ] (fun x -> x < 0L)
+      |> Stdlib.Test.equal (Some -6L)
+      Stdlib.List.findFirst [ 1L, -33L, 3L, -2L, 12L ] (fun x ->
+        x < 0L && x % 2L == 0L)
+      |> Stdlib.Test.equal (Some -2L) ]
+
+test findFirstIndex =
+  Stdlib.Test.all
+    [ Stdlib.List.findFirstIndex [ 1L, 2L, 3L ] (fun x -> x == 2L)
+      |> Stdlib.Test.equal (Some 1)
+      Stdlib.List.findFirstIndex [ 1L, 2L, 3L ] (fun x -> x > 5L)
+      |> Stdlib.Test.equal None
+      Stdlib.List.findFirstIndex [] (fun _ -> true)
+      |> Stdlib.Test.equal None
+      Stdlib.List.findFirstIndex [ 10L, 20L, 30L, 20L ] (fun x -> x == 20L)
+      |> Stdlib.Test.equal (Some 1)
+      Stdlib.List.findFirstIndex [ "a", "b", "c" ] (fun x -> x == "c")
+      |> Stdlib.Test.equal (Some 2)
+      Stdlib.List.findFirstIndex [ 1L, 2L, 3L ] (fun x -> x == 1L)
+      |> Stdlib.Test.equal (Some 0) ]
+
+test flatten =
+  Stdlib.Test.all
+    [ Stdlib.List.flatten [ [ 1L ], [ 2L ], [ 3L ] ]
+      |> Stdlib.Test.equal [ 1L, 2L, 3L ]
+      Stdlib.List.flatten [ [ [] ] ]
+      |> Stdlib.Test.equal [ [] ]
+      Stdlib.List.flatten [ [] ]
+      |> Stdlib.Test.equal []
+      Stdlib.List.flatten []
+      |> Stdlib.Test.equal [] ]
+
+test fold =
+  Stdlib.Test.all
+    [ Stdlib.List.fold [] [] (fun _ _ -> 5L)
+      |> Stdlib.Test.equal []
+      Stdlib.List.fold [ "a", "b", "c", "d" ] "x" (fun accum curr ->
+        accum + curr)
+      |> Stdlib.Test.equal "xabcd"
+      Stdlib.List.fold [ 1L, 2L, 3L, 4L, 5L ] [] (fun accum curr ->
+        Stdlib.List.pushBack accum (curr + 1L))
+      |> Stdlib.Test.equal [ 2L, 3L, 4L, 5L, 6L ] ]
+
+test getAt =
+  Stdlib.Test.all
+    [ Stdlib.List.getAt [ "a", "b", "c", "d" ] -1
+      |> Stdlib.Test.equal None
+      Stdlib.List.getAt [ 0L ] 1
+      |> Stdlib.Test.equal None
+      Stdlib.List.getAt [] 1
+      |> Stdlib.Test.equal None
+      Stdlib.List.getAt [ 1L, 2L, 3L, 4L ] 6018427387902
+      |> Stdlib.Test.equal None
+      Stdlib.List.getAt [ 1L, 2L, 3L, 4L ] 0
+      |> Stdlib.Test.equal (Some 1L)
+      Stdlib.List.getAt [ 3L, 3L, 3L ] -5
+      |> Stdlib.Test.equal None
+      Stdlib.List.getAt [ 3L, 3L, 3L ] 2147483648
+      |> Stdlib.Test.equal None ]
+
+test setAt =
+  Stdlib.Test.all
+    [ Stdlib.List.setAt [ 1L, 2L, 3L ] 0 9L
+      |> Stdlib.Test.equal (Ok [ 9L, 2L, 3L ])
+      Stdlib.List.setAt [ 1L, 2L, 3L ] 2 9L
+      |> Stdlib.Test.equal (Ok [ 1L, 2L, 9L ])
+      Stdlib.List.setAt [ "a", "b" ] 1 "z"
+      |> Stdlib.Test.equal (Ok [ "a", "z" ])
+      Stdlib.List.setAt [ 1L, 2L, 3L ] 3 9L
+      |> Stdlib.Test.equal (Error Stdlib.List.IndexError.IndexOutOfBounds)
+      Stdlib.List.setAt [ 1L, 2L, 3L ] 2147483648 9L
+      |> Stdlib.Test.equal (Error Stdlib.List.IndexError.IndexOutOfBounds)
+      Stdlib.List.setAt [] 0 9L
+      |> Stdlib.Test.equal (Error Stdlib.List.IndexError.IndexOutOfBounds)
+      Stdlib.List.setAt [ 1L, 2L, 3L ] -1 9L
+      |> Stdlib.Test.equal (Ok [ 1L, 2L, 9L ])
+      Stdlib.List.setAt [ 1L, 2L, 3L ] -2 9L
+      |> Stdlib.Test.equal (Ok [ 1L, 9L, 3L ])
+      Stdlib.List.setAt [ 1L, 2L, 3L ] -3 9L
+      |> Stdlib.Test.equal (Ok [ 9L, 2L, 3L ])
+      Stdlib.List.setAt [ 1L, 2L, 3L ] -4 9L
+      |> Stdlib.Test.equal (Error Stdlib.List.IndexError.IndexOutOfBounds)
+      Stdlib.List.setAt [] -1 9L
+      |> Stdlib.Test.equal (Error Stdlib.List.IndexError.IndexOutOfBounds)
+      Stdlib.List.setAt [ 1L, 2L ] 100000000000000000000000000000 9L
+      |> Stdlib.Test.equal (Error Stdlib.List.IndexError.IndexOutOfBounds)
+      Stdlib.List.setAt [ 1L, 2L ] -100000000000000000000000000000 9L
+      |> Stdlib.Test.equal (Error Stdlib.List.IndexError.IndexOutOfBounds) ]
+
+test head =
+  Stdlib.Test.all
+    [ Stdlib.List.head [ 1L, 2L, 3L ] |> Stdlib.Test.equal (Some 1L)
+      Stdlib.List.head [] |> Stdlib.Test.equal None ]
+
+test last =
+  Stdlib.Test.all
+    [ Stdlib.List.last [ 1L, 2L, 3L ] |> Stdlib.Test.equal (Some 3L)
+      Stdlib.List.last [] |> Stdlib.Test.equal None ]
+
+test indexedMap =
+  Stdlib.Test.all
+    [ Stdlib.List.indexedMap [ 3L, 2L, 1L ] (fun index value ->
+        value - (Stdlib.Int.toInt64 index |> Builtin.unwrap))
+      |> Stdlib.Test.equal [ 3L, 1L, -1L ]
+      Stdlib.List.indexedMap [] (fun index value ->
+        value - (Stdlib.Int.toInt64 index |> Builtin.unwrap))
+      |> Stdlib.Test.equal []
+      Stdlib.List.indexedMap [ 3L, 2L, 1L ] (fun index _ -> index)
+      |> Stdlib.Test.equal [ 0, 1, 2 ] ]
+
+test interleave =
+  Stdlib.Test.all
+    [ Stdlib.List.interleave [ 1L, 2L, 3L ] [ 4L, 5L, 6L ]
+      |> Stdlib.Test.equal [ 1L, 4L, 2L, 5L, 3L, 6L ]
+      Stdlib.List.interleave [ 1L, 2L, 3L ] [ 4L ]
+      |> Stdlib.Test.equal [ 1L, 4L, 2L, 3L ]
+      Stdlib.List.interleave [ 1L, 2L, 3L ] []
+      |> Stdlib.Test.equal [ 1L, 2L, 3L ]
+      Stdlib.List.interleave [ 1L ] [ 4L, 5L, 6L ]
+      |> Stdlib.Test.equal [ 1L, 4L, 5L, 6L ]
+      Stdlib.List.interleave [] [ 4L, 5L, 6L ]
+      |> Stdlib.Test.equal [ 4L, 5L, 6L ]
+      Stdlib.List.interleave [] []
+      |> Stdlib.Test.equal [] ]
+
+test interpose =
+  Stdlib.Test.all
+    [ Stdlib.List.interpose [ 1L, 2L, 3L ] 5L
+      |> Stdlib.Test.equal [ 1L, 5L, 2L, 5L, 3L ]
+      Stdlib.List.interpose [ 1L ] 5L
+      |> Stdlib.Test.equal [ 1L ]
+      Stdlib.List.interpose [] 5L
+      |> Stdlib.Test.equal [] ]
+
+test map2 =
+  Stdlib.Test.all
+    [ Stdlib.List.map2 [ 10L, 20L, 30L ] [ 1L, 2L, 3L ] (fun a b -> a - b)
+      |> Stdlib.Test.equal (Some [ 9L, 18L, 27L ])
+      Stdlib.List.map2 [ 10L, 20L ] [ 1L, 2L, 3L ] (fun a b -> a - b)
+      |> Stdlib.Test.equal None
+      Stdlib.List.map2 [] [] (fun a b -> a - b)
+      |> Stdlib.Test.equal (Some []) ]
+
+test map2shortest =
+  Stdlib.Test.all
+    [ Stdlib.List.map2shortest [ 10L, 20L, 30L ] [ 1L, 2L, 3L ] (fun a b -> a - b)
+      |> Stdlib.Test.equal [ 9L, 18L, 27L ]
+      Stdlib.List.map2shortest [ 10L, 20L ] [ 1L, 2L, 3L ] (fun a b -> a - b)
+      |> Stdlib.Test.equal [ 9L, 18L ]
+      Stdlib.List.map2shortest [] [ 1L, 2L, 3L ] (fun a b -> a - b)
+      |> Stdlib.Test.equal []
+      Stdlib.List.map2shortest [ 1L, 2L, 3L ] [] (fun a b -> a - b)
+      |> Stdlib.Test.equal [] ]
+
+test member =
+  Stdlib.Test.all
+    [ Stdlib.List.member [ 1L, 2L, 3L ] 2L |> Stdlib.Test.equal true
+      Stdlib.List.member [ 1L, 2L, 3L ] 4L |> Stdlib.Test.equal false
+      Stdlib.List.member [] 1L |> Stdlib.Test.equal false ]
+
+test partition =
+  Stdlib.Test.all
+    [ Stdlib.List.partition [ -20L, 5L, 9L ] (fun x -> x > 0L)
+      |> Stdlib.Test.equal ([ 5L, 9L ], [ -20L ])
+      Stdlib.List.partition [] (fun _ -> true)
+      |> Stdlib.Test.equal ([], [])
+      Stdlib.List.partition [] (fun _ -> "a")
+      |> Stdlib.Test.equal ([], [])
+      Stdlib.List.partition [ 1L, 2L, 3L ] (fun item ->
+        match item with
+        | 1L | 3L -> true
+        | 2L -> false)
+      |> Stdlib.Test.equal ([ 1L, 3L ], [ 2L ]) ]
+
+test push =
+  Stdlib.Test.all
+    [ Stdlib.List.pushBack [ 2L, 3L ] 1L
+      |> Stdlib.Test.equal [ 2L, 3L, 1L ]
+      Stdlib.List.pushBack [] 1L
+      |> Stdlib.Test.equal [ 1L ]
+      Stdlib.List.push [ 2L, 3L ] 1L
+      |> Stdlib.Test.equal [ 1L, 2L, 3L ]
+      Stdlib.List.push [] 1L
+      |> Stdlib.Test.equal [ 1L ] ]
+
+test randomElementOfSingletonOrEmptyList =
+  Stdlib.Test.all
+    [ Stdlib.List.randomElement [ 1L ] |> Stdlib.Test.equal (Some 1L)
+      Stdlib.List.randomElement [] |> Stdlib.Test.equal None ]
+
+test range =
+  Stdlib.Test.all
+    [ Stdlib.List.range -1 0 |> Stdlib.Test.equal [ -1, 0 ]
+      Stdlib.List.range -5 5
+      |> Stdlib.Test.equal [ -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5 ]
+      Stdlib.List.range 5 0 |> Stdlib.Test.equal [] ]
+
+test repeat =
+  Stdlib.Test.all
+    [ Stdlib.List.repeat 0 1L |> Stdlib.Test.equal (Ok [])
+      Stdlib.List.repeat 1 "a" |> Stdlib.Test.equal (Ok [ "a" ])
+      Stdlib.List.repeat 1 1L |> Stdlib.Test.equal (Ok [ 1L ])
+      Stdlib.List.repeat 3 1L |> Stdlib.Test.equal (Ok [ 1L, 1L, 1L ])
+      Stdlib.List.repeat 3 3L |> Stdlib.Test.equal (Ok [ 3L, 3L, 3L ])
+      Stdlib.List.repeat 5 "a"
+      |> Stdlib.Test.equal (Ok [ "a", "a", "a", "a", "a" ])
+      Stdlib.List.repeat -4 "a"
+      |> Stdlib.Test.equal
+        (Error "Expected `times` to be positive, but it was `-4`")
+      Stdlib.List.repeat 3 [ 1L, 2L, 3L ]
+      |> Stdlib.Test.equal
+        (Ok [ [ 1L, 2L, 3L ], [ 1L, 2L, 3L ], [ 1L, 2L, 3L ] ])
+      Stdlib.List.repeat 3 [] |> Stdlib.Test.equal (Ok [ [], [], [] ]) ]
+
+test reverse =
+  Stdlib.Test.all
+    [ Stdlib.List.reverse [ "a", "b", "c", "d" ]
+      |> Stdlib.Test.equal [ "d", "c", "b", "a" ]
+      Stdlib.List.reverse [ 5L, 4L, 3L, 2L, 1L ]
+      |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L, 5L ]
+      Stdlib.List.reverse [] |> Stdlib.Test.equal [] ]
+
+test sortBy =
+  Stdlib.Test.all
+    [ Stdlib.List.sortBy [ 6L, 2L, 8L, 3L ] (fun x -> 0L - x)
+      |> Stdlib.Test.equal [ 8L, 6L, 3L, 2L ]
+      Stdlib.List.sortBy [] (fun x -> 0L - x)
+      |> Stdlib.Test.equal [] ]
+
+test sort =
+  Stdlib.Test.all
+    [ Stdlib.List.sort [ "6", "2", "8", "3" ]
+      |> Stdlib.Test.equal [ "2", "3", "6", "8" ]
+      Stdlib.List.sort [ 6L, 2L, 8L, 3L ]
+      |> Stdlib.Test.equal [ 2L, 3L, 6L, 8L ]
+      Stdlib.List.sort [] |> Stdlib.Test.equal [] ]
+
+test sortByComparator =
+  Stdlib.Test.all
+    [ Stdlib.List.sortByComparator [ 3L, 1L, 2L ] (fun a b -> 3)
+      |> Stdlib.Test.equal
+        (Error "Expected comparator function to return -1, 0, or 1, but it returned 3")
+      Stdlib.List.sortByComparator [ 3L, 1L, 2L ] (fun a b ->
+        if (a < b) then -1 else 1)
+      |> Stdlib.Test.equal (Ok [ 1L, 2L, 3L ])
+      Stdlib.List.sortByComparator [] (fun a b ->
+        if (a < b) then -1 else 1)
+      |> Stdlib.Test.equal (Ok [])
+      Stdlib.List.sortByComparator
+        [ 3L, 1L, 2L, 67L, 3L, -1L, 6L, 3L, 5L, 6L
+          2L, 5L, 63L, 2L, 3L, 5L, -1L, -1L, -1L ]
+        (fun a b -> if (a < b) then -1 else 1)
+      |> Stdlib.Test.equal
+        (Ok
+          [ -1L, -1L, -1L, -1L, 1L, 2L, 2L, 2L, 3L, 3L
+            3L, 3L, 5L, 5L, 5L, 6L, 6L, 63L, 67L ]) ]
+
+// CLEANUP this error message is not ideal in 2 ways:
+// - The error does not provide context that the issue is with the fn specifically
+// - it seems to be from the perspective of the lambda
+//   (I'm a lambda and I'm expecting 2 arguments, but I got 1!!)
+//   rather than from the perspective of the function it's being used in
+// test comparatorRejectsWrongArity =
+//   Stdlib.List.sortByComparator [ 6.0, 2.0 ] (fun x -> x)
+//   => raises "Expected 1 arguments, got 2"
+
+test tail =
+  Stdlib.Test.all
+    [ Stdlib.List.tail [ 10L, 20L, 30L, 40L ]
+      |> Stdlib.Test.equal (Some [ 20L, 30L, 40L ])
+      Stdlib.List.tail [] |> Stdlib.Test.equal None ]
+
+test take =
+  Stdlib.Test.all
+    [ Stdlib.List.take [ "a", "b", "c", "d" ] -1
+      |> Stdlib.Test.equal []
+      Stdlib.List.take [ "a", "b", "c", "d" ] 2147483648
+      |> Stdlib.Test.equal [ "a", "b", "c", "d" ]
+      Stdlib.List.take [ "a", "b", "c", "d" ] 3
+      |> Stdlib.Test.equal [ "a", "b", "c" ]
+      Stdlib.List.take [ 3L, 3L, 3L ] 0
+      |> Stdlib.Test.equal []
+      Stdlib.List.take [ 5L, 4L, 3L, 2L, 1L ] 5
+      |> Stdlib.Test.equal [ 5L, 4L, 3L, 2L, 1L ]
+      Stdlib.List.take [ 5L ] 4 |> Stdlib.Test.equal [ 5L ]
+      Stdlib.List.take [] 4 |> Stdlib.Test.equal [] ]
+
+test takeWhile =
+  Stdlib.Test.all
+    [ Stdlib.List.takeWhile [ 1L, 2L, 3L, 4L ] (fun item -> item < 1L)
+      |> Stdlib.Test.equal []
+      Stdlib.List.takeWhile [ 1L, 2L, 3L, 4L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal [ 1L, 2L ]
+      Stdlib.List.takeWhile [ 1L, 5L, 2L, 2L ] (fun item -> item < 3L)
+      |> Stdlib.Test.equal [ 1L ]
+      Stdlib.List.takeWhile [] (fun item -> item < 3L)
+      |> Stdlib.Test.equal [] ]
+
+test uniqueBy =
+  Stdlib.Test.all
+    [ // it isn't specified which is the right value to keep when there are
+      // duplicates
+      Stdlib.List.uniqueBy [ 1L, 2L, 3L, 4L ] (fun x -> x / 2L)
+      |> Stdlib.Test.equal [ 1L, 2L, 4L ]
+      Stdlib.List.uniqueBy [ 1L, 2L, 3L, 4L ] (fun x -> x)
+      |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L ]
+      Stdlib.List.uniqueBy [ 1L, 1L, 1L, 1L ] (fun x -> x)
+      |> Stdlib.Test.equal [ 1L ]
+      Stdlib.List.uniqueBy [ 7L, 42L, 7L, 2L, 10L ] (fun x -> x)
+      |> Stdlib.Test.equal [ 2L, 7L, 10L, 42L ]
+      Stdlib.List.uniqueBy [] (fun x -> x)
+      |> Stdlib.Test.equal []
+      // When `fn` collapses two values it is the FIRST that survives, then the
+      // result is sorted.
+      Stdlib.List.uniqueBy [ 30L, 31L, 10L, 11L ] (fun x -> x / 10L)
+      |> Stdlib.Test.equal [ 10L, 30L ] ]
+
+test unique =
+  Stdlib.Test.all
+    [ Stdlib.List.unique [ 1L, 2L, 3L, 4L ]
+      |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L ]
+      Stdlib.List.unique [ 1L, 1L, 1L, 1L ]
+      |> Stdlib.Test.equal [ 1L ]
+      Stdlib.List.unique [ 7L, 42L, 7L, 2L, 10L ]
+      |> Stdlib.Test.equal [ 2L, 7L, 10L, 42L ]
+      Stdlib.List.unique [] |> Stdlib.Test.equal [] ]
+
+test dedup =
+  Stdlib.Test.all
+    [ // `dedup` keeps the FIRST occurrence where it was. Compare the `unique` cases
+      // just above: same input, sorted output. That difference is the whole reason
+      // it exists.
+      Stdlib.List.dedup [ 7L, 42L, 7L, 2L, 10L ]
+      |> Stdlib.Test.equal [ 7L, 42L, 2L, 10L ]
+      Stdlib.List.dedup [ 1L, 1L, 1L, 1L ]
+      |> Stdlib.Test.equal [ 1L ]
+      Stdlib.List.dedup [ 1L, 2L, 3L, 4L ]
+      |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L ]
+      Stdlib.List.dedup [] |> Stdlib.Test.equal []
+      Stdlib.List.dedup [ "b", "a", "b", "a" ]
+      |> Stdlib.Test.equal [ "b", "a" ]
+      // Long enough that a dropped or doubled `reverse` shows up as order, not just
+      // as content.
+      Stdlib.List.dedup [ 5L, 1L, 4L, 1L, 3L, 5L, 2L ]
+      |> Stdlib.Test.equal [ 5L, 1L, 4L, 3L, 2L ]
+      // Compound values work as the `seen` key, not just scalars.
+      Stdlib.List.dedup [ (2L, "b"), (1L, "a"), (2L, "b") ]
+      |> Stdlib.Test.equal [ (2L, "b"), (1L, "a") ]
+      Stdlib.List.dedup [ [ 2L ], [ 1L ], [ 2L ] ]
+      |> Stdlib.Test.equal [ [ 2L ], [ 1L ] ] ]
+
+// `seen` is a Dict, so equality is Dict-key equality rather than `==`. Two places
+// that shows:
+// NaN is equal to itself as a key, where `==` reports it unequal, so the duplicate
+// collapses.
+test dedupTreatsNanAsOneDictionaryKey =
+  Stdlib.List.length
+    (Stdlib.List.dedup [ (0.0 / 0.0), (0.0 / 0.0) ])
+  |> Stdlib.Test.equal 1
+
+test unzip =
+  Stdlib.Test.all
+    [ // TODO: more tests, with values of more complex types
+      Stdlib.List.unzip [ (1L, 10L), (2L, 20L), (3L, 30L) ]
+      |> Stdlib.Test.equal ([ 1L, 2L, 3L ], [ 10L, 20L, 30L ])
+      Stdlib.List.unzip [ (10L, 6L) ]
+      |> Stdlib.Test.equal ([ 10L ], [ 6L ]) ]
+
+test zipShortest =
+  Stdlib.Test.all
+    [ Stdlib.List.zipShortest [ 10L, 20L, 30L ] [ 1L, 2L, 3L ]
+      |> Stdlib.Test.equal [ (10L, 1L), (20L, 2L), (30L, 3L) ]
+      Stdlib.List.zipShortest [ 10L, 20L, 30L ] [ "a", "bc", "d" ]
+      |> Stdlib.Test.equal [ (10L, "a"), (20L, "bc"), (30L, "d") ]
+      Stdlib.List.zipShortest [ 10L, 20L ] [ 1L, 2L, 3L ]
+      |> Stdlib.Test.equal [ (10L, 1L), (20L, 2L) ]
+      Stdlib.List.zipShortest [ 1L, 2L, 3L ] [ 10L, 20L ]
+      |> Stdlib.Test.equal [ (1L, 10L), (2L, 20L) ]
+      Stdlib.List.zipShortest [ 10L, 20L ] [ "a", "bc", "d" ]
+      |> Stdlib.Test.equal [ (10L, "a"), (20L, "bc") ]
+      Stdlib.List.zipShortest [ "a", "bc", "d" ] [ 10L, 20L ]
+      |> Stdlib.Test.equal [ ("a", 10L), ("bc", 20L) ]
+      Stdlib.List.zipShortest [ "b", "v", "z" ] []
+      |> Stdlib.Test.equal []
+      Stdlib.List.zipShortest [] [ "b", "v", "z" ]
+      |> Stdlib.Test.equal [] ]
+
+test zip =
+  Stdlib.Test.all
+    [ Stdlib.List.zip [ 10L, 20L, 30L ] [ 1L, 2L, 3L ]
+      |> Stdlib.Test.equal (Some [ (10L, 1L), (20L, 2L), (30L, 3L) ])
+      Stdlib.List.zip [ 10L, 20L ] [ 1L, 2L, 3L ]
+      |> Stdlib.Test.equal None
+      Stdlib.List.zip [] []
+      |> Stdlib.Test.equal (Some []) ]
+
+test groupByWithKey =
+  Stdlib.Test.all
+    [ Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+        (x % 2L))
+      |> Stdlib.Test.equal
+        [ (1L, [ 1L, 3L, 5L ]), (0L, [ 2L, 4L ]) ]
+      Stdlib.List.groupByWithKey
+        [ "apple", "banana", "avocado", "grape", "apricot" ]
+        (fun word -> Stdlib.String.first word 1)
+      |> Stdlib.Test.equal
+        [ ("a", [ "apple", "avocado", "apricot" ])
+          ("b", [ "banana" ])
+          ("g", [ "grape" ]) ]
+      Stdlib.List.groupByWithKey [ 'a', 'b', 'c', 'a', 'b' ] (fun c -> c)
+      |> Stdlib.Test.equal
+        [ ('a', [ 'a', 'a' ]), ('b', [ 'b', 'b' ]), ('c', [ 'c' ]) ]
+      Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+        (x % 2L) == 0L)
+      |> Stdlib.Test.equal
+        [ (false, [ 1L, 3L, 5L ]), (true, [ 2L, 4L ]) ]
+      Stdlib.List.groupByWithKey [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+        ((x % 2L), "test"))
+      |> Stdlib.Test.equal
+        [ ((1L, "test"), [ 1L, 3L, 5L ])
+          ((0L, "test"), [ 2L, 4L ]) ]
+      Stdlib.List.groupByWithKey [] (fun x -> x)
+      |> Stdlib.Test.equal []
+      // Keys come out in the order first seen, not sorted.
+      Stdlib.List.groupByWithKey [ 3L, 1L, 3L, 2L, 1L, 3L ] (fun x -> x)
+      |> Stdlib.Test.equal
+        [ (3L, [ 3L, 3L, 3L ]), (1L, [ 1L, 1L ]), (2L, [ 2L ]) ]
+      Stdlib.List.groupByWithKey [ "b2", "a1", "b1", "c1", "a2" ] (fun s ->
+        Stdlib.String.first s 1)
+      |> Stdlib.Test.equal
+        [ ("b", [ "b2", "b1" ]), ("a", [ "a1", "a2" ]), ("c", [ "c1" ]) ] ]
+
+test dropLast =
+  Stdlib.Test.all
+    [ Stdlib.List.dropLast [ 1L, 2L, 3L, 4L, 5L ]
+      |> Stdlib.Test.equal [ 1L, 2L, 3L, 4L ]
+      Stdlib.List.dropLast [ 1L ] |> Stdlib.Test.equal []
+      Stdlib.List.dropLast [] |> Stdlib.Test.equal [] ]
+
+test chunkBySize =
+  Stdlib.Test.all
+    [ Stdlib.List.chunkBySize [ 1L, 2L, 3L, 4L, 5L ] 2
+      |> Stdlib.Test.equal (Ok [ [ 1L, 2L ], [ 3L, 4L ], [ 5L ] ])
+      Stdlib.List.chunkBySize [ 1L, 2L, 3L, 4L, 5L, 6L ] 3
+      |> Stdlib.Test.equal (Ok [ [ 1L, 2L, 3L ], [ 4L, 5L, 6L ] ])
+      Stdlib.List.chunkBySize [ 1L, 2L, 3L ] 1
+      |> Stdlib.Test.equal (Ok [ [ 1L ], [ 2L ], [ 3L ] ])
+      Stdlib.List.chunkBySize [ 1L, 2L ] 3
+      |> Stdlib.Test.equal (Ok [ [ 1L, 2L ] ])
+      Stdlib.List.chunkBySize [] 4 |> Stdlib.Test.equal (Ok [])
+      Stdlib.List.chunkBySize [ 1L, 2L, 3L, 4L ] 0
+      |> Stdlib.Test.equal
+        (Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)
+      Stdlib.List.chunkBySize [ 1L, 2L, 3L, 4L ] -1
+      |> Stdlib.Test.equal
+        (Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero) ]
+
+test splitLast =
+  Stdlib.Test.all
+    [ Stdlib.List.splitLast [] |> Stdlib.Test.equal None
+      Stdlib.List.splitLast [ 1L ]
+      |> Stdlib.Test.equal (Some (([], 1L)))
+      Stdlib.List.splitLast [ 1L, 2L ]
+      |> Stdlib.Test.equal (Some (([ 1L ], 2L)))
+      Stdlib.List.splitLast [ 1L, 2L, 3L ]
+      |> Stdlib.Test.equal (Some (([ 1L, 2L ], 3L))) ]
+
+// CLEANUP the following tests should fail on having mixed types
+test rejectsMixedListElements =
+  [ 1l, 2.3 ]
+  => raises "Cannot add a Float (2.3) to a list of Int32. Failed at index 1."
+
+test rejectsMixedTupleAndScalar =
+  [ (1l, 10l), 10l, (3l, 30l) ]
+  => raises "Cannot add an Int32 (10) to a list of (Int32 * Int32). Failed at index 1."
+
+test rejectsTuplesWithDifferentArity =
+  [ (1l, 10l), (2l, 20l), (3l, 30l, 40l) ]
+  => raises "Cannot add an (Int32 * Int32 * Int32) ((3, 30, 40)) to a list of (Int32 * Int32). Failed at index 2."
+
+test dropWhileRejectsNonBoolCondition =
+  Stdlib.List.dropWhile [ 1L, 2L, 3L, 4L ] (fun _ -> 0L - 1L)
+  => raises "Encountered a condition that must be a Bool, but got an Int64 (-1)"
+
+test filterRejectsOptionCondition =
+  Stdlib.List.filter [ 1L, 2L, 3L ] (fun item ->
+    match item with
+    | 1L -> None
+    | 2L -> false
+    | 3L -> true)
+  => raises "Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (None)"
+
+test filterRejectsStringCondition =
+  Stdlib.List.filter [ true, false, true ] (fun _ -> "a")
+  => raises "Encountered a condition that must be a Bool, but got a String (\"a\")"
+
+test flattenRejectsScalarElements =
+  Stdlib.List.flatten [ 1l, 2l, 3l ]
+  => raises "Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([1, 2, 3])"
+
+test flattenRejectsDifferentNestingDepths =
+  Stdlib.List.flatten [ [ 1L ], [ [ 2L, 3L ] ] ]
+  => raises "Cannot add a List<List<Int64>> ([[2, 3]]) to a list of List<Int64>. Failed at index 1."
+
+test setAtRejectsWrongValueType =
+  Stdlib.List.setAt [ 1L, 2L ] 0 "x"
+  => raises "Darklang.Stdlib.List.setAt's 3rd parameter `value` expects Int64, but got String (\"x\")"
+
+test interleaveRejectsMixedElementTypes =
+  Stdlib.List.interleave [ "a", "b", "c" ] [ 0L ]
+  => raises "Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([0])"
+
+test interposeRejectsWrongSeparatorType =
+  Stdlib.List.interpose [ "a", "b", "c" ] 0L
+  => raises "Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0)"
+
+test partitionRejectsStringCondition =
+  Stdlib.List.partition [ true, false, true ] (fun _ -> "a")
+  => raises "Encountered a condition that must be a Bool, but got a String (\"a\")"
+
+test partitionRejectsOptionCondition =
+  Stdlib.List.partition [ 1L, 2L, 3L ] (fun item ->
+    match item with
+    | 1L -> None
+    | 2L -> false
+    | 3L -> true)
+  => raises "Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (None)"
+
+// CLEANUP: it should be a type error on the function not returning an Int64
+test comparatorRejectsFloatResult =
+  Stdlib.List.sortByComparator [ 3L, 1L, 2L ] (fun _ _ -> 0.1)
+  => raises "Cannot perform equality check on Float and Int"
+
+// CLEANUP: it should be a type error on the function not returning an Int64
+test comparatorRejectsStringResult =
+  Stdlib.List.sortByComparator [ 1L, 2L, 3L ] (fun _ _ -> "㧑༷釺")
+  => raises "Cannot perform equality check on String and Int"
+
+//TODO: better error message
+test takeWhileRejectsNonBoolCondition =
+  Stdlib.List.takeWhile [ 1L, 2L, 3L, 4L ] (fun _ -> 0L - 1L)
+  => raises "Encountered a condition that must be a Bool, but got an Int64 (-1)"
+
+test uniqueByRejectsMixedElementTypes =
+  Stdlib.List.uniqueBy [ 6L, 2.0 ] (fun x -> x)
+  => raises "Cannot add a Float (2.0) to a list of Int64. Failed at index 1."
+
+// A key type a Dict cannot hold raises, rather than being compared by identity.
+test uniqueByRejectsFunctionKeys =
+  Stdlib.List.uniqueBy [ 1L ] (fun _ -> (fun value -> value))
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+// and a value no Dict can key raises instead of being compared by identity.
+test dedupRejectsFunctionKeys =
+  Stdlib.List.dedup [ (fun value -> value) ]
+  => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
+
+test headEvaluatesElements =
+  Stdlib.List.head [ Stdlib.Test.raiseRuntimeError "test" ]
+  => raises "Uncaught exception: test"
+
+test lastEvaluatesElements =
+  Stdlib.List.last [ Stdlib.Test.raiseRuntimeError "test" ]
+  => raises "Uncaught exception: test"
+
+test randomElementEvaluatesElements =
+  Stdlib.List.randomElement [ Stdlib.Test.raiseRuntimeError "test" ]
+  => raises "Uncaught exception: test"
+
+test zipEvaluatesElements =
+  Stdlib.List.zip [ Stdlib.Test.raiseRuntimeError "msg" ] [ Some "" ]
+  => raises "Uncaught exception: msg"
+
+// The counter records callback calls within this test.
+module IterEffects =
+  test invokesCallbackForEachElement =
+    let _ = Stdlib.List.iter [ 1L, 2L, 3L ] (fun _ -> Stdlib.Test.incrementCounter ())
+    Stdlib.Test.counterValue () |> Stdlib.Test.equal 3L
+
+  test runsConditionalEffects =
+    let _ =
+      Stdlib.List.iter [ 1L, 2L, 3L, 4L, 5L ] (fun x ->
+        if x % 2L == 0L then Stdlib.Test.incrementCounter ())
+    Stdlib.Test.counterValue () |> Stdlib.Test.equal 2L
+
+  test doesNotInvokeCallbackForEmptyList =
+    let _ = Stdlib.List.iter [] (fun _ -> Stdlib.Test.incrementCounter ())
+    Stdlib.Test.counterValue () |> Stdlib.Test.equal 0L
+
+  test runsMultipleEffectsPerElement =
+    let _ =
+      Stdlib.List.iter [ 10L, 20L, 30L ] (fun _ ->
+        let _ = Stdlib.Test.incrementCounter ()
+        Stdlib.Test.incrementCounter ())
+    Stdlib.Test.counterValue () |> Stdlib.Test.equal 6L
+
+  test visitsLastElement =
+    let _ =
+      Stdlib.List.iter [ 1L, 2L, 3L ] (fun x ->
+        if x > 2L then Stdlib.Test.incrementCounter ())
+    Stdlib.Test.counterValue () |> Stdlib.Test.equal 1L
+
+test comparatorRejectsWrongArity =
+  Stdlib.List.sortByComparator [6.0, 2.0] (fun x -> x)
+  => raises "Lambda expects 1 argument, but got 2 arguments"
+
+test uniqueBySupportsNestedKeys =
+  Stdlib.List.uniqueBy
+    [ ([1, 2], Some "a"), ([1, 2], Some "a"), ([2, 1], None) ]
+    (fun x -> x)
+  |> Stdlib.Test.equal [ ([1, 2], Some "a"), ([2, 1], None) ]

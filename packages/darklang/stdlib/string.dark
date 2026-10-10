@@ -106,11 +106,10 @@ impl Zero for String =
 let prepend (s1: String) (s2: String) : String = s2 + s1
 
 
-//TODO: write the dark version of this function once we have regex
 /// Turns a string into a prettified slug, including only lowercased
 /// alphanumeric characters, joined by hyphens
-// let slugify (s: String) : String =
-//   Builtin.stringSlugify s
+let slugify (s: String) : String =
+  Builtin.stringSlugify s
 
 
 /// Reverses <param string>

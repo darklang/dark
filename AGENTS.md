@@ -449,6 +449,9 @@ says nothing at all.
         cli/stdin.dark    #   reads keys
         cli/tui/          #   paints: view types, frame diffing, terminal session
         cli/ui/           #   composes: widgets, layout, the palette
+      tests/              # all package tests, one folder per area (stdlib/, language/,
+                          # scm/, cli/, ...); module names follow what they test
+                          # (`Darklang.SCM.Tests`), so `dark test Darklang.SCM` runs one area
     backend/migrations/   # schema/, the from-scratch shape; changes to an existing store go in
                           # LibDB/Releases.fs
     rundir/logs/          # log files

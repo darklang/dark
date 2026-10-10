@@ -12,9 +12,10 @@ type Item =
   /// The impl at its member path (`<module>[.<Type>].<Trait>`); its method fns come
   /// out as `Fn` items at that same path, with the impl's type params and bounds.
   | Impl of List<string> * WT.ImplDecl
+  | Test of List<string> * WT.TestDecl
   | Expr of List<string> * WT.Expr
   | TypeDB of List<string> * WT.TypeDecl
-  | Test of List<string> * WT.Test
+  | Assertion of List<string> * WT.Assertion
 
 let rec private collectItems
   (path : List<string>)
@@ -32,9 +33,10 @@ let rec private collectItems
     | WT.DFunction fn -> [ Fn(path, fn) ]
     | WT.DType t -> [ Type(path, t) ]
     | WT.DValue v -> [ Value(path, v) ]
+    | WT.DTest test -> [ Test(path, test) ]
     | WT.DExpr e -> [ Expr(path, e) ]
     | WT.DTypeDB t -> [ TypeDB(path, t) ]
-    | WT.DTest t -> [ Test(path, t) ])
+    | WT.DAssertion t -> [ Assertion(path, t) ])
 
 let items (sf : WT.SourceFile) : List<Item> =
   collectItems [] sf.declarations

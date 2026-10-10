@@ -1,0 +1,32 @@
+/// Actual PTY interactions: a missing marker or failed child must not pass.
+module Darklang.Cli.Tests.Interactive.Tests
+
+let expectFailure (result: Stdlib.Result.Result<String, String>) (message: String) : Stdlib.Test.Result =
+  match result with
+  | Ok transcript -> Stdlib.Test.fail $"Expected failure, got success: {transcript}"
+  | Error transcript -> Stdlib.Test.expect (Stdlib.String.contains transcript message) transcript
+
+test missingMarkerTimesOut =
+  Instance.withInstance (fun i ->
+    Interactive.drive i [] [ Interactive.Step.Await "never-rendered-test-marker" ] 1
+    |> expectFailure "TIMED OUT waiting for: never-rendered-test-marker")
+
+
+test exitBeforeMarkerFails =
+  Instance.withInstance (fun i ->
+    Interactive.drive i [ "help" ] [ Interactive.Step.Await "never-rendered-test-marker" ] 10
+    |> expectFailure "EXITED BEFORE: never-rendered-test-marker")
+
+
+test literalTextAndArgumentsArePreserved =
+  Instance.withInstance (fun i ->
+    Interactive.expectSteps i
+      [ "eval", "\"literal [brackets] $variable * ?\"" ]
+      [ Interactive.Step.Await "literal [brackets] $variable * ?" ] 10)
+
+
+test nonzeroExitFailsAfterMatching =
+  Instance.withInstance (fun i ->
+    Interactive.drive i [ "eval", "1 / 0" ]
+      [ Interactive.Step.Await "Cannot divide by 0" ] 10
+    |> expectFailure "CHILD EXIT FAILED:")

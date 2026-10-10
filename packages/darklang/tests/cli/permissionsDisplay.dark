@@ -1,0 +1,91 @@
+module Darklang.Cli.Tests.PermissionsDisplay
+
+// The Workbench and `permissions show` share this renderer. Requirements are
+// not grants; exact resources are checked at runtime.
+
+module PermissionsDisplay =
+  let packagePolicy (unit: Unit) : Darklang.LanguageTools.Permissions.Policy =
+    Darklang.LanguageTools.Permissions.Policy
+      { allow =
+          [ Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Http
+            Darklang.LanguageTools.Permissions.Rule.Effect Darklang.LanguageTools.Permissions.Effect.Clock ]
+        deny = [] }
+
+  let instancePolicy (unit: Unit) : Darklang.LanguageTools.Permissions.Policy =
+    Darklang.LanguageTools.Permissions.Policy
+      { allow =
+          [ Darklang.LanguageTools.Permissions.Rule.Http(
+              Darklang.LanguageTools.Permissions.HttpRule
+                { method =
+                    Darklang.LanguageTools.Permissions.Scope.Only "GET"
+                  scheme =
+                    Darklang.LanguageTools.Permissions.Scope.Only "https"
+                  host =
+                    Darklang.LanguageTools.Permissions.HostRule.Exact
+                      "api.example.com"
+                  port =
+                    Darklang.LanguageTools.Permissions.Scope.Only 443
+                  pathPrefix =
+                    Darklang.LanguageTools.Permissions.Scope.Only "/v1"
+                  query = Darklang.LanguageTools.Permissions.Scope.All }) ]
+        deny = [] }
+
+  let approved
+    (unit: Unit)
+    : Darklang.Cli.Permissions.Command.AccessReportFacts =
+    Darklang.Cli.Permissions.Command.AccessReportFacts
+      { hash = "123456789abcdef"
+        effects = [ Darklang.LanguageTools.Permissions.Effect.Http, Darklang.LanguageTools.Permissions.Effect.Clock ]
+        complete = true
+        ceiling = Stdlib.Option.Option.Some [ Darklang.LanguageTools.Permissions.Effect.Http, Darklang.LanguageTools.Permissions.Effect.Clock ]
+        bundled = false
+        packagePolicy = Stdlib.Option.Option.Some (packagePolicy ())
+        approvedAs = [ "Acme.Client.fetch" ]
+        instancePolicy = instancePolicy () }
+
+  test approvedReport =
+    Darklang.Cli.Permissions.Command.renderAccessReport (approved ())
+    |> Stdlib.Test.equal
+      [ "access"
+          "  version: 12345678"
+          "  requires: http, clock"
+          "  analysis: complete"
+          "  author ceiling: {Http, Clock}"
+          "  consumer approval: approved for this account (rules below)"
+          "  approved as: Acme.Client.fetch"
+          "  package approval policy:"
+          "    http"
+          "    clock"
+          "  instance policy:"
+          "    http GET 'https://api.example.com:443/v1'"
+          "  run policy: selected when invoked (`--sandbox` denies all)"
+          "  effective: checked per operation: instance ∩ run ∩ package approval ∩ function ceiling"
+          "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ]
+
+  let unapproved
+    (unit: Unit)
+    : Darklang.Cli.Permissions.Command.AccessReportFacts =
+    let facts = approved ()
+
+    { facts with
+        effects = []
+        complete = false
+        ceiling = Stdlib.Option.Option.None
+        packagePolicy = Stdlib.Option.Option.None
+        approvedAs = [] }
+
+  test unapprovedReport =
+    Darklang.Cli.Permissions.Command.renderAccessReport (unapproved ())
+    |> Stdlib.Test.equal
+      [ "access"
+          "  version: 12345678"
+          "  requires: not fully known"
+          "  analysis: incomplete: some calls could not be followed, so their effects are not known here"
+          "  author ceiling: not declared (inherits caller limits)"
+          "  consumer approval: not approved for dependency use"
+          "  approved as: none"
+          "  instance policy:"
+          "    http GET 'https://api.example.com:443/v1'"
+          "  run policy: selected when invoked (`--sandbox` denies all)"
+          "  effective: blocked as a dependency; explicitly chosen entry points are treated as roots"
+          "  exact resources: paths, URLs, ports, names, and arguments are checked at call time" ]

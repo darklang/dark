@@ -1634,6 +1634,81 @@ module PackageFn =
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
 
 
+module PackageTest =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.PackageTest.packageTest ()
+    )
+
+  module ExpectedError =
+    let typeName () =
+      FQTypeName.fqPackage (
+        PackageRefs.Type.LanguageTools.ProgramTypes.PackageTest.expectedError ()
+      )
+
+    let knownType () = KTCustomType(typeName (), [])
+
+    let toDT (expected : PT.ExpectedError) : Dval =
+      let caseName, message =
+        match expected with
+        | PT.ExpectedError.RuntimeError message -> "RuntimeError", message
+        | PT.ExpectedError.SqlCompilerError message -> "SqlCompilerError", message
+      DEnum(typeName (), typeName (), [], caseName, [ DString message ])
+
+    let fromDT (d : Dval) : PT.ExpectedError =
+      match d with
+      | DEnum(_, _, [], "RuntimeError", [ DString message ]) ->
+        PT.ExpectedError.RuntimeError message
+      | DEnum(_, _, [], "SqlCompilerError", [ DString message ]) ->
+        PT.ExpectedError.SqlCompilerError message
+      | _ -> Exception.raiseInternal "Invalid test expected error" []
+
+  let toDT (test : PT.PackageTest.PackageTest) : Dval =
+    let fields =
+      [ "hash", Hash.toDT test.hash
+        "body", Expr.toDT test.body
+        "description", DString test.description
+        "expectedError",
+        test.expectedError
+        |> Option.map ExpectedError.toDT
+        |> Dval.option (ExpectedError.knownType ())
+        "testDBs",
+        DList(
+          VT.tuple (VT.known KTString) (VT.known (TypeReference.knownType ())) [],
+          test.testDBs
+          |> List.map (fun (name, typ) ->
+            DTuple(DString name, TypeReference.toDT typ, []))
+        )
+        "permissionCeiling",
+        test.permissionCeiling
+        |> Option.map Effects2DT.toDT
+        |> Dval.option (Effects2DT.knownType ()) ]
+    DRecord(typeName (), typeName (), [], Map fields)
+
+  let fromDT (d : Dval) : PT.PackageTest.PackageTest =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { hash = fields |> D.field "hash" |> Hash.fromDT
+        body = fields |> D.field "body" |> Expr.fromDT
+        description = fields |> D.field "description" |> D.string
+        expectedError =
+          fields
+          |> D.field "expectedError"
+          |> C2DT.Option.fromDT ExpectedError.fromDT
+        testDBs =
+          fields
+          |> D.field "testDBs"
+          |> D.list (fun d ->
+            match d with
+            | DTuple(name, typ, []) -> D.string name, TypeReference.fromDT typ
+            | _ -> Exception.raiseInternal "Invalid test DB" [])
+        permissionCeiling =
+          fields
+          |> D.field "permissionCeiling"
+          |> C2DT.Option.fromDT Effects2DT.fromDT }
+    | _ -> Exception.raiseInternal "Invalid PackageTest" []
+
+
 
 module Trait =
   module Method =
@@ -1800,6 +1875,7 @@ module ItemKind =
       | PT.ItemKind.Value -> "Value", []
       | PT.ItemKind.Trait -> "Trait", []
       | PT.ItemKind.TraitImpl -> "TraitImpl", []
+      | PT.ItemKind.Test -> "Test", []
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.ItemKind =
@@ -1809,6 +1885,7 @@ module ItemKind =
     | DEnum(_, _, [], "Value", []) -> PT.ItemKind.Value
     | DEnum(_, _, [], "Trait", []) -> PT.ItemKind.Trait
     | DEnum(_, _, [], "TraitImpl", []) -> PT.ItemKind.TraitImpl
+    | DEnum(_, _, [], "Test", []) -> PT.ItemKind.Test
     | _ -> Exception.raiseInternal "Invalid ItemKind" []
 
 
@@ -1825,6 +1902,7 @@ module Reference =
       | PT.PackageFn h -> "PackageFn", [ Hash.toDT h ]
       | PT.PackageTrait h -> "PackageTrait", [ Hash.toDT h ]
       | PT.PackageTraitImpl h -> "PackageTraitImpl", [ Hash.toDT h ]
+      | PT.PackageTest h -> "PackageTest", [ Hash.toDT h ]
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.Reference =
@@ -1835,6 +1913,7 @@ module Reference =
     | DEnum(_, _, [], "PackageTrait", [ h ]) -> PT.PackageTrait(Hash.fromDT h)
     | DEnum(_, _, [], "PackageTraitImpl", [ h ]) ->
       PT.PackageTraitImpl(Hash.fromDT h)
+    | DEnum(_, _, [], "PackageTest", [ h ]) -> PT.PackageTest(Hash.fromDT h)
     | _ -> Exception.raiseInternal "Invalid Reference" []
 
 
@@ -1950,6 +2029,7 @@ module Search =
         | PT.Search.EntityType.Value -> "Value", []
         | PT.Search.EntityType.Trait -> "Trait", []
         | PT.Search.EntityType.TraitImpl -> "TraitImpl", []
+        | PT.Search.EntityType.Test -> "Test", []
       DEnum(typeName (), typeName (), [], caseName, fields)
 
     let fromDT (d : Dval) : PT.Search.EntityType =
@@ -1960,6 +2040,7 @@ module Search =
       | DEnum(_, _, [], "Value", []) -> PT.Search.EntityType.Value
       | DEnum(_, _, [], "Trait", []) -> PT.Search.EntityType.Trait
       | DEnum(_, _, [], "TraitImpl", []) -> PT.Search.EntityType.TraitImpl
+      | DEnum(_, _, [], "Test", []) -> PT.Search.EntityType.Test
       | _ -> Exception.raiseInternal "Invalid EntityType" []
 
 
@@ -2025,6 +2106,7 @@ module Search =
       let typeKT = KTCustomType(PackageType.typeName (), [])
       let valueKT = KTCustomType(PackageValue.typeName (), [])
       let fnKT = KTCustomType(PackageFn.typeName (), [])
+      let testKT = KTCustomType(PackageTest.typeName (), [])
       let fields =
         [ "submodules",
           sr.submodules
@@ -2050,7 +2132,11 @@ module Search =
           "impls",
           sr.impls
           |> List.map (LocatedItem.toDT (TraitImpl.knownType ()) TraitImpl.toDT)
-          |> Dval.list (LocatedItem.knownType (TraitImpl.knownType ())) ]
+          |> Dval.list (LocatedItem.knownType (TraitImpl.knownType ()))
+          "tests",
+          sr.tests
+          |> List.map (LocatedItem.toDT testKT PackageTest.toDT)
+          |> Dval.list (LocatedItem.knownType testKT) ]
       DRecord(typeName (), typeName (), [], Map fields)
 
     let fromDT (d : Dval) : PT.Search.SearchResults =
@@ -2070,7 +2156,11 @@ module Search =
           traits =
             fields |> D.field "traits" |> D.list (LocatedItem.fromDT Trait.fromDT)
           impls =
-            fields |> D.field "impls" |> D.list (LocatedItem.fromDT TraitImpl.fromDT) }
+            fields |> D.field "impls" |> D.list (LocatedItem.fromDT TraitImpl.fromDT)
+          tests =
+            fields
+            |> D.field "tests"
+            |> D.list (LocatedItem.fromDT PackageTest.fromDT) }
       | _ -> Exception.raiseInternal "Invalid SearchResults" []
 
 
@@ -2159,6 +2249,7 @@ module PackageOp =
       | PT.PackageOp.AddFn f -> "AddFn", [ PackageFn.toDT f ]
       | PT.PackageOp.AddTrait t -> "AddTrait", [ Trait.toDT t ]
       | PT.PackageOp.AddTraitImpl i -> "AddTraitImpl", [ TraitImpl.toDT i ]
+      | PT.PackageOp.AddTest test -> "AddTest", [ PackageTest.toDT test ]
       | PT.PackageOp.SetName(loc, target, previous) ->
         "SetName",
         [ PackageLocation.toDT loc; Reference.toDT target; previousToDT previous ]
@@ -2201,6 +2292,8 @@ module PackageOp =
       Some(PT.PackageOp.AddTrait(Trait.fromDT t))
     | DEnum(_, _, [], "AddTraitImpl", [ i ]) ->
       Some(PT.PackageOp.AddTraitImpl(TraitImpl.fromDT i))
+    | DEnum(_, _, [], "AddTest", [ test ]) ->
+      Some(PT.PackageOp.AddTest(PackageTest.fromDT test))
     | DEnum(_, _, [], "SetName", [ loc; target; previous ]) ->
       let previous = previousFromDT previous
       Some(

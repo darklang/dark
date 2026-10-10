@@ -1297,7 +1297,7 @@ let private deprecationTakesEffectInTheSameProcess =
 /// permissive" in `Execution.createState`). The harmful gate is narrowed by the CLI HOST, per entry
 /// point, so in this harness the halt never fires and the test asserts a halt that cannot happen.
 ///
-/// It is tested where it can be: "Harmful Gate" in `packages/darklang/cli/tests/tests.dark`, which drives
+/// It is tested where it can be: "Harmful Gate" in `packages/darklang/tests/cli/tests.dark`, which drives
 /// a real CLI process and asserts BOTH directions -- a fn marked harmful refuses to run, and
 /// `--allow-harmful` runs it anyway.
 /// `commit --include=` turns part of a draft into history: an unnamed item stays in the draft, a
@@ -2657,6 +2657,10 @@ let aPartialCommitTakesItsDependencysName =
     (fun state ->
       task {
         do! start state
+        // The dependency's content already exists, but its branch-local name
+        // below still has to come along. Do not depend on seed/test run order.
+        do! fn state "Tests.Partial2.committed" "() : Int64 = 5L"
+        do! commit state "dependency content already committed"
         do! switch state "partialbr"
         do! fn state "Tests.Partial2.dep" "() : Int64 = 5L"
         do!

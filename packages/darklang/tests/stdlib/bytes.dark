@@ -1,0 +1,94 @@
+module Darklang.Stdlib.Blob.Tests
+
+// hex round of various UTF-8 strings (Arabic / emoji / long mixed).
+test toHexOfUtf8 =
+  Stdlib.Test.all
+    [ Stdlib.Blob.fromString "اختبار النص" |> Stdlib.Blob.toHex
+      |> Stdlib.Test.equal "D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5"
+      Stdlib.Blob.fromString "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Blob.toHex
+      |> Stdlib.Test.equal
+        "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF"
+      Stdlib.Blob.fromString
+        "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+      |> Stdlib.Blob.toHex
+      |> Stdlib.Test.equal
+        "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD" ]
+
+// length
+test length =
+  Stdlib.Test.all
+    [ Stdlib.Blob.fromString "hi" |> Stdlib.Blob.length |> Stdlib.Test.equal 2
+      Stdlib.Blob.fromString "" |> Stdlib.Blob.length |> Stdlib.Test.equal 0
+      Stdlib.Blob.empty |> Stdlib.Blob.length |> Stdlib.Test.equal 0 ]
+
+// fromString / toString roundtrip
+test stringRoundTrip =
+  Stdlib.Blob.fromString "hello" |> Stdlib.Blob.toString
+  |> Stdlib.Test.equal (Ok "hello")
+
+// fromHex returns Result<Blob,String>; length of decoded deadbeef = 4 bytes
+test fromHex =
+  Stdlib.Blob.fromHex "deadbeef" |> Stdlib.Result.map Stdlib.Blob.length
+  |> Stdlib.Test.equal (Ok 4)
+
+// hex roundtrip via wrapper
+test hexRoundTrip =
+  Stdlib.Blob.fromHex "48656c6c6f"
+  |> Stdlib.Result.andThen Stdlib.Blob.toString
+  |> Stdlib.Test.equal (Ok "Hello")
+
+// toHex roundtrip (uppercase output)
+test toHex =
+  Stdlib.Test.all
+    [ Stdlib.Blob.fromString "ok" |> Stdlib.Blob.toHex |> Stdlib.Test.equal "6F6B"
+      Stdlib.Blob.fromString "Hi" |> Stdlib.Blob.toHex |> Stdlib.Test.equal "4869" ]
+
+// base64 roundtrip
+test base64RoundTrip =
+  Stdlib.Test.all
+    [ Stdlib.Blob.fromBase64 "aGVsbG8="
+      |> Stdlib.Result.andThen Stdlib.Blob.toString
+      |> Stdlib.Test.equal (Ok "hello")
+      Stdlib.Blob.fromString "hello" |> Stdlib.Blob.toBase64
+      |> Stdlib.Test.equal "aGVsbG8=" ]
+
+// concat
+test concat =
+  [ Stdlib.Blob.fromString "foo"
+    Stdlib.Blob.fromString "-"
+    Stdlib.Blob.fromString "bar" ]
+  |> Stdlib.Blob.concat
+  |> Stdlib.Blob.toString
+  |> Stdlib.Test.equal (Ok "foo-bar")
+
+// slice (middle three bytes of "abcdef" = "cde")
+test slice =
+  Stdlib.Blob.slice (Stdlib.Blob.fromString "abcdef") 2 3
+  |> Stdlib.Blob.toString
+  |> Stdlib.Test.equal (Ok "cde")
+
+// toList/fromList escape hatches
+test listConversions =
+  Stdlib.Test.all
+    [ Stdlib.Blob.fromString "abc" |> Stdlib.Blob.toList
+      |> Stdlib.Test.equal [ 97uy, 98uy, 99uy ]
+      Stdlib.Blob.fromList [ 97uy, 98uy, 99uy ] |> Stdlib.Blob.length
+      |> Stdlib.Test.equal 3 ]
+
+// Blob equality is identity-based: same hash (Persistent) or same
+// UUID (Ephemeral). Two freshly-built ephemerals with the same bytes
+// have distinct UUIDs, so they don't compare equal — promote both
+// sides via `Blob.promote` first if you need byte-equality.
+// (Stdlib.Blob.fromString "hi" == Stdlib.Blob.fromString "hi")
+// |> Stdlib.Test.equal true
+test differentBytesAreNotEqual =
+  (Stdlib.Blob.fromString "hi" == Stdlib.Blob.fromString "bye")
+  |> Stdlib.Test.equal false
+
+test equalityUsesIdentity =
+  let blob = Stdlib.Blob.fromString "hi"
+  Stdlib.Test.all
+    [ (blob == blob) |> Stdlib.Test.equal true
+      (blob == Stdlib.Blob.fromString "hi") |> Stdlib.Test.equal false
+      (Stdlib.Blob.toList blob == Stdlib.Blob.toList (Stdlib.Blob.fromString "hi"))
+      |> Stdlib.Test.equal true ]

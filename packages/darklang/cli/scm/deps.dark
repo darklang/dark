@@ -244,7 +244,7 @@ let resolvePath
     match loc with
     | Module _ ->
       Stdlib.Result.Result.Error
-        "Cannot show dependencies for a module, only for a fn, type, value, trait or impl"
+        "Cannot show dependencies for a module, only for a fn, type, value, trait, impl or test"
     | Function l ->
       resolved l LanguageTools.ProgramTypes.ItemKind.Fn
         (LanguageTools.PackageManager.Function.find branchId l)
@@ -260,6 +260,9 @@ let resolvePath
     | Impl l ->
       resolved l LanguageTools.ProgramTypes.ItemKind.TraitImpl
         (LanguageTools.PackageManager.TraitImpl.find branchId l)
+    | Test l ->
+      resolved l LanguageTools.ProgramTypes.ItemKind.Test
+        (LanguageTools.PackageManager.Test.find branchId l)
 
 
 /// One dependency edge as the machine-readable shape, read off the EDGE (see `showDependencies`).

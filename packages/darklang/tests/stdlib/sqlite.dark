@@ -1,0 +1,189 @@
+// CRUD over Stdlib.Sqlite (raw exec/execP/query floor + the
+// column/scalarInt/scalarIntP/queryOneP/textField/intField convenience layer), incl.
+// injection-safe params (a quote round-trips). Each assertion keeps its READ in the
+// body (final) position: a read bound to a `let` is forced where it's *used*, so a
+// write between the read and its use (e.g. a cleanup DROP) would make it see the
+// later state. So: writes first, read last.
+// Each test uses a distinct temporary database.
+module Darklang.Stdlib.Sqlite.Tests
+
+// Deletes the database file. `result` is already computed when this runs, so the
+// test's reads happen before the file is gone.
+let finish (db: String) (result: Stdlib.Test.Result) : Stdlib.Test.Result =
+  match Stdlib.Cli.File.delete db with
+  | Ok _ -> result
+  | Error error ->
+    Stdlib.Test.all [ result, Stdlib.Test.fail error.message ]
+
+// Give each test a fresh temporary database file and delete it afterwards.
+let withDatabase (run: String -> Stdlib.Test.Result) : Stdlib.Test.Result =
+  match Stdlib.Cli.File.createTemp () with
+  | Error error -> Stdlib.Test.fail error.message
+  | Ok db -> finish db (run db)
+
+// Cleanup must preserve a failing test's result.
+test cleansUpAfterAssertionFailure =
+  match Stdlib.Cli.File.createTemp () with
+  | Error error -> Stdlib.Test.fail error.message
+  | Ok db ->
+    match finish db (Stdlib.Test.fail "intentional failure") with
+    | Pass -> Stdlib.Test.fail "cleanup swallowed the assertion failure"
+    | Fail messages ->
+      Stdlib.Test.all
+        [ messages |> Stdlib.Test.equal [ "intentional failure" ]
+          Stdlib.Cli.File.exists db |> Stdlib.Test.equal false ]
+
+// CREATE + READ — a column of text, with a quoted value inserted via params.
+test createRead =
+  withDatabase (fun db ->
+    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+    let _ =
+      Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "INSERT INTO t (id, name) VALUES (@p0, @p1)"
+        [ "1", "o'brien" ]
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "INSERT INTO t (id, name) VALUES (@p0, @p1)"
+        [ "2", "bob" ]
+    Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name"
+    |> Stdlib.Test.equal [ "o'brien", "bob" ])
+
+// A BLOB column comes back as `Bytes`, and `asBytes` is how you get it out. The
+// `Value` type carries blobs through rather than stringifying them; without an
+// accessor a caller matches the case by hand, which is where a stringified blob
+// comes from.
+test blobRoundTrip =
+  withDatabase (fun db ->
+    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+    let _ =
+      Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "INSERT INTO t (id, name) VALUES (@p0, @p1)"
+        [ "1", "hi" ]
+
+    (match Stdlib.Sqlite.query db "SELECT CAST(name AS BLOB) AS b FROM t" with
+    | Ok [ row ] ->
+      match Stdlib.Dict.get row "b" with
+      | Some v ->
+        Stdlib.Sqlite.asBytes v
+        |> Stdlib.Option.map (fun b ->
+          Stdlib.String.fromBytesWithReplacement (Stdlib.Blob.toList b))
+      | None -> None
+    | _ -> None)
+    |> Stdlib.Test.equal (Some "hi"))
+
+// A TEXT cell is not a blob, and asking for one says so rather than coercing.
+test textIsNotBlob =
+  Stdlib.Sqlite.asBytes (Stdlib.Sqlite.Value.Text "hi") |> Stdlib.Test.equal None
+
+// UPDATE + DELETE — final state after renaming id=1 and removing id=2 is just
+// ["updated"].
+test updateDelete =
+  withDatabase (fun db ->
+    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+    let _ =
+      Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "INSERT INTO t (id, name) VALUES (@p0, @p1)"
+        [ "1", "o'brien" ]
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "INSERT INTO t (id, name) VALUES (@p0, @p1)"
+        [ "2", "bob" ]
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "UPDATE t SET name = @p0 WHERE id = @p1"
+        [ "updated", "1" ]
+    let _ =
+      Stdlib.Sqlite.execP db "DELETE FROM t WHERE id = @p0" [ "2" ]
+    Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name"
+    |> Stdlib.Test.equal [ "updated" ])
+
+// scalarInt (count) + scalarIntP (per-key lookup), read as a body tuple.
+test scalarQueries =
+  withDatabase (fun db ->
+    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+    let _ =
+      Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "INSERT INTO t (id, name) VALUES (@p0, @p1)"
+        [ "1", "alice" ]
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "INSERT INTO t (id, name) VALUES (@p0, @p1)"
+        [ "2", "bob" ]
+    ((Stdlib.Sqlite.scalarInt db "SELECT count(*) AS n FROM t" "n")
+      |> Stdlib.Option.withDefault 0L,
+     (Stdlib.Sqlite.scalarIntP db
+        "SELECT id FROM t WHERE name = @p0" [ "bob" ] "id")
+      |> Stdlib.Option.withDefault 0L)
+    |> Stdlib.Test.equal (2L, 2L))
+
+// queryOneP + textField + intField, read in the body via an inline match.
+test queryOneRow =
+  withDatabase (fun db ->
+    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+    let _ =
+      Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "INSERT INTO t (id, name) VALUES (@p0, @p1)"
+        [ "2", "bob" ]
+    (match Stdlib.Sqlite.queryOneP db
+             "SELECT id, name FROM t WHERE id = @p0" [ "2" ] with
+    | Some r -> (Stdlib.Sqlite.textField r "name", Stdlib.Sqlite.intField r "id")
+    | None -> (None, None))
+    |> Stdlib.Test.equal (Some "bob", Some 2L))
+
+// execBatch — several statements in ONE transaction, one statement run per parameter
+// row.
+test execBatch =
+  withDatabase (fun db ->
+    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+    let _ =
+      Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+    let r =
+      Stdlib.Sqlite.execBatch
+        db
+        [ ("INSERT INTO t (id, name) VALUES (@p0, @p1)",
+           [ [ "1", "alice" ], [ "2", "bob" ] ]),
+          ("UPDATE t SET name = @p0 WHERE id = @p1", [ [ "carol", "1" ] ]) ]
+    (Stdlib.Result.isOk r,
+     Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name")
+    |> Stdlib.Test.equal (true, [ "carol", "bob" ]))
+
+// The whole point of the batch: a statement that fails takes the ones before it with
+// it. Without the transaction, "bob" would be sitting in the table after a call that
+// reported an error.
+test failedBatchRollsBack =
+  withDatabase (fun db ->
+    let _ = Stdlib.Sqlite.exec db "DROP TABLE IF EXISTS t"
+    let _ =
+      Stdlib.Sqlite.exec db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+    let _ =
+      Stdlib.Sqlite.execP
+        db
+        "INSERT INTO t (id, name) VALUES (@p0, @p1)"
+        [ "1", "alice" ]
+    let r =
+      Stdlib.Sqlite.execBatch
+        db
+        [ ("INSERT INTO t (id, name) VALUES (@p0, @p1)", [ [ "2", "bob" ] ]),
+          ("INSERT INTO t (id, name) VALUES (@p0, @p1)", [ [ "1", "collides" ] ]) ]
+    (Stdlib.Result.isError r,
+     Stdlib.Sqlite.column db "SELECT name FROM t ORDER BY id" "name")
+    |> Stdlib.Test.equal (true, [ "alice" ]))

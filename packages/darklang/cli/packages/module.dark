@@ -29,6 +29,7 @@ let declarationName
   | Impl i ->
     Stdlib.Option.Option.Some
       ($"{LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.typeReferenceHeadName i.forType}.{i.trait_.typ.name}")
+  | Test test -> Stdlib.Option.Option.Some test.name.name
   | SubModule modul ->
     Stdlib.Option.Option.Some (Stdlib.Tuple2.second modul.name)
   | Expr _ -> Stdlib.Option.Option.None
@@ -223,7 +224,7 @@ let help (_state: Cli.AppState) : String =
     ""
     "Usage: module <module> <source-file|->"
     ""
-    "The source may contain functions, types, values, and nested modules."
+    "The source may contain functions, types, values, tests, and nested modules."
     "All declarations are validated, then saved as WIP in one batch; the at-rest"
     "type check is reported and `commit` refuses definite type errors."
     ""
@@ -232,6 +233,7 @@ let help (_state: Cli.AppState) : String =
     "  val greeting = \"hello\""
     "  let double (n: Int) : Int = n * 2"
     "  let quadruple (n: Int) : Int = double (double n)"
+    "  test doubles = double 4 |> Stdlib.Test.equal 8"
     "  EOF"
     "  dark eval 'Me.Example.quadruple 5'"
   ] |> Stdlib.String.join "\n"

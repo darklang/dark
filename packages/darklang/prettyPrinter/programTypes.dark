@@ -1580,6 +1580,32 @@ module PackageLocation =
     $"{loc.owner}.{modulesPart}{loc.name}"
 
 
+let packageTest
+  (ctx: Context)
+  (test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
+  : String =
+  let name =
+    match
+      Darklang.LanguageTools.PackageManager.pickLocation
+        (Context.toPickContext ctx)
+        (LanguageTools.PackageManager.Test.locations ctx.branchId test.hash)
+  with
+  | Some location -> location.name
+  | None -> "test_" + (LanguageTools.ProgramTypes.hashToShort test.hash)
+  let docComment = formatDocComment test.description
+  let body = expr ctx test.body
+  match test.expectedError with
+  | None -> $"{docComment}test {name} = {body}"
+  | Some expected ->
+    let (keyword, message) =
+      match expected with
+      | RuntimeError message -> ("raises", message)
+      | SqlCompilerError message -> ("sqlerror", message)
+    let expectation =
+      $"=> {keyword} \"{PrettyPrinter.escapeSpecialCharacters message}\""
+    $"{docComment}test {name} =\n{PrettyPrinter.indent body}\n{PrettyPrinter.indent expectation}"
+
+
 module PackageFn =
   let parameter
     (ctx: Context)
@@ -1793,6 +1819,9 @@ let sourceOf
   | TraitImpl ->
     LanguageTools.PackageManager.TraitImpl.get hash
     |> Stdlib.Option.map (fun i -> PrettyPrinter.ProgramTypes.packageImpl ctx i)
+  | Test ->
+    LanguageTools.PackageManager.Test.get hash
+    |> Stdlib.Option.map (fun t -> PrettyPrinter.ProgramTypes.packageTest ctx t)
 
 
 module BuiltinFn =
@@ -1878,6 +1907,15 @@ module PackageOp =
       let traitName = NameResolution.traitName ctx i.trait_
       $"AddTraitImpl {traitName} for {typeReference ctx i.self}  [{LanguageTools.ProgramTypes.hashToShort i.hash}]"
 
+    | AddTest test ->
+      let source =
+        expr ctx test.body
+        |> Stdlib.String.split "\n"
+        |> Stdlib.List.map Stdlib.String.trim
+        |> Stdlib.List.filter (fun line -> line != "")
+        |> (fun lines -> Stdlib.String.join lines " ")
+      $"AddTest {source}  [{LanguageTools.ProgramTypes.hashToShort test.hash}]"
+
     | SetName(loc, target, _) ->
       let path = PackageLocation.packageLocation loc
       let kind =
@@ -1887,6 +1925,7 @@ module PackageOp =
         | PackageFn _ -> "Fn"
         | PackageTrait _ -> "Trait"
         | PackageTraitImpl _ -> "Impl"
+        | PackageTest _ -> "Test"
       // Name the hash it binds. "SetName Fn -> Some.Path" said which name changed but not what it now means,
       // so an Add and the SetName that named it were two lines with nothing tying them together.
       let hash = LanguageTools.ProgramTypes.Reference.hash target

@@ -13,6 +13,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = NameResolver
 module PackageLocation = LibDB.PackageLocation
+module HashStabilization = LibDB.HashStabilization
 open LibSerialization.Hashing
 
 
@@ -21,7 +22,9 @@ type private WTPackageModule =
     types : List<WT.PackageType.PackageType>
     values : List<WT.PackageValue.PackageValue>
     traits : List<WT.PackageTrait.PackageTrait>
-    impls : List<WT.PackageTraitImpl.PackageTraitImpl> }
+    impls : List<WT.PackageTraitImpl.PackageTraitImpl>
+    tests : List<WT.PackageTest.PackageTest>
+    dbs : List<List<string> * WT.TypeDecl> }
 /// Lower a WT package module to PackageOps (WT2PT lowering + AddX/SetName op
 /// generation).
 let private wtModuleToOps
@@ -31,16 +34,6 @@ let private wtModuleToOps
   (modul : WTPackageModule)
   : Ply<List<PT.PackageOp>> =
   uply {
-    let! fns =
-      modul.fns
-      |> Ply.List.mapSequentially (fun fn ->
-        WT2PT.PackageFn.toPT
-          builtins
-          pm
-          onMissing
-          (WT2PT.PackageFn.Name.toModules fn.name)
-          fn)
-
     let! types =
       modul.types
       |> Ply.List.mapSequentially (fun typ ->
@@ -50,12 +43,39 @@ let private wtModuleToOps
           (WT2PT.PackageType.Name.toModules typ.name)
           typ)
 
+    // Types in this file are not in `pm` yet. Give them real hashes in a
+    // temporary overlay so functions, values, and tests can resolve same-file
+    // types, including inline [<DB>] row types. The overlay does not save ops.
+    let nameBasedHash = PackageLocation.placeholderHash
+    let typeOps : List<PT.PackageOp> =
+      [ for (wtType, ptType) in List.zip modul.types types do
+          yield PT.PackageOp.AddType ptType
+          let loc = WT2PT.PackageType.Name.toLocation wtType.name
+          yield PT.PackageOp.SetName(loc, PT.PackageType(nameBasedHash loc), None) ]
+    let pmWithTypes =
+      if List.isEmpty typeOps then
+        pm
+      else
+        typeOps
+        |> HashStabilization.computeRealHashes
+        |> LibDB.PackageManager.withExtraOps pm
+
+    let! fns =
+      modul.fns
+      |> Ply.List.mapSequentially (fun fn ->
+        WT2PT.PackageFn.toPT
+          builtins
+          pmWithTypes
+          onMissing
+          (WT2PT.PackageFn.Name.toModules fn.name)
+          fn)
+
     let! values =
       modul.values
       |> Ply.List.mapSequentially (fun value ->
         WT2PT.PackageValue.toPT
           builtins
-          pm
+          pmWithTypes
           onMissing
           (WT2PT.PackageValue.Name.toModules value.name)
           value)
@@ -75,16 +95,32 @@ let private wtModuleToOps
           onMissing
           (i.name.owner :: i.name.modules @ [ i.name.name ])
           i)
+    let! tests =
+      modul.tests
+      |> Ply.List.mapSequentially (fun test ->
+        uply {
+          let currentModule = WT2PT.PackageTest.Name.toModules test.name
+          let! testDBs =
+            modul.dbs
+            |> List.filter (fun (path, _) ->
+              List.length path <= List.length currentModule
+              && List.take (List.length path) currentModule = path)
+            |> Ply.List.mapSequentially (fun (path, db) ->
+              uply {
+                let rowType = WT.dbRowTypeReference path db
+                let! typ =
+                  WT2PT.TypeReference.toPT pmWithTypes onMissing path rowType
+                return db.name.name, typ
+              })
+          let! ptTest =
+            WT2PT.PackageTest.toPT builtins pmWithTypes onMissing currentModule test
+          return { ptTest with testDBs = testDBs }
+        })
 
-    // Set*Name ops carry a placeholder; the real hash replaces it in
-    // LoadPackagesFromDisk.computeRealHashes.
-    let nameBasedHash = PackageLocation.placeholderHash
-
+    // Emit the original type ops once. The temporary overlay used stabilized
+    // copies; the final load pass replaces these SetName placeholders.
     let ops : List<PT.PackageOp> =
-      [ for (wtType, ptType) in List.zip modul.types types do
-          yield PT.PackageOp.AddType ptType
-          let loc = WT2PT.PackageType.Name.toLocation wtType.name
-          yield PT.PackageOp.SetName(loc, PT.PackageType(nameBasedHash loc), None)
+      [ yield! typeOps
 
         for (wtValue, ptValue) in List.zip modul.values values do
           yield PT.PackageOp.AddValue ptValue
@@ -105,7 +141,12 @@ let private wtModuleToOps
           yield PT.PackageOp.AddTraitImpl ptImpl
           let loc = WT2PT.TraitImpl.Name.toLocation wtImpl.name
           yield
-            PT.PackageOp.SetName(loc, PT.PackageTraitImpl(nameBasedHash loc), None) ]
+            PT.PackageOp.SetName(loc, PT.PackageTraitImpl(nameBasedHash loc), None)
+
+        for (wtTest, ptTest) in List.zip modul.tests tests do
+          yield PT.PackageOp.AddTest ptTest
+          let loc = WT2PT.PackageTest.Name.toLocation wtTest.name
+          yield PT.PackageOp.SetName(loc, PT.PackageTest(nameBasedHash loc), None) ]
 
     return ops
   }
@@ -122,6 +163,8 @@ type private PkgItem =
   | PValue of WT.PackageValue.PackageValue
   | PTrait of WT.PackageTrait.PackageTrait
   | PImpl of WT.PackageTraitImpl.PackageTraitImpl
+  | PTest of WT.PackageTest.PackageTest
+  | PDB of List<string> * WT.TypeDecl
   | PErr of WT.Range * string
 
 let private noOwner (kind : string) (name : string) : string =
@@ -149,11 +192,17 @@ let private packageItem (item : WTSourceFile.Item) : PkgItem =
     match memberPath with
     | owner :: rest -> PImpl(WT.packageImpl owner rest impl)
     | [] -> PErr(impl.range, noOwner "impl" impl.trait_.typ.name)
+  | WTSourceFile.Test(path, test) ->
+    match path with
+    | owner :: modules -> PTest(WT.packageTest owner modules test)
+    | [] -> PErr(test.range, noOwner "test" test.name.name)
   | WTSourceFile.Expr(_, e) ->
     PErr(WT.exprRange e, "expressions are not allowed in package files")
-  | WTSourceFile.TypeDB(_, t) ->
-    PErr(t.range, "[<DB>] declarations are not allowed in package files")
-  | WTSourceFile.Test(_, t) ->
+  | WTSourceFile.TypeDB(path, t) ->
+    match path with
+    | _ :: _ -> PDB(path, t)
+    | [] -> PErr(t.range, noOwner "DB" t.name.name)
+  | WTSourceFile.Assertion(_, t) ->
     PErr(t.range, "test assertions are not allowed in package files")
 
 /// Lower a parsed package file to module-qualified package declarations, plus
@@ -172,6 +221,8 @@ let private packageDecls
     items
     |> List.choose (function
       | PType t -> Some t
+      | PDB(owner :: modules, ({ definition = WT.TDRecord _ } as t)) ->
+        Some(WT.packageType owner modules t)
       | _ -> None)
   let values =
     items
@@ -188,12 +239,28 @@ let private packageDecls
     |> List.choose (function
       | PImpl i -> Some i
       | _ -> None)
+  let tests =
+    items
+    |> List.choose (function
+      | PTest test -> Some test
+      | _ -> None)
+  let dbs =
+    items
+    |> List.choose (function
+      | PDB(path, db) -> Some(path, db)
+      | _ -> None)
   let errors =
     items
     |> List.choose (function
       | PErr(r, msg) -> Some(r, msg)
       | _ -> None)
-  ({ fns = fns; types = types; values = values; traits = traits; impls = impls },
+  ({ fns = fns
+     types = types
+     values = values
+     traits = traits
+     impls = impls
+     tests = tests
+     dbs = dbs },
    errors)
 
 /// Parse + lower a package file: the nested module tree gives module-qualified

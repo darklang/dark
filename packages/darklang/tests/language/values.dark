@@ -1,0 +1,86 @@
+module Darklang.Language.Tests.Values
+
+module UserDefined =
+  val stringValue = "test"
+  val int64Value = 5L
+  val intValue = 5
+  val uint64Value = 5UL
+  val int32Value = 5l
+  val uint32Value = 5ul
+  val int16Value = 5s
+  val uint16Value = 5us
+  val int8Value = 5y
+  val uint8Value = 5uy
+  val floatValue = 5.6
+  val boolValue = true
+  val tupleValue = (1L, 2L, 3L)
+  val charValue = 'c'
+  val unitValue = ()
+  val enumValue = Stdlib.Option.Option.Some 5L
+
+  test values =
+    Stdlib.Test.all
+      [ stringValue |> Stdlib.Test.equal "test"
+        "test" |> Stdlib.Test.equal stringValue
+        UserDefined.stringValue |> Stdlib.Test.equal "test"
+        int64Value |> Stdlib.Test.equal 5L
+        UserDefined.int64Value |> Stdlib.Test.equal 5L
+        intValue |> Stdlib.Test.equal 5
+        UserDefined.intValue |> Stdlib.Test.equal 5
+        uint64Value |> Stdlib.Test.equal 5UL
+        UserDefined.uint64Value |> Stdlib.Test.equal 5UL
+        int32Value |> Stdlib.Test.equal 5l
+        UserDefined.int32Value |> Stdlib.Test.equal 5l
+        uint32Value |> Stdlib.Test.equal 5ul
+        UserDefined.uint32Value |> Stdlib.Test.equal 5ul
+        int16Value |> Stdlib.Test.equal 5s
+        UserDefined.int16Value |> Stdlib.Test.equal 5s
+        uint16Value |> Stdlib.Test.equal 5us
+        UserDefined.uint16Value |> Stdlib.Test.equal 5us
+        int8Value |> Stdlib.Test.equal 5y
+        UserDefined.int8Value |> Stdlib.Test.equal 5y
+        uint8Value |> Stdlib.Test.equal 5uy
+        UserDefined.uint8Value |> Stdlib.Test.equal 5uy
+        floatValue |> Stdlib.Test.equal 5.6
+        UserDefined.floatValue |> Stdlib.Test.equal 5.6
+        boolValue |> Stdlib.Test.equal true
+        UserDefined.boolValue |> Stdlib.Test.equal true
+        tupleValue |> Stdlib.Test.equal (1L, 2L, 3L)
+        UserDefined.tupleValue |> Stdlib.Test.equal (1L, 2L, 3L)
+        charValue |> Stdlib.Test.equal 'c'
+        UserDefined.charValue |> Stdlib.Test.equal 'c'
+        unitValue |> Stdlib.Test.equal ()
+        UserDefined.unitValue |> Stdlib.Test.equal ()
+        enumValue |> Stdlib.Test.equal (Stdlib.Option.Option.Some 5L)
+        UserDefined.enumValue |> Stdlib.Test.equal (Stdlib.Option.Option.Some 5L)
+        Ok 5L |> Stdlib.Test.equal (Stdlib.Result.Result.Ok 5L) ]
+
+  type MyRecord = { a: Bool; b: String }
+  val recordValue = MyRecord { a = true; b = "glasses" }
+
+  test recordValueField =
+    (Stdlib.Bool.not recordValue.a) |> Stdlib.Test.equal false
+
+module Package =
+  test values =
+    Stdlib.Test.all
+      [ Darklang.Test.Values.stringValue |> Stdlib.Test.equal "test"
+        "test" |> Stdlib.Test.equal Darklang.Test.Values.stringValue
+        Darklang.Test.Values.int128Value |> Stdlib.Test.equal 5Q
+        Darklang.Test.Values.uint128Value |> Stdlib.Test.equal 5Z
+        Darklang.Test.Values.int64Value |> Stdlib.Test.equal 5L
+        Darklang.Test.Values.intValue |> Stdlib.Test.equal 5
+        Darklang.Test.Values.uint64Value |> Stdlib.Test.equal 5UL
+        Darklang.Test.Values.int32Value |> Stdlib.Test.equal 5l
+        Darklang.Test.Values.uint32Value |> Stdlib.Test.equal 5ul
+        Darklang.Test.Values.int16Value |> Stdlib.Test.equal 5s
+        Darklang.Test.Values.uint16Value |> Stdlib.Test.equal 5us
+        Darklang.Test.Values.int8Value |> Stdlib.Test.equal 5y
+        Darklang.Test.Values.uint8Value |> Stdlib.Test.equal 5uy
+        Darklang.Test.Values.floatValue |> Stdlib.Test.equal 5.6
+        Darklang.Test.Values.boolValue |> Stdlib.Test.equal true
+        Darklang.Test.Values.tupleValue |> Stdlib.Test.equal (1L, 2L, 3L)
+        Darklang.Test.Values.charValue |> Stdlib.Test.equal 'c'
+        Darklang.Test.Values.unitValue |> Stdlib.Test.equal ()
+        Darklang.Test.Values.enumValue
+        |> Stdlib.Test.equal (Stdlib.Option.Option.Some 5L) ]

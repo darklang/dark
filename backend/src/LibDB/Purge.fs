@@ -32,6 +32,7 @@ let tables : List<string> =
     "package_functions"
     "package_traits"
     "package_trait_impls"
+    "package_tests"
     "package_ops"
     "package_dependencies"
     "deprecations"

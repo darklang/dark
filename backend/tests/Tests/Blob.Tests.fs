@@ -543,6 +543,41 @@ let sweepDeletesOrphansButKeepsReferenced =
         |> Sql.executeStatementAsync
       cleanup.Wait()
   }
+let sweepKeepsUserDbBlobs =
+  testTask "sweep: nested User DB blob stays until its row is deleted" {
+    let bytes = uniquePayload "user-db-sweep"
+    let hash = Blob.sha256Hex bytes
+    let rowId = System.Guid.NewGuid()
+    let rowJson =
+      "{\"nested\":[{\"Some\":[{\"type\":\"blob\",\"hash\":\""
+      + hash
+      + "\",\"length\":"
+      + string bytes.Length
+      + "}]}]}"
+    let deleteRow () =
+      execSqlP "DELETE FROM user_data_v0 WHERE id = @id" [ "id", Sql.uuid rowId ]
+    try
+      do! PMBlob.insert hash bytes |> Ply.toTask
+      do!
+        execSqlP
+          """INSERT INTO user_data_v0
+             (id, table_tlid, user_version, dark_version, key, data)
+             VALUES (@id, 0, 0, 0, @key, @data)"""
+          [ "id", Sql.uuid rowId
+            "key", Sql.string (string rowId)
+            "data", Sql.string rowJson ]
+      let! _ = PMBlob.sweepOrphans () |> Ply.toTask
+      let! kept = PMBlob.get hash |> Ply.toTask
+      Expect.equal kept (Some bytes) "sweep preserves the nested row reference"
+      do! deleteRow ()
+      let! deleted = PMBlob.sweepOrphans () |> Ply.toTask
+      Expect.isGreaterThanOrEqual deleted 1L "the unreferenced blob is reclaimed"
+      let! gone = PMBlob.get hash |> Ply.toTask
+      Expect.isNone gone "deleting the row releases the blob"
+    finally
+      (deleteRow ()).GetAwaiter().GetResult()
+  }
+
 // Idempotence isn't a separate case — Expecto runs in parallel and
 // sweep mutates shared state, so a sibling could cause false failures.
 // The "second sweep returns 0" property would need test-isolation.
@@ -892,6 +927,7 @@ let tests =
       persistableAcceptsApplicableAndDDB
       persistableRejectsNestedBadShapes
       sweepDeletesOrphansButKeepsReferenced
+      sweepKeepsUserDbBlobs
       equalsEphemeralEphemeralSameUuid
       equalsEphemeralEphemeralSameBytesIsFalse
       equalsEphemeralPersistentSameBytesIsFalse

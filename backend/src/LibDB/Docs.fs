@@ -207,6 +207,26 @@ let onValue
   | PT.WholeItem -> { v with description = text }
   | _ -> v
 
+/// A test's doc. A test has no fields, cases or parameters, so only `WholeItem`
+/// has one.
+module Test =
+  /// The doc <param part> of <param test> declares, or None for a part a test does not have.
+  let get (part : PT.DocPart) (test : PT.PackageTest.PackageTest) : Option<string> =
+    match part with
+    | PT.WholeItem -> Some test.description
+    | _ -> None
+
+  /// <param test> with <param part>'s doc replaced by <param text>: a copy, nothing changes in
+  /// place. A part a test does not have leaves it as it was.
+  let set
+    (part : PT.DocPart)
+    (text : string)
+    (test : PT.PackageTest.PackageTest)
+    : PT.PackageTest.PackageTest =
+    match part with
+    | PT.WholeItem -> { test with description = text }
+    | _ -> test
+
 
 // ---------------------
 // What a location says of its own
@@ -418,6 +438,9 @@ let private declaredAt
         | PT.ItemKind.TraitImpl ->
           "package_trait_impls",
           (fun bytes -> inImpl part (BS.PT.TraitImpl.deserialize hash bytes))
+        | PT.ItemKind.Test ->
+          "package_tests",
+          (fun bytes -> Test.get part (BS.PT.PackageTest.deserialize hash bytes))
 
       let! stored =
         bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->

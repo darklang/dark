@@ -6,6 +6,12 @@ open Prelude
 
 module Permission = LibExecution.Permissions
 
+/// A run's private baseline. Only the host can create it; callers can copy it
+/// into a worker directory and release it, without seeing its path.
+type TestStoreSnapshot =
+  inherit System.IDisposable
+  abstract CopyTo : target : string -> Result<unit, string>
+
 /// A flag for the C library's open() call, named rather than numbered.
 /// `Host.openFlag` turns it into the platform's number.
 [<RequireQualifiedAccess>]
@@ -104,6 +110,19 @@ type Operation =
   /// With a timeout, a child still running when it elapses is killed and the
   /// operation fails with ETIMEDOUT.
   | ProcessRun of program : string * args : List<string> * timeoutMs : Option<int>
+  /// Prepare a lazy baseline shared by this run's isolated tests.
+  | TestStoreSnapshot of snapshot : (string -> Result<unit, string>)
+  /// Native test infrastructure. The store owner supplies the online backup;
+  /// the host owns the directory, process, bounded output and cleanup.
+  | IsolatedTest of
+    snapshot : (string -> Result<unit, string>) *
+    branch : System.Guid *
+    request : byte[] *
+    policyStore : byte[] *
+    access : byte[] *
+    timeoutMs : int *
+    columns : int *
+    rows : int
   /// Run to completion on THIS terminal: stdin, stdout and stderr are inherited
   /// rather than captured, and only the exit code comes back. For programs that
   /// draw, like an editor; a redirected one paints into a pipe.
@@ -159,6 +178,13 @@ type Response =
   | EnvValue of Option<string>
   | EnvEntries of List<string * string>
   | ProcessOutcome of exitCode : int * stdout : string * stderr : string
+  | TestStoreSnapshot of TestStoreSnapshot
+  | IsolatedTestOutcome of
+    exitCode : int *
+    stdout : string *
+    stderr : string *
+    result : Option<byte[]> *
+    cleanupErrors : List<string>
   | ProcessHandle of int64
   | HttpServerHandle of int64
   /// Send-time failures (timeout, network, bad header) are guest-visible
@@ -265,6 +291,8 @@ let describeOperation (op : Operation) : string =
     $"http-stream {method} {redactUrl url}"
   | Operation.HttpServerBind port -> $"http-server-bind {port}"
   | Operation.ProcessRun(program, _, _) -> $"process-run {program}"
+  | Operation.IsolatedTest _ -> "isolated package test"
+  | Operation.TestStoreSnapshot _ -> "package test baseline"
   | Operation.ProcessRunInteractive(program, _) ->
     $"process-run-interactive {program}"
   | Operation.ProcessSpawn(program, _) -> $"process-spawn {program}"

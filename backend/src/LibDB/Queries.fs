@@ -29,7 +29,7 @@ module BS = LibSerialization.Binary.Serialization
 ///
 /// This is the SECOND writer of that shape; `SCM.Wire.wireEncodeAt` is the first, and the relay picks
 /// between them per request, so a client meets both on the same endpoint. They have to agree field for
-/// field. `backend/testfiles/execution/scm/sync-wire.dark` compares the two envelopes; change one shape
+/// field. `packages/darklang/tests/scm/wire.dark` compares the two envelopes; change one shape
 /// and change the other.
 let exportPageJson
   (sinceSeq : int64)

@@ -28,6 +28,7 @@
     <Compile Include="Binary/Serializers/PT/PackageValue.fs" />
     <Compile Include="Binary/Serializers/PT/PackageFn.fs" />
     <Compile Include="Binary/Serializers/PT/Trait.fs" />
+    <Compile Include="Binary/Serializers/PT/PackageTest.fs" />
     <Compile Include="Binary/Serializers/PT/PackageOp.fs" />
     <Compile Include="Binary/Serializers/PT/Toplevel.fs" />
 

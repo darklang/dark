@@ -1826,9 +1826,15 @@ module DvalCreator =
     (resolvedTypeArgs : List<string * ValueType>)
     (expectedFields : NEList<TypeDeclaration.RecordField>)
     : Ply<Dval> =
+    // A record built outside the interpreter (by a builtin, or converted from an F# value) can
+    // carry no type args for a generic type. Treat each as unknown and let the update infer it,
+    // as constructing the record would; zipping the two lists used to raise an internal error.
     let resolvedTypeArgs =
-      List.zip typeArgsBeforeUpdate resolvedTypeArgs
-      |> List.map (fun (beforeUpdate, (name, _)) -> (name, beforeUpdate))
+      if List.length typeArgsBeforeUpdate = List.length resolvedTypeArgs then
+        List.zip typeArgsBeforeUpdate resolvedTypeArgs
+        |> List.map (fun (beforeUpdate, (name, _)) -> (name, beforeUpdate))
+      else
+        resolvedTypeArgs |> List.map (fun (name, _) -> (name, ValueType.Unknown))
 
     // The record type's parameters shadow the caller's, as in `recordAfterResolve`. Without this
     // a type parameter the function happens to share a name with fills the record's: an update

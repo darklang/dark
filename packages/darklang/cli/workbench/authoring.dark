@@ -25,7 +25,7 @@ let leafNameOf (src: String) : String =
     Stdlib.String.split beforeParen "<" |> Stdlib.List.head |> Stdlib.Option.withDefault beforeParen
   Stdlib.String.split beforeAngle ":" |> Stdlib.List.head |> Stdlib.Option.withDefault beforeAngle
 
-/// Save the editor's declaration: the buffer holds a full `let`/`type`/`val` declaration. Derive the leaf name
+/// Save the editor's declaration: the buffer holds a full `let`/`type`/`val`/`test` declaration. Derive the leaf name
 /// from it, resolve the target location relative to the current tree spot, then parse → WrittenTypes → PT →
 /// Add*+SetName WIP ops. On any failure keep the editor open with an error line (a port of the create-inline
 /// core without the stdout/AppState coupling).
@@ -167,6 +167,16 @@ let saveEditing (state: State) (es: EditingState) : Step =
                       $"a trait is already called {fullName}, so this implementation cannot take that name; write it from the module above, or declare the trait there"
                   | None -> Stdlib.Result.Result.Ok ops
             | _ -> Stdlib.Result.Result.Error "not an implementation"
+          else if es.kind == "test" then
+            match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Test _ -> true | _ -> false) with
+            | Some(Test wt) ->
+              let (pt, unresolved) = LanguageTools.WrittenTypesToProgramTypes.TestDeclaration.toTestPT ctx wt
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error (unresolvedMessage unresolved)
+              else
+                Stdlib.Result.Result.Ok
+                  [ LanguageTools.ProgramTypes.PackageOp.AddTest pt
+                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageTest pt.hash, Stdlib.Option.Option.None) ]
+            | _ -> Stdlib.Result.Result.Error "not a test definition"
           else
             match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Function _ -> true | _ -> false) with
             | Some(Function wf) ->
@@ -302,6 +312,10 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
     else if item.kind == "val" then
       match results.values with
       | i :: _ -> Stdlib.Option.Option.Some(("value", PrettyPrinter.ProgramTypes.packageValue ctx i.entity))
+      | [] -> Stdlib.Option.Option.None
+    else if item.kind == "test" then
+      match results.tests with
+      | i :: _ -> Stdlib.Option.Option.Some(("test", PrettyPrinter.ProgramTypes.packageTest ctx i.entity))
       | [] -> Stdlib.Option.Option.None
     else if item.kind == "fn" then
       match results.fns with

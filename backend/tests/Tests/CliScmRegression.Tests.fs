@@ -363,6 +363,50 @@ let private partialCommitTakesNamesNotBodies =
       do! start state
     })
 
+/// A dependency's hash can be committed while the name used by its caller is
+/// still new. Select that naming without dragging unrelated aliases along.
+let private partialCommitTakesNewNameForCommittedContent =
+  instanceTest
+    "--include= takes a needed new name for committed content, leaving its alias"
+    (fun state ->
+      task {
+        do! start state
+        do! fn state "Tests.SharedCommit.committed" "() : Int64 = 19327L"
+        do! commit state "existing dependency content"
+        do! fn state "Tests.SharedCommit.dep" "() : Int64 = 19327L"
+        do! fn state "Tests.SharedCommit.unrelated" "() : Int64 = 19327L"
+        do!
+          fn
+            state
+            "Tests.SharedCommit.caller"
+            "() : Int64 = Tests.SharedCommit.dep () + 1L"
+
+        do!
+          commitOnly
+            state
+            "caller and its dependency name"
+            "Tests.SharedCommit.caller"
+        do! evals state "Tests.SharedCommit.caller ()" "19328" "the caller runs"
+        do!
+          shows
+            state
+            [ "status" ]
+            "1 item changed"
+            "only the unrelated name is left"
+        let! remaining = runCliPlain state [ "diff" ]
+        Expect.stringContains
+          remaining
+          "Tests.SharedCommit.unrelated"
+          "the unrelated alias stays in the draft"
+        Expect.isFalse
+          (remaining.Contains "Tests.SharedCommit.dep")
+          "the required name was committed"
+        Expect.isFalse
+          (remaining.Contains "Tests.SharedCommit.caller")
+          "the selected caller was committed"
+        do! start state
+      })
+
 /// Ocean #15. `undo` writes a `Decision`, and `discard <name>` only recognised `SetName`, so it
 /// reported the change dropped and changed nothing.
 let private discardSeesWhatUndoWrote =
@@ -625,6 +669,7 @@ let tests : List<Test> =
     deprecateIsVisibleOnItsBranch
     branchDiscardKeepsCommittedWork
     partialCommitTakesNamesNotBodies
+    partialCommitTakesNewNameForCommittedContent
     discardSeesWhatUndoWrote
     discardCountsOpsNotNames
     mergeIsGatedLikeCommit

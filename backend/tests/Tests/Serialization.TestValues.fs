@@ -884,6 +884,24 @@ module ProgramTypes =
       description = "an impl" }
 
   let impls = [ impl ]
+  let packageTest : PT.PackageTest.PackageTest =
+    { hash = hashPT
+      body = PT.EBool(id, true)
+      description = "native test"
+      expectedError = Some(PT.ExpectedError.RuntimeError "expected failure")
+      testDBs = [ "Items", PT.TString ]
+      permissionCeiling = Some Set.empty }
+
+  let sqlPackageTest =
+    { packageTest with
+        expectedError = Some(PT.ExpectedError.SqlCompilerError "unsupported field")
+        testDBs = [] }
+
+  let packageTests =
+    [ packageTest
+      sqlPackageTest
+      { packageTest with testDBs = [] }
+      { packageTest with testDBs = []; permissionCeiling = None } ]
 
   let packageLocation : PackageLocation =
     { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "map" }
@@ -918,6 +936,7 @@ module ProgramTypes =
       AddFn packageFns[0]
       AddTrait trait_
       AddTraitImpl impl
+      AddTest packageTests[0]
 
       SetName(loc, Reference.PackageFn hashPT, None)
       SetName(otherLoc, Reference.PackageTrait hashPT, None)
@@ -925,6 +944,7 @@ module ProgramTypes =
       SetName(loc, Reference.PackageFn hashPT, Some hashPT)
       SetName(otherLoc, Reference.PackageType hashPT, Some shortHash)
       SetName(otherLoc, Reference.PackageValue shortHash, None)
+      SetName(otherLoc, Reference.PackageTest hashPT, None)
 
       Unbind(loc, None)
       Unbind(otherLoc, Some hashPT)

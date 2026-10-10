@@ -1,0 +1,256 @@
+module Darklang.Language.Tests.Enums
+
+test options =
+  Stdlib.Test.all
+    [ Stdlib.Option.Option.None |> Stdlib.Test.equal Stdlib.Option.Option.None
+      ((Stdlib.List.head []) == Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal true
+      (Stdlib.List.head []) |> Stdlib.Test.equal Stdlib.Option.Option.None ]
+
+test okPayloadErrorRaises =
+  Stdlib.Result.Result.Ok(Stdlib.Test.raiseRuntimeError "err")
+  => raises "Uncaught exception: err"
+
+test somePayloadErrorRaises =
+  Stdlib.Option.Option.Some(Stdlib.Test.raiseRuntimeError "err")
+  => raises "Uncaught exception: err"
+
+test errorPayloadErrorRaises =
+  Stdlib.Result.Result.Error(Stdlib.Test.raiseRuntimeError "err")
+  => raises "Uncaught exception: err"
+
+module Errors =
+  module Builtins =
+    test noneWithPayloadRaises =
+      Stdlib.Option.Option.None 5
+      => raises
+        "Expected 0 fields in Darklang.Stdlib.Option.Option.`None`, but got 1"
+
+    test someWithTwoPayloadsRaises =
+      Stdlib.Option.Option.Some(5, 6)
+      => raises
+        "Expected 1 fields in Darklang.Stdlib.Option.Option.`Some`, but got 2"
+
+  module User =
+    // Distinct enum cases give this type its own content hash for stable error names.
+    type MyEnum = | PortedFixtureA | B | C of String
+
+    test unknownCaseRaises =
+      MyEnum.D
+      => raises
+        "There is no case named `D` in Darklang.Language.Tests.Enums.Errors.User.MyEnum"
+
+    test missingPayloadRaises =
+      MyEnum.C
+      => raises
+        "Expected 1 fields in Darklang.Language.Tests.Enums.Errors.User.MyEnum.`C`, but got 0"
+
+    test extraPayloadRaises =
+      MyEnum.B 5L
+      => raises
+        "Expected 0 fields in Darklang.Language.Tests.Enums.Errors.User.MyEnum.`B`, but got 1"
+
+    test matching =
+      Stdlib.Test.all
+        [ (match MyEnum.C "test" with | C v -> v) |> Stdlib.Test.equal "test"
+          (match MyEnum.C "test" with
+           | 5 -> "unmatched because it's not an int"
+           | C v -> v)
+          |> Stdlib.Test.equal "test"
+          (match MyEnum.C "test" with
+           | D -> "unmatched because case name does not exist"
+           | C _ -> 2)
+          |> Stdlib.Test.equal 2 ]
+
+    test patternWithoutPayloadRaises =
+      (match MyEnum.C "test" with
+       | C -> "unmatched because we didn't provide a space for the field")
+      => raises
+        "No matching case found for value Darklang.Language.Tests.Enums.Errors.User.MyEnum.C(\"test\") in match expression"
+
+    test wrongPayloadTypeRaises =
+      (MyEnum.C 5L)
+      => raises
+        "Failed to create enum. Expected String for field 0 in `C`, but got Int64 (5)"
+
+module Simple =
+  type AorB = | A | B
+
+  test equality =
+    Stdlib.Test.all
+      [ (let a = AorB.A
+         let b = AorB.B
+         a == b)
+        |> Stdlib.Test.equal false
+        (let a1 = AorB.A
+         let a2 = AorB.A
+         a1 == a2)
+        |> Stdlib.Test.equal true
+        (AorB.A == AorB.A) |> Stdlib.Test.equal true
+        (AorB.A == AorB.B) |> Stdlib.Test.equal false
+        Stdlib.List.unique [ AorB.A, AorB.B, AorB.A, AorB.A, AorB.B ]
+        |> Stdlib.Test.equal [ AorB.A, AorB.B ] ]
+
+  module EnumReference =
+    type CorD =
+      | C of Int64
+      | D of AorB
+
+    test payloadEquality =
+      Stdlib.Test.all
+        [ (CorD.C 5L != CorD.D AorB.B) |> Stdlib.Test.equal true
+          (CorD.D AorB.A == CorD.D AorB.A) |> Stdlib.Test.equal true ]
+
+module MixedCases =
+  type EnumOfMixedCases =
+    | W
+    | X of String
+    | Y of i: Int64
+    | Z of c: String * i: Int64
+
+  test equality =
+    Stdlib.Test.all
+      [ (EnumOfMixedCases.W == (EnumOfMixedCases.Y 1L)) |> Stdlib.Test.equal false
+        (EnumOfMixedCases.Y 1L == EnumOfMixedCases.Y 1L) |> Stdlib.Test.equal true ]
+
+  test xWrongTypeRaises =
+    EnumOfMixedCases.X 1L
+    => raises
+      "Failed to create enum. Expected String for field 0 in `X`, but got Int64 (1)"
+
+  test yWrongTypeRaises =
+    EnumOfMixedCases.Y "test"
+    => raises
+      "Failed to create enum. Expected Int64 for field 0 in `Y`, but got String (\"test\")"
+
+  test zMissingFieldRaises =
+    EnumOfMixedCases.Z 1L
+    => raises
+      "Expected 2 fields in Darklang.Language.Tests.Enums.MixedCases.EnumOfMixedCases.`Z`, but got 1"
+
+  // Test ordering of evaluation
+  test firstPayloadErrorRaises =
+    EnumOfMixedCases.Z(
+      Stdlib.Test.raiseRuntimeError "1",
+      Stdlib.Test.raiseRuntimeError "2"
+    )
+    => raises "Uncaught exception: 1"
+
+  test listsAndMatching =
+    Stdlib.Test.all
+      [ (let values =
+          [ EnumOfMixedCases.W
+            EnumOfMixedCases.X "testX"
+            EnumOfMixedCases.Y(5L)
+            EnumOfMixedCases.Z("testZ", 2L) ]
+         match Stdlib.List.getAt values 3 with
+         | Some z -> Stdlib.Result.Result.Ok z
+         | None -> Stdlib.Result.Result.Error "Failure")
+        |> Stdlib.Test.equal
+          (Darklang.Stdlib.Result.Result.Ok(EnumOfMixedCases.Z("testZ", 2L)))
+        ([ EnumOfMixedCases.W
+           EnumOfMixedCases.X "testX"
+           EnumOfMixedCases.Y(5L)
+           EnumOfMixedCases.Z("testZ", 2L) ]
+         |> Stdlib.List.map (fun v ->
+           match v with
+           | X s -> "X " + s
+           | Z(s, _i) -> "Z " + s
+           | Y y -> "Y " + (Stdlib.toString y)
+           | W -> "a simple W"))
+        |> Stdlib.Test.equal [ "a simple W", "X testX", "Y 5", "Z testZ" ] ]
+
+module TuplesVsNonTuples =
+  type Tuples =
+    | NotTuple of String * Int64
+    | Tuple of (String * Int64)
+
+  test matching =
+    Stdlib.Test.all
+      [ (match Tuples.NotTuple("printer broke", 7L) with
+         | NotTuple(reason, 7L) -> reason)
+        |> Stdlib.Test.equal "printer broke"
+        (match Tuples.Tuple(("printer broke", 7L)) with
+         | Tuple((reason, 7L)) -> reason)
+        |> Stdlib.Test.equal "printer broke" ]
+
+  test tupleForTwoFieldsRaises =
+    (Tuples.NotTuple(("printer broke", 7L)))
+    => raises
+      "Expected 2 fields in Darklang.Language.Tests.Enums.TuplesVsNonTuples.Tuples.`NotTuple`, but got 1"
+
+  test twoFieldsForTupleRaises =
+    Tuples.Tuple("printer broke", 7L)
+    => raises
+      "Expected 1 fields in Darklang.Language.Tests.Enums.TuplesVsNonTuples.Tuples.`Tuple`, but got 2"
+
+module Recursive =
+  type Tree =
+    | Leaf
+    | Node of Tree * Tree
+
+  test trees =
+    Stdlib.Test.all
+      [ Tree.Node(Tree.Leaf, Tree.Leaf)
+        |> Stdlib.Test.equal (Tree.Node(Tree.Leaf, Tree.Leaf))
+        (Tree.Node(Tree.Leaf, Tree.Leaf)
+         == Tree.Node(Tree.Leaf, Tree.Node(Tree.Leaf, Tree.Leaf)))
+        |> Stdlib.Test.equal false ]
+
+module Polymorphism =
+  // Define a red-black tree
+  type Color = | Red | Black
+
+  type RBTree<'a> =
+    | Empty
+    | Node of color: Color * left: RBTree<'a> * value: 'a * right: RBTree<'a>
+
+  let singleton (value: 'a) : RBTree<'a> =
+    RBTree.Node(Color.Red, RBTree.Empty, value, RBTree.Empty)
+
+  let insert'
+    (tree: RBTree<'a>)
+    (value: 'a)
+    (cmp: ('a * 'a) -> Int64)
+    : RBTree<'a> =
+    match tree with
+    | Empty -> singleton value
+    | Node(color, left, v, right) ->
+      // CLEANUP we should allow cmp to call two arguments, and not use a weird
+      // tuple-pipe thing
+      let c = (value, v) |> cmp
+
+      if c < 0L then
+        RBTree.Node(color, insert' left value cmp, v, right)
+      elif c > 0L then
+        RBTree.Node(color, left, v, insert' right value cmp)
+      else
+        RBTree.Node(color, left, value, right)
+
+  let insert
+    (tree: RBTree<'a>)
+    (value: 'a)
+    (cmp: ('a * 'a) -> Int64)
+    : RBTree<'a> =
+    insert' tree value cmp
+
+  let ofList (values: List<'a>) (cmp: ('a * 'a) -> Int64) : RBTree<'a> =
+    Stdlib.List.fold values RBTree.Empty (fun tree value -> insert tree value cmp)
+
+  let toList' (tree: RBTree<'a>) (acc: List<'a>) : List<'a> =
+    match tree with
+    | Empty -> acc
+    | Node(_, left, value, right) ->
+      toList' left (Stdlib.List.push (toList' right acc) value)
+
+  let toList (tree: RBTree<'a>) : List<'a> = toList' tree []
+
+  test insertionOrderDoesNotMatter =
+    (let intCmp =
+      fun (x, y) ->
+        if x < y then -1L
+        elif x > y then 1L
+        else 0L
+     ([ 1L, -2L, 5L, 3L ] |> ofList intCmp |> toList)
+     == ([ 3L, 5L, -2L, 1L ] |> ofList intCmp |> toList))
+    |> Stdlib.Test.equal true

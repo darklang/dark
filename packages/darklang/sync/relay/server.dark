@@ -162,6 +162,7 @@ let descriptionOf (kind: String) (hash: String) : String =
     | "type" -> "package_types"
     | "trait" -> "package_traits"
     | "impl" -> "package_trait_impls"
+    | "test" -> "package_tests"
     | _ -> "package_values"
 
   match

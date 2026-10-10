@@ -1,0 +1,97 @@
+module Darklang.Stdlib.Cli.File.Tests
+
+// File.globMatchSegments — basic matching
+test basicMatching =
+  Stdlib.Test.all
+    [ Stdlib.Cli.File.globMatchSegments [ "*.ts" ] [ "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "*.ts" ] [ "foo.js" ]
+      |> Stdlib.Test.equal false
+      Stdlib.Cli.File.globMatchSegments [ "src", "*.ts" ] [ "src", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "src", "*.ts" ] [ "lib", "foo.ts" ]
+      |> Stdlib.Test.equal false ]
+
+// File.globMatchSegments — single ** segment
+test singleDoubleStar =
+  Stdlib.Test.all
+    [ Stdlib.Cli.File.globMatchSegments [ "**", "*.ts" ] [ "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "**", "*.ts" ] [ "src", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "**", "*.ts" ] [ "a", "b", "c", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "**", "*.ts" ] [ "foo.js" ]
+      |> Stdlib.Test.equal false
+      Stdlib.Cli.File.globMatchSegments [ "src", "**", "*.ts" ] [ "src", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments
+        [ "src", "**", "*.ts" ]
+        [ "src", "a", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments
+        [ "src", "**", "*.ts" ]
+        [ "src", "a", "b", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "src", "**", "*.ts" ] [ "lib", "foo.ts" ]
+      |> Stdlib.Test.equal false ]
+
+// File.globMatchSegments — multiple ** segments
+test multipleDoubleStars =
+  Stdlib.Test.all
+    [ Stdlib.Cli.File.globMatchSegments
+        [ "src", "**", "test", "**", "*.ts" ]
+        [ "src", "test", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments
+        [ "src", "**", "test", "**", "*.ts" ]
+        [ "src", "a", "test", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments
+        [ "src", "**", "test", "**", "*.ts" ]
+        [ "src", "a", "test", "b", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments
+        [ "src", "**", "test", "**", "*.ts" ]
+        [ "src", "a", "b", "test", "c", "d", "foo.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments
+        [ "src", "**", "test", "**", "*.ts" ]
+        [ "src", "a", "test", "b", "foo.js" ]
+      |> Stdlib.Test.equal false
+      Stdlib.Cli.File.globMatchSegments
+        [ "src", "**", "test", "**", "*.ts" ]
+        [ "lib", "test", "foo.ts" ]
+      |> Stdlib.Test.equal false ]
+
+// File.globMatchSegments — trailing **
+test trailingDoubleStar =
+  Stdlib.Test.all
+    [ Stdlib.Cli.File.globMatchSegments [ "src", "**" ] [ "src" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "src", "**" ] [ "src", "a" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "src", "**" ] [ "src", "a", "b", "c" ]
+      |> Stdlib.Test.equal true ]
+
+// File.globMatchSegments — ** matches zero segments
+test doubleStarMatchesZeroSegments =
+  Stdlib.Cli.File.globMatchSegments
+    [ "**", "test", "**", "*.ts" ]
+    [ "test", "foo.ts" ]
+  |> Stdlib.Test.equal true
+
+// File.globMatchSegments — empty pattern/path
+test emptyPatternOrPath =
+  Stdlib.Test.all
+    [ Stdlib.Cli.File.globMatchSegments [] [] |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "a" ] [] |> Stdlib.Test.equal false
+      Stdlib.Cli.File.globMatchSegments [] [ "a" ] |> Stdlib.Test.equal false ]
+
+// File.globMatchSegments — ? wildcard
+test questionMarkWildcard =
+  Stdlib.Test.all
+    [ Stdlib.Cli.File.globMatchSegments [ "?.ts" ] [ "a.ts" ]
+      |> Stdlib.Test.equal true
+      Stdlib.Cli.File.globMatchSegments [ "?.ts" ] [ "ab.ts" ]
+      |> Stdlib.Test.equal false ]

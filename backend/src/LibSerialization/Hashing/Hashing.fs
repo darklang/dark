@@ -280,6 +280,12 @@ module Hashing =
   let normalizeFn (f : PT.PackageFn.PackageFn) : PT.PackageFn.PackageFn =
     { f with body = normalizeExpr f.body }
 
+  /// Alpha-normalize a test body exactly like other top-level expressions.
+  let normalizeTest
+    (test : PT.PackageTest.PackageTest)
+    : PT.PackageTest.PackageTest =
+    { test with body = normalizeExpr test.body }
+
 
 
   // =====================
@@ -312,8 +318,17 @@ module Hashing =
     hashWithWriter (fun w -> Canonical.writeImpl mode w i)
 
 
+  /// Hash a PackageTest. Names and prose are deliberately excluded so rename
+  /// and documentation edits preserve an otherwise valid cached result.
+  let computeTestHash
+    (mode : HashRefMode)
+    (test : PT.PackageTest.PackageTest)
+    : Hash =
+    hashWithWriter (fun w -> Canonical.writeTest mode w (normalizeTest test))
+
+
   /// The id of the `Add*` op that adds content <param hash> of kind <param tag> (0 fn, 1 type,
-  /// 2 value, 3 trait, 4 impl). Computable from the hash alone, which is what lets a branch bundle find the Add for a
+  /// 2 value, 3 trait, 4 impl, 5 test). Computable from the hash alone, which is what lets a branch bundle find the Add for a
   /// name it binds without decoding every op in the log.
   let contentOpHash (tag : byte) (Hash h : Hash) : Hash =
     hashWithWriter (fun w ->
@@ -340,6 +355,7 @@ module Hashing =
     | PT.PackageOp.AddValue v when v.hash <> Hash "" -> contentOpHash 2uy v.hash
     | PT.PackageOp.AddTrait t when t.hash <> Hash "" -> contentOpHash 3uy t.hash
     | PT.PackageOp.AddTraitImpl i when i.hash <> Hash "" -> contentOpHash 4uy i.hash
+    | PT.PackageOp.AddTest t when t.hash <> Hash "" -> contentOpHash 5uy t.hash
     | _ ->
       hashWithWriter (fun w ->
         LibSerialization.Binary.Serializers.PT.PackageOp.write w op)

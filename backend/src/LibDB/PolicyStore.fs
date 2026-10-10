@@ -659,6 +659,21 @@ let guestState
   |> Execution.restrictRun runPolicy
   |> Execution.setPackagePolicies lookup
 
+/// Test runs have an allow-all instance boundary without changing the saved
+/// installation policy. Package approvals and declared function ceilings still
+/// apply, as do restrictions captured by a caller entering the test runner.
+let testState
+  (accountID : Option<Guid>)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  guestState accountID P.Policy.allowAll [] [] state
+  |> Execution.setInstancePolicy P.Policy.allowAll
+
+/// Disposable test workers and any CLI children they start use the same test
+/// instance policy. Only this serialized copy is widened; never write it back.
+let testWorkerStore () : byte[] =
+  { get () with instance = P.Policy.allowAll } |> toBytes
+
 /// The hash a named applicable calls, for the approval root. A lambda or a builtin has none.
 let rootOf (applicable : RT.Applicable) : List<RT.Hash> =
   match applicable with

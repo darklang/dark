@@ -90,6 +90,7 @@ let lookupLambdaImpl (exeState : ExecutionState) (exprId : id) : LambdaImpl =
 /// Raises RuntimeErrorException on error
 let compileQueryLambda
   (exeState : ExecutionState)
+  (rowType : TypeReference)
   (appLambda : ApplicableLambda)
   : Ply.Ply<LibExecution.RTQueryCompiler.CompiledQuery> =
   uply {
@@ -99,13 +100,12 @@ let compileQueryLambda
     match
       RTQueryCompiler.compileLambda
         exeState
+        rowType
         lambdaImpl
         appLambda.closedRegisters
         resolvedValues
     with
-    | Error err ->
-      let fullMessage = RTQueryCompiler.errorTemplate + err
-      return raiseUntargetedRTE (RuntimeError.Error.SqlCompiler fullMessage)
+    | Error err -> return raiseUntargetedRTE (RuntimeError.Error.SqlCompiler err)
     | Ok compiled -> return compiled
   }
 
@@ -637,7 +637,7 @@ let fns () : List<BuiltInFn> =
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.PermissionCheck.requireDbRead exeState vm dbname
             let db = exeState.program.dbs[dbname]
-            let! compiled = compileQueryLambda exeState appLambda
+            let! compiled = compileQueryLambda exeState db.typ appLambda
             return!
               UserDB.executeCompiledQuery
                 exeState
@@ -667,7 +667,7 @@ let fns () : List<BuiltInFn> =
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.PermissionCheck.requireDbRead exeState vm dbname
             let db = exeState.program.dbs[dbname]
-            let! compiled = compileQueryLambda exeState appLambda
+            let! compiled = compileQueryLambda exeState db.typ appLambda
             return!
               UserDB.executeCompiledQuery
                 exeState
@@ -697,7 +697,7 @@ let fns () : List<BuiltInFn> =
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.PermissionCheck.requireDbRead exeState vm dbname
             let db = exeState.program.dbs[dbname]
-            let! compiled = compileQueryLambda exeState appLambda
+            let! compiled = compileQueryLambda exeState db.typ appLambda
             return!
               UserDB.executeCompiledQuery
                 exeState
@@ -727,7 +727,7 @@ let fns () : List<BuiltInFn> =
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.PermissionCheck.requireDbRead exeState vm dbname
             let db = exeState.program.dbs[dbname]
-            let! compiled = compileQueryLambda exeState appLambda
+            let! compiled = compileQueryLambda exeState db.typ appLambda
             return!
               UserDB.executeCompiledQuery
                 exeState

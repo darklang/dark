@@ -194,6 +194,12 @@ module TraitImpl =
 
 
 module Value =
+  /// Find stored values whose runtime value type matches exactly.
+  let findByValueType
+    (valueType: RuntimeTypes.ValueType)
+    : List<ProgramTypes.Hash> =
+    Builtin.pmFindValuesByValueType valueType
+
   let find
     (branchId: Uuid)
     (location: ProgramTypes.PackageLocation)
@@ -272,6 +278,149 @@ module Function =
     | None -> Stdlib.Option.Option.None
 
 
+module Test =
+  /// Share a starting store across the tests executed by <param run>. Every
+  /// test still gets a private writable copy and a fresh process. Cached-only
+  /// runs create no snapshot; the host cleans up even if the callback fails.
+  let withSnapshot (run: Unit -> 'a) : 'a =
+    Builtin.pmTestWithSnapshot run
+
+  /// Conservative proof that a passing result is reusable. Dynamic calls and
+  /// branch-dependent rendering are not treated as cache-safe.
+  let isCacheSafe (hash: ProgramTypes.Hash) : Bool =
+    Builtin.pmTestIsCacheSafe hash
+
+  /// The result type as this branch currently binds it. Judging an ordinary
+  /// test depends on this binding, even when the test's own hash is unchanged.
+  let resultTypeHash (branchId: Uuid) : Stdlib.Option.Option<ProgramTypes.Hash> =
+    Type.find
+      branchId
+      (ProgramTypes.PackageLocation
+        { owner = "Darklang"
+          modules = [ "Stdlib", "Test" ]
+          name = "Result" })
+
+  let find
+    (branchId: Uuid)
+    (location: ProgramTypes.PackageLocation)
+    : Stdlib.Option.Option<ProgramTypes.Hash> =
+    Builtin.pmFindTest branchId location
+
+  let get
+    (hash: ProgramTypes.Hash)
+    : Stdlib.Option.Option<ProgramTypes.PackageTest.PackageTest> =
+    Builtin.pmGetTest hash
+
+  let locations
+    (branchId: Uuid)
+    (hash: ProgramTypes.Hash)
+    : List<ProgramTypes.PackageLocation> =
+    Builtin.pmGetLocationsByTest branchId hash
+
+  /// Run this test's body with an allow-all test instance policy and ordinary
+  /// called-function approvals and ceilings: what it evaluated to,
+  /// reflected, or the error it raised. Nothing is judged here; see `execute`.
+  let executeBody
+    (hash: ProgramTypes.Hash)
+    : Stdlib.Result.Result<LanguageTools.RuntimeTypes.Dval, LanguageTools.RuntimeTypes.RuntimeError.Error> =
+    Builtin.pmExecuteTest hash
+
+  /// <param value> as a `Stdlib.Test.Result`, or None if it is anything else. The
+  /// enum's type is checked by hash, as <param branchId> sees `Stdlib.Test.Result`,
+  /// so a look-alike `Pass`/`Fail` enum from elsewhere is not taken for one.
+  let asTestResult
+    (branchId: Uuid)
+    (value: LanguageTools.RuntimeTypes.Dval)
+    : Stdlib.Option.Option<Stdlib.Test.Result> =
+    let testType = resultTypeHash branchId
+    match value, testType with
+    | DEnum(Package(Hash actual), _, [], caseName, fields), Some(Hash expected) ->
+      if actual == expected then
+        // `caseName` is matched on its own: a string literal inside a tuple
+        // pattern can silently fall through.
+        match caseName with
+        | "Pass" ->
+          match fields with
+          | [] -> Stdlib.Option.Option.Some Stdlib.Test.Result.Pass
+          | _ -> Stdlib.Option.Option.None
+        | "Fail" ->
+          match fields with
+          | [ DList(_, messages) ] ->
+            let strings =
+              Stdlib.List.filterMap messages (fun m ->
+                match m with
+                | DString s -> Stdlib.Option.Option.Some s
+                | _ -> Stdlib.Option.Option.None)
+            if Stdlib.List.length strings == Stdlib.List.length messages then
+              Stdlib.Option.Option.Some(Stdlib.Test.Result.Fail strings)
+            else
+              Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None
+
+  /// Run this test and judge it. A declaration-level error expectation
+  /// compares either the rendered runtime error or the SQL compiler detail;
+  /// otherwise the body must return a
+  /// `Stdlib.Test.Result`. An Error is a test that could not be judged (missing,
+  /// refused an effect, raised unexpectedly, returned a non-test value), not
+  /// a failing assertion. <param branchId> is the branch names in error
+  /// messages are resolved against.
+  let execute
+    (branchId: Uuid)
+    (hash: ProgramTypes.Hash)
+    : Stdlib.Result.Result<Stdlib.Test.Result, LanguageTools.RuntimeTypes.RuntimeError.Error> =
+    let expected =
+      Stdlib.Option.andThen (get hash) (fun test -> test.expectedError)
+    match expected, executeBody hash with
+    | Some expected, Ok value ->
+      let actual = PrettyPrinter.RuntimeTypes.dval branchId value
+      let expectedText =
+        match expected with
+        | RuntimeError message -> $"error `{message}`"
+        | SqlCompilerError message -> $"SQL compiler error `{message}`"
+      Stdlib.Result.Result.Ok(
+        Stdlib.Test.fail $"expected the {expectedText}, got the value {actual}"
+      )
+    | Some expected, Error error ->
+      let actual =
+        PrettyPrinter.RuntimeTypes.RuntimeError.toString branchId error
+      match expected with
+      | RuntimeError message ->
+        if actual == message then
+          Stdlib.Result.Result.Ok(Stdlib.Test.pass ())
+        else
+          Stdlib.Result.Result.Ok(
+            Stdlib.Test.fail $"expected the error `{message}`, got `{actual}`"
+          )
+      | SqlCompilerError message ->
+        match error with
+        | SqlCompiler detail ->
+          if detail == message then
+            Stdlib.Result.Result.Ok(Stdlib.Test.pass ())
+          else
+            Stdlib.Result.Result.Ok(
+              Stdlib.Test.fail $"expected SQL compiler error `{message}`, got `{detail}`"
+            )
+        | _ ->
+          Stdlib.Result.Result.Ok(
+            Stdlib.Test.fail $"expected SQL compiler error `{message}`, got `{actual}`"
+          )
+    | None, Ok value ->
+      match asTestResult branchId value with
+      | Some result -> Stdlib.Result.Result.Ok result
+      | None ->
+        Stdlib.Result.Result.Error(
+          LanguageTools.RuntimeTypes.RuntimeError.Error.UncaughtException(
+            "the test body did not return a Stdlib.Test.Result",
+            []
+          )
+        )
+    | None, Error error -> Stdlib.Result.Result.Error error
+
+
 /// Replace provisional hashes with SCC-aware content hashes, including references
 /// between items in the batch.
 let stabilizeHashes
@@ -325,7 +474,11 @@ let findAny
           match TraitImpl.find branchId location with
           | Some hash ->
             Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.TraitImpl))
-          | None -> Stdlib.Option.Option.None
+          | None ->
+            match Test.find branchId location with
+            | Some hash ->
+              Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Test))
+            | None -> Stdlib.Option.Option.None
 
 
 /// Whether <param owner> has any listed item at all.
@@ -366,7 +519,8 @@ module Search =
         values = searchResults.values
         fns = searchResults.fns
         traits = searchResults.traits
-        impls = searchResults.impls }
+        impls = searchResults.impls
+        tests = searchResults.tests }
 
 
   /// The submodules a READER should see.
@@ -383,7 +537,8 @@ module Search =
       Stdlib.Bool.not (Stdlib.List.member implNames name))
 
 
-  /// Search returning only names: (direct submodules, types, values, fns, traits, impls).
+  /// Search returning only names: (direct submodules, types, values, fns, traits, impls,
+  /// tests).
   ///
   /// `search` converts every matched item's full definition, parameters and body AST included, into Dark
   /// values. Completion reads `.location.name` and throws the rest away, which is most of a millisecond
@@ -393,7 +548,7 @@ module Search =
   let searchNames
     (branchId: Uuid)
     (query: ProgramTypes.Search.SearchQuery)
-    : (List<String> * List<String> * List<String> * List<String> * List<String> * List<String>) =
+    : (List<String> * List<String> * List<String> * List<String> * List<String> * List<String> * List<String>) =
     Builtin.pmSearchNames branchId query
 
 
@@ -403,6 +558,7 @@ module Search =
     (branchId: Uuid)
     (query: ProgramTypes.Search.SearchQuery)
     : (List<String> *
+       List<(String * ProgramTypes.Hash)> *
        List<(String * ProgramTypes.Hash)> *
        List<(String * ProgramTypes.Hash)> *
        List<(String * ProgramTypes.Hash)> *

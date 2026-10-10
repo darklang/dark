@@ -12,6 +12,126 @@ open System.Runtime.InteropServices
 
 open Prelude
 
+// F# generates failwith inside P/Invoke stubs; Prelude bans the built-in one.
+let private failwith (message : string) : 'a = raise (System.Exception message)
+
+/// Windows keeps descendants in a job even after the worker exits. The parent
+/// owns the job; the launcher joins it before it can start any test code.
+module private WindowsJob =
+  [<Struct; StructLayout(LayoutKind.Sequential)>]
+  type BasicLimits =
+    { perProcessTime : int64
+      perJobTime : int64
+      flags : uint32
+      minWorkingSet : unativeint
+      maxWorkingSet : unativeint
+      activeProcesses : uint32
+      affinity : unativeint
+      priority : uint32
+      scheduling : uint32 }
+
+  [<Struct; StructLayout(LayoutKind.Sequential)>]
+  type IoCounters =
+    { readOperations : uint64
+      writeOperations : uint64
+      otherOperations : uint64
+      readBytes : uint64
+      writeBytes : uint64
+      otherBytes : uint64 }
+
+  [<Struct; StructLayout(LayoutKind.Sequential)>]
+  type ExtendedLimits =
+    { basic : BasicLimits
+      io : IoCounters
+      processMemory : unativeint
+      jobMemory : unativeint
+      peakProcessMemory : unativeint
+      peakJobMemory : unativeint }
+
+  [<DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)>]
+  extern nativeint private CreateJobObjectW(nativeint attributes, string name)
+
+  [<DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)>]
+  extern nativeint private OpenJobObjectW(
+    uint32 access,
+    bool inheritHandle,
+    string name
+  )
+
+  [<DllImport("kernel32.dll", SetLastError = true)>]
+  extern bool private SetInformationJobObject(
+    nativeint job,
+    int infoClass,
+    ExtendedLimits& limits,
+    uint32 length
+  )
+
+  [<DllImport("kernel32.dll", SetLastError = true)>]
+  extern bool private AssignProcessToJobObject(nativeint job, nativeint processHandle)
+
+  [<DllImport("kernel32.dll", SetLastError = true)>]
+  extern bool private TerminateJobObject(nativeint job, uint32 exitCode)
+
+  let private check success =
+    if not success then
+      raise (System.ComponentModel.Win32Exception(Marshal.GetLastPInvokeError()))
+
+  let private handle raw =
+    check (raw <> 0n)
+    new Microsoft.Win32.SafeHandles.SafeFileHandle(raw, true)
+
+  let create name =
+    let job = handle (CreateJobObjectW(0n, name))
+    try
+      let mutable limits = Unchecked.defaultof<ExtendedLimits>
+      limits <- { limits with basic = { limits.basic with flags = 0x2000u } } // KILL_ON_JOB_CLOSE
+      check (
+        SetInformationJobObject(
+          job.DangerousGetHandle(),
+          9,
+          &limits,
+          uint32 (Marshal.SizeOf<ExtendedLimits>())
+        )
+      )
+      job
+    with e ->
+      job.Dispose()
+      Exception.reraise e
+
+  let join name =
+    use job = handle (OpenJobObjectW(1u, false, name)) // JOB_OBJECT_ASSIGN_PROCESS
+    use worker = System.Diagnostics.Process.GetCurrentProcess()
+    check (AssignProcessToJobObject(job.DangerousGetHandle(), worker.Handle))
+
+  let terminate (job : Microsoft.Win32.SafeHandles.SafeFileHandle) =
+    check (TerminateJobObject(job.DangerousGetHandle(), 1u))
+
+/// Private CLI entry point. Establish ownership before starting the worker,
+/// including when a test substitutes a wrapper executable.
+let launchIsolatedWorker
+  (jobName : string)
+  (program : string)
+  (args : List<string>)
+  : int =
+  if HostLibc.isPosix then
+    match HostLibc.execInNewSession program args with
+    | Error(_, message) ->
+      System.Console.Error.WriteLine
+        $"Could not launch isolated test worker: {message}"
+      127
+    | Ok() -> 0 // exec does not return on success
+  elif System.OperatingSystem.IsWindows() then
+    WindowsJob.join jobName
+    let psi = System.Diagnostics.ProcessStartInfo(program)
+    psi.UseShellExecute <- false
+    for arg in args do
+      psi.ArgumentList.Add arg
+    use worker = System.Diagnostics.Process.Start psi
+    worker.WaitForExit()
+    worker.ExitCode
+  else
+    invalidOp "Isolated test processes are unsupported on this platform"
+
 type private ProcessInfo =
   { Process : System.Diagnostics.Process
     StandardInput : StreamWriter
@@ -99,6 +219,18 @@ let private registerCleanupHandler () =
 let currentExecutablePath () : string =
   System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
 
+let mutable private isolatedTestLauncher : Option<string> = None
+
+/// Configure at host startup when another executable provides the worker entry point.
+let setIsolatedTestLauncher (path : string) : unit =
+  isolatedTestLauncher <- Some(Path.GetFullPath path)
+
+/// CLI hosts launch themselves unless startup configured a different executable.
+let isolatedTestLauncherPath () : string =
+  match isolatedTestLauncher with
+  | None -> currentExecutablePath ()
+  | Some path -> path
+
 let private startInfo
   (program : string)
   (args : List<string>)
@@ -120,7 +252,8 @@ let private startInfo
 /// on a full pipe) but store no more. A resource limit, not a policy one.
 let private maxCapturedOutput = 64 * 1024 * 1024
 
-let private readCapped
+let private readCappedWithCancellation
+  (cancellation : System.Threading.CancellationToken)
   (reader : System.IO.StreamReader)
   : System.Threading.Tasks.Task<string> =
   task {
@@ -128,7 +261,7 @@ let private readCapped
     let buffer = Array.zeroCreate<char> 8192
     let mutable reading = true
     while reading do
-      let! n = reader.ReadAsync(buffer, 0, buffer.Length)
+      let! n = reader.ReadAsync(System.Memory<char>(buffer), cancellation)
       if n = 0 then
         reading <- false
       elif builder.Length < maxCapturedOutput then
@@ -136,6 +269,9 @@ let private readCapped
         |> ignore<System.Text.StringBuilder>
     return builder.ToString()
   }
+
+let private readCapped reader =
+  readCappedWithCancellation System.Threading.CancellationToken.None reader
 
 /// Run a resolved executable to completion: (exitCode, stdout, stderr). Both
 /// streams are drained concurrently to avoid a full-pipe deadlock. With a
@@ -162,6 +298,231 @@ let run
     p.Kill()
     p.WaitForExit()
     Error(110, "Process timed out") // ETIMEDOUT
+
+/// One immutable baseline per run, created only when a test actually executes.
+/// File.Copy already uses filesystem cloning where supported, with a portable
+/// copy fallback. The store owner must finish and close its backup first.
+let testStoreSnapshot
+  (snapshot : string -> Result<unit, string>)
+  : HostTypes.TestStoreSnapshot =
+  let gate = obj ()
+  let mutable disposed = false
+  let mutable directory : Option<string> = None
+  let baseline =
+    lazy
+      (let dir = Directory.CreateTempSubdirectory("dark-test-run-").FullName
+       directory <- Some dir
+       let path = Path.Combine(dir, "data.db")
+       snapshot path |> Result.map (fun () -> path))
+  let close () =
+    lock gate (fun () ->
+      disposed <- true
+      match directory with
+      | None -> ()
+      | Some dir ->
+        Directory.Delete(dir, true)
+        directory <- None)
+  let onExit =
+    System.EventHandler(fun _ _ ->
+      try
+        close ()
+      with _ ->
+        ())
+  System.AppDomain.CurrentDomain.ProcessExit.AddHandler onExit
+  { new HostTypes.TestStoreSnapshot with
+      member _.CopyTo target =
+        lock gate (fun () ->
+          if disposed then
+            Error "The package test run has already ended"
+          else
+            try
+              match baseline.Value with
+              | Error message -> Error message
+              | Ok path ->
+                File.Copy(path, target)
+                Ok()
+            with e ->
+              Error e.Message)
+      member _.Dispose() =
+        try
+          close ()
+        finally
+          System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit }
+
+
+/// Run one typed test callback in a disposable copy of the current store.
+/// Request/result bytes use the runtime codec; stdout is never the protocol.
+/// The deadline covers worker execution and output, after snapshot preparation.
+let runIsolatedTest
+  (launcher : string)
+  (snapshot : string -> Result<unit, string>)
+  (branch : System.Guid)
+  (request : byte[])
+  (policyStore : byte[])
+  (access : byte[])
+  (timeoutMs : int)
+  (columns : int)
+  (rows : int)
+  : Result<int * string * string * Option<byte[]> * List<string>, int * string> =
+  let dir = Directory.CreateTempSubdirectory("dark-test-").FullName
+  let mutable child : System.Diagnostics.Process option = None
+  let jobName = "dark-test-" + System.Guid.NewGuid().ToString("N")
+  let mutable job : Microsoft.Win32.SafeHandles.SafeFileHandle option = None
+  use cancellation = new System.Threading.CancellationTokenSource()
+  let stop () =
+    let errors = ResizeArray<string>()
+    let stopGroup (p : System.Diagnostics.Process) =
+      if HostLibc.isPosix then
+        // The launcher creates a group whose ID is its PID; that group remains
+        // addressable after the worker exits and its children are reparented.
+        match HostLibc.kill (-p.Id) 9 with
+        | Ok()
+        | Error(3, _) -> () // ESRCH: no group, including a launcher not yet ready
+        | Error(_, message) ->
+          errors.Add $"Could not stop isolated test process group: {message}"
+    match child with
+    | Some p ->
+      try
+        // Traverse while the worker is alive: nested workers may own separate
+        // groups. Also handles cancellation before the launcher is ready.
+        if not p.HasExited then p.Kill true
+        if not (p.WaitForExit 5000) then
+          errors.Add "Isolated test worker did not exit after being killed"
+      with e ->
+        errors.Add $"Could not stop isolated test worker: {e.Message}"
+      try
+        // The group survives its leader and catches reparented descendants.
+        stopGroup p
+      with e ->
+        errors.Add $"Could not stop isolated test process group: {e.Message}"
+    | None -> ()
+    match job with
+    | Some handle ->
+      try
+        WindowsJob.terminate handle
+      with e ->
+        errors.Add $"Could not stop isolated test job: {e.Message}"
+    | None -> ()
+    List.ofSeq errors
+  let removeDirectory () =
+    try
+      Directory.Delete(dir, true)
+      []
+    with e ->
+      [ $"Could not remove isolated test directory {dir}: {e.Message}" ]
+  let onCancel =
+    System.ConsoleCancelEventHandler(fun _ _ -> stop () |> ignore<List<string>>)
+  let onExit =
+    System.EventHandler(fun _ _ ->
+      stop () |> ignore<List<string>>
+      removeDirectory () |> ignore<List<string>>)
+  System.Console.CancelKeyPress.AddHandler onCancel
+  System.AppDomain.CurrentDomain.ProcessExit.AddHandler onExit
+  let mutable cleanupErrors = []
+  let outcome =
+    try
+      try
+        match snapshot (Path.Combine(dir, "data.db")) with
+        | Error message -> Error(-1, message)
+        | Ok() ->
+          let inputPath = Path.Combine(dir, "request.bin")
+          let resultPath = Path.Combine(dir, "result.bin")
+          File.WriteAllBytes(inputPath, request)
+          let policyDir = Directory.CreateDirectory(Path.Combine(dir, "policy"))
+          File.WriteAllBytes(
+            Path.Combine(policyDir.FullName, "policies.bin"),
+            policyStore
+          )
+          File.WriteAllBytes(Path.Combine(policyDir.FullName, "access.bin"), access)
+          let executable =
+            match
+              System.Environment.GetEnvironmentVariable "DARK_CLI_UNDER_TEST"
+            with
+            | null
+            | "" -> launcher
+            | path -> Path.GetFullPath path
+          if System.OperatingSystem.IsWindows() then
+            job <- Some(WindowsJob.create jobName)
+          let psi =
+            startInfo
+              launcher
+              [ "--test-process-launch"
+                jobName
+                executable
+                "--branch"
+                string branch
+                "--test-worker"
+                inputPath
+                resultPath ]
+              true
+          // Keep platform/runtime variables but replace instance state.
+          for key in [ "DARK_MATTER_WRITE_SECRET"; "DARK_BRANCH" ] do
+            psi.Environment.Remove key |> ignore<bool>
+          for key, value in
+            [ "DARK_CONFIG_RUNDIR", dir + string Path.DirectorySeparatorChar
+              "DARK_CONFIG_DB_NAME", "data.db"
+              "HOME", dir
+              "XDG_CONFIG_HOME", Path.Combine(dir, "config")
+              "TMPDIR", Path.Combine(dir, "tmp")
+              "DARK_CLI_UNDER_TEST", executable
+              "COLUMNS", string columns
+              "LINES", string rows ] do
+            psi.Environment[key] <- value
+          Directory.CreateDirectory(psi.Environment["TMPDIR"])
+          |> ignore<DirectoryInfo>
+          let p = System.Diagnostics.Process.Start psi
+          child <- Some p
+          p.StandardInput.Close()
+          let stdout = readCappedWithCancellation cancellation.Token p.StandardOutput
+          let stderr = readCappedWithCancellation cancellation.Token p.StandardError
+          // One deadline covers exit AND both pipes. A descendant can hold a
+          // pipe open after the worker exits, so waiting only for exit is unsafe.
+          let finished =
+            System.Threading.Tasks.Task.WhenAll
+              [| p.WaitForExitAsync(cancellation.Token)
+                 stdout :> System.Threading.Tasks.Task
+                 stderr :> System.Threading.Tasks.Task |]
+          if not (finished.Wait timeoutMs) then
+            Error(
+              110,
+              $"Isolated test timed out after {timeoutMs} ms (worker or output still open)"
+            )
+          else
+            let result =
+              if File.Exists resultPath then
+                if (FileInfo resultPath).Length > int64 maxCapturedOutput then
+                  Exception.raiseInternal
+                    "Isolated test result exceeds the size limit"
+                    []
+                Some(File.ReadAllBytes resultPath)
+              else
+                None
+            Ok(p.ExitCode, stdout.Result, stderr.Result, result)
+      with e ->
+        Error(-1, $"Isolated test failed: {e.Message}")
+    finally
+      cancellation.Cancel()
+      cleanupErrors <- stop ()
+      match child with
+      | Some p ->
+        try
+          p.Dispose()
+        with e ->
+          cleanupErrors <-
+            cleanupErrors
+            @ [ $"Could not dispose isolated test worker: {e.Message}" ]
+      | None -> ()
+      child <- None
+      job |> Option.iter (fun handle -> handle.Dispose())
+      job <- None
+      System.Console.CancelKeyPress.RemoveHandler onCancel
+      System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit
+      cleanupErrors <- cleanupErrors @ removeDirectory ()
+  match outcome with
+  | Ok(code, stdout, stderr, result) ->
+    Ok(code, stdout, stderr, result, cleanupErrors)
+  | Error(code, message) ->
+    Error(code, String.concat "\n" (message :: cleanupErrors))
 
 /// Run a resolved executable on this terminal, inheriting stdin, stdout and
 /// stderr, and return its exit code. `run` captures the streams, which is right

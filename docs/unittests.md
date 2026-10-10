@@ -77,5 +77,88 @@ and four clones' runs really did land in one.
 
 ## Dark tests
 
-`backend/testfiles/README.md` covers the `.dark` test files, which are a separate thing
-from the F# tests here.
+Package tests live in `packages/darklang/tests` and run with `dark test`. The old
+execution testfiles and their runner have been removed. Unicode normalization
+assertions remain commented out in the package tests, with cleanup notes.
+
+Raw HTTP tests use separate F# client and server harnesses in the backend suite;
+see `backend/testfiles/README.md`. Backend integration tests also remain in F#.
+
+## Isolated native package tests
+
+To run the repository's full package suite, use its disposable test installation:
+
+```sh
+scripts/testing/gates package-tests
+```
+
+Build Debug first with `scripts/dev/build`, or set `CLI` to a current published
+binary using a repository-relative path. The gate copies the store, configures
+a deny-all saved policy in that copy, and runs every test with
+`--force`. Its full output is `rundir/package-tests/test.log`.
+
+`./scripts/run-cli test --force` runs tests in the current installation. Test
+execution uses an allow-all instance policy in memory, so native workers,
+filesystem/environment access, HTTP and subprocesses need no installation grants.
+The saved installation policy is unchanged, and ordinary `eval`/`run` commands
+continue to use it. Package approvals, declared function ceilings and captured
+caller restrictions still apply. The gate starts from a deny-all saved policy to
+verify that tests need no setup grants.
+
+Every package test execution runs in its own disposable process and store.
+Use an ordinary test declaration, including when changing local state:
+
+```dark
+test writesConfig =
+  let _ = Stdlib.LocalStore.configSet "example" "child"
+  Stdlib.LocalStore.configGet "example" |> Stdlib.Test.equal "child"
+```
+
+The runner executes the test's own hash in a disposable process and store.
+No callback function or central registry is needed. Each `dark test` run takes
+one starting snapshot when its first uncached test executes. Every executed test
+gets a private writable copy of that baseline and a fresh process. Cached-only
+runs create no snapshot; later runs take a new one.
+Proven-safe passing results can still be cached;
+`test --force` executes every selected test. Expected-error assertions retain
+their typed errors across the worker boundary. Worker and cleanup failures fail
+the test, even when its body expects an error.
+The defaults are the current branch, 120 seconds, and an 80x24 terminal fallback.
+
+`Stdlib.Test.Process.run options callback argument` also supports typed arguments
+and results, and captures stdout/stderr separately. `defaults ()` selects the
+current branch, a 120-second timeout, and an 80x24 terminal fallback. Override
+`branch` for a test specifically about main, or the dimensions for a rendering
+scenario. The worker receives an allow-all disposable instance policy, the
+caller's package approvals, and active restrictions. Tests have no permission
+options or effect rows of their own. Package functions still use ordinary
+`permissions approve`; test execution supplies the instance grants. Callbacks
+must be named, unapplied, non-generic package functions;
+arguments and results must be serializable runtime values. The API requires Native
+and is available only during package-test execution.
+
+The host takes the baseline through SQLite's online backup API and closes it
+before copying its file. The run owns and cleans up the baseline even when its
+Dark callback fails; no snapshot is kept between runs. Explicit nested
+`Stdlib.Test.Process.run` calls instead snapshot the calling test's current store,
+so they see its writes. Standalone test execution also takes its own snapshot.
+
+For each worker the host creates a private home/policy/tmp
+folder, and launches one worker. The worker executes the test or explicit callback
+by its immutable hash. No Dark source is generated and stdout is never used as the result protocol.
+Stdin is EOF; commands that need input must supply an explicit pipe. The temporary
+store disables live autopush, the relay secret is removed from the environment,
+and HTTP follows the test instance policy and inherited function restrictions.
+The worker timeout covers process exit and draining both output pipes. Killing a
+live worker has a separate bounded cleanup wait. Snapshot creation happens before
+the worker timeout. Cleanup is attempted on success, failure, and timeout;
+`Output.cleanupErrors` reports cleanup failures alongside the callback result.
+The test runner preserves assertion failures and reports cleanup errors or a
+nonzero worker exit, even when a worker wrote a passing result before exiting.
+Cleanup stops the worker's POSIX process group or Windows job, including
+descendants still in that group or job after the worker exits. This provides
+test-state separation; native code still has OS access.
+
+Branch changes inside a child cannot affect the parent or the next test. Tests
+that previously required a shared runner to restore its branch no longer need
+that cleanup convention. `dark test` prints `Running:` before each uncached test.

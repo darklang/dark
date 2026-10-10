@@ -1,0 +1,26 @@
+/// Exact cases from `scripts/perf/workloads/checks/sgrcheck.dark`.
+module Darklang.Stdlib.Cli.Tui.Text.Tests.Sgr
+
+let colored (text: String) : String =
+  Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink text
+
+test styledWidth =
+  Stdlib.Test.all
+    [ Stdlib.Cli.Tui.Text.styledWidth "hello" |> Stdlib.Test.equal 5
+      Stdlib.Cli.Tui.Text.styledWidth (colored "abc") |> Stdlib.Test.equal 3
+      // A non-SGR CSI (erase-line) must still be skipped whole, and contribute no
+      // width.
+      Stdlib.Cli.Tui.Text.styledWidth "\u001b[2Ka" |> Stdlib.Test.equal 1 ]
+
+test stripSgr =
+  Stdlib.Cli.Tui.Text.stripSgr (colored "abc") |> Stdlib.Test.equal "abc"
+
+test clipToWidth =
+  Stdlib.Cli.Tui.Text.clipToWidth (colored "abcdef") 3
+  |> Stdlib.Cli.Tui.Text.stripSgr
+  |> Stdlib.Test.equal "abc"
+
+test wrapAtColumn =
+  Stdlib.Cli.Tui.Text.wrapAtColumn (colored "abcdef") 3
+  |> Stdlib.List.length
+  |> Stdlib.Test.equal 2

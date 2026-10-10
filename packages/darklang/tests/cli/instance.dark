@@ -1,0 +1,148 @@
+/// A throwaway Darklang install: its own store, its own home, gone when the test ends.
+///
+/// Part of `Darklang.Cli.Tests`.
+///
+/// Native TestSuite tests invoke these helpers inside a disposable snapshot. Nested
+/// instances live beside that snapshot's store, so the isolation worker's cleanup also
+/// removes them if a runtime error interrupts an assertion.
+module Darklang.Cli.Tests.Instance
+
+/// A running instance's identity: where it lives and what binary drives it.
+type T =
+  { dir: String
+    cli: String }
+
+
+/// Keep nested instances beside the active store, inside the enclosing fixture.
+/// LocalStore.path is absolute; child process configuration requires that.
+let root () : String =
+  let store = Stdlib.LocalStore.path ()
+  (Stdlib.Cli.Path.parent store) + "/test-instances"
+
+
+/// The store a new instance starts from.
+///
+/// The live store, not `seed.db`. The seed is an export taken at some past point, and a
+/// store older than the binary driving it fails on the first command with a hash that
+/// cannot be found; the live store is by definition the one this build just loaded.
+///
+/// No environment variable for this. A guest gets no env by default and an ungranted read
+/// is an error rather than a `None`, so every knob spelled as an env var is a grant every
+/// caller has to remember.
+let seedFrom () : String =
+  Stdlib.LocalStore.path ()
+
+
+/// The binary an instance drives.
+///
+/// NOT `scripts/run-cli`: the wrapper sets `DARK_CONFIG_RUNDIR` itself and the container
+/// sets it for every process, and either one wins over what we pass, so an instance
+/// driven through the wrapper quietly uses the dev store instead of its own.
+let cliBinary () : String =
+  match Stdlib.Env.get "DARK_CLI_UNDER_TEST" with
+  | Some path -> path
+  | None -> "backend/Build/out/Cli/Debug/net10.0/Cli"
+
+
+/// A fresh instance. Fails with a message rather than half-existing.
+let create () : Stdlib.Result.Result<T, String> =
+  let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
+  let dir = $"{root ()}/{suffix}"
+  let src = seedFrom ()
+
+  if Stdlib.Cli.Unix.fileExists src then
+    match Stdlib.Cli.Unix.ensureDirectoryExists dir with
+    | Error e -> Stdlib.Result.Result.Error $"could not create {dir}: {e}"
+    | Ok _ ->
+      // `.backup` rather than `cp`, and a read lock rather than a write one, so this is
+      // safe against a dev store something else is using.
+      let copy =
+        Stdlib.Cli.Unix.executeInDirectoryWithOutput
+          "."
+          $"sqlite3 -cmd '.timeout 10000' {src} '.backup {dir}/data.db'"
+
+      if copy.exitCode != 0 then
+        Stdlib.Result.Result.Error $"could not seed {dir} from {src}: {copy.stderr}"
+      else
+        Stdlib.Result.Result.Ok(T { dir = dir; cli = cliBinary () })
+  else
+    Stdlib.Result.Result.Error
+      $"no store to seed an instance from at {src}; build first"
+
+
+/// Remove an instance and everything in it. Safe to call twice.
+let dispose (i: T) : Unit =
+  let _ = Stdlib.Cli.Unix.removeDirectory i.dir
+  ()
+
+
+/// The environment that points a child at this instance rather than at the dev store.
+///
+/// `DARK_CONFIG_RUNDIR` ends in a separator because `LibConfig.Config` appends the
+/// database name to it directly. `HOME` moves anything that looks under the home
+/// directory; `DARK_CONFIG_DB_NAME` is named rather than inherited, since a caller with
+/// it already set would otherwise point the instance at a file it has no copy of.
+let env (i: T) : List<(String * String)> =
+  [ ("DARK_CONFIG_RUNDIR", $"{i.dir}/")
+    ("DARK_CONFIG_DB_NAME", "data.db")
+    ("HOME", i.dir)
+    ("XDG_CONFIG_HOME", i.dir + "/config") ]
+
+
+/// Run one command in this instance and return everything it said.
+let run (i: T) (args: List<String>) : Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
+  Stdlib.Cli.Process.runWithEnv i.cli args (env i)
+
+
+/// What a command printed: stdout, or stderr when stdout said nothing.
+///
+/// Same rule as `TestSuite.callOutput`, because the reason is the same: a refused command
+/// exits nonzero and explains itself on stdout, so dropping stdout on a failure hides
+/// exactly the text a test wants to read.
+let output (i: T) (args: List<String>) : String =
+  match run i args with
+  | Error e -> $"ERROR: {e}"
+  | Ok out ->
+    let stdout = Stdlib.String.trim out.stdout
+    if stdout != "" then stdout
+    else
+      let stderr = Stdlib.String.trim out.stderr
+      if stderr == "" then "" else $"ERROR: {stderr}"
+
+
+/// Runs `f` against a fresh instance and disposes it, whatever `f` decided.
+///
+/// Ordinary results dispose immediately. A runtime error escapes to the enclosing
+/// isolation worker, whose host also removes these nested instance directories.
+let withInstance (f: T -> Stdlib.Test.Result) : Stdlib.Test.Result =
+  match create () with
+  | Error e -> Stdlib.Test.fail e
+  | Ok i ->
+    let result = f i
+    let _ = dispose i
+    result
+
+
+/// Asserts a command's output contains `needle`.
+let expectContains (i: T) (args: List<String>) (needle: String) : Stdlib.Test.Result =
+  let out = output i args
+  if Stdlib.String.contains out needle then
+    Stdlib.Test.Result.Pass
+  else
+    let cmd = Stdlib.String.join args " "
+    Stdlib.Test.fail $"`{cmd}` did not mention '{needle}'. It said: {out}"
+
+
+/// Asserts a command's exit code.
+let expectExit (i: T) (args: List<String>) (expected: Int) : Stdlib.Test.Result =
+  let cmd = Stdlib.String.join args " "
+
+  match run i args with
+  | Error e -> Stdlib.Test.fail $"`{cmd}` could not run: {e}"
+  | Ok out ->
+    if out.exitCode == expected then
+      Stdlib.Test.Result.Pass
+    else
+      let got = Stdlib.toString out.exitCode
+      let want = Stdlib.toString expected
+      Stdlib.Test.fail $"`{cmd}` exited {got}, expected {want}"

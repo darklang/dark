@@ -1,0 +1,168 @@
+module Darklang.Language.Tests.Records
+
+type Cols1 = { col1: Int64 }
+type Cols2 = { col1: Int64; col2: Int64 }
+
+// Distinct case names keep this type separate from other enums with the same shape,
+// so the runtime error has a stable type name.
+type AnEnum = | RecordTestA | RecordTestB | RecordTestC
+
+test construction =
+  Cols2 { col1 = 1L; col2 = 3L }
+  |> Stdlib.Test.equal (Cols2 { col1 = 1L; col2 = 3L })
+
+test fieldErrorRaises =
+  Cols2 { col1 = 2L; col2 = Stdlib.Test.raiseRuntimeError "test" }
+  => raises "Uncaught exception: test"
+
+module WithTypeArgs =
+  type Owner<'a> = { item: 'a }
+  type CoOwner<'a> = Owner<'a>
+
+  test aliasWithTypeArg =
+    Owner { item = 5L } |> Stdlib.Test.equal (CoOwner { item = 5L })
+
+  type C<'c> = { v: 'c }
+  type B<'b> = { c: C<'b> }
+  type A<'a> = { b: B<'a> }
+
+  let getC (a: A<Int64>) : Int64 = a.b.c.v
+
+  test nestedTypeArgs =
+    getC (A { b = B { c = C { v = 5L } } }) |> Stdlib.Test.equal 5L
+
+module InvalidCols =
+  test duplicateFieldRaises =
+    Cols1 { col1 = 1L; col1 = 2L } => raises "Duplicate field `col1`"
+
+  test emptyKeyRaises =
+    Cols2 { col1 = 2L; ___ = 3L } => raises "Empty key in record creation"
+
+  test missingFieldRaises =
+    Cols2 { col1 = 2L } => raises "Missing field `col2`"
+
+  test unknownFieldRaises =
+    Cols2 { col1 = 2L; other = 3L } => raises "No field named `other`"
+
+  test extraFieldRaises =
+    Cols2 { col1 = 2L; col2 = 3L; col3 = 4L } => raises "No field named `col3`"
+
+  test wrongFieldTypeRaises =
+    Cols1 { col1 = "" }
+    => raises
+      "Failed to create record. Expected Int64 for field `col1`, but got \"\" (a String)"
+
+module InvalidType =
+  // Evaluate the unresolved name from source at run time so it does not prevent
+  // the package from loading. Check both the error branch and its message.
+  test unknownTypeRaises =
+    let branch = Darklang.SCM.PackageOps.currentBranch ()
+    let source = "MyNonExistantType { col1 = 2L }"
+    match Darklang.Cli.Eval.evaluateRaw None branch source [] false with
+    | Error(Runtime error) ->
+      Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString branch error
+      |> Stdlib.Test.equal "MyNonExistantType not found"
+    | _ -> Stdlib.Test.fail "expected a runtime error for an unknown record type"
+
+  test enumIsNotRecordRaises =
+    AnEnum { col1 = 2L }
+    => raises
+      "Expected a record, but Darklang.Language.Tests.Records.AnEnum is not one"
+
+module Polymorphism =
+  type MyRecord<'a> = { col1: 'a; col2: Int64 }
+
+  test typeArgFields =
+    Stdlib.Test.all
+      [ (MyRecord { col1 = (); col2 = 1L }).col2 |> Stdlib.Test.equal 1L
+        (MyRecord
+          { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
+            col2 = 1L })
+          .col1
+        |> Stdlib.Test.equal
+          (Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)) ]
+
+module Nested =
+  type NestedRecordA = { col1: Int64 }
+  type NestedRecordB = { col1: NestedRecordA }
+
+  test nestedFieldAccess =
+    (NestedRecordB { col1 = NestedRecordA { col1 = 1L } }).col1.col1
+    |> Stdlib.Test.equal 1L
+
+module Update =
+  type RecordForUpdate = { x: Int64; y: Int64 }
+  type RecordForUpdateMultiple = { x: Int64; y: Int64; z: Int64 }
+
+  test updates =
+    Stdlib.Test.all
+      [ ({ RecordForUpdate { x = 4L; y = 1L } with y = 2L })
+        |> Stdlib.Test.equal (RecordForUpdate { x = 4L; y = 2L })
+        (let myRec = RecordForUpdate { x = 4L; y = 1L }
+         { myRec with y = 2L })
+        |> Stdlib.Test.equal (RecordForUpdate { x = 4L; y = 2L })
+        (let myRec = RecordForUpdate { x = 4L; y = 1L }
+         { myRec with y = 22L; y = 42L })
+        |> Stdlib.Test.equal (RecordForUpdate { x = 4L; y = 42L })
+        (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
+         { myRec with y = 2L; z = 42L })
+        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 4L; y = 2L; z = 42L })
+        (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
+         { myRec with z = 3L; x = 42L })
+        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 42L; y = 1L; z = 3L })
+        (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
+         { myRec with z = 3L; x = 42L; y = 11L })
+        |> Stdlib.Test.equal (RecordForUpdateMultiple { x = 42L; y = 11L; z = 3L }) ]
+
+  // An update of a record whose type argument is still unknown, inside a fn with
+  // no type parameters, called from a fn whose type parameter has the record's
+  // parameter's name. The caller's `'a` must not fill the record's.
+  module UnderAGenericCaller =
+    type UpdBox<'a> = { updItems: List<'a> }
+
+    let emptyUpdBox () : UpdBox<String> =
+      let b = UpdBox { updItems = [] }
+      { b with updItems = [] }
+
+    let viaGeneric<'a> (xs: List<'a>) : UpdBox<String> = emptyUpdBox ()
+
+    test genericCallerKeepsOwnTypeArg =
+      Stdlib.List.length (viaGeneric [ 1L ]).updItems |> Stdlib.Test.equal 0
+
+  module Invalid =
+    test unknownFieldRaises =
+      (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
+       { myRec with z = 3L; x = 42L; y = 11L; p = 10L })
+      => raises "No field named `p`"
+
+    test otherFieldRaises =
+      (let myRec = RecordForUpdate { x = 4L; y = 1L }
+       { myRec with other = 2L })
+      => raises "No field named `other`"
+
+    test wrongFieldTypeRaises =
+      (let myRec = RecordForUpdate { x = 4L; y = 1L }
+       { myRec with y = "2" })
+      => raises
+        "Failed to create updated record. Expected Int64 for field `y`, but got \"2\" (a String)"
+
+module FieldAccess =
+  type MyRecord = { col1: Int64 }
+
+  test fieldAccess =
+    (let x = MyRecord { col1 = 1L } in x.col1) |> Stdlib.Test.equal 1L
+
+  module Errors =
+    test emptyFieldNameRaises =
+      (let x = MyRecord { col1 = 1L } in x.___) => raises "Field name is empty"
+
+    test missingFieldRaises =
+      (let x = MyRecord { col1 = 1L } in x.fieldName)
+      => raises "Tried to access field `fieldName`, but it doesn't exist"
+
+    // `(Builtin.testRuntimeError "error").fieldName` is in errorPropagation.dark.
+
+    test accessOnInt64Raises =
+      (let x = 6L in x.fieldName)
+      => raises
+        "Attempting to perform field access of an Int64, but this only works with records and tuples"

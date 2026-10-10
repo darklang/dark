@@ -374,6 +374,10 @@ let typeCheckOps
         let h = LanguageTools.ProgramTypes.hashToString i.hash
         (Stdlib.Dict.``member`` liveTargets h)
         || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
+      | AddTest test ->
+        let h = LanguageTools.ProgramTypes.hashToString test.hash
+        (Stdlib.Dict.``member`` liveTargets h)
+        || (Stdlib.Bool.not (Stdlib.Dict.``member`` namedHashes h))
       | _ -> true)
 
   match liveOps with
@@ -685,4 +689,3 @@ let discardDraft () : Stdlib.Result.Result<Int, String> =
     Stdlib.Result.Result.Ok(
       Stdlib.Int.fromInt64 (discardBranchDraft branchId)
     )
-

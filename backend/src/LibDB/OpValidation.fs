@@ -47,6 +47,8 @@ let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
     | PT.PackageOp.AddTraitImpl _,
       PT.PackageOp.SetName(loc, PT.PackageTraitImpl _, _) ->
       Some("impl", PackageLocation.toFQN loc)
+    | PT.PackageOp.AddTest _, PT.PackageOp.SetName(loc, PT.PackageTest _, _) ->
+      Some("test", PackageLocation.toFQN loc)
     | _ -> None)
   |> List.countBy (fun declaration -> declaration)
   |> List.filter (fun (_, count) -> count > 1)
@@ -75,6 +77,8 @@ let hashClashes (ops : List<PT.PackageOp>) : List<string> =
       Some(("trait", t.hash), Hashing.computeTraitHash Hashing.Normal t)
     | PT.PackageOp.AddTraitImpl i ->
       Some(("impl", i.hash), Hashing.computeImplHash Hashing.Normal i)
+    | PT.PackageOp.AddTest test ->
+      Some(("test", test.hash), Hashing.computeTestHash Hashing.Normal test)
     | PT.PackageOp.SetName _
     | PT.PackageOp.Unbind _
     | PT.PackageOp.Deprecate _

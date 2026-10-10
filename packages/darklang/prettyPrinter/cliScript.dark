@@ -34,6 +34,10 @@ let sourceFileAtWidth
 
       | Impl implDecl ->
         let prettyPrinted = PrettyPrinter.ProgramTypes.packageImpl ctx implDecl
+        acc |> Stdlib.List.push prettyPrinted
+
+      | Test testDecl ->
+        let prettyPrinted = PrettyPrinter.ProgramTypes.packageTest ctx testDecl
         acc |> Stdlib.List.push prettyPrinted))
     |> Stdlib.List.reverse
 

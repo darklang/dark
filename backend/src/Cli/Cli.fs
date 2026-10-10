@@ -213,6 +213,121 @@ let private installPolicy
           "did not resolve to a function"
       )
 
+/// Private worker protocol for package tests and Test.Process.run. Used only with the
+/// disposable snapshot created by HostProcess; output is never parsed as data.
+let private executeTestWorker
+  (packageManager : RT.PackageManager)
+  (requestPath : string)
+  (resultPath : string)
+  : Task<RT.ExecutionResult> =
+  task {
+    let dir =
+      System.IO.Path
+        .GetFullPath(LibConfig.Config.runDir)
+        .TrimEnd(System.IO.Path.DirectorySeparatorChar)
+    let valid =
+      System.IO.Path.GetFileName(dir).StartsWith("dark-test-")
+      && System.Environment.GetEnvironmentVariable("HOME") = dir
+      && requestPath = System.IO.Path.Combine(dir, "request.bin")
+      && resultPath = System.IO.Path.Combine(dir, "result.bin")
+    if not valid then invalidOp "Test worker requires a disposable test directory"
+    let request =
+      LibSerialization.Binary.Serialization.RT.Dval.deserialize
+        "isolated test request"
+        (System.IO.File.ReadAllBytes requestPath)
+    let hash, argument, accountID, isTest =
+      match request with
+      | RT.DTuple(RT.DString hash, argument, [ accountID ]) ->
+        hash,
+        argument,
+        LibExecution.CommonToDarkTypes.Option.fromDT
+          LibExecution.DvalDecoder.uuid
+          accountID,
+        false
+      | RT.DTuple(RT.DString hash, RT.DUnit, [ accountID; RT.DBool true ]) ->
+        hash,
+        RT.DUnit,
+        LibExecution.CommonToDarkTypes.Option.fromDT
+          LibExecution.DvalDecoder.uuid
+          accountID,
+        true
+      | _ -> invalidOp "Invalid test worker request"
+    let branch = LibDB.PackageManager.currentBranchId ()
+    do! LibDB.Config.set "current_branch" (string branch)
+    do! LibDB.Config.set "live.autopush" "off"
+    // The host supplied a disposable allow-all test policy and copied the
+    // caller's access, including captured package and function restrictions.
+    use accessStream =
+      System.IO.File.OpenRead(System.IO.Path.Combine(dir, "policy", "access.bin"))
+    use reader = new System.IO.BinaryReader(accessStream)
+    let inherited =
+      LibSerialization.Binary.Serializers.Permissions.readExecutionAccess reader
+    let baseState = state packageManager
+    let! bundled = LibDB.ProgramTypes.Fn.hashesOwnedBy "Darklang" |> Ply.toTask
+    let baseState =
+      { baseState with isBundledPackageFn = fun (RT.Hash h) -> bundled.Contains h }
+    let guest = LibDB.PolicyStore.testState accountID baseState
+    let workerState =
+      { guest with
+          access =
+            guest.access |> LibExecution.Permissions.Access.constrainBy inherited
+          branchId = branch
+          test = { guest.test with isPackageTest = true; sideEffectCount = 0 } }
+    let! outcome =
+      task {
+        if isTest then
+          let! test = LibDB.PackageManager.pt.getTest (PT.Hash hash) |> Ply.toTask
+          let! result =
+            match test with
+            | None ->
+              Ply(Error(RT.RuntimeError.VariableNotFound $"package test {hash}", []))
+              |> Ply.toTask
+            | Some test ->
+              // Execute the body directly: dispatching isolation again would recurse.
+              Builtins.Matter.Libs.PM.PackageTests.executeTestBody
+                workerState
+                workerState.access
+                test
+              |> Ply.toTask
+          return Ok(Builtins.Matter.Libs.PM.PackageTests.reflectOutcome result)
+        else
+          return!
+            Exe.executeFunction
+              workerState
+              (RT.FQFnName.fqPackage hash)
+              []
+              (NEList.singleton argument)
+      }
+    let! value, code =
+      task {
+        match outcome with
+        | Ok value -> return value, 0
+        | Error(error, stack) ->
+          let! rendered = Exe.runtimeErrorToString workerState error
+          let message =
+            match rendered with
+            | Ok(RT.DString s) -> s
+            | _ -> string error
+          let! stackText = Exe.callStackString workerState stack
+          System.Console.Error.WriteLine($"{message}\n{stackText}")
+          return RT.DString message, 1
+      }
+    let result =
+      RT.DEnum(
+        Dval.resultType (),
+        Dval.resultType (),
+        [ RT.ValueType.Unknown; RT.ValueType.Known RT.KTString ],
+        (if code = 0 then "Ok" else "Error"),
+        [ value ]
+      )
+    let bytes =
+      LibSerialization.Binary.Serialization.RT.Dval.serialize
+        "isolated test result"
+        result
+    System.IO.File.WriteAllBytes(resultPath, bytes)
+    return Ok(Dval.int (bigint code))
+  }
+
 let execute
   (packageManager : RT.PackageManager)
   (args : List<string>)
@@ -829,7 +944,11 @@ let private runCli (args : string[]) : int =
 
     let result =
       Telemetry.time "cli.execute" [] (fun () ->
-        let result = execute cliPackageManager (Array.toList args)
+        let result =
+          match Array.toList args with
+          | [ "--test-worker"; request; result ] ->
+            executeTestWorker cliPackageManager request result
+          | _ -> execute cliPackageManager (Array.toList args)
         result.Result)
 
     Telemetry.time "cli.consoleWait" [] NonBlockingConsole.wait
@@ -1062,7 +1181,13 @@ let main (args : string[]) : int =
       (fun () ->
         exitCode <-
           try
-            runCli args
+            match Array.toList args with
+            | "--test-process-launch" :: jobName :: program :: workerArgs ->
+              LibExecution.HostProcess.launchIsolatedWorker
+                jobName
+                program
+                workerArgs
+            | _ -> runCli args
           with e ->
             System.Console.Error.WriteLine
               $"Error starting Darklang CLI: {e.Message}"

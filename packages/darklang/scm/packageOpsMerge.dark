@@ -30,6 +30,7 @@ let applyResolution
     | "value" -> LanguageTools.ProgramTypes.Reference.PackageValue h
     | "trait" -> LanguageTools.ProgramTypes.Reference.PackageTrait h
     | "impl" -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl h
+    | "test" -> LanguageTools.ProgramTypes.Reference.PackageTest h
     | _ -> LanguageTools.ProgramTypes.Reference.PackageFn h
 
   add
@@ -494,4 +495,3 @@ type BranchDiffEntry =
     parentHash: String
     /// What the branch binds.
     hash: String }
-

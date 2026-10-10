@@ -67,7 +67,7 @@ Field access, record updates, and enum patterns on incompatible types are defini
 - `Declarations` validates types and caches their own problems, references, alias cycles, and transitive problems in the `Environment`. Strongly connected components avoid repeated walks through shared dependencies.
 - `Coverage` proves match exhaustiveness and produces a witness for the message.
 - `Environment` loads the dependency closure by content hash through the package manager. Package functions must declare their public signatures. Existing functions contribute signatures, not bodies. Builtin signatures are fetched lazily by name from the runtime, including the types they reference, without materializing the full registry for each check. Called signatures are converted and validated once per batch, then instantiated per call. Dictionary-key requirements wait for inferred arguments and travel with generalized local and package values. Each dependency's retrieval and reference walk share a guard: a failed load marks it unavailable and preserves the rest of the queue.
-- `Run` checks batches. It declares types and function signatures first, supporting any order and mutual recursion. Values are checked in dependency order; cycles remain `Incomplete`. Reports contain one verdict per content-addressed item.
+- `Run` checks batches. It declares types and function signatures first, supporting any order and mutual recursion. Values are checked in dependency order; cycles remain `Incomplete`. Package tests are checked last, against the environment holding the batch's value schemes: nothing can reference a test, so no other item waits on one. An ordinary test's body must return `Stdlib.Test.Result`, which is loaded even when the body never names it; a `=> raises` test is only observed through its runtime error, so its body is inferred with no expected type. Reports contain one verdict per content-addressed item.
 
 `Declarations` computes dictionary-key requirements to a finite fixed point, including requirements inherited through aliases, records, enums, and recursive declarations. Each use checks its actual type arguments; phantom parameters impose none. Value reachability uses a least fixed point: passing a parameter around a recursive cycle does not make it a runtime value. There must be a path to a payload, including paths that permute type arguments.
 
@@ -224,10 +224,10 @@ ordinary Darklang code, not an F# module with a builtin in front of it. There is
 
 ## Verification
 
-./scripts/run-backend-tests --filter tests/LibExecution/All/testfiles/execution/stdlib/language-tools/atRestTypeChecker
+./scripts/run-cli test Darklang.LanguageTools.AtRestTypeChecker
 ./scripts/run-cli typecheck
 
-`backend/testfiles/execution/stdlib/language-tools/atRestTypeChecker.dark` tests each rule and issue code. Cases use source parsed by
+`packages/darklang/tests/languageTools/atRestTypeChecker.dark` tests each rule and issue code. Cases use source parsed by
 `LanguageTools.Parser.Parse.packageSourceToOps` where possible, including declarations that refer to each other. Hand-built cases cover inputs the parser cannot produce: unresolved names, missing hashes, and or-alternatives binding different names. Guarded deep-input tests must either check successfully or return `Incomplete` for excessive depth, without crashing the process.
 
 `CliScm.Tests.fs` tests rollout policy through the real CLI: definite errors are saved as WIP, rejected at commit, and accepted with `--allow-type-errors`.

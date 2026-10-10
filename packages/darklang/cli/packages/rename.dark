@@ -38,7 +38,8 @@ let referenceAt
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.Reference> =
-  let results = Packages.Query.searchExactMatch branchId location.modules location.name
+  let modulePath = Stdlib.List.append [ location.owner ] location.modules
+  let results = Packages.Query.searchExactMatch branchId modulePath location.name
 
   match results.fns with
   | i :: _ ->
@@ -69,7 +70,13 @@ let referenceAt
             Stdlib.Option.Option.Some(
               LanguageTools.ProgramTypes.Reference.PackageTraitImpl i.entity.hash
             )
-          | [] -> Stdlib.Option.Option.None
+          | [] ->
+            match results.tests with
+            | i :: _ ->
+              Stdlib.Option.Option.Some(
+                LanguageTools.ProgramTypes.Reference.PackageTest i.entity.hash
+              )
+            | [] -> Stdlib.Option.Option.None
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
