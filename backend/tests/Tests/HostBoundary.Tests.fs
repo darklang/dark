@@ -42,15 +42,16 @@ let private bannedTypes =
 let private bannedHostSubsystemTypes =
   Set.ofList
     [ "LibExecution.HostHttp"
-      "LibExecution.HostLibc"
+      "LibExecution.HostKernel"
+      "LibExecution.HostPosix"
       "LibExecution.HostProcess"
       "LibExecution.HostSecurity" ]
 
-/// The libc bridge members an effect-free host-fact builtin may call
+/// The POSIX host members an effect-free host-fact builtin may call
 /// directly: process facts and constants that name no resource (docs/effects.md,
-/// "Checked host boundary"). Everything else on `HostLibc` opens a path, a
+/// "Checked host boundary"). Everything else on `HostPosix` opens a path, a
 /// descriptor, or an environment entry and must go through `Host.perform`.
-let private ambientHostLibcMembers =
+let private ambientHostPosixMembers =
   Set.ofList
     [ "uname"
       "getpid"
@@ -77,7 +78,8 @@ let private hostModules =
   Set.ofList
     [ "LibExecution", "LibExecution.Host"
       "LibExecution", "LibExecution.HostHttp"
-      "LibExecution", "LibExecution.HostLibc"
+      "LibExecution", "LibExecution.HostPosix"
+      "LibExecution", "LibExecution.HostKernel"
       "LibExecution", "LibExecution.HostProcess"
       "LibExecution", "LibExecution.HostRegistry"
       "LibExecution", "LibExecution.HostSecurity" ]
@@ -196,8 +198,8 @@ let rec private bannedTarget (reader : MetadataReader) (handle : EntityHandle) =
         typeRefFullName reader (TypeReferenceHandle.op_Explicit memberRef.Parent)
       let memberName = reader.GetString memberRef.Name
       if
-        typeName = "LibExecution.HostLibc"
-        && Set.contains memberName ambientHostLibcMembers
+        typeName = "LibExecution.HostPosix"
+        && Set.contains memberName ambientHostPosixMembers
       then
         None
       elif

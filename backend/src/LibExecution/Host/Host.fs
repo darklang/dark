@@ -188,7 +188,7 @@ let private bindHttpServer (port : int) : Result<Response, int * string> =
     else
       Error(e.ErrorCode, $"couldn't listen on port {port}: {e.Message}")
 
-/// An exception out of an execution. `HostLibc.openSafely` reports an open
+/// An exception out of an execution. `HostPosix.openSafely` reports an open
 /// failure as a `Win32Exception` carrying the errno, so on Linux every file
 /// read that fails comes through here that way; read the kind off the errno
 /// as `failureOfErrno` does, or ENOENT and EACCES both collapse into `Other`.
@@ -504,14 +504,14 @@ let private unitFile
       action path
       Response.Unit))
 
-let private libcPath
+let private posixPath
   (access : Permission.AccessKind)
   (rawPath : string)
   (call : string -> Result<Response, int * string>)
   : Result<Resolved, string> =
   resolveFile access rawPath (fun path -> attempt (fun () -> call path))
 
-/// Like `libcPath`, but the syscall operates on the final directory entry
+/// Like `posixPath`, but the syscall operates on the final directory entry
 /// rather than following it. This is what makes readlink and unlink usable
 /// without allowing symlinked ancestors.
 let private libcEntry
@@ -598,25 +598,25 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
   match op with
   | HostTypes.PosixOp.Chdir path ->
     resolveFile read path (fun path ->
-      attempt (fun () -> HostLibc.chdir path |> unitOk))
+      attempt (fun () -> HostPosix.chdir path |> unitOk))
   | HostTypes.PosixOp.Setenv(name, value) ->
     withChecks
       [ envCheck write name ]
-      (attempt (fun () -> HostLibc.setenv name value |> unitOk))
+      (attempt (fun () -> HostPosix.setenv name value |> unitOk))
   | HostTypes.PosixOp.Unsetenv name ->
     withChecks
       [ envCheck write name ]
-      (attempt (fun () -> HostLibc.unsetenv name |> unitOk))
+      (attempt (fun () -> HostPosix.unsetenv name |> unitOk))
   | HostTypes.PosixOp.Getenv name ->
     withChecks
       [ envCheck read name ]
-      (produce (fun () -> Response.EnvValue(HostLibc.getenv name)))
+      (produce (fun () -> Response.EnvValue(HostPosix.getenv name)))
   | HostTypes.PosixOp.Mkdir(path, mode) ->
-    libcPath write path (fun path -> HostLibc.mkdir path mode |> unitOk)
+    posixPath write path (fun path -> HostPosix.mkdir path mode |> unitOk)
   | HostTypes.PosixOp.Rmdir path ->
-    mutatingEntry path (fun () -> libcPath write path (HostLibc.rmdir >> unitOk))
+    mutatingEntry path (fun () -> posixPath write path (HostPosix.rmdir >> unitOk))
   | HostTypes.PosixOp.Unlink path ->
-    mutatingEntry path (fun () -> libcEntry write path (HostLibc.unlink >> unitOk))
+    mutatingEntry path (fun () -> libcEntry write path (HostPosix.unlink >> unitOk))
   | HostTypes.PosixOp.Rename(oldPath, newPath) ->
     // Rename mutates both directory entries without following either final
     // symlink. Each endpoint therefore needs a write rule, and neither may be
@@ -627,73 +627,70 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
           guardedEntry true newPath (fun newPath ->
             withChecks
               [ fileCheck write oldPath; fileCheck write newPath ]
-              (attempt (fun () -> HostLibc.rename oldPath newPath |> unitOk))))))
+              (attempt (fun () -> HostPosix.rename oldPath newPath |> unitOk))))))
   | HostTypes.PosixOp.Chmod(path, mode) ->
-    libcPath write path (fun path -> HostLibc.chmod path mode |> unitOk)
+    posixPath write path (fun path -> HostPosix.chmod path mode |> unitOk)
   | HostTypes.PosixOp.UtimesNow path ->
-    libcPath write path (HostLibc.utimesNow >> unitOk)
+    posixPath write path (HostPosix.utimesNow >> unitOk)
   | HostTypes.PosixOp.Symlink(target, linkPath) ->
     // The target is data stored in the link, not a resource being accessed;
     // creating the link is a write at linkPath.
     resolveFile write linkPath (fun linkPath ->
-      attempt (fun () -> HostLibc.symlink target linkPath |> unitOk))
+      attempt (fun () -> HostPosix.symlink target linkPath |> unitOk))
   | HostTypes.PosixOp.Readlink path ->
-    libcEntry read path (HostLibc.readlink >> Result.map Response.Path)
+    libcEntry read path (HostPosix.readlink >> Result.map Response.Path)
   | HostTypes.PosixOp.Mkstemp prefix ->
-    libcTemp prefix (HostLibc.mkstemp >> Result.map Response.FdPath)
+    libcTemp prefix (HostPosix.mkstemp >> Result.map Response.FdPath)
   | HostTypes.PosixOp.Mkdtemp prefix ->
-    libcTemp prefix (HostLibc.mkdtemp >> Result.map Response.Path)
+    libcTemp prefix (HostPosix.mkdtemp >> Result.map Response.Path)
   | HostTypes.PosixOp.ListDir path ->
-    libcPath read path (HostLibc.listDir >> Result.map Response.Entries)
+    posixPath read path (HostPosix.listDir >> Result.map Response.Entries)
   | HostTypes.PosixOp.Stat path ->
-    libcPath read path (HostLibc.stat >> Result.map Response.StatInfo)
+    posixPath read path (HostPosix.stat >> Result.map Response.StatInfo)
   | HostTypes.PosixOp.Open(path, flags, mode) ->
     let accessMode = flags &&& 3
-    let reads = accessMode = HostLibc.O_RDONLY || accessMode = HostLibc.O_RDWR
+    let reads = accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR
     let writes =
-      accessMode = HostLibc.O_WRONLY
-      || accessMode = HostLibc.O_RDWR
-      || (flags &&& (HostLibc.O_CREAT ||| HostLibc.O_TRUNC ||| HostLibc.O_APPEND))
+      accessMode = HostPosix.O_WRONLY
+      || accessMode = HostPosix.O_RDWR
+      || (flags &&& (HostPosix.O_CREAT ||| HostPosix.O_TRUNC ||| HostPosix.O_APPEND))
          <> 0
     if not reads && not writes then
       Error(rejected $"unsupported open access mode: {accessMode}")
     elif reads && writes then
       libcReadWrite path (fun path ->
-        HostLibc.openFile path flags mode |> Result.map Response.Fd)
+        HostPosix.openFile path flags mode |> Result.map Response.Fd)
     else
       let access = if writes then write else read
-      libcPath access path (fun path ->
-        HostLibc.openFile path flags mode |> Result.map Response.Fd)
+      posixPath access path (fun path ->
+        HostPosix.openFile path flags mode |> Result.map Response.Fd)
   | HostTypes.PosixOp.Getcwd ->
     // Like `DirectoryCurrent`: the request depends on host state, and reading
     // the working directory is a read of that path.
-    match HostLibc.getcwd () with
+    match HostPosix.getcwd () with
     | Error e -> Ok { checks = []; execute = attempt (fun () -> Error e) }
     | Ok cwd ->
       resolveFile read cwd (fun cwd -> produce (fun () -> Response.Path cwd))
   | HostTypes.PosixOp.Kill(pid, signal) ->
-    native (fun () -> HostLibc.kill pid signal |> unitOk)
+    native (fun () -> HostPosix.kill pid signal |> unitOk)
   | HostTypes.PosixOp.FdRead(fd, count) ->
-    native (fun () -> HostLibc.fdRead fd count |> Result.map Response.Bytes)
+    native (fun () -> HostPosix.fdRead fd count |> Result.map Response.Bytes)
   | HostTypes.PosixOp.FdSeek(fd, offset, whence) ->
-    native (fun () -> HostLibc.fdSeek fd offset whence |> Result.map Response.Offset)
+    native (fun () -> HostPosix.fdSeek fd offset whence |> Result.map Response.Offset)
   | HostTypes.PosixOp.FdWrite(fd, data) ->
-    native (fun () -> HostLibc.fdWrite fd data |> Result.map Response.Written)
-  | HostTypes.PosixOp.FdClose fd -> native (fun () -> HostLibc.fdClose fd |> unitOk)
+    native (fun () -> HostPosix.fdWrite fd data |> Result.map Response.Written)
+  | HostTypes.PosixOp.FdClose fd -> native (fun () -> HostPosix.fdClose fd |> unitOk)
   | HostTypes.PosixOp.Flock(fd, operation) ->
-    native (fun () -> HostLibc.flock fd operation |> unitOk)
+    native (fun () -> HostPosix.flock fd operation |> unitOk)
   | HostTypes.PosixOp.FileOwner path ->
-    libcPath read path (HostLibc.fileOwner >> Result.map Response.Text)
+    posixPath read path (HostPosix.fileOwner >> Result.map Response.Text)
   | HostTypes.PosixOp.UserName uid ->
     // A host fact with no resource; the builtin is effect-free.
-    unchecked (produce (fun () -> Response.OptionalText(HostLibc.getUserName uid)))
-  | HostTypes.PosixOp.HomeDir ->
-    // The answer is a path, so it is a read of that path.
-    match HostLibc.getHomeDir () with
-    | None -> unchecked (produce (fun () -> Response.OptionalText None))
-    | Some home ->
-      resolveFile read home (fun home ->
-        produce (fun () -> Response.OptionalText(Some home)))
+    unchecked (produce (fun () -> Response.OptionalText(HostPosix.getUserName uid)))
+  | HostTypes.PosixOp.HomeDir home ->
+    // Darklang selected a candidate; exposing it still requires path authorization.
+    resolveFile read home (fun home ->
+      produce (fun () -> Response.OptionalText(Some home)))
 
 let private resolve (op : Operation) : Result<Resolved, string> =
   let read = Permission.AccessKind.Read
@@ -702,23 +699,23 @@ let private resolve (op : Operation) : Result<Resolved, string> =
     // Symlink rejection is atomic with the open: openat2(RESOLVE_NO_SYMLINKS)
     // on Linux, the O_NOFOLLOW directory walk elsewhere on POSIX.
     resolveFile read path (fun path ->
-      produce (fun () -> Response.Bytes(HostLibc.readAllBytes path)))
+      produce (fun () -> Response.Bytes(HostPosix.readAllBytes path)))
   | Operation.FileWrite(path, contents) ->
-    unitFile path (fun path -> HostLibc.writeAllBytes path contents)
+    unitFile path (fun path -> HostPosix.writeAllBytes path contents)
   | Operation.FileAppendText(path, content) ->
-    unitFile path (fun path -> HostLibc.appendAllText path content)
+    unitFile path (fun path -> HostPosix.appendAllText path content)
   | Operation.FileDelete path ->
     mutatingEntry path (fun () ->
-      if HostLibc.isPosix then
+      if HostPosix.isPosix then
         resolveFile Permission.AccessKind.Write path (fun path ->
-          attempt (fun () -> HostLibc.unlink path |> unitOk))
+          attempt (fun () -> HostPosix.unlink path |> unitOk))
       else
         unitFile path System.IO.File.Delete)
   | Operation.FileStat path ->
     resolveFile read path (fun path ->
-      if HostLibc.isPosix then
+      if HostPosix.isPosix then
         attempt (fun () ->
-          HostLibc.statEntry path
+          HostPosix.statEntry path
           |> Result.map (fun (exists, isDirectory) ->
             Response.Stat(exists, isDirectory)))
       else
@@ -739,9 +736,9 @@ let private resolve (op : Operation) : Result<Resolved, string> =
     resolveFile read cwd (fun cwd -> produce (fun () -> Response.Path cwd))
   | Operation.DirectoryList path ->
     resolveFile read path (fun path ->
-      if HostLibc.isPosix then
+      if HostPosix.isPosix then
         attempt (fun () ->
-          HostLibc.listDir path
+          HostPosix.listDir path
           |> Result.map (fun names ->
             names
             |> List.map (fun name -> System.IO.Path.Combine(path, name))
@@ -864,11 +861,11 @@ let private execute (run : Execute) : Task<Outcome> =
 /// unreadable: `dark serve` reported `SystemNetHttpListener_PlatformNotSupported`, a resource
 /// KEY rather than a sentence because `UseSystemResourceKeys` is on, and running a program
 /// surfaced an internal error with a .NET stack. Refuse here instead, with the text a person
-/// should read. `HostLibc` already does this for libc calls it cannot make (errno 38,
+/// should read. `HostPosix` already does this for libc calls it cannot make (errno 38,
 /// "not available in the browser").
 ///
 /// Only what genuinely cannot work. Files, directories and environment variables work in the
-/// browser against emscripten's in-memory filesystem (descriptor calls through `HostLibc`'s
+/// browser against emscripten's in-memory filesystem (descriptor calls through `HostPosix`'s
 /// managed table, the rest through `System.IO`), nothing of it survives a reload, and HTTP
 /// requests work over `fetch` for hosts that allow it.
 let private browserRefusal (op : Operation) : Option<Outcome> =
@@ -946,15 +943,19 @@ let httpStreamClose (handle : int64) : unit = HostHttp.closeStream handle
 /// The platform value of one open() flag.
 let openFlag (flag : HostTypes.OpenFlag) : int =
   match flag with
-  | HostTypes.OpenFlag.ReadOnly -> HostLibc.O_RDONLY
-  | HostTypes.OpenFlag.WriteOnly -> HostLibc.O_WRONLY
-  | HostTypes.OpenFlag.ReadWrite -> HostLibc.O_RDWR
-  | HostTypes.OpenFlag.Create -> HostLibc.O_CREAT
-  | HostTypes.OpenFlag.Truncate -> HostLibc.O_TRUNC
-  | HostTypes.OpenFlag.Append -> HostLibc.O_APPEND
+  | HostTypes.OpenFlag.ReadOnly -> HostPosix.O_RDONLY
+  | HostTypes.OpenFlag.WriteOnly -> HostPosix.O_WRONLY
+  | HostTypes.OpenFlag.ReadWrite -> HostPosix.O_RDWR
+  | HostTypes.OpenFlag.Create -> HostPosix.O_CREAT
+  | HostTypes.OpenFlag.Truncate -> HostPosix.O_TRUNC
+  | HostTypes.OpenFlag.Append -> HostPosix.O_APPEND
 
 /// The kernel's current window size for a terminal descriptor, as
 /// (columns, rows). None when the descriptor is not a terminal, on Windows,
-/// and on macOS, where the ioctl bridge is unsafe (see `HostLibc`).
+/// and on macOS, where the ioctl bridge is unsafe (see `HostPosix`).
 let terminalWindowSize (fd : int) : Option<int64 * int64> =
-  HostLibc.tryTerminalWindowSize fd
+  HostPosix.tryTerminalWindowSize fd
+
+/// Trusted host-owned policy storage; never exposed as a Darklang builtin.
+let syncPolicyDirectory (directory : string) : unit =
+  HostPosix.syncDirectory directory

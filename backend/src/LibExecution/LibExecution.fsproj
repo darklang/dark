@@ -33,7 +33,8 @@
     <!-- Host boundary /-->
     <Compile Include="Permissions.fs" />
     <Compile Include="Host/HostTypes.fs" />
-    <Compile Include="Host/HostLibc.fs" />
+    <Compile Include="Host/HostKernel.fs" />
+    <Compile Include="Host/HostPosix.fs" />
     <Compile Include="Host/HostHttp.fs" />
     <Compile Include="Host/HostProcess.fs" />
     <Compile Include="Host/HostRegistry.fs" />

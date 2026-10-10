@@ -1,205 +1,21 @@
-/// Posix libc bridge via P/Invoke — thin wrappers around OS functions,
-/// owned by the checked host boundary. Every wrapper returns the libc
-/// `(errno, message)` pair on failure. Scoped operations (paths, env names,
-/// raw fds) reach these through `Host.perform`; the few ambient Native-gated
-/// builtins that carry no state (uname, getpid, ...) call them directly, with
-/// the interpreter's ambient Native check as their gate. Process spawning is
-/// .NET-backed and lives in `HostProcess`. Linux (x86_64, aarch64, armv7) and
-/// macOS only. Will not work on Windows.
-module LibExecution.HostLibc
+/// Descriptor-safe POSIX operations owned by the checked host boundary.
+/// Kernel calls use HostKernel; process-managed state uses .NET. No libc ABI.
+module LibExecution.HostPosix
 
 open System
 open System.Runtime.InteropServices
 open Microsoft.Win32.SafeHandles
-
 open Prelude
-
-// F# generates implicit failwith calls inside extern/P/Invoke stubs.
-// The project bans the built-in failwith, so we shadow it here.
-let private failwith (s : string) : 'a = raise (System.Exception(s))
-
-// -- Filesystem ---------------------------------------------------
-[<DllImport("libc", EntryPoint = "mkdir", SetLastError = true)>]
-extern int private mkdir_raw(string path, int mode)
-
-[<DllImport("libc", EntryPoint = "rmdir", SetLastError = true)>]
-extern int private rmdir_raw(string path)
-
-[<DllImport("libc", EntryPoint = "unlink", SetLastError = true)>]
-extern int private unlink_raw(string path)
-
-[<DllImport("libc", EntryPoint = "stat", SetLastError = true)>]
-extern int private stat_raw(string path, IntPtr buf)
-
-// glibc only began exporting `stat` and `lstat` as ordinary symbols in
-// 2.33. Before that they were header inlines over `__xstat`/`__lxstat`,
-// which take a leading struct-version argument. A P/Invoke to "stat" throws
-// EntryPointNotFoundException on any older system, so we need both and pick
-// at runtime.
-//
-// This matters more than it looks: it's not an exotic-platform problem. The
-// release build targets glibc 2.29 precisely so it runs on older distros,
-// and those are exactly the ones without `stat`. Verified failing on Ubuntu
-// 20.04 (glibc 2.31) with the AOT binary; the R2R build has the same bug.
-// It goes unnoticed because dev machines and CI runners are all 2.33+.
-[<DllImport("libc", EntryPoint = "__xstat", SetLastError = true)>]
-extern int private xstat_raw(int version, string path, IntPtr buf)
-
-[<DllImport("libc", EntryPoint = "rename", SetLastError = true)>]
-extern int private rename_raw(string oldpath, string newpath)
-
-[<DllImport("libc", EntryPoint = "chmod", SetLastError = true)>]
-extern int private chmod_raw(string path, int mode)
-
-[<DllImport("libc", EntryPoint = "symlink", SetLastError = true)>]
-extern int private symlink_raw(string target, string linkpath)
-
-[<DllImport("libc", EntryPoint = "readlink", SetLastError = true)>]
-extern int private readlink_raw(string path, byte[] buf, int bufsiz)
-
-[<DllImport("libc", EntryPoint = "mkstemp", SetLastError = true)>]
-extern int private mkstemp_raw(byte[] template)
-
-[<DllImport("libc", EntryPoint = "mkdtemp", SetLastError = true)>]
-extern IntPtr private mkdtemp_raw(byte[] template)
-
-[<DllImport("libc", EntryPoint = "flock", SetLastError = true)>]
-extern int private flock_raw(int fd, int operation)
-
-[<DllImport("libc", EntryPoint = "getpwuid")>]
-extern IntPtr private getpwuid_raw(uint32 uid)
-
-[<DllImport("libc", EntryPoint = "chdir", SetLastError = true)>]
-extern int private chdir_raw(string path)
-
-[<DllImport("libc", EntryPoint = "setenv", SetLastError = true)>]
-extern int private setenv_raw(string name, string value, int overwrite)
-
-[<DllImport("libc", EntryPoint = "unsetenv", SetLastError = true)>]
-extern int private unsetenv_raw(string name)
-
-[<DllImport("libc", EntryPoint = "getcwd", SetLastError = true)>]
-extern IntPtr private getcwd_raw(IntPtr buf, int size)
-
-[<DllImport("libc", EntryPoint = "uname", SetLastError = true)>]
-extern int private uname_raw(IntPtr buf)
-
-[<DllImport("libc", EntryPoint = "getpid")>]
-extern int private getpid_raw()
-
-[<DllImport("libc", EntryPoint = "getuid")>]
-extern uint32 private getuid_raw()
-
-[<DllImport("libc", EntryPoint = "sysconf")>]
-extern int64 private sysconf_raw(int name)
-
-[<DllImport("libc", EntryPoint = "strerror")>]
-extern IntPtr private strerror_raw(int errnum)
-
-[<DllImport("libc", EntryPoint = "opendir", SetLastError = true)>]
-extern IntPtr private opendir_raw(string path)
-
-[<DllImport("libc", EntryPoint = "readdir", SetLastError = true)>]
-extern IntPtr private readdir_raw(IntPtr dirp)
-
-[<DllImport("libc", EntryPoint = "closedir")>]
-extern int private closedir_raw(IntPtr dirp)
-
-[<DllImport("libc", EntryPoint = "getenv")>]
-extern IntPtr private getenv_raw(string name)
-
-[<DllImport("libc", EntryPoint = "utimes", SetLastError = true)>]
-extern int private utimes_raw(string path, IntPtr times)
-
-// -- Directory-relative (*at) calls -----------------------------------
-// Every path operation below walks to the parent directory one component at
-// a time with O_NOFOLLOW and finishes with one of these on the held
-// descriptor, so a component cannot be swapped for a link between the
-// permission check and the operation.
-[<DllImport("libc", EntryPoint = "openat", SetLastError = true)>]
-extern int private openat_raw(int dirfd, string path, int flags, int mode)
-
-[<DllImport("libc", EntryPoint = "unlinkat", SetLastError = true)>]
-extern int private unlinkat_raw(int dirfd, string path, int flags)
-
-[<DllImport("libc", EntryPoint = "mkdirat", SetLastError = true)>]
-extern int private mkdirat_raw(int dirfd, string path, int mode)
-
-[<DllImport("libc", EntryPoint = "fstatat", SetLastError = true)>]
-extern int private fstatat_raw(int dirfd, string path, IntPtr buf, int flags)
-
-// The pre-2.33 glibc spelling, like `__xstat` for `stat` below.
-[<DllImport("libc", EntryPoint = "__fxstatat", SetLastError = true)>]
-extern int private fxstatat_raw(
-  int version,
-  int dirfd,
-  string path,
-  IntPtr buf,
-  int flags
-)
-
-[<DllImport("libc", EntryPoint = "renameat", SetLastError = true)>]
-extern int private renameat_raw(
-  int olddirfd,
-  string oldpath,
-  int newdirfd,
-  string newpath
-)
-
-[<DllImport("libc", EntryPoint = "fchmodat", SetLastError = true)>]
-extern int private fchmodat_raw(int dirfd, string path, int mode, int flags)
-
-[<DllImport("libc", EntryPoint = "utimensat", SetLastError = true)>]
-extern int private utimensat_raw(int dirfd, string path, IntPtr times, int flags)
-
-[<DllImport("libc", EntryPoint = "symlinkat", SetLastError = true)>]
-extern int private symlinkat_raw(string target, int newdirfd, string linkpath)
-
-[<DllImport("libc", EntryPoint = "readlinkat", SetLastError = true)>]
-extern int private readlinkat_raw(int dirfd, string path, byte[] buf, int bufsiz)
-
-[<DllImport("libc", EntryPoint = "fdopendir", SetLastError = true)>]
-extern IntPtr private fdopendir_raw(int fd)
-
-[<DllImport("libc", EntryPoint = "fchdir", SetLastError = true)>]
-extern int private fchdir_raw(int fd)
-
-[<DllImport("libc", EntryPoint = "dup", SetLastError = true)>]
-extern int private dup_raw(int fd)
-
-// -- Process ------------------------------------------------------
-[<DllImport("libc", EntryPoint = "kill", SetLastError = true)>]
-extern int private kill_raw(int pid, int signal)
-
-// -- File I/O -----------------------------------------------------
-[<DllImport("libc", EntryPoint = "open", SetLastError = true)>]
-extern int private open_raw(string path, int flags, int mode)
-
-[<DllImport("libc", EntryPoint = "read", SetLastError = true)>]
-extern int private read_raw(int fd, byte[] buf, int count)
-
-[<DllImport("libc", EntryPoint = "lseek", SetLastError = true)>]
-extern int64 private lseek_raw(int fd, int64 offset, int whence)
-
-[<DllImport("libc", EntryPoint = "ioctl", SetLastError = true)>]
-extern int private ioctl_raw(int fd, uint64 request, IntPtr argument)
-
-[<DllImport("libc", EntryPoint = "write", SetLastError = true)>]
-extern int private write_raw(int fd, byte[] buf, int count)
-
-[<DllImport("libc", EntryPoint = "close", SetLastError = true)>]
-extern int private close_raw(int fd)
-
+open LibExecution.HostKernel
 
 // -- Platform detection ---------------------------------------------
 let private isMac = RuntimeInformation.IsOSPlatform OSPlatform.OSX
 let private isArm64 = RuntimeInformation.ProcessArchitecture = Architecture.Arm64
 let private isX64 = RuntimeInformation.ProcessArchitecture = Architecture.X64
 /// 32-bit ARM (armv7). Distinct from Arm64 in more than pointer width: off_t
-/// and time_t are 32 bits here, so struct stat's size and mtime fields are
-/// half the width they are everywhere else.
+/// uses the kernel stat64 layout: 64-bit size and 32-bit timestamps.
 let private isArm32 = RuntimeInformation.ProcessArchitecture = Architecture.Arm
-/// The browser (wasm32 under emscripten). `DllImport("libc")` cannot resolve there, so
+/// The browser (wasm32 under emscripten). native syscall instructions are unavailable there, so
 /// every wrapper below answers first: those with a .NET equivalent through `Managed`
 /// (including open/read/write/seek/close, over `FileStream`), the rest with ENOSYS.
 /// `Host.fs` already takes its own .NET path for file reads, writes, stats and listings
@@ -245,8 +61,9 @@ let private O_DIRECTORY =
 let private AT_REMOVEDIR = if isMac then 0x80 else 0x200
 let private AT_SYMLINK_NOFOLLOW = if isMac then 0x20 else 0x100
 let private AT_EMPTY_PATH = 0x1000 // Linux
-let private EEXIST = 17
-/// True where the libc bridge is the filesystem implementation; Windows
+let private open_raw (path, flags, mode) =
+  openat_raw ((if isMac then -2 else -100), path, flags, mode)
+/// True where descriptor-safe kernel operations implement the filesystem; Windows
 /// keeps the .NET calls behind the lexical pre-check.
 let isPosix : bool =
   not (RuntimeInformation.IsOSPlatform OSPlatform.Windows) && not isWasm
@@ -372,39 +189,21 @@ module private Managed =
 // -- Wrappers -----------------------------------------------------
 
 let lastError () : int * string =
-  if isWasm then
-    (0, "")
-  else
-    let errno = Marshal.GetLastPInvokeError()
-    let ptr = strerror_raw (errno)
-    let msg =
-      if ptr = IntPtr.Zero then $"errno {errno}" else Marshal.PtrToStringAnsi ptr
-    (errno, msg)
+  let errno = Marshal.GetLastPInvokeError()
+  // Public Dark wrappers render errno. Host failures still carry diagnostic text.
+  (errno, $"OS error {errno}")
 
-let getcwd () : Result<string, int * string> =
-  if isWasm then
-    Managed.getcwd ()
-  else
-    let buf = Marshal.AllocHGlobal(4096)
-    try
-      let ptr = getcwd_raw (buf, 4096)
-      if ptr = IntPtr.Zero then
-        Error(lastError ())
-      else
-        Ok(Marshal.PtrToStringAnsi ptr)
-    finally
-      Marshal.FreeHGlobal buf
+let getcwd () : Result<string, int * string> = Managed.getcwd ()
 
 let setenv (name : string) (value : string) : Result<unit, int * string> =
-  if isWasm then Managed.setenv name value
-  else if setenv_raw (name, value, 1) < 0 then Error(lastError ())
-  else Ok()
+  if String.IsNullOrEmpty name || name.Contains '=' || name.Contains '\000' then
+    Error(22, "Invalid argument")
+  else Managed.setenv name value
 
 let unsetenv (name : string) : Result<unit, int * string> =
-  if isWasm then Managed.unsetenv name
-  else if unsetenv_raw (name) < 0 then Error(lastError ())
-  else Ok()
-
+  if String.IsNullOrEmpty name || name.Contains '=' || name.Contains '\000' then
+    Error(22, "Invalid argument")
+  else Managed.unsetenv name
 
 // -- The directory walk ----------------------------------------------------
 // `withParent` opens "/" and then each ancestor with O_NOFOLLOW|O_DIRECTORY,
@@ -542,26 +341,17 @@ let private randomSuffix () : string =
   System.Security.Cryptography.RandomNumberGenerator.Fill bytes
   bytes |> Array.map (fun b -> alphabet[int b % alphabet.Length]) |> String
 
-/// Create a unique entry next to `prefix`, retrying on EEXIST the way
-/// mkstemp/mkdtemp do, but relative to the walked parent directory.
+/// One exclusive creation attempt; retry behavior belongs to Darklang.
 let private createUnique
   (prefix : string)
   (create : int -> string -> int)
   : Result<string, int * string> =
   let directory = System.IO.Path.GetDirectoryName prefix
   withParent prefix (fun d basePrefix ->
-    let rec attempt (remaining : int) : Result<string, int * string> =
-      let name = basePrefix + randomSuffix ()
-      let rc = create d name
-      if rc >= 0 then
-        Ok(System.IO.Path.Combine(directory, name))
-      else
-        let (errno, message) = lastError ()
-        if errno = EEXIST && remaining > 0 then
-          attempt (remaining - 1)
-        else
-          Error(errno, message)
-    attempt 100)
+    let name = basePrefix + randomSuffix ()
+    if create d name >= 0 then
+      Ok(System.IO.Path.Combine(directory, name))
+    else failed ())
 
 let mkstemp (prefix : string) : Result<int * string, int * string> =
   if isWasm then
@@ -589,57 +379,8 @@ let openFile (path : string) (flags : int) (mode : int) : Result<int, int * stri
       let fd = openat_raw (d, n, flags ||| O_NOFOLLOW, mode)
       if fd < 0 then failed () else Ok fd)
 
-/// The struct-version argument __xstat expects, per architecture. Measured
-/// from _STAT_VER in each target's glibc headers rather than guessed:
-/// x86_64 is 1, aarch64 is 0, armv7 is 3. macOS never uses this path.
-let private statVer =
-  if isX64 then 1
-  elif isArm64 then 0
-  else 3 // armv7
-
-/// Whether libc exports `stat` directly (glibc 2.33+), or we have to go
-/// through `__xstat`. Resolved once, on first use: the check itself is a
-/// P/Invoke that throws when the symbol is absent.
-let private useXstat =
-  lazy
-    (if isMac then
-       false
-     else
-       // Probe with a real buffer and a real path. Passing NULL would work
-       // only for as long as the path stays nonexistent, and libc writing
-       // to NULL is a segfault rather than an error return. We only care
-       // whether the *symbol* resolves, so the result is discarded.
-       let buf = Marshal.AllocHGlobal(256)
-
-       try
-         try
-           stat_raw ("/", buf) |> ignore<int>
-           false
-         with :? EntryPointNotFoundException ->
-           true
-       finally
-         Marshal.FreeHGlobal buf)
-
-/// stat(2), routed through whichever entry point this libc actually has.
-let private stat_compat (path : string) (buf : IntPtr) : int =
-  if useXstat.Force() then
-    xstat_raw (statVer, path, buf)
-  else
-    stat_raw (path, buf)
-
-/// fstatat(2) through whichever entry point this libc has; the final
-/// component is not followed, so a link that appeared since the check is
-/// reported as itself rather than resolved.
-let private fstatat_compat
-  (dirfd : int)
-  (name : string)
-  (buf : IntPtr)
-  (flags : int)
-  : int =
-  if useXstat.Force() then
-    fxstatat_raw (statVer, dirfd, name, buf, flags)
-  else
-    fstatat_raw (dirfd, name, buf, flags)
+let private fstatat_compat fd name buf flags =
+  fstatat_raw (fd, name, buf, flags)
 
 /// Walk to the parent and stat the entry into `buf`. The root is stat'd as
 /// "." relative to its own descriptor, which is portable (`AT_EMPTY_PATH` is
@@ -692,18 +433,29 @@ let chmod (path : string) (mode : int) : Result<unit, int * string> =
     withParent path (fun d n ->
       unitResult (fchmodat_raw (d, n, mode, AT_SYMLINK_NOFOLLOW)))
   else
-    withLinuxMetadataPath path (fun held -> unitResult (chmod_raw (held, mode)))
+    withParent path (fun d n ->
+      // fchmodat2 binds no-follow semantics to the actual operation. Older
+      // kernels retain the O_PATH/procfd fallback, which fails closed without procfs.
+      let rc = fchmodat2_raw (d, n, mode, AT_SYMLINK_NOFOLLOW)
+      if rc >= 0 then Ok()
+      elif Marshal.GetLastPInvokeError() = 38 then
+        withLinuxMetadataPath path (fun held ->
+          unitResult (fchmodat_raw (-100, held, mode, 0)))
+      else failed ())
 
-/// Update atime and mtime to now without following the final component.
+/// Set timestamps without following the final component.
 let utimesNow (path : string) : Result<unit, int * string> =
-  if isWasm then
-    Managed.enosys ()
-  else if isMac then
+  if isWasm then Managed.enosys ()
+  elif isMac then
+    withParent path (fun d n ->
+      let seconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+      let attrs = Array.zeroCreate<byte> 32
+      BitConverter.GetBytes(seconds).CopyTo(attrs, 0)
+      BitConverter.GetBytes(seconds).CopyTo(attrs, 16)
+      unitResult (setattrlistat_raw (d, n, attrs)))
+  else
     withParent path (fun d n ->
       unitResult (utimensat_raw (d, n, IntPtr.Zero, AT_SYMLINK_NOFOLLOW)))
-  else
-    withLinuxMetadataPath path (fun held ->
-      unitResult (utimes_raw (held, IntPtr.Zero)))
 
 /// Extracts (mode, size, mtimeSec) from a struct stat buffer. Offsets are
 /// platform-specific (Linux vs macOS struct layouts differ).
@@ -720,52 +472,51 @@ let stat (path : string) : Result<int * int64 * int64, int * string> =
         //   macOS (all):   st_mode at 4 (int16), st_size at 96, st_mtime at 48
         //   Linux x86_64:  st_mode at 24, st_size at 48, st_mtime at 88
         //   Linux aarch64: st_mode at 16, st_size at 48, st_mtime at 88
-        //   Linux armv7:   st_mode at 16, st_size at 44, st_mtime at 64
-        // armv7 is the odd one: off_t and time_t are 32 bits, so size and
-        // mtime are Int32 reads. Reading them as Int64 there gets garbage from
-        // the adjacent field. Offsets measured against glibc 2.31 armhf.
+        //   Linux armv7 kernel stat64: st_mode at 16, size at 48, mtime at 80.
+        // This is the syscall ABI, not the libc struct stat layout.
         let mode = modeFromStatBuffer buf
         let size =
           if isMac then Marshal.ReadInt64(buf, 96)
-          elif isArm32 then int64 (Marshal.ReadInt32(buf, 44))
+          elif isArm32 then Marshal.ReadInt64(buf, 48)
           else Marshal.ReadInt64(buf, 48)
         let mtimeSec =
           if isMac then Marshal.ReadInt64(buf, 48)
-          elif isArm32 then int64 (Marshal.ReadInt32(buf, 64))
+          elif isArm32 then int64 (Marshal.ReadInt32(buf, 80))
           else Marshal.ReadInt64(buf, 88)
         Ok(mode, size, mtimeSec)
     finally
       Marshal.FreeHGlobal buf
 
-/// Calls uname() and returns (sysname, nodename, machine).
+/// Kernel identity. Darwin exposes these fields through sysctl rather than uname.
 let uname () : Result<string * string * string, int * string> =
-  if isWasm then
-    Ok("Browser", "browser", "wasm32")
+  if isWasm then Ok("Browser", "browser", "wasm32")
   else
-    let fieldSize = if isMac then 256 else 65
-    let bufSize = fieldSize * 6 // 5 fields + extra
-    let buf = Marshal.AllocHGlobal(bufSize)
+    let buf = Marshal.AllocHGlobal(1024)
     try
-      if uname_raw (buf) < 0 then
-        Error(lastError ())
+      if isMac then
+        let field a b =
+          let mib = Array.append (BitConverter.GetBytes(a : int)) (BitConverter.GetBytes(b : int))
+          let size = Marshal.AllocHGlobal(IntPtr.Size)
+          try
+            Marshal.WriteInt64(size, 1024L)
+            if sysctl_raw (mib, buf, size) < 0 then Error(lastError ())
+            else Ok(Marshal.PtrToStringUTF8 buf)
+          finally Marshal.FreeHGlobal size
+        match field 1 1, field 1 10, field 6 1 with
+        | Ok os, Ok host, Ok machine -> Ok(os, host, machine)
+        | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e
+      elif uname_raw buf < 0 then Error(lastError ())
       else
-        let sysname = Marshal.PtrToStringAnsi(IntPtr.Add(buf, 0))
-        let nodename = Marshal.PtrToStringAnsi(IntPtr.Add(buf, fieldSize))
-        let machine = Marshal.PtrToStringAnsi(IntPtr.Add(buf, fieldSize * 4))
-        Ok(sysname, nodename, machine)
-    finally
-      Marshal.FreeHGlobal buf
+        Ok(Marshal.PtrToStringUTF8 buf,
+           Marshal.PtrToStringUTF8(IntPtr.Add(buf, 65)),
+           Marshal.PtrToStringUTF8(IntPtr.Add(buf, 260)))
+    finally Marshal.FreeHGlobal buf
 
 let getpid () : int = if isWasm then Environment.ProcessId else getpid_raw ()
 
 let getuid () : uint32 = if isWasm then 1000u else getuid_raw ()
 
-let cpuCount () : int64 =
-  if isWasm then
-    int64 Environment.ProcessorCount
-  else
-    let scNprocessorsOnl = if isMac then 58 else 84 // Linux _SC_NPROCESSORS_ONLN
-    sysconf_raw (scNprocessorsOnl)
+let cpuCount () : int64 = int64 Environment.ProcessorCount
 
 /// flock operations
 let LOCK_EX = 2
@@ -776,35 +527,12 @@ let flock (fd : int) (operation : int) : Result<unit, int * string> =
   else if flock_raw (fd, operation) < 0 then Error(lastError ())
   else Ok()
 
-/// Get username from uid via getpwuid
+/// Current account identity is a process-managed host fact. Other UID lookup
+/// and passwd parsing belong to Darklang and its checked file reads.
 let getUserName (uid : uint32) : Option<string> =
-  if isWasm then
-    Some "browser"
-  else
-    let ptr = getpwuid_raw (uid)
-    if ptr = IntPtr.Zero then
-      None
-    else
-      // First field of struct passwd is char *pw_name
-      let namePtr = Marshal.ReadIntPtr(ptr, 0)
-      if namePtr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi namePtr)
+  if uid = getuid () then Some Environment.UserName else None
 
-/// Get home directory for the current user via getpwuid(getuid()).
-/// Returns pw_dir from the passwd db. The $HOME fallback is in Cli.Env.home().
-let getHomeDir () : Option<string> =
-  if isWasm then
-    Managed.getenv "HOME"
-  else
-    let uid = getuid_raw ()
-    let ptr = getpwuid_raw (uid)
-    if ptr = IntPtr.Zero then
-      None
-    else
-      let dirOffset = if isMac then 48 else 32
-      let dirPtr = Marshal.ReadIntPtr(ptr, dirOffset)
-      if dirPtr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi dirPtr)
-
-/// Get the owner username of a file (stat + getpwuid).
+/// Return the numeric owner UID; Darklang resolves account names.
 let fileOwner (path : string) : Result<string, int * string> =
   if isWasm then
     Managed.enosys ()
@@ -823,18 +551,11 @@ let fileOwner (path : string) : Result<string, int * string> =
             uint32 (Marshal.ReadInt32(buf, 24))
           else // x86_64 Linux (guarded by startup check)
             uint32 (Marshal.ReadInt32(buf, 28))
-        match getUserName uid with
-        | Some name -> Ok name
-        | None -> Ok(string uid)
+        Ok(string uid)
     finally
       Marshal.FreeHGlobal buf
 
-let getenv (name : string) : Option<string> =
-  if isWasm then
-    Managed.getenv name
-  else
-    let ptr = getenv_raw (name)
-    if ptr = IntPtr.Zero then None else Some(Marshal.PtrToStringAnsi ptr)
+let getenv (name : string) : Option<string> = Managed.getenv name
 
 let kill (pid : int) (signal : int) : Result<unit, int * string> =
   if isWasm then Managed.enosys ()
@@ -859,18 +580,14 @@ let fdSeek (fd : int) (offset : int64) (whence : int) : Result<int64, int * stri
     if position < 0L then Error(lastError ()) else Ok position
 
 /// Read one terminal file descriptor's window size as (columns, rows).
-///
-/// Disabled on macOS. Darwin's ioctl is variadic, but this P/Invoke declares
-/// a fixed third argument. On Apple arm64, those signatures use different
-/// calling conventions, so ioctl may receive an invalid output pointer and
-/// corrupt memory. The caller uses its terminal-size fallback instead.
+/// Direct kernel calls avoid Darwin libc's variadic ioctl calling convention.
 let tryTerminalWindowSize (fd : int) : Option<int64 * int64> =
   if isWasm then
     None
-  else if OperatingSystem.IsWindows() || isMac then
+  else if OperatingSystem.IsWindows() then
     None
   else
-    let request = 0x5413UL // TIOCGWINSZ on Linux
+    let request = if isMac then 0x40087468UL else 0x5413UL // TIOCGWINSZ
 
     let buffer = Marshal.AllocHGlobal 8
     try
@@ -904,40 +621,44 @@ let fdClose (fd : int) : Result<unit, int * string> =
   else if close_raw (fd) < 0 then Error(lastError ())
   else Ok()
 
-/// List directory entries (wraps opendir/readdir/closedir loop).
-/// Returns filenames only, not "." or "..".
+/// Read kernel directory records from a held, no-follow directory descriptor.
 let listDir (path : string) : Result<List<string>, int * string> =
-  if isWasm then
-    Managed.listDir path
+  if isWasm then Managed.listDir path
   else
     withDirectory path (fun fd ->
-      // fdopendir takes ownership of a duplicate; closedir releases it, and
-      // withDirectory closes the original.
-      let dirp = fdopendir_raw (dup_raw fd)
-      if dirp = IntPtr.Zero then
-        Error(lastError ())
-      else
-        let entries = System.Collections.Generic.List<string>()
-        let mutable keepGoing = true
+      let bytes = Array.zeroCreate<byte> 32768
+      let position = Marshal.AllocHGlobal(8)
+      try
+        Marshal.WriteInt64(position, 0L)
+        let entries = Collections.Generic.List<string>()
         let mutable error = None
-        while keepGoing do
-          Marshal.SetLastPInvokeError(0)
-          let entryPtr = readdir_raw (dirp)
-          if entryPtr = IntPtr.Zero then
-            let errno = Marshal.GetLastPInvokeError()
-            if errno <> 0 then error <- Some(lastError ())
-            keepGoing <- false
-          else
-            // struct dirent: d_name offset varies by platform
-            let nameOffset = if isMac then 21 else 19 // Linux
-            let namePtr = IntPtr.Add(entryPtr, nameOffset)
-            let name = Marshal.PtrToStringAnsi namePtr
-            if name <> "." && name <> ".." then entries.Add(name)
-        closedir_raw (dirp) |> ignore<int>
-        match error with
-        | Some e -> Error e
-        | None -> Ok(Seq.toList entries))
-
+        let mutable count = getdents_raw (fd, bytes, position)
+        while count > 0 && error.IsNone do
+          let mutable offset = 0
+          while offset < count && error.IsNone do
+            let nameOffset = if isMac then 21 else 19
+            let recordOffset = 16
+            if offset + nameOffset >= count then error <- Some(5, "Invalid directory record")
+            else
+              let length = int (BitConverter.ToUInt16(bytes, offset + recordOffset))
+              if length <= nameOffset || offset + length > count then
+                error <- Some(5, "Invalid directory record length")
+              else
+                let start = offset + nameOffset
+                let mutable finish = start
+                while finish < offset + length && bytes[finish] <> 0uy do
+                  finish <- finish + 1
+                if finish = offset + length then error <- Some(5, "Unterminated directory entry")
+                else
+                  let name = Text.Encoding.UTF8.GetString(bytes, start, finish - start)
+                  if name <> "." && name <> ".." then entries.Add name
+                offset <- offset + length
+          if error.IsNone then count <- getdents_raw (fd, bytes, position)
+        if count < 0 then Error(lastError ())
+        else match error with
+             | Some e -> Error e
+             | None -> Ok(List.ofSeq entries)
+      finally Marshal.FreeHGlobal position)
 
 // -- Atomic, symlink-safe opens (Linux) ------------------------------
 // The lexical `pathContainsLink` pre-walk in `Host` is advisory: an attacker
@@ -948,9 +669,6 @@ let listDir (path : string) : Result<List<string>, int * string> =
 // systems, callers fall back to the descriptor-based O_NOFOLLOW walk.
 
 [<Literal>]
-let private SYS_openat2 = 437L
-
-[<Literal>]
 let private AT_FDCWD = -100
 
 // Resolve every component without following any symlink.
@@ -959,16 +677,6 @@ let private RESOLVE_NO_SYMLINKS = 0x04UL
 
 [<Literal>]
 let private ENOSYS = 38
-
-/// struct open_how { __u64 flags; __u64 mode; __u64 resolve; } — 24 bytes.
-[<DllImport("libc", SetLastError = true, EntryPoint = "syscall")>]
-extern int64 private openat2_raw(
-  int64 number,
-  int dirfd,
-  string pathname,
-  byte[] how,
-  unativeint size
-)
 
 let mutable private openat2Available = true
 
@@ -987,7 +695,7 @@ let private openNoSymlinks
     System.BitConverter.GetBytes(uint64 flags).CopyTo(how, 0)
     System.BitConverter.GetBytes(mode).CopyTo(how, 8)
     System.BitConverter.GetBytes(RESOLVE_NO_SYMLINKS).CopyTo(how, 16)
-    let fd = openat2_raw (SYS_openat2, AT_FDCWD, path, how, unativeint 24)
+    let fd = openat2_raw (AT_FDCWD, path, how, unativeint 24)
     if fd >= 0L then
       Some(new SafeFileHandle(nativeint fd, ownsHandle = true))
     else
@@ -1058,3 +766,11 @@ let statEntry (path : string) : Result<bool * bool, int * string> =
   | Error(2, _)
   | Error(20, _) -> Ok(false, false) // ENOENT, ENOTDIR
   | Error e -> Error e
+
+/// Trusted policy persistence, using the same no-follow descriptor walk.
+let syncDirectory (directory : string) : unit =
+  if isPosix then
+    try
+      withDirectory directory (fun fd -> unitResult (fsync_raw fd))
+      |> ignore<Result<unit, int * string>>
+    with _ -> ()

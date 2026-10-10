@@ -1,5 +1,5 @@
 /// Posix wrappers for filesystem, process, and system operations.
-/// Linux (x86_64, aarch64) and macOS only. Will not work on Windows.
+/// Linux (x86_64, aarch64, armv7) and macOS only. Will not work on Windows.
 module Darklang.Stdlib.Cli.Posix
 
 
@@ -40,22 +40,26 @@ module OpenFlags =
 /// Open a file. Returns a file descriptor.
 let openFile (path: String) (flags: Int) (mode: Int) : Result.Result<Int, Error> =
   Builtin.posixOpen path flags mode
+  |> Errors.normalize
 
 
 /// Read up to `count` bytes from an open file descriptor.
 let fdRead (fd: Int) (count: Int) : Result.Result<Blob, Error> =
   Builtin.posixFdRead fd count
+  |> Errors.normalize
 
 
 /// Write <param bytes> to an open file descriptor. Returns the number
 /// of bytes written.
 let fdWrite (fd: Int) (bytes: Blob) : Result.Result<Int, Error> =
   Builtin.posixFdWrite fd bytes
+  |> Errors.normalize
 
 
 /// Close an open file descriptor.
 let fdClose (fd: Int) : Result.Result<Unit, Error> =
   Builtin.posixFdClose fd
+  |> Errors.normalize
 
 
 /// Read all bytes from a file descriptor until EOF.
@@ -75,11 +79,12 @@ let fdReadAll
 /// Seek to a byte offset from the start of an open file.
 let fdSeekFromStart (fd: Int) (offset: Int) : Result.Result<Int, Error> =
   Builtin.posixFdSeek fd offset 0
+  |> Errors.normalize
 
 
 /// Stat a file. Returns mode, size, and modification time.
 let stat (path: String) : Result.Result<StatResult, Error> =
-  (Builtin.posixStat path)
+  (Builtin.posixStat path |> Errors.normalize)
   |> Stdlib.Result.map (fun result ->
     StatResult
       { mode = Stdlib.Tuple3.first result
@@ -89,50 +94,62 @@ let stat (path: String) : Result.Result<StatResult, Error> =
 /// Get the current working directory
 let getCwd () : Result.Result<String, Error> =
   Builtin.posixGetcwd ()
+  |> Errors.normalize
 
 /// Change the current working directory
 let chdir (path: String) : Result.Result<Unit, Error> =
   Builtin.posixChdir path
+  |> Errors.normalize
 
 /// Set an environment variable
 let setenv (name: String) (value: String) : Result.Result<Unit, Error> =
   Builtin.posixSetenv name value
+  |> Errors.normalize
 
 /// Remove an environment variable
 let unsetenv (name: String) : Result.Result<Unit, Error> =
   Builtin.posixUnsetenv name
+  |> Errors.normalize
 
 /// Create a single directory
 let mkdir (path: String) (mode: Int) : Result.Result<Unit, Error> =
   Builtin.posixMkdir path mode
+  |> Errors.normalize
 
 /// Remove an empty directory
 let rmdir (path: String) : Result.Result<Unit, Error> =
   Builtin.posixRmdir path
+  |> Errors.normalize
 
 /// Remove a file
 let unlink (path: String) : Result.Result<Unit, Error> =
   Builtin.posixUnlink path
+  |> Errors.normalize
 
 /// Rename/move a file or directory
 let rename (oldpath: String) (newpath: String) : Result.Result<Unit, Error> =
   Builtin.posixRename oldpath newpath
+  |> Errors.normalize
 
 /// Change file permissions
 let chmod (path: String) (mode: Int) : Result.Result<Unit, Error> =
   Builtin.posixChmod path mode
+  |> Errors.normalize
 
 /// Update atime and mtime to now.
 let utimesNow (path: String) : Result.Result<Unit, Error> =
   Builtin.posixUtimesNow path
+  |> Errors.normalize
 
 /// Create a symbolic link
 let symlink (target: String) (linkpath: String) : Result.Result<Unit, Error> =
   Builtin.posixSymlink target linkpath
+  |> Errors.normalize
 
 /// Read the target of a symbolic link
 let readlink (path: String) : Result.Result<String, Error> =
   Builtin.posixReadlink path
+  |> Errors.normalize
 
 /// Check if a path is a symbolic link.
 /// Uses readlink — returns Ok true/false, or Error on permission/other failures.
@@ -148,12 +165,26 @@ let isSymlink (path: String) : Result.Result<Bool, Error> =
 
 
 /// Create a unique temporary file. Returns (fd, path).
+let createTempFile (prefix: String) (remaining: Int) : Result.Result<(Int * String), Error> =
+  match Builtin.posixMkstemp prefix |> Errors.normalize with
+  | Error error ->
+    if error.errno == 17 && remaining > 0 then createTempFile prefix (remaining - 1)
+    else Stdlib.Result.Result.Error error
+  | Ok value -> Stdlib.Result.Result.Ok value
+
 let mkstemp (prefix: String) : Result.Result<(Int * String), Error> =
-  Builtin.posixMkstemp prefix
+  createTempFile prefix 100
 
 /// Create a unique temporary directory. Returns the path.
+let createTempDirectory (prefix: String) (remaining: Int) : Result.Result<String, Error> =
+  match Builtin.posixMkdtemp prefix |> Errors.normalize with
+  | Error error ->
+    if error.errno == 17 && remaining > 0 then createTempDirectory prefix (remaining - 1)
+    else Stdlib.Result.Result.Error error
+  | Ok value -> Stdlib.Result.Result.Ok value
+
 let mkdtemp (prefix: String) : Result.Result<String, Error> =
-  Builtin.posixMkdtemp prefix
+  createTempDirectory prefix 100
 
 /// Match a string against a glob pattern.
 /// If pathMode is true, * does not match /
@@ -164,14 +195,25 @@ let fnmatch (pattern: String) (str: String) (pathMode: Bool) : Bool =
 /// Lock a file descriptor (exclusive). Use false to unlock.
 let flock (fd: Int) (exclusive: Bool) : Result.Result<Unit, Error> =
   Builtin.posixFlock fd exclusive
+  |> Errors.normalize
 
 /// Get the owner username of a file.
 let fileOwner (path: String) : Result.Result<String, Error> =
-  Builtin.posixFileOwner path
+  (Builtin.posixFileOwner path |> Errors.normalize)
+  |> Stdlib.Result.map (fun uid ->
+    if uid == Stdlib.Int.toString (Builtin.posixGetuid ()) then
+      match Builtin.posixGetCurrentUserName () with
+      | Some name -> name
+      | None -> uid
+    else
+      match Accounts.lookup uid 0 with
+      | Some name -> name
+      | None -> uid)
 
 /// List entries in a directory (filenames only, no "." or "..")
 let listDir (path: String) : Result.Result<List<String>, Error> =
   Builtin.posixListDir path
+  |> Errors.normalize
 
 /// Get an environment variable
 let getenv (name: String) : Stdlib.Option.Option<String> =
@@ -181,11 +223,13 @@ let getenv (name: String) : Stdlib.Option.Option<String> =
 /// System name info: (sysname, nodename, machine).
 let uname () : Result.Result<(String * String * String), Error> =
   Builtin.posixUname ()
+  |> Errors.normalize
 
 
 /// Send a signal to a process
 let kill (pid: Int) (signal: Int) : Result.Result<Unit, Error> =
   Builtin.posixKill pid signal
+  |> Errors.normalize
 
 val sigterm = 15
 val sigkill = 9

@@ -22,7 +22,7 @@ type OpenFlag =
 /// libc environment vs the CLR cache, fork/exec details), so they keep their
 /// own operations rather than collapsing into the .NET-backed ones. Ambient
 /// Native-gated posix builtins (uname, getpid, ...) that carry no state do not
-/// appear here; they call `HostLibc` directly under the interpreter's Native
+/// appear here; they call `HostPosix` directly under the interpreter's Native
 /// gate.
 [<RequireQualifiedAccess>]
 type PosixOp =
@@ -58,7 +58,7 @@ type PosixOp =
   | Flock of fd : int * operation : int
   | FileOwner of path : string
   | UserName of uid : uint32
-  | HomeDir
+  | HomeDir of path : string
 
 /// Which host HTTP configuration an operation runs under. `Guest` is the
 /// SSRF-guarded configuration every guest request uses (the host may replace
@@ -248,7 +248,7 @@ let describeOperation (op : Operation) : string =
     | PosixOp.Flock(fd, _) -> $"flock {fd}"
     | PosixOp.FileOwner path -> $"file-owner {path}"
     | PosixOp.UserName uid -> $"user-name {uid}"
-    | PosixOp.HomeDir -> "home-dir"
+    | PosixOp.HomeDir path -> $"home-dir {path}"
   match op with
   | Operation.FileRead path -> $"file-read {path}"
   | Operation.FileWrite(path, _) -> $"file-write {path}"

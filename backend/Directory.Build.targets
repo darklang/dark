@@ -1,0 +1,23 @@
+<Project>
+  <!-- Per-project outputs avoid concurrent builds racing on one native file.
+       Windows/browser use managed host operations and need no syscall transport. -->
+  <PropertyGroup>
+    <DarkKernelRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</DarkKernelRid>
+    <DarkKernelRid Condition="'$(DarkKernelRid)' == ''">$(NETCoreSdkRuntimeIdentifier)</DarkKernelRid>
+    <DarkKernelEnabled Condition="$([System.String]::Copy('$(DarkKernelRid)').StartsWith('linux-')) Or $([System.String]::Copy('$(DarkKernelRid)').StartsWith('osx-'))">true</DarkKernelEnabled>
+    <DarkKernelDirectory>$(DarkBuildDir)/native/$(MSBuildProjectName)/$(DarkKernelRid)</DarkKernelDirectory>
+    <DarkKernelExtension Condition="$([System.String]::Copy('$(DarkKernelRid)').StartsWith('osx-'))">dylib</DarkKernelExtension>
+    <DarkKernelExtension Condition="'$(DarkKernelExtension)' == ''">so</DarkKernelExtension>
+    <DarkKernelLibrary>$(DarkKernelDirectory)/libdark_syscalls.$(DarkKernelExtension)</DarkKernelLibrary>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(DarkKernelEnabled)' == 'true'">
+    <None Include="$(DarkKernelLibrary)" Link="libdark_syscalls.$(DarkKernelExtension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(DarkKernelEnabled)' == 'true' And '$(PublishAot)' == 'true'">
+    <DirectPInvoke Include="dark_syscalls" />
+    <NativeLibrary Include="$(DarkKernelDirectory)/libdark_syscalls.a" />
+  </ItemGroup>
+  <Target Name="BuildDarkKernel" BeforeTargets="PrepareForBuild" Condition="'$(DarkKernelEnabled)' == 'true'" Inputs="$(MSBuildThisFileDirectory)native/syscalls.c;$(MSBuildThisFileDirectory)native/build.sh" Outputs="$(DarkKernelLibrary);$(DarkKernelDirectory)/libdark_syscalls.a">
+    <Exec Command="bash &quot;$(MSBuildThisFileDirectory)native/build.sh&quot; &quot;$(DarkKernelDirectory)&quot; &quot;$(DarkKernelRid)&quot;" />
+  </Target>
+</Project>

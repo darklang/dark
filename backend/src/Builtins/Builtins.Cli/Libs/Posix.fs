@@ -1,4 +1,4 @@
-/// Posix libc bridge via P/Invoke — thin wrappers around OS functions.
+/// Typed kernel operations through the checked host boundary.
 /// Dark code builds on top of these instead of shelling out to bash.
 /// Linux (x86_64, aarch64, armv7) and macOS only. Will not work on Windows.
 module Builtins.Cli.Libs.Posix
@@ -16,8 +16,8 @@ module Blob = LibExecution.Blob
 open Builtin.Shortcuts
 
 
-// The libc bridge lives behind the checked host boundary: LibExecution.HostLibc.
-module HostLibc = LibExecution.HostLibc
+// The syscall transport lives behind the checked host boundary: LibExecution.HostPosix.
+module HostPosix = LibExecution.HostPosix
 module HostTypes = LibExecution.HostTypes
 module Host = LibExecution.Host
 module Interpreter = LibExecution.Interpreter
@@ -29,7 +29,7 @@ let private posixErrorTypeRef () = TCustomType(NR.ok (posixErrorTypeName ()), []
 
 let private posixErrorKT () = KTCustomType(posixErrorTypeName (), [])
 
-/// A failure is the libc (errno, message) pair (errno -1 for a .NET-level
+/// A failure is the kernel (errno, message) pair (errno -1 for a .NET-level
 /// failure), mirroring the Stdlib PosixError type.
 let private dPosixError (failure : Host.Failure) : Dval =
   let tn = posixErrorTypeName ()
@@ -106,7 +106,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TypeReference.result TString (posixErrorTypeRef ())
-      description = "Returns the current working directory via libc getcwd()"
+      description = "Returns the current working directory via kernel getcwd()"
       fn =
         (function
         | _, vm, _, [| DUnit |] ->
@@ -122,7 +122,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "path" TString "Directory to change to" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Changes the current working directory via libc chdir()"
+      description = "Changes the current working directory via kernel chdir()"
       fn =
         (function
         | _, vm, _, [| DString path |] ->
@@ -140,7 +140,7 @@ let fns () : List<BuiltInFn> =
         [ Param.make "name" TString "Environment variable name"
           Param.make "value" TString "Value to set" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Sets an environment variable via libc setenv()"
+      description = "Sets an environment variable via kernel setenv()"
       fn =
         (function
         | _, vm, _, [| DString name; DString value |] ->
@@ -156,7 +156,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "name" TString "Environment variable to remove" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Removes an environment variable via libc unsetenv()"
+      description = "Removes an environment variable via kernel unsetenv()"
       fn =
         (function
         | _, vm, _, [| DString name |] ->
@@ -174,7 +174,7 @@ let fns () : List<BuiltInFn> =
         [ Param.make "path" TString "The directory path to create"
           Param.make "mode" TInt "Permission bits (e.g. 493 for 0755)" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Creates a directory via libc mkdir()"
+      description = "Creates a directory via kernel mkdir()"
       fn =
         (function
         | _, vm, _, [| DString path; DInt mode |] ->
@@ -191,7 +191,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "path" TString "The directory to remove" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Removes an empty directory via libc rmdir()"
+      description = "Removes an empty directory via kernel rmdir()"
       fn =
         (function
         | _, vm, _, [| DString path |] ->
@@ -207,7 +207,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "path" TString "The file to remove" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Removes a file via libc unlink()"
+      description = "Removes a file via kernel unlink()"
       fn =
         (function
         | _, vm, _, [| DString path |] ->
@@ -225,7 +225,7 @@ let fns () : List<BuiltInFn> =
         [ Param.make "oldpath" TString "Current path"
           Param.make "newpath" TString "New path" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Renames/moves a file or directory via libc rename()"
+      description = "Renames/moves a file or directory via kernel rename()"
       fn =
         (function
         | _, vm, _, [| DString oldpath; DString newpath |] ->
@@ -244,7 +244,7 @@ let fns () : List<BuiltInFn> =
         [ Param.make "path" TString "File path"
           Param.make "mode" TInt "Permission bits (e.g. 493 for 0755)" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Changes file permissions via libc chmod()"
+      description = "Changes file permissions via kernel chmod()"
       fn =
         (function
         | _, vm, _, [| DString path; DInt mode |] ->
@@ -261,7 +261,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "path" TString "File path" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Updates atime and mtime to now via libc utimes(path, NULL)"
+      description = "Updates atime and mtime to now via kernel utimes(path, NULL)"
       fn =
         (function
         | _, vm, _, [| DString path |] ->
@@ -279,7 +279,7 @@ let fns () : List<BuiltInFn> =
         [ Param.make "target" TString "Path the symlink points to"
           Param.make "linkpath" TString "Path of the symlink to create" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Creates a symbolic link via libc symlink()"
+      description = "Creates a symbolic link via kernel symlink()"
       fn =
         (function
         | _, vm, _, [| DString target; DString linkpath |] ->
@@ -299,7 +299,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "path" TString "Symlink path to read" ]
       returnType = TypeReference.result TString (posixErrorTypeRef ())
-      description = "Reads the target of a symbolic link via libc readlink()"
+      description = "Reads the target of a symbolic link via kernel readlink()"
       fn =
         (function
         | _, vm, _, [| DString path |] ->
@@ -321,7 +321,7 @@ let fns () : List<BuiltInFn> =
       returnType =
         TypeReference.result (TTuple(TInt, TString, [])) (posixErrorTypeRef ())
       description =
-        "Creates a unique temp file via libc mkstemp(). Returns (fd, path)."
+        "Creates a unique temp file via kernel mkstemp(). Returns (fd, path)."
       fn =
         (function
         | _, vm, _, [| DString prefix |] ->
@@ -348,7 +348,7 @@ let fns () : List<BuiltInFn> =
             "Prefix for the temp directory path (e.g. \"/tmp/dark-\")" ]
       returnType = TypeReference.result TString (posixErrorTypeRef ())
       description =
-        "Creates a unique temp directory via libc mkdtemp(). Returns the path."
+        "Creates a unique temp directory via kernel mkdtemp(). Returns the path."
       fn =
         (function
         | _, vm, _, [| DString prefix |] ->
@@ -365,7 +365,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "path" TString "The directory to list" ]
       returnType = TypeReference.result (TList TString) (posixErrorTypeRef ())
       description =
-        "Lists entries in a directory via libc opendir/readdir/closedir. Excludes '.' and '..'."
+        "Lists entries in a directory via kernel opendir/readdir/closedir. Excludes '.' and '..'."
       fn =
         (function
         | _, vm, _, [| DString path |] ->
@@ -387,7 +387,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "name" TString "" ]
       returnType = TypeReference.option TString
-      description = "Gets an environment variable via libc getenv()"
+      description = "Gets an environment variable via kernel getenv()"
       fn =
         (function
         | _, vm, _, [| DString name |] ->
@@ -585,7 +585,7 @@ let fns () : List<BuiltInFn> =
           Param.make "flags" TInt "Open flags (e.g. O_RDONLY, O_WRONLY | O_CREAT)"
           Param.make "mode" TInt "Permission bits for new files (e.g. 420 for 0644)" ]
       returnType = TypeReference.result TInt (posixErrorTypeRef ())
-      description = "Opens a file via libc open(). Returns a file descriptor."
+      description = "Opens a file via kernel open(). Returns a file descriptor."
       fn =
         (function
         | _, vm, _, [| DString path; DInt flags; DInt mode |] ->
@@ -636,7 +636,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "path" TString "File path to stat" ]
       returnType =
         TypeReference.result (TTuple(TInt, TInt, [ TInt ])) (posixErrorTypeRef ())
-      description = "Stats a file via libc stat(). Returns (mode, size, mtimeSec)."
+      description = "Stats a file via kernel stat(). Returns (mode, size, mtimeSec)."
       fn =
         (function
         | _, vm, _, [| DString path |] ->
@@ -670,7 +670,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           let kt = KTTuple(VT.string, VT.string, [ VT.string ])
-          match HostLibc.uname () with
+          match HostPosix.uname () with
           | Ok(sysname, nodename, machine) ->
             DTuple(DString sysname, DString nodename, [ DString machine ])
             |> Dval.resultOk kt (posixErrorKT ())
@@ -690,10 +690,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TInt
-      description = "Returns the current process ID via libc getpid()"
+      description = "Returns the current process ID via kernel getpid()"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostLibc.getpid ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostPosix.getpid ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -705,10 +705,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TInt
-      description = "Returns the current user ID via libc getuid()"
+      description = "Returns the current user ID via kernel getuid()"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostLibc.getuid ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostPosix.getuid ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -721,11 +721,11 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TypeReference.option TString
       description =
-        "Returns the login name of the current user via getuid() + getpwuid()"
+        "Returns the process-managed login name of the current user"
       fn =
         (function
         | _, vm, _, [| DUnit |] ->
-          let op = HostTypes.PosixOp.UserName(uint32 (HostLibc.getuid ()))
+          let op = HostTypes.PosixOp.UserName(uint32 (HostPosix.getuid ()))
           posixOption vm op Host.expectOptionalText
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -738,10 +738,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TInt
-      description = "Returns the number of online CPUs via sysconf()"
+      description = "Returns the number of CPUs available to the interpreter"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostLibc.cpuCount ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostPosix.cpuCount ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -751,14 +751,14 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "posixGetHomeDir" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters = [ Param.make "home" TString "Candidate home directory" ]
       returnType = TypeReference.option TString
       description =
-        "Returns the home directory of the current user via getpwuid(getuid())"
+        "Authorizes a home directory candidate selected in Darklang"
       fn =
         (function
-        | _, vm, _, [| DUnit |] ->
-          posixOption vm HostTypes.PosixOp.HomeDir Host.expectOptionalText
+        | _, vm, _, [| DString home |] ->
+          posixOption vm (HostTypes.PosixOp.HomeDir home) Host.expectOptionalText
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -772,11 +772,11 @@ let fns () : List<BuiltInFn> =
         [ Param.make "fd" TInt "File descriptor"
           Param.make "exclusive" TBool "True for exclusive lock, false to unlock" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Locks or unlocks a file via libc flock()"
+      description = "Locks or unlocks a file via kernel flock()"
       fn =
         (function
         | _, vm, _, [| DInt fd; DBool exclusive |] ->
-          let lockOp = if exclusive then HostLibc.LOCK_EX else HostLibc.LOCK_UN
+          let lockOp = if exclusive then HostPosix.LOCK_EX else HostPosix.LOCK_UN
           let op = HostTypes.PosixOp.Flock(intToInt32 vm fd, lockOp)
           posixResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
@@ -790,7 +790,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "path" TString "File path" ]
       returnType = TypeReference.result TString (posixErrorTypeRef ())
-      description = "Returns the owner username of a file via stat() + getpwuid()"
+      description = "Returns the numeric owner UID from kernel stat metadata"
       fn =
         (function
         | _, vm, _, [| DString path |] ->

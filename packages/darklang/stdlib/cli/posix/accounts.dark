@@ -1,0 +1,19 @@
+/// Account-file parsing ported from the compiler's Cli.Env implementation.
+module Darklang.Stdlib.Cli.Posix.Accounts
+
+let fieldFromPasswd (lines: List<String>) (uid: String) (index: Int) : Stdlib.Option.Option<String> =
+  match lines with
+  | [] -> Stdlib.Option.Option.None
+  | line :: rest ->
+    let fields = Stdlib.String.split line ":"
+    match (Stdlib.List.getAt fields 2, Stdlib.List.getAt fields index) with
+    | (Some candidateUid, Some value) ->
+      if candidateUid == uid then Stdlib.Option.Option.Some value
+      else fieldFromPasswd rest uid index
+    | _ -> fieldFromPasswd rest uid index
+
+/// Reading the fixed account file uses the ordinary checked filesystem boundary.
+let lookup (uid: String) (index: Int) : Stdlib.Option.Option<String> =
+  match Stdlib.Cli.FileSystem.readFileAsString "/etc/passwd" with
+  | Ok contents -> fieldFromPasswd (Stdlib.String.splitOnNewline contents) uid index
+  | Error _ -> Stdlib.Option.Option.None

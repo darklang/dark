@@ -125,7 +125,7 @@ let libcWalkRefusesALinkMetAtOperationTime =
     // a link after the check. The bridge walks the directories again with
     // O_NOFOLLOW at operation time, so calling it directly through a link,
     // as a race would, must fail rather than follow.
-    if LibExecution.HostLibc.isPosix then
+    if LibExecution.HostPosix.isPosix then
       let directory =
         System.IO.Path.Combine(
           System.IO.Path.GetTempPath(),
@@ -144,30 +144,30 @@ let libcWalkRefusesALinkMetAtOperationTime =
         |> ignore<System.IO.FileSystemInfo>
         let viaLink = System.IO.Path.Combine(link, "f")
         Expect.isError
-          (LibExecution.HostLibc.unlink viaLink)
+          (LibExecution.HostPosix.unlink viaLink)
           "unlink through a linked ancestor is refused by the walk"
         Expect.isTrue (System.IO.File.Exists file) "and the file is untouched"
         Expect.isError
-          (LibExecution.HostLibc.stat viaLink)
+          (LibExecution.HostPosix.stat viaLink)
           "stat through a linked ancestor is refused"
         Expect.isError
-          (LibExecution.HostLibc.listDir link)
+          (LibExecution.HostPosix.listDir link)
           "listing a linked directory entry is refused"
         Expect.throws
-          (fun () -> LibExecution.HostLibc.readAllBytes viaLink |> ignore<byte[]>)
+          (fun () -> LibExecution.HostPosix.readAllBytes viaLink |> ignore<byte[]>)
           "reading through a linked ancestor is refused"
         let originalMode = System.IO.File.GetUnixFileMode file
         let originalMtime = System.DateTime.UnixEpoch.AddDays 1.0
         System.IO.File.SetLastWriteTimeUtc(file, originalMtime)
         Expect.isError
-          (LibExecution.HostLibc.chmod finalLink 0o777)
+          (LibExecution.HostPosix.chmod finalLink 0o777)
           "chmod refuses a linked final component"
         Expect.equal
           (System.IO.File.GetUnixFileMode file)
           originalMode
           "chmod did not reach the link target"
         Expect.isError
-          (LibExecution.HostLibc.utimesNow finalLink)
+          (LibExecution.HostPosix.utimesNow finalLink)
           "utimes refuses a linked final component"
         Expect.equal
           (System.IO.File.GetLastWriteTimeUtc file)
@@ -176,21 +176,21 @@ let libcWalkRefusesALinkMetAtOperationTime =
         // The same operations on the real path work, through the same walk.
         System.IO.File.SetUnixFileMode(file, System.IO.UnixFileMode.None)
         Expect.isOk
-          (LibExecution.HostLibc.utimesNow file)
+          (LibExecution.HostPosix.utimesNow file)
           "utimes works without file read permission"
         Expect.isOk
-          (LibExecution.HostLibc.chmod file 0o600)
+          (LibExecution.HostPosix.chmod file 0o600)
           "chmod can recover a mode-000 file"
-        Expect.isOk (LibExecution.HostLibc.stat file) "stat on the real path"
+        Expect.isOk (LibExecution.HostPosix.stat file) "stat on the real path"
         Expect.equal
-          (LibExecution.HostLibc.listDir real |> Result.map Set.ofList)
+          (LibExecution.HostPosix.listDir real |> Result.map Set.ofList)
           (Ok(Set.ofList [ "f"; "final-link" ]))
           "listing on the real path"
         match
-          LibExecution.HostLibc.mkstemp (System.IO.Path.Combine(real, "tmp-"))
+          LibExecution.HostPosix.mkstemp (System.IO.Path.Combine(real, "tmp-"))
         with
         | Ok(fd, path) ->
-          LibExecution.HostLibc.fdClose fd |> ignore<Result<unit, int * string>>
+          LibExecution.HostPosix.fdClose fd |> ignore<Result<unit, int * string>>
           Expect.isTrue (System.IO.File.Exists path) "mkstemp created the file"
           Expect.equal
             (System.IO.Path.GetDirectoryName path)
@@ -198,14 +198,14 @@ let libcWalkRefusesALinkMetAtOperationTime =
             "mkstemp created it in the walked directory"
         | Error(_, message) -> failtest $"mkstemp failed: {message}"
         Expect.equal
-          (LibExecution.HostLibc.statEntry (System.IO.Path.Combine(real, "missing")))
+          (LibExecution.HostPosix.statEntry (System.IO.Path.Combine(real, "missing")))
           (Ok(false, false))
           "a missing entry is reported, not an error"
         Expect.equal
-          (LibExecution.HostLibc.statEntry real)
+          (LibExecution.HostPosix.statEntry real)
           (Ok(true, true))
           "a directory is reported as one"
-        Expect.isOk (LibExecution.HostLibc.unlink file) "unlink on the real path"
+        Expect.isOk (LibExecution.HostPosix.unlink file) "unlink on the real path"
         Expect.isFalse (System.IO.File.Exists file) "and it is gone"
       finally
         System.IO.Directory.Delete(directory, true)
@@ -318,7 +318,7 @@ let packageStoreAncestorsAreProtected =
 /// nothing to name.
 let rootDirectoryIsReadable =
   testTask "listing and stat work on the filesystem root" {
-    if LibExecution.HostLibc.isPosix then
+    if LibExecution.HostPosix.isPosix then
       let access = Permission.Access.start Permission.Policy.allowAll
       let perform op = LibExecution.Host.perform Permission.NoRelax access op
       let! listed = perform (HT.Operation.DirectoryList "/")

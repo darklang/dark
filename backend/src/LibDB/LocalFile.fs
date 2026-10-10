@@ -5,30 +5,6 @@ module LibDB.LocalFile
 open System
 open System.IO
 open System.Threading
-open System.Runtime.InteropServices
-
-[<DllImport("libc", SetLastError = true, EntryPoint = "open")>]
-extern int private cOpen(string path, int flags)
-
-[<DllImport("libc", SetLastError = true, EntryPoint = "fsync")>]
-extern int private cFsync(int fd)
-
-[<DllImport("libc", SetLastError = true, EntryPoint = "close")>]
-extern int private cClose(int fd)
-
-/// Make an atomic rename durable on Unix. Best-effort; Windows uses the flushed
-/// file and rename.
-let private syncDirectory (directory : string) : unit =
-  if OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() then
-    try
-      let fd = cOpen (directory, 0) // O_RDONLY; a directory opens read-only
-      if fd >= 0 then
-        try
-          cFsync fd |> ignore<int>
-        finally
-          cClose fd |> ignore<int>
-    with _ ->
-      ()
 
 type ReadResult =
   | Missing
@@ -202,7 +178,7 @@ let writeAtomic (fileName : string) (bytes : byte[]) : unit =
     writeTemporary ()
     File.Move(temporary, filePath, true)
     // Persist the directory entry after the rename where supported.
-    syncDirectory directory
+    LibExecution.Host.syncPolicyDirectory directory
     if OperatingSystem.IsLinux() || OperatingSystem.IsMacOS() then
       File.SetUnixFileMode(
         filePath,
