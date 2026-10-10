@@ -692,7 +692,10 @@ test expected = 1L / 0L => raises "Cannot divide by 0"
           )
           System.IO.File.SetUnixFileMode(
             wrapper,
-            System.IO.UnixFileMode.UserRead ||| System.IO.UnixFileMode.UserExecute
+            // Later cases rewrite this script to simulate different worker exits.
+            System.IO.UnixFileMode.UserRead
+            ||| System.IO.UnixFileMode.UserWrite
+            ||| System.IO.UnixFileMode.UserExecute
           )
           let wrapped = Instance { instance with cli = wrapper }
           let! (output, code) =
