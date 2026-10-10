@@ -9,7 +9,7 @@ let currentUser () : Stdlib.Option.Option<String> =
   | None ->
     match Env.get "USER" with
     | Some u -> Stdlib.Option.Option.Some u
-    | None -> Builtin.posixGetCurrentUserName ()
+    | None -> Posix.Accounts.lookup (Stdlib.Int.toString (Syscall.getuid ())) 0
 
 
 /// Get the system hostname.

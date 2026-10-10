@@ -17,7 +17,7 @@ open Builtin.Shortcuts
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "environmentGet" 0
+  [ { name = fn "runtimeEnvironmentGet" 0
       typeParams = []
       parameters = [ Param.make "varName" TString "" ]
       returnType = TypeReference.option TString
@@ -40,7 +40,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "environmentGetAll" 0
+    { name = fn "runtimeEnvironmentGetAll" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDict(TString, TString)

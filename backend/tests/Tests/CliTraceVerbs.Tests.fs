@@ -1252,7 +1252,7 @@ let private secretsAreNotInTheLog =
               read.bytes "args",
               read.bytes "result")
           let envRows =
-            rows |> List.filter (fun (fn, _, _) -> fn = "environmentGet")
+            rows |> List.filter (fun (fn, _, _) -> fn = "runtimeEnvironmentGet")
           Expect.isNonEmpty envRows "the env read is in the log"
           for (_, _, result) in envRows do
             let dv =

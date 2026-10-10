@@ -86,6 +86,9 @@ let kill_raw (pid : int, signal : int) =
 let getpid_raw () = int (call 19 0L 0L 0L 0L 0L 0L)
 let getuid_raw () = uint32 (call 20 0L 0L 0L 0L 0L 0L)
 let uname_raw (buf : IntPtr) = int (call 21 (pointer buf) 0L 0L 0L 0L 0L)
+
+let getentropy_raw (bytes : byte[]) =
+  withBytes bytes (fun ptr -> int (call 34 ptr (int64 bytes.Length) 0L 0L 0L 0L))
 let openat2_raw (fd : int, path : string, how : byte[], size : unativeint) =
   withText path (fun a ->
     withBytes how (fun b -> call 22 (int64 fd) a b (int64 size) 0L 0L))

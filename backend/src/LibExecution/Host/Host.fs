@@ -599,10 +599,6 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
   | HostTypes.PosixOp.Chdir path ->
     resolveFile read path (fun path ->
       attempt (fun () -> HostPosix.chdir path |> unitOk))
-  | HostTypes.PosixOp.Getenv name ->
-    withChecks
-      [ envCheck read name ]
-      (produce (fun () -> Response.EnvValue(HostPosix.getenv name)))
   | HostTypes.PosixOp.Mkdir(path, mode) ->
     posixPath write path (fun path -> HostPosix.mkdir path mode |> unitOk)
   | HostTypes.PosixOp.Rmdir path ->
@@ -657,6 +653,8 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     native (fun () -> HostPosix.fsync fd |> unitOk)
   | HostTypes.PosixOp.Fstat fd ->
     native (fun () -> HostPosix.fstat fd |> Result.map Response.Bytes)
+  | HostTypes.PosixOp.Getentropy count ->
+    unchecked (attempt (fun () -> HostPosix.getentropy count |> Result.map Response.Bytes))
   | HostTypes.PosixOp.Pread(fd, count, offset) ->
     native (fun () -> HostPosix.pread fd count offset |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Pwrite(fd, bytes, offset) ->
@@ -699,22 +697,10 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     native (fun () -> HostPosix.flock fd operation |> unitOk)
   | HostTypes.PosixOp.FileOwner path ->
     posixPath read path (HostPosix.fileOwner >> Result.map Response.Text)
-  | HostTypes.PosixOp.UserName uid ->
-    // A host fact with no resource; the builtin is effect-free.
-    unchecked (produce (fun () -> Response.OptionalText(HostPosix.getUserName uid)))
   | HostTypes.PosixOp.HomeDir home ->
     // Darklang selected a candidate; exposing it still requires path authorization.
     resolveFile read home (fun home ->
       produce (fun () -> Response.OptionalText(Some home)))
-  | HostTypes.PosixOp.DefaultHomeDir ->
-    // Framework account lookup also supports macOS directory-service users.
-    let home =
-      System.Environment.GetFolderPath System.Environment.SpecialFolder.UserProfile
-    if System.String.IsNullOrEmpty home then
-      unchecked (produce (fun () -> Response.OptionalText None))
-    else
-      resolveFile read home (fun home ->
-        produce (fun () -> Response.OptionalText(Some home)))
 
 let private resolve (op : Operation) : Result<Resolved, string> =
   let read = Permission.AccessKind.Read

@@ -82,10 +82,6 @@ module private Managed =
   let getcwd () = attempt (fun () -> System.IO.Directory.GetCurrentDirectory())
   let chdir (p : string) =
     attempt (fun () -> System.IO.Directory.SetCurrentDirectory p)
-  let getenv (n : string) : Option<string> =
-    match Environment.GetEnvironmentVariable n with
-    | null -> None
-    | v -> Some v
   let mkdir (p : string) =
     attempt (fun () ->
       System.IO.Directory.CreateDirectory p |> ignore<System.IO.DirectoryInfo>)
@@ -354,6 +350,9 @@ let mkdtemp (prefix : string) : Result<string, int * string> =
 let openFile (path : string) (flags : int) (mode : int) : Result<int, int * string> =
   if isWasm then
     Managed.openFile path flags
+  elif path <> "" && path.Trim('/') = "" then
+    let fd = open_raw ("/", flags ||| O_NOFOLLOW, mode)
+    if fd < 0 then failed () else Ok fd
   else
     withParent path (fun d n ->
       let fd = openat_raw (d, n, flags ||| O_NOFOLLOW, mode)
@@ -561,11 +560,6 @@ let flock (fd : int) (operation : int) : Result<unit, int * string> =
   else if flock_raw (fd, operation) < 0 then Error(lastError ())
   else Ok()
 
-/// Current account identity is a process-managed host fact. Other UID lookup
-/// and passwd parsing belong to Darklang and its checked file reads.
-let getUserName (uid : uint32) : Option<string> =
-  if uid = getuid () then Some Environment.UserName else None
-
 /// Return the numeric owner UID; Darklang resolves account names.
 let fileOwner (path : string) : Result<string, int * string> =
   if isWasm then
@@ -588,8 +582,6 @@ let fileOwner (path : string) : Result<string, int * string> =
         Ok(string uid)
     finally
       Marshal.FreeHGlobal buf
-
-let getenv (name : string) : Option<string> = Managed.getenv name
 
 let kill (pid : int) (signal : int) : Result<unit, int * string> =
   if isWasm then Managed.enosys ()
@@ -675,6 +667,17 @@ let fstat fd : Result<byte[], int * string> =
     let bytes = Array.zeroCreate<byte> 256
     let rc = fstat_raw (fd, bytes)
     if rc < 0 then failed () else Ok bytes
+
+/// One entropy call. Dark owns filling/retry loops. Darwin caps requests at 256.
+let getentropy count : Result<byte[], int * string> =
+  if count < 0 || count > 256 then Error(22, "Invalid argument")
+  elif isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  else
+    let bytes = Array.zeroCreate<byte> count
+    let rc = getentropy_raw bytes
+    if rc < 0 then failed ()
+    elif isMac then Ok bytes
+    else Ok(Array.take rc bytes)
 
 let pread fd count offset : Result<byte[], int * string> =
   if count < 0 then Error(22, "Invalid argument")

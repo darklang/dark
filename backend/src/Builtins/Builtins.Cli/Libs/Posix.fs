@@ -204,15 +204,15 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixChdir" 0
+    { name = fn "syscallChdir" 0
       typeParams = []
       parameters = [ Param.make "path" TString "Directory to change to" ]
-      returnType = TypeReference.result TUnit (posixErrorTypeRef ())
+      returnType = TypeReference.result TUnit TInt
       description = "Changes the current working directory via kernel chdir()"
       fn =
         (function
         | _, vm, _, [| DString path |] ->
-          posixResult KTUnit vm (HostTypes.PosixOp.Chdir path) unitOk
+          syscallResult KTUnit vm (HostTypes.PosixOp.Chdir path) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -222,18 +222,18 @@ let fns () : List<BuiltInFn> =
 
 
 
-    { name = fn "posixMkdir" 0
+    { name = fn "syscallMkdir" 0
       typeParams = []
       parameters =
         [ Param.make "path" TString "The directory path to create"
           Param.make "mode" TInt "Permission bits (e.g. 493 for 0755)" ]
-      returnType = TypeReference.result TUnit (posixErrorTypeRef ())
+      returnType = TypeReference.result TUnit TInt
       description = "Creates a directory via kernel mkdir()"
       fn =
         (function
         | _, vm, _, [| DString path; DInt mode |] ->
           let op = HostTypes.PosixOp.Mkdir(path, intToInt32 vm mode)
-          posixResult KTUnit vm op unitOk
+          syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -273,18 +273,18 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixRename" 0
+    { name = fn "syscallRename" 0
       typeParams = []
       parameters =
         [ Param.make "oldpath" TString "Current path"
           Param.make "newpath" TString "New path" ]
-      returnType = TypeReference.result TUnit (posixErrorTypeRef ())
+      returnType = TypeReference.result TUnit TInt
       description = "Renames/moves a file or directory via kernel rename()"
       fn =
         (function
         | _, vm, _, [| DString oldpath; DString newpath |] ->
           let op = HostTypes.PosixOp.Rename(oldpath, newpath)
-          posixResult KTUnit vm op unitOk
+          syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -292,18 +292,18 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixChmod" 0
+    { name = fn "syscallChmod" 0
       typeParams = []
       parameters =
         [ Param.make "path" TString "File path"
           Param.make "mode" TInt "Permission bits (e.g. 493 for 0755)" ]
-      returnType = TypeReference.result TUnit (posixErrorTypeRef ())
+      returnType = TypeReference.result TUnit TInt
       description = "Changes file permissions via kernel chmod()"
       fn =
         (function
         | _, vm, _, [| DString path; DInt mode |] ->
           let op = HostTypes.PosixOp.Chmod(path, intToInt32 vm mode)
-          posixResult KTUnit vm op unitOk
+          syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -327,12 +327,12 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixSymlink" 0
+    { name = fn "syscallSymlink" 0
       typeParams = []
       parameters =
         [ Param.make "target" TString "Path the symlink points to"
           Param.make "linkpath" TString "Path of the symlink to create" ]
-      returnType = TypeReference.result TUnit (posixErrorTypeRef ())
+      returnType = TypeReference.result TUnit TInt
       description = "Creates a symbolic link via kernel symlink()"
       fn =
         (function
@@ -341,7 +341,7 @@ let fns () : List<BuiltInFn> =
           // operation; the boundary checks a write at linkpath. Any later
           // access to the link is rejected if it leaves the authorized tree.
           let op = HostTypes.PosixOp.Symlink(target, linkpath)
-          posixResult KTUnit vm op unitOk
+          syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -365,72 +365,16 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixMkstemp" 0
-      typeParams = []
-      parameters =
-        [ Param.make
-            "prefix"
-            TString
-            "Prefix for the temp file path (e.g. \"/tmp/dark-\")" ]
-      returnType =
-        TypeReference.result (TTuple(TInt, TString, [])) (posixErrorTypeRef ())
-      description =
-        "Creates a unique temp file via kernel mkstemp(). Returns (fd, path)."
-      fn =
-        (function
-        | _, vm, _, [| DString prefix |] ->
-          posixResult
-            (KTTuple(VT.int, VT.string, []))
-            vm
-            (HostTypes.PosixOp.Mkstemp prefix)
-            (fun response ->
-              let fd, path = Host.expectFdPath response
-              DTuple(Dval.int (bigint fd), DString path, []))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = Set.union fileWriteEffect nativeEffects
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixMkdtemp" 0
-      typeParams = []
-      parameters =
-        [ Param.make
-            "prefix"
-            TString
-            "Prefix for the temp directory path (e.g. \"/tmp/dark-\")" ]
-      returnType = TypeReference.result TString (posixErrorTypeRef ())
-      description =
-        "Creates a unique temp directory via kernel mkdtemp(). Returns the path."
-      fn =
-        (function
-        | _, vm, _, [| DString prefix |] ->
-          posixResult KTString vm (HostTypes.PosixOp.Mkdtemp prefix) pathOk
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = fileWriteEffect
-      deprecated = NotDeprecated }
 
 
 
 
 
-    { name = fn "posixGetenv" 0
-      typeParams = []
-      parameters = [ Param.make "name" TString "" ]
-      returnType = TypeReference.option TString
-      description = "Gets an environment variable via kernel getenv()"
-      fn =
-        (function
-        | _, vm, _, [| DString name |] ->
-          posixOption vm (HostTypes.PosixOp.Getenv name) Host.expectEnvValue
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.EnvRead ]
-      deprecated = NotDeprecated }
+
+
+
+
+
 
 
     { name = fn "posixSpawnAndWait" 0
@@ -612,20 +556,20 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixOpen" 0
+    { name = fn "syscallOpen" 0
       typeParams = []
       parameters =
         [ Param.make "path" TString "File path to open"
           Param.make "flags" TInt "Open flags (e.g. O_RDONLY, O_WRONLY | O_CREAT)"
           Param.make "mode" TInt "Permission bits for new files (e.g. 420 for 0644)" ]
-      returnType = TypeReference.result TInt (posixErrorTypeRef ())
+      returnType = TypeReference.result TInt TInt
       description = "Opens a file via kernel open(). Returns a file descriptor."
       fn =
         (function
         | _, vm, _, [| DString path; DInt flags; DInt mode |] ->
           let op =
             HostTypes.PosixOp.Open(path, intToInt32 vm flags, intToInt32 vm mode)
-          posixResult KTInt vm op (fun response ->
+          syscallResult KTInt vm op (fun response ->
             Dval.int (bigint (Host.expectFd response)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -698,21 +642,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixGetCurrentUserName" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TypeReference.option TString
-      description = "Returns the process-managed login name of the current user"
-      fn =
-        (function
-        | _, vm, _, [| DUnit |] ->
-          let op = HostTypes.PosixOp.UserName(uint32 (HostPosix.getuid ()))
-          posixOption vm op Host.expectOptionalText
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
+
 
 
     { name = fn "posixCpuCount" 0
@@ -730,7 +660,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixCheckHomeDir" 0
+    { name = fn "runtimeAuthorizeReadPath" 0
       typeParams = []
       parameters = [ Param.make "home" TString "Candidate home directory" ]
       returnType = TypeReference.option TString
@@ -746,21 +676,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixGetHomeDir" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TypeReference.option TString
-      description =
-        "Returns the framework account home directory after authorizing that path"
-      fn =
-        (function
-        | _, vm, _, [| DUnit |] ->
-          posixOption vm HostTypes.PosixOp.DefaultHomeDir Host.expectOptionalText
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.FileRead ]
-      deprecated = NotDeprecated }
+
 
 
     { name = fn "syscallFlock" 0

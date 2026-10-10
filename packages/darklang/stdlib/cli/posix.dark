@@ -46,8 +46,8 @@ module OpenFlags =
 
 /// Open a file. Returns a file descriptor.
 let openFile (path: String) (flags: Int) (mode: Int) : Result.Result<Int, Error> =
-  Builtin.posixOpen path flags mode
-  |> Errors.normalize
+  Syscall.open path flags mode
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 
 /// Read up to `count` bytes from an open file descriptor.
@@ -104,13 +104,13 @@ let getCwd () : Result.Result<String, Error> =
 
 /// Change the current working directory
 let chdir (path: String) : Result.Result<Unit, Error> =
-  Builtin.posixChdir path
-  |> Errors.normalize
+  Syscall.chdir path
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Set an environment variable
 let mkdir (path: String) (mode: Int) : Result.Result<Unit, Error> =
-  Builtin.posixMkdir path mode
-  |> Errors.normalize
+  Syscall.mkdir path mode
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Remove an empty directory
 let rmdir (path: String) : Result.Result<Unit, Error> =
@@ -124,13 +124,13 @@ let unlink (path: String) : Result.Result<Unit, Error> =
 
 /// Rename/move a file or directory
 let rename (oldpath: String) (newpath: String) : Result.Result<Unit, Error> =
-  Builtin.posixRename oldpath newpath
-  |> Errors.normalize
+  Syscall.rename oldpath newpath
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Change file permissions
 let chmod (path: String) (mode: Int) : Result.Result<Unit, Error> =
-  Builtin.posixChmod path mode
-  |> Errors.normalize
+  Syscall.chmod path mode
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Update atime and mtime to now.
 let utimesNow (path: String) : Result.Result<Unit, Error> =
@@ -139,8 +139,8 @@ let utimesNow (path: String) : Result.Result<Unit, Error> =
 
 /// Create a symbolic link
 let symlink (target: String) (linkpath: String) : Result.Result<Unit, Error> =
-  Builtin.posixSymlink target linkpath
-  |> Errors.normalize
+  Syscall.symlink target linkpath
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Read the target of a symbolic link
 let readlink (path: String) : Result.Result<String, Error> =
@@ -162,11 +162,11 @@ let isSymlink (path: String) : Result.Result<Bool, Error> =
 
 /// Create a unique temporary file. Returns (fd, path).
 let mkstemp (prefix: String) : Result.Result<(Int * String), Error> =
-  Temp.retry (fun _ -> Builtin.posixMkstemp prefix |> Errors.normalize) 100
+  Temp.file prefix
 
 /// Create a unique temporary directory. Returns the path.
 let mkdtemp (prefix: String) : Result.Result<String, Error> =
-  Temp.retry (fun _ -> Builtin.posixMkdtemp prefix |> Errors.normalize) 100
+  Temp.directory prefix
 
 /// Match a string against a glob pattern.
 /// If pathMode is true, * does not match /
@@ -180,7 +180,7 @@ let fileOwner (path: String) : Result.Result<String, Error> =
   |> Stdlib.Result.andThen KernelData.metadata
   |> Stdlib.Result.mapError Errors.fromErrno
   |> Stdlib.Result.map (fun metadata ->
-    let uid = Stdlib.toString metadata.uid
+    let uid = Stdlib.Int.toString metadata.uid
     match Accounts.lookup uid 0 with
     | Some name -> name
     | None -> uid)
@@ -191,7 +191,7 @@ let listDir (path: String) : Result.Result<List<String>, Error> =
 
 /// Get an environment variable
 let getenv (name: String) : Stdlib.Option.Option<String> =
-  Builtin.posixGetenv name
+  Stdlib.Env.get name
 
 
 /// System name info: (sysname, nodename, machine).

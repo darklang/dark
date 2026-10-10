@@ -22,7 +22,7 @@ Stdlib.Cli.Posix.Temp.retry (fun remaining -> Stdlib.Result.Result.Error (Stdlib
 
 // Partial writes complete, zero-progress writes fail, and errors propagate.
 Stdlib.Cli.Posix.IO.writeAll (fun bytes -> Stdlib.Result.Result.Ok (if Stdlib.Blob.length bytes > 1 then 1 else Stdlib.Blob.length bytes)) (Stdlib.String.toBlob "abcd") 0 = Stdlib.Result.Result.Ok 4
-Stdlib.Cli.Posix.IO.writeAll (fun _ -> Stdlib.Result.Result.Ok 0) (Stdlib.String.toBlob "abc") 0 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 0; message = "write returned 0" })
+Stdlib.Cli.Posix.IO.writeAll (fun _ -> Stdlib.Result.Result.Ok 0) (Stdlib.String.toBlob "abc") 0 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 5; message = "write made invalid progress" })
 Stdlib.Cli.Posix.IO.writeAll (fun _ -> Stdlib.Result.Result.Ok 0) (Stdlib.String.toBlob "") 0 = Stdlib.Result.Result.Ok 0
 Stdlib.Cli.Posix.IO.writeAll (fun _ -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9; message = "Bad file descriptor" })) (Stdlib.String.toBlob "abc") 0 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9; message = "Bad file descriptor" })
 

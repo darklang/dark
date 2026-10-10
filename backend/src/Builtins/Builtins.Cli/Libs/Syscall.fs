@@ -39,7 +39,14 @@ let private offset r = Dval.int (bigint (Host.expectOffset r))
 let private written r = Dval.int (bigint (Host.expectWritten r))
 
 let fns () : List<BuiltInFn> =
-  [ make "syscallCopyFileRange"
+  [ { (make "syscallGetentropy" [ integer "count" ] TBlob KTBlob
+        (fun _ vm values ->
+          match values with
+          | [| DInt count |] ->
+            perform KTBlob vm (Op.PosixOp.Getentropy(intToInt32 vm count)) bytes
+          | _ -> incorrectArgs ()))
+        with callEffects = set [ Effect.Random ] }
+    make "syscallCopyFileRange"
       [ integer "source"; integer "destination"; integer "count" ] TInt KTInt
       (fun _ vm values ->
         match values with

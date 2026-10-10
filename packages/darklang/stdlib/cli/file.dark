@@ -125,7 +125,7 @@ let readTailChunks
       (Stdlib.Blob.concat chunks, cursor <= 0))
   else
     let chunkSize = 1024
-    let start = Stdlib.max 0 (cursor - chunkSize)
+    let start = if cursor < chunkSize then 0 else cursor - chunkSize
     let bytesToRead = cursor - start
 
     (Posix.fdSeekFromStart fd start)

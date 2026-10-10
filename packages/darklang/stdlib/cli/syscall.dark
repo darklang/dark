@@ -5,6 +5,10 @@
 /// the kernel reports an error. Never retry close after EINTR.
 module Darklang.Stdlib.Cli.Syscall
 
+/// One entropy call, up to 256 bytes. May return fewer bytes or EINTR.
+let getentropy (count: Int) : Result.Result<Blob, Int> =
+  Builtin.syscallGetentropy count
+
 let read (fd: Int) (count: Int) : Result.Result<Blob, Int> =
   Builtin.syscallRead fd count
 
@@ -57,3 +61,27 @@ let pread (fd: Int) (count: Int) (offset: Int) : Result.Result<Blob, Int> =
 
 let pwrite (fd: Int) (bytes: Blob) (offset: Int) : Result.Result<Int, Int> =
   Builtin.syscallPwrite fd bytes offset
+
+/// One operation after checked no-follow path resolution.
+let open (path: String) (flags: Int) (mode: Int) : Result.Result<Int, Int> =
+  Builtin.syscallOpen path flags mode
+
+/// One operation after checked no-follow path resolution.
+let mkdir (path: String) (mode: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallMkdir path mode
+
+/// One operation after checked no-follow path resolution.
+let chdir (path: String) : Result.Result<Unit, Int> =
+  Builtin.syscallChdir path
+
+/// One operation after checked no-follow path resolution.
+let rename (oldpath: String) (newpath: String) : Result.Result<Unit, Int> =
+  Builtin.syscallRename oldpath newpath
+
+/// One operation after checked no-follow path resolution.
+let chmod (path: String) (mode: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallChmod path mode
+
+/// One operation after checked no-follow path resolution.
+let symlink (target: String) (linkpath: String) : Result.Result<Unit, Int> =
+  Builtin.syscallSymlink target linkpath

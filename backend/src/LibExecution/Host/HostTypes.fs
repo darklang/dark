@@ -24,7 +24,6 @@ type OpenFlag =
 [<RequireQualifiedAccess>]
 type PosixOp =
   | Chdir of path : string
-  | Getenv of name : string
   | Mkdir of path : string * mode : int
   | Rmdir of path : string
   | Unlink of path : string
@@ -45,6 +44,7 @@ type PosixOp =
   | Fchmod of fd : int * mode : int
   | Fsync of fd : int
   | Fstat of fd : int
+  | Getentropy of count : int
   | Pread of fd : int * count : int * offset : int64
   | Pwrite of fd : int * data : byte[] * offset : int64
   | Open of path : string * flags : int * mode : int
@@ -62,9 +62,7 @@ type PosixOp =
   | FdClose of fd : int
   | Flock of fd : int * operation : int
   | FileOwner of path : string
-  | UserName of uid : uint32
   | HomeDir of path : string
-  | DefaultHomeDir
 
 /// Which host HTTP configuration an operation runs under. `Guest` is the
 /// SSRF-guarded configuration every guest request uses (the host may replace
@@ -229,7 +227,6 @@ let describeOperation (op : Operation) : string =
   let posix (p : PosixOp) : string =
     match p with
     | PosixOp.Chdir path -> $"chdir {path}"
-    | PosixOp.Getenv name -> $"getenv {name}"
     | PosixOp.Mkdir(path, _) -> $"mkdir {path}"
     | PosixOp.Rmdir path -> $"rmdir {path}"
     | PosixOp.Unlink path -> $"unlink {path}"
@@ -251,6 +248,7 @@ let describeOperation (op : Operation) : string =
     | PosixOp.Fchmod(fd, _) -> $"fchmod {fd}"
     | PosixOp.Fsync fd -> $"fsync {fd}"
     | PosixOp.Fstat fd -> $"fstat {fd}"
+    | PosixOp.Getentropy count -> $"getentropy {count}"
     | PosixOp.Pread(fd, _, _) -> $"pread {fd}"
     | PosixOp.Pwrite(fd, _, _) -> $"pwrite {fd}"
     | PosixOp.Open(path, _, _) -> $"open {path}"
@@ -262,9 +260,7 @@ let describeOperation (op : Operation) : string =
     | PosixOp.FdClose fd -> $"fd-close {fd}"
     | PosixOp.Flock(fd, _) -> $"flock {fd}"
     | PosixOp.FileOwner path -> $"file-owner {path}"
-    | PosixOp.UserName uid -> $"user-name {uid}"
     | PosixOp.HomeDir path -> $"home-dir {path}"
-    | PosixOp.DefaultHomeDir -> "default-home-dir"
   match op with
   | Operation.FileRead path -> $"file-read {path}"
   | Operation.FileWrite(path, _) -> $"file-write {path}"

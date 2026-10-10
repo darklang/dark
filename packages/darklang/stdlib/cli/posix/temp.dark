@@ -1,6 +1,21 @@
 /// Collision retries for exclusive temporary-entry creation.
 module Darklang.Stdlib.Cli.Posix.Temp
 
+let entropy (remaining: Int) (reversed: List<Blob>) : Result.Result<Blob, Int> =
+  if remaining == 0 then Ok (Stdlib.Blob.concat (Stdlib.List.reverse reversed))
+  else
+    match Stdlib.Cli.Syscall.getentropy remaining with
+    | Error e -> if e == 4 then entropy remaining reversed else Error e
+    | Ok bytes ->
+      let count = Stdlib.Blob.length bytes
+      if count <= 0 || count > remaining then Error 5
+      else entropy (remaining - count) (Stdlib.List.push reversed bytes)
+
+let candidate (prefix: String) : Result.Result<String, Stdlib.Cli.Posix.Error> =
+  entropy 12 []
+  |> Stdlib.Result.mapError Errors.fromErrno
+  |> Stdlib.Result.map (fun bytes -> prefix ++ Stdlib.Blob.toHex bytes)
+
 let retry
   (create: Int -> Result.Result<'a, Stdlib.Cli.Posix.Error>)
   (remaining: Int)
@@ -10,3 +25,21 @@ let retry
     if error.errno == 17 && remaining > 0 then retry create (remaining - 1)
     else Stdlib.Result.Result.Error error
   | Ok value -> Stdlib.Result.Result.Ok value
+
+/// Suffix creation and collision policy are shared Dark algorithms. O_EXCL is
+/// what makes creation safe; randomness alone does not protect against races.
+let file (prefix: String) : Result.Result<(Int * String), Stdlib.Cli.Posix.Error> =
+  retry (fun _ ->
+    candidate prefix
+    |> Stdlib.Result.andThen (fun path ->
+      let flags = 2 | Stdlib.Cli.KernelABI.openCreate ()
+                    | Stdlib.Cli.KernelABI.openExclusive ()
+      Stdlib.Cli.Posix.openFile path flags 384
+      |> Stdlib.Result.map (fun fd -> (fd, path)))) 100
+
+let directory (prefix: String) : Result.Result<String, Stdlib.Cli.Posix.Error> =
+  retry (fun _ ->
+    candidate prefix
+    |> Stdlib.Result.andThen (fun path ->
+      Stdlib.Cli.Posix.mkdir path 448
+      |> Stdlib.Result.map (fun _ -> path))) 100
