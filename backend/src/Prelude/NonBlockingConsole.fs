@@ -4,6 +4,64 @@ type Stream =
   | Out
   | Err
 
+/// SGR escape sequences (`ESC [ ... m`): colour and text style.
+module Ansi =
+  let private sgr =
+    System.Text.RegularExpressions.Regex(
+      "\u001b\\[([0-9;]*)m",
+      System.Text.RegularExpressions.RegexOptions.Compiled
+    )
+
+  /// Every SGR sequence removed, for a stream that is not a terminal.
+  let withoutSgr (text : string) : string =
+    if text.IndexOf '\u001b' < 0 then text else sgr.Replace(text, "")
+
+  /// The colour parameters removed and the rest of the style kept (bold, dim, underline, reverse),
+  /// for `NO_COLOR`, which asks for no colour rather than no style. A 256-colour or truecolour
+  /// parameter (`38;5;n`, `38;2;r;g;b`) is dropped whole.
+  let withoutColour (text : string) : string =
+    if text.IndexOf '\u001b' < 0 then
+      text
+    else
+      sgr.Replace(
+        text,
+        fun m ->
+          let ps =
+            if m.Groups[1].Value = "" then
+              [ "0" ]
+            else
+              List.ofArray (m.Groups[1].Value.Split ';')
+          let rec keep (ps : string list) : string list =
+            match ps with
+            | ("38" | "48") :: "5" :: _ :: rest -> keep rest
+            | ("38" | "48") :: "2" :: _ :: _ :: _ :: rest -> keep rest
+            | p :: rest ->
+              match System.Int32.TryParse p with
+              | true, n when
+                (n >= 30 && n <= 39) || (n >= 40 && n <= 49) || (n >= 90 && n <= 107)
+                ->
+                keep rest
+              | _ -> p :: keep rest
+            | [] -> []
+          match keep ps with
+          | [] -> ""
+          | kept -> "\u001b[" + String.concat ";" kept + "m"
+      )
+
+  /// What a stream gets: everything when a person is looking at it, no colour under `NO_COLOR`, and
+  /// no escape sequences at all in a pipe, a file or a `TERM=dumb` terminal. `CLICOLOR_FORCE` keeps
+  /// it all, for `dark ... | less -R`.
+  let decide (redirected : bool) : string -> string =
+    let env (name : string) =
+      match System.Environment.GetEnvironmentVariable name with
+      | null -> ""
+      | v -> v
+    let force = env "CLICOLOR_FORCE"
+    if force <> "" && force <> "0" then id
+    elif redirected || env "TERM" = "dumb" then withoutSgr
+    elif env "NO_COLOR" <> "" then withoutColour
+    else id
+
 type BlockingCollection =
   System.Collections.Concurrent.BlockingCollection<struct (Stream * string)>
 
@@ -40,6 +98,13 @@ type private Private() =
 
   static let mQueue : BlockingCollection = new BlockingCollection()
 
+  // Colour is decided per stream, where the text reaches it: a refusal on a terminal's stderr keeps
+  // its red while the piped stdout beside it carries no escape codes. Here rather than in the
+  // colouring helpers, which build a string long before anyone knows where it will be printed.
+  // Captures and the browser sink are untouched: they never reach these writes.
+  static let forOut = lazy (Ansi.decide System.Console.IsOutputRedirected)
+  static let forErr = lazy (Ansi.decide System.Console.IsErrorRedirected)
+
   // When capturing, writes go to a buffer instead of the console queue. Used by the CLI to run a
   // command and show its output in-frame (the workbench's inline command bar) rather than to
   // stdout, and by the CLI test harness to read what a command printed.
@@ -72,8 +137,9 @@ type private Private() =
             // Don't block (eg with `Take`) while holding the lock
             if mQueue.TryTake(&v) then
               match v with
-              | struct (Out, text) -> System.Console.Out.Write(text)
-              | struct (Err, text) -> System.Console.Error.Write(text)
+              | struct (Out, text) -> System.Console.Out.Write(forOut.Force () text)
+              | struct (Err, text) ->
+                System.Console.Error.Write(forErr.Force () text)
               wrote <- true
           with e ->
             System.Console.Error.WriteLine(
