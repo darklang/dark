@@ -43,7 +43,10 @@ let private parsePackageFile
 let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
   uply {
     let filesWithContents =
-      "/home/dark/app/packages"
+      System.IO.Path.Combine(
+        LibConfig.ConfigDsl.absoluteDir "DARK_CONFIG_ROOT_DIR",
+        "packages"
+      )
       |> listDirectoryRecursive
       |> List.filter (String.contains "_" >> not)
       |> List.filter (fun x -> x |> String.endsWith ".dark")

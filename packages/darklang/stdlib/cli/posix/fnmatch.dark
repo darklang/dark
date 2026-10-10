@@ -35,9 +35,9 @@ let classEnd
   : Option.Option<(String * List<UInt8>)> =
   match bytes with
   | 58uy :: 93uy :: rest ->
-    let name = Stdlib.String.fromBytesWithReplacement
-      (Stdlib.List.reverse reversedName)
-    Some (name, rest)
+    let name =
+      Stdlib.String.fromBytesWithReplacement (Stdlib.List.reverse reversedName)
+    Some ((name, rest))
   | c :: rest -> classEnd rest (Stdlib.List.push reversedName c)
   | [] -> None
 
@@ -71,11 +71,11 @@ let classItems
   | 91uy :: 58uy :: name ->
     match classEnd name [] with
     | None -> None
-    | Some (name, after) ->
+    | Some ((name, after)) ->
       classItems after c false (matched || namedClass name c)
         (valid && knownClass name)
   | head :: rest ->
-    if head == 93uy && Stdlib.Bool.not first then Some (rest, matched, valid)
+    if head == 93uy && Stdlib.Bool.not first then Some ((rest, matched, valid))
     else
       let (low, next) = classChar head rest
       match next with
@@ -95,8 +95,8 @@ let bracket
   let items = if inverted then Stdlib.List.drop bytes 1 else bytes
   match classItems items c true false true with
   | None -> None
-  | Some (after, matched, valid) ->
-    Some (after, valid && (if inverted then Stdlib.Bool.not matched else matched))
+  | Some ((after, matched, valid)) ->
+    Some ((after, valid && (if inverted then Stdlib.Bool.not matched else matched)))
 
 let matchBytes
   (pattern: List<UInt8>)
@@ -127,7 +127,7 @@ let matchBytes
         | [] -> false
       else if p == 91uy then
         match bracket rest c with
-        | Some (after, matched) ->
+        | Some ((after, matched)) ->
           matched && (Stdlib.Bool.not pathname || c != 47uy)
           && matchBytes after tail pathname
         | None -> p == c && matchBytes rest tail pathname
@@ -135,8 +135,8 @@ let matchBytes
 
 /// Preserve C-string NUL termination and byte-based wildcard semantics.
 let matches (pattern: String) (text: String) (pathname: Bool) : Bool =
-  let patternBytes = Stdlib.List.takeWhile (Stdlib.String.toBytes pattern)
-    (fun c -> c != 0uy)
-  let textBytes = Stdlib.List.takeWhile (Stdlib.String.toBytes text)
-    (fun c -> c != 0uy)
+  let patternBytes =
+    Stdlib.List.takeWhile (Stdlib.String.toBytes pattern) (fun c -> c != 0uy)
+  let textBytes =
+    Stdlib.List.takeWhile (Stdlib.String.toBytes text) (fun c -> c != 0uy)
   matchBytes patternBytes textBytes pathname
