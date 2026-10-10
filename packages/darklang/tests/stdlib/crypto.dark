@@ -1,10 +1,8 @@
-/// Digest cases from `backend/testfiles/execution/stdlib/crypto.dark`.
 // Stdlib.Crypto — all hashes take and return Blob. Use
 // `Stdlib.Blob.fromString` to build an input from a string and
 // `Stdlib.Blob.toHex` to render the digest.
 module Darklang.Stdlib.Crypto.Tests
 
-// Differs from legacy: the two inputs are bound once; legacy built each inline.
 test digests =
   let empty = Stdlib.Blob.fromString ""
   let longer = Stdlib.Blob.fromString "a longer string that's more interesting"
@@ -39,7 +37,6 @@ test sha1hmac =
   |> Stdlib.Test.equal "0932CB57FE685FEBC66657AA30C7568A4AB05CAF"
 
 // aws
-// Differs from legacy: `data` is inlined into the first HMAC; same chain and output.
 test awsSigningChain =
   let scope = "20150830/us-east-1/iam/aws4_request"
   let content = "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59"

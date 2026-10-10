@@ -219,6 +219,18 @@ let private registerCleanupHandler () =
 let currentExecutablePath () : string =
   System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
 
+let mutable private isolatedTestLauncher : Option<string> = None
+
+/// Configure at host startup when another executable provides the worker entry point.
+let setIsolatedTestLauncher (path : string) : unit =
+  isolatedTestLauncher <- Some(Path.GetFullPath path)
+
+/// CLI hosts launch themselves unless startup configured a different executable.
+let isolatedTestLauncherPath () : string =
+  match isolatedTestLauncher with
+  | None -> currentExecutablePath ()
+  | Some path -> path
+
 let private startInfo
   (program : string)
   (args : List<string>)

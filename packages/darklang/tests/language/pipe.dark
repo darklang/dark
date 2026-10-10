@@ -1,4 +1,3 @@
-/// Pipe cases from `backend/testfiles/execution/language/flow-control/epipe.dark`.
 module Darklang.Language.Tests.Pipe
 
 // function
@@ -12,8 +11,6 @@ test functions =
       ([] |> Stdlib.List.push (1L + (1L + 3L))) |> Stdlib.Test.equal [ 5L ]
       ([] |> Stdlib.List.push (1L + ((+) 1L 3L))) |> Stdlib.Test.equal [ 5L ] ]
 
-// Differs from legacy: this raises with `Stdlib.Test.raiseRuntimeError`; legacy
-// used the backend-only `Builtin.testRuntimeError`.
 test argErrorRaises =
   ([] |> Stdlib.List.push (Stdlib.Test.raiseRuntimeError "err"))
   => raises "Uncaught exception: err"

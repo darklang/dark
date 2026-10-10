@@ -1,8 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/discovery.dark`.
-// Differs from legacy: these call the Dark wrapper of each builtin
-// (`PackageManager.Value.findByValueType`, `ValueSearch.evaluate`) where legacy called
-// `Builtin.pmFindValuesByValueType` and `Builtin.pmEvaluateValue` directly, since a
-// builtin may have only one Dark caller.
 module Darklang.Stdlib.ValueSearch.Tests
 
 // pmFindValuesByValueType returns empty list for unknown type

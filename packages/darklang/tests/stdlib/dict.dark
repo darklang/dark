@@ -1,4 +1,3 @@
-/// Dict cases from `backend/testfiles/execution/stdlib/dict.dark`.
 module Darklang.Stdlib.Dict.Tests
 
 type Point = { x: Int64; y: Int64 }
@@ -283,9 +282,7 @@ test nonStringKeysFloatKeys =
       (let inf = 1.0 / 0.0
        Stdlib.Dict.get (Dict { inf: "inf" }) inf)
       |> Stdlib.Test.equal (Some "inf")
-      // Differs from legacy: legacy compared the keys to a list holding NaN. NaN
-      // never equals itself here, so each key is mapped to a label and the labels
-      // compared.
+      // NaN never equals itself, so map keys to labels before comparing them.
       (let inf = 1.0 / 0.0
        let ninf = -1.0 / 0.0
        let nan = Stdlib.Float.sqrt -1.0
@@ -408,8 +405,6 @@ test nonStringKeysIdentityMatchesEquality =
         (SameShape { x = 1L; y = 2L })
       |> Stdlib.Test.equal true ]
 
-// Differs from legacy: the type names in the error are qualified with this test
-// module; legacy's were bare (`SameShape`, `DifferentShape`).
 test nonStringKeysDifferentShapesCannotBeCompared =
   (Point { x = 1L; y = 2L }) == (DifferentShape { a = 1L; b = 2L })
   => raises "Cannot perform equality check on Darklang.Stdlib.Dict.Tests.SameShape and Darklang.Stdlib.Dict.Tests.DifferentShape"
@@ -491,23 +486,17 @@ test nonStringKeysRemoveRejectsLambdaKey =
   Stdlib.Dict.remove (Dict { 1L: "a" }) (fun x -> x)
   => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-// Not a legacy assertion: the commented-out filterMap case above, made live. It
-// never failed because its call left out the dict: a partial application, so the
-// lambda never ran. Given a dict, the `false` is rejected, though not with the
-// error legacy expected (an Option.map argument-type error).
+// Supply the dict so the callback executes and its invalid Bool result is rejected.
 test filterMapRejectsNonOptionResult =
   Stdlib.Dict.filterMap
     (Dict { "a": "x"; "b": "y"; "c": "z" })
     (fun key value -> if value == "y" then false else Some(key + value))
   => raises "No matching case found for value false in match expression"
 
-// Differs from legacy: Stdlib.Test.raiseRuntimeError stands in for the backend-only
-// Builtin.testRuntimeError (same "Uncaught exception: err").
 test fromListOverwritingDuplicatesPropagatesElementError =
   Stdlib.Dict.fromListOverwritingDuplicates [ Stdlib.Test.raiseRuntimeError "err" ]
   => raises "Uncaught exception: err"
 
-// Differs from legacy: Stdlib.Test.raiseRuntimeError, as above.
 test fromListPropagatesElementError =
   Stdlib.Dict.fromList [ Stdlib.Test.raiseRuntimeError "err" ]
   => raises "Uncaught exception: err"

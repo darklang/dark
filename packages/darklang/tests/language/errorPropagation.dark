@@ -1,5 +1,3 @@
-/// Error propagation from `backend/testfiles/execution/language/derror.dark`,
-/// plus one case from `custom-data/record-field-acess.dark`.
 module Darklang.Language.Tests.ErrorPropagation
 
 module Error =
@@ -11,9 +9,6 @@ module Error =
     => raises
       "Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
 
-// Differs from legacy: the `RuntimeError` cases in this file raise with
-// `Stdlib.Test.raiseRuntimeError`; legacy used the backend-only
-// `Builtin.testRuntimeError`.
 
 // Check we get previous errors before later ones
 test earlierErrorFirst =
@@ -86,11 +81,10 @@ module ErrorPropagation =
         n = 6L }
     => raises "Uncaught exception: 1"
 
-  // Not a legacy assertion: an operand's error propagates through `+`.
+  // An operand's error propagates through +.
   test stringAddOperand =
     "msg" + (1L / 0L) => raises "Cannot divide by 0"
 
-// From custom-data/record-field-acess.dark (`Errors`).
 test fieldAccessOnRaise =
   (Stdlib.Test.raiseRuntimeError "error").fieldName
   => raises "Uncaught exception: error"

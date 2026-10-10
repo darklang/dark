@@ -1,5 +1,3 @@
-/// Function effect-ceiling cases from
-/// `backend/testfiles/execution/language/effect-ceiling.dark`.
 module Darklang.Language.Tests.EffectCeiling
 
 // A function's `:{…}` row is its permission ceiling: the most it may ever do.

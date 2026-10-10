@@ -1,5 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/scm/lww.dark`, in original assertion order.
 module Darklang.SCM.Tests.Lww
 
 // The last-writer-wins rule, pinned on the DARK side.

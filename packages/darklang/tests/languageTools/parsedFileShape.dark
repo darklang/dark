@@ -1,5 +1,3 @@
-/// Parser-shape regressions from
-/// `backend/testfiles/execution/stdlib/language-tools/parsedFileShape.dark`.
 module Darklang.LanguageTools.Parser.Parse.Tests
 
 // `Builtin.parserParseToWrittenTypes` has to survive anything a person can type,
@@ -14,8 +12,6 @@ module Darklang.LanguageTools.Parser.Parse.Tests
 // post-parse validation decides whether this is Test source — so an ordinary
 // typo like `valoops = 1` (a missing space after `val`) parses as one.
 
-// Differs from legacy: legacy called `Builtin.parserParseToWrittenTypes`; a
-// builtin may have only one Dark caller, so this calls its wrapper.
 let shape (source: String) : (Int * Int) =
   match Darklang.LanguageTools.Parser.Parse.toWrittenTypes source with
   | Some(SourceFile file) ->

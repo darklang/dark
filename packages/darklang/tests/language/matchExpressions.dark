@@ -1,5 +1,3 @@
-/// Pattern-matching cases from
-/// `backend/testfiles/execution/language/flow-control/ematch.dark`.
 module Darklang.Language.Tests.MatchExpressions
 
 // One module for each type of pattern.
@@ -316,8 +314,7 @@ test floatPatterns =
        | 4.7 -> "fail")
       |> Stdlib.Test.equal "pass: -4.7" ]
 
-// Not a legacy assertion: float patterns use numeric equality, so either signed
-// zero matches whichever zero pattern comes first.
+// Float patterns use numeric equality, so either signed zero matches the first zero pattern.
 test signedZeroPatterns =
   Stdlib.Test.all
     [ (match 0.0 with
@@ -686,9 +683,6 @@ module Errors =
     => raises
       "No matching case found for value \"nothing matches\" in match expression"
 
-  // Differs from legacy: the `RuntimeError` cases in this file raise with
-  // `Stdlib.Test.raiseRuntimeError`; legacy used the backend-only
-  // `Builtin.testRuntimeError`.
   test subjectErrorRaises =
     (match Stdlib.Test.raiseRuntimeError "cond is error" with
      | 5L -> "fail"
@@ -737,10 +731,7 @@ module Errors =
     |> Stdlib.Test.equal "pass"
 
 module TypeErrors =
-  // Differs from legacy: legacy's third case was `TwoArgs`. An identical type
-  // would share the legacy testfile's hash and the errors below would name
-  // whichever of the two wins. The errors name the type in full; legacy's said
-  // `TypeErrors.TestType`.
+  // Distinct enum cases give this type its own content hash for stable error names.
   type TestType =
     | NoArgs
     | OneArg of Int64
@@ -760,15 +751,7 @@ module TypeErrors =
     => raises
       "No matching case found for value Darklang.Language.Tests.MatchExpressions.TypeErrors.TestType.OneArg(1) in match expression"
 
-  // TODO implement MPIgnored
-  // // enum with a single wildcard
-  // test singleWildcard =
-  //   (match TestType.TwoArgs(1L, 2L) with
-  //    | TwoArgs _ -> "wildcards allowed")
-  //   |> Stdlib.Test.equal "wildcards allowed"
-  //
-  // Not a legacy assertion: a single wildcard does not stand for several fields,
-  // so this raises; `(_, _)` matches.
+  // A single wildcard does not match several fields; (_, _) matches both fields.
   test singleWildcardForTwoFieldsRaises =
     (match TestType.PortedTwoArgs(1L, 2L) with
      | PortedTwoArgs _ -> "wildcards allowed")

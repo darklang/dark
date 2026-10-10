@@ -1,5 +1,3 @@
-/// Tuple cases from
-/// `backend/testfiles/execution/language/collections/dtuple.dark`.
 module Darklang.Language.Tests.TupleLiterals
 
 test construction =
@@ -11,8 +9,6 @@ test construction =
       (1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L)
       |> Stdlib.Test.equal (1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L) ]
 
-// Differs from legacy: these raise with `Stdlib.Test.raiseRuntimeError`;
-// legacy used the backend-only `Builtin.testRuntimeError`.
 test elementErrorRaises =
   (1L, Stdlib.Test.raiseRuntimeError "test", 3L)
   => raises "Uncaught exception: test"

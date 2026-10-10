@@ -1,21 +1,16 @@
-/// Record cases from `backend/testfiles/execution/language/custom-data/records.dark`
-/// and `record-field-acess.dark`.
 module Darklang.Language.Tests.Records
 
 type Cols1 = { col1: Int64 }
 type Cols2 = { col1: Int64; col2: Int64 }
 
-// Differs from legacy: legacy's cases were `A | B | C`. Those give this type the
-// same content hash as DB.Tests.MyEnum, so the error below could name either
-// type; distinct case names give it its own hash.
+// Distinct case names keep this type separate from other enums with the same shape,
+// so the runtime error has a stable type name.
 type AnEnum = | RecordTestA | RecordTestB | RecordTestC
 
 test construction =
   Cols2 { col1 = 1L; col2 = 3L }
   |> Stdlib.Test.equal (Cols2 { col1 = 1L; col2 = 3L })
 
-// Differs from legacy: this raises with `Stdlib.Test.raiseRuntimeError`; legacy
-// used the backend-only `Builtin.testRuntimeError`.
 test fieldErrorRaises =
   Cols2 { col1 = 2L; col2 = Stdlib.Test.raiseRuntimeError "test" }
   => raises "Uncaught exception: test"
@@ -58,9 +53,8 @@ module InvalidCols =
       "Failed to create record. Expected Int64 for field `col1`, but got \"\" (a String)"
 
 module InvalidType =
-  // Differs from legacy: legacy wrote `MyNonExistantType { col1 = 2L }` directly.
-  // Here it is evaluated from source at run time, so the unresolved name does not
-  // stop this package from loading; the error branch and message are checked.
+  // Evaluate the unresolved name from source at run time so it does not prevent
+  // the package from loading. Check both the error branch and its message.
   test unknownTypeRaises =
     let branch = Darklang.SCM.PackageOps.currentBranch ()
     let source = "MyNonExistantType { col1 = 2L }"
@@ -70,8 +64,6 @@ module InvalidType =
       |> Stdlib.Test.equal "MyNonExistantType not found"
     | _ -> Stdlib.Test.fail "expected a runtime error for an unknown record type"
 
-  // Differs from legacy: the error names the type in full; legacy's said
-  // `AnEnum`.
   test enumIsNotRecordRaises =
     AnEnum { col1 = 2L }
     => raises
@@ -154,7 +146,6 @@ module Update =
       => raises
         "Failed to create updated record. Expected Int64 for field `y`, but got \"2\" (a String)"
 
-// From record-field-acess.dark.
 module FieldAccess =
   type MyRecord = { col1: Int64 }
 

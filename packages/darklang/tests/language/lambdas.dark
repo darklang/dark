@@ -1,12 +1,6 @@
-/// Lambda cases from `backend/testfiles/execution/language/elambda.dark`.
 module Darklang.Language.Tests.Lambdas
 
-// CLEANUP fix equality checks of lambdas
-// Stdlib.List.push [] (fun x -> -4.611686018e+18)
-// |> Stdlib.Test.equal [ (fun x -> -4.611686018e+18) ]
-//
-// Not a legacy assertion: lambda equality compares expressions, not bodies, so
-// two separately written lambdas are not equal, and one lambda equals itself.
+// Separately written lambdas are unequal; a lambda equals itself.
 test lambdaEquality =
   Stdlib.Test.all
     [ (Stdlib.List.push [] (fun x -> -4.611686018e+18)
@@ -33,9 +27,6 @@ test mapAndApply =
       (let y = (fun a b -> a * b) in Stdlib.List.fold [ 1L, 2L, 3L, 4L ] 1L y)
       |> Stdlib.Test.equal 24L ]
 
-// Differs from legacy: the `RuntimeError` cases in this file raise with
-// `Stdlib.Test.raiseRuntimeError`; legacy used the backend-only
-// `Builtin.testRuntimeError`.
 test mapRaisesFirstCallbackError =
   (let y = (fun msg -> Stdlib.Test.raiseRuntimeError msg)
    Stdlib.List.map [ "1", "2", "3", "4" ] y)
@@ -45,7 +36,7 @@ test foldRaisesCallbackArgError =
   (Stdlib.List.fold [ 4L ] 1L (Stdlib.Test.raiseRuntimeError "test"))
   => raises "Uncaught exception: test"
 
-// Not a legacy assertion: an error inside the fold callback's body propagates.
+// An error inside the fold callback's body propagates.
 test foldRaisesCallbackBodyError =
   Stdlib.List.fold [ 4 ] 1 (fun _ _ -> (1 / 0)) => raises "Cannot divide by 0"
 
@@ -153,9 +144,8 @@ module LambdaInRecordField =
      (record.fn 6L))
     |> Stdlib.Test.equal 7L
 
-// Not a legacy assertion; from scripts/perf/checks. Assert the two
-// borrowed-VM lambda frames as well as the error: merely checking the division
-// error would miss a lost call stack.
+// Check both borrowed-VM lambda frames as well as the error.
+// Checking only the division error would miss a lost call stack.
 let nestedMapError () : Int64 =
   let grid = [[1L, 2L], [3L, 4L]]
   let ys = grid |> Stdlib.List.map (fun row ->

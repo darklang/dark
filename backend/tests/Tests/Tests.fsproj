@@ -40,7 +40,6 @@
     <Compile Include="LibParser.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />
     <Compile Include="Terminal.Tests.fs" />
-    <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Hashing.Tests.fs" />
     <Compile Include="Config.Tests.fs" />
 

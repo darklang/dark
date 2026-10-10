@@ -1,5 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/scm/commit-hash.dark`, in original assertion order.
 module Darklang.SCM.Tests.CommitHash
 
 // A commit id is derived from what the commit holds and where it sits: the same inputs give the same id

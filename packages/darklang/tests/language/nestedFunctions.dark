@@ -1,5 +1,3 @@
-/// Nested-function cases from
-/// `backend/testfiles/execution/language/nested-fns.dark`.
 module Darklang.Language.Tests.NestedFunctions
 
 // Nested function definitions: `let f (x: T) : R = ...` desugars to a lambda

@@ -1,4 +1,3 @@
-/// Int64 cases from backend/testfiles/execution/stdlib/ints/int64.dark.
 module Darklang.Stdlib.Int64.Tests
 
 test abs =
@@ -214,9 +213,6 @@ test fromFloat =
       Stdlib.Int64.fromFloat -3.9 |> Stdlib.Test.equal (Some -3L)
       Stdlib.Int64.fromFloat 1000000000000000000000000000000.0
       |> Stdlib.Test.equal None
-      // Differs from legacy: NaN and the infinities are computed here; legacy used
-      // Builtin.testNan/testInfinity/testNegativeInfinity, which only the backend
-      // has.
       Stdlib.Int64.fromFloat (0.0 / 0.0) |> Stdlib.Test.equal None
       Stdlib.Int64.fromFloat (1.0 / 0.0) |> Stdlib.Test.equal None
       Stdlib.Int64.fromFloat (-1.0 / 0.0) |> Stdlib.Test.equal None
@@ -230,9 +226,6 @@ test fromFloatRounded =
       Stdlib.Int64.fromFloatRounded -3.9 |> Stdlib.Test.equal (Some -4L)
       Stdlib.Int64.fromFloatRounded 1000000000000000000000000000000.0
       |> Stdlib.Test.equal None
-      // Differs from legacy: NaN and the infinities are computed here; legacy used
-      // Builtin.testNan/testInfinity/testNegativeInfinity, which only the backend
-      // has.
       Stdlib.Int64.fromFloatRounded (0.0 / 0.0) |> Stdlib.Test.equal None
       Stdlib.Int64.fromFloatRounded (1.0 / 0.0) |> Stdlib.Test.equal None
       Stdlib.Int64.fromFloatRounded (-1.0 / 0.0) |> Stdlib.Test.equal None
@@ -281,8 +274,6 @@ test multiply =
       // Actual: a Float: 1.0"
       8L * 8L |> Stdlib.Test.equal 64L ]
 
-// Not a legacy assertion: legacy has this case commented out, with an older
-// error message.
 test multiplyByFloatRaises =
   1L * 1.0 => raises "Cannot perform numeric operation on Int64 and Float"
 

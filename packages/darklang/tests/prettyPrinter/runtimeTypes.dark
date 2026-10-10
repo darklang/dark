@@ -1,4 +1,3 @@
-/// Pretty-printer cases from backend/testfiles/execution/stdlib/prettyPrinter.dark.
 module Darklang.PrettyPrinter.Tests
 
 // Tests for the value pretty-printer, `PrettyPrinter.RuntimeTypes.dval`.
@@ -12,9 +11,7 @@ module Darklang.PrettyPrinter.Tests
 // the eleven characters `"a\nb"` with a real backslash in the middle. That is the
 // point of most of the escaping cases.
 
-// --- helpers ---
-// Differs from legacy: legacy called `Builtin.reflect`; a builtin may have only one
-// Dark caller, so these call its wrapper `LanguageTools.RuntimeTypes.reflect`.
+// Helpers for reflecting runtime values.
 let pp (value: 'a) : String =
   Darklang.PrettyPrinter.RuntimeTypes.dval
     Darklang.SCM.Branch.mainBranchId

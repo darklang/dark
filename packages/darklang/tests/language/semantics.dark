@@ -35,8 +35,7 @@ test areasAndFiltering =
 
 test recursion = fib 18L |> Stdlib.Test.equal 2584L
 
-// Differs from legacy: the check printed the JSON and compared only `name` and
-// `tags` after the round trip; this asserts the JSON text and the whole record.
+// Check the serialized JSON text and the whole record after the round trip.
 test recordJsonRoundtrip =
   let acct = Acct { id = 7L; name = "ada"; tags = [ "x", "y" ] }
   let json = Stdlib.Json.serialize<Acct> acct
@@ -45,8 +44,7 @@ test recordJsonRoundtrip =
       |> Stdlib.Test.equal "{\"id\":7,\"name\":\"ada\",\"tags\":[\"x\",\"y\"]}"
       Stdlib.Json.parse<Acct> json |> Stdlib.Test.equal (Ok acct) ]
 
-// Differs from legacy: the check printed the JSON and compared only the length of
-// the parsed list; this compares the whole list.
+// Compare the whole parsed list.
 test recursiveEnumJsonRoundtrip =
   let original = shapes ()
   let json = Stdlib.Json.serialize<List<Shape>> original

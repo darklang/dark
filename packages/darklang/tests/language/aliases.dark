@@ -1,5 +1,3 @@
-/// Type alias cases from
-/// `backend/testfiles/execution/language/custom-data/aliases.dark`.
 module Darklang.Language.Tests.Aliases
 
 // simple alias
@@ -66,8 +64,6 @@ module NestedAlias =
         ))
         |> Stdlib.Test.equal "Alice" ]
 
-  // Differs from legacy: the error names the function in full; legacy's said
-  // `NestedAlias.getUserID`.
   test wrongTupleTypeRaises =
     getUserID (("Alice", 123L))
     => raises
@@ -112,19 +108,7 @@ module RecordWithTypeArgs =
         getInnerField (Outer1 { a = "test"; b = 5L }) |> Stdlib.Test.equal 5L
         getInnerField (Outer2 { a = "test"; b = 5L }) |> Stdlib.Test.equal 5L ]
 
-  // These tests aren't working because the _old_ parser doesn't support type
-  // args in record values. OK that's probably fine, but something to circle back
-  // to (CLEANUP) once we're over to the new parser.
-  // test explicitTypeArgs =
-  //   Inner<String, Int64> { a = "test"; b = 5L }
-  //   |> Stdlib.Test.equal (Inner { a = "test"; b = 5L })
-  //
-  // test explicitTypeArgsWrongFieldRaises =
-  //   Inner<String, Int64> { a = "test"; b = "five" }
-  //   => raises "TODO: error message"
-  //
-  // Not a legacy assertion: the new parser supports type args in record values,
-  // so these run.
+  // Explicit record type arguments are accepted, and field types are checked.
   test explicitTypeArgs =
     Inner<String, Int64> { a = "test"; b = 5L }
     |> Stdlib.Test.equal (Inner { a = "test"; b = 5L })

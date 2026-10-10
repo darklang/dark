@@ -1,5 +1,3 @@
-/// Runtime-value promotion from
-/// `backend/testfiles/execution/language/runtime-to-programtypes.dark`.
 module Darklang.Language.Tests.RuntimeToProgramTypes
 
 // `RuntimeTypesToProgramTypes.dvalToExpr` promotes a runtime value (RT.Dval)
@@ -16,7 +14,6 @@ let promote
     Darklang.SCM.Branch.mainBranchId
     d
 
-// Differs from legacy: legacy named this `int`; `intValue` avoids a name collision.
 let intValue (i: Int) : Darklang.LanguageTools.RuntimeTypes.Dval =
   Darklang.LanguageTools.RuntimeTypes.Dval.DInt i
 

@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/stream.dark`.
 // Stream — consumption (next/toList/toBlob/close) and transforms
 // (map/filter/take/concat).
 module Darklang.Stdlib.Stream.Tests

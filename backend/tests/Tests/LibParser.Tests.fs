@@ -1196,26 +1196,7 @@ let private validationTests =
           "test classification accepts an inline DB record"
         Expect.isEmpty
           (validationIssues Validation.Package sf)
-          "package classification accepts an inline DB record"
-        let modules =
-          LibParser.TestModule.parseFile
-            "Tests"
-            "[<DB>] type Items = { name: String }\n1L = 1L"
-        match modules with
-        | [ modul ] ->
-          Expect.equal
-            (List.length modul.types)
-            1
-            "legacy testfile gets the row type"
-          match modul.dbs with
-          | [ { typ = WT.TCustom rowType } ] ->
-            Expect.equal
-              (rowType.modules |> List.map (fun (id, _) -> id.name))
-              [ "Tests" ]
-              "the DB points to the testfile owner"
-            Expect.equal rowType.typ.name "Items" "the DB points to its row type"
-          | other -> failtest $"unexpected inline DBs: {other}"
-        | _ -> failtest $"unexpected legacy testfile modules: {modules}")
+          "package classification accepts an inline DB record")
       testCase
         "test classification rejects bare expressions and script lets"
         (fun _ ->

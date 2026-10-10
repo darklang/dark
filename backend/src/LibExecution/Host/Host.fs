@@ -819,7 +819,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       [ (Permission.Request.native "isolated test", "running an isolated test") ]
       (blocking (fun () ->
         HostProcess.runIsolatedTest
-          (HostProcess.currentExecutablePath ())
+          (HostProcess.isolatedTestLauncherPath ())
           snapshot
           branch
           request

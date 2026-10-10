@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/eself.dark`.
 module Darklang.Language.Tests.ESelf
 
 // Tests for ESelf (recursive function calls)

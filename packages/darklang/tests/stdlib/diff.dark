@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/diff.dark`.
 module Darklang.Stdlib.Diff.Tests
 
 // `Diff.lines` against the implementation it replaced, which is kept below as the

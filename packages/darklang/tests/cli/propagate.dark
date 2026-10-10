@@ -1,5 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/propagate.dark`, in original assertion order.
 module Darklang.Cli.Tests.Propagate
 
 module DictionarySignatures =

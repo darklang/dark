@@ -1,9 +1,6 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/uuid.dark`.
 module Darklang.Stdlib.Uuid.Tests
 
-// parse OK
-// Differs from legacy: legacy unwrapped the parse result before `toString`; this
-// maps over the Result, so a parse error fails the assertion instead of raising.
+// Map over the parse Result so a parse error fails the assertion.
 test parse =
   Stdlib.Test.all
     [ Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"

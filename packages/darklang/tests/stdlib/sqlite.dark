@@ -1,12 +1,10 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/sqlite.dark`.
 // CRUD over Stdlib.Sqlite (raw exec/execP/query floor + the
 // column/scalarInt/scalarIntP/queryOneP/textField/intField convenience layer), incl.
 // injection-safe params (a quote round-trips). Each assertion keeps its READ in the
 // body (final) position: a read bound to a `let` is forced where it's *used*, so a
 // write between the read and its use (e.g. a cleanup DROP) would make it see the
 // later state. So: writes first, read last.
-// Distinct temp db per assertion (SQLite creates on open) → isolated under the
-// parallel testfile run.
+// Each test uses a distinct temporary database.
 module Darklang.Stdlib.Sqlite.Tests
 
 // Deletes the database file. `result` is already computed when this runs, so the
@@ -17,16 +15,13 @@ let finish (db: String) (result: Stdlib.Test.Result) : Stdlib.Test.Result =
   | Error error ->
     Stdlib.Test.all [ result, Stdlib.Test.fail error.message ]
 
-// Differs from legacy: legacy gave each test a fixed file
-// (/tmp/dark-test-sqlite-a.db, …) and never deleted it. Here each test gets a new
-// temp file, deleted afterwards.
+// Give each test a fresh temporary database file and delete it afterwards.
 let withDatabase (run: String -> Stdlib.Test.Result) : Stdlib.Test.Result =
   match Stdlib.Cli.File.createTemp () with
   | Error error -> Stdlib.Test.fail error.message
   | Ok db -> finish db (run db)
 
-// Not a legacy assertion: checks that `withDatabase`'s cleanup keeps a failing
-// test's failure.
+// Cleanup must preserve a failing test's result.
 test cleansUpAfterAssertionFailure =
   match Stdlib.Cli.File.createTemp () with
   | Error error -> Stdlib.Test.fail error.message

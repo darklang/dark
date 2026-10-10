@@ -1,5 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/tailscale.dark`, in original assertion order.
 module Darklang.Cli.Tests.Tailscale
 
 // `Darklang.Tailscale` — minimal wrappers over the `tailscale` CLI (backs `dark devices`). The

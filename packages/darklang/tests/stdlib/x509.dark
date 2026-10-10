@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/x509.dark`.
 // All certs from https://fm4dd.com/openssl/certexamples.shtm
 module Darklang.Stdlib.X509.Tests
 

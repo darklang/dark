@@ -1,6 +1,6 @@
 module Tests.Builtin
 
-// Misc builtin tests that do not fit in LibExecution.tests.
+// Builtin registration, wrappers and descriptions.
 
 open Expecto
 open System.IO
@@ -349,10 +349,9 @@ let builtinAccessInPackageMatter =
 /// Each one needs a reason; without one, delete the builtin instead.
 let private unusedAllowlist : Set<string> =
   Set.ofList
-    [ // Test-harness escape hatch for the cases that expect an exception to
-      // reach the reporter. The harness still reads the count it sets; the
-      // testfile cases that set it are currently commented out.
-      "testSetExpectedExceptionCount"
+    [ // Script sequencing and value-initialization checks embed their Dark
+      // callers in CliScriptLowering.Tests.fs, outside this .dark-file scan.
+      "testIncrementSideEffectCounter"
       // Scheduler test fixtures: their callers are the Dark programs embedded as strings in
       // `Scheduler.Tests.fs`, which this scan of `.dark` files cannot see. A testfile cannot
       // use them: a gate blocks until F# releases it.

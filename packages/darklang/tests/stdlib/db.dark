@@ -1,4 +1,3 @@
-/// Native DB behavior tests ported from `backend/testfiles/execution/cloud/db.dark`.
 module Darklang.Stdlib.DB.Tests
 
 // really simple data stores of Records
@@ -8,7 +7,6 @@ type X = { x: String }
 type XDB = X
 
 
-// Differs from legacy: legacy declared `type Z = { x: Char }` and `ZDB = Z`.
 [<DB>]
 type ZDB = { x: Char }
 
@@ -340,9 +338,6 @@ module Roundtrip =
   [<DB>]
   type SampleDB = Sample
 
-  // Differs from legacy: NaN and the infinities are computed (legacy used the
-  // backend-only Builtin.testNan etc.), and emojiChar is a Char literal where legacy
-  // converted "👍" with the backend-only Builtin.testToChar.
   let sample () : Sample =
     Sample
       { iNsEnSiTiVe = "iNsEnSiTiVe"
@@ -413,11 +408,8 @@ module Roundtrip =
         datetime = (Stdlib.DateTime.parse "2011-11-11T11:11:11Z") |> Builtin.unwrap
         unit = () }
 
-  // TODO: Add roundtrip for bytes (Bytes values not supported yet)
-  //
-  // Differs from legacy: legacy compared whole records, relying on its runner
-  // treating NaN as equal to NaN. Here NaN never equals itself, so the NaN field is
-  // blanked for the comparison and checked with isNaN.
+  // NaN never equals itself. Check the NaN field with isNaN and clear it before
+  // comparing the remaining fields.
   test roundtripsSupportedFieldsIncludingNaN =
     let expected = sample ()
     let stored = Stdlib.DB.set expected "all" SampleDB
@@ -878,17 +870,8 @@ module FindAll =
       let obj = T1 { field1 = T2 { field2 = 42L } } in p.height > obj.field1.field2)
     |> Stdlib.Test.equal [ " Chandler ", "Rachel", "Ross" ]
 
-  // wrong type error
-  // TODO: Re-enable once RTQueryCompiler supports type checking.
-  // This requires passing DB schema info to validate that variables have
-  // compatible types when compared with DB fields.
-  // (let x = "not int"
-  //  friends (fun p -> p.height > x))
-  // => sqlerror
-  //   "Variable `x` should be an Int64. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int64)\nActual: a String: \"not int\""
-  //
-  // Not a legacy assertion: queries now check the comparison's type, with this
-  // message, in either operand order.
+  // Queries reject variables whose types differ from the compared DB field,
+  // in either operand order.
   test rejectsWrongComparisonType =
     let x = "not int"
     friends (fun p -> p.height > x)
@@ -1038,21 +1021,13 @@ module CompiledFunctions =
   test compilesStringToUppercase =
     friends (fun p -> Stdlib.String.toUppercase p.name == "RACHEL")
     |> Stdlib.Test.equal [ "Rachel" ]
-  // TODO: SQLite doesn't have a REVERSE function
-  // friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")
-  // |> Stdlib.Test.equal [ "Rachel" ]
-  //
-  // Not a legacy assertion: the query refuses the function, with this message.
+  // SQLite has no REVERSE function, so the query must reject stringReverse.
   test rejectsStringReverseInSql =
     friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")
     => sqlerror "Function stringReverse is not supported in SQL queries"
 
-  // TODO: SQLite's LENGTH counts characters, not EGCs so we made it non queriable
-  // for now
-  // friends (fun p -> Stdlib.String.length p.name > 5)
-  // |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel" ]
-  //
-  // Not a legacy assertion: the query refuses the function, with this message.
+  // SQLite LENGTH counts characters rather than grapheme clusters, so stringLength
+  // is not queryable.
   test rejectsGraphemeLengthInSql =
     friends (fun p -> Stdlib.String.length p.name > 5)
     => sqlerror "Function stringLength is not supported in SQL queries"
@@ -1123,18 +1098,7 @@ module CompiledFunctions =
     friends (fun p -> Stdlib.Bool.``or`` p.human (Stdlib.Bool.not p.human))
     |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
-  // TODO: SQLite doesn't have a REVERSE function
-  // friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")
-  // |> Stdlib.Test.equal [ "Rachel" ]
-  //
-  // friends (fun p ->
-  //   Stdlib.String.reverse (
-  //     (Stdlib.String.toLowercase p.name) |> Stdlib.String.toUppercase
-  //   )
-  //   == "LEHCAR")
-  // |> Stdlib.Test.equal [ "Rachel" ]
-  //
-  // Not a legacy assertion: the query refuses the function, with this message.
+  // The query must reject stringReverse, including calls around other string operations.
   test rejectsNestedStringReverseInSql =
     friends (fun p ->
       Stdlib.String.reverse
@@ -1182,28 +1146,7 @@ module CompiledFunctions =
         (Stdlib.DateTime.subtractSeconds (Stdlib.DateTime.now ()) 1))
     |> Stdlib.Test.equal [ " Chandler ", "GrumpyCat", "Rachel", "Ross" ]
 
-  // TODO: These use Postgres-specific date_part/date_trunc functions - not
-  // supported in SQLite
-  // friends (fun p ->
-  //   Stdlib.DateTime.atStartOfDay p.dob == (d "1969-08-19T00:00:00Z"))
-  // |> Stdlib.Test.equal [ " Chandler " ]
-  //
-  // friends (fun p -> Stdlib.DateTime.hour p.dob == 10L)
-  // |> Stdlib.Test.equal [ " Chandler " ]
-  // friends (fun p -> Stdlib.DateTime.day p.dob == 19L)
-  // |> Stdlib.Test.equal [ " Chandler " ]
-  // friends (fun p -> Stdlib.DateTime.minute p.dob == 13L)
-  // |> Stdlib.Test.equal [ " Chandler " ]
-  // friends (fun p -> Stdlib.DateTime.month p.dob == 8L)
-  // |> Stdlib.Test.equal [ " Chandler " ]
-  // friends (fun p -> Stdlib.DateTime.second p.dob == 42L)
-  // |> Stdlib.Test.equal [ " Chandler " ]
-  //
-  // friends (fun p -> Stdlib.DateTime.year p.dob == 1969L)
-  // |> Stdlib.Test.equal [ " Chandler ", "Rachel" ]
-  //
-  // Not a legacy assertion: the query refuses each function, with these
-  // messages.
+  // These date operations need SQL support that the SQLite query compiler does not provide.
   test rejectsStartOfDayInSql =
     friends (fun p ->
       Stdlib.DateTime.atStartOfDay p.dob == d "1969-08-19T00:00:00Z")
@@ -1357,7 +1300,7 @@ module DBAsDictKey =
     (Dict { XDB: 1L })
     => raises "Cannot use <Datastore: XDB> as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-// Not a legacy assertion: legacy left ``ALL CAPS`` as a CLEANUP to test.
+// Check an uppercase DB name.
 module RestoredSchemaCases =
   [<DB>]
   type CapitalFields = { ``ALL CAPS``: String }
@@ -1370,9 +1313,6 @@ module RestoredSchemaCases =
         Stdlib.DB.query CapitalFields (fun p -> p.``ALL CAPS`` == "value")
         |> Stdlib.Test.equal [row] ]
 
-  // Not a legacy assertion: legacy has this case commented out (in
-  // ValueMissingColumnGivesGoodError), expecting
-  // "DB XDB's value should be a X. However, a XY (...) was passed instead."
   test rejectsDifferentRecordShape =
     Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB
     => raises "DB value expects Darklang.Stdlib.DB.Tests.X, but got Darklang.Stdlib.DB.Tests.XY"
@@ -1384,11 +1324,8 @@ module RestoredSchemaCases =
   [<DB>]
   type BinaryRows = { data: Blob; nested: List<Stdlib.Option.Option<Blob>> }
 
-  // Not a legacy assertion.
-  // CLEANUP: Dark compares blobs by identity, not content, so the blob fields are
-  // turned into byte lists before comparing. (Legacy's runner compared blobs by
-  // their bytes, so legacy tests could compare them directly.) Once blobs compare
-  // by content, compare the rows directly.
+  // CLEANUP: Dark compares blobs by identity, so compare blob fields as byte lists.
+  // Compare rows directly once blob equality compares content.
   test roundtripsBinaryData =
     let bytes = [0uy, 1uy, 127uy, 128uy, 255uy]
     let blob = Stdlib.Blob.fromList bytes

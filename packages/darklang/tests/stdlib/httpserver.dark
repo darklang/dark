@@ -1,7 +1,5 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/httpserver.dark`.
-// `Stdlib.HttpServer`'s pure helpers. The `.test` files under
-// `backend/testfiles/http-server/` drive `serve` end to end; these cover the pieces
-// it is built from, which nothing reached before.
+// Stdlib.HttpServer's pure helpers. The byte-exact tests in
+// backend/testfiles/http-server exercise serve end to end.
 module Darklang.Stdlib.HttpServer.Tests
 
 test getMethod =

@@ -1,5 +1,3 @@
-/// Native cases ported from
-/// `backend/testfiles/execution/stdlib/language-tools/atRestTypeChecker.dark`.
 module Darklang.LanguageTools.AtRestTypeChecker.Tests
 
 // Test the at-rest type checker through its public API and individual checking
@@ -465,8 +463,7 @@ module ConstructorDeclarations =
 module LambdaArgumentSlots =
   // EArg refers to a package function's parameter by position. Inside a lambda,
   // it must be rejected rather than mistaken for the outer function's Int argument.
-  // Differs from legacy: legacy held this in a `val`; a `val` holding a custom
-  // type can go stale across package reloads, so this is a function.
+  // Build the value in a function so its custom type stays current across package reloads.
   let parameters () : List<Darklang.LanguageTools.ProgramTypes.LetPattern> =
     [ Darklang.LanguageTools.ProgramTypes.LetPattern.LPVariable(11L, "text") ]
 

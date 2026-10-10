@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/scm/removal-conflicts.dark`,
-/// in original assertion order.
 module Darklang.SCM.Tests.RemovalConflicts
 
 // A rename ends the old name (`Unbind`), so "they renamed it while I changed it" is a divergence the

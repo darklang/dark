@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/app-service-safety.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.AppServiceSafety
 
 // What an app is allowed to put into a generated OS service file.

@@ -33,9 +33,7 @@ let callOutput (result: Stdlib.Cli.ExecutionOutcome) : String =
     if err == "" then "" else $"ERROR: {err}"
 
 
-// Differs from legacy: every argument and the CLI path go through
-// `Stdlib.Cli.Process.shellQuote`. Legacy single-quoted only arguments holding a
-// space, `|` or `"`, and escaped the `"` inside them, which the shell then kept.
+// Quote the CLI path and every argument with Stdlib.Cli.Process.shellQuote.
 let runWithCommand (args: List<String>): String =
   let argsString =
     args
@@ -48,13 +46,8 @@ let runWithCommand (args: List<String>): String =
   callOutput result
 
 
-/// The same, but with <param input> on stdin. For the commands that ASK: `conflicts walk` reads a line
-/// per conflict, and nothing else in this suite can drive it.
-//
-// Differs from legacy: legacy used `printf '{input}'` and left the arguments
-// unquoted, so a `%` or `'` in the input, or a space in an argument, changed the
-// command. The input is now passed through `printf '%s'`, quoted, as are the
-// arguments and the CLI path.
+// Pass input on stdin for commands such as conflicts walk.
+// Use a quoted argument to printf %s so input cannot change the shell command.
 let runWithStdinAndCommand (input: String) (args: List<String>): String =
   let argsString =
     args
@@ -76,13 +69,8 @@ let expectExact (args: List<String>) (expected: String): Stdlib.Test.Result =
     Stdlib.Test.fail $"Expected '{expected}', got '{output}'"
 
 
-/// `dark conflicts walk`, on a conflict this test makes for itself.
-///
-/// Everything happens between a throwaway parent and its child, so main gains nothing.
-//
-// Differs from legacy: the shared base and each side's change are committed before the merge, and the merge passes
-// `-y`. Both are now required: a merge refuses a branch with uncommitted ops,
-// and without `-y` it asks for an explicit yes, which these runs cannot give.
+// Drive conflicts walk between a throwaway parent and child.
+// Commit both sides before merging and pass -y to avoid an interactive prompt.
 test conflictWalkthrough =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let parent = "cli-walk-parent-" + suffix
@@ -280,7 +268,6 @@ test moduleCommand =
     && Stdlib.String.contains updateOutput "Defined 4 declarations"
     && updatedEval == "27"
     && Stdlib.String.contains invalidOutput "expects 1 field"
-    // Differs from legacy: "saved as WIP"; the CLI now says "Saved as a draft".
     && Stdlib.String.contains invalidOutput "Saved as a draft"
     && Stdlib.String.contains searchOutput "shouldNotExist"
     && afterInvalidEval == "27"
@@ -338,14 +325,8 @@ test moduleRejectsDuplicateNames =
        + $"module={moduleOutput}; search={searchOutput}")
 
 
-/// Merging a branch, end to end, through the CLI.
-///
-/// So this drives the real binary. It merges a child into a THROWAWAY PARENT rather than into main, so a
-/// run leaves no fn behind on main.
-//
-// Differs from legacy: the child's change is committed before the merge, and the merge passes
-// `-y`. Both are now required: a merge refuses a branch with uncommitted ops,
-// and without `-y` it asks for an explicit yes, which these runs cannot give.
+// Merge a child into a throwaway parent so the test leaves no function on main.
+// Commit the changes before merging and pass -y to avoid an interactive prompt.
 test mergeRoundTrip =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let parent = "cli-merge-parent-" + suffix
@@ -480,14 +461,8 @@ test viewFunction =
     Stdlib.Test.fail "Expected function signature for List.head"
 
 
-/// The harmful gate, end to end, through a real CLI process.
-///
-/// Tested via a real invocation because the gate lives in the CLI HOST: the RT default is
-/// permissive by design ("tests run permissive" in `Execution.createState`), so an in-harness
-/// RT-level test guards nothing.
-// Differs from legacy: every command passes `--branch main`. A deprecation folds
-// only on main; the old runner always put each test back on main, and the fixture
-// now runs on the caller's branch, so this test names main itself.
+// Exercise the harmful gate through a real CLI process: the gate lives in the CLI host.
+// Each command names main explicitly because deprecation folding only runs on main.
 test harmfulGate =
   let suffix = Stdlib.toString (Stdlib.Int.random 100000 999999)
   let fnName = $"Tests.HarmGate.g{suffix}"

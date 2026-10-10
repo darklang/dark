@@ -1,13 +1,6 @@
-/// Builtin registry checks from
-/// `backend/testfiles/execution/language/builtin-introspection.dark`.
 module Darklang.LanguageTools.Tests.BuiltinIntrospection
 
-// Smoke checks on `Builtin.getAllBuiltinFns`.
-// Ported from the old cloud/internal.dark `Documentation` module.
-//
-// Differs from legacy: legacy called `Builtin.getAllBuiltinFns` directly; a
-// builtin may have only one Dark caller, so this calls its wrapper
-// `Darklang.LanguageTools.allBuiltinFns`.
+// Smoke checks for the builtin registry through Darklang.LanguageTools.allBuiltinFns.
 
 module Documentation =
   // Rough sanity check on builtin count — guards against the registry

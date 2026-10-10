@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/html.dark`.
 module Darklang.Stdlib.Html.Tests
 
 // aliases and helpers

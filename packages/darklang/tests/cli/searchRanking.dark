@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/search-ranking.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.SearchRanking
 
 // How `dark search` orders what the store matched. A person types words, not camelCase: `read file`

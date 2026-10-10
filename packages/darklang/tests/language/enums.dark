@@ -1,4 +1,3 @@
-/// Enum cases from `backend/testfiles/execution/language/custom-data/enums.dark`.
 module Darklang.Language.Tests.Enums
 
 test options =
@@ -8,9 +7,6 @@ test options =
       |> Stdlib.Test.equal true
       (Stdlib.List.head []) |> Stdlib.Test.equal Stdlib.Option.Option.None ]
 
-// Differs from legacy: the `RuntimeError` cases in this file raise with
-// `Stdlib.Test.raiseRuntimeError`; legacy used the backend-only
-// `Builtin.testRuntimeError`.
 test okPayloadErrorRaises =
   Stdlib.Result.Result.Ok(Stdlib.Test.raiseRuntimeError "err")
   => raises "Uncaught exception: err"
@@ -23,9 +19,6 @@ test errorPayloadErrorRaises =
   Stdlib.Result.Result.Error(Stdlib.Test.raiseRuntimeError "err")
   => raises "Uncaught exception: err"
 
-// Differs from legacy: the expected errors in this file name user types in
-// full (`Darklang.Language.Tests.Enums.Errors.User.MyEnum`); legacy's names
-// started at the testfile's own modules (`Errors.User.MyEnum`).
 module Errors =
   module Builtins =
     test noneWithPayloadRaises =
@@ -39,9 +32,7 @@ module Errors =
         "Expected 1 fields in Darklang.Stdlib.Option.Option.`Some`, but got 2"
 
   module User =
-    // Differs from legacy: legacy's first case was `A`. An identical type would
-    // share the legacy testfile's type hash, and the errors below would name
-    // whichever of the two wins.
+    // Distinct enum cases give this type its own content hash for stable error names.
     type MyEnum = | PortedFixtureA | B | C of String
 
     test unknownCaseRaises =

@@ -1,4 +1,3 @@
-/// Path-helper cases from `backend/testfiles/execution/stdlib/cli-path.dark`.
 module Darklang.Stdlib.Cli.Path.Tests
 
 // Path.basename

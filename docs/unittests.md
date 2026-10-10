@@ -77,8 +77,12 @@ and four clones' runs really did land in one.
 
 ## Dark tests
 
-`backend/testfiles/README.md` covers the `.dark` test files, which are a separate thing
-from the F# tests here.
+Package tests live in `packages/darklang/tests` and run with `dark test`. The old
+execution testfiles and their runner have been removed. Unicode normalization
+assertions remain commented out in the package tests, with cleanup notes.
+
+Raw HTTP tests use separate F# client and server harnesses in the backend suite;
+see `backend/testfiles/README.md`. Backend integration tests also remain in F#.
 
 ## Isolated native package tests
 

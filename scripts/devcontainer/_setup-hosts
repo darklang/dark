@@ -17,7 +17,7 @@ add_host 127.0.0.1 dark-editor.dlio.localhost
 add_host 127.0.0.1 dark-repl.dlio.localhost
 add_host 127.0.0.1 dark-packages.dlio.localhost
 
-# For the SSRF tests in backend/testfiles/execution/stdlib/httpclient.dark, which
+# For the SSRF tests in packages/darklang/tests/stdlib/httpclient.dark, which
 # check that a hostname resolving to a banned IP is blocked at connect time. They used
 # to borrow third-party domains; c.cx stopped resolving to 0.0.0.0 and became a real
 # host. `.test` is reserved by RFC 6761, so these can't be registered out from under us.

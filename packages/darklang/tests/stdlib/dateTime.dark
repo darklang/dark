@@ -1,4 +1,3 @@
-/// DateTime cases from `backend/testfiles/execution/stdlib/date.dark`.
 module Darklang.Stdlib.DateTime.Tests
 
 let d (datestr: String) : DateTime =
@@ -342,9 +341,6 @@ test addSecondsPastInstantRangeRaises =
   Stdlib.DateTime.addSeconds (Stdlib.DateTime.fromSeconds 0) 9223372036854775807
   => raises "Encountered out-of-range value for type of Int"
 
-// Not in the legacy file, which leaves `today` as a commented-out TODO:
-// Stdlib.DateTime.today |> Stdlib.toString = "2020-10-17T00:00:00Z"
-// // todo, how can we test this
 test todayIsCurrentUtcMidnight =
   let before = Stdlib.DateTime.atStartOfDay (Stdlib.DateTime.now ())
   let today = Stdlib.DateTime.today ()

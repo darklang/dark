@@ -1,12 +1,9 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/base64.dark`.
 // Stdlib.Base64 — decode returns Result<Blob, String>;
 // encode / urlEncode take Blob.
 module Darklang.Stdlib.Base64.Tests
 
-// CLEANUP: Dark compares blobs by identity, not content, so these helpers turn
-// blobs into byte lists before comparing. Legacy compared `Ok(Blob.fromString …)`
-// directly, because its test runner compared blobs by their bytes. Once blobs
-// compare by content, compare the blobs again and drop these helpers.
+// CLEANUP: Dark compares blobs by identity, so these helpers compare byte lists.
+// Compare blobs directly and remove the helpers once blob equality compares content.
 let decodeBytes (text: String) : Stdlib.Result.Result<List<UInt8>, String> =
   Stdlib.Base64.decode text |> Stdlib.Result.map Stdlib.Blob.toList
 
@@ -76,8 +73,7 @@ test decodeRawBytes =
       decodeBytes "AA" |> Stdlib.Test.equal (Ok [ 0uy ])
       decodeBytes "_w" |> Stdlib.Test.equal (Ok [ 255uy ]) ]
 
-// TODO: try decoding values with incorrect padding
-// Not a legacy assertion: the legacy file left this as the TODO above.
+// Check decoding with incorrect padding.
 test decodeRejectsIncorrectPadding =
   Stdlib.Test.all
     [ decodeBytes "=" |> Stdlib.Test.equal (Error "Not a valid base64 string")

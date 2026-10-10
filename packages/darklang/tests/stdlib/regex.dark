@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/regex.dark`.
 module Darklang.Stdlib.Regex.Tests
 
 test isMatch =

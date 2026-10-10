@@ -1,4 +1,3 @@
-/// Operator cases from `backend/testfiles/execution/language/apply/einfix.dark`.
 module Darklang.Language.Tests.Operators
 
 test addition =
@@ -70,10 +69,7 @@ test overflow =
 test divideByZeroRaises =
   10L / 0L => raises "Cannot divide by 0"
 
-// Float overflow follows IEEE (infinity), not an error
-//
-// Differs from legacy: legacy compared against the backend-only
-// `Builtin.testInfinity`; this computes infinity as `1.0 / 0.0`.
+// Float overflow produces infinity, following IEEE arithmetic.
 test floatOverflowIsInfinity =
   2.0 ** 100000.0 |> Stdlib.Test.equal (1.0 / 0.0)
 
@@ -94,8 +90,6 @@ test unaryMinus =
     [ -(2y + 3y) |> Stdlib.Test.equal -5y
       -(1.0 + 1.5) |> Stdlib.Test.equal -2.5 ]
 
-// Differs from legacy: these raise with `Stdlib.Test.raiseRuntimeError`;
-// legacy used the backend-only `Builtin.testRuntimeError`.
 test rightOperandErrorRaises =
   5L + (Stdlib.Test.raiseRuntimeError "error")
   => raises "Uncaught exception: error"

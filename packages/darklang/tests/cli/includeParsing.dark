@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/include-parsing.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.IncludeParsing
 
 // `--include=` names what a partial commit takes, so the parse decides which ops get sealed under

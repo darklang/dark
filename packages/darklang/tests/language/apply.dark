@@ -1,5 +1,3 @@
-/// Function application cases from
-/// `backend/testfiles/execution/language/apply/eapply.dark`.
 module Darklang.Language.Tests.Apply
 
 test lambdasAndOperators =
@@ -25,18 +23,14 @@ test lambdasAndOperators =
 //   test schedulingRuleListRaises =
 //     Builtin.darkInternalInfraSchedulingRuleList () => raises "Unknown error"
 
-// Differs from legacy: legacy's body was `key + " appended string"`. That body
-// has the same content hash as `Darklang.Test.stringFn`, and a runtime error
-// names a hash by whichever of its names wins, so the expected errors below
-// could name the other function. The extra binding gives it its own hash.
+// The extra binding gives this function a distinct content hash, so runtime errors
+// consistently name this function rather than another name for the same body.
 let stringFn (key: String) : String =
   let (result, _fixture) =
     (key + " appended string", "Language.Tests.Apply.stringFn")
   result
 
-// Differs from legacy: legacy's body was `arg`. An identity function shares its
-// content hash with every other identity function (`Stdlib.await` is one), so
-// this gets its own hash for the same reason as `stringFn`.
+// The extra binding gives this identity function a distinct content hash for stable error names.
 let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
   let (result, _fixture) = (arg, "Language.Tests.Apply.fnWithTypeArgAndOneParam")
   result
@@ -58,10 +52,6 @@ let returnsOptionNone () : Stdlib.Option.Option<Int64> = Stdlib.Option.Option.No
 let returnsResultOk () : Stdlib.Result.Result<Int64, 'err> =
   Stdlib.Result.Result.Ok 5L
 
-// Differs from legacy: this raises with `Stdlib.Test.raiseRuntimeError`; legacy
-// used the backend-only `Builtin.testRuntimeError`. Legacy's `throwsException`
-// helper (`Builtin.testRaiseException`) is not ported: only a commented-out
-// case used it.
 let derrorFn (msg: String) : String = msg + Stdlib.Test.raiseRuntimeError msg
 
 let fnWithTypeArgs<'a, 'b> (a: 'a) (b: 'b) : 'a = a
@@ -93,22 +83,13 @@ test userFunctions =
       strFn (X.A 5L) |> Stdlib.Test.equal (X.A 5L)
       strFn (X.B "str") |> Stdlib.Test.equal (X.B "str") ]
 
-// TODO you shouldn't have to supply type arguments to definedPolyFn
-// -- we should be able to infer that based on the data passed in
-// definedPolyFn<String>(X.A 5L) |> Stdlib.Test.equal (definedPolyFn (X.A 5L))
-// definedPolyFn<String>(X.B "str")
-// |> Stdlib.Test.equal (definedPolyFn (X.B "str"))
-//
-// Not a legacy assertion: inference now agrees with the explicit type argument,
-// so these run.
+// Inferred type arguments agree with explicit ones.
 test definedPolyFnInfersTypeArgs =
   Stdlib.Test.all
     [ definedPolyFn<String> (X.A 5L) |> Stdlib.Test.equal (definedPolyFn (X.A 5L))
       definedPolyFn<String> (X.B "str")
       |> Stdlib.Test.equal (definedPolyFn (X.B "str")) ]
 
-// Differs from legacy: the expected errors name each function in full
-// (`Darklang.Language.Tests.Apply.stringFn`); legacy's names were unqualified.
 module InvalidFnCalls =
   test missingFunctionRaises =
     (functionWhichDoesntExist 6L)
@@ -146,14 +127,7 @@ module InvalidFnCalls =
     => raises
       "Darklang.Language.Tests.Apply.shouldReturnStringButDoesNot's return value expects String, but got Int64 (5)"
 
-  // TODO fix this weird edge case (interpreter work)
-  // test wrongTypedReturnRaises =
-  //   fnWithTypedReturn<String> ()
-  //   => raises
-  //     "fnWithTypedReturn's return value should be a String. However, an Int64 (5) was returned instead."
-  //
-  // Not a legacy assertion: the edge case is fixed, so this runs, with the
-  // current message.
+  // A function must return the type chosen by its type argument.
   test wrongTypedReturnRaises =
     fnWithTypedReturn<String> ()
     => raises

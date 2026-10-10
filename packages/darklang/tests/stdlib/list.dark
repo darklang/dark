@@ -1,4 +1,3 @@
-/// List cases ported from `backend/testfiles/execution/stdlib/list.dark`.
 module Darklang.Stdlib.List.Tests
 
 test empty =
@@ -36,11 +35,8 @@ test parallelMap =
       |> Stdlib.Test.equal [ 2L, 4L, 6L ]
       Stdlib.List.parallelMap [] (fun x -> x) |> Stdlib.Test.equal [] ]
 
-// More children than the process table keeps (`Scheduler.keepFinished`), so the
-// early ones are long gone by the time the awaits reach them: their answers have to
-// outlive their rows.
-// Differs from legacy: legacy passes `1L 500L` to `List.range`, which takes Int, so
-// both of its sides raise the same type error and it checks nothing; this uses Int.
+// Create more children than Scheduler.keepFinished retains. Their answers must
+// outlive their process rows so late awaits still succeed.
 test parallelMapOutlivesProcessTable =
   (Stdlib.List.parallelMap (Stdlib.List.range 1 500) (fun x -> x * 2))
   |> Stdlib.Test.equal
@@ -731,8 +727,6 @@ test dedupRejectsFunctionKeys =
   Stdlib.List.dedup [ (fun value -> value) ]
   => raises "Cannot use (lambda) as a dict key. Functions, streams, database references, blobs, and values containing them cannot be keys."
 
-// Differs from legacy: Stdlib.Test.raiseRuntimeError stands in for the backend-only
-// Builtin.testRuntimeError (same "Uncaught exception: …").
 test headEvaluatesElements =
   Stdlib.List.head [ Stdlib.Test.raiseRuntimeError "test" ]
   => raises "Uncaught exception: test"
@@ -749,8 +743,7 @@ test zipEvaluatesElements =
   Stdlib.List.zip [ Stdlib.Test.raiseRuntimeError "msg" ] [ Some "" ]
   => raises "Uncaught exception: msg"
 
-// Differs from legacy: Stdlib.Test.incrementCounter and counterValue stand in for the
-// backend-only Builtin.testIncrementSideEffectCounter and testSideEffectCount.
+// The counter records callback calls within this test.
 module IterEffects =
   test invokesCallbackForEachElement =
     let _ = Stdlib.List.iter [ 1L, 2L, 3L ] (fun _ -> Stdlib.Test.incrementCounter ())
@@ -779,13 +772,10 @@ module IterEffects =
         if x > 2L then Stdlib.Test.incrementCounter ())
     Stdlib.Test.counterValue () |> Stdlib.Test.equal 1L
 
-// Not a legacy assertion: the commented-out sortByComparator arity case above, made
-// live with today's message.
 test comparatorRejectsWrongArity =
   Stdlib.List.sortByComparator [6.0, 2.0] (fun x -> x)
   => raises "Lambda expects 1 argument, but got 2 arguments"
 
-// Not a legacy assertion.
 test uniqueBySupportsNestedKeys =
   Stdlib.List.uniqueBy
     [ ([1, 2], Some "a"), ([1, 2], Some "a"), ([2, 1], None) ]

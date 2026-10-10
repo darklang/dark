@@ -1,10 +1,7 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/math.dark`.
 module Darklang.Stdlib.Math.Tests
 
-// Differs from legacy: legacy's runner compared floats approximately (absolute
-// tolerance 1e-12, relative 1e-9), and these expected values are rounded, so they
-// are checked with `near`. Its tolerances are at least as strict: 1e-12 for zero,
-// and 1e-10 otherwise, where every expected magnitude here is at least 0.5.
+// Expected values are rounded. Use an absolute tolerance of 1e-12 for zero
+// and 1e-10 for the other values here.
 let near (actual: Float) (expected: Float) : Stdlib.Test.Result =
   let tolerance = if expected == 0.0 then 0.000000000001 else 0.0000000001
   (Stdlib.abs (actual - expected) < tolerance) |> Stdlib.Test.equal true

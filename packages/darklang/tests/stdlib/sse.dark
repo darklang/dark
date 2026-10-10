@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/sse.dark`.
 // Server-Sent Events parser. Exercises Stdlib.HttpClient.Sse.parse over
 // in-memory Stream<UInt8> bodies; no HTTP needed.
 //
@@ -7,8 +6,6 @@
 // List<Event> for structural comparison.
 module Darklang.Stdlib.HttpClient.Sse.Tests
 
-// Differs from legacy: legacy built the byte stream inline in every case; this
-// helper does the same steps.
 let parse (source: String) : List<Stdlib.HttpClient.Sse.Event> =
   source
   |> Stdlib.Blob.fromString

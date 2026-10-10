@@ -224,10 +224,10 @@ ordinary Darklang code, not an F# module with a builtin in front of it. There is
 
 ## Verification
 
-./scripts/run-backend-tests --filter tests/LibExecution/All/testfiles/execution/stdlib/language-tools/atRestTypeChecker
+./scripts/run-cli test Darklang.LanguageTools.AtRestTypeChecker
 ./scripts/run-cli typecheck
 
-`backend/testfiles/execution/stdlib/language-tools/atRestTypeChecker.dark` tests each rule and issue code. Cases use source parsed by
+`packages/darklang/tests/languageTools/atRestTypeChecker.dark` tests each rule and issue code. Cases use source parsed by
 `LanguageTools.Parser.Parse.packageSourceToOps` where possible, including declarations that refer to each other. Hand-built cases cover inputs the parser cannot produce: unresolved names, missing hashes, and or-alternatives binding different names. Guarded deep-input tests must either check successfully or return `Incomplete` for excessive depth, without crashing the process.
 
 `CliScm.Tests.fs` tests rollout policy through the real CLI: definite errors are saved as WIP, rejected at commit, and accepted with `--allow-type-errors`.

@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/bool.dark`.
 module Darklang.Stdlib.Bool.Tests
 
 test andTruthTable =

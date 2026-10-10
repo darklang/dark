@@ -1,5 +1,3 @@
-/// Stack-safety regressions from
-/// `backend/testfiles/execution/language/interpreter.dark`.
 module Darklang.Language.Tests.Interpreter
 
 // Tests that don't quite fit in the other files,
