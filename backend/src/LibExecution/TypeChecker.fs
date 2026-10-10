@@ -255,6 +255,18 @@ let unwrapAliasSync (typ : TypeReference) : TypeReference voption =
   | _ -> ValueSome typ
 
 
+/// What each alias the asynchronous unifier has unwrapped stands for, so the synchronous check can
+/// see through it next time instead of going back to `Types.find`.
+///
+/// Process-wide and never cleared, which is safe because type names are content hashes: an alias's
+/// name fixes its declaration, and so the type it unwraps to. Filled only by the async path, so it
+/// holds exactly the answers that path gave.
+///
+/// Without it, every value checked against an alias went the async route on every call, for
+/// example each `Int64` returned as an `ID`: a `Task` and a handful of closures per call.
+let aliasTargets =
+  System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, TypeReference>()
+
 let rec unifyValueType
   (types : Types)
   (tst : TypeSymbolTable)
@@ -377,6 +389,7 @@ let rec unifyValueType
             match expected, actual with
             | { definition = TypeDeclaration.Alias aliasType }, _ ->
               let! expected = TypeReference.unwrapAlias types aliasType
+              aliasTargets.TryAdd(typeNameT, expected) |> ignore<bool>
               return! r tst pathSoFar expected actual
 
             | _, ValueType.Known(KTCustomType(typeNameV, typeArgsV)) ->
@@ -620,7 +633,7 @@ let rec private unifyTypeArgsSync
   | Undecided -> ValueNone
 
 
-let tryUnifySync
+let rec tryUnifySync
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : Dval)
@@ -649,7 +662,14 @@ let tryUnifySync
         unifyTypeArgsSync tst declaredArgs actualArgs
       | DEnum(_, actualName, actualArgs, _, _) when actualName = declared ->
         unifyTypeArgsSync tst declaredArgs actualArgs
-      | _ -> ValueNone
+      | _ ->
+        // An alias the async route has already unwrapped: answer against what it stands for, as
+        // that route would. Its type arguments are not consulted there either.
+        let mutable target = Unchecked.defaultof<TypeReference>
+        if aliasTargets.TryGetValue(declared, &target) then
+          tryUnifySync tst target actual
+        else
+          ValueNone
 
     // A primitive expected type, answered here rather than through `unwrapAliasSync` and
     // `unifyDvalSync`. Neither can do anything for a type with no variables in it: a primitive is
@@ -846,20 +866,21 @@ module DvalCreator =
   /// Merge each element's type into the list's, accumulating in reverse. A top-level recursion
   /// rather than a fold over a tuple: the lambda would be a closure and the accumulator a tuple,
   /// both allocated per element.
-  let rec private listElements
+  /// The element type <param remaining> agrees on, merged into <param typ>, raising at the first
+  /// element that disagrees. Only the type: the list itself is used as it is.
+  let rec private listElementType
     (threadID : ThreadID)
     (i : int)
     (typ : ValueType)
-    (acc : List<Dval>)
     (remaining : List<Dval>)
-    : struct (ValueType * List<Dval>) =
+    : ValueType =
     match remaining with
-    | [] -> struct (typ, acc)
+    | [] -> typ
     | dv :: rest ->
       let dvalType = Dval.toValueType dv
 
       match VT.merge typ dvalType with
-      | Ok newType -> listElements threadID (i + 1) newType (dv :: acc) rest
+      | Ok newType -> listElementType threadID (i + 1) newType rest
       | Error() ->
         RTE.Lists.Error.TriedToAddMismatchedData(i, typ, dvalType, dv)
         |> RTE.Error.List
@@ -904,9 +925,11 @@ module DvalCreator =
   // CLEANUP consider skipping type-checking after N elements or after the type args are fully resolved, whichever comes last.
   //   In order to support this^, add another param or two so that direct [] interpretation is differentiated from calls to this from Builtins and other places.
   //   (or split this into 2 separate fns with clearer names)
+  /// A list of <param items>, typed by what they agree on. The items are checked, not copied: this
+  /// built them reversed into a new list and then reversed that, two copies of every list literal
+  /// to arrive back at the list it was given.
   let list (threadID : ThreadID) (typ : ValueType) (items : List<Dval>) : Dval =
-    let struct (typ, reversed) = listElements threadID 0 typ [] items
-    DList(typ, List.rev reversed)
+    DList(listElementType threadID 0 typ items, items)
 
 
   // CLEANUP see notes in `list` above
@@ -956,27 +979,46 @@ module DvalCreator =
         |> RTE.Error.Dict
         |> raiseRTE threadID
 
+  /// The `None` an unknown-typed lookup returns, kept rather than rebuilt: a dict miss returns
+  /// one, and it is the same value every time. Keyed by the type name object, which `optionType`
+  /// renews when the package generation changes.
+  let mutable private unknownNone : Dval = DUnit
+
   let optionNone (innerType : ValueType) : Dval =
-    DEnum(Dval.optionType (), Dval.optionType (), [ innerType ], "None", [])
+    let typeName = Dval.optionType ()
+    match innerType with
+    | ValueType.Unknown ->
+      match unknownNone with
+      | DEnum(kept, _, _, _, _) when System.Object.ReferenceEquals(kept, typeName) ->
+        unknownNone
+      | _ ->
+        let none = DEnum(typeName, typeName, [ innerType ], "None", [])
+        unknownNone <- none
+        none
+    | ValueType.Known _ -> DEnum(typeName, typeName, [ innerType ], "None", [])
 
   let optionSome (threadID : ThreadID) (expected : ValueType) (dv : Dval) : Dval =
     let typeName = Dval.optionType ()
 
     let vt = Dval.toValueType dv
 
-    match VT.merge expected vt with
-    | Ok typ -> DEnum(typeName, typeName, [ typ ], "Some", [ dv ])
-    | Error() ->
-      RuntimeError.Enums.ConstructionFieldOfWrongType(
-        "Some",
-        0,
-        None,
-        expected,
-        vt,
-        dv
-      )
-      |> RuntimeError.Enum
-      |> raiseRTE threadID
+    // Merging into `Unknown` gives the value's own type, so skip the `Result` that says so.
+    match expected with
+    | ValueType.Unknown -> DEnum(typeName, typeName, [ vt ], "Some", [ dv ])
+    | ValueType.Known _ ->
+      match VT.merge expected vt with
+      | Ok typ -> DEnum(typeName, typeName, [ typ ], "Some", [ dv ])
+      | Error() ->
+        RuntimeError.Enums.ConstructionFieldOfWrongType(
+          "Some",
+          0,
+          None,
+          expected,
+          vt,
+          dv
+        )
+        |> RuntimeError.Enum
+        |> raiseRTE threadID
 
 
   let option
@@ -1310,6 +1352,61 @@ module DvalCreator =
   /// The half of enum construction after the type is known. A top-level function taking everything
   /// explicitly, not a local one: a local closing over `types` and friends is a closure allocated on
   /// every construction, which is what it cost when it was written that way.
+  /// Check each field against its declared type, walking the two lists side by side, and return
+  /// the type arguments that leaves. ValueNone when any field needs the type store or fails to
+  /// unify: the caller then takes the full path, which is where errors are built.
+  ///
+  /// The point is what it does NOT build. Every enum in the language is constructed here, and the
+  /// full path zips declarations with values into a list of pairs, collects the values into a
+  /// reversed list and reverses it, which is three lists to hand back a list equal to the input:
+  /// checking a field never changes it. Nested matches rather than a match on the pair, which
+  /// allocates a tuple per field.
+  let rec private enumFieldsSync
+    (tst : TypeSymbolTable)
+    (defs : List<TypeReference>)
+    (fields : List<Dval>)
+    (typeArgs : List<string * ValueType>)
+    : voption<List<string * ValueType>> =
+    match defs with
+    | [] ->
+      match fields with
+      | [] -> ValueSome typeArgs
+      | _ -> ValueNone
+    | fieldDef :: defsRest ->
+      match fields with
+      | [] -> ValueNone
+      | actualField :: fieldsRest ->
+        match tryUnifySync tst fieldDef actualField with
+        | ValueSome newTST ->
+          let updated =
+            if List.isEmpty typeArgs then
+              ValueSome typeArgs
+            else
+              updateTypeArgsSync newTST [] typeArgs
+
+          match updated with
+          | ValueSome newTypeArgs ->
+            enumFieldsSync newTST defsRest fieldsRest newTypeArgs
+          | ValueNone -> ValueNone
+        | ValueNone -> ValueNone
+
+  /// The case named <param caseName>, when <param fields> has the right number of fields for it.
+  let rec private caseWithArity
+    (cases : List<TypeDeclaration.EnumCase>)
+    (caseName : string)
+    (fields : List<Dval>)
+    : voption<TypeDeclaration.EnumCase> =
+    match cases with
+    | [] -> ValueNone
+    | case :: rest ->
+      if case.name = caseName then
+        if List.length case.fields = List.length fields then
+          ValueSome case
+        else
+          ValueNone
+      else
+        caseWithArity rest caseName fields
+
   let private enumAfterResolve
     (types : Types)
     (threadID : ThreadID)
@@ -1321,27 +1418,36 @@ module DvalCreator =
     (typeArgs : List<string * ValueType>)
     (caseDefs : NEList<TypeDeclaration.EnumCase>)
     : Ply<Dval> =
-    let struct (tst, fieldsZipped) =
-      enumCaseFields threadID tst resolvedTypeName typeArgs caseDefs caseName fields
+    let fast =
+      match caseWithArity (NEList.toList caseDefs) caseName fields with
+      | ValueSome case ->
+        let tst =
+          typeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
+        enumFieldsSync tst case.fields fields typeArgs
+      | ValueNone -> ValueNone
 
-    let checked' =
-      checkEnumFields types threadID caseName 0 fieldsZipped typeArgs [] tst
-
-    match Ply.trySync checked' with
-    | ValueSome(struct (typeArgs, fieldsInReverse, _updatedTst)) ->
-      Ply(
-        DEnum(
-          sourceTypeName,
-          resolvedTypeName,
-          typeArgs |> List.map Tuple2.second,
-          caseName,
-          List.rev fieldsInReverse
-        )
-      )
+    match fast with
+    | ValueSome typeArgs ->
+      let typeArgs =
+        if List.isEmpty typeArgs then [] else typeArgs |> List.map Tuple2.second
+      Ply(DEnum(sourceTypeName, resolvedTypeName, typeArgs, caseName, fields))
     | ValueNone ->
-      uply {
-        let! struct (typeArgs, fieldsInReverse, _updatedTst) = checked'
-        return
+      let struct (tst, fieldsZipped) =
+        enumCaseFields
+          threadID
+          tst
+          resolvedTypeName
+          typeArgs
+          caseDefs
+          caseName
+          fields
+
+      let checked' =
+        checkEnumFields types threadID caseName 0 fieldsZipped typeArgs [] tst
+
+      match Ply.trySync checked' with
+      | ValueSome(struct (typeArgs, fieldsInReverse, _updatedTst)) ->
+        Ply(
           DEnum(
             sourceTypeName,
             resolvedTypeName,
@@ -1349,7 +1455,19 @@ module DvalCreator =
             caseName,
             List.rev fieldsInReverse
           )
-      }
+        )
+      | ValueNone ->
+        uply {
+          let! struct (typeArgs, fieldsInReverse, _updatedTst) = checked'
+          return
+            DEnum(
+              sourceTypeName,
+              resolvedTypeName,
+              typeArgs |> List.map Tuple2.second,
+              caseName,
+              List.rev fieldsInReverse
+            )
+        }
 
   let enum
     (types : Types)

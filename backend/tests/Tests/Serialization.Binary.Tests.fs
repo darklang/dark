@@ -401,7 +401,7 @@ module RT =
         RT.DApplicable(
           RT.AppLambda
             { exprId = 1UL
-              closedRegisters = []
+              closedRegisters = [||]
               typeSymbolTable = RT.TST.empty
               access =
                 LibExecution.Permissions.Access.start
@@ -417,6 +417,37 @@ module RT =
             LibExecution.Permissions.Request.clock
             lambda.access)
           "serialization must not preserve authority"
+      | _ -> failtest "expected a lambda"
+    }
+
+  // A closure WITH captured values, byte for byte. The golden corpus and the roundtrip values
+  // only carry closures that capture nothing, so neither would notice a change to how captures
+  // go on the wire.
+  let closureCapturesKeepTheirBytes =
+    test "a closure's captured values keep their wire format" {
+      let captures = [ (1, RT.DInt64 5L); (3, RT.DString "x") ]
+      let value =
+        RT.DApplicable(
+          RT.AppLambda
+            { exprId = 7UL
+              closedRegisters = RT.Captures.ofList captures
+              typeSymbolTable = RT.TST.empty
+              access =
+                LibExecution.Permissions.Access.start
+                  LibExecution.Permissions.Policy.denyAll
+              argsSoFar = [] }
+        )
+      let bytes = value |> BS.RT.Dval.serialize "closure"
+      Expect.equal
+        (System.Convert.ToHexString bytes)
+        "0500000021000000160007000000000000000201000000080500000000000000030000000E01780000"
+        "the bytes a closure with captures serializes to"
+      match BS.RT.Dval.deserialize "closure" bytes with
+      | RT.DApplicable(RT.AppLambda lambda) ->
+        Expect.equal
+          (RT.Captures.toList lambda.closedRegisters)
+          captures
+          "captures roundtrip"
       | _ -> failtest "expected a lambda"
     }
 
@@ -637,7 +668,8 @@ let tests =
 
       testList
         "RT Roundtrip Tests"
-        [ RT.packageTypeTests
+        [ RT.closureCapturesKeepTheirBytes
+          RT.packageTypeTests
           RT.packageValueTests
           RT.packageFnTests
           RT.dvalTests

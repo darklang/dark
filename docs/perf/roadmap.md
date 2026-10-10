@@ -341,6 +341,105 @@ got essentially all of it. Low priority; recorded so nobody re-probes it.
 per handler tested. Fixing it needs public stdlib API (a `makeRouter`, or a parsed field on
 `Handler`), so it is a design decision rather than an optimisation.
 
+### Whole-tree `dark typecheck`: the floor of this design, and what would get under it
+
+A whole-tree check is about 7,700 items and 236,000 syntax nodes. Done directly over the stored
+tree it should cost 50 to 100 MB (estimate: ~150 B a node to read, ~150 B a node to infer). With
+the checker's pieces sharing one pool and running one per worker, its per-node throwaways cut, and
+the interpreter's throwaway objects cut, it allocates 3.80 GB (it was 14.9) and completes under a
+464 MB cap on four cores every run, 448 MB usually. Measured on AOT, verdicts identical to main
+per item at 4 and 48 cores.
+
+Where the 4.16 GB went just before the last 0.1 GB of changes, from a per-thread profiler whose
+charged plus unaccounted bytes summed to the measured total (4.163 against 4.162 GB):
+
+| share | where |
+|---|---|
+| 19% | `Generate`; its output, the constraints, is only 2.6%, the rest is the walk |
+| 16% | store reads: `Function.get` 6.2%, `getSignature` 5.2%, search 3.3%, `Type.get` 1.1% |
+| 14% each | `Solve`; `Types` (converting, expanding, walking types) |
+| 8% | dictionary builtins |
+| 7% | `NodeIds`, the pre-check |
+| 22% | the rest of the checker, list builtins, the CLI |
+
+No row is above 6.2%, and the last four changes measured 1.6%, 1.1%, 0.4% and 0.2%. More of the
+same buys fractions of a percent.
+
+The floor of this design is roughly 0.6 to 0.7 GB (estimate), 6 to 14 times the budget, even with
+every remaining small step taken: about 300 MB to load (the checker reads the program as Dark
+values, ~30x the 10 MB serialized form) and about 330 MB to infer (a fresh type variable, a
+persistent-dictionary entry and a constraint per node is ~1.4 KB a node). What would reach the
+budget is allocating different things, not cheaper ones:
+
+- a mutable substitution (union-find over an array). In Dark that needs a mutable array, which
+  would have to be a general primitive, not a checker builtin
+- an interpreter that does not heap-allocate small values. Every enum, tuple and `Some` is an
+  object today
+- reading the program through a compact view instead of converting every body to a Dark value
+
+Moving the checker to F# would also get there, and is off the table: the checker stays in Dark.
+
+Smaller, still open:
+
+- a hashes-only branch listing for the whole-tree path, instead of names and hashes. The listing
+  is ~140 MB (measured on the 6.7 GB tree) and this would save most of it (estimate); hours of
+  work, and it helps `ls` and search too
+- routing the store search's deserialization through the package manager's cache: ~4%
+  (estimate), but a long-lived process (the language server) would then hold every searched body
+  until invalidation. A live-set increase for an allocation win, so a design call, not a tweak
+
+Unexplained, kept so it does not vanish: one commit (making `NodeIds`'s per-node helpers top-level
+functions) raised the 4-core floor one 16 MB step, 448 to 464 MB, while allocating 244 MB less and
+building the same lists. Bisected to that commit; the next change made the symptom go away.
+Unchecked candidates: GC heap sizing, a large-object-heap boundary. Note also that the 448 MB edge
+is noisy on its own: across five trees it passed 24 of 28 runs, failures scattered, so a single
+run at 448 says nothing about a change.
+
+Measured earlier, at 6.8 GB: after the first round (one shared pool, at most one piece per
+worker, and `Spread.keyOf` no longer printing an `FQFnName` through reflection) and before the
+per-node work. The figures below are from then.
+
+The cost is linear in item size, not quadratic: about 21 KB per syntax node on AOT, flat from 16
+nodes to 256+. The deferred-constraint loops (`queueDeferred`, `solvePendingConstraints`) look
+quadratic and are not, because the waiting list averages 0 to 3 entries. Per node the checker runs
+about 572 instructions and 77 Dark calls; `Apply` is 65% of the bytes, enum construction 17%,
+lambda creation 9%.
+
+What making a piece of it free would buy, measured on AOT by charging every byte allocated while a
+watched fn is on the stack to its outermost call (verdicts unchanged, since nothing is stubbed):
+
+| made free | serial checker loop, 1,441 Stdlib fns (438 MB) | whole-tree `typecheck` (9.8 GB) |
+|---|---|---|
+| `walk`, `occurs`, `zonk`, `freeVars`, `substitute` and their helpers | 26 MB, 6% | 322 MB, 3% |
+| all 47 fns in `AtRestTypeChecker.Types` | 101 MB, 23% at most | 1.80 GB, 18% |
+
+So porting the type walks to F# is not the next thing to do.
+
+Read the table as a floor, not a point estimate. The serial rows balance (217,840 pushes and
+pops); the whole-tree rows under-count slightly, because pops ran 1.4% ahead of pushes there,
+which closes a bracket early. Neither row counts the caller's `Apply`, which a native builtin would
+still partly pay. Both push the true figure up a little, and even generously it is not next.
+
+**Ranking a native port from a Debug profile overstates it: the five walks read 11% of this loop
+in Debug and 6% in AOT, measured on the same workload.** The same effort found a closure at 19% of
+Debug allocation (`noteValue` in the interpreter loop) that does not exist in Release at all. Rank
+from AOT.
+
+What is left is spread across the call count itself. A real reduction means fewer interpreted calls
+per node, either a cheaper call or a checker that makes fewer of them, rather than any one
+function moving native. Trimming the busiest tiny calls in the checker's own Dark code (a
+`maxUnifyDepth ()` per comparison, `walk` called on types that are not variables) measured 0.5%:
+the cost is in what each call does, not in how many there are.
+
+**The package manager keeps every loaded fn WITH its body for the life of the process** (measured,
+Debug). `getFn` is `withCache PMPT.Fn.get` in `LibDB/PackageManager.fs`, unbounded. The checker
+reads dependencies by signature only, but `pmGetFnSignature` goes through `getFn`, so the full body
+is cached anyway, and by the end of a whole-tree check every fn's body is. Dropping the caches right
+after the checker's pool loads freed 64 MB, about half of the ~400 MB floor that a single lane still
+needs. The fix is a signature read that does not populate the cache, and it has to keep reading
+through a branch's overlay, which uses the same path, so it is a design change rather than a flag.
+It waits on the store-upgrade work in that area settling.
+
 ### Compile-time type checking -- owned elsewhere
 
 Ablation put the prize at -20% allocation and -14% wall, measured before much of the same work was
@@ -492,6 +591,15 @@ self-merge, but the fix is now a four-site change.
   allocation and wrong to stop there: a warm package call allocates nothing, but a forwarder cost
   2.5 us of frame in *time*. Eliding it took a view build 76 -> 66 ms. Allocation-only conclusions
   should not close time questions.
+- **Porting the at-rest checker's type walks to F#.** About 30% of the checker's calls, but 3 to 6%
+  of its allocation on AOT. Measured, not estimated; see the `dark typecheck` item above.
+- **The at-rest checker, smaller levers**, each measured on AOT on the whole-tree check:
+  fusing `Generate` and `Solve` saves at most ~110 MB (2.6%), not worth rewriting
+  `generate.dark`; lambda captures as one array saved 62 MB (1.4%) against an estimated 200,
+  because most lambdas capture zero or one value; dictionary key comparison costs ~200 B a lookup
+  whatever the key's shape, so it is the count (4.8 lookups a node) that matters, and a set is
+  the persistent map's path copy, already at its floor; tracing is free here (`dark typecheck`
+  as typed allocates the same as `--no-trace`); capping lanes costs 24% in time.
 - **Calling a polymorphic builtin.** Claimed 7,470 B from a residual across two probe scripts;
   actually 192 B. Retracted.
 - **A 2x between two record types.** Was the hash collision described below: the two rows were not

@@ -103,6 +103,12 @@ let inspect (id: Uuid) : Stdlib.Option.Option<Detail> =
 type Handle<'a> = { id: Uuid }
 
 
+/// How many processes run at once: one per core this process may use. More than this many
+/// spawned at once take turns rather than running faster.
+let workers () : Int =
+  Builtin.execWorkerCount ()
+
+
 /// Start `f ()` as a process of its own, beside this one, on another core when one is free.
 /// It runs under the access the caller has here, like a closure. `await` collects it. It
 /// stops when this process finishes, if it has not finished first; `spawnDetached` for one

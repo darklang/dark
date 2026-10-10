@@ -108,6 +108,18 @@ let collectItemReferences
    Stdlib.List.flatten (Stdlib.List.reverse refs),
    Stdlib.List.reverse failures)
 
+/// What a query's pieces share: an environment with the pool's declarations registered and
+/// prepared, built once (`baseFor`).
+type Base =
+  { env: Model.Environment
+    /// When true, the pool is closed (every type, fn signature and value in it refers only to
+    /// things in it), so <param env> also holds every pool value's scheme and a piece loads
+    /// nothing the pool holds. When false, pieces load their closures as before.
+    closed: Bool
+    pool: Environment.Closure
+    /// Each pool value's outcome, worked out once in <param env>. Empty unless closed.
+    values: Dict<LanguageTools.ProgramTypes.Hash, Items.Outcome> }
+
 /// Check the declarations in the supplied operations without changing the store.
 /// Load referenced declarations and their dependencies to obtain the type
 /// information needed for checking.
@@ -117,6 +129,17 @@ let collectItemReferences
 /// content-addressed. A caller that has no branch in hand goes through `checkPackageOps`
 /// below, which answers about main.
 let checkPackageOpsOn
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Report =
+  checkPackageOpsFrom (Environment.emptyClosure ()) Stdlib.Option.Option.None branchId ops
+
+/// `checkPackageOpsOn`, taking dependencies from <param pool> before the store (see
+/// `Environment.loadClosureFrom`), and starting from <param base> instead of the builtins when
+/// one is given: an environment that already holds and has prepared the pool's declarations.
+let checkPackageOpsFrom
+  (pool: Environment.Closure)
+  (base: Stdlib.Option.Option<Base>)
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Report =
@@ -137,11 +160,23 @@ let checkPackageOpsOn
   // The batch's own traits and implementations, beside the store's: the store does not
   // hold them until after this check, and a call saved with the trait or the impl it needs
   // must still be typed against it and pinned to it.
+  let start =
+    match base with
+    | Some b -> b.env
+    | None -> Environment.builtins branchId
+
+  // On a closed base, the batch's own values were already checked there.
+  let (valuesFromBase, values) =
+    match base with
+    | Some b ->
+      if b.closed then
+        Stdlib.List.partition values (fun v -> Stdlib.Dict.``member`` b.values v.hash)
+      else
+        ([], values)
+    | None -> ([], values)
+
   let builtins =
-    Environment.withoutReplaced
-      (Environment.withBatch (Environment.builtins branchId) traits impls)
-      branchId
-      ops
+    Environment.withoutReplaced (Environment.withBatch start traits impls) branchId ops
 
   // If inspecting a type declaration or function signature fails, leave it out
   // of the checking environment and record an Incomplete result for it.
@@ -170,12 +205,22 @@ let checkPackageOpsOn
       (fun v -> Items.bodyNodeId v.body)
       (fun v -> Environment.exprRefs builtins v.body)
 
+  // On a closed base every body's references are already in the environment, so the walk would
+  // only find things to throw away.
+  let onClosedBase =
+    match base with
+    | Some b -> b.closed
+    | None -> false
+
   let (_, fnBodyRefs, fnBodyFailures) =
-    collectItemReferences
-      fns
-      (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
-      (fun fn -> Items.bodyNodeId fn.body)
-      (fun fn -> Environment.exprRefs builtins fn.body)
+    if onClosedBase then
+      (fns, [], [])
+    else
+      collectItemReferences
+        fns
+        (fun fn -> LanguageTools.ProgramTypes.Reference.PackageFn fn.hash)
+        (fun fn -> Items.bodyNodeId fn.body)
+        (fun fn -> Environment.exprRefs builtins fn.body)
 
   let bodyFailuresByItem =
     Stdlib.List.fold
@@ -194,7 +239,14 @@ let checkPackageOpsOn
   let dependencyRefs =
     Stdlib.List.flatten [ typeRefs, signatureRefs, valueBodyRefs, fnBodyRefs, implRefs ]
 
-  let dependencies = Environment.loadClosure builtins candidateRefs dependencyRefs
+  let dependencies =
+    match base with
+    | Some b ->
+      if b.closed then
+        Environment.loadClosureBeyond b.pool builtins candidateRefs dependencyRefs
+      else
+        Environment.loadClosureFrom pool builtins candidateRefs dependencyRefs
+    | None -> Environment.loadClosureFrom pool builtins candidateRefs dependencyRefs
 
   let env =
     Stdlib.List.fold
@@ -210,8 +262,17 @@ let checkPackageOpsOn
   let batchValues =
     Stdlib.List.append (Stdlib.Dict.values dependencies.values) values
 
+  let fromBase =
+    match base with
+    | Some b ->
+      Stdlib.List.filterMap valuesFromBase (fun v ->
+        (Stdlib.Dict.get b.values v.hash)
+        |> Stdlib.Option.map (fun outcome ->
+          (LanguageTools.ProgramTypes.Reference.PackageValue v.hash, outcome)))
+    | None -> []
+
   let checked =
-    (Items.checkBatch env types batchValues fns)
+    (Stdlib.List.append fromBase (Items.checkBatch env types batchValues fns))
     |> Stdlib.List.map (fun (item, outcome) ->
       match Stdlib.Dict.get bodyFailuresByItem item with
       | Some failed -> (item, failed)
@@ -221,8 +282,18 @@ let checkPackageOpsOn
   // (its methods usually arrive in the same batch).
   let implEnv = Stdlib.List.fold types env (fun env t -> Items.addType env t)
 
+  let knownFns =
+    match base with
+    | Some b ->
+      if b.closed then
+        Stdlib.List.fold (Stdlib.Dict.values dependencies.fns) b.pool.fns (fun found fn ->
+          Stdlib.Dict.setOverridingDuplicates found fn.hash fn)
+      else
+        dependencies.fns
+    | None -> dependencies.fns
+
   let batchFns =
-    Stdlib.List.fold fns dependencies.fns (fun found fn ->
+    Stdlib.List.fold fns knownFns (fun found fn ->
       Stdlib.Dict.setOverridingDuplicates found fn.hash fn)
 
   let implChecked =
@@ -287,6 +358,17 @@ let checkReferences
   (load: LanguageTools.ProgramTypes.Reference -> Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp>)
   (references: List<LanguageTools.ProgramTypes.Reference>)
   : Report =
+  checkReferencesFrom (Environment.emptyClosure ()) Stdlib.Option.Option.None branchId load references
+
+/// `checkReferences`, taking dependencies from <param pool> before the store and starting from
+/// <param base>; see `checkPackageOpsFrom`.
+let checkReferencesFrom
+  (pool: Environment.Closure)
+  (base: Stdlib.Option.Option<Base>)
+  (branchId: Uuid)
+  (load: LanguageTools.ProgramTypes.Reference -> Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp>)
+  (references: List<LanguageTools.ProgramTypes.Reference>)
+  : Report =
   let (ops, failures) =
     Stdlib.List.fold (Stdlib.List.unique references) ([], []) (fun (ops, failures) reference ->
       let loaded =
@@ -306,7 +388,7 @@ let checkReferences
               warnings = outcome.warnings
               resolutions = outcome.resolutions }
         (ops, Stdlib.List.push failures item))
-  let checked = checkPackageOpsOn branchId (Stdlib.List.reverse ops)
+  let checked = checkPackageOpsFrom pool base branchId (Stdlib.List.reverse ops)
   reportItems (Stdlib.List.append checked.items (Stdlib.List.reverse failures))
 
 /// Check the declarations a search query selects. Fetch their hashes before loading their
@@ -332,18 +414,117 @@ let checkQuery
         Stdlib.List.map impls (fun (_, hash) -> LanguageTools.ProgramTypes.Reference.PackageTraitImpl hash) ]
   let unique = Stdlib.List.unique references
   // In pieces across the cores, the way the package reload splits the same check in
-  // `TraitCalls.resolveIn`. Safe because every piece loads from the store, so it sees what
-  // another piece holds. Explicit until `List.map` spreads by itself.
+  // `TraitCalls.resolveIn`. Safe because every piece loads from the store or the shared pool, so
+  // it sees what another piece holds. Explicit until `List.map` spreads by itself.
   let size = Stdlib.max 64 ((Stdlib.List.length unique) / 32 + 1)
+
+  // What the pieces depend on is mostly the same types and fns, and every piece is in flight at
+  // once, so loading them per piece held one copy of most of Stdlib per piece. Loaded once here
+  // instead, fns by signature only, and every piece's closure points into this. A declaration
+  // that fails to load is left out, and the piece that needs it goes to the store and reports
+  // the failure as it always did.
+  let pool =
+    poolFor
+      (Stdlib.List.map types (fun (_, h) -> h))
+      (Stdlib.List.map fns (fun (_, h) -> h))
+      (Stdlib.List.map values (fun (_, h) -> h))
+
+  // And the pool's declarations registered and prepared once, which every piece otherwise did
+  // for its own copy. Only when the pool's types are closed (everything they reference is in it),
+  // since a type's facts are worked out from what it references.
+  let base = baseFor branchId pool
 
   match Stdlib.List.chunkBySize unique size with
   | Ok chunks ->
-    chunks
-    |> Stdlib.List.parallelMap (fun chunk -> checkReferences branchId loadCandidate chunk)
-    |> Stdlib.List.map (fun report -> report.items)
+    // No more pieces in flight than there are workers to run them. Spawning all of them at once
+    // ran them no faster, since the extras only took turns, but every one of them loaded its
+    // declarations first and held them until it finished: the whole branch in memory at once.
+    // Each lane takes every `lanes`th piece in turn; the reports go back in piece order.
+    let lanes = Stdlib.max 1 (Stdlib.min (Stdlib.List.length chunks) (Stdlib.Exec.workers ()))
+    let numbered = Stdlib.List.indexedMap chunks (fun i chunk -> (i, chunk))
+
+    // A fold, not a map: a map is a list op the runtime may spread across cores by itself, and
+    // a spread chunk refuses the store reads every piece makes, so the lane's pieces would run
+    // twice at best.
+    Stdlib.List.range 0 (lanes - 1)
+    |> Stdlib.List.parallelMap (fun lane ->
+      numbered
+      |> Stdlib.List.filter (fun (i, _) -> i % lanes == lane)
+      |> Stdlib.List.fold [] (fun done (i, chunk) ->
+        Stdlib.List.push done (i, checkReferencesFrom pool base branchId loadCandidate chunk)))
+    |> Stdlib.List.flatten
+    |> Stdlib.List.sortBy (fun (i, _) -> i)
+    |> Stdlib.List.map (fun (_, report) -> report.items)
     |> Stdlib.List.flatten
     |> reportItems
-  | Error _ -> checkReferences branchId loadCandidate unique
+  | Error _ -> checkReferencesFrom pool base branchId loadCandidate unique
+
+/// The builtins environment with every declaration in <param pool> registered and prepared, or
+/// None when a pool type references a type that is not in the pool. Closed (see `Base`) when the
+/// pool's fn signatures and values also refer only to things in it, which a whole-branch query's
+/// pool does; its values are then checked here once.
+let baseFor (branchId: Uuid) (pool: Environment.Closure) : Stdlib.Option.Option<Base> =
+  let inPool (r: LanguageTools.ProgramTypes.Reference) : Bool =
+    match r with
+    | PackageType hash -> Stdlib.Dict.``member`` pool.types hash
+    | PackageFn hash -> Stdlib.Dict.``member`` pool.fns hash
+    | PackageValue hash -> Stdlib.Dict.``member`` pool.values hash
+    | _ -> true
+
+  let typesClosed =
+    Stdlib.List.all (Stdlib.Dict.values pool.types) (fun t ->
+      Stdlib.List.all (Environment.declarationRefs t.declaration) inPool)
+
+  if typesClosed then
+    let builtins = Environment.builtins branchId
+    let env =
+      Stdlib.List.fold
+        (Stdlib.Dict.values pool.fns)
+        (Stdlib.List.fold (Stdlib.Dict.values pool.types) builtins (fun env t -> Items.addType env t))
+        (fun env fn -> Items.addFunctionSignature env fn)
+    let env = Declarations.prepareDeclarations env
+
+    let closed =
+      Stdlib.List.all (Stdlib.Dict.values pool.fns) (fun fn ->
+        Stdlib.List.all (Environment.signatureRefs fn) inPool)
+      && Stdlib.List.all (Stdlib.Dict.values pool.values) (fun v ->
+        match guard (fun body -> Environment.exprRefs builtins body) v.body with
+        | Ok refs -> Stdlib.List.all refs inPool
+        | Error _ -> false)
+
+    if closed then
+      let (env, outcomes) = Items.checkValues env (Stdlib.Dict.values pool.values)
+      Stdlib.Option.Option.Some(Base { env = env; closed = true; pool = pool; values = outcomes })
+    else
+      Stdlib.Option.Option.Some(Base { env = env; closed = false; pool = pool; values = Dict {} })
+  else
+    Stdlib.Option.Option.None
+
+/// Load these types, values, and fns by signature, into a closure for `checkReferencesFrom`.
+let poolFor
+  (typeHashes: List<LanguageTools.ProgramTypes.Hash>)
+  (fnHashes: List<LanguageTools.ProgramTypes.Hash>)
+  (valueHashes: List<LanguageTools.ProgramTypes.Hash>)
+  : Environment.Closure =
+  let types =
+    Stdlib.List.fold typeHashes Dict {} (fun found hash ->
+      match guard (fun h -> LanguageTools.PackageManager.Type.get h) hash with
+      | Ok(Some t) -> Stdlib.Dict.setOverridingDuplicates found hash t
+      | _ -> found)
+
+  let fns =
+    Stdlib.List.fold fnHashes Dict {} (fun found hash ->
+      match guard (fun h -> LanguageTools.PackageManager.Function.getSignature h) hash with
+      | Ok(Some fn) -> Stdlib.Dict.setOverridingDuplicates found hash fn
+      | _ -> found)
+
+  let values =
+    Stdlib.List.fold valueHashes Dict {} (fun found hash ->
+      match guard (fun h -> LanguageTools.PackageManager.Value.get h) hash with
+      | Ok(Some v) -> Stdlib.Dict.setOverridingDuplicates found hash v
+      | _ -> found)
+
+  Environment.Closure { types = types; values = values; fns = fns }
 
 /// A query that selects everything on the branch.
 let everything () : LanguageTools.ProgramTypes.Search.SearchQuery =

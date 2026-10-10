@@ -1281,7 +1281,11 @@ and ApplicableLambda =
     /// , but we run some risk of the register's value changing
     /// between the time we create the lambda and the time we apply it.
     /// (even though, at time of writing, this seems impossible.)
-    closedRegisters : List<Register * Dval>
+    ///
+    /// An array of struct pairs, not a list of pairs: one allocation per lambda rather than two
+    /// per captured value, and every lambda a program creates builds one. `Captures` converts for
+    /// the few cold places that want a list.
+    closedRegisters : (struct (Register * Dval))[]
 
     /// A cache/copy of the type symbol table[1] when the lambda was created.
     ///
@@ -1511,6 +1515,16 @@ and BuiltInParam =
     : BuiltInParam =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
+
+
+/// A lambda's captured values (`ApplicableLambda.closedRegisters`) as a list, for the cold
+/// places that build or read them that way: conversion to Dark values, the query compiler, tests.
+module Captures =
+  let ofList (captures : List<Register * Dval>) : (struct (Register * Dval))[] =
+    captures |> List.map (fun (r, v) -> struct (r, v)) |> Array.ofList
+
+  let toList (captures : (struct (Register * Dval))[]) : List<Register * Dval> =
+    captures |> Array.map (fun (struct (r, v)) -> (r, v)) |> List.ofArray
 
 
 module StreamImpl =
@@ -2400,20 +2414,22 @@ module Dval =
 
     /// Walk a `List<Register * Dval>` (lambda closed registers); only
     /// the Dval can change.
-    and walkRegisters (rs : List<Register * Dval>) : Ply.Ply<List<Register * Dval>> =
+    and walkRegisters
+      (rs : (struct (Register * Dval))[])
+      : Ply.Ply<(struct (Register * Dval))[]> =
       uply {
-        match rs with
-        | [] -> return rs
-        | _ ->
-          let arr = List.toArray rs
-          let mutable changed = false
-          for i in 0 .. arr.Length - 1 do
-            let r, v = arr[i]
+        if rs.Length = 0 then
+          return rs
+        else
+          // Copied only once something changes, so an unchanged closure keeps its own array.
+          let mutable copy : (struct (Register * Dval))[] = null
+          for i in 0 .. rs.Length - 1 do
+            let struct (r, v) = rs[i]
             let! v' = go v
             if not (same v' v) then
-              changed <- true
-              arr[i] <- (r, v')
-          return (if changed then List.ofArray arr else rs)
+              if isNull copy then copy <- Array.copy rs
+              copy[i] <- struct (r, v')
+          return (if isNull copy then rs else copy)
       }
 
     /// Walk a `Map<string, Dval>`; return the original Map reference

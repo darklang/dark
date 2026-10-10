@@ -294,6 +294,24 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "execWorkerCount" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TInt
+      description =
+        "How many processes the scheduler runs at once: its worker threads, one per core this "
+        + "process may use (so a CPU affinity or container limit counts, unlike the host's core "
+        + "count)."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] -> Dval.int (bigint Scheduler.defaultWorkers) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "execSpawn" 0
       typeParams = [ "a" ]
       parameters =

@@ -1239,27 +1239,40 @@ let apply
   (known: List<(Model.Ty * Site)>)
   (args: List<LanguageTools.ProgramTypes.Expr>)
   : (Model.Ty * Model.Constraint) =
-  let offset = Stdlib.List.length known
-
   // Start new argument slots after the already supplied arguments, so their
   // positions and diagnostic indices match the full call, including any pipeline input.
-  let slots =
-    Stdlib.List.indexedMap args (fun i _ ->
-      (part id (i + offset), Site.FunctionArgument(Types.int64 (i + offset))))
+  let (slots, argChecks) = argumentSlots scope id (Stdlib.List.length known) args [] []
+  let result = resultOf id
 
-  let argChecks =
-    (Stdlib.List.zipShortest slots args)
-    |> Stdlib.List.map (fun ((slot, site), arg) -> check scope slot site arg)
-
-  (resultOf id,
+  (result,
    all
-     [ Model.Constraint.Apply(
-         id,
-         callee,
-         Stdlib.List.append known slots,
-         resultOf id
-       )
+     [ Model.Constraint.Apply(id, callee, Stdlib.List.append known slots, result)
        all argChecks ])
+
+/// One unknown and one check per argument of call <param id>, numbered from <param index>, in
+/// argument order. One pass: this was an indexed map for the slots, a zip of the slots with the
+/// arguments and a map for the checks, each a list and a lambda per call, for a call's two or
+/// three arguments.
+let argumentSlots
+  (scope: Scope)
+  (id: Int64)
+  (index: Int)
+  (args: List<LanguageTools.ProgramTypes.Expr>)
+  (slots: List<(Model.Ty * Site)>)
+  (checks: List<Model.Constraint>)
+  : (List<(Model.Ty * Site)> * List<Model.Constraint>) =
+  match args with
+  | [] -> (Stdlib.List.reverse slots, Stdlib.List.reverse checks)
+  | arg :: rest ->
+    let slot = part id index
+    let site = Site.FunctionArgument(Types.int64 index)
+    argumentSlots
+      scope
+      id
+      (index + 1)
+      rest
+      (Stdlib.List.push slots (slot, site))
+      (Stdlib.List.push checks (check scope slot site arg))
 
 /// Generate operand checks for an infix operation. Boolean and string operations
 /// require their fixed types; equality requires matching operand types. Other
