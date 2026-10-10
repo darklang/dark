@@ -322,6 +322,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Some newState -> newState
     | None ->
       match Topics.findTopic topicName with
+      | Some _ when Stdlib.Bool.not (Stdlib.List.isEmpty rest) ->
+        let extra = Stdlib.String.join rest " "
+        Cli.printErr $"docs {topicName} does not take `{extra}`."
+        Cli.exitWith state false
       | Some topic ->
         let contentFn = topic.content
         Stdlib.printLine (contentFn ())
@@ -330,7 +334,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Unknown topic: {topicName}")
         Stdlib.printLine ""
         Stdlib.printLine (Topics.formatTopicList ())
-        state
+        Cli.exitWith state false
 
 
 let help (_state: Cli.AppState) : String =

@@ -69,6 +69,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "--help" ] ->
     Stdlib.printLine (help state)
     state
+  | flag :: _ when Stdlib.String.startsWith flag "-" ->
+    Cli.printErr $"squash does not understand `{flag}`."
+    Cli.printHint "  dark squash [message]"
+    Cli.exitWith state false
   | _ ->
     let run = runAtTip state
 

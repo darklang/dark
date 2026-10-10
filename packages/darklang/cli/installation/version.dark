@@ -10,7 +10,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | bad :: _ ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"version: unknown option `{bad}`")
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
   | [] ->
 
   // Checks GitHub for a newer release, which dominates the command. Deliberate: knowing you're out of

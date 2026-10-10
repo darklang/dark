@@ -193,8 +193,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [pathArg] ->
     match Traversal.traverse branchId state.packageData.currentLocation pathArg with
     | Error errorMsg ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot list {pathArg}: {errorMsg}")
-      state
+      Cli.printErr $"Cannot list {pathArg}: {errorMsg}"
+      Cli.exitWith state false
     | Ok newLocation ->
       match newLocation with
       | Module _ ->
@@ -225,8 +225,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
         state
   | _ ->
-    Stdlib.printLine (help state)
-    state
+    Stdlib.printErrorLine (help state)
+    Cli.exitWith state false
 
 
 

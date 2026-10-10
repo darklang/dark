@@ -200,8 +200,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | _ ->
-    Stdlib.printLine "Error: Invalid scripts command. Use 'scripts' to see available commands"
-    state
+    Cli.printErr "Error: Invalid scripts command. Use 'scripts' to see available commands"
+    Cli.exitWith state false
 
 
 

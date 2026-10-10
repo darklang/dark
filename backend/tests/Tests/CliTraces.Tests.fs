@@ -43,7 +43,7 @@ let private testVersionCommand =
       // A near miss must not silently fall through to the network check, which is the
       // one thing the caller was trying to avoid.
       let! typo = runCli state [ "version"; "--locl" ]
-      Expect.stringContains typo "unknown option" "a mistyped flag is named"
+      Expect.stringContains typo "does not take `--locl`" "a mistyped flag is named"
       Expect.isFalse (typo.Contains "update available") "and nothing was fetched"
     })
 
@@ -464,8 +464,12 @@ let private testTracesRejectsNegativeLimit =
           [ "traces"; "stats"; "-1" ]
           [ "traces"; "hotspots"; "-1" ]
           [ "traces"; "find"; "foo"; "-1" ] ] do
-        let! out = runCli state argv
-        Expect.stringContains out "has to be 1 or more" $"{argv} rejected"
+        // Refused, by the argument check or by the command, either way naming the value.
+        let! out, code = runCliWithExit state argv
+        Expect.equal code 1L $"{argv} refused"
+        Expect.isTrue
+          (out.Contains "-1" || out.Contains "1 or more")
+          $"{argv} says what is wrong with the value: {out}"
     })
 
 let private testTracesArgOrderingsWork =
@@ -521,8 +525,7 @@ let private testTracesArity1Catchalls =
         let tid = parseTraceID listJson
 
         let cases =
-          [ [ "traces"; "delete"; tid; "--fake-arg" ],
-            "Usage: traces delete <trace-id>" ]
+          [ [ "traces"; "delete"; tid; "--fake-arg" ], "does not take `--fake-arg`" ]
         for (argv, expected) in cases do
           let! out = runCli state argv
           Expect.stringContains out expected $"{argv} catch-all"
@@ -547,12 +550,12 @@ let private testTracesUnknownSubcommandSurfaced =
   cliTest "unknown traces subcommand prints clear error" (fun state ->
     task {
       let! typoOut = runCli state [ "traces"; "nonsense" ]
-      Expect.stringContains typoOut "unknown subcommand: nonsense" "typo flagged"
+      Expect.stringContains typoOut "does not take `nonsense`" "typo flagged"
       let! typoTwoOut = runCli state [ "traces"; "lst" ]
-      Expect.stringContains typoTwoOut "unknown subcommand: lst" "lst flagged"
+      Expect.stringContains typoTwoOut "does not take `lst`" "lst flagged"
 
       let! bareOut = runCli state [ "traces" ]
-      Expect.isFalse (bareOut.Contains "unknown subcommand") "bare not flagged"
+      Expect.isFalse (bareOut.Contains "does not take") "bare not flagged"
       let! helpOut = runCli state [ "traces"; "help" ]
       Expect.isFalse (helpOut.Contains "unknown subcommand") "help not flagged"
     })
@@ -1356,7 +1359,7 @@ let private testTracesRejectsFlagAsTraceId =
       let cmds = [ [ "traces"; "delete"; "--fake-arg" ] ]
       for argv in cmds do
         let! out = runCli state argv
-        Expect.stringContains out "unknown flag: --fake-arg" $"{argv} rejected"
+        Expect.stringContains out "does not take `--fake-arg`" $"{argv} rejected"
     })
 
 /// A trace that hits the event cap must still be a walkable tree.
@@ -1549,8 +1552,8 @@ let private testPermissionProfiles =
 
 /// The four cases that dominate this file's time: about 34 of its 61 seconds.
 ///
-/// `Tests.CliSurface.everyCommandSurvivesABogusArgument` drives every registered command with an argument that means
-/// nothing (12s), `Tests.CliScm.reviewQueueRoundTrips` is the only end-to-end cover of `dark review` (11s), and the two
+/// `Tests.CliSurface.everyCommandRefusesAWordItDoesNotKnow` and its flag sibling drive every registered command with
+/// something it does not take (12s, measured when they were one test), `Tests.CliScm.reviewQueueRoundTrips` is the only end-to-end cover of `dark review` (11s), and the two
 /// commit cases author, resolve and commit real items (6s each). They are the slowest AND among the most
 /// valuable here, which is why they are on by default and the lever skips them rather than the reverse:
 ///
@@ -1562,7 +1565,9 @@ let private slowCliTests =
     []
   else
     [ Tests.CliSurface.everyCommandWorksWithValidArguments
-      Tests.CliSurface.everyCommandSurvivesABogusArgument
+      Tests.CliSurface.everyCommandRefusesAWordItDoesNotKnow
+      Tests.CliSurface.everyCommandRefusesAFlagItDoesNotHave
+      Tests.CliSurface.aCommandThatNeedsAnArgumentRefusesWithoutOne
       Tests.CliSurface.everyCommandSurvivesABranch
       Tests.CliScm.editingOnABranchRepointsItsCallers
       Tests.CliScm.discardOnABranchLeavesMainsDraftAlone

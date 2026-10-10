@@ -336,24 +336,30 @@ let parseRuleArgs
 let editPolicy
   (edit: LanguageTools.Permissions.Policy -> Stdlib.Result.Result<LanguageTools.Permissions.Policy, String>)
   (success: String)
-  : Unit =
+  : Bool =
   match edit (Command.currentPolicy ()) with
   | Ok next ->
     Command.writePolicy next
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success success)
-  | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+    true
+  | Error message ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+    false
 
 /// Parse rule arguments and pass them to <param edit>, or report invalid input.
 let editRules
   (args: List<String>)
   (edit: List<LanguageTools.Permissions.Rule> -> Unit)
   (success: String)
-  : Unit =
+  : Bool =
   match Command.parseRuleArgs args with
-  | None -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Command.invalidRule args))
+  | None ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Command.invalidRule args))
+    false
   | Some rules ->
     edit rules
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success success)
+    true
 
 /// `set a; deny b; c` replaces the whole policy.
 let replacePolicy
@@ -446,16 +452,21 @@ let takeYesFlag (args: List<String>) : (Bool * List<String>) =
 
 /// Show the full replacement before any write. Previewing never prompts or
 /// edits policy; --yes uses the same host-only writer as `permissions set`.
-let profile (args: List<String>) : Unit =
+let profile (args: List<String>) : Bool =
   match args with
-  | [] -> Stdlib.printLines Profiles.listing
+  | [] ->
+    Stdlib.printLines Profiles.listing
+    true
   | _ ->
     match Command.takeYesFlag args with
     | (_, []) ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error "profile needs a name")
+      false
     | (apply, name :: rest) ->
       match Profiles.resolve name rest with
-      | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+      | Error message ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+        false
       | Ok policy ->
         Stdlib.printLine
           $"Profile {name} replaces the entire instance policy, including denies:"
@@ -465,6 +476,7 @@ let profile (args: List<String>) : Unit =
           Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ applied profile {name}")
         else
           Stdlib.printLine "Preview only. Repeat with --yes to apply."
+        true
 
 /// The rules given after a name on `approve`/`update`, `;`-separated like
 /// `set`. Ok None when there are none.
@@ -497,8 +509,9 @@ let approvalFailureText (failure: LanguageTools.Permissions.ApprovalFailure) : S
        + (diffs |> Stdlib.List.map (fun diff -> $"    {diff}") |> Stdlib.String.join "\n"))
 
 /// Approve <param hash> for <param name> and report: <param accepted> on success, the refusal (then
-/// <param kept>) when it cannot be approved. Some diffs when approving wants a second review of a
-/// changed contract and <param acknowledgeContractChange> was false; the caller shows them and asks.
+/// <param kept>) when it cannot be approved. Answers whether it approved, and Some diffs when
+/// approving wants a second review of a changed contract and <param acknowledgeContractChange> was
+/// false; the caller shows them and asks.
 let approveReporting
   (accountID: Stdlib.Option.Option<Uuid>)
   (name: String)
@@ -508,7 +521,7 @@ let approveReporting
   (acknowledgeContractChange: Bool)
   (accepted: String)
   (kept: String)
-  : Stdlib.Option.Option<List<String>> =
+  : (Bool * Stdlib.Option.Option<List<String>>) =
   match
     Command.approveVersionFor
       accountID
@@ -520,25 +533,28 @@ let approveReporting
   with
   | Ok _ ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success accepted)
-    Stdlib.Option.Option.None
+    (true, Stdlib.Option.Option.None)
   | Error(Refused message) ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
     if kept != "" then Stdlib.printLine kept else ()
-    Stdlib.Option.Option.None
-  | Error(ContractChanged diffs) -> Stdlib.Option.Option.Some diffs
+    (false, Stdlib.Option.Option.None)
+  | Error(ContractChanged diffs) -> (false, Stdlib.Option.Option.Some diffs)
 
 let approveNamed
   (state: Cli.AppState)
   (acceptWithoutPrompt: Bool)
   (name: String)
   (specs: List<String>)
-  : Unit =
+  : Bool =
   match Command.parseApprovalRules specs with
-  | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+  | Error message ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+    false
   | Ok rules ->
     match Command.latestVersion state.currentBranchId name with
     | None ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"unknown function: {name}")
+      false
     | Some hash ->
       let complete =
         Command.showVersionRequirements $"{name} {Command.shortVersion hash}" hash
@@ -558,7 +574,7 @@ let approveNamed
         // An explicit `permissions approve <name>` showed the requirements and
         // named this exact version; that is the contract review, so a changed
         // contract is acknowledged up front and no second review can be asked.
-        let _ =
+        let (approved, _diffs) =
           Command.approveReporting
             state.accountID
             name
@@ -568,9 +584,11 @@ let approveNamed
             true
             $"✓ approved {name} {Command.shortVersion hash}; the name follows this version"
             ""
-        ()
+        approved
       else
+        // Declining at the prompt is an answer, not a failure.
         Stdlib.printLine "not approved"
+        true
 
 /// Review a newer version: only an explicit yes accepts it; otherwise the approved version stands.
 /// A changed contract requires a second confirmation. Updates always
@@ -581,22 +599,27 @@ let updateNamed
   (acceptWithoutPrompt: Bool)
   (name: String)
   (specs: List<String>)
-  : Unit =
+  : Bool =
   let accountID = state.accountID
   match Command.parseApprovalRules specs with
-  | Error message -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+  | Error message ->
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+    false
   | Ok givenRules ->
     match Command.approvedVersionOf accountID name with
     | None ->
       Stdlib.printLine
         $"{name} has no approved version; run `permissions approve {name}` first"
+      false
     | Some approved ->
       match Command.latestVersion state.currentBranchId name with
       | None ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"unknown function: {name}")
+        false
       | Some latest ->
         if latest == approved then
           Stdlib.printLine $"{name} is up to date ({Command.shortVersion approved})"
+          true
         else
           // Rules given now win; otherwise the rules the consumer wrote when
           // approving carry over, and a derived effect set is recomputed from
@@ -616,7 +639,7 @@ let updateNamed
           let accepted = $"✓ {name} now follows {Command.shortVersion latest}"
           let approve
             (acknowledgeContractChange: Bool)
-            : Stdlib.Option.Option<List<String>> =
+            : (Bool * Stdlib.Option.Option<List<String>>) =
             Command.approveReporting
               accountID
               name
@@ -630,10 +653,13 @@ let updateNamed
             acceptWithoutPrompt
             || (Stdlib.Cli.UI.Prompt.confirm "Accept the new version?")
           if Stdlib.Bool.not acceptNew then
+            // Declining is an answer: the approved version stands, as asked.
             Stdlib.printLine kept
+            true
           else
-            match approve false with
-            | None -> ()
+            let (approvedFirst, review) = approve false
+            match review with
+            | None -> approvedFirst
             | Some diffs ->
               Stdlib.printLine
                 (Command.approvalFailureText
@@ -644,10 +670,11 @@ let updateNamed
                 || (Stdlib.Cli.UI.Prompt.confirm
                       "Accept the new version and its changed permission contract?")
               if acceptChanged then
-                let _ = approve true
-                ()
+                let (approvedSecond, _review) = approve true
+                approvedSecond
               else
                 Stdlib.printLine kept
+                true
 
 /// Run <param show> against the version <param target> names, or report an
 /// unknown function.
@@ -655,11 +682,14 @@ let withVersion
   (state: Cli.AppState)
   (target: String)
   (show: String -> List<String>)
-  : Unit =
+  : Bool =
   match Command.resolveVersionArg state target with
   | None ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"unknown function: {target}")
-  | Some hash -> Stdlib.printLines (show hash)
+    false
+  | Some hash ->
+    Stdlib.printLines (show hash)
+    true
 
 let printListOrNone (items: List<String>) : Unit =
   if Stdlib.List.isEmpty items then Stdlib.printLine "none"
@@ -695,98 +725,116 @@ let usageOf (subcommand: String) : Stdlib.Option.Option<String> =
   |> Stdlib.Option.andThen (fun (_name, usage) -> usage)
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  match args with
-  | []
-  | [ "list" ] -> Stdlib.printLines (Command.instancePolicyLines ())
-  | [ "help" ] -> Stdlib.printLine (Command.help state)
-  | "profile" :: args -> Command.profile args
-  // Before the `<subcommand> :: args` arms: a subcommand given with no
-  // argument must report usage, not run with an empty argument list (`set`
-  // with nothing would replace the policy with deny-all).
-  | [ subcommand ] when Stdlib.Option.isSome (Command.usageOf subcommand) ->
-    let usage = Stdlib.Option.withDefault (Command.usageOf subcommand) ""
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error $"missing argument; usage: permissions {usage}")
-  | "allow" :: rule ->
-    Command.editRules
-      rule
-      (fun rules -> Command.editInstancePolicy rules [] [])
-      "✓ policy updated"
-  | "deny" :: rule ->
-    Command.editRules
-      rule
-      (fun rules -> Command.editInstancePolicy [] rules [])
-      "✓ policy updated"
-  | "remove" :: rule ->
-    Command.editRules
-      rule
-      (fun rules -> Command.editInstancePolicy [] [] rules)
-      "✓ rule removed"
-  | [ "clear" ] ->
-    Command.editPolicy
-      (fun _ -> Stdlib.Result.Result.Ok(LanguageTools.Permissions.empty ()))
-      "✓ policy is now deny-all"
-  | "set" :: specs ->
-    Command.editPolicy (fun _ -> Command.replacePolicy specs) "✓ policy replaced"
-  | "approve" :: rest ->
-    match Command.takeYesFlag rest with
-    | (acceptWithoutPrompt, name :: rules) ->
-      Command.approveNamed state acceptWithoutPrompt name rules
-    | (_, []) ->
+  // Each arm says whether it did what was asked, so a refusal exits non-zero. They all returned
+  // Unit and one `state` closed the match, so `permissions zzz` printed "unknown permissions
+  // command" and exited 0, which is success to a shell, a CI step or an agent.
+  let ok =
+    match args with
+    | []
+    | [ "list" ] ->
+      Stdlib.printLines (Command.instancePolicyLines ())
+      true
+    | [ "help" ] ->
+      Stdlib.printLine (Command.help state)
+      true
+    | "profile" :: args -> Command.profile args
+    // Before the `<subcommand> :: args` arms: a subcommand given with no
+    // argument must report usage, not run with an empty argument list (`set`
+    // with nothing would replace the policy with deny-all).
+    | [ subcommand ] when Stdlib.Option.isSome (Command.usageOf subcommand) ->
+      let usage = Stdlib.Option.withDefault (Command.usageOf subcommand) ""
       Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.error "approve needs a function name")
-  | "update" :: rest ->
-    match Command.takeYesFlag rest with
-    | (acceptWithoutPrompt, name :: rules) ->
-      Command.updateNamed state acceptWithoutPrompt name rules
-    | (_, []) ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "update needs a function name")
-  | [ "unapprove", name ] ->
-    // An approval is keyed by the name as it was approved, so an unmatched name withdraws nothing;
-    // say so rather than report a release that did not happen.
-    let approvedNames =
-      Command.approvedVersions state.accountID
-      |> Stdlib.List.map (fun pair -> let (approvedName, _hash) = pair in approvedName)
-    if Stdlib.List.member_v0 approvedNames name then
-      Command.unapproveVersionFor state.accountID name
+        (Stdlib.Cli.UI.Colors.error $"missing argument; usage: permissions {usage}")
+      false
+    | "allow" :: rule ->
+      Command.editRules
+        rule
+        (fun rules -> Command.editInstancePolicy rules [] [])
+        "✓ policy updated"
+    | "deny" :: rule ->
+      Command.editRules
+        rule
+        (fun rules -> Command.editInstancePolicy [] rules [])
+        "✓ policy updated"
+    | "remove" :: rule ->
+      Command.editRules
+        rule
+        (fun rules -> Command.editInstancePolicy [] [] rules)
+        "✓ rule removed"
+    | [ "clear" ] ->
+      Command.editPolicy
+        (fun _ -> Stdlib.Result.Result.Ok(LanguageTools.Permissions.empty ()))
+        "✓ policy is now deny-all"
+    | "set" :: specs ->
+      Command.editPolicy (fun _ -> Command.replacePolicy specs) "✓ policy replaced"
+    | "approve" :: rest ->
+      match Command.takeYesFlag rest with
+      | (acceptWithoutPrompt, name :: rules) ->
+        Command.approveNamed state acceptWithoutPrompt name rules
+      | (_, []) ->
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.error "approve needs a function name")
+        false
+    | "update" :: rest ->
+      match Command.takeYesFlag rest with
+      | (acceptWithoutPrompt, name :: rules) ->
+        Command.updateNamed state acceptWithoutPrompt name rules
+      | (_, []) ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error "update needs a function name")
+        false
+    | [ "unapprove", name ] ->
+      // An approval is keyed by the name as it was approved, so an unmatched name withdraws nothing;
+      // say so rather than report a release that did not happen.
+      let approvedNames =
+        Command.approvedVersions state.accountID
+        |> Stdlib.List.map (fun pair -> let (approvedName, _hash) = pair in approvedName)
+      if Stdlib.List.member_v0 approvedNames name then
+        Command.unapproveVersionFor state.accountID name
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.success
+            $"✓ {name} has no approved version; it follows the latest again")
+        true
+      else
+        Stdlib.printLine (
+          Stdlib.Cli.UI.Colors.error
+            $"{name} has no approved version; `permissions approved` lists the ones that do")
+        false
+    | [ "approved" ] ->
+      Command.printListOrNone
+        ((Command.approvedVersions state.accountID)
+         |> Stdlib.List.map (fun pair ->
+           let (name, hash) = pair in $"{name}  {Command.shortVersion hash}"))
+      true
+    | [ "requirements", target ] ->
+      Command.withVersion state target (fun hash ->
+        [ Command.requirementDisplay hash ])
+    | [ "show", target ] ->
+      Command.withVersion state target (fun hash ->
+        Command.accessReportLines state.accountID hash)
+    | [ "revoke-package", hash ] ->
+      Command.revokeHash state.accountID hash
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ package approval revoked")
+      true
+    | [ "approvals" ] ->
+      // Name the ones an approved version points at. The rest are dependencies approved as part of
+      // some root's closure and have no name of their own, but a page of bare hashes gave no way to
+      // tell those two apart.
+      Command.printListOrNone (Command.namedApprovals state.accountID state.currentBranchId)
+      if Command.approvalsStale () then
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.warning
+            "! approval analysis changed since these were approved; re-review with `permissions approve <fn>`")
+      else
+        ()
+      true
+    | _ ->
       Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.success
-          $"✓ {name} has no approved version; it follows the latest again")
-    else
-      Stdlib.printLine (
-        Stdlib.Cli.UI.Colors.error
-          $"{name} has no approved version; `permissions approved` lists the ones that do")
-  | [ "approved" ] ->
-    Command.printListOrNone
-      ((Command.approvedVersions state.accountID)
-       |> Stdlib.List.map (fun pair ->
-         let (name, hash) = pair in $"{name}  {Command.shortVersion hash}"))
-  | [ "requirements", target ] ->
-    Command.withVersion state target (fun hash ->
-      [ Command.requirementDisplay hash ])
-  | [ "show", target ] ->
-    Command.withVersion state target (fun hash ->
-      Command.accessReportLines state.accountID hash)
-  | [ "revoke-package", hash ] ->
-    Command.revokeHash state.accountID hash
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ package approval revoked")
-  | [ "approvals" ] ->
-    // Name the ones an approved version points at. The rest are dependencies approved as part of
-    // some root's closure and have no name of their own, but a page of bare hashes gave no way to
-    // tell those two apart.
-    Command.printListOrNone (Command.namedApprovals state.accountID state.currentBranchId)
-    if Command.approvalsStale () then
-      Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.warning
-          "! approval analysis changed since these were approved; re-review with `permissions approve <fn>`")
-    else
-      ()
-  | _ ->
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error
-        ("unknown permissions command: " + Stdlib.String.join args " "))
-    Stdlib.printLine (Command.help state)
-  state
+        (Stdlib.Cli.UI.Colors.error
+          ("unknown permissions command: " + Stdlib.String.join args " "))
+      Stdlib.printLine (Command.help state)
+      false
+
+  Cli.exitWith state ok
 
 let complete
   (_state: Cli.AppState)

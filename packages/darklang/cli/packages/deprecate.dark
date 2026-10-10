@@ -208,17 +208,17 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | _ when Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
 
   | (None, _) ->
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
 
   | (_, None) ->
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
         "Error: Missing --kind. Use: superseded-by, harmful, or obsolete")
-    state
+    Cli.exitWith state false
 
   | (Some first, Some kindStr) ->
     let currentLoc = state.packageData.currentLocation
@@ -226,7 +226,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     match resolveKindAndTarget branchId currentLoc first parsed.target with
     | Error msg ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-      state
+      Cli.exitWith state false
     | Ok found ->
       let itemKind = found.itemKind
       let itemTypeStr = found.itemTypeStr
@@ -269,13 +269,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         match replacementResult with
         | Error msg ->
           Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-          state
+          Cli.exitWith state false
         | Ok replacementRef ->
 
         match parseKind itemKind kindStr replacementRef with
         | Error msg ->
           Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-          state
+          Cli.exitWith state false
         | Ok deprecationKind ->
           let fullPath =
             match Location.parseRelativeTo currentLoc target with
@@ -350,10 +350,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                   Stdlib.printLine
                     (Stdlib.Cli.UI.Colors.error
                       $"Not deprecated, though the op was written. That is a bug in op restatement -- please report it.")
-                  state
+                  Cli.exitWith state false
               | Error e ->
                 Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Deprecation failed: {e}")
-                state
+                Cli.exitWith state false
             else
               Cli.Stderr.line "Deprecation cancelled."
               Cli.exitWith state false
@@ -392,7 +392,7 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.hint
         "  puts a deprecated fn, type, value, trait or impl back on the shelf. `dark ls --include-deprecated` finds them.")
-    state
+    Cli.exitWith state false
   | [ target ] ->
     let currentLoc = state.packageData.currentLocation
 
@@ -413,14 +413,14 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.hint "  deprecated items are hidden; `dark ls --include-deprecated` shows them.")
 
-      state
+      Cli.exitWith state false
     | _ :: _ :: _ ->
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.error $"{target} names more than one kind of item")
       Stdlib.printLine
         (Stdlib.Cli.UI.Colors.hint "  say which: `dark deprecate <fn|type|value|trait|impl> <name>`")
 
-      state
+      Cli.exitWith state false
     | [ pair ] ->
       let (itemKind, targetRef) = pair
 
@@ -456,13 +456,13 @@ let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState
               (Stdlib.Cli.UI.Colors.error
                 $"Still deprecated, though the op was written. That is a bug in op restatement -- please report it.")
 
-            state
+            Cli.exitWith state false
         | Error e ->
           Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Undeprecate failed: {e}")
-          state
+          Cli.exitWith state false
   | _ ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "usage: dark undeprecate <name>")
-    state
+    Cli.exitWith state false
 
 
 /// `undeprecate`'s own help. Registered against `undeprecate`, not shared with `deprecate`, whose flags

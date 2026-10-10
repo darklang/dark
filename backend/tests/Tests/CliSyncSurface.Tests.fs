@@ -112,7 +112,7 @@ let pullKnowsItsOwnFlags =
         refuses
           state
           [ "pull"; "--nope" ]
-          "unknown flag"
+          "does not take `--nope`"
           "re-pulling"
           "an unknown flag is named, not read as a url"
       do! exits state [ "pull"; "--nope" ] 1L "and it is a failed command"
@@ -137,7 +137,7 @@ let syncTakesBranchesFlag =
           refuses
             state
             [ "sync"; "--nope" ]
-            "isn't a url"
+            "does not take `--nope`"
             "pushed"
             "an unknown flag is named rather than read as a url"
         do! exits state [ "sync"; "--nope" ] 1L "and it is a failed command"

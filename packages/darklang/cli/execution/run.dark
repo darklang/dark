@@ -85,12 +85,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine
       (Stdlib.Cli.UI.Colors.error
         "--sandbox and --warn-permissions cannot be combined: warn-only mode executes denied effects")
-    state
+    Cli.exitWith state false
   else
     match args with
     | [] ->
       Stdlib.printLine (help state)
-      state
+      Cli.exitWith state false
     | scriptPath :: scriptArgs ->
       executeScript state scriptPath scriptArgs allowHarmful sandbox warnPermissions
 
@@ -222,11 +222,12 @@ let runScript
             (Stdlib.List.append sessionAllow rules)
             (promptsLeft - 1)
         elif choice == allowAlways () then
-          Darklang.Cli.Permissions.Command.editPolicy
-            (fun current ->
-              Stdlib.Result.Result.Ok(
-                { current with allow = Stdlib.List.append current.allow rules }))
-            $"✓ allowed {rule}"
+          let _ =
+            Darklang.Cli.Permissions.Command.editPolicy
+              (fun current ->
+                Stdlib.Result.Result.Ok(
+                  { current with allow = Stdlib.List.append current.allow rules }))
+              $"✓ allowed {rule}"
           runScript
             state
             scriptPath

@@ -10,7 +10,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
   | [ "help" ] ->
     Stdlib.printLine (help state)
     state
@@ -34,7 +34,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine "Usage: db <DbName> <TypeName>"
     Stdlib.printLine ""
     Stdlib.printLine "Example: db UsersDB MyApp.User"
-    state
+    Cli.exitWith state false
 
   | [ dbName, typeName ] ->
     createDB state dbName typeName
@@ -43,7 +43,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Invalid command")
     Stdlib.printLine ""
     Stdlib.printLine "Run 'db help' for usage information"
-    state
+    Cli.exitWith state false
 
 
 let getDBTypeName
@@ -125,7 +125,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
   match getDBTypeName state dbName with
   | None ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: Database not found: {dbName}")
-    state
+    Cli.exitWith state false
   | Some typeName ->
     let fieldNames = getDBFieldNames state typeName
 
@@ -205,7 +205,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
 
     | Error err ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
-      state
+      Cli.exitWith state false
 
 
 let getDBValue
@@ -222,7 +222,7 @@ let getDBValue
   | Ok None -> state
   | Error err ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
-    state
+    Cli.exitWith state false
 
 
 let setDBValue
@@ -234,7 +234,7 @@ let setDBValue
   match getDBTypeName state dbName with
   | None ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: Database not found: {dbName}")
-    state
+    Cli.exitWith state false
   | Some typeName ->
     let expr =
       $"Stdlib.DB.set ({typeName} {valueExpr}) \"{key}\" {dbName}"
@@ -245,7 +245,7 @@ let setDBValue
       state
     | Error err ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
-      state
+      Cli.exitWith state false
 
 
 let deleteDBValue
@@ -261,7 +261,7 @@ let deleteDBValue
     state
   | Error err ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
-    state
+    Cli.exitWith state false
 
 
 let queryDB
@@ -278,7 +278,7 @@ let queryDB
   | Ok None -> state
   | Error err ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
-    state
+    Cli.exitWith state false
 
 
 let dropDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
@@ -288,14 +288,14 @@ let dropDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
     state
   | Error msg ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: {msg}")
-    state
+    Cli.exitWith state false
 
 
 let createDB (state: Cli.AppState) (dbName: String) (typeName: String) : Cli.AppState =
   match Location.parseRelativeTo state.packageData.currentLocation typeName with
   | Error msg ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: Invalid type name: {msg}")
-    state
+    Cli.exitWith state false
 
   | Ok typeLocation ->
     match LanguageTools.PackageManager.Type.find state.currentBranchId typeLocation with
@@ -306,7 +306,7 @@ let createDB (state: Cli.AppState) (dbName: String) (typeName: String) : Cli.App
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: Type not found: {fullTypeName}")
       Stdlib.printLine ""
       Stdlib.printLine "Make sure the type exists before creating a database for it."
-      state
+      Cli.exitWith state false
 
     | Some typeHash ->
       match Builtin.dbCreate dbName typeHash with
@@ -323,7 +323,7 @@ let createDB (state: Cli.AppState) (dbName: String) (typeName: String) : Cli.App
 
       | Error msg ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: Failed to create database: {msg}")
-        state
+        Cli.exitWith state false
 
 
 let help (_state: Cli.AppState) : String =

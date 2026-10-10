@@ -100,30 +100,6 @@ let locationStr (state: AppState) : String =
   | id when SCM.Branch.isMain id -> where
   | id -> $"{where} @{SCM.PackageOps.branchName id}"
 
-/// Refuse arguments a command does not understand, naming the first and the rest.
-///
-/// A command that picks out its flags with `List.member` and drops the rest answers
-/// a typo as though you had typed nothing: `dark commits zzznope` listed main's
-/// commits, which reads as an answer about `zzznope`. Returns whether it refused, so
-/// the caller stops.
-let refuseUnknownArgs
-  (command: String)
-  (understood: String)
-  (isKnown: String -> Bool)
-  (args: List<String>)
-  : Bool =
-  let unknown = args |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (isKnown a))
-
-  match unknown with
-  | [] -> false
-  | bad :: _ ->
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error $"{command} does not understand `{bad}`.")
-
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"  {understood}")
-    true
-
-
 /// Refuse a dash-led argument where a name belongs.
 ///
 /// A leading dash means someone mistyped a flag; it is never a name anyone meant

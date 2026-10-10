@@ -21,8 +21,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   match filteredArgs with
   | [] ->
-    Stdlib.printLine "Usage: hash <location>"
-    state
+    Cli.printErr "Usage: hash <location>"
+    Cli.exitWith state false
   | locationStr :: _ ->
     let branchId = state.currentBranchId
 

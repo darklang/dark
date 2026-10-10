@@ -61,7 +61,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
   | _ ->
     // Special case: a single "-" arg means "read expression from stdin" so
     // callers can pipe multi-line expressions via heredoc without quoting.
