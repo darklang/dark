@@ -279,8 +279,102 @@ gate_lsp_branches() {
   ! grep -q '"Parse error"' "$UTF8_OUT" || fail "a message after non-ASCII text did not parse"
   grep -q '"id":2' "$UTF8_OUT" || fail "a hover after a didChange holding non-ASCII text was not answered"
 
+  # Stdout is the protocol and nothing else: every byte belongs to a `Content-Length` frame whose body
+  # parses. Grepping for one known intruder (`From client` above) misses every other one, so this reads
+  # the whole stream, and says how many frames it read, since a check of an empty file passes.
+  frames_only() {
+    python3 - "$1" "$2" <<'PY'
+import json, sys
+b, floor = open(sys.argv[1], "rb").read(), int(sys.argv[2])
+i = frames = 0
+while i < len(b):
+    if not b.startswith(b"Content-Length: ", i):
+        sys.exit(f"{frames} frame(s), then bytes that are not one: {b[i:i+60]!r}")
+    j = b.index(b"\r\n\r\n", i)
+    n = int(b[i + 16:j])
+    json.loads(b[j + 4:j + 4 + n])
+    frames += 1
+    i = j + 4 + n
+if frames < floor:
+    sys.exit(f"only {frames} frame(s) on stdout, expected at least {floor}")
+print(f"{frames} frame(s), nothing else")
+PY
+  }
+  frames_only "$UTF8_OUT" 2 >/dev/null || fail "the session's stdout carried something other than frames"
+
+  # And a print inside the server's session, from user code or `Builtin.debug`, goes to stderr marked
+  # as stray, rather than between two frames, and rather than nowhere.
+  STRAY_OUT="$WORK/stray-out.txt"
+  printf 'Content-Length: %d\r\n\r\n%s' "${#INIT}" "$INIT" \
+    | timeout --kill-after=5 60 "$PWD/$CLI" eval '(let _ = Stdlib.claimStdoutForProtocol ()
+let _ = Stdlib.printLine "STRAY-IN-SESSION"
+let _ = Builtin.debug "stray" 7L
+Darklang.LanguageTools.LspServer.runServerCli ())' > "$STRAY_OUT" 2> "$WORK/stray-err.txt" || true
+  frames_only "$STRAY_OUT" 1 >/dev/null || fail "a print inside the session reached the protocol channel"
+  grep -q 'stray stdout.*STRAY-IN-SESSION' "$WORK/stray-err.txt" \
+    || fail "a print inside the session vanished instead of going to stderr"
+  # Marked or not: `Builtin.debug` may write to stderr on its own, which is just as good.
+  grep -q 'DEBUG: stray: 7' "$WORK/stray-err.txt" \
+    || fail "Builtin.debug inside the session vanished instead of going to stderr"
+
   rm -rf "$WORK"
   echo "dark/* branch surface: answers by name and by id, and reports main as a uuid plus a name; non-ASCII text does not desynchronise the stream."
+}
+
+# --- mcp-stdout: the MCP server's stdout is its protocol and nothing else ------------------------
+# The internal MCP server evaluates user code in-process (`execute_darklang`), and a `printLine` in
+# that code used to land as a bare line between two JSON-RPC messages, with `Builtin.debug` and the
+# server's own return value (`eval` printed a trailing `0`) the same way. The server now claims
+# stdout, so every other write goes to stderr marked as stray. This asserts both halves: stdout is
+# only JSON messages (and enough of them that the check read something), and the prints are on
+# stderr rather than gone.
+gate_mcp_stdout() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/mcp-stdout-test
+  fail() { echo "FAIL: $1" >&2; exit 1; }
+
+  [[ -x "$PWD/$CLI" ]] || {
+    echo "mcp-stdout: no CLI at $CLI" >&2
+    echo "  scripts/dev/build, and note that --optimize leaves no debug tree" >&2
+    exit 2
+  }
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK/cwd/rundir/logs"
+  scripts/testing/_copy-store "$WORK/data.db"
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  # The server writes its log file relative to its cwd, which the default policy does not grant.
+  "$PWD/$CLI" permissions allow all >/dev/null 2>&1 || true
+
+  OUT="$PWD/$WORK/out.txt"
+  ERR="$PWD/$WORK/err.txt"
+  CLI_ABS="$PWD/$CLI"
+  {
+    echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"gate","version":"0"}}}'
+    echo '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+    echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"execute_darklang","arguments":{"input":"Stdlib.printLine \"STRAY-FROM-USER-CODE\""}}}'
+    echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"execute_darklang","arguments":{"input":"Builtin.debug \"stray\" 5L"}}}'
+  } | (cd "$WORK/cwd" && timeout --kill-after=5 120 "$CLI_ABS" eval 'Darklang.Internal.DarklangInternalMcpServer.main ()') \
+    > "$OUT" 2> "$ERR" || true
+
+  python3 - "$OUT" <<'PY' || fail "the MCP server's stdout carried something other than its messages"
+import json, sys
+lines = [l for l in open(sys.argv[1], "rb").read().split(b"\n") if l.strip()]
+for l in lines:
+    json.loads(l)
+if len(lines) < 3:
+    sys.exit(f"only {len(lines)} message(s) on stdout, expected 3")
+PY
+  grep -q 'stray stdout.*STRAY-FROM-USER-CODE' "$ERR" \
+    || fail "a print from user code vanished instead of going to stderr"
+  # Marked or not: `Builtin.debug` may write to stderr on its own, which is just as good.
+  grep -q 'DEBUG: stray: 5' "$ERR" || fail "Builtin.debug vanished instead of going to stderr"
+
+  rm -rf "$WORK"
+  echo "MCP stdout: three messages and nothing else; user code's print and Builtin.debug went to stderr."
 }
 
 # --- lsp-typing: keystrokes are stored, not analysed ----------------------------------------------
@@ -455,4 +549,83 @@ print(f"a hover saw the change before it; a completion overtook it; a cancel sto
 EOF
 
   rm -rf "$WORK"
+}
+
+# --- prompts-unattended: a question nobody can answer is refused, never waited on -------------------
+# CI gives every step a pty, so "stdin is a terminal" said a person was there when nobody was, and a
+# confirmation blocked until the step timed out. And input ending used to read as an answer: `agent
+# ask < /dev/null` asked again forever, `conflicts walk` took the auto-pick, `install` downloaded a
+# release. A prompt now asks only when stdin and stderr are terminals and none of `--no-input`,
+# `DARK_NO_INPUT` or `CI` is set. The piped case always passed, which is how this survived, so the
+# cases here run under a real pty (`script`), each with a timeout that turns a hang into a failure.
+gate_prompts_unattended() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  WORK=rundir/prompts-unattended-test
+  fail() { echo "FAIL: $1" >&2; exit 1; }
+
+  [[ -x "$PWD/$CLI" ]] || {
+    echo "prompts-unattended: no CLI at $CLI" >&2
+    echo "  scripts/dev/build, and note that --optimize leaves no debug tree" >&2
+    exit 2
+  }
+  command -v script >/dev/null || { echo "prompts-unattended: no \`script\` for a pty" >&2; exit 2; }
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK"
+  scripts/testing/_copy-store "$WORK/data.db"
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+  export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+  CLI_ABS="$PWD/$CLI"
+  unset CI DARK_NO_INPUT
+
+  # Under a pty with nothing typed. `script` keeps the child's stdin a terminal even with ours empty.
+  # Escape sequences stripped: a pty gets colour, and the keypad-mode switch .NET writes on startup.
+  pty() {
+    timeout --kill-after=5 30 script -qec "$1" /dev/null < /dev/null 2>&1 \
+      | tr -d '\r' | sed -E 's/\x1b\[[0-9;?]*[a-zA-Z]//g; s/\x1b=//g'
+  }
+  can_ask='eval "Stdlib.Cli.UI.Prompt.canAsk ()"'
+  checked=0
+
+  [[ "$(pty "$CLI_ABS $can_ask" | tail -1)" == "true" ]] || fail "a plain pty should count as a person"
+  checked=$((checked + 1))
+  # A switch that is set to "off" is off. Getting these wrong refuses to prompt on someone's machine
+  # forever, with nothing to say why.
+  for env in "CI=0" "CI=false" "CI=" "DARK_NO_INPUT=0"; do
+    [[ "$(pty "env $env $CLI_ABS $can_ask" | tail -1)" == "true" ]] || fail "$env under a pty should still be a person"
+    checked=$((checked + 1))
+  done
+  for env in "CI=1" "DARK_NO_INPUT=1"; do
+    [[ "$(pty "env $env $CLI_ABS $can_ask" | tail -1)" == "false" ]] || fail "$env under a pty should mean nobody is there"
+    checked=$((checked + 1))
+  done
+  [[ "$(pty "$CLI_ABS --no-input $can_ask" | tail -1)" == "false" ]] || fail "--no-input under a pty should mean nobody is there"
+  checked=$((checked + 1))
+  [[ "$(pty "$CLI_ABS $can_ask 2>/dev/null" | tail -1)" == "false" ]] \
+    || fail "with stderr redirected the question can't be seen, so nobody can answer it"
+  checked=$((checked + 1))
+
+  # A confirmation under CI's pty: refused, exit 1, promptly. Before, this waited for a person.
+  "$CLI_ABS" fn PromptsGate.T.x '() : Int64 = 1L' >/dev/null 2>&1 < /dev/null || fail "could not author the draft to discard"
+  set +e
+  out=$(pty "env CI=1 $CLI_ABS discard; echo EXIT=\$?")
+  set -e
+  grep -q 'EXIT=1' <<<"$out" || fail "discard under CI's pty did not refuse with exit 1 (a timeout means it waited): $out"
+  grep -q 'kept' <<<"$out" || fail "discard under CI's pty did not say it kept the draft"
+  checked=$((checked + 1))
+
+  # The conversation that used to spin on an empty stdin.
+  set +e
+  timeout --kill-after=5 30 "$CLI_ABS" agent ask < /dev/null > "$WORK/agent-out" 2> "$WORK/agent-err"
+  code=$?
+  set -e
+  [[ $code -ne 124 && $code -ne 137 ]] || fail "agent ask with stdin empty hung"
+  grep -q 'nobody can answer' "$WORK/agent-err" || fail "agent ask with stdin empty did not say why it would not start"
+  checked=$((checked + 1))
+
+  "$CLI_ABS" discard -y >/dev/null 2>&1 < /dev/null || true
+  rm -rf "$WORK"
+  echo "prompts: $checked unattended cases refused or answered without waiting."
 }

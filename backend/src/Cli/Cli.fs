@@ -250,6 +250,14 @@ let execute
     let safeMode = List.contains "--safe" args
     // Boot-level; strip it so it doesn't reach the entry-point fn as a command arg.
     let args = args |> List.filter (fun a -> a <> "--safe")
+    // `--no-input`: nobody is here to answer, whatever the terminal says. Boot-level like `--safe`,
+    // and recorded as `DARK_NO_INPUT` so there is one switch with one spelling, which Dark reads
+    // through the terminal facts like the others.
+    // Through libc: Dark reads the environment with getenv(3), which never sees .NET's own copy.
+    if List.contains "--no-input" args then
+      LibExecution.HostLibc.setenv "DARK_NO_INPUT" "1"
+      |> ignore<Result<unit, int * string>>
+    let args = args |> List.filter (fun a -> a <> "--no-input")
     let settings = startupSettings ()
     let fnName =
       if safeMode then

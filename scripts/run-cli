@@ -7,17 +7,26 @@ PUBLISHED=false
 FLAGS=""
 NO_LOG=false
 
+# The wrapper's own flags come first, in any order, and are not passed on. Scanning
+# every argument and calling `shift` for a match dropped the FIRST argument whichever
+# one matched, so `run-cli eval x --no-log` ran `x --no-log` with the log still on.
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --published) PUBLISHED=true; shift ;;
+    --no-log) NO_LOG=true; shift ;;
+    *) break ;;
+  esac
+done
+
 for i in "$@"
 do
   case "${i}" in
-    --published) shift; PUBLISHED=true ;;
     --flags=*) FLAGS="${i#*=}" ;;
-    --no-log) shift; NO_LOG=true ;;
   esac
 done
 
 if [[ -n "$FLAGS" ]]; then
-  echo "Flags: $FLAGS"
+  echo "Flags: $FLAGS" >&2
 fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
@@ -59,6 +68,10 @@ export GIT_COMMIT
 if [[ "$NO_LOG" == "true" ]] || [ -t 1 ]; then
   exec "${EXE}" "$@"
 else
-  "${EXE}" "$@" 2>&1 | tee "${CLI_LOG}"
+  # Both streams go to the log, and each stays on its own stream. This used to be
+  # `2>&1 | tee`, which put every refusal and hint on stdout for anyone piping the
+  # CLI, agents included. fd 3 carries stdout past the inner tee, which takes stderr.
+  : > "${CLI_LOG}"
+  { "${EXE}" "$@" 2>&1 1>&3 3>&- | tee -a "${CLI_LOG}" >&2 3>&-; } 3>&1 | tee -a "${CLI_LOG}"
 fi
 

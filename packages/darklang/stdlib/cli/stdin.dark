@@ -3,11 +3,11 @@ module Darklang.Stdlib.Cli.Stdin
 
 /// Read one line from stdin, without its trailing newline. Blocks until a
 /// line (or EOF) arrives.
-/// Whether stdin is a terminal a person can type at (true on a pty -- CI included -- false on a pipe).
-let isInteractive () : Bool = Builtin.stdinIsInteractive ()
+/// One line from stdin, or None at its end, so a caller can tell an empty answer from no answer.
+let readLineOrEnd () : Stdlib.Option.Option<String> = Builtin.stdinReadLine ()
 
 let readLine () : String =
-  Builtin.stdinReadLine ()
+  Stdlib.Option.withDefault (readLineOrEnd ()) ""
 
 
 /// Read all of stdin, until EOF.
@@ -24,7 +24,7 @@ let readAll () : String =
 /// and a coalesced burst (a held key, or a paste delivering one character many times) appends
 /// `keyChar` `repeat` times so a pasted secret arrives whole.
 let readSecret () : String =
-  if Stdlib.Bool.not (isInteractive ()) then
+  if Stdlib.Bool.not (Stdlib.Cli.Tui.TerminalSupport.currentFacts ()).inputIsTerminal then
     readLine ()
   else
     let go (acc: String) : String =

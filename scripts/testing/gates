@@ -28,6 +28,7 @@ GATES=(
   lsp-branches
   lsp-typing
   lsp-concurrent
+  mcp-stdout
   workbench-scm
   workbench-views
   first-day
@@ -39,6 +40,7 @@ GATES=(
   trait-deprecation-is-per-branch
   trait-pin-across-branches
   hosted-db
+  prompts-unattended
   shipped-tree-typechecks
   gates-are-clean
 )
@@ -62,10 +64,10 @@ GATES=(
 # These are durations, so they drift with whatever else is on the box; the trait four were taken
 # while another clone was running perf experiments. Treat them as orders of magnitude against the
 # 5m bound, not as a budget. A gate reporting 0s has not run at all.
-CI_GATES=(relay-routes workbench-scm workbench-views lsp-branches lsp-typing lsp-concurrent
+CI_GATES=(relay-routes workbench-scm workbench-views lsp-branches lsp-typing lsp-concurrent mcp-stdout
           trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
           trait-deprecation-is-per-branch trait-pin-across-branches hosted-db
-          shipped-tree-typechecks)
+          shipped-tree-typechecks prompts-unattended)
 
 describe() {
   # shellcheck disable=SC2016  # the backticks are prose, not expansion
@@ -77,6 +79,7 @@ describe() {
     lsp-branches)           echo 'the `dark/*` branch surface, as an editor drives it' ;;
     lsp-typing)             echo 'keystrokes are stored; the next request analyses once' ;;
     lsp-concurrent)         echo 'a slow read does not hold up a fast one; a cancel stops the work' ;;
+    mcp-stdout)             echo "the MCP server's stdout carries only its JSON-RPC messages" ;;
     workbench-scm)          echo 'the workbench SCM views with real work in the store' ;;
     workbench-views)        echo 'every workbench view, one session each' ;;
     first-day)              echo 'a published binary, empty home, whole SCM workflow' ;;
@@ -88,6 +91,7 @@ describe() {
     trait-deprecation-is-per-branch) echo 'deprecating an implementation is branch-aware, display and dispatch' ;;
     trait-pin-across-branches) echo 'a saved call keeps its implementation across a branch boundary' ;;
     hosted-db)              echo 'a served handler reads and writes a user DB, and its functions commit' ;;
+    prompts-unattended)     echo 'a question nobody can answer is refused, never waited on' ;;
     shipped-tree-typechecks) echo 'every item in packages/ passes the at-rest checker, and enough were checked' ;;
     gates-are-clean)        echo 'no gate touches the shared dev store (slow: re-runs the rest)' ;;
     *)                      echo '?' ;;

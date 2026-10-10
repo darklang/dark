@@ -318,29 +318,16 @@ module BrowserBuiltins =
       { name = fn "stdinReadLine" 0
         typeParams = []
         parameters = [ Param.make "unit" TUnit "" ]
-        returnType = TString
-        description = "Reads a line from the keys the page pushes in."
+        returnType = TypeReference.option TString
+        description =
+          "Reads a line from the keys the page pushes in; a tab never ends."
         fn =
           (function
           | _, _, _, [| DUnit |] ->
             uply {
               let! line = readLine ()
-              return DString line
+              return LibExecution.Dval.optionSome KTString (DString line)
             }
-          | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
-        previewable = Impure
-        callEffects = set [ Effect.Stdin ]
-        deprecated = NotDeprecated }
-
-      { name = fn "stdinIsInteractive" 0
-        typeParams = []
-        parameters = [ Param.make "unit" TUnit "" ]
-        returnType = TBool
-        description = "True: the page's terminal is always a person."
-        fn =
-          (function
-          | _, _, _, [| DUnit |] -> Ply(DBool true)
           | _ -> incorrectArgs ())
         sqlSpec = NotQueryable
         previewable = Impure
@@ -361,6 +348,22 @@ module BrowserBuiltins =
         callEffects = set [ Effect.Stdin ]
         deprecated = NotDeprecated }
 
+      { name = fn "posixIsatty" 0
+        typeParams = []
+        parameters = [ Param.make "fd" TInt "" ]
+        returnType = TBool
+        description = "The tab's terminal is all three standard streams."
+        fn =
+          (function
+          | _, vm, _, [| DInt fd |] ->
+            let fd = intToInt32 vm fd
+            Ply(DBool(fd >= 0 && fd <= 2))
+          | _ -> incorrectArgs ())
+        sqlSpec = NotQueryable
+        previewable = Impure
+        callEffects = Set.empty
+        deprecated = NotDeprecated }
+
       { name = fn "cliTerminalSize" 0
         typeParams = []
         parameters = [ Param.make "unit" TUnit "" ]
@@ -372,22 +375,6 @@ module BrowserBuiltins =
           | _, _, _, [| DUnit |] ->
             let (width, height) = Browser.terminalSize ()
             DTuple(Dval.int (bigint width), Dval.int (bigint height), []) |> Ply
-          | _ -> incorrectArgs ())
-        sqlSpec = NotQueryable
-        previewable = Impure
-        callEffects = Set.empty
-        deprecated = NotDeprecated }
-
-      { name = fn "cliTerminalSessionInfo" 0
-        typeParams = []
-        parameters = [ Param.make "unit" TUnit "A unit" ]
-        returnType = TTuple(TBool, TBool, [ TString ])
-        description =
-          "(input is terminal, output is terminal, TERM): always a terminal here."
-        fn =
-          (function
-          | _, _, _, [| DUnit |] ->
-            DTuple(DBool true, DBool true, [ DString "xterm-256color" ]) |> Ply
           | _ -> incorrectArgs ())
         sqlSpec = NotQueryable
         previewable = Impure

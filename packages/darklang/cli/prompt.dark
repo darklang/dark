@@ -1,14 +1,12 @@
 module Darklang.Cli.Prompt
 
-/// Is stdin a terminal? Both confirmations need it, and a builtin gets one wrapper.
-let interactive () : Bool = Stdlib.Cli.Stdin.isInteractive ()
-
 /// Ask a yes/no question. `-y` and an empty answer proceed; a stdin nobody is holding does not.
 ///
 /// "Nobody is there" used to read as yes, which is the one direction a confirmation must not fail
 /// in: an unattended run that meant to go ahead can say `-y`, and one that did not meant to be
-/// stopped. CI gets a pty, so `interactive ()` answers YES there and this waits for a person who
-/// is not coming; pass `-y` for anything unattended.
+/// stopped. CI gets a pty, so a terminal alone would answer YES there and wait for a person who is
+/// not coming, which is why `Stdlib.Cli.UI.Prompt.canAsk` also honours `CI`, `DARK_NO_INPUT` and
+/// `--no-input`.
 ///
 /// Every caller exits 1 on a no, including the no that nobody gave. The action did not happen, and a
 /// script, a CI step or an agent reads exit 0 as "done". Don't turn a declined confirm back into a
@@ -16,24 +14,31 @@ let interactive () : Bool = Stdlib.Cli.Stdin.isInteractive ()
 let confirm (autoConfirm: Bool) (question: String) : Bool =
   if autoConfirm then
     true
-  else if Stdlib.Bool.not (interactive ()) then
+  else if Stdlib.Bool.not (Stdlib.Cli.UI.Prompt.canAsk ()) then
     false
   else
     Stdlib.printErrorLine question
-    let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
-    (response == "") || (response == "y") || (response == "Y")
+    // Input ending is not an empty answer: nobody said yes.
+    match Stdlib.Cli.Stdin.readLineOrEnd () with
+    | Some typed ->
+      let response = Stdlib.String.trim typed
+      (response == "") || (response == "y") || (response == "Y")
+    | None -> false
 
 /// Like <fn confirm>, but an empty answer and non-interactive stdin both mean no. For
 /// commands that throw work away, where a stray Return should not be a yes.
 let confirmExplicit (autoConfirm: Bool) (question: String) : Bool =
   if autoConfirm then
     true
-  else if Stdlib.Bool.not (interactive ()) then
+  else if Stdlib.Bool.not (Stdlib.Cli.UI.Prompt.canAsk ()) then
     false
   else
     Stdlib.printErrorLine question
-    let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
-    (response == "y") || (response == "Y")
+    match Stdlib.Cli.Stdin.readLineOrEnd () with
+    | Some typed ->
+      let response = Stdlib.String.trim typed
+      (response == "y") || (response == "Y")
+    | None -> false
 
 
 /// State for prompt-specific fields (text, cursor, history)

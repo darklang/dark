@@ -63,17 +63,27 @@ let execute (state: AppState) (args: List<String>) : AppState =
         Stdlib.printLine (View.formatSuccess message)
         state
     else
+      // Nobody there to ask, input ending, or an answer that isn't 1 or 2, is not option 2: that
+      // downloads a release, and anything but "1" used to pick it.
       let choice =
         if autoConfirm then
-          "1" // Default to copying current binary with --yes
+          Stdlib.Option.Option.Some "1" // Default to copying current binary with --yes
+        else if Stdlib.Bool.not (Stdlib.Cli.UI.Prompt.canAsk ()) then
+          Stdlib.Option.Option.None
         else
           Stdlib.printErrorLine "Choose installation method:"
           Stdlib.printErrorLine "1. Copy this binary (for testing local changes)"
           Stdlib.printErrorLine "2. Download latest release from GitHub"
-          Stdlib.printErrorLine "Choose option (1 or 2): "
-          (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
+          Stdlib.Cli.UI.Prompt.ask "Choose option (1 or 2):"
+          |> Stdlib.Option.map (fun c -> Stdlib.String.trim c)
 
-      if choice == "1" then
+      match choice with
+      | None ->
+        Cli.printErr
+          $"install asks how to install, and {Stdlib.Cli.UI.Prompt.nobodyCanAnswer ()}."
+        Cli.printHint "  dark install --yes copies this binary"
+        Cli.exitWith state false
+      | Some "1" ->
         match Installation.System.installFromCurrentBinary host autoConfirm with
         | Ok message ->
           Stdlib.printLine (View.formatSuccess message)
@@ -81,7 +91,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         | Error e ->
           Stdlib.printLine (View.formatError e)
           state
-      else
+      | Some "2" ->
         Stdlib.printLine "Installing globally..."
         match Installation.System.install host autoConfirm with
         | Ok message ->
@@ -90,7 +100,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
         | Error e ->
           Stdlib.printLine (View.formatError e)
           state
-
+      | Some other ->
+        Cli.printErr $"\"{other}\" isn't 1 or 2; nothing installed."
+        Cli.exitWith state false
 
 let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
   []

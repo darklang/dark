@@ -150,9 +150,11 @@ let findCliExecutable () : Stdlib.Option.Option<String> =
   else Stdlib.Option.Option.None
 
 let confirmCommand (cmd: String) : Bool =
-  Stdlib.printError (Stdlib.Cli.UI.Colors.warning $"Allow: {cmd}? (y/n): ")
-  let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
-  response == "y" || response == "Y"
+  match Stdlib.Cli.UI.Prompt.ask (Stdlib.Cli.UI.Colors.warning $"Allow: {cmd}? (y/n):") with
+  | Some typed ->
+    let response = Stdlib.String.trim typed
+    response == "y" || response == "Y"
+  | None -> false
 
 let runCliCommand
   (branchArg: String)
@@ -311,7 +313,12 @@ let runInteractiveLoop
   (history: List<Darklang.LLM.Provider.Message>)
   : Unit =
   Stdlib.printError (Stdlib.Cli.UI.Colors.dimText "you> ")
-  let input = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
+  // Input ending ends the conversation. Read as an empty line it asked again forever, which is how
+  // `agent ask < /dev/null` spun at full CPU with nothing on either stream.
+  let input =
+    match Stdlib.Cli.Stdin.readLineOrEnd () with
+    | Some typed -> Stdlib.String.trim typed
+    | None -> "exit"
 
   if Stdlib.String.isEmpty input then
     runInteractiveLoop agent history
@@ -352,7 +359,12 @@ let fixTaskPrompt (itemName: String) : String =
 let executeAsk (state: Cli.AppState) (provider: String) (options: AgentOptions) : Unit =
   let task = Stdlib.String.join options.args " "
   if Stdlib.String.isEmpty (Stdlib.String.trim task) then
-    runInteractive state provider options.provider options.model options.writeMode
+    if Stdlib.Cli.UI.Prompt.canAsk () then
+      runInteractive state provider options.provider options.model options.writeMode
+    else
+      Cli.printErr
+        $"agent ask with no task starts a conversation, and {Stdlib.Cli.UI.Prompt.nobodyCanAnswer ()}."
+      Cli.printHint "  give it the task instead: dark agent ask \"<task>\""
   else
     runAgent state provider options.provider options.model task WriteMode.Denied
 

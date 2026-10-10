@@ -45,6 +45,11 @@ let currentPid () : Int =
   Builtin.posixGetpid ()
 
 
+/// Whether a standard stream is a terminal: 0 is stdin, 1 stdout, 2 stderr (isatty).
+let isTerminal (fd: Int) : Bool =
+  Builtin.posixIsatty fd
+
+
 /// Check if the current user is root (uid 0).
 let isRoot () : Bool =
   (Builtin.posixGetuid ()) == 0

@@ -22,3 +22,16 @@ let printError (str: String): Unit =
 let printLines (lines: List<String>): Unit =
   lines
   |> List.iter(fun l -> printLine l)
+
+
+/// Make stdout this program's protocol channel, for a server that speaks a byte protocol over
+/// stdio (the LSP, an MCP server). From then on only <fn printProtocol> reaches stdout; any other
+/// print to stdout goes to stderr, marked as stray, so it can't land between two frames. False if
+/// stdout was already claimed.
+let claimStdoutForProtocol (u: Unit) : Bool =
+  Builtin.stdoutClaimForProtocol ()
+
+
+/// Write <param frame> whole to the stdout claimed by <fn claimStdoutForProtocol>.
+let printProtocol (frame: String) : Unit =
+  Builtin.stdoutWriteProtocol frame

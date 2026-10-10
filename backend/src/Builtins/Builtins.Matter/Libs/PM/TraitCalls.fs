@@ -198,7 +198,7 @@ let private askChecker
             | _ -> 0
           | _ -> 0
         if warnings > 0 then
-          print
+          printErr
             $"  [traitcalls] the checker reported no resolutions and {warnings} warning(s); the batch was not checked"
       return decoded
     | Error(rte, _) ->
@@ -206,7 +206,7 @@ let private askChecker
       // the zero is what nobody re-checks, so say which one happened. Kept deliberately: the
       // Dark side catches per item and turns each failure into an ordinary verdict, so this is
       // the only place a SYSTEMIC failure of the check would otherwise be invisible.
-      print $"  [traitcalls] the at-rest checker did not answer: {rte}"
+      printErr $"  [traitcalls] the at-rest checker did not answer: {rte}"
       return Map.empty
   }
 

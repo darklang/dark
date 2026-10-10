@@ -358,8 +358,9 @@ def run_once(binary, argv, trace, telemetry, fixture="UNSET"):
     # could not read a policy file a newer one had written, denied the workload's clock call on
     # every run, and looked 4% faster for it.
     rc = proc.returncode
-    if rc == 0 and ("Error when executing Script" in proc.stdout or "Script error:" in proc.stdout
-                    or "Error when executing Script" in proc.stderr):
+    # Both streams: a script's error and its call stack go to stderr now, stdout before that.
+    both = proc.stdout + proc.stderr
+    if rc == 0 and ("Error when executing Script" in both or "Script error:" in both):
         rc = 1
     return wall_ms, rc, read_telemetry(tel_path) if telemetry else {}
 

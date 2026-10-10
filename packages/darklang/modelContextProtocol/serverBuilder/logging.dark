@@ -14,4 +14,4 @@ let logIncomingRequestWithPath (logFilePath: String) (message: String) : Unit =
 
 let logAndSendToClientWithPath (logFilePath: String) (message: String) : Unit =
   logWithPath logFilePath $"Sending to client: {message}"
-  Stdlib.printLine message
+  Stdlib.printProtocol $"{message}\n"

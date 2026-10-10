@@ -813,6 +813,16 @@ ranking sweep examined ONE and its diff read as complete. Feed the inner command
 counting what the loop actually examined caught it, which is the general rule, and this is a
 particularly quiet instance of it.
 
+**`run-cli` used to merge stderr into stdout whenever stdout was not a terminal.** It ran
+`"$EXE" "$@" 2>&1 | tee cli.log`, so every redirected or piped run, every agent in this repo
+included, saw refusals, hints and prompts on stdout, and a grep that "found" an error message in
+`run-cli` output was usually reading stderr folded in. Four of eight research passes in one
+stdout/stderr survey measured a merged stream while believing they had two. It now tees each
+stream to the log and leaves it on its own stream. In a clone older than that change, pass
+`--no-log` as the FIRST argument (anywhere else it is passed to the CLI) or `docker exec` the
+binary; and `run-in-docker` forwards only `DARK_*`, `EDITOR` and `VISUAL`, so `NO_COLOR` and `CI`
+cannot be tested through `run-cli` at all.
+
 **Bracket every pattern you hand to `pgrep -f` / `pkill -f`.** The pattern appears in your own
 shell's command line, so an unbracketed one matches the process doing the matching. A waiter waits
 on itself forever; a `pkill -f "serve Foo"` kills the backgrounded shell whose command line
@@ -1234,17 +1244,25 @@ on a bare Enter. If Enter appears not to advance a prompt, suspect the harness f
 
 ## CI has a terminal, and that changes behaviour
 
-`Builtin.stdinIsInteractive ()` is false on a pipe and TRUE on a pty. CircleCI gives each
-step a pty, so anything gated on "is a human here?" answers YES in CI, and a command that
-then reads stdin blocks on a terminal nobody types into. Forever.
+CircleCI gives each step a pty, and a pty looks exactly like a person: stdin is a terminal
+either way. So anything that decides "is a human here?" from the terminal alone answers YES in
+CI, and a command that then reads stdin blocks on a terminal nobody types into. Forever. It
+presents as a hang, not a failure: no error, no output, and the step killed for silence with
+nothing in the log naming the culprit.
 
-It presents as a hang, not a failure: no error, no output, and the step killed for
-silence with nothing in the log naming the culprit.
+The builtin that made this easy to get wrong is gone. `stdinIsInteractive` was "stdin OR stdout
+is a terminal", true on any pty and true even with stdin empty, and the prompts trusted it. In its
+place is one predicate, `Stdlib.Cli.UI.Prompt.canAsk`, written in Dark over the facts
+`cliTerminalSessionInfo` reports: stdin AND stderr are terminals, and none of `CI`,
+`DARK_NO_INPUT` or `dark --no-input` says nobody is there. Every prompt in the CLI goes through it
+and refuses naming the flag to pass. And input ending is never
+an answer: `Stdlib.Cli.Stdin.readLineOrEnd` gives None, which is how `agent ask < /dev/null`
+used to ask again forever at full CPU. `gates prompts-unattended` holds both, under a real pty.
 
-So anything unattended passes `--yes` explicitly. Never rely on being detected as
-non-interactive, and never test a destructive command without it. Reproducing this class
-needs a real terminal, which `tmux` gives you (see above); the same run from a pipe
-passes, which is why it survives local testing.
+What is left of the trap is code that reads the terminal some other way, a new prompt that skips
+`canAsk`, or a child process: pass `--yes` for anything unattended, and never test a destructive
+command without it. Reproducing this class needs a real terminal, which `tmux` or `script` gives
+you; the same run from a pipe passes, which is why it survived local testing.
 
 Three things make the next one findable, all in place:
 
@@ -1299,7 +1317,7 @@ The point of all this is that a green F# build says nothing about Dark, which re
 
 ## Debugging
 
-    Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout
+    Builtin.debug "label" value   # prints DEBUG: label: <repr> to stderr
     eval <expr>                   # test small pieces
 
 **A truncated answer is worse than no answer, because it justifies doing nothing.** `tail -3` on a

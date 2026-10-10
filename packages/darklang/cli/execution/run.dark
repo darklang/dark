@@ -120,11 +120,11 @@ let executeScript
 
         [ $"{scriptPath} isn't a script file."
           $"  `run` executes a script; that looks like a package function. Try:  {evalCmd}" ]
-        |> Stdlib.printLines
+        |> Stdlib.List.iter (fun l -> Stdlib.printErrorLine l)
       else
-        Stdlib.printLine $"Script not found: {scriptPath}"
-    | OsAccessDenied -> Stdlib.printLine $"Permission denied: {scriptPath}"
-    | Other msg -> Stdlib.printLine $"Could not read script {scriptPath}: {msg}"
+        Stdlib.printErrorLine $"Script not found: {scriptPath}"
+    | OsAccessDenied -> Stdlib.printErrorLine $"Permission denied: {scriptPath}"
+    | Other msg -> Stdlib.printErrorLine $"Could not read script {scriptPath}: {msg}"
     // Every branch above printed a reason the script did not run, so this is a failure. Saying
     // so in the exit code is the only part a script or an agent can read.
     { state with exitCode = 1 }
@@ -150,12 +150,12 @@ let printScriptError (state: AppState) (e: ExecutionError.ExecutionError) : AppS
   match e with
   | Denied denied ->
     if denied.callStack != "" then
-      Stdlib.printLine $"Error when executing Script. Call-stack:\n{denied.callStack}"
+      Stdlib.printErrorLine $"Error when executing Script. Call-stack:\n{denied.callStack}"
     else
       ()
   | _ -> ()
   let pretty = ExecutionError.toString state.currentBranchId e
-  Stdlib.printLine $"Script error: {pretty}"
+  Stdlib.printErrorLine $"Script error: {pretty}"
   { state with exitCode = 1 }
 
 /// Run the script and, at an interactive terminal, offer to retry an
@@ -187,18 +187,18 @@ let runScript
   | Ok((exitCode, violations)) ->
     match permissionWarningLines violations with
     | [] -> ()
-    | lines -> Stdlib.printLines lines
+    | lines -> Stdlib.List.iter lines (fun l -> Stdlib.printErrorLine l)
     if exitCode == 0 then
       state
     else
-      Stdlib.printLine $"Script exited with code {Stdlib.toString exitCode}"
+      Stdlib.printErrorLine $"Script exited with code {Stdlib.toString exitCode}"
       { state with exitCode = exitCode }
   | Error(Denied denied) ->
     let canAsk =
       promptsLeft > 0
       && Stdlib.Bool.not sandbox
       && Stdlib.Bool.not warnPermissions
-      && (Stdlib.Cli.Tui.TerminalSupport.currentFacts ()).inputIsTerminal
+      && Stdlib.Cli.UI.Prompt.canAsk ()
     match denied.rule with
     | Some rule when canAsk ->
       match LanguageTools.Permissions.parseRuleText rule with
@@ -207,9 +207,11 @@ let runScript
           (Stdlib.Cli.UI.Colors.warning
             $"The script wants {denied.resource}, which the instance policy does not allow.")
         let choice =
-          Stdlib.Cli.UI.Prompt.select
-            $"Allow `{rule}`?"
-            [ allowOnce (), allowAlways (), denyChoice () ]
+          Stdlib.Option.withDefault
+            (Stdlib.Cli.UI.Prompt.select
+              $"Allow `{rule}`?"
+              [ allowOnce (), allowAlways (), denyChoice () ])
+            (denyChoice ())
         if choice == allowOnce () then
           runScript
             state
