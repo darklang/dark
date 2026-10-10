@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+# _op-identity: does an upgrade keep every package op's identity?
+#
+#   _op-identity snapshot <store.db> <snapshot.tsv>          before: each op's id and blob format
+#   _op-identity check <snapshot.tsv> <store.db> <format>    after
+#
+# `check` asserts, against the store after the upgrade:
+#   - every op id from before is still there (an op's id is its content hash, and the op log is the one
+#     table nothing can regenerate);
+#   - every op that was older than <format> is at <format> now, under the same id;
+#   - every reference to an op id (op_owners, op_branches, seed_ops, sync_pushed, locations) names an op
+#     that exists.
+# It prints what it examined, and exits 1 on any failure or if it examined no ops at all.
+import sqlite3, sys
+
+
+def ops(path):
+    c = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    return {
+        i: int.from_bytes(b[:4], "little") if len(b) >= 4 else 0
+        for i, b in c.execute("SELECT id, op_blob FROM package_ops")
+    }
+
+
+if sys.argv[1] == "snapshot":
+    with open(sys.argv[3], "w") as f:
+        for i, v in sorted(ops(sys.argv[2]).items()):
+            f.write(f"{i}\t{v}\n")
+    sys.exit(0)
+
+_, _, snap, store, fmt = sys.argv
+fmt = int(fmt)
+before = dict(line.rstrip("\n").split("\t") for line in open(snap))
+before = {i: int(v) for i, v in before.items()}
+after = ops(store)
+missing = [i for i in before if i not in after]
+older = [i for i, v in before.items() if v < fmt]
+unmoved = [i for i in older if i in after and after[i] != fmt]
+
+c = sqlite3.connect(f"file:{store}?mode=ro", uri=True)
+tables = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+refs = 0
+per_table = []
+dangling = []
+for table, where in (
+    ("op_owners", ""),
+    ("op_branches", ""),
+    ("seed_ops", ""),
+    ("sync_pushed", ""),
+    ("locations", "WHERE op_id <> ''"),
+):
+    if table not in tables:
+        continue
+    cols = {r[1] for r in c.execute(f"PRAGMA table_info('{table}')")}
+    if "op_id" not in cols:
+        continue
+    n, bad = c.execute(
+        f"SELECT count(*), coalesce(sum(op_id NOT IN (SELECT id FROM package_ops)), 0) FROM {table} {where}"
+    ).fetchone()
+    refs += n
+    per_table.append(f"{table} {n}")
+    if bad:
+        dangling.append(f"{table}: {bad} of {n}")
+
+print(
+    f"{len(before)} op ids before, {len(before) - len(missing)} unchanged; "
+    f"{len(older)} older than format {fmt}, {len(older) - len(unmoved)} rewritten in place; "
+    f"{refs} op references ({', '.join(per_table) or 'no reference tables'}), "
+    f"{sum(int(d.split(': ')[1].split(' ')[0]) for d in dangling)} dangling"
+)
+for i in missing[:5]:
+    print(f"  missing after the upgrade: {i}")
+for i in unmoved[:5]:
+    print(f"  still at format {after[i]}: {i}")
+for d in dangling:
+    print(f"  dangling: {d}")
+sys.exit(1 if (missing or unmoved or dangling or not before) else 0)

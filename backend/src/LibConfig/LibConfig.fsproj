@@ -18,6 +18,14 @@
       <EmbeddedResource Include="$(IntermediateOutputPath)build-hash.txt" />
     </ItemGroup>
   </Target>
+  <!-- Which release this is, or which it comes after; see scripts/build/_release-tag. -->
+  <Target Name="EmbedReleaseTag" BeforeTargets="BeforeBuild">
+    <MakeDir Directories="$(IntermediateOutputPath)" />
+    <Exec Command="bash $(MSBuildThisFileDirectory)../../../scripts/build/_release-tag &gt; $(IntermediateOutputPath)release-tag.txt" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(IntermediateOutputPath)release-tag.txt" />
+    </ItemGroup>
+  </Target>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>

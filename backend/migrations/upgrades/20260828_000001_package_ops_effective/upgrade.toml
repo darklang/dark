@@ -1,0 +1,8 @@
+# Defaults are chosen so existing rows keep the meaning they already had:
+# `effective = 1`  -- everything in an old store is main's, and main's ops take effect.
+# `parent_id`      -- main's well-known id, which is what every pre-branch branch forked from.
+# `op_id`, `previous`, `author`, `origin_ts` -- empty, meaning "not recorded", which is true.
+
+kind = "shape"
+after = ["20260819_000001_commits_parent"]
+touches = ["package_ops"]

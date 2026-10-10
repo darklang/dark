@@ -1,0 +1,12 @@
+# What each trace weighs, on its own row, so retention can apply `trace.maxMb` from one
+# read of `traces` rather than summing `trace_fn_calls`, the table it exists to bound.
+#
+# The backfill only touches rows still at 0, so a run cut off halfway (or before the
+# UPDATE, after the ALTER) is finished by the next one rather than skipped. One statement,
+# so an interruption rolls it back whole. Measured on a 989 MB dev store, 12 traces over
+# 82,390 logged calls: 90 ms, and 6 ms to run again over a finished backfill.
+
+kind = "data"
+after = ["20260930_000002_package_functions_debug_symbols"]
+touches = ["traces", "trace_fn_calls"]
+transactional = false

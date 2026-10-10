@@ -42,6 +42,69 @@ let fns () : List<BuiltInFn> =
   [
     // This instance's OWN package store path (data.db). The op-log builtins write ops here; the sync config
     // tables (sync_peers/sync_cursors) live here too — the daemon/CLI don't have to know the path.
+    // What this binary knows about store upgrades and formats, for `dark store` to set against what the
+    // store records. Facts only; the Dark side says what they mean.
+    { name = fn "storeUpgradesKnown" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList TString
+      description =
+        "The names of the store upgrades this binary carries (backend/migrations/upgrades/), in the order it runs them."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            return
+              LibDB.UpgradeRegistry.sources
+              |> List.map LibDB.Upgrades.load
+              |> LibDB.Upgrades.order
+              |> List.map (fun u -> DString u.name)
+              |> Dval.list KTString
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "storeFormatCurrent" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TInt64
+      description = "The blob format version this binary writes."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            return DInt64(int64 LibSerialization.Binary.BaseFormat.CurrentVersion)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "storeFormatOldestReadable" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TInt64
+      description = "The oldest blob format version this binary still reads."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            return
+              DInt64(int64 LibSerialization.Binary.BaseFormat.OldestReadableVersion)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "localDbPath" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]

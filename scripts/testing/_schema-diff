@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+# _schema-diff <fresh.db> <upgraded.db>: how an upgraded store's shape differs from a fresh one's.
+# Compares tables, each column's (type, NOT NULL, default, pk), and index names with their columns.
+# Column ORDER is ignored (ALTER TABLE ADD COLUMN appends, so an upgraded table legitimately orders
+# differently). Prints one line per difference and a final "examined" line; exit 1 if any differ.
+import sqlite3, sys
+
+
+def shape(path):
+    c = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    tables, indexes = {}, {}
+    for (t,) in c.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    ):
+        tables[t] = {
+            r[1]: (r[2].upper(), r[3], r[4], r[5])
+            for r in c.execute(f"PRAGMA table_info('{t}')")
+        }
+    for (i, t) in c.execute(
+        "SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'"
+    ):
+        cols = tuple(r[2] for r in c.execute(f"PRAGMA index_info('{i}')"))
+        indexes[i] = (t, cols)
+    return tables, indexes
+
+
+fresh_t, fresh_i = shape(sys.argv[1])
+up_t, up_i = shape(sys.argv[2])
+diffs = []
+for t in sorted(set(fresh_t) - set(up_t)):
+    diffs.append(f"table {t}: in a fresh store, missing from the upgraded one")
+for t in sorted(set(up_t) - set(fresh_t)):
+    diffs.append(f"table {t}: only in the upgraded store")
+for t in sorted(set(fresh_t) & set(up_t)):
+    f, u = fresh_t[t], up_t[t]
+    for col in sorted(set(f) - set(u)):
+        diffs.append(f"column {t}.{col}: missing from the upgraded store")
+    for col in sorted(set(u) - set(f)):
+        diffs.append(f"column {t}.{col} {u[col]}: only in the upgraded store")
+    for col in sorted(set(f) & set(u)):
+        if f[col] != u[col]:
+            diffs.append(f"column {t}.{col}: fresh {f[col]}, upgraded {u[col]}")
+for i in sorted(set(fresh_i) - set(up_i)):
+    diffs.append(f"index {i} on {fresh_i[i][0]}: missing from the upgraded store")
+for i in sorted(set(up_i) - set(fresh_i)):
+    diffs.append(f"index {i} on {up_i[i][0]}: only in the upgraded store")
+for i in sorted(set(fresh_i) & set(up_i)):
+    if fresh_i[i] != up_i[i]:
+        diffs.append(f"index {i}: fresh {fresh_i[i]}, upgraded {up_i[i]}")
+
+for d in diffs:
+    print(d)
+cols = sum(len(v) for v in fresh_t.values())
+print(f"examined {len(fresh_t)} tables, {cols} columns, {len(fresh_i)} indexes; {len(diffs)} differ")
+sys.exit(1 if diffs else 0)

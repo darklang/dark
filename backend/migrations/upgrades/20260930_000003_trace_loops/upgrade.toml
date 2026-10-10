@@ -1,0 +1,11 @@
+# How many times each loop in a run went round, so a view that could not replay every pass
+# can still say how many there were. `08-traces.sql` declares it for fresh stores; this
+# carries it to the ones that already exist.
+#
+# No backfill. A trace recorded before this has no counts and never will: they were not
+# written down when it ran. Those traces keep working, reporting the passes a replay can
+# reach, which is exactly what they did before.
+
+kind = "shape"
+after = ["20260928_000001_trace_fns_fn_hash"]
+touches = ["trace_loops"]

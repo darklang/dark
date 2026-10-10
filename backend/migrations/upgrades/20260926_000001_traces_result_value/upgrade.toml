@@ -1,0 +1,6 @@
+# What the run answered: the other half of what its row records, and what `traces inspect`
+# ends with. Nothing stored the output before this.
+
+kind = "shape"
+after = ["20260924_000006_traces_entry_hash"]
+touches = ["traces"]

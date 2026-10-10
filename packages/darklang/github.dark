@@ -49,34 +49,35 @@ module Releases =
     | Error _e ->
       Stdlib.Result.Result.Error "Couldn't fetch releases list from GitHub API"
 
-  /// Get the build hash version from the latest release assets
-  /// Returns in CLI format (e.g. "alpha-abe74e7") for version comparison
-  let getLatestReleaseBuildHash () : Stdlib.Result.Result<String, String> =
+  /// The latest release, as its tag and its build in CLI format: `("v0.0.74", "alpha-abe74e7")`. The build
+  /// is read off an asset's name (`darklang-alpha-BUILDHASH-platform`), and is the tag again when there is
+  /// no asset to read it from.
+  let getLatestRelease () : Stdlib.Result.Result<(String * String), String> =
     match fetchString $"{darklangRepoBaseUrl}/releases" with
     | Ok releasesJsonString ->
       match Stdlib.Json.parse<List<Release>> releasesJsonString with
       | Ok releases ->
         match Stdlib.List.head releases with
         | Some latestRelease ->
+          let tag = latestRelease.tag_name
           match Stdlib.List.head latestRelease.assets with
           | Some firstAsset ->
-            // Asset name format: darklang-alpha-BUILDHASH-platform
             let parts = Stdlib.String.split firstAsset.name "-"
             match Stdlib.List.getAt parts 2 with
-            | Some hash ->
-              // Return in same format as CLI version (first 7 chars)
-              Stdlib.Result.Result.Ok $"alpha-{Stdlib.String.slice hash 0 7}"
-            | None ->
-              // Fallback to tag name if we can't parse hash
-              Stdlib.Result.Result.Ok latestRelease.tag_name
-          | None ->
-            // No assets, fallback to tag name
-            Stdlib.Result.Result.Ok latestRelease.tag_name
+            // The same 7 characters the CLI's own version carries.
+            | Some hash -> Stdlib.Result.Result.Ok((tag, $"alpha-{Stdlib.String.slice hash 0 7}"))
+            | None -> Stdlib.Result.Result.Ok((tag, tag))
+          | None -> Stdlib.Result.Result.Ok((tag, tag))
         | None -> Stdlib.Result.Result.Error "No releases found"
       | Error _e ->
         Stdlib.Result.Result.Error "Couldn't parse releases JSON string"
     | Error _e ->
       Stdlib.Result.Result.Error "Couldn't fetch releases list from GitHub API"
+
+
+  /// The latest release's build, in CLI format (e.g. "alpha-abe74e7"), for comparing with `cliVersion`.
+  let getLatestReleaseBuildHash () : Stdlib.Result.Result<String, String> =
+    getLatestRelease () |> Stdlib.Result.map (fun (_, build) -> build)
 
 
   /// The asset for one platform id, matched by SUFFIX.

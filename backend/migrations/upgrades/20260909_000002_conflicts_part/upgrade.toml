@@ -1,0 +1,6 @@
+# A doc divergence is about one PART of a declaration, and settling it means writing that part.
+# Without this the resolution path could name the conflict but not what it was about.
+
+kind = "shape"
+after = ["20260909_000001_location_docs"]
+touches = ["conflicts"]

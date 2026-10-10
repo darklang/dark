@@ -639,6 +639,10 @@ let private applyDecision
       // error in both places rather than a silent no-op in one of them.
       ()
 
+    | PT.DecisionKind.Propagation _ ->
+      // Historical wire case: the op is kept and read, and has no effect. Pin/follow is gone.
+      ()
+
     | PT.DecisionKind.Ack findingId ->
       // A finding nobody has answered isn't stored at all -- only answers are rows, because detection
       // re-derives the findings whenever anyone asks.

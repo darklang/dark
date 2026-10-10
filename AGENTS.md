@@ -449,8 +449,8 @@ says nothing at all.
         cli/stdin.dark    #   reads keys
         cli/tui/          #   paints: view types, frame diffing, terminal session
         cli/ui/           #   composes: widgets, layout, the palette
-    backend/migrations/   # schema/, the from-scratch shape; changes to an existing store go in
-                          # LibDB/Releases.fs
+    backend/migrations/   # schema/, the frozen base shape; upgrades/, one directory per change to
+                          # an existing store (LibDB/Upgrades.fs runs them)
     rundir/logs/          # log files
     scripts/dev/          # start, build, plan, status, watch, host-port
     scripts/build/        # the build itself; `_` ones are called by other scripts
@@ -508,7 +508,7 @@ simply not been pointed at, which is what a second `Builtin.x` reference usually
 `package_ops` is canonical and append-only; an op's id IS its content hash. Everything else -- `locations`,
 `package_functions`, `package_dependencies`, `propagation_policy` -- is a projection you can drop and
 re-fold from the log. That is why a schema change to a projection costs nothing and a change to a canonical
-table needs `LibDB/Releases.fs`.
+table needs an upgrade (`backend/migrations/upgrades/`).
 
 The decisions live in Dark; F# does what only F# can do (parse, hash, serialize, execute, store bytes).
 
@@ -528,7 +528,7 @@ The decisions live in Dark; F# does what only F# can do (parse, hash, serialize,
     LibDB/Draft.fs             # discard / un-stage; the only code that edits `locations` outside the fold
     LibDB/Branches.fs          # branch tables + the merge MECHANISM (the gate is in Dark)
     LibDB/Propagation.fs       # the cascade: who depends on what moved
-    LibDB/Releases.fs          # shape changes to canonical tables on existing stores
+    LibDB/Upgrades.fs          # runs backend/migrations/upgrades/, the shape changes to existing stores
 
 **Last-writer-wins lives in `LibExecution/Lww.fs`, and asking it twice is the bug.** Two different things need
 the rule: the fold decides which binding survives, and conflict recording decides which side to NAME as
@@ -707,22 +707,50 @@ package manager" at dispatch.
 
 ## Changing the schema
 
-**A `migrations/schema/*.sql` file is frozen once it has merged to main.** Those files declare the shape
-a FRESH store is born with, and they are read by every store that has ever been made from them. Editing
-one after it has merged makes the same filename mean two different things depending on when you pulled.
+**An upgrade is a directory: `backend/migrations/upgrades/<name>/`.** `scripts/migrations/new <tag>` makes
+one. It holds `upgrade.toml` (`kind`, `after`, `touches`), and either `shape.sql` (statements safe to run
+twice, plus `add-column <table> <column> <declaration>`, the one form SQLite cannot say) or `step.fs`
+when the upgrade is code. A store records an upgrade by its directory's name once it has run, so a fresh
+store and an old one get it the same way, and there is no second place to declare it.
 
-So:
+- Order comes from `after`, not from names or numbers. Two upgrades that touch the same table must be
+  ordered: if neither comes after the other, the runner refuses and names the line to add to the later
+  one's spec. So two PRs that each add an upgrade never edit a common file; the list of upgrades is
+  generated at build (`scripts/build/_gen-upgrade-registry`).
+- A shape upgrade runs in one transaction with its record: all of it, or none of it and not recorded.
+- Never rename an upgrade's directory. Its name is how every store remembers having run it.
+- `backend/migrations/schema/*.sql` is the frozen base, read by every store ever made from it; never edit
+  a merged one, and a new table is an upgrade like anything else. (Two numbers are already used twice,
+  `10-` and `11-`, which is the kind of collision the upgrade directories avoid.)
 
-- A NEW TABLE goes in a NEW numbered file (`10-executions.sql`), never appended to a merged one.
-- A file that has not merged yet is still yours: edit it in place until the PR lands.
-- A NEW COLUMN on an already-merged table is the one exception, and it takes both halves:
-  - declare it in the file that declares the table, for fresh stores, with a comment saying why;
-  - carry it to existing stores with a step in `LibDB/Releases.fs`.
-  There is no third option: a schema file only ever runs `CREATE TABLE` / `CREATE INDEX` /
-  `INSERT OR IGNORE` statements (`Releases.applySchemaTables`), so a patch file cannot `ALTER`.
+A published binary opening an existing store: base tables (`CREATE TABLE IF NOT EXISTS`, so an existing
+table keeps its old shape), then the upgrades it has not run, then the base indexes, then the release's
+packages, the fold, and a check that the store holds every package item the binary pins. Only then is
+it stamped current; on any failure it is put back from the backup taken first, and refused.
+`LocalExec` (dev only) also keeps a schema hash and drops and re-folds the projection tables when it
+moves.
 
-Adding a file changes the schema hash, which drops and re-folds the projection tables. That is cheap and
-expected; canonical tables are never dropped, which is the reason a column needs the `Releases` step.
+`gates old-release-stores` opens stores made by pinned old releases with the tree's published binary.
+It is the only thing that exercises this path, so run it after anything here, and after a rebase. It fails
+if an upgraded store's tables, columns or indexes differ from a fresh store's, which is what an edit to a
+merged base file looks like from outside: `propagation_policy` was removed that way and stayed in every
+older store until an upgrade dropped it.
+
+**A blob format is a contract with two halves, and both are tested.** Today's writer produces the
+committed bytes (`backend/testfiles/serialization-artifacts/*-latest-*.bin`), and every byte file ever
+committed still decodes (`history/`, kept forever under each file's hash).
+
+- Changing what a writer emits, or removing anything a reader accepts, is a format bump: a new
+  `CurrentVersion` in `LibSerialization/Binary/BaseFormat.fs`, the old reader kept beside the new one,
+  and an upgrade unit that calls `Upgrades.rewriteBlobsToCurrentFormat`.
+- Never delete a file from `history/`, and never remove a case a reader decodes, retired or not. A red
+  "every golden ever committed still decodes" means a reader was lost, not that a file is stale.
+- Both have happened without a bump. The source-control rewrite changed the op vocabulary under format
+  1, so a v0.0.34 store's ops say 1 and today's reader decodes 18 of 11,580; and the retired
+  `Propagation` decision was deleted with its own test value in one commit, its comment saying it was
+  kept to decode historical ops. The writer test could not see either; the history test sees the second.
+- A test value must not depend on anything outside the format: no `gid ()`, no hash from the gitignored
+  pins file. Either makes a golden change with no format change.
 
 **Two branches adding an instruction both take the next tag.** An `Instruction` case needs a
 number in three places: `Opcode.index` (RuntimeTypes.fs) and the read and write halves of
@@ -826,6 +854,12 @@ redirect, so the exec can return), and STOP them by pid read from `ps`, never by
 
     P=$(ps -eo pid,args | awk '/python3 \/tmp\/delay.py/ && !/awk/ {print $1}')
     for p in $P; do kill $p; done
+
+The same trap catches a "is anything else publishing?" check: `ps -eo args | grep -cE '[b]uild-release-cli'`
+counts your OWN shell if that shell's command line also runs `scripts/build/build-release-cli-exes.sh`,
+because the bracket stops the pattern matching itself, not the path written later in the same line. Run
+the check as a command of its own. And never send it in the same batch as the publish it gates: run in
+parallel, the check gates nothing, and a publish once went ahead beside eight others that way.
 
 `docker exec` without `-d` also hangs on a server that never exits, which looks like the command
 failing rather than the server working. The same family: `2>&1` on a command whose stdout you are about

@@ -1,0 +1,6 @@
+# An effectful call's ordinal in its process, what a replay keys on. Old rows get -1: not
+# replayable, which they are not.
+
+kind = "shape"
+after = ["20260921_000002_trace_fn_calls_seq"]
+touches = ["trace_fn_calls"]

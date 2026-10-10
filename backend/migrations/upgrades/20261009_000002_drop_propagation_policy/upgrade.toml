@@ -1,0 +1,8 @@
+# `propagation_policy` held the pin/follow projection. Pin/follow was retired, and the table was taken
+# out by editing the merged base file `05-conflicts.sql`, which removes it from fresh stores only: every
+# store made before keeps it, unread, forever. This takes it out of those, so an upgraded store's shape
+# equals a fresh one's and `gates old-release-stores` can fail on any difference.
+
+kind = "shape"
+after = []
+touches = ["propagation_policy"]

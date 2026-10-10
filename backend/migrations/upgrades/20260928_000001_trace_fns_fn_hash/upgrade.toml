@@ -1,0 +1,7 @@
+# The version of each function a run went through, so a resume can say which of them have
+# been edited since. `10-runs.sql` declares it for fresh stores; this carries it to the ones
+# that already have the table.
+
+kind = "shape"
+after = ["20260927_000001_traces_duration_ms"]
+touches = ["trace_fns"]

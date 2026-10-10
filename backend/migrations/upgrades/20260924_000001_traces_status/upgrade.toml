@@ -1,0 +1,6 @@
+# A trace IS a run, so these five carry where a run stands as well as what it did. A row
+# already in the store was written by a finished run, which is what `DEFAULT 'done'` says.
+
+kind = "shape"
+after = ["20260921_000003_trace_fn_calls_ord"]
+touches = ["traces"]

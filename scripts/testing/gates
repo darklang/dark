@@ -31,6 +31,7 @@ GATES=(
   workbench-scm
   workbench-views
   first-day
+  old-release-stores
   backups-restore
   reload-is-reproducible
   trait-choice-survives-rival
@@ -80,6 +81,7 @@ describe() {
     workbench-scm)          echo 'the workbench SCM views with real work in the store' ;;
     workbench-views)        echo 'every workbench view, one session each' ;;
     first-day)              echo 'a published binary, empty home, whole SCM workflow' ;;
+    old-release-stores)     echo 'stores made by pinned old releases, opened by this tree: they upgrade, or refuse cleanly' ;;
     backups-restore)        echo 'backup, wipe, restore; the destructive verbs ask first' ;;
     reload-is-reproducible) echo 'two reloads of one tree agree on every op id' ;;
     trait-choice-survives-rival) echo 'a saved call keeps its implementation when a newer rival lands' ;;
