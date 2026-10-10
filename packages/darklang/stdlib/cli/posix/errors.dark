@@ -114,7 +114,7 @@ let macMessage (errno: Int) : String =
 
 let fromErrno (errno: Int) : Stdlib.Cli.Posix.Error =
     let message =
-        if Builtin.posixOpenFlag "creat" == 512 then macMessage errno
+        if Stdlib.Cli.KernelABI.mac () then macMessage errno
         else if errno == 1 then "Operation not permitted"
         else if errno == 2 then "No such file or directory"
         else if errno == 3 then "No such process"

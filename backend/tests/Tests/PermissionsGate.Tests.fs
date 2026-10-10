@@ -19,7 +19,7 @@ let clockCall () =
 
 // The gate denies before this raw descriptor reaches the builtin body.
 let nativeCall () =
-  eApply (eBuiltinFn "posixFdClose" 0) [] [ PT.EInt(gid (), -1I) ]
+  eApply (eBuiltinFn "syscallClose" 0) [] [ PT.EInt(gid (), -1I) ]
   |> PT2RT.Expr.toRT Map.empty 0 None
 
 let private denyAllAccess =
@@ -87,7 +87,7 @@ let nativeDenied =
     let! exeState = executionStateFor TestValues.pm false Map.empty
     let! actual =
       LibExecution.Execution.executeExpr (denyAll exeState) (nativeCall ())
-    expectDenied [ "posixFdClose" ] actual
+    expectDenied [ "syscallClose" ] actual
   }
 
 let nativeAllowedByAllowAll =

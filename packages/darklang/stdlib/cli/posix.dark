@@ -27,7 +27,14 @@ module Modes =
 module OpenFlags =
   /// The platform-specific value of one open() flag: "rdonly", "wronly",
   /// "rdwr", "creat", "trunc" or "append".
-  let flag (name: String) : Int = Builtin.posixOpenFlag name
+  let flag (name: String) : Int =
+    if name == "rdonly" then 0
+    else if name == "wronly" then 1
+    else if name == "rdwr" then 2
+    else if name == "creat" then Stdlib.Cli.KernelABI.openCreate ()
+    else if name == "trunc" then Stdlib.Cli.KernelABI.openTruncate ()
+    else if name == "append" then Stdlib.Cli.KernelABI.openAppend ()
+    else Builtin.crash ($"unknown open() flag `{name}`")
 
   let rdonly () : Int = flag "rdonly"
   let wronly () : Int = flag "wronly"
@@ -83,12 +90,12 @@ let fdSeekFromStart (fd: Int) (offset: Int) : Result.Result<Int, Error> =
 
 /// Stat a file. Returns mode, size, and modification time.
 let stat (path: String) : Result.Result<StatResult, Error> =
-  (Builtin.posixStat path |> Errors.normalize)
-  |> Stdlib.Result.map (fun result ->
-    StatResult
-      { mode = Stdlib.Tuple3.first result
-        size = Stdlib.Tuple3.second result
-        mtimeSec = Stdlib.Tuple3.third result })
+  Syscall.statAt path
+  |> Stdlib.Result.andThen KernelData.metadata
+  |> Stdlib.Result.mapError Errors.fromErrno
+  |> Stdlib.Result.map (fun metadata ->
+    StatResult { mode = metadata.mode; size = metadata.size
+                 mtimeSec = metadata.mtimeSec })
 
 /// Get the current working directory
 let getCwd () : Result.Result<String, Error> =
@@ -169,21 +176,18 @@ let flock (fd: Int) (exclusive: Bool) : Result.Result<Unit, Error> =
 
 /// Get the owner username of a file.
 let fileOwner (path: String) : Result.Result<String, Error> =
-  (Builtin.posixFileOwner path |> Errors.normalize)
-  |> Stdlib.Result.map (fun uid ->
-    if uid == Stdlib.toString (Syscall.getuid ()) then
-      match Builtin.posixGetCurrentUserName () with
-      | Some name -> name
-      | None -> uid
-    else
-      match Accounts.lookup uid 0 with
-      | Some name -> name
-      | None -> uid)
+  Syscall.statAt path
+  |> Stdlib.Result.andThen KernelData.metadata
+  |> Stdlib.Result.mapError Errors.fromErrno
+  |> Stdlib.Result.map (fun metadata ->
+    let uid = Stdlib.toString metadata.uid
+    match Accounts.lookup uid 0 with
+    | Some name -> name
+    | None -> uid)
 
 /// List entries in a directory (filenames only, no "." or "..")
 let listDir (path: String) : Result.Result<List<String>, Error> =
-  Builtin.posixListDir path
-  |> Errors.normalize
+  DirectoryIO.list path
 
 /// Get an environment variable
 let getenv (name: String) : Stdlib.Option.Option<String> =

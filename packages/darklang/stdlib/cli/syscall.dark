@@ -26,3 +26,34 @@ let kill (pid: Int) (signal: Int) : Result.Result<Unit, Int> =
 let getpid () : Int = Builtin.syscallGetpid ()
 
 let getuid () : Int = Builtin.syscallGetuid ()
+
+/// Entry-relative stat after the trusted boundary's no-follow path check.
+/// The returned bytes use the target kernel ABI, not libc's struct stat.
+let statAt (path: String) : Result.Result<Blob, Int> =
+  Builtin.syscallStatAt path
+
+let getdents (fd: Int) (count: Int) : Result.Result<Blob, Int> =
+  Builtin.syscallGetdents fd count
+
+let copyFileRange (source: Int) (destination: Int) (count: Int)
+  : Result.Result<Int, Int> =
+  Builtin.syscallCopyFileRange source destination count
+
+let cloneFile (source: Int) (destination: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallCloneFile source destination
+
+let ftruncate (fd: Int) (length: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallFtruncate fd length
+
+let fchmod (fd: Int) (mode: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallFchmod fd mode
+
+let fsync (fd: Int) : Result.Result<Unit, Int> = Builtin.syscallFsync fd
+
+let fstat (fd: Int) : Result.Result<Blob, Int> = Builtin.syscallFstat fd
+
+let pread (fd: Int) (count: Int) (offset: Int) : Result.Result<Blob, Int> =
+  Builtin.syscallPread fd count offset
+
+let pwrite (fd: Int) (bytes: Blob) (offset: Int) : Result.Result<Int, Int> =
+  Builtin.syscallPwrite fd bytes offset

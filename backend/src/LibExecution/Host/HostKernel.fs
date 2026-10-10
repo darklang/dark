@@ -93,6 +93,23 @@ let fchmodat2_raw (fd : int, path : string, mode : int, flags : int) =
   withText path (fun p ->
     int (call 23 (int64 fd) p (int64 mode) (int64 flags) 0L 0L))
 let fsync_raw (fd : int) = int (call 24 (int64 fd) 0L 0L 0L 0L 0L)
+let copyFileRange_raw (source : int, destination : int, count : int) =
+  call 27 (int64 source) 0L (int64 destination) 0L (int64 count) 0L
+let ftruncate_raw (fd : int, length : int64) =
+  int (call 28 (int64 fd) length 0L 0L 0L 0L)
+let fchmod_raw (fd : int, mode : int) =
+  int (call 29 (int64 fd) (int64 mode) 0L 0L 0L 0L)
+let fstat_raw (fd : int, bytes : byte[]) =
+  withBytes bytes (fun p -> int (call 30 (int64 fd) p 0L 0L 0L 0L))
+let pread_raw (fd : int, bytes : byte[], offset : int64) =
+  withBytes bytes (fun p ->
+    int (call 31 (int64 fd) p (int64 bytes.Length) offset 0L 0L))
+let pwrite_raw (fd : int, bytes : byte[], offset : int64) =
+  withBytes bytes (fun p ->
+    int (call 32 (int64 fd) p (int64 bytes.Length) offset 0L 0L))
+let fclonefileat_raw (source : int, parent : int, name : string, flags : int) =
+  withText name (fun p ->
+    int (call 33 (int64 source) (int64 parent) p (int64 flags) 0L 0L))
 let sysctl_raw (mib : byte[], buf : IntPtr, size : IntPtr) =
   withBytes mib (fun p -> int (call 25 p 2L (pointer buf) (pointer size) 0L 0L))
 let setattrlistat_raw (fd : int, path : string, attrs : byte[]) =

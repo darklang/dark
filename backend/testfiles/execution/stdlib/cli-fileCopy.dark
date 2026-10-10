@@ -1,0 +1,10 @@
+module Tests
+
+Stdlib.Cli.FileCopy.writeAt (fun _ _ -> Ok 1) (Stdlib.Blob.fromString "abc") 0 = Ok ()
+Stdlib.Cli.FileCopy.writeAt (fun _ _ -> Ok 0) (Stdlib.Blob.fromString "abc") 0 = Error 5
+Stdlib.Cli.FileCopy.writeAt (fun _ _ -> Ok 4) (Stdlib.Blob.fromString "abc") 0 = Error 5
+Stdlib.Cli.FileCopy.writeAt (fun _ _ -> Error 28) (Stdlib.Blob.fromString "abc") 0 = Error 28
+Stdlib.Cli.FileCopy.buffered (fun count offset -> if count != 65536 then Error 22 else if offset == 2 then Ok (Stdlib.Blob.fromString "abc") else if offset == 5 then Ok Stdlib.Blob.empty else Error 22) (fun _ offset -> if offset >= 2 && offset < 5 then Ok 1 else Error 22) 2 = Ok ()
+Stdlib.Cli.FileCopy.unsupported 18 = true
+Stdlib.Cli.FileCopy.unsupported 28 = false
+Stdlib.Cli.FileCopy.finish (Error (Stdlib.Cli.Posix.Error {errno=28;message="full"})) (Error (Stdlib.Cli.Posix.Error {errno=5;message="close"})) = Error (Stdlib.Cli.Posix.Error {errno=28;message="full"})

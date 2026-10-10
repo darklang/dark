@@ -37,6 +37,16 @@ type PosixOp =
   | Mkdtemp of prefix : string
   | ListDir of path : string
   | Stat of path : string
+  | StatBuffer of path : string
+  | DirectoryBytes of fd : int * count : int
+  | CopyFileRange of source : int * destination : int * count : int
+  | CloneFile of source : int * destination : int
+  | Ftruncate of fd : int * length : int64
+  | Fchmod of fd : int * mode : int
+  | Fsync of fd : int
+  | Fstat of fd : int
+  | Pread of fd : int * count : int * offset : int64
+  | Pwrite of fd : int * data : byte[] * offset : int64
   | Open of path : string * flags : int * mode : int
   // Native-gated handle and process operations. They carry no scoped
   // resource — the interpreter's ambient native gate authorized the builtin —
@@ -232,6 +242,17 @@ let describeOperation (op : Operation) : string =
     | PosixOp.Mkdtemp prefix -> $"mkdtemp {prefix}"
     | PosixOp.ListDir path -> $"listdir {path}"
     | PosixOp.Stat path -> $"stat {path}"
+    | PosixOp.StatBuffer path -> $"stat-bytes {path}"
+    | PosixOp.DirectoryBytes(fd, _) -> $"directory-bytes {fd}"
+    | PosixOp.CopyFileRange(source, destination, _) ->
+      $"copy-file-range {source} -> {destination}"
+    | PosixOp.CloneFile(source, destination) -> $"clone {source} -> {destination}"
+    | PosixOp.Ftruncate(fd, _) -> $"ftruncate {fd}"
+    | PosixOp.Fchmod(fd, _) -> $"fchmod {fd}"
+    | PosixOp.Fsync fd -> $"fsync {fd}"
+    | PosixOp.Fstat fd -> $"fstat {fd}"
+    | PosixOp.Pread(fd, _, _) -> $"pread {fd}"
+    | PosixOp.Pwrite(fd, _, _) -> $"pwrite {fd}"
     | PosixOp.Open(path, _, _) -> $"open {path}"
     | PosixOp.Getcwd -> "getcwd"
     | PosixOp.Kill(pid, signal) -> $"kill {pid} {signal}"

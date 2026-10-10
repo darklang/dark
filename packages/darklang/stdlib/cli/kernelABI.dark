@@ -1,0 +1,45 @@
+/// Target kernel constants and structure layouts. These are Dark data, shared
+/// by both execution engines, not compiler-host or interpreter-host guesses.
+module Darklang.Stdlib.Cli.KernelABI
+
+let mac () : Bool = Runtime.targetOS () == "darwin"
+
+let x64 () : Bool = Runtime.targetArchitecture () == "x64"
+
+let arm32 () : Bool = Runtime.targetArchitecture () == "arm"
+
+let openCreate () : Int = if mac () then 512 else 64
+
+let openTruncate () : Int = if mac () then 1024 else 512
+
+let openAppend () : Int = if mac () then 8 else 1024
+
+let openExclusive () : Int = if mac () then 2048 else 128
+
+let openDirectory () : Int =
+  if mac () then 1048576 else if x64 () then 65536 else 16384
+
+let openNoFollow () : Int =
+  if mac () then 256 else if x64 () then 131072 else 32768
+
+let statModeOffset () : Int =
+  if mac () then 4 else if x64 () then 24 else if arm32 () then 16 else 16
+
+let statModeWidth () : Int = if mac () then 2 else 4
+
+let statUidOffset () : Int =
+  if mac () then 16 else if x64 () then 28 else if arm32 () then 24 else 24
+
+let statSizeOffset () : Int =
+  if mac () then 96 else if x64 () then 48 else if arm32 () then 48 else 48
+
+let statMtimeOffset () : Int =
+  if mac () then 48 else if x64 () then 88 else if arm32 () then 80 else 88
+
+let statTimeWidth () : Int = if arm32 () then 4 else 8
+
+let statDeviceWidth () : Int = if mac () then 4 else 8
+
+let statInodeOffset () : Int = if arm32 () then 96 else 8
+
+let directoryNameOffset () : Int = if mac () then 21 else 19

@@ -1,0 +1,103 @@
+/// File-copy algorithms. Each Builtin underneath performs one kernel operation.
+module Darklang.Stdlib.Cli.FileCopy
+
+let unsupported (errno: Int) : Bool =
+  errno == 18 || errno == 22 || errno == 25 || errno == 38
+  || errno == 78 || errno == 95 || errno == 45 || errno == 19
+
+/// Finish a positional write, including short writes and EINTR, without losing
+/// the offset. A successful zero write is an I/O error, not an infinite loop.
+let writeAt
+  (write: Blob -> Int -> Result.Result<Int, Int>)
+  (bytes: Blob) (offset: Int) : Result.Result<Unit, Int> =
+  let length = Stdlib.Blob.length bytes
+  if length == 0 then Ok ()
+  else
+    match write bytes offset with
+    | Error e -> if e == 4 then writeAt write bytes offset else Error e
+    | Ok count ->
+      if count <= 0 || count > length then Error 5
+      else
+        let remaining = Stdlib.Blob.slice bytes count (length - count)
+        writeAt write remaining (offset + count)
+
+/// Bounded-memory fallback, also used after partial kernel-copy progress.
+/// Read until actual EOF: virtual files can have a stat size of zero.
+let buffered
+  (read: Int -> Int -> Result.Result<Blob, Int>)
+  (write: Blob -> Int -> Result.Result<Int, Int>)
+  (offset: Int) : Result.Result<Unit, Int> =
+  match read 65536 offset with
+  | Error e -> if e == 4 then buffered read write offset else Error e
+  | Ok bytes ->
+    let length = Stdlib.Blob.length bytes
+    if length == 0 then Ok ()
+    else
+      writeAt write bytes offset
+      |> Stdlib.Result.andThen (fun _ -> buffered read write (offset + length))
+
+let kernelCopy (source: Int) (destination: Int) (offset: Int)
+  : Result.Result<Unit, Int> =
+  match Syscall.copyFileRange source destination 1048576 with
+  | Error e ->
+    if e == 4 then kernelCopy source destination offset
+    else if unsupported e then
+      buffered (Syscall.pread source) (Syscall.pwrite destination) offset
+    else Error e
+  | Ok count ->
+    if count < 0 || count > 1048576 then Error 5
+    else if count == 0 then
+      buffered (Syscall.pread source) (Syscall.pwrite destination) offset
+    else kernelCopy source destination (offset + count)
+
+let transfer (source: Int) (destination: Int) : Result.Result<Unit, Int> =
+  match Syscall.cloneFile source destination with
+  | Ok () -> Ok ()
+  | Error e ->
+    if e == 4 then transfer source destination
+    else if unsupported e then kernelCopy source destination 0
+    else Error e
+
+let finish (result: Result.Result<Unit, Posix.Error>)
+  (closed: Result.Result<Unit, Posix.Error>) : Result.Result<Unit, Posix.Error> =
+  match result with
+  | Error e -> Error e
+  | Ok () -> closed
+
+let descriptors (source: Int) (destination: Int) (sourceInfo: KernelData.Metadata)
+  : Result.Result<Unit, Int> =
+  Syscall.fstat destination
+  |> Stdlib.Result.andThen KernelData.metadata
+  |> Stdlib.Result.andThen (fun destinationInfo ->
+    // Never truncate the source, even when a different path names a hard link.
+    if sourceInfo.device == destinationInfo.device
+       && sourceInfo.inode == destinationInfo.inode then Error 22
+    else
+      Syscall.ftruncate destination 0
+      |> Stdlib.Result.andThen (fun _ -> transfer source destination)
+      |> Stdlib.Result.andThen (fun _ ->
+        Syscall.fchmod destination (sourceInfo.mode & 511)))
+
+/// Best-effort copy of a concurrently mutable file, not an atomic snapshot.
+/// Source metadata comes from the opened descriptor, not a second path lookup.
+let copy (source: String) (destination: String)
+  : Result.Result<Unit, Posix.Error> =
+  match Posix.openFile source 0 0 with
+  | Error e -> Error e
+  | Ok sourceFd ->
+    let result =
+      Syscall.fstat sourceFd
+      |> Stdlib.Result.andThen KernelData.metadata
+      |> Stdlib.Result.mapError Posix.Errors.fromErrno
+      |> Stdlib.Result.andThen (fun sourceInfo ->
+        // No O_TRUNC until the descriptor identity check above has succeeded.
+        let flags = 1 | KernelABI.openCreate ()
+        match Posix.openFile destination flags (sourceInfo.mode & 511) with
+        | Error e -> Error e
+        | Ok destinationFd ->
+          let copied = descriptors sourceFd destinationFd sourceInfo
+            |> Stdlib.Result.mapError Posix.Errors.fromErrno
+          let closed = Posix.fdClose destinationFd
+          finish copied closed)
+    let closed = Posix.fdClose sourceFd
+    finish result closed

@@ -378,6 +378,33 @@ let private modeFromStatBuffer (buf : IntPtr) : int =
   else // x86_64 Linux (guarded by startup check)
     Marshal.ReadInt32(buf, 24)
 
+/// The policy boundary owns the no-follow walk; Dark owns the record layout.
+let statBuffer (path : string) : Result<byte[], int * string> =
+  if isWasm || OperatingSystem.IsWindows() then
+    Error(38, "kernel stat unavailable on this target")
+  else
+    let bytes = Array.zeroCreate<byte> 256
+    let pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned)
+    try
+      statInto path (pinned.AddrOfPinnedObject()) |> Result.map (fun () -> bytes)
+    finally
+      pinned.Free()
+
+/// One kernel directory read. No iteration, name filtering, or record decoding.
+let directoryBytes (fd : int) (count : int) : Result<byte[], int * string> =
+  if count < 0 then Error(22, "Invalid argument")
+  elif isWasm || OperatingSystem.IsWindows() then
+    Error(38, "kernel directory reads unavailable on this target")
+  else
+    let bytes = Array.zeroCreate<byte> count
+    let position = Marshal.AllocHGlobal 8
+    try
+      Marshal.WriteInt64(position, 0L)
+      let rc = getdents_raw (fd, bytes, position)
+      if rc < 0 then Error(lastError ()) else Ok(bytes |> Array.take rc)
+    finally
+      Marshal.FreeHGlobal position
+
 /// Linux metadata operations need to work on mode-000 files while binding the
 /// operation to the entry checked at execution time. O_PATH holds the exact
 /// inode without data-access permission; fstatat(AT_EMPTY_PATH) rejects a
@@ -620,6 +647,48 @@ let fdClose (fd : int) : Result<unit, int * string> =
   if isWasm then Managed.fdClose fd
   else if close_raw (fd) < 0 then Error(lastError ())
   else Ok()
+
+let copyFileRange source destination count : Result<int64, int * string> =
+  if count < 0 then Error(22, "Invalid argument")
+  elif isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  else
+    let rc = copyFileRange_raw (source, destination, count)
+    if rc < 0L then failed () else Ok rc
+
+let cloneFile (source : int) (destination : int) : Result<unit, int * string> =
+  if isMac || isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  else unitResult (ioctl_raw (destination, 0x40049409UL, IntPtr source))
+
+let ftruncate fd length =
+  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  else unitResult (ftruncate_raw (fd, length))
+let fchmod fd mode =
+  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  else unitResult (fchmod_raw (fd, mode))
+let fsync fd =
+  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  else unitResult (fsync_raw fd)
+
+let fstat fd : Result<byte[], int * string> =
+  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  else
+    let bytes = Array.zeroCreate<byte> 256
+    let rc = fstat_raw (fd, bytes)
+    if rc < 0 then failed () else Ok bytes
+
+let pread fd count offset : Result<byte[], int * string> =
+  if count < 0 then Error(22, "Invalid argument")
+  elif isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  else
+    let bytes = Array.zeroCreate<byte> count
+    let rc = pread_raw (fd, bytes, offset)
+    if rc < 0 then failed () else Ok(Array.take rc bytes)
+
+let pwrite fd bytes offset : Result<int, int * string> =
+  if isWasm || OperatingSystem.IsWindows() then Error(38, "unavailable")
+  else
+    let rc = pwrite_raw (fd, bytes, offset)
+    if rc < 0 then failed () else Ok rc
 
 /// Read kernel directory records from a held, no-follow directory descriptor.
 let listDir (path : string) : Result<List<string>, int * string> =

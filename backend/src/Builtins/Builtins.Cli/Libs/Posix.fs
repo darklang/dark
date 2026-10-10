@@ -115,7 +115,80 @@ let private processOutcomeOk (response : Host.Response) : Dval =
   DTuple(Dval.int (bigint exitCode), DString stdout, [ DString stderr ])
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "posixGetcwd" 0
+  [ { name = fn "runtimeTargetOS" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description = "The execution target OS, not the compiler build host"
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          let os =
+            if System.OperatingSystem.IsBrowser() then "browser"
+            elif System.OperatingSystem.IsMacOS() then "darwin"
+            elif System.OperatingSystem.IsWindows() then "windows"
+            else "linux"
+          Ply(DString os)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "runtimeTargetArchitecture" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description = "The execution target architecture"
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          let arch =
+            System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+          Ply(DString(arch.ToString().ToLowerInvariant()))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+    { name = fn "syscallStatAt" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "Checked, no-follow entry" ]
+      returnType = TypeReference.result TBlob TInt
+      description = "Raw kernel stat bytes; field decoding belongs in Dark"
+      fn =
+        (function
+        | _, vm, _, [| DString path |] ->
+          syscallResult KTBlob vm (HostTypes.PosixOp.StatBuffer path) (fun r ->
+            Blob.newEphemeral (Host.expectBytes r))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = fileReadEffect
+      deprecated = NotDeprecated }
+
+    { name = fn "syscallGetdents" 0
+      typeParams = []
+      parameters =
+        [ Param.make "fd" TInt "Directory descriptor"
+          Param.make "count" TInt "Maximum raw bytes" ]
+      returnType = TypeReference.result TBlob TInt
+      description = "One getdents64/getdirentries64 call; no record decoding"
+      fn =
+        (function
+        | _, vm, _, [| DInt fd; DInt count |] ->
+          let op =
+            HostTypes.PosixOp.DirectoryBytes(intToInt32 vm fd, intToInt32 vm count)
+          syscallResult KTBlob vm op (fun r ->
+            Blob.newEphemeral (Host.expectBytes r))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = nativeEffects
+      deprecated = NotDeprecated }
+
+    { name = fn "posixGetcwd" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TypeReference.result TString (posixErrorTypeRef ())
@@ -341,27 +414,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixListDir" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "The directory to list" ]
-      returnType = TypeReference.result (TList TString) (posixErrorTypeRef ())
-      description =
-        "Lists entries in a directory via kernel opendir/readdir/closedir. Excludes '.' and '..'."
-      fn =
-        (function
-        | _, vm, _, [| DString path |] ->
-          posixResult
-            (KTList(ValueType.Known KTString))
-            vm
-            (HostTypes.PosixOp.ListDir path)
-            (fun response ->
-              let entries = Host.expectEntries response
-              DList(ValueType.Known KTString, List.map DString entries))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = fileReadEffect
-      deprecated = NotDeprecated }
+
 
 
     { name = fn "posixGetenv" 0
@@ -581,62 +634,10 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixOpenFlag" 0
-      typeParams = []
-      parameters =
-        [ Param.make
-            "flag"
-            TString
-            "One of rdonly, wronly, rdwr, creat, trunc, append" ]
-      returnType = TInt
-      description = "Returns the platform-specific value of one open() flag, by name"
-      fn =
-        (function
-        | _, _, _, [| DString flag |] ->
-          let flag =
-            match flag with
-            | "rdonly" -> HostTypes.OpenFlag.ReadOnly
-            | "wronly" -> HostTypes.OpenFlag.WriteOnly
-            | "rdwr" -> HostTypes.OpenFlag.ReadWrite
-            | "creat" -> HostTypes.OpenFlag.Create
-            | "trunc" -> HostTypes.OpenFlag.Truncate
-            | "append" -> HostTypes.OpenFlag.Append
-            | other ->
-              RuntimeError.UncaughtException($"unknown open() flag `{other}`", [])
-              |> raiseUntargetedRTE
-          Dval.int (bigint (Host.openFlag flag)) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
 
 
-    { name = fn "posixStat" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "File path to stat" ]
-      returnType =
-        TypeReference.result (TTuple(TInt, TInt, [ TInt ])) (posixErrorTypeRef ())
-      description = "Stats a file via kernel stat(). Returns (mode, size, mtimeSec)."
-      fn =
-        (function
-        | _, vm, _, [| DString path |] ->
-          posixResult
-            (KTTuple(VT.int, VT.int, [ VT.int ]))
-            vm
-            (HostTypes.PosixOp.Stat path)
-            (fun response ->
-              let mode, size, mtimeSec = Host.expectStatInfo response
-              DTuple(
-                Dval.int (bigint mode),
-                Dval.int (bigint size),
-                [ Dval.int (bigint mtimeSec) ]
-              ))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = fileReadEffect
-      deprecated = NotDeprecated }
+
+
 
 
     { name = fn "posixUname" 0
@@ -766,7 +767,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fd" TInt "File descriptor"
-          Param.make "operation" TInt "True for exclusive lock, false to unlock" ]
+          Param.make "operation" TInt "Kernel LOCK_* operation bits" ]
       returnType = TypeReference.result TUnit TInt
       description = "Locks or unlocks a file via kernel flock()"
       fn =
@@ -782,21 +783,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixFileOwner" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "File path" ]
-      returnType = TypeReference.result TString (posixErrorTypeRef ())
-      description = "Returns the numeric owner UID from kernel stat metadata"
-      fn =
-        (function
-        | _, vm, _, [| DString path |] ->
-          posixResult KTString vm (HostTypes.PosixOp.FileOwner path) (fun r ->
-            DString(Host.expectText r))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = set [ Effect.FileRead ]
-      deprecated = NotDeprecated } ]
+ ]
 
 
 let builtins () : Builtins = Builtin.make [] (fns ())

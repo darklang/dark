@@ -1,0 +1,6 @@
+/// Irreducible runtime inputs, not kernel calls or POSIX compatibility APIs.
+module Darklang.Stdlib.Cli.Runtime
+
+let targetOS () : String = Builtin.runtimeTargetOS ()
+
+let targetArchitecture () : String = Builtin.runtimeTargetArchitecture ()

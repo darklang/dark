@@ -639,6 +639,28 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     posixPath read path (HostPosix.listDir >> Result.map Response.Entries)
   | HostTypes.PosixOp.Stat path ->
     posixPath read path (HostPosix.stat >> Result.map Response.StatInfo)
+  | HostTypes.PosixOp.StatBuffer path ->
+    posixPath read path (HostPosix.statBuffer >> Result.map Response.Bytes)
+  | HostTypes.PosixOp.DirectoryBytes(fd, count) ->
+    native (fun () ->
+      HostPosix.directoryBytes fd count |> Result.map Response.Bytes)
+  | HostTypes.PosixOp.CopyFileRange(source, destination, count) ->
+    native (fun () ->
+      HostPosix.copyFileRange source destination count |> Result.map Response.Offset)
+  | HostTypes.PosixOp.CloneFile(source, destination) ->
+    native (fun () -> HostPosix.cloneFile source destination |> unitOk)
+  | HostTypes.PosixOp.Ftruncate(fd, length) ->
+    native (fun () -> HostPosix.ftruncate fd length |> unitOk)
+  | HostTypes.PosixOp.Fchmod(fd, mode) ->
+    native (fun () -> HostPosix.fchmod fd mode |> unitOk)
+  | HostTypes.PosixOp.Fsync fd ->
+    native (fun () -> HostPosix.fsync fd |> unitOk)
+  | HostTypes.PosixOp.Fstat fd ->
+    native (fun () -> HostPosix.fstat fd |> Result.map Response.Bytes)
+  | HostTypes.PosixOp.Pread(fd, count, offset) ->
+    native (fun () -> HostPosix.pread fd count offset |> Result.map Response.Bytes)
+  | HostTypes.PosixOp.Pwrite(fd, bytes, offset) ->
+    native (fun () -> HostPosix.pwrite fd bytes offset |> Result.map Response.Written)
   | HostTypes.PosixOp.Open(path, flags, mode) ->
     let accessMode = flags &&& 3
     let reads = accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR

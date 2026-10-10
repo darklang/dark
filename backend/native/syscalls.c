@@ -65,16 +65,20 @@ static long trap(long number, long a, long b, long c, long d, long e, long f)
  */
 #if defined(__APPLE__)
 static const short numbers[] = {463,3,4,6,199,470,326,13,475,472,465,
-    467,-1,474,473,131,344,54,37,20,24,-1,-1,-1,95,202,524};
+    467,-1,474,473,131,344,54,37,20,24,-1,-1,-1,95,202,524,
+    -1,153,94,189,197,198,517};
 #elif defined(__x86_64__)
 static const short numbers[] = {257,0,1,3,8,262,79,81,258,263,264,
-    268,280,266,267,73,217,16,62,39,102,63,437,452,74,-1,-1};
+    268,280,266,267,73,217,16,62,39,102,63,437,452,74,-1,-1,
+    326,77,91,5,17,18,-1};
 #elif defined(__aarch64__)
 static const short numbers[] = {56,63,64,57,62,79,17,50,34,35,38,
-    53,88,36,78,32,61,29,129,172,174,160,437,452,82,-1,-1};
+    53,88,36,78,32,61,29,129,172,174,160,437,452,82,-1,-1,
+    285,46,52,80,67,68,-1};
 #elif defined(__arm__)
 static const short numbers[] = {322,3,4,6,140,327,183,133,323,328,329,
-    333,348,331,332,143,217,54,37,20,24,122,437,452,118,-1,-1};
+    333,348,331,332,143,217,54,37,20,24,122,437,452,118,-1,-1,
+    391,194,94,197,180,181,-1};
 #endif
 
 __attribute__((visibility("default")))
@@ -90,6 +94,13 @@ i64 dark_syscall(int operation, i64 a, i64 b, i64 c, i64 d, i64 e, i64 f)
         -38;
 #endif
 #if defined(__arm__) && defined(__linux__)
+    /* ARM EABI aligns 64-bit syscall arguments to an even register pair. */
+    if (operation == 28)
+        return trap(n, (long)a, 0, (long)b,
+            (long)((unsigned long long)b >> 32), 0, 0);
+    if (operation == 31 || operation == 32)
+        return trap(n, (long)a, (long)b, (long)c, 0,
+            (long)d, (long)((unsigned long long)d >> 32));
     if (operation == 4) {
         i64 offset = 0;
         long rc = trap(n, (long)a, (long)((unsigned long long)b >> 32),
