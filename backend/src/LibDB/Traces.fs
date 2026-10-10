@@ -267,7 +267,7 @@ let log
             // answer, which ends the replay for that process and takes the rest of the log
             // with it, so the run goes live and performs the remaining effects for real. Say
             // it once, with the position, rather than leaving that a mystery.
-            System.Console.Error.WriteLine(
+            NonBlockingConsole.writeErrLine (
               $"[traces] step {ord} of this run could not be read back ({e.Message}); "
               + "the resume goes live from there"
             )

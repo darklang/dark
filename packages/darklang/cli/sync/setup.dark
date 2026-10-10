@@ -25,8 +25,8 @@ let askWithCurrent (label: String) (current: String) : String =
 
 /// `dark sync setup`
 let execute (state: AppState) (_args: List<String>) : AppState =
-  if Stdlib.Bool.not (Cli.Prompt.interactive ()) then
-    Cli.printErr "dark sync setup asks questions, so it needs a terminal."
+  if Stdlib.Bool.not (Stdlib.Cli.UI.Prompt.canAsk ()) then
+    Cli.printErr $"dark sync setup asks questions, and {Stdlib.Cli.UI.Prompt.nobodyCanAnswer ()}."
     Cli.printHint "  non-interactive: dark identity <name> && dark connect <url> --secret <secret>"
     Cli.exitWith state false
   else

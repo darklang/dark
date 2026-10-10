@@ -198,7 +198,7 @@ let private logRequest
       ctx.Request.Url.PathAndQuery
     with _ ->
       "?"
-  print $"[HttpServer] {methodStr} {pathAndQuery} {status} {durationMs}ms"
+  printErr $"[HttpServer] {methodStr} {pathAndQuery} {status} {durationMs}ms"
   Telemetry.event
     "httpserver.request"
     [ "method", methodStr
@@ -370,7 +370,7 @@ let private executeHandler
       | null ->
         let! errorStr = Execution.runtimeErrorMessage exeState rte
         // The terminal is where the 500 page sends you, so the error has to be there too.
-        print $"[HttpServer] the handler failed: {errorStr}"
+        printErr $"[HttpServer] the handler failed: {errorStr}"
         return Direct(textResponse 500 $"The handler failed: {errorStr}")
       | reason ->
         return Direct(textResponse 503 $"The request was stopped: {reason}.")
@@ -445,7 +445,7 @@ let private serveLiveEvents
         do! write "data: reload\n\n"
         // An outcome, in the log, beside the request lines: the wait itself is not a request,
         // and logged as one it would read as a slow `GET /__live`.
-        print "[live] page told to reload"
+        printErr "[live] page told to reload"
         waiting <- false
       elif ticks % 30 = 0 then
         // A comment every 15 s keeps proxies from closing an idle stream.
@@ -649,7 +649,7 @@ let private handleRequest
         // Don't leak ex.Message to the client: it can carry stack hints or sensitive
         // strings. It goes to the serve terminal instead. 4xx + handler-set codes flow through
         // `Response.toHttpResponse`; this path is F#-side failures only.
-        print $"[HttpServer] internal error: {ex.Message}"
+        printErr $"[HttpServer] internal error: {ex.Message}"
         ctx.Response.StatusCode <- 500
         let errorBytes = UTF8.toBytes "Internal server error"
         ctx.Response.ContentLength64 <- int64 errorBytes.Length

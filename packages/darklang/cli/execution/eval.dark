@@ -19,7 +19,7 @@ let evaluateRaw
   // another builtin's terminal code to ask would be the wrong way round. Both fall back sanely when
   // there is no terminal (80 columns, no color), so the callers that never print are unaffected.
   let (width, _rows) = Terminal.getSize ()
-  let color = Terminal.colorEnabled ()
+  let color = Stdlib.Cli.Sys.isTerminal 1
 
   Builtin.cliEvaluateExpression
     accountID
@@ -75,7 +75,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     | Ok None -> state
     | Error message ->
-      Stdlib.printLine $"Error: {message}"
+      Stdlib.printErrorLine $"Error: {message}"
       { state with exitCode = 1 }
 
 

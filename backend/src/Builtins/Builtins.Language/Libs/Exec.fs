@@ -144,7 +144,7 @@ let chooserFor
   let complain (what : string) =
     if not complained then
       complained <- true
-      System.Console.Error.WriteLine(policyComplaint (string fn) what)
+      NonBlockingConsole.writeErrLine (policyComplaint (string fn) what)
   // The policy's own calls are nobody's business: they are not in the trace of whatever runs.
   let state = { state with tracing = LibExecution.Execution.noTracing }
   fun runnable ->

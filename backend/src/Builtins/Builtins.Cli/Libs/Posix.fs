@@ -701,6 +701,31 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "posixIsatty" 0
+      typeParams = []
+      parameters = [ Param.make "fd" TInt "0 for stdin, 1 for stdout, 2 for stderr" ]
+      returnType = TBool
+      description =
+        "isatty(3) for the standard descriptors: whether stdin (0), stdout (1) or stderr (2) is a "
+        + "terminal. False for any other descriptor."
+      fn =
+        (function
+        | _, vm, _, [| DInt fd |] ->
+          // From .NET's per-stream redirection rather than libc, so it answers on Windows too.
+          let answer =
+            match intToInt32 vm fd with
+            | 0 -> not System.Console.IsInputRedirected
+            | 1 -> not System.Console.IsOutputRedirected
+            | 2 -> not System.Console.IsErrorRedirected
+            | _ -> false
+          DBool answer |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "posixGetuid" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]

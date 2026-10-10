@@ -598,7 +598,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
           (Stdlib.Cli.UI.Colors.warning "\n  Commit this change? [y/N]: ")
       )
     then
-      if Cli.Prompt.interactive () || parsed.autoConfirm then
+      if Stdlib.Cli.UI.Prompt.canAsk () || parsed.autoConfirm then
         Cli.Stderr.ok "  left as a draft."
       else
         Cli.Stderr.ok "  left as a draft. (`dark commit <message> -y` commits without the prompt -- a piped stdin can't answer it.)"

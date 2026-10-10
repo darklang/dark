@@ -285,8 +285,15 @@ and `fork` report in prose; they do work rather than answer a question.
 Exit codes are the other thing you can branch on without reading English.
 `eval` and `run` exit 0 when the code ran and gave an answer, and non-zero
 when it raised, when the script was not there, or when the script itself
-ended non-zero. A permission refusal is non-zero too. The reason is still
-English on STDOUT, not stderr; the code is the part to test.
+ended non-zero. A permission refusal is non-zero too.
+
+Where the words go: stdout is the answer, stderr is everything else, refusals
+and hints included. `dark commits zzz 2>/dev/null` prints nothing and exits 1.
+Under `--json`, a refusal leaves stdout empty and puts the reason on stderr,
+except `impls` and `conflicts show`, which answer with a JSON object carrying
+an `error` field. Not everything follows the rule yet: some commands still
+print a refusal on stdout (`view` on a name it can't find, for one). So test
+the exit code, not whether stdout is empty.
 
 ## Name Resolution
 Names resolve relative to the current module, searching from

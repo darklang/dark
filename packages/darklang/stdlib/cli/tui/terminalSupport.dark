@@ -2,12 +2,11 @@
 module Darklang.Stdlib.Cli.Tui.TerminalSupport
 
 
-/// Terminal facts reported by the native host.
+/// Whether stdin and stdout are terminals, and `TERM`.
 type Facts =
   { inputIsTerminal: Bool
     outputIsTerminal: Bool
     terminalName: String }
-
 
 /// Whether an interactive TUI may start.
 type Availability =
@@ -38,20 +37,29 @@ let evaluate (facts: Facts) : Availability =
     Availability.Available
 
 
-/// Read the current terminal facts from the native host.
+/// Read the current terminal facts.
 let currentFacts () : Facts =
-  let (inputIsTerminal, outputIsTerminal, terminalName) =
-    Builtin.cliTerminalSessionInfo ()
   Facts {
-    inputIsTerminal = inputIsTerminal
-    outputIsTerminal = outputIsTerminal
-    terminalName = terminalName
+    inputIsTerminal = Stdlib.Cli.Sys.isTerminal 0
+    outputIsTerminal = Stdlib.Cli.Sys.isTerminal 1
+    terminalName = Stdlib.Option.withDefault (Stdlib.Cli.Env.get "TERM") ""
   }
 
+/// Whether an environment switch is on: set, non-empty, and not `0`, `false` or `no`.
+let isOn (name: String) : Bool =
+  match Stdlib.Cli.Env.get name with
+  | Some value ->
+    let v = Stdlib.String.toLowercase (Stdlib.String.trim value)
+    v != "" && v != "0" && v != "false" && v != "no"
+  | None -> false
 
-/// Check whether an interactive TUI may start in the current terminal.
+/// Check whether an interactive TUI may start in the current terminal. A TUI waits for keys, so
+/// `--no-input` refuses it. `CI` doesn't: a test drives a TUI on CI's pty with scripted keys.
 let current () : Availability =
-  evaluate (currentFacts ())
+  if isOn "DARK_NO_INPUT" then
+    Availability.Unavailable "nobody is at the keyboard (DARK_NO_INPUT or --no-input is set)"
+  else
+    evaluate (currentFacts ())
 
 
 /// Format an error without terminal control sequences.

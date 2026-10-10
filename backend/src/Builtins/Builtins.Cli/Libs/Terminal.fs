@@ -129,30 +129,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cliTerminalColorEnabled" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TBool
-      description =
-        "Whether output should carry color: false when NO_COLOR is set, or when "
-        + "stdout is redirected"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] ->
-          // Per no-color.org, only a non-empty value counts: `NO_COLOR=` is how a
-          // wrapper re-enables color without having to unset the variable.
-          let noColor =
-            System.Environment.GetEnvironmentVariable "NO_COLOR"
-            |> System.String.IsNullOrEmpty
-            |> not
-          DBool(not noColor && TerminalCapabilities.isOutputTerminal ()) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "cliGetLogDir" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
@@ -325,24 +301,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cliTerminalSessionInfo" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "A unit" ]
-      returnType = TTuple(TBool, TBool, [ TString ])
-      description = "Return (input is terminal, output is terminal, TERM value)"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] ->
-          DTuple(
-            TerminalCapabilities.isInputTerminal () |> DBool,
-            TerminalCapabilities.isOutputTerminal () |> DBool,
-            [ TerminalCapabilities.terminalName () |> DString ]
-          )
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated } ]
+    ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

@@ -603,8 +603,12 @@ let walkOne (state: AppState) (c: SCM.Conflicts.Conflict) (n: Int) (total: Int) 
       "    [a] take yours / [b] take theirs / [enter] keep the auto-pick / [s] skip / [q] quit: "
   )
 
+  // Input ending is quitting, never Enter: a piped walk that runs out of answers must not take the
+  // auto-pick for everything left.
   let answer =
-    Stdlib.String.trim (Stdlib.String.toLowercase (Stdlib.Cli.Stdin.readLine ()))
+    match Stdlib.Cli.Stdin.readLineOrEnd () with
+    | Some typed -> Stdlib.String.trim (Stdlib.String.toLowercase typed)
+    | None -> "q"
 
   let apply (choice: String) (label: String) : Unit =
     match pickCandidate c choice with
@@ -690,7 +694,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
   // Bare `dark conflicts` steps through them when there is someone to answer; piped or scripted, it
   // stays the report it always was. `list` always lists.
   | [] ->
-    if Cli.Prompt.interactive () then
+    if Stdlib.Cli.UI.Prompt.canAsk () then
       executeWalk state
     else
       executeList state

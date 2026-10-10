@@ -412,9 +412,6 @@ let resolveVersionArg
     | Some _ -> Stdlib.Option.Option.Some arg
     | None -> Stdlib.Option.Option.None
 
-let stdinIsInteractive () : Bool =
-  (Stdlib.Cli.Tui.TerminalSupport.currentFacts ()).inputIsTerminal
-
 /// Print a version's requirements, warning when analysis is incomplete.
 /// Returns completeness so callers can acknowledge a possibly short list.
 let showVersionRequirements (heading: String) (hash: String) : Bool =
@@ -433,10 +430,9 @@ let showVersionRequirements (heading: String) (hash: String) : Bool =
 
 /// Take `--yes`/`-y` out of the arguments, reporting whether it was there.
 ///
-/// An unattended run must pass this explicitly. Detecting a non-interactive
-/// stdin is not enough on its own: CI gives each step a pty, so
-/// `stdinIsInteractive` answers yes there and the confirmation then blocks on
-/// a terminal nobody types into, forever. It is stripped before the rules are
+/// An unattended run should pass this explicitly. A terminal is not proof
+/// anyone is there (CI gives each step a pty), and `canAsk` only knows better
+/// when `CI`, `DARK_NO_INPUT` or `--no-input` says so. It is stripped before the rules are
 /// parsed, so it is never mistaken for a permission rule.
 let takeYesFlag (args: List<String>) : (Bool * List<String>) =
   let isYesFlag (a: String) : Bool = (a == "--yes") || (a == "-y")
@@ -549,7 +545,7 @@ let approveNamed
       // at it.
       let accepted =
         if acceptWithoutPrompt then true
-        else if Command.stdinIsInteractive () then
+        else if Stdlib.Cli.UI.Prompt.canAsk () then
           Stdlib.Cli.UI.Prompt.confirm
             "Approve this version, so the name resolves to it?"
         else

@@ -308,4 +308,19 @@ let onlyHostModulesTouchTheOS =
         ("Stale host-boundary allowlist entries (delete them):\n" + lines)
   }
 
-let tests = testList "hostBoundary" [ onlyHostModulesTouchTheOS ]
+/// The environment variables Dark may read without a grant. The set is pinned here, whole, so a new
+/// name is a change to this test that a reviewer sees, not one more string in `Host.fs`. A name
+/// belongs only if it is not a secret, is a display or automation hint, and must be readable under
+/// deny-all; see the comment on the list.
+let ungatedEnvironmentIsExactlyTheTerminalConventions =
+  test "only TERM, CI and DARK_NO_INPUT are readable without an env-read grant" {
+    Expect.equal
+      LibExecution.Host.terminalConventions
+      (Set.ofList [ "TERM"; "CI"; "DARK_NO_INPUT" ])
+      "the ungated set changed; check the new name against the criterion on the list"
+  }
+
+let tests =
+  testList
+    "hostBoundary"
+    [ onlyHostModulesTouchTheOS; ungatedEnvironmentIsExactlyTheTerminalConventions ]

@@ -396,6 +396,13 @@ let private withChecks
     | (Ok request, resource) :: rest -> collect ((request, resource) :: acc) rest
   collect [] checks
 
+/// Environment variables Dark may read without an `env-read` grant. A name belongs here only if it
+/// is all three: not a secret (the grant exists to stop a package reading one), a display or
+/// automation hint, and needed under deny-all, because the TUI has to detect its terminal to draw
+/// the permission prompt and a prompt has to know nobody is there before any grant exists.
+/// `HostBoundary.Tests` pins the exact set, so adding a name is a reviewed change to a test.
+let terminalConventions : Set<string> = Set.ofList [ "TERM"; "CI"; "DARK_NO_INPUT" ]
+
 /// An operation authorized elsewhere, which only needs to run where the host
 /// state lives: a continuation on a host-issued handle (decided when the
 /// handle was created), a Native-gated builtin (decided by the interpreter's
@@ -607,6 +614,8 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     withChecks
       [ envCheck write name ]
       (attempt (fun () -> HostLibc.unsetenv name |> unitOk))
+  | HostTypes.PosixOp.Getenv name when terminalConventions.Contains name ->
+    unchecked (produce (fun () -> Response.EnvValue(HostLibc.getenv name)))
   | HostTypes.PosixOp.Getenv name ->
     withChecks
       [ envCheck read name ]
@@ -755,6 +764,13 @@ let private resolve (op : Operation) : Result<Resolved, string> =
     // The answer is a path, so it is a read of that path.
     let path = HostProcess.currentExecutablePath ()
     resolveFile read path (fun path -> produce (fun () -> Response.Path path))
+  | Operation.EnvGet name when terminalConventions.Contains name ->
+    unchecked (
+      produce (fun () ->
+        System.Environment.GetEnvironmentVariable name
+        |> Option.ofObj
+        |> Response.EnvValue)
+    )
   | Operation.EnvGet name ->
     withChecks
       [ envCheck read name ]

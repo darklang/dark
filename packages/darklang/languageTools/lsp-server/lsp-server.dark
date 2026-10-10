@@ -16,6 +16,8 @@ type Json = Stdlib.AltJson.Json
 /// following the LSP spec. It also logs all incoming and outgoing messages to
 /// stderr (`log`), which the editor shows as the server's output.
 let runServerCli (u: Unit) : Int =
+  Stdlib.claimStdoutForProtocol ()
+
   (Stdlib.DateTime.now ())
   |> Stdlib.toString
   |> fun nowStr -> log $"Running Darklang LSP Server {nowStr}"
@@ -284,13 +286,11 @@ let tryReadHeader
 
 /// The next message from the client, or `None` when there is not going to be one.
 ///
-/// `None` covers two cases that cannot be told apart and do not need to be.
-/// `Stdin.readLine` maps a null read (EOF) to `""`, the same value a blank line
-/// gives, so neither this function nor its caller can distinguish "the client
-/// closed stdin" from "a blank line arrived before any `Content-Length`". Nothing
-/// is lost: an editor holds stdin open for the whole session and always sends the
-/// header first, so the first case means the client is gone and the second means
-/// the stream has desynchronised. Reading more cannot recover either.
+/// `None` covers two cases this doesn't separate and doesn't need to: the client
+/// closed stdin, or a blank line arrived before any `Content-Length`. An editor
+/// holds stdin open for the whole session and always sends the header first, so
+/// the first means the client is gone and the second that the stream has
+/// desynchronised. Reading more recovers neither.
 ///
 /// This used to return `""` on that error, which left the loop parsing an empty
 /// message, failing to parse it, and reading again immediately, forever. With
