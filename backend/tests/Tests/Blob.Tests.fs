@@ -421,7 +421,7 @@ let persistableRejectsLambda =
       RT.DApplicable(
         RT.AppLambda
           { exprId = 1234UL
-            closedRegisters = []
+            closedRegisters = [||]
             typeSymbolTable = RT.TST.empty
             argsSoFar = []
             access =
@@ -706,7 +706,7 @@ let private fakeAppLambda
   RT.DApplicable(
     RT.AppLambda
       { exprId = 0UL
-        closedRegisters = closedRegisters
+        closedRegisters = RT.Captures.ofList closedRegisters
         typeSymbolTable = RT.TST.empty
         access =
           LibExecution.Permissions.Access.start
@@ -734,7 +734,7 @@ let promoteRewritesInsideClosedRegisters =
     let! promoted = Blob.promote PMBlob.insert dv |> Ply.toTask
     match promoted with
     | RT.DApplicable(RT.AppLambda lambda) ->
-      match lambda.closedRegisters with
+      match RT.Captures.toList lambda.closedRegisters with
       | [ (_, RT.DBlob(RT.Persistent(h, n))) ] ->
         Expect.equal h (Blob.sha256Hex payload) "captured blob hash"
         Expect.equal n (int64 payload.Length) "captured blob length"
@@ -842,7 +842,7 @@ let prepareStubsStreamInsideClosure =
     let! result = Tracing.prepareDvalForStorage state.blobs.persist dv |> Ply.toTask
     match result with
     | RT.DApplicable(RT.AppLambda lambda) ->
-      match lambda.closedRegisters with
+      match RT.Captures.toList lambda.closedRegisters with
       | [ (_, captured) ] ->
         Expect.isTrue
           (isStubInt64 captured)
