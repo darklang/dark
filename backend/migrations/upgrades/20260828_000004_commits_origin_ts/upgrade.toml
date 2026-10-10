@@ -1,0 +1,5 @@
+# When a commit was made, on the same portable clock as `package_ops.origin_ts`. Existing rows get
+# '', meaning "not recorded".
+
+after = ["20260828_000003_commits_author"]
+touches = ["commits"]

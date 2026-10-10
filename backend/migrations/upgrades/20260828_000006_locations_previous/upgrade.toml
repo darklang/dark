@@ -1,0 +1,5 @@
+# The hash a binding replaced, as its `SetName` recorded it, for conflict detection. NULL when the op
+# named no predecessor, which is also what an existing row reads as.
+
+after = ["20260828_000005_locations_op_id"]
+touches = ["locations"]

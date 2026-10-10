@@ -3,8 +3,11 @@ module LibSerialization.Binary.BaseFormat
 
 open System
 
-/// v1 is the format the op-log substrate ships with; nothing older ever existed in
-/// the wild (pre-v1 stores were rebuilt from `.dark` source each build). Bump on every
+/// v1 is the format the op-log substrate ships with. NOT the only thing ever to carry a 1: ops written
+/// before the source-control rewrite (2026-09-06, the stores with a `branch_ops` table, v0.0.34 and
+/// earlier) also say 1, in a vocabulary that changed without the number moving, and this binary decodes
+/// almost none of them. Those stores are refused before any blob is read (the
+/// `20260904_000002_previous_scm_store` upgrade), so the header alone never has to tell them apart. Bump on every
 /// wire-layout change, keeping a readV1 beside the new writer: from here, stores
 /// cannot be rebuilt from text.
 /// v2 (traits, 2026-09): `bounds` on PackageFn and TypeDeclaration, `FQFnName.TraitMethod`

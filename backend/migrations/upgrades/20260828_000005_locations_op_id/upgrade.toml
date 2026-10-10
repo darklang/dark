@@ -1,0 +1,5 @@
+# The op that wrote a binding, since two instances can mint the same stamp and a lookup by stamp can
+# land on the wrong op. Existing rows get '', meaning "not recorded".
+
+after = ["20260828_000004_commits_origin_ts"]
+touches = ["locations"]

@@ -1,0 +1,5 @@
+# The `seq` in the parent trace a fork branched at: the parent's log below it is the child's too.
+# NULL with `parent_id`.
+
+after = ["20260924_000002_traces_parent_id"]
+touches = ["traces"]

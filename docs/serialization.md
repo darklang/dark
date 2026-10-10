@@ -50,4 +50,6 @@ compatibility, we:
 
 #### Binary Serialization
 
-There is a serialized file for an extensive test case.
+Every stored blob type has committed bytes that today's writer must produce, and a history of every
+version that must still decode. How that works, what counts as a format bump, and what to do when you
+change a serializer: [store-upgrades.md](store-upgrades.md).

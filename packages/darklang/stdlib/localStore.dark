@@ -44,3 +44,15 @@ let backupTo (path: String) : Stdlib.Result.Result<Unit, String> =
 /// memory is still the OLD store, though, so the caller should say to restart.
 let restoreFrom (path: String) : Stdlib.Result.Result<Unit, String> =
   Builtin.localDbRestoreFrom path
+
+
+/// What this binary expects of a store: the upgrades it carries (`backend/migrations/upgrades/`), in the
+/// order it runs them, and the blob format it writes. A store records each upgrade by name once it has
+/// run, so a recorded name missing from the list was run by a newer dark.
+let expected () : (List<String> * Int64) = Builtin.storeExpected ()
+
+
+/// The blob format this binary writes. `gates old-release-stores` asks for it through `dark eval`.
+let formatCurrent () : Int64 =
+  let (_, format) = expected ()
+  format

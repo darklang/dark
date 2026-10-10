@@ -22,7 +22,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // drops rather than refuses, which is the shape of a CI runner.
   let line =
     if Stdlib.List.member args "--local" then
-      $"Darklang CLI {Helpers.cliVersion ()}"
+      $"Darklang CLI {Helpers.describeBuild ()}"
     else
       Helpers.versionInfoWithUpdateCheck ()
 

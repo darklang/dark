@@ -40,6 +40,35 @@ module HostWatch =
 
 let fns () : List<BuiltInFn> =
   [
+    // What this binary expects of a store, for `dark store` to set against what the store records. Facts
+    // only; the Dark side says what they mean.
+    { name = fn "storeExpected" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TTuple(TList TString, TInt64, [])
+      description =
+        "The store upgrades this binary carries (backend/migrations/upgrades/), in the order it runs them, and the blob format version it writes."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          uply {
+            let upgrades =
+              LibDB.UpgradeRegistry.sources
+              |> List.map LibDB.Upgrades.load
+              |> LibDB.Upgrades.order
+              |> List.map (fun u -> DString u.name)
+              |> Dval.list KTString
+            let format =
+              DInt64(int64 LibSerialization.Binary.BaseFormat.CurrentVersion)
+            return DTuple(upgrades, format, [])
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     // This instance's OWN package store path (data.db). The op-log builtins write ops here; the sync config
     // tables (sync_peers/sync_cursors) live here too — the daemon/CLI don't have to know the path.
     { name = fn "localDbPath" 0

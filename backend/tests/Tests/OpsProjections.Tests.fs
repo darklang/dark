@@ -309,7 +309,7 @@ let registryCoversProjections =
   // is exactly the drift this catches.
   test "the projection registry covers exactly the 8 regenerable projections" {
     Expect.equal
-      (List.sort Seed.projectionTables)
+      (List.sort LibDB.Upgrades.projectionTables)
       (List.sort
         [ "package_functions"
           "package_types"
@@ -397,7 +397,7 @@ let noCanonicalInDropSet =
     canonical
     |> List.iter (fun t ->
       Expect.isFalse
-        (List.contains t Seed.projectionTables)
+        (List.contains t LibDB.Upgrades.projectionTables)
         $"{t} is canonical and must NOT be in the projection drop-set (it would be lost on a schema change)")
   }
 
@@ -473,6 +473,46 @@ let everyPackageOpCaseIsPrintable =
   }
 
 
+/// What a store last upgraded by a dev build between v0.0.34 and v0.0.35 needed: its package tables held
+/// bodies in format 1, the fold read one to compare with an incoming item of the same hash, and today's
+/// reader raised. The upgrade's blob rewrite now empties the tables when any body is older and leaves the
+/// log for the fold, which must rebuild exactly what a re-fold does.
+let olderBodyRebuildsLikeARefold =
+  testTask
+    "a package body in an older format makes the upgrade's rewrite leave the tables to a re-fold" {
+    let! _ = Seed.rebuildProjections ()
+    let! (refolded : string) = bindingFingerprint ()
+    Expect.isFalse
+      (refolded = "")
+      "there are bindings to compare (not a vacuous test)"
+    let older =
+      Array.append
+        (System.BitConverter.GetBytes(
+          LibSerialization.Binary.BaseFormat.CurrentVersion - 1u
+        ))
+        [| 0uy |]
+    do!
+      Sql.query
+        "INSERT INTO package_types (hash, pt_def, rt_def) VALUES ('zz-older-body', @b, @b)"
+      |> Sql.parameters [ "b", Sql.bytes older ]
+      |> Sql.executeStatementAsync
+    LibDB.Upgrades.rewriteBlobsToCurrentFormat ()
+    let! types = countRows "package_types"
+    Expect.equal types 0L "the package tables are emptied, the older body with them"
+    let! (applied : int64) =
+      Sql.query "SELECT count(*) AS n FROM package_ops WHERE applied = 1"
+      |> Sql.executeRowAsync (fun read -> read.int64 "n")
+    Expect.equal applied 0L "and every op is left for the fold"
+    let! _ = Seed.applyUnappliedOps ()
+    let! (after : string) = bindingFingerprint ()
+    Expect.equal after refolded "the fold rebuilds exactly what a re-fold does"
+    // Every body is in this format now, so a second run leaves the tables alone.
+    LibDB.Upgrades.rewriteBlobsToCurrentFormat ()
+    let! typesAgain = countRows "package_types"
+    Expect.isTrue (typesAgain > 0L) "and running it again is a no-op"
+  }
+
+
 let tests =
   // The rebuild cases DELETE and re-fold the SHARED projection tables and mark every op unapplied,
   // so they must not race another DB test's reads mid-rebuild. The pure cases ride along.
@@ -490,4 +530,5 @@ let tests =
       duplicateDeclarationsAreNamed
       noCanonicalInDropSet
       schemaChangeKeepsWork
+      olderBodyRebuildsLikeARefold
       everyPackageOpCaseIsPrintable ]

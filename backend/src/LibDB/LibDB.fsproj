@@ -50,6 +50,11 @@
     <Compile Include="PackageManager.fs" />
     <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="UpgradeKeep.fs" />
+    <!-- Store upgrades: the runner, then each unit's code (backend/migrations/upgrades/*/step.fs), then
+         the registry the build generates from those directories (see GenerateUpgradeRegistry below). -->
+    <Compile Include="Upgrades.fs" />
+    <Compile Include="../../migrations/upgrades/*/step.fs" />
+    <Compile Include="$(BaseIntermediateOutputPath)/UpgradeRegistry.g.fs" />
     <Compile Include="Releases.fs" />
     <Compile Include="Seed.fs" />
     <Compile Include="PackagePermissions.fs" />
@@ -59,5 +64,11 @@
     <Compile Include="Traces.fs" />
     <Compile Include="UserDB.fs" />
   </ItemGroup>
+  <!-- Every unit under backend/migrations/upgrades, listed in F# for the runner. Generated, not committed:
+       a committed list would be the one file every upgrade PR touches. Not reflection: the published
+       binary is AOT and trimmed. -->
+  <Target Name="GenerateUpgradeRegistry" BeforeTargets="BeforeBuild;CoreCompile">
+    <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/../../../scripts/build/_gen-upgrade-registry&quot; &quot;$(MSBuildProjectDirectory)/../../migrations/upgrades&quot; &quot;$(BaseIntermediateOutputPath)/UpgradeRegistry.g.fs&quot;" />
+  </Target>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

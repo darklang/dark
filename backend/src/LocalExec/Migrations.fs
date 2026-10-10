@@ -3,7 +3,7 @@
 /// `backend/migrations/schema/*.sql` is the canonical from-scratch shape of every table, split by
 /// subsystem and concatenated in FILENAME ORDER. We hash that concatenation and compare against
 /// `schema_state_v0.hash`; if they differ (or the table is missing), drop the REGENERABLE
-/// PROJECTION tables only (`Seed.projectionTables`) and replay. The canonical op log, blobs,
+/// PROJECTION tables only (`Upgrades.projectionTables`) and replay. The canonical op log, blobs,
 /// branches and commits survive, and the log re-folds into the fresh projections at startup -- so a
 /// schema change costs CPU, not your authored work.
 ///
@@ -86,13 +86,13 @@ let private storedHash () : Option<string> =
 
 /// Drop ONLY the regenerable projection tables — never the canonical op log, blobs, branches,
 /// commits, or account/user state. This is what lets a schema change keep your work: your authored
-/// ops survive; only the cache is rebuilt. The list is `Seed.projectionTables` (single source
+/// ops survive; only the cache is rebuilt. The list is `Upgrades.projectionTables` (single source
 /// of truth — the same set the runtime's `rebuildProjections` clears), so it can't drift.
 let private dropProjectionTables () : unit =
   // FK off for the drop (a child projection may FK a parent we're keeping); connection-scoped, so
   // the next connection (which replays the schema) gets the default back.
   Sql.query "PRAGMA foreign_keys = OFF" |> Sql.executeStatementSync
-  for t in LibDB.Seed.projectionTables do
+  for t in LibDB.Upgrades.projectionTables do
     Sql.query (sprintf "DROP TABLE IF EXISTS \"%s\"" t) |> Sql.executeStatementSync
 
 /// Mark every op unapplied so the next `Seed.growIfNeeded` re-folds the whole log into the freshly
@@ -170,9 +170,7 @@ let private runSchemaBootstrap (sql : string) : unit =
 
 let run () : unit =
   let sql = schemaSql ()
-  // Three passes, and the order is the whole point. Tables first, so everything exists. Then the
-  // release steps, which are the only thing that can add a COLUMN to a table that already exists.
-  // Then the indexes, which may name a column a step has just added.
+  // The dev-only part first: a moved schema hash drops and re-folds the projections. Then the same
+  // upgrade every published binary runs (its tables pass is a no-op after this one).
   runSchemaBootstrap sql
-  LibDB.Releases.runPending ()
-  LibDB.Releases.applySchemaIndexes sql
+  LibDB.Releases.upgrade sql
