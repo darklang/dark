@@ -22,13 +22,9 @@ let compare (render: Unit -> Unit) (expectedRows: List<String>) : Stdlib.Test.Re
           Stdlib.List.getAt actualRows index |> Stdlib.Test.equal (Some expectedRow))
         |> Stdlib.Test.all ]
 
-// Differs from legacy: the source is
-// `scripts/perf/workloads/checks/goldenview.dark` with additions only.
-// `fixedHome` replaces the Home rows with the ones `goldenview.expected` shows,
-// so the frames do not depend on the developer's branches or commit ages;
-// `initialState` takes the `live` argument it has since gained (`false`); and
-// the child runs with COLUMNS=80 LINES=24 and stdin detached (see `compare`).
-// The expected rows are `goldenview.expected` byte for byte.
+// fixedHome supplies stable Home rows, independent of branches and commit ages.
+// The child runs with COLUMNS=80, LINES=24 and detached stdin.
+// Expected rows come from goldenview.expected.
 let goldenviewRender () : Unit =
   // Fixed view inputs: these screenshots test layout and key handling, not the
   // developer's branches or how long ago the store was reloaded.
@@ -177,14 +173,9 @@ val goldenviewExpected =
 test goldenview =
   compare goldenviewRender goldenviewExpected
 
-// Differs from legacy: the source is
-// `scripts/perf/workloads/checks/goldenkeys.dark` with additions only.
-// `fixedHome` replaces the Home rows with the ones `goldenkeys.expected` shows,
-// so the frames do not depend on the developer's branches or commit ages
-// (`press` applies it after every key); `initialState` takes the `live`
-// argument it has since gained (`false`); and the child runs with COLUMNS=80
-// LINES=24 and stdin detached (see `compare`). The expected rows are
-// `goldenkeys.expected` byte for byte.
+// fixedHome supplies stable Home rows after each key press, independent of branches
+// and commit ages. The child runs with COLUMNS=80, LINES=24 and detached stdin.
+// Expected rows come from goldenkeys.expected.
 let goldenkeysRender () : Unit =
   // Fixed view inputs: these screenshots test layout and key handling, not the
   // developer's branches or how long ago the store was reloaded.

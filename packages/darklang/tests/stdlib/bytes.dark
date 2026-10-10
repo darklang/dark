@@ -1,4 +1,3 @@
-/// Blob cases from `backend/testfiles/execution/stdlib/bytes.dark`.
 module Darklang.Stdlib.Blob.Tests
 
 // hex round of various UTF-8 strings (Arabic / emoji / long mixed).
@@ -23,25 +22,16 @@ test length =
       Stdlib.Blob.empty |> Stdlib.Blob.length |> Stdlib.Test.equal 0 ]
 
 // fromString / toString roundtrip
-// Differs from legacy: legacy unwrapped the Result with a match and compared the
-// payload; this compares the whole Result, so an Error can no longer stand in for
-// it.
 test stringRoundTrip =
   Stdlib.Blob.fromString "hello" |> Stdlib.Blob.toString
   |> Stdlib.Test.equal (Ok "hello")
 
 // fromHex returns Result<Blob,String>; length of decoded deadbeef = 4 bytes
-// Differs from legacy: legacy unwrapped the Result with a match and compared the
-// payload; this compares the whole Result, so an Error can no longer stand in for
-// it.
 test fromHex =
   Stdlib.Blob.fromHex "deadbeef" |> Stdlib.Result.map Stdlib.Blob.length
   |> Stdlib.Test.equal (Ok 4)
 
 // hex roundtrip via wrapper
-// Differs from legacy: legacy unwrapped the Result with a match and compared the
-// payload; this compares the whole Result, so an Error can no longer stand in for
-// it.
 test hexRoundTrip =
   Stdlib.Blob.fromHex "48656c6c6f"
   |> Stdlib.Result.andThen Stdlib.Blob.toString
@@ -54,9 +44,6 @@ test toHex =
       Stdlib.Blob.fromString "Hi" |> Stdlib.Blob.toHex |> Stdlib.Test.equal "4869" ]
 
 // base64 roundtrip
-// Differs from legacy: legacy unwrapped the Result with a match and compared the
-// payload; this compares the whole Result, so an Error can no longer stand in for
-// it.
 test base64RoundTrip =
   Stdlib.Test.all
     [ Stdlib.Blob.fromBase64 "aGVsbG8="
@@ -66,9 +53,6 @@ test base64RoundTrip =
       |> Stdlib.Test.equal "aGVsbG8=" ]
 
 // concat
-// Differs from legacy: legacy unwrapped the Result with a match and compared the
-// payload; this compares the whole Result, so an Error can no longer stand in for
-// it.
 test concat =
   [ Stdlib.Blob.fromString "foo"
     Stdlib.Blob.fromString "-"
@@ -78,9 +62,6 @@ test concat =
   |> Stdlib.Test.equal (Ok "foo-bar")
 
 // slice (middle three bytes of "abcdef" = "cde")
-// Differs from legacy: legacy unwrapped the Result with a match and compared the
-// payload; this compares the whole Result, so an Error can no longer stand in for
-// it.
 test slice =
   Stdlib.Blob.slice (Stdlib.Blob.fromString "abcdef") 2 3
   |> Stdlib.Blob.toString
@@ -104,8 +85,6 @@ test differentBytesAreNotEqual =
   (Stdlib.Blob.fromString "hi" == Stdlib.Blob.fromString "bye")
   |> Stdlib.Test.equal false
 
-// Not a legacy assertion: the legacy file only describes the rule above (its one
-// attempt at it is commented out); these assert it.
 test equalityUsesIdentity =
   let blob = Stdlib.Blob.fromString "hi"
   Stdlib.Test.all

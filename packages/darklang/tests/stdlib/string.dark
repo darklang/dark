@@ -1,4 +1,3 @@
-/// String cases ported from `backend/testfiles/execution/stdlib/string.dark`.
 module Darklang.Stdlib.String.Tests
 
 test stringEquality =
@@ -11,9 +10,6 @@ test stringEquality =
       "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" == "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
       |> Stdlib.Test.equal true ]
 
-// Differs from legacy: legacy built chars with its `c` helper, which used the
-// backend-only Builtin.testToChar. Here they are char literals or taken from the
-// string itself (`String.head`, `String.toList`).
 test fromChar =
   Stdlib.Test.all
     [ Stdlib.String.fromChar 'a' |> Stdlib.Test.equal "a"
@@ -31,7 +27,6 @@ test fromChar =
       |> Stdlib.Option.map Stdlib.String.fromChar
       |> Stdlib.Test.equal (Some "Z̤͔ͧ̑̓") ]
 
-// Differs from legacy: chars as in `fromChar` above.
 test fromList =
   Stdlib.Test.all
     [ Stdlib.String.fromList [] |> Stdlib.Test.equal ""
@@ -45,7 +40,6 @@ test fromListRejectsStrings =
   Stdlib.String.fromList [ "a" ]
   => raises "Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<String> ([\"a\"])"
 
-// Differs from legacy: chars as in `fromChar` above.
 test toList =
   Stdlib.Test.all
     [ Stdlib.String.toList "" |> Stdlib.Test.equal []
@@ -212,12 +206,8 @@ test endsWith =
       Stdlib.String.endsWith "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🏳️‍⚧️‍️🇵🇷"
       |> Stdlib.Test.equal true ]
 
-// `Stdlib.String.{fromBytes, fromBytesWithReplacement, toBytes}` still operate on
-// `List<UInt8>` rather than `Blob` — Http, CLI file ops, and the LSP logger all
-// consume the List shape, and migrating them was out of scope. So we bridge from
-// Blob via `Stdlib.Blob.toList` here.
-// Differs from legacy: legacy unwrapped Base64.decode; this maps over the Result,
-// so a decode error fails the assertion instead of raising.
+// String.fromBytes, fromBytesWithReplacement and toBytes use List<UInt8>.
+// Convert blobs with Blob.toList and keep the Result so decode errors fail the assertion.
 test fromBytesWithReplacement =
   Stdlib.Test.all
     [ Stdlib.Base64.decode "w6I"
@@ -241,7 +231,6 @@ test fromBytesWithReplacement =
         Stdlib.Blob.toList blob |> Stdlib.String.fromBytesWithReplacement)
       |> Stdlib.Test.equal (Ok "h�") ]
 
-// Differs from legacy: maps over the Result, as above.
 test fromBytes =
   Stdlib.Test.all
     [ Stdlib.Base64.decode "w6I"
@@ -389,7 +378,6 @@ test digest =
 test randomPairIsDifferent =
   (Stdlib.String.random 5) == (Stdlib.String.random 5) |> Stdlib.Test.equal false
 
-// Differs from legacy: legacy unwrapped `random`; this maps over the Result.
 test randomLength =
   Stdlib.Test.all
     [ Stdlib.String.random 10
@@ -528,30 +516,9 @@ test split =
       |> Stdlib.Test.equal [ "👨‍❤️‍💋‍👨", "👩‍👩‍👧‍👦", "🏳️‍⚧️‍️", "🇵🇷" ]
       Stdlib.String.split "👨‍👩‍👧‍👦" "👩" |> Stdlib.Test.equal [ "👨‍👩‍👧‍👦" ] ]
 
-// `String.split` and `String.length` work in extended grapheme clusters, and have
-// a fast path for the strings whose clusters are exactly their chars. This checks
-// the two agree.
-//
-// The cases that matter are the ones the fast path must *decline*:
-//   j, l, m  non-ASCII, where a cluster can span several chars
-//   k        "a\r\nb" split on "\n" -- CRLF is ONE cluster, so the EGC answer is a
-//            single part, where an ordinary split would give two. This is why the
-//            fast path rejects any CR.
-//   i        an empty separator, which means "explode into clusters"
-//
-// Expected output is in checks/string-egc.expected; diff against it.
-//
-// `k` renders as "[a\rb]" and not with a raw carriage return in it. That changed
-// when terminal text measurement moved out of LibExecution and control characters
-// started being escaped rather than written through -- a raw CR in debug output
-// moves the cursor. The split itself is unchanged: one part either way, which is
-// the thing this file is checking.
-//
-// Not legacy assertions: the cases and expected values are those of the by-hand
-// perf check `scripts/perf/workloads/checks/string-egc.dark`, a to m in order.
-// Differs from that check: it printed each result with `Builtin.debug` for a diff
-// against `string-egc.expected`; these compare the values, so `k` is checked as
-// the list `[ "a\r\nb" ]` rather than as rendered text.
+// String.split and String.length use extended grapheme clusters. Check that the
+// fast path agrees, and declines non-ASCII clusters, CRLF and empty separators.
+// CRLF is one cluster, so splitting "a\r\nb" on "\n" keeps the whole string.
 test splitFastPath =
   Stdlib.Test.all
     [ Stdlib.String.split "/hello/world" "/"
@@ -1265,8 +1232,6 @@ test toOrdinal =
       Stdlib.String.toOrdinal -1 |> Stdlib.Test.equal "-1st"
       Stdlib.String.toOrdinal -11 |> Stdlib.Test.equal "-11th" ]
 
-// Differs from legacy: legacy called Builtin.stringSlugify; this calls its one Dark
-// wrapper, Stdlib.String.slugify. Same inputs and expected slugs.
 test slugify =
   Stdlib.Test.all
     [ Stdlib.String.slugify
@@ -1299,9 +1264,8 @@ test slugify =
       Stdlib.String.slugify "[\\]^_`" |> Stdlib.Test.equal "-"
       Stdlib.String.slugify "{|}~\x7F" |> Stdlib.Test.equal "" ]
 
-// Not a legacy assertion: a stronger form of `randomPairIsDifferent` above. More
-// than two samples makes accidental collisions negligible while still detecting a
-// generator that always returns the same string.
+// Use several samples to make accidental collisions negligible while catching
+// a generator that always returns the same string.
 test randomProducesDifferentStrings =
   let samples =
     Stdlib.List.range 1 16
@@ -1313,9 +1277,7 @@ test randomProducesDifferentStrings =
     ((Stdlib.List.length (Stdlib.List.unique values)) > 1)
     |> Stdlib.Test.expect "random returned the same string for all 16 samples"
 
-// Check that map executes the right number of times
-// Differs from legacy: Stdlib.Test.incrementCounter and counterValue stand in for the
-// backend-only Builtin.testIncrementSideEffectCounter and testSideEffectCount.
+// Check that map calls its callback once per character.
 module MapEffects =
   test invokesCallbackOncePerCharacter =
     let value =
@@ -1333,17 +1295,13 @@ module MapEffects =
 //       Stdlib.String.append "ᄀ" "ᅡᆨ" |> Stdlib.Blob.fromString
 //       |> Stdlib.Blob.toList |> Stdlib.Test.equal [234uy, 176uy, 129uy] ]
 
-// Not a legacy assertion: legacy has these commented out (see `head` above), and
-// expected '🧟' for the second; `head` returns the whole cluster.
+// head returns the whole grapheme cluster.
 test headUsesWholeGraphemes =
   Stdlib.Test.all
     [ Stdlib.String.head "👱👱🏻👱🏼👱🏽👱🏾👱🏿" |> Stdlib.Test.equal (Some '👱')
       Stdlib.String.head "🧟‍♀️🧟‍♂️" |> Stdlib.Test.equal (Some '🧟‍♀️')
       Stdlib.String.head "👨‍❤️‍💋‍👨" |> Stdlib.Test.equal (Some '👨‍❤️‍💋‍👨') ]
 
-// Not a legacy assertion: legacy has this case commented out (see
-// `mapReplacesEveryCharacter` above), expecting the older wording of the same
-// `fromList` error.
 test mapRejectsNonCharResult =
   Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun _ -> 5L)
   => raises "Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<Int64> ([5, 5, 5, 5])"

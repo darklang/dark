@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/release-assets.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.ReleaseAssets
 
 // Which release asset the in-CLI updater downloads.

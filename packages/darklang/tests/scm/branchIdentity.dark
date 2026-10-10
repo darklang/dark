@@ -1,20 +1,8 @@
-/// Cases from
-/// `backend/testfiles/execution/scm/branch-identity.dark`,
-/// in original assertion order.
 module Darklang.SCM.Tests.BranchIdentity
 
-// Main is a branch id like any other, and every dispatch in the SCM layer decides "am I on main?" by
-// comparing against it. When the constant and the value a process actually reports disagree, nothing
-// errors: each `match` simply takes its branch arm on main. `discard` and `collapse` then no-op silently,
-// name lookups route through an empty overlay and still answer correctly, and the suite stays green.
-//
-// So the disagreement has to be asserted directly. These are the cheap version of that.
-//
-// The constant IS what a process on main reports.
-//
-// Differs from legacy: this runs in a disposable snapshot switched to main, through
-// `Stdlib.Test.Process.run` with an explicit main branch, so the branch the suite happens to
-// be on cannot change the answer.
+// The main-branch constant must match the branch ID a process reports on main.
+// A mismatch silently sends SCM operations down the branch path. Run the process
+// with an explicit main branch so the caller cannot change the answer.
 let currentIsMain () : Bool =
   Darklang.SCM.PackageOps.currentBranch () == Darklang.SCM.Branch.mainBranchId
 

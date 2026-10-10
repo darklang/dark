@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/permissions-display.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.PermissionsDisplay
 
 // The Workbench and `permissions show` share this renderer. Requirements are

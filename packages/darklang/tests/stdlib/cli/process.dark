@@ -1,4 +1,3 @@
-/// Shell quoting cases from `backend/testfiles/execution/stdlib/cli-process.dark`.
 module Darklang.Stdlib.Cli.Process.Tests
 
 // Process.shellQuote
@@ -18,3 +17,59 @@ test shellQuote =
       |> Stdlib.Test.equal "'$(dangerous)'"
       Stdlib.Cli.Process.shellQuote "`backtick`"
       |> Stdlib.Test.equal "'`backtick`'" ]
+
+
+test capturesOutputAndExit =
+  ((match Stdlib.Cli.Process.run "/bin/sh" ["-c", "printf out; printf err >&2; exit 7"] with | Ok output -> (output.exitCode, output.stdout, output.stderr) | Error _ -> (-1, "", ""))) |> Stdlib.Test.equal ((7, "out", "err"))
+
+
+test closesStdin =
+  ((match Stdlib.Cli.Process.run "/bin/cat" [] with | Ok output -> (output.exitCode, output.stdout) | Error _ -> (-1, ""))) |> Stdlib.Test.equal ((0, ""))
+
+
+test missingExecutable =
+  ((match Stdlib.Cli.Process.run "/definitely/not/a/dark/executable" [] with | Error error -> error.errno | Ok _ -> 0)) |> Stdlib.Test.equal (2)
+
+
+test rejectsInvalidTimeout =
+  (Stdlib.Cli.Process.runWithTimeout 0 "/bin/true" []) |> Stdlib.Test.equal (Error "timeoutMs must be positive")
+
+
+test timesOut =
+  (Stdlib.Cli.Process.runWithTimeout 5 "/bin/sh" ["-c", "sleep 1"]) |> Stdlib.Test.equal (Error "Process timed out")
+
+
+test interactiveRoundTrip =
+  ((let handle = Stdlib.Cli.Process.spawn "while read line; do printf 'reply:%s\\n' \"$line\"; done" in let first = Stdlib.Cli.Process.communicate handle "one" in let second = Stdlib.Cli.Process.communicate handle "two" in let final = Stdlib.Cli.Process.terminate handle in (first.stdout, second.stdout, final.stdout))) |> Stdlib.Test.equal (("reply:one\n", "reply:two\n", "reply:one\nreply:two\n"))
+
+
+test collectsChunkedOutput =
+  ((let handle = Stdlib.Cli.Process.spawn "while read line; do printf 'reply:'; sleep 0.03; printf '%s\\n' \"$line\"; done" in let response = Stdlib.Cli.Process.communicate handle "chunked" in let _ = Stdlib.Cli.Process.terminate handle in response.stdout)) |> Stdlib.Test.equal ("reply:chunked\n")
+
+
+test emptyInputDoesNotBlock =
+  ((let handle = Stdlib.Cli.Process.spawn "read line" in let result = Stdlib.Cli.Process.communicate handle "" in let _ = Stdlib.Cli.Process.terminate handle in (result.stdout, result.stderr))) |> Stdlib.Test.equal (("", ""))
+
+
+test invalidChildPoll =
+  (Builtin.runtimeChildPoll (-1)) |> Stdlib.Test.equal (Error 9)
+
+
+test invalidChildDescriptors =
+  (Builtin.runtimeChildDescriptors (-1)) |> Stdlib.Test.equal (Error 9)
+
+
+test invalidChildClose =
+  (Builtin.runtimeChildClose (-1)) |> Stdlib.Test.equal (Error 9)
+
+
+test reportsOS =
+  (Stdlib.Cli.OS.getOS ()) |> Stdlib.Test.equal (Ok Stdlib.Cli.OS.OS.Linux)
+
+
+test reportsRuntimeHost =
+  ((match Stdlib.Cli.Host.getRuntimeHost () with | Ok host -> host.os == Stdlib.Cli.OS.OS.Linux | Error _ -> false)) |> Stdlib.Test.equal (true)
+
+
+test closedStdinReturnsFailure =
+  ((let handle = Stdlib.Cli.Process.spawn "exec 0<&-; printf ready; sleep 1" in let _ = Stdlib.DateTime.__sleepMilliseconds 100.0 in let response = Stdlib.Cli.Process.communicate handle "input" in let _ = Stdlib.Cli.Process.terminate handle in response.exitCode)) |> Stdlib.Test.equal (-1)

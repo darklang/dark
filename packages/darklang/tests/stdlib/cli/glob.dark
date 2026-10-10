@@ -1,4 +1,3 @@
-/// Segment-glob cases from `backend/testfiles/execution/stdlib/cli-glob.dark`.
 module Darklang.Stdlib.Cli.File.Tests
 
 // File.globMatchSegments — basic matching

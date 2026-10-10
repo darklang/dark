@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/deprecation-kinds.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.DeprecationKinds
 
 // `--kind harmful` is a promise about the RUNTIME, and the runtime can only keep it for fns: the gate is a

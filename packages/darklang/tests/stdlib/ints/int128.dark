@@ -1,4 +1,3 @@
-/// Int128 cases from backend/testfiles/execution/stdlib/ints/int128.dark.
 module Darklang.Stdlib.Int128.Tests
 
 test abs =

@@ -1,4 +1,3 @@
-/// UInt32 cases from backend/testfiles/execution/stdlib/ints/uint32.dark.
 module Darklang.Stdlib.UInt32.Tests
 
 // `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check

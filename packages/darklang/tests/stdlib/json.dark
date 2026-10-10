@@ -1,4 +1,3 @@
-/// Native cases ported from `backend/testfiles/execution/stdlib/json.dark`.
 module Darklang.Stdlib.Json.Tests
 
 // Unsupported stuff:
@@ -298,11 +297,7 @@ module UInt64 =
     // |> Stdlib.Test.equal
     //   (Result.Error "Can't parse JSON `18446744073709551616` as type `UInt64` at path: `root`")
 
-    // This is a float that is a valid uint64
-    // Stdlib.Json.parse<UInt64> "1.8446744073709551615E19"
-    // |> Stdlib.Test.equal (Result.Ok 18446744073709551615UL)
-    //
-    // Not a legacy assertion: both pass now, so they run (this test and the next).
+    // A floating-point number in the UInt64 range can parse as UInt64.
     test rejectsFirstOverflow =
       Stdlib.Json.parse<UInt64> "18446744073709551616"
       |> err
@@ -995,9 +990,7 @@ module Float =
   module Values =
     test serialize =
       Stdlib.Test.all
-        [ // Differs from legacy: NaN and the infinities are computed here; legacy
-          // used Builtin.testNan/testInfinity/testNegativeInfinity, which only the
-          // backend has.
+        [ // JSON represents infinities and NaN as strings.
           Stdlib.Json.serialize<Float> (-1.0 / 0.0)
           |> Stdlib.Test.equal "\"-Infinity\""
           Stdlib.Json.serialize<Float> (1.0 / 0.0)
@@ -1007,9 +1000,7 @@ module Float =
 
     test parse =
       Stdlib.Test.all
-        [ // Differs from legacy: the infinities are computed (legacy used
-          // backend-only builtins), and NaN is checked with isNaN, since NaN never
-          // equals itself here.
+        [ // NaN never equals itself; check it with isNaN.
           Stdlib.Json.parse<Float> "\"-Infinity\""
           |> Stdlib.Test.equal (Result.Ok(-1.0 / 0.0))
           Stdlib.Json.parse<Float> "\"Infinity\""
@@ -1584,8 +1575,6 @@ module UserDefinedEnums =
           )) ]
 
   module Errors =
-    // Differs from legacy: type names in these errors are qualified with this test
-    // module (`Darklang.Stdlib.Json.Tests.…`); legacy's were bare.
     test parseErrors =
       Stdlib.Test.all
         [ (Stdlib.Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",\"not int\"]}")
@@ -1722,8 +1711,6 @@ module UserDefinedRecords =
   type Combo<'e1, 'e2> = { e1: 'e1; e2: 'e2 }
 
   module Errors =
-    // Differs from legacy: type names in these errors are qualified with this test
-    // module (`Darklang.Stdlib.Json.Tests.…`); legacy's were bare.
     test parseErrors =
       Stdlib.Test.all
         [ // Person shares its content hash with UserDefinedAliases.Person2 (identical structure),
@@ -1853,7 +1840,6 @@ module Package =
 //       (Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
 //         [ "NamePart" ]) ]))
 
-// from old tests - worth reviewing to see if we have missing cases
 
 // Stdlib.Json.parse<TODO> "{Id : 1.0}"
 // |> Stdlib.Test.equal null
@@ -1928,10 +1914,7 @@ module Package =
 // Stdlib.Json.parse<TODO> "({\"id\" : 555, \"edition\" : \"First\", \"author\" : \"Dennis Ritchie\"})"
 // |> Stdlib.Test.equal (Result.Error "'(' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0.")
 
-// ## Nested types (lists, tuples, records, etc.)
-//
-// Not a legacy assertion: RestoredArchive below runs these cases, against a
-// local enum and record in place of the old types, with today's errors.
+// Nested lists, tuples, records and enums.
 module RestoredArchive =
   type Counter = { v: Int64 }
   type NamedError =

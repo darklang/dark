@@ -1,4 +1,3 @@
-/// Exact cases from the excluded legacy example packages/darklang/test/test_earg.dark.
 module Darklang.Language.Tests.ArchivedArgs
 
 module EArgTests =
@@ -62,8 +61,6 @@ test argAndLocalVar =
 test nestedShadowing =
   EArgTests.nestedShadowing 1 2 |> Stdlib.Test.equal 103
 
-// Not a legacy assertion: legacy computed this case (`test5`) but left it out of
-// the `testList` it checked.
 test lambdaTest =
   EArgTests.lambdaTest 10 |> Stdlib.Test.equal 21
 

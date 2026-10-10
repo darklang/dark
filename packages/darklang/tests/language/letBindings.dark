@@ -1,9 +1,5 @@
-/// Binding cases from `backend/testfiles/execution/language/basic/elet.dark`.
 module Darklang.Language.Tests.LetBindings
 
-// Differs from legacy: the `RuntimeError` tests in this file raise with
-// `Stdlib.Test.raiseRuntimeError`; legacy used the backend-only
-// `Builtin.testRuntimeError`.
 test unusedBindingIsEvaluated =
   (let x = Stdlib.Test.raiseRuntimeError "a" in 5L)
   => raises "Uncaught exception: a"
@@ -133,12 +129,7 @@ test wildcardValueIsEvaluated =
   (let _ = Stdlib.Test.raiseRuntimeError "test" in 10L)
   => raises "Uncaught exception: test"
 
-// Wildcard should not bind variable
-// This should fail because _ is not a variable
-// (let _ = 5L in _) should give a variable not found error
-//
-// Not a legacy assertion: the parser rejects `_` in expression position before
-// it can run, so this checks that diagnostic.
+// The parser rejects _ in expression position because a wildcard does not bind a variable.
 test wildcardCannotBeRead =
   Darklang.LanguageTools.Parser.Parse.diagnostics "(let _ = 5L in _)"
   |> Stdlib.List.map (fun (_, message) -> message)

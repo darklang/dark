@@ -1,4 +1,3 @@
-/// AltJson cases from backend/testfiles/execution/stdlib/alt-json.dark.
 module Darklang.Stdlib.AltJson.Tests
 
 // TODO: backfill a _lot_ from json.dark
@@ -189,8 +188,7 @@ test stringValues =
       parse "hi" |> Stdlib.Test.equal (parseError ParseError.NotJson)
       parse "\'hi\'" |> Stdlib.Test.equal (parseError ParseError.NotJson) ]
 
-// Not a legacy assertion: the TODO above asked for "strings with quotes in them"
-// and "' instead of \"". Each string formats and parses back to itself.
+// Strings containing either kind of quote must round-trip.
 test quotedStrings =
   Stdlib.Test.all
     [ parse (format (Json.String "\"")) |> Stdlib.Test.equal (Ok(Json.String "\""))
@@ -244,8 +242,6 @@ test arrayValues =
               Json.Integer 34 ]
         )
       )
-      // nested arrays
-      // Differs from legacy: only the indentation inside the JSON string.
       (parse
           """
             [ [1, 2, 3],
@@ -272,7 +268,7 @@ test arrayValues =
       parse "[ null, 1.2 ]"
       |> Stdlib.Test.equal (parsedOk (Json.Array [ Json.Null, Json.Float 1.2 ])) ]
 
-// Not a legacy assertion: the Array TODO above asked for "huge arrays".
+// Check a large array.
 test largeArrayRoundTrip =
   let value =
     Json.Array(Stdlib.List.repeat 10000 (Json.String "large") |> Builtin.unwrap)
@@ -307,8 +303,7 @@ test objectValues =
 // parse "{\"a\nb\": null}"
 // |> Stdlib.Test.equal (parsedOk (Json.Object [ ("a\nb", Json.Null) ]))
 
-// Not a legacy assertion: the case above, which legacy leaves commented out. An
-// escaped newline round-trips, a raw one is not JSON.
+// An escaped newline round-trips; a raw newline is not valid JSON.
 test newlineInPropertyName =
   let value = Json.Object [ ("a\nb", Json.Null) ]
   Stdlib.Test.all

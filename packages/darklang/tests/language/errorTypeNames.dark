@@ -1,25 +1,9 @@
-/// Type names in runtime errors from
-/// `backend/testfiles/execution/language/error-type-names.dark`.
 module Darklang.Language.Tests.ErrorTypeNames
 
-// Which name a runtime error prints for a type.
-//
-// Types are content addressed, so one hash can be bound to several names:
-// `Stdlib.Int.ParseError`, `Stdlib.Float.ParseError` and `Stdlib.Uuid.ParseError`
-// are all `| BadFormat`, which makes them one type with three names. Choosing
-// between them from the hash alone is a guess, and it guessed wrong often enough
-// to report an `Int.parse` failure as a `Uuid.ParseError`.
-//
-// The name the author wrote at the declaration decides. That spelling is display
-// metadata carried alongside the resolution; it never reaches the hash, so it
-// costs content addressing nothing.
-//
-// Names are fully qualified: testfiles parse with owner "Tests", so `Darklang.`
-// prefixes are required.
-//
-// Differs from legacy: the expected errors name each function and local type in
-// full (`Darklang.Language.Tests.ErrorTypeNames.AmbiguousHash.takesIntParseError`);
-// legacy's started at the testfile's own modules (`AmbiguousHash.…`).
+// Types are content addressed, so one hash can have several names.
+// Stdlib.Int.ParseError, Stdlib.Float.ParseError and Stdlib.Uuid.ParseError all
+// have the shape | BadFormat. The declaration's written name must decide which
+// one a runtime error prints; the hash alone cannot distinguish them.
 
 module AmbiguousHash =
   // The bodies differ on purpose. With the same body these two would be the same
@@ -127,19 +111,8 @@ module UnambiguousHash =
       "Darklang.Language.Tests.ErrorTypeNames.UnambiguousHash.takesOption's 1st parameter `o` expects Darklang.Stdlib.Option.Option<Int>, but got Int (5)"
 
 module LocallyDeclared =
-  // A type no package names, so the declaration here is the only source of one.
-  // `Tests` is scaffolding the parser stamps on rather than a name anything can
-  // be reached by, so it comes off; the module the author wrote stays.
-  //
-  // The field name is deliberately odd. Give it a shape another declaration
-  // anywhere in the suite also has and the hash stops being unambiguous, at
-  // which point the rule above kicks in and the author's own spelling prints
-  // instead: bare `Celsius`, since that is how it is written here. Both answers
-  // are right, but only one of them is stable to write down.
-  //
-  // Differs from legacy: the field is `portedCelsiusDegrees`, not
-  // `celsiusDegrees`; the legacy testfile's own `Celsius` would otherwise share
-  // this type's hash, for exactly the reason above.
+  // This type has no package name, so the declaration supplies its display name.
+  // The unusual field name keeps its content hash distinct from other types in the suite.
   type Celsius = { portedCelsiusDegrees: Int }
 
   let describe (t: Celsius) : String = "ok"

@@ -1,5 +1,3 @@
-/// Interpolation cases from
-/// `backend/testfiles/execution/language/basic/estring.dark`.
 module Darklang.Language.Tests.StringInterpolation
 
 test interpolation =

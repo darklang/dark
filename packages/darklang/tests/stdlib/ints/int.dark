@@ -1,5 +1,3 @@
-/// Arbitrary-precision `Int` cases from
-/// `backend/testfiles/execution/stdlib/ints/int.dark`.
 module Darklang.Stdlib.Int.Tests
 
 // Arbitrary-precision `Int` — the small/big representation split.
@@ -140,13 +138,7 @@ test remainder =
       // arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
       Stdlib.Int.remainder (2 ** 100) 7 |> Stdlib.Test.equal (Ok 2) ]
 
-// --- mod: wraps into [0, b); RTE if b <= 0 ---
-//
-// the % operator dispatches to mod
-//
-// Differs from legacy: legacy checks `15 % 5`, `5 % 0` and `5 % -5` twice, as
-// `Stdlib.Int.mod` used to be spelled and as the operator; both are the
-// operator now, so each is checked once here.
+// The % operator dispatches to mod, which wraps into [0, b) and rejects b <= 0.
 test modulo =
   Stdlib.Test.all
     [ (15 % 5) |> Stdlib.Test.equal 0

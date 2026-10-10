@@ -1,5 +1,3 @@
-/// Literal cases from `backend/testfiles/execution/language/collections/`
-/// (dlist.dark and edict.dark).
 module Darklang.Language.Tests.Collections
 
 test listLiterals =
@@ -9,8 +7,6 @@ test listLiterals =
       [ 1L, 2L ] |> Stdlib.Test.equal [ 1L, 2L ]
       [ 5L, 1L + 5L, 0L ] |> Stdlib.Test.equal [ 5L, 6L, 0L ] ]
 
-// Differs from legacy: these raise with `Stdlib.Test.raiseRuntimeError`;
-// legacy used the backend-only `Builtin.testRuntimeError`.
 test listRaisesElementError =
   [ 5L, Stdlib.Test.raiseRuntimeError "test", 0L ]
   => raises "Uncaught exception: test"

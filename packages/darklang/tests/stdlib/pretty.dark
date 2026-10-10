@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/pretty.dark`.
 // Tests for Stdlib.Pretty, the width-aware layout combinators.
 //
 // The cases follow the behaviour table in the library's own spec: the same document

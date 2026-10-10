@@ -1,4 +1,3 @@
-/// Cases from `backend/testfiles/execution/stdlib/cli-tui-text.dark`.
 // Clipping for terminal rows. Widths are DISPLAY CELLS, not characters: a wide glyph
 // occupies two columns, so a row measured by character count goes ragged on the
 // first one.

@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/workbench-repl.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.WorkbenchRepl
 
 // The workbench REPL's session bindings: `let x = ...` binds for the rest of the session by being re-injected

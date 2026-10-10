@@ -1,13 +1,9 @@
-/// Semantic-token cases from
-/// `backend/testfiles/execution/stdlib/language-tools/semanticTokenization.dark`.
 module Darklang.LanguageTools.SemanticTokens.Tests
 
 // TODO: Add additional tests to cover all cases
 
 type TokenType = Darklang.LanguageTools.SemanticTokens.TokenType
 
-// Differs from legacy: legacy called `Builtin.parserParseToWrittenTypes`; a
-// builtin may have only one Dark caller, so this calls its wrapper.
 let tokenize
   (text: String)
   : List<(TokenType * (Int * Int) * (Int * Int))> =

@@ -1,12 +1,10 @@
-/// File cases from `backend/testfiles/execution/cli/file.dark`.
 module Darklang.Cli.Tests.File
 
-// Differs from legacy: these use `Stdlib.Cli.File.withTemp`, which deletes the
-// temporary file afterwards; legacy called `createTemp` and left it behind.
+// withTemp removes each temporary file after the check.
 module WriteReadRoundtrip =
   let testContents () : String = "Test conrents"
 
-  // Not a legacy assertion: the write's own result, `Ok ()`, is checked too.
+  // Check the write result as well as the bytes read back.
   test roundtrip =
     Stdlib.Cli.File.withTemp (fun filename ->
       let blob = Stdlib.Blob.fromString (testContents ())

@@ -1,15 +1,10 @@
-/// Basic expression cases from `backend/testfiles/execution/language/basic/`
-/// and `backend/testfiles/execution/language/error-syntax.dark`.
 module Darklang.Language.Tests.Basic
 
-// From basic/dfloat.dark. Its first case, `Builtin.testNan != Builtin.testNan`,
-// is ported in tests/stdlib/float.dark.
 test floats =
   Stdlib.Test.all
     [ (-0.0 * -1.0) |> Stdlib.Test.equal 0.0
       (6.02e22 * -10.0) |> Stdlib.Test.equal -6.02e23 ]
 
-// From basic/evariable.dark.
 test letBoundVariable =
   (let x = 5L
    x)
@@ -18,7 +13,6 @@ test letBoundVariable =
 test missingVariableRaises =
   myvar => raises "There is no variable named: myvar"
 
-// From basic/eand.dark.
 test and =
   Stdlib.Test.all
     [ (true && true) |> Stdlib.Test.equal true
@@ -34,9 +28,6 @@ test and =
       (false |> (&&) true) |> Stdlib.Test.equal false
       (false |> (&&) false) |> Stdlib.Test.equal false ]
 
-// Differs from legacy: the `RuntimeError` tests in this file raise with
-// `Stdlib.Test.raiseRuntimeError`; legacy used the backend-only
-// `Builtin.testRuntimeError`.
 test andEvaluatesRightOperand =
   (true && Stdlib.Test.raiseRuntimeError "msg")
   => raises "Uncaught exception: msg"
@@ -51,7 +42,6 @@ test andRaisesLeftOperandErrorFirst =
 test andRejectsNonBooleanLeft =
   (5 && true) => raises "&& only supports Booleans"
 
-// From basic/eor.dark.
 test or =
   Stdlib.Test.all
     [ (true || true) |> Stdlib.Test.equal true
@@ -81,7 +71,6 @@ test orRaisesLeftOperandErrorFirst =
   (Stdlib.Test.raiseRuntimeError "msg1" || Stdlib.Test.raiseRuntimeError "msg2")
   => raises "Uncaught exception: msg1"
 
-// From error-syntax.dark.
 test runtimeErrorRaises =
   Stdlib.Test.raiseRuntimeError "runtime from syntax"
   => raises "Uncaught exception: runtime from syntax"

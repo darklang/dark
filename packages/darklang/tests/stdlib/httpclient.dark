@@ -1,6 +1,4 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/httpclient.dark`.
-// Most of the httpclient tests are in testfiles/httpclient
-// , but we test a few more explicit cases here.
+// Additional HTTP client cases. Raw protocol tests live in backend/testfiles/httpclient.
 module Darklang.Stdlib.HttpClient.Tests
 
 // Tests that don't use the internet
@@ -43,16 +41,13 @@ test basicAuthRejectsHyphenInUsername =
 // Tests that try to make requests to the internet
 
 // ... but first, some helpers
-// Differs from legacy: the return type is named once, as GetResult, where legacy
-// spelled it out on `get`.
 type GetResult =
   Stdlib.Result.Result<Stdlib.HttpClient.Response, Stdlib.HttpClient.RequestError>
 
 let get (url: String) (headers: List<String * String>) : GetResult =
   Stdlib.HttpClient.get url headers
 
-// Differs from legacy: legacy declared these as `val`s. A `val` holding a custom
-// type can go stale across package reloads, so they are functions here.
+// Build custom values in functions so their types stay current across package reloads.
 let errInvalidHost () : GetResult =
   Error(
     Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidHost)
@@ -103,8 +98,6 @@ let errUnsupportedProtocol () : GetResult =
 // Expected: (headers: List<(String * String)>)
 // Actual: a List<Int64>: [\n  1\n]"""
 
-// Not a legacy assertion: the commented-out bad-headers case above, made live with
-// today's message.
 test rejectsWrongHeaderType =
   Stdlib.HttpClient.request "get" "https://darklang.com" [1L] Stdlib.Blob.empty
   => raises "Darklang.Stdlib.HttpClient.request's 3rd parameter `headers` expects List<(String * String)>, but got List<Int64> ([1])"

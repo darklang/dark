@@ -1,4 +1,3 @@
-/// Codec cases from `backend/testfiles/execution/scm/sync-wire.dark`.
 module Darklang.SCM.Wire.Tests
 
 // The sync WIRE codec: what an op bundle says about itself, and what a reader does
@@ -172,16 +171,10 @@ module BothWritersAgree =
      | Error _ -> false)
     |> Stdlib.Test.equal true
 
-// The OP encoders, not only the envelope. Three ops go in through the relay's store
-// path under an owner nobody else uses; the native page and the Dark owner-filtered
-// page must then describe each op identically, field for field, and both must hand
-// back the commit row the ops name. The envelope test above compares empty pages,
-// so a writer that mangled `blobHex` or dropped `author` passed it.
-//
-// Differs from legacy: this runs in a child snapshot through
-// `Stdlib.Test.Process.run`, so every mutation stays inside it even if
-// evaluation aborts before the module's own cleanup runs; legacy ran in the shared
-// store.
+// Store three operations through the relay, then compare the native page and the
+// Dark owner-filtered page field by field, including their commit rows. Empty pages
+// would not catch a writer dropping author or corrupting blobHex.
+// Run in a child snapshot so mutations stay isolated even if evaluation aborts.
 module BothWritersAgreeOnOps =
   /// A commit two of the three ops belong to where they were "authored"; the third was never committed.
   let commitHash () : String = "c0ffee01" + (Stdlib.String.first (Stdlib.toString (Stdlib.Uuid.generate ())) 8)

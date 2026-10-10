@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/permissions-grammar.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.PermissionsGrammar
 
 // The CLI rule grammar (`LanguageTools.Permissions`): every rule shape the

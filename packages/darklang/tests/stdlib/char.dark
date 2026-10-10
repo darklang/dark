@@ -1,4 +1,3 @@
-/// Character cases from backend/testfiles/execution/stdlib/char.dark.
 module Darklang.Stdlib.Char.Tests
 
 let smiley () : Char =

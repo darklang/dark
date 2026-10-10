@@ -40,6 +40,12 @@ let private parseShard (args : string array) : (int * int) option * string array
 let main (args : string array) : int =
   try
     let shard, args = parseShard args
+    // Tests has no CLI worker entry point. Use the CLI selected by run-backend-tests.
+    match System.Environment.GetEnvironmentVariable "DARK_TEST_CLI" with
+    | null
+    | "" -> ()
+    | path -> LibExecution.HostProcess.setIsolatedTestLauncher path
+
     // Most tests don't need trace data on disk; tests that DO check
     // trace contents (CliTraces) flip this to Detailed at their entry.
     LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
@@ -110,8 +116,6 @@ let main (args : string array) : int =
         Tests.Toplevels.tests
 
         // cross-cutting
-        Tests.LibExecution.tests.Force()
-
         Tests.Blob.tests
         Tests.OpTransport.tests
         Tests.Lww.tests

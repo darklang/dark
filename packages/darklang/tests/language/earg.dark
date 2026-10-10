@@ -1,8 +1,5 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/earg.dark`.
 module Darklang.Language.Tests.EArg
 
-// Differs from legacy: these helpers sit at the top level rather than in
-// `module Test`, so the tests call `addTwo` where legacy called `Test.addTwo`.
 let addTwo (earg1: Int) (earg2: Int): Int =
   earg1 + earg2
 

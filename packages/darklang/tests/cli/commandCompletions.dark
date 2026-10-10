@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/command-completions.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.CommandCompletions
 
 // Every command's `complete` is called on a real AppState, because the failure mode here is a function that

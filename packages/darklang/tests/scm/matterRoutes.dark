@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/scm/matter-routes.dark`,
-/// in original assertion order.
 module Darklang.SCM.Tests.MatterRoutes
 
 // The relay's HTTP handlers, called directly rather than over a socket.
@@ -93,14 +90,8 @@ module ItemPage =
     |> Stdlib.Test.equal 404
 
 module WriteAuth =
-  // The test environment sets no `DARK_MATTER_WRITE_SECRET`, which is the same
-  // position a relay is in before anyone configures it. Fail CLOSED: a relay that
-  // accepts writes because nobody told it not to is a relay anyone on the internet
-  // can write to.
-  //
-  // Differs from legacy: each of these runs in a fresh child process through
-  // the test runner, which clears the relay secret in each worker;
-  // legacy relied on the test environment having none.
+  // The test runner clears DARK_MATTER_WRITE_SECRET in each worker.
+  // A relay without a configured secret must refuse writes.
   test syncPushRefused =
     (Darklang.SCM.Tests.MatterRoutes.Helpers.status "/sync/push" Darklang.Matter.Relay.pushHandlerFn) == 401
     |> Stdlib.Test.equal true

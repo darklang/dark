@@ -1,10 +1,5 @@
-/// Conditional cases from
-/// `backend/testfiles/execution/language/flow-control/eif.dark`.
 module Darklang.Language.Tests.Conditionals
 
-// Differs from legacy: the `RuntimeError` cases in this file raise with
-// `Stdlib.Test.raiseRuntimeError`; legacy used the backend-only
-// `Builtin.testRuntimeError`.
 test ifElse =
   Stdlib.Test.all
     [ (if true then "correct" else 0L) |> Stdlib.Test.equal "correct"

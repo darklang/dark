@@ -1,8 +1,5 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/float.dark`.
 module Darklang.Stdlib.Float.Tests
 
-// Differs from legacy: legacy used Builtin.testNan, Builtin.testInfinity and
-// Builtin.testNegativeInfinity, which only the backend has; these compute them.
 let nan () : Float = 0.0 / 0.0
 let infinity () : Float = 1.0 / 0.0
 let negativeInfinity () : Float = -1.0 / 0.0
@@ -102,8 +99,7 @@ test absoluteValue =
   Stdlib.Test.all
     [ Stdlib.abs (negativeInfinity ())
       |> Stdlib.Test.equal (infinity ())
-      // Differs from legacy: NaN never equals itself here, so this checks isNaN
-      // where legacy compared against Builtin.testNan.
+      // NaN never equals itself; check it with isNaN.
       Stdlib.abs (nan ()) |> Stdlib.Float.isNaN
       |> Stdlib.Test.equal true
       Stdlib.abs -5.6 |> Stdlib.Test.equal 5.6
@@ -111,8 +107,7 @@ test absoluteValue =
 
 test negate =
   Stdlib.Test.all
-    [ // Differs from legacy: NaN never equals itself here, so this checks isNaN
-      // where legacy compared against Builtin.testNan.
+    [ // NaN never equals itself; check it with isNaN.
       (-(nan ())) |> Stdlib.Float.isNaN |> Stdlib.Test.equal true
       (-(infinity ())) |> Stdlib.Test.equal (negativeInfinity ())
       (--5.6) |> Stdlib.Test.equal 5.6
@@ -126,8 +121,7 @@ test clamp =
       |> Stdlib.Test.equal (Ok 0.5)
       Stdlib.Float.clampRefusingNaN (negativeInfinity ()) -1.0 0.5
       |> Stdlib.Test.equal (Ok -1.0)
-      // Differs from legacy: NaN never equals itself here, so this checks isNaN
-      // where legacy compared against Builtin.testNan.
+      // NaN never equals itself; check it with isNaN.
       Stdlib.Float.clampRefusingNaN (nan ()) -1.0 1.0
       |> Stdlib.Result.map Stdlib.Float.isNaN
       |> Stdlib.Test.equal (Ok true)
@@ -162,8 +156,7 @@ test divide =
       (9.0 / 0.0) |> Stdlib.Test.equal (infinity ())
       (9.0 / (-0.0)) |> Stdlib.Test.equal (negativeInfinity ()) ]
 
-// Differs from legacy: legacy compared floats approximately and expected 5.151515152
-// and -1.633339563; these are the exact results.
+// Compare the exact floating-point results.
 test divisionOperator =
   Stdlib.Test.all
     [ 9.0 / 2.0 |> Stdlib.Test.equal 4.5
@@ -184,8 +177,7 @@ test max =
     [ Stdlib.max (infinity ()) 1.0 |> Stdlib.Test.equal (infinity ())
       Stdlib.max (negativeInfinity ()) 1.0 |> Stdlib.Test.equal 1.0
       Stdlib.max -10.0 1.0 |> Stdlib.Test.equal 1.0
-      // Differs from legacy: NaN never equals itself here, so this checks isNaN
-      // where legacy compared against Builtin.testNan.
+      // NaN never equals itself; check it with isNaN.
       Stdlib.max 10.0 (nan ()) |> Stdlib.Float.isNaN |> Stdlib.Test.equal true
       Stdlib.max 10.0 1.0 |> Stdlib.Test.equal 10.0
       Stdlib.max 0.0 0.00 |> Stdlib.Test.equal 0.0
@@ -199,8 +191,7 @@ test min =
       Stdlib.min (negativeInfinity ()) 1.0
       |> Stdlib.Test.equal (negativeInfinity ())
       Stdlib.min -10.0 1.0 |> Stdlib.Test.equal -10.0
-      // Differs from legacy: NaN never equals itself here, so this checks isNaN
-      // where legacy compared against Builtin.testNan.
+      // NaN never equals itself; check it with isNaN.
       Stdlib.min 10.0 (nan ()) |> Stdlib.Float.isNaN |> Stdlib.Test.equal true
       Stdlib.min 10.0 1.0 |> Stdlib.Test.equal 1.0
       Stdlib.min 0.0 0.00 |> Stdlib.Test.equal 0.0
@@ -222,8 +213,6 @@ test parse =
       |> Stdlib.Test.equal (Ok 0.7)
       Stdlib.Float.parse "-0.6999999999999999555910790149937383830547332763671875"
       |> Stdlib.Test.equal (Ok -0.7)
-      // Differs from legacy: legacy expected Ok 0.8, passing only because it
-      // compared floats approximately.
       Stdlib.Float.parse "0.7999999999"
       |> Stdlib.Test.equal (Ok 0.7999999999)
       Stdlib.Float.parse "0.79999"
@@ -234,8 +223,6 @@ test parse =
       |> Stdlib.Test.equal (Error Stdlib.Float.ParseError.BadFormat)
       Stdlib.Float.parse ""
       |> Stdlib.Test.equal (Error Stdlib.Float.ParseError.BadFormat)
-      // Differs from legacy: legacy expected Ok -55555555555555555555555555555.5,
-      // passing only because it compared floats approximately.
       Stdlib.Float.parse "-5.55555555556e+28"
       |> Stdlib.Test.equal (Ok -55555555555600000000000000000.0)
       Stdlib.Float.parse "-1.8E+308"
@@ -271,7 +258,6 @@ test sum =
 test nanEqualityIsFalse =
   ((nan ()) == (nan ())) |> Stdlib.Test.equal false
 
-// From `backend/testfiles/execution/language/basic/dfloat.dark`, not float.dark.
 test nanInequalityIsTrue =
   ((nan ()) != (nan ())) |> Stdlib.Test.equal true
 
@@ -370,9 +356,7 @@ test toBitsDistinguishesSignedZero =
       (Stdlib.Float.toBits (nan ()) == Stdlib.Float.toBits (nan ()))
       |> Stdlib.Test.equal true ]
 
-// Stdlib.Float.parse "0xffffffffffffffff"
-// |> Stdlib.Test.equal (Ok 1.844674407e+19) // TODO review this.
-// Not a legacy assertion: legacy has the case above commented out.
+// Check parsing a hexadecimal float.
 test parseRejectsHexadecimalNotation =
   Stdlib.Float.parse "0xffffffffffffffff"
   |> Stdlib.Test.equal (Error Stdlib.Float.ParseError.BadFormat)

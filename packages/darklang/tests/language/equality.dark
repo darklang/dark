@@ -1,4 +1,3 @@
-/// Equality and unwrap cases from backend/testfiles/execution/stdlib/nomodule.dark.
 module Darklang.Language.Tests.Equality
 
 type ERec = { x: Int64; y: Int64 }
@@ -155,9 +154,7 @@ test bytesDatesAndUuids =
 // ((fun x -> let y = 1uy in y) != (fun x -> let y = 2uy in x))
 // |> Stdlib.Test.equal false
 
-// Not a legacy assertion: legacy has these commented out, expecting lambdas with
-// the same body to be equal. Here two lambdas are never equal, and comparing
-// them does not run their bodies (`y` is undefined).
+// Separately written lambdas are unequal. Comparing them does not execute their bodies.
 test lambdas =
   Stdlib.Test.all
     [ ((fun x -> y) == (fun x -> y)) |> Stdlib.Test.equal false
@@ -382,8 +379,6 @@ test int64EqualsInt32Raises =
 test uint16NotEqualsInt16Raises =
   (5us != 6s) => raises "Cannot perform equality check on UInt16 and Int16"
 
-// Differs from legacy: legacy raised with the backend-only
-// Builtin.testRuntimeError.
 test leftOperandErrorRaisesFirst =
   (Stdlib.Test.raiseRuntimeError "test"
    != Stdlib.Test.raiseRuntimeError "different msg")
@@ -404,8 +399,7 @@ test unitEqualsFloatRaises =
   (() != 0.0) => raises "Cannot perform equality check on Unit and Float"
 // CLEANUP follow up here when DB references are fully resolved at parse-time
 
-// Not a legacy assertion: the left operand's error is raised before the right
-// one is evaluated.
+// The left operand's error is raised before the right operand is evaluated.
 test leftOperandErrorRaisesBeforeRight =
   (1L / 0L) != (Builtin.unwrap None) => raises "Cannot divide by 0"
 
@@ -431,8 +425,6 @@ test equalsForms =
       1uy == 1uy |> Stdlib.Test.equal true
       (==) 1uy 1uy |> Stdlib.Test.equal true ]
 
-// Not a legacy assertion: legacy called Stdlib.equals until the traits change
-// rewrote those cases as `==`.
 test stdlibEquals =
   Stdlib.Test.all
     [ Stdlib.equals 1Q 1Q |> Stdlib.Test.equal true
@@ -477,8 +469,6 @@ test notEquals =
         (Stdlib.DateTime.parse "2019-07-28T22:42:36Z"))
       |> Stdlib.Test.equal true ]
 
-// Not a legacy assertion: legacy called Stdlib.notEquals until the traits change
-// rewrote those cases as `!=`.
 test stdlibNotEquals =
   Stdlib.Test.all
     [ Stdlib.notEquals 1Q 1Q |> Stdlib.Test.equal false

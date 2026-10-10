@@ -1,4 +1,3 @@
-/// Value cases from `backend/testfiles/execution/language/custom-data/values.dark`.
 module Darklang.Language.Tests.Values
 
 module UserDefined =
@@ -62,7 +61,6 @@ module UserDefined =
   test recordValueField =
     (Stdlib.Bool.not recordValue.a) |> Stdlib.Test.equal false
 
-// Legacy states each of these twice, word for word; each is here once.
 module Package =
   test values =
     Stdlib.Test.all

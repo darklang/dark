@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/scm/constraint-kinds.dark`,
-/// in original assertion order.
 module Darklang.SCM.Tests.ConstraintKinds
 
 // The two constraint kinds, and the thing that separates them: what you can be offered to do about one.

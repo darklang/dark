@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/traces-rendering.dark`,
-/// in original assertion order.
 module Darklang.Cli.Tests.TracesRendering
 
 // How a run and its log are turned into text.

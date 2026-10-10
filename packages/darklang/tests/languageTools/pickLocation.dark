@@ -1,5 +1,3 @@
-/// Package-location selection cases from
-/// `backend/testfiles/execution/stdlib/language-tools/pickLocation.dark`.
 module Darklang.LanguageTools.PackageManager.Tests
 
 // Tests for PackageManager.pickLocation and countMatchingPrefix

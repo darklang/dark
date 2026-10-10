@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/http.dark`.
 module Darklang.Stdlib.Http.Tests
 
 // TYPESCLEANUP - re-add all this with proper types
@@ -51,26 +50,21 @@ module Darklang.Stdlib.Http.Tests
 //   Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"}
 //   => raises "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
 
-// CLEANUP: Dark compares blobs by identity, not content, so a Response (its body
-// is a Blob) can't be compared directly. This turns it into plain values, the body
-// as a string. Legacy compared whole Response records, because its test runner
-// compared blobs by their bytes. Once blobs compare by content, compare whole
-// Responses again and drop this helper.
+// CLEANUP: Dark compares blobs by identity. Convert the response body to a string
+// for comparison, then compare responses directly once blob equality compares content.
 let responseView
   (response: Stdlib.Http.Response)
   : (Int * List<String * String> * Stdlib.Result.Result<String, String>) =
   (response.statusCode, response.headers, Stdlib.Blob.toString response.body)
 
-// Differs from legacy: legacy wrote each Request record out in full (always with
-// an empty body); this helper builds the same record.
+// Build a request with an empty body.
 let request
   (url: String)
   (headers: List<String * String>)
   : Stdlib.Http.Request =
   Stdlib.Http.Request { url = url; headers = headers; body = Stdlib.Blob.empty }
 
-// Differs from legacy: legacy compared each builder with the call it stands for
-// (`notFound () = response Blob.empty 404`); these compare with the plain values.
+// Compare response builders with their expected fields.
 test responseBuilders =
   Stdlib.Test.all
     [ Stdlib.Http.badRequest "Your request resulted in an error"

@@ -1,5 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/cli/outliner.dark`, in original assertion order.
 module Darklang.Cli.Tests.Outliner
 
 // The outliner's pure core: the tree operations, the widgets it's built from, and the import/export

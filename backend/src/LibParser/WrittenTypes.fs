@@ -689,7 +689,7 @@ let typeReferenceRange (t : TypeReference) : Range =
 // ============================================================================
 // Normalized package IR + declaration normalization
 //
-// The layers below are execution-only (Cli / Package / TestModule -> WT2PT -> PT).
+// The layers below are execution-only (Cli / Package -> WT2PT -> PT).
 // They are never serialized for highlighting, so synthesized nodes may use
 // `synthRange`. They normalize the raw parser tree (rich decls above) into the
 // module-qualified package shapes the lowering consumes.

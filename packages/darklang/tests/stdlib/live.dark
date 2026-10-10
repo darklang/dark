@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/live.dark`.
 module Darklang.Stdlib.Live.Tests
 
 // `Live.dedupeTouched` and `Live.dependents`: the two places a live host decides

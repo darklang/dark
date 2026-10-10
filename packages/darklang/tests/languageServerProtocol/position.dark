@@ -1,6 +1,3 @@
-/// Cases from
-/// `backend/testfiles/execution/languageServerProtocol/position.dark`,
-/// in original assertion order.
 module Darklang.LanguageServerProtocol.Tests.Position
 
 module PositionTests =
@@ -16,9 +13,6 @@ module PositionTests =
     | Ok _ -> true
     | Error _ -> false
 
-  // Differs from legacy: NaN and infinity are computed as `0.0 / 0.0` and
-  // `1.0 / 0.0`; legacy used the backend-only `Builtin.testNan` and
-  // `Builtin.testInfinity`.
   test integerFieldsOnly =
     Stdlib.Test.all
       [ acceptedPosition (Json.Integer 0) (Json.Integer 0) |> Stdlib.Test.equal true

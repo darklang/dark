@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/tuple.dark`.
 module Darklang.Stdlib.Tuple.Tests
 
 test tuple2 =

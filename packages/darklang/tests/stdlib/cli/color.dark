@@ -1,4 +1,3 @@
-/// Color helpers from `backend/testfiles/execution/stdlib/cli-color.dark`.
 // The one-shot colourisers. They used to be `Stdlib.Cli.UI.Color`, a module whose
 // names collided with the palette in `Colors` one letter away (`Color.red` a
 // function, `Colors.red` a code); they live in `Colors` now as `<name>Text`,

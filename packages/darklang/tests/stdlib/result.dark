@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/result.dark`.
 module Darklang.Stdlib.Result.Tests
 
 test andThen =

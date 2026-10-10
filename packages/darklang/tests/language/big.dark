@@ -1,4 +1,3 @@
-/// Mixed-expression regression from `backend/testfiles/execution/language/big.dark`.
 module Darklang.Language.Tests.Big
 
 test evaluatesMixedExpressions =

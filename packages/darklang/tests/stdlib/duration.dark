@@ -1,4 +1,3 @@
-/// Cases ported from `backend/testfiles/execution/stdlib/duration.dark`.
 // Duration.parse: suffix-based short-duration parsing ("30s"/"5m"/"1h"/"2d")
 // into a number of seconds (arbitrary-precision Int).
 module Darklang.Stdlib.Duration.Tests

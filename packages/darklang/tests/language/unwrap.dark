@@ -1,5 +1,3 @@
-/// `?` behavior from
-/// `backend/testfiles/execution/language/flow-control/unwrap.dark`.
 module Darklang.Language.Tests.Unwrap
 
 // `?` extracts Ok or returns Error from the current function.
@@ -134,12 +132,7 @@ test chained =
     [ chain (Ok 4) |> Stdlib.Test.equal (Ok 6)
       chain (Error "missing") |> Stdlib.Test.equal (Error "missing") ]
 
-// Evaluate the operand once. Error skips later effects without undoing earlier
-// ones.
-//
-// Differs from legacy: legacy counted with the backend-only
-// `Builtin.testIncrementSideEffectCounter`/`testSideEffectCount`; this uses
-// `Stdlib.Test.incrementCounter`/`counterValue`.
+// Evaluate the operand once. An error skips later effects without undoing earlier ones.
 module EvaluationCounts =
   let counted
     (value: Stdlib.Result.Result<Int, String>)
@@ -158,8 +151,7 @@ module EvaluationCounts =
      (outcome, Stdlib.Test.counterValue ()))
     |> Stdlib.Test.equal (Error "stop", 1L)
 
-// Not a legacy assertion: Error skips the rest of the body, so `bomb ()` never
-// runs.
+// Error skips the rest of the body, so bomb () never runs.
 let skipContinuation
   (value: Stdlib.Result.Result<Int, String>)
   : Stdlib.Result.Result<Int, String> =
