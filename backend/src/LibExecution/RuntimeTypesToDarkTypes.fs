@@ -1906,6 +1906,8 @@ module RuntimeError =
       | RuntimeError.Trait e -> "Trait", [ Traits.toDT e ]
       | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
       | RuntimeError.SqlCompiler errMsg -> "SqlCompiler", [ DString errMsg ]
+      | RuntimeError.DBSetOfWrongType(expected, actual) ->
+        "DBSetOfWrongType", [ TypeReference.toDT expected; ValueType.toDT actual ]
       | RuntimeError.UncaughtException(msg, metadata) ->
         "UncaughtException",
         [ DString msg
@@ -1914,7 +1916,6 @@ module RuntimeError =
             metadata |> List.map (fun (k, v) -> DTuple(DString k, Dval.toDT v, []))
           ) ]
       | RuntimeError.Condition message -> "Condition", [ DString message ]
-      | e -> Exception.raiseInternal "Unhandled RuntimeError.Error" [ "e", e ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1981,6 +1982,11 @@ module RuntimeError =
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
     | DEnum(_, _, [], "SqlCompiler", [ DString errMsg ]) ->
       RuntimeError.SqlCompiler errMsg
+    | DEnum(_, _, [], "DBSetOfWrongType", [ expected; actual ]) ->
+      RuntimeError.DBSetOfWrongType(
+        TypeReference.fromDT expected,
+        ValueType.fromDT actual
+      )
     | DEnum(_, _, [], "UncaughtException", [ DString msg; DList(_, metadata) ]) ->
       RuntimeError.UncaughtException(
         msg,

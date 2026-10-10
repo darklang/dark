@@ -108,16 +108,39 @@ let listDBs (state: Cli.AppState) : Cli.AppState =
     Stdlib.printLine $"{nameHeader}{typeHeader}"
     Stdlib.printLine (Stdlib.String.repeat "─" 60)
 
-    // Print each DB
+    // A datastore on an older version of its row type would show that version's bare hash: name it
+    // instead, and say which version it is.
+    let stale = (SCM.DatabaseRowTypes.check ()).stale
+
+    let staleFor (name: String) : Stdlib.Option.Option<SCM.DatabaseRowTypes.Stale> =
+      stale |> Stdlib.List.findFirst (fun s -> s.database == name)
+
     dbs
     |> Stdlib.List.iter (fun db ->
       let (name, typeName) = db
 
       let nameCol = Stdlib.String.padEndToWidth name 20
 
-      Stdlib.printLine $"{nameCol}{typeName}")
+      let typeCol =
+        match staleFor name with
+        | Some s ->
+          match s.typeName with
+          | Some loc ->
+            let old = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
+            Stdlib.Cli.UI.Colors.warning $"{old} (older version {SCM.DatabaseRowTypes.short s.boundTo})"
+          | None -> Stdlib.Cli.UI.Colors.warning $"{typeName} (no longer exists)"
+        | None -> typeName
+
+      Stdlib.printLine $"{nameCol}{typeCol}")
 
     Stdlib.printLine ""
+
+    stale
+    |> Stdlib.List.iter (fun s ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.warning (SCM.DatabaseRowTypes.describe s)))
+
+    if Stdlib.Bool.not (Stdlib.List.isEmpty stale) then Stdlib.printLine ""
+
     state
 
 
@@ -234,18 +257,28 @@ let setDBValue
   match getDBTypeName state dbName with
   | None ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: Database not found: {dbName}")
-    state
+    Cli.exitWith state false
   | Some typeName ->
-    let expr =
-      $"Stdlib.DB.set ({typeName} {valueExpr}) \"{key}\" {dbName}"
+    // On an older row type, `typeName` is a bare hash and the expression below would not even parse.
+    match
+      (SCM.DatabaseRowTypes.check ()).stale
+      |> Stdlib.List.findFirst (fun s -> s.database == dbName)
+    with
+    | Some s ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (SCM.DatabaseRowTypes.describe s))
+      // A refused write is a failure: exit 1, so a script or an agent can tell it from a write.
+      Cli.exitWith state false
+    | None ->
+      let expr =
+        $"Stdlib.DB.set ({typeName} {valueExpr}) \"{key}\" {dbName}"
 
-    match Eval.evaluateRaw state.accountID state.currentBranchId expr [] false with
-    | Ok _ ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} in {dbName}")
-      state
-    | Error err ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
-      state
+      match Eval.evaluateRaw state.accountID state.currentBranchId expr [] false with
+      | Ok _ ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} in {dbName}")
+        state
+      | Error err ->
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
+        Cli.exitWith state false
 
 
 let deleteDBValue

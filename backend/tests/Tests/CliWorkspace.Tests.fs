@@ -272,6 +272,96 @@ let dbAndTracesAnswer =
     })
 
 
+/// A datastore is bound to the version of its row type it was made with, so changing the type leaves it
+/// behind: reads go on working and writes of the current type fail. Every surface a person meets says
+/// so by name, rather than a lexer error from `db set` or an internal dump from `DB.set`.
+///
+/// The field name is one nobody else uses, since a same-shaped record anywhere in the store IS this type.
+let aDatastoreLeftOnAnOlderRowTypeSaysSo =
+  instanceTest
+    "a datastore left on an older version of its row type says so, by name"
+    (fun state ->
+      task {
+        do! start state
+        do! run state [ "permissions"; "allow"; "all" ]
+        do! run state [ "type"; "Tests.DbRow.Zqx"; "{ zqxRowNote: String }" ]
+        do! run state [ "db"; "ZqxRowTest"; "Tests.DbRow.Zqx" ]
+        do!
+          run state [ "db"; "set"; "ZqxRowTest"; "a"; "{ zqxRowNote = \"first\" }" ]
+
+        // Positive before the change, so the line below is not just an absence of checking.
+        do!
+          evals
+            state
+            "(Darklang.SCM.DatabaseRowTypes.check ()).stale |> Stdlib.List.length"
+            "0"
+            "nothing is stale while the type is unchanged"
+
+        do!
+          run
+            state
+            [ "type"
+              "Tests.DbRow.Zqx"
+              "{ zqxRowNote: String; zqxRowCount: Int64 }" ]
+
+        // Examined a datastore at all: "no stale datastores" and "looked at none" print the same.
+        do!
+          evals
+            state
+            "(Darklang.SCM.DatabaseRowTypes.check ()).examined >= 1"
+            "true"
+            "the check examined the datastore"
+
+        let stale = "Datastore ZqxRowTest holds an older version of Tests.DbRow.Zqx"
+        do!
+          shows
+            state
+            [ "status" ]
+            stale
+            "dark status names the datastore and the type"
+        do! shows state [ "status" ] "the name now means" "and both versions"
+        do!
+          shows
+            state
+            [ "db"; "list" ]
+            "Tests.DbRow.Zqx (older version"
+            "db list names the old version"
+        do!
+          shows
+            state
+            [ "db"
+              "set"
+              "ZqxRowTest"
+              "b"
+              "{ zqxRowNote = \"x\"; zqxRowCount = 1L }" ]
+            stale
+            "db set refuses with the reason rather than failing to parse"
+        // And says so in its exit code: a refused write exited 0, so a script could not tell it from one.
+        let! _, refusedExit =
+          runCliWithExit
+            state
+            [ "db"
+              "set"
+              "ZqxRowTest"
+              "b"
+              "{ zqxRowNote = \"x\"; zqxRowCount = 1L }" ]
+        Expect.equal refusedExit 1L "a refused db set exits 1"
+        do!
+          showsAll
+            state
+            [ "eval"
+              "Stdlib.DB.set (Tests.DbRow.Zqx { zqxRowNote = \"x\"; zqxRowCount = 1L }) \"c\" ZqxRowTest" ]
+            [ "This datastore holds"; "Zqx (version"; "and was given" ]
+            "a write in code says which two versions, not an internal error"
+        do!
+          shows
+            state
+            [ "db"; "get"; "ZqxRowTest"; "a" ]
+            "first"
+            "the old rows still read"
+      })
+
+
 // ─── the log ──────────────────────────────────────────────────────────────
 
 let opsAndCommitsDescribeTheLog =
@@ -1778,6 +1868,7 @@ let tests : List<Test> =
     anApprovedVersionIsWhatRuns
     unapprovingAnUnapprovedNameSaysSo
     dbAndTracesAnswer
+    aDatastoreLeftOnAnOlderRowTypeSaysSo
     opsAndCommitsDescribeTheLog
     showTellsYouWhatACommitHolds
     constraintsAndConflictsReportQuiet

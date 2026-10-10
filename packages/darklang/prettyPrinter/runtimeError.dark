@@ -600,6 +600,35 @@ module RuntimeError =
 
     | SqlCompiler errMsg -> [ ES.String errMsg ]
 
+    // Usually a row type that changed after the datastore was made: the datastore is bound to the
+    // version it was made with, and both versions go by the same name, so each side says its version.
+    | DBSetOfWrongType (expected, actual) ->
+      let expectedHash =
+        match expected with
+        | TCustomType(nr, _) ->
+          match nr.resolved with
+          | Ok(Package(Hash h)) -> Stdlib.Option.Option.Some h
+          | _ -> Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None
+
+      let actualHash =
+        match actual with
+        | Known(KTCustomType(Package(Hash h), _)) -> Stdlib.Option.Option.Some h
+        | _ -> Stdlib.Option.Option.None
+
+      let version (h: Stdlib.Option.Option<String>) : String =
+        match h with
+        | Some h -> $" (version {Stdlib.String.slice h 0 8})"
+        | None -> ""
+
+      [ ES.String "This datastore holds "
+        ES.TypeReference expected
+        ES.String (version expectedHash)
+        ES.String " and was given "
+        ES.ValueType actual
+        ES.String (version actualHash)
+        ES.String ". If that type changed after the datastore was made, the datastore is still on the old version: `dark status` says which" ]
+
     | UncaughtException (msg, metadata) ->
       let withMetadata =
         match metadata with
