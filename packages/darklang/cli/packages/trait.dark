@@ -59,7 +59,8 @@ let createTraitInline
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
-        Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
+        (Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource))
+        || (Errors.reportTrailing sourceFile)
       let parsed =
         if hasParseError then
           Stdlib.Option.Option.None

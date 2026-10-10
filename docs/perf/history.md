@@ -13,6 +13,18 @@ loads more is a clause, not a section. Anything longer belongs in `playbook.md` 
 
 ---
 
+## 2026-10-10: the argument check, and main's drift (#5888)
+
+Published budget 10,717,784 -> 11,072,152, the higher of two clean-store `--update` runs (11.07, 11.05).
+Two parts. Main itself read 10.8 at the base commit, already over the recorded budget. And checking a
+command's arguments before it runs adds, per start, 4 package fns and 2 types to `dark eval 1L`'s 52
+and 11, about 30 to 35 KB a fetch. Built eagerly for all 78 commands it was 12.2 MB; declarations as
+functions built only for the command being run, and `check` as one function rather than a chain of
+four, brought it to 11.0-11.1. Main's 52 fns and 11 types per start are about 2 MB of the 10.8, and
+the obvious next pass.
+
+---
+
 ## 2026-10-06: List ops spread across cores by themselves, and where it pays
 
 `List.map`, `filter`, `filterMap` and `indexedMap` spread when the rest of the list is projected at

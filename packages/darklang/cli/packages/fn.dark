@@ -29,7 +29,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ""
       ] |> Stdlib.printLines
 
-      state
+      Cli.exitWith state false
     else
       // Parse and create function immediately
       createFnInline
@@ -69,7 +69,8 @@ let createFnInline
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError =
-        Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
+        (Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource))
+        || (Errors.reportTrailing sourceFile)
       let parsedFunction =
         if hasParseError then
           Stdlib.Option.Option.None

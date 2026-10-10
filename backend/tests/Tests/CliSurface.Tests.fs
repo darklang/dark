@@ -638,6 +638,9 @@ let private everyExclusionIsReal =
 /// Safe to run here BECAUSE the harness is not a terminal: anything that would go interactive asks
 /// `TerminalSupport.current ()` first and gets `Unavailable`. The harness stops the suite
 /// with the command's name if a command exceeds its deadline.
+///
+/// And a command whose declaration needs a word refuses, with a failing exit, rather than answering.
+/// Read from the declarations, so a command that comes to need one is covered the day it says so.
 let everyCommandAnswersWhenBare =
   cliTest
     "no registered command goes silent or hangs when run with no arguments"
@@ -645,12 +648,45 @@ let everyCommandAnswersWhenBare =
       task {
         let! commands = registeredCommands state
 
+        let code =
+          "Darklang.Cli.Registry.allCommands () |> Stdlib.List.filterMap (fun c -> "
+          + "let accepts = c.accepts in "
+          + "match accepts () with "
+          + "| Takes s -> (if s.atLeast > 0 then Stdlib.Option.Option.Some c.name else Stdlib.Option.Option.None) "
+          + "| Subcommands(_, s) -> (if s.atLeast > 0 then Stdlib.Option.Option.Some c.name else Stdlib.Option.Option.None))"
+        let! needing =
+          task {
+            match! evalUnder (executionState state) code with
+            | RT.DList(_, names) ->
+              return
+                names
+                |> List.choose (fun d ->
+                  match d with
+                  | RT.DString n -> Some n
+                  | _ -> None)
+                |> Set.ofList
+            | other -> return Tests.failtestf "the registry answered %A" other
+          }
+        Expect.isGreaterThan
+          (Set.count needing)
+          15
+          "the declarations name the commands that need an argument"
+
         let mutable failures : List<string * string> = []
 
         for cmd in commands do
           if not (Set.contains cmd notSweepable) then
-            let! outcome = runCliCatching state [ cmd ]
-            match sweepFailure outcome with
+            let! outcome = runCliCatchingWithStatus state [ cmd ]
+            let failure =
+              match outcome with
+              | Error e -> sweepFailure (Error e)
+              | Ok(output, status) ->
+                match sweepFailure (Ok output) with
+                | Some why -> Some why
+                | None when status = 0 && Set.contains cmd needing ->
+                  Some "needs an argument, and exited 0 without one"
+                | None -> None
+            match failure with
             | Some why -> failures <- (cmd, why) :: failures
             | None -> ()
 
@@ -664,44 +700,158 @@ let everyCommandAnswersWhenBare =
           Tests.failtestf "commands that answer nothing when run bare:\n%s" detail
       })
 
-let everyCommandSurvivesABogusArgument =
+// ─── Refusals ──────────────────────────────────────────────────────────────────
+//
+// A command REFUSES what it was not built to take, and refusing means exiting non-zero: a refusal
+// that exits 0 is success to a shell, a CI step or an agent, and `dark discard --only-this -y`
+// discarded the whole draft because the junk was ignored. Each test below states one part of
+// that, by name. Where a command departs from it, the departure is written down beside the test
+// with what the command does instead, and that is asserted too, or said plainly not to run.
+
+/// Run <param args>; `None` if it exited the way <param refusal> says it should (non-zero for a
+/// refusal, 0 for an answer), else what it did instead.
+let private didNotExit
+  (refusal : bool)
+  (state : Target)
+  (args : List<string>)
+  : Task<Option<string>> =
+  task {
+    match! runCliCatchingWithStatus state args with
+    | Error e -> return Some $"crashed: {e}"
+    | Ok(output, status) ->
+      match sweepFailure (Ok output) with
+      | Some why -> return Some why
+      | None ->
+        if (status <> 0) = refusal then
+          return None
+        else
+          return
+            Some $"exited {status}: {(CliDsl.plain output).Trim().Split('\n')[0]}"
+  }
+
+/// A Dark string literal holding <param s>.
+let private darkString (s : string) : string =
+  "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n") + "\""
+
+/// Fail with every (invocation, what happened) collected, or do nothing if there are none.
+let private failWith (title : string) (failures : List<string * string>) : unit =
+  if not (List.isEmpty failures) then
+    failures
+    |> List.rev
+    |> List.map (fun (invocation, why) -> $"  dark {invocation} -> {why}")
+    |> String.concat "\n"
+    |> Tests.failtestf "%s:\n%s" title
+
+/// The check itself, on declarations made for the purpose: what counts as a word, a flag and a value.
+let theDeclarationCheckReadsArgumentsRight =
+  cliTest
+    "the argument check reads flags, values and words the way commands do"
+    (fun state ->
+      task {
+        let A = "Darklang.Cli.Accepts."
+        let cases =
+          [ $"{A}upTo 1 [ \"--json\" ]", [ "x"; "--json" ], false
+            $"{A}upTo 1 [ \"--json\" ]", [ "x"; "y" ], true
+            $"{A}flagsOnly []", [ "--zzz" ], true
+            $"{A}withValues [ \"--depth\" ] ({A}upTo 1 [])", [ "--depth=1" ], false
+            $"{A}withValues [ \"--depth\" ] ({A}upTo 1 [])",
+            [ "--depth"; "3"; "path" ],
+            false
+            $"{A}withValues [ \"--depth\" ] ({A}upTo 1 [])", [ "--depth" ], true
+            // A lone "-" is a word: standard input.
+            $"{A}between 2 2 []", [ "Some.Module"; "-" ], false
+            // Every word a word: an expression may start with a minus.
+            $"{A}text 1", [ "-1L"; "+"; "2L" ], false
+            $"{A}between 1 1 []", [], true
+            // The subcommand is the first word that is not a flag.
+            $"{A}everywhere [ \"--json\" ] [] ({A}subcommands [ (\"list\", {A}upTo 1 []) ] ({A}nothing ()))",
+            [ "--json"; "list"; "3" ],
+            false
+            $"{A}everywhere [ \"--json\" ] [] ({A}subcommands [ (\"list\", {A}upTo 1 []) ] ({A}nothing ()))",
+            [ "zzz" ],
+            true ]
+
+        for (accepts, args, refused) in cases do
+          let argList = args |> List.map darkString |> String.concat ", "
+          let code =
+            $"Stdlib.Option.isSome (Darklang.Cli.Accepts.check \"t\" ({accepts}) [ {argList} ])"
+          match! evalUnder (executionState state) code with
+          | RT.DBool got -> Expect.equal got refused $"{accepts} with {args}"
+          | other -> Tests.failtestf "the check answered %A" other
+      })
+
+let everyCommandRefusesAFlagItDoesNotHave =
+  cliTest "every command refuses a flag it does not have" (fun state ->
+    task {
+      let! commands = registeredCommands state
+      let swept =
+        commands
+        |> List.filter (fun c ->
+          not (Set.contains c (Set.add "agent" notSweepable)))
+      Expect.isGreaterThan (List.length swept) 40 "the registry was read"
+      let mutable failures = []
+
+      for cmd in swept do
+        match! didNotExit true state [ cmd; "--zzz-no-such-flag" ] with
+        | Some why -> failures <- ($"{cmd} --zzz-no-such-flag", why) :: failures
+        | None -> ()
+
+      failWith "commands that took a flag they do not have" failures
+    })
+
+/// What a word a command has never seen IS, for the commands where it is not a mistake.
+type private AWordIs =
+  /// A query, so the command answers it, and an answer that matches nothing is a true one.
+  | AQuery of why : string
+  /// The name or the message of something the command makes, so running it here would change the
+  /// store every later test stands on. Not run with a word; its own tests make one on purpose.
+  | WhatItMakes of why : string
+
+let private aWordIsNotAMistake : Map<string, AWordIs> =
+  Map.ofList
+    [ "search", AQuery "the query: a word that matches nothing is a true answer"
+      "builtins", AQuery "a filter, the same way"
+      "branch",
+      WhatItMakes "names a new branch, starts it and moves the store onto it"
+      "switch", WhatItMakes "ditto"
+      "identity", WhatItMakes "renames this instance"
+      "commit",
+      WhatItMakes "the words are the commit message, and it commits the draft"
+      "squash", WhatItMakes "ditto, squashing what is unpushed" ]
+
+let everyCommandRefusesAWordItDoesNotKnow =
   cliTestOnMain
-    "no registered command crashes on an argument that means nothing"
+    "every command refuses a word it does not know, unless a word is a query"
     (fun state ->
       task {
         let! commands = registeredCommands state
+        let swept =
+          commands
+          |> List.filter (fun c ->
+            not (Set.contains c (Set.add "agent" notSweepable)))
+        Expect.isGreaterThan (List.length swept) 40 "the registry was read"
+        let mutable failures = []
 
-        let skip = Set.add "agent" notSweepable
+        // A row for a command that is no longer registered would never be consulted, quietly.
+        for KeyValue(cmd, _) in aWordIsNotAMistake do
+          if not (List.contains cmd commands) then
+            failures <-
+              (cmd, "listed in aWordIsNotAMistake, but not registered") :: failures
 
-        let mutable failures : List<string * string> = []
+        for cmd in swept do
+          let word = [ cmd; "zzz-no-such-thing-zzz" ]
+          let! failure =
+            match Map.tryFind cmd aWordIsNotAMistake with
+            | None -> didNotExit true state word
+            | Some(AQuery _) -> didNotExit false state word
+            | Some(WhatItMakes _) -> Task.FromResult None
+          match failure with
+          | Some why -> failures <- (String.concat " " word, why) :: failures
+          | None -> ()
 
-        for cmd in commands do
-          if not (Set.contains cmd skip) then
-            // A command that silently ignores an argument it didn't understand looks
-            // exactly like one that did what you asked.
-            let! outcome = runCliCatching state [ cmd; "zzz-no-such-thing-zzz" ]
-            match sweepFailure outcome with
-            | Some why -> failures <- (cmd, why) :: failures
-            | None -> ()
-
-            // `branch <junk>` and `switch <junk>` START that branch and move the store onto it, so every
-            // command after them in this loop would be swept on a junk branch, as the store was found to be
-            // after the last run. Back to main, and say so if it is not.
-            if cmd = "branch" || cmd = "switch" then
-              let! _ = runCli state [ "switch"; "main" ]
-              ()
-
-        if not (List.isEmpty failures) then
-          let detail =
-            failures
-            |> List.rev
-            |> List.map (fun (c, why) ->
-              $"  dark {c} zzz-no-such-thing-zzz -> {why}")
-            |> String.concat "\n"
-
-          Tests.failtestf
-            "commands that ignore an argument they don't understand:\n%s"
-            detail
+        failWith
+          "commands that did not do what a word they do not know calls for"
+          failures
       })
 
 /// The same two sweeps again, standing on a BRANCH.
@@ -734,7 +884,16 @@ let everyCommandSurvivesABranch =
         let sweep (label : string) (extra : List<string>) =
           task {
             for cmd in commands do
-              if not (Set.contains cmd (Set.add "agent" notSweepable)) then
+              // A word to one of these makes something (`branch zzz` would start a branch and
+              // move the store onto it, mid-sweep), so it is run bare only. See `aWordIsNotAMistake`.
+              let makesSomething =
+                match Map.tryFind cmd aWordIsNotAMistake with
+                | Some(WhatItMakes _) -> not (List.isEmpty extra)
+                | _ -> false
+              if
+                not (Set.contains cmd (Set.add "agent" notSweepable))
+                && not makesSomething
+              then
                 let! outcome = runCliCatching state (cmd :: extra)
                 match sweepFailure outcome with
                 | Some why -> failures <- ($"{cmd} {label}", why) :: failures
@@ -769,10 +928,6 @@ let everyCommandSurvivesABranch =
 /// other sweeps assert -- nothing printed that looks like a runtime failure, and something
 /// printed at all -- plus the exit code, which for a command that was asked a fair question and
 /// answered it is 0.
-///
-/// The exit code is asserted in one direction only. A refusal exits non-zero, but some refusals
-/// still return the state unchanged and so exit 0, so `= 0` is a safe thing to require of a
-/// valid invocation and a useless thing to invert.
 /// What the seed leaves in the store for the sweep to name.
 type private Seeded =
   {
@@ -805,7 +960,7 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       "eval", [ "1L + 1L" ]
       "scripts", [ "list" ]
       "view", [ seed.fn ]
-      "tree", [ "Darklang.Stdlib"; "--depth=1" ]
+      "tree", [ "Darklang.Stdlib"; "--depth"; "1" ]
       "search", [ "mergeFavoring" ]
       "deps", [ seed.fn ]
       "hash", [ seed.fn ]
@@ -967,8 +1122,11 @@ let everyCommandWorksWithValidArguments =
               match sweepFailure (Ok output) with
               | Some why -> failures <- (printed, why) :: failures
               | None ->
+                // A declaration narrower than what the command takes lands here, as exit 1 with
+                // the refusal as the first line.
                 if status <> 0 then
-                  failures <- (printed, $"exited {status}") :: failures
+                  let first = (CliDsl.plain output).Trim().Split('\n')[0]
+                  failures <- (printed, $"exited {status}: {first}") :: failures
 
           if not (List.isEmpty failures) then
             let detail =
@@ -1216,8 +1374,9 @@ let private documentedCommandsAreReal =
 
 /// A dash-led argument is a flag someone mistyped, or a sweep passed in. It is never a name.
 ///
-/// `everyCommandSurvivesABogusArgument` above cannot catch this, because these commands ANSWER, at
-/// length and cheerfully, while doing something nobody asked for. Unguarded, `dark switch --help`
+/// The refusal sweeps above judge the exit code; this checks that nothing was MADE, which an exit code
+/// cannot show. These commands used to ANSWER, at length and cheerfully, while doing something nobody
+/// asked for. Unguarded, `dark switch --help`
 /// starts a branch called "--help" and moves the store onto it, so the next `dark fn` authors on a
 /// branch that exists by accident; `dark identity --help` renames the instance to "--help", and the
 /// name goes out on the next push, so everyone else sees it before you do.
@@ -1233,7 +1392,7 @@ let private aDashLedArgumentIsNeverAName =
 
           Expect.stringContains
             output
-            "starts with a dash"
+            "does not take `--zzz-not-a-branch`"
             $"dark {cmd} --zzz-not-a-branch should refuse the name"
 
           let! branches = runCli state [ "branches" ]
@@ -1249,12 +1408,43 @@ let private aDashLedArgumentIsNeverAName =
 
         Expect.stringContains
           identityOut
-          "starts with a dash"
+          "does not take `--zzz-not-a-name`"
           "dark identity --zzz-not-a-name should refuse the name"
 
         let! after = runCli state [ "whoami" ]
         Expect.equal after before "and the instance identity is unchanged"
       })
+
+/// The two refusals the sweeps cannot run, because a mistake there costs something: a mistyped flag
+/// beside `-y` used to discard the whole draft, and a stray word after an inline definition used to
+/// be dropped and the rest saved.
+let private costlyMistakesAreRefused =
+  cliTestOnMain "a mistyped flag or a stray word changes nothing" (fun state ->
+    task {
+      do! CliDsl.fn state "Tests.Costly.kept" "() : Int64 = 1L"
+
+      let! _, discardCode = runCliWithExit state [ "discard"; "--only-this"; "-y" ]
+      Expect.equal discardCode 1L "discard refuses a flag it does not have"
+      let! kept = runCli state [ "eval"; "Tests.Costly.kept ()" ]
+      Expect.stringContains kept "1" "and the draft is still there"
+
+      let! _, valCode =
+        runCliWithExit state [ "val"; "Tests.Costly.x"; "42L"; "zzz" ]
+      Expect.equal valCode 1L "val refuses a word after the definition"
+      let! x = runCli state [ "eval"; "Tests.Costly.x" ]
+      Expect.isFalse (x.Contains "42") "and saves nothing"
+
+      let! _, fnCode =
+        runCliWithExit
+          state
+          [ "fn"; "Tests.Costly.f"; "() : Int64 = 90817L"; "zzz" ]
+      Expect.equal fnCode 1L "fn refuses a word after the definition"
+      let! f = runCli state [ "eval"; "Tests.Costly.f ()" ]
+      Expect.isFalse (f.Contains "90817") "and saves nothing"
+
+      let! _ = runCli state [ "discard"; "--yes" ]
+      ()
+    })
 
 /// `serve` and `apps` are not swept, because their success binds a port or takes the screen, so
 /// their refusals are checked here. A refusal that exits 0 is one a script cannot see, and these
@@ -1263,11 +1453,11 @@ let private unsweptCommandsRefuseWithExit1 =
   cliTestOnMain "serve and apps view refusals exit 1" (fun state ->
     task {
       let cases =
-        [ [ "serve" ], "Usage: serve"
-          [ "serve"; "--live" ], "Missing router path"
+        [ [ "serve" ], "`dark serve` needs an argument"
+          [ "serve"; "--live" ], "`dark serve` needs an argument"
           [ "serve"; "Tests.NoSuch.router"; "--live" ], "is it defined"
           [ "apps"; "view"; "Tests.NoSuch"; "--dev" ], "--dev is --live"
-          [ "apps"; "view"; "Tests.NoSuch"; "--zzz" ], "apps view has no --zzz" ]
+          [ "apps"; "view"; "Tests.NoSuch"; "--zzz" ], "does not take `--zzz`" ]
 
       for args, expected in cases do
         let printed = String.concat " " args
@@ -1339,10 +1529,6 @@ let private unwrapErrorsAreReadable =
 // Driven through `openEditExisting` and `saveEditing` rather than keystrokes, so what is under test
 // is the save and not the renderer. The editor is prefilled by the pretty-printer, which is where
 // the impl's qualified names come from.
-
-/// A Dark string literal holding <param s>.
-let private darkString (s : string) : string =
-  "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n") + "\""
 
 /// Open <param item> in <param modules> in the editor, replace <param find> with <param replace> in
 /// what it prefilled, save, and answer the footer (or what went wrong instead).
@@ -1918,6 +2104,7 @@ let tests : List<Test> =
     staleApprovalIsARefusal
     damagedPolicyIsARefusal
     moduleDocOnlyEditLands
+    theDeclarationCheckReadsArgumentsRight
     workbenchImplEditUpdatesInPlace
     workbenchTraitEditKeepsImplementations
     workbenchFnEditCarriesCallers
@@ -1942,6 +2129,7 @@ let tests : List<Test> =
     permissionsRefusesAnEmptyRule
     aDashLedArgumentIsNeverAName
     unsweptCommandsRefuseWithExit1
+    costlyMistakesAreRefused
     viewHeadsWithTheNameYouAskedFor
     headerKeepsTheBranchWhenNarrow
     hintRowKeepsTheWayOut

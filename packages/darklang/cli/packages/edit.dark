@@ -69,13 +69,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       (Stdlib.Cli.UI.Colors.dimText
         "  `dark edit <name>` opens $EDITOR; with a <file> it applies that.")
 
-    state
+    Cli.exitWith state false
   | Ok((name, fileArg)) ->
 
   match Traversal.traverse branchId state.packageData.currentLocation name with
   | Error e ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot edit {name}: {e}")
-    state
+    Cli.exitWith state false
   | Ok location ->
 
   match itemLocation location with
@@ -88,7 +88,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       (Stdlib.Cli.UI.Colors.dimText
         "  `dark module /Some.Module <file>` edits a whole module at once.")
 
-    state
+    Cli.exitWith state false
   | Some loc ->
 
   match fileArg with
@@ -109,13 +109,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       (Stdlib.Cli.UI.Colors.dimText
         $"  `dark view {name} --raw > f`, change f, then `dark edit {name} f`.")
 
-    state
+    Cli.exitWith state false
   | Available ->
 
   match Packages.View.rawSource branchId location with
   | Error e ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot edit {name}: {e}")
-    state
+    Cli.exitWith state false
   | Ok before ->
 
   match Stdlib.Cli.Dir.createTemp () with
@@ -124,7 +124,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       (Stdlib.Cli.UI.Colors.error
         $"Cannot edit {name}: no temp directory ({e.message})")
 
-    state
+    Cli.exitWith state false
   | Ok dir ->
     let path = $"{dir}/{loc.name}.dark"
 
@@ -134,7 +134,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         (Stdlib.Cli.UI.Colors.error
           $"Cannot edit {name}: could not write {path} ({e.message})")
 
-      state
+      Cli.exitWith state false
     | Ok _ ->
       let editor = editorCommand ()
 
@@ -147,7 +147,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           (Stdlib.Cli.UI.Colors.dimText
             $"  Set $EDITOR, or edit {path} and run `dark edit {name} {path}`.")
 
-        state
+        Cli.exitWith state false
       | Ok code when code != 0 ->
         // A non-zero editor is how you say "forget it" in most of them. The store
         // is left alone and so is the file, so a long edit is not thrown away on a
@@ -165,7 +165,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           Stdlib.printLine
             (Stdlib.Cli.UI.Colors.error $"Could not read back {path}: {e.message}")
 
-          state
+          Cli.exitWith state false
         | Ok after ->
           if (Stdlib.String.trim after) == (Stdlib.String.trim before) then
             let _ = Stdlib.Cli.Dir.deleteRecursive dir
