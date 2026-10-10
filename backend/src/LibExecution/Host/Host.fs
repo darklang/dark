@@ -396,6 +396,16 @@ let private withChecks
     | (Ok request, resource) :: rest -> collect ((request, resource) :: acc) rest
   collect [] checks
 
+/// Environment variables read without an `env-read` grant: the conventions that say how a terminal
+/// is used (`TERM`, `NO_COLOR`, `CLICOLOR_FORCE`) and whether anyone is at it (`CI`,
+/// `DARK_NO_INPUT`). Whether to start a TUI, colour output or ask a question has to be decided
+/// before any grant exists, and under deny-all, so these are host facts like the user's name.
+/// The set is CLOSED on purpose: an ungated read of a named terminal convention is this exception,
+/// and an ungated read of anything else is a hole in the policy. A new name needs that same
+/// argument, not just a use for it.
+let private terminalConventions : Set<string> =
+  Set.ofList [ "TERM"; "NO_COLOR"; "CLICOLOR_FORCE"; "CI"; "DARK_NO_INPUT" ]
+
 /// An operation authorized elsewhere, which only needs to run where the host
 /// state lives: a continuation on a host-issued handle (decided when the
 /// handle was created), a Native-gated builtin (decided by the interpreter's
@@ -607,6 +617,8 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     withChecks
       [ envCheck write name ]
       (attempt (fun () -> HostLibc.unsetenv name |> unitOk))
+  | HostTypes.PosixOp.Getenv name when terminalConventions.Contains name ->
+    unchecked (produce (fun () -> Response.EnvValue(HostLibc.getenv name)))
   | HostTypes.PosixOp.Getenv name ->
     withChecks
       [ envCheck read name ]
@@ -755,6 +767,13 @@ let private resolve (op : Operation) : Result<Resolved, string> =
     // The answer is a path, so it is a read of that path.
     let path = HostProcess.currentExecutablePath ()
     resolveFile read path (fun path -> produce (fun () -> Response.Path path))
+  | Operation.EnvGet name when terminalConventions.Contains name ->
+    unchecked (
+      produce (fun () ->
+        System.Environment.GetEnvironmentVariable name
+        |> Option.ofObj
+        |> Response.EnvValue)
+    )
   | Operation.EnvGet name ->
     withChecks
       [ envCheck read name ]

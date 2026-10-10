@@ -1008,7 +1008,7 @@ let private printCallStack
       else
         Ply ""
     if csString <> "" then
-      print $"Error when executing {what}. Call-stack:\n{csString}\n"
+      printErr $"Error when executing {what}. Call-stack:\n{csString}\n"
   }
 
 
@@ -1657,7 +1657,7 @@ let fns () : List<BuiltInFn> =
                       | other ->
                         // Only when the stack names a function: see `hasReadableFrames`.
                         if hasReadableFrames callStack && csString <> "" then
-                          print
+                          printErr
                             $"Error when executing expression. Call-stack:\n{csString}\n"
                         return resultError (ExecutionError.toDT other)
                   | Error pe -> return resultError (ExecutionError.toDT pe)

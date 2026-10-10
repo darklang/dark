@@ -135,8 +135,10 @@ let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : 
         if autoConfirm then
           "fresh"
         else
-          Stdlib.printErrorLine "Would you like to copy the data from this portable directory to the installation, or start fresh? (copy/fresh, default: fresh): "
-          (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
+          // Nobody there, or input ending, takes the stated default.
+          Stdlib.Cli.UI.Prompt.ask "Would you like to copy the data from this portable directory to the installation, or start fresh? (copy/fresh, default: fresh):"
+          |> Stdlib.Option.map (fun c -> Stdlib.String.trim c)
+          |> Stdlib.Option.withDefault "fresh"
 
       if migrateChoice == "copy" then
         if Stdlib.Cli.Unix.fileExists portableDbPath || Stdlib.Cli.PowerShell.fileExists portableDbPath then
@@ -165,8 +167,10 @@ let install (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Res
       Stdlib.printErrorLine "Installation options:"
       Stdlib.printErrorLine "1. Fresh install (start with clean database)"
       Stdlib.printErrorLine "2. Migrate current data to global installation"
-      Stdlib.printErrorLine "Choose option (1 or 2, default: 1): "
-      (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
+      // Nobody there, or input ending, takes the stated default.
+      Stdlib.Cli.UI.Prompt.ask "Choose option (1 or 2, default: 1):"
+      |> Stdlib.Option.map (fun c -> Stdlib.String.trim c)
+      |> Stdlib.Option.withDefault "1"
 
   match Download.installOrUpdateLatestRelease host with
   | Ok _ ->

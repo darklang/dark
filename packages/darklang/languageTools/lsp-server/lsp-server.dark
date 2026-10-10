@@ -16,6 +16,8 @@ type Json = Stdlib.AltJson.Json
 /// following the LSP spec. It also logs all incoming and outgoing messages to
 /// stderr (`log`), which the editor shows as the server's output.
 let runServerCli (u: Unit) : Int =
+  let _claimed = Stdlib.claimStdoutForProtocol ()
+
   (Stdlib.DateTime.now ())
   |> Stdlib.toString
   |> fun nowStr -> log $"Running Darklang LSP Server {nowStr}"

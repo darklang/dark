@@ -82,9 +82,9 @@ let callExceptionCallback (e : exn) =
     exceptionCallback e
   with e ->
     // We're completely screwed at this point
-    System.Console.WriteLine "Exception calling callExceptionCallback"
-    System.Console.WriteLine(e.Message)
-    System.Console.WriteLine e.StackTrace
+    System.Console.Error.WriteLine "Exception calling callExceptionCallback"
+    System.Console.Error.WriteLine(e.Message)
+    System.Console.Error.WriteLine e.StackTrace
 
 
 // CLEANUP reduce usages of all of these raiseInternal fns

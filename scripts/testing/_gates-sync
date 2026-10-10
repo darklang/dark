@@ -24,7 +24,7 @@ relay_grants() {
 # failed push instead of losing it.
 #
 # Gate, not an F#/.dark test: it runs under `script -qec`, which allocates a pty.
-# `stdinIsInteractive` is false on a pipe and the test binary's stdin is never a terminal, so on
+# `Stdlib.Cli.UI.Prompt.canAsk` is false on a pipe and the test binary's stdin is never a terminal, so on
 # a pipe the prompts block forever.
 gate_setup() {
   set -euo pipefail

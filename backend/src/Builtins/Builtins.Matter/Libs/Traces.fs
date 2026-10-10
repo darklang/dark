@@ -212,7 +212,7 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
                 "ord", DInt64 ev.ord ]
           Some(DRecord(typeName, typeName, [], fields))
         with ex ->
-          print $"[tracing] dropping corrupt fn_call row: {ex.Message}"
+          printErr $"[tracing] dropping corrupt fn_call row: {ex.Message}"
           Telemetry.event
             "trace.row.parseFailed"
             [ "callId", ev.callId; "message", ex.Message ]
@@ -640,7 +640,7 @@ let fns () : List<BuiltInFn> =
                 | DString code -> return Dval.optionSome KTString (DString code)
                 | _ -> return Dval.optionNone KTString
               with ex ->
-                print $"[traces] Failed to parse input for replay: {ex.Message}"
+                printErr $"[traces] Failed to parse input for replay: {ex.Message}"
                 return Dval.optionNone KTString
           }
         | _ -> incorrectArgs ())

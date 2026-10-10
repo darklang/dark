@@ -1167,12 +1167,9 @@ module ReplayPolicy =
     |> raiseRTE vm.threadID
 
   /// The old run's output, told apart from the new run's: dimmed on a terminal, marked where
-  /// dimming would be lost.
-  let private dim (s : string) : string =
-    if System.Console.IsOutputRedirected then
-      $"[replayed] {s}"
-    else
-      $"\u001b[2m{s}\u001b[0m"
+  /// dimming would be lost. `redirected` is about the stream it is going back to.
+  let private dim (redirected : bool) (s : string) : string =
+    if redirected then $"[replayed] {s}" else $"\u001b[2m{s}\u001b[0m"
 
   /// Run before a logged call's result is handed back. Raises to stop the resume.
   let beforeServing
@@ -1195,9 +1192,13 @@ module ReplayPolicy =
     if Set.contains Effects.Effect.Stdout fn.callEffects then
       // The logged output, dimmed: the world saw it once; the person resuming sees where the
       // run had got to.
+      // Back to the stream it went to the first time.
+      let toStderr = name = "printErrorLine" || name = "printError"
       for a in args do
         match a with
-        | DString s -> print (dim s)
+        | DString s when toStderr ->
+          printErr (dim System.Console.IsErrorRedirected s)
+        | DString s -> print (dim System.Console.IsOutputRedirected s)
         | _ -> ()
     if Set.contains Effects.Effect.FileRead fn.callEffects then
       match recordedAt with
@@ -1205,7 +1206,7 @@ module ReplayPolicy =
         for a in args do
           match a with
           | DString path when Host.fileChangedSince path since && warned.Add path ->
-            System.Console.Error.WriteLine(
+            NonBlockingConsole.writeErrLine (
               $"resume: step {ord} read {path}, which has changed since this run was "
               + "recorded; the run continues on what it read then"
             )

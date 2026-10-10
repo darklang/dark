@@ -4,6 +4,64 @@ type Stream =
   | Out
   | Err
 
+/// SGR escape sequences (`ESC [ ... m`): colour and text style.
+module Ansi =
+  let private sgr =
+    System.Text.RegularExpressions.Regex(
+      "\u001b\\[([0-9;]*)m",
+      System.Text.RegularExpressions.RegexOptions.Compiled
+    )
+
+  /// Every SGR sequence removed, for a stream that is not a terminal.
+  let withoutSgr (text : string) : string =
+    if text.IndexOf '\u001b' < 0 then text else sgr.Replace(text, "")
+
+  /// The colour parameters removed and the rest of the style kept (bold, dim, underline, reverse),
+  /// for `NO_COLOR`, which asks for no colour rather than no style. A 256-colour or truecolour
+  /// parameter (`38;5;n`, `38;2;r;g;b`) is dropped whole.
+  let withoutColour (text : string) : string =
+    if text.IndexOf '\u001b' < 0 then
+      text
+    else
+      sgr.Replace(
+        text,
+        fun m ->
+          let ps =
+            if m.Groups[1].Value = "" then
+              [ "0" ]
+            else
+              List.ofArray (m.Groups[1].Value.Split ';')
+          let rec keep (ps : string list) : string list =
+            match ps with
+            | ("38" | "48") :: "5" :: _ :: rest -> keep rest
+            | ("38" | "48") :: "2" :: _ :: _ :: _ :: rest -> keep rest
+            | p :: rest ->
+              match System.Int32.TryParse p with
+              | true, n when
+                (n >= 30 && n <= 39) || (n >= 40 && n <= 49) || (n >= 90 && n <= 107)
+                ->
+                keep rest
+              | _ -> p :: keep rest
+            | [] -> []
+          match keep ps with
+          | [] -> ""
+          | kept -> "\u001b[" + String.concat ";" kept + "m"
+      )
+
+  /// What a stream gets: everything when a person is looking at it, no colour under `NO_COLOR`, and
+  /// no escape sequences at all in a pipe, a file or a `TERM=dumb` terminal. `CLICOLOR_FORCE` keeps
+  /// it all, for `dark ... | less -R`.
+  let decide (redirected : bool) : string -> string =
+    let env (name : string) =
+      match System.Environment.GetEnvironmentVariable name with
+      | null -> ""
+      | v -> v
+    let force = env "CLICOLOR_FORCE"
+    if force <> "" && force <> "0" then id
+    elif redirected || env "TERM" = "dumb" then withoutSgr
+    elif env "NO_COLOR" <> "" then withoutColour
+    else id
+
 type BlockingCollection =
   System.Collections.Concurrent.BlockingCollection<struct (Stream * string)>
 
@@ -40,6 +98,13 @@ type private Private() =
 
   static let mQueue : BlockingCollection = new BlockingCollection()
 
+  // Colour is decided per stream, where the text reaches it: a refusal on a terminal's stderr keeps
+  // its red while the piped stdout beside it carries no escape codes. Here rather than in the
+  // colouring helpers, which build a string long before anyone knows where it will be printed.
+  // Captures and the browser sink are untouched: they never reach these writes.
+  static let forOut = lazy (Ansi.decide System.Console.IsOutputRedirected)
+  static let forErr = lazy (Ansi.decide System.Console.IsErrorRedirected)
+
   // When capturing, writes go to a buffer instead of the console queue. Used by the CLI to run a
   // command and show its output in-frame (the workbench's inline command bar) rather than to
   // stdout, and by the CLI test harness to read what a command printed.
@@ -61,6 +126,16 @@ type private Private() =
   // (it would finish once it was removed from the queue)
   static let mLock : obj = obj ()
 
+  // A protocol server's stdout (the LSP, an MCP server). Once claimed, the real stdout carries
+  // that server's frames and nothing else: a frame is written here directly, past the queue and
+  // any capture window, and every other stdout write goes to stderr, marked as stray, so a
+  // `printLine` in user code or a `Builtin.debug` can't land between two frames. Moved rather than
+  // dropped: a debug print that vanished would read as code that never ran.
+  static let mutable protocolOut : System.IO.Stream = null
+  static let protocolLock : obj = obj ()
+  static let strayMark =
+    "[stray stdout, moved to stderr: stdout is this server's protocol] "
+
   static do
     let f () =
       while true do
@@ -72,8 +147,9 @@ type private Private() =
             // Don't block (eg with `Take`) while holding the lock
             if mQueue.TryTake(&v) then
               match v with
-              | struct (Out, text) -> System.Console.Out.Write(text)
-              | struct (Err, text) -> System.Console.Error.Write(text)
+              | struct (Out, text) -> System.Console.Out.Write(forOut.Force () text)
+              | struct (Err, text) ->
+                System.Console.Error.Write(forErr.Force () text)
               wrote <- true
           with e ->
             System.Console.Error.WriteLine(
@@ -128,7 +204,42 @@ type private Private() =
             |> ignore
             true)
 
-      if not captured then mQueue.Add(struct (stream, value))
+      if not captured then
+        match stream with
+        | Out when not (isNull protocolOut) ->
+          mQueue.Add(struct (Err, strayMark + value))
+        | _ -> mQueue.Add(struct (stream, value))
+
+  /// Make stdout the protocol channel; see `protocolOut`. Anything already queued for stdout is
+  /// written first. False if it was already claimed, or in the browser, which has no protocol.
+  static member ClaimStdout() : bool =
+    if isWasm then
+      false
+    else
+      lock protocolLock (fun () ->
+        if not (isNull protocolOut) then
+          false
+        else
+          Private.wait ()
+          System.Console.Out.Flush()
+          protocolOut <- System.Console.OpenStandardOutput()
+          // Writes that skip this module (`Console.WriteLine`, `printfn`) follow too.
+          System.Console.SetOut(System.Console.Error)
+          true)
+
+  /// One frame onto the claimed stdout, whole and flushed. Frames from concurrent processes take
+  /// turns. Before a claim, an ordinary stdout write.
+  static member WriteProtocol(value : string) : unit =
+    let written =
+      lock protocolLock (fun () ->
+        if isNull protocolOut then
+          false
+        else
+          let bytes = System.Text.Encoding.UTF8.GetBytes value
+          protocolOut.Write(bytes, 0, bytes.Length)
+          protocolOut.Flush()
+          true)
+    if not written then Private.Write(Out, value)
 
   /// Begin a capture window for THIS flow. Returns false if one was already open here, in which case
   /// nothing changes: the caller must not assume it owns the buffer. Nesting isn't supported;
@@ -173,6 +284,12 @@ let stopCapture () : string =
 
 /// `(both, stdout, stderr)`.
 let stopCaptureEach () : string * string * string = Private.StopCapture()
+
+/// Make stdout a protocol server's channel: only `writeProtocol` reaches it from now on.
+let claimStdout () : bool = Private.ClaimStdout()
+
+/// One protocol frame onto the claimed stdout (an ordinary stdout write before a claim).
+let writeProtocol (value : string) : unit = Private.WriteProtocol value
 
 /// Browser host only: route every write to <param sink> instead of `System.Console`.
 let setBrowserSink (sink : string -> unit) : unit = Private.SetBrowserSink sink

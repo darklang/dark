@@ -75,7 +75,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     | Ok None -> state
     | Error message ->
-      Stdlib.printLine $"Error: {message}"
+      Stdlib.printErrorLine $"Error: {message}"
       { state with exitCode = 1 }
 
 

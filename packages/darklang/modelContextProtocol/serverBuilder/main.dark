@@ -214,6 +214,8 @@ let runServerCliLoop (state: State.BuilderServerState) : Int =
 /// - Code review and refactoring assistance
 /// - Testing utilities
 let run (server: McpServerBuilder) : Int =
+  let _claimed = Stdlib.claimStdoutForProtocol ()
+
   // Get server-specific log file path
   let logFilePath = getLogFilePath server.name
 

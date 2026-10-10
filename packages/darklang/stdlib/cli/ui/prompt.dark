@@ -1,38 +1,64 @@
 module Darklang.Stdlib.Cli.UI.Prompt
 
 
-/// Ask the user for text input.
-let ask (question: String) : String =
-  Stdlib.printError ($"{question} ")
-  Stdlib.Cli.Stdin.readLine ()
+/// Whether anyone can answer a question here: stdin and stderr are both terminals, and none of
+/// `--no-input`, `DARK_NO_INPUT` or `CI` says nobody is there. A terminal alone is not enough: CI
+/// gives every step a pty that nobody types into, and a question there waits forever.
+let canAsk () : Bool =
+  let facts = Stdlib.Cli.Tui.TerminalSupport.currentFacts ()
+  facts.inputIsTerminal
+  && facts.errorIsTerminal
+  && Stdlib.Bool.not (Stdlib.Cli.Tui.TerminalSupport.isOn facts "CI")
+  && Stdlib.Bool.not (Stdlib.Cli.Tui.TerminalSupport.isOn facts "DARK_NO_INPUT")
+
+/// The reason, for a refusal that then names the flag to pass instead.
+let nobodyCanAnswer () : String =
+  "nobody can answer a question here (stdin or stderr isn't a terminal, or --no-input, DARK_NO_INPUT or CI is set)"
+
+/// Ask the user for text input. None when nobody can answer here, or when input ends: neither of
+/// those is an answer, empty or otherwise.
+let ask (question: String) : Stdlib.Option.Option<String> =
+  if Stdlib.Bool.not (canAsk ()) then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.printError ($"{question} ")
+    Stdlib.Cli.Stdin.readLineOrEnd ()
 
 
-/// Ask the user a yes/no question. Returns true for yes.
+/// Ask the user a yes/no question. True only for a yes; nobody being there, or input ending, is no.
 let confirm (question: String) : Bool =
-  Stdlib.printError ($"{question} [y/N] ")
-  let answer = Stdlib.String.toLowercase (Stdlib.Cli.Stdin.readLine ())
-  answer == "y" || answer == "yes"
+  match ask $"{question} [y/N]" with
+  | Some typed ->
+    let answer = Stdlib.String.toLowercase (Stdlib.String.trim typed)
+    answer == "y" || answer == "yes"
+  | None -> false
 
 
-/// Ask the user to select from a list of choices. Returns the chosen item.
-let select (question: String) (choices: List<String>) : String =
-  Stdlib.printErrorLine question
-
-  let _ =
-    choices
-    |> Stdlib.List.indexedMap (fun i choice ->
-      Stdlib.printErrorLine ($"  {Stdlib.Cli.UI.Colors.boldText (Stdlib.toString (i + 1))}. {choice}"))
-
-  Stdlib.printError "Enter number: "
-  let input = Stdlib.Cli.Stdin.readLine ()
-
-  match Stdlib.Int.parse input with
-  | Ok n ->
-    match Stdlib.List.getAt choices (n - 1) with
-    | Some choice -> choice
-    | None ->
-      Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.redText "Invalid selection")
-      select question choices
-  | Error _e ->
-    Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.redText "Please enter a number")
-    select question choices
+/// Ask the user to select from a list of choices. None when nobody can answer here, or when input
+/// ends; an answer that isn't one of the numbers asks again.
+let select
+  (question: String)
+  (choices: List<String>)
+  : Stdlib.Option.Option<String> =
+  if Stdlib.Bool.not (canAsk ()) then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.printErrorLine question
+    let _ =
+      choices
+      |> Stdlib.List.indexedMap (fun i choice ->
+        Stdlib.printErrorLine ($"  {Stdlib.Cli.UI.Colors.boldText (Stdlib.toString (i + 1))}. {choice}"))
+    Stdlib.printError "Enter number: "
+    match Stdlib.Cli.Stdin.readLineOrEnd () with
+    | None -> Stdlib.Option.Option.None
+    | Some input ->
+      match Stdlib.Int.parse (Stdlib.String.trim input) with
+      | Ok n ->
+        match Stdlib.List.getAt choices (n - 1) with
+        | Some choice -> Stdlib.Option.Option.Some choice
+        | None ->
+          Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.redText "Invalid selection")
+          select question choices
+      | Error _e ->
+        Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.redText "Please enter a number")
+        select question choices

@@ -8,10 +8,11 @@ let getSize () : (Int * Int) =
 /// Whether printed output should carry color.
 ///
 /// `NO_COLOR` is the informal standard and people expect it to work; a redirected stdout is what makes
-/// `dark eval ... > file` produce text rather than escape sequences. Both are facts about the process,
-/// which is why the host answers rather than the printer.
+/// `dark eval ... > file` produce text rather than escape sequences. The host reports the facts and the
+/// rule is `TerminalSupport.colorEnabledFor`, the same one for every stream.
 let colorEnabled () : Bool =
-  Builtin.cliTerminalColorEnabled ()
+  let facts = Stdlib.Cli.Tui.TerminalSupport.currentFacts ()
+  Stdlib.Cli.Tui.TerminalSupport.colorEnabledFor facts facts.outputIsTerminal
 
 
 /// Display options sized to the terminal we are actually printing to.

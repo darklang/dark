@@ -2,11 +2,17 @@
 module Darklang.Stdlib.Cli.Tui.TerminalSupport
 
 
-/// Terminal facts reported by the native host.
+/// The facts about this terminal session: which standard streams are terminals, and the environment
+/// variables that govern how a terminal is used (`TERM`, `NO_COLOR`, `CLICOLOR_FORCE`, `CI`,
+/// `DARK_NO_INPUT`, whichever are set). Gathered here from two primitives, isatty and getenv; the
+/// host reads exactly those five names without an `env-read` grant, since these decisions are made
+/// under deny-all. Whether to start a TUI, colour output or ask a question are policies over them.
 type Facts =
   { inputIsTerminal: Bool
     outputIsTerminal: Bool
-    terminalName: String }
+    errorIsTerminal: Bool
+    terminalName: String
+    environment: Dict<String, String> }
 
 
 /// Whether an interactive TUI may start.
@@ -38,15 +44,48 @@ let evaluate (facts: Facts) : Availability =
     Availability.Available
 
 
-/// Read the current terminal facts from the native host.
+/// The variables `Facts.environment` carries. The host reads these and no others without a grant.
+let governingVariables () : List<String> =
+  [ "TERM", "NO_COLOR", "CLICOLOR_FORCE", "CI", "DARK_NO_INPUT" ]
+
+/// Read the current terminal facts.
 let currentFacts () : Facts =
-  let (inputIsTerminal, outputIsTerminal, terminalName) =
-    Builtin.cliTerminalSessionInfo ()
+  let environment =
+    governingVariables ()
+    |> Stdlib.List.filterMap (fun name ->
+      match Stdlib.Cli.Env.get name with
+      | Some value -> Stdlib.Option.Option.Some((name, value))
+      | None -> Stdlib.Option.Option.None)
+    |> Stdlib.Dict.fromListOverwritingDuplicates
+
   Facts {
-    inputIsTerminal = inputIsTerminal
-    outputIsTerminal = outputIsTerminal
-    terminalName = terminalName
+    inputIsTerminal = Stdlib.Cli.Sys.isTerminal 0
+    outputIsTerminal = Stdlib.Cli.Sys.isTerminal 1
+    errorIsTerminal = Stdlib.Cli.Sys.isTerminal 2
+    terminalName = Stdlib.Option.withDefault (Stdlib.Dict.get environment "TERM") ""
+    environment = environment
   }
+
+/// Whether a governing variable is switched on: set, non-empty, and not `0`, `false` or `no`.
+/// `CI=0`, `CI=false` and `CI=` all mean "not CI".
+let isOn (facts: Facts) (name: String) : Bool =
+  match Stdlib.Dict.get facts.environment name with
+  | Some value ->
+    let v = Stdlib.String.toLowercase (Stdlib.String.trim value)
+    v != "" && v != "0" && v != "false" && v != "no"
+  | None -> false
+
+/// Whether a stream should carry colour: it is a terminal, `TERM` isn't `dumb`, and `NO_COLOR`
+/// isn't set (any non-empty value counts, per no-color.org). `CLICOLOR_FORCE` overrides.
+let colorEnabledFor (facts: Facts) (isTerminal: Bool) : Bool =
+  if isOn facts "CLICOLOR_FORCE" then
+    true
+  else
+    let noColor =
+      match Stdlib.Dict.get facts.environment "NO_COLOR" with
+      | Some value -> value != ""
+      | None -> false
+    isTerminal && facts.terminalName != "dumb" && Stdlib.Bool.not noColor
 
 
 /// Check whether an interactive TUI may start in the current terminal.
