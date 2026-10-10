@@ -146,26 +146,18 @@ let checkTypeStructure
   (found: List<Model.Finding>)
   (ty: Model.Ty)
   : (List<LanguageTools.ProgramTypes.Hash> * List<Model.Finding>) =
-  let many
-    (names: List<LanguageTools.ProgramTypes.Hash>)
-    (found: List<Model.Finding>)
-    (tys: List<Model.Ty>)
-    : (List<LanguageTools.ProgramTypes.Hash> * List<Model.Finding>) =
-    Stdlib.List.fold tys (names, found) (fun (names, found) t ->
-      checkTypeStructure env at names found t)
-
   match ty with
   | TStream inner -> checkTypeStructure env at names found inner
   | TList inner -> checkTypeStructure env at names found inner
   | TDB inner -> checkTypeStructure env at names found inner
   | TDict(key, value) ->
     let found = checkDictKey env at found key
-    many names found [ key, value ]
+    checkTypeStructures env at names found [ key, value ]
   | TTuple(first, second, rest) ->
-    many names found (Stdlib.List.append [ first, second ] rest)
-  | TFn(parameters, ret) -> many names found (Stdlib.List.push parameters ret)
+    checkTypeStructures env at names found (Stdlib.List.append [ first, second ] rest)
+  | TFn(parameters, ret) -> checkTypeStructures env at names found (Stdlib.List.push parameters ret)
   | TCustom(name, args) ->
-    let (names, found) = many names found args
+    let (names, found) = checkTypeStructures env at names found args
 
     match Types.declaration env name with
     | None ->
@@ -180,6 +172,23 @@ let checkTypeStructure
           Stdlib.List.fold (customDictKeys env name args) found (checkDictKey env at)
         (Stdlib.List.push names name, found)
   | _ -> (names, found)
+
+/// `checkTypeStructure` over each of <param tys> in turn. Top-level rather than nested: the
+/// nested version was a closure built on every call, leaf types included, which never use it.
+let checkTypeStructures
+  (env: Model.Environment)
+  (at: Stdlib.Option.Option<Int64>)
+  (names: List<LanguageTools.ProgramTypes.Hash>)
+  (found: List<Model.Finding>)
+  (tys: List<Model.Ty>)
+  : (List<LanguageTools.ProgramTypes.Hash> * List<Model.Finding>) =
+  // Direct recursion rather than a fold, which built a lambda per call. These lists are a type's
+  // arguments or a function's parameters, so the recursion is as shallow as the list is short.
+  match tys with
+  | [] -> (names, found)
+  | t :: rest ->
+    let (names, found) = checkTypeStructure env at names found t
+    checkTypeStructures env at names found rest
 
 /// Collect references to aliases within this type, including its nested arguments.
 /// Do not walk record or enum fields: recursion through those declarations is

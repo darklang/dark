@@ -128,12 +128,38 @@ let counts
          | (Failed, _) -> { acc with failedCount = acc.failedCount + 1 }
          | (Incomplete, _) -> { acc with incompleteCount = acc.incompleteCount + 1 })
 
+/// Whether <param outputFilter> lists <param item>.
+let shows
+  (outputFilter: OutputFilter)
+  (item: LanguageTools.AtRestTypeChecker.ItemReport)
+  : Bool =
+  match auditVerdict item with
+  | Checked -> outputFilter.showChecked
+  | Failed -> outputFilter.showFailed
+  | Incomplete -> outputFilter.showIncomplete
+
+/// The items <param outputFilter> lists, each with its label, in label order.
+///
+/// A label is a store query, so only the listed items are labelled, and each once. This used to
+/// label every item to sort them and again to print them: two queries per declaration on a
+/// whole-branch audit, nearly all for checked items the default view does not list. The sort
+/// breaks ties on the item itself, so sorting only the listed items keeps their order.
+let listed
+  (branchId: Uuid)
+  (outputFilter: OutputFilter)
+  (items: List<LanguageTools.AtRestTypeChecker.ItemReport>)
+  : List<(String * LanguageTools.AtRestTypeChecker.ItemReport)> =
+  items
+  |> Stdlib.List.filter (fun item -> shows outputFilter item)
+  |> Stdlib.List.map (fun item -> (itemLabel branchId item.item, item))
+  |> Stdlib.List.sortBy (fun (label, _) -> label)
+
 let printItem
   (branchId: Uuid)
   (outputFilter: OutputFilter)
+  (label: String)
   (item: LanguageTools.AtRestTypeChecker.ItemReport)
   : Unit =
-  let label = itemLabel branchId item.item
   match auditVerdict item with
   | Checked ->
     if outputFilter.showChecked then
@@ -169,17 +195,9 @@ let jsonReport
     | Failed -> "failed"
     | Incomplete -> "incomplete"
 
-  let wanted (item: LanguageTools.AtRestTypeChecker.ItemReport) : Bool =
-    match auditVerdict item with
-    | Checked -> outputFilter.showChecked
-    | Failed -> outputFilter.showFailed
-    | Incomplete -> outputFilter.showIncomplete
-
   let items =
-    report.items
-    |> Stdlib.List.filter wanted
-    |> Stdlib.List.sortBy (fun item -> itemLabel branchId item.item)
-    |> Stdlib.List.map (fun item ->
+    listed branchId outputFilter report.items
+    |> Stdlib.List.map (fun (label, item) ->
       let issues =
         Stdlib.List.append
           (AtRestCheck.issueLines branchId item.diagnostics)
@@ -187,7 +205,7 @@ let jsonReport
         |> Stdlib.List.map (fun l -> Stdlib.String.trim l)
 
       Stdlib.AltJson.Json.Object
-        [ ("name", Stdlib.AltJson.Json.String(itemLabel branchId item.item))
+        [ ("name", Stdlib.AltJson.Json.String label)
           ("verdict", Stdlib.AltJson.Json.String(verdictWord (auditVerdict item)))
           ("issues", Stdlib.AltJson.Json.Array(issues |> Stdlib.List.map (fun l -> Stdlib.AltJson.Json.String l))) ])
 
@@ -239,7 +257,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // An audit that found failures says so in its exit code, so a script or a gate can tell.
     let finished = if totals.failedCount > 0 then { state with exitCode = 1 } else state
 
-    if parsed.asJson then
+    // Incomplete with no items is the checker failing over the whole batch, not a branch with
+    // nothing in it (that comes back Checked). It used to print "checked 0, failed 0" and exit 0,
+    // which says the branch type-checks when nothing was looked at.
+    if
+      report.verdict == LanguageTools.AtRestTypeChecker.Verdict.Incomplete
+      && Stdlib.List.isEmpty report.items
+    then
+      Stdlib.printLine (
+        Stdlib.Cli.UI.Colors.error
+          "The type audit could not run, so nothing was checked:")
+      Stdlib.printLines (AtRestCheck.issueLines state.currentBranchId report.warnings)
+      { state with exitCode = 1 }
+    else if parsed.asJson then
       Stdlib.printLine
         (jsonReport state.currentBranchId parsed.outputFilter report totals total)
       finished
@@ -258,9 +288,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (
       $"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}")
 
-    report.items
-    |> Stdlib.List.sortBy (fun item -> itemLabel state.currentBranchId item.item)
-    |> Stdlib.List.iter (printItem state.currentBranchId parsed.outputFilter)
+    listed state.currentBranchId parsed.outputFilter report.items
+    |> Stdlib.List.iter (fun (label, item) ->
+      printItem state.currentBranchId parsed.outputFilter label item)
 
     if Stdlib.List.isEmpty report.items then
       match report.verdict with

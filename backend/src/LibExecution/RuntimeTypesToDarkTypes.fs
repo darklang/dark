@@ -712,6 +712,7 @@ module ApplicableLambda =
          DList(
            VT.tuple VT.int32 (VT.known (Dval.knownType ())) [],
            lambda.closedRegisters
+           |> Captures.toList
            |> List.map (fun (reg, dv) -> DTuple(DInt32 reg, Dval.toDT dv, []))
          ))
         ("typeSymbolTable",
@@ -732,6 +733,7 @@ module ApplicableLambda =
           fields
           |> D.field "closedRegisters"
           |> D.list (D.tuple2 D.int32 Dval.fromDT)
+          |> Captures.ofList
         typeSymbolTable =
           fields
           |> D.field "typeSymbolTable"

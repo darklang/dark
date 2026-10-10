@@ -100,7 +100,7 @@ let compileQueryLambda
       RTQueryCompiler.compileLambda
         exeState
         lambdaImpl
-        appLambda.closedRegisters
+        (Captures.toList appLambda.closedRegisters)
         resolvedValues
     with
     | Error err ->

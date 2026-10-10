@@ -173,6 +173,34 @@ let outOfStackMessage =
   "Out of stack: went too deep, recursing through builtin callbacks "
   + "(List.map and the like) or comparing a deeply nested value"
 
+let rec private isOutOfMemory (ex : exn) : bool =
+  match ex with
+  | :? System.OutOfMemoryException -> true
+  | :? System.AggregateException as agg ->
+    agg.InnerExceptions |> Seq.exists isOutOfMemory
+  | _ -> not (isNull ex.InnerException) && isOutOfMemory ex.InnerException
+
+let mutable private exitingForMemory = 0
+
+/// Stop the process if <param ex> is the runtime running out of memory.
+///
+/// Every generic catch below turns an exception into a Dark runtime error, which Dark code can
+/// then catch. For running out of memory that is always wrong: a guard that reports one item as
+/// incomplete, or a whole batch as empty, hands back an answer that looks like a result, and a
+/// process whose scheduler thread swallowed it can wait forever for work that died. Measured on
+/// `dark typecheck` under a memory cap: an exit 0 reporting "checked 0", and a hang. So say what
+/// happened, once, and exit 4.
+let exitIfOutOfMemory (ex : exn) : unit =
+  if isOutOfMemory ex then
+    // Several processes usually run out at once; one line is enough.
+    if System.Threading.Interlocked.Exchange(&exitingForMemory, 1) = 0 then
+      try
+        System.Console.Error.WriteLine
+          "dark ran out of memory and stopped; whatever it was doing did not finish. Free some memory, or use a machine with more, and run it again."
+      with _ ->
+        ()
+    exit 4
+
 /// Recognize exceptions from stack checks, including wrappers added by sort comparers.
 let rec private isOutOfStack (ex : exn) : bool =
   match ex with
@@ -214,6 +242,7 @@ let execute
       | ex when (Exception.findStoreCondition ex).IsSome ->
         return Error(storeCondition ex, callStackFromVM vm)
       | ex ->
+        exitIfOutOfMemory ex
         let metadata : Metadata =
           Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
         do! exeState.reportException exeState vm metadata ex
@@ -340,6 +369,7 @@ let private uncaught
   (ex : exn)
   : Ply<RT.ExecutionResult> =
   uply {
+    exitIfOutOfMemory ex
     match Exception.findStoreCondition ex with
     | Some condition ->
       return Error(RTE.Condition condition.Message, callStackFromVM vm)

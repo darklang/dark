@@ -12,15 +12,24 @@ type Node =
 /// Return the node's ID if it is used to identify an inferred type, plus the
 /// child nodes to visit next. Ignore IDs that do not serve this purpose, such as
 /// literal IDs. Solve separately checks the IDs used to identify named let bindings.
-let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
-  let exprs (xs: List<LanguageTools.ProgramTypes.Expr>) : List<Node> =
-    Stdlib.List.map xs (fun e -> Node.Expression e)
-  let lets (xs: List<LanguageTools.ProgramTypes.LetPattern>) : List<Node> =
-    Stdlib.List.map xs (fun p -> Node.LetPattern p)
-  let pats (xs: List<LanguageTools.ProgramTypes.MatchPattern>) : List<Node> =
-    Stdlib.List.map xs (fun p -> Node.MatchPattern p)
-  let none = Stdlib.Option.Option.None
+/// <param xs> as nodes. Top-level rather than nested in `children`: `children` runs for every
+/// node of every body, more than once per body, and its nested helpers were three closures
+/// allocated on every call, used or not. A lambda is built only when a list is actually mapped.
+///
+/// Two shapes measured worse. Recursing once per element kept one interpreter frame per element
+/// live at once, so a long list literal raised the check's peak memory (on four cores it no
+/// longer fitted under a 448 MB cap). Mapping a named function goes through a costly path on a
+/// list op over a named fn.
+let exprNodes (xs: List<LanguageTools.ProgramTypes.Expr>) : List<Node> =
+  Stdlib.List.map xs (fun e -> Node.Expression e)
 
+let letNodes (xs: List<LanguageTools.ProgramTypes.LetPattern>) : List<Node> =
+  Stdlib.List.map xs (fun p -> Node.LetPattern p)
+
+let patNodes (xs: List<LanguageTools.ProgramTypes.MatchPattern>) : List<Node> =
+  Stdlib.List.map xs (fun p -> Node.MatchPattern p)
+
+let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
   // Keep cases that bind variables in separate match arms. Grouping those cases
   // can make the compiler associate a bound name with the wrong value.
   match node with
@@ -31,18 +40,18 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     | EFnName(_, _, _)
     | EValue(_, _) -> (id, [])
     | ELambda(_, parameters, body) ->
-      (id, Stdlib.List.append (lets parameters) [ Node.Expression body ])
-    | EApply(_, callee, _, args) -> (id, exprs (Stdlib.List.push args callee))
-    | EList(_, elements) -> (id, exprs elements)
+      (id, Stdlib.List.append (letNodes parameters) [ Node.Expression body ])
+    | EApply(_, callee, _, args) -> (id, exprNodes (Stdlib.List.push args callee))
+    | EList(_, elements) -> (id, exprNodes elements)
     | EDict(_, entries) ->
-      (id, exprs (Stdlib.List.flatten (Stdlib.List.map entries (fun (k, v) -> [ k, v ]))))
+      (id, exprNodes (Stdlib.List.flatten (Stdlib.List.map entries (fun (k, v) -> [ k, v ]))))
     | ERecord(_, _, _, fields) ->
-      (id, exprs (Stdlib.List.map fields (fun (_, v) -> v)))
-    | EEnum(_, _, _, _, fields) -> (id, exprs fields)
+      (id, exprNodes (Stdlib.List.map fields (fun (_, v) -> v)))
+    | EEnum(_, _, _, _, fields) -> (id, exprNodes fields)
     | ERecordFieldAccess(_, record, _) -> (id, [ Node.Expression record ])
     | EUnwrap(_, record) -> (id, [ Node.Expression record ])
     | ERecordUpdate(_, record, fields) ->
-      (id, exprs (Stdlib.List.push (Stdlib.List.map fields (fun (_, v) -> v)) record))
+      (id, exprNodes (Stdlib.List.push (Stdlib.List.map fields (fun (_, v) -> v)) record))
     | EMatch(_, arg, cases) ->
       let cases =
         Stdlib.List.flatten (Stdlib.List.map cases (fun c ->
@@ -57,17 +66,17 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
         match elseExpr with
         | Some e -> [ e ]
         | None -> []
-      (none, exprs (Stdlib.List.append [ condition, thenExpr ] tail))
+      (Stdlib.Option.Option.None, exprNodes (Stdlib.List.append [ condition, thenExpr ] tail))
     | ELet(_, pattern, value, body) ->
-      (none, [ Node.LetPattern pattern, Node.Expression value, Node.Expression body ])
+      (Stdlib.Option.Option.None, [ Node.LetPattern pattern, Node.Expression value, Node.Expression body ])
     | ETuple(_, first, second, rest) ->
-      (none, exprs (Stdlib.List.append [ first, second ] rest))
-    | EInfix(_, _, first, next, _) -> (none, exprs [ first, next ])
-    | EStatement(_, first, next) -> (none, exprs [ first, next ])
+      (Stdlib.Option.Option.None, exprNodes (Stdlib.List.append [ first, second ] rest))
+    | EInfix(_, _, first, next, _) -> (Stdlib.Option.Option.None, exprNodes [ first, next ])
+    | EStatement(_, first, next) -> (Stdlib.Option.Option.None, exprNodes [ first, next ])
     | EPipe(_, lhs, parts) ->
-      (none, Stdlib.List.push (Stdlib.List.map parts (fun p -> Node.Pipe p)) (Node.Expression lhs))
+      (Stdlib.Option.Option.None, Stdlib.List.push (Stdlib.List.map parts (fun p -> Node.Pipe p)) (Node.Expression lhs))
     | EString(_, segments) ->
-      (none, Stdlib.List.flatten (Stdlib.List.map segments (fun segment ->
+      (Stdlib.Option.Option.None, Stdlib.List.flatten (Stdlib.List.map segments (fun segment ->
         match segment with
         | StringText _ -> []
         | StringInterpolation e -> [ Node.Expression e ])))
@@ -87,22 +96,22 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     | EFloat(_, _, _, _)
     | EChar(_, _)
     | EArg(_, _)
-    | ESelf _ -> (none, [])
+    | ESelf _ -> (Stdlib.Option.Option.None, [])
   | LetPattern p ->
     match p with
     | LPTuple(id, first, second, rest) ->
-      (Some id, lets (Stdlib.List.append [ first, second ] rest))
+      (Some id, letNodes (Stdlib.List.append [ first, second ] rest))
     | LPVariable(_, _)
     | LPWildcard _
-    | LPUnit _ -> (none, [])
+    | LPUnit _ -> (Stdlib.Option.Option.None, [])
   | MatchPattern p ->
     match p with
-    | MPList(id, elements) -> (Some id, pats elements)
-    | MPEnum(id, _, elements) -> (Some id, pats elements)
-    | MPListCons(id, head, tail) -> (Some id, pats [ head, tail ])
+    | MPList(id, elements) -> (Some id, patNodes elements)
+    | MPEnum(id, _, elements) -> (Some id, patNodes elements)
+    | MPListCons(id, head, tail) -> (Some id, patNodes [ head, tail ])
     | MPTuple(id, first, second, rest) ->
-      (Some id, pats (Stdlib.List.append [ first, second ] rest))
-    | MPOr(_, alternatives) -> (none, pats alternatives)
+      (Some id, patNodes (Stdlib.List.append [ first, second ] rest))
+    | MPOr(_, alternatives) -> (Stdlib.Option.Option.None, patNodes alternatives)
     | MPVariable(_, _)
     | MPUnit _
     | MPBool(_, _)
@@ -119,15 +128,15 @@ let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
     | MPInt(_, _)
     | MPFloat(_, _, _, _)
     | MPChar(_, _)
-    | MPString(_, _) -> (none, [])
+    | MPString(_, _) -> (Stdlib.Option.Option.None, [])
   | Pipe p ->
     match p with
     | EPipeLambda(id, parameters, body) ->
-      (Some id, Stdlib.List.append (lets parameters) [ Node.Expression body ])
-    | EPipeVariable(id, _, args) -> (Some id, exprs args)
-    | EPipeFnCall(id, _, _, args, _) -> (Some id, exprs args)
-    | EPipeEnum(id, _, _, args) -> (Some id, exprs args)
-    | EPipeInfix(_, _, rhs, _) -> (none, [ Node.Expression rhs ])
+      (Some id, Stdlib.List.append (letNodes parameters) [ Node.Expression body ])
+    | EPipeVariable(id, _, args) -> (Some id, exprNodes args)
+    | EPipeFnCall(id, _, _, args, _) -> (Some id, exprNodes args)
+    | EPipeEnum(id, _, _, args) -> (Some id, exprNodes args)
+    | EPipeInfix(_, _, rhs, _) -> (Stdlib.Option.Option.None, [ Node.Expression rhs ])
 
 /// Return the first inference ID encountered twice, or None if all are unique.
 /// Keep the nodes still to visit in a list, so a deeply nested syntax tree does
@@ -240,6 +249,209 @@ let declaredTypes
   | Enum cases ->
     Stdlib.List.flatten (
       Stdlib.List.map cases (fun c -> Stdlib.List.map c.fields (fun f -> f.typ)))
+
+/// <param xs> pushed onto <param next> as nodes. One lambda per list, never one per node.
+let pushExprs
+  (xs: List<LanguageTools.ProgramTypes.Expr>)
+  (next: List<Node>)
+  : List<Node> =
+  Stdlib.List.fold xs next (fun acc e -> Stdlib.List.push acc (Node.Expression e))
+
+let pushLets
+  (xs: List<LanguageTools.ProgramTypes.LetPattern>)
+  (next: List<Node>)
+  : List<Node> =
+  Stdlib.List.fold xs next (fun acc p -> Stdlib.List.push acc (Node.LetPattern p))
+
+let pushPats
+  (xs: List<LanguageTools.ProgramTypes.MatchPattern>)
+  (next: List<Node>)
+  : List<Node> =
+  Stdlib.List.fold xs next (fun acc p -> Stdlib.List.push acc (Node.MatchPattern p))
+
+/// `children`, pushed straight onto the walk's accumulators: <param node>'s inference id onto
+/// <param ids> and its child nodes onto <param next>. The same ids and the same children as
+/// `children`, arm for arm, without the `(id, children)` pair, the `Some`, the mapped child list
+/// and the append that copied it, each made once per node and read once. Order within a level
+/// does not matter to either use: the depth is per level and the ids are compared as a set.
+let visit
+  (node: Node)
+  (ids: List<Int64>)
+  (next: List<Node>)
+  : (List<Int64> * List<Node>) =
+  // Keep cases that bind variables in separate match arms, as `children` does.
+  match node with
+  | Expression e ->
+    match e with
+    | EVariable(_, _)
+    | EFnName(_, _, _)
+    | EValue(_, _) -> (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e), next)
+    | ELambda(_, parameters, body) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e),
+       pushLets parameters (Stdlib.List.push next (Node.Expression body)))
+    | EApply(_, callee, _, args) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e),
+       pushExprs args (Stdlib.List.push next (Node.Expression callee)))
+    | EList(_, elements) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e), pushExprs elements next)
+    | EDict(_, entries) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e),
+       Stdlib.List.fold entries next (fun acc (k, v) ->
+         Stdlib.List.push (Stdlib.List.push acc (Node.Expression k)) (Node.Expression v)))
+    | ERecord(_, _, _, fields) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e),
+       Stdlib.List.fold fields next (fun acc (_, v) -> Stdlib.List.push acc (Node.Expression v)))
+    | EEnum(_, _, _, _, fields) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e), pushExprs fields next)
+    | ERecordFieldAccess(_, record, _) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e),
+       Stdlib.List.push next (Node.Expression record))
+    | EUnwrap(_, record) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e),
+       Stdlib.List.push next (Node.Expression record))
+    | ERecordUpdate(_, record, fields) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e),
+       Stdlib.List.fold fields (Stdlib.List.push next (Node.Expression record)) (fun acc (_, v) ->
+         Stdlib.List.push acc (Node.Expression v)))
+    | EMatch(_, arg, cases) ->
+      (Stdlib.List.push ids (LanguageTools.ProgramTypes.Expr.toID e),
+       Stdlib.List.fold cases (Stdlib.List.push next (Node.Expression arg)) (fun acc c ->
+         let acc =
+           Stdlib.List.push (Stdlib.List.push acc (Node.MatchPattern c.pat)) (Node.Expression c.rhs)
+         match c.whenCondition with
+         | Some guard -> Stdlib.List.push acc (Node.Expression guard)
+         | None -> acc))
+    | EIf(_, condition, thenExpr, elseExpr) ->
+      let next =
+        Stdlib.List.push (Stdlib.List.push next (Node.Expression condition)) (Node.Expression thenExpr)
+      match elseExpr with
+      | Some otherwise -> (ids, Stdlib.List.push next (Node.Expression otherwise))
+      | None -> (ids, next)
+    | ELet(_, pattern, value, body) ->
+      (ids,
+       Stdlib.List.push
+         (Stdlib.List.push (Stdlib.List.push next (Node.LetPattern pattern)) (Node.Expression value))
+         (Node.Expression body))
+    | ETuple(_, first, second, rest) ->
+      (ids,
+       pushExprs rest (Stdlib.List.push (Stdlib.List.push next (Node.Expression first)) (Node.Expression second)))
+    | EInfix(_, _, left, right, _) ->
+      (ids, Stdlib.List.push (Stdlib.List.push next (Node.Expression left)) (Node.Expression right))
+    | EStatement(_, first, second) ->
+      (ids, Stdlib.List.push (Stdlib.List.push next (Node.Expression first)) (Node.Expression second))
+    | EPipe(_, lhs, parts) ->
+      (ids,
+       Stdlib.List.fold parts (Stdlib.List.push next (Node.Expression lhs)) (fun acc part ->
+         Stdlib.List.push acc (Node.Pipe part)))
+    | EString(_, segments) ->
+      (ids,
+       Stdlib.List.fold segments next (fun acc segment ->
+         match segment with
+         | StringText _ -> acc
+         | StringInterpolation inner -> Stdlib.List.push acc (Node.Expression inner)))
+    | EUnit _
+    | EBool(_, _)
+    | EInt8(_, _)
+    | EUInt8(_, _)
+    | EInt16(_, _)
+    | EUInt16(_, _)
+    | EInt32(_, _)
+    | EUInt32(_, _)
+    | EInt64(_, _)
+    | EUInt64(_, _)
+    | EInt128(_, _)
+    | EUInt128(_, _)
+    | EInt(_, _)
+    | EFloat(_, _, _, _)
+    | EChar(_, _)
+    | EArg(_, _)
+    | ESelf _ -> (ids, next)
+  | LetPattern p ->
+    match p with
+    | LPTuple(id, first, second, rest) ->
+      (Stdlib.List.push ids id,
+       pushLets rest (Stdlib.List.push (Stdlib.List.push next (Node.LetPattern first)) (Node.LetPattern second)))
+    | LPVariable(_, _)
+    | LPWildcard _
+    | LPUnit _ -> (ids, next)
+  | MatchPattern p ->
+    match p with
+    | MPList(id, elements) -> (Stdlib.List.push ids id, pushPats elements next)
+    | MPEnum(id, _, elements) -> (Stdlib.List.push ids id, pushPats elements next)
+    | MPListCons(id, head, tail) ->
+      (Stdlib.List.push ids id,
+       Stdlib.List.push (Stdlib.List.push next (Node.MatchPattern head)) (Node.MatchPattern tail))
+    | MPTuple(id, first, second, rest) ->
+      (Stdlib.List.push ids id,
+       pushPats rest (Stdlib.List.push (Stdlib.List.push next (Node.MatchPattern first)) (Node.MatchPattern second)))
+    | MPOr(_, alternatives) -> (ids, pushPats alternatives next)
+    | MPVariable(_, _)
+    | MPUnit _
+    | MPBool(_, _)
+    | MPInt8(_, _)
+    | MPUInt8(_, _)
+    | MPInt16(_, _)
+    | MPUInt16(_, _)
+    | MPInt32(_, _)
+    | MPUInt32(_, _)
+    | MPInt64(_, _)
+    | MPUInt64(_, _)
+    | MPInt128(_, _)
+    | MPUInt128(_, _)
+    | MPInt(_, _)
+    | MPFloat(_, _, _, _)
+    | MPChar(_, _)
+    | MPString(_, _) -> (ids, next)
+  | Pipe p ->
+    match p with
+    | EPipeLambda(id, parameters, body) ->
+      (Stdlib.List.push ids id, pushLets parameters (Stdlib.List.push next (Node.Expression body)))
+    | EPipeVariable(id, _, args) -> (Stdlib.List.push ids id, pushExprs args next)
+    | EPipeFnCall(id, _, _, args, _) -> (Stdlib.List.push ids id, pushExprs args next)
+    | EPipeEnum(id, _, _, args) -> (Stdlib.List.push ids id, pushExprs args next)
+    | EPipeInfix(_, _, rhs, _) -> (ids, Stdlib.List.push next (Node.Expression rhs))
+
+/// Walk <param level> a level at a time, as `deeperThan` does, collecting every inference id on
+/// the way. True when the tree nests deeper than <param limit>; the ids are then incomplete.
+let levelsAndIds
+  (limit: Int64)
+  (depth: Int64)
+  (level: List<Node>)
+  (ids: List<Int64>)
+  : (Bool * List<Int64>) =
+  if Stdlib.List.isEmpty level then
+    (false, ids)
+  else if depth > limit then
+    (true, ids)
+  else
+    let (ids, next) =
+      Stdlib.List.fold level (ids, []) (fun (ids, next) node -> visit node ids next)
+
+    levelsAndIds limit (depth + 1L) next ids
+
+/// Whether any id appears twice in <param ids>: the native `unique` drops repeats, so a repeat
+/// shows as a shorter list.
+let hasRepeat (ids: List<Int64>) : Bool =
+  Stdlib.List.length (Stdlib.List.unique ids) != Stdlib.List.length ids
+
+/// `tooDeep` and `problem` for <param body> from ONE walk, as (too deep, duplicate id).
+///
+/// Each used to walk the whole body on its own, and the duplicate check put every id into a
+/// dictionary: an insert per node, which made this pre-check one of the larger costs of a check.
+/// Here one walk collects the ids and the depth, and a sort finds whether any repeats. The rare
+/// body that is too deep or has a repeat goes to `problem`, so the id reported is the same one,
+/// the first repeat in `problem`'s order.
+let inspect
+  (body: LanguageTools.ProgramTypes.Expr)
+  : (Stdlib.Option.Option<Model.Finding> * Stdlib.Option.Option<Model.Finding>) =
+  let (deep, ids) = levelsAndIds (maxDeclarationDepth ()) 0L [ Node.Expression body ] []
+
+  if deep then
+    (tooDeep body, problem body)
+  else if hasRepeat ids then
+    (Stdlib.Option.Option.None, problem body)
+  else
+    (Stdlib.Option.Option.None, Stdlib.Option.Option.None)
 
 /// Convert a duplicate inference ID into a warning.
 /// Callers use this warning to skip checking the affected body, avoiding
