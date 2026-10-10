@@ -5,7 +5,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
 
   // type SomeModule.myType = definition
   | location :: definitionParts ->
@@ -24,7 +24,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ""
       ] |> Stdlib.printLines
 
-      state
+      Cli.exitWith state false
     else
       createTypeInline
         state.packageData.currentLocation
@@ -46,7 +46,9 @@ let createTypeInline
     match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
-      let hasParseError = Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource)
+      let hasParseError =
+        (Errors.reportParseErrors (LanguageTools.Parser.Parse.diagnostics fullSource))
+        || (Errors.reportTrailing sourceFile)
       let found =
         if hasParseError then
           Stdlib.Option.Option.None
@@ -81,7 +83,7 @@ let createTypeInline
         // a precise parse error was already printed above; don't stack the
         // generic hint on top of it
         if hasParseError then
-          state
+          Cli.exitWith state false
         else
           [
             (Stdlib.Cli.UI.Colors.error "Failed to parse type definition")
@@ -91,7 +93,7 @@ let createTypeInline
             "  dark type Me.Demo.User '{ name: String; age: Int }'"
             ""
           ] |> Stdlib.printLines
-          state
+          Cli.exitWith state false
     | None ->
       [
         (Stdlib.Cli.UI.Colors.error "Failed to parse type definition")
@@ -101,10 +103,10 @@ let createTypeInline
         "  dark type Me.Demo.User '{ name: String; age: Int }'"
         ""
       ] |> Stdlib.printLines
-      state
+      Cli.exitWith state false
   | Error msg ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid location: {msg}")
-    state
+    Cli.exitWith state false
 
 
 let help (_state: Cli.AppState) : String =

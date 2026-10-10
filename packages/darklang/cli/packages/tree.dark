@@ -125,15 +125,20 @@ let execute (state: AppState) (args: List<String>): AppState =
     state
   else
     // Parse depth option (default is 2 for better initial view)
-    let maxDepth =
+    let depth =
       match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
       | Some depthArg ->
         let depthStr = Stdlib.String.dropFirst depthArg 8 // Remove "--depth="
         match Stdlib.Int.parse depthStr with
-        | Ok depth ->
-          if depth > 0 && depth <= 10 then depth else 2 // Limit to reasonable range
-        | Error _ -> 2
-      | None -> 2 // Default depth of 2 for concise but useful view
+        | Ok depth when depth > 0 && depth <= 10 -> Stdlib.Option.Option.Some depth
+        | _ -> Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.Some 2 // Default depth of 2 for concise but useful view
+
+    match depth with
+    | None ->
+      Cli.printErr "--depth takes a number from 1 to 10."
+      Cli.exitWith state false
+    | Some maxDepth ->
 
     let branchId = state.currentBranchId
 
@@ -141,27 +146,6 @@ let execute (state: AppState) (args: List<String>): AppState =
       args
       |> Stdlib.List.filter (fun a ->
         Stdlib.Bool.not (Stdlib.String.startsWith a "--"))
-
-    // An unrecognised flag is dropped by the filter above, making `tree --zzbogus`
-    // indistinguishable from a bare `tree`. Only these three exist.
-    let knownFlag (a: String) : Bool =
-      (a == "--toc")
-      || (a == "--include-deprecated")
-      || (Stdlib.String.startsWith a "--depth=")
-
-    // A bare word here is the path, so only flags are checked.
-    let known =
-      (fun a -> (Stdlib.Bool.not (Stdlib.String.startsWith a "--")) || (knownFlag a))
-
-    if
-      Cli.refuseUnknownArgs
-        "tree"
-        "flags: --depth=N, --toc, --include-deprecated"
-        known
-        args
-    then
-      state
-    else
 
     // Refused, not ignored: falling back to the current location answers a different
     // question, and says nothing about the path you gave.
@@ -175,8 +159,8 @@ let execute (state: AppState) (args: List<String>): AppState =
 
     match startLocation with
     | Error e ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot show a tree: {e}")
-      state
+      Cli.printErr $"Cannot show a tree: {e}"
+      Cli.exitWith state false
     | Ok startLocation ->
       // Load deprecation sets once for the whole tree render.
       let depSets = Query.loadDeprecationSets branchId

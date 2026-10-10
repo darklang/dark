@@ -170,15 +170,19 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Cli.printErr "`ops show` needs an op id. `dark ops` lists them."
     Cli.exitWith state false
   | [ "show", id ] -> executeShow state id
-  | verb :: _ ->
+  | verb :: rest ->
     match movedFromOps verb with
     | Some target ->
       Cli.printErr $"`ops` only reads the log -- {verb} is `{target}`."
       Cli.exitWith state false
     | None ->
-      match countOf verb with
-      | Ok l -> executeList state l
-      | Error why ->
+      match (countOf verb, rest) with
+      | (Ok l, []) -> executeList state l
+      | (Ok _, extra) ->
+        let words = Stdlib.String.join extra " "
+        Cli.printErr $"ops takes one count; it does not take `{words}`."
+        Cli.exitWith state false
+      | (Error why, _) ->
         Cli.printErr why
         Cli.printHint "  `dark ops help` says what it does."
         Cli.exitWith state false

@@ -166,7 +166,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         with
         | Error message ->
           Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid module location: {message}")
-          state
+          Cli.exitWith state false
         | Ok baseLocation ->
           let basePm = LanguageTools.PackageManager.pm ()
           let branchId = state.currentBranchId

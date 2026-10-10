@@ -9,7 +9,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
 
   | location :: definitionParts ->
     let inlineDefinition = Packages.definitionFromArgs definitionParts

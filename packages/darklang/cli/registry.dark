@@ -8,104 +8,191 @@ module Registry =
     { name: String
       description: String
       aliases: List<String>
+      /// What it takes on the command line, checked before `execute` is called (see `Accepts`). A
+      /// function, not a value: every start builds this table, and only the command being run should
+      /// pay for building its declaration.
+      accepts: Unit -> Accepts.Accepts
       execute: AppState -> List<String> -> AppState
       /// Pure: returns the help text; callers decide where it goes.
       help: AppState -> String
       complete: AppState -> List<String> -> List<Completion.CompletionItem> }
 
+  // What each command takes on the command line, one function per command, referenced by its row in
+  // `allCommands` the way `execute`, `help` and `complete` are. Functions rather than values, because
+  // every start builds the table and only the command being run should pay for its declaration.
+  let acceptsQuit () : Accepts.Accepts = Accepts.nothing ()
+  let acceptsHelp () : Accepts.Accepts = Accepts.textBetween 0 1
+  let acceptsConfig () : Accepts.Accepts = (Accepts.subcommands [ ("get", Accepts.between 1 1 []), ("set", Accepts.textBetween 2 2), ("list", Accepts.nothing ()), ("entry", Accepts.nothing ()), ("set-entry", Accepts.textBetween 1 1) ] (Accepts.nothing ()))
+  let acceptsInstall () : Accepts.Accepts = Accepts.flagsOnly [ "-y", "--yes", "--uninstall-if-installed" ]
+  let acceptsUpdate () : Accepts.Accepts = (Accepts.withValues [ "--to" ] (Accepts.flagsOnly [ "-y", "--yes" ]))
+  let acceptsUninstall () : Accepts.Accepts = Accepts.flagsOnly [ "-y", "--yes" ]
+  let acceptsInstallStatus () : Accepts.Accepts = Accepts.nothing ()
+  let acceptsVersion () : Accepts.Accepts = Accepts.flagsOnly [ "--local" ]
+  let acceptsNav () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsLs () : Accepts.Accepts = Accepts.upTo 1 [ "--include-deprecated", "--versions" ]
+  let acceptsBack () : Accepts.Accepts = Accepts.nothing ()
+  let acceptsClear () : Accepts.Accepts = Accepts.nothing ()
+  let acceptsRunScript () : Accepts.Accepts = Accepts.text 1
+  let acceptsEval () : Accepts.Accepts = Accepts.text 1
+  let acceptsScripts () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.nothing ()), ("view", Accepts.between 1 1 []), ("add", Accepts.text 2), ("edit", Accepts.text 1), ("delete", Accepts.between 1 1 []), ("run", Accepts.between 1 1 []) ] (Accepts.nothing ()))
+  let acceptsView () : Accepts.Accepts = Accepts.upTo 1 [ "--raw", "--ast", "--instructions", "--instrs" ]
+  let acceptsTree () : Accepts.Accepts = (Accepts.withValues [ "--depth" ] (Accepts.upTo 1 [ "--toc", "--include-deprecated" ]))
+  let acceptsSearch () : Accepts.Accepts = Accepts.freeText 0 [ "--type", "--fn", "--function", "--val", "--value", "--trait", "--impl", "--batch", "--exact", "--shallow", "--with-docs", "--include-deprecated", "--json" ]
+  let acceptsTypecheck () : Accepts.Accepts = Accepts.upTo 1 [ "--failed", "--incomplete", "--all", "--json" ]
+  let acceptsDeps () : Accepts.Accepts = (Accepts.everywhere [ "--json", "--deep", "--all" ] [] ((Accepts.subcommands [ ("uses", Accepts.between 1 1 []), ("usedby", Accepts.between 1 1 []) ] (Accepts.between 1 1 []))))
+  let acceptsVal () : Accepts.Accepts = Accepts.text 2
+  let acceptsFn () : Accepts.Accepts = Accepts.text 2
+  let acceptsType () : Accepts.Accepts = Accepts.text 2
+  let acceptsTrait () : Accepts.Accepts = Accepts.text 2
+  let acceptsImpl () : Accepts.Accepts = Accepts.text 2
+  let acceptsModule () : Accepts.Accepts = Accepts.between 2 2 []
+  let acceptsEdit () : Accepts.Accepts = Accepts.between 1 2 []
+  let acceptsRename () : Accepts.Accepts = Accepts.between 2 2 []
+  let acceptsHash () : Accepts.Accepts = Accepts.between 1 1 [ "--long", "--full" ]
+  let acceptsStatus () : Accepts.Accepts = Accepts.flagsOnly [ "--json" ]
+  let acceptsCommits () : Accepts.Accepts = Accepts.upTo 1 [ "--json", "--detailed", "--all" ]
+  let acceptsSquash () : Accepts.Accepts = Accepts.text 0
+  let acceptsCommit () : Accepts.Accepts = (Accepts.withValues [ "--include" ] (Accepts.freeText 0 [ "-y", "--yes", "-m", "--message", "--allow-unresolved", "--allow-type-errors", "--json" ]))
+  let acceptsDiscard () : Accepts.Accepts = Accepts.upTo 1 [ "-y", "--yes" ]
+  let acceptsShow () : Accepts.Accepts = Accepts.between 1 1 []
+  let acceptsBranch () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.flagsOnly [ "--all" ]), ("current", Accepts.nothing ()), ("switch", Accepts.between 1 1 []), ("new", Accepts.between 1 1 []), ("create", Accepts.between 1 1 []), ("archive", Accepts.between 1 1 [ "-y", "--yes" ]), ("rename", Accepts.between 2 2 []), ("diff", Accepts.between 1 1 [ "--source" ]), ("log", Accepts.between 1 1 []), ("merge", Accepts.between 1 1 [ "-y", "--yes", "--allow-type-errors", "--dry-run" ]), ("rebase", Accepts.between 1 1 []), ("resolve", Accepts.between 3 3 []), ("export", Accepts.between 2 2 []), ("import", Accepts.between 1 1 []), ("push", Accepts.between 1 2 []), ("pull", (Accepts.withValues [ "--from" ] (Accepts.upTo 1 []))) ] (Accepts.upTo 1 []))
+  let acceptsRebase () : Accepts.Accepts = Accepts.upTo 1 [ "--dry-run" ]
+  let acceptsMerge () : Accepts.Accepts = Accepts.upTo 1 [ "-y", "--yes", "--allow-type-errors", "--dry-run" ]
+  let acceptsBranches () : Accepts.Accepts = Accepts.flagsOnly [ "--all", "--json" ]
+  let acceptsSwitch () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsDiff () : Accepts.Accepts = Accepts.upTo 1 [ "--source", "--json" ]
+  let acceptsLog () : Accepts.Accepts = Accepts.upTo 1 [ "--json" ]
+  let acceptsResolve () : Accepts.Accepts = Accepts.between 3 3 []
+  let acceptsConstraints () : Accepts.Accepts = (Accepts.subcommands [ ("resolve", (Accepts.withValues [ "--as" ] (Accepts.freeText 0 [ "--all", "--why" ]))), ("ack", Accepts.freeText 0 [ "--all", "--why" ]) ] ((Accepts.withValues [ "--kind" ] (Accepts.flagsOnly [ "--json" ]))))
+  let acceptsAck () : Accepts.Accepts = Accepts.freeText 0 [ "--all", "--why" ]
+  let acceptsUndeprecate () : Accepts.Accepts = Accepts.between 1 1 [ "-y", "--yes" ]
+  let acceptsPush () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsPull () : Accepts.Accepts = Accepts.upTo 1 [ "--all" ]
+  let acceptsBackups () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.nothing ()), ("now", Accepts.nothing ()), ("prune", Accepts.between 1 1 [ "-y", "--yes" ]), ("restore", Accepts.between 1 1 [ "-y", "--yes" ]) ] (Accepts.nothing ()))
+  let acceptsConnect () : Accepts.Accepts = (Accepts.withValues [ "--secret" ] (Accepts.between 1 1 []))
+  let acceptsWhoami () : Accepts.Accepts = Accepts.nothing ()
+  let acceptsIdentity () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsBuiltins () : Accepts.Accepts = Accepts.upTo 1 [ "--with-sigs", "--with-purity" ]
+  let acceptsFindValues () : Accepts.Accepts = Accepts.between 1 2 []
+  let acceptsImpls () : Accepts.Accepts = Accepts.between 1 1 [ "--json" ]
+  let acceptsAgent () : Accepts.Accepts = Accepts.text 0
+  let acceptsServe () : Accepts.Accepts = (Accepts.withValues [ "--port", "--max-body-bytes" ] (Accepts.between 1 1 [ "--live", "--no-live", "--dev" ]))
+  let acceptsDocs () : Accepts.Accepts = (Accepts.subcommands [ ("signatures", (Accepts.withValues [ "--module" ] (Accepts.upTo 1 [ "--types", "--include-deprecated", "--all" ]))), ("sigs", (Accepts.withValues [ "--module" ] (Accepts.upTo 1 [ "--types", "--include-deprecated", "--all" ]))), ("api", (Accepts.withValues [ "--module" ] (Accepts.upTo 1 [ "--types", "--include-deprecated", "--all" ]))), ("stdlib", Accepts.nothing ()), ("lib", Accepts.nothing ()) ] (Accepts.upTo 1 []))
+  let acceptsUndo () : Accepts.Accepts = Accepts.between 1 1 []
+  let acceptsDeprecate () : Accepts.Accepts = (Accepts.withValues [ "--kind", "--replacement", "--message", "-m" ] (Accepts.between 1 2 [ "-y", "--yes", "--dry-run" ]))
+  let acceptsDelete () : Accepts.Accepts = (Accepts.withValues [ "--message", "-m" ] (Accepts.between 1 2 [ "-y", "--yes", "--ignore-dependents", "--force", "--dry-run" ]))
+  let acceptsDb () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.nothing ()), ("view", Accepts.between 1 1 []), ("get", Accepts.between 2 2 []), ("delete", Accepts.between 2 2 []), ("drop", Accepts.between 1 1 []), ("set", Accepts.text 3), ("query", Accepts.text 2) ] (Accepts.upTo 2 []))
+  let acceptsOutliner () : Accepts.Accepts = (Accepts.subcommands [ ("ls", Accepts.nothing ()), ("show", Accepts.between 1 1 []), ("add", Accepts.text 2), ("export", (Accepts.withValues [ "--format", "--out" ] (Accepts.between 1 1 []))), ("import", (Accepts.withValues [ "--title" ] (Accepts.between 1 1 []))) ] (Accepts.nothing ()))
+  let acceptsExportSeed () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsTraces () : Accepts.Accepts = (Accepts.everywhere [ "-y", "--yes", "--json", "--inspect", "--full" ] [ "--iteration" ] ((Accepts.subcommands [ ("list", (Accepts.withValues [ "--fn", "--route" ] (Accepts.upTo 1 []))), ("follow", (Accepts.withValues [ "--route" ] (Accepts.nothing ()))), ("stats", Accepts.upTo 1 []), ("tail", (Accepts.withValues [ "--route" ] (Accepts.upTo 1 []))), ("find", Accepts.text 1), ("fns", Accepts.upTo 1 [ "--all" ]), ("hotspots", Accepts.upTo 1 []), ("view", Accepts.between 1 2 [ "--watch" ]), ("details", (Accepts.withValues [ "--filter", "--exclude", "--slow-ms", "--depth" ] (Accepts.between 1 1 [ "--all", "--slow", "-d", "--no-builtins", "--no-stdlib" ]))), ("log", Accepts.text 0), ("record", Accepts.upTo 1 []), ("inspect", (Accepts.withValues [ "--filter", "--exclude", "--slow-ms", "--depth" ] (Accepts.between 1 1 [ "--all", "--slow", "-d", "--no-builtins", "--no-stdlib" ]))), ("resume", Accepts.between 1 1 []), ("fork", (Accepts.withValues [ "--at" ] (Accepts.between 1 1 []))), ("pin", Accepts.between 1 1 []), ("unpin", Accepts.between 1 1 []), ("calls", Accepts.between 1 1 []), ("show", Accepts.between 1 2 [ "--watch" ]), ("values", Accepts.text 0), ("rerun", Accepts.between 1 1 []), ("delete", (Accepts.withValues [ "--keep", "--before" ] (Accepts.upTo 1 [ "--all" ]))) ] (Accepts.nothing ()))))
+  let acceptsReview () : Accepts.Accepts = (Accepts.subcommands [ ("pull", (Accepts.withValues [ "--from" ] (Accepts.upTo 2 []))), ("import", Accepts.between 1 2 []), ("approve", Accepts.upTo 1 []), ("reject", Accepts.upTo 1 [ "-y", "--yes" ]) ] (Accepts.between 1 1 []))
+  let acceptsConflicts () : Accepts.Accepts = (Accepts.everywhere [ "--json" ] [] ((Accepts.subcommands [ ("list", Accepts.nothing ()), ("walk", Accepts.nothing ()), ("show", Accepts.between 1 1 []), ("ack", Accepts.freeText 1 []), ("override", Accepts.between 2 2 []), ("branch", Accepts.between 1 1 []) ] (Accepts.nothing ()))))
+  let acceptsViews () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsLogin () : Accepts.Accepts = Accepts.upTo 1 []
+  let acceptsLogout () : Accepts.Accepts = Accepts.nothing ()
+  let acceptsPermissions () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.nothing ()), ("profile", Accepts.upTo 2 [ "-y", "--yes" ]), ("allow", Accepts.text 1), ("deny", Accepts.text 1), ("remove", Accepts.text 1), ("clear", Accepts.nothing ()), ("set", Accepts.text 1), ("approve", Accepts.text 1), ("update", Accepts.text 1), ("unapprove", Accepts.between 1 1 []), ("requirements", Accepts.between 1 1 []), ("show", Accepts.between 1 1 []), ("revoke-package", Accepts.between 1 1 []), ("approved", Accepts.nothing ()), ("approvals", Accepts.nothing ()) ] (Accepts.nothing ()))
+  let acceptsDevices () : Accepts.Accepts = (Accepts.subcommands [ ("status", Accepts.nothing ()), ("serve", Accepts.between 1 1 []), ("ping", Accepts.between 1 1 []) ] (Accepts.nothing ()))
+  let acceptsSync () : Accepts.Accepts = (Accepts.everywhere [ "--branches" ] [] ((Accepts.subcommands [ ("setup", Accepts.nothing ()), ("status", Accepts.upTo 1 []), ("export", Accepts.between 1 1 []), ("import", Accepts.between 1 1 []) ] (Accepts.upTo 1 []))))
+  let acceptsOps () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.upTo 1 []), ("show", Accepts.between 1 1 []) ] (Accepts.upTo 1 []))
+  let acceptsApps () : Accepts.Accepts = (Accepts.subcommands [ ("list", Accepts.nothing ()), ("list-available", Accepts.nothing ()), ("available", Accepts.nothing ()), ("add", Accepts.between 1 1 []), ("remove", Accepts.between 1 1 []), ("run", Accepts.between 1 1 []), ("daemon-main", Accepts.between 1 1 []), ("restart", Accepts.between 1 1 []), ("stop", Accepts.between 1 1 []), ("logs", Accepts.between 1 1 []), ("inspect", Accepts.between 1 1 []), ("enable", Accepts.between 1 1 []), ("disable", Accepts.between 1 1 []), ("start", Accepts.between 1 1 [ "--live" ]), ("spawn", Accepts.between 1 1 [ "--live" ]), ("status", Accepts.upTo 1 []), ("view", (Accepts.withValues [ "--resume" ] (Accepts.upTo 2 [ "--live", "--dev", "--no-live" ]))) ] (Accepts.nothing ()))
+  let acceptsPs () : Accepts.Accepts = (Accepts.everywhere [ "--json" ] [] ((Accepts.subcommands [ ("show", Accepts.between 1 1 [ "--full" ]), ("cancel", Accepts.between 1 1 []), ("kill", Accepts.between 1 1 []) ] (Accepts.flagsOnly [ "--watch" ]))))
+  let acceptsTextEditor () : Accepts.Accepts = Accepts.nothing ()
+  let acceptsWorkbench () : Accepts.Accepts = Accepts.flagsOnly [ "--live" ]
+
   let allCommands () : List<CommandHandler> =
-    [ ("quit", "Exit the CLI", [ "exit", "q" ], Quit.execute, Quit.help, Quit.complete)
-      ("help", "Show help for commands", [ "commands", "?", "--help", "-h" ], Help.execute, Help.help, Help.complete)
-      ("config", "Manage CLI configuration", [], Config.execute, Config.help, Config.complete)
-      ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
-      ("update", "Update CLI to latest version", [ "upgrade" ], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
-      ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
-      ("install-status", "Show installation status", [], Installation.Status.execute, Installation.Status.help, Installation.Status.complete)
-      ("version", "Display CLI version", [ "--version", "-v" ], Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
-      ("nav", "Navigate between owners, modules, and items", [ "cd" ], Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
-      ("ls", "List package contents", [ "dir" ], Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
-      ("back", "Go back to previous location", [], Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
-      ("clear", "Clear the screen", [ "cls" ], Cli.Clear.execute, Cli.Clear.help, Cli.Clear.complete)
-      ("run-script", "Run a Dark script file", [ "run" ], Cli.Run.execute, Cli.Run.help, Cli.Run.complete)
-      ("eval", "Evaluate a Dark expression", [], Cli.Eval.execute, Cli.Eval.help, Cli.Eval.complete)
-      ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
-      ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
-      ("tree", "Display package hierarchy in tree format", [ "packages" ], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
-      ("search", "Search modules, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
-      ("typecheck", "Audit package declarations without changing them", [], Packages.Typecheck.execute, Packages.Typecheck.help, Packages.Typecheck.complete)
-      ("deps", "Show dependencies and dependents", [ "dependencies" ], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
-      ("val", "Create a new value", [ "let" ], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
-      ("fn", "Create a new function", [ "function" ], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
-      ("type", "Create a new type", [], Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
-      ("trait", "Create a new trait", [], Packages.TraitCommand.execute, Packages.TraitCommand.help, Packages.TraitCommand.complete)
-      ("impl", "Implement a trait for a type", [], Packages.ImplCommand.execute, Packages.ImplCommand.help, Packages.ImplCommand.complete)
-      ("module", "Define multiple package declarations", [], Packages.ModuleCommand.execute, Packages.ModuleCommand.help, Packages.ModuleCommand.complete)
-      ("edit", "Change an item without retyping it", [], Packages.Edit.execute, Packages.Edit.help, Packages.Edit.complete)
-      ("rename", "Give an item a different name (its content and callers are untouched)", [], Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
-      ("hash", "Show hash of a package item", [], Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
+    [ ("quit", "Exit the CLI", [ "exit", "q" ], acceptsQuit, Quit.execute, Quit.help, Quit.complete)
+      ("help", "Show help for commands", [ "commands", "?", "--help", "-h" ], acceptsHelp, Help.execute, Help.help, Help.complete)
+      ("config", "Manage CLI configuration", [], acceptsConfig, Config.execute, Config.help, Config.complete)
+      ("install", "Install CLI globally", [], acceptsInstall, Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
+      ("update", "Update CLI to latest version", [ "upgrade" ], acceptsUpdate, Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
+      ("uninstall", "Remove CLI installation", [], acceptsUninstall, Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
+      ("install-status", "Show installation status", [], acceptsInstallStatus, Installation.Status.execute, Installation.Status.help, Installation.Status.complete)
+      ("version", "Display CLI version", [ "--version", "-v" ], acceptsVersion, Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
+      ("nav", "Navigate between owners, modules, and items", [ "cd" ], acceptsNav, Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
+      ("ls", "List package contents", [ "dir" ], acceptsLs, Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
+      ("back", "Go back to previous location", [], acceptsBack, Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
+      ("clear", "Clear the screen", [ "cls" ], acceptsClear, Cli.Clear.execute, Cli.Clear.help, Cli.Clear.complete)
+      ("run-script", "Run a Dark script file", [ "run" ], acceptsRunScript, Cli.Run.execute, Cli.Run.help, Cli.Run.complete)
+      ("eval", "Evaluate a Dark expression", [], acceptsEval, Cli.Eval.execute, Cli.Eval.help, Cli.Eval.complete)
+      ("scripts", "Store, manage, and run Dark scripts", [], acceptsScripts, Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
+      ("view", "View details of a module, type, value, or fns", [], acceptsView, Packages.View.execute, Packages.View.help, Packages.View.complete)
+      ("tree", "Display package hierarchy in tree format", [ "packages" ], acceptsTree, Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
+      ("search", "Search modules, types, functions, and values", [], acceptsSearch, Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
+      ("typecheck", "Audit package declarations without changing them", [], acceptsTypecheck, Packages.Typecheck.execute, Packages.Typecheck.help, Packages.Typecheck.complete)
+      ("deps", "Show dependencies and dependents", [ "dependencies" ], acceptsDeps, Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
+      ("val", "Create a new value", [ "let" ], acceptsVal, Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
+      ("fn", "Create a new function", [ "function" ], acceptsFn, Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
+      ("type", "Create a new type", [], acceptsType, Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
+      ("trait", "Create a new trait", [], acceptsTrait, Packages.TraitCommand.execute, Packages.TraitCommand.help, Packages.TraitCommand.complete)
+      ("impl", "Implement a trait for a type", [], acceptsImpl, Packages.ImplCommand.execute, Packages.ImplCommand.help, Packages.ImplCommand.complete)
+      ("module", "Define multiple package declarations", [], acceptsModule, Packages.ModuleCommand.execute, Packages.ModuleCommand.help, Packages.ModuleCommand.complete)
+      ("edit", "Change an item without retyping it", [], acceptsEdit, Packages.Edit.execute, Packages.Edit.help, Packages.Edit.complete)
+      ("rename", "Give an item a different name (its content and callers are untouched)", [], acceptsRename, Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
+      ("hash", "Show hash of a package item", [], acceptsHash, Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
       // SCM commands
-      ("status", "What's in your draft, in one line", [ "wip", "changes" ], Cli.Status.execute, Cli.Status.help, Cli.Status.complete)
+      ("status", "What's in your draft, in one line", [ "wip", "changes" ], acceptsStatus, Cli.Status.execute, Cli.Status.help, Cli.Status.complete)
       // `commits`, not `log`: every noun in this CLI says what it lists (`ops`, `branches`, `conflicts`), and
       // `log` only reads as "commits" if you've used git. `log` is its own command, meaning whichever
       // history you're standing in.
-      ("commits", "Your commits, newest first", [ "history" ], Cli.Commits.execute, Cli.Commits.help, Cli.Commits.complete)
-      ("squash", "Collapse your unpushed commits at the tip into one", [], Cli.Squash.execute, Cli.Squash.help, Cli.Squash.complete)
-      ("commit", "Review your draft, propagate, and commit it", [], Cli.Commit.execute, Cli.Commit.help, Cli.Commit.complete)
-      ("discard", "Drop your draft: everything authored since the last commit", [ "reset" ], Cli.Discard.execute, Cli.Discard.help, Cli.Discard.complete)
-      ("show", "Show what a commit contains, or what one op does", [], Cli.Commits.executeShow, Cli.Commits.helpShow, Cli.Commits.complete)
-      ("branch", "Work on an isolated line of work (create / switch / inspect)", [ "br" ], Cli.Branch.execute, Cli.Branch.help, Cli.Branch.complete)
-      ("rebase", "Accept the parent's changes into a branch", [], Cli.Branch.executeRebaseCmd, Cli.Branch.help, Cli.Branch.complete)
-      ("merge", "Merge a branch into its parent", [], Cli.Branch.executeMergeCmd, Cli.Branch.mergeHelp, Cli.Branch.complete)
-      ("branches", "List your branches", [], Cli.Branch.executeBranchesCmd, Cli.Branch.help, Cli.Branch.complete)
-      ("switch", "Move onto a branch (`switch main` returns)", [ "checkout" ], Cli.Branch.executeSwitchCmd, Cli.Branch.help, Cli.Branch.complete)
-      ("diff", "What a branch changes vs its parent", [], Cli.Branch.executeDiffCmd, Cli.Branch.help, Cli.Branch.complete)
-      ("log", "History: commits on main, a branch's ops on a branch", [], Cli.Branch.executeLogCmd, Cli.Branch.help, Cli.Branch.complete)
-      ("resolve", "Settle one conflicted name on a branch", [], Cli.Branch.executeResolveCmd, Cli.Branch.help, Cli.Branch.complete)
-      ("constraints", "Standing findings about the store: stale usages, kind changes, superseded overrides, rival implementations", [], Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
-      ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
-      ("undeprecate", "Put a deprecated fn/type/value/trait/impl back on the shelf", [ "restore" ], Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, Packages.Deprecate.complete)
-      ("push", "Push your ops to the relay", [], Cli.Sync.executePushCmd, Cli.Sync.help, Cli.Sync.complete)
-      ("pull", "Pull ops from the relay (they take effect)", [], Cli.Sync.executePullCmd, Cli.Sync.help, Cli.Sync.complete)
-      ("backups", "Copies of the store: what exists, take one, prune", [], Cli.Backups.execute, Cli.Backups.help, Cli.Backups.complete)
-      ("connect", "Remember a relay and push to it (the onboarding step)", [], Cli.Sync.executeConnectCmd, Cli.Sync.help, Cli.Sync.complete)
-      ("whoami", "Show this instance's sync identity", [], Cli.Sync.executeWhoamiCmd, Cli.Sync.help, Cli.Sync.complete)
-      ("identity", "Name this instance (an id is minted automatically otherwise)", [], Cli.Sync.executeIdentityCmd, Cli.Sync.help, Cli.Sync.complete)
-      ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
-      ("find-values", "Find values of a given type", [], Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
-      ("impls", "List the implementations of a trait on this branch", [], Packages.Impls.execute, Packages.Impls.help, Packages.Impls.complete)
-      ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
-      ("serve", "Start an HTTP server", [ "http-server" ], Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
-      ("docs", "Browse in-CLI documentation", [ "doc", "man" ], Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
-      ("undo", "Step an item back to its previous version", [], Cli.Undo.execute, Cli.Undo.help, Cli.Undo.complete)
-      ("deprecate", "Mark a fn/type/value/trait/impl as deprecated", [], Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
-      ("delete", "Take a fn/type/value/trait/impl off the shelf (sugar for deprecate --kind obsolete)", [], Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
-      ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
-      ("outliner", "Interactive tree outliner", [ "tree-exp" ], Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
-      ("export-seed", "Export minimal seed.db from current database", [], ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
-      ("traces", "The runs this instance has kept: what ran, what it did, and resuming one", [ "trace", "exec", "runs" ], Tracing.execute, Tracing.help, Tracing.complete)
-      ("review", "Stage someone else's ops for op-level approval", [], Cli.Sync.executeReviewCmd, Cli.Sync.helpReview, Cli.Sync.complete)
-      ("conflicts", "Review what a merge, rebase or sync auto-resolved", [], Conflicts.execute, Conflicts.help, Conflicts.complete)
-      ("views", "Browse and preview CLI views", [], Apps.Views.App.execute, Apps.Views.App.help, Apps.Views.App.complete)
-      ("login", "Log into an account", [], Auth.Login.execute, Auth.Login.help, Auth.Login.complete)
-      ("logout", "Clear the active account", [], Auth.Logout.execute, Auth.Logout.help, Auth.Logout.complete)
-      ("permissions", "Review effects and runtime permission policies", [ "perms" ], Permissions.Command.execute, Permissions.Command.help, Permissions.Command.complete)
-      ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], Devices.execute, Devices.help, Devices.complete)
+      ("commits", "Your commits, newest first", [ "history" ], acceptsCommits, Cli.Commits.execute, Cli.Commits.help, Cli.Commits.complete)
+      ("squash", "Collapse your unpushed commits at the tip into one", [], acceptsSquash, Cli.Squash.execute, Cli.Squash.help, Cli.Squash.complete)
+      ("commit", "Review your draft, propagate, and commit it", [], acceptsCommit, Cli.Commit.execute, Cli.Commit.help, Cli.Commit.complete)
+      ("discard", "Drop your draft: everything authored since the last commit", [ "reset" ], acceptsDiscard, Cli.Discard.execute, Cli.Discard.help, Cli.Discard.complete)
+      ("show", "Show what a commit contains, or what one op does", [], acceptsShow, Cli.Commits.executeShow, Cli.Commits.helpShow, Cli.Commits.complete)
+      ("branch", "Work on an isolated line of work (create / switch / inspect)", [ "br" ], acceptsBranch, Cli.Branch.execute, Cli.Branch.help, Cli.Branch.complete)
+      ("rebase", "Accept the parent's changes into a branch", [], acceptsRebase, Cli.Branch.executeRebaseCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("merge", "Merge a branch into its parent", [], acceptsMerge, Cli.Branch.executeMergeCmd, Cli.Branch.mergeHelp, Cli.Branch.complete)
+      ("branches", "List your branches", [], acceptsBranches, Cli.Branch.executeBranchesCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("switch", "Move onto a branch (`switch main` returns)", [ "checkout" ], acceptsSwitch, Cli.Branch.executeSwitchCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("diff", "What a branch changes vs its parent", [], acceptsDiff, Cli.Branch.executeDiffCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("log", "History: commits on main, a branch's ops on a branch", [], acceptsLog, Cli.Branch.executeLogCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("resolve", "Settle one conflicted name on a branch", [], acceptsResolve, Cli.Branch.executeResolveCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("constraints", "Standing findings about the store: stale usages, kind changes, superseded overrides, rival implementations", [], acceptsConstraints, Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
+      ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], acceptsAck, Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
+      ("undeprecate", "Put a deprecated fn/type/value/trait/impl back on the shelf", [ "restore" ], acceptsUndeprecate, Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, Packages.Deprecate.complete)
+      ("push", "Push your ops to the relay", [], acceptsPush, Cli.Sync.executePushCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("pull", "Pull ops from the relay (they take effect)", [], acceptsPull, Cli.Sync.executePullCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("backups", "Copies of the store: what exists, take one, prune", [], acceptsBackups, Cli.Backups.execute, Cli.Backups.help, Cli.Backups.complete)
+      ("connect", "Remember a relay and push to it (the onboarding step)", [], acceptsConnect, Cli.Sync.executeConnectCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("whoami", "Show this instance's sync identity", [], acceptsWhoami, Cli.Sync.executeWhoamiCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("identity", "Name this instance (an id is minted automatically otherwise)", [], acceptsIdentity, Cli.Sync.executeIdentityCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("builtins", "List all builtin functions", [], acceptsBuiltins, Builtins.execute, Builtins.help, Builtins.complete)
+      ("find-values", "Find values of a given type", [], acceptsFindValues, Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
+      ("impls", "List the implementations of a trait on this branch", [], acceptsImpls, Packages.Impls.execute, Packages.Impls.help, Packages.Impls.complete)
+      ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], acceptsAgent, AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
+      ("serve", "Start an HTTP server", [ "http-server" ], acceptsServe, Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
+      ("docs", "Browse in-CLI documentation", [ "doc", "man" ], acceptsDocs, Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
+      ("undo", "Step an item back to its previous version", [], acceptsUndo, Cli.Undo.execute, Cli.Undo.help, Cli.Undo.complete)
+      ("deprecate", "Mark a fn/type/value/trait/impl as deprecated", [], acceptsDeprecate, Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
+      ("delete", "Take a fn/type/value/trait/impl off the shelf (sugar for deprecate --kind obsolete)", [], acceptsDelete, Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
+      ("db", "Manage databases", [], acceptsDb, Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
+      ("outliner", "Interactive tree outliner", [ "tree-exp" ], acceptsOutliner, Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
+      ("export-seed", "Export minimal seed.db from current database", [], acceptsExportSeed, ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
+      ("traces", "The runs this instance has kept: what ran, what it did, and resuming one", [ "trace", "exec", "runs" ], acceptsTraces, Tracing.execute, Tracing.help, Tracing.complete)
+      ("review", "Stage someone else's ops for op-level approval", [], acceptsReview, Cli.Sync.executeReviewCmd, Cli.Sync.helpReview, Cli.Sync.complete)
+      ("conflicts", "Review what a merge, rebase or sync auto-resolved", [], acceptsConflicts, Conflicts.execute, Conflicts.help, Conflicts.complete)
+      ("views", "Browse and preview CLI views", [], acceptsViews, Apps.Views.App.execute, Apps.Views.App.help, Apps.Views.App.complete)
+      ("login", "Log into an account", [], acceptsLogin, Auth.Login.execute, Auth.Login.help, Auth.Login.complete)
+      ("logout", "Clear the active account", [], acceptsLogout, Auth.Logout.execute, Auth.Logout.help, Auth.Logout.complete)
+      ("permissions", "Review effects and runtime permission policies", [ "perms" ], acceptsPermissions, Permissions.Command.execute, Permissions.Command.help, Permissions.Command.complete)
+      ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], acceptsDevices, Devices.execute, Devices.help, Devices.complete)
       // CLEANUP(instances-command): `sync` mixes the verb (sync now) with instance management
       // (connect / disconnect / status / fetch); those belong in a dedicated `instances` command so
       // `dark sync` is just "pull now".
-      ("sync", "Push then pull against a relay (`sync setup` to get started)", [], Cli.Setup.executeSyncCmd, Cli.Sync.help, Cli.Sync.complete)
-      ("ops", "Read this instance's op log", [], Ops.execute, Ops.help, Ops.complete)
-      ("apps", "List, install, and manage apps (daemons, foreground, UI)", [], Apps.Command.execute, Apps.Command.help, Apps.Command.complete)
-      ("ps", "What is running: this instance's own processes, then every other Dark on this machine", [ "processes" ], Cli.Ps.execute, Cli.Ps.help, Cli.Ps.complete)
-      ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete)
-      ("workbench", "Open the workbench -- a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], Workbench.execute, Workbench.help, Workbench.complete) ]
+      ("sync", "Push then pull against a relay (`sync setup` to get started)", [], acceptsSync, Cli.Setup.executeSyncCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("ops", "Read this instance's op log", [], acceptsOps, Ops.execute, Ops.help, Ops.complete)
+      ("apps", "List, install, and manage apps (daemons, foreground, UI)", [], acceptsApps, Apps.Command.execute, Apps.Command.help, Apps.Command.complete)
+      ("ps", "What is running: this instance's own processes, then every other Dark on this machine", [ "processes" ], acceptsPs, Cli.Ps.execute, Cli.Ps.help, Cli.Ps.complete)
+      ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], acceptsTextEditor, Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete)
+      ("workbench", "Open the workbench -- a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], acceptsWorkbench, Workbench.execute, Workbench.help, Workbench.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
-      fun (name, desc, aliases, execute, help, complete) ->
+      fun (name, desc, aliases, accepts, execute, help, complete) ->
         CommandHandler
           { name = name
             description = desc
             aliases = aliases
+            accepts = accepts
             execute = execute
             help = help
             complete = complete }
@@ -134,6 +221,8 @@ module Registry =
         { name = name
           description = "Unknown command"
           aliases = []
+          // Any words, so the name itself is what gets refused, below.
+          accepts = fun () -> Accepts.text 0
           execute = fun state args ->
             Stdlib.printErrorLine (View.formatError $"Unknown command: {name}")
             Stdlib.printErrorLine "Use 'help' to see available commands."
@@ -162,8 +251,19 @@ module Registry =
     if asksForHelp then
       executeCommandHelp name state
     else
-      let ex = handler.execute
-      ex state args
+      // What the command takes is declared beside it (`accepts`), and checked here, once, before it
+      // runs: a flag it does not have, a word past the last it takes, or nothing where it needs
+      // something. A refusal exits 1 and the command never sees the arguments. The usage is not
+      // repeated here; `--help` has it.
+      let accepts = handler.accepts
+      match Accepts.check name (accepts ()) args with
+      | Some why ->
+        Cli.printErr why
+        Cli.printHint $"  `dark {name} --help` shows what it takes."
+        { state with exitCode = 1 }
+      | None ->
+        let ex = handler.execute
+        ex state args
 
   let executeCommandHelp (name: String) (state: AppState) : AppState =
     let handler = findCommandIn state.allCommandsCache name

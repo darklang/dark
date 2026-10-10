@@ -156,6 +156,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // A branch name is the thing people put here, because `dark log <branch>` takes one. Answering with
   // the help, or defaulting the count, would be answering plausibly rather than refusing.
   match (args, limit) with
+  | (_ :: _ :: _, _) ->
+    Cli.printErr "`dark commits` takes at most a count."
+    Stdlib.printErrorLine (help state)
+    Cli.exitWith state false
+  | ([ n ], Some l) when l <= 0L ->
+    Cli.printErr $"`dark commits` takes a positive count; got {n}."
+    Cli.exitWith state false
   | ([ n ], None) ->
     Cli.printErr "`dark commits` takes a count, not a branch name."
     Cli.printHint "  this branch's commits:  dark commits"

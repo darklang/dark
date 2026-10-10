@@ -27,13 +27,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
     Stdlib.printLine "Usage: find-values <type-path> [namespace]"
-    state
+    Cli.exitWith state false
 
   | [ typePath ] ->
     match resolveTypeHash state.currentBranchId state.packageData.currentLocation typePath with
     | Error msg ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-      state
+      Cli.exitWith state false
     | Ok typeHash ->
       let values = Stdlib.ValueSearch.findByType state.currentBranchId "" typeHash
 
@@ -49,7 +49,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     match resolveTypeHash state.currentBranchId state.packageData.currentLocation typePath with
     | Error msg ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-      state
+      Cli.exitWith state false
     | Ok typeHash ->
       let values = Stdlib.ValueSearch.findByType state.currentBranchId namespace_ typeHash
 
@@ -62,8 +62,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | _ ->
-    Stdlib.printLine "Usage: find-values <type-path> [namespace]"
-    state
+    Cli.printErr "Usage: find-values <type-path> [namespace]"
+    Cli.exitWith state false
 
 
 let help (_state: Cli.AppState) : String =

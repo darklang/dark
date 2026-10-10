@@ -7,11 +7,21 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine (Registry.getDetailedCommandList ())
     state
   | [commandName] ->
-    Registry.executeCommandHelp commandName state
+    let known =
+      state.allCommandsCache
+      |> Stdlib.List.any (fun cmd ->
+        cmd.name == commandName || Stdlib.List.member cmd.aliases commandName)
+
+    if known then
+      Registry.executeCommandHelp commandName state
+    else
+      Cli.printErr $"No command called `{commandName}`."
+      Cli.printHint "  `dark help` lists them."
+      Cli.exitWith state false
   | _ ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: help [command]")
-    Stdlib.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
-    state
+    Cli.printErr "Usage: help [command]"
+    Cli.printHint "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
+    Cli.exitWith state false
 
 
 let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =

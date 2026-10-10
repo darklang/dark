@@ -5,7 +5,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
 
   // fn SomeModule.myFn (param: Type): ReturnType = body
   | location :: definitionParts ->
@@ -29,7 +29,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ""
       ] |> Stdlib.printLines
 
-      state
+      Cli.exitWith state false
     else
       // Parse and create function immediately
       createFnInline

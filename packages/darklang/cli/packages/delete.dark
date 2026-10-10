@@ -82,10 +82,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | _ when Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
   | (None, _) ->
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
   | (Some itemTypeStr, targetOpt) ->
     // `delete <name>` with no kind: the store knows what kind lives at a name, so asking is
     // ceremony -- infer it (each kind tried, at most one resolves, the same way `undeprecate`
@@ -114,23 +114,23 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         (Stdlib.Cli.UI.Colors.error
           $"Error: '{itemTypeStr}' names neither an item kind nor a live item. Expected `delete <name>`, or `delete <fn|type|value|trait|impl> <name-or-hash>`.")
       Stdlib.printLine "Usage: delete [fn|type|value|trait|impl] <name-or-hash> [options]"
-      state
+      Cli.exitWith state false
     | Some itemKind ->
       match targetOpt with
       | None ->
         Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Missing target (location or hash)")
-        state
+        Cli.exitWith state false
       | Some target ->
         let currentLoc = state.packageData.currentLocation
         match Location.parseRelativeTo currentLoc target with
         | Error errMsg ->
           Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}: {errMsg}")
-          state
+          Cli.exitWith state false
         | Ok targetLoc ->
           match Deprecate.resolveTarget branchId currentLoc itemKind target with
           | None ->
             Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}")
-            state
+            Cli.exitWith state false
           | Some _targetRef ->
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
             // when LIVE dependents exist. Deprecated-only callers don't block.

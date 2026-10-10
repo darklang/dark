@@ -730,12 +730,11 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
 
   // Printing help alone reads as an answer: a typo would look exactly like `conflicts --help`, a
   // command that ran and found nothing.
-  | bad :: _ ->
-    Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error $"conflicts does not understand `{bad}`.")
-
-    Stdlib.printLine (help state)
-    state
+  | _ ->
+    let asked = Stdlib.String.join args " "
+    Cli.printErr $"`dark conflicts {asked}` isn't a form of this command."
+    Stdlib.printErrorLine (help state)
+    Cli.exitWith state false
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let stripped = ScmJson.stripJson args

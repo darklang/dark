@@ -379,7 +379,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
       Stdlib.printLine ""
       Stdlib.printLine usage
-      state
+      Cli.exitWith state false
     else
       let rawQueryText = Stdlib.String.join parsed.queryParts " "
 
@@ -396,7 +396,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
         Stdlib.printLine ""
         Stdlib.printLine usage
-        state
+        Cli.exitWith state false
       else
         let searchDepth =
           if parsed.shallow then
@@ -569,7 +569,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Batch search requires at least one query")
       Stdlib.printLine ""
       Stdlib.printLine usage
-      state
+      Cli.exitWith state false
     else
       // FlagParser has no value-taking flags in this command, so retaining the
       // original flag arguments is sufficient to give every query the same

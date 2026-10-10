@@ -141,7 +141,7 @@ let executeConnectCmd (state: AppState) (args: List<String>) : AppState =
     Cli.exitWith state false
 
 /// `dark whoami`
-let executeWhoamiCmd (state: AppState) (_args: List<String>) : AppState =
+let executeWhoamiCmd (state: AppState) (args: List<String>) : AppState =
   executeWhoami state
 
 /// `dark identity [<name>]`. With no name it reports rather than clears, because clearing an identity by
@@ -165,7 +165,7 @@ let executeReviewCmd (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
     Stdlib.printLine (helpReview state)
-    state
+    Cli.exitWith state false
   // The `--from` forms come FIRST: match arms are ordered, and `[ "pull"; url; queue ]` has the same
   // shape as `[ "pull"; "--from"; who ]`, so a general arm above it binds url="--from".
   | [ "pull", "--from", who ] ->
@@ -200,13 +200,13 @@ let executeReviewCmd (state: AppState) (args: List<String>) : AppState =
     Cli.exitWith state false
   | [ queue ] ->
     match Cli.Branch.resolveRef queue with
-    | Some queueId -> Cli.printOk (SCM.PackageOps.branchDiff queueId)
-    | None -> ()
-
-    state
+    | Some queueId ->
+      Cli.printOk (SCM.PackageOps.branchDiff queueId)
+      state
+    | None -> Cli.exitWith state false
   | _ ->
-    Stdlib.printLine (helpReview state)
-    state
+    Stdlib.printErrorLine (helpReview state)
+    Cli.exitWith state false
 
 /// Shared by every sync verb. Their arguments are urls, queue names and file paths -- none of which the
 /// CLI can enumerate -- so there is nothing to offer.

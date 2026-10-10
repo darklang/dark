@@ -327,7 +327,7 @@ let constraintsAndConflictsReportQuiet =
         shows
           state
           [ "resolve"; "bogus" ]
-          "usage"
+          "needs 3 arguments"
           "and resolve needs its three arguments"
     })
 
