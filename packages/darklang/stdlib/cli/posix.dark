@@ -158,7 +158,7 @@ let mkdtemp (prefix: String) : Result.Result<String, Error> =
 /// Match a string against a glob pattern.
 /// If pathMode is true, * does not match /
 let fnmatch (pattern: String) (str: String) (pathMode: Bool) : Bool =
-  Builtin.posixFnmatch pattern str pathMode
+  Fnmatch.matches pattern str pathMode
 
 
 /// Lock a file descriptor (exclusive). Use false to unlock.

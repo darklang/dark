@@ -56,8 +56,6 @@ let private ambientHostLibcMembers =
       "getpid"
       "getuid"
       "cpuCount"
-      "fnmatch"
-      "get_FNM_PATHNAME"
       "get_LOCK_EX"
       "get_LOCK_UN" ]
 

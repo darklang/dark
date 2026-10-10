@@ -63,9 +63,6 @@ extern int private mkstemp_raw(byte[] template)
 [<DllImport("libc", EntryPoint = "mkdtemp", SetLastError = true)>]
 extern IntPtr private mkdtemp_raw(byte[] template)
 
-[<DllImport("libc", EntryPoint = "fnmatch")>]
-extern int private fnmatch_raw(string pattern, string str, int flags)
-
 [<DllImport("libc", EntryPoint = "flock", SetLastError = true)>]
 extern int private flock_raw(int fd, int operation)
 
@@ -769,12 +766,6 @@ let cpuCount () : int64 =
   else
     let scNprocessorsOnl = if isMac then 58 else 84 // Linux _SC_NPROCESSORS_ONLN
     sysconf_raw (scNprocessorsOnl)
-
-/// fnmatch returns true if the string matches the pattern.
-let fnmatch (pattern : string) (str : string) (flags : int) : bool =
-  if isWasm then false else fnmatch_raw (pattern, str, flags) = 0
-
-let FNM_PATHNAME = if isMac then 2 else 1 // Linux
 
 /// flock operations
 let LOCK_EX = 2

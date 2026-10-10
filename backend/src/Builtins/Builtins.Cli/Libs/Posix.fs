@@ -766,26 +766,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixFnmatch" 0
-      typeParams = []
-      parameters =
-        [ Param.make "pattern" TString "Glob pattern"
-          Param.make "str" TString "String to match against"
-          Param.make "pathMode" TBool "If true, * does not match /" ]
-      returnType = TBool
-      description = "Matches a string against a glob pattern via libc fnmatch()"
-      fn =
-        (function
-        | _, _, _, [| DString pattern; DString str; DBool pathMode |] ->
-          let flags = if pathMode then HostLibc.FNM_PATHNAME else 0
-          DBool(HostLibc.fnmatch pattern str flags) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "posixFlock" 0
       typeParams = []
       parameters =
