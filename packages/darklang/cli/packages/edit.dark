@@ -75,7 +75,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   match Traversal.traverse branchId state.packageData.currentLocation name with
   | Error e ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot edit {name}: {e}")
+    Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Cannot edit {name}: {e}")
     Cli.exitWith state false
   | Ok location ->
 
@@ -115,13 +115,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   match Packages.View.rawSource branchId location with
   | Error e ->
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot edit {name}: {e}")
+    Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Cannot edit {name}: {e}")
     Cli.exitWith state false
   | Ok before ->
 
   match Stdlib.Cli.Dir.createTemp () with
   | Error e ->
-    Stdlib.printLine
+    Stdlib.printErrorLine
       (Stdlib.Cli.UI.Colors.error
         $"Cannot edit {name}: no temp directory ({e.message})")
 
@@ -131,7 +131,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
     match Stdlib.Cli.File.writeText path before with
     | Error e ->
-      Stdlib.printLine
+      Stdlib.printErrorLine
         (Stdlib.Cli.UI.Colors.error
           $"Cannot edit {name}: could not write {path} ({e.message})")
 

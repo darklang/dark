@@ -109,6 +109,32 @@ let textWidthTests =
         [ "plain界", false; "before\u001b[2Jafter", true; "tab\there", true ] ]
 
 
+let ansiTests =
+  let esc = "\u001b"
+  testList
+    "ansi"
+    [ test "a pipe gets no escape sequences at all" {
+        let coloured = $"{esc}[31mError:{esc}[0m {esc}[1mbold{esc}[22m plain"
+        Expect.equal
+          (NonBlockingConsole.Ansi.withoutSgr coloured)
+          "Error: bold plain"
+          "every SGR sequence goes"
+      }
+      test "NO_COLOR keeps the style and drops the colour" {
+        Expect.equal
+          (NonBlockingConsole.Ansi.withoutColour $"{esc}[1;31mx{esc}[0m")
+          $"{esc}[1mx{esc}[0m"
+          "bold stays, red goes, the reset stays"
+        Expect.equal
+          (NonBlockingConsole.Ansi.withoutColour $"{esc}[38;5;208mx{esc}[39m")
+          "x"
+          "a 256-colour foreground goes whole, and a sequence left empty goes too"
+        Expect.equal
+          (NonBlockingConsole.Ansi.withoutColour $"{esc}[48;2;1;2;3;7mx")
+          $"{esc}[7mx"
+          "a truecolour background goes whole and reverse video stays"
+      } ]
+
 let assertions =
   testList
     "Assertions"
@@ -213,5 +239,6 @@ let tests =
       floatTests
       dateTests
       textWidthTests
+      ansiTests
       assertions
       deepRecursion ]

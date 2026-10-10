@@ -1322,17 +1322,19 @@ on a bare Enter. If Enter appears not to advance a prompt, suspect the harness f
 
 ## CI has a terminal, and that changes behaviour
 
-`Builtin.stdinIsInteractive ()` is false on a pipe and TRUE on a pty. CircleCI gives each
-step a pty, so anything gated on "is a human here?" answers YES in CI, and a command that
-then reads stdin blocks on a terminal nobody types into. Forever.
+CircleCI gives each step a pty, so stdin is a terminal there and a terminal alone says a
+human is here. A command that then reads stdin blocks on a terminal nobody types into. Forever.
 
 It presents as a hang, not a failure: no error, no output, and the step killed for
 silence with nothing in the log naming the culprit.
 
-So anything unattended passes `--yes` explicitly. Never rely on being detected as
-non-interactive, and never test a destructive command without it. Reproducing this class
-needs a real terminal, which `tmux` gives you (see above); the same run from a pipe
-passes, which is why it survives local testing.
+So every prompt goes through `Stdlib.Cli.UI.Prompt.canAsk`, which also needs stderr to be a
+terminal and none of `CI`, `DARK_NO_INPUT` or `--no-input` to be on. A TUI refuses only under
+`DARK_NO_INPUT`/`--no-input`, since the workbench gates drive one on CI's pty.
+
+Still pass `--yes` for anything unattended, and never test a destructive command without it.
+Reproducing this class needs a real terminal, which `tmux` gives you (see above); the same
+run from a pipe passes, which is why it survives local testing.
 
 Three things make the next one findable, all in place:
 
@@ -1375,7 +1377,7 @@ The point of all this is that a green F# build says nothing about Dark, which re
 
 ## Debugging
 
-    Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout
+    Builtin.debug "label" value   # prints DEBUG: label: <repr> to stderr
     eval <expr>                   # test small pieces
 
 **A truncated answer is worse than no answer, because it justifies doing nothing.** `tail -3` on a

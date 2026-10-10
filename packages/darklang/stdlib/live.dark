@@ -531,7 +531,7 @@ module Router =
         let lg = refresh watch.branchId s.lastGood
 
         match transition s.lastGood lg with
-        | Some line -> Stdlib.printLine $"[live] {line}"
+        | Some line -> Stdlib.printErrorLine $"[live] {line}"
         | None -> ()
 
         (State { watch = watch, lastGood = lg }, applicable lg)

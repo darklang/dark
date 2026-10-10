@@ -134,8 +134,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       if json then
         Stdlib.printLine $"{{\"error\":{Cli.jsonStr msg}}}"
       else
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
-        Stdlib.printLine
+        Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error msg)
+        Stdlib.printErrorLine
           (Stdlib.Cli.UI.Colors.dimText
             $"  `dark search {traitPath} --trait` looks for a trait by name")
       { state with exitCode = 1 }

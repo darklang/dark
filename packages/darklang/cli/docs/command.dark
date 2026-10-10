@@ -313,9 +313,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (contentFn ())
         state
       | None ->
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Unknown topic: {topicName}")
-        Stdlib.printLine ""
-        Stdlib.printLine (Topics.formatTopicList ())
+        Stdlib.printErrorLine (Stdlib.Cli.UI.Colors.error $"Unknown topic: {topicName}")
+        Stdlib.printErrorLine ""
+        Stdlib.printErrorLine (Topics.formatTopicList ())
         Cli.exitWith state false
 
 

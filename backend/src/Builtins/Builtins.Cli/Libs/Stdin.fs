@@ -620,17 +620,17 @@ let fns () : List<BuiltInFn> =
     { name = fn "stdinReadLine" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
+      returnType = TypeReference.option TString
       description =
-        "Reads a single line from the standard input, or \"\" at its end. Under the scheduler "
+        "Reads a single line from the standard input, or None at its end. Under the scheduler "
         + "the process parks until the line arrives."
       fn =
         (function
         | _, vm, _, [| DUnit |] ->
           let ofResult (result : HE.StdinResult) : Dval =
             match result with
-            | Ok(Some line) -> DString line
-            | Ok None -> DString ""
+            | Ok(Some line) -> LibExecution.Dval.optionSome KTString (DString line)
+            | Ok None -> LibExecution.Dval.optionNone KTString
             | Error e ->
               RuntimeError.UncaughtException($"stdinReadLine: {e}", [])
               |> raiseRTE vm.threadID
@@ -645,24 +645,6 @@ let fns () : List<BuiltInFn> =
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
       deprecated = NotDeprecated }
-
-
-    { name = fn "stdinIsInteractive" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TBool
-      description = "Returns whether or not the terminal is 'interactive' (a tty)"
-      fn =
-        function
-        | _, _, _, [| DUnit |] ->
-          (not Console.IsInputRedirected || not Console.IsOutputRedirected)
-          |> DBool
-          |> Ply
-        | _ -> incorrectArgs ()
-      previewable = Impure
-      callEffects = set [ Effect.Stdin ]
-      deprecated = NotDeprecated }
-
 
 
     { name = fn "stdinReadAll" 0

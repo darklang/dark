@@ -45,6 +45,11 @@ let currentPid () : Int =
   Builtin.syscallGetpid ()
 
 
+/// isatty for 0 (stdin), 1 (stdout) or 2 (stderr).
+let isTerminal (fd: Int) : Bool =
+  Builtin.cliTerminalIsatty fd
+
+
 /// Check if the current user is root (uid 0).
 let isRoot () : Bool =
   (Builtin.syscallGetuid ()) == 0

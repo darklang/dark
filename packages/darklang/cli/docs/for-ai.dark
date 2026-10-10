@@ -342,8 +342,12 @@ and `fork` report in prose; they do work rather than answer a question.
 Exit codes are the other thing you can branch on without reading English.
 `eval` and `run` exit 0 when the code ran and gave an answer, and non-zero
 when it raised, when the script was not there, or when the script itself
-ended non-zero. A permission refusal is non-zero too. The reason is still
-English on STDOUT, not stderr; the code is the part to test.
+ended non-zero. A permission refusal is non-zero too.
+
+Stdout is the answer; stderr is everything else, refusals and hints included.
+Under `--json` a refusal leaves stdout empty, except `impls` and `conflicts show`,
+which answer with an `error` field, so test the exit code, not whether stdout
+is empty.
 
 ## Name Resolution
 Names resolve relative to the current module, searching from

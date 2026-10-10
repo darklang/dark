@@ -816,7 +816,7 @@ is checked again.
   the new code, and the effects come from the log: the new pure code runs
   against the old I/O. Live values (`docs/live.md`) are this, one call at a
   time.
-- A builtin declared `Impure` with no effects (`cliTerminalColorEnabled`,
+- A builtin declared `Impure` with no effects (`cliTerminalIsatty`,
   `interpreterStatsGet`, a stream pull) is logged and answered from the log
   like any other, unless it only orchestrates (applies a callable, awaits);
   `isLogged` in `Interpreter.fs` is the rule. Every pure builtin answers the

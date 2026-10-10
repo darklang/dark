@@ -285,7 +285,7 @@ module ExecutionError =
         match error with
         | Denied _ -> ""
         | _ -> "\n"
-      Stdlib.printLine $"Error when executing {what}. Call-stack:\n{rendered}{gap}"
+      Stdlib.printErrorLine $"Error when executing {what}. Call-stack:\n{rendered}{gap}"
     else
       ()
 

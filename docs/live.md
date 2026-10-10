@@ -125,7 +125,7 @@ cannot outlive the call that made it. Two requests in flight may both run the st
 it is idempotent (a poll and at most one check), so the race costs a repeated check.
 
 The router's hash is the approval root, so the guest state is re-derived when the hash
-moves. A newly broken version is said once on stdout (`[live] <entry>: still on the
+moves. A newly broken version is said once on stderr (`[live] <entry>: still on the
 last good version; the newest has a type error: <why>`), and the fix too (`[live] now
 on the new version of <entry>`), beside the `[HttpServer] ...` request lines; the
 wire keeps getting the last good one. Without `--live` the version resolved at start serves

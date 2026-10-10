@@ -2,7 +2,7 @@
 module Darklang.Cli.Tests.Isolation
 
 test stdinIsNonInteractive =
-  Stdlib.Cli.Stdin.isInteractive () |> Stdlib.Test.equal false
+  Stdlib.Cli.Sys.isTerminal 0 |> Stdlib.Test.equal false
 
 
 let writeConfig (key: String) : String =

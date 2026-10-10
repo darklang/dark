@@ -2,7 +2,7 @@
 module Darklang.Stdlib.Cli.Tui.TerminalSupport
 
 
-/// Terminal facts reported by the native host.
+/// Terminal facts.
 type Facts =
   { inputIsTerminal: Bool
     outputIsTerminal: Bool
@@ -38,20 +38,22 @@ let evaluate (facts: Facts) : Availability =
     Availability.Available
 
 
-/// Read the current terminal facts from the native host.
+/// Read the current terminal facts.
 let currentFacts () : Facts =
-  let (inputIsTerminal, outputIsTerminal, terminalName) =
-    Builtin.cliTerminalSessionInfo ()
   Facts {
-    inputIsTerminal = inputIsTerminal
-    outputIsTerminal = outputIsTerminal
-    terminalName = terminalName
+    inputIsTerminal = Stdlib.Cli.Sys.isTerminal 0
+    outputIsTerminal = Stdlib.Cli.Sys.isTerminal 1
+    terminalName = Stdlib.Option.withDefault (Stdlib.Cli.Env.get "TERM") ""
   }
 
 
-/// Check whether an interactive TUI may start in the current terminal.
+/// Check whether an interactive TUI may start in the current terminal. Not refused under `CI`:
+/// tests drive a TUI on CI's pty with scripted keys.
 let current () : Availability =
-  evaluate (currentFacts ())
+  if Stdlib.Cli.Env.isOn "DARK_NO_INPUT" then
+    Availability.Unavailable "nobody is at the keyboard (DARK_NO_INPUT or --no-input is set)"
+  else
+    evaluate (currentFacts ())
 
 
 /// Format an error without terminal control sequences.

@@ -201,7 +201,7 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
                 "ord", DInt64 ev.ord ]
           Some(DRecord(typeName, typeName, [], fields))
         with ex ->
-          print $"[tracing] dropping corrupt fn_call row: {ex.Message}"
+          printErr $"[tracing] dropping corrupt fn_call row: {ex.Message}"
           Telemetry.event
             "trace.row.parseFailed"
             [ "callId", ev.callId; "message", ex.Message ]
