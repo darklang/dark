@@ -1001,7 +1001,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     if Option.isNone op then Some record else None)
 
                 if not (List.isEmpty rawRecords) then
-                  System.Console.Error.WriteLine(
+                  NonBlockingConsole.writeErrLine (
                     $"note: {List.length rawRecords} op(s) in this bundle were written in a format this build cannot "
                     + "read, and are stored inert. They are kept, not dropped, so a later build can apply them."
                   )

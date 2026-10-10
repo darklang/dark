@@ -1283,6 +1283,9 @@ let fns () : List<BuiltInFn> =
           _,
           [| accountIDDval; DUuid branchId; DString traceID; DList(_, focusRows) |] ->
           uply {
+            // Parsing and replay must use the same account as the invoking CLI or editor.
+            let exeState =
+              { exeState with accountID = C2DT.Option.fromDT D.uuid accountIDDval }
             // A view keeps the first and last few iterations of every site. Asking for one in
             // between is this: the same view again, keeping that one as well.
             let focus =

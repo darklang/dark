@@ -367,6 +367,7 @@ let private withLiveServer
   (branchSource : string)
   (routerLoc : string)
   (dev : bool)
+  (expectedOutput : List<string>)
   (body : int -> Task<unit>)
   : Task<unit> =
   task {
@@ -381,27 +382,37 @@ let private withLiveServer
       | other -> failtest $"expected the step to be a fn, got {other}"
     let cts = new CancellationTokenSource()
     let! port, listener = Tests.HttpServer.bindFreshListener ()
+    let mutable bodyPassed = false
     let listenerTask =
-      Builtins.Http.Server.Libs.HttpServer.runListenerLive
-        state
-        listener
-        (int64 port)
-        init
-        step
-        dev
-        Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
-        false
-        false
-        false
-        cts.Token
+      task {
+        // The server owns this capture. The test driver still opens independent
+        // command captures when it authors edits through runCli.
+        use output = new OutputCapture()
+        do!
+          Builtins.Http.Server.Libs.HttpServer.runListenerLive
+            state
+            listener
+            (int64 port)
+            init
+            step
+            dev
+            Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
+            false
+            false
+            false
+            cts.Token
+        if bodyPassed then
+          output.Check(fun stdout stderr ->
+            let expected = expectedOutput |> List.map (fun s -> s + "\n")
+            Expect.equal stdout (String.concat "" expected) "server diagnostics"
+            Expect.equal stderr "" "no other server diagnostics")
+      }
     try
       do! body port
+      bodyPassed <- true
     finally
       cts.Cancel()
-      try
-        listenerTask.Wait 2000 |> ignore<bool>
-      with _ ->
-        ()
+      Expect.isTrue (listenerTask.Wait 2000) "the live listener stopped"
   }
 
 /// The Dark source for the test router's location.
@@ -442,6 +453,7 @@ let private previewOfAServedRequest =
               "Darklang.SCM.Branch.mainBranchId"
               (locSource [ "PrevHttp" ] "router")
               false
+              []
               (fun port ->
                 task {
                   let! (status, body) = getText port
@@ -488,6 +500,11 @@ let private serveFollowsEdits =
           "Darklang.SCM.Branch.mainBranchId"
           routerLocation
           false
+          [ "[live] now on the new version of Tests.LiveHttp.router"
+            "[live] Tests.LiveHttp.router: still on the last good version; "
+            + "the newest has a type error: expected String, got Int (return value)"
+            "[live] now on the new version of Tests.LiveHttp.router"
+            "[live] now on the new version of Tests.LiveHttp.router" ]
           (fun port ->
             task {
               let! (status, body) = getText port
@@ -510,8 +527,8 @@ let private serveFollowsEdits =
                 (200, "two")
                 "a broken save keeps the last good version"
 
-              // The diagnostic the server printed went to its own thread's stdout, out of this flow's
-              // capture; ask the same question the routing step asked and check the words.
+              // The fixture checks the actual server diagnostic after shutdown.
+              // The direct diagnosis API should explain the same rejected save.
               let! _ =
                 pollChange state watch "expected the broken save to be reported"
               let! routerLoc = evalUnder state routerLocation
@@ -832,6 +849,7 @@ let private serveFollowsEditsOnABranch =
             "(Darklang.SCM.PackageOps.currentBranch ())"
             (locSource [ "LiveBranchHttp" ] "router")
             false
+            [ "[live] now on the new version of Tests.LiveBranchHttp.router" ]
             (fun port ->
               task {
                 let! (status, body) = getText port
@@ -1094,6 +1112,8 @@ let private devStreamReportsAnEditAfterTheServe =
             "Darklang.SCM.Branch.mainBranchId"
             (locSource [ "LiveStream" ] "router")
             true
+            [ "[live] now on the new version of Tests.LiveStream.router"
+              "[live] page told to reload" ]
             (fun port ->
               task {
                 use client = new System.Net.Http.HttpClient()
@@ -1124,6 +1144,9 @@ let private devStreamReportsAnEditAfterTheServe =
                   said
                   "data: reload"
                   "the stream told the page to reload"
+                // EOF means the server finished the event, including its diagnostic.
+                let! _ = reader.ReadToEndAsync(cts.Token)
+                return ()
               })
       })
 
@@ -1147,6 +1170,7 @@ let private devErrorPageCarriesTheListener =
             "Darklang.SCM.Branch.mainBranchId"
             (locSource [ "LiveDev" ] "router")
             true
+            [ "[HttpServer] the handler failed: Cannot divide by 0" ]
             (fun port ->
               task {
                 use client = new System.Net.Http.HttpClient()
@@ -1174,7 +1198,7 @@ let private annotatedPrint (owner : string) (modul : string) (name : string) =
   $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}"; modules = ["{modul}"]; name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
-  match Darklang.Stdlib.Live.Values.replay bid loc with
+  match Darklang.Stdlib.Live.Values.replay (Darklang.Cli.initState ()).accountID bid loc with
   | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map (fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval bid d)
   | None -> Darklang.Stdlib.Dict.empty
 let base = Darklang.PrettyPrinter.ProgramTypes.Context.forModule bid ["{owner}", "{modul}"]
@@ -1194,7 +1218,7 @@ let private plainAndAnnotated (owner : string) (modul : string) (name : string) 
   $"""let loc = Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "{owner}"; modules = ["{modul}"]; name = "{name}" }}
 let bid = Darklang.SCM.Branch.mainBranchId
 let values =
-  match Darklang.Stdlib.Live.Values.replay bid loc with
+  match Darklang.Stdlib.Live.Values.replay (Darklang.Cli.initState ()).accountID bid loc with
   | Some v -> v.byExpr |> Darklang.Stdlib.Dict.map (fun _ d -> Darklang.PrettyPrinter.RuntimeTypes.dval bid d)
   | None -> Darklang.Stdlib.Dict.empty
 let ctx = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch bid
@@ -1388,7 +1412,7 @@ let r = Darklang.LanguageTools.PackageManager.Search.search bid q
 let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; traits = []; impls = []; exprs = [] }
 let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
 r.fns
-|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
+|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor (Darklang.Cli.initState ()).accountID bid docLines item)
 |> Darklang.Stdlib.List.flatten
 |> Darklang.Stdlib.List.map (fun h -> Darklang.Stdlib.toString h.position.line)"""
         let lines =
@@ -1475,7 +1499,7 @@ let r = Darklang.LanguageTools.PackageManager.Search.search bid q
 let defs = Darklang.LanguageTools.ProgramTypes.Definitions { types = []; fns = r.fns |> Darklang.Stdlib.List.map (fun f -> f.entity); values = []; traits = []; impls = []; exprs = [] }
 let docLines = (Darklang.PrettyPrinter.definitions ctx defs) |> Darklang.Stdlib.String.split "\n"
 r.fns
-|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor bid docLines item)
+|> Darklang.Stdlib.List.map (fun item -> Darklang.LanguageTools.LspServer.InlayHints.hintsFor (Darklang.Cli.initState ()).accountID bid docLines item)
 |> Darklang.Stdlib.List.flatten
 |> Darklang.Stdlib.List.map (fun h -> (Darklang.Stdlib.toString h.position.line) + ":" + (Darklang.Stdlib.toString h.position.character) + " " + h.label)"""
         let hints =
@@ -1513,7 +1537,7 @@ r.fns
         let! failed =
           evalUnder
             state
-            """match Darklang.Stdlib.Live.Values.replay Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = "Tests"; modules = ["LiveVals"]; name = "greet" }) with
+            """match Darklang.Stdlib.Live.Values.replay (Darklang.Cli.initState ()).accountID Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = "Tests"; modules = ["LiveVals"]; name = "greet" }) with
 | Some v -> (false, Darklang.Stdlib.Dict.size v.byExpr, v.problem)
 | None -> (false, 0, Darklang.Stdlib.Option.Option.Some "no trace")"""
         match failed with
@@ -1549,7 +1573,7 @@ let private liveValuesStayBounded =
         Expect.stringContains out "42" "the call ran"
 
         let within (ms : string) (fns : string) =
-          $"""match Darklang.Stdlib.Live.Values.replayWithin {ms} {fns} Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests"; modules = ["LiveBound"]; name = "inc" }}) with
+          $"""match Darklang.Stdlib.Live.Values.replayWithin {ms} {fns} (Darklang.Cli.initState ()).accountID Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests"; modules = ["LiveBound"]; name = "inc" }}) with
 | Some v -> (Darklang.Stdlib.Dict.size v.byExpr, Darklang.Stdlib.Option.withDefault v.skipped "")
 | None -> (-1, "no trace")"""
         let expectSkipped (label : string) (ms : string) (fns : string) =

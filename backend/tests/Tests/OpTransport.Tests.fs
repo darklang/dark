@@ -62,15 +62,21 @@ let private countOf (id : string) : Task<int64> =
 
 let importSkipsAllMalformed =
   testTask "importOpsBulk: an all-malformed batch inserts nothing and doesn't throw" {
+    use output = new OutputCapture()
     // non-uuid ids and non-hex blobs -- every record is bad
     let! n =
       Inserts.importOpsBulk "" [ ("not-a-uuid", "01", ts); ("also-bad", "zz", ts) ]
     Expect.equal n 0L "nothing inserted, no exception"
+    output.Check(fun stdout stderr ->
+      Expect.equal stdout "" "warnings are not command output"
+      Expect.stringContains stderr "id=not-a-uuid:" "the first bad id is reported"
+      Expect.stringContains stderr "id=also-bad:" "the second bad id is reported")
   }
 
 let importKeepsGoodSkipsBad =
   testTask
     "importOpsBulk: imports the good record and skips the bad one in the same batch" {
+    use output = new OutputCapture()
     do! cleanup ()
     let good = "fada0000-0000-0000-0000-000000000001"
     // good = valid uuid + valid hex (a dummy blob; INSERT doesn't validate op content).
@@ -81,6 +87,10 @@ let importKeepsGoodSkipsBad =
     let! present = countOf good
     Expect.equal present 1L "the good record is in the log"
     do! cleanup ()
+    output.Check(fun stdout stderr ->
+      Expect.equal stdout "" "warnings are not command output"
+      Expect.stringContains stderr "id=bad-uuid:" "the skipped record is reported"
+      Expect.isFalse (stderr.Contains good) "the good record is not rejected")
   }
 
 /// An op this build cannot deserialize must not brick the fold, and must not be recorded as folded.
@@ -92,6 +102,7 @@ let importKeepsGoodSkipsBad =
 let foldQuarantinesPoison =
   testTask
     "applyUnappliedOps: an unparseable op is skipped, not fatal, and stays unapplied" {
+    use output = new OutputCapture()
     do! cleanup ()
     let poison = "fada0000-0000-0000-0000-000000000002"
     // valid uuid, but "deadbeef" is 4 bytes -- not a real serialized PackageOp, so the fold's
@@ -107,7 +118,18 @@ let foldQuarantinesPoison =
     do! cleanup ()
     // leave the shared store with nothing unapplied
     let! _ = Seed.applyUnappliedOps ()
-    return ()
+    output.Check(fun stdout stderr ->
+      Expect.equal stdout "" "warnings are not command output"
+      // This warning is once per process; another test may already have emitted it.
+      if stderr <> "" then
+        Expect.stringContains
+          stderr
+          "format this build cannot read"
+          "why it was skipped"
+        Expect.stringContains
+          stderr
+          "They are kept, not dropped"
+          "the op is preserved")
   }
 
 /// A relay stores what it is pushed; it must never adopt it as its own code.
