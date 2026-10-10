@@ -30,4 +30,3 @@ Stdlib.Cli.Posix.IO.writeAll (fun _ -> Stdlib.Result.Result.Error (Stdlib.Cli.Po
 Stdlib.Result.isOk (Stdlib.Cli.Posix.getCwd ()) = true
 Stdlib.Result.isOk (Stdlib.Cli.Posix.uname ()) = true
 Stdlib.Cli.Posix.fdRead -1 1 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9; message = "Bad file descriptor" })
-(Stdlib.Cli.Posix.setenv "" "value") = error="Uncaught exception: permission request rejected: Invalid environment variable name: "

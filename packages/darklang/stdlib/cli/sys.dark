@@ -42,9 +42,9 @@ let cpuCount () : Int =
 
 /// Get the current process ID.
 let currentPid () : Int =
-  Builtin.posixGetpid ()
+  Syscall.getpid ()
 
 
 /// Check if the current user is root (uid 0).
 let isRoot () : Bool =
-  (Builtin.posixGetuid ()) == 0
+  (Syscall.getuid ()) == 0

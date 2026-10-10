@@ -82,10 +82,6 @@ module private Managed =
   let getcwd () = attempt (fun () -> System.IO.Directory.GetCurrentDirectory())
   let chdir (p : string) =
     attempt (fun () -> System.IO.Directory.SetCurrentDirectory p)
-  let setenv (n : string) (v : string) =
-    attempt (fun () -> Environment.SetEnvironmentVariable(n, v))
-  let unsetenv (n : string) =
-    attempt (fun () -> Environment.SetEnvironmentVariable(n, null))
   let getenv (n : string) : Option<string> =
     match Environment.GetEnvironmentVariable n with
     | null -> None
@@ -194,25 +190,6 @@ let lastError () : int * string =
   (errno, $"OS error {errno}")
 
 let getcwd () : Result<string, int * string> = Managed.getcwd ()
-
-let setenv (name : string) (value : string) : Result<unit, int * string> =
-  if String.IsNullOrEmpty name || name.Contains '=' || name.Contains '\000' then
-    Error(22, "Invalid argument")
-  else
-    Managed.setenv name value
-
-let unsetenv (name : string) : Result<unit, int * string> =
-  if String.IsNullOrEmpty name || name.Contains '=' || name.Contains '\000' then
-    Error(22, "Invalid argument")
-  else
-    Managed.unsetenv name
-
-// -- The directory walk ----------------------------------------------------
-// `withParent` opens "/" and then each ancestor with O_NOFOLLOW|O_DIRECTORY,
-// so a link anywhere on the way fails with ELOOP/ENOTDIR at the moment it
-// is met, and hands the caller the parent's descriptor plus the final name.
-// The boundary already resolved the ancestors it allowed, so on the happy
-// path no link is met; the walk is what makes that resolution binding.
 
 let private components (path : string) : string[] =
   path.Split([| '/' |], StringSplitOptions.RemoveEmptyEntries)

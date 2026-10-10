@@ -378,7 +378,7 @@ let withLock (path: String) (fn: Unit -> 'a) : Result.Result<'a, Posix.Error> =
 
 /// Recursively match path segments against pattern segments.
 /// Pattern segments may include "**" which matches zero or more path segments.
-/// Other pattern segments are matched with fnmatch (pathMode=true).
+/// Other pattern segments are matched in Dark (pathMode=true).
 let globMatchSegments
   (patternSegs: List<String>)
   (pathSegs: List<String>)
@@ -401,7 +401,7 @@ let globMatchSegments
       match pathSegs with
       | [] -> false
       | pathHead :: pathTail ->
-        (Posix.fnmatch patHead pathHead true)
+        (Glob.matches patHead pathHead true)
         && (globMatchSegments patTail pathTail)
 
 

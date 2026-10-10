@@ -599,14 +599,6 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
   | HostTypes.PosixOp.Chdir path ->
     resolveFile read path (fun path ->
       attempt (fun () -> HostPosix.chdir path |> unitOk))
-  | HostTypes.PosixOp.Setenv(name, value) ->
-    withChecks
-      [ envCheck write name ]
-      (attempt (fun () -> HostPosix.setenv name value |> unitOk))
-  | HostTypes.PosixOp.Unsetenv name ->
-    withChecks
-      [ envCheck write name ]
-      (attempt (fun () -> HostPosix.unsetenv name |> unitOk))
   | HostTypes.PosixOp.Getenv name ->
     withChecks
       [ envCheck read name ]

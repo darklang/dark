@@ -24,8 +24,6 @@ type OpenFlag =
 [<RequireQualifiedAccess>]
 type PosixOp =
   | Chdir of path : string
-  | Setenv of name : string * value : string
-  | Unsetenv of name : string
   | Getenv of name : string
   | Mkdir of path : string * mode : int
   | Rmdir of path : string
@@ -221,8 +219,6 @@ let describeOperation (op : Operation) : string =
   let posix (p : PosixOp) : string =
     match p with
     | PosixOp.Chdir path -> $"chdir {path}"
-    | PosixOp.Setenv(name, _) -> $"setenv {name}"
-    | PosixOp.Unsetenv name -> $"unsetenv {name}"
     | PosixOp.Getenv name -> $"getenv {name}"
     | PosixOp.Mkdir(path, _) -> $"mkdir {path}"
     | PosixOp.Rmdir path -> $"rmdir {path}"

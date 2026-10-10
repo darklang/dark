@@ -1,0 +1,8 @@
+module Tests
+Stdlib.Cli.Syscall.read (-1) 1 = Error 9
+Stdlib.Cli.Syscall.read (-1) (-1) = Error 22
+Stdlib.Cli.Syscall.close (-1) = Error 9
+Stdlib.Cli.Syscall.lseek (-1) 0 0 = Error 9
+Stdlib.Cli.Syscall.flock (-1) 2 = Error 9
+Stdlib.Cli.Syscall.getpid () > 0 = true
+Stdlib.Cli.Syscall.getuid () >= 0 = true

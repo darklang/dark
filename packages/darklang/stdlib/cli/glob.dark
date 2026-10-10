@@ -1,6 +1,5 @@
-/// POSIX glob matching in the C locale, adapted from the compiler's
-/// Stdlib.Cli.__Fnmatch. Walk UTF-8 byte-list suffixes instead of raw buffers.
-module Darklang.Stdlib.Cli.Posix.Fnmatch
+/// Pure UTF-8 glob matching. No kernel operation or Builtin is involved.
+module Darklang.Stdlib.Cli.Glob
 
 let knownClass (name: String) : Bool =
   name == "alnum" || name == "alpha" || name == "blank" || name == "cntrl"

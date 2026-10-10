@@ -1,0 +1,28 @@
+/// Kernel primitives shared by the interpreter and native compiler.
+/// Each operation attempts one syscall, returning its result or numeric errno.
+/// No retries, complete-I/O loops, text decoding, or error rendering occur here.
+/// Descriptors are owned by the caller; close consumes that ownership even if
+/// the kernel reports an error. Never retry close after EINTR.
+module Darklang.Stdlib.Cli.Syscall
+
+let read (fd: Int) (count: Int) : Result.Result<Blob, Int> =
+  Builtin.syscallRead fd count
+
+let write (fd: Int) (bytes: Blob) : Result.Result<Int, Int> =
+  Builtin.syscallWrite fd bytes
+
+let close (fd: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallClose fd
+
+let lseek (fd: Int) (offset: Int) (whence: Int) : Result.Result<Int, Int> =
+  Builtin.syscallLseek fd offset whence
+
+let flock (fd: Int) (operation: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallFlock fd operation
+
+let kill (pid: Int) (signal: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallKill pid signal
+
+let getpid () : Int = Builtin.syscallGetpid ()
+
+let getuid () : Int = Builtin.syscallGetuid ()

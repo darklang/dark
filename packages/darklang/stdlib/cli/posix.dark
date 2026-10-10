@@ -45,20 +45,20 @@ let openFile (path: String) (flags: Int) (mode: Int) : Result.Result<Int, Error>
 
 /// Read up to `count` bytes from an open file descriptor.
 let fdRead (fd: Int) (count: Int) : Result.Result<Blob, Error> =
-  Builtin.posixFdRead fd count
-  |> Errors.normalize
+  Syscall.read fd count
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 
 /// Write <param bytes> to an open file descriptor. Returns the number
 /// of bytes written.
 let fdWrite (fd: Int) (bytes: Blob) : Result.Result<Int, Error> =
-  IO.writeAll (fun chunk -> Builtin.posixFdWrite fd chunk |> Errors.normalize) bytes 0
+  IO.writeAll (fun chunk -> Syscall.write fd chunk |> Stdlib.Result.mapError Errors.fromErrno) bytes 0
 
 
 /// Close an open file descriptor.
 let fdClose (fd: Int) : Result.Result<Unit, Error> =
-  Builtin.posixFdClose fd
-  |> Errors.normalize
+  Syscall.close fd
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 
 /// Read all bytes from a file descriptor until EOF.
@@ -77,8 +77,8 @@ let fdReadAll
 
 /// Seek to a byte offset from the start of an open file.
 let fdSeekFromStart (fd: Int) (offset: Int) : Result.Result<Int, Error> =
-  Builtin.posixFdSeek fd offset 0
-  |> Errors.normalize
+  Syscall.lseek fd offset 0
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 
 /// Stat a file. Returns mode, size, and modification time.
@@ -101,16 +101,6 @@ let chdir (path: String) : Result.Result<Unit, Error> =
   |> Errors.normalize
 
 /// Set an environment variable
-let setenv (name: String) (value: String) : Result.Result<Unit, Error> =
-  Builtin.posixSetenv name value
-  |> Errors.normalize
-
-/// Remove an environment variable
-let unsetenv (name: String) : Result.Result<Unit, Error> =
-  Builtin.posixUnsetenv name
-  |> Errors.normalize
-
-/// Create a single directory
 let mkdir (path: String) (mode: Int) : Result.Result<Unit, Error> =
   Builtin.posixMkdir path mode
   |> Errors.normalize
@@ -173,20 +163,15 @@ let mkdtemp (prefix: String) : Result.Result<String, Error> =
 
 /// Match a string against a glob pattern.
 /// If pathMode is true, * does not match /
-let fnmatch (pattern: String) (str: String) (pathMode: Bool) : Bool =
-  Fnmatch.matches pattern str pathMode
-
-
-/// Lock a file descriptor (exclusive). Use false to unlock.
 let flock (fd: Int) (exclusive: Bool) : Result.Result<Unit, Error> =
-  Builtin.posixFlock fd exclusive
-  |> Errors.normalize
+  Syscall.flock fd (if exclusive then 2 else 8)
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Get the owner username of a file.
 let fileOwner (path: String) : Result.Result<String, Error> =
   (Builtin.posixFileOwner path |> Errors.normalize)
   |> Stdlib.Result.map (fun uid ->
-    if uid == Stdlib.toString (Builtin.posixGetuid ()) then
+    if uid == Stdlib.toString (Syscall.getuid ()) then
       match Builtin.posixGetCurrentUserName () with
       | Some name -> name
       | None -> uid
@@ -213,8 +198,8 @@ let uname () : Result.Result<(String * String * String), Error> =
 
 /// Send a signal to a process
 let kill (pid: Int) (signal: Int) : Result.Result<Unit, Error> =
-  Builtin.posixKill pid signal
-  |> Errors.normalize
+  Syscall.kill pid signal
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 val sigterm = 15
 val sigkill = 9
