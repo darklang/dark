@@ -23,7 +23,8 @@ type InternalException(message : string, metadata : Metadata, inner : exn) =
 
 
 /// A condition of the MACHINE rather than of the program: the store is read-only, the disk is full, the
-/// store belongs to another user. Distinguished from `InternalException` because the response is opposite
+/// store belongs to another user, the policy file cannot be trusted, an approval names a version the store
+/// no longer holds. Distinguished from `InternalException` because the response is opposite
 /// -- there is nothing to fix in the code, nothing to report, and the person running the command can
 /// resolve it themselves once told which of those it is. Carries a sentence written for them, so a caller
 /// that catches this can print it and nothing else.
@@ -98,6 +99,16 @@ let raiseInternal (msg : string) (tags : Metadata) =
 /// See `StoreConditionException`. Not reported anywhere: this is the machine's state, not a defect.
 let raiseStoreCondition (msg : string) (tags : Metadata) =
   raise (StoreConditionException(msg, tags))
+
+/// The `StoreConditionException` inside <param e>, however it arrived: raised directly, or wrapped by
+/// a task or an aggregate on the way out.
+let rec findStoreCondition (e : exn) : Option<StoreConditionException> =
+  match e with
+  | :? StoreConditionException as s -> Some s
+  | :? System.AggregateException as agg ->
+    agg.InnerExceptions |> Seq.tryPick findStoreCondition
+  | _ ->
+    if isNull e.InnerException then None else findStoreCondition e.InnerException
 
 let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
   match o with

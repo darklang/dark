@@ -219,3 +219,7 @@ type Error =
   | SqlCompiler of errMsg: String
 
   | UncaughtException of msg : String * metadata : List<(String * Dval)>
+
+  /// Something the person running the program can resolve once told, with the sentence that tells
+  /// them: an approval names a version the store no longer holds, the policy file cannot be trusted.
+  | Condition of message: String

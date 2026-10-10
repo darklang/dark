@@ -1766,9 +1766,158 @@ let private workbenchFnEditCarriesCallers =
       })
 
 
+/// An approval whose version is gone from the store is a refusal the person can act on, printed
+/// as one, not an internal error.
+///
+/// Approvals outlive the store they were made against: a build re-authors the store from the
+/// `.dark` files, so a hand-authored function's hash moves while its approval stays put. The raise
+/// was written for exactly that, but went out as `Internal error` with a metadata dump under the
+/// one sentence that says what to do.
+let private staleApprovalIsARefusal =
+  cliTest
+    "an approval of a version no longer in the store refuses plainly"
+    (fun state ->
+      task {
+        let name = "Tests.HonestApproval.stale"
+        let! _ = runCli state [ "fn"; "/" + name; "(x: Int64) : Int64 = x + 6143L" ]
+        let! _ = runCli state [ "permissions"; "approve"; name ]
+
+        // Move the approval to a version this store never held: what a store reset leaves behind.
+        let account = (executionState state).accountID
+        let current = LibDB.PolicyStore.approvedVersion account name
+        Expect.isSome current "the approval landed"
+        let gone = String.replicate 64 "e"
+        let moved =
+          LibDB.PolicyStore.recordApprovalAndMoveVersion
+            account
+            gone
+            []
+            ""
+            None
+            name
+            current
+            gone
+        Expect.isOk moved "the approval now names a version the store does not have"
+
+        let! outcome =
+          task {
+            try
+              let! ran = runCli state [ "eval"; name + " 1L" ]
+              return Ok ran
+            with e ->
+              return Error e
+          }
+        let! _ = runCli state [ "permissions"; "unapprove"; name ]
+
+        match outcome with
+        | Error e -> return raise e
+        | Ok ran ->
+          Expect.stringContains
+            ran
+            $"An approved version of {name} is no longer in the package store"
+            $"it names the function and the condition:\n{ran}"
+          Expect.stringContains
+            ran
+            $"dark permissions unapprove {name}"
+            $"and the command that releases it:\n{ran}"
+          Expect.isFalse
+            (ran.Contains "Internal error")
+            $"and is not an internal error:\n{ran}"
+          Expect.isFalse
+            (ran.Contains "approved: ")
+            $"with no metadata dump:\n{ran}"
+      })
+
+
+/// A policy file that cannot be trusted is a refusal naming the file, not an internal error.
+///
+/// It printed the sentence twice, once as `Internal error` with an F# frame and once as an
+/// uncaught exception with a Dark call stack, and it named `~/.darklang/policy`, which is not
+/// where the file is when the store lives somewhere else.
+let private damagedPolicyIsARefusal =
+  instanceTest
+    "a damaged policy file refuses plainly, naming where it is"
+    (fun target ->
+      task {
+        let dir =
+          match target with
+          | Instance i -> i.dir
+          | InProcess _ -> Tests.failtestf "needs its own instance"
+        let file = System.IO.Path.Combine(dir, "policy", "policies.bin")
+        System.IO.File.WriteAllText(file, "not a policy file at all")
+
+        let! said, exitCode =
+          runCliWithExit
+            target
+            [ "permissions"; "allow"; "http"; "GET"; "https://example.com:443/" ]
+        Expect.equal exitCode 1L $"it refuses:\n{said}"
+        Expect.stringContains
+          said
+          "The policy file is damaged"
+          $"says what is wrong:\n{said}"
+        Expect.stringContains
+          said
+          file
+          $"and names the file where it actually is:\n{said}"
+        Expect.isFalse
+          (said.Contains "Internal error")
+          $"not as an internal error:\n{said}"
+        Expect.isFalse
+          (said.Contains "Call stack")
+          $"and with no call stack:\n{said}"
+      })
+
+
+/// A doc-only edit through `dark module` lands, as it does through `dark fn`.
+///
+/// Docs are not part of the content hash, so an edit that changes only a `///` line leaves every
+/// item on the hash it had, and the module path, which never wrote the `UpdateDoc` the single-item
+/// commands do, saved nothing while printing the same "Defined" line as a real save. Two items, one
+/// doc changed, because a module saves a batch and one item's words must not land on the other.
+let private moduleDocOnlyEditLands =
+  cliTest
+    "a doc-only edit through dark module lands on the item it was made to"
+    (fun state ->
+      task {
+        let write (text : string) =
+          let file = System.IO.Path.GetTempFileName()
+          System.IO.File.WriteAllText(file, text)
+          file
+        let source (docA : string) =
+          $"/// {docA}\nlet docA (x: Int64) : Int64 = x + 7741L\n\n/// The second item's words, untouched.\nlet docB (x: Int64) : Int64 = x + 7742L\n"
+
+        let! _ =
+          runCli
+            state
+            [ "module"; "/Tests.HonestDocs"; write (source "First wording.") ]
+        let! saved =
+          runCli
+            state
+            [ "module"; "/Tests.HonestDocs"; write (source "Second wording.") ]
+
+        let! viewA = runCli state [ "view"; "Tests.HonestDocs.docA" ]
+        Expect.stringContains
+          viewA
+          "Second wording."
+          $"the edited doc landed:\n{viewA}\n{saved}"
+
+        let! viewB = runCli state [ "view"; "Tests.HonestDocs.docB" ]
+        Expect.stringContains
+          viewB
+          "The second item's words, untouched."
+          $"and the other item kept its own:\n{viewB}"
+        Expect.isFalse
+          (viewB.Contains "Second wording.")
+          $"rather than taking the first's:\n{viewB}"
+      })
+
+
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
 let tests : List<Test> =
   [ unwrapErrorsAreReadable
+    staleApprovalIsARefusal
+    damagedPolicyIsARefusal
+    moduleDocOnlyEditLands
     workbenchImplEditUpdatesInPlace
     workbenchTraitEditKeepsImplementations
     workbenchFnEditCarriesCallers

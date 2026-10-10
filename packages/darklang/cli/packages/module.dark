@@ -60,6 +60,55 @@ let duplicateDeclarationNames
   Stdlib.List.unique duplicates
 
 
+/// Write the doc comments a save changed without moving any version, and say how many items that was.
+///
+/// Docs are not part of the content hash, so a doc-only edit stores nothing new: every item lands on
+/// the hash it already had and the batch folds to nothing. It has to be said with an `UpdateDoc`, as
+/// `dark fn` says it (`updateDocsThatChanged`). Per item, because a module is one batch and
+/// `updateDocsThatChanged` reads every doc in the ops it is given: an item's words are compared with
+/// that item's own declaration, never with another's.
+let landDocEdits
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Int =
+  // The Add for the item a SetName binds: they carry the same placeholder hash before the save.
+  let addFor
+    (h: LanguageTools.ProgramTypes.Hash)
+    : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> =
+    ops
+    |> Stdlib.List.findFirst (fun op ->
+      match op with
+      | AddFn f -> f.hash == h
+      | AddType t -> t.hash == h
+      | AddValue v -> v.hash == h
+      | AddTrait t -> t.hash == h
+      | AddTraitImpl i -> i.hash == h
+      | _ -> false)
+
+  ops
+  |> Stdlib.List.filterMap (fun op ->
+    match op with
+    | SetName(location, reference, _) ->
+      match addFor (LanguageTools.ProgramTypes.Reference.hash reference) with
+      | Some add ->
+        match Packages.Rename.referenceAt branchId location with
+        | Some bound ->
+          if
+            updateDocsThatChanged
+              branchId
+              location
+              (LanguageTools.ProgramTypes.Reference.kind reference)
+              (LanguageTools.ProgramTypes.Reference.hash bound)
+              [ add ]
+          then
+            Stdlib.Option.Option.Some location.name
+          else
+            Stdlib.Option.Option.None
+        | None -> Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.length
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let input =
     match args with
@@ -153,6 +202,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             | Ok report ->
               Propagate.printFollowed (Propagate.repointSaved branchId updates)
 
+              let docsUpdated = landDocEdits branchId ops
+
               // Counted from the ops that were recorded, not from the declarations
               // that were parsed, so the number is what happened rather than what
               // was asked for.
@@ -180,8 +231,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 | Checked -> Stdlib.Cli.UI.Colors.success "✓"
                 | Failed | Incomplete -> Stdlib.Cli.UI.Colors.warning "!"
 
+              // A doc-only edit is otherwise indistinguishable from a save that changed nothing.
+              let docNote =
+                if docsUpdated == 0 then ""
+                else if docsUpdated == 1 then "; updated 1 doc comment"
+                else $"; updated {Stdlib.toString docsUpdated} doc comments"
+
               Stdlib.printLine
-                $"{glyph} Defined {Stdlib.toString count} {what} in {modulePath}"
+                $"{glyph} Defined {Stdlib.toString count} {what} in {modulePath}{docNote}"
 
               // main's at-rest type check reports on every save; keep it ahead of propagation
               // so a type error is on screen before anything follows the change.

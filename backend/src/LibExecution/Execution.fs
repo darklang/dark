@@ -179,6 +179,14 @@ let rec private isOutOfStack (ex : exn) : bool =
   | :? System.InsufficientExecutionStackException -> true
   | _ -> not (isNull ex.InnerException) && isOutOfStack ex.InnerException
 
+/// <param ex> as the runtime error it stands for, when it carries a store condition: something the
+/// person running the program can resolve once told. Not reported as an exception, since it is not a
+/// defect. Callers check `Exception.findStoreCondition` first.
+let storeCondition (ex : exn) : RTE.Error =
+  match Exception.findStoreCondition ex with
+  | Some condition -> RTE.Condition condition.Message
+  | None -> RTE.UncaughtException(ex.Message, [])
+
 let execute
   (exeState : RT.ExecutionState)
   (instrs : Option<tlid> * RT.Instructions)
@@ -203,6 +211,8 @@ let execute
       | ex when isOutOfStack ex ->
         return
           Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
+      | ex when (Exception.findStoreCondition ex).IsSome ->
+        return Error(storeCondition ex, callStackFromVM vm)
       | ex ->
         let metadata : Metadata =
           Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
@@ -330,11 +340,15 @@ let private uncaught
   (ex : exn)
   : Ply<RT.ExecutionResult> =
   uply {
-    let metadata : Metadata =
-      Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
-    do! exeState.reportException exeState vm metadata ex
-    let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-    return Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
+    match Exception.findStoreCondition ex with
+    | Some condition ->
+      return Error(RTE.Condition condition.Message, callStackFromVM vm)
+    | None ->
+      let metadata : Metadata =
+        Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
+      do! exeState.reportException exeState vm metadata ex
+      let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
+      return Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
   }
 
 
