@@ -195,32 +195,6 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
-    { name = fn "testToChar" 0
-      typeParams = []
-      parameters = [ Param.make "c" TString "" ]
-      returnType = TypeReference.option TChar
-      description = "Turns a string of length 1 into a character"
-      fn =
-        (function
-        | _, _, _, [| DString s |] ->
-          let chars = String.toEgcSeq s
-
-          if Seq.length chars = 1 then
-            chars
-            |> Seq.toList
-            |> (fun l -> l[0])
-            |> DChar
-            |> Dval.optionSome KTChar
-            |> Ply
-          else
-            Dval.optionNone KTChar |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
     { name = fn "testIncrementSideEffectCounter" 0
       typeParams = []
       parameters =
