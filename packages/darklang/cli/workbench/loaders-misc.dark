@@ -232,7 +232,8 @@ let loadSyncItemsWith (peers: Stdlib.Option.Option<List<BodyItem>>) : List<BodyI
         rows ]
   let facts = readSyncFacts ()
   let relay = facts.relay
-  let identity = SCM.PackageOps.identity ()
+  let identity =
+    Stdlib.Option.withDefault (SCM.PackageOps.storedIdentity ()) "none yet · `:sync setup` names this instance"
   let scopeAll =
     match Darklang.Cli.Config.get "sync.branches" with
     | Some "all" -> true
@@ -316,7 +317,8 @@ let syncPeerItems () : List<BodyItem> =
   let row (label: String) (fact: String) : BodyItem =
     BodyItem { name = label; kind = "sync-row"; isModule = false; desc = fact }
   let relay = SCM.PackageOps.relay ()
-  let me = SCM.PackageOps.identity ()
+  // No identity yet means no owner on the relay is this instance.
+  let me = Stdlib.Option.withDefault (SCM.PackageOps.storedIdentity ()) ""
   if relay == "" then
     [ row "" "connect a relay to see who else syncs with it" ]
   else

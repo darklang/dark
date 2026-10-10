@@ -190,16 +190,15 @@ let unbind
 // config. Anything that needs to be un-forgeable needs something this is not.
 
 
-/// This instance's sync identity, minted on first use.
+/// This instance's sync identity if it has a valid one, without minting or writing anything.
 ///
 /// An instance is a STORE, not a person or a machine: two clones of a store are two instances. Copying a
-/// database copies its config, so the id is stamped with where it was minted and re-minted when that no
-/// longer matches -- two peers sharing an id cannot sync or record a conflict against each other.
+/// database copies its config, so the id is stamped with where it was minted and counts as missing when
+/// that no longer matches -- two peers sharing an id cannot sync or record a conflict against each other.
 ///
 /// Gap: a store copied to the same PATH on another machine keeps its id. Closing that needs a hostname
 /// builtin that doesn't exist.
-let identity () : String =
-  let here = Stdlib.LocalStore.path ()
+let storedIdentity () : Stdlib.Option.Option<String> =
   let stored = Stdlib.LocalStore.configGet "sync.identity"
   let mintedAt = Stdlib.LocalStore.configGet "sync.identity.origin"
 
@@ -207,9 +206,19 @@ let identity () : String =
   // theirs and survives being copied.
   let autoMinted = Stdlib.String.startsWith stored "inst-"
 
-  if (stored != "") && ((mintedAt == here) || (autoMinted |> Stdlib.Bool.not)) then
-    stored
+  if (stored != "") && ((mintedAt == Stdlib.LocalStore.path ()) || (autoMinted |> Stdlib.Bool.not)) then
+    Stdlib.Option.Option.Some stored
   else
+    Stdlib.Option.Option.None
+
+
+/// This instance's sync identity, minted and saved on first use. Something that only shows the identity
+/// reads `storedIdentity` instead, so looking never writes to the store.
+let identity () : String =
+  match storedIdentity () with
+  | Some stored -> stored
+  | None ->
+    let here = Stdlib.LocalStore.path ()
     let generated = $"inst-{Stdlib.toString (Stdlib.Uuid.generate ())}"
     Stdlib.LocalStore.configSet "sync.identity" generated
     Stdlib.LocalStore.configSet "sync.identity.origin" here

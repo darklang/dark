@@ -39,7 +39,8 @@ let execute (state: AppState) (_args: List<String>) : AppState =
 
   Cli.Stderr.line ""
 
-  // The name a colleague sees your ops arrive under.
+  // The name a colleague sees your ops arrive under. A fresh instance gets its id here, where the person
+  // can rename it on the spot, and not from a view that only shows it.
   let identity = askWithCurrent "This instance's name" (SCM.PackageOps.identity ())
 
   match SCM.PackageOps.identityProblem identity with
