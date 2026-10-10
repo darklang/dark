@@ -1,0 +1,12 @@
+/// Collision retries for exclusive temporary-entry creation.
+module Darklang.Stdlib.Cli.Posix.Temp
+
+let retry
+  (create: Int -> Result.Result<'a, Stdlib.Cli.Posix.Error>)
+  (remaining: Int)
+  : Result.Result<'a, Stdlib.Cli.Posix.Error> =
+  match create remaining with
+  | Error error ->
+    if error.errno == 17 && remaining > 0 then retry create (remaining - 1)
+    else Stdlib.Result.Result.Error error
+  | Ok value -> Stdlib.Result.Result.Ok value

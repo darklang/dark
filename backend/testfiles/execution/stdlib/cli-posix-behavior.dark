@@ -1,0 +1,33 @@
+// Compiler-derived account parsing handles missing users and malformed rows.
+Stdlib.Cli.Posix.Accounts.fieldFromPasswd [] "1000" 5 = Stdlib.Option.Option.None
+Stdlib.Cli.Posix.Accounts.fieldFromPasswd ["bad", "alice:x:1000:1000::/home/alice:/bin/sh"] "1000" 5 = Stdlib.Option.Option.Some "/home/alice"
+Stdlib.Cli.Posix.Accounts.fieldFromPasswd ["alice:x:1000:1000::/home/alice:/bin/sh"] "1000" 0 = Stdlib.Option.Option.Some "alice"
+Stdlib.Cli.Posix.Accounts.fieldFromPasswd ["alice:x:1000:1000::/home/alice:/bin/sh"] "100" 5 = Stdlib.Option.Option.None
+Stdlib.Cli.Posix.Accounts.fieldFromPasswd ["short:x:1000", "alice:x:1000:1000::/home/alice:/bin/sh"] "1000" 5 = Stdlib.Option.Option.Some "/home/alice"
+// Errors preserve permission denials and host diagnostics.
+Stdlib.Cli.Posix.Errors.macMessage 35 = "Resource temporarily unavailable"
+Stdlib.Cli.Posix.Errors.macMessage 62 = "Too many levels of symbolic links"
+Stdlib.Cli.Posix.Errors.macMessage 78 = "Function not implemented"
+Stdlib.Cli.Posix.Errors.macMessage 999 = "Unknown error: 999"
+(Stdlib.Cli.Posix.Errors.fromErrno 2).message = "No such file or directory"
+(Stdlib.Cli.Posix.Errors.fromErrno 22).message = "Invalid argument"
+(Stdlib.Cli.Posix.Errors.render (Stdlib.Cli.Posix.Error { errno = -1; message = "Permission denied: FileRead" })).message = "Permission denied: FileRead"
+(Stdlib.Cli.Posix.Errors.render (Stdlib.Cli.Posix.Error { errno = 5; message = "host diagnostic" })).message = "host diagnostic"
+(Stdlib.Cli.Posix.Errors.render (Stdlib.Cli.Posix.Error { errno = 2; message = "OS error 2" })).message = "No such file or directory"
+
+// A deterministic collision becomes success; non-collisions stop immediately.
+Stdlib.Cli.Posix.Temp.retry (fun remaining -> if remaining > 0 then Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17; message = "File exists" }) else Stdlib.Result.Result.Ok "created") 2 = Stdlib.Result.Result.Ok "created"
+Stdlib.Cli.Posix.Temp.retry (fun remaining -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 22; message = Stdlib.toString remaining })) 2 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 22; message = "2" })
+Stdlib.Cli.Posix.Temp.retry (fun remaining -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17; message = Stdlib.toString remaining })) 2 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 17; message = "0" })
+
+// Partial writes complete, zero-progress writes fail, and errors propagate.
+Stdlib.Cli.Posix.IO.writeAll (fun bytes -> Stdlib.Result.Result.Ok (if Stdlib.Blob.length bytes > 1 then 1 else Stdlib.Blob.length bytes)) (Stdlib.String.toBlob "abcd") 0 = Stdlib.Result.Result.Ok 4
+Stdlib.Cli.Posix.IO.writeAll (fun _ -> Stdlib.Result.Result.Ok 0) (Stdlib.String.toBlob "abc") 0 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 0; message = "write returned 0" })
+Stdlib.Cli.Posix.IO.writeAll (fun _ -> Stdlib.Result.Result.Ok 0) (Stdlib.String.toBlob "") 0 = Stdlib.Result.Result.Ok 0
+Stdlib.Cli.Posix.IO.writeAll (fun _ -> Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9; message = "Bad file descriptor" })) (Stdlib.String.toBlob "abc") 0 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9; message = "Bad file descriptor" })
+
+// Public wrappers invoke the checked host operations and format their results.
+Stdlib.Result.isOk (Stdlib.Cli.Posix.getCwd ()) = true
+Stdlib.Result.isOk (Stdlib.Cli.Posix.uname ()) = true
+Stdlib.Cli.Posix.fdRead -1 1 = Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 9; message = "Bad file descriptor" })
+(Stdlib.Cli.Posix.setenv "" "value") = error="Uncaught exception: permission request rejected: Invalid environment variable name: "

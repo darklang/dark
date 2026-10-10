@@ -10,7 +10,7 @@
     <DarkKernelExtension Condition="'$(DarkKernelExtension)' == ''">so</DarkKernelExtension>
     <DarkKernelLibrary>$(DarkKernelDirectory)/libdark_syscalls.$(DarkKernelExtension)</DarkKernelLibrary>
   </PropertyGroup>
-  <ItemGroup Condition="'$(DarkKernelEnabled)' == 'true'">
+  <ItemGroup Condition="'$(DarkKernelEnabled)' == 'true' And '$(PublishAot)' != 'true'">
     <None Include="$(DarkKernelLibrary)" Link="libdark_syscalls.$(DarkKernelExtension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup Condition="'$(DarkKernelEnabled)' == 'true' And '$(PublishAot)' == 'true'">

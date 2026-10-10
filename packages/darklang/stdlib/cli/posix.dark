@@ -52,8 +52,7 @@ let fdRead (fd: Int) (count: Int) : Result.Result<Blob, Error> =
 /// Write <param bytes> to an open file descriptor. Returns the number
 /// of bytes written.
 let fdWrite (fd: Int) (bytes: Blob) : Result.Result<Int, Error> =
-  Builtin.posixFdWrite fd bytes
-  |> Errors.normalize
+  IO.writeAll (fun chunk -> Builtin.posixFdWrite fd chunk |> Errors.normalize) bytes 0
 
 
 /// Close an open file descriptor.
@@ -165,26 +164,12 @@ let isSymlink (path: String) : Result.Result<Bool, Error> =
 
 
 /// Create a unique temporary file. Returns (fd, path).
-let createTempFile (prefix: String) (remaining: Int) : Result.Result<(Int * String), Error> =
-  match Builtin.posixMkstemp prefix |> Errors.normalize with
-  | Error error ->
-    if error.errno == 17 && remaining > 0 then createTempFile prefix (remaining - 1)
-    else Stdlib.Result.Result.Error error
-  | Ok value -> Stdlib.Result.Result.Ok value
-
 let mkstemp (prefix: String) : Result.Result<(Int * String), Error> =
-  createTempFile prefix 100
+  Temp.retry (fun _ -> Builtin.posixMkstemp prefix |> Errors.normalize) 100
 
 /// Create a unique temporary directory. Returns the path.
-let createTempDirectory (prefix: String) (remaining: Int) : Result.Result<String, Error> =
-  match Builtin.posixMkdtemp prefix |> Errors.normalize with
-  | Error error ->
-    if error.errno == 17 && remaining > 0 then createTempDirectory prefix (remaining - 1)
-    else Stdlib.Result.Result.Error error
-  | Ok value -> Stdlib.Result.Result.Ok value
-
 let mkdtemp (prefix: String) : Result.Result<String, Error> =
-  createTempDirectory prefix 100
+  Temp.retry (fun _ -> Builtin.posixMkdtemp prefix |> Errors.normalize) 100
 
 /// Match a string against a glob pattern.
 /// If pathMode is true, * does not match /
@@ -201,7 +186,7 @@ let flock (fd: Int) (exclusive: Bool) : Result.Result<Unit, Error> =
 let fileOwner (path: String) : Result.Result<String, Error> =
   (Builtin.posixFileOwner path |> Errors.normalize)
   |> Stdlib.Result.map (fun uid ->
-    if uid == Stdlib.Int.toString (Builtin.posixGetuid ()) then
+    if uid == Stdlib.toString (Builtin.posixGetuid ()) then
       match Builtin.posixGetCurrentUserName () with
       | Some name -> name
       | None -> uid

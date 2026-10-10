@@ -118,9 +118,9 @@ let readlinkMayInspectTheFinalSymlink =
       System.IO.Directory.Delete(directory, true)
   }
 
-let libcWalkRefusesALinkMetAtOperationTime =
+let posixWalkRefusesALinkMetAtOperationTime =
   testTask
-    "the libc bridge meets a link at operation time and refuses it, without the pre-check" {
+    "the POSIX host meets a link at operation time and refuses it, without the pre-check" {
     // The boundary's lexical pre-check can be raced: a component swapped for
     // a link after the check. The bridge walks the directories again with
     // O_NOFOLLOW at operation time, so calling it directly through a link,
@@ -331,7 +331,7 @@ let rootDirectoryIsReadable =
         Expect.isTrue exists "/ exists"
         Expect.isTrue isDirectory "/ is a directory"
       | other -> failtest $"stat of / failed: {other}"
-      // Creating AT the root is refused before libc is reached: `/` is an
+      // Creating AT the root is refused before the kernel is reached: `/` is an
       // ancestor of the policy directory, so the boundary's guard answers.
       // Either refusal is fine; a success would mean the root case leaked
       // into an entry-creating operation.
@@ -342,14 +342,91 @@ let rootDirectoryIsReadable =
       | other -> failtest $"mkdir of / must not succeed, got {other}"
   }
 
+/// Exercise the syscall transport through real descriptor and filesystem behavior.
+let posixKernelRoundTrip =
+  test "POSIX descriptor and metadata operations round trip" {
+    if LibExecution.HostPosix.isPosix then
+      let parent =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-kernel-{System.Guid.NewGuid():N}"
+        )
+      System.IO.Directory.CreateDirectory parent |> ignore<System.IO.DirectoryInfo>
+      let ok result =
+        match result with
+        | Ok value -> value
+        | Error(errno, message) -> failtestf "errno %d: %s" errno message
+      let posix = LibExecution.HostPosix.O_RDWR ||| LibExecution.HostPosix.O_CREAT
+      let file = System.IO.Path.Combine(parent, "original")
+      let moved = System.IO.Path.Combine(parent, "renamed")
+      try
+        let fd = LibExecution.HostPosix.openFile file posix 0o600 |> ok
+        try
+          let bytes = [| 0uy; 255uy; 10uy; 42uy |]
+          Expect.equal
+            (LibExecution.HostPosix.fdWrite fd bytes |> ok)
+            4
+            "write count"
+          Expect.equal (LibExecution.HostPosix.fdSeek fd 0L 0 |> ok) 0L "seek"
+          Expect.equal (LibExecution.HostPosix.fdRead fd 4 |> ok) bytes "binary read"
+          LibExecution.HostPosix.flock fd LibExecution.HostPosix.LOCK_EX |> ok
+          LibExecution.HostPosix.flock fd LibExecution.HostPosix.LOCK_UN |> ok
+        finally
+          LibExecution.HostPosix.fdClose fd |> ignore<Result<unit, int * string>>
+        let mode, size, _ = LibExecution.HostPosix.stat file |> ok
+        Expect.equal size 4L "kernel stat size"
+        Expect.equal (mode &&& 0o777) 0o600 "kernel stat permissions"
+        Expect.equal
+          (LibExecution.HostPosix.fileOwner file |> ok)
+          (string (LibExecution.HostPosix.getuid ()))
+          "kernel stat uid"
+        LibExecution.HostPosix.rename file moved |> ok
+        let link = System.IO.Path.Combine(parent, "link")
+        LibExecution.HostPosix.symlink moved link |> ok
+        Expect.equal
+          (LibExecution.HostPosix.readlink link |> ok)
+          moved
+          "symlink bytes"
+        let directory =
+          LibExecution.HostPosix.mkdtemp (System.IO.Path.Combine(parent, "dir-"))
+          |> ok
+        Expect.equal
+          (LibExecution.HostPosix.listDir directory |> ok)
+          []
+          "empty directory"
+        Expect.equal
+          (LibExecution.HostPosix.listDir parent |> ok |> Set.ofList)
+          (Set.ofList [ "renamed"; "link"; System.IO.Path.GetFileName directory ])
+          "directory records"
+        LibExecution.HostPosix.syncDirectory parent
+        LibExecution.HostPosix.unlink link |> ok
+        LibExecution.HostPosix.unlink moved |> ok
+        LibExecution.HostPosix.rmdir directory |> ok
+        Expect.equal
+          (LibExecution.HostPosix.kill (LibExecution.HostPosix.getpid ()) 0 |> ok)
+          ()
+          "signal zero"
+        let os, hostname, machine = LibExecution.HostPosix.uname () |> ok
+        Expect.isNonEmpty os "OS identity"
+        Expect.isNonEmpty hostname "host identity"
+        Expect.isNonEmpty machine "architecture identity"
+        match LibExecution.HostPosix.fdRead -1 1 with
+        | Error(errno, _) ->
+          Expect.equal errno 9 "negative kernel errno is mapped to EBADF"
+        | Ok _ -> failtest "invalid descriptor must fail"
+      finally
+        System.IO.Directory.Delete(parent, true)
+  }
+
 let tests =
   testList
     "host"
-    [ auditRecordsOperationsAndDecisions
+    [ posixKernelRoundTrip
+      auditRecordsOperationsAndDecisions
       httpServerBindUsesTheSuppliedAccess
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink
-      libcWalkRefusesALinkMetAtOperationTime
+      posixWalkRefusesALinkMetAtOperationTime
       localPolicyPathsRejectTraversal
       packageStoreAncestorsAreProtected
       rootDirectoryIsReadable ]

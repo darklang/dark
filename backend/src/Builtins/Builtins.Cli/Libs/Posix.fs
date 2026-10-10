@@ -720,8 +720,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TypeReference.option TString
-      description =
-        "Returns the process-managed login name of the current user"
+      description = "Returns the process-managed login name of the current user"
       fn =
         (function
         | _, vm, _, [| DUnit |] ->
@@ -749,16 +748,32 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixGetHomeDir" 0
+    { name = fn "posixCheckHomeDir" 0
       typeParams = []
       parameters = [ Param.make "home" TString "Candidate home directory" ]
       returnType = TypeReference.option TString
-      description =
-        "Authorizes a home directory candidate selected in Darklang"
+      description = "Authorizes a home directory candidate selected in Darklang"
       fn =
         (function
         | _, vm, _, [| DString home |] ->
           posixOption vm (HostTypes.PosixOp.HomeDir home) Host.expectOptionalText
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.FileRead ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "posixGetHomeDir" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TypeReference.option TString
+      description =
+        "Returns the framework account home directory after authorizing that path"
+      fn =
+        (function
+        | _, vm, _, [| DUnit |] ->
+          posixOption vm HostTypes.PosixOp.DefaultHomeDir Host.expectOptionalText
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

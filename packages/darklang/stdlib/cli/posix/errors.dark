@@ -110,7 +110,7 @@ let macMessage (errno: Int) : String =
     else if errno == 105 then "Previous owner died"
     else if errno == 106 then "Interface output queue is full"
     else if errno == 107 then "Capabilities insufficient"
-    else "Unknown error: " + Stdlib.Int.toString errno
+    else "Unknown error: " + Stdlib.toString errno
 
 let fromErrno (errno: Int) : Stdlib.Cli.Posix.Error =
     let message =
@@ -246,7 +246,7 @@ let fromErrno (errno: Int) : Stdlib.Cli.Posix.Error =
         else if errno == 131 then "State not recoverable"
         else if errno == 132 then "Operation not possible due to RF-kill"
         else if errno == 133 then "Memory page has hardware error"
-        else "Unknown error " + Stdlib.Int.toString errno
+        else "Unknown error " + Stdlib.toString errno
     Stdlib.Cli.Posix.Error { errno = errno
                             message = message }
 

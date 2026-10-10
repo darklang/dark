@@ -6,7 +6,7 @@ open Prelude
 
 module Permission = LibExecution.Permissions
 
-/// A flag for the C library's open() call, named rather than numbered.
+/// A flag for the kernel's openat() call, named rather than numbered.
 /// `Host.openFlag` turns it into the platform's number.
 [<RequireQualifiedAccess>]
 type OpenFlag =
@@ -17,13 +17,10 @@ type OpenFlag =
   | Truncate
   | Append
 
-/// Posix operations with a scoped resource (a path, env name, or spawn). The
-/// libc twins of the .NET operations exist because libc semantics differ (the
-/// libc environment vs the CLR cache, fork/exec details), so they keep their
-/// own operations rather than collapsing into the .NET-backed ones. Ambient
-/// Native-gated posix builtins (uname, getpid, ...) that carry no state do not
-/// appear here; they call `HostPosix` directly under the interpreter's Native
-/// gate.
+/// POSIX operations retain kernel semantics and descriptor handles while using
+/// the same scoped authorization as the interpreter's managed file operations.
+/// Effect-free host facts (uname, getpid, ...) are called directly; stateful
+/// descriptor and process operations remain under the ambient Native gate.
 [<RequireQualifiedAccess>]
 type PosixOp =
   | Chdir of path : string
@@ -59,6 +56,7 @@ type PosixOp =
   | FileOwner of path : string
   | UserName of uid : uint32
   | HomeDir of path : string
+  | DefaultHomeDir
 
 /// Which host HTTP configuration an operation runs under. `Guest` is the
 /// SSRF-guarded configuration every guest request uses (the host may replace
@@ -148,7 +146,7 @@ type HttpStreamHead =
   { handle : int64; statusCode : int; headers : List<string * string> }
 
 /// What a successful operation hands back. One vocabulary for the .NET and
-/// libc families: a posix `stat` and a .NET file read both answer here.
+/// POSIX families: a posix `stat` and a .NET file read both answer here.
 [<RequireQualifiedAccess>]
 type Response =
   | Bytes of byte[]
@@ -187,7 +185,7 @@ type FailureKind =
 
 /// An OS-level failure after the policy check passed. Guest-visible as a
 /// Result error, unlike policy denials which are runtime errors. `errno` is
-/// the libc code when the failure came from libc, and -1 otherwise (a .NET
+/// the kernel errno when the failure came from a syscall, and -1 otherwise (a .NET
 /// exception) — it mirrors the Stdlib PosixError type.
 type Failure = { kind : FailureKind; errno : int; message : string }
 
@@ -249,6 +247,7 @@ let describeOperation (op : Operation) : string =
     | PosixOp.FileOwner path -> $"file-owner {path}"
     | PosixOp.UserName uid -> $"user-name {uid}"
     | PosixOp.HomeDir path -> $"home-dir {path}"
+    | PosixOp.DefaultHomeDir -> "default-home-dir"
   match op with
   | Operation.FileRead path -> $"file-read {path}"
   | Operation.FileWrite(path, _) -> $"file-write {path}"

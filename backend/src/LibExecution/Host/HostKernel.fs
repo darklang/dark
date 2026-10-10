@@ -23,19 +23,24 @@ let private result (rc : int64) : int64 =
   if rc < 0L then
     Marshal.SetLastPInvokeError(int -rc)
     -1L
-  else rc
+  else
+    rc
 
 let private call op a b c d e f = invoke (op, a, b, c, d, e, f) |> result
 let private pointer (p : IntPtr) = p.ToInt64()
 let private withText (text : string) (f : int64 -> 'a) : 'a =
   let p = Marshal.StringToCoTaskMemUTF8 text
-  try f (pointer p)
-  finally Marshal.FreeCoTaskMem p
+  try
+    f (pointer p)
+  finally
+    Marshal.FreeCoTaskMem p
 
 let private withBytes (bytes : byte[]) (f : int64 -> 'a) : 'a =
   let pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned)
-  try f (pointer (pinned.AddrOfPinnedObject()))
-  finally pinned.Free()
+  try
+    f (pointer (pinned.AddrOfPinnedObject()))
+  finally
+    pinned.Free()
 
 let openat_raw (fd : int, path : string, flags : int, mode : int) =
   withText path (fun p -> int (call 0 (int64 fd) p (int64 flags) (int64 mode) 0L 0L))
@@ -47,7 +52,8 @@ let close_raw (fd : int) = int (call 3 (int64 fd) 0L 0L 0L 0L 0L)
 let lseek_raw (fd : int, offset : int64, whence : int) =
   call 4 (int64 fd) offset (int64 whence) 0L 0L 0L
 let fstatat_raw (fd : int, path : string, buf : IntPtr, flags : int) =
-  withText path (fun p -> int (call 5 (int64 fd) p (pointer buf) (int64 flags) 0L 0L))
+  withText path (fun p ->
+    int (call 5 (int64 fd) p (pointer buf) (int64 flags) 0L 0L))
 let fchdir_raw (fd : int) = int (call 7 (int64 fd) 0L 0L 0L 0L 0L)
 let mkdirat_raw (fd : int, path : string, mode : int) =
   withText path (fun p -> int (call 8 (int64 fd) p (int64 mode) 0L 0L 0L))
@@ -57,9 +63,11 @@ let renameat_raw (oldFd : int, oldPath : string, newFd : int, newPath : string) 
   withText oldPath (fun a ->
     withText newPath (fun b -> int (call 10 (int64 oldFd) a (int64 newFd) b 0L 0L)))
 let fchmodat_raw (fd : int, path : string, mode : int, flags : int) =
-  withText path (fun p -> int (call 11 (int64 fd) p (int64 mode) (int64 flags) 0L 0L))
+  withText path (fun p ->
+    int (call 11 (int64 fd) p (int64 mode) (int64 flags) 0L 0L))
 let utimensat_raw (fd : int, path : string, times : IntPtr, flags : int) =
-  withText path (fun p -> int (call 12 (int64 fd) p (pointer times) (int64 flags) 0L 0L))
+  withText path (fun p ->
+    int (call 12 (int64 fd) p (pointer times) (int64 flags) 0L 0L))
 let symlinkat_raw (target : string, fd : int, path : string) =
   withText target (fun a ->
     withText path (fun b -> int (call 13 a (int64 fd) b 0L 0L 0L)))
@@ -82,7 +90,8 @@ let openat2_raw (fd : int, path : string, how : byte[], size : unativeint) =
   withText path (fun a ->
     withBytes how (fun b -> call 22 (int64 fd) a b (int64 size) 0L 0L))
 let fchmodat2_raw (fd : int, path : string, mode : int, flags : int) =
-  withText path (fun p -> int (call 23 (int64 fd) p (int64 mode) (int64 flags) 0L 0L))
+  withText path (fun p ->
+    int (call 23 (int64 fd) p (int64 mode) (int64 flags) 0L 0L))
 let fsync_raw (fd : int) = int (call 24 (int64 fd) 0L 0L 0L 0L 0L)
 let sysctl_raw (mib : byte[], buf : IntPtr, size : IntPtr) =
   withBytes mib (fun p -> int (call 25 p 2L (pointer buf) (pointer size) 0L 0L))

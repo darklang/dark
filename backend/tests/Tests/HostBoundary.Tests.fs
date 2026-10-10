@@ -53,12 +53,7 @@ let private bannedHostSubsystemTypes =
 /// descriptor, or an environment entry and must go through `Host.perform`.
 let private ambientHostPosixMembers =
   Set.ofList
-    [ "uname"
-      "getpid"
-      "getuid"
-      "cpuCount"
-      "get_LOCK_EX"
-      "get_LOCK_UN" ]
+    [ "uname"; "getpid"; "getuid"; "cpuCount"; "get_LOCK_EX"; "get_LOCK_UN" ]
 
 /// System.Environment is banned member-by-member: NewLine and ProcessorCount
 /// are fine, the environment-variable accessors are host effects.
@@ -186,6 +181,19 @@ let private typeRefFullName
   let name = reader.GetString typeRef.Name
   if ns = "" then name else $"{ns}.{name}"
 
+/// The outermost declaring type of a method, so closure classes attribute to
+/// their module.
+let private topLevelTypeName
+  (reader : MetadataReader)
+  (typeHandle : TypeDefinitionHandle)
+  =
+  let mutable current = reader.GetTypeDefinition typeHandle
+  while not (current.GetDeclaringType().IsNil) do
+    current <- reader.GetTypeDefinition(current.GetDeclaringType())
+  let ns = reader.GetString current.Namespace
+  let name = reader.GetString current.Name
+  if ns = "" then name else $"{ns}.{name}"
+
 /// The banned member a token refers to, if any, as "Type::member".
 let rec private bannedTarget (reader : MetadataReader) (handle : EntityHandle) =
   match handle.Kind with
@@ -221,24 +229,21 @@ let rec private bannedTarget (reader : MetadataReader) (handle : EntityHandle) =
       else
         None
     | _ -> None
+  | HandleKind.MethodDefinition ->
+    // Same-assembly calls to the private syscall transport also need checking.
+    // Other host subsystems contain pure policy helpers used inside LibExecution.
+    let methodDef =
+      reader.GetMethodDefinition(MethodDefinitionHandle.op_Explicit handle)
+    let typeName = topLevelTypeName reader (methodDef.GetDeclaringType())
+    if typeName = "LibExecution.HostKernel" then
+      Some $"{typeName}::{reader.GetString methodDef.Name}"
+    else
+      None
   | HandleKind.MethodSpecification ->
     let spec =
       reader.GetMethodSpecification(MethodSpecificationHandle.op_Explicit handle)
     bannedTarget reader spec.Method
   | _ -> None
-
-/// The outermost declaring type of a method, so closure classes attribute to
-/// their module.
-let private topLevelTypeName
-  (reader : MetadataReader)
-  (typeHandle : TypeDefinitionHandle)
-  =
-  let mutable current = reader.GetTypeDefinition typeHandle
-  while not (current.GetDeclaringType().IsNil) do
-    current <- reader.GetTypeDefinition(current.GetDeclaringType())
-  let ns = reader.GetString current.Namespace
-  let name = reader.GetString current.Name
-  if ns = "" then name else $"{ns}.{name}"
 
 /// (top-level type, banned target) pairs for one assembly.
 let private violationsIn (dllPath : string) : List<string * string> =
@@ -308,4 +313,34 @@ let onlyHostModulesTouchTheOS =
         ("Stale host-boundary allowlist entries (delete them):\n" + lines)
   }
 
-let tests = testList "hostBoundary" [ onlyHostModulesTouchTheOS ]
+/// Guard against reintroducing a libc import even inside a trusted module.
+let noLibcImports =
+  test "native imports use only the typed syscall transport" {
+    let importsIn assembly =
+      use stream = System.IO.File.OpenRead assembly
+      use pe = new PEReader(stream)
+      let reader = pe.GetMetadataReader()
+      reader.MethodDefinitions
+      |> Seq.choose (fun handle ->
+        let method = reader.GetMethodDefinition handle
+        if
+          method.Attributes.HasFlag(System.Reflection.MethodAttributes.PinvokeImpl)
+        then
+          let import = method.GetImport()
+          Some(
+            reader.GetString(reader.GetModuleReference(import.Module).Name),
+            reader.GetString import.Name
+          )
+        else
+          None)
+      |> Seq.toList
+    Expect.equal
+      (importsIn typeof<LibExecution.HostTypes.Operation>.Assembly.Location)
+      [ "dark_syscalls", "dark_syscall" ]
+      "The host has exactly one native import, and it does not link libc"
+    Expect.isEmpty
+      (importsIn typeof<LibDB.LocalFile.ReadResult>.Assembly.Location)
+      "Policy persistence uses the host transport rather than libc imports"
+  }
+
+let tests = testList "hostBoundary" [ onlyHostModulesTouchTheOS; noLibcImports ]

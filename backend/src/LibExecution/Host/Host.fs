@@ -135,7 +135,7 @@ let expectOptionalText (response : Response) : Option<string> =
 
 // ── failures ──────────────────────────────────────────────────────────────────
 
-/// A libc failure. ENOENT, EPERM and EACCES carry the same numbers on Linux
+/// A kernel failure. ENOENT, EPERM and EACCES carry the same numbers on Linux
 /// and macOS, so the kind can be read off the errno.
 let failureOfErrno (errno : int, message : string) : Failure =
   let kind =
@@ -232,7 +232,7 @@ let normalizeFilePath (path : string) : string =
 /// After normalization no resolvable ancestor is a link; one that still is
 /// (dangling, cyclic, inaccessible) must not reach an OS API. Fail-closed for
 /// inaccessible path components as well. On POSIX this pre-check is advisory:
-/// the libc bridge walks the directories again with O_NOFOLLOW at operation
+/// the POSIX host adapter walks the directories again with O_NOFOLLOW at operation
 /// time, so a link swapped in between is met and refused there. On Windows
 /// the .NET calls run behind this check alone.
 let private pathContainsLink (includeFinal : bool) (path : string) : bool =
@@ -375,7 +375,7 @@ type private Execute = unit -> Task<Result<Response, Failure>>
 
 /// What `perform` needs to know about one operation: the exact requests to
 /// check (each with the description used in denial messages), and how to
-/// execute it. Most operations check one request; a read-write libc
+/// execute it. Most operations check one request; a read-write POSIX
 /// operation checks two; one authorized elsewhere checks none.
 type private Resolved =
   { checks : List<Permission.Request * string>; execute : Execute }
@@ -409,14 +409,14 @@ let private produce (make : unit -> Response) : Execute =
   fun () -> Task.FromResult(Ok(make ()))
 
 /// A synchronous execution whose failure is an (errno, message) pair — a
-/// libc call, or a spawn that can time out.
+/// POSIX call, or a spawn that can time out.
 let private attempt (call : unit -> Result<Response, int * string>) : Execute =
   fun () -> Task.FromResult(call () |> Result.mapError failureOfErrno)
 
 /// An execution that waits on another OS process (a run to completion, a
 /// round of input and output): on the pool, so the thread that asked, which
 /// is a scheduler's when a Dark process asked, is free to run its other
-/// processes meanwhile. A file or libc call is not moved: those finish in
+/// processes meanwhile. A file or POSIX call is not moved: those finish in
 /// microseconds and the hop would cost more than the wait.
 let private blocking (call : unit -> Result<Response, int * string>) : Execute =
   fun () -> Task.Run(fun () -> call () |> Result.mapError failureOfErrno)
@@ -514,7 +514,7 @@ let private posixPath
 /// Like `posixPath`, but the syscall operates on the final directory entry
 /// rather than following it. This is what makes readlink and unlink usable
 /// without allowing symlinked ancestors.
-let private libcEntry
+let private posixEntry
   (access : Permission.AccessKind)
   (rawPath : string)
   (call : string -> Result<Response, int * string>)
@@ -522,7 +522,7 @@ let private libcEntry
   guardedEntry (access = Permission.AccessKind.Write) rawPath (fun path ->
     withChecks [ fileCheck access path ] (attempt (fun () -> call path)))
 
-let private libcReadWrite
+let private posixReadWrite
   (rawPath : string)
   (call : string -> Result<Response, int * string>)
   : Result<Resolved, string> =
@@ -535,7 +535,7 @@ let private libcReadWrite
 /// mkstemp/mkdtemp create a random sibling of the prefix, so authorizing the
 /// prefix would check a different path from the one used. Authorize and guard
 /// the containing directory, which necessarily contains the generated entry.
-let private libcTemp
+let private posixTemp
   (rawPrefix : string)
   (call : string -> Result<Response, int * string>)
   : Result<Resolved, string> =
@@ -548,7 +548,7 @@ let private libcTemp
         [ fileCheck Permission.AccessKind.Write directory ]
         (attempt (fun () -> call prefix)))
 
-/// A Native-gated libc call on a handle or process state: nothing to check
+/// A Native-gated POSIX call on a handle or process state: nothing to check
 /// here, an errno on failure.
 let private native
   (call : unit -> Result<Response, int * string>)
@@ -587,7 +587,7 @@ let private resolveHttp
          $"{method.ToUpperInvariant()} {canonicalUri}") ]
       (execute profile canonicalUri)
 
-// The libc twins mirror the checks their builtins performed inline: the
+// The POSIX twins mirror the checks their builtins performed inline: the
 // read-grade guard and a read request for chdir, a write check on the link
 // path for symlink creation, and read-write for every mutating path op. The
 // handle and process-state ops are Native-gated: the interpreter's ambient
@@ -616,7 +616,7 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
   | HostTypes.PosixOp.Rmdir path ->
     mutatingEntry path (fun () -> posixPath write path (HostPosix.rmdir >> unitOk))
   | HostTypes.PosixOp.Unlink path ->
-    mutatingEntry path (fun () -> libcEntry write path (HostPosix.unlink >> unitOk))
+    mutatingEntry path (fun () -> posixEntry write path (HostPosix.unlink >> unitOk))
   | HostTypes.PosixOp.Rename(oldPath, newPath) ->
     // Rename mutates both directory entries without following either final
     // symlink. Each endpoint therefore needs a write rule, and neither may be
@@ -638,11 +638,11 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     resolveFile write linkPath (fun linkPath ->
       attempt (fun () -> HostPosix.symlink target linkPath |> unitOk))
   | HostTypes.PosixOp.Readlink path ->
-    libcEntry read path (HostPosix.readlink >> Result.map Response.Path)
+    posixEntry read path (HostPosix.readlink >> Result.map Response.Path)
   | HostTypes.PosixOp.Mkstemp prefix ->
-    libcTemp prefix (HostPosix.mkstemp >> Result.map Response.FdPath)
+    posixTemp prefix (HostPosix.mkstemp >> Result.map Response.FdPath)
   | HostTypes.PosixOp.Mkdtemp prefix ->
-    libcTemp prefix (HostPosix.mkdtemp >> Result.map Response.Path)
+    posixTemp prefix (HostPosix.mkdtemp >> Result.map Response.Path)
   | HostTypes.PosixOp.ListDir path ->
     posixPath read path (HostPosix.listDir >> Result.map Response.Entries)
   | HostTypes.PosixOp.Stat path ->
@@ -658,7 +658,7 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     if not reads && not writes then
       Error(rejected $"unsupported open access mode: {accessMode}")
     elif reads && writes then
-      libcReadWrite path (fun path ->
+      posixReadWrite path (fun path ->
         HostPosix.openFile path flags mode |> Result.map Response.Fd)
     else
       let access = if writes then write else read
@@ -676,7 +676,8 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
   | HostTypes.PosixOp.FdRead(fd, count) ->
     native (fun () -> HostPosix.fdRead fd count |> Result.map Response.Bytes)
   | HostTypes.PosixOp.FdSeek(fd, offset, whence) ->
-    native (fun () -> HostPosix.fdSeek fd offset whence |> Result.map Response.Offset)
+    native (fun () ->
+      HostPosix.fdSeek fd offset whence |> Result.map Response.Offset)
   | HostTypes.PosixOp.FdWrite(fd, data) ->
     native (fun () -> HostPosix.fdWrite fd data |> Result.map Response.Written)
   | HostTypes.PosixOp.FdClose fd -> native (fun () -> HostPosix.fdClose fd |> unitOk)
@@ -691,6 +692,15 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     // Darklang selected a candidate; exposing it still requires path authorization.
     resolveFile read home (fun home ->
       produce (fun () -> Response.OptionalText(Some home)))
+  | HostTypes.PosixOp.DefaultHomeDir ->
+    // Framework account lookup also supports macOS directory-service users.
+    let home =
+      System.Environment.GetFolderPath System.Environment.SpecialFolder.UserProfile
+    if System.String.IsNullOrEmpty home then
+      unchecked (produce (fun () -> Response.OptionalText None))
+    else
+      resolveFile read home (fun home ->
+        produce (fun () -> Response.OptionalText(Some home)))
 
 let private resolve (op : Operation) : Result<Resolved, string> =
   let read = Permission.AccessKind.Read
@@ -861,7 +871,7 @@ let private execute (run : Execute) : Task<Outcome> =
 /// unreadable: `dark serve` reported `SystemNetHttpListener_PlatformNotSupported`, a resource
 /// KEY rather than a sentence because `UseSystemResourceKeys` is on, and running a program
 /// surfaced an internal error with a .NET stack. Refuse here instead, with the text a person
-/// should read. `HostPosix` already does this for libc calls it cannot make (errno 38,
+/// should read. `HostPosix` already does this for POSIX calls it cannot make (errno 38,
 /// "not available in the browser").
 ///
 /// Only what genuinely cannot work. Files, directories and environment variables work in the

@@ -319,13 +319,13 @@ or `Sync` (the loopback/LAN-capable transport, reachable only with
 `canUsePrivateNetworkHttp` from an all-bundled call chain), so configuration
 and client objects stay in host-owned state.
 
-The libc-backed posix twins route through it too, with the libc bridge
-(`LibExecution.HostLibc`) owned by the boundary: scoped posix operations
+The kernel-backed posix twins route through it too, with the POSIX host adapter
+(`LibExecution.HostPosix`) owned by the boundary: scoped posix operations
 (paths, env names, spawns) go through `Host.perform`; an answer that is a
 path (the working directory, the home directory, a file's owner, the running
 binary) is checked as a read of that path. Raw fds, pids and spawns are
 `Native`. Plain host facts (uname, pid, uid, cpu count) are effect-free and
-call `HostLibc` directly; the terminal size and the open() flag values are
+call `HostPosix` directly; the terminal size and the open() flag values are
 handed out by `Host` itself, so those builtins name only the door. Native-gated
 operations that do go
 through the boundary (fd reads, process I/O) are checked once, at the
@@ -365,7 +365,7 @@ host-owned `~/.darklang/policy/` directory under any spelling, even under an
 allow-all file policy. Entry operations such as `readlink` may inspect the
 final symlink without following it. Temporary-file operations authorize the
 containing directory because the generated sibling name does not exist at
-check time. On POSIX the libc bridge performs every path operation relative
+check time. On POSIX the POSIX host adapter performs every path operation relative
 to a directory descriptor it reached by walking the components with
 `O_NOFOLLOW`, so a link swapped in between the check and the operation is
 met and refused at operation time rather than followed; on Windows the .NET
@@ -548,3 +548,32 @@ These tests turn the design guarantees below into regression checks.
 Coverage still to add includes changed-contract review prompts, stream and
 deserialized-applicable widening, ancestor-symlink rejection, and redirect
 handling at the host boundary.
+
+### POSIX implementation
+
+The interpreter does not import libc. `HostKernel` marshals typed operations to
+a freestanding syscall transport with no dynamic dependencies. The transport
+has no path policy, allocation or account lookup; it returns kernel errno. Only
+trusted host modules can call it. Descriptor walks and no-follow opens remain
+inside the checked boundary, and no generic syscall or native pointer builtin
+is exposed to Darklang.
+
+Darklang implements glob matching, errno messages, temporary-entry collision
+retries, partial-write completion and account-file parsing, using the compiler's implementations as the
+source. Directory and stat record decoding stays in the host adapter because
+these records use platform-specific kernel ABIs. Environment changes and CPU
+counts use the interpreter process's .NET state. CPU counts therefore describe
+the CPUs available to this process, including affinity and quota restrictions.
+
+Account names for the current UID use .NET's process identity. Other owners are
+resolved from `/etc/passwd` in Darklang, through ordinary file-read permission
+checks; unknown or inaccessible names fall back to their numeric UID. Home
+lookup checks `HOME` first, then reads `/etc/passwd` and authorizes the candidate
+home path, with the framework account home as a fallback (including macOS
+directory-service users). NSS and directory-service account lookup for arbitrary UIDs is not
+emulated: those are library services, not kernel syscalls.
+
+Unix builds require a C compiler; cross-runtime builds use the release
+toolchain's Zig compiler. MSBuild produces the shared transport for JIT builds
+and the static archive for NativeAOT. Windows and browser targets continue to
+use the existing managed filesystem implementation.

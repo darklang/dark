@@ -1181,7 +1181,7 @@ module ReplayPolicy =
     (ord : int64)
     (args : Dval[])
     : unit =
-    // The runtime's own libc-backed builtins carry `Native` too, so the effect is no test of
+    // The runtime's own kernel-backed builtins carry `Native` too, so the effect is no test of
     // reproducibility; the names are. A user-level FFI builtin, when one exists, goes in the set.
     let name = fn.name.name
     if Set.contains name unreproducible then

@@ -1,0 +1,18 @@
+/// Complete a descriptor write when the kernel accepts only part of a buffer.
+module Darklang.Stdlib.Cli.Posix.IO
+
+let writeAll
+  (write: Blob -> Result.Result<Int, Stdlib.Cli.Posix.Error>)
+  (bytes: Blob)
+  (written: Int)
+  : Result.Result<Int, Stdlib.Cli.Posix.Error> =
+  match write bytes with
+  | Error error -> Stdlib.Result.Result.Error error
+  | Ok count ->
+    if count == Stdlib.Blob.length bytes then Stdlib.Result.Result.Ok (written + count)
+    else if count == 0 then
+      Stdlib.Result.Result.Error (Stdlib.Cli.Posix.Error { errno = 0
+                                                       message = "write returned 0" })
+    else
+      let rest = Stdlib.Blob.slice bytes count (Stdlib.Blob.length bytes - count)
+      writeAll write rest (written + count)

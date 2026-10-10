@@ -198,12 +198,14 @@ let getcwd () : Result<string, int * string> = Managed.getcwd ()
 let setenv (name : string) (value : string) : Result<unit, int * string> =
   if String.IsNullOrEmpty name || name.Contains '=' || name.Contains '\000' then
     Error(22, "Invalid argument")
-  else Managed.setenv name value
+  else
+    Managed.setenv name value
 
 let unsetenv (name : string) : Result<unit, int * string> =
   if String.IsNullOrEmpty name || name.Contains '=' || name.Contains '\000' then
     Error(22, "Invalid argument")
-  else Managed.unsetenv name
+  else
+    Managed.unsetenv name
 
 // -- The directory walk ----------------------------------------------------
 // `withParent` opens "/" and then each ancestor with O_NOFOLLOW|O_DIRECTORY,
@@ -351,7 +353,8 @@ let private createUnique
     let name = basePrefix + randomSuffix ()
     if create d name >= 0 then
       Ok(System.IO.Path.Combine(directory, name))
-    else failed ())
+    else
+      failed ())
 
 let mkstemp (prefix : string) : Result<int * string, int * string> =
   if isWasm then
@@ -379,18 +382,16 @@ let openFile (path : string) (flags : int) (mode : int) : Result<int, int * stri
       let fd = openat_raw (d, n, flags ||| O_NOFOLLOW, mode)
       if fd < 0 then failed () else Ok fd)
 
-let private fstatat_compat fd name buf flags =
-  fstatat_raw (fd, name, buf, flags)
+let private statAt fd name buf flags = fstatat_raw (fd, name, buf, flags)
 
 /// Walk to the parent and stat the entry into `buf`. The root is stat'd as
 /// "." relative to its own descriptor, which is portable (`AT_EMPTY_PATH` is
 /// Linux-only) and names no parent.
 let private statInto (path : string) (buf : IntPtr) : Result<unit, int * string> =
   if isRoot path then
-    withRoot (fun fd -> unitResult (fstatat_compat fd "." buf 0))
+    withRoot (fun fd -> unitResult (statAt fd "." buf 0))
   else
-    withParent path (fun d n ->
-      unitResult (fstatat_compat d n buf AT_SYMLINK_NOFOLLOW))
+    withParent path (fun d n -> unitResult (statAt d n buf AT_SYMLINK_NOFOLLOW))
 
 let private modeFromStatBuffer (buf : IntPtr) : int =
   if isMac then
@@ -403,11 +404,11 @@ let private modeFromStatBuffer (buf : IntPtr) : int =
 /// Linux metadata operations need to work on mode-000 files while binding the
 /// operation to the entry checked at execution time. O_PATH holds the exact
 /// inode without data-access permission; fstatat(AT_EMPTY_PATH) rejects a
-/// final symlink, then /proc/self/fd addresses that held inode rather than a
-/// racy pathname. `/proc` being unavailable fails closed.
-let private withLinuxMetadataPath
+/// final symlink. Metadata operations then use that held inode; older kernels
+/// need a procfd fallback, which fails closed when procfs is unavailable.
+let private withLinuxMetadataDescriptor
   (path : string)
-  (action : string -> Result<'a, int * string>)
+  (action : int -> Result<'a, int * string>)
   : Result<'a, int * string> =
   withParent path (fun dirFd name ->
     let fd = openat_raw (dirFd, name, O_PATH ||| O_NOFOLLOW, 0)
@@ -416,15 +417,18 @@ let private withLinuxMetadataPath
     else
       let buf = Marshal.AllocHGlobal(256)
       try
-        if fstatat_compat fd "" buf AT_EMPTY_PATH < 0 then
+        if statAt fd "" buf AT_EMPTY_PATH < 0 then
           failed ()
         elif modeFromStatBuffer buf &&& 0o170000 = 0o120000 then
           Error(40, "Too many levels of symbolic links") // Linux ELOOP
         else
-          action $"/proc/self/fd/{fd}"
+          action fd
       finally
         Marshal.FreeHGlobal buf
         close_raw fd |> ignore<int>)
+
+let private withLinuxMetadataPath path action =
+  withLinuxMetadataDescriptor path (fun fd -> action $"/proc/self/fd/{fd}")
 
 let chmod (path : string) (mode : int) : Result<unit, int * string> =
   if isWasm then
@@ -437,15 +441,18 @@ let chmod (path : string) (mode : int) : Result<unit, int * string> =
       // fchmodat2 binds no-follow semantics to the actual operation. Older
       // kernels retain the O_PATH/procfd fallback, which fails closed without procfs.
       let rc = fchmodat2_raw (d, n, mode, AT_SYMLINK_NOFOLLOW)
-      if rc >= 0 then Ok()
+      if rc >= 0 then
+        Ok()
       elif Marshal.GetLastPInvokeError() = 38 then
         withLinuxMetadataPath path (fun held ->
           unitResult (fchmodat_raw (-100, held, mode, 0)))
-      else failed ())
+      else
+        failed ())
 
 /// Set timestamps without following the final component.
 let utimesNow (path : string) : Result<unit, int * string> =
-  if isWasm then Managed.enosys ()
+  if isWasm then
+    Managed.enosys ()
   elif isMac then
     withParent path (fun d n ->
       let seconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
@@ -454,8 +461,18 @@ let utimesNow (path : string) : Result<unit, int * string> =
       BitConverter.GetBytes(seconds).CopyTo(attrs, 16)
       unitResult (setattrlistat_raw (d, n, attrs)))
   else
-    withParent path (fun d n ->
-      unitResult (utimensat_raw (d, n, IntPtr.Zero, AT_SYMLINK_NOFOLLOW)))
+    // Bind the timestamp update to a held inode and reject final symlinks.
+    // The procfd path cannot be swapped for a different target by guest code.
+    withLinuxMetadataDescriptor path (fun fd ->
+      let rc = utimensat_raw (fd, "", IntPtr.Zero, AT_EMPTY_PATH)
+      if rc >= 0 then
+        Ok()
+      elif Marshal.GetLastPInvokeError() = 22 then
+        // AT_EMPTY_PATH was added in Linux 6.6. On older kernels use the
+        // procfd path to the same held inode, failing closed without procfs.
+        unitResult (utimensat_raw (-100, $"/proc/self/fd/{fd}", IntPtr.Zero, 0))
+      else
+        failed ())
 
 /// Extracts (mode, size, mtimeSec) from a struct stat buffer. Offsets are
 /// platform-specific (Linux vs macOS struct layouts differ).
@@ -489,28 +506,41 @@ let stat (path : string) : Result<int * int64 * int64, int * string> =
 
 /// Kernel identity. Darwin exposes these fields through sysctl rather than uname.
 let uname () : Result<string * string * string, int * string> =
-  if isWasm then Ok("Browser", "browser", "wasm32")
+  if isWasm then
+    Ok("Browser", "browser", "wasm32")
   else
     let buf = Marshal.AllocHGlobal(1024)
     try
       if isMac then
         let field a b =
-          let mib = Array.append (BitConverter.GetBytes(a : int)) (BitConverter.GetBytes(b : int))
+          let mib =
+            Array.append
+              (BitConverter.GetBytes(a : int))
+              (BitConverter.GetBytes(b : int))
           let size = Marshal.AllocHGlobal(IntPtr.Size)
           try
             Marshal.WriteInt64(size, 1024L)
-            if sysctl_raw (mib, buf, size) < 0 then Error(lastError ())
-            else Ok(Marshal.PtrToStringUTF8 buf)
-          finally Marshal.FreeHGlobal size
+            if sysctl_raw (mib, buf, size) < 0 then
+              Error(lastError ())
+            else
+              Ok(Marshal.PtrToStringUTF8 buf)
+          finally
+            Marshal.FreeHGlobal size
         match field 1 1, field 1 10, field 6 1 with
         | Ok os, Ok host, Ok machine -> Ok(os, host, machine)
-        | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e
-      elif uname_raw buf < 0 then Error(lastError ())
+        | Error e, _, _
+        | _, Error e, _
+        | _, _, Error e -> Error e
+      elif uname_raw buf < 0 then
+        Error(lastError ())
       else
-        Ok(Marshal.PtrToStringUTF8 buf,
-           Marshal.PtrToStringUTF8(IntPtr.Add(buf, 65)),
-           Marshal.PtrToStringUTF8(IntPtr.Add(buf, 260)))
-    finally Marshal.FreeHGlobal buf
+        Ok(
+          Marshal.PtrToStringUTF8 buf,
+          Marshal.PtrToStringUTF8(IntPtr.Add(buf, 65)),
+          Marshal.PtrToStringUTF8(IntPtr.Add(buf, 260))
+        )
+    finally
+      Marshal.FreeHGlobal buf
 
 let getpid () : int = if isWasm then Environment.ProcessId else getpid_raw ()
 
@@ -603,18 +633,11 @@ let tryTerminalWindowSize (fd : int) : Option<int64 * int64> =
 let fdWrite (fd : int) (data : byte[]) : Result<int, int * string> =
   if isWasm then
     Managed.fdWrite fd data
+  else if data.Length = 0 then
+    Ok 0
   else
-    let mutable offset = 0
-    let mutable error = None
-    while offset < data.Length && error.IsNone do
-      let slice = if offset = 0 then data else data[offset..]
-      let n = write_raw (fd, slice, data.Length - offset)
-      if n < 0 then error <- Some(lastError ())
-      elif n = 0 then error <- Some(0, "write returned 0")
-      else offset <- offset + n
-    match error with
-    | Some e -> Error e
-    | None -> Ok offset
+    let n = write_raw (fd, data, data.Length)
+    if n < 0 then Error(lastError ()) else Ok n
 
 let fdClose (fd : int) : Result<unit, int * string> =
   if isWasm then Managed.fdClose fd
@@ -623,7 +646,8 @@ let fdClose (fd : int) : Result<unit, int * string> =
 
 /// Read kernel directory records from a held, no-follow directory descriptor.
 let listDir (path : string) : Result<List<string>, int * string> =
-  if isWasm then Managed.listDir path
+  if isWasm then
+    Managed.listDir path
   else
     withDirectory path (fun fd ->
       let bytes = Array.zeroCreate<byte> 32768
@@ -638,7 +662,8 @@ let listDir (path : string) : Result<List<string>, int * string> =
           while offset < count && error.IsNone do
             let nameOffset = if isMac then 21 else 19
             let recordOffset = 16
-            if offset + nameOffset >= count then error <- Some(5, "Invalid directory record")
+            if offset + nameOffset >= count then
+              error <- Some(5, "Invalid directory record")
             else
               let length = int (BitConverter.ToUInt16(bytes, offset + recordOffset))
               if length <= nameOffset || offset + length > count then
@@ -648,17 +673,22 @@ let listDir (path : string) : Result<List<string>, int * string> =
                 let mutable finish = start
                 while finish < offset + length && bytes[finish] <> 0uy do
                   finish <- finish + 1
-                if finish = offset + length then error <- Some(5, "Unterminated directory entry")
+                if finish = offset + length then
+                  error <- Some(5, "Unterminated directory entry")
                 else
-                  let name = Text.Encoding.UTF8.GetString(bytes, start, finish - start)
+                  let name =
+                    Text.Encoding.UTF8.GetString(bytes, start, finish - start)
                   if name <> "." && name <> ".." then entries.Add name
                 offset <- offset + length
           if error.IsNone then count <- getdents_raw (fd, bytes, position)
-        if count < 0 then Error(lastError ())
-        else match error with
-             | Some e -> Error e
-             | None -> Ok(List.ofSeq entries)
-      finally Marshal.FreeHGlobal position)
+        if count < 0 then
+          Error(lastError ())
+        else
+          match error with
+          | Some e -> Error e
+          | None -> Ok(List.ofSeq entries)
+      finally
+        Marshal.FreeHGlobal position)
 
 // -- Atomic, symlink-safe opens (Linux) ------------------------------
 // The lexical `pathContainsLink` pre-walk in `Host` is advisory: an attacker
@@ -699,7 +729,7 @@ let private openNoSymlinks
     if fd >= 0L then
       Some(new SafeFileHandle(nativeint fd, ownsHandle = true))
     else
-      let errno = Marshal.GetLastWin32Error()
+      let errno = Marshal.GetLastPInvokeError()
       if errno = ENOSYS then
         // No openat2 on this kernel; remember and fall back everywhere.
         openat2Available <- false
@@ -773,4 +803,5 @@ let syncDirectory (directory : string) : unit =
     try
       withDirectory directory (fun fd -> unitResult (fsync_raw fd))
       |> ignore<Result<unit, int * string>>
-    with _ -> ()
+    with _ ->
+      ()
