@@ -59,6 +59,8 @@ let bitwiseXor = 24
 let bitwiseNot = 25
 let shiftLeft = 26
 let shiftRight = 27
+/// `List.push`: a list and a value of its element type.
+let listPush = 28
 
 /// `-x` on a signed builtin numeric; anything else declines and dispatches.
 let evalNegate (a : Dval) : Dval voption =
@@ -199,6 +201,22 @@ let evalListMember (tag : int) (items : List<Dval>) (value : Dval) : Dval voptio
     search items
   else
     ValueNone
+
+
+/// `List.push`: <param value> on the front of a list whose element type is <param vt>.
+///
+/// The builtin's own answer when the types merge, without the general call path (argument array,
+/// parameter checks, result check), which was most of what a push cost. Every list a fold builds
+/// comes through here once per element. Declines when the types do not merge, so the builtin and
+/// its parameter check produce whatever error they produce today.
+let evalListPush
+  (vt : ValueType)
+  (items : List<Dval>)
+  (value : Dval)
+  : Dval voption =
+  match ValueType.merge vt (Dval.toValueType value) with
+  | Ok merged -> ValueSome(DList(merged, value :: items))
+  | Error() -> ValueNone
 
 
 /// `String.repeat`: a `String` and an `Int` count, almost always padding a row out to a column.
@@ -579,4 +597,5 @@ let byName : Dictionary<FQFnName.Builtin, int> =
   put "listMember" listMember
   put "stringIsEmpty" strIsEmpty
   put "listIsEmpty" listIsEmpty
+  put "listPush" listPush
   d

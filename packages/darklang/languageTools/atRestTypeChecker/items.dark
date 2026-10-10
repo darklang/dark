@@ -238,6 +238,15 @@ let checkFunction
   (env: Model.Environment)
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : (Outcome * Model.Environment) =
+  checkFunctionKnowing env fn (NodeIds.problem fn.body)
+
+/// `checkFunction`, given what `NodeIds.problem` says about the body, for a caller that has
+/// already walked it (`NodeIds.inspect`).
+let checkFunctionKnowing
+  (env: Model.Environment)
+  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  (duplicate: Stdlib.Option.Option<Model.Finding>)
+  : (Outcome * Model.Environment) =
   let none = Stdlib.Option.Option.None
   // Declared type parameters must stay generic while checking the body; choosing
   // a concrete type for one would accept a function that fails for other callers.
@@ -282,7 +291,7 @@ let checkFunction
         Model.Constraint.WellFormed(none, self)
         // Duplicate inference IDs can merge unrelated types. Report the problem
         // and skip the body, while still checking the signature above.
-        (match NodeIds.problem fn.body with
+        (match duplicate with
          | Some problem -> Generate.report problem
          | None -> Generate.check scope ret Site.FunctionReturnValue fn.body) ]
 
@@ -408,12 +417,13 @@ let prepareValue
   (value: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : PendingValue =
   let (t, constraints) =
-    match NodeIds.problem value.body with
+    let (deep, duplicate) = NodeIds.inspect value.body
+    match duplicate with
     | Some problem -> (Model.Ty.TError, Generate.report problem)
     | None ->
       // Too deep is skipped here for the same reason duplicate IDs are: inferring would
       // produce a requirement per level, and the result could not be trusted anyway.
-      match NodeIds.tooDeep value.body with
+      match deep with
       | Some problem -> (Model.Ty.TError, Generate.report problem)
       | None -> Generate.infer (Generate.emptyScope ()) value.body
 
@@ -501,7 +511,18 @@ let checkBatch
   : List<(LanguageTools.ProgramTypes.Reference * Outcome)> =
   let env = Stdlib.List.fold types env (fun env t -> addType env t)
   let env = Stdlib.List.fold fns env (fun env fn -> addFunctionSignature env fn)
-  let env = Declarations.prepareDeclarations env
+
+  // A type's facts follow from its hash and what it references, so facts already worked out over
+  // a closed set (a shared base, see `Run.checkQuery`) hold here as they are. Prepared again only
+  // when a type has none, which is every type unless the batch started from such a base.
+  let env =
+    if
+      Stdlib.List.all (Stdlib.Dict.keys env.types) (fun hash ->
+        Stdlib.Dict.``member`` env.declarationFacts hash)
+    then
+      env
+    else
+      Declarations.prepareDeclarations env
 
   let typeResults =
     Stdlib.List.map types (fun t ->
@@ -530,14 +551,17 @@ let checkBatch
         // generate a requirement per level of the body and then solve all of them, and
         // converting a deep signature to the checker's own types costs the same whether or
         // not anything ever compares it.
-        match NodeIds.tooDeep fn.body with
+        let (deep, duplicate) = NodeIds.inspect fn.body
+        match deep with
         | Some _ ->
           (checkerFailureOutcome (bodyNodeId fn.body) CheckFailure.TooDeep, env)
         | None ->
           match NodeIds.typeTooDeep signatureTypes with
           | Some _ ->
             (checkerFailureOutcome (bodyNodeId fn.body) CheckFailure.TooDeep, env)
-          | None -> guardItem (bodyNodeId fn.body) env (fun env -> checkFunction env fn)
+          | None ->
+            guardItem (bodyNodeId fn.body) env (fun env ->
+              checkFunctionKnowing env fn duplicate)
       let item = LanguageTools.ProgramTypes.Reference.PackageFn fn.hash
       (env, Stdlib.List.push results (item, outcome)))
 

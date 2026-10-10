@@ -453,7 +453,7 @@ module Lambdas =
         (RT.DApplicable(
           RT.AppLambda
             { exprId = E.Lambdas.Identity.id
-              closedRegisters = []
+              closedRegisters = [||]
               argsSoFar = []
               access = fullAccess
               typeSymbolTable = RT.TST.empty }
@@ -473,7 +473,7 @@ module Lambdas =
         (RT.DApplicable(
           RT.AppLambda
             { exprId = E.Lambdas.Add.id
-              closedRegisters = []
+              closedRegisters = [||]
               argsSoFar = []
               access = fullAccess
               typeSymbolTable = RT.TST.empty }
@@ -488,7 +488,7 @@ module Lambdas =
         (RT.DApplicable(
           RT.AppLambda
             { exprId = E.Lambdas.Add.id
-              closedRegisters = []
+              closedRegisters = [||]
               argsSoFar = [ RT.DInt64 1L ]
               access = fullAccess
               typeSymbolTable = RT.TST.empty }
@@ -508,7 +508,7 @@ module Lambdas =
         (RT.DApplicable(
           RT.AppLambda
             { exprId = E.Lambdas.AddTuple.id
-              closedRegisters = []
+              closedRegisters = [||]
               argsSoFar = []
               access = fullAccess
               typeSymbolTable = RT.TST.empty }
@@ -531,7 +531,8 @@ module Lambdas =
         (RT.DApplicable(
           RT.AppLambda
             { exprId = E.Lambdas.AddToClosedVars.id
-              closedRegisters = [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
+              closedRegisters =
+                RT.Captures.ofList [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
               argsSoFar = []
               access = fullAccess
               typeSymbolTable = RT.TST.empty }

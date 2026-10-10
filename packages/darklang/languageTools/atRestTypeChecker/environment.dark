@@ -623,69 +623,91 @@ let exprRefs
   (env: Model.Environment)
   (expr: LanguageTools.ProgramTypes.Expr)
   : List<LanguageTools.ProgramTypes.Reference> =
-  let many (exprs: List<LanguageTools.ProgramTypes.Expr>) : List<LanguageTools.ProgramTypes.Reference> =
-    Stdlib.List.flatten (Stdlib.List.map exprs (fun e -> exprRefs env e))
+  Stdlib.List.reverse (exprRefsInto env expr [])
 
+/// <param refs> pushed onto <param acc>, a reversed accumulator, in order.
+let pushRefs
+  (refs: List<LanguageTools.ProgramTypes.Reference>)
+  (acc: List<LanguageTools.ProgramTypes.Reference>)
+  : List<LanguageTools.ProgramTypes.Reference> =
+  if Stdlib.List.isEmpty refs then
+    acc
+  else
+    Stdlib.List.fold refs acc (fun acc r -> Stdlib.List.push acc r)
+
+/// `exprRefsInto` over <param exprs> in order.
+let manyRefsInto
+  (env: Model.Environment)
+  (exprs: List<LanguageTools.ProgramTypes.Expr>)
+  (acc: List<LanguageTools.ProgramTypes.Reference>)
+  : List<LanguageTools.ProgramTypes.Reference> =
+  Stdlib.List.fold exprs acc (fun acc e -> exprRefsInto env e acc)
+
+/// `exprRefs`, pushed onto <param acc> (reversed) in the order `exprRefs` returns them.
+///
+/// Accumulated rather than returned and joined: the joined version built a closure on every
+/// call, a mapped list per node with children and a flattened copy of it at every level, which
+/// made collecting a body's references cost about as much as converting its types.
+let exprRefsInto
+  (env: Model.Environment)
+  (expr: LanguageTools.ProgramTypes.Expr)
+  (acc: List<LanguageTools.ProgramTypes.Reference>)
+  : List<LanguageTools.ProgramTypes.Reference> =
   match expr with
   | EString(_, segments) ->
-    segments
-    |> Stdlib.List.map (fun segment ->
+    Stdlib.List.fold segments acc (fun acc segment ->
       match segment with
-      | StringText _ -> []
-      | StringInterpolation e -> exprRefs env e)
-    |> Stdlib.List.flatten
-  | EList(_, elements) -> many elements
+      | StringText _ -> acc
+      | StringInterpolation e -> exprRefsInto env e acc)
+  | EList(_, elements) -> manyRefsInto env elements acc
   | EDict(_, entries) ->
-    Stdlib.List.flatten (Stdlib.List.map entries (fun (k, v) -> many [ k, v ]))
+    Stdlib.List.fold entries acc (fun acc (k, v) -> exprRefsInto env v (exprRefsInto env k acc))
   | ETuple(_, first, second, rest) ->
-    many (Stdlib.List.append [ first, second ] rest)
+    manyRefsInto env rest (exprRefsInto env second (exprRefsInto env first acc))
   | ERecord(_, name, typeArgs, fields) ->
-    Stdlib.List.flatten
-      [ typeNameRefs name
-        typeListRefs typeArgs
-        many (Stdlib.List.map fields (fun (_, v) -> v)) ]
+    Stdlib.List.fold
+      fields
+      (pushRefs (typeListRefs typeArgs) (pushRefs (typeNameRefs name) acc))
+      (fun acc (_, v) -> exprRefsInto env v acc)
   | EEnum(_, name, typeArgs, _, fields) ->
-    Stdlib.List.flatten [ typeNameRefs name, typeListRefs typeArgs, many fields ]
-  | ELet(_, _, value, body) -> many [ value, body ]
-  | ERecordFieldAccess(_, record, _) -> exprRefs env record
-  | EValue(_, name) -> valueNameRefs name
+    manyRefsInto env fields (pushRefs (typeListRefs typeArgs) (pushRefs (typeNameRefs name) acc))
+  | ELet(_, _, value, body) -> exprRefsInto env body (exprRefsInto env value acc)
+  | ERecordFieldAccess(_, record, _) -> exprRefsInto env record acc
+  | EValue(_, name) -> pushRefs (valueNameRefs name) acc
   | EIf(_, condition, thenExpr, elseExpr) ->
-    many
-      (Stdlib.List.append [ condition, thenExpr ] (Stdlib.Option.toList elseExpr))
+    let acc = exprRefsInto env thenExpr (exprRefsInto env condition acc)
+    match elseExpr with
+    | Some otherwise -> exprRefsInto env otherwise acc
+    | None -> acc
   | EMatch(_, arg, cases) ->
     // Match patterns contain unqualified case names, not package references.
     // Their enum declarations are determined from the matched value's type.
-    Stdlib.List.append
-      (exprRefs env arg)
-      (cases
-       |> Stdlib.List.map (fun case ->
-         many
-           (Stdlib.List.append
-             (Stdlib.Option.toList case.whenCondition)
-             [ case.rhs ]))
-       |> Stdlib.List.flatten)
+    Stdlib.List.fold cases (exprRefsInto env arg acc) (fun acc case ->
+      let acc =
+        match case.whenCondition with
+        | Some guard -> exprRefsInto env guard acc
+        | None -> acc
+      exprRefsInto env case.rhs acc)
   | EPipe(_, lhs, parts) ->
-    Stdlib.List.append
-      (exprRefs env lhs)
-      (Stdlib.List.flatten (Stdlib.List.map parts (fun p -> pipeRefs env p)))
-  | EInfix(_, _, lhs, rhs, _) -> many [ lhs, rhs ]
-  | ELambda(_, _, body) -> exprRefs env body
+    Stdlib.List.fold parts (exprRefsInto env lhs acc) (fun acc p -> pipeRefsInto env p acc)
+  | EInfix(_, _, lhs, rhs, _) -> exprRefsInto env rhs (exprRefsInto env lhs acc)
+  | ELambda(_, _, body) -> exprRefsInto env body acc
   | EApply(_, callee, typeArgs, args) ->
-    Stdlib.List.flatten [ exprRefs env callee, typeListRefs typeArgs, many args ]
-  | EFnName(_, name, _) -> functionNameRefs env name
+    manyRefsInto env args (pushRefs (typeListRefs typeArgs) (exprRefsInto env callee acc))
+  | EFnName(_, name, _) -> pushRefs (functionNameRefs env name) acc
   | ERecordUpdate(_, record, updates) ->
-    Stdlib.List.append
-      (exprRefs env record)
-      (many (Stdlib.List.map updates (fun (_, v) -> v)))
-  | EStatement(_, first, next) -> many [ first, next ]
+    Stdlib.List.fold updates (exprRefsInto env record acc) (fun acc (_, v) -> exprRefsInto env v acc)
+  | EStatement(_, first, next) -> exprRefsInto env next (exprRefsInto env first acc)
   | EUnwrap(_, operand) ->
     // ? has no explicit type name in the syntax. Add Option and Result so the
     // solver can check its operand and the enclosing function's return type.
-    Stdlib.List.append
-      [ LanguageTools.ProgramTypes.Reference.PackageType env.optionType
-        LanguageTools.ProgramTypes.Reference.PackageType env.resultType ]
-      (exprRefs env operand)
-  | _ -> []
+    exprRefsInto
+      env
+      operand
+      (Stdlib.List.push
+        (Stdlib.List.push acc (LanguageTools.ProgramTypes.Reference.PackageType env.optionType))
+        (LanguageTools.ProgramTypes.Reference.PackageType env.resultType))
+  | _ -> acc
 
 /// Collect dependencies from a pipeline step, including named functions or enum
 /// constructors and the expressions supplied as arguments. exprRefs handles the
@@ -694,18 +716,21 @@ let pipeRefs
   (env: Model.Environment)
   (pipePart: LanguageTools.ProgramTypes.PipeExpr)
   : List<LanguageTools.ProgramTypes.Reference> =
-  let many (exprs: List<LanguageTools.ProgramTypes.Expr>) : List<LanguageTools.ProgramTypes.Reference> =
-    Stdlib.List.flatten (Stdlib.List.map exprs (fun e -> exprRefs env e))
+  Stdlib.List.reverse (pipeRefsInto env pipePart [])
 
+/// `pipeRefs`, pushed onto <param acc> as `exprRefsInto` does.
+let pipeRefsInto
+  (env: Model.Environment)
+  (pipePart: LanguageTools.ProgramTypes.PipeExpr)
+  (acc: List<LanguageTools.ProgramTypes.Reference>)
+  : List<LanguageTools.ProgramTypes.Reference> =
   match pipePart with
-  | EPipeVariable(_, _, args) -> many args
-  | EPipeLambda(_, _, body) -> exprRefs env body
-  | EPipeInfix(_, _, rhs, _) -> exprRefs env rhs
+  | EPipeVariable(_, _, args) -> manyRefsInto env args acc
+  | EPipeLambda(_, _, body) -> exprRefsInto env body acc
+  | EPipeInfix(_, _, rhs, _) -> exprRefsInto env rhs acc
   | EPipeFnCall(_, name, typeArgs, args, _) ->
-    Stdlib.List.flatten
-      [ functionNameRefs env name, typeListRefs typeArgs, many args ]
-  | EPipeEnum(_, name, _, fields) ->
-    Stdlib.List.append (typeNameRefs name) (many fields)
+    manyRefsInto env args (pushRefs (typeListRefs typeArgs) (pushRefs (functionNameRefs env name) acc))
+  | EPipeEnum(_, name, _, fields) -> manyRefsInto env fields (pushRefs (typeNameRefs name) acc)
 
 /// Collect the types referenced by a function's parameters and return type.
 /// Dependency functions are checked through these signatures, without walking their bodies.
@@ -734,15 +759,64 @@ let loadClosure
   (candidateRefs: List<LanguageTools.ProgramTypes.Reference>)
   (pending: List<LanguageTools.ProgramTypes.Reference>)
   : Closure =
+  loadClosureFrom (emptyClosure ()) env candidateRefs pending
+
+/// A closure with nothing in it.
+let emptyClosure () : Closure =
+  Closure { types = Dict {}; values = Dict {}; fns = Dict {} }
+
+/// `loadClosure`, taking a declaration from <param pool> when it is there and from the store
+/// otherwise.
+///
+/// For checking many batches at once: each batch would otherwise load its own copy of what they
+/// all depend on, and with every batch in flight together those copies are what the check holds.
+/// A batch's closure then points at the pool's values rather than at copies of them.
+let loadClosureFrom
+  (pool: Closure)
+  (env: Model.Environment)
+  (candidateRefs: List<LanguageTools.ProgramTypes.Reference>)
+  (pending: List<LanguageTools.ProgramTypes.Reference>)
+  : Closure =
   let seen =
     Stdlib.List.fold candidateRefs Dict {} (fun seen r ->
       Stdlib.Dict.setOverridingDuplicates seen r true)
 
   loadPendingDependencies
-    (loadDependency env)
+    (loadDependency pool env)
     seen
     pending
-    (Closure { types = Dict {}; values = Dict {}; fns = Dict {} })
+    (emptyClosure ())
+
+/// The dependencies <param known> does not already hold, loaded from the store.
+///
+/// For a batch starting from an environment built from <param known>: what is in it is already
+/// registered, prepared and (for values) checked there, so it is neither loaded again nor
+/// followed. Anything outside it is loaded and followed as `loadClosure` would.
+let loadClosureBeyond
+  (known: Closure)
+  (env: Model.Environment)
+  (candidateRefs: List<LanguageTools.ProgramTypes.Reference>)
+  (pending: List<LanguageTools.ProgramTypes.Reference>)
+  : Closure =
+  let seen =
+    Stdlib.List.fold candidateRefs Dict {} (fun seen r ->
+      Stdlib.Dict.setOverridingDuplicates seen r true)
+
+  let load
+    (closure: Closure)
+    (reference: LanguageTools.ProgramTypes.Reference)
+    : (List<LanguageTools.ProgramTypes.Reference> * Closure) =
+    let isKnown =
+      match reference with
+      | PackageType hash -> Stdlib.Dict.``member`` known.types hash
+      | PackageFn hash -> Stdlib.Dict.``member`` known.fns hash
+      | PackageValue hash -> Stdlib.Dict.``member`` known.values hash
+      | _ -> false
+
+    if isKnown then ([], closure)
+    else loadDependency (emptyClosure ()) env closure reference
+
+  loadPendingDependencies load seen pending (emptyClosure ())
 
 /// Process the remaining references, attempting each distinct reference once.
 /// Mark a reference seen before loading it so cycles, duplicates, and failed loads
@@ -773,13 +847,18 @@ let loadPendingDependencies
 /// Missing declarations leave closure unchanged. The caller guards both loading
 /// and traversal so a conversion or syntax-walk failure cannot abort the queue.
 let loadDependency
+  (pool: Closure)
   (env: Model.Environment)
   (closure: Closure)
   (reference: LanguageTools.ProgramTypes.Reference)
   : (List<LanguageTools.ProgramTypes.Reference> * Closure) =
   match reference with
   | PackageType hash ->
-    match LanguageTools.PackageManager.Type.get hash with
+    let found =
+      match Stdlib.Dict.get pool.types hash with
+      | Some t -> Stdlib.Option.Option.Some t
+      | None -> LanguageTools.PackageManager.Type.get hash
+    match found with
     | Some t ->
       let refs = declarationRefs t.declaration
       (refs,
@@ -794,8 +873,16 @@ let loadDependency
        { closure with
            values = Stdlib.Dict.setOverridingDuplicates closure.values hash v })
     | None -> ([], closure)
+  // Loaded without its body. A dependency is used for its signature only (`addFunctionSignature`,
+  // and `Impls` reading a method's), and a Dark fn's types are all written out, so the body
+  // never decides anything. It was most of what each piece held, in every piece at once. The
+  // `ThroughADependency` tests pin what the signature alone has to catch.
   | PackageFn hash ->
-    match LanguageTools.PackageManager.Function.get hash with
+    let found =
+      match Stdlib.Dict.get pool.fns hash with
+      | Some fn -> Stdlib.Option.Option.Some fn
+      | None -> LanguageTools.PackageManager.Function.getSignature hash
+    match found with
     | Some fn ->
       let refs = signatureRefs fn
       (refs,

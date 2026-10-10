@@ -436,6 +436,27 @@ module LambdaArgumentSlots =
   (check "let f (x: Int) : String -> Int = fun text -> x" "f") = "checked:"
   (check "let f (x: Int) : Int = x |> (fun y -> x + y)" "f") = "checked:"
 
+// Each fn below misuses a Stdlib fn, which reaches the checker only as a DEPENDENCY: loaded for
+// its signature, never checked in this batch. These pin what a dependency's signature has to
+// catch on its own, so a change to how dependencies are loaded cannot quietly make callers
+// unchecked. Each mistake has a correct twin that must stay checked.
+module ThroughADependency =
+  (check "let f (s: String) : Int = Stdlib.String.length s" "f") = "checked:"
+  (check "let f () : Int = Stdlib.String.length 5L" "f") = "failed:TypeMismatch"
+  (check "let f () : String = Stdlib.String.length \"x\"" "f") = "failed:TypeMismatch"
+
+  (check "let f () : Int64 = Stdlib.Option.withDefault (Stdlib.List.head [ 1L ]) 0L" "f") = "checked:"
+  (check "let f () : String = Stdlib.Option.withDefault (Stdlib.List.head [ 1L, 2L ]) \"x\"" "f") = "failed:TypeMismatch"
+  (check "let f () : Bool = Stdlib.List.isEmpty \"x\"" "f") = "failed:TypeMismatch"
+
+  // A dependency passed by name, and one partially applied.
+  (check "let f () : Int = Stdlib.List.length (Stdlib.List.map [ 1L ] Stdlib.String.length)" "f") = "failed:TypeMismatch"
+  (check "let f () : String = (Stdlib.String.append \"a\") 3L" "f") = "failed:TypeMismatch"
+
+  // A dependency's trait bound, met and not met at the call.
+  (check "let f () : String = Stdlib.toString 5L" "f") = "checked:"
+  (check "let f () : String = Stdlib.toString (fun x -> x)" "f") = "failed:MissingImpl"
+
 module Basics =
   (check "let f (value: Int) : Int = value" "f") = "checked:"
 
