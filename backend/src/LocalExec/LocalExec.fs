@@ -25,10 +25,10 @@ let evaluateAllValues = LibDB.Seed.evaluateAllValues
 
 module HandleCommand =
 
-  let reloadPackages () : Ply<Result<unit, string>> =
+  let reloadPackages (includeTests : bool) : Ply<Result<unit, string>> =
     uply {
       // Load packages from disk, ensuring all parse well
-      let! ops = LoadPackagesFromDisk.load (Builtins.all ())
+      let! ops = LoadPackagesFromDisk.load includeTests (Builtins.all ())
 
       // CLEANUP consider checking for duplicates (helps prevent a class of issues)
 
@@ -68,7 +68,9 @@ module HandleCommand =
           // lookups resolve correctly during value evaluation. The first fill's are
           // pre-resolution hashes, so only the last fill writes the shared file;
           // see `PackageRefsGenerator.generate`.
-          do! LibDB.PackageRefsGenerator.generate commitBaseline
+          // A production-only reload belongs to a private audit store. Keep its
+          // hashes in memory; other processes use the full tree's shared file.
+          do! LibDB.PackageRefsGenerator.generate (commitBaseline && includeTests)
           return ()
         }
 
@@ -132,7 +134,7 @@ module HandleCommand =
         // Nothing to pin, so the first fill is the final one; it still needs the baseline commit,
         // and the hash file it did not write.
         let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
-        do! LibDB.PackageRefsGenerator.generate true
+        do! LibDB.PackageRefsGenerator.generate includeTests
 
       // Evaluate all values now that all definitions are in the DB
       // The one trusted producer: these bodies come from the checked-in
@@ -239,7 +241,12 @@ let main (args : string[]) : int =
     | [ "reload-packages" ] ->
       handleCommand
         "Reload packages from `packages` directory"
-        (HandleCommand.reloadPackages ())
+        (HandleCommand.reloadPackages true)
+
+    | [ "reload-packages"; "--production-only" ] ->
+      handleCommand
+        "Reload production packages, excluding `tests` directories"
+        (HandleCommand.reloadPackages false)
 
 
 
@@ -275,7 +282,7 @@ let main (args : string[]) : int =
     | _ ->
       print "Invalid arguments"
       print "Available commands:"
-      print "  reload-packages"
+      print "  reload-packages [--production-only]"
       print "  migrations run"
       print "  migrations list"
       print "  export-seed <output-path>"

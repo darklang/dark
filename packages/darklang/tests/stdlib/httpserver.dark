@@ -37,13 +37,13 @@ test routes =
   Stdlib.Test.all
     [ (Stdlib.HttpServer.get "/ping" (fun req ->
          Stdlib.Http.Response
-           { statusCode = 200L; headers = []; body = Stdlib.Blob.empty })).route
+           { statusCode = 200; headers = []; body = Stdlib.Blob.empty })).route
       |> Stdlib.Test.equal "/ping"
       (Stdlib.HttpServer.get "/ping" (fun req ->
          Stdlib.Http.Response
-           { statusCode = 200L; headers = []; body = Stdlib.Blob.empty })).method
+           { statusCode = 200; headers = []; body = Stdlib.Blob.empty })).method
       |> Stdlib.Test.equal "GET"
       (Stdlib.HttpServer.post "/ops" (fun req ->
          Stdlib.Http.Response
-           { statusCode = 200L; headers = []; body = Stdlib.Blob.empty })).method
+           { statusCode = 200; headers = []; body = Stdlib.Blob.empty })).method
       |> Stdlib.Test.equal "POST" ]

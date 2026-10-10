@@ -1675,7 +1675,7 @@ module UserDefinedRecords =
         (let personMaybe = Stdlib.Json.parse<Person> """{ "Name": "Bob", "Age": 42 }"""
          match personMaybe with
          | Ok person -> person.Age
-         | Error _ -> 0)
+         | Error _ -> 0L)
         |> Stdlib.Test.equal 42L
         Stdlib.Json.parse<People>
           """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}"""

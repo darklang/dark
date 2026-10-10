@@ -84,6 +84,18 @@ assertions remain commented out in the package tests, with cleanup notes.
 Raw HTTP tests use separate F# client and server harnesses in the backend suite;
 see `backend/testfiles/README.md`. Backend integration tests also remain in F#.
 
+CI checks production types and test behavior separately. The
+`shipped-tree-typechecks` gate loads production sources into a fresh store with
+`reload-packages --production-only`, excluding `tests/` directories and their
+helpers. The `package-tests` gate runs the full test suite, including deliberately
+invalid programs that check runtime errors. Normal reloads still include tests,
+so `dark typecheck` in a development store can report those intentional errors.
+
+Run `scripts/testing/gates shipped-tree-typechecks` for the production audit.
+When using published binaries, set both `CLI` and `LOCAL_EXEC` to their matching
+Release executables, using repository-relative paths. The audit leaves the
+development store and shared package hashes unchanged.
+
 ## Isolated native package tests
 
 To run the repository's full package suite, use its disposable test installation:

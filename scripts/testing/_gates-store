@@ -976,25 +976,38 @@ DARK
   [[ $fail -eq 0 ]]
 }
 
-# --- shipped-tree-typechecks: every item in packages/ passes the at-rest checker -----------------
+# --- shipped-tree-typechecks: production packages pass the at-rest checker ----------------------
 # The checker gates what people commit, and nothing held the shipped tree to it, so one definite
 # error sat in `Cli.Registry.allCommands` and `dark typecheck --json` exited 1 on every branch: an
 # exit code nobody could use. The floor on what was CHECKED is the other half: a run that audited
-# nothing would also report no failures.
+# nothing would also report no failures. Load production sources into a fresh store: tests
+# directories include deliberately invalid programs and their helpers, checked by `package-tests`.
 gate_shipped_tree_typechecks() {
-  set -uo pipefail
+  set -euo pipefail
 
   CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  LOCAL_EXEC="$PWD/${LOCAL_EXEC:-backend/Build/out/LocalExec/Debug/net10.0/LocalExec}"
   ROOT=rundir/shipped-tree-typechecks
   FLOOR=5000
 
-  rm -rf "$ROOT"; mkdir -p "$ROOT/home"
-  scripts/testing/_copy-store "$ROOT/data.db"
-  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
-  export DARK_CONFIG_RUNDIR="$PWD/$ROOT" HOME="$PWD/$ROOT/home"
+  rm -rf "$ROOT"; mkdir -p "$ROOT/home" "$ROOT/logs"
+  export DARK_CONFIG_RUNDIR="$PWD/$ROOT/" DARK_CONFIG_DB_NAME=data.db HOME="$PWD/$ROOT/home"
 
+  "$LOCAL_EXEC" migrations run > "$ROOT/migrations.log" 2>&1 || {
+    cat "$ROOT/migrations.log"; return 1;
+  }
+  # This mode never writes the checkout's shared package-ref-hashes.txt.
+  "$LOCAL_EXEC" reload-packages --production-only > "$ROOT/reload.log" 2>&1 || {
+    cat "$ROOT/reload.log"; return 1;
+  }
+  # Removing test implementations can change trait resolution and thus CLI hashes.
+  # Use the supported entry-point setting to resolve this store's CLI by name.
+  sqlite3 "$ROOT/data.db" "INSERT INTO config_v0(key, value) VALUES ('entry_point', 'Darklang.Cli.executeCliCommand');"
+
+  set +e
   "$CLI" typecheck --json < /dev/null > "$ROOT/report.json" 2> "$ROOT/stderr.txt"
   rc=$?
+  set -e
 
   python3 - "$ROOT/report.json" "$rc" "$FLOOR" <<'EOF'
 import json, sys

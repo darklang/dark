@@ -239,7 +239,7 @@ module TextField =
      with
      | Ignored -> "ignored"
      | Handled _ -> "typed a tab"
-     | Emitted _ -> "emitted")
+     | Emitted(_, _) -> "emitted")
     |> Stdlib.Test.equal "ignored"
 
   // Enter hands the text to the parent.
