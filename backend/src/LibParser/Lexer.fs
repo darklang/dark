@@ -947,10 +947,8 @@ let tokenize
             + (System.Globalization.StringInfo.GetNextTextElement(input, index + 1))
               .Length
           if
-            (typeVariableEndIndex < inputLength
-             && input[typeVariableEndIndex] = '\'')
-            || (graphemeEndIndex < inputLength
-                && input[graphemeEndIndex] = '\'')
+            (typeVariableEndIndex < inputLength && input[typeVariableEndIndex] = '\'')
+            || (graphemeEndIndex < inputLength && input[graphemeEndIndex] = '\'')
           then
             match scanString (index + 1) '\'' with
             | Ok endIndex ->

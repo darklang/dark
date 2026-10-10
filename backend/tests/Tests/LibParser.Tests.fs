@@ -239,7 +239,7 @@ let private parserStructureTests =
           [ $"({literal})"
             $"('a', {literal})"
             $"['a', {literal}]"
-            $"let x = {literal}"
+            $"let x = {literal}\nx"
             $"fun x -> {literal}" ]
         for source in sources do
           Expect.isEmpty (P.parse source).diagnostics source
@@ -256,8 +256,7 @@ let private parserStructureTests =
           | Error message -> failtest message)
 
       testCase "combining characters in lists retain their values" (fun _ ->
-        let source =
-          "['a', 'é', 'Z̤͔ͧ̑̓', 'ä͖̭̈̇', 'lͮ̒ͫ', 'ǧ̗͚̚', 'o̙̔ͮ̇͐̇']"
+        let source = "['a', 'é', 'Z̤͔ͧ̑̓', 'ä͖̭̈̇', 'lͮ̒ͫ', 'ǧ̗͚̚', 'o̙̔ͮ̇͐̇']"
         let result = P.parse source
         Expect.isEmpty result.diagnostics "all combining literals parse"
         match result.parsed with
