@@ -570,34 +570,206 @@ module Cli =
 
   let mutable private booted = false
 
+  /// What Boot did with a store the page put back from the browser's own storage.
+  type private Restored =
+    /// This build had already reconciled it, so it is used as it is.
+    | Kept
+    /// An older release saved it, and it was brought up to this one. Carries the names it held that
+    /// the shipped store's newer ops may have taken back, for `UpgradeKeep` after the fold.
+    | Upgraded of LibDB.CatchUpStore.LocallyAuthored
+    /// A newer release saved it, so it is left alone for that release and the tab starts fresh.
+    | SavedByNewer of why : string
+    /// It could not be brought up to this build, so the tab starts fresh.
+    | Refused of why : string
+
+  let mutable private restored : Option<Restored> = None
+
+  /// What Boot did, for the page (`site.js`, `keepSaving`): "", "kept", "upgraded",
+  /// "newer: <why>" or "refused: <why>".
+  [<JSInvokable>]
+  let RestoreOutcome () : string =
+    match restored with
+    | None -> ""
+    | Some Kept -> "kept"
+    | Some(Upgraded _) -> "upgraded"
+    | Some(SavedByNewer why) -> "newer: " + why
+    | Some(Refused why) -> "refused: " + why
+
+  /// Fetch the shipped store and inflate it.
+  let private fetchStore (storeUrl : string) (rawSize : int) : Task<byte[]> =
+    task {
+      use http = new Net.Http.HttpClient()
+      let! bytes = http.GetByteArrayAsync storeUrl
+      // Shipped gzip'd under its own name, and inflated here: an edge proxy in front of the
+      // static host was seen handing the store back uncompressed however it was asked.
+      let inflate (mk : IO.Stream -> IO.Stream) =
+        use src = new IO.MemoryStream(bytes)
+        use s = mk src
+        use dst = new IO.MemoryStream()
+        s.CopyTo dst
+        dst.ToArray()
+      return
+        if storeUrl.EndsWith ".br" then
+          inflateBrotli bytes rawSize
+        elif storeUrl.EndsWith ".gz" then
+          inflate (fun src ->
+            new IO.Compression.GZipStream(
+              src,
+              IO.Compression.CompressionMode.Decompress
+            ))
+        else
+          bytes
+    }
+
+  /// The store files Boot may have to throw away, all of them, so a refused store leaves nothing behind
+  /// for SQLite to pair with the shipped one.
+  let private discardStore (dbPath : string) : unit =
+    // Pooled connections to it would outlive the files and hand the next caller the deleted store.
+    Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools()
+    for suffix in [ ""; "-wal"; "-shm"; "-journal" ] do
+      let f = dbPath + suffix
+      if IO.File.Exists f then IO.File.Delete f
+
+  /// When the release a store came from was built: its newest commit's `origin_ts`. Every op and commit
+  /// in a shipped store is stamped at build time, so for a store that is nothing but a shipped one,
+  /// this orders releases. A build hash does not: it says "different", never "newer".
+  let private builtAt (dbPath : string) : string =
+    use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
+    conn.Open()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <- "SELECT COALESCE(MAX(origin_ts), '') FROM commits"
+    string (cmd.ExecuteScalar())
+
+  let private releaseTable =
+    "CREATE TABLE IF NOT EXISTS tab_release_v0 (id INTEGER PRIMARY KEY CHECK (id = 0), built_at TEXT NOT NULL)"
+
+  /// The release the tab last brought this store up to, kept in the store so it travels with the
+  /// snapshot. "" for a store with no record, which reads as older than any release.
+  let private releaseOf (dbPath : string) : string =
+    use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
+    conn.Open()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <-
+      releaseTable
+      + "; SELECT COALESCE((SELECT built_at FROM tab_release_v0 WHERE id = 0), '')"
+    string (cmd.ExecuteScalar())
+
+  let private recordRelease (dbPath : string) (builtAt : string) : unit =
+    use conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
+    conn.Open()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <-
+      releaseTable
+      + "; INSERT OR REPLACE INTO tab_release_v0 (id, built_at) VALUES (0, $at)"
+    cmd.Parameters.AddWithValue("$at", builtAt)
+    |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
+    cmd.ExecuteNonQuery() |> ignore<int>
+
+  let private stampWithThisBuild (dbPath : string) : unit =
+    let build = LibConfig.Config.buildHash
+    if build <> "dev" then LibDB.CatchUpStore.recordStoreStamp dbPath build
+
+  /// Bring a store the page restored up to this build, as the desktop CLI does on upgrade: the
+  /// schema and the release steps (`LibDB.Releases`), then the shipped store's package ops
+  /// (`LibDB.CatchUpStore`), then the stamp. Raises on any failure, deliberately: the caller drops the
+  /// store rather than run a half-migrated one, which in a tab is worse than starting over.
+  let private upgradeRestored (dbPath : string) (shipped : byte[]) : Restored =
+    let releasePath = IO.Path.Combine(runDir, "incoming-store.db")
+    IO.File.WriteAllBytes(releasePath, shipped)
+    try
+      // Checked before anything writes the store: an older build must not fold a newer release's
+      // store back to its own, and the newer build will want it as it was.
+      let shippedAt = builtAt releasePath
+      let savedAt = releaseOf dbPath
+      if savedAt > shippedAt then
+        SavedByNewer
+          $"saved by a release built {savedAt}; this one was built {shippedAt}"
+      else
+        match
+          LibDB.CatchUpStore.schemaFrom (Reflection.Assembly.GetExecutingAssembly())
+        with
+        | Some sql ->
+          LibDB.Releases.applySchemaTables sql
+          LibDB.Releases.runPending ()
+          LibDB.Releases.applySchemaIndexes sql
+        | None -> Exception.raiseInternal "this build embeds no schema" []
+        // No backup here: the page keeps the restored snapshot aside until this succeeds.
+        let held = LibDB.CatchUpStore.fromRelease dbPath releasePath
+        recordRelease dbPath shippedAt
+        stampWithThisBuild dbPath
+        Upgraded held
+    finally
+      if IO.File.Exists releasePath then IO.File.Delete releasePath
+
+  /// What Boot does with a store the page put back. Never raises: any failure is `Refused`.
+  let private reconcileRestored
+    (dbPath : string)
+    (storeUrl : string)
+    (rawSize : int)
+    : Task<Restored> =
+    task {
+      let build = LibConfig.Config.buildHash
+      if build <> "dev" && LibDB.CatchUpStore.storeStamp dbPath = Some build then
+        return Kept
+      else
+        try
+          let! shipped = fetchStore storeUrl rawSize
+          return upgradeRestored dbPath shipped
+        with e ->
+          // The first line: a database error carries its whole stack trace in its message.
+          let firstLine (ex : exn) = (ex.Message.Split '\n' |> Array.head).Trim()
+          return
+            Refused(
+              match e with
+              | LibDB.Releases.StepFailed(step, inner) ->
+                $"release step {step}: {firstLine inner}"
+              | e -> firstLine e
+            )
+    }
+
   /// Fetch the store and bring the package manager up. Idempotent.
+  ///
+  /// When the page has put back a store from the browser's own storage (`site.js`, `restore`), that
+  /// store is used instead of the shipped one: as it is, when this build reconciled it, or brought
+  /// up to this build first when an older one saved it.
   [<JSInvokable>]
   let Boot (storeUrl : string, rawSize : int) : Task =
     task {
       if not booted then
         let dbPath = LibConfig.Config.dbPath
-        use http = new Net.Http.HttpClient()
-        let! bytes = http.GetByteArrayAsync storeUrl
-        // Shipped gzip'd under its own name, and inflated here: an edge proxy in front of the
-        // static host was seen handing the store back uncompressed however it was asked.
-        let inflate (mk : IO.Stream -> IO.Stream) =
-          use src = new IO.MemoryStream(bytes)
-          use s = mk src
-          use dst = new IO.MemoryStream()
-          s.CopyTo dst
-          dst.ToArray()
-        let bytes =
-          if storeUrl.EndsWith ".br" then
-            inflateBrotli bytes rawSize
-          elif storeUrl.EndsWith ".gz" then
-            inflate (fun src ->
-              new IO.Compression.GZipStream(
-                src,
-                IO.Compression.CompressionMode.Decompress
-              ))
-          else
-            bytes
-        IO.File.WriteAllBytes(dbPath, bytes)
+        // Nothing else writes the store before Boot, so a store already here is one the page put back.
+        if IO.File.Exists dbPath then
+          let! r = reconcileRestored dbPath storeUrl rawSize
+          restored <- Some r
+        // The shipped store is this build's own, so a copy the page keeps of it needs nothing on the
+        // next visit to this build.
+        let startFromShipped () =
+          task {
+            let! bytes = fetchStore storeUrl rawSize
+            IO.File.WriteAllBytes(dbPath, bytes)
+            stampWithThisBuild dbPath
+            LibDB.CatchUpStore.markAllAsShipped dbPath
+            recordRelease dbPath (builtAt dbPath)
+          }
+        match restored with
+        | Some Kept
+        | Some(Upgraded _) -> ()
+        | Some(SavedByNewer _) ->
+          discardStore dbPath
+          Browser.writeToTerminal (
+            "Your saved work in this browser was saved by a newer version of Darklang than "
+            + "this page runs. It is left as it is, for that version; this tab starts fresh "
+            + "and will not save.\r\n"
+          )
+          do! startFromShipped ()
+        | Some(Refused why) ->
+          discardStore dbPath
+          Browser.writeToTerminal (
+            "Your saved work in this browser could not be brought up to this version of "
+            + $"Darklang ({why}). It is kept, unchanged; this tab starts fresh.\r\n"
+          )
+          do! startFromShipped ()
+        | None -> do! startFromShipped ()
 
         LibExecution.HostSecurity.setPolicyDirectory (
           IO.Path.Combine(runDir, "policy")
@@ -624,6 +796,16 @@ module Cli =
             (fun () -> builtinsLazy.Force())
             pm
             (fun msg -> Browser.writeToTerminal (msg + "\r\n"))
+        // After the fold, never before: an edit the shipped store also carries has just lost its name
+        // to the newer stamp, and this puts it back, as the desktop CLI does after an upgrade.
+        match restored with
+        | Some(Upgraded held) when not (List.isEmpty held) ->
+          let! kept = LibDB.UpgradeKeep.restore held
+          if not (List.isEmpty kept) then
+            Browser.writeToTerminal (
+              $"Kept {List.length kept} of your edits that this version also ships.\r\n"
+            )
+        | _ -> ()
         do! pm.init |> Ply.toTask
         // `isHarmful` is synchronous and its miss path blocks; on one thread that never returns.
         do! LibDB.PackageManager.preloadHarmful ()
