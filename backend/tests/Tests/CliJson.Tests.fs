@@ -467,7 +467,7 @@ let aCommandWithoutJsonRefusesTheFlag =
           refuses
             state
             [ "ops"; "--json" ]
-            "doesn't understand --json"
+            "does not take `--json`"
             "{"
             "`ops` has no JSON form and says so"
       })

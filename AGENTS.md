@@ -501,7 +501,10 @@ simply not been pointed at, which is what a second `Builtin.x` reference usually
 
 1. `packages/darklang/cli/<name>.dark`
 2. Implement `execute`, `help`, `complete`
-3. Register in `Registry.allCommands` in `cli/registry.dark`
+3. Register in `Registry.allCommands` in `cli/registry.dark`, with what it accepts on the command
+   line (`cli/accepts.dark`): its flags, value flags and how many words. The dispatcher checks
+   that before `execute` runs and refuses anything else with exit 1, so `execute` never sees an
+   unknown flag or a word too many and does not check for them itself.
 
 ## SCM / branches
 

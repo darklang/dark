@@ -735,7 +735,7 @@ let executePretty (state: AppState) (args: List<String>) : AppState =
       (Stdlib.Cli.UI.Colors.error $"conflicts does not understand `{bad}`.")
 
     Stdlib.printLine (help state)
-    state
+    Cli.exitWith state false
 
 let execute (state: AppState) (args: List<String>) : AppState =
   let stripped = ScmJson.stripJson args
