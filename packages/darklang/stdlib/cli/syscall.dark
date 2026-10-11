@@ -70,6 +70,9 @@ let open (path: String) (flags: Int) (mode: Int) : Result.Result<Int, Int> =
 let mkdir (path: String) (mode: Int) : Result.Result<Unit, Int> =
   Builtin.syscallMkdir path mode
 
+let unlinkAt (path: String) (flags: Int) : Result.Result<Unit, Int> =
+  Builtin.syscallUnlinkAt path flags
+
 /// One operation after checked no-follow path resolution.
 let chdir (path: String) : Result.Result<Unit, Int> =
   Builtin.syscallChdir path

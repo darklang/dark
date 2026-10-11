@@ -16,6 +16,8 @@ let openAppend () : Int = if mac () then 8 else 1024
 
 let openExclusive () : Int = if mac () then 2048 else 128
 
+let removeDirectory () : Int = if mac () then 128 else 512
+
 let openDirectory () : Int =
   if mac () then 1048576 else if x64 () then 65536 else 16384
 

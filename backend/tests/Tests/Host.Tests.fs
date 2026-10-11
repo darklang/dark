@@ -66,6 +66,34 @@ let httpServerBindUsesTheSuppliedAccess =
     | other -> failtest $"expected an instance denial, got {other}"
   }
 
+let rawDescriptorsRequireNativeAtHostBoundary =
+  testTask "raw descriptors require Native before any kernel call" {
+    let operations =
+      [ HT.PosixOp.FdRead(-1, 1)
+        HT.PosixOp.FdWrite(-1, [| 1uy |])
+        HT.PosixOp.FdClose -1
+        HT.PosixOp.Fstat -1
+        HT.PosixOp.CopyFileRange(-1, -1, 1) ]
+    for operation in operations do
+      let! outcome =
+        LibExecution.Host.perform
+          Permission.NoRelax
+          (Permission.Access.start Permission.Policy.denyAll)
+          (HT.Operation.Posix operation)
+      match outcome with
+      | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _) -> ()
+      | other -> failtest $"expected denial before EBADF, got {other}"
+    let! allowed =
+      LibExecution.Host.perform
+        Permission.NoRelax
+        (Permission.Access.start Permission.Policy.allowAll)
+        (HT.Operation.Posix(HT.PosixOp.FdRead(-1, 1)))
+    match allowed with
+    | HT.Outcome.Failed failure ->
+      Expect.equal failure.errno 9 "authorized invalid fd reaches kernel"
+    | other -> failtest $"expected EBADF after authorization, got {other}"
+  }
+
 let tempPrefixDoesNotAuthorizeARandomSibling =
   testTask "mkstemp authorizes its containing directory, not its prefix" {
     let prefix = $"/tmp/dark-permission-{System.Guid.NewGuid()}-"
@@ -282,6 +310,10 @@ let packageStoreAncestorsAreProtected =
       // Removing the parent is refused too.
       let! removed = perform (HT.Operation.Posix(HT.PosixOp.Rmdir rundir))
       expectRefused "rmdir the store's parent" removed
+      for flags in [ 0; 128; 512 ] do
+        let! unlinked =
+          perform (HT.Operation.Posix(HT.PosixOp.UnlinkAt(rundir, flags)))
+        expectRefused "unlinkat the store's parent" unlinked
       // Any ancestor, not just the immediate parent.
       let! rootMoved =
         perform (HT.Operation.Posix(HT.PosixOp.Rename(root, root + "-moved")))
@@ -424,6 +456,7 @@ let tests =
     [ posixKernelRoundTrip
       auditRecordsOperationsAndDecisions
       httpServerBindUsesTheSuppliedAccess
+      rawDescriptorsRequireNativeAtHostBoundary
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink
       posixWalkRefusesALinkMetAtOperationTime

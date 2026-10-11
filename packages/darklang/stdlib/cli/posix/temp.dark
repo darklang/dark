@@ -14,7 +14,7 @@ let entropy (remaining: Int) (reversed: List<Blob>) : Result.Result<Blob, Int> =
 let candidate (prefix: String) : Result.Result<String, Stdlib.Cli.Posix.Error> =
   entropy 12 []
   |> Stdlib.Result.mapError Errors.fromErrno
-  |> Stdlib.Result.map (fun bytes -> prefix ++ Stdlib.Blob.toHex bytes)
+  |> Stdlib.Result.map (fun bytes -> Stdlib.String.append prefix (Stdlib.Blob.toHex bytes))
 
 let retry
   (create: Int -> Result.Result<'a, Stdlib.Cli.Posix.Error>)

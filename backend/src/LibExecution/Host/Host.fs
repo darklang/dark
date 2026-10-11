@@ -548,12 +548,15 @@ let private posixTemp
         [ fileCheck Permission.AccessKind.Write directory ]
         (attempt (fun () -> call prefix)))
 
-/// A Native-gated POSIX call on a handle or process state: nothing to check
-/// here, an errno on failure.
+/// Raw descriptors and process state require Native at this boundary too.
+/// Do not rely solely on a builtin's coarse effect metadata: scoped handle
+/// continuations will eventually enter this boundary without that gate.
 let private native
   (call : unit -> Result<Response, int * string>)
   : Result<Resolved, string> =
-  unchecked (attempt call)
+  withChecks
+    [ (Permission.Request.native "raw POSIX operation", "raw POSIX operation") ]
+    (attempt call)
 
 /// The spawn is authorized against the real program. Confining the child at
 /// the OS level (a launcher wrapper) is the deferred OS-sandbox layer's job,
@@ -590,8 +593,8 @@ let private resolveHttp
 // The POSIX twins mirror the checks their builtins performed inline: the
 // read-grade guard and a read request for chdir, a write check on the link
 // path for symlink creation, and read-write for every mutating path op. The
-// handle and process-state ops are Native-gated: the interpreter's ambient
-// gate authorized the builtin, so they run unchecked here (and audited).
+// raw handle and process-state ops also check Native here, independently of
+// the interpreter's ambient builtin gate.
 let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
   let read = Permission.AccessKind.Read
   let write = Permission.AccessKind.Write
@@ -605,6 +608,9 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     mutatingEntry path (fun () -> posixPath write path (HostPosix.rmdir >> unitOk))
   | HostTypes.PosixOp.Unlink path ->
     mutatingEntry path (fun () -> posixEntry write path (HostPosix.unlink >> unitOk))
+  | HostTypes.PosixOp.UnlinkAt(path, flags) ->
+    mutatingEntry path (fun () ->
+      posixEntry write path (fun path -> HostPosix.unlinkAt path flags |> unitOk))
   | HostTypes.PosixOp.Rename(oldPath, newPath) ->
     // Rename mutates both directory entries without following either final
     // symlink. Each endpoint therefore needs a write rule, and neither may be

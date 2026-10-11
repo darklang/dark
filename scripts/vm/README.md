@@ -21,6 +21,10 @@ Paket 10.3.1 can run from its `tools/net9.0/any/paket.dll` under the SDK's .NET 
 runtime. Restore packages before building. Build with `PaketExePath` pointing to
 that DLL and `PaketDisableGlobalRestore=true`; **do not** set
 `PaketRestoreDisabled=true`, which suppresses collecting the project references.
+Use `-m:1 -nodeReuse:false` for SDK restore/build: discovering reusable MSBuild
+nodes requires procfs. If a reset left `paket-files/paket.processlock`, first
+ensure no Paket restore is active, then move that exact stale lock aside; do not
+fake other-process information or delete the package cache.
 After a build: run LocalExec migrations on a fresh scratch store, reload packages,
 rebuild generated package hashes, then run tests from `backend/` with the normal
 development environment and workspace-specific root/run-directory overrides.

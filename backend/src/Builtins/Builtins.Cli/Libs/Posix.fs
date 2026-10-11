@@ -241,31 +241,18 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixRmdir" 0
+    { name = fn "syscallUnlinkAt" 0
       typeParams = []
-      parameters = [ Param.make "path" TString "The directory to remove" ]
-      returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Removes an empty directory via kernel rmdir()"
+      parameters =
+        [ Param.make "path" TString "The entry to remove"
+          Param.make "flags" TInt "Kernel unlinkat flags" ]
+      returnType = TypeReference.result TUnit TInt
+      description = "One checked entry-relative unlinkat call"
       fn =
         (function
-        | _, vm, _, [| DString path |] ->
-          posixResult KTUnit vm (HostTypes.PosixOp.Rmdir path) unitOk
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = fileWriteEffect
-      deprecated = NotDeprecated }
-
-
-    { name = fn "posixUnlink" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "The file to remove" ]
-      returnType = TypeReference.result TUnit (posixErrorTypeRef ())
-      description = "Removes a file via kernel unlink()"
-      fn =
-        (function
-        | _, vm, _, [| DString path |] ->
-          posixResult KTUnit vm (HostTypes.PosixOp.Unlink path) unitOk
+        | _, vm, _, [| DString path; DInt flags |] ->
+          syscallResult
+            KTUnit vm (HostTypes.PosixOp.UnlinkAt(path, intToInt32 vm flags)) unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

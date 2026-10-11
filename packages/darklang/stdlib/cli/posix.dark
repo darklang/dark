@@ -107,20 +107,20 @@ let chdir (path: String) : Result.Result<Unit, Error> =
   Syscall.chdir path
   |> Stdlib.Result.mapError Errors.fromErrno
 
-/// Set an environment variable
+/// Create a directory
 let mkdir (path: String) (mode: Int) : Result.Result<Unit, Error> =
   Syscall.mkdir path mode
   |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Remove an empty directory
 let rmdir (path: String) : Result.Result<Unit, Error> =
-  Builtin.posixRmdir path
-  |> Errors.normalize
+  Syscall.unlinkAt path (KernelABI.removeDirectory ())
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Remove a file
 let unlink (path: String) : Result.Result<Unit, Error> =
-  Builtin.posixUnlink path
-  |> Errors.normalize
+  Syscall.unlinkAt path 0
+  |> Stdlib.Result.mapError Errors.fromErrno
 
 /// Rename/move a file or directory
 let rename (oldpath: String) (newpath: String) : Result.Result<Unit, Error> =

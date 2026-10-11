@@ -27,6 +27,7 @@ type PosixOp =
   | Mkdir of path : string * mode : int
   | Rmdir of path : string
   | Unlink of path : string
+  | UnlinkAt of path : string * flags : int
   | Rename of oldPath : string * newPath : string
   | Chmod of path : string * mode : int
   | UtimesNow of path : string
@@ -230,6 +231,7 @@ let describeOperation (op : Operation) : string =
     | PosixOp.Mkdir(path, _) -> $"mkdir {path}"
     | PosixOp.Rmdir path -> $"rmdir {path}"
     | PosixOp.Unlink path -> $"unlink {path}"
+    | PosixOp.UnlinkAt(path, flags) -> $"unlinkat {path} {flags}"
     | PosixOp.Rename(o, n) -> $"rename {o} -> {n}"
     | PosixOp.Chmod(path, _) -> $"chmod {path}"
     | PosixOp.UtimesNow path -> $"utimes {path}"

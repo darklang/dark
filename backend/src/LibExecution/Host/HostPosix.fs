@@ -272,17 +272,18 @@ let mkdir (path : string) (mode : int) : Result<unit, int * string> =
   else
     withParent path (fun d n -> unitResult (mkdirat_raw (d, n, mode)))
 
-let rmdir (path : string) : Result<unit, int * string> =
+let unlinkAt (path : string) (flags : int) : Result<unit, int * string> =
   if isWasm then
-    Managed.rmdir path
+    if flags = 0 then Managed.unlink path
+    elif flags = AT_REMOVEDIR then Managed.rmdir path
+    else Error(22, "invalid unlinkat flags")
   else
-    withParent path (fun d n -> unitResult (unlinkat_raw (d, n, AT_REMOVEDIR)))
+    withParent path (fun d n -> unitResult (unlinkat_raw (d, n, flags)))
 
-let unlink (path : string) : Result<unit, int * string> =
-  if isWasm then
-    Managed.unlink path
-  else
-    withParent path (fun d n -> unitResult (unlinkat_raw (d, n, 0)))
+let rmdir (path : string) : Result<unit, int * string> =
+  unlinkAt path AT_REMOVEDIR
+
+let unlink (path : string) : Result<unit, int * string> = unlinkAt path 0
 
 let rename (oldpath : string) (newpath : string) : Result<unit, int * string> =
   if isWasm then
