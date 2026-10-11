@@ -28,7 +28,9 @@ let private make name parameters result _kt body : BuiltInFn =
     fn = (fun struct (state, vm, _, values) -> body state vm values)
     sqlSpec = NotQueryable
     previewable = Impure
-    callEffects = set [ Effect.Native ]
+    // Conditional file/Native authorization is derived from the descriptor
+    // by Host. No ambient Native gate may reject a scoped file capability.
+    callEffects = Set.empty
     deprecated = NotDeprecated }
 
 let private integer name = Param.make name TInt "Kernel scalar"
@@ -52,7 +54,7 @@ let fns () : List<BuiltInFn> =
         match values with
         | [| DInt source; DInt destination; DInt count |] ->
           let op = Op.PosixOp.CopyFileRange(
-            intToInt32 vm source, intToInt32 vm destination, intToInt32 vm count)
+            intToDescriptor vm source, intToDescriptor vm destination, intToInt32 vm count)
           perform KTInt vm op offset
         | _ -> incorrectArgs ())
     make "syscallCloneFile" [ integer "source"; integer "destination" ] TUnit KTUnit
@@ -60,38 +62,38 @@ let fns () : List<BuiltInFn> =
         match values with
         | [| DInt source; DInt destination |] ->
           perform KTUnit vm
-            (Op.PosixOp.CloneFile(intToInt32 vm source, intToInt32 vm destination)) unit
+            (Op.PosixOp.CloneFile(intToDescriptor vm source, intToDescriptor vm destination)) unit
         | _ -> incorrectArgs ())
     make "syscallFtruncate" [ integer "fd"; integer "length" ] TUnit KTUnit
       (fun _ vm values ->
         match values with
         | [| DInt fd; DInt length |] ->
           perform KTUnit vm
-            (Op.PosixOp.Ftruncate(intToInt32 vm fd, intToInt64 vm length)) unit
+            (Op.PosixOp.Ftruncate(intToDescriptor vm fd, intToInt64 vm length)) unit
         | _ -> incorrectArgs ())
     make "syscallFchmod" [ integer "fd"; integer "mode" ] TUnit KTUnit
       (fun _ vm values ->
         match values with
         | [| DInt fd; DInt mode |] ->
           perform KTUnit vm
-            (Op.PosixOp.Fchmod(intToInt32 vm fd, intToInt32 vm mode)) unit
+            (Op.PosixOp.Fchmod(intToDescriptor vm fd, intToInt32 vm mode)) unit
         | _ -> incorrectArgs ())
     make "syscallFsync" [ integer "fd" ] TUnit KTUnit
       (fun _ vm values ->
         match values with
-        | [| DInt fd |] -> perform KTUnit vm (Op.PosixOp.Fsync(intToInt32 vm fd)) unit
+        | [| DInt fd |] -> perform KTUnit vm (Op.PosixOp.Fsync(intToDescriptor vm fd)) unit
         | _ -> incorrectArgs ())
     make "syscallFstat" [ integer "fd" ] TBlob KTBlob
       (fun _ vm values ->
         match values with
-        | [| DInt fd |] -> perform KTBlob vm (Op.PosixOp.Fstat(intToInt32 vm fd)) bytes
+        | [| DInt fd |] -> perform KTBlob vm (Op.PosixOp.Fstat(intToDescriptor vm fd)) bytes
         | _ -> incorrectArgs ())
     make "syscallPread" [ integer "fd"; integer "count"; integer "offset" ] TBlob KTBlob
       (fun _ vm values ->
         match values with
         | [| DInt fd; DInt count; DInt offset |] ->
           perform KTBlob vm
-            (Op.PosixOp.Pread(intToInt32 vm fd, intToInt32 vm count,
+            (Op.PosixOp.Pread(intToDescriptor vm fd, intToInt32 vm count,
               intToInt64 vm offset)) bytes
         | _ -> incorrectArgs ())
     make "syscallPwrite" [ integer "fd"; blob "bytes"; integer "offset" ] TInt KTInt
@@ -100,7 +102,7 @@ let fns () : List<BuiltInFn> =
         | [| DInt fd; DBlob reference; DInt offset |] ->
           Blob.withBytes state reference (fun bytes ->
             perform KTInt vm
-              (Op.PosixOp.Pwrite(intToInt32 vm fd, bytes, intToInt64 vm offset)) written)
+              (Op.PosixOp.Pwrite(intToDescriptor vm fd, bytes, intToInt64 vm offset)) written)
         | _ -> incorrectArgs ()) ]
 
 let builtins () : Builtins = Builtin.make [] (fns ())

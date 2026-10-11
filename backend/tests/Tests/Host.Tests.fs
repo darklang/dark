@@ -69,11 +69,11 @@ let httpServerBindUsesTheSuppliedAccess =
 let rawDescriptorsRequireNativeAtHostBoundary =
   testTask "raw descriptors require Native before any kernel call" {
     let operations =
-      [ HT.PosixOp.FdRead(-1, 1)
-        HT.PosixOp.FdWrite(-1, [| 1uy |])
-        HT.PosixOp.FdClose -1
-        HT.PosixOp.Fstat -1
-        HT.PosixOp.CopyFileRange(-1, -1, 1) ]
+      [ HT.PosixOp.FdRead(HT.FileDescriptor.Raw -1, 1)
+        HT.PosixOp.FdWrite(HT.FileDescriptor.Raw -1, [| 1uy |])
+        HT.PosixOp.FdClose(HT.FileDescriptor.Raw -1)
+        HT.PosixOp.Fstat(HT.FileDescriptor.Raw -1)
+        HT.PosixOp.CopyFileRange(HT.FileDescriptor.Raw -1, HT.FileDescriptor.Raw -1, 1) ]
     for operation in operations do
       let! outcome =
         LibExecution.Host.perform
@@ -87,11 +87,64 @@ let rawDescriptorsRequireNativeAtHostBoundary =
       LibExecution.Host.perform
         Permission.NoRelax
         (Permission.Access.start Permission.Policy.allowAll)
-        (HT.Operation.Posix(HT.PosixOp.FdRead(-1, 1)))
+        (HT.Operation.Posix(HT.PosixOp.FdRead(HT.FileDescriptor.Raw -1, 1)))
     match allowed with
     | HT.Outcome.Failed failure ->
       Expect.equal failure.errno 9 "authorized invalid fd reaches kernel"
     | other -> failtest $"expected EBADF after authorization, got {other}"
+  }
+
+let scopedDescriptorsRecheckAccessAndOwnership =
+  testTask "scoped descriptors enforce mode, current access, ownership and close" {
+    let path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"dark-fd-{System.Guid.NewGuid()}")
+    System.IO.File.WriteAllText(path, "abc")
+    let owner = LibExecution.Host.createDescriptorSession ()
+    let foreign = LibExecution.Host.createDescriptorSession ()
+    let readOnly =
+      Permission.Policy.create
+        [ Permission.Rule.File(Permission.AccessKind.Read, only path) ] []
+      |> Permission.Access.start
+    let denied = Permission.Access.start Permission.Policy.denyAll
+    let all = Permission.Access.start Permission.Policy.allowAll
+    let perform session access op =
+      LibExecution.Host.performInSession session Permission.NoRelax access (HT.Operation.Posix op)
+    let ebadf outcome =
+      match outcome with
+      | HT.Outcome.Failed failure -> Expect.equal failure.errno 9 "invalid capability"
+      | other -> failtest $"expected EBADF, got {other}"
+    try
+      let! opened = perform owner readOnly (HT.PosixOp.Open(path, 0, 0))
+      let token =
+        match opened with
+        | HT.Outcome.Success(HT.Response.Descriptor token) -> token
+        | other -> failtestf "expected scoped open without Native, got %A" other
+      let fd = HT.FileDescriptor.Scoped token
+      let! read = perform owner readOnly (HT.PosixOp.FdRead(fd, 3))
+      match read with
+      | HT.Outcome.Success(HT.Response.Bytes bytes) -> Expect.equal bytes [| 97uy; 98uy; 99uy |] "read bytes"
+      | other -> failtest $"expected scoped read, got {other}"
+      let! stat = perform owner readOnly (HT.PosixOp.Fstat fd)
+      match stat with
+      | HT.Outcome.Success(HT.Response.Bytes bytes) -> Expect.isNonEmpty bytes "raw stat record"
+      | other -> failtest $"expected scoped fstat, got {other}"
+      let! write = perform owner all (HT.PosixOp.FdWrite(fd, [| 0uy |]))
+      ebadf write
+      let! stolen = perform foreign all (HT.PosixOp.FdRead(fd, 1))
+      ebadf stolen
+      let! revoked = perform owner denied (HT.PosixOp.FdRead(fd, 1))
+      match revoked with
+      | HT.Outcome.Denied _ -> ()
+      | other -> failtest $"expected current-access denial, got {other}"
+      let! closed = perform owner denied (HT.PosixOp.FdClose fd)
+      Expect.equal closed (HT.Outcome.Success HT.Response.Unit) "cleanup needs no new grant"
+      let! again = perform owner all (HT.PosixOp.FdClose fd)
+      ebadf again
+      let! stale = perform owner all (HT.PosixOp.Fstat fd)
+      ebadf stale
+    finally
+      owner.Dispose()
+      foreign.Dispose()
+      System.IO.File.Delete path
   }
 
 let tempPrefixDoesNotAuthorizeARandomSibling =
@@ -457,6 +510,7 @@ let tests =
       auditRecordsOperationsAndDecisions
       httpServerBindUsesTheSuppliedAccess
       rawDescriptorsRequireNativeAtHostBoundary
+      scopedDescriptorsRecheckAccessAndOwnership
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink
       posixWalkRefusesALinkMetAtOperationTime

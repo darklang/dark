@@ -179,13 +179,13 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt fd; DInt count |] ->
           let op =
-            HostTypes.PosixOp.DirectoryBytes(intToInt32 vm fd, intToInt32 vm count)
+            HostTypes.PosixOp.DirectoryBytes(intToDescriptor vm fd, intToInt32 vm count)
           syscallResult KTBlob vm op (fun r ->
             Blob.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = nativeEffects
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
     { name = fn "posixGetcwd" 0
@@ -465,13 +465,13 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DInt fd; DInt count |] ->
-          let op = HostTypes.PosixOp.FdRead(intToInt32 vm fd, intToInt32 vm count)
+          let op = HostTypes.PosixOp.FdRead(intToDescriptor vm fd, intToInt32 vm count)
           syscallResult KTBlob vm op (fun response ->
             Blob.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = nativeEffects
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -492,7 +492,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DInt fd; DInt offset; DInt whence |] ->
           let op =
             HostTypes.PosixOp.FdSeek(
-              intToInt32 vm fd,
+              intToDescriptor vm fd,
               intToInt64 vm offset,
               intToInt32 vm whence
             )
@@ -501,7 +501,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = nativeEffects
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -516,13 +516,13 @@ let fns () : List<BuiltInFn> =
         (function
         | state, vm, _, [| DInt fd; DBlob ref |] ->
           Blob.withBytes state ref (fun bytes ->
-            let op = HostTypes.PosixOp.FdWrite(intToInt32 vm fd, bytes)
+            let op = HostTypes.PosixOp.FdWrite(intToDescriptor vm fd, bytes)
             syscallResult KTInt vm op (fun response ->
               Dval.int (bigint (Host.expectWritten response))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = nativeEffects
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -534,12 +534,12 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DInt fd |] ->
-          let op = HostTypes.PosixOp.FdClose(intToInt32 vm fd)
+          let op = HostTypes.PosixOp.FdClose(intToDescriptor vm fd)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = nativeEffects
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
@@ -557,11 +557,11 @@ let fns () : List<BuiltInFn> =
           let op =
             HostTypes.PosixOp.Open(path, intToInt32 vm flags, intToInt32 vm mode)
           syscallResult KTInt vm op (fun response ->
-            Dval.int (bigint (Host.expectFd response)))
+            Dval.int (Host.expectDescriptor response))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = Set.union fileEffects nativeEffects
+      callEffects = fileEffects
       deprecated = NotDeprecated }
 
 
@@ -677,12 +677,12 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DInt fd; DInt operation |] ->
           let lockOp = intToInt32 vm operation
-          let op = HostTypes.PosixOp.Flock(intToInt32 vm fd, lockOp)
+          let op = HostTypes.PosixOp.Flock(intToDescriptor vm fd, lockOp)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      callEffects = nativeEffects
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 

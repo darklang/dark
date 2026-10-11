@@ -3882,6 +3882,9 @@ and ExecutionState =
     /// Permission context for this execution, including instance and run rules.
     access : Permissions.Access
 
+    /// Host handles belong to this execution, never a process-global guest table.
+    descriptorSession : HostDescriptors.Session
+
     /// Consumer approval policy for an immutable package function. Missing
     /// approvals return deny-all.
     packagePolicy : FQFnName.Package -> Permissions.Policy

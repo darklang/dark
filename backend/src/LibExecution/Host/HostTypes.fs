@@ -6,6 +6,12 @@ open Prelude
 
 module Permission = LibExecution.Permissions
 
+/// OS numbers require Native; scoped tokens are owned by one execution.
+[<RequireQualifiedAccess>]
+type FileDescriptor =
+  | Raw of int
+  | Scoped of bigint
+
 /// A flag for the kernel's openat() call, named rather than numbered.
 /// `Host.openFlag` turns it into the platform's number.
 [<RequireQualifiedAccess>]
@@ -19,8 +25,8 @@ type OpenFlag =
 
 /// POSIX operations retain kernel semantics and descriptor handles while using
 /// the same scoped authorization as the interpreter's managed file operations.
-/// Effect-free host facts (uname, getpid, ...) are called directly; stateful
-/// descriptor and process operations remain under the ambient Native gate.
+/// Scoped descriptor tokens carry checked file authority; raw OS numbers and
+/// unscoped process operations still require Native at the host boundary.
 [<RequireQualifiedAccess>]
 type PosixOp =
   | Chdir of path : string
@@ -38,30 +44,26 @@ type PosixOp =
   | ListDir of path : string
   | Stat of path : string
   | StatBuffer of path : string
-  | DirectoryBytes of fd : int * count : int
-  | CopyFileRange of source : int * destination : int * count : int
-  | CloneFile of source : int * destination : int
-  | Ftruncate of fd : int * length : int64
-  | Fchmod of fd : int * mode : int
-  | Fsync of fd : int
-  | Fstat of fd : int
+  | DirectoryBytes of fd : FileDescriptor * count : int
+  | CopyFileRange of source : FileDescriptor * destination : FileDescriptor * count : int
+  | CloneFile of source : FileDescriptor * destination : FileDescriptor
+  | Ftruncate of fd : FileDescriptor * length : int64
+  | Fchmod of fd : FileDescriptor * mode : int
+  | Fsync of fd : FileDescriptor
+  | Fstat of fd : FileDescriptor
   | Getentropy of count : int
-  | Pread of fd : int * count : int * offset : int64
-  | Pwrite of fd : int * data : byte[] * offset : int64
+  | Pread of fd : FileDescriptor * count : int * offset : int64
+  | Pwrite of fd : FileDescriptor * data : byte[] * offset : int64
   | Open of path : string * flags : int * mode : int
-  // Native-gated handle and process operations. They carry no scoped
-  // resource — the interpreter's ambient native gate authorized the builtin —
-  // but must execute where the handles and processes live: fds come from
-  // Open/Mkstemp, pids from `Operation.ProcessRun`. Getcwd, HomeDir and
-  // FileOwner answer with (or take) a path and are checked as reads of it;
-  // UserName is a plain host fact.
+  // Descriptor operations derive file requests from execution-owned tokens,
+  // or Native for raw OS numbers. Path answers are checked as path reads.
   | Getcwd
   | Kill of pid : int * signal : int
-  | FdRead of fd : int * count : int
-  | FdSeek of fd : int * offset : int64 * whence : int
-  | FdWrite of fd : int * data : byte[]
-  | FdClose of fd : int
-  | Flock of fd : int * operation : int
+  | FdRead of fd : FileDescriptor * count : int
+  | FdSeek of fd : FileDescriptor * offset : int64 * whence : int
+  | FdWrite of fd : FileDescriptor * data : byte[]
+  | FdClose of fd : FileDescriptor
+  | Flock of fd : FileDescriptor * operation : int
   | FileOwner of path : string
   | HomeDir of path : string
 
@@ -172,6 +174,7 @@ type Response =
   | HttpStream of Result<HttpStreamHead, HttpRequestError>
   /// A raw file descriptor (posix open).
   | Fd of int
+  | Descriptor of bigint
   /// A descriptor and the path it was created at (posix mkstemp).
   | FdPath of fd : int * path : string
   | StatInfo of mode : int * size : int64 * mtimeSec : int64

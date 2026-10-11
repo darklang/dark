@@ -27,6 +27,9 @@ type FailureKind = HostTypes.FailureKind
 type Failure = HostTypes.Failure
 type Outcome = HostTypes.Outcome
 
+let createDescriptorSession () : HostDescriptors.Session =
+  new HostDescriptors.Session(HostPosix.fdClose)
+
 // ── response extractors ───────────────────────────────────────────────────────
 // A builtin knows which shape its operation produces; anything else is an
 // interpreter bug, not a guest-visible error.
@@ -101,6 +104,12 @@ let expectHttpStream
 let expectFd (response : Response) : int =
   match response with
   | Response.Fd fd -> fd
+  | other -> unexpected other
+
+let expectDescriptor (response : Response) : bigint =
+  match response with
+  | Response.Fd fd -> bigint fd
+  | Response.Descriptor token -> token
   | other -> unexpected other
 
 let expectFdPath (response : Response) : int * string =
@@ -595,7 +604,15 @@ let private resolveHttp
 // path for symlink creation, and read-write for every mutating path op. The
 // raw handle and process-state ops also check Native here, independently of
 // the interpreter's ambient builtin gate.
-let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
+let private rawDescriptor = function
+  | HostTypes.FileDescriptor.Raw fd -> fd
+  | HostTypes.FileDescriptor.Scoped _ ->
+    Exception.raiseInternal "scoped descriptor escaped normalization" []
+
+let private resolvePosix
+  (session : Option<HostDescriptors.Session>)
+  (op : HostTypes.PosixOp)
+  : Result<Resolved, string> =
   let read = Permission.AccessKind.Read
   let write = Permission.AccessKind.Write
   match op with
@@ -645,27 +662,39 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
     posixPath read path (HostPosix.statBuffer >> Result.map Response.Bytes)
   | HostTypes.PosixOp.DirectoryBytes(fd, count) ->
     native (fun () ->
-      HostPosix.directoryBytes fd count |> Result.map Response.Bytes)
+      HostPosix.directoryBytes (rawDescriptor fd) count |> Result.map Response.Bytes)
   | HostTypes.PosixOp.CopyFileRange(source, destination, count) ->
     native (fun () ->
-      HostPosix.copyFileRange source destination count |> Result.map Response.Offset)
+      HostPosix.copyFileRange (rawDescriptor source) (rawDescriptor destination) count |> Result.map Response.Offset)
   | HostTypes.PosixOp.CloneFile(source, destination) ->
-    native (fun () -> HostPosix.cloneFile source destination |> unitOk)
+    native (fun () -> HostPosix.cloneFile (rawDescriptor source) (rawDescriptor destination) |> unitOk)
   | HostTypes.PosixOp.Ftruncate(fd, length) ->
-    native (fun () -> HostPosix.ftruncate fd length |> unitOk)
+    native (fun () -> HostPosix.ftruncate (rawDescriptor fd) length |> unitOk)
   | HostTypes.PosixOp.Fchmod(fd, mode) ->
-    native (fun () -> HostPosix.fchmod fd mode |> unitOk)
+    native (fun () -> HostPosix.fchmod (rawDescriptor fd) mode |> unitOk)
   | HostTypes.PosixOp.Fsync fd ->
-    native (fun () -> HostPosix.fsync fd |> unitOk)
+    native (fun () -> HostPosix.fsync (rawDescriptor fd) |> unitOk)
   | HostTypes.PosixOp.Fstat fd ->
-    native (fun () -> HostPosix.fstat fd |> Result.map Response.Bytes)
+    native (fun () -> HostPosix.fstat (rawDescriptor fd) |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Getentropy count ->
     unchecked (attempt (fun () -> HostPosix.getentropy count |> Result.map Response.Bytes))
   | HostTypes.PosixOp.Pread(fd, count, offset) ->
-    native (fun () -> HostPosix.pread fd count offset |> Result.map Response.Bytes)
+    native (fun () -> HostPosix.pread (rawDescriptor fd) count offset |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Pwrite(fd, bytes, offset) ->
-    native (fun () -> HostPosix.pwrite fd bytes offset |> Result.map Response.Written)
+    native (fun () -> HostPosix.pwrite (rawDescriptor fd) bytes offset |> Result.map Response.Written)
   | HostTypes.PosixOp.Open(path, flags, mode) ->
+    let opened (path : string) (fd : int) : Response =
+      match session with
+      | None -> Response.Fd fd
+      | Some owner ->
+        let accessMode = flags &&& 3
+        let token =
+          owner.Register
+            { fd = fd
+              path = path
+              reads = accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR
+              writes = accessMode = HostPosix.O_WRONLY || accessMode = HostPosix.O_RDWR }
+        Response.Descriptor token
     let accessMode = flags &&& 3
     let reads = accessMode = HostPosix.O_RDONLY || accessMode = HostPosix.O_RDWR
     let writes =
@@ -677,11 +706,11 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
       Error(rejected $"unsupported open access mode: {accessMode}")
     elif reads && writes then
       posixReadWrite path (fun path ->
-        HostPosix.openFile path flags mode |> Result.map Response.Fd)
+        HostPosix.openFile path flags mode |> Result.map (opened path))
     else
       let access = if writes then write else read
       posixPath access path (fun path ->
-        HostPosix.openFile path flags mode |> Result.map Response.Fd)
+        HostPosix.openFile path flags mode |> Result.map (opened path))
   | HostTypes.PosixOp.Getcwd ->
     // Like `DirectoryCurrent`: the request depends on host state, and reading
     // the working directory is a read of that path.
@@ -692,15 +721,15 @@ let private resolvePosix (op : HostTypes.PosixOp) : Result<Resolved, string> =
   | HostTypes.PosixOp.Kill(pid, signal) ->
     native (fun () -> HostPosix.kill pid signal |> unitOk)
   | HostTypes.PosixOp.FdRead(fd, count) ->
-    native (fun () -> HostPosix.fdRead fd count |> Result.map Response.Bytes)
+    native (fun () -> HostPosix.fdRead (rawDescriptor fd) count |> Result.map Response.Bytes)
   | HostTypes.PosixOp.FdSeek(fd, offset, whence) ->
     native (fun () ->
-      HostPosix.fdSeek fd offset whence |> Result.map Response.Offset)
+      HostPosix.fdSeek (rawDescriptor fd) offset whence |> Result.map Response.Offset)
   | HostTypes.PosixOp.FdWrite(fd, data) ->
-    native (fun () -> HostPosix.fdWrite fd data |> Result.map Response.Written)
-  | HostTypes.PosixOp.FdClose fd -> native (fun () -> HostPosix.fdClose fd |> unitOk)
+    native (fun () -> HostPosix.fdWrite (rawDescriptor fd) data |> Result.map Response.Written)
+  | HostTypes.PosixOp.FdClose fd -> native (fun () -> HostPosix.fdClose (rawDescriptor fd) |> unitOk)
   | HostTypes.PosixOp.Flock(fd, operation) ->
-    native (fun () -> HostPosix.flock fd operation |> unitOk)
+    native (fun () -> HostPosix.flock (rawDescriptor fd) operation |> unitOk)
   | HostTypes.PosixOp.FileOwner path ->
     posixPath read path (HostPosix.fileOwner >> Result.map Response.Text)
   | HostTypes.PosixOp.HomeDir home ->
@@ -832,7 +861,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
     unchecked (
       produce (fun () -> Response.ProcessOutcome(HostProcess.terminate handle))
     )
-  | Operation.Posix op -> resolvePosix op
+  | Operation.Posix op -> resolvePosix None op
 
 // ── perform ───────────────────────────────────────────────────────────────────
 
@@ -913,10 +942,125 @@ let private browserRefusal (op : Operation) : Option<Outcome> =
     | _ -> None
 
 
+type private DescriptorRight = Read | Write | Metadata | Cleanup
+
+let private descriptorUses (op : HostTypes.PosixOp) =
+  let read fd = [ fd, Read ]
+  let write fd = [ fd, Write ]
+  match op with
+  | HostTypes.PosixOp.FdRead(fd, _)
+  | HostTypes.PosixOp.DirectoryBytes(fd, _)
+  | HostTypes.PosixOp.Pread(fd, _, _) -> read fd
+  | HostTypes.PosixOp.FdWrite(fd, _)
+  | HostTypes.PosixOp.Pwrite(fd, _, _)
+  | HostTypes.PosixOp.Ftruncate(fd, _)
+  | HostTypes.PosixOp.Fchmod(fd, _)
+  | HostTypes.PosixOp.Fsync fd -> write fd
+  | HostTypes.PosixOp.Fstat fd
+  | HostTypes.PosixOp.FdSeek(fd, _, _)
+  | HostTypes.PosixOp.Flock(fd, _) -> [ fd, Metadata ]
+  | HostTypes.PosixOp.FdClose fd -> [ fd, Cleanup ]
+  | HostTypes.PosixOp.CopyFileRange(source, destination, _)
+  | HostTypes.PosixOp.CloneFile(source, destination) ->
+    [ source, Read; destination, Write ]
+  | _ -> []
+
+let private mapDescriptors map (op : HostTypes.PosixOp) =
+  match op with
+  | HostTypes.PosixOp.FdRead(fd, n) -> HostTypes.PosixOp.FdRead(map fd, n)
+  | HostTypes.PosixOp.DirectoryBytes(fd, n) -> HostTypes.PosixOp.DirectoryBytes(map fd, n)
+  | HostTypes.PosixOp.Pread(fd, n, offset) -> HostTypes.PosixOp.Pread(map fd, n, offset)
+  | HostTypes.PosixOp.FdWrite(fd, data) -> HostTypes.PosixOp.FdWrite(map fd, data)
+  | HostTypes.PosixOp.Pwrite(fd, data, offset) -> HostTypes.PosixOp.Pwrite(map fd, data, offset)
+  | HostTypes.PosixOp.Ftruncate(fd, n) -> HostTypes.PosixOp.Ftruncate(map fd, n)
+  | HostTypes.PosixOp.Fchmod(fd, n) -> HostTypes.PosixOp.Fchmod(map fd, n)
+  | HostTypes.PosixOp.Fsync fd -> HostTypes.PosixOp.Fsync(map fd)
+  | HostTypes.PosixOp.Fstat fd -> HostTypes.PosixOp.Fstat(map fd)
+  | HostTypes.PosixOp.FdSeek(fd, offset, whence) -> HostTypes.PosixOp.FdSeek(map fd, offset, whence)
+  | HostTypes.PosixOp.Flock(fd, operation) -> HostTypes.PosixOp.Flock(map fd, operation)
+  | HostTypes.PosixOp.FdClose fd -> HostTypes.PosixOp.FdClose(map fd)
+  | HostTypes.PosixOp.CopyFileRange(source, destination, n) ->
+    HostTypes.PosixOp.CopyFileRange(map source, map destination, n)
+  | HostTypes.PosixOp.CloneFile(source, destination) ->
+    HostTypes.PosixOp.CloneFile(map source, map destination)
+  | _ -> op
+
+let private invalidDescriptor =
+  Outcome.Failed
+    { kind = FailureKind.Other; errno = 9
+      message = "descriptor is closed, foreign, or incompatible with its open mode" }
+
+/// Called under the session lock; leases cannot be closed or reused until the
+/// syscall completes. Current access is checked on every use, not just open.
+let private resolveSessionPosix
+  (session : Option<HostDescriptors.Session>)
+  (op : HostTypes.PosixOp)
+  : Result<Resolved, Outcome> =
+  let uses = descriptorUses op
+  let rec collect checks bindings raw remaining =
+    match remaining with
+    | [] -> Ok(checks, bindings, raw)
+    | (HostTypes.FileDescriptor.Raw _, _) :: rest -> collect checks bindings true rest
+    | (HostTypes.FileDescriptor.Scoped token, right) :: rest ->
+      match session |> Option.bind (fun owner -> owner.Find token) with
+      | None -> Error invalidDescriptor
+      | Some entry ->
+        let compatible =
+          match right with
+          | Read -> entry.reads
+          | Write -> entry.writes
+          | Metadata | Cleanup -> true
+        if not compatible then Error invalidDescriptor
+        else
+          let checks =
+            match right with
+            | Cleanup -> checks
+            | _ ->
+              let access =
+                match right with
+                | Read -> Permission.AccessKind.Read
+                | Write -> Permission.AccessKind.Write
+                | Metadata ->
+                  if entry.writes then Permission.AccessKind.Write
+                  else Permission.AccessKind.Read
+                | Cleanup -> Exception.raiseInternal "cleanup has no resource check" []
+              (fileCheck access entry.path) :: checks
+          collect checks (Map.add token entry.fd bindings) raw rest
+  match collect [] Map.empty false uses with
+  | Error outcome -> Error outcome
+  | Ok(checks, bindings, raw) ->
+    let normalized =
+      mapDescriptors (function
+        | HostTypes.FileDescriptor.Raw fd -> HostTypes.FileDescriptor.Raw fd
+        | HostTypes.FileDescriptor.Scoped token ->
+          match Map.tryFind token bindings with
+          | Some fd -> HostTypes.FileDescriptor.Raw fd
+          | None -> Exception.raiseInternal "validated descriptor is missing" []) op
+    match resolvePosix session normalized with
+    | Error message -> Error(Outcome.Rejected message)
+    | Ok resolved ->
+      match withChecks (List.rev checks) resolved.execute with
+      | Error message -> Error(Outcome.Rejected message)
+      | Ok scoped ->
+        let baseChecks =
+          if uses <> [] && not raw then
+            resolved.checks
+            |> List.filter (fun (request, _) ->
+              Permission.Request.effect request <> LibExecution.Effects.Effect.Native)
+          else resolved.checks
+        let execute () =
+          match op, session with
+          | HostTypes.PosixOp.FdClose(HostTypes.FileDescriptor.Scoped token), Some owner ->
+            owner.Consume token
+          | _ -> ()
+          resolved.execute ()
+        Ok { checks = scoped.checks @ baseChecks; execute = execute }
+
 /// Check and perform one host operation, then audit it exactly once. Derives
 /// the requests from the operation itself, checks them against the access,
 /// and executes.
-let perform
+let private performWithSession
+  (session : Option<HostDescriptors.Session>)
   (relax : Permission.Relax)
   (access : Permission.Access)
   (op : Operation)
@@ -926,18 +1070,40 @@ let perform
       match browserRefusal op with
       | Some refused -> Task.FromResult refused
       | None ->
-        match resolve op with
-        | Error message -> Task.FromResult(Outcome.Rejected message)
-        | Ok resolved ->
-          match firstDenial relax access resolved.checks with
-          | Some denied -> Task.FromResult denied
-          | None -> execute resolved.execute
+        match op with
+        | Operation.Posix posix ->
+          let run () =
+            match resolveSessionPosix session posix with
+            | Error outcome -> outcome
+            | Ok resolved ->
+              match firstDenial relax access resolved.checks with
+              | Some denied -> denied
+              | None ->
+                // POSIX adapters are synchronous. Keep the descriptor lease
+                // through the kernel call, including close and multi-fd copy.
+                (execute resolved.execute).GetAwaiter().GetResult()
+          Task.FromResult(
+            match session with
+            | Some owner -> lock owner.Gate run
+            | None -> run ())
+        | _ ->
+          match resolve op with
+          | Error message -> Task.FromResult(Outcome.Rejected message)
+          | Ok resolved ->
+            match firstDenial relax access resolved.checks with
+            | Some denied -> Task.FromResult denied
+            | None -> execute resolved.execute
     try
       auditSink op outcome
     with _ ->
       () // auditing must never change the result of a host operation
     return outcome
   }
+
+let perform relax access op = performWithSession None relax access op
+
+let performInSession session relax access op =
+  performWithSession (Some session) relax access op
 
 // ── stream-handle continuations ───────────────────────────────────────────────
 // Used by the HTTP client's DStream closures. The open operation already made

@@ -42,6 +42,7 @@ let private bannedTypes =
 let private bannedHostSubsystemTypes =
   Set.ofList
     [ "LibExecution.HostHttp"
+      "LibExecution.HostDescriptors"
       "LibExecution.HostKernel"
       "LibExecution.HostPosix"
       "LibExecution.HostProcess"
@@ -77,6 +78,7 @@ let private hostModules =
       "LibExecution", "LibExecution.HostKernel"
       "LibExecution", "LibExecution.HostProcess"
       "LibExecution", "LibExecution.HostRegistry"
+      "LibExecution", "LibExecution.HostDescriptors"
       "LibExecution", "LibExecution.HostSecurity" ]
 
 /// Known holdouts, one entry per (assembly, top-level type), shrinking as
@@ -172,14 +174,17 @@ let private tokensIn (il : ImmutableArray<byte>) : List<int> =
       | _ -> i <- il.Length
   List.ofSeq tokens
 
-let private typeRefFullName
+let rec private typeRefFullName
   (reader : MetadataReader)
   (handle : TypeReferenceHandle)
   =
   let typeRef = reader.GetTypeReference handle
   let ns = reader.GetString typeRef.Namespace
   let name = reader.GetString typeRef.Name
-  if ns = "" then name else $"{ns}.{name}"
+  if typeRef.ResolutionScope.Kind = HandleKind.TypeReference then
+    // Nested Session/Entry members are part of the same trusted subsystem.
+    typeRefFullName reader (TypeReferenceHandle.op_Explicit typeRef.ResolutionScope)
+  elif ns = "" then name else $"{ns}.{name}"
 
 /// The outermost declaring type of a method, so closure classes attribute to
 /// their module.
@@ -206,8 +211,9 @@ let rec private bannedTarget (reader : MetadataReader) (handle : EntityHandle) =
         typeRefFullName reader (TypeReferenceHandle.op_Explicit memberRef.Parent)
       let memberName = reader.GetString memberRef.Name
       if
-        typeName = "LibExecution.HostPosix"
-        && Set.contains memberName ambientHostPosixMembers
+        (typeName = "LibExecution.HostPosix"
+         && Set.contains memberName ambientHostPosixMembers)
+        || (typeName = "LibExecution.HostDescriptors" && memberName = "get_tokenFloor")
       then
         None
       elif
@@ -235,7 +241,8 @@ let rec private bannedTarget (reader : MetadataReader) (handle : EntityHandle) =
     let methodDef =
       reader.GetMethodDefinition(MethodDefinitionHandle.op_Explicit handle)
     let typeName = topLevelTypeName reader (methodDef.GetDeclaringType())
-    if typeName = "LibExecution.HostKernel" then
+    if typeName = "LibExecution.HostKernel"
+       || (typeName = "LibExecution.HostDescriptors" && reader.GetString methodDef.Name <> "get_tokenFloor") then
       Some $"{typeName}::{reader.GetString methodDef.Name}"
     else
       None
