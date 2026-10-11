@@ -28,8 +28,10 @@ Stdlib.Cli.Glob.matches "[![:bogus:]]" "a" false = false
 Stdlib.Cli.Glob.matches "[[.a.]]" "a" false = true
 Stdlib.Cli.Glob.matches "[[=a=]]" "a" false = true
 Stdlib.Cli.Glob.matches "[a-[.c.]]" "b" false = true
-Stdlib.Cli.Glob.matches "a\0b" "a" false = true
-Stdlib.Cli.Glob.matches "a" "a\0b" false = true
+Stdlib.Cli.Glob.matches "a\0b" "a" false = false
+Stdlib.Cli.Glob.matches "a" "a\0b" false = false
+Stdlib.Cli.Glob.matches "?" "\0" false = true
+Stdlib.Cli.Glob.matches "a\0b" "a\0b" false = true
 Stdlib.Cli.Glob.matches "?" "\0a" false = false
 // Like libc's default C locale, matching consumes UTF-8 bytes, not graphemes.
 Stdlib.Cli.Glob.matches "é" "é" false = true
@@ -166,5 +168,5 @@ Stdlib.Cli.Glob.matches "[a-[.c.]]" "b" false = true
 
 Stdlib.Cli.Glob.matches "[![:bogus:]]" "a" false = false
 Stdlib.Cli.Glob.matches "[[:bogus:]]" "[[:bogus:]]" false = false
-Stdlib.Cli.Glob.matches "a\0b" "a" false = true
+Stdlib.Cli.Glob.matches "a\0b" "a" false = false
 Stdlib.Cli.Glob.matches "?" "\0a" false = false

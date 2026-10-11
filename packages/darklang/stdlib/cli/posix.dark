@@ -25,23 +25,12 @@ module Modes =
 
 // -- Open flags ---------------------------------------------------
 module OpenFlags =
-  /// The platform-specific value of one open() flag: "rdonly", "wronly",
-  /// "rdwr", "creat", "trunc" or "append".
-  let flag (name: String) : Int =
-    if name == "rdonly" then 0
-    else if name == "wronly" then 1
-    else if name == "rdwr" then 2
-    else if name == "creat" then Stdlib.Cli.KernelABI.openCreate ()
-    else if name == "trunc" then Stdlib.Cli.KernelABI.openTruncate ()
-    else if name == "append" then Stdlib.Cli.KernelABI.openAppend ()
-    else Builtin.crash ($"unknown open() flag `{name}`")
-
-  let rdonly () : Int = flag "rdonly"
-  let wronly () : Int = flag "wronly"
-  let rdwr () : Int = flag "rdwr"
-  let creat () : Int = flag "creat"
-  let trunc () : Int = flag "trunc"
-  let append () : Int = flag "append"
+  let rdonly () : Int = 0
+  let wronly () : Int = 1
+  let rdwr () : Int = 2
+  let creat () : Int = Stdlib.Cli.KernelABI.openCreate ()
+  let trunc () : Int = Stdlib.Cli.KernelABI.openTruncate ()
+  let append () : Int = Stdlib.Cli.KernelABI.openAppend ()
 
 
 /// Open a file. Returns a file descriptor.

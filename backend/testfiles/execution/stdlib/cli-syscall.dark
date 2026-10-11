@@ -6,6 +6,9 @@ Stdlib.Cli.Syscall.lseek (-1) 0 0 = Error 9
 Stdlib.Cli.Syscall.flock (-1) 2 = Error 9
 Stdlib.Cli.Syscall.getpid () > 0 = true
 Stdlib.Cli.Syscall.getuid () >= 0 = true
+Stdlib.Cli.Posix.Errors.decimal 0 = "0"
+Stdlib.Cli.Posix.Errors.decimal (-1) = "-1"
+Stdlib.Cli.Posix.Errors.macMessage 999 = "Unknown error: 999"
 Stdlib.Cli.Syscall.unlinkAt "/dark-syscall-missing-entry" 0 = Error 2
 Stdlib.Cli.Syscall.unlinkAt "/dark-syscall-missing-entry" 64 = Error 22
 Stdlib.Cli.Dir.withTemp (fun dir -> let path = Stdlib.String.append dir "/child" in let created = Stdlib.Cli.Posix.mkdir path 448 in let removed = Stdlib.Cli.Syscall.unlinkAt path (Stdlib.Cli.KernelABI.removeDirectory ()) in (created, removed, Stdlib.Cli.File.exists path) == (Ok (), Ok (), false)) = Ok true

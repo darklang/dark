@@ -132,10 +132,9 @@ let matchBytes
         | None -> p == c && matchBytes rest tail pathname
       else p == c && matchBytes rest tail pathname
 
-/// Preserve C-string NUL termination and byte-based wildcard semantics.
+/// Match the full string, including NUL bytes; this is not a C-string API.
+/// Wildcards retain the library's byte-based matching semantics.
 let matches (pattern: String) (text: String) (pathname: Bool) : Bool =
-  let patternBytes =
-    Stdlib.List.takeWhile (Stdlib.String.toBytes pattern) (fun c -> c != 0uy)
-  let textBytes =
-    Stdlib.List.takeWhile (Stdlib.String.toBytes text) (fun c -> c != 0uy)
+  let patternBytes = Stdlib.String.toBytes pattern
+  let textBytes = Stdlib.String.toBytes text
   matchBytes patternBytes textBytes pathname

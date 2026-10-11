@@ -2,6 +2,21 @@
 /// Kernel errno is platform-specific; permission and host diagnostics stay intact.
 module Darklang.Stdlib.Cli.Posix.Errors
 
+// Keep errno rendering shared while the engines have different ToString APIs.
+let decimal (value: Int) : String =
+    if value < 0 then Stdlib.String.append "-" (decimal (0 - value))
+    else
+        let quotient = value / 10
+        let digit = value - quotient * 10
+        let suffix =
+            if digit == 0 then "0" else if digit == 1 then "1"
+            else if digit == 2 then "2" else if digit == 3 then "3"
+            else if digit == 4 then "4" else if digit == 5 then "5"
+            else if digit == 6 then "6" else if digit == 7 then "7"
+            else if digit == 8 then "8" else "9"
+        if quotient == 0 then suffix
+        else Stdlib.String.append (decimal quotient) suffix
+
 let macMessage (errno: Int) : String =
     if errno == 1 then "Operation not permitted"
     else if errno == 2 then "No such file or directory"
@@ -110,7 +125,7 @@ let macMessage (errno: Int) : String =
     else if errno == 105 then "Previous owner died"
     else if errno == 106 then "Interface output queue is full"
     else if errno == 107 then "Capabilities insufficient"
-    else $"Unknown error: {errno}"
+    else Stdlib.String.append "Unknown error: " (decimal errno)
 
 let fromErrno (errno: Int) : Stdlib.Cli.Posix.Error =
     let message =
@@ -246,7 +261,7 @@ let fromErrno (errno: Int) : Stdlib.Cli.Posix.Error =
         else if errno == 131 then "State not recoverable"
         else if errno == 132 then "Operation not possible due to RF-kill"
         else if errno == 133 then "Memory page has hardware error"
-        else $"Unknown error {errno}"
+        else Stdlib.String.append "Unknown error " (decimal errno)
     Stdlib.Cli.Posix.Error { errno = errno
                             message = message }
 
