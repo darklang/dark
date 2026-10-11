@@ -1,0 +1,19 @@
+/// Path buffer growth and text decoding over one-call kernel primitives.
+module Darklang.Stdlib.Cli.PathIO
+
+let readlinkWith (read: Int -> Result.Result<Blob, Int>) (count: Int)
+  : Result.Result<Blob, Int> =
+  if count <= 0 then Error 22
+  else
+    match read count with
+    | Error e ->
+      if e == 4 then readlinkWith read count else Error e
+    | Ok bytes ->
+      if Stdlib.Blob.length bytes < count then Ok bytes
+      else if count >= 1048576 then Error (if KernelABI.mac () then 63 else 36)
+      else readlinkWith read (count * 2)
+
+let readlink (path: String) : Result.Result<String, Posix.Error> =
+  readlinkWith (fun count -> Syscall.readlinkAt path count) 256
+  |> Stdlib.Result.map Stdlib.String.fromBlobWithReplacement
+  |> Stdlib.Result.mapError Posix.Errors.fromErrno

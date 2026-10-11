@@ -16,7 +16,7 @@ open Builtin.Shortcuts
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "getCurrentExecutablePath" 0
+  [ { name = fn "runtimeExecutablePath" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString

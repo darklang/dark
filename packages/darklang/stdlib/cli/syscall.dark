@@ -31,6 +31,16 @@ let getpid () : Int = Builtin.syscallGetpid ()
 
 let getuid () : Int = Builtin.syscallGetuid ()
 
+let uname () : Result.Result<Blob, Int> = Builtin.syscallUname ()
+
+/// Read-only sysctl query. Unknown keys require Native in the interpreter.
+let sysctl (mib: List<Int>) (count: Int) : Result.Result<Blob, Int> =
+  Builtin.syscallSysctl mib count
+
+/// Kernel affinity mask, not a decoded CPU count. pid=0 names this process.
+let schedGetaffinity (pid: Int) (count: Int) : Result.Result<Blob, Int> =
+  Builtin.syscallSchedGetaffinity pid count
+
 /// Entry-relative stat after the trusted boundary's no-follow path check.
 /// The returned bytes use the target kernel ABI, not libc's struct stat.
 let statAt (path: String) : Result.Result<Blob, Int> =
@@ -88,3 +98,7 @@ let chmod (path: String) (mode: Int) : Result.Result<Unit, Int> =
 /// One operation after checked no-follow path resolution.
 let symlink (target: String) (linkpath: String) : Result.Result<Unit, Int> =
   Builtin.syscallSymlink target linkpath
+
+/// Read raw symlink bytes once; a full buffer may mean truncation.
+let readlinkAt (path: String) (count: Int) : Result.Result<Blob, Int> =
+  Builtin.syscallReadlinkAt path count

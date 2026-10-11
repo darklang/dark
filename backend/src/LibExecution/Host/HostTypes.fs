@@ -38,7 +38,7 @@ type PosixOp =
   | Chmod of path : string * mode : int
   | UtimesNow of path : string
   | Symlink of target : string * linkPath : string
-  | Readlink of path : string
+  | ReadlinkBytes of path : string * count : int
   | Mkstemp of prefix : string
   | Mkdtemp of prefix : string
   | ListDir of path : string
@@ -52,6 +52,9 @@ type PosixOp =
   | Fsync of fd : FileDescriptor
   | Fstat of fd : FileDescriptor
   | Getentropy of count : int
+  | UnameBytes
+  | SysctlBytes of mib : List<int> * count : int
+  | SchedGetaffinity of pid : int * count : int
   | Pread of fd : FileDescriptor * count : int * offset : int64
   | Pwrite of fd : FileDescriptor * data : byte[] * offset : int64
   | Open of path : string * flags : int * mode : int
@@ -239,7 +242,10 @@ let describeOperation (op : Operation) : string =
     | PosixOp.Chmod(path, _) -> $"chmod {path}"
     | PosixOp.UtimesNow path -> $"utimes {path}"
     | PosixOp.Symlink(t, l) -> $"symlink {l} -> {t}"
-    | PosixOp.Readlink path -> $"readlink {path}"
+    | PosixOp.ReadlinkBytes(path, count) -> $"readlinkat {path} {count}"
+    | PosixOp.UnameBytes -> "uname"
+    | PosixOp.SysctlBytes(mib, count) -> $"sysctl {mib} {count}"
+    | PosixOp.SchedGetaffinity(pid, count) -> $"sched_getaffinity {pid} {count}"
     | PosixOp.Mkstemp prefix -> $"mkstemp {prefix}"
     | PosixOp.Mkdtemp prefix -> $"mkdtemp {prefix}"
     | PosixOp.ListDir path -> $"listdir {path}"

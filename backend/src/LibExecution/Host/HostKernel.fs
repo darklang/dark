@@ -85,7 +85,10 @@ let kill_raw (pid : int, signal : int) =
   int (call 18 (int64 pid) (int64 signal) 0L 0L 0L 0L)
 let getpid_raw () = int (call 19 0L 0L 0L 0L 0L 0L)
 let getuid_raw () = uint32 (call 20 0L 0L 0L 0L 0L 0L)
-let uname_raw (buf : IntPtr) = int (call 21 (pointer buf) 0L 0L 0L 0L 0L)
+let unameBytes_raw (bytes : byte[]) =
+  withBytes bytes (fun p -> int (call 21 p 0L 0L 0L 0L 0L))
+let schedGetaffinity_raw (pid : int, bytes : byte[]) =
+  withBytes bytes (fun p -> int (call 35 (int64 pid) (int64 bytes.Length) p 0L 0L 0L))
 
 let getentropy_raw (bytes : byte[]) =
   withBytes bytes (fun ptr -> int (call 34 ptr (int64 bytes.Length) 0L 0L 0L 0L))
@@ -114,7 +117,7 @@ let fclonefileat_raw (source : int, parent : int, name : string, flags : int) =
   withText name (fun p ->
     int (call 33 (int64 source) (int64 parent) p (int64 flags) 0L 0L))
 let sysctl_raw (mib : byte[], buf : IntPtr, size : IntPtr) =
-  withBytes mib (fun p -> int (call 25 p 2L (pointer buf) (pointer size) 0L 0L))
+  withBytes mib (fun p -> int (call 25 p (int64 (mib.Length / 4)) (pointer buf) (pointer size) 0L 0L))
 let setattrlistat_raw (fd : int, path : string, attrs : byte[]) =
   // ATTR_CMN_ACCTIME | ATTR_CMN_MODTIME; both set to the caller's timestamp.
   let attributes = Array.zeroCreate<byte> 24

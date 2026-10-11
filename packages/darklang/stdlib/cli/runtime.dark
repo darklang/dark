@@ -4,3 +4,6 @@ module Darklang.Stdlib.Cli.Runtime
 let targetOS () : String = Builtin.runtimeTargetOS ()
 
 let targetArchitecture () : String = Builtin.runtimeTargetArchitecture ()
+
+/// Runtime executable identity, authorized as a read of the returned path.
+let executablePath () : String = Builtin.runtimeExecutablePath ()

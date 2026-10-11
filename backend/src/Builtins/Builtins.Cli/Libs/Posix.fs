@@ -336,15 +336,19 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "posixReadlink" 0
+    { name = fn "syscallReadlinkAt" 0
       typeParams = []
-      parameters = [ Param.make "path" TString "Symlink path to read" ]
-      returnType = TypeReference.result TString (posixErrorTypeRef ())
-      description = "Reads the target of a symbolic link via kernel readlink()"
+      parameters =
+        [ Param.make "path" TString "Symlink path to read"
+          Param.make "count" TInt "Maximum bytes" ]
+      returnType = TypeReference.result TBlob TInt
+      description = "One readlinkat call, with no growth or text decoding"
       fn =
         (function
-        | _, vm, _, [| DString path |] ->
-          posixResult KTString vm (HostTypes.PosixOp.Readlink path) pathOk
+        | _, vm, _, [| DString path; DInt count |] ->
+          syscallResult KTBlob vm
+            (HostTypes.PosixOp.ReadlinkBytes(path, intToInt32 vm count))
+            (fun response -> Blob.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -571,33 +575,6 @@ let fns () : List<BuiltInFn> =
 
 
 
-    { name = fn "posixUname" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType =
-        TypeReference.result
-          (TTuple(TString, TString, [ TString ]))
-          (posixErrorTypeRef ())
-      description = "Calls uname(). Returns (sysname, nodename, machine)."
-      fn =
-        (function
-        | _, _, _, [| DUnit |] ->
-          let kt = KTTuple(VT.string, VT.string, [ VT.string ])
-          match HostPosix.uname () with
-          | Ok(sysname, nodename, machine) ->
-            DTuple(DString sysname, DString nodename, [ DString machine ])
-            |> Dval.resultOk kt (posixErrorKT ())
-            |> Ply
-          | Error e ->
-            dPosixError (Host.failureOfErrno e)
-            |> Dval.resultError kt (posixErrorKT ())
-            |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
 
     { name = fn "syscallGetpid" 0
       typeParams = []
@@ -631,20 +608,6 @@ let fns () : List<BuiltInFn> =
 
 
 
-
-    { name = fn "posixCpuCount" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
-      description = "Returns the number of CPUs available to the interpreter"
-      fn =
-        (function
-        | _, _, _, [| DUnit |] -> Dval.int (bigint (HostPosix.cpuCount ())) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
 
 
     { name = fn "runtimeAuthorizeReadPath" 0

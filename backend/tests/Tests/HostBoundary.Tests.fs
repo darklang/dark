@@ -54,7 +54,7 @@ let private bannedHostSubsystemTypes =
 /// descriptor, or an environment entry and must go through `Host.perform`.
 let private ambientHostPosixMembers =
   Set.ofList
-    [ "uname"; "getpid"; "getuid"; "cpuCount"; "get_LOCK_EX"; "get_LOCK_UN" ]
+    [ "getpid"; "getuid"; "get_LOCK_EX"; "get_LOCK_UN" ]
 
 /// System.Environment is banned member-by-member: NewLine and ProcessorCount
 /// are fine, the environment-variable accessors are host effects.

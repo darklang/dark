@@ -9,7 +9,7 @@ let currentUser () : Stdlib.Option.Option<String> =
   | None ->
     match Env.get "USER" with
     | Some u -> Stdlib.Option.Option.Some u
-    | None -> Posix.Accounts.lookup (Stdlib.Int.toString (Syscall.getuid ())) 0
+    | None -> Posix.Accounts.lookup (Posix.Errors.decimal (Syscall.getuid ())) 0
 
 
 /// Get the system hostname.
@@ -32,12 +32,12 @@ let arch () : Result.Result<String, Posix.Error> =
 
 /// The path of the running executable.
 let currentExecutablePath () : String =
-  Builtin.getCurrentExecutablePath ()
+  Runtime.executablePath ()
 
 
 /// Get the number of available CPUs.
 let cpuCount () : Int =
-  Builtin.posixCpuCount ()
+  System.cpuCount () |> Builtin.unwrap
 
 
 /// Get the current process ID.

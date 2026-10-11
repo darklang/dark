@@ -1,0 +1,6 @@
+module Tests
+Stdlib.Cli.System.countBits 255 = 8
+Stdlib.Cli.System.countBits 0 = 0
+Stdlib.Cli.Sys.cpuCount () > 0 = true
+Stdlib.Cli.Sys.hostname () |> Stdlib.Result.map (fun name -> Stdlib.String.length name > 0) = Ok true
+Stdlib.Cli.Syscall.schedGetaffinity 0 0 = Error 22

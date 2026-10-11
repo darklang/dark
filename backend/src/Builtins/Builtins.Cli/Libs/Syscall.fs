@@ -41,7 +41,27 @@ let private offset r = Dval.int (bigint (Host.expectOffset r))
 let private written r = Dval.int (bigint (Host.expectWritten r))
 
 let fns () : List<BuiltInFn> =
-  [ { (make "syscallGetentropy" [ integer "count" ] TBlob KTBlob
+  [ make "syscallUname" [ Param.make "unit" TUnit "" ] TBlob KTBlob
+      (fun _ vm values ->
+        match values with
+        | [| DUnit |] -> perform KTBlob vm Op.PosixOp.UnameBytes bytes
+        | _ -> incorrectArgs ())
+    make "syscallSysctl"
+      [ Param.make "mib" (TList TInt) "Read-only numeric key"; integer "count" ] TBlob KTBlob
+      (fun _ vm values ->
+        match values with
+        | [| DList(_, mib); DInt count |] ->
+          let mib = mib |> List.map (function DInt n -> intToInt32 vm n | _ -> incorrectArgs ())
+          perform KTBlob vm (Op.PosixOp.SysctlBytes(mib, intToInt32 vm count)) bytes
+        | _ -> incorrectArgs ())
+    make "syscallSchedGetaffinity" [ integer "pid"; integer "count" ] TBlob KTBlob
+      (fun _ vm values ->
+        match values with
+        | [| DInt pid; DInt count |] ->
+          perform KTBlob vm
+            (Op.PosixOp.SchedGetaffinity(intToInt32 vm pid, intToInt32 vm count)) bytes
+        | _ -> incorrectArgs ())
+    { (make "syscallGetentropy" [ integer "count" ] TBlob KTBlob
         (fun _ vm values ->
           match values with
           | [| DInt count |] ->

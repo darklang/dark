@@ -298,17 +298,18 @@ let symlink (target : string) (linkpath : string) : Result<unit, int * string> =
   else
     withParent linkpath (fun d n -> unitResult (symlinkat_raw (target, d, n)))
 
-let readlink (path : string) : Result<string, int * string> =
+let readlinkBytes (path : string) (count : int) : Result<byte[], int * string> =
   if isWasm then
     Managed.enosys ()
+  elif count <= 0 then Error(22, "readlink count must be positive")
   else
     withParent path (fun d n ->
-      let buf = Array.zeroCreate<byte> 4096
-      let len = readlinkat_raw (d, n, buf, 4096)
+      let buf = Array.zeroCreate<byte> count
+      let len = readlinkat_raw (d, n, buf, count)
       if len < 0 then
         failed ()
       else
-        Ok(System.Text.Encoding.UTF8.GetString(buf, 0, len)))
+        Ok(Array.take len buf))
 
 /// Six random name characters, as mkstemp uses.
 let private randomSuffix () : string =
@@ -508,49 +509,45 @@ let stat (path : string) : Result<int * int64 * int64, int * string> =
     finally
       Marshal.FreeHGlobal buf
 
-/// Kernel identity. Darwin exposes these fields through sysctl rather than uname.
-let uname () : Result<string * string * string, int * string> =
-  if isWasm then
-    Ok("Browser", "browser", "wasm32")
+/// Single-call raw records; shared Dark code selects and decodes fields.
+let unameBytes () : Result<byte[], int * string> =
+  if isWasm then Managed.enosys ()
   else
-    let buf = Marshal.AllocHGlobal(1024)
+    let bytes = Array.zeroCreate<byte> 390
+    if unameBytes_raw bytes < 0 then failed () else Ok bytes
+
+let sysctlBytes (mib : List<int>) (count : int) : Result<byte[], int * string> =
+  if isWasm then Managed.enosys ()
+  elif count <= 0 || List.isEmpty mib then Error(22, "invalid sysctl buffer")
+  else
+    let mibBytes = mib |> List.map BitConverter.GetBytes |> Array.concat
+    let buffer = Marshal.AllocHGlobal count
+    let size = Marshal.AllocHGlobal IntPtr.Size
     try
-      if isMac then
-        let field a b =
-          let mib =
-            Array.append
-              (BitConverter.GetBytes(a : int))
-              (BitConverter.GetBytes(b : int))
-          let size = Marshal.AllocHGlobal(IntPtr.Size)
-          try
-            Marshal.WriteInt64(size, 1024L)
-            if sysctl_raw (mib, buf, size) < 0 then
-              Error(lastError ())
-            else
-              Ok(Marshal.PtrToStringUTF8 buf)
-          finally
-            Marshal.FreeHGlobal size
-        match field 1 1, field 1 10, field 6 1 with
-        | Ok os, Ok host, Ok machine -> Ok(os, host, machine)
-        | Error e, _, _
-        | _, Error e, _
-        | _, _, Error e -> Error e
-      elif uname_raw buf < 0 then
-        Error(lastError ())
+      Marshal.WriteIntPtr(size, IntPtr count)
+      if sysctl_raw (mibBytes, buffer, size) < 0 then failed ()
       else
-        Ok(
-          Marshal.PtrToStringUTF8 buf,
-          Marshal.PtrToStringUTF8(IntPtr.Add(buf, 65)),
-          Marshal.PtrToStringUTF8(IntPtr.Add(buf, 260))
-        )
+        let length = Marshal.ReadIntPtr(size).ToInt64()
+        if length < 0L || length > int64 count then Error(5, "invalid kernel record length")
+        else
+          let bytes = Array.zeroCreate<byte> (int length)
+          Marshal.Copy(buffer, bytes, 0, bytes.Length)
+          Ok bytes
     finally
-      Marshal.FreeHGlobal buf
+      Marshal.FreeHGlobal size
+      Marshal.FreeHGlobal buffer
+
+let schedGetaffinity (pid : int) (count : int) : Result<byte[], int * string> =
+  if isWasm then Managed.enosys ()
+  elif count <= 0 then Error(22, "affinity count must be positive")
+  else
+    let bytes = Array.zeroCreate<byte> count
+    let length = schedGetaffinity_raw (pid, bytes)
+    if length < 0 then failed () else Ok(Array.take length bytes)
 
 let getpid () : int = if isWasm then Environment.ProcessId else getpid_raw ()
 
 let getuid () : uint32 = if isWasm then 1000u else getuid_raw ()
-
-let cpuCount () : int64 = int64 Environment.ProcessorCount
 
 /// flock operations
 let LOCK_EX = 2

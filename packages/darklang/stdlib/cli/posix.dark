@@ -133,8 +133,7 @@ let symlink (target: String) (linkpath: String) : Result.Result<Unit, Error> =
 
 /// Read the target of a symbolic link
 let readlink (path: String) : Result.Result<String, Error> =
-  Builtin.posixReadlink path
-  |> Errors.normalize
+  Stdlib.Cli.PathIO.readlink path
 
 /// Check if a path is a symbolic link.
 /// Uses readlink — returns Ok true/false, or Error on permission/other failures.
@@ -185,8 +184,7 @@ let getenv (name: String) : Stdlib.Option.Option<String> =
 
 /// System name info: (sysname, nodename, machine).
 let uname () : Result.Result<(String * String * String), Error> =
-  Builtin.posixUname ()
-  |> Errors.normalize
+  Stdlib.Cli.System.uname ()
 
 
 /// Send a signal to a process

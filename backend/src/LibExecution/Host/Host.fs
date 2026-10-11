@@ -648,8 +648,9 @@ let private resolvePosix
     // creating the link is a write at linkPath.
     resolveFile write linkPath (fun linkPath ->
       attempt (fun () -> HostPosix.symlink target linkPath |> unitOk))
-  | HostTypes.PosixOp.Readlink path ->
-    posixEntry read path (HostPosix.readlink >> Result.map Response.Path)
+  | HostTypes.PosixOp.ReadlinkBytes(path, count) ->
+    posixEntry read path (fun path ->
+      HostPosix.readlinkBytes path count |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Mkstemp prefix ->
     posixTemp prefix (HostPosix.mkstemp >> Result.map Response.FdPath)
   | HostTypes.PosixOp.Mkdtemp prefix ->
@@ -678,6 +679,18 @@ let private resolvePosix
     native (fun () -> HostPosix.fstat (rawDescriptor fd) |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Getentropy count ->
     unchecked (attempt (fun () -> HostPosix.getentropy count |> Result.map Response.Bytes))
+  | HostTypes.PosixOp.UnameBytes ->
+    unchecked (attempt (fun () -> HostPosix.unameBytes () |> Result.map Response.Bytes))
+  | HostTypes.PosixOp.SysctlBytes(mib, count) ->
+    let run () = HostPosix.sysctlBytes mib count |> Result.map Response.Bytes
+    // These are the host facts exposed by Sys. Other sysctl keys can expose
+    // process/environment data and require unscoped Native authority.
+    if List.contains mib [ [ 1; 1 ]; [ 1; 10 ]; [ 6; 1 ]; [ 6; 3 ] ] then
+      unchecked (attempt run)
+    else native run
+  | HostTypes.PosixOp.SchedGetaffinity(pid, count) ->
+    let run () = HostPosix.schedGetaffinity pid count |> Result.map Response.Bytes
+    if pid = 0 then unchecked (attempt run) else native run
   | HostTypes.PosixOp.Pread(fd, count, offset) ->
     native (fun () -> HostPosix.pread (rawDescriptor fd) count offset |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Pwrite(fd, bytes, offset) ->

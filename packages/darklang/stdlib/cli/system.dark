@@ -1,0 +1,65 @@
+/// Host record selection, buffer growth and decoding shared by both engines.
+module Darklang.Stdlib.Cli.System
+
+let text (buffer: Blob) (offset: Int) (length: Int) : String =
+  Stdlib.Blob.toList buffer
+  |> Stdlib.List.drop offset
+  |> Stdlib.List.take length
+  |> Stdlib.List.takeWhile (fun byte -> byte != 0uy)
+  |> Stdlib.String.fromBytesWithReplacement
+
+let sysctlWith (mib: List<Int>) (count: Int) : Result.Result<Blob, Int> =
+  match Syscall.sysctl mib count with
+  | Error e ->
+    if e == 4 then sysctlWith mib count
+    else if e == 12 && count < 1048576 then sysctlWith mib (count * 2)
+    else Error e
+  | Ok bytes -> Ok bytes
+
+let sysctlText (mib: List<Int>) : Result.Result<String, Int> =
+  sysctlWith mib 256
+  |> Stdlib.Result.map (fun bytes -> text bytes 0 (Stdlib.Blob.length bytes))
+
+let uname () : Result.Result<(String * String * String), Posix.Error> =
+  let result =
+    if Runtime.targetOS () == "browser" then Ok (("Browser", "browser", "wasm32"))
+    else if KernelABI.mac () then
+      sysctlText [1, 1]
+      |> Stdlib.Result.andThen (fun os ->
+        sysctlText [1, 10]
+        |> Stdlib.Result.andThen (fun host ->
+          sysctlText [6, 1]
+          |> Stdlib.Result.map (fun machine -> (os, host, machine))))
+    else
+      Syscall.uname ()
+      |> Stdlib.Result.andThen (fun bytes ->
+        if Stdlib.Blob.length bytes < 390 then Error 5
+        else Ok ((text bytes 0 65, text bytes 65 65, text bytes 260 65)))
+  result |> Stdlib.Result.mapError Posix.Errors.fromErrno
+
+let countBits (value: Int) : Int =
+  if value == 0 then 0
+  else value % 2 + countBits (value / 2)
+
+let affinityWith (count: Int) : Result.Result<Blob, Int> =
+  match Syscall.schedGetaffinity 0 count with
+  | Error e ->
+    if e == 4 then affinityWith count
+    else if e == 22 && count < 1048576 then affinityWith (count * 2)
+    else Error e
+  | Ok mask -> Ok mask
+
+/// Available CPUs means the calling process's affinity on Linux, hw.ncpu on
+/// Darwin, and one on the interpreter's single-threaded browser runtime.
+let cpuCount () : Result.Result<Int, Int> =
+  let result =
+    if Runtime.targetOS () == "browser" then Ok 1
+    else if KernelABI.mac () then
+      sysctlWith [6, 3] 4
+      |> Stdlib.Result.andThen (fun bytes -> KernelData.field (Stdlib.Blob.toList bytes) 0 4)
+    else
+      affinityWith 128
+      |> Stdlib.Result.map (fun bytes ->
+        Stdlib.List.fold (Stdlib.Blob.toList bytes) 0
+          (fun total byte -> total + countBits (Stdlib.Int.fromUInt8 byte)))
+  result |> Stdlib.Result.andThen (fun count -> if count > 0 then Ok count else Error 5)

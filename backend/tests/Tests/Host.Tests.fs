@@ -147,6 +147,24 @@ let scopedDescriptorsRecheckAccessAndOwnership =
       System.IO.File.Delete path
   }
 
+let systemFactsDoNotGrantSensitiveQueries =
+  testTask "host facts do not grant arbitrary sysctl or foreign affinity access" {
+    let access = Permission.Access.start Permission.Policy.denyAll
+    for op in
+      [ HT.PosixOp.SysctlBytes([ 1; 14 ], 256)
+        HT.PosixOp.SchedGetaffinity(1, 128) ] do
+      let! outcome = LibExecution.Host.perform Permission.NoRelax access (HT.Operation.Posix op)
+      match outcome with
+      | HT.Outcome.Denied _ -> ()
+      | other -> failtest $"expected Native denial before kernel query, got {other}"
+    let! local = LibExecution.Host.perform Permission.NoRelax access
+                   (HT.Operation.Posix(HT.PosixOp.SchedGetaffinity(0, 128)))
+    match local with
+    | HT.Outcome.Success(HT.Response.Bytes bytes) -> Expect.isNonEmpty bytes "local affinity mask"
+    | HT.Outcome.Failed failure -> Expect.isTrue (failure.errno = 38 || failure.errno = 78) "unsupported target"
+    | other -> failtest $"local host fact must not need Native, got {other}"
+  }
+
 let tempPrefixDoesNotAuthorizeARandomSibling =
   testTask "mkstemp authorizes its containing directory, not its prefix" {
     let prefix = $"/tmp/dark-permission-{System.Guid.NewGuid()}-"
@@ -190,10 +208,10 @@ let readlinkMayInspectTheFinalSymlink =
         LibExecution.Host.perform
           Permission.NoRelax
           (Permission.Access.start policy)
-          (HT.Operation.Posix(HT.PosixOp.Readlink link))
+          (HT.Operation.Posix(HT.PosixOp.ReadlinkBytes(link, 4096)))
       match outcome with
-      | HT.Outcome.Success(HT.Response.Path actual) ->
-        Expect.equal actual target "readlink returns the stored target"
+      | HT.Outcome.Success(HT.Response.Bytes actual) ->
+        Expect.equal actual (System.Text.Encoding.UTF8.GetBytes target) "readlink returns raw stored target bytes"
       | other -> failtest $"expected readlink success, got {other}"
     finally
       System.IO.Directory.Delete(directory, true)
@@ -469,8 +487,8 @@ let posixKernelRoundTrip =
         let link = System.IO.Path.Combine(parent, "link")
         LibExecution.HostPosix.symlink moved link |> ok
         Expect.equal
-          (LibExecution.HostPosix.readlink link |> ok)
-          moved
+          (LibExecution.HostPosix.readlinkBytes link 4096 |> ok)
+          (System.Text.Encoding.UTF8.GetBytes moved)
           "symlink bytes"
         let directory =
           LibExecution.HostPosix.mkdtemp (System.IO.Path.Combine(parent, "dir-"))
@@ -491,10 +509,10 @@ let posixKernelRoundTrip =
           (LibExecution.HostPosix.kill (LibExecution.HostPosix.getpid ()) 0 |> ok)
           ()
           "signal zero"
-        let os, hostname, machine = LibExecution.HostPosix.uname () |> ok
-        Expect.isNonEmpty os "OS identity"
-        Expect.isNonEmpty hostname "host identity"
-        Expect.isNonEmpty machine "architecture identity"
+        if System.OperatingSystem.IsMacOS() then
+          Expect.isNonEmpty (LibExecution.HostPosix.sysctlBytes [ 1; 1 ] 256 |> ok) "raw OS identity"
+        else
+          Expect.equal (LibExecution.HostPosix.unameBytes () |> ok |> Array.length) 390 "raw utsname record"
         match LibExecution.HostPosix.fdRead -1 1 with
         | Error(errno, _) ->
           Expect.equal errno 9 "negative kernel errno is mapped to EBADF"
@@ -511,6 +529,7 @@ let tests =
       httpServerBindUsesTheSuppliedAccess
       rawDescriptorsRequireNativeAtHostBoundary
       scopedDescriptorsRecheckAccessAndOwnership
+      systemFactsDoNotGrantSensitiveQueries
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink
       posixWalkRefusesALinkMetAtOperationTime
