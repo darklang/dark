@@ -1250,8 +1250,8 @@ let apply
        all argChecks ])
 
 /// One unknown and one check per argument of call <param id>, numbered from <param index>, in
-/// argument order. One pass: this was an indexed map for the slots, a zip of the slots with the
-/// arguments and a map for the checks, each a list and a lambda per call, for a call's two or
+/// argument order. One pass rather than an indexed map for the slots, a zip of the slots with
+/// the arguments and a map for the checks, each a list and a lambda per call for a call's two or
 /// three arguments.
 let argumentSlots
   (scope: Scope)

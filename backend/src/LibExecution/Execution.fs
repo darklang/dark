@@ -187,8 +187,7 @@ let mutable private exitingForMemory = 0
 /// Every generic catch below turns an exception into a Dark runtime error, which Dark code can
 /// then catch. For running out of memory that is always wrong: a guard that reports one item as
 /// incomplete, or a whole batch as empty, hands back an answer that looks like a result, and a
-/// process whose scheduler thread swallowed it can wait forever for work that died. Measured on
-/// `dark typecheck` under a memory cap: an exit 0 reporting "checked 0", and a hang. So say what
+/// process whose scheduler thread swallowed it waits forever for work that died. So say what
 /// happened, once, and exit 4.
 let exitIfOutOfMemory (ex : exn) : unit =
   if isOutOfMemory ex then

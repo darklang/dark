@@ -9,17 +9,13 @@ type Node =
   | MatchPattern of LanguageTools.ProgramTypes.MatchPattern
   | Pipe of LanguageTools.ProgramTypes.PipeExpr
 
-/// Return the node's ID if it is used to identify an inferred type, plus the
-/// child nodes to visit next. Ignore IDs that do not serve this purpose, such as
-/// literal IDs. Solve separately checks the IDs used to identify named let bindings.
-/// <param xs> as nodes. Top-level rather than nested in `children`: `children` runs for every
-/// node of every body, more than once per body, and its nested helpers were three closures
-/// allocated on every call, used or not. A lambda is built only when a list is actually mapped.
+/// <param xs> as nodes. Top-level rather than nested in `children`, which runs for every node of
+/// every body, more than once per body: a nested helper is a closure allocated on every call,
+/// used or not. A lambda is built only when a list is actually mapped.
 ///
-/// Two shapes measured worse. Recursing once per element kept one interpreter frame per element
-/// live at once, so a long list literal raised the check's peak memory (on four cores it no
-/// longer fitted under a 448 MB cap). Mapping a named function goes through a costly path on a
-/// list op over a named fn.
+/// Two other shapes are worse. Recursing once per element keeps one interpreter frame per element
+/// live at once, which raises the check's peak memory on a long list literal. Mapping a named
+/// function goes through a costly path on a list op over a named fn.
 let exprNodes (xs: List<LanguageTools.ProgramTypes.Expr>) : List<Node> =
   Stdlib.List.map xs (fun e -> Node.Expression e)
 
@@ -29,6 +25,9 @@ let letNodes (xs: List<LanguageTools.ProgramTypes.LetPattern>) : List<Node> =
 let patNodes (xs: List<LanguageTools.ProgramTypes.MatchPattern>) : List<Node> =
   Stdlib.List.map xs (fun p -> Node.MatchPattern p)
 
+/// Return the node's ID if it is used to identify an inferred type, plus the
+/// child nodes to visit next. Ignore IDs that do not serve this purpose, such as
+/// literal IDs. Solve separately checks the IDs used to identify named let bindings.
 let children (node: Node) : (Stdlib.Option.Option<Int64> * List<Node>) =
   // Keep cases that bind variables in separate match arms. Grouping those cases
   // can make the compiler associate a bound name with the wrong value.
@@ -436,11 +435,9 @@ let hasRepeat (ids: List<Int64>) : Bool =
 
 /// `tooDeep` and `problem` for <param body> from ONE walk, as (too deep, duplicate id).
 ///
-/// Each used to walk the whole body on its own, and the duplicate check put every id into a
-/// dictionary: an insert per node, which made this pre-check one of the larger costs of a check.
-/// Here one walk collects the ids and the depth, and a sort finds whether any repeats. The rare
-/// body that is too deep or has a repeat goes to `problem`, so the id reported is the same one,
-/// the first repeat in `problem`'s order.
+/// One walk collects the ids and the depth, and a sort finds whether any repeats, rather than a
+/// walk each and a dictionary insert per node. The rare body that is too deep or has a repeat
+/// goes to `problem`, so the id reported is the same one, the first repeat in `problem`'s order.
 let inspect
   (body: LanguageTools.ProgramTypes.Expr)
   : (Stdlib.Option.Option<Model.Finding> * Stdlib.Option.Option<Model.Finding>) =

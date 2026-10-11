@@ -607,8 +607,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       PT2DT.PackageFn.toDT
 
     // The same fn with its body left out, before it becomes a Dark value: for a caller that reads
-    // only the signature. The at-rest checker loads every fn a declaration depends on this way, and
-    // converting the bodies it never reads was most of what a whole-tree `dark typecheck` held.
+    // only the signature, which is how the at-rest checker loads a declaration's dependencies.
     getByHashFn
       "pmGetFnSignature"
       "function, without its body,"

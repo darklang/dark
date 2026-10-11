@@ -140,9 +140,7 @@ let shows
 
 /// The items <param outputFilter> lists, each with its label, in label order.
 ///
-/// A label is a store query, so only the listed items are labelled, and each once. This used to
-/// label every item to sort them and again to print them: two queries per declaration on a
-/// whole-branch audit, nearly all for checked items the default view does not list. The sort
+/// A label is a store query, so only the listed items are labelled, and each once. The sort
 /// breaks ties on the item itself, so sorting only the listed items keeps their order.
 let listed
   (branchId: Uuid)
@@ -258,8 +256,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let finished = if totals.failedCount > 0 then { state with exitCode = 1 } else state
 
     // Incomplete with no items is the checker failing over the whole batch, not a branch with
-    // nothing in it (that comes back Checked). It used to print "checked 0, failed 0" and exit 0,
-    // which says the branch type-checks when nothing was looked at.
+    // nothing in it (that comes back Checked), so it must not report the branch as type-checked.
     if
       report.verdict == LanguageTools.AtRestTypeChecker.Verdict.Incomplete
       && Stdlib.List.isEmpty report.items

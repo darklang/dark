@@ -645,9 +645,8 @@ let manyRefsInto
 
 /// `exprRefs`, pushed onto <param acc> (reversed) in the order `exprRefs` returns them.
 ///
-/// Accumulated rather than returned and joined: the joined version built a closure on every
-/// call, a mapped list per node with children and a flattened copy of it at every level, which
-/// made collecting a body's references cost about as much as converting its types.
+/// Accumulated rather than returned and joined: joining builds a closure per call, a mapped list
+/// per node with children, and a flattened copy of it at every level.
 let exprRefsInto
   (env: Model.Environment)
   (expr: LanguageTools.ProgramTypes.Expr)
@@ -875,8 +874,8 @@ let loadDependency
     | None -> ([], closure)
   // Loaded without its body. A dependency is used for its signature only (`addFunctionSignature`,
   // and `Impls` reading a method's), and a Dark fn's types are all written out, so the body
-  // never decides anything. It was most of what each piece held, in every piece at once. The
-  // `ThroughADependency` tests pin what the signature alone has to catch.
+  // never decides anything. The `ThroughADependency` tests pin what the signature alone has to
+  // catch.
   | PackageFn hash ->
     let found =
       match Stdlib.Dict.get pool.fns hash with

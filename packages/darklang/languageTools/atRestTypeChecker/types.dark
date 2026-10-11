@@ -575,18 +575,18 @@ let expand
   : (Model.Ty * List<Model.Finding>) =
   expandFrom env subst at [] [] ty
 
-/// Expand outer aliases while carrying prior findings and the active alias path.
-/// seen detects recursive alias definitions. Records and enums keep their identity;
-/// check their argument counts without expanding their fields.
 /// An expansion that cannot go on: the type becomes TError and <param problem> joins <param found>.
-/// Top-level rather than nested in `expandFrom`, where it was a closure built on every expansion and
-/// used only on the failing ones.
+/// Top-level rather than nested in `expandFrom`, where it is a closure built on every expansion
+/// and used only on the failing ones.
 let blocked
   (found: List<Model.Finding>)
   (problem: Model.Finding)
   : (Model.Ty * List<Model.Finding>) =
   (Model.Ty.TError, Stdlib.List.push found problem)
 
+/// Expand outer aliases while carrying prior findings and the active alias path.
+/// seen detects recursive alias definitions. Records and enums keep their identity;
+/// check their argument counts without expanding their fields.
 let expandFrom
   (env: Model.Environment)
   (subst: Dict<Model.Var, Model.Ty>)
@@ -789,7 +789,6 @@ let argsThatReachValues
   : List<'a> =
   // The two answers nearly every call has, decided before zipping: no arguments selects none,
   // and neither does a declaration that requires none of its parameters, when the counts agree.
-  // Zipping, filtering and mapping for those was most of what validating a type reference cost.
   if Stdlib.List.isEmpty args then
     []
   else if Stdlib.List.isEmpty used && Stdlib.List.length typeParams == Stdlib.List.length args then

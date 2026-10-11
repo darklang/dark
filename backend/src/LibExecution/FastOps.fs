@@ -206,9 +206,8 @@ let evalListMember (tag : int) (items : List<Dval>) (value : Dval) : Dval voptio
 /// `List.push`: <param value> on the front of a list whose element type is <param vt>.
 ///
 /// The builtin's own answer when the types merge, without the general call path (argument array,
-/// parameter checks, result check), which was most of what a push cost. Every list a fold builds
-/// comes through here once per element. Declines when the types do not merge, so the builtin and
-/// its parameter check produce whatever error they produce today.
+/// parameter checks, result check). Every list a fold builds comes through here once per element.
+/// Declines when the types do not merge, so the builtin and its parameter check report it.
 let evalListPush
   (vt : ValueType)
   (items : List<Dval>)
