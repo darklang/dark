@@ -7,7 +7,7 @@ set -euo pipefail
 export DOTNET_ROOT="$DARK_VM_DOTNET_ROOT"
 export PATH="$DOTNET_ROOT:$PATH"
 export DOTNET_ROLL_FORWARD=Major
-export DOTNET_GCHeapHardLimit=40000000
+export DOTNET_GCHeapHardLimit=${DOTNET_GCHeapHardLimit:-40000000}
 export DOTNET_EnableWriteXorExecute=0
 export DOTNET_CLI_HOME="$DOTNET_ROOT/cli-home"
 export TMPDIR="$DOTNET_ROOT/tmp"

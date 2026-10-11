@@ -2402,6 +2402,25 @@ let tests =
           | other -> failtest $"expected a function: {other}"
         let call = P.parse "__make buffer.size"
         Expect.isEmpty call.diagnostics "private lowercase functions remain calls")
+      testCase "private names reach package lookup" (fun _ ->
+        for name in [ "__helper"; "__helper_v0" ] do
+          let result =
+            (NR.resolveFnName
+              Set.empty PT.PackageManager.empty NR.OnMissing.Allow []
+              (WT.Unresolved(NEList.singleton name)) |> Ply.toTask).Result
+          Expect.equal result.resolved (Error PT.NameResolutionError.NotFound)
+            $"valid private function: {name}"
+        for name in [ "__Buffer"; "__Buffer_v0" ] do
+          let result =
+            (NR.resolveTypeName PT.PackageManager.empty NR.OnMissing.Allow []
+              (WT.Unresolved(NEList.singleton name)) |> Ply.toTask).Result
+          Expect.equal result.resolved (Error PT.NameResolutionError.NotFound)
+            $"valid private type: {name}"
+        let invalid =
+          (NR.resolveFnName Set.empty PT.PackageManager.empty NR.OnMissing.Allow []
+            (WT.Unresolved(NEList.singleton "_helper")) |> Ply.toTask).Result
+        Expect.equal invalid.resolved (Error PT.NameResolutionError.InvalidName)
+          "a single underscore does not acquire the private-name convention")
       stackSafetyTests
       unwrapTests
       parserStructureTests
