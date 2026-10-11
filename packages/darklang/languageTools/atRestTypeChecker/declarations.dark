@@ -173,8 +173,8 @@ let checkTypeStructure
         (Stdlib.List.push names name, found)
   | _ -> (names, found)
 
-/// `checkTypeStructure` over each of <param tys> in turn. Top-level rather than nested: the
-/// nested version was a closure built on every call, leaf types included, which never use it.
+/// `checkTypeStructure` over each of <param tys> in turn. Top-level rather than nested, where it
+/// is a closure built on every call, leaf types included, which never use it.
 let checkTypeStructures
   (env: Model.Environment)
   (at: Stdlib.Option.Option<Int64>)
@@ -182,7 +182,7 @@ let checkTypeStructures
   (found: List<Model.Finding>)
   (tys: List<Model.Ty>)
   : (List<LanguageTools.ProgramTypes.Hash> * List<Model.Finding>) =
-  // Direct recursion rather than a fold, which built a lambda per call. These lists are a type's
+  // Direct recursion rather than a fold, which builds a lambda per call. These lists are a type's
   // arguments or a function's parameters, so the recursion is as shallow as the list is short.
   match tys with
   | [] -> (names, found)

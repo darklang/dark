@@ -84,10 +84,9 @@ type CallableKey =
 /// reached an effect will very likely reach it again, and a spread that falls back has paid for
 /// its chunks and gained nothing.
 ///
-/// Keyed by the name itself rather than by a string of it. `string` on an `FQFnName` has no
+/// Keyed by the name itself rather than by a string of it: `string` on an `FQFnName` has no
 /// override to call, so F# prints the union through reflection, and `eligible` asks on every
-/// list op over a named fn: that one `string` was most of the reflection in a whole-tree
-/// `dark typecheck`.
+/// list op over a named fn.
 let private fellBack =
   System.Collections.Concurrent.ConcurrentDictionary<CallableKey, byte>()
 

@@ -262,8 +262,8 @@ let unwrapAliasSync (typ : TypeReference) : TypeReference voption =
 /// name fixes its declaration, and so the type it unwraps to. Filled only by the async path, so it
 /// holds exactly the answers that path gave.
 ///
-/// Without it, every value checked against an alias went the async route on every call, for
-/// example each `Int64` returned as an `ID`: a `Task` and a handful of closures per call.
+/// Without it every value checked against an alias takes the async route, a `Task` and a handful
+/// of closures per call, for example each `Int64` returned as an `ID`.
 let aliasTargets =
   System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, TypeReference>()
 
@@ -863,11 +863,9 @@ let checkFnResult
 ///
 /// Doing this at-construction is important to ensure efficient run-time type-checking.
 module DvalCreator =
-  /// Merge each element's type into the list's, accumulating in reverse. A top-level recursion
-  /// rather than a fold over a tuple: the lambda would be a closure and the accumulator a tuple,
-  /// both allocated per element.
   /// The element type <param remaining> agrees on, merged into <param typ>, raising at the first
-  /// element that disagrees. Only the type: the list itself is used as it is.
+  /// element that disagrees. Only the type: the list itself is used as it is. Top-level recursion
+  /// rather than a fold, whose lambda and accumulator would each allocate per element.
   let rec private listElementType
     (threadID : ThreadID)
     (i : int)
@@ -925,9 +923,7 @@ module DvalCreator =
   // CLEANUP consider skipping type-checking after N elements or after the type args are fully resolved, whichever comes last.
   //   In order to support this^, add another param or two so that direct [] interpretation is differentiated from calls to this from Builtins and other places.
   //   (or split this into 2 separate fns with clearer names)
-  /// A list of <param items>, typed by what they agree on. The items are checked, not copied: this
-  /// built them reversed into a new list and then reversed that, two copies of every list literal
-  /// to arrive back at the list it was given.
+  /// A list of <param items>, typed by what they agree on. The items are checked, not copied.
   let list (threadID : ThreadID) (typ : ValueType) (items : List<Dval>) : Dval =
     DList(listElementType threadID 0 typ items, items)
 
@@ -1349,18 +1345,13 @@ module DvalCreator =
       else
         struct (tst, List.zip case.fields fields)
 
-  /// The half of enum construction after the type is known. A top-level function taking everything
-  /// explicitly, not a local one: a local closing over `types` and friends is a closure allocated on
-  /// every construction, which is what it cost when it was written that way.
   /// Check each field against its declared type, walking the two lists side by side, and return
   /// the type arguments that leaves. ValueNone when any field needs the type store or fails to
   /// unify: the caller then takes the full path, which is where errors are built.
   ///
-  /// The point is what it does NOT build. Every enum in the language is constructed here, and the
-  /// full path zips declarations with values into a list of pairs, collects the values into a
-  /// reversed list and reverses it, which is three lists to hand back a list equal to the input:
-  /// checking a field never changes it. Nested matches rather than a match on the pair, which
-  /// allocates a tuple per field.
+  /// Every enum in the language is constructed here, and checking a field never changes it, so
+  /// this hands back the fields it was given instead of rebuilding them. Nested matches rather
+  /// than a match on the pair, which allocates a tuple per field.
   let rec private enumFieldsSync
     (tst : TypeSymbolTable)
     (defs : List<TypeReference>)
@@ -1407,6 +1398,9 @@ module DvalCreator =
       else
         caseWithArity rest caseName fields
 
+  /// The half of enum construction after the type is known. A top-level function taking everything
+  /// explicitly, not a local one: a local closing over `types` and friends is a closure allocated on
+  /// every construction, which is what it cost when it was written that way.
   let private enumAfterResolve
     (types : Types)
     (threadID : ThreadID)

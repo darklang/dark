@@ -75,8 +75,8 @@ let private memoName (current : TypeNameMemo) (h : string) : TypeNameMemo =
     TypeNameMemo(h, FQTypeName.fqPackage h)
 
 /// A `typeName ()` for the package type <param hashOf> names, built once per resolved hash rather
-/// than on every call. Converting a value to its Dark form asks for a type name twice per record
-/// and enum it builds, and each asking allocated the name afresh.
+/// than on every call: converting a value to its Dark form asks for a type name twice per record
+/// and enum it builds.
 let memoTypeName (hashOf : unit -> string) : unit -> FQTypeName.FQTypeName =
   let slot = ref (null : TypeNameMemo)
   fun () ->

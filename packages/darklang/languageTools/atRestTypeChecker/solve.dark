@@ -171,8 +171,7 @@ let unify
 /// Compare components or expand aliases only when the types still differ.
 ///
 /// The depth is a parameter, not a field of the State: it is nesting, not a running total, and
-/// carrying it in the State copied the record twice per comparison (in, and back out), which was
-/// most of the record copying the checker did.
+/// carrying it in the State copies the record twice per comparison, in and back out.
 let unifyIn
   (depth: Int64)
   (s: State)
@@ -299,14 +298,14 @@ let unifyExpanded
   else
     unifyIn depth s at site expandedExpected expandedActual
 
-/// Assign v to the other type while rejecting an assignment that would contain v
-/// within itself. Expand aliases before declaring such a cycle, since an alias
-/// can discard an argument or reduce to v itself.
-/// <param s> with <param v> assigned <param t>. Top-level rather than nested in `bindVar`, where it
-/// was a closure built on every binding.
+/// <param s> with <param v> assigned <param t>. Top-level rather than nested in `bindVar`, where
+/// it is a closure built on every binding.
 let bindTo (s: State) (v: Model.Var) (t: Model.Ty) : State =
   { s with subst = Stdlib.Dict.setOverridingDuplicates s.subst v t }
 
+/// Assign v to the other type while rejecting an assignment that would contain v
+/// within itself. Expand aliases before declaring such a cycle, since an alias
+/// can discard an argument or reduce to v itself.
 let bindVar
   (s: State)
   (at: Stdlib.Option.Option<Int64>)

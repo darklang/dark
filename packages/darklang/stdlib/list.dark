@@ -466,9 +466,8 @@ let zipShortest (as_: List<'a>) (bs: List<'b>) : List<('a * 'b)> =
 /// <fn zipShortest> if you want to drop values from the longer list
 /// instead).
 let zip (l1: List<'a>) (l2: List<'b>) : Option.Option<List<('a * 'b)>> =
-  // The lengths once, then one native zip. This recursed, measuring both lengths again at
-  // every level and wrapping every level's result in an Option: quadratic in the length, and
-  // 946 B a call in the at-rest checker, which zips a call's arguments with its parameters.
+  // The lengths once, then one native zip, rather than recursing and measuring both lengths
+  // again at every level, which is quadratic in the length.
   if (length l1) != (length l2) then
     Option.Option.None
   else

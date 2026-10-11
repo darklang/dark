@@ -795,9 +795,9 @@ let rec private namedValuesOfRegisters
 
 
 /// What a lambda closes over: each child register paired with the value now in its parent
-/// register. Filled in place rather than built with `List.map` and a lambda, which allocated a
-/// closure over the register file, and a pair and a list cell per capture, on every lambda the
-/// program creates.
+/// register. Filled in place rather than with `List.map` and a lambda, which allocates a closure
+/// over the register file, and a pair and a list cell per capture, on every lambda the program
+/// creates.
 let rec private fillCaptured
   (registers : Dval array)
   (captured : (struct (Register * Dval))[])
@@ -3879,7 +3879,6 @@ let private fieldlessEnums =
 /// properly. That does mean the builder runs twice on a miss: the discarded `Ply` finishes on its own
 /// and its result is dropped. These builders only read the type store and construct a value, so a
 /// repeat is wasted work rather than a second effect, and a miss happens about once per type.
-
 let private tryBuildSync
   (exeState : ExecutionState)
   (vm : VMState)
@@ -3915,8 +3914,8 @@ let private tryBuildSync
 
   | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
     // A case with no fields and no type arguments is the same value every time it is built, so the
-    // first one built is handed out from then on. `None`, a `Result` role, a field-less variant of
-    // any enum: each was a fresh object per construction.
+    // first one built is handed out from then on: `None`, a `Result` role, a field-less variant of
+    // any enum.
     let mutable kept = Unchecked.defaultof<Dval>
     if
       List.isEmpty fields

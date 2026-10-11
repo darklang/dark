@@ -419,10 +419,10 @@ let checkQuery
   let size = Stdlib.max 64 ((Stdlib.List.length unique) / 32 + 1)
 
   // What the pieces depend on is mostly the same types and fns, and every piece is in flight at
-  // once, so loading them per piece held one copy of most of Stdlib per piece. Loaded once here
+  // once, so loading them per piece holds one copy of most of Stdlib per piece. Loaded once here
   // instead, fns by signature only, and every piece's closure points into this. A declaration
   // that fails to load is left out, and the piece that needs it goes to the store and reports
-  // the failure as it always did.
+  // the failure.
   let pool =
     poolFor
       (Stdlib.List.map types (fun (_, h) -> h))
@@ -436,9 +436,9 @@ let checkQuery
 
   match Stdlib.List.chunkBySize unique size with
   | Ok chunks ->
-    // No more pieces in flight than there are workers to run them. Spawning all of them at once
-    // ran them no faster, since the extras only took turns, but every one of them loaded its
-    // declarations first and held them until it finished: the whole branch in memory at once.
+    // No more pieces in flight than there are workers to run them. Spawning more runs them no
+    // faster, since the extras take turns, and each one loads its declarations first and holds
+    // them until it finishes: the whole branch in memory at once.
     // Each lane takes every `lanes`th piece in turn; the reports go back in piece order.
     let lanes = Stdlib.max 1 (Stdlib.min (Stdlib.List.length chunks) (Stdlib.Exec.workers ()))
     let numbered = Stdlib.List.indexedMap chunks (fun i chunk -> (i, chunk))
