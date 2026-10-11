@@ -425,7 +425,7 @@ module RT =
       let value =
         RT.DApplicable(
           RT.AppNamedFn
-            { name = RT.FQFnName.fqBuiltin "timeNowMs" 0
+            { name = RT.FQFnName.fqBuiltin "syscallGettimeofday" 0
               typeSymbolTable = RT.TST.empty
               typeArgs = []
               access =

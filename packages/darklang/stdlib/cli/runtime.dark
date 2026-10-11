@@ -5,5 +5,9 @@ let targetOS () : String = Builtin.runtimeTargetOS ()
 
 let targetArchitecture () : String = Builtin.runtimeTargetArchitecture ()
 
+let realtimeTicks () : Int = Builtin.runtimeRealtimeTicks ()
+let monotonicCounter () : (Int * Int) = Builtin.runtimeMonotonicCounter ()
+let delayTicks (ticks: Int) : Unit = Builtin.runtimeDelayTicks ticks
+
 /// Runtime executable identity, authorized as a read of the returned path.
 let executablePath () : String = Builtin.runtimeExecutablePath ()

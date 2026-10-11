@@ -228,7 +228,7 @@ module StatMode =
 
 /// Sleep for the given number of milliseconds.
 let sleep (delayMs: Float) : Unit =
-  Builtin.timeSleep delayMs
+  Clock.sleepMilliseconds delayMs
 
 
 /// Check if a path is a directory via stat().

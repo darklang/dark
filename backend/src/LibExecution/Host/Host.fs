@@ -681,6 +681,23 @@ let private resolvePosix
     native (fun () -> HostPosix.fstat (rawDescriptor fd) |> Result.map Response.Bytes)
   | HostTypes.PosixOp.Getentropy count ->
     unchecked (attempt (fun () -> HostPosix.getentropy count |> Result.map Response.Bytes))
+  | HostTypes.PosixOp.ClockGettime clock ->
+    withChecks [ (Ok Permission.Request.clock, "reading clock") ]
+      (attempt (fun () -> HostPosix.clockGettime clock |> Result.map Response.Bytes))
+  | HostTypes.PosixOp.Gettimeofday ->
+    withChecks [ (Ok Permission.Request.clock, "reading clock") ]
+      (attempt (fun () -> HostPosix.gettimeofday () |> Result.map Response.Bytes))
+  | HostTypes.PosixOp.MachAbsoluteTime ->
+    withChecks [ (Ok Permission.Request.clock, "reading clock") ]
+      (attempt (fun () -> HostPosix.machAbsoluteTime () |> Result.map Response.Bytes))
+  | HostTypes.PosixOp.MachTimebaseInfo ->
+    withChecks [ (Ok Permission.Request.clock, "reading clock") ]
+      (attempt (fun () -> HostPosix.machTimebaseInfo () |> Result.map Response.Bytes))
+  | HostTypes.PosixOp.Nanosleep(seconds, nanos) ->
+    withChecks [ (Ok Permission.Request.clock, "sleeping") ]
+      (blocking (fun () ->
+        let rc, remaining = HostPosix.nanosleep seconds nanos
+        Ok(Response.KernelSleep(rc, remaining))))
   | HostTypes.PosixOp.UnameBytes ->
     unchecked (attempt (fun () -> HostPosix.unameBytes () |> Result.map Response.Bytes))
   | HostTypes.PosixOp.SysctlBytes(mib, count) ->
@@ -1104,8 +1121,9 @@ let private performWithSession
       | None ->
         match op with
         | Operation.Posix posix ->
+          let resolve () = resolveSessionPosix session posix
           let run () =
-            match resolveSessionPosix session posix with
+            match resolve () with
             | Error outcome -> outcome
             | Ok resolved ->
               match firstDenial relax access resolved.checks with
@@ -1114,10 +1132,18 @@ let private performWithSession
                 // POSIX adapters are synchronous. Keep the descriptor lease
                 // through the kernel call, including close and multi-fd copy.
                 (execute resolved.execute).GetAwaiter().GetResult()
-          Task.FromResult(
-            match session with
-            | Some owner -> lock owner.Gate run
-            | None -> run ())
+          // Only descriptor leases and registration need the session lock.
+          // Sleeps must be asynchronous and must not freeze every owned fd.
+          let leases = descriptorUses posix <> [] || (match posix with HostTypes.PosixOp.Open _ -> true | _ -> false)
+          if leases then
+            Task.FromResult(match session with Some owner -> lock owner.Gate run | None -> run ())
+          else
+            match resolve () with
+            | Error outcome -> Task.FromResult outcome
+            | Ok resolved ->
+              match firstDenial relax access resolved.checks with
+              | Some denied -> Task.FromResult denied
+              | None -> execute resolved.execute
         | _ ->
           match resolve op with
           | Error message -> Task.FromResult(Outcome.Rejected message)

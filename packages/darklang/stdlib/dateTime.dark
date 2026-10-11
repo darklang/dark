@@ -23,11 +23,11 @@ let toStringISO8601BasicDate (date: DateTime) : String =
 
 
 /// Returns the current time
-let now () : DateTime = Builtin.dateTimeNow ()
+let now () : DateTime = Stdlib.Cli.Clock.now ()
 
 
 /// Returns the <type DateTime> with the time set to midnight
-let today () : DateTime = Builtin.dateTimeToday ()
+let today () : DateTime = Stdlib.Cli.Clock.today ()
 
 
 /// Returns a <type DateTime> <param seconds> seconds after <param d>

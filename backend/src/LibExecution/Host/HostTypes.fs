@@ -56,6 +56,11 @@ type PosixOp =
   | UnameBytes
   | SysctlBytes of mib : List<int> * count : int
   | SchedGetaffinity of pid : int * count : int
+  | ClockGettime of clock : int
+  | Gettimeofday
+  | MachAbsoluteTime
+  | MachTimebaseInfo
+  | Nanosleep of seconds : int64 * nanos : int64
   | Pread of fd : FileDescriptor * count : int * offset : int64
   | Pwrite of fd : FileDescriptor * data : byte[] * offset : int64
   | Open of path : string * flags : int * mode : int
@@ -164,6 +169,7 @@ type HttpStreamHead =
 [<RequireQualifiedAccess>]
 type Response =
   | Bytes of byte[]
+  | KernelSleep of rc : int * remaining : byte[]
   | Unit
   | Stat of exists : bool * isDirectory : bool
   | Path of string
@@ -249,6 +255,11 @@ let describeOperation (op : Operation) : string =
     | PosixOp.UnameBytes -> "uname"
     | PosixOp.SysctlBytes(mib, count) -> $"sysctl {mib} {count}"
     | PosixOp.SchedGetaffinity(pid, count) -> $"sched_getaffinity {pid} {count}"
+    | PosixOp.ClockGettime clock -> $"clock_gettime {clock}"
+    | PosixOp.Gettimeofday -> "gettimeofday"
+    | PosixOp.MachAbsoluteTime -> "mach_absolute_time"
+    | PosixOp.MachTimebaseInfo -> "mach_timebase_info"
+    | PosixOp.Nanosleep(seconds, nanos) -> $"nanosleep {seconds} {nanos}"
     | PosixOp.Mkstemp prefix -> $"mkstemp {prefix}"
     | PosixOp.Mkdtemp prefix -> $"mkdtemp {prefix}"
     | PosixOp.ListDir path -> $"listdir {path}"

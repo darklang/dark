@@ -47,12 +47,12 @@ let private unitFn (hash : string) (body : PT.Expr) : PT.PackageFn.PackageFn =
     permissionCeiling = None
     bounds = [] }
 
-/// Builtin effects for the review tests: `timeNowMs` is clock-only and
+/// Builtin effects for the review tests: `syscallGettimeofday` is clock-only and
 /// `fileRead` reads files; anything else is unknown (incomplete).
 let private testEffects : PackagePermissions.CallEffectsFor =
   fun (name, _version) ->
     match name with
-    | "timeNowMs" -> Some(Set.singleton Effect.Effect.Clock)
+    | "syscallGettimeofday" -> Some(Set.singleton Effect.Effect.Clock)
     | "fileRead" -> Some(Set.singleton Effect.Effect.FileRead)
     | _ -> None
 
@@ -63,9 +63,9 @@ let private callBuiltin (name : string) : PT.Expr =
 /// `v2` an identical-contract re-release, `wider` adds a file read, and
 /// `dynamic` applies a callback the static walk cannot follow.
 let private reviewUniverse =
-  [ unitFn "v1" (callBuiltin "timeNowMs")
-    unitFn "v2" (eLet (lpUnit ()) (eUnit ()) (callBuiltin "timeNowMs"))
-    unitFn "wider" (eStatement (callBuiltin "fileRead") (callBuiltin "timeNowMs"))
+  [ unitFn "v1" (callBuiltin "syscallGettimeofday")
+    unitFn "v2" (eLet (lpUnit ()) (eUnit ()) (callBuiltin "syscallGettimeofday"))
+    unitFn "wider" (eStatement (callBuiltin "fileRead") (callBuiltin "syscallGettimeofday"))
     unitFn "dynamic" (eApply (eVar "callback") [] [ eUnit () ])
     // A root with a dependency: reads a file itself and calls `v1` for the clock.
     unitFn

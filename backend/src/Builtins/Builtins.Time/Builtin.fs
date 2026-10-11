@@ -5,4 +5,4 @@ module Builtin = LibExecution.Builtin
 let fnRenames : Builtin.FnRenames = []
 
 let builtins () =
-  Builtin.combine [ Libs.Time.builtins (); Libs.DateTime.builtins () ] fnRenames
+  Builtin.combine [ Libs.RuntimeClock.builtins () ] fnRenames

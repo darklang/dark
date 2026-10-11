@@ -53,6 +53,16 @@ let getcwdBytes_raw (bytes : byte[]) =
   withBytes bytes (fun p -> int (call 6 p (int64 bytes.Length) 0L 0L 0L 0L))
 let fcntlGetPath_raw (fd : int, bytes : byte[]) =
   withBytes bytes (fun p -> int (call 36 (int64 fd) 50L p 0L 0L 0L))
+let clockGettime_raw (clock : int, bytes : byte[]) =
+  withBytes bytes (fun p -> int (call 37 (int64 clock) p 0L 0L 0L 0L))
+let gettimeofday_raw (bytes : byte[]) =
+  withBytes bytes (fun p -> int (call 38 p 0L 0L 0L 0L 0L))
+let nanosleep_raw (request : byte[], remaining : byte[]) =
+  withBytes request (fun a -> withBytes remaining (fun b -> int (call 39 a b 0L 0L 0L 0L)))
+let machAbsoluteTime_raw (bytes : byte[]) =
+  withBytes bytes (fun p -> int (call 40 0L 0L p 0L 0L 0L))
+let machTimebaseInfo_raw (bytes : byte[]) =
+  withBytes bytes (fun p -> int (call 41 p 0L 0L 0L 0L 0L))
 let lseek_raw (fd : int, offset : int64, whence : int) =
   call 4 (int64 fd) offset (int64 whence) 0L 0L 0L
 let fstatat_raw (fd : int, path : string, buf : IntPtr, flags : int) =

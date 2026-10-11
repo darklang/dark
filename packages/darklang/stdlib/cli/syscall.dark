@@ -5,6 +5,12 @@
 /// the kernel reports an error. Never retry close after EINTR.
 module Darklang.Stdlib.Cli.Syscall
 
+let clockGettime (clock: Int) : Result.Result<Blob, Int> = Builtin.syscallClockGettime clock
+let gettimeofday () : Result.Result<Blob, Int> = Builtin.syscallGettimeofday ()
+let machAbsoluteTime () : Result.Result<Blob, Int> = Builtin.syscallMachAbsoluteTime ()
+let machTimebaseInfo () : Result.Result<Blob, Int> = Builtin.syscallMachTimebaseInfo ()
+let nanosleep (seconds: Int) (nanos: Int) : (Int * Blob) = Builtin.syscallNanosleep seconds nanos
+
 let getcwd (count: Int) : Result.Result<Blob, Int> = Builtin.syscallGetcwd count
 let fcntlGetPath (fd: Int) : Result.Result<Blob, Int> = Builtin.syscallFcntlGetPath fd
 

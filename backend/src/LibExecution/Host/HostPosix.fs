@@ -472,6 +472,9 @@ let utimensAt (path : string) (accessSec : int64) (accessNanos : int64)
   (modifySec : int64) (modifyNanos : int64) : Result<unit, int * string> =
   if isMac then Error(78, "Function not implemented")
   elif isWasm then Managed.enosys ()
+  elif isArm32 && ([ accessSec; accessNanos; modifySec; modifyNanos ]
+    |> List.exists (fun value -> value < int64 System.Int32.MinValue || value > int64 System.Int32.MaxValue)) then
+    Error(75, "timestamp does not fit this kernel ABI")
   else
     let width = if isArm32 then 4 else 8
     let times = Marshal.AllocHGlobal(width * 4)
@@ -531,6 +534,37 @@ let stat (path : string) : Result<int * int64 * int64, int * string> =
       Marshal.FreeHGlobal buf
 
 /// Single-call raw records; shared Dark code selects and decodes fields.
+let private clockRecord size call : Result<byte[], int * string> =
+  if isWasm then Managed.enosys ()
+  else
+    let bytes = Array.zeroCreate<byte> size
+    if call bytes < 0 then failed () else Ok bytes
+
+let clockGettime clock =
+  clockRecord (if isArm32 then 8 else 16) (fun bytes -> clockGettime_raw (clock, bytes))
+let gettimeofday () = clockRecord (if isArm32 then 8 else 16) gettimeofday_raw
+let machAbsoluteTime () = clockRecord 8 machAbsoluteTime_raw
+let machTimebaseInfo () = clockRecord 8 machTimebaseInfo_raw
+
+/// Return the one-shot status AND remainder, including EINTR; Dark retries.
+let nanosleep (seconds : int64) (nanos : int64) : int * byte[] =
+  let width = if isArm32 then 4 else 8
+  let request = Array.zeroCreate<byte> (width * 2)
+  let remaining = Array.zeroCreate<byte> (width * 2)
+  if isWasm then (-38, remaining)
+  elif seconds < 0L || nanos < 0L || nanos >= 1000000000L then (-22, remaining)
+  elif width = 4 && (seconds < int64 System.Int32.MinValue || seconds > int64 System.Int32.MaxValue) then
+    (-75, remaining)
+  else
+    if width = 4 then
+      BitConverter.GetBytes(int seconds).CopyTo(request, 0)
+      BitConverter.GetBytes(int nanos).CopyTo(request, width)
+    else
+      BitConverter.GetBytes(seconds).CopyTo(request, 0)
+      BitConverter.GetBytes(nanos).CopyTo(request, width)
+    let rc = nanosleep_raw (request, remaining)
+    (if rc < 0 then -Marshal.GetLastPInvokeError() else rc), remaining
+
 let unameBytes () : Result<byte[], int * string> =
   if isWasm then Managed.enosys ()
   else

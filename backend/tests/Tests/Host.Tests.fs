@@ -527,6 +527,21 @@ let posixKernelRoundTrip =
         System.IO.Directory.Delete(parent, true)
   }
 
+let rawClocksRequireClockPermission =
+  testTask "raw clocks and sleeps retain the Clock gate at Host" {
+    for operation in
+      [ HT.PosixOp.ClockGettime -1; HT.PosixOp.Gettimeofday
+        HT.PosixOp.MachAbsoluteTime; HT.PosixOp.MachTimebaseInfo
+        HT.PosixOp.Nanosleep(0L, 0L) ] do
+      let! outcome =
+        LibExecution.Host.perform Permission.NoRelax
+          (Permission.Access.start Permission.Policy.denyAll)
+          (HT.Operation.Posix operation)
+      match outcome with
+      | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _) -> ()
+      | other -> failtest $"expected Clock denial before kernel errno, got {other}"
+  }
+
 let tests =
   testList
     "host"
@@ -536,6 +551,7 @@ let tests =
       rawDescriptorsRequireNativeAtHostBoundary
       scopedDescriptorsRecheckAccessAndOwnership
       systemFactsDoNotGrantSensitiveQueries
+      rawClocksRequireClockPermission
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink
       posixWalkRefusesALinkMetAtOperationTime

@@ -53,8 +53,45 @@ let private timestamp name constructor : BuiltInFn =
         | _ -> incorrectArgs ()))
       with callEffects = set [ Effect.FileWrite ] }
 
+let private clock name parameters body =
+  { (make name parameters TBlob KTBlob body)
+      with callEffects = set [ Effect.Clock ] }
+
+let private clockUnit name op =
+  clock name [ Param.make "unit" TUnit "" ] (fun _ vm values ->
+    match values with
+    | [| DUnit |] -> perform KTBlob vm op bytes
+    | _ -> incorrectArgs ())
+
 let fns () : List<BuiltInFn> =
-  [ timestamp "syscallUtimensAt" Op.PosixOp.UtimensAt
+  [ clock "syscallClockGettime" [ integer "clock" ] (fun _ vm values ->
+      match values with
+      | [| DInt id |] -> perform KTBlob vm (Op.PosixOp.ClockGettime(intToInt32 vm id)) bytes
+      | _ -> incorrectArgs ())
+    clockUnit "syscallGettimeofday" Op.PosixOp.Gettimeofday
+    clockUnit "syscallMachAbsoluteTime" Op.PosixOp.MachAbsoluteTime
+    clockUnit "syscallMachTimebaseInfo" Op.PosixOp.MachTimebaseInfo
+    { name = fn "syscallNanosleep" 0
+      typeParams = []
+      parameters = [ integer "seconds"; integer "nanos" ]
+      returnType = TTuple(TInt, TBlob, [])
+      description = "One nanosleep attempt: raw status and remaining timespec"
+      fn = (fun struct (_, vm, _, values) ->
+        match values with
+        | [| DInt seconds; DInt nanos |] ->
+          Interpreter.requestHost vm
+            (Host.Operation.Posix(Op.PosixOp.Nanosleep(intToInt64 vm seconds, intToInt64 vm nanos)))
+            (fun outcome ->
+              match outcome with
+              | Ok(Op.Response.KernelSleep(rc, remaining)) ->
+                Ply(DTuple(Dval.int (bigint rc), Blob.newEphemeral remaining, []))
+              | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      callEffects = set [ Effect.Clock ]
+      deprecated = NotDeprecated }
+    timestamp "syscallUtimensAt" Op.PosixOp.UtimensAt
     timestamp "syscallSetattrlistTimes" Op.PosixOp.SetattrlistTimes
     make "syscallUname" [ Param.make "unit" TUnit "" ] TBlob KTBlob
       (fun _ vm values ->
