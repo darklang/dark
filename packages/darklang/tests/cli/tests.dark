@@ -429,7 +429,8 @@ test fnAcceptsCompleteDeclaration =
     && Stdlib.String.contains fragmentOutput "Created function"
     && fragmentEval == "8"
     && Stdlib.String.contains mismatchOutput "does not match target"
-    && Stdlib.String.contains multipleOutput "exactly one function declaration"
+    && Stdlib.String.contains multipleOutput "something after the definition"
+    && Stdlib.String.contains multipleOutput "nothing was saved"
     && Stdlib.Bool.not (Stdlib.String.contains multipleOutput "Created function")
   then
     Stdlib.Test.Result.Pass
@@ -707,10 +708,11 @@ test viewFlagBeforePath =
 test viewUnknownFlag =
   let output = runWithCommand ["view", "Stdlib.List.push", "--nope"]
 
-  if Stdlib.String.contains output "--nope" && Stdlib.String.contains output "Usage" then
+  if Stdlib.String.contains output "does not take `--nope`"
+    && Stdlib.String.contains output "dark view --help" then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail $"Expected an unknown-option error naming the flag plus usage, got: {output}"
+    Stdlib.Test.fail $"Expected a refusal naming the flag and pointing to help, got: {output}"
 
 
 // ---------------------------------------------------------------- native list rewrites
@@ -1049,8 +1051,10 @@ test editRefusesWhatItCannotEdit =
     Stdlib.String.contains noTerminal "Cannot open an editor"
       && Stdlib.String.contains noTerminal "not a terminal"
       && Stdlib.String.contains noTerminal "--raw"
-      && Stdlib.String.contains bare "usage: dark edit"
-      && Stdlib.String.contains tooMany "usage: dark edit"
+      && Stdlib.String.contains bare "needs an argument"
+      && Stdlib.String.contains bare "dark edit --help"
+      && Stdlib.String.contains tooMany "does not take `c`"
+      && Stdlib.String.contains tooMany "dark edit --help"
       && Stdlib.String.contains aModule "is a module"
       && Stdlib.String.contains aModule "dark module"
       && Stdlib.String.contains unknown "Cannot edit Zz.NoSuch.thing"
@@ -1153,11 +1157,11 @@ test treeRefusesWhatItCannotShow =
   let shown (s: String) : Bool = Stdlib.String.contains s "Package tree from"
 
   if
-    Stdlib.String.contains badFlag "does not understand"
+    Stdlib.String.contains badFlag "does not take `--zzbogus`"
       && Stdlib.Bool.not (shown badFlag)
       && Stdlib.String.contains badPath "Not found"
       && Stdlib.Bool.not (shown badPath)
-      && Stdlib.String.contains twoPaths "at most one path"
+      && Stdlib.String.contains twoPaths "does not take `Darklang.Cli`"
       && shown withDepth
   then
     Stdlib.Test.Result.Pass

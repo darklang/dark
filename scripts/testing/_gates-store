@@ -991,10 +991,17 @@ gate_shipped_tree_typechecks() {
   FLOOR=5000
 
   rm -rf "$ROOT"; mkdir -p "$ROOT/home" "$ROOT/logs"
+  scripts/testing/_copy-store "$ROOT/data.db"
+  sqlite3 "$ROOT/data.db" 'DELETE FROM config_v0;'
   export DARK_CONFIG_RUNDIR="$PWD/$ROOT/" DARK_CONFIG_DB_NAME=data.db HOME="$PWD/$ROOT/home"
 
   "$LOCAL_EXEC" migrations run > "$ROOT/migrations.log" 2>&1 || {
     cat "$ROOT/migrations.log"; return 1;
+  }
+  # A published CLI imports its bundled seed on first startup. Finish that before
+  # replacing the copy's packages, or startup would add the excluded tests back.
+  "$CLI" version --local > "$ROOT/startup.log" 2>&1 || {
+    cat "$ROOT/startup.log"; return 1;
   }
   # This mode never writes the checkout's shared package-ref-hashes.txt.
   "$LOCAL_EXEC" reload-packages --production-only > "$ROOT/reload.log" 2>&1 || {
@@ -1008,6 +1015,11 @@ gate_shipped_tree_typechecks() {
   "$CLI" typecheck --json < /dev/null > "$ROOT/report.json" 2> "$ROOT/stderr.txt"
   rc=$?
   set -e
+
+  if [[ $(sqlite3 "$ROOT/data.db" 'SELECT COUNT(*) FROM package_tests;') != 0 ]]; then
+    echo "shipped-tree-typechecks: the production audit store contains package tests" >&2
+    return 1
+  fi
 
   python3 - "$ROOT/report.json" "$rc" "$FLOOR" <<'EOF'
 import json, sys

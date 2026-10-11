@@ -472,9 +472,10 @@ module RT =
               argsSoFar = [] }
         )
       let bytes = value |> BS.RT.Dval.serialize "closure"
+      // Package tests bumped the format header to v6; the closure payload is unchanged.
       Expect.equal
         (System.Convert.ToHexString bytes)
-        "0500000021000000160007000000000000000201000000080500000000000000030000000E01780000"
+        "0600000021000000160007000000000000000201000000080500000000000000030000000E01780000"
         "the bytes a closure with captures serializes to"
       match BS.RT.Dval.deserialize "closure" bytes with
       | RT.DApplicable(RT.AppLambda lambda) ->
