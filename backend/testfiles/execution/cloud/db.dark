@@ -340,7 +340,7 @@ module Roundtrip =
         option = Stdlib.Option.Option.Some 5L
         record = MyTlid { mytlid = 1234UL }
         tuple = (1L, "hello")
-        emojiChar = (Builtin.testToChar "👍") |> Builtin.unwrap
+        emojiChar = '👍'
         uuid =
           (Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
           |> Builtin.unwrap
