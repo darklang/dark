@@ -18,10 +18,11 @@ module DvalComparator =
     | Equal
     | Greater
 
-  let order v1 v2 =
-    let result = compare v1 v2
-    if result < 0 then Less
-    elif result > 0 then Greater
+  // Typed, not generic: a generic `compare` boxes both ints, two allocations on every comparison
+  // a sort makes, which was most of what sorting a short list cost.
+  let order (v1 : int) (v2 : int) : Order =
+    if v1 < v2 then Less
+    elif v1 > v2 then Greater
     else Equal
 
 

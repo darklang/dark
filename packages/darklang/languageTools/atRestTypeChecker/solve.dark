@@ -18,8 +18,6 @@ type State =
     /// Match-coverage requirements saved for Items to check after type inference.
     /// Some may move into a generic scheme to be checked at each use instead.
     coverage: List<Model.Constraint>
-    /// How deep `unify` currently is; nesting, not a running total.
-    unifyDepth: Int64
     /// Set once the depth warning has been recorded, so siblings do not repeat it.
     gaveUpOnDepth: Bool
     /// Errors and warnings accumulated so far, with new findings prepended.
@@ -39,7 +37,6 @@ let start (env: Model.Environment) : State =
       schemes = Dict {}
       waiting = []
       coverage = []
-      unifyDepth = 0L
       gaveUpOnDepth = false
       findings = []
       resolutions = [] }
@@ -159,10 +156,25 @@ let maxUnifyDepth () : Int64 = 1000L
 
 /// Require actual to agree with expected, assigning unknowns where possible.
 /// Use at and site to locate and explain any mismatch.
+let unify
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (site: Site)
+  (expected: Model.Ty)
+  (actual: Model.Ty)
+  : State =
+  unifyIn 0L s at site expected actual
+
+/// `unify`, <param depth> levels into a comparison.
 ///
 /// Follow existing assignments first and accept identical types immediately.
 /// Compare components or expand aliases only when the types still differ.
-let unify
+///
+/// The depth is a parameter, not a field of the State: it is nesting, not a running total, and
+/// carrying it in the State copied the record twice per comparison (in, and back out), which was
+/// most of the record copying the checker did.
+let unifyIn
+  (depth: Int64)
   (s: State)
   (at: Stdlib.Option.Option<Int64>)
   (site: Site)
@@ -174,7 +186,7 @@ let unify
 
   if expected == actual then
     s
-  else if s.unifyDepth >= maxUnifyDepth () then
+  else if depth >= maxUnifyDepth () then
     // Recorded once: every sibling comparison below here is also too deep.
     if s.gaveUpOnDepth then
       s
@@ -183,16 +195,13 @@ let unify
         { s with gaveUpOnDepth = true }
         (Types.warning IssueCode.UnsupportedConstruct at Context.DeclarationTooDeep)
   else
-    let deeper =
-      unifyDifferent { s with unifyDepth = s.unifyDepth + 1L } at site expected actual
-
-    // Nesting, so many shallow comparisons are not refused for being numerous.
-    { deeper with unifyDepth = s.unifyDepth }
+    unifyDifferent (depth + 1L) s at site expected actual
 
 /// Compare types after following assignments and ruling out exact equality.
 /// Unknowns can be assigned, matching containers compare their components, and
 /// aliases may need expansion before a mismatch can be established.
 let unifyDifferent
+  (depth: Int64)
   (s: State)
   (at: Stdlib.Option.Option<Int64>)
   (site: Site)
@@ -204,21 +213,21 @@ let unifyDifferent
     | (_, TVar v) -> bindVar s at site v expected actual
     | (TError, other) -> markUnknownsAsError s other
     | (other, TError) -> markUnknownsAsError s other
-    | (TStream left, TStream right) -> unify s at site left right
-    | (TList left, TList right) -> unify s at site left right
-    | (TDB left, TDB right) -> unify s at site left right
+    | (TStream left, TStream right) -> unifyIn depth s at site left right
+    | (TList left, TList right) -> unifyIn depth s at site left right
+    | (TDB left, TDB right) -> unifyIn depth s at site left right
     | (TDict(leftKey, leftValue), TDict(rightKey, rightValue)) ->
-      unify (unify s at site leftKey rightKey) at site leftValue rightValue
+      unifyIn depth (unifyIn depth s at site leftKey rightKey) at site leftValue rightValue
     | (TTuple(l1, l2, lr), TTuple(r1, r2, rr)) ->
       if Stdlib.List.length lr == Stdlib.List.length rr then
-        unifyAll (unify (unify s at site l1 r1) at site l2 r2) at site lr rr
+        unifyAllIn depth (unifyIn depth (unifyIn depth s at site l1 r1) at site l2 r2) at site lr rr
       else
         mismatch s at site expected actual
     | (TFn(leftParams, leftRet), TFn(rightParams, rightRet)) ->
       // Function types must have the same number of parameters, as at runtime.
       // A two-parameter function differs from a one-parameter function returning another.
       if Stdlib.List.length leftParams == Stdlib.List.length rightParams then
-        unify (unifyAll s at site leftParams rightParams) at site leftRet rightRet
+        unifyIn depth (unifyAllIn depth s at site leftParams rightParams) at site leftRet rightRet
       else
         mismatch s at site expected actual
     | (TCustom(leftName, leftArgs), TCustom(rightName, rightArgs)) ->
@@ -226,18 +235,29 @@ let unifyDifferent
         // These types refer to the same non-alias declaration. Compare their
         // type arguments without expanding record fields or enum payloads.
         if Stdlib.List.length leftArgs == Stdlib.List.length rightArgs then
-          unifyAll s at site leftArgs rightArgs
+          unifyAllIn depth s at site leftArgs rightArgs
         else
           mismatch s at site expected actual
       else
-        unifyExpanded s at site expected actual
-    | (TCustom(_, _), _) -> unifyExpanded s at site expected actual
-    | (_, TCustom(_, _)) -> unifyExpanded s at site expected actual
+        unifyExpanded depth s at site expected actual
+    | (TCustom(_, _), _) -> unifyExpanded depth s at site expected actual
+    | (_, TCustom(_, _)) -> unifyExpanded depth s at site expected actual
     | _ -> mismatch s at site expected actual
 
 /// Require corresponding types to agree. The caller checks list lengths first;
 /// this helper stops when either list ends and does not report count mismatches.
 let unifyAll
+  (s: State)
+  (at: Stdlib.Option.Option<Int64>)
+  (site: Site)
+  (expected: List<Model.Ty>)
+  (actual: List<Model.Ty>)
+  : State =
+  unifyAllIn 0L s at site expected actual
+
+/// `unifyAll`, <param depth> levels into a comparison.
+let unifyAllIn
+  (depth: Int64)
   (s: State)
   (at: Stdlib.Option.Option<Int64>)
   (site: Site)
@@ -250,7 +270,7 @@ let unifyAll
     match actual with
     | [] -> s
     | a :: actualRest ->
-      unifyAll (unify s at site e a) at site expectedRest actualRest
+      unifyAllIn depth (unifyIn depth s at site e a) at site expectedRest actualRest
 
 /// Check whether the loaded declaration is an alias. Missing declarations return false.
 let isAlias (s: State) (name: LanguageTools.ProgramTypes.Hash) : Bool =
@@ -264,6 +284,7 @@ let isAlias (s: State) (name: LanguageTools.ProgramTypes.Hash) : Bool =
 /// Expand outer aliases and retry comparison if either type changes. Matching
 /// non-alias types were handled by unifyDifferent; if neither changes, they mismatch.
 let unifyExpanded
+  (depth: Int64)
   (s: State)
   (at: Stdlib.Option.Option<Int64>)
   (site: Site)
@@ -276,11 +297,16 @@ let unifyExpanded
   if expandedExpected == expected && expandedActual == actual then
     mismatch s at site expected actual
   else
-    unify s at site expandedExpected expandedActual
+    unifyIn depth s at site expandedExpected expandedActual
 
 /// Assign v to the other type while rejecting an assignment that would contain v
 /// within itself. Expand aliases before declaring such a cycle, since an alias
 /// can discard an argument or reduce to v itself.
+/// <param s> with <param v> assigned <param t>. Top-level rather than nested in `bindVar`, where it
+/// was a closure built on every binding.
+let bindTo (s: State) (v: Model.Var) (t: Model.Ty) : State =
+  { s with subst = Stdlib.Dict.setOverridingDuplicates s.subst v t }
+
 let bindVar
   (s: State)
   (at: Stdlib.Option.Option<Int64>)
@@ -293,9 +319,6 @@ let bindVar
     match expected with
     | TVar e -> if e == v then actual else expected
     | _ -> expected
-
-  let bindTo (t: Model.Ty) : State =
-    { s with subst = Stdlib.Dict.setOverridingDuplicates s.subst v t }
 
   if mayContainVars other && Types.occurs s.subst v other then
     // For Identity<'a> = 'a, t = Identity<t> reduces to t = t and needs no assignment.
@@ -316,14 +339,14 @@ let bindVar
               (some actual)
               (Context.At site))
       else
-        bindTo expanded
+        bindTo s v expanded
     | Error problem ->
       // Failed expansion does not prove an infinite type. Report its problem
       // and make this variable unavailable to dependent checks.
-      let s = bindTo Model.Ty.TError
+      let s = bindTo s v Model.Ty.TError
       addFinding s problem
   else
-    bindTo other
+    bindTo s v other
 
 /// Skip the occurrence walk for types whose syntax cannot contain an inference
 /// variable, such as primitives or custom types with no supplied arguments.

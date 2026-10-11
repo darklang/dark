@@ -21,6 +21,10 @@
 ///   have computed; everything from it on runs exactly as it always did. So an effect happens in
 ///   its place in the order, and an error is raised by the element that raises it serially, with
 ///   the frames it raises under serially.
+///
+///   A chunk's failure is therefore a signal to this module, and nothing in the chunk may turn
+///   it into a value: a builtin that catches its callee's failure re-raises under `spreadChild`
+///   (`atRestCheckGuarded`, `applicableTryApply`).
 /// - **Nothing spreads while somebody is watching.** A recorded or viewed run keeps every pass of
 ///   every loop in its own frame tree, as before.
 /// - **A chunk does not spread again.** A map inside a spread map runs serially in its chunk, so
@@ -70,19 +74,30 @@ let mutable spreads = 0L
 /// How many spreads fell back to running serially from some chunk on.
 let mutable fallbacks = 0L
 
+/// Which callable a spread fell back from: a lambda by its expression, a named fn by its name.
+[<Struct>]
+type CallableKey =
+  | Lambda of exprId : int64
+  | Named of name : FQFnName.FQFnName
+
 /// Callables a spread has fallen back from once. Not tried again in this process: a body that
 /// reached an effect will very likely reach it again, and a spread that falls back has paid for
 /// its chunks and gained nothing.
+///
+/// Keyed by the name itself rather than by a string of it. `string` on an `FQFnName` has no
+/// override to call, so F# prints the union through reflection, and `eligible` asks on every
+/// list op over a named fn: that one `string` was most of the reflection in a whole-tree
+/// `dark typecheck`.
 let private fellBack =
-  System.Collections.Concurrent.ConcurrentDictionary<struct (bool * int64 * string), byte>()
+  System.Collections.Concurrent.ConcurrentDictionary<CallableKey, byte>()
 
 /// For tests: forget which callables have fallen back.
 let forgetFallbacks () = fellBack.Clear()
 
-let private keyOf (app : Applicable) : struct (bool * int64 * string) =
+let private keyOf (app : Applicable) : CallableKey =
   match app with
-  | AppLambda l -> struct (true, int64 l.exprId, null)
-  | AppNamedFn n -> struct (false, 0L, string n.name)
+  | AppLambda l -> CallableKey.Lambda(int64 l.exprId)
+  | AppNamedFn n -> CallableKey.Named n.name
 
 /// Whether a list op over `app` may spread at all, under this state. Cheap: called once per list
 /// op with more than one element.
@@ -377,7 +392,11 @@ let rec private ofApplicable
             | false, _ -> Ply Purity.Unknown
         // What it closed over and what it was partly applied to are concrete by now, so a captured
         // callback is judged by what it IS, which no reading of the source could know.
-        let! closed = ofValues state depth (lambda.closedRegisters |> List.map snd)
+        let! closed =
+          ofValues
+            state
+            depth
+            (lambda.closedRegisters |> Captures.toList |> List.map snd)
         let! args = ofValues state depth lambda.argsSoFar
         return both own (both closed args)
     }

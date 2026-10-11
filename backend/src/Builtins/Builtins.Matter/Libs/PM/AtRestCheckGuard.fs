@@ -69,12 +69,19 @@ let fns : List<BuiltInFn> =
                 ->
                 // Nesting deep enough to exhaust the native stack.
                 return failureResult typeArgs (checkFailure "TooDeep" [])
+              // A spread chunk's failure belongs to the spreader (`Spread`). Turning it into a
+              // verdict here left 4,701 items incomplete on four cores ("`pmGetFn` has effects").
+              | Error(rte, _) when exeState.spreadChild ->
+                return raiseRTE vm.threadID rte
               | Error(rte, _) ->
                 let! rendered = Exe.runtimeErrorToString exeState rte
                 match rendered with
                 | Ok(DString message) -> return failureWithMessage message
                 | _ -> return failureWithMessage $"{rte}"
-            with ex ->
+            // In a chunk it falls through, and running out of memory is caught where the
+            // chunk's process fails (`Scheduler.Fail`).
+            with ex when not exeState.spreadChild ->
+              Exe.exitIfOutOfMemory ex
               return failureWithMessage ex.Message
           }
         | _ -> incorrectArgs ())

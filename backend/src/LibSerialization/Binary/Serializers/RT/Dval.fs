@@ -86,12 +86,14 @@ and writeApplicableImpl (w : BinaryWriter) (app : Applicable) =
 
 and writeApplicableLambda (w : BinaryWriter) (lambda : ApplicableLambda) =
   w.Write lambda.exprId
+  // Written as the list it used to be, so the bytes are unchanged; pinned by the
+  // "a closure's captured values keep their wire format" test.
   List.write
     w
     (fun w ((reg : int), dval) ->
       w.Write reg
       writeDval w dval)
-    lambda.closedRegisters
+    (Captures.toList lambda.closedRegisters)
   writeTypeSymbolTable w lambda.typeSymbolTable
   List.write w writeDval lambda.argsSoFar
 
@@ -312,7 +314,7 @@ and readApplicableLambda (version : uint32) (r : BinaryReader) : ApplicableLambd
   let typeSymbolTable = readTypeSymbolTable r
   let argsSoFar = List.read r (readDval version)
   { exprId = exprId
-    closedRegisters = closedRegisters
+    closedRegisters = Captures.ofList closedRegisters
     typeSymbolTable = typeSymbolTable
     access =
       LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.denyAll

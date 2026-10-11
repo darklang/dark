@@ -771,6 +771,59 @@ let rec private checkPkgParamsSync
       | ValueNone -> struct (i, ps, args, tst)
 
 
+/// The values in <param regs>, in order. A top-level function rather than `List.map` with a
+/// lambda, which allocates a closure over the register file on every enum construction.
+let rec private valuesOfRegisters
+  (registers : Dval array)
+  (regs : List<Register>)
+  : List<Dval> =
+  match regs with
+  | [] -> []
+  | reg :: rest -> registers[reg] :: valuesOfRegisters registers rest
+
+
+/// Each name paired with the value in its register, in order, without a closure over the
+/// register file (see `closedOver`).
+let rec private namedValuesOfRegisters
+  (registers : Dval array)
+  (fields : List<string * Register>)
+  : List<string * Dval> =
+  match fields with
+  | [] -> []
+  | (name, reg) :: rest ->
+    (name, registers[reg]) :: namedValuesOfRegisters registers rest
+
+
+/// What a lambda closes over: each child register paired with the value now in its parent
+/// register. Filled in place rather than built with `List.map` and a lambda, which allocated a
+/// closure over the register file, and a pair and a list cell per capture, on every lambda the
+/// program creates.
+let rec private fillCaptured
+  (registers : Dval array)
+  (captured : (struct (Register * Dval))[])
+  (i : int)
+  (regs : List<Register * Register>)
+  : unit =
+  match regs with
+  | [] -> ()
+  | (parentReg, childReg) :: rest ->
+    captured[i] <- struct (childReg, registers[parentReg])
+    fillCaptured registers captured (i + 1) rest
+
+let private closedOver
+  (registers : Dval array)
+  (regs : List<Register * Register>)
+  : (struct (Register * Dval))[] =
+  match regs with
+  | [] -> Array.empty
+  | _ ->
+    // A top-level helper rather than a local `rec`: a local one closes over these two and is
+    // itself an allocation per lambda.
+    let captured = Array.zeroCreate (List.length regs)
+    fillCaptured registers captured 0 regs
+    captured
+
+
 let inline private allocNow (vm : VMState) : int64 =
   if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
@@ -791,15 +844,13 @@ let rec private fillRegisters
     fillRegisters registers (i + 1) rest
 
 
-let rec private assignRegisters
+let private assignRegisters
   (r : Dval array)
-  (assignments : List<Register * Dval>)
+  (assignments : (struct (Register * Dval))[])
   : unit =
-  match assignments with
-  | [] -> ()
-  | (reg, value) :: rest ->
+  for i in 0 .. assignments.Length - 1 do
+    let struct (reg, value) = assignments[i]
     r[reg] <- value
-    assignRegisters r rest
 
 /// Bind a lambda's parameters to its arguments, in lockstep.
 ///
@@ -1520,6 +1571,10 @@ let private tryFastOp
         match ArgSeq.uncons rest with
         | ValueSome(struct (DList(vt2, l2), tail)) when ArgSeq.isEmpty tail ->
           FastOps.evalList tag vt1 l1 vt2 l2
+        | ValueSome(struct (value, tail)) when
+          ArgSeq.isEmpty tail && tag = FastOps.listPush
+          ->
+          FastOps.evalListPush vt1 l1 value
         | _ -> ValueNone
       | ValueSome(struct (DDict(kt, vt, o), rest)) ->
         match ArgSeq.uncons rest with
@@ -1570,9 +1625,13 @@ let private tryFastOpOn
       | DList(vt1, l1) ->
         match registers[secondReg] with
         | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
-        // `member` takes a list and a bare value, so it is the one entry whose second operand is
-        // not constrained by the first's shape.
-        | other -> FastOps.evalListMember tag l1 other
+        // `member` and `push` take a list and a bare value, so they are the entries whose second
+        // operand is not constrained by the first's shape.
+        | other ->
+          if tag = FastOps.listPush then
+            FastOps.evalListPush vt1 l1 other
+          else
+            FastOps.evalListMember tag l1 other
       | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]
       | _ -> ValueNone
 
@@ -3802,6 +3861,13 @@ let rec private toVTsSync
     | ValueNone -> ValueNone
 
 
+/// Field-less enum values already built, by type name and case, shared because they cannot differ:
+/// values are immutable and type names are content hashes. Only a construction that succeeded is
+/// kept, so the checks it made stand for every later use.
+let private fieldlessEnums =
+  System.Collections.Concurrent.ConcurrentDictionary<struct (FQTypeName.FQTypeName *
+  string), Dval>()
+
 /// Build a record, an enum or a record update without entering a computation expression.
 ///
 /// These three opcodes are async only because their builders can need the type store. That store is
@@ -3813,6 +3879,7 @@ let rec private toVTsSync
 /// properly. That does mean the builder runs twice on a miss: the discarded `Ply` finishes on its own
 /// and its result is dropped. These builders only read the type store and construct a value, so a
 /// repeat is wasted work rather than a second effect, and a miss happens about once per type.
+
 let private tryBuildSync
   (exeState : ExecutionState)
   (vm : VMState)
@@ -3847,36 +3914,53 @@ let private tryBuildSync
       | ValueNone -> false
 
   | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
-    match toVTsSync exeState.types tst [] typeArgs with
-    | ValueNone -> false
-    | ValueSome typeArgs ->
-      let fields = fields |> List.map (fun valueReg -> registers[valueReg])
-
-      match
-        Ply.trySync (
-          TypeChecker.DvalCreator.enum
-            exeState.types
-            vm.threadID
-            tst
-            typeName
-            typeArgs
-            caseName
-            fields
-        )
-      with
-      | ValueSome newEnum ->
-        registers[enumReg] <- newEnum
-        true
+    // A case with no fields and no type arguments is the same value every time it is built, so the
+    // first one built is handed out from then on. `None`, a `Result` role, a field-less variant of
+    // any enum: each was a fresh object per construction.
+    let mutable kept = Unchecked.defaultof<Dval>
+    if
+      List.isEmpty fields
+      && List.isEmpty typeArgs
+      && fieldlessEnums.TryGetValue(struct (typeName, caseName), &kept)
+    then
+      registers[enumReg] <- kept
+      true
+    else
+      match toVTsSync exeState.types tst [] typeArgs with
       | ValueNone -> false
+      | ValueSome typeArgs ->
+        let fields = valuesOfRegisters registers fields
+
+        match
+          Ply.trySync (
+            TypeChecker.DvalCreator.enum
+              exeState.types
+              vm.threadID
+              tst
+              typeName
+              typeArgs
+              caseName
+              fields
+          )
+        with
+        | ValueSome newEnum ->
+          match newEnum with
+          // With no fields, the frame's type symbol table is folded in and never consulted, so the
+          // result depends only on the type and the case, generic ones like `None` included.
+          | DEnum(_, _, _, _, []) when List.isEmpty fields ->
+            fieldlessEnums.TryAdd(struct (typeName, caseName), newEnum)
+            |> ignore<bool>
+          | _ -> ()
+          registers[enumReg] <- newEnum
+          true
+        | ValueNone -> false
 
   | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
     // A non-record here is a runtime error, which the async path raises. Declining keeps the error
     // construction in one place rather than duplicating it.
     match registers[originalRecordReg] with
     | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
-      let fieldUpdates =
-        fieldUpdates
-        |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
+      let fieldUpdates = namedValuesOfRegisters registers fieldUpdates
 
       match
         Ply.trySync (
@@ -4492,10 +4576,7 @@ let private runSyncInstructions
 
           registers[lambdaReg] <-
             { exprId = impl.exprId
-              closedRegisters =
-                impl.registersToCloseOver
-                |> List.map (fun (parentReg, childReg) ->
-                  childReg, registers[parentReg])
+              closedRegisters = closedOver registers impl.registersToCloseOver
               typeSymbolTable = currentFrame.typeSymbolTable
               access = currentFrame.access
               argsSoFar = [] }
@@ -4963,9 +5044,7 @@ let private runRareOpcode
 
       match originalRecord with
       | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
-        let fieldUpdates =
-          fieldUpdates
-          |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
+        let fieldUpdates = namedValuesOfRegisters registers fieldUpdates
 
         let! updatedRecord =
           Ply.toTask (
@@ -4988,7 +5067,7 @@ let private runRareOpcode
         |> RTE.Record
         |> raiseRTE vm.threadID
     | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
-      let fields = fields |> List.map (fun valueReg -> registers[valueReg])
+      let fields = valuesOfRegisters registers fields
 
       let tst = currentFrame.typeSymbolTable
 

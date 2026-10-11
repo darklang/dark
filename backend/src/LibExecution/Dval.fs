@@ -60,13 +60,41 @@ let stringDictFromMap (valueType : KnownType) (entries : Map<string, Dval>) : Dv
   )
 
 
-let optionType () = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.option ())
+/// A type name built from one resolved hash. `PackageRefs` hands back the same string object until
+/// the package generation changes, so comparing the string by reference says whether the name built
+/// last time still stands.
+[<AllowNullLiteral>]
+type private TypeNameMemo(hash : string, name : FQTypeName.FQTypeName) =
+  member _.Hash = hash
+  member _.Name = name
+
+let private memoName (current : TypeNameMemo) (h : string) : TypeNameMemo =
+  if not (isNull current) && System.Object.ReferenceEquals(current.Hash, h) then
+    current
+  else
+    TypeNameMemo(h, FQTypeName.fqPackage h)
+
+/// A `typeName ()` for the package type <param hashOf> names, built once per resolved hash rather
+/// than on every call. Converting a value to its Dark form asks for a type name twice per record
+/// and enum it builds, and each asking allocated the name afresh.
+let memoTypeName (hashOf : unit -> string) : unit -> FQTypeName.FQTypeName =
+  let slot = ref (null : TypeNameMemo)
+  fun () ->
+    let m = memoName slot.Value (hashOf ())
+    slot.Value <- m
+    m.Name
+
+/// `Option`'s type name. Every Option a builtin returns asks for it.
+let optionType : unit -> FQTypeName.FQTypeName =
+  memoTypeName PackageRefs.Type.Stdlib.option
 
 let optionSome (innerType : KnownType) (dv : Dval) : Dval =
-  DEnum(optionType (), optionType (), [ VT.known innerType ], "Some", [ dv ])
+  let name = optionType ()
+  DEnum(name, name, [ VT.known innerType ], "Some", [ dv ])
 
 let optionNone (innerType : KnownType) : Dval =
-  DEnum(optionType (), optionType (), [ VT.known innerType ], "None", [])
+  let name = optionType ()
+  DEnum(name, name, [ VT.known innerType ], "None", [])
 
 let option (innerType : KnownType) (dv : Option<Dval>) : Dval =
   match dv with
@@ -75,7 +103,9 @@ let option (innerType : KnownType) (dv : Option<Dval>) : Dval =
 
 
 
-let resultType () = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.result ())
+/// `Result`'s type name, kept the same way as `optionType`'s.
+let resultType : unit -> FQTypeName.FQTypeName =
+  memoTypeName PackageRefs.Type.Stdlib.result
 
 
 let resultOk (okType : KnownType) (errorType : KnownType) (dvOk : Dval) : Dval =
@@ -130,7 +160,8 @@ let rec mapCallables
         lambda
           { l with
               closedRegisters =
-                l.closedRegisters |> List.map (fun (reg, value) -> reg, walk value)
+                l.closedRegisters
+                |> Array.map (fun (struct (reg, value)) -> struct (reg, walk value))
               argsSoFar = List.map walk l.argsSoFar }
       )
     )

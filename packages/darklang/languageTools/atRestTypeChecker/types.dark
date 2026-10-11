@@ -451,11 +451,15 @@ let fromReferencesInto
   (found: List<Model.Finding>)
   (typs: List<LanguageTools.ProgramTypes.TypeReference>)
   : (List<Model.Ty> * List<Model.Finding>) =
-  let (reversed, found) =
-    Stdlib.List.fold typs ([], found) (fun (converted, found) typ ->
-      let (t, found) = fromReferenceInto mapping at found typ
-      (Stdlib.List.push converted t, found))
-  (Stdlib.List.reverse reversed, found)
+  // Nearly every call site has no explicit type arguments, and converting none needs no fold.
+  if Stdlib.List.isEmpty typs then
+    ([], found)
+  else
+    let (reversed, found) =
+      Stdlib.List.fold typs ([], found) (fun (converted, found) typ ->
+        let (t, found) = fromReferenceInto mapping at found typ
+        (Stdlib.List.push converted t, found))
+    (Stdlib.List.reverse reversed, found)
 
 /// Convert several type references and return their types with any findings,
 /// starting with an empty findings list.
@@ -488,13 +492,17 @@ let bindParams
   (names: List<String>)
   (args: List<Model.Ty>)
   : Stdlib.Option.Option<Dict<String, Model.Ty>> =
-  match Stdlib.List.zip names args with
-  | Some pairs ->
-    Stdlib.Option.Option.Some(
-      Stdlib.List.fold pairs Dict {} (fun mapping (name, t) ->
-        Stdlib.Dict.setOverridingDuplicates mapping name t)
-    )
-  | None -> Stdlib.Option.Option.None
+  // A declaration with no parameters given no arguments, the common case, needs no zip.
+  if Stdlib.List.isEmpty names && Stdlib.List.isEmpty args then
+    Stdlib.Option.Option.Some(Dict {})
+  else
+    match Stdlib.List.zip names args with
+    | Some pairs ->
+      Stdlib.Option.Option.Some(
+        Stdlib.List.fold pairs Dict {} (fun mapping (name, t) ->
+          Stdlib.Dict.setOverridingDuplicates mapping name t)
+      )
+    | None -> Stdlib.Option.Option.None
 
 /// Convert a declared field type using the type arguments supplied for its owner.
 /// Return the converted type and any findings, or TError with a count mismatch
@@ -570,6 +578,15 @@ let expand
 /// Expand outer aliases while carrying prior findings and the active alias path.
 /// seen detects recursive alias definitions. Records and enums keep their identity;
 /// check their argument counts without expanding their fields.
+/// An expansion that cannot go on: the type becomes TError and <param problem> joins <param found>.
+/// Top-level rather than nested in `expandFrom`, where it was a closure built on every expansion and
+/// used only on the failing ones.
+let blocked
+  (found: List<Model.Finding>)
+  (problem: Model.Finding)
+  : (Model.Ty * List<Model.Finding>) =
+  (Model.Ty.TError, Stdlib.List.push found problem)
+
 let expandFrom
   (env: Model.Environment)
   (subst: Dict<Model.Var, Model.Ty>)
@@ -579,23 +596,21 @@ let expandFrom
   (ty: Model.Ty)
   : (Model.Ty * List<Model.Finding>) =
   let ty = walk subst ty
-  let blocked (problem: Model.Finding) : (Model.Ty * List<Model.Finding>) =
-    (Model.Ty.TError, Stdlib.List.push found problem)
 
   match ty with
   | TCustom(name, args) ->
     match declaration env name with
     | None ->
-      blocked (
+      blocked found (
         warning IssueCode.MissingTypeDeclaration at (Context.TypeUnavailable name)
       )
     | Some decl ->
       match decl.definition with
       | Alias target ->
         if Stdlib.List.length decl.typeParams != Stdlib.List.length args then
-          blocked (arityMismatch at ty name decl args)
+          blocked found (arityMismatch at ty name decl args)
         else if Stdlib.List.``member`` seen name then
-          blocked (
+          blocked found (
             warning IssueCode.AliasCycle at Context.AliasCycleReferenced
           )
         else
@@ -604,10 +619,10 @@ let expandFrom
           // mistaking ordinary nesting for a recursive definition. Retain the
           // existing path: Loop = Forward<Loop> must still be detected as a cycle.
           match expandDeepAll env subst at seen args [] with
-          | Error problem -> blocked problem
+          | Error problem -> blocked found problem
           | Ok args ->
             match bindParams decl.typeParams args with
-            | None -> blocked (arityMismatch at ty name decl args)
+            | None -> blocked found (arityMismatch at ty name decl args)
             | Some mapping ->
               let (target, found) = fromReferenceInto mapping at found target
               expandFrom env subst at (Stdlib.List.push seen name) found target
@@ -615,12 +630,12 @@ let expandFrom
         if Stdlib.List.length decl.typeParams == Stdlib.List.length args then
           (ty, found)
         else
-          blocked (arityMismatch at ty name decl args)
+          blocked found (arityMismatch at ty name decl args)
       | Enum _ ->
         if Stdlib.List.length decl.typeParams == Stdlib.List.length args then
           (ty, found)
         else
-          blocked (arityMismatch at ty name decl args)
+          blocked found (arityMismatch at ty name decl args)
   | _ -> (ty, found)
 
 /// Report a custom type used with the wrong number of arguments, including its
@@ -772,14 +787,22 @@ let argsThatReachValues
   (used: List<String>)
   (args: List<'a>)
   : List<'a> =
-  match Stdlib.List.zip typeParams args with
-  | Some pairs ->
-    pairs
-    |> Stdlib.List.filter (fun (p, _) -> Stdlib.List.``member`` used p)
-    |> Stdlib.List.map (fun (_, arg) -> arg)
-  // If the counts differ, retain all arguments so malformed input cannot hide
-  // an invalid key type. Argument-count validation reports the mismatch separately.
-  | None -> args
+  // The two answers nearly every call has, decided before zipping: no arguments selects none,
+  // and neither does a declaration that requires none of its parameters, when the counts agree.
+  // Zipping, filtering and mapping for those was most of what validating a type reference cost.
+  if Stdlib.List.isEmpty args then
+    []
+  else if Stdlib.List.isEmpty used && Stdlib.List.length typeParams == Stdlib.List.length args then
+    []
+  else
+    match Stdlib.List.zip typeParams args with
+    | Some pairs ->
+      pairs
+      |> Stdlib.List.filter (fun (p, _) -> Stdlib.List.``member`` used p)
+      |> Stdlib.List.map (fun (_, arg) -> arg)
+    // If the counts differ, retain all arguments so malformed input cannot hide
+    // an invalid key type. Argument-count validation reports the mismatch separately.
+    | None -> args
 
 /// Collect type-variable names that can describe values within this type.
 /// Use cached summaries for custom types to skip phantom arguments. If a custom
